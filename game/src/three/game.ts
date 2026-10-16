@@ -96,7 +96,7 @@ import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { HostileSighting } from "./hostile-sighting";
-import { Travel, landInLanguage, type Playback, type LiveVision } from "./travel";
+import { Travel, type Playback, type LiveVision } from "./travel";
 import { PlayClock } from "./play-clock";
 
 
@@ -835,8 +835,8 @@ export class Game {
     const { world: played, playback, towed } = this.travel.beginPlayback(this.world, prepared, now, elapsed, this.frames);
     const world = relanguageQuest(played, QUESTS);
     if (this.saves.changeMapIfMoved(world)) return;
-    this.world = landInLanguage(world);
-    this.saves.logWorld(this.world);
+    this.world = world;
+    this.saves.logWorld(world);
     this.updateLoops();
     this.anim = playback;
     this.turnStart = playback.before;

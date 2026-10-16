@@ -14,7 +14,7 @@ import { mergePerf } from "../perf";
 import { reportError } from "./crash";
 import { inCombat } from "../sim/combat";
 import { playerVehicle } from "../sim/damage";
-import { currentQuestLanguage, QUESTS, relanguageQuest } from "../sim/quests";
+import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
@@ -90,10 +90,6 @@ export function addRopeFrames(before: World, after: World, frames: TurnResult["f
 
 function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): WheelFrame[] {
   return shown[v.id]?.wheels ?? restWheels(v.chassisId);
-}
-
-export function landInLanguage(world: World): World {
-  return relanguageQuest(world, QUESTS);
 }
 
 export function canTravel(world: World): boolean {
