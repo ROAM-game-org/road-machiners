@@ -1,5 +1,6 @@
 
 import type { Weighted } from './npcs';
+import { scalePoint } from './region';
 import type { Vec } from '../sim/vec';
 
 export type LootRange = [number, number];
@@ -179,7 +180,7 @@ export const WAGON_SEVEN = 'story-wagon-seven';
 export const STORY_WRECKS: StoryWreck[] = [
   {
     id: WAGON_SEVEN,
-    pos: { x: 171, y: 381 },
+    pos: scalePoint({ x: 34.2, y: 76.2 }),
     r: 0.8,
     chassisId: 'wagon',
     yaw: 2.2,

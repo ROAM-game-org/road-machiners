@@ -70,11 +70,17 @@ export type DeckSpec = {
 
 export type DeckLook = 'ship_flap' | 'ship_wing_deck';
 
+const CANYON_BRIDGE_CENTER = scalePoint({ x: 99.7, y: 73.3 });
+
+function offsetFrom(origin: Vec, dx: number, dy: number): Vec {
+  return { x: origin.x + dx, y: origin.y + dy };
+}
+
 const CANYON_BRIDGE: DeckSpec = {
   id: "canyon-bridge",
   line: [
-    { at: scalePoint({ x: 97.9, y: 75.1 }), rise: 0 },
-    { at: scalePoint({ x: 101.5, y: 71.5 }), rise: 0 },
+    { at: offsetFrom(CANYON_BRIDGE_CENTER, -1.8 * 5, 1.8 * 5), rise: 0 },
+    { at: offsetFrom(CANYON_BRIDGE_CENTER, 1.8 * 5, -1.8 * 5), rise: 0 },
   ],
   width: 8,
   cut: { abutment: 1, ramp: 1.5 },
@@ -675,8 +681,8 @@ export const MAPGEN = {
     { name: 'bridge', center: { x: (CANYON_BRIDGE.line[0].at.x + CANYON_BRIDGE.line[1].at.x) / 2, y: (CANYON_BRIDGE.line[0].at.y + CANYON_BRIDGE.line[1].at.y) / 2 }, side: 60 },
     { name: 'wing', center: BROKEN_WING_POINT(0, -2), side: 120 },
     { name: 'dry-river', center: scalePoint({ x: 48, y: 87 }), side: 120 },
-    { name: 'canyon', center: { x: 470, y: 240 }, side: 100 },
-    { name: 'sand', center: { x: 390, y: 350 }, side: 100 },
+    { name: 'canyon', center: scalePoint({ x: 94, y: 48 }), side: 100 },
+    { name: 'sand', center: scalePoint({ x: 78, y: 70 }), side: 100 },
   ] as MapSpot[],
 };
 
