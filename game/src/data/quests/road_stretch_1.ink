@@ -5,16 +5,16 @@ INCLUDE world.ink
 # checkpoint: start
 The first fort north is a wall, a gate and a yard full of trucks waiting to be counted. # place: The first outpost
 A truck came for the hauler out of the badlands this morning, and it never got back up. You went at it straight, and when it stopped moving you sat with your hands on the wheel and waited to feel something. What came was closer to disappointment than to anything else. You don't look at that too long.
-The fort's clerk pays Ala the stretch's fee across his counter, and she counts your share into your hand out loud: {stretch_pay(1)} M's, coin by coin, as if someone might argue. Every sum comes out level. # page
+The fort's clerk pays Ala the stretch's fee across his counter, and she counts your share into your hand out loud: {stretch_pay(1)} M's, one disc at a time, as if someone might argue. Every sum comes out level. # page
 -> tougher
 
 = tougher
 # checkpoint: start.tougher
-{ geezer_pitch == "link": A linked driver, and you put your bumper into a gun truck like it owed you money. # speaker: Ala }
+{ geezer_pitch == "link": A linked driver, and you put your bumper into a gun truck like it owed you something. # speaker: Ala }
 { geezer_pitch == "bullets": Six holes in you, and you still drive straight at the muzzle. # speaker: Ala }
 { geezer_pitch == "none": You drove straight at a gun. # speaker: Ala }
 You're tougher than you look. # speaker: Ala
-She closes your fingers over the last coin and does not look away. # page
+She closes your fingers over the last M and does not look away. # page
 You saved my life. So I'm asking once. The ring scar on your neck. What happened to your link? # speaker: Ala
 -> ask
 
@@ -39,7 +39,7 @@ A link seat is fitted to the man who sits in it. The wrong man in one burns, and
 
 = dodged
 Old, yes. # speaker: Ala
-She turns the word over like a coin she isn't sure about.
+She turns the word over like an M she isn't sure about.
 I said once. I meant once. # speaker: Ala
 -> close
 

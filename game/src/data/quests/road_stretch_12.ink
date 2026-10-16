@@ -7,9 +7,9 @@ VAR stay_said = "none"
 # checkpoint: start
 The twelfth fort keeps a lamp burning on every wall all night. # place: The twelfth outpost
 This stretch nearly killed you both. The hauler's left side is stripped to the frame, and your scout is running on one good tire. You didn't expect to live through it. You never do.
-Ala counts the stretch's pay into your hand out loud, {stretch_pay(12)} M's, coin by coin, and her hands are not steady. Then she brings the fort's relay slips to where you sit on the scout's bumper. # page
+Ala counts the stretch's pay into your hand out loud, {stretch_pay(12)} M's, one disc at a time, and her hands are not steady. Then she brings the fort's relay slips to where you sit on the scout's bumper. # page
 The first says Hedda Vell has called off the reward on the truck. Ala reads on. The hunters were promised diesel and nobody has told them to stop, and the bar talk says the trailer carries Blackwell's secret. They will keep coming. # page
-The second says the well crews, who were shut in Blackwell's yard, broke out and reached the southern forts, and the Keepers passed them through toll-free. Two hundred people in old trucks, families and all, are on the open road north, a day behind us, and not a gun among them. # page
+The second says the well crews, who were shut in Blackwell's yard, broke out and reached the southern forts, and the Keepers passed them through toll-free. Two hundred people in old trucks, families and all, left the southern forts at dawn and are on the open road north, a day behind us, and not a gun among them. # page
 The hunters are all around us. The people are a day behind us, and they have no gun. # speaker: Ala
 She folds the slips and waits. # page
 -> fire
@@ -19,7 +19,7 @@ She folds the slips and waits. # page
 You don't answer. You look at the lamp on the wall, and the lamp makes you think of fire, and then of other fire. # page
 A tank line, years ago: a row of dead army trucks left in the dust where the army left them. Every truck still had its link seat, fitted to the man who drove it and died in it. Plug into a seat that wasn't yours, and it burned you. You took the first one anyway, because you were Magnus, and Magnus took what he wanted. # page
 The seat took hold of your neck and began to cook the socket out of you. You heard yourself scream.
-The boys followed. They had not heard you scream yet, and by the time they did, each was already strapped into a seat that was not his either. In the next truck, close enough to hear through both hulls, sat the youngest, barely twenty, burning, one of your own. He was screaming too, and then he was saying a name. # page
+Your drivers followed you into the other seats, one truck after another, because Magnus had gone first and Magnus was never wrong. By the time you screamed, each was already plugged into a seat that was not his. In the next truck, close enough to hear through both hulls, sat the youngest, barely twenty, burning, one of your own. He was screaming too, and then he was saying a name. # page
 Magnus! The plug! Magnus! # speaker: Burnt Driver
 You tore the plug out of your own seat with both hands. That left the ring in your neck. You didn't go back for the boy. You walked out into the badlands, and you have been walking away ever since. # page
 -> ask
@@ -71,12 +71,12 @@ So. Are you riding on? # speaker: Ala
 -> say
 
 = say
-+ [I'm staying.]
++ [I'm riding on.]
   ~ stay_said = "plain"
   You say it flat, the way you say everything. She nods once.
   I thought so. # speaker: Ala
   -> close
-+ [I'm staying for the people behind us.]
++ [I'm riding on, for the people behind us.]
   ~ stay_said = "people"
   You can't say more than that, and you don't try. Her hands are steadier than they were.
   Then we're both fools. # speaker: Ala
@@ -88,7 +88,7 @@ So. Are you riding on? # speaker: Ala
   -> close
 + [Say you ought to leave.]
   ~ stay_said = "left"
-  You tell her you ought to go. It is the nearest you can come to the truth that is not the truth.
+  You tell her you ought to go. It is true. It just isn't the reason.
   Ought to. Not the same as will. # speaker: Ala
   -> close
 

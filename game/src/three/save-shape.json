@@ -2330,10 +2330,14 @@
    "road_hire": {
     "asked_north": "boolean",
     "asked_pay": "boolean",
-    "asked_who": "boolean"
+    "asked_trailer": "boolean",
+    "asked_who": "boolean",
+    "walked_out": "boolean"
    },
    "road_stretch_1": {},
-   "road_stretch_12": {},
+   "road_stretch_12": {
+    "stay_said": "string"
+   },
    "road_stretch_4": {
     "asked_hunters": "boolean",
     "asked_north": "boolean",
@@ -2341,7 +2345,8 @@
    },
    "road_stretch_8": {
     "asked_hunters": "boolean",
-    "asked_run": "boolean"
+    "asked_run": "boolean",
+    "grief_said": "string"
    },
    "wagon_bench": {
     "fee": "number",
@@ -2454,7 +2459,8 @@
     "start",
     "start.fire",
     "start.ask",
-    "start.stay"
+    "start.stay",
+    "start.close"
    ],
    "road_stretch_4": [
     "start",
@@ -2464,8 +2470,8 @@
    "road_stretch_8": [
     "start",
     "start.news",
+    "start.loss",
     "start.hub",
-    "start.why",
     "start.close"
    ],
    "wagon_bench": [
@@ -2735,7 +2741,9 @@
   "road_hire": {
    "revision": 1,
    "links": {
-    "reads": [],
+    "reads": [
+     "geezer_pitch"
+    ],
     "readsNotes": [],
     "writes": {
      "ala_hired": [
@@ -2771,7 +2779,10 @@
   "road_stretch_12": {
    "revision": 1,
    "links": {
-    "reads": [],
+    "reads": [
+     "ala_knows",
+     "ring_told"
+    ],
     "readsNotes": [],
     "writes": {
      "ala_knows": [
@@ -2805,9 +2816,7 @@
   "road_stretch_8": {
    "revision": 1,
    "links": {
-    "reads": [
-     "ring_told"
-    ],
+    "reads": [],
     "readsNotes": [],
     "writes": {
      "why_answer": [

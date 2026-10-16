@@ -11,8 +11,8 @@ VAR walked_out = false
 # checkpoint: start
 The bar of the last fort before the empty road smells of diesel and wet wool. # place: The southern outpost
 You sit with your back to the wall, which is how you've sat for thirty years. The <term=keepers>Keepers</term> who hold this fort write down every truck through the gate and every man through the bar door. You're in their book as a name and a night's rent, nothing more.
-Two weeks ago you drove a truck that is now a black patch on the road. You walked here, and the fort's yard sold you a scout, the smallest thing on four wheels, for nearly every coin you had left. # page
-At the next table, a woman counts brass coins out of a roll, each stamped with an M, the money of this road. She says every sum under her breath, flat and even, the way you'd read a gauge. Her coat has gone pale at the knees. A smear of red wax is still stuck to her cuff, and an hour ago she came down from the Commandant's tower with a clerk bowing her out. Nobody bows to hired drivers.
+Two weeks ago you drove a truck that is now a black patch on the road. You walked here, and the fort's yard sold you a scout, the smallest thing on four wheels, for nearly all the M's you had left. # page
+At the next table, a woman counts M's out of a roll, brass discs each stamped with an M. She says every sum under her breath, flat and even, the way you'd read a gauge. Her coat has gone pale at the knees. A smear of red wax is still stuck to her cuff, and an hour ago she came down from the Commandant's tower with a clerk bowing her out. Nobody bows to hired drivers.
 Tibor, the barman, has pulled up a chair across from her. He sells men the way other men sell spare axles.
 Rode with Magnus, they say, and the scars say so too. The <term=burnt_drivers>Burnt Drivers</term>, if you're old enough to remember. He takes the jobs nobody else will touch. # speaker: Tibor
 The woman looks out of the window instead of at you. Your scout sits on the pad under the lamp with one gun on its mount, small as a dog. Behind it the hauler fills the rest of the window, a mammoth eighteen-wheeler, and the seal on its trailer door is the same red as the wax on her cuff. # page
@@ -30,7 +30,7 @@ Tibor spreads his hands. Your move, he means. She wants a reason to hire you, an
 
 = link_scar
 You turn your collar down and tilt your head. A linked driver has a socket at the base of the skull. The cable from the seat plugs into it, and the truck answers like an arm. Around yours runs a ring of thick pale skin, where the flesh once cooked around the metal.
-When she bent over the coins you saw her own socket under her hair, small and clean. She looks at yours a good while. Her mouth tightens, and it isn't pity.
+When she bent over the M's you saw her own socket under her hair, small and clean. She looks at yours a good while. Her mouth tightens, and it isn't pity.
 Linked. Deeper than I am. # speaker: Ala
 She doesn't need you to open your shirt. The old holes show through the torn cloth at your ribs, and she counts them anyway. -> both
 
@@ -55,7 +55,7 @@ Fine. Ask what you want. I'll answer what I answer. # speaker: Ala
 
 = hub
 # checkpoint: start.hub
-Ala stacks her coins in front of her and waits. The bar goes on around you, loud and brown. # page
+Ala stacks her M's in front of her and waits. The bar goes on around you, loud and brown. # page
 -> menu
 
 = menu
@@ -63,7 +63,7 @@ Ala stacks her coins in front of her and waits. The bar goes on around you, loud
   ~ asked_pay = true
   I drive the hauler. You ride ahead and take what comes. I pay by the stretch, fort to fort: {stretch_pay(1)} M's for the first, and {stretch_pay(2) - stretch_pay(1)} more for each stretch after that. # speaker: Ala
   Fuel, repairs, guns, tires: they come out of that, for my rig and for yours. It covers both, if you're careful. You front the first stretch yourself, from what you have left. # speaker: Ala
-  She pushes three stacks across the table with one finger, to show you what the first three stretches pay: {stretch_pay(1)}, {stretch_pay(2)}, {stretch_pay(3)}. It is only a demonstration. The money is paid at the far gate.
+  She pushes three stacks across the table with one finger, to show you what the first three stretches pay: {stretch_pay(1)}, {stretch_pay(2)}, {stretch_pay(3)}. It is only a demonstration. The M's are paid at the far gate.
   -> menu
 + {not asked_trailer} [What's in the trailer?]
   ~ asked_trailer = true
@@ -83,9 +83,9 @@ Ala stacks her coins in front of her and waits. The bar goes on around you, loud
   -> menu
 + {asked_pay and not walked_out} [Hold out for more.]
   ~ walked_out = true
-  You tell her it isn't enough, and you stand up as if you meant it.
+  You tell her it isn't enough, and you stand up.
   Then go. # speaker: Ala
-  She doesn't look up. You get as far as the door. Outside it is raining, and the scout sits on the pad with everything you own in it, which is nothing. The yard sold it to you for the last of your coins. You have no truck, no pay and no other road. You stand there a while with the water running down your collar.
+  She doesn't look up. You get as far as the door. Outside it is raining, and the scout sits on the pad with everything you own in it, which is nothing. You can barely pay for the scout, you have no pay yet and you have no other road. You stand there a while with the water running down your collar.
   When you come back in, nobody has moved. Ala is still counting. Tibor is still smiling.
   I'd have thought less of you if you hadn't tried. The offer is the offer. Sit down. # speaker: Ala
   -> menu

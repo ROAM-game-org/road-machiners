@@ -28,7 +28,7 @@ Her voice is level. It stays level, which is worse. # page
 She folds the paper once more and puts it in her coat. She is waiting to see what you do with that.
 + [Tell her you're sorry.]
   ~ grief_said = "sorry"
-  You say it. She takes it the way she takes a coin, and checks it.
+  You say it. She takes it the way she takes an M, and checks it.
   Don't. Not yet. # speaker: Ala
   -> why
 + [Ask what she needs.]
