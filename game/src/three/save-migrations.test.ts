@@ -1617,3 +1617,34 @@ describe('save migration 76 to 77', () => {
     expect(MIGRATIONS[76](structuredClone(world))).toEqual(world);
   });
 });
+
+describe('save migration 77 to 78', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: unknown };
+  const withQuests = (quests: Partial<Quests>) => {
+    const world = structuredClone(FORMAT_2_61) as unknown as { player: { quests: Quests } };
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: object) => MIGRATIONS[77](structuredClone(world) as SavedJson) as unknown as { player: { quests: Quests } };
+
+  it('marks Hattie met for a save that was towed to Bowl', () => {
+    const next = stepped(withQuests({ world: { towed_to_bowl: true, intro_step: 'done' } }));
+    expect(next.player.quests.world).toEqual({ towed_to_bowl: true, intro_step: 'done', hattie_met: true });
+  });
+
+  it('marks Hattie met for a save with a saved talk of hers', () => {
+    const next = stepped(withQuests({ world: { intro_step: 'done' }, local: { bowl_hattie: { hattie_rumor: true } } }));
+    expect(next.player.quests.world.hattie_met).toBe(true);
+  });
+
+  it('leaves a save that never met her as it is', () => {
+    const before = withQuests({ world: { intro_step: 'drive' }, local: { bowl_hattie: {} } });
+    expect(stepped(before)).toEqual(before);
+  });
+
+  it('changes nothing else', () => {
+    const before = withQuests({ world: { towed_to_bowl: true } });
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});

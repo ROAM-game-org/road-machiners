@@ -1,5 +1,5 @@
 {
- "format": "2.77",
+ "format": "2.78",
  "shape": {
   "broken": [],
   "craters": [],
@@ -2171,6 +2171,7 @@
    "ambush_raider": "string",
    "depot_thief": "string",
    "first_knockout_seen": "boolean",
+   "hattie_met": "boolean",
    "intro_step": "string",
    "marr_regard": "string",
    "pipe_fate": "string",
@@ -2406,7 +2407,9 @@
    ],
    "intro_bowl": [
     "start",
-    "start.ask"
+    "start.ask",
+    "meet",
+    "again"
    ],
    "intro_road": [
     "start"
@@ -2567,7 +2570,9 @@
   "intro_bowl": {
    "revision": 1,
    "links": {
-    "reads": [],
+    "reads": [
+     "towed_to_bowl"
+    ],
     "readsNotes": [],
     "writes": {},
     "notes": [],

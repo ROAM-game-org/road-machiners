@@ -29,7 +29,7 @@ function parkAt(w: World, siteId: string): World {
   const me = playerVehicle(w);
   me.pos = { ...nearestPad(siteOf(siteId), me.pos) };
   me.speed = 0;
-  me.trail = [];
+  me.trail = [{ x: me.pos.x, y: me.pos.y, heading: me.heading }, { x: me.pos.x - 1, y: me.pos.y, heading: me.heading }];
   return w;
 }
 
@@ -92,7 +92,7 @@ describe('Hattie at her well for a driver who arrives on their own', () => {
     const rolling = parkAt(introWorld(), 'bowl');
     const me = playerVehicle(rolling);
     me.speed = 5;
-    me.trail = [{ ...me.pos }, { x: me.pos.x - 1, y: me.pos.y }];
+    me.trail = [{ x: me.pos.x, y: me.pos.y, heading: me.heading }, { x: me.pos.x - 1, y: me.pos.y, heading: me.heading }];
     expect(wait(rolling).player.quests.session?.quest).not.toBe('intro_bowl');
     expect(wait(parkAt(introWorld(), 'nose')).player.quests.session?.quest).not.toBe('intro_bowl');
     const towed = parkAt(introWorld(), 'bowl');
