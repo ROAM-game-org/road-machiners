@@ -29,6 +29,7 @@ import { stowParcel, stowPart } from "../sim/inventory";
 import { beginSearch } from "../sim/search";
 import { dumpOnPile, emptyHidden, isRoadWreck, oldSpotPicks, oldStockId } from "../sim/salvage";
 import { TEST_MAP } from "../test/map";
+import { surveySites } from "../sim/survey";
 import { defaultSetup } from "../sim/settings";
 import { isLootSpot, territoryAt } from "../sim/territory";
 import { propReach } from "../sim/mapgen";
@@ -686,5 +687,37 @@ describe("Fury Road readouts", () => {
     w.player.fuel = 0;
 
     expect(rescue(w)).toEqual({ kind: "stranded", beacon: false, reason: "Out of fuel.", canEnd: true });
+  });
+});
+
+describe('survey interaction', () => {
+  function atSurveySite() {
+    const [site] = surveySites(TEST_MAP);
+    const w = emptyWorld({ x: site.pos.x + 1, y: site.pos.y });
+    w.player.contracts = [{ id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: true, done: false }], reward: 3000, deadline: 900, window: 900, tier: 1 }];
+    return w;
+  }
+
+  it('offers no Survey by a place not found yet', () => {
+    const w = atSurveySite();
+    const contract = w.player.contracts[0];
+    if (contract.kind === 'survey') contract.points[0].found = false;
+    expect(actions(w)).toEqual([]);
+  });
+
+  it('offers Survey the area when stopped in reach of an open site, and not once it is done', () => {
+    const w = atSurveySite();
+    expect(actions(w)).toMatchObject([{ label: 'Survey the area', ready: true }]);
+    w.vehicles[0].speed = RULES.parkedSpeed + 1;
+    expect(actions(w)).toMatchObject([{ label: 'Survey the area', ready: false }]);
+    w.vehicles[0].speed = 0;
+    const contract = w.player.contracts[0];
+    if (contract.kind === 'survey') contract.points[0].done = true;
+    expect(actions(w)).toEqual([]);
+  });
+
+  it('offers nothing off the site', () => {
+    const w = emptyWorld();
+    expect(actions(w)).toEqual([]);
   });
 });

@@ -289,7 +289,8 @@ export function exposure(world: World, shooter: Vehicle, at: Vehicle, v: Vehicle
 }
 
 function inReach(shooter: Vehicle, mw: MountedWeapon, target: Vehicle): boolean {
-  return dist(shooter.pos, target.pos) <= mw.def.range && inArc(shooter, mw, target);
+  const gap = dist(shooter.pos, target.pos);
+  return gap > 0 && gap <= mw.def.range && inArc(shooter, mw, target);
 }
 
 function gunShare(weapons: MountedWeapon[], bears: (mw: MountedWeapon) => boolean): number {

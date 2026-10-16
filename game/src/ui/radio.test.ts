@@ -15,6 +15,8 @@ import { LOCALES, t, type Locale, type Msg } from '../text/msg';
 import { goodLower, partName, siteName, templateName } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
 import { radioLine, RadioStation, revealed, type Broadcast } from './radio';
+import { claimLookText } from './format';
+import type { ClaimLook } from '../data/market';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -290,6 +292,8 @@ describe('RadioStation', () => {
   });
 });
 
+const CLAIM_LOOK_IDS: ClaimLook[] = ['armyTruck', 'deadTruck', 'tank', 'shipWreck'];
+
 describe('radio lines', () => {
   const longest = (words: string[]) => words.reduce((x, y) => (y.length > x.length ? y : x));
   const sites = [...REGION.towns, ...REGION.locations].map((s) => s.id);
@@ -305,6 +309,7 @@ describe('radio lines', () => {
     good: longestOf(locale, Object.keys(GOODS).map(goodLower)),
     part: longestOf(locale, Object.keys(PARTS).map(partName)),
     target: longestOf(locale, Object.keys(NPCS).map(templateName)),
+    wreck: longestOf(locale, CLAIM_LOOK_IDS.map(claimLookText)),
   });
   const lines = LOCALES.flatMap((locale) => {
     const all = slots(locale);
