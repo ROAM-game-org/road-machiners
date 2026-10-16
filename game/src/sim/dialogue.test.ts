@@ -14,7 +14,7 @@ import { callVehicle, callTrucks, chooseOption, currentOptions, endCallIfOut, ha
 import { fireBlock, isHostile } from './combat';
 import { MEMORY, NPC_UPKEEP, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
-import { aidPrice, offerAid, playerAid, spareAid, wantedAid } from './aid';
+import { aidPrice, checkAid, offerAid, playerAid, spareAid, wantedAid } from './aid';
 import { corePart, isMounted } from './grid';
 import { addGoods, cargoRoom, stowParcel } from './inventory';
 import { askHandover } from './parcel';
@@ -1049,6 +1049,42 @@ describe('fuel and supply aid', () => {
     expect(aidData(deal)).toEqual({ kind: 'aid', giver: 'npc', ...spare, price: 0, free: true, agreed: true, started: false, work: 1, workLeft: 1 });
     expect(npcIn(next, npc.id).brain!.goals.at(-1)).toMatchObject({ kind: 'meet', targetId: next.player.vehicleId });
     expect(next.player.talked[npc.id]).toEqual({ askAid: 'done' });
+  });
+
+  it('a player in combat with a third truck cannot ask for aid until the fight is gone', () => {
+    const { w, npc } = aidWorld();
+    lowPlayer(w);
+    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 5, y: 5 });
+    const fight = addState(w, 'combat', raider.id, w.player.vehicleId, { kind: 'none' });
+    expect(texts(callVehicle(w, npc.id))).not.toContain(askText);
+    w.states = w.states.filter((s) => s.id !== fight.id);
+    expect(texts(callVehicle(w, npc.id))).toContain(askText);
+  });
+
+  it('a player in combat with a third truck cannot be offered aid until the fight is gone', () => {
+    const { w, npc } = aidWorld();
+    npc.resources!.fuel = 0;
+    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 5, y: 5 });
+    const fight = addState(w, 'combat', raider.id, w.player.vehicleId, { kind: 'none' });
+    expect(texts(callVehicle(w, npc.id))).not.toContain(offerText);
+    w.states = w.states.filter((s) => s.id !== fight.id);
+    expect(texts(callVehicle(w, npc.id))).toContain(offerText);
+  });
+
+  it('an agreed ask holds on the next check, and breaks only when combat starts after it', () => {
+    const { w, npc } = aidWorld();
+    lowPlayer(w);
+    forceOption('aidAsked', 'give');
+    w.rngState = rngStateForForcedRolls(1);
+    let next = callVehicle(w, npc.id);
+    next = chooseOption(next, optionIndex(next, askText));
+    next = chooseOption(next, optionIndex(next, 'Whatever you can spare.'));
+    next = chooseOption(next, optionIndex(next, 'Thanks. I will wait.'));
+    const deal = stateOf(next, 'aid', npc.id, next.player.vehicleId)!;
+    expect(checkAid(next, deal)).toBeNull();
+    const raider = addVehicle(next, 'raiders', 'buggy', ['mg'], { x: 5, y: 5 });
+    addState(next, 'combat', raider.id, next.player.vehicleId, { kind: 'none' });
+    expect(checkAid(next, deal)).toBe('broken');
   });
 
   it('hanging up on the question settles it as refused', () => {
