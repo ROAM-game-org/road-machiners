@@ -1,6 +1,3 @@
-// Driver memories: hidden facts a driver saw, each with the turn it saw it. A newer fact about the same subject
-// replaces the older one, and a memory fades after its kind's lifetime in MEMORY.turns. This is the only writer of
-// brain.memories. Talk reads memories through recall().
 
 import { MEMORY } from '../data/npcs';
 import type { Memory, MemoryFact, NpcBrain, SightingFact, Vehicle, World } from './types';
