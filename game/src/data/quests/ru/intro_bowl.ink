@@ -3,7 +3,6 @@ INCLUDE world.ink
 
 VAR asked_where = false
 VAR asked_what = false
-VAR asked_brought = false
 VAR asked_next = false
 VAR asked_region = false
 VAR asked_nose = false
@@ -42,11 +41,6 @@ VAR asked_tips = false
   ~ asked_what = true
   Меня там не было, так что цена моим словам грошовая. Кто-то сжег тебе мотор на дороге, забрал всё стоящее и оставил тебя в живых. На открытой дороге это считается хорошими манерами. # speaker: Хэтти
   Буксировщик повесил тебя на цепь и привез сюда. А дальше уже моя лавка и моя вода. # speaker: Хэтти
-  -> questions
-+ {towed_to_bowl and asked_what and not asked_brought} [Кто меня привез?]
-  ~ asked_brought = true
-  Здоровенный мужик, говорит не спеша, куртка от «<term=pierce>Пирса</term>» на швах совсем побелела. Имени не назвал и монеты не взял. Латунная бирка на твоей цепи — его, ну или чья-то ещё до него. # speaker: Хэтти
-  Он оставил её на тебе. На твоем месте я бы её не снимала. Мужики, которые оставляют свои вещи, обычно собираются за ними вернуться. # speaker: Хэтти
   -> questions
 + {not asked_next} [Что мне теперь делать?]
   ~ asked_next = true

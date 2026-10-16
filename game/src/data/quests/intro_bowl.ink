@@ -3,7 +3,6 @@ INCLUDE world.ink
 
 VAR asked_where = false
 VAR asked_what = false
-VAR asked_brought = false
 VAR asked_next = false
 VAR asked_region = false
 VAR asked_nose = false
@@ -40,13 +39,8 @@ She tips her head at you. Go on, then, she says. Nobody ever sat on my bench and
   -> questions
 + {towed_to_bowl and not asked_what} [What happened to me?]
   ~ asked_what = true
-  I wasn't there, so take this for what it cost you. Somebody burned your engine out on the road, took what was worth taking and left you breathing. Out in the open that counts as manners. # speaker: Hattie
+  I wasn't there, so take this for what it cost you. Somebody went through your engine on the road, took what was worth taking and left you breathing. # speaker: Hattie
   The tow man hung you on his chain and brought you here. After that it was my bench and my water. # speaker: Hattie
-  -> questions
-+ {towed_to_bowl and asked_what and not asked_brought} [Who brought me in?]
-  ~ asked_brought = true
-  A big man, slow-spoken, in a <term=pierce>Pierce</term> coat gone white at the seams. He didn't give a name and he didn't take a coin. The brass tag on your chain is his, or was somebody's before him. # speaker: Hattie
-  He left it on you. I'd keep it on, if I were you. Men who leave things behind usually mean to come back for them. # speaker: Hattie
   -> questions
 + {not asked_next} [What do I do now?]
   ~ asked_next = true
@@ -60,7 +54,7 @@ She tips her head at you. Go on, then, she says. Nobody ever sat on my bench and
   -> questions
 + {asked_region and not asked_nose} [And Nose?]
   ~ asked_nose = true
-  Up the north road, to <term=nose>Nose</term>. Soldiers, a workshop and a wall. They build the engines and the guns for half the basin, and they like a stranger better once he's bought one. # speaker: Hattie
+  Up the north-east road, to <term=nose>Nose</term>. Soldiers, a workshop and a wall. They build the engines and the guns for half the basin, and they like a stranger better once he's bought one. # speaker: Hattie
   -> questions
 + {asked_region and not asked_yard} [And the yards?]
   ~ asked_yard = true

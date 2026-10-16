@@ -8,21 +8,32 @@
 }
 .condition-chassis .outline-fill {
   --plan-fill: var(--cell-side);
-  --plan-line: none;
-  --plan-detail: none;
-  --plan-glass: none;
+  --plan-shadow: var(--shade);
+  --plan-light: var(--bevel-light-strong);
+  --plan-glass: var(--cell-line);
+  --plan-line: var(--cell-plan-line);
+  --plan-outer: 0px;
+  --plan-inner: 1px;
 }
 .condition-chassis .outline-detail {
   z-index: var(--z-badge);
-  --plan-line: none;
   --plan-fill: none;
-  --plan-detail: var(--plan-detail-faint);
+  --plan-shadow: none;
+  --plan-light: none;
   --plan-glass: var(--plan-glass-faint);
+  --plan-line: var(--plan-detail-faint);
+  --plan-outer: 0px;
+  --plan-inner: 1px;
 }
 .condition-chassis .outline-line {
   z-index: var(--z-outline);
-  --plan-line: var(--cell-plan-line);
   --plan-fill: none;
+  --plan-shadow: none;
+  --plan-light: none;
+  --plan-glass: none;
+  --plan-line: var(--cell-plan-line);
+  --plan-outer: var(--space-1);
+  --plan-inner: 0px;
   filter: drop-shadow(0 0 1px var(--shade-strong));
 }
 .condition-part {
