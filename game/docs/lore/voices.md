@@ -289,3 +289,51 @@ Cares about: the delivery. A friend is someone who kept him rolling.
 Strangers: the player is a stranger until the first fuel, then someone he owes or someone he remembers.
 
 Sample: "Courier here. I have a run to finish and I will not make it on what is left."
+
+## Chaos Highway
+
+The highway has its own speakers. Geezer is the player, so his sheet is the voice of the narration in the head of a man who has stopped talking about himself. See [Chaos Highway](chaos-highway.md) for the world.
+
+### Ala, hauler driver
+
+Ala talks of money, stretches, fuel and the next fort. She compares things to loads and to what a day on the road costs.
+
+Her sentences are short and level. She counts out loud, and she says a sum before she says anything else.
+
+She wants a driver who asks no questions and does the job. She steers around her father until the eighth stretch, and around what is in the trailer until the fourth.
+
+She notices the truck first, then the scars. A man's gear tells her what he costs.
+
+Strangers: a hire, until one saves her life. Then she asks once, and only once.
+
+Sample: "Eighty for the stretch. Count it. I don't pay twice."
+
+### Geezer, as narration
+
+The narration runs through the head of a man who checks pins and avoids the past. It is dry and tired, and it sizes up every truck by what it can take from him.
+
+Its sentences run short. It answers a question with the smallest true thing and goes back to the road.
+
+It checks every gun pin before it speaks. It avoids the Burnt Drivers, the tank line, his age, and why he took the job. When the past comes up, the narration looks at something else.
+
+He wants a ride that ends it. By the end of the road, he wants the people behind her to arrive.
+
+Sample: "Both pins are bright. Somebody cared about this truck, or somebody was afraid. Mostly the same thing."
+
+### Tibor, barman
+
+Tibor talks of what people cost, what they carry and who owes what. He sells men like parts.
+
+His sentences are smooth and quick, like a trader's. He names a price and a warranty in one breath.
+
+He wants the sale made before the rival at the next table hears of it. He avoids saying who pays him, and he never names the Keepers' office.
+
+He notices the truck outside the window and the money in the room.
+
+Sample: "Rode with Magnus, they say. Scars to prove it. I don't sell lies, only men whose lies are cheap."
+
+### The old gatekeeper
+
+A minor speaker with one job: a Keeper at a gate who has counted trucks for thirty years and remembers a burn. He says one thing and no more, and he has no quirk.
+
+Sample: "I knew a man with a burn like that."
