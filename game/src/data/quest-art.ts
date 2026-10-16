@@ -13,7 +13,7 @@ export const QUEST_ART: Record<string, QuestArt> = {
   road_hauler: { file: 'road_hauler.webp', focusX: 40 },
   road_gate: { file: 'road_gate.webp', focusX: 20 },
   road_tankline: { file: 'road_tankline.webp', focusX: 20 },
-  road_walkers: { file: 'road_walkers.webp', focusX: 62 },
+  road_walkers: { file: 'road_walkers.webp', focusX: 47 },
 };
 
 export function questArt(key: string): QuestArt {
