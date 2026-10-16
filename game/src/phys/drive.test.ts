@@ -1,4 +1,5 @@
 import RAPIER from '@dimforge/rapier3d-compat';
+import { vehicleStats } from '../sim/stats';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
@@ -253,7 +254,7 @@ describe('physics turns', () => {
     const { w: after, d } = play(w, 8);
     freeDrive(d);
     expect(me(after).speed).toBeLessThan(0.05);
-    expect(dist(me(after).pos, { x: 40, y: 30 })).toBeLessThan(0.6);
+    expect(dist(me(after).pos, { x: 40, y: 30 })).toBeLessThan(0.1);
   });
 
   describe('mud driving', () => {
@@ -356,11 +357,57 @@ describe('physics turns', () => {
     });
   });
 
-  it('a far click speeds up, a mid click holds speed', () => {
+  it('in route mode a far point speeds up and a point within reach holds speed', () => {
     const far = play(ordered({ kind: 'through', dest: { x: 45, y: 30 } }, 3), 1).w;
     expect(me(far).speed).toBeGreaterThan(3.5);
-    const mid = play(ordered({ kind: 'through', dest: { x: 35, y: 30 } }, 3), 1).w;
-    expect(Math.abs(me(mid).speed - 3)).toBeLessThan(0.5);
+    const near = play(ordered({ kind: 'through', dest: { x: 32.5, y: 30 } }, 3), 1).w;
+    expect(Math.abs(me(near).speed - 3)).toBeLessThan(0.5);
+  });
+
+  it('in manual mode a mid click holds speed', () => {
+    const w = ordered({ kind: 'through', dest: { x: 35, y: 30 } }, 3);
+    me(w).direct = true;
+    expect(Math.abs(me(play(w, 1).w).speed - 3)).toBeLessThan(0.5);
+  });
+
+  it('in route mode a truck does not brake for a through point just ahead', () => {
+    const w = play(ordered({ kind: 'through', dest: { x: 32, y: 30 } }, 6), 1).w;
+    expect(me(w).speed).toBeGreaterThan(5.5);
+  });
+
+  it('from rest a far through point keeps speeding up toward top speed', () => {
+    let w = ordered({ kind: 'through', dest: { x: 120, y: 30 } });
+    const speeds: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      w = setMoveOrder(play(w, 1).w, { kind: 'through', dest: { x: 120, y: 30 } });
+      speeds.push(me(w).speed);
+    }
+    for (let i = 1; i < speeds.length; i++) expect(speeds[i]).toBeGreaterThan(speeds[i - 1]);
+  });
+
+  it('a far stop point from rest reaches speed and then stops on the point', () => {
+    let w = ordered({ kind: 'stopAt', dest: { x: 110, y: 30 } });
+    const speeds: number[] = [];
+    for (let i = 0; i < 30 && me(w).order; i++) {
+      w = play(w, 1).w;
+      speeds.push(me(w).speed);
+    }
+    const peak = Math.max(...speeds);
+    expect(peak).toBeGreaterThan(0.9 * vehicleStats(w, me(w)).maxSpeed);
+    expect(me(w).order).toBeNull();
+    expect(dist(me(w).pos, { x: 110, y: 30 })).toBeLessThan(RULES.arriveRadius + 0.3);
+  });
+
+  it('a fast truck given a close stop point slows every turn and stops on it', () => {
+    let w = ordered({ kind: 'stopAt', dest: { x: 38, y: 30 } }, 6);
+    const speeds = [6];
+    for (let i = 0; i < 8 && me(w).order; i++) {
+      w = play(w, 1).w;
+      speeds.push(me(w).speed);
+    }
+    for (let i = 1; i < speeds.length; i++) expect(speeds[i]).toBeLessThanOrEqual(speeds[i - 1] + 1e-6);
+    expect(me(w).order).toBeNull();
+    expect(dist(me(w).pos, { x: 38, y: 30 })).toBeLessThan(RULES.arriveRadius + 0.5);
   });
 
   it('steers toward a side click that starts behind a moving truck', () => {
@@ -791,6 +838,7 @@ describe('physics turns', () => {
 
   it('a click in the hold zone keeps its speed up a hill', async () => {
     let w = emptyWorld({ x: 29, y: 30 });
+    me(w).direct = true;
     const t = editableTerrain(w);
     const n = t.size;
     for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) t.heights[j * (n + 1) + i] = Math.max(0, i - 28) * HILL_GRADE;

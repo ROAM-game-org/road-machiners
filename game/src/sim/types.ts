@@ -219,6 +219,7 @@ export type Refusal =
   | { id: 'badLayout'; cause: PlacementRefusal }
   | { id: 'itemGone' }
   | { id: 'refitRunning' }
+  | { id: 'gatesShut' }
   | { id: 'twoInTheWay' }
   | { id: 'refitItemMoved' }
   | { id: 'builtInFixed' }
