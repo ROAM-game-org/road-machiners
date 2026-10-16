@@ -16,6 +16,7 @@ import { getResources } from './resources';
 import type { Job, NpcState, StateData, StateEnding, StateKindId, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { modeRules } from './settings';
+import { noteDeed } from './relations';
 
 export type WorkLeft = { turnsLeft: number; total: number };
 export type Work = WorkLeft & ({ from: 'job'; job: Job } | { from: 'state'; state: NpcState });
@@ -270,6 +271,7 @@ function payTow(w: World, s: NpcState): void {
   if (s.holder === w.player.vehicleId) w.events.push({ t: 'money', amount: tow.fee, reason: { kind: 'towing', vehicle: towed.id } });
   if (s.holder === w.player.vehicleId && tow.waived > 0) practice(w, 'freeTow', tow.waived, null, s.other);
   else w.events.push({ t: 'towDone', by: s.holder, client: s.other, fee: tow.fee });
+  noteDeed(w, tower, towed, 'towed', true);
 }
 
 function releaseTow(w: World, s: NpcState): void {

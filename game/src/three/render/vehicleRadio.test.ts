@@ -41,7 +41,7 @@ const FLASHES = [true, false, true, false];
 
 function callWorlds(): { open: World; npcId: string; playerId: string; idle: World } {
   const idle = emptyWorld({ x: 30, y: 30 });
-  const npc = addVehicle(idle, 'traders', 'scout', ['stockEngine'], { x: 36, y: 30 });
+  const npc = addVehicle(idle, 'independent', 'scout', ['stockEngine'], { x: 36, y: 30 });
   npc.brain = npcBrain('trader', npc.pos, ['trader']);
   refreshVision(idle);
   return { idle, open: callVehicle(idle, npc.id), npcId: npc.id, playerId: idle.player.vehicleId };

@@ -240,7 +240,7 @@ export class Game {
     const groundChunks = terrainMesh(this.world, groundScope);
     this.siteLights = new SiteLights(this.scene, addSites(this.world.terrain, propScope, this.play), { worldSize: this.world.size, maxTextureSize: this.renderer.capabilities.maxTextureSize });
     addShipDecks(this.world.terrain, propScope);
-    this.obstacles = new ObstacleViews(propScope, this.world.terrain);
+    this.obstacles = new ObstacleViews(propScope, this.world.terrain, () => this.screens.pinOutpost());
     this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     addScatter(this.world.terrain, this.world.obstacles, propScope);
     this.fog = new FogView(this.world, groundChunks, this.sightLimit);
@@ -1211,13 +1211,15 @@ export class Game {
     const s = vehicleStats(this.world, me);
     const sel = s.weapons.filter((m) => m.part.id === this.selected);
     this.weaponRange.set(this.world.terrain, me.pos, me.heading, sel);
-    this.zones.update(
-      this.world.terrain,
-      me.pos,
-      me.heading,
-      me.speed,
-      Math.max(MIN_ZONE_HALF_ANGLE, maxTurn(s, me.speed) / 2),
-    );
+    if (!me.direct) this.zones.hideBands();
+    else
+      this.zones.update(
+        this.world.terrain,
+        me.pos,
+        me.heading,
+        me.speed,
+        Math.max(MIN_ZONE_HALF_ANGLE, maxTurn(s, me.speed) / 2),
+      );
     const hover = this.hoverGround;
     const color = hover ? throttleColor(me, hover) : PAL.plan;
     this.zones.hover(this.world.terrain, hover, color);

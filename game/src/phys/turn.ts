@@ -177,11 +177,20 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   v.pos = s.pos;
   v.heading = s.heading;
   v.speed = Math.max(0, toTilesPerTurn(s.speed));
-  v.strandedTurns = s.upright && !isLifted(r.next, w, v) ? 0 : (v.strandedTurns ?? 0) + 1;
+  const free = s.upright && !isLifted(r.next, w, v) && !isHung(v, r.results[v.id], start, frames);
+  v.strandedTurns = free ? 0 : (v.strandedTurns ?? 0) + 1;
   if (v.strandedTurns >= RULES.stranded.turns) setDown(w, v);
   v.trail = trailOf(start, frames);
   burnFuel(w, v, pathLength(v.trail));
   settleOrder(w, v, r.results[v.id]);
+}
+
+function isHung(v: Vehicle, res: VehicleResult, start: Pose, frames: TurnResult['frames'][string]): boolean {
+  const last = frames.at(-1);
+  if (!last) throw new Error(`Driven vehicle ${v.id} has no frames`);
+  if (!v.order || v.order.kind === 'brake' || res.arrived || res.passed) return false;
+  if (dist(start, v.pos) >= RULES.stranded.still) return false;
+  return last.wheels.some((wheel) => !wheel.ground);
 }
 
 function settleOrder(w: World, v: Vehicle, res: VehicleResult): void {

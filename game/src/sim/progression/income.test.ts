@@ -38,7 +38,7 @@ describe('playIncome', () => {
 describe('sampleWorld', () => {
   it('counts the goods a trader carries while it delivers a load it bought', () => {
     const w = emptyWorld({ x: 60, y: 60 });
-    const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 160, y: 60 });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 160, y: 60 });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
     trader.brain.goals = [{ kind: 'sell', targetId: 'nose', destination: { x: 0, y: 0 }, phase: 'travel', reason: 'deliverCargo' }];
     addGoods(w, trader, 'electronics', 4);
