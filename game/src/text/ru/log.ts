@@ -381,6 +381,7 @@ export const LOG: Translation<typeof EN> = {
   'refusal.badLayout': '{cause}. Предметы выпадут из сетки или наложатся друг на друга.',
   'refusal.itemGone': 'Этого предмета уже нет',
   'refusal.refitRunning': 'Сначала закончите переоснащение',
+  'refusal.gatesShut': 'Ворота закрыты',
   'refusal.twoInTheWay': 'Мешает больше одного предмета',
   'refusal.refitItemMoved': 'Предмет для переоснащения сдвинулся или пропал',
   'refusal.builtInFixed': 'Встроенные детали не двигаются',
