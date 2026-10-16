@@ -39,7 +39,7 @@ import type { Contact, GoalReason, Job, NpcActivity, NpcBrain, NpcState, RefitJo
 import { canUseSite, GOAL_REACH, isTerritory, nearestPad, parkedOn, type Site } from './sites';
 import { spotGoal, territoryOfStock, tripGoal } from './territory';
 import { OLD_PLACES } from '../data/salvage';
-import { clamp, dist, pointsAway, type Vec } from './vec';
+import { clamp, dist, leadsAwayBy, pointsAway, type Vec } from './vec';
 import { heatAt } from './sun';
 import { canVehicleSee } from './vision';
 import { isWatching, startWatch, watchOver } from './watch-posts';
@@ -866,8 +866,12 @@ function steerInvestigate(_world: World, _vehicle: Vehicle, goal: NpcActivity, _
 
 function steerFlee(world: World, vehicle: Vehicle, profile: NpcProfile, contacts: Contact[], goal: NpcActivity): void {
   const threat = fleeThreat(world, vehicle, contacts, goal);
-  if (threat) goal.destination = fleeDestination(world, vehicle, profile, threat);
+  if (threat && !keepsFleePoint(vehicle, goal, threat)) goal.destination = fleeDestination(world, vehicle, profile, threat);
   if (threat || vehicle.brain!.hurt > 0) goal.perceived = world.turn;
+}
+
+function keepsFleePoint(vehicle: Vehicle, goal: NpcActivity, threat: Vec): boolean {
+  return goal.destination !== null && leadsAwayBy(vehicle.pos, goal.destination, threat, NPC_BEHAVIOR.fleeKeepAngle);
 }
 
 function fleeThreat(world: World, vehicle: Vehicle, contacts: Contact[], goal: NpcActivity): Vec | undefined {
