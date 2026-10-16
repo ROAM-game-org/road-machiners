@@ -3,7 +3,7 @@ import type { Obstacle } from "../sim/types";
 import { startKit } from "../data/start";
 import { playerVehicle } from "../sim/damage";
 import { corePart } from "../sim/grid";
-import { setQuestLanguage } from "../sim/quests";
+import { currentQuestLanguage, inQuestLanguage, setQuestLanguage } from "../sim/quests";
 import { defaultSetup } from "../sim/settings";
 import { addVehicle, emptyWorld } from "../sim/testkit";
 import { TEST_MAP } from "../test/map";
@@ -150,4 +150,10 @@ it("refuses a task with an unknown quest language", () => {
   } finally {
     freeDrive(drive);
   }
+});
+
+it("restores the quest language when the run throws", () => {
+  setQuestLanguage("en");
+  expect(() => inQuestLanguage("ru", () => { throw new Error("boom"); })).toThrow("boom");
+  expect(currentQuestLanguage()).toBe("en");
 });
