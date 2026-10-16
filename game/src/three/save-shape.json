@@ -2211,6 +2211,7 @@
     "ruben_water": "boolean"
    },
    "bowl_scale": {
+    "asked_army": "boolean",
     "asked_pay": "boolean",
     "asked_where": "boolean"
    },
