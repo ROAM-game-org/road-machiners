@@ -212,6 +212,7 @@ describe("sell tip", () => {
     addGoods(w, playerVehicle(w), "scrap", 1);
     const unsearched = new Set<TipId>(["waypoint", "drive", "autoStop", "stop", "stopAt", "manual", "zones"]);
     expect(tipToShow(w, false, unsearched, null)).toBe("sell");
+    expect(tipToShow(w, false, unsearched, "salvage")).toBe("sell");
   });
 
   it("ignores goods the shop does not list and pads without cargo", () => {

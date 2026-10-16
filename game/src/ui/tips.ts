@@ -180,6 +180,7 @@ const TIPS: readonly Tip[] = [
     when: (w) =>
       modeRules(w).looting &&
       !inCombat(w, playerVehicle(w)) &&
+      !carriesWhatShopBuys(w) &&
       dist(playerVehicle(w).pos, departureFrom(w)) >= SALVAGE_TIP_DISTANCE,
     done: searchedBeyondOpening,
   },
