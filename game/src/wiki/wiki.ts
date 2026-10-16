@@ -3,7 +3,7 @@ import { DETECT } from '../data/detect';
 import { GOODS, ECONOMY } from '../data/goods';
 import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, PRICE_FACTOR, SHOPS } from '../data/market';
 import { DECISIONS, GEAR_LEVELS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, STATE_TURNS, TRAITS } from '../data/npcs';
-import type { WeightChange } from '../data/npcs';
+import type { Allegiance, WeightChange } from '../data/npcs';
 import { CHASSIS_PRICE_MODIFIERS } from '../data/chassis';
 import { FURY_ROAD } from '../data/modes';
 import { PHYSICS } from '../data/physics';
@@ -27,10 +27,19 @@ import { moneyAmount } from '../ui/units';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
+function allegianceText(rule: Allegiance): string {
+  switch (rule.kind) {
+    case 'fixed': return rule.faction;
+    case 'site': return `spawn site, else ${rule.fallback}`;
+    case 'leader': return `its leader, else ${rule.fallback}`;
+    case 'town': return 'spawn town at a share, else independent';
+  }
+}
+
 export type Cell = string | number | boolean | null | readonly unknown[] | object;
 export type WikiTable = { id: string; headers: string[]; rows: () => Cell[][] };
 
-const MECHANICS = ['character', 'truck', 'turns', 'defeat', 'detection', 'world', 'npcs', 'social', 'economy', 'content', 'world-settings', 'fury-road'];
+const MECHANICS = ['character', 'truck', 'turns', 'defeat', 'detection', 'world', 'npcs', 'factions', 'social', 'economy', 'content', 'world-settings', 'fury-road'];
 
 export const PAGES: readonly string[] = [
   'README.md', 'items.md', 'combat.md', 'economy.md', 'npcs.md', 'skills.md', 'assets.md',
@@ -181,8 +190,8 @@ const TABLES: WikiTable[] = [
   },
   {
     id: 'npc-templates',
-    headers: ['id', 'name', 'profession', 'faction', 'traits', 'extra traits (chance)', 'fight style', 'aggro range (tiles)', 'cap', 'spawn interval (turns)', 'spawn place'],
-    rows: () => Object.values(NPCS).map((n) => [n.id, en(templateName(n.id)), en(professionName(n.id)), n.faction, n.traits, n.extraTraits.map((e) => `${e.trait} (${e.chance})`), n.fightStyle, n.aggroRange, n.cap, n.interval, n.spawn]),
+    headers: ['id', 'name', 'profession', 'allegiance', 'traits', 'extra traits (chance)', 'fight style', 'aggro range (tiles)', 'cap', 'spawn interval (turns)', 'spawn place'],
+    rows: () => Object.values(NPCS).map((n) => [n.id, en(templateName(n.id)), en(professionName(n.id)), allegianceText(n.allegiance), n.traits, n.extraTraits.map((e) => `${e.trait} (${e.chance})`), n.fightStyle, n.aggroRange, n.cap, n.interval, n.spawn]),
   },
   {
     id: 'traits',
