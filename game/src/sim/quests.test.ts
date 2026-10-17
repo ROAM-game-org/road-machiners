@@ -271,6 +271,11 @@ function simCalls(call: string): { file: string; target: string }[] {
     .filter(({ target }) => !target.includes(':'));
 }
 
+function namedValues(target: string): unknown[] {
+  if (target === 'scene.gate') return Object.values(QUEST_DATA.ROAD_STORY).map((scene) => scene.gate);
+  return [namedValue(target)];
+}
+
 function namedValue(target: string): unknown {
   const literal = target.match(/^'([^']*)'$/)?.[1];
   if (literal !== undefined) return literal;
@@ -281,7 +286,7 @@ function namedValue(target: string): unknown {
 
 describe('state the game writes outside quests', () => {
   it('lists every world variable the sim sets in GAME_WORLD_VARS', () => {
-    const targets = [...simCalls('setWorldVar').map(({ target }) => namedValue(target)), ...(simCalls('setIntroStep').length > 0 ? [QUEST_DATA.INTRO_STEP] : [])];
+    const targets = [...simCalls('setWorldVar').flatMap(({ target }) => namedValues(target)), ...(simCalls('setIntroStep').length > 0 ? [QUEST_DATA.INTRO_STEP] : [])];
     expect(targets.length).toBeGreaterThan(0);
     expect(targets.filter((name) => typeof name !== 'string' || !(name in QUEST_DATA.GAME_WORLD_VARS))).toEqual([]);
   });

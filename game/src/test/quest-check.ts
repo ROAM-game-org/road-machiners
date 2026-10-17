@@ -1,6 +1,6 @@
 
 import { isNoteId, NOTE_IDS } from '../data/locals';
-import { QUEST_LANGUAGES, WAGON_SEEN, type QuestBundle, type QuestLanguage, type QuestValue } from '../data/quests';
+import { GAME_WORLD_VARS, QUEST_LANGUAGES, WAGON_SEEN, type QuestBundle, type QuestLanguage, type QuestValue } from '../data/quests';
 import { REGION } from '../data/region';
 import { STORY_WRECKS } from '../data/salvage';
 import { MAX_RANK, SKILL_IDS } from '../data/skills';
@@ -40,7 +40,7 @@ export function questCheck(sources: QuestSources): QuestCheck {
   const { bundle, errors, warnings, sections } = compileSources(sources, true);
   const hooks = hookProblems(bundle);
   const shared: QuestReport = { quest: 'all', states: 0, problems: [...errors, ...warnings, ...hooks] };
-  const assigned = worldAssignments(sources, bundle);
+  const assigned = [...worldAssignments(sources, bundle), ...gameFlags(bundle)];
   const sceneWorlds = (id: string, scenes: QuestScenes): World[] => {
     const read = assigned.filter(([name]) => readsWorldVar(sources, id, name));
     return withWorldVars(scenes(id), read);
@@ -71,6 +71,10 @@ function worldAssignments(sources: QuestSources, bundle: QuestBundle): [string, 
   const found = Object.values(sources).flatMap((source) => [...source.matchAll(ASSIGNMENT)].map((m) => [m[1], JSON.parse(m[2]) as QuestValue] as [string, QuestValue]));
   const fresh = found.filter(([name, value]) => bundle.world[name] !== undefined && bundle.world[name].init !== value);
   return [...new Map(fresh.map((pair) => [JSON.stringify(pair), pair])).values()];
+}
+
+function gameFlags(bundle: QuestBundle): [string, QuestValue][] {
+  return Object.entries(GAME_WORLD_VARS).filter(([name, flag]) => flag.gates === null && bundle.world[name]?.type === 'boolean').map(([name]) => [name, true]);
 }
 
 function withWorldVars(scenes: World[], assigned: readonly [string, QuestValue][]): World[] {
@@ -144,7 +148,7 @@ function walkScene(start: World, bundle: QuestBundle, id: string, limit: number)
   const visited = eachLanguage(() => new Set<string>());
   const scene: Scene = { problems: [], seen: new Map(), known: new Set(), visited, loads: new Set() };
   const { problems, seen } = scene;
-  const queue = bundle.quests[id].checkpoints.flatMap((checkpoint) => attempt(problems, `${id}: checkpoint ${checkpoint}`, () => walkOf(eachLanguage(() => startQuest(start, bundle, id, checkpoint)), [])));
+  const queue = bundle.quests[id].checkpoints.flatMap((checkpoint) => attempt(problems, `${id}: checkpoint ${checkpoint}`, () => atCheckpoint(walkOf(eachLanguage(() => startQuest(start, bundle, id, checkpoint)), []), checkpoint)));
   for (const walk of queue) scene.known.add(walk.key);
   while (queue.length > 0 && seen.size < limit) {
     const walk = queue.shift() as Walk;
@@ -266,6 +270,10 @@ function reloaded(walk: Walk, bundle: QuestBundle): Walk {
 function loadKey(world: World): string {
   const { quests, money, notes, contracts } = world.player;
   return JSON.stringify([quests.session, quests.world, quests.local, money, notes.map((n) => n.id), contracts.map((c) => c.id)]);
+}
+
+function atCheckpoint(walk: Walk, checkpoint: string): Walk {
+  return { ...walk, key: `${walk.key}@${checkpoint}` };
 }
 
 function walkOf(worlds: Record<QuestLanguage, World>, picks: string[]): Walk {

@@ -74,7 +74,7 @@ import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
-import FORMAT_2_77 from './save-fixtures/format-2-77.json';
+import FORMAT_2_78 from './save-fixtures/format-2-78.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
@@ -1620,22 +1620,53 @@ describe('save migration 76 to 77', () => {
 });
 
 describe('save migration 77 to 78', () => {
-  it('gives a Roaming world a standing Sunward order and the player the Sunward start standing', () => {
-    const before = structuredClone(FORMAT_2_77);
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: unknown };
+  const withQuests = (quests: Partial<Quests>) => {
+    const world = structuredClone(FORMAT_2_61) as unknown as { player: { quests: Quests } };
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: object) => MIGRATIONS[77](structuredClone(world) as SavedJson) as unknown as { player: { quests: Quests } };
 
-    const next = MIGRATIONS[77](before) as typeof FORMAT_2_77 & { sunward: unknown; player: { standing: Record<string, number> } };
+  it('marks Hattie met for a save that was towed to Bowl', () => {
+    const next = stepped(withQuests({ world: { towed_to_bowl: true, intro_step: 'done' } }));
+    expect(next.player.quests.world).toEqual({ towed_to_bowl: true, intro_step: 'done', hattie_met: true });
+  });
+
+  it('marks Hattie met for a save with a saved talk of hers', () => {
+    const next = stepped(withQuests({ world: { intro_step: 'done' }, local: { bowl_hattie: { hattie_rumor: true } } }));
+    expect(next.player.quests.world.hattie_met).toBe(true);
+  });
+
+  it('leaves a save that never met her as it is', () => {
+    const before = withQuests({ world: { intro_step: 'drive' }, local: { bowl_hattie: {} } });
+    expect(stepped(before)).toEqual(before);
+  });
+
+  it('changes nothing else', () => {
+    const before = withQuests({ world: { towed_to_bowl: true } });
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});
+
+describe('save migration 78 to 79', () => {
+  it('gives a Roaming world a standing Sunward order and the player the Sunward start standing', () => {
+    const before = structuredClone(FORMAT_2_78);
+
+    const next = MIGRATIONS[78](before) as typeof FORMAT_2_78 & { sunward: unknown; player: { standing: Record<string, number> } };
 
     expect(next.sunward).toEqual({ collapsed: null, night: null, lastHunt: null });
-    expect(next.player.standing).toEqual({ ...FORMAT_2_77.player.standing, sunward: -20 });
-    expect(next.vehicles).toEqual(FORMAT_2_77.vehicles);
+    expect(next.player.standing).toEqual({ ...FORMAT_2_78.player.standing, sunward: -20 });
+    expect(next.vehicles).toEqual(FORMAT_2_78.vehicles);
     expect(next.player.money).toBe(4200);
-    expect(before).toEqual(FORMAT_2_77);
+    expect(before).toEqual(FORMAT_2_78);
   });
 
   it('gives a Chaos Highway world no order', () => {
-    const highway = { ...structuredClone(FORMAT_2_77), setup: { ...FORMAT_2_77.setup, mode: 'furyRoad' }, furyRoad: { window: 0 } };
+    const highway = { ...structuredClone(FORMAT_2_78), setup: { ...FORMAT_2_78.setup, mode: 'furyRoad' }, furyRoad: { window: 0 } };
 
-    const next = MIGRATIONS[77](highway) as typeof highway & { sunward: unknown };
+    const next = MIGRATIONS[78](highway) as typeof highway & { sunward: unknown };
 
     expect(next.sunward).toBeNull();
     expect(next.furyRoad).toEqual({ window: 0 });
