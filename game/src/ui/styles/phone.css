@@ -190,7 +190,7 @@
 #ui.phone:has(.modal:not([style*="display: none"])) > .top-center > .opening-tip {
   visibility: hidden;
 }
-#ui.phone:has(.modal:not([style*="display: none"])) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .info) {
+#ui.phone:has(:is(.modal:not([style*="display: none"]), .options)) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .info) {
   display: none;
 }
 #ui.phone[data-drawer] > .top-center > .tip,
