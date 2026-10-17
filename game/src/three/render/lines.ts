@@ -4,6 +4,9 @@
 
 import * as THREE from 'three';
 import { groundPoint, toMap, type V3 } from '../../phys/frames';
+import { PHYSICS } from '../../data/physics';
+import { chassisDef } from '../../data/chassis';
+import { fishLineAnchor } from '../../sim/fishing';
 import { PAL } from '../../render/palette';
 import { lineAnchors } from '../../sim/harpoon';
 import type { Terrain } from '../../sim/terrain';
@@ -134,4 +137,60 @@ function stretch(piece: THREE.Mesh, a: V3, b: V3): void {
   piece.position.set(a.x + dir.x / 2, a.y + dir.y / 2, a.z + dir.z / 2);
   piece.quaternion.setFromUnitVectors(UP, dir.divideScalar(length));
   piece.scale.set(1, length, 1);
+}
+
+export const FISH_LOOK = { floatRadius: 0.14, rodHeight: 1.1, slack: 1.1, sideShare: 0.5 };
+const FLOAT_GEOMETRY = new THREE.SphereGeometry(FISH_LOOK.floatRadius, 6, 4);
+const FLOAT_MATERIAL = new THREE.MeshLambertMaterial({ color: PAL.bobber });
+
+type Cast = { rope: Rope; bobber: THREE.Mesh };
+
+export class FishingLinesView {
+  readonly root = new THREE.Group();
+  private readonly casts = new Map<string, Cast>();
+
+  update(world: World, views: ReadonlyMap<string, VehicleView>): void {
+    const ground = groundOf(world.terrain);
+    const cast = new Set<string>();
+    for (const v of world.vehicles) {
+      const view = views.get(v.id);
+      const anchor = view ? fishLineAnchor(world, v) : null;
+      if (!view || !anchor) continue;
+      cast.add(v.id);
+      this.drawCast(this.castOf(v.id), view, anchor, chassisDef(v.chassisId).radius, world.terrain, ground);
+    }
+    this.reelIn(cast);
+  }
+
+  private drawCast(c: Cast, view: VehicleView, anchor: { x: number; y: number }, radius: number, terrain: Terrain, ground: GroundAt): void {
+    const water = groundPoint(terrain, anchor);
+    const bob = { x: water.x, y: water.y + FISH_LOOK.floatRadius, z: water.z };
+    const truck = view.center();
+    const reach = Math.hypot(bob.x - truck.x, bob.z - truck.z) || 1;
+    const side = radius * PHYSICS.metersPerTile * FISH_LOOK.sideShare;
+    const tip = { x: truck.x + ((bob.x - truck.x) / reach) * side, y: truck.y + FISH_LOOK.rodHeight, z: truck.z + ((bob.z - truck.z) / reach) * side };
+    c.rope.set(tip, bob, Math.hypot(bob.x - tip.x, bob.y - tip.y, bob.z - tip.z) * FISH_LOOK.slack, ground);
+    c.bobber.position.set(bob.x, bob.y, bob.z);
+  }
+
+  private castOf(id: string): Cast {
+    const known = this.casts.get(id);
+    if (known) return known;
+    const made = { rope: new Rope(), bobber: new THREE.Mesh(FLOAT_GEOMETRY, FLOAT_MATERIAL) };
+    this.root.add(made.rope.root, made.bobber);
+    this.casts.set(id, made);
+    return made;
+  }
+
+  private reelIn(cast: ReadonlySet<string>): void {
+    for (const [id, c] of this.casts) {
+      if (cast.has(id)) continue;
+      this.root.remove(c.rope.root, c.bobber);
+      this.casts.delete(id);
+    }
+  }
+
+  count(): number {
+    return this.casts.size;
+  }
 }

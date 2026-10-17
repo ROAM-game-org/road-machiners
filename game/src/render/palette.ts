@@ -55,6 +55,7 @@ export const PAL = {
   caltrops: { spike: 0x9a9a94 },
   oil: { slick: 0x0c0b0a },
   rope: 0x16130f,
+  bobber: 0xd8452a,
   pulse: { flash: 0xc8ecff, arc: 0x9fd8ff, spark: 0xd8f0ff },
   flare: { core: 0xffffff, halo: 0xff3a2a, light: 0xff4a3a, marker: tokenColor('--path-flare'), casing: 0x9a3426, trail: 0xb8b0a8 },
   shell: { casing: 0x2a2622, trail: 0x8a8580 },
