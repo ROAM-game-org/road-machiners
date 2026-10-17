@@ -119,6 +119,12 @@ The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo t
 - While a quest is on view, `autoRuns()` is false. The knocked-out turns wait until the scene closes.
 - `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The arrival and `bowl_scale` are among them. The voice test counts it as a way in next to locals, radio calls and `begin()`.
 
+## The fallen light
+
+`fallen_light.ink` is a page scene the game opens by itself when the player dies in the reactor core. `applyHazards()` in `src/sim/hazard.ts` pushes a `coreBurn` event for every core burn, and `checkDeath()` in `src/sim/defeat.ts` gives the `death` event the cause `core` when the dying truck burned that turn, and calls `openCoreDeath()` in `src/sim/quests.ts`. The scene offers no choice. `deathShows()` in `src/ui/death.ts` holds the death screen back while a quest is on view, so Leave gives way to it. Any other death has the cause `injury` and opens nothing. No world variable gates it, since a dead world is never saved.
+
+The game function `cult_broken()` reads `world.sunward.collapsed` and throws on Chaos Highway. Dag, Ibo, Sefa, Hattie and Ruben branch on it, and the veteran check world holds a fallen order, so both branches are walked.
+
 ## The ambush and the wake in Bowl
 
 The world variable `intro_step` runs the second half of the arrival. Its values are `off`, `drive`, `patched`, `ambush` and `done`. `src/sim/intro.ts` sets every one of them.
