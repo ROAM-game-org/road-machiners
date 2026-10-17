@@ -11,10 +11,10 @@ import { advanceStates } from './states';
 import { refreshVision } from './vision';
 import { callStrangers, dropSpot, inDropRing, lightZone, offeringOf } from './sunward-crater';
 import { advanceSunward, planSunward, dawnAfter, duskTurn, fallenSun, isSunwardMember, returnTurn, sunwardFacts, vigilGrounds } from './sunward';
-import { chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
+import { callVehicle, chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
 import { topGoal } from './npc-activities';
 import { SUNWARD } from '../data/sunward';
-import { leaveQuest, QUESTS, questView } from './quests';
+import { leaveQuest, QUEST_QUERIES, QUESTS, questView } from './quests';
 import { inTruce } from './relations';
 import type { Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
@@ -335,5 +335,41 @@ describe('the order takes the beaten', () => {
 
     expect(dragOf(w, me.id)?.holder).toBe(rider.id);
     expect(rider.brain!.goals[0].reason).toBe('dragToLight');
+  });
+});
+
+describe('talk of the order', () => {
+  function trader(w: World): Vehicle {
+    const me = playerVehicle(w);
+    const v = spawnAt(w, NPCS.trader, generateNpcLoadout(w, NPCS.trader), { x: me.pos.x + 5, y: me.pos.y }, 'independent');
+    v.brain!.personality = 'talkative';
+    return v;
+  }
+
+  function askCrater(w: World, npc: Vehicle): World {
+    const open = callVehicle(w, npc.id);
+    const index = currentOptions(open).findIndex((o) => o.line === 'askAboutTheCrater');
+    expect(index).toBeGreaterThanOrEqual(0);
+    return chooseOption(open, index);
+  }
+
+  it('has road drivers warn of the lamps while the order stands, and tell of the quiet once it falls', () => {
+    const w = crater();
+    w.turn = duskTurn(1) - 100;
+    const npc = trader(w);
+    refreshVision(w);
+
+    expect(askCrater(w, npc).player.call?.vars.news).toEqual({ kind: 'line', line: 'carsDraggedIntoTheDark' });
+    sunwardFacts(w).collapsed = w.turn;
+    expect(askCrater(w, npc).player.call?.vars.news).toEqual({ kind: 'line', line: 'crowdAtTheCraterAgain' });
+  });
+
+  it('answers cult_broken() from the world and fails loud where no order exists', () => {
+    const w = crater();
+    expect(QUEST_QUERIES.cult_broken(w, [])).toBe(false);
+    sunwardFacts(w).collapsed = w.turn;
+    expect(QUEST_QUERIES.cult_broken(w, [])).toBe(true);
+    w.sunward = null;
+    expect(() => QUEST_QUERIES.cult_broken(w, [])).toThrow(/no Sunward order/);
   });
 });

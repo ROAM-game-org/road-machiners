@@ -18,6 +18,7 @@ import { isTerritory, siteGap } from './sites';
 import { territoryGrounds } from './territory';
 import type { NpcActivity, NpcState, Obstacle, SunwardFacts, SunwardHunt, SunwardNight, Vehicle, World } from './types';
 import { hashRandom } from './rng';
+import type { NightZone } from './nav/layer';
 import { dist, type Vec } from './vec';
 
 export type SunwardPhase = 'rest' | 'ride' | 'vigil' | 'home' | 'fallen';
@@ -166,6 +167,12 @@ function openNight(world: World, dusk: number): SunwardNight {
   const hunt = huntTonight(world, day) ? openHunt(world, day) : null;
   if (hunt) sunwardFacts(world).lastHunt = day;
   return { dusk, roster, beaten: [], calls: {}, hunt, shouted: [] };
+}
+
+export function startHuntTonight(world: World): void {
+  const night = sunwardFacts(world).night;
+  if (!night || !nightWindow(world)) throw new Error('A hunt rides out only on a night of the vigil');
+  night.hunt = openHunt(world, clockOf(night.dusk).day);
 }
 
 export function huntTonight(world: World, day: number): boolean {
@@ -464,4 +471,34 @@ function leaveOrder(world: World, v: Vehicle): void {
   if (v.defeat?.phase !== 'out') return;
   patchBrokenCore(v);
   v.defeat = { ...v.defeat, phase: 'retreat', unseen: 0 };
+}
+
+const SHUNNED: readonly NpcActivity['kind'][] = ['scavenge', 'prowl', 'raid', 'patrol', 'travel', 'explore', 'haul', 'trade', 'sell', 'resupply', 'investigate', 'claim', 'loot'];
+
+export function avoidsCrater(world: World, v: Vehicle): boolean {
+  return v.brain !== null && !isSunwardMember(v) && nightWindow(world);
+}
+
+export function inCraterZone(pos: Vec): boolean {
+  return siteGap(FALLEN_SUN, pos) < SUNWARD.avoidMargin;
+}
+
+export const CRATER_NIGHT: NightZone = { center: FALLEN_SUN.pos, reach: FALLEN_SUN.radius + SUNWARD.avoidMargin, cost: SUNWARD.avoidCost, inside: (x, y) => inCraterZone({ x, y }) };
+
+export function shunsAtNight(world: World, v: Vehicle, g: NpcActivity): boolean {
+  return SHUNNED.includes(g.kind) && g.destination !== null && avoidsCrater(world, v) && inCraterZone(g.destination);
+}
+
+export function nightSafe(world: World, v: Vehicle, next: NpcActivity): NpcActivity {
+  if (!shunsAtNight(world, v, next)) return next;
+  return inCraterZone(v.pos) ? goal('explore', craterExit(v.pos), 'leaveCrater') : goal('wait', null, 'leaveCrater');
+}
+
+export function craterExit(from: Vec): Vec {
+  const away = Math.atan2(from.y - FALLEN_SUN.pos.y, from.x - FALLEN_SUN.pos.x);
+  for (let r = FALLEN_SUN.radius; r < FALLEN_SUN.radius * 3; r += 4) {
+    const p = { x: FALLEN_SUN.pos.x + Math.cos(away) * r, y: FALLEN_SUN.pos.y + Math.sin(away) * r };
+    if (!inCraterZone(p)) return p;
+  }
+  throw new Error(`No way out of the Fallen Sun's night zone from ${from.x}, ${from.y}`);
 }

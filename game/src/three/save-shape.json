@@ -2489,6 +2489,7 @@
      ]
     },
     "notes": [
+     "sunwardDragged",
      "talkKilnFight",
      "wagonDag"
     ],
@@ -2645,6 +2646,7 @@
     "writes": {},
     "notes": [
      "burntConvoy",
+     "sunwardLamps",
      "talkArmyStarved",
      "talkCommitteeRent"
     ],

@@ -59,6 +59,14 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   Some do. They're good drivers, but they've got no vote, so they ride in our coats without being on the roll of citizens. The <term=senate>Senate</term> wants them on the road and off the roll.
   Jory Baptiste keeps sending more of them, and I can't decide whether to thank him or watch him.
   -> hub
++ {dag_road} [Does the patrol go out to the crater?]
+  { cult_broken():
+    By day it does, and by night as well now. The lamps stopped crossing at dusk, and nobody has gone missing off the rim road since. Still keep off the green glow, whatever the hour.
+  - else:
+    By day, yes. After dark, no, and that goes for every truck I ride with. Lamps cross the open ground out there at dusk and go back before sunup, and a truck that stops by the rim at night isn't always there in the morning. Be off the crater road before sundown.
+    ~ note("sunwardDragged")
+  }
+  -> hub
 + {has_note("wagonBowl") and not dag_wagon} [Do you know where that Army wagon is?]
   I do. She's in a hollow below the bend in our north road, below where the <term=pump_station>Pump Station</term> track branches off. North-east of here. I rode down to her myself.
   Rule first: take nothing from that hollow up to Nose. The reason is that Nose blames the first driver it finds near its guns, and then it sends trucks down my road to ask questions.

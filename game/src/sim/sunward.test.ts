@@ -9,15 +9,18 @@ import { playerVehicle } from './damage';
 import { endTurn } from './world';
 import { followingOf, joinCompany } from './companies';
 import { noteDefeat } from './relations';
+import { route } from './path';
+import { makeTaste, nightTaste, tasted, terrainNav } from './nav/layer';
 import { topGoal } from './npc-activities';
 import { clockOf } from './sun';
 import { refreshVision } from './vision';
 import { discoverSites } from './locations';
 import { spawnAt, spawnNpcs } from './spawn';
+import { sunwardDusk, sunwardHunt, sunwardLedger } from './cheats';
 import { generateNpcLoadout } from './npc-loadout';
 import { callVehicle, currentLine, currentOptions } from './dialogue';
 import {
-  advanceSunward, collapseOrder, dawnAfter, hollowLampsLit, huntTonight, inFallenSun, planSunward, spawnsAtHollow, duskTurn, hollowBays, hollowObstacles, isHollowObstacle, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
+  advanceSunward, avoidsCrater, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, inFallenSun, planSunward, spawnsAtHollow, duskTurn, hollowBays, hollowObstacles, isHollowObstacle, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
 } from './sunward';
 import type { Vehicle, World } from './types';
 import { dist } from './vec';
@@ -163,7 +166,7 @@ describe('the night schedule', () => {
     expect(night.roster).toHaveLength(SUNWARD.cavalcade);
     const column = night.roster.map((id) => w.vehicles.find((v) => v.id === id)!);
     expect(column.filter((v) => followingOf(w, v)?.kind === 'cavalcade')).toHaveLength(SUNWARD.cavalcade - 1);
-    for (const v of membersOf(w).filter((x) => x.brain!.templateId === 'hunter')) expect(topGoal(v)?.reason).toBe('restHollow');
+    for (const v of membersOf(w).filter((x) => x.brain!.templateId === 'hunter')) expect(topGoal(v)?.reason).toBe(night.hunt ? 'huntRoad' : 'restHollow');
 
     w = runTo(w, returnTurn(duskTurn(1)) - 5);
     for (const id of night.roster) {
@@ -323,5 +326,66 @@ describe('the night ledger and the collapse', () => {
   it('refuses a collapse short of six counted cars', () => {
     const { w } = ledgerWorld();
     expect(() => collapseOrder(w)).toThrow(/only after 6/);
+  });
+});
+
+describe('night avoidance', () => {
+  function scavengerAt(w: World, pos: { x: number; y: number }): Vehicle {
+    return spawnAt(w, NPCS.scavenger, generateNpcLoadout(w, NPCS.scavenger), pos, 'independent');
+  }
+
+  it('keeps every other driver off the crater at night while the order stands, and nobody by day or after it falls', () => {
+    const w = quietWorld();
+    const scav = scavengerAt(w, { x: 100, y: 100 });
+    const rider = membersOf(orderWorld())[0];
+    w.turn = duskTurn(1) - 10;
+    expect(avoidsCrater(w, scav)).toBe(false);
+    w.turn = duskTurn(1) + 10;
+    expect(avoidsCrater(w, scav)).toBe(true);
+    expect(avoidsCrater(w, rider)).toBe(false);
+    expect(avoidsCrater(w, playerVehicle(w))).toBe(false);
+    sunwardFacts(w).collapsed = w.turn;
+    expect(avoidsCrater(w, scav)).toBe(false);
+  });
+
+  it('drops a night goal inside the crater and sends a driver inside out by the nearest edge', () => {
+    const w = quietWorld();
+    w.turn = duskTurn(1) + 10;
+    const spot = vigilGrounds()[0];
+    const inside = scavengerAt(w, spot);
+    const goal = { kind: 'scavenge' as const, targetId: 'spot', destination: { ...spot }, phase: 'travel' as const, reason: 'searchSpot' as const };
+    expect(shunsAtNight(w, inside, goal)).toBe(true);
+    const out = nightSafe(w, inside, goal);
+    expect(out).toMatchObject({ kind: 'explore', reason: 'leaveCrater' });
+    expect(inCraterZone(out.destination!)).toBe(false);
+    w.turn = dawnAfter(duskTurn(1)) + 1;
+    expect(nightSafe(w, inside, goal)).toBe(goal);
+  });
+
+  it('makes crater ground dearer at night but never closes it, so a driver inside still finds its way out', () => {
+    const w = quietWorld();
+    const nav = terrainNav(w.terrain);
+    const taste = nightTaste(makeTaste(1, w.size), nav, CRATER_NIGHT);
+    const spot = vigilGrounds()[0];
+    const outside = craterExit(spot);
+    expect(tasted(taste, 1, Math.floor(spot.x), Math.floor(spot.y)) / tasted(makeTaste(1, w.size), 1, Math.floor(spot.x), Math.floor(spot.y))).toBeCloseTo(SUNWARD.avoidCost, 5);
+    expect(tasted(taste, 1, Math.floor(outside.x), Math.floor(outside.y))).toBeCloseTo(tasted(makeTaste(1, w.size), 1, Math.floor(outside.x), Math.floor(outside.y)), 5);
+    const scav = scavengerAt(w, spot);
+    w.turn = duskTurn(1) + 40;
+
+    const way = route(w, scav.pos, outside, 0.9, [], scav);
+
+    expect(dist(way.at(-1)!, outside)).toBeLessThan(3);
+  });
+});
+
+describe('the Sunward debug commands', () => {
+  it('fills the Hollow, skips to dusk, sends the hunters and prints the ledger', () => {
+    const w = sunwardDusk(quietWorld());
+    expect(phaseAt(w.turn)).toBe('ride');
+    expect(sunwardFacts(w).night!.roster).toHaveLength(SUNWARD.cavalcade);
+    const hunted = sunwardHunt(w);
+    expect(sunwardFacts(hunted).night!.hunt!.party).toHaveLength(SUNWARD.hunters);
+    expect(sunwardLedger(hunted).join('\n')).toMatch(/Beaten: 0 of 6/);
   });
 });

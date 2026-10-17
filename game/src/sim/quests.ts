@@ -39,6 +39,7 @@ import { boardFull, holdsNote, learnNote, takeTownWork, townOffers, townWork } f
 import { hashRandom } from './rng';
 import { storyStock } from './salvage';
 import type { QuestCheck, QuestLine, QuestLive, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
+import { sunwardFacts } from './sunward';
 import { update } from './world';
 
 export type QuestView = {
@@ -93,6 +94,7 @@ export const QUEST_QUERIES: Record<string, QuestQuery> = {
   money: (world) => Math.floor(world.player.money / UNITS.centsPerM),
   has_note: (world, args) => holdsNote(world, noteArg('has_note', args)),
   found: (world, args) => world.player.discovered.includes(siteArg('found', args)),
+  cult_broken: (world) => sunwardFacts(world).collapsed !== null,
   searched: (world, args) => world.player.scavenged.includes(storyStock(world, textArg('searched', args, 0)).id),
   has_work: (world) => townWork(world) !== null,
   has_offers: (world) => townOffers(world).length > 0,

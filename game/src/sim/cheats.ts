@@ -23,7 +23,7 @@ import { allegianceFor, isFree, spawnAt } from './spawn';
 import { declareFeud, settleStates } from './states';
 import { isTowed } from './tow';
 import { clockOf } from './sun';
-import type { Faction, Vehicle, World } from './types';
+import type { Faction, SunwardHunt, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { randInt } from './rng';
 import { refreshVision } from './vision';
@@ -31,6 +31,9 @@ import { WEATHER } from '../data/weather';
 import { makeWeather } from './weather';
 import { hostileToPlayer, playerCanAct, update } from './world';
 import { fuelCap, suppliesCap } from './stats';
+import { advanceSunward, nextDusk, nightWindow, orderStands, startHuntTonight, sunwardPhase } from './sunward';
+import { fillHollow } from './spawn';
+import { SUNWARD } from '../data/sunward';
 import { spillDeadRows } from './spill';
 
 export class CheatError extends Error {}
@@ -268,6 +271,34 @@ export function skipToHour(world: World, hour: number): World {
     });
   }
   throw new Error(`No turn within a day of ${world.turn} starts hour ${hour}`);
+}
+
+export function sunwardDusk(world: World): World {
+  if (!orderStands(world)) throw new CheatError('No Sunward order stands in this world');
+  return update(world, (w) => {
+    fillHollow(w);
+    w.turn = nextDusk(w.turn);
+    advanceSunward(w);
+    refreshVision(w);
+  });
+}
+
+export function sunwardHunt(world: World): World {
+  if (!nightWindow(world)) throw new CheatError('The hunters ride only on a night of the vigil. Try sunward dusk first');
+  return update(world, (w) => startHuntTonight(w));
+}
+
+export function sunwardLedger(world: World): string[] {
+  if (!world.sunward) throw new CheatError('No Sunward order in this world');
+  const { collapsed, night } = world.sunward;
+  if (collapsed !== null) return [`The order fell on turn ${collapsed}.`];
+  if (!night) return ['No night has opened yet.'];
+  return [`Night from turn ${night.dusk}, phase ${sunwardPhase(world)}`, `Roster: ${night.roster.join(', ')}`, `Beaten: ${night.beaten.length} of ${SUNWARD.collapseAt}: ${night.beaten.join(', ')}`, huntLine(night.hunt)];
+}
+
+function huntLine(hunt: SunwardHunt | null): string {
+  if (!hunt) return 'Hunt: none';
+  return `Hunt: ${hunt.party.join(', ')}${hunt.over ? ' (over)' : ''}`;
 }
 
 export function startWeather(world: World, kind: string, turns: number | null, offsetTiles: number): World {

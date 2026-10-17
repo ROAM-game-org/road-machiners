@@ -106,6 +106,7 @@ function veteran(fresh: World): World {
   w.player.scavenged = [...w.player.scavenged, ...STORY_WRECKS.map((s) => s.id)];
   w.player.quests.world = { ...w.player.quests.world, [WAGON_SEEN]: true };
   for (const skill of SKILL_IDS) w.player.ranks[skill] = MAX_RANK;
+  if (w.sunward) w.sunward = { ...w.sunward, collapsed: w.turn };
   while (shopAt(w) && townWork(w)) takeTownWork(w);
   w.events = [];
   return w;

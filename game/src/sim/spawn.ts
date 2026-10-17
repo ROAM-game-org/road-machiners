@@ -36,6 +36,12 @@ function tickSpawn(world: World, tpl: NpcTemplate): void {
   else if (aliveOf(world, tpl) < tpl.cap) spawnWithEscorts(world, tpl, () => siteFor(world, tpl), true);
 }
 
+export function fillHollow(world: World): void {
+  for (const tpl of Object.values(NPCS).filter((t) => t.spawn.kind === 'hollow')) {
+    while (aliveOf(world, tpl) < tpl.cap) if (!spawnInBay(world, tpl)) break;
+  }
+}
+
 function refillHollow(world: World, tpl: NpcTemplate): void {
   if (spawnsAtHollow(world) && aliveOf(world, tpl) < tpl.cap) spawnInBay(world, tpl);
 }
