@@ -1,6 +1,7 @@
 
 import { MAPGEN, TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
 import { besideDeck, deckAt, decksOf, spanAt, type Deck } from './bridge';
+import { fnv1a } from '../file-hash';
 import { clamp, type Vec } from './vec';
 
 export type AtlasKey = { kind: 'icarus' } | { kind: 'highway'; seed: number; window: number };
@@ -234,8 +235,3 @@ function readType(code: number, tile: number): TerrainTypeId {
   return id;
 }
 
-function fnv1a(bytes: Uint8Array): string {
-  let h = 0x811c9dc5;
-  for (let k = 0; k < bytes.length; k++) h = Math.imul(h ^ bytes[k], 0x01000193);
-  return (h >>> 0).toString(16).padStart(8, '0');
-}

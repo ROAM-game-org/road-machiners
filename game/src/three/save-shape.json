@@ -2228,7 +2228,17 @@
    "intro_arrival": {
     "arrival_rope": "boolean"
    },
-   "intro_bowl": {},
+   "intro_bowl": {
+    "asked_flats": "boolean",
+    "asked_kiln": "boolean",
+    "asked_next": "boolean",
+    "asked_nose": "boolean",
+    "asked_region": "boolean",
+    "asked_tips": "boolean",
+    "asked_what": "boolean",
+    "asked_where": "boolean",
+    "asked_yard": "boolean"
+   },
    "intro_road": {},
    "nose_depot_leak": {
     "alarm": "number",
@@ -2394,7 +2404,8 @@
     "start.shed"
    ],
    "intro_bowl": [
-    "start"
+    "start",
+    "start.ask"
    ],
    "intro_road": [
     "start"

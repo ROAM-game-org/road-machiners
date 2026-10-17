@@ -105,7 +105,7 @@ export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<
   await moveCard(ctx, issue, 'Done', 'shipped', 'release');
   updateState(ctx.statePath, (state) => {
     const builds = { ...state.builds };
-    delete builds[String(issue)];
+    for (const shipped of [issue, ...features.map((feature) => feature.issue)]) delete builds[String(shipped)];
     return { ...state, release: null, releasePost: post, lastRelease: ctx.now().toISOString(), builds };
   });
   await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Release ${release.day} shipped with ${features.length} changes.`);

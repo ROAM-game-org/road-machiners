@@ -125,7 +125,7 @@ export type Issue = {
   author: string;
 };
 
-export type Card = { itemId: string; issue: number; column: Column; labels: string[] };
+export type Card = { itemId: string; issue: number; column: Column; labels: string[]; title?: string };
 
 export type JobStage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'adhoc' | 'incident' | 'answer' | 'dev' | 'waste';
 export const RETIRED_JOB_STAGES = ['change'] as const;

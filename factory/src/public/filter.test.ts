@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TransientFilterError } from './decision';
 import { filterWith } from './filter';
 
 const CFG = { openaiKey: 'sk-secret-key', filterModel: 'test-model', filterTimeoutSeconds: 30, filterSincereMin: 0.8 };
@@ -27,7 +28,7 @@ const bodyOf = (sent: Sent[]) => JSON.parse(String(sent[0].init.body));
 describe('filterWith', () => {
   it('asks a comment intent, kind and route in one Decisions call with the game brief', async () => {
     const { fetch, sent } = fake(200, answers(intent(0.97, 0.02, 0.01), pick('kind', 'bug'), pick('route', 'patch'), pick('language', 'en')));
-    expect(await filterWith(CFG, fetch)(COMMENT)).toEqual({ verdict: 'accept', intent: 'sincere', sincere: 0.97, kind: 'bug', route: 'patch', relevance: 'parent', language: 'en' });
+    expect(await filterWith(CFG, fetch)(COMMENT)).toEqual({ verdict: 'accept', intent: 'sincere', sincere: 0.97, kind: 'bug', route: 'patch', relevance: 'parent', language: 'en', filing: false });
     expect(sent).toHaveLength(1);
     expect(sent[0].url).toBe('https://api.openai.com/v1/decisions');
     expect((sent[0].init.headers as Record<string, string>).authorization).toBe('Bearer sk-secret-key');
@@ -76,6 +77,13 @@ describe('filterWith', () => {
     await expect(filterWith({ ...CFG, filterTimeoutSeconds: 0.05 }, hang)(COMMENT)).rejects.toThrow();
   });
 
+  it('throws a transient error on 429, 5xx and a failed connection, and a plain one on other statuses', async () => {
+    for (const status of [429, 500, 529]) await expect(filterWith(CFG, fake(status, {}).fetch)(COMMENT)).rejects.toBeInstanceOf(TransientFilterError);
+    const down: typeof globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+    await expect(filterWith(CFG, down)(COMMENT)).rejects.toBeInstanceOf(TransientFilterError);
+    await expect(filterWith(CFG, fake(400, {}).fetch)(COMMENT)).rejects.not.toBeInstanceOf(TransientFilterError);
+  });
+
   it('throws on a non-200 with the status and never the key', async () => {
     const { fetch } = fake(401, { error: { message: 'bad key sk-secret-key' } });
     const error = await filterWith(CFG, fetch)(COMMENT).then(() => null, (thrown: Error) => thrown);
@@ -117,5 +125,17 @@ describe('filterWith', () => {
     const { fetch, sent } = fake(200, answers(intent(0.95, 0.03, 0.02), pick('kind', 'feature'), pick('language', 'en')));
     await filterWith(CFG, fetch)({ source: 'message', text: 'Add boats', work: [] });
     expect(bodyOf(sent).questions.map((question: { name: string }) => question.name)).toEqual(['intent', 'kind', 'language']);
+  });
+
+  it('asks a message to the bot whether it asks to file, and files only on yes', async () => {
+    const at = (picked: string) => {
+      const { fetch, sent } = fake(200, answers(intent(0.95, 0.03, 0.02), pick('kind', 'feature'), pick('filing', picked), pick('language', 'en')));
+      return { sent, decision: filterWith(CFG, fetch)({ source: 'message', text: '@bot please file this idea: add boats', addressed: true }) };
+    };
+    const yes = at('yes');
+    expect(await yes.decision).toMatchObject({ kind: 'feature', filing: true });
+    expect(bodyOf(yes.sent).questions.map((question: { name: string }) => question.name)).toEqual(['intent', 'kind', 'filing', 'language']);
+    expect(await at('no').decision).toMatchObject({ filing: false });
+    await expect(at('maybe').decision).rejects.toThrow('bad filing');
   });
 });
