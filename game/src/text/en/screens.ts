@@ -25,6 +25,7 @@ export const SCREENS = {
   'boot.counted': m('{label} {done} of {total}', { label: 'text', done: 'int', total: 'int' }),
   'boot.stepFailed': m('{label} failed', { label: 'text' }),
   'boot.failedToLoad': 'The game failed to load. Check your connection and reload the page.',
+  'boot.failedToStart': 'The game could not start in this browser. Update the browser or try another one.',
   'save.slot.auto': 'Autosave',
   'save.slot.day': 'Day start',
   'save.slot.manual': m('Slot {n}', { n: 'int' }),

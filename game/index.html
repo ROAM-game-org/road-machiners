@@ -18,20 +18,52 @@
       </div>
     </div>
     <script>
-      // Before the game code runs, nothing else can show a load failure. The crash screen takes over once the code adopts #boot.
       (function () {
-        function failed(e) {
+        var texts = {
+          en: {
+            failedToLoad: 'The game failed to load. Check your connection and reload the page.',
+            failedToStart: 'The game could not start in this browser. Update the browser or try another one.',
+          },
+          ru: {
+            failedToLoad: 'Игра не загрузилась. Проверьте подключение и перезагрузите страницу.',
+            failedToStart: 'Игра не загрузилась. Откройте игру в другом браузере.',
+          },
+        };
+        function language() {
+          try {
+            return localStorage.getItem('roam.lang') === 'ru' ? 'ru' : 'en';
+          } catch (e) {
+            return 'en';
+          }
+        }
+        function show(key, detail) {
           var boot = document.getElementById('boot');
-          if (!boot || boot.dataset.adopted) return window.removeEventListener('error', failed, true);
-          if (!(e.target instanceof HTMLScriptElement) && !(e instanceof ErrorEvent)) return;
-          var text = 'The game failed to load. Check your connection and reload the page.';
+          if (!boot || boot.dataset.adopted) return false;
+          var text = texts[language()][key];
           boot.classList.add('failed');
           boot.setAttribute('aria-busy', 'false');
           boot.querySelector('.boot-stage').textContent = text;
           boot.querySelector('[role=progressbar]').setAttribute('aria-valuetext', text);
+          if (detail) {
+            var item = document.createElement('li');
+            item.textContent = detail;
+            boot.querySelector('.boot-steps').appendChild(item);
+          }
+          return true;
+        }
+        function failed(e) {
+          if (!document.getElementById('boot') || document.getElementById('boot').dataset.adopted) return window.removeEventListener('error', failed, true);
+          if (e.target instanceof HTMLScriptElement) return show('failedToLoad');
+          if (e instanceof ErrorEvent) show('failedToStart', e.message);
         }
         window.addEventListener('error', failed, true);
+        window.bootNoModules = function () {
+          show('failedToStart');
+        };
       })();
+    </script>
+    <script nomodule>
+      window.bootNoModules();
     </script>
     <div id="game"></div>
     <div id="overlay"></div>

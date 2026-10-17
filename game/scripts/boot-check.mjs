@@ -17,6 +17,11 @@ const VIEWPORTS = [
   { name: 'narrow', width: 390, height: 844 },
 ];
 const FAILED_CODE_TEXT = 'The game failed to load. Check your connection and reload the page.';
+const START_TEXT = {
+  en: 'The game could not start in this browser. Update the browser or try another one.',
+  ru: 'Игра не загрузилась. Откройте игру в другом браузере.',
+};
+const STALL_LIMIT_MS = 300000;
 
 const GPU_ARGS = {
   darwin: ['--use-angle=metal'],
@@ -225,6 +230,49 @@ async function failedCode(browser, viewport) {
   await page.context().close();
 }
 
+async function brokenCode(browser, viewport, language) {
+  const page = await open(browser, viewport, []);
+  await page.addInitScript((value) => localStorage.setItem('roam.lang', value), language);
+  await page.route('**/src/three/main.ts*', (route) => route.fulfill({ status: 200, contentType: 'text/javascript', body: 'let x = ;' }));
+  await page.goto(playUrl(url));
+  await page.waitForSelector('#boot.failed', { timeout: BOOT_LIMIT_MS });
+  await shot(page, `.playtest/boot-${viewport.name}-code-broken-${language}.png`);
+  const stage = await page.textContent('#boot .boot-stage');
+  const detail = await page.textContent('#boot .boot-steps');
+  expect(stage === START_TEXT[language], `${viewport.name}: broken game code says the game could not start (${language})`);
+  expect(detail.includes('SyntaxError'), `${viewport.name}: broken game code shows the error message (${language})`);
+  await page.context().close();
+}
+
+async function stalledMap(browser, viewport) {
+  const page = await open(browser, viewport, []);
+  const posts = [];
+  page.on('request', (request) => request.method() === 'POST' && posts.push(request.url()));
+  await page.route('**/maps/**', () => {});
+  await page.goto(playUrl(url));
+  await page.waitForSelector('.crash-screen', { timeout: timeoutsOff ? 0 : STALL_LIMIT_MS });
+  await shot(page, `.playtest/boot-${viewport.name}-map-stalled.png`);
+  const title = await page.textContent('.crash-title');
+  const focused = await page.evaluate(() => document.activeElement?.textContent);
+  expect(title === 'Road Machiners could not download its files', `${viewport.name}: a stalled map shows the connection notice`);
+  expect(focused === 'Reload', `${viewport.name}: Reload has focus after a stalled map`);
+  expect(posts.length === 0, `${viewport.name}: a stalled map sends no report ${posts.join(', ')}`);
+  await page.context().close();
+}
+
+async function hungSaves(browser, viewport) {
+  const page = await open(browser, viewport, []);
+  const warnings = [];
+  page.on('console', (message) => message.type() === 'warning' && warnings.push(message.text()));
+  await page.addInitScript(() => {
+    indexedDB.open = () => ({});
+  });
+  await page.goto(url);
+  await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS });
+  expect(warnings.some((text) => text.includes('Saves go to local storage')), `${viewport.name}: a silent IndexedDB open falls back to local storage`);
+  await page.context().close();
+}
+
 async function droppedModel(browser, viewport) {
   const page = await open(browser, viewport, []);
   let seen = 0;
@@ -308,6 +356,11 @@ for (const viewport of VIEWPORTS) {
   if (!only || only === 'startMenu') await inBrowser((browser) => startMenu(browser, viewport));
   if (!only || only === 'failedMap') await inBrowser((browser) => failedMap(browser, viewport));
   if (!only || only === 'failedCode') await inBrowser((browser) => failedCode(browser, viewport));
+  if (!only || only === 'brokenCode') {
+    for (const language of ['en', 'ru']) await inBrowser((browser) => brokenCode(browser, viewport, language));
+  }
+  if (only === 'stalledMap') await inBrowser((browser) => stalledMap(browser, viewport));
+  if (!only || only === 'hungSaves') await inBrowser((browser) => hungSaves(browser, viewport));
   if (!only || only === 'droppedModel') await inBrowser((browser) => droppedModel(browser, viewport));
   if (!only || only === 'lostModel') await inBrowser((browser) => lostModel(browser, viewport));
   if (!only || only === 'droppedWorker') await inBrowser((browser) => droppedWorker(browser, viewport));
