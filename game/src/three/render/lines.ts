@@ -139,9 +139,9 @@ function stretch(piece: THREE.Mesh, a: V3, b: V3): void {
   piece.scale.set(1, length, 1);
 }
 
-export const FISH_LOOK = { floatRadius: 0.14, rodHeight: 1.1, slack: 1.1, sideShare: 0.5 };
+export const FISH_LOOK = { floatRadius: 0.22, rodHeight: 1.1, slack: 1.1, sideShare: 0.5 };
 const FLOAT_GEOMETRY = new THREE.SphereGeometry(FISH_LOOK.floatRadius, 6, 4);
-const FLOAT_MATERIAL = new THREE.MeshLambertMaterial({ color: PAL.bobber });
+const FLOAT_MATERIAL = new THREE.MeshBasicMaterial({ color: PAL.bobber });
 
 type Cast = { rope: Rope; bobber: THREE.Mesh };
 
