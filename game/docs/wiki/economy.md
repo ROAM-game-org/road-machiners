@@ -75,9 +75,9 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `CONTRACTS.survey.surveyTurns` | 10 |
 | `CONTRACTS.survey.searchTurns` | 20 |
 | `CONTRACTS.survey.rewardFactor` | 15 |
-| `CONTRACTS.survey.range` | 180 |
+| `CONTRACTS.survey.range` | 234 |
 | `CONTRACTS.survey.clue.roundTiles` | 25 |
-| `CONTRACTS.survey.clue.range` | 180 |
+| `CONTRACTS.survey.clue.range` | 234 |
 | `CONTRACTS.survey.clue.nearby` | 40 |
 | `CONTRACTS.survey.clue.band` | 40 |
 <!-- /wiki:numbers -->

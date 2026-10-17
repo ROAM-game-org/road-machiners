@@ -1,6 +1,6 @@
 import { START_KITS } from "../data/start";
 import { describe, expect, it } from "vitest";
-import { REGION } from "../data/region";
+import { REGION, scalePoint } from "../data/region";
 import { siteName } from "../text/names";
 import { resolve } from "../text/resolve";
 import { TERRAIN, TERRAIN_TYPES, type DeckSpec, type TerrainTypeId } from "../data/terrain";
@@ -96,8 +96,8 @@ describe('terrain variety', () => {
 describe("terrain grid", () => {
   it('has twelve distinct Icarus destinations with road access', () => {
     const w = worldOnMap();
-    expect(w.size).toBe(600);
-    expect(w.terrain.heights).toHaveLength(601 * 601);
+    expect(w.size).toBe(780);
+    expect(w.terrain.heights).toHaveLength(781 * 781);
     expect(REGION.name).toBe('Icarus');
     expect(REGION.towns.map((town) => resolve(siteName(town.id), 'en'))).toEqual(['Bowl', 'Nose']);
     expect(REGION.locations.map((site) => resolve(siteName(site.id), 'en'))).toEqual([
@@ -183,8 +183,8 @@ describe("terrain grid", () => {
     expect(entering).toHaveLength(2);
     const [s1, s2] = entering;
     expect(s1).toHaveLength(2);
-    expect(dist(s1[0], { x: 440, y: 420 })).toBeLessThan(0.01);
-    expect(dist(s2[0], { x: 485, y: 310 })).toBeLessThan(0.01);
+    expect(dist(s1[0], scalePoint({ x: 88, y: 84 }))).toBeLessThan(0.01);
+    expect(dist(s2[0], scalePoint({ x: 97, y: 62 }))).toBeLessThan(0.01);
     for (const road of entering) {
       expect(REGION.roads.some((other) => other !== road && other.some((p) => dist(p, road[0]) < 0.01))).toBe(true);
       const firstInside = road.findIndex((p) => siteGap(flats, p) < 0);

@@ -93,6 +93,7 @@ export const RULES = {
 };
 
 export const CHEATS = {
+  armedKitTries: 50,
   spawnDistance: 10,
   spawnAngles: 12,
   searchStep: 1,

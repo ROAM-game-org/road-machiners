@@ -3,7 +3,8 @@ import { ICARUS_KEY } from '../sim/atlas';
 import { defaultSetup } from '../sim/settings';
 import type { Terrain } from '../sim/terrain';
 import type { World } from '../sim/types';
-import { newWorld } from '../sim/world';
+import { initializeShops } from '../sim/market';
+import { cloneWorld, newWorld } from '../sim/world';
 import { TEST_MAP } from './map';
 
 export type EmptyTemplate = { world: Omit<World, 'terrain'>; exploredTiles: number[] };
@@ -27,9 +28,18 @@ function frozenFlatTerrain(size: number): Terrain {
 }
 
 export function buildEmptyTemplate(): EmptyTemplate {
-  const { terrain: _terrain, ...template } = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  const start = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  const unclaimed = cloneWorld(start);
+  unclaimed.obstacles = [];
+  for (const shop of Object.values(unclaimed.shops)) shop.contracts = [];
+  initializeShops(unclaimed);
+  const { terrain: _terrain, ...template } = start;
   const exploredTiles = [...template.player.explored.keys()].filter((tile) => template.player.explored[tile] === 1);
   template.obstacles = [];
+  for (const [id, shop] of Object.entries(template.shops)) {
+    shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
+    if (shop.contracts.length === 0) shop.contracts = unclaimed.shops[id].contracts;
+  }
   template.vehicles = template.vehicles.filter((v) => v.faction === 'player');
   template.states = [];
   template.rngState = -1655809527;

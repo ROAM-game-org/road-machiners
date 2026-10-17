@@ -88,6 +88,7 @@ const settle = async (page) => {
 
 const playNightTurns = async (page, turns, turnLimitMs) => {
   for (let i = 0; i < turns; i++) {
+    if (await page.evaluate(() => window.__ROAM__.state.call !== null)) await page.keyboard.press('Escape');
     const next = await page.evaluate(() => {
       const g = window.__ROAM__;
       g.endTurn();

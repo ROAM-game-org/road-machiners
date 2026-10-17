@@ -1,7 +1,7 @@
 
 import { beforeAll, expect, it } from 'vitest';
 import { START_KITS } from '../data/start';
-import { REGION } from '../data/region';
+import { REGION, scalePoint } from '../data/region';
 import { dist, polylineDist, type Vec } from '../sim/vec';
 import { editableTerrain, emptyWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
@@ -35,7 +35,7 @@ it('the player drives from Bowl to Nose without a serious hit on a static obstac
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   w.player.fuel = 100;
   const me = w.player.vehicleId;
-  Object.assign(w.vehicles[0], { pos: { x: 209.3, y: 276.8 }, heading: -Math.PI / 4, speed: 7 });
+  Object.assign(w.vehicles[0], { pos: scalePoint({ x: 209.3 / 5, y: 276.8 / 5 }), heading: -Math.PI / 4, speed: 7 });
   let staticDamage = 0;
   w = play(w, w.size, (world) => {
     world.vehicles = world.vehicles.filter((v) => v.faction === 'player');

@@ -562,7 +562,7 @@ describe('player vision', () => {
 
   it('a rock between you and a raider blocks the shot', () => {
     const { w, me, buggy, mg } = duel({ x: 34, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 32, y: 30 }, r: 0.8, kind: 'rock' }];
+    w.obstacles = [{ id: 'r', pos: { x: 32, y: 30 }, r: 1.2, kind: 'rock' }];
     refreshVision(w);
     order(me, mg.part.id, buggy.id);
     fireWeapons(w);
@@ -573,7 +573,7 @@ describe('player vision', () => {
     const { fireBlock } = await import('./combat');
     const { playerSees } = await import('./vision');
     const { w, me, buggy, mg } = duel({ x: 32.5, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30 }, r: 0.6, kind: 'rock' }];
+    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30 }, r: 1.2, kind: 'rock' }];
     refreshVision(w);
     expect(playerSees(w, buggy.pos)).toBe(true);
     expect(fireBlock(w, me, mg, buggy)).toBe('covered');
