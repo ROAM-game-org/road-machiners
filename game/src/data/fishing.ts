@@ -1,6 +1,5 @@
 import { ECONOMY } from './goods';
 import { EFFORT } from './market';
-import { TIME } from './time';
 
 const BASE = {
   reach: 2,
@@ -10,7 +9,6 @@ const BASE = {
   fishSupplies: 0.25,
   wageShare: 0.5,
   npcRange: 40,
-  fishedOutTurns: TIME.turnsPerDay,
 };
 
 export const FISHING = {

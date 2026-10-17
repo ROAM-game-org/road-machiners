@@ -6,6 +6,7 @@ export function subjectOf(fact: MemoryFact): string {
   switch (fact.kind) {
     case 'prices': return `prices:${fact.shop}`;
     case 'stripped': return `stripped:${fact.stock}`;
+    case 'fishedOut': return `fishedOut:${fact.pool}`;
     case 'sighting': return `sighting:${fact.vehicle}`;
     case 'wronged':
     case 'helped': return `${fact.kind}:${fact.by}:${fact.deed}`;

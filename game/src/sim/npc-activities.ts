@@ -11,6 +11,7 @@ import { affordableBuyCount, buyFuel, cargoSaleValue, sellAtCamp, sellVehicleCar
 import { corePart } from './grid';
 import { addGoods, cargoRoom } from './inventory';
 import { cancelJob } from './jobs';
+import { beginFishing, fishLeft, fishSpot, poolIndexOf, poolNear } from './fishing';
 import { businessBelongs, dealDue } from './npc-business';
 import { isFree } from './spawn';
 import { bodyStop } from './meeting-stop';
@@ -69,6 +70,7 @@ function jobBelongs(job: Job, v: Vehicle): boolean {
   if (job.kind === 'repair') return goalsOf(v).some((g) => g.kind === 'repair');
   if (job.kind === 'refit') return refitBelongs(job, topGoal(v));
   if (job.kind === 'business') return businessBelongs(job, topGoal(v));
+  if (job.kind === 'fish') return topGoal(v)?.kind === 'fish' && topGoal(v)?.targetId === job.pool;
   return searchBelongs(job, topGoal(v));
 }
 
@@ -215,7 +217,18 @@ function serviceGoal(world: World, vehicle: Vehicle, profile: NpcProfile): NpcAc
 function brokeServiceGoal(world: World, vehicle: Vehicle, profile: NpcProfile, need: ServiceNeed): NpcActivity | null {
   if (hasSaleCargo(vehicle)) return saleGoal(world, vehicle, profile);
   const trip = isStranded(world, vehicle) || isLowOnFuel(world, vehicle, profile) || unfitHunter(world, vehicle);
-  return trip ? serviceTrip(world, vehicle, profile, need) : null;
+  if (trip) return serviceTrip(world, vehicle, profile, need);
+  return isHungry(world, vehicle) ? fishGoal(world, vehicle) : null;
+}
+
+function isHungry(world: World, vehicle: Vehicle): boolean {
+  return getResources(world, vehicle).supplies <= suppliesCap(vehicle) * NPC_UPKEEP.lowSupplies;
+}
+
+function fishGoal(world: World, vehicle: Vehicle): NpcActivity | null {
+  if (goalsOf(vehicle).some((g) => g.kind === 'fish')) return null;
+  const spot = fishSpot(world, vehicle);
+  return spot ? createActivity('fish', spot.pool.id, spot.at, 'goFishing') : null;
 }
 
 function serviceTrip(world: World, vehicle: Vehicle, profile: NpcProfile, need: ServiceNeed): NpcActivity {
@@ -479,9 +492,10 @@ const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   meet: (world, vehicle, goal) => (world.states.some((s) => (s.kind === 'trade' || s.kind === 'handover' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff'),
   follow: (world, vehicle, goal) => (follows(world, vehicle, goal.targetId!) ? null : 'leftLeader'),
   claim: claimInvalid,
+  fish: (world, vehicle) => (vehicle.job?.kind === 'fish' || isHungry(world, vehicle) ? null : 'caughtFish'),
 };
 
-const EXPOSED: readonly NpcActivity['kind'][] = ['repair', 'patch', 'meet', 'tow', 'loot'];
+const EXPOSED: readonly NpcActivity['kind'][] = ['repair', 'patch', 'meet', 'tow', 'loot', 'fish'];
 const BROKEN_OFF: readonly NpcState['kind'][] = ['patch', 'trade', 'handover', 'aid'];
 const DEAL_GOALS: readonly NpcActivity['kind'][] = ['meet', 'patch'];
 
@@ -1016,7 +1030,7 @@ export function noteHurt(world: World): void {
 export function getActivityDestination(world: World, vehicle: Vehicle, activity: NpcActivity): Vec | null {
   if (!activity.destination) return null;
   if (activity.kind === 'repair' || activity.kind === 'rearm' || activity.kind === 'wait') return parksHere(vehicle, activity) ? null : activity.destination;
-  if (['fight', 'flee', 'raid', 'prowl', 'investigate', 'patrol', 'explore', 'follow', 'muster'].includes(activity.kind)) return activity.destination;
+  if (['fight', 'flee', 'raid', 'prowl', 'investigate', 'patrol', 'explore', 'follow', 'muster', 'fish'].includes(activity.kind)) return activity.destination;
   return siteStop(world, vehicle, activity, activity.destination);
 }
 
@@ -1200,6 +1214,23 @@ function resolveRepair(world: World, vehicle: Vehicle, activity: NpcActivity): v
   if (resolveNpcRepair(world, vehicle, activity)) finishGoal(world, vehicle, 'finishedRepairs');
 }
 
+function resolveFish(world: World, vehicle: Vehicle, activity: NpcActivity): void {
+  const pool = poolIndexOf(world.terrain).byId.get(activity.targetId ?? '');
+  if (!pool) throw new Error(`${vehicle.id} fishes at unknown pool ${activity.targetId}`);
+  const session = world.events.find((e) => e.t === 'fished' && e.vehicle === vehicle.id);
+  if (session?.t === 'fished') return endFishing(world, vehicle, pool, session.fish);
+  if (vehicle.job?.kind === 'fish') return void (activity.phase = 'act');
+  if (poolNear(world, vehicle.pos)?.id !== pool.id) return;
+  activity.phase = 'act';
+  beginFishing(world, vehicle, pool.id);
+}
+
+function endFishing(world: World, vehicle: Vehicle, pool: ReturnType<typeof poolIndexOf>['pools'][number], caught: number): void {
+  if (caught > 0) return finishGoal(world, vehicle, 'caughtFish');
+  if (fishLeft(world, pool) <= 0) remember(world, vehicle, { kind: 'fishedOut', pool: pool.id });
+  finishGoal(world, vehicle, 'nothingBites');
+}
+
 const RESOLVERS: Partial<Record<NpcActivity['kind'], Resolver>> = {
   tow: resolveTow,
   repair: resolveRepair,
@@ -1220,6 +1251,7 @@ const RESOLVERS: Partial<Record<NpcActivity['kind'], Resolver>> = {
   prowl: arrivalResolver('prowledRoad'),
   patrol: arrivalResolver('patrolledRoad'),
   explore: arrivalResolver('exploredSpot'),
+  fish: resolveFish,
 };
 
 function resolveActivity(world: World, vehicle: Vehicle, activity: NpcActivity): void {

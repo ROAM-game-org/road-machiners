@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { playerVehicle } from '../sim/damage';
 import { beginFishing, poolIndexOf } from '../sim/fishing';
-import { emptyWorld } from '../sim/testkit';
+import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
+import { NPCS } from '../data/npcs';
 import type { World } from '../sim/types';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, writeSave } from './save';
@@ -42,6 +43,18 @@ describe('saving a fishing world', () => {
     expect(loaded.player.supplies).toBe(w.player.supplies);
     expect(loaded.player.xpBySource).toEqual(w.player.xpBySource);
     expect(loaded.events).toEqual([]);
+  });
+
+  it('gives back an NPC fish goal and what it remembers', () => {
+    const w = fishingWorld();
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: playerVehicle(w).pos.x + 6, y: playerVehicle(w).pos.y });
+    npc.brain = npcBrain('scavenger', npc.pos, NPCS.scavenger.traits);
+    npc.brain.goals = [{ kind: 'fish', targetId: 'pool-5', destination: { x: 3.5, y: 4.5 }, phase: 'travel', reason: 'goFishing' }];
+    npc.brain.memories = [{ turn: 1, fact: { kind: 'fishedOut', pool: 'pool-5' } }];
+    const loaded = roundTrip(w);
+    const back = loaded.vehicles.find((v) => v.id === npc.id)!;
+    expect(back.brain!.goals).toEqual(npc.brain.goals);
+    expect(back.brain!.memories).toEqual(npc.brain.memories);
   });
 
   it('drops a pool the map does not hold', () => {

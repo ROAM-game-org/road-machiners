@@ -324,6 +324,7 @@ export type Track = { at: Vec; turn: number; sighted: boolean; seenSince: number
 export type MemoryFact =
   | { kind: 'prices'; shop: string; pressure: Record<string, number> }
   | { kind: 'stripped'; stock: string }
+  | { kind: 'fishedOut'; pool: string }
   | { kind: 'wronged'; by: string; deed: WrongDeed }
   | { kind: 'helped'; by: string; deed: HelpDeed }
   | { kind: 'sighting'; vehicle: string; at: Vec; heading: number };

@@ -2,6 +2,7 @@ import { FISHING } from '../data/fishing';
 import { RULES } from '../data/rules';
 import { TIME } from '../data/time';
 import { idKey } from './detect';
+import { recall } from './memory';
 import { playerVehicle } from './damage';
 import { startJob } from './jobs';
 import { practice } from './progress';
@@ -174,7 +175,36 @@ export function fishLineAnchor(world: World, v: Vehicle): Vec | null {
   if (v.job?.kind !== 'fish') return null;
   const pool = requirePool(world, v.job.pool);
   const { size } = world.terrain;
+  const { tile } = nearestTile(pool, size, v.pos);
+  return { x: (tile % size) + 0.5, y: Math.floor(tile / size) + 0.5 };
+}
+
+export type FishSpot = { pool: Pool; at: Vec };
+
+function nearestTile(pool: Pool, size: number, from: Vec): { tile: number; gap: number } {
   let best = pool.tiles[0];
-  for (const tile of pool.tiles) if (rectDistance(v.pos, tile, size) < rectDistance(v.pos, best, size)) best = tile;
-  return { x: (best % size) + 0.5, y: Math.floor(best / size) + 0.5 };
+  let gap = rectDistance(from, best, size);
+  for (const tile of pool.tiles) {
+    const d = rectDistance(from, tile, size);
+    if (d < gap) {
+      best = tile;
+      gap = d;
+    }
+  }
+  return { tile: best, gap };
+}
+
+export function fishSpot(world: World, v: Vehicle): FishSpot | null {
+  const { size } = world.terrain;
+  const fishedOut = new Set(recall(v, 'fishedOut').map((m) => m.fact.pool));
+  let best: FishSpot | null = null;
+  let bestGap = FISHING.npcRange;
+  for (const pool of poolIndexOf(world.terrain).pools) {
+    if (fishedOut.has(pool.id)) continue;
+    const { tile, gap } = nearestTile(pool, size, v.pos);
+    if (gap > bestGap) continue;
+    best = { pool, at: { x: (tile % size) + 0.5, y: Math.floor(tile / size) + 0.5 } };
+    bestGap = gap;
+  }
+  return best;
 }
