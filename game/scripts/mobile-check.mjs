@@ -10,11 +10,14 @@ const url = arg('url', 'http://localhost:5173');
 const only = arg('only', '');
 const cpu = process.argv.includes('--cpu');
 const fast = process.argv.includes('--fast');
+const uiSizeArg = arg('ui-size', '');
 const BOOT_LIMIT_MS = process.env.TEST_TIMEOUTS === 'off' ? 0 : cpu ? 240000 : 60000;
 const STEP_LIMIT_MS = process.env.TEST_TIMEOUTS === 'off' ? 0 : cpu ? 120000 : 30000;
 const SEED = 4242;
 const OUT = 'tmp/mobile';
-const SIZES = { portrait: { width: 390, height: 844 }, landscape: { width: 844, height: 390 } };
+const SIZES = { portrait: { width: 390, height: 844 }, landscape: { width: 844, height: 390 }, phone: { width: 798, height: 375 } };
+const UI_SIZE_KEY = 'roam.uiSize';
+const SMALL_PHONE_SIZE = 0.8;
 const FAULT_OPTIONS = {
   primary: ['.end-turn', '.game-menu .menu-button', '.drawer-tabs .selected', '.modal .close', '.help .close'],
   minTarget: 32,
@@ -151,9 +154,10 @@ async function selfCheck(session, orientation) {
   report(orientation, 'self-check catches a planted cover, a blocked tap and a planted wide element', true);
 }
 
-async function context(browser, orientation, storageState) {
+async function context(browser, orientation, storageState, uiSize = uiSizeArg) {
   const { width, height } = SIZES[orientation];
   const ctx = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: fast ? 1 : 2, storageState });
+  if (uiSize !== '') await ctx.addInitScript(([key, pct]) => { if (localStorage.getItem(key) === null) localStorage.setItem(key, String(Number(pct) / 100)); }, [UI_SIZE_KEY, String(uiSize)]);
   const page = await ctx.newPage();
   page.setDefaultTimeout(STEP_LIMIT_MS);
   const errors = [];
@@ -604,10 +608,9 @@ async function seedSave(browser) {
   return state;
 }
 
-async function landscapeJourney(browser, storage) {
-  const orientation = 'landscape';
+async function landscapeJourney(browser, storage, orientation = 'landscape', uiSize = uiSizeArg) {
   shotNumber = 0;
-  const session = await context(browser, orientation, storage);
+  const session = await context(browser, orientation, storage, uiSize);
   const { page, touch } = session;
   await page.addInitScript(INIT);
   const step = stepper(session, orientation);
@@ -648,14 +651,64 @@ async function landscapeJourney(browser, storage) {
   await session.ctx.close();
 }
 
+const appliedSize = (page) => game(page, async () => (await import('/src/ui/ui-size.ts')).uiSize().applied());
+
+async function uiSizeJourney(browser, storage) {
+  const orientation = 'phone';
+  shotNumber = 100;
+  const session = await context(browser, orientation, storage, '');
+  const { page, touch } = session;
+  await page.addInitScript(INIT);
+  const step = stepper(session, orientation);
+  await step('size-boot-menu', async () => {
+    await page.goto(`${url}/?seed=${SEED}`);
+    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS || undefined });
+  }, async () => ((await appliedSize(page)) === 1 ? true : 'the default size is not 100%'));
+  await step('size-continue', async () => {
+    await touch.tapOn('#ui .start-menu >> text=Continue');
+    await sleep(1500);
+    await waitGame(page);
+    await hideCanvasForSpeed(page);
+  }, async () => ((await game(page, () => window.__ROAM__.state.turn >= 0)) ? true : 'no game'));
+  await step('size-options-open', async () => {
+    await touch.tapOn('.game-menu .menu-button');
+    await touch.tapOn('.game-menu [data-entry=options]');
+  }, async () => ((await page.locator('#ui .ui-size-switch').isVisible()) ? true : 'the UI size row is not shown'));
+  await step('size-pick-90', () => touch.tapOn('#ui .ui-size-switch > :nth-child(2)'), async () => {
+    const applied = await appliedSize(page);
+    return applied === 0.9 ? true : `applied ${applied}`;
+  });
+  await step('size-off-reason', () => touch.tapOn('#ui .ui-size-switch > :nth-child(5)'), async () => {
+    const shown = await page.locator('#ui .touch-tip').textContent().catch(() => null);
+    const applied = await appliedSize(page);
+    return shown && shown.includes('Too big') && applied === 0.9 ? true : `tip ${JSON.stringify(shown)}, applied ${applied}`;
+  });
+  await step('size-options-close', () => touch.tapOn('#ui .options .close'), async () => ((await page.locator('#ui .options').count()) === 0 ? true : 'options are still shown'));
+  await step('size-guns-drawer', () => openDrawer(page, touch, 'guns'), async () => (((await game(page, () => document.getElementById('ui').dataset.drawer)) === 'guns') ? true : 'the drawer did not open'));
+  await closeDrawer(page, touch);
+  await step('size-reload-keeps', async () => {
+    await page.reload();
+    await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS || undefined });
+  }, async () => {
+    const applied = await appliedSize(page);
+    return applied === 0.9 ? true : `applied ${applied} after the reload`;
+  });
+  await session.ctx.close();
+}
+
 async function main() {
   await mkdir(OUT, { recursive: true });
   const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
   try {
-    const orientations = only ? [only] : ['portrait', 'landscape'];
+    const orientations = only ? [only] : ['portrait', 'landscape', 'phone', 'size'];
     let storage;
     if (orientations.includes('portrait')) storage = await portraitJourney(browser);
     if (orientations.includes('landscape')) await landscapeJourney(browser, storage ?? (await seedSave(browser)));
+    if (orientations.includes('phone')) {
+      storage ??= await seedSave(browser);
+      await landscapeJourney(browser, storage, 'phone', uiSizeArg === '' ? String(SMALL_PHONE_SIZE * 100) : uiSizeArg);
+    }
+    if (orientations.includes('size')) await uiSizeJourney(browser, storage ?? (await seedSave(browser)));
   } finally {
     await browser.close();
   }

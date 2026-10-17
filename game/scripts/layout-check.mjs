@@ -7,7 +7,7 @@ const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://lo
 const cpu = process.argv.includes('--cpu');
 const BOOT_LIMIT_MS = process.env.TEST_TIMEOUTS === 'off' ? 0 : cpu ? 240000 : 30000;
 const SEED = 4242;
-const LOCALES = process.env.LAYOUT_LOCALES?.split(',') ?? ['en', 'ru', 'pseudo'];
+const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en', 'ru', 'pseudo'];
 const VIEWPORTS = [[1280, 720], [700, 800]];
 const TALL = [1440, 900];
 const KEY_CAPS = ['WASD', 'Shift', 'Esc'];
@@ -246,14 +246,15 @@ const seconds = () => Math.round((Date.now() - started) / 1000);
 const report = [];
 let captures = 0;
 
-async function capture(page, locale, [width, height], [name, state]) {
+async function capture(page, locale, [width, height], [name, state], size = 1) {
   await state.setup(page);
   await page.evaluate(() => document.fonts.ready);
   await frames(page);
-  await page.screenshot({ path: `${OUT}/${name}-${locale}-${width}x${height}.png` });
-  for (const f of await faultsIn(page, locale)) report.push({ state: name, locale, viewport: `${width}x${height}`, ...f });
+  const label = size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`;
+  await page.screenshot({ path: `${OUT}/${name}-${locale}-${label}.png` });
+  for (const f of await faultsIn(page, locale)) report.push({ state: name, locale, viewport: label, ...f });
   captures++;
-  console.log(`${name} ${locale} ${width}x${height} at ${seconds()} s`);
+  console.log(`${name} ${locale} ${label} at ${seconds()} s`);
   if (state.teardown) await state.teardown(page);
   await frames(page);
 }
@@ -267,11 +268,29 @@ async function checkLocale(page, locale) {
   }
 }
 
+const SIZE_STATES = ['menu', 'inventory', 'shop', 'options'];
+const SIZE_PASSES = [[[1280, 720], 1.3], [[1280, 720], 0.8], [[640, 360], 1]];
+
+const setUiSize = (page, size) => page.evaluate(async (s) => (await import('/src/ui/ui-size.ts')).uiSize().set(s), size);
+
+async function checkUiSizes(page) {
+  await page.evaluate((l) => window.__ROAM__.language.set(l), 'en');
+  for (const [viewport, size] of SIZE_PASSES) {
+    await page.setViewportSize({ width: viewport[0], height: viewport[1] });
+    await setUiSize(page, size);
+    const applied = await page.evaluate(async () => (await import('/src/ui/ui-size.ts')).uiSize().applied());
+    if (applied !== size) report.push({ state: '-', locale: 'en', viewport: viewport.join('x'), kind: 'size-not-applied', path: '', text: `asked ${size}, applied ${applied}`, sizes: '' });
+    for (const entry of Object.entries(STATES).filter(([name]) => SIZE_STATES.includes(name))) await capture(page, 'en', viewport, entry, size);
+  }
+  await setUiSize(page, 1);
+}
+
 await mkdir(OUT, { recursive: true });
 const { browser, page, errors } = await boot();
 console.log(`booted at ${seconds()} s`);
 try {
   for (const locale of LOCALES) await checkLocale(page, locale);
+  if (!ONLY) await checkUiSizes(page);
 } finally {
   await browser.close();
 }

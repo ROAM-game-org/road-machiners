@@ -1,29 +1,49 @@
 import { describe, expect, it } from "vitest";
-import { COARSE_QUERY, inputModeOf, PHONE_MAX, phoneQuery } from "./input-mode";
+import { inputModeOf } from "./input-mode";
 
-function screen(width: number, height: number, coarse: boolean): (q: string) => boolean {
-  return (q) => {
-    if (q === COARSE_QUERY) return coarse;
-    if (q === phoneQuery(PHONE_MAX)) return width <= PHONE_MAX.width || height <= PHONE_MAX.height;
-    throw new Error(`unexpected query ${q}`);
+const layer = (width: number, height: number) => ({ width, height });
+
+function mediaQueries(width: number, height: number) {
+  return {
+    phone: width <= 560 || height <= 480,
+    slim: width <= 480,
+    narrow: width <= 720,
+    compact: width <= 1100,
   };
 }
 
 describe("input mode", () => {
   it("is touch and phone on a portrait phone", () => {
-    expect(inputModeOf(screen(390, 844, true))).toEqual({ touch: true, phone: true });
+    expect(inputModeOf(true, layer(390, 844))).toEqual({ touch: true, phone: true, slim: true, narrow: true, compact: true });
   });
   it("is touch and phone on a landscape phone", () => {
-    expect(inputModeOf(screen(844, 390, true))).toEqual({ touch: true, phone: true });
+    expect(inputModeOf(true, layer(844, 390))).toEqual({ touch: true, phone: true, slim: false, narrow: false, compact: true });
   });
-  it("is neither on a desktop window", () => {
-    expect(inputModeOf(screen(1280, 720, false))).toEqual({ touch: false, phone: false });
+  it("is none on a desktop window", () => {
+    expect(inputModeOf(false, layer(1280, 720))).toEqual({ touch: false, phone: false, slim: false, narrow: false, compact: false });
   });
-  it("is phone but not touch on a narrow desktop window", () => {
-    expect(inputModeOf(screen(700, 800, false))).toEqual({ touch: false, phone: false });
-    expect(inputModeOf(screen(500, 800, false))).toEqual({ touch: false, phone: true });
+  it("is phone on a narrow desktop window only at 560 and below", () => {
+    expect(inputModeOf(false, layer(700, 800)).phone).toBe(false);
+    expect(inputModeOf(false, layer(500, 800)).phone).toBe(true);
   });
   it("is touch but not phone on a tablet", () => {
-    expect(inputModeOf(screen(1024, 768, true))).toEqual({ touch: true, phone: false });
+    expect(inputModeOf(true, layer(1024, 768))).toMatchObject({ touch: true, phone: false, narrow: false, compact: true });
+  });
+  it("matches the old media queries at every boundary at size 100%", () => {
+    for (const width of [479, 480, 481, 559, 560, 561, 719, 720, 721, 1099, 1100, 1101]) {
+      for (const height of [479, 480, 481, 720]) {
+        const { touch, ...classes } = inputModeOf(false, layer(width, height));
+        expect(touch).toBe(false);
+        expect(classes, `${width}x${height}`).toEqual(mediaQueries(width, height));
+      }
+    }
+  });
+  it("follows the layer, not the window: the reporter's phone at 80%", () => {
+    const window = { width: 798, height: 375 };
+    expect(inputModeOf(true, window).phone).toBe(true);
+    expect(inputModeOf(true, layer(window.width / 0.8, window.height / 0.8))).toMatchObject({ phone: true, narrow: false, compact: true });
+  });
+  it("makes a laptop at 130% compact but not narrow", () => {
+    expect(inputModeOf(false, layer(1280 / 1.3, 720 / 1.3))).toMatchObject({ phone: false, narrow: false, compact: true });
   });
 });

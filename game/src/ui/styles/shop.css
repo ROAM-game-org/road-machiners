@@ -48,9 +48,9 @@
 #ui .modal.quest-screen {
   z-index: var(--z-log-open);
   top: 64px;
-  width: min(var(--talk-width), calc(100vw - var(--space-10)));
+  width: min(var(--talk-width), calc(var(--layer-w) - var(--space-10)));
   height: auto;
-  max-height: calc(100dvh - var(--modal-reserve));
+  max-height: calc(var(--layer-h) - var(--modal-reserve));
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -153,18 +153,18 @@
 /* Page view: art, one page of text with its choices, and the quest's numbers and facts. */
 #ui .modal.quest-screen.quest-page {
   top: 40px;
-  width: min(var(--quest-page-width), calc(100vw - var(--space-10) * 2));
-  height: min(var(--quest-page-height), calc(100dvh - var(--quest-page-clearance)));
+  width: min(var(--quest-page-width), calc(var(--layer-w) - var(--space-10) * 2));
+  height: min(var(--quest-page-height), calc(var(--layer-h) - var(--quest-page-clearance)));
   max-height: none;
   display: grid;
   grid-template-columns:
-    min(calc(min(var(--quest-page-height), 100dvh - var(--quest-page-clearance)) * 0.95), calc(100% - var(--quest-side-width) - var(--quest-text-min)))
+    min(calc(min(var(--quest-page-height), var(--layer-h) - var(--quest-page-clearance)) * 0.95), calc(100% - var(--quest-side-width) - var(--quest-text-min)))
     minmax(0, 1fr)
     var(--quest-side-width);
   gap: 0;
   padding: 0;
   border-left: 2px solid var(--line);
-  box-shadow: 0 0 0 100vmax var(--scrim);
+  box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
 }
 .quest-page .quest-art {
   padding: var(--space-7);
