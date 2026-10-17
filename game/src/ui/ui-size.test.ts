@@ -60,14 +60,14 @@ describe("UiSize", () => {
     new UiSize(null, [box], root(), LAPTOP, 1);
     expect(box.style).toEqual({ width: "", height: "", transform: "", transformOrigin: "" });
   });
-  it("sizes the layer box and scales it at 130%", () => {
+  it("sizes the layer box by the layer units and scales it at 130%", () => {
     const box = layer();
     const scale = root();
     new UiSize(null, [box], scale, LAPTOP, 1.3);
     expect(box.style.transform).toBe("scale(1.3)");
     expect(box.style.transformOrigin).toBe("0 0");
-    expect(parseFloat(box.style.width)).toBeCloseTo(1280 / 1.3);
-    expect(parseFloat(box.style.height)).toBeCloseTo(720 / 1.3);
+    expect(box.style.width).toBe("var(--layer-w)");
+    expect(box.style.height).toBe("var(--layer-h)");
     expect(scale.props.get("--ui-scale")).toBe("1.3");
   });
   it("clears the style when the size returns to 100%", () => {

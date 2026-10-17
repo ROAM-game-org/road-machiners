@@ -147,14 +147,18 @@ export class UiSize {
   private write(): void {
     requireSize(this.size);
     this.root?.style.setProperty("--ui-scale", String(this.size));
-    const { width, height } = this.layerSize();
+    const scaled = this.size !== 1;
     for (const layer of this.layers) {
-      layer.style.width = this.size === 1 ? "" : `${width}px`;
-      layer.style.height = this.size === 1 ? "" : `${height}px`;
-      layer.style.transform = this.size === 1 ? "" : `scale(${this.size})`;
-      layer.style.transformOrigin = this.size === 1 ? "" : "0 0";
+      layer.style.width = scaled ? "var(--layer-w)" : "";
+      layer.style.height = scaled ? "var(--layer-h)" : "";
+      layer.style.transform = scaled ? `scale(${this.size})` : "";
+      layer.style.transformOrigin = scaled ? "0 0" : "";
     }
   }
+}
+
+export function windowExtent(): Extent {
+  return { width: window.innerWidth, height: window.innerHeight };
 }
 
 let active = new UiSize(null, [], null, typeof window === "undefined" ? { width: LAYER_MIN.long, height: LAYER_MIN.short } : windowExtent());
@@ -168,10 +172,6 @@ export function loadUiSize(storage: SizeStore, search: string, dev: boolean, lay
 
 export function uiSize(): UiSize {
   return active;
-}
-
-export function windowExtent(): Extent {
-  return { width: window.innerWidth, height: window.innerHeight };
 }
 
 export function layerPointOf(screen: { x: number; y: number }): { x: number; y: number } {

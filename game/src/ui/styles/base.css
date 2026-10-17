@@ -39,6 +39,7 @@ body {
 }
 #ui.touch {
   --btn-h-s: var(--touch-target);
+  --btn-h-m: var(--touch-target);
 }
 #ui .panel {
   position: absolute;
