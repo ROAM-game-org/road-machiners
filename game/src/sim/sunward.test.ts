@@ -10,6 +10,7 @@ import { endTurn } from './world';
 import { followingOf, joinCompany } from './companies';
 import { noteDefeat } from './relations';
 import { route } from './path';
+import { advanceContracts, advanceShops } from './market';
 import { makeTaste, nightTaste, tasted, terrainNav } from './nav/layer';
 import { topGoal } from './npc-activities';
 import { clockOf } from './sun';
@@ -84,7 +85,7 @@ describe('the Hollow', () => {
 
   it('is found by sight like any place, and only once', () => {
     const w = quietWorld();
-    playerVehicle(w).pos = { x: HOLLOW.pos.x, y: HOLLOW.pos.y + 14 };
+    playerVehicle(w).pos = { x: HOLLOW.pos.x + 6, y: HOLLOW.pos.y + 8 };
     refreshVision(w);
     discoverSites(w);
     discoverSites(w);
@@ -387,5 +388,16 @@ describe('the Sunward debug commands', () => {
     const hunted = sunwardHunt(w);
     expect(sunwardFacts(hunted).night!.hunt!.party).toHaveLength(SUNWARD.hunters);
     expect(sunwardLedger(hunted).join('\n')).toMatch(/Beaten: 0 of 6/);
+  });
+});
+
+describe('the order and the town boards', () => {
+  it('posts no bounty on a Sunward car, since no bounty reward is set for one', () => {
+    const w = orderWorld();
+    for (const shop of Object.values(w.shops)) shop.contracts = [];
+    advanceContracts(w);
+    advanceShops(w);
+    const bounties = Object.values(w.shops).flatMap((s) => s.contracts).filter((c) => c.kind === 'bounty');
+    expect(bounties).toEqual([]);
   });
 });

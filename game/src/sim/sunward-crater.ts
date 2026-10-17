@@ -88,7 +88,7 @@ function bound(world: World, member: Vehicle, stranger: Vehicle): boolean {
 
 export function vigilCallDue(world: World, member: Vehicle, nth: number): boolean {
   const me = playerVehicle(world);
-  if (!isSunwardMember(member) || sunwardPhase(world) !== 'vigil' || !inFallenSun(me.pos) || bound(world, member, me)) return false;
+  if (!isSunwardMember(member) || !atTheVigil(world, member) || !inFallenSun(me.pos) || bound(world, member, me)) return false;
   const calls = callsTo(world, me.id);
   return calls.count === nth - 1 && world.turn - calls.turn >= SUNWARD.callGap;
 }
@@ -160,9 +160,14 @@ function isPlayerId(world: World, id: string): boolean {
   return id === world.player.vehicleId;
 }
 
+function atTheVigil(world: World, member: Vehicle): boolean {
+  const phase = sunwardPhase(world);
+  return phase === 'vigil' || (phase === 'ride' && inFallenSun(member.pos));
+}
+
 export function callStrangers(world: World): void {
-  if (!nightOf(world) || sunwardPhase(world) !== 'vigil') return;
-  for (const member of world.vehicles.filter((v) => isSunwardMember(v) && !isDefeated(v))) {
+  if (!nightOf(world)) return;
+  for (const member of world.vehicles.filter((v) => isSunwardMember(v) && !isDefeated(v) && atTheVigil(world, v))) {
     const stranger = world.vehicles.find((x) => calledStranger(world, member, x));
     if (stranger) answerCall(world, member, stranger);
   }

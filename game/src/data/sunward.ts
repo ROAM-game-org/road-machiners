@@ -11,13 +11,13 @@ export const SUNWARD = {
   callGap: 6,
   offerMargin: 3,
   dragTurns: 120,
-  huntChance: 0.25,
-  huntCooldownNights: 2,
+  huntChance: 0.45,
+  huntCooldownNights: 1,
   huntReach: 70,
   huntBreaks: 2,
   huntSalt: 0x68756e74,
   driveTurns: 45,
-  returnMarginTurns: 15,
+  returnMarginTurns: 30,
   avoidMargin: 12,
   avoidCost: 6,
   dropGap: 1.5,
@@ -36,7 +36,7 @@ const FACING_SHRINE = -Math.PI / 2;
 
 export const HOLLOW = {
   id: 'sunward-hollow',
-  pos: { x: 368, y: 204 },
+  pos: { x: 280, y: 228 },
   radius: 11,
   sightReach: 9,
   pieces: [
@@ -47,10 +47,10 @@ export const HOLLOW = {
     { look: 'scrapWall', at: { x: -8, y: -3.5 }, r: 0.95, yaw: 1.25 },
     { look: 'scrapWall', at: { x: 8, y: -3.5 }, r: 0.95, yaw: -1.25 },
     { look: 'scrapWall', at: { x: -10.5, y: 2.5 }, r: 0.95, yaw: 1.6 },
-    { look: 'scrapWall', at: { x: 10.5, y: 2.5 }, r: 0.95, yaw: -1.6 },
+    { look: 'scrapWall', at: { x: 2, y: 8.5 }, r: 0.95, yaw: 0.1 },
     { look: 'drums', at: { x: -2.8, y: -5.2 }, r: 0.44, yaw: 0.4 },
     { look: 'drums', at: { x: 2.8, y: -5.2 }, r: 0.44, yaw: -0.2 },
-    { look: 'drums', at: { x: 10.5, y: 6.5 }, r: 0.44, yaw: 1 },
+    { look: 'drums', at: { x: -4, y: 8.5 }, r: 0.44, yaw: 1 },
     { look: 'woodpile', at: { x: -10.5, y: 6.5 }, r: 0.63, yaw: 0.8 },
   ] as HollowPiece[],
   bays: [
