@@ -94,7 +94,7 @@ async function opened(name: string): Promise<IDBDatabase> {
     open.result.createObjectStore(LOG, { keyPath: ['runId', 'seq'] });
   };
   try {
-    return await withinMs(request(open), IDB_OPEN_MS, 'The IndexedDB open');
+    return await withinMs(request(open), IDB_OPEN_MS, `indexedDB.open(${name})`);
   } catch (err) {
     if (err instanceof Stalled) open.onsuccess = () => open.result.close();
     throw new Error(`The game keeps saves in IndexedDB, and this browser refused it: ${err instanceof Error ? err.message : String(err)}`);

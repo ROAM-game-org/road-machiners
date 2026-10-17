@@ -77,9 +77,9 @@ async function readChunks(body: ReadableStream<Uint8Array>, watch: Watch): Promi
   return joined.buffer;
 }
 
-async function readBody(response: Response, watch: Watch, ms: number, timers: Timers): Promise<ArrayBuffer> {
+async function readBody(url: string, response: Response, watch: Watch, ms: number, timers: Timers): Promise<ArrayBuffer> {
   if (response.body) return readChunks(response.body, watch);
-  return withinMs(response.arrayBuffer(), ms, 'Download body', timers);
+  return withinMs(response.arrayBuffer(), ms, `Body of ${url}`, timers);
 }
 
 async function attempt(url: string, init: RequestInit | undefined, get: NonNullable<DownloadDeps['fetch']>, ms: number, timers: Timers): Promise<Outcome> {
@@ -88,7 +88,7 @@ async function attempt(url: string, init: RequestInit | undefined, get: NonNulla
     const response = await Promise.race([get(url, { ...init, signal: watch.signal }), silence(watch)]);
     if (!response.ok) return { status: response.status };
     watch.beat();
-    return { body: { response, bytes: await readBody(response, watch, ms, timers) } };
+    return { body: { response, bytes: await readBody(url, response, watch, ms, timers) } };
   } finally {
     watch.stop();
   }

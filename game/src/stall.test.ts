@@ -31,7 +31,7 @@ describe('withinMs', () => {
     const t = fakeTimers();
     const pending = withinMs(new Promise(() => {}), 5000, 'The thing', t.timers);
     t.fire();
-    const error = await pending.catch((e) => e);
+    const error = (await pending.catch((e: unknown) => e)) as Error;
     expect(error).toBeInstanceOf(Stalled);
     expect(error.message).toBe('The thing got no answer for 5 s');
   });
