@@ -36,7 +36,7 @@ const FACING_SHRINE = -Math.PI / 2;
 
 export const HOLLOW = {
   id: 'sunward-hollow',
-  pos: { x: 280, y: 228 },
+  pos: { x: 276, y: 225 },
   radius: 11,
   sightReach: 9,
   pieces: [
