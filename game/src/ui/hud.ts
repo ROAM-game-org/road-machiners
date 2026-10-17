@@ -645,6 +645,7 @@ export class Hud {
       lines.push(line);
     }
     this.log.add(w.turn, lines);
+    if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
     this.radio.hear(w);
   }
 

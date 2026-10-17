@@ -7,7 +7,8 @@ import { furyRoadWorld, testDrive } from './testkit';
 import { standardWorld } from '../test/world-cache';
 import { playerVehicle } from './damage';
 import { endTurn } from './world';
-import { followingOf } from './companies';
+import { followingOf, joinCompany } from './companies';
+import { noteDefeat } from './relations';
 import { topGoal } from './npc-activities';
 import { clockOf } from './sun';
 import { refreshVision } from './vision';
@@ -16,9 +17,9 @@ import { spawnAt, spawnNpcs } from './spawn';
 import { generateNpcLoadout } from './npc-loadout';
 import { callVehicle, currentLine, currentOptions } from './dialogue';
 import {
-  advanceSunward, dawnAfter, huntTonight, inFallenSun, planSunward, duskTurn, hollowBays, hollowObstacles, isHollowObstacle, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
+  advanceSunward, collapseOrder, dawnAfter, hollowLampsLit, huntTonight, inFallenSun, planSunward, spawnsAtHollow, duskTurn, hollowBays, hollowObstacles, isHollowObstacle, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
 } from './sunward';
-import type { World } from './types';
+import type { Vehicle, World } from './types';
 import { dist } from './vec';
 
 function quietWorld(): World {
@@ -231,5 +232,96 @@ describe('the hunting parties', () => {
     const other = w.vehicles.find((v) => v.id === hunt.party[2])!;
     planSunward(w, other);
     expect(other.brain!.goals[0].reason).not.toBe('huntRoad');
+  });
+});
+
+describe('the night ledger and the collapse', () => {
+  function ledgerWorld(): { w: World; roster: Vehicle[] } {
+    const w = orderWorld();
+    w.turn = duskTurn(1) + 70;
+    advanceSunward(w);
+    const roster = sunwardFacts(w).night!.roster.map((id) => w.vehicles.find((v) => v.id === id)!);
+    return { w, roster };
+  }
+
+  function beat(w: World, v: Vehicle, by: Vehicle): void {
+    v.lastHitBy = by.id;
+    noteDefeat(w, v, false);
+  }
+
+  it('keeps the order after five cars beaten by the player in one night and breaks it on the sixth, in that turn', () => {
+    const { w, roster } = ledgerWorld();
+    const me = playerVehicle(w);
+    for (const v of roster.slice(0, 5)) beat(w, v, me);
+    expect(sunwardFacts(w).collapsed).toBeNull();
+    expect(sunwardFacts(w).night!.beaten).toHaveLength(5);
+
+    beat(w, roster[5], me);
+
+    expect(sunwardFacts(w).collapsed).toBe(w.turn);
+    expect(w.events.filter((e) => e.t === 'sunwardFallen')).toHaveLength(1);
+    expect(sunwardPhase(w)).toBe('fallen');
+  });
+
+  it('counts a car once however often it is beaten', () => {
+    const { w, roster } = ledgerWorld();
+    for (let i = 0; i < 6; i++) beat(w, roster[0], playerVehicle(w));
+    expect(sunwardFacts(w).night!.beaten).toEqual([roster[0].id]);
+    expect(sunwardFacts(w).collapsed).toBeNull();
+  });
+
+  it('counts a car beaten by a guard in the player\'s company, but no third party, no hunter and nothing by day', () => {
+    const { w, roster } = ledgerWorld();
+    const merc = spawnAt(w, NPCS.merc, generateNpcLoadout(w, NPCS.merc), { x: 60, y: 60 }, 'independent');
+    joinCompany(w, merc, playerVehicle(w), 'hire', { kind: 'hire', fee: 0 });
+    const stranger = spawnAt(w, NPCS.trader, generateNpcLoadout(w, NPCS.trader), { x: 70, y: 70 }, 'independent');
+    const hunter = membersOf(w).find((v) => v.brain!.templateId === 'hunter')!;
+
+    beat(w, roster[0], merc);
+    beat(w, roster[1], stranger);
+    beat(w, hunter, playerVehicle(w));
+    w.turn = dawnAfter(duskTurn(1)) + 5;
+    beat(w, roster[2], playerVehicle(w));
+
+    expect(sunwardFacts(w).night!.beaten).toEqual([roster[0].id]);
+  });
+
+  it('starts a fresh count at the next dusk', () => {
+    const { w, roster } = ledgerWorld();
+    for (const v of roster.slice(0, 5)) beat(w, v, playerVehicle(w));
+    w.turn = duskTurn(2) + 70;
+    advanceSunward(w);
+    expect(sunwardFacts(w).night!.beaten).toEqual([]);
+    beat(w, roster[5], playerVehicle(w));
+    expect(sunwardFacts(w).collapsed).toBeNull();
+  });
+
+  it('turns every rider into an independent roamer and ends the Hollow, its lamps, its refills and its nights for good', () => {
+    const { w, roster } = ledgerWorld();
+    const members = membersOf(w);
+    for (const v of roster.slice(0, 6)) beat(w, v, playerVehicle(w));
+
+    for (const v of members) {
+      expect(v.faction).toBe('independent');
+      expect(v.brain!.traits).toEqual(['roamer']);
+    }
+    expect(membersOf(w)).toEqual([]);
+    expect(hollowLampsLit(w)).toBe(false);
+    w.turn = duskTurn(3) + 70;
+    advanceSunward(w);
+    expect(sunwardFacts(w).night?.dusk).toBe(duskTurn(1));
+    w.turn = duskTurn(4) - 100;
+    expect(spawnsAtHollow(w)).toBe(false);
+    for (let i = 0; i < 80; i++) {
+      w.turn++;
+      spawnNpcs(w);
+    }
+    expect(membersOf(w)).toEqual([]);
+    expect(sunwardPhase(w)).toBe('fallen');
+  });
+
+  it('refuses a collapse short of six counted cars', () => {
+    const { w } = ledgerWorld();
+    expect(() => collapseOrder(w)).toThrow(/only after 6/);
   });
 });

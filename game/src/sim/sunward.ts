@@ -2,9 +2,9 @@ import { HOLLOW, SUNWARD } from '../data/sunward';
 import { REGION, type TerritoryDef } from '../data/region';
 import { RULES } from '../data/rules';
 import { TIME } from '../data/time';
-import { inCompany, joinCompany, followingOf } from './companies';
+import { inCompany, joinCompany, followingOf, sameCompany } from './companies';
 import { playerVehicle } from './damage';
-import { isDefeated, isKnockedOut, refitAtHome } from './defeat';
+import { isDefeated, isKnockedOut, patchBrokenCore, refitAtHome } from './defeat';
 import { placeBase, topGoal } from './npc-activities';
 import { getResources } from './resources';
 import { endState } from './states';
@@ -420,4 +420,48 @@ export function sunwardRetreat(world: World, v: Vehicle): NpcActivity {
   const wanted = homeGoal(world, v);
   if (!sameGoal(v.brain!.goals[0], wanted) || topGoal(v) === null) placeBase(world, v, wanted);
   return topGoal(v)!;
+}
+
+const ORDER_STATES: readonly NpcState['kind'][] = ['cavalcade', 'offering', 'drag'];
+
+export function noteSunwardDefeat(world: World, beaten: Vehicle, actor: Vehicle): void {
+  const night = orderStands(world) ? sunwardFacts(world).night : null;
+  if (!night || !counts(world, night, beaten, actor)) return;
+  night.beaten.push(beaten.id);
+  if (night.beaten.length >= SUNWARD.collapseAt) collapseOrder(world);
+}
+
+function counts(world: World, night: SunwardNight, beaten: Vehicle, actor: Vehicle): boolean {
+  return nightWindow(world) && lastDusk(world.turn) === night.dusk && night.roster.includes(beaten.id) && !night.beaten.includes(beaten.id) && byPlayersCompany(world, actor);
+}
+
+function byPlayersCompany(world: World, actor: Vehicle): boolean {
+  const me = playerVehicle(world);
+  return actor.id === me.id || sameCompany(world, actor, me);
+}
+
+export function collapseOrder(world: World): void {
+  const facts = sunwardFacts(world);
+  requireFall(facts);
+  facts.collapsed = world.turn;
+  for (const s of world.states.filter((x) => ORDER_STATES.includes(x.kind))) if (world.states.includes(s)) endState(world, s, 'expired');
+  for (const v of membersOf(world)) leaveOrder(world, v);
+  world.events.push({ t: 'sunwardFallen' });
+}
+
+function requireFall(facts: SunwardFacts): void {
+  if (facts.collapsed !== null) throw new Error('The Sunward order has already fallen');
+  const beaten = facts.night?.beaten.length ?? 0;
+  if (beaten < SUNWARD.collapseAt) throw new Error(`The Sunward order falls only after ${SUNWARD.collapseAt} Cavalcade cars are beaten in one night, not ${beaten}`);
+}
+
+function leaveOrder(world: World, v: Vehicle): void {
+  const previous = topGoal(v);
+  v.faction = 'independent';
+  v.brain!.traits = ['roamer'];
+  v.brain!.goals = [];
+  world.events.push({ t: 'activity', vehicle: v.id, previous: previous?.kind ?? null, activity: null, reason: 'orderFell' });
+  if (v.defeat?.phase !== 'out') return;
+  patchBrokenCore(v);
+  v.defeat = { ...v.defeat, phase: 'retreat', unseen: 0 };
 }

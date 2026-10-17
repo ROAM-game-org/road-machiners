@@ -1038,7 +1038,7 @@ describe('relations in a save', () => {
 
   it('gives back the Sunward record and the order\'s night ledger after a save and load', () => {
     const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
-    w.sunward = { collapsed: null, night: { dusk: 245, roster: ['v9', 'v10'], beaten: ['v9'], calls: { v1: { count: 2, turn: 300 } }, hunt: null, shouted: [] }, lastHunt: 1 };
+    w.sunward = { collapsed: 330, night: { dusk: 245, roster: ['v9', 'v10'], beaten: ['v9'], calls: { v1: { count: 2, turn: 300 } }, hunt: { party: ['v11'], grounds: [{ x: 1, y: 2 }, { x: 3, y: 4 }], prey: null, over: true, breaks: 1 }, shouted: ['v1'] }, lastHunt: 1 };
     w.events = [];
     const slots = new SaveSlots(memoryBackend(), new Map());
 
