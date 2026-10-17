@@ -1,0 +1,193 @@
+import { SUNWARD } from '../data/sunward';
+import { playerVehicle, vehicleById } from './damage';
+import { isDefeated } from './defeat';
+import { decide, npcProfile } from './npc-decisions';
+import { fightCornered, fleeFrom, interrupt, pushGoal } from './npc-activities';
+import { inTruce, reportIncident } from './relations';
+import { canVehicleSee } from './vision';
+import { inCore } from './hazard';
+import { makePeace } from './parley';
+import { addState, declareFeud, stateOf } from './states';
+import { hazardZones, type HazardZone } from './territory';
+import { checkDrag, isOnRope, releaseDragged } from './tow';
+import type { CallVars, NpcState, StateData, StateEnding, SunwardNight, Vehicle, VigilCalls, World } from './types';
+import { dist, type Vec } from './vec';
+import { dawnAfter, inFallenSun, isSunwardMember, lastDusk, nightWindow, orderStands, returnTurn, sunwardFacts, sunwardPhase } from './sunward';
+
+
+let crater: HazardZone | null = null;
+
+export function lightZone(): HazardZone {
+  crater ??= hazardZones().find((z) => z.id === 'fallen-sun') ?? null;
+  if (!crater?.core) throw new Error('The Fallen Sun has no reactor core to drag a truck to');
+  return crater;
+}
+
+export type DropLane = { approach: Vec; stop: Vec };
+
+function laneAt(angle: number): DropLane {
+  const zone = lightZone();
+  const at = (r: number): Vec => ({ x: zone.pos.x + Math.cos(angle) * r, y: zone.pos.y + Math.sin(angle) * r });
+  const stop = at(zone.core!.radius + SUNWARD.dropGap);
+  if (inCore(zone, stop)) throw new Error('A drop spot lies inside the reactor core');
+  return { approach: at(zone.radius + SUNWARD.approachGap), stop };
+}
+
+export function dropSpot(from: Vec): DropLane {
+  return SUNWARD.dropLanes.map(laneAt).reduce((a, b) => (dist(from, a.approach) <= dist(from, b.approach) ? a : b));
+}
+
+export function inDropRing(pos: Vec): boolean {
+  const zone = lightZone();
+  return dist(pos, zone.pos) < zone.radius && !inCore(zone, pos);
+}
+
+export function nearTheLight(pos: Vec): boolean {
+  const zone = lightZone();
+  return dist(pos, zone.pos) <= zone.radius + SUNWARD.straightReach;
+}
+
+export function dragDawn(s: NpcState): number {
+  return dawnAfter(lastDusk(s.born));
+}
+
+export function checkSunwardDrag(world: World, s: NpcState): StateEnding | null {
+  const ending = checkDrag(world, s);
+  if (ending) return ending;
+  if (inDropRing(vehicleById(world, s.other).pos)) return 'fulfilled';
+  return world.turn >= dragDawn(s) ? 'expired' : null;
+}
+
+export function dropAtLight(world: World, s: NpcState): void {
+  releaseDragged(world, s);
+  const dragger = world.vehicles.find((v) => v.id === s.holder);
+  const victim = world.vehicles.find((v) => v.id === s.other);
+  if (!dragger || !victim) return;
+  makePeace(world, dragger, victim);
+  givenUntilDawn(world, victim, dragDawn(s));
+}
+
+function givenUntilDawn(world: World, victim: Vehicle, dawn: number): void {
+  const left = Math.max(1, dawn - world.turn);
+  for (const member of world.vehicles.filter(isSunwardMember)) {
+    for (const [a, b] of [[member.id, victim.id], [victim.id, member.id]]) (stateOf(world, 'truce', a, b) ?? addState(world, 'truce', a, b, { kind: 'none' })).turnsLeft = left;
+  }
+}
+
+function nightOf(world: World): SunwardNight | null {
+  return orderStands(world) ? sunwardFacts(world).night : null;
+}
+
+function callsTo(world: World, id: string): VigilCalls {
+  return nightOf(world)?.calls[id] ?? { count: 0, turn: -SUNWARD.callGap };
+}
+
+function bound(world: World, member: Vehicle, stranger: Vehicle): boolean {
+  return inTruce(world, member, stranger) || offeringOf(world, stranger.id) !== null || isOnRope(world, stranger.id);
+}
+
+export function vigilCallDue(world: World, member: Vehicle, nth: number): boolean {
+  const me = playerVehicle(world);
+  if (!isSunwardMember(member) || sunwardPhase(world) !== 'vigil' || !inFallenSun(me.pos) || bound(world, member, me)) return false;
+  const calls = callsTo(world, me.id);
+  return calls.count === nth - 1 && world.turn - calls.turn >= SUNWARD.callGap;
+}
+
+function noteCall(world: World, strangerId: string): void {
+  const night = nightOf(world);
+  if (!night) throw new Error('The Sunward call strangers only on a night of their vigil');
+  night.calls[strangerId] = { count: callsTo(world, strangerId).count + 1, turn: world.turn };
+}
+
+export function prepareVigilCall(world: World): CallVars {
+  noteCall(world, world.player.vehicleId);
+  return {};
+}
+
+export function craterNews(world: World): CallVars {
+  return { news: { kind: 'line', line: orderStands(world) ? 'carsDraggedIntoTheDark' : 'crowdAtTheCraterAgain' } };
+}
+
+export function refuseVigil(world: World, caller: Vehicle): void {
+  const me = playerVehicle(world);
+  if (!offeringOf(world, me.id)) seize(world, caller, me);
+}
+
+export function offeringOf(world: World, holderId: string): NpcState | null {
+  return world.states.find((s) => s.kind === 'offering' && s.holder === holderId) ?? null;
+}
+
+function offeringData(s: NpcState): Extract<StateData, { kind: 'offering' }> {
+  if (s.data.kind !== 'offering') throw new Error(`State ${s.id} holds no offering`);
+  return s.data;
+}
+
+export function giveWord(world: World, holder: Vehicle, caller: Vehicle): NpcState {
+  const zone = lightZone();
+  return addState(world, 'offering', holder.id, caller.id, { kind: 'offering', core: { ...zone.pos }, closest: dist(holder.pos, zone.pos) });
+}
+
+export function checkOffering(world: World, s: NpcState): StateEnding | null {
+  const holder = vehicleById(world, s.holder);
+  const data = offeringData(s);
+  const gap = dist(holder.pos, data.core);
+  if (inCore(lightZone(), holder.pos)) return 'fulfilled';
+  if (!nightWindow(world) || world.turn >= returnTurn(lastDusk(world.turn))) return 'expired';
+  if (gap > data.closest + SUNWARD.offerMargin || !inFallenSun(holder.pos)) return 'broken';
+  data.closest = Math.min(data.closest, gap);
+  return null;
+}
+
+export function breakWord(world: World, s: NpcState): void {
+  const caller = world.vehicles.find((v) => v.id === s.other);
+  const holder = world.vehicles.find((v) => v.id === s.holder);
+  if (caller && holder && !isDefeated(caller)) seize(world, caller, holder);
+}
+
+function membersSeeing(world: World, victim: Vehicle): Vehicle[] {
+  return world.vehicles.filter((v) => isSunwardMember(v) && !isDefeated(v) && canVehicleSee(world, v, victim.pos));
+}
+
+export function seize(world: World, caller: Vehicle, victim: Vehicle): void {
+  for (const member of [caller, ...membersSeeing(world, victim).filter((v) => v.id !== caller.id)]) {
+    declareFeud(world, member, victim.id);
+    fightCornered(world, member, victim, 'keepVigil');
+  }
+  reportIncident(world, { aggressor: caller, victim, deed: 'robbed', victimFights: !isPlayerId(world, victim.id) });
+}
+
+function isPlayerId(world: World, id: string): boolean {
+  return id === world.player.vehicleId;
+}
+
+export function callStrangers(world: World): void {
+  if (!nightOf(world) || sunwardPhase(world) !== 'vigil') return;
+  for (const member of world.vehicles.filter((v) => isSunwardMember(v) && !isDefeated(v))) {
+    const stranger = world.vehicles.find((x) => calledStranger(world, member, x));
+    if (stranger) answerCall(world, member, stranger);
+  }
+}
+
+function calledStranger(world: World, member: Vehicle, x: Vehicle): boolean {
+  return strangerAtVigil(x) && callsTo(world, x.id).count === 0 && !bound(world, member, x) && canVehicleSee(world, member, x.pos);
+}
+
+function strangerAtVigil(x: Vehicle): boolean {
+  return x.brain !== null && !isSunwardMember(x) && !isDefeated(x) && inFallenSun(x.pos);
+}
+
+function answerCall(world: World, member: Vehicle, stranger: Vehicle): void {
+  noteCall(world, stranger.id);
+  const answer = decide(world, stranger, 'vigilCalled', member.id, null);
+  if (answer === 'refuse') return seize(world, member, stranger);
+  if (answer === 'flee') return interrupt(world, stranger, fleeFrom(world, stranger, npcProfile(stranger), member.id, member.pos, 'escapeThreat'));
+  giveWord(world, stranger, member);
+  pushGoal(world, stranger, { kind: 'wait', targetId: null, destination: { ...stranger.pos }, phase: 'act', reason: 'keepWord', until: returnTurn(lastDusk(world.turn)) });
+}
+
+export function shoutGiven(world: World, shooter: Vehicle, target: Vehicle): void {
+  const night = nightOf(world);
+  if (!night || !isSunwardMember(shooter) || night.shouted.includes(target.id)) return;
+  night.shouted.push(target.id);
+  world.events.push({ t: 'say', speaker: shooter.id, line: 'givenBySky', vars: {} });
+}

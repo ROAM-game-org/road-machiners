@@ -22,6 +22,7 @@ import { bodyHitChance, inArc, inCombat } from "./combat";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
 import { rollingOrder, runsDown } from "./hunters";
+import { dragsStraight } from "./sunward";
 
 function planners(world: World): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v));
@@ -48,7 +49,7 @@ function setOrder(world: World, { v, activity, goal }: Plan): void {
   const stops = goal !== null && trafficStops(world, v, goal);
   noteStall(world, v, stops && activity.kind !== "fight" && activity.kind !== "flee");
   v.order = nextOrder(world, v, activity, goal, stops);
-  v.direct = false;
+  v.direct = dragsStraight(world, v);
 }
 
 function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {

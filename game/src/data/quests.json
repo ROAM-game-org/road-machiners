@@ -465,6 +465,46 @@
     }
    }
   },
+  "fallen_light": {
+   "vars": {},
+   "checkpoints": [
+    "start"
+   ],
+   "view": "page",
+   "art": [],
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   },
+   "text": {
+    "en": {
+     "story": "{\"inkVersion\":21,\"root\":[[\"#\",\"^view: page\",\"/#\",\"\\n\",[\"done\",{\"#n\":\"g-0\"}],null],\"done\",{\"start\":[\"#\",\"^checkpoint: start\",\"/#\",\"^The glow fills the windshield, then the cab, then the inside of your eyelids. Closing them changes nothing. \",\"#\",\"^place: The breach\",\"/#\",\"\\n\",\"^It isn't even hot. That's the strange part. Through the link the truck feels whole, the way it always does: a clean sense of steel, rubber and diesel at the edge of everything. The engine is fine. The tires are fine.\",\"\\n\",\"^It's you that's wrong. Your hands have gone soft and far away, and there's iron in your mouth. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^The link has always known where you end. A row of contacts down your spine, a plug at the base of your skull, two clamps at your neck, and the truck on the other side of them, sure of who sits in its seat.\",\"\\n\",\"^Now it starts to lose you. Its sense of you flickers, the way a radio drifts off a station. It reaches for the hands on the wheel and finds them, and then it doesn't. It reaches for the breath in the seat and finds less of it every time.\",\"\\n\",\"^Somewhere in the back of your head a sense you never had a name for goes quiet. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^The light lies across the seat, the wheel and the slack hands on it. The engine idles.\",\"\\n\",\"^For a long time the truck waits for its driver to come back into the link. Nobody does. There is no driver in the seat now, only a body. \",\"#\",\"^reveal: word\",\"/#\",\"\\n\",\"^The engine idles until the tank runs dry.\",\"\\n\",\"end\",null],\"global decl\":[\"ev\",\"str\",\"^none\",\"/str\",{\"VAR=\":\"depot_thief\"},false,{\"VAR=\":\"first_knockout_seen\"},\"str\",\"^off\",\"/str\",{\"VAR=\":\"intro_step\"},false,{\"VAR=\":\"towed_to_bowl\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"ambush_raider\"},false,{\"VAR=\":\"varga_truck_known\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pipe_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"marr_regard\"},false,{\"VAR=\":\"wagon_seen\"},false,{\"VAR=\":\"wagon_saw\"},false,{\"VAR=\":\"wagon_read\"},false,{\"VAR=\":\"wagon_watched\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"wagon_pin\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"wagon_fate\"},false,{\"VAR=\":\"scale_seen\"},\"/ev\",\"end\",null]}],\"listDefs\":{}}",
+     "stats": [],
+     "facts": [],
+     "scenes": {
+      "start": {
+       "img": null,
+       "place": null
+      }
+     }
+    },
+    "ru": {
+     "story": "{\"inkVersion\":21,\"root\":[[\"#\",\"^view: page\",\"/#\",\"\\n\",[\"done\",{\"#n\":\"g-0\"}],null],\"done\",{\"start\":[\"#\",\"^checkpoint: start\",\"/#\",\"^The glow fills the windshield, then the cab, then the inside of your eyelids. Closing them changes nothing. \",\"#\",\"^place: The breach\",\"/#\",\"\\n\",\"^It isn't even hot. That's the strange part. Through the link the truck feels whole, the way it always does: a clean sense of steel, rubber and diesel at the edge of everything. The engine is fine. The tires are fine.\",\"\\n\",\"^It's you that's wrong. Your hands have gone soft and far away, and there's iron in your mouth. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^The link has always known where you end. A row of contacts down your spine, a plug at the base of your skull, two clamps at your neck, and the truck on the other side of them, sure of who sits in its seat.\",\"\\n\",\"^Now it starts to lose you. Its sense of you flickers, the way a radio drifts off a station. It reaches for the hands on the wheel and finds them, and then it doesn't. It reaches for the breath in the seat and finds less of it every time.\",\"\\n\",\"^Somewhere in the back of your head a sense you never had a name for goes quiet. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^The light lies across the seat, the wheel and the slack hands on it. The engine idles.\",\"\\n\",\"^For a long time the truck waits for its driver to come back into the link. Nobody does. There is no driver in the seat now, only a body. \",\"#\",\"^reveal: word\",\"/#\",\"\\n\",\"^The engine idles until the tank runs dry.\",\"\\n\",\"end\",null],\"global decl\":[\"ev\",\"str\",\"^none\",\"/str\",{\"VAR=\":\"depot_thief\"},false,{\"VAR=\":\"first_knockout_seen\"},\"str\",\"^off\",\"/str\",{\"VAR=\":\"intro_step\"},false,{\"VAR=\":\"towed_to_bowl\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"ambush_raider\"},false,{\"VAR=\":\"varga_truck_known\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pipe_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"marr_regard\"},false,{\"VAR=\":\"wagon_seen\"},false,{\"VAR=\":\"wagon_saw\"},false,{\"VAR=\":\"wagon_read\"},false,{\"VAR=\":\"wagon_watched\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"wagon_pin\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"wagon_fate\"},false,{\"VAR=\":\"scale_seen\"},\"/ev\",\"end\",null]}],\"listDefs\":{}}",
+     "stats": [],
+     "facts": [],
+     "scenes": {
+      "start": {
+       "img": null,
+       "place": null
+      }
+     }
+    }
+   }
+  },
   "first_fall": {
    "vars": {},
    "checkpoints": [

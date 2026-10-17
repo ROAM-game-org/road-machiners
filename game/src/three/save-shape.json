@@ -1,5 +1,5 @@
 {
- "format": "2.77",
+ "format": "2.78",
  "shape": {
   "broken": [],
   "craters": [],
@@ -97,7 +97,8 @@
     "guidestar": "number",
     "kiln": "number",
     "nose": "number",
-    "scrapjaw": "number"
+    "scrapjaw": "number",
+    "sunward": "number"
    },
    "state": "string",
    "storage": [],
@@ -1905,6 +1906,11 @@
     "turnsLeft": "null"
    }
   ],
+  "sunward": {
+   "collapsed": "null",
+   "lastHunt": "null",
+   "night": "null"
+  },
   "turn": "number",
   "vehicles": [
    {
@@ -2224,6 +2230,7 @@
     "asked_pay": "boolean",
     "asked_where": "boolean"
    },
+   "fallen_light": {},
    "first_fall": {},
    "intro_arrival": {
     "arrival_rope": "boolean"
@@ -2394,6 +2401,9 @@
    "bowl_scale": [
     "start"
    ],
+   "fallen_light": [
+    "start"
+   ],
    "first_fall": [
     "start"
    ],
@@ -2538,6 +2548,16 @@
     "notes": [
      "orchardIron"
     ],
+    "begins": []
+   }
+  },
+  "fallen_light": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
     "begins": []
    }
   },

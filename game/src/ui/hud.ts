@@ -379,17 +379,16 @@ export class Hud {
     this.dialogue.render(w);
     const r = getRescueReadout(w);
     this.knockedOut.style.display = rescueOf(r, "knockedOut") ? "" : "none";
-    this.renderMiddle(rescueOf(r, "towed"));
+    this.renderMiddle(rescueOf(r, "towed") ?? rescueOf(r, "dragged"));
     this.renderStranded(rescueOf(r, "stranded"));
   }
 
-  private renderMiddle(r: Extract<RescueReadout, { kind: "towed" }> | null): void {
+  private renderMiddle(r: Extract<RescueReadout, { kind: "towed" | "dragged" }> | null): void {
     this.rescue.style.display = r ? "" : "none";
     if (!r) return this.rescue.replaceChildren();
     this.rescue.replaceChildren(
       el("h3", {}, t("hud.underTow")),
-      el("div", {}, t("hud.towsYou", { who: r.tower, town: r.town })),
-      el("div", { class: "dim" }, t("hud.fee"), SPACE, moneyEl(r.fee)),
+      ...(r.kind === "towed" ? [el("div", {}, t("hud.towsYou", { who: r.tower, town: r.town })), el("div", { class: "dim" }, t("hud.fee"), SPACE, moneyEl(r.fee))] : []),
       el(
         "div",
         { class: "rescue-buttons" },

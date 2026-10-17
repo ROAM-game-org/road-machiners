@@ -16,6 +16,8 @@ import { num, t } from '../../text/msg';
 import { fullName, siteName } from '../../text/names';
 import { heldSearch } from '../../sim/market';
 import { agoText } from '../../ui/units';
+import { HOLLOW_ID } from '../../sim/sunward';
+import { HOLLOW } from '../../data/sunward';
 
 const LABEL_LIFT_PX = 90;
 const LEAD_EXTRA_LIFT_PX = 26;
@@ -53,10 +55,18 @@ export class Labels {
       setText(el, world.player.discovered.includes(s.id) ? siteName(s.id) : t('map.unknownSite'));
       place(el, world, s.pos, rig, limit, playerExplored(world, s.pos));
     }
-    this.dropGoneSites(new Set(sites.map((s) => s.id)));
+    this.updateHollow(world, rig, limit);
+    this.dropGoneSites(new Set([...sites.map((s) => s.id), HOLLOW_ID]));
     this.updateRumors(world, rig, limit);
     this.updateEscort(world, rig, limit);
     this.updateLead(world, rig, limit);
+  }
+
+  private updateHollow(world: World, rig: CameraRig, limit: SightLimit): void {
+    if (!world.player.discovered.includes(HOLLOW_ID)) return;
+    const el = this.siteLabel(HOLLOW_ID);
+    setText(el, siteName(HOLLOW_ID));
+    place(el, world, HOLLOW.pos, rig, limit, playerExplored(world, HOLLOW.pos));
   }
 
   private updateLead(world: World, rig: CameraRig, limit: SightLimit): void {

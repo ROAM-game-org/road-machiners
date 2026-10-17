@@ -27,6 +27,7 @@ import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
 import { TEST_MAP } from '../test/map';
+import { hollowObstacles } from '../sim/sunward';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { breakProp, oldSpotOf, oldSpotPicks, oldStockId } from '../sim/salvage';
@@ -633,7 +634,7 @@ describe('game save', () => {
 
     expect(baked.size).toBeGreaterThan(0);
     expect(saved.filter((o) => baked.has(o.id))).toEqual([]);
-    expect(saved.length).toBe(world.obstacles.length - baked.size);
+    expect(saved.length).toBe(world.obstacles.length - baked.size - hollowObstacles().length);
     expect(loadWorld(slots, 'auto', TEST_MAP)!.obstacles).toEqual(world.obstacles);
   });
 
@@ -1033,5 +1034,33 @@ describe('relations in a save', () => {
     expect(loaded.events).toEqual([]);
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.player.money).toBe(w.player.money);
+  });
+
+  it('gives back the Sunward record and the order\'s night ledger after a save and load', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    w.sunward = { collapsed: null, night: { dusk: 245, roster: ['v9', 'v10'], beaten: ['v9'], calls: { v1: { count: 2, turn: 300 } }, hunt: null, shouted: [] }, lastHunt: 1 };
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.sunward).toEqual(w.sunward);
+    expect(loaded.player.standing.sunward).toBe(-20);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('keeps the Hollow out of the save and builds it again at load, also for a save that never held it', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const saved = savedWorldOf(slots, 'auto');
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(saved.obstacles.some((o) => o.id.startsWith('hollow-'))).toBe(false);
+    expect(loaded.obstacles.filter((o) => o.id.startsWith('hollow-'))).toEqual(w.obstacles.filter((o) => o.id.startsWith('hollow-')));
+    expect(loaded.obstacles).toEqual(w.obstacles);
   });
 });

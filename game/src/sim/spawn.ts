@@ -19,6 +19,7 @@ import { startEscort } from "./tow";
 import type { NpcFactionId, Vehicle, World } from "./types";
 import { dist, type Vec } from "./vec";
 import { atlasOf } from "./atlas";
+import { bayHeading, hollowBays, isSunwardMember, spawnsAtHollow } from "./sunward";
 
 export function spawnNpcs(world: World): void {
   if (!modeRules(world).traffic) return;
@@ -31,7 +32,26 @@ function tickSpawn(world: World, tpl: NpcTemplate): void {
   if (left > 0) return;
   world.spawnTimer[tpl.id] = tpl.interval;
   if (tpl.pairs) tickPairs(world, tpl);
+  else if (tpl.spawn.kind === 'hollow') refillHollow(world, tpl);
   else if (aliveOf(world, tpl) < tpl.cap) spawnWithEscorts(world, tpl, () => siteFor(world, tpl), true);
+}
+
+function refillHollow(world: World, tpl: NpcTemplate): void {
+  if (spawnsAtHollow(world) && aliveOf(world, tpl) < tpl.cap) spawnInBay(world, tpl);
+}
+
+function spawnInBay(world: World, tpl: NpcTemplate): Vehicle | null {
+  const loadout = generateNpcLoadout(world, tpl);
+  const radius = chassisDef(loadout.chassisId).radius;
+  const homes = world.vehicles.filter(isSunwardMember).map((v) => v.brain!.home);
+  const bay = hollowBays().findIndex((p) => !homes.some((h) => dist(h, p) < 0.5) && isFree(world, p, radius, null));
+  if (bay < 0) {
+    world.events.push({ t: 'info', note: { id: 'spawnBlocked', template: tpl.id }, debug: true });
+    return null;
+  }
+  const v = spawnAt(world, tpl, loadout, hollowBays()[bay], allegianceFor(world, tpl, null, null));
+  v.heading = bayHeading(bay);
+  return v;
 }
 
 function tickPairs(world: World, tpl: NpcTemplate): void {
@@ -242,6 +262,7 @@ function sitesFor(tpl: NpcTemplate): readonly Site[] {
   if (place.kind === "camp") return campsOf(tpl);
   if (place.kind === "town") return NEUTRAL_SITES;
   if (place.kind === "sites") return place.ids.map(getKnownSite);
+  if (place.kind === "hollow") throw new Error(`${tpl.id} spawns only in a bay of the Sunward Hollow`);
   throw new Error(`${tpl.id} spawns only beside a new ${place.of}`);
 }
 

@@ -63,3 +63,11 @@ export function withRunWait_72_73(world: SavedJson): SavedJson {
   const arrived = (run.outposts as SavedJson[]).some((post) => post.milestone === next && post.paid === true);
   return { ...world, furyRoad: { ...run, waitingAt: arrived ? next : null } };
 }
+
+const SUNWARD_STANDING_77_78 = -20;
+
+export function withSunward_77_78(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const sunward = world.furyRoad === null ? { collapsed: null, night: null, lastHunt: null } : null;
+  return { ...world, sunward, player: { ...player, standing: { ...(player.standing as SavedJson), sunward: SUNWARD_STANDING_77_78 } } };
+}

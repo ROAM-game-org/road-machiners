@@ -1,7 +1,7 @@
 import { addState } from './states';
 import type { NpcState, StateData, StateKindId, Vehicle, World } from './types';
 
-export const FOLLOWING_KINDS = ['escort', 'crew', 'hire'] as const;
+export const FOLLOWING_KINDS = ['escort', 'crew', 'hire', 'cavalcade'] as const;
 export type FollowingKind = (typeof FOLLOWING_KINDS)[number];
 
 type StateIndex = {

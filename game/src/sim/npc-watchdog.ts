@@ -16,6 +16,7 @@ import { isFree } from './spawn';
 import { isStranded, vehicleStats } from './stats';
 import { escortsOf, isOnRope, npcHomeSite } from './tow';
 import { awaitsEscort } from './escort-job';
+import { isSunwardMember, planSunward } from './sunward';
 import type { NpcBrain, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { dist, type Vec } from './vec';
@@ -79,6 +80,7 @@ function giveUp(world: World, v: Vehicle): void {
 }
 
 function freshGoal(world: World, v: Vehicle): void {
+  if (isSunwardMember(v)) return planSunward(world, v);
   const next = hasSaleCargo(v) ? saleGoal(world, v, npcProfile(v)) : idleGoal(world, v);
   const goal = next.kind === 'wait' ? exploreGoal(world, v) : next;
   if (goal.kind !== 'wait') pushGoal(world, v, goal);

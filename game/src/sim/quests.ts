@@ -285,6 +285,11 @@ export function openWreckScene(w: World, stockId: string): void {
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.wagonSeven, 'start');
 }
 
+export function openCoreDeath(w: World): void {
+  if (w.player.quests.session) return;
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.coreDeath, 'start');
+}
+
 export function openScaleScene(w: World): void {
   if (w.player.quests.session) return;
   if (questVar(w, QUESTS, GAME_OPENED_QUESTS.scale, SCALE_SEEN) === true) return;
