@@ -45,6 +45,10 @@ export function modeKit(mode: GameModeId, fallback: string): string {
   return modeOf(mode).kit ?? fallback;
 }
 
+export function modeOpening(mode: GameModeId): string | null {
+  return modeOf(mode).opening;
+}
+
 function modeOf(mode: GameModeId): (typeof GAME_MODES)[GameModeId] {
   if (!isMode(mode)) throw new Error(`Unknown game mode ${String(mode)}`);
   return GAME_MODES[mode];

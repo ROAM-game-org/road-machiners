@@ -12,6 +12,19 @@ VAR wagon_read = false
 VAR wagon_watched = false
 VAR wagon_pin = "none"
 VAR wagon_fate = "none"
+VAR ala_hired = false
+VAR road_seen_1 = false
+VAR road_seen_4 = false
+VAR road_seen_8 = false
+VAR road_seen_12 = false
+VAR geezer_pitch = "none"
+VAR ring_told = "none"
+VAR death_answer = "none"
+VAR why_answer = "none"
+VAR ala_knows = "none"
+VAR father_told = false
+VAR promised = false
+VAR hand_shook = false
 VAR scale_seen = false
 
 EXTERNAL money()
@@ -28,3 +41,4 @@ EXTERNAL board_full()
 EXTERNAL take_work()
 EXTERNAL skill(id)
 EXTERNAL passed()
+EXTERNAL stretch_pay(stretch)

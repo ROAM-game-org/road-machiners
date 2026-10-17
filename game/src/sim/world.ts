@@ -48,7 +48,7 @@ import { advanceAid, readyAid } from './aid';
 import { readyHandover } from './parcel';
 import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
-import { QUESTS, type CarriedQuestVars } from './quests';
+import { QUESTS, openRoadScene, type CarriedQuestVars } from './quests';
 import { repairQuests, type SavedRevisions } from './quest-repair';
 import { isNoteId } from '../data/locals';
 import { advanceFuryRoad, outpostFactsAt, runStart, startRun } from './fury-road';
@@ -409,6 +409,7 @@ export function endTurn(
     checkKnockout(w);
     advanceNpcKnockouts(w);
     advanceFuryRoad(w);
+    openRoadScene(w);
     spawnNpcs(w);
     advanceIntro(w);
     greetAtScale(w);
