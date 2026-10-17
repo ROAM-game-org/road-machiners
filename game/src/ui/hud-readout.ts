@@ -30,6 +30,7 @@ import { shopAt } from '../sim/market';
 import { downedListNear, emptySalvageNear, hasLootFor, lootBlockerHere, needsSearch, salvageListNear } from '../sim/locations';
 import { canLootTruck, canReachSalvage, salvagePlace } from '../sim/salvage';
 import { surveyActions, type SurveyAction } from '../sim/survey';
+import { fishActions, type FishAction } from '../sim/fishing';
 import { playerCanAct } from '../sim/world';
 import { combatTurnsLeft } from '../sim/combat';
 import { isBusy } from '../sim/jobs';
@@ -122,6 +123,7 @@ function getSiteActions(world: World): ContextAction[] {
   const stocks = salvageListNear(world);
   actions.push(...stocks.flatMap((stock) => getStockActions(world, stock)));
   actions.push(...surveyActions(world).map((a) => surveyAction(world, a)));
+  actions.push(...fishActions(world).map((a) => fishAction(world, a)));
   if (stocks.length === 0) {
     const empty = emptySalvageNear(world);
     if (empty) actions.push({ label: stockLabel('empty', empty), ready: false, hint: t("action.noLoot"), target: { kind: 'empty' } });
@@ -139,6 +141,12 @@ function getStockActions(world: World, stock: SalvageStock): ContextAction[] {
 function surveyAction(world: World, a: SurveyAction): ContextAction {
   const combat = combatTurnsLeft(world, playerVehicle(world)) ?? undefined;
   return { label: t("action.survey"), ready: a.ready && combat === undefined, combat, target: { kind: 'survey', id: a.site, contractId: a.contractId } };
+}
+
+function fishAction(world: World, a: FishAction): ContextAction {
+  const combat = combatTurnsLeft(world, playerVehicle(world)) ?? undefined;
+  const hint = a.full ? t("action.suppliesFull") : undefined;
+  return { label: t("action.fish"), ready: a.ready && combat === undefined && !a.full, combat, hint, target: { kind: 'fish', id: a.pool } };
 }
 
 export function getSearchAction(world: World, stock: SalvageStock): ContextAction {

@@ -72,3 +72,8 @@ export function withHattieMet_77_78(world: SavedJson): SavedJson {
   const knowsHer = quests.world.towed_to_bowl === true || Object.keys(quests.local.bowl_hattie ?? {}).length > 0;
   return knowsHer ? { ...world, player: { ...player, quests: { ...quests, world: { ...quests.world, hattie_met: true } } } } : world;
 }
+
+export function withFishTaken_78_79(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  return { ...world, fishTaken: {}, player: { ...player, xpBySource: { ...(player.xpBySource as SavedJson), fish: 0 } } };
+}

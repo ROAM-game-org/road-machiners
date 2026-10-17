@@ -410,6 +410,7 @@ export const WINDOW_MOVE = {
   events: 'keep',
   removed: 'keep',
   spawnTimer: 'keep',
+  fishTaken: 'keep',
   shops: 'keep',
   salvage: 'keep',
   player: 'shift',

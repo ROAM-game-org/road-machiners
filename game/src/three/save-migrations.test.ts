@@ -1648,3 +1648,18 @@ describe('save migration 77 to 78', () => {
     expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
   });
 });
+
+describe('save migration 78 to 79', () => {
+  const before = { ...structuredClone(FORMAT_2_61), player: { ...FORMAT_2_61.player, xpBySource: { search: 4 } } };
+  const next = MIGRATIONS[78](structuredClone(before) as SavedJson) as unknown as { fishTaken: unknown; player: { xpBySource: Record<string, number> } };
+
+  it('adds an untouched fish stock and fish xp 0', () => {
+    expect(next.fishTaken).toEqual({});
+    expect(next.player.xpBySource).toEqual({ search: 4, fish: 0 });
+  });
+
+  it('changes nothing else', () => {
+    const { fishTaken: _fishTaken, ...rest } = next;
+    expect({ ...rest, player: { ...rest.player, xpBySource: { search: 4 } } }).toEqual(before);
+  });
+});

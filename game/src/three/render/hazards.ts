@@ -12,7 +12,7 @@ import type { Flare, GameEvent, GroundField, SmokeCloud, Vehicle, World } from '
 import { shutDownTurnsLeft } from '../../sim/utility';
 import { dist, type Vec } from '../../sim/vec';
 import { playerSees } from '../../sim/vision';
-import { HarpoonLinesView } from './lines';
+import { FishingLinesView, HarpoonLinesView } from './lines';
 import { CARD_SHAPES, ROUND_SHAPE, type Card, type FxCards } from './particles/cards';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
 import { newWake, stepWake, WakeTracker, type WakeMover, type WakeState } from './particles/wake';
@@ -27,12 +27,13 @@ export class HazardViews {
   private readonly fields = new GroundFieldsView();
   private readonly flares = new FlaresView();
   private readonly lines = new HarpoonLinesView();
+  private readonly fishing = new FishingLinesView();
   private readonly pulses = new PulseView();
   readonly root = new THREE.Group();
   private played: { before: World; turn: number } | null = null;
 
   constructor() {
-    this.root.add(this.smoke.root, this.fields.root, this.flares.root, this.lines.root, this.pulses.root);
+    this.root.add(this.smoke.root, this.fields.root, this.flares.root, this.lines.root, this.fishing.root, this.pulses.root);
   }
 
   update(world: World, terrain: Terrain, views: ReadonlyMap<string, VehicleView>, nowMs: number, turnClock: TurnClock | null, camera: THREE.Camera): void {
@@ -42,6 +43,7 @@ export class HazardViews {
     this.flares.update(world, terrain, views, nowMs, clock);
     const fresh = clock === null ? NO_IDS : new Set(world.lines.filter((l) => madeThisTurn(clock, 'lines', l.id) && !clock.hookedLines.has(l.id)).map((l) => l.id));
     this.lines.update(world, views, nowMs, { fresh, playing: turnClock !== null });
+    this.fishing.update(world, views);
     this.pulses.update(world, terrain, views, nowMs, clock);
   }
 

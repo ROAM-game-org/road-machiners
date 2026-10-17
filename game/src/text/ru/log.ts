@@ -4,6 +4,7 @@ import { noun, type Translation } from '../msg';
 export const LOG: Translation<typeof EN> = {
   'job.search': 'Поиски',
   'job.survey': 'Разведка',
+  'job.fish': 'Fishing',
   'job.weld': 'Сварить броню из лома',
   'job.business.resupply': 'Заправка и ремонт: {site, case, nom}',
   'job.business.sell': 'Продажа груза: {site, case, nom}',
@@ -474,6 +475,7 @@ export const LOG: Translation<typeof EN> = {
   'refusal.busy.business': 'Сначала закончите сделку',
   'refusal.busy.refit': 'Сначала закончите переоснащение',
   'refusal.busy.survey': 'Сначала закончите разведку',
+  'refusal.busy.fish': 'Finish fishing first',
   'refusal.atRepairCap': 'Лучше уже не подлатать',
   'refusal.noParts': 'Нет запчастей для ремонта',
   'refusal.utilityPassive': 'Приказы для {part, case, gen} не нужны',
@@ -483,4 +485,9 @@ export const LOG: Translation<typeof EN> = {
   'unit.part': '{n, plural, one {# деталь} few {# детали} many {# деталей} other {# детали}}',
   'vehicle.yours': noun('m', 'ваш грузовик', 'вашего грузовика', 'вашему грузовику', 'ваш грузовик', 'вашим грузовиком', 'вашем грузовике'),
   'vehicle.npc': '{profession} {driver}',
+  'log.fished': 'Caught {n, plural, one {# fish} few {# fish} many {# fish} other {# fish}}.',
+  'log.nothingBit': 'Nothing bit.',
+  'goal.goFishing': 'Going fishing',
+  'goal.caughtFish': 'Caught fish',
+  'goal.nothingBites': 'Nothing bites here',
 };

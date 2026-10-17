@@ -4,7 +4,7 @@ import { RULES } from "../data/rules";
 import { corePart, mountedParts } from "../sim/grid";
 import { knockOutNpc } from "../sim/defeat";
 import { STATE_TURNS } from "../data/npcs";
-import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, spotWorld, startCombat } from "../sim/testkit";
+import { addVehicle, editableTerrain, emptyWorld, furyRoadWorld, npcBrain, spotWorld, startCombat } from "../sim/testkit";
 import { yardSpots } from "../sim/outpost-gates";
 import { maxHealthOf } from "../sim/health";
 import { suppliesCap } from "../sim/stats";
@@ -718,6 +718,40 @@ describe('survey interaction', () => {
 
   it('offers nothing off the site', () => {
     const w = emptyWorld();
+    expect(actions(w)).toEqual([]);
+  });
+});
+
+describe('fishing action', () => {
+  function atPool(type: 'dirtyWater' | 'toxic'): World {
+    const w = emptyWorld({ x: 38.5, y: 41.5 });
+    const terrain = editableTerrain(w);
+    for (let y = 40; y < 44; y++) for (let x = 40; x < 44; x++) terrain.types[y * terrain.size + x] = type;
+    w.vehicles[0].speed = 0;
+    w.player.supplies = 0;
+    return w;
+  }
+
+  it('offers Fish by a dirty pool, dimmed while moving', () => {
+    const w = atPool('dirtyWater');
+    expect(actions(w)).toMatchObject([{ label: 'Fish', ready: true }]);
+    w.vehicles[0].speed = RULES.parkedSpeed + 1;
+    expect(actions(w)).toMatchObject([{ label: 'Fish', ready: false }]);
+  });
+
+  it('offers nothing by a toxic pool', () => {
+    expect(actions(atPool('toxic'))).toEqual([]);
+  });
+
+  it('is disabled with its reason when supplies are full', () => {
+    const w = atPool('dirtyWater');
+    w.player.supplies = suppliesCap(w.vehicles[0]);
+    expect(actions(w)).toMatchObject([{ label: 'Fish', ready: false, hint: 'Supplies full' }]);
+  });
+
+  it('is hidden while the truck is busy', () => {
+    const w = atPool('dirtyWater');
+    w.vehicles[0].job = { kind: 'fish', pool: 'x', caught: 0, turnsLeft: 5, total: 10 };
     expect(actions(w)).toEqual([]);
   });
 });

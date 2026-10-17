@@ -1,10 +1,11 @@
 {
- "format": "2.78",
+ "format": "2.79",
  "shape": {
   "broken": [],
   "craters": [],
   "dustClouds": [],
   "fields": [],
+  "fishTaken": {},
   "flares": [],
   "furyRoad": "null",
   "lines": [],
@@ -116,6 +117,7 @@
     "discover": "number",
     "escape": "number",
     "fieldJob": "number",
+    "fish": "number",
     "freeTow": "number",
     "heat": "number",
     "hit": "number",

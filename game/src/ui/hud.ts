@@ -60,6 +60,7 @@ export type ContextTarget =
   | { kind: 'downed'; id: string }
   | { kind: 'stock'; id: string }
   | { kind: 'survey'; id: string; contractId: string }
+  | { kind: 'fish'; id: string }
   | { kind: 'loot'; id: string }
   | { kind: 'empty' }
   | { kind: 'outpost' };

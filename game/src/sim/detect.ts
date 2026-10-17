@@ -73,7 +73,7 @@ export function scannerRange(world: World, v: Vehicle): number {
   return wornDef<ScannerDef>(scanners[0]).range;
 }
 
-function idKey(id: string): number {
+export function idKey(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) | 0;
   return h;

@@ -29,7 +29,7 @@ export type XpSource =
   | "roughTiles" | "ram" | "escape"
   | "hit" | "contact" | "discover"
   | "fieldJob" | "patch" | "search"
-  | "heat" | "damage" | "knockout"
+  | "heat" | "damage" | "knockout" | "fish"
   | "profit" | "deal" | "call" | "honk" | "contract" | "freeTow" | "aid";
 
 export type PartInstance = {
@@ -137,6 +137,7 @@ export type Job =
   | { kind: "strip"; partId: string; turnsLeft: number; total: number }
   | { kind: "weld"; turnsLeft: number; total: number }
   | { kind: "survey"; contractId: string; site: string; turnsLeft: number; total: number }
+  | { kind: "fish"; pool: string; caught: number; turnsLeft: number; total: number }
   | { kind: "business"; siteId: string; deal: BusinessDeal; turnsLeft: number; total: number }
   | RefitJob;
 
@@ -192,7 +193,7 @@ export type GoalReason =
   | 'raid' | 'reachedGround' | 'refitted' | 'refuseThreat' | 'retreatHome' | 'robCargo' | 'salvageExhausted'
   | 'salvageGone' | 'searchSite' | 'searchSpot' | 'sellCargo' | 'soldCargo' | 'spottedHeard' | 'strandedRobbery'
   | 'takeClaimedLoot' | 'takeHandedCargo' | 'towNotNeeded' | 'towOff' | 'towOfferLeft' | 'towPlayer' | 'towStranded'
-  | 'towUnanswered' | 'towedPlayer' | 'towedStranded' | 'tripToSite' | 'truckGotAway' | 'unfitToHunt' | 'waitPatch'
+  | 'goFishing' | 'caughtFish' | 'nothingBites' | 'towUnanswered' | 'towedPlayer' | 'towedStranded' | 'tripToSite' | 'truckGotAway' | 'unfitToHunt' | 'waitPatch'
   | 'waitTow' | 'waitTowAnswer' | 'warnedOff'
   | 'avoidRanFrom' | 'breakOffFight' | 'cannotWearDown' | 'holdFull' | 'leftPost' | 'lootWontFit' | 'ranFromIt' | 'salvageOutOfReach'
   | 'takeSpilledCargo' | 'watchedRoad' | 'cornered' | 'defeated'
@@ -267,7 +268,7 @@ export type DriverResources = {
 export type NpcActivity = {
   kind:
     | 'scavenge' | 'prowl' | 'sell' | 'trade' | 'resupply' | 'raid' | 'fight' | 'flee' | 'wait' | 'investigate' | 'tow' | 'loot' | 'repair' | 'patch'
-    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'haul' | 'follow' | 'claim' | 'muster';
+    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'haul' | 'follow' | 'claim' | 'muster' | 'fish';
   targetId: string | null;
   destination: Vec | null;
   phase: "travel" | "act";
@@ -323,6 +324,7 @@ export type Track = { at: Vec; turn: number; sighted: boolean; seenSince: number
 export type MemoryFact =
   | { kind: 'prices'; shop: string; pressure: Record<string, number> }
   | { kind: 'stripped'; stock: string }
+  | { kind: 'fishedOut'; pool: string }
   | { kind: 'wronged'; by: string; deed: WrongDeed }
   | { kind: 'helped'; by: string; deed: HelpDeed }
   | { kind: 'sighting'; vehicle: string; at: Vec; heading: number };
@@ -577,6 +579,7 @@ export type GameEvent =
   | { t: 'job'; vehicle: string; job: Job; outcome: 'started' | 'done' | 'cancelled' }
   | { t: 'breakdown'; vehicle: string; part: string }
   | { t: 'searched'; stock: string }
+  | { t: 'fished'; vehicle: string; pool: string; fish: number }
   | { t: 'weather'; event: WeatherEvent; outcome: 'started' | 'ended' }
   | { t: 'say'; speaker: string; line: LineId; vars: CallVars }
   | { t: 'call'; with: string; outcome: 'opened' | 'ended' }
@@ -648,6 +651,7 @@ export type World = {
   events: GameEvent[];
   removed: Vehicle[];
   spawnTimer: Record<string, number>;
+  fishTaken: Record<string, number>;
   weather: WeatherEvent[];
   dustClouds: DustCloud[];
   states: NpcState[];

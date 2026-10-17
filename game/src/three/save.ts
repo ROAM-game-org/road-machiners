@@ -8,6 +8,7 @@ export { newMapFor } from '../sim/highway';
 import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
 import { QUESTS, restoreQuest } from '../sim/quests';
 import { newerQuests, questRevisions, repairQuests, type QuestRepair, type SavedRevisions } from '../sim/quest-repair';
+import { pruneFishTaken } from '../sim/fishing';
 import { refreshVision } from '../sim/vision';
 import { isMode, modeMap, repairSetup, type SettingId } from '../sim/settings';
 import { clearTips } from '../ui/tips';
@@ -126,6 +127,7 @@ export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Load
     terrain: map.terrain,
   };
   stockedOldSpots(loaded, map);
+  pruneFishTaken(loaded);
   checkCompanies(loaded);
   refreshVision(loaded);
   settleAims(loaded);
