@@ -50,6 +50,7 @@ export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'search') return t('job.search');
   if (job.kind === 'weld') return t('job.weld');
   if (job.kind === 'survey') return t('job.survey');
+  if (job.kind === 'fish') return t('job.fish');
   return partJobLabel(v, job);
 }
 
@@ -563,6 +564,10 @@ function unnoticed(world: World, e: GameEvent): boolean {
   return vehicles !== undefined && !playerNotices(world, ...vehicles(e));
 }
 
+function fishedText(e: Extract<GameEvent, { t: 'fished' }>): LogLine {
+  return e.fish > 0 ? line(t('log.fished', { n: e.fish }), 'good') : line(t('log.nothingBit'), 'dim');
+}
+
 function searchedText(stock: string): LogLine {
   const site = [...REGION.towns, ...REGION.locations].some((l) => l.id === stock);
   return line(site ? t('log.searchDoneAt', { site: siteName(stock) }) : t('log.searchDone'), 'good');
@@ -911,6 +916,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   knockout: () => line(t('log.knockout'), 'bad'),
   wake: () => line(t('log.wake'), 'dim'),
   searched: (_, e) => searchedText(e.stock),
+  fished: (world, e) => (e.vehicle === world.player.vehicleId ? fishedText(e) : null),
   contract: (world, e) => (e.cause === 'rival' ? rivalFirstText(world, e.contract) : contractEventText(e)),
   claimRival: claimRivalText,
   claimLead: claimLeadText,

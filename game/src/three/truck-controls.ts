@@ -9,6 +9,7 @@ import { isBusy } from "../sim/jobs";
 import { canOverdrive, inOverdrive } from "../sim/stats";
 import { canLoot, canScavenge, scavenge } from "../sim/locations";
 import { startSurvey } from "../sim/survey";
+import { startFishing } from "../sim/fishing";
 import { shopAt } from "../sim/market";
 import { reachedOutpostAt } from "../sim/fury-road";
 import type { World } from "../sim/types";
@@ -111,6 +112,7 @@ export class TruckContext {
       downed: () => 'id' in target && h.openDowned(target.id),
       stock: () => 'id' in target && this.searchStock(target.id, action.combat),
       survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id, action.combat),
+      fish: () => 'id' in target && this.fishAt(target.id, action.combat),
       loot: () => 'id' in target && this.lootStock(target.id),
       empty: () => undefined,
     };
@@ -145,6 +147,13 @@ export class TruckContext {
     const w = this.host.world();
     if (isBusy(playerVehicle(w)) || combat !== undefined) return;
     this.host.apply(startSurvey(w, contractId, site));
+    this.host.pushEvents();
+  }
+
+  private fishAt(pool: string, combat?: number): void {
+    const w = this.host.world();
+    if (isBusy(playerVehicle(w)) || combat !== undefined) return;
+    this.host.apply(startFishing(w, pool));
     this.host.pushEvents();
   }
 
