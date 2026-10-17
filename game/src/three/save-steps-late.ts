@@ -63,3 +63,12 @@ export function withRunWait_72_73(world: SavedJson): SavedJson {
   const arrived = (run.outposts as SavedJson[]).some((post) => post.milestone === next && post.paid === true);
   return { ...world, furyRoad: { ...run, waitingAt: arrived ? next : null } };
 }
+
+type SavedQuests_77_78 = { world: SavedJson; local: Record<string, SavedJson> };
+
+export function withHattieMet_77_78(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const quests = player.quests as SavedQuests_77_78;
+  const knowsHer = quests.world.towed_to_bowl === true || Object.keys(quests.local.bowl_hattie ?? {}).length > 0;
+  return knowsHer ? { ...world, player: { ...player, quests: { ...quests, world: { ...quests.world, hattie_met: true } } } } : world;
+}

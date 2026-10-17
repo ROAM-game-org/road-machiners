@@ -107,7 +107,7 @@ The game master keeps three files during play, in project-local `tmp/`:
 - The log: each turn's event, each action with its roll and result, deaths and successors, and the game master's truths marked as hidden.
 - The shared news for the next brief.
 
-After the game, the game master writes the log into a timeline in `docs/lore/` and moves any new names, groups and characters into the lore pages. Hidden truths go into the lore as answers, and the timeline shows only what people could know.
+After the game, the game master writes the log into a timeline in `docs/lore/` and moves any new names, groups and characters into the lore pages. Hidden truths go into the lore as answers, and the timeline shows only what people could know. [Chaos Highway](chaos-highway-story-game.md) keeps the logs of two smaller passes run for the highway story, with their combination.
 
 ## Lessons from play
 
