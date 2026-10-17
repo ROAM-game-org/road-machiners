@@ -13,7 +13,7 @@ import { corePart, mountedItems, mountedParts, itemSize } from "../sim/grid";
 import { canOverdrive, fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, workingEngineCapacity, type SpeedStep } from "../sim/stats";
 import { fuelLimit, lowFuelSpeed } from "../sim/far";
 import { towData } from "../sim/states";
-import { playerTow } from "../sim/tow";
+import { dragOf, playerTow } from "../sim/tow";
 import { heatAt } from "../sim/sun";
 import { TERRAIN } from "../data/terrain";
 import { dist, type Vec } from "../sim/vec";
@@ -226,18 +226,22 @@ export function moneyLabel(money: number): Msg {
 export type RescueReadout =
   | { kind: "knockedOut" }
   | { kind: "towed"; tower: Msg; town: Msg; fee: number }
+  | { kind: "dragged" }
   | { kind: "stranded"; beacon: boolean; reason: Msg | null; canEnd: boolean };
 
 export function getRescueReadout(w: World): RescueReadout | null {
   const p = w.player;
   if (p.state === "knockedOut") return { kind: "knockedOut" };
   if (p.state === "dead") return null;
+  return ropeReadout(w) ?? (showsStranded(w) ? { kind: "stranded", beacon: p.beacon, reason: strandedReason(w), canEnd: canAbandonRun(w) } : null);
+}
+
+function ropeReadout(w: World): RescueReadout | null {
+  if (dragOf(w, w.player.vehicleId)) return { kind: "dragged" };
   const state = playerTow(w);
-  if (state && towData(state).hitched) {
-    const data = towData(state);
-    return { kind: "towed", tower: vehicleName(w, state.holder), town: siteName(data.site), fee: data.fee };
-  }
-  return showsStranded(w) ? { kind: "stranded", beacon: p.beacon, reason: strandedReason(w), canEnd: canAbandonRun(w) } : null;
+  if (!state || !towData(state).hitched) return null;
+  const data = towData(state);
+  return { kind: "towed", tower: vehicleName(w, state.holder), town: siteName(data.site), fee: data.fee };
 }
 
 function showsStranded(w: World): boolean {

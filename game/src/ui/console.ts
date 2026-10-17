@@ -19,6 +19,9 @@ import {
   setMoney,
   setSupplies,
   skipToHour,
+  sunwardDusk,
+  sunwardHunt,
+  sunwardLedger,
   spawnNear,
   startBattle,
   startWeather,
@@ -156,6 +159,12 @@ export const COMMANDS: readonly Command[] = [
   command("hour <h>", "Advance to the next turn at that hour.", { min: 1, max: 1 }, (world, [text], usage) => {
     const hour = parseNumber(text, usage);
     return changed(skipToHour(world, hour), `skipped to hour ${hour}`);
+  }),
+  command("sunward <dusk|hunt|roster>", "Fill the Sunward Hollow and skip to the next dusk, send tonight's hunters out, or print the night ledger.", { min: 1, max: 1 }, (world, [what], usage) => {
+    if (what === "dusk") return changed(sunwardDusk(world), "skipped to dusk with a full Hollow");
+    if (what === "hunt") return changed(sunwardHunt(world), "the hunters ride out tonight");
+    if (what === "roster") return { world: null, lines: sunwardLedger(world) };
+    throw new CheatError(`"${what}" is not a sunward option. Usage: ${usage}`);
   }),
   command("weather <storm|heatwave|overcast> [turns] [offset]", "Start that weather, for that many turns if given. A storm with an offset starts that many tiles east of the truck, still and at full strength.", { min: 1, max: 3 }, (world, [kind, turns, offset], usage) =>
     changed(startWeather(world, kind, turns === undefined ? null : parseNumber(turns, usage), offset === undefined ? 0 : parseNumber(offset, usage)), `${kind} started`),

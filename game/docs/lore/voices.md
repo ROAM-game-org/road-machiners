@@ -304,6 +304,23 @@ Strangers: the player is a stranger until the first fuel, then someone he owes o
 
 Sample: "Courier here. I have a run to finish and I will not make it on what is left."
 
+### The Sunward rider at the vigil
+
+Vocabulary: the light, the Keeper, a place kept, given by the sky, watching. He never names the reactor, the breach, death or the order's rules.
+
+Rhythm: slow and soft, short sentences with pauses between them. Each call is a little closer and a little stranger than the last, and only the third is plainly a demand.
+
+Habits: he calls a stranger "stranger" and the order "we". On the road he says nothing at all, and a call to him gets an open channel and breathing. Once a stranger agrees, he tells them where to drive and promises to stay behind them.
+
+Cares about: getting the stranger into the light without a fight, because a fight is work and a given truck arrives whole.
+
+Strangers: something the sky gave. He is gentle with it the way a man is gentle with a goat he means to sell.
+
+Sample: "Stranger. You came out to the crater at night. Stay a while and watch the light with us."
+
+### The road driver who knows about the lamps
+
+Any trader, scavenger, courier, roamer or vulture answers a question about the crater at night. While the order rides they speak of lamps in a line and a relative who stopped by the rim and left only a furrow. After it falls they speak of scavengers working the rim all night, and still say to keep off the glow.
 ## Chaos Highway
 
 The highway has its own speakers. Geezer is the player, so his sheet is the voice of the narration in the head of a man who has stopped talking about himself. See [Chaos Highway](chaos-highway.md) for the world.

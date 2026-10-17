@@ -74,6 +74,7 @@ import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
+import FORMAT_2_78 from './save-fixtures/format-2-78.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
@@ -1648,3 +1649,27 @@ describe('save migration 77 to 78', () => {
     expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
   });
 });
+
+describe('save migration 78 to 79', () => {
+  it('gives a Roaming world a standing Sunward order and the player the Sunward start standing', () => {
+    const before = structuredClone(FORMAT_2_78);
+
+    const next = MIGRATIONS[78](before) as typeof FORMAT_2_78 & { sunward: unknown; player: { standing: Record<string, number> } };
+
+    expect(next.sunward).toEqual({ collapsed: null, night: null, lastHunt: null });
+    expect(next.player.standing).toEqual({ ...FORMAT_2_78.player.standing, sunward: -20 });
+    expect(next.vehicles).toEqual(FORMAT_2_78.vehicles);
+    expect(next.player.money).toBe(4200);
+    expect(before).toEqual(FORMAT_2_78);
+  });
+
+  it('gives a Chaos Highway world no order', () => {
+    const highway = { ...structuredClone(FORMAT_2_78), setup: { ...FORMAT_2_78.setup, mode: 'furyRoad' }, furyRoad: { window: 0 } };
+
+    const next = MIGRATIONS[78](highway) as typeof highway & { sunward: unknown };
+
+    expect(next.sunward).toBeNull();
+    expect(next.furyRoad).toEqual({ window: 0 });
+  });
+});
+

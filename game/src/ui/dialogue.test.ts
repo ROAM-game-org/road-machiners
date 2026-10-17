@@ -42,6 +42,8 @@ describe('aid words', () => {
 });
 
 const PREPARE_VARS: Record<PrepareId, string[]> = {
+  vigilCall: [],
+  craterNews: ['news'],
   nearestTown: ['town', 'way'],
   towOffer: ['town', 'fee'],
   patchTerms: ['deal'],
@@ -84,6 +86,7 @@ const SAMPLE: Record<string, CallVar> = {
   tip: { kind: 'tip', tip: { shop: 'nose', good: 'meds', dear: false } },
   aid: { kind: 'aid', fuel: 2, supplies: 3 },
   warnLine: { kind: 'line', line: 'thatsMyPick' },
+  news: { kind: 'line', line: 'carsDraggedIntoTheDark' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
   sighting: { kind: 'sighting', driver: 'Jed Cobb', seen: { bearing: 0.8, tiles: 300, turns: 80, heading: 3.1 } },
 };

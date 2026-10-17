@@ -40,20 +40,25 @@ The first part is history as people in the basin could know it. The last part ho
 - Year 40. The Relay sells shares in its masts, and Pierce buys the first. The shareholders rename it the Guidestar Guild. People start calling the Garrison the Old Army.
 - Year 50. The worst storm decade. A storm tears open the Nose's sealed upper halls: a long room of empty cradles, each the size of a person. Old Given who see it go silent, and some weep. A small blue lens from that room ends up in Teo's failing eye. He lives.
 - Year 50. The Canal families dig a rain cistern on the crater rim. It is the first water in the crater that nobody sells.
+- Year 58. Teo catches his most devoted student, Oren Vey, copying the count, and sends him away from the tower. Oren walks to the crater dreamers. The dreamer Pell Ardo walks into the green light and is not seen again.
 
 ## The Bowl and the Nose
 
 - Year 60. Crops grow on the crater floor. The Creed, the Canal families and the Waterworks form one Crater Council. Pierce's clerks keep its accounts, and the Guild posts its votes. The settlement calls itself the Bowl. The Old Army asks to keep the council's book and is refused.
 - Year 63. Rafe Ondra of the Waterworks dies at 104 with the pump book open. The Waterworks become the Bowl's water office.
 - Year 70. A drought cracks the Bowl's cistern. The Bowl buys Nose grain at high prices and borrows from Pierce for ten years of grain. The dreamers start calling the glow the Fallen Sun, and themselves the Sunward.
+- Year 71. Mother Neve Sorrel of the dreamers dies of fever. Oren Vey takes the Bowl's pact of grain for rim work and calls himself the Keeper of the count.
 - Year 80. The Chaos ends in the wider world, and the basin's storms stop.
 - Year 80. A Nose grain convoy is ambushed below the Bowl, and two drivers die. Teo's reading of the road points to Bowl tenants with rifles bought at the rim.
+- Year 80. The Bowl council makes the Sunward wardens of the rim. No rifle leaves the crater without their mark.
 
 ## The Grain War
 
 - Year 83. The Bowl will not hand its tenants to the Nose. Marek Graves closes the grain road and takes the seep road. The Grain War begins.
 - Year 85. Commander Tobiah Lind drives the Old Army's heavy trucks round the Nose by the north hills and feeds the Bowl from Old Orchard's own stores. The siege loses its grip. Scrapjaw's riders take a sack per truck for passage and dig in at a spring in the north hills: Scrapjaw Camp.
 - Year 89. The Truce of the Fallen Sun is signed at the central crater rim. Three Bowl tenants are judged by a Guild panel with the Sunward watching, and exiled. The grain road reopens. The Old Army is to patrol the roads, paid by both towns. No weapon may be drawn in sight of the glow.
+- Year 89. Councillor Ivo Marr wrote the clause about the glow, and it ends the rim gun trade. Young Given who fled the war swear an oath to the Keeper.
+- Years 90 to 99. Hunger brings the Sunward's law of the given: whatever comes into the crater is theirs. A western scavenger's truck breaks down in the crater, and its driver is led into the light. The old singers of the order call it murder.
 - Year 89. Imre names Dagny Brask's band as the rifle sellers. Both towns turn on her, and she hauls her furnace into the southern badlands: Kiln Camp.
 - Year 90. The Bowl council becomes the Senate. Only those who served ten years in the Bowl patrols may vote.
 
@@ -62,7 +67,9 @@ The first part is history as people in the basin could know it. The last part ho
 - Year 100. Marek Graves hands the Nose to his son Alan, who forms the Central Committee and becomes President.
 - Year 100. Neither town pays the Old Army. Hungry soldiers sell rifles to Scrapjaw. Pierce pays the army's back wages and takes its heavy trucks as collateral.
 - Year 100. Teo's scholars at the tower call themselves the Lunar Society. Young people who say nothing here is real leave the Creed: the Ephemeralists.
+- Year 101. Yara Sorrel, the Sunward singers' voice, dares the Keeper to answer the glow himself. Oren Vey walks into the light in front of the order and is not seen again. Mattias Kade puts on his coat.
 - Year 110. Beacon keepers on the debris trail call themselves the Children of Noah. Most are grandchildren of the Given, waiting for the ship that left their grandparents behind to come back.
+- Year 110. Yara Sorrel leads the Sunward's old singers out of the crater to the beacon keepers. A Bowl tenant grain cart vanishes on the rim road at night, and the Senate blames loose Old Army riflemen.
 - Year 112. Commander Lind nails a book of every unpaid promise to the Old Orchard gate and dies in the motor pool. The Old Army ends. Its trucks stand where they stopped.
 
 ## Recent years
@@ -82,6 +89,8 @@ This part was generated with a second, smaller run of the story game. Its player
 - Year 118. A Granary truck with a Brann swivel fights them off at the Burnt Convoy. Its tenant driver, Bo Lindqvist, kills Jens Vosk. Anselm buries Jens across the road from Hal. Otto adds a second pin to every swivel.
 - Year 118. A dry year. The Green Pit pumps draw mud by noon. The Bowl meters the Green Pit feeder and claims a share of it.
 - Year 119. Scrapjaw riders take the fuel truck of the pod field at the edge of the Glass Flats, in the debris trail. Its young driver Tam is shot in the leg. A western driver, Remy Castell, opens a stall of western rifles at the crossroads.
+- Year 118. Absalom Reyne preaches at the Sunward's fire, and people call him the Preacher.
+- Year 119. Joss Ardo, Pell Ardo's nephew, deserts the Sunward with the singers' help and tells the Senate what he saw. The Senate stops all grain to the Sunward.
 - Year 120. The Nose posts a gate law: no truck leaves for the open road without a gun.
 - Year 121. The Lunar Society votes to read the count in the open. Teo refuses, and they cast him out. People call him the Apprentice. The tower announces that the tone from the central wreck counts the years since the fall.
 - Year 122. The Bowl refuses a Pierce loan. Pierce pays its crews late. Vulture families of the Burnt Convoy stop a Pierce office truck and take a debtor book listing what the Nose Committee and the Bowl Senate owe Pierce.
@@ -96,6 +105,8 @@ This part was generated with a second, smaller run of the story game. Its player
 - Year 128. Ladle Ruiz pays the Varga farm for its years of water with a machine gun stripped from a truck that did not pay. Karl Vosk sets it on the pickup's swivel and bores the ring a second pin. Ruth Varga leaves the key in the ignition and walks north to become a tenant on the Bowl terraces.
 - Year 128. The Nose line hands out a cheap steel copy of the Brann swivel with one pin. Pierce writes no paper on a one-pin mount, so Nose drivers pay the Salvage Yard to bore a second.
 - Year 128. The Apprentice reads the last marks in the central hull's shadow and tells nobody what he read. He trades the count's last number to the Preacher of the Sunward, who teaches it as the glow's word. The Sunward bar the Lunar Society from the rim.
+- Year 128. Cobb Navarre, a Sunward sworn man and Joss Ardo's friend, is caught leaving the order at night and is never seen again. The beacon keepers keep their lamps dark at night from then on.
+- Years 127 to 130. The Sunward stop sleeping in the crater. At dusk eight cars with their lamps in a line cross open ground to the crater from somewhere in the wastes, keep the night there in silence and go before dawn. On some nights three fast cars hunt the roads near the crater instead. Drivers keep away from the crater after dark.
 - Year 129. A Nose driver, Emil Kessel, dies on the north bend when his one-pin swivel slides and swings the gun into his cab. The Nose sends an Army post under Captain Silver into the Salvage Yard.
 - Year 129. A storm brings the Varga shed roof down over the pickup.
 - Year 130. Nobody drives the open road without a gun, except the Guild courier Tamsin Roe, who runs in a pair with Vesna Hale. The names of the dead are read at Canyon Bridge once a year.
@@ -118,3 +129,7 @@ This part was generated with a second, smaller run of the story game. Its player
 - Kiln Camp sank a deep bore in the dry year 118 to cool its furnace. It draws from the same rock as the Varga well, and it drained the well. Nobody told Ruth Varga.
 - The Glass Flats are sand melted by the ship's engine wash as it came down. The glass is thickest along the debris trail, and every ripple leans toward the Fallen Sun.
 - No raider touched wagon Seven. Its one-pin swivel slid on the bend, and the cannon's breech stove in its own cab. The bottom half of the sheared pin is still wedged in the ring, and the relief driver Ilan Duvall keeps the top half. Corporal Teller lied in his report to keep his stripes. Sergeant Kovac heard the truth from him and left the log as it was. The cannon is still on the wagon.
+- The green glow in the Fallen Sun is the ship's reactor core, leaking. It feeds on nothing and calls nobody. Its light burns whoever goes into it, and long nights near it bring wreck fever, which brings the dreams. The dreamers who dreamed hardest slept nearest it and died first.
+- Oren Vey never believed the glow called anyone. He kept one page of Teo's count sewn in his coat and wanted the count for himself. He walked into the light in year 101 out of fear of being forgotten, and burned in the breach.
+- Mattias Kade's sworn men took the Bowl tenant cart of year 110 and walked its driver into the light.
+- In year 128 the Apprentice told Kade alone that nothing in the crater feeds or calls: it is a burning engine that sickens whoever sleeps near it. Kade moved the order's sleeping camp to a hollow deep in the wastes, and kept the vigil because the vigil keeps the order. [The Sunward](sunward.md) has the order's full history.

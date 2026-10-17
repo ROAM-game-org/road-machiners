@@ -72,3 +72,11 @@ export function withHattieMet_77_78(world: SavedJson): SavedJson {
   const knowsHer = quests.world.towed_to_bowl === true || Object.keys(quests.local.bowl_hattie ?? {}).length > 0;
   return knowsHer ? { ...world, player: { ...player, quests: { ...quests, world: { ...quests.world, hattie_met: true } } } } : world;
 }
+
+const SUNWARD_STANDING_78_79 = -20;
+
+export function withSunward_78_79(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const sunward = world.furyRoad === null ? { collapsed: null, night: null, lastHunt: null } : null;
+  return { ...world, sunward, player: { ...player, standing: { ...(player.standing as SavedJson), sunward: SUNWARD_STANDING_78_79 } } };
+}

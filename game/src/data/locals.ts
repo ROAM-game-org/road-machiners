@@ -8,6 +8,8 @@ export const NOTE_IDS = [
   'talkPierceGuns',
   'talkGlassLean',
   'talkSunwardTake',
+  'sunwardLamps',
+  'sunwardDragged',
   'talkKilnFight',
   'talkOnePin',
   'talkArmyStarved',

@@ -329,7 +329,7 @@ describe("automatic travel safety", () => {
       breakdown: { t: "breakdown", vehicle: id, part: "engine" },
       partDisabled: { t: "partDisabled", vehicle: id, part: "engine" },
       knockout: { t: "knockout" },
-      death: { t: "death" },
+      death: { t: "death", cause: "injury" },
     };
     world.events = [events[kind]];
     expect(canTravel(world)).toBe(false);

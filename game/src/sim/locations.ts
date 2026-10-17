@@ -20,6 +20,7 @@ import { modeRules } from './settings';
 import type { GridItem, PartInstance, SalvageStock, Vehicle, World } from './types';
 import { tileCenter } from './vision';
 import { playerCommand, Refused } from './world';
+import { discoverHollow } from './sunward';
 
 export function discoverSites(world: World): void {
   for (const s of atlasSites(atlasOf(world.terrain))) {
@@ -30,6 +31,7 @@ export function discoverSites(world: World): void {
       continue;
     discoverSite(world, s);
   }
+  discoverHollow(world, discoverSite);
 }
 
 export function discoverSite(world: World, s: { id: string }): void {

@@ -128,32 +128,48 @@ Fane is an old trinket trader in the Nose market. He buys relics from the ship a
 ## The Preacher
 
 - Way: fear.
-- High concept: The leader of the Sunward inner circle, who wrote their teachings about the thing in the crater.
+- High concept: Absalom Reyne, the voice of the Sunward, who wrote their teachings about the thing in the crater.
 - Trouble: He is certain about a thing he cannot see, so he cannot take back a word he has taught.
-- Aspects: Teaches the Apprentice's number as the glow's word; Never as close to the glow as he says; Bars Ines Abend and the Lunar Society from the rim.
+- Aspects: Teaches the Apprentice's number as the glow's word; Never as close to the glow as he says; Bars Ines Abend and the Lunar Society from the rim; Speaks for Mattias Kade's coat.
 - Skills: best social, worst toughness.
 - Wants: The glow calm and his followers loyal.
 - Fears: The glow, and that his followers learn how far he has stood from it.
-- Habit: He chants the number at the rim at dawn.
+- Habit: He chants the number at the rim at dawn, before the cars go home.
 - Secret: He bought the number from the Apprentice and has never been near the glow. He hides both from his followers.
 
-The Preacher leads the inner circle of the Sunward. He wrote their teachings about the thing in the crater, and he believes every word. He has never been as close to the green glow as he tells his followers.
+Absalom Reyne began to preach at the Sunward's fire around year 118, and people call him the Preacher. Mattias Kade made him the order's voice. He wrote their teachings about the thing in the crater, and he talks himself into every word a little more each dawn. He has never been as close to the green glow as he tells his followers.
+
+## Mattias Kade
+
+- Way: control.
+- High concept: The head of the Sunward, a Nose-born Given sworn in year 85, who wears the dead Keeper's coat.
+- Trouble: The order is his only while it keeps riding, so he can never stop the vigil he does not believe in.
+- Aspects: The Keeper's coat, never taken off; Knows what the Apprentice told him; Moved the camp to the Hollow; Made Absalom Reyne the Preacher.
+- Skills: best driving, worst perception.
+- Wants: The order fed and himself on top.
+- Fears: The glow itself, and the fever that comes from sleeping near it.
+- Habit: He touches the coat's lining, where an unreadable page is sewn.
+- Secret: The Apprentice told him in year 128 that nothing in the crater feeds or calls. He believes it, and keeps the vigil anyway.
+
+Kade put on Oren Vey's coat the night Oren walked into the light, and he has led the order since. He is practical and cold, and he talks like a man counting cars. He moved the order's sleeping camp to a hollow deep in the wastes because the fever was killing his men, and kept the night vigil because the vigil keeps them together.
 
 ## The Apprentice
 
 - Way: control.
 - High concept: Teo, once the head of the Lunar Society, cast out in year 121, who carries a blue eye and every implant he could find.
 - Trouble: Each implant lets him see more and makes him harder for anyone to trust.
-- Aspects: A blue eye from the cradle room; Cast out by Ines Abend and the Lunar Society; Sold the last number to the Preacher.
+- Aspects: A blue eye from the cradle room; Cast out by Ines Abend and the Lunar Society; Sold the last number to the Preacher; Cast out Oren Vey, who founded the Sunward.
 - Skills: best perception, worst social.
 - Wants: A new start for humanity before the basin dies out.
 - Fears: The basin dies before the new start begins.
 - Habit: He speaks in sermons to anyone who stands still near him.
-- Secret: He read the last marks in the central hull's shadow and knows where the seed vault lies. He hides it from everyone.
+- Secret: He read the last marks in the central hull's shadow and knows where the seed vault lies. He hides it from everyone. He told Mattias Kade alone that the glow is a burning engine.
 
 The Apprentice was a member of the Lunar Society until it cast him out. He found implants in the ship's wreck and put a blue eye in his own head. Through it he sees marks on the wreck that nobody else can see. He has filled his body with every implant he could find, and he is over 150 years old.
 
 He believes the people of the basin are slowly dying out and that only a new start can save humanity. He has not told anyone what that new start would be.
+
+His most devoted student, Oren Vey, copied the count around year 58. Teo burned the pages and sent him away, and Oren went to the crater dreamers and founded the Sunward. In year 128 the Apprentice bargained with Mattias Kade: one night in the central hull's shadow, under the order's escort, for the count's last number. He walked away after it and has no part in what the order does.
 
 He speaks in sermons. One of them goes like this:
 
@@ -624,3 +640,17 @@ Her line is "Paid is paid. For whoever paid it."
 Amos collected for the Pierce yard on the south road. He took the key of every truck he seized and hung it on his belt, and he closed every line in his ledger. He closed the Varga line in year 127 and, by his own habit, handed Ruth the key of a truck that was paid for, with the yard's brass tag still on it. Since the crews took the yard he tows for whoever pays. In year 130 he found a stranger knocked out in that same pickup and knew the tag. He towed the truck to Bowl and asked at the well house after a Varga woman, then drove off before anyone could fetch her, and left his chain behind.
 
 His line is "A line stays open till somebody closes it. I close them."
+
+## Joss Ardo
+
+- Way: escape.
+- High concept: A deserter from the Sunward's sworn men, who sings with the Children of Noah at the beacons.
+- Trouble: He got out and his friend did not, and he cannot stop counting what that cost.
+- Aspects: Nephew of the dreamer Pell Ardo; Told the Senate what he saw; Cobb went in because of me.
+- Skills: best perception, worst toughness.
+- Wants: The sworn men who still have doubts out of the order.
+- Fears: Being taken back to the light.
+- Habit: He counts the lamps on the horizon every night.
+- Secret: He drove one of the cars on a night a stranger was walked into the light, and he has told nobody.
+
+Joss Ardo deserted the Sunward in year 119 with the singers' help and told the Senate what he saw, which stopped the Bowl's grain to the order. His friend Cobb Navarre tried to follow him in year 128 and was caught. Locals name Joss as the one who got out.
