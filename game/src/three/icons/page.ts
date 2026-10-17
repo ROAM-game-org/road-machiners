@@ -290,9 +290,11 @@ declare global {
 async function plans(): Promise<Record<string, string>> {
   await loadModels();
   const catalog = iconCatalog(PARTS, GOODS, CHASSIS, ICON_WEAPON_PICKS).filter((e) => e.section === 'chassis');
-  const symbols = catalog.map((entry) => {
+  const symbols = catalog.flatMap((entry) => {
     const s = PLAN_SIZE;
-    return `<symbol id="plan-${entry.id}" viewBox="0 0 ${s} ${s}" preserveAspectRatio="none">${renderPlan(entry, s)}</symbol>`;
+    const { top, outline } = renderPlan(entry, s);
+    const symbol = (id: string, svg: string): string => `<symbol id="${id}-${entry.id}" viewBox="0 0 ${s} ${s}" preserveAspectRatio="none">${svg}</symbol>`;
+    return [symbol('top', top), symbol('plan', outline)];
   });
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" style="display:none">${symbols.join('')}</svg>\n`;
   return { 'src/ui/plans.svg': `data:image/svg+xml;base64,${btoa(svg)}` };

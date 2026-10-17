@@ -6,7 +6,7 @@ import { bindAttr } from "../text/language";
 import { t, verbatim } from "../text/msg";
 import { el } from "./dom";
 import { conditionLabel, TruckConditionReadout } from "./hud-readout";
-import { tintedIcon, truckOutline } from "./plans";
+import { chassisTop, tintedIcon } from "./plans";
 import { PLAN_PAD } from "../render/partLooks";
 import { token } from "./tokens";
 import { registerTipSource } from "./touch-tip";
@@ -68,7 +68,7 @@ export class TruckConditionView {
     if (this.chassisId !== vehicle.chassisId) {
       this.chassisId = vehicle.chassisId;
       for (const old of this.outline) old.remove();
-      this.outline = [truckOutline(vehicle.chassisId, CELL), truckOutline(vehicle.chassisId, CELL), truckOutline(vehicle.chassisId, CELL)];
+      this.outline = [chassisTop(vehicle.chassisId, CELL), chassisTop(vehicle.chassisId, CELL), chassisTop(vehicle.chassisId, CELL)];
       this.outline[0].classList.add("outline-fill");
       this.outline[1].classList.add("outline-line");
       this.outline[2].classList.add("outline-detail");
