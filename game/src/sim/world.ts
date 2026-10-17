@@ -32,6 +32,7 @@ import { applyHazards } from './hazard';
 import { consumeSupplies, fitAllStores, leakFuel } from './supplies';
 import { scrapPatch } from './economy';
 import { nameStream, spawnInitial, spawnNpcs } from './spawn';
+import { restockFish } from './fishing';
 import { clearPiles, initializeSalvage, renewSalvage, stockOldSpots } from './salvage';
 import { spillDeadRows } from './spill';
 import { fadeCraters } from './craters';
@@ -110,7 +111,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
         roughTiles: 0, ram: 0, escape: 0,
         hit: 0, contact: 0, discover: 0,
         fieldJob: 0, patch: 0, search: 0,
-        heat: 0, damage: 0, knockout: 0,
+        heat: 0, damage: 0, knockout: 0, fish: 0,
         profit: 0, deal: 0, call: 0, honk: 0, contract: 0, freeTow: 0, aid: 0,
       },
       perks: [],
@@ -151,6 +152,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     events: [],
     removed: [],
     spawnTimer: {},
+    fishTaken: {},
     weather: [],
     dustClouds: [],
     states: [],
@@ -366,6 +368,7 @@ export function endTurn(
     advanceUtilityEffects(w);
     clearPiles(w);
     renewSalvage(w);
+    restockFish(w);
     fadeCraters(w);
     advanceJobs(w);
     startAutoRepair(w);

@@ -1,4 +1,5 @@
 
+import { fishTurn, isFishStalled } from "./fishing";
 import { GOODS } from "../data/goods";
 import { partDef } from "../data/parts";
 import { RULES } from "../data/rules";
@@ -215,6 +216,7 @@ function isStalled(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "strip") return isStripStalled(v, job.partId);
   if (job.kind === "search") return isSearchStalled(world, v, job);
   if (job.kind === "survey") return isSurveyStalled(world, job);
+  if (job.kind === "fish") return isFishStalled(world, v, job);
   return isSiteWorkStalled(v, job);
 }
 
@@ -227,6 +229,7 @@ function jobTurn(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "repair") return repairTurn(world, v, job);
   if (job.kind === "search") return searchTurn(world, v, job);
   if (job.kind === "survey") return surveyTurn(world, job);
+  if (job.kind === "fish") return fishTurn(world, v, job);
   if (job.kind === "strip") return stripTurn(world, v, job);
   if (job.kind === "weld") return weldTurn(world, v, job);
   if (job.kind === "business") return businessTurn(job);
