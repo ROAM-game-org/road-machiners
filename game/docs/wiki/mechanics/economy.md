@@ -50,7 +50,7 @@ Salvage lies hidden until a search turns it up. Territory loot spots and road wr
 - An object that holds loot, hidden or revealed, shows its colors a little richer, and it goes plain once emptied.
 - Saves keep the hidden loot, the revealed loot and a search in progress, so nothing rerolls.
 
-Fuel and supplies limit range. Fuel burns per tile by chassis, times heat. Below 20% of tank capacity, the truck's top speed is halved. The truck crawls when fuel runs out. Supplies burn per turn, times heat. A full load lasts about 920 daytime turns. Without supplies the character loses health down to 30. Nothing refills supplies for free: every shop sells fuel and supplies at the same prices.
+Fuel and supplies limit range. Fuel burns per tile by chassis, times heat. Below 20% of tank capacity, the truck's top speed is halved. The truck crawls when fuel runs out. Supplies burn per turn, times heat. A full load lasts about 920 daytime turns. Without supplies the character loses health down to 30. Shops sell fuel and supplies at the same prices. The one free source of supplies is fishing. A parked truck within 2 tiles of a dirty-water pool can fish for 10 turns. Each turn a fish bites with a chance worked out from half the tier 1 wage, which is about 0.15, so a session catches about 1.5 fish. A fish adds 0.25 supplies at once and ends the session early when supplies are full. A pool of dirty water holds half a fish per tile, rounded up, and gets a seventh of that back each day, so an emptied pool is full again in about a week. Toxic pools, canals and dry ground hold no fish. Fish cannot be carried or sold, so fishing feeds a driver and never pays: a turn of it is worth half a turn of salvage.
 
 ## Search pay
 
