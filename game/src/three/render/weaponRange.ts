@@ -17,6 +17,7 @@ import { el } from '../../ui/dom';
 import type { CameraRig } from './camera';
 import { READY_ARC_BIT, SPENT_ARC_BIT } from './models';
 import { num } from '../../text/msg';
+import { layerPointOf } from '../../ui/ui-size';
 
 const S = PHYSICS.metersPerTile;
 const ICON_PX = 26;
@@ -155,7 +156,7 @@ export class HoverArcsView {
       const a = heading + arc.spot.angle * DEG;
       const x = pos.x + Math.cos(a) * arc.spot.distance;
       const y = pos.y + Math.sin(a) * arc.spot.distance;
-      const p = this.rig.screenOf({ x: x * S, y: markHeightAt(terrain, pos, x, y) * S, z: y * S });
+      const p = layerPointOf(this.rig.screenOf({ x: x * S, y: markHeightAt(terrain, pos, x, y) * S, z: y * S }));
       const node = this.icons.get(arc.weapon.part.id)!;
       node.style.left = `${p.x}px`;
       node.style.top = `${p.y}px`;

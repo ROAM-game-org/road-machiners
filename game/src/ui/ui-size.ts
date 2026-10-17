@@ -173,3 +173,7 @@ export function uiSize(): UiSize {
 export function windowExtent(): Extent {
   return { width: window.innerWidth, height: window.innerHeight };
 }
+
+export function layerPointOf(screen: { x: number; y: number }): { x: number; y: number } {
+  return active.layerPoint(screen.x, screen.y);
+}

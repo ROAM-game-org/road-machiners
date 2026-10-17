@@ -6,6 +6,7 @@ import { conditionTag, footprint, headlineStat, itemTip, partDetail, partIconEl,
 import { el } from "./dom";
 import { conditionStatus, conditionTier } from "./format";
 import { moneyEl } from "./units";
+import { uiSize } from "./ui-size";
 
 export type PartRow = {
   world: World;
@@ -140,7 +141,7 @@ export class PartRows {
     row.querySelector<HTMLElement>(".part-sum")?.focus({ preventScroll: true });
     if (target === focused) {
       const box = scrollerOf(row);
-      if (box) box.scrollTop += row.getBoundingClientRect().top - place.top;
+      if (box) box.scrollTop += uiSize().toLayer(row.getBoundingClientRect().top - place.top);
     }
   }
 }
