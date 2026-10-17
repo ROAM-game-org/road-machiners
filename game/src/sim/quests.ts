@@ -10,7 +10,9 @@ import {
   GAME_OPENED_QUESTS,
   INTRO_STEP,
   INTRO_STEPS,
+  HATTIE_MET,
   type IntroStep,
+  type WellCheckpoint,
   MONEY_STAT,
   QUEST_LANGUAGES,
   QUEST_VIEWS,
@@ -309,6 +311,12 @@ export function openScaleScene(w: World): void {
   if (questVar(w, QUESTS, GAME_OPENED_QUESTS.scale, SCALE_SEEN) === true) return;
   setWorldVar(w, SCALE_SEEN, true);
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.scale, 'start');
+}
+
+export function openWellScene(w: World, checkpoint: WellCheckpoint): void {
+  if (w.player.quests.session) return;
+  setWorldVar(w, HATTIE_MET, true);
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.introWake, checkpoint);
 }
 
 export function introStep(w: World): IntroStep {

@@ -26,6 +26,7 @@ VAR father_told = false
 VAR promised = false
 VAR hand_shook = false
 VAR scale_seen = false
+VAR hattie_met = false
 
 EXTERNAL money()
 EXTERNAL give_money(amount)

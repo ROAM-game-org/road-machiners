@@ -3,7 +3,7 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
-import { withFactions_70_71, withPlannedGroups_73_74, withRunWait_72_73 } from './save-steps-late';
+import { withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73 } from './save-steps-late';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -890,6 +890,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => world,
   withClaimRivals_75_76,
   withCrewsAndHires_76_77,
+  withHattieMet_77_78,
 ];
 
 function withCrewsAndHires_76_77(world: SavedJson): SavedJson {

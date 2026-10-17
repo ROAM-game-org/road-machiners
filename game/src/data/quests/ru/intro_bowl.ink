@@ -37,14 +37,14 @@ VAR asked_tips = false
   <term=bowl>Чаша</term>. Фермерский город, если это вообще можно назвать городом. Террасы по склону кратера, между ними каналы, а на самом дне моя колодезная, куда стекает вся вода. # speaker: Хэтти
   Рано или поздно сюда спускаются все: пить-то всем надо. # speaker: Хэтти
   -> questions
-+ {not asked_what} [Что со мной случилось?]
++ {towed_to_bowl and not asked_what} [Что со мной случилось?]
   ~ asked_what = true
   Меня там не было, так что цена моим словам грошовая. Кто-то сжег тебе мотор на дороге, забрал всё стоящее и оставил тебя в живых. На открытой дороге это считается хорошими манерами. # speaker: Хэтти
   Буксировщик повесил тебя на цепь и привез сюда. А дальше уже моя лавка и моя вода. # speaker: Хэтти
   -> questions
 + {not asked_next} [Что мне теперь делать?]
   ~ asked_next = true
-  Поешь. Потом спустись во двор у ворот и узнай, сколько там попросят за мотор. А дальше — за руль. # speaker: Хэтти
+  {towed_to_bowl:Поешь. Потом спустись во двор у ворот и узнай, сколько там попросят за мотор. А дальше — за руль.|Water the truck, if you haven't. Then walk down to the yard by the gate and see what they'll take for what you carry. After that, drive.} # speaker: Хэтти
   Она оглядывает вас: пыль, шея, пустые руки.
   Вид у тебя как у механтиста. Водитель в сцепке с грузовиком на любой дороге себе на жизнь заработает. Вози грузы для города, работай на двор — вот и М потекут. А хочешь ты им быть или нет, дело твое. Я тут только воду продаю. # speaker: Хэтти
   -> questions
@@ -75,5 +75,28 @@ VAR asked_tips = false
   А если всё же застрянешь на дороге, кто-нибудь дотащит на буксире за плату, а во дворе подлатают за лом, если М не осталось. Всё дешевле, чем идти пешком. # speaker: Хэтти
   -> questions
 + [Я пойду.]
-  Про свой счет не забывай. Миску зерна я не забываю. # speaker: Хэтти
+  {towed_to_bowl:Про свой счет не забывай. Миску зерна я не забываю.|Come back when you've M's for a bucket.} # speaker: Хэтти
   -> END
+
+=== meet ===
+# checkpoint: meet
+You leave the truck on the pad and walk in for water, because the tank is not the only thing in you that's dry. A bucket is coming up a well on a creaking rope. # place: Bowl # img: bowl_yard
+Past the well house run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
+A broad woman with flour on her forearms sits on a bench under a roof of woven reeds, and watches you come the whole way. # page
+Hattie, they call me, and that's the well, and that's the bench, and the water costs, so don't look at the bucket like it owes you. # speaker: Hattie
+She wipes her hands on her apron. Her eyes go over your dust, your boots, the pickup out on the pad.
+Water, grain, a word or two on the roads. That's what I sell. The word costs less than the grain, and I hear it twice as well. # speaker: Hattie
+-> start.ask
+
+=== again ===
+# checkpoint: again
+Somewhere close, a bucket is coming up a well on a creaking rope. You know that sound now. # place: Bowl # img: bowl_yard
+You're lying on the bench under the reed roof. Past the shade run the canals, and the green steps of the fields. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper, with a brass tag on it. # page
+The bed is empty. Somebody went through the engine and left the bolts where they fell.
+Hattie sets a cup of water on the bench beside you and sits down at the other end of it. # page
+Back on my bench, and not on your own wheels this time. You get around, I'll give you that. # speaker: Hattie
+She nods at the chain on your bumper.
+A tow man brought you in at first light and asked me one thing. He asked after a Varga woman. There's a Ruth Varga up on the third terrace who buys her water here every morning. Whether she's his Varga, he didn't stay to find out. # speaker: Hattie
+Whatever they pulled out of your engine, the yard by the gate sells new, if you have the M's. I'll put the grain on your slate. # speaker: Hattie
+The water is cold and tastes of stone. A bowl of hot grain comes after it. # page
+-> start.ask
