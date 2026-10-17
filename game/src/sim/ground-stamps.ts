@@ -2,7 +2,7 @@ import { REGION } from '../data/region';
 import { CANYON_BRIDGE_GROUND, MAPGEN } from '../data/terrain';
 import { dist, pointInPolygon, polygonEdgeDist, type Vec } from './vec';
 
-export type StampSite = { id: string; pos: Vec; shift: Vec; edge: (p: Vec) => number };
+export type StampSite = { id: string; pos: Vec; reach: number; shift: Vec; edge: (p: Vec) => number };
 
 function shiftOf(pos: Vec, from: Vec): Vec {
   return { x: pos.x - from.x, y: pos.y - from.y };
@@ -13,13 +13,13 @@ function territorySites(): StampSite[] {
     if (t.kind !== 'territory') return [];
     if (!t.groundFrom || !t.outline) throw new Error(`Territory ${t.id} has no place its ground was made at`);
     const outline = t.outline.map((p) => ({ x: t.pos.x + p.x, y: t.pos.y + p.y }));
-    return [{ id: t.id, pos: t.pos, shift: shiftOf(t.pos, t.groundFrom), edge: (p: Vec) => (pointInPolygon(p, outline) ? 0 : polygonEdgeDist(p, outline)) }];
+    return [{ id: t.id, pos: t.pos, reach: t.radius, shift: shiftOf(t.pos, t.groundFrom), edge: (p: Vec) => (pointInPolygon(p, outline) ? 0 : polygonEdgeDist(p, outline)) }];
   });
 }
 
 function bridgeSite(): StampSite {
   const { id, pos, from, radius } = CANYON_BRIDGE_GROUND;
-  return { id, pos, shift: shiftOf(pos, from), edge: (p) => Math.max(0, dist(p, pos) - radius) };
+  return { id, pos, reach: radius, shift: shiftOf(pos, from), edge: (p) => Math.max(0, dist(p, pos) - radius) };
 }
 
 export const STAMP_SITES: readonly StampSite[] = [...territorySites(), bridgeSite()];
@@ -31,6 +31,7 @@ function smooth(t: number): number {
 }
 
 export function stampShare(site: StampSite, p: Vec): number {
+  if (dist(p, site.pos) > site.reach + MAPGEN.groundHold + MAPGEN.groundFeather) return 0;
   const gap = Math.max(0, site.edge(p) - MAPGEN.groundHold);
   return gap >= MAPGEN.groundFeather ? 0 : 1 - smooth(gap / MAPGEN.groundFeather);
 }

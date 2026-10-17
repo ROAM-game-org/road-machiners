@@ -33,7 +33,6 @@ export function openingWreckSpot(opening: Opening, start: { pos: Vec; heading: n
   return { x: start.pos.x + cos * ahead - sin * side, y: start.pos.y + sin * ahead + cos * side };
 }
 
-
 export function reservedGround(): { pos: Vec; r: number }[] {
   return Object.values(START_KITS).flatMap((kit) => {
     const start = kit.intro?.pose ?? startPose();

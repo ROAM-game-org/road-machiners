@@ -44,7 +44,7 @@ class Placer {
     if (!this.fits(p, fit)) return false;
     this.d.props.push(p);
     this.index(p);
-    this.added.set(p.kind, [...(this.added.get(p.kind) ?? []), p]);
+    this.addedOf(p.kind).push(p);
     this.counts[group]++;
     return true;
   }
@@ -53,6 +53,12 @@ class Placer {
     const d = this.d;
     if (!clearGround(d.size, p.pos, p.r, fit.roadGap) || onReservedGround(p.pos, p.r)) return false;
     return this.groundFits([tileOf(d.size, p.pos), ...tilesWithin(d.size, p.pos, p.r)], fit) && this.clearOfProps(p) && !this.formsRow(p);
+  }
+
+  private addedOf(kind: string): BakedProp[] {
+    let list = this.added.get(kind);
+    if (!list) this.added.set(kind, (list = []));
+    return list;
   }
 
   private groundFits(tiles: readonly number[], fit: Fit): boolean {
@@ -72,7 +78,7 @@ class Placer {
   }
 
   private formsRow(p: BakedProp): boolean {
-    const alike = (this.added.get(p.kind) ?? []).filter((o) => turnGap(o.yaw, p.yaw) <= R.rowGuard.turn);
+    const alike = this.addedOf(p.kind).filter((o) => turnGap(o.yaw, p.yaw) <= R.rowGuard.turn);
     return alike.some((a, i) => alike.slice(i + 1).some((b) => turnGap(a.yaw, b.yaw) <= R.rowGuard.turn && lineGap(a.pos, b.pos, p.pos) <= R.rowGuard.line));
   }
 
