@@ -6,7 +6,7 @@
   z-index: var(--z-save);
   box-sizing: border-box;
   width: var(--panel-m);
-  max-width: calc(100vw - 2 * var(--hud-inset));
+  max-width: calc(var(--layer-w) - 2 * var(--hud-inset));
   font-size: var(--text-dense);
 }
 .options h3 {

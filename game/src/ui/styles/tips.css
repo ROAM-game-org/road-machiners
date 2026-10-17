@@ -24,7 +24,7 @@
 #ui .touch-tip {
   position: fixed;
   z-index: var(--z-toast);
-  max-width: calc(100vw - var(--safe-left) - var(--safe-right));
+  max-width: calc(var(--layer-w) - var(--safe-left) - var(--safe-right));
   white-space: pre-line;
   pointer-events: none;
 }
