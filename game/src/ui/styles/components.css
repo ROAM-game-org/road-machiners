@@ -249,3 +249,15 @@
 #ui .drawer-tabs > button.marked {
   border-color: var(--danger);
 }
+
+.option-switch {
+  display: flex;
+  gap: var(--space-3);
+}
+.option-switch > button {
+  flex: 1;
+}
+#ui .option-switch > button[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-dim);
+}
