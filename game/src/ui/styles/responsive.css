@@ -67,3 +67,6 @@
 :where(#ui.narrow) .modal th {
   padding: var(--space-3) var(--space-2);
 }
+#ui:where(.narrow):has(.help) :is(.right-dock, .log) {
+  visibility: hidden;
+}
