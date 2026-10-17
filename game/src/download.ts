@@ -27,7 +27,7 @@ export type DownloadDeps = {
   stallMs?: number;
 };
 
-type Watch = { signal: AbortSignal; beat(): void; stop(): void; stalled(): Stalled };
+type Watch = { signal: AbortSignal; silent: Promise<never>; beat(): void; stop(): void };
 
 function retryable(status: number): boolean {
   return status === 408 || status === 429 || (status >= 500 && status <= 599);
@@ -47,14 +47,12 @@ function watchSilence(url: string, ms: number, timers: Timers): Watch {
     timers.clear(handle);
     handle = timers.set(ms, () => controller.abort(stall));
   };
-  beat();
-  return { signal: controller.signal, beat, stop: () => timers.clear(handle), stalled: () => stall };
-}
-
-function silence(watch: Watch): Promise<never> {
-  return new Promise((_, reject) => {
-    watch.signal.addEventListener('abort', () => reject(watch.stalled()), { once: true });
+  const silent = new Promise<never>((_, reject) => {
+    controller.signal.addEventListener('abort', () => reject(stall), { once: true });
   });
+  silent.catch(() => {});
+  beat();
+  return { signal: controller.signal, silent, beat, stop: () => timers.clear(handle) };
 }
 
 async function readChunks(body: ReadableStream<Uint8Array>, watch: Watch): Promise<ArrayBuffer> {
@@ -62,7 +60,7 @@ async function readChunks(body: ReadableStream<Uint8Array>, watch: Watch): Promi
   const chunks: Uint8Array[] = [];
   let size = 0;
   for (;;) {
-    const { done, value } = await Promise.race([reader.read(), silence(watch)]);
+    const { done, value } = await Promise.race([reader.read(), watch.silent]);
     if (done) break;
     watch.beat();
     chunks.push(value);
@@ -85,7 +83,7 @@ async function readBody(url: string, response: Response, watch: Watch, ms: numbe
 async function attempt(url: string, init: RequestInit | undefined, get: NonNullable<DownloadDeps['fetch']>, ms: number, timers: Timers): Promise<Outcome> {
   const watch = watchSilence(url, ms, timers);
   try {
-    const response = await Promise.race([get(url, { ...init, signal: watch.signal }), silence(watch)]);
+    const response = await Promise.race([get(url, { ...init, signal: watch.signal }), watch.silent]);
     if (!response.ok) return { status: response.status };
     watch.beat();
     return { body: { response, bytes: await readBody(url, response, watch, ms, timers) } };
