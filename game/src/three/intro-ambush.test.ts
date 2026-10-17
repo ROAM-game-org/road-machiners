@@ -383,7 +383,6 @@ describe('the fall and the wake in Bowl', () => {
       const raider = raidersIn(w)[0];
       if (!broken && dist(raider.pos, playerVehicle(w).pos) < 12) {
         for (const part of mountedParts(playerVehicle(w), 'cargo')) part.hp = 0;
-        for (const part of mountedParts(playerVehicle(w), 'weapon')) part.hp = 0;
         broken = true;
       }
       w = endTurn(w, testDrive);
