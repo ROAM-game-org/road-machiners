@@ -25,7 +25,7 @@ import { chooseSaveFate, chooseStart, saveErrorText, showCarryReport } from '../
 import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
-import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, onReport, reportError } from './crash';
+import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteError, onReport, reportError } from './crash';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
@@ -153,8 +153,7 @@ function whenVisible(run: () => void): void {
 }
 function reportStandIns(failures: ModelFailure[]): void {
   for (const { name, error } of failures) {
-    console.warn(`Model ${name} failed to load and stays a stand-in box`, error);
-    reportError(new Error(`Model ${name} failed to load and stays a stand-in box: ${error instanceof Error ? error.message : String(error)}`));
+    noteError(new Error(`Model ${name} failed to load and stays a stand-in box: ${error instanceof Error ? error.message : String(error)}`));
   }
 }
 async function recoverSounds(loaded: LoadedBank): Promise<void> {
