@@ -120,13 +120,20 @@ The cost is that believers can wait for a reward instead of living, and they bla
 
 Way: fear.
 
-The Sunward worship whatever lies in the Fallen Sun's crater. They believe it feeds on what falls from the sky, and that it will destroy the basin unless they serve it. They tend the green glow in the wreck and keep others away from it.
+The Sunward say they serve whatever lies in the Fallen Sun's crater. Their teaching says it feeds on what falls from the sky and will burn the basin unless it is served, and that their founder, the Keeper, went into the light to serve it and will come back. When they find a stranger in the wreck fields, they cry "Given by the sky!"
 
-When they find a stranger in the wreck fields, they cry "Given by the sky!"
+They began as wreck-fever dreamers camped by the green glow. Oren Vey, a student cast out of the Alpha Tower, made himself their Keeper, and hunger made their law: whatever comes into the crater is theirs. After the Keeper walked into the light and the old singers left, the order kept only its sworn men. [The Sunward](sunward.md) has the order's history.
 
-The Preacher leads their inner circle.
+Today they sleep by day somewhere in the wastes, and at dusk eight cars cross open ground to the crater with their lamps in a line. On the road they answer nobody. In the crater they keep a vigil for the Keeper until shortly before dawn, and they invite strangers to come and watch the light. On some nights three fast cars hunt the roads near the crater and drag a truck back. Drivers keep away from the crater after dark.
 
-The cost is that they serve a thing they cannot see, and they are certain about it.
+Mattias Kade wears the Keeper's coat and leads them. The Preacher writes and chants their teachings. The members are not one kind of person:
+
+- Kade believes nothing, and keeps the order because it is his.
+- The Preacher half believes, and believes a little more each dawn.
+- Most of the sworn men say the words for food, a place at the fire and the fear their cars bring them on the road. Nobody says aloud what they have done.
+- A few young recruits believe every word, and watch the others for doubt.
+
+The cost is that they serve a thing they cannot see, and the fiction is the only thing that keeps them from seeing what they have become.
 
 ### The Ephemeralists
 
@@ -141,6 +148,8 @@ The cost is that they leave this world to the people who still believe in it.
 Way: escape.
 
 The Children of Noah believe another ship will come and take the worthy away. They keep the escape pod beacons lit along the debris trail so the next ship can find them.
+
+Their singers came from the crater. In year 110 Yara Sorrel led the Sunward's old singers, the last believers among the dreamers, out to the beacon keepers, and the deserter Joss Ardo sings with them now. Since year 128 they keep their lamps dark at night.
 
 The cost is that they live for an arrival that may never come.
 
