@@ -140,6 +140,10 @@ body {
   min-width: var(--touch-target);
   min-height: var(--touch-target);
 }
+#ui.touch button.switch {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+}
 #ui.touch .instrument-actions button.instrument-button {
   min-width: var(--touch-target);
   min-height: var(--touch-target);

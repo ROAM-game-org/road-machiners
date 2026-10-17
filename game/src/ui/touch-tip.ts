@@ -80,7 +80,7 @@ export function installTouchTips(root: HTMLElement, touch: () => boolean): void 
       open(content, press.x, press.y);
     }, TOUCH.longPressMs);
     press = { id: e.pointerId, x: e.clientX, y: e.clientY, target, timer, opened: false };
-  });
+  }, true);
   root.addEventListener("pointermove", (e) => {
     if (press && press.id === e.pointerId && Math.hypot(e.clientX - press.x, e.clientY - press.y) > TOUCH.slopPx) end();
   });
