@@ -108,6 +108,11 @@ describe('checkQuests', () => {
     expect(check('=== start ===\n# checkpoint: start\nHi.\n-> END\n=== attic ===\nDust.\n-> END\n')).toContain('q: section attic is never reached');
   });
 
+  it('counts an entry knot as reached when it shares its hub with another entry', () => {
+    const hub = '=== start ===\n# checkpoint: start\n-> hub\n= hub\n+ [Ask.]\n  -> END\n=== again ===\n# checkpoint: again\n-> start.hub\n';
+    expect(check(hub)).toEqual([]);
+  });
+
   it('fails an effect that throws on the way and names the picks', () => {
     const problems = check('=== start ===\n# checkpoint: start\n+ [Take it.]\n  ~ give_money(-1)\n  -> END\n');
     expect(problems.join('\n')).toContain('q: after Take it.: give_money takes no negative amount');

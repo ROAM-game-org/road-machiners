@@ -1,3 +1,5 @@
+import { ALA_HIRED } from "../data/quests";
+import { worldVar } from "../sim/quests";
 
 import { abandonRun, canAbandonRun, runEarnings } from "../sim/fury-road";
 import type { RunLossCause, World } from "../sim/types";
@@ -58,9 +60,13 @@ export class DeathScreen {
   private restart(world: World): void {
     const { newGame } = this.actions;
     if (!newGame.confirm(say(CONFIRM_NEW_GAME))) return;
-    newGame.requestBoot({ new: world.setup, intro: false });
+    newGame.requestBoot({ new: world.setup, intro: restartsWithStory(world) });
     newGame.reload();
   }
+}
+
+export function restartsWithStory(world: World): boolean {
+  return worldVar(world, ALA_HIRED) === true;
 }
 
 function lossCause(world: World): RunLossCause {
