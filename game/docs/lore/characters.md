@@ -564,7 +564,7 @@ Karl and his brother Jens were Old Army deserters who robbed insured trucks on t
 - Way: oppose.
 - High concept: The Kiln Camp rider who runs the south road as her own toll.
 - Trouble: Her mark protects only while Kiln lets her hold the road, and Kiln can melt her down.
-- Aspects: A ladle scratched in every paid door; Karl Vosk on the junction gun; Ain Christopher lets her hold the road.
+- Aspects: A ladle scratched in every paid door; Karl Vosk on the junction gun; Tastes every water barrel she takes.
 - Skills: best social, worst machining.
 - Wants: To run the south road as her own toll.
 - Fears: Being melted down with the guns the day Kiln turns on her.
@@ -585,7 +585,7 @@ Her line is "Paid is paid. For whoever paid it."
 - Wants: To close every open line in his ledger.
 - Fears: Being written off like the debts he fails to collect.
 - Habit: He hangs the key of every truck he seizes on his belt.
-- Secret: He towed the stranger's truck to Bowl because he knew the brass tag on its key, and his ledger does not say whose truck it was. He tells nobody about the hole in his ledger.
+- Secret: None.
 
 Amos collected for the Pierce yard on the south road. He took the key of every truck he seized and hung it on his belt, and he closed every line in his ledger. Since the crews took the yard he tows for whoever pays. In year 130 he found a stranger knocked out in an old pickup, and its key carried the yard's brass tag. The owner is unknown. He towed the truck to Bowl, then drove off before anyone could ask, and left his chain behind.
 

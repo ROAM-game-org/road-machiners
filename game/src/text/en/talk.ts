@@ -24,7 +24,7 @@ export const TALK = {
   'line.anyoneElseAsking': 'Anyone else asking about it?',
   'line.crewAskedTheSame': 'Another crew came by asking the same. Not long back.',
   'line.nobodyElseAsked': 'Nobody I heard of.',
-  'line.armyWagonTold': 'Army wagon? Yeah, I passed one. It lies in a hollow, closer to the Bowl north road than to the Pump Station track, south of an old pump shack with a water tower. Nobody was at it that I saw.',
+  'line.armyWagonTold': 'Army wagon? Yeah, I passed one. It lies in a hollow, closer to the Bowl north road than to the Pump Station track, south of an old farm with a water tower. Nobody was at it that I saw.',
   'line.whatElseDidYouSee': 'What else did you see out there?',
   'line.agreedGunsDown': 'Agreed. Guns down.',
   'line.allRightIAm': 'All right. I am done. Take what you want.',

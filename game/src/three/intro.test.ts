@@ -31,7 +31,7 @@ const SEED = 1337;
 const setup = defaultSetup('roaming');
 const arrival = (): World => newGame(SEED, 'arrival', true, TEST_MAP, setup);
 const ROPE = 'Drop the rope down the well.';
-const HOUSE = 'Go into the office.';
+const HOUSE = 'Go into the house.';
 const SHED = 'Go to the shed.';
 const LOOK = 'Look around.';
 const LEAVE_HOUSE = 'Go out to the shed.';

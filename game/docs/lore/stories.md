@@ -73,8 +73,8 @@ Green Pit's pumps draw mud every dry year. A Nose soldier from Silver's post sit
 
 The game opens with the player walking into the basin from outside. Nobody ever says who they are or why they came. Their canteen is empty and the heat is closing in.
 
-1. On foot at the basin's edge, they walk toward a dry pump shack with a rusted tank on legs at a roadside waypoint under the rim.
-2. An old pickup sits in a collapsed shed behind the shack. Nobody knows who owned it. It starts on the third try and coughs.
+1. On foot at the basin's edge, they walk toward a water tower on an abandoned farm.
+2. An old pickup sits in a collapsed shed under the tower. It starts on the third try and coughs.
 3. They learn to drive on open dirt toward a wreck in sight.
 4. They search the wreck and patch the engine so it stops misfiring.
 5. One raider truck takes them on the road out. The pickup is weak, so a loss is likely but not forced.

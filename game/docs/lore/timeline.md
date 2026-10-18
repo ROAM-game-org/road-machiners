@@ -79,7 +79,7 @@ This part was generated with a second, smaller run of the story game. Its player
 - Year 116. The western convoy of Dario Feld agrees a fixed fee to cross Canyon Bridge each year. The dreamer Lusa Fenwick rides west with it and comes back with tales of western towns whose trucks carry no guns, because a guard paid by every town keeps the roads.
 - Year 117. The Vosk brothers, two Old Army deserters, rob three insured trucks on the Nose road. They always know which trucks to stop.
 - Year 118. A Granary truck with a Brann swivel fights them off at the Burnt Convoy. Its tenant driver, Bo Lindqvist, kills Jens Vosk. Anselm buries Jens across the road from Hal.
-- Year 118. A dry year. The Green Pit pumps draw mud by noon. The Bowl meters the Green Pit feeder and claims a share of it. Kiln Camp sinks a deep bore to cool its furnace.
+- Year 118. A dry year. The Green Pit pumps draw mud by noon. The Bowl meters the Green Pit feeder and claims a share of it.
 - Year 119. Scrapjaw riders take the fuel truck of the pod field at the edge of the Glass Flats, in the debris trail. Its young driver Tam is shot in the leg. A western driver, Remy Castell, opens a stall of western rifles at the crossroads.
 - Year 120. The Nose posts a gate law: no truck leaves for the open road without a gun.
 - Year 121. The Lunar Society votes to read the count in the open. Teo refuses, and they cast him out. People call him the Apprentice. The tower announces that the tone from the central wreck counts the years since the fall.
