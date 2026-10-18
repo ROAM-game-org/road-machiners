@@ -1,4 +1,5 @@
 import { AssetStatusError, AssetUnreachable, fetchAssetBody } from "../fetch-asset";
+import { withinMs } from "../stall";
 import { publicUrl } from "../public-url";
 import { BANK, beatLoopSeconds, type Cue, type SoundFormat } from "../data/sounds";
 
@@ -239,7 +240,7 @@ async function decodeFile(job: Job, file: string, format: SoundFormat, cue: Cue,
     throw new SoundFileFault("bytes", facts, new Error(`Sound ${name} arrived as ${bytes.length} of ${expected} bytes`));
   }
   try {
-    const buffer = await job.ctx.decodeAudioData(bytes.buffer as ArrayBuffer);
+    const buffer = await withinMs(job.ctx.decodeAudioData(bytes.buffer as ArrayBuffer), BANK.decodeMs, `Sound ${name} decode`);
     return cue.beat ? fitLoop(job.ctx, buffer, beatLoopSeconds(cue.beat), file) : buffer;
   } catch (e) {
     throw new SoundFileFault(job.options.support[format.ext] === "" ? "codec" : "decoder", facts, e);

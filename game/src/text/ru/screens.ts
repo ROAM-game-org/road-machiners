@@ -28,6 +28,7 @@ export const SCREENS: Translation<typeof EN> = {
   'boot.unreachable': 'Файлы игры не дошли. Проверьте подключение.',
   'boot.retry': 'Повторить',
   'boot.failedToLoad': 'Игра не загрузилась. Проверьте подключение и перезагрузите страницу.',
+  'boot.failedToStart': 'Игра не загрузилась. Откройте игру в другом браузере.',
   'save.slot.auto': 'Автосохранение',
   'save.slot.day': 'Начало дня',
   'save.slot.manual': 'Ячейка {n}',

@@ -8,7 +8,7 @@
 - The browser may close the database connection on its own, for example Safari after the tab sits in the background. `save-db.ts` then reopens it on the next read or write and retries that call once. A write that still fails shows the save note.
 - Boot asks the browser for persistent storage, so it does not evict saves under disk pressure. A refusal leaves saves best-effort, as local storage was.
 - Older builds kept saves in local storage. Boot moves each of them into the database and then deletes its local storage key. A local storage save replaces a database slot only when its `savedAt` is newer, since a tab of an old build may still write there. A save that did not parse moves as its text, and load reports it as unreadable.
-- Boot retries a refused IndexedDB open once. After a second refusal it keeps saves in local storage under the old keys and the run log in memory for the session, with a console warning. The next boot where IndexedDB opens moves them in.
+- Boot retries a refused IndexedDB open once. An open that does not answer in 5 seconds counts as refused, and a connection that opens after that is closed. After a second refusal it keeps saves in local storage under the old keys and the run log in memory for the session, with a console warning. The next boot where IndexedDB opens moves them in.
 
 ## Slots and boot
 
