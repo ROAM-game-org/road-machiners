@@ -24,14 +24,19 @@ Score the issue against this rubric.
 - Clear goal. It says what should change and why.
 - Checkable result. A player or tester can see whether it worked.
 - One task. It is a bug fix or one feature, not a whole system.
-- Fit. It agrees with DESIGN.md.
+- Fit. For a bug only: it agrees with DESIGN.md.
+
+A request that is not a bug goes to a grooming step after you.
+Grooming finds what the player really needs and the version of it that fits ROAM.
+So never refuse such a request because it does not fit the game as written.
+Judge only whether it is clear enough to groom.
 
 Pick one verdict.
 
 - `ready`: the goal and the result are clear enough to design. Open details are fine. Design fills them in, and the committee corrects them at approval.
 - `vote`: the request is a new feature or a substantial change. Players vote on it before it goes to design.
 - `unclear`: a real question blocks design. Either the goal has two readings that lead to different work, or nobody can check the result.
-- `wont-do`: the request goes against DESIGN.md. Give the DESIGN.md reason.
+- `wont-do`: for a bug, the request goes against DESIGN.md, so give the DESIGN.md reason. For any other request, only when it asks for no change to the game at all.
 
 Lean toward `ready` over `unclear` and `wont-do`.
 When in doubt between those, pick `ready`.
@@ -124,16 +129,11 @@ Read the code the issue touches to answer them.
 A committee member reads it to audit the choice.
 
 Write `.factory/triage.json` with this shape.
-`{"verdict": "ready" | "vote" | "unclear" | "wont-do", "reason": "...", "questions": ["..."], "hotfix": true | false, "releaseFix": true | false, "complexity": "trivial" | "intermediate" | "hard", "complexityReason": "...", "bundle": [12, 15], "pitch": {"title": "...", "text": "..."}}`
+`{"verdict": "ready" | "vote" | "unclear" | "wont-do", "reason": "...", "questions": ["..."], "hotfix": true | false, "releaseFix": true | false, "complexity": "trivial" | "intermediate" | "hard", "complexityReason": "...", "bundle": [12, 15]}`
 The reason is one or two plain sentences.
 For a hotfix, the reason says what breaks for players.
 For a release fix, the reason names the release feature it fixes.
 When you bundle, the reason also says what the bundled requests share.
 The questions list is empty unless the verdict is `unclear`.
 The fields `hotfix`, `releaseFix`, `complexity`, `complexityReason` and `bundle` are required for `ready` and `vote`.
-The field `pitch` is required for `vote` only.
-The pitch is what players read when they vote.
-It has a short title and a text of two to four plain sentences.
-The text says what players would get, in the words of a player.
-The pitch has no emoji and no markdown.
 The bundle lists issue numbers from `.factory/related.md` only, and is empty when nothing fits.

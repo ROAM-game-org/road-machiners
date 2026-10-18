@@ -24,6 +24,8 @@ const CANDIDATES_QUERY = `query($search: String!, $cursor: String) { search(type
   pageInfo { hasNextPage endCursor } nodes { ... on Issue { number title body createdAt state author { login } labels(first: 50) { nodes { name } }
     projectItems(first: 20) { nodes { project { id } } } } } } }`;
 
+const SEARCH_RESULT_CAP = 1000;
+
 type CandidateNode = {
   number: number; title: string; body: string; createdAt: string; state: Issue['state']; author: { login: string } | null;
   labels: { nodes: { name: string }[] };
@@ -177,6 +179,20 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     }
   }
 
+  async function allIssues(): Promise<Issue[]> {
+    const search = `repo:${repo} is:issue`;
+    const found: Issue[] = [];
+    let cursor = '';
+    for (;;) {
+      const vars: Vars = cursor ? { search, cursor } : { search };
+      const page = JSON.parse(await graphql(CANDIDATES_QUERY, vars)) as CandidatesPage;
+      found.push(...page.data.search.nodes.map(toIssue));
+      if (found.length >= SEARCH_RESULT_CAP) throw new Error(`The issue search reached GitHub's cap of ${SEARCH_RESULT_CAP} results, so the issue list for grooming would be cut`);
+      if (!page.data.search.pageInfo.hasNextPage) return found;
+      cursor = page.data.search.pageInfo.endCursor;
+    }
+  }
+
   async function issue(number: number): Promise<Issue> {
     const out = await gh(['issue', 'view', String(number), '-R', repo, '--json', ISSUE_FIELDS]);
     return fill(JSON.parse(out) as RawIssue);
@@ -184,6 +200,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
 
   return {
     candidates,
+    allIssues,
     issue,
     async comments(number): Promise<IssueComment[]> {
       const rows = await lines(['api', `repos/${repo}/issues/${number}/comments`, '--paginate',
