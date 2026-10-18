@@ -314,11 +314,12 @@ describe('yardLook', () => {
 
   it('takes the look of the ground beside the yard, never hardpan from the yard itself', () => {
     const { fade, natural } = yardLook(t);
-    const west = Math.PI;
-    const inside = tileAt(west, -6);
+    const east = 0;
+    const inside = tileAt(east, -6);
+    expect(t.types[inside]).toBe('hardpan');
     expect(fade[inside]).toBeGreaterThan(0);
-    expect(t.types[tileAt(west, 5)]).not.toBe('hardpan');
-    expect(natural[inside]).toBe(natural[tileAt(west, 5)]);
+    expect(natural[inside]).not.toBe('hardpan');
+    expect(natural[inside]).toBe(natural[tileAt(east, 5)]);
   });
 
   it('leaves hardpan away from every site unfaded', () => {
