@@ -108,5 +108,5 @@ She waits. She isn't asking for anything. That is how you know she wants it.
 = close
 Ala gets up. # page
 Dawn, then. # speaker: Ala
-You go and check the gun pins, both of them. A loose pin will swing your own gun into your cab. The yard here has a welder who works at night, and you leave him a few M's for the scout's weld.
+You go and check the belts, every one of them. A slack belt will cook your engine. The yard here has a welder who works at night, and you leave him a few M's for the scout's weld.
 -> END

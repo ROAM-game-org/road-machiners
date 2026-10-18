@@ -45,14 +45,14 @@ By year 130 nobody drives the open road without a gun. Every driver knows why, a
 
 - For thirty years the Old Army held the guns and patrolled the roads. When it ended in year 112, its rifles went loose across the basin and nobody patrolled the roads.
 - Each town guards only the road near its walls. The Nose refused to share the cost of a guard for the whole basin. The open road between the towns has no guard.
-- Pierce insures only trucks that carry a gun, and from year 128 only on a mount with two pins.
+- Pierce insures only trucks that carry a gun.
 - The Nose lets no truck out of its gate without a gun. Its workshop line hands out a steel turning mount with every gate pass.
 - Kiln Camp strips trucks that neither pay nor fight. A truck that fights hard is often let go.
 - Hull plate from the wrecks is everywhere, and a welder can cut a gun mount from it in a day. The turning mount on a truck bed is called a swivel. Otto Brann of the Salvage Yard built the first one.
 - A swivel turns on an electric motor. The driver aims and fires it through the link. Nobody rides in the bed or holds the gun.
 - Guns are cheap. The Salvage Yard sells the Old Army's stripped guns at the crossroads.
 
-Drivers say a truck is "pinned twice" when it is ready for the road. A swivel with one pin can slide on a bend and swing the gun into the cab.
+Drivers check their brake rod before the north bend. The cheap steel rod that the Nose line hands out can snap on a bend, and then nothing slows the truck.
 
 ## People
 

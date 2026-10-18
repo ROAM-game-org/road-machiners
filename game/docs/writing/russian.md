@@ -142,4 +142,3 @@ Names:
 - Groups and things: the Senate is Сенат. The Central Committee is Центральный комитет. The Farmers patrol is патруль Чаши, and a Farmer is фермер. Pierce is «Пирс». The Guidestar Guild is Гильдия Путеводной звезды. The Old Army is Старая армия. The Sunward are Обращенные к Солнцу. The old world is старый мир. Wagon Seven is фургон «Седьмой». Old Orchard is Старый сад. The pump book is насосная книга.
 - Water: the dial is счетчик, a hose meter is водомер, the tanker is цистерна, a trough is желоб, the lock house is шлюзовой дом and the well house is колодезная. The household is двор, and its steward is управляющий.
 - The link is сцепка, and to drive linked is водить в сцепке. A Machiner is механтист, and road slang shortens it to мех, as English shortens it to Mach. Never машинист, which is a train driver. The Chaos is Хаос.
-- Guns: the pin is штифт, its broken stub is огрызок, the swivel mount is турель and its ring is кольцо. A hollow is лощина.

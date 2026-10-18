@@ -96,7 +96,7 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 
 - No errands. A job that sounds like "carry this" or "find out who" opens a fight between factions. The cargo, the paper or the answer matters more to someone else than to the player.
 - Each quest has several ways through, and each uses a different skill or something the player holds. Social talks, bribes or lies. Perception sees what is off. Machining reads a weld or fixes the problem. Driving outruns or rams. Force, a forged paper and walking away are ways through too.
-- A failed check has a consequence. It does not only close a door. A driver who asks about swivel pins and knows nothing of guns makes the yard wonder who sent them.
+- A failed check has a consequence. It does not only close a door. A driver who asks about brake rods and knows nothing of trucks makes the yard wonder who sent them.
 - An outcome shifts power between factions, and it opens or closes later quests. A player thrown out of a faction loses its help for good.
 - People use the player. Someone who helps for free may want the player's name on a paper, then use it to steal and leave the player to take the blame. The reason a person gives for a job is often not the real one.
 - The world moves without the player. The person they came to see may already be dead. Opponents are as competent as the player, and they act on what they know.

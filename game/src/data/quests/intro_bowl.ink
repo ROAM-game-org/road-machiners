@@ -18,9 +18,9 @@ You're lying on a bench under a roof of woven reeds. Past the shade run canals f
 You sit up, and your head swims, then settles. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper. It has a brass tag on it, the same kind as the one on your key. # page
 The bed is empty. Somebody went through the engine and left the bolts where they fell. Well. At least they left you the truck.
 A broad woman with flour on her forearms sets a cup of water on the bench beside you. Then she sits down at the other end of it. # page
-Drink it slow. A tow man brought you in at first light and set you on my bench. He asked me one thing and drove off. No name, and no M's either. # speaker: Hattie
+Drink it slow. A tow man brought you in at first light, you and the truck both. He found it dead out in the badlands with you slumped in the seat, and took it for a wreck nobody would come back for. He set you on my bench and drove off. No name, and no M's either. # speaker: Hattie
 She nods at the chain on your bumper.
-He asked after a Varga woman. There's a Ruth Varga up on the third terrace who buys her water here every morning and pays in sorghum. Whether she's his Varga, he didn't stay to find out. # speaker: Hattie
+He left his chain on you, though. He'll be back for that, if not for you. # speaker: Hattie
 Whatever they pulled out of your engine, the yard by the gate sells new, if you have the M's. You look like someone who eats first and pays later, so I'll put the grain on your slate. # speaker: Hattie
 The water is cold and tastes of stone, and you drink it slow, because she's watching. A bowl of hot grain comes after it. # page
 Hattie wipes her hands on her apron and waits, the way people wait who are paid by the question. # page
@@ -96,7 +96,7 @@ The bed is empty. Somebody went through the engine and left the bolts where they
 Hattie sets a cup of water on the bench beside you and sits down at the other end of it. # page
 Back on my bench, and not on your own wheels this time. You get around, I'll give you that. # speaker: Hattie
 She nods at the chain on your bumper.
-A tow man brought you in at first light and asked me one thing. He asked after a Varga woman. There's a Ruth Varga up on the third terrace who buys her water here every morning. Whether she's his Varga, he didn't stay to find out. # speaker: Hattie
+A tow man brought you in at first light. He found your truck dead out in the badlands with you slumped in the seat, and took it for a wreck nobody would come back for. He left his chain on you, so he'll be back for that, if not for you. # speaker: Hattie
 Whatever they pulled out of your engine, the yard by the gate sells new, if you have the M's. I'll put the grain on your slate. # speaker: Hattie
 The water is cold and tastes of stone. A bowl of hot grain comes after it. # page
 -> start.ask

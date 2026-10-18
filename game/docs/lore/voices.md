@@ -78,15 +78,15 @@ Sample: "The hall can say what it likes, but I know what my hand did."
 
 ### Patrol driver at the Granary
 
-The driver talks of sacks, pins, rings and the order of a run. He counts costs in sacks.
+The driver talks of sacks, tires, loads and the order of a run. He counts costs in sacks.
 
 His sentences follow the job from first step to last. He speaks while he works and glances at the truck.
 
 He calls a stranger friend. He explains a thing by what it costs or what it holds.
 
-He cares about the count being honest and the pins being tight. He avoids saying he has seen anything he only heard.
+He cares about the count being honest and the load being tied down. He avoids saying he has seen anything he only heard.
 
-He treats a stranger as a driver who should check the pins before anything else.
+He treats a stranger as a driver who should check the tires before anything else.
 
 Sample: "A sack is cheaper than a truck, so nobody argues about it."
 
@@ -122,7 +122,7 @@ Sample: "Nose. The dispatch desk is mine. Freight on the north-east road or thro
 
 ### Lena
 
-Vocabulary: bench, weld, bolt, pin, plate, load, grease and bearings. She compares everything to parts that hold or fail.
+Vocabulary: bench, weld, bolt, brake rod, plate, load, grease and bearings. She compares everything to parts that hold or fail.
 
 Rhythm: quick and bossy. She gives an order, then the reason, then a verdict of one short sentence. She uses many contractions and talks loosely.
 
@@ -226,7 +226,7 @@ Rhythm: short and careful when he lies, and longer when he tells the truth. He s
 
 Habits: he checks his watch when he lies. He offers money before he offers a reason.
 
-Cares about: his stripes, and his sister's ration card, which his rank pays for. He avoids the word pin.
+Cares about: his stripes, and his sister's ration card, which his rank pays for. He avoids the words brake rod.
 
 Strangers: friendly until he learns where they have been. Then he wants to know what they carried out.
 
@@ -234,17 +234,17 @@ Sample: "Look, I've driven that track four years. You don't know the bend. I do.
 
 ### Private Ilan Duvall
 
-Vocabulary: rings, seats, pins, loads and his mother. He compares things to mounts: what holds, what slides, what was never seated right.
+Vocabulary: brake rods, seats, bends, loads and his mother. He compares things to brakes: what holds, what slips, what was never made for the bend.
 
 Rhythm: blunt and young. He says the thing, then stops. He doesn't soften it.
 
-Habits: he rubs his sling strap when he is angry. He turns his half of the pin in his fingers while he talks.
+Habits: he rubs his sling strap when he is angry. He turns his half of the brake rod in his fingers while he talks.
 
-Cares about: never sitting under a one-pin mount again. He avoids talking about the moment the gun swung.
+Cares about: never riding behind a cheap brake rod again. He avoids talking about the moment the wagon would not slow.
 
-Strangers: he trusts a stranger who has looked at the ring, and nobody else.
+Strangers: he trusts a stranger who has looked at the rod, and nobody else.
 
-Sample: "The ring was fine. The pin wasn't. Write that down, somebody."
+Sample: "The bend was fine. The rod wasn't. Write that down, somebody."
 
 ## Roadside radio
 
@@ -324,15 +324,15 @@ Sample: "Eighty for the stretch. Count it. I don't pay twice."
 
 ### Geezer, as narration
 
-The narration runs through the head of a man who checks pins and avoids the past. It is dry and tired, and it sizes up every truck by what it can take from him.
+The narration runs through the head of a man who checks tires and avoids the past. It is dry and tired, and it sizes up every truck by what it can take from him.
 
 Its sentences run short. It answers a question with the smallest true thing and goes back to the road.
 
-It checks every gun pin before it speaks. It avoids the Burnt Drivers, the tank line, the pass, his age, and why he took the job. When the past comes up, the narration looks at something else.
+It checks every tire before it speaks. It avoids the Burnt Drivers, the tank line, the pass, his age, and why he took the job. When the past comes up, the narration looks at something else.
 
 He wants a ride that ends it. By the end of the road, he wants the people behind her to arrive, and one girl to drink.
 
-Sample: "Both pins are bright. Somebody cared about this truck, or somebody was afraid. Mostly the same thing."
+Sample: "All four tires are even. Somebody keeps this truck alive. Nobody does that for free."
 
 ### Tibor, barman
 

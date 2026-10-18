@@ -44,7 +44,7 @@ Nobody agrees, and each guess has its believers.
 - A steel truck drives the wreck fields at night. It cannot be stopped, and nobody has survived meeting it.
 - The Lady of the Road is a voice on the radio that warns drivers of danger ahead.
 - One day the basin will dry out completely, and everyone in it will die of thirst.
-- A Nose swivel has one pin, and on a sharp bend it will swing the gun into your cab.
+- A Nose brake rod is cheap steel, and on a sharp bend it will snap and nothing will slow you.
 - In the west there are towns whose trucks carry no guns, because a guard paid by every town keeps the roads.
 - The glass on the Glass Flats all points the same way, toward the Fallen Sun.
 - The number the Sunward chant at the rim is the year the radio count stops.

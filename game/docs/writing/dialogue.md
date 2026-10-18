@@ -70,7 +70,7 @@ Rough people swear plainly and without heat, the way they'd mention the wind. Sw
 
 ### Competence shows in small checks
 
-Show skill as habit. A veteran checks both gun pins at every stop, counts their knives before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
+Show skill as habit. A veteran checks the tires and belts at every stop, counts their knives before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
 
 "The old one takes a casual step to the side, out of your sight. Figures how he lived this long."
 
@@ -154,13 +154,13 @@ A world fact comes up as part of what the speaker wants: a complaint, a price, a
 
 Bad: "Pierce Corporation insures trucks and lends money to the towns."
 
-Good, a Granary driver: "Pierce wouldn't pay when my axle went. They're the insurers at Nose. They take your coin every season, and when my truck broke they found a reason: my gun ring had only one pin."
+Good, a Granary driver: "Pierce wouldn't pay when my axle went. They're the insurers at Nose. They take your coin every season, and when my truck broke they found a reason: I had pulled my gun off the bed to save weight."
 
 People live inside the basin's facts. Guns on every truck, the Kiln fee and the Senate are old and ordinary to them. Nobody announces them.
 
 Bad: "Every truck carries a gun now."
 
-Good: "Check your pins before the bend. A loose ring will swing your own gun into the cab."
+Good: "Check your brake rod before the bend. A cheap one snaps, and then nothing slows you."
 
 ### Explain local words in the same answer
 
@@ -218,7 +218,7 @@ Each choice changes what Bo says next. None of them is a test with a right answe
 
 ### Exits and actions
 
-The way out is always there. It can be plain, like "[Goodbye.]", or in the moment, like "[Leave him to his pins.]". An action the player does instead of saying uses a bracketed verb, like "[Put the brass on the table.]".
+The way out is always there. It can be plain, like "[Goodbye.]", or in the moment, like "[Leave him to his tires.]". An action the player does instead of saying uses a bracketed verb, like "[Put the brass on the table.]".
 
 ## Dodges, lies and refusals
 

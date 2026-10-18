@@ -78,7 +78,7 @@ You don't ask. She nods at the gate, grateful and not saying so.
 
 = close
 # checkpoint: start.close
-That evening the fort bar is full of drivers and smoke. Old bounty notices hang behind it, ink gone brown, with faces drawn on them, men the forts once wanted dead. You look them over out of habit, the way you check your gun pins. # page
+That evening the fort bar is full of drivers and smoke. Old bounty notices hang behind it, ink gone brown, with faces drawn on them, men the forts once wanted dead. You look them over out of habit, the way you check your tires. # page
 The barman looks at you the way he looks at everyone, for what you might spend. He doesn't know your face. You pay for a cup anyway.
 Across the room Ala is working out the next stretch's fuel on the back of a notice. She does it twice. {father_told: She does it a third time, and her pencil stops over one line.} # page
 -> END

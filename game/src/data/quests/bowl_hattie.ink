@@ -10,9 +10,7 @@ VAR hattie_soldiers = false
 VAR hattie_roads = false
 VAR hattie_came_out = false
 VAR hattie_tow = false
-VAR hattie_varga = false
 VAR hattie_strip = false
-VAR hattie_farm = false
 VAR hattie_unarmed = false
 
 === start ===
@@ -25,19 +23,8 @@ Water costs here, talk doesn't, and I hear everything that happens in <term=bowl
 + {towed_to_bowl and not hattie_tow} [Tell me about the tow man.]
   Big and slow-spoken, with a <term=pierce>Pierce</term> coat gone white at the seams. That tag on his chain is an old Pierce yard tag. Before the crews took the yard, Pierce hung one on every key and chain it owned.
   If your key has a brass tag, it came from the same yard.
+  He found your truck out in the badlands, dead on its wheels with you in the seat. He took it for abandoned, so he hooked up the lot and brought it here.
   ~ hattie_tow = true
-  -> hub
-+ {hattie_tow and not hattie_varga} [Why would he want a Varga?]
-  Ask Ruth, not me. The Vargas had a farm down at the foot of the rim, with a water tower over it, until their well went dry. She came up to the terraces with her name and not much else.
-  He didn't stay to see her, mind. A man with good news waits for an answer.
-  ~ hattie_varga = true
-  -> hub
-+ {hattie_varga and not hattie_farm} [I found my truck at that farm.]
-  Hattie puts the bucket down.
-  Then that's Danil Varga's pickup you're driving. Her boy. He went west with a convoy and never came back, and she left the farm the year after.
-  The whole well house will know it by noon, so you'd best see Ruth before she hears it from somebody else.
-  ~ hattie_farm = true
-  ~ varga_truck_known = true
   -> hub
 + {towed_to_bowl and not hattie_strip} [Who stripped my truck?]
   Not the tow man. It came in on his chain like that, with the bed bare and the engine open. Whoever did it took their time and left you breathing, and out on the open road that counts as manners.
