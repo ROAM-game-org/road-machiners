@@ -17,7 +17,7 @@ VAR asked_tips = false
 Вы лежите на лавке под навесом из плетеного тростника. За полосой тени тянутся каналы с медленной бурой водой. За ними поля ступенями поднимаются по склону, зеленые от посевов. Этот цвет вы успели забыть.
 Вы садитесь. Голова кружится, но скоро это проходит. Ваш пикап криво стоит у края двора, капот поднят и подперт. С бампера свисает чужая буксирная цепь, смотанная кольцами. На цепи латунная бирка, такая же, как на вашем ключе. # page
 Кузов пуст. В моторе кто-то рылся и бросил болты там, где они упали. Ну что ж. Хоть грузовик оставили.
-Крупная женщина с мукой на предплечьях ставит на лавку рядом с вами кружку воды. Потом садится с другого края. # page
+Крупная женщина с мокрыми руками и закатанными рукавами ставит на лавку рядом с вами кружку воды. Потом садится с другого края. # page
 Пей медленно. # speaker: Хэтти
 На рассвете тебя приволок буксировщик, сгрузил на лавку, спросил одно и сразу дал по газам — ни имени не назвал, ни одной М не оставил. # speaker: Хэтти
 Она кивает на цепь на вашем бампере.
@@ -83,7 +83,7 @@ VAR asked_tips = false
 # checkpoint: meet
 You leave the truck on the pad and walk in for water, because the tank is not the only thing in you that's dry. A bucket is coming up a well on a creaking rope. # place: Bowl # img: bowl_yard
 Past the well house run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
-A broad woman with flour on her forearms sits on a bench under a roof of woven reeds, and watches you come the whole way. # page
+A broad woman with wet hands and rolled sleeves sits on a bench under a roof of woven reeds, and watches you come the whole way. # page
 Я Хэтти, вон колодец, вон скамья. Вода за деньги, так что не смотри на ведро, будто оно тебе задолжало. # speaker: Хэтти
 She wipes her hands on her apron. Her eyes go over your dust, your boots, the pickup out on the pad.
 Продаю воду, зерно, могу и про дороги пару слов сказать. Слова дешевле зерна, а слышу я вдвое больше, чем рассказываю. # speaker: Хэтти

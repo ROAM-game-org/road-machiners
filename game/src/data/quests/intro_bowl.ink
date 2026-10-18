@@ -17,7 +17,7 @@ Somewhere close, a bucket is coming up a well on a creaking rope. You lie still 
 You're lying on a bench under a roof of woven reeds. Past the shade run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
 You sit up, and your head swims, then settles. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper. It has a brass tag on it, the same kind as the one on your key. # page
 The bed is empty. Somebody went through the engine and left the bolts where they fell. Well. At least they left you the truck.
-A broad woman with flour on her forearms sets a cup of water on the bench beside you. Then she sits down at the other end of it. # page
+A broad woman with wet hands and rolled sleeves sets a cup of water on the bench beside you. Then she sits down at the other end of it. # page
 Slow sips, now. This well has other customers. # speaker: Hattie
 A tow man left you on my bench at first light, asked only after a Varga woman, then drove off without leaving a name or any M's. # speaker: Hattie
 She nods at the chain on your bumper.
@@ -83,7 +83,7 @@ She tips her head at you. Nobody ever sat on my bench with nothing to ask, she s
 # checkpoint: meet
 You leave the truck on the pad and walk in for water, because the tank is not the only thing in you that's dry. A bucket is coming up a well on a creaking rope. # place: Bowl # img: bowl_yard
 Past the well house run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
-A broad woman with flour on her forearms sits on a bench under a roof of woven reeds, and watches you come the whole way. # page
+A broad woman with wet hands and rolled sleeves sits on a bench under a roof of woven reeds, and watches you come the whole way. # page
 I'm Hattie, that's the well, and that's the bench. Sitting is free, water costs, and that bucket owes you nothing. # speaker: Hattie
 She wipes her hands on her apron. Her eyes go over your dust, your boots, the pickup out on the pad.
 I sell water, grain and a word or two on the roads. The word costs less than the grain, and I hear it twice as well, once from the man going out and once when he comes back blaming the road. # speaker: Hattie
