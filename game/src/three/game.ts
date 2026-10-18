@@ -88,7 +88,7 @@ import type { CombatMusic } from "./combat-music";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
 import { isBrowserChord, uiRoot } from "../ui/dom";
-import { touchMode, watchInputMode } from "../ui/input-mode";
+import { subscribeInputMode, touchMode } from "../ui/input-mode";
 import { installTouchTips } from "../ui/touch-tip";
 import { TouchGestures, type TouchIntent } from "./touch-map";
 import { touchTapAction } from "./touch-tap";
@@ -220,7 +220,7 @@ export class Game {
     this.drive = buildDrive(this.world);
     setTimeout(() => this.travel.warm(this.world, this.drive));
 
-    watchInputMode(uiRoot(), () => this.refreshUi());
+    subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);

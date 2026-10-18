@@ -85,7 +85,7 @@
   bottom: calc(100% + var(--hud-gap));
   z-index: var(--z-popup);
   width: max-content;
-  max-width: min(var(--panel-m), calc(100vw - var(--space-9)));
+  max-width: min(var(--panel-m), calc(var(--layer-w) - var(--space-9)));
   cursor: default;
 }
 .speed-max:hover .speed-tip,

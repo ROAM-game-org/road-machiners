@@ -7,7 +7,7 @@
   border: 2px solid var(--line-bright);
   box-shadow:
     inset 0 0 0 var(--space-2) var(--line-faint),
-    0 0 0 100vmax var(--scrim);
+    0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
 }
 
 /* A panel of the right dock: the log, the contracts and the radio. */
@@ -248,4 +248,16 @@
 }
 #ui .drawer-tabs > button.marked {
   border-color: var(--danger);
+}
+
+.option-switch {
+  display: flex;
+  gap: var(--space-3);
+}
+.option-switch > button {
+  flex: 1;
+}
+#ui .option-switch > button[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-dim);
 }

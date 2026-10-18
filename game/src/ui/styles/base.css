@@ -39,6 +39,7 @@ body {
 }
 #ui.touch {
   --btn-h-s: var(--touch-target);
+  --btn-h-m: var(--touch-target);
 }
 #ui .panel {
   position: absolute;
@@ -136,6 +137,10 @@ body {
   min-width: var(--touch-target);
 }
 #ui.touch :is(.weapon-hold, .weapon-reload, .weapon-cut, .radio-next) {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+}
+#ui.touch button.switch {
   min-width: var(--touch-target);
   min-height: var(--touch-target);
 }
