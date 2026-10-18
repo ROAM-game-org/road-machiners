@@ -30,7 +30,7 @@ export type DownloadDeps = {
 type Watch = { signal: AbortSignal; silent: Promise<never>; beat(): void; stop(): void };
 
 function retryable(status: number): boolean {
-  return status === 408 || status === 429 || (status >= 500 && status <= 599);
+  return status === 404 || status === 408 || status === 429 || (status >= 500 && status <= 599);
 }
 
 function pause(ms: number): Promise<void> {
