@@ -35,7 +35,7 @@
   color: var(--ink-title);
 }
 #boot .boot-sign { width: var(--icon-sign); height: var(--icon-sign); align-self: center; fill: var(--ink-title); }
-#boot .boot-sign g { opacity: 0; transition: opacity 400ms ease-out; }
+#boot .boot-sign g { opacity: 0; transition: opacity var(--sign-fade) ease-out; }
 #boot .boot-sign g.shown { opacity: 1; }
 #boot .boot-bar { display: flex; gap: var(--space-1); height: var(--space-4); }
 #boot .boot-seg { flex: 1; background: var(--surface-raised); }

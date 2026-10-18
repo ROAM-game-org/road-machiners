@@ -6,6 +6,8 @@ import { sameMsg, t, type Msg } from '../text/msg';
 import { BOOT_STEPS, BOOT_TEXT, BootProgress, type BootState, type BootStep } from './boot-progress';
 
 const FADE_MS = 250;
+const SIGN_STAGE_MS = 500;
+const SIGN_FADE_MS = 300;
 
 const STATUS: Record<BootState, Msg> = { waiting: t('boot.waiting'), running: t('boot.running'), done: t('boot.done'), failed: t('boot.failed') };
 
@@ -20,6 +22,9 @@ export class BootScreen {
   private readonly bar: HTMLElement;
   private readonly stage: HTMLElement;
   private readonly signStages: Element[];
+  private signShown = 0;
+  private signTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly signWaiters: (() => void)[] = [];
   private readonly segments = new Map<BootStep, HTMLElement>();
   private readonly lines = new Map<BootStep, HTMLElement>();
   private readonly announcer: HTMLElement;
@@ -36,6 +41,7 @@ export class BootScreen {
     this.bar = part(root, '[role=progressbar]');
     this.stage = part(root, '.boot-stage');
     this.signStages = SIGN_STAGES.map((stage) => part(root, `.boot-sign [data-stage=${stage}]`));
+    root.style.setProperty('--sign-fade', `${SIGN_FADE_MS}ms`);
     const list = part(root, '.boot-steps');
     this.stage.setAttribute('aria-live', 'off');
     this.announcer = document.createElement('p');
@@ -127,6 +133,7 @@ export class BootScreen {
     this.render();
     const still = document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (still) return this.root.remove();
+    await this.signSettled();
     this.root.classList.add('leaving');
     this.root.addEventListener('transitionend', (e) => {
       if (e.target === this.root) this.root.remove();
@@ -146,6 +153,23 @@ export class BootScreen {
     this.retryButton = button;
   }
 
+  private advanceSign(): void {
+    if (this.signTimer !== null || this.signShown >= this.progress.signStages) return;
+    this.signStages[this.signShown].classList.add('shown');
+    this.signShown += 1;
+    const hold = this.signShown === SIGN_STAGES.length ? SIGN_STAGE_MS * 2 : SIGN_STAGE_MS;
+    this.signTimer = setTimeout(() => {
+      this.signTimer = null;
+      this.advanceSign();
+      if (this.signTimer === null && this.signShown === SIGN_STAGES.length) this.signWaiters.splice(0).forEach((resolve) => resolve());
+    }, hold);
+  }
+
+  private signSettled(): Promise<void> {
+    if (this.signTimer === null && this.signShown === SIGN_STAGES.length) return Promise.resolve();
+    return new Promise((resolve) => this.signWaiters.push(resolve));
+  }
+
   private failure(): Msg {
     if (this.unreachable) return t('boot.unreachable');
     const step = BOOT_STEPS.find((s) => this.progress.state(s) === 'failed');
@@ -161,7 +185,7 @@ export class BootScreen {
     setText(this.stage, text);
     this.announce(p.failed ? text : p.liveLine);
     this.root.classList.toggle('failed', p.failed);
-    this.signStages.forEach((stage, i) => stage.classList.toggle('shown', i < p.signStages));
+    this.advanceSign();
     if (p.failed) this.root.setAttribute('aria-busy', 'false');
   }
 
