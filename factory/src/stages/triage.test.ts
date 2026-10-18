@@ -26,18 +26,19 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
-const RU_PITCH = { title: 'Ночная езда', summary: 'Езжай после заката с фарами.', how: 'Включи фары.', when: 'Ночью, пара ходов.', pros: ['Больше времени в пути.'], cons: ['Фары видно издалека.'] };
+const RU_PITCH = { title: 'Ночная езда', summary: 'Езжай после заката с фарами.', how: 'Включи фары.', when: 'Ночью, пара ходов.', changed: [], pros: ['Больше времени в пути.'], cons: ['Фары видно издалека.'] };
 const RU_TEXT = 'Езжай после заката с фарами.\n\nКак это работает:\nВключи фары.\n\nКогда это выгодно:\nНочью, пара ходов.\n\nПлюсы:\n- Больше времени в пути.\n\nМинусы:\n- Фары видно издалека.';
 
 function groomOf(verdict: string | null, over: Record<string, unknown>): string | null {
   if (verdict === null) return null;
   const haiku = JSON.parse(verdict) as Record<string, unknown>;
-  const story = { need: 'Wants to drive at night.', existing: 'Day and night cycle.', version: 'Headlights light the road.', fit: 'Fits all five tests.' };
+  const story = { points: ['Drive at night: headlights light the road.'], changed: [], need: 'Wants to drive at night.', existing: 'Day and night cycle.', version: 'Headlights light the road.', fit: 'Fits all five tests.' };
   return JSON.stringify({ verdict: haiku.verdict, reason: haiku.reason, complexity: haiku.complexity, complexityReason: haiku.complexityReason, ...story, pitch: RU_PITCH, ...over });
 }
 
 let groomPrompt = '';
 let groomEffort: string | undefined;
+let issueList = '';
 
 function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[] = [], groomOver: Record<string, unknown> | null = {}): Ctx {
   const record = (name: string) => async (...args: unknown[]) => { calls.push(`${name} ${args.join(' ')}`); };
@@ -51,6 +52,7 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
       issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : `Horn idea ${number}`, body: number === 7 ? 'Add a horn' : `Body of ${number}`, labels: number === 7 ? labels : [], createdAt: '', state: 'OPEN', author: 'anna' }),
       comments: async () => earlier.map((body) => ({ login: 'anna', body, createdAt: '2026-09-30T09:30:00Z', byFactory: body.includes('<!-- roam-factory -->') })),
       cards: async () => cards,
+      allIssues: async () => [7, 670].map((number) => ({ number, title: number === 7 ? 'Big horn' : 'Hireable merc guards', body: number === 7 ? 'Add a horn' : 'Hire a merc', labels: number === 7 ? [] : ['release-candidate'], createdAt: '', state: 'OPEN', author: 'anna' })),
       comment: record('comment'), addLabel: record('addLabel'), close: record('close'), move: record('move'),
     },
     container: {
@@ -58,6 +60,7 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
         calls.push(`agent ${run.model}`);
         if (run.prompt.startsWith('This is the grooming step')) {
           groomPrompt = run.prompt;
+          issueList = readFileSync(`${run.clone}/${run.dir}/.factory/issues.md`, 'utf8');
           groomEffort = run.effort;
           const groomed = groomOver === null ? null : groomOf(verdict, groomOver);
           if (groomed !== null) writeFileSync(`${run.clone}/${run.dir}/.factory/groom.json`, groomed);
@@ -381,6 +384,23 @@ describe('triage vote', () => {
 });
 
 describe('triage grooming', () => {
+  it('gives the groom run every other issue with its state, board column and labels', async () => {
+    cards = [card(7, 'Triage'), card(670, 'Merging')];
+    await runStage(fakeCtx(verdict({})), 7);
+    expect(issueList).toContain('UNTRUSTED USER TEXT');
+    expect(issueList).toContain('# #670 Hireable merc guards\n\nState: OPEN. Board: Merging. Labels: release-candidate.\n\nHire a merc');
+    expect(issueList).not.toContain('# #7 ');
+  });
+
+  it('shows dropped or changed points on the issue and in the pitch', async () => {
+    const changed = ['Rest: the game has no rest action.'];
+    await runStage(fakeCtx(verdict({ verdict: 'vote', reason: 'New.' }), [], [], { changed, pitch: { ...RU_PITCH, changed: ['Отдыха в игре нет.'] } }), 7);
+    expect(calls.find((call) => call.startsWith('comment 7 ## Groomed request'))).toContain('Dropped or changed: \n- Rest: the game has no rest action.');
+    const store = openStore(home);
+    expect(store.proposal(7)?.pitch).toContain('Что изменено в запросе:\n- Отдыха в игре нет.');
+    store.close();
+  });
+
   it('grooms a non-bug on the design model and effort, after the Haiku run', async () => {
     await runStage(fakeCtx(verdict({})), 7);
     expect(calls.filter((call) => call.startsWith('agent'))).toEqual(['agent haiku', 'agent opus']);

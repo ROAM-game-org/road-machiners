@@ -239,6 +239,7 @@ export type UnroutedReply = { issue: number; postId: number; text: string; at: s
 
 export interface GitHub {
   candidates(labels: string[]): Promise<Issue[]>;
+  allIssues(): Promise<Issue[]>;
   issue(number: number): Promise<Issue>;
   comments(number: number): Promise<IssueComment[]>;
   comment(number: number, body: string): Promise<void>;
