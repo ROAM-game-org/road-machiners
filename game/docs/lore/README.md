@@ -3,6 +3,7 @@
 The world of ROAM. Everything here answers to [Theme](../theme.md).
 
 - [World facts](world.md): the timeline, technology, population and what lies beyond the basin.
+- [The end of the Old World](old-world-end.md): the Spiral, the Cry, the Race, the Exodus, the Chaos and the Forsaken, as they happened and as people tell them, and their signs.
 - [Peoples](peoples.md): towns, groups and faiths, and how each copes with the world.
 - [Characters](characters.md): named people.
 - [Rumors](rumors.md): what people say.
@@ -26,7 +27,7 @@ After the Chaos, Nose and Bowl fought a war over the basin. The Old Army ended i
 
 Each of these needs one true answer, written here once it is chosen. The game will show it only as evidence.
 
-- What the ship was and why it fell.
+- Why the ship came back and why it fell. It was an Exodus ship, as [Timeline](timeline.md) records.
 - Whether Nose's wreck is part of the Fallen Sun's ship or a second ship.
 - What lies in the Fallen Sun's crater, and what the green glow does to people.
 - Why the Old Army left Old Orchard.

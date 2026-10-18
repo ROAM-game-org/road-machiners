@@ -100,6 +100,7 @@ This part was generated with a second, smaller run of the story game. Its player
 
 ## Hidden truths
 
+- The ship that fell over Icarus was one of the ships that left Earth in the Exodus, as [The end of the Old World](old-world-end.md) tells. It came back. That is why it showed up as a new bright point in year -10, the second moon that broke apart in year 0. Why it came back and why it fell are open.
 - The tone from the central hull counts the years since the fall, one step each year, toward a last number that the plate holds. What happens when it reaches that number is open.
 - The plate's symbol marks a seed vault. By the tone and the plate, the vault lies in the crater floor in the hull's shadow, not inside the hull.
 - The cradle room in the Nose's upper halls held the Given before they were moved into the pods. Whether they were sleeping passengers or people the ship grew, and why they remember nothing, is open.

@@ -4,14 +4,15 @@ The fixed facts of ROAM's world. Lore, art, sound and content all keep to them.
 
 ## Timeline
 
-- The Old World ended in the Chaos, a full apocalypse that lasted about 200 years.
+- The Old World ended in the Spiral, the Race and the Exodus, as [The end of the Old World](old-world-end.md) records. The Chaos that came after lasted about 200 years.
 - The Chaos ended about 50 years ago. The oldest people alive were born in its last years.
 - The ship fell over Icarus somewhere in the middle of the Chaos, roughly 100 to 150 years ago. Nobody knows the year. People in the basin still count time from the fall.
-- The ship matters only to this region. The rest of the world went through the Chaos for its own reasons and never heard of it.
+- The ship matters only to this region. The rest of the world never heard of it.
 - After the Chaos, Nose and Bowl fought a war over the basin. The Old Army ended it and kept the peace until it left Old Orchard.
 
 ## The Old World
 
+- The Old World's history is our own until about the time LCD screens came in. After that it branches off.
 - The old nations are gone. Their cultures survive only in glimpses: a name, a truck, a building, a word.
 - No single old culture leads. Names, trucks and buildings mix many of them.
 - No real nation exists today, and nobody speaks of one as alive.
