@@ -6,7 +6,7 @@ VAR arrival_rope = false
 
 === start ===
 # checkpoint: start
-Спираль.
+Спираль. # place: Горячечный сон # img: arrival_dream
 Крик.
 Гонка.
 Исход.

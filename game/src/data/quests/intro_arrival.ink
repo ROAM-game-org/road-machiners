@@ -6,7 +6,7 @@ VAR arrival_rope = false
 
 === start ===
 # checkpoint: start
-Spiral.
+Spiral. # place: Feverish dream # img: arrival_dream
 Cry.
 Race.
 Exodus.
