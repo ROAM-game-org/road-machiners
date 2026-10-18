@@ -6,7 +6,7 @@ digraph public {
 
   subgraph cluster_vote {
     label="1. Voting"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
-    triage [label="Triage\nverdict vote\nlabel voting"];
+    triage [label="Triage\ngroomed, verdict vote\nlabel voting"];
     proposal [label="Proposal post\nin the player chat\nat most 4 a day"];
     votes [label="Players react 👍 or 👎", fillcolor="#fde68a", color="#b45309"];
     design [label="Design\nat 3 more 👍 than 👎"];

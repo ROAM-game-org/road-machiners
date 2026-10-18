@@ -148,7 +148,7 @@ export function prepareOutputs(ctx: Ctx, issue: number, home: string): void {
   mkdirSync(`${home}/${OUT_DIR}`, { recursive: true });
 }
 
-export type AgentExtras = { skill?: string; effort?: string; fresh?: boolean; disallowedTools?: string[]; continue?: boolean };
+export type AgentExtras = { model?: string; skill?: string; effort?: string; fresh?: boolean; disallowedTools?: string[]; continue?: boolean };
 
 function agentSession(ctx: Ctx, issue: number, stage: CardStage, round: string, extras: AgentExtras): AgentSession {
   const session = roundSession(ctx.cfg.home, issue, round, extras.continue === true || (extras.fresh !== true && isResuming(ctx, issue)));
@@ -156,9 +156,14 @@ function agentSession(ctx: Ctx, issue: number, stage: CardStage, round: string, 
   return session;
 }
 
-export async function runAgent(ctx: Ctx, issue: number, stage: CardStage, round: string, prompt: string, extras: AgentExtras = {}): Promise<string> {
+async function agentModel(ctx: Ctx, issue: number, stage: CardStage, extras: AgentExtras): Promise<string> {
+  if (extras.model !== undefined) return extras.model;
   const { labels } = await ctx.github.issue(issue);
-  const model = modelFor(ctx.cfg, stage, labels);
+  return modelFor(ctx.cfg, stage, labels);
+}
+
+export async function runAgent(ctx: Ctx, issue: number, stage: CardStage, round: string, prompt: string, extras: AgentExtras = {}): Promise<string> {
+  const model = await agentModel(ctx, issue, stage, extras);
   ctx.log(stage, issue, `agent model ${model}`);
   const advisor = advisorFor(ctx.cfg, stage, model);
   const openNetwork = await useOpenNetwork(ctx, stage, issue);

@@ -2,7 +2,7 @@ import { moveCard } from '../card-events';
 import { readCommittee, telegramIds } from '../committee';
 import { VOTING_LABEL, WONT_DO_LABEL, type Ctx } from '../types';
 import { isolated } from './isolate';
-import { ACCEPTED_BY_COMMITTEE, CLOSED_CONCLUSION, netScore, proposalText, REJECTED_BY_COMMITTEE, signed, voteFooter, voteSides, type VoteSides } from './proposals';
+import { ACCEPTED_BY_COMMITTEE, acceptedWith, CLOSED_CONCLUSION, netScore, proposalText, REJECTED_BY_COMMITTEE, signed, voteFooter, voteSides, type VoteSides } from './proposals';
 import type { Proposal, PublicStore, Tally } from './store';
 
 type Outcome = { kind: 'accept' | 'reject'; reason: string; conclusion: string };
@@ -31,7 +31,7 @@ function outcomeOf(ctx: Ctx, store: PublicStore, issue: number, tally: Tally, co
   if (byCommittee(sides.down)) return { kind: 'reject', reason: 'by a committee vote', conclusion: REJECTED_BY_COMMITTEE };
   if (byCommittee(sides.up)) return { kind: 'accept', reason: 'by a committee vote', conclusion: ACCEPTED_BY_COMMITTEE };
   const score = netScore(tally);
-  if (score >= ctx.cfg.minVotes) return { kind: 'accept', reason: `with a net score of ${signed(score)}`, conclusion: `✅ Accepted with net ${signed(score)}` };
+  if (score >= ctx.cfg.minVotes) return { kind: 'accept', reason: `with a net score of ${signed(score)}`, conclusion: acceptedWith(score) };
   return null;
 }
 

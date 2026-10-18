@@ -5,14 +5,15 @@ import { readState, updateState } from '../state';
 import { BRANCH, BUG_LABEL, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, OUT_DIR, RELEASE_TASK_LABEL, ROUTING_MARK, VOTING_LABEL, WONT_DO_LABEL, type Ctx, type FactoryState, type ReleaseState } from '../types';
 import { addToBundle, bundleCandidates } from './bundle';
 import { BASE_BRANCH, agentHome, askAuthor, fillPrompt, prepareOutputs, readOutput, runAgent, workDir, writeIssueInput } from './common';
+import { groom, type Complexity, type Pitch, type Routing } from './groom';
 import { featureLine, recordReleaseTask, releaseFeatures } from './release-common';
 
-type Complexity = 'trivial' | 'intermediate' | 'hard';
-type Routing = { complexity: Complexity; why: string };
 type Ready = { verdict: 'ready'; reason: string; hotfix: boolean; releaseFix: boolean; routing: Routing; bundle: number[] };
-type Pitch = { title: string; text: string };
-type Vote = Omit<Ready, 'verdict'> & { verdict: 'vote'; pitch: Pitch };
-type Verdict = Ready | Vote | { verdict: 'wont-do'; reason: string } | { verdict: 'unclear'; reason: string; questions: string[] };
+type Proposed = Omit<Ready, 'verdict'> & { verdict: 'vote' };
+type Vote = Omit<Proposed, 'verdict'> & { verdict: 'vote'; pitch: Pitch };
+type Refusal = { verdict: 'wont-do'; reason: string };
+type Triaged = Ready | Proposed | Refusal | { verdict: 'unclear'; reason: string; questions: string[] };
+type Verdict = Ready | Vote | Refusal;
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const clone = workDir(ctx, issue);
@@ -28,14 +29,30 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   await writeRelease(ctx, home, release);
   await runAgent(ctx, issue, 'triage', 'triage', fillPrompt('triage', { issue: String(issue) }), { effort: ctx.cfg.triageEffort });
   const { labels } = await ctx.github.issue(issue);
-  const result = parseVerdict(readOutput(home, 'triage.json'), candidates, release, labels);
-  if (result.verdict === 'unclear') return askAuthor(ctx, issue, result.questions, 'triage');
+  const triaged = parseVerdict(readOutput(home, 'triage.json'), candidates, release, labels);
+  if (triaged.verdict === 'unclear') return askAuthor(ctx, issue, triaged.questions, 'triage');
+  const result = triaged.verdict === 'wont-do' ? triaged : await finalVerdict(ctx, issue, home, triaged, labels);
   if (result.verdict === 'ready') return ready(ctx, issue, result, release);
   if (result.verdict === 'vote') return vote(ctx, issue, result);
   await ctx.github.comment(issue, result.reason);
   await ctx.github.addLabel(issue, WONT_DO_LABEL);
   await ctx.github.close(issue, 'not planned');
   await moveCard(ctx, issue, 'Done', 'triage-wont-do');
+}
+
+const groomable = (labels: string[], work: Work): boolean => !labels.includes(BUG_LABEL) && !labels.includes(HOTFIX_LABEL) && !work.hotfix;
+
+async function finalVerdict(ctx: Ctx, issue: number, home: string, triaged: Ready | Proposed, labels: string[]): Promise<Verdict> {
+  if (!groomable(labels, triaged)) {
+    if (triaged.verdict === 'vote') throw new Error('triage.json puts a bug or a hotfix to a vote');
+    return triaged;
+  }
+  const groomed = await groom(ctx, issue, home);
+  const work = { hotfix: triaged.hotfix, releaseFix: triaged.releaseFix, bundle: triaged.bundle };
+  if (groomed.verdict === 'wont-do') return groomed;
+  if (groomed.verdict === 'ready') return { ...work, verdict: 'ready', reason: groomed.reason, routing: groomed.routing };
+  if (work.releaseFix) throw new Error('groom.json puts a release fix to a vote');
+  return { ...work, verdict: 'vote', reason: groomed.reason, routing: groomed.routing, pitch: groomed.pitch };
 }
 
 async function ready(ctx: Ctx, issue: number, result: Ready, release: ReleaseState | null): Promise<void> {
@@ -129,14 +146,14 @@ async function writeRelated(ctx: Ctx, home: string, candidates: number[]): Promi
 
 type Work = Pick<Ready, 'hotfix' | 'releaseFix' | 'routing' | 'bundle'>;
 
-function parseVerdict(text: string | null, candidates: number[], release: ReleaseState | null, labels: string[]): Verdict {
+function parseVerdict(text: string | null, candidates: number[], release: ReleaseState | null, labels: string[]): Triaged {
   const fields = readFields(text);
   const kind = readKind(fields.verdict);
   const why = readReason(fields.reason);
   if (kind === 'wont-do') return { verdict: kind, reason: why };
   if (kind === 'unclear') return { verdict: kind, reason: why, questions: readQuestions(fields.questions) };
   const work = readWork(fields, candidates, release);
-  return kind === 'ready' ? readReady(why, work) : readVote(why, work, readPitch(fields.pitch), labels);
+  return kind === 'ready' ? readReady(why, work) : readVote(why, work, labels);
 }
 
 function readFields(text: string | null): Record<string, unknown> {
@@ -166,21 +183,11 @@ function readReady(reason: string, work: Work): Ready {
   return { verdict: 'ready', reason, ...work };
 }
 
-function readVote(reason: string, work: Work, pitch: Pitch, labels: string[]): Vote {
+function readVote(reason: string, work: Work, labels: string[]): Proposed {
   if (work.hotfix) throw new Error('triage.json puts a hotfix to a vote');
   if (work.releaseFix) throw new Error('triage.json puts a release fix to a vote');
   if (labels.includes(BUG_LABEL)) throw new Error('triage.json puts a bug to a vote');
-  return { verdict: 'vote', reason, ...work, pitch };
-}
-
-function readPitch(value: unknown): Pitch {
-  const { title, text } = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
-  return { title: readPitchPart(title, 'title'), text: readPitchPart(text, 'text') };
-}
-
-function readPitchPart(value: unknown, name: string): string {
-  if (typeof value !== 'string' || value.trim() === '') throw new Error(`triage.json needs pitch.${name} as a non-empty string for a vote verdict`);
-  return value.trim();
+  return { verdict: 'vote', reason, ...work };
 }
 
 function readReleaseFix(value: unknown, release: ReleaseState | null): boolean {

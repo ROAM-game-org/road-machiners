@@ -29,8 +29,8 @@ describe('countVotes', () => {
     expect(f.store.proposal(7)?.closedAt).not.toBeNull();
     expect(f.messages).toEqual([]);
     expect(f.edits).toHaveLength(1);
-    expect(f.edits[0]).toMatch(/^100 <b>Proposal: Winch<\/b>/);
-    expect(footer(f.edits[0]!)).toBe('Needs 3 more 👍 than 👎 to pass. Current: 5 👍, 2 👎, net +3/3\n✅ Accepted with net +3');
+    expect(f.edits[0]).toMatch(/^100 <b>Предложение: Winch<\/b>/);
+    expect(footer(f.edits[0]!)).toBe('Нужно на 3 👍 больше, чем 👎. Сейчас: 5 👍, 2 👎, итог +3/3\n✅ Принято с итогом +3');
     const lines = readFileSync(`${f.home}/ledger.jsonl`, 'utf8').trim().split('\n').map((line) => JSON.parse(line) as Record<string, unknown>);
     expect(lines).toEqual([expect.objectContaining({ kind: 'card', issue: 7, step: 'voted', to: 'Design' })]);
   });
@@ -40,12 +40,12 @@ describe('countVotes', () => {
     await countVotes(f.ctx, f.store);
     expect(f.calls).toEqual([]);
     expect(f.store.proposal(7)?.closedAt).toBeNull();
-    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 4 👍, 2 👎, net +2/3']);
+    expect(f.edits.map(footer)).toEqual(['Нужно на 3 👍 больше, чем 👎. Сейчас: 4 👍, 2 👎, итог +2/3']);
   });
 
   it('updates the footer when a vote is added, switched or removed, shows a negative net, and ignores a repeated update', async () => {
     const f = posted(null);
-    f.store.setShownFooter(7, 'Needs 3 more 👍 than 👎 to pass. Current: 0 👍, 0 👎, net 0/3');
+    f.store.setShownFooter(7, 'Нужно на 3 👍 больше, чем 👎. Сейчас: 0 👍, 0 👎, итог 0/3');
     await countVotes(f.ctx, f.store);
     expect(f.edits).toEqual([]);
     react(f, 2, '7', ['👎']);
@@ -61,10 +61,10 @@ describe('countVotes', () => {
     react(f, 6, '9', ['🔥']);
     await countVotes(f.ctx, f.store);
     expect(f.edits.map(footer)).toEqual([
-      'Needs 3 more 👍 than 👎 to pass. Current: 0 👍, 1 👎, net -1/3',
-      'Needs 3 more 👍 than 👎 to pass. Current: 1 👍, 1 👎, net 0/3',
-      'Needs 3 more 👍 than 👎 to pass. Current: 2 👍, 0 👎, net +2/3',
-      'Needs 3 more 👍 than 👎 to pass. Current: 1 👍, 0 👎, net +1/3',
+      'Нужно на 3 👍 больше, чем 👎. Сейчас: 0 👍, 1 👎, итог -1/3',
+      'Нужно на 3 👍 больше, чем 👎. Сейчас: 1 👍, 1 👎, итог 0/3',
+      'Нужно на 3 👍 больше, чем 👎. Сейчас: 2 👍, 0 👎, итог +2/3',
+      'Нужно на 3 👍 больше, чем 👎. Сейчас: 1 👍, 0 👎, итог +1/3',
     ]);
     expect(f.calls).toEqual([]);
   });
@@ -85,8 +85,8 @@ describe('countVotes', () => {
     await countVotes(f.ctx, f.store);
     await countVotes(f.ctx, f.store);
     expect(f.edits).toHaveLength(1);
-    expect(f.edits[0]).toMatch(/^100 <b>Proposal: Winch<\/b>/);
-    expect(footer(f.edits[0]!)).toBe('Needs 3 more 👍 than 👎 to pass. Current: 1 👍, 1 👎, net 0/3');
+    expect(f.edits[0]).toMatch(/^100 <b>Предложение: Winch<\/b>/);
+    expect(footer(f.edits[0]!)).toBe('Нужно на 3 👍 больше, чем 👎. Сейчас: 1 👍, 1 👎, итог 0/3');
   });
 
   it('closes a passed proposal before its GitHub writes, so a failed move is reported once and never repeated', async () => {
@@ -134,7 +134,7 @@ describe('countVotes', () => {
     expect(f.calls.filter((call) => !call.startsWith('issue'))).toEqual([]);
     expect(f.calls.filter((call) => call.startsWith('issue'))).toEqual(['issue 7']);
     expect(f.store.proposal(7)?.closedAt).not.toBeNull();
-    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 3 👍, 0 👎, net +3/3\nClosed']);
+    expect(f.edits.map(footer)).toEqual(['Нужно на 3 👍 больше, чем 👎. Сейчас: 3 👍, 0 👎, итог +3/3\nЗакрыто']);
     expect(f.logs.join('\n')).toContain('7 the issue is closed');
   });
 
@@ -144,7 +144,7 @@ describe('countVotes', () => {
     react(f, 2, '42', ['👎']);
     await countVotes(f.ctx, f.store);
     expect(f.calls).toEqual(['issue 7']);
-    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 0 👍, 1 👎, net -1/3\nClosed']);
+    expect(f.edits.map(footer)).toEqual(['Нужно на 3 👍 больше, чем 👎. Сейчас: 0 👍, 1 👎, итог -1/3\nЗакрыто']);
   });
 
   it('reads the issue and the board only when a proposal concludes, never for a count edit', async () => {
@@ -165,7 +165,7 @@ describe('countVotes', () => {
     react(f, 6, '8', []);
     await countVotes(f.ctx, f.store);
     expect(f.calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Design']);
-    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 3 👍, 0 👎, net +3/3\n✅ Accepted with net +3']);
+    expect(f.edits.map(footer)).toEqual(['Нужно на 3 👍 больше, чем 👎. Сейчас: 3 👍, 0 👎, итог +3/3\n✅ Принято с итогом +3']);
   });
 
   it('passes a proposal on one thumbs-up from a committee member, even with a negative net score', async () => {
@@ -175,7 +175,7 @@ describe('countVotes', () => {
     react(f, 4, '42', ['👍']);
     await countVotes(f.ctx, f.store);
     expect(f.calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Design']);
-    expect(footer(f.edits[0]!)).toBe('Needs 3 more 👍 than 👎 to pass. Current: 1 👍, 2 👎, net -1/3\n✅ Accepted by committee member');
+    expect(footer(f.edits[0]!)).toBe('Нужно на 3 👍 больше, чем 👎. Сейчас: 1 👍, 2 👎, итог -1/3\n✅ Принято участником комитета');
   });
 
   it('rejects a proposal on one thumbs-down from a committee member, even with enough votes, and closes the issue as not planned', async () => {
@@ -188,7 +188,7 @@ describe('countVotes', () => {
     expect(f.calls).toContain('close 7 not planned');
     expect(f.calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Done']);
     expect(f.store.proposal(7)?.closedAt).not.toBeNull();
-    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 5 👍, 0 👎, net +5/3\n❌ Rejected by committee member']);
+    expect(f.edits.map(footer)).toEqual(['Нужно на 3 👍 больше, чем 👎. Сейчас: 5 👍, 0 👎, итог +5/3\n❌ Отклонено участником комитета']);
     const lines = readFileSync(`${f.home}/ledger.jsonl`, 'utf8').trim().split('\n').map((line) => JSON.parse(line) as Record<string, unknown>);
     expect(lines).toEqual([expect.objectContaining({ kind: 'card', issue: 7, step: 'denied', to: 'Done' })]);
   });
@@ -199,6 +199,6 @@ describe('countVotes', () => {
     react(f, 6, '11', ['👎']);
     await countVotes(f.ctx, f.store);
     expect(f.calls).toEqual(['issue 7', 'move 7 Design', 'removeLabel 7 voting']);
-    expect(footer(f.edits[0]!)).toBe('Needs 3 more 👍 than 👎 to pass. Current: 4 👍, 1 👎, net +3/3\n✅ Accepted with net +3');
+    expect(footer(f.edits[0]!)).toBe('Нужно на 3 👍 больше, чем 👎. Сейчас: 4 👍, 1 👎, итог +3/3\n✅ Принято с итогом +3');
   });
 });

@@ -18,16 +18,31 @@ beforeEach(() => {
   home = mkdtempSync('tmp/factory-triage-');
   calls = [];
   prompt = '';
+  groomPrompt = '';
+  groomEffort = undefined;
   related = '';
   cards = [card(7, 'Triage')];
   writeState(`${home}/state.json`, structuredClone(EMPTY_STATE));
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
-function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[] = []): Ctx {
+const RU_PITCH = { title: 'Ночная езда', summary: 'Езжай после заката с фарами.', how: 'Включи фары.', when: 'Ночью, пара ходов.', pros: ['Больше времени в пути.'], cons: ['Фары видно издалека.'] };
+const RU_TEXT = 'Езжай после заката с фарами.\n\nКак это работает:\nВключи фары.\n\nКогда это выгодно:\nНочью, пара ходов.\n\nПлюсы:\n- Больше времени в пути.\n\nМинусы:\n- Фары видно издалека.';
+
+function groomOf(verdict: string | null, over: Record<string, unknown>): string | null {
+  if (verdict === null) return null;
+  const haiku = JSON.parse(verdict) as Record<string, unknown>;
+  const story = { need: 'Wants to drive at night.', existing: 'Day and night cycle.', version: 'Headlights light the road.', fit: 'Fits all five tests.' };
+  return JSON.stringify({ verdict: haiku.verdict, reason: haiku.reason, complexity: haiku.complexity, complexityReason: haiku.complexityReason, ...story, pitch: RU_PITCH, ...over });
+}
+
+let groomPrompt = '';
+let groomEffort: string | undefined;
+
+function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[] = [], groomOver: Record<string, unknown> | null = {}): Ctx {
   const record = (name: string) => async (...args: unknown[]) => { calls.push(`${name} ${args.join(' ')}`); };
   const fake = {
-    cfg: { home, designModel: 'opus', buildModel: 'sonnet', triageModel: 'haiku', triageEffort: 'low', repo: 'o/r', committeeChat: 'chat', minVotes: 10 },
+    cfg: { home, designModel: 'opus', buildModel: 'sonnet', triageModel: 'haiku', triageEffort: 'low', designEffort: 'medium', repo: 'o/r', committeeChat: 'chat', minVotes: 10 },
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
     telegram: { sendMessage: record('message') },
@@ -41,6 +56,13 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
     container: {
       agent: async (run: AgentRun) => {
         calls.push(`agent ${run.model}`);
+        if (run.prompt.startsWith('This is the grooming step')) {
+          groomPrompt = run.prompt;
+          groomEffort = run.effort;
+          const groomed = groomOver === null ? null : groomOf(verdict, groomOver);
+          if (groomed !== null) writeFileSync(`${run.clone}/${run.dir}/.factory/groom.json`, groomed);
+          return;
+        }
         effort = run.effort;
         related = readFileSync(`${run.clone}/${run.dir}/.factory/related.md`, 'utf8');
         releaseInput = readFileSync(`${run.clone}/${run.dir}/.factory/release.md`, 'utf8');
@@ -267,22 +289,22 @@ describe('triage release fixes', () => {
   });
 });
 
-const PITCH = { title: 'Night driving', text: 'Drive after dark with your headlights. Enemies see the light from far away.' };
+const triageComments = (): string[] => calls.filter((call) => call.startsWith('comment 7') && !call.startsWith('comment 7 ## Groomed request'));
 
 describe('triage vote', () => {
-  const vote = (over: Record<string, unknown> = {}): string => verdict({ verdict: 'vote', reason: 'A new system that players should choose.', pitch: PITCH, ...over });
+  const vote = (over: Record<string, unknown> = {}): string => verdict({ verdict: 'vote', reason: 'A new system that players should choose.', ...over });
 
-  it('labels the card, stores the pitch, comments once and leaves the card in Triage', async () => {
+  it('labels the card, stores the composed Russian pitch, comments once and leaves the card in Triage', async () => {
     await runStage(fakeCtx(vote({ complexity: 'trivial', complexityReason: 'One constant.' })), 7);
     expect(calls).toContain('addLabel 7 design-sonnet');
     expect(calls).toContain('addLabel 7 voting');
-    const comments = calls.filter((call) => call.startsWith('comment 7'));
+    const comments = triageComments();
     expect(comments).toHaveLength(1);
     expect(comments[0]).toContain('player vote');
     expect(comments[0]).toContain('A new system that players should choose.');
     expect(calls.filter((call) => call.startsWith('move'))).toEqual([]);
     const store = openStore(home);
-    expect(store.proposal(7)?.pitch).toBe(`${PITCH.title}\n\n${PITCH.text}`);
+    expect(store.proposal(7)?.pitch).toBe(`${RU_PITCH.title}\n\n${RU_TEXT}`);
     store.close();
   });
 
@@ -306,17 +328,17 @@ describe('triage vote', () => {
     await runStage(ctx, 7);
     expect(seen).toContain('voting row absent');
     expect(seen.at(-1)).toBe('comment row present');
-    expect(calls.filter((call) => call.startsWith('comment 7'))).toHaveLength(1);
+    expect(triageComments()).toHaveLength(1);
   });
 
-  it('writes no row and no comment when adding the voting label fails, so a rerun starts clean', async () => {
+  it('writes no row and no triage comment when adding the voting label fails, so a rerun starts clean', async () => {
     const ctx = fakeCtx(vote());
     ctx.github.addLabel = async () => { throw new Error('GitHub down'); };
     await expect(runStage(ctx, 7)).rejects.toThrow('GitHub down');
     const store = openStore(home);
     expect(store.proposal(7)).toBeNull();
     store.close();
-    expect(calls.filter((call) => call.startsWith('comment'))).toEqual([]);
+    expect(triageComments()).toEqual([]);
   });
 
   it('adds the bundle like ready', async () => {
@@ -330,11 +352,24 @@ describe('triage vote', () => {
   it.each([
     [{ hotfix: true }, 'hotfix'],
     [{ releaseFix: true }, 'release fix'],
-    [{ pitch: undefined }, 'pitch'],
-    [{ pitch: { title: ' ', text: 'x' } }, 'pitch'],
-    [{ pitch: { title: 'x', text: '' } }, 'pitch'],
   ])('refuses a bad vote %#', async (over, message) => {
     await expect(runStage(fakeCtx(vote(over)), 7)).rejects.toThrow(message);
+  });
+
+  it.each([
+    [{ pitch: undefined }, 'needs a pitch'],
+    [{ pitch: { ...RU_PITCH, title: ' ' } }, 'pitch.title'],
+    [{ pitch: { ...RU_PITCH, when: '' } }, 'pitch.when'],
+    [{ pitch: { ...RU_PITCH, cons: [] } }, 'pitch.cons'],
+    [{ need: '' }, 'need'],
+    [{ verdict: 'maybe' }, 'unknown verdict: maybe'],
+    [{ complexity: 'huge' }, 'complexity as trivial'],
+  ])('refuses a bad groom.json %#', async (over, message) => {
+    await expect(runStage(fakeCtx(vote(), [], [], over), 7)).rejects.toThrow(message);
+    expect(calls.filter((call) => /^(comment|move|close|addLabel)/.test(call))).toEqual([]);
+    const store = openStore(home);
+    expect(store.proposal(7)).toBeNull();
+    store.close();
   });
 
   it('refuses a vote on a bug', async () => {
@@ -342,6 +377,71 @@ describe('triage vote', () => {
     const store = openStore(home);
     expect(store.proposal(7)).toBeNull();
     store.close();
+  });
+});
+
+describe('triage grooming', () => {
+  it('grooms a non-bug on the design model and effort, after the Haiku run', async () => {
+    await runStage(fakeCtx(verdict({})), 7);
+    expect(calls.filter((call) => call.startsWith('agent'))).toEqual(['agent haiku', 'agent opus']);
+    expect(effort).toBe('low');
+    expect(groomEffort).toBe('medium');
+    expect(groomPrompt).toContain('Issue 7 is the request.');
+    expect(groomPrompt).not.toContain('{{');
+  });
+
+  it('skips grooming for a bug, a hotfix label and a hotfix verdict', async () => {
+    await runStage(fakeCtx(verdict({}), ['bug']), 7);
+    await runStage(fakeCtx(verdict({}), ['hotfix']), 7);
+    await runStage(fakeCtx(verdict({ hotfix: true })), 7);
+    expect(calls.filter((call) => call.startsWith('agent'))).toEqual(['agent haiku', 'agent haiku', 'agent haiku']);
+    expect(calls.some((call) => call.includes('## Groomed request'))).toBe(false);
+  });
+
+  it('comments the groomed request and saves it for design', async () => {
+    await runStage(fakeCtx(verdict({})), 7);
+    const groomed = calls.find((call) => call.startsWith('comment 7 ## Groomed request')) ?? '';
+    expect(groomed).toContain('Player need: Wants to drive at night.');
+    expect(groomed).toContain('Groomed version: Headlights light the road.');
+    expect(readFileSync(`${home}/groomed/issue-7.md`, 'utf8')).toBe(`${groomed.slice('comment 7 '.length)}\n`);
+  });
+
+  it('lets grooming turn a ready request into a vote, with its own routing', async () => {
+    await runStage(fakeCtx(verdict({}), [], [], { verdict: 'vote', reason: 'A new mechanic.', complexity: 'hard', complexityReason: 'Saves change.' }), 7);
+    expect(calls).toContain('addLabel 7 voting');
+    expect(calls).toContain('addLabel 7 implementation-opus');
+    expect(calls.filter((call) => call.startsWith('move'))).toEqual([]);
+    const store = openStore(home);
+    expect(store.proposal(7)?.pitch).toBe(`${RU_PITCH.title}\n\n${RU_TEXT}`);
+    store.close();
+  });
+
+  it('lets grooming turn a vote into a ready request', async () => {
+    await runStage(fakeCtx(verdict({ verdict: 'vote', reason: 'New.' }), [], [], { verdict: 'ready', reason: 'A fairer value.' }), 7);
+    expect(calls.find((call) => call.startsWith('comment 7 Triage passed:'))).toContain('A fairer value.');
+    expect(calls.at(-1)).toBe('move 7 Design');
+  });
+
+  it('refuses a request the game already covers, and saves nothing for design', async () => {
+    await runStage(fakeCtx(verdict({ verdict: 'vote', reason: 'New.' }), [], [], { verdict: 'wont-do', reason: 'Scavenging already pays early money.' }), 7);
+    expect(calls).toContain('comment 7 Scavenging already pays early money.');
+    expect(calls).toContain('close 7 not planned');
+    expect(calls.at(-1)).toBe('move 7 Done');
+    expect(existsSync(`${home}/groomed/issue-7.md`)).toBe(false);
+  });
+
+  it('keeps a release fix out of a vote', async () => {
+    writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { issue: 40, branch: 'release/x', day: 'x', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
+    await expect(runStage(fakeCtx(verdict({ releaseFix: true }), [], [], { verdict: 'vote' }), 7)).rejects.toThrow('puts a release fix to a vote');
+  });
+
+  it('throws when groom.json is missing', async () => {
+    await expect(runStage(fakeCtx(verdict({}), [], [], null), 7)).rejects.toThrow('no .factory/groom.json');
+  });
+
+  it('tells Haiku not to refuse a non-bug on fit', async () => {
+    await runStage(fakeCtx(verdict({})), 7);
+    expect(prompt).toContain('never refuse such a request because it does not fit the game as written');
   });
 });
 
