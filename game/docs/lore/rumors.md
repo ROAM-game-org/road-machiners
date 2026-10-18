@@ -52,3 +52,54 @@ Nobody agrees, and each guess has its believers.
 - The Sunward take strangers into the crater, and the strangers do not come back.
 - Some people out past the glass live without towns and without trucks, and nobody knows how.
 - A crew once camped in the wreck and their sentry fell asleep. In the morning the sentry was gone, and his boots were still standing by the fire.
+
+## The six words
+
+Every stage of [The end of the Old World](old-world-end.md) has five rumors here, each from a different kind of speaker. No single rumor tells the truth. The truth is what the five share, so a player who hears several of them can work out what the stage was.
+
+Rules for these rumors:
+
+- Each rumor keeps one true piece of its stage and wraps it in the speaker's own faith, trade or fear.
+- Some rumors use the wrong name. They tell one stage under another stage's word, or under a folk name. The player has to match the story to the stage, not the name. Each wrong name is marked below.
+- A rumor never says how many years ago something happened or how long an era lasted.
+- Spread the five rumors of a stage across different places and speakers, so no one place gives the whole picture.
+
+### Spiral
+
+- A Bowl farmer: "My grandmother said the Spiral was a bad harvest that never ended. Each year the fields gave less, so each family took a little from the next field. Then there was less again."
+- A Sunward or a hill tribe: "The Spiral is the sun. It turned its face on the world and burned it, and it is still turning. That's why you cover your head."
+- A Nose Army veteran: "The Spiral wasn't one war. Every country robbed the next before the next could rob it, and none of them could afford to stop first."
+- A raider, who calls it the Chaos: "In the Chaos the big men stopped keeping their word. Once one of them cheats, you cheat or you starve. Same as the road now."
+- A Creed reader: "The Spiral was the first test, and we failed it. Every people chose its own bread over its neighbor's, and God let them keep turning until they fell."
+
+### Cry
+
+- A Lunar Society scholar: "The Cry was a learned man's sum. A man named Gulke worked out that the earth was running dry and people had one short chance to leave it. Nobody checked the sum, because too many people were paid to believe it."
+- A Bowl storyteller, who calls him Gulk: "Gulk cried out from the mountain that the world would die before his grandchildren grew old. Every king heard him, and every king was afraid."
+- A Child of Noah: "The Cry was the call to board. The worthy heard it and made ready."
+- An Ephemeralist: "The Cry was the moment people first saw that the world was only passing through, and screamed."
+- A Pierce clerk, who calls it the Race: "The Race started with one man saying the ground was used up. Once the biggest buyer believed him, every other buyer had to."
+
+### Race
+
+- A fitter on the Nose workshop line: "In the Race a fitter worked from eight in the morning to nine at night, six days of seven, on a ship he would never ride. Then he went home to a house lit by a generator."
+- A Sunward or a hill tribe: "In the Race the gods rode machines across the sky against each other, and the world was born from their dust."
+- A Bowl farmer: "In the Race they burned the orchards to feed the furnaces. Whoever burned fastest would win."
+- A Creed reader, who calls it the Exodus: "In the Exodus every nation built an iron tower to climb to heaven, and fed it everything it had, even its children's bread."
+- A raider: "The Race was a race to the bottom of the barrel. Whoever scraped it fastest got the last of it."
+
+### Exodus
+
+- A Creed reader: "In the Exodus the worthy rose to heaven on pillars of fire. The rest of us were left here to prove ourselves."
+- A Kiln rider: "In the Exodus the judges went down to hell in fire, and left the world to us."
+- A Child of Noah: "The ships went up in the Exodus. One day one of them comes back for whoever kept the lights burning."
+- A Nose officer: "The rich left in the Exodus. The ones who stayed were the ones who lost the fight for a seat, and the ones who wanted to be kings of what was left. Ask yourself which kind built your town."
+- A Given grandmother, who calls it the Cry: "The Cry was the sound of the great ships going up. It was so loud the sky tore."
+
+### Chaos
+
+- A Nose Army veteran: "The Chaos was every army left without a master. They fought over whatever the rich left behind."
+- A Creed reader, who calls it the Crucible: "The Crucible was the fire that burns the unworthy out of a people. We came out of it, so we must be worth something."
+- A Bowl elder, who calls it the Endless Age: "My grandmother called it the Endless Age. Nobody remembered it beginning, and everybody thought it would never end."
+- A scavenger, who calls it the Spiral: "In the Spiral every town fought every other town, because the masters were gone and nobody would take orders from anybody."
+- An Ephemeralist: "The Chaos was the world screaming because it was left alone. A child left alone breaks everything in the house."
