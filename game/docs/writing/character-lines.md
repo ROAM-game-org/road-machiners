@@ -31,7 +31,7 @@ Reply:
 
 Fill each part like this.
 
-- Game line: one sentence on the setting and tone, the same for every call.
+- Game line: one sentence on what the game is and where it happens, the same for every call. It never says how people talk, what tone to use or what the economy is. Style belongs to the character part only, because any style words here reach every character and make them sound alike.
 - Character: copy the person's sheet from [Voices](../lore/voices.md), and the aspects from [Characters](../lore/characters.md) when they have an entry. Add two to four sample lines. For Russian, say to reply in Russian and paste the names from the glossary in [Russian copy](russian.md).
 - Context: only what the character knows at this moment, and the question the player asked. No plot, no other branches, no game words.
 - What to speak about: raw facts and the order to say them in. Add the length wanted. Do not give wording, because wording is the model's job.
