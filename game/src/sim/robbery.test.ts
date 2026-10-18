@@ -243,7 +243,7 @@ describe('scumbag robbery', () => {
       return robs;
     };
     const equal = count((w) => addPrey(w, { x: 15, y: 10 }, ['mg', 'stockEngine']));
-    const strong = count((w) => addVehicle(w, 'independent', 'carrier', ['sniperCannon', 'plates'], { x: 15, y: 10 }));
+    const strong = count((w) => addVehicle(w, 'independent', 'carrier', ['sniperCannon', 'plates', 'stockEngine'], { x: 15, y: 10 }));
     expect(equal).toBeGreaterThan(0);
     expect(strong).toBeLessThan(20);
     expect(strong).toBeLessThan(equal);
