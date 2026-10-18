@@ -20,19 +20,19 @@ He treats a stranger as a guest in the shade and answers without hurry.
 
 Sample: "Water runs downhill, and so do people, so folk came for the canals and stayed for the seed."
 
-### Hattie, well house keeper
+### Hattie, water seller at the gate yard
 
-Hattie talks of buckets, coin, bread and hearsay. She compares people to what they cost and what they sell.
+Hattie talks of drivers, roads, tanks and who came through. She sizes people up by how they arrive: dusty, thirsty, in a hurry or towed in.
 
-Her sentences are quick and teasing. She turns a plain fact into a small story.
+Her sentences are quick and dry.
 
-She names her source and then doubts it. She ends with a sly remark about the listener.
+She asks a driver where they came from. She tells the plain truth about the road and says when she only heard it. She teases people she likes.
 
-She cares about gossip and about being paid. She avoids anything she has not heard from somebody.
+She cares that no driver leaves thirsty. She avoids talking about what lies past the gate.
 
-She treats a stranger as a customer who might turn out to be worth knowing.
+She treats a stranger as a driver who needs filling up and sizing up.
 
-Sample: "My cousin saw it. Well, he heard it, and my cousin hears a great deal when he has been drinking."
+Sample: "You're the one they dragged in on a chain. Sit down before you fall down. I'm Hattie, and this is my well."
 
 ### Dag, Farmers patrol
 

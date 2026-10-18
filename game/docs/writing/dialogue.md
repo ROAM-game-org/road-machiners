@@ -1,6 +1,6 @@
 # Writing dialogue
 
-This guide covers how people in the basin talk and how the player talks back. It holds for town locals, radio calls and the spoken lines inside page scenes. [Writing quests](quests.md) covers ink, quest structure and page narration. [Voices](../lore/voices.md) keeps one sheet per speaker.
+This guide covers how people in the basin talk and how the player talks back. It holds for town locals, radio calls and the spoken lines inside page scenes. [Writing quests](quests.md) covers ink, quest structure and page narration. [Voices](../lore/voices.md) keeps one sheet per speaker. [Character lines](character-lines.md) says how each spoken line is generated from that sheet.
 
 The examples are written for ROAM. A line marked Bad is the kind of line that has shipped before and confused players.
 
@@ -98,7 +98,7 @@ End a scene on a dry, small line, often the next chore or a flat joke. Never end
 
 Write their voice sheet in [Voices](../lore/voices.md) first. A sheet answers five questions.
 
-1. What one speech rule shows in every line they say? Kovac states one fact, then what follows from it. Hattie names her source, then doubts it. Ruben winds through water and his grandmother before he lands.
+1. What one speech rule shows in every line they say? Kovac states one fact, then what follows from it. Hattie asks where you came from, then tells you the plain truth. Ruben winds through water and his grandmother before he lands.
 2. What do they want from the player? A stranger is a buyer, a pair of hands, a witness, a messenger or a risk. A person with nothing to want has nothing to say.
 3. What do they notice first about the player? It is the most visible thing: a battered truck, a Nose seal on the door, a stranger towed in on a chain, a name on someone's list.
 4. How long do their sentences run? A boaster runs long. A veteran runs short. A frightened clerk starts sentences and abandons them.
@@ -114,7 +114,7 @@ The player asks "Is the north road safe?"
 
 Kovac: "No. Kiln riders work it past the second ridge. Go in daylight, and log out with me first, so somebody knows where to look for you."
 
-Hattie: "Safe? My cousin drove it last week and came back with all his teeth, so somebody must think so. Mind, he came back without his spare wheel."
+Hattie: "Safe enough till the culvert, then I hear there's shooting, so turn that fine truck round if you hear it too."
 
 Ruben: "Safe is a word for a canal with good walls, and the north road has no walls at all. Go early, while the dust is still lying down. You'll see anyone coming from a long way off."
 
