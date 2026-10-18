@@ -44,7 +44,8 @@ import type {
   World,
 } from "../sim/types";
 import { touchMode } from "./input-mode";
-import { disabledWith, el, isBrowserChord, panel } from "./dom";
+import { disabledWith, el, isBrowserChord, panel, uiRoot } from "./dom";
+import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
 import { baselinePart, conditionMeter, jobDone, conditionRow, conditionTag, createIcon, createItemIcon, diffStats, footprint as footprintEl, itemIconEl, itemLore, partIconEl, partStats, statGrid, toneStyle } from "./cards";
@@ -160,7 +161,7 @@ export class InventoryView {
     this.render();
     const truck = this.root.querySelector(".inv-truck");
     if (!truck) throw new Error("Inventory view is not rendered");
-    const over = truck.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom;
+    const over = uiSize().toLayer(truck.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom);
     if (over <= 0) return;
     const rows = gridOf(this.shown(this.host.world())).h;
     this.cell = Math.max(MIN_CELL_PX, Math.floor(this.cell - over / rows));
@@ -231,8 +232,8 @@ export class InventoryView {
         if (!this.gridEl) throw new Error("Grid item pressed without a grid");
         const r = this.gridEl.getBoundingClientRect();
         const grab = {
-          x: Math.floor((e.clientX - r.left) / this.cell) - it.x,
-          y: Math.floor((e.clientY - r.top) / this.cell) - it.y,
+          x: this.cellOf(e.clientX - r.left) - it.x,
+          y: this.cellOf(e.clientY - r.top) - it.y,
         };
         if (dragStartOf(e.pointerType, needsHold(me.chassisId, it)) === "hold") this.startPress(e, "grid", it.id, it, grab);
         else this.startDrag(e, "grid", it.id, it, grab);
@@ -677,7 +678,7 @@ export class InventoryView {
     node.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
       const r = grid.getBoundingClientRect();
-      this.startDrag(e, "truck", it.id, it, { x: Math.floor((e.clientX - r.left) / this.cell) - it.x, y: Math.floor((e.clientY - r.top) / this.cell) - it.y });
+      this.startDrag(e, "truck", it.id, it, { x: this.cellOf(e.clientX - r.left) - it.x, y: this.cellOf(e.clientY - r.top) - it.y });
     });
     return node;
   }
@@ -748,7 +749,7 @@ export class InventoryView {
 
   private beginDrag(at: PointerEvent, source: Drag["source"], id: string, item: GridItem, grab: { x: number; y: number }): void {
     const ghost = el("div", { class: "inv-ghost" });
-    document.body.append(ghost);
+    uiRoot().append(ghost);
     this.drag = {
       source,
       id,
@@ -819,10 +820,10 @@ export class InventoryView {
     this.lastPointer = e;
     if (!this.drag) return;
     if (
-      Math.hypot(
+      uiSize().toLayer(Math.hypot(
         e.clientX - this.drag.start.x,
         e.clientY - this.drag.start.y,
-      ) >=
+      )) >=
       this.cell / 4
     )
       this.drag.moved = true;
@@ -856,9 +857,14 @@ export class InventoryView {
   }
 
   private ghostCorner(e: PointerEvent, d: Drag, onGrid: boolean): { x: number; y: number } {
-    const g = this.gridEl?.getBoundingClientRect();
+    const g = this.gridEl ? uiSize().layerRect(this.gridEl) : null;
     if (onGrid && g) return { x: g.left + d.item.x * this.cell, y: g.top + d.item.y * this.cell };
-    return { x: e.clientX - this.cell / 2, y: e.clientY - this.cell / 2 };
+    const at = uiSize().layerPoint(e.clientX, e.clientY);
+    return { x: at.x - this.cell / 2, y: at.y - this.cell / 2 };
+  }
+
+  private cellOf(screenOffset: number): number {
+    return Math.floor(uiSize().toLayer(screenOffset) / this.cell);
   }
 
   private placementProblem(d: Drag): Refusal | null {
@@ -883,8 +889,8 @@ export class InventoryView {
     const r = this.gridEl.getBoundingClientRect();
     if (cx < r.left || cy < r.top || cx >= r.right || cy >= r.bottom)
       return null;
-    const x = Math.floor((cx - r.left) / this.cell) - this.drag.grab.x;
-    const y = Math.floor((cy - r.top) / this.cell) - this.drag.grab.y;
+    const x = this.cellOf(cx - r.left) - this.drag.grab.x;
+    const y = this.cellOf(cy - r.top) - this.drag.grab.y;
     return { x, y, rot: this.drag.item.rot };
   }
 

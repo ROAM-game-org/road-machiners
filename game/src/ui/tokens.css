@@ -245,11 +245,14 @@
   --hud-gap: 8px;
   --hud-hover-top: 64px;
   --hud-notice-top: 112px;
-  --safe-top: max(var(--hud-inset), env(safe-area-inset-top));
-  --safe-right: max(var(--hud-inset), env(safe-area-inset-right));
-  --safe-bottom: max(var(--hud-inset), env(safe-area-inset-bottom));
-  --safe-left: max(var(--hud-inset), env(safe-area-inset-left));
-  --touch-target: 32px;
+  --ui-scale: 1;
+  --layer-w: calc(100vw / var(--ui-scale));
+  --layer-h: calc(100dvh / var(--ui-scale));
+  --safe-top: max(var(--hud-inset), calc(env(safe-area-inset-top) / var(--ui-scale)));
+  --safe-right: max(var(--hud-inset), calc(env(safe-area-inset-right) / var(--ui-scale)));
+  --safe-bottom: max(var(--hud-inset), calc(env(safe-area-inset-bottom) / var(--ui-scale)));
+  --safe-left: max(var(--hud-inset), calc(env(safe-area-inset-left) / var(--ui-scale)));
+  --touch-target: max(32px, calc(32px / var(--ui-scale)));
   --phone-readouts-h: 104px;
   --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--btn-h-l));
   --phone-end-w: 120px;
@@ -270,21 +273,18 @@
   --z-new-game-block: 59;
   --z-save: 60;
   --z-new-game: 70;
+  --z-tip: 80;
   --z-boot: 1000;
   --z-drag: 1000;
   --z-crash: 100000;
 }
 
-@media (max-width: 1100px) {
-  :root {
-    --dock-width: 246px;
-  }
+#ui:where(.compact) {
+  --dock-width: 246px;
 }
 
-@media (max-width: 720px) {
-  :root {
-    --dock-width: 200px;
-  }
+#ui:where(.narrow) {
+  --dock-width: 200px;
 }
 
 @media (orientation: landscape) {

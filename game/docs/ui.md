@@ -111,17 +111,27 @@ The always-on HUD answers a short list of questions without a click: can I keep 
 
 ### 4.4 Phone layout
 
-`#ui.phone` is a small viewport: at most 560px wide or 480px tall. `src/ui/input-mode.ts` owns the threshold and sets the class, and `phone.css` holds every rule under it. A desktop window above the threshold keeps the layout of 4.2. The phone layout answers the same always-on questions on a screen a quarter of the size.
+`#ui.phone` is a small UI layer: at most 560px wide or 480px tall, counted in the layer's pixels (see "The UI layer" below). `src/ui/input-mode.ts` owns the threshold and sets the class, and `phone.css` holds every rule under it. A desktop window above the threshold keeps the layout of 4.2. The phone layout answers the same always-on questions on a screen a quarter of the size.
 
 - The top row holds the health readout and Menu at the right, inside the safe area, with nothing at the left. Camera mode and Report a bug or request a feature are Menu entries on a phone. The action bar, toast, notices and tips sit under it at full width.
 - The bottom bar holds four drawer tabs (`.drawer-tabs`), the small speed dial, the LCD readouts, the action switches and End turn, all always on. In portrait the instruments take their own block above the tabs.
 - A drawer holds what the bar does not: Truck (the truck diagram and the hauler gauge), Guns (the weapons), Radio (the radio and the contracts) and Log. One is open at a time. A tap on its tab opens or closes it, and a tap on the map leaves it open, so the player can aim with Guns open. In portrait a drawer spans the width above the bar. In landscape Truck and Guns open over the left half and Radio and Log over the right half. A drawer scrolls inside and is never taller than the space between the top row and the bar.
 - The Guns tab takes the danger edge while the player is in combat. This is the attention level of 7, a mark that stays while the state is true. Nothing opens by itself.
 - The cursor card is right-aligned under the top row and ends one gap above the bar or the drawer under it. It scrolls inside, and it never grows over the map.
-- A modal fills the viewport inside the safe area and scrolls inside, with its close button in view. The bar and the drawers hide while one is open.
+- A modal fills the viewport inside the safe area and scrolls inside, with its close button in view. The bar and the drawers hide while one is open, and while Options is open.
 - Drawer state lives in the UI and is not saved.
 
 This layout bends two rules, and each is a new pattern, not a changed principle. P2, key facts never one step away: the diagram, the weapons, the radio and the log are one tap away, since a 390 by 844 screen cannot hold them without covering the playfield, which breaks P3 and P18. The key facts for the turn stay on screen: the speed dial, the readouts, the health, the action switches, End turn and the action bar. 4.2, an element never moves between zones: in portrait a drawer spans the width. It keeps the content and the job of its zone, but not the edge.
+
+### 4.5 The UI layer
+
+Options holds one device setting, UI size: 80%, 90%, 100%, 115% or 130%. It is kept in local storage, never in the save, and applies at once. `src/ui/ui-size.ts` owns it. At a size other than 100%, `#ui` and `#overlay` are laid out in a box of the window divided by the size and scaled up or down from the top left corner, so every pixel value, the drawn hardware and the map labels scale together. At 100% no transform is set. The boot screen and the crash screens stay at 100%.
+
+- The layer, not the window, is the screen. The layer must stay at least 640 by 360 (long side by short side). A size that would make it smaller is off in Options with the reason "Too big for this screen", and the game applies the largest step that fits, at most the stored pick.
+- `input-mode.ts` sets `phone`, `slim` (480px wide or less), `narrow` (720px or less) and `compact` (1100px or less) on `#ui` from the layer size. CSS breakpoints are these classes, never a width media query. Orientation queries are fine.
+- CSS never uses `vw`, `vh`, `dvh`, `svh` or `vmax`. It uses `--layer-w` and `--layer-h`, which are the window divided by `--ui-scale`. `--safe-*` divide the device inset by the same scale.
+- `--touch-target` is `max(32px, 32px / --ui-scale)`, so a touch target is never under 32 real pixels.
+- Code that sets `left`, `top`, `width` or `height` from a screen rect or a pointer converts through `uiSize()`: `layerRect()`, `layerPoint()`, `toLayer()` and `layerSize()`. Comparing a screen rect with a screen rect or a pointer needs no conversion. A new UI calculation never reads `window.innerWidth` or `innerHeight` for placement.
 
 ## 5. Entity anatomy
 
@@ -234,7 +244,7 @@ Name a token by its role, like `--ink-muted` or `--panel-l`, never by its value.
 - `--radius-s` and `--radius-m` round corners. A circle stays `50%`.
 - `--icon-xs` 12px to `--icon-hero` 56px size icon boxes. `--meter-s`, `--meter-m` and `--meter-l` set bar heights, and `--pip` sets a rank pip or a footprint cell.
 - Panel widths are `--panel-s` 260px, `--panel-m` 300px, `--panel-l` 420px and `--panel-xl` 520px. `--dock-width` is the right dock, and it narrows on small windows. `--modal-width` and `--modal-height` cap a modal.
-- Phone layout: `--safe-top`, `--safe-right`, `--safe-bottom` and `--safe-left` are `--hud-inset` or the device inset, whichever is larger, and place every HUD zone. `--touch-target` is the smallest touch target, 32px. `--phone-readouts-h` is the height of the readouts in the bottom bar, and `--phone-bar-h` is the bar with its tabs.
+- Phone layout: `--safe-top`, `--safe-right`, `--safe-bottom` and `--safe-left` are `--hud-inset` or the device inset divided by the UI scale, whichever is larger, and place every HUD zone. `--touch-target` is the smallest touch target, 32 real pixels. `--ui-scale` is the applied UI size, and `--layer-w` and `--layer-h` are the window divided by it. `--phone-readouts-h` is the height of the readouts in the bottom bar, and `--phone-bar-h` is the bar with its tabs.
 - HUD placement: `--hud-inset` from the window edge, `--hud-gap` between HUD panels, `--hud-hover-top` for the hover panel and `--hud-notice-top` for notices.
 - Layers run `--z-hud` to `--z-crash`. A new layer goes between two others in `tokens.css`, never as a raw number.
 
@@ -270,6 +280,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.quest-frame` holds a quest page's picture, cropped to the column around its focus point. The picture zooms in by 8% over 40 seconds and holds there. Reduced motion turns the zoom off.
 - `.tooltip-row` is one line of a tooltip breakdown: the label on the left in the UI face and the value on the right in mono, like Base and then each cause.
 - `.standing` is the character screen's list of faction standing: one `.standing-row` per faction with its band word, and a `.tooltip.standing-tip` of `.tooltip-row` lines (base, deeds, earlier) on hover and focus. The HUD's driver card shows only the band tag of that driver toward the player.
+- `.option-switch` is a row of equal buttons that picks one value of a setting: the language and the UI size. `aria-pressed` with the accent edge marks the chosen one. A value that cannot be used is `aria-disabled` and gives its reason through the shared tooltip.
 - `.num` is a number in the mono face. `.dim`, `.good` and `.bad` color a word.
 
 ## 13. How to build a screen

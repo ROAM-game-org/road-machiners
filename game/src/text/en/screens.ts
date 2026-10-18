@@ -27,6 +27,7 @@ export const SCREENS = {
   'boot.unreachable': 'The game files did not arrive. Check your connection.',
   'boot.retry': 'Try again',
   'boot.failedToLoad': 'The game failed to load. Check your connection and reload the page.',
+  'boot.failedToStart': 'The game could not start in this browser. Update the browser or try another one.',
   'save.slot.auto': 'Autosave',
   'save.slot.day': 'Day start',
   'save.slot.manual': m('Slot {n}', { n: 'int' }),
