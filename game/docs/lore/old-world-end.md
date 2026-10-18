@@ -60,9 +60,9 @@ Each word is a stage. The facts behind the words are mostly lost, and each peopl
 
 Four stages have a sign: Spiral, Race, Exodus and Chaos. The Cry and the Forsaken have none.
 
-- Spiral is a spiral with four ends.
-- Race is two parallel lines that run left to right, slanted like // but flatter.
-- Exodus is an X.
+- Spiral is a spiral with three arms.
+- Race is one spike that slants up to the right, thick at the bottom and thin as a needle at the top.
+- Exodus is an X cut as four rays that point outward from the middle.
 - Chaos is an O.
 
-The signs fit one grid, like the letters of a small font. Drawn over each other in their order, they make one combined sign. The game draws it on the loading screen, where it builds up one stage at a time, and paints the signs on cliffs and props.
+The signs fit one grid, like the letters of a small font. Drawn over each other in their order, they make one combined sign. The spike pierces the spiral, and the rays cross the O and stick out past it. People cut the signs into metal and stone with knives, so every stroke is a straight, sharp cut that tapers to a point. Only the O is round. The game draws it on the loading screen, where it builds up one stage at a time, and paints the signs on cliffs and props.
