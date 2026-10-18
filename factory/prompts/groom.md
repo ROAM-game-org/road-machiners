@@ -42,6 +42,10 @@ Work in these steps.
 
 Keep every point that passes the five tests.
 Drop or change a point only when it fails a test.
+A point often covers several cases, like every screen size, every mode or every truck it names.
+Find each case of each point.
+A version serves a point only when it serves every case of it.
+A version that fixes one case and makes another case worse fails that point.
 Each dropped or changed point goes in `changed`, with the test it fails.
 When an issue in `.factory/issues.md` already builds a point, the version builds on that work and names the issue.
 
