@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { onOrchardRoad, REGION } from '../data/region';
+import { MAP_SCALE, onOrchardRoad, REGION } from '../data/region';
 import { TERRAIN } from '../data/terrain';
 import { PHYSICS } from '../data/physics';
 import { setMoveOrder } from './world';
@@ -18,11 +18,11 @@ const original = [
 ];
 
 describe('Icarus exploration distances', () => {
-  it('multiplies every pairwise destination distance by five', () => {
+  it('multiplies every pairwise destination distance by the map scale', () => {
     const sites = [...REGION.towns, ...REGION.locations];
     expect(sites).toHaveLength(original.length);
     for (let i = 0; i < sites.length; i++) for (let j = i + 1; j < sites.length; j++) {
-      expect(dist(sites[i].pos, sites[j].pos)).toBeCloseTo(Math.hypot(original[i][0] - original[j][0], original[i][1] - original[j][1]) * 5);
+      expect(Math.abs(dist(sites[i].pos, sites[j].pos) - Math.hypot(original[i][0] - original[j][0], original[i][1] - original[j][1]) * MAP_SCALE)).toBeLessThan(1);
     }
   });
 

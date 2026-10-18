@@ -308,9 +308,10 @@ describe('teleport', () => {
 
   it('finds the nearest free spot next to an obstacle', () => {
     const w = emptyWorld();
-    w.obstacles.push({ id: 'rock-x', pos: { x: 80, y: 90 }, r: 2, kind: 'rock' });
-    const moved = playerVehicle(teleport(w, { x: 80, y: 90 }));
-    const d = dist(moved.pos, { x: 80, y: 90 });
+    const rock = { x: 300, y: 300 };
+    w.obstacles.push({ id: 'rock-x', pos: rock, r: 2, kind: 'rock' });
+    const moved = playerVehicle(teleport(w, rock));
+    const d = dist(moved.pos, rock);
     expect(d).toBeGreaterThan(2);
     expect(d).toBeLessThanOrEqual(CHEATS.searchStep * CHEATS.searchRings);
   });

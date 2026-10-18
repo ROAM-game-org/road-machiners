@@ -77,7 +77,7 @@ describe('field refits', () => {
     expect(() => moveItem(w, weapon.id, to)).toThrow('Refused: stopFirst');
     w.vehicles[0].speed = 0;
     startJob(w, w.vehicles[0], { kind: 'search', stockId: 'stock', total: 2, turnsLeft: 2 });
-    expect(() => moveItem(w, weapon.id, to)).toThrow('already busy');
+    expect(() => moveItem(w, weapon.id, to)).toThrow('Refused: busy');
     expect(getWeapon(w)).toEqual(weapon);
   });
 

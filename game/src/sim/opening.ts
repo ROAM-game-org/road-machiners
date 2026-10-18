@@ -8,17 +8,10 @@ import { engineNeedsPatch } from './repair';
 import { canReachSalvage, emptyHidden, hasSalvage } from './salvage';
 import type { Obstacle, SalvageStock, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
+import { OPENING_WRECK_RADIUS, openingWreckSpot } from './start-pose';
 import { setStartHp } from './wear';
 
 export const OPENING_WRECK_ID = 'opening-wreck';
-const OPENING_WRECK_RADIUS = 0.7;
-
-export function openingWreckSpot(opening: Opening, start: { pos: Vec; heading: number }): Vec {
-  const { ahead, side } = opening.wreck;
-  const cos = Math.cos(start.heading);
-  const sin = Math.sin(start.heading);
-  return { x: start.pos.x + cos * ahead - sin * side, y: start.pos.y + sin * ahead + cos * side };
-}
 
 export function openingObstacles(kit: StartKit, start: { pos: Vec; heading: number }): Obstacle[] {
   const wreck: Obstacle[] = kit.opening ? [{ id: OPENING_WRECK_ID, pos: openingWreckSpot(kit.opening, start), r: OPENING_WRECK_RADIUS, kind: 'wreck' }] : [];

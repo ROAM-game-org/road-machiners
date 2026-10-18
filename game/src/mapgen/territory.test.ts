@@ -27,10 +27,13 @@ import { ICARUS_KEY } from '../sim/atlas';
 const fallenSun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
 const t = fallenSun as never;
 
-let groundHeights: Float32Array | undefined;
+let groundDraft: MapDraft | undefined;
+function territoryDraft(): MapDraft {
+  groundDraft ??= groundForTerritories(MAPGEN.seed);
+  return groundDraft;
+}
 function territoryGround(): Float32Array {
-  groundHeights ??= groundForTerritories(MAPGEN.seed).heights;
-  return groundHeights;
+  return territoryDraft().heights;
 }
 beforeAll(() => void territoryGround(), budget(120_000));
 const rules = TERRITORIES['fallen-sun'].wreck!;
@@ -39,10 +42,13 @@ const zone = hazardZones().find((z) => z.id === 'fallen-sun')!;
 const pieces = territoryPieces(t);
 const inside = TEST_MAP.props.filter((p) => siteGap(fallenSun, p.pos) < 0);
 const DEBRIS_LOOKS = new Set<string>(rules.patches.flatMap((p) => p.debris.map((d) => d.look)));
+const OLD_ORCHARD = { x: 114, y: 284 };
+const ORCHARD_NOW = REGION.locations.find((l) => l.id === "orchard")!.pos;
 function rollingDraft(): MapDraft {
   const d = newDraft(REGION.size);
   const w = d.size + 1;
-  for (let j = 0; j <= d.size; j++) for (let i = 0; i <= d.size; i++) d.heights[j * w + i] = 0.6 * Math.sin(i / 9) + 0.4 * Math.cos(j / 7);
+  const [dx, dy] = [ORCHARD_NOW.x - OLD_ORCHARD.x, ORCHARD_NOW.y - OLD_ORCHARD.y];
+  for (let j = 0; j <= d.size; j++) for (let i = 0; i <= d.size; i++) d.heights[j * w + i] = 0.6 * Math.sin((i - dx) / 9) + 0.4 * Math.cos((j - dy) / 7);
   return d;
 }
 
@@ -182,9 +188,7 @@ describe('the territory layer', () => {
 
   it('bakes the Fallen Sun props of the committed map, with no relief limit', () => {
     expect(TERRITORIES['fallen-sun'].relief).toBeNull();
-    const d = newDraft(REGION.size);
-    d.heights.set(territoryGround());
-    const drawn = territoryLayer(MAPGEN.seed, d).props.filter((p) => siteGap(fallenSun, p.pos) < 0);
+    const drawn = territoryLayer(MAPGEN.seed, structuredClone(territoryDraft())).props.filter((p) => siteGap(fallenSun, p.pos) < 0);
     const committed = inside.filter((p) => siteGap(fallenSun, p.pos) < 0 && p.kind !== 'rock' && p.kind !== 'crag');
     expect(drawn.length).toBe(committed.length);
     drawn.forEach((p, i) => {

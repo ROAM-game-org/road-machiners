@@ -63,7 +63,7 @@ describe('shop money', () => {
 
   it('names a raider camp sale', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { ...siteGates(kiln)[0] });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { ...sitePads(kiln)[0] });
     raider.brain = npcBrain('buggy', raider.pos, NPCS.buggy.traits);
     addGoods(w, raider, 'salt', 2);
     const before = getResources(w, raider).money;

@@ -4,6 +4,7 @@ import type { TraitId, Weighted } from './npcs';
 import type { PropKind } from '../sim/terrain';
 import type { OldPlaceType } from './salvage';
 import { NPC_BEHAVIOR } from './npc-behavior';
+import { MAP_SCALE } from './region';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
 
@@ -124,12 +125,12 @@ export const CONTRACTS = {
   survey: {
     roadGap: 20,
     siteGap: 40,
-    range: 180,
-    spread: 90,
+    range: 36 * MAP_SCALE,
+    spread: 18 * MAP_SCALE,
     count: [1, 3] as [number, number],
     surveyTurns: 10,
     searchTurns: 20,
-    clue: { range: 180, roundTiles: 25, band: 40, nearby: 40, layRing: 30, rise: 2, hollow: -1.3 },
+    clue: { range: 36 * MAP_SCALE, roundTiles: 25, band: 40, nearby: 40, layRing: 30, rise: 2, hollow: -1.3 },
     rewardFactor: 15,
     knowledgeRange: 12,
     xpPerEffort: 0.003,
@@ -139,7 +140,7 @@ export const CONTRACTS = {
   },
 
   rescue: {
-    range: 132,
+    range: 26.4 * MAP_SCALE,
     areaRadius: 13,
     areaOffset: 11,
     xpPerEffort: 0.003,

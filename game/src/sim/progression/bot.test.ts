@@ -2,7 +2,7 @@ import { PRESSURE_MAX } from '../../data/market';
 import type { GameEvent, PartInstance, Vehicle, World } from '../types';
 import { describe, expect, it } from 'vitest';
 import { CHASSIS, chassisDef } from '../../data/chassis';
-import { REGION } from '../../data/region';
+import { MAP_SCALE, REGION } from '../../data/region';
 import { TERRAIN } from '../../data/terrain';
 import { START_KITS } from '../../data/start';
 import { partDef } from '../../data/parts';
@@ -74,6 +74,8 @@ function withThreeGuns(w: World): Vehicle {
   w.vehicles[w.vehicles.indexOf(old)] = me;
   return me;
 }
+
+const LAYOUT_SPREAD = MAP_SCALE / 5;
 
 describe('botOrders', () => {
   it('gives a knocked-out player no commands', () => {
@@ -178,9 +180,9 @@ describe('botOrders', () => {
     const yard = siteOf('salvage-yard').pos;
     const perTile = vehicleStats(w, playerVehicle(w)).fuelPerTile;
     const reach = (tiles: number) => ({ pos: yard, fuel: tiles * perTile * heatAt(w, playerVehicle(w).pos) * NPC_UPKEEP.fuelReserve });
-    expect(fuelReaches(w, siteOf('pump-station'), reach(150))).toBe(false);
-    expect(fuelReaches(w, siteOf('pump-station'), reach(190))).toBe(true);
-    expect(fuelReaches(w, siteOf('pump-station'), reach(210))).toBe(true);
+    expect(fuelReaches(w, siteOf('pump-station'), reach(150 * LAYOUT_SPREAD))).toBe(false);
+    expect(fuelReaches(w, siteOf('pump-station'), reach(190 * LAYOUT_SPREAD))).toBe(true);
+    expect(fuelReaches(w, siteOf('pump-station'), reach(210 * LAYOUT_SPREAD))).toBe(true);
   });
 
   it('has fuel for the way to a shop reach it, and a full tank chain to Bowl through the shops between', () => {
