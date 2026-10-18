@@ -16,20 +16,18 @@
   height: var(--narrow-log-height);
 }
 #ui:where(.narrow) .radio {
-  --radio-line: 12px;
+  --radio-line: var(--space-6);
   --radio-lines: 4;
-  --knob-size: 22px;
+  --knob-size: calc(var(--space-9) - var(--space-1));
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
 }
 #ui:where(.narrow) .radio-lcd {
   font-size: var(--text-caption);
 }
-/* Small enough that the four knob labels keep apart on the narrow radio. */
 #ui:where(.narrow) .knob-cell {
   font-size: calc(var(--text-caption) - var(--space-1));
 }
-/* One gap above the narrow log, whose top is its bottom offset plus its height. */
 #ui:where(.narrow) .right-dock {
   bottom: calc(var(--narrow-log-bottom) + var(--narrow-log-height) + var(--hud-gap));
   right: var(--hud-inset);
