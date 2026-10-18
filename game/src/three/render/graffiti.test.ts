@@ -41,9 +41,9 @@ describe('graffiti placement', () => {
     for (const a of placed) for (const b of placed) if (a !== b) expect(dist(a.site.pos, b.site.pos)).toBeGreaterThanOrEqual(GRAFFITI.minGapTiles);
   });
 
-  it('gives every sign one stage, and uses all four stages', () => {
+  it('gives every sign one stage, never Exodus, and uses every painted stage', () => {
     for (const p of placed) expect(SIGN_STAGES).toContain(p.site.paint.stage);
-    expect(new Set(placed.map((p) => p.site.paint.stage))).toEqual(new Set(SIGN_STAGES));
+    expect(new Set(placed.map((p) => p.site.paint.stage))).toEqual(new Set(['spiral', 'race', 'chaos']));
   });
 
   it('spreads over the whole map, not only near spawn', () => {

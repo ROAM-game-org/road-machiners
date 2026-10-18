@@ -45,6 +45,7 @@ const IN_FRONT_MARGIN = 1;
 const SHADE_LIFT = 0x4a4a4a;
 
 export const SIGN_SIZES = [8, 6, 4.5, 3.5];
+export const PAINTED_STAGES: SignStage[] = SIGN_STAGES.filter((stage) => stage !== 'exodus');
 export const GRID = 8;
 const LIFT = 0.04;
 const PROBE = 1.5;
@@ -98,7 +99,7 @@ export function graffitiTarget(size: number): number {
 function paintOf(id: string): GraffitiPaint {
   const colors = PAL.graffiti;
   return {
-    stage: SIGN_STAGES[Math.floor(hashStr(`${id}:stage`) * SIGN_STAGES.length)],
+    stage: PAINTED_STAGES[Math.floor(hashStr(`${id}:stage`) * PAINTED_STAGES.length)],
     color: colors[Math.floor(hashStr(`${id}:color`) * colors.length)],
     fade: GRAFFITI.fade.min + hashStr(`${id}:fade`) * (GRAFFITI.fade.max - GRAFFITI.fade.min),
     variant: Math.floor(hashStr(`${id}:variant`) * GRAFFITI.variants),
