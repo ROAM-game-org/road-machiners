@@ -13,4 +13,15 @@ describe('index.html boot markup', () => {
     expect(html).toContain(`aria-label="${resolve(t('boot.loading'), 'en')}"`);
     expect(html).toContain(`'${resolve(t('boot.failedToLoad'), 'en')}'`);
   });
+
+  it.each(['en', 'ru'] as const)('repeats the %s failure texts exactly', (locale) => {
+    expect(html).toContain(`failedToLoad: '${resolve(t('boot.failedToLoad'), locale)}'`);
+    expect(html).toContain(`failedToStart: '${resolve(t('boot.failedToStart'), locale)}'`);
+  });
+
+  it('has a nomodule fallback and reads only the stored language', () => {
+    expect(html).toContain('<script nomodule>');
+    expect(html).toContain("localStorage.getItem('roam.lang')");
+    expect(html).not.toContain('navigator.language');
+  });
 });
