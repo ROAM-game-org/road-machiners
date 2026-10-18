@@ -93,7 +93,7 @@ Every field but `pitch` is in English, plain and short.
 The field `pitch` is required for `vote` only.
 Players in the chat read it when they vote.
 It is in Russian.
-Follow docs/russian-style.md for the words of the game.
+Follow the Russian copy doc that the Docs list in CLAUDE.md names.
 It has no emoji and no markdown.
 
 - `title` is a short name of the change.
