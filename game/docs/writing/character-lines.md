@@ -31,16 +31,16 @@ Reply:
 
 Fill each part like this.
 
-- Game line: one sentence on what the game is and where it happens, the same for every call. It never says how people talk, what tone to use or what the economy is. Style belongs to the character part only, because any style words here reach every character and make them sound alike.
-- Character: copy the person's sheet from [Voices](../lore/voices.md), and the aspects from [Characters](../lore/characters.md) when they have an entry. Add two to four sample lines. For Russian, say to reply in Russian and paste the names from the glossary in [Russian copy](russian.md).
+- Game line: one short sentence on what the game is, the same for every call, like "ROAM is a post-apocalyptic RPG where you drive an armed truck". It never says how people talk, what tone to use or what the economy is. Style belongs to the character part only, because any style words here reach every character and make them sound alike.
+- Character: copy the person's sheet from [Voices](../lore/voices.md), and the aspects from [Characters](../lore/characters.md) when they have an entry. Add one or two sample lines taken from the person's sheet, never ones you wrote. For Russian, say to reply in Russian and paste the names from the glossary in [Russian copy](russian.md).
 - Context: only what the character knows at this moment, and the question the player asked. No plot, no other branches, no game words.
-- What to speak about: raw facts and the order to say them in. Add the length wanted. Do not give wording, because wording is the model's job.
+- What to speak about: the topic in one plain sentence, like "Greet the driver and introduce herself. Introduce them to Bowl." Never put phrases, jokes, images or the old line in it, because every word you give is a word the character did not choose. Give a fact only when the line must carry it, and state the fact flat. Do not ask for a length.
 
 ## Keep voices apart
 
 - A sample teaches by repetition. If every sample has the same joke or the same pet word, every line will carry it. Use samples that show the speech rule in different ways.
 - Do not tell the model to always do a habit. Say a habit happens sometimes, or the model will do it in every line.
-- Say that the character never invents named people or relatives that the facts do not give.
+- Take several takes of a line and pick the best. Cut invented details in the edit, instead of adding rules about them to the prompt.
 - Read the first batch for tics before you use any of it. Count how many lines share a joke, a pet word or a sentence shape. If more than a few do, change the prompt and run the batch again.
 
 ## Edit the result
