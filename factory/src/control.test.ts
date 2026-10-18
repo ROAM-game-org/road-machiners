@@ -223,7 +223,7 @@ describe('move', () => {
     await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
     const edits = calls.filter((call) => call.startsWith('editHtml 300'));
     expect(edits).toHaveLength(1);
-    expect(edits[0]!.endsWith('Current: 2 👍, 0 👎, net +2/3\nClosed')).toBe(true);
+    expect(edits[0]!.endsWith('Сейчас: 2 👍, 0 👎, итог +2/3\nЗакрыто')).toBe(true);
   });
 
   it('of a voting card reports a failed post edit once and still closes the proposal', async () => {
