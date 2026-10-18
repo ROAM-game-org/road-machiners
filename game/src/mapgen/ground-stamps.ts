@@ -73,8 +73,15 @@ function stampSite(d: MapDraft, site: StampSite, stamp: GroundStamp): void {
     }
 }
 
+let decoded: GroundStamp[] | null = null;
+
+function stampsOnDisk(): GroundStamp[] {
+  decoded ??= decodeStamps(readFile());
+  return decoded;
+}
+
 export function stampTerritoryGround(d: MapDraft): MapDraft {
-  const stamps = decodeStamps(readFile());
+  const stamps = stampsOnDisk();
   for (const site of STAMP_SITES) {
     const stamp = stamps.find((s) => s.id === site.id);
     if (!stamp) throw new Error(`${site.id} has no ground stamp`);
