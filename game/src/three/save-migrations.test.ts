@@ -865,13 +865,14 @@ describe('save migration 36 to 37', () => {
 describe('save migration 37 to 38', () => {
   const wagon = STORY_WRECKS[0];
   const fresh = emptyWorld();
+  const WAGON_POS_THEN = { x: 171, y: 381 };
 
-  it('gives the player an empty journal and puts wagon Seven in place as a new game has it', () => {
+  it('gives the player an empty journal and puts wagon Seven in place as a new game had it at that format', () => {
     const next = MIGRATIONS[37](FORMAT_2_37) as typeof FORMAT_2_37 & { player: { notes: unknown[] } };
 
     expect(next.player).toEqual({ ...FORMAT_2_37.player, notes: [] });
-    expect(next.obstacles).toEqual([...FORMAT_2_37.obstacles, { id: wagon.id, pos: wagon.pos, r: wagon.r, kind: 'wreck', hulk: { chassisId: wagon.chassisId, yaw: wagon.yaw } }]);
-    const placed = (list: { id: string; parts?: object[] }[]) => list.map((s) => (s.id === wagon.id ? { ...s, parts: [] } : s));
+    expect(next.obstacles).toEqual([...FORMAT_2_37.obstacles, { id: wagon.id, pos: WAGON_POS_THEN, r: wagon.r, kind: 'wreck', hulk: { chassisId: wagon.chassisId, yaw: wagon.yaw } }]);
+    const placed = (list: { id: string; parts?: object[] }[]) => list.map((s) => (s.id === wagon.id ? { ...s, pos: WAGON_POS_THEN, parts: [] } : s));
     expect(placed(next.salvage as never)).toEqual(placed([...FORMAT_2_37.salvage, fresh.salvage.find((s) => s.id === wagon.id)!] as never));
     expect(next.turn).toBe(FORMAT_2_37.turn);
   });
