@@ -55,10 +55,10 @@ const LANGUAGE = {
 const FILING = {
   type: 'choice',
   name: 'filing',
-  instructions: 'The player wrote to the bot. Does the player explicitly ask the bot to file, report, record or pass on this bug or idea?',
+  instructions: 'The player wrote to the bot. Should the bot file this as a bug or an idea? A clear report of something broken in the game is a request to file it, even with no word like file or report: the player tells the bot what goes wrong so it gets fixed. An idea is filed only when the player explicitly asks the bot to file, report, record or pass it on.',
   choices: [
-    { value: 'yes', description: 'An explicit ask to file it. "@bot please file this bug: the truck falls through the bridge." "Record this idea: add a minimap."' },
-    { value: 'no', description: 'Anything else: a question, a remark, a wish said in passing, talk about work. "@bot add a minimap?" "@bot I asked them to make it a quest."' },
+    { value: 'yes', description: 'A clear report of something broken, or an explicit ask to file. "@bot the truck gets stuck after it hits a rock or a building and will not drive out in auto or manual mode, please fix." "@bot the fuel gauge shows full when the tank is empty." "@bot please file this bug: the truck falls through the bridge." "Record this idea: add a minimap."' },
+    { value: 'no', description: 'Anything else: a greeting, thanks, a question, a remark, a vague complaint with nothing said about what breaks, a wish said in passing, talk about work. "@bot hi." "@bot cool game." "@bot is the bridge bug fixed yet?" "@bot add a minimap?" "@bot I asked them to make it a quest."' },
   ],
 };
 
