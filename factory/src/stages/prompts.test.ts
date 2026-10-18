@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { fillPrompt, promptFile } from './common';
 
 const PROMPTS = fileURLToPath(new URL('../../prompts/', import.meta.url));
-const GAME_STAGES = ['triage', 'design', 'implement', 'test', 'integrate', 'harden', 'merge-fix', 'merge-branches', 'branch-merge', 'revert-merge', 'ship-fix', 'release-playtest', 'incident', 'adhoc', 'release', 'answer'];
+const GAME_STAGES = ['triage', 'groom', 'design', 'implement', 'test', 'integrate', 'harden', 'merge-fix', 'merge-branches', 'branch-merge', 'revert-merge', 'ship-fix', 'release-playtest', 'incident', 'adhoc', 'release', 'answer'];
 const FACTORY_STAGES = ['waste'];
 const FIX_STAGES = ['test', 'integrate', 'harden', 'merge-fix', 'ship-fix', 'release-playtest'];
 const NO_DOCS_STEP = [...FACTORY_STAGES, 'game-docs', 'fix-docs', 'design-bug', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks'];

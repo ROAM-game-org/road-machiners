@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runStage } from './design';
 import { EMPTY_STATE, readState, writeState } from '../state';
@@ -70,6 +70,27 @@ describe('design post', () => {
   it('posts the collapsed design notes alone when the agent wrote no summary', async () => {
     await runStage(planned(null), 7);
     expect(designComment()).toBe(`comment 7 <details>\n<summary>Design and plan</summary>\n\n${PLAN}\n\n</details>`);
+  });
+});
+
+describe('design stage with a groomed request', () => {
+  let seen: string | null = null;
+  const reading = () => fakeCtx((run) => {
+    const file = `${run.clone}/${run.dir}/.factory/groomed.md`;
+    seen = existsSync(file) ? readFileSync(file, 'utf8') : null;
+    writeFileSync(`${run.clone}/${run.dir}/.factory/wont-do.md`, 'stop');
+  });
+
+  it('gives the agent the groomed request triage saved', async () => {
+    mkdirSync(`${home}/groomed`, { recursive: true });
+    writeFileSync(`${home}/groomed/issue-7.md`, '## Groomed request\n\nPlayer need: money.\n');
+    await runStage(reading(), 7);
+    expect(seen).toBe('## Groomed request\n\nPlayer need: money.\n');
+  });
+
+  it('writes no groomed file when triage saved none', async () => {
+    await runStage(reading(), 7);
+    expect(seen).toBeNull();
   });
 });
 

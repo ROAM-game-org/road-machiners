@@ -23,13 +23,13 @@ describe('postProposal', () => {
     const { chat, text } = f.messages[0]!;
     expect(chat).toBe(CHANNEL);
     expect(text).toBe([
-      '<b>Proposal: Winch</b>',
+      '<b>Предложение: Winch</b>',
       'Pull stuck trucks out of sand.',
       [7, 8, 9].map((issue) => `https://github.com/o/r/issues/${issue}`).join('\n'),
-      'Needs 3 more 👍 than 👎 to pass. Current: 0 👍, 0 👎, net 0/3',
+      'Нужно на 3 👍 больше, чем 👎. Сейчас: 0 👍, 0 👎, итог 0/3',
     ].join('\n\n'));
     expect(f.store.proposal(7)?.messageId).toBe(501);
-    expect(f.store.shownFooter(7)).toBe('Needs 3 more 👍 than 👎 to pass. Current: 0 👍, 0 👎, net 0/3');
+    expect(f.store.shownFooter(7)).toBe('Нужно на 3 👍 больше, чем 👎. Сейчас: 0 👍, 0 👎, итог 0/3');
     expect(f.store.proposal(12)?.postedAt).toBeNull();
     expect(readState(f.ctx.statePath).bundles).toEqual({ 7: [8, 9] });
   });
@@ -39,7 +39,7 @@ describe('postProposal', () => {
     f.store.addProposal(7, 'Tow <b>& winch</b>\n\nPulls <a href="x">trucks</a> & cars > 3 t.', f.clock.now);
     await postProposal(f.ctx, f.store);
     const text = f.messages[0]!.text;
-    expect(text.split('\n\n').slice(0, 2)).toEqual(['<b>Proposal: Tow &lt;b&gt;&amp; winch&lt;/b&gt;</b>', 'Pulls &lt;a href="x"&gt;trucks&lt;/a&gt; &amp; cars &gt; 3 t.']);
+    expect(text.split('\n\n').slice(0, 2)).toEqual(['<b>Предложение: Tow &lt;b&gt;&amp; winch&lt;/b&gt;</b>', 'Pulls &lt;a href="x"&gt;trucks&lt;/a&gt; &amp; cars &gt; 3 t.']);
     expect(text.match(/<[^>]*>/g)).toEqual(['<b>', '</b>']);
   });
 
@@ -49,19 +49,19 @@ describe('postProposal', () => {
     await postProposal(f.ctx, f.store);
     const text = f.messages[0]!.text;
     expect(text.length).toBeLessThanOrEqual(4096);
-    expect(text).toMatch(/^<b>Proposal: Winch<\/b>\n\nTow &amp; pull\./);
+    expect(text).toMatch(/^<b>Предложение: Winch<\/b>\n\nTow &amp; pull\./);
     expect(text).not.toMatch(/&(?!amp;|lt;|gt;)/);
-    expect(text).toContain('…\n\nhttps://github.com/o/r/issues/7\n\nNeeds 3 more 👍 than 👎 to pass.');
-    const concluded = proposalText(f.ctx, 7, f.store.proposal(7)!.pitch, 'Needs 3 more 👍 than 👎 to pass. Current: 120 👍, 3 👎, net +117/3\n❌ Rejected by committee member');
+    expect(text).toContain('…\n\nhttps://github.com/o/r/issues/7\n\nНужно на 3 👍 больше, чем 👎.');
+    const concluded = proposalText(f.ctx, 7, f.store.proposal(7)!.pitch, 'Нужно на 3 👍 больше, чем 👎. Сейчас: 120 👍, 3 👎, итог +117/3\n❌ Отклонено участником комитета');
     expect(concluded.length).toBeLessThanOrEqual(4096);
-    expect(concluded).toMatch(/❌ Rejected by committee member$/);
+    expect(concluded).toMatch(/❌ Отклонено участником комитета$/);
   });
 
   it('uses the configured emoji in the rule and stops when a vote side names none', async () => {
     const f = publicFake({ voteEmoji: '🔥 👍', minVotes: 5 });
     f.store.addProposal(7, 'Winch', f.clock.now);
     await postProposal(f.ctx, f.store);
-    expect(f.messages[0]!.text).toBe('<b>Proposal: Winch</b>\n\nhttps://github.com/o/r/issues/7\n\nNeeds 5 more 🔥 than 👎 to pass. Current: 0 🔥, 0 👎, net 0/5');
+    expect(f.messages[0]!.text).toBe('<b>Предложение: Winch</b>\n\nhttps://github.com/o/r/issues/7\n\nНужно на 5 🔥 больше, чем 👎. Сейчас: 0 🔥, 0 👎, итог 0/5');
     const g = publicFake({ vetoEmoji: ' ' });
     g.store.addProposal(7, 'Winch', g.clock.now);
     await expect(postProposal(g.ctx, g.store)).rejects.toThrow('FACTORY_VETO_EMOJI names no emoji');
@@ -143,7 +143,7 @@ describe('postProposal', () => {
     failing = false;
     await postProposal(f.ctx, f.store);
     await postProposal(f.ctx, f.store);
-    expect(f.messages.map((message) => message.text.split('\n')[0])).toEqual(['<b>Proposal: Fine</b>']);
+    expect(f.messages.map((message) => message.text.split('\n')[0])).toEqual(['<b>Предложение: Fine</b>']);
     expect(f.calls.filter((call) => call === 'issue 7')).toHaveLength(1);
     expect(readState(f.ctx.statePath).failures).toHaveLength(1);
   });
@@ -190,7 +190,7 @@ describe('postProposal', () => {
     f.store.closeProposal(7, f.clock.now);
     f.store.addProposal(7, 'Second pitch', f.clock.now);
     await postProposal(f.ctx, f.store);
-    expect(f.messages.map((message) => message.text.split('\n')[0])).toEqual(['<b>Proposal: First pitch</b>', '<b>Proposal: Second pitch</b>']);
+    expect(f.messages.map((message) => message.text.split('\n')[0])).toEqual(['<b>Предложение: First pitch</b>', '<b>Предложение: Second pitch</b>']);
     expect(f.store.proposal(7)?.messageId).toBe(502);
   });
 
