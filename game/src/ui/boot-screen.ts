@@ -1,5 +1,6 @@
 
 import { AssetUnreachable } from '../fetch-asset';
+import { SIGN_STAGES } from '../render/sign';
 import { bindAttr, setText } from '../text/language';
 import { sameMsg, t, type Msg } from '../text/msg';
 import { BOOT_STEPS, BOOT_TEXT, BootProgress, type BootState, type BootStep } from './boot-progress';
@@ -18,6 +19,7 @@ export class BootScreen {
   private readonly progress = new BootProgress();
   private readonly bar: HTMLElement;
   private readonly stage: HTMLElement;
+  private readonly signStages: Element[];
   private readonly segments = new Map<BootStep, HTMLElement>();
   private readonly lines = new Map<BootStep, HTMLElement>();
   private readonly announcer: HTMLElement;
@@ -33,6 +35,7 @@ export class BootScreen {
   ) {
     this.bar = part(root, '[role=progressbar]');
     this.stage = part(root, '.boot-stage');
+    this.signStages = SIGN_STAGES.map((stage) => part(root, `.boot-sign [data-stage=${stage}]`));
     const list = part(root, '.boot-steps');
     this.stage.setAttribute('aria-live', 'off');
     this.announcer = document.createElement('p');
@@ -125,7 +128,9 @@ export class BootScreen {
     const still = document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (still) return this.root.remove();
     this.root.classList.add('leaving');
-    this.root.addEventListener('transitionend', () => this.root.remove(), { once: true });
+    this.root.addEventListener('transitionend', (e) => {
+      if (e.target === this.root) this.root.remove();
+    });
     setTimeout(() => this.root.remove(), FADE_MS * 2);
   }
 
@@ -156,6 +161,7 @@ export class BootScreen {
     setText(this.stage, text);
     this.announce(p.failed ? text : p.liveLine);
     this.root.classList.toggle('failed', p.failed);
+    this.signStages.forEach((stage, i) => stage.classList.toggle('shown', i < p.signStages));
     if (p.failed) this.root.setAttribute('aria-busy', 'false');
   }
 

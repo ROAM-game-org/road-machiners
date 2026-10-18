@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { SIGN_STAGES, SIGN_VIEWBOX, signStageMarkup } from '../render/sign';
 import { t } from '../text/msg';
 import { resolve } from '../text/resolve';
 import { FONT_FACES } from './fonts';
@@ -23,6 +24,11 @@ describe('index.html boot markup', () => {
     const mono = faceList('mono');
     expect([...faceList('english'), ...mono]).toEqual(FONT_FACES.en);
     expect([...faceList('russian'), ...mono]).toEqual(FONT_FACES.ru);
+  });
+
+  it('draws the sign from the sign module', () => {
+    const sign = `<svg class="boot-sign" viewBox="${SIGN_VIEWBOX}" aria-hidden="true">${SIGN_STAGES.map(signStageMarkup).join('')}</svg>`;
+    expect(html).toContain(sign);
   });
 
   it('reveals the boot text when the page fails to load', () => {
