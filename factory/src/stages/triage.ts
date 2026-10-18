@@ -5,7 +5,7 @@ import { readState, updateState } from '../state';
 import { BRANCH, BUG_LABEL, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, OUT_DIR, RELEASE_TASK_LABEL, ROUTING_MARK, VOTING_LABEL, WONT_DO_LABEL, type Ctx, type FactoryState, type ReleaseState } from '../types';
 import { addToBundle, bundleCandidates } from './bundle';
 import { BASE_BRANCH, agentHome, askAuthor, fillPrompt, prepareOutputs, readOutput, runAgent, workDir, writeIssueInput } from './common';
-import { groom, type Complexity, type Pitch, type Routing } from './groom';
+import { forgetGroomed, groom, type Complexity, type Pitch, type Routing } from './groom';
 import { featureLine, recordReleaseTask, releaseFeatures } from './release-common';
 
 type Ready = { verdict: 'ready'; reason: string; hotfix: boolean; releaseFix: boolean; routing: Routing; bundle: number[] };
@@ -17,6 +17,7 @@ type Verdict = Ready | Vote | Refusal;
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const clone = workDir(ctx, issue);
+  forgetGroomed(ctx, issue);
   await ctx.repo.fetch();
   await ctx.repo.prepareWorkClone(BRANCH(issue), BASE_BRANCH, clone);
   const home = agentHome(clone, GAME_DIR);

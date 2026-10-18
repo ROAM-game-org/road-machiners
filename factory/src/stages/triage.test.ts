@@ -406,6 +406,13 @@ describe('triage grooming', () => {
     expect(readFileSync(`${home}/groomed/issue-7.md`, 'utf8')).toBe(`${groomed.slice('comment 7 '.length)}\n`);
   });
 
+  it('drops an old groomed request when the new run refuses or skips grooming', async () => {
+    mkdirSync(`${home}/groomed`, { recursive: true });
+    writeFileSync(`${home}/groomed/issue-7.md`, 'old\n');
+    await runStage(fakeCtx(verdict({}), ['bug']), 7);
+    expect(existsSync(`${home}/groomed/issue-7.md`)).toBe(false);
+  });
+
   it('lets grooming turn a ready request into a vote, with its own routing', async () => {
     await runStage(fakeCtx(verdict({}), [], [], { verdict: 'vote', reason: 'A new mechanic.', complexity: 'hard', complexityReason: 'Saves change.' }), 7);
     expect(calls).toContain('addLabel 7 voting');

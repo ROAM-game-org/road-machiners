@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { OUT_DIR, type Ctx } from '../types';
 import { fillPrompt, readOutput, runAgent } from './common';
@@ -22,6 +22,10 @@ export async function groom(ctx: Ctx, issue: number, home: string): Promise<Groo
   await ctx.github.comment(issue, record);
   if (groomed.verdict !== 'wont-do') saveGroomed(ctx.cfg.home, issue, record);
   return groomed;
+}
+
+export function forgetGroomed(ctx: Ctx, issue: number): void {
+  rmSync(groomedFile(ctx.cfg.home, issue), { force: true });
 }
 
 export function writeGroomedInput(ctx: Ctx, issue: number, home: string): void {
