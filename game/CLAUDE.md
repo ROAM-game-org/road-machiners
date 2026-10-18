@@ -37,6 +37,7 @@ Writing, in `docs/writing/`:
 
 - [Writing quests](docs/writing/quests.md): how to add, change and check a quest, the writing rules and what to do when the build or the checker fails.
 - [Writing dialogue](docs/writing/dialogue.md): how people talk, how the player talks back, and the voice sheets every speaker needs.
+- [Character lines](docs/writing/character-lines.md): every line a named person speaks comes from one codex or agy call made in that person's voice, then gets edited.
 - [Russian copy](docs/writing/russian.md): how Russian text must read, with examples and the glossary.
 
 Art and sound, in `docs/art/`:

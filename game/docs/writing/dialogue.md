@@ -1,6 +1,6 @@
 # Writing dialogue
 
-This guide covers how people in the basin talk and how the player talks back. It holds for town locals, radio calls and the spoken lines inside page scenes. [Writing quests](quests.md) covers ink, quest structure and page narration. [Voices](../lore/voices.md) keeps one sheet per speaker.
+This guide covers how people in the basin talk and how the player talks back. It holds for town locals, radio calls and the spoken lines inside page scenes. [Writing quests](quests.md) covers ink, quest structure and page narration. [Voices](../lore/voices.md) keeps one sheet per speaker. [Character lines](character-lines.md) says how each spoken line is generated from that sheet.
 
 The examples are written for ROAM. A line marked Bad is the kind of line that has shipped before and confused players.
 

@@ -7,7 +7,7 @@ This guide covers how to add a quest, change one safely and keep all quests heal
 A quest is built in three steps: play out the story behind it, write it, then playtest it with a fresh agent until every criterion scores 5 out of 5.
 
 1. Build the situation with the [Story game](../lore/story-game.md). Run a smaller pass at the quest's place and time. Agents play the people of the quest, and the earlier history stays fixed. Give the pass one question, like who drains the pump. The log gives you the factions, what each one wants, the hidden truth and the scenes. Nobody wrote that plot, so it has real twists and failures. Move new names and facts into the lore pages.
-2. Write the quest from the log with this guide and [Writing dialogue](dialogue.md). Each player in the story game becomes a person the player can meet, and the hidden truth becomes what the player can find out.
+2. Write the quest from the log with this guide and [Writing dialogue](dialogue.md). Every line a named person speaks comes from [Character lines](character-lines.md). Each player in the story game becomes a person the player can meet, and the hidden truth becomes what the player can find out.
 3. Playtest it with Codex. Run it in the background, with a log:
 
    ```
