@@ -15,6 +15,7 @@ import { renderLine, TermTip, type Reveal } from './quest-text';
 import { MONEY_STAT } from '../data/quests';
 import { UNITS } from '../data/units';
 import { token } from './tokens';
+import { uiSize } from './ui-size';
 
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
@@ -130,10 +131,11 @@ export class QuestScreen {
     this.root.addEventListener('click', (e) => this.onClick(e));
     window.addEventListener('keydown', (e) => this.onKey(e), true);
     window.addEventListener('resize', () => this.restack());
+    uiSize().subscribe(() => this.restack());
   }
 
   private restack(): void {
-    const width = window.innerWidth;
+    const width = uiSize().layerSize().width;
     if (!(width > 0)) return;
     const style = getComputedStyle(this.root);
     const frame = parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);

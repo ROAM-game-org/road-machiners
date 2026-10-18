@@ -2,6 +2,7 @@ import { TOUCH } from "../config";
 import { verbatim } from "../text/msg";
 import { el } from "./dom";
 import { token } from "./tokens";
+import { uiSize } from "./ui-size";
 
 export interface TipTarget {
   parentElement: TipTarget | null;
@@ -79,7 +80,7 @@ export function installTouchTips(root: HTMLElement, touch: () => boolean): void 
       open(content, press.x, press.y);
     }, TOUCH.longPressMs);
     press = { id: e.pointerId, x: e.clientX, y: e.clientY, target, timer, opened: false };
-  });
+  }, true);
   root.addEventListener("pointermove", (e) => {
     if (press && press.id === e.pointerId && Math.hypot(e.clientX - press.x, e.clientY - press.y) > TOUCH.slopPx) end();
   });
@@ -104,13 +105,15 @@ export function installTouchTips(root: HTMLElement, touch: () => boolean): void 
   document.addEventListener("keydown", close);
 }
 
-function placeTip(tip: HTMLElement, x: number, y: number): void {
+function placeTip(tip: HTMLElement, screenX: number, screenY: number): void {
+  const { x, y } = uiSize().layerPoint(screenX, screenY);
+  const layer = uiSize().layerSize();
   const margin = parseFloat(token("--hud-inset"));
   const lift = parseFloat(token("--btn-h-l"));
-  const box = tip.getBoundingClientRect();
-  const left = Math.min(Math.max(x - box.width / 2, margin), window.innerWidth - margin - box.width);
+  const box = uiSize().layerRect(tip);
+  const left = Math.min(Math.max(x - box.width / 2, margin), layer.width - margin - box.width);
   const above = y - lift - box.height;
-  const top = above >= margin ? above : Math.min(y + lift, window.innerHeight - margin - box.height);
+  const top = above >= margin ? above : Math.min(y + lift, layer.height - margin - box.height);
   tip.style.left = `${left}px`;
   tip.style.top = `${top}px`;
 }

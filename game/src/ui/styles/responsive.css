@@ -1,71 +1,70 @@
-@media (max-width: 720px) {
-  .speed-tip {
-    position: fixed;
-    left: var(--space-6);
-    bottom: 200px;
-  }
-  .instrument-actions {
-    flex-wrap: wrap;
-  }
-  #ui {
-    --right-column: calc(var(--dock-width) + var(--hud-inset));
-  }
-  #ui .log {
-    top: auto;
-    bottom: var(--narrow-log-bottom);
-    right: var(--hud-inset);
-    height: var(--narrow-log-height);
-  }
-  #ui .radio {
-    --radio-line: 12px;
-    --radio-lines: 4;
-    --knob-size: 22px;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-  }
-  #ui .radio-lcd {
-    font-size: var(--text-caption);
-  }
-  /* Small enough that the four knob labels keep apart on the narrow radio. */
-  #ui .knob-cell {
-    font-size: calc(var(--text-caption) - var(--space-1));
-  }
-  /* One gap above the narrow log, whose top is its bottom offset plus its height. */
-  #ui .right-dock {
-    bottom: calc(var(--narrow-log-bottom) + var(--narrow-log-height) + var(--hud-gap));
-    right: var(--hud-inset);
-  }
-  #ui:not(:has(.modal:not([style*="display: none"]))) .log.expanded {
-    width: calc(100vw - 2 * var(--hud-inset));
-    height: calc(100dvh - var(--narrow-log-bottom) - var(--hud-hover-top) - var(--hud-gap));
-  }
-  #ui .modal {
-    padding: var(--space-8) var(--space-7);
-    height: calc(100dvh - var(--narrow-modal-clearance));
-  }
-  .inv-wrap {
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-9);
-  }
-  .inv-side {
-    width: 100%;
-  }
-  .town-split {
-    grid-template-columns: 1fr;
-    grid-auto-rows: max-content;
-    overflow: auto;
-  }
-  .town-truck,
-  .town-shop {
-    overflow: visible;
-  }
-  .town-truck {
-    padding-right: 0;
-    border-right: none;
-  }
-  .modal td,
-  .modal th {
-    padding: var(--space-3) var(--space-2);
-  }
+:where(#ui.narrow) .speed-tip {
+  position: fixed;
+  left: var(--space-6);
+  bottom: 200px;
+}
+:where(#ui.narrow) .instrument-actions {
+  flex-wrap: wrap;
+}
+#ui:where(.narrow) {
+  --right-column: calc(var(--dock-width) + var(--hud-inset));
+}
+#ui:where(.narrow) .log {
+  top: auto;
+  bottom: var(--narrow-log-bottom);
+  right: var(--hud-inset);
+  height: var(--narrow-log-height);
+}
+#ui:where(.narrow) .radio {
+  --radio-line: var(--space-6);
+  --radio-lines: 4;
+  --knob-size: calc(var(--space-9) - var(--space-1));
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+#ui:where(.narrow) .radio-lcd {
+  font-size: var(--text-caption);
+}
+#ui:where(.narrow) .knob-cell {
+  font-size: calc(var(--text-caption) - var(--space-1));
+}
+#ui:where(.narrow) .right-dock {
+  bottom: calc(var(--narrow-log-bottom) + var(--narrow-log-height) + var(--hud-gap));
+  right: var(--hud-inset);
+}
+#ui:where(.narrow):not(:has(.modal:not([style*="display: none"]))) .log.expanded {
+  width: calc(var(--layer-w) - 2 * var(--hud-inset));
+  height: calc(var(--layer-h) - var(--narrow-log-bottom) - var(--hud-hover-top) - var(--hud-gap));
+}
+#ui:where(.narrow) .modal {
+  padding: var(--space-8) var(--space-7);
+  height: calc(var(--layer-h) - var(--narrow-modal-clearance));
+}
+:where(#ui.narrow) .inv-wrap {
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-9);
+}
+:where(#ui.narrow) .inv-side {
+  width: 100%;
+}
+:where(#ui.narrow) .town-split {
+  grid-template-columns: 1fr;
+  grid-auto-rows: max-content;
+  overflow: auto;
+}
+:where(#ui.narrow) .town-truck,
+:where(#ui.narrow) .town-shop {
+  overflow: visible;
+}
+:where(#ui.narrow) .town-truck {
+  padding-right: 0;
+  border-right: none;
+}
+:where(#ui.narrow) .modal td,
+:where(#ui.narrow) .modal th {
+  padding: var(--space-3) var(--space-2);
+}
+#ui:where(.narrow):has(.help) :is(.right-dock, .log) {
+  visibility: hidden;
 }
