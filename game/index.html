@@ -19,23 +19,52 @@
       </div>
     </div>
     <script>
-      // Before the game code runs, nothing else can show a load failure. The crash screen takes over once the code adopts #boot.
       (function () {
-        function failed(e) {
+        var texts = {
+          en: {
+            failedToLoad: 'The game failed to load. Check your connection and reload the page.',
+            failedToStart: 'The game could not start in this browser. Update the browser or try another one.',
+          },
+          ru: {
+            failedToLoad: 'Игра не загрузилась. Проверьте подключение и перезагрузите страницу.',
+            failedToStart: 'Игра не загрузилась. Откройте игру в другом браузере.',
+          },
+        };
+        function language() {
+          try {
+            return localStorage.getItem('roam.lang') === 'ru' ? 'ru' : 'en';
+          } catch (e) {
+            return 'en';
+          }
+        }
+        function show(key, detail) {
           var boot = document.getElementById('boot');
-          if (!boot || boot.dataset.adopted) return window.removeEventListener('error', failed, true);
-          if (!(e.target instanceof HTMLScriptElement) && !(e instanceof ErrorEvent)) return;
-          var text = 'The game failed to load. Check your connection and reload the page.';
+          if (!boot || boot.dataset.adopted) return false;
+          var text = texts[language()][key];
           boot.dataset.fonts = 'ready';
           boot.classList.add('failed');
           boot.setAttribute('aria-busy', 'false');
           boot.querySelector('.boot-stage').textContent = text;
           boot.querySelector('[role=progressbar]').setAttribute('aria-valuetext', text);
+          if (detail) {
+            var item = document.createElement('li');
+            item.textContent = detail;
+            boot.querySelector('.boot-steps').appendChild(item);
+          }
+          return true;
+        }
+        function failed(e) {
+          if (!document.getElementById('boot') || document.getElementById('boot').dataset.adopted) return window.removeEventListener('error', failed, true);
+          if (e.target instanceof HTMLScriptElement) return show('failedToLoad');
+          if (e instanceof ErrorEvent) show('failedToStart', e.message);
         }
         window.addEventListener('error', failed, true);
-        var boot = document.getElementById('boot');
-        function show() {
-          boot.dataset.fonts = 'ready';
+        window.bootNoModules = function () {
+          show('failedToStart');
+        };
+        var shell = document.getElementById('boot');
+        function revealFonts() {
+          shell.dataset.fonts = 'ready';
         }
         var mono = ["400 14px 'IBM Plex Mono'", "700 14px 'IBM Plex Mono'"];
         var english = ["400 14px 'Barlow Semi Condensed'", "700 14px 'Barlow Semi Condensed'"].concat(mono);
@@ -44,10 +73,13 @@
         try { stored = localStorage.getItem('roam.lang'); } catch (e) {}
         var faces = stored === 'ru' ? russian : english;
         var sample = stored === 'ru' ? 'Дорожные машинисты 0123456789' : 'Road Machiners 0123456789';
-        if (!document.fonts || !document.fonts.load) return show();
-        setTimeout(show, 2500);
-        Promise.all(faces.map(function (face) { return document.fonts.load(face, sample); })).then(show, show);
+        if (!document.fonts || !document.fonts.load) return revealFonts();
+        setTimeout(revealFonts, 2500);
+        Promise.all(faces.map(function (face) { return document.fonts.load(face, sample); })).then(revealFonts, revealFonts);
       })();
+    </script>
+    <script nomodule>
+      window.bootNoModules();
     </script>
     <div id="game"></div>
     <div id="overlay"></div>

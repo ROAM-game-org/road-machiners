@@ -1,6 +1,7 @@
 
 import { reportError } from './crash';
 import { slotKey, type SlotId } from './save-slots';
+import { Stalled, withinMs } from '../stall';
 
 export type LogEntry = { kind: string; turn: number } & Record<string, unknown>;
 
@@ -93,8 +94,9 @@ async function opened(name: string): Promise<IDBDatabase> {
     open.result.createObjectStore(LOG, { keyPath: ['runId', 'seq'] });
   };
   try {
-    return await request(open);
+    return await withinMs(request(open), IDB_OPEN_MS, `indexedDB.open(${name})`);
   } catch (err) {
+    if (err instanceof Stalled) open.onsuccess = () => open.result.close();
     throw new Error(`The game keeps saves in IndexedDB, and this browser refused it: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
@@ -117,6 +119,7 @@ async function written(connection: Connection, store: string, write: (store: IDB
   return done;
 }
 
+export const IDB_OPEN_MS = 5000;
 const IDB_RETRY_MS = 200;
 
 export async function openSaves(name: string, storage: Storage, slots: readonly SlotId[]): Promise<SaveSlots> {
