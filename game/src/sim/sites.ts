@@ -53,10 +53,6 @@ export function isRoadFort(site: Site): boolean {
   return FORTRESS_SITES[siteLook(site)]?.roadFort === true;
 }
 
-export function padMarked(site: Site): boolean {
-  return FORTRESS_SITES[siteLook(site)]?.padMark !== false;
-}
-
 export function sitePads(site: Site): Vec[] {
   if (isTerritory(site) || isRoadFort(site)) return [];
   if (givenGates(site)) return padsOf(site);

@@ -51,7 +51,6 @@
 ## Fortresses
 
 - `src/mapgen/fortress.ts` runs last in the bake. For each site in `FORTRESS_SITES` (`src/data/fortress.ts`) it lays a closed curtain, circle, square or bastioned trace, of props named for the site's style and the piece, 26 kinds such as `fortPumpworksWall` and `fortShipGate`. `FORT_PROPS` in `src/sim/fortress.ts` is the one table of them, and gives each kind its model. Fort props take the ordinary `<kind>-<index>` id.
-- A site with `padMark: false` in `FORTRESS_SITES` (Nose) keeps its pads but the ground shader does not paint them. `padMarked()` in `src/sim/sites.ts` is the one reader, and `padUniforms()` skips unmarked sites.
 - `FORTRESS_STYLES` gives each style its gatehouse size, its pieces and whether its gate is flush. Laying a piece a style lacks throws.
   - At the pumpworks, cistern and scrap styles (`DEEP_GATE`), each gatehouse's outer face sits on the site circle at a `siteGates()` point. A barbican joins it back to the curtain where the curtain misses it.
   - At the five flush styles (Bowl, Dustwell, Granary, Salvage Yard and Nose), the gatehouse stands in the curtain with its outer face on the curtain line, on the gate's bearing. The ground between it and the gate point is a forecourt outside the curtain.

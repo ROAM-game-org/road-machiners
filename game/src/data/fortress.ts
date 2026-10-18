@@ -5,7 +5,7 @@ export type FortressKind = 'wall' | 'tower' | 'gate' | 'inner';
 export type FortressBastions = { capitals: readonly number[]; curtain: number; salient: number; gorge: number; flank: number };
 export type FortressPit = { margin: number; terraceWidth: number; stepHeight: number; terraces: number };
 export type FortressRock = { from: number; to: number };
-export type FortressSite = { shape: FortressShape; turn: number; style: FortressStyle; bastions?: FortressBastions; roadFort?: boolean; towers?: boolean; towerEvery?: number; pit?: FortressPit; rock?: readonly FortressRock[]; padMark?: boolean };
+export type FortressSite = { shape: FortressShape; turn: number; style: FortressStyle; bastions?: FortressBastions; roadFort?: boolean; towers?: boolean; towerEvery?: number; pit?: FortressPit; rock?: readonly FortressRock[] };
 
 export type FortressGate = { width: number; depth: number; height: number };
 export type FortressStyleDef = { flush: boolean; gate: FortressGate; gateFlare: number; pieces: readonly FortressKind[] };
@@ -18,7 +18,7 @@ export const FORTRESS_SITES: Record<string, FortressSite> = {
     bastions: { capitals: [-85.34, -44.52, -3.7, 60, 128, 198], curtain: 21.5, salient: 26.75, gorge: 2.5, flank: 2.5 },
     pit: { margin: 1, terraceWidth: 1.8, stepHeight: 0.5, terraces: 4 },
   },
-  nose: { shape: 'circle', turn: 8, style: 'shipMetal', towerEvery: 3, rock: [{ from: 228, to: 352 }], padMark: false },
+  nose: { shape: 'circle', turn: 8, style: 'shipMetal', towerEvery: 3, rock: [{ from: 228, to: 352 }] },
   dustwell: { shape: 'square', turn: 45, style: 'compound' },
   'green-pit': { shape: 'circle', turn: 8, style: 'cistern' },
   'pump-station': { shape: 'square', turn: 0, style: 'pumpworks' },
