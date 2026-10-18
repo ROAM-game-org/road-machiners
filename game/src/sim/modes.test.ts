@@ -43,11 +43,13 @@ describe('game mode rules', () => {
       rules: { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true },
       kit: null,
       map: 'icarus',
+      opening: null,
     });
     expect(GAME_MODES.furyRoad).toEqual({
       rules: { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false },
       kit: 'furyRoad',
       map: 'highway',
+      opening: 'road_hire',
     });
   });
 
