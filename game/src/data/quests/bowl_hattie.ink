@@ -17,7 +17,8 @@ VAR hattie_unarmed = false
 
 === start ===
 # checkpoint: start
-Water costs, but you can afford a little talk. I hear everything in <term=bowl>Bowl</term> twice: once when it happens, once when somebody improves it.
+Parked that thing all by yourself, did you? Last one needed six of us. Sit down. I'm Hattie, I keep the well.
+This is <term=bowl>Bowl</term>. We grow grain, mend what breaks, and argue about rain. You'll hear all three from this bench.
 -> hub
 
 = hub

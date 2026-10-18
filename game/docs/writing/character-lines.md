@@ -13,6 +13,7 @@ English goes to codex and Russian goes to agy. Claude never writes a character l
 - English: pipe the prompt to `codex exec -s read-only --skip-git-repo-check --ephemeral -o <out file> -`.
 - Russian: `agy --dangerously-skip-permissions -p "<prompt>"`. [Russian copy](russian.md) has the model flags.
 - Check the exit code of every call. A failed call writes nothing, and agy can hit a quota that lasts days. Report the lines that are missing, and never fill them in by hand.
+- A reply of more than one sentence is built one sentence at a time. Each call asks for one sentence on one small topic, and its Context ends with "She has said so far:" and the sentences already chosen. Pick the best take of each sentence before you ask for the next. A call that is asked for a whole speech gives a long, rambling monologue with invented details.
 - Independent lines can run in parallel. Keep scratch prompts and outputs in `tmp/`.
 
 ## The prompt
@@ -33,7 +34,7 @@ Fill each part like this.
 
 - Game line: one short sentence on what the game is, the same for every call, like "ROAM is a post-apocalyptic RPG where you drive an armed truck". It never says how people talk, what tone to use or what the economy is. Style belongs to the character part only, because any style words here reach every character and make them sound alike.
 - Character: copy the person's sheet from [Voices](../lore/voices.md), and the aspects from [Characters](../lore/characters.md) when they have an entry. Add one or two sample lines taken from the person's sheet, never ones you wrote. For Russian, say to reply in Russian and paste the names from the glossary in [Russian copy](russian.md).
-- Context: only what the character knows at this moment, and the question the player asked. No plot, no other branches, no game words.
+- Context: only what the character knows at this moment. When the character answers the player, put the player's question in Context word for word, as the player saw it. No plot, no other branches, no game words.
 - What to speak about: the topic in one plain sentence, like "Greet the driver and introduce herself. Introduce them to Bowl." Never put phrases, jokes, images or the old line in it, because every word you give is a word the character did not choose. Give a fact only when the line must carry it, and state the fact flat. Do not ask for a length.
 
 ## Keep voices apart
