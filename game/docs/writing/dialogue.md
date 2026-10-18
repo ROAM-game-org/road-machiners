@@ -1,6 +1,6 @@
 # Writing dialogue
 
-This guide covers how people in the basin talk and how the player talks back. It holds for town locals, radio calls and the spoken lines inside page scenes. [Writing quests](quests.md) covers ink, quest structure and page narration. [Voices](../lore/voices.md) keeps one sheet per speaker.
+This guide covers how people in the basin talk and how the player talks back. It holds for town locals, radio calls and the spoken lines inside page scenes. [Writing quests](quests.md) covers ink, quest structure and page narration. [Voices](../lore/voices.md) keeps one sheet per speaker. [Character lines](character-lines.md) says how each spoken line is generated from that sheet.
 
 The examples are written for ROAM. A line marked Bad is the kind of line that has shipped before and confused players.
 
@@ -70,7 +70,7 @@ Rough people swear plainly and without heat, the way they'd mention the wind. Sw
 
 ### Competence shows in small checks
 
-Show skill as habit. A veteran checks both gun pins at every stop, counts their knives before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
+Show skill as habit. A veteran checks the tires and belts at every stop, counts their knives before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
 
 "The old one takes a casual step to the side, out of your sight. Figures how he lived this long."
 
@@ -98,7 +98,7 @@ End a scene on a dry, small line, often the next chore or a flat joke. Never end
 
 Write their voice sheet in [Voices](../lore/voices.md) first. A sheet answers five questions.
 
-1. What one speech rule shows in every line they say? Kovac states one fact, then what follows from it. Hattie names her source, then doubts it. Ruben winds through water and his grandmother before he lands.
+1. What one speech rule shows in every line they say? Kovac states one fact, then what follows from it. Hattie asks where you came from, then tells you the plain truth. Ruben winds through water and his grandmother before he lands.
 2. What do they want from the player? A stranger is a buyer, a pair of hands, a witness, a messenger or a risk. A person with nothing to want has nothing to say.
 3. What do they notice first about the player? It is the most visible thing: a battered truck, a Nose seal on the door, a stranger towed in on a chain, a name on someone's list.
 4. How long do their sentences run? A boaster runs long. A veteran runs short. A frightened clerk starts sentences and abandons them.
@@ -114,7 +114,7 @@ The player asks "Is the north road safe?"
 
 Kovac: "No. Kiln riders work it past the second ridge. Go in daylight, and log out with me first, so somebody knows where to look for you."
 
-Hattie: "Safe? My cousin drove it last week and came back with all his teeth, so somebody must think so. Mind, he came back without his spare wheel."
+Hattie: "Safe enough till the culvert, then I hear there's shooting, so turn that fine truck round if you hear it too."
 
 Ruben: "Safe is a word for a canal with good walls, and the north road has no walls at all. Go early, while the dust is still lying down. You'll see anyone coming from a long way off."
 
@@ -154,13 +154,13 @@ A world fact comes up as part of what the speaker wants: a complaint, a price, a
 
 Bad: "Pierce Corporation insures trucks and lends money to the towns."
 
-Good, a Granary driver: "Pierce wouldn't pay when my axle went. They're the insurers at Nose. They take your coin every season, and when my truck broke they found a reason: my gun ring had only one pin."
+Good, a Granary driver: "Pierce wouldn't pay when my axle went. They're the insurers at Nose. They take your coin every season, and when my truck broke they found a reason: I had pulled my gun off the bed to save weight."
 
 People live inside the basin's facts. Guns on every truck, the Kiln fee and the Senate are old and ordinary to them. Nobody announces them.
 
 Bad: "Every truck carries a gun now."
 
-Good: "Check your pins before the bend. A loose ring will swing your own gun into the cab."
+Good: "Check your brake rod before the bend. A cheap one snaps, and then nothing slows you."
 
 ### Explain local words in the same answer
 
@@ -218,7 +218,7 @@ Each choice changes what Bo says next. None of them is a test with a right answe
 
 ### Exits and actions
 
-The way out is always there. It can be plain, like "[Goodbye.]", or in the moment, like "[Leave him to his pins.]". An action the player does instead of saying uses a bracketed verb, like "[Put the brass on the table.]".
+The way out is always there. It can be plain, like "[Goodbye.]", or in the moment, like "[Leave him to his tires.]". An action the player does instead of saying uses a bracketed verb, like "[Put the brass on the table.]".
 
 ## Dodges, lies and refusals
 

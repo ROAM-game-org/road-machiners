@@ -3,6 +3,7 @@ import { publicUrl } from '../public-url';
 export type QuestArt = { file: string; focusX: number };
 
 export const QUEST_ART: Record<string, QuestArt> = {
+  arrival_dream: { file: 'arrival_dream.webp', focusX: 50 },
   arrival_rim: { file: 'arrival_rim.webp', focusX: 30 },
   arrival_house: { file: 'arrival_house.webp', focusX: 50 },
   arrival_pickup: { file: 'arrival_pickup.webp', focusX: 35 },

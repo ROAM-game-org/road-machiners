@@ -6,9 +6,16 @@ VAR arrival_rope = false
 
 === start ===
 # checkpoint: start
-The canteen has been empty since dawn. You shake it by your ear anyway, as if the water might be hiding in there. It isn't. # place: The rim # img: arrival_rim
-You have walked since the stars were out, and the sun has been burning through the cloth on your head since it came up. Walking east was stupid. Not that the west had anything better. Your shirt is stiff with salt, and your lips have split at the corners, and you try not to lick them, because that only makes it worse.
-The rock you have been climbing all morning ends at an edge. Below it lies a basin so wide that the far side is only a paler line in the haze. # page
+Spiral. # place: Feverish dream # img: arrival_dream
+Cry.
+Race.
+Exodus.
+Chaos.
+Forsaken.
+You wake with a jerk, your cheek on hot stone. A fever dream, and the old words from when you were small, going round and round. They fade before you can hold on to them. # page # place: The rim # img: arrival_rim
+The canteen has been empty since dawn. You shake it by your ear anyway, as if the water might be hiding in there. It isn't.
+You walked from the time the stars were out until the sun was too high to bear, then crawled under this ledge to wait out the worst of it. Walking east was stupid. Not that the west had anything better. Your shirt is stiff with salt, and your lips have split at the corners, and you try not to lick them, because that only makes it worse.
+You get up before your legs can argue. The rock you climbed all morning ends a few steps on, at an edge. Below it lies a basin so wide that the far side is only a paler line in the haze. # page
 To the north a thin line might be a road. Past it, something in the haze might be a town, or might be the heat playing tricks again. It has done that twice today.
 At the foot of the slope stands a water tower over a few roofs. No smoke, and nothing moves. But a tower means a well. Or it used to.
 You go down sideways, heels dug in, and the stones slide out from under your boots and clatter away ahead of you. # page
@@ -57,7 +64,7 @@ You put it in your shirt and go out to the shed.
 # checkpoint: start.shed
 Under the fallen roof sheet, in the shade, sits a pickup. # page # place: The farm # img: arrival_pickup
 It's old and square, the kind of truck that outlives its owners. The sun has bleached the paint to the color of sand, and rust shows through it in patches. Bars are welded over the windows, and a heavy grille guard covers the lamps. The tires are soft but whole. A few empty cans roll around in the bed.
-A machine gun stands on a turning mount on the hood, its barrel wrapped in rag against the dust. Two steel pins lock the mount. One pin is bright and new and the other worn dull. Somebody replaced one and never got round to the other.
+A machine gun stands on a turning mount on the hood, its barrel wrapped in rag against the dust. One heavy bolt locks the mount, its head gone brown with rust.
 The hinge shrieks when you pull the door, and something small scrabbles out from under the bed. The cab smells of engine oil and old cigarettes. And the key is in the ignition. Just sitting there, with a brass tag on its ring, like somebody stepped out for a minute and meant to come right back.
 Then you see the driver's seat, and you forget about the key. # page # img: cab_link
 It is deep and padded in dark leather. Down the middle of the backrest runs a row of small pale knobs, each with a gold dot in its center, right where a spine would lie. At the top they run up into a hard headrest of pale ceramic and dark metal. Where the back of a driver's skull would rest, it holds a round plug ringed with fine gold pins. Two hinged metal clamps stand open on either side of it, for the neck. Braided cables run out of the back of it and down through the floor.

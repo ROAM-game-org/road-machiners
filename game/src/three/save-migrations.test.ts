@@ -1649,3 +1649,83 @@ describe('save migration 77 to 78', () => {
     expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
   });
 });
+
+describe('save migration 78 to 79', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: unknown };
+  type Saved = { player: { quests: Quests; notes: { id: string; turn: number }[] } };
+  const saved = (quests: Partial<Quests>, notes: { id: string; turn: number }[]): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    world.player.notes = notes;
+    return world;
+  };
+  const stepped = (world: Saved) => MIGRATIONS[78](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('moves the wagon half from wagon_pin to wagon_rod and Lena\'s asked mark to asked_rods, keeping their values', () => {
+    const before = saved(
+      { world: { wagon_seen: true, wagon_pin: 'held', wagon_fate: 'none' }, local: { nose_lena: { heard_swivel: true, asked_pins: true, heard_brann: true } }, session: { quest: 'wagon_bench', checkpoint: 'bench.report', seed: 17 } },
+      [{ id: 'wagonBowl', turn: 3 }, { id: 'wagonPin', turn: 40 }, { id: 'talkOnePin', turn: 41 }],
+    );
+
+    const next = stepped(before);
+
+    expect(next.player.quests).toEqual({
+      world: { wagon_seen: true, wagon_rod: 'held', wagon_fate: 'none' },
+      local: { nose_lena: { heard_swivel: true, asked_rods: true, heard_brann: true } },
+      session: { quest: 'wagon_bench', checkpoint: 'bench.report', seed: 17 },
+    });
+    expect(next.player.notes).toEqual([{ id: 'wagonBowl', turn: 3 }, { id: 'wagonRod', turn: 40 }, { id: 'talkBrakeRod', turn: 41 }]);
+  });
+
+  it('leaves a save that never found the wagon as it was', () => {
+    const before = saved({ world: { intro_step: 'done' } }, [{ id: 'greenPit', turn: 5 }]);
+    expect(stepped(before)).toEqual(before);
+  });
+
+  it('changes nothing else', () => {
+    const before = saved({ world: { wagon_pin: 'bent' } }, [{ id: 'wagonPin', turn: 9 }]);
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests, notes: before.player.notes } }).toEqual(before);
+  });
+});
+
+describe('save migration 79 to 80', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: unknown };
+  type Saved = { player: { quests: Quests } };
+  const saved = (quests: Partial<Quests>): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: Saved) => MIGRATIONS[79](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('drops the Varga truck mark and Hattie\'s Varga questions, keeping her other answers and an open talk', () => {
+    const before = saved({
+      world: { towed_to_bowl: true, varga_truck_known: true, hattie_met: true },
+      local: { bowl_hattie: { hattie_tow: true, hattie_varga: true, hattie_farm: true, hattie_rumor: true } },
+      session: { quest: 'bowl_hattie', checkpoint: 'start.hub', seed: 4 },
+    });
+
+    expect(stepped(before).player.quests).toEqual({
+      world: { towed_to_bowl: true, hattie_met: true },
+      local: { bowl_hattie: { hattie_tow: true, hattie_rumor: true } },
+      session: { quest: 'bowl_hattie', checkpoint: 'start.hub', seed: 4 },
+    });
+  });
+
+  it('removes a Hattie entry that held only the Varga questions', () => {
+    const before = saved({ local: { bowl_hattie: { hattie_varga: true } } });
+    expect(stepped(before).player.quests.local).toEqual({});
+  });
+
+  it('leaves a save that never asked about the Vargas as it was', () => {
+    const before = saved({ world: { intro_step: 'done' }, local: { bowl_hattie: { hattie_rumor: true } } });
+    expect(stepped(before)).toEqual(before);
+  });
+
+  it('changes nothing else', () => {
+    const before = saved({ world: { varga_truck_known: true } });
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});

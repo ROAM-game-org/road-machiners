@@ -1,6 +1,6 @@
 
 export const NOTE_IDS = [
-  'wagonBowl', 'wagonNose', 'wagonRoad', 'wagonDag', 'wagonPin', 'wagonFound', 'greenPit', 'glassTank', 'burntConvoy',
+  'wagonBowl', 'wagonNose', 'wagonRoad', 'wagonDag', 'wagonRod', 'wagonFound', 'greenPit', 'glassTank', 'burntConvoy',
   'talkGranaryGate',
   'talkSeepPipe',
   'talkConvoyNotClean',
@@ -9,7 +9,7 @@ export const NOTE_IDS = [
   'talkGlassLean',
   'talkSunwardTake',
   'talkKilnFight',
-  'talkOnePin',
+  'talkBrakeRod',
   'talkArmyStarved',
   'talkCommitteeRent',
   'pipeBook', 'pipeDraw', 'pipeOffer', 'pipeCanal',

@@ -1,7 +1,7 @@
 INCLUDE world.ink
 
 VAR heard_swivel = false
-VAR asked_pins = false
+VAR asked_rods = false
 VAR heard_brann = false
 VAR asked_brann = false
 VAR heard_kiln = false
@@ -27,7 +27,7 @@ VAR asked_glare = false
   I keep the Army's trucks running. Anybody else's too, if they bring them to my bench. Engines, plate, mounts, whatever breaks. I can tell what's wrong with a truck by the sound of it pulling in.
   -> hub
 + [Any advice for my truck?]
-  Every part does one job and fails at another. Heavy plate stops rounds, but it eats your speed. A big gun eats your deck on top of that. So buy what the road needs, not what shines on the shelf. And if you've got a gun on a swivel, look at the pins first. The swivel's the ring that swings the gun across your bed.
+  Every part does one job and fails at another. Heavy plate stops rounds, but it eats your speed. A big gun eats your deck on top of that. So buy what the road needs, not what shines on the shelf. And before you look at your guns, look at your brake rods.
   ~ heard_swivel = true
   -> hub
 + [Where do I find cheap parts?]
@@ -38,10 +38,10 @@ VAR asked_glare = false
   Green Pit, out past the road. It's a pump outpost round an old cistern, and they pull the water up from deep rock and sell it by the can. It's clean, and it isn't cheap. Bring M's.
   ~ note("greenPit")
   -> hub
-+ {heard_swivel and not asked_pins} [Why look at the pins?]
-  Because the copy they bolt on at the gate has one. I've seen what one does on a hard bend. The mount slides and the gun swings round into your own cab. Otto Brann made the first swivel. He gave his a second pin. He was right, and I told command so. Nobody asks a mechanic.
-  ~ note("talkOnePin")
-  ~ asked_pins = true
++ {heard_swivel and not asked_rods} [Why the brake rods?]
+  Because command bought cheap ones for the depot trucks, and I fit them by order. I've seen what one does on a hard bend. It snaps, the pedal goes to the floor, and the truck goes where the road doesn't. Otto Brann, who made the first swivel, forges his rods twice as thick. He was right, and I told command so. Nobody asks a mechanic.
+  ~ note("talkBrakeRod")
+  ~ asked_rods = true
   ~ heard_brann = true
   -> hub
 + {heard_brann and not asked_brann} [Do you trust Brann's mounts?]
@@ -62,7 +62,7 @@ VAR asked_glare = false
   Lenses cut from the fused glass, dark as smoke. I wear an old pair on bad days. I don't know who sells them now.
   ~ asked_glare = true
   -> hub
-+ {wagon_pin != "none" and wagon_fate == "none"} [I brought something from wagon Seven.]
++ {wagon_rod != "none" and wagon_fate == "none"} [I brought something from wagon Seven.]
   ~ begin("wagon_bench")
   -> END
 + [Goodbye.]
