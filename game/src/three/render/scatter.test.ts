@@ -34,6 +34,14 @@ for (const o of world.obstacles) {
 }
 
 describe('scatterPlacements', () => {
+  it('centres every chunk inside the map, also when the map is not a whole number of chunks', () => {
+    expect(t.size % 32).not.toBe(0);
+    for (const c of chunks) {
+      expect(c.center.x).toBeLessThanOrEqual(t.size);
+      expect(c.center.y).toBeLessThanOrEqual(t.size);
+    }
+  });
+
   it('keeps scatter off roads and away from obstacles', () => {
     expect(placed.length).toBeGreaterThan(1000);
     for (const p of placed) expect(roadDist(at(p).x, at(p).y)).toBeGreaterThanOrEqual(ROAD_GAP);

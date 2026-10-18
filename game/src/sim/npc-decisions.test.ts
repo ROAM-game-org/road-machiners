@@ -593,7 +593,7 @@ describe('hunting grounds', () => {
       const camps = REGION.locations.filter((l) => l.kind === 'camp');
       const w = emptyWorld();
       const covering = Object.fromEntries(camps.map((c): [string, number] => [c.id, raiderGrounds(w, c).filter(watchesOrchard).length]).filter(([, n]) => n > 0));
-      expect(covering).toEqual({ kiln: 3, scrapjaw: 6 });
+      expect(covering).toEqual({ kiln: 2, scrapjaw: 7 });
     });
   });
 

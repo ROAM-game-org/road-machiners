@@ -14,6 +14,8 @@ import { dist, polylineDist, type Vec } from '../sim/vec';
 import { BUILT_CANAL, BUILT_GLASS, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, newWorldLayer } from './newworld';
 import { BUILT_FIELD, BUILT_OLD_ROAD, oldWorldLayer, tilesWithin } from './oldworld';
 import { fortressLayer } from './fortress';
+import { stampTerritoryGround } from './ground-stamps';
+import { keepStartClear } from './start-ground';
 import { roadsideLayer } from './roadside';
 import { territoryLayer } from './territory';
 import { cornerNeighbors, geologyLayer, pondDepths, type Neighbors } from './geology';
@@ -24,12 +26,14 @@ export function bakeMap(seed: number): MapDraft {
   d = timed('ground', () => groundLayer(seed, d));
   d = timed('rocks', () => rockLayer(seed, d));
   d = timed('fortresses', () => fortressLayer(d));
+  d = timed('start', () => keepStartClear(d));
   return timed('roadside', () => roadsideLayer(seed, d));
 }
 
 export function groundForTerritories(seed: number): MapDraft {
   let d = timed('base', () => baseLayer(seed, REGION.size));
   d = timed('geology', () => geologyLayer(seed, d));
+  d = timed('territory ground', () => stampTerritoryGround(d));
   d = timed('finish', () => finishLayer(seed, d));
   d = timed('old world', () => oldWorldLayer(seed, d));
   return timed('new world', () => newWorldLayer(seed, d));

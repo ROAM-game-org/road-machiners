@@ -19,7 +19,7 @@ type Bump = { a: string; b: string; impact: number };
 
 const MEETING_TURNS = 12;
 const OVERTAKE_GAP = 6;
-const START_SEARCH = 16;
+const START_SEARCH = 40;
 const MIN_BACK = 6;
 
 function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {

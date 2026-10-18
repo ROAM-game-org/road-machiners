@@ -449,8 +449,9 @@ describe('landmark scale', () => {
     const rockBoxes = noseRocks(nose).flatMap((p, k) => propBoxes(propObstacle(p, k)));
     const inRise = (p: { x: number; y: number }) => rockBoxes.some((b) => boxDistance(b, p) === 0);
     const interior: { x: number; y: number; u: number; v: number }[] = [];
-    for (let x = Math.floor(nose.pos.x - nose.radius); x <= nose.pos.x + nose.radius; x++) {
-      for (let y = Math.floor(nose.pos.y - nose.radius); y <= nose.pos.y + nose.radius; y++) {
+    const lattice = { x: nose.pos.x - Math.floor(nose.pos.x), y: nose.pos.y - Math.floor(nose.pos.y) };
+    for (let x = Math.floor(nose.pos.x - nose.radius) + lattice.x; x <= nose.pos.x + nose.radius; x++) {
+      for (let y = Math.floor(nose.pos.y - nose.radius) + lattice.y; y <= nose.pos.y + nose.radius; y++) {
         if (insideCurtain(nose, { x, y }, 1)) interior.push({ x, y, ...toFrame({ x, y }) });
       }
     }

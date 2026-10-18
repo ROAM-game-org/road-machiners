@@ -36,7 +36,7 @@ describe('vision', () => {
 
   it('sees behind a rock within the close radius', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30.5 }, r: 0.6, kind: 'rock' }];
+    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30.5 }, r: 1.2, kind: 'rock' }];
     const vis = visibleTiles(w, { x: 30, y: 30.5 });
     expect(vis.has(30 * w.size + 32)).toBe(true);
     expect(vis.has(30 * w.size + 35)).toBe(false);
@@ -44,7 +44,7 @@ describe('vision', () => {
 
   it('lets an NPC see a vehicle behind a rock within the close radius', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30 }, r: 0.6, kind: 'rock' }];
+    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30 }, r: 1.2, kind: 'rock' }];
     const npc = { ...w.vehicles[0], id: 'npc', pos: { x: 30, y: 30 } };
     expect(canVehicleSee(w, npc, { x: 32.5, y: 30 })).toBe(true);
     expect(canVehicleSee(w, npc, { x: 35.5, y: 30 })).toBe(false);

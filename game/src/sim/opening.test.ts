@@ -19,7 +19,8 @@ import type { GridItem, PartInstance, World } from './types';
 import { dist } from './vec';
 import { playerSees } from './vision';
 import { maxHp } from './wear';
-import { carriedWorld, endTurn, newWorld, startPose } from './world';
+import { carriedWorld, endTurn, newWorld } from './world';
+import { startPose } from './start-pose';
 
 const KIT = startKit('standard');
 

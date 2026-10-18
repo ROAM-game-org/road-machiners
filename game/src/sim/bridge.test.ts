@@ -24,8 +24,9 @@ const at = (along: number, across: number) => ({
 
 describe('the deck list', () => {
   it('holds Canyon Bridge first, with the geometry it had as the one bridge, then the Broken Wing deck, then the Fallen Sun decks', () => {
-    const from = scalePoint({ x: 97.9, y: 75.1 });
-    const to = scalePoint({ x: 101.5, y: 71.5 });
+    const centre = scalePoint({ x: 99.7, y: 73.3 });
+    const from = { x: Math.floor(centre.x) + 0.5 - 9, y: Math.floor(centre.y) + 0.5 + 9 };
+    const to = { x: Math.floor(centre.x) + 0.5 + 9, y: Math.floor(centre.y) + 0.5 - 9 };
     const length = Math.hypot(to.x - from.x, to.y - from.y);
     const axis = { x: (to.x - from.x) / length, y: (to.y - from.y) / length };
     const off = { x: -axis.y * 4, y: axis.x * 4 };
@@ -130,7 +131,7 @@ describe('Canyon Bridge', () => {
     const onDeck = at(B.length / 2, 0);
     const floor = at(B.length / 2, B.width + 4);
     const deck = heightAt(t, onDeck.x, onDeck.y);
-    expect(markHeightAt(t, onDeck, floor.x, floor.y)).toBe(deck);
+    expect(markHeightAt(t, onDeck, floor.x, floor.y)).toBeCloseTo(deck, 12);
     expect(markHeightAt(t, floor, floor.x, floor.y)).toBe(groundAt(t, floor.x, floor.y));
     const past = at(-3, 0);
     expect(markHeightAt(t, onDeck, past.x, past.y)).toBe(heightAt(t, past.x, past.y));

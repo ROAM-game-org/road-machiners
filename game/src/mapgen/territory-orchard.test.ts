@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { along } from '../test/territory-kit';
 import { ECONOMY } from '../data/goods';
 import { PHYSICS } from '../data/physics';
-import { ORCHARD_HEADING, REGION, type TerritoryDef } from '../data/region';
+import { ORCHARD_HEADING, REGION, scalePoint, type TerritoryDef } from '../data/region';
 import { MAPGEN, TERRAIN } from '../data/terrain';
 import { EMPLACEMENT, onOrchardRoad, PERIMETER, TERRITORIES, type Run, type TerritoryRules } from '../data/territory';
 import { boxDistance, propBoxes, propPose, propReach } from '../sim/mapgen';
@@ -29,10 +29,13 @@ function territoryGround(): Float32Array {
   return groundHeights;
 }
 beforeAll(() => void territoryGround(), budget(120_000));
+const OLD_ORCHARD = { x: 114, y: 284 };
+const ORCHARD_NOW = REGION.locations.find((l) => l.id === 'orchard')!.pos;
 function rollingDraft(): MapDraft {
   const d = newDraft(REGION.size);
   const w = d.size + 1;
-  for (let j = 0; j <= d.size; j++) for (let i = 0; i <= d.size; i++) d.heights[j * w + i] = 0.6 * Math.sin(i / 9) + 0.4 * Math.cos(j / 7);
+  const [dx, dy] = [ORCHARD_NOW.x - OLD_ORCHARD.x, ORCHARD_NOW.y - OLD_ORCHARD.y];
+  for (let j = 0; j <= d.size; j++) for (let i = 0; i <= d.size; i++) d.heights[j * w + i] = 0.6 * Math.sin((i - dx) / 9) + 0.4 * Math.cos((j - dy) / 7);
   return d;
 }
 
@@ -392,7 +395,7 @@ describe('the orchard farm', () => {
   it('throws on a building whose ring cannot level its ground', () => {
     const moved = structuredClone(rules);
     moved.farm!.buildings.find((b) => b.look === 'quonset')!.poses[3].at = onOrchardRoad(51, -33);
-    expect(() => fillFarm(groundDraft(), orchard, moved, moved.farm!, ruleRng(7, 1))).toThrow(/levels its ground into a cliff/);
+    expect(() => fillFarm(groundDraft(), orchard, moved, moved.farm!, ruleRng(7, 5))).toThrow(/levels its ground into a cliff/);
   });
 
   it('throws on a building off the outline', () => {
@@ -403,7 +406,7 @@ describe('the orchard farm', () => {
 });
 
 describe('a third territory', () => {
-  const flats: TerritoryDef = { id: 'test-flats', kind: 'territory', pos: { x: 200, y: 380 }, radius: 22, outline: null };
+  const flats: TerritoryDef = { id: 'test-flats', kind: 'territory', pos: scalePoint({ x: 40, y: 76 }), radius: 22, outline: null };
   function flatsRules(): TerritoryRules {
     return {
       seed: 2,

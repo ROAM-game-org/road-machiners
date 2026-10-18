@@ -5,6 +5,7 @@ import { TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { dist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 import { BUILT_SCRUB } from './newworld';
+import { onReservedGround } from './start-ground';
 import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, RoadLine, clearGround, facing, offset, prop, roadJunctions, ruleRng, sideOf, stations, tileCenter, tileOf, tilesWithin } from './oldworld';
 
 const R = ROADSIDE;
@@ -29,6 +30,7 @@ type Fit = { ground: 'dry' | 'bank' | 'free'; roadGap: number };
 class Placer {
   readonly counts: Record<Group, number> = { signs: 0, boards: 0, barrels: 0, heaps: 0, trees: 0 };
   private readonly buckets = new Map<number, BakedProp[]>();
+  private readonly added = new Map<string, BakedProp[]>();
   private readonly allowed: ReadonlySet<number>;
   private readonly widest: number;
 
@@ -42,18 +44,42 @@ class Placer {
     if (!this.fits(p, fit)) return false;
     this.d.props.push(p);
     this.index(p);
+    this.addedOf(p.kind).push(p);
     this.counts[group]++;
     return true;
   }
 
   private fits(p: BakedProp, fit: Fit): boolean {
     const d = this.d;
-    if (!clearGround(d.size, p.pos, p.r, fit.roadGap)) return false;
-    const tiles = [tileOf(d.size, p.pos), ...tilesWithin(d.size, p.pos, p.r)];
-    if (tiles.some((k) => !OPEN_BUILT.includes(d.built[k]) || !this.allowed.has(d.types[k]))) return false;
-    if (tileSteepness(d.heights, d.size, tiles[0]) > SLOPE_LIMIT) return false;
-    if (!this.onBank(tiles[0], fit)) return false;
-    return this.around(p.pos, p.r + GAP + this.widest).every((o) => dist(o.pos, p.pos) >= o.r + p.r + GAP);
+    if (!clearGround(d.size, p.pos, p.r, fit.roadGap) || onReservedGround(p.pos, p.r)) return false;
+    return this.groundFits([tileOf(d.size, p.pos), ...tilesWithin(d.size, p.pos, p.r)], fit) && this.clearOfProps(p) && !this.formsRow(p);
+  }
+
+  private addedOf(kind: string): BakedProp[] {
+    let list = this.added.get(kind);
+    if (!list) this.added.set(kind, (list = []));
+    return list;
+  }
+
+  private groundFits(tiles: readonly number[], fit: Fit): boolean {
+    return this.openGround(tiles) && !this.tooSteep(tiles[0]) && this.onBank(tiles[0], fit);
+  }
+
+  private openGround(tiles: readonly number[]): boolean {
+    return tiles.every((k) => OPEN_BUILT.includes(this.d.built[k]) && this.allowed.has(this.d.types[k]));
+  }
+
+  private tooSteep(tile: number): boolean {
+    return tileSteepness(this.d.heights, this.d.size, tile) > SLOPE_LIMIT;
+  }
+
+  private clearOfProps(p: BakedProp): boolean {
+    return this.around(p.pos, p.r + GAP + this.widest).every((o) => dist(o.pos, p.pos) >= o.r + p.r + GAP + R.propGapSlack);
+  }
+
+  private formsRow(p: BakedProp): boolean {
+    const alike = this.addedOf(p.kind).filter((o) => turnGap(o.yaw, p.yaw) <= R.rowGuard.turn);
+    return alike.some((a, i) => alike.slice(i + 1).some((b) => turnGap(a.yaw, b.yaw) <= R.rowGuard.turn && lineGap(a.pos, b.pos, p.pos) <= R.rowGuard.line));
   }
 
   private onBank(tile: number, fit: Fit): boolean {
@@ -78,6 +104,15 @@ class Placer {
     if (list) list.push(p);
     else this.buckets.set(k, [p]);
   }
+}
+
+function turnGap(a: number, b: number): number {
+  const d = (2 * (a - b)) % TURN;
+  return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) / 2;
+}
+
+function lineGap(a: Vec, b: Vec, c: Vec): number {
+  return Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / dist(a, b);
 }
 
 function key(x: number, y: number): number {

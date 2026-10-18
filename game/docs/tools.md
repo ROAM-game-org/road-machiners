@@ -26,6 +26,7 @@ These commands drive headless Chromium. All but `boot:time` and `perf` need the 
 - `TEST_SUITE_MINUTES` stops a `test:cached` run that runs longer and fails it with its slowest finished files. The full suite on GitHub Actions sets 20.
 - `TEST_WORKERS=<n>` sets how many workers Vitest runs at once. The default is one per CPU, up to 6. The value must be a whole number of 1 or more.
 - The full suite keeps its run time down by sharing setup between tests. A Vitest global setup builds the empty test world once per run and `emptyWorld()` copies it. Tests that need a full start world call `standardWorld(seed)` or `reusedWorld(key, build)` from `src/test/world-cache.ts`, which build it once per file and hand out copies. Copy worlds with `cloneWorld`, never `structuredClone`, so a frozen terrain stays shared and its nav layers are not rebuilt each turn. `editableTerrain()` returns a frozen terrain object whose `heights` and `types` arrays a test can still edit in place.
+- The runner in `src/test/settled-runner.ts` waits for Vitest's pending status replies before each hook and each test. A synchronous stretch over 60 s that starts while a reply is pending times out Vitest's worker RPC, even when the reply came back at once.
 - `npm run test:cached -- --cache <dir> [test files]` is in [CLAUDE.md](../CLAUDE.md).
 
 ## Progression bots
