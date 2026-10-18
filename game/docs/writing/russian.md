@@ -82,6 +82,12 @@ Good lines to match:
 
 ## Glossary
 
+- Spiral: Спираль.
+- Cry: Крик.
+- Race: Гонка.
+- Exodus: Исход.
+- Chaos: Хаос.
+- Forsaken: Покинутые.
 - truck: грузовик. Car, when the English says car: машина.
 - raider: рейдер. Scavenger: мусорщик. Vulture: стервятник. Roamer: бродяга. Trader: торговец.
 - scrap: лом. Scrap metal: металлолом. Wreck: обломки. Loot: добыча.

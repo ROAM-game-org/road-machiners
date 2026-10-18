@@ -152,5 +152,5 @@ export const STORY = {
   'term.old_army': 'The army that stood between Nose and Bowl after their war and kept the roads. It is gone now, and its trucks still stand where they stopped.',
   'term.guild': 'The Guidestar Guild carries messages across the basin, by courier and by radio relay, for a fee. It serves every side.',
   'term.old_world': 'The world before it fell apart. Its roads, canals and ruins are still here, and nobody can build like them now.',
-  'term.chaos': 'The long age of war and collapse that ended the Old World. Nobody alive saw how it began.',
+  'term.chaos': 'The long age of war after the Exodus, when the world was made again in fire and blood. Nobody alive saw how it began.',
 };
