@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
 import { clickOrder } from './steering';
-import { canUseSite, edgeCrossings, isInTerritory, isNearOutpost, nearestPad, OUTPOSTS, siteEdgeCrossings, siteGap, siteGates, sitePads, siteUnder } from './sites';
+import { canUseSite, edgeCrossings, isInTerritory, isNearOutpost, nearestPad, OUTPOSTS, siteEdgeCrossings, siteGap, siteGates, padMarked, sitePads, siteUnder } from './sites';
 import { dist } from './vec';
 import { icarusAtlas } from './atlas';
 import { TEST_MAP } from '../test/map';
@@ -169,5 +169,14 @@ describe('site edges', () => {
     const small = { ...orchard, radius: Math.hypot(5, 5), outline: square };
     expect(siteGap(small, orchard.pos)).toBeCloseTo(-5, 9);
     expect(siteGap(small, { x: orchard.pos.x + 8, y: orchard.pos.y })).toBeCloseTo(3, 9);
+  });
+});
+
+describe('pad marks', () => {
+  it('are painted at every site but Nose, whose pad still works', () => {
+    const nose = REGION.towns.find((t) => t.id === 'nose')!;
+    expect(padMarked(nose)).toBe(false);
+    expect(padMarked(REGION.towns[0])).toBe(true);
+    expect(sitePads(nose).length).toBeGreaterThan(0);
   });
 });

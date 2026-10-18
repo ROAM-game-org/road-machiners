@@ -5,7 +5,7 @@ import { REGION } from "../../data/region";
 import { TERRAIN_TYPES } from "../../data/terrain";
 import { desertWeight, glassField, lookTypes, ROAD_PLAIN, ROAD_SAND, type PaintCanvas } from "../../render/groundPaint";
 import { atlasOf, atlasSites, type Atlas } from "../../sim/atlas";
-import { sitePads } from "../../sim/sites";
+import { padMarked, sitePads } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
 import { mix, PAL } from "../../render/palette";
 import { HIGHWAY } from "../../data/modes";
@@ -295,7 +295,7 @@ function roadHoles(t: Terrain): RoadHole[] {
 function padUniforms(atlas: Atlas, pixel: number) {
   const centers: THREE.Vector2[] = [];
   const axes: THREE.Vector2[] = [];
-  for (const site of atlasSites(atlas))
+  for (const site of atlasSites(atlas).filter(padMarked))
     for (const pad of sitePads(site)) {
       centers.push(new THREE.Vector2(pad.x * S, pad.y * S));
       axes.push(new THREE.Vector2(pad.x - site.pos.x, pad.y - site.pos.y).normalize());
