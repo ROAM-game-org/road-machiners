@@ -81,23 +81,23 @@ VAR asked_tips = false
 
 === meet ===
 # checkpoint: meet
-You leave the truck on the pad and walk in for water, because the tank is not the only thing in you that's dry. A bucket is coming up a well on a creaking rope. # place: Bowl # img: bowl_yard
-Past the well house run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
-A broad woman with wet hands and rolled sleeves sits on a bench under a roof of woven reeds, and watches you come the whole way. # page
+Вы оставляете грузовик на площадке и идете за водой. Бак пуст, а во рту пересохло. Из колодца поднимают ведро, скрипит веревка. # place: Bowl # img: bowl_yard
+За колодезной тянутся каналы с медленной бурой водой. За ними поля ступенями поднимаются по склону, зеленые от посевов. Зеленые. Этот цвет вы успели забыть.
+Под навесом из плетеного тростника сидит на лавке крупная женщина с мокрыми руками и закатанными рукавами. Пока вы подходите, она не сводит с вас глаз. # page
 Я Хэтти, это моя колодезная, ставь канистру. # speaker: Хэтти
-She wipes her hands on her apron. Her eyes go over your dust, your boots, the pickup out on the pad.
+Она вытирает руки о фартук. Оглядывает вашу запыленную одежду, ботинки, пикап на площадке.
 Воду продаю, чистую, без песка и прочих дорожных приправ. # speaker: Хэтти
 -> start.ask
 
 === again ===
 # checkpoint: again
-Somewhere close, a bucket is coming up a well on a creaking rope. You know that sound now. # place: Bowl # img: bowl_yard
-You're lying on the bench under the reed roof. Past the shade run the canals, and the green steps of the fields. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper, with a brass tag on it. # page
-The bed is empty. Somebody went through the engine and left the bolts where they fell.
-Hattie sets a cup of water on the bench beside you and sits down at the other end of it. # page
+Где-то рядом из колодца поднимают ведро, скрипит веревка. Теперь этот звук вам знаком. # place: Bowl # img: bowl_yard
+Вы лежите на лавке под тростниковым навесом. За полосой тени тянутся каналы, за ними зеленеют ступени полей. Ваш пикап криво стоит у края двора, капот поднят и подперт. С бампера свисает чужая буксирная цепь, смотанная кольцами. На цепи латунная бирка. # page
+Кузов пуст. В моторе кто-то рылся и бросил болты там, где они упали.
+Хэтти ставит на лавку рядом с вами кружку воды и садится с другого края. # page
 Ну здравствуй, теперь к моей скамейке только на буксире? # speaker: Хэтти
-She nods at the chain on your bumper.
+Она кивает на цепь на вашем бампере.
 Буксировщик спрашивал про Рут Варгу, что каждое утро берёт у меня воду, да уехал, не выяснив, та ли это Варга. # speaker: Хэтти
 Во дворе у ворот купишь детали для двигателя, а зерно тебе запишут в долг. # speaker: Хэтти
-The water is cold and tastes of stone. A bowl of hot grain comes after it. # page
+Вода холодная, с привкусом камня. Следом вам приносят миску горячей каши. # page
 -> start.ask
