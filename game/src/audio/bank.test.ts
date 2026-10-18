@@ -106,8 +106,7 @@ describe('loadBank', () => {
     await loadBank(rejecting, { a: SOUNDS.a }, options());
     expect(fetch).toHaveBeenCalledTimes(BANK.tries * BANK.formats.length);
     fetch.mock.calls.forEach((call, i) => {
-      if (i % BANK.tries === 0) expect(call).toHaveLength(1);
-      else expect(call[1]).toEqual({ cache: 'reload' });
+      expect((call[1] as RequestInit).cache).toBe(i % BANK.tries === 0 ? undefined : 'reload');
     });
   });
 
@@ -174,6 +173,17 @@ describe('failure classes', () => {
     expect(decode).not.toHaveBeenCalled();
   });
 
+  it('gives a sound whose decode never settles a stand-in and a decoder fault', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', async () => ok);
+    const hanging = ctxOf(() => new Promise<AudioBuffer>(() => {}));
+    const loading = loadBank(hanging, SOUNDS, options());
+    await vi.runAllTimersAsync();
+    const { bank, failures } = await loading;
+    expect(failures.map((f) => [f.file, f.kind])).toEqual([['a.ogg', 'decoder'], ['b.ogg', 'decoder']]);
+    expect(bank.get('a.ogg')).toBeDefined();
+  });
+
   it('calls a rejected decode of intact bytes decoder, or codec with no support for the format', async () => {
     expect((await kindOf(async () => ok)).kind).toBe('decoder');
     expect((await kindOf(async () => ok, rejecting, { ogg: '', m4a: '' })).kind).toBe('codec');
@@ -222,7 +232,7 @@ describe('recoverBank', () => {
     const recovered = await recoverBank(context, loaded, hit, options());
     expect([...recovered]).toEqual(['hit-1.ogg']);
     expect(loaded.bank.get('hit-1.ogg')).toBe(fresh);
-    expect(fetch.mock.calls.at(-1)![1]).toEqual({ cache: 'reload' });
+    expect(fetch.mock.calls.at(-1)![1]).toMatchObject({ cache: 'reload' });
   });
 
   it('leaves fetch and codec failures alone', async () => {

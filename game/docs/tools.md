@@ -144,7 +144,7 @@ Browser gestures to try on top of that: pull down from the top of the screen on 
 
 ## Debugging
 
-- In dev, any uncaught error shows a fullscreen crash screen. Outside dev, errors after boot go to the browser log and the debug console, and the game keeps running. Boot errors always show the crash screen. A browser without WebGL 2 gets a notice that names the fixes, and the error reporter does not send it.
+- In dev, any uncaught error shows a fullscreen crash screen. Outside dev, errors after boot go to the browser log and the debug console, and the game keeps running. Boot errors always show the crash screen. A browser without WebGL 2 gets a notice that names the fixes, and the error reporter does not send it. A boot download or sound fetch that gets no data for 20 seconds counts as dropped and is retried, and a slow download that keeps getting data is never cut.
 - Every game file loads through `fetchAsset` in `src/fetch-asset.ts`, which retries a dropped request or an HTTP 408, 429, 500, 502, 503 or 504 three times, waiting 1, 3 and 9 seconds between tries. When a file still does not arrive, the boot screen shows Try again and the error reporter does not send it. A missing file (404) still shows the crash screen and is reported.
 - The crash screen lists the error, its source file, line and stack when known, the game version, the boot step, the browser and the page address without its query. It shows no save content.
 - A hidden "Script error." with no error object, from a script outside the game such as a browser extension, never crashes and never holds saves. It goes to the browser log and once to the debug console.

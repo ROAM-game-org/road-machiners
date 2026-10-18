@@ -26,7 +26,18 @@ describe('index.html boot markup', () => {
   });
 
   it('reveals the boot text when the page fails to load', () => {
-    const failure = /function failed\(e\) \{[\s\S]*?\n        \}/.exec(html)?.[0] ?? '';
+    const failure = /function show\(key, detail\) \{[\s\S]*?\n        \}/.exec(html)?.[0] ?? '';
     expect(failure).toContain("boot.dataset.fonts = 'ready'");
+  });
+
+  it.each(['en', 'ru'] as const)('repeats the %s failure texts exactly', (locale) => {
+    expect(html).toContain(`failedToLoad: '${resolve(t('boot.failedToLoad'), locale)}'`);
+    expect(html).toContain(`failedToStart: '${resolve(t('boot.failedToStart'), locale)}'`);
+  });
+
+  it('has a nomodule fallback and reads only the stored language', () => {
+    expect(html).toContain('<script nomodule>');
+    expect(html).toContain("localStorage.getItem('roam.lang')");
+    expect(html).not.toContain('navigator.language');
   });
 });
