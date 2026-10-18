@@ -56,7 +56,7 @@ describe('Hattie at her well for a driver who arrives on their own', () => {
     const w = wait(parkAt(introWorld(), 'bowl'));
     expect(w.player.quests.session).toEqual(expect.objectContaining({ quest: 'intro_bowl' }));
     expect(w.player.quests.world.hattie_met).toBe(true);
-    expect(spoken(w)).toContain("I'm Hattie, that's the well");
+    expect(spoken(w)).toContain("I'm Hattie, this is my well");
     expect(questView(w, QUESTS).choices.length).toBeGreaterThan(0);
   });
 

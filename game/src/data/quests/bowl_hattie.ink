@@ -17,86 +17,87 @@ VAR hattie_unarmed = false
 
 === start ===
 # checkpoint: start
-Parked that thing all by yourself, did you? Last one needed six of us. Sit down. I'm Hattie, I keep the well.
-This is <term=bowl>Bowl</term>. We grow grain, mend what breaks, and argue about rain. You'll hear all three from this bench.
+Park that wreck clear of my well, driver, and tell me how much water you need. I'm Hattie, and I charge for the water, not the advice you'll ignore.
+<term=bowl>Bowl</term> grows food behind that gate. Drivers stay here with me till their tanks are full.
 -> hub
 
 = hub
 # checkpoint: start.hub
 + {towed_to_bowl and not hattie_tow} [Tell me about the tow man.]
-  That tag on his chain is an old <term=pierce>Pierce</term> yard tag. Before the crews took the yard, Pierce hung one on every key and chain it owned.
-  If your key has a brass tag, it came from the same yard, and you can tell him so while he counts your grain.
+  That tag on his chain is an old <term=pierce>Pierce</term> yard tag. Before the crews took the yard, Pierce hung one of those on every key and chain it owned.
+  Tag on your key came from that same yard.
   ~ hattie_tow = true
   -> hub
 + {hattie_tow and not hattie_varga} [Why would he want a Varga?]
-  Ask Ruth, up on the terraces. The Vargas had a farm at the foot of the rim, water tower and all. When their well went dry, she came up here with her name and not much else.
-  Your tow man left without seeing her. A man with good news waits for an answer.
+  Ask Ruth, not me. The Vargas had a farm and water tower below the rim till their well went dry, and Ruth reached the terraces with next to nothing.
+  Whatever he wanted, he left without waiting for Ruth.
   ~ hattie_varga = true
   -> hub
 + {hattie_varga and not hattie_farm} [I found my truck at that farm.]
   Hattie puts the bucket down.
-  Then you're driving Danil Varga's pickup. Ruth's boy. He went west with a convoy and never came back, and Ruth left the farm the year after.
-  The whole well house will know by noon, so go and see Ruth before somebody gets to her with your news.
+  That's Danil Varga's pickup you've got rattling out there, then. Danil went west with a convoy and never came back; his mother Ruth left the farm the year after.
+  Go see Ruth before some fool gets to her with half the story.
   ~ hattie_farm = true
   ~ varga_truck_known = true
   -> hub
 + {towed_to_bowl and not hattie_strip} [Who stripped my truck?]
-  Not the tow man. Your bed was bare and your engine open when he brought you in on his chain. Whoever did it took their time and left you breathing, which passes for manners on the open road.
+  Wasn't the tow man, if that's where you're looking. Whoever it was took their time and left you breathing.
   ~ hattie_strip = true
   -> hub
 + {not hattie_rumor} [Heard any rumors?]
-  A scavenger came through a few days back, trying to sell a <term=nose>Nose</term> Army radio, and he threw in a story for free. Swore he'd pulled it off a dead Army wagon in the hills north-east of here.
-  The patrol asked him where exactly. He answered by filling his tank and taking the west road before dark.
+  A scavenger came through selling a <term=nose>Nose</term> Army radio. Said he took it off a dead wagon in the hills north-east of here.
+  Then the patrol asked where exactly, and he filled his tank and took the west road before dark.
   ~ note("wagonBowl")
   ~ hattie_rumor = true
   -> hub
 + {not hattie_flats} [Any local legends?]
-  There's supposed to be an Old World tank out on the <term=glass_flats>Glass Flats</term> that still runs. It rolls out at night with its lights off.
-  My cousin says he heard it, but my cousin hears a great deal when he's been drinking. Buy him another and he'll tell you what gear it was in.
+  There's supposed to be an Old World tank still running out on the <term=glass_flats>Glass Flats</term>, rolling out at night with its lights off.
+  One driver swore he saw it, but I only ever saw him drink.
   ~ note("glassTank")
   ~ hattie_flats = true
   -> hub
 + {not hattie_strangers} [Who comes through here?]
-  Somebody every day. Traders, couriers, drivers hauling fuel, and soldiers down from Nose who buy water and say please, which puts them ahead of most.
-  The quiet ones worry me. They ask about the <term=granary>Granary</term> and give me nothing to sell when they leave.
+  Traders, couriers, fuel haulers, thirsty soldiers from Nose, and quiet sorts asking after the <term=granary>Granary</term> without buying a drop.
+  The ones asking after the Granary worry me. Water's a funny thing to forget at a well.
   ~ hattie_strangers = true
   -> hub
 + {hattie_strangers and not hattie_granary} [Who asks about the Granary?]
-  Drivers with nothing in the back, and you thought you were doing poorly. The raiders pay them to learn how much grain we keep, so they know how much to ask for.
-  Not that they need spies. Odile chalks the count on the Granary gate every night for anyone to read. She calls that honest. I call it saving the raiders a trip.
+  Drivers with empty beds ask, and the raiders pay them to count our grain.
+  Odile chalks the count on the Granary gate every night, so they're paying good money for somebody who can read.
   ~ hattie_granary = true
   -> hub
 + {hattie_strangers and not hattie_soldiers} [What do you make of the soldiers from Nose?]
-  Soldiers playing at being a town. They eat our grain and send orders back, like we can grind those into flour.
-  Perfectly polite when they want something, which is the only time to watch them.
+  They pay for water like guests and give orders like owners.
+  They ask polite, then stand there till you do it.
   ~ hattie_soldiers = true
   -> hub
 + {hattie_soldiers and not hattie_roads} [Will the Nose soldiers stop me on the road?]
-  Not on the open road, love. Nobody guards it, and that's the trouble with it.
-  Nose won't let a truck out of its gate without a gun on it, so don't go up there unarmed.
+  No, and they won't stop whoever comes to take your truck either.
+  Take that truck to Nose without a gun and you're parking till you find one.
   ~ hattie_roads = true
   -> hub
 + {hattie_roads and not hattie_unarmed} [What if I go up to Nose unarmed?]
-  They'll let you in, and you can sit inside their gate till you grow roots. You leave when you buy a gun, and they name the price.
+  Nose will let you in unarmed, sure.
+  Try leaving and they'll make you buy a gun at whatever price they fancy.
   ~ hattie_unarmed = true
   -> hub
 + {hattie_flats and not hattie_glass} [What about the glass at the Glass Flats?]
-  Pim Arslan, who cuts lenses, says every ripple in that glass leans toward the <term=fallen_sun>Fallen Sun</term> crater. Looking pays Pim's bills, so I'd weigh that.
-  I won't stand on it at noon, whatever it points at. The <term=sunward>Sunward</term> worship what lies in that crater, and if you stand still long enough, you'll get their opinion for free.
+  Pim Arslan says every ripple in that glass leans toward the <term=fallen_sun>Fallen Sun</term> crater.
+  I won't stand on it at noon, and you won't catch me checking if it's safe. The <term=sunward>Sunward</term> say it's bowing to what's down there.
   ~ note("talkGlassLean")
   ~ hattie_glass = true
   -> hub
 + {hattie_glass and not hattie_sunward} [What do the Sunward do with strangers?]
-  They take strangers into the crater, if they'll go. Folk say a stranger who goes in with the Sunward doesn't come out.
-  They do come out, green at the edges and with less to say than you. I've never followed one in, and you couldn't pay me to start.
+  They take them into the crater, and they come out green at the edges and quiet. Folk say they don't come back; I say they don't come back right.
+  Never been in, never will; I sell water, not sense.
   ~ note("talkSunwardTake")
   ~ hattie_sunward = true
   -> hub
 + {hattie_sunward and not hattie_came_out} [Have you seen one come out?]
-  Once, at dusk. A woman came up the canal road and asked for water. Her hands had a green shine to them in the dark.
-  She drank bucket after bucket without another word, then walked back toward the crater. She didn't pay, and I didn't ask her to.
+  I saw one at dusk once, a woman with her hands shining green. She emptied bucket after bucket without a word.
+  She didn't pay, and she walked back toward the crater.
   ~ hattie_came_out = true
   -> hub
 + [Goodbye.]
-  { towed_to_bowl: Mind your slate, love. I remember a bowl of grain long after you stop being grateful for it. | Come back when you've got M's for a bucket, and we'll put that thirsty face to use. }
+  { towed_to_bowl: Safe road, and that slate won't clear itself. | Come back when you've got M's for water, and try to keep all your wheels. }
   -> END

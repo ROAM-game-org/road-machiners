@@ -14,6 +14,7 @@ English goes to codex and Russian goes to agy. Claude never writes a character l
 - Russian: `agy --dangerously-skip-permissions -p "<prompt>"`. [Russian copy](russian.md) has the model flags.
 - Check the exit code of every call. A failed call writes nothing, and agy can hit a quota that lasts days. Report the lines that are missing, and never fill them in by hand.
 - A reply of more than one sentence is built one sentence at a time. Each call asks for one sentence on one small topic, and its Context ends with "She has said so far:" and the sentences already chosen. Pick the best take of each sentence before you ask for the next. A call that is asked for a whole speech gives a long, rambling monologue with invented details.
+- Build each line three times over, as three whole chains of sentences, and pick the best chain per line. Mixing the best sentences from different chains is fine when they do not repeat each other.
 - Independent lines can run in parallel. Keep scratch prompts and outputs in `tmp/`.
 
 ## The prompt

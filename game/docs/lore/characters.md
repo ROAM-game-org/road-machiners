@@ -561,6 +561,22 @@ Karl and his brother Jens were Old Army deserters who robbed insured trucks on t
 
 In year 128, on Ladle's order, he bored a second pin into the swivel ring of the Varga pickup.
 
+## Hattie
+
+- Way: fear.
+- High concept: The tenant who sells water to outsider drivers at the Bowl gate yard.
+- Trouble: She waters the drivers the gate keeps out, so neither the town nor the road fully trusts her.
+- Aspects: The only water an outsider may buy in Bowl; Ruth Varga pays her in sorghum; Sizes up every driver by how they arrive.
+- Skills: best perception, worst machining.
+- Wants: No driver leaves Bowl thirsty.
+- Fears: A dry well, or a driver dying of thirst within sight of her stand.
+- Habit: She sounds the well with a weighted line before she opens each morning.
+- Secret: She waters drivers the patrol has turned away, and leaves them off her slate.
+
+Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Every driver who is not let past the yard buys water from her, so she is the first and the last person of Bowl they speak to. Drivers talk while their tanks fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
+
+Her line is "Sit down before you fall down."
+
 ## Ruth Varga
 
 - Way: fear.
