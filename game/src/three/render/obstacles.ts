@@ -265,7 +265,7 @@ function rockPlacement(t: Terrain, o: Obstacle): { matrix: THREE.Matrix4; tint: 
   return { matrix: g.matrix, tint: 0.9 + hashStr(o.id) * 0.2 };
 }
 
-function buildProp(t: Terrain, o: Obstacle): THREE.Object3D {
+export function buildProp(t: Terrain, o: Obstacle): THREE.Object3D {
   const pose = propPose(o);
   if (pose.model === 'hulk') return buildHulk(t, o, pose);
   const g = posed(propBase(t, o), pose);
