@@ -338,3 +338,47 @@
   transform: none;
   font-size: var(--text-caption);
 }
+#ui.phone .skill-table {
+  display: block;
+  overflow-x: hidden;
+}
+#ui.phone .skill-head {
+  display: none;
+}
+#ui.phone .skill-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "name name level buy"
+    "today today today today"
+    "perk-a perk-a perk-b perk-b";
+  gap: var(--space-3) var(--space-5);
+  margin-bottom: var(--space-3);
+}
+#ui.phone.slim .skill-row {
+  grid-template-areas:
+    "name name level buy"
+    "today today today today"
+    "perk-a perk-a perk-a perk-a"
+    "perk-b perk-b perk-b perk-b";
+}
+#ui.phone .skill-row > :nth-child(1) {
+  grid-area: name;
+}
+#ui.phone .skill-row > :nth-child(2) {
+  grid-area: level;
+}
+#ui.phone .skill-row > :nth-child(3) {
+  grid-area: perk-a;
+}
+#ui.phone .skill-row > :nth-child(4) {
+  grid-area: perk-b;
+}
+#ui.phone .skill-row > :nth-child(5) {
+  grid-area: today;
+}
+#ui.phone .skill-row > :nth-child(6) {
+  grid-area: buy;
+}
+#ui.phone .perk-rank {
+  display: block;
+}
