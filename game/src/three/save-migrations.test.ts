@@ -1729,3 +1729,14 @@ describe('save migration 79 to 80', () => {
     expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
   });
 });
+
+describe('save migration 80 to 81', () => {
+  it('keeps a save as it is, since ship relics are only a new key in loot goods and shop pressure', () => {
+    const before = structuredClone(FORMAT_2_75);
+
+    const next = MIGRATIONS[80](before);
+
+    expect(next).toEqual(FORMAT_2_75);
+    expect(before).toEqual(FORMAT_2_75);
+  });
+});

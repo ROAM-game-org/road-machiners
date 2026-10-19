@@ -1,12 +1,12 @@
 import { defaultSetup } from '../sim/settings';
 import { beforeAll, describe, expect, it } from "vitest";
-import { CHASSIS, PLAYER_CHASSIS } from "./chassis";
+import { CHASSIS, PLAYER_CHASSIS, TOWN_CHASSIS } from "./chassis";
 import { GOODS, GOOD_IDS } from "./goods";
 import { EFFORT, SHOPS, type ItemKind } from "./market";
 import { goodBasePrice, partPristineBuyPrice } from "../sim/market";
 import { PARTS, type PartDef, type PartKind, type WeaponDef } from "./parts";
 import { REGION } from "./region";
-import { SALVAGE, type LootTable } from "./salvage";
+import { OLD_TABLES, SALVAGE, type LootTable } from "./salvage";
 import { bodyOf } from "../sim/body";
 import {
   buyChassis,
@@ -142,7 +142,10 @@ describe("equipment variety", () => {
     expect(PLAYER_CHASSIS).toHaveLength(16);
     for (const id of addedChassis) {
       expect(PLAYER_CHASSIS).toContain(id);
-      const w = buyChassis(world, id);
+      const town = REGION.towns.find((t) => TOWN_CHASSIS[t.id].includes(id))!;
+      const atTown = emptyWorld(sitePads(town)[0]);
+      atTown.player.money = world.player.money;
+      const w = buyChassis(atTown, id);
       const v = w.vehicles.find((vehicle) => vehicle.faction === "player")!;
       expect(v.chassisId).toBe(id);
       const cores = v.items.filter(
@@ -189,7 +192,7 @@ describe("equipment variety", () => {
   });
 
   it("adds five goods with profitable routes and real buy/sell transactions", () => {
-    expect(Object.keys(GOODS)).toHaveLength(11);
+    expect(Object.keys(GOODS)).toHaveLength(12);
     expect(GOOD_IDS).toEqual(Object.keys(GOODS));
     for (const id of addedGoods) {
       expect(GOODS[id]).not.toHaveProperty('mass');
@@ -257,7 +260,7 @@ describe("utilities", () => {
     }
   });
 
-  it("lists each utility twice in the loot tables that have it, and the emitter only at landmarks", () => {
+  it("lists each utility twice in the loot tables that have it, and the emitter only at landmarks and hull caches", () => {
     const tables = Object.entries(SALVAGE).filter((entry): entry is [string, LootTable] => typeof entry[1] === "object" && "spareParts" in entry[1]);
     for (const [id, table] of tables) {
       for (const def of utilities) {
@@ -266,7 +269,23 @@ describe("utilities", () => {
       }
     }
     const holders = tables.filter(([, table]) => table.spareParts.includes("emitter"));
-    expect(holders.map(([id]) => id)).toEqual(["landmark"]);
+    expect(holders.map(([id]) => id)).toEqual(["landmark", "hullCache"]);
+  });
+
+  it("sets ship relics at tier 3 and trades them only where the Yard and Nose do", () => {
+    expect(GOODS.relics.tier).toBe(3);
+    const traders = Object.values(SHOPS).filter((shop) => shop.goods.includes("relics")).map((shop) => shop.id);
+    expect(traders.sort()).toEqual(["nose", "salvage-yard"]);
+    expect(SHOPS["salvage-yard"].makes).toContain("relics");
+    expect(SHOPS.nose.needs).toContain("relics");
+  });
+
+  it("only drops goods some shop trades, and relics only from hull loot", () => {
+    const tables = Object.entries(SALVAGE).filter((entry): entry is [string, LootTable] => typeof entry[1] === "object" && "spareParts" in entry[1]);
+    for (const [id, table] of [...tables, ...Object.entries(OLD_TABLES)])
+      for (const good of Object.keys(table.goods)) expect(Object.values(SHOPS).some((shop) => shop.goods.includes(good)), `${id} ${good}`).toBe(true);
+    const holders = [...tables, ...Object.entries(OLD_TABLES)].filter(([, table]) => table.relicChance > 0).map(([id]) => id);
+    expect(holders.sort()).toEqual(["hullCache", "hullScrap"]);
   });
 
   it("keeps the claymore ram an armor ram with a claymore", () => {

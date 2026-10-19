@@ -75,7 +75,8 @@ describe('territory queries', () => {
 
   it('rolls a cache from the cache table and a field spot from the spot table', () => {
     const cache = { id: 'hullCache-1', pos: fallenSun.pos, r: 1, kind: 'landmark', look: 'hullCache', yaw: 0 } as const;
-    expect(spotTable(cache)).toBe(SALVAGE[TERRITORIES['fallen-sun'].wreck!.cacheTable]);
+    expect(TERRITORIES['fallen-sun'].wreck!.cacheTable).toBe('hullCache');
+    expect(spotTable(cache)).toBe(SALVAGE.hullCache);
     expect(spotTable({ ...cache, look: 'shipCache' })).toBe(SALVAGE.hullScrap);
     expect(() => spotTable({ ...cache, pos: { x: 1, y: 1 } })).toThrow(/not a loot spot/);
   });
@@ -98,6 +99,20 @@ function territoryValue(id: string): number {
   const buildings = [...(wreck ? wreck.buildings : []), ...(farm ? farm.buildings : [])].reduce((sum, b) => sum + b.poses.length * midValue(SALVAGE[b.table]), 0);
   return caches + field + buildings;
 }
+
+describe('ship relics in the Fallen Sun', () => {
+  it('add at most 15% to its middle loot value', () => {
+    const { wreck } = TERRITORIES['fallen-sun'];
+    const spots = wreck!.patches.reduce((n, p) => n + p.spots, 0);
+    const relics = (wreck!.caches.length * SALVAGE[wreck!.cacheTable].relicChance + spots * SALVAGE[wreck!.spotTable].relicChance) * GOODS.relics.value;
+    expect(relics).toBeGreaterThan(0);
+    expect(relics).toBeLessThanOrEqual(0.15 * territoryValue('fallen-sun'));
+  });
+
+  it('stay out of the Orchard farmhouse', () => {
+    expect(SALVAGE.landmark.relicChance).toBe(0);
+  });
+});
 
 describe('the Old Orchard', () => {
   const farm = TERRITORIES.orchard.farm!;
@@ -502,7 +517,7 @@ describe('Glass Flats', () => {
   it('rolls an engine cache there from the engine scrap table, while a Fallen Sun hull cache still rolls the landmark table', () => {
     expect(spotTable(landmarkAt('engineCache', flats.pos))).toBe(SALVAGE.engineScrap);
     expect(isLootSpot(landmarkAt('hullCache', flats.pos))).toBe(false);
-    expect(spotTable(landmarkAt('hullCache', fallenSun.pos))).toBe(SALVAGE.landmark);
+    expect(spotTable(landmarkAt('hullCache', fallenSun.pos))).toBe(SALVAGE.hullCache);
   });
 
   it('rolls a dead truck from the road wreck table, and never makes a car wreck, a piece or debris a spot', () => {

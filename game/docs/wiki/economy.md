@@ -22,8 +22,8 @@ A shop holds a finite, random stock of parts and restocks every so many turns. O
 | id | kind | makes | needs | goods | supplies | stock size (parts) | restock (turns) | pressure per unit | drift per turn | contract slots |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | bowl | garage | scrap, grain, textiles, meds, electronics, parts | salt, tools, batteries, fuelDrums, water | scrap, salt, meds, grain, textiles, tools, batteries, electronics, parts, fuelDrums, water | fuel, supplies | 8 to 12 | 400 | 0.005 | 0.0075 | 3 |
-| nose | garage | salt, tools, batteries | scrap, grain, textiles, meds, electronics, parts, fuelDrums, water | scrap, salt, meds, grain, textiles, tools, batteries, electronics, parts, fuelDrums, water | fuel, supplies | 8 to 12 | 400 | 0.005 | 0.0075 | 3 |
-| salvage-yard | stall | scrap, parts | tools | scrap, parts, tools | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
+| nose | garage | salt, tools, batteries | scrap, grain, textiles, meds, electronics, parts, fuelDrums, water, relics | scrap, salt, meds, grain, textiles, tools, batteries, electronics, parts, fuelDrums, water, relics | fuel, supplies | 8 to 12 | 400 | 0.005 | 0.0075 | 3 |
+| salvage-yard | stall | scrap, parts, relics | tools | scrap, parts, tools, relics | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
 | granary | stall | grain | salt, textiles | grain, salt, textiles | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
 | pump-station | stall | batteries | scrap, parts | batteries, scrap, parts | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
 | dustwell | stall | water | tools, meds | water, scrap, tools, meds | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
