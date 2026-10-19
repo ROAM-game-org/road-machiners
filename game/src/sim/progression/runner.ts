@@ -27,7 +27,7 @@ import { FURY_ROAD } from '../../data/modes';
 import { escortFoe, escortMove, gunTarget, hostilesSeen, unlessStuck, type Stall } from './escort-brain';
 import { aimFor } from './aim';
 import { armorHauler } from './escort-gear';
-import { bestTruck, keepsPace } from './escort-tactics';
+import { bestTruck } from './escort-tactics';
 import { mountBought, Orders, type BotTurn } from './orders';
 
 export type RoadStyle = 'escort' | 'sprinter';
@@ -211,10 +211,10 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
 
 function restockGear(o: Orders, post: Outpost, style: RoadStyle, haulerShare: number): void {
   if (style === 'sprinter') {
-    refitGear(o, style);
-    return buyTruck(o, post, style);
+    refitGear(o);
+    return buyTruck(o, post);
   }
-  restockEscort(o, post, style, haulerShare);
+  restockEscort(o, post, haulerShare);
 }
 
 function runBudget(world: World): number {
@@ -227,19 +227,18 @@ function haulerBillShare(world: World): number {
   return total > 0 ? hauler / total : 0;
 }
 
-function restockEscort(o: Orders, post: Outpost, style: RoadStyle, haulerShare: number): void {
-  refitGear(o, style);
+function restockEscort(o: Orders, post: Outpost, haulerShare: number): void {
+  refitGear(o);
   armorHauler(o, haulerShare);
-  buyTruck(o, post, style);
+  buyTruck(o, post);
 }
 
-function refitGear(o: Orders, style: RoadStyle): void {
+function refitGear(o: Orders): void {
   const forSale = reachedOutpostAt(o.world)!.stock.filter((part) => !isJunk(part));
   const money = runBudget(o.world);
   const owned = new Set(o.me.items.map((it) => it.id));
   const added = (v: Vehicle) => v.items.flatMap((it) => (it.kind === 'part' && !owned.has(it.id) ? [it] : []));
-  const paced = (v: Vehicle) => style === 'sprinter' || keepsPace(vehicleStats(o.world, v).maxSpeed, FURY_ROAD.hauler.hurry);
-  const allowed = (v: Vehicle) => added(v).every(sturdy) && paced(v) && buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money;
+  const allowed = (v: Vehicle) => added(v).every(sturdy) && buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money;
   const target = refitLoadout(o.world, { rngState: o.world.rngState }, o.me, { priorities: NPCS[FIGHTER].loadout.priorities, money, allowed, paysFuel: false });
   const kept = new Set(target.items.map((it) => it.id));
   for (const it of o.me.items.filter((it) => it.kind === 'part' && !kept.has(it.id))) o.run((w) => storePart(w, it.id), 'gear');
@@ -270,19 +269,19 @@ function cost(o: Orders, parts: PartInstance[]): number {
   return parts.reduce((sum, p) => sum + outpostPartPrice(o.world, p), 0);
 }
 
-function buyTruck(o: Orders, post: Outpost, style: RoadStyle): void {
+function buyTruck(o: Orders, post: Outpost): void {
   const budget = runBudget(o.world);
   const current = chassisDef(o.me.chassisId).value;
-  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).value > current && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id, style)).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
+  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).value > current && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id)).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
   const best = bestTruck(offers, current, budget);
   if (best) o.run((w) => outpostBuyChassis(w, best), 'gear');
 }
 
-function keepsKit(o: Orders, chassisId: string, style: RoadStyle): boolean {
+function keepsKit(o: Orders, chassisId: string): boolean {
   const after = outpostBuyChassis(o.world, chassisId);
   const me = playerVehicle(after);
   const mountedCount = (v: Vehicle) => mountedParts(v).filter((p) => partDef(p.defId).kind !== 'core').length;
-  return !isStranded(after, me) && mountedCount(me) === mountedCount(o.me) && (style === 'sprinter' || keepsPace(vehicleStats(after, me).maxSpeed, FURY_ROAD.hauler.hurry));
+  return !isStranded(after, me) && mountedCount(me) === mountedCount(o.me);
 }
 
 

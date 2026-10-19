@@ -63,9 +63,9 @@ The escort plays as an NPC guard would.
 At each outpost the escort does this in order.
 
 - It repairs both trucks. It tops up fuel and supplies and buys parts until it holds 4 for patching.
-- It refits its own truck by the merc loadout, never below the hauler's hurry pace.
+- It refits its own truck by the merc loadout.
 - It spends a share of the money left on hauler armor. The share is the hauler's part of the two trucks' repair bills on arrival, so it armors the truck that took the fire.
-- It buys the most valuable truck on offer that it can afford and that keeps its parts count. The truck must keep the hauler's hurry pace as its top speed. Money it cannot spend on gear builds up toward that truck.
+- It buys the most valuable truck on offer that it can afford and that keeps its parts count. Money it cannot spend on gear builds up toward that truck.
 
 The sprinter turns auto fire off, drives ahead to the next yard and never fires. At an outpost it repairs, refits for any speed and buys a truck. It measures whether the run can be sprinted. The hauler must lose it.
 

@@ -1,24 +1,9 @@
 import { publicUrl } from '../public-url';
+import ENTRIES from './quest-art.json';
 
-export type QuestArt = { file: string; focusX: number };
+export type QuestArt = { file: string; focusX: number; focusY: number };
 
-export const QUEST_ART: Record<string, QuestArt> = {
-  arrival_dream: { file: 'arrival_dream.webp', focusX: 50 },
-  arrival_rim: { file: 'arrival_rim.webp', focusX: 30 },
-  arrival_house: { file: 'arrival_house.webp', focusX: 50 },
-  arrival_pickup: { file: 'arrival_pickup.webp', focusX: 35 },
-  cab_link: { file: 'cab_link.webp', focusX: 62 },
-  fall_cab: { file: 'fall_cab.webp', focusX: 60 },
-  bowl_yard: { file: 'bowl_yard.webp', focusX: 60 },
-  road_bar: { file: 'road_bar.webp', focusX: 55 },
-  road_ala: { file: 'road_ala.webp', focusX: 55 },
-  road_geezer: { file: 'road_geezer.webp', focusX: 30 },
-  road_hauler: { file: 'road_hauler.webp', focusX: 40 },
-  road_gate: { file: 'road_gate.webp', focusX: 20 },
-  road_tankline: { file: 'road_tankline.webp', focusX: 20 },
-  road_walkers: { file: 'road_walkers.webp', focusX: 47 },
-  bowl_scale: { file: 'bowl_scale.webp', focusX: 45 },
-};
+export const QUEST_ART: Record<string, QuestArt> = structuredClone(ENTRIES);
 
 export function questArt(key: string): QuestArt {
   const art = QUEST_ART[key];

@@ -7,6 +7,9 @@ import { yardSpots } from './outpost-gates';
 import { chosenLane, haulerLane, haulerPace, laneClear, noteHaulerHits, planHaulerOrder, resetHaulerWatch, sideThreat, watchHaulerStall } from './hauler';
 import { acrossOf, alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
 import { addVehicle, furyRoadWorld } from './testkit';
+import { plainMaxSpeed } from './stats';
+import { coreParts, mountedParts } from './grid';
+import { getResources } from './resources';
 import type { Vehicle, WaveGroup, World } from './types';
 import { dist } from './vec';
 
@@ -270,10 +273,10 @@ describe('the hauler driver', () => {
     expect(RULES.parkedSpeed).toBeGreaterThan(0);
   });
 
-  it('raises no stall while it waits parked on its yard spot for the player to reach the fort', () => {
+  it('raises no stall while it waits parked in the fort yard for a gun truck still on the road', () => {
     resetHaulerWatch();
     const { w, hauler } = openRoad();
-    hauler.pos = { ...yardSpots(w, 1).hauler };
+    hauler.pos = { ...yardSpots(w, w.furyRoad!.window + 1).hauler };
     hauler.speed = 0;
     expect(betweenLevels(w)).toBe(false);
     for (let i = 0; i < FURY_ROAD.hauler.stallTurns * 3; i++) {
@@ -307,5 +310,69 @@ describe('the hauler driver', () => {
     delete foe.defeat;
     foe.pos = roadPoint(w.seed, 0, N, LANES[1] + 4);
     expect(stalls()).toHaveLength(1);
+  });
+});
+
+
+describe('the hauler pace behind a slow gun truck', () => {
+  function slowRoad(): { w: World; hauler: Vehicle; gun: Vehicle } {
+    const { w, hauler } = openRoad();
+    const gun = playerVehicle(w);
+    coreParts(gun, 'wheel').forEach((wheel) => { wheel.hp = 0; });
+    mountedParts(gun, 'engine')[0].wear = 2;
+    expect(plainMaxSpeed(w, gun)).toBeLessThan(FURY_ROAD.hauler.cruise);
+    return { w, hauler, gun };
+  }
+
+  it('keeps to the gun truck top speed, in the alarm too, and carries it in the order', () => {
+    const { w, hauler, gun } = slowRoad();
+    expect(haulerPace(w)).toBe(plainMaxSpeed(w, gun));
+    planHaulerOrder(w);
+    expect(hauler.order).toMatchObject({ kind: 'through', pace: plainMaxSpeed(w, gun) });
+    w.furyRoad!.hauler.alarmUntil = w.turn + 3;
+    expect(haulerPace(w)).toBe(plainMaxSpeed(w, gun));
+  });
+
+  it('ignores overdrive and the gun truck speed this turn', () => {
+    const { w, gun } = slowRoad();
+    const pace = haulerPace(w);
+    w.player.overdrive = true;
+    expect(haulerPace(w)).toBe(pace);
+    gun.speed = 0;
+    expect(haulerPace(w)).toBe(pace);
+  });
+
+  it('sets no cap while the gun truck is stranded, stalled or shut down', () => {
+    const cruise = FURY_ROAD.hauler.cruise;
+    const cases: Record<string, (w: World, gun: Vehicle) => void> = {
+      'an empty tank': (w, gun) => { getResources(w, gun).fuel = 0; },
+      'a dead engine': (_, gun) => { gun.items = gun.items.filter((it) => !(it.kind === 'part' && it.part.defId === 'stockEngine')); },
+      'a stall': (w, gun) => { gun.stalledUntil = w.turn; },
+      'a shutdown': (w, gun) => { gun.shutDown = { from: w.turn, until: w.turn + 2 }; },
+    };
+    for (const [name, apply] of Object.entries(cases)) {
+      const { w, gun } = slowRoad();
+      apply(w, gun);
+      expect(haulerPace(w), name).toBe(cruise);
+    }
+  });
+
+  it('gives the same pace and order after a save and load', () => {
+    const { w, hauler } = slowRoad();
+    planHaulerOrder(w);
+    const copy = JSON.parse(JSON.stringify(w)) as World;
+    planHaulerOrder(copy);
+    expect(haulerPace(copy)).toBe(haulerPace(w));
+    expect(haulerOf(copy).order).toEqual(hauler.order);
+  });
+
+  it('holds a lane for a gun truck driving ahead at the cap and blocks it when slower', () => {
+    const { w, hauler, gun } = slowRoad();
+    const cap = plainMaxSpeed(w, gun);
+    gun.pos = roadPoint(w.seed, 0, N + 4, LANES[1]);
+    gun.speed = cap;
+    expect(laneClear(w, hauler, 1)).toBe(true);
+    gun.speed = cap - 0.5;
+    expect(laneClear(w, hauler, 1)).toBe(false);
   });
 });

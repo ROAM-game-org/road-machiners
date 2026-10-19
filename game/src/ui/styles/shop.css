@@ -161,6 +161,7 @@
     min(calc(min(var(--quest-page-height), var(--layer-h) - var(--quest-page-clearance)) * 0.95), calc(100% - var(--quest-side-width) - var(--quest-text-min)))
     minmax(0, 1fr)
     var(--quest-side-width);
+  grid-template-rows: minmax(0, 1fr);
   gap: 0;
   padding: 0;
   border-left: 2px solid var(--line);
@@ -171,7 +172,10 @@
   border-right: 1px solid var(--surface-raised);
 }
 .quest-page .quest-frame {
-  height: 100%;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  aspect-ratio: var(--quest-frame-column);
   overflow: hidden;
   border: 1px solid var(--surface-raised);
   background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
@@ -185,7 +189,7 @@
 }
 @keyframes quest-art-zoom {
   from { transform: scale(1); }
-  to { transform: scale(1.08); }
+  to { transform: scale(var(--quest-art-zoom)); }
 }
 .quest-page .quest-text {
   width: 100%;

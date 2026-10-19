@@ -232,6 +232,16 @@
   height: calc(0.26 * var(--layer-h));
   padding: var(--space-4);
   border-right: 0;
+  display: flex;
+  justify-content: center;
+}
+#ui.phone .quest-page .quest-frame,
+#ui .quest-page.stacked .quest-frame {
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  max-height: none;
+  aspect-ratio: var(--quest-frame-band);
 }
 #ui.phone .quest-page .quest-text,
 #ui .quest-page.stacked .quest-text {
