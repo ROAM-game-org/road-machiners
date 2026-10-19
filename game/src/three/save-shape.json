@@ -1,5 +1,5 @@
 {
- "format": "2.81",
+ "format": "2.83",
  "shape": {
   "broken": [],
   "craters": [],
@@ -473,6 +473,140 @@
       "grain": "number",
       "parts": "number",
       "textiles": "number"
+     },
+     "parts": [
+      {
+       "defId": "string",
+       "gun": {
+        "ammo": "number",
+        "cooldown": "number",
+        "reloadWork": "number"
+       },
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "defId": "string",
+      "gun": {
+       "ammo": "number",
+       "cooldown": "number",
+       "reloadWork": "number"
+      },
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "meds": "number",
+     "parts": "number",
+     "relics": "number",
+     "salt": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "meds": "number",
+      "parts": "number",
+      "relics": "number",
+      "salt": "number",
+      "scrap": "number"
+     },
+     "parts": [],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "meds": "number",
+     "parts": "number",
+     "relics": "number",
+     "salt": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "meds": "number",
+      "parts": "number",
+      "relics": "number",
+      "salt": "number",
+      "scrap": "number"
+     },
+     "parts": [
+      {
+       "charge": {
+        "reload": "number"
+       },
+       "defId": "string",
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "charge": {
+       "reload": "number"
+      },
+      "defId": "string",
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "meds": "number",
+     "parts": "number",
+     "relics": "number",
+     "salt": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "meds": "number",
+      "parts": "number",
+      "relics": "number",
+      "salt": "number",
+      "scrap": "number"
      },
      "parts": [
       {
@@ -1650,6 +1784,7 @@
      "grain": "number",
      "meds": "number",
      "parts": "number",
+     "relics": "number",
      "salt": "number",
      "scrap": "number",
      "textiles": "number",
@@ -1859,6 +1994,7 @@
     ],
     "pressure": {
      "parts": "number",
+     "relics": "number",
      "scrap": "number",
      "tools": "number"
     },
@@ -1907,6 +2043,95 @@
   ],
   "turn": "number",
   "vehicles": [
+   {
+    "bend": "number",
+    "brain": {
+     "attackers": {},
+     "driver": "string",
+     "goal": "null",
+     "goals": [],
+     "home": {
+      "x": "number",
+      "y": "number"
+     },
+     "hurt": "number",
+     "memories": [],
+     "noticed": {},
+     "personality": "string",
+     "stepIndex": "number",
+     "templateId": "string",
+     "tracks": {},
+     "traits": [
+      "string"
+     ]
+    },
+    "chassisId": "string",
+    "direct": "boolean",
+    "faction": "string",
+    "heading": "number",
+    "id": "string",
+    "items": [
+     {
+      "good": "string",
+      "id": "string",
+      "kind": "string",
+      "rot": "number",
+      "x": "number",
+      "y": "number"
+     },
+     {
+      "id": "string",
+      "kind": "string",
+      "part": {
+       "charge": {
+        "reload": "number"
+       },
+       "defId": "string",
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      },
+      "rot": "number",
+      "x": "number",
+      "y": "number"
+     },
+     {
+      "id": "string",
+      "kind": "string",
+      "part": {
+       "defId": "string",
+       "gun": {
+        "ammo": "number",
+        "cooldown": "number",
+        "reloadWork": "number"
+       },
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      },
+      "rot": "number",
+      "x": "number",
+      "y": "number"
+     }
+    ],
+    "job": "null",
+    "lastHitBy": "null",
+    "order": "null",
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "resources": {
+     "fuel": "number",
+     "health": "number",
+     "money": "number",
+     "supplies": "number"
+    },
+    "speed": "number",
+    "stormExposure": {},
+    "utilityOrders": {},
+    "weaponOrders": {}
+   },
    {
     "brain": "null",
     "chassisId": "string",

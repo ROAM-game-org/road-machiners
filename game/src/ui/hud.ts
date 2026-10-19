@@ -218,6 +218,13 @@ export class Hud {
   }
 
   constructor(private actions: HudActions, private radio: RadioPanel) {
+    const openLog = () => this.drawers.toggle("log");
+    this.log.strip.root.addEventListener("click", openLog);
+    this.log.strip.root.addEventListener("keydown", (e) => {
+      if (e.code !== "Enter" && e.code !== "Space") return;
+      e.preventDefault();
+      openLog();
+    });
     this.truckStack.append(this.condition.root, this.haulerGauge.root);
     bottomLeft().append(this.truckStack);
     this.dialogue = new DialoguePanel(actions.dialogue);

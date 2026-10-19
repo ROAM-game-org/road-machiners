@@ -112,6 +112,11 @@ const closeHelp = (page) => page.evaluate(() => document.querySelector('#ui .hel
 
 const openSaves = (page) => chooseMenuItem(page, 'save');
 const openOptions = (page) => chooseMenuItem(page, 'options');
+const setMinimap = async (page, on) => {
+  await openOptions(page);
+  await page.evaluate((at) => document.querySelectorAll('#ui .minimap-switch > button')[at].click(), on ? 1 : 0);
+  await escape(page);
+};
 
 function faultsIn(page, locale) {
   return page.evaluate(async ({ locale, names, glyphs }) => {
@@ -119,6 +124,19 @@ function faultsIn(page, locale) {
     const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English'];
     return findLayoutFaults(document.getElementById('ui'), { locale, allow, glyphs });
   }, { locale, names: KEY_CAPS, glyphs: GLYPHS });
+}
+
+function frameFaults(page) {
+  return page.evaluate(async () => {
+    const { questFrameFits } = await import('/src/ui/quest-screen.ts');
+    const screen = document.querySelector('#ui .quest-screen.quest-page');
+    const frame = screen?.querySelector('.quest-frame');
+    if (!frame) return [];
+    const { width, height } = frame.getBoundingClientRect();
+    const stacked = screen.classList.contains('stacked') || document.getElementById('ui').classList.contains('phone');
+    if (questFrameFits(width, height, stacked)) return [];
+    return [{ kind: 'quest-frame-shape', path: '.quest-frame', text: `${Math.round(width)}x${Math.round(height)} stacked=${stacked}`, sizes: '' }];
+  });
 }
 
 async function probe(page, locale) {
@@ -180,9 +198,21 @@ const openStartMenu = (page) => page.evaluate(async () => {
     node.style.display = 'none';
   }
   const { chooseStart } = await import('/src/ui/save-screen.ts');
+  const { SoundSettings } = await import('/src/ui/sound.ts');
+  const sound = new SoundSettings({ setBusVolume: () => {}, setMuted: () => {} }, window.localStorage);
   const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'furyRoad' }];
-  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false });
+  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false }, sound);
 });
+
+const openStartOptions = async (page) => {
+  await openStartMenu(page);
+  await page.locator('.start-menu .btn-l').last().click();
+};
+
+const openQuestInventory = async (page) => {
+  await openQuestPage(page);
+  await key(page, 'KeyI');
+};
 
 const openStartLoad = async (page) => {
   await openStartMenu(page);
@@ -220,8 +250,12 @@ const STATES = {
   log: { setup: fillLog },
   inventory: { setup: openInventory, teardown: escape },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage },
+  'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
+  charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
+  'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
+  minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
@@ -232,6 +266,7 @@ const STATES = {
   options: { setup: openOptions, teardown: escape },
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
   'start-load': { setup: openStartLoad, teardown: closeStartMenu },
+  'start-options': { setup: openStartOptions, teardown: async (page) => { await escape(page); await closeStartMenu(page); } },
   inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
 };
@@ -252,7 +287,7 @@ async function capture(page, locale, [width, height], [name, state], size = 1) {
   await frames(page);
   const label = size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`;
   await page.screenshot({ path: `${OUT}/${name}-${locale}-${label}.png` });
-  for (const f of await faultsIn(page, locale)) report.push({ state: name, locale, viewport: label, ...f });
+  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page)]) report.push({ state: name, locale, viewport: label, ...f });
   captures++;
   console.log(`${name} ${locale} ${label} at ${seconds()} s`);
   if (state.teardown) await state.teardown(page);

@@ -19,7 +19,7 @@ import { angleDiff, dist, lerp } from '../sim/vec';
 import { exploreFrom } from '../sim/vision';
 import { bodyState, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
 import { frameBend, headingOf, toMap, type VehicleFrame, type WheelFrame } from './frames';
-import { bendField, checkBend, poseOf, straighten } from '../sim/rig';
+import { bendField, checkBend, heldBend, poseOf, straighten } from '../sim/rig';
 import { planTurns, type PlanFrames } from './plan';
 
 export type TurnState = Omit<World, 'terrain'>;
@@ -189,7 +189,7 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   if (v.brain) delete v.brain.farRoute;
   const s = bodyState(r.next, v.id);
   const start = poseOf(v);
-  Object.assign(v, { pos: s.pos, heading: s.heading, speed: Math.max(0, toTilesPerTurn(s.speed)) }, bendField(s.bend));
+  Object.assign(v, { pos: s.pos, heading: s.heading, speed: Math.max(0, toTilesPerTurn(s.speed)) }, bendField(heldBend(v.chassisId, s.bend)));
   checkBend(v);
   const free = s.upright && !isLifted(r.next, w, v) && !isHung(v, r.results[v.id], start, frames);
   v.strandedTurns = free ? 0 : (v.strandedTurns ?? 0) + 1;

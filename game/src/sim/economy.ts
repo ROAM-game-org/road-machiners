@@ -1,5 +1,5 @@
 
-import { chassisDef, PLAYER_CHASSIS } from "../data/chassis";
+import { chassisDef, TOWN_CHASSIS } from "../data/chassis";
 import { ECONOMY, GOODS } from "../data/goods";
 import { shopDef } from "../data/market";
 import { UNITS } from "../data/units";
@@ -575,11 +575,17 @@ function payChassisCost(world: World, chassisId: string): void {
   else world.player.money -= cost;
 }
 
+export function garageChassis(townId: string): readonly string[] {
+  const lineup = TOWN_CHASSIS[townId];
+  if (!lineup) throw new Error(`No garage lineup for ${townId}`);
+  return lineup;
+}
+
 export function buyChassis(world: World, chassisId: string): World {
   return playerCommand(world, (w) => {
-    requireTown(w);
-    if (!PLAYER_CHASSIS.includes(chassisId))
-      throw new Error(`${chassisId} is not for sale`);
+    const town = requireTown(w);
+    if (!garageChassis(town.id).includes(chassisId))
+      throw new Error(`${chassisId} is not for sale at ${town.id}`);
     swapChassis(w, chassisId);
   });
 }

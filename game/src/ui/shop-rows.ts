@@ -120,7 +120,7 @@ export function bar(share: number): HTMLElement {
 
 export type SwapOffer = { reason: Msg | null; swap: () => void };
 
-export function truckCards(w: World, ids: string[], offer: (id: string) => SwapOffer): HTMLElement {
+export function truckCards(w: World, ids: readonly string[], offer: (id: string) => SwapOffer): HTMLElement {
   const mine = playerVehicle(w).chassisId;
   const cards = ids.map((id) => {
     const own = mine === id;

@@ -60,7 +60,7 @@ function setMass(body: RAPIER.RigidBody, b: Body, mass: number): void {
   const h = b.half;
   const k = (mass / 3) * T.inertiaScale;
   const inertia = { x: k * (h.y * h.y + h.z * h.z), y: k * (h.x * h.x + h.z * h.z), z: k * (h.x * h.x + h.y * h.y) };
-  body.setAdditionalMassProperties(mass, { x: 0, y: -T.comBelow, z: 0 }, inertia, { x: 0, y: 0, z: 0, w: 1 }, true);
+  body.setAdditionalMassProperties(mass, { x: 0, y: b.comY, z: 0 }, inertia, { x: 0, y: 0, z: 0, w: 1 }, true);
   body.recomputeMassPropertiesFromColliders();
 }
 

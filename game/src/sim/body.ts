@@ -14,6 +14,7 @@ export type Body = {
   wheelY: number;
   wheelRadius: number;
   wheelHalfWidth: number;
+  comY: number;
 };
 
 export type CellRect = { unit: number; x0: number; x1: number; z0: number; z1: number };
@@ -24,7 +25,7 @@ export type Span = { center: number; half: { x: number; z: number } };
 
 type HeightMap = { cell: number; i0: number; j0: number; top: (number | null)[][] };
 type TruckShape = { boxes: ShapeBox[]; heights: HeightMap };
-type WheelLook = { halfHeight: number; wheelY: number; wheelX: number; wheelZ: number; wheelRadius: number; wheelHalfWidth: number };
+type WheelLook = { halfHeight: number; wheelY: number; wheelX: number; wheelZ: number; wheelRadius: number; wheelHalfWidth: number; comHeight: number };
 type CouplingLook = (typeof PHYSICS.couplings)[keyof typeof PHYSICS.couplings];
 
 const units = new Map<string, readonly Unit[]>();
@@ -115,11 +116,16 @@ function buildBody(chassisId: string, shape: string, look: WheelLook): Body {
     y: look.halfHeight,
     z: Math.max(...boxes.map((b) => Math.abs(b.at.z) + b.half.z)),
   };
-  return { half, boxes, wheelX: look.wheelX, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth };
+  const comY = look.comHeight - rideOf(look);
+  return { half, boxes, wheelX: look.wheelX, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth, comY };
 }
 
-function restTop(look: { wheelY: number; wheelRadius: number }): number {
-  return PHYSICS.truckRoof - (look.wheelRadius + PHYSICS.truck.suspensionRest - look.wheelY);
+export function rideOf(body: Pick<Body, 'wheelRadius' | 'wheelY'>): number {
+  return body.wheelRadius + PHYSICS.truck.suspensionRest - body.wheelY;
+}
+
+function restTop(look: Pick<Body, 'wheelRadius' | 'wheelY'>): number {
+  return PHYSICS.truckRoof - rideOf(look);
 }
 
 function truckShape(name: string): TruckShape {

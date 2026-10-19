@@ -161,6 +161,7 @@
     min(calc(min(var(--quest-page-height), var(--layer-h) - var(--quest-page-clearance)) * 0.95), calc(100% - var(--quest-side-width) - var(--quest-text-min)))
     minmax(0, 1fr)
     var(--quest-side-width);
+  grid-template-rows: minmax(0, 1fr);
   gap: 0;
   padding: 0;
   border-left: 2px solid var(--line);
@@ -171,7 +172,10 @@
   border-right: 1px solid var(--surface-raised);
 }
 .quest-page .quest-frame {
-  height: 100%;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  aspect-ratio: var(--quest-frame-column);
   overflow: hidden;
   border: 1px solid var(--surface-raised);
   background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
@@ -185,7 +189,7 @@
 }
 @keyframes quest-art-zoom {
   from { transform: scale(1); }
-  to { transform: scale(1.08); }
+  to { transform: scale(var(--quest-art-zoom)); }
 }
 .quest-page .quest-text {
   width: 100%;
@@ -705,50 +709,47 @@
 }
 
 .standing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  gap: 0 var(--space-7);
+  width: var(--panel-m);
   margin-top: var(--space-6);
   font-size: var(--text-dense);
 }
-.standing h4 {
-  margin: 0 0 var(--space-3);
-  color: var(--ink-label);
-  font-size: var(--text-caption);
-  font-weight: normal;
-  cursor: help;
-}
-.standing-rows {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3) var(--space-7);
-}
+.standing-head,
 .standing-row {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
-  gap: var(--space-4);
-  color: var(--ink-title);
+}
+.standing-head {
+  color: var(--ink-label);
+  font-size: var(--text-caption);
+}
+.standing-row > .tag {
+  justify-self: end;
+}
+.standing-score {
+  justify-self: end;
+  text-align: right;
+  text-decoration: underline dotted;
   cursor: help;
 }
 .standing-tip {
   display: none;
   position: absolute;
-  left: 0;
-  bottom: calc(100% + var(--hud-gap));
+  left: calc(100% + var(--hud-gap));
+  top: 0;
   z-index: var(--z-popup);
   width: max-content;
   cursor: default;
 }
-.standing-row:hover > .standing-tip,
-.standing-row:focus > .standing-tip {
+.standing-score:hover > .standing-tip,
+.standing-score:focus > .standing-tip,
+.standing-score:focus-visible > .standing-tip {
   display: block;
-}
-.standing-tip .base {
-  color: var(--ink-muted);
-}
-.standing-tip .up > .num {
-  color: var(--good);
-}
-.standing-tip .down > .num {
-  color: var(--danger-ink);
 }
 #ui button.perk {
   padding: var(--space-2) var(--space-4);

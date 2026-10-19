@@ -31,6 +31,12 @@ export function checkBend(v: Posed): void {
   if (coupling && !(Math.abs(bend) <= coupling.bendLimit + coupling.bendTolerance)) throw new Error(`Rig ${v.chassisId} bends ${bend.toFixed(3)}, past its limit ${coupling.bendLimit}`);
 }
 
+export function heldBend(chassisId: string, bend: number | undefined): number | undefined {
+  const coupling = couplingOf(chassisId);
+  if (!coupling || bend === undefined) return bend;
+  return Math.max(-coupling.bendLimit, Math.min(coupling.bendLimit, bend));
+}
+
 export function restBend(chassisId: string): number | undefined {
   return couplingOf(chassisId) ? 0 : undefined;
 }

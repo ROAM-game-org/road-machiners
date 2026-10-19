@@ -10,6 +10,7 @@ import { SaveList, saveSummary, slotRealTime } from './save-panel';
 import { disabledWith, download, el, panel } from './dom';
 import { openNewGame, type NewGameActions } from './new-game';
 import { OptionsPanel } from './options';
+import type { SoundSettings } from './sound';
 import { moneyMsg } from './units';
 
 export function saveErrorText(error: SaveError): Msg {
@@ -19,9 +20,9 @@ export function saveErrorText(error: SaveError): Msg {
   return t(`save.error.${code}`, error.format);
 }
 
-export function chooseSaveFate(reason: Msg, canMigrate: boolean, stored: unknown, newGame: NewGameActions): Promise<void> {
+export function chooseSaveFate(reason: Msg, canMigrate: boolean, stored: unknown, newGame: NewGameActions, sound: SoundSettings): Promise<void> {
   return new Promise((resolve) => {
-    const root = savePanel(t('save.needsMigrating'));
+    const root = savePanel(t('save.needsMigrating'), sound);
     const migrate = () => {
       root.remove();
       resolve();
@@ -43,7 +44,7 @@ export function chooseSaveFate(reason: Msg, canMigrate: boolean, stored: unknown
 
 const TITLE = verbatim('Road Machiners');
 
-export function chooseStart(saves: SlotInfo[], newGame: NewGameActions): Promise<SlotId> {
+export function chooseStart(saves: SlotInfo[], newGame: NewGameActions, sound: SoundSettings): Promise<SlotId> {
   return new Promise((resolve) => {
     const root = panel('start-menu');
     root.setAttribute('role', 'dialog');
@@ -60,7 +61,7 @@ export function chooseStart(saves: SlotInfo[], newGame: NewGameActions): Promise
     const saveList = new SaveList(() => loadButton.focus());
     const newGameButton = el('button', { class: 'btn-l', onclick: () => openNewGame(newGame, () => {}) }, t('menu.newGame'));
     const optionsButton = el('button', { class: 'btn-l' }, t('menu.options'));
-    const startOptions = new OptionsPanel(() => optionsButton.focus());
+    const startOptions = new OptionsPanel(sound, () => optionsButton.focus());
     optionsButton.addEventListener('click', () => startOptions.open());
     const resumes = next === null ? [] : [continueCaption(next, continueButton)];
     root.append(el('h1', {}, TITLE), el('div', { class: 'start-buttons' }, el('div', { class: 'start-continue' }, continueButton, ...resumes), el('div', { class: 'start-others' }, loadButton, newGameButton, optionsButton)));
@@ -73,18 +74,18 @@ function continueCaption(info: SlotInfo, continueButton: HTMLElement): HTMLEleme
   return el('div', { class: 'start-save', id: 'start-save', title: slotRealTime(info) ?? undefined }, ...saveSummary(info));
 }
 
-export function showCarryReport(report: CarryReport): Promise<void> {
+export function showCarryReport(report: CarryReport, sound: SoundSettings): Promise<void> {
   const lines = [...repairLines(report.questsReset), ...carryLines(report), ...changeLines(report)];
-  return showReport(t('save.migrated'), lines.length === 0 ? [t('save.allCarried')] : lines);
+  return showReport(t('save.migrated'), lines.length === 0 ? [t('save.allCarried')] : lines, sound);
 }
 
-export function showRepairReport(repair: LoadRepair): Promise<void> {
-  return showReport(t('save.repaired'), [...repairLines(repair.questsReset), ...changeLines(repair)]);
+export function showRepairReport(repair: LoadRepair, sound: SoundSettings): Promise<void> {
+  return showReport(t('save.repaired'), [...repairLines(repair.questsReset), ...changeLines(repair)], sound);
 }
 
-function showReport(title: Msg, lines: readonly Msg[]): Promise<void> {
+function showReport(title: Msg, lines: readonly Msg[], sound: SoundSettings): Promise<void> {
   return new Promise((resolve) => {
-    const root = savePanel(title);
+    const root = savePanel(title, sound);
     root.append(
       ...lines.map((line) => el('div', {}, line)),
       el('div', { class: 'death-buttons' }, el('button', { onclick: () => { root.remove(); resolve(); } }, t('save.driveOn'))),
@@ -96,9 +97,8 @@ function downloadSave(stored: unknown): void {
   download('roam-save.json', typeof stored === 'string' ? stored : JSON.stringify(stored), 'application/json');
 }
 
-const options = new OptionsPanel(() => document.querySelector<HTMLElement>('.save-screen .options-button')?.focus());
-
-function savePanel(title: Msg): HTMLElement {
+function savePanel(title: Msg, sound: SoundSettings): HTMLElement {
+  const options = new OptionsPanel(sound, () => document.querySelector<HTMLElement>('.save-screen .options-button')?.focus());
   const root = panel('death save-screen');
   root.setAttribute('role', 'alertdialog');
   bindAttr(root, 'aria-label', title);

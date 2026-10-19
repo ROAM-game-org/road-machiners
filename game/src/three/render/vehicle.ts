@@ -1,4 +1,5 @@
 
+import { CLOUD_SHADOWS } from './cloudShadows';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { chassisDef } from '../../data/chassis';
@@ -262,6 +263,7 @@ export class VehicleView {
     this.darkMat = new THREE.MeshBasicMaterial({ color: PAL.outline });
     markStencil(this.darkMat);
     this.dark = false;
+    CLOUD_SHADOWS.shadeTree(this.root);
   }
 
   private unitView(v: Vehicle, index: number, b: Body): UnitView {

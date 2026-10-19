@@ -89,7 +89,7 @@ describe('a rig drives as two bodies on a pivot', () => {
       }));
     });
     const spot = inner.reduce((best, p) => (Math.min(...fronts.map((b) => boxGap(b, p))) > Math.min(...fronts.map((b) => boxGap(b, best))) ? p : best));
-    const rock: Obstacle = { id: 'rock1', pos: spot, r: 0.3, kind: 'rock' };
+    const rock: Obstacle = { id: 'rock1', pos: spot, r: 0.6, kind: 'rock' };
     expect(Math.min(...fronts.map((b) => boxGap(b, spot)))).toBeGreaterThan(rock.r + 0.3);
 
     const world = rigWorld(start, 0, 3);

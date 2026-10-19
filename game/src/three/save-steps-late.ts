@@ -91,22 +91,22 @@ export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }
 
-const SEMI_80_81 = 'semi';
-const TRACTOR_AHEAD_TILES_80_81 = 5.825 / 4;
+const SEMI_82_83 = 'semi';
+const TRACTOR_AHEAD_TILES_82_83 = 5.7375 / 4;
 
-export function withTractorPivot_80_81(world: SavedJson): SavedJson {
-  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_80_81 ? { ...v, pos: tractorAt_80_81(v.pos as Point_80_81, v.heading as number), bend: 0 } : v));
+export function withTractorPivot_82_83(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_82_83 ? { ...v, pos: tractorAt_82_83(v.pos as Point_82_83, v.heading as number), bend: 0 } : v));
   const obstacles = (world.obstacles as SavedJson[]).map((o) => {
     const hulk = o.hulk as SavedJson | undefined;
-    return hulk?.chassisId === SEMI_80_81 ? { ...o, pos: tractorAt_80_81(o.pos as Point_80_81, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
+    return hulk?.chassisId === SEMI_82_83 ? { ...o, pos: tractorAt_82_83(o.pos as Point_82_83, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
   });
   return { ...world, vehicles, obstacles };
 }
 
-type Point_80_81 = { x: number; y: number };
+type Point_82_83 = { x: number; y: number };
 
-function tractorAt_80_81(pos: Point_80_81, heading: number): Point_80_81 {
-  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_80_81, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_80_81 };
+function tractorAt_82_83(pos: Point_82_83, heading: number): Point_82_83 {
+  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_82_83, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_82_83 };
 }
 
 export function withProgressAnchor_65_66(world: SavedJson): SavedJson {
@@ -116,4 +116,13 @@ export function withProgressAnchor_65_66(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
   };
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
+}
+
+export function withHeardCentres_81_82(world: SavedJson): SavedJson {
+  const heardOf = (goal: SavedJson): SavedJson => (goal.kind === 'investigate' && goal.destination && !goal.heard ? { ...goal, heard: { ...(goal.destination as SavedJson) } } : goal);
+  const withBrain = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    return brain ? { ...v, brain: { ...brain, goals: (brain.goals as SavedJson[]).map(heardOf) } } : v;
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
 }

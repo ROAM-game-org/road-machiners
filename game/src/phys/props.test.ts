@@ -9,7 +9,7 @@ import { BROKEN_WING, BROKEN_WING_POINT } from '../data/region';
 import { FALLEN_SUN_DECKS } from '../data/territory';
 import { WEAR } from '../data/wear';
 import { START_KITS } from '../data/start';
-import { bodyOf, unitsOf } from '../sim/body';
+import { bodyOf, rideOf, unitsOf } from '../sim/body';
 import { reachMeters } from '../sim/rig';
 import { coreParts } from '../sim/grid';
 import { vehicleStats } from '../sim/stats';
@@ -168,7 +168,7 @@ describe('prop colliders follow the model shape', () => {
 
   it('every truck roof at rest is below the clearance under which props are left out', () => {
     for (const [id, b] of Object.keys(CHASSIS).flatMap((chassis) => unitsOf(chassis).map((u) => [chassis, u.body] as const))) {
-      const roof = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY + Math.max(...b.boxes.map((box) => box.at.y + box.half.y));
+      const roof = rideOf(b) + Math.max(...b.boxes.map((box) => box.at.y + box.half.y));
       expect(roof, id).toBeLessThanOrEqual(PHYSICS.truckRoof + 1e-9);
       expect(PHYSICS.truckRoof, id).toBeLessThan(PHYSICS.truckClearance);
     }
@@ -312,7 +312,7 @@ describe('Broken Wing', () => {
     expect(hits).toEqual([]);
     expect(me(w).pos.x).toBeGreaterThan(end.x - 2);
     const b = bodyOf(me(w).chassisId);
-    const rest = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY;
+    const rest = rideOf(b);
     const onDeck = frames.filter((f) => deckAt(ICARUS_DECKS, f.at.x, f.at.y)?.deck.id === deck.id);
     expect(onDeck.length).toBeGreaterThan(0);
     for (const f of onDeck) expect(Math.abs(f.y - heightAt(w.terrain, f.at.x, f.at.y) * S - rest)).toBeLessThan(0.5);
@@ -368,7 +368,7 @@ describe('a Fallen Sun flap', () => {
         if (alongOf(a) <= flap.length && alongOf(b) > flap.length) lipSpeed = dist(a, b) * PHYSICS.stepsPerSecond;
       }
       const b = bodyOf(me(w).chassisId);
-      const rest = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY;
+      const rest = rideOf(b);
       const air = Math.max(...frames.map((f) => f.pos.y - heightAt(w.terrain, toMap(f.pos).x, toMap(f.pos).y) * S - rest));
       freeDrive(d);
       d = r!.next;
@@ -431,7 +431,7 @@ describe('a Fury Road hull-plate ramp', () => {
       w = endTurn(w, physicsMove(d, (x) => (r = x)));
       hits.push(...r!.crashes.map((c) => c.b));
       const b = bodyOf(me(w).chassisId);
-      const rest = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY;
+      const rest = rideOf(b);
       air = Math.max(air, ...r!.frames[id].filter((f) => alongOf(toMap(f.pos)) > ramp.length).map((f) => f.pos.y - heightAt(w.terrain, toMap(f.pos).x, toMap(f.pos).y) * S - rest));
       freeDrive(d);
       d = r!.next;

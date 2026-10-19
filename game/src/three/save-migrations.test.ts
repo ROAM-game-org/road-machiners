@@ -1732,9 +1732,42 @@ describe('save migration 79 to 80', () => {
 });
 
 describe('save migration 80 to 81', () => {
+  it('keeps a save as it is, since ship relics are only a new key in loot goods and shop pressure', () => {
+    const before = structuredClone(FORMAT_2_75);
+
+    const next = MIGRATIONS[80](before);
+
+    expect(next).toEqual(FORMAT_2_75);
+    expect(before).toEqual(FORMAT_2_75);
+  });
+});
+
+describe('save migration 81 to 82', () => {
+  type Goal = { kind: string; destination: { x: number; y: number } | null; heard?: { x: number; y: number } };
+  type Saved = { vehicles: { brain: { goals: Goal[] } | null }[] };
+  const withGoals = (goals: Goal[]): Saved => {
+    const world = structuredClone(FORMAT_2_70) as unknown as Saved;
+    for (const v of world.vehicles) if (v.brain) v.brain.goals = structuredClone(goals);
+    return world;
+  };
+  const goalsAfter = (world: Saved) => (MIGRATIONS[81](structuredClone(world) as unknown as SavedJson) as unknown as Saved).vehicles.find((v) => v.brain)!.brain!.goals;
+
+  it('gives an investigation its destination as the heard centre', () => {
+    const goals = goalsAfter(withGoals([{ kind: 'investigate', destination: { x: 12, y: 30 } }]));
+    expect(goals[0].heard).toEqual({ x: 12, y: 30 });
+    expect(goals[0].heard).not.toBe(goals[0].destination);
+  });
+
+  it('leaves other goals and a goal that already heard alone', () => {
+    const before = [{ kind: 'travel', destination: { x: 1, y: 2 } }, { kind: 'investigate', destination: { x: 5, y: 5 }, heard: { x: 4, y: 4 } }];
+    expect(goalsAfter(withGoals(before))).toEqual(before);
+  });
+});
+
+describe('save migration 82 to 83', () => {
   type Saved = typeof FORMAT_2_80;
-  const stepped = () => MIGRATIONS[80](structuredClone(FORMAT_2_80) as unknown as SavedJson) as unknown as Saved & { vehicles: (Saved['vehicles'][number] & { bend?: number })[]; obstacles: { hulk?: { bend?: number } }[] };
-  const AHEAD = 5.825 / 4;
+  const stepped = () => MIGRATIONS[82](MIGRATIONS[81](MIGRATIONS[80](structuredClone(FORMAT_2_80) as unknown as SavedJson))) as unknown as Saved & { vehicles: (Saved['vehicles'][number] & { bend?: number })[]; obstacles: { hulk?: { bend?: number } }[] };
+  const AHEAD = 5.7375 / 4;
 
   it('moves a semi from the middle of the rig to its tractor along its heading and sets it straight', () => {
     const before = FORMAT_2_80.vehicles[1];

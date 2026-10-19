@@ -24,7 +24,7 @@ import { cargoRoom } from './inventory';
 import { cargoValue } from './market';
 import { maxHp } from './wear';
 import { corePart, freeCells, hasLoot, mountedParts } from './grid';
-import { cargoHaul } from './haul';
+import { hasRansom, ransomOf } from './haul';
 import { hasCargoRoom } from './inventory';
 import { topGoal } from './npc-activities';
 import { sampleWeighted } from './npc-loadout';
@@ -811,7 +811,7 @@ export function wantsLoot(world: World, vehicle: Vehicle, target: Vehicle): bool
 }
 
 export function holdsUp(world: World, robber: Vehicle, prey: Vehicle, danger: number | null): boolean {
-  return wantsLoot(world, robber, prey) && cargoHaul(robber, prey).length > 0 && !wantsPeace(world, robber, danger);
+  return wantsLoot(world, robber, prey) && hasRansom(ransomOf(world, robber, prey)) && !wantsPeace(world, robber, danger);
 }
 
 export function robbedFor(world: World, vehicle: Vehicle, target: Vehicle): boolean {

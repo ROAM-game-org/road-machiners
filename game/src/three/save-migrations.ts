@@ -3,7 +3,7 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
-import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withProgressAnchor_65_66, withRunWait_72_73, withoutVarga_79_80, withTractorPivot_80_81 } from './save-steps-late';
+import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withProgressAnchor_65_66, withRunWait_72_73, withHeardCentres_81_82, withoutVarga_79_80, withTractorPivot_82_83 } from './save-steps-late';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -893,7 +893,9 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withHattieMet_77_78,
   withBrakeRod_78_79,
   withoutVarga_79_80,
-  withTractorPivot_80_81,
+  (world) => world,
+  withHeardCentres_81_82,
+  withTractorPivot_82_83,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];

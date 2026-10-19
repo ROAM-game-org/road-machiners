@@ -2,13 +2,14 @@
 
 Built from the committee's photo of a Peterbilt 379 type tractor with a container trailer, scaled to the game's trucks:
 the scout is a pickup. A real rig is about 3.7 times a pickup's length, 1.3 times its width and 2.1 times its height,
-so next to the 5.2 m long, 2.44 m wide, 2.4 m tall scout the rig is 20.5 m long, 3.1 m wide and 5.2 m tall.
-Every shape is laid out in the straight rig frame: 20.5 m along X from -10.25 to 10.25, the ground 1.8 m below the origin.
+so next to the 5.2 m long, 2.44 m wide, 2.4 m tall scout the rig is 20.5 m long, 3.1 m wide and 5.2 m tall, 5.35 m on its lifted tires.
+Every shape is laid out in the straight rig frame: 20.5 m along X from -10.25 to 10.25. Body heights stand over DATUM, 1.8 m below
+the origin at the collider center, and the ground lies under it by the tire radius gained over 0.65 m, so the body rides lifted on its tires.
 From the front: a 0.3 m chrome bumper, a 2.6 m hood 1.76 m wide between fenders that flare to 2.88 m, a 2.05 m day cab
 with its roof 3.55 m up, a 0.55 m open gap over the frame and the fifth wheel, then a 15.0 m box trailer from 1.6 m to 5.2 m up,
 so its roof stands 1.46 times the cab roof. Twin stacks reach 4.55 m.
-Axles: steer 1.3 m behind the bumper front, the drive tandem 1.2 m and 2.6 m behind the cab, the trailer tandem 1.3 m and 2.7 m
-from the doors. Wheel radius 0.65 m. The tractor ends at x 1.4 and the trailer starts at x 4.75, so the trailer's nose rides
+Axles: steer 1.3 m behind the bumper front, the drive tandem about 1 m and 2.8 m behind the cab, the trailer tandem 1.3 m and
+3.05 m from the doors. Tandem axles stand TANDEM apart, so their tires keep TIRE_GAP between them. Wheel radius 0.8 m. The tractor ends at x 1.225 and the trailer starts at x 4.75, so the trailer's nose rides
 over the tractor's frame. The pivot, the king pin on the fifth wheel, is at x 3.0, over the drive tandem.
 base_semi.py writes the tractor and base_semi_rear.py the trailer, each moved so its origin is its own collider center.
 """
@@ -28,21 +29,25 @@ from shapes import prism  # noqa: E402
 SEED = 321
 LENGTH = 20.5
 WIDTH = 3.1
-GROUND = -1.8
+DATUM = -1.8
 
-STEER_X = 8.95  # PHYSICS.bodies.semi.wheelX ahead of the tractor's center
-REAR_DRIVE_X = 2.7  # PHYSICS.bodies.semi.wheelX behind the tractor's center: the drive tandem's last axle
+WHEEL_R = 0.8  # PHYSICS.bodies.semi.wheelRadius
+TIRE_GAP = 0.15
+TANDEM = 2 * WHEEL_R + TIRE_GAP
+DRIVE_MID = 3.4
+STEER_X = 8.95  # the steer axle in the straight rig frame
+REAR_DRIVE_X = DRIVE_MID - TANDEM / 2  # the drive tandem's last axle; with the steer axle it sets PHYSICS.bodies.semi.wheelX about the tractor's center
 LAST_TRAILER_X = -8.95  # PHYSICS.couplings.semi.rear.wheelX behind the trailer's center
 WHEEL_Y = -0.75  # PHYSICS.bodies.semi.wheelY
 WHEEL_Z = 1.24  # PHYSICS.bodies.semi.wheelZ: the steer wheels and the outer duals
-WHEEL_R = 0.65  # PHYSICS.bodies.semi.wheelRadius
-WHEEL_HALF_W = 0.18  # PHYSICS.bodies.semi.wheelHalfWidth
+WHEEL_HALF_W = 0.21  # PHYSICS.bodies.semi.wheelHalfWidth
 ENGINE = (8.35, -0.15, 0.0)  # PHYSICS.bodies.semi.engine plus the tractor's center, as Blender x, z and -y
 HUB_Z = WHEEL_Y - SUSPENSION_REST
 TIRE_R = WHEEL_R * 0.935  # the wheel model's tire body; its lugs reach the ground
 DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
-DRIVE_AXLES = (4.1, REAR_DRIVE_X)
-TRAILER_AXLES = (-7.55, LAST_TRAILER_X)
+DRIVE_AXLES = (DRIVE_MID + TANDEM / 2, REAR_DRIVE_X)
+TRAILER_AXLES = (LAST_TRAILER_X + TANDEM, LAST_TRAILER_X)
+TANDEM_COVER = TANDEM + 1.3
 UNIT_MODEL_WHEELS = 6
 PIVOT_X = 3.0  # PHYSICS.couplings.semi pivotFront and pivotRear, in the straight rig frame
 
@@ -61,8 +66,8 @@ FENDER_HALF = 1.44
 
 
 def up(height: float) -> float:
-    """Blender Z of a height above the ground."""
-    return GROUND + height
+    """Blender Z of a height above the body datum."""
+    return DATUM + height
 
 
 FRAME_BOTTOM = up(0.9)
@@ -78,8 +83,8 @@ STACK_TOP = up(4.55)
 BAY_FRONT = ENGINE[0] + 0.55
 BAY_BACK = ENGINE[0] - 0.55
 BAY_HALF = HOOD_HALF - 0.12
-LEGS_X = DRIVE_AXLES[1] - 1.4
-TRACTOR_REAR = 1.4
+LEGS_X = DRIVE_AXLES[1] - WHEEL_R - 0.75
+TRACTOR_REAR = 1.225
 TRACTOR_ORIGIN = (FRONT + TRACTOR_REAR) / 2
 TRAILER_ORIGIN = (TRAILER_FRONT + BACK) / 2
 COLORS = {
@@ -130,11 +135,20 @@ def axle(kit: Kit, x: float) -> None:
     kit.box(f"axle_{x}", (0.14, 2 * (WHEEL_Z - DUAL_STEP), 0.14), (x, 0, HUB_Z), "under")
 
 
+def check_tandems() -> None:
+    """Raises when two tires of a tandem stand closer than TIRE_GAP."""
+    for name, (a, b) in (("drive", DRIVE_AXLES), ("trailer", TRAILER_AXLES)):
+        gap = abs(a - b) - 2 * WHEEL_R
+        if gap < TIRE_GAP - 1e-9:
+            raise RuntimeError(f"base_semi {name} tandem tires stand {gap:.3f} m apart, under {TIRE_GAP} m")
+
+
 def tractor_gear(kit: Kit) -> int:
     """The frame rails to the rear cross member, the front drive axle's duals and the rear drive axle's inner duals.
 
     The game draws the steer pair and the outer wheels of the rear drive axle. Returns the wheel count.
     """
+    check_tandems()
     count = duals(kit, DRIVE_AXLES[0]) + duals(kit, DRIVE_AXLES[1], (1,))
     mirrored(kit, "rail", (GRILLE_X - 0.1 - TRACTOR_REAR, 0.14, FRAME_TOP - FRAME_BOTTOM), (GRILLE_X - 0.1 + TRACTOR_REAR) / 2, 0.45, (FRAME_TOP + FRAME_BOTTOM) / 2, "under")
     kit.box("frame_end", (0.15, 1.2, FRAME_TOP - FRAME_BOTTOM), (TRACTOR_REAR + 0.075, 0, (FRAME_TOP + FRAME_BOTTOM) / 2), "metal_dark")
@@ -245,7 +259,7 @@ def coupling(kit: Kit) -> None:
     kit.box("deck_plate", (CAB_BACK - TRAILER_FRONT + 0.3, 1.2, 0.06), (CAB_BACK - 0.3, 0, FRAME_TOP + 0.03), "metal_dark")
     for s, name in ((1, "l"), (-1, "r")):
         kit.box(f"drive_flap_{name}", (0.04, 0.62, 0.6), (DRIVE_AXLES[1] - WHEEL_R - 0.2, s * (WHEEL_Z - DUAL_STEP / 2), up(0.55)), "stripe")
-        kit.box(f"drive_fender_{name}", (2.7,0.62, 0.05), (mid, s * (WHEEL_Z - DUAL_STEP / 2), HUB_Z + WHEEL_R + 0.12), "under")
+        kit.box(f"drive_fender_{name}", (TANDEM_COVER, 0.62, 0.05), (mid, s * (WHEEL_Z - DUAL_STEP / 2), HUB_Z + WHEEL_R + 0.12), "under")
 
 
 def trailer(kit: Kit) -> None:
@@ -275,7 +289,7 @@ def trailer(kit: Kit) -> None:
         kit.box(f"trailer_flap_{name}", (0.04, 0.62, 0.6), (LAST_TRAILER_X - WHEEL_R - 0.2, s * (WHEEL_Z - DUAL_STEP / 2), up(0.55)), "stripe")
     kit.box("leg_brace", (0.08, 1.7, 0.08), (LEGS_X, 0, up(0.8)), "metal_dark")
     kit.box("underride", (0.12, WIDTH - 0.4, 0.16), (BACK + 0.25, 0, up(0.5)), "metal_dark")
-    kit.box("bogie", (2.7, 1.2, TRAILER_FLOOR - HUB_Z - 0.2), ((TRAILER_AXLES[0] + TRAILER_AXLES[1]) / 2, 0, (TRAILER_FLOOR + HUB_Z + 0.2) / 2), "under")
+    kit.box("bogie", (TANDEM_COVER, 1.2, TRAILER_FLOOR - HUB_Z - 0.2), ((TRAILER_AXLES[0] + TRAILER_AXLES[1]) / 2, 0, (TRAILER_FLOOR + HUB_Z + 0.2) / 2), "under")
     kit.box("trailer_frame", (length - 0.4, 1.0, 0.16), ((TRAILER_FRONT + BACK) / 2, 0, TRAILER_FLOOR - 0.08), "under")
     kit.cylinder("king_pin", 0.08, 0.2, (PIVOT_X, 0, TRAILER_FLOOR - 0.16), "metal_dark", vertices=8)
 

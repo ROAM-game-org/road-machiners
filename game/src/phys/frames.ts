@@ -1,6 +1,6 @@
 
 import { PHYSICS } from "../data/physics";
-import { unitBody, unitsOf } from "../sim/body";
+import { rideOf, unitBody, unitsOf } from "../sim/body";
 import { unitPoses, type UnitPose } from "../sim/rig";
 import { heightAt, type Terrain } from "../sim/terrain";
 import type { Pose, Vehicle, World } from "../sim/types";
@@ -241,5 +241,5 @@ function mountPoint(p: UnitPose, m: { x: number; z: number }): Vec {
 
 export function rideHeightAt(w: World, v: Pick<Vehicle, 'chassisId'>, pose: UnitPose): number {
   const b = unitBody(v.chassisId, pose.unit);
-  return heightAt(w.terrain, pose.pos.x, pose.pos.y) * S + b.wheelRadius + T.suspensionRest - b.wheelY;
+  return heightAt(w.terrain, pose.pos.x, pose.pos.y) * S + rideOf(b);
 }
