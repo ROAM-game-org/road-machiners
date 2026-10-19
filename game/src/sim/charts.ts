@@ -16,23 +16,29 @@ export function sheetId(s: Sheet): string {
   return `${s.col},${s.row}`;
 }
 
+export function sheetSide(size: number): number {
+  const side = size / CHARTS.perSide;
+  if (!Number.isInteger(side)) throw new Error(`Map size ${size} does not split into ${CHARTS.perSide} whole sheets a side`);
+  return side;
+}
+
 export function chartSheets(size: number): Sheet[] {
-  if (size % CHARTS.sheet !== 0) throw new Error(`Map size ${size} is not a multiple of the sheet size ${CHARTS.sheet}`);
-  const n = size / CHARTS.sheet;
+  sheetSide(size);
   const sheets: Sheet[] = [];
-  for (let row = 0; row < n; row++) for (let col = 0; col < n; col++) sheets.push({ col, row });
+  for (let row = 0; row < CHARTS.perSide; row++) for (let col = 0; col < CHARTS.perSide; col++) sheets.push({ col, row });
   return sheets;
 }
 
+export function sheetAt(size: number, p: { x: number; y: number }): Sheet {
+  const side = sheetSide(size);
+  return { col: Math.floor(p.x / side), row: Math.floor(p.y / side) };
+}
+
 export function sheetTiles(size: number, sheet: Sheet): SheetBounds {
-  if (sheet.col < 0 || sheet.row < 0 || (sheet.col + 1) * CHARTS.sheet > size || (sheet.row + 1) * CHARTS.sheet > size)
+  const side = sheetSide(size);
+  if (sheet.col < 0 || sheet.row < 0 || sheet.col >= CHARTS.perSide || sheet.row >= CHARTS.perSide)
     throw new Error(`Sheet ${sheetId(sheet)} is off the map`);
-  return {
-    x0: sheet.col * CHARTS.sheet,
-    y0: sheet.row * CHARTS.sheet,
-    x1: (sheet.col + 1) * CHARTS.sheet,
-    y1: (sheet.row + 1) * CHARTS.sheet,
-  };
+  return { x0: sheet.col * side, y0: sheet.row * side, x1: (sheet.col + 1) * side, y1: (sheet.row + 1) * side };
 }
 
 export function chartSeller(atlas: Atlas, sheet: Sheet, size: number): string {

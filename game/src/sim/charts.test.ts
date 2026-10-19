@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { REGION } from '../data/region';
-import { CHARTS } from '../data/charts';
 import { atlasOf } from './atlas';
-import { buyChart, chartPrice, chartSeller, chartSheets, chartsOnSale, sheetTiles, unexploredIn } from './charts';
+import { buyChart, chartPrice, chartSeller, chartSheets, chartsOnSale, sheetAt, sheetTiles, unexploredIn } from './charts';
 import { sitePads } from './sites';
 import { emptyWorld } from './testkit';
 import { TEST_MAP } from '../test/map';
@@ -15,7 +14,7 @@ const atBowl = () => {
   w.player.discovered = [];
   return w;
 };
-const sheetOf = (p: { x: number; y: number }) => ({ col: Math.floor(p.x / CHARTS.sheet), row: Math.floor(p.y / CHARTS.sheet) });
+const sheetOf = (p: { x: number; y: number }) => sheetAt(REGION.size, p);
 
 describe('charts', () => {
   it('gives every Icarus sheet exactly one seller', () => {
@@ -31,8 +30,9 @@ describe('charts', () => {
     expect(() => chartSeller(atlas, { col: 0, row: 0 }, REGION.size)).toThrow(/charts/);
   });
 
-  it('refuses a size that is not a multiple of the sheet', () => {
-    expect(() => chartSheets(250)).toThrow(/multiple/);
+  it('refuses a size that does not split into whole sheets', () => {
+    expect(() => chartSheets(250)).toThrow(/whole sheets/);
+    expect(sheetTiles(REGION.size, { col: 5, row: 5 }).x1).toBe(REGION.size);
   });
 
   it('sells only sheets with unexplored land, in the nearest town', () => {

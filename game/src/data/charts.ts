@@ -1,1 +1,1 @@
-export const CHARTS = { sheet: 100 };
+export const CHARTS = { perSide: 6 };

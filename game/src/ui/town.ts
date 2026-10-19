@@ -48,8 +48,7 @@ import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repair
 import { el, panel, type Child } from "./dom";
 import { claimRivalMark, contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
-import { CHARTS } from "../data/charts";
-import { buyChart, chartsOnSale, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
+import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
 import { MapView } from "./map-view";
 import { toPx, type MapFrame } from "./map-geometry";
 import { token } from "./tokens";
@@ -375,7 +374,7 @@ export class TownScreen {
   private sheetAt(clientX: number, clientY: number): Sheet | null {
     const p = this.chartsView.pick(clientX, clientY);
     if (!p) return null;
-    const sheet = { col: Math.floor(p.x / CHARTS.sheet), row: Math.floor(p.y / CHARTS.sheet) };
+    const sheet = sheetAt(this.host.world().size, p);
     return this.chartOffers.some((o) => sheetId(o.sheet) === sheetId(sheet)) ? sheet : null;
   }
 
