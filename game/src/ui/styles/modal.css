@@ -91,3 +91,6 @@
   right: var(--space-9);
   top: var(--space-9);
 }
+#ui:has(.ink-page:not([style*="display: none"])) > .top-center > .opening-tip {
+  visibility: hidden;
+}
