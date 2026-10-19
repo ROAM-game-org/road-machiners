@@ -114,7 +114,7 @@ function bindText(node: HTMLElement, k: string, msg: Msg): void {
   bindAttr(node, attr, msg);
 }
 
-export type LayoutFaultKind = "page-overflow" | "clipped-text" | "text-escapes" | "control-overlap" | "unreachable-control" | "missing-glyphs" | "leak" | "sideways-overflow" | "covered-control" | "small-target";
+export type LayoutFaultKind = "page-overflow" | "clipped-text" | "text-escapes" | "control-overlap" | "unreachable-control" | "missing-glyphs" | "leak" | "sideways-overflow" | "covered-control" | "small-target" | "key-cap";
 export type LayoutFault = { kind: LayoutFaultKind; path: string; text: string; sizes: string };
 export type LayoutOptions = { locale: DevLocale; allow: readonly string[]; glyphs: { font: string; letter: string } };
 
@@ -371,6 +371,21 @@ function smallFaults(root: Element, min: number, okSelectors: readonly string[])
     });
 }
 
+const KEY_CAP = /\[(?:[A-Z0-9]|Esc)\]|\([A-Z]\)/;
+
+export function namesKey(text: string): boolean {
+  return KEY_CAP.test(text);
+}
+
+export function keyCapFaults(root: Element): LayoutFault[] {
+  const shownText = textNodes(root).filter((node) => namesKey(node.textContent!)).map((node) => ({ el: node.parentElement!, text: node.textContent!.trim() }));
+  const shownAttrs = [...root.querySelectorAll<HTMLElement>("[title], [data-reason]")]
+    .filter(isShown)
+    .map((el) => ({ el, text: `${el.getAttribute("title") ?? ""} ${el.getAttribute("data-reason") ?? ""}` }))
+    .filter((hit) => namesKey(hit.text));
+  return [...shownText, ...shownAttrs].map((hit) => ({ kind: "key-cap" as const, path: cssPath(hit.el), text: hit.text.trim(), sizes: "" }));
+}
+
 export function findMobileFaults(root: Element, opts: MobileOptions): LayoutFault[] {
-  return [...sidewaysFaults(root, opts.viewportWidth, opts.sidewaysOk), ...coveredFaults(root, opts.primary), ...smallFaults(root, opts.minTarget, opts.smallOk)];
+  return [...sidewaysFaults(root, opts.viewportWidth, opts.sidewaysOk), ...coveredFaults(root, opts.primary), ...smallFaults(root, opts.minTarget, opts.smallOk), ...keyCapFaults(root)];
 }

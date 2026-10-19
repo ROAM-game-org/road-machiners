@@ -503,6 +503,7 @@ export class Hud {
       "button",
       {
         class: "instrument-button",
+        "data-action": "character",
         "aria-disabled": busy ? "true" : undefined,
         onclick: () => !busy && this.actions.openCharacter(),
         title: busy ? TURN_PLAYING : keyLabel(marked ? t("hud.characterMarked") : t("hud.character"), "C"),

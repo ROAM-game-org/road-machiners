@@ -1151,6 +1151,7 @@ export class InventoryScreen {
       "button",
       {
         class: "btn-s",
+        "data-action": "rotate",
         onpointerdown: () => this.view.rotateHeld(),
         onclick: (e: Event) => {
           if ((e as MouseEvent).detail === 0) this.view.rotateHeld();
