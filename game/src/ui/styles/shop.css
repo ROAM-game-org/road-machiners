@@ -709,50 +709,47 @@
 }
 
 .standing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  gap: 0 var(--space-7);
+  width: var(--panel-m);
   margin-top: var(--space-6);
   font-size: var(--text-dense);
 }
-.standing h4 {
-  margin: 0 0 var(--space-3);
-  color: var(--ink-label);
-  font-size: var(--text-caption);
-  font-weight: normal;
-  cursor: help;
-}
-.standing-rows {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3) var(--space-7);
-}
+.standing-head,
 .standing-row {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
-  gap: var(--space-4);
-  color: var(--ink-title);
+}
+.standing-head {
+  color: var(--ink-label);
+  font-size: var(--text-caption);
+}
+.standing-row > .tag {
+  justify-self: end;
+}
+.standing-score {
+  justify-self: end;
+  text-align: right;
+  text-decoration: underline dotted;
   cursor: help;
 }
 .standing-tip {
   display: none;
   position: absolute;
-  left: 0;
-  bottom: calc(100% + var(--hud-gap));
+  left: calc(100% + var(--hud-gap));
+  top: 0;
   z-index: var(--z-popup);
   width: max-content;
   cursor: default;
 }
-.standing-row:hover > .standing-tip,
-.standing-row:focus > .standing-tip {
+.standing-score:hover > .standing-tip,
+.standing-score:focus > .standing-tip,
+.standing-score:focus-visible > .standing-tip {
   display: block;
-}
-.standing-tip .base {
-  color: var(--ink-muted);
-}
-.standing-tip .up > .num {
-  color: var(--good);
-}
-.standing-tip .down > .num {
-  color: var(--danger-ink);
 }
 #ui button.perk {
   padding: var(--space-2) var(--space-4);

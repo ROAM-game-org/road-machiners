@@ -146,16 +146,30 @@ describe("inventory header money", () => {
     expect(money.className).toContain("bad");
     expect(money.text()).toBe("−33");
   });
-  it("lists the standing of each faction a driver can join with its band, and hides it on Chaos Highway", () => {
+  it("lists each faction on fixed columns with the score and a breakdown that adds up to it", () => {
     const world = emptyWorld();
     world.player.standing.bowl = -30;
-    const rows = openCharacter(world).all((n) => n.className === "standing-row");
-    expect(rows.map((r) => r.children[0] instanceof FakeNode ? (r.children[0] as FakeNode).text() : "")).toEqual(["Bowl", "Nose", "Guidestar Guild", "Scrapjaw", "Kiln"]);
-    expect(rows[0].text()).toContain("wary");
-    expect(rows[0].text()).toContain("Recent deeds");
+    const rows = openCharacter(world).all((n) => n.className.split(" ").includes("standing-row"));
+    const cell = (r: FakeNode, i: number): FakeNode => r.children[i] as FakeNode;
+    expect(rows.map((r) => cell(r, 0).text())).toEqual(["Bowl", "Nose", "Guidestar Guild", "Scrapjaw", "Kiln"]);
+    const score = cell(rows[0], 1);
+    expect(score.className).toContain("standing-score");
+    expect(score.text()).toContain("−30");
+    expect(cell(rows[0], 2).text()).toBe("wary");
+    expect(cell(rows[0], 2).className).toBe("tag dim");
+    const tipRows = score.all((n) => n.className.split(" ").includes("tooltip-row"));
+    expect(tipRows.map((r) => r.text())).toHaveLength(3);
+    expect(tipRows[0].className).toContain("base");
+    expect(tipRows[0].text()).toContain("Base");
+    const sum = tipRows.map((r) => Number((r.text().match(/[+−]?\d+$/) as RegExpMatchArray)[0].replace("−", "-"))).reduce((a, b) => a + b, 0);
+    expect(sum).toBe(-30);
+    const head = openCharacter(world).all((n) => n.className === "standing-head")[0];
+    expect(head.attrs.get("title")).toBeUndefined();
+  });
+  it("hides the standing list on Chaos Highway", () => {
+    const world = emptyWorld();
     world.setup = { ...world.setup, mode: "furyRoad" };
-    ui.children = [];
-    expect(openCharacter(world).all((n) => n.className === "standing-row")).toEqual([]);
+    expect(openCharacter(world).all((n) => n.className.split(" ").includes("standing-row"))).toEqual([]);
   });
 
   it("has a Map tab in Roaming and none on Chaos Highway", () => {

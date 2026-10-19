@@ -89,7 +89,6 @@ export const SCREENS: Translation<typeof EN> = {
   'character.buy': 'Купить ранг {rank} за {cost} опыта',
   'character.locked': 'Ранг {rank}: {a} или {b}',
   'character.standing': 'Отношения',
-  'character.standingTitle': 'Кто станет иметь с вами дело, а кто на вас охотится',
   'character.standingBase': 'Исходно',
   'character.standingDeeds': 'Недавние дела',
   'character.standingEarlier': 'Прошлые дела и время',
