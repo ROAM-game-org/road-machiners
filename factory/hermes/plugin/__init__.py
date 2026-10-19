@@ -116,6 +116,14 @@ def read_state(state_dir: str) -> tuple:
     return data["approvalPosts"], _parse_release(data.get("release"))
 
 
+def read_question_posts(state_dir: str) -> dict:
+    """The committee notices of open question sets from state.json, by post id. A missing file gives {}."""
+    path = Path(state_dir) / "state.json"
+    if not path.is_file():
+        return {}
+    return json.loads(path.read_text()).get("questionPosts", {})
+
+
 def read_approval_posts(state_dir: str) -> dict:
     return read_state(state_dir)[0]
 
@@ -131,12 +139,15 @@ def read_release_post(state_dir: str) -> Optional[dict]:
     return post
 
 
-def route(text, reply_to_message_id, chat_id, approval_posts, cfg, release=None, draft_post_id=None) -> Optional[tuple]:
+def route(text, reply_to_message_id, chat_id, approval_posts, cfg, release=None, draft_post_id=None, question_posts=None) -> Optional[tuple]:
     """Decides what a committee member's message means. Returns None for normal Hermes chat."""
     if str(chat_id) != cfg.chat:
         return None
     if draft_post_id is not None and reply_to_message_id is not None and str(reply_to_message_id) == str(draft_post_id):
         return ("draft-reply", text or "")
+    asked = (question_posts or {}).get(str(reply_to_message_id)) if reply_to_message_id is not None else None
+    if asked is not None and (text or "").strip():
+        return ("answer-questions", asked, text)
     return _request(text or "", reply_to_message_id, approval_posts, release)
 
 
@@ -212,8 +223,8 @@ def inbox_command(decision: tuple, user_id, user_name, chat_id, message_id, repl
     kind = decision[0]
     return {
         "kind": kind,
-        "issue": decision[1] if kind in ("approve", "reply", "patch", "redesign", "ship", "remove") else None,
-        "text": decision[2] if kind in ("reply", "patch", "redesign", "remove") else decision[1] if kind == "release-task" else None,
+        "issue": decision[1] if kind in ("approve", "reply", "patch", "redesign", "ship", "remove", "answer-questions") else None,
+        "text": decision[2] if kind in ("reply", "patch", "redesign", "remove", "answer-questions") else decision[1] if kind == "release-task" else None,
         "by": str(user_id),
         "byName": user_name or None,
         "chat": str(chat_id),
@@ -574,7 +585,7 @@ def make_hook(cfg: Config, readiness: Readiness):
         posts, release = read_state(cfg.state_dir)
         release_post = read_release_post(cfg.state_dir)
         draft_post_id = release_post.get("postId") if release_post else None
-        decision = route(event.text, event.reply_to_message_id, source.chat_id, posts, cfg, release, draft_post_id)
+        decision = route(event.text, event.reply_to_message_id, source.chat_id, posts, cfg, release, draft_post_id, read_question_posts(cfg.state_dir))
         if decision is None:
             if is_bare_thanks(event.text) and not getattr(event, "media_urls", None):
                 return {"action": "skip", "reason": "factory-thanks"}

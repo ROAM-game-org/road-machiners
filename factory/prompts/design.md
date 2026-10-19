@@ -100,7 +100,8 @@ When in doubt, make a reasonable choice.
 Write it in the task file as an assumption.
 The committee corrects it at approval.
 
-A comment under "Questions from the factory" with no reply after it means the author did not answer in time.
+An answer can be a reply after "Questions from the factory", or a comment that starts "Answer from" with a member's reply from the committee chat.
+A comment under "Questions from the factory" with no answer after it means the author did not answer in time.
 Never ask those questions again.
 Take the most sensible reading of the request, and write each open question and the reading you took into the task file as an assumption.
 The design comment on the issue shows the task file, so the committee sees the assumptions there.
