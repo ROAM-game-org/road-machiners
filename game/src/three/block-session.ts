@@ -208,7 +208,8 @@ export class BlockSession {
     const join = this.joinOf(block);
     const fade = join === "jump" ? SCORE_BLOCKS.jumpFadeSeconds : SCORE_BLOCKS.seamSeconds;
     const entry = this.song.barEntry[block.bar - 1];
-    if (join === "jump") for (const v of this.played.at(-1)!.voices) v.fadeOut(when + entry, fade);
+    const tail = this.beatSeconds / 4;
+    if (join === "jump") for (const v of this.played.at(-1)!.voices) v.fadeOut(when + entry + tail, tail);
     const section = this.sectionOf(block.bar);
     const level = this.levelOf(section.from, section.bars, false);
     const voices = [this.out.voice("song", offset, when, length, fade, level)];

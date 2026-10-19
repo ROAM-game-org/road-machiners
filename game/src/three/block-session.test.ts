@@ -62,7 +62,7 @@ describe("BlockSession", () => {
   it("lets the old block ring on into a jump until the new bar's sound starts", () => {
     const { voices, verseAt } = playIntoVerse();
     expect(voices.map((v) => [v.part, v.when])).toEqual([["song", SCORE_BLOCKS.startLeadSeconds], ["song", verseAt]]);
-    expect(voices[0].fades[0]).toBeCloseTo(verseAt + 0.3);
+    expect(voices[0].fades[0]).toBeCloseTo(verseAt + 0.3 + BAR_SECONDS / 16);
   });
 
   it("plays the cymbal lane from its own file, at the song's cymbal level", () => {
