@@ -19,15 +19,15 @@ Each unit traded moves a good's price by the shop's pressure per unit, and the p
 A shop holds a finite, random stock of parts and restocks every so many turns. Only garages repair. Stalls trade, sell and fuel. The `src/sim/market.ts` rolls draw from a separate random stream, so a shop change never shifts combat.
 
 <!-- wiki:shops -->
-| id | kind | makes | needs | goods | supplies | stock size (parts) | restock (turns) | pressure per unit | drift per turn | contract slots |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| bowl | garage | scrap, grain, textiles, meds, electronics, parts | salt, tools, batteries, fuelDrums, water | scrap, salt, meds, grain, textiles, tools, batteries, electronics, parts, fuelDrums, water | fuel, supplies | 8 to 12 | 400 | 0.005 | 0.0075 | 3 |
-| nose | garage | salt, tools, batteries | scrap, grain, textiles, meds, electronics, parts, fuelDrums, water | scrap, salt, meds, grain, textiles, tools, batteries, electronics, parts, fuelDrums, water | fuel, supplies | 8 to 12 | 400 | 0.005 | 0.0075 | 3 |
-| salvage-yard | stall | scrap, parts | tools | scrap, parts, tools | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
-| granary | stall | grain | salt, textiles | grain, salt, textiles | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
-| pump-station | stall | batteries | scrap, parts | batteries, scrap, parts | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
-| dustwell | stall | water | tools, meds | water, scrap, tools, meds | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
-| green-pit | stall | water | salt, textiles | water, grain, salt, textiles | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
+| id | kind | makes | needs | goods | supplies | stock size (parts) | staple parts | restock (turns) | pressure per unit | drift per turn | contract slots |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| bowl | garage | scrap, grain, textiles, meds, electronics, parts | salt, tools, batteries, fuelDrums, water | scrap, salt, meds, grain, textiles, tools, batteries, electronics, parts, fuelDrums, water | fuel, supplies | 8 to 12 | stockEngine | 400 | 0.005 | 0.0075 | 3 |
+| nose | garage | salt, tools, batteries | scrap, grain, textiles, meds, electronics, parts, fuelDrums, water | scrap, salt, meds, grain, textiles, tools, batteries, electronics, parts, fuelDrums, water | fuel, supplies | 8 to 12 | stockEngine | 400 | 0.005 | 0.0075 | 3 |
+| salvage-yard | stall | scrap, parts | tools | scrap, parts, tools | fuel, supplies | 2 to 4 |  | 300 | 0.02 | 0.0075 | 1 |
+| granary | stall | grain | salt, textiles | grain, salt, textiles | fuel, supplies | 2 to 4 |  | 300 | 0.02 | 0.0075 | 1 |
+| pump-station | stall | batteries | scrap, parts | batteries, scrap, parts | fuel, supplies | 2 to 4 |  | 300 | 0.02 | 0.0075 | 1 |
+| dustwell | stall | water | tools, meds | water, scrap, tools, meds | fuel, supplies | 2 to 4 |  | 300 | 0.02 | 0.0075 | 1 |
+| green-pit | stall | water | salt, textiles | water, grain, salt, textiles | fuel, supplies | 2 to 4 |  | 300 | 0.02 | 0.0075 | 1 |
 <!-- /wiki:shops -->
 
 ## Repair and wear

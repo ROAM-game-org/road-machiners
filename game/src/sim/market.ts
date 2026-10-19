@@ -69,20 +69,28 @@ function countOfKind(perKind: Partial<Record<PartKind, number>>, kind: PartKind,
   return count;
 }
 
+function rollShopStock(world: World, def: ShopDef): PartInstance[] {
+  const count = randInt(world.marketRng, def.stockSize[0], def.stockSize[1]);
+  const stock = rollPartStock(world, world.marketRng, def.partStock, count, def.id);
+  for (const staple of def.staples) {
+    if (stock.some((part) => part.defId === staple)) continue;
+    stock.push(makePart(world, staple, sampleWeighted(world.marketRng, def.partStock.wear)));
+  }
+  return stock;
+}
+
 export function initShop(world: World, shopId: string): ShopState {
   const def = shopDef(shopId);
   const pressure: Record<string, number> = {};
   for (const good of def.goods) pressure[good] = 0;
-  const count = randInt(world.marketRng, def.stockSize[0], def.stockSize[1]);
-  return { contracts: [], pressure, stock: rollPartStock(world, world.marketRng, def.partStock, count, def.id), restockAt: world.turn + def.restockTurns };
+  return { contracts: [], pressure, stock: rollShopStock(world, def), restockAt: world.turn + def.restockTurns };
 }
 
 export function advanceShop(world: World, shopId: string, state: ShopState): void {
   const def = shopDef(shopId);
   for (const good of def.goods) state.pressure[good] = (state.pressure[good] ?? 0) * (1 - def.driftPerTurn);
   if (world.turn >= state.restockAt) {
-    const count = randInt(world.marketRng, def.stockSize[0], def.stockSize[1]);
-    state.stock = rollPartStock(world, world.marketRng, def.partStock, count, def.id);
+    state.stock = rollShopStock(world, def);
     state.restockAt = world.turn + def.restockTurns;
   }
 }
