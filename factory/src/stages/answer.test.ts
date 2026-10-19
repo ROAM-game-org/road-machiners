@@ -1,10 +1,11 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CHANNEL, publicFake, type PublicFake } from '../public/public-fakes';
 import { EMPTY_STATE, readState, updateState } from '../state';
 import { chooseJobs } from '../tick';
 import type { AgentRun, Ctx, FactoryConfig, Job } from '../types';
+import { agentEnv } from '../container';
 import { answer, checkedAnswer } from './answer';
 
 const TOKEN = 'sk-ant-oat01-secret';
@@ -20,22 +21,29 @@ afterEach(() => {
   fakes = [];
 });
 
+function infoOf(run: AgentRun): Record<string, string> {
+  const [host] = Object.keys(run.readOnly ?? {});
+  if (host === undefined) return {};
+  const files = readdirSync(host, { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile());
+  return Object.fromEntries(files.map((entry) => [relative(host, join(entry.parentPath, entry.name)), readFileSync(join(entry.parentPath, entry.name), 'utf8')]));
+}
+
 function setup(answerText: string | null, issue: number | null = null, text = PLAYER_TEXT) {
   const f = publicFake(CONFIG);
   fakes.push(f);
-  const runs: { run: AgentRun; question: string; board: string }[] = [];
+  const runs: { run: AgentRun; question: string; info: Record<string, string> }[] = [];
   Object.assign(f.ctx, {
     repo: { fetch: async () => undefined, prepareWorkClone: async (_branch: string, _base: string, dir: string) => { mkdirSync(join(dir, 'game'), { recursive: true }); } },
     container: {
       agent: async (run: AgentRun) => {
         const out = join(run.clone, run.dir, '.factory');
-        runs.push({ run, question: readFileSync(join(out, 'question.md'), 'utf8'), board: readFileSync(join(out, 'board.md'), 'utf8') });
+        runs.push({ run, question: readFileSync(join(out, 'question.md'), 'utf8'), info: infoOf(run) });
         if (answerText === null) throw new Error(`agent failed: ${PLAYER_TEXT}`);
         writeFileSync(join(out, 'answer.md'), answerText);
       },
     },
   });
-  Object.assign(f.ctx.github, { comments: async () => [] });
+  Object.assign(f.ctx.github, { comments: async () => [], allIssues: async () => [] });
   const id = f.store.addComment({ issue, source: 'telegram', sourceId: 'c13', postChat: CHANNEL, postMessageId: null, author: 'Ann Lee', sender: '42', text, at: f.clock.now.toISOString(), messageId: 13, addressed: true })!;
   f.store.classify(id, 'question', 'none', f.clock.now, issue === null ? 'other' : 'parent', { language: 'en' });
   f.store.markReplied(id, f.clock.now);
@@ -67,31 +75,68 @@ describe('answer job', () => {
     expect(f.messages.map((message) => message.text)).toEqual(['It resets when you die.']);
   });
 
-  it('gives the agent the real board status of the features in a multi-part dev question', async () => {
-    const { f, runs } = setup('Minimap: Approval, not on dev.', null, '@roam_bot minimap, extra decorative map objects and a temperature warning sound already on dev?');
+  it('gives the agent a read-only folder of the public factory data, whatever the question is about', async () => {
+    const { f, runs } = setup('Minimap: Approval, not on dev.', null, '@roam_bot is the minimap on dev, and did the decor work ship?');
     f.cards.push(
       { itemId: 'a', issue: 571, column: 'Approval', labels: [], title: 'Minimap' },
-      { itemId: 'b', issue: 722, column: 'Approval', labels: [], title: 'Temperature warning audio' },
       { itemId: 'c', issue: 723, column: 'Done', labels: [], title: 'Decorative variety' },
       { itemId: 'd', issue: 900, column: 'Design', labels: [] },
+      { itemId: 'e', issue: 901, column: 'Implementation', labels: ['adhoc'], title: 'Private task' },
     );
+    Object.assign(f.ctx.github, {
+      allIssues: async () => [
+        { number: 571, title: 'Minimap', body: 'Show a minimap.', labels: ['feature-request'], createdAt: '2026-10-01', state: 'OPEN' },
+        { number: 901, title: 'Private task', body: 'Do the secret thing.', labels: ['adhoc'], createdAt: '2026-10-02', state: 'OPEN' },
+      ],
+    });
     await answer(f.ctx);
-    const board = runs[0]!.board;
-    expect(board).toContain('- #571 Minimap: Approval (built and waiting for the committee to play it, NOT merged to dev yet)');
-    expect(board).toContain('- #722 Temperature warning audio: Approval (built and waiting for the committee to play it, NOT merged to dev yet)');
-    expect(board).toContain('- #723 Decorative variety: Done (merged to dev; it is released only when the code is on origin/main)');
-    expect(board).toContain('- #900: Design (being designed, not built)');
-    expect(runs[0]!.question).toContain('minimap, extra decorative map objects');
+    const { run, info } = runs[0]!;
+    expect(Object.values(run.readOnly ?? {})).toEqual(['/factory-info']);
+    expect(run.prompt).toContain('/factory-info');
+    expect(info['board.md']).toContain('#571 | Approval | Minimap');
+    expect(info['board.md']).toContain('#723 | Done | Decorative variety');
+    expect(info['board.md']).toContain('#900 | Design |');
+    expect(info['issues/571.md']).toContain('state: OPEN');
+    expect(info['issues/571.md']).toContain('Show a minimap.');
+    expect(JSON.stringify(info)).not.toContain('secret thing');
+    expect(JSON.stringify(info)).not.toContain('Private task');
+    expect(info['board.md']).toMatch(/^UNTRUSTED TEXT/);
+    expect(f.messages).toHaveLength(1);
   });
 
-  it('tells the agent the status is unverified when the board cannot be read', async () => {
+  it('gives the agent the same tools for a question that is not about the factory', async () => {
+    const { f, runs } = setup('Field repair fixes one damaged part.');
+    await answer(f.ctx);
+    expect(Object.keys(runs[0]!.info)).toContain('board.md');
+    expect(runs[0]!.question).toContain(`> ${PLAYER_TEXT}`);
+    expect(runs[0]!.run.prompt).not.toContain(PLAYER_TEXT);
+    expect(f.messages.map((message) => message.text)).toEqual(['Field repair fixes one damaged part.']);
+  });
+
+  it('tells the agent a part is unavailable when GitHub cannot be read, without the error text', async () => {
     const { f, runs } = setup('Status unverified.');
     f.ctx.github.cards = async () => { throw new Error('GitHub is down'); };
+    f.ctx.github.allIssues = async () => { throw new Error('GitHub is down'); };
     await answer(f.ctx);
-    expect(runs[0]!.board).toContain('BOARD UNAVAILABLE');
-    expect(runs[0]!.board).toContain('unverified');
-    expect(runs[0]!.board).not.toContain('GitHub is down');
+    expect(runs[0]!.info['board.md']).toContain('UNAVAILABLE');
+    expect(runs[0]!.info['issues/UNAVAILABLE.md']).toContain('unverified');
+    expect(JSON.stringify(runs[0]!.info)).not.toContain('GitHub is down');
     expect(f.messages).toHaveLength(1);
+  });
+
+  it('keeps the agent unable to write to the factory or reach a secret', async () => {
+    const { f, runs } = setup('Ok.');
+    await answer(f.ctx);
+    const { run, info } = runs[0]!;
+    expect(run.publicOutput).toBe(true);
+    expect(run.openNetwork).toBeFalsy();
+    expect(Object.keys(run.readOnly ?? {})).toHaveLength(1);
+    expect(Object.keys(run.readOnly ?? {})[0]).not.toBe(run.clone);
+    expect(Object.keys(info)).toEqual(expect.arrayContaining(['board.md']));
+    expect(Object.keys(info).every((name) => name === 'board.md' || name.startsWith('issues/'))).toBe(true);
+    expect(existsSync(Object.keys(run.readOnly ?? {})[0]!)).toBe(false);
+    const env = agentEnv({ ...CONFIG, elevenlabsKey: 'e', geminiKey: 'g', codexModel: 'c' } as FactoryConfig, true);
+    expect(Object.keys(env).sort()).toEqual(['CLAUDE_CODE_DISABLE_BACKGROUND_TASKS', 'CLAUDE_CODE_OAUTH_TOKEN', 'FACTORY_JOB_MAX_MINUTES']);
   });
 
   it('binds each answer to the message of its own question', async () => {
