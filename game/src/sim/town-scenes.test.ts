@@ -147,3 +147,26 @@ describe('a finished scene', () => {
     expect(again.player.quests.session).toBeNull();
   });
 });
+
+describe('the Nose counter scene', () => {
+  it('opens when the player leaves Garage at Nose, once', () => {
+    const w = parkAt(quietWorld(), 'nose');
+    const next = pickTownSection(w, 'garage', 'market');
+    expect(next.player.quests.session?.quest).toBe('nose_counter');
+    expect(next.player.quests.world.counter_seen).toBe(true);
+    const again = pickTownSection(finishQuest(next), 'garage', 'market');
+    expect(again.player.quests.session).toBeNull();
+  });
+
+  it('opens nothing on entering Garage, nor on leaving Garage at Bowl', () => {
+    expect(pickTownSection(parkAt(quietWorld(), 'nose'), null, 'garage').player.quests.session).toBeNull();
+    expect(pickTownSection(parkAt(quietWorld(), 'bowl'), 'garage', 'market').player.quests.session).toBeNull();
+  });
+
+  it('pays nothing and changes no money or items', () => {
+    const w = parkAt(quietWorld(), 'nose');
+    const next = pickTownSection(w, 'garage', null);
+    expect(next.player.money).toBe(w.player.money);
+    expect(next.player.xp).toBe(w.player.xp);
+  });
+});

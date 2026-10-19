@@ -2171,6 +2171,7 @@
    "ala_hired": "boolean",
    "ala_knows": "string",
    "ambush_raider": "string",
+   "counter_seen": "boolean",
    "death_answer": "string",
    "depot_thief": "string",
    "father_told": "boolean",
@@ -2251,6 +2252,10 @@
     "asked_yard": "boolean"
    },
    "intro_road": {},
+   "nose_counter": {
+    "asked_shelf": "boolean",
+    "read_stamp": "boolean"
+   },
    "nose_depot_leak": {
     "alarm": "number",
     "bunk_searched": "boolean",
@@ -2444,6 +2449,10 @@
    ],
    "intro_road": [
     "start"
+   ],
+   "nose_counter": [
+    "start",
+    "start.hub"
    ],
    "nose_depot_leak": [
     "start",
@@ -2643,6 +2652,20 @@
     "readsNotes": [],
     "writes": {},
     "notes": [],
+    "begins": []
+   }
+  },
+  "nose_counter": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [
+     "talkBrakeRod"
+    ],
+    "writes": {},
+    "notes": [
+     "talkBrakeRod"
+    ],
     "begins": []
    }
   },

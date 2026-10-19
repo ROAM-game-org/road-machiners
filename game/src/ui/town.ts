@@ -45,7 +45,14 @@ import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
-import { el, panel, type Child } from "./dom";
+import { el, isBrowserChord, panel, type Child } from "./dom";
+import { ArtBand } from "./art-band";
+import { callError } from "./dialogue";
+import { TOWN_ART } from "../data/quest-art";
+import { TOWN_SECTIONS, type TownSection } from "../data/quests";
+import { barDrivers, pickTownSection, townSections } from "../sim/quests";
+import { callVehicle } from "../sim/dialogue";
+import { hostileToPlayer } from "../sim/world";
 import { claimRivalMark, contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { QUESTS, startQuest } from "../sim/quests";
@@ -53,34 +60,43 @@ import { localsAt } from "../sim/dialogue-rules";
 import type { UiHost } from "./host";
 import { coinEl, fuelLiters, kph, moneyEl, moneyMsg, moneyNum } from "./units";
 import { fuelCap, suppliesCap, vehicleStats } from "../sim/stats";
-import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
-import { goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
-import { commandFailure } from "./format";
+import { list, num, PLUS, SPACE, t, type Msg } from "../text/msg";
+import { driverName, factionName, goodName, localName, localRole, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
+import { commandFailure, stanceTag } from "./format";
 import { vehicleHasPerk } from "../sim/progress";
 
 export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "contracts";
+
+export type GarageTab = "buyParts" | "sellParts" | "trucks";
 
 export type StockFilter = "all" | Exclude<PartKind, "core">;
 
 export const STOCK_FILTERS: StockFilter[] = ["all", "weapon", "engine", "armor", "cargo", "scanner", "store", "utility"];
 
-const GARAGE_ONLY: Tab[] = ["trucks"];
+const GARAGE_TABS: GarageTab[] = ["buyParts", "sellParts", "trucks"];
+
+const GARAGE_ONLY: GarageTab[] = ["trucks"];
 
 const PRESSURE_HINT_AT = 0.2;
 
+const SECTION_KEYS: Record<string, TownSection> = Object.fromEntries(TOWN_SECTIONS.map((section, i) => [`Digit${i + 1}`, section]));
+
 export class TownScreen {
   private root = panel("modal dialog");
-  private tab: Tab = "market";
+  private section: TownSection = "market";
+  private garageTab: GarageTab = "buyParts";
   private stockFilter: StockFilter = "all";
   private error: Msg | null = null;
   private rows = new PartRows(() => this.render());
+  private band = new ArtBand();
 
   private inventory: InventoryView;
 
   constructor(private host: UiHost) {
-    this.root.classList.add("town-screen");
+    this.root.classList.add("town-screen", "town-page");
     this.root.style.display = "none";
     window.addEventListener("resize", () => this.render());
+    window.addEventListener("keydown", (e) => this.onKey(e), true);
     this.inventory = new InventoryView(host, () => this.render(), false);
   }
 
@@ -93,13 +109,25 @@ export class TownScreen {
     this.root.style.display = "";
     this.error = null;
     this.rows.collapse();
-    this.render();
+    this.normalizeSection();
+    this.run((w) => pickTownSection(w, null, this.section), true);
   }
 
   close(): void {
     this.inventory.clearSelection();
+    this.band.clear();
     this.root.style.display = "none";
     this.root.replaceChildren();
+  }
+
+  leave(): void {
+    if (!this.isOpen()) return;
+    try {
+      this.host.announce(pickTownSection(this.host.world(), this.section, null));
+    } catch {
+      this.error = null;
+    }
+    this.close();
   }
 
   render(): void {
@@ -107,45 +135,105 @@ export class TownScreen {
     this.rows.keepPlace(this.root, () => this.draw());
   }
 
+  private onKey(e: KeyboardEvent): void {
+    const section = SECTION_KEYS[e.code];
+    if (!section || !this.isOpen() || isBrowserChord(e) || e.repeat) return;
+    const w = this.host.world();
+    if (w.player.call || w.player.quests.live) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    this.pick(section);
+  }
+
+  private normalizeSection(): void {
+    const w = this.host.world();
+    const shopId = shopAt(w);
+    if (!shopId || !townSections(w, shopId)[this.section].open) this.section = "market";
+    const def = shopId ? shopDef(shopId) : null;
+    if (def && def.kind !== "garage" && GARAGE_ONLY.includes(this.garageTab)) this.garageTab = "buyParts";
+  }
+
+  private pick(to: TownSection): void {
+    const w = this.host.world();
+    const shopId = shopAt(w);
+    if (!shopId || to === this.section) return;
+    const access = townSections(w, shopId)[to];
+    if (!access.open) {
+      this.error = sectionReason(access.reason);
+      return this.render();
+    }
+    const from = this.section;
+    this.section = to;
+    this.rows.collapse();
+    this.run((x) => pickTownSection(x, from, to), true);
+    this.rows.toTop(this.root);
+  }
+
   private draw(): void {
     const w = this.host.world();
     const shopId = shopAt(w);
     if (!shopId) return this.close();
     const def = shopDef(shopId);
-    this.normalizeTab(shopId, def);
-    const shop = [el("div", { class: "tabs" }, ...this.tabButtons(shopId, def))];
-    if (this.error) shop.push(el("div", { class: "bad" }, this.error));
-    shop.push(this.tabBody(w, shopId, def));
-    const truck = el(
+    this.normalizeSection();
+    const parts: HTMLElement[] = [this.head(w, shopId, def), el("div", { class: "tabs town-sections" }, ...this.sectionButtons(w, shopId))];
+    if (this.error) parts.push(el("div", { class: "bad town-status" }, this.error));
+    const truck = this.splitSection() ? el("div", { class: "town-truck" }, this.inventory.render()) : null;
+    parts.push(el("div", { class: "town-body" }, this.sectionBody(w, shopId, def, truck)));
+    this.root.replaceChildren(...parts);
+    if (truck) this.inventory.fitTo(truck);
+  }
+
+  private head(w: World, shopId: string, def: ShopDef): HTMLElement {
+    const art = TOWN_ART[shopId];
+    const key = art?.sections[this.section] ?? art?.band ?? null;
+    return el(
       "div",
-      { class: "town-truck" },
-      this.repairBar(w),
-      this.inventory.render(),
+      { class: "town-head" },
+      this.band.frame(key),
+      el("div", { class: "town-title" }, el("h3", {}, siteName(shopId)), truckChips(w, { freeCells: def.kind !== "garage" })),
+      el("button", { class: "close", onclick: () => this.leave() }, t("trade.leave")),
     );
-    this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, t("trade.leave")),
-      el("h3", {}, siteName(shopId), truckChips(w, { freeCells: def.kind !== "garage" })),
-      el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, ...shop)),
-    );
-    this.inventory.fitTo(truck);
   }
 
-  private normalizeTab(shopId: string, def: ShopDef): void {
-    if (def.kind !== "garage" && GARAGE_ONLY.includes(this.tab)) this.tab = "market";
-    if (this.tab === "people" && localsAt(shopId).length === 0) this.tab = "market";
+  private splitSection(): boolean {
+    return this.section === "garage" || this.section === "market";
   }
 
-  private tabButtons(shopId: string, def: ShopDef): HTMLElement[] {
-    const people: Tab[] = localsAt(shopId).length > 0 ? ["people"] : [];
-    const tabs: Tab[] = [...people, "market", "buyParts", "sellParts", ...(def.kind === "garage" ? GARAGE_ONLY : []), "contracts"];
-    return tabs.map((tab) =>
+  private sectionButtons(w: World, shopId: string): HTMLElement[] {
+    const access = townSections(w, shopId);
+    return TOWN_SECTIONS.map((section, i) => {
+      const a = access[section];
+      const reason = a.open ? null : sectionReason(a.reason);
+      const button = reasonButton([createIcon(SECTION_ICON[section]), t(`town.section.${section}`)], () => this.pick(section), reason, "", t("town.sectionKey", { n: i + 1 }));
+      button.className = this.section === section ? "on" : "";
+      button.dataset.section = section;
+      return button;
+    });
+  }
+
+  private sectionBody(w: World, shopId: string, def: ShopDef, truck: HTMLElement | null): HTMLElement {
+    if (truck) return el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, this.shopSection(w, shopId, def)));
+    return el("div", { class: "town-column" }, this.shopSection(w, shopId, def));
+  }
+
+  private shopSection(w: World, shopId: string, def: ShopDef): HTMLElement {
+    if (this.section === "garage") return this.garage(w, shopId, def);
+    if (this.section === "market") return this.market(w, shopId, def);
+    if (this.section === "board") return this.contracts(w, shopId);
+    if (this.section === "people") return peopleList(shopId, (cmd) => this.run(cmd, true));
+    return this.bar(w, shopId);
+  }
+
+  private garage(w: World, shopId: string, def: ShopDef): HTMLElement {
+    const tabs = GARAGE_TABS.filter((tab) => def.kind === "garage" || !GARAGE_ONLY.includes(tab));
+    const buttons = tabs.map((tab) =>
       el(
         "button",
         {
-          class: this.tab === tab ? "on" : "",
-          "data-tab": tab,
+          class: this.garageTab === tab ? "on" : "",
+          "data-garage-tab": tab,
           onclick: () => {
-            this.tab = tab;
+            this.garageTab = tab;
             this.showList();
           },
         },
@@ -153,18 +241,28 @@ export class TownScreen {
         t(`trade.tab.${tab}`),
       ),
     );
+    const body = { buyParts: () => this.buyParts(w, shopId), sellParts: () => this.sellParts(w), trucks: () => this.trucks(w) }[this.garageTab]();
+    return el("div", {}, this.repairBar(w), el("div", { class: "tabs sub" }, ...buttons), body);
   }
 
-  private tabBody(w: World, shopId: string, def: ShopDef): HTMLElement {
-    const body: Record<Tab, () => HTMLElement> = {
-      people: () => peopleList(shopId, (cmd) => this.run(cmd, true)),
-      market: () => this.market(w, shopId, def),
-      buyParts: () => this.buyParts(w, shopId),
-      sellParts: () => this.sellParts(w),
-      trucks: () => this.trucks(w),
-      contracts: () => this.contracts(w, shopId),
-    };
-    return body[this.tab]();
+  private bar(w: World, shopId: string): HTMLElement {
+    const drivers = barDrivers(w, shopId);
+    if (drivers.length === 0) return el("div", { class: "dim" }, sectionReason("noDrivers"));
+    return el("div", { class: "jobs" }, ...drivers.map((v) => this.barRow(w, v)));
+  }
+
+  private barRow(w: World, v: Vehicle): HTMLElement {
+    const quiet = list([v.brain ? templateName(v.brain.templateId) : null, factionName(v.faction)].filter((part) => part !== null));
+    const reason = w.player.call ? t("town.reason.onCall") : callError(w, v.id);
+    return el(
+      "div",
+      { class: "bar-row row", "data-driver": v.id },
+      createIcon("driver"),
+      el("span", { class: "bar-name" }, driverName(v)),
+      el("span", { class: "bar-quiet", title: quiet }, quiet),
+      el("span", { class: "tag dim" }, stanceTag(w, v, hostileToPlayer(w, v))),
+      reasonButton([t("town.bar.radio")], () => this.run((x) => callVehicle(x, v.id), true), reason),
+    );
   }
 
   private showList(): void {
@@ -425,6 +523,14 @@ export function filterIcon(f: Exclude<StockFilter, "all">): HTMLElement {
   return f === "weapon" ? createBareItemIcon("mg") : createIcon(FILTER_ICON[f]);
 }
 
+export const SECTION_ICON: Record<TownSection, IconName> = {
+  garage: "parts",
+  market: "salt",
+  board: "clock",
+  people: "driver",
+  bar: "noise",
+};
+
 export const TAB_ICON: Record<Tab, IconName> = {
   people: "driver",
   market: "salt",
@@ -442,6 +548,10 @@ function theyHave(have: number, n: number, amount: (n: number) => Msg): Msg | nu
 function theyLack(npc: Vehicle, price: number): Msg | null {
   const money = npc.resources!.money;
   return money >= price ? null : t("trade.theyLack", { price: moneyMsg(price - money) });
+}
+
+function sectionReason(reason: "noLocals" | "noDrivers"): Msg {
+  return t(reason === "noLocals" ? "town.reason.noLocals" : "town.reason.noDrivers");
 }
 
 function stockCount(stock: PartInstance[], f: StockFilter): number {

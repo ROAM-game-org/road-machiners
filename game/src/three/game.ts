@@ -576,7 +576,7 @@ export class Game {
     KeyC: { run: () => !this.anim && this.screens.toggle(this.screens.character), idle: true },
     KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true },
     KeyI: { run: () => !this.anim && this.screens.toggle(this.screens.inventory), idle: true },
-    Escape: { run: () => { if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
+    Escape: { run: () => { if (this.screens.town.isOpen()) this.screens.town.leave(); else if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
   };
 
   unpin(): void {

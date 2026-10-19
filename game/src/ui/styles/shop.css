@@ -342,7 +342,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .qt-unit,
-  .quest-page .quest-frame img {
+  .quest-page .quest-frame img,
+  .art-band img {
     animation: none;
     opacity: 1;
     visibility: visible;

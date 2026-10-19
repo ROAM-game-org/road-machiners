@@ -39,6 +39,7 @@ import type { GameEvent, GridItem, Job, NpcState, PartInstance, RefitJob, ShotRo
 import { concat, list, t, verbatim, type Msg } from '../text/msg';
 import { driverName, factionName, goalText, fullName, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
 import { Refused } from '../sim/world';
+import { stanceToward } from '../sim/relations';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
 import { compassText, damage, distanceText, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
@@ -986,4 +987,11 @@ export function commandFailure(world: World, err: unknown): Msg {
   if (err instanceof Refused) return refusalText(world, err.refusal);
   console.error(err);
   return t('refusal.failed');
+}
+
+export function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {
+  if (hostile) return t("hud.tagHostile");
+  const band = stanceToward(w, v);
+  if (band === "neutral") return t("hud.tagNeutral");
+  return t(`band.${band === "allied" ? "friendly" : band}`);
 }

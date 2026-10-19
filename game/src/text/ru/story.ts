@@ -10,6 +10,7 @@ export const STORY: Translation<typeof EN> = {
   'quest.bowl_jory.title': 'Разговоры с Джори Батистом',
   'quest.bowl_ruben.title': 'Разговоры с Рубеном',
   'quest.bowl_scale.title': 'Весы у ворот Чаши',
+  'quest.nose_counter.title': 'At the parts counter',
   'quest.first_fall.title': 'Первое падение',
   'quest.intro_arrival.title': 'Спуск с края',
   'quest.intro_bowl.title': 'Пробуждение в Чаше',

@@ -24,6 +24,7 @@ export const PIECES: Piece[] = [
   { name: ".row", note: "A list line with a faint line under it.", build: () => sample("row", "A row") },
   { name: ".tile", note: "A boxed list item edged in its tone.", build: () => sample("tile", "A tile") },
   { name: ".chip", note: "A small boxed value.", build: () => text("span", "chip", "120 scrap") },
+  { name: ".art-band", note: "A wide picture across the top of a page, with the place name and chips over its lower edge.", build: () => sample("art-band", "") },
   { name: ".tag", note: "An outlined word.", build: () => text("span", "tag", "buy") },
   { name: ".contract-clue", note: "A told survey clue, on its own line under its contract.", build: () => text("span", "contract-clue", "Lies north of Bowl, about 2 km out") },
   { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(1500) },

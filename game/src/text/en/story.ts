@@ -13,6 +13,7 @@ export const STORY = {
   'quest.intro_arrival.title': 'Down from the rim',
   'quest.intro_bowl.title': 'Waking in Bowl',
   'quest.intro_road.title': 'The road on',
+  'quest.nose_counter.title': 'At the parts counter',
   'quest.nose_depot_leak.title': 'Fuel walking out of the depot',
   'quest.nose_edda.title': 'Talks with Edda Moss',
   'quest.nose_ibo.title': 'Talks with Old Ibo',

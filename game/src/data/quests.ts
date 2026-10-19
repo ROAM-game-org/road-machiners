@@ -26,6 +26,7 @@ export const GAME_OPENED_QUESTS = {
   introRoad: 'intro_road',
   wagonSeven: 'wagon_seven',
   scale: 'bowl_scale',
+  counter: 'nose_counter',
   roadHire: 'road_hire',
   roadStretch1: 'road_stretch_1',
   roadStretch4: 'road_stretch_4',
@@ -42,6 +43,7 @@ export const ROAD_STORY: Record<number, { quest: string; gate: string }> = {
 export const FIRST_FALL_SEEN = 'first_knockout_seen';
 export const WAGON_SEEN = 'wagon_seen';
 export const SCALE_SEEN = 'scale_seen';
+export const COUNTER_SEEN = 'counter_seen';
 export const TOWED_TO_BOWL = 'towed_to_bowl';
 export const HATTIE_MET = 'hattie_met';
 export type WellCheckpoint = 'start' | 'meet' | 'again';
@@ -58,6 +60,7 @@ export const GAME_WORLD_VARS: Record<string, GameWorldVar> = {
   [FIRST_FALL_SEEN]: { gates: GAME_OPENED_QUESTS.firstFall },
   [WAGON_SEEN]: { gates: GAME_OPENED_QUESTS.wagonSeven },
   [SCALE_SEEN]: { gates: GAME_OPENED_QUESTS.scale },
+  [COUNTER_SEEN]: { gates: GAME_OPENED_QUESTS.counter },
   [ALA_HIRED]: { gates: null },
   ...Object.fromEntries(Object.values(ROAD_STORY).map((scene) => [scene.gate, { gates: scene.quest }])),
 };
@@ -68,6 +71,7 @@ export type TownSceneCondition = 'newSeller';
 export type TownScene = { place: string; section: TownSection; moment: TownMoment; quest: string; checkpoint: string; gate: string; when: TownSceneCondition | null };
 export const TOWN_SCENES: readonly TownScene[] = [
   { place: 'bowl', section: 'market', moment: 'enter', quest: GAME_OPENED_QUESTS.scale, checkpoint: 'start', gate: SCALE_SEEN, when: 'newSeller' },
+  { place: 'nose', section: 'garage', moment: 'leave', quest: GAME_OPENED_QUESTS.counter, checkpoint: 'start', gate: COUNTER_SEEN, when: null },
 ];
 export const INTRO_STEPS = ['off', 'drive', 'patched', 'ambush', 'done'] as const;
 export type IntroStep = (typeof INTRO_STEPS)[number];

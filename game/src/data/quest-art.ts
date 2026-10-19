@@ -19,6 +19,13 @@ export const QUEST_ART: Record<string, QuestArt> = {
   road_tankline: { file: 'road_tankline.webp', focusX: 20, focusY: 50 },
   road_walkers: { file: 'road_walkers.webp', focusX: 47, focusY: 50 },
   bowl_scale: { file: 'bowl_scale.webp', focusX: 45, focusY: 50 },
+  town_bowl: { file: 'town_bowl.webp', focusX: 50, focusY: 48 },
+  town_nose: { file: 'town_nose.webp', focusX: 55, focusY: 42 },
+  town_salvage_yard: { file: 'town_salvage_yard.webp', focusX: 50, focusY: 50 },
+  town_granary: { file: 'town_granary.webp', focusX: 50, focusY: 50 },
+  town_pump_station: { file: 'town_pump_station.webp', focusX: 50, focusY: 52 },
+  town_dustwell: { file: 'town_dustwell.webp', focusX: 50, focusY: 50 },
+  town_green_pit: { file: 'town_green_pit.webp', focusX: 50, focusY: 55 },
 };
 
 export function questArt(key: string): QuestArt {
@@ -32,4 +39,12 @@ export function questArtUrl(key: string): string {
 }
 
 export type TownArt = { band: string; sections: Partial<Record<TownSection, string>> };
-export const TOWN_ART: Record<string, TownArt> = {};
+export const TOWN_ART: Record<string, TownArt> = {
+  bowl: { band: 'town_bowl', sections: { market: 'bowl_scale', people: 'bowl_yard' } },
+  nose: { band: 'town_nose', sections: {} },
+  'salvage-yard': { band: 'town_salvage_yard', sections: {} },
+  granary: { band: 'town_granary', sections: {} },
+  'pump-station': { band: 'town_pump_station', sections: {} },
+  dustwell: { band: 'town_dustwell', sections: {} },
+  'green-pit': { band: 'town_green_pit', sections: {} },
+};
