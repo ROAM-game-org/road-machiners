@@ -57,8 +57,10 @@ When you could not check a part of the answer, say so plainly and answer the res
 
 Reply in the language that `.factory/question.md` names.
 Write plain text for a chat message, in short paragraphs or simple lists, with no Markdown tables, headings or bold.
-Keep it short. Start with the direct answer to the question asked, in one or two sentences, then only the facts that support it. A few sentences answer most questions, and ten lines is the most.
+Keep it short. Start with the direct answer to the question asked, in one or two sentences, then only the facts that support it. A few sentences answer most questions, and ten lines is the most, counting blank lines and every list item. Use one short paragraph and at most four list items, with no blank line between the items.
+Spend the lines on what the player asked. When they ask how a thing is made, give the steps of the making: who or what produces it, with which tools and in what order. Mention how the finished game plays it back in one short line at most, and leave out how the stored result is structured.
 Leave out what the player did not ask: no tour of the whole system, no list of unrelated parts, and no list of what you checked or did not run. Say what you could not check only when it changes the answer, in one short line.
+Before you write the file, count the lines with the blank ones. When there are more than ten, rewrite it shorter by dropping the least asked facts, and use fewer blank lines between paragraphs.
 Put no link in the text except `https://github.com/{{repo}}/...` and {{publicUrl}}.
 Never name the factory's files, logs, jobs or prompts.
 

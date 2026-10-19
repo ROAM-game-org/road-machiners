@@ -34,7 +34,7 @@ function reader(run: AgentRun): (path: string, method?: string) => Promise<{ cod
   });
 }
 
-function setup(answerText: string | null, issue: number | null = null, text = PLAYER_TEXT, during: (read: ReturnType<typeof reader>) => Promise<void> = async () => undefined, context: string | null = null) {
+function setup(answerText: string | null, issue: number | null = null, text = PLAYER_TEXT, during: (read: ReturnType<typeof reader>) => Promise<void> = async () => undefined, context: string | null = null, language: 'en' | 'ru' = 'en') {
   const f = publicFake(CONFIG);
   fakes.push(f);
   const runs: { run: AgentRun; question: string }[] = [];
@@ -52,7 +52,7 @@ function setup(answerText: string | null, issue: number | null = null, text = PL
   });
   Object.assign(f.ctx.github, { comments: async () => [] });
   const id = f.store.addComment({ issue, source: 'telegram', sourceId: 'c13', postChat: CHANNEL, postMessageId: null, author: 'Ann Lee', sender: '42', text, at: f.clock.now.toISOString(), messageId: 13, addressed: true, context })!;
-  f.store.classify(id, 'question', 'none', f.clock.now, issue === null ? 'other' : 'parent', { language: 'en' });
+  f.store.classify(id, 'question', 'none', f.clock.now, issue === null ? 'other' : 'parent', { language });
   f.store.markReplied(id, f.clock.now);
   updateState(f.ctx.statePath, (state) => ({ ...state, pendingAnswers: [id] }));
   return { f, runs, id };
@@ -161,8 +161,8 @@ describe('answer job', () => {
     const SECOND = 'Бро расскажи пожалуйста про пайплайн генерации диалогов на деве который ТАМ ЕСТЬ';
     const WRONG_ANSWER = 'Коротко: на dev диалоги не генерируются нейросетью и не случайны. Это заранее написанные деревья реплик.';
 
-    async function promptFor(text: string, context: string | null = null): Promise<{ prompt: string; question: string }> {
-      const { f, runs } = setup('Ок.', null, text, async () => undefined, context);
+    async function promptFor(text: string, context: string | null = null, language: 'en' | 'ru' = 'ru'): Promise<{ prompt: string; question: string }> {
+      const { f, runs } = setup('Ок.', null, text, async () => undefined, context, language);
       await answer(f.ctx);
       return { prompt: runs[0]!.run.prompt, question: runs[0]!.question };
     }
@@ -171,7 +171,8 @@ describe('answer job', () => {
       const { question } = await promptFor(SECOND, WRONG_ANSWER);
       expect(question).toContain(`> ${SECOND}`);
       expect(question).toContain(`> ${WRONG_ANSWER}`);
-      expect(question).toContain('Reply language: English');
+      expect(question).toContain('Reply language: Russian');
+      expect(question).not.toContain('Reply language: English');
     });
 
     it('tells how a thing is made apart from how it plays, so a pipeline question is not answered from runtime code alone', async () => {
@@ -202,7 +203,9 @@ describe('answer job', () => {
     it('asks for a short direct answer without a tour of unrelated parts', async () => {
       const { prompt } = await promptFor(FIRST);
       expect(prompt).toMatch(/Start with the direct answer to the question asked, in one or two sentences/);
-      expect(prompt).toMatch(/ten lines is the most/);
+      expect(prompt).toMatch(/ten lines is the most, counting blank lines and every list item/);
+      expect(prompt).toMatch(/how a thing is made, give the steps of the making/);
+      expect(prompt).toMatch(/count the lines with the blank ones/);
       expect(prompt).toMatch(/Leave out what the player did not ask/);
     });
 
