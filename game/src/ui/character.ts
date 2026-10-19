@@ -9,7 +9,7 @@ import { hp } from './units';
 import { num, t, type Msg } from '../text/msg';
 import { factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
-import { modeRules } from '../sim/settings';
+import { hasExplorationMap, modeRules } from '../sim/settings';
 import { MapTab } from './map-tab';
 import { lookReason } from './look';
 
@@ -34,7 +34,8 @@ export class CharacterScreen {
     this.open(tab);
   }
 
-  open(tab: CharacterTab): void {
+  open(requested: CharacterTab): void {
+    const tab = requested === 'map' && !hasExplorationMap(this.host.world()) ? 'skills' : requested;
     const opening = !this.isOpen() || this.tab !== tab;
     this.tab = tab;
     this.root.style.display = '';
@@ -58,17 +59,17 @@ export class CharacterScreen {
         el('span', { class: 'chip', title: t('character.health') }, createIcon('driver'), t('readout.ofMax', { n: hp(p.health), max: maxHealthOf(world) })),
         el('span', { class: 'chip', title: t('character.knockoutsTitle') }, createIcon('damage'), t('character.knockouts', { n: p.knockouts })),
         el('span', { class: 'chip xp-pool', title: t('character.xpPoolTitle') }, t('character.xpPool', { n: Math.floor(p.xp) })),
-      ), this.tabs()),
+      ), this.tabs(world)),
       ...(this.tab === 'map' ? this.mapBody(world) : this.skills(world)),
     );
   }
 
-  private tabs(): HTMLElement {
+  private tabs(world: World): HTMLElement {
     const button = (tab: CharacterTab, label: Msg) =>
       el('button', { class: this.tab === tab ? 'on' : '', 'data-tab': tab, onclick: () => this.open(tab) }, label);
     return el('div', { class: 'tabs' },
       button('skills', t('character.tab.skills')),
-      button('map', t('map.full')),
+      ...(hasExplorationMap(world) ? [button('map', t('map.full'))] : []),
       ...(this.tab === 'map' ? [this.mapTab().controls] : []));
   }
 

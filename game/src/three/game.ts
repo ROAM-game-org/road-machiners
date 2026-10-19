@@ -44,6 +44,7 @@ import type { UiHost } from "../ui/host";
 import { ModalScreens } from "./screens";
 import { failLoudOnShaderError } from "./shader-errors";
 import { Hud } from "../ui/hud";
+import { hasExplorationMap } from "../sim/settings";
 import { Minimap } from "../ui/minimap";
 import { minimapSetting } from "../ui/minimap-setting";
 import type { RadioPanel } from "../ui/radio";
@@ -333,7 +334,6 @@ export class Game {
       markInspected: () => this.markInspected(),
       ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
     }, radio);
-    this.syncMinimap();
     minimapSetting().subscribe(() => this.syncMinimap());
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
@@ -452,6 +452,7 @@ export class Game {
       timed("fog", () => this.fog.update(this.world));
       this.shade.update(this.world);
     }
+    this.syncMinimap();
     timed("minimap", () => this.minimap?.update(this.displayWorld()));
     if (!this.anim || this.anim.impacts)
       this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
@@ -582,7 +583,7 @@ export class Game {
     KeyL: { run: () => this.controls.toggleHeadlights(), noModal: true },
     KeyN: { run: () => this.markInspected(), noModal: true, idle: true },
     KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true },
-    KeyK: { run: () => !this.anim && this.screens.toggleCharacter("map"), idle: true },
+    KeyK: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true },
     KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true },
     KeyI: { run: () => !this.anim && this.screens.toggle(this.screens.inventory), idle: true },
     Escape: { run: () => { if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
@@ -1099,10 +1100,9 @@ export class Game {
   }
 
   private syncMinimap(): void {
-    const on = minimapSetting().on();
+    const on = minimapSetting().on() && hasExplorationMap(this.world);
     if (on && !this.minimap) {
       this.minimap = new Minimap(() => this.openMap());
-      this.minimap.update(this.displayWorld());
     } else if (!on && this.minimap) {
       this.minimap.dispose();
       this.minimap = null;

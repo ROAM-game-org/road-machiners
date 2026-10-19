@@ -41,6 +41,10 @@ export function modeMap(mode: GameModeId): MapKind {
   return modeOf(mode).map;
 }
 
+export function hasExplorationMap(world: World): boolean {
+  return modeMap(world.setup.mode) === 'icarus';
+}
+
 export function modeKit(mode: GameModeId, fallback: string): string {
   return modeOf(mode).kit ?? fallback;
 }

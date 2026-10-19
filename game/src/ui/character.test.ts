@@ -158,6 +158,15 @@ describe("inventory header money", () => {
     expect(openCharacter(world).all((n) => n.className === "standing-row")).toEqual([]);
   });
 
+  it("has a Map tab in Roaming and none on Chaos Highway", () => {
+    const world = emptyWorld();
+    const roaming = openCharacter(world).all((n) => n.tag === "button" && n.text() === "Map").length;
+    world.setup = { ...world.setup, mode: "furyRoad" };
+    ui.children = [];
+    expect(roaming).toBe(1);
+    expect(openCharacter(world).all((n) => n.tag === "button" && n.text() === "Map")).toEqual([]);
+  });
+
   it("turns buying a rank and picking a perk off during a scene, with the reason", () => {
     const world = emptyWorld();
     world.player.xp = 1000;
