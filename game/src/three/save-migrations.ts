@@ -3,7 +3,7 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
-import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withoutVarga_79_80, withSunward_83_84 } from './save-steps-late';
+import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withoutVarga_79_80, withSunward_83_84, withHollowFort_84_85 } from './save-steps-late';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -897,6 +897,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withHeardCentres_81_82,
   withShopGoods_82_83,
   withSunward_83_84,
+  withHollowFort_84_85,
 ];
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {

@@ -402,6 +402,7 @@ export const LOG: Translation<typeof EN> = {
   'goal.restHollow': 'Rest through the day',
   'goal.rideVigil': 'Ride to the crater at dusk',
   'goal.keepVigil': 'Keep the night vigil',
+  'goal.meetStranger': 'Coming to meet you',
   'goal.rideHome': 'Ride home before dawn',
   'goal.huntRoad': 'Hunt the night road',
   'goal.dragToLight': 'Drag a truck to the light',

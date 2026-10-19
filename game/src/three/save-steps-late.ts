@@ -107,3 +107,25 @@ export function withSunward_83_84(world: SavedJson): SavedJson {
   const sunward = world.furyRoad === null ? { collapsed: null, night: null, lastHunt: null } : null;
   return { ...world, sunward, player: { ...player, standing: { ...(player.standing as SavedJson), sunward: SUNWARD_STANDING_83_84 } } };
 }
+
+const OLD_HOLLOW_BAYS_84 = [
+  { x: 348, y: 334 }, { x: 351.2, y: 334 }, { x: 354.4, y: 334 }, { x: 357.6, y: 334 }, { x: 360.8, y: 334 }, { x: 364, y: 334 },
+  { x: 349.6, y: 338.5 }, { x: 352.8, y: 338.5 }, { x: 356, y: 338.5 }, { x: 359.2, y: 338.5 }, { x: 362.4, y: 338.5 },
+];
+const FORT_BAYS_85 = [
+  { x: 284.053, y: 243.604 }, { x: 280.429, y: 250.736 }, { x: 281.2, y: 242.155 }, { x: 277.576, y: 249.287 }, { x: 278.346, y: 240.705 }, { x: 274.723, y: 247.838 },
+  { x: 275.493, y: 239.256 }, { x: 271.87, y: 246.389 }, { x: 272.64, y: 237.807 }, { x: 269.017, y: 244.94 }, { x: 269.787, y: 236.358 },
+];
+const BAY_MATCH_85 = 0.01;
+
+export function withHollowFort_84_85(world: SavedJson): SavedJson {
+  const rehome = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (v.faction !== 'sunward' || !brain) return v;
+    const home = brain.home as { x: number; y: number };
+    const bay = OLD_HOLLOW_BAYS_84.findIndex((b) => Math.hypot(b.x - home.x, b.y - home.y) <= BAY_MATCH_85);
+    if (bay < 0) throw new Error(`Sunward car ${String(v.id)} calls ${home.x}, ${home.y} home, which is no bay of the old Hollow`);
+    return { ...v, brain: { ...brain, home: { ...FORT_BAYS_85[bay] } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
+}

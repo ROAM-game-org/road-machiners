@@ -198,7 +198,7 @@ export type GoalReason =
   | 'takeSpilledCargo' | 'watchedRoad' | 'cornered' | 'defeated'
   | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey'
   | 'musterCrew' | 'crewLeader' | 'hiredGuard'
-  | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell';
+  | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger';
 
 export type SimNote =
   | { id: 'engineHot' }

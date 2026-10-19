@@ -77,6 +77,7 @@ import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_83 from './save-fixtures/format-2-83.json';
+import FORMAT_2_84 from './save-fixtures/format-2-84.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
@@ -1829,5 +1830,35 @@ describe('save migration 83 to 84', () => {
 
     expect(next.sunward).toBeNull();
     expect(next.furyRoad).toEqual({ window: 0 });
+  });
+});
+
+describe('save migration 84 to 85', () => {
+  type Saved = { vehicles: { id: string; pos: { x: number; y: number }; brain: { home: { x: number; y: number } } | null }[] };
+
+  it('moves each Sunward car home to the fort bay of the same index and moves no car', () => {
+    const before = structuredClone(FORMAT_2_84);
+
+    const next = MIGRATIONS[84](before) as unknown as Saved;
+
+    const home = (id: string) => next.vehicles.find((v) => v.id === id)!.brain!.home;
+    expect(home('v31')).toEqual({ x: 284.053, y: 243.604 });
+    expect(home('v32')).toEqual({ x: 269.787, y: 236.358 });
+    expect(home('v40')).toEqual({ x: 351.2, y: 334 });
+    expect(next.vehicles.map((v) => v.pos)).toEqual(FORMAT_2_84.vehicles.map((v) => v.pos));
+    expect(before).toEqual(FORMAT_2_84);
+  });
+
+  it('passes a world with no Sunward car unchanged', () => {
+    const quiet = { ...structuredClone(FORMAT_2_84), vehicles: FORMAT_2_84.vehicles.filter((v) => v.faction !== 'sunward') };
+
+    expect(MIGRATIONS[84](quiet)).toEqual(quiet);
+  });
+
+  it('throws on a Sunward car whose home is no bay of the old Hollow', () => {
+    const lost = structuredClone(FORMAT_2_84);
+    lost.vehicles[1].brain!.home = { x: 10, y: 10 };
+
+    expect(() => MIGRATIONS[84](lost)).toThrow(/no bay of the old Hollow/);
   });
 });

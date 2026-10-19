@@ -28,7 +28,8 @@ import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
 import { TEST_MAP } from '../test/map';
-import { hollowObstacles } from '../sim/sunward';
+import { hollowBays, hollowObstacles, membersOf } from '../sim/sunward';
+import { fillHollow } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { breakProp, oldSpotOf, oldSpotPicks, oldStockId } from '../sim/salvage';
@@ -1107,6 +1108,23 @@ describe('relations in a save', () => {
 
     expect(loaded.sunward).toEqual(w.sunward);
     expect(loaded.player.standing.sunward).toBe(-20);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('gives back the order parked in the fort bays, awarding nothing at load', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    fillHollow(w);
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    const members = (x: typeof w) => membersOf(x).map((v) => ({ id: v.id, pos: v.pos, home: v.brain!.home }));
+    expect(members(loaded)).toEqual(members(w));
+    expect(members(loaded).every((m) => hollowBays().some((b) => b.x === m.home.x && b.y === m.home.y))).toBe(true);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.events).toEqual([]);
   });
 
