@@ -166,8 +166,15 @@ describe('triage stage', () => {
     expect(calls.at(-1)).toBe('move 7 Done');
   });
 
-  it.each(['vote', 'unclear'])('never lets Haiku pick %s', async (kind) => {
-    await expect(runStage(fakeCtx(verdict({ verdict: kind, questions: ['Which horn?'] })), 7)).rejects.toThrow(`unknown verdict: ${kind}`);
+  it.each(['vote', 'unclear'])('sends a feature that Haiku marked %s to grooming, with no questions from Haiku', async (kind) => {
+    await runStage(fakeCtx(verdict({ verdict: kind, questions: ['Which horn?'] }), [], [], { verdict: 'ready' }), 7);
+    expect(calls).toContain('agent opus');
+    expect(calls).not.toContain('addLabel 7 needs-info');
+    expect(calls.at(-1)).toBe('move 7 Design');
+  });
+
+  it.each(['vote', 'unclear'])('never lets Haiku pick %s for a bug', async (kind) => {
+    await expect(runStage(fakeCtx(verdict({ verdict: kind, questions: ['Which horn?'] }), ['bug']), 7)).rejects.toThrow(`unknown verdict: ${kind}`);
     expect(calls.filter((call) => /^(comment|addLabel|message)/.test(call))).toEqual([]);
   });
 

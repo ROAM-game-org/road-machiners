@@ -148,10 +148,11 @@ type Work = Pick<Ready, 'hotfix' | 'releaseFix' | 'routing' | 'bundle'>;
 
 function parseFilter(text: string | null, candidates: number[], release: ReleaseState | null, bug: boolean): Filtered {
   const fields = readFields(text);
+  if (!bug && fields.verdict !== 'wont-do') return { verdict: 'groom' };
   const kind = readKind(fields.verdict);
   const why = readReason(fields.reason);
   if (kind === 'wont-do') return { verdict: kind, reason: why };
-  return bug ? readReady(why, readWork(fields, candidates, release)) : { verdict: 'groom' };
+  return readReady(why, readWork(fields, candidates, release));
 }
 
 function readFields(text: string | null): Record<string, unknown> {
