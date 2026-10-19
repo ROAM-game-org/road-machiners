@@ -273,6 +273,19 @@ describe('the hauler driver', () => {
     expect(RULES.parkedSpeed).toBeGreaterThan(0);
   });
 
+  it('raises no stall while it waits in the fort yard for a gun truck still on the road', () => {
+    resetHaulerWatch();
+    const { w, hauler } = openRoad();
+    hauler.pos = { ...yardSpots(w, w.furyRoad!.window + 1).hauler };
+    hauler.speed = 0;
+    for (let i = 0; i < FURY_ROAD.hauler.stallTurns * 3; i++) {
+      w.turn++;
+      w.events = [];
+      watchHaulerStall(w);
+      expect(w.events.filter((e) => e.t === 'stall')).toEqual([]);
+    }
+  });
+
   it('raises no stall while a group truck pins it nose to nose, and raises one once that truck is beaten', () => {
     resetHaulerWatch();
     const { w, hauler } = openRoad();
