@@ -64,7 +64,7 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   const others = w.vehicles.filter((v) => v.id !== me.id);
   w.vehicles = w.vehicles.filter((v) => v.id === me.id);
   w.removed.push(...others);
-  const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { ...post });
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { ...post });
   raider.brain = npcBrain('buggy', sitePads(camp)[0], ['raider']);
   raider.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'act', reason: 'watchedRoad', watchUntil: w.turn + HUNT.watchTurns }];
   const end = kind === 'playerEmpty' ? { x: post.x, y: post.y - 6 } : at(60);
@@ -76,7 +76,7 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   } else {
     me.items = me.items.filter((item) => !isLoot(me.chassisId, item));
     me.pos = { x: post.x + 3, y: post.y + 3 };
-    prey = addVehicle(w, 'traders', kind === 'brute' ? 'hauler' : 'scout', kind === 'brute' ? ['mg', 'mg', 'mg', 'mg', 'stockEngine'] : ['mg', 'stockEngine'], { ...start });
+    prey = addVehicle(w, 'independent', kind === 'brute' ? 'hauler' : 'scout', kind === 'brute' ? ['mg', 'mg', 'mg', 'mg', 'stockEngine'] : ['mg', 'stockEngine'], { ...start });
     prey.brain = npcBrain('trader', prey.pos, ['trader']);
     prey.brain.goals = [];
     if (kind === 'empty') prey.items = prey.items.filter((item) => !isLoot(prey.chassisId, item));

@@ -189,7 +189,7 @@ describe('contact practice', () => {
   function heardBuggy() {
     const w = emptyWorld({ x: 30, y: 30 });
     w.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
-    const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
     buggy.speed = 6;
     return { w, buggy };
   }
@@ -220,7 +220,7 @@ describe('contact practice', () => {
 
   it('pays nothing when an NPC hears a truck', () => {
     const { w, buggy } = heardBuggy();
-    const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 60, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 60, y: 30 });
     expect(contactsOf(w, trader, Infinity).map((c) => c.vehicleId)).toContain(buggy.id);
     expect(practiceOf(w, 'contact')).toEqual([]);
   });
@@ -244,7 +244,7 @@ describe('perception sight', () => {
 
   it('leaves NPC sight alone', () => {
     const w = emptyWorld({ x: 60, y: 60 });
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
     const base = sightRadius(w, npc);
     w.player.ranks.perception = 5;
     expect(sightRadius(w, npc)).toBe(base);
@@ -268,7 +268,7 @@ describe('the night eyes perk', () => {
     const w = emptyWorld({ x: 60, y: 60 });
     w.turn = night();
     w.player.perks.push('nightEyes');
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
     expect(sightRadius(w, npc)).toBeCloseTo(TERRAIN.vision.radius * TIME.nightSight);
   });
 });
@@ -280,7 +280,7 @@ describe('the storm rider perk', () => {
     const w = emptyWorld({ x: 60, y: 60 });
     w.turn = day();
     w.weather = [{ id: 'w1', kind: 'storm', pos: { x: 60, y: 60 }, radius: 60, vel: { x: 0, y: 0 }, turnsLeft: 100, born: w.turn - 100 }];
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 62, y: 60 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 62, y: 60 });
     settleStorms(w);
     return { w, me: w.vehicles[0], npc };
   }
@@ -302,7 +302,7 @@ describe('the storm rider perk', () => {
 describe('a dust screen', () => {
   function screenWorld(pos: { x: number; y: number }, screen: boolean) {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 20, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 20, y: 30 });
     const me = w.vehicles[0];
     w.dustClouds = [{ id: 'dust', source: me.id, pos, vel: { x: 0, y: 0 }, age: 0, range: 50, ...(screen ? { screen: true as const } : {}) }];
     refreshVision(w);
@@ -353,7 +353,7 @@ describe('sight from the wing', () => {
     w.vehicles[0].pos = at(mid, 0, -5);
     return w;
   }
-  const viewer = (w: World, pos: Vec) => addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], pos);
+  const viewer = (w: World, pos: Vec) => addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], pos);
 
   it('sees a truck 15 tiles out on the furrow bank over a hull plate that hides it from the ground', () => {
     const w = wingWorld();

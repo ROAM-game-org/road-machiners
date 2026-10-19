@@ -12,6 +12,7 @@ import { say } from '../text/language';
 import { byId, t, type Msg } from '../text/msg';
 import { goodLower, partName, siteName, templateName } from '../text/names';
 import { el, panel, rightDock } from './dom';
+import { isRaider } from '../sim/relations';
 
 export type Broadcast = { topic: RadioTopic; variant: number; text: Msg; turn: number; rank: 'news' | 'time' | 'filler' };
 type Slots = Record<string, Msg>;
@@ -181,7 +182,8 @@ function stormSlots(world: World, storm: Extract<WeatherEvent, { kind: 'storm' }
 function raidPlace(world: World, attackerId: string, victimId: string): Place | null {
   if ([attackerId, victimId].includes(world.player.vehicleId)) return null;
   const victim = vehicleIn(world, victimId);
-  if (!victim || vehicleIn(world, attackerId)?.faction !== 'raiders') return null;
+  const attacker = vehicleIn(world, attackerId);
+  if (!victim || !attacker || !isRaider(attacker)) return null;
   return placeOf(world, victim.pos);
 }
 

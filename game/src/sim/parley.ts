@@ -23,12 +23,13 @@ import type { Aim, GoalReason, GridItem, Plea, SalvageStock, Vehicle, World } fr
 import { canVehicleSee } from './vision';
 import { dist } from './vec';
 import { isIntroAmbusher } from './quests';
+import { isAlly, reportIncident } from './relations';
 
 export type ThreatAnswer = DecisionOptions['threatened'];
 
 function sideOf(world: World, v: Vehicle): Vehicle[] {
   if (!v.brain) return [v];
-  return world.vehicles.filter((x) => x.id === v.id || (x.brain && x.faction === v.faction && dist(x.pos, v.pos) <= SPAWN.neighborHelp));
+  return world.vehicles.filter((x) => x.id === v.id || (x.brain && dist(x.pos, v.pos) <= SPAWN.neighborHelp && isAlly(world, x, v)));
 }
 
 export function makePeace(world: World, a: Vehicle, b: Vehicle): void {
@@ -209,8 +210,9 @@ export function answersThreat(world: World, npc: Vehicle): ThreatAnswer {
 
 export function settleThreat(world: World, npc: Vehicle, answer: ThreatAnswer): void {
   const me = playerVehicle(world);
-  if (answer === 'comply') yieldTo(world, npc, me);
-  else defyThreat(world, npc, me, answer);
+  if (answer !== 'comply') return defyThreat(world, npc, me, answer);
+  reportIncident(world, { aggressor: me, victim: npc, deed: 'robbed', victimFights: false });
+  yieldTo(world, npc, me);
 }
 
 export function defendClaim(world: World, claimant: Vehicle, trespasser: Vehicle): void {

@@ -52,7 +52,7 @@ function parkedAt(id: string) {
 
 function withPrey(w: World): World {
   const me = playerVehicle(w);
-  const raider = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: me.pos.x + 150, y: me.pos.y });
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: me.pos.x + 150, y: me.pos.y });
   raider.brain = npcBrain('buggy', raider.pos, ['raider']);
   return w;
 }
@@ -226,7 +226,7 @@ describe('botOrders', () => {
     const me = playerVehicle(w);
     me.speed = 0;
     w.salvage.push({ id: 'wreck-beside', pos: { x: 31.5, y: 30 }, radius: 0.6, goods: { scrap: 2 }, parts: [], hidden: emptyHidden() });
-    startCombat(w, addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }), me);
+    startCombat(w, addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }), me);
 
     const turn = botOrders(w, 'scavenger');
 
@@ -289,7 +289,7 @@ describe('botOrders', () => {
       const me = playerVehicle(w);
       me.pos = { x: me.pos.x + 20, y: me.pos.y - 20 };
       if (fight) {
-        const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: me.pos.x + 6, y: me.pos.y });
+        const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: me.pos.x + 6, y: me.pos.y });
         raider.brain = npcBrain('buggy', raider.pos, ['raider']);
         startCombat(w, raider, me);
       }
@@ -337,7 +337,7 @@ describe('botOrders', () => {
       const me = playerVehicle(w);
       me.items = me.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'core');
       w.player.money = money;
-      const tower = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
+      const tower = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
       tower.brain = npcBrain('trader', tower.pos, NPCS.trader.traits);
       forceOption('strandedSeen', 'tow');
       let at = w;
@@ -608,7 +608,7 @@ describe('the hunter', () => {
   it('strips a knocked-out truck it is parked beside', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     playerVehicle(w).speed = 0;
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
     raider.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: false };
 
     const turn = botOrders(w, 'hunter');
@@ -620,7 +620,7 @@ describe('the hunter', () => {
   it('drives beside a knocked-out truck it sees that still has loot', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     playerVehicle(w).speed = 0;
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     raider.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: false };
 
     const turn = botOrders(w, 'hunter');
@@ -635,7 +635,7 @@ describe('the hunter', () => {
       const w = emptyWorld({ x: 30, y: 30 });
       const me = playerVehicle(w);
       me.speed = 0;
-      const raider = addVehicle(w, 'raiders', chassisId, ['stockEngine'], { x: 36, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', chassisId, ['stockEngine'], { x: 36, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       startCombat(w, raider, me);
       const faster = vehicleStats(w, raider).maxSpeed >= vehicleStats(w, me).maxSpeed;
@@ -654,7 +654,7 @@ describe('the hunter', () => {
     const me = playerVehicle(w);
     me.speed = 0;
     const raiders = [24, 36].map((x) => {
-      const raider = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       return raider;
     });
@@ -673,7 +673,7 @@ describe('the hunter', () => {
     me.pos = { x: me.pos.x + 10, y: me.pos.y };
     addGoods(w, me, 'electronics', 2);
     w.player.costBasis.electronics = 3333;
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 300, y: 300 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 300, y: 300 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     startCombat(w, raider, me);
 
@@ -690,7 +690,7 @@ describe('the hunter', () => {
     me.speed = 0;
     const toBowl = dist(me.pos, bowl.pos);
     const between = { x: me.pos.x + ((bowl.pos.x - me.pos.x) / toBowl) * 8, y: me.pos.y + ((bowl.pos.y - me.pos.y) / toBowl) * 8 };
-    const raider = addVehicle(w, 'raiders', 'wagon', ['cannon', 'heavyDiesel'], between);
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'heavyDiesel'], between);
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     startCombat(w, raider, me);
 
@@ -706,7 +706,7 @@ describe('the hunter', () => {
     const me = playerVehicle(w);
     const ahead = { x: me.pos.x + 12, y: me.pos.y };
     me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
-    const raider = addVehicle(w, 'raiders', 'wagon', ['cannon', 'heavyDiesel'], ahead);
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'heavyDiesel'], ahead);
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect([hostileToPlayer(w, raider), playerSees(w, raider.pos)]).toEqual([true, true]);
 
@@ -724,7 +724,7 @@ describe('the hunter', () => {
       const me = playerVehicle(w);
       me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
       if (raider) {
-        const unarmed = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: me.pos.x + 12, y: me.pos.y });
+        const unarmed = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: me.pos.x + 12, y: me.pos.y });
         unarmed.brain = npcBrain('buggy', unarmed.pos, ['raider']);
         for (const p of mountedParts(unarmed, 'core')) if (p.defId.includes('transmission')) p.hp = 0;
         expect([hostileToPlayer(w, unarmed), playerSees(w, unarmed.pos), isStranded(w, unarmed)]).toEqual([true, true, true]);
@@ -739,7 +739,7 @@ describe('the hunter', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'shotgun', 'heavyDiesel'], { x: me.pos.x + 14, y: me.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'shotgun', 'heavyDiesel'], { x: me.pos.x + 14, y: me.pos.y });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect(Math.abs(judgeDanger(w, me, raider) - 1)).toBeLessThan(NPC_BEHAVIOR.dangerSpread / 2);
     const orders = Array.from({ length: 12 }, (_, i) => {
@@ -755,7 +755,7 @@ describe('the hunter', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     addGoods(w, me, 'electronics', 2);
-    const raider = addVehicle(w, 'raiders', 'wagon', ['cannon', 'heavyDiesel'], { x: me.pos.x + 40, y: me.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'heavyDiesel'], { x: me.pos.x + 40, y: me.pos.y });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     w.player.contacts = [{ vehicleId: raider.id, center: { ...raider.pos }, radius: 5, sources: ['sound'], loudness: 1 }];
     const run = { kind: 'stopAt' as const, dest: { x: 1, y: me.pos.y } };
@@ -771,7 +771,7 @@ describe('the hunter', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.speed = 0;
-    const raider = addVehicle(w, 'raiders', 'wagon', ['cannon', 'heavyDiesel'], { x: me.pos.x + 6, y: me.pos.y + 6 });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'heavyDiesel'], { x: me.pos.x + 6, y: me.pos.y + 6 });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     startCombat(w, raider, me);
 
@@ -787,7 +787,7 @@ describe('the hunter', () => {
     const me = playerVehicle(w);
     for (const part of mountedParts(me)) part.hp = Math.floor(maxHp(part) / 4);
     w.player.money = 66667;
-    const merc = addVehicle(w, 'mercs', 'van', ['mg', 'stockEngine'], { x: me.pos.x + 8, y: me.pos.y });
+    const merc = addVehicle(w, 'independent', 'van', ['mg', 'stockEngine'], { x: me.pos.x + 8, y: me.pos.y });
     merc.brain = npcBrain('merc', merc.pos, NPCS.merc.traits);
     startCombat(w, merc, me);
 
@@ -799,7 +799,7 @@ describe('the hunter', () => {
   it('has a bot out of combat drop the aim it set while auto fire was on', () => {
     const w = parkedAt('bowl');
     const me = playerVehicle(w);
-    const merc = addVehicle(w, 'mercs', 'van', ['mg', 'stockEngine'], { x: me.pos.x + 8, y: me.pos.y });
+    const merc = addVehicle(w, 'independent', 'van', ['mg', 'stockEngine'], { x: me.pos.x + 8, y: me.pos.y });
     merc.brain = npcBrain('merc', merc.pos, NPCS.merc.traits);
     for (const mw of vehicleStats(w, me).weapons) me.weaponOrders[mw.part.id] = { targetId: merc.id, aim: 'body' };
 
@@ -811,7 +811,7 @@ describe('the hunter', () => {
   it('has a hunter take the bounty on the board it is parked at, and a trader leave it', () => {
     const heldAfter = (archetype: 'hunter' | 'trader') => {
       const w = parkedAt('bowl');
-      const target = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: 300, y: 300 });
+      const target = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 300, y: 300 });
       target.brain = npcBrain('buggy', target.pos, ['raider']);
       w.shops.bowl.contracts = [{ id: 'ct-bounty', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 23333, deadline: 5000, window: 600, tier: 1, fulfilled: false }];
       return botOrders(w, archetype).world.player.contracts.map((c) => c.id);
@@ -824,7 +824,7 @@ describe('the hunter', () => {
   it('has a hunter take a bounty only on a raider type it would fight', () => {
     const heldWith = (template: string, chassis: string, parts: string[]) => {
       const w = parkedAt('bowl');
-      const target = addVehicle(w, 'raiders', chassis, parts, { x: 300, y: 300 });
+      const target = addVehicle(w, 'scrapjaw', chassis, parts, { x: 300, y: 300 });
       target.brain = npcBrain(template, target.pos, ['raider']);
       w.shops.bowl.contracts = [{ id: 'ct-bounty', shop: 'bowl', kind: 'bounty', template, reward: 700, deadline: 5000, window: 600, tier: 1, fulfilled: false }];
       return botOrders(w, 'hunter', { noGear: true }).world.player.contracts.length;
@@ -845,7 +845,7 @@ describe('the hunter', () => {
     const orderFacing = (parts: string[]) => {
       const w = emptyWorld({ x: 30, y: 30 });
       playerVehicle(w).speed = 0;
-      const raider = addVehicle(w, 'raiders', 'buggy', [...parts, 'stockEngine'], { x: 120, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', [...parts, 'stockEngine'], { x: 120, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       w.player.contacts = [{ vehicleId: raider.id, center: { ...raider.pos }, radius: 10, sources: ['sound'], loudness: 1 }];
       expect(playerSees(w, raider.pos)).toBe(false);
@@ -966,7 +966,7 @@ describe('the hunter', () => {
     const acceptsTruce = (archetype: 'climber' | 'hunter') => {
       const w = emptyWorld({ x: 30, y: 30 });
       const me = withThreeGuns(w);
-      const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 34, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 34, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       plead(w, raider, me, 'truce');
       w.player.call = { with: raider.id, topic: 'truceOffer', node: 'offer', vars: {}, line: { line: 'enoughOfThisWe', vars: {} } };
@@ -985,7 +985,7 @@ describe('the hunter', () => {
     me.speed = 0;
     const engine = mountedParts(me, 'engine')[0];
     engine.hp = Math.floor(maxHp(engine) / 4);
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
     raider.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: false };
 
     const turn = botOrders(w, 'climber');
@@ -1012,7 +1012,7 @@ describe('the hunter', () => {
       me.order = { kind: 'stopAt', dest: { x: 200, y: 30 } };
       w.player.engineHeat = 0.8;
       if (fight) {
-        const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 30 });
+        const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 30 });
         raider.brain = npcBrain('buggy', raider.pos, ['raider']);
         startCombat(w, raider, me);
       }
@@ -1041,7 +1041,7 @@ describe('the hunter', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     playerVehicle(w).order = { kind: 'stopAt', dest: { x: 200, y: 30 } };
     w.player.engineHeat = ENGINE_HEAT.warnAt + 0.05;
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     expect([hostileToPlayer(w, raider), playerSees(w, raider.pos)]).toEqual([true, true]);
 
@@ -1053,7 +1053,7 @@ describe('the hunter', () => {
     const me = playerVehicle(w);
     addGoods(w, me, 'salt', 2);
     w.player.fuel = 0;
-    const raider = addVehicle(w, 'raiders', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 36, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 36, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     expect(vehicleStats(w, me).maxSpeed).toBeGreaterThan(vehicleStats(w, raider).maxSpeed);
     startCombat(w, raider, me);
@@ -1065,7 +1065,7 @@ describe('the hunter', () => {
   it('has a fleeing bot that loses sight of its foe keep running the same way', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
-    const raider = addVehicle(w, 'raiders', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 300, y: 300 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 300, y: 300 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     startCombat(w, raider, me);
     expect(playerSees(w, raider.pos)).toBe(false);
@@ -1077,7 +1077,7 @@ describe('the hunter', () => {
   it('has a hunter that loses sight of a foe it would not hunt keep running the same way', () => {
     const w = withPrey(emptyWorld({ x: 30, y: 30 }));
     const me = playerVehicle(w);
-    const raider = addVehicle(w, 'raiders', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 300, y: 300 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['autocannon', 'ram', 'stockEngine'], { x: 300, y: 300 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     startCombat(w, raider, me);
     expect(playerSees(w, raider.pos)).toBe(false);
@@ -1103,7 +1103,7 @@ describe('the hunter', () => {
       const me = playerVehicle(w);
       addGoods(w, me, 'salt', 2);
       for (const wheel of mountedParts(me).filter((p) => p.defId.includes('wheel'))) wheel.hp = 0;
-      const raider = addVehicle(w, 'raiders', 'buggy', [...weapons, 'stockEngine'], { x: 36, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', [...weapons, 'stockEngine'], { x: 36, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       expect(vehicleStats(w, raider).maxSpeed).toBeGreaterThanOrEqual(vehicleStats(w, me).maxSpeed);
       startCombat(w, raider, me);
@@ -1119,7 +1119,7 @@ describe('the hunter', () => {
     const heardAt = (guns: string[]) => {
       const w = emptyWorld({ x: 30, y: 30 });
       playerVehicle(w).speed = 0;
-      const raider = addVehicle(w, 'raiders', 'buggy', [...guns, 'stockEngine'], { x: 90, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', [...guns, 'stockEngine'], { x: 90, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       w.player.contacts = [{ vehicleId: raider.id, center: { x: 88, y: 32 }, radius: 4, sources: ['sound'], loudness: 1 }];
       return playerVehicle(botOrders(w, 'hunter').world).order;
@@ -1135,7 +1135,7 @@ describe('the hunter', () => {
       const me = playerVehicle(w);
       addGoods(w, me, 'salt', 2);
       for (const wheel of mountedParts(me).filter((p) => p.defId.includes('wheel'))) wheel.hp = 0;
-      const raider = addVehicle(w, 'raiders', 'buggy', [...weapons, 'stockEngine'], { x: 36, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', [...weapons, 'stockEngine'], { x: 36, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       startCombat(w, raider, me);
       w.player.call = { with: raider.id, topic: 'surrender', node: 'offer', vars: { haul: haulVar(surrenderHaul(raider, playerVehicle(w))) }, line: { line: 'surrenderOffer', vars: {} } };
@@ -1164,7 +1164,7 @@ describe('the hunter', () => {
   it('drives at a weak raider in sight', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     playerVehicle(w).speed = 0;
-    const weak = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: 42, y: 30 });
+    const weak = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 42, y: 30 });
     weak.brain = npcBrain('buggy', weak.pos, ['raider']);
 
     const turn = botOrders(w, 'hunter');
@@ -1175,8 +1175,8 @@ describe('the hunter', () => {
   it('drives at the weaker of two raiders in sight', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     playerVehicle(w).speed = 0;
-    const strong = addVehicle(w, 'raiders', 'buggy', ['mg', 'mg', 'stockEngine'], { x: 30, y: 42 });
-    const weak = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: 42, y: 30 });
+    const strong = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'mg', 'stockEngine'], { x: 30, y: 42 });
+    const weak = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 42, y: 30 });
     for (const raider of [strong, weak]) raider.brain = npcBrain('buggy', raider.pos, ['raider']);
 
     const turn = botOrders(w, 'hunter');
@@ -1187,7 +1187,7 @@ describe('the hunter', () => {
   it('leaves the world random stream where it was', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     playerVehicle(w).speed = 0;
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     const state = w.rngState;
 
@@ -1236,7 +1236,7 @@ describe('the fast trader', () => {
 });
 
 function addTrader(w: World, pos: Vec, parts: string[] = ['stockEngine']): Vehicle {
-  const v = addVehicle(w, 'traders', 'hauler', parts, pos);
+  const v = addVehicle(w, 'independent', 'hauler', parts, pos);
   v.brain = npcBrain('trader', pos, ['trader']);
   v.brain.goals = [{ kind: 'sell', targetId: 'nose', destination: { ...town('nose').pos }, phase: 'travel', reason: 'deliverCargo' }];
   if (addGoods(w, v, 'electronics', 4) < 4) throw new Error('No room for trader cargo');
@@ -1244,12 +1244,12 @@ function addTrader(w: World, pos: Vec, parts: string[] = ['stockEngine']): Vehic
 }
 
 function addGuardedConvoy(w: World, pos: Vec): { convoy: Vehicle; guard: Vehicle } {
-  const convoy = addVehicle(w, 'convoys', 'hauler', ['stockEngine'], pos);
+  const convoy = addVehicle(w, 'bowl', 'hauler', ['stockEngine'], pos);
   convoy.brain = npcBrain('convoy', pos, ['supplier']);
   convoy.brain.goals = [{ kind: 'haul', targetId: 'nose', destination: { ...town('nose').pos }, phase: 'travel', reason: 'loadCargo' }];
   if (addGoods(w, convoy, 'water', 4) < 4) throw new Error('No room for convoy cargo');
   const guardPos = { x: pos.x, y: pos.y + 3 };
-  const guard = addVehicle(w, 'convoys', 'scout', ['mg', 'stockEngine'], guardPos);
+  const guard = addVehicle(w, 'bowl', 'scout', ['mg', 'stockEngine'], guardPos);
   guard.brain = npcBrain('convoyGuard', guardPos, ['guard', 'brave']);
   startEscort(w, guard, convoy, null, 0);
   return { convoy, guard };

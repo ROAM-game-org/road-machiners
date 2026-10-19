@@ -8,7 +8,7 @@ import { endTurn } from './world';
 const SOURCES = import.meta.glob<string>('../**/*.ts', { query: '?raw', import: 'default', eager: true });
 
 function driver(w: World): Vehicle {
-  const v = addVehicle(w, 'traders', 'hauler', [], { x: 60, y: 60 });
+  const v = addVehicle(w, 'independent', 'hauler', [], { x: 60, y: 60 });
   v.brain = npcBrain('trader', v.pos, ['trader']);
   return v;
 }
@@ -79,7 +79,7 @@ describe('driver memory', () => {
 
   it('refuses a vehicle without a brain', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'traders', 'hauler', [], { x: 60, y: 60 });
+    const v = addVehicle(w, 'independent', 'hauler', [], { x: 60, y: 60 });
     expect(() => remember(w, v, prices('bowl'))).toThrow();
     expect(() => recall(v, 'prices')).toThrow();
   });

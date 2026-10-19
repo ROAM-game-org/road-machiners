@@ -875,7 +875,44 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withSceneHubsAtSceneStart_61_62,
   withEscortJobs_62_63,
   withRescueContracts_63_64,
+  withFactions_64_65,
 ];
+
+type Point_64_65 = { x: number; y: number };
+
+const CAMPS_64_65: readonly (readonly [string, Point_64_65])[] = [['scrapjaw', { x: 110, y: 70 }], ['kiln', { x: 330, y: 380 }]];
+const TOWNS_64_65: readonly (readonly [string, Point_64_65])[] = [['bowl', { x: 80, y: 470 }], ['nose', { x: 510, y: 175 }]];
+const RENAMED_64_65: Record<string, string> = { couriers: 'guidestar', traders: 'independent', scavengers: 'independent', roamers: 'independent', vultures: 'independent', mercs: 'independent' };
+const START_STANDING_64_65 = { bowl: 5, nose: 5, guidestar: 10, administrators: 10, scrapjaw: -30, kiln: -30 };
+
+function nearest_64_65(places: readonly (readonly [string, Point_64_65])[], at: Point_64_65): string {
+  const gap = (p: Point_64_65) => Math.hypot(p.x - at.x, p.y - at.y);
+  return [...places].sort((a, b) => gap(a[1]) - gap(b[1]))[0][0];
+}
+
+function homeOf_64_65(v: SavedJson): Point_64_65 {
+  const brain = v.brain as SavedJson | null;
+  return (brain ? brain.home : v.pos) as Point_64_65;
+}
+
+function leaderOf_64_65(world: SavedJson, v: SavedJson): SavedJson | null {
+  const escort = (world.states as SavedJson[]).find((s) => s.kind === 'escort' && s.holder === v.id);
+  return escort ? (world.vehicles as SavedJson[]).find((x) => x.id === escort.other) ?? null : null;
+}
+
+function factionOf_64_65(world: SavedJson, v: SavedJson): string {
+  const old = v.faction as string;
+  if (old === 'raiders') return nearest_64_65(CAMPS_64_65, homeOf_64_65(v));
+  if (old !== 'convoys') return RENAMED_64_65[old] ?? old;
+  const leader = leaderOf_64_65(world, v);
+  return nearest_64_65(TOWNS_64_65, homeOf_64_65(leader?.faction === 'convoys' ? leader : v));
+}
+
+function withFactions_64_65(world: SavedJson): SavedJson {
+  const relabel = (v: SavedJson): SavedJson => ({ ...v, faction: factionOf_64_65(world, v) });
+  const player = { ...(world.player as SavedJson), standing: { ...START_STANDING_64_65 }, deeds: [] };
+  return { ...world, player, vehicles: (world.vehicles as SavedJson[]).map(relabel) };
+}
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
 const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];

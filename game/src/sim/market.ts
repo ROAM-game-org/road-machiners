@@ -22,6 +22,8 @@ import type { GameEvent, PartInstance, Vehicle, World } from './types';
 import { isJunk, partValue } from './wear';
 import { rescueClients, rescueOfferValid, rollRescue, type RescueNeed } from './rescue';
 import { dist, type Vec } from './vec';
+import { isOutlaw, noteContractDeed } from './relations';
+import { SITE_FACTIONS } from '../data/npc-behavior';
 
 export type ShopState = {
   contracts: Contract[];
@@ -363,7 +365,7 @@ function fillBoard(world: World, shopId: string, state: ShopState): void {
   const clients = modeRules(world).rescue ? rescueClients(world, { id: shopId, pos: shopPos(shopId) }) : [];
   while (state.contracts.length < def.contractSlots) {
     const postedTemplates = new Set(state.contracts.filter((c) => c.kind === 'bounty').map((c) => c.template));
-    const raiders = world.vehicles.filter((v) => v.faction === 'raiders' && v.brain && !postedTemplates.has(v.brain.templateId));
+    const raiders = world.vehicles.filter((v) => isOutlaw(v.faction) && v.brain && !postedTemplates.has(v.brain.templateId));
     const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, places, def.goods, partDefIds, raiders, clients);
     if (!contract) return;
     if (contract.kind === 'rescue') clients.splice(clients.findIndex((v) => v.id === contract.client), 1);
@@ -522,6 +524,8 @@ function payContract(world: World, c: Contract, amount: number): void {
   world.player.money += amount;
   world.events.push({ t: 'money', amount, reason: { kind: 'contract' } });
   practice(world, 'contract', contractXp({ ...c, reward: amount }), null, c.shop);
+  const faction = SITE_FACTIONS[c.shop];
+  if (faction) noteContractDeed(world, c.id, faction);
 }
 
 function chargeHaulPenalty(world: World, c: Extract<Contract, { kind: 'haul' }>): void {

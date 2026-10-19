@@ -1,11 +1,11 @@
 
-import { NOTE_IDS } from '../data/locals';
+import { isNoteId, NOTE_IDS } from '../data/locals';
 import { QUEST_LANGUAGES, WAGON_SEEN, type QuestBundle, type QuestLanguage, type QuestValue } from '../data/quests';
 import { REGION } from '../data/region';
 import { STORY_WRECKS } from '../data/salvage';
 import { MAX_RANK, SKILL_IDS } from '../data/skills';
 import { playerVehicle } from '../sim/damage';
-import { isNoteId, learnNote, localOfQuest, takeTownWork, townWork } from '../sim/dialogue-rules';
+import { learnNote, localOfQuest, takeTownWork, townWork } from '../sim/dialogue-rules';
 import { shopAt, siteOf } from '../sim/market';
 import { chooseQuestOption, currentQuestLanguage, QUEST_EFFECTS, QUEST_QUERIES, questView, restoreQuest, setQuestLanguage, startQuest, type QuestView } from '../sim/quests';
 import { sitePads } from '../sim/sites';

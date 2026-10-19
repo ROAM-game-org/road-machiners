@@ -11,7 +11,7 @@ import { makeVehicle } from './factory';
 import { baseGrid, coreParts, facingOf, freeCells, goodsCount, gridOf, isMounted, itemCells, mountedItems, mountedParts, placementError } from './grid';
 import { itemMass, loadFactor, vehicleMass } from './mass';
 import { generateNpcLoadout, sampleWeighted } from './npc-loadout';
-import { spawnAt, spawnInitial, spawnNpcs } from './spawn';
+import { allegianceFor, fallbackFaction, spawnAt, spawnInitial, spawnNpcs } from './spawn';
 import { gunDrag, isStranded, npcMassRoom, vehicleStats } from './stats';
 import { wornDef } from './wear';
 import { addGoods, cargoRoom, removeGoods } from './inventory';
@@ -64,7 +64,7 @@ describe('NPC equipment generation', () => {
       const beforeId = world.nextId;
       const loadout = generateNpcLoadout(world, template);
       expect(world.nextId).toBe(beforeId);
-      const v = makeVehicle(world, { ...loadout, faction: template.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+      const v = makeVehicle(world, { ...loadout, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
       expect(mountedParts(v, 'engine')).toHaveLength(1);
       for (const item of v.items) expect(placementError(gridOf(v), v.items, item, item.id)).toBeNull();
       const loose = v.items.filter((item) => item.kind === 'part' && !isMounted(v.chassisId, item));
@@ -81,7 +81,7 @@ describe('NPC equipment generation', () => {
     for (let seed = 1; seed <= 12; seed++) {
       const world = { ...fixture, rngState: seed };
       const loadout = generateNpcLoadout(world, NPCS.trader);
-      const v = makeVehicle(world, { ...loadout, faction: NPCS.trader.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+      const v = makeVehicle(world, { ...loadout, faction: fallbackFaction(NPCS.trader), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
       const crates = Object.values(loadout.cargo).reduce((sum, n) => sum + n, 0);
       expect(crates).toBeGreaterThan(0);
       const goodsMass = v.items.filter((it) => it.kind === 'good').reduce((sum, it) => sum + itemMass(it), 0);
@@ -94,7 +94,7 @@ describe('NPC equipment generation', () => {
     for (let seed = 1; seed <= 24; seed++) {
       const world = { ...fixture, rngState: seed, marketRng: { rngState: seed * 7919 + 1 } };
       const loadout = generateNpcLoadout(world, NPCS.trader, chassisId);
-      const v = makeVehicle(world, { ...loadout, faction: NPCS.trader.faction, brain: npcBrain('trader', { x: 50, y: 50 }, ['trader']), pos: { x: 50, y: 50 }, heading: 0 });
+      const v = makeVehicle(world, { ...loadout, faction: fallbackFaction(NPCS.trader), brain: npcBrain('trader', { x: 50, y: 50 }, ['trader']), pos: { x: 50, y: 50 }, heading: 0 });
       for (const [good, n] of Object.entries(goodsCount(v))) if (good !== 'parts') removeGoods(v, good, n);
       expect(cargoRoom(v), `seed ${seed} ${loadout.level} ${describeLoadout(v)}`).toBeGreaterThan(0);
     }
@@ -104,7 +104,7 @@ describe('NPC equipment generation', () => {
   const rolled = (template: NpcTemplate, level: GearLevel | null, seed: number): Vehicle => {
     const world = { ...fixture, rngState: seed, marketRng: { rngState: seed * 104729 + 1 } };
     const loadout = generateNpcLoadout(world, template, null, level);
-    return makeVehicle(world, { ...loadout, faction: template.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+    return makeVehicle(world, { ...loadout, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
   };
   const ROLLS = 8;
   const average = (template: NpcTemplate, level: GearLevel | null, of: (v: Vehicle) => number) => {
@@ -148,7 +148,7 @@ describe('NPC equipment generation', () => {
     const covered = choices.filter(({ template, chassisId }, i) => {
       const world = { ...fixture, rngState: i + 1, marketRng: { rngState: (i + 1) * 104729 + 1 } };
       const loadout = generateNpcLoadout(world, template, chassisId, 'loaded');
-      return coverage(makeVehicle(world, { ...loadout, faction: template.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 })) >= 0.8;
+      return coverage(makeVehicle(world, { ...loadout, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 })) >= 0.8;
     });
     expect(covered.length / choices.length).toBeGreaterThan(0.6);
   }, budget(120_000));
@@ -203,12 +203,12 @@ describe('NPC equipment generation', () => {
 
   it('gives an NPC no cargo past its speed floor, and the player any', () => {
     const world = structuredClone(fixture);
-    const npc = spawnAt(world, NPCS.gunwagon, { ...generateNpcLoadout(world, NPCS.gunwagon, null, 'loaded'), cargo: {}, spares: [] }, { x: 50, y: 50 });
+    const npc = spawnAt(world, NPCS.gunwagon, { ...generateNpcLoadout(world, NPCS.gunwagon, null, 'loaded'), cargo: {}, spares: [] }, { x: 50, y: 50 }, allegianceFor(world, NPCS.gunwagon, null, null));
     const room = npcMassRoom(npc);
     const free = freeCells(npc);
     const added = addGoods(world, npc, 'tools', 1000);
     expect(added).toBe(Math.min(free, Math.floor(room / CRATE_MASS)));
-    const player = spawnAt(world, NPCS.gunwagon, { ...generateNpcLoadout(world, NPCS.gunwagon, null, 'loaded'), cargo: {}, spares: [] }, { x: 60, y: 50 });
+    const player = spawnAt(world, NPCS.gunwagon, { ...generateNpcLoadout(world, NPCS.gunwagon, null, 'loaded'), cargo: {}, spares: [] }, { x: 60, y: 50 }, allegianceFor(world, NPCS.gunwagon, null, null));
     player.brain = null;
     const playerFree = freeCells(player);
     expect(addGoods(world, player, 'tools', 1000)).toBe(playerFree);
@@ -218,7 +218,7 @@ describe('NPC equipment generation', () => {
     for (let seed = 1; seed <= 8; seed++) {
       const world = { ...fixture, rngState: seed };
       const loadout = generateNpcLoadout(world, template);
-      const v = makeVehicle(world, { ...loadout, faction: template.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+      const v = makeVehicle(world, { ...loadout, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
       expect(everyGunFires(v), describeLoadout(v)).toBe(true);
     }
   });
@@ -351,7 +351,7 @@ describe('trader spare parts', () => {
     template.loadout.spares = { pool: [{ value: heaviest.id, weight: 1 }], count: [{ value: count, weight: 1 }] };
 
     const loadout = generateNpcLoadout({ ...fixture, rngState: 3 }, template, null, 'standard');
-    const truck = makeVehicle(fixture, { ...loadout, cargo: {}, faction: template.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+    const truck = makeVehicle(fixture, { ...loadout, cargo: {}, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
 
     expect(loadout.spares.length).toBeLessThan(count);
     expect(vehicleMass(truck)).toBeLessThanOrEqual(CHASSIS.buggy.ratedMass);
@@ -404,7 +404,7 @@ describe('NPC gun placement', () => {
       for (let seed = 1; seed <= 10; seed++) {
         const w = emptyWorld();
         w.rngState = seed * 7919;
-        const v = spawnAt(w, NPCS[id], generateNpcLoadout(w, NPCS[id]), { x: 40, y: 30 });
+        const v = spawnAt(w, NPCS[id], generateNpcLoadout(w, NPCS[id]), { x: 40, y: 30 }, allegianceFor(w, NPCS[id], null, null));
         for (const item of mountedItems(v, 'weapon')) {
           expect(gunSpans(v, item).length, `${id} seed ${seed} ${item.part.defId}`).toBeGreaterThan(0);
         }
@@ -439,7 +439,7 @@ describe('NPC loadout tables', () => {
         for (let seed = 1; seed <= 2; seed++) {
           const world = emptyWorld();
           world.rngState = seed;
-          const v = spawnAt(world, tpl, generateNpcLoadout(world, tpl, value), { x: 40, y: 30 });
+          const v = spawnAt(world, tpl, generateNpcLoadout(world, tpl, value), { x: 40, y: 30 }, allegianceFor(world, tpl, null, null));
           const label = `${tpl.id} on ${value} seed ${seed}: ${describeLoadout(v)}`;
           expect(coreParts(v, 'transmission'), label).toHaveLength(1);
           expect(coreParts(v, 'cab'), label).toHaveLength(1);
@@ -524,7 +524,7 @@ describe('raider haul room', () => {
   const rolled = (id: string, level: GearLevel, seed: number) => {
     const world = { ...structuredClone(fixture), vehicles: [], rngState: seed * 7919 + 1, marketRng: { rngState: seed * 104729 + 1 } };
     const template = NPCS[id];
-    return { template, v: spawnAt(world, template, generateNpcLoadout(world, template, null, level), { x: 40, y: 30 }) };
+    return { template, v: spawnAt(world, template, generateNpcLoadout(world, template, null, level), { x: 40, y: 30 }, allegianceFor(world, template, null, null)) };
   };
 
   it.each(RAIDERS)('keeps room for the reserve after its own load on at least 95%% of %s rolls, armed', (id) => {

@@ -214,7 +214,7 @@ describe('driver taste', () => {
   const to = siteGates(site('dustwell'))[0];
   const w = w1337;
   const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
-  const trader = (id: string): Vehicle => ({ ...me, id, faction: 'traders', brain });
+  const trader = (id: string): Vehicle => ({ ...me, id, faction: 'independent', brain });
   const apart = (p: Vec[], q: Vec[]) => Math.max(...p.map((x) => polylineDist(x, q)), ...q.map((x) => polylineDist(x, p)));
 
   it('sends drivers between the same towns along different ways', () => {
@@ -370,7 +370,7 @@ describe('routes prefer roads', () => {
   });
 
   describe('hunting raiders', () => {
-    function driverOn(w: World, faction: 'raiders' | 'traders', traits: TraitId[], kind: NpcActivity['kind']): Vehicle {
+    function driverOn(w: World, faction: 'scrapjaw' | 'independent', traits: TraitId[], kind: NpcActivity['kind']): Vehicle {
       const v = addVehicle(w, faction, 'buggy', ['mg', 'stockEngine'], { x: 0, y: 0 });
       v.id = 'v7';
       v.brain = npcBrain('buggy', { x: 0, y: 0 }, traits);
@@ -378,7 +378,7 @@ describe('routes prefer roads', () => {
       return v;
     }
     function drivers(w: World) {
-      return { raider: driverOn(structuredClone(w), 'raiders', ['raider'], 'raid'), trader: driverOn(structuredClone(w), 'traders', ['trader'], 'trade') };
+      return { raider: driverOn(structuredClone(w), 'scrapjaw', ['raider'], 'raid'), trader: driverOn(structuredClone(w), 'independent', ['trader'], 'trade') };
     }
     const straightRoad = () => roadWorld([{ x: 40, y: 100 }, { x: 220, y: 100 }]);
     const onRoadLength = (w: World, from: Vec, pts: Vec[]) => roadShare(w, from, pts) * routeLength(from, pts);
@@ -436,7 +436,7 @@ describe('routes prefer roads', () => {
       expect(tasteKey(traderTaste)).toBe(String(traderTaste.seed));
       expect(tasteKey(huntingTaste)).toBe(`${traderTaste.seed}:off`);
       expect(trading).not.toEqual(hunting);
-      expect(route(w, a, b, 0.6, [], driverOn(structuredClone(w), 'raiders', ['raider'], 'sell'))).toEqual(trading);
+      expect(route(w, a, b, 0.6, [], driverOn(structuredClone(w), 'scrapjaw', ['raider'], 'sell'))).toEqual(trading);
     });
 
     it('plans off-road legs on the real map that a truck can drive straight', () => {
@@ -465,8 +465,8 @@ describe('raiders that keep off roads', () => {
   }
 
   function raider(w: World, pos: Vec): Vehicle {
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], pos);
-    v.brain = npcBrain('test', pos, []);
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], pos);
+    v.brain = npcBrain('test', pos, ['raider']);
     v.brain.goals = [{ kind: 'sell', targetId: null, destination: null, phase: 'travel', reason: 'patrolTown' }];
     return v;
   }
@@ -1100,7 +1100,7 @@ describe('raider hunting routes on the map', () => {
     try {
       const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
       w.terrain = { ...TEST_MAP.terrain };
-      const driver = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 100, y: 100 });
+      const driver = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 100, y: 100 });
       driver.brain = npcBrain('buggy', driver.pos, ['raider']);
       driver.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'travel', reason: 'raid' }];
       let length = 0, road = 0, near6 = 0, near10 = 0, samples = 0;
@@ -1150,7 +1150,7 @@ describe('raider hunting routes on the map', () => {
     const centre = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const side = (s: number): Vec => ({ x: centre.x + normal.x * 14 * s, y: centre.y + normal.y * 14 * s });
     const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-    const driver = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], side(-1));
+    const driver = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], side(-1));
     driver.brain = npcBrain('buggy', driver.pos, ['raider']);
     driver.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'travel', reason: 'raid' }];
     const points = route(w, side(-1), side(1), 0.8, [], driver);

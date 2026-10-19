@@ -64,7 +64,7 @@ describe('impact geometry', () => {
     const world = emptyWorld({ x: 35, y: 30 });
     const target = world.vehicles[0];
     target.speed = 2;
-    const attacker = addVehicle(world, 'raiders', 'scout', ['mg', 'stockEngine', 'ram'], { x: 30, y: 30 });
+    const attacker = addVehicle(world, 'scrapjaw', 'scout', ['mg', 'stockEngine', 'ram'], { x: 30, y: 30 });
     attacker.speed = 7;
     attacker.order = null;
     const drive = buildDrive(world);
@@ -93,7 +93,7 @@ describe('impact geometry', () => {
     if (!mountPart(w, w.vehicles[0], ram)) throw new Error('No front mount for the claymore ram');
     ram.charge = arm ? { reload: 0, armed: true } : { reload: 0 };
     if (into === 'rock') w.obstacles = [{ id: 'rock1', pos: { x: 37, y: 30 }, r: 0.8, kind: 'rock' }];
-    else addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 37, y: 30 }, Math.PI / 2).brain = npcBrain('trader', { x: 37, y: 30 }, ['trader']);
+    else addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 37, y: 30 }, Math.PI / 2).brain = npcBrain('trader', { x: 37, y: 30 }, ['trader']);
     w = setDirect(w, true);
     return setMoveOrder(w, { kind: 'through', dest: { x: 45, y: 30 } });
   }
@@ -241,8 +241,8 @@ describe('physics turns', () => {
     const mid = { x: bowl.pos.x + (nose.pos.x - bowl.pos.x) * 0.4, y: bowl.pos.y + (nose.pos.y - bowl.pos.y) * 0.4 };
     const at = (d: number) => ({ x: mid.x + Math.cos(toNose) * d, y: mid.y + Math.sin(toNose) * d });
     const w = emptyWorld({ x: mid.x + Math.cos(toNose + Math.PI / 2) * 12, y: mid.y + Math.sin(toNose + Math.PI / 2) * 12 });
-    const east = addVehicle(w, 'traders', 'hauler', ['stockEngine'], at(-1.5), toNose);
-    const west = addVehicle(w, 'traders', 'hauler', ['stockEngine'], at(1.5), toNose + Math.PI);
+    const east = addVehicle(w, 'independent', 'hauler', ['stockEngine'], at(-1.5), toNose);
+    const west = addVehicle(w, 'independent', 'hauler', ['stockEngine'], at(1.5), toNose + Math.PI);
     east.brain = { ...npcBrain('trader', east.pos, ['trader']), goals: [{ kind: 'sell', targetId: 'nose', destination: { ...nose.pos }, reason: 'tripToSite', phase: 'travel' }] };
     west.brain = { ...npcBrain('trader', west.pos, ['trader']), goals: [{ kind: 'sell', targetId: 'bowl', destination: { ...bowl.pos }, reason: 'tripToSite', phase: 'travel' }] };
     const along = (p: Vec) => (p.x - mid.x) * Math.cos(toNose) + (p.y - mid.y) * Math.sin(toNose);
@@ -253,7 +253,7 @@ describe('physics turns', () => {
 
   it('turns an NPC around for a destination behind it', () => {
     const w = emptyWorld({ x: 20, y: 50 });
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 30, y: 30 });
     npc.order = { kind: 'stopAt', dest: { x: 10, y: 30 } };
     const result = play(w, 4);
     const actor = result.w.vehicles.find((v) => v.id === npc.id)!;
@@ -264,7 +264,7 @@ describe('physics turns', () => {
 
   it('limits and charges NPC fuel through the physics turn pipeline', () => {
     const initial = emptyWorld();
-    const npc = addVehicle(initial, 'scavengers', 'scout', ['stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(initial, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
     npc.order = { kind: 'through', dest: { x: 25, y: 10 } };
     const dry = structuredClone(initial);
     dry.vehicles[1].resources!.fuel = 0;
@@ -667,7 +667,7 @@ describe('physics turns', () => {
   it('in manual mode the truck drives into a truck parked on its path; off, it routes around', () => {
     const drive = (manual: boolean) => {
       let w = ordered({ kind: 'through', dest: { x: 45, y: 30 } }, 3);
-      const parked = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 37, y: 30 }, Math.PI / 2);
+      const parked = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 37, y: 30 }, Math.PI / 2);
       w = setDirect(w, manual);
       let d = buildDrive(w);
       const hits: string[] = [];
@@ -851,7 +851,7 @@ describe('physics turns', () => {
   it('new vehicles and obstacles join the physics world', () => {
     const w = emptyWorld();
     const d = buildDrive(w);
-    addVehicle(w, 'raiders', 'buggy', [], { x: 40, y: 40 });
+    addVehicle(w, 'scrapjaw', 'buggy', [], { x: 40, y: 40 });
     w.obstacles.push({ id: 'wreck1', pos: { x: 20, y: 20 }, r: 0.6, kind: 'wreck' });
     syncDrive(d, w);
     expect(Object.keys(d.bodies)).toHaveLength(2);
@@ -865,7 +865,7 @@ describe('physics turns', () => {
     let w = emptyWorld();
     w.player.fuel = 0;
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-    const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
     let d = buildDrive(w);
     const turn = () => {
@@ -893,7 +893,7 @@ describe('physics turns', () => {
 
   it('an NPC on the player rope leaves physics, trails the player and returns when let go', () => {
     let w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 26, y: 30 }, 0);
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 26, y: 30 }, 0);
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     npc.resources!.fuel = 0;
     let d = buildDrive(w);
@@ -952,7 +952,7 @@ describe('stranded trucks', () => {
 
   it('sets a truck lying on top of another truck down on free ground beside it', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 30, y: 30 });
     const d = buildDrive(w);
     const under = d.world.getRigidBody(d.bodies[npc.id]).translation();
     const top = d.world.getRigidBody(d.bodies[w.vehicles[0].id]);
@@ -996,7 +996,7 @@ describe('oil patches', () => {
   function streakAhead(speed: number, spills: number, gap = 2): World {
     const w = ordered({ kind: 'through', dest: { x: 80, y: 30 } }, speed);
     const spill = spillOf();
-    const dropper = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 0, y: 30 });
+    const dropper = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 0, y: 30 });
     dropper.pos = { x: 30 + gap + dropClearance(dropper, spill.behind) + oilSlickLength(), y: 30 };
     for (let i = 0; i < spills; i++) spillOil(w, dropper, spill);
     w.vehicles = w.vehicles.filter((v) => v.id !== dropper.id);

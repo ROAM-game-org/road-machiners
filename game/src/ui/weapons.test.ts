@@ -43,7 +43,7 @@ function en(msg: Msg | null | undefined): string | null {
 function createDuel() {
   const world = emptyWorld();
   const me = world.vehicles[0];
-  const target = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], {
+  const target = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], {
     x: 33,
     y: 30,
   });
@@ -191,7 +191,7 @@ describe("aiming the body", () => {
 
   it("moves an order from another vehicle instead of clearing it", () => {
     const { world, gun } = createDuel();
-    const other = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], { x: 30, y: 33 });
+    const other = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 30, y: 33 });
     refreshVision(world);
     const moved = toggleBodyAim(world, [gun], other);
     expect(moved.vehicles[0].weaponOrders[gun.part.id].targetId).toBe(other.id);
@@ -760,7 +760,7 @@ function harpoonDuel(gap = 5) {
   const me = w.vehicles[0];
   const harpoon = makePart(w, "harpoon", 0);
   if (!mountPart(w, me, harpoon)) throw new Error("No deck room for the harpoon");
-  const target = addVehicle(w, "traders", "hauler", ["stockEngine"], { x: me.pos.x - gap, y: me.pos.y }, Math.PI / 2);
+  const target = addVehicle(w, "independent", "hauler", ["stockEngine"], { x: me.pos.x - gap, y: me.pos.y }, Math.PI / 2);
   refreshVision(w);
   return { w, me, harpoon, target };
 }

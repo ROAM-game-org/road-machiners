@@ -65,6 +65,7 @@ import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
+import FORMAT_2_64 from './save-fixtures/format-2-64.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1361,5 +1362,39 @@ describe('save migration 62 to 63', () => {
     const next = MIGRATIONS[63](structuredClone(FORMAT_2_62));
 
     expect(next).toEqual(FORMAT_2_62);
+  });
+});
+
+describe('MIGRATIONS[64]', () => {
+  const next = MIGRATIONS[64](structuredClone(FORMAT_2_64)) as { player: Record<string, unknown>; vehicles: { id: string; faction: string }[]; states: unknown[] };
+  const factionOf = (id: string) => next.vehicles.find((v) => v.id === id)?.faction;
+
+  it('puts each raider in the camp nearest its home, whatever its position', () => {
+    expect(factionOf('v2')).toBe('scrapjaw');
+    expect(factionOf('v3')).toBe('kiln');
+  });
+
+  it('makes couriers Guidestar and road drivers independent', () => {
+    expect(factionOf('v4')).toBe('guidestar');
+    expect(['v5', 'v6', 'v11'].map(factionOf)).toEqual(['independent', 'independent', 'independent']);
+  });
+
+  it('gives a convoy its nearest town and its guard the convoy faction, and a lone guard its own nearest town', () => {
+    expect(factionOf('v7')).toBe('nose');
+    expect(factionOf('v8')).toBe('nose');
+    expect(factionOf('v9')).toBe('bowl');
+  });
+
+  it('keeps the player and town patrols, drops no truck and keeps every state', () => {
+    expect(factionOf('v1')).toBe('player');
+    expect(factionOf('v10')).toBe('bowl');
+    expect(next.vehicles).toHaveLength(FORMAT_2_64.vehicles.length);
+    expect(next.states).toEqual(FORMAT_2_64.states);
+  });
+
+  it('starts the player at the outside driver standing with no deeds', () => {
+    expect(next.player.standing).toEqual({ bowl: 5, nose: 5, guidestar: 10, administrators: 10, scrapjaw: -30, kiln: -30 });
+    expect(next.player.deeds).toEqual([]);
+    expect(next.player.money).toBe(1200);
   });
 });

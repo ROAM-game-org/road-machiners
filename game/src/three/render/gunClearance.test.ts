@@ -10,10 +10,11 @@ import { cellRect, highestUnder, restOn, surfaceSamples } from '../../sim/body';
 import { makeVehicle, newId } from '../../sim/factory';
 import { baseGrid, isMounted, itemCells, mountSpots, MOUNT_CELLS } from '../../sim/grid';
 import { generateNpcLoadout } from '../../sim/npc-loadout';
-import { emptyWorld } from '../../sim/testkit';
+import { emptyWorld, npcBrain } from '../../sim/testkit';
 import type { GridItem, Vehicle, World } from '../../sim/types';
 import { loadModels, model, socket } from './models';
 import { footprint, VehicleView, wouldFloat } from './vehicle';
+import { fallbackFaction } from '../../sim/spawn';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 await loadModels(async (name) => {
@@ -157,7 +158,7 @@ describe('gun heads clear what they sweep over', () => {
         let v: Vehicle;
         try {
           const l = generateNpcLoadout(world, t, null, 'loaded');
-          v = makeVehicle(world, { ...l, faction: t.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+          v = makeVehicle(world, { ...l, faction: fallbackFaction(t), brain: npcBrain(t.id, { x: 50, y: 50 }, t.traits), pos: { x: 50, y: 50 }, heading: 0 });
         } catch {
           continue;
         }

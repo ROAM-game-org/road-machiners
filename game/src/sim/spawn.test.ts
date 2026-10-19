@@ -4,9 +4,9 @@ import { REGION } from '../data/region';
 import { START_KITS } from '../data/start';
 import { playerVehicle } from './damage';
 import { siteGap, siteGates, sitePads } from './sites';
-import { isFree, spawnNpcs } from './spawn';
+import { allegianceFor, isFree, spawnNpcs } from './spawn';
 import { territoryPieces } from './territory';
-import { emptyWorld, testDrive } from './testkit';
+import { addVehicle, emptyWorld, testDrive } from './testkit';
 import { dist } from './vec';
 import { endTurn, newWorld } from './world';
 import { TEST_MAP } from '../test/map';
@@ -165,4 +165,49 @@ describe('free spots', () => {
     const wall = { x: cage.pos.x + Math.sin(cage.yaw) * 3.8, y: cage.pos.y - Math.cos(cage.yaw) * 3.8 };
     expect(isFree(world, wall, 0.6, null)).toBe(false);
   });
+});
+
+describe('NPC allegiance', () => {
+  const site = (id: string) => [...REGION.towns, ...REGION.locations].find((s) => s.id === id)!;
+
+  it('gives raiders the camp they spawn at, couriers the Guild and road drivers no faction', () => {
+    const w = emptyWorld();
+    expect(allegianceFor(w, NPCS.buggy, site('scrapjaw'), null)).toBe('scrapjaw');
+    expect(allegianceFor(w, NPCS.gunwagon, site('kiln'), null)).toBe('kiln');
+    expect(allegianceFor(w, NPCS.courier, site('bowl'), null)).toBe('guidestar');
+    for (const id of ['scavenger', 'roamer', 'vulture', 'merc']) expect(allegianceFor(w, NPCS[id], site('nose'), null)).toBe('independent');
+  });
+
+  it('gives patrols and convoys their town, and a guard the faction of the convoy it escorts', () => {
+    const w = emptyWorld();
+    expect(allegianceFor(w, NPCS.bowlFarmer, site('bowl'), null)).toBe('bowl');
+    expect(allegianceFor(w, NPCS.convoy, site('nose'), null)).toBe('nose');
+    const convoy = addVehicle(w, 'nose', 'van', [], { x: 40, y: 30 });
+    expect(allegianceFor(w, NPCS.convoyGuard, null, convoy)).toBe('nose');
+  });
+
+  it('falls back to the template faction with no site, which only Chaos Highway and cheats use', () => {
+    const w = emptyWorld();
+    expect(allegianceFor(w, NPCS.buggy, null, null)).toBe('scrapjaw');
+    expect(allegianceFor(w, NPCS.trader, null, null)).toBe('independent');
+    expect(allegianceFor(w, NPCS.trader, site('orchard'), null)).toBe('independent');
+  });
+
+  it('gives about one town trader in three the papers of its town, by the world seed', () => {
+    const w = emptyWorld();
+    const picks = Array.from({ length: 600 }, () => allegianceFor(w, NPCS.trader, site('bowl'), null));
+    const share = picks.filter((f) => f === 'bowl').length / picks.length;
+    expect(share).toBeGreaterThan(0.27);
+    expect(share).toBeLessThan(0.4);
+    expect(picks.every((f) => f === 'bowl' || f === 'independent')).toBe(true);
+  });
+
+  it('spawns a new world with Bowl, Nose and independent traders side by side', () => {
+    const factions = new Set<string>();
+    for (let seed = 1; seed <= 12; seed++) {
+      const w = newWorld(seed * 31, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      for (const v of w.vehicles.filter((x) => x.brain?.templateId === 'trader')) factions.add(v.faction);
+    }
+    expect([...factions].sort()).toEqual(['bowl', 'independent', 'nose']);
+  }, budget(60_000));
 });

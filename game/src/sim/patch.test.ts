@@ -49,7 +49,7 @@ function brokenPlayer(traderParts: number): { w: World; trader: Vehicle } {
   w.player.autoRepair = false;
   breakEngine(playerVehicle(w));
   setParts(w, playerVehicle(w), 0);
-  const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 38, y: 30 }, Math.PI);
+  const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 38, y: 30 }, Math.PI);
   trader.brain = npcBrain('trader', trader.pos, ['trader']);
   addGoods(w, trader, 'parts', traderParts);
   return { w, trader };
@@ -160,7 +160,7 @@ describe('asking a driver for a patch', () => {
   it('a driver under attack takes no patch and calls off an agreed one', () => {
     const { w: start, trader } = brokenPlayer(4);
     let w = agreedTerms(start, trader.id, 'free');
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 38, y: 34 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 38, y: 34 });
     find(w, trader.id).brain!.attackers[raider.id] = true;
     startCombat(w, raider, find(w, trader.id));
     const open = callVehicle(cloneWorld(w), trader.id);
@@ -186,7 +186,7 @@ describe('a stranded driver asking the player', () => {
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     w.player.autoRepair = false;
     setParts(w, playerVehicle(w), 4);
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     breakEngine(npc);
     return { w, npc };
@@ -254,7 +254,7 @@ describe('a stranded driver asking the player', () => {
     for (const id of Object.keys(NPCS)) w0.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     w0.player.autoRepair = false;
     setParts(w0, playerVehicle(w0), 4);
-    const raider = addVehicle(w0, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 }, Math.PI);
+    const raider = addVehicle(w0, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     breakEngine(raider);
     forceOption('mugging', 'attack');
@@ -327,7 +327,7 @@ describe('a holed fuel tank', () => {
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     w.player.autoRepair = false;
     setParts(w, playerVehicle(w), 4);
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     corePart(npc, 'tank')!.hp = 0;
     npc.resources!.fuel = fuel;
@@ -366,7 +366,7 @@ describe('a holed fuel tank', () => {
     npc.resources!.supplies = 0;
     const offers = ['Your truck looks dead. Want me to patch it?', 'Running low? I can spare some.'];
     expect(currentOptions(callVehicle(cloneWorld(w), npc.id)).map((o) => en(o.line))).toEqual(expect.arrayContaining(offers));
-    const tower = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 44, y: 30 }, Math.PI);
+    const tower = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 44, y: 30 }, Math.PI);
     tower.trail = [{ x: tower.pos.x, y: tower.pos.y, heading: Math.PI }];
     const tow = addState(w, 'tow', tower.id, npc.id, { kind: 'tow', site: 'bowl', fee: 0, waived: 0, hitched: true });
     const texts = currentOptions(callVehicle(cloneWorld(w), npc.id)).map((o) => en(o.line));
@@ -394,7 +394,7 @@ describe('patch practice', () => {
 
   it('pays the player for patching another truck', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 32, y: 30 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 32, y: 30 });
     settle(w, playerVehicle(w), npc);
     expect(practiceOf(w, 'patch')).toMatchObject([{ amount: 1, difficulty: null }]);
     expect(practiceOf(w, 'deal')).toMatchObject([{ amount: 1, difficulty: null }]);
@@ -402,7 +402,7 @@ describe('patch practice', () => {
 
   it('pays nothing when an NPC patches the player', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 32, y: 30 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 32, y: 30 });
     settle(w, npc, playerVehicle(w));
     expect(practiceOf(w, 'patch')).toEqual([]);
     expect(practiceOf(w, 'deal')).toMatchObject([{ amount: 1, difficulty: null }]);
@@ -410,8 +410,8 @@ describe('patch practice', () => {
 
   it('pays nothing when an NPC patches another NPC', () => {
     const w = emptyWorld();
-    const patcher = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 50, y: 30 });
-    const client = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 52, y: 30 });
+    const patcher = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 50, y: 30 });
+    const client = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 52, y: 30 });
     settle(w, patcher, client);
     expect(practiceOf(w, 'patch')).toEqual([]);
     expect(practiceOf(w, 'deal')).toEqual([]);
@@ -439,7 +439,7 @@ describe('social on patch prices', () => {
 
   it('an NPC client pays the full price to a rank 5 player', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     npc.resources!.money = 333333;
     addGoods(w, npc, 'parts', 3);
@@ -449,7 +449,7 @@ describe('social on patch prices', () => {
 
   it("an NPC client pays for the player's parts at the base price", () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     npc.resources!.money = 333333;
     breakEngine(npc);
@@ -470,7 +470,7 @@ describe('social on patch prices', () => {
 describe('road mechanic', () => {
   function brokenNpc(money: number): { w: World; npc: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     npc.resources!.money = money;
     breakEngine(npc);
@@ -518,7 +518,7 @@ describe('patching a worn truck that still drives', () => {
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     w.player.autoRepair = false;
     setParts(w, playerVehicle(w), 4);
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     setParts(w, npc, 0);
     const engine = mountedParts(npc, 'engine')[0];
@@ -571,7 +571,7 @@ describe('patching a worn truck that still drives', () => {
     const { w: start, npc } = wornNpc();
     const before = topGoal(npc)?.kind;
     let w = agree(start, npc.id, 'paid');
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 50, y: 30 }, Math.PI);
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 50, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     startCombat(w, find(w, npc.id), raider);
     w = runUntil(w, 5, (x) => !patchOpen(x, npc.id)).w;
@@ -659,7 +659,7 @@ describe('patching a worn truck that still drives', () => {
       ['at target', (_x, n) => { const e = mountedParts(n, 'engine')[0]; e.hp = target(e); }],
       ['junk', (_x, n) => { mountedParts(n, 'engine')[0].wear = CONDITION.maxWear + 1; }],
       ['self-fixing', (x, n) => addGoods(x, n, 'parts', 6)],
-      ['towing', (x, n) => { const o = addVehicle(x, 'traders', 'hauler', ['stockEngine'], { x: 20, y: 30 }, 0); addState(x, 'tow', n.id, o.id, { kind: 'tow', site: 'bowl', fee: 0, waived: 0, hitched: true }); }],
+      ['towing', (x, n) => { const o = addVehicle(x, 'independent', 'hauler', ['stockEngine'], { x: 20, y: 30 }, 0); addState(x, 'tow', n.id, o.id, { kind: 'tow', site: 'bowl', fee: 0, waived: 0, hitched: true }); }],
       ['stranded player', (x) => breakEngine(playerVehicle(x))],
     ];
     for (const [name, change] of cases) {
@@ -706,7 +706,7 @@ describe('the Patcher crane on roadside patches', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.player.ranks.machining = machining;
     if (crane && !mountPart(w, playerVehicle(w), makePart(w, 'patcherCrane', 0))) throw new Error('No deck room for the crane');
-    const client = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 34, y: 30 }, Math.PI);
+    const client = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 34, y: 30 }, Math.PI);
     breakEngine(client);
     return { w, client };
   }
@@ -728,9 +728,9 @@ describe('the Patcher crane on roadside patches', () => {
   it("counts an NPC patcher's crane, and two cranes once", () => {
     const w = emptyWorld({ x: 30, y: 30 });
     breakEngine(playerVehicle(w));
-    const one = addVehicle(w, 'traders', 'hauler', ['stockEngine', 'patcherCrane'], { x: 38, y: 30 }, Math.PI);
-    const two = addVehicle(w, 'traders', 'hauler', ['stockEngine', 'patcherCrane', 'patcherCrane'], { x: 38, y: 34 }, Math.PI);
-    const none = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 38, y: 38 }, Math.PI);
+    const one = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'patcherCrane'], { x: 38, y: 30 }, Math.PI);
+    const two = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'patcherCrane', 'patcherCrane'], { x: 38, y: 34 }, Math.PI);
+    const none = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 38, y: 38 }, Math.PI);
     const client = playerVehicle(w);
     const parts = patchPlan(w, { patcher: none, client }).parts;
 
