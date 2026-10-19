@@ -17,8 +17,31 @@
   --right-column: 0px;
 }
 
-#ui.phone .bottom-left {
+#ui.phone .bottom-left,
+#ui.phone .right-column {
   display: contents;
+}
+#ui:not(.phone) .log-strip {
+  display: none;
+}
+#ui.phone .log-strip {
+  position: fixed;
+  z-index: var(--z-hud);
+  box-sizing: border-box;
+  left: var(--safe-left);
+  right: var(--safe-right);
+  bottom: calc(var(--safe-bottom) + var(--btn-h-l) + var(--hud-gap));
+  height: var(--phone-strip-h);
+  padding: 0 var(--space-4);
+}
+#ui.phone .log-strip:empty {
+  display: none;
+}
+#ui.phone .log-strip > div {
+  font-size: var(--text-caption);
+}
+#ui.phone .log-strip .log-time {
+  display: none;
 }
 #ui.phone .top-center {
   left: var(--safe-left);
@@ -72,7 +95,7 @@
   box-sizing: border-box;
   left: var(--safe-left);
   right: var(--safe-right);
-  bottom: calc(var(--safe-bottom) + var(--btn-h-l) + var(--hud-gap));
+  bottom: calc(var(--safe-bottom) + var(--btn-h-l) + var(--hud-gap) + var(--phone-strip-h) + var(--hud-gap));
   height: var(--phone-readouts-h);
   overflow: hidden;
   padding: var(--space-1) var(--space-2);
@@ -190,7 +213,7 @@
 #ui.phone:has(.modal:not([style*="display: none"])) > .top-center > .opening-tip {
   visibility: hidden;
 }
-#ui.phone:has(:is(.modal:not([style*="display: none"]), .options)) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .info) {
+#ui.phone:has(:is(.modal:not([style*="display: none"]), .options)) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .log-strip, .info) {
   display: none;
 }
 #ui.phone[data-drawer] > .top-center > .tip,
@@ -273,7 +296,7 @@
 #ui.phone:has(.game-menu [role="menu"]:not([hidden])) > .top-center {
   visibility: hidden;
 }
-#ui.phone .radio {
+#ui.phone :is(.radio, .options-sound) {
   --knob-size: var(--touch-target);
 }
 
@@ -291,6 +314,11 @@
     left: calc(var(--safe-left) + var(--phone-tabs-w) + var(--hud-gap));
     right: calc(var(--safe-right) + var(--phone-end-w) + var(--hud-gap));
     bottom: var(--safe-bottom);
+  }
+  #ui.phone .log-strip {
+    left: auto;
+    width: var(--drawer-w);
+    bottom: calc(var(--safe-bottom) + var(--phone-readouts-h) + var(--hud-gap));
   }
   #ui.phone.phone .weapons {
     right: auto;
@@ -325,4 +353,16 @@
   bottom: 1px;
   transform: none;
   font-size: var(--text-caption);
+}
+
+#ui:not(.phone) .quest-look {
+  display: none;
+}
+#ui.phone .quest-look {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: var(--z-badge);
+  display: flex;
+  gap: var(--space-2);
 }

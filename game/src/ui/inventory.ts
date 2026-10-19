@@ -45,6 +45,7 @@ import type {
 } from "../sim/types";
 import { touchMode } from "./input-mode";
 import { disabledWith, el, isBrowserChord, panel, uiRoot } from "./dom";
+import { lookReason } from "./look";
 import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
@@ -342,7 +343,7 @@ export class InventoryView {
     const now = Date.now();
     const double = isDoubleClick(this.lastClick, c.item.id, now);
     this.lastClick = double ? null : { id: c.item.id, at: now };
-    const cmd = double ? doubleClickCommand(this.host.world(), c, this.instant) : null;
+    const cmd = double && !this.look() ? doubleClickCommand(this.host.world(), c, this.instant) : null;
     if (cmd) {
       this.selectedItem = null;
       this.run(cmd);
@@ -369,20 +370,20 @@ export class InventoryView {
 
   private refitBanner(w: World): HTMLElement[] {
     const me = this.mine(w);
-    if (me.job?.kind === "refit") return [this.bannerEl(t("inv.refitLeft", { n: me.job.turnsLeft }), t("inv.cancelRefit"), () => this.run(cancelRefit), t("inv.cancelRefitTitle"))];
+    if (me.job?.kind === "refit") return [this.bannerEl(t("inv.refitLeft", { n: me.job.turnsLeft }), t("inv.cancelRefit"), disabledWith(this.look(), () => this.run(cancelRefit)), t("inv.cancelRefitTitle"))];
     if (Object.keys(this.plan).length === 0) return [];
     return [
       el(
         "div",
         { class: "inv-refit" },
-        el("button", { class: "btn-s", onclick: () => this.run((world) => startRefit(world, this.plan, this.gridTruck ?? undefined)) }, t("inv.refitPlanned", { n: plannedRefitTurns(w, me, this.plan) })),
+        el("button", { class: "btn-s", ...disabledWith(this.look(), () => this.run((world) => startRefit(world, this.plan, this.gridTruck ?? undefined))) }, t("inv.refitPlanned", { n: plannedRefitTurns(w, me, this.plan) })),
         el("button", { class: "btn-s", onclick: () => this.cancelPlan() }, t("inv.cancelPlan")),
       ),
     ];
   }
 
-  private bannerEl(text: Msg, label: Msg, onclick: () => void, title?: Msg): HTMLElement {
-    return el("div", { class: "inv-refit" }, el("span", {}, text), el("button", { title, onclick }, label));
+  private bannerEl(text: Msg, label: Msg, action: ReturnType<typeof disabledWith>, title?: Msg): HTMLElement {
+    return el("div", { class: "inv-refit" }, el("span", {}, text), el("button", { title, ...action }, label));
   }
 
   private cancelPlan(): void {
@@ -394,6 +395,7 @@ export class InventoryView {
     if (Object.keys(this.plan).length === 0) return;
     const layout = this.plan;
     this.plan = {};
+    if (this.look()) return;
     this.host.apply(startRefit(this.host.world(), layout, this.gridTruck ?? undefined));
   }
 
@@ -450,7 +452,7 @@ export class InventoryView {
         class: "inv-patch",
         title: reason ? undefined : t("inv.patchYield", { parts: plan.parts, needed: plan.needed, hp: Math.round(plan.hp) }),
         onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(reason, () => this.run((world) => startRepair(world, part.id))),
+        ...disabledWith(this.look() ?? reason, () => this.run((world) => startRepair(world, part.id))),
       },
       t("inv.patchLabel", { turns: plan.turns, parts: plan.parts }),
     );
@@ -475,7 +477,7 @@ export class InventoryView {
         class: "inv-patch",
         title: short ? undefined : title,
         onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(short ? t("trade.needMore", { price: moneyMsg(cost - w.player.money) }) : null, () =>
+        ...disabledWith(this.look() ?? (short ? t("trade.needMore", { price: moneyMsg(cost - w.player.money) }) : null), () =>
           this.run((world) => (this.atOutpost(world) ? outpostRepairPart(world, part.id, this.gridTruck ?? undefined) : repairPart(world, part.id))),
         ),
       },
@@ -493,7 +495,7 @@ export class InventoryView {
       {
         class: "inv-patch",
         onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(stripBlocker(w, me), () => this.run((world) => startStrip(world, part.id))),
+        ...disabledWith(this.look() ?? stripBlocker(w, me), () => this.run((world) => startStrip(world, part.id))),
       },
       t("inv.stripLabel", { turns: STRIP.turns, parts: stripYield(me, part) }),
     );
@@ -517,7 +519,7 @@ export class InventoryView {
         class: "inv-patch",
         title: reason ? undefined : t("inv.weldSpends", { scrap }),
         onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(reason, () => this.run((world) => startWeld(world))),
+        ...disabledWith(this.look() ?? reason, () => this.run((world) => startWeld(world))),
       },
       t("inv.weldLabel", { part: partName(PERK_NUMBERS.welder.part), turns }),
     );
@@ -601,7 +603,7 @@ export class InventoryView {
     return [
       el(
         "button",
-        { onclick: () => this.run((world) => takeStores(world, stock.id)) },
+        { ...disabledWith(this.look(), () => this.run((world) => takeStores(world, stock.id))) },
         t("inv.takeStores", { fuel: fuelLiters(stock.fuel ?? 0), supplies: stock.supplies ?? 0 }),
       ),
     ];
@@ -629,7 +631,7 @@ export class InventoryView {
             el(
               "button",
               {
-                onclick: () => this.run((world) => takeAllLoot(world, stockId)),
+                ...disabledWith(this.look(), () => this.run((world) => takeAllLoot(world, stockId))),
               },
               t("inv.takeAll"),
             ),
@@ -642,7 +644,7 @@ export class InventoryView {
     const action = getSearchAction(w, stock);
     const blocked = !action.ready && action.combat === undefined;
     const reason = blocked ? (action.hint ?? refusalText(w, { id: "salvageOutOfReach" })) : null;
-    return el("button", { class: "inv-search", ...disabledWith(reason, () => this.host.searchStock(stock.id)) }, t("inv.searchMore"));
+    return el("button", { class: "inv-search", ...disabledWith(this.look() ?? reason, () => this.host.searchStock(stock.id)) }, t("inv.searchMore"));
   }
 
   private truckEl(w: World, truckId: string): HTMLElement {
@@ -699,7 +701,7 @@ export class InventoryView {
     item: GridItem,
     grab: { x: number; y: number },
   ): void {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || this.look()) return;
     if (dragStartOf(e.pointerType, false) === "hold") return this.startPress(e, source, id, item, grab);
     e.preventDefault();
     e.stopPropagation();
@@ -707,6 +709,7 @@ export class InventoryView {
   }
 
   private startPress(e: PointerEvent, source: ItemSource, id: string, item: GridItem, grab: Press["grab"]): void {
+    if (this.look()) return;
     e.preventDefault();
     e.stopPropagation();
     this.endPress();
@@ -790,7 +793,7 @@ export class InventoryView {
   }
 
   private rotateSelected(): void {
-    if (!this.gridEl?.isConnected || this.selectedItem === null) return;
+    if (this.look() || !this.gridEl?.isConnected || this.selectedItem === null) return;
     const item = this.shown(this.host.world()).items.find(
       (it) => it.id === this.selectedItem,
     );
@@ -969,12 +972,18 @@ export class InventoryView {
   }
 
   private planMove(w: World, itemId: string, to: Spot): void {
+    if (this.look()) return;
     const next = planAfterMove(this.mine(w), this.plan, itemId, to);
     if (Object.keys(next).length > 0) startRefit(w, next);
     this.plan = next;
   }
 
+  private look(): Msg | null {
+    return lookReason(this.host.world());
+  }
+
   private run(cmd: (w: World) => World, quiet = false): void {
+    if (this.look()) throw new Error("Inventory command during a scene");
     try {
       const w = this.host.world();
       const next = cmd(w);
@@ -996,7 +1005,7 @@ function offGridCommand(target: string | null | undefined, itemId: string, truck
 }
 
 export class InventoryScreen {
-  private root = panel("modal dialog");
+  readonly root = panel("modal dialog");
   private view: InventoryView;
 
   constructor(private host: UiHost) {
@@ -1040,7 +1049,11 @@ export class InventoryScreen {
   }
 
   private markRotate(button: HTMLElement): void {
-    if (this.view.canRotate()) {
+    const look = lookReason(this.host.world());
+    if (look) {
+      button.setAttribute("aria-disabled", "true");
+      bindAttr(button, "data-reason", look);
+    } else if (this.view.canRotate()) {
       button.removeAttribute("aria-disabled");
       unbindAttr(button, "data-reason");
     } else {

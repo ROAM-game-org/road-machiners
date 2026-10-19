@@ -46,6 +46,8 @@ export const UI = {
   'menu.options': 'Options',
   'options.title': 'Options',
   'options.uiSize': 'UI size',
+  'options.sound': 'Sound',
+  'look.inScene': 'Not during a scene',
   'options.uiSizeTooBig': 'Too big for this screen',
   'help.title': 'Controls',
   'help.errorsSent': 'Game errors are sent to the developers with your save.',

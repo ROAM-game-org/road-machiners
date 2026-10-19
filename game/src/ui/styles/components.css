@@ -250,6 +250,21 @@
   border-color: var(--danger);
 }
 
+/* The newest log line on one row, on a phone above End turn. A tap opens the Log drawer. It never wraps. */
+.log-strip {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  cursor: pointer;
+}
+.log-strip > div {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .option-switch {
   display: flex;
   gap: var(--space-3);
