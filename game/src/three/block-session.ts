@@ -22,7 +22,7 @@ export type BlockOutput = {
   voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle;
   lean(offset: number, at: number, length: number, songScale: number, guitarLevel: number, release: number): VoiceHandle;
 };
-export type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: VoiceHandle[]; heat: number; odds: string; join: string; level: number };
+export type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: VoiceHandle[]; heat: number; ways: string; join: string; level: number };
 export type Lane = "guitars" | "cymbals";
 export type Overlay = { lane: Lane; from: number; to: number; bar: number; handle: VoiceHandle };
 export type BlockEvent = keyof typeof SCORE_BLOCKS.weights;
@@ -40,7 +40,7 @@ const DENSE_TURN: { kind: BlockEvent; most: number; chance: number }[] = [
   { kind: "sighted", most: 1, chance: 0.05 },
   { kind: "knockout", most: 1, chance: 0.05 },
 ];
-const ODDS_SHOWN = 4;
+const WAYS_SHOWN = 4;
 
 type Spot = { block: Played; at: number; bar: number; beat: number; barSeconds: number };
 
@@ -119,7 +119,7 @@ export class BlockSession {
     const length = this.song.length - offset;
     const level = this.levelOf(this.song.end, 1, false);
     const voices = [this.out.voice("song", offset, at, length, SCORE_BLOCKS.seamSeconds, level)];
-    this.played.push({ label: "end", role: "end", bar: this.song.end, bars: 1, start: at, end: at + length, voices, heat: this.heat.read(at), odds: "", join: "end", level });
+    this.played.push({ label: "end", role: "end", bar: this.song.end, bars: 1, start: at, end: at + length, voices, heat: this.heat.read(at), ways: "", join: "end", level });
     return at;
   }
 
@@ -214,7 +214,7 @@ export class BlockSession {
     const level = this.levelOf(section.from, section.bars, false);
     const voices = [this.out.voice("song", offset, when, length, fade, level)];
     const label = `${block.role} ${block.bar}-${block.bar + block.bars - 1}`;
-    this.played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, odds: this.oddsText(), join, level });
+    this.played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, ways: this.waysText(), join, level });
     return when + length;
   }
 
@@ -301,10 +301,10 @@ export class BlockSession {
     return p.start + Math.ceil((t - p.start) / step - 1e-6) * step;
   }
 
-  private oddsText(): string {
+  private waysText(): string {
     return this.sequencer!.choices
-      .slice(0, ODDS_SHOWN)
-      .map((c) => `${c.role} ${c.from} ${Math.round(c.chance * 100)}%`)
+      .slice(0, WAYS_SHOWN)
+      .map((c) => `${c.role} ${c.from}${c.taken ? " taken" : ""}`)
       .join(", ");
   }
 }

@@ -14,7 +14,7 @@ Events: ${BLOCK_EVENTS.join(', ')}, and dense, a full turn in one second: up to 
 An event at time t lands at t. Combat starts at 0.
 
 Output:
-  Blocks: each block with its start, how it joined the one before, the heat when it was chosen, the level trim that keeps it as loud as the median block and the odds behind the choice.
+  Blocks: each block with its start, how it joined the one before, the heat when it was chosen, the level trim that keeps it as loud as the median block and the ways it could have gone, with the one taken.
   Answers: each event whose surprise crossed the line and asked for the lanes, then a count per kind of event.
   Lanes: each run of the guitar and cymbal lanes.
   Summary: bars per role, jumps and how long each lane was open.
@@ -97,8 +97,8 @@ const trimText = (level) => `${(20 * Math.log10(level)).toFixed(1)} dB`;
 
 function printBlocks(session) {
   console.log('Blocks');
-  console.log(`  ${pad('start', 8)}  ${pad('block', 12)} ${pad('join', 8)} ${pad('heat', 6)} ${pad('trim', 8)} odds`);
-  for (const p of session.played) console.log(`  ${time(p.start)}  ${pad(p.label, 12)} ${pad(p.join, 8)} ${pad(p.heat.toFixed(1), 6)} ${pad(trimText(p.level), 8)} ${p.odds}`);
+  console.log(`  ${pad('start', 8)}  ${pad('block', 12)} ${pad('join', 8)} ${pad('heat', 6)} ${pad('trim', 8)} ways`);
+  for (const p of session.played) console.log(`  ${time(p.start)}  ${pad(p.label, 12)} ${pad(p.join, 8)} ${pad(p.heat.toFixed(1), 6)} ${pad(trimText(p.level), 8)} ${p.ways}`);
   console.log('\nLanes');
   for (const o of session.overlays) console.log(`  ${pad(o.lane, 8)} ${time(o.from)} to ${time(o.to)}  from bar ${o.bar}`);
 }

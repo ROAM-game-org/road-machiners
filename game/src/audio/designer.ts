@@ -34,7 +34,7 @@ export type ArcTuning = {
 export type Jumps = Record<string, Record<string, readonly number[]>>;
 export type SongJumps = { jumps: Jumps; quietExits: readonly number[] };
 
-export type Choice = { section: number; role: Role; from: number; chance: number };
+export type Choice = { section: number; role: Role; from: number; taken: boolean };
 
 export const WHOLE_SECTIONS = new Set<Role>(["intro", "stop", "solo"]);
 const ROLES: readonly Role[] = ["intro", "verse", "wall", "stop", "solo"];
@@ -111,7 +111,7 @@ export class BlockSequencer {
     const candidates = this.ways.get(current.bar)!.filter((b) => b === natural || this.mayChangeRole(current, natural, b));
     if (candidates.length === 0) throw new Error(`No way out of the ${current.role} at bar ${current.bar}`);
     const chosen = this.closest(candidates, this.distances(welcome), natural);
-    this.options = candidates.map((b) => ({ section: b.section, role: b.role, from: b.bar, chance: b === chosen ? 1 : 0 }));
+    this.options = candidates.map((b) => ({ section: b.section, role: b.role, from: b.bar, taken: b === chosen }));
     return chosen;
   }
 

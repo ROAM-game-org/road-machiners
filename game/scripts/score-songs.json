@@ -3,7 +3,6 @@
   "title": "Dust and Iron",
   "source": "Dust_and_Iron_2026-10-15T223016.wav",
   "guitarStem": "other.wav",
-  "guitarWall": 17,
   "bpm": 100,
   "bars": 87,
   "sections": [
@@ -21,7 +20,6 @@
   "title": "Convoy At Dusk",
   "source": "Convoy_At_Dusk_2026-10-15T225738.wav",
   "guitarStem": "guitar.wav",
-  "guitarWall": 41,
   "bpm": 125,
   "bars": 103,
   "sections": [

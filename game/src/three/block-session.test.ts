@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SCORE_BLOCKS } from "../data/sounds";
+import { BlockSequencer, blocksOf } from "../audio/designer";
 import { BlockSession, type BlockOutput, type BlockSong, type Part, type VoiceHandle } from "./block-session";
 import { COMBAT_SONGS, CombatMusic, type Kit } from "./combat-music";
 
@@ -119,6 +120,33 @@ describe("BlockSession", () => {
     expect(voices.map((v) => v.part)).toEqual(["song", "song"]);
   });
 });
+
+describe("combat songs", () => {
+  const PHASE_BLOCKS = 12;
+  const REACH_BLOCKS = 10;
+  for (const [name, song] of Object.entries(COMBAT_SONGS)) {
+    it(`${name} reaches a verse when a fight cools and a wall when it heats, every time`, () => {
+      const sequencer = new BlockSequencer(blocksOf(song.sections, SCORE_BLOCKS.arc.blockBars), SCORE_BLOCKS.arc, song, mulberry(7));
+      const hot = SCORE_BLOCKS.arc.hotHeat * 2;
+      for (let phase = 0; phase < 8; phase++) {
+        const heat = phase % 2 === 0 ? hot : 0;
+        const wanted: readonly string[] = heat ? SCORE_BLOCKS.arc.hot : SCORE_BLOCKS.arc.cool;
+        const roles = Array.from({ length: PHASE_BLOCKS }, () => sequencer.next(heat).role);
+        expect(roles.slice(0, REACH_BLOCKS).some((r) => wanted.includes(r)), `${name} phase ${phase}: ${roles.join(" ")}`).toBe(true);
+      }
+    });
+  }
+});
+
+function mulberry(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), s | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 describe("CombatMusic", () => {
   const fakeCtx = () => {
