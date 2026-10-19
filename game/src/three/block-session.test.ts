@@ -4,6 +4,8 @@ import { BlockSession, type BlockOutput, type BlockSong, type Part, type VoiceHa
 import { COMBAT_SONGS, CombatMusic, type Kit } from "./combat-music";
 
 const BAR_SECONDS = 2;
+const CLEAN = [0, 0, 1];
+const CUT = [9, 9, 0];
 const BARS = 8;
 const SONG: BlockSong = {
   title: "Test",
@@ -19,7 +21,8 @@ const SONG: BlockSong = {
     { role: "intro", from: 1, bars: 2 },
     { role: "verse", from: 5, bars: 2 },
   ],
-  seams: Object.fromEntries([2, 3, 6, 7].map((exit) => [exit, { "1": 0, "5": 0 }])),
+  jumps: { "3": { "1": CUT, "5": CLEAN }, "7": { "1": CUT, "5": CLEAN } },
+  quietExits: [],
   end: 7,
 };
 
@@ -62,7 +65,7 @@ describe("BlockSession", () => {
   it("lets the old block ring on into a jump until the new bar's sound starts", () => {
     const { voices, verseAt } = playIntoVerse();
     expect(voices.map((v) => [v.part, v.when])).toEqual([["song", SCORE_BLOCKS.startLeadSeconds], ["song", verseAt]]);
-    expect(voices[0].fades[0]).toBeCloseTo(verseAt + 0.3 + BAR_SECONDS / 16);
+    expect(voices[0].fades[0]).toBeCloseTo(verseAt + 0.3);
   });
 
   it("plays the cymbal lane from its own file, at the song's cymbal level", () => {
@@ -97,9 +100,9 @@ describe("BlockSession", () => {
 
   it("adds no guitars to a solo, which already leads with them", () => {
     const sections: BlockSong["sections"] = [SONG.sections[0], { role: "wall", from: 3, bars: 2 }, { role: "solo", from: 5, bars: 2 }];
-    const seams = Object.fromEntries([2, 3, 4, 5, 6, 7].map((exit) => [exit, { "1": 0, "3": 0, "5": 0 }]));
+    const jumps = Object.fromEntries([3, 5, 7].map((exit) => [exit, { "1": CLEAN, "3": CLEAN, "5": CLEAN }]));
     const { voices, out } = recorder();
-    const session = new BlockSession({ ...WALL_SONG, sections, seams }, out, () => 0.999);
+    const session = new BlockSession({ ...WALL_SONG, sections, jumps }, out, () => 0.999);
     session.start(0);
     const soloAt = SCORE_BLOCKS.startLeadSeconds + 4 * BAR_SECONDS;
     for (let t = 0; t < soloAt; t += 0.5) session.tick(t);

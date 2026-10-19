@@ -1,5 +1,5 @@
 import { BEATS_PER_BAR, SCORE_BLOCKS } from "../data/sounds";
-import { BlockSequencer, blocksOf, Fading, WHOLE_SECTIONS, type Block, type Role, type Seams, type Section } from "../audio/designer";
+import { BlockSequencer, blocksOf, Fading, WHOLE_SECTIONS, type Block, type Jumps, type Role, type Section } from "../audio/designer";
 
 export type BlockSong = {
   title: string;
@@ -12,7 +12,8 @@ export type BlockSong = {
   barPower: { ss: number; gg: number; sg: number }[];
   barEntry: number[];
   sections: Section[];
-  seams: Seams;
+  jumps: Jumps;
+  quietExits: number[];
   end: number;
 };
 export type Part = "song" | "guitars" | "cymbals";
@@ -101,7 +102,7 @@ export class BlockSession {
     this.familiar.clear();
     this.nudge = {};
     this.peakHeat = 0;
-    this.sequencer = new BlockSequencer(this.blocks, SCORE_BLOCKS.arc, this.song.seams, this.roll);
+    this.sequencer = new BlockSequencer(this.blocks, SCORE_BLOCKS.arc, this.song, this.roll);
     this.nextAt = this.schedule(this.sequencer.next(0), start, 0);
   }
 
@@ -160,7 +161,7 @@ export class BlockSession {
     if (this.nextAt - now < SCORE_BLOCKS.aheadSeconds) {
       const h = Math.max(this.peakHeat, this.heat.read(this.nextAt));
       this.nextAt = this.schedule(this.sequencer.next(h, this.nudge), this.nextAt, h);
-      if (this.sequencer.choices.length > 0) {
+      if (this.sequencer.tookHeat) {
         this.nudge = {};
         this.peakHeat = 0;
       }
@@ -206,10 +207,9 @@ export class BlockSession {
     const offset = this.barTime(block.bar);
     const length = this.barTime(block.bar + block.bars) - offset;
     const join = this.joinOf(block);
-    const fade = join === "jump" ? SCORE_BLOCKS.jumpFadeSeconds : SCORE_BLOCKS.seamSeconds;
+    const fade = SCORE_BLOCKS.seamSeconds;
     const entry = this.song.barEntry[block.bar - 1];
-    const tail = this.beatSeconds / 4;
-    if (join === "jump") for (const v of this.played.at(-1)!.voices) v.fadeOut(when + entry + tail, tail);
+    if (join === "jump") for (const v of this.played.at(-1)!.voices) v.fadeOut(when + entry, fade);
     const section = this.sectionOf(block.bar);
     const level = this.levelOf(section.from, section.bars, false);
     const voices = [this.out.voice("song", offset, when, length, fade, level)];
