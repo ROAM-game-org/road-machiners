@@ -20,23 +20,23 @@ afterEach(() => {
   fakes = [];
 });
 
-function setup(answerText: string | null, issue: number | null = null) {
+function setup(answerText: string | null, issue: number | null = null, text = PLAYER_TEXT) {
   const f = publicFake(CONFIG);
   fakes.push(f);
-  const runs: { run: AgentRun; question: string }[] = [];
+  const runs: { run: AgentRun; question: string; board: string }[] = [];
   Object.assign(f.ctx, {
     repo: { fetch: async () => undefined, prepareWorkClone: async (_branch: string, _base: string, dir: string) => { mkdirSync(join(dir, 'game'), { recursive: true }); } },
     container: {
       agent: async (run: AgentRun) => {
         const out = join(run.clone, run.dir, '.factory');
-        runs.push({ run, question: readFileSync(join(out, 'question.md'), 'utf8') });
+        runs.push({ run, question: readFileSync(join(out, 'question.md'), 'utf8'), board: readFileSync(join(out, 'board.md'), 'utf8') });
         if (answerText === null) throw new Error(`agent failed: ${PLAYER_TEXT}`);
         writeFileSync(join(out, 'answer.md'), answerText);
       },
     },
   });
   Object.assign(f.ctx.github, { comments: async () => [] });
-  const id = f.store.addComment({ issue, source: 'telegram', sourceId: 'c13', postChat: CHANNEL, postMessageId: null, author: 'Ann Lee', sender: '42', text: PLAYER_TEXT, at: f.clock.now.toISOString(), messageId: 13, addressed: true })!;
+  const id = f.store.addComment({ issue, source: 'telegram', sourceId: 'c13', postChat: CHANNEL, postMessageId: null, author: 'Ann Lee', sender: '42', text, at: f.clock.now.toISOString(), messageId: 13, addressed: true })!;
   f.store.classify(id, 'question', 'none', f.clock.now, issue === null ? 'other' : 'parent', { language: 'en' });
   f.store.markReplied(id, f.clock.now);
   updateState(f.ctx.statePath, (state) => ({ ...state, pendingAnswers: [id] }));
@@ -65,6 +65,60 @@ describe('answer job', () => {
     await answer(f.ctx);
     expect(f.calls).toContain('issue 568');
     expect(f.messages.map((message) => message.text)).toEqual(['It resets when you die.']);
+  });
+
+  it('gives the agent the real board status of the features in a multi-part dev question', async () => {
+    const { f, runs } = setup('Minimap: Approval, not on dev.', null, '@roam_bot minimap, extra decorative map objects and a temperature warning sound already on dev?');
+    f.cards.push(
+      { itemId: 'a', issue: 571, column: 'Approval', labels: [], title: 'Minimap' },
+      { itemId: 'b', issue: 722, column: 'Approval', labels: [], title: 'Temperature warning audio' },
+      { itemId: 'c', issue: 723, column: 'Done', labels: [], title: 'Decorative variety' },
+      { itemId: 'd', issue: 900, column: 'Design', labels: [] },
+    );
+    await answer(f.ctx);
+    const board = runs[0]!.board;
+    expect(board).toContain('- #571 Minimap: Approval (built and waiting for the committee to play it, NOT merged to dev yet)');
+    expect(board).toContain('- #722 Temperature warning audio: Approval (built and waiting for the committee to play it, NOT merged to dev yet)');
+    expect(board).toContain('- #723 Decorative variety: Done (merged to dev; it is released only when the code is on origin/main)');
+    expect(board).toContain('- #900: Design (being designed, not built)');
+    expect(runs[0]!.question).toContain('minimap, extra decorative map objects');
+  });
+
+  it('tells the agent the status is unverified when the board cannot be read', async () => {
+    const { f, runs } = setup('Status unverified.');
+    f.ctx.github.cards = async () => { throw new Error('GitHub is down'); };
+    await answer(f.ctx);
+    expect(runs[0]!.board).toContain('BOARD UNAVAILABLE');
+    expect(runs[0]!.board).toContain('unverified');
+    expect(runs[0]!.board).not.toContain('GitHub is down');
+    expect(f.messages).toHaveLength(1);
+  });
+
+  it('binds each answer to the message of its own question', async () => {
+    const f = publicFake(CONFIG);
+    fakes.push(f);
+    const asked = { minimap: 'Minimap is waiting in Approval.', guards: 'Guard hire is on dev.' };
+    Object.assign(f.ctx, {
+      repo: { fetch: async () => undefined, prepareWorkClone: async (_branch: string, _base: string, dir: string) => { mkdirSync(join(dir, 'game'), { recursive: true }); } },
+      container: {
+        agent: async (run: AgentRun) => {
+          const out = join(run.clone, run.dir, '.factory');
+          writeFileSync(join(out, 'answer.md'), readFileSync(join(out, 'question.md'), 'utf8').includes('minimap') ? asked.minimap : asked.guards);
+        },
+      },
+    });
+    const add = (sourceId: string, messageId: number, text: string): number => {
+      const id = f.store.addComment({ issue: null, source: 'telegram', sourceId, postChat: CHANNEL, postMessageId: null, author: 'P', sender: String(messageId), text, at: f.clock.now.toISOString(), messageId, addressed: true })!;
+      f.store.classify(id, 'question', 'none', f.clock.now, 'other', { language: 'en' });
+      return id;
+    };
+    const minimap = add('c415', 415, 'is the minimap on dev?');
+    const guards = add('c416', 416, 'can I hire guards?');
+    updateState(f.ctx.statePath, (state) => ({ ...state, pendingAnswers: [minimap, guards] }));
+    await answer(f.ctx);
+    await answer(f.ctx);
+    expect(f.messages).toEqual([{ chat: CHANNEL, replyTo: 415, text: asked.minimap }, { chat: CHANNEL, replyTo: 416, text: asked.guards }]);
+    expect(f.store.comment(minimap)?.replyId).not.toBe(f.store.comment(guards)?.replyId);
   });
 
   it('fails a dead agent run once, with no player text in the error and nothing sent', async () => {
