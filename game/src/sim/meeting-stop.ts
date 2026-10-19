@@ -3,12 +3,13 @@
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
 import { isFree } from './spawn';
+import { isStockGoal } from './salvage';
 import { vehicleStats } from './stats';
 import type { NpcActivity, Vehicle, World } from './types';
 import type { Vec } from './vec';
 
 function stockRadius(world: World, activity: NpcActivity): number | undefined {
-  if (activity.kind !== 'scavenge' && activity.kind !== 'loot') return undefined;
+  if (!isStockGoal(activity)) return undefined;
   return world.salvage.find((entry) => entry.id === activity.targetId)?.radius;
 }
 

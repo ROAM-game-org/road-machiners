@@ -2,26 +2,27 @@
 import { DETECT } from './detect';
 import type { TraitId } from './npcs';
 
-export type TopicId = 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'escortHold' | 'escortGo'
-  | 'tale' | 'salvageTip' | 'challenge' | 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor' | 'lastSeen' | 'parcel';
+export type TopicId = 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'demandCut' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'robCut' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'escortHold' | 'escortGo'
+  | 'tale' | 'salvageTip' | 'challenge' | 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor' | 'lastSeen' | 'parcel' | 'claimWreck' | 'hireGuard' | 'dismissGuard';
 export type ConditionId =
-  | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
+  | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsCut' | 'namesPrice' | 'noPrice' | 'canPayPrice' | 'noCargoRob' | 'noCutRob' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
   | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
   | 'accepts' | 'refuses' | 'complies' | 'resists' | 'runs' | 'claimsPlayerLoot' | 'holdsOn' | 'canTowNpc' | 'towedByPlayer' | 'noTrade' | 'npcCalm'
   | 'knowsLastTown' | 'hearsRumor' | 'rumorOfSite' | 'rumorOfWreck' | 'canPayTruce'
-  | 'npcLow' | 'playerLow' | 'noAid' | 'aidGiven' | 'aidRefused' | 'offersAid' | 'npcBeaten' | 'notOfferedYield' | 'claimsSpill' | 'heardWagonNearby'
+  | 'npcLow' | 'playerLow' | 'noAid' | 'aidHolds' | 'aidGiven' | 'aidRefused' | 'offersAid' | 'npcBeaten' | 'notOfferedYield' | 'claimsSpill' | 'heardWagonNearby' | 'nearClaimWreck' | 'rivalAsked' | 'noRivalAsked'
   | 'escortFollowed' | 'escortHeld' | 'warnsPlayerOff' | 'yieldsLoot' | 'fightsForLoot' | 'hasHaul' | 'noHaul' | 'canPayTalk'
   | 'offersTale' | 'offersTip' | 'callsOut' | 'newsOfSite' | 'newsOfWreck' | 'newsOfTip' | 'seeksSomeone' | 'sawSought' | 'missedSought' | 'hasParcelFor' | 'noHandover'
+  | 'mercForHire' | 'takesGuard' | 'refusesGuard' | 'canPayGuard' | 'guardOfMine'
   | 'asksCourierAid' | 'courierThanksDue' | 'courierSquareDue' | 'courierColdDue' | 'courierGrudgeDue' | 'courierFavorDue';
 export type EffectId =
   | 'revealTown' | 'settleDone' | 'settleRefused' | 'acceptTow' | 'refuseTow' | 'askTow' | 'agreePatch' | 'handOver' | 'surrender' | 'giveUp' | 'backOffClaim' | 'defyClaim'
-  | 'acceptPlea' | 'refusePlea' | 'settlePlea' | 'payToll' | 'refuseToll' | 'withdrawPlea' | 'settleThreat' | 'settleWarning' | 'hitchNpc' | 'hitchNpcFree' | 'releaseNpc' | 'startTrade'
-  | 'revealRumor' | 'payTruce' | 'giveAidPaid' | 'giveAidFree' | 'takeAid' | 'acceptAidOffer' | 'refuseAidOffer' | 'yieldToPlayer' | 'askStandDown' | 'standDownPlea' | 'abandonSpill' | 'noteWagonRoad'
+  | 'acceptPlea' | 'refusePlea' | 'settlePlea' | 'payToll' | 'payDemand' | 'payTollMoney' | 'paySpared' | 'settleRobCut' | 'settleDemandRefused' | 'refuseToll' | 'withdrawPlea' | 'settleThreat' | 'settleWarning' | 'hitchNpc' | 'hitchNpcFree' | 'releaseNpc' | 'startTrade'
+  | 'revealRumor' | 'payTruce' | 'giveAidPaid' | 'giveAidFree' | 'takeAid' | 'acceptAidOffer' | 'refuseAidOffer' | 'yieldToPlayer' | 'askStandDown' | 'standDownPlea' | 'abandonSpill' | 'noteWagonRoad' | 'noteClaimLead'
   | 'leaveLootWarning' | 'refuseLootWarning' | 'fightLootWarning' | 'hangUpLootWarning' | 'payTalk' | 'holdEscort' | 'releaseHold'
   | 'tellTale' | 'buyTip' | 'declineEncounter' | 'endEncounter' | 'backDown' | 'answerChallenge' | 'acceptChallenge'
-  | 'courierFree' | 'courierPaid' | 'courierRefuse' | 'courierThank' | 'courierSquareUp' | 'courierColdShoulder' | 'courierCallEven' | 'courierFight' | 'courierEnd' | 'courierPayFavor' | 'noteLead' | 'startHandover';
-export type PrepareId = 'nearestTown' | 'towOffer' | 'patchTerms' | 'truceAnswer' | 'mercyAnswer' | 'threatAnswer' | 'warnAnswer' | 'npcTowTerms' | 'lastTownPrices' | 'nearestRumor' | 'tradeTip' | 'trucePrice' | 'aidWanted' | 'aidAnswer' | 'aidOffered' | 'yieldAnswer' | 'lootWarningTerms' | 'demandHaul' | 'surrenderHaul'
-  | 'taleNews' | 'tipTerms' | 'courierNeed' | 'courierNews' | 'courierFavorTerms' | 'lastSighting';
+  | 'courierFree' | 'courierPaid' | 'courierRefuse' | 'courierThank' | 'courierSquareUp' | 'courierColdShoulder' | 'courierCallEven' | 'courierFight' | 'courierEnd' | 'courierPayFavor' | 'noteLead' | 'startHandover' | 'noteClaimLead' | 'hireGuard' | 'dismissGuard';
+export type PrepareId = 'nearestTown' | 'towOffer' | 'patchTerms' | 'truceAnswer' | 'mercyAnswer' | 'threatAnswer' | 'warnAnswer' | 'npcTowTerms' | 'lastTownPrices' | 'nearestRumor' | 'tradeTip' | 'trucePrice' | 'aidWanted' | 'aidAnswer' | 'aidOffered' | 'yieldAnswer' | 'lootWarningTerms' | 'demandHaul' | 'demandCut' | 'robCutAnswer' | 'surrenderHaul'
+  | 'taleNews' | 'tipTerms' | 'courierNeed' | 'courierNews' | 'courierFavorTerms' | 'lastSighting' | 'guardOffer' | 'claimWreckBearing';
 
 export type DialogueOption = { say: LineId; when: ConditionId[]; effects: EffectId[]; go: string };
 export type DialogueNode = { line: LineId; options: DialogueOption[] };
@@ -38,7 +39,7 @@ export type Topic = {
 };
 
 export const LINE_IDS = [
-  'aWreckNobodyPicked', 'armyWagonTold', 'seenADeadArmy', 'whatElseDidYouSee', 'agreedGunsDown', 'allRightIAm', 'allRightItIs', 'alreadySaid', 'anythingInteresting',
+  'armyWagonTold', 'seenADeadArmy', 'seenThatWreck', 'claimWreckTold', 'anyoneElseAsking', 'crewAskedTheSame', 'nobodyElseAsked', 'whatElseDidYouSee', 'agreedGunsDown', 'allRightIAm', 'allRightItIs', 'alreadySaid', 'anythingInteresting',
   'busy', 'canYouDoAnything', 'clearTheChannel', 'comeAndGetIt', 'comeAndTakeIt', 'dealHitchMeUp', 'dealHitchUp',
   'dealIWillStay', 'dealPlain', 'dealPullOverAnd', 'dealSendingIt', 'dealStayWhereYou', 'dealTerms', 'demandCargo',
   'dropYourCargoOr', 'dumpAndDrive', 'enoughOfThisWe', 'enoughShootingCanWe', 'findYourOwnWreck', 'findersKeepers',
@@ -52,19 +53,21 @@ export const LINE_IDS = [
   'notInterested', 'notNowSomethingElse', 'notTalking', 'notToday', 'notTodayRun', 'notWhileICan', 'notWithWhatI',
   'nothingForYou', 'nothingToSayTo', 'oldNewsFriend', 'onSecondThoughtI', 'overAndOut', 'overMyDeadBody', 'overMyWreck', 'pullFree',
   'pullPaid', 'pullingOver', 'rollingOn', 'runThen', 'runningLowICan', 'saidThatAlready', 'sayThatAgain', 'saysWho',
-  'seenAnythingWorthA', 'sitTight', 'siteBearing', 'smartChoice', 'sorryCannotSpareAny', 'spare', 'speakUp',
+  'seenAnythingWorthA', 'sitTight', 'smartChoice', 'sorryCannotSpareAny', 'spare', 'speakUp',
   'standDownAndLet', 'standingDown', 'stateYourBusiness', 'stopShootingIGive', 'surePullOverAnd', 'surrenderOffer',
   'takeMeToSite', 'takeWhatICarry', 'talk', 'talkFast', 'thanksIWillWait', 'thanksOverAndOut', 'thanksSomethingElse',
-  'thenComeAndGet', 'thenWeFinishThis', 'thisIsMine', 'thisWreckIsMine', 'tipTold', 'tooLateForTalk', 'tooMuch', 'thatCostsYou', 'helpMeFirst',
-  'townBearing', 'truceCost', 'understood', 'wantToTrade', 'weAlreadyTalkedAbout', 'weBothDriveAway',
+  'thenComeAndGet', 'thenWeFinishThis', 'thisIsMine', 'thisWreckIsMine', 'tipTold', 'tooLateForTalk', 'tooMuch', 'thatCostsYou', 'helpMeFirst', 'iKnowWhatYouDid', 'notYourKind',
+  'truceCost', 'understood', 'wantToTrade', 'weAlreadyTalkedAbout', 'weBothDriveAway',
   'weCoveredThat', 'weWillSee', 'whatAreYouOffering', 'whatCanYouOffer', 'whatDoYouWant', 'whatWouldItCost',
-  'whatWouldItTake', 'whateverYouCanSpare', 'where', 'whereIsTheNearest', 'yeahMakeItQuick', 'youHeardMeCargo',
+  'whatWouldItTake', 'whateverYouCanSpare', 'where', 'whereIsTheNearest', 'townWay', 'siteWay', 'wreckWay', 'yeahMakeItQuick', 'youHeardMeCargo',
   'youHeardMeLeave', 'youKnowHowThen', 'youLookDryI', 'youSaidThat', 'youWantToPick', 'yourCallLastChance',
   'yourEngineSoundsRough', 'yourFuneral', 'yourLoadIsInThe', 'yourTruckIsFinished', 'yourTruckLooksDead',
   'warnTerms', 'thisOneIsSpokenFor', 'thatsMyPick', 'offMyLootNow', 'leaveThatSalvageBe', 'imTakingThatOne', 'sawThisOneFirst', 'mineGoPickAnother', 'weAreTakingThisOne', 'backAwayFromThat', 'thatsMineWalkAway', 'findYourOwn', 'makeMe', 'keepYourScrapsThen', 'thoughtSo', 'thenWeSettleIt', 'bringIt', 'nothingHereICanCarry', 'waitHereForMe', 'waitingHere', 'letsMove', 'movingOutNow',
-  'gotAStoryFrom', 'goOnThen', 'rolledPastSite', 'notNow', 'iKnowAWreck', 'niceRigLetsSee', 'notLookingForTrouble', 'lookAtMyGunsAgain', 'letsGo',
+  'gotAStoryFrom', 'goOnThen', 'notNow', 'iKnowAWreck', 'niceRigLetsSee', 'notLookingForTrouble', 'lookAtMyGunsAgain', 'letsGo',
   'lookingForSomebody', 'sightingTold', 'gotParcelForYou', 'parcelPullOver',
   'courierShortOfFuel', 'atTheTownPrice', 'youKeptMeRolling', 'courierSquareTip', 'youLeftMeDry', 'youShotMeUp', 'letsCallItEven', 'toldYouIOweYou',
+  'rideGuardForMe', 'dependsWhoAsks', 'whatsYourRate', 'guardDayRate', 'onYourTailNow', 'notRidingForYou', 'thatsAllRideOff', 'moneyStaysWithMe',
+  'demandCargoOrPay', 'demandCutLine', 'noFreeRidePay', 'noFreeRideCut', 'leaveItOrPay', 'payAndGo', 'hereIsYourMoney', 'yourMoneyOr', 'youHeardMeMoney', 'allRightPaid', 'pocketsEmpty',
 ] as const;
 export type LineId = (typeof LINE_IDS)[number];
 
@@ -72,6 +75,11 @@ export const HUB = 'hub';
 export const END = 'end';
 export const REFUSED = 'callRefused';
 export const TOLL = 'toll';
+
+function ackTopic(id: TopicId, ask: { say: LineId; when: ConditionId[] }, ack: { line: LineId; say: LineId; effect: EffectId }): Topic {
+  const options = [{ say: ack.say, when: [], effects: [ack.effect], go: END }];
+  return { id, once: false, ask: { ...ask, duringFeud: false }, raise: null, prepare: null, hangUp: [], start: 'ack', nodes: { ack: { line: ack.line, options } } };
+}
 
 function tollNode(go: string): DialogueNode {
   return {
@@ -107,7 +115,7 @@ export const TOPICS: Record<TopicId, Topic> = {
     nodes: {
       [TOLL]: tollNode('answer'),
       answer: {
-        line: 'townBearing',
+        line: 'townWay',
         options: [
           { say: 'thanksSomethingElse', when: [], effects: ['revealTown'], go: HUB },
           { say: 'thanksOverAndOut', when: [], effects: ['revealTown'], go: END },
@@ -151,36 +159,36 @@ export const TOPICS: Record<TopicId, Topic> = {
       },
     },
   },
-  escortHold: {
-    id: 'escortHold',
+  escortHold: ackTopic('escortHold', { say: 'waitHereForMe', when: ['escortFollowed'] }, { line: 'waitingHere', say: 'thanksOverAndOut', effect: 'holdEscort' }),
+  escortGo: ackTopic('escortGo', { say: 'letsMove', when: ['escortHeld'] }, { line: 'movingOutNow', say: 'thanksOverAndOut', effect: 'releaseHold' }),
+  hireGuard: {
+    id: 'hireGuard',
     once: false,
-    ask: { say: 'waitHereForMe', when: ['escortFollowed'], duringFeud: false },
+    ask: { say: 'rideGuardForMe', when: ['mercForHire', 'atPeace', 'npcCalm'], duringFeud: false },
     raise: null,
-    prepare: null,
+    prepare: 'guardOffer',
     hangUp: [],
-    start: 'ack',
+    start: 'check',
     nodes: {
-      ack: {
-        line: 'waitingHere',
-        options: [{ say: 'thanksOverAndOut', when: [], effects: ['holdEscort'], go: END }],
+      check: {
+        line: 'dependsWhoAsks',
+        options: [
+          { say: 'whatsYourRate', when: ['takesGuard'], effects: [], go: 'terms' },
+          { say: 'whatsYourRate', when: ['refusesGuard'], effects: ['settleRefused'], go: 'refuse' },
+        ],
       },
+      terms: {
+        line: 'guardDayRate',
+        options: [
+          { say: 'dealSendingIt', when: ['canPayGuard'], effects: ['hireGuard'], go: 'hired' },
+          { say: 'tooMuch', when: [], effects: [], go: HUB },
+        ],
+      },
+      hired: { line: 'onYourTailNow', options: [{ say: 'overAndOut', when: [], effects: [], go: END }] },
+      refuse: { line: 'notRidingForYou', options: [{ say: 'understood', when: [], effects: [], go: HUB }] },
     },
   },
-  escortGo: {
-    id: 'escortGo',
-    once: false,
-    ask: { say: 'letsMove', when: ['escortHeld'], duringFeud: false },
-    raise: null,
-    prepare: null,
-    hangUp: [],
-    start: 'ack',
-    nodes: {
-      ack: {
-        line: 'movingOutNow',
-        options: [{ say: 'thanksOverAndOut', when: [], effects: ['releaseHold'], go: END }],
-      },
-    },
-  },
+  dismissGuard: ackTopic('dismissGuard', { say: 'thatsAllRideOff', when: ['guardOfMine'] }, { line: 'moneyStaysWithMe', say: 'overAndOut', effect: 'dismissGuard' }),
   askTow: {
     id: 'askTow',
     once: false,
@@ -260,10 +268,29 @@ export const TOPICS: Record<TopicId, Topic> = {
     start: 'demand',
     nodes: {
       demand: {
-        line: 'demandCargo',
+        line: 'demandCargoOrPay',
         options: [
           { say: 'fineTakeIt', when: [], effects: ['handOver'], go: END },
+          { say: 'hereIsYourMoney', when: ['canPayPrice'], effects: ['payDemand'], go: END },
           { say: 'comeAndGetIt', when: [], effects: ['settleRefused'], go: END },
+        ],
+      },
+    },
+  },
+  demandCut: {
+    id: 'demandCut',
+    once: true,
+    ask: null,
+    raise: { when: ['demandsCut'], priority: 3, duringFeud: true, duringCombat: true },
+    prepare: 'demandCut',
+    hangUp: ['settleDemandRefused'],
+    start: 'demand',
+    nodes: {
+      demand: {
+        line: 'demandCutLine',
+        options: [
+          { say: 'hereIsYourMoney', when: ['canPayPrice'], effects: ['payDemand'], go: END },
+          { say: 'comeAndGetIt', when: [], effects: ['settleDemandRefused'], go: END },
         ],
       },
     },
@@ -372,13 +399,30 @@ export const TOPICS: Record<TopicId, Topic> = {
         options: [
           { say: 'weBothDriveAway', when: ['accepts'], effects: ['settlePlea'], go: 'agreed' },
           { say: 'weBothDriveAway', when: ['refuses'], effects: ['settlePlea'], go: 'refused' },
-          { say: 'weBothDriveAway', when: ['demandsToll'], effects: [], go: 'demanded' },
+          { say: 'weBothDriveAway', when: ['demandsToll', 'noPrice'], effects: [], go: 'demanded' },
+          { say: 'weBothDriveAway', when: ['demandsToll', 'namesPrice', 'hasHaul'], effects: [], go: 'tollCargo' },
+          { say: 'weBothDriveAway', when: ['demandsToll', 'namesPrice', 'noHaul'], effects: [], go: 'tollCut' },
         ],
       },
       demanded: {
         line: 'noFreeRideDump',
         options: [
           { say: 'fineTakeIt', when: [], effects: ['payToll'], go: END },
+          { say: 'comeAndGetIt', when: [], effects: ['refuseToll'], go: END },
+        ],
+      },
+      tollCargo: {
+        line: 'noFreeRidePay',
+        options: [
+          { say: 'fineTakeIt', when: [], effects: ['payToll'], go: END },
+          { say: 'hereIsYourMoney', when: ['canPayPrice'], effects: ['payTollMoney'], go: END },
+          { say: 'comeAndGetIt', when: [], effects: ['refuseToll'], go: END },
+        ],
+      },
+      tollCut: {
+        line: 'noFreeRideCut',
+        options: [
+          { say: 'hereIsYourMoney', when: ['canPayPrice'], effects: ['payTollMoney'], go: END },
           { say: 'comeAndGetIt', when: [], effects: ['refuseToll'], go: END },
         ],
       },
@@ -398,12 +442,25 @@ export const TOPICS: Record<TopicId, Topic> = {
       listen: {
         line: 'talkFast',
         options: [
-          { say: 'takeWhatICarry', when: ['accepts', 'hasHaul'], effects: ['settlePlea'], go: 'spared' },
-          { say: 'takeWhatICarry', when: ['accepts', 'noHaul'], effects: ['settlePlea'], go: 'sparedFree' },
+          { say: 'takeWhatICarry', when: ['accepts', 'noPrice', 'hasHaul'], effects: ['settlePlea'], go: 'spared' },
+          { say: 'takeWhatICarry', when: ['accepts', 'namesPrice', 'hasHaul'], effects: [], go: 'sparedPrice' },
+          { say: 'takeWhatICarry', when: ['accepts', 'namesPrice', 'noHaul'], effects: [], go: 'sparedCut' },
+          { say: 'takeWhatICarry', when: ['accepts', 'noPrice', 'noHaul'], effects: ['settlePlea'], go: 'sparedFree' },
           { say: 'takeWhatICarry', when: ['refuses'], effects: ['settlePlea'], go: 'refused' },
         ],
       },
       spared: { line: 'leaveItOnThe', options: [{ say: 'going', when: [], effects: [], go: END }] },
+      sparedPrice: {
+        line: 'leaveItOrPay',
+        options: [
+          { say: 'fineTakeIt', when: [], effects: ['settlePlea'], go: END },
+          { say: 'hereIsYourMoney', when: ['canPayPrice'], effects: ['paySpared'], go: END },
+        ],
+      },
+      sparedCut: {
+        line: 'payAndGo',
+        options: [{ say: 'hereIsYourMoney', when: ['canPayPrice'], effects: ['paySpared'], go: END }],
+      },
       sparedFree: { line: 'nothingHereICanCarry', options: [{ say: 'going', when: [], effects: [], go: END }] },
       refused: { line: 'noDeals', options: [{ say: 'thenComeAndGet', when: [], effects: [], go: END }] },
     },
@@ -431,7 +488,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   rob: {
     id: 'rob',
     once: true,
-    ask: { say: 'dropYourCargoOr', when: ['atPeace', 'npcHasCargo'], duringFeud: false },
+    ask: { say: 'dropYourCargoOr', when: ['atPeace', 'npcHasCargo', 'noCutRob'], duringFeud: false },
     raise: null,
     prepare: 'threatAnswer',
     hangUp: ['settleRefused'],
@@ -446,6 +503,30 @@ export const TOPICS: Record<TopicId, Topic> = {
         ],
       },
       comply: { line: 'allRightItIs', options: [{ say: 'smartChoice', when: [], effects: [], go: END }] },
+      fightBack: { line: 'comeAndTakeIt', options: [{ say: 'yourFuneral', when: [], effects: [], go: END }] },
+      flee: { line: 'notTodayRun', options: [{ say: 'runThen', when: [], effects: [], go: END }] },
+    },
+  },
+  robCut: {
+    id: 'robCut',
+    once: true,
+    ask: { say: 'yourMoneyOr', when: ['atPeace', 'noCargoRob'], duringFeud: false },
+    raise: null,
+    prepare: 'robCutAnswer',
+    hangUp: ['settleRefused'],
+    start: 'hear',
+    nodes: {
+      hear: {
+        line: 'sayThatAgain',
+        options: [
+          { say: 'youHeardMeMoney', when: ['complies', 'namesPrice'], effects: ['settleRobCut'], go: 'comply' },
+          { say: 'youHeardMeMoney', when: ['complies', 'noPrice'], effects: ['settleRobCut'], go: 'empty' },
+          { say: 'youHeardMeMoney', when: ['resists'], effects: ['settleRobCut'], go: 'fightBack' },
+          { say: 'youHeardMeMoney', when: ['runs'], effects: ['settleRobCut'], go: 'flee' },
+        ],
+      },
+      comply: { line: 'allRightPaid', options: [{ say: 'smartChoice', when: [], effects: [], go: END }] },
+      empty: { line: 'pocketsEmpty', options: [{ say: 'smartChoice', when: [], effects: [], go: END }] },
       fightBack: { line: 'comeAndTakeIt', options: [{ say: 'yourFuneral', when: [], effects: [], go: END }] },
       flee: { line: 'notTodayRun', options: [{ say: 'runThen', when: [], effects: [], go: END }] },
     },
@@ -664,14 +745,14 @@ export const TOPICS: Record<TopicId, Topic> = {
         ],
       },
       site: {
-        line: 'siteBearing',
+        line: 'siteWay',
         options: [
           { say: 'thanksSomethingElse', when: [], effects: ['revealRumor', 'settleDone'], go: HUB },
           { say: 'thanksOverAndOut', when: [], effects: ['revealRumor', 'settleDone'], go: END },
         ],
       },
       wreck: {
-        line: 'aWreckNobodyPicked',
+        line: 'wreckWay',
         options: [
           { say: 'thanksSomethingElse', when: [], effects: ['revealRumor', 'settleDone'], go: HUB },
           { say: 'thanksOverAndOut', when: [], effects: ['revealRumor', 'settleDone'], go: END },
@@ -737,6 +818,41 @@ export const TOPICS: Record<TopicId, Topic> = {
       },
     },
   },
+  claimWreck: {
+    id: 'claimWreck',
+    once: true,
+    ask: { say: 'seenThatWreck', when: ['nearClaimWreck'], duringFeud: false },
+    raise: null,
+    prepare: 'claimWreckBearing',
+    hangUp: [],
+    start: 'tell',
+    nodes: {
+      [TOLL]: tollNode('tell'),
+      tell: {
+        line: 'claimWreckTold',
+        options: [
+          { say: 'anyoneElseAsking', when: ['rivalAsked'], effects: ['noteClaimLead'], go: 'rival' },
+          { say: 'anyoneElseAsking', when: ['noRivalAsked'], effects: ['noteClaimLead'], go: 'alone' },
+          { say: 'thanksSomethingElse', when: [], effects: ['noteClaimLead', 'settleDone'], go: HUB },
+          { say: 'thanksOverAndOut', when: [], effects: ['noteClaimLead', 'settleDone'], go: END },
+        ],
+      },
+      rival: {
+        line: 'crewAskedTheSame',
+        options: [
+          { say: 'thanksSomethingElse', when: [], effects: ['settleDone'], go: HUB },
+          { say: 'thanksOverAndOut', when: [], effects: ['settleDone'], go: END },
+        ],
+      },
+      alone: {
+        line: 'nobodyElseAsked',
+        options: [
+          { say: 'thanksSomethingElse', when: [], effects: ['settleDone'], go: HUB },
+          { say: 'thanksOverAndOut', when: [], effects: ['settleDone'], go: END },
+        ],
+      },
+    },
+  },
   tips: {
     id: 'tips',
     once: false,
@@ -778,7 +894,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   offerAid: {
     id: 'offerAid',
     once: false,
-    ask: { say: 'runningLowICan', when: ['noAid', 'atPeace', 'npcCalm', 'npcLow', 'npcOffRope'], duringFeud: false },
+    ask: { say: 'runningLowICan', when: ['noAid', 'atPeace', 'aidHolds', 'npcLow', 'npcOffRope'], duringFeud: false },
     raise: null,
     prepare: 'aidWanted',
     hangUp: [],
@@ -797,7 +913,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   askAid: {
     id: 'askAid',
     once: true,
-    ask: { say: 'iAmRunningDry', when: ['noAid', 'atPeace', 'npcCalm', 'playerLow'], duringFeud: false },
+    ask: { say: 'iAmRunningDry', when: ['noAid', 'atPeace', 'aidHolds', 'playerLow'], duringFeud: false },
     raise: null,
     prepare: 'aidAnswer',
     hangUp: ['settleRefused'],
@@ -852,7 +968,7 @@ export const TOPICS: Record<TopicId, Topic> = {
           { say: 'notNow', when: [], effects: ['declineEncounter'], go: END },
         ],
       },
-      site: { line: 'rolledPastSite', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
+      site: { line: 'siteWay', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
       tip: { line: 'tipTold', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
     },
   },
@@ -872,7 +988,7 @@ export const TOPICS: Record<TopicId, Topic> = {
           { say: 'noThanks', when: [], effects: ['declineEncounter'], go: END },
         ],
       },
-      told: { line: 'aWreckNobodyPicked', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
+      told: { line: 'wreckWay', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
     },
   },
   challenge: {
@@ -935,8 +1051,8 @@ export const TOPICS: Record<TopicId, Topic> = {
           { say: 'goOnThen', when: ['newsOfTip'], effects: [], go: 'tip' },
         ],
       },
-      site: { line: 'siteBearing', options: [{ say: 'thanksOverAndOut', when: [], effects: ['courierThank'], go: END }] },
-      wreck: { line: 'aWreckNobodyPicked', options: [{ say: 'thanksOverAndOut', when: [], effects: ['courierThank'], go: END }] },
+      site: { line: 'siteWay', options: [{ say: 'thanksOverAndOut', when: [], effects: ['courierThank'], go: END }] },
+      wreck: { line: 'wreckWay', options: [{ say: 'thanksOverAndOut', when: [], effects: ['courierThank'], go: END }] },
       tip: { line: 'tipTold', options: [{ say: 'thanksOverAndOut', when: [], effects: ['courierThank'], go: END }] },
     },
   },
@@ -1012,24 +1128,34 @@ export type TraitTalk = { voice: Voice | null; topics: TopicId[] };
 
 export const HONK_RANGE = DETECT.sound.limp;
 
+export type TalkGate = 'service' | 'rescue';
+
+export const TOPIC_GATES: Partial<Record<TopicId, TalkGate>> = {
+  directions: 'service', trade: 'service', marketNews: 'service', rumor: 'service', armyWagon: 'service', tips: 'service',
+  tow: 'rescue', towFree: 'rescue', askTow: 'rescue', patch: 'rescue', askAid: 'rescue', aidOffer: 'rescue', patchRequest: 'rescue',
+  offerTow: 'rescue', offerPatch: 'rescue', offerPatchWorn: 'rescue', offerAid: 'rescue', releaseTow: 'rescue',
+};
+
+export const COLD_LINES = { known: 'iKnowWhatYouDid', kind: 'notYourKind' } as const satisfies Record<string, LineId>;
+
 const TALES: TopicId[] = ['tale'];
 const CHALLENGE: TopicId[] = ['challenge'];
 const COURIER_STORY: TopicId[] = ['courierShort', 'courierThanks', 'courierSquare', 'courierCold', 'courierGrudge', 'courierFavor'];
 
-const PARLEY: TopicId[] = ['spillClaim', 'surrender', 'giveUp', 'claim', 'truce', 'mercy', 'yieldDemand', 'buyTruce', 'rob', 'lootWarning', 'warnOff', 'truceOffer', 'mercyPlea', 'offerTow', 'releaseTow', 'offerPatch', 'offerPatchWorn', 'offerAid'];
+const PARLEY: TopicId[] = ['spillClaim', 'surrender', 'giveUp', 'claim', 'truce', 'mercy', 'yieldDemand', 'buyTruce', 'rob', 'robCut', 'lootWarning', 'warnOff', 'truceOffer', 'mercyPlea', 'offerTow', 'releaseTow', 'offerPatch', 'offerPatchWorn', 'offerAid'];
 
 export const TRAIT_TALK: Record<TraitId, TraitTalk> = {
-  trader: { voice: { greeting: 'goAhead', repeatLine: 'weAlreadyTalkedAbout', refusal: 'nothingToSayTo', warnOff: 'thisOneIsSpokenFor', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', 'escortHold', 'escortGo', ...TALES, ...CHALLENGE, ...PARLEY] },
-  scavenger: { voice: { greeting: 'yeahMakeItQuick', repeatLine: 'iToldYouAlready', refusal: 'getOffMyChannel', warnOff: 'thatsMyPick', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...PARLEY] },
-  raider: { voice: { greeting: 'getLost', repeatLine: 'getLost', refusal: 'hehNo', warnOff: 'offMyLootNow', honksBack: false }, topics: ['demand', ...CHALLENGE, ...PARLEY] },
-  scumbag: { voice: null, topics: ['demand', ...CHALLENGE, ...PARLEY] },
+  trader: { voice: { greeting: 'goAhead', repeatLine: 'weAlreadyTalkedAbout', refusal: 'nothingToSayTo', warnOff: 'thisOneIsSpokenFor', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', 'escortHold', 'escortGo', ...TALES, ...CHALLENGE, ...PARLEY] },
+  scavenger: { voice: { greeting: 'yeahMakeItQuick', repeatLine: 'iToldYouAlready', refusal: 'getOffMyChannel', warnOff: 'thatsMyPick', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...PARLEY] },
+  raider: { voice: { greeting: 'getLost', repeatLine: 'getLost', refusal: 'hehNo', warnOff: 'offMyLootNow', honksBack: false }, topics: ['demand', 'demandCut', ...CHALLENGE, ...PARLEY] },
+  scumbag: { voice: null, topics: ['demand', 'demandCut', ...CHALLENGE, ...PARLEY] },
   coward: { voice: null, topics: PARLEY },
   brave: { voice: null, topics: [...CHALLENGE, ...PARLEY] },
   lawman: { voice: { greeting: 'speakUp', repeatLine: 'heardYouTheFirst', refusal: 'clearTheChannel', warnOff: 'leaveThatSalvageBe', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', ...PARLEY] },
-  courier: { voice: { greeting: 'makeItShort', repeatLine: 'saidThatAlready', refusal: 'noTimeOut', warnOff: 'imTakingThatOne', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...TALES, ...CHALLENGE, ...COURIER_STORY, ...PARLEY] },
-  roamer: { voice: { greeting: 'whatDoYouWant', repeatLine: 'oldNewsFriend', refusal: 'notTalking', warnOff: 'sawThisOneFirst', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...PARLEY] },
-  vulture: { voice: { greeting: 'keepItShort', repeatLine: 'alreadySaid', refusal: 'nothingForYou', warnOff: 'mineGoPickAnother', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'patchRequest', 'trade', 'salvageTip', ...CHALLENGE, ...PARLEY] },
+  courier: { voice: { greeting: 'makeItShort', repeatLine: 'saidThatAlready', refusal: 'noTimeOut', warnOff: 'imTakingThatOne', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...TALES, ...CHALLENGE, ...COURIER_STORY, ...PARLEY] },
+  roamer: { voice: { greeting: 'whatDoYouWant', repeatLine: 'oldNewsFriend', refusal: 'notTalking', warnOff: 'sawThisOneFirst', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...PARLEY] },
+  vulture: { voice: { greeting: 'keepItShort', repeatLine: 'alreadySaid', refusal: 'nothingForYou', warnOff: 'mineGoPickAnother', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'patchRequest', 'trade', 'salvageTip', ...CHALLENGE, ...PARLEY] },
   supplier: { voice: { greeting: 'listening', repeatLine: 'weCoveredThat', refusal: 'keepOffThisChannel', warnOff: 'weAreTakingThisOne', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...TALES, ...PARLEY] },
   guard: { voice: { greeting: 'stateYourBusiness', repeatLine: 'heardYou', refusal: 'moveAlong', warnOff: 'backAwayFromThat', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', ...PARLEY] },
-  merc: { voice: { greeting: 'talk', repeatLine: 'youSaidThat', refusal: 'notInterested', warnOff: 'thatsMineWalkAway', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', ...CHALLENGE, ...PARLEY] },
+  merc: { voice: { greeting: 'talk', repeatLine: 'youSaidThat', refusal: 'notInterested', warnOff: 'thatsMineWalkAway', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', 'hireGuard', 'dismissGuard', ...CHALLENGE, ...PARLEY] },
 };

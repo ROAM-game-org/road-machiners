@@ -4,18 +4,24 @@ import { PARTS, partDef } from '../data/parts';
 import { GARAGE_STOCK } from '../data/market';
 import { RU } from '../text/ru';
 import { haulerOf, ownedTruck, playerTrucks, playerVehicle } from './damage';
-import { HAULER_KIT } from '../data/start';
+import { HAULER_KIT, startKit } from '../data/start';
 import { chassisDef } from '../data/chassis';
 import { getResources } from './resources';
 import { fuelCap, vehicleStats } from './stats';
 import { mountedParts } from './grid';
 import { NPCS } from '../data/npcs';
-import { outpostFactsAt, spawnGroup, waveOf } from './fury-road';
-import { gearMoneyOf } from './fury-road-danger';
+import { betweenLevels, canDriveOn, furyRoadReadout, outpostFactsAt, reachedOutpostAt, spawnGroup, driveOn, waveGear, waveOf } from './fury-road';
+import { planHaulerOrder } from './hauler';
+import { endTurn } from './world';
+import { cardsOf } from './fury-road-director';
 import { generateNpcLoadout } from './npc-loadout';
 import { rollPartStockPerKind } from './market';
 import { alongOf, toRoad } from './highway';
-import { furyRoadWorld } from './testkit';
+import { furyRoadStart, furyRoadWorld } from './testkit';
+import { RULES } from '../data/rules';
+import { halfWidth } from './body';
+import { yardSpots } from './outpost-gates';
+import { dist } from './vec';
 import type { Vehicle } from './types';
 
 function partsOf(w: ReturnType<typeof furyRoadWorld>) {
@@ -23,17 +29,44 @@ function partsOf(w: ReturnType<typeof furyRoadWorld>) {
 }
 
 describe('Fury Road starter kit', () => {
-  it('is a scout with one machine gun and a rebar cage front and back on every seed', () => {
+  it('is a scout with one machine gun, no armor and the start money on every seed', () => {
     for (const seed of [1, 3, 99]) {
-      const w = furyRoadWorld(seed);
-      const truck = playerVehicle(w);
-      expect(truck.chassisId).toBe('scout');
+      const w = furyRoadStart(seed);
+      expect(playerVehicle(w).chassisId).toBe('scout');
       const parts = partsOf(w).filter((it) => partDef(it.part.defId).kind !== 'core');
-      expect(parts.filter((it) => partDef(it.part.defId).kind === 'weapon').map((it) => it.part.defId)).toEqual(['mg']);
-      const cages = parts.filter((it) => it.part.defId === 'cage');
-      expect(cages.map((it) => it.y).sort()).toEqual([0, 7]);
-      expect(parts.filter((it) => partDef(it.part.defId).kind === 'armor')).toHaveLength(2);
+      expect(parts.map((it) => it.part.defId).sort()).toEqual(['mg', 'stockEngine']);
+      expect(w.player.money).toBe(startKit('furyRoad').money);
     }
+  });
+});
+
+describe('Fury Road start outpost', () => {
+  it('starts both trucks parked on the paid pad of outpost 0, where the player can shop and wait for the road', () => {
+    for (const seed of [1, 3, 99]) {
+      const w = furyRoadStart(seed);
+      expect(outpostFactsAt(w, 0).paid).toBe(true);
+      expect(reachedOutpostAt(w)?.id).toBe('outpost-0');
+      expect(reachedOutpostAt(w, haulerOf(w))?.id).toBe('outpost-0');
+      expect(betweenLevels(w)).toBe(true);
+      expect(canDriveOn(w)).toBe(true);
+    }
+  });
+
+  it('spawns no group before the road opens', () => {
+    let w = furyRoadStart(3);
+    for (let i = 0; i < 40; i++) w = endTurn(w, () => {});
+    expect(w.furyRoad!.groups.some((g) => g.spawned)).toBe(false);
+    expect(haulerOf(w).speed).toBe(0);
+  });
+
+  it('opens stretch 1 on the same window at the wait, with the hauler setting off for outpost 1', () => {
+    const w = driveOn(furyRoadStart(3));
+    expect(w.furyRoad!.window).toBe(0);
+    expect(w.furyRoad!.waitingAt).toBeNull();
+    expect(w.events).toContainEqual({ t: 'roadOpened', stretch: 1 });
+    expect(furyRoadReadout(w)?.stretch).toBe(1);
+    planHaulerOrder(w);
+    expect(haulerOf(w).order?.kind).toBe('through');
   });
 });
 
@@ -51,6 +84,17 @@ describe('Fury Road hauler', () => {
       const kinds = mountedParts(hauler).map((p) => partDef(p.defId).kind);
       expect(kinds.filter((k) => k === 'weapon')).toEqual([]);
       expect(kinds).toContain('engine');
+    }
+  });
+
+  it('starts the trucks side by side at their yard spots, clear of each other', () => {
+    for (const seed of [1, 3, 99]) {
+      const w = furyRoadStart(seed);
+      const hauler = haulerOf(w);
+      const me = playerVehicle(w);
+      expect(hauler.pos).toEqual(yardSpots(w, 0).hauler);
+      expect(me.pos).toEqual(yardSpots(w, 0).truck);
+      expect(dist(hauler.pos, me.pos) - halfWidth(hauler.chassisId) - halfWidth(me.chassisId)).toBeGreaterThan(RULES.yieldDistance / 2);
     }
   });
 
@@ -101,25 +145,26 @@ describe('Fury Road outpost stock', () => {
     const w = furyRoadWorld(5);
     const before = outpostFactsAt(w, 1).stock;
     const loaded = JSON.parse(JSON.stringify(w));
-    expect(loaded.furyRoad.outposts[0].stock).toEqual(before);
+    expect(loaded.furyRoad.outposts[1].stock).toEqual(before);
   });
 });
 
 describe('Fury Road first enemy', () => {
-  function spawnedTrucks(seed: number, stretch: number, template: string) {
+  function spawnedTrucks(seed: number, stretch: number, template: string, elite = false) {
     const w = furyRoadWorld(seed);
     const run = w.furyRoad!;
-    const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates: [template], level: waveOf(stretch).level };
+    const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates: [template], level: waveOf(stretch).level, money: FURY_ROAD.cards[template].floor * (elite ? FURY_ROAD.director.elite.money : 1), elite };
     run.groups = [group];
-    spawnGroup(w, run, group, alongOf(w.seed, toRoad(0, playerVehicle(w).pos)));
+    spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos)));
     return group.vehicles.map((id) => w.vehicles.find((v) => v.id === id)!);
   }
 
   const armorOf = (v: Vehicle) => v.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'armor');
+  const firstTemplates = cardsOf(1).map(([template]) => template);
 
   it('carries no armor, mounted or spare, on any seed or template', () => {
     for (const seed of [1, 3, 99]) {
-      for (const template of Object.keys(FURY_ROAD.pool[0].weights)) {
+      for (const template of firstTemplates) {
         const trucks = spawnedTrucks(seed, 1, template);
         expect(trucks).toHaveLength(1);
         expect(armorOf(trucks[0])).toEqual([]);
@@ -129,7 +174,7 @@ describe('Fury Road first enemy', () => {
 
   it('carries a gun on any seed or template', () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 99]) {
-      for (const template of Object.keys(FURY_ROAD.pool[0].weights)) {
+      for (const template of firstTemplates) {
         const guns = spawnedTrucks(seed, 1, template)[0].items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon');
         expect(guns.length, `seed ${seed} ${template}`).toBeGreaterThan(0);
       }
@@ -138,10 +183,9 @@ describe('Fury Road first enemy', () => {
 
   it('carries no gun above the tier of its stretch, mounted or spare', () => {
     const w = furyRoadWorld(3);
-    const templates = Object.keys(NPCS).filter((id) => FURY_ROAD.pool.some((tier) => id in tier.weights));
     for (const stretch of [1, 3]) {
-      const gear = { ...waveOf(stretch).gear, money: gearMoneyOf(w, stretch) };
-      for (const template of templates) {
+      for (const [template, card] of cardsOf(stretch)) {
+        const gear = waveGear(template, stretch, card.floor, false);
         for (const seed of [1, 2, 3]) {
           const loadout = generateNpcLoadout({ ...w, rngState: seed }, NPCS[template], null, waveOf(stretch).level, gear);
           const guns = [...loadout.parts, ...loadout.spares].map((p) => partDef(p.defId)).filter((d) => d.kind === 'weapon');
@@ -151,8 +195,11 @@ describe('Fury Road first enemy', () => {
     }
   });
 
-  it('leaves armor on the trucks of the next stretch', () => {
-    const armored = [1, 3, 99].flatMap((seed) => Object.keys(FURY_ROAD.pool[0].weights).flatMap((template) => spawnedTrucks(seed, 2, template))).filter((v) => armorOf(v).length > 0);
-    expect(armored.length).toBeGreaterThan(0);
+  it('puts armor only on the trucks of an elite group', () => {
+    const elite = [1, 3, 99].flatMap((seed) => firstTemplates.flatMap((template) => spawnedTrucks(seed, 3, template, true)));
+    const plain = [1, 3, 99].flatMap((seed) => firstTemplates.flatMap((template) => spawnedTrucks(seed, 3, template, false)));
+
+    expect(elite.filter((v) => armorOf(v).length > 0).length).toBeGreaterThan(0);
+    expect(plain.filter((v) => armorOf(v).length > 0)).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
-import { sweepLogs, sweepTestCache, sweepWork } from './cleanup';
+import { sweepLogs, sweepWork } from './cleanup';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
 import { freeGb, requireCodexLogin } from './health';
@@ -22,7 +22,7 @@ import { clearQueued, isQueued, orderKey, readState, updateState } from './state
 import { sweepTranscripts } from './transcript-archive';
 import { askedAt, clearAsked, isAnswered, recordAsked } from './questions';
 import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, VOTING_LABEL } from './types';
-import type { Card, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
+import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
 
 export type JobPick = { stage: JobStage; issue: number | null };
 type Candidate = JobPick & { pastCardLimit: boolean };
@@ -30,7 +30,7 @@ type Due = Pick<FactoryConfig, 'releaseDays' | 'wasteReviewDays' | 'maxJobsPerCa
 
 const DAY_MS = 24 * 3_600_000;
 const MINUTE_MS = 60_000;
-const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'change', 'adhoc', 'incident', 'dev', 'waste', 'checks'];
+const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'adhoc', 'incident', 'answer', 'dev', 'waste', 'checks'];
 const CARD_ORDER: Card['column'][] = ['Hardening', 'Testing', 'Implementation', 'Design', 'Triage'];
 
 function isDue(last: string | null, now: Date, everyMs: number): boolean {
@@ -47,11 +47,8 @@ function queued(state: FactoryState): JobPick[] {
     ...state.pendingRemovals.map((removal) => ({ stage: 'remove' as const, issue: removal.issue })),
     ...ship,
     ...state.pendingIncidents.map((issue) => ({ stage: 'incident' as const, issue })),
+    ...(state.pendingAnswers.length > 0 ? [{ stage: 'answer' as const, issue: null }] : []),
   ];
-}
-
-function changeJobs(state: FactoryState): JobPick[] {
-  return state.pendingChanges.map((change) => ({ stage: 'change' as const, issue: change.id }));
 }
 
 function openCards(state: FactoryState, cards: Card[]): Card[] {
@@ -124,7 +121,7 @@ function cardCandidates(state: FactoryState, cards: Card[]): Candidate[] {
     .sort((a, b) => a.issue - b.issue)
     .map((card) => ({ stage: 'adhoc' as const, issue: card.issue }));
   const work = rest.filter(lacks(ADHOC_LABEL));
-  const normal = [...adhoc, ...changeJobs(state), ...byProgress(state, work.filter(has(RELEASE_TASK_LABEL))), ...byProgress(state, work.filter(lacks(RELEASE_TASK_LABEL)))];
+  const normal = [...adhoc, ...byProgress(state, work.filter(has(RELEASE_TASK_LABEL))), ...byProgress(state, work.filter(lacks(RELEASE_TASK_LABEL)))];
   return [...hotfix, ...normal.map((pick) => ({ ...pick, pastCardLimit: false }))];
 }
 
@@ -417,10 +414,18 @@ export async function releaseAnswered(ctx: Ctx, cards: Card[]): Promise<Card[]> 
   return released;
 }
 
+const AWAITING_RELEASE: Column[] = ['Approval', 'Hardening', 'Merging'];
+
+function unreleasedIssues(state: FactoryState, cards: Card[]): number[] {
+  const onBoard = cards.filter((card) => AWAITING_RELEASE.includes(card.column)).map((card) => card.issue);
+  const merged = [...state.devMerges, ...(state.release?.merges ?? [])].map((merge) => merge.issue);
+  return [...onBoard, ...merged];
+}
+
 function cleanBuilds(ctx: Ctx, cards: Card[]): void {
   const state = readState(ctx.statePath);
   if (state.jobs.some((job) => job.stage === 'verify' || !AGENT_QUEUES.includes(QUEUE_OF[job.stage]))) return;
-  const keep = cards.filter((card) => card.column === 'Approval' || card.column === 'Hardening').map((card) => state.builds[String(card.issue)]).filter((name) => name !== undefined);
+  const keep = unreleasedIssues(state, cards).map((issue) => state.builds[String(issue)]).filter((name) => name !== undefined);
   removeStaleBuilds(ctx.cfg.webRoot, new Set(keep), (msg) => ctx.log('tick', null, msg));
 }
 
@@ -438,8 +443,6 @@ function cleanWork(ctx: Ctx, cards: Card[]): void {
 function cleanArchives(ctx: Ctx): void {
   const transcripts = sweepTranscripts(ctx.cfg.home, ctx.now(), ctx.cfg.transcriptDays);
   if (transcripts.length > 0) ctx.log('tick', null, `removed ${transcripts.length} agent transcripts older than ${ctx.cfg.transcriptDays} days`);
-  const cached = sweepTestCache(join(ctx.cfg.home, 'test-cache'), ctx.now(), ctx.cfg.testCacheDays);
-  if (cached > 0) ctx.log('tick', null, `removed ${cached} test cache files older than ${ctx.cfg.testCacheDays} days`);
 }
 
 async function expireReplies(ctx: Ctx): Promise<void> {

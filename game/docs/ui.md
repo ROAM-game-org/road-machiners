@@ -85,6 +85,8 @@ Every fact on a screen belongs to one tier for the decision that screen serves. 
 - An action sits at the end of the line it changes. A Buy button is inside its row. The turn commits at the bottom right.
 - A choice the game waits for opens a notice at the top center and stops nothing else on screen.
 - A task that takes the whole attention, like a shop or a save, opens a modal in the center.
+- A look screen over a scene: while a talk window or page scene is on view, I, C and J open the inventory, character screen and journal over it in a look-only state. The screen lifts to `--z-over-scene`, with its own scrim, and its world controls are off with one reason, "Not during a scene". Escape closes it and the scene stays at the same paragraph. The Menu button stays on view above the scene (`--z-feedback`), and its save, load, options, help and report panels open over the scene and take every key while they are open; the scene lets the keys through then. On a phone the bar is hidden under the scene, so the scene window shows a row of three icon buttons (`.quest-look`) in its top corner for the same screens.
+- A modal that is the only thing the player can do at that place keeps no Leave button, and its one way out is its action button. The outpost screen behind shut gates is the case: Drive on closes it, and neither Escape nor the game's close-all does. The Menu button stays over it, in the corner the Leave button would take, so saving, options and help stay reachable.
 
 ### 4.2 Zones
 
@@ -92,35 +94,46 @@ The screen has fixed zones. Each zone has one job, and an element never moves be
 
 | Zone | Job | Lives there |
 | --- | --- | --- |
-| Top left | System | Feedback button |
+| Top left | System, then the map | Feedback button, then the minimap |
 | Top center | Transient and waiting | Action bar at the edge, toast below it, then notices and tips |
 | Top right | System, then the cursor card | Menu and camera switch at the edge, the hover card below them |
 | Right side | Ambient and waiting on | Radio, then contracts |
-| Bottom right | Events and commit | Log above End turn |
+| Bottom right | Events and commit | Log above End turn, one stack |
 | Bottom left | My truck | Truck diagram, then the hauler gauge, above the instruments and the weapons bar |
 | Center | Task | Modals, dialogue, save and new game |
 
 Two zones may never cover each other. A new element that needs room takes it from its own zone.
 
-Before boot builds a world, the start menu fills the screen alone, with no zones. It shows the game title in the boot screen's title style over one column of large buttons: Continue, New game and Options. Continue is off with no save, and focus starts on the first button that is on. New game opens the New game screen over it.
+The boot screen draws the sign of the six words from [The end of the Old World](lore/old-world-end.md) above the game title. `src/render/sign.ts` owns its shapes, and `index.html` holds a copy that a test keeps equal. The sign builds up with the load: nothing before a fifth of it, then Spiral, Race, Exodus and Chaos at each next fifth. Each stage fades in and holds for half a second before the next one, so a fast load still shows every stage. The whole sign holds for a second before the boot screen fades out. With reduced motion, the boot screen leaves at once. The sign carries no text and is hidden from screen readers, since the progress bar already says how far the load is.
 
+Before boot builds a world, the start menu fills the screen alone, with no zones. It shows the game title in the boot screen's title style over one column of large buttons: Continue, Load, New game and Options. A caption under Continue names the save it resumes with the Load row's pieces: slot, mode and game clock, or "Old or damaged save" in danger ink, with the real date in its tooltip. Continue and Load are off with no save, and focus starts on the first button that is on. Load opens the save list over the menu, and a pick there loads at once with no confirm. New game opens the New game screen over it.
 ### 4.3 The always-on budget
 
 The always-on HUD answers a short list of questions without a click: can I keep going, is my truck okay, what is around me, what will this turn do, what just happened and what am I waiting on. A new always-on element names the question it answers. If it answers none, it goes in a panel.
 
 ### 4.4 Phone layout
 
-`#ui.phone` is a small viewport: at most 560px wide or 480px tall. `src/ui/input-mode.ts` owns the threshold and sets the class, and `phone.css` holds every rule under it. A desktop window above the threshold keeps the layout of 4.2. The phone layout answers the same always-on questions on a screen a quarter of the size.
+`#ui.phone` is a small UI layer: at most 560px wide or 480px tall, counted in the layer's pixels (see "The UI layer" below). `src/ui/input-mode.ts` owns the threshold and sets the class, and `phone.css` holds every rule under it. A desktop window above the threshold keeps the layout of 4.2. The phone layout answers the same always-on questions on a screen a quarter of the size.
 
 - The top row holds the health readout and Menu at the right, inside the safe area, with nothing at the left. Camera mode and Report a bug or request a feature are Menu entries on a phone. The action bar, toast, notices and tips sit under it at full width.
-- The bottom bar holds four drawer tabs (`.drawer-tabs`), the small speed dial, the LCD readouts, the action switches and End turn, all always on. In portrait the instruments take their own block above the tabs.
+- The bottom bar holds four drawer tabs (`.drawer-tabs`), the small speed dial, the LCD readouts, the action switches, End turn and the log strip (`.log-strip`), all always on. The strip is one row with the newest log line, cut with an ellipsis and with the whole line as its title. It sits right above End turn: in portrait across the width above the tabs and End turn, in landscape over the right half above the bar. A tap on it opens the Log drawer like the tab, and the bar grows by the strip and one gap, so drawers open above it. In portrait the instruments take their own block above the tabs.
 - A drawer holds what the bar does not: Truck (the truck diagram and the hauler gauge), Guns (the weapons), Radio (the radio and the contracts) and Log. One is open at a time. A tap on its tab opens or closes it, and a tap on the map leaves it open, so the player can aim with Guns open. In portrait a drawer spans the width above the bar. In landscape Truck and Guns open over the left half and Radio and Log over the right half. A drawer scrolls inside and is never taller than the space between the top row and the bar.
 - The Guns tab takes the danger edge while the player is in combat. This is the attention level of 7, a mark that stays while the state is true. Nothing opens by itself.
 - The cursor card is right-aligned under the top row and ends one gap above the bar or the drawer under it. It scrolls inside, and it never grows over the map.
-- A modal fills the viewport inside the safe area and scrolls inside, with its close button in view. The bar and the drawers hide while one is open.
+- A modal fills the viewport inside the safe area and scrolls inside, with its close button in view. The bar and the drawers hide while one is open, and while Options is open.
 - Drawer state lives in the UI and is not saved.
 
-This layout bends two rules, and each is a new pattern, not a changed principle. P2, key facts never one step away: the diagram, the weapons, the radio and the log are one tap away, since a 390 by 844 screen cannot hold them without covering the playfield, which breaks P3 and P18. The key facts for the turn stay on screen: the speed dial, the readouts, the health, the action switches, End turn and the action bar. 4.2, an element never moves between zones: in portrait a drawer spans the width. It keeps the content and the job of its zone, but not the edge.
+This layout bends two rules, and each is a new pattern, not a changed principle. P2, key facts never one step away: the diagram, the weapons, the radio and the log are one tap away (the newest log line is still on screen in the strip), since a 390 by 844 screen cannot hold them without covering the playfield, which breaks P3 and P18. The key facts for the turn stay on screen: the speed dial, the readouts, the health, the action switches, End turn and the action bar. 4.2, an element never moves between zones: in portrait a drawer spans the width. It keeps the content and the job of its zone, but not the edge.
+
+### 4.5 The UI layer
+
+Options holds the device settings: language, UI size, the minimap and sound. Sound is the four volume knobs (music, wind, effects, interface) and the mute switch, drawn as the radio's hardware, since a level is a knob (P19) and the same piece looks the same everywhere (P8). The radio keeps only the mute switch and the next key. `SoundSettings` in `src/ui/sound.ts` owns the levels and the mute, and every `OptionsPanel` is built with it. The minimap is Off or On (see `.map-view`). UI size is 80%, 90%, 100%, 115% or 130%. It is kept in local storage, never in the save, and applies at once. `src/ui/ui-size.ts` owns it. At a size other than 100%, `#ui` and `#overlay` are laid out in a box of the window divided by the size and scaled up or down from the top left corner, so every pixel value, the drawn hardware and the map labels scale together. At 100% no transform is set. The boot screen and the crash screens stay at 100%.
+
+- The layer, not the window, is the screen. The layer must stay at least 640 by 360 (long side by short side). A size that would make it smaller is off in Options with the reason "Too big for this screen", and the game applies the largest step that fits, at most the stored pick.
+- `input-mode.ts` sets `phone`, `slim` (480px wide or less), `narrow` (720px or less) and `compact` (1100px or less) on `#ui` from the layer size. CSS breakpoints are these classes, never a width media query. Orientation queries are fine.
+- CSS never uses `vw`, `vh`, `dvh`, `svh` or `vmax`. It uses `--layer-w` and `--layer-h`, which are the window divided by `--ui-scale`. `--safe-*` divide the device inset by the same scale.
+- `--touch-target` is `max(32px, 32px / --ui-scale)`, so a touch target is never under 32 real pixels.
+- Code that sets `left`, `top`, `width` or `height` from a screen rect or a pointer converts through `uiSize()`: `layerRect()`, `layerPoint()`, `toLayer()` and `layerSize()`. Comparing a screen rect with a screen rect or a pointer needs no conversion. A new UI calculation never reads `window.innerWidth` or `innerHeight` for placement.
 
 ## 5. Entity anatomy
 
@@ -154,9 +167,10 @@ One grammar for every control and every selectable thing.
 | locked | Needs progress, like a rank | Lock icon |
 
 - A control uses only the states in this table.
+- A screen that is only for looking, like the inventory over a scene, gives every control that changes the world the disabled state with one reason read from one function (`lookReason()`), before any reason of its own.
 - A disabled control still takes hover and focus, so its reason can show. It uses `aria-disabled` and the shared tooltip, and the reason is one short fact like Need 12 M more.
 - Unaffordable and locked look different, because the player fixes one by earning and the other by progressing.
-- Touch has no hover, so it fills the gap. The first tap shows what hover would show: a tap on a truck only pins its card, and a tap on a point utility only sets its marker. A tap on the thing already shown does what a click does. A long press of 500ms on a control opens what hover opens, its title or its reason, and a tap on a disabled control opens its reason. The ground needs no preview tap, since a plan is free and the drawn path is its preview. A long press on the ground is Shift-click. `#ui.touch` is the primary pointer being coarse, and it only decides what the screen shows: no keycaps, the Call, Mark, Horn, Rotate and close buttons, and touch wording in tips and help. Under it the small button is 32px and a click target is at least `--touch-target`.
+- Touch has no hover, so it fills the gap. The first tap shows what hover would show: a tap on a truck only pins its card, and a tap on a point utility only sets its marker. A tap on the thing already shown does what a click does. A long press of 500ms on a control opens what hover opens, its title or its reason, and a tap on a disabled control opens its reason. A mouse click on a disabled control opens the same reason in the shared tooltip at the cursor, and the hover reason hides while it is open. The ground needs no preview tap, since a plan is free and the drawn path is its preview. A long press on the ground is Shift-click. `#ui.touch` is the primary pointer being coarse, and it only decides what the screen shows: no keycaps, the Call, Mark, Horn, Rotate and close buttons, and touch wording in tips and help. Under it the small button is 32px and a click target is at least `--touch-target`.
 - A click target is at least the small button height, 24px. The aim cells on the truck hover card follow this rule too, so the card grows to give its drawing room. Other drawn hardware is exempt and keeps the size of its drawing.
 
 ## 7. Feedback and alerts
@@ -170,6 +184,7 @@ Every event gets a level before it gets a channel. A level fires on its channels
 | attention | A state the player must watch | A mark on the HUD that stays while true, and one log line when it starts |
 | choice | The game waits for the player | A notice with its buttons |
 | critical | The run changes | Full screen |
+| refusal | A command the rules turned down | The toast in danger ink, with no log line. A modal shows it on its own status line. |
 
 - A state alert lives on the HUD for as long as it is true. The log only records that it started.
 - A notice always has the controls to answer it. A notice with nothing to press is not a choice and drops a level.
@@ -200,7 +215,7 @@ Every event gets a level before it gets a channel. A level fires on its channels
 | Dashed line | Provisional: a plan, or knowledge that is not exact |
 | Flood fill | The thing under the cursor or selected, never a whole diagram |
 
-The own truck's diagram colors every part by condition, so a healthy part is green. The truck drawing on the hover card stays neutral and colors only damage, because there the drawing is for aiming.
+The own truck's diagram colors every part by condition, so a healthy part is green. The truck drawing on the hover card stays neutral and colors only damage, because there the drawing is for aiming. On the condition drawing the body edges run along the outer edges of the wheels, so the wheels sit where they do on the truck and none hangs outside, the truck behind the parts is its chassis model seen from straight above, drawn by the part icons' blueprint process in neutral tones (a mid-tone body, darker faces turned from the light, lighter faces toward it, glass and the model's lines) with a light outer line over the parts, and the cab carries a windshield on its front edge, and the model's own lines (hood, bed, glass) show faintly over the parts. Every part keeps its icon.
 
 World colors keep their meaning in the 3D view. The UI does not reuse the cold cyan of dead ship tech or the green glow of the reactor.
 
@@ -209,7 +224,7 @@ World colors keep their meaning in the 3D view. The UI does not reuse the cold c
 - `src/ui/tokens.css` holds every raw value: colors, fonts, type sizes, spacing, radii, shadows, layers and UI sizes. It is the only file that writes one.
 - `src/ui/style.css` imports the tokens, then the files under `src/ui/styles/`. Its import order is the cascade.
 - `src/ui/styles/components.css` holds the shared pieces below. Each other file under `styles/` holds one screen area and adds only its own layout.
-- `src/ui/styles/drawings.css` holds drawn hardware: the switch, the speed dial, the radio knobs and keys. Its shapes keep their own sizes, and its colors still come from tokens.
+- `src/ui/styles/drawings.css` holds drawn hardware: the switch, the speed dial, the volume knobs of Options and the radio keys. Its shapes keep their own sizes, and its colors still come from tokens.
 - `src/ui/tokens.ts` reads `tokens.css` for Three.js. `tokenColor("--path-plan")` gives a color number and throws on an unknown name.
 - `src/ui/style-guard.test.ts` fails on a raw value outside `tokens.css`. It reads every file under `styles/`, `truck-condition.css`, the HTML page and the inline styles of the UI and overlay scripts.
 
@@ -217,7 +232,7 @@ World colors keep their meaning in the 3D view. The UI does not reuse the cold c
 
 Name a token by its role, like `--ink-muted` or `--panel-l`, never by its value. Use the nearest token. When a value falls halfway between two steps, take the smaller one. Add a token only when two or more places need a value no token gives.
 
-- Type: `--font-ui` for words and `--font-mono` for numbers and readouts. `--font-lcd` is the slanted fourteen-segment Casio face for the HUD clock and the LCD readouts beside the dial. It has Latin letters only, so the day label D stays the same in every language, like WOT RADIO. The time has faint unlit segments behind it. Six sizes only: `--text-caption` 10px, `--text-dense` 12px, `--text-body` 14px, `--text-lead` 16px, `--text-heading` 24px and `--text-hero` 40px. HUD panels and data use `--text-dense`. Modals and dialogs use `--text-body`. Quest text and its choices, in the talk window and the page view, use `--text-lead` at line height 1.55, since they are read as prose. Quest choices wrap and align left. A new size needs the user's approval.
+- Type: `--font-ui` for words and `--font-mono` for numbers and readouts. `--font-lcd` is the slanted fourteen-segment Casio face for the HUD clock and the LCD readouts beside the dial. It has Latin letters only, so the day label D stays the same in every language, like WOT RADIO. The time has faint unlit segments behind it. Six sizes only: `--text-caption` 10px, `--text-dense` 12px, `--text-body` 14px, `--text-lead` 16px, `--text-heading` 24px and `--text-hero` 40px. HUD panels and data use `--text-dense`. Modals and dialogs use `--text-body`. Quest text and its choices, in the talk window and the page view, use `--text-lead` at line height 1.55, since they are read as prose. Quest choices wrap and align left. A new size needs the user's approval. The boot gate holds the first paint of text until the faces of the language load, capped at 2.5 s, so text never swaps its face; after the cap the fallback shows.
 - Surfaces from dark to light: `--surface-sunk` for wells and tracks, `--surface-well` for inputs, chips and tiles, `--surface-dock` for the right dock, `--surface-panel` for panels and dialogs, `--surface-highlight` for a hovered row, `--surface-raised` for buttons and notices, `--surface-hover` for a hovered button. Overlays over the 3D view use `--surface-overlay`.
 - Lines from faint to bright: `--line-faint` between rows, `--line-soft` around chips and tiles, `--line` around small controls, `--line-strong` for the edge of a panel and a button, `--line-bright` for the frame of a dialog or notice. `--line-hover` edges a hovered control.
 - Text: `--ink` by default, `--ink-bright` above it, `--ink-title` for headings, `--ink-label` for table heads and small labels, `--ink-muted` for secondary text, `--ink-faint` for an option that is off. `--ink-overlay` is the text over the 3D view. `--ink-on-accent` is text on an accent fill.
@@ -230,9 +245,9 @@ Name a token by its role, like `--ink-muted` or `--panel-l`, never by its value.
 - `--steel-0` to `--steel-11`, `--lcd-*` and `--dial-*` color the drawn hardware only.
 - Spacing steps run `--space-1` 2px to `--space-10` 32px. Padding, margin and gap use them. A 1px hairline and 0 stay raw.
 - `--radius-s` and `--radius-m` round corners. A circle stays `50%`.
-- `--icon-xs` 12px to `--icon-hero` 56px size icon boxes. `--meter-s`, `--meter-m` and `--meter-l` set bar heights, and `--pip` sets a rank pip or a footprint cell.
-- Panel widths are `--panel-s` 260px, `--panel-m` 300px, `--panel-l` 420px and `--panel-xl` 520px. `--dock-width` is the right dock, and it narrows on small windows. `--modal-width` and `--modal-height` cap a modal.
-- Phone layout: `--safe-top`, `--safe-right`, `--safe-bottom` and `--safe-left` are `--hud-inset` or the device inset, whichever is larger, and place every HUD zone. `--touch-target` is the smallest touch target, 32px. `--phone-readouts-h` is the height of the readouts in the bottom bar, and `--phone-bar-h` is the bar with its tabs.
+- `--icon-xs` 12px to `--icon-hero` 56px size icon boxes. `--icon-sign` 112px sizes the sign on the boot screen. `--meter-s`, `--meter-m` and `--meter-l` set bar heights, and `--pip` sets a rank pip or a footprint cell.
+- Panel widths are `--panel-s` 260px, `--panel-m` 300px, `--panel-l` 420px and `--panel-xl` 520px. `--dock-width` is the right dock, and it narrows on small windows. `--modal-width` and `--modal-height` cap a modal. `--minimap-size` is the side of the minimap drawing and `--world-map-size` caps the charts drawing, since no panel width fits a square drawing. `--map-chrome` is the height the charts drawing shares with the town screen's own header.
+- Phone layout: `--safe-top`, `--safe-right`, `--safe-bottom` and `--safe-left` are `--hud-inset` or the device inset divided by the UI scale, whichever is larger, and place every HUD zone. `--touch-target` is the smallest touch target, 32 real pixels. `--ui-scale` is the applied UI size, and `--layer-w` and `--layer-h` are the window divided by it. `--phone-readouts-h` is the height of the readouts in the bottom bar, and `--phone-bar-h` is the bar with its tabs.
 - HUD placement: `--hud-inset` from the window edge, `--hud-gap` between HUD panels, `--hud-hover-top` for the hover panel and `--hud-notice-top` for notices.
 - Layers run `--z-hud` to `--z-crash`. A new layer goes between two others in `tokens.css`, never as a raw number.
 
@@ -240,6 +255,10 @@ Name a token by its role, like `--ink-muted` or `--panel-l`, never by its value.
 
 Use a shared piece before writing a new rule. A screen may add its own layout to a piece, but not its own colors, type or frame.
 
+- `.map-view`: the canvas of the map painter in `src/ui/map-view.ts`, always north up. It marks only explored and charted ground, discovered sites (a square for a town, a dot for a place) and rumored wrecks (a dashed ring, since dashed means knowledge that is not exact). Unexplored land is bare paper, darker than any explored ground, like the blank part of a sheet not drawn yet. Explored ground is painted through the quest-art look: the ground colours go through the rust-to-cream ramp in 12 steps with part of the original colour and a light grain (`paintBase` in `src/render/minimap-paint.ts`, whose ramp a test keeps equal to `tools/quest-art/post.py`). The truck is a `--ink-bright` arrow in a dark ring, and only the selected chart sheet takes the accent. Three views use it:
+  - The Map tab of the character screen. K opens the character screen on Map and C on Skills, and the same key closes it. The tabs sit in the head row after the chips, with the − and + zoom buttons at its right. The map fills the body below. The wheel zooms around the cursor, the buttons double or halve the scale, and a drag pans. Zoom runs from the whole map to 8 px a tile, and the pan stops at the map's edge. Each open starts at the whole map. Each place has its name beside its mark on a `--surface-overlay` plate, placed right, left, below or above, whichever overlaps no other mark or name.
+  - The minimap, off by default. Options turns it on, and `src/ui/minimap-setting.ts` keeps the choice in local storage, never in the save. It is a square `.panel` in the top left zone with a head row of − and + (50, 100 or 200 tiles from centre to edge) and the log's ⤢ expand mark, which opens the Map tab like a click on the drawing does. It follows the truck. A known place past its edge sits on the edge in its direction, drawn smaller, and hovering a mark shows the place's name in the tooltip. It hides on a narrow UI layer, 720px wide or less, where the top-centre notices span its place.
+  - The Charts tab of a chart town, the whole map fitted with each sheet for sale as a square.
 - `.panel` is the base of every HUD box: panel surface, strong edge, shadow and the standard padding of `--space-4` by `--space-5`. The radio, the instruments and the weapons are drawn hardware and use the compact padding of `--space-2` by `--space-4`. Only the help panel sets its own, since its rows carry their own margins.
 - `.dialog` frames a modal, the save panel and the New game screen, with the scrim over the game and padding of `--space-9` on every side.
 - `.dock-panel` is a panel of the right dock: the log, the contracts and the radio.
@@ -252,6 +271,8 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.row` is a list line with a faint line under it. `.tile` is a boxed list item edged in its `--tone`.
 - `.skill-level` is a row of small pips that fill from the left for a level out of a few: a skill rank, and an escort offer's danger (`.skill-level.threat`, three pips, with the level in its tooltip).
 - `.chip` is a small boxed value. `.tag` is an outlined word in the color of its text.
+- `.contract-clue` is a told survey clue on its own line under the contract it belongs to.
+- `.log-strip` is the newest log line on one row, on a phone above End turn. It is a `.panel` with a button role, one line at `--phone-strip-h` (`--touch-target`) high, and it takes a tap to open the Log drawer. It is hidden under a modal and under Options with the rest of the bar.
 - `.drawer-tabs` is the tab row of the phone layout: one icon `.btn-l` per drawer with an `aria-label`, `.selected` on the open one and `.marked` for the danger edge of attention. Its drawer is the panel of its zone, set to scroll inside.
 - `.key` is a keyboard key or a mouse button, drawn as a keycap, as in the help panel.
 - `.amount .coin` is money from `moneyEl()`: the coin, sized in em by the text around it, then the number. The coin colors are the `--coin-*` tokens.
@@ -261,10 +282,13 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.selected` is the one look of a chosen item: accent border and accent wash. A pressed `button.on` uses it too. No screen draws its own selected look. Drawn hardware, like a switch or a truck instrument, keeps its metal and takes the accent edge only.
 - `[aria-disabled="true"]` dims a control that cannot be used now. It keeps hover and focus, so its tooltip can say why.
 - `.tooltip` is a note that opens over its anchor. Words use the UI face and numbers use `.num`. It also gives the reason for a disabled control, as one short fact like "Need 12 M more".
-- `.qt-term` is a word in quest text with a term tip: a dotted underline, and the `.term-tip` tooltip on hover and focus. A term tip is story text, so it keeps the in-character voice of P10, not the chrome voice of other tooltips. It is reference, never needed to choose. [Term tips](quest-authoring.md#term-tips) has the writing rules.
-- The quest page view fills most of the screen, up to `--quest-page-width` by `--quest-page-height`, in three columns: the picture, the text and the quest's numbers and facts. The picture column is about as wide as the window is tall, and it shrinks first on small screens. The text column stays at least `--quest-text-min` wide, and its text is centered and capped at `--quest-text-width`, so lines stay readable. The right column keeps `--quest-side-width`.
-- `.quest-frame` holds a quest page's picture, cropped to the column around its focus point. The picture zooms in by 8% over 40 seconds and holds there. Reduced motion turns the zoom off.
-- `.tooltip-row` is one line of a tooltip breakdown: the label on the left in the UI face and the value on the right in mono, like Base and then each cause.
+- Item tip: the picture or box of a part, good or parcel on the inventory, shop, market, trade and outpost screens opens `itemTip()` from `src/ui/cards.ts`, the name and below it the item's lore. The inspection card and a shop row's open detail end with the lore as a `<p class="dim">`. The HUD weapons bar, bare symbol icons and a card's own head icon keep the plain name. The name line repeats a visible name on rows, against P16, because the same tip opens from icon-only grid cells and ellipsized names. [Item lore](lore/README.md#item-lore) has the writing rules.
+- `.qt-term` is a word in quest text with a term tip: a dotted underline, and the `.term-tip` tooltip on hover and focus. A term tip is story text, so it keeps the in-character voice of P10, not the chrome voice of other tooltips. It is reference, never needed to choose. [Term tips](writing/quests.md#term-tips) has the writing rules.
+- The quest page view fills most of the screen, up to `--quest-page-width` by `--quest-page-height`, in three columns: the picture, the text and the quest's numbers and facts. The picture column is about as wide as the window is tall, and it shrinks first on small screens. The text column stays at least `--quest-text-min` wide, and its text is centered and capped at `--quest-text-width`, so lines stay readable. The right column keeps `--quest-side-width`. Where the picture column would fall under `--quest-art-min`, the page stacks like the phone page: a picture band on top, then the text, then the side column. `questPageStacks()` sets `.stacked` from the window width. The picture keeps a shape between 3:4 and 3:1 (`--quest-frame-column`, `--quest-frame-band`) on every window. `questFrameFits()` checks it for `npm run layout`.
+- `.quest-frame` holds a quest page's picture, cropped around its focus point. In the column it fills the column's width, starts level with the text's first line and is at most 4/3 of its width tall, so on a narrow window plain column surface lies below it (P12 bends there, since a taller frame would give back a thin strip). In the stacked and phone band it is the band's full height, at most 3 times that wide, centered. The picture zooms in by 8% over 40 seconds and holds there. Reduced motion turns the zoom off.
+- `.tooltip-row` is one line of a tooltip breakdown: the label on the left in the UI face and the value on the right in mono, like Base and then each cause. `.base` marks the Base row in muted ink, `.up` a step that raises the number in good ink and `.down` a step that lowers it in danger ink.
+- `.standing` is the character screen's list of faction standing: one `.standing-row` per faction with its band word, and a `.tooltip.standing-tip` of `.tooltip-row` lines (base, deeds, earlier) on hover and focus. The HUD's driver card shows only the band tag of that driver toward the player.
+- `.option-switch` is a row of equal buttons that picks one value of a setting: the language, the UI size and the minimap. `aria-pressed` with the accent edge marks the chosen one. A value that cannot be used is `aria-disabled` and gives its reason through the shared tooltip.
 - `.num` is a number in the mono face. `.dim`, `.good` and `.bad` color a word.
 
 ## 13. How to build a screen

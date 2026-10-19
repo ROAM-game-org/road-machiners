@@ -3,7 +3,7 @@ import { ECONOMY } from '../data/goods';
 import { AID } from '../data/npc-behavior';
 import { NPC_UPKEEP, NPCS, STATE_TURNS } from '../data/npcs';
 import { RULES } from '../data/rules';
-import { agreeAid, aidPrice, aidWork, onNeedySeen, playerAid, readyAid, spareAid, startAid, wantedAid } from './aid';
+import { agreeAid, aidHolds, aidPrice, aidWork, onNeedySeen, playerAid, readyAid, spareAid, startAid, wantedAid } from './aid';
 import { playerVehicle } from './damage';
 import { truckSupplyForSale } from './economy';
 import { makePart } from './factory';
@@ -27,7 +27,7 @@ const HANDOVER = { started: false, work: 1, workLeft: 1 };
 function withDriver(x: number, traits: TraitId[] = ['trader']): { w: World; npc: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-  const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x, y: 30 }, Math.PI);
+  const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x, y: 30 }, Math.PI);
   npc.brain = npcBrain('trader', npc.pos, traits);
   npc.resources!.fuel = fuelCap(npc);
   npc.resources!.supplies = suppliesCap(npc);
@@ -142,7 +142,7 @@ describe('aid deal', () => {
   it('give is unavailable while another aid deal with the player is open', () => {
     const { w, npc } = withDriver(34);
     w.player.fuel = 1;
-    const other = addVehicle(w, 'traders', 'scout', [], { x: 60, y: 60 });
+    const other = addVehicle(w, 'independent', 'scout', [], { x: 60, y: 60 });
     other.brain = npcBrain('trader', other.pos, ['trader']);
     expect(optionWeights(w, npc, 'aidAsked', w.player.vehicleId, null)).toHaveProperty('give');
     addState(w, 'aid', other.id, w.player.vehicleId, { kind: 'aid', giver: 'npc', fuel: 1, supplies: 0, price: 0, free: true, agreed: false, ...HANDOVER });
@@ -364,16 +364,28 @@ describe('unprompted aid offer', () => {
 
   it('does not roll for a player in combat', () => {
     const { w, npc } = needyScene();
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 24, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 24, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     startCombat(w, raider, w.vehicles[0]);
     onNeedySeen(w, npc);
     expect(playerAid(w)).toBeNull();
   });
 
+  it('aid holds only while neither truck is in combat or a feud', () => {
+    const { w, npc } = needyScene();
+    const me = playerVehicle(w);
+    expect(aidHolds(w, npc, me)).toBe(true);
+    const raider = addVehicle(w, 'independent', 'buggy', ['mg'], { x: 24, y: 30 });
+    const fight = addState(w, 'combat', raider.id, me.id, { kind: 'none' });
+    expect(aidHolds(w, npc, me)).toBe(false);
+    w.states = w.states.filter((s) => s.id !== fight.id);
+    addState(w, 'combat', npc.id, raider.id, { kind: 'none' });
+    expect(aidHolds(w, npc, me)).toBe(false);
+  });
+
   it('does not roll while another aid deal with the player is open', () => {
     const { w, npc } = needyScene();
-    const other = addVehicle(w, 'traders', 'scout', [], { x: 60, y: 60 });
+    const other = addVehicle(w, 'independent', 'scout', [], { x: 60, y: 60 });
     other.brain = npcBrain('trader', other.pos, ['trader']);
     addState(w, 'aid', other.id, w.player.vehicleId, { kind: 'aid', giver: 'npc', fuel: 1, supplies: 0, price: 0, free: true, agreed: false, ...HANDOVER });
     onNeedySeen(w, npc);
@@ -428,7 +440,7 @@ describe('aid handover', () => {
     const { w } = parkedDeal();
     const started = startAid(w, npc.id);
     expect(() => startAid(started, npc.id)).toThrow();
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 24, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 24, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     startCombat(w, raider, w.vehicles[0]);
     expect(() => startAid(w, npc.id)).toThrow();
@@ -463,7 +475,7 @@ describe('aid handover', () => {
     const { w, npc } = parkedDeal();
     const fuel0 = w.player.fuel;
     const started = startAid(w, npc.id);
-    const raider = addVehicle(started, 'raiders', 'buggy', ['mg'], { x: 24, y: 30 });
+    const raider = addVehicle(started, 'scrapjaw', 'buggy', ['mg'], { x: 24, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     startCombat(started, raider, started.vehicles[0]);
     const run = runUntil(started, 3, (x) => !aidOpen(x, npc.id));

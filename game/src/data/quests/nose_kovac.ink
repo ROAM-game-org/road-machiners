@@ -77,23 +77,23 @@ VAR asked_paper = false
   -> hub
 + {wagon_seen and wagon_fate == "none"} [We found wagon Seven.]
   Written off by order, so whatever's left on her is yours. Don't make a habit of picking over Army property.
-  { wagon_pin != "none":
+  { wagon_rod != "none":
     You've got something in your hand you keep turning over. Don't show it to me. Show it to Lena at the bench. I log what I see there.
   }
   ~ note("wagonFound")
   -> hub
 + {wagon_fate == "logged" or wagon_fate == "admitted"} [About wagon Seven.]
   { wagon_fate == "admitted":
-    Teller drives the water cart now. His stripes are in my drawer. Two depot trucks with the same one-pin mount are off the road until Lena has looked at them. Command hasn't answered. I log that too.
+    Teller drives the water cart now. His stripes are in my drawer. Two depot trucks with the same cheap brake rods are off the road until Lena has looked at them. Command hasn't answered. I log that too.
   - else:
-    The raid report and the stub share a page, and command reads the top of it. Two depot trucks with the same one-pin mount are off the road until Lena has looked at them. That's as far as my sheet goes.
+    The raid report and the brake rod share a page, and command reads the top of it. Two depot trucks with the same cheap brake rods are off the road until Lena has looked at them. That's as far as my sheet goes.
   }
   -> hub
 + {wagon_fate == "buried"} [About wagon Seven.]
   Corporal Teller came back from the wash pit with wet hands and a light purse. I don't log what I don't see, and I didn't see anything.
   -> hub
 + {wagon_fate == "told"} [About wagon Seven.]
-  Soldiers buy water at Bowl, and Bowl talks over the cups. Now my men come back up the road asking whether their own pins will hold. You told Bowl before you told my log. I won't forget the order you did it in.
+  Soldiers buy water at Bowl, and Bowl talks over the cups. Now my men come back up the road asking whether their own brakes will hold. You told Bowl before you told my log. I won't forget the order you did it in.
   -> hub
 + {wagon_fate == "sold"} [About wagon Seven.]
   A piece of Army steel from wagon Seven changed hands at the <term=salvage_yard>Yard</term>. I logged the sale. Your name is on the line, beside the price.
@@ -112,7 +112,7 @@ VAR asked_paper = false
   ~ asked_courier = true
   -> hub
 + {heard_paper and not asked_paper} [What is Pierce paper?]
-  It's the insurance that pays a driver when his truck is shot. Pierce won't write it for a mount with one pin. Command ordered one pin. What a driver does about that, I don't log.
+  It's the insurance that pays a driver when his truck is shot. Pierce writes it for any truck with a gun on it, and for no other. That's why the gate hands out mounts.
   ~ asked_paper = true
   -> hub
 + [Goodbye.]

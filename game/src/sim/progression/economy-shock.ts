@@ -8,6 +8,7 @@ import { buyGood, rationing } from '../economy';
 import { advanceFar } from '../far';
 import { goodPrice, goodStock, pressureOf, shopState, siteOf, stockTarget, watchStock, type StockCause } from '../market';
 import { yieldTo } from '../parley';
+import { isOutlaw } from '../relations';
 import { usesGood } from '../production';
 import { shipmentOf } from '../road-news';
 import { defaultSetup } from '../settings';
@@ -52,7 +53,7 @@ function npcsOf(world: World, templates: readonly string[]): Vehicle[] {
 
 function robSorgut(world: World): boolean {
   const victims = world.vehicles.filter((v) => shipmentOf(v)?.good === 'grain');
-  const robber = world.vehicles.find((v) => v.faction === 'raiders');
+  const robber = world.vehicles.find((v) => isOutlaw(v.faction));
   if (victims.length === 0 || !robber) return false;
   for (const victim of victims) {
     const haul = victim.items.filter((it) => it.kind === 'good' && it.good === 'grain');

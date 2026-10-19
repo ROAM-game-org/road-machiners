@@ -22,6 +22,36 @@ const REJECTED_RU: readonly { text: string; reason: string }[] = [
 ];
 
 
+const LORE_MAX_LENGTH: Record<Locale, number> = { en: 200, ru: 270 };
+const LORE_KEYS = KEYS.filter((key) => key.startsWith('lore.'));
+const LORE_NAME_KEY = (key: string): string => (key === 'lore.parcel' ? 'item.parcel' : key.replace(/^lore\./, ''));
+
+describe('item lore', () => {
+  it('covers parts, goods and the parcel', () => {
+    expect(LORE_KEYS.length).toBeGreaterThan(80);
+  });
+
+  it.each(LOCALES)('stays in character, short and digit free in %s', (locale) => {
+    for (const key of LORE_KEYS) {
+      const text = entryText(locale, key);
+      expect(text, key).not.toMatch(/\d/);
+      expect(text, key).not.toMatch(OUT_OF_CHARACTER[locale]);
+      expect(text.length, key).toBeLessThanOrEqual(LORE_MAX_LENGTH[locale]);
+    }
+  });
+
+  it.each(LOCALES)('gives no two items the same lore in %s', (locale) => {
+    const texts = LORE_KEYS.map((key) => entryText(locale, key));
+    expect(texts.filter((text, i) => texts.indexOf(text) !== i)).toEqual([]);
+  });
+
+  it.each(LOCALES)('never lets lore be only the item name in %s', (locale) => {
+    for (const key of LORE_KEYS) {
+      expect(entryText(locale, key).toLowerCase(), key).not.toBe(entryText(locale, LORE_NAME_KEY(key)).toLowerCase());
+    }
+  });
+});
+
 describe('the catalog', () => {
   it('describes Fury Road without the wreck tagline', () => {
     for (const locale of LOCALES) {

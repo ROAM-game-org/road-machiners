@@ -29,6 +29,7 @@ import { canUseSite } from '../sim/sites';
 import { shopAt } from '../sim/market';
 import { downedListNear, emptySalvageNear, hasLootFor, lootBlockerHere, needsSearch, salvageListNear } from '../sim/locations';
 import { canLootTruck, canReachSalvage, salvagePlace } from '../sim/salvage';
+import { surveyActions, type SurveyAction } from '../sim/survey';
 import { playerCanAct } from '../sim/world';
 import { combatTurnsLeft } from '../sim/combat';
 import { isBusy } from '../sim/jobs';
@@ -120,6 +121,7 @@ function getSiteActions(world: World): ContextAction[] {
   const actions: ContextAction[] = [];
   const stocks = salvageListNear(world);
   actions.push(...stocks.flatMap((stock) => getStockActions(world, stock)));
+  actions.push(...surveyActions(world).map((a) => surveyAction(world, a)));
   if (stocks.length === 0) {
     const empty = emptySalvageNear(world);
     if (empty) actions.push({ label: stockLabel('empty', empty), ready: false, hint: t("action.noLoot"), target: { kind: 'empty' } });
@@ -132,6 +134,11 @@ function getStockActions(world: World, stock: SalvageStock): ContextAction[] {
   if (needsSearch(world, stock)) actions.push(getSearchAction(world, stock));
   if (hasLootFor(world, stock)) actions.push(withBlocker(world, stock, { label: stockLabel('loot', stock), ready: canReachSalvage(playerVehicle(world), stock), target: { kind: 'loot', id: stock.id } }));
   return actions;
+}
+
+function surveyAction(world: World, a: SurveyAction): ContextAction {
+  const combat = combatTurnsLeft(world, playerVehicle(world)) ?? undefined;
+  return { label: t("action.survey"), ready: a.ready && combat === undefined, combat, target: { kind: 'survey', id: a.site, contractId: a.contractId } };
 }
 
 export function getSearchAction(world: World, stock: SalvageStock): ContextAction {
@@ -230,9 +237,11 @@ export function getRescueReadout(w: World): RescueReadout | null {
     const data = towData(state);
     return { kind: "towed", tower: vehicleName(w, state.holder), town: siteName(data.site), fee: data.fee };
   }
-  if (p.beacon || isStranded(w, playerVehicle(w)))
-    return { kind: "stranded", beacon: p.beacon, reason: strandedReason(w), canEnd: canAbandonRun(w) };
-  return null;
+  return showsStranded(w) ? { kind: "stranded", beacon: p.beacon, reason: strandedReason(w), canEnd: canAbandonRun(w) } : null;
+}
+
+function showsStranded(w: World): boolean {
+  return w.player.beacon || isStranded(w, playerVehicle(w)) || canAbandonRun(w);
 }
 
 function strandedReason(w: World): Msg | null {

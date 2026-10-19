@@ -60,7 +60,7 @@ Way: control.
 
 Pierce Corporation insures salvage runs into the wreck fields. It works like a casino. Pierce bets that the truck comes back, and if it does not, Pierce pays the family. Its offices also lend money.
 
-Pierce insures only trucks that carry a gun on a mount with two pins, driven by someone who learned the pin lock at the Salvage Yard. More than any law, this rule put a gun on every truck.
+Pierce insures only trucks that carry a gun. More than any law, this rule put a gun on every truck.
 
 Rumor says both Nose and Bowl owe Pierce so much that the Corporation decides more than either town admits.
 

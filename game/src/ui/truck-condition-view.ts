@@ -1,10 +1,12 @@
+import { partDef } from "../data/parts";
+import { workMeterEl } from "./cards";
 import { baseGrid } from "../sim/grid";
 import type { Vehicle } from "../sim/types";
 import { bindAttr } from "../text/language";
 import { t, verbatim } from "../text/msg";
 import { el } from "./dom";
 import { conditionLabel, TruckConditionReadout } from "./hud-readout";
-import { tintedIcon, truckOutline } from "./plans";
+import { chassisTop, tintedIcon } from "./plans";
 import { PLAN_PAD } from "../render/partLooks";
 import { token } from "./tokens";
 import { registerTipSource } from "./touch-tip";
@@ -12,7 +14,16 @@ import "./truck-condition.css";
 
 const CELL = 30;
 
+export type PartLook = "cab" | "icon";
+
+export function partLook(defId: string): PartLook {
+  const def = partDef(defId);
+  if (def.kind !== "core") return "icon";
+  return def.role === "cab" ? "cab" : "icon";
+}
+
 type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
+export type PartWork = { partId: string; done: number };
 export type ConditionAim = { marks: ReadonlyMap<string, number[]>; pick: (partId: string) => void };
 
 export class TruckConditionView {
@@ -47,7 +58,7 @@ export class TruckConditionView {
     return { width: this.cols * cell + outline, height: (this.rows + 2 * PLAN_PAD) * cell + outline };
   }
 
-  render(vehicle: Vehicle, aim?: ConditionAim): void {
+  render(vehicle: Vehicle, aim?: ConditionAim, working?: PartWork | null): void {
     const grid = baseGrid(vehicle.chassisId);
     this.cols = grid.w;
     this.rows = grid.h;
@@ -57,9 +68,10 @@ export class TruckConditionView {
     if (this.chassisId !== vehicle.chassisId) {
       this.chassisId = vehicle.chassisId;
       for (const old of this.outline) old.remove();
-      this.outline = [truckOutline(vehicle.chassisId, CELL), truckOutline(vehicle.chassisId, CELL)];
+      this.outline = [chassisTop(vehicle.chassisId, CELL), chassisTop(vehicle.chassisId, CELL), chassisTop(vehicle.chassisId, CELL)];
       this.outline[0].classList.add("outline-fill");
       this.outline[1].classList.add("outline-line");
+      this.outline[2].classList.add("outline-detail");
       this.body.prepend(...this.outline);
     }
     const parts = this.readout.update(vehicle);
@@ -69,7 +81,7 @@ export class TruckConditionView {
       node.remove();
       this.nodes.delete(id);
     }
-    for (const part of parts) this.renderPart(part, aim);
+    for (const part of parts) this.renderPart(part, aim, doneOf(working, part.id));
     this.tiles = parts;
     this.showTip();
   }
@@ -83,16 +95,22 @@ export class TruckConditionView {
     this.tip.style.top = `${part.y === 0 ? (part.y + part.h) * CELL + 2 : part.y * CELL - 22}px`;
   }
 
-  private renderPart(part: ConditionPart, aim?: ConditionAim): void {
+  private renderPart(part: ConditionPart, aim: ConditionAim | undefined, done: number | null): void {
     let node = this.nodes.get(part.id);
     if (!node) {
-      node = el("div", { class: "condition-part", "data-part-id": part.id }, tintedIcon(part.defId));
+      node = el("div", { class: "condition-part", "data-part-id": part.id });
       this.nodes.set(part.id, node);
       this.body.append(node);
+    }
+    const look = partLook(part.defId);
+    if (node.dataset.look !== look) {
+      node.dataset.look = look;
+      node.replaceChildren(tintedIcon(part.defId));
     }
     node.dataset.condition = part.state;
     node.classList.toggle("broken", part.broken);
     markAim(node, part.id, aim);
+    markWork(node, done);
     bindAttr(node, "aria-label", conditionLabel(part));
     registerTipSource(node, () => el("div", { class: "tooltip-row" }, ...tipRows(this.tiles.find((p) => p.id === part.id) ?? part)));
     node.onmouseenter = () => {
@@ -129,6 +147,15 @@ function tipRows(part: ConditionPart): HTMLElement[] {
 
 function boxStyle(x: number, y: number, w: number, h: number): string {
   return `left:${x * CELL}px;top:${y * CELL}px;width:${w * CELL}px;height:${h * CELL}px`;
+}
+
+function doneOf(working: PartWork | null | undefined, partId: string): number | null {
+  return working?.partId === partId ? working.done : null;
+}
+
+function markWork(node: HTMLElement, done: number | null): void {
+  node.querySelector(":scope > .meter")?.remove();
+  if (done !== null) node.append(workMeterEl(done));
 }
 
 function markAim(node: HTMLElement, partId: string, aim?: ConditionAim): void {

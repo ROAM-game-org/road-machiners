@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ramValue } from './crash-contact';
-import { afterTurn, exposure, fightOrder, fightPoint, leadOf, scorePoint, noteTarget, perceivedTarget, planNpcOrders } from './ai';
+import { afterTurn, exposure, fightOrder, fightPoint, interceptOf, leadOf, scorePoint, noteTarget, perceivedTarget, planNpcOrders } from './ai';
 import { mountedParts, sideOf, type SideLetter } from './grid';
 import { decide } from './npc-decisions';
 import { thinkNpc } from './npc-activities';
@@ -17,7 +17,7 @@ import type { Vehicle, World } from './types';
 import { angleDiff, bearing, type Vec } from './vec';
 
 function fighter(w: World, templateId: string, parts: string[], pos: Vec, chassis = 'hauler'): Vehicle {
-  const v = addVehicle(w, 'raiders', chassis, parts, pos, 0);
+  const v = addVehicle(w, 'scrapjaw', chassis, parts, pos, 0);
   v.brain = npcBrain(templateId, pos, ['raider']);
   return v;
 }
@@ -35,6 +35,17 @@ function inReachAfter(w: World, v: Vehicle, target: Vehicle, p: Vec): boolean {
 const CLEAR = 3;
 
 describe('fight driving', () => {
+  it('scores fight points for a truck shut down by a pulse while its foe drives onto its spot', () => {
+    const w = emptyWorld({ x: 40, y: 30 });
+    const v = fighter(w, 'buggy', ['mg', 'stockEngine'], { x: 20, y: 20 }, 'buggy');
+    v.shutDown = { from: w.turn, until: w.turn + 5 };
+    const foe = fighter(w, 'buggy', ['mg', 'stockEngine'], { x: 18, y: 20 }, 'buggy');
+    foe.speed = 2;
+    expect(leadOf(foe)).toEqual(v.pos);
+    expect(vehicleStats(w, v).maxSpeed).toBe(0);
+    expect(() => fightPoint(w, v, foe, CLEAR)).not.toThrow();
+  });
+
   it('closes in on a target that cannot shoot back, where its rounds land more often', () => {
     const w = emptyWorld({ x: 40, y: 30 });
     const me = w.vehicles[0];
@@ -287,5 +298,54 @@ describe('fight whims', () => {
       expect(dest && bearing(w.vehicles[0].pos, dest)).toBeCloseTo(a, 9);
     }
     expect(flipped).toBe(true);
+  });
+});
+
+describe('intercept', () => {
+  function pair(gap: number, preySpeed: number) {
+    const w = emptyWorld({ x: 200, y: 200 });
+    const v = fighter(w, 'buggy', ['mg', 'stockEngine'], { x: 20, y: 20 }, 'buggy');
+    const prey = addVehicle(w, 'independent', 'buggy', ['stockEngine'], { x: 20 + gap, y: 20 }, 0);
+    prey.speed = preySpeed;
+    return { w, v, prey };
+  }
+
+  it('aims ahead of a target that drives on, never past one turn of the fighter\'s own driving', () => {
+    const { w, v, prey } = pair(60, 9);
+    const point = interceptOf(w, v, prey);
+    expect(point.x).toBeGreaterThan(prey.pos.x);
+    expect(dist(point, prey.pos)).toBeLessThanOrEqual(vehicleStats(w, v).maxSpeed + 1e-9);
+  });
+
+  it('aims at the target when it stands still', () => {
+    const { w, v, prey } = pair(60, 0);
+    expect(interceptOf(w, v, prey)).toEqual(prey.pos);
+  });
+
+  function fighting(gapFor: (range: number) => number) {
+    const w = emptyWorld({ x: 200, y: 200 });
+    const me = w.vehicles[0];
+    const v = fighter(w, 'buggy', ['mg', 'stockEngine'], { x: 20, y: 20 }, 'buggy');
+    me.pos = { x: 20 + gapFor(vehicleStats(w, v).weapons[0].def.range), y: 20 };
+    me.heading = 0;
+    me.speed = 6;
+    chooseOn(w, v, me.id, me.pos, 'fight', true);
+    v.brain!.goals.push({ kind: 'fight', targetId: me.id, destination: { ...me.pos }, phase: 'travel', reason: 'tripToSite', worn: { turn: w.turn, condition: 1 } });
+    v.brain!.whim = { kind: 'keep', until: w.turn + 4, angle: 0 };
+    return { w, v, me };
+  }
+
+  it('drives a fighter that sees its target beyond its guns to the intercept point', () => {
+    const { w, v, me } = fighting((range) => range + 3);
+    planNpcOrders(w);
+    const dest = v.order && 'dest' in v.order ? v.order.dest : null;
+    expect(dest).toEqual(interceptOf(w, v, me));
+  });
+
+  it('keeps the ring point for a target in reach', () => {
+    const { w, v, me } = fighting(() => 5);
+    planNpcOrders(w);
+    const dest = v.order && 'dest' in v.order ? v.order.dest : null;
+    expect(dest).not.toEqual(interceptOf(w, v, me));
   });
 });

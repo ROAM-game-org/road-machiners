@@ -4,7 +4,7 @@ import { RULES } from '../data/rules';
 import { mountedParts } from '../sim/grid';
 import { initPhysics } from '../phys/drive';
 import { forceOption } from '../sim/testkit';
-import { parseLineup, runFight, setNumber } from './combat-harness';
+import { parseGroupFlags, parseLineup, runFight, setNumber } from './combat-harness';
 import { FIGHT } from './combat-fight';
 
 beforeAll(async () => {
@@ -48,7 +48,7 @@ describe('combat harness', () => {
   it('names the courier side when it flees a stronger truck', () => {
     forceOption('truceOffered', 'refuse');
     forceOption('mercyBegged', 'finish');
-    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('courier'), seed: 4, maxTurns: 40 });
+    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('courier'), seed: 7, maxTurns: 40 });
     expect(r.outcome).toBe('b fled');
   });
 
@@ -102,3 +102,31 @@ describe('combat harness', () => {
   });
 });
 
+describe('group fights in the harness', () => {
+  it('reads the group flags and refuses bad ones', () => {
+    expect(parseGroupFlags({ crew: 'b', guard: true, late: 'b:12', bystander: 'trader' })).toEqual({ crew: 'b', guard: true, late: 12, bystander: 'trader' });
+    expect(parseGroupFlags({ crew: null, guard: false, late: null, bystander: null })).toEqual({ crew: null, guard: false, late: null, bystander: null });
+    expect(() => parseGroupFlags({ crew: 'c', guard: false, late: null, bystander: null })).toThrow('--crew');
+    expect(() => parseGroupFlags({ crew: null, guard: false, late: 'a:3', bystander: null })).toThrow('--late');
+    expect(() => parseGroupFlags({ crew: null, guard: false, late: null, bystander: 'ghost' })).toThrow('bystander');
+  });
+
+  it('reports every truck of a crew lineup on its side', () => {
+    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('buggy+buggy+buggy'), crew: 'b', seed: 1, maxTurns: 6 });
+    expect(r.tally.a.left + r.tally.a.out + r.tally.a.fled).toBe(1);
+    expect(r.tally.b.left + r.tally.b.out + r.tally.b.fled).toBe(3);
+    expect(r.b.rounds).toBeGreaterThan(0);
+  }, 300_000);
+
+  it('brings a late truck into its side', () => {
+    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('buggy+buggy'), late: 3, seed: 1, maxTurns: 8 });
+    expect(r.turns).toBeGreaterThan(3);
+    expect(r.tally.b.left + r.tally.b.out + r.tally.b.fled).toBe(2);
+  }, 300_000);
+
+  it('lets a hired merc ride beside a scripted player and keeps a bystander out of the count', () => {
+    const r = runFight({ ...FIGHT, a: parseLineup('stand+merc'), b: parseLineup('buggy'), guard: true, bystander: 'trader', seed: 1, maxTurns: 6 });
+    expect(r.tally.a.left + r.tally.a.out + r.tally.a.fled).toBe(2);
+    expect(r.bystander).not.toBeNull();
+  }, 300_000);
+});

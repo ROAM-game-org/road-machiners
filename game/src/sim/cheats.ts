@@ -19,7 +19,7 @@ import { generateNpcLoadout } from './npc-loadout';
 import { grantXp, isPerkId, pickedFromPair } from './progress';
 import { isTerritory, nearestPad, type Site } from './sites';
 import { territoryEntries } from './territory';
-import { isFree, spawnAt } from './spawn';
+import { allegianceFor, isFree, spawnAt } from './spawn';
 import { declareFeud, settleStates } from './states';
 import { isTowed } from './tow';
 import { clockOf } from './sun';
@@ -27,6 +27,8 @@ import type { Faction, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { randInt } from './rng';
 import { refreshVision } from './vision';
+import { atlasOf, atlasSites } from './atlas';
+import { chartSite } from './locations';
 import { WEATHER } from '../data/weather';
 import { makeWeather } from './weather';
 import { hostileToPlayer, playerCanAct, update } from './world';
@@ -295,6 +297,9 @@ export function startWeather(world: World, kind: string, turns: number | null, o
 export function revealMap(world: World): World {
   return update(world, (w) => {
     w.player.explored.fill(1);
+    for (const site of atlasSites(atlasOf(w.terrain))) {
+      if (!w.player.discovered.includes(site.id)) chartSite(w, site);
+    }
     refreshVision(w);
   });
 }
@@ -325,11 +330,10 @@ export function randomKit(world: World, level: number | null): World {
   const choices = kitChoices();
   return update(world, (w) => {
     const gear = gearLevelOf(level ?? randInt(w, 1, GEAR_LEVEL_IDS.length));
-    const { tpl, chassisId } = choices[randInt(w, 0, choices.length - 1)];
     const old = playerVehicle(w);
+    const { chassisId, loadout } = rollArmedKit(w, choices, gear);
     const spot = freeSpotNear(w, old.pos, chassisDef(chassisId).radius, old.id);
     if (!spot) throw new CheatError(`No free spot for a ${chassisId} here`);
-    const loadout = generateNpcLoadout(w, tpl, chassisId, gear);
     const truck = makeVehicle(w, { faction: 'player', chassisId, parts: loadout.parts, spares: [], cargo: {}, pos: spot, heading: old.heading, brain: null });
     truck.id = old.id;
     w.vehicles = w.vehicles.map((v) => (v.id === old.id ? truck : v));
@@ -337,6 +341,15 @@ export function randomKit(world: World, level: number | null): World {
     w.player.supplies = Math.min(w.player.supplies, suppliesCap(truck));
     refreshVision(w);
   });
+}
+
+function rollArmedKit(w: World, choices: { tpl: NpcTemplate; chassisId: string }[], gear: GearLevel): { chassisId: string; loadout: ReturnType<typeof generateNpcLoadout> } {
+  for (let attempt = 0; attempt < CHEATS.armedKitTries; attempt++) {
+    const { tpl, chassisId } = choices[randInt(w, 0, choices.length - 1)];
+    const loadout = generateNpcLoadout(w, tpl, chassisId, gear);
+    if (loadout.parts.some((part) => PARTS[part.defId].kind === 'weapon')) return { chassisId, loadout };
+  }
+  throw new CheatError(`No random kit of gear ${gear} carries a gun`);
 }
 
 function gearLevelOf(level: number): GearLevel {
@@ -352,7 +365,7 @@ function spawnInDraft(w: World, tpl: NpcTemplate, hostile: boolean): void {
   const circle = frontFirst(me.pos, me.heading, CHEATS.spawnDistance, CHEATS.spawnAngles);
   const spot = firstFree(w, circle, radius, null) ?? freeSpotNear(w, me.pos, radius, null);
   if (!spot) throw new CheatError(`No free spot to spawn ${tpl.id}`);
-  const v = spawnAt(w, tpl, loadout, spot);
+  const v = spawnAt(w, tpl, loadout, spot, allegianceFor(w, tpl, null, null));
   if (hostile) declareFeud(w, v, w.player.vehicleId);
 }
 

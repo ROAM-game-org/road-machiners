@@ -1,6 +1,3 @@
-// Truck body in meters. The collider is the boxes of the chassis base model, and the wheel mounts are data per look.
-// The grid is logical and knows no meters. cellRect() projects it over the model and is the only place that converts
-// between cells and meters.
 
 import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
@@ -18,6 +15,7 @@ export type Body = {
   wheelY: number;
   wheelRadius: number;
   wheelHalfWidth: number;
+  comY: number;
 };
 
 export type CellRect = { x0: number; x1: number; z0: number; z1: number };
@@ -35,6 +33,18 @@ export function bodyOf(chassisId: string): Body {
   return body;
 }
 
+export function halfLength(chassisId: string): number {
+  return bodyOf(chassisId).half.x / PHYSICS.metersPerTile;
+}
+
+export function halfWidth(chassisId: string): number {
+  return bodyOf(chassisId).half.z / PHYSICS.metersPerTile;
+}
+
+export function footprint(chassisId: string): number {
+  return Math.max(chassisDef(chassisId).radius, halfLength(chassisId));
+}
+
 function buildBody(chassisId: string): Body {
   const look = PHYSICS.bodies[chassisDef(chassisId).look];
   const boxes = collisionBoxes(chassisId, look.halfHeight, restTop(look));
@@ -43,11 +53,16 @@ function buildBody(chassisId: string): Body {
     y: look.halfHeight,
     z: Math.max(...boxes.map((b) => Math.abs(b.at.z) + b.half.z)),
   };
-  return { half, boxes, wheelX: look.wheelX, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth };
+  const comY = look.comHeight - rideOf(look);
+  return { half, boxes, wheelX: look.wheelX, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth, comY };
 }
 
-function restTop(look: { wheelY: number; wheelRadius: number }): number {
-  return PHYSICS.truckRoof - (look.wheelRadius + PHYSICS.truck.suspensionRest - look.wheelY);
+export function rideOf(body: Pick<Body, 'wheelRadius' | 'wheelY'>): number {
+  return body.wheelRadius + PHYSICS.truck.suspensionRest - body.wheelY;
+}
+
+function restTop(look: Pick<Body, 'wheelRadius' | 'wheelY'>): number {
+  return PHYSICS.truckRoof - rideOf(look);
 }
 
 function truckShape(chassisId: string): TruckShape {

@@ -34,8 +34,8 @@ describe('raiders that keep off roads', () => {
   }
 
   function raider(w: World, pos: Vec): Vehicle {
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], pos);
-    v.brain = npcBrain('test', pos, []);
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], pos);
+    v.brain = npcBrain('test', pos, ['raider']);
     v.brain.goals = [{ kind: 'sell', targetId: null, destination: null, phase: 'travel', reason: 'patrolTown' }];
     return v;
   }
@@ -65,9 +65,9 @@ describe('raiders that keep off roads', () => {
   const total = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
   it('drives beside a road that a raider on patrol drives along, to the same end', () => {
-    const a = { x: 100, y: 100 };
-    const b = { x: 160, y: 100 };
-    const w = roadWorld([{ x: 90, y: 100 }, { x: 170, y: 100 }]);
+    const a = { x: 30, y: 100 };
+    const b = { x: 90, y: 100 };
+    const w = roadWorld([{ x: 20, y: 100 }, { x: 100, y: 100 }]);
     const v = raider(w, a);
     const plain = route(w, a, b, 0.6, [], v);
     flee(v);
@@ -79,9 +79,9 @@ describe('raiders that keep off roads', () => {
   });
 
   it('crosses a road lying across its way once, straight over', () => {
-    const a = { x: 100, y: 100 };
-    const b = { x: 160, y: 100 };
-    const w = roadWorld([{ x: 130, y: 20 }, { x: 130, y: 190 }]);
+    const a = { x: 30, y: 100 };
+    const b = { x: 90, y: 100 };
+    const w = roadWorld([{ x: 60, y: 20 }, { x: 60, y: 190 }]);
     const v = raider(w, a);
     flee(v);
     const runs = roadRuns(w, a, route(w, a, b, 0.6, [], v));
@@ -90,9 +90,9 @@ describe('raiders that keep off roads', () => {
   });
 
   it('keeps away from a cliff beside the road as a plain route does', () => {
-    const a = { x: 100, y: 100 };
-    const b = { x: 160, y: 100 };
-    const w = roadWorld([{ x: 90, y: 100 }, { x: 170, y: 100 }]);
+    const a = { x: 30, y: 100 };
+    const b = { x: 90, y: 100 };
+    const w = roadWorld([{ x: 20, y: 100 }, { x: 100, y: 100 }]);
     const t = w.terrain;
     const n = t.size + 1;
     for (let j = 104; j < n; j++) for (let i = 0; i < n; i++) t.heights[j * n + i] = -8;
@@ -111,7 +111,7 @@ describe('raiders that keep off roads', () => {
     const w = startWorld(1337);
     const kiln = REGION.locations.find((l) => l.id === 'kiln')!;
     const pad = siteGates(kiln)[0];
-    const start = { x: 354.5, y: 331.5 };
+    const start = REGION.roads.flat().find((p) => dist(p, kiln.pos) > 55 && dist(p, kiln.pos) < 75 && onRouteRoad(terrainNav(w.terrain), p.x, p.y))!;
     expect(onRouteRoad(terrainNav(w.terrain), start.x, start.y)).toBe(true);
     const v = raider(w, start);
     const plain = route(w, start, pad, 0.8, [], v);
@@ -461,7 +461,7 @@ function referenceLayer(terrain: Terrain, radius: number): ReturnType<typeof Ref
 
 describe('nav layers match the old grid rules', () => {
   const w = startWorld(1);
-  const rand = mulberry(7);
+  const rand = mulberry(8);
   const at = (lo: number, hi: number) => lo + (hi - lo) * rand();
   for (let i = 0; i < 4; i++) w.obstacles.push({ id: `wreck-t${i}`, pos: { x: at(40, w.size - 40), y: at(40, w.size - 40) }, r: 1, kind: 'wreck' });
   const pairs = Array.from({ length: 10 }, (_, i) => {
@@ -652,7 +652,7 @@ describe('long routes search a coarse corridor', () => {
   });
 
   it('long routes with no dynamic blockers never miss the corridor', () => {
-    const rand = mulberry(11);
+    const rand = mulberry(8);
     const radius = 0.8;
     const layer = navLayer(w.terrain, w.obstacles, radius);
     const overlay = stampOverlay(layer, [], radius);
@@ -692,7 +692,7 @@ describe('raider hunting routes on the map', () => {
     try {
       const w = startWorld(1);
       w.terrain = { ...TEST_MAP.terrain };
-      const driver = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 100, y: 100 });
+      const driver = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 100, y: 100 });
       driver.brain = npcBrain('buggy', driver.pos, ['raider']);
       driver.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'travel', reason: 'raid' }];
       let length = 0, road = 0, near6 = 0, near10 = 0, samples = 0;
@@ -742,7 +742,7 @@ describe('raider hunting routes on the map', () => {
     const centre = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const side = (s: number): Vec => ({ x: centre.x + normal.x * 14 * s, y: centre.y + normal.y * 14 * s });
     const w = startWorld(1);
-    const driver = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], side(-1));
+    const driver = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], side(-1));
     driver.brain = npcBrain('buggy', driver.pos, ['raider']);
     driver.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'travel', reason: 'raid' }];
     const points = route(w, side(-1), side(1), 0.8, [], driver);

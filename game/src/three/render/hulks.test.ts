@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../../data/physics';
-import { FACTION_COLORS } from '../../render/palette';
+import { GANG_PAINT, PLAYER_PAINT, TEMPLATE_PAINT } from '../../render/palette';
 import { propPose } from '../../sim/mapgen';
 import { flatTerrain } from '../../sim/testkit';
 import type { Obstacle } from '../../sim/types';
@@ -53,7 +53,7 @@ describe('hulks', () => {
   });
 
   it('keeps no faction paint and no light', () => {
-    const paints = new Set(Object.values(FACTION_COLORS).flatMap((c) => [c.top, c.side, c.cab, c.cabSide]));
+    const paints = new Set([PLAYER_PAINT, ...Object.values(GANG_PAINT), ...Object.values(TEMPLATE_PAINT)].flatMap((c) => [c.top, c.side, c.cab, c.cabSide]));
     for (const m of meshes(hulk(kill('bus')))) {
       const mat = m.material as THREE.MeshLambertMaterial;
       expect(paints.has(mat.color.getHex())).toBe(false);

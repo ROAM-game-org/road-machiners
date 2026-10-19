@@ -44,7 +44,6 @@ function fakeCtx(): Ctx {
       close: async (n: number, reason: string) => { calls.push(`close ${n} ${reason}`); },
       addLabel: async (n: number, label: string) => { calls.push(`addLabel ${n} ${label}`); },
       removeLabel: async (n: number, label: string) => { calls.push(`removeLabel ${n} ${label}`); },
-      mergePullRequest: async (branch: string) => { calls.push(`mergePullRequest ${branch}`); },
     },
     telegram: {
       editCaption: async (_chat: string, id: number, caption: string) => {
@@ -126,7 +125,7 @@ describe('writeControl and parseControl', () => {
   });
 
   it('parses every action', () => {
-    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 }, { action: 'merge-change', id: 12 }, { action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
+    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 },{ action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
       expect(parseControl({ kind: 'control', by: 'Ann', reason: 'r', ...body })).toEqual({ by: 'Ann', reason: 'r', ...body });
     }
   });
@@ -177,10 +176,9 @@ describe('resolveActor', () => {
 });
 
 describe('isGated', () => {
-  it('gates ship, merge-change and the merge of an unapproved card', () => {
+  it('gates ship and the merge of an unapproved card', () => {
     const ctx = fakeCtx();
     expect(isGated(ctx, command({ action: 'ship' }))).toBe(true);
-    expect(isGated(ctx, command({ action: 'merge-change', id: 1 }))).toBe(true);
     expect(isGated(ctx, command({ action: 'merge', issue: 4 }))).toBe(true);
     expect(isGated(ctx, command({ action: 'move', issue: 4, to: 'done' }))).toBe(false);
     expect(isGated(ctx, command({ action: 'cut' }))).toBe(false);
@@ -513,24 +511,20 @@ describe('move and merge preconditions and write order', () => {
     expect(ctrlLines()).toEqual([]);
   });
 
-  it('a post edit failure leaves the board and state on the new position, and a repeat finishes', async () => {
+  it('a post edit failure still closes the post in state, finishes the move and reports the failed edit once', async () => {
     busyCard();
     editFails = true;
-    await expect(applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'design' }))).rejects.toThrow('telegram down');
-    const half = readState(statePath);
-    expect(calls).toContain('move 4 Design');
-    expect(half.approvalPosts).toEqual({ 42: 4, 43: 5 });
-    expect(half.postOnly).toEqual([5]);
-    expect(half.pendingApprovals).toEqual({ 5: 'Bob' });
-    expect(calls.some((call) => call.startsWith('removeLabel'))).toBe(false);
-    expect(ctrlLines()).toEqual([]);
-    editFails = false;
     await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'design' }));
     const state = readState(statePath);
+    expect(calls).toContain('move 4 Design');
     expect(state.approvalPosts).toEqual({ 43: 5 });
-    expect(calls.filter((call) => call.startsWith('editCaption'))).toHaveLength(1);
+    expect(state.postCaptions[42]).toBe('Post four\n\n↪️ Moved to design by Ann: the gate failed on load');
+    expect(state.postOnly).toEqual([5]);
+    expect(state.pendingApprovals).toEqual({ 5: 'Bob' });
     expect(calls.filter((call) => call.startsWith('removeLabel'))).toHaveLength(2);
     expect(ctrlLines()).toHaveLength(1);
+    expect(state.failures.filter((failure) => failure.issue === 4 && failure.error.includes('telegram down'))).toHaveLength(1);
+    expect(cardDrift(card(4, 'Design'), state)).toEqual([]);
   });
 
   it('keeps a hold through a move, and drops it with a move to done', async () => {
@@ -622,7 +616,7 @@ describe('ship, cut and remove', () => {
 describe('drop', () => {
   const full = (): void => seed({
     pendingApprovals: { 4: 'Bob', 5: 'Bob' }, pendingRemovals: [{ issue: 7, by: 'b', text: 't' }, { issue: 8, by: 'b', text: 't' }],
-    pendingShip: 'Bob', pendingChanges: [{ id: 100, text: 'x', by: 'b' }, { id: 101, text: 'y', by: 'b' }], pendingIncidents: [30, 31],
+    pendingShip: 'Bob', pendingIncidents: [30, 31],
   });
 
   it('removes one entry of each queue', async () => {
@@ -630,22 +624,20 @@ describe('drop', () => {
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'approval', id: 4 }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'removal', id: 7 }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'ship', id: null }));
-    await applyControl(fakeCtx(), command({ action: 'drop', queue: 'change', id: 100 }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'incident', id: 30 }));
     const state = readState(statePath);
     expect(state.pendingApprovals).toEqual({ 5: 'Bob' });
     expect(state.pendingRemovals.map((item) => item.issue)).toEqual([8]);
     expect(state.pendingShip).toBeNull();
-    expect(state.pendingChanges.map((item) => item.id)).toEqual([101]);
     expect(state.pendingIncidents).toEqual([31]);
-    expect(ctrlLines()).toHaveLength(5);
+    expect(ctrlLines()).toHaveLength(4);
     expect(calls.find((call) => call.startsWith('comment 4'))).toContain('Ann');
   });
 
   it('throws on a miss and changes nothing (IV4)', async () => {
     full();
     const before = readState(statePath);
-    for (const [queue, id] of [['approval', 99], ['removal', 99], ['change', 99], ['incident', 99]] as const) {
+    for (const [queue, id] of [['approval', 99], ['removal', 99], ['incident', 99]] as const) {
       await expect(applyControl(fakeCtx(), command({ action: 'drop', queue, id }))).rejects.toThrow(String(id));
     }
     seed({ ...before, pendingShip: null });
@@ -653,16 +645,6 @@ describe('drop', () => {
     await expect(applyControl(fakeCtx(), command({ action: 'drop', queue: 'approval', id: null }))).rejects.toThrow('id');
     expect(readState(statePath)).toEqual({ ...before, pendingShip: null });
     expect(ctrlLines()).toEqual([]);
-  });
-});
-
-describe('merge-change', () => {
-  it('merges the factory change pull request for a member only (IV5)', async () => {
-    await expect(applyControl(fakeCtx(), command({ action: 'merge-change', id: 12, by: 'hermes' }))).rejects.toThrow('--by <member>');
-    expect(calls).toEqual([]);
-    await applyControl(fakeCtx(), command({ action: 'merge-change', id: 12, by: '11' }));
-    expect(calls).toContain('mergePullRequest factory-change/12');
-    expect(ctrlLines()[0]).toMatchObject({ action: 'merge-change', issue: null, by: 'Ann' });
   });
 });
 

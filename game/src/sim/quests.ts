@@ -1,6 +1,7 @@
 
 import { Story } from 'inkjs';
 import {
+  ALA_HIRED,
   AMBUSH_RAIDER,
   CHECKPOINT_TAG,
   CHECK_TAG,
@@ -9,10 +10,13 @@ import {
   GAME_OPENED_QUESTS,
   INTRO_STEP,
   INTRO_STEPS,
+  HATTIE_MET,
   type IntroStep,
+  type WellCheckpoint,
   MONEY_STAT,
   QUEST_LANGUAGES,
   QUEST_VIEWS,
+  ROAD_STORY,
   type CompiledQuest,
   type QuestBundle,
   type QuestFact,
@@ -26,16 +30,19 @@ import {
   type QuestVarDecl,
   type QuestViewKind,
   WAGON_SEEN,
+  SCALE_SEEN,
 } from '../data/quests';
 import BUNDLE from '../data/quests.json';
-import type { NoteId } from '../data/locals';
+import { isNoteId, type NoteId } from '../data/locals';
 import { GOODS } from '../data/goods';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { SKILL_IDS } from '../data/skills';
 import { UNITS } from '../data/units';
 import { skillLevel } from './progress';
-import { boardFull, holdsNote, isNoteId, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
+import { boardFull, holdsNote, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
+import { canDriveOn } from './fury-road';
+import { payOf } from './fury-road-director';
 import { requireShop, shortHere } from './market';
 import { worksDown } from './production';
 import { hashRandom } from './rng';
@@ -73,6 +80,16 @@ export function currentQuestLanguage(): QuestLanguage {
   return questLanguage;
 }
 
+export function inQuestLanguage<T>(lang: QuestLanguage, run: () => T): T {
+  const before = questLanguage;
+  questLanguage = lang;
+  try {
+    return run();
+  } finally {
+    questLanguage = before;
+  }
+}
+
 function textOf(quest: CompiledQuest): QuestText {
   return quest.text[questLanguage];
 }
@@ -92,6 +109,7 @@ export const QUEST_QUERIES: Record<string, QuestQuery> = {
   short_of: (world, args) => shortHere(world, requireShop(world), goodArg('short_of', args)),
   works_down: (world) => worksDown(world, requireShop(world)),
   skill: (world, args) => skillLevel(world, skillArg('skill', args)),
+  stretch_pay: (_world, args) => stretchPay(wholeArg('stretch_pay', args, 0)),
   passed: (world) => {
     const check = pickedChecks.get(world);
     if (!check) throw new Error('passed() ran with no # check choice picked');
@@ -118,6 +136,11 @@ export const QUEST_EFFECTS: Record<string, QuestEffect> = {
     begun.set(world, textArg('begin', args, 0));
   },
 };
+
+function stretchPay(stretch: number): number {
+  if (stretch < 1) throw new Error(`stretch_pay needs a stretch of 1 or more, got ${stretch}`);
+  return payOf(stretch) / UNITS.centsPerM;
+}
 
 function wholeArg(fn: string, args: readonly unknown[], index: number): number {
   const value = args[index];
@@ -285,6 +308,28 @@ export function openWreckScene(w: World, stockId: string): void {
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.wagonSeven, 'start');
 }
 
+export function openRoadScene(w: World): void {
+  if (!w.furyRoad || w.player.quests.session) return;
+  if (worldVar(w, ALA_HIRED) !== true || !canDriveOn(w)) return;
+  const scene = ROAD_STORY[w.furyRoad.window + 1];
+  if (!scene || worldVar(w, scene.gate) === true) return;
+  setWorldVar(w, scene.gate, true);
+  openQuest(w, QUESTS, scene.quest, 'start');
+}
+
+export function openScaleScene(w: World): void {
+  if (w.player.quests.session) return;
+  if (questVar(w, QUESTS, GAME_OPENED_QUESTS.scale, SCALE_SEEN) === true) return;
+  setWorldVar(w, SCALE_SEEN, true);
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.scale, 'start');
+}
+
+export function openWellScene(w: World, checkpoint: WellCheckpoint): void {
+  if (w.player.quests.session) return;
+  setWorldVar(w, HATTIE_MET, true);
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.introWake, checkpoint);
+}
+
 export function introStep(w: World): IntroStep {
   const step = worldVar(w, INTRO_STEP);
   const known = INTRO_STEPS.find((s) => s === step);
@@ -323,7 +368,8 @@ function liveIn(state: QuestState, session: QuestSession): QuestLive {
 }
 
 export function relanguageQuest(world: World, bundle: QuestBundle): World {
-  if (world.player.quests.live?.lang === questLanguage) return world;
+  const { live, session } = world.player.quests;
+  if (!session || live?.lang === questLanguage) return world;
   return update(world, (w) => {
     w.player.quests.live = null;
     restoreQuest(w, bundle);

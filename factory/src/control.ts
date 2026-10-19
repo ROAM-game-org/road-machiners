@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCommittee } from './committee';
+import { reportFailure } from './fail';
 import { holdCard, releaseHold } from './hold';
 import { killJob } from './jobs';
 import { appendLedger, recordJob } from './ledger';
@@ -17,7 +18,7 @@ import { openStore } from './public/store';
 import { closeByHand } from './public/votes';
 import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, STUCK_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
 
-export const DROP_QUEUES = ['approval', 'removal', 'ship', 'change', 'incident'] as const;
+export const DROP_QUEUES = ['approval', 'removal', 'ship', 'incident'] as const;
 export type DropQueue = (typeof DROP_QUEUES)[number];
 
 export type ControlAction =
@@ -27,7 +28,6 @@ export type ControlAction =
   | { action: 'cut' }
   | { action: 'remove'; issue: number }
   | { action: 'drop'; queue: DropQueue; id: number | null }
-  | { action: 'merge-change'; id: number }
   | { action: 'hold'; issue: number }
   | { action: 'unhold'; issue: number };
 export type ControlCommand = ControlAction & { by: string; reason: string };
@@ -75,7 +75,6 @@ const SHAPES: { [A in ControlAction['action']]: (data: Data) => Extract<ControlA
   cut: () => ({ action: 'cut' }),
   remove: (data) => ({ action: 'remove', issue: requireNumber(data, 'issue') }),
   drop: (data) => ({ action: 'drop', queue: requireOneOf(data, 'queue', DROP_QUEUES), id: requireDropId(data) }),
-  'merge-change': (data) => ({ action: 'merge-change', id: requireNumber(data, 'id') }),
   hold: (data) => ({ action: 'hold', issue: requireNumber(data, 'issue') }),
   unhold: (data) => ({ action: 'unhold', issue: requireNumber(data, 'issue') }),};
 
@@ -101,7 +100,7 @@ export function resolveActor(ctx: Ctx, by: string, gated: boolean): string {
 }
 
 export function isGated(ctx: Ctx, command: ControlCommand): boolean {
-  if (command.action === 'ship' || command.action === 'remove' || command.action === 'merge-change') return true;
+  if (command.action === 'ship' || command.action === 'remove') return true;
   if (!approves(command)) return false;
   const { approvedResolving, pendingApprovals } = readState(ctx.statePath);
   const key = String(command.issue);
@@ -115,10 +114,7 @@ function approves(command: ControlCommand): command is Extract<ControlCommand, {
 type Handlers = { [A in ControlAction['action']]: (ctx: Ctx, command: Extract<ControlCommand, { action: A }>, by: string) => Promise<Outcome> };
 
 const HANDLERS: Handlers = {
-  move, merge, ship, cut, remove, drop,  'merge-change': async (ctx, command) => {
-    await ctx.github.mergePullRequest(`factory-change/${command.id}`);
-    return { issue: null, text: `Factory change ${command.id} is merged into main. The deploy follows.` };
-  },
+  move, merge, ship, cut, remove, drop,
   hold: async (ctx, command, by) => ({ issue: command.issue, text: await holdCard(ctx, command.issue, by, command.reason) }),
   unhold: async (ctx, command) => ({ issue: command.issue, text: releaseHold(ctx, command.issue) }),
 };
@@ -162,14 +158,22 @@ function requireLeavable(ctx: Ctx, card: Card): void {
   if (missing !== undefined) throw new Error(`No caption is recorded for post ${missing}`);
 }
 
+async function editPost(ctx: Ctx, issue: number, id: string, text: string, isText: boolean): Promise<void> {
+  try {
+    if (isText) await ctx.telegram.editText(ctx.cfg.committeeChat, Number(id), text);
+    else await ctx.telegram.editCaption(ctx.cfg.committeeChat, Number(id), text);
+  } catch (error) {
+    await reportFailure(ctx, 'control', issue, `post ${id} is closed, but its edit to the new status failed: ${error instanceof Error ? error.message : String(error)}`, null, []);
+  }
+}
+
 async function closePosts(ctx: Ctx, issue: number, status: string): Promise<void> {
   const before = readState(ctx.statePath);
   for (const id of cardPosts(before, issue)) {
     const next = withStatus(before.postCaptions[id], status);
-    if (before.textPosts.includes(id)) await ctx.telegram.editText(ctx.cfg.committeeChat, Number(id), next);
-    else await ctx.telegram.editCaption(ctx.cfg.committeeChat, Number(id), next);
     updateState(ctx.statePath, (state) => ({ ...state, postCaptions: { ...state.postCaptions, [id]: next }, approvalPosts: omitKey(state.approvalPosts, id) }));
     dropReplyMedia(ctx.cfg.home, [Number(id)]);
+    await editPost(ctx, issue, id, next, before.textPosts.includes(id));
   }
 }
 
@@ -341,7 +345,6 @@ const DROPS: Record<DropQueue, Drop> = {
   },
   removal: { has: (state, id) => state.pendingRemovals.some((item) => item.issue === id), without: (state, id) => ({ ...state, pendingRemovals: state.pendingRemovals.filter((item) => item.issue !== id) }) },
   ship: { has: (state) => state.pendingShip !== null, without: (state) => ({ ...state, pendingShip: null }) },
-  change: { has: (state, id) => state.pendingChanges.some((item) => item.id === id), without: (state, id) => ({ ...state, pendingChanges: state.pendingChanges.filter((item) => item.id !== id) }) },
   incident: { has: (state, id) => state.pendingIncidents.includes(id), without: (state, id) => ({ ...state, pendingIncidents: state.pendingIncidents.filter((item) => item !== id) }) },
 };
 const ISSUE_QUEUES: DropQueue[] = ['approval', 'removal', 'incident'];

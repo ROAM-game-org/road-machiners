@@ -1,5 +1,6 @@
 import { NPCS } from '../data/npcs';
 import { isHostile } from './combat';
+import { inCompany, followingOf } from './companies';
 import { isDefeated } from './defeat';
 import { modeRules } from './settings';
 import { startEscort, unguardedLeader } from './tow';
@@ -13,7 +14,7 @@ function pairsWith(v: Vehicle): boolean {
 
 export function isLone(world: World, v: Vehicle): boolean {
   if (isDefeated(v)) return false;
-  return !world.states.some((s) => s.kind === 'escort' && (s.holder === v.id || s.other === v.id));
+  return !inCompany(world, v);
 }
 
 export function lonePartnerOf(world: World, v: Vehicle): Vehicle | null {
@@ -39,7 +40,7 @@ export function joinLeader(world: World, v: Vehicle): NpcActivity {
 
 export function safeBesidePartner(world: World, v: Vehicle, threat: Vec): Vec | null {
   if (!pairsWith(v)) return null;
-  const held = world.states.find((s) => s.kind === 'escort' && s.holder === v.id);
+  const held = followingOf(world, v);
   const leader = held && world.vehicles.find((o) => o.id === held.other);
   if (!leader || isDefeated(leader) || !pointsAway(v.pos, leader.pos, threat)) return null;
   return { ...leader.pos };

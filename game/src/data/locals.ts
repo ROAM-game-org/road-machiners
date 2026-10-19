@@ -1,6 +1,6 @@
 
 export const NOTE_IDS = [
-  'wagonBowl', 'wagonNose', 'wagonRoad', 'wagonDag', 'wagonPin', 'wagonFound', 'greenPit', 'glassTank', 'burntConvoy',
+  'wagonBowl', 'wagonNose', 'wagonRoad', 'wagonDag', 'wagonRod', 'wagonFound', 'greenPit', 'glassTank', 'burntConvoy',
   'talkGranaryGate',
   'talkSeepPipe',
   'talkConvoyNotClean',
@@ -9,13 +9,18 @@ export const NOTE_IDS = [
   'talkGlassLean',
   'talkSunwardTake',
   'talkKilnFight',
-  'talkOnePin',
+  'talkBrakeRod',
   'talkArmyStarved',
   'talkCommitteeRent',
   'pipeBook', 'pipeDraw', 'pipeOffer', 'pipeCanal',
+  'orchardIron',
 ] as const;
 
 export type NoteId = (typeof NOTE_IDS)[number];
+
+export function isNoteId(id: string): id is NoteId {
+  return (NOTE_IDS as readonly string[]).includes(id);
+}
 
 export const GAME_NOTES = { wagonRoad: 'wagonRoad' } as const satisfies Record<string, NoteId>;
 
@@ -42,6 +47,7 @@ export const LOCALS: Record<LocalId, LocalDef> = {
 export const TERM_IDS = [
   'bowl', 'nose', 'pierce', 'granary', 'glass_flats', 'fallen_sun', 'sunward', 'senate', 'farmers',
   'pump_station', 'dustwell', 'committee', 'salvage_yard', 'kiln', 'scrapjaw', 'old_army', 'guild', 'old_world', 'chaos',
+  'keepers', 'blackwell', 'northgate', 'burnt_drivers', 'covenant', 'the_yards', 'black_water',
 ] as const;
 
 export type TermId = (typeof TERM_IDS)[number];

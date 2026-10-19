@@ -3,6 +3,8 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
+import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withoutVarga_79_80 } from './save-steps-late';
+
 export type SavedJson = Record<string, unknown>;
 
 export const SAVE_MAJOR = 2;
@@ -878,9 +880,22 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withEncounters_64_65,
   withProgressAnchor_65_66,
   (world) => world,
-  withSearches_67_68,
-  withParcelSearches_68_69,
-  withShopGoods_69_70,
+  withoutBearingCall_67_68,
+  withSearches_68_69,
+  withParcelSearches_69_70,
+  withFactions_70_71,
+  withCountableDirections_71_72,
+  withRunWait_72_73,
+  withPlannedGroups_73_74,
+  (world) => world,
+  withClaimRivals_75_76,
+  withCrewsAndHires_76_77,
+  withHattieMet_77_78,
+  withBrakeRod_78_79,
+  withoutVarga_79_80,
+  (world) => world,
+  withHeardCentres_81_82,
+  withShopGoods_82_83,
 ];
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {
@@ -912,24 +927,24 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
   return { ...world, vehicles };
 }
 
-function withSearches_67_68(world: SavedJson): SavedJson {
+function withSearches_68_69(world: SavedJson): SavedJson {
   return world;
 }
-const withoutSearches_68_69 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
-function withoutFoundTalk_68_69(talked: Record<string, SavedJson>): Record<string, SavedJson> {
+const withoutSearches_69_70 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
+function withoutFoundTalk_69_70(talked: Record<string, SavedJson>): Record<string, SavedJson> {
   return Object.fromEntries(Object.entries(talked).map(([npc, topics]) => [npc, Object.fromEntries(Object.entries(topics).filter(([topic]) => topic !== 'found'))]));
 }
-function withParcelSearches_68_69(world: SavedJson): SavedJson {
+function withParcelSearches_69_70(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
-  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_68_69(shop.contracts as SavedJson[]) }]));
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_69_70(shop.contracts as SavedJson[]) }]));
   return {
     ...world,
     shops,
     player: {
       ...player,
-      contracts: withoutSearches_68_69(player.contracts as SavedJson[]),
-      talked: withoutFoundTalk_68_69(player.talked as Record<string, SavedJson>),
+      contracts: withoutSearches_69_70(player.contracts as SavedJson[]),
+      talked: withoutFoundTalk_69_70(player.talked as Record<string, SavedJson>),
       call: call?.topic === 'found' ? null : call,
     },
   };
@@ -937,6 +952,18 @@ function withParcelSearches_68_69(world: SavedJson): SavedJson {
 
 function withRescueContracts_63_64(world: SavedJson): SavedJson {
   return world;
+}
+
+const CLAIM_KIND_67_68 = 'claim';
+
+function withRival_75_76(contract: SavedJson): SavedJson {
+  return contract.kind === CLAIM_KIND_67_68 ? { ...contract, rivalAt: contract.deadline, rival: null, leads: [] } : contract;
+}
+
+function withClaimRivals_75_76(world: SavedJson): SavedJson {
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withRival_75_76) }]));
+  const player = world.player as SavedJson;
+  return { ...world, shops, player: { ...player, contracts: (player.contracts as SavedJson[]).map(withRival_75_76) } };
 }
 
 function withoutOldRun_60_61(world: SavedJson): SavedJson {
@@ -1031,48 +1058,90 @@ function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
   return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
 }
 
+const MAX_COUNT_71_72 = 3;
+
+function countedPast_71_72(step: SavedJson): boolean {
+  const at = step.at as SavedJson | undefined;
+  return (step.do === 'turn' || step.do === 'leave') && at?.kind === 'fork' && (at.nth as number) > MAX_COUNT_71_72;
+}
+
+function countableSteps_71_72(steps: SavedJson[]): SavedJson[] {
+  const cut = steps.findIndex(countedPast_71_72);
+  const kept = cut < 0 ? steps : [...steps.slice(0, cut), { do: 'askAgain' }];
+  return kept.map((step) => {
+    if (step.do !== 'askAgain') return step;
+    const { at: _at, ...plain } = step;
+    return plain;
+  });
+}
+
+function countableVars_71_72(vars: SavedJson): SavedJson {
+  return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
+    const value = v as SavedJson;
+    return [name, value.kind === 'directions' ? { ...value, steps: countableSteps_71_72(value.steps as SavedJson[]) } : value];
+  }));
+}
+
+function withCountableDirections_71_72(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  if (!call) return world;
+  const line = call.line as SavedJson;
+  const next = { ...call, vars: countableVars_71_72(call.vars as SavedJson), line: { ...line, vars: countableVars_71_72(line.vars as SavedJson) } };
+  return { ...world, player: { ...player, call: next } };
+}
+
 function withEncounters_64_65(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   if (player.encounters !== undefined) return world;
   return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
 }
 
-const TOWN_GOODS_69_70: readonly string[] = ['grain', 'textiles', 'meds', 'parts', 'electronics', 'water', 'scrap', 'batteries', 'salt', 'tools', 'rations', 'fuelDrums'];
+const BEARING_LINES_67_68: readonly string[] = ['townBearing', 'siteBearing', 'aWreckNobodyPicked', 'rolledPastSite'];
 
-const STOCK_TARGETS_69_70: Record<string, Record<string, number>> = {
-  bowl: Object.fromEntries(TOWN_GOODS_69_70.map((good) => [good, 120])),
-  nose: Object.fromEntries(TOWN_GOODS_69_70.filter((good) => good !== 'grain').map((good) => [good, 120])),
-  'salvage-yard': { scrap: 30, parts: 30, tools: 30, rations: 30, fuelDrums: 30 },
+function withoutBearingCall_67_68(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const said = (call?.line as SavedJson | undefined)?.line;
+  return typeof said === 'string' && BEARING_LINES_67_68.includes(said) ? { ...world, player: { ...player, call: null } } : world;
+}
+
+const TOWN_GOODS_82_83: readonly string[] = ['grain', 'textiles', 'meds', 'parts', 'electronics', 'water', 'scrap', 'batteries', 'salt', 'tools', 'rations', 'fuelDrums'];
+
+const STOCK_TARGETS_82_83: Record<string, Record<string, number>> = {
+  bowl: Object.fromEntries(TOWN_GOODS_82_83.map((good) => [good, 120])),
+  nose: { ...Object.fromEntries(TOWN_GOODS_82_83.filter((good) => good !== 'grain').map((good) => [good, 120])), relics: 120 },
+  'salvage-yard': { scrap: 30, parts: 30, tools: 30, rations: 30, fuelDrums: 30, relics: 30 },
   granary: { rations: 38, grain: 30, salt: 30, water: 30, tools: 30, fuelDrums: 30 },
   'pump-station': { fuelDrums: 229, tools: 30, batteries: 30, rations: 30 },
   dustwell: { water: 30, tools: 30, meds: 30, rations: 30, fuelDrums: 30 },
   'green-pit': { water: 30, salt: 30, textiles: 30, rations: 30, fuelDrums: 30 },
 };
 
-const ELASTICITY_69_70 = 0.6;
+const ELASTICITY_82_83 = 0.6;
 
-function stockFromPressure_69_70(target: number, pressure: number | undefined): number {
-  return Math.max(0, Math.round(target * (1 - (pressure ?? 0) / ELASTICITY_69_70)));
+function stockFromPressure_82_83(target: number, pressure: number | undefined): number {
+  return Math.max(0, Math.round(target * (1 - (pressure ?? 0) / ELASTICITY_82_83)));
 }
 
-function tradesAt_69_70(shopId: string, good: string): boolean {
-  return good in (STOCK_TARGETS_69_70[shopId] ?? {});
+function tradesAt_82_83(shopId: string, good: string): boolean {
+  return good in (STOCK_TARGETS_82_83[shopId] ?? {});
 }
 
-function haulStillRuns_69_70(contract: SavedJson): boolean {
-  return contract.kind !== 'haul' || (tradesAt_69_70(contract.shop as string, contract.good as string) && tradesAt_69_70(contract.to as string, contract.good as string));
+function haulStillRuns_82_83(contract: SavedJson): boolean {
+  return contract.kind !== 'haul' || (tradesAt_82_83(contract.shop as string, contract.good as string) && tradesAt_82_83(contract.to as string, contract.good as string));
 }
 
-function shopWithGoods_69_70(shopId: string, shop: SavedJson): SavedJson {
+function shopWithGoods_82_83(shopId: string, shop: SavedJson): SavedJson {
   const { pressure = {}, ...rest } = shop as SavedJson & { pressure?: Record<string, number> };
-  const targets = STOCK_TARGETS_69_70[shopId];
+  const targets = STOCK_TARGETS_82_83[shopId];
   if (!targets) throw new Error(`Save holds an unknown shop ${shopId}`);
-  const goods = Object.fromEntries(Object.entries(targets).map(([good, target]) => [good, stockFromPressure_69_70(target, pressure[good])]));
-  const contracts = (rest.contracts as SavedJson[]).filter(haulStillRuns_69_70);
+  const goods = Object.fromEntries(Object.entries(targets).map(([good, target]) => [good, stockFromPressure_82_83(target, pressure[good])]));
+  const contracts = (rest.contracts as SavedJson[]).filter(haulStillRuns_82_83);
   return { ...rest, contracts, goods, event: null, shortSince: {}, opened: {} };
 }
 
-function withoutHaulGoal_69_70(vehicle: SavedJson): SavedJson {
+function withoutHaulGoal_82_83(vehicle: SavedJson): SavedJson {
   const brain = vehicle.brain as SavedJson | null;
   if (!brain) return vehicle;
   const goals = (brain.goals as SavedJson[]).filter((goal) => goal.kind !== 'haul').map(({ load: _load, ...goal }) => goal);
@@ -1081,9 +1150,9 @@ function withoutHaulGoal_69_70(vehicle: SavedJson): SavedJson {
   return { ...vehicle, job: hauling ? null : job, brain: { ...brain, goals } };
 }
 
-function withShopGoods_69_70(world: SavedJson): SavedJson {
-  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, shopWithGoods_69_70(id, shop)]));
-  const vehicles = (world.vehicles as SavedJson[]).map(withoutHaulGoal_69_70);
+function withShopGoods_82_83(world: SavedJson): SavedJson {
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, shopWithGoods_82_83(id, shop)]));
+  const vehicles = (world.vehicles as SavedJson[]).map(withoutHaulGoal_82_83);
   return { ...world, shops, vehicles, roadNews: [] };
 }
 

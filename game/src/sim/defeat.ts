@@ -30,6 +30,7 @@ import type { SalvageStock, Vehicle, World } from "./types";
 import { wreckStockId } from "./salvage";
 import { dist, type Vec } from "./vec";
 import { canVehicleSee, grayRadius } from "./vision";
+import { isRaider, noteDefeat } from "./relations";
 
 export function checkDeath(world: World): void {
   const p = world.player;
@@ -130,6 +131,7 @@ export function standDown(world: World, v: Vehicle, winnerId: string): void {
 }
 
 export function knockOutNpc(world: World, v: Vehicle): void {
+  noteDefeat(world, v, false);
   reportLostTruck(world, v, "knockedOut");
   layDown(world, v, foesOf(world, v), false);
   const by = beatenBy(world, v);
@@ -140,7 +142,7 @@ export function knockOutNpc(world: World, v: Vehicle): void {
 }
 
 function strippers(world: World, victim: Vehicle): Vehicle[] {
-  return world.vehicles.filter((v) => v.brain && victim.defeat!.foes.includes(v.id) && !isKnockedOut(v) && !isWeak(world, v) && (v.faction === "raiders" || wantsLoot(world, v, victim)));
+  return world.vehicles.filter((v) => v.brain && victim.defeat!.foes.includes(v.id) && !isKnockedOut(v) && !isWeak(world, v) && (isRaider(v) || wantsLoot(world, v, victim)));
 }
 
 function stopKnockedOut(world: World, v: Vehicle): void {
@@ -162,7 +164,7 @@ function withLastHitter(world: World, v: Vehicle, ids: string[]): string[] {
 }
 
 function robbersOf(world: World, me: Vehicle): Vehicle[] {
-  return world.vehicles.filter((v) => v.brain && me.defeat!.foes.includes(v.id) && (v.faction === "raiders" || wantsLoot(world, v, me)));
+  return world.vehicles.filter((v) => v.brain && me.defeat!.foes.includes(v.id) && (isRaider(v) || wantsLoot(world, v, me)));
 }
 
 function sendToLoot(world: World, me: Vehicle, robbers: Vehicle[]): void {

@@ -1,5 +1,5 @@
 
-import { chassisDef, PLAYER_CHASSIS } from "../data/chassis";
+import { chassisDef, TOWN_CHASSIS } from "../data/chassis";
 import { ECONOMY, GOODS } from "../data/goods";
 import { SHOPS, shopDef } from "../data/market";
 import { SERVICE_GOOD } from "../data/market";
@@ -27,6 +27,7 @@ import { cloneWorld, playerCommand, Refused } from "./world";
 import { tankLeaks } from "./supplies";
 import { fuelCap, isStranded, isWorking, suppliesCap } from "./stats";
 import { modeRules } from './settings';
+import { isOutlaw } from "./relations";
 
 export type Supply = "fuel" | "supplies";
 
@@ -188,7 +189,7 @@ function requireCampService(vehicle: Vehicle, campId: string): void {
   const camp = REGION.locations.find((l) => l.id === campId);
   if (camp?.kind !== "camp" || !canUseSite(vehicle.pos, camp))
     throw new Error("Not at a gate of the requested camp");
-  if (vehicle.faction !== "raiders")
+  if (!isOutlaw(vehicle.faction))
     throw new Error("Only raiders use camp services");
   if (vehicle.speed > RULES.parkedSpeed)
     throw new Error("Stop before using camp services");
@@ -232,7 +233,7 @@ export function serviceAtStall(
   retainedParts: number,
 ): void {
   if (shopDef(shopId).kind !== "stall") throw new Error(`${shopId} is no stall`);
-  if (vehicle.faction === "raiders") throw new Error("Only non-raiders use stall services");
+  if (isOutlaw(vehicle.faction)) throw new Error("Only non-raiders use stall services");
   sellVehicleCargo(world, vehicle, shopId, retainedParts);
   refuelAndRepair(world, vehicle, shopId);
 }
@@ -606,11 +607,17 @@ function payChassisCost(world: World, chassisId: string): void {
   else world.player.money -= cost;
 }
 
+export function garageChassis(townId: string): readonly string[] {
+  const lineup = TOWN_CHASSIS[townId];
+  if (!lineup) throw new Error(`No garage lineup for ${townId}`);
+  return lineup;
+}
+
 export function buyChassis(world: World, chassisId: string): World {
   return playerCommand(world, (w) => {
-    requireTown(w);
-    if (!PLAYER_CHASSIS.includes(chassisId))
-      throw new Error(`${chassisId} is not for sale`);
+    const town = requireTown(w);
+    if (!garageChassis(town.id).includes(chassisId))
+      throw new Error(`${chassisId} is not for sale at ${town.id}`);
     swapChassis(w, chassisId);
   });
 }

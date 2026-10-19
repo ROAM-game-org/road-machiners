@@ -36,7 +36,7 @@ function cycle(w: World): void {
 }
 
 function truck(w: World, templateId: 'convoy' | 'trader'): Vehicle {
-  const v = addVehicle(w, templateId === 'convoy' ? 'convoys' : 'traders', 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], { x: 40, y: 40 });
+  const v = addVehicle(w, templateId === 'convoy' ? 'bowl' : 'independent', 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], { x: 40, y: 40 });
   v.brain = npcBrain(templateId, v.pos, templateId === 'convoy' ? ['supplier'] : ['trader']);
   v.resources = { ...v.resources!, money: NPCS.convoy.money * 20 };
   v.speed = 0;
@@ -78,7 +78,7 @@ function dayOfShipments(r: Region, sorgut: 'arrives' | 'robbed' | 'none', crates
   for (const good of ['salt', 'water']) w.shops.granary.goods[good] = stockTarget('granary', good);
   if (sorgut !== 'none') load(w, convoy, 'grain', 'bowl', 'granary', crates);
   if (sorgut === 'robbed') {
-    const robber = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: convoy.pos.x + 4, y: convoy.pos.y });
+    const robber = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: convoy.pos.x + 4, y: convoy.pos.y });
     robber.brain = npcBrain('buggy', robber.pos, ['raider']);
     yieldTo(w, convoy, robber, convoy.items.filter((it) => it.kind === 'good' && it.good === 'grain'));
   }

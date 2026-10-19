@@ -1,5 +1,6 @@
 
 import type { Msg } from '../text/msg';
+import { refusalText } from '../text/names';
 import { readyAid, startAid } from "../sim/aid";
 import { handOverParcel, readyHandover } from "../sim/parcel";
 import { playerVehicle } from "../sim/damage";
@@ -7,6 +8,7 @@ import { canDouse, douseEngine } from "../sim/engine-heat";
 import { isBusy } from "../sim/jobs";
 import { canOverdrive, inOverdrive } from "../sim/stats";
 import { canLoot, canScavenge, scavenge } from "../sim/locations";
+import { startSurvey } from "../sim/survey";
 import { shopAt } from "../sim/market";
 import { reachedOutpostAt } from "../sim/fury-road";
 import type { World } from "../sim/types";
@@ -108,6 +110,7 @@ export class TruckContext {
       outpost: () => reachedOutpostAt(h.world()) && h.openOutpost(),
       downed: () => 'id' in target && h.openDowned(target.id),
       stock: () => 'id' in target && this.searchStock(target.id, action.combat),
+      survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id, action.combat),
       loot: () => 'id' in target && this.lootStock(target.id),
       empty: () => undefined,
     };
@@ -129,12 +132,20 @@ export class TruckContext {
 
   searchStock(stockId: string, combat?: number): void {
     const w = this.host.world();
-    if (isBusy(playerVehicle(w))) return;
-    if (combat !== undefined) return;
+    const me = playerVehicle(w);
+    if (isBusy(me) && me.job) return this.host.note(refusalText(w, { id: 'busy', job: me.job.kind }));
+    if (combat !== undefined) return this.host.note(refusalText(w, { id: 'inCombat' }));
     if (canScavenge(w, stockId)) {
       this.host.apply(scavenge(w, stockId));
       this.host.pushEvents();
     }
+  }
+
+  private surveySite(contractId: string, site: string, combat?: number): void {
+    const w = this.host.world();
+    if (isBusy(playerVehicle(w)) || combat !== undefined) return;
+    this.host.apply(startSurvey(w, contractId, site));
+    this.host.pushEvents();
   }
 
   private lootStock(stockId: string): void {

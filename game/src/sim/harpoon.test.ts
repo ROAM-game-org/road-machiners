@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { partDef, type WeaponDef } from '../data/parts';
-import { PHYSICS } from '../data/physics';
 import { HARPOON } from '../data/utilities';
+import { bodyOf } from './body';
 import { fightsAgainst, fireBlock, fireWeapons, gunOf, hitOdds } from './combat';
 import { vehicleStats } from './stats';
 import { makePart } from './factory';
@@ -19,7 +19,7 @@ function duel(gap = 5): { w: World; me: Vehicle; part: PartInstance; trader: Veh
   me.heading = Math.PI;
   const part = makePart(w, 'harpoon', 0);
   if (!mountPart(w, me, part)) throw new Error('No deck room for the harpoon');
-  const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: me.pos.x + gap, y: me.pos.y }, Math.PI / 2);
+  const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: me.pos.x + gap, y: me.pos.y }, Math.PI / 2);
   return { w, me, part, trader };
 }
 
@@ -200,8 +200,9 @@ describe('the harpoon line', () => {
   it('pulls the shooter at its center of mass and the held truck at its body center', () => {
     const { w } = hit();
     const [anchor] = lineAnchors(w);
+    const shooter = w.vehicles.find((v) => v.id === anchor.from)!;
 
-    expect(anchor.fromAt.y).toBe(-PHYSICS.truck.comBelow);
+    expect(anchor.fromAt.y).toBe(bodyOf(shooter.chassisId).comY);
     expect(anchor.toAt.y).toBe(0);
   });
 

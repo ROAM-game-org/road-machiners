@@ -1,8 +1,3 @@
-// Replays every trace in tmp/progression/ through the current XP rules and prints, per archetype, the in-game day
-// each activity family's earned XP covers the cumulative cost of each rank, its XP per day, and each miss against the
-// targets in src/data/skills.ts. It adds the wage per turn at each gear tier, the day each tier is first held, and the
-// fight and loss counts. Days show the median over seeds and the min-max range. A rank some seeds never reach shows how
-// many seeds reached it.
 import { createReadStream, readdirSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { MAX_RANK, SKILL_IDS } from '../src/data/skills.ts';
@@ -23,7 +18,7 @@ if (sides.length === 1) printFull(sides[0]);
 else printCompare(sides, dirs);
 
 async function readDir(dir) {
-  const files = readdirSync(dir).filter((f) => f.endsWith('.jsonl') && !f.endsWith('.turns.jsonl') && !f.endsWith('.world.jsonl')).sort();
+  const files = readdirSync(dir).filter((f) => f.endsWith('.jsonl') && !f.endsWith('.turns.jsonl') && !f.endsWith('.world.jsonl') && !f.endsWith('.run.jsonl')).sort();
   if (files.length === 0) throw new Error(`No traces in ${dir}/. Run npm run progression:record first.`);
   const runs = [];
   for (const file of files) runs.push(await readRun(`${dir}/${file}`));

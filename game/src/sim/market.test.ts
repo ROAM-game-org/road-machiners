@@ -53,7 +53,7 @@ describe('market', () => {
 
   it('absorbs a full hauler load at a garage before the price moves halfway to its floor or ceiling', () => {
     const w = emptyWorld();
-    const load = freeCells(addVehicle(w, 'raiders', 'hauler', [], { x: 0, y: 0 }));
+    const load = freeCells(addVehicle(w, 'scrapjaw', 'hauler', [], { x: 0, y: 0 }));
     const state = initShop(w, 'bowl');
     const before = goodPrice('bowl', state, 'scrap', 'sell', ECONOMY.spread);
     recordTrade('bowl', state, 'scrap', load, 'sell');
@@ -213,7 +213,7 @@ describe('market', () => {
 
   it('pays a full truck load of a haul about haulWages tier wages times the trip turns, lot pressure included', () => {
     const w = emptyWorld();
-    const units = freeCells(addVehicle(w, 'raiders', 'scout', [], { x: 0, y: 0 }));
+    const units = freeCells(addVehicle(w, 'scrapjaw', 'scout', [], { x: 0, y: 0 }));
     const buy = lotPrice('nose', initShop(w, 'nose'), 'salt', 'buy', ECONOMY.spread, units);
     const sell = lotPrice('bowl', initShop(w, 'bowl'), 'salt', 'sell', ECONOMY.spread, units);
     const turns = estimateTurns(siteOf('nose').pos, siteOf('bowl').pos);
@@ -244,7 +244,7 @@ describe('creditBounty', () => {
 
   function withTarget(): { w: World; npc: Vehicle } {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'raiders', 'scout', [], { x: 36, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'scout', [], { x: 36, y: 30 });
     npc.brain = npcBrain('buggy', npc.pos, ['raider']);
     w.player.money = 0;
     return { w, npc };

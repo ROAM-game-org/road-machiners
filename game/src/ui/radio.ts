@@ -4,6 +4,8 @@ import { atlasOf, atlasSites } from '../sim/atlas';
 import { TIME } from '../data/time';
 import type { Contract } from '../sim/market';
 import { siteOf } from '../sim/market';
+import { claimClue } from '../sim/claims';
+import { claimLookText } from './format';
 import { robbing } from '../sim/states';
 import { clockOf } from '../sim/sun';
 import type { GameEvent, Vehicle, WeatherEvent, World } from '../sim/types';
@@ -12,6 +14,8 @@ import { say } from '../text/language';
 import { byId, t, type Msg } from '../text/msg';
 import { fullName, goodLower, partName, siteName, templateName } from '../text/names';
 import { el, panel, rightDock } from './dom';
+import { muteSwitch, nextTrackKey, type SoundSettings } from './sound';
+import { isRaider } from '../sim/relations';
 
 export type Broadcast = { topic: RadioTopic; variant: number; text: Msg; turn: number; rank: 'news' | 'time' | 'filler' };
 type Slots = Record<string, Msg>;
@@ -181,7 +185,8 @@ function stormSlots(world: World, storm: Extract<WeatherEvent, { kind: 'storm' }
 function raidPlace(world: World, attackerId: string, victimId: string): Place | null {
   if ([attackerId, victimId].includes(world.player.vehicleId)) return null;
   const victim = vehicleIn(world, victimId);
-  if (!victim || vehicleIn(world, attackerId)?.faction !== 'raiders') return null;
+  const attacker = vehicleIn(world, attackerId);
+  if (!victim || !attacker || !isRaider(attacker)) return null;
   return placeOf(world, victim.pos);
 }
 
@@ -203,9 +208,11 @@ function contractVars(world: World, c: BoardContract): Slots {
   const shop = siteName(siteOf(c.shop).id);
   if (c.kind === 'rescue') return { shop, place: t(`radio.basin.${basinOf(world, c.area)}`) };
   if (c.kind === 'haul') return { shop, good: goodLower(c.good), to: siteName(siteOf(c.to).id) };
+  if (c.kind === 'claim') return { shop, part: partName(c.defId), wreck: claimLookText(claimClue(c).look) };
   if (c.kind === 'fetch') return { shop, part: partName(c.defId) };
   if (c.kind === 'search') return { shop, target: fullName(c.driver) };
-  return { shop, target: templateName(c.template) };
+  if (c.kind === 'bounty') return { shop, target: templateName(c.template) };
+  return { shop };
 }
 
 function vehicleIn(world: World, id: string): Vehicle | undefined {
@@ -242,17 +249,19 @@ export function revealed(text: string, elapsedMs: number, charsPerSecond: number
 
 export class RadioPanel {
   readonly root = panel('radio dock-panel', rightDock());
-  readonly faceplate = el('div', { class: 'radio-faceplate' });
-  readonly keys = el('div', { class: 'radio-keys' });
+  private readonly faceplate = el('div', { class: 'radio-faceplate' });
+  private readonly keys = el('div', { class: 'radio-keys' });
   private text = el('div', { class: 'radio-text', 'aria-live': 'polite', 'aria-busy': 'false' });
   private lcd: HTMLElement;
   private streaming: { text: string; start: number } | null = null;
   private shown: Msg | null = null;
 
-  constructor(private station: RadioStation) {
+  constructor(private station: RadioStation, sound: SoundSettings, nextTrack: () => void) {
     const band = el('div', { class: 'radio-band' }, el('span', {}, t('radio.band')), el('span', {}, t('radio.frequency')));
     const ghost = el('div', { class: 'radio-ghost', 'aria-hidden': 'true' }, t('radio.ghost', { blocks: '\u2588'.repeat(3 * 30) }));
     this.lcd = el('div', { class: 'radio-lcd' }, ghost, this.text);
+    this.faceplate.append(muteSwitch(sound).root);
+    this.keys.append(nextTrackKey(nextTrack));
     this.root.append(this.keys, el('div', { class: 'radio-screen' }, band, this.lcd), this.faceplate);
   }
 

@@ -10,7 +10,7 @@ import { endTurn } from './world';
 const SOURCES = import.meta.glob<string>('../**/*.ts', { query: '?raw', import: 'default', eager: true });
 
 function driver(w: World): Vehicle {
-  const v = addVehicle(w, 'traders', 'hauler', [], { x: 60, y: 60 });
+  const v = addVehicle(w, 'independent', 'hauler', [], { x: 60, y: 60 });
   v.brain = npcBrain('trader', v.pos, ['trader']);
   return v;
 }
@@ -81,7 +81,7 @@ describe('driver memory', () => {
 
   it('refuses a vehicle without a brain', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'traders', 'hauler', [], { x: 60, y: 60 });
+    const v = addVehicle(w, 'independent', 'hauler', [], { x: 60, y: 60 });
     expect(() => remember(w, v, prices('bowl'))).toThrow();
     expect(() => recall(v, 'prices')).toThrow();
   });
@@ -99,7 +99,7 @@ describe('driver memory', () => {
   it('records where and when a driver saw another driver', () => {
     const w = emptyWorld();
     const watcher = driver(w);
-    const other = addVehicle(w, 'traders', 'hauler', [], { x: 64, y: 60 });
+    const other = addVehicle(w, 'independent', 'hauler', [], { x: 64, y: 60 });
     other.brain = npcBrain('trader', other.pos, ['trader']);
     other.heading = 1.5;
     w.turn = 9;
@@ -110,7 +110,7 @@ describe('driver memory', () => {
   it('skips a truck with no driver', () => {
     const w = emptyWorld();
     const watcher = driver(w);
-    const wreck = addVehicle(w, 'traders', 'hauler', [], { x: 64, y: 60 });
+    const wreck = addVehicle(w, 'independent', 'hauler', [], { x: 64, y: 60 });
     rememberSightings(w, watcher, [wreck]);
     expect(watcher.brain!.memories).toEqual([]);
   });
@@ -118,7 +118,7 @@ describe('driver memory', () => {
   it('replaces an older sighting of the same truck with the newer one', () => {
     const w = emptyWorld();
     const watcher = driver(w);
-    const other = addVehicle(w, 'traders', 'hauler', [], { x: 64, y: 60 });
+    const other = addVehicle(w, 'independent', 'hauler', [], { x: 64, y: 60 });
     other.brain = npcBrain('trader', other.pos, ['trader']);
     rememberSightings(w, watcher, [other]);
     w.turn = 4;
@@ -131,7 +131,7 @@ describe('driver memory', () => {
   it('forgets a sighting after a day', () => {
     const w = emptyWorld();
     const watcher = driver(w);
-    const other = addVehicle(w, 'traders', 'hauler', [], { x: 64, y: 60 });
+    const other = addVehicle(w, 'independent', 'hauler', [], { x: 64, y: 60 });
     other.brain = npcBrain('trader', other.pos, ['trader']);
     rememberSightings(w, watcher, [other]);
     w.turn += MEMORY.turns.sighting;
@@ -147,7 +147,7 @@ describe('driver memory', () => {
   it('remembers the truck that attacked it', () => {
     const w = emptyWorld();
     const victim = driver(w);
-    const shooter = addVehicle(w, 'raiders', 'buggy', [], { x: 64, y: 60 });
+    const shooter = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 64, y: 60 });
     noteAttack(w, shooter, victim, true);
     expect(recall(victim, 'wronged').map((m) => m.fact.by)).toEqual([shooter.id]);
   });
@@ -155,7 +155,7 @@ describe('driver memory', () => {
   it('remembers the truck that took its cargo', () => {
     const w = emptyWorld();
     const loser = driver(w);
-    const robber = addVehicle(w, 'raiders', 'buggy', [], { x: 64, y: 60 });
+    const robber = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 64, y: 60 });
     robber.brain = npcBrain('raider', robber.pos, ['raider']);
     yieldTo(w, loser, robber, []);
     expect(recall(loser, 'wronged').map((m) => m.fact.by)).toEqual([robber.id]);
@@ -164,8 +164,8 @@ describe('driver memory', () => {
   it('forgets a wrong after its lifetime', () => {
     const w = emptyWorld();
     const victim = driver(w);
-    const shooter = addVehicle(w, 'raiders', 'buggy', [], { x: 64, y: 60 });
-    noteAttack(w, shooter, victim, false);
+    const shooter = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 64, y: 60 });
+    noteAttack(w, shooter, victim, true);
     w.turn += MEMORY.turns.wronged - 1;
     forgetOld(w);
     expect(recall(victim, 'wronged')).toHaveLength(1);

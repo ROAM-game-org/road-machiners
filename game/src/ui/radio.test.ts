@@ -6,15 +6,17 @@ import { NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { TIME } from '../data/time';
 import type { Contract } from '../sim/market';
-import { startFeuds } from '../sim/combat';
+import { reportIncident } from '../sim/relations';
 import { addState } from '../sim/states';
-import { addVehicle, emptyWorld } from '../sim/testkit';
+import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
 import type { GameEvent, World } from '../sim/types';
 import { cloneWorld } from '../sim/world';
 import { LOCALES, t, type Locale, type Msg } from '../text/msg';
 import { goodLower, partName, siteName, templateName } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
 import { radioLine, RadioStation, revealed, type Broadcast } from './radio';
+import { claimLookText } from './format';
+import type { ClaimLook } from '../data/market';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -169,8 +171,9 @@ describe('RadioStation', () => {
   it('reports a raider robbing an NPC, never one robbing the player', () => {
     const bowl = site('bowl');
     const w = world(10);
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
-    const trader = addVehicle(w, 'traders', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    const trader = addVehicle(w, 'independent', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
     addState(w, 'feud', raider.id, w.player.vehicleId, { kind: 'feud', robbery: true });
     addState(w, 'feud', raider.id, trader.id, { kind: 'feud', robbery: true });
     const s = tuned(w);
@@ -184,11 +187,12 @@ describe('RadioStation', () => {
   it('reports no robbery when a raider fights back, and keeps the place free for a real one', () => {
     const bowl = site('bowl');
     const w = world(10);
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
-    const trader = addVehicle(w, 'traders', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    const trader = addVehicle(w, 'independent', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
     const s = tuned(w);
     const shot = later(w, RADIO.minGapTurns);
-    startFeuds(shot, shot.vehicles.find((v) => v.id === trader.id)!, shot.vehicles.find((v) => v.id === raider.id)!);
+    reportIncident(shot, { aggressor: shot.vehicles.find((v) => v.id === trader.id)!, victim: shot.vehicles.find((v) => v.id === raider.id)!, deed: 'attacked', victimFights: true });
     expect(shot.events).toContainEqual({ t: 'hostile', vehicle: raider.id, against: trader.id });
     s.hear(shot);
     expect(s.next()).toBeNull();
@@ -202,8 +206,9 @@ describe('RadioStation', () => {
   it('reports a raider knockout once per place per cooldown', () => {
     const bowl = site('bowl');
     const w = world(10);
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
-    const trader = addVehicle(w, 'traders', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    const trader = addVehicle(w, 'independent', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
     const s = tuned(w);
     const ko: GameEvent = { t: 'npcKnockout', vehicle: trader.id, by: raider.id };
     s.hear(later(w, RADIO.minGapTurns, [ko]));
@@ -287,6 +292,8 @@ describe('RadioStation', () => {
   });
 });
 
+const CLAIM_LOOK_IDS: ClaimLook[] = ['armyTruck', 'deadTruck', 'tank', 'shipWreck'];
+
 describe('radio lines', () => {
   const longest = (words: string[]) => words.reduce((x, y) => (y.length > x.length ? y : x));
   const sites = [...REGION.towns, ...REGION.locations].map((s) => s.id);
@@ -302,6 +309,7 @@ describe('radio lines', () => {
     good: longestOf(locale, Object.keys(GOODS).map(goodLower)),
     part: longestOf(locale, Object.keys(PARTS).map(partName)),
     target: longestOf(locale, Object.keys(NPCS).map(templateName)),
+    wreck: longestOf(locale, CLAIM_LOOK_IDS.map(claimLookText)),
   });
   const lines = LOCALES.flatMap((locale) => {
     const all = slots(locale);

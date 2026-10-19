@@ -1,7 +1,10 @@
 
 import { PARTS, type PartDef } from './parts';
-import type { Weighted } from './npcs';
+import type { TraitId, Weighted } from './npcs';
+import type { PropKind } from '../sim/terrain';
+import type { OldPlaceType } from './salvage';
 import { NPC_BEHAVIOR } from './npc-behavior';
+import { MAP_SCALE } from './region';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
 
@@ -89,6 +92,22 @@ export const CONTRACTS = {
     xpPerEffort: 0.0045,
   },
 
+  claim: {
+    minTownGap: 15,
+    minRoadGap: 5,
+    searchTurns: 60,
+    travelShare: 0.5,
+    rivalLeadFactor: 1,
+    rivalRetryTurns: 20,
+    clueStepTiles: 62.5,
+    clueRadiusShare: 0.4,
+    leadStepTiles: 12.5,
+    rivalTraits: ['scavenger', 'vulture', 'roamer', 'trader'] as readonly TraitId[],
+    durationFactor: 2.5,
+    slackTurns: Math.round(TIME.turnsPerDay / 2),
+    xpPerEffort: 0.003,
+  },
+
   bounty: {
     durationTurns: [400, 1000] as [number, number],
     rewardTurns: { buggy: 900, gunwagon: 1350 } as Record<string, number>,
@@ -103,12 +122,25 @@ export const CONTRACTS = {
     xpPerEffort: 0.0045,
   },
 
+  survey: {
+    roadGap: 20,
+    siteGap: 40,
+    range: 36 * MAP_SCALE,
+    spread: 18 * MAP_SCALE,
+    count: [1, 3] as [number, number],
+    surveyTurns: 10,
+    searchTurns: 20,
+    clue: { range: 36 * MAP_SCALE, roundTiles: 25, band: 40, nearby: 40, layRing: 30, rise: 2, hollow: -1.3 },
+    rewardFactor: 15,
+    knowledgeRange: 12,
+    xpPerEffort: 0.003,
+  },
   escort: {
     xpPerEffort: 0.003,
   },
 
   rescue: {
-    range: 132,
+    range: 26.4 * MAP_SCALE,
     areaRadius: 13,
     areaOffset: 11,
     xpPerEffort: 0.003,
@@ -127,6 +159,18 @@ export const ESCORT_JOB = {
   minWin: { 1: 0.55, 2: 0.65, 3: 0.75 } as Record<Threat, number>,
   threatPremium: { 1: 0.6, 2: 1, 3: 1.5 } as Record<Threat, number>,
   postWeight: { 1: 0.2, 2: 1, 3: 2 } as Record<Threat, number>,
+};
+
+export type ClaimLook = 'armyTruck' | 'deadTruck' | 'tank' | 'shipWreck';
+
+export const CLAIM_LOOKS: Partial<Record<PropKind | OldPlaceType, ClaimLook>> = {
+  armyTruck: 'armyTruck',
+  deadTruck: 'deadTruck',
+  tank: 'tank',
+  hulks: 'tank',
+  shipCache: 'shipWreck',
+  hullCache: 'shipWreck',
+  engineCache: 'shipWreck',
 };
 
 export type ShopKind = 'garage' | 'stall';
@@ -173,6 +217,7 @@ export type ShopDef = {
   restockTurns: number;
   contractSlots: number;
   supplies: ('fuel' | 'supplies')[];
+  charts: boolean;
 };
 
 export const PRESSURE_MAX = 0.6;
@@ -191,6 +236,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     restockTurns: 400,
     contractSlots: 3,
     supplies: ['fuel', 'supplies'],
+    charts: true,
   },
   nose: {
     id: 'nose',
@@ -201,6 +247,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     restockTurns: 400,
     contractSlots: 3,
     supplies: ['fuel', 'supplies'],
+    charts: true,
   },
   'salvage-yard': {
     id: 'salvage-yard',
@@ -217,6 +264,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     restockTurns: 300,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   granary: {
     id: 'granary',
@@ -230,6 +278,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     restockTurns: 300,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   'pump-station': {
     id: 'pump-station',
@@ -243,6 +292,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     restockTurns: 300,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   dustwell: {
     id: 'dustwell',
@@ -256,6 +306,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     restockTurns: 300,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   'green-pit': {
     id: 'green-pit',
@@ -269,6 +320,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     restockTurns: 300,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
 };
 
@@ -286,6 +338,7 @@ export type Recipe = {
 
 export type SiteEconomy = {
   recipes: Recipe[];
+  found?: string[];
   demand: Record<string, number>;
   serviceDaily: Record<string, number>;
 };
@@ -363,7 +416,7 @@ export const SITE_ECONOMY: Record<string, SiteEconomy> = {
       { id: 'forge', inputs: { scrap: 2, fuelDrums: 1 }, outputs: { tools: 1 }, everyCycles: 6, ...NO_UPKEEP },
       { id: 'cells', inputs: { parts: 1, fuelDrums: 1 }, outputs: { batteries: 1 }, everyCycles: 8, ...NO_UPKEEP },
     ],
-    demand: { rations: 4, water: 8, textiles: 12, meds: 24, electronics: 24 },
+    demand: { rations: 4, water: 8, textiles: 12, meds: 24, electronics: 24, relics: 24 },
     serviceDaily: { fuelDrums: 45, rations: 1 },
   },
   'pump-station': {
@@ -373,6 +426,7 @@ export const SITE_ECONOMY: Record<string, SiteEconomy> = {
   },
   'salvage-yard': {
     recipes: [{ id: 'yard', inputs: {}, outputs: { scrap: 2, parts: 1 }, everyCycles: 3, upkeep: ['tools'], upkeepBatches: 16, wornEvery: 6 }],
+    found: ['relics'],
     demand: { rations: 12 },
     serviceDaily: { fuelDrums: 10, rations: 1 },
   },
@@ -389,7 +443,7 @@ export function siteRecipes(shopId: string): readonly Recipe[] {
 }
 
 export function madeGoods(shopId: string): string[] {
-  return unique(siteRecipes(shopId).flatMap((r) => [...Object.keys(r.outputs), ...Object.keys(r.fallback ?? {})]));
+  return unique([...siteRecipes(shopId).flatMap((r) => [...Object.keys(r.outputs), ...Object.keys(r.fallback ?? {})]), ...(siteEconomy(shopId).found ?? [])]);
 }
 
 export function usedGoods(shopId: string): string[] {

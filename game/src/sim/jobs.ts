@@ -17,8 +17,9 @@ import { repairPlan, repairTurn } from "./repair";
 import { practice, vehicleHasPerk } from "./progress";
 import { finishTruckPickup } from "./salvage";
 import { isSearchStalled, searchTurn } from "./search";
+import { isSurveyStalled, surveyTurn } from "./survey";
 import { hasWorkingUtility } from "./utility";
-import type { GridItem, Job, PartInstance, RefitJob, RefitPickup, Vehicle, World } from "./types";
+import type { GridItem, Job, PartInstance, RefitJob, RefitPickup, Refusal, Vehicle, World } from "./types";
 import { getKnownSite } from "./npc-decisions";
 import { canUseSite } from "./sites";
 import { playerCommand, Refused } from "./world";
@@ -45,8 +46,7 @@ export function dropLeftoverOrder(world: World, v: Vehicle): void {
 export function startJob(world: World, v: Vehicle, job: Job): void {
   if (inCombat(world, v)) throw new Refused({ id: "inCombat" });
   if (isAutoPatch(v.job)) cancelJob(world, v);
-  if (v.job)
-    throw new Error(`${v.id} is already busy with a ${v.job.kind} job`);
+  if (v.job) throw new Refused({ id: "busy", job: v.job.kind });
   dropLeftoverOrder(world, v);
   if (!isParkedForWork(world, v)) throw new Refused({ id: "stopFirst" });
   v.job = job;
@@ -58,12 +58,28 @@ export function startJob(world: World, v: Vehicle, job: Job): void {
   });
 }
 
+export function repairBlocker(world: World, v: Vehicle, partId: string): Refusal | null {
+  return workBlocker(world, v) ?? patchBlocker(world, v, partId);
+}
+
+function workBlocker(world: World, v: Vehicle): Refusal | null {
+  if (inCombat(world, v)) return { id: "inCombat" };
+  if (v.job && !isAutoPatch(v.job)) return { id: "busy", job: v.job.kind };
+  return v.speed > RULES.parkedSpeed ? { id: "stopFirst" } : null;
+}
+
+function patchBlocker(world: World, v: Vehicle, partId: string): Refusal | null {
+  const plan = repairPlan(world, v, partId);
+  if (plan.needed === 0) return { id: "atRepairCap" };
+  return plan.parts === 0 ? { id: "noParts" } : null;
+}
+
 export function startRepair(world: World, partId: string): World {
   return playerCommand(world, (w) => {
     const v = playerVehicle(w);
+    const blocker = repairBlocker(w, v, partId);
+    if (blocker) throw new Refused(blocker);
     const plan = repairPlan(w, v, partId);
-    if (plan.needed === 0) throw new Error("Already at the field repair cap");
-    if (plan.parts === 0) throw new Error("No parts to patch with");
     startJob(w, v, {
       kind: "repair",
       partId,
@@ -198,6 +214,7 @@ function isStalled(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "repair") return isRepairStalled(world, v, job);
   if (job.kind === "strip") return isStripStalled(v, job.partId);
   if (job.kind === "search") return isSearchStalled(world, v, job);
+  if (job.kind === "survey") return isSurveyStalled(world, job);
   return isSiteWorkStalled(v, job);
 }
 
@@ -209,6 +226,7 @@ function isSiteWorkStalled(v: Vehicle, job: Job): boolean {
 function jobTurn(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "repair") return repairTurn(world, v, job);
   if (job.kind === "search") return searchTurn(world, v, job);
+  if (job.kind === "survey") return surveyTurn(world, job);
   if (job.kind === "strip") return stripTurn(world, v, job);
   if (job.kind === "weld") return weldTurn(world, v, job);
   if (job.kind === "business") return businessTurn(job);

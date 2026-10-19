@@ -1,7 +1,7 @@
 import { START_KITS } from "../data/start";
 import { describe, expect, it } from "vitest";
 import { CHASSIS } from "../data/chassis";
-import { CRATE_MASS, ECONOMY } from "../data/goods";
+import { CRATE_MASS, ECONOMY, GOOD_IDS } from "../data/goods";
 import { vehicleMass } from "./mass";
 import { SHOPS } from "../data/market";
 import { goodBasePrice, lotPrice, shopState, stockTarget } from "./market";
@@ -12,6 +12,7 @@ import { CONDITION } from "../data/wear";
 import {
   basicsRepairCost,
   buyChassis,
+  garageChassis,
   buyGood,
   buyStockPart,
   buyPrice,
@@ -159,6 +160,12 @@ describe("trade", () => {
       for (const good of shop.goods) expect(goodBasePrice(shop.id, good)).toBeGreaterThan(0);
   });
 
+  it("Bowl trades no ship relics and Nose pays more for them than the Yard", () => {
+    expect(GOOD_IDS).toContain("relics");
+    expect(() => goodBasePrice("bowl", "relics")).toThrow();
+    expect(goodBasePrice("nose", "relics")).toBeGreaterThan(goodBasePrice("salvage-yard", "relics"));
+  });
+
   it("a lot price equals the sum of single-unit trades", () => {
     const w = startAtBowl();
     const state = shopState(w, "bowl");
@@ -283,7 +290,7 @@ describe("garage", () => {
   it("tops an NPC up at a rationing stall to the ration share, from the same rule", () => {
     const w = emptyWorld({ ...sitePads(REGION.locations.find((l) => l.id === "dustwell")!)[0] });
     shopState(w, "dustwell").goods.fuelDrums = 0;
-    const npc = addVehicle(w, "traders", "hauler", ["stockEngine"], { ...w.vehicles[0].pos });
+    const npc = addVehicle(w, "independent", "hauler", ["stockEngine"], { ...w.vehicles[0].pos });
     npc.speed = 0;
     npc.resources = { ...npc.resources!, money: 100000, fuel: 0 };
     serviceAtStall(w, npc, "dustwell", 0);
@@ -601,7 +608,7 @@ describe("garage", () => {
   it("refunds the difference when the trade-in beats the new chassis price", () => {
     let w = startAtBowl();
     w.player.money = 166667;
-    w = buyChassis(w, "carrier");
+    w = buyChassis(w, "tractor");
     const tradeIn = chassisTradeIn(w);
     expect(tradeIn).toBeGreaterThan(CHASSIS.scout.value);
     const before = w.player.money;
@@ -827,7 +834,7 @@ describe("debt", () => {
 
   it("an NPC in debt gets no fuel, supplies or repairs in town", () => {
     const w = startAtBowl();
-    const npc = addVehicle(w, "traders", "hauler", ["stockEngine"], { ...sitePads(bowl)[0] });
+    const npc = addVehicle(w, "independent", "hauler", ["stockEngine"], { ...sitePads(bowl)[0] });
     npc.resources!.money = -1667;
     npc.resources!.fuel = 1;
     npc.resources!.supplies = 1;
@@ -876,6 +883,20 @@ describe("garage storage at a stall", () => {
     expect(next.player.money).toBe(w.player.money + price);
     expect(next.player.storage).toEqual([]);
     expect(next.shops["pump-station"].stock.some((p) => p.id === stored.id)).toBe(true);
+  });
+
+  it("sells each town only its own lineup", () => {
+    const atBowl = startAtBowl();
+    atBowl.player.money = 500000;
+    expect(garageChassis("bowl")).toContain("hauler");
+    expect(buyChassis(atBowl, "hauler").vehicles[0].chassisId).toBe("hauler");
+    expect(() => buyChassis(atBowl, "niva")).toThrow("niva is not for sale at bowl");
+
+    const atNose = emptyWorld(sitePads(nose)[0]);
+    atNose.player.money = 500000;
+    expect(buyChassis(atNose, "niva").vehicles[0].chassisId).toBe("niva");
+    expect(() => buyChassis(atNose, "hauler")).toThrow("hauler is not for sale at nose");
+    expect(() => garageChassis("pump-station")).toThrow("No garage lineup for pump-station");
   });
 
   it("sells no chassis at a stall", () => {

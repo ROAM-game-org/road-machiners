@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { partDef, type WeaponDef } from '../data/parts';
-import { fireBlock, hitOdds } from '../sim/combat';
+import { fireBlock, fireWeapons, hitOdds } from '../sim/combat';
 import { makePart } from '../sim/factory';
 import { mountPart } from '../sim/inventory';
 import { corePart } from '../sim/grid';
@@ -27,7 +27,7 @@ function turnToFire(world: World, shooter: Vehicle, target: Vehicle, pick: (v: V
 function createDuel() {
   const world = emptyWorld();
   const me = world.vehicles[0];
-  const them = addVehicle(world, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI / 2);
+  const them = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI / 2);
   them.speed = 2;
   turnToFire(world, them, me, (v) => vehicleStats(world, v).weapons[0]);
   refreshVision(world);
@@ -113,7 +113,7 @@ describe('hover card rows', () => {
   it('builds the tip for the part my order aims at', () => {
     const world = emptyWorld();
     const me = world.vehicles[0];
-    const them = addVehicle(world, 'raiders', 'courier', ['stockEngine'], { x: 33, y: 30 }, Math.PI);
+    const them = addVehicle(world, 'scrapjaw', 'courier', ['stockEngine'], { x: 33, y: 30 }, Math.PI);
     refreshVision(world);
     const mine = vehicleStats(world, me).weapons[0];
     me.weaponOrders[mine.part.id] = { targetId: them.id, aim: corePart(them, 'cab').id };
@@ -133,7 +133,7 @@ describe('hover card rows', () => {
 
   it('uses a body shot for its weapons ordered at someone else', () => {
     const { world, me, them, theirs } = createDuel();
-    const other = addVehicle(world, 'traders', 'buggy', [], { x: 30, y: 34 });
+    const other = addVehicle(world, 'independent', 'buggy', [], { x: 30, y: 34 });
     turnToFire(world, them, me, (v) => vehicleStats(world, v).weapons[0]);
     them.weaponOrders[theirs.part.id] = { targetId: other.id, aim: 'body' };
     expect(hitCardRows(world, them.id)!.theirs[0].odds).toEqual(hitOdds(world, them, theirs, me, 'body'));
@@ -151,6 +151,24 @@ describe('hover card rows', () => {
     mine.part.hp = 0;
     const row = hitCardRows(world, them.id)!.mine[0];
     expect([row.odds, en(row.text), row.tip]).toEqual([null, 'disabled', null]);
+  });
+
+  it('shows a chance for a gun that fires and a block for a gun that fires no shot', () => {
+    const { world, me, them, theirs } = createDuel();
+    them.weaponOrders[theirs.part.id] = { targetId: me.id, aim: 'body' };
+    const shotsFrom = () => {
+      world.events = [];
+      fireWeapons(world);
+      return world.events.filter((e) => e.t === 'shot' && e.shooter === them.id).length;
+    };
+    expect(hitCardRows(world, them.id)!.theirs[0].odds).not.toBeNull();
+    expect(shotsFrom()).toBeGreaterThan(0);
+    const gun = () => vehicleStats(world, them).weapons[0];
+    for (let quarter = 1; quarter < 4 && fireBlock(world, them, gun(), me) === null; quarter++) them.heading += Math.PI / 2;
+    expect(fireBlock(world, them, gun(), me)).not.toBeNull();
+    them.weaponOrders[theirs.part.id] = { targetId: me.id, aim: 'body' };
+    expect(hitCardRows(world, them.id)!.theirs[0].odds).toBeNull();
+    expect(shotsFrom()).toBe(0);
   });
 
   it('shows no card for my own truck', () => {
@@ -171,7 +189,7 @@ describe('hover card harpoon row', () => {
     me.heading = 0;
     const harpoon = makePart(world, 'harpoon', 0);
     if (!mountPart(world, me, harpoon)) throw new Error('No deck room for the harpoon');
-    const them = addVehicle(world, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 }, Math.PI / 2);
+    const them = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 }, Math.PI / 2);
     turnToFire(world, me, them, (v) => vehicleStats(world, v).weapons.find((w) => w.def.line)!);
     refreshVision(world);
     return { world, me, harpoon, them };

@@ -1,4 +1,5 @@
 
+import { CLOUD_SHADOWS } from './cloudShadows';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { chassisDef } from '../../data/chassis';
@@ -8,7 +9,7 @@ import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { CLIP_TOLERANCE, bodyOf, cellCenter, cellRect, engineAnchor, highestUnder, restOn, surfaceAt, surfaceSamples, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
-import { FACTION_COLORS, PAL } from '../../render/palette';
+import { PAL, paintOf } from '../../render/palette';
 import { BODY_PARTS, baseModel, drawsOwnBumpers, grayShare, grayed, jagOffset, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle, World } from '../../sim/types';
@@ -76,7 +77,7 @@ export function signatureOf(v: Vehicle): string {
       return `${what}@${it.x},${it.y},${it.rot}`;
     })
     .join(',');
-  return `${v.chassisId}|${v.faction}|${items}`;
+  return `${v.chassisId}|${paintOf(v).top}|${items}`;
 }
 
 export class VehicleView {
@@ -215,7 +216,7 @@ export class VehicleView {
     this.anchors.clear();
     const body = bodyOf(v.chassisId);
     this.motion = new TruckMotion(this.body, new THREE.Vector3(0, body.wheelY, 0), body.half.x, hashStr(v.id));
-    const paint = FACTION_COLORS[v.faction].top;
+    const paint = paintOf(v).top;
     const on = this.lampMat.color.getHex() === PAL.lamp.on;
     this.lampMat = new THREE.MeshBasicMaterial({ color: on ? PAL.lamp.on : PAL.lamp.off });
     this.radioMat = new THREE.MeshBasicMaterial({ color: radioColor(this.radioOn) });
@@ -224,7 +225,7 @@ export class VehicleView {
 
     const still = new THREE.Group();
     const onBody = v.items.filter((item) => onChassis(v, item));
-    this.buildBase(v, body, baseModel(v.chassisId), still, paint, FACTION_COLORS[v.faction].cab, bumperlessCells(v, onBody), cabLook(v));
+    this.buildBase(v, body, baseModel(v.chassisId), still, paint, paintOf(v).cab, bumperlessCells(v, onBody), cabLook(v));
     const wheelItems: PartItem[] = [];
     const guns: PartItem[] = [];
     const obstacles: Obstacle[] = [];
@@ -247,6 +248,7 @@ export class VehicleView {
     this.darkMat = new THREE.MeshBasicMaterial({ color: PAL.outline });
     markStencil(this.darkMat);
     this.dark = false;
+    CLOUD_SHADOWS.shadeTree(this.root);
   }
 
   private drawPart(v: Vehicle, body: Body, item: PartItem, still: THREE.Group, paint: number, wheelItems: PartItem[], guns: PartItem[], obstacles: Obstacle[]): void {

@@ -35,16 +35,22 @@ const GUARDED = NPC_BEHAVIOR.lawGateReach / 2;
 const UNGUARDED = NPC_BEHAVIOR.lawGateReach + 4;
 
 function addScumbag(w: World, pos: Vec, parts = ['mg', 'stockEngine'], traits: TraitId[] = ['scavenger', 'scumbag']): Vehicle {
-  const v = addVehicle(w, 'scavengers', 'wagon', parts, pos);
+  const v = addVehicle(w, 'independent', 'wagon', parts, pos);
   v.brain = npcBrain('scavenger', pos, traits);
   return v;
 }
 
 const lowest = (w: World, observer: Vehicle, v: Vehicle) => judgeDanger(w, observer, v) * (1 - NPC_BEHAVIOR.dangerSpread);
 
+function withBrain(v: Vehicle): Vehicle {
+  v.brain = npcBrain('trader', v.pos, ['trader']);
+  return v;
+}
+
 function addPrey(w: World, pos: Vec, parts: string[] = ['stockEngine'], goods = 2): Vehicle {
-  const v = addVehicle(w, 'traders', 'scout', parts, pos);
+  const v = addVehicle(w, 'independent', 'scout', parts, pos);
   v.brain = npcBrain('trader', pos, ['trader']);
+  v.resources!.money = 0;
   if (goods > 0 && addGoods(w, v, 'scrap', goods) < goods) throw new Error('No room for prey goods');
   if (goods > 0 && addGoods(w, v, 'electronics', 4) < 4) throw new Error('No room for prey cargo');
   return v;
@@ -118,7 +124,7 @@ const UNAVAILABLE: Record<string, Setup> = {
     const w = emptyWorld({ x: 200, y: 200 });
     const robber = addScumbag(w, { x: 10, y: 10 });
     const target = addPrey(w, { x: 15, y: 10 });
-    const tower = addVehicle(w, 'traders', 'scout', [], { x: 17, y: 10 });
+    const tower = addVehicle(w, 'independent', 'scout', [], { x: 17, y: 10 });
     addState(w, 'tow', tower.id, target.id, { kind: 'tow', site: 'bowl', fee: 10, waived: 0, hitched: true });
     return { w, robber, target };
   },
@@ -126,7 +132,7 @@ const UNAVAILABLE: Record<string, Setup> = {
     const w = emptyWorld({ x: 200, y: 200 });
     const robber = addScumbag(w, { x: 10, y: 10 });
     const target = addPrey(w, { x: 15, y: 10 });
-    startCombat(w, addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 60, y: 10 }), target);
+    startCombat(w, addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 60, y: 10 }), target);
     return { w, robber, target };
   },
 };
@@ -134,7 +140,7 @@ const UNAVAILABLE: Record<string, Setup> = {
 const JUDGED: Record<string, Setup> = {
   strong: () => {
     const w = emptyWorld({ x: 200, y: 200 });
-    const target = addVehicle(w, 'traders', 'carrier', ['tankGun', 'plates'], { x: 15, y: 10 });
+    const target = withBrain(addVehicle(w, 'independent', 'carrier', ['sniperCannon', 'plates'], { x: 15, y: 10 }));
     return { w, robber: addScumbag(w, { x: 10, y: 10 }), target };
   },
   robberAtGate: () => {
@@ -199,20 +205,20 @@ describe('robbery checks', () => {
 describe('danger', () => {
   const judge = () => {
     const w = emptyWorld({ x: 200, y: 200 });
-    const driver = addVehicle(w, 'traders', 'scout', ['mg', 'stockEngine'], { x: 10, y: 40 });
+    const driver = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 10, y: 40 });
     return { w, driver };
   };
 
   it('a tank is a bigger threat than a scout', () => {
     const { w, driver } = judge();
-    const tank = addVehicle(w, 'raiders', 'carrier', ['tankGun', 'plates', 'stockEngine'], { x: 10, y: 10 });
-    const scout = addVehicle(w, 'raiders', 'scout', ['mg', 'stockEngine'], { x: 60, y: 10 });
+    const tank = addVehicle(w, 'scrapjaw', 'carrier', ['sniperCannon', 'plates', 'stockEngine'], { x: 10, y: 10 });
+    const scout = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 60, y: 10 });
     expect(judgeDanger(w, driver, tank)).toBeGreaterThan(judgeDanger(w, driver, scout) * 3);
   });
 
   it('a tank worn to half HP is less of a threat', () => {
     const { w, driver } = judge();
-    const tank = addVehicle(w, 'raiders', 'carrier', ['tankGun', 'plates', 'stockEngine'], { x: 10, y: 10 });
+    const tank = addVehicle(w, 'scrapjaw', 'carrier', ['sniperCannon', 'plates', 'stockEngine'], { x: 10, y: 10 });
     const full = judgeDanger(w, driver, tank);
     for (const part of mountedParts(tank)) part.hp = Math.ceil(part.hp / 2);
     expect(judgeDanger(w, driver, tank)).toBeLessThan(full * 0.6);
@@ -220,7 +226,7 @@ describe('danger', () => {
 
   it('a truck with no working gun is no threat', () => {
     const { w, driver } = judge();
-    const scout = addVehicle(w, 'raiders', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
+    const scout = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
     mountedParts(scout, 'weapon')[0].hp = 0;
     expect(judgeDanger(w, driver, scout)).toBe(0);
   });
@@ -243,7 +249,7 @@ describe('scumbag robbery', () => {
       return robs;
     };
     const equal = count((w) => addPrey(w, { x: 15, y: 10 }, ['mg', 'stockEngine']));
-    const strong = count((w) => addVehicle(w, 'traders', 'carrier', ['tankGun', 'plates'], { x: 15, y: 10 }));
+    const strong = count((w) => withBrain(addVehicle(w, 'independent', 'carrier', ['sniperCannon', 'plates', 'stockEngine'], { x: 15, y: 10 })));
     expect(equal).toBeGreaterThan(0);
     expect(strong).toBeLessThan(20);
     expect(strong).toBeLessThan(equal);
@@ -606,10 +612,10 @@ describe('cargo value', () => {
     expect(robWeight(w, robber, poor, judgeDanger(w, robber, poor))).toBeGreaterThanOrEqual(FULL_ROB);
   });
 
-  describe('raiders', () => {
+  describe('scrapjaw', () => {
     const fightChance = (goods: [string, number][], setup?: (w: World, raider: Vehicle, target: Vehicle) => void): number => {
       const w = emptyWorld({ x: 200, y: 200 });
-      const raider = addVehicle(w, 'raiders', 'wagon', ['mg', 'stockEngine'], { x: 10, y: 10 });
+      const raider = addVehicle(w, 'scrapjaw', 'wagon', ['mg', 'stockEngine'], { x: 10, y: 10 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       const target = addPrey(w, { x: 15, y: 10 }, [], 0);
       for (const [good, n] of goods) addGoods(w, target, good, n);
@@ -634,7 +640,7 @@ describe('cargo value', () => {
   it('leaves hasLoot, canRob and isHostile as they were for an engine-only truck', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const robber = addScumbag(w, { x: 10, y: 10 });
-    const raider = addVehicle(w, 'raiders', 'wagon', ['mg', 'stockEngine'], { x: 12, y: 10 });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['mg', 'stockEngine'], { x: 12, y: 10 });
     const bare = addPrey(w, { x: 15, y: 10 }, ['stockEngine'], 0);
     expect(hasLoot(bare)).toBe(true);
     expect(isHostile(w, raider, bare)).toBe(true);
@@ -645,7 +651,7 @@ describe('cargo value', () => {
 describe('stranded robbers', () => {
   const strand = (w: World, v: Vehicle) => { getResources(w, v).fuel = 0; };
   const addRaider = (w: World, pos: Vec) => {
-    const raider = addVehicle(w, 'raiders', 'wagon', ['mg', 'stockEngine'], pos);
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['mg', 'stockEngine'], pos);
     raider.brain = npcBrain('buggy', pos, ['raider']);
     return raider;
   };
@@ -744,10 +750,10 @@ describe('stranded robbers', () => {
 describe('a guarded driver', () => {
   function guardedConvoy() {
     const w = emptyWorld({ x: 200, y: 200 });
-    const convoy = addVehicle(w, 'convoys', 'hauler', ['mg', 'workhorseDiesel'], { x: 10, y: 10 });
+    const convoy = addVehicle(w, 'bowl', 'hauler', ['mg', 'workhorseDiesel'], { x: 10, y: 10 });
     convoy.brain = npcBrain('convoy', convoy.pos, ['supplier']);
     addGoods(w, convoy, 'electronics', 4);
-    const guard = addVehicle(w, 'convoys', 'scout', ['mg', 'stockEngine'], { x: 10, y: 13 });
+    const guard = addVehicle(w, 'bowl', 'scout', ['mg', 'stockEngine'], { x: 10, y: 13 });
     guard.brain = npcBrain('convoyGuard', guard.pos, ['guard', 'brave']);
     startEscort(w, guard, convoy, null, 0);
     const raider = addScumbag(w, { x: 16, y: 10 }, ['mg', 'stockEngine'], ['raider']);

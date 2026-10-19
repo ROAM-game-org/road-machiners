@@ -9,7 +9,7 @@ import { legRisk } from './road-news';
 import { goodStock, goodValue, shopState, stockTarget } from './market';
 import { routeThreat } from './escort-job';
 import {
-  DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
+  CREW, DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
   type DecisionId, type DecisionOptions, type Trait, type TraitId, type TraitWeights, type Weighted, type WeightChange,
 } from '../data/npcs';
 import { REGION } from '../data/region';
@@ -27,7 +27,7 @@ import { cargoRoom } from './inventory';
 import { cargoValue } from './market';
 import { maxHp } from './wear';
 import { corePart, freeCells, hasLoot, mountedParts } from './grid';
-import { cargoHaul } from './haul';
+import { hasRansom, ransomOf } from './haul';
 import { hasCargoRoom } from './inventory';
 import { topGoal } from './npc-activities';
 import { sampleWeighted } from './npc-loadout';
@@ -35,7 +35,7 @@ import { getResources } from './resources';
 import { skillEffect } from './progress';
 import { randRange } from './rng';
 import { recall, remember } from './memory';
-import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, hasCargo, hasSalvage, holdsClaim, jobTarget, lootBlocker, STRIPPED } from './salvage';
+import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasCargo, hasSalvage, holdsClaim, jobTarget, lootBlocker, STRIPPED } from './salvage';
 import { passesUpLoot } from './loot-warning';
 import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } from './sites';
 import { territoryAt, territoryGrounds } from './territory';
@@ -43,12 +43,16 @@ import { addState, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf
 import { isStranded, vehicleStats } from './stats';
 import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
 import { leaderToJoin } from './pairs';
+import { ownSide, perceivedGroup } from './sides';
+import { canJoin, canMuster, heldBackByCrew, joinFactor } from './crews';
+import { followersOf } from './companies';
 import type { Contact, GoalReason, NpcActivity, PassReason, SalvageStock, Vehicle, World } from './types';
 import { clamp, dist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
 import { canVehicleSee } from './vision';
 import { huntsOffRoad } from './hunt-style';
 import { postsOf } from './watch-posts';
+import { bandAtLeast, bandToward, isAlly, isOutlaw, isRaider } from './relations';
 
 export type NpcProfile = {
   towns: string[];
@@ -121,17 +125,10 @@ export function firepower(world: World, vehicle: Vehicle): number {
   return vehicleStats(world, vehicle).weapons.filter((weapon) => weapon.part.hp > 0).reduce((sum, weapon) => sum + weapon.def.round.damage * weapon.def.rounds, 0);
 }
 
-function localGroup(world: World, observer: Vehicle, member: Vehicle): Vehicle[] {
-  return world.vehicles.filter((v) => !isDefeated(v) && (v.id === member.id || (v.id !== observer.id && v.faction === member.faction
-    && dist(v.pos, member.pos) <= SPAWN.neighborHelp && canVehicleSee(world, observer, v.pos))));
-}
-
-function ownGroup(world: World, vehicle: Vehicle): Vehicle[] {
-  return [vehicle, ...localGroup(world, vehicle, vehicle).filter((v) => v.id !== vehicle.id && !isHostile(world, vehicle, v))];
-}
-
 export function fightOddsAgainst(world: World, vehicle: Vehicle, other: Vehicle): FightOdds {
-  return fightOdds(world, ownGroup(world, vehicle), localGroup(world, vehicle, other));
+  const ours = ownSide(world, vehicle);
+  const mine = new Set(ours.map((v) => v.id));
+  return fightOdds(world, ours, perceivedGroup(world, vehicle, other).filter((v) => !mine.has(v.id)));
 }
 
 export function strengthRatio(odds: FightOdds): number {
@@ -157,7 +154,7 @@ export function isWeak(world: World, vehicle: Vehicle): boolean {
 }
 
 export function huntsPrey(vehicle: Vehicle): boolean {
-  return vehicle.faction === 'raiders';
+  return isRaider(vehicle);
 }
 
 export function fitToHunt(world: World, vehicle: Vehicle): boolean {
@@ -182,7 +179,7 @@ export function npcSenses(world: World, vehicle: Vehicle): { seen: Vehicle[]; co
   return { seen, contacts: useful.sort((a, b) => dist(vehicle.pos, a.center) - dist(vehicle.pos, b.center)) };
 }
 
-const WORK: readonly NpcActivity['kind'][] = ['scavenge', 'sell', 'trade', 'resupply', 'loot', 'repair', 'travel'];
+const WORK: readonly NpcActivity['kind'][] = ['scavenge', 'sell', 'trade', 'resupply', 'loot', 'repair', 'travel', 'claim'];
 
 function isBusy(vehicle: Vehicle): boolean {
   const kind = topGoal(vehicle)?.kind;
@@ -202,7 +199,7 @@ function aimsOf(other: Vehicle): string[] {
 
 function isNearbyMate(world: World, vehicle: Vehicle, id: string): boolean {
   const mate = world.vehicles.find((v) => v.id === id);
-  if (!mate || mate.faction !== vehicle.faction) return false;
+  if (!mate || mate.id === vehicle.id || !isAlly(world, vehicle, mate)) return false;
   return dist(mate.pos, vehicle.pos) <= SPAWN.neighborHelp && canVehicleSee(world, vehicle, mate.pos);
 }
 
@@ -309,7 +306,7 @@ function knownUnfit(vehicle: Vehicle, targetId: string): boolean {
 export function noteStripped(world: World, vehicle: Vehicle, stockId: string | null): void {
   const stock = world.salvage.find((s) => s.id === stockId);
   if (!stock) throw new Error(`${vehicle.id} cannot note ${stockId} as stripped: no such stock`);
-  if (hasSalvage(stock)) throw new Error(`${vehicle.id} cannot note ${stockId} as stripped: it still holds salvage`);
+  if (hasSalvage(stock) && !claimOnly(world, vehicle, stock)) throw new Error(`${vehicle.id} cannot note ${stockId} as stripped: it still holds salvage`);
   remember(world, vehicle, { kind: 'stripped', stock: stock.id });
 }
 
@@ -358,6 +355,7 @@ export function stockLootInvalid(world: World, vehicle: Vehicle, goal: NpcActivi
   if (!stock) return 'lootGone';
   if (!canReachSalvage(vehicle, stock)) return !hasCargoRoom(vehicle) ? CANNOT_HOLD : null;
   if (!hasSalvage(stock)) return STRIPPED;
+  if (claimOnly(world, vehicle, stock)) return CLAIMED;
   return canTakeAny(world, vehicle, stock) ? null : CANNOT_HOLD;
 }
 
@@ -502,7 +500,8 @@ export function canRob(w: World, robber: Vehicle, target: Vehicle): boolean {
 }
 
 function isFairGame(w: World, robber: Vehicle, target: Vehicle): boolean {
-  return !isHostile(w, robber, target) && !boundTo(w, robber.id, target.id) && !inTruce(w, robber, target);
+  if (isHostile(w, robber, target) || boundTo(w, robber.id, target.id) || inTruce(w, robber, target)) return false;
+  return !(isRaider(robber) && isOutlaw(target.faction)) && !bandAtLeast(bandToward(w, robber, target), 'friendly');
 }
 
 function isRobbable(w: World, target: Vehicle): boolean {
@@ -646,6 +645,8 @@ const AVAILABLE: Record<OptionName, Availability> = {
   explore: canDrive,
   haul: canHaul,
   escort: canEscort,
+  muster: (world, vehicle) => canMuster(world, vehicle),
+  join: (world, vehicle, decision, subject) => canJoin(world, vehicle, subjectOf(world, decision, subject)),
   go: always,
   post: canPostEscort,
   paid: dealAvailable('paid'),
@@ -711,7 +712,7 @@ function fleeAttackedFactor(world: World, vehicle: Vehicle, decision: DecisionId
   return hit * weakFlee(world, vehicle) * threatFlee(world, vehicle, decision, subject, danger);
 }
 
-const FLEE_FACTORS: Partial<Record<DecisionId, SituationFactor>> = { hostileSeen: fleeSeenFactor, contactHeard: fleeHeardFactor, attacked: fleeAttackedFactor, threatened: fleeSeenFactor, parley: fleeSeenFactor };
+const FLEE_FACTORS: Partial<Record<DecisionId, SituationFactor>> = { hostileSeen: fleeSeenFactor, contactHeard: fleeHeardFactor, attacked: fleeAttackedFactor, threatened: fleeSeenFactor, parley: fleeSeenFactor, crewCalled: fleeSeenFactor };
 
 function fleeFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   const factor = FLEE_FACTORS[decision];
@@ -761,7 +762,11 @@ function fightFactor(world: World, vehicle: Vehicle, decision: DecisionId, subje
   const eager = !isBusy(vehicle) && danger !== null && isManageable(vehicle, danger);
   const lootOnly = decision === 'hostileSeen' && huntsForLoot(world, vehicle, target);
   const appeal = lootOnly ? appealOf(world, vehicle, target, huntCurve(vehicle)) : 1;
-  return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * guardFactor(vehicle, target, NPC_BEHAVIOR.fightNearGuards);
+  return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * crewHold(world, vehicle, decision, target) * guardFactor(vehicle, target, NPC_BEHAVIOR.fightNearGuards);
+}
+
+function crewHold(world: World, vehicle: Vehicle, decision: DecisionId, target: Vehicle): number {
+  return decision === 'hostileSeen' && heldBackByCrew(world, vehicle, target) ? CREW.initiative : 1;
 }
 
 function fightBackFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
@@ -780,7 +785,7 @@ function ramWeight(world: World, vehicle: Vehicle, decision: DecisionId, subject
 }
 
 function retaliateFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): number {
-  return subjectOf(world, decision, subject).faction === vehicle.faction ? NPC_BEHAVIOR.mateRetaliate : 1;
+  return isAlly(world, vehicle, subjectOf(world, decision, subject)) ? NPC_BEHAVIOR.mateRetaliate : 1;
 }
 
 function truceFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
@@ -807,7 +812,7 @@ function refuseFactor(world: World, vehicle: Vehicle, _decision: DecisionId, sub
 function robs(world: World, vehicle: Vehicle, subject: string | null): boolean {
   if (subject === null) return false;
   const target = vehicleById(world, subject);
-  return robbing(world, vehicle.id, target.id) || (vehicle.faction === 'raiders' && target.faction !== 'raiders' && hasLoot(target));
+  return robbing(world, vehicle.id, target.id) || (isRaider(vehicle) && !isOutlaw(target.faction) && hasLoot(target));
 }
 
 export function wantsLoot(world: World, vehicle: Vehicle, target: Vehicle): boolean {
@@ -815,7 +820,7 @@ export function wantsLoot(world: World, vehicle: Vehicle, target: Vehicle): bool
 }
 
 export function holdsUp(world: World, robber: Vehicle, prey: Vehicle, danger: number | null): boolean {
-  return wantsLoot(world, robber, prey) && cargoHaul(robber, prey).length > 0 && !wantsPeace(world, robber, danger);
+  return wantsLoot(world, robber, prey) && hasRansom(ransomOf(world, robber, prey)) && !wantsPeace(world, robber, danger);
 }
 
 export function robbedFor(world: World, vehicle: Vehicle, target: Vehicle): boolean {
@@ -836,12 +841,7 @@ function complyFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _su
 }
 
 function guardedNow(world: World, vehicle: Vehicle): boolean {
-  return world.states.some((s) => s.kind === 'escort' && s.other === vehicle.id && seesAwake(world, vehicle, s.holder));
-}
-
-function seesAwake(world: World, vehicle: Vehicle, otherId: string): boolean {
-  const other = world.vehicles.find((v) => v.id === otherId);
-  return !!other && !isDefeated(other) && canVehicleSee(world, vehicle, other.pos);
+  return followersOf(world, vehicle.id).some((other) => !isDefeated(other) && canVehicleSee(world, vehicle, other.pos));
 }
 
 function towFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): number {
@@ -893,6 +893,8 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   explore: neutral,
   haul: neutral,
   escort: neutral,
+  muster: neutral,
+  join: (world, vehicle, decision, subject) => joinFactor(world, vehicle, subjectOf(world, decision, subject)),
   go: neutral,
   post: postFactor,
   paid: neutral,
@@ -1010,6 +1012,8 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   escortWanted: 'venture',
   needySeen: 'venture',
   strangerSeen: 'venture',
+  crewAsked: 'response',
+  crewCalled: 'response',
 };
 
 export function keepsWord(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {

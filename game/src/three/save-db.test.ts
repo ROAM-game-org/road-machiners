@@ -4,7 +4,7 @@ import { startKit } from '../data/start';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf, writeSave } from './save';
-import { idbBackend, memoryBackend, openSaves, SaveSlots, storageBackend, type SaveBackend } from './save-db';
+import { IDB_OPEN_MS, idbBackend, memoryBackend, openSaves, SaveSlots, storageBackend, type SaveBackend } from './save-db';
 import { allSlots, slotKey } from './save-slots';
 
 const SLOTS = allSlots(3);
@@ -354,6 +354,33 @@ describe('openSaves', () => {
     });
     return { opens: () => opens, saved };
   }
+
+  it('falls back to local storage when the open never answers, and closes a late connection', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const close = vi.fn();
+    const requests: { result: unknown; onsuccess?: () => void }[] = [];
+    vi.stubGlobal('indexedDB', {
+      open: () => {
+        const request = { result: { close } };
+        requests.push(request);
+        return request;
+      },
+    });
+    const storage = makeStorage();
+    const opening = openSaves(KEY, storage, SLOTS);
+    await vi.advanceTimersByTimeAsync(IDB_OPEN_MS * 2 + 1000);
+    const slots = await opening;
+    expect(requests).toHaveLength(2);
+    expect(warn).toHaveBeenCalledOnce();
+    requests[0].onsuccess?.();
+    expect(close).toHaveBeenCalledOnce();
+    slots.put('slot1', { savedAt: 9 });
+    await slots.flush();
+    vi.useRealTimers();
+    expect(JSON.parse(storage.getItem(slotKey(KEY, 'slot1')) ?? 'null')).toEqual({ savedAt: 9 });
+    warn.mockRestore();
+  });
 
   it('falls back to local storage after two refusals and keeps legacy keys', async () => {
     vi.useFakeTimers();

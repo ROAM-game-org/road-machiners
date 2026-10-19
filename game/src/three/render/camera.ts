@@ -152,6 +152,10 @@ export class CameraRig {
     return { x: rect.left + (v.x * 0.5 + 0.5) * rect.width, y: rect.top + (1 - (v.y * 0.5 + 0.5)) * rect.height };
   }
 
+  dropLead(): void {
+    this.lead.set(0, 0, 0);
+  }
+
   tick(dtMs: number): void {
     if (this.target) {
       const k = 1 - Math.exp(-dtMs / FOLLOW_TAU_MS);
@@ -199,6 +203,11 @@ export class TruckFollow {
   }
 
   recenter(): void {
+    this.resume();
+    this.rig.dropLead();
+  }
+
+  private resume(): void {
     this.following = true;
     this.recentering = true;
   }
@@ -208,7 +217,7 @@ export class TruckFollow {
   }
 
   noteDanger(danger: boolean): void {
-    if (danger && !this.dangerSeen) this.recenter();
+    if (danger && !this.dangerSeen) this.resume();
     this.dangerSeen = danger;
   }
 
@@ -217,7 +226,7 @@ export class TruckFollow {
     if (playing) this.recentering = false;
     if (this.following) this.aim(truck, dest, playing);
     this.rig.tick(dtMs);
-    if (this.rig.pointLeftView(truck)) this.recenter();
+    if (this.rig.pointLeftView(truck)) this.resume();
   }
 
   private aim(truck: V3, dest: V3 | null, playing: boolean): void {

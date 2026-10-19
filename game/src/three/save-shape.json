@@ -1,5 +1,5 @@
 {
- "format": "2.70",
+ "format": "2.83",
  "shape": {
   "broken": [],
   "craters": [],
@@ -49,6 +49,7 @@
    "costBasis": {
     "scrap": "number"
    },
+   "deeds": [],
    "discovered": [],
    "encounters": {
     "next": "number",
@@ -90,6 +91,14 @@
    "repeats": {},
    "rumored": [],
    "scavenged": [],
+   "standing": {
+    "administrators": "number",
+    "bowl": "number",
+    "guidestar": "number",
+    "kiln": "number",
+    "nose": "number",
+    "scrapjaw": "number"
+   },
    "state": "string",
    "storage": [],
    "supplies": "number",
@@ -465,6 +474,140 @@
       "grain": "number",
       "parts": "number",
       "textiles": "number"
+     },
+     "parts": [
+      {
+       "defId": "string",
+       "gun": {
+        "ammo": "number",
+        "cooldown": "number",
+        "reloadWork": "number"
+       },
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "defId": "string",
+      "gun": {
+       "ammo": "number",
+       "cooldown": "number",
+       "reloadWork": "number"
+      },
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "meds": "number",
+     "parts": "number",
+     "relics": "number",
+     "salt": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "meds": "number",
+      "parts": "number",
+      "relics": "number",
+      "salt": "number",
+      "scrap": "number"
+     },
+     "parts": [],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "meds": "number",
+     "parts": "number",
+     "relics": "number",
+     "salt": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "meds": "number",
+      "parts": "number",
+      "relics": "number",
+      "salt": "number",
+      "scrap": "number"
+     },
+     "parts": [
+      {
+       "charge": {
+        "reload": "number"
+       },
+       "defId": "string",
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "charge": {
+       "reload": "number"
+      },
+      "defId": "string",
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "meds": "number",
+     "parts": "number",
+     "relics": "number",
+     "salt": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "meds": "number",
+      "parts": "number",
+      "relics": "number",
+      "salt": "number",
+      "scrap": "number"
      },
      "parts": [
       {
@@ -1661,6 +1804,7 @@
      "meds": "number",
      "parts": "number",
      "rations": "number",
+     "relics": "number",
      "salt": "number",
      "scrap": "number",
      "textiles": "number",
@@ -1879,6 +2023,7 @@
      "fuelDrums": "number",
      "parts": "number",
      "rations": "number",
+     "relics": "number",
      "scrap": "number",
      "tools": "number"
     },
@@ -2190,20 +2335,34 @@
  },
  "quests": {
   "world": {
+   "ala_hired": "boolean",
+   "ala_knows": "string",
    "ambush_raider": "string",
+   "death_answer": "string",
    "depot_thief": "string",
+   "father_told": "boolean",
    "first_knockout_seen": "boolean",
+   "geezer_pitch": "string",
+   "hand_shook": "boolean",
+   "hattie_met": "boolean",
    "intro_step": "string",
    "marr_regard": "string",
    "pipe_fate": "string",
+   "promised": "boolean",
+   "ring_told": "string",
+   "road_seen_1": "boolean",
+   "road_seen_12": "boolean",
+   "road_seen_4": "boolean",
+   "road_seen_8": "boolean",
+   "scale_seen": "boolean",
    "towed_to_bowl": "boolean",
-   "varga_truck_known": "boolean",
    "wagon_fate": "string",
-   "wagon_pin": "string",
    "wagon_read": "boolean",
+   "wagon_rod": "string",
    "wagon_saw": "boolean",
    "wagon_seen": "boolean",
-   "wagon_watched": "boolean"
+   "wagon_watched": "boolean",
+   "why_answer": "string"
   },
   "local": {
    "bowl_dag": {
@@ -2214,7 +2373,6 @@
    },
    "bowl_hattie": {
     "hattie_came_out": "boolean",
-    "hattie_farm": "boolean",
     "hattie_flats": "boolean",
     "hattie_glass": "boolean",
     "hattie_granary": "boolean",
@@ -2225,8 +2383,7 @@
     "hattie_strip": "boolean",
     "hattie_sunward": "boolean",
     "hattie_tow": "boolean",
-    "hattie_unarmed": "boolean",
-    "hattie_varga": "boolean"
+    "hattie_unarmed": "boolean"
    },
    "bowl_jory": {
     "jory_filled": "boolean",
@@ -2240,6 +2397,11 @@
     "ruben_sun": "boolean",
     "ruben_water": "boolean"
    },
+   "bowl_scale": {
+    "asked_army": "boolean",
+    "asked_pay": "boolean",
+    "asked_where": "boolean"
+   },
    "first_fall": {},
    "granary_odile": {
     "asked_gate": "boolean",
@@ -2248,7 +2410,18 @@
    "intro_arrival": {
     "arrival_rope": "boolean"
    },
-   "intro_bowl": {},
+   "intro_bowl": {
+    "asked_flats": "boolean",
+    "asked_kiln": "boolean",
+    "asked_next": "boolean",
+    "asked_nose": "boolean",
+    "asked_region": "boolean",
+    "asked_tips": "boolean",
+    "asked_what": "boolean",
+    "asked_where": "boolean",
+    "asked_yard": "boolean"
+   },
+   "intro_road": {},
    "nose_depot_leak": {
     "alarm": "number",
     "bunk_searched": "boolean",
@@ -2306,7 +2479,7 @@
     "asked_brann": "boolean",
     "asked_glare": "boolean",
     "asked_kiln": "boolean",
-    "asked_pins": "boolean",
+    "asked_rods": "boolean",
     "asked_sun": "boolean",
     "heard_brann": "boolean",
     "heard_glare": "boolean",
@@ -2356,6 +2529,28 @@
     "walked_out": "boolean"
    },
    "radio_wagon_driver": {},
+   "road_hire": {
+    "asked_north": "boolean",
+    "asked_pay": "boolean",
+    "asked_trailer": "boolean",
+    "asked_who": "boolean",
+    "walked_out": "boolean"
+   },
+   "road_stretch_1": {},
+   "road_stretch_12": {
+    "pass_said": "boolean",
+    "stay_said": "string"
+   },
+   "road_stretch_4": {
+    "asked_hunters": "boolean",
+    "asked_north": "boolean",
+    "asked_trailer": "boolean"
+   },
+   "road_stretch_8": {
+    "asked_hunters": "boolean",
+    "asked_run": "boolean",
+    "grief_said": "string"
+   },
    "station_still": {
     "asked_buyers": "boolean"
    },
@@ -2407,6 +2602,9 @@
     "start",
     "start.hub"
    ],
+   "bowl_scale": [
+    "start"
+   ],
    "first_fall": [
     "start"
    ],
@@ -2421,6 +2619,12 @@
     "start.shed"
    ],
    "intro_bowl": [
+    "start",
+    "start.ask",
+    "meet",
+    "again"
+   ],
+   "intro_road": [
     "start"
    ],
    "nose_depot_leak": [
@@ -2463,6 +2667,36 @@
    "radio_wagon_driver": [
     "start",
     "start.ask"
+   ],
+   "road_hire": [
+    "start",
+    "start.both",
+    "start.hub"
+   ],
+   "road_stretch_1": [
+    "start",
+    "start.tougher",
+    "start.close"
+   ],
+   "road_stretch_12": [
+    "start",
+    "start.fire",
+    "start.ask",
+    "start.stay",
+    "start.close"
+   ],
+   "road_stretch_4": [
+    "start",
+    "start.death_machine",
+    "start.hub",
+    "start.maya"
+   ],
+   "road_stretch_8": [
+    "start",
+    "start.news",
+    "start.loss",
+    "start.hub",
+    "start.close"
    ],
    "station_still": [
     "start",
@@ -2513,11 +2747,7 @@
      "towed_to_bowl"
     ],
     "readsNotes": [],
-    "writes": {
-     "varga_truck_known": [
-      true
-     ]
-    },
+    "writes": {},
     "notes": [
      "glassTank",
      "talkGlassLean",
@@ -2547,6 +2777,18 @@
     "readsNotes": [],
     "writes": {},
     "notes": [],
+    "begins": []
+   }
+  },
+  "bowl_scale": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [
+     "orchardIron"
+    ],
     "begins": []
    }
   },
@@ -2583,6 +2825,18 @@
    }
   },
   "intro_bowl": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "towed_to_bowl"
+    ],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "intro_road": {
    "revision": 1,
    "links": {
     "reads": [],
@@ -2646,7 +2900,7 @@
     "reads": [
      "depot_thief",
      "wagon_fate",
-     "wagon_pin",
+     "wagon_rod",
      "wagon_seen"
     ],
     "readsNotes": [
@@ -2667,13 +2921,13 @@
    "links": {
     "reads": [
      "wagon_fate",
-     "wagon_pin"
+     "wagon_rod"
     ],
     "readsNotes": [],
     "writes": {},
     "notes": [
      "greenPit",
-     "talkOnePin"
+     "talkBrakeRod"
     ],
     "begins": [
      "wagon_bench"
@@ -2752,6 +3006,118 @@
     "begins": []
    }
   },
+  "road_hire": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "geezer_pitch"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "ala_hired": [
+      true
+     ],
+     "geezer_pitch": [
+      "bullets",
+      "link"
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "road_stretch_1": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "father_told",
+     "geezer_pitch"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "father_told": [
+      true
+     ],
+     "ring_told": [
+      "dodged",
+      "silent",
+      "told"
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "road_stretch_12": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "ala_knows",
+     "father_told",
+     "hand_shook",
+     "promised",
+     "ring_told"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "ala_knows": [
+      "burnt",
+      "dead",
+      "magnus"
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "road_stretch_4": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "father_told",
+     "ring_told"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "death_answer": [
+      "hard_men",
+      "magnus",
+      "road",
+      "silent"
+     ],
+     "promised": [
+      true
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "road_stretch_8": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "father_told",
+     "hand_shook",
+     "promised"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "hand_shook": [
+      false,
+      true
+     ],
+     "why_answer": [
+      "finish",
+      "pay",
+      "promised",
+      "silent"
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
   "station_still": {
    "revision": 1,
    "links": {
@@ -2766,8 +3132,8 @@
    "revision": 1,
    "links": {
     "reads": [
-     "wagon_pin",
      "wagon_read",
+     "wagon_rod",
      "wagon_saw"
     ],
     "readsNotes": [],
@@ -2786,19 +3152,19 @@
    "revision": 1,
    "links": {
     "reads": [
-     "wagon_pin",
      "wagon_read",
+     "wagon_rod",
      "wagon_saw",
      "wagon_watched"
     ],
     "readsNotes": [],
     "writes": {
-     "wagon_pin": [
-      "bent",
-      "held"
-     ],
      "wagon_read": [
       true
+     ],
+     "wagon_rod": [
+      "bent",
+      "held"
      ],
      "wagon_saw": [
       true
@@ -2808,7 +3174,7 @@
      ]
     },
     "notes": [
-     "wagonPin"
+     "wagonRod"
     ],
     "begins": []
    }
@@ -2818,7 +3184,7 @@
    "links": {
     "reads": [
      "wagon_fate",
-     "wagon_pin",
+     "wagon_rod",
      "wagon_watched"
     ],
     "readsNotes": [

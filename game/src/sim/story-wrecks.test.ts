@@ -40,8 +40,8 @@ describe('story wrecks', () => {
 
   it('leaves the random streams and ids of world creation as they were', () => {
     const before = [
-      { seed: 1, rng: 1071778375, market: 2094198411, nextId: 1231, wreck0: { x: 219.61, y: 262.481 } },
-      { seed: 1337, rng: 1147542711, market: -2136826432, nextId: 1200, wreck0: { x: 405.805, y: 156.146 } },
+      { seed: 1, rng: 1862716345, market: -873156348, nextId: 1226, wreck0: { x: 284.798, y: 344.46 } },
+      { seed: 1337, rng: 1169356905, market: -1441049565, nextId: 1227, wreck0: { x: 528.776, y: 198.558 } },
     ];
     for (const b of before) {
       const w = newWorld(b.seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
@@ -83,7 +83,7 @@ describe('story wrecks', () => {
   it('is never cleared by many kill wrecks', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.obstacles.push({ id: WAGON.id, pos: WAGON.pos, r: WAGON.r, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: WAGON.yaw } });
-    for (let k = 0; k < RULES.maxKillWrecks + 3; k++) wreckVehicle(w, addVehicle(w, 'raiders', 'scout', [], { x: 60 + k * 3, y: 60 }));
+    for (let k = 0; k < RULES.maxKillWrecks + 3; k++) wreckVehicle(w, addVehicle(w, 'scrapjaw', 'scout', [], { x: 60 + k * 3, y: 60 }));
 
     resolveDestroyed(w);
 

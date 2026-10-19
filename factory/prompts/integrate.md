@@ -46,6 +46,6 @@ That file is only for a game design fork or a major save bump.
 
 Never push.
 
-When you end, the factory runs the full suite, `npm run typecheck`, `{{playtest}}` against the dev server and the build in a fresh clone of your branch.
+When you end, the factory runs the full suite on GitHub Actions, and `{{playtest}}` against the dev server and the build in a fresh clone of your branch.
 If they fail, the failure comes back to you in this conversation. Fix it, commit, and end again.
 The hotfix ships only on the commit those checks pass.

@@ -1,32 +1,20 @@
 {
-  "turn": 1200,
-  "player": {
-    "money": 5000,
-    "contracts": [
-      { "id": "ct-1", "shop": "bowl", "kind": "haul", "good": "grain", "units": 4, "to": "green-pit", "reward": 9000, "deadline": 1500, "window": 400, "rush": false, "tier": 1 }
-    ],
-    "costBasis": { "grain": 700 }
-  },
-  "vehicles": [
-    { "id": "v1", "pos": { "x": 5, "y": 6 }, "job": null, "brain": null, "items": [{ "kind": "good", "good": "grain", "x": 0, "y": 0 }] },
-    { "id": "v2", "pos": { "x": 60, "y": 62 }, "job": { "kind": "business", "siteId": "pump-station", "deal": "haul", "turnsLeft": 2, "total": 3 }, "brain": { "templateId": "convoy", "goals": [
-      { "kind": "haul", "targetId": "pump-station", "destination": { "x": 80, "y": 81 }, "phase": "act", "reason": "loadCargo", "load": { "good": "fuelDrums" } }
-    ] } },
-    { "id": "v3", "pos": { "x": 30, "y": 31 }, "job": null, "brain": { "templateId": "trader", "goals": [
-      { "kind": "sell", "targetId": "nose", "destination": { "x": 90, "y": 91 }, "phase": "travel", "reason": "deliverCargo" },
-      { "kind": "flee", "targetId": "v9", "destination": { "x": 40, "y": 41 }, "phase": "travel", "reason": "escapeAttacker" }
-    ] } }
-  ],
+  "turn": 700,
   "shops": {
-    "bowl": { "contracts": [], "pressure": { "scrap": 0.1, "salt": 0.3, "meds": 0, "grain": -0.3, "textiles": 0, "tools": 0, "batteries": 0, "electronics": 0, "parts": 0, "fuelDrums": 0.6, "water": -0.6 }, "stock": [], "restockAt": 1300 },
-    "nose": { "contracts": [], "pressure": { "scrap": 0, "salt": -0.15, "meds": 0, "grain": 0.2, "textiles": 0, "tools": 0, "batteries": 0, "electronics": 0, "parts": 0, "fuelDrums": 0, "water": 0 }, "stock": [], "restockAt": 1300 },
-    "salvage-yard": { "contracts": [], "pressure": { "scrap": 0, "parts": 0, "tools": 0.4 }, "stock": [], "restockAt": 1300 },
-    "granary": { "contracts": [
-      { "id": "ct-2", "shop": "granary", "kind": "haul", "good": "textiles", "units": 3, "to": "nose", "reward": 5000, "deadline": 1600, "window": 400, "rush": false, "tier": 1 },
-      { "id": "ct-3", "shop": "granary", "kind": "haul", "good": "salt", "units": 3, "to": "bowl", "reward": 5000, "deadline": 1600, "window": 400, "rush": false, "tier": 1 }
-    ], "pressure": { "grain": 0.2, "salt": 0, "textiles": 0 }, "stock": [], "restockAt": 1300 },
-    "pump-station": { "contracts": [], "pressure": { "batteries": 0, "scrap": 0, "parts": 0 }, "stock": [], "restockAt": 1300 },
-    "dustwell": { "contracts": [], "pressure": { "water": 0, "scrap": 0, "tools": 0, "meds": 0 }, "stock": [], "restockAt": 1300 },
-    "green-pit": { "contracts": [], "pressure": { "water": 0, "grain": 0, "salt": 0, "textiles": 0 }, "stock": [], "restockAt": 1300 }
+    "bowl": {
+      "contracts": [
+        { "id": "ct2", "shop": "bowl", "kind": "search", "target": "v8", "driver": "Abe Cobb", "template": "trader", "lead": { "at": { "x": 40, "y": 52 }, "turn": 650 }, "reward": 3700, "deadline": 1200, "window": 500, "tier": 1, "found": false },
+        { "id": "ct3", "shop": "bowl", "kind": "bounty", "template": "buggy", "reward": 11000, "deadline": 1500, "window": 800, "tier": 1, "fulfilled": false }
+      ]
+    },
+    "nose": { "contracts": [] }
+  },
+  "player": {
+    "contracts": [
+      { "id": "ct1", "shop": "bowl", "kind": "search", "target": "v7", "driver": "Jed Cobb", "template": "trader", "lead": { "at": { "x": 40, "y": 52 }, "turn": 560 }, "reward": 3700, "deadline": 900, "window": 400, "tier": 1, "found": false },
+      { "id": "ct4", "shop": "nose", "kind": "fetch", "defId": "mg", "reward": 9000, "deadline": 1300, "window": 700, "tier": 1 }
+    ],
+    "talked": { "v7": { "found": "done", "directions": "done" }, "v3": { "lastSeen": "done" } },
+    "call": { "with": "v7", "topic": "found", "node": "tell", "vars": { "found": { "kind": "found", "driver": "Jed Cobb", "site": "bowl" } }, "line": { "line": "foundTold", "vars": { "found": { "kind": "found", "driver": "Jed Cobb", "site": "bowl" } } } }
   }
 }

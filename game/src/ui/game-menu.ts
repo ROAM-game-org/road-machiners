@@ -11,6 +11,7 @@ import { el, isBrowserChord, panel, topRight } from "./dom";
 import { versionLabel } from "./hud-readout";
 import { isNewGameOpen, openNewGame, type NewGameActions } from "./new-game";
 import { OptionsPanel } from "./options";
+import type { SoundSettings } from "./sound";
 import { SavePanel, type SavePanelActions } from "./save-panel";
 import type { TipSwitch } from "./tips";
 
@@ -85,8 +86,10 @@ export const CONTROLS: ControlGroup[] = [
       { keys: ["V"], does: t("help.does.camera") },
       { keys: ["M"], does: t("help.does.mute") },
       { keys: ["I"], does: t("help.does.inventory") },
+      { keys: ["R"], on: t("help.on.inventory"), does: t("help.does.turnItem") },
       { keys: ["C"], does: t("help.does.character") },
       { keys: ["J"], does: t("help.does.journal") },
+      { keys: ["K"], does: t("help.does.map") },
     ],
   },
 ];
@@ -335,7 +338,7 @@ export class GameMenu {
   private items = {} as Record<MenuEntry, HTMLButtonElement>;
   private savePanel: SavePanel;
   private help: HelpPanel;
-  private options = new OptionsPanel(() => this.button.focus());
+  private options: OptionsPanel;
 
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.code === "Escape") {
@@ -363,7 +366,8 @@ export class GameMenu {
     if (e.relatedTarget instanceof Node && !this.root.contains(e.relatedTarget)) this.closeList(false);
   };
 
-  constructor(private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch, private phone: PhoneMenuLinks) {
+  constructor(private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch, private phone: PhoneMenuLinks, sound: SoundSettings) {
+    this.options = new OptionsPanel(sound, () => this.button.focus());
     this.help = new HelpPanel(setup);
     this.savePanel = new SavePanel(actions);
     for (const { entry, label } of ENTRIES) {

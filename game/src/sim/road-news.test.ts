@@ -16,7 +16,7 @@ import type { RoadNews, Vehicle, World } from './types';
 const site = (id: string) => [...REGION.towns, ...REGION.locations].find((s) => s.id === id)!;
 
 function shipping(w: World, good: string, from: string, to: string, crates: number): Vehicle {
-  const npc = addVehicle(w, 'convoys', 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(site(from))[0] });
+  const npc = addVehicle(w, 'bowl', 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], { ...sitePads(site(from))[0] });
   npc.brain = npcBrain('convoy', npc.pos, ['supplier']);
   npc.brain.goals = [{ kind: 'sell', targetId: to, destination: { ...site(to).pos }, phase: 'travel', reason: 'deliverCargo', shipment: { good, from, to } }];
   if (addGoods(w, npc, good, crates) !== crates) throw new Error('No room for the shipment');
@@ -35,7 +35,7 @@ describe('road news', () => {
 
   it('writes nothing for a truck that carries no shipment, or loses none of it', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 40 });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     reportLostTruck(w, npc, 'destroyed');
     reportShipmentLoss(w, shipping(w, 'grain', 'bowl', 'granary', 8), 'robbed', 0);
@@ -80,7 +80,7 @@ describe('a robbed shipment', () => {
   it('writes road news, and the robbed crates never reach the buyer stock', () => {
     const w = emptyWorld();
     const npc = shipping(w, 'grain', 'bowl', 'granary', 8);
-    const robber = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: npc.pos.x + 4, y: npc.pos.y });
+    const robber = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: npc.pos.x + 4, y: npc.pos.y });
     robber.brain = npcBrain('buggy', robber.pos, ['raider']);
     const handed = npc.items.filter((it) => it.kind === 'good' && it.good === 'grain').slice(0, 5);
     yieldTo(w, npc, robber, handed);
@@ -99,7 +99,7 @@ describe('route choice with road news', () => {
     const w = emptyWorld();
     w.turn = 5000;
     w.shops.bowl.goods.water = 0;
-    const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine', 'trailerBox'], { ...sitePads(site('bowl'))[0] });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'trailerBox'], { ...sitePads(site('bowl'))[0] });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
     trader.resources = { ...trader.resources!, money: NPCS.trader.money * 10 };
     return { w, trader };

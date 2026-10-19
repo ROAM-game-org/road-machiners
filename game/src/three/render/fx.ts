@@ -23,6 +23,7 @@ import { ChunkBatch } from './particles/chunks';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
 import { Blasts, type BlastGround } from './particles/blasts';
 import { Emissions } from './particles/emissions';
+import { layerPointOf } from '../../ui/ui-size';
 
 const MAX_TEXTS = 24;
 const RISE_METERS = 1.5;
@@ -360,7 +361,7 @@ export class Fx3D {
       }
       const t = slot.age / slot.life;
       slot.pos = slot.anchor?.() ?? slot.pos;
-      const screen = this.rig.screenOf({ x: slot.pos.x, y: slot.pos.y + t * RISE_METERS, z: slot.pos.z });
+      const screen = layerPointOf(this.rig.screenOf({ x: slot.pos.x, y: slot.pos.y + t * RISE_METERS, z: slot.pos.z }));
       slot.el.style.left = `${screen.x}px`;
       slot.el.style.top = `${screen.y - slot.rowPx}px`;
       slot.el.style.opacity = `${1 - t}`;

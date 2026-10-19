@@ -25,6 +25,19 @@ describe('BootProgress', () => {
     expect(p.finished).toBe(2);
   });
 
+  it('adds a sign stage at each fifth of the load, counting steps in progress', () => {
+    const p = new BootProgress();
+    const seen: number[] = [p.signStages];
+    for (const step of BOOT_STEPS) {
+      if (p.state(step) === 'waiting') p.start(step);
+      p.count(step, 1, 2);
+      seen.push(p.signStages);
+      p.finish(step);
+      seen.push(p.signStages);
+    }
+    expect(seen).toEqual([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]);
+  });
+
   it('shows counts in the stage line but not the live line', () => {
     const p = new BootProgress();
     p.finish('code');

@@ -6,7 +6,7 @@ export type Column = typeof COLUMNS[number];
 
 export type CardStage = 'triage' | 'design' | 'implement' | 'verify' | 'harden';
 export type ReleaseStage = 'release' | 'playtest' | 'candidate' | 'ship' | 'remove';
-export type Stage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'feedback' | 'change' | 'adhoc' | 'incident' | 'dev' | 'waste' | 'intake' | 'tick' | 'control' | 'public';
+export type Stage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'feedback' | 'adhoc' | 'incident' | 'answer' | 'dev' | 'waste' | 'intake' | 'tick' | 'control' | 'public';
 
 export type FactoryConfig = {
   observationHeartbeatMs: number;
@@ -78,7 +78,6 @@ export type FactoryConfig = {
   minAvailableGb: number;
   logDays: number;
   transcriptDays: number;
-  testCacheDays: number;
   cpuLight: number;
   cpuImplement: number;
   cpuTest: number;
@@ -94,6 +93,7 @@ export type FactoryConfig = {
   proposalChat: string;
   publicDiscussion: string;
   proposalsPerDay: number;
+  answersPerDay: number;
   voteEmoji: string;
   vetoEmoji: string;
   publicDigestMinutes: number;
@@ -125,30 +125,32 @@ export type Issue = {
   author: string;
 };
 
-export type Card = { itemId: string; issue: number; column: Column; labels: string[] };
+export type Card = { itemId: string; issue: number; column: Column; labels: string[]; title?: string };
 
-export type JobStage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'change' | 'adhoc' | 'incident' | 'dev' | 'waste';
+export type JobStage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'adhoc' | 'incident' | 'answer' | 'dev' | 'waste';
+export const RETIRED_JOB_STAGES = ['change'] as const;
+export type RetiredJobStage = typeof RETIRED_JOB_STAGES[number];
+export type LedgerJobStage = JobStage | RetiredJobStage;
+export const isLiveJobStage = (stage: LedgerJobStage): stage is JobStage => !(RETIRED_JOB_STAGES as readonly string[]).includes(stage);
 export type Job = { id: string; stage: JobStage; issue: number | null; pid: number; startedAt: string; log: string; batch?: number[] };
 
 export type Queue = 'branch' | 'triage' | 'design' | 'implement' | 'verify' | 'test';
 export const AGENT_QUEUES: Queue[] = ['triage', 'design', 'implement', 'verify'];
 export const QUEUE_OF: Record<JobStage, Queue> = {
   triage: 'triage', waste: 'triage', design: 'design', implement: 'implement', adhoc: 'implement', verify: 'verify', harden: 'verify',
-  change: 'implement',
   checks: 'test',
-  approve: 'branch', merge: 'branch', 'catch-up': 'branch', remove: 'branch', ship: 'branch', release: 'branch', candidate: 'branch', dev: 'branch', incident: 'branch',
+  approve: 'branch', merge: 'branch', 'catch-up': 'branch', remove: 'branch', ship: 'branch', release: 'branch', candidate: 'branch', dev: 'branch', incident: 'branch', answer: 'branch',
   playtest: 'verify',
 };
-export const JOB_ISSUE: Record<JobStage, 'github-issue' | 'change-id' | 'none'> = {
+export const JOB_ISSUE: Record<JobStage, 'github-issue' | 'none'> = {
   triage: 'github-issue', design: 'github-issue', implement: 'github-issue', verify: 'github-issue', harden: 'github-issue', checks: 'github-issue', adhoc: 'github-issue',
   approve: 'github-issue', 'catch-up': 'github-issue', remove: 'github-issue', ship: 'github-issue', playtest: 'github-issue', candidate: 'github-issue', incident: 'github-issue',
-  change: 'change-id',
-  release: 'none', merge: 'none', dev: 'none', waste: 'none',
+  release: 'none', merge: 'none', dev: 'none', waste: 'none', answer: 'none',
 };
 export type Route = 'answer' | 'patch' | 'redesign';
 export type FailureCause = 'timeout' | 'died' | 'github' | 'disk' | 'decision' | 'error';
 export type Failure = { stage: Stage; issue: number | null; error: string; cause: FailureCause | null; log: string | null; at: string; batch?: number[] };
-export type ChangeRequest ={ id: number; text: string; by: string };
+export type ChatReply = { chat: string; messageId: number | null };
 export type Removal = { issue: number; by: string; text: string };
 
 export type PlaytestState = {
@@ -196,12 +198,12 @@ export type FactoryState = {
   approvedResolving: Record<string, string>;
   caughtUpTo: Record<string, string>;
   keptApprovals: Record<string, KeptApproval>;
-  pendingChanges: ChangeRequest[];
   pendingIncidents: number[];
+  pendingAnswers: number[];
   bundles: Record<string, number[]>;
   lastTickError: string | null;
   failures: Failure[];
-  adhocReplies: Record<string, { chat: string; messageId: number | null }>;
+  adhocReplies: Record<string, ChatReply>;
   builds: Record<string, string>;
   cardStarts: Record<string, string[]>;
   postCaptions: Record<string, string>;
@@ -218,6 +220,7 @@ export type FactoryState = {
   stuck: Record<string, StuckRecord>;
   sweepError: string | null;
   asked: Record<string, string>;
+  questionPosts: Record<string, number>;
   pendingFeedback: Record<string, PendingFeedback>;
   routed: number[];
 };
@@ -237,6 +240,7 @@ export type UnroutedReply = { issue: number; postId: number; text: string; at: s
 
 export interface GitHub {
   candidates(labels: string[]): Promise<Issue[]>;
+  allIssues(): Promise<Issue[]>;
   issue(number: number): Promise<Issue>;
   comments(number: number): Promise<IssueComment[]>;
   comment(number: number, body: string): Promise<void>;
@@ -254,7 +258,6 @@ export interface GitHub {
   closePullRequest(branch: string, comment: string): Promise<void>;
   reopen(number: number): Promise<void>;
   errorIssue(number: number): Promise<FingerprintIssue>;
-  mergePullRequest(branch: string): Promise<void>;
   dispatchSuite(sha: string): Promise<number>;
   suiteRun(id: number): Promise<SuiteRun>;
   suiteLog(id: number): Promise<string>;
@@ -276,10 +279,11 @@ export interface Telegram {
   editText(chat: string, messageId: number, text: string): Promise<void>;
   sendHtml(chat: string, html: string): Promise<number>;
   editHtml(chat: string, messageId: number, html: string): Promise<void>;
+  downloadFile(fileId: string): Promise<Buffer>;
 }
 
 export type AgentSession = { dir: string; id: string; resume: boolean };
-export type AgentRun = { clone: string; dir: string; model: string; prompt: string; log: string; openNetwork?: boolean; mediaDir?: string; readOnly?: Record<string, string>; session?: AgentSession; skill?: string; effort?: string; disallowedTools?: string[]; advisor?: string };
+export type AgentRun = { clone: string; dir: string; model: string; prompt: string; log: string; openNetwork?: boolean; mediaDir?: string; readOnly?: Record<string, string>; session?: AgentSession; skill?: string; effort?: string; disallowedTools?: string[]; advisor?: string; publicOutput?: true };
 
 export type Pin = { cpus: string | null; testWorkers: number | null };
 
@@ -307,6 +311,7 @@ export interface HostRepo {
   untrackFactoryFiles(dir: string): Promise<string[]>;
   fetchFromWork(dir: string, branch: string): Promise<string>;
   push(commit: string, branch: string): Promise<void>;
+  replaceBranch(commit: string, branch: string): Promise<void>;
   catchUpBase(dir: string, base: string): Promise<{ commit: string | null; conflicts: string[]; kept: string | null }>;
   mergeBranchIntoWork(dir: string, branch: string, message?: string): Promise<{ commit: string | null; conflicts: string[] }>;
   isMerged(base: string, branch: string): Promise<boolean>;

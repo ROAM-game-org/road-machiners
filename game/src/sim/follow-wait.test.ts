@@ -8,7 +8,7 @@ import type { NpcActivity, Vehicle, World } from './types';
 import type { Vec } from './vec';
 
 function createNpc(w: World, templateId: string, traits: TraitId[], chassis: string, parts: string[], pos: Vec): Vehicle {
-  const npc = addVehicle(w, NPCS[templateId].faction, chassis, parts, pos);
+  const npc = addVehicle(w, 'bowl', chassis, parts, pos);
   npc.brain = npcBrain(templateId, pos, traits);
   return npc;
 }

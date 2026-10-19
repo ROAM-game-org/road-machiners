@@ -33,6 +33,7 @@ import { isLootSpot, spotLookOf, spotTable, territoryAt, territoryOfStock } from
 import type { BakedMap, PropKind } from './terrain';
 import { inTowReach } from './tow';
 import { breakLootWarning, warnedOffTarget } from './loot-warning';
+import type { Contract } from './market';
 import { playerCommand, Refused } from './world';
 import { clamp, dist, type Vec } from './vec';
 import { OPENING_WRECK_ID } from './opening';
@@ -95,6 +96,7 @@ export function rollStock(world: World, table: LootTable, id: string, pos: Vec, 
   goods.parts = randInt(world, table.parts[0], table.parts[1]);
   const parts: PartInstance[] = [];
   if (chance(world, table.sparePartChance)) parts.push(fieldSpare(world, table));
+  if (table.relicChance > 0 && chance(world, table.relicChance)) goods.relics = 1;
   const hidden = { goods, parts, fuel: randInt(world, ...table.fuel), supplies: randInt(world, ...table.supplies) };
   return { id, pos: { ...pos }, radius, goods: {}, parts: [], fuel: 0, supplies: 0, hidden };
 }
@@ -126,6 +128,17 @@ export function hasRevealed(stock: SalvageStock): boolean {
 export function hiddenUnits(stock: SalvageStock): number {
   const { goods, parts, fuel, supplies } = stock.hidden;
   return parts.length + Object.values(goods).reduce((sum, count) => sum + count, 0) + Number(fuel > 0) + Number(supplies > 0);
+}
+
+export function stockProp(stock: SalvageStock): string {
+  if (stock.pile) throw new Error(`Pile ${stock.id} has no prop`);
+  return oldSpotOf(stock)?.propId ?? stock.id;
+}
+
+export function lootableProps(salvage: readonly SalvageStock[]): Set<string> {
+  const props = new Set<string>();
+  for (const stock of salvage) if (!stock.pile && hasSalvage(stock)) props.add(stockProp(stock));
+  return props;
 }
 
 export type Found = { goods: Record<string, number>; parts: string[]; fuel: number; supplies: number };
@@ -160,21 +173,73 @@ function revealGoods(world: World, stock: SalvageStock, p: number): Record<strin
   return found;
 }
 
-export function canTakeAny(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
-  return hiddenUnits(stock) > 0 || canTakeRevealed(world, vehicle, stock);
+export type ClaimContract = Extract<Contract, { kind: 'claim' }>;
+
+export function liveClaims(world: World): ClaimContract[] {
+  const contracts = [...Object.values(world.shops).flatMap((shop) => shop.contracts), ...world.player.contracts];
+  return contracts.filter((c): c is ClaimContract => c.kind === 'claim');
 }
 
-function canTakeRevealed(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
+export function claimOn(world: World, stock: SalvageStock): ClaimContract | null {
+  const named = liveClaims(world).filter((c) => c.stockId === stock.id);
+  if (named.length > 1) throw new Error(`Stock ${stock.id} is named by ${named.length} claims`);
+  return named[0] ?? null;
+}
+
+export function claimedPartIn(world: World, stock: SalvageStock): string | null {
+  const partId = claimOn(world, stock)?.partId;
+  if (partId === undefined) return null;
+  return [...stock.parts, ...stock.hidden.parts].some((part) => part.id === partId) ? partId : null;
+}
+
+export function revealClaimed(world: World, stock: SalvageStock): void {
+  const partId = claimedPartIn(world, stock);
+  const hidden = stock.hidden.parts.find((p) => p.id === partId);
+  if (!hidden) return;
+  stock.hidden.parts = stock.hidden.parts.filter((p) => p !== hidden);
+  stock.parts.push(hidden);
+}
+
+export function mayTakeClaimed(world: World, vehicle: Vehicle, claim: ClaimContract): boolean {
+  return vehicle.id === world.player.vehicleId || vehicle.id === claim.rival;
+}
+
+function reservedFrom(world: World, vehicle: Vehicle, stock: SalvageStock): string | null {
+  const claim = claimOn(world, stock);
+  return claim && !mayTakeClaimed(world, vehicle, claim) ? claimedPartIn(world, stock) : null;
+}
+
+export function claimOnly(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
+  const reserved = reservedFrom(world, vehicle, stock);
+  if (reserved === null || !hasSalvage(stock)) return false;
+  return hasOnly(stock, reserved);
+}
+
+function hasOnly(stock: SalvageStock, partId: string): boolean {
+  const others = stock.parts.some((p) => p.id !== partId) || stock.hidden.parts.some((p) => p.id !== partId);
+  const plain = Object.values(stock.goods).some((n) => n > 0) || Object.values(stock.hidden.goods).some((n) => n > 0);
+  return !others && !plain && !hasStores(stock) && stock.hidden.fuel <= 0 && stock.hidden.supplies <= 0;
+}
+
+export function canTakeAny(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
+  const reserved = reservedFrom(world, vehicle, stock);
+  if (reserved === null) return hiddenUnits(stock) > 0 || canTakeRevealed(world, vehicle, stock, stock.parts);
+  const hidden = hiddenUnits(stock) - (stock.hidden.parts.some((p) => p.id === reserved) ? 1 : 0);
+  return hidden > 0 || canTakeRevealed(world, vehicle, stock, stock.parts.filter((p) => p.id !== reserved));
+}
+
+function canTakeRevealed(world: World, vehicle: Vehicle, stock: SalvageStock, parts: PartInstance[]): boolean {
   const room = storesRoom(world, vehicle);
   if ((['fuel', 'supplies'] as const).some((kind) => (stock[kind] ?? 0) > 0 && room[kind] >= 1)) return true;
   const grid = gridOf(vehicle);
   const good: GridItem = { id: 'fit-check', x: 0, y: 0, rot: 0, kind: 'good', good: 'scrap' };
-  const massRoom = cargoMassRoom(vehicle);
-  if (Object.values(stock.goods).some((count) => count > 0 && CRATE_MASS <= massRoom) && findSpot(grid, vehicle.items, good, null, null)) return true;
-  return stock.parts.some((part) => {
-    const item: GridItem = { id: 'fit-check', x: 0, y: 0, rot: 0, kind: 'part', part };
-    return itemMass(item) <= massRoom && findSpot(grid, vehicle.items, item, null, MOUNT_CELLS[partDef(part.defId).kind]) !== null;
-  });
+  if (Object.values(stock.goods).some((count) => count > 0 && CRATE_MASS <= cargoMassRoom(vehicle)) && findSpot(grid, vehicle.items, good, null, null)) return true;
+  return parts.some((part) => canStowPart(vehicle, part));
+}
+
+export function canStowPart(vehicle: Vehicle, part: PartInstance): boolean {
+  const item: GridItem = { id: 'fit-check', x: 0, y: 0, rot: 0, kind: 'part', part };
+  return itemMass(item) <= cargoMassRoom(vehicle) && findSpot(gridOf(vehicle), vehicle.items, item, null, MOUNT_CELLS[partDef(part.defId).kind]) !== null;
 }
 
 export function hasStores(stock: SalvageStock): boolean {
@@ -205,9 +270,11 @@ export function collectSalvage(world: World, vehicle: Vehicle, stockId: string, 
   if (!stock) throw new Error(`Unknown salvage ${stockId}`);
   if (!canReachSalvage(vehicle, stock)) throw new Error('Stop within salvage reach');
   pourStores(world, vehicle, stock);
+  const reserved = reservedFrom(world, vehicle, stock);
+  const mine = reserved === null ? claimedPartIn(world, stock) : null;
   let moved = 0;
-  stock.parts = stock.parts.filter((part) => {
-    if (moved >= units || !stowPart(world, vehicle, part)) return true;
+  stock.parts = [...stock.parts.filter((p) => p.id === mine), ...stock.parts.filter((p) => p.id !== mine)].filter((part) => {
+    if (part.id === reserved || moved >= units || !stowPart(world, vehicle, part)) return true;
     moved++;
     return false;
   });
@@ -453,8 +520,22 @@ function spotStock(world: World, id: string): SalvageStock {
 function restockSite(world: World, stock: SalvageStock, table: LootTable): void {
   for (const [good, range] of Object.entries({ ...table.goods, parts: table.parts })) refillGood(world, stock, good, range);
   for (const kind of ['fuel', 'supplies'] as const) stock.hidden[kind] += refill(world, (stock[kind] ?? 0) + stock.hidden[kind], table[kind]);
+  restockSpare(world, stock, table);
+  restockRelic(world, stock, table);
+}
+
+function restockSpare(world: World, stock: SalvageStock, table: LootTable): void {
   if (stock.parts.length + stock.hidden.parts.length > 0 || !chance(world, table.sparePartChance * SALVAGE.restockShare)) return;
   stock.hidden.parts.push(fieldSpare(world, table));
+}
+
+function restockRelic(world: World, stock: SalvageStock, table: LootTable): void {
+  if (table.relicChance === 0 || relicsIn(stock) > 0 || !chance(world, table.relicChance * SALVAGE.restockShare)) return;
+  stock.hidden.goods.relics = 1;
+}
+
+function relicsIn(stock: SalvageStock): number {
+  return (stock.goods.relics ?? 0) + (stock.hidden.goods.relics ?? 0);
 }
 
 function refillGood(world: World, stock: SalvageStock, good: string, range: LootRange): void {
@@ -651,7 +732,7 @@ function actsOn(world: World, v: Vehicle, targetId: string): boolean {
 }
 
 function isLootActOn(goal: NpcActivity, targetId: string): boolean {
-  return (goal.kind === 'loot' || goal.kind === 'scavenge') && goal.targetId === targetId && goal.phase === 'act';
+  return isStockGoal(goal) && goal.targetId === targetId && goal.phase === 'act';
 }
 
 export function inLootReach(world: World, v: Vehicle, targetId: string): boolean {
@@ -659,9 +740,17 @@ export function inLootReach(world: World, v: Vehicle, targetId: string): boolean
   return stock ? canReachSalvage(v, stock) : canLootTruck(world, v, vehicleById(world, targetId));
 }
 
+const STOCK_GOALS: readonly NpcActivity['kind'][] = ['loot', 'scavenge', 'claim'];
+
+export function isStockGoal(goal: NpcActivity | null | undefined): goal is NpcActivity {
+  return !!goal && STOCK_GOALS.includes(goal.kind);
+}
+
 export const CANNOT_HOLD: GoalReason = 'cargoFullLoot';
 
 export const STRIPPED: GoalReason = 'salvageExhausted';
+
+export const CLAIMED: GoalReason = 'claimedWreck';
 
 export function lootTruckTurn(world: World, looter: Vehicle, target: Vehicle): GoalReason | null {
   if (looter.job?.kind === 'refit') return null;
@@ -759,7 +848,7 @@ export function placeSpot(map: BakedMap, layer: NavLayer, p: OldPlace): Obstacle
   return order.find((o) => offRoad(o) && reachable(layer, o)) ?? null;
 }
 
-function propHash(map: BakedMap, o: Obstacle): number {
+export function propHash(map: BakedMap, o: Obstacle): number {
   return hashRandom(map.seed, OLD_PLACES.seedOffset, Math.round(o.pos.x * 16), Math.round(o.pos.y * 16), 1);
 }
 
@@ -836,5 +925,5 @@ const meanOf = ([lo, hi]: LootRange): number => (lo + hi) / 2;
 export function meanLootValue(table: LootTable): number {
   const goods = Object.entries(table.goods).reduce((sum, [good, range]) => sum + meanOf(range) * GOODS[good].value, 0);
   const parts = meanOf(table.parts) * GOODS.parts.value;
-  return goods + parts + meanOf(table.fuel) * ECONOMY.supplyPrice.fuel + meanOf(table.supplies) * ECONOMY.supplyPrice.supplies;
+  return goods + parts + table.relicChance * GOODS.relics.value + meanOf(table.fuel) * ECONOMY.supplyPrice.fuel + meanOf(table.supplies) * ECONOMY.supplyPrice.supplies;
 }

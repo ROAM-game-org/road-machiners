@@ -47,7 +47,6 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   cut: { usage: 'cut', help: 'cut a release now', build: () => ({ action: 'cut' }) },
   remove: { usage: 'remove N', help: 'take a feature out of the release', build: ([n]) => ({ action: 'remove', issue: number(n) }) },
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
-  'merge-change': { usage: 'merge-change <id>', help: 'merge a factory change PR into main', build: ([id]) => ({ action: 'merge-change', id: number(id) }) },
   'pause-card': { usage: 'pause-card N', help: "hold a card: stop its job, keep its work clone and agent sessions, and start no job on it until resume-card", build: ([n]) => ({ action: 'hold', issue: number(n) }) },
   'resume-card': { usage: 'resume-card N', help: 'lift the hold of a card, so its stage continues in the stopped sessions', build: ([n]) => ({ action: 'unhold', issue: number(n) }) },
 };
@@ -172,6 +171,7 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `labels: ${shown(found.labels.join(', '))}`,
     `post only: ${state.postOnly.includes(found.issue) ? 'yes' : 'no'}`,
     `questions asked: ${shown(state.asked[key])}`,
+    `questions posts: ${shown(Object.entries(state.questionPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id).join(', '))}`,
     `pending feedback from: ${shown(state.pendingFeedback[key]?.source)}`,
     `approvedResolving: ${shown(state.approvedResolving[key])}`,
     `queued approval: ${shown(state.pendingApprovals[key])}`,
@@ -216,17 +216,15 @@ function queues(ctx: Ctx): void {
   const state = readState(ctx.statePath);
   const approvals = Object.entries(state.pendingApprovals).map(([issue, by]) => `#${issue} by ${by}`);
   const removals = state.pendingRemovals.map((row) => `#${row.issue} by ${row.by}`);
-  const changes = state.pendingChanges.map((row) => `${row.id} by ${row.by}`);
-  console.log(`approval: ${approvals.join(', ') || 'none'}`);
-  console.log(`removal: ${removals.join(', ') || 'none'}`);
+  console.log(`approval: ${listOrNone(approvals)}`);
+  console.log(`removal: ${listOrNone(removals)}`);
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
-  console.log(`change: ${changes.join(', ') || 'none'}`);
-  console.log(`incident: ${state.pendingIncidents.map((issue) => `#${issue}`).join(', ') || 'none'}`);
-  console.log(`caught up: ${caughtUpRows(state)}`);
+  console.log(`incident: ${listOrNone(state.pendingIncidents.map((issue) => `#${issue}`))}`);
+  console.log(`caught up: ${listOrNone(Object.entries(state.caughtUpTo).map(([issue, head]) => `#${issue} at ${head}`))}`);
+  console.log(`answer: ${listOrNone(state.pendingAnswers.map((id) => `player comment ${id}`))}`);
 }
 
-function caughtUpRows(state: FactoryState): string {
-  const rows = Object.entries(state.caughtUpTo).map(([issue, head]) => `#${issue} at ${head}`);
+function listOrNone(rows: string[]): string {
   return rows.length === 0 ? 'none' : rows.join(', ');
 }
 
