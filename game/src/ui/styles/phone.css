@@ -273,7 +273,7 @@
 #ui.phone:has(.game-menu [role="menu"]:not([hidden])) > .top-center {
   visibility: hidden;
 }
-#ui.phone .radio {
+#ui.phone .options-sound {
   --knob-size: var(--touch-target);
 }
 

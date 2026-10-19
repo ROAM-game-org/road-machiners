@@ -69,6 +69,7 @@ import { HoverArcsView, WeaponRangeView } from "./render/weaponRange";
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
+import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { daylightAt, enableSunShadows, lightScene, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
@@ -211,7 +212,7 @@ export class Game {
     overlay: HTMLElement,
     player: SoundPlayer,
     readonly music: CombatMusic,
-    private toggleMute: () => void,
+    private readonly soundSettings: SoundSettings,
     radio: RadioPanel,
     surface: WebGLSurface,
   ) {
@@ -336,7 +337,7 @@ export class Game {
       cameraLabel: () => this.hud.cameraModeLabel(),
       toggleCamera: () => this.hud.toggleCameraMode(),
       report: () => this.hud.openFeedback(),
-    });
+    }, this.soundSettings);
     this.death = new DeathScreen(saves);
 
     this.bindInput();
@@ -560,7 +561,7 @@ export class Game {
 
   private readonly keys: Record<string, { run: () => void; noModal?: true; idle?: true; inventoryOk?: true }> = {
     KeyF: { run: () => this.follow.recenter() },
-    KeyM: { run: () => this.toggleMute() },
+    KeyM: { run: () => this.soundSettings.toggleMute() },
     KeyQ: { run: () => this.weapons.toggleAuto(), noModal: true },
     KeyX: { run: () => this.weapons.toggleVisible(), noModal: true },
     Digit0: { run: () => this.weapons.selectWeapon(null), noModal: true },

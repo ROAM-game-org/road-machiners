@@ -26,11 +26,10 @@
 #ui .right-dock > .contracts {
   order: 1;
 }
-/* Waste Of Time Radio: a pager screen over a faceplate of volume knobs, at the top of the right dock. The drawn parts are in drawings.css. */
+/* Waste Of Time Radio: a pager screen over a faceplate with the mute switch, at the top of the right dock. The drawn parts are in drawings.css. */
 #ui .radio {
   --radio-line: 14px;
   --radio-lines: 3;
-  --knob-size: 28px;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -53,13 +52,11 @@
 .radio-faceplate {
   display: flex;
   align-items: stretch;
-  justify-content: space-between;
-  gap: 0;
+  justify-content: flex-end;
 }
 .radio-mute {
   display: flex;
   align-items: center;
-  margin-left: var(--space-2);
 }
 .radio-keys {
   display: flex;

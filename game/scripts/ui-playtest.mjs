@@ -454,7 +454,7 @@ async function checkRadio(page) {
     await holdContracts(page, count);
     const m = await boxes(page);
     assert(m.radio, 'Radio must be visible');
-    assert.equal(m.knobs, 4, 'Radio must carry four volume knobs');
+    assert.equal(m.knobs, 0, 'The radio must carry no volume knobs, they live in Options');
     assert.equal(m.oldSound, 0, 'The top-right Sound panel must be gone');
     const below = count ? m.contracts : m.log;
     const gap = count ? 8 : dockGap(page);
@@ -492,18 +492,24 @@ async function checkKnobs(url, viewport) {
     await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: 90000 });
     await page.waitForFunction(() => document.querySelector('.radio-text')?.textContent.trim(), null, { timeout: 90000 });
     const at = `At ${viewport.width}x${viewport.height}`;
-    const values = () => page.evaluate(() => [...document.querySelectorAll('.radio .knob')].map(k => k.getAttribute('aria-valuenow')));
-    const muted = () => page.evaluate(() => document.querySelector('.radio-mute button').getAttribute('aria-pressed') ?? document.querySelector('.radio-mute').innerHTML);
+    const openOptions = async () => {
+      await page.locator('.menu-button').click();
+      await page.locator('[data-entry=options]').click();
+      await page.waitForFunction(() => document.querySelectorAll('.options .knob').length === 4);
+    };
+    await openOptions();
+    const values = () => page.evaluate(() => [...document.querySelectorAll('.options .knob')].map(k => k.getAttribute('aria-valuenow')));
+    const muted = () => page.evaluate(() => document.querySelector('.options .radio-mute button').getAttribute('aria-pressed') ?? document.querySelector('.options .radio-mute').innerHTML);
     const game = () => page.evaluate(() => {
       const g = window.__ROAM__;
       return JSON.stringify([g.state === window.__knobState, g.rig.camera.position.toArray()]);
     });
     await page.evaluate(() => { window.__knobState = window.__ROAM__.state; });
     const box = selector => page.evaluate(selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }, selector);
-    const cells = page.locator('.radio .knob-cell');
+    const cells = page.locator('.options .knob-cell');
     const rects = await cells.evaluateAll(nodes => nodes.map(n => ({ cell: n.getBoundingClientRect().toJSON(), knob: n.querySelector('.knob').getBoundingClientRect().toJSON() })));
-    const mute = await box('.radio-mute');
-    assert.equal(rects.length, 4, `${at} the radio must carry four knob columns`);
+    const mute = await box('.options .radio-mute');
+    assert.equal(rects.length, 4, `${at} Options must carry four knob columns`);
     rects.forEach((r, i) => {
       assert(r.cell.width >= 24 && r.cell.height >= 40, `${at} ${KNOB_BUSES[i]} column must be at least 24x40, got ${r.cell.width}x${r.cell.height}`);
       assert(!doRectsOverlap(r.cell, { x: mute.x, y: mute.y, right: mute.x + mute.width, bottom: mute.y + mute.height }), `${at} the columns must clear the mute switch`);
@@ -524,16 +530,16 @@ async function checkKnobs(url, viewport) {
       await page.mouse.down();
       await page.mouse.move(x, y - 80, { steps: 10 });
       const mid = await page.evaluate(i => {
-        const cell = document.querySelectorAll('.radio .knob-cell')[i];
+        const cell = document.querySelectorAll('.options .knob-cell')[i];
         const readout = cell.querySelector('.knob-readout');
-        const hidden = [...document.querySelectorAll('.radio .knob-readout')].filter(r => getComputedStyle(r).visibility !== 'hidden');
+        const hidden = [...document.querySelectorAll('.options .knob-readout')].filter(r => getComputedStyle(r).visibility !== 'hidden');
         return { now: Number(cell.querySelector('.knob').getAttribute('aria-valuenow')), turning: cell.classList.contains('turning'), text: readout.textContent, valuetext: cell.querySelector('.knob').getAttribute('aria-valuetext'), shown: hidden.length === 1 && hidden[0] === readout };
       }, i);
       assert(Math.abs(mid.now - 50) <= 1, `${at} 80px up must give about 50, got ${mid.now}`);
       assert(mid.turning && mid.shown, `${at} only the turned column must show its level`);
       assert.equal(mid.text, mid.valuetext, `${at} the readout must match aria-valuetext`);
       assert.equal(mid.text, `${mid.now}%`);
-      if (i === 0) await page.screenshot({ path: `.playtest/knobs-${viewport.width}.png`, clip: await box('.radio'), timeout: 120000 });
+      if (i === 0) await page.screenshot({ path: `.playtest/knobs-${viewport.width}.png`, clip: await box('.options'), timeout: 120000 });
       await page.mouse.move(x, y - 200, { steps: 10 });
       await page.mouse.up();
       const after = await values();
@@ -551,15 +557,15 @@ async function checkKnobs(url, viewport) {
       await page.mouse.up();
       await page.mouse.move(x, y);
       await page.mouse.wheel(0, -100);
-      await page.waitForFunction(i => document.querySelectorAll('.radio .knob')[i].getAttribute('aria-valuenow') === '5', i, { timeout: 60000 });
+      await page.waitForFunction(i => document.querySelectorAll('.options .knob')[i].getAttribute('aria-valuenow') === '5', i, { timeout: 60000 });
     }
     const cameraBefore = await game();
-    const knobs = page.locator('.radio .knob');
+    const knobs = page.locator('.options .knob');
     await knobs.first().focus();
     const base = Number((await values())[0]);
     await page.keyboard.press('ArrowUp');
     assert.equal(Number((await values())[0]), base + 5, `${at} ArrowUp on a focused knob must raise it 5`);
-    assert(await page.locator('.radio .knob-readout').first().isVisible(), `${at} a focused knob must show its level`);
+    assert(await page.locator('.options .knob-readout').first().isVisible(), `${at} a focused knob must show its level`);
     await knobs.first().blur();
     await page.keyboard.press('ArrowUp');
     assert.equal(Number((await values())[0]), base + 5, `${at} ArrowUp must not turn a blurred knob`);
@@ -572,9 +578,10 @@ async function checkKnobs(url, viewport) {
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('roam-sound')).volume);
     assert.deepEqual(['music', 'sfx', 'ambient', 'ui'].map(b => String(Math.round(stored[b] * 100))), held, `${at} the stored levels must match the knobs`);
     await page.mouse.move(0, 0);
-    await page.screenshot({ path: `.playtest/knobs-rest-${viewport.width}.png`, clip: await box('.radio'), timeout: 120000 });
+    await page.screenshot({ path: `.playtest/knobs-rest-${viewport.width}.png`, clip: await box('.options'), timeout: 120000 });
     await page.reload();
-    await page.waitForFunction(() => document.querySelectorAll('.radio .knob').length === 4);
+    await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: 90000 });
+    await openOptions();
     assert.deepEqual(await values(), held, `${at} the levels must survive a reload`);
     assert.equal(await page.locator('.speedometer [role=slider], .speedometer .knob').count(), 0, `${at} the speedometer must hold no knob`);
     assert.deepEqual(errors, [], `${at} no uncaught page errors`);

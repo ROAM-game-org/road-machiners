@@ -305,7 +305,7 @@ describe('intercept', () => {
   function pair(gap: number, preySpeed: number) {
     const w = emptyWorld({ x: 200, y: 200 });
     const v = fighter(w, 'buggy', ['mg', 'stockEngine'], { x: 20, y: 20 }, 'buggy');
-    const prey = addVehicle(w, 'prey', 'buggy', ['stockEngine'], { x: 20 + gap, y: 20 }, 0);
+    const prey = addVehicle(w, 'independent', 'buggy', ['stockEngine'], { x: 20 + gap, y: 20 }, 0);
     prey.speed = preySpeed;
     return { w, v, prey };
   }

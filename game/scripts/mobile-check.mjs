@@ -501,7 +501,11 @@ async function drawersAndMenus(session, step) {
   await step('options-open', async () => {
     await touch.tapOn('.game-menu .menu-button');
     await touch.tapOn('.game-menu [data-entry=options]');
-  }, async () => ((await page.locator('#ui .options-language').isVisible()) ? true : 'options are not shown'));
+  }, async () => {
+    if (!(await page.locator('#ui .options-language').isVisible())) return 'options are not shown';
+    if ((await page.locator('#ui .options .knob').count()) !== 4) return 'Options does not hold the four volume knobs';
+    return (await page.locator('#ui .options .knob').last().isVisible()) ? true : 'the Sound section is not reachable';
+  });
   await step('options-close', () => touch.tapOn('#ui .options-language >> xpath=../button[contains(@class,"close")]'), async () => ((await page.locator('#ui .options-language').count()) === 0 ? true : 'options are still shown'));
 }
 

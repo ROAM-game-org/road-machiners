@@ -1,4 +1,4 @@
-/* Drawn hardware of the radio: the LCD screen, the volume knobs and the next track key. The shapes keep their own sizes. */
+/* Drawn hardware of the radio and the Sound options: the LCD screen, the volume knobs and the next track key. The shapes keep their own sizes. */
 
 /* The speed dial on the truck instrument. */
 #ui .truck-instrument {
@@ -322,11 +322,11 @@
   fill: currentColor;
 }
 /* The mute switch is the metal toggle, shrunk to the knobs' height. */
-#ui .radio-faceplate button.switch {
+#ui :is(.radio-faceplate, .sound-row) button.switch {
   gap: 0;
   padding: 1px 8px;
 }
-.radio-faceplate .switch-lever {
+:is(.radio-faceplate, .sound-row) .switch-lever {
   transform: scale(0.6);
   margin: -5px 0;
 }

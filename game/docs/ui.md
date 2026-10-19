@@ -126,7 +126,7 @@ This layout bends two rules, and each is a new pattern, not a changed principle.
 
 ### 4.5 The UI layer
 
-Options holds one device setting, UI size: 80%, 90%, 100%, 115% or 130%. It is kept in local storage, never in the save, and applies at once. `src/ui/ui-size.ts` owns it. At a size other than 100%, `#ui` and `#overlay` are laid out in a box of the window divided by the size and scaled up or down from the top left corner, so every pixel value, the drawn hardware and the map labels scale together. At 100% no transform is set. The boot screen and the crash screens stay at 100%.
+Options holds the device settings: language, UI size and sound. Sound is the four volume knobs (music, wind, effects, interface) and the mute switch, drawn as the radio's hardware, since a level is a knob (P19) and the same piece looks the same everywhere (P8). The radio keeps only the mute switch and the next key. `SoundSettings` in `src/ui/sound.ts` owns the levels and the mute, and every `OptionsPanel` is built with it. UI size is one choice among them: 80%, 90%, 100%, 115% or 130%. It is kept in local storage, never in the save, and applies at once. `src/ui/ui-size.ts` owns it. At a size other than 100%, `#ui` and `#overlay` are laid out in a box of the window divided by the size and scaled up or down from the top left corner, so every pixel value, the drawn hardware and the map labels scale together. At 100% no transform is set. The boot screen and the crash screens stay at 100%.
 
 - The layer, not the window, is the screen. The layer must stay at least 640 by 360 (long side by short side). A size that would make it smaller is off in Options with the reason "Too big for this screen", and the game applies the largest step that fits, at most the stored pick.
 - `input-mode.ts` sets `phone`, `slim` (480px wide or less), `narrow` (720px or less) and `compact` (1100px or less) on `#ui` from the layer size. CSS breakpoints are these classes, never a width media query. Orientation queries are fine.
@@ -222,7 +222,7 @@ World colors keep their meaning in the 3D view. The UI does not reuse the cold c
 - `src/ui/tokens.css` holds every raw value: colors, fonts, type sizes, spacing, radii, shadows, layers and UI sizes. It is the only file that writes one.
 - `src/ui/style.css` imports the tokens, then the files under `src/ui/styles/`. Its import order is the cascade.
 - `src/ui/styles/components.css` holds the shared pieces below. Each other file under `styles/` holds one screen area and adds only its own layout.
-- `src/ui/styles/drawings.css` holds drawn hardware: the switch, the speed dial, the radio knobs and keys. Its shapes keep their own sizes, and its colors still come from tokens.
+- `src/ui/styles/drawings.css` holds drawn hardware: the switch, the speed dial, the volume knobs of Options and the radio keys. Its shapes keep their own sizes, and its colors still come from tokens.
 - `src/ui/tokens.ts` reads `tokens.css` for Three.js. `tokenColor("--path-plan")` gives a color number and throws on an unknown name.
 - `src/ui/style-guard.test.ts` fails on a raw value outside `tokens.css`. It reads every file under `styles/`, `truck-condition.css`, the HTML page and the inline styles of the UI and overlay scripts.
 
