@@ -4,7 +4,7 @@ Grid: 4 columns by 7 rows, 1.94 m across by 4.55 m along. Half height 0.3 m, fro
 Rows 0 to 2 are a short sloped front with the engine standing in a bay between the front fenders, rows 3 and 4 a domed
 faceted cabin with a flat roof, rows 5 and 6 a rear deck with a side rack and a sloped tail.
 Four separate fenders cut high over the wheels, joined by dark running boards, give the Beetle silhouette.
-Wheels sit on rows 1 and 5 in the outer columns, radius 0.4 m, half width 0.16 m, mount 0.2 m below the center.
+Wheels sit on rows 1 and 5 in the outer columns, radius 0.52 m, half width 0.185 m, mount 0.2 m below the center.
 Run: blender --background --python tools/blender/base_courier.py -- public/models/base_courier.glb [tmp/base_courier.png]
 """
 
@@ -24,8 +24,8 @@ from shapes import prism, strut  # noqa: E402
 
 SEED = 303
 G = Grid(rows=7, cols=4, half_height=0.3)
-WHEEL_R = 0.4
-WHEEL_HALF_W = 0.16
+WHEEL_R = 0.52
+WHEEL_HALF_W = 0.185
 HUB_Z = -0.2 - SUSPENSION_REST
 FRONT_X = G.row_x(1)
 REAR_X = G.row_x(5)
@@ -34,7 +34,7 @@ ARCH_R = WHEEL_R + ARCH_CLEARANCE
 SIDE = G.half_y - INSET  # fender outer face
 FRONT = G.half_x - INSET  # nose face
 BACK = -G.half_x + INSET  # tail face
-BODY = G.col_y(0) - WHEEL_HALF_W - 0.025  # the narrow body's side, inside the wheels
+BODY = G.col_y(0) - WHEEL_HALF_W  # the narrow body's side, flush with the wheels' inner faces
 FENDER_IN = G.col_y(0.5) + 0.005  # the front fenders' inner face, just outside the engine cells
 
 PAN = -0.4  # the body's bottom

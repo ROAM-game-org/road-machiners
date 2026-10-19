@@ -5,7 +5,7 @@ Row 0 is the wide bucket, carried just over the front tires, with two lift arms 
 Row 1 is the front frame deck between the front tires. Rows 2 and 3 are the tall closed cab in the middle columns, on a side deck.
 Rows 4 to 7 are the engine hood, with a cutout over the engine cells and the transmission cell, sloping down at row 7.
 Row 8 is the heavy counterweight with the radiator grille.
-Wheels sit on rows 1 and 7 in the outer columns, radius 0.8 m, half width 0.32 m, mount 0.45 m below the center.
+Wheels sit on rows 1 and 7 in the outer columns, radius 0.95 m, half width 0.38 m, mount 0.45 m below the center.
 Run: blender --background --python tools/blender/base_loader.py -- public/models/base_loader.glb [tmp/base_loader.png]
 """
 
@@ -19,13 +19,13 @@ import bpy
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, Vec3, parse_args  # noqa: E402
-from parts_common_base import cut_boxes, hull_mesh, ARCH_CLEARANCE, ARCH_SEGMENTS, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, level_sockets, surface_z  # noqa: E402
+from parts_common_base import arch_cut, cut_boxes, hull_mesh, ARCH_CLEARANCE, ARCH_SEGMENTS, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, level_sockets, surface_z  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 307
 G = Grid(rows=9, cols=7, half_height=0.65)
-WHEEL_R = 0.8
-WHEEL_HALF_W = 0.32
+WHEEL_R = 0.95
+WHEEL_HALF_W = 0.38
 HUB_Z = -0.45 - SUSPENSION_REST
 FRONT_WHEEL_X = G.row_x(1)
 REAR_WHEEL_X = G.row_x(7)
@@ -40,13 +40,13 @@ BACK = -G.half_x + INSET
 
 # The bucket rides just over the front tires' front arc, so it spans the whole width without cutting into them.
 BUCKET_BACK = G.row_x(0.5) + 0.06
-BUCKET_BOTTOM = -0.2
+BUCKET_BOTTOM = HUB_Z + math.sqrt((FENDER_R + FENDER_T) ** 2 - (BUCKET_BACK - FRONT_WHEEL_X) ** 2) + 0.03
 BUCKET_FLOOR = BUCKET_BOTTOM + 0.08
-BUCKET_TOP = 0.75
+BUCKET_TOP = BUCKET_BOTTOM + 0.95
 BUCKET_HALF = G.half_y - 0.02
 ARM_Y = 0.98  # the lift arms run beside the cab, just inside the tires
 ARM_PIVOT = (G.row_x(2.2), 1.05)  # on top of the front frame towers
-BUCKET_PIVOT = (BUCKET_BACK + 0.06, 0.05)
+BUCKET_PIVOT = (BUCKET_BACK + 0.06, BUCKET_BOTTOM + 0.25)
 
 FRONT_DECK = 0.15  # the front frame deck between the front tires
 SIDE_DECK = 0.2  # the platform around the cab and the steps between the tires
@@ -144,7 +144,7 @@ def lift_arms(kit: Kit) -> None:
         inner = y * 0.86
         beam(kit, f"arm_{s}", ARM_PIVOT, BUCKET_PIVOT, y, 0.18, 0.3, "paint")
         rod(kit, f"lift_barrel_{s}", (G.row_x(2) + 0.1, -0.35), (G.row_x(1.3), 0.15), inner, 0.08, "under")
-        rod(kit, f"lift_rod_{s}", (G.row_x(1.3), 0.15), (G.row_x(0.9), 0.38), inner, 0.045, "metal_light")
+        rod(kit, f"lift_rod_{s}", (G.row_x(1.3), 0.15), (G.row_x(0.9), BUCKET_BOTTOM + 0.58), inner, 0.045, "metal_light")
         # The tower on the front frame that carries the arm pivot.
         prism(kit, f"tower_{s}", [(CAB_FRONT - 0.2, FRONT_DECK), (CAB_FRONT + 0.45, FRONT_DECK), (ARM_PIVOT[0] + 0.12, ARM_PIVOT[1]), (ARM_PIVOT[0] - 0.12, ARM_PIVOT[1] + 0.05)], y - 0.08, y + 0.08, "paint")
     cross = (ARM_PIVOT[0] + (BUCKET_PIVOT[0] - ARM_PIVOT[0]) * 0.55, ARM_PIVOT[1] + (BUCKET_PIVOT[1] - ARM_PIVOT[1]) * 0.55)
@@ -171,7 +171,7 @@ def frames(kit: Kit) -> None:
 
 def side_steps(kit: Kit) -> None:
     """Painted side pods between the tires, with the ladder up to the cab door on the left, and the deck around the cab."""
-    x0, x1 = REAR_WHEEL_X + FENDER_R + FENDER_T, FRONT_WHEEL_X - FENDER_R - 0.02
+    x0, x1 = G.row_x(5.5), G.row_x(2.5) + 0.1
     pod_out = SIDE - 0.08
     mirrored(kit, "pod", (x1 - x0, pod_out - FRAME_Y, SIDE_DECK + 0.5), (x0 + x1) / 2, (pod_out + FRAME_Y) / 2, SIDE_DECK - 0.25, "paint")
     kit.box("deck", (CAB_FRONT - CAB_BACK + 0.1, 2 * SIDE, 0.1), ((CAB_FRONT + CAB_BACK) / 2, 0, SIDE_DECK - 0.05), "paint")
@@ -212,6 +212,7 @@ def hood(kit: Kit) -> None:
     engine = ((G.row_x(6.5), G.col_y(3.5), BAY_FLOOR - BAY_T), (G.row_x(4.5), G.col_y(1.5), HOOD_TOP + 0.1))
     transmission = ((G.row_x(4.5) - 0.01, G.col_y(3.5), BAY_FLOOR - BAY_T), (G.row_x(3.5), G.col_y(2.5), HOOD_TOP + 0.1))
     cut_boxes(obj, [engine, transmission])
+    arch_cut(obj, [REAR_WHEEL_X], HUB_Z, WHEEL_R, WELL_Y, FRAME_BOTTOM)
     obj.data.materials.clear()  # the boolean leaves an empty slot, which would take the faces off the paint
     kit._add(obj, "hood", "paint", 0.0)
     for i, (lo, hi) in enumerate((engine, transmission)):
@@ -233,6 +234,8 @@ def counterweight(kit: Kit) -> None:
         pts += [(BACK + COUNTER_CORNER, s * HOOD_Y, COUNTER_BOTTOM), (BACK + COUNTER_CORNER, s * HOOD_Y, COUNTER_TOP)]
         pts += [(BACK, s * (HOOD_Y - COUNTER_CORNER), COUNTER_BOTTOM + 0.1), (BACK, s * (HOOD_Y - COUNTER_CORNER), COUNTER_TOP - 0.1)]
     obj = hull_mesh("counterweight", pts)
+    arch_cut(obj, [REAR_WHEEL_X], HUB_Z, WHEEL_R, WELL_Y, FRAME_BOTTOM)
+    obj.data.materials.clear()
     kit._add(obj, "counterweight", "paint", 0.0)
     half = HOOD_Y - COUNTER_CORNER - 0.08
     kit.box("grille", (0.03, 2 * half, 0.5), (BACK - 0.005, 0, COUNTER_TOP - 0.38), "under")

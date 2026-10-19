@@ -53,6 +53,10 @@ class Grid:
         """Blender X of row y's center. Fractions give row edges: row_x(y - 0.5) is its front edge."""
         return self.half_x - CELL_ALONG * (y + 0.5)
 
+    def clamp_x(self, x: float) -> float:
+        """x held inside the footprint's ends."""
+        return min(self.half_x, max(-self.half_x, x))
+
     def col_y(self, x: float) -> float:
         """Blender Y of column x's center. Fractions give column edges."""
         return self.half_y - CELL_ACROSS * (x + 0.5)
@@ -72,15 +76,15 @@ def arch_profile(g: Grid, wheels_x: list[float], hub_z: float, radius: float, to
 
 
 def flare(kit: Kit, name: str, g: Grid, wx: float, hub_z: float, radius: float, y0: float, y1: float, bottom: float | None = None) -> None:
-    """A dark low-poly ring over the top of one arch, from the body bottom (or bottom) on both sides."""
+    """A dark low-poly ring over the top of one arch, from the body bottom (or bottom) on both sides, cut off at the footprint ends."""
     low = g.bottom if bottom is None else bottom
     r0 = radius + ARCH_CLEARANCE
     r1 = r0 + FLARE
     inner, outer = [], []
     for k in range(ARCH_SEGMENTS + 1):
         a = math.pi * k / ARCH_SEGMENTS
-        inner.append((wx + r0 * math.cos(a), max(low, hub_z + r0 * math.sin(a))))
-        outer.append((wx + r1 * math.cos(a), max(low, hub_z + r1 * math.sin(a))))
+        inner.append((g.clamp_x(wx + r0 * math.cos(a)), max(low, hub_z + r0 * math.sin(a))))
+        outer.append((g.clamp_x(wx + r1 * math.cos(a)), max(low, hub_z + r1 * math.sin(a))))
     prism(kit, name, outer + list(reversed(inner)), y0, y1, "under")
 
 

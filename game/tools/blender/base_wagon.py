@@ -4,7 +4,7 @@ Grid: 5 columns by 7 rows, 2.42 m across by 4.55 m along. Half height 0.7 m, fro
 Rows 0 and 1 are a raised gun deck over a welded grille, rows 2 and 3 a narrow hood with a cutout over the engine cells,
 rows 4 and 5 open seats behind a flat windshield, and row 6 a short open box.
 Big separate front fenders flow into running boards. The rear body covers the rear wheels.
-Wheels sit on rows 1 and 5 in the outer columns, radius 0.6 m, half width 0.25 m, mount 0.45 m below the center.
+Wheels sit on rows 1 and 5 in the outer columns, radius 0.76 m, half width 0.3 m, mount 0.45 m below the center.
 Run: blender --background --python tools/blender/base_wagon.py -- public/models/base_wagon.glb [tmp/base_wagon.png]
 """
 
@@ -14,15 +14,17 @@ import math
 import sys
 from pathlib import Path
 
+import bpy
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, ARCH_SEGMENTS, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, flare, level_sockets  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, ARCH_SEGMENTS, BASE_COLORS, INSET, SUSPENSION_REST, Grid, arch_cut, check_base, flare, level_sockets  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 302
 G = Grid(rows=7, cols=5, half_height=0.7)
-WHEEL_R = 0.6
-WHEEL_HALF_W = 0.25
+WHEEL_R = 0.76
+WHEEL_HALF_W = 0.3
 HUB_Z = -0.45 - SUSPENSION_REST
 FRONT_WX = G.row_x(1)
 REAR_WX = G.row_x(5)
@@ -78,6 +80,16 @@ def arch(wx: float, r: float, z_min: float, reverse: bool = False) -> list[tuple
     return list(reversed(pts)) if reverse else pts
 
 
+def front_arch(obj: bpy.types.Object) -> None:
+    """Cuts the front wheel arch out of a part that reaches over the front tires, keeping its one material."""
+    material = obj.data.materials[0]
+    arch_cut(obj, [FRONT_WX], HUB_Z, WHEEL_R, WELL_Y, G.bottom)
+    obj.data.materials.clear()
+    obj.data.materials.append(material)
+    for face in obj.data.polygons:
+        face.material_index = 0
+
+
 def chassis(kit: Kit) -> None:
     """A dark block between the wheel wells, from the nose to the tail."""
     kit.box("frame", (FRONT - BACK - 0.08, 2 * WELL_Y, FRAME_TOP - G.bottom), (0, 0, (FRAME_TOP + G.bottom) / 2), "under")
@@ -95,7 +107,7 @@ def front_fenders(kit: Kit) -> None:
 def gun_deck(kit: Kit) -> None:
     """A raised deck over the front wheels with a sloped glacis, a dark grille, welded plates and headlights."""
     nose = [(DECK_BACK, FRAME_TOP), (FRONT, FRAME_TOP), (FRONT, DECK - DECK_SLOPE), (FRONT - DECK_SLOPE, DECK - 0.08), (DECK_BACK, DECK - 0.08)]
-    prism(kit, "nose", nose, -HOOD_Y, HOOD_Y, "paint")
+    front_arch(prism(kit, "nose", nose, -HOOD_Y, HOOD_Y, "paint"))
     kit.box("deck", (FRONT - DECK_SLOPE - DECK_BACK, 2 * HOOD_Y, 0.08), ((FRONT - DECK_SLOPE + DECK_BACK) / 2, 0, DECK - 0.04), "trim")
     kit.box("grille", (INSET / 2, 0.9, DECK - DECK_SLOPE - FRAME_TOP - 0.12), (FRONT + INSET / 4, 0, (DECK - DECK_SLOPE + FRAME_TOP) / 2), "under")
     # Two welded plates across the grille, tilted like scrap tacked on in a hurry.
@@ -110,9 +122,13 @@ def hood(kit: Kit) -> None:
     length = DECK_BACK - COWL_FRONT
     mid = (DECK_BACK + COWL_FRONT) / 2
     h = HOOD_TOP - FRAME_TOP
-    kit.box("hood_l", (length, HOOD_Y - BAY_LEFT, h), (mid, (HOOD_Y + BAY_LEFT) / 2, FRAME_TOP + h / 2), "paint")
-    kit.box("hood_r", (length, BAY_RIGHT + HOOD_Y, h), (mid, (BAY_RIGHT - HOOD_Y) / 2, FRAME_TOP + h / 2), "paint")
-    kit.box("bay", (length, BAY_LEFT - BAY_RIGHT, BAY_FLOOR - FRAME_TOP), (mid, (BAY_LEFT + BAY_RIGHT) / 2, (BAY_FLOOR + FRAME_TOP) / 2), "metal")
+    sides = [
+        kit.box("hood_l", (length, HOOD_Y - BAY_LEFT, h), (mid, (HOOD_Y + BAY_LEFT) / 2, FRAME_TOP + h / 2), "paint"),
+        kit.box("hood_r", (length, BAY_RIGHT + HOOD_Y, h), (mid, (BAY_RIGHT - HOOD_Y) / 2, FRAME_TOP + h / 2), "paint"),
+        kit.box("bay", (length, BAY_LEFT - BAY_RIGHT, BAY_FLOOR - FRAME_TOP), (mid, (BAY_LEFT + BAY_RIGHT) / 2, (BAY_FLOOR + FRAME_TOP) / 2), "metal"),
+    ]
+    for side in sides:
+        front_arch(side)
 
 
 def rear_body(kit: Kit) -> None:

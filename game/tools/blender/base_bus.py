@@ -7,7 +7,7 @@ The window band ends at row 8. Rows 9 to 11 are the closed engine compartment wi
 The flat roof is the row surface of every cell, the aisle included. A raised strip runs over columns 2 and 3 up to row 7.
 Behind it the engine hatch is a cutout over the engine cells, columns 2 and 3 on rows 8 and 9.
 Doors are on the right side, Blender -Y: one behind the front wheels and one ahead of the rear wheels.
-Wheels sit on rows 1 and 10 in the outer columns, radius 0.55 m, half width 0.22 m, mount 0.55 m below the center.
+Wheels sit on rows 1 and 10 in the outer columns, radius 0.7 m, half width 0.26 m, mount 0.55 m below the center.
 Run: blender --background --python tools/blender/base_bus.py -- public/models/base_bus.glb [tmp/base_bus.png]
 """
 
@@ -21,13 +21,13 @@ import bpy
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, Vec3, parse_args  # noqa: E402
-from parts_common_base import cut_hulls, hull_mesh, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, flare, level_sockets  # noqa: E402
+from parts_common_base import cut_hulls, hull_mesh, BASE_COLORS, FLARE, INSET, SUSPENSION_REST, Grid, check_base, flare, level_sockets  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 306
 G = Grid(rows=12, cols=6, half_height=0.8)
-WHEEL_R = 0.55
-WHEEL_HALF_W = 0.22
+WHEEL_R = 0.7
+WHEEL_HALF_W = 0.26
 HUB_Z = -0.55 - SUSPENSION_REST
 WHEELS_X = [G.row_x(1), G.row_x(10)]
 ARCH_R = WHEEL_R + 0.06  # ARCH_CLEARANCE
@@ -54,7 +54,7 @@ LOWER = [(G.bottom, FRONT, BACK, SIDE), (BELT, FRONT, BACK, SIDE)]
 UPPER = [(WIN_TOP, FRONT - 0.18, BACK + 0.12, SIDE), (EAVE, FRONT - 0.3, BACK + 0.3, SIDE - 0.07), (ROOF, ROOF_FRONT, BACK + 0.45, SIDE - 0.2)]
 BAND = [LOWER[1], UPPER[0]]
 
-FRONT_DOOR = (G.row_x(1.5) - 0.08, G.row_x(3.5) + 0.05)  # x front, x back
+FRONT_DOOR = (WHEELS_X[0] - ARCH_R - FLARE - 0.05, WHEELS_X[0] - ARCH_R - FLARE - 1.22)  # x front, x back
 REAR_DOOR = (G.row_x(6.5) - 0.12, G.row_x(8.5) + 0.2)
 DOOR_BOTTOM = G.bottom + 0.1
 PILLAR_W = 0.1

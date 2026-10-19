@@ -5,7 +5,7 @@ The ground is 1.10 m below the center, so the flat roof at 0.89 m stands 2.0 m t
 A short flat hood, a quarter of the length, with a cutout over the engine cells. Behind it a tall upright cabin with a steeply raked windshield,
 a long door window, a quarter window and a near-vertical tail under a flat roof that runs back from the windshield top.
 The nose is a wide dark grille panel with round headlamps inset at each end, lamp blocks at the hood corners and a thick dark bumper.
-Wheels sit on rows 1 and 5 in the outer columns, radius 0.45 m, half width 0.18 m, mount 0.25 m below the center. Arches are cut on them.
+Wheels sit on rows 1 and 5 in the outer columns, radius 0.58 m, half width 0.22 m, mount 0.25 m below the center. Arches are cut on them.
 The sockets arch_front, arch_rear (the left arch center at the hub) and arch_front_top (its crown) let wheelArches.test.ts check them against physics.
 The sill hangs 0.21 m below the collider bottom as skin only.
 Run: blender --background --python tools/blender/base_niva.py -- public/models/base_niva.glb [tmp/base_niva.png]
@@ -38,8 +38,8 @@ SEED = 313
 G = Grid(rows=7, cols=4, half_height=0.4)
 WHEEL_X = 1.3  # PHYSICS.bodies.niva.wheelX
 WHEEL_Y = -0.25  # PHYSICS.bodies.niva.wheelY
-WHEEL_R = 0.45  # PHYSICS.bodies.niva.wheelRadius
-WHEEL_HALF_W = 0.18  # PHYSICS.bodies.niva.wheelHalfWidth
+WHEEL_R = 0.58  # PHYSICS.bodies.niva.wheelRadius
+WHEEL_HALF_W = 0.22  # PHYSICS.bodies.niva.wheelHalfWidth
 HUB_Z = WHEEL_Y - SUSPENSION_REST
 WHEELS_X = [WHEEL_X, -WHEEL_X]
 WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall

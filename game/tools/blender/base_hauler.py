@@ -3,7 +3,7 @@
 Grid: 7 columns by 9 rows, 3.39 m across by 5.85 m along. Half height 0.6 m, from PHYSICS.bodies.hauler.
 Rows 0 to 2 are the flat-faced cab over the engine, with a hatch in the roof over the engine cells.
 Rows 3 to 8 are the open cargo bed with low walls. The bed floor is the bed rows' surface.
-Wheels sit on rows 1 and 7 in the outer columns, radius 0.6 m, half width 0.25 m, mount 0.4 m below the center.
+Wheels sit on rows 1 and 7 in the outer columns, radius 0.76 m, half width 0.3 m, mount 0.4 m below the center.
 Run: blender --background --python tools/blender/base_hauler.py -- public/models/base_hauler.glb [tmp/base_hauler.png]
 """
 
@@ -21,8 +21,8 @@ from shapes import prism  # noqa: E402
 
 SEED = 302
 G = Grid(rows=9, cols=7, half_height=0.6)
-WHEEL_R = 0.6
-WHEEL_HALF_W = 0.25
+WHEEL_R = 0.76
+WHEEL_HALF_W = 0.3
 HUB_Z = -0.4 - SUSPENSION_REST
 FRONT_WHEEL_X = G.row_x(1)
 REAR_WHEEL_X = G.row_x(7)

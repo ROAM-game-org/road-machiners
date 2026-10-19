@@ -6,7 +6,7 @@ One tall closed box from nose to tail with a roof rounded on every edge and leve
 A low rounded nose panel carries two wide-set round lamps and a dark grille, and bulges 0.1 m ahead of the windshield base.
 Over it a wide two-piece windshield rakes back. Behind it a door window and three equal side windows run in a band from 67 % to 86 % of the height.
 The engine stands in a sunk hatch in the roof on rows 3 and 4 (PHYSICS.bodies.bukhanka.engine), standing in for the doghouse between the seats.
-Wheels sit on rows 1 and 6 in the outer columns, radius 0.55 m, half width 0.2 m, mount 0.35 m below the center. Arches are cut on them.
+Wheels sit on rows 1 and 6 in the outer columns, radius 0.7 m, half width 0.24 m, mount 0.35 m below the center. Arches are cut on them.
 The sockets arch_front, arch_rear (the left arch center at the hub) and arch_front_top (its crown) let wheelArches.test.ts check them against physics.
 The sill hangs 0.1 m below the collider bottom as skin only.
 Run: blender --background --python tools/blender/base_bukhanka.py -- public/models/base_bukhanka.glb [tmp/base_bukhanka.png]
@@ -37,8 +37,8 @@ SEED = 312
 G = Grid(rows=8, cols=5, half_height=0.5)
 WHEEL_X = 1.45  # PHYSICS.bodies.bukhanka.wheelX
 WHEEL_Y = -0.35  # PHYSICS.bodies.bukhanka.wheelY
-WHEEL_R = 0.55  # PHYSICS.bodies.bukhanka.wheelRadius
-WHEEL_HALF_W = 0.2  # PHYSICS.bodies.bukhanka.wheelHalfWidth
+WHEEL_R = 0.7  # PHYSICS.bodies.bukhanka.wheelRadius
+WHEEL_HALF_W = 0.24  # PHYSICS.bodies.bukhanka.wheelHalfWidth
 HUB_Z = WHEEL_Y - SUSPENSION_REST
 WHEELS_X = [WHEEL_X, -WHEEL_X]
 WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall

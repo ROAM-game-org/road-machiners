@@ -4,7 +4,7 @@ Grid: 7 columns by 9 rows, 3.39 m across by 5.85 m along. Half height 0.65 m, fr
 Rows 0 to 2 are the long square hood with a cutout over the engine cells, between swept front fenders.
 Rows 3 and 4 are the tall cab over chrome fuel tanks, with exhaust stacks behind it.
 Rows 5 to 8 are the low flat deck with the fifth-wheel plate.
-Wheels sit on rows 1 and 7 in the outer columns, radius 0.7 m, half width 0.3 m, mount 0.45 m below the center.
+Wheels sit on rows 1 and 7 in the outer columns, radius 0.88 m, half width 0.36 m, mount 0.45 m below the center.
 Run: blender --background --python tools/blender/base_tractor.py -- public/models/base_tractor.glb [tmp/base_tractor.png]
 """
 
@@ -24,8 +24,8 @@ from shapes import prism  # noqa: E402
 
 SEED = 303
 G = Grid(rows=9, cols=7, half_height=0.65)
-WHEEL_R = 0.7
-WHEEL_HALF_W = 0.3
+WHEEL_R = 0.88
+WHEEL_HALF_W = 0.36
 HUB_Z = -0.45 - SUSPENSION_REST
 FRONT_WHEEL_X = G.row_x(1)
 REAR_WHEEL_X = G.row_x(7)
@@ -108,8 +108,8 @@ def quarter_fender(kit: Kit, name: str, y0: float, y1: float) -> None:
     inner, outer = [], []
     for k in range(ARCH_SEGMENTS + 1):
         a = math.pi * k / ARCH_SEGMENTS
-        inner.append((REAR_WHEEL_X + r0 * math.cos(a), HUB_Z + r0 * math.sin(a)))
-        outer.append((REAR_WHEEL_X + r1 * math.cos(a), HUB_Z + r1 * math.sin(a)))
+        inner.append((G.clamp_x(REAR_WHEEL_X + r0 * math.cos(a)), HUB_Z + r0 * math.sin(a)))
+        outer.append((G.clamp_x(REAR_WHEEL_X + r1 * math.cos(a)), HUB_Z + r1 * math.sin(a)))
     prism(kit, name, outer + list(reversed(inner)), y0, y1, "under")
 
 
@@ -189,7 +189,7 @@ def deck(kit: Kit) -> None:
         kit.cylinder(f"stack_{s}", STACK_R, STACK_TOP - DECK, (CAB_BACK - 0.14, y, (STACK_TOP + DECK) / 2), "metal_light", vertices=8)
     for s, (y0, y1) in (("l", (WELL_Y, G.half_y)), ("r", (-G.half_y, -WELL_Y))):
         quarter_fender(kit, f"quarter_fender_{s}", y0, y1)
-    flap_x = REAR_WHEEL_X - WHEEL_R - ARCH_CLEARANCE - 0.1
+    flap_x = max(REAR_WHEEL_X - WHEEL_R - ARCH_CLEARANCE - 0.1, BACK + 0.025)
     mirrored(kit, "mud_flap", (0.05, SIDE - WELL_Y, DECK - DECK_T - G.bottom), flap_x, (SIDE + WELL_Y) / 2, (DECK - DECK_T + G.bottom) / 2, "under")
     kit.box("rear_panel", (0.06, 2 * SIDE, DECK_T + 0.2), (BACK + 0.03, 0, DECK - (DECK_T + 0.2) / 2), "paint")
     mirrored(kit, "taillight", (INSET, 0.24, 0.14), BACK - INSET / 2, SIDE - 0.2, DECK - DECK_T / 2 - 0.1, "red")
