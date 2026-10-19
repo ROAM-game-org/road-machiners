@@ -3,7 +3,8 @@ import { isHostile } from './combat';
 import { isKnockedOut, standDown } from './defeat';
 import { RULES } from '../data/rules';
 import { playerVehicle, vehicleById } from './damage';
-import { partSellPrice } from './economy';
+import { getUpkeepReserve, partSellPrice, transfer } from './economy';
+import { getResources } from './resources';
 import { corePart, isMounted } from './grid';
 import { applyRefitLayout } from './inventory';
 import { creditBounty } from './market';
@@ -13,7 +14,7 @@ import { decide, holdsUp, perceiveDanger, robbedFor, visibleHostiles, wantsLoot 
 import { SPARE_LINE } from '../data/dialogue';
 import { vehicleHasPerk } from './progress';
 import { modeRules } from './settings';
-import { cargoHaul, removableParts, surrenderHaul } from './haul';
+import { cargoHaul, cashCut, ransomOf, removableParts, surrenderHaul, haulValue, type Ransom } from './haul';
 import { backedOff, canReachSalvage, claimantOf, claimPile, dropHaul, dumpOnPile, hasCargo, lootClaimedBy, looseCargo, salvageInRange, takeError } from './salvage';
 import { isStranded } from './stats';
 import { addState, endState, lootWarningData, pleaData, stateOf } from './states';
@@ -25,6 +26,9 @@ import { dist } from './vec';
 import { isIntroAmbusher } from './quests';
 import { fightSide, spokesman } from './sides';
 import { reportIncident } from './relations';
+
+type Named = 'haul' | 'cut';
+export type Payment = { amount: number; named: Named };
 
 export type ThreatAnswer = DecisionOptions['threatened'];
 
@@ -57,11 +61,34 @@ export function handedOver(world: World, loser: Vehicle, winner: Vehicle): GridI
 }
 
 export function yieldTo(world: World, loser: Vehicle, winner: Vehicle, haul: GridItem[] = handedOver(world, loser, winner)): void {
-  if (!modeRules(world).looting) throw new Error(`${loser.id} cannot hand over cargo where nothing is looted`);
+  requireLooting(world, loser);
   const stock = haul.length > 0 ? dropHaul(world, loser, haul) : null;
+  settleHoldUp(world, loser, winner, stock, 'cargo', haulValue(haul), haul.length > 0 ? 'haul' : 'cut');
+}
+
+export function payOff(world: World, loser: Vehicle, winner: Vehicle, amount: number, named: Named = 'cut'): void {
+  requireLooting(world, loser);
+  if (amount <= 0) throw new Error(`${loser.id} cannot pay ${amount} to ${winner.id}`);
+  transfer(world, loser, winner, amount);
+  settleHoldUp(world, loser, winner, null, 'money', amount, named);
+}
+
+export function giveInTo(world: World, loser: Vehicle, winner: Vehicle, ransom: Ransom): void {
+  const spare = getResources(world, loser).money - getUpkeepReserve(loser);
+  const pays = ransom.money > 0 && (ransom.haul.length === 0 || spare >= ransom.money);
+  if (pays) payOff(world, loser, winner, ransom.money, ransom.haul.length > 0 ? 'haul' : 'cut');
+  else yieldTo(world, loser, winner, ransom.haul);
+}
+
+function requireLooting(world: World, loser: Vehicle): void {
+  if (!modeRules(world).looting) throw new Error(`${loser.id} cannot pay a hold-up where nothing is looted`);
+}
+
+function settleHoldUp(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock | null, paid: 'cargo' | 'money', value: number, named: Named): void {
   cede(world, loser, winner, stock, 'takeHandedCargo');
   if (loser.brain) remember(world, loser, { kind: 'wronged', by: winner.id, deed: 'robbed' });
   creditYield(world, loser, winner);
+  world.events.push({ t: 'holdUp', robber: winner.id, victim: loser.id, paid, named, value });
 }
 
 export function abandonSpill(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock): void {
@@ -134,15 +161,17 @@ function voicedAnswer(world: World, voice: Vehicle, pleader: Vehicle, plea: Plea
 
 export function answersHoldUp(world: World, prey: Vehicle, robber: Vehicle, answer: ThreatAnswer): void {
   if (!holdsUp(world, robber, prey, null)) throw new Error(`${robber.id} does not hold up ${prey.id}`);
-  if (answer === 'comply') yieldTo(world, prey, robber);
+  if (answer === 'comply') giveInTo(world, prey, robber, ransomOf(world, robber, prey));
   else defyThreat(world, prey, robber, answer);
 }
 
-function grantPlea(world: World, pleader: Vehicle, answerer: Vehicle, plea: Plea): void {
+function grantPlea(world: World, pleader: Vehicle, answerer: Vehicle, plea: Plea, price: Payment | null = null): void {
   const held = stateOf(world, 'plea', pleader.id, answerer.id);
   if (!held) throw new Error(`${pleader.id} holds no plea to ${answerer.id}`);
   endState(world, held, 'fulfilled');
   if (plea === 'truce') makePeace(world, pleader, answerer);
+  else if (price !== null) payOff(world, pleader, answerer, price.amount, price.named);
+  else if (pleader.brain && answerer.brain) giveInTo(world, pleader, answerer, ransomOf(world, answerer, pleader));
   else yieldTo(world, pleader, answerer);
 }
 
@@ -168,11 +197,11 @@ function requireRadio(world: World, npc: Vehicle, foe: Vehicle): void {
   if (!modeRules(world).radio) throw new Error(`${npc.id} cannot plead with ${foe.id} with no radio`);
 }
 
-export function settlePlayerPlea(world: World, npc: Vehicle, plea: Plea, accepted: boolean): void {
+export function settlePlayerPlea(world: World, npc: Vehicle, plea: Plea, accepted: boolean, price: Payment | null = null): void {
   const me = playerVehicle(world);
   addState(world, 'plea', me.id, npc.id, { kind: 'plea', plea, answered: true });
   world.events.push({ t: 'plea', from: me.id, to: npc.id, plea, accepted });
-  if (accepted) grantPlea(world, me, npc, plea);
+  if (accepted) grantPlea(world, me, npc, plea, price);
 }
 
 export function pendingPlea(world: World, npc: Vehicle): Plea | null {
@@ -214,6 +243,15 @@ export function settleThreat(world: World, npc: Vehicle, answer: ThreatAnswer): 
   if (answer !== 'comply') return defyThreat(world, npc, me, answer);
   reportIncident(world, { aggressor: me, victim: npc, deed: 'robbed', victimFights: false });
   yieldTo(world, npc, me);
+}
+
+export function settleCashThreat(world: World, npc: Vehicle, answer: ThreatAnswer): void {
+  const me = playerVehicle(world);
+  if (answer !== 'comply') return defyThreat(world, npc, me, answer);
+  reportIncident(world, { aggressor: me, victim: npc, deed: 'robbed', victimFights: false });
+  const cut = cashCut(world, npc);
+  if (cut > 0) payOff(world, npc, me, cut);
+  else yieldTo(world, npc, me, []);
 }
 
 export function defendClaim(world: World, claimant: Vehicle, trespasser: Vehicle): void {
