@@ -68,10 +68,11 @@ Pick one verdict for the version you chose.
 - `ready`: it is a justified improvement of something that already exists, like a clearer text, a fairer value or a smoother control. It goes to design at once.
 - `vote`: it is a new feature, a new mechanic, a new location or a substantial change to how the game plays. Players vote on it first.
 - `wont-do`: the game already serves the need well, and no version adds enough to be worth its cost. The reason names what the game already has, so the player learns it.
-- `unclear`: you cannot pick a version, because the request still has readings that lead to different versions after you read the game, its docs and its issues.
+- `unclear`: the version needs a fact that only the author has, like a reference image of a new place.
 
 When you cannot tell an improvement from a new feature, pick `vote`.
-When in doubt between `unclear` and a sensible reading, take the reading and say it in `version`. The vote and the committee correct it.
+A request with several readings is not `unclear`. Choosing between readings is your job: draft them as versions in step 5 and pick by the five tests. Say the reading you took in `version`, and the vote and the committee correct it.
+A point that names a weak behavior, like smarter enemies, is not `unclear` either. Find the weakness in the code yourself.
 
 Questions.
 Ask only for `unclear`.
