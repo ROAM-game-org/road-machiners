@@ -43,6 +43,7 @@ Fields that belong to one position:
 - `postOnly` belongs to Testing only.
 - `approvalPosts`, `postCaptions` and `pendingApprovals` belong to Approval only.
 - `asked` maps an issue to the time its questions came, and belongs to Triage with `needs-info`. The comments of someone but the factory after that time are the answers. The tick starts the clock itself for a `needs-info` card without an entry.
+- `questionPosts` maps the committee chat message of an open question set to its issue. The Hermes plugin reads it, so a member's reply to that message becomes an `answer-questions` inbox command. It is dropped with the issue's `asked` entry.
 - `pendingFeedback` maps an issue to the committee or player feedback its next verify job must act on, with the source and the comment body. A reply routed as patch or redesign, and a release removal, write it. The post of the build clears it.
 - `routed` lists the issues whose models triage already routed, so a later triage run keeps the labels as the committee left them. Triage adds the issue on each pass.
 - `approvedResolving` marks an approved card in Hardening or Merging. The merge comment names the approver.

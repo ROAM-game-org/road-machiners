@@ -3,7 +3,7 @@ import { basename, dirname, join } from 'node:path';
 import { withLockSync } from './lock';
 import type { FactoryState, Failure, Job, JobStage, PlaytestState, ReleaseState, StuckRecord } from './types';
 
-export const EMPTY_STATE: FactoryState = { jobs: [], approvalPosts: {}, lastRelease: null, devMerges: [], release: null, releasePost: null, pendingShip: null, pendingRemovals: [], pendingApprovals: {}, approvedResolving: {}, caughtUpTo: {}, keptApprovals: {},pendingIncidents: [], pendingAnswers: [], bundles: {}, adhocReplies: {}, lastTickError: null, failures: [], builds: {}, cardStarts: {}, postCaptions: {}, devBuild: null, devFailed: null, devError: null, interrupted: [], retried: [], postOnly: [], unroutedReplies: {}, textPosts: [], lastWasteReview: null, held: {}, stuck: {}, sweepError: null, asked: {}, pendingFeedback: {}, routed: [] };
+export const EMPTY_STATE: FactoryState = { jobs: [], approvalPosts: {}, lastRelease: null, devMerges: [], release: null, releasePost: null, pendingShip: null, pendingRemovals: [], pendingApprovals: {}, approvedResolving: {}, caughtUpTo: {}, keptApprovals: {},pendingIncidents: [], pendingAnswers: [], bundles: {}, adhocReplies: {}, lastTickError: null, failures: [], builds: {}, cardStarts: {}, postCaptions: {}, devBuild: null, devFailed: null, devError: null, interrupted: [], retried: [], postOnly: [], unroutedReplies: {}, textPosts: [], lastWasteReview: null, held: {}, stuck: {}, sweepError: null, asked: {}, questionPosts: {}, pendingFeedback: {}, routed: [] };
 
 const STATE_LOCK_MS = 30_000;
 

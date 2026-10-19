@@ -7,7 +7,7 @@ import type { DeckSpec, DeckStation } from './terrain';
 
 export { onOrchardRoad };
 
-export type SpotTable = 'landmark' | 'hullScrap' | 'roadWreck' | 'farmStores' | 'armyStores' | 'engineScrap' | 'cityStores';
+export type SpotTable = 'landmark' | 'hullCache' | 'hullScrap' | 'roadWreck' | 'farmStores' | 'armyStores' | 'engineScrap' | 'cityStores';
 export const WRECK_LOOKS: readonly PropKind[] = ['armyTruck', 'shipCache', 'hullCache', 'engineCache', 'deadTruck', 'tank'];
 export type Hazard = {
   radius: number;
@@ -225,7 +225,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         { at: { x: 10.2, y: 2.1 }, yaw: 1.37 },
       ],
       cacheLook: 'hullCache',
-      cacheTable: 'landmark',
+      cacheTable: 'hullCache',
       cacheRadius: 0.7,
       patches: [
         { at: { x: -6.5, y: 32.4 }, radius: 10, debris: DENSE, spots: 3 },
