@@ -83,3 +83,42 @@ export function meet(angle: number, speed: number, seconds: number): Meeting {
   const pair = [playerOf().id, traderId];
   return { impacts: bumps.filter((c) => pair.includes(c.a) && pair.includes(c.b)).map((c) => c.impact), arrivedIn };
 }
+
+export type HeadOn = Meeting & { stalls: number };
+
+const HEAD_ON_GAP = 20;
+const STALL_FAR = 8;
+const STALL_STEP = 0.5;
+
+export function meetHeadOn(lane: number, speed: number): HeadOn {
+  const bumps: Bump[] = [];
+  let { w, traderId } = tradingWorld();
+  let d = buildDrive(w);
+  const traderOf = () => w.vehicles.find((v) => v.id === traderId)!;
+  const playerOf = () => w.vehicles.find((v) => v.faction === 'player')!;
+  for (let i = 0; i < 30 && traderOf().speed < 3; i++) ({ w, d } = turn(w, d, bumps));
+  const t = traderOf();
+  const side = { x: t.pos.x - Math.sin(t.heading) * lane, y: t.pos.y + Math.cos(t.heading) * lane };
+  const me = playerOf();
+  me.pos = freeStart(w, me, side, t.heading, HEAD_ON_GAP);
+  me.heading = t.heading + Math.PI;
+  me.speed = speed;
+  freeDrive(d);
+  d = buildDrive(w);
+  const dest = { x: t.pos.x - Math.cos(t.heading) * 10, y: t.pos.y - Math.sin(t.heading) * 10 };
+  w = setMoveOrder(w, { kind: 'through', dest });
+  bumps.length = 0;
+  let arrivedIn: number | null = null;
+  let stalls = 0;
+  for (let i = 1; i <= MEETING_TURNS && arrivedIn === null; i++) {
+    const from = { ...playerOf().pos };
+    const apart = Math.hypot(traderOf().pos.x - from.x, traderOf().pos.y - from.y);
+    ({ w, d } = turn(w, d, bumps));
+    const moved = Math.hypot(playerOf().pos.x - from.x, playerOf().pos.y - from.y);
+    if (apart > STALL_FAR && moved < STALL_STEP && playerOf().order) stalls++;
+    if (!playerOf().order) arrivedIn = i;
+  }
+  freeDrive(d);
+  const pair = [playerOf().id, traderId];
+  return { impacts: bumps.filter((c) => pair.includes(c.a) && pair.includes(c.b)).map((c) => c.impact), arrivedIn, stalls };
+}
