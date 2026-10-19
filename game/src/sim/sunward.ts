@@ -473,7 +473,7 @@ function leaveOrder(world: World, v: Vehicle): void {
   v.defeat = { ...v.defeat, phase: 'retreat', unseen: 0 };
 }
 
-const SHUNNED: readonly NpcActivity['kind'][] = ['scavenge', 'prowl', 'raid', 'patrol', 'travel', 'explore', 'haul', 'trade', 'sell', 'resupply', 'investigate', 'claim', 'loot'];
+const SHUNNED: readonly NpcActivity['kind'][] = ['scavenge', 'prowl', 'raid', 'patrol', 'travel', 'explore', 'trade', 'sell', 'resupply', 'investigate', 'claim', 'loot'];
 
 export function avoidsCrater(world: World, v: Vehicle): boolean {
   return v.brain !== null && !isSunwardMember(v) && nightWindow(world);

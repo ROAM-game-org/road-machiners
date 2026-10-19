@@ -11,6 +11,7 @@ import { entryText } from '../src/text/resolve.ts';
 import { defaultSetup } from '../src/sim/settings.ts';
 import { newWorld } from '../src/sim/world.ts';
 import { TEST_MAP } from '../src/test/map.ts';
+import { parkAtLocal } from '../src/test/quest-check.ts';
 import { compileSources, readQuestSources } from '../src/test/quest-compile.ts';
 import { parseMarkup } from '../src/ui/quest-text.ts';
 
@@ -39,6 +40,7 @@ const PARSERS = {
 };
 
 const fresh = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
+parkAtLocal(fresh, id);
 const startMoney = fresh.player.money;
 if (values.play) {
   played(fresh, values.play);

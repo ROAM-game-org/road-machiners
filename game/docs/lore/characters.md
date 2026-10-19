@@ -415,6 +415,22 @@ Hadiza runs the pump and the canteen at Green Pit, a walled pump outpost that se
 
 Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well."
 
+## Hollis Brennan
+
+- Way: embrace.
+- High concept: The still boss at the Pump Station, who keeps the stills cooking crude into diesel.
+- Trouble: The pump and the stills eat tools and batteries faster than the convoys bring them.
+- Aspects: Drums stacked by the stills; A pumpjack that nods over an Old World well; Hands black to the wrist.
+- Skills: best machining, worst social.
+- Wants: The stills hot, the drums sold and spares for the pump.
+- Fears: A cold still and a stopped pump.
+- Habit: He taps each drum as it is filled and chalks the count on the still.
+- Secret: None.
+
+Hollis runs the crew at the Pump Station. The pumpjack lifts crude from an Old World oil well, his stills cook it into diesel, and the fuel convoys load the drums. The pump wears through tools, and its motor needs batteries from Nose. When it stops, drums run short all over the basin.
+
+His line is "No tools, no pump. No pump, no drums."
+
 ## Mara Kessel
 
 - Way: control.

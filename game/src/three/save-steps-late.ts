@@ -100,10 +100,10 @@ export function withHeardCentres_81_82(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
 }
 
-const SUNWARD_STANDING_82_83 = -20;
+const SUNWARD_STANDING_83_84 = -20;
 
-export function withSunward_82_83(world: SavedJson): SavedJson {
+export function withSunward_83_84(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const sunward = world.furyRoad === null ? { collapsed: null, night: null, lastHunt: null } : null;
-  return { ...world, sunward, player: { ...player, standing: { ...(player.standing as SavedJson), sunward: SUNWARD_STANDING_82_83 } } };
+  return { ...world, sunward, player: { ...player, standing: { ...(player.standing as SavedJson), sunward: SUNWARD_STANDING_83_84 } } };
 }

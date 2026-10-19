@@ -1,4 +1,6 @@
 
+import { reportRobbedHaul, reportShipmentLoss, shipmentOf } from './road-news';
+import { SPAWN } from '../data/npcs';
 import { isHostile } from './combat';
 import { isKnockedOut, standDown } from './defeat';
 import { RULES } from '../data/rules';
@@ -59,6 +61,7 @@ export function handedOver(world: World, loser: Vehicle, winner: Vehicle): GridI
 
 export function yieldTo(world: World, loser: Vehicle, winner: Vehicle, haul: GridItem[] = handedOver(world, loser, winner)): void {
   requireLooting(world, loser);
+  reportRobbedHaul(world, loser, haul);
   const stock = haul.length > 0 ? dropHaul(world, loser, haul) : null;
   settleHoldUp(world, loser, winner, stock, 'cargo', haulValue(haul));
 }
@@ -89,6 +92,8 @@ function settleHoldUp(world: World, loser: Vehicle, winner: Vehicle, stock: Salv
 }
 
 export function abandonSpill(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock): void {
+  const shipment = shipmentOf(loser);
+  if (shipment) reportShipmentLoss(world, loser, 'robbed', stock.goods[shipment.good] ?? 0);
   cede(world, loser, winner, stock, 'takeSpilledCargo');
 }
 

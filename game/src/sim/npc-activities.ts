@@ -1,5 +1,5 @@
 
-import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions } from '../data/npcs';
+import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions, type Weighted } from '../data/npcs';
 import { SHOPS } from '../data/market';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
@@ -8,13 +8,13 @@ import { reportIncident } from './relations';
 import { cargoSaleValue } from './economy';
 import { corePart } from './grid';
 import { cancelJob } from './jobs';
-import { businessBelongs, resolveHaul, resolveSell, resolveTrade } from './npc-business';
+import { businessBelongs, resolveSell, resolveTrade } from './npc-business';
 import { isFree } from './spawn';
 import { bodyStop } from './meeting-stop';
 import { huntsOffRoad } from './hunt-style';
 import {
-  tradeOffers, canRob, decide, keepsWord, offersChoice, perceiveDanger, getKnownSite, haulGoods, patrolStopsOf, patrolSite, travelSitesAway,
-  huntingGroundsAway, raiderGroundsAway, isHostileContact, isWeak, huntsPrey, npcProfile, salvageSitesAway, npcSenses, usefulContacts, visibleDowned, visibleHostiles, visibleSalvage, type NpcProfile,
+  tradeOffers, supplyOffers, canRob, decide, keepsWord, offersChoice, perceiveDanger, getKnownSite, patrolStopsOf, patrolSite, travelSitesAway,
+  huntingGroundsAway, raiderGroundsAway, isHostileContact, isWeak, huntsPrey, npcProfile, salvageSitesAway, npcSenses, usefulContacts, visibleDowned, visibleHostiles, visibleSalvage, type NpcProfile, type TradePlan,
   passReason, canStartFight, lootTaken, stockLootInvalid, truckLootInvalid, worksOnLoot, holdsOffRobbery, giveUpStrandedRobberies, forgetFullHold, noteCannotHold, noteStripped, hasSaleCargo, lootPassedUp, holdsUp, robbedFor, bodyCondition, givesUpUnarmed, yields,
 } from './npc-decisions';
 import { chooseNpcRepair, continueNpcRepair, repairsHere, resolveNpcRepair } from './npc-repair';
@@ -162,10 +162,13 @@ export function saleGoal(world: World, vehicle: Vehicle, profile: NpcProfile): N
 }
 
 function tradeGoal(world: World, vehicle: Vehicle): NpcActivity {
-  const offers = tradeOffers(world, vehicle);
+  return tradeRun(world, vehicle, tradeOffers(world, vehicle), 'buyCargo');
+}
+
+function tradeRun(world: World, vehicle: Vehicle, offers: Weighted<TradePlan>[], reason: GoalReason): NpcActivity {
   if (offers.length === 0) throw new Error(`${vehicle.id} chose to trade with no affordable profitable trade`);
   const plan = sampleWeighted(world, offers);
-  return { ...createSiteActivity('trade', plan.source, 'buyCargo'), purchase: { good: plan.good, sellShop: plan.sellShop } };
+  return { ...createSiteActivity('trade', plan.source, reason), purchase: { good: plan.good, sellShop: plan.sellShop } };
 }
 
 function scavengeGoal(world: World, vehicle: Vehicle): NpcActivity {
@@ -226,11 +229,7 @@ export function exploreGoal(world: World, vehicle: Vehicle): NpcActivity {
 }
 
 function haulGoal(world: World, vehicle: Vehicle): NpcActivity {
-  const sites = npcProfile(vehicle).haulSites;
-  if (sites.length === 0) throw new Error(`${vehicle.id} chose to haul with no known source`);
-  const site = sites[randInt(world, 0, sites.length - 1)];
-  const goods = haulGoods(site);
-  return { ...createSiteActivity('haul', site, 'loadCargo'), load: { good: goods[randInt(world, 0, goods.length - 1)] } };
+  return tradeRun(world, vehicle, supplyOffers(world, vehicle), 'loadCargo');
 }
 
 export const IDLE_GOALS: Record<Exclude<DecisionOptions['idle'], 'wait'>, IdleGoal> = {
@@ -1122,7 +1121,6 @@ const RESOLVERS: Partial<Record<NpcActivity['kind'], Resolver>> = {
   resupply: resolveResupply,
   sell: resolveSell,
   trade: resolveTrade,
-  haul: resolveHaul,
   travel: resolveTravel,
   prowl: arrivalResolver('prowledRoad'),
   patrol: arrivalResolver('patrolledRoad'),

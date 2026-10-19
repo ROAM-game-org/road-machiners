@@ -175,6 +175,30 @@ describe('game save', () => {
     expect(loaded.events.filter((e) => ['shopMoney', 'transfer', 'guardPaid', 'money'].includes(e.t))).toEqual([]);
   });
 
+  it('keeps shop stocks, a site event, a shortage, an opened crate and road news through a reload, and load moves no stock', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    world.turn = 905;
+    world.shops.granary.goods.grain = 0;
+    world.shops.granary.shortSince = { grain: 700 };
+    world.shops['pump-station'].event = { kind: 'breakdown', recipe: 'pump', until: 1400 };
+    world.shops.bowl.opened = { fuel: 4 };
+    world.roadNews = [{ turn: 880, kind: 'robbed', good: 'grain', units: 12, from: 'bowl', to: 'granary' }];
+    const convoy = addVehicle(world, 'bowl', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    convoy.brain = npcBrain('convoy', convoy.pos, ['supplier']);
+    convoy.brain.goals = [{ kind: 'sell', targetId: 'granary', destination: { x: 60, y: 60 }, phase: 'travel', reason: 'deliverCargo', shipment: { good: 'grain', from: 'bowl', to: 'granary' } }];
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.shops).toEqual(world.shops);
+    expect(loaded.roadNews).toEqual(world.roadNews);
+    expect(loaded.vehicles.find((v) => v.id === convoy.id)!.brain!.goals).toEqual(convoy.brain.goals);
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.player.xp).toBe(world.player.xp);
+    expect(loaded.events).toEqual([]);
+  });
+
   it('keeps a led investigation with the centre it heard through a reload, and load awards nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld();

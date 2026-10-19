@@ -90,6 +90,19 @@ He treats a stranger as a driver who should check the tires before anything else
 
 Sample: "A sack is cheaper than a truck, so nobody argues about it."
 
+### Odile Marsh, Granary steward
+
+Odile talks of sacks, counts, winters and the gate. She measures everything in sacks and weeks of bread.
+
+Her sentences are short and exact, with a number in most of them. She gives the count first and her fear after it.
+
+She says "It's on the gate", meaning the count she posts there. She checks a stranger's load before their face.
+
+She cares about a full Granary and an honest count. She avoids the word turncoat and anything about her years as a tenant.
+
+She treats a stranger as a load that may or may not be on her count.
+
+Sample: "Forty sacks in, thirty-one out. The nine are on the gate, and so is the truck that didn't come."
 ### Mags Corrin, weigher at the gate yard
 
 Mags talks of weight, crates, chalk and what iron turns into: hinges, ploughshares, gate plates. She sees every crate as the thing it will become.
@@ -321,6 +334,37 @@ Sample: "Stranger. You came out to the crater at night. Stay a while and watch t
 ### The road driver who knows about the lamps
 
 Any trader, scavenger, courier, roamer or vulture answers a question about the crater at night. While the order rides they speak of lamps in a line and a relative who stopped by the rim and left only a furrow. After it falls they speak of scavengers working the rim all night, and still say to keep off the glow.
+
+## Green Pit and the Pump Station
+
+### Hadiza Okon, Green Pit pump and canteen
+
+Hadiza talks of cups, plates, hooks, the pump and who ate at her table. She compares people to guests and to what they leave behind.
+
+Her sentences are warm and even. She says what a thing costs, then what she gives for free.
+
+She points to the rifle hooks before she pours. She calls everyone by what they drive.
+
+She cares about one table where nobody draws. She avoids taking sides between the people who drink there.
+
+She treats a stranger as a guest who eats once and pays after that.
+
+Sample: "Hang it on the hook. You eat once for nothing. After that the cup costs, like everyone's."
+
+### Hollis Brennan, the still boss at the Pump Station
+
+Hollis talks of crude, stills, drums, valves and batteries. He counts in drums a day.
+
+His sentences are flat and practical. He names the job, then the part it needs.
+
+He is a minor speaker with a clear job and no quirk. He wants drums bought and tools and batteries brought for the pump.
+
+He cares about keeping the stills hot and the pump turning. He avoids talk about who owns the well.
+
+He treats a stranger as a buyer or a pair of hands.
+
+Sample: "Pump brings the crude up, the stills cook it, and the drums go out on the convoys. Bring me tools and I'll fill yours."
+
 ## Chaos Highway
 
 The highway has its own speakers. Geezer is the player, so his sheet is the voice of the narration in the head of a man who has stopped talking about himself. See [Chaos Highway](chaos-highway.md) for the world.

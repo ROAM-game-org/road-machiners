@@ -4,15 +4,15 @@ import { inCombat } from './combat';
 import { isParkedForWork, startJob } from './jobs';
 import type { BusinessDeal, Job, NpcActivity, Vehicle, World } from './types';
 import { affordableBuyCount, buyFuel, sellAtCamp, sellVehicleCargo, tradeGoods } from './economy';
-import { addGoods, cargoRoom } from './inventory';
-import { createSiteActivity, finishGoal, noteShop, payForLeg, reachSite, replaceBase, saleGoal } from './npc-activities';
+import { cargoRoom } from './inventory';
+import { createSiteActivity, finishGoal, noteShop, payForLeg, reachSite, replaceBase } from './npc-activities';
 import { npcProfile, tradeSpend } from './npc-decisions';
 import { isBroke, pumpsOf } from './npc-service';
 import { onEscortWanted } from './escort-job';
 
 type BusinessJob = Extract<Job, { kind: 'business' }>;
 
-const DEALS: readonly string[] = ['resupply', 'sell', 'trade', 'haul'] satisfies BusinessDeal[];
+const DEALS: readonly string[] = ['resupply', 'sell', 'trade'] satisfies BusinessDeal[];
 
 export function businessBelongs(job: BusinessJob, goal: NpcActivity | null): boolean {
   return goal?.kind === job.deal && goal.targetId === job.siteId;
@@ -50,7 +50,7 @@ export function dealDue(world: World, vehicle: Vehicle, activity: NpcActivity, s
 
 function topUpAtPump(world: World, vehicle: Vehicle, siteId: string): void {
   noteShop(world, vehicle, siteId);
-  if (pumpsOf(vehicle, npcProfile(vehicle), isBroke(world, vehicle)).includes(siteId)) buyFuel(world, vehicle);
+  if (pumpsOf(vehicle, npcProfile(vehicle), isBroke(world, vehicle)).includes(siteId)) buyFuel(world, vehicle, siteId);
 }
 
 export function resolveSell(world: World, vehicle: Vehicle, activity: NpcActivity): void {
@@ -74,24 +74,12 @@ export function resolveTrade(world: World, vehicle: Vehicle, activity: NpcActivi
     tradeGoods(world, vehicle, site.id, activity.purchase.good, count, 'buy');
     topUpAtPump(world, vehicle, site.id);
     if (vehicle.brain!.goals[0] !== activity) throw new Error(`${vehicle.id} trades above its long-term goal`);
-    const trip = createSiteActivity('sell', activity.purchase.sellShop, 'deliverCargo');
+    const shipment = { good: activity.purchase.good, from: site.id, to: activity.purchase.sellShop };
+    const trip = { ...createSiteActivity('sell', shipment.to, 'deliverCargo'), shipment };
     replaceBase(world, vehicle, trip);
     onEscortWanted(world, vehicle, trip, site.id);
     return;
   }
   topUpAtPump(world, vehicle, site.id);
   finishGoal(world, vehicle, 'cannotAffordCargo');
-}
-
-export function resolveHaul(world: World, vehicle: Vehicle, activity: NpcActivity): void {
-  const site = reachSite(vehicle, activity);
-  if (!dealDue(world, vehicle, activity, site)) return;
-  if (!activity.load) throw new Error('Haul activity missing load');
-  payForLeg(world, vehicle, activity);
-  if (addGoods(world, vehicle, activity.load.good, cargoRoom(vehicle)) === 0) {
-    finishGoal(world, vehicle, 'cargoFullLoad');
-    return;
-  }
-  if (vehicle.brain!.goals[0] !== activity) throw new Error(`${vehicle.id} hauls above its long-term goal`);
-  replaceBase(world, vehicle, saleGoal(world, vehicle, npcProfile(vehicle)));
 }

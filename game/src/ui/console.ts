@@ -42,8 +42,9 @@ import { partName, perkName } from "../text/names";
 import { resolve } from "../text/resolve";
 import { UNITS } from "../data/units";
 import { moneyText } from "./units";
+import { toggleSeeAll } from "./see-all";
 
-export type CommandResult = { world: World | null; lines: string[]; toggleFps?: true; noclip?: true; fullShop?: true };
+export type CommandResult = { world: World | null; lines: string[]; toggleFps?: true; noclip?: true; fullShop?: true; seeAll?: true };
 
 export type Command = {
   name: string;
@@ -149,6 +150,7 @@ export const COMMANDS: readonly Command[] = [
   }),
 
   command("fps", "Toggle the frame rate panel.", { min: 0, max: 0 }, () => ({ world: null, lines: [], toggleFps: true })),
+  command("seeall", "Toggle showing hidden things: site production, and NPC traits and cargo on the hover card.", { min: 0, max: 0 }, () => ({ world: null, lines: [], seeAll: true })),
   command("fullshop", "Open a shop of every part, free, where parts fit at once, anywhere and in combat.", { min: 0, max: 0 }, () => ({ world: null, lines: [], fullShop: true })),
 
   command("tp <location id> | tp <x> <y>", "Move the truck to a location or map point.", { min: 1, max: 2 }, (world, args, usage) => {
@@ -368,12 +370,19 @@ export class DebugConsole {
 
   private show(result: CommandResult): void {
     if (result.world !== null) this.game.apply(result.world);
-    if (result.toggleFps) this.print(`fps panel ${this.fps.toggle() ? "on" : "off"}`);
+    this.runToggles(result);
     for (const text of result.lines) this.print(text);
     if (result.fullShop) {
       this.close();
       this.game.openFullShop();
     }
+  }
+
+  private runToggles(result: CommandResult): void {
+    if (result.toggleFps) this.print(`fps panel ${this.fps.toggle() ? "on" : "off"}`);
+    if (!result.seeAll) return;
+    this.print(`see all ${toggleSeeAll() ? "on" : "off"}`);
+    this.game.apply(this.game.state);
   }
 
   private run(line: string): CommandResult | null {
