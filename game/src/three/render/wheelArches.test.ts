@@ -11,10 +11,10 @@ await loadModels(async (name) => {
 });
 
 const TOLERANCE = 0.02;
-const ARCH_CLEARANCE = 0.06;
+const ARCH_CLEARANCE: Record<string, number> = { lincoln: 0.06, niva: 0.06, bukhanka: 0.06, semi: 0.06, scout: 0.27 };
 
 describe('wheel arches of the reference photo bases', () => {
-  it.each(['lincoln', 'niva', 'bukhanka', 'semi'] as const)('%s: arches sit on the physics wheels', (id) => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout'] as const)('%s: arches sit on the physics wheels', (id) => {
     const body = PHYSICS.bodies[id];
     const name = `base_${id}` as ModelName;
     const hub = body.wheelY - PHYSICS.truck.suspensionRest;
@@ -26,6 +26,6 @@ describe('wheel arches of the reference photo bases', () => {
     expect(Math.abs(front.y - hub)).toBeLessThan(TOLERANCE);
     expect(Math.abs(rear.y - hub)).toBeLessThan(TOLERANCE);
     expect(Math.abs(Math.abs(front.z) - body.wheelZ)).toBeLessThan(TOLERANCE);
-    expect(Math.abs(top.y - front.y - (body.wheelRadius + ARCH_CLEARANCE))).toBeLessThan(TOLERANCE);
+    expect(Math.abs(top.y - front.y - (body.wheelRadius + ARCH_CLEARANCE[id]))).toBeLessThan(TOLERANCE);
   });
 });
