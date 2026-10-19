@@ -22,6 +22,7 @@ const HUNT_GOALS = new Set(HUNT.offRoadGoals);
 const BROKE_BELOW = Math.min(ECONOMY.supplyPrice.fuel, ECONOMY.supplyPrice.supplies);
 const SOLVENCY_DAYS = 5;
 
+const GANGS = new Set(['scrapjaw', 'kiln']);
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const dir = argv[0];
 if (!dir) throw new Error('Usage: npm run progression:analyze -- <dir> [--run trader-1]');
@@ -227,7 +228,6 @@ function printPopulation(lines) {
   }
 }
 
-const GANGS = new Set(['scrapjaw', 'kiln']);
 
 function printOffRoad(lines) {
   const moving = lines.flatMap((l) => l.trucks ?? []).filter((v) => GANGS.has(v.faction) && v.speed > 0);
