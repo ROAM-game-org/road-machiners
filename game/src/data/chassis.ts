@@ -385,7 +385,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   },
   sorokonoga: {
     id: 'sorokonoga', maxSpeed: 3.4, accel: 0.7, brake: 1.6, turnSlow: 75, turnFast: 24, reverseTurn: 25,
-    mass: 4100, handlingMass: 8000, radius: 1.0,
+    mass: 4100, handlingMass: 8400, radius: 1.0,
     layout: [
       ' FFFFFFF ',
       'LX.....XR',
