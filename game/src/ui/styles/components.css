@@ -288,6 +288,7 @@
   gap: 0;
   overflow: hidden;
   padding: 0;
+  border: 2px solid var(--line-bright);
 }
 .ink-page .ink-band {
   position: relative;
@@ -395,4 +396,7 @@
   max-height: calc(0.24 * var(--layer-h));
   padding: var(--space-4) 0 0;
   border-top: 1px solid var(--surface-raised);
+}
+.ink-page .ink-head .talk-head {
+  margin-bottom: var(--space-5);
 }

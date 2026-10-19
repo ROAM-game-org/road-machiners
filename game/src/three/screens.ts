@@ -27,7 +27,7 @@ export class ModalScreens {
     this.character = new CharacterScreen(host);
     this.journal = new JournalScreen(host);
     this.inventory = new InventoryScreen(host);
-    this.quest = new QuestScreen(host);
+    this.quest = new QuestScreen(host, () => (this.town.isOpen() ? this.town.frame() : null));
   }
 
   private all(): (TownScreen | OutpostScreen | FullShopScreen | TruckTradeScreen | Toggled)[] {

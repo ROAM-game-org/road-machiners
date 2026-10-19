@@ -10,6 +10,7 @@ import { commandFailure } from './format';
 import { AssetUnreachable, fetchAsset } from '../fetch-asset';
 import { questArt, questArtUrl } from '../data/quest-art';
 import type { UiHost } from './host';
+import type { TownFrame } from './town';
 import { choiceButtons, drawLines, lastTagged, pagesOf, paragraphsOf, type Drawn } from './quest-lines';
 import { renderLine, TermTip, type Reveal } from './quest-text';
 import { MONEY_STAT } from '../data/quests';
@@ -57,6 +58,8 @@ function statRow(stat: QuestView['stats'][number], change: number, cents: number
   const label = stat.name === MONEY_STAT ? null : el('span', {}, verbatim(stat.label));
   return el('div', { class: change === 0 ? 'quest-stat' : 'quest-stat new' }, label, el('b', {}, delta, value));
 }
+
+type InkParts = { head: HTMLElement; text: string; ask: HTMLElement | null; side: HTMLElement | null };
 
 class QuestArtStage {
   private images = new Map<string, HTMLImageElement>();
@@ -143,7 +146,10 @@ export class QuestScreen {
   private termTip = new TermTip(this.root);
   private artStage = new QuestArtStage();
 
-  constructor(private host: UiHost) {
+  constructor(
+    private host: UiHost,
+    private townFrame: () => TownFrame | null,
+  ) {
     this.root.classList.add('quest-screen');
     this.root.style.display = 'none';
     this.root.addEventListener('click', (e) => this.onClick(e));
@@ -222,19 +228,80 @@ export class QuestScreen {
     this.termTip.hide();
     const w = this.host.world();
     const view = questView(w, QUESTS);
+    const town = this.townFrame();
     this.root.style.display = '';
     this.root.classList.remove('qt-done');
-    this.root.classList.toggle('quest-page', view.view === 'page');
+    this.root.classList.toggle('quest-page', town === null && view.view === 'page');
+    for (const cls of ['dialog', 'ink-page', 'in-town']) this.root.classList.toggle(cls, town !== null);
     this.restack();
-    const endMs = view.view === 'page' ? this.drawPage(w, view) : this.drawTalk(w, view);
+    const endMs = town ? this.drawInTown(w, view, town) : this.drawAlone(w, view);
     this.revealEnd = performance.now() + endMs;
+  }
+
+  private drawAlone(w: World, view: QuestView): number {
+    return view.view === 'page' ? this.drawPage(w, view) : this.drawTalk(w, view);
+  }
+
+  private drawInTown(w: World, view: QuestView, town: TownFrame): number {
+    const page = view.view === 'page';
+    const drawn = this.drawParagraphs(w, pagesOf(view.lines)[this.page], !page);
+    const parts = page ? this.townPageParts(w, view, town) : this.townTalkParts(view, town);
+    this.root.replaceChildren(
+      town.band,
+      el(
+        'div',
+        { class: 'ink-body' },
+        el('div', { class: 'ink-head' }, parts.head),
+        el('div', { class: `ink-panel ${parts.text}` }, parts.ask, ...drawn.nodes),
+        el('div', { class: 'ink-choices' }, this.pageEnd(w, view, drawn.endMs)),
+        el('div', { class: 'ink-status' }, this.errorLine()),
+        parts.side,
+      ),
+    );
+    return drawn.endMs;
+  }
+
+  private townPageParts(w: World, view: QuestView, town: TownFrame): InkParts {
+    const shown = this.shownLines(view);
+    this.insetArt(view.quest, this.artOf(shown, view), town);
+    const place = this.placeOf(shown, view);
+    return { head: el('h2', { class: 'quest-place' }, place ? verbatim(place) : town.heading), text: 'quest-text', ask: null, side: this.side(w, view) };
+  }
+
+  private townTalkParts(view: QuestView, town: TownFrame): InkParts {
+    this.artStage.clear();
+    const head = localOfQuest(view.quest) ? this.head(view.quest) : el('h2', { class: 'quest-place' }, town.heading);
+    return { head, text: 'quest-talk', ask: this.askLine(), side: null };
+  }
+
+  private insetArt(quest: string, key: string | null, town: TownFrame): void {
+    if (key === null || key === town.art) return this.artStage.clear();
+    const inset = this.artStage.frame(QUESTS.quests[quest].art, key);
+    inset.classList.add('inset');
+    town.picture.append(inset);
+  }
+
+  private artOf(shown: readonly QuestLine[], view: QuestView): string | null {
+    return lastTagged(shown, 'img') ?? this.artBefore ?? view.scene.img;
+  }
+
+  private placeOf(shown: readonly QuestLine[], view: QuestView): string | null {
+    return lastTagged(shown, 'place') ?? this.placeBefore ?? view.scene.place;
+  }
+
+  private askLine(): HTMLElement | null {
+    return this.page === 0 && this.lastAsk !== null ? el('div', { class: 'talk-ask' }, verbatim(this.lastAsk)) : null;
+  }
+
+  private shownLines(view: QuestView): QuestLine[] {
+    const pages = pagesOf(view.lines);
+    return [...pages.slice(0, this.page).flat(), ...paragraphsOf(pages[this.page]).slice(0, this.paragraph + 1).flat()];
   }
 
   private drawTalk(w: World, view: QuestView): number {
     this.artStage.clear();
     const drawn = this.drawParagraphs(w, pagesOf(view.lines)[this.page], true);
-    const ask = this.page === 0 && this.lastAsk !== null ? el('div', { class: 'talk-ask' }, verbatim(this.lastAsk)) : null;
-    const text = el('div', { class: 'quest-talk' }, ask, ...drawn.nodes);
+    const text = el('div', { class: 'quest-talk' }, this.askLine(), ...drawn.nodes);
     this.root.replaceChildren(this.head(view.quest), text, this.pageEnd(w, view, drawn.endMs), this.errorLine());
     return drawn.endMs;
   }
@@ -251,11 +318,11 @@ export class QuestScreen {
 
   private drawPage(w: World, view: QuestView): number {
     const pages = pagesOf(view.lines);
-    const shown = [...pages.slice(0, this.page).flat(), ...paragraphsOf(pages[this.page]).slice(0, this.paragraph + 1).flat()];
+    const shown = this.shownLines(view);
     const drawn = this.drawParagraphs(w, pages[this.page], false);
-    const place = lastTagged(shown, 'place') ?? this.placeBefore ?? view.scene.place;
+    const place = this.placeOf(shown, view);
     const text = el('div', { class: 'quest-text' }, place ? el('h2', { class: 'quest-place' }, verbatim(place)) : null, ...drawn.nodes, this.pageEnd(w, view, drawn.endMs), this.errorLine());
-    this.root.replaceChildren(this.art(view.quest, lastTagged(shown, 'img') ?? this.artBefore ?? view.scene.img), text, this.side(w, view));
+    this.root.replaceChildren(this.art(view.quest, this.artOf(shown, view)), text, this.side(w, view));
     return drawn.endMs;
   }
 
@@ -269,7 +336,7 @@ export class QuestScreen {
     const stats = view.stats.map((s) => statRow(s, s.name === MONEY_STAT ? gained : 0, w.player.money));
     this.factsShown = view.facts;
     const facts = view.facts.map((f) => el('div', { class: this.factsBefore === null || this.factsBefore.has(f) ? 'quest-fact' : 'quest-fact new' }, renderLine(f, ['reveal:all'], 0).el));
-    return el('div', { class: 'quest-side' }, el('div', { class: 'quest-stats' }, ...stats), el('div', { class: 'quest-facts' }, ...facts));
+    return el('div', { class: 'quest-side ink-side' }, el('div', { class: 'quest-stats' }, ...stats), el('div', { class: 'quest-facts' }, ...facts));
   }
 
   private head(quest: string): HTMLElement {

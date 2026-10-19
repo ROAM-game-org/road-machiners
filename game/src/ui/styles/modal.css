@@ -94,3 +94,6 @@
 #ui:has(.ink-page:not([style*="display: none"])) > .top-center > .opening-tip {
   visibility: hidden;
 }
+#ui:has(.ink-page:not([style*="display: none"])) > :is(.log, .bottom-left) {
+  visibility: hidden;
+}

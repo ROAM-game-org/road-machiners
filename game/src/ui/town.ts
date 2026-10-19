@@ -87,7 +87,7 @@ type ClosedAt = { shopId: string; turn: number };
 
 type TownChoice = { id: string; label: Msg; reason: Msg | null; go: () => void };
 
-export type TownFrame = { band: HTMLElement; heading: Msg; art: string | null };
+export type TownFrame = { band: HTMLElement; picture: HTMLElement; heading: Msg; art: string | null };
 
 export function townPageOnOpen(kept: TownPage, closedAt: ClosedAt | null, shopId: string, turn: number, access: Record<TownSection, SectionAccess>): TownPage {
   if (kept === null || closedAt === null) return null;
@@ -162,7 +162,10 @@ export class TownScreen {
     const shopId = shopAt(w);
     if (!shopId) throw new Error("The town page is open away from a shop");
     const art = this.artKey(shopId);
-    return { band: this.bandOf(w, shopId, art), heading: this.heading(shopId), art };
+    const band = this.bandOf(w, shopId, art);
+    const picture = band.querySelector<HTMLElement>(".art-band");
+    if (!picture) throw new Error("The town band has no picture strip");
+    return { band, picture, heading: this.heading(shopId), art };
   }
 
   render(): void {
@@ -935,7 +938,7 @@ function proseOf(shopId: string, page: TownPage): Msg {
 function choiceButton(c: TownChoice, i: number): HTMLElement {
   const check = c.reason ? el("span", { class: "quest-check" }, c.reason) : null;
   const button = reasonButton([check, t("quest.choice", { n: i + 1, text: c.label })], c.go, c.reason);
-  button.classList.add("quest-choice");
+  button.className = "quest-choice";
   button.dataset.townGo = c.id;
   return button;
 }
