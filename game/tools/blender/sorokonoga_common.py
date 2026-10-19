@@ -45,6 +45,7 @@ DRIVE_X = 3.6  # PHYSICS.bodies.sorokonoga.wheelX behind the tractor's center
 PIVOT_X = 3.9  # PHYSICS.couplings.sorokonoga pivotFront and pivotRear, in the straight rig frame
 BED_FRONT = 4.4
 BED_ORIGIN = (BED_FRONT + BACK) / 2
+MODULE_BACK = 0.9
 BED_AXLES = (-3.6, -4.8, -6.0, -7.2)  # the last one is PHYSICS.couplings.sorokonoga.rear.wheelX behind the bed's center
 UNIT_MODEL_WHEELS = (2, 14)
 
@@ -73,7 +74,7 @@ FRAME_TOP = up(0.75)
 CAB_FRONT = FRONT - 0.15
 CAB_BACK = 6.2
 CAB_BOTTOM = up(1.2)
-CAB_ROOF = up(3.2)
+CAB_ROOF = up(2.9)
 CAB_HALF = 1.25
 HOUSE_BACK = 4.2
 HOUSE_TOP = up(1.65)
@@ -113,27 +114,51 @@ def duals(kit: Kit, x: float, sides: tuple[int, ...] = (0, 1)) -> int:
 
 
 def cab(kit: Kit) -> None:
-    """The flat-faced cab over the steer axle: a slightly raked windshield, door glass, a roof visor and square lamps."""
-    rake = 0.15
-    points = [(x, y, z) for x in (CAB_FRONT, CAB_BACK) for y in (CAB_HALF, -CAB_HALF) for z in (CAB_BOTTOM, up(2.0))]
-    points += [(x, y, CAB_ROOF) for x in (CAB_FRONT - rake, CAB_BACK) for y in (CAB_HALF - 0.05, -CAB_HALF + 0.05)]
+    """The armored cab over the steer axle: a sloped hood and screen behind a slatted guard, a barred side window, a bull bar and a roof gun mount."""
+    top = up(2.0)
+    points = [(x, y, z) for x in (CAB_FRONT, CAB_BACK) for y in (CAB_HALF, -CAB_HALF) for z in (CAB_BOTTOM - 0.2, up(1.9))]
+    points += [(x, y, CAB_ROOF) for x in (CAB_FRONT - 0.95, CAB_BACK) for y in (CAB_HALF - 0.1, -CAB_HALF + 0.1)]
+    points += [(CAB_FRONT - 0.55, y, up(2.45)) for y in (CAB_HALF - 0.02, -CAB_HALF + 0.02)]
     hull(kit, "cab", points, "paint")
     for s, name in ((1, "l"), (-1, "r")):
-        pane = [(CAB_FRONT - rake * (z - up(2.1)) / (CAB_ROOF - up(2.1)) + d, s * y, z) for z in (up(2.1), CAB_ROOF - 0.2) for y in (0.06, CAB_HALF - 0.12) for d in (0.0, 0.02)]
-        hull(kit, f"windshield_{name}", pane, "glass")
-        kit.box(f"door_glass_{name}", (1.1, 0.03, 0.7), (CAB_FRONT - 0.9, s * (CAB_HALF + 0.005), up(2.55)), "glass")
-        kit.box(f"stripe_{name}", (CAB_FRONT - CAB_BACK, 0.03, 0.18), ((CAB_FRONT + CAB_BACK) / 2, s * (CAB_HALF + 0.01), up(1.75)), "trim")
-        kit.box(f"lamp_{name}", (0.06, 0.3, 0.22), (CAB_FRONT + 0.02, s * (CAB_HALF - 0.3), up(1.45)), "light")
-        kit.box(f"mirror_{name}", (0.06, 0.08, 0.45), (CAB_FRONT - 0.2, s * (HALF_W - 0.05), up(2.4)), "metal_light")
-        kit.box(f"mirror_arm_{name}", (0.05, HALF_W - CAB_HALF - 0.05, 0.05), (CAB_FRONT - 0.2, s * (CAB_HALF + (HALF_W - CAB_HALF) / 2 - 0.02), up(2.6)), "metal_light")
+        screen = [(CAB_FRONT - 0.55 - 0.4 * (z - up(2.0)) / (CAB_ROOF - up(2.0)) + d, s * y, z) for z in (up(2.05), CAB_ROOF - 0.15) for y in (0.06, CAB_HALF - 0.15) for d in (0.0, 0.02)]
+        hull(kit, f"windshield_{name}", screen, "glass")
+        kit.box(f"door_glass_{name}", (1.05, 0.03, 0.5), (CAB_FRONT - 1.05, s * (CAB_HALF + 0.005), up(2.45)), "glass")
+        for i in range(3):
+            kit.box(f"window_bar_{name}_{i}", (0.05, 0.05, 0.55), (CAB_FRONT - 0.7 - i * 0.3, s * (CAB_HALF + 0.03), up(2.45)), "metal_dark")
+        kit.box(f"side_plate_{name}", (CAB_FRONT - CAB_BACK - 0.3, 0.06, 0.8), ((CAB_FRONT + CAB_BACK) / 2 - 0.1, s * (CAB_HALF + 0.03), up(1.55)), "metal_dark")
+        kit.box(f"lamp_{name}", (0.08, 0.3, 0.22), (CAB_FRONT + 0.02, s * (CAB_HALF - 0.35), up(1.6)), "light")
+        kit.box(f"lamp_cage_{name}", (0.1, 0.38, 0.05), (CAB_FRONT + 0.03, s * (CAB_HALF - 0.35), up(1.76)), "metal_dark")
+        kit.box(f"mirror_{name}", (0.06, 0.08, 0.4), (CAB_FRONT - 0.5, s * (HALF_W - 0.05), up(2.3)), "metal_light")
+        kit.box(f"mirror_arm_{name}", (0.05, HALF_W - CAB_HALF - 0.05, 0.05), (CAB_FRONT - 0.5, s * (CAB_HALF + (HALF_W - CAB_HALF) / 2 - 0.02), up(2.45)), "metal_light")
         kit.box(f"step_{name}", (0.5, 0.25, 0.08), (CAB_BACK + 0.4, s * (CAB_HALF - 0.12), up(0.95)), "under")
-    kit.box("grille", (0.04, 1.4, 0.6), (CAB_FRONT + 0.02, 0, up(1.5)), "under")
+        kit.box(f"crate_{name}", (1.2, 0.2, 0.6), (CAB_BACK - 0.2, s * (CAB_HALF + 0.08), up(1.8)), "rust")
+        kit.box(f"crate_strap_{name}", (0.1, 0.22, 0.62), (CAB_BACK - 0.2, s * (CAB_HALF + 0.08), up(1.8)), "metal_dark")
+        kit.box(f"bar_post_{name}", (0.08, 0.08, 0.5), (CAB_FRONT - 0.15, s * (HALF_W - 0.4), up(0.95)), "metal_dark")
+    kit.box("grille", (0.05, 1.7, 0.7), (CAB_FRONT + 0.02, 0, up(1.5)), "under")
+    for i in range(5):
+        kit.box(f"grille_bar_{i}", (0.07, 1.6, 0.05), (CAB_FRONT + 0.05, 0, up(1.22 + 0.14 * i)), "metal_light")
     for i in range(3):
-        kit.box(f"grille_bar_{i}", (0.05, 1.3, 0.06), (CAB_FRONT + 0.04, 0, up(1.32 + 0.18 * i)), "metal_light")
-    kit.box("visor", (0.3, 2 * CAB_HALF - 0.1, 0.06), (CAB_FRONT - 0.2, 0, CAB_ROOF - 0.02), "trim")
-    for i in range(3):
-        kit.box(f"marker_{i}", (0.08, 0.12, 0.08), (CAB_FRONT - 0.25, (i - 1) * 0.5, CAB_ROOF + 0.05), "light")
-    kit.box("bumper", (FRONT - CAB_FRONT, 2 * (HALF_W - 0.15), 0.45), ((FRONT + CAB_FRONT) / 2, 0, up(0.68)), "under")
+        kit.box(f"hood_vent_{i}", (0.5, 1.5, 0.04), (CAB_FRONT - 0.4 - i * 0.1, 0, up(1.95) + 0.12 * i), "metal_dark")
+    kit.box("visor", (0.3, 2 * CAB_HALF - 0.1, 0.08), (CAB_FRONT - 0.9, 0, CAB_ROOF - 0.02), "metal_dark")
+    kit.box("bumper", (FRONT - CAB_FRONT, 2 * (HALF_W - 0.15), 0.5), ((FRONT + CAB_FRONT) / 2, 0, up(0.7)), "metal_dark")
+    kit.box("ram_plate", (0.1, 2 * (HALF_W - 0.15) - 0.3, 0.7), (FRONT - 0.05, 0, up(0.95)), "rust")
+    kit.cylinder("tow_ring", 0.1, 0.06, (FRONT - 0.03, 0, up(0.55)), "metal_light", rot=(0, math.pi / 2, 0), vertices=8)
+    turret(kit)
+
+
+def turret(kit: Kit) -> None:
+    """The roof gun mount: a ring, a boxy housing, a shield and a long barrel, with an antenna behind it. It is looks only."""
+    x = CAB_BACK + 0.9
+    kit.box("turret_ring", (1.0, 1.0, 0.16), (x, 0, CAB_ROOF + 0.08), "metal_dark")
+    kit.box("turret_body", (0.8, 0.8, 0.45), (x, 0, CAB_ROOF + 0.4), "paint")
+    kit.box("turret_shield", (0.12, 1.0, 0.65), (x + 0.5, 0, CAB_ROOF + 0.5), "rust")
+    kit.box("turret_box", (0.5, 0.25, 0.3), (x - 0.15, 0.55, CAB_ROOF + 0.35), "metal_dark")
+    kit.cylinder("barrel", 0.06, 1.3, (x + 0.55, 0, CAB_ROOF + 0.5), "metal_dark", rot=(0, math.pi / 2, 0), vertices=8)
+    kit.cylinder("barrel_jacket", 0.1, 0.7, (x + 0.3, 0, CAB_ROOF + 0.5), "metal_light", rot=(0, math.pi / 2, 0), vertices=8)
+    kit.cylinder("antenna", 0.025, 1.4, (CAB_BACK - 0.15, CAB_HALF - 0.2, CAB_ROOF + 0.7), "metal_dark", vertices=6)
+    for i in range(2):
+        kit.box(f"roof_rail_{i}", (1.6, 0.05, 0.05), (CAB_BACK + 0.8 - i * 0.0, (1 - 2 * i) * (CAB_HALF - 0.1), CAB_ROOF + 0.15), "metal_dark")
 
 
 def engine_house(kit: Kit) -> None:
@@ -165,31 +190,62 @@ def tractor_frame(kit: Kit) -> int:
 
 
 def bed(kit: Kit) -> int:
-    """The low stake bed: a plank deck on a dark frame, a headboard, stakes and rails, four axles of duals and the tail.
+    """The machinery rear unit: an armored engine module on its nose with a grille, tanks and an exhaust stack, then an open deck with low armored sides.
 
-    The game draws the outer wheels of the last axle. Returns the wheels the model draws.
+    Four axles of duals sit under armored fender skirts. The game draws the outer wheels of the last axle. Returns the wheels the model draws.
     """
     length = BED_FRONT - BACK
     mid = (BED_FRONT + BACK) / 2
-    kit.box("deck", (length, WIDTH, DECK_TOP - DECK_BOTTOM), (mid, 0, (DECK_TOP + DECK_BOTTOM) / 2), "wood")
+    kit.box("deck", (length, WIDTH, DECK_TOP - DECK_BOTTOM), (mid, 0, (DECK_TOP + DECK_BOTTOM) / 2), "metal_dark")
+    for i in range(10):
+        kit.box(f"deck_rib_{i}", (0.08, WIDTH - 0.4, 0.03), (MODULE_BACK - 0.6 - i * 0.9, 0, DECK_TOP + 0.015), "metal")
     mirrored(kit, "side_beam", (length, 0.12, 0.28), mid, HALF_W - 0.06, DECK_BOTTOM - 0.14, "paint")
     mirrored(kit, "bed_rail", (length - 0.3, 0.16, 0.4), mid - 0.15, 0.5, DECK_BOTTOM - 0.2, "under")
-    kit.box("headboard", (0.15, WIDTH, 1.0), (BED_FRONT - 0.075, 0, DECK_TOP + 0.5), "trim")
-    stakes = 12
-    for i in range(stakes):
-        x = BED_FRONT - 0.6 - i * (length - 0.75) / (stakes - 1)
-        mirrored(kit, f"stake_{i}", (0.1, 0.1, STAKE_H), x, HALF_W - 0.05, DECK_TOP + STAKE_H / 2, "stake")
-    for k, z in enumerate((0.45, STAKE_H - 0.05)):
-        mirrored(kit, f"side_rail_{k}", (length - 0.6, 0.06, 0.08), mid - 0.3, HALF_W - 0.05, DECK_TOP + z, "stake")
+    wall_len = MODULE_BACK - BACK
+    mirrored(kit, "wall", (wall_len, 0.1, 0.5), (MODULE_BACK + BACK) / 2, HALF_W - 0.05, DECK_TOP + 0.25, "paint")
+    mirrored(kit, "wall_cap", (wall_len, 0.12, 0.08), (MODULE_BACK + BACK) / 2, HALF_W - 0.07, DECK_TOP + 0.54, "metal_dark")
+    for i in range(7):
+        x = MODULE_BACK - 0.5 - i * (wall_len - 1.0) / 6
+        mirrored(kit, f"post_{i}", (0.14, 0.14, 0.7), x, HALF_W - 0.08, DECK_TOP + 0.35, "metal_dark")
+    module(kit)
     wheels = sum(duals(kit, x) for x in BED_AXLES[:-1]) + duals(kit, BED_AXLES[-1], (1,))
+    skirt_len = BED_AXLES[0] - BED_AXLES[-1] + 2 * WHEEL_R + 0.3
+    mirrored(kit, "skirt", (skirt_len, 0.06, DECK_BOTTOM - HUB_Z + 0.1), (BED_AXLES[0] + BED_AXLES[-1]) / 2, HALF_W - 0.03, (DECK_BOTTOM + HUB_Z - 0.1) / 2, "metal_dark")
+    mirrored(kit, "skirt_top", (skirt_len, 0.08, 0.12), (BED_AXLES[0] + BED_AXLES[-1]) / 2, HALF_W - 0.04, DECK_BOTTOM - 0.06, "paint")
     kit.box("bogie", (BED_AXLES[0] - BED_AXLES[-1] + 0.8, 1.2, DECK_BOTTOM - 0.4 - HUB_Z), ((BED_AXLES[0] + BED_AXLES[-1]) / 2, 0, (DECK_BOTTOM - 0.4 + HUB_Z) / 2), "under")
     mirrored(kit, "tail_flap", (0.04, 0.5, 0.5), BED_AXLES[-1] - WHEEL_R - 0.15, WHEEL_Z - DUAL_STEP / 2, up(0.5), "under")
     mirrored(kit, "tail_lamp", (0.06, 0.25, 0.12), BACK + 0.03, HALF_W - 0.3, DECK_BOTTOM - 0.1, "red")
+    kit.box("tail_plate", (0.12, WIDTH - 0.3, 0.55), (BACK + 0.06, 0, DECK_TOP + 0.25), "rust")
     kit.box("underride", (0.12, WIDTH - 0.5, 0.16), (BACK + 0.4, 0, up(0.5)), "metal_dark")
     mirrored(kit, "leg", (0.12, 0.12, DECK_BOTTOM - up(0.3)), 2.4, 0.8, (DECK_BOTTOM + up(0.3)) / 2, "metal_dark")
     mirrored(kit, "foot", (0.3, 0.3, 0.06), 2.4, 0.8, up(0.3), "metal_dark")
     kit.cylinder("king_pin", 0.08, 0.2, (PIVOT_X, 0, DECK_BOTTOM - 0.1), "metal_dark", vertices=8)
     return wheels
+
+
+def module(kit: Kit) -> None:
+    """The engine module on the bed's nose: an armored block with a radiator grille on each side, a tank, pipes and a tall exhaust stack."""
+    top = DECK_TOP + 1.6
+    points = [(x, y, z) for x in (BED_FRONT, MODULE_BACK) for y in (1.2, -1.2) for z in (DECK_TOP, DECK_TOP + 1.2)]
+    points += [(x, y, top) for x in (BED_FRONT - 0.5, MODULE_BACK + 0.3) for y in (0.95, -0.95)]
+    hull(kit, "module", points, "paint")
+    mid = (BED_FRONT + MODULE_BACK) / 2
+    kit.box("module_cap", (BED_FRONT - MODULE_BACK - 1.2, 1.6, 0.1), (mid, 0, top + 0.05), "metal_dark")
+    kit.box("headboard", (0.15, WIDTH, 0.9), (BED_FRONT - 0.075, 0, DECK_TOP + 0.45), "metal_dark")
+    for s in (1, -1):
+        kit.box(f"grille_frame_{s}", (1.8, 0.06, 0.95), (mid - 0.2, s * 1.22, DECK_TOP + 0.75), "metal_dark")
+        for i in range(6):
+            kit.box(f"grille_slat_{s}_{i}", (1.7, 0.08, 0.06), (mid - 0.2, s * 1.25, DECK_TOP + 0.4 + 0.15 * i), "under")
+        kit.box(f"armor_panel_{s}", (1.2, 0.06, 0.9), (MODULE_BACK + 0.8, s * 1.22, DECK_TOP + 0.55), "rust")
+        kit.cylinder(f"pipe_{s}", 0.08, MODULE_BACK - BED_FRONT + 4.2, (mid - 0.1, s * 0.55, top + 0.3), "rust", rot=(0, math.pi / 2, 0), vertices=8)
+    kit.cylinder("tank", 0.42, 1.8, (mid - 0.6, 0, top + 0.5), "rust_side", rot=(0, math.pi / 2, 0), vertices=10)
+    for i in range(3):
+        kit.cylinder(f"tank_band_{i}", 0.44, 0.08, (mid - 1.2 + i * 0.6, 0, top + 0.5), "metal_dark", rot=(0, math.pi / 2, 0), vertices=10)
+    stack_x = MODULE_BACK + 0.6
+    kit.cylinder("exhaust", 0.2, 1.4, (stack_x, -0.7, top + 0.7), "metal_light", vertices=8)
+    kit.cylinder("exhaust_cap", 0.26, 0.14, (stack_x, -0.7, top + 1.45), "metal_dark", vertices=8)
+    kit.cylinder("exhaust_elbow", 0.16, 0.6, (stack_x + 0.1, -0.7, top + 1.75), "metal_light", rot=(0, math.pi / 3, 0), vertices=8)
+    kit.box("tool_box", (0.9, 0.5, 0.45), (MODULE_BACK - 0.55, 0.6, DECK_TOP + 0.225), "rust")
 
 
 def build_tractor(kit: Kit) -> int:
