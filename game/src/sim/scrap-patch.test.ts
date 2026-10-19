@@ -140,6 +140,7 @@ describe('scrap patch', () => {
     expect(shelf.length + me.items.filter((it) => it.kind === 'part').length).toBe(parts);
     expect(isStranded(w, me)).toBe(false);
     expect(w.events).toContainEqual({ t: 'engineCredit', part: cheapest.defId });
+    expect(w.events.some((e) => e.t === 'scrapPatch')).toBe(false);
     expect(w.events).toContainEqual({ t: 'shopMoney', vehicle: me.id, amount: -price, kind: 'partCredit' });
 
     w.events = [];

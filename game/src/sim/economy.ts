@@ -292,9 +292,10 @@ export function scrapPatch(world: World): void {
   if (noEngine && (!engine || holdsLooseEngine(world, me))) return;
   if (canPayFix(world, me, town.id)) return;
   if (engine) fitEngineOnCredit(world, me, town.id, engine);
-  if (isStranded(world, me)) for (const part of driveParts(me)) scrapPatchPart(part, RULES.scrapPatch);
+  const stranded = isStranded(world, me);
+  if (stranded) for (const part of driveParts(me)) scrapPatchPart(part, RULES.scrapPatch);
   const fuel = scrapFuel(world, me);
-  world.events.push({ t: 'scrapPatch', fuel });
+  if (stranded || fuel > 0) world.events.push({ t: 'scrapPatch', fuel });
 }
 
 function shelfEngine(world: World, shopId: string): PartInstance | null {
