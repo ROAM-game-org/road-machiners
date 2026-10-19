@@ -438,8 +438,6 @@
   bottom: var(--space-1);
 }
 #ui .turn-control {
-  right: var(--space-7);
-  bottom: var(--hud-inset);
   border: 0;
   background: none;
   padding: 0;

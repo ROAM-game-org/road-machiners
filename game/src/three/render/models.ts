@@ -222,6 +222,7 @@ export const NAMES = [
   'good_parts',
   'good_fuel_drums',
   'good_water',
+  'good_rations',
   'good_relics',
 
   'wmount_ring_small',

@@ -1,6 +1,6 @@
 
 import { ECONOMY } from '../data/goods';
-import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions } from '../data/npcs';
+import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions, type Weighted } from '../data/npcs';
 import { SHOPS } from '../data/market';
 import { onEscortWanted } from './escort-job';
 import { REGION } from '../data/region';
@@ -9,15 +9,15 @@ import { inCombat, inCombatWith, isHostile, turnPartHits } from './combat';
 import { reportIncident } from './relations';
 import { affordableBuyCount, buyFuel, cargoSaleValue, sellAtCamp, sellVehicleCargo, tradeGoods } from './economy';
 import { corePart } from './grid';
-import { addGoods, cargoRoom } from './inventory';
+import { cargoRoom } from './inventory';
 import { cancelJob } from './jobs';
 import { businessBelongs, dealDue } from './npc-business';
 import { isFree } from './spawn';
 import { bodyStop } from './meeting-stop';
 import { huntsOffRoad } from './hunt-style';
 import {
-  tradeOffers, tradeSpend, canRob, decide, keepsWord, offersChoice, perceiveDanger, getKnownSite, haulGoods, patrolStopsOf, patrolSite, travelSitesAway,
-  huntingGroundsAway, raiderGroundsAway, isHostileContact, isWeak, fitToHunt, huntsPrey, npcProfile, salvageSitesAway, npcSenses, usefulContacts, visibleDowned, visibleHostiles, visibleSalvage, type NpcProfile,
+  tradeOffers, supplyOffers, tradeSpend, canRob, decide, keepsWord, offersChoice, perceiveDanger, getKnownSite, patrolStopsOf, patrolSite, travelSitesAway,
+  huntingGroundsAway, raiderGroundsAway, isHostileContact, isWeak, fitToHunt, huntsPrey, npcProfile, salvageSitesAway, npcSenses, usefulContacts, visibleDowned, visibleHostiles, visibleSalvage, type NpcProfile, type TradePlan,
   passReason, canStartFight, lootTaken, stockLootInvalid, truckLootInvalid, worksOnLoot, holdsOffRobbery, giveUpStrandedRobberies, forgetFullHold, noteCannotHold, noteStripped, hasSaleCargo, lootPassedUp, holdsUp, robbedFor, bodyCondition, givesUpUnarmed, yields,
 } from './npc-decisions';
 import { chooseNpcRepair, continueNpcRepair, isDamaged, isStrandedForGood, repairsHere, resolveNpcRepair } from './npc-repair';
@@ -238,10 +238,13 @@ export function saleGoal(world: World, vehicle: Vehicle, profile: NpcProfile): N
 }
 
 function tradeGoal(world: World, vehicle: Vehicle): NpcActivity {
-  const offers = tradeOffers(world, vehicle);
+  return tradeRun(world, vehicle, tradeOffers(world, vehicle), 'buyCargo');
+}
+
+function tradeRun(world: World, vehicle: Vehicle, offers: Weighted<TradePlan>[], reason: GoalReason): NpcActivity {
   if (offers.length === 0) throw new Error(`${vehicle.id} chose to trade with no affordable profitable trade`);
   const plan = sampleWeighted(world, offers);
-  return { ...createSiteActivity('trade', plan.source, 'buyCargo'), purchase: { good: plan.good, sellShop: plan.sellShop } };
+  return { ...createSiteActivity('trade', plan.source, reason), purchase: { good: plan.good, sellShop: plan.sellShop } };
 }
 
 function scavengeGoal(world: World, vehicle: Vehicle): NpcActivity {
@@ -302,11 +305,7 @@ export function exploreGoal(world: World, vehicle: Vehicle): NpcActivity {
 }
 
 function haulGoal(world: World, vehicle: Vehicle): NpcActivity {
-  const sites = npcProfile(vehicle).haulSites;
-  if (sites.length === 0) throw new Error(`${vehicle.id} chose to haul with no known source`);
-  const site = sites[randInt(world, 0, sites.length - 1)];
-  const goods = haulGoods(site);
-  return { ...createSiteActivity('haul', site, 'loadCargo'), load: { good: goods[randInt(world, 0, goods.length - 1)] } };
+  return tradeRun(world, vehicle, supplyOffers(world, vehicle), 'loadCargo');
 }
 
 export const IDLE_GOALS: Record<Exclude<DecisionOptions['idle'], 'wait'>, IdleGoal> = {
@@ -656,10 +655,15 @@ function onContactsHeard(world: World, vehicle: Vehicle, profile: NpcProfile, co
   for (const contact of hostileContacts(world, vehicle, contacts)) {
     const option = reactHeard(world, vehicle, contact);
     if (option === null || option === 'keep') continue;
-    if (option === 'investigate') interrupt(world, vehicle, createActivity('investigate', contact.vehicleId, { ...contact.center }, isWatching(vehicle) ? 'springOnPrey' : 'heardHostile'));
+    if (option === 'investigate') interrupt(world, vehicle, heardActivity(vehicle, contact));
     else interrupt(world, vehicle, fleeFrom(world, vehicle, profile, contact.vehicleId, contact.center, 'heardHostile'));
     return;
   }
+}
+
+function heardActivity(vehicle: Vehicle, contact: Contact): NpcActivity {
+  const activity = createActivity('investigate', contact.vehicleId, { ...contact.center }, isWatching(vehicle) ? 'springOnPrey' : 'heardHostile');
+  return { ...activity, heard: { ...contact.center } };
 }
 
 function onContactSpotted(world: World, vehicle: Vehicle): void {
@@ -849,10 +853,22 @@ const STEERS: Partial<Record<NpcActivity['kind'], Steer>> = {
   investigate: steerInvestigate,
 };
 
-function steerInvestigate(_world: World, _vehicle: Vehicle, goal: NpcActivity, _profile: NpcProfile, contacts: Contact[]): void {
+export function ledPoint(center: Vec, heard: Vec | undefined, radius: number, reach: number): Vec {
+  if (!heard) return { ...center };
+  const drift = dist(center, heard);
+  if (drift <= radius) return { ...center };
+  const lead = Math.min(drift - radius, reach);
+  return { x: center.x + ((center.x - heard.x) / drift) * lead, y: center.y + ((center.y - heard.y) / drift) * lead };
+}
+
+function steerInvestigate(world: World, vehicle: Vehicle, goal: NpcActivity, _profile: NpcProfile, contacts: Contact[]): void {
   if (!goal.targetId) throw new Error('An investigation has no target');
   const contact = contacts.find((c) => c.vehicleId === goal.targetId);
-  if (contact) goal.destination = { ...contact.center };
+  if (!contact) return;
+  const reach = vehicleStats(world, vehicle).maxSpeed;
+  if (!Number.isFinite(reach)) throw new Error(`${vehicle.id} has no finite reach`);
+  goal.destination = ledPoint(contact.center, goal.heard, contact.radius, reach);
+  goal.heard = { ...contact.center };
 }
 
 function steerFlee(world: World, vehicle: Vehicle, profile: NpcProfile, contacts: Contact[], goal: NpcActivity): void {
@@ -1119,7 +1135,7 @@ export function noteShop(world: World, vehicle: Vehicle, siteId: string): void {
 
 function topUpAtPump(world: World, vehicle: Vehicle, siteId: string): void {
   noteShop(world, vehicle, siteId);
-  if (pumpsOf(vehicle, npcProfile(vehicle), isBroke(world, vehicle)).includes(siteId)) buyFuel(world, vehicle);
+  if (pumpsOf(vehicle, npcProfile(vehicle), isBroke(world, vehicle)).includes(siteId)) buyFuel(world, vehicle, siteId);
 }
 
 function resolveSell(world: World, vehicle: Vehicle, activity: NpcActivity): void {
@@ -1143,26 +1159,14 @@ function resolveTrade(world: World, vehicle: Vehicle, activity: NpcActivity): vo
     tradeGoods(world, vehicle, site.id, activity.purchase.good, count, 'buy');
     topUpAtPump(world, vehicle, site.id);
     if (vehicle.brain!.goals[0] !== activity) throw new Error(`${vehicle.id} trades above its long-term goal`);
-    const trip = createSiteActivity('sell', activity.purchase.sellShop, 'deliverCargo');
+    const shipment = { good: activity.purchase.good, from: site.id, to: activity.purchase.sellShop };
+    const trip = { ...createSiteActivity('sell', shipment.to, 'deliverCargo'), shipment };
     replaceBase(world, vehicle, trip);
     onEscortWanted(world, vehicle, trip, site.id);
     return;
   }
   topUpAtPump(world, vehicle, site.id);
   finishGoal(world, vehicle, 'cannotAffordCargo');
-}
-
-function resolveHaul(world: World, vehicle: Vehicle, activity: NpcActivity): void {
-  const site = reachSite(vehicle, activity);
-  if (!dealDue(world, vehicle, activity, site)) return;
-  if (!activity.load) throw new Error('Haul activity missing load');
-  payForLeg(world, vehicle, activity);
-  if (addGoods(world, vehicle, activity.load.good, cargoRoom(vehicle)) === 0) {
-    finishGoal(world, vehicle, 'cargoFullLoad');
-    return;
-  }
-  if (vehicle.brain!.goals[0] !== activity) throw new Error(`${vehicle.id} hauls above its long-term goal`);
-  replaceBase(world, vehicle, saleGoal(world, vehicle, npcProfile(vehicle)));
 }
 
 function resolveTravel(world: World, vehicle: Vehicle, activity: NpcActivity): void {
@@ -1215,7 +1219,6 @@ const RESOLVERS: Partial<Record<NpcActivity['kind'], Resolver>> = {
   resupply: resolveResupply,
   sell: resolveSell,
   trade: resolveTrade,
-  haul: resolveHaul,
   travel: resolveTravel,
   prowl: arrivalResolver('prowledRoad'),
   patrol: arrivalResolver('patrolledRoad'),
