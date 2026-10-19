@@ -354,3 +354,20 @@
   transform: none;
   font-size: var(--text-caption);
 }
+
+#ui:not(.phone) .quest-look {
+  display: none;
+}
+#ui.phone .quest-look {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 1;
+  display: flex;
+  gap: var(--space-2);
+}
+#ui.phone .quest-look button {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding: 0;
+}

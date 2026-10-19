@@ -85,6 +85,7 @@ Every fact on a screen belongs to one tier for the decision that screen serves. 
 - An action sits at the end of the line it changes. A Buy button is inside its row. The turn commits at the bottom right.
 - A choice the game waits for opens a notice at the top center and stops nothing else on screen.
 - A task that takes the whole attention, like a shop or a save, opens a modal in the center.
+- A look screen over a scene: while a talk window or page scene is on view, I, C and J open the inventory, character screen and journal over it in a look-only state. The screen lifts to `--z-over-scene`, with its own scrim, and its world controls are off with one reason, "Not during a scene". Escape closes it and the scene stays at the same paragraph. On a phone the bar is hidden under the scene, so the scene window shows a row of three icon buttons (`.quest-look`) in its top corner for the same screens.
 - A modal that is the only thing the player can do at that place keeps no Leave button, and its one way out is its action button. The outpost screen behind shut gates is the case: Drive on closes it, and neither Escape nor the game's close-all does. The Menu button stays over it, in the corner the Leave button would take, so saving, options and help stay reachable.
 
 ### 4.2 Zones
@@ -166,6 +167,7 @@ One grammar for every control and every selectable thing.
 | locked | Needs progress, like a rank | Lock icon |
 
 - A control uses only the states in this table.
+- A screen that is only for looking, like the inventory over a scene, gives every control that changes the world the disabled state with one reason read from one function (`lookReason()`), before any reason of its own.
 - A disabled control still takes hover and focus, so its reason can show. It uses `aria-disabled` and the shared tooltip, and the reason is one short fact like Need 12 M more.
 - Unaffordable and locked look different, because the player fixes one by earning and the other by progressing.
 - Touch has no hover, so it fills the gap. The first tap shows what hover would show: a tap on a truck only pins its card, and a tap on a point utility only sets its marker. A tap on the thing already shown does what a click does. A long press of 500ms on a control opens what hover opens, its title or its reason, and a tap on a disabled control opens its reason. A mouse click on a disabled control opens the same reason in the shared tooltip at the cursor, and the hover reason hides while it is open. The ground needs no preview tap, since a plan is free and the drawn path is its preview. A long press on the ground is Shift-click. `#ui.touch` is the primary pointer being coarse, and it only decides what the screen shows: no keycaps, the Call, Mark, Horn, Rotate and close buttons, and touch wording in tips and help. Under it the small button is 32px and a click target is at least `--touch-target`.

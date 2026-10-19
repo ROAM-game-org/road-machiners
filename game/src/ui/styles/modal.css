@@ -51,6 +51,12 @@
 #ui:has(.modal:not([style*="display: none"])) .truck-stack {
   display: none;
 }
+/* A look screen over a scene dims the scene under it with a scrim, so the scene's words never show through. */
+#ui .modal.over-scene {
+  z-index: var(--z-over-scene);
+  background: var(--surface-well);
+  box-shadow: 0 0 0 100vmax var(--scrim-heavy);
+}
 #ui .modal > h3 {
   font-size: var(--text-heading);
   margin-bottom: var(--space-6);

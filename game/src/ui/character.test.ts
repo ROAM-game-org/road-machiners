@@ -126,4 +126,23 @@ describe("inventory header money", () => {
     ui.children = [];
     expect(openCharacter(world).all((n) => n.className === "standing-row")).toEqual([]);
   });
+
+  it("turns buying a rank and picking a perk off during a scene, with the reason", () => {
+    const world = emptyWorld();
+    world.player.xp = 1000;
+    world.player.quests.live = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };
+    const buy = rankButtons(openCharacter(world))[0];
+    expect(buy.attrs.get("aria-disabled")).toBe("true");
+    expect(buy.attrs.get("data-reason")).toBe("Not during a scene");
+  });
+
+  it("gives a perk pick the scene reason before any other", () => {
+    const world = emptyWorld();
+    world.player.ranks.driving = 2;
+    world.player.state = "knockedOut";
+    world.player.quests.live = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };
+    const perk = openCharacter(world).all((n) => n.tag === "button" && n.className === "perk")[0];
+    expect(perk.attrs.get("aria-disabled")).toBe("true");
+    expect(perk.attrs.get("data-reason")).toBe("Not during a scene");
+  });
 });
