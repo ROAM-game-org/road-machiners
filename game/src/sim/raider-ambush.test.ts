@@ -93,11 +93,11 @@ describe('watch posts on the map', () => {
     expect(posts).toBeGreaterThan(0);
   });
 
-  it('hide at least 11 of the 20 road grounds from road traffic', () => {
+  it('hide at least 20 of the 36 road grounds from road traffic', () => {
     const roadGrounds = huntingGrounds().filter((g) => REGION.roads.some((road) => polylineDist(g, road) <= REGION.roadWidth));
-    expect(roadGrounds.length).toBe(20);
+    expect(roadGrounds.length).toBe(36);
     const hidden = roadGrounds.filter((g) => watchPost(w, g) !== null && exposureAt(w, watchPost(w, g)!) === 0);
-    expect(hidden.length).toBeGreaterThanOrEqual(11);
+    expect(hidden.length).toBeGreaterThanOrEqual(20);
   });
 
   it('build for every camp on a fresh terrain within the time budget', () => {
@@ -147,7 +147,7 @@ function nearestOf(points: readonly Vec[], to: Vec): Vec {
 }
 
 function raidingDriver(w: World, home: Vec, post: Vec): Vehicle {
-  const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], home);
+  const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], home);
   v.id = 'raider-route';
   v.brain = npcBrain('buggy', home, ['raider']);
   v.brain.goals = [raidGoal(post)];
@@ -163,7 +163,7 @@ const scrapjaw = CAMPS.find((c) => c.id === 'scrapjaw') as Site;
 function raiderNearPost() {
   const w = emptyWorld({ x: 30, y: 30 });
   const post = raiderGrounds(w, scrapjaw)[0];
-  const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: post.x - 10, y: post.y });
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: post.x - 10, y: post.y });
   raider.brain = npcBrain('buggy', sitePads(scrapjaw)[0], ['raider']);
   raider.brain.goals = [raidGoal(post)];
   return { w, post, raiderId: raider.id };
@@ -180,7 +180,7 @@ function watchingRaider(traderGap: number) {
   const raider = vehicle(w, raiderId);
   raider.pos = { ...post };
   raider.brain!.goals = [{ ...raidGoal(post), destination: null, phase: 'act', watchUntil: w.turn + HUNT.watchTurns }];
-  const trader = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: post.x + traderGap, y: post.y });
+  const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: post.x + traderGap, y: post.y });
   trader.brain = npcBrain('trader', trader.pos, ['trader']);
   if (addGoods(w, trader, 'electronics', 6) < 6) throw new Error('No room for the trader cargo');
   return { w, raider, trader };
@@ -264,7 +264,7 @@ describe('the watch', () => {
 
   it('flees prey that outguns it, when it has a getaway', () => {
     const { w, raider } = watchingRaider(200);
-    const brute = addVehicle(w, 'traders', 'hauler', ['mg', 'mg', 'mg', 'mg', 'stockEngine'], { x: raider.pos.x + 8, y: raider.pos.y });
+    const brute = addVehicle(w, 'independent', 'hauler', ['mg', 'mg', 'mg', 'mg', 'stockEngine'], { x: raider.pos.x + 8, y: raider.pos.y });
     brute.brain = npcBrain('trader', brute.pos, ['trader']);
     if (addGoods(w, brute, 'electronics', 6) < 6) throw new Error('No room for the cargo');
     const danger = judgeDanger(w, raider, brute);
@@ -390,7 +390,7 @@ describe('the watch', () => {
     it('is busy when the raider fights another truck', () => {
       const { w, raider, player, danger } = staged();
       addGoods(w, player, 'electronics', 6);
-      const other = addVehicle(w, 'traders', 'hauler', ['mg'], { x: raider.pos.x - 8, y: raider.pos.y });
+      const other = addVehicle(w, 'independent', 'hauler', ['mg'], { x: raider.pos.x - 8, y: raider.pos.y });
       addState(w, 'combat', raider.id, other.id, { kind: 'none' });
       expect(passReason(w, raider, player, danger())).toBe('busy');
     });
@@ -411,7 +411,7 @@ describe('the watch', () => {
 
     it('throws for a subject that is not a raider', () => {
       const { w, player, danger } = staged();
-      const trader = addVehicle(w, 'traders', 'hauler', ['mg'], { x: 5, y: 5 });
+      const trader = addVehicle(w, 'independent', 'hauler', ['mg'], { x: 5, y: 5 });
       expect(() => passReason(w, trader, player, danger())).toThrow(/not a raider/);
     });
   });
@@ -590,7 +590,7 @@ describe('going home with loot', () => {
     const start = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) start.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     if (addGoods(start, playerVehicle(start), 'electronics', 6) < 6) throw new Error('No room for the player cargo');
-    const raider = addVehicle(start, 'raiders', 'buggy', ['stockEngine', 'mg'], { x: 42, y: 30 }, Math.PI);
+    const raider = addVehicle(start, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 42, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     raider.brain.goals = [raidGoal(raider.pos)];
     forceOption('hostileSeen', 'fight');

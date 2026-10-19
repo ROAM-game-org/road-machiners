@@ -48,13 +48,13 @@ The Old Army's trucks still stand where they stopped at Old Orchard. Their logs,
 
 ## The north bend
 
-Ash Kerimov sits alone at the north bend where Emil Kessel died. He stops every truck and asks to see its swivel pins. A driver with one pin gets a choice: pay for a second pin at the Salvage Yard, or drive on. Kiln Camp wants him gone, because he slows the road. Captain Silver wants him gone too, because he talks to Nose drivers. Both offer the player a job.
+Ash Kerimov sits alone at the north bend where Emil Kessel died. He stops every truck and asks to see its brake rod. A driver with a cheap Nose rod gets a choice: buy a proper one at the Salvage Yard, or drive on. Kiln Camp wants him gone, because he slows the road. Captain Silver wants him gone too, because he talks to Nose drivers. Both offer the player a job.
 
-## Emil's pin
+## Emil's brake rod
 
-1. Mara Kessel, an officer in Captain Silver's post, quietly asks the player to bring her the one-pin swivel from Emil Kessel's wreck on the north road.
-2. The wreck has already been stripped. The mount turns up at the Salvage Yard or on a Kiln truck.
-3. The mount proves that the Nose gate issued it with one pin. Silver wants it destroyed. The Administrator wants it kept, along with what it proves.
+1. Mara Kessel, an officer in Captain Silver's post, quietly asks the player to bring her the broken brake rod from Emil Kessel's wreck on the north road.
+2. The wreck has already been stripped. The rod turns up at the Salvage Yard or on a Kiln truck.
+3. The rod proves that the Nose gate issued it as cheap steel. Silver wants it destroyed. The Administrator wants it kept, along with what it proves.
 4. Mara has her own pact with the Administrator. The player decides who learns about it.
 
 ## The Reading of Names

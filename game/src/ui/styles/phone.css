@@ -11,8 +11,8 @@
   --phone-top-row: var(--icon-hero);
   --drawer-bottom: calc(var(--safe-bottom) + var(--phone-bar-h) + var(--hud-gap));
   --drawer-top: calc(var(--safe-top) + var(--phone-top-row) + var(--hud-gap));
-  --drawer-max-h: calc(100dvh - var(--drawer-bottom) - var(--drawer-top));
-  --drawer-w: calc((100vw - var(--safe-left) - var(--safe-right) - var(--hud-gap)) / 2);
+  --drawer-max-h: calc(var(--layer-h) - var(--drawer-bottom) - var(--drawer-top));
+  --drawer-w: calc((var(--layer-w) - var(--safe-left) - var(--safe-right) - var(--hud-gap)) / 2);
   --phone-tabs-w: calc(4 * var(--btn-h-l) + 3 * var(--space-2));
   --right-column: 0px;
 }
@@ -181,16 +181,16 @@
 #ui.phone .info {
   right: var(--safe-right);
   left: auto;
-  width: min(var(--panel-s), calc(100vw - var(--safe-left) - var(--safe-right)));
+  width: min(var(--panel-s), calc(var(--layer-w) - var(--safe-left) - var(--safe-right)));
   max-width: none;
-  max-height: 50dvh;
+  max-height: calc(0.5 * var(--layer-h));
   overflow: auto;
 }
 
 #ui.phone:has(.modal:not([style*="display: none"])) > .top-center > .opening-tip {
   visibility: hidden;
 }
-#ui.phone:has(.modal:not([style*="display: none"])) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .info) {
+#ui.phone:has(:is(.modal:not([style*="display: none"]), .options)) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .info) {
   display: none;
 }
 #ui.phone[data-drawer] > .top-center > .tip,
@@ -212,34 +212,51 @@
 #ui.phone .modal.quest-screen {
   top: var(--safe-top);
   width: auto;
-  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom));
+  max-height: calc(var(--layer-h) - var(--safe-top) - var(--safe-bottom));
 }
 #ui.phone .modal.quest-screen.quest-page {
   top: var(--safe-top);
   width: auto;
   height: auto;
   max-height: none;
+}
+#ui.phone .modal.quest-screen.quest-page,
+#ui .modal.quest-screen.quest-page.stacked {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
 }
-#ui.phone .quest-page .quest-art {
+#ui.phone .quest-page .quest-art,
+#ui .quest-page.stacked .quest-art {
   box-sizing: border-box;
-  height: 26dvh;
+  height: calc(0.26 * var(--layer-h));
   padding: var(--space-4);
   border-right: 0;
+  display: flex;
+  justify-content: center;
 }
-#ui.phone .quest-page .quest-text {
+#ui.phone .quest-page .quest-frame,
+#ui .quest-page.stacked .quest-frame {
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  max-height: none;
+  aspect-ratio: var(--quest-frame-band);
+}
+#ui.phone .quest-page .quest-text,
+#ui .quest-page.stacked .quest-text {
   max-width: none;
   padding: var(--space-5) var(--space-6);
 }
-#ui.phone .quest-page .quest-side {
-  max-height: 24dvh;
+#ui.phone .quest-page .quest-side,
+#ui .quest-page.stacked .quest-side {
+  max-height: calc(0.24 * var(--layer-h));
   padding: var(--space-4) var(--space-6);
   border-left: 0;
   border-top: 1px solid var(--surface-raised);
 }
-#ui.phone .quest-page .quest-side .close {
+#ui.phone .quest-page .quest-side .close,
+#ui .quest-page.stacked .quest-side .close {
   position: absolute;
   top: var(--space-4);
   right: var(--space-4);
@@ -248,8 +265,8 @@
 #ui.phone .save-panel {
   box-sizing: border-box;
   min-width: 0;
-  width: calc(100vw - var(--safe-left) - var(--safe-right));
-  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom));
+  width: calc(var(--layer-w) - var(--safe-left) - var(--safe-right));
+  max-height: calc(var(--layer-h) - var(--safe-top) - var(--safe-bottom));
   overflow: auto;
 }
 #ui.phone:has(:is(.options, .save-panel, .help)) > .top-center,
@@ -265,7 +282,7 @@
     bottom: var(--safe-bottom);
   }
   #ui.phone .end-turn {
-    width: calc(100vw - var(--safe-left) - var(--safe-right) - var(--phone-tabs-w) - var(--hud-gap));
+    width: calc(var(--layer-w) - var(--safe-left) - var(--safe-right) - var(--phone-tabs-w) - var(--hud-gap));
   }
 }
 

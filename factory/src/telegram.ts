@@ -1,5 +1,6 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { basename } from 'node:path';
+import { TIMEOUT_MS, readCapped } from './media';
 import { readPhoto } from './photo-file';
 import { MESSAGE_LIMIT } from './telegram-limits';
 import type { AlbumPhoto, InlineButton, Telegram } from './types';
@@ -22,11 +23,18 @@ export function botClient(token: string, fetchFn: typeof fetch): Telegram {
   const callForId = async (method: string, body: string | FormData): Promise<number> => messageId(method, await call(method, body));
 
   return {
+    async downloadFile(fileId) {
+      const file = (await call('getFile', JSON.stringify({ file_id: fileId }))) as { file_path?: unknown };
+      if (typeof file.file_path !== 'string') throw new Error('Telegram getFile gave no file path');
+      const response = await fetchFn(`https://api.telegram.org/file/bot${token}/${file.file_path}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+      if (!response.ok) throw new Error(`Telegram answered HTTP ${response.status} for the file`);
+      return readCapped(response);
+    },
     async sendMessage(chat, text, replyTo) {
       const ids: number[] = [];
       for (const part of splitText(text)) {
         const payload: Record<string, unknown> = { chat_id: chat, text: part };
-        if (typeof replyTo === 'number' && ids.length === 0) payload.reply_parameters = { message_id: replyTo };
+        if (typeof replyTo === 'number' && ids.length === 0) payload.reply_parameters = replyParameters(replyTo);
         ids.push(await callForId('sendMessage', JSON.stringify(payload)));
       }
       return ids[0]!;
@@ -63,7 +71,7 @@ export function botClient(token: string, fetchFn: typeof fetch): Telegram {
       if (stat.size === 0 || stat.size > DOCUMENT_MAX_BYTES) throw new Error(`Telegram document ${basename(path)} is ${stat.size} bytes, the limit is ${DOCUMENT_MAX_BYTES}.`);
       const form = new FormData();
       form.set('chat_id', chat);
-      if (replyTo !== undefined) form.set('reply_parameters', JSON.stringify({ message_id: replyTo }));
+      if (replyTo !== undefined) form.set('reply_parameters', JSON.stringify(replyParameters(replyTo)));
       form.set('document', new Blob([readFileSync(path)]), basename(path));
       return callForId('sendDocument', form);
     },
@@ -94,6 +102,8 @@ export function botClient(token: string, fetchFn: typeof fetch): Telegram {
   };
 }
 
+const replyParameters = (replyTo: number) => ({ message_id: replyTo, allow_sending_without_reply: true });
+
 function checkAlbum(photos: AlbumPhoto[]): void {
   if (photos.length === 0 || photos.length > ALBUM_MAX) throw new Error(`Telegram takes 1 to ${ALBUM_MAX} photos in one send, got ${photos.length}.`);
   for (const { caption } of photos) {
@@ -106,7 +116,7 @@ function albumRequest(chat: string, photos: AlbumPhoto[], replyTo: number | unde
   const files = photos.map((photo) => readPhoto(photo.path));
   const form = new FormData();
   form.set('chat_id', chat);
-  if (replyTo !== undefined) form.set('reply_parameters', JSON.stringify({ message_id: replyTo }));
+  if (replyTo !== undefined) form.set('reply_parameters', JSON.stringify(replyParameters(replyTo)));
   if (photos.length === 1) {
     form.set('caption', photos[0]!.caption);
     form.set('photo', new Blob([files[0]!.bytes], { type: files[0]!.mime }), files[0]!.name);

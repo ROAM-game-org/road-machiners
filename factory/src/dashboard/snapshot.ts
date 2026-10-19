@@ -44,12 +44,12 @@ function expireSource<T>(source: Source<T>, budgetMs: number): Source<T> {
   return Date.now() - Date.parse(source.at) > budgetMs ? { ...source, status: 'stale' } : source;
 }
 function getPublicIssue(stage: string, issue: number | null): number | null {
-  return ['change', 'adhoc'].includes(stage) ? null : issue;
+  return stage === 'adhoc' ? null : issue;
 }
-function readNextFeatures(state: FactoryState): Feature[] | null {
-  if (state.release === null) return state.devMerges && toFeatures(state.devMerges);
+function readNextFeatures(state: FactoryState): Feature[] {
+  if (state.release === null) return toFeatures(state.devMerges);
   const { merges, removed } = state.release;
-  return merges && toFeatures(merges.filter((merge) => !removed.includes(merge.issue)));
+  return toFeatures(merges.filter((merge) => !removed.includes(merge.issue)));
 }
 function getFactoryStatus(state: FactoryState, paused: boolean): string {
   if (paused) return 'paused';

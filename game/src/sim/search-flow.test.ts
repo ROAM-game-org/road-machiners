@@ -20,7 +20,7 @@ const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
 const en = (line: LineId): string => entryText('en', lineKey(line));
 
 function driver(w: World, pos: { x: number; y: number }, name: string): Vehicle {
-  const v = addVehicle(w, 'traders', 'scout', ['stockEngine'], pos);
+  const v = addVehicle(w, 'independent', 'scout', ['stockEngine'], pos);
   v.brain = npcBrain('trader', v.pos, ['trader']);
   v.brain.driver = name;
   return v;
@@ -45,6 +45,7 @@ describe('a search contract from the board to the pay', () => {
     const target = driver(w, { x: pad.x + 8, y: pad.y }, 'Mack Holt');
     w.turn = 200;
     remember(w, target, { kind: 'prices', shop: 'bowl', pressure: {} });
+    for (const shop of Object.values(w.shops)) shop.contracts = [];
     w.shops.bowl.contracts = [{
       id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
       lead: { at: { ...siteOf('bowl').pos }, turn: 200 }, reward: searchReward(), deadline: 900, window: 600, tier: 1, delivered: false,

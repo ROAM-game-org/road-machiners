@@ -12,7 +12,7 @@ const KEEP_NUMBERED: Record<string, Keep> = {
   issue: openCard,
   adhoc: openCard,
   'check-issue': () => false,
-  change: (id, state) => state.pendingChanges.some((change) => change.id === id),
+  change: () => false,
   incident: (id, state) => state.pendingIncidents.includes(id),
 };
 const NAMED: Record<string, { stages: string[]; keep: (state: FactoryState) => boolean }> = {
@@ -22,6 +22,7 @@ const NAMED: Record<string, { stages: string[]; keep: (state: FactoryState) => b
   'release-playtest': { stages: ['playtest'], keep: () => false },
   'release-baseline': { stages: ['playtest'], keep: () => false },
   waste: { stages: ['waste'], keep: () => false },
+  answer: { stages: ['answer'], keep: () => false },
   'merge-queue': { stages: ['merge'], keep: () => false },
   'ship-main': { stages: ['ship'], keep: () => false },
 };
@@ -86,21 +87,3 @@ export function sweepLogs(logRoot: string, state: FactoryState, now: Date, days:
   return removed;
 }
 
-export function sweepTestCache(root: string, now: Date, days: number): number {
-  if (!existsSync(root)) return 0;
-  return sweepFolder(root, now.getTime() - days * 24 * 3_600_000, true);
-}
-
-function sweepFolder(dir: string, cutoff: number, isRoot: boolean): number {
-  let removed = 0;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) removed += sweepFolder(path, cutoff, false);
-    else if (oldFile(path, cutoff)) {
-      rmSync(path);
-      removed++;
-    }
-  }
-  if (!isRoot && readdirSync(dir).length === 0) rmSync(dir, { recursive: true });
-  return removed;
-}

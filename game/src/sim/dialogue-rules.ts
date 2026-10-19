@@ -1,7 +1,10 @@
 
-import type { ConditionId, EffectId, PrepareId, TopicId } from '../data/dialogue';
+import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
+import { COLD_LINES, TOPIC_GATES, type ConditionId, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
+import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
+import { bandAtLeast, personalTerm, stanceToward } from './relations';
 import { CONTRACTS } from '../data/market';
-import { GAME_NOTES, LOCALS, NOTE_IDS, type LocalDef, type NoteId } from '../data/locals';
+import { GAME_NOTES, isNoteId, LOCALS, type LocalDef, type NoteId } from '../data/locals';
 import { TRADE_TIP } from '../data/npcs';
 import { PERK_NUMBERS } from '../data/skills';
 import { WAGON_SEVEN } from '../data/salvage';
@@ -21,16 +24,18 @@ import { abandonSpill, answerPlea, standDownBeggar, backOffClaims, defyClaims, g
 import { answerLootWarning, answerWarning, lootsBesidePlayer, pendingWarningTo, playerWarns, warnRefusalOf, type WarnAnswer } from './loot-warning';
 import { talkOf } from './dialogue';
 import { cargoHaul, haulVar, showsHaul, surrenderHaul } from './haul';
-import { hasCargo, storyStock } from './salvage';
+import { hasCargo, hasSalvage, isStoryWreck, storyStock, type ClaimContract } from './salvage';
+import { claimPartHeld, leadOf, rivalRunning } from './claims';
 import { agreePatch, canFixItself, canTakeWornPatch, needsPatch, patchTerms } from './patch';
 import { decide, isWeak, npcProfile, wantsLoot } from './npc-decisions';
 import { isStranded } from './stats';
 import { addState, aidData, declareFeud, stateOf, towData } from './states';
-import { agreeAid, aidPrice, canSpareFor, hasAid, isLow, playerAid, refuseAid, spareAid, wantedAid, type AidAmounts } from './aid';
+import { agreeAid, aidHolds, aidPrice, canSpareFor, hasAid, isLow, playerAid, refuseAid, spareAid, wantedAid, type AidAmounts } from './aid';
 import { spread, startTrade, tradeWith, transfer } from './economy';
 import { acceptOffer, canTowNpc, isTowing, hitchNpc, isOnRope, npcTowTerms, playerTow, playerTowing, refuseOffer, releaseNpc, strandedPlayerAt } from './tow';
-import type { Call, CallVar, CallVars, GridItem, MemoryFact, NpcState, Plea, TopicOutcome, Vehicle, World } from './types';
-import { bearing, dist } from './vec';
+import type { Call, CallVar, CallVars, DirectionTarget, GridItem, MemoryFact, NpcState, Plea, TopicOutcome, Vehicle, World } from './types';
+import { bearing, dist, type Vec } from './vec';
+import { directionsTo } from './directions';
 
 function demandsOnTop(world: World, npc: Vehicle): boolean {
   const top = topGoal(npc);
@@ -112,8 +117,8 @@ function closeCall(world: World, npc: Vehicle, call: Call): void {
 
 function rumorVars(world: World, rumor: Rumor): CallVars {
   const me = playerVehicle(world).pos;
-  const where: CallVars = { bearing: { kind: 'bearing', rad: bearing(me, rumor.pos) }, distance: { kind: 'distance', tiles: dist(me, rumor.pos) } };
-  return rumor.site ? { site: { kind: 'site', id: rumor.id }, ...where } : where;
+  if (rumor.site) return { site: { kind: 'site', id: rumor.id }, way: wayVar(world, me, { kind: 'site', id: rumor.id }) };
+  return { way: wayVar(world, me, { kind: 'spot', pos: rumor.pos, clue: 'wreck' }) };
 }
 
 function discoverNewsSite(world: World, call: Call): void {
@@ -126,7 +131,7 @@ function discoverNewsSite(world: World, call: Call): void {
 
 function markNewsWreck(world: World, npc: Vehicle, call: Call): void {
   const rumor = heardRumor(world, npc);
-  if (call.vars.site === undefined && call.vars.bearing !== undefined && rumor && !rumor.site) world.player.rumored.push(rumor.id);
+  if (call.vars.site === undefined && call.vars.way !== undefined && rumor && !rumor.site) world.player.rumored.push(rumor.id);
 }
 
 function angerCourier(world: World, npc: Vehicle): void {
@@ -240,8 +245,32 @@ export function helpedByPlayer(world: World, npc: Vehicle): boolean {
   return HELP_TOPICS.some((topic) => talked?.[topic] === 'done' || talked?.[topic] === 'agreed');
 }
 
+export function opensHelp(world: World, npc: Vehicle): boolean {
+  return helpedByPlayer(world, npc) || bandAtLeast(stanceToward(world, npc), 'friendly');
+}
+
+export function talksTo(world: World, npc: Vehicle): boolean {
+  return bandAtLeast(stanceToward(world, npc), 'neutral');
+}
+
+export function gateOpen(world: World, npc: Vehicle, topic: TopicId): boolean {
+  const gate = TOPIC_GATES[topic];
+  if (gate === 'service') return talksTo(world, npc);
+  return gate !== 'rescue' || stanceToward(world, npc) !== 'hostile';
+}
+
+export function coldLine(world: World, npc: Vehicle, topics: readonly TopicId[]): LineId | null {
+  if (talksTo(world, npc) || !topics.some((id) => TOPIC_GATES[id] === 'service')) return null;
+  return personalTerm(npc, world.player.vehicleId) <= REFUSE_KNOWN_AT ? COLD_LINES.known : COLD_LINES.kind;
+}
+
 export const CONDITIONS: Record<ConditionId, Condition> = {
   canPayTalk: (world, _npc, vars) => world.player.money >= namedPrice({ vars }),
+  mercForHire: (world, npc) => world.player.talked[npc.id]?.hireGuard !== 'refused' && canHireGuard(world, npc),
+  takesGuard: (_world, _npc, vars) => answerOf(vars) === 'take',
+  refusesGuard: (_world, _npc, vars) => answerOf(vars) === 'decline',
+  canPayGuard: (world, _npc, vars) => world.player.money >= namedPrice({ vars }),
+  guardOfMine: (world, npc) => isPlayerGuard(world, npc),
   knowsTown: (_world, npc) => knownTowns(npc).length > 0,
   offersPaidTow: (world, npc) => {
     const tow = offerBy(world, npc);
@@ -304,6 +333,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   npcLow: (world, npc) => hasAid(wantedAid(world, npc)),
   playerLow: (world) => isLow(world, playerVehicle(world)),
   noAid: (world) => playerAid(world) === null,
+  aidHolds: (world, npc) => aidHolds(world, npc, playerVehicle(world)),
   aidGiven: (_world, _npc, vars) => answerOf(vars) === 'give',
   aidRefused: (_world, _npc, vars) => answerOf(vars) === 'refuse',
   offersAid: (world, npc) => pendingAid(world, npc) !== null,
@@ -312,7 +342,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   callsOut: (world, npc) => pendingFor(world, npc, 'challenge'),
   asksCourierAid: (world, npc) => pendingFor(world, npc, 'courier'),
   newsOfSite: (_world, _npc, vars) => vars.site !== undefined,
-  newsOfWreck: (_world, _npc, vars) => vars.site === undefined && vars.bearing !== undefined,
+  newsOfWreck: (_world, _npc, vars) => vars.site === undefined && vars.way !== undefined,
   newsOfTip: (_world, _npc, vars) => vars.tip !== undefined,
   courierThanksDue: (world, npc) => storyBeatDue(world, npc) === 'courierThanks',
   courierSquareDue: (world, npc) => storyBeatDue(world, npc) === 'courierSquare',
@@ -328,6 +358,9 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   sawSought: (_world, _npc, vars) => sightingVar(vars).seen !== null,
   missedSought: (_world, _npc, vars) => sightingVar(vars).seen === null,
   heardWagonNearby: (world, npc) => holdsNote(world, 'wagonBowl') && dist(npc.pos, storyStock(world, WAGON_SEVEN).pos) <= PERK_NUMBERS.rumorMill.radius,
+  nearClaimWreck: (world, npc) => claimSeenBy(world, npc) !== null,
+  rivalAsked: (world, npc) => rivalNearWreck(world, requireClaimSeen(world, npc)),
+  noRivalAsked: (world, npc) => !rivalNearWreck(world, requireClaimSeen(world, npc)),
 };
 
 export const EFFECTS: Record<EffectId, Effect> = {
@@ -446,6 +479,11 @@ export const EFFECTS: Record<EffectId, Effect> = {
     if (rumor.site) discoverSite(world, rumor.site);
     else world.player.rumored.push(rumor.id);
   },
+  hireGuard: (world, npc, call) => hireGuard(world, npc, namedPrice(call)),
+  dismissGuard: (world, npc) => {
+    if (!isPlayerGuard(world, npc)) throw new Error(`${npc.id} guards no one the player can dismiss`);
+    dismissGuard(world);
+  },
   payTruce: (world, npc, call) => {
     const price = call.vars.price;
     if (price?.kind !== 'money') throw new Error('payTruce needs a price');
@@ -469,6 +507,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
     noteSearchLead(world, memory.fact.at, memory.turn);
   },
   startHandover: (world, npc) => askHandover(world, npc),
+  noteClaimLead: (world, npc) => noteClaimLead(world, npc),
   tellTale: (world, npc, call) => {
     requirePending(world, npc, 'tale');
     discoverNewsSite(world, call);
@@ -613,6 +652,10 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   },
   tradeTip: (_world, npc) => ({ tip: { kind: 'tip', tip: tradeTip(npc) } }),
   trucePrice: (_world, npc) => ({ price: { kind: 'money', amount: trucePrice(npc) } }),
+  guardOffer: (world, npc) => ({
+    answer: { kind: 'answer', option: guardTaken(world, npc) ? 'take' : 'decline' },
+    price: { kind: 'money', amount: guardFee(world, npc) },
+  }),
   courierNeed: (world, npc) => {
     const wanted = wantedAid(world, npc, true);
     return { aid: aidVar(wanted), price: { kind: 'money', amount: aidPrice(world, npc, wanted) } };
@@ -623,16 +666,20 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   },
   aidAnswer,
   aidOffered: (world, npc) => ({ aid: aidVar(aidData(requirePendingAid(world, npc))) }),
+  claimWreckBearing: (world, npc) => {
+    const claim = requireClaimSeen(world, npc);
+    const lead = leadOf(claim.at, playerVehicle(world).pos);
+    return { bearing: { kind: 'bearing', rad: lead.angle }, distance: { kind: 'distance', tiles: lead.distance } };
+  },
   nearestTown: (world, npc) => {
-    const me = playerVehicle(world).pos;
     const town = nearestKnownTown(world, npc);
-    return {
-      town: { kind: 'town', id: town.id },
-      bearing: { kind: 'bearing', rad: bearing(me, town.pos) },
-      distance: { kind: 'distance', tiles: dist(me, town.pos) },
-    };
+    return { town: { kind: 'town', id: town.id }, way: wayVar(world, playerVehicle(world).pos, { kind: 'site', id: town.id }) };
   },
 };
+
+function wayVar(world: World, from: Vec, target: DirectionTarget): CallVar {
+  return { kind: 'directions', steps: directionsTo(world, from, target) };
+}
 
 export function localsAt(town: string): LocalDef[] {
   return Object.values(LOCALS).filter((l) => l.town === town);
@@ -664,10 +711,6 @@ export function takeTownWork(world: World): void {
   takeContract(world, offer.id);
 }
 
-export function isNoteId(id: string): id is NoteId {
-  return (NOTE_IDS as readonly string[]).includes(id);
-}
-
 export function learnNote(world: World, id: NoteId): void {
   if (!isNoteId(id)) throw new Error(`No note ${id}`);
   if (holdsNote(world, id)) return;
@@ -677,6 +720,35 @@ export function learnNote(world: World, id: NoteId): void {
 
 export function holdsNote(world: World, id: NoteId): boolean {
   return world.player.notes.some((n) => n.id === id);
+}
+
+function nearWreck(v: Vehicle, claim: ClaimContract): boolean {
+  return dist(v.pos, claim.at) <= PERK_NUMBERS.rumorMill.radius;
+}
+
+export function claimSeenBy(world: World, npc: Vehicle): ClaimContract | null {
+  const held = world.player.contracts.filter((c): c is ClaimContract => c.kind === 'claim');
+  return held.find((c) => c.rival !== npc.id && nearWreck(npc, c) && claimPartHeld(world, c) === 'stock') ?? null;
+}
+
+function requireClaimSeen(world: World, npc: Vehicle): ClaimContract {
+  const claim = claimSeenBy(world, npc);
+  if (!claim) throw new Error(`${npc.id} has seen no claimed wreck`);
+  return claim;
+}
+
+function rivalNearWreck(world: World, claim: ClaimContract): boolean {
+  const rival = rivalRunning(world, claim);
+  return rival !== null && nearWreck(rival, claim);
+}
+
+function noteClaimLead(world: World, npc: Vehicle): void {
+  const claim = requireClaimSeen(world, npc);
+  const driver = npc.brain?.driver;
+  if (!driver) throw new Error(`${npc.id} has no driver to give a lead`);
+  if (claim.leads.some((l) => l.driver === driver)) return;
+  claim.leads.push({ turn: world.turn, from: { ...playerVehicle(world).pos }, driver });
+  world.events.push({ t: 'claimLead', contract: claim.id, driver });
 }
 
 function requireEscort(world: World): EscortContract {

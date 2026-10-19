@@ -4,6 +4,7 @@ import { GOODS } from '../../data/goods';
 import { PARTS } from '../../data/parts';
 import { ITEM_TONES } from '../../render/palette';
 import { iconCatalog, itemTone, ICON_SECTIONS, ICON_WEAPON_PICKS, type IconEntry, type IconSection } from '../../render/partLooks';
+import { publicUrl } from '../../public-url';
 import { loadModels, type ModelName } from '../render/models';
 import {
   barrelReads,
@@ -98,7 +99,7 @@ async function modelBytes(catalog: readonly IconEntry[]): Promise<Map<ModelName,
   const out = new Map<ModelName, Uint8Array>();
   await Promise.all(
     names.map(async (name) => {
-      const res = await fetch(`${import.meta.env.BASE_URL}models/${name}.glb`);
+      const res = await fetch(publicUrl(`models/${name}.glb`));
       if (!res.ok) throw new Error(`Model ${name}.glb failed to load: HTTP ${res.status}`);
       out.set(name, new Uint8Array(await res.arrayBuffer()));
     }),
@@ -289,9 +290,11 @@ declare global {
 async function plans(): Promise<Record<string, string>> {
   await loadModels();
   const catalog = iconCatalog(PARTS, GOODS, CHASSIS, ICON_WEAPON_PICKS).filter((e) => e.section === 'chassis');
-  const symbols = catalog.map((entry) => {
+  const symbols = catalog.flatMap((entry) => {
     const s = PLAN_SIZE;
-    return `<symbol id="plan-${entry.id}" viewBox="0 0 ${s} ${s}" preserveAspectRatio="none">${renderPlan(entry, s)}</symbol>`;
+    const { top, outline } = renderPlan(entry, s);
+    const symbol = (id: string, svg: string): string => `<symbol id="${id}-${entry.id}" viewBox="0 0 ${s} ${s}" preserveAspectRatio="none">${svg}</symbol>`;
+    return [symbol('top', top), symbol('plan', outline)];
   });
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" style="display:none">${symbols.join('')}</svg>\n`;
   return { 'src/ui/plans.svg': `data:image/svg+xml;base64,${btoa(svg)}` };

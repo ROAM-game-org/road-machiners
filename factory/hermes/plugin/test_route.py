@@ -47,10 +47,8 @@ def test_reply_to_unknown_post_is_normal_chat():
     assert route("approve", "99") is None
 
 
-def test_change_request():
-    assert route("/change add rain") == ("change", "add rain")
-    assert route("/change") is None
-    assert route("/changelog") is None
+def test_change_command_is_normal_chat():
+    assert route("/change add rain") is None
 
 
 
@@ -104,7 +102,6 @@ def test_release_reply_in_other_chat_is_normal_chat():
 
 def test_other_chat_is_normal_chat():
     assert route("approve", "55", chat="-200") is None
-    assert route("/change x", chat="-200") is None
 
 
 def test_ids_compare_as_strings():
@@ -120,9 +117,6 @@ def test_inbox_command_shapes():
     }
     assert plugin.inbox_command(("patch", 12, "x"), 1, None, -100, 78, 60)["kind"] == "patch"
     assert plugin.inbox_command(("redesign", 12, "x"), 1, None, -100, 78, 60)["issue"] == 12
-    assert plugin.inbox_command(("change", "z"), 1, "", -100, 79, None) == {
-        "kind": "change", "issue": None, "text": "z", "by": "1", "byName": None, "chat": "-100", "messageId": 79, "postId": None,
-    }
 
 
 def test_inbox_command_release_shapes():
@@ -146,7 +140,7 @@ def test_write_inbox_is_atomic(tmp_path, monkeypatch):
         real(src, dst)
 
     monkeypatch.setattr(plugin.os, "replace", spy)
-    command = plugin.inbox_command(("change", "z"), 1, "Ann", -100, 79, None)
+    command = plugin.inbox_command(("release-task", "z"), 1, "Ann", -100, 79, 70)
     path = plugin.write_inbox(str(tmp_path), command, now_ms=1700000000000)
     assert path.name == "1700000000000-79.json"
     assert json.loads(path.read_text()) == command
@@ -236,7 +230,7 @@ class Adapter:
         return types.SimpleNamespace(success=True, error=None)
 
 
-def dispatch(tmp_path, user, text="/change x", chat="-100", monkeypatch=None, reply=None, media=None):
+def dispatch(tmp_path, user, text="hello", chat="-100", monkeypatch=None, reply=None, media=None):
     (tmp_path / "state").mkdir(exist_ok=True)
     (tmp_path / "inbox").mkdir(exist_ok=True)
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
@@ -285,6 +279,24 @@ def test_hook_queues_a_plain_approval_reply_and_hands_it_to_hermes_with_a_header
     (file,) = (tmp_path / "inbox").iterdir()
     assert json.loads(file.read_text()) | {} == {
         "kind": "reply", "issue": 12, "text": "show us the top-down atlas", "by": "1", "byName": "Ann", "chat": "-100", "messageId": 5, "postId": 55,
+    }
+
+
+def test_reply_to_a_questions_post_answers_them():
+    assert plugin.route("the brass one", "77", "-100", POSTS, CFG, question_posts={"77": 6}) == ("answer-questions", 6, "the brass one")
+    assert plugin.route("the brass one", "78", "-100", POSTS, CFG, question_posts={"77": 6}) is None
+    assert plugin.route("  ", "77", "-100", POSTS, CFG, question_posts={"77": 6}) is None
+
+
+def test_hook_queues_an_answer_to_questions_and_keeps_it_from_hermes(tmp_path):
+    (tmp_path / "state").mkdir()
+    (tmp_path / "state" / "state.json").write_text('{"approvalPosts": {}, "questionPosts": {"77": 6}}')
+    result, adapter, inbox = dispatch(tmp_path, "1", text="the brass one", reply="77")
+    assert result == {"action": "skip", "reason": "factory-answer-questions"}
+    assert adapter.sent == []
+    (file,) = inbox.iterdir()
+    assert json.loads(file.read_text()) == {
+        "kind": "answer-questions", "issue": 6, "text": "the brass one", "by": "1", "byName": "Ann", "chat": "-100", "messageId": 5, "postId": 77,
     }
 
 
@@ -427,22 +439,39 @@ def test_draft_tool_refuses_with_no_post_due_an_empty_or_a_too_long_draft(tmp_pa
     assert list(inbox.iterdir()) == []
 
 
-def test_hook_queues_without_a_reply_of_its_own(tmp_path):
-    result, adapter, inbox = dispatch(tmp_path, "1")
-    assert result == {"action": "skip", "reason": "factory-change"}
+def test_hook_passes_a_change_command_to_hermes_as_chat(tmp_path):
+    result, adapter, inbox = dispatch(tmp_path, "1", text="/change x")
+    assert result is None
     assert adapter.sent == []
-    (file,) = inbox.iterdir()
-    assert json.loads(file.read_text())["by"] == "1"
+    assert list(inbox.iterdir()) == []
 
 
-@pytest.mark.parametrize("chat", ["-100", "-200"])
-@pytest.mark.parametrize("text", ["/change x", "hello", "/committee list", "/committee add 5"])
-def test_hook_drops_non_members_silently(tmp_path, chat, text):
-    result, adapter, inbox = dispatch(tmp_path, "9", text=text, chat=chat)
+@pytest.mark.parametrize("text", ["hello", "/committee list", "/committee add 5"])
+def test_hook_drops_non_members_outside_the_committee_chat(tmp_path, text):
+    result, adapter, inbox = dispatch(tmp_path, "9", text=text, chat="-200")
     assert result == {"action": "skip", "reason": "factory-not-committee"}
     assert adapter.sent == []
     assert list(inbox.iterdir()) == []
     assert plugin.Committee(str(tmp_path / "committee"), "1", "boss").ids() == frozenset({"1"})
+
+
+@pytest.mark.parametrize("text", ["hello", "/committee list", "/committee add 5"])
+def test_hook_passes_a_non_member_in_the_committee_chat_to_hermes_as_plain_chat(tmp_path, text):
+    result, adapter, inbox = dispatch(tmp_path, "9", text=text)
+    assert result is None
+    assert adapter.sent == []
+    assert list(inbox.iterdir()) == []
+    assert plugin.Committee(str(tmp_path / "committee"), "1", "boss").ids() == frozenset({"1"})
+
+
+@pytest.mark.parametrize("text", ["approve", "patch: make it red", "looks wrong"])
+def test_hook_queues_nothing_for_a_non_member_reply_to_an_approval_post(tmp_path, text):
+    (tmp_path / "state").mkdir()
+    (tmp_path / "state" / "state.json").write_text('{"approvalPosts": {"55": 12}}')
+    result, adapter, inbox = dispatch(tmp_path, "9", text=text, reply="55")
+    assert result is None
+    assert adapter.sent == []
+    assert list(inbox.iterdir()) == []
 
 
 def test_member_plain_chat_in_other_chat_passes(tmp_path):
@@ -540,26 +569,6 @@ def test_queue_tool_writes_adhoc_command(tmp_path):
     }
 
 
-def test_change_tool_writes_change_command(tmp_path):
-    committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
-    committee.seed()
-    inbox = tmp_path / "inbox"
-    inbox.mkdir()
-    cfg = plugin.Config(str(inbox), "/st", "-100", committee, "-400", "-300", "/pub")
-    handle = plugin.make_queue_handler(cfg, session_env=lambda key: SESSION.get(key, ""), kind="change", done=plugin.CHANGE_DONE)
-    assert json.loads(handle({"request": "Set FACTORY_TEST_WORKERS to 2."}))["message"] == plugin.CHANGE_DONE
-    [path] = list(inbox.iterdir())
-    assert json.loads(path.read_text())["kind"] == "change"
-    assert json.loads(path.read_text())["text"] == "Set FACTORY_TEST_WORKERS to 2."
-
-
-def test_change_guidance_asks_for_an_acknowledgment_not_silence():
-    assert "[SILENT]" in plugin.CHANGE_DONE
-    assert "Never reply with [SILENT]" in plugin.CHANGE_DONE
-    assert "Queued for a PR." in plugin.CHANGE_DONE
-    assert "Add nothing about it" not in plugin.CHANGE_DONE
-
-
 def test_queue_tool_refuses_non_member(tmp_path):
     inbox, handle = queue_setup(tmp_path, {**SESSION, "HERMES_SESSION_USER_ID": "2"})
     assert "error" in json.loads(handle({"request": "x"}))
@@ -583,17 +592,6 @@ def test_queue_tool_queues_a_task_for_hermes_when_no_member_wrote(tmp_path):
     }
 
 
-def test_change_tool_refuses_hermes_own_change(tmp_path):
-    committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
-    committee.seed()
-    inbox = tmp_path / "inbox"
-    inbox.mkdir()
-    cfg = plugin.Config(str(inbox), "/st", "-100", committee, "-400", "-300", "/pub")
-    handle = plugin.make_queue_handler(cfg, session_env=lambda key: "", kind="change", done=plugin.CHANGE_DONE)
-    assert "error" in json.loads(handle({"request": "x"}))
-    assert list(inbox.iterdir()) == []
-
-
 def test_sender_tool_returns_the_telegram_id_of_the_member(tmp_path):
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
     committee.seed()
@@ -608,7 +606,9 @@ def test_sender_tool_errors_without_a_member_message(tmp_path):
     cfg = plugin.Config("/in", "/st", "-100", committee, "-400", "-300", "/pub")
     assert "hermes" in json.loads(plugin.make_sender_handler(cfg, session_env=lambda key: "")({}))["error"]
     stranger = {**SESSION, "HERMES_SESSION_USER_ID": "2"}
-    assert "no committee member" in json.loads(plugin.make_sender_handler(cfg, session_env=lambda key: stranger.get(key, ""))({}))["error"]
+    error = json.loads(plugin.make_sender_handler(cfg, session_env=lambda key: stranger.get(key, ""))({}))["error"]
+    assert "no committee member" in error
+    assert "player" in error
 
 
 def test_queue_tool_refuses_empty_request(tmp_path):
@@ -636,10 +636,9 @@ def test_register_adds_queue_tool(tmp_path, monkeypatch):
     plugin.register(ctx)
     assert calls[0]["name"] == "factory_queue_task" and calls[0]["toolset"] == "factory"
     assert calls[0]["schema"]["parameters"]["required"] == ["request"]
-    assert calls[1]["name"] == "factory_queue_change" and calls[1]["toolset"] == "factory"
-    assert calls[2]["name"] == "factory_route_reply" and calls[2]["toolset"] == "factory"
-    assert calls[3]["name"] == "factory_sender" and calls[3]["toolset"] == "factory"
-    assert calls[4]["name"] == "factory_release_draft" and calls[4]["toolset"] == "factory"
-    assert calls[4]["schema"]["parameters"]["required"] == ["text"]
-    assert calls[5]["name"] == "factory_status" and calls[5]["toolset"] == "factory"
-    assert calls[2]["schema"]["parameters"]["required"] == ["post", "route", "text"]
+    assert calls[1]["name"] == "factory_route_reply" and calls[1]["toolset"] == "factory"
+    assert calls[2]["name"] == "factory_sender" and calls[2]["toolset"] == "factory"
+    assert calls[3]["name"] == "factory_release_draft" and calls[3]["toolset"] == "factory"
+    assert calls[3]["schema"]["parameters"]["required"] == ["text"]
+    assert calls[4]["name"] == "factory_status" and calls[4]["toolset"] == "factory"
+    assert calls[1]["schema"]["parameters"]["required"] == ["post", "route", "text"]

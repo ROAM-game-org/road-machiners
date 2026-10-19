@@ -11,16 +11,17 @@ import { parkedVehicles } from "./steering";
 import { fieldBlockers } from "./hazards";
 import { isStranded, vehicleStats, type MountedWeapon } from "./stats";
 import { traderWaits } from "./escort-job";
-import { escortsOf, followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
+import { followersOf } from "./companies";
+import { followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
 import { ramImpact, ramValue } from "./crash-contact";
 import { ramsReadily } from "./npc-decisions";
 import type { MoveOrder, NpcActivity, Vehicle, World } from "./types";
 import { angleDiff, bearing, dist, type Vec } from "./vec";
 import { canVehicleSee } from "./vision";
-import { bodyHitChance, inArc } from "./combat";
+import { bodyHitChance, inArc, inCombat } from "./combat";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
-import { runsDown } from "./hunters";
+import { rollingOrder, runsDown } from "./hunters";
 
 function planners(world: World): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v));
@@ -123,17 +124,23 @@ function orderPoint(world: World, v: Vehicle, activity: NpcActivity): Vec | null
 
 function waitsForEscort(world: World, v: Vehicle, activity: NpcActivity): boolean {
   if (activity.kind === "fight" || activity.kind === "flee" || activity.kind === "resupply") return false;
-  return escortsOf(world, v.id).some((e) => {
-    if (!e.brain) return traderWaits(world, v, e);
-    const gap = dist(e.pos, v.pos);
-    if (isStranded(world, e) || isOnRope(world, e.id)) return false;
-    const limit = NPCS[v.brain!.templateId]?.pairs ? NPC_BEHAVIOR.pairWaitLimit : NPC_BEHAVIOR.escortCatchUpGap;
-    return topGoal(e)?.kind === "follow" && gap > NPC_BEHAVIOR.escortWaitGap && gap <= limit;
-  });
+  return followersOf(world, v.id).some((e) => (e.brain ? waitsForGuard(world, v, e) : traderWaits(world, v, e)));
+}
+
+function waitsForGuard(world: World, v: Vehicle, guard: Vehicle): boolean {
+  if (isStranded(world, guard) || isOnRope(world, guard.id)) return false;
+  const gap = dist(guard.pos, v.pos);
+  return topGoal(guard)?.kind === "follow" && gap > NPC_BEHAVIOR.escortWaitGap && gap <= waitLimit(v);
+}
+
+function waitLimit(v: Vehicle): number {
+  return NPCS[v.brain!.templateId]?.pairs ? NPC_BEHAVIOR.pairWaitLimit : NPC_BEHAVIOR.escortCatchUpGap;
 }
 
 function driveOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec): MoveOrder {
   if (v.brain!.ramTarget) return { kind: "through", dest };
+  const rolling = rollingOrder(world, v);
+  if (rolling) return rolling;
   const foe = foeInSight(world, v, activity);
   if (foe) return fightOrder(world, v, foe, dest);
   if (runsDown(world, v)) return { kind: "through", dest };
@@ -159,7 +166,7 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
     b.ramTarget = target.id;
     return leadOf(target);
   }
-  if (b.whim?.kind === "halt") return null;
+  if (haltsOnWhim(world, v)) return null;
   const lead = leadOf(seen);
   const clearance = vehicleStats(world, v).radius + vehicleStats(world, target).radius + RULES.yieldDistance;
   if (b.whim?.kind === "veer") {
@@ -167,6 +174,10 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
     return { x: lead.x + Math.cos(b.whim.angle) * range, y: lead.y + Math.sin(b.whim.angle) * range };
   }
   return fightPoint(world, v, seen, clearance);
+}
+
+function haltsOnWhim(world: World, v: Vehicle): boolean {
+  return v.brain!.whim?.kind === "halt" && !runsDown(world, v);
 }
 
 export function perceivedTarget(world: World, v: Vehicle, target: Vehicle): Vehicle {
@@ -279,7 +290,8 @@ export function exposure(world: World, shooter: Vehicle, at: Vehicle, v: Vehicle
 }
 
 function inReach(shooter: Vehicle, mw: MountedWeapon, target: Vehicle): boolean {
-  return dist(shooter.pos, target.pos) <= mw.def.range && inArc(shooter, mw, target);
+  const gap = dist(shooter.pos, target.pos);
+  return gap > 0 && gap <= mw.def.range && inArc(shooter, mw, target);
 }
 
 function gunShare(weapons: MountedWeapon[], bears: (mw: MountedWeapon) => boolean): number {
@@ -297,9 +309,29 @@ export function fightOrder(world: World, v: Vehicle, target: Vehicle, dest: Vec)
   return { kind: 'through', dest, pace: circling ? Math.max(F.circlePace, keepUp) : keepUp };
 }
 
+export function followsTraffic(world: World, v: Vehicle): boolean {
+  return !!v.brain || v.id === world.player.vehicleId;
+}
+
+export function yieldsToTraffic(world: World, v: Vehicle): boolean {
+  if (v.brain || v.id !== world.player.vehicleId || v.direct) return false;
+  const order = v.order;
+  if (!order || order.kind === "brake" || inCombat(world, v)) return false;
+  return trafficStops(world, v, order.dest) || holdsForApproach(world, v);
+}
+
+function holdsForApproach(world: World, v: Vehicle): boolean {
+  if (v.speed >= RULES.parkedSpeed) return false;
+  return others(world, v).some((x) => {
+    if (x.speed < RULES.parkedSpeed || !followsTraffic(world, x)) return false;
+    const approaching = Math.cos(angleDiff(x.heading, bearing(x.pos, v.pos))) > 0;
+    return approaching && dist(v.pos, x.pos) - vehicleStats(world, v).radius - vehicleStats(world, x).radius < brakingReach(world, v, x);
+  });
+}
+
 export function routeBlockers(world: World, v: Vehicle): Blocker[] {
   const standing = [...parkedVehicles(world, v.id, getHitchedTowIds(world)), ...fieldBlockers(world, v)];
-  if (!v.brain) return standing;
+  if (!followsTraffic(world, v)) return standing;
   return [...standing, ...conflicts(world, v, 1).flatMap((x) => sweptPath(world, v, x))];
 }
 
@@ -327,7 +359,7 @@ function conflicts(world: World, v: Vehicle, leadTurns: 0 | 1): Vehicle[] {
 }
 
 function closesOn(world: World, v: Vehicle, x: Vehicle, leadTurns: 0 | 1): boolean {
-  const gap = gapAhead(world, v, x);
+  const gap = gapAhead(world, v, x, RULES.traffic.crossCone);
   return gap !== null && gap < brakingReach(world, v, x) + leadTurns * (v.speed + x.speed) && pathsMeet(world, v, x);
 }
 
@@ -340,8 +372,8 @@ function facesParked(world: World, v: Vehicle): boolean {
 }
 
 function facesOncoming(world: World, v: Vehicle): boolean {
-  if (!givesWay(v)) return false;
-  return conflicts(world, v, 0).some((x) => v.id < x.id && givesWay(x) && closesOn(world, x, v, 0));
+  if (!givesWay(world, v)) return false;
+  return conflicts(world, v, 0).some((x) => v.id < x.id && givesWay(world, x) && closesOn(world, x, v, 0));
 }
 
 function horizon(world: World, v: Vehicle): { vs: number; t: number } {
@@ -385,8 +417,8 @@ function onOwnRope(world: World, tower: Vehicle, x: Vehicle): boolean {
   return ropeClientOf(world, tower.id) === x.id;
 }
 
-function gapAhead(world: World, v: Vehicle, x: Vehicle): number | null {
-  if (Math.abs(angleDiff(v.heading, bearing(v.pos, x.pos))) >= Math.PI / 4) return null;
+function gapAhead(world: World, v: Vehicle, x: Vehicle, cone: number = RULES.traffic.parkedCone): number | null {
+  if (Math.abs(angleDiff(v.heading, bearing(v.pos, x.pos))) >= cone) return null;
   return dist(v.pos, x.pos) - vehicleStats(world, v).radius - vehicleStats(world, x).radius;
 }
 
@@ -401,7 +433,7 @@ function brakingReach(world: World, v: Vehicle, x: Vehicle): number {
 }
 
 function facesOff(world: World, v: Vehicle, x: Vehicle, gap: number): boolean {
-  if (!givesWay(x) || !wantsToDrive(x) || gapAhead(world, x, v) === null) return false;
+  if (!givesWay(world, x) || !wantsToDrive(x) || gapAhead(world, x, v) === null) return false;
   return gap < RULES.yieldDistance + vehicleStats(world, v).accel + vehicleStats(world, x).accel;
 }
 
@@ -410,8 +442,8 @@ function wantsToDrive(x: Vehicle): boolean {
   return !!order && order.kind !== "brake" && dist(x.pos, order.dest) > RULES.arriveRadius * 2;
 }
 
-function givesWay(x: Vehicle): boolean {
-  if (!x.brain) return false;
+function givesWay(world: World, x: Vehicle): boolean {
+  if (!x.brain) return x.id === world.player.vehicleId && !x.direct && !inCombat(world, x);
   const kind = topGoal(x)?.kind;
   return kind !== "fight" && kind !== "flee";
 }

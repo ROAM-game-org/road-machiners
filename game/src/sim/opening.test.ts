@@ -19,7 +19,8 @@ import type { GridItem, PartInstance, World } from './types';
 import { dist } from './vec';
 import { playerSees } from './vision';
 import { maxHp } from './wear';
-import { carriedWorld, endTurn, newWorld, startPose } from './world';
+import { carriedWorld, endTurn, newWorld } from './world';
+import { startPose } from './start-pose';
 
 const KIT = startKit('standard');
 
@@ -79,7 +80,7 @@ describe('new-game opening', () => {
     expect(openingStockOf(newWorld(1, startKit('combat'), TEST_MAP, defaultSetup('roaming'), false))).toBeNull();
     const { world } = carriedWorld({
       seed: 5, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: null,
-      autoFire: null, autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: defaultSetup('roaming'), quests: { world: {}, local: {} }, notes: [], revisions: {},
+      autoFire: null, autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: defaultSetup('roaming'), quests: { world: {}, local: {} }, run: null, notes: [], revisions: {},
     }, KIT, () => TEST_MAP, () => 7);
     expect(openingStockOf(world)).toBeNull();
     expect(world.obstacles.some((o) => o.id === OPENING_WRECK_ID)).toBe(false);

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PERF } from '../data/perf';
 import { RULES } from '../data/rules';
 import { TERRAIN } from '../data/terrain';
-import { planNpcOrders, routeBlockers, trafficStops } from './ai';
+import { planNpcOrders, routeBlockers, trafficStops, yieldsToTraffic } from './ai';
 import { topGoal } from './npc-activities';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { startEscort } from './tow';
@@ -17,7 +17,7 @@ function lowerIdFirst(first: Vehicle, second: Vehicle): void {
 describe('NPC driving', () => {
   it('uses the obstacle-aware driver on every turn', () => {
     const w = emptyWorld({ x: 40, y: 30 });
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
     npc.brain = npcBrain('buggy', npc.pos, ['raider']);
     planNpcOrders(w);
     expect(npc.direct).toBe(false);
@@ -25,10 +25,10 @@ describe('NPC driving', () => {
 
   it('a parked truck ahead whose loot is gone before it thinks gives no face off', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const first = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 });
+    const first = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 });
     first.brain = npcBrain('trader', first.pos, ['trader']);
     first.heading = 0;
-    const second = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 103, y: 100 });
+    const second = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 103, y: 100 });
     second.brain = npcBrain('trader', second.pos, ['trader']);
     second.heading = Math.PI;
     second.brain.goals.push({ kind: 'loot', targetId: 'cargo-gone', destination: { x: 130, y: 100 }, phase: 'travel', reason: 'takeHandedCargo' });
@@ -41,11 +41,11 @@ describe('NPC driving', () => {
 describe('face offs', () => {
   function noseToNose(): { w: World; first: Vehicle; second: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
-    const first = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 });
+    const first = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 });
     first.brain = npcBrain('trader', first.pos, ['trader']);
     first.heading = 0;
     first.brain.goals.push({ kind: 'explore', targetId: null, destination: { x: 150, y: 100 }, phase: 'travel', reason: 'tripToSite' });
-    const second = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 104, y: 100 });
+    const second = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 104, y: 100 });
     second.brain = npcBrain('trader', second.pos, ['trader']);
     second.heading = Math.PI;
     lowerIdFirst(first, second);
@@ -79,7 +79,7 @@ function scene(x: number, y: number, heading: number, speed: number): { w: World
   const me = w.vehicles[0];
   me.heading = heading;
   me.speed = speed;
-  const npc = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 });
+  const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 });
   npc.brain = npcBrain('trader', npc.pos, ['trader']);
   npc.heading = 0;
   npc.speed = 4;
@@ -94,6 +94,65 @@ function corridor(w: World): void {
     w.obstacles.push({ id: `s${x}`, kind: 'rock', pos: { x, y: 103 }, r: 1 });
   }
 }
+
+describe('the player on a route in traffic', () => {
+  function meeting(): { w: World; me: Vehicle; npc: Vehicle } {
+    const { w, npc } = scene(118, 100, Math.PI, 7);
+    const me = w.vehicles[0];
+    me.pos = { x: 100, y: 100 };
+    me.heading = 0;
+    me.speed = 4;
+    npc.pos = { x: 114, y: 100.5 };
+    npc.heading = Math.PI;
+    npc.speed = 4;
+    npc.brain!.goals.push({ kind: 'explore', targetId: null, destination: { x: 60, y: 100 }, phase: 'travel', reason: 'tripToSite' });
+    npc.order = { kind: 'through', dest: { x: 60, y: 100 }, pace: 4 };
+    me.order = { kind: 'through', dest: DEST, pace: 4 };
+    return { w, me, npc };
+  }
+
+  it('the lower id brakes and the other goes around', () => {
+    const { w, me, npc } = meeting();
+    expect(me.id < npc.id).toBe(true);
+    expect(yieldsToTraffic(w, me)).toBe(true);
+    expect(trafficStops(w, npc, { x: 60, y: 100 })).toBe(false);
+  });
+
+  it('keeps its order while it waits', () => {
+    const { w, me } = meeting();
+    const before = structuredClone(me.order);
+    yieldsToTraffic(w, me);
+    expect(me.order).toEqual(before);
+  });
+
+  it('never yields when driven by hand', () => {
+    const { w, me } = meeting();
+    me.direct = true;
+    expect(yieldsToTraffic(w, me)).toBe(false);
+  });
+
+  it('never yields to a NPC driver, which holds its own brake order', () => {
+    const { w, npc } = meeting();
+    expect(yieldsToTraffic(w, npc)).toBe(false);
+  });
+});
+
+describe('crossing traffic', () => {
+  it.each([
+    ['converging from 70 degrees to the side', -Math.PI / 2, true],
+    ['diverging at the same angle', Math.PI / 2, false],
+  ])('counts a truck as a conflict only when its path meets: %s', (_name, heading, avoids) => {
+    const w = emptyWorld({ x: 60, y: 60 });
+    const subject = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 });
+    subject.brain = npcBrain('trader', subject.pos, ['trader']);
+    subject.heading = 0;
+    subject.speed = 4;
+    const other = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100 + 6 * Math.cos(1.22), y: 100 + 6 * Math.sin(1.22) }, heading);
+    other.brain = npcBrain('trader', other.pos, ['trader']);
+    other.speed = 4;
+    expect(routeBlockers(w, subject).filter((b) => b.pos !== w.vehicles[0].pos).length > 0).toBe(avoids);
+  });
+});
 
 describe('NPC traffic', () => {
   it.each([
@@ -135,10 +194,10 @@ describe('NPC traffic', () => {
 
   it('routes around the stretch a truck ahead still covers when the driver gets there', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const driver = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { x: 100, y: 100 }, (-53 * Math.PI) / 180);
+    const driver = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 100, y: 100 }, (-53 * Math.PI) / 180);
     driver.brain = npcBrain('scavenger', driver.pos, ['scavenger']);
     driver.speed = 5.73;
-    const ahead = addVehicle(w, 'roamers', 'scout', ['mg', 'stockEngine'], { x: 100.35, y: 96.19 }, (-9 * Math.PI) / 180);
+    const ahead = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 100.35, y: 96.19 }, (-9 * Math.PI) / 180);
     ahead.brain = npcBrain('roamer', ahead.pos, ['roamer']);
     ahead.speed = 4.19;
     const merge = { x: ahead.pos.x + Math.cos(ahead.heading) * 2.3, y: ahead.pos.y + Math.sin(ahead.heading) * 2.3 };
@@ -149,7 +208,7 @@ describe('NPC traffic', () => {
     const oncoming = (playerAt: { x: number; y: number }) => {
       const { w, npc } = scene(playerAt.x, playerAt.y, 0, 0);
       corridor(w);
-      const other = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 112, y: 100 }, Math.PI);
+      const other = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 112, y: 100 }, Math.PI);
       other.brain = npcBrain('trader', other.pos, ['trader']);
       other.speed = 5;
       return trafficStops(w, npc, DEST);
@@ -158,26 +217,36 @@ describe('NPC traffic', () => {
     expect(oncoming({ x: 100, y: 100 + TERRAIN.vision.radius + PERF.liveMargin + 10 })).toBe(false);
   });
 
-  it('the player routes around parked vehicles only', () => {
+  it('the player routes around the swept path of an oncoming trader', () => {
     const w = emptyWorld({ x: 100, y: 100 });
     const me = w.vehicles[0];
     me.speed = 4;
-    const npc = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 118, y: 100 }, Math.PI);
+    const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 118, y: 100 }, Math.PI);
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     npc.speed = 7;
-    expect(routeBlockers(w, me)).toEqual([]);
+    expect(routeBlockers(w, me).length).toBeGreaterThan(0);
+  });
+
+  it('a brainless truck the player does not drive routes around parked vehicles only', () => {
+    const w = emptyWorld({ x: 100, y: 100 });
+    const hauler = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 120 }, 0);
+    hauler.speed = 4;
+    const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 118, y: 120 }, Math.PI);
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    npc.speed = 7;
+    expect(routeBlockers(w, hauler)).toEqual([{ pos: w.vehicles[0].pos, r: expect.any(Number) }]);
   });
 });
 
 describe('oncoming NPCs', () => {
   function headOn(): { w: World; first: Vehicle; second: Vehicle } {
     const w = emptyWorld({ x: 100, y: 130 });
-    const first = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 });
+    const first = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 });
     first.brain = npcBrain('trader', first.pos, ['trader']);
     first.heading = 0;
     first.speed = 4;
     first.brain.goals.push({ kind: 'explore', targetId: null, destination: { x: 150, y: 100 }, phase: 'travel', reason: 'tripToSite' });
-    const second = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 114, y: 100.5 }, Math.PI);
+    const second = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 114, y: 100.5 }, Math.PI);
     second.brain = npcBrain('trader', second.pos, ['trader']);
     second.speed = 4;
     second.brain.goals.push({ kind: 'explore', targetId: null, destination: { x: 50, y: 100 }, phase: 'travel', reason: 'tripToSite' });
@@ -194,10 +263,10 @@ describe('oncoming NPCs', () => {
 
   it('a lower id at rest waits for the higher id closing on it, which goes around', () => {
     const w = emptyWorld({ x: 270, y: 190 });
-    const first = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { x: 268.77, y: 160.4 }, (-40.78 * Math.PI) / 180);
+    const first = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 268.77, y: 160.4 }, (-40.78 * Math.PI) / 180);
     first.brain = npcBrain('scavenger', first.pos, ['scavenger']);
     first.brain.goals.push({ kind: 'explore', targetId: null, destination: { x: 317, y: 102.75 }, phase: 'travel', reason: 'tripToSite' });
-    const second = addVehicle(w, 'roamers', 'scout', ['mg', 'stockEngine'], { x: 270.6, y: 156.71 }, (141.44 * Math.PI) / 180);
+    const second = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 270.6, y: 156.71 }, (141.44 * Math.PI) / 180);
     second.brain = npcBrain('roamer', second.pos, ['roamer']);
     second.speed = 3.22;
     second.brain.goals.push({ kind: 'explore', targetId: null, destination: { x: 223.7, y: 194.2 }, phase: 'travel', reason: 'tripToSite' });
@@ -240,10 +309,10 @@ describe('oncoming NPCs', () => {
 describe('getting unstuck', () => {
   function waitingLeader(): { w: World; leader: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
-    const leader = addVehicle(w, 'convoys', 'hauler', ['mg', 'workhorseDiesel'], { x: 100, y: 100 });
+    const leader = addVehicle(w, 'bowl', 'hauler', ['mg', 'workhorseDiesel'], { x: 100, y: 100 });
     leader.brain = npcBrain('convoy', leader.pos, ['supplier']);
     leader.brain.goals = [{ kind: 'explore', targetId: null, destination: { x: 170, y: 100 }, phase: 'travel', reason: 'tripToSite' }];
-    const guard = addVehicle(w, 'convoys', 'scout', ['mg', 'stockEngine'], { x: 60, y: 100 });
+    const guard = addVehicle(w, 'bowl', 'scout', ['mg', 'stockEngine'], { x: 60, y: 100 });
     guard.brain = npcBrain('convoyGuard', guard.pos, ['guard']);
     startEscort(w, guard, leader, null, 0);
     return { w, leader };

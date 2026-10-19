@@ -2,21 +2,23 @@
 import { formatSupport, loadBank, recoverBank, reportFailures, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
-import { CONFIG, ERROR_REPORT_URL, SFX_BYTES } from '../config';
-import { BANK, MIX, SOUNDS } from '../data/sounds';
+import { CONFIG, ERROR_REPORT_URL, GAME_VERSION, SFX_BYTES } from '../config';
+import { BANK, BOOT_SOUNDS, MIX, SOUNDS } from '../data/sounds';
+import { bankKitLoader, CombatMusic } from './combat-music';
 import { startKit } from '../data/start';
-import { MAPGEN } from '../data/terrain';
 import { PHYSICS } from '../data/physics';
 import { initPhysics } from '../phys/drive';
-import { fetchAsset } from '../fetch-asset';
 import { perfSnapshot, resetPerf } from '../perf';
-import { decodeMap, type BakedMap } from '../sim/terrain';
+import { fetchMap } from './map-file';
 import type { World, WorldSetup } from '../sim/types';
 import { newGame } from '../sim/new-game';
 import { DebugConsole, Noclip } from '../ui/console';
 import { BOOT_TEXT } from '../ui/boot-progress';
 import { BootScreen } from '../ui/boot-screen';
+import { fontsReady } from '../ui/fonts';
 import { uiRoot } from '../ui/dom';
+import { watchInputMode } from '../ui/input-mode';
+import { loadUiSize, windowExtent } from '../ui/ui-size';
 import { loadLanguage, relocalize } from '../text/language';
 import type { DevLocale } from '../text/msg';
 import type { QuestLanguage } from '../data/quests';
@@ -27,16 +29,16 @@ import { chooseSaveFate, chooseStart, saveErrorText, showCarryReport, showRepair
 import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
-import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, onReport, reportError } from './crash';
+import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteError, onReport, reportError } from './crash';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { clearGame, hasRepair, loadSave, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
 import { openSaves } from './save-db';
 import { RunLog } from './run-log';
-import { allSlots, jumpToQuest, newestSlot, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
+import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
 import { rescueSave } from './save-rescue';
-import { loadModels } from './render/models';
+import { loadModels, type ModelFailure } from './render/models';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
 
@@ -44,10 +46,6 @@ function element(id: string): HTMLElement {
   const el = document.getElementById(id);
   if (!el) throw new Error(`#${id} element missing from the page`);
   return el;
-}
-
-async function fetchMap(): Promise<BakedMap> {
-  return decodeMap(new Uint8Array(await fetchAsset('Map file', MAPGEN.file)));
 }
 
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };
@@ -62,9 +60,9 @@ async function bootWorld(): Promise<Booted> {
 }
 
 async function startSlot(): Promise<SlotId | null> {
-  const newest = newestSlot(slots, CONFIG.saveSlots);
-  if (urlPlay()) return newest;
-  return boot.aside(() => chooseStart(newest, newGameActions));
+  const saves = listSaves(slots, CONFIG.saveSlots);
+  if (urlPlay()) return saves[0]?.slot ?? null;
+  return boot.aside(() => chooseStart(saves, newGameActions));
 }
 
 async function bootRequested(request: Exclude<BootRequest, SlotId>): Promise<Booted> {
@@ -138,6 +136,9 @@ installCrashScreen();
 const questJump = import.meta.env.DEV ? questJumpOf(window.location.search) : null;
 const saveKey = questJump ? `${SAVE_KEY}-quest-view` : SAVE_KEY;
 const language = loadLanguage(window.localStorage, window.location.search, import.meta.env.DEV, document.documentElement);
+const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent());
+window.addEventListener('resize', () => sizeOfUi.refit(windowExtent()));
+watchInputMode(uiRoot(), sizeOfUi);
 const questLanguageOf = (locale: DevLocale): QuestLanguage => (locale === 'pseudo' ? 'en' : locale);
 setQuestLanguage(questLanguageOf(language.current()));
 let relocalizeGame: (() => void) | null = null;
@@ -159,12 +160,18 @@ function whenVisible(run: () => void): void {
     document.addEventListener('visibilitychange', onChange);
   }
 }
+function reportStandIns(failures: ModelFailure[]): void {
+  for (const { name, error } of failures) {
+    noteError(new Error(`Model ${name} failed to load and stays a stand-in box: ${error instanceof Error ? error.message : String(error)}`));
+  }
+}
 async function recoverSounds(loaded: LoadedBank): Promise<void> {
-  const recovered = await recoverBank(mixer.ctx, loaded, SOUNDS, soundOptions);
+  const recovered = await recoverBank(mixer.ctx, loaded, BOOT_SOUNDS, soundOptions);
   for (const failure of loaded.failures) console.warn(`Sound ${failure.file} failed to decode as ${failure.kind} and ${recovered.has(failure.file) ? 'decoded later' : 'stays a stand-in'}`, failure.errors);
   for (const report of reportFailures(loaded.failures, loaded.bank.size, recovered, soundOptions.support)) reportError(report);
 }
 const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location.reload(), reportError));
+const uiFonts = fontsReady(language.current() === 'ru' ? 'ru' : 'en');
 const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
@@ -172,10 +179,13 @@ const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 bootStep('loading physics, models and sounds');
 const soundOptions: BankOptions = { expectedBytes: SFX_BYTES, support: formatSupport(), progress: boot.count('sounds') };
+const musicFaults: unknown[] = [];
+let reportMusicFault: (err: unknown) => void = (err) => musicFaults.push(err);
+const music = new CombatMusic(mixer.ctx, mixer.input('music'), bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support }), Math.random, (err) => reportMusicFault(err));
 const loading = Promise.all([
   boot.track('physics', initPhysics()),
-  boot.track('models', loadModels(undefined, boot.count('models'))),
-  boot.track('sounds', loadBank(mixer.ctx, SOUNDS, soundOptions)),
+  boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns)),
+  boot.track('sounds', Promise.all([loadBank(mixer.ctx, BOOT_SOUNDS, soundOptions), music.ready()]).then(([bank]) => bank)),
 ]);
 bootStep('loading the map');
 const map = await boot.track('map', fetchMap());
@@ -189,7 +199,7 @@ const newGameActions: NewGameActions = {
 };
 bootStep('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
-const log = new RunLog(slots.backend, runId, (err) => slots.onError(err));
+const log = new RunLog(slots.backend, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
 bootStep('building the ground');
 await boot.track('ground', () => groundTexture(world));
@@ -203,7 +213,7 @@ const radio = new RadioPanel(new RadioStation(Math.random));
 const soundSettings = new SoundSettings(mixer, window.localStorage, radio.faceplate, radio.keys, () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
-const game = await boot.track('scene', () => new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), () => soundSettings.toggleMute(), radio, surface));
+const game = await boot.track('scene', () => new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), music, () => soundSettings.toggleMute(), radio, surface));
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
   game.relanguageQuest();
@@ -215,8 +225,12 @@ const opening = startKit(modeKit(world.setup.mode, CONFIG.startKit)).opening;
 if (fresh && opening) game.hud.note(world, t(`opening.${opening.log}`), "");
 const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), new Noclip(game, view, PHYSICS.metersPerTile));
 keepRunningOnErrors((text) => debugConsole.error(text));
+reportMusicFault = reportError;
+musicFaults.forEach(reportError);
 onEveryError(() => game.holdSaves());
 bootStep('running');
+await uiFonts;
+boot.showText();
 if (loadedBank.failures.length) whenVisible(() => void recoverSounds(loadedBank).catch(reportError));
 gameContext.watch({ world: () => game.state, log: () => game.logTexts(), slots });
 performance.mark('roam:ready');

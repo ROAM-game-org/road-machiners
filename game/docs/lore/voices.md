@@ -20,19 +20,19 @@ He treats a stranger as a guest in the shade and answers without hurry.
 
 Sample: "Water runs downhill, and so do people, so folk came for the canals and stayed for the seed."
 
-### Hattie, well house keeper
+### Hattie, water seller at the gate yard
 
-Hattie talks of buckets, coin, bread and hearsay. She compares people to what they cost and what they sell.
+Hattie talks of drivers, roads, tanks and who came through. She sizes people up by how they arrive: dusty, thirsty, in a hurry or towed in.
 
-Her sentences are quick and teasing. She turns a plain fact into a small story.
+Her sentences are quick and dry.
 
-She names her source and then doubts it. She ends with a sly remark about the listener.
+She asks a driver where they came from. She tells the plain truth about the road and says when she only heard it. She teases people she likes.
 
-She cares about gossip and about being paid. She avoids anything she has not heard from somebody.
+She cares that no driver leaves thirsty. She avoids talking about what lies past the gate.
 
-She treats a stranger as a customer who might turn out to be worth knowing.
+She treats a stranger as a driver who needs filling up and sizing up.
 
-Sample: "My cousin saw it. Well, he heard it, and my cousin hears a great deal when he has been drinking."
+Sample: "You're the one they dragged in on a chain. Sit down before you fall down. I'm Hattie, and this is my well."
 
 ### Dag, Farmers patrol
 
@@ -78,17 +78,31 @@ Sample: "The hall can say what it likes, but I know what my hand did."
 
 ### Patrol driver at the Granary
 
-The driver talks of sacks, pins, rings and the order of a run. He counts costs in sacks.
+The driver talks of sacks, tires, loads and the order of a run. He counts costs in sacks.
 
 His sentences follow the job from first step to last. He speaks while he works and glances at the truck.
 
 He calls a stranger friend. He explains a thing by what it costs or what it holds.
 
-He cares about the count being honest and the pins being tight. He avoids saying he has seen anything he only heard.
+He cares about the count being honest and the load being tied down. He avoids saying he has seen anything he only heard.
 
-He treats a stranger as a driver who should check the pins before anything else.
+He treats a stranger as a driver who should check the tires before anything else.
 
 Sample: "A sack is cheaper than a truck, so nobody argues about it."
+
+### Mags Corrin, weigher at the gate yard
+
+Mags talks of weight, crates, chalk and what iron turns into: hinges, ploughshares, gate plates. She sees every crate as the thing it will become.
+
+Her sentences are short and counted out, like weights going onto a beam. She states the weight first and the use after it.
+
+She looks into a driver's bed before she looks at the driver. She chalks as she talks.
+
+She wants steady sellers before the rains rust the canal gates. She avoids asking where anything came from, and says so.
+
+She treats a stranger as a load that hasn't been weighed yet.
+
+Sample: "That rebar's a gate hinge by the rains. I don't ask whose truck it came off."
 
 ## Nose, the Salvage Yard and the road
 
@@ -108,7 +122,7 @@ Sample: "Nose. The dispatch desk is mine. Freight on the north-east road or thro
 
 ### Lena
 
-Vocabulary: bench, weld, bolt, pin, plate, load, grease and bearings. She compares everything to parts that hold or fail.
+Vocabulary: bench, weld, bolt, brake rod, plate, load, grease and bearings. She compares everything to parts that hold or fail.
 
 Rhythm: quick and bossy. She gives an order, then the reason, then a verdict of one short sentence. She uses many contractions and talks loosely.
 
@@ -212,7 +226,7 @@ Rhythm: short and careful when he lies, and longer when he tells the truth. He s
 
 Habits: he checks his watch when he lies. He offers money before he offers a reason.
 
-Cares about: his stripes, and his sister's ration card, which his rank pays for. He avoids the word pin.
+Cares about: his stripes, and his sister's ration card, which his rank pays for. He avoids the words brake rod.
 
 Strangers: friendly until he learns where they have been. Then he wants to know what they carried out.
 
@@ -220,17 +234,17 @@ Sample: "Look, I've driven that track four years. You don't know the bend. I do.
 
 ### Private Ilan Duvall
 
-Vocabulary: rings, seats, pins, loads and his mother. He compares things to mounts: what holds, what slides, what was never seated right.
+Vocabulary: brake rods, seats, bends, loads and his mother. He compares things to brakes: what holds, what slips, what was never made for the bend.
 
 Rhythm: blunt and young. He says the thing, then stops. He doesn't soften it.
 
-Habits: he rubs his sling strap when he is angry. He turns his half of the pin in his fingers while he talks.
+Habits: he rubs his sling strap when he is angry. He turns his half of the brake rod in his fingers while he talks.
 
-Cares about: never sitting under a one-pin mount again. He avoids talking about the moment the gun swung.
+Cares about: never riding behind a cheap brake rod again. He avoids talking about the moment the wagon would not slow.
 
-Strangers: he trusts a stranger who has looked at the ring, and nobody else.
+Strangers: he trusts a stranger who has looked at the rod, and nobody else.
 
-Sample: "The ring was fine. The pin wasn't. Write that down, somebody."
+Sample: "The bend was fine. The rod wasn't. Write that down, somebody."
 
 ## Roadside radio
 
@@ -289,3 +303,63 @@ Cares about: the delivery. A friend is someone who kept him rolling.
 Strangers: the player is a stranger until the first fuel, then someone he owes or someone he remembers.
 
 Sample: "Courier here. I have a run to finish and I will not make it on what is left."
+
+## Chaos Highway
+
+The highway has its own speakers. Geezer is the player, so his sheet is the voice of the narration in the head of a man who has stopped talking about himself. See [Chaos Highway](chaos-highway.md) for the world.
+
+### Ala, hauler driver
+
+Ala talks of money, stretches, fuel and the next fort. She compares things to loads and to what a day on the road costs.
+
+Her sentences are short and level. She counts out loud, and she says a sum before she says anything else.
+
+She wants a driver who asks no questions and does the job. She steers around Maya until the first stretch, around her father until he asks or the eighth stretch, and around what is in the trailer until the fourth.
+
+She notices the truck first, then the scars. A man's gear tells her what he costs.
+
+Strangers: a hire, until one saves her life. Then she asks once, and only once.
+
+Sample: "Eighty for the stretch. Count it. I don't pay twice."
+
+### Geezer, as narration
+
+The narration runs through the head of a man who checks tires and avoids the past. It is dry and tired, and it sizes up every truck by what it can take from him.
+
+Its sentences run short. It answers a question with the smallest true thing and goes back to the road.
+
+It checks every tire before it speaks. It avoids the Burnt Drivers, the tank line, the pass, his age, and why he took the job. When the past comes up, the narration looks at something else.
+
+He wants a ride that ends it. By the end of the road, he wants the people behind her to arrive, and one girl to drink.
+
+Sample: "All four tires are even. Somebody keeps this truck alive. Nobody does that for free."
+
+### Tibor, barman
+
+Tibor talks of what people cost, what they carry and who owes what. He sells men like parts.
+
+His sentences are smooth and quick, like a trader's. He names a price and a warranty in one breath.
+
+He wants the sale made before the rival at the next table hears of it. He avoids saying who pays him, and he never names the Keepers' office.
+
+He notices the truck outside the window and the money in the room.
+
+Sample: "Rode with Magnus, they say. Scars to prove it. I don't sell lies, only men whose lies are cheap."
+
+### Vale, hunter
+
+A minor speaker, a hunter for hire who leads a small crew. She names the price and the threat in one breath, and she never says a thing twice.
+
+Sample: "That scout's got one driver. One."
+
+### Bram, old gatekeeper
+
+A minor speaker with one job: a Keeper at a gate who has counted trucks for thirty years and remembers a burn. He says one thing and no more, and he has no quirk.
+
+Sample: "I knew a man with a burn like that."
+
+### Sara, Ala's mother
+
+A minor speaker, heard only in relay slips that Ala reads aloud. Her slips are short, hard and kind. She never asks for anything for herself.
+
+Sample: "Don't come back. Keep going north. Maya asks for you every hour."

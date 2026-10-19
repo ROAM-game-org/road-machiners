@@ -8,6 +8,7 @@ import { el } from './dom';
 import { siteName } from '../text/names';
 import { canvasTransform, discFrame, pinToRim, toPx, toTile, wholeFrame, type MapFrame } from './map-geometry';
 import { token } from './tokens';
+import { uiSize } from './ui-size';
 
 export type MapShape = { kind: 'disc'; reach: number } | { kind: 'whole' };
 export type MapTruck = { pos: Vec; heading: number };
@@ -107,8 +108,8 @@ export class MapView {
       }
       const box = this.canvas.getBoundingClientRect();
       tip.style.display = '';
-      tip.style.left = `${e.clientX - box.left + TIP_GAP}px`;
-      tip.style.top = `${e.clientY - box.top + TIP_GAP}px`;
+      tip.style.left = `${uiSize().toLayer(e.clientX - box.left) + TIP_GAP}px`;
+      tip.style.top = `${uiSize().toLayer(e.clientY - box.top) + TIP_GAP}px`;
     });
   }
 

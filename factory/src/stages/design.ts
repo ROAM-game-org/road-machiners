@@ -1,7 +1,8 @@
 import { moveCard } from '../card-events';
-import { BRANCH, GAME_DIR, TASK_FILE, WONT_DO_LABEL, type Ctx } from '../types';
+import { BRANCH, BUG_LABEL, GAME_DIR, HOTFIX_LABEL, TASK_FILE, WONT_DO_LABEL, type Ctx } from '../types';
 import { releaseBundle } from './bundle';
-import { agentHome, askAuthor, baseBranchOf, catchUpBase, fillPrompt, fitComment, guardAndPush, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, workDir, writeIssueInput } from './common';
+import { agentHome, askAuthor, baseBranchOf, catchUpBase, fillPrompt, fitComment, guardAndPush, prepareOutputs, promptFile, readOutput, runAgent, throwIfNeedsCommittee, workDir, writeIssueInput } from './common';
+import { writeGroomedInput } from './groom';
 import { existsSync, readFileSync } from 'node:fs';
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
@@ -13,7 +14,9 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const home = agentHome(clone, GAME_DIR);
   prepareOutputs(ctx, issue, home);
   await writeIssueInput(ctx, issue, home);
-  const prompt = fillPrompt('design', { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote });
+  writeGroomedInput(ctx, issue, home);
+  const bugExpansion = await bugExpansionFor(ctx, issue);
+  const prompt = fillPrompt('design', { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, bugExpansion });
   await runAgent(ctx, issue, 'design', 'design', prompt, { effort: ctx.cfg.designEffort });
   throwIfNeedsCommittee(home);
   const questions = readOutput(home, 'questions.json');
@@ -22,13 +25,18 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   if (reason !== null) return refuse(ctx, issue, reason);
   requirePlan(home, TASK_FILE(issue));
   await guardAndPush(ctx, issue, base, 'design');
-  await postDesign(ctx, issue, readFileSync(`${home}/${TASK_FILE(issue)}`, 'utf8'));
+  await postDesign(ctx, issue, readFileSync(`${home}/${TASK_FILE(issue)}`, 'utf8'), readOutput(home, 'summary.md'));
   await moveCard(ctx, issue, 'Implementation', 'planned');
+}
+
+async function bugExpansionFor(ctx: Ctx, issue: number): Promise<string> {
+  const { labels } = await ctx.github.issue(issue);
+  return labels.includes(BUG_LABEL) || labels.includes(HOTFIX_LABEL) ? promptFile('design-bug') : '';
 }
 
 async function askBack(ctx: Ctx, issue: number, text: string): Promise<void> {
   const questions = parseQuestions(text);
-  await askAuthor(ctx, issue, questions, 'design');
+  await askAuthor(ctx, issue, questions, 'design', 'Design hit a blocker it cannot settle by a sensible reading.');
   await moveCard(ctx, issue, 'Triage', 'questions');
 }
 
@@ -61,7 +69,14 @@ function planText(task: string): string {
   return (end < 0 ? rest : rest.slice(0, end)).join('\n').trim();
 }
 
-async function postDesign(ctx: Ctx, issue: number, taskFile: string): Promise<void> {
+const SUMMARY_CHARS = 3000;
+
+function summaryPart(summary: string | null): string {
+  const text = summary?.trim() ?? '';
+  return text === '' ? '' : `**Planned change**\n\n${text.slice(0, SUMMARY_CHARS)}\n\n`;
+}
+
+async function postDesign(ctx: Ctx, issue: number, taskFile: string, summary: string | null): Promise<void> {
   const body = fitComment(taskFile, 'the factory work clone');
-  await ctx.github.comment(issue, `<details>\n<summary>Design and plan</summary>\n\n${body}\n\n</details>`);
+  await ctx.github.comment(issue, `${summaryPart(summary)}<details>\n<summary>Design and plan</summary>\n\n${body}\n\n</details>`);
 }

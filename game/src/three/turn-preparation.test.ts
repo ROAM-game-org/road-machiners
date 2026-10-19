@@ -11,6 +11,7 @@ import { computeTurn } from "../phys/turn";
 import { restoreDrive } from "../phys/drive";
 import { emptyWorld } from "../sim/testkit";
 import { setMoveOrder } from "../sim/world";
+import { currentQuestLanguage, setQuestLanguage } from "../sim/quests";
 import type { World } from "../sim/types";
 import { reportError } from "./crash";
 import { TurnPreparation } from "./travel";
@@ -56,6 +57,7 @@ beforeEach(() => {
   };
 });
 afterEach(() => {
+  setQuestLanguage("en");
   vi.useRealTimers();
   freeDrive(drive);
   vi.unstubAllGlobals();
@@ -71,6 +73,28 @@ it("prepares once and exposes a result only when ready for the same world", () =
   worker.respond({ id: worker.requests[0].id, turn: reply, perf: {} });
   expect(turns.take(world)).toBe(reply);
   expect(turns.take(world)).toBeNull();
+});
+
+it("posts every turn request in the current quest language", () => {
+  setQuestLanguage("ru");
+  const turns = new TurnPreparation();
+  turns.prepare(world, drive);
+  expect(TestWorker.latest.requests[0].questLanguage).toBe(currentQuestLanguage());
+  expect(TestWorker.latest.requests[0].questLanguage).toBe("ru");
+});
+
+it("computes a prepared turn again after a language switch", () => {
+  const turns = new TurnPreparation();
+  turns.prepare(world, drive);
+  const worker = TestWorker.latest;
+  setQuestLanguage("ru");
+  worker.respond({ id: worker.requests[0].id, turn: reply, perf: {} });
+  expect(turns.take(world)).toBeNull();
+  turns.prepare(world, drive);
+  expect(worker.requests).toHaveLength(2);
+  expect(worker.requests[1].questLanguage).toBe("ru");
+  worker.respond({ id: worker.requests[1].id, turn: reply, perf: {} });
+  expect(turns.take(world)).toBe(reply);
 });
 
 it("discards a stale result after replanning and sends stable terrain only once", () => {
@@ -227,10 +251,20 @@ it("steps a turn the same from the worker's bytes as from a restored and re-capt
   const first = captureDrive(drive);
   const restored = restoreDrive(first);
   const again = captureDrive(restored);
-  const a = computeTurn({ world: state, drive: first }, terrain);
-  const b = computeTurn({ world: state, drive: again }, terrain);
+  const a = computeTurn({ world: state, drive: first, questLanguage: 'en' }, terrain);
+  const b = computeTurn({ world: state, drive: again, questLanguage: 'en' }, terrain);
   restored.world.free();
   const last = (t: typeof a) => t.world.vehicles.find((v) => v.id === world.player.vehicleId)!;
   expect(last(b).pos).toEqual(last(a).pos);
   expect(last(b).speed).toEqual(last(a).speed);
+});
+
+it("tells the worker the language quests play in", () => {
+  setQuestLanguage("ru");
+  try {
+    new TurnPreparation().prepare(world, drive);
+    expect(TestWorker.latest.requests[0].questLanguage).toBe("ru");
+  } finally {
+    setQuestLanguage("en");
+  }
 });

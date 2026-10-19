@@ -56,7 +56,7 @@ function fakeCtx(): Ctx {
 }
 
 describe('approve', () => {
-  it('moves an approved preview to Hardening under the approver, with no merge and no chat post', async () => {
+  it('moves an approved preview to Hardening under the approver, keeps its build, with no merge and no chat post', async () => {
     await approve(fakeCtx(), 7, 'bob');
     expect(calls).toEqual([
       'comment 7 Approved by bob in the committee chat. Hardening runs now. Then the factory checks it merged with dev and merges it by itself, with no new post.',
@@ -66,6 +66,7 @@ describe('approve', () => {
     expect(state.approvedResolving).toEqual({ 7: 'bob' });
     expect(state.approvalPosts).toEqual({ 200: 8 });
     expect(state.pendingApprovals).toEqual({});
+    expect(state.builds).toEqual({ 7: 'aaa1111', 8: 'bbb2222' });
   });
 
   it('ships a hotfix from main to itch.io, brings main into dev, leaves the open release and its candidate alone, closes the issue and tells only the committee', async () => {

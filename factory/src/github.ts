@@ -18,11 +18,13 @@ const PROJECT_FIELDS = 'id field(name: "Status") { ... on ProjectV2SingleSelectF
 const ITEMS_QUERY = `query($project: ID!, $cursor: String) { node(id: $project) { ... on ProjectV2 {
   items(first: 100, after: $cursor) { pageInfo { hasNextPage endCursor } nodes { id
     fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name } }
-    content { ... on Issue { number repository { nameWithOwner } labels(first: 50) { nodes { name } } } } } } } } }`;
+    content { ... on Issue { number title repository { nameWithOwner } labels(first: 50) { nodes { name } } } } } } } } }`;
 
 const CANDIDATES_QUERY = `query($search: String!, $cursor: String) { search(type: ISSUE, query: $search, first: 100, after: $cursor) {
   pageInfo { hasNextPage endCursor } nodes { ... on Issue { number title body createdAt state author { login } labels(first: 50) { nodes { name } }
     projectItems(first: 20) { nodes { project { id } } } } } } }`;
+
+const SEARCH_RESULT_CAP = 1000;
 
 type CandidateNode = {
   number: number; title: string; body: string; createdAt: string; state: Issue['state']; author: { login: string } | null;
@@ -42,7 +44,7 @@ const SET_STATUS = `mutation($project: ID!, $item: ID!, $field: ID!, $option: St
 type ItemNode = {
   id: string;
   fieldValueByName: { name?: string } | null;
-  content: { number?: number; repository?: { nameWithOwner: string }; labels?: { nodes: { name: string }[] } } | null;
+  content: { number?: number; title?: string; repository?: { nameWithOwner: string }; labels?: { nodes: { name: string }[] } } | null;
 };
 
 type ItemsPage = {
@@ -59,7 +61,13 @@ export class GithubError extends Error {}
 type Wait = (ms: number) => Promise<void>;
 const sleep: Wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
-type RawComment = { login: string; body: string; createdAt: string; appId: number | null };
+export const SUITE_WORKFLOW = 'game-suite.yml';
+export const SUITE_TESTS_STEP = 'tests';
+
+type RawRun = { status: string; conclusion: string | null; html_url: string };
+type RawJob = { status: string; steps: { name: string; conclusion: string | null }[] };
+
+type RawComment ={ login: string; body: string; createdAt: string; appId: number | null };
 
 type ClientConfig = Pick<FactoryConfig, 'githubAppId' | 'repo' | 'projectOwner' | 'projectNumber' | 'githubRetries' | 'githubRetryBaseSeconds' | 'githubTimeoutSeconds'>;
 
@@ -171,6 +179,20 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     }
   }
 
+  async function allIssues(): Promise<Issue[]> {
+    const search = `repo:${repo} is:issue`;
+    const found: Issue[] = [];
+    let cursor = '';
+    for (;;) {
+      const vars: Vars = cursor ? { search, cursor } : { search };
+      const page = JSON.parse(await graphql(CANDIDATES_QUERY, vars)) as CandidatesPage;
+      found.push(...page.data.search.nodes.map(toIssue));
+      if (found.length >= SEARCH_RESULT_CAP) throw new Error(`The issue search reached GitHub's cap of ${SEARCH_RESULT_CAP} results, so the issue list for grooming would be cut`);
+      if (!page.data.search.pageInfo.hasNextPage) return found;
+      cursor = page.data.search.pageInfo.endCursor;
+    }
+  }
+
   async function issue(number: number): Promise<Issue> {
     const out = await gh(['issue', 'view', String(number), '-R', repo, '--json', ISSUE_FIELDS]);
     return fill(JSON.parse(out) as RawIssue);
@@ -178,6 +200,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
 
   return {
     candidates,
+    allIssues,
     issue,
     async comments(number): Promise<IssueComment[]> {
       const rows = await lines(['api', `repos/${repo}/issues/${number}/comments`, '--paginate',
@@ -242,11 +265,30 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     async closePullRequest(branch, comment) {
       await gh(['pr', 'close', branch, '-R', repo, '--comment', comment]);
     },
-    async mergePullRequest(branch) {
-      await gh(['pr', 'merge', branch, '-R', repo, '--merge']);
-    },
     async reopen(number) {
       await gh(['issue', 'reopen', String(number), '-R', repo]);
+    },
+    async dispatchSuite(sha) {
+      const out = await gh(['api', '-X', 'POST', `repos/${repo}/actions/workflows/${SUITE_WORKFLOW}/dispatches`, '-f', 'ref=main', '-f', `inputs[sha]=${sha}`, '-F', 'return_run_details=true']);
+      const id = out.trim() === '' ? undefined : (JSON.parse(out) as { workflow_run_id?: number }).workflow_run_id;
+      if (typeof id !== 'number') throw new Error(`The dispatch of ${SUITE_WORKFLOW} for ${sha} returned no run id: ${out.trim()}`);
+      return id;
+    },
+    async suiteRun(id) {
+      const run = JSON.parse(await gh(['api', `repos/${repo}/actions/runs/${id}`])) as RawRun;
+      const { jobs } = JSON.parse(await gh(['api', `repos/${repo}/actions/runs/${id}/jobs`])) as { jobs: RawJob[] };
+      const done = run.status === 'completed';
+      return {
+        done,
+        started: done || jobs.some((job) => job.status === 'in_progress' || job.status === 'completed'),
+        passed: done && run.conclusion === 'success',
+        testsFailed: jobs.some((job) => job.steps.some((step) => step.name === SUITE_TESTS_STEP && step.conclusion === 'failure')),
+        conclusion: run.conclusion,
+        url: run.html_url,
+      };
+    },
+    async suiteLog(id) {
+      return gh(['run', 'view', String(id), '-R', repo, '--log-failed']);
     },
     async errorIssue(number) {
       const issue = JSON.parse(await gh(['issue', 'view', String(number), '-R', repo, '--json', 'number,state,stateReason,closedAt'])) as FingerprintIssue;
@@ -274,8 +316,10 @@ function toCard(node: ItemNode, repo: string): Card | null {
   const content = node.content;
   const column = node.fieldValueByName?.name;
   if (!content || !column || !content.number || !inRepo(content, repo)) return null;
-  return { itemId: node.id, issue: content.number, column: column as Column, labels: labelsOf(content) };
+  return { itemId: node.id, issue: content.number, column: column as Column, labels: labelsOf(content), title: titleOf(content) };
 }
+
+const titleOf = (content: NonNullable<ItemNode['content']>): string => content.title ?? '';
 
 function inRepo(content: NonNullable<ItemNode['content']>, repo: string): boolean {
   return content.repository?.nameWithOwner === repo;

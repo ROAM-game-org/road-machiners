@@ -1,5 +1,5 @@
 
-import type { Faction } from '../sim/types';
+import type { Vehicle } from '../sim/types';
 import type { ItemTone } from './partLooks';
 import { tokenColor } from '../ui/tokens';
 
@@ -23,6 +23,7 @@ export const PAL = {
   pebble: 0x9c7c54,
   scorch: 0x2a2218,
   craterRim: 0x7a6242,
+  graffiti: [0xd2cab4, 0xc29a3e, 0xa94a38, 0x6f9a94],
   desertStone: 0xb8ab9c,
   scrub: [0x6f6a3a, 0x5d5a32, 0x7c7442],
   brush: [0x7c7a4c, 0x8c8a58, 0xa49c68],
@@ -79,19 +80,35 @@ export const PAL = {
   damageText: tokenColorCss('--path-damage'),
 };
 
-export const FACTION_COLORS: Record<Faction, { top: number; side: number; cab: number; cabSide: number }> = {
-  player: { top: 0x9c7a3e, side: 0x6e5428, cab: 0x7e8a5a, cabSide: 0x566040 },
-  raiders: { top: 0x8e2e22, side: 0x5e1e18, cab: 0x3a3230, cabSide: 0x262020 },
-  traders: { top: 0x5e7a8a, side: 0x3e5260, cab: 0xb8a070, cabSide: 0x8a7650 },
-  scavengers: { top: 0x7a6a4a, side: 0x524630, cab: 0x5a6a4a, cabSide: 0x3e4a32 },
-  bowl: { top: 0x5a7a3a, side: 0x3e5628, cab: 0xc8b070, cabSide: 0x9a8650 },
-  nose: { top: 0x5e6038, side: 0x40422a, cab: 0xa89a70, cabSide: 0x7e7452 },
-  couriers: { top: 0xd0a030, side: 0x9a741e, cab: 0x6a5a40, cabSide: 0x4a3e2c },
-  roamers: { top: 0x4e8078, side: 0x345a54, cab: 0x8a8068, cabSide: 0x625a48 },
-  vultures: { top: 0x3a2e26, side: 0x261e18, cab: 0xc8b89a, cabSide: 0x9a8a70 },
-  convoys: { top: 0xb8b8b0, side: 0x86867e, cab: 0x9a5a34, cabSide: 0x6e3e24 },
-  mercs: { top: 0x2a2a2c, side: 0x1a1a1c, cab: 0x5a6068, cabSide: 0x3e4248 },
+export type Paint = { top: number; side: number; cab: number; cabSide: number };
+
+export const PLAYER_PAINT: Paint = { top: 0x9c7a3e, side: 0x6e5428, cab: 0x7e8a5a, cabSide: 0x566040 };
+
+export const GANG_PAINT: Record<'scrapjaw' | 'kiln', Paint> = {
+  scrapjaw: { top: 0x8e2e22, side: 0x5e1e18, cab: 0x3a3230, cabSide: 0x262020 },
+  kiln: { top: 0xa8521e, side: 0x6e3412, cab: 0x2e2a28, cabSide: 0x1e1a18 },
 };
+
+export const TEMPLATE_PAINT: Record<string, Paint> = {
+  trader: { top: 0x5e7a8a, side: 0x3e5260, cab: 0xb8a070, cabSide: 0x8a7650 },
+  scavenger: { top: 0x7a6a4a, side: 0x524630, cab: 0x5a6a4a, cabSide: 0x3e4a32 },
+  bowlFarmer: { top: 0x5a7a3a, side: 0x3e5628, cab: 0xc8b070, cabSide: 0x9a8650 },
+  noseArmy: { top: 0x5e6038, side: 0x40422a, cab: 0xa89a70, cabSide: 0x7e7452 },
+  courier: { top: 0xd0a030, side: 0x9a741e, cab: 0x6a5a40, cabSide: 0x4a3e2c },
+  roamer: { top: 0x4e8078, side: 0x345a54, cab: 0x8a8068, cabSide: 0x625a48 },
+  vulture: { top: 0x3a2e26, side: 0x261e18, cab: 0xc8b89a, cabSide: 0x9a8a70 },
+  convoy: { top: 0xb8b8b0, side: 0x86867e, cab: 0x9a5a34, cabSide: 0x6e3e24 },
+  convoyGuard: { top: 0xb8b8b0, side: 0x86867e, cab: 0x9a5a34, cabSide: 0x6e3e24 },
+  merc: { top: 0x2a2a2c, side: 0x1a1a1c, cab: 0x5a6068, cabSide: 0x3e4248 },
+};
+
+export function paintOf(v: Pick<Vehicle, 'id' | 'faction' | 'brain'>): Paint {
+  if (v.faction === 'player') return PLAYER_PAINT;
+  if (v.faction === 'scrapjaw' || v.faction === 'kiln') return GANG_PAINT[v.faction];
+  const paint = v.brain ? TEMPLATE_PAINT[v.brain.templateId] : undefined;
+  if (!paint) throw new Error(`${v.id} of ${v.faction} has no paint`);
+  return paint;
+}
 
 export const ITEM_TONES = { weapon: 0x8c3a30, armor: 0x4f5458, cargo: 0x6e5236, other: 0x35587a } satisfies Record<ItemTone, number>;
 

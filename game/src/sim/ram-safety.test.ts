@@ -26,7 +26,7 @@ function fighting(world: World, raider: Vehicle): Vehicle {
 
 function createFight() {
   const world = emptyWorld({ x: 35, y: 30 });
-  const raider = fighting(world, addVehicle(world, 'raiders', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 30, y: 30 }));
+  const raider = fighting(world, addVehicle(world, 'scrapjaw', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 30, y: 30 }));
   return { world, raider };
 }
 
@@ -76,7 +76,7 @@ describe('ram chances', () => {
 
   it('makes a costly ram rare against a heavier armored target', () => {
     const world = emptyWorld({ x: 35, y: 30 });
-    const raider = fighting(world, addVehicle(world, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 }));
+    const raider = fighting(world, addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 }));
     raider.speed = 5;
     expect(ramWeight(world, raider)).toBeCloseTo(BASE_RAM * NPC_BEHAVIOR.ram.riskyRam);
   });
@@ -161,7 +161,7 @@ describe('ram chances', () => {
 describe('crippled drivers', () => {
   function createListener() {
     const world = emptyWorld({ x: 1, y: 1 });
-    const raider = addVehicle(world, 'raiders', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 30, y: 30 });
+    const raider = addVehicle(world, 'scrapjaw', 'hauler', ['mg', 'stockEngine', 'plowRam'], { x: 30, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     return { world, raider, me: world.player.vehicleId };
   }

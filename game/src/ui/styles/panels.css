@@ -2,7 +2,7 @@
 #ui:not(:has(.modal:not([style*="display: none"]))) .log.expanded {
   z-index: var(--z-log-open);
   width: var(--panel-l);
-  height: calc(100dvh - var(--hud-notice-top) - var(--icon-hero) - var(--space-7) - var(--space-4));
+  height: calc(var(--layer-h) - var(--hud-notice-top) - var(--icon-hero) - var(--space-7) - var(--space-4));
 }
 #ui .recenter {
   padding: 0;
@@ -14,7 +14,7 @@
   transform: translateX(-50%);
   z-index: var(--z-console);
   width: var(--panel-l);
-  max-width: calc(100vw - var(--icon-hero));
+  max-width: calc(var(--layer-w) - var(--icon-hero));
   font:var(--text-dense) / 1.35 var(--font-mono);
 }
 .debug-console-log {
@@ -70,8 +70,8 @@
   grid-template-columns: auto auto;
   align-items: start;
   gap: var(--space-7) var(--space-9);
-  max-height: calc(100dvh - 2 * var(--hud-inset));
-  max-width: calc(100vw - 2 * var(--hud-inset));
+  max-height: calc(var(--layer-h) - 2 * var(--hud-inset));
+  max-width: calc(var(--layer-w) - 2 * var(--hud-inset));
   overflow: auto;
   background: var(--surface-panel);
   font-size: var(--text-dense);
@@ -328,6 +328,9 @@
   transform: translateX(-50%);
   color: var(--accent);
   z-index: var(--z-toast);
+}
+#ui .toast.bad {
+  color: var(--danger-ink);
 }
 #ui .action {
   left: 50%;

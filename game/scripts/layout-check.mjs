@@ -7,7 +7,7 @@ const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://lo
 const cpu = process.argv.includes('--cpu');
 const BOOT_LIMIT_MS = process.env.TEST_TIMEOUTS === 'off' ? 0 : cpu ? 240000 : 30000;
 const SEED = 4242;
-const LOCALES = process.env.LAYOUT_LOCALES?.split(',') ?? ['en', 'ru', 'pseudo'];
+const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en', 'ru', 'pseudo'];
 const VIEWPORTS = [[1280, 720], [700, 800]];
 const TALL = [1440, 900];
 const KEY_CAPS = ['WASD', 'Shift', 'Esc'];
@@ -67,11 +67,31 @@ async function openCall(page, node) {
       npc = w.vehicles.find((v) => v.brain && v.brain.templateId === 'trader');
     }
     const next = structuredClone(w);
+    const way = node === 'directions' ? await longestDirections(w) : null;
     const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 1250, parts: 3, turns: 4 } };
     next.player.call = node === 'hub'
       ? { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'whatDoYouWant', vars: {} } }
+      : node === 'directions'
+      ? { with: npc.id, topic: 'directions', node: 'answer', vars: way.vars, line: { line: way.line, vars: way.vars } }
       : { with: npc.id, topic: 'patchRequest', node: 'terms', vars: deal, line: { line: 'dealTerms', vars: deal } };
     g.apply(next);
+    async function longestDirections(world) {
+      const { directionsTo } = await import('/src/sim/directions.ts');
+      const { REGION } = await import('/src/data/region.ts');
+      const sites = [...REGION.towns, ...REGION.locations];
+      let best = null;
+      for (let x = 30; x < 600; x += 140) {
+        for (let y = 40; y < 560; y += 130) {
+          for (const site of sites) {
+            const steps = directionsTo(world, { x, y }, { kind: 'site', id: site.id });
+            const length = steps.reduce((sum, step) => sum + (step.do === 'turn' ? 2 : 1), 0);
+            if (!best || length > best.length) best = { length, site, steps };
+          }
+        }
+      }
+      const town = REGION.towns.some((t) => t.id === best.site.id) ? 'town' : 'site';
+      return { line: town === 'town' ? 'townWay' : 'siteWay', vars: { [town]: { kind: town, id: best.site.id }, way: { kind: 'directions', steps: best.steps } } };
+    }
   }, node);
 }
 
@@ -99,6 +119,19 @@ function faultsIn(page, locale) {
     const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English'];
     return findLayoutFaults(document.getElementById('ui'), { locale, allow, glyphs });
   }, { locale, names: KEY_CAPS, glyphs: GLYPHS });
+}
+
+function frameFaults(page) {
+  return page.evaluate(async () => {
+    const { questFrameFits } = await import('/src/ui/quest-screen.ts');
+    const screen = document.querySelector('#ui .quest-screen.quest-page');
+    const frame = screen?.querySelector('.quest-frame');
+    if (!frame) return [];
+    const { width, height } = frame.getBoundingClientRect();
+    const stacked = screen.classList.contains('stacked') || document.getElementById('ui').classList.contains('phone');
+    if (questFrameFits(width, height, stacked)) return [];
+    return [{ kind: 'quest-frame-shape', path: '.quest-frame', text: `${Math.round(width)}x${Math.round(height)} stacked=${stacked}`, sizes: '' }];
+  });
 }
 
 async function probe(page, locale) {
@@ -160,10 +193,18 @@ const openStartMenu = (page) => page.evaluate(async () => {
     node.style.display = 'none';
   }
   const { chooseStart } = await import('/src/ui/save-screen.ts');
-  void chooseStart('auto', { requestBoot: () => {}, reload: () => {}, confirm: () => false });
+  const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'furyRoad' }];
+  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false });
 });
 
+const openStartLoad = async (page) => {
+  await openStartMenu(page);
+  await page.locator('.start-menu .btn-l').nth(1).click();
+  await page.evaluate(() => { document.querySelector('.start-menu .start-buttons').style.visibility = 'hidden'; });
+};
+
 const closeStartMenu = (page) => page.evaluate(() => {
+  document.querySelector('#ui .save-panel')?.remove();
   document.querySelector('#ui .start-menu')?.remove();
   for (const node of document.querySelectorAll('#ui > [data-layout-display]')) {
     node.style.display = node.dataset.layoutDisplay;
@@ -171,22 +212,41 @@ const closeStartMenu = (page) => page.evaluate(() => {
   }
 });
 
+const openQuestPage = (page) => page.evaluate(async () => {
+  const g = window.__ROAM__;
+  const q = await import('/src/sim/quests.ts');
+  const world = structuredClone(g.state);
+  q.openQuest(world, q.QUESTS, 'intro_arrival', 'start');
+  g.apply(world);
+});
+
+const closeQuestPage = (page) => page.evaluate(() => {
+  const g = window.__ROAM__;
+  const world = structuredClone(g.state);
+  world.player.quests.session = null;
+  world.player.quests.live = null;
+  g.apply(world);
+});
+
 const STATES = {
   menu: { setup: () => undefined },
   log: { setup: fillLog },
   inventory: { setup: openInventory, teardown: escape },
+  'quest-page': { setup: openQuestPage, teardown: closeQuestPage },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
   'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
+  'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },
   help: { setup: openHelp, teardown: closeHelp },
   character: { setup: (page) => key(page, 'KeyC'), teardown: escape },
   saves: { setup: openSaves, teardown: escape },
   options: { setup: openOptions, teardown: escape },
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
+  'start-load': { setup: openStartLoad, teardown: closeStartMenu },
   inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
 };
@@ -201,14 +261,15 @@ const seconds = () => Math.round((Date.now() - started) / 1000);
 const report = [];
 let captures = 0;
 
-async function capture(page, locale, [width, height], [name, state]) {
+async function capture(page, locale, [width, height], [name, state], size = 1) {
   await state.setup(page);
   await page.evaluate(() => document.fonts.ready);
   await frames(page);
-  await page.screenshot({ path: `${OUT}/${name}-${locale}-${width}x${height}.png` });
-  for (const f of await faultsIn(page, locale)) report.push({ state: name, locale, viewport: `${width}x${height}`, ...f });
+  const label = size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`;
+  await page.screenshot({ path: `${OUT}/${name}-${locale}-${label}.png` });
+  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page)]) report.push({ state: name, locale, viewport: label, ...f });
   captures++;
-  console.log(`${name} ${locale} ${width}x${height} at ${seconds()} s`);
+  console.log(`${name} ${locale} ${label} at ${seconds()} s`);
   if (state.teardown) await state.teardown(page);
   await frames(page);
 }
@@ -222,11 +283,29 @@ async function checkLocale(page, locale) {
   }
 }
 
+const SIZE_STATES = ['menu', 'inventory', 'shop', 'options'];
+const SIZE_PASSES = [[[1280, 720], 1.3], [[1280, 720], 0.8], [[640, 360], 1]];
+
+const setUiSize = (page, size) => page.evaluate(async (s) => (await import('/src/ui/ui-size.ts')).uiSize().set(s), size);
+
+async function checkUiSizes(page) {
+  await page.evaluate((l) => window.__ROAM__.language.set(l), 'en');
+  for (const [viewport, size] of SIZE_PASSES) {
+    await page.setViewportSize({ width: viewport[0], height: viewport[1] });
+    await setUiSize(page, size);
+    const applied = await page.evaluate(async () => (await import('/src/ui/ui-size.ts')).uiSize().applied());
+    if (applied !== size) report.push({ state: '-', locale: 'en', viewport: viewport.join('x'), kind: 'size-not-applied', path: '', text: `asked ${size}, applied ${applied}`, sizes: '' });
+    for (const entry of Object.entries(STATES).filter(([name]) => SIZE_STATES.includes(name))) await capture(page, 'en', viewport, entry, size);
+  }
+  await setUiSize(page, 1);
+}
+
 await mkdir(OUT, { recursive: true });
 const { browser, page, errors } = await boot();
 console.log(`booted at ${seconds()} s`);
 try {
   for (const locale of LOCALES) await checkLocale(page, locale);
+  if (!ONLY) await checkUiSizes(page);
 } finally {
   await browser.close();
 }

@@ -1,6 +1,7 @@
 
 import { Drawers } from "./drawers";
 import { phoneMode, touchMode } from "./input-mode";
+import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
@@ -12,9 +13,13 @@ import { isAutoPatch } from "../sim/jobs";
 import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
+  claimRivalMark,
   escortStatusText,
   heldContractDue,
   contractSummary,
+  surveyProgress,
+  isNotable,
+  nextSurveyClue,
   eventText,
   formatNpcPass,
   workLabel,
@@ -24,16 +29,18 @@ import {
   formatNpcTraits,
   formatVehicleState,
   type LogLine,
+  clock,
 } from "./format";
 import { FeedbackForm, type FeedbackKind } from "./game-menu";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
-import { createIcon, createSpeedDial } from "./cards";
+import { createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch, keyCorner } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
+import { playerGuard } from "../sim/hire";
 import { affordableRanks, pendingPerkPairs } from "../sim/progress";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { ENGINE_HEAT } from "../data/wear";
@@ -42,7 +49,9 @@ import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
+import { isMet, type Contract } from "../sim/market";
 import { driverName, factionName, refusalText, setupText, templateName, vehicleTitle } from "../text/names";
+import { stanceToward } from "../sim/relations";
 
 export type ContextTarget =
   | { kind: 'aid'; id: string }
@@ -51,6 +60,7 @@ export type ContextTarget =
   | { kind: 'shop' }
   | { kind: 'downed'; id: string }
   | { kind: 'stock'; id: string }
+  | { kind: 'survey'; id: string; contractId: string }
   | { kind: 'loot'; id: string }
   | { kind: 'empty' }
   | { kind: 'outpost' };
@@ -160,13 +170,13 @@ export class Hud {
   private placeInfo = (): void => {
     if (this.info.style.display === "none" || this.info.getClientRects().length === 0) return;
     const gap = parseFloat(token("--hud-gap"));
-    const top = topRight().getBoundingClientRect().bottom + gap;
+    const top = uiSize().layerRect(topRight()).bottom + gap;
     this.info.style.top = `${top}px`;
     this.info.style.width = "";
     const slot = this.floorOfInfo() - gap - top;
     this.info.style.height = `${slot}px`;
     if (this.inspectedAimable && !phoneMode()) this.growForAim(top, slot);
-    this.coverUnder(this.info.getBoundingClientRect().bottom);
+    this.coverUnder(uiSize().layerRect(this.info).bottom);
     this.inspected.fitTo(this.inspectedDraw);
   };
 
@@ -179,12 +189,12 @@ export class Hud {
   }
 
   private floorOfInfo(): number {
-    if (!phoneMode()) return this.radio.root.getBoundingClientRect().top;
+    if (!phoneMode()) return uiSize().layerRect(this.radio.root).top;
     const open = this.drawers.open();
     const frame = open === null ? null : document.querySelector<HTMLElement>(`#ui [data-drawer-frame="${open}"]`);
-    const card = this.info.getBoundingClientRect();
+    const card = uiSize().layerRect(this.info);
     const tops = [this.top, this.drawers.element, frame]
-      .map((node) => node?.getBoundingClientRect())
+      .map((node) => (node ? uiSize().layerRect(node) : undefined))
       .filter((box) => box !== undefined && box.left < card.right && box.right > card.left)
       .map((box) => box!.top);
     return Math.min(...tops);
@@ -194,7 +204,7 @@ export class Hud {
     const need = this.inspected.boxFor(parseFloat(token("--btn-h-s")));
     const wider = need.width - this.inspectedDraw.clientWidth;
     if (wider > 0) this.info.style.width = `${this.info.offsetWidth + wider}px`;
-    const tallest = this.log.root.getBoundingClientRect().bottom - top;
+    const tallest = uiSize().layerRect(this.log.root).bottom - top;
     this.info.style.height = `${tallest}px`;
     const fits = tallest - this.inspectedDraw.clientHeight + need.height;
     this.info.style.height = `${Math.min(tallest, Math.max(slot, fits))}px`;
@@ -202,7 +212,7 @@ export class Hud {
 
   private coverUnder(bottom: number | null): void {
     for (const below of [...rightDock().children, this.log.root] as HTMLElement[]) {
-      below.style.visibility = bottom !== null && bottom > below.getBoundingClientRect().top ? "hidden" : "";
+      below.style.visibility = bottom !== null && bottom > uiSize().layerRect(below).top ? "hidden" : "";
     }
   }
 
@@ -299,8 +309,9 @@ export class Hud {
     return this.infoColumn;
   }
 
-  private toast(text: Msg): void {
+  private toast(text: Msg, refusal = false): void {
     setText(this.toastBox, text);
+    this.toastBox.classList.toggle("bad", refusal);
     this.toastBox.style.display = "";
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(
@@ -410,8 +421,14 @@ export class Hud {
     );
   }
 
+  private surveyProgress(c: Contract): HTMLElement | null {
+    if (c.kind !== "survey" || isMet(c)) return null;
+    return el("span", { class: "dim" }, SPACE, surveyProgress(c), el("span", { class: "contract-clue" }, nextSurveyClue(c)));
+  }
+
   private renderContracts(w: World): void {
-    if (w.player.contracts.length === 0) {
+    const guard = playerGuard(w);
+    if (w.player.contracts.length === 0 && guard === null) {
       this.contracts.style.display = "none";
       return;
     }
@@ -422,10 +439,10 @@ export class Hud {
         el(
           "div",
           { class: "contract-line" },
-          el("span", {}, contractSummary(c)),
           c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c)),
         ),
       ),
+      ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
     );
   }
 
@@ -497,7 +514,7 @@ export class Hud {
   renderTop(w: World): void {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
-    this.condition.render(playerVehicle(w));
+    this.condition.render(playerVehicle(w), undefined, repairingPart(w, playerVehicle(w)));
     this.haulerGauge.render(w);
     this.renderContracts(w);
     this.tips.update(w, this.actions.autoTravel());
@@ -628,7 +645,6 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
-      if (e.t === "skillUp" || e.t === "discover") this.toast(line.text);
     }
     this.log.add(w.turn, lines);
     this.radio.hear(w);
@@ -636,6 +652,10 @@ export class Hud {
 
   logTexts(): string[] {
     return this.log.texts;
+  }
+
+  refuse(text: Msg): void {
+    this.toast(text, true);
   }
 
   note(w: World, text: Msg, cls: string): void {
@@ -680,9 +700,16 @@ function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement):
     { class: "info-head" },
     el("span", { class: "info-name" }, v.brain ? driverName(v) : vehicleTitle(w, v)),
     el("span", { class: "info-quiet", title: quietText }, quietText),
-    ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, t(hostile ? "hud.tagHostile" : "hud.tagNeutral"))]),
+    ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
     buttons,
   );
+}
+
+function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {
+  if (hostile) return t("hud.tagHostile");
+  const band = stanceToward(w, v);
+  if (band === "neutral") return t("hud.tagNeutral");
+  return t(`band.${band === "allied" ? "friendly" : band}`);
 }
 
 function quietLines(w: World, v: Vehicle): Msg[] {
@@ -693,6 +720,15 @@ function quietLines(w: World, v: Vehicle): Msg[] {
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {
   const blocks = work?.from === "job" && !isAutoPatch(work.job);
   return action && !action.hint && !blocks ? null : work;
+}
+
+function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
+  return el(
+    "div",
+    { class: "contract-line" },
+    el("span", {}, t("hud.guard", { name: driverName(merc) })),
+    el("span", { class: "num" }, t("contract.leaves", { when: clock(w.turn + turnsLeft).full })),
+  );
 }
 
 function escortLine(w: World, c: EscortContract): HTMLElement {

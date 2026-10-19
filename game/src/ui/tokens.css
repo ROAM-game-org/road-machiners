@@ -111,6 +111,8 @@
   --cell-line: #58656b;
   --cell-ink: #a0adb2;
   --cell-plan-line: #b9c6ca;
+  --plan-detail-faint: rgba(185, 198, 202, 0.3);
+  --plan-glass-faint: rgba(185, 198, 202, 0.12);
   --cell-plain: #303d44;
   --cell-deck: #483e36;
   --cell-bay: #3b4a3c;
@@ -184,6 +186,7 @@
   --icon-2xl: 36px;
   --icon-3xl: 44px;
   --icon-hero: 56px;
+  --icon-sign: 112px;
 
   /* Text button heights: small, medium (the plain button) and large */
   --btn-h-s: 24px;
@@ -222,6 +225,10 @@
   --quest-text-width: 680px;
   --quest-text-min: 620px;
   --quest-side-width: 230px;
+  --quest-art-min: 280px;
+  --quest-frame-column: 3 / 4;
+  --quest-frame-band: 3 / 1;
+  --quest-art-zoom: 1.08;
   --modal-close-gutter: 120px;
   --tab-min-width: 85px;
   --tip-left: 457px;
@@ -245,11 +252,14 @@
   --hud-gap: 8px;
   --hud-hover-top: 64px;
   --hud-notice-top: 112px;
-  --safe-top: max(var(--hud-inset), env(safe-area-inset-top));
-  --safe-right: max(var(--hud-inset), env(safe-area-inset-right));
-  --safe-bottom: max(var(--hud-inset), env(safe-area-inset-bottom));
-  --safe-left: max(var(--hud-inset), env(safe-area-inset-left));
-  --touch-target: 32px;
+  --ui-scale: 1;
+  --layer-w: calc(100vw / var(--ui-scale));
+  --layer-h: calc(100dvh / var(--ui-scale));
+  --safe-top: max(var(--hud-inset), calc(env(safe-area-inset-top) / var(--ui-scale)));
+  --safe-right: max(var(--hud-inset), calc(env(safe-area-inset-right) / var(--ui-scale)));
+  --safe-bottom: max(var(--hud-inset), calc(env(safe-area-inset-bottom) / var(--ui-scale)));
+  --safe-left: max(var(--hud-inset), calc(env(safe-area-inset-left) / var(--ui-scale)));
+  --touch-target: max(32px, calc(32px / var(--ui-scale)));
   --phone-readouts-h: 104px;
   --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--btn-h-l));
   --phone-end-w: 120px;
@@ -270,21 +280,18 @@
   --z-new-game-block: 59;
   --z-save: 60;
   --z-new-game: 70;
+  --z-tip: 80;
   --z-boot: 1000;
   --z-drag: 1000;
   --z-crash: 100000;
 }
 
-@media (max-width: 1100px) {
-  :root {
-    --dock-width: 246px;
-  }
+#ui:where(.compact) {
+  --dock-width: 246px;
 }
 
-@media (max-width: 720px) {
-  :root {
-    --dock-width: 200px;
-  }
+#ui:where(.narrow) {
+  --dock-width: 200px;
 }
 
 @media (orientation: landscape) {

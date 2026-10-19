@@ -2,10 +2,11 @@
 import { partDef } from "../data/parts";
 import { partName } from "../text/names";
 import type { PartInstance, World } from "../sim/types";
-import { conditionTag, footprint, headlineStat, partDetail, partIconEl, statChip, toneStyle } from "./cards";
+import { conditionTag, footprint, headlineStat, itemTip, partDetail, partIconEl, statChip, toneStyle } from "./cards";
 import { el } from "./dom";
 import { conditionStatus, conditionTier } from "./format";
 import { moneyEl } from "./units";
+import { uiSize } from "./ui-size";
 
 export type PartRow = {
   world: World;
@@ -89,7 +90,7 @@ export class PartRows {
     return el(
       "span",
       { class: "part-name" },
-      el("b", { title: partName(part.defId) }, partName(part.defId)),
+      el("b", { title: itemTip(part.defId) }, partName(part.defId)),
       conditionTag(part),
       showStatus ? el("span", { class: status.tone }, status.text) : null,
     );
@@ -140,7 +141,7 @@ export class PartRows {
     row.querySelector<HTMLElement>(".part-sum")?.focus({ preventScroll: true });
     if (target === focused) {
       const box = scrollerOf(row);
-      if (box) box.scrollTop += row.getBoundingClientRect().top - place.top;
+      if (box) box.scrollTop += uiSize().toLayer(row.getBoundingClientRect().top - place.top);
     }
   }
 }

@@ -1,30 +1,22 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { withLockSync } from './lock';
-import type { FactoryState, Failure, FilledRecord, Job, JobStage, PlaytestState, ReleaseState, StuckRecord } from './types';
+import type { FactoryState, Failure, Job, JobStage, PlaytestState, ReleaseState, StuckRecord } from './types';
 
-export const EMPTY_STATE: FactoryState = { jobs: [], approvalPosts: {}, lastRelease: null, devMerges: [], release: null, releasePost: null, pendingShip: null, pendingRemovals: [], pendingApprovals: {}, approvedResolving: {}, keptApprovals: {}, pendingChanges: [], pendingIncidents: [], bundles: {}, adhocReplies: {}, lastTickError: null, failures: [], builds: {}, cardStarts: {}, postCaptions: {}, devBuild: null, devFailed: null, devError: null, interrupted: [], retried: [], postOnly: [], unroutedReplies: {}, textPosts: [], lastWasteReview: null, held: {}, stuck: {}, sweepError: null, asked: {}, pendingFeedback: {}, routed: [], recordsToFill: [] };
+export const EMPTY_STATE: FactoryState = { jobs: [], approvalPosts: {}, lastRelease: null, devMerges: [], release: null, releasePost: null, pendingShip: null, pendingRemovals: [], pendingApprovals: {}, approvedResolving: {}, caughtUpTo: {}, keptApprovals: {},pendingIncidents: [], pendingAnswers: [], bundles: {}, adhocReplies: {}, lastTickError: null, failures: [], builds: {}, cardStarts: {}, postCaptions: {}, devBuild: null, devFailed: null, devError: null, interrupted: [], retried: [], postOnly: [], unroutedReplies: {}, textPosts: [], lastWasteReview: null, held: {}, stuck: {}, sweepError: null, asked: {}, questionPosts: {}, pendingFeedback: {}, routed: [] };
 
 const STATE_LOCK_MS = 30_000;
 
 type OldFailure = Omit<Failure, 'cause'> & { cause?: Failure['cause']; decision?: boolean };
 type OldStuck = Omit<StuckRecord, 'cause' | 'error'> & { cause: string; decision: boolean };
-type OldFields = { job?: Omit<Job, 'id'> | null; testPhase?: Record<string, string>; patching?: unknown; visualSendBacks?: unknown; jobStarts?: unknown };
+type OldFields = { job?: Omit<Job, 'id'> | null; testPhase?: Record<string, string>; patching?: unknown; visualSendBacks?: unknown; jobStarts?: unknown; pendingChanges?: unknown };
 type SavedState = Partial<FactoryState> & OldFields;
 
 export function readState(path: string): FactoryState {
   if (!existsSync(path)) return structuredClone(EMPTY_STATE);
-  const { job, testPhase, patching: _patching, visualSendBacks: _visualSendBacks, jobStarts: _jobStarts, ...saved } = JSON.parse(readFileSync(path, 'utf8')) as SavedState;
+  const { job, testPhase, patching: _patching, visualSendBacks: _visualSendBacks, jobStarts: _jobStarts, pendingChanges: _pendingChanges, ...saved } = JSON.parse(readFileSync(path, 'utf8')) as SavedState;
   const jobs = (saved.jobs ?? (job ? [{ ...job, id: basename(job.log, '.log') }] : [])).map(renameTesting);
-  return { ...structuredClone(EMPTY_STATE), ...saved, ...fillMerges(saved), jobs, ...fillHealth(saved), postOnly: saved.postOnly ?? postPhases(testPhase), recordsToFill: saved.recordsToFill ?? missingRecords(saved) };
-}
-
-function missingRecords(saved: SavedState): FilledRecord[] {
-  return (['asked', 'pendingFeedback', 'routed'] as const).filter((name) => saved[name] === undefined);
-}
-
-function fillMerges(saved: SavedState): Pick<FactoryState, 'devMerges' | 'release'> {
-  return { devMerges: saved.devMerges ?? null, release: saved.release ? fillRelease(saved.release) : null };
+  return { ...structuredClone(EMPTY_STATE), ...saved, release: saved.release ? fillRelease(saved.release) : null, jobs, ...fillHealth(saved), postOnly: saved.postOnly ?? postPhases(testPhase) };
 }
 
 function fillHealth(saved: SavedState): Pick<FactoryState, 'failures' | 'stuck'> {
@@ -52,7 +44,7 @@ export function newPlaytest(day: string): PlaytestState {
 }
 
 function fillRelease(release: Partial<ReleaseState> & Pick<ReleaseState, 'day'>): ReleaseState {
-  return { ...release, candidateSha: release.candidateSha ?? null, tasks: release.tasks ?? [], merges: release.merges ?? null, playtest: release.playtest ? dropStreak(release.playtest) : newPlaytest(release.day) } as ReleaseState;
+  return { ...release, candidateSha: release.candidateSha ?? null, tasks: release.tasks ?? [], playtest: release.playtest ? dropStreak(release.playtest) : newPlaytest(release.day) } as ReleaseState;
 }
 
 function dropStreak(playtest: PlaytestState & { streak?: number }): PlaytestState {
@@ -81,7 +73,6 @@ export function updateState(path: string, change: (state: FactoryState) => Facto
 export function clearQueued(state: FactoryState, stage: JobStage, issue: number | null): FactoryState {
   const pendingApprovals = { ...state.pendingApprovals };
   if (stage === 'approve') delete pendingApprovals[String(issue)];
-  const pendingChanges = stage === 'change' ? state.pendingChanges.filter((item) => item.id !== issue) : state.pendingChanges;
   const pendingIncidents = stage === 'incident' ? state.pendingIncidents.filter((n) => n !== issue) : state.pendingIncidents;
   const pendingShip = stage === 'ship' ? null : state.pendingShip;
   const first = stage === 'remove' ? state.pendingRemovals.findIndex((item) => item.issue === issue) : -1;
@@ -89,7 +80,6 @@ export function clearQueued(state: FactoryState, stage: JobStage, issue: number 
   return {
     ...state,
     pendingApprovals,
-    pendingChanges,
     pendingIncidents,
     pendingShip,
     pendingRemovals,

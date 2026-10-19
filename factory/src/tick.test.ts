@@ -58,7 +58,6 @@ describe('chooseJobs with no daily cap', () => {
 
   it('still runs committee-driven jobs', () => {
     expect(chooseJobs({ ...busy, pendingApprovals: { '4': 'u' } }, [], NOW, CFG)).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'release', issue: null }]);
-    expect(chooseJobs({ ...busy, pendingChanges: [{ id: 2, text: 't', by: 'u' }] }, [], NOW, CFG)).toEqual([{ stage: 'release', issue: null }, { stage: 'change', issue: 2 }]);
     expect(chooseJobs(busy, [card(6, 'Implementation', ['adhoc'])], NOW, CFG)).toEqual([{ stage: 'release', issue: null }, { stage: 'adhoc', issue: 6 }]);
   });
 
@@ -74,18 +73,12 @@ describe('chooseJobs with no daily cap', () => {
     expect(chooseJobs(shipping, [card(7, 'Merging', ['release-task'])], NOW, CFG)).toEqual([]);
     expect(chooseJobs(shipping, [card(7, 'Merging', ['release-task']), card(8, 'Merging')], NOW, CFG)).toEqual([{ stage: 'merge', issue: null }]);
   });
-
-  it('runs factory changes in the implement queue after ad hoc tasks and before cards', () => {
-    const s = state({ pendingChanges: [{ id: 2, text: 't', by: 'u' }, { id: 3, text: 't', by: 'u' }] });
-    const cards = [card(4, 'Implementation'), card(6, 'Implementation', ['adhoc'])];
-    expect(chooseJobs(s, cards, NOW, CFG)).toEqual([{ stage: 'adhoc', issue: 6 }, { stage: 'change', issue: 2 }, { stage: 'change', issue: 3 }]);
-  });
 });
 
 const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
 const tracking = (labels: string[] = ['release']): Card => card(20, 'Approval', labels);
 
-const AT_HEAD = { dev: null, release: 'rel0001' };
+const AT_HEAD = { dev: null, release: 'rel0001', main: null };
 
 describe('chooseJobs during a release', () => {
   const open = state({ release: RELEASE, lastRelease: null });
@@ -108,7 +101,7 @@ describe('chooseJobs during a release', () => {
   });
 
   it('plays again when the release moved past the passed commit', () => {
-    expect(chooseJobs(passed, [tracking()], NOW, CFG, { dev: null, release: 'rel0002' })).toEqual([{ stage: 'playtest', issue: 20 }]);
+    expect(chooseJobs(passed, [tracking()], NOW, CFG, { dev: null, release: 'rel0002', main: null })).toEqual([{ stage: 'playtest', issue: 20 }]);
   });
 
   it('runs neither the playtest nor the candidate while the release head is unknown or the playtest is blocked', () => {
@@ -232,14 +225,9 @@ describe('chooseJobs', () => {
     expect(chooseJobs(idle, cards, NOW, { ...CFG, testWorkers: 2, designWorkers: 1 })).toEqual([{ stage: 'verify', issue: 8 }, { stage: 'triage', issue: 4 }, { stage: 'triage', issue: 5 }]);
   });
 
-  it('runs every pending approval, lowest first, and a change beside them', () => {
-    const s = state({ pendingApprovals: { '9': 'u', '4': 'u' }, pendingChanges: [{ id: 3, text: 't', by: 'u' }] });
-    expect(chooseJobs(s, [], NOW, CFG)).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'approve', issue: 9 }, { stage: 'change', issue: 3 }]);
-  });
-
-  it('runs a pending change beside a due release cut', () => {
-    const s = state({ pendingChanges: [{ id: 3, text: 't', by: 'u' }], lastRelease: null });
-    expect(chooseJobs(s, [], NOW, CFG)).toEqual([{ stage: 'release', issue: null }, { stage: 'change', issue: 3 }]);
+  it('runs every pending approval, lowest first', () => {
+    const s = state({ pendingApprovals: { '9': 'u', '4': 'u' } });
+    expect(chooseJobs(s, [], NOW, CFG)).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'approve', issue: 9 }]);
   });
 
   it('runs release when never released or older than the interval', () => {
@@ -267,16 +255,16 @@ describe('chooseJobs', () => {
 
   it('rebuilds /dev/ when dev moved, after queued work, beside cards', () => {
     const cards = [card(6, 'Implementation', ['adhoc']), card(4, 'Design')];
-    expect(chooseJobs(state(), cards, NOW, CFG, { dev: 'dev0002', release: null })).toEqual([{ stage: 'dev', issue: null }, { stage: 'adhoc', issue: 6 }, { stage: 'design', issue: 4 }]);
-    expect(chooseJobs(state({ pendingApprovals: { '4': 'u' } }), [], NOW, CFG, { dev: 'dev0002', release: null })).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'dev', issue: null }]);
-    expect(chooseJobs(state({ jobs: [running('approve', 4)] }), [], NOW, CFG, { dev: 'dev0002', release: null })).toEqual([{ stage: 'dev', issue: null }]);
-    expect(chooseJobs(state({ jobs: [running('dev', null)] }), [], NOW, CFG, { dev: 'dev0002', release: null })).toEqual([]);
+    expect(chooseJobs(state(), cards, NOW, CFG, { dev: 'dev0002', release: null, main: null })).toEqual([{ stage: 'dev', issue: null }, { stage: 'adhoc', issue: 6 }, { stage: 'design', issue: 4 }]);
+    expect(chooseJobs(state({ pendingApprovals: { '4': 'u' } }), [], NOW, CFG, { dev: 'dev0002', release: null, main: null })).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'dev', issue: null }]);
+    expect(chooseJobs(state({ jobs: [running('approve', 4)] }), [], NOW, CFG, { dev: 'dev0002', release: null, main: null })).toEqual([{ stage: 'dev', issue: null }]);
+    expect(chooseJobs(state({ jobs: [running('dev', null)] }), [], NOW, CFG, { dev: 'dev0002', release: null, main: null })).toEqual([]);
   });
 
   it('leaves /dev/ alone when it serves dev or dev failed to build', () => {
-    expect(chooseJobs(state(), [], NOW, CFG, { dev: DEV, release: null })).toEqual([]);
-    expect(chooseJobs(state({ devFailed: 'dev0002' }), [], NOW, CFG, { dev: 'dev0002', release: null })).toEqual([]);
-    expect(chooseJobs(state({ devFailed: 'dev0002' }), [], NOW, CFG, { dev: 'dev0003', release: null })).toEqual([{ stage: 'dev', issue: null }]);
+    expect(chooseJobs(state(), [], NOW, CFG, { dev: DEV, release: null, main: null })).toEqual([]);
+    expect(chooseJobs(state({ devFailed: 'dev0002' }), [], NOW, CFG, { dev: 'dev0002', release: null, main: null })).toEqual([]);
+    expect(chooseJobs(state({ devFailed: 'dev0002' }), [], NOW, CFG, { dev: 'dev0003', release: null, main: null })).toEqual([{ stage: 'dev', issue: null }]);
   });
 
   it('skips stuck cards, Approval and Done', () => {
@@ -302,8 +290,8 @@ function harness(job: Job | null, alive: boolean, cards: Card[] = [], comments: 
   const pinned: string[] = [];
   const github = { cards: async () => cards, candidates: async () => [], addLabel: async (n: number, l: string) => { labels.push(`${n}:${l}`); }, comments: async () => comments, removeLabel: async (n: number, l: string) => { removed.push(`${n}:${l}`); } };
   const telegram = { sendMessage: async (_chat: string, text: string) => { sent.push(text); return 1; } };
-  const cfg = { home: dir, webRoot: join(dir, 'web'), repo: 'o/r', committeeChat: 'c', triageTimeoutMinutes: 30, designTimeoutMinutes: 30, implementTimeoutMinutes: 120, verifyTimeoutMinutes: 30, testTimeoutMinutes: 30, branchTimeoutMinutes: 30, mergeTimeoutMinutes: 30, replyRouteMinutes: 15, needsInfoHours: 24, minFreeGb: 0.001, minAvailableGb: 1, logDays: 14, transcriptDays: 10, testCacheDays: 14, cpuLight: 0.25, cpuImplement: 0.25, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4, ...CFG };
-  const repo = { fetch: async () => {},headHash: async (branch: string) => { if (branch === RELEASE.branch) return 'rel0001'; if (branch !== 'dev') throw new Error(`unexpected branch ${branch}`); return devHead; } };
+  const cfg = { home: dir, webRoot: join(dir, 'web'), repo: 'o/r', committeeChat: 'c', triageTimeoutMinutes: 30, designTimeoutMinutes: 30, implementTimeoutMinutes: 120, verifyTimeoutMinutes: 30, testTimeoutMinutes: 30, branchTimeoutMinutes: 30, mergeTimeoutMinutes: 30, replyRouteMinutes: 15, needsInfoHours: 24, minFreeGb: 0.001, minAvailableGb: 1, logDays: 14, transcriptDays: 10,cpuLight: 0.25, cpuImplement: 0.25, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4, ...CFG };
+  const repo = { fetch: async () => {},headHash: async (branch: string) => { if (branch === RELEASE.branch) return 'rel0001'; if (branch === 'main') return 'main0001'; if (branch !== 'dev') throw new Error(`unexpected branch ${branch}`); return devHead; } };
   const ctx = { cfg, github, telegram, repo, statePath, now: () => NOW, log: () => undefined } as unknown as Ctx;
   const deps: TickDeps = { isAlive: () => alive, kill: async (_run, pid, id) => { killed.push(`${pid} ${id}`); }, removeContainers: async (_run, id) => { killed.push(`containers ${id}`); }, spawn: (args, _cwd, _log, id, cpus, testWorkers) => { parseStage(args[0]); spawned.push([...args, id]); pinned.push(`${args[0]} ${cpus} ${testWorkers}`); return 77; }, cores: () => 4, repair: async () => { throw new Error('no repair expected'); }, publicTick: async () => undefined };
   return { ctx, sent, labels, removed, deps, killed, spawned, pinned };
@@ -327,14 +315,6 @@ describe('tick', () => {
     expect(h.labels).toEqual([]);
     expect(h.killed).toEqual(['containers catch-up-job']);
     expect(readState(h.ctx.statePath)).toMatchObject({ jobs: [], retried: [], failures: [{ stage: 'catch-up', issue: 8, error: 'job process died without finishing' }] });
-  });
-
-  it('fills the merge records from git before it starts any job', async () => {
-    const h = harness(null, false);
-    Object.assign(h.ctx.repo, { legacyMerges: async () => [{ sha: 'a'.repeat(40), subject: 'Merge issue #4: horn' }] });
-    writeState(h.ctx.statePath, state({ devMerges: null }));
-    await tick(h.ctx, '/code', h.deps);
-    expect(readState(h.ctx.statePath).devMerges).toEqual([{ issue: 4, title: 'horn', sha: 'a'.repeat(40), into: 'dev', reverted: [] }]);
   });
 
   it('keeps the queued ship of a ship job past its timeout once, and clears it on the second timeout', async () => {
@@ -368,6 +348,13 @@ describe('tick', () => {
     await checkJobs(h.ctx, h.deps);
     expect(h.labels).toEqual([`6:${STUCK_LABEL}`, `7:${STUCK_LABEL}`]);
     expect(readState(h.ctx.statePath).failures).toMatchObject([{ stage: 'merge', issue: null, error: 'timed out after 30 minutes', batch: [6, 7] }]);
+  });
+
+  it('forgets the caught-up base head of a card that left Merging', async () => {
+    const h = harness(null, false, [card(5, 'Merging', [STUCK_LABEL]), card(9, 'Done')]);
+    writeState(h.ctx.statePath, state({ caughtUpTo: { 5: DEV, 9: DEV } }));
+    await tick(h.ctx, '/code', h.deps);
+    expect(readState(h.ctx.statePath).caughtUpTo).toEqual({ 5: DEV });
   });
 
   it('releases half of a timed-out merge batch and starts its merge in the same tick, with every stuck card recorded', async () => {
@@ -446,15 +433,6 @@ describe('tick', () => {
     expect(['issue-5', 'check-issue-5', 'issue-9'].map((name) => existsSync(join(h.ctx.cfg.home, 'work', name)))).toEqual([true, true, false]);
   });
 
-  it('reports a change job that died a second time, without an issue', async () => {
-    const h = harness(job('2026-01-10T11:50:00Z', 'change', 3), false);
-    writeState(h.ctx.statePath, state({ jobs: [job('2026-01-10T11:50:00Z', 'change', 3)], interrupted: [3] }));
-    await tick(h.ctx, '/code', h.deps);
-    expect(h.labels).toEqual([]);
-    expect(readState(h.ctx.statePath).failures).toMatchObject([{ stage: 'change', issue: null, error: 'job process died without finishing' }]);
-    expect(readState(h.ctx.statePath).jobs).toEqual([]);
-    expect(readLedger(h.ctx.cfg.home, new Date(0)).filter((line) => line.kind === 'job')).toMatchObject([{ id: 'change-job', outcome: 'died' }]);
-  });
 
   it('starts the chosen jobs and records each with its id', async () => {
     const h = harness(null, false, [card(8, 'Implementation'), card(9, 'Testing')]);
@@ -514,45 +492,58 @@ describe('tick', () => {
   });
 
   describe('merge catch-up', () => {
-    const merging = (batch: number[] | undefined, caughtUp?: number[]): Job => ({ ...running('merge', null), batch, ...(caughtUp ? { caughtUp } : {}) });
+    const merging = (batch: number[] | undefined): Job => ({ ...running('merge', null), batch });
     const queue = [5, 6, 7, 8, 9, 10, 11, 12, 13].map((issue) => card(issue, 'Merging'));
+    const HEADS = { dev: DEV, release: null, main: 'main0002' };
+    const caughtUp = (issues: number[], head = DEV): Record<string, string> => Object.fromEntries(issues.map((issue) => [String(issue), head]));
 
-    it('offers no catch-up until the running merge job has taken its batch', () => {
-      expect(chooseJobs(state({ jobs: [merging(undefined)] }), queue, NOW, CFG)).toEqual([]);
-    });
-
-    it('catches up only the next two batches, oldest first, one at a time, never a card of the running batch', () => {
+    it('catches up every waiting card whose base moved, oldest first, one at a time, never a card of the running batch', () => {
       const s = state({ jobs: [merging([5, 6, 7])] });
-      expect(chooseJobs(s, queue, NOW, CFG)).toEqual([{ stage: 'catch-up', issue: 8 }]);
-      const report = evaluateSchedule(s, queue, NOW, CFG);
+      expect(chooseJobs(s, queue, NOW, CFG, HEADS)).toEqual([{ stage: 'catch-up', issue: 8 }]);
+      const report = evaluateSchedule(s, queue, NOW, CFG, HEADS);
       expect(report.decisions.filter((d) => d.stage === 'catch-up').map((d) => d.issue)).toEqual([8, 9, 10, 11, 12, 13]);
     });
 
-    it('skips cards it caught up during this merge job, and stuck, held or busy cards', () => {
-      const cards = [...queue.slice(0, 4), card(9, 'Merging', [STUCK_LABEL]), card(10, 'Merging'), card(11, 'Merging')];
-      const s = state({ jobs: [merging([5, 6, 7], [8]), running('approve', 11)], held: { 10: { by: 'Ann', reason: 'r', at: 'a', stage: null } } });
-      expect(chooseJobs(s, cards, NOW, CFG)).toEqual([]);
-      expect(chooseJobs(state({ jobs: [merging([5, 6, 7], [8])] }), queue, NOW, CFG)).toEqual([{ stage: 'catch-up', issue: 9 }]);
+    it('catches up with no merge job running, but not the cards the merge job it starts will take', () => {
+      expect(chooseJobs(state(), queue, NOW, CFG, HEADS)).toEqual([{ stage: 'merge', issue: null }, { stage: 'catch-up', issue: 8 }]);
+      expect(chooseJobs(state({ jobs: [merging(undefined)] }), queue, NOW, CFG, HEADS)).toEqual([{ stage: 'catch-up', issue: 8 }]);
+      expect(chooseJobs(state(), [card(5, 'Merging')], NOW, CFG, HEADS)).toEqual([{ stage: 'merge', issue: null }]);
     });
 
-    it('skips a card whose catch-up failed within the day, so a failing merge costs no agent round per merge job', () => {
+    it('starts no catch-up for a card that holds its base head already', () => {
+      expect(chooseJobs(state({ jobs: [merging([5, 6, 7])], caughtUpTo: caughtUp([8, 9, 10, 11, 12, 13]) }), queue, NOW, CFG, HEADS)).toEqual([]);
+      expect(chooseJobs(state({ jobs: [merging([5, 6, 7])], caughtUpTo: caughtUp([8, 9, 10, 11, 12, 13], 'dev0000') }), queue, NOW, CFG, HEADS)).toEqual([{ stage: 'catch-up', issue: 8 }]);
+    });
+
+    it('compares a hotfix card with main', () => {
+      const hotfix = [card(8, 'Merging', [HOTFIX_LABEL])];
+      expect(chooseJobs(state({ jobs: [merging([5])], caughtUpTo: { 8: DEV } }), hotfix, NOW, CFG, HEADS)).toEqual([{ stage: 'catch-up', issue: 8 }]);
+      expect(chooseJobs(state({ jobs: [merging([5])], caughtUpTo: { 8: 'main0002' } }), hotfix, NOW, CFG, HEADS)).toEqual([]);
+    });
+
+    it('skips stuck, held or busy cards', () => {
+      const cards = [...queue.slice(0, 4), card(9, 'Merging', [STUCK_LABEL]), card(10, 'Merging'), card(11, 'Merging')];
+      const s = state({ jobs: [merging([5, 6, 7]), running('approve', 11)], caughtUpTo: caughtUp([8]), held: { 10: { by: 'Ann', reason: 'r', at: 'a', stage: null } } });
+      expect(chooseJobs(s, cards, NOW, CFG, HEADS)).toEqual([]);
+    });
+
+    it('skips a card whose catch-up failed within the day, so a failing merge costs no agent round per base move', () => {
       const failure = { stage: 'catch-up' as const, issue: 8, error: 'e', cause: 'error' as const, log: null, at: NOW.toISOString() };
-      expect(chooseJobs(state({ jobs: [merging([5, 6, 7])], failures: [failure] }), queue, NOW, CFG)).toEqual([{ stage: 'catch-up', issue: 9 }]);
+      expect(chooseJobs(state({ jobs: [merging([5, 6, 7])], failures: [failure] }), queue, NOW, CFG, HEADS)).toEqual([{ stage: 'catch-up', issue: 9 }]);
     });
 
     it('waits for a running catch-up before the next one', () => {
-      expect(chooseJobs(state({ jobs: [merging([5, 6, 7], [8]), running('catch-up', 8)] }), queue, NOW, CFG)).toEqual([]);
+      expect(chooseJobs(state({ jobs: [merging([5, 6, 7]), running('catch-up', 8)] }), queue, NOW, CFG, HEADS)).toEqual([]);
     });
 
-    it('starts the next merge job with no catch-up once the merge ended, and not for a card whose catch-up still runs', () => {
-      expect(chooseJobs(state(), queue, NOW, CFG)).toEqual([{ stage: 'merge', issue: null }]);
-      expect(chooseJobs(state({ jobs: [running('catch-up', 5)] }), [card(5, 'Merging')], NOW, CFG)).toEqual([]);
-      expect(chooseJobs(state({ jobs: [running('catch-up', 5)] }), [card(5, 'Merging'), card(6, 'Merging')], NOW, CFG)).toEqual([{ stage: 'merge', issue: null }]);
+    it('starts no merge job for a card whose catch-up still runs', () => {
+      expect(chooseJobs(state({ jobs: [running('catch-up', 5)] }), [card(5, 'Merging')], NOW, CFG, HEADS)).toEqual([]);
+      expect(chooseJobs(state({ jobs: [running('catch-up', 5)] }), [card(5, 'Merging'), card(6, 'Merging')], NOW, CFG, HEADS)).toEqual([{ stage: 'merge', issue: null }]);
     });
 
     it('does not count a catch-up toward the card job limit', () => {
       const spent = state({ jobs: [merging([5])], cardStarts: { 6: starts(5, 3) } });
-      expect(chooseJobs(spent, [card(5, 'Merging'), card(6, 'Merging')], NOW, CFG)).toEqual([{ stage: 'catch-up', issue: 6 }]);
+      expect(chooseJobs(spent, [card(5, 'Merging'), card(6, 'Merging')], NOW, CFG, HEADS)).toEqual([{ stage: 'catch-up', issue: 6 }]);
     });
   });
 
@@ -679,13 +670,24 @@ describe('tick', () => {
     expect(args(h)).toEqual([['design', '8']]);
   });
 
-  it('deletes builds outside Approval, keeping dev', async () => {
+  it('deletes builds of cards that left work unmerged, keeping dev', async () => {
     const h = harness(null, false, [card(8, 'Approval'), card(9, 'Done')]);
     const web = h.ctx.cfg.webRoot;
     for (const name of ['dev', 'aaa1111', 'bbb2222', 'ccc3333']) mkdirSync(join(web, name), { recursive: true });
     writeState(h.ctx.statePath, state({ builds: { '8': 'aaa1111', '9': 'bbb2222' } }));
     await tick(h.ctx, '/code', h.deps);
     expect(['dev', 'aaa1111', 'bbb2222', 'ccc3333'].filter((name) => existsSync(join(web, name)))).toEqual(['dev', 'aaa1111']);
+  });
+
+  it('keeps the build of a card from approval until its release ships', async () => {
+    const h = harness(null, false, [card(8, 'Hardening'), card(9, 'Merging'), card(10, 'Done'), card(11, 'Done'), card(12, 'Done')]);
+    const web = h.ctx.cfg.webRoot;
+    const names = ['dev', 'h8', 'm9', 'd10', 'r11', 'old12'];
+    for (const name of names) mkdirSync(join(web, name), { recursive: true });
+    const merge = (issue: number) => ({ issue, title: 't', sha: 'a'.repeat(40), into: 'dev', reverted: [] });
+    writeState(h.ctx.statePath, state({ devMerges: [merge(10)], release: { ...RELEASE, merges: [merge(11)] }, builds: { '8': 'h8', '9': 'm9', '10': 'd10', '11': 'r11', '12': 'old12' } }));
+    await tick(h.ctx, '/code', h.deps);
+    expect(names.filter((name) => existsSync(join(web, name)))).toEqual(['dev', 'h8', 'm9', 'd10', 'r11']);
   });
 
   it('keeps the rc build while the tracking card waits in Approval', async () => {

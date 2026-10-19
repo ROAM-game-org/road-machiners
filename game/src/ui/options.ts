@@ -3,6 +3,8 @@ import { bindAttr, language } from "../text/language";
 import { t } from "../text/msg";
 import { el, panel } from "./dom";
 import { LanguageSwitch } from "./language-switch";
+import { OptionSwitch } from "./option-switch";
+import { UI_SIZES, uiSize } from "./ui-size";
 
 export class OptionsPanel {
   private root: HTMLElement | null = null;
@@ -12,6 +14,7 @@ export class OptionsPanel {
     this.dismiss();
   };
   private languageSwitch: LanguageSwitch | null = null;
+  private sizeSwitch: OptionSwitch<number> | null = null;
 
   constructor(private readonly onClose?: () => void) {}
 
@@ -27,10 +30,26 @@ export class OptionsPanel {
     bindAttr(root, "aria-label", t("options.title"));
     const section = el("section", { class: "options-language" }, el("h4", {}, t("language.label")));
     this.languageSwitch = new LanguageSwitch(section, language());
-    root.append(el("h3", {}, t("options.title")), section, el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close")));
+    const sizeSection = el("section", { class: "options-ui-size" }, el("h4", {}, t("options.uiSize")));
+    this.sizeSwitch = this.sizes(sizeSection);
+    root.append(el("h3", {}, t("options.title")), section, sizeSection, el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close")));
     this.root = root;
     window.addEventListener("keydown", this.onKey, true);
-    root.querySelector<HTMLElement>('.language-option[aria-pressed="true"]')?.focus();
+    root.querySelector<HTMLElement>('.option-switch > [aria-pressed="true"]')?.focus();
+  }
+
+  private sizes(parent: HTMLElement): OptionSwitch<number> {
+    const size = uiSize();
+    return new OptionSwitch(parent, {
+      label: t("options.uiSize"),
+      choices: UI_SIZES.map((step) => ({ value: step, label: t("setting.percent", { n: Math.round(step * 100) }) })),
+      current: () => size.applied(),
+      pick: (step) => size.set(step),
+      off: (step) => (size.fits(step) ? null : t("options.uiSizeTooBig")),
+      subscribe: (fn) => size.subscribe(fn),
+      rootClass: "ui-size-switch",
+      buttonClass: "num",
+    });
   }
 
   close(): void {
@@ -39,6 +58,8 @@ export class OptionsPanel {
     this.root = null;
     this.languageSwitch?.dispose();
     this.languageSwitch = null;
+    this.sizeSwitch?.dispose();
+    this.sizeSwitch = null;
     window.removeEventListener("keydown", this.onKey, true);
   }
 

@@ -66,7 +66,6 @@ describe('hostRepo', () => {
     await repo.diff('dev', 'b');
     await repo.hasNewCommits('dev', 'b');
     await repo.fetchFromWork('/w', 'b');
-    await repo.legacyMerges('dev', 'main');
     await repo.merge([{ branch: 'b', into: 'dev', message: 'msg', issue: null }]);
     await repo.createBranch('r', 'dev');
     await repo.revertMerge({ issue: 3, sha: 'abc' }, 'r');
@@ -307,20 +306,6 @@ describe('reading merges', () => {
     const work = join(home, 'work', 'issue-8');
     await repo.prepareWorkClone('factory/issue-8', 'dev', work);
     expect(await repo.workHead(work)).toBe(await head('dev'));
-  });
-
-  it('lists the first-parent merges with sha and subject, newest first', async () => {
-    const { repo, feature, head } = await setup();
-    await feature(3, 'f.txt', 'three\n');
-    const three = await head('dev');
-    await feature(4, 'g.txt', 'four\n');
-    const four = await head('dev');
-    await repo.fetch();
-    expect(await repo.legacyMerges('dev', 'main')).toEqual([
-      { sha: four, subject: 'Merge issue #4: title 4' },
-      { sha: three, subject: 'Merge issue #3: title 3' },
-    ]);
-    expect(await repo.legacyMerges('main', 'dev')).toEqual([]);
   });
 });
 
@@ -577,6 +562,14 @@ describe('work clones', () => {
     expect(await repo.isMerged('dev', 'factory/issue-5')).toBe(true);
   });
 
+  it('lists the files a merge of the base changed in a work clone', async () => {
+    const { repo, work } = await behindDev('g.txt');
+    const before = await repo.fetchFromWork(work, 'factory/issue-5');
+    await repo.catchUpBase(work, 'dev');
+    expect(await repo.changedInWork(work, before)).toEqual(['g.txt']);
+    expect(await repo.changedInWork(work, 'origin/dev')).toEqual(['f.txt']);
+  });
+
   it('still sees the merged commit inside the branch after dev moves on', async () => {
     const { repo, work, commit } = await behindDev('g.txt');
     const merged = (await repo.catchUpBase(work, 'dev')).commit as string;
@@ -605,6 +598,18 @@ describe('work clones', () => {
     await env.repo.fetch();
     return { ...env, work };
   }
+
+  it('replaces a branch with an unrelated commit, which a plain push refuses', async () => {
+    const { repo, commit, head } = await setup();
+    await commit('factory/issue-3', 'f.txt', 'three\n');
+    await commit('factory/issue-4', 'f.txt', 'four\n');
+    await repo.fetch();
+    await repo.replaceBranch(await head('factory/issue-3'), 'factory/suite-playtest');
+    expect(await head('factory/suite-playtest')).toBe(await head('factory/issue-3'));
+    await expect(repo.push(await head('factory/issue-4'), 'factory/suite-playtest')).rejects.toThrow();
+    await repo.replaceBranch(await head('factory/issue-4'), 'factory/suite-playtest');
+    expect(await head('factory/suite-playtest')).toBe(await head('factory/issue-4'));
+  });
 
   it('finds nothing to merge on a new branch or a branch the clone already holds', async () => {
     const { home, repo } = await setup();

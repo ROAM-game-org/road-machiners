@@ -42,7 +42,7 @@ describe('aid words', () => {
 });
 
 const PREPARE_VARS: Record<PrepareId, string[]> = {
-  nearestTown: ['town', 'bearing', 'distance'],
+  nearestTown: ['town', 'way'],
   towOffer: ['town', 'fee'],
   patchTerms: ['deal'],
   truceAnswer: ['answer', 'haul'],
@@ -51,9 +51,10 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   warnAnswer: ['answer'],
   npcTowTerms: ['site', 'fee'],
   lastTownPrices: ['town', 'prices'],
-  nearestRumor: ['site', 'bearing', 'distance'],
+  nearestRumor: ['site', 'way'],
   tradeTip: ['tip'],
   trucePrice: ['price'],
+  guardOffer: ['price'],
   aidWanted: ['aid', 'price'],
   aidAnswer: ['aid'],
   aidOffered: ['aid'],
@@ -62,10 +63,11 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   demandHaul: ['haul'],
   surrenderHaul: ['haul'],
   lastSighting: ['sighting'],
+  claimWreckBearing: ['bearing', 'distance'],
   courierNeed: ['aid', 'price'],
-  taleNews: ['site', 'bearing', 'distance', 'tip'],
-  tipTerms: ['price', 'bearing', 'distance'],
-  courierNews: ['site', 'bearing', 'distance', 'tip'],
+  taleNews: ['site', 'way', 'tip'],
+  tipTerms: ['price', 'way'],
+  courierNews: ['site', 'way', 'tip'],
   courierFavorTerms: ['price'],
 };
 
@@ -73,7 +75,8 @@ const SAMPLE: Record<string, CallVar> = {
   town: { kind: 'town', id: 'bowl' },
   site: { kind: 'site', id: 'granary' },
   bearing: { kind: 'bearing', rad: 1 },
-  distance: { kind: 'distance', tiles: 300 },
+  distance: { kind: 'distance', tiles: 12 },
+  way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
   fee: { kind: 'money', amount: 1200 },
   price: { kind: 'money', amount: 45 },
   deal: { kind: 'deal', deal: 'paid', patcher: 'npc', price: 80, parts: 2, turns: 3 },
@@ -117,7 +120,7 @@ describe('every radio line', () => {
   });
 
   it('throws for a line missing a value it names', () => {
-    expect(() => lineText('townBearing', {})).toThrow(/town/);
+    expect(() => lineText('townWay', {})).toThrow(/town/);
   });
 });
 
@@ -150,9 +153,9 @@ describe('a driver\'s own line', () => {
 describe('call error', () => {
   it('is null for a driver in sight and says why otherwise', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const near = addVehicle(w, 'traders', 'scout', [], { x: 32, y: 30 });
+    const near = addVehicle(w, 'independent', 'scout', [], { x: 32, y: 30 });
     near.brain = npcBrain('trader', { x: 32, y: 30 }, []);
-    const far = addVehicle(w, 'traders', 'scout', [], { x: 29, y: 29 });
+    const far = addVehicle(w, 'independent', 'scout', [], { x: 29, y: 29 });
     far.brain = npcBrain('trader', { x: 29, y: 29 }, []);
     far.pos = { x: 500, y: 500 };
     expect(callError(w, near.id)).toBeNull();

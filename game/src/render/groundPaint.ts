@@ -2,7 +2,8 @@
 import { REGION } from "../data/region";
 import { TERRAIN, TERRAIN_TYPES, type Basin, type TerrainTypeId } from "../data/terrain";
 import { TERRITORIES } from "../data/territory";
-import { atlasOf } from "../sim/atlas";
+import { atlasOf, atlasSites } from "../sim/atlas";
+import { siteGap } from "../sim/sites";
 import { groundSlope, type Terrain } from "../sim/terrain";
 import { basinUnder, isTerritory } from "../sim/territory";
 import { type Vec } from "../sim/vec";
@@ -17,6 +18,7 @@ const PATCH_MIX = 0.15;
 const SAND_WARM = 0.85;
 const DESERT_CALM = 0.85;
 const PATCH_OFFSET = 41.5;
+const YARD_FADE_TILES = 4;
 
 const DESERT_WEIGHT: Record<LookType, number> = {
   hardpan: 1,
@@ -47,23 +49,57 @@ export function desertWeight(type: LookType): number {
 }
 
 const lookCache = new WeakMap<Terrain, readonly LookType[]>();
+const yardCache = new WeakMap<Terrain, YardLook>();
+
+type YardLook = { fade: Float32Array; natural: readonly LookType[] };
 
 export function lookTypes(t: Terrain): readonly LookType[] {
   const cached = lookCache.get(t);
   if (cached) return cached;
-  const look = new Array<LookType | undefined>(t.size * t.size);
-  const queue = new Int32Array(look.length);
-  flood(look, queue, seedOffRoad(t, look, queue), t.size);
-  const result = Array.from(look, (type) => type ?? "hardpan");
+  const result = floodLook(t, () => false);
   lookCache.set(t, result);
   return result;
 }
 
-function seedOffRoad(t: Terrain, look: (LookType | undefined)[], queue: Int32Array): number {
+function floodLook(t: Terrain, skipped: (tile: number) => boolean): readonly LookType[] {
+  const look = new Array<LookType | undefined>(t.size * t.size);
+  const queue = new Int32Array(look.length);
+  flood(look, queue, seedOffRoad(t, look, queue, skipped), t.size);
+  return Array.from(look, (type) => type ?? "hardpan");
+}
+
+export function yardLook(t: Terrain): YardLook {
+  const cached = yardCache.get(t);
+  if (cached) return cached;
+  const fade = yardFade(t);
+  const look = { fade, natural: floodLook(t, (i) => fade[i] > 0) };
+  yardCache.set(t, look);
+  return look;
+}
+
+function yardFade(t: Terrain): Float32Array {
+  const fade = new Float32Array(t.size * t.size);
+  const margin = TERRAIN.types.siteMargin;
+  const reach = margin + YARD_FADE_TILES;
+  for (const site of atlasSites(atlasOf(t)).filter((s) => !isTerritory(s))) {
+    const span = site.radius + reach;
+    for (let y = Math.max(0, Math.floor(site.pos.y - span)); y < Math.min(t.size, Math.ceil(site.pos.y + span)); y++) {
+      for (let x = Math.max(0, Math.floor(site.pos.x - span)); x < Math.min(t.size, Math.ceil(site.pos.x + span)); x++) {
+        const i = y * t.size + x;
+        if (t.types[i] !== "hardpan") continue;
+        const gap = siteGap(site, { x: x + 0.5, y: y + 0.5 });
+        fade[i] = Math.max(fade[i], smooth(Math.min(1, Math.max(0, (margin - gap) / reach))));
+      }
+    }
+  }
+  return fade;
+}
+
+function seedOffRoad(t: Terrain, look: (LookType | undefined)[], queue: Int32Array, skipped: (tile: number) => boolean): number {
   let tail = 0;
   for (let i = 0; i < look.length; i++) {
     const type = t.types[i];
-    if (type === "road") continue;
+    if (type === "road" || skipped(i)) continue;
     look[i] = type;
     queue[tail++] = i;
   }
@@ -192,12 +228,19 @@ function tileLook(t: Terrain, hillshadeStrength: number): TileLook {
   const desert = new Float32Array(count);
   const shadeBy = new Float64Array(count);
   const look = lookTypes(t);
+  const yard = yardLook(t);
   for (let i = 0; i < count; i++) {
-    color[i] = paintColor(t.types[i]);
-    desert[i] = desertWeight(look[i] === "glass" ? "hardpan" : look[i]);
+    const natural = yard.natural[i] === "glass" ? "hardpan" : yard.natural[i];
+    color[i] = yard.fade[i] > 0 ? mix(paintColor(natural), paintColor(t.types[i]), yard.fade[i]) : paintColor(t.types[i]);
+    desert[i] = desertAround(look[i], natural, yard.fade[i]);
     shadeBy[i] = hillshade(t, i, hillshadeStrength);
   }
   return { t, color, desert, shade: shadeBy, broad: new CellNoise(), fine: new CellNoise(), patch: new CellNoise(), cell: { a: 0, b: 0, c: 0, d: 0, fx: 0, fy: 0 } };
+}
+
+function desertAround(own: LookType, natural: LookType, fade: number): number {
+  const ownWeight = desertWeight(own === "glass" ? "hardpan" : own);
+  return fade === 0 ? ownWeight : desertWeight(natural) + (ownWeight - desertWeight(natural)) * fade;
 }
 
 class CellNoise {

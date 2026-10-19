@@ -5,8 +5,8 @@
   top: var(--space-7);
   transform: translateX(-50%);
   box-sizing: border-box;
-  width: min(var(--modal-width), calc(100vw - var(--space-10)));
-  height: min(var(--modal-height), calc(100dvh - var(--modal-reserve)));
+  width: min(var(--modal-width), calc(var(--layer-w) - var(--space-10)));
+  height: min(var(--modal-height), calc(var(--layer-h) - var(--modal-reserve)));
   overflow: auto;
   scrollbar-width: thin;
 }
@@ -23,7 +23,7 @@
   left: var(--tip-left);
   bottom: var(--hud-inset);
   transform: none;
-  max-width: calc(100vw - var(--tip-left) - var(--dock-width) - var(--space-10));
+  max-width: calc(var(--layer-w) - var(--tip-left) - var(--dock-width) - var(--space-10));
   z-index: var(--z-over-modal);
 }
 #ui:has(.modal:not([style*="display: none"])) > .top-left,
@@ -31,6 +31,12 @@
 #ui:has(.modal:not([style*="display: none"])) > .bottom-left > .recenter,
 #ui:has(.modal:not([style*="display: none"])) > .right-dock {
   visibility: hidden;
+}
+#ui:has(.modal.pinned:not([style*="display: none"])) > .top-right {
+  z-index: var(--z-over-modal);
+}
+#ui:has(.modal.pinned:not([style*="display: none"])) > .top-right > .game-menu {
+  visibility: visible;
 }
 #ui:has(.modal:not([style*="display: none"])) > .bottom-left > .instruments,
 #ui:has(.modal:not([style*="display: none"])) > .log {

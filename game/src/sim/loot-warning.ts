@@ -7,11 +7,13 @@ import { isKnockedOut } from './defeat';
 import { cancelJob } from './jobs';
 import { defyThreat, finishGoal, topGoal } from './npc-activities';
 import { decide, firepower, lootTaken, perceiveDanger } from './npc-decisions';
-import { claimantOf, inLootReach, jobTarget, lootBlocker, lootClaimedBy, salvageInRange, salvagePlace } from './salvage';
+import { claimantOf, inLootReach, isStockGoal, jobTarget, lootBlocker, lootClaimedBy, salvageInRange, salvagePlace } from './salvage';
 import { addState, boundTo, endState, lootWarningData, stateOf } from './states';
 import { inTowReach } from './tow';
+import { sameCompany } from './companies';
 import type { GameEvent, GoalReason, NpcActivity, NpcState, StateEnding, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
+import { noteDeed } from './relations';
 
 export type WarnAnswer = DecisionOptions['warnedOff'];
 type Refusal = DecisionOptions['warnRefused'];
@@ -19,7 +21,7 @@ export type OnRefuse = 'roll' | Refusal;
 type ArgumentEnd = Extract<GameEvent, { t: 'lootArgument' }>['end'];
 
 export function canArgue(world: World, a: Vehicle, b: Vehicle): boolean {
-  return !isHostile(world, a, b) && !isHostile(world, b, a) && !boundTo(world, a.id, b.id);
+  return !isHostile(world, a, b) && !isHostile(world, b, a) && !boundTo(world, a.id, b.id) && !sameCompany(world, a, b);
 }
 
 function contestKey(id: string): string {
@@ -137,7 +139,7 @@ export function leaveLoot(world: World, v: Vehicle, targetId: string, reason: Go
 }
 
 function isLootGoalOn(goal: NpcActivity | null, targetId: string): boolean {
-  return (goal?.kind === 'loot' || goal?.kind === 'scavenge') && goal.targetId === targetId;
+  return isStockGoal(goal) && goal.targetId === targetId;
 }
 
 function logArgument(world: World, warner: Vehicle, looter: Vehicle, targetId: string, end: ArgumentEnd): void {
@@ -168,7 +170,10 @@ export function warnedOffTarget(world: World, v: Vehicle, targetId: string): Npc
 
 export function breakLootWarning(world: World, me: Vehicle, targetId: string): void {
   const s = warnedOffTarget(world, me, targetId);
-  if (s) endState(world, s, 'broken');
+  if (!s) return;
+  endState(world, s, 'broken');
+  const warner = world.vehicles.find((v) => v.id === s.holder);
+  if (warner) noteDeed(world, me, warner, 'stole', canVehicleSee(world, warner, me.pos));
 }
 
 export function lootsBesidePlayer(world: World, npc: Vehicle): boolean {

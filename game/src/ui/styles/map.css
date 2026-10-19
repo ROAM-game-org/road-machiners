@@ -27,12 +27,12 @@
 }
 #ui .world-map-screen .world-map-body {
   position: relative;
-  width: min(var(--world-map-size), 100%, calc(100dvh - var(--modal-reserve) - var(--space-10)));
+  width: min(var(--world-map-size), 100%, calc(var(--layer-h) - var(--modal-reserve) - var(--space-10)));
   margin: 0 auto;
 }
 .charts-map {
   position: relative;
-  width: min(var(--world-map-size), 100%, calc(100dvh - var(--modal-reserve) - var(--map-chrome)));
+  width: min(var(--world-map-size), 100%, calc(var(--layer-h) - var(--modal-reserve) - var(--map-chrome)));
   margin: 0 auto;
 }
 .charts {

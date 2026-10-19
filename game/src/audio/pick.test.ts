@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loudestAt, pickVariant, shuffled, spatial, VoiceLimiter } from "./pick";
+import { pickVariant, shuffled, spatial, VoiceLimiter } from "./pick";
 
 describe("shuffled", () => {
   it("reorders a copy by its rolls and keeps every item", () => {
@@ -57,14 +57,5 @@ describe("VoiceLimiter", () => {
     expect(v.admit("mg", 2, 0.5, 1.5)).toBe(false);
     expect(v.admit("cannon", 2, 0.5, 1.5)).toBe(true);
     expect(v.admit("mg", 2, 1, 2)).toBe(true);
-  });
-});
-
-describe("loudestAt", () => {
-  it("finds the middle of the loudest window", () => {
-    const samples = new Float32Array(1000);
-    for (let i = 600; i < 610; i++) samples[i] = 1;
-    samples[100] = 0.5;
-    expect(loudestAt(samples, 1000, 0.01)).toBeCloseTo(0.605);
   });
 });

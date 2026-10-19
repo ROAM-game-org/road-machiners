@@ -25,6 +25,7 @@ export const PIECES: Piece[] = [
   { name: ".tile", note: "A boxed list item edged in its tone.", build: () => sample("tile", "A tile") },
   { name: ".chip", note: "A small boxed value.", build: () => text("span", "chip", "120 scrap") },
   { name: ".tag", note: "An outlined word.", build: () => text("span", "tag", "buy") },
+  { name: ".contract-clue", note: "A told survey clue, on its own line under its contract.", build: () => text("span", "contract-clue", "Lies north of Bowl, about 2 km out") },
   { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(1500) },
   { name: ".meter", note: "A bar that fills from the left.", build: () => meter("meter", 70) },
   { name: ".meter.progress", note: "A bar for timed work.", build: () => meter("meter progress", 40) },
@@ -36,6 +37,7 @@ export const PIECES: Piece[] = [
   { name: ".map-view", note: "The square map drawing: explored ground, discovered places and the truck.", build: () => sample("map-view", "") },
   { name: ".key", note: "A keyboard key or a mouse button, drawn as a keycap.", build: () => text("kbd", "key", "Space") },
   { name: ".drawer-tabs", note: "The tab row of the phone layout: one icon button per drawer, .selected on the open one and .marked for attention.", build: () => drawerTabs() },
+  { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
   { name: ".num", note: "A number in the mono face.", build: () => text("span", "num", "1 240") },
 ];
 
@@ -59,4 +61,10 @@ function meter(cls: string, percent: number): HTMLElement {
   const fill = el("span", {});
   fill.style.width = `${percent}%`;
   return el("div", { class: cls }, fill);
+}
+
+function optionSwitch(): HTMLElement {
+  const choice = (words: string, pressed: boolean, off = false): HTMLElement =>
+    el("button", { class: "num", "aria-pressed": String(pressed), ...(off ? { "aria-disabled": "true", title: "Too big for this screen" } : {}) }, words);
+  return el("div", { class: "option-switch", role: "group" }, choice("80%", false), choice("100%", true), choice("130%", false, true));
 }

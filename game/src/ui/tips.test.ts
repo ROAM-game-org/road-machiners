@@ -1,12 +1,13 @@
 import { defaultSetup } from '../sim/settings';
-import { openQuest, QUESTS } from "../sim/quests";
+import { openQuest, QUESTS, setIntroStep } from "../sim/quests";
 import { GAME_OPENED_QUESTS } from "../data/quests";
 import { describe, expect, it } from "vitest";
 import { playerVehicle } from "../sim/damage";
 import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, openingStopPoint, testDrive } from "../sim/testkit";
 import { vehicleStats } from "../sim/stats";
 import { refreshVision } from "../sim/vision";
-import { cloneWorld, endTurn, newWorld, setMoveOrder, startPose } from "../sim/world";
+import { cloneWorld, endTurn, newWorld, setMoveOrder } from "../sim/world";
+import { startPose } from "../sim/start-pose";
 import { startKit } from "../data/start";
 import { CONDITION } from "../data/wear";
 import { findSpot, gridOf, isMounted, MOUNT_CELLS, mountedParts, type Spot } from "../sim/grid";
@@ -17,7 +18,8 @@ import { OPENING_WRECK_ID } from "../sim/opening";
 import { startSearch } from "../sim/search";
 import type { World } from "../sim/types";
 import { TEST_MAP } from "../test/map";
-import { clearTips, doneTips, openingStep, setTipsOff, tipsOff, tipToShow, type TipId } from "./tips";
+import { openingStep } from "../sim/opening";
+import { clearTips, doneTips, readSeen, setTipsOff, tipsOff, tipToShow, TipTurns, type TipId } from "./tips";
 
 describe("driving tips", () => {
   it("walks the player from a waypoint to Space, stopping, stop waypoints and manual mode", () => {
@@ -97,7 +99,7 @@ describe("horn tip", () => {
     const seen = new Set<TipId>(["waypoint", "drive", "stop", "stopAt", "manual"]);
     expect(tipToShow(w, false, seen, null)).toBeNull();
 
-    const npc = addVehicle(w, "scavengers", "scout", [], { x: 32, y: 30 });
+    const npc = addVehicle(w, "independent", "scout", [], { x: 32, y: 30 });
     npc.brain = npcBrain("scavenger", npc.pos, ["scavenger"]);
     refreshVision(w);
     expect(tipToShow(w, false, seen, null)).toBe("honk");
@@ -108,7 +110,7 @@ describe("horn tip", () => {
 
   it("ignores an NPC out of sight", () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, "scavengers", "scout", [], { x: 58, y: 58 });
+    const npc = addVehicle(w, "independent", "scout", [], { x: 58, y: 58 });
     npc.brain = npcBrain("scavenger", npc.pos, ["scavenger"]);
     refreshVision(w);
     expect(tipToShow(w, false, new Set(["waypoint"]), null)).toBeNull();
@@ -120,7 +122,7 @@ describe("aim tip", () => {
 
   function withRaider() {
     const w = emptyWorld();
-    const npc = addVehicle(w, "raiders", "scout", [], { x: 32, y: 30 });
+    const npc = addVehicle(w, "scrapjaw", "scout", [], { x: 32, y: 30 });
     npc.brain = npcBrain("raider", npc.pos, ["raider"]);
     refreshVision(w);
     return { w, npc };
@@ -133,7 +135,7 @@ describe("aim tip", () => {
 
   it("stays away from a neutral", () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, "traders", "scout", [], { x: 32, y: 30 });
+    const npc = addVehicle(w, "independent", "scout", [], { x: 32, y: 30 });
     npc.brain = npcBrain("trader", npc.pos, ["trader"]);
     refreshVision(w);
     expect(tipToShow(w, false, driving, null)).toBe("honk");
@@ -162,11 +164,57 @@ describe("farewell tip", () => {
     expect(tipToShow(w, false, new Set(allButFarewell), null)).toBe("farewell");
   });
 
+  it("stays away from a start with the arrival story, which ends in a scene of its own", () => {
+    const w = emptyWorld();
+    const spawn = startPose().pos;
+    playerVehicle(w).pos = { x: spawn.x + 80, y: spawn.y };
+    setIntroStep(w, "drive");
+    expect(tipToShow(w, false, new Set(allButFarewell), null)).toBeNull();
+  });
+
+  it("is still a known id in a stored list", () => {
+    const storage = { getItem: () => JSON.stringify(["farewell"]), setItem: () => {}, removeItem: () => {} } as unknown as Storage;
+    expect(readSeen(storage).has("farewell")).toBe(true);
+  });
+
   it("waits for the horn tip", () => {
     const w = emptyWorld();
     const spawn = startPose().pos;
     playerVehicle(w).pos = { x: spawn.x + 80, y: spawn.y };
     expect(tipToShow(w, false, new Set(allButFarewell.filter((id) => id !== "honk")), null)).toBeNull();
+  });
+});
+
+describe("zones tip", () => {
+  const manual = (turn: number) => {
+    const w = emptyWorld();
+    playerVehicle(w).direct = true;
+    w.turn = turn;
+    return w;
+  };
+
+  it("ends after two turns played in manual mode while it showed", () => {
+    const turns = new TipTurns();
+    expect(turns.count(manual(5), "zones")).toBeNull();
+    expect(turns.count(manual(6), "zones")).toBeNull();
+    expect(turns.count(manual(7), "zones")).toBe("zones");
+  });
+
+  it("counts no turn played with manual mode off or while the tip is hidden", () => {
+    const turns = new TipTurns();
+    turns.count(manual(1), "zones");
+    const off = manual(2);
+    playerVehicle(off).direct = false;
+    expect(turns.count(off, "zones")).toBeNull();
+    expect(turns.count(manual(3), null)).toBeNull();
+    expect(turns.count(manual(4), "zones")).toBeNull();
+    expect(turns.count(manual(5), "zones")).toBe("zones");
+  });
+
+  it("counts nothing for a tip that has no turn count", () => {
+    const turns = new TipTurns();
+    turns.count(manual(1), "manual");
+    expect(turns.count(manual(9), "manual")).toBeNull();
   });
 });
 
@@ -283,6 +331,25 @@ describe("opening tips", () => {
     expect(openingStep(w)).toBeNull();
   });
 
+  it("shows the stop tip over the wreck tip while the truck rolls on an order that will not stop", () => {
+    const w = opening();
+    const me = playerVehicle(w);
+    me.speed = 2;
+    me.order = { kind: "through", dest: { x: me.pos.x + 80, y: me.pos.y } };
+    expect(tipToShow(w, false, new Set(), "wreck")).toBe("stop");
+    expect(tipToShow(w, false, new Set<TipId>(["stop"]), "wreck")).toBe("wreck");
+  });
+
+  it("keeps the wreck tip on a stop order, which stops by itself, and ends the stop tip at the brake", () => {
+    const w = opening();
+    const me = playerVehicle(w);
+    me.speed = 2;
+    me.order = { kind: "stopAt", dest: openingStopPoint(w) };
+    expect(tipToShow(w, false, new Set(), null)).toBe("wreck");
+    me.order = { kind: "brake" };
+    expect(doneTips(w, new Set())).toContain("stop");
+  });
+
   it("has no opening step in a game without the opening wreck, like an old save", () => {
     expect(openingStep(emptyWorld())).toBeNull();
   });
@@ -291,7 +358,7 @@ describe("opening tips", () => {
 describe("tips in a Fury Road run", () => {
   it("runs no opening and offers no horn", () => {
     const w = furyRoadWorld(3);
-    addVehicle(w, "raiders", "wagon", ["mg"], { x: playerVehicle(w).pos.x + 4, y: playerVehicle(w).pos.y }).brain = npcBrain("buggy", playerVehicle(w).pos, ["raider"]);
+    addVehicle(w, "scrapjaw", "wagon", ["mg"], { x: playerVehicle(w).pos.x + 4, y: playerVehicle(w).pos.y }).brain = npcBrain("buggy", playerVehicle(w).pos, ["raider"]);
     refreshVision(w);
     const seen = new Set<TipId>(["waypoint", "drive", "autoStop", "stop", "stopAt", "manual", "zones", "aim"]);
 

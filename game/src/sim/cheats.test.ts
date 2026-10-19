@@ -308,9 +308,10 @@ describe('teleport', () => {
 
   it('finds the nearest free spot next to an obstacle', () => {
     const w = emptyWorld();
-    w.obstacles.push({ id: 'rock-x', pos: { x: 80, y: 90 }, r: 2, kind: 'rock' });
-    const moved = playerVehicle(teleport(w, { x: 80, y: 90 }));
-    const d = dist(moved.pos, { x: 80, y: 90 });
+    const rock = { x: 300, y: 300 };
+    w.obstacles.push({ id: 'rock-x', pos: rock, r: 2, kind: 'rock' });
+    const moved = playerVehicle(teleport(w, rock));
+    const d = dist(moved.pos, rock);
     expect(d).toBeGreaterThan(2);
     expect(d).toBeLessThanOrEqual(CHEATS.searchStep * CHEATS.searchRings);
   });
@@ -322,7 +323,7 @@ describe('teleport', () => {
 
   it('rejects a player on a tow rope', () => {
     const w = emptyWorld();
-    const tower = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 40, y: 30 });
+    const tower = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 });
     addState(w, 'tow', tower.id, w.player.vehicleId, { kind: 'tow', site: REGION.towns[0].id, fee: 10, waived: 0, hitched: true });
     expect(() => teleport(w, { x: 80, y: 90 })).toThrow(/towed/);
   });
@@ -474,9 +475,9 @@ describe('vehicle cheats', () => {
 
   it('kills hostiles or all other vehicles', () => {
     const w = emptyWorld();
-    const foe = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const foe = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     addState(w, 'feud', foe.id, w.player.vehicleId, { kind: 'feud', robbery: false });
-    addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 30, y: 40 });
+    addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 30, y: 40 });
     expect(killVehicles(w, 'hostiles').vehicles).toHaveLength(2);
     expect(killVehicles(w, 'all').vehicles.map((v) => v.id)).toEqual([w.player.vehicleId]);
     expect(killVehicles(emptyWorld(), 'hostiles').vehicles).toHaveLength(1);
@@ -490,7 +491,7 @@ describe('vehicle cheats', () => {
 
   it('drops the tow when the tower is killed, so the next turn runs', () => {
     const w = emptyWorld();
-    const tower = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 40, y: 30 });
+    const tower = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 });
     tower.brain = npcBrain('trader', tower.pos, ['trader']);
     addState(w, 'tow', tower.id, w.player.vehicleId, { kind: 'tow', site: REGION.towns[0].id, fee: 10, waived: 0, hitched: true });
     const next = killVehicles(w, tower.id);
@@ -501,9 +502,9 @@ describe('vehicle cheats', () => {
 
   it('ends feuds with a killed vehicle, so its enemy drops the fight next turn', () => {
     const w = emptyWorld();
-    const hunter = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const hunter = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 40, y: 30 });
     hunter.brain = npcBrain('scavenger', hunter.pos, ['scavenger']);
-    const prey = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 45, y: 30 });
+    const prey = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 45, y: 30 });
     addState(w, 'feud', hunter.id, prey.id, { kind: 'feud', robbery: false });
     hunter.brain.goals.push({ kind: 'fight', targetId: prey.id, destination: { ...prey.pos }, phase: 'travel', reason: 'tripToSite', worn: { turn: w.turn, condition: 1 } });
     const next = killVehicles(w, prey.id);
@@ -514,12 +515,12 @@ describe('vehicle cheats', () => {
 
   it('lists other vehicles by distance', () => {
     const w = emptyWorld();
-    const far = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 50, y: 30 });
-    const near = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 });
+    const far = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 50, y: 30 });
+    const near = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 });
     addState(w, 'feud', near.id, w.player.vehicleId, { kind: 'feud', robbery: false });
     expect(nearbyVehicles(w)).toEqual([
-      { id: near.id, driver: null, templateId: null, faction: 'raiders', distance: 5, hostile: true },
-      { id: far.id, driver: null, templateId: null, faction: 'traders', distance: 20, hostile: false },
+      { id: near.id, driver: null, templateId: null, faction: 'scrapjaw', distance: 5, hostile: true },
+      { id: far.id, driver: null, templateId: null, faction: 'independent', distance: 20, hostile: false },
     ]);
   });
 });
