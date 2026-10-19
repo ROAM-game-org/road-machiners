@@ -9,6 +9,18 @@
 - `src/sim/fidelity.ts` owns the cheap far rule. A meeting where neither point lies within sight radius plus `PERF.liveMargin` of the player plays by cheap rules: `canVehicleSee()` is the sight radius alone with no props, hills or dust screens, `cloudsSeenBy()` skips risen clouds seen over hills, and heat and the shade search treat the ground as open sun. A meeting with the player always uses the full rules. `setHeadless()` is a process-level switch the progression recorder sets. It counts every truck as far, so the player bot meets the cheap rules too and keeps its far route between turns. It is never saved on the World.
 - `src/sim/prop-index.ts` indexes obstacles for sight lines, shade rays and breakable props on far walks. It is keyed by each obstacle's id and place, since `update()` clones the world every turn. Route planning builds its static set the same way in `src/sim/nav/layer.ts`.
 
+## Rigs
+
+A chassis with a `coupling` is a rig: a driven front unit and a towed rear unit on one pivot. The semi and the sorokonoga are rigs. Every rule below reads the coupling, so a new rig is a data entry and two models.
+
+- `src/sim/rig.ts` owns unit poses. `Vehicle.pos` and `heading` are the front unit's, and the saved `bend` is the front heading minus the rear heading. `unitPoses()`, `cellWorld()`, `rigBoxes()` and `rigDiscs()` give every other rule the rear unit, so no caller works out a trailer pose on its own. `bodyOf()` in `src/sim/body.ts` throws on a rig, so a caller that needs a box has to pick a unit.
+- In physics each unit is its own Rapier body. `addCoupling()` in `src/phys/units.ts` joins them with a generic joint at the pivot. The joint locks the three linear axes and roll, leaves pitch free like a fifth wheel, and limits yaw to the coupling's `bendLimit`. Contacts between the two units are off. The rear unit has two braked, unpowered wheels. Each unit's wheel rays skip the other unit's colliders (`rollUnits()`), since the sorokonoga's bed reaches under its tractor's drive axle. The turn writes the bend of the two bodies back to the truck and checks it against the limit.
+- Wheel loads split the rear unit's mass between its own axle and the pivot, and the pivot share between the tractor's axles (`wheelLoads()`). Suspension stiffness and brake force scale with each wheel's load, so both units sit level.
+- Far rigs, rigs on a tow rope and the driver's clearance roll have no body. They move the rear unit with `bendStep()`, the tractrix rule the tow bar uses: the rear axle follows the pivot, clamped at the bend limit.
+- Backing runs the bend away, as on a real rig. The driver steers against the bend with the coupling's `backGain`, and a backing leg is capped at `backCap` tiles.
+- Routes plan with the chassis `radius`. Parked, wrecked and moving rigs give one disc per unit through `rigDiscs()`.
+- The hauler's lane, along-road and yard rules read `rigMiddle()`, the middle of the straight rig, so they see the same truck as before the swivel. Its yard spot is shifted forward by `frontAhead()` so the whole rig sits in the yard.
+
 ## Player travel
 
 `src/three/travel.ts` owns automatic order advancement and held-Space state. A click sets a drive-through order. A click on its point switches it between drive-through and stop-at, and Shift-click sets stop-at. A click on a site stops at its nearest pad. `src/three/render/path.ts` draws the order point with an icon for its kind, also while turns play.
