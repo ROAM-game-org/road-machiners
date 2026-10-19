@@ -339,7 +339,7 @@ export const TALK: Translation<typeof EN> = {
   'radio.stormEnd.0': 'Пыльная буря {place} выдохлась.',
   'radio.stormEnd.1': 'Буря {place} улеглась. Кто-нибудь, откопайте дорогу.',
   'radio.haul.0': 'Свежая работа {shop, case, at}: отвезти {good, case, acc} {to, case, to}.',
-  'radio.haul.1': '{shop} {shop, gender, m {ищет} f {ищет} n {ищет} pl {ищут}} водилу {to, case, to} с {good, case, ins}. Дело честное.',
+  'radio.haul.1': '{shop} {shop, gender, m {ищет} f {ищет} n {ищет} pl {ищут}} водилу {to, case, to} с {good, case, ins}.',
   'radio.fetch.0': '{shop} {shop, gender, m {ищет} f {ищет} n {ищет} pl {ищут}} {part, gender, m {исправный} f {исправную} n {исправное} pl {исправные}} {part, case, acc}.',
   'radio.fetch.1': 'Разыскивают {part, case, acc} {shop, case, at}, ещё {part, gender, m {живой} f {живую} n {живое} pl {живые}}.',
   'radio.search.0': '{shop, case, at} лежит посылка {target, case, dat}. Кто-нибудь едет в ту сторону?',
