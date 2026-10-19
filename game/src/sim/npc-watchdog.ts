@@ -16,7 +16,7 @@ import { isFree } from './spawn';
 import { isStranded, vehicleStats } from './stats';
 import { escortsOf, isOnRope, npcHomeSite } from './tow';
 import { awaitsEscort } from './escort-job';
-import { isSunwardMember, planSunward } from './sunward';
+import { holdsPost, isSunwardMember, planSunward } from './sunward';
 import type { NpcBrain, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { dist, type Vec } from './vec';
@@ -41,7 +41,11 @@ function progressHere(world: World, v: Vehicle): NonNullable<NpcBrain['progress'
 }
 
 function waits(world: World, v: Vehicle): boolean {
-  return isShutDown(world, v) || isOnRope(world, v.id) || awaitsTower(world, v) || liesUp(v) || waitsOnLeader(world, v) || awaitsEscort(v) || leadsPlayer(world, v) || strandedForGood(world, v);
+  return isShutDown(world, v) || isOnRope(world, v.id) || awaitsTower(world, v) || liesUp(v) || waitsOnLeader(world, v) || holdsStill(v) || leadsPlayer(world, v) || strandedForGood(world, v);
+}
+
+function holdsStill(v: Vehicle): boolean {
+  return awaitsEscort(v) || holdsPost(v);
 }
 
 function leadsPlayer(world: World, v: Vehicle): boolean {

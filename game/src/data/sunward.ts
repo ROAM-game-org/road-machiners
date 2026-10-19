@@ -16,8 +16,8 @@ export const SUNWARD = {
   huntReach: 70,
   huntBreaks: 2,
   huntSalt: 0x68756e74,
-  driveTurns: 45,
-  returnMarginTurns: 30,
+  driveTurns: 90,
+  returnMarginTurns: 45,
   avoidMargin: 12,
   avoidCost: 6,
   dropGap: 1.5,
@@ -25,6 +25,11 @@ export const SUNWARD = {
   approachGap: 3,
   straightReach: 4,
   vigilInset: 3,
+  fileGap: 4,
+  postGap: 3,
+  postSamples: 96,
+  postClearance: 1.6,
+  postSpacing: 3.5,
   watchers: 2,
 };
 

@@ -1,5 +1,6 @@
 import { REGION } from '../src/data/region.ts';
-import { SUNWARD } from '../src/data/sunward.ts';
+import { HOLLOW, SUNWARD } from '../src/data/sunward.ts';
+import { testDrive } from '../src/sim/testkit.ts';
 import { startKit } from '../src/data/start.ts';
 import { TEST_MAP } from '../src/test/map.ts';
 import { newWorld, endTurn } from '../src/sim/world.ts';
@@ -19,6 +20,19 @@ const flag = (name, fallback) => {
 };
 const seeds = flag('seeds', '1,2,3').split(',').map(Number);
 const dayTurns = Number(flag('day-turns', '190'));
+const live = argv.includes('--live');
+const morningTurns = 120;
+
+function besideBowl() {
+  const bowl = REGION.towns.find((t) => t.id === 'bowl');
+  return { x: bowl.pos.x + bowl.radius + 6, y: bowl.pos.y };
+}
+
+function besideTheGate() {
+  const gate = HOLLOW.site.gates[0];
+  const out = { x: (gate.x - HOLLOW.pos.x) / HOLLOW.radius, y: (gate.y - HOLLOW.pos.y) / HOLLOW.radius };
+  return { x: gate.x - out.y * 30, y: gate.y + out.x * 30 };
+}
 
 function moveAllFar(w) {
   for (const v of w.vehicles) advanceFar(w, v);
@@ -43,16 +57,15 @@ function huntsPerWeek(w) {
 
 function playNight(seed) {
   let w = newWorld(seed, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
-  const bowl = REGION.towns.find((t) => t.id === 'bowl');
-  playerVehicle(w).pos = { x: bowl.pos.x + bowl.radius + 6, y: bowl.pos.y };
+  playerVehicle(w).pos = watchPoint();
   fillHollow(w);
   const dusk = duskTurn(2);
   w.turn = dusk - dayTurns;
   refreshVision(w);
   const out = { seed, dayZone: 0, nightZone: 0, arrivals: [], home: null, stalls: 0, roster: 0, hunt: false, beforeDawn: false, homeAtDawn: 0 };
-  while (w.turn < dawnAfter(dusk) + 40) {
+  while (w.turn < dawnAfter(dusk) + morningTurns) {
     if (w.player.call) w = hangUp(w);
-    w = endTurn(w, moveAllFar);
+    w = endTurn(w, move);
     out.stalls += w.events.filter((e) => e.t === 'stall').length;
     if (w.turn < dusk) out.dayZone += strangersInZone(w);
     else if (w.turn < dawnAfter(dusk)) out.nightZone += strangersInZone(w);
@@ -89,8 +102,10 @@ function noteArrivals(w, dusk, night, out) {
   }
 }
 
-setHeadless(true);
-console.log(`driveTurns ${SUNWARD.driveTurns}, returnMarginTurns ${SUNWARD.returnMarginTurns}, huntChance ${SUNWARD.huntChance}, cooldown ${SUNWARD.huntCooldownNights}`);
+const watchPoint = live ? besideTheGate : besideBowl;
+const move = live ? testDrive : moveAllFar;
+setHeadless(!live);
+console.log(`${live ? 'live rules, the player 30 tiles off the gate' : 'far travel'}: driveTurns ${SUNWARD.driveTurns}, returnMarginTurns ${SUNWARD.returnMarginTurns}, huntChance ${SUNWARD.huntChance}, cooldown ${SUNWARD.huntCooldownNights}`);
 for (const seed of seeds) {
   const r = playNight(seed);
   const arrive = r.arrivals.map((a) => a.turn);

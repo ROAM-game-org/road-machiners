@@ -8,9 +8,10 @@ import { playerVehicle } from './damage';
 import { isDefeated, isKnockedOut, patchBrokenCore, refitAtHome } from './defeat';
 import { placeBase, topGoal } from './npc-activities';
 import { getResources } from './resources';
+import { isFree } from './spawn';
 import { endState } from './states';
 import { canDrag, dragHeldBy, inTowReach, isOnRope, startDrag } from './tow';
-import { callStrangers, dropSpot, nearTheLight, offeringOf, seize } from './sunward-crater';
+import { callStrangers, dropSpot, lightZone, nearTheLight, offeringOf, seize } from './sunward-crater';
 import { inTruce } from './relations';
 import { canVehicleSee, grayRadius, tileCenter } from './vision';
 import { fuelCap, suppliesCap } from './stats';
@@ -64,7 +65,7 @@ export function dawnAfter(dusk: number): number {
 }
 
 export function returnTurn(dusk: number): number {
-  return dawnAfter(dusk) - SUNWARD.driveTurns - SUNWARD.returnMarginTurns;
+  return dawnAfter(dusk) - SUNWARD.returnMarginTurns;
 }
 
 export function lastDusk(turn: number): number {
@@ -76,7 +77,7 @@ export function lastDusk(turn: number): number {
 export function phaseAt(turn: number): NightPhase {
   const dusk = lastDusk(turn);
   if (turn >= dawnAfter(dusk)) return 'rest';
-  if (turn < dusk + SUNWARD.driveTurns + SUNWARD.returnMarginTurns) return 'ride';
+  if (turn < dusk + SUNWARD.driveTurns) return 'ride';
   return turn < returnTurn(dusk) ? 'vigil' : 'home';
 }
 
@@ -281,13 +282,6 @@ export function vigilGrounds(): Vec[] {
   return territoryGrounds(FALLEN_SUN).filter((p) => siteGap(FALLEN_SUN, p) < -SUNWARD.vigilInset);
 }
 
-let craterPoint: Vec | null = null;
-
-export function craterArrival(): Vec {
-  craterPoint ??= vigilGrounds().reduce((a, b) => (dist(a, HOLLOW.pos) <= dist(b, HOLLOW.pos) ? a : b));
-  return { ...craterPoint };
-}
-
 export function inFallenSun(pos: Vec): boolean {
   return dist(pos, FALLEN_SUN.pos) <= FALLEN_SUN.radius && siteGap(FALLEN_SUN, pos) < 0;
 }
@@ -342,9 +336,46 @@ function scheduleGoal(world: World, v: Vehicle): NpcActivity {
 }
 
 function columnGoal(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
-  const leader = columnLeader(world, phase);
-  if (!leader || leader.id === v.id) return leadGoal(phase);
-  return goal('follow', leader.pos, phase === 'ride' ? 'rideVigil' : 'rideHome', leader.id);
+  const ahead = carAhead(world, v, phase);
+  if (!ahead) return leadGoal(world, v, phase);
+  if (atStation(world, v, phase) && atStation(world, ahead, phase)) return holdStation(world, v, phase);
+  return goal('follow', ahead.pos, phase === 'ride' ? 'rideVigil' : 'rideHome', ahead.id);
+}
+
+function stationOf(world: World, v: Vehicle, phase: NightPhase): Vec {
+  return phase === 'ride' ? v.brain!.home : postOf(world, v);
+}
+
+function atStation(world: World, v: Vehicle, phase: NightPhase): boolean {
+  return dist(v.pos, stationOf(world, v, phase)) < SUNWARD.fileGap;
+}
+
+function holdStation(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
+  const until = returnTurn(sunwardFacts(world).night!.dusk);
+  return { ...goal('wait', stationOf(world, v, phase), phase === 'ride' ? 'restHollow' : 'keepVigil'), until: phase === 'ride' ? until : dawnAfter(lastDusk(world.turn)) };
+}
+
+function carAhead(world: World, v: Vehicle, phase: NightPhase): Vehicle | null {
+  const column = gateOrder(world, sunwardFacts(world).night!).flatMap((id) => world.vehicles.filter((x) => x.id === id && !isDefeated(x) && inColumn(x, phase)));
+  const at = column.findIndex((x) => x.id === v.id);
+  if (at < 0) throw new Error(`${v.id} rides tonight but is not in the Cavalcade's column`);
+  return at === 0 ? null : column[at - 1];
+}
+
+function inColumn(v: Vehicle, phase: NightPhase): boolean {
+  return phase === 'ride' ? !atCrater(v, phase) : !nearHome(v, phase);
+}
+
+export function gateOrder(world: World, night: SunwardNight): string[] {
+  const bays = hollowBays();
+  const bayOf = (id: string): number => {
+    const v = world.vehicles.find((x) => x.id === id);
+    const bay = v ? bays.findIndex((b) => dist(b, v.brain!.home) < 0.5) : -1;
+    if (bay < 0) throw new Error(`Cavalcade car ${id} has no bay in the Hollow`);
+    return bay;
+  };
+  const ranked = night.roster.filter((id) => world.vehicles.some((x) => x.id === id)).map((id) => ({ id, bay: bayOf(id) }));
+  return ranked.sort((a, b) => a.bay - b.bay).map((r) => r.id);
 }
 
 function atCrater(v: Vehicle, phase: NightPhase): boolean {
@@ -361,28 +392,54 @@ export function nextDusk(turn: number): number {
   return turn < duskTurn(day) ? duskTurn(day) : duskTurn(day + 1);
 }
 
-function leadGoal(phase: NightPhase): NpcActivity {
-  return phase === 'ride' ? goal('explore', craterArrival(), 'rideVigil') : goal('explore', HOLLOW.pos, 'rideHome');
+function leadGoal(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
+  return phase === 'ride' ? goal('explore', postOf(world, v), 'rideVigil') : goal('explore', v.brain!.home, 'rideHome');
 }
 
 function vigilGoal(world: World, v: Vehicle): NpcActivity {
-  const held = v.brain!.goals[0];
-  if (held?.kind === 'patrol' && held.reason === 'keepVigil') return held;
-  const grounds = vigilGrounds();
-  const pick = grounds[(world.turn + Number(v.id.replace(/\D/g, '') || 0)) % grounds.length];
-  return goal('patrol', pick, 'keepVigil');
+  return { ...goal('wait', postOf(world, v), 'keepVigil'), until: returnTurn(sunwardFacts(world).night!.dusk) };
+}
+
+export function holdsPost(v: Vehicle): boolean {
+  const top = topGoal(v);
+  return isSunwardMember(v) && top?.kind === 'wait' && top.reason === 'keepVigil' && top.destination !== null && dist(v.pos, top.destination) <= RULES.arriveRadius * 2;
+}
+
+function postOf(world: World, v: Vehicle): Vec {
+  const night = sunwardFacts(world).night!;
+  const seat = gateOrder(world, night).indexOf(v.id);
+  if (seat < 0) throw new Error(`${v.id} keeps no post at the vigil tonight`);
+  return { ...vigilPosts(world)[seat] };
+}
+
+const POSTS = new WeakMap<object, Vec[]>();
+
+export function vigilPosts(world: World): Vec[] {
+  let posts = POSTS.get(world.terrain);
+  if (!posts) {
+    posts = pickPosts(world);
+    POSTS.set(world.terrain, posts);
+  }
+  return posts;
+}
+
+function pickPosts(world: World): Vec[] {
+  const zone = lightZone();
+  const ring = zone.radius + SUNWARD.postGap;
+  const empty = { ...world, vehicles: [] };
+  const spots = Array.from({ length: SUNWARD.postSamples }, (_, k) => (k * 2 * Math.PI) / SUNWARD.postSamples)
+    .map((a) => ({ x: zone.pos.x + Math.cos(a) * ring, y: zone.pos.y + Math.sin(a) * ring }))
+    .filter((p) => isFree(empty, p, SUNWARD.postClearance, null))
+    .sort((a, b) => dist(b, HOLLOW.pos) - dist(a, HOLLOW.pos));
+  const posts: Vec[] = [];
+  for (const p of spots) if (posts.length < SUNWARD.cavalcade && posts.every((q) => dist(p, q) >= SUNWARD.postSpacing)) posts.push(p);
+  if (posts.length < SUNWARD.cavalcade) throw new Error(`Only ${posts.length} vigil posts fit round the Fallen Sun's light, not ${SUNWARD.cavalcade}`);
+  return posts;
 }
 
 function ridesTonight(world: World, v: Vehicle): boolean {
   const night = sunwardFacts(world).night;
   return night !== null && night.roster.includes(v.id) && !isDefeated(v);
-}
-
-function columnLeader(world: World, phase: NightPhase): Vehicle | null {
-  const night = sunwardFacts(world).night;
-  if (!night) return null;
-  const riders = night.roster.flatMap((id) => world.vehicles.filter((v) => v.id === id && !isDefeated(v) && !nearHome(v, phase)));
-  return riders[0] ?? null;
 }
 
 function nearHome(v: Vehicle, phase: NightPhase): boolean {
