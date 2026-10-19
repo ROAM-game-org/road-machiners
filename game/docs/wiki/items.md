@@ -194,7 +194,7 @@ Yellow deck parts with one job each. An active utility acts once on an order and
 | scrap | Scrap metal | 1 | 7 |
 | salt | Salt | 1 | 9 |
 | meds | Meds | 2 | 24 |
-| grain | Grain | 1 | 7 |
+| grain | Sorgut | 1 | 7 |
 | textiles | Textiles | 1 | 12 |
 | tools | Machine tools | 3 | 37 |
 | batteries | Batteries | 2 | 26 |
@@ -203,6 +203,7 @@ Yellow deck parts with one job each. An active utility acts once on an order and
 | fuelDrums | Fuel drums | 1 | 10 |
 | water | Water | 1 | 6 |
 | relics | Ship Metal | 3 | 44 |
+| rations | Rations | 1 | 12 |
 <!-- /wiki:goods -->
 
 ## Numbers

@@ -195,7 +195,6 @@ export class Game {
   private planFor: World | null = null;
   private readonly plans = new PlanPreparation();
   private last = performance.now();
-  private idleSince = performance.now();
   private pending: ((w: World) => World | null) | null = null;
 
   readonly hud: Hud;
@@ -909,7 +908,6 @@ export class Game {
     this.crashCues = null;
     this.breakCues = new BreakCues([]);
     this.phase = null;
-    this.idleSince = performance.now();
     this.saves.afterTurn(this.world);
     const pending = this.pending;
     this.pending = null;
@@ -965,7 +963,7 @@ export class Game {
   private updateLoops(): void {
     const me = playerVehicle(this.world);
     const at = this.frames[me.id] ? toMap(this.frames[me.id].pos) : me.pos;
-    this.loops.update({ stormShare: stormShare(me), inCombat: inCombat(this.world, me), inQuest: this.screens.quest.isOpen(), place: musicPlaceAt(this.world.terrain, at), paused: !this.anim && performance.now() - this.idleSince > MIX.music.pauseDelayMs });
+    this.loops.update({ stormShare: stormShare(me), inCombat: inCombat(this.world, me), inQuest: this.screens.quest.isOpen(), place: musicPlaceAt(this.world.terrain, at) });
     if (this.sightingToSound) this.sound.scoreEvent("sighted", 0);
     this.sightingToSound = false;
   }

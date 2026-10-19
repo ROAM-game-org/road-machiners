@@ -146,6 +146,7 @@ export const PART_MODELS: Record<string, ModelName> = {
   parts: 'good_parts',
   fuelDrums: 'good_fuel_drums',
   water: 'good_water',
+  rations: 'good_rations',
   relics: 'good_relics',
   [PARCEL.id]: 'parcel',
 };

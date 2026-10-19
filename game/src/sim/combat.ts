@@ -1,4 +1,5 @@
 
+import { reportLostTruck } from './road-news';
 import { onCall } from "./dialogue";
 import { aimAt } from "./parley";
 import { FURY_ROAD } from '../data/modes';
@@ -945,6 +946,7 @@ function damagedByShots(world: World): Set<string> {
 export function wreckVehicle(world: World, v: Vehicle): void {
   noteDefeat(world, v, true);
   const by = beatenBy(world, v);
+  if (!isKnockedOut(v)) reportLostTruck(world, v, "destroyed");
   if (modeRules(world).looting) createWreckSalvage(world, v);
   world.vehicles = world.vehicles.filter((x) => x.id !== v.id);
   world.removed.push(v);

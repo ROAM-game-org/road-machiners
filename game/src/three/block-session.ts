@@ -1,5 +1,5 @@
 import { BEATS_PER_BAR, SCORE_BLOCKS } from "../data/sounds";
-import { BlockSequencer, blocksOf, Fading, WHOLE_SECTIONS, type Block, type Role, type Section } from "../audio/designer";
+import { BlockSequencer, blocksOf, Fading, WHOLE_SECTIONS, type Block, type Jumps, type Role, type Section } from "../audio/designer";
 
 export type BlockSong = {
   title: string;
@@ -11,17 +11,19 @@ export type BlockSong = {
   barTimes: number[];
   barPower: { ss: number; gg: number; sg: number }[];
   barEntry: number[];
-  guitarWall: number;
   sections: Section[];
+  jumps: Jumps;
+  quietExits: number[];
+  jumpBlockBars: number;
   end: number;
 };
 export type Part = "song" | "guitars" | "cymbals";
 export type VoiceHandle = { fadeOut(at: number, fade: number): void; cut(at: number): void };
 export type BlockOutput = {
   voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle;
-  lean(offset: number, at: number, length: number, songScale: number, guitarLevel: number): VoiceHandle;
+  lean(offset: number, at: number, length: number, songScale: number, guitarLevel: number, release: number): VoiceHandle;
 };
-export type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: VoiceHandle[]; heat: number; odds: string; join: string; level: number };
+export type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: VoiceHandle[]; heat: number; ways: string; join: string; level: number };
 export type Lane = "guitars" | "cymbals";
 export type Overlay = { lane: Lane; from: number; to: number; bar: number; handle: VoiceHandle };
 export type BlockEvent = keyof typeof SCORE_BLOCKS.weights;
@@ -39,7 +41,7 @@ const DENSE_TURN: { kind: BlockEvent; most: number; chance: number }[] = [
   { kind: "sighted", most: 1, chance: 0.05 },
   { kind: "knockout", most: 1, chance: 0.05 },
 ];
-const ODDS_SHOWN = 4;
+const WAYS_SHOWN = 4;
 
 type Spot = { block: Played; at: number; bar: number; beat: number; barSeconds: number };
 
@@ -101,7 +103,7 @@ export class BlockSession {
     this.familiar.clear();
     this.nudge = {};
     this.peakHeat = 0;
-    this.sequencer = new BlockSequencer(this.blocks, SCORE_BLOCKS.arc, this.roll);
+    this.sequencer = new BlockSequencer(this.blocks, SCORE_BLOCKS.arc, this.song, this.roll);
     this.nextAt = this.schedule(this.sequencer.next(0), start, 0);
   }
 
@@ -118,7 +120,7 @@ export class BlockSession {
     const length = this.song.length - offset;
     const level = this.levelOf(this.song.end, 1, false);
     const voices = [this.out.voice("song", offset, at, length, SCORE_BLOCKS.seamSeconds, level)];
-    this.played.push({ label: "end", role: "end", bar: this.song.end, bars: 1, start: at, end: at + length, voices, heat: this.heat.read(at), odds: "", join: "end", level });
+    this.played.push({ label: "end", role: "end", bar: this.song.end, bars: 1, start: at, end: at + length, voices, heat: this.heat.read(at), ways: "", join: "end", level });
     return at;
   }
 
@@ -160,7 +162,7 @@ export class BlockSession {
     if (this.nextAt - now < SCORE_BLOCKS.aheadSeconds) {
       const h = Math.max(this.peakHeat, this.heat.read(this.nextAt));
       this.nextAt = this.schedule(this.sequencer.next(h, this.nudge), this.nextAt, h);
-      if (this.sequencer.choices.length > 0) {
+      if (this.sequencer.tookHeat) {
         this.nudge = {};
         this.peakHeat = 0;
       }
@@ -206,13 +208,17 @@ export class BlockSession {
     const offset = this.barTime(block.bar);
     const length = this.barTime(block.bar + block.bars) - offset;
     const join = this.joinOf(block);
-    const fade = join === "jump" ? SCORE_BLOCKS.jumpFadeSeconds : SCORE_BLOCKS.seamSeconds;
+    const fade = SCORE_BLOCKS.seamSeconds;
     const entry = this.song.barEntry[block.bar - 1];
-    if (join === "jump") for (const v of this.played.at(-1)!.voices) v.fadeOut(when + entry, fade);
-    const level = this.levelOf(block.bar, block.bars, false);
+    if (join === "jump") {
+      for (const v of this.played.at(-1)!.voices) v.fadeOut(when + entry, fade);
+      this.endLanesAt(when);
+    }
+    const section = this.sectionOf(block.bar);
+    const level = this.levelOf(section.from, section.bars, false);
     const voices = [this.out.voice("song", offset, when, length, fade, level)];
     const label = `${block.role} ${block.bar}-${block.bar + block.bars - 1}`;
-    this.played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, odds: this.oddsText(), join, level });
+    this.played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, ways: this.waysText(), join, level });
     return when + length;
   }
 
@@ -230,23 +236,36 @@ export class BlockSession {
     const spot = this.spotAt(lane, now);
     if (!spot || this.open(lane, spot.at)) return;
     this.wanted.delete(lane);
-    const length = (this.phraseEndBar(spot.bar) - spot.bar) * spot.barSeconds - spot.beat * this.beatSeconds;
+    if (!this.laneFits(lane, spot.bar)) return;
+    const toPhraseEnd = (this.phraseEndBar(spot.bar) - spot.bar) * spot.barSeconds - spot.beat * this.beatSeconds;
+    const length = Math.min(toPhraseEnd, this.nextJumpAfter(spot.at) - spot.at);
     const handle = lane === "guitars" ? this.lean(spot, length) : this.cymbals(spot, length);
     this.overlays.push({ lane, from: spot.at, to: spot.at + length, bar: spot.bar, handle });
   }
 
-  private lean(spot: Spot, length: number): VoiceHandle {
-    const bars = this.phraseEndBar(spot.bar) - spot.bar;
-    const plain = this.levelOf(spot.bar, bars, false);
-    const source = this.guitarSource(spot.bar, bars);
-    const leaned = source === spot.bar ? this.levelOf(spot.bar, bars, true) : this.borrowedLevel(spot.bar, source, bars);
-    return this.out.lean(this.barTime(source), spot.at, length, leaned / plain, leaned);
+  private nextJumpAfter(at: number): number {
+    return this.played.find((p) => p.join === "jump" && p.start > at)?.start ?? Infinity;
   }
 
-  private guitarSource(bar: number, bars: number): number {
-    const section = this.sectionOf(bar);
-    if (section.role !== "verse" || this.guitarShare(bar, bars) > -SCORE_BLOCKS.guitarAbsentDb) return bar;
-    return this.song.guitarWall + ((bar - section.from) % SCORE_BLOCKS.arc.phraseBars);
+  private endLanesAt(at: number): void {
+    for (const o of this.overlays.filter((x) => x.from < at && x.to > at)) {
+      const release = Math.min(this.beatSeconds, at - o.from);
+      o.handle.fadeOut(at - release / 2, release / 2);
+      o.to = at;
+    }
+  }
+
+  private laneFits(lane: Lane, bar: number): boolean {
+    const role = this.sectionOf(bar).role;
+    if (lane === "cymbals") return role === "wall";
+    return role !== "solo" && this.guitarShare(bar, this.phraseEndBar(bar) - bar) > -SCORE_BLOCKS.guitarAbsentDb;
+  }
+
+  private lean(spot: Spot, length: number): VoiceHandle {
+    const section = this.sectionOf(spot.bar);
+    const plain = spot.block.level;
+    const leaned = this.levelOf(section.from, section.bars, true);
+    return this.out.lean(this.barTime(spot.bar), spot.at, length, leaned / plain, leaned, this.releaseOf(spot, length));
   }
 
   private guitarShare(bar: number, bars: number): number {
@@ -254,18 +273,18 @@ export class BlockSession {
     return 10 * Math.log10(span.reduce((s, p) => s + p.gg, 0) / span.reduce((s, p) => s + p.ss, 0));
   }
 
-  private borrowedLevel(bar: number, source: number, bars: number): number {
-    const mean = (from: number, key: "ss" | "gg") => this.song.barPower.slice(from - 1, from - 1 + bars).reduce((s, p) => s + p[key], 0) / bars;
-    const plain = mean(bar, "ss");
-    const heard = plain + SCORE_BLOCKS.guitarPush ** 2 * mean(source, "gg");
-    return Math.sqrt(Math.min(plain, this.targetPower) / heard);
-  }
-
   private cymbals(spot: Spot, length: number): VoiceHandle {
     const section = this.sectionOf(spot.bar);
     const source = this.song.cymbals.from + ((spot.bar - section.from) % SCORE_BLOCKS.arc.phraseBars);
     const offset = this.barTime(source) + spot.beat * this.beatSeconds - this.song.cymbals.start;
-    return this.out.voice("cymbals", offset, spot.at, length, SCORE_BLOCKS.seamSeconds, this.song.cymbals.gain * this.cymbalGain);
+    const handle = this.out.voice("cymbals", offset, spot.at, length, SCORE_BLOCKS.seamSeconds, this.song.cymbals.gain * this.cymbalGain);
+    const release = this.releaseOf(spot, length);
+    handle.fadeOut(spot.at + length - release / 2, release / 2);
+    return handle;
+  }
+
+  private releaseOf(spot: Spot, length: number): number {
+    return Math.min(spot.barSeconds, length);
   }
 
   private sectionOf(bar: number): Section {
@@ -299,10 +318,10 @@ export class BlockSession {
     return p.start + Math.ceil((t - p.start) / step - 1e-6) * step;
   }
 
-  private oddsText(): string {
+  private waysText(): string {
     return this.sequencer!.choices
-      .slice(0, ODDS_SHOWN)
-      .map((c) => `${c.role} ${c.from} ${Math.round(c.chance * 100)}%`)
+      .slice(0, WAYS_SHOWN)
+      .map((c) => `${c.role} ${c.from}${c.taken ? " taken" : ""}`)
       .join(", ");
   }
 }

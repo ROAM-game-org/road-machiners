@@ -94,7 +94,7 @@ export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
 const SEMI_82_83 = 'semi';
 const TRACTOR_AHEAD_TILES_82_83 = 5.7375 / 4;
 
-export function withTractorPivot_82_83(world: SavedJson): SavedJson {
+export function withTractorPivot_83_84(world: SavedJson): SavedJson {
   const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_82_83 ? { ...v, pos: tractorAt_82_83(v.pos as Point_82_83, v.heading as number), bend: 0 } : v));
   const obstacles = (world.obstacles as SavedJson[]).map((o) => {
     const hulk = o.hulk as SavedJson | undefined;
