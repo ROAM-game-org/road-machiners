@@ -15,11 +15,11 @@ const SONG: BlockSong = {
   barTimes: Array.from({ length: BARS + 1 }, (_, i) => i * BAR_SECONDS),
   barPower: Array.from({ length: BARS }, (_, i) => ({ ss: 1, gg: i >= 4 ? 1e-4 : 0.1, sg: 0 })),
   barEntry: [0, 0, 0, 0, 0.3, 0, 0, 0],
-  guitarWall: 1,
   sections: [
     { role: "intro", from: 1, bars: 2 },
     { role: "verse", from: 5, bars: 2 },
   ],
+  seams: Object.fromEntries([2, 3, 6, 7].map((exit) => [exit, { "1": 0, "5": 0 }])),
   end: 7,
 };
 
@@ -43,9 +43,15 @@ function recorder() {
   return { voices, out };
 }
 
-function playIntoVerse() {
+const WALL_SONG: BlockSong = {
+  ...SONG,
+  barPower: SONG.barPower.map((p) => ({ ...p, gg: 0.1 })),
+  sections: [SONG.sections[0], { role: "wall", from: 5, bars: 2 }],
+};
+
+function playIntoVerse(song = SONG) {
   const { voices, out } = recorder();
-  const session = new BlockSession(SONG, out, () => 0);
+  const session = new BlockSession(song, out, () => 0);
   session.start(0);
   const verseAt = SCORE_BLOCKS.startLeadSeconds + 2 * BAR_SECONDS;
   session.tick(verseAt - 1);
@@ -60,7 +66,7 @@ describe("BlockSession", () => {
   });
 
   it("plays the cymbal lane from its own file, at the song's cymbal level", () => {
-    const { session, voices, verseAt } = playIntoVerse();
+    const { session, voices, verseAt } = playIntoVerse(WALL_SONG);
     session.fire("knockout", verseAt + 0.1);
     session.tick(verseAt + 0.1);
     const cymbals = voices.find((v) => v.part === "cymbals")!;
@@ -70,14 +76,21 @@ describe("BlockSession", () => {
     expect(cymbals.level).toBe(SONG.cymbals.gain * SCORE_BLOCKS.cymbalGain);
   });
 
-  it("leans a verse with no guitars of its own on the guitar wall's matching bar", () => {
-    const { session, voices, verseAt } = playIntoVerse();
+  it("leans a wall on its own guitars from the next bar", () => {
+    const { session, voices, verseAt } = playIntoVerse(WALL_SONG);
     session.fire("knockout", verseAt + 0.1);
     session.tick(verseAt + 0.1);
     const guitars = voices.find((v) => v.part === "guitars")!;
     expect(guitars.when).toBeCloseTo(verseAt + BAR_SECONDS);
-    expect(guitars.offset).toBe(SONG.barTimes[SONG.guitarWall]);
+    expect(guitars.offset).toBe(SONG.barTimes[5]);
     expect(guitars.level).toBeLessThan(1);
+  });
+
+  it("adds no guitars or cymbals to a verse that has none of its own", () => {
+    const { session, voices, verseAt } = playIntoVerse();
+    session.fire("knockout", verseAt + 0.1);
+    session.tick(verseAt + 0.1);
+    expect(voices.map((v) => v.part)).toEqual(["song", "song"]);
   });
 });
 

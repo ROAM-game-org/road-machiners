@@ -1,5 +1,5 @@
 import { BEATS_PER_BAR, SCORE_BLOCKS } from "../data/sounds";
-import { BlockSequencer, blocksOf, Fading, WHOLE_SECTIONS, type Block, type Role, type Section } from "../audio/designer";
+import { BlockSequencer, blocksOf, Fading, WHOLE_SECTIONS, type Block, type Role, type Seams, type Section } from "../audio/designer";
 
 export type BlockSong = {
   title: string;
@@ -11,8 +11,8 @@ export type BlockSong = {
   barTimes: number[];
   barPower: { ss: number; gg: number; sg: number }[];
   barEntry: number[];
-  guitarWall: number;
   sections: Section[];
+  seams: Seams;
   end: number;
 };
 export type Part = "song" | "guitars" | "cymbals";
@@ -101,7 +101,7 @@ export class BlockSession {
     this.familiar.clear();
     this.nudge = {};
     this.peakHeat = 0;
-    this.sequencer = new BlockSequencer(this.blocks, SCORE_BLOCKS.arc, this.roll);
+    this.sequencer = new BlockSequencer(this.blocks, SCORE_BLOCKS.arc, this.song.seams, this.roll);
     this.nextAt = this.schedule(this.sequencer.next(0), start, 0);
   }
 
@@ -209,7 +209,8 @@ export class BlockSession {
     const fade = join === "jump" ? SCORE_BLOCKS.jumpFadeSeconds : SCORE_BLOCKS.seamSeconds;
     const entry = this.song.barEntry[block.bar - 1];
     if (join === "jump") for (const v of this.played.at(-1)!.voices) v.fadeOut(when + entry, fade);
-    const level = this.levelOf(block.bar, block.bars, false);
+    const section = this.sectionOf(block.bar);
+    const level = this.levelOf(section.from, section.bars, false);
     const voices = [this.out.voice("song", offset, when, length, fade, level)];
     const label = `${block.role} ${block.bar}-${block.bar + block.bars - 1}`;
     this.played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, odds: this.oddsText(), join, level });
@@ -230,35 +231,27 @@ export class BlockSession {
     const spot = this.spotAt(lane, now);
     if (!spot || this.open(lane, spot.at)) return;
     this.wanted.delete(lane);
+    if (!this.laneFits(lane, spot.bar)) return;
     const length = (this.phraseEndBar(spot.bar) - spot.bar) * spot.barSeconds - spot.beat * this.beatSeconds;
     const handle = lane === "guitars" ? this.lean(spot, length) : this.cymbals(spot, length);
     this.overlays.push({ lane, from: spot.at, to: spot.at + length, bar: spot.bar, handle });
   }
 
-  private lean(spot: Spot, length: number): VoiceHandle {
-    const bars = this.phraseEndBar(spot.bar) - spot.bar;
-    const plain = this.levelOf(spot.bar, bars, false);
-    const source = this.guitarSource(spot.bar, bars);
-    const leaned = source === spot.bar ? this.levelOf(spot.bar, bars, true) : this.borrowedLevel(spot.bar, source, bars);
-    return this.out.lean(this.barTime(source), spot.at, length, leaned / plain, leaned);
+  private laneFits(lane: Lane, bar: number): boolean {
+    if (lane === "cymbals") return this.sectionOf(bar).role === "wall";
+    return this.guitarShare(bar, this.phraseEndBar(bar) - bar) > -SCORE_BLOCKS.guitarAbsentDb;
   }
 
-  private guitarSource(bar: number, bars: number): number {
-    const section = this.sectionOf(bar);
-    if (section.role !== "verse" || this.guitarShare(bar, bars) > -SCORE_BLOCKS.guitarAbsentDb) return bar;
-    return this.song.guitarWall + ((bar - section.from) % SCORE_BLOCKS.arc.phraseBars);
+  private lean(spot: Spot, length: number): VoiceHandle {
+    const section = this.sectionOf(spot.bar);
+    const plain = spot.block.level;
+    const leaned = this.levelOf(section.from, section.bars, true);
+    return this.out.lean(this.barTime(spot.bar), spot.at, length, leaned / plain, leaned);
   }
 
   private guitarShare(bar: number, bars: number): number {
     const span = this.song.barPower.slice(bar - 1, bar - 1 + bars);
     return 10 * Math.log10(span.reduce((s, p) => s + p.gg, 0) / span.reduce((s, p) => s + p.ss, 0));
-  }
-
-  private borrowedLevel(bar: number, source: number, bars: number): number {
-    const mean = (from: number, key: "ss" | "gg") => this.song.barPower.slice(from - 1, from - 1 + bars).reduce((s, p) => s + p[key], 0) / bars;
-    const plain = mean(bar, "ss");
-    const heard = plain + SCORE_BLOCKS.guitarPush ** 2 * mean(source, "gg");
-    return Math.sqrt(Math.min(plain, this.targetPower) / heard);
   }
 
   private cymbals(spot: Spot, length: number): VoiceHandle {

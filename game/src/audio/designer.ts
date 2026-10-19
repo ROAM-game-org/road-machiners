@@ -32,7 +32,10 @@ export type ArcTuning = {
   after: Partial<Record<RolePair, Partial<Record<Role, number>>>>;
   hot: Record<Role, number>;
   calm: Record<Role, number>;
+  seamDb: number;
 };
+
+export type Seams = Record<string, Record<string, number>>;
 
 export type Choice = { section: number; role: Role; from: number; chance: number };
 
@@ -57,6 +60,7 @@ export class BlockSequencer {
   constructor(
     private blocks: readonly Block[],
     private tuning: ArcTuning,
+    private seams: Seams,
     private roll: () => number,
   ) {
     if (!blocks.some((b) => b.role === "intro")) throw new Error("Song has no intro section");
@@ -96,7 +100,20 @@ export class BlockSequencer {
     }
     this.weighed = this.weigh(current, heat);
     const section = this.draw(this.weighed);
-    return section === current.section ? (goesOn ?? this.firstOf(section)) : this.firstOf(section);
+    return this.landing(current, section);
+  }
+
+  private landing(current: Block, section: number): Block {
+    return section === current.section ? (this.nextInSection(current) ?? this.firstOf(section)) : this.firstOf(section);
+  }
+
+  private seamFits(current: Block, section: number): boolean {
+    const exit = current.bar + current.bars;
+    const target = this.landing(current, section).bar;
+    if (target === exit) return true;
+    const db = this.seams[exit]?.[target];
+    if (db === undefined) throw new Error(`Song has no seam from bar ${exit} to bar ${target}`);
+    return db <= this.tuning.seamDb;
   }
 
   private endsPhrase(current: Block): boolean {
@@ -114,6 +131,7 @@ export class BlockSequencer {
   }
 
   private weightOf(current: Block, section: number, heat: number): number {
+    if (!this.seamFits(current, section)) return 0;
     const t = this.tuning;
     const role = this.firstOf(section).role;
     const base = (t.next[current.role][role] ?? 0) / this.sections.filter((s) => this.firstOf(s).role === role).length;

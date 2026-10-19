@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BlockSequencer, blocksOf, Fading, type ArcTuning, type Section } from "./designer";
+import { BlockSequencer, blocksOf, Fading, type ArcTuning, type Seams, type Section } from "./designer";
 
 describe("Fading", () => {
   it("halves every half-life and adds on top", () => {
@@ -31,10 +31,18 @@ const ARC: ArcTuning = {
   after: {},
   hot: { intro: 1, verse: 0.4, wall: 3, stop: 0.7, solo: 1 },
   calm: { intro: 1, verse: 2, wall: 0.3, stop: 0.3, solo: 1 },
+  seamDb: 10,
 };
 
+function seamsOf(sections: Section[], db: (exit: number, target: number) => number = () => 0): Seams {
+  const seams: Seams = {};
+  for (const s of sections)
+    for (let exit = s.from + 1; exit <= s.from + s.bars; exit++) seams[exit] = Object.fromEntries(sections.map((t) => [t.from, db(exit, t.from)]));
+  return seams;
+}
+
 function sequencer(roll = () => 0) {
-  return new BlockSequencer(blocksOf(SECTIONS, 4), ARC, roll);
+  return new BlockSequencer(blocksOf(SECTIONS, 4), ARC, seamsOf(SECTIONS), roll);
 }
 
 function chanceOf(seq: BlockSequencer, role: string): number {
@@ -74,7 +82,7 @@ describe("BlockSequencer", () => {
   });
 
   it("scales the moves by the two sections before, not only the current one", () => {
-    const seq = new BlockSequencer(blocksOf(SECTIONS, 4), { ...ARC, after: { "intro>verse": { stop: 0, wall: 2 } } }, () => 0);
+    const seq = new BlockSequencer(blocksOf(SECTIONS, 4), { ...ARC, after: { "intro>verse": { stop: 0, wall: 2 } } }, seamsOf(SECTIONS), () => 0);
     seq.next(0);
     seq.next(0);
     seq.next(0);
@@ -86,7 +94,7 @@ describe("BlockSequencer", () => {
 
   it("changes only where a phrase ends, however hot the fight is", () => {
     const tuning = { ...ARC, blockBars: 2, next: { ...ARC.next, verse: { wall: 1 } } };
-    const seq = new BlockSequencer(blocksOf(SECTIONS, 2), tuning, () => 0);
+    const seq = new BlockSequencer(blocksOf(SECTIONS, 2), tuning, seamsOf(SECTIONS), () => 0);
     expect([0, 0, 0, 5, 5].map((h) => seq.next(h).bar)).toEqual([5, 7, 9, 11, 21]);
   });
 
@@ -111,9 +119,22 @@ describe("BlockSequencer", () => {
   });
 
   it("plays a stop to the end of its section before choosing again", () => {
-    const blocks = blocksOf([{ role: "intro", from: 1, bars: 2 }, { role: "stop", from: 3, bars: 4 }, { role: "verse", from: 7, bars: 2 }], 2);
-    const seq = new BlockSequencer(blocks, { ...ARC, blockBars: 2, next: { ...ARC.next, intro: { stop: 1 } } }, () => 0);
+    const sections: Section[] = [{ role: "intro", from: 1, bars: 2 }, { role: "stop", from: 3, bars: 4 }, { role: "verse", from: 7, bars: 2 }];
+    const seq = new BlockSequencer(blocksOf(sections, 2), { ...ARC, blockBars: 2, next: { ...ARC.next, intro: { stop: 1 } } }, seamsOf(sections), () => 0);
     expect([0, 0, 0, 0].map((h) => seq.next(h).bar)).toEqual([1, 3, 5, 7]);
+  });
+
+  it("never jumps across a seam that sounds like a cut", () => {
+    const cutIntoSecondVerse = seamsOf(SECTIONS, (_exit, target) => (target === 41 ? ARC.seamDb + 1 : 0));
+    const offered = (seq: BlockSequencer) => Array.from({ length: 12 }, () => (seq.next(0), seq.choices.some((c) => c.from === 41)));
+    expect(offered(sequencer())).toContain(true);
+    expect(offered(new BlockSequencer(blocksOf(SECTIONS, 4), ARC, cutIntoSecondVerse, () => 0))).not.toContain(true);
+  });
+
+  it("fails loud when a song has no seam score for a jump", () => {
+    const seq = new BlockSequencer(blocksOf(SECTIONS, 4), ARC, {}, () => 0);
+    seq.next(0);
+    expect(() => seq.next(0)).toThrow(/no seam from bar 9/);
   });
 
   it("refuses a section that does not split into blocks", () => {

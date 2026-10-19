@@ -243,6 +243,7 @@ export const SCORE_BLOCKS = {
     },
     hot: { intro: 1, verse: 0.4, wall: 3, stop: 0.7, solo: 1.5 },
     calm: { intro: 1, verse: 2, wall: 0.15, stop: 0.15, solo: 0.15 },
+    seamDb: 20,
   },
   songGain: 0.6,
   guitarPush: 0.8,
