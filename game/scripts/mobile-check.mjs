@@ -542,6 +542,80 @@ async function saveAndContinue(session, step, orientation) {
   void orientation;
 }
 
+const TOOLBAR_PX = 56;
+
+async function drawnTapTarget(page, fx, fy) {
+  return game(page, ({ fx, fy }) => {
+    const g = window.__ROAM__;
+    const at = g.rig.view.getBoundingClientRect();
+    g.rig.aimRay(at.left + at.width * fx, at.top + at.height * fy);
+    const hit = g.rig.ray.intersectObject(g.ground, true)[0];
+    if (!hit) return null;
+    const canvas = g.renderer.domElement.getBoundingClientRect();
+    const ndc = hit.point.clone().project(g.rig.camera);
+    return {
+      screen: { x: canvas.left + (ndc.x * 0.5 + 0.5) * canvas.width, y: canvas.top + (1 - (ndc.y * 0.5 + 0.5)) * canvas.height },
+      tile: { x: hit.point.x / 4, y: hit.point.z / 4 },
+    };
+  }, { fx, fy });
+}
+
+async function tapPrecise(session, step, name) {
+  const { page, touch } = session;
+  let target = null;
+  await step(name, async () => {
+    target = await drawnTapTarget(page, 0.5, 0.7);
+    if (target) await touch.tap(target.screen.x, target.screen.y);
+  }, async () => {
+    if (!target) return 'no ground under the lower view';
+    const order = await game(page, () => window.__me().order);
+    if (!order?.dest) return `no order after the tap: ${JSON.stringify(order)}`;
+    const miss = Math.hypot(order.dest.x - target.tile.x, order.dest.y - target.tile.y);
+    return miss <= 0.3 ? true : `order ${miss.toFixed(2)} tiles from the ground under the finger`;
+  });
+}
+
+async function tapPreciseSuite(session, step, label) {
+  const { page } = session;
+  await tapPrecise(session, step, `tap-precise-${label}`);
+  await game(page, (px) => {
+    document.documentElement.style.height = `${window.innerHeight - px}px`;
+    window.dispatchEvent(new Event('resize'));
+  }, TOOLBAR_PX);
+  await sleep(300);
+  await tapPrecise(session, step, `tap-precise-short-page-${label}`);
+  await game(page, () => {
+    document.documentElement.style.height = '';
+    window.dispatchEvent(new Event('resize'));
+  });
+  await sleep(300);
+}
+
+async function hiddenViewKeepsDrawing(session, step, label) {
+  const { page } = session;
+  await step(`hidden-view-${label}`, async () => {
+    await game(page, () => {
+      document.getElementById('game').style.display = 'none';
+      window.dispatchEvent(new Event('resize'));
+    });
+    await sleep(200);
+    await game(page, () => {
+      document.getElementById('game').style.display = '';
+      window.dispatchEvent(new Event('resize'));
+    });
+    await sleep(300);
+  }, async () => {
+    const [canvas, view] = await game(page, () => {
+      const g = window.__ROAM__;
+      const c = g.renderer.domElement;
+      const v = document.getElementById('game');
+      return [[c.clientWidth, c.clientHeight], [v.clientWidth, v.clientHeight]];
+    });
+    return canvas[0] === view[0] && canvas[1] === view[1] && view[0] > 0 ? true : `canvas ${canvas} view ${view}`;
+  });
+  await tapPrecise(session, step, `tap-precise-after-hidden-${label}`);
+}
+
 async function portraitJourney(browser) {
   const orientation = 'portrait';
   const session = await context(browser, orientation);
@@ -565,6 +639,7 @@ async function portraitJourney(browser) {
     return zoom > zoomBefore ? true : `zoom ${zoomBefore} -> ${zoom}`;
   });
   await step('tap-ground', () => touch.tap(size.width * 0.7, size.height * 0.4), async () => ((await orderKind(page)) === 'through' ? true : `order ${await orderKind(page)}`));
+  await tapPreciseSuite(session, step, 'portrait');
   await step('hold-ground', () => touch.hold(size.width * 0.3, size.height * 0.4, 800), async () => ((await orderKind(page)) === 'stopAt' ? true : `order ${await orderKind(page)}`));
   const turn = await game(page, () => window.__ROAM__.state.turn);
   await step('end-turn', async () => {
@@ -642,6 +717,8 @@ async function landscapeJourney(browser, storage, orientation = 'landscape', uiS
   }, async () => ((await game(page, () => window.innerHeight > window.innerWidth)) ? true : 'the window did not turn'));
   await step('drawer-after-turn', () => openDrawer(page, touch, 'guns'), async () => (((await game(page, () => document.getElementById('ui').dataset.drawer)) === 'guns') ? true : 'the drawer did not open after the turn'));
   await closeDrawer(page, touch);
+  await tapPreciseSuite(session, step, 'after-rotation');
+  await hiddenViewKeepsDrawing(session, step, 'landscape');
   await step('end-turn-after-turn', async () => {
     const before = await game(page, () => window.__ROAM__.state.turn);
     await touch.tapOn('.end-turn');
