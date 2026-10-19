@@ -125,6 +125,19 @@ function faultsIn(page, locale) {
   }, { locale, names: KEY_CAPS, glyphs: GLYPHS });
 }
 
+function frameFaults(page) {
+  return page.evaluate(async () => {
+    const { questFrameFits } = await import('/src/ui/quest-screen.ts');
+    const screen = document.querySelector('#ui .quest-screen.quest-page');
+    const frame = screen?.querySelector('.quest-frame');
+    if (!frame) return [];
+    const { width, height } = frame.getBoundingClientRect();
+    const stacked = screen.classList.contains('stacked') || document.getElementById('ui').classList.contains('phone');
+    if (questFrameFits(width, height, stacked)) return [];
+    return [{ kind: 'quest-frame-shape', path: '.quest-frame', text: `${Math.round(width)}x${Math.round(height)} stacked=${stacked}`, sizes: '' }];
+  });
+}
+
 async function probe(page, locale) {
   const found = await page.evaluate(async ({ locale, glyphs }) => {
     const { findLayoutFaults } = await import('/src/ui/dom.ts');
@@ -258,7 +271,7 @@ async function capture(page, locale, [width, height], [name, state], size = 1) {
   await frames(page);
   const label = size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`;
   await page.screenshot({ path: `${OUT}/${name}-${locale}-${label}.png` });
-  for (const f of await faultsIn(page, locale)) report.push({ state: name, locale, viewport: label, ...f });
+  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page)]) report.push({ state: name, locale, viewport: label, ...f });
   captures++;
   console.log(`${name} ${locale} ${label} at ${seconds()} s`);
   if (state.teardown) await state.teardown(page);

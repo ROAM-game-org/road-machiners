@@ -29,6 +29,23 @@ export function questPageStacks(width: number, frame: number): boolean {
   return width - gutters - frame - columns < parseFloat(token('--quest-art-min'));
 }
 
+function frameRatio(name: string): [number, number] {
+  const parts = token(name).split('/').map((n) => parseFloat(n));
+  if (parts.length !== 2 || parts.some((n) => !(n > 0))) throw new Error(`${name} is ${token(name)}, not a ratio like 3 / 4`);
+  return [parts[0]!, parts[1]!];
+}
+
+export function questFrameFits(width: number, height: number, stacked: boolean): boolean {
+  if (width === 0 || height === 0) return true;
+  const slack = 0.5;
+  if (!stacked) {
+    const [across, down] = frameRatio('--quest-frame-column');
+    return height <= (width * down) / across + slack;
+  }
+  const [across, down] = frameRatio('--quest-frame-band');
+  return width <= (height * across) / down + slack;
+}
+
 function moneyChange(cents: number): Msg {
   const amount = Math.round(Math.abs(cents) / UNITS.centsPerM);
   return cents > 0 ? t('quest.moneyGained', { amount }) : t('quest.moneyPaid', { amount });
@@ -79,8 +96,8 @@ class QuestArtStage {
 }
 
 export function loadArt(key: string, isHeld: (img: HTMLImageElement) => boolean = () => true): HTMLImageElement {
-  const art = questArt(key);
-  const focus = `${art.focusX}% ${art.focusY}%`;
+  const { focusX, focusY } = questArt(key);
+  const focus = `${focusX}% ${focusY}%`;
   const img = document.createElement('img');
   img.decoding = 'sync';
   img.setAttribute('aria-hidden', 'true');

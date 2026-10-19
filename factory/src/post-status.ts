@@ -5,7 +5,7 @@ import { PUBLIC_SENDER, type Ctx, type FactoryState } from './types';
 
 const PLAYER_PATCH_STATUS = 'A player report sent it back. Sonnet fixes the build, then the checks run again.';
 const PLAYER_REDESIGN_STATUS = 'A player report sent it back. Back to design.';
-const UNMARKED = ['adhoc', 'reply', 'answer', 'release-draft'] as const;
+const UNMARKED = ['adhoc', 'reply', 'answer', 'answer-questions', 'release-draft'] as const;
 type PostKind = Exclude<InboxCommand['kind'], (typeof UNMARKED)[number]>;
 
 const STATUS: Record<PostKind, (by: string, issue: number | null) => string> = {

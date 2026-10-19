@@ -20,7 +20,8 @@ Rules for the scene block:
 - Say what is missing when the model would add it. A roofless room needs "nothing is left overhead", or the floor gets beam shadows.
 - Truck guns sit on motor-driven turrets that are fired from the cab. Say that nobody stands at the gun, or the model draws a gunner holding the grips.
 - Keep words like "oil", "impasto" or "photo" out. They pull the picture away from the dry gouache look.
-- Keep the scene block short. Each extra demand makes the model garble another one.
+- Keep the scene block short.
+- Say that the subject fills the middle of the frame, with open ground and sky toward the edges. Each extra demand makes the model garble another one.
 - Show guns in plain side profile. A barrel aimed at the viewer comes out as two barrels.
 
 The scene block for the farmhouse in `intro_arrival`:
@@ -28,6 +29,10 @@ The scene block for the farmhouse in `intro_arrival`:
 ```
 Scene: inside a small abandoned farmhouse whose roof is gone. Hard midday sun falls straight in and cuts sharp shadows from the bare wall tops across the floor. Nothing is left overhead, so only the broken walls cast shadows. Wind-blown sand has drifted into the corners. Only a few things are left: a plain wooden table, a cold iron stove, and a narrow metal cot with no blanket. No people. The view is from the doorway, at standing eye height. Quiet, lonely mood.
 ```
+
+## Composition
+
+The page crops every picture to a frame between 3:4 and 3:1, and a talk shows it whole at 260px wide. One safe zone holds in all of them: the middle 40% of the width and 55% of the height, around the focus point. Put the subject and every face, gun or truck the text names inside it, big enough to read at 260px. Let only sky, ground, walls and mood reach the edges.
 
 ## Generate
 
@@ -47,4 +52,10 @@ The constants at the top of the script apply to every picture. Change them only 
 
 ## Add the picture to a quest
 
-Add the key to `QUEST_ART` in `src/data/quest-art.ts` and tag the line with `# img: <key>`. [Writing quests](../writing/quests.md) has the tag rules.
+Add the key to `src/data/quest-art.json` as `{ "file": "<key>.webp", "focusX": 50, "focusY": 50 }`, before the sheet below can draw it, and tag the line with `# img: <key>`. [Writing quests](../writing/quests.md) has the tag rules.
+
+## Crop sheet
+
+`npm run quest-art` also writes `tmp/quest-art/<key>.png`, and `npm run quest-art:crops -- [key ...]` rewrites it. It shows the talk picture at 260px with the safe zone and the focus point, then the narrowest column crop (3:4), the widest (1:1) and the widest band crop (3:1), each zoomed like the page's slow zoom. It reads the focus points from the JSON and its ratios and zoom match `src/ui/tokens.css`, and a test keeps them equal.
+
+Look at the sheet of every take. Set `focusX` and `focusY` until the subject and its faces are inside all four views. Heads and faces matter most, so a face near the top asks for a low `focusY`. When no point fits, draw a new take.
