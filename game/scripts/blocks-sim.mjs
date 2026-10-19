@@ -9,7 +9,7 @@ const AFTER_LAST_EVENT_SECONDS = 20;
 
 const HELP = `Usage: npm run blocks:sim -- <event@seconds ...> [--seed n] [--length s] [--end s]
 
-Plays a scripted fight through the block lab's session, the same code /blocks.html runs, on a simulated clock, and prints what it chose.
+Plays a scripted fight through the block lab's session, the same code /music-lab.html runs, on a simulated clock, and prints what it chose.
 Events: ${BLOCK_EVENTS.join(', ')}, and dense, a full turn in one second: up to 10 hits, 8 misses and 3 hits taken, often a crit, sometimes a crash, rarely an enemy joining or a knockout.
 An event at time t lands at t. Combat starts at 0.
 

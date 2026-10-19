@@ -49,7 +49,7 @@ Score events wait on the turn's play clock and go to the music just before their
 
 To hear a fight without looking for one, open the console with the backquote key and type `battle`. It spawns a random hostile raider near the truck. The score starts once the raider closes in or fires. `__ROAM__.sound.log` in dev lists recent cues and each score event with its heat and surprise, like `score hit heat1.2 surprise0.4`.
 
-To try the score without a game, open `/blocks.html` on the dev server. It runs the game's combat music on one continuous clock. Event buttons fire one event now, Dense turn fires a full turn of them in one second, and Auto fight plays dense turns with or without pauses. The page shows the song in play, the blocks with their joins, both lanes, the events and the heat, and a ledger lists every block with the odds behind it.
+To try the score without a game, open `/music-lab.html` on the dev server. It runs the game's combat music on one continuous clock. Event buttons fire one event now, Dense turn fires a full turn of them in one second, and Auto fight plays dense turns with or without pauses. The page shows the song in play, the blocks with their joins, both lanes, the events and the heat, and a ledger lists every block with the odds behind it.
 
 To test the score without ears, run `npm run blocks:sim -- --song dusk hit@8 dense@12`. It drives the same session on a simulated clock and prints the blocks, lanes, answers and a summary. `--help` lists the options.
 
