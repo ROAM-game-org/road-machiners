@@ -2,7 +2,7 @@
 
 Built from the committee's photo of a Peterbilt 379 type tractor with a container trailer, scaled to the game's trucks:
 the scout is a pickup. A real rig is about 3.7 times a pickup's length, 1.3 times its width and 2.1 times its height,
-so next to the 5.2 m long, 2.44 m wide, 2.4 m tall scout the rig is 20.5 m long, 3.1 m wide and 5.2 m tall.
+so next to the 5.2 m long, 2.44 m wide, 2.4 m tall scout the rig is 20.5 m long, 3.1 m wide and 5.2 m tall, 5.35 m on its lifted tires.
 The model owns the semi's body: 20.5 m along X, 3.1 m across Y. Body heights stand over DATUM, 1.8 m below the origin at the
 collider center. The ground lies under it by the tire radius gained over 0.65 m, so the body rides lifted on its tires.
 The 29 by 7 grid stretches over it at about 1.09 cells per cell along and 0.92 across, inside what body.test.ts allows.
