@@ -36,7 +36,7 @@ import type { PartHit } from '../sim/armor';
 import { shotDamage } from '../sim/combat';
 import { shutDownTurnsLeft } from '../sim/utility';
 import type { GameEvent, GridItem, Job, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
-import { concat, list, t, verbatim, type Msg } from '../text/msg';
+import { concat, list, MINUS_SIGN, num, PLUS, t, verbatim, type Msg } from '../text/msg';
 import { driverName, factionName, goalText, fullName, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
 import { Refused } from '../sim/world';
 import { stanceToward } from '../sim/relations';
@@ -1003,4 +1003,13 @@ export function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {
   const band = stanceToward(w, v);
   if (band === "neutral") return t("hud.tagNeutral");
   return t(`band.${band === "allied" ? "friendly" : band}`);
+}
+
+export function standingNum(score: number): Msg {
+  return score < 0 ? concat([MINUS_SIGN, num(-score, 'int')]) : num(score, 'int');
+}
+
+export function standingStep(delta: number): Msg {
+  if (delta > 0) return concat([PLUS, num(delta, 'int')]);
+  return standingNum(delta);
 }

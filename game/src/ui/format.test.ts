@@ -13,7 +13,7 @@ import { startAid } from "../sim/aid";
 import { isNotable, nextSurveyClue, surveyClueText, surveyProgress } from "./format";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, CRATE_NOTE, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle } from "./format";
+import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, CRATE_NOTE, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep } from "./format";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters, kg } from "./units";
 import { CRATE_MASS } from "../data/goods";
@@ -799,6 +799,16 @@ describe("the discovery line", () => {
     const line = eventText(emptyWorld(), { t: "discover", location: site })!;
 
     expect(resolve(line.text, "en")).toBe(`Discovered ${resolve(siteName(site), "en")}`);
+  });
+});
+
+describe("standing numbers", () => {
+  it("prints a real minus and a plus on gains", () => {
+    expect(en(standingNum(-30))).toBe("−30");
+    expect(en(standingNum(5))).toBe("5");
+    expect(en(standingStep(5))).toBe("+5");
+    expect(en(standingStep(-20))).toBe("−20");
+    expect(en(standingStep(0))).toBe("0");
   });
 });
 
