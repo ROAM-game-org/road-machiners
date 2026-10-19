@@ -45,6 +45,7 @@ export class Drawers {
       "button",
       { class: "btn-l", "data-tab": drawer, "aria-label": t(`drawer.${drawer}`), "aria-pressed": "false", onclick: () => this.toggle(drawer) },
       createIcon(TAB_ICON[drawer]),
+      el("span", { class: "tab-word" }, t(`drawer.${drawer}`)),
     );
   }
 }
