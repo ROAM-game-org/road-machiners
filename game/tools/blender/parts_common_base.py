@@ -58,16 +58,23 @@ class Grid:
         return self.half_y - CELL_ACROSS * (x + 0.5)
 
 
-def arch_profile(g: Grid, wheels_x: list[float], hub_z: float, radius: float, top: float) -> list[tuple[float, float]]:
-    """A side panel's XZ outline from the body bottom to top, with a low-poly arch cut up around each wheel."""
+def arch_profile(
+    g: Grid, wheels_x: list[float], hub_z: float, radius: float, top: float, bottom: float | None = None, nose_top: float | None = None, cowl_x: float | None = None
+) -> list[tuple[float, float]]:
+    """A side panel's XZ outline from the body bottom (or bottom) to top, with a low-poly arch cut up around each wheel.
+
+    nose_top and cowl_x make the top fall from top at cowl_x to nose_top at the nose, like a sloped hood.
+    """
+    low = g.bottom if bottom is None else bottom
     r = radius + ARCH_CLEARANCE
-    pts = [(-g.half_x + INSET, g.bottom)]
+    pts = [(-g.half_x + INSET, low)]
     for wx in sorted(wheels_x):
         for k in range(ARCH_SEGMENTS + 1):
             a = math.pi * (1 - k / ARCH_SEGMENTS)
-            z = max(g.bottom, hub_z + r * math.sin(a))
+            z = max(low, hub_z + r * math.sin(a))
             pts.append((wx + r * math.cos(a), z))
-    pts += [(g.half_x - INSET, g.bottom), (g.half_x - INSET, top), (-g.half_x + INSET, top)]
+    nose = [(g.half_x - INSET, top)] if nose_top is None or cowl_x is None else [(g.half_x - INSET, nose_top), (cowl_x, top)]
+    pts += [(g.half_x - INSET, low), *nose, (-g.half_x + INSET, top)]
     return pts
 
 

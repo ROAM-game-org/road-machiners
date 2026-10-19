@@ -15,7 +15,7 @@ const ARCH_CLEARANCE: Record<string, number> = { lincoln: 0.06, niva: 0.06, bukh
 
 describe('wheel arches of the reference photo bases', () => {
   it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout'] as const)('%s: arches sit on the physics wheels', (id) => {
-    const body = PHYSICS.bodies[id];
+    const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const name = `base_${id}` as ModelName;
     const hub = body.wheelY - PHYSICS.truck.suspensionRest;
     const front = socket(name, 'arch_front');

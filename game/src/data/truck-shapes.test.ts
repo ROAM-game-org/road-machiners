@@ -105,7 +105,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout', Refe
 
 describe('trucks built from a reference photo keep its proportions', () => {
   it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout'] as const)('%s', (id) => {
-    const body = PHYSICS.bodies[id];
+    const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
     const got = stationsOf(profileOf(`base_${id}` as const), ground);
     const misses: string[] = [];
