@@ -144,6 +144,7 @@ export type ShopDef = {
   driftPerTurn: number;
   contractSlots: number;
   supplies: ('fuel' | 'supplies')[];
+  staples: string[];
 };
 
 export const PRESSURE_MAX = 0.6;
@@ -166,6 +167,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 3,
     supplies: ['fuel', 'supplies'],
+    staples: ['stockEngine'],
   },
   nose: {
     id: 'nose',
@@ -181,6 +183,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 3,
     supplies: ['fuel', 'supplies'],
+    staples: ['stockEngine'],
   },
   'salvage-yard': {
     id: 'salvage-yard',
@@ -202,6 +205,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    staples: [],
   },
   granary: {
     id: 'granary',
@@ -220,6 +224,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    staples: [],
   },
   'pump-station': {
     id: 'pump-station',
@@ -238,6 +243,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    staples: [],
   },
   dustwell: {
     id: 'dustwell',
@@ -256,6 +262,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    staples: [],
   },
   'green-pit': {
     id: 'green-pit',
@@ -274,6 +281,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    staples: [],
   },
 };
 

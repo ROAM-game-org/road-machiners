@@ -63,6 +63,20 @@ describe('market', () => {
     expect(state.pressure.scrap).toBe(-PRESSURE_MAX);
   });
 
+  it('keeps every staple on a garage shelf after each roll and adds none to a stall', () => {
+    const w = emptyWorld();
+    for (const id of ['bowl', 'nose']) {
+      const state = initShop(w, id);
+      for (let roll = 0; roll < 60; roll++) {
+        expect(state.stock.some((p) => p.defId === 'stockEngine')).toBe(true);
+        w.turn = state.restockAt;
+        advanceShop(w, id, state);
+      }
+    }
+    expect(SHOPS['salvage-yard'].staples).toEqual([]);
+    expect(initShop(w, 'salvage-yard').stock.length).toBeLessThanOrEqual(SHOPS['salvage-yard'].stockSize[1]);
+  });
+
   it('drifts pressure back toward 0 over turns without crossing it', () => {
     const w = emptyWorld();
     const state = initShop(w, 'bowl');

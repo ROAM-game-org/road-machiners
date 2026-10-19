@@ -168,6 +168,7 @@ export const LOG: Translation<typeof EN> = {
   'log.partDisabled': 'У {who, case, gen} {part, case, nom} {part, gender, m {выведен} f {выведена} n {выведено} pl {выведены}} из строя',
   'log.breakdown': '{part} {part, gender, m {сломался} f {сломалась} n {сломалось} pl {сломались}}',
   'log.townPatch': 'Вы латаете грузовик ломом.',
+  'log.engineCredit': 'В гараже вам ставят {part, case, acc} в долг.',
   'log.scrapPatch': 'Вы латаете машину ломом, и она снова трогается с места.',
   'log.scrapPatchFuel': 'Вы латаете машину ломом, и она снова трогается с места. Горожане отдали вам {liters} л топлива.',
   'log.npcKnockout': '{who} {who, gender, m {потерял} f {потеряла} n {потеряло} pl {потеряли}} сознание',

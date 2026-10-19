@@ -64,6 +64,7 @@ import FORMAT_2_58 from './save-fixtures/format-2-58.json';
 import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
+import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1341,5 +1342,18 @@ describe('MIGRATIONS[61]', () => {
     const none = at('x', 'y');
     none.player.quests.session = null;
     expect(MIGRATIONS[61](structuredClone(none))).toEqual(none);
+  });
+});
+
+describe('MIGRATIONS[62]', () => {
+  const shopsOf = (world: unknown) => (world as { shops: Record<string, { restockAt: number }> }).shops;
+
+  it('restocks a Bowl or Nose shelf with no stock engine on the saved turn and leaves the rest alone', () => {
+    const next = MIGRATIONS[62](structuredClone(FORMAT_2_62));
+
+    expect(shopsOf(next).bowl.restockAt).toBe(FORMAT_2_62.turn);
+    expect(shopsOf(next).nose.restockAt).toBe(FORMAT_2_62.shops.nose.restockAt);
+    expect(shopsOf(next)['salvage-yard']).toEqual(FORMAT_2_62.shops['salvage-yard']);
+    expect({ ...next, shops: { ...shopsOf(next), bowl: FORMAT_2_62.shops.bowl } }).toEqual(FORMAT_2_62);
   });
 });

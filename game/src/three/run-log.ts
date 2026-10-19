@@ -10,14 +10,14 @@ import type { SlotId } from './save-slots';
 type Body = { kind: string } & Record<string, unknown>;
 
 const KEPT = new Set<GameEvent['t']>([
-  'death', 'knockout', 'wake', 'money', 'contract', 'discover', 'skillUp', 'scrapPatch', 'townPatch', 'searched', 'supply',
+  'death', 'knockout', 'wake', 'money', 'contract', 'discover', 'skillUp', 'scrapPatch', 'engineCredit', 'townPatch', 'searched', 'supply',
   'destroyed', 'npcKnockout', 'partDisabled', 'hostile', 'arrived', 'towDone', 'escortPaid', 'escortHired', 'aid',
   'breakdown', 'job', 'plea',
 ]);
 
 const VEHICLE_FIELDS = ['vehicle', 'by', 'against', 'client', 'giver', 'receiver', 'from', 'to'] as const;
 
-const PLAYER_KINDS = new Set<GameEvent['t']>(['death', 'knockout', 'wake', 'money', 'contract', 'discover', 'skillUp', 'scrapPatch', 'townPatch', 'searched', 'supply']);
+const PLAYER_KINDS = new Set<GameEvent['t']>(['death', 'knockout', 'wake', 'money', 'contract', 'discover', 'skillUp', 'scrapPatch', 'engineCredit', 'townPatch', 'searched', 'supply']);
 
 export function logEntries(prev: World | null, next: World, withEvents: boolean): LogEntry[] {
   const at = { turn: next.turn, day: clockOf(next.turn).day };
