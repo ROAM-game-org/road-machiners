@@ -1,0 +1,39 @@
+{
+  "turn": 930,
+  "shops": {
+    "bowl": {
+      "contracts": [],
+      "pressure": {
+        "scrap": 0.1
+      },
+      "stock": [
+        {
+          "id": "p1",
+          "defId": "heavyMg",
+          "wear": 1,
+          "hp": 10
+        }
+      ],
+      "restockAt": 1200
+    },
+    "nose": {
+      "contracts": [],
+      "pressure": {},
+      "stock": [
+        {
+          "id": "p2",
+          "defId": "stockEngine",
+          "wear": 2,
+          "hp": 9
+        }
+      ],
+      "restockAt": 1100
+    },
+    "salvage-yard": {
+      "contracts": [],
+      "pressure": {},
+      "stock": [],
+      "restockAt": 1300
+    }
+  }
+}

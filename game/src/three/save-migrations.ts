@@ -869,6 +869,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withDutyLegs_59_60,
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
+  withStapleRestock_62_63,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -981,6 +982,19 @@ const PAGE_HUB_CHECKPOINTS_61_62: readonly (readonly [string, string, string])[]
 
 function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
   return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
+}
+
+const STAPLE_SHOPS_62_63 = ['bowl', 'nose'];
+const STAPLE_PART_62_63 = 'stockEngine';
+type SavedShop = { stock: { defId: string }[]; restockAt: number };
+
+function withStapleRestock_62_63(world: SavedJson): SavedJson {
+  const shops = { ...(world.shops as Record<string, SavedShop>) };
+  for (const id of STAPLE_SHOPS_62_63) {
+    const shop = shops[id];
+    if (shop && !shop.stock.some((part) => part.defId === STAPLE_PART_62_63)) shops[id] = { ...shop, restockAt: world.turn as number };
+  }
+  return { ...world, shops };
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };
