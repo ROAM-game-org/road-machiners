@@ -193,13 +193,13 @@ describe("equipment variety", () => {
   });
 
   it("adds five goods with profitable routes and real buy/sell transactions", () => {
-    expect(Object.keys(GOODS)).toHaveLength(12);
+    expect(Object.keys(GOODS)).toHaveLength(13);
     expect(GOOD_IDS).toEqual(Object.keys(GOODS));
     for (const id of addedGoods) {
       expect(GOODS[id]).not.toHaveProperty('mass');
-      const [cheap, dear] = [...REGION.towns].sort(
-        (a, b) => goodBasePrice(a.id, id) - goodBasePrice(b.id, id),
-      );
+      const traders = [...REGION.towns, ...REGION.locations].filter((site) => SHOPS[site.id]?.goods.includes(id));
+      const sorted = traders.sort((a, b) => goodBasePrice(a.id, id) - goodBasePrice(b.id, id));
+      const [cheap, dear] = [sorted[0], sorted[sorted.length - 1]];
       expect(sellPrice(world, dear.id, id)).toBeGreaterThan(
         buyPrice(world, cheap.id, id),
       );
@@ -214,7 +214,7 @@ describe("equipment variety", () => {
     }
   });
 
-  it.each([["fuelDrums", []], ["water", ["dustwell", "green-pit"]]])("%s sells dear in Bowl and Nose, and only %j make it", (good, makers) => {
+  it.each([["fuelDrums", ["pump-station"]], ["water", ["dustwell", "green-pit"]]])("%s sells dear in Bowl and Nose, and only %j make it", (good, makers) => {
     for (const town of ["bowl", "nose"]) {
       expect(SHOPS[town].needs).toContain(good);
       expect(sellPrice(world, town, good)).toBeGreaterThan(0);
