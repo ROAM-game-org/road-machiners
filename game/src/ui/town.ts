@@ -250,6 +250,7 @@ export class TownScreen {
     if (!shopId) return this.close();
     const underQuest = w.player.quests.live !== null;
     this.root.classList.toggle("under-quest", underQuest);
+    this.root.classList.toggle("on-section", this.page !== null);
     if (!underQuest) this.drawPage(w, shopId, this.page);
   }
 
@@ -1055,7 +1056,7 @@ function proseOf(shopId: string, page: TownPage): Msg {
 function choiceButton(c: TownChoice, i: number): HTMLElement {
   const check = c.reason ? el("span", { class: "quest-check" }, c.reason) : null;
   const button = reasonButton([check, t("quest.choice", { n: i + 1, text: c.label })], c.go, c.reason);
-  button.className = "quest-choice";
+  button.className = c.id === "back" || c.id === "leave" ? "quest-choice compact" : "quest-choice";
   button.dataset.townGo = c.id;
   return button;
 }
