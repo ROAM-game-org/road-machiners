@@ -1,3 +1,4 @@
+import type { TownSection } from './quests';
 import { publicUrl } from '../public-url';
 
 export type QuestArt = { file: string; focusX: number };
@@ -29,3 +30,6 @@ export function questArt(key: string): QuestArt {
 export function questArtUrl(key: string): string {
   return publicUrl(`quest-art/${questArt(key).file}`);
 }
+
+export type TownArt = { band: string; sections: Partial<Record<TownSection, string>> };
+export const TOWN_ART: Record<string, TownArt> = {};

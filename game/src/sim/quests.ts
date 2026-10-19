@@ -30,8 +30,12 @@ import {
   type QuestVarDecl,
   type QuestViewKind,
   WAGON_SEEN,
-  SCALE_SEEN,
+  TOWN_SCENES,
+  type TownScene,
+  type TownSceneCondition,
+  type TownSection,
 } from '../data/quests';
+import { SALVAGE_GOODS } from '../data/intro';
 import BUNDLE from '../data/quests.json';
 import { isNoteId, type NoteId } from '../data/locals';
 import { REGION } from '../data/region';
@@ -39,13 +43,21 @@ import { WAGON_SEVEN } from '../data/salvage';
 import { SKILL_IDS } from '../data/skills';
 import { UNITS } from '../data/units';
 import { skillLevel } from './progress';
-import { boardFull, holdsNote, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
+import { boardFull, holdsNote, localsAt, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { canDriveOn } from './fury-road';
 import { payOf } from './fury-road-director';
 import { hashRandom } from './rng';
 import { storyStock } from './salvage';
-import type { QuestCheck, QuestLine, QuestLive, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
+import type { Vehicle, QuestCheck, QuestLine, QuestLive, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
 import { update } from './world';
+import { inCombat } from './combat';
+import { isKnockedOut } from './defeat';
+import { goodsCount } from './grid';
+import { requireShop, siteOf } from './market';
+import { parkedOn } from './sites';
+import { dist } from './vec';
+import { playerSees } from './vision';
+import { playerVehicle } from './damage';
 
 export type QuestView = {
   quest: string;
@@ -306,11 +318,15 @@ export function openRoadScene(w: World): void {
   openQuest(w, QUESTS, scene.quest, 'start');
 }
 
-export function openScaleScene(w: World): void {
+export function openTownScene(w: World, scene: TownScene): void {
   if (w.player.quests.session) return;
-  if (questVar(w, QUESTS, GAME_OPENED_QUESTS.scale, SCALE_SEEN) === true) return;
-  setWorldVar(w, SCALE_SEEN, true);
-  openQuest(w, QUESTS, GAME_OPENED_QUESTS.scale, 'start');
+  if (questVar(w, QUESTS, scene.quest, scene.gate) === true) return;
+  setWorldVar(w, scene.gate, true);
+  openQuest(w, QUESTS, scene.quest, scene.checkpoint);
+}
+
+export function freeToTalk(w: World): boolean {
+  return w.player.state === 'active' && !w.player.quests.session && !w.player.call && !inCombat(w, playerVehicle(w));
 }
 
 export function openWellScene(w: World, checkpoint: WellCheckpoint): void {
@@ -630,4 +646,53 @@ function openSession(state: QuestState): QuestSession {
 function questSeed(w: World, questId: string): number {
   const codes = [...questId].map((c) => c.charCodeAt(0));
   return Math.floor(hashRandom(w.seed, w.turn, ...codes) * INK_SEED_RANGE);
+}
+
+export type SectionAccess = { open: true } | { open: false; reason: 'noLocals' | 'noDrivers' };
+
+const TOWN_SCENE_CONDITIONS: Record<TownSceneCondition, (w: World) => boolean> = {
+  newSeller: (w) => w.player.xpBySource.profit === 0 && carriesSalvage(playerVehicle(w)),
+};
+
+function carriesSalvage(v: Vehicle): boolean {
+  const held = goodsCount(v);
+  return SALVAGE_GOODS.some((good) => (held[good] ?? 0) > 0);
+}
+
+export function barDrivers(w: World, shopId: string): Vehicle[] {
+  const site = siteOf(shopId);
+  const me = playerVehicle(w);
+  return w.vehicles
+    .filter((v) => v.id !== me.id && v.brain && !isKnockedOut(v) && parkedOn(v, site) && playerSees(w, v.pos))
+    .sort((a, b) => dist(a.pos, me.pos) - dist(b.pos, me.pos));
+}
+
+export function townSections(w: World, shopId: string): Record<TownSection, SectionAccess> {
+  return {
+    garage: { open: true },
+    market: { open: true },
+    board: { open: true },
+    people: localsAt(shopId).length > 0 ? { open: true } : { open: false, reason: 'noLocals' },
+    bar: barDrivers(w, shopId).length > 0 ? { open: true } : { open: false, reason: 'noDrivers' },
+  };
+}
+
+export function pickTownSection(world: World, from: TownSection | null, to: TownSection | null): World {
+  return update(world, (w) => {
+    const shopId = requireShop(w);
+    if (to !== null) requireOpenSection(w, shopId, to);
+    const scene = freeToTalk(w) ? sceneFor(w, shopId, from, to) : null;
+    if (scene) openTownScene(w, scene);
+  });
+}
+
+function requireOpenSection(w: World, shopId: string, section: TownSection): void {
+  const access = townSections(w, shopId)[section];
+  if (!access.open) throw new Error(`The ${section} section is off at ${shopId}: ${access.reason}`);
+}
+
+function sceneFor(w: World, shopId: string, from: TownSection | null, to: TownSection | null): TownScene | null {
+  const here = TOWN_SCENES.filter((s) => s.place === shopId && worldVar(w, s.gate) !== true && (s.when === null || TOWN_SCENE_CONDITIONS[s.when](w)));
+  const leaving = from === null ? undefined : here.find((s) => s.moment === 'leave' && s.section === from);
+  return leaving ?? (to === null ? null : here.find((s) => s.moment === 'enter' && s.section === to) ?? null);
 }

@@ -61,5 +61,13 @@ export const GAME_WORLD_VARS: Record<string, GameWorldVar> = {
   [ALA_HIRED]: { gates: null },
   ...Object.fromEntries(Object.values(ROAD_STORY).map((scene) => [scene.gate, { gates: scene.quest }])),
 };
+export const TOWN_SECTIONS = ['garage', 'market', 'board', 'people', 'bar'] as const;
+export type TownSection = (typeof TOWN_SECTIONS)[number];
+export type TownMoment = 'enter' | 'leave';
+export type TownSceneCondition = 'newSeller';
+export type TownScene = { place: string; section: TownSection; moment: TownMoment; quest: string; checkpoint: string; gate: string; when: TownSceneCondition | null };
+export const TOWN_SCENES: readonly TownScene[] = [
+  { place: 'bowl', section: 'market', moment: 'enter', quest: GAME_OPENED_QUESTS.scale, checkpoint: 'start', gate: SCALE_SEEN, when: 'newSeller' },
+];
 export const INTRO_STEPS = ['off', 'drive', 'patched', 'ambush', 'done'] as const;
 export type IntroStep = (typeof INTRO_STEPS)[number];
