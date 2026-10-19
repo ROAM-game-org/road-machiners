@@ -27,7 +27,7 @@
   "fall_cab": {
     "file": "fall_cab.webp",
     "focusX": 60,
-    "focusY": 50
+    "focusY": 46
   },
   "bowl_yard": {
     "file": "bowl_yard.webp",
@@ -42,12 +42,12 @@
   "road_ala": {
     "file": "road_ala.webp",
     "focusX": 55,
-    "focusY": 50
+    "focusY": 28
   },
   "road_geezer": {
     "file": "road_geezer.webp",
     "focusX": 30,
-    "focusY": 50
+    "focusY": 36
   },
   "road_hauler": {
     "file": "road_hauler.webp",
@@ -57,7 +57,7 @@
   "road_gate": {
     "file": "road_gate.webp",
     "focusX": 20,
-    "focusY": 50
+    "focusY": 45
   },
   "road_tankline": {
     "file": "road_tankline.webp",
@@ -72,6 +72,6 @@
   "bowl_scale": {
     "file": "bowl_scale.webp",
     "focusX": 45,
-    "focusY": 50
+    "focusY": 40
   }
 }
