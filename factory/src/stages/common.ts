@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { readAgentOutput } from '../agent-output';
 import { fetchMedia, mediaSection } from '../media';
 import { CommitteeDecisionError, guardDiff } from '../diff-guard';
-import { askedAt, isAnswered, recordAsked } from '../questions';
+import { askedAt, isAnswered, recordAsked, recordQuestionPost } from '../questions';
+import { MESSAGE_LIMIT } from '../telegram-limits';
 import { resumeError, resumedStage, roundSession } from '../sessions';
 import { readCommitteeMedia } from '../reply-media';
 import { issueReports } from '../error-reports/service';
@@ -180,8 +181,8 @@ export function fitComment(text: string, fullAt: string): string {
   return text.length > COMMENT_TEXT_LIMIT ? `${text.slice(0, COMMENT_TEXT_LIMIT)}\n\n(cut here, the full text is in ${fullAt})` : text;
 }
 
-export async function askAuthor(ctx: Ctx, issue: number, questions: string[], stage: 'triage' | 'design'): Promise<void> {
-  const [{ author }, earlier] = await Promise.all([ctx.github.issue(issue), ctx.github.comments(issue)]);
+export async function askAuthor(ctx: Ctx, issue: number, questions: string[], stage: 'triage' | 'design', context: string): Promise<void> {
+  const [{ author, title }, earlier] = await Promise.all([ctx.github.issue(issue), ctx.github.comments(issue)]);
   const before = askedAt(ctx.statePath, issue);
   const stillOpen = before !== null && !isAnswered(earlier, before);
   const numbered = questions.map((question, index) => `${index + 1}. ${question}`);
@@ -191,8 +192,19 @@ export async function askAuthor(ctx: Ctx, issue: number, questions: string[], st
   await ctx.github.addLabel(issue, NEEDS_INFO_LABEL);
   recordAsked(ctx.statePath, issue, at);
   if (stillOpen) return;
-  const text = `❓ ${stage === 'triage' ? 'Triage' : 'Design'} needs answers on #${issue}. The questions are on the GitHub issue: https://github.com/${ctx.cfg.repo}/issues/${issue}\nAnswer there. Replies in this chat do not reach the stage.`;
-  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, text).catch((error: unknown) => ctx.log(stage, issue, `could not notify the committee of the questions: ${error instanceof Error ? error.message : String(error)}`));
+  const head = `❓ ${stage === 'triage' ? 'Triage' : 'Design'} asks on #${issue} ${title}\nhttps://github.com/${ctx.cfg.repo}/issues/${issue}`;
+  const postId = await ctx.telegram.sendMessage(ctx.cfg.committeeChat, questionsNotice(head, [context, numbered.join('\n')].join('\n\n'))).catch((error: unknown) => {
+    ctx.log(stage, issue, `could not notify the committee of the questions: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  });
+  if (postId !== null) recordQuestionPost(ctx.statePath, postId, issue);
+}
+
+const QUESTIONS_TAIL = 'Reply to this message to answer, or answer on GitHub.';
+
+function questionsNotice(head: string, body: string): string {
+  const room = MESSAGE_LIMIT - head.length - QUESTIONS_TAIL.length - 4;
+  return [head, body.length > room ? `${body.slice(0, room - 1)}…` : body, QUESTIONS_TAIL].join('\n\n');
 }
 
 export function throwIfNeedsCommittee(home: string): void {

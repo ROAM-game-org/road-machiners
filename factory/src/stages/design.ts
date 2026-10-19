@@ -36,7 +36,7 @@ async function bugExpansionFor(ctx: Ctx, issue: number): Promise<string> {
 
 async function askBack(ctx: Ctx, issue: number, text: string): Promise<void> {
   const questions = parseQuestions(text);
-  await askAuthor(ctx, issue, questions, 'design');
+  await askAuthor(ctx, issue, questions, 'design', 'Design hit a blocker it cannot settle by a sensible reading.');
   await moveCard(ctx, issue, 'Triage', 'questions');
 }
 

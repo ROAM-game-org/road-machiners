@@ -84,7 +84,7 @@ INCLUDE world.ink
 - Give each scene a `# place:` on its first line. The heading stays until another place.
 - Put `# page` on the first line of a hub that follows an outcome. The outcome then shows on its own page with Next, and the hub opens fresh.
 - Write documents as tables with `# head` and `# row` lines, cells split by `;`. Use them for ledgers, logs and price boards.
-- `# img: <key>` shows a picture. Make it by [Quest art](../art/quest-art.md), which writes it to `public/quest-art/`, and add the key to `QUEST_ART` in `src/data/quest-art.ts`. `focusX` is the percent across the picture that the narrow art column keeps in view. Put the same tag on the same line of the Russian twin. Repeat the tag on the first line of a checkpoint whose page should show it after a load.
+- `# img: <key>` shows a picture. Make it by [Quest art](../art/quest-art.md), which writes it to `public/quest-art/`, and add the key with its `file`, `focusX` and `focusY` to `src/data/quest-art.json`. `focusX` and `focusY` are the percents across and down the picture that every crop keeps in the same place. [Quest art](../art/quest-art.md#crop-sheet) says how to set them. Put the same tag on the same line of the Russian twin. Repeat the tag on the first line of a checkpoint whose page should show it after a load.
 - A paid choice carries `# cost: <M>` inside its brackets. The runner charges it on the pick and greys the choice out when the player holds less.
 - A choice that can fail carries `# check: <skill> <level>` inside its brackets, and the ink after it branches on `passed()`. The window shows the skill and level next to the choice. [Skill checks in talk](dialogue.md#skill-checks-in-talk) has the writing rules.
 

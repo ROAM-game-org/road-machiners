@@ -220,6 +220,7 @@ export type FactoryState = {
   stuck: Record<string, StuckRecord>;
   sweepError: string | null;
   asked: Record<string, string>;
+  questionPosts: Record<string, number>;
   pendingFeedback: Record<string, PendingFeedback>;
   routed: number[];
 };

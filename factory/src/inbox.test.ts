@@ -23,6 +23,7 @@ function fakeCtx(cards: Card[], sent: string[], calls: string[]): Ctx {
       pullRequestFor: async () => null,
       addLabel: async (n: number, label: string) => { calls.push(`addLabel ${n} ${label}`); },
       close: async (n: number, reason: string) => { calls.push(`close ${n} ${reason}`); },
+      removeLabel: async (n: number, label: string) => { calls.push(`removeLabel ${n} ${label}`); },
     },
     telegram: {
       sendMessage: async (_chat: string, text: string) => { sent.push(text); return 1; },
@@ -189,6 +190,37 @@ describe('drainInbox', () => {
     expect(calls).toEqual([expect.stringContaining('routed as answer')]);
     expect(sent).toEqual([]);
     expect(readState(statePath).unroutedReplies).toEqual({});
+  });
+
+  it('puts a reply to a questions post on the issue as the answer and ends the wait', async () => {
+    const sent: string[] = [];
+    const calls: string[] = [];
+    writeState(statePath, { ...structuredClone(EMPTY_STATE), asked: { 6: '2026-09-30T09:00:00Z' }, questionPosts: { 77: 6 } });
+    put('1.json', { kind: 'answer-questions', issue: 6, text: 'The big brass horn.', postId: 77 });
+    await drainInbox(fakeCtx([], sent, calls));
+    expect(calls).toEqual(['comment 6 Answer from Ann in the committee chat:\n\nThe big brass horn.', 'removeLabel 6 needs-info']);
+    expect(sent).toEqual(['The answer is on #6. Triage runs again on a coming tick.']);
+    expect(readState(statePath).asked).toEqual({});
+    expect(readState(statePath).questionPosts).toEqual({});
+  });
+
+  it('refuses a reply to a questions post whose set is closed, and comments nothing', async () => {
+    const sent: string[] = [];
+    const calls: string[] = [];
+    writeState(statePath, structuredClone(EMPTY_STATE));
+    put('1.json', { kind: 'answer-questions', issue: 6, text: 'The big brass horn.', postId: 77 });
+    await drainInbox(fakeCtx([], sent, calls));
+    expect(calls).toEqual([]);
+    expect(sent).toEqual(['That did not work: The questions on #6 were already answered or timed out, so this reply did not reach the issue.']);
+  });
+
+  it('refuses an answer from Hermes', async () => {
+    const sent: string[] = [];
+    const calls: string[] = [];
+    writeState(statePath, { ...structuredClone(EMPTY_STATE), asked: { 6: '2026-09-30T09:00:00Z' }, questionPosts: { 77: 6 } });
+    put('1.json', { kind: 'answer-questions', issue: 6, text: 'x', postId: 77, by: 'hermes', messageId: null });
+    await drainInbox(fakeCtx([], sent, calls));
+    expect(calls).toEqual([]);
   });
 
   it('refuses a route it does not know', () => {
