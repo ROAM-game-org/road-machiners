@@ -26,6 +26,7 @@ import { START_KITS } from "./start";
 import { getUpkeepReserve } from "../sim/npc-decisions";
 import { newWorld } from "../sim/world";
 import { TEST_MAP } from "../test/map";
+import { budget } from '../test/budget';
 
 let world: World;
 beforeAll(() => {
@@ -450,7 +451,7 @@ describe("NPC wallets and trade stakes", () => {
       const w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
       for (const v of w.vehicles.filter((x) => x.brain)) expect(v.resources!.money, v.brain!.templateId).toBeGreaterThanOrEqual(getUpkeepReserve(v));
     }
-  }, 30_000);
+  }, budget(30_000));
 });
 
 describe("cargo shop prices", () => {

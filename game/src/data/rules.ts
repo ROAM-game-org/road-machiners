@@ -90,6 +90,10 @@ export const RULES = {
     playerHealth: 75,
   },
   retreatTeleportTurns: 50,
+  holdUp: {
+    cutShare: 0.5,
+    cutCap: 8800,
+  },
 };
 
 export const CHEATS = {
