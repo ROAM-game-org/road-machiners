@@ -79,6 +79,16 @@ export function hitchAxle(chassisId: string): number {
   return all[all.length - 1].body.wheelX / S;
 }
 
+export function hitchOverhang(chassisId: string): number {
+  const last = unitsOf(chassisId).at(-1)!.body;
+  return (last.half.x - last.wheelX) / S;
+}
+
+export function noseOverhang(chassisId: string): number {
+  const front = frontBody(chassisId);
+  return (front.half.x - front.wheelX) / S;
+}
+
 export function frontAhead(chassisId: string): number {
   return -spanOf(chassisId).center / S;
 }

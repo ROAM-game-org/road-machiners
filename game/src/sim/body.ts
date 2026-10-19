@@ -136,7 +136,7 @@ function unitShape(chassisId: string, unit: number): TruckShape {
 
 function collisionBoxes(chassisId: string, shape: string, halfHeight: number, top: number): BodyBox[] {
   return truckShape(shape).boxes.flatMap((b) => {
-    if (b.z0 >= top) return [];
+    if (b.z0 >= top || b.z1 <= -halfHeight) return [];
     const y0 = Math.max(b.z0, -halfHeight);
     const y1 = Math.min(b.z1, top);
     if (!(y1 > y0)) throw new Error(`A ${chassisId} collision box of ${shape} has no height between the chassis bottom and the roof limit`);
@@ -160,9 +160,8 @@ export function hulkBoxes(chassisId: string, bend: number | undefined): readonly
   const bottom = -all[0].body.half.y;
   const made = all.flatMap((u) => {
     const place = unitPlace(u, bend ?? 0);
-    return truckShape(u.shape).boxes.map((b) => {
+    return truckShape(u.shape).boxes.filter((b) => b.z1 > bottom).map((b) => {
       const z0 = Math.max(b.z0, bottom);
-      if (!(b.z1 > z0)) throw new Error(`A ${chassisId} hulk box has no height above the chassis bottom`);
       return { box: { ...b, z0: z0 - bottom, z1: b.z1 - bottom }, ...place };
     });
   });

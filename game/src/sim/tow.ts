@@ -6,8 +6,8 @@ import { EFFORT } from '../data/market';
 import { NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { BEACON, TOW } from '../data/tow';
 import { inCombat, inCombatWithOther, isHostile } from './combat';
-import { frontBody } from './body';
-import { bendField, followPose, hitchAxle, hitchPoint, poseOf, tractrix } from './rig';
+import { frontBody, isRig } from './body';
+import { bendField, followPose, hitchAxle, hitchOverhang, hitchPoint, noseOverhang, poseOf, tractrix } from './rig';
 import { playerVehicle, vehicleById } from './damage';
 import { isDefeated, isKnockedOut } from './defeat';
 import { contactsOf, hearsBeacon } from './detect';
@@ -367,7 +367,7 @@ export function followTower(world: World): void {
 function follow(tower: Vehicle, towed: Vehicle): void {
   if (tower.trail.length === 0) throw new Error(`Tower ${tower.id} has no trail to follow`);
   const towedAxle = frontBody(towed.chassisId).wheelX / PHYSICS.metersPerTile;
-  const bar = TOW.gap - hitchAxle(tower.chassisId) - towedAxle;
+  const bar = towBar(tower.chassisId, towed.chassisId);
   if (bar <= 0) throw new Error(`Tow bar of ${tower.chassisId} and ${towed.chassisId} is ${bar} tiles, not above 0`);
   const start = poseOf(towed);
   let front = axlePoint(start, towedAxle);
@@ -384,6 +384,11 @@ function follow(tower: Vehicle, towed: Vehicle): void {
   }
   towed.trail = trail;
   Object.assign(towed, { pos: { x: last.x, y: last.y }, heading: last.heading, speed: tower.speed }, bendField(last.bend));
+}
+
+export function towBar(tower: string, towed: string): number {
+  const plain = TOW.gap - hitchAxle(tower) - frontBody(towed).wheelX / PHYSICS.metersPerTile;
+  return isRig(tower) ? Math.max(plain, hitchOverhang(tower) + noseOverhang(towed)) : plain;
 }
 
 function axlePoint(p: Pose, offset: number): Vec {

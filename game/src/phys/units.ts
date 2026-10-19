@@ -66,11 +66,12 @@ function setMass(body: RAPIER.RigidBody, b: Body, mass: number): void {
 
 export function placeBodies(bodies: RAPIER.RigidBody[], w: World, v: Vehicle): void {
   const poses = unitPoses(v);
-  bodies.forEach((body, unit) => placeBody(body, w, v, poses[unit]));
+  const height = Math.max(...poses.map((pose) => rideHeightAt(w, v, pose)));
+  bodies.forEach((body, unit) => placeBody(body, v, poses[unit], height));
 }
 
-function placeBody(body: RAPIER.RigidBody, w: World, v: Vehicle, pose: UnitPose): void {
-  body.setTranslation({ x: pose.pos.x * PHYSICS.metersPerTile, y: rideHeightAt(w, v, pose), z: pose.pos.y * PHYSICS.metersPerTile }, true);
+function placeBody(body: RAPIER.RigidBody, v: Vehicle, pose: UnitPose, height: number): void {
+  body.setTranslation({ x: pose.pos.x * PHYSICS.metersPerTile, y: height, z: pose.pos.y * PHYSICS.metersPerTile }, true);
   body.setRotation(headingQuat(pose.heading), true);
   const fwd = toMps(v.speed);
   body.setLinvel({ x: Math.cos(pose.heading) * fwd, y: 0, z: Math.sin(pose.heading) * fwd }, true);
@@ -97,10 +98,11 @@ export function wheelLoads(v: Vehicle): UnitLoad[] {
 function addCoupling(world: RAPIER.World, v: Vehicle, front: RAPIER.RigidBody, rear: RAPIER.RigidBody): number {
   const coupling = couplingOf(v.chassisId);
   if (!coupling) throw new Error(`Rig ${v.chassisId} has no coupling`);
-  const data = RAPIER.JointData.revolute({ x: coupling.pivotFront, y: 0, z: 0 }, { x: coupling.pivotRear, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
+  const low = unitBody(v.chassisId, 0).wheelY;
+  const locked = RAPIER.JointAxesMask.LinX | RAPIER.JointAxesMask.LinY | RAPIER.JointAxesMask.LinZ | RAPIER.JointAxesMask.AngY;
+  const data = RAPIER.JointData.generic({ x: coupling.pivotFront, y: low, z: 0 }, { x: coupling.pivotRear, y: low, z: 0 }, { x: 0, y: 1, z: 0 }, locked);
   const joint = world.createImpulseJoint(data, front, rear, true);
-  if (!(joint instanceof RAPIER.RevoluteImpulseJoint)) throw new Error(`Rig ${v.id} got a ${joint.type()} joint, not a revolute one`);
-  joint.setLimits(-coupling.bendLimit, coupling.bendLimit);
+  world.impulseJoints.raw.jointSetLimits(joint.handle, Number(RAPIER.JointAxis.AngX), -coupling.bendLimit, coupling.bendLimit);
   joint.setContactsEnabled(false);
   return joint.handle;
 }
@@ -182,6 +184,21 @@ export function makeCar(world: RAPIER.World, body: RAPIER.RigidBody, b: Body, un
 
 export function rearIndex(unit: number, i: number): number {
   return unit > 0 ? i + 2 : i;
+}
+
+export function rollUnits(ctl: RAPIER.DynamicRayCastVehicleController, body: RAPIER.RigidBody, trailer: Trailer | null, dt: number): void {
+  if (!trailer) {
+    ctl.updateVehicle(dt);
+    return;
+  }
+  ctl.updateVehicle(dt, undefined, undefined, notOn(trailer.body));
+  trailer.ctl.updateVehicle(dt, undefined, undefined, notOn(body));
+}
+
+function notOn(other: RAPIER.RigidBody): (collider: RAPIER.Collider) => boolean {
+  const skipped = new Set<number>();
+  for (let i = 0; i < other.numColliders(); i++) skipped.add(other.collider(i).handle);
+  return (collider) => !skipped.has(collider.handle);
 }
 
 export function makeTrailer(world: RAPIER.World, body: RAPIER.RigidBody, b: Body, load: UnitLoad): Trailer {

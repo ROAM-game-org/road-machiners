@@ -49,6 +49,7 @@ export const PHYSICS = {
     bukhanka: { halfHeight: 0.5, wheelY: -0.35, wheelX: 1.45, wheelZ: 0.968, engine: { x: 0.52, y: 1, z: -0.242 }, wheelRadius: 0.55, wheelHalfWidth: 0.2 },
     lincoln: { halfHeight: 0.35, wheelY: -0.2, wheelX: 1.95, wheelZ: 0.968, engine: { x: 1.625, y: -0.25, z: -0.242 }, wheelRadius: 0.42, wheelHalfWidth: 0.17 },
     semi: { halfHeight: 1.12, wheelY: -0.75, wheelX: 3.125, wheelZ: 1.24, engine: { x: 2.525, y: -0.15, z: 0 }, wheelRadius: 0.65, wheelHalfWidth: 0.18 },
+    sorokonoga: { halfHeight: 0.6, wheelY: -0.4, wheelX: 1.9, wheelZ: 1.15, engine: { x: -0.6, y: -0.4, z: -0.6214 }, wheelRadius: 0.55, wheelHalfWidth: 0.2 },
     loader: { halfHeight: 0.65, wheelY: -0.45, wheelX: 1.95, wheelZ: 1.452, engine: { x: -0.975, y: 0.5, z: -0.242 }, wheelRadius: 0.8, wheelHalfWidth: 0.32 },
   },
   couplings: {
@@ -57,6 +58,15 @@ export const PHYSICS = {
       pivotFront: -2.825,
       pivotRear: 5.75,
       bendLimit: 0.8,
+      bendTolerance: 0.05,
+      backGain: 1.2,
+      backCap: 2,
+    },
+    sorokonoga: {
+      rear: { model: 'sorokonoga_rear', halfHeight: 0.6, wheelY: -0.4, wheelX: 5.2, wheelZ: 1.15, wheelRadius: 0.55, wheelHalfWidth: 0.2 },
+      pivotFront: -1.6,
+      pivotRear: 5.9,
+      bendLimit: 1,
       bendTolerance: 0.05,
       backGain: 1.2,
       backCap: 2,

@@ -27,6 +27,8 @@ export const NAMES = [
   'base_lincoln',
   'base_semi',
   'base_semi_rear',
+  'base_sorokonoga',
+  'base_sorokonoga_rear',
   'wmount_riser',
   'wreck',
   'rock',

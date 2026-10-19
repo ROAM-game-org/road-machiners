@@ -32,10 +32,12 @@ const BASE_MODELS: Record<string, ModelName> = {
   bukhanka: 'base_bukhanka',
   lincoln: 'base_lincoln',
   semi: 'base_semi',
+  sorokonoga: 'base_sorokonoga',
 };
 
 const REAR_BASE_MODELS: Record<string, ModelName> = {
   semi: 'base_semi_rear',
+  sorokonoga: 'base_sorokonoga_rear',
 };
 
 export function baseModel(chassisId: string, unit: number): ModelName {

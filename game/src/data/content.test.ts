@@ -7,7 +7,7 @@ import { goodBasePrice, partPristineBuyPrice } from "../sim/market";
 import { PARTS, type PartDef, type PartKind, type WeaponDef } from "./parts";
 import { REGION } from "./region";
 import { SALVAGE, type LootTable } from "./salvage";
-import { bodyOf } from "../sim/body";
+import { frontBody } from "../sim/body";
 import {
   buyChassis,
   buyGood,
@@ -59,7 +59,7 @@ const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
   ],
 };
 const addedGoods = ["grain", "textiles", "tools", "batteries", "electronics"];
-const addedChassis = ["courier", "van", "longbed", "carrier", "tractor", "jeep", "convertible", "bus", "loader", "niva", "bukhanka", "lincoln"];
+const addedChassis = ["courier", "van", "longbed", "carrier", "tractor", "jeep", "convertible", "bus", "loader", "niva", "bukhanka", "lincoln", "sorokonoga"];
 const rearEngineChassis = ["jeep", "convertible", "bus", "loader", "bukhanka"];
 
 describe("equipment variety", () => {
@@ -138,8 +138,8 @@ describe("equipment variety", () => {
   );
 
   it("adds buyable chassis with valid built-in parts and physics bodies", () => {
-    expect(Object.keys(CHASSIS)).toHaveLength(17);
-    expect(PLAYER_CHASSIS).toHaveLength(16);
+    expect(Object.keys(CHASSIS)).toHaveLength(18);
+    expect(PLAYER_CHASSIS).toHaveLength(17);
     for (const id of addedChassis) {
       expect(PLAYER_CHASSIS).toContain(id);
       const w = buyChassis(world, id);
@@ -153,7 +153,7 @@ describe("equipment variety", () => {
       expect(cores.every((item) => isMounted(id, item))).toBe(true);
       for (const item of v.items)
         expect(placementError(gridOf(v), v.items, item, item.id)).toBeNull();
-      expect(bodyOf(id).half.x).toBeGreaterThan(0);
+      expect(frontBody(id).half.x).toBeGreaterThan(0);
       expect(
         new Set(CHASSIS[id].core.map((core) => `${core.x},${core.y}`)).size,
       ).toBe(CHASSIS[id].core.length);

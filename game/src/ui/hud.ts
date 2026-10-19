@@ -105,6 +105,7 @@ type HudActions = {
 export type CameraMode = "centered" | "auto";
 
 const TOAST_MS = 3500;
+const CONDITION_ROWS = 12;
 
 const TONE_CLASS: Record<TipLine['tone'], string> = { base: 'dim', bad: 'bad', good: 'good', plain: '' };
 
@@ -139,9 +140,9 @@ export class Hud {
   private speedSlot = el("div", { class: "speedometer" }, this.dialSlot, this.maxSpeed.root);
   private readoutSlot = el("div", { class: "readouts" });
   private actionSlot = el("div", { class: "instrument-actions" });
-  private condition = new TruckConditionView();
+  private condition = new TruckConditionView(CONDITION_ROWS);
   private haulerGauge = new HaulerGauge();
-  private inspected = new TruckConditionView();
+  private inspected = new TruckConditionView(null);
   private inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
   private inspectedAimable = false;
   private infoColumn = el("div", { class: "info-column" });

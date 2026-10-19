@@ -14,7 +14,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import {
-  frameAt, framePoints,
+  frameAt, framePoints, staleFrame,
   groundPoint,
   toMap,
   type TurnFrames,
@@ -108,7 +108,6 @@ type TurnPhase = ReturnType<UiHost["getTurnPhase"]>;
 
 const MOVE_MS = (TURN_STEPS / PHYSICS.stepsPerSecond) * 1000;
 const stepMs = (step: number) => (step / PHYSICS.stepsPerSecond) * 1000;
-const MOVED_BY_RULES = 0.5;
 
 const GUN_HEIGHT = 1.6;
 
@@ -1142,7 +1141,7 @@ export class Game {
     for (const [i, v] of shown.entries()) {
       this.pin.note(v, i < this.world.vehicles.length);
       const kept = this.frames[v.id];
-      const stale = !this.anim && kept && dist(toMap(kept.pos), v.pos) > MOVED_BY_RULES;
+      const stale = staleFrame(kept, v, this.anim !== null);
       const f = (frames && frameAt(frames[v.id], at!)) ?? (kept && !stale ? kept : restFrame(this.world, v));
       this.frames[v.id] = f;
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);

@@ -31,7 +31,7 @@ import { wheelMounts } from './body';
 import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius, type Stance } from './turnaround';
 import { navLayer, type NavLayer } from '../sim/nav/layer';
 import { headingOf, headingQuat, noseRise, rideHeightAt, rotateBy, toPhys, toPhysCircle, TURN_STEPS, upOf, type Circle, type Quat, type TurnFrames, type V3, type VehicleFrame } from './frames';
-import { addVehicle, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, makeTrailer, placeBodies, rearIndex, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
+import { addVehicle, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, makeTrailer, placeBodies, rearIndex, rollUnits, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
 
 export { frameWheels, restFrame, restFrames, restWheels, trailFrames, TURN_STEPS, type UnitWheels } from './frames';
 import { oilPatches } from '../sim/hazards';
@@ -324,8 +324,7 @@ function ownersOf(cars: Car[]): Owners {
 }
 
 function updateCar(c: Car): void {
-  c.ctl.updateVehicle(DT);
-  c.rear?.ctl.updateVehicle(DT);
+  rollUnits(c.ctl, c.body, c.rear, DT);
 }
 
 function dropControllers(world: RAPIER.World, c: Car): void {

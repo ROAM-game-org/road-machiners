@@ -51,6 +51,7 @@ const SEAT_CAB: Record<string, string> = {
 const VALUES = {
   scout: 81467, hauler: 122534, buggy: 64267, wagon: 100733, courier: 77333, van: 102666, longbed: 179466,
   carrier: 162534, tractor: 146067, jeep: 72867, convertible: 99734, bus: 126667, loader: 169600, niva: 104934, bukhanka: 115000, lincoln: 142933, semi: 140000,
+  sorokonoga: 204567,
 };
 
 const NO_DECK_BLOCK: Record<string, string> = {

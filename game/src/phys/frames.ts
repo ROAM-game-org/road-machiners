@@ -103,6 +103,14 @@ function blendUnits(a: UnitFrame, b: UnitFrame, t: number): UnitFrame {
   return { pos: lerpV3(a.pos, b.pos, t), rot: nlerpQuat(a.rot, b.rot, t), wheels: a.wheels.map((w, i) => blendWheels(w, b.wheels[i], t)) };
 }
 
+const MOVED_BY_RULES = 0.5;
+
+export function staleFrame(kept: VehicleFrame | undefined, v: Vehicle, playing: boolean): boolean {
+  if (!kept) return false;
+  if (Boolean(kept.rear) !== unitsOf(v.chassisId).length > 1) return true;
+  return !playing && Math.hypot(kept.pos.x / S - v.pos.x, kept.pos.z / S - v.pos.y) > MOVED_BY_RULES;
+}
+
 export function framePoints(f: VehicleFrame): V3[] {
   return f.rear ? [f.pos, f.rear.pos] : [f.pos];
 }

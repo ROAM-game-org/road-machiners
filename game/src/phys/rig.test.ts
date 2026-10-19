@@ -2,11 +2,19 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
 import { couplingOf } from '../sim/body';
 import { makeVehicle } from '../sim/factory';
-import { rigBoxes, unitPoses, type RigBox } from '../sim/rig';
-import { emptyWorld } from '../sim/testkit';
+import { bendField, lengthOf, restBend, rigBoxes, unitPoses, type RigBox } from '../sim/rig';
+import { hangUp } from '../sim/dialogue';
 import type { MoveOrder, Obstacle, Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
-import { endTurn, setMoveOrder } from '../sim/world';
+import { endTurn, newWorld, setMoveOrder } from '../sim/world';
+import { NPCS } from '../data/npcs';
+import { REGION } from '../data/region';
+import { START_KITS } from '../data/start';
+import { addGoods } from '../sim/inventory';
+import { defaultSetup } from '../sim/settings';
+import { canUseSite, parkedOn } from '../sim/sites';
+import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
+import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
 import { buildDrive, captureDrive, freeDrive, initPhysics, restoreDrive, simulateTurn, type Drive, type TurnResult } from './drive';
 import { frameBend, headingOf, toMap } from './frames';
@@ -19,11 +27,11 @@ beforeAll(async () => {
 const RIG = 'semi';
 const coupling = couplingOf(RIG)!;
 
-function rigWorld(pos: Vec, heading: number, speed = 0, bend = 0): World {
+function rigWorld(pos: Vec, heading: number, speed = 0, bend?: number, chassisId = RIG): World {
   const w = emptyWorld(pos);
   const me = w.vehicles[0];
-  const rig = makeVehicle(w, { faction: 'player', chassisId: RIG, parts: [{ defId: 'workhorseDiesel', wear: 0 }], spares: [], cargo: {}, pos, heading, brain: null });
-  w.vehicles[0] = { ...rig, id: me.id, speed, bend };
+  const rig = makeVehicle(w, { faction: 'player', chassisId, parts: [{ defId: 'workhorseDiesel', wear: 0 }], spares: [], cargo: {}, pos, heading, brain: null });
+  w.vehicles[0] = { ...rig, id: me.id, speed, ...bendField(bend ?? restBend(chassisId)) };
   w.player.fuel = 999;
   return w;
 }
@@ -135,4 +143,45 @@ describe('a rig drives as two bodies on a pivot', () => {
     expect(Math.max(...bends.map(Math.abs))).toBeLessThan(0.4);
     expect(dist(run.w.vehicles[0].pos, { x: 38, y: 40 })).toBeLessThan(1);
   }, budget(120_000));
+
+  it('turns the sorokonoga on a full-lock circle no wider than the longbed, though the sorokonoga is the longer truck', () => {
+    const circle = (chassisId: string) => {
+      const run = play(rigWorld({ x: 60, y: 40 }, 0, 2, undefined, chassisId), 4, { kind: 'through', dest: { x: 30, y: 40.5 } }, true);
+      const path = run.results.flatMap((r) => r.frames[run.w.vehicles[0].id].map((f) => toMap(f.pos)));
+      return Math.max(...path.map((p) => Math.abs(p.y - 40)));
+    };
+    expect(lengthOf('sorokonoga')).toBeGreaterThan(lengthOf('longbed'));
+    expect(circle('sorokonoga')).toBeLessThanOrEqual(circle('longbed'));
+  }, budget(240_000));
+
+  it('drives a trader in a sorokonoga onto a town pad, parks it there and drives it off again with no stall', () => {
+    let w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+    const [bowl] = REGION.towns;
+    w.vehicles[0].pos = { x: bowl.pos.x + bowl.radius + 3, y: bowl.pos.y + 8 };
+    const trader = addVehicle(w, 'independent', 'sorokonoga', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 14, y: bowl.pos.y }, Math.PI);
+    trader.brain = npcBrain('trader', trader.pos, ['trader']);
+    addGoods(w, trader, 'scrap', 1);
+    trader.brain.goals = [{ kind: 'sell', targetId: bowl.id, destination: { ...bowl.pos }, phase: 'travel', reason: 'deliverCargo' }];
+    let d: Drive = buildDrive(w);
+    let parkedAt: number | null = null;
+    let leftAt: number | null = null;
+    const stalls: string[] = [];
+    for (let turn = 0; turn < 60 && leftAt === null; turn++) {
+      let res: TurnResult | null = null;
+      if (w.player.call) w = hangUp(w);
+      w = endTurn(w, physicsMove(d, (r) => (res = r)));
+      freeDrive(d);
+      d = res!.next;
+      stalls.push(...w.events.filter((e) => e.t === 'stall' && e.vehicle === trader.id).map((e) => e.t));
+      const rig = w.vehicles.find((v) => v.id === trader.id)!;
+      if (parkedAt === null && parkedOn(rig, bowl)) parkedAt = turn;
+      if (parkedAt !== null && !canUseSite(rig.pos, bowl)) leftAt = turn;
+    }
+    freeDrive(d);
+    expect(parkedAt).not.toBeNull();
+    expect(leftAt).not.toBeNull();
+    expect(stalls).toEqual([]);
+  }, budget(600_000));
 });
