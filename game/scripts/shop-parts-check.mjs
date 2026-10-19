@@ -6,8 +6,9 @@ import { playUrl } from './game-url.mjs';
 const url = process.argv[2];
 if (!url) throw new Error('Usage: node scripts/shop-parts-check.mjs <dev-server-url>');
 const garage = async (page, tab) => {
-  await page.locator('.town-screen [data-section=garage]').click();
-  await page.locator(`.town-screen [data-garage-tab="${tab}"]`).click();
+  if (await page.locator('.town-page [data-town-go=back]').count()) await page.locator('.town-page [data-town-go=back]').click();
+  await page.locator('.town-page [data-town-go=garage]').click();
+  await page.locator(`.town-page [data-garage-tab="${tab}"]`).click();
 };
 const browser = await chromium.launch();
 await mkdir('.playtest', { recursive: true });
@@ -39,7 +40,7 @@ async function setup(page) {
     g.apply(w);
     g.town.open();
   });
-  await page.waitForSelector('.town-sections button', { timeout: 90000 });
+  await page.waitForSelector('.town-page [data-town-go]', { timeout: 90000 });
   await garage(page, 'buyParts');
 }
 

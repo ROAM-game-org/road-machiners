@@ -52,9 +52,11 @@ async function openTown(page, tab) {
     g.screens.town.open();
   });
   await page.evaluate((tab) => {
+    const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
+    go('back');
     const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', contracts: 'board' }[tab] ?? tab;
-    document.querySelector(`.town-screen [data-section="${section}"]`).click();
-    if (section === 'garage') document.querySelector(`.town-screen [data-garage-tab="${tab}"]`).click();
+    if (section !== 'front') go(section);
+    if (section === 'garage') document.querySelector(`.town-page [data-garage-tab="${tab}"]`).click();
   }, tab);
 }
 
@@ -240,6 +242,7 @@ const STATES = {
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
+  'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown },
   'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },

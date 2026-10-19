@@ -644,7 +644,8 @@ try {
     g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
     g.town.open();
   });
-  await page.waitForSelector('.town-sections button', { timeout: 90000 });
+  await page.waitForSelector('.town-page [data-town-go]', { timeout: 90000 });
+  await page.locator('.town-page [data-town-go=market]').click();
   assert((await checkCoins(page, 'town market')) > 1, 'The town market must show amounts');
   await checkCoinSizes(page, 'market 1600');
   const before = page.viewportSize();
@@ -652,6 +653,7 @@ try {
   await checkCoins(page, 'town market 1024');
   await checkCoinSizes(page, 'market 1024');
   await page.setViewportSize(before);
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await page.keyboard.press('i');
   for (const width of [1024, 800, 700]) {

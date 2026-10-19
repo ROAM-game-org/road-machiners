@@ -6,8 +6,9 @@ import { playUrl } from './game-url.mjs';
 const url = process.argv[2];
 if (!url) throw new Error('Usage: node scripts/garage-ui-check.mjs <dev-server-url>');
 const garage = async (page, tab) => {
-  await page.locator('.town-screen [data-section=garage]').click();
-  await page.locator(`.town-screen [data-garage-tab="${tab}"]`).click();
+  if (await page.locator('.town-page [data-town-go=back]').count()) await page.locator('.town-page [data-town-go=back]').click();
+  await page.locator('.town-page [data-town-go=garage]').click();
+  await page.locator(`.town-page [data-garage-tab="${tab}"]`).click();
 };
 const browser = await chromium.launch();
 
@@ -17,7 +18,7 @@ const read = (page) => page.evaluate(() => ({
   cards: document.querySelectorAll('.town-shop .part-row').length,
   compares: [...document.querySelectorAll('.town-shop .card-compare')].map(n => n.innerText),
   deltas: document.querySelectorAll('.town-shop .part-row .delta').length,
-  chips: [...document.querySelectorAll('.town-screen h3 .chip')].map(n => n.title || n.innerText),
+  chips: [...document.querySelectorAll('.town-page .ink-chips .chip')].map(n => n.title || n.innerText),
   repair: document.querySelector('.town-repair')?.innerText ?? '',
 }));
 
@@ -69,7 +70,7 @@ async function enter(page, spot) {
     g.apply(w);
     g.screens.town.open();
   }, spot);
-  await page.waitForSelector('.town-sections button', { timeout: 90000 });
+  await page.waitForSelector('.town-page [data-town-go]', { timeout: 90000 });
 }
 
 try {
@@ -137,8 +138,8 @@ try {
     await page.setViewportSize({ width, height });
     await page.waitForTimeout(300);
     const out = await page.evaluate(() => {
-      const box = document.querySelector('.town-screen').getBoundingClientRect();
-      return [...document.querySelectorAll('.town-screen h3 .chip, .town-repair button')].filter(n => {
+      const box = document.querySelector('.town-page').getBoundingClientRect();
+      return [...document.querySelectorAll('.town-page .ink-chips .chip, .town-repair button')].filter(n => {
         const b = n.getBoundingClientRect();
         return b.x < box.x || b.right > box.right || b.bottom > box.bottom;
       }).length;
@@ -170,7 +171,7 @@ try {
   await page.waitForTimeout(300);
   const swapped = await page.evaluate(() => ({
     own: document.querySelector('.truck-card.own .card-name')?.innerText,
-    chip: [...document.querySelectorAll('.town-screen h3 .chip')].map(n => n.title || n.innerText).join('|'),
+    chip: [...document.querySelectorAll('.town-page .ink-chips .chip')].map(n => n.title || n.innerText).join('|'),
     back: [...document.querySelectorAll('.truck-card .card-foot button')].filter(b => b.innerText.includes('Swap, get')).length,
   }));
   assert(swapped.back > 0, `a Swap, get n back button must show after buying the top truck, got ${JSON.stringify(swapped)}`);
