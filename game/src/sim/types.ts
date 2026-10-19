@@ -284,6 +284,7 @@ export type NpcActivity = {
   left?: string[];
   posted?: true;
   asked?: string[];
+  heard?: Vec;
 };
 
 export type NpcBrain = {
