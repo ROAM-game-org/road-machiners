@@ -88,7 +88,7 @@ describe('error reports', () => {
   it('carries a failed turn with the worker stack and its start drive', async () => {
     const { sent, ...r } = reporter();
     watching(r, { ...emptyWorld(), turn: 9 });
-    const drive = { bodies: { player: 3 }, obstacles: {}, craters: {}, memory: {}, terrain: 1, decks: [], snapshot: new Uint8Array([0, 1, 254, 255]) } satisfies DriveSnapshot;
+    const drive = { bodies: { player: 3 }, rears: {}, couplings: {}, shapes: { player: 'scout' }, obstacles: {}, craters: {}, memory: {}, terrain: 1, decks: [], snapshot: new Uint8Array([0, 1, 254, 255]) } satisfies DriveSnapshot;
     const workerStack = 'TypeError: no route\n    at planRoute (turn-abc.js:1:200)';
 
     await r.reporter.report(new TurnFailure(workerStack, drive));

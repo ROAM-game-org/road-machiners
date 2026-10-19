@@ -3,12 +3,14 @@ import {
   restoreDrive,
   type DriveSnapshot,
   restFrames,
+  frameWheels,
   restWheels,
   trailFrames,
+  type UnitWheels,
   type Drive,
   type TurnResult,
 } from "../phys/drive";
-import type { VehicleFrame, WheelFrame } from "../phys/frames";
+import type { VehicleFrame } from "../phys/frames";
 import type { PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
@@ -89,8 +91,9 @@ export function addRopeFrames(before: World, after: World, frames: TurnResult["f
   }
 }
 
-function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): WheelFrame[] {
-  return shown[v.id]?.wheels ?? restWheels(v.chassisId);
+function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): UnitWheels {
+  const frame = shown[v.id];
+  return frame && Boolean(frame.rear) === (restWheels(v.chassisId).rear !== null) ? frameWheels(frame) : restWheels(v.chassisId);
 }
 
 export function canTravel(world: World): boolean {

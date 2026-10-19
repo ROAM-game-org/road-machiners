@@ -18,7 +18,7 @@ import { TOW } from '../data/tow';
 import { UNITS } from '../data/units';
 import { oilSlickLength } from '../data/utilities';
 import { CONDITION, PATCH, REPAIR, WEAR } from '../data/wear';
-import { baseModel, PART_MODELS, WEAPON_POOLS } from '../render/partLooks';
+import { baseModels, PART_MODELS, WEAPON_POOLS } from '../render/partLooks';
 import { STATE_KINDS } from '../sim/states';
 import { chassisName, goodName, partName, perkName, perkRule, professionName, skillGrows, skillName, templateName } from '../text/names';
 import type { Msg } from '../text/msg';
@@ -234,7 +234,7 @@ const TABLES: WikiTable[] = [
     id: 'models',
     headers: ['kind', 'id', 'model'],
     rows: () => [
-      ...Object.keys(CHASSIS).map((id): Cell[] => ['chassis', id, baseModel(id)]),
+      ...Object.keys(CHASSIS).map((id): Cell[] => ['chassis', id, baseModels(id).join(' + ')]),
       ...entries(PART_MODELS).map(([id, model]): Cell[] => [id in PARTS ? 'part' : 'good', id, model]),
     ],
   },

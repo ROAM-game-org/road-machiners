@@ -1,6 +1,6 @@
 
 import { RULES } from "../data/rules";
-import { chassisDef } from "../data/chassis";
+import { restBend, rigDiscs } from "./rig";
 import type { VehicleStats } from "./stats";
 import type { Blocker } from "./path";
 import { nearestPad, siteUnder } from "./sites";
@@ -97,20 +97,21 @@ export function parkedVehicles(world: World, selfId: string, onRope: ReadonlySet
   const target = world.vehicles.find((v) => v.id === selfId)?.brain?.ramTarget;
   return world.vehicles
     .filter((x) => x.id !== selfId && x.id !== target && !onRope.has(x.id) && x.speed < RULES.parkedSpeed)
-    .map((x) => ({ pos: x.pos, r: chassisDef(x.chassisId).radius }));
+    .flatMap(rigDiscs);
 }
 
 export function setDownSpot(world: World, v: Vehicle): Vec {
   const { step } = RULES.stranded;
   const reach = world.terrain.size;
-  const radius = chassisDef(v.chassisId).radius;
-  const others = world.vehicles.filter((o) => o.id !== v.id).map((o) => ({ pos: o.pos, r: chassisDef(o.chassisId).radius }));
+  const others = world.vehicles.filter((o) => o.id !== v.id).flatMap(rigDiscs);
+  const straight = restBend(v.chassisId);
   for (let ring = 0; ring * step <= reach; ring++) {
     const spots = Math.max(1, Math.ceil(2 * Math.PI * ring));
     for (let i = 0; i < spots; i++) {
       const a = (2 * Math.PI * i) / spots;
       const p = { x: v.pos.x + Math.cos(a) * ring * step, y: v.pos.y + Math.sin(a) * ring * step };
-      if (straightClear(world, p, p, radius, others)) return p;
+      const discs = rigDiscs({ chassisId: v.chassisId, pos: p, heading: v.heading, bend: straight });
+      if (discs.every((d) => straightClear(world, d.pos, d.pos, d.r, others))) return p;
     }
   }
   throw new Error(`No free spot on the map to set down vehicle ${v.id}`);

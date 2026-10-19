@@ -1,6 +1,7 @@
 import { RULES } from '../data/rules';
 import { PHYSICS } from '../data/physics';
-import { bodyOf, cellCenter, cellRect, halfLength, halfWidth, type CellRect } from './body';
+import { cellCenter, cellRect, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
+import { footprint, nearestUnit, poseToWorld, sideReach, unitPose, worldToPose, type UnitPose } from './rig';
 
 import { partDef, type PartDef, type WeaponDef } from '../data/parts';
 import { wornDef } from './wear';
@@ -16,7 +17,8 @@ export type Round = { damage: number; pen: number; blast: boolean; armorShare: n
 const QUARTER = Math.PI / 4;
 
 export function sideToward(v: Vehicle, p: Vec): Side {
-  const rel = angleDiff(v.heading, bearing(v.pos, p));
+  const unit = nearestUnit(v, p);
+  const rel = angleDiff(unit.heading, bearing(unit.pos, p));
   if (Math.abs(rel) <= QUARTER) return 'front';
   if (Math.abs(rel) >= 3 * QUARTER) return 'rear';
   return rel > 0 ? 'right' : 'left';
@@ -74,70 +76,64 @@ function isCab(def: PartDef): boolean {
 
 type Local = { fwd: number; right: number };
 
-function toLocal(v: Vehicle, p: Vec): Local {
-  const dx = (p.x - v.pos.x) * PHYSICS.metersPerTile;
-  const dy = (p.y - v.pos.y) * PHYSICS.metersPerTile;
-  const c = Math.cos(v.heading);
-  const s = Math.sin(v.heading);
-  return { fwd: dx * c + dy * s, right: -dx * s + dy * c };
-}
-
-function toMap(v: Vehicle, l: Local): Vec {
-  const c = Math.cos(v.heading);
-  const s = Math.sin(v.heading);
-  const m = PHYSICS.metersPerTile;
-  return { x: v.pos.x + (l.fwd * c - l.right * s) / m, y: v.pos.y + (l.fwd * s + l.right * c) / m };
-}
-
-function laneFace(v: Vehicle, side: Side, lane: number): Local {
-  const half = bodyOf(v.chassisId).half;
+function laneFace(v: Vehicle, side: Side, lane: number): { unit: number; at: Local } {
+  const { center, half } = spanOf(v.chassisId);
   const n = laneCount(v, side);
   const across = (lane + 0.5) / n;
+  const all = unitsOf(v.chassisId);
+  const face = (unit: number, fwd: number, right: number) => ({ unit, at: { fwd: fwd - all[unit].offset, right } });
+  const row = () => unitOfRow(v.chassisId, Math.min(n - 1, Math.max(0, Math.round(lane)))).index;
   switch (side) {
-    case 'front': return { fwd: half.x, right: (across * 2 - 1) * half.z };
-    case 'rear': return { fwd: -half.x, right: (across * 2 - 1) * half.z };
-    case 'left': return { fwd: (1 - across * 2) * half.x, right: -half.z };
-    case 'right': return { fwd: (1 - across * 2) * half.x, right: half.z };
+    case 'front': return face(0, center + half.x, (across * 2 - 1) * half.z);
+    case 'rear': return face(all.length - 1, center - half.x, (across * 2 - 1) * half.z);
+    case 'left': return face(row(), center + (1 - across * 2) * half.x, -half.z);
+    case 'right': return face(row(), center + (1 - across * 2) * half.x, half.z);
   }
 }
 
 export function lanePoint(v: Vehicle, side: Side, lane: number): Vec {
-  return toMap(v, laneFace(v, side, lane));
+  const face = laneFace(v, side, lane);
+  return poseToWorld(unitPose(v, face.unit), { x: face.at.fwd, z: face.at.right });
 }
 
-type BlastCell = { part: PartInstance; center: Local; rect: CellRect };
+type BlastCell = { part: PartInstance; pose: UnitPose; center: Vec; rect: CellRect };
 
 export function planBlast(v: Vehicle, p: Vec, radius: number, round: Round, skip: string | null): { part: PartInstance; amount: number }[] {
   checkRound(round);
-  if (dist(v.pos, p) > radius + Math.hypot(halfLength(v.chassisId), halfWidth(v.chassisId))) return [];
-  const at = toLocal(v, p);
+  if (dist(v.pos, p) > radius + Math.hypot(footprint(v.chassisId), sideReach(v.chassisId))) return [];
   const cells = blastCells(v);
   const nearest = new Map<string, BlastCell>();
   for (const c of cells) {
     const best = nearest.get(c.part.id);
-    if (!best || gap(at, c.center) < gap(at, best.center)) nearest.set(c.part.id, c);
+    if (!best || meters(p, c.center) < meters(p, best.center)) nearest.set(c.part.id, c);
   }
   return [...nearest.values()]
-    .filter((c) => c.part.id !== skip && gap(at, c.center) <= radius)
-    .map((c) => ({ part: c.part, amount: blastAmount(c, shields(cells, at, c), round, 1 - gap(at, c.center) / radius) }));
+    .filter((c) => c.part.id !== skip && meters(p, c.center) <= radius * PHYSICS.metersPerTile)
+    .map((c) => ({ part: c.part, amount: blastAmount(c, shields(cells, p, c), round, 1 - meters(p, c.center) / (radius * PHYSICS.metersPerTile)) }));
 }
 
 function blastCells(v: Vehicle): BlastCell[] {
   return mountedItems(v).filter((it) => it.part.hp > 0).flatMap((it) => itemCells(it).map((cell) => {
     const center = cellCenter(v.chassisId, cell.x, cell.y);
-    return { part: it.part, center: { fwd: center.x, right: center.z }, rect: cellRect(v.chassisId, [cell]) };
+    const pose = unitPose(v, center.unit);
+    return { part: it.part, pose, center: poseToWorld(pose, center), rect: cellRect(v.chassisId, [cell]) };
   }));
 }
 
-function gap(a: Local, b: Local): number {
-  return Math.hypot(a.fwd - b.fwd, a.right - b.right);
+function meters(a: Vec, b: Vec): number {
+  return dist(a, b) * PHYSICS.metersPerTile;
 }
 
-function shields(cells: BlastCell[], from: Local, target: BlastCell): PartInstance[] {
+function localOf(pose: UnitPose, p: Vec): Local {
+  const l = worldToPose(pose, p);
+  return { fwd: l.x, right: l.z };
+}
+
+function shields(cells: BlastCell[], from: Vec, target: BlastCell): PartInstance[] {
   const entries = new Map<PartInstance, number>();
   for (const c of cells) {
     if (c.part.id === target.part.id) continue;
-    const t = segmentEntry(from, target.center, c.rect);
+    const t = segmentEntry(localOf(c.pose, from), localOf(c.pose, target.center), c.rect);
     if (t !== null && t < (entries.get(c.part) ?? Infinity)) entries.set(c.part, t);
   }
   return [...entries.entries()].sort((a, b) => a[1] - b[1]).map(([part]) => part);

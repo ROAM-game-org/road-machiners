@@ -3,13 +3,15 @@ import { CHASSIS } from '../data/chassis';
 import { FURY_ROAD } from '../data/modes';
 import { haulerOf, playerVehicle } from './damage';
 import { canDriveOn, driveOn, outpostNear, reachedOutpostAt, spawnGroup, waveOf } from './fury-road';
-import { milestoneAt, outpostFort, outpostGateSpots, outpostYardHalf, roadPoint, toRoad, windowShift } from './highway';
+import { milestoneAt, outpostFort, outpostGateSpots, outpostSite, outpostYardHalf, roadPoint, toRoad, windowShift } from './highway';
 import { gatesShut, inYard, outpostGates, wholeInYard, yardSpots, type GateState } from './outpost-gates';
 import { outpostBuyPart } from './outposts';
 import { furyRoadWorld, parkInYard } from './testkit';
 import type { Vehicle, World } from './types';
 import { Refused, endTurn, setMoveOrder } from './world';
 import { FORTRESS } from '../data/fortress';
+import { isRig } from './body';
+import { bendLimit, frontAhead } from './rig';
 
 const still = () => {};
 
@@ -71,9 +73,9 @@ describe('the yard', () => {
     expect(inYard(w, { x: center.x, y: center.y + half + 0.1 }, 1)).toBe(false);
   });
 
-  it('seats the widest truck whole at both park spots, and not at the gate line', () => {
+  it('seats the widest rigid truck whole at both park spots, and not at the gate line', () => {
     const w = furyRoadWorld();
-    const widest = Object.values(CHASSIS).reduce((a, b) => (b.radius > a.radius ? b : a));
+    const widest = Object.values(CHASSIS).filter((c) => !isRig(c.id)).reduce((a, b) => (b.radius > a.radius ? b : a));
     const spots = yardSpots(w, 1);
     const truck = { chassisId: widest.id, pos: spots.hauler } as Vehicle;
     expect(wholeInYard(w, truck, 1)).toBe(true);
@@ -82,6 +84,20 @@ describe('the yard', () => {
     expect(wholeInYard(w, { ...truck, pos: gate } as Vehicle, 1)).toBe(false);
     const center = outpostFort(w.seed, 0, 1).pos;
     expect(wholeInYard(w, { ...truck, pos: { x: center.x + outpostYardHalf() - 1, y: center.y } } as Vehicle, 1)).toBe(false);
+  });
+
+  it('seats the straight hauler rig whole at its park spot, its trailer clear of the south gate, and not when it is folded half out', () => {
+    const w = furyRoadWorld();
+    const heading = outpostSite(w.seed, 1).heading;
+    const rig = { ...haulerOf(w), pos: yardSpots(w, 1).hauler, heading, bend: 0 };
+    expect(wholeInYard(w, rig, 1)).toBe(true);
+    const back = { ...rig, pos: { x: rig.pos.x - Math.cos(heading) * 4, y: rig.pos.y - Math.sin(heading) * 4 } };
+    expect(wholeInYard(w, back, 1)).toBe(false);
+    const center = outpostFort(w.seed, 0, 1).pos;
+    const side = outpostYardHalf() - FORTRESS.wallDepth / 2 - 0.6;
+    const atWall = { ...rig, pos: { x: center.x - Math.sin(heading) * side, y: center.y + Math.cos(heading) * side } };
+    expect(wholeInYard(w, atWall, 1)).toBe(true);
+    expect([bendLimit(rig.chassisId), -bendLimit(rig.chassisId)].some((bend) => !wholeInYard(w, { ...atWall, bend }, 1))).toBe(true);
   });
 });
 
@@ -184,7 +200,7 @@ describe('driving on (IV9)', () => {
         expect(t.pos.x).toBeCloseTo(before[i].x, 6);
         expect(t.pos.y - before[i].y).toBeCloseTo(windowShift(seed, 0).y, 6);
         expect(inYard(after, t.pos, runOf(after).window)).toBe(true);
-        expect(toRoad(after.seed, runOf(after).window, t.pos).n).toBeCloseTo(milestoneAt(after.seed, 1), 0);
+        expect(toRoad(after.seed, runOf(after).window, t.pos).n - frontAhead(t.chassisId)).toBeCloseTo(milestoneAt(after.seed, 1), 0);
       });
     }
   });

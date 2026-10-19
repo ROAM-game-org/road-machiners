@@ -9,6 +9,7 @@ import { acrossOf, alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from '
 import { addVehicle, furyRoadWorld } from './testkit';
 import type { Vehicle, WaveGroup, World } from './types';
 import { dist } from './vec';
+import { frontAhead } from './rig';
 
 const LANES = HIGHWAY.road.lanes;
 const N = 140;
@@ -18,7 +19,7 @@ function openRoad(seed = 3): { w: World; hauler: Vehicle } {
   w.furyRoad!.groups = [];
   w.obstacles = [];
   const hauler = haulerOf(w);
-  hauler.pos = roadPoint(seed, 0, N, LANES[1]);
+  hauler.pos = roadPoint(seed, 0, N + frontAhead(hauler.chassisId), LANES[1]);
   hauler.heading = roadHeading(seed, N);
   playerVehicle(w).pos = roadPoint(seed, 0, N - 40, LANES[3]);
   return { w, hauler };

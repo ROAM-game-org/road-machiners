@@ -90,3 +90,30 @@ export function withBrakeRod_78_79(world: SavedJson): SavedJson {
 export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }
+
+const SEMI_80_81 = 'semi';
+const TRACTOR_AHEAD_TILES_80_81 = 5.825 / 4;
+
+export function withTractorPivot_80_81(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_80_81 ? { ...v, pos: tractorAt_80_81(v.pos as Point_80_81, v.heading as number), bend: 0 } : v));
+  const obstacles = (world.obstacles as SavedJson[]).map((o) => {
+    const hulk = o.hulk as SavedJson | undefined;
+    return hulk?.chassisId === SEMI_80_81 ? { ...o, pos: tractorAt_80_81(o.pos as Point_80_81, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
+  });
+  return { ...world, vehicles, obstacles };
+}
+
+type Point_80_81 = { x: number; y: number };
+
+function tractorAt_80_81(pos: Point_80_81, heading: number): Point_80_81 {
+  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_80_81, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_80_81 };
+}
+
+export function withProgressAnchor_65_66(world: SavedJson): SavedJson {
+  const anchored = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain?.progress) return v;
+    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
+}

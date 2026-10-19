@@ -48,8 +48,19 @@ export const PHYSICS = {
     niva: { halfHeight: 0.4, wheelY: -0.25, wheelX: 1.3, wheelZ: 0.726, engine: { x: 1.485, y: -0.3, z: 0 }, wheelRadius: 0.45, wheelHalfWidth: 0.18 },
     bukhanka: { halfHeight: 0.5, wheelY: -0.35, wheelX: 1.45, wheelZ: 0.968, engine: { x: 0.52, y: 1, z: -0.242 }, wheelRadius: 0.55, wheelHalfWidth: 0.2 },
     lincoln: { halfHeight: 0.35, wheelY: -0.2, wheelX: 1.95, wheelZ: 0.968, engine: { x: 1.625, y: -0.25, z: -0.242 }, wheelRadius: 0.42, wheelHalfWidth: 0.17 },
-    semi: { halfHeight: 1.12, wheelY: -0.75, wheelX: 8.95, wheelZ: 1.24, engine: { x: 8.35, y: -0.15, z: 0 }, wheelRadius: 0.65, wheelHalfWidth: 0.18 },
+    semi: { halfHeight: 1.12, wheelY: -0.75, wheelX: 3.125, wheelZ: 1.24, engine: { x: 2.525, y: -0.15, z: 0 }, wheelRadius: 0.65, wheelHalfWidth: 0.18 },
     loader: { halfHeight: 0.65, wheelY: -0.45, wheelX: 1.95, wheelZ: 1.452, engine: { x: -0.975, y: 0.5, z: -0.242 }, wheelRadius: 0.8, wheelHalfWidth: 0.32 },
+  },
+  couplings: {
+    semi: {
+      rear: { model: 'semi_rear', halfHeight: 1.12, wheelY: -0.75, wheelX: 6.2, wheelZ: 1.24, wheelRadius: 0.65, wheelHalfWidth: 0.18 },
+      pivotFront: -2.825,
+      pivotRear: 5.75,
+      bendLimit: 0.8,
+      bendTolerance: 0.05,
+      backGain: 1.2,
+      backCap: 2,
+    },
   },
   driver: {
     steerGain: 1.6,

@@ -5,11 +5,12 @@ import { cellRect } from './body';
 import { damagePart } from './damage';
 import { newId } from './factory';
 import { itemCells, mountedItems } from './grid';
+import { localToWorld } from './rig';
 import type { GridItem, HarpoonLine, Vehicle, World } from './types';
 
 const S = PHYSICS.metersPerTile;
 
-export type BodyPoint = { x: number; y: number; z: number };
+export type BodyPoint = { unit: number; x: number; y: number; z: number };
 
 export type LineAnchor = { id: string; from: string; to: string; fromAt: BodyPoint; toAt: BodyPoint; length: number };
 
@@ -29,9 +30,8 @@ function anchorGap(ends: Ends): number {
 }
 
 function mapPoint(v: Vehicle, at: BodyPoint): { x: number; z: number } {
-  const cos = Math.cos(v.heading);
-  const sin = Math.sin(v.heading);
-  return { x: v.pos.x * S + cos * at.x - sin * at.z, z: v.pos.y * S + sin * at.x + cos * at.z };
+  const p = localToWorld(v, at.unit, at);
+  return { x: p.x * S, z: p.y * S };
 }
 
 const BRACED = -PHYSICS.truck.comBelow;
@@ -41,7 +41,7 @@ function anchorOf(v: Vehicle, partId: string, y: number): BodyPoint {
   const item = mountedItem(v, partId);
   if (!item) throw new Error(`${v.id} has no mounted part ${partId}`);
   const r = cellRect(v.chassisId, itemCells(item));
-  return { x: (r.x0 + r.x1) / 2, y, z: (r.z0 + r.z1) / 2 };
+  return { unit: r.unit, x: (r.x0 + r.x1) / 2, y, z: (r.z0 + r.z1) / 2 };
 }
 
 function mountedItem(v: Vehicle, partId: string): PartItem | undefined {

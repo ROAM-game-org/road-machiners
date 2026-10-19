@@ -4,9 +4,7 @@
 
 import { chassisDef } from '../data/chassis';
 import { PARTS } from '../data/parts';
-import { PHYSICS } from '../data/physics';
 import { CALTROPS, FLARE, OIL } from '../data/utilities';
-import { bodyOf } from './body';
 import { judgeStray } from './combat';
 import { damagePart } from './damage';
 import { newId } from './factory';
@@ -14,7 +12,8 @@ import { coreParts } from './grid';
 import type { Blocker } from './path';
 import { getResources } from './resources';
 import { sunAt } from './sun';
-import type { Flare, GroundField, Vehicle, World } from './types';
+import { poseOf, tailReach, trailUnits } from './rig';
+import type { Flare, GroundField, Pose, Vehicle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 import { canVehicleSee } from './vision';
 
@@ -71,7 +70,7 @@ function along(p: Vec, unit: Vec, d: number): Vec {
 }
 
 export function dropClearance(v: Vehicle, gap: number): number {
-  return bodyOf(v.chassisId).half.x / PHYSICS.metersPerTile + gap;
+  return tailReach(v.chassisId) + gap;
 }
 
 export function dropField(world: World, v: Vehicle, kind: GroundField['kind'], drop: FieldDrop): void {
@@ -109,9 +108,14 @@ function hitCrossers(world: World, f: GroundField): void {
 }
 
 function crosses(v: Vehicle, f: GroundField): boolean {
-  const points: Vec[] = [...v.trail, v.pos];
   const reach = f.r + chassisDef(v.chassisId).radius;
-  return points.some((p, i) => segmentDist(f.pos, points[Math.max(0, i - 1)], p) <= reach);
+  return unitTrails(v).some((points) => points.some((p, i) => segmentDist(f.pos, points[Math.max(0, i - 1)], p) <= reach));
+}
+
+function unitTrails(v: Vehicle): Vec[][] {
+  const poses: Pose[] = [...v.trail, poseOf(v)];
+  const units = poses.map((p) => trailUnits(v.chassisId, p));
+  return units[0].map((_, u) => units.map((posed) => posed[u].pos));
 }
 
 function hitWheels(world: World, f: GroundField, v: Vehicle): void {

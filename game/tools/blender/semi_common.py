@@ -19,12 +19,10 @@ import math
 import sys
 from pathlib import Path
 
-import bpy
-from mathutils import Vector
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit, parse_args  # noqa: E402
+from kit import Kit  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, cut_boxes, hull_mesh  # noqa: E402
+from rig_units import check_unit as check_rig_unit, export_unit, unit_wheels as count_wheels  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 321
@@ -302,36 +300,10 @@ def build_trailer(kit: Kit) -> int:
     return wheels
 
 
-def bounds(kit: Kit) -> tuple[Vector, Vector]:
-    bpy.context.view_layer.update()
-    pts = [obj.matrix_world @ v.co for obj in kit._parts for v in obj.data.vertices]
-    lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
-    hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
-    return lo, hi
-
-
 def check_unit(kit: Kit, name: str, front: float, back: float, width: float) -> None:
     """Raises when the unit leaves its stretch of the straight rig frame or does not fill it."""
-    lo, hi = bounds(kit)
-    print(f"{name} bounds x {lo.x:.3f}..{hi.x:.3f} y {lo.y:.3f}..{hi.y:.3f} z {lo.z:.3f}..{hi.z:.3f}")
-    if abs(hi.x - front) > 0.01 or abs(lo.x - back) > 0.01 or abs(hi.y - lo.y - width) > 0.01 or abs(lo.z - (HUB_Z - TIRE_R)) > 0.01:
-        raise RuntimeError(f"{name} spans x {lo.x:.3f}..{hi.x:.3f}, {hi.y - lo.y:.3f} m across from z {lo.z:.3f}, not {back}..{front}, {width} m from the tire bottom")
+    check_rig_unit(kit, name, front, back, width, HUB_Z - TIRE_R)
 
 
 def unit_wheels(name: str, wheels: int) -> None:
-    if wheels != UNIT_MODEL_WHEELS:
-        raise RuntimeError(f"{name} draws {wheels} wheels, not {UNIT_MODEL_WHEELS}: with the game's 6 the hauler must show 18")
-
-
-def move_to_origin(kit: Kit, origin: float) -> None:
-    """Moves every part so the straight rig frame's x origin lands at -origin, the unit's own collider center."""
-    for obj in kit._parts:
-        obj.location.x -= origin
-
-
-def export_unit(kit: Kit, name: str, origin: float, sockets: dict[str, tuple[float, float, float]]) -> None:
-    """Moves the unit onto its own origin, adds its sockets given in the straight rig frame and writes it."""
-    move_to_origin(kit, origin)
-    for socket, (x, y, z) in sockets.items():
-        kit.socket(socket, (x - origin, y, z))
-    kit.export(name, parse_args(), view_size=20.0)
+    count_wheels(name, wheels, UNIT_MODEL_WHEELS, 18)

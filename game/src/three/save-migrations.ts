@@ -3,7 +3,7 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
-import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withoutVarga_79_80 } from './save-steps-late';
+import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withProgressAnchor_65_66, withRunWait_72_73, withoutVarga_79_80, withTractorPivot_80_81 } from './save-steps-late';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -893,16 +893,8 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withHattieMet_77_78,
   withBrakeRod_78_79,
   withoutVarga_79_80,
+  withTractorPivot_80_81,
 ];
-
-function withProgressAnchor_65_66(world: SavedJson): SavedJson {
-  const anchored = (v: SavedJson): SavedJson => {
-    const brain = v.brain as SavedJson | null;
-    if (!brain?.progress) return v;
-    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
-  };
-  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
-}
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
 const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];

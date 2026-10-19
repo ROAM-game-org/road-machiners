@@ -34,10 +34,18 @@ const BASE_MODELS: Record<string, ModelName> = {
   semi: 'base_semi',
 };
 
-export function baseModel(chassisId: string): ModelName {
-  const base = BASE_MODELS[chassisId];
-  if (!base) throw new Error(`Chassis ${chassisId} has no base model in BASE_MODELS`);
+const REAR_BASE_MODELS: Record<string, ModelName> = {
+  semi: 'base_semi_rear',
+};
+
+export function baseModel(chassisId: string, unit: number): ModelName {
+  const base = unit === 0 ? BASE_MODELS[chassisId] : REAR_BASE_MODELS[chassisId];
+  if (!base) throw new Error(`Chassis ${chassisId} has no base model for unit ${unit}`);
   return base;
+}
+
+export function baseModels(chassisId: string): ModelName[] {
+  return REAR_BASE_MODELS[chassisId] ? [baseModel(chassisId, 0), baseModel(chassisId, 1)] : [baseModel(chassisId, 0)];
 }
 
 const OWN_BUMPER_BASES: ReadonlySet<string> = new Set(['semi']);
@@ -431,7 +439,7 @@ const PORTRAIT_MODELS: readonly ModelName[] = ['coilover', 'axle', 'antenna', 't
 function chassisDraft(def: ChassisDef): IconDraft {
   const footprint = { w: def.layout[0].length, h: def.layout.length };
   const cores = def.core.filter((c) => !BODY_PARTS.has(c.defId)).map((c) => partModel(c.defId));
-  const models = [...new Set([baseModel(def.id), ...cores, ...PORTRAIT_MODELS])];
+  const models = [...new Set([...baseModels(def.id), ...cores, ...PORTRAIT_MODELS])];
   return { entry: { id: def.id, section: 'chassis', label: enName(chassisName(def.id)), models, footprint, weapon: null }, hp: 0 };
 }
 

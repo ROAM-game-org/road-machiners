@@ -22,6 +22,7 @@ export type ChassisDef = {
   value: number;
   showsCores: boolean;
   tier: Tier;
+  coupling?: { row: number };
   look: 'pickup' | 'hauler' | 'buggy' | 'wagon' | 'courier' | 'van' | 'longbed' | 'carrier' | 'tractor' | 'jeep' | 'convertible' | 'bus' | 'loader' | 'niva' | 'bukhanka' | 'lincoln' | 'semi';
 };
 
@@ -380,7 +381,7 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 26 },
       { defId: 'wheelMid', x: 7, y: 26 },
     ],
-    fuelCap: 160, fuelPerTile: 0.5, base: 56000, showsCores: false, tier: 3, look: 'semi',
+    fuelCap: 160, fuelPerTile: 0.5, base: 56000, showsCores: false, tier: 3, coupling: { row: 11 }, look: 'semi',
   },
 };
 

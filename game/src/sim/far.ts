@@ -19,6 +19,7 @@ import { getHitchedTowIds, isOnRope, ropeClientOf } from './tow';
 import type { Blocker } from './nav/buckets';
 import type { MoveOrder, Obstacle, Pose, Vehicle, World } from './types';
 import { bearing, dist, segmentDist, type Vec } from './vec';
+import { bendField, followPose, poseOf, rigDiscs } from './rig';
 
 export function isNear(w: World, v: Vehicle): boolean {
   if (isOnRope(w, v.id)) return false;
@@ -48,7 +49,7 @@ export function fuelLimited(w: World, v: Vehicle, s: VehicleStats, speed: number
 
 export function advanceFar(w: World, v: Vehicle): void {
   const full = vehicleStats(w, v);
-  const start: Pose = { x: v.pos.x, y: v.pos.y, heading: v.heading };
+  const start = poseOf(v);
   const order = v.order;
   if (!order || order.kind === 'brake') {
     v.speed = Math.max(0, v.speed - full.brake);
@@ -69,9 +70,9 @@ export function advanceFar(w: World, v: Vehicle): void {
   const reach = order.kind === 'stopAt' ? RULES.arriveRadius : RULES.passRadius;
   const routeEnd = walk.ahead.length === 0;
   const done = dist(end, order.dest) < reach || routeEnd || (block !== null && dist(block.other.pos, order.dest) < block.contact + reach);
-  v.trail = sample(start, walk.path, walk.moved);
-  v.pos = { x: end.x, y: end.y };
-  v.heading = v.trail[v.trail.length - 1].heading;
+  v.trail = sample(v.chassisId, start, walk.path, walk.moved);
+  const last = v.trail[v.trail.length - 1];
+  Object.assign(v, { pos: { x: end.x, y: end.y }, heading: last.heading }, bendField(last.bend));
   v.speed = done && order.kind === 'stopAt' ? 0 : block ? Math.min(next, block.other.speed) : next;
   burnFuel(w, v, walk.moved);
   breakCrossed(w, v, walk.path, full.radius);
@@ -93,7 +94,7 @@ function farBlockers(w: World, v: Vehicle, s: VehicleStats, onRope: ReadonlySet<
   const target = v.brain?.ramTarget;
   const reach = s.maxSpeed + radiusOf(v);
   const slower = w.vehicles.filter((o) => o.id !== v.id && o.id !== target && !onRope.has(o.id) && o.speed >= RULES.parkedSpeed && o.speed < s.maxSpeed && dist(o.pos, v.pos) <= reach + radiusOf(o));
-  return [...parkedVehicles(w, v.id, onRope), ...slower.map((o) => ({ pos: o.pos, r: radiusOf(o) }))];
+  return [...parkedVehicles(w, v.id, onRope), ...slower.flatMap(rigDiscs)];
 }
 
 function radiusOf(v: Vehicle): number {
@@ -129,7 +130,7 @@ const CONTACT_STEP = 0.25;
 
 function firstContact(w: World, v: Vehicle, path: Vec[], radius: number): { other: Vehicle; clear: number; contact: number } | null {
   const client = ropeClientOf(w, v.id);
-  const others = w.vehicles.filter((o) => o.id !== v.id && o.id !== client).map((o) => ({ o, contact: radius + chassisDef(o.chassisId).radius }));
+  const others = w.vehicles.filter((o) => o.id !== v.id && o.id !== client).flatMap((o) => rigDiscs(o).map((d) => ({ o, at: d.pos, contact: radius + d.r })));
   let walked = 0;
   for (let seg = 1; seg < path.length; seg++) {
     const a = path[seg - 1];
@@ -138,9 +139,9 @@ function firstContact(w: World, v: Vehicle, path: Vec[], radius: number): { othe
     for (let d = Math.min(CONTACT_STEP, len); d <= len; d += CONTACT_STEP) {
       const t = len > 0 ? d / len : 0;
       const p = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-      for (const { o, contact } of others) {
-        const gap = dist(p, o.pos);
-        if (gap < contact && gap < dist(path[0], o.pos)) return { other: o, clear: Math.max(0, walked + d - CONTACT_STEP), contact };
+      for (const { o, at, contact } of others) {
+        const gap = dist(p, at);
+        if (gap < contact && gap < dist(path[0], at)) return { other: o, clear: Math.max(0, walked + d - CONTACT_STEP), contact };
       }
       if (d < len && d + CONTACT_STEP > len) d = len - CONTACT_STEP;
     }
@@ -185,7 +186,7 @@ function follow(from: Vec, points: Vec[], budget: number): { path: Vec[]; moved:
   return { path, moved: budget - left, ahead: points.slice(i) };
 }
 
-function sample(start: Pose, path: Vec[], moved: number): Pose[] {
+function sample(chassisId: string, start: Pose, path: Vec[], moved: number): Pose[] {
   const trail: Pose[] = [start];
   let seg = 1;
   let walked = 0;
@@ -201,7 +202,7 @@ function sample(start: Pose, path: Vec[], moved: number): Pose[] {
     const len = dist(a, b);
     if (len > 0) heading = bearing(a, b);
     const t = len > 0 ? Math.min(1, (at - walked) / len) : 0;
-    trail.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, heading });
+    trail.push(followPose(chassisId, trail[trail.length - 1], { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, heading }));
   }
   return trail;
 }

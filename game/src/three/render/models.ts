@@ -26,6 +26,7 @@ export const NAMES = [
   'base_bukhanka',
   'base_lincoln',
   'base_semi',
+  'base_semi_rear',
   'wmount_riser',
   'wreck',
   'rock',

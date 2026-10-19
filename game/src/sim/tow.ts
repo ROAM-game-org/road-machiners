@@ -6,7 +6,8 @@ import { EFFORT } from '../data/market';
 import { NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { BEACON, TOW } from '../data/tow';
 import { inCombat, inCombatWithOther, isHostile } from './combat';
-import { bodyOf } from './body';
+import { frontBody } from './body';
+import { bendField, followPose, hitchAxle, hitchPoint, poseOf, tractrix } from './rig';
 import { playerVehicle, vehicleById } from './damage';
 import { isDefeated, isKnockedOut } from './defeat';
 import { contactsOf, hearsBeacon } from './detect';
@@ -365,30 +366,24 @@ export function followTower(world: World): void {
 
 function follow(tower: Vehicle, towed: Vehicle): void {
   if (tower.trail.length === 0) throw new Error(`Tower ${tower.id} has no trail to follow`);
-  const towerAxle = axleTiles(tower.chassisId);
-  const towedAxle = axleTiles(towed.chassisId);
-  const bar = TOW.gap - towerAxle - towedAxle;
+  const towedAxle = frontBody(towed.chassisId).wheelX / PHYSICS.metersPerTile;
+  const bar = TOW.gap - hitchAxle(tower.chassisId) - towedAxle;
   if (bar <= 0) throw new Error(`Tow bar of ${tower.chassisId} and ${towed.chassisId} is ${bar} tiles, not above 0`);
-  const start: Pose = { x: towed.pos.x, y: towed.pos.y, heading: towed.heading };
+  const start = poseOf(towed);
   let front = axlePoint(start, towedAxle);
   let rear = axlePoint(start, -towedAxle);
-  let prevHitch = axlePoint(tower.trail[0], -towerAxle);
+  let prevHitch = hitchPoint(tower.chassisId, tower.trail[0]);
+  let last = start;
   const trail: Pose[] = [start];
   for (let i = 1; i < tower.trail.length; i++) {
-    const hitch = axlePoint(tower.trail[i], -towerAxle);
+    const hitch = hitchPoint(tower.chassisId, tower.trail[i]);
     ({ front, rear } = trailerStep(front, rear, hitch, bar, TOW.takeUp * dist(hitch, prevHitch), towedAxle));
     prevHitch = hitch;
-    trail.push({ x: (front.x + rear.x) / 2, y: (front.y + rear.y) / 2, heading: bearing(rear, front) });
+    last = followPose(towed.chassisId, last, { x: (front.x + rear.x) / 2, y: (front.y + rear.y) / 2, heading: bearing(rear, front) });
+    trail.push(last);
   }
   towed.trail = trail;
-  const end = trail[trail.length - 1];
-  towed.pos = { x: end.x, y: end.y };
-  towed.heading = end.heading;
-  towed.speed = tower.speed;
-}
-
-function axleTiles(chassisId: string): number {
-  return bodyOf(chassisId).wheelX / PHYSICS.metersPerTile;
+  Object.assign(towed, { pos: { x: last.x, y: last.y }, heading: last.heading, speed: tower.speed }, bendField(last.bend));
 }
 
 function axlePoint(p: Pose, offset: number): Vec {
@@ -404,10 +399,7 @@ function trailerStep(front: Vec, rear: Vec, hitch: Vec, bar: number, maxMove: nu
     const t = want === 0 ? 0 : Math.min(1, maxMove / want);
     nextFront = { x: front.x + (target.x - front.x) * t, y: front.y + (target.y - front.y) * t };
   }
-  const span = dist(rear, nextFront);
-  const wheelbase = 2 * towedAxle;
-  if (span === 0) return { front: nextFront, rear };
-  return { front: nextFront, rear: { x: nextFront.x + ((rear.x - nextFront.x) / span) * wheelbase, y: nextFront.y + ((rear.y - nextFront.y) / span) * wheelbase } };
+  return { front: nextFront, rear: tractrix(nextFront, rear, 2 * towedAxle) };
 }
 
 export function acceptOffer(world: World): void {

@@ -15,6 +15,7 @@ import type { NewGameActions } from '../ui/new-game';
 import { settleAims } from '../sim/combat';
 import { stockOldSpots } from '../sim/salvage';
 import { checkCompanies } from '../sim/companies';
+import { checkRigs } from '../sim/rig';
 import { clockOf } from '../sim/sun';
 import { allSlots, listSaves, manualSlots, requestBoot, slotLabel, type BootRequest, type SlotId } from './save-slots';
 import type { SaveSlots } from './save-db';
@@ -127,10 +128,19 @@ export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Load
   };
   stockedOldSpots(loaded, map);
   checkCompanies(loaded);
+  checkSavedRigs(loaded);
   refreshVision(loaded);
   settleAims(loaded);
   restoreQuest(loaded, QUESTS);
   return { world: loaded, repair: { questsReset: quests.reset, lost: quests.lost, settingsReset } };
+}
+
+function checkSavedRigs(world: World): void {
+  try {
+    checkRigs(world);
+  } catch (error) {
+    throw new SaveError('invalidWorld', null, (error as Error).message);
+  }
 }
 
 function savedQuests(value: unknown, notes: unknown, revisions: SavedRevisions): QuestRepair {
