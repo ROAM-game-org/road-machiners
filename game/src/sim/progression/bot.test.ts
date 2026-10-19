@@ -2,7 +2,7 @@ import { PRESSURE_MAX } from '../../data/market';
 import type { GameEvent, PartInstance, Vehicle, World } from '../types';
 import { describe, expect, it } from 'vitest';
 import { CHASSIS, chassisDef } from '../../data/chassis';
-import { REGION } from '../../data/region';
+import { MAP_SCALE, REGION } from '../../data/region';
 import { TERRAIN } from '../../data/terrain';
 import { START_KITS } from '../../data/start';
 import { partDef } from '../../data/parts';
@@ -74,6 +74,8 @@ function withThreeGuns(w: World): Vehicle {
   w.vehicles[w.vehicles.indexOf(old)] = me;
   return me;
 }
+
+const LAYOUT_SPREAD = MAP_SCALE / 5;
 
 describe('botOrders', () => {
   it('gives a knocked-out player no commands', () => {
@@ -153,6 +155,35 @@ describe('botOrders', () => {
     expect(order).toEqual({ kind: 'stopAt', dest: nearestPad(nose, playerVehicle(w).pos) });
   });
 
+  it('has a trader holding relics at Bowl carry them to Nose without pricing them at Bowl', () => {
+    const w = parkedAt('bowl');
+    addGoods(w, playerVehicle(w), 'relics', 1);
+
+    const turn = botOrders(w, 'trader');
+
+    expect(playerVehicle(turn.world).order).toEqual({ kind: 'stopAt', dest: nearestPad(town('nose'), playerVehicle(w).pos) });
+  });
+
+  it('has a scavenger holding relics at Bowl keep them and drive on to Nose', () => {
+    const w = parkedAt('bowl');
+    addGoods(w, playerVehicle(w), 'relics', 1);
+    w.salvage = [];
+
+    const turn = botOrders(w, 'scavenger');
+
+    expect(goodsCount(playerVehicle(turn.world)).relics).toBe(1);
+    expect(playerVehicle(turn.world).order).toEqual({ kind: 'stopAt', dest: nearestPad(town('nose'), playerVehicle(w).pos) });
+  });
+
+  it('has a scavenger holding relics at Nose sell them there', () => {
+    const w = parkedAt('nose');
+    addGoods(w, playerVehicle(w), 'relics', 1);
+
+    const turn = botOrders(w, 'scavenger');
+
+    expect(goodsCount(playerVehicle(turn.world)).relics ?? 0).toBe(0);
+  });
+
   function atYardWithCargo(fuel: number) {
     const yard = siteOf('salvage-yard');
     const w = emptyWorld(nearestPad(yard, yard.pos));
@@ -178,9 +209,9 @@ describe('botOrders', () => {
     const yard = siteOf('salvage-yard').pos;
     const perTile = vehicleStats(w, playerVehicle(w)).fuelPerTile;
     const reach = (tiles: number) => ({ pos: yard, fuel: tiles * perTile * heatAt(w, playerVehicle(w).pos) * NPC_UPKEEP.fuelReserve });
-    expect(fuelReaches(w, siteOf('pump-station'), reach(150))).toBe(false);
-    expect(fuelReaches(w, siteOf('pump-station'), reach(190))).toBe(true);
-    expect(fuelReaches(w, siteOf('pump-station'), reach(210))).toBe(true);
+    expect(fuelReaches(w, siteOf('pump-station'), reach(150 * LAYOUT_SPREAD))).toBe(false);
+    expect(fuelReaches(w, siteOf('pump-station'), reach(190 * LAYOUT_SPREAD))).toBe(true);
+    expect(fuelReaches(w, siteOf('pump-station'), reach(210 * LAYOUT_SPREAD))).toBe(true);
   });
 
   it('has fuel for the way to a shop reach it, and a full tank chain to Bowl through the shops between', () => {

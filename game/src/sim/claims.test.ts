@@ -33,7 +33,7 @@ import { TIME } from '../data/time';
 let real: World;
 
 beforeAll(() => {
-  real = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
+  real = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup("roaming"), false);
 });
 
 function claimFor(stock: SalvageStock, part: PartInstance, over: Partial<ClaimContract> = {}): ClaimContract {

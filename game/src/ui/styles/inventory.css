@@ -131,6 +131,11 @@
   pointer-events: none;
   --plan-line: var(--map-side);
   --plan-fill: var(--cell-none);
+  --plan-shadow: none;
+  --plan-light: none;
+  --plan-glass: none;
+  --plan-outer: var(--space-1);
+  --plan-inner: 0px;
 }
 .inv-grid .truck-outline {
   --plan-line: var(--cell-plan-line);

@@ -3,11 +3,13 @@
 The world of ROAM. Everything here answers to [Theme](../theme.md).
 
 - [World facts](world.md): the timeline, technology, population and what lies beyond the basin.
+- [The end of the Old World](old-world-end.md): the Spiral, the Cry, the Race, the Exodus, the Chaos and the Forsaken, as they happened and as people tell them, and their signs.
 - [Peoples](peoples.md): towns, groups and faiths, and how each copes with the world.
 - [Characters](characters.md): named people.
 - [Rumors](rumors.md): what people say.
 - [Stories](stories.md): seeds for events and jobs.
 - [Story game](story-game.md): a turn-based game that generates history and stories with agents.
+- [Chaos Highway](chaos-highway.md): the highway region, its people and the hidden truths of the Geezer and Ala story, with [the story game log](chaos-highway-story-game.md).
 
 ## Icarus
 
@@ -25,7 +27,7 @@ After the Chaos, Nose and Bowl fought a war over the basin. The Old Army ended i
 
 Each of these needs one true answer, written here once it is chosen. The game will show it only as evidence.
 
-- What the ship was and why it fell.
+- Why the ship came back and why it fell. It was an Exodus ship, as [Timeline](timeline.md) records.
 - Whether Nose's wreck is part of the Fallen Sun's ship or a second ship.
 - What lies in the Fallen Sun's crater, and what the green glow does to people.
 - Why the Old Army left Old Orchard.
@@ -94,14 +96,14 @@ Bowl and Nose have locals the player talks to in town. `src/data/locals.ts` hold
 
 - Bowl is run by the canal families, a say for every gate, and guarded by the Bowl Farmers. Its people talk warm and slow, of crops, canals, water and seed. They think Nose is soldiers playing at a town.
 - Nose is an Army post that became a town. The Army runs it: command gives orders, dispatch hands them out. Its people talk short and to the point. They think Bowl is slow but needed, since its grain feeds them.
-- The locals are Ruben the canal warden, Hattie of the well house and Dag of the Farmers patrol at Bowl, and Sergeant Kovac at dispatch, Lena the mechanic and Old Ibo the radio man at Nose. Nose Army wagon Seven went dark on the Dustwell water run to Bowl, and its crew walked home.
+- The locals are Ruben the canal warden, Hattie of the gate yard water stand and Dag of the Farmers patrol at Bowl, and Sergeant Kovac at dispatch, Lena the mechanic and Old Ibo the radio man at Nose. Nose Army wagon Seven went dark on the Dustwell water run to Bowl, and its crew walked home.
 - Talk about the recent years comes from more locals. Jory Baptiste and Bo Lindqvist are at Bowl, a Bowl patrol driver is at the Granary, Sefa Krol trades at the Salvage Yard, and Ines Abend and an Order Bureau clerk are at Nose.
 - Jory speaks for the tenants and ends every answer with a short joke. His subjects are the vote, the patrol, Kiln and the grain, and the household's tanker to the top terraces.
 - Bo is gentle and plain. He tells the fight at the Burnt Convoy once and does not excuse it.
 - The patrol driver talks like a working Bowl hand: the Granary count, the road no one guards and the western tale. The Bureau clerk talks short and low, afraid of the corridor, and says only what the corridor says.
 - Sefa is blunt and dry. She speaks for the families off the Burnt Convoy, who live at the Salvage Yard now. She takes what the road is done with and leaves the water.
 - Ines is level and open. She reads the count aloud to anyone who stops and says plainly what she does not know.
-- The six older locals also talk about the gun law, the swivel and its pins, Pierce paper, the Kiln fee, the tenants, Green Pit and the Glass Flats, each in their own voice. Ruben, Hattie and Dag disagree with Kovac, Lena and Ibo on who is to blame.
+- The six older locals also talk about the gun law, the swivel, brake rods, Pierce paper, the Kiln fee, the tenants, Green Pit and the Glass Flats, each in their own voice. Ruben, Hattie and Dag disagree with Kovac, Lena and Ibo on who is to blame.
 - A rumor from [Rumors](rumors.md) reaches the journal as a note that records what the speaker said, never the truth. A biased speaker says so in character, and two locals may contradict each other, as Sefa and Ibo do on the old Burnt Convoy stretch.
 - Locals point to the people of other jobs by name and place only: Agnes Ondra at Dustwell, Odile Marsh at the Granary, Mara Kessel at the Salvage Yard, Constance Pierce at the Pierce office in Nose, Tamsin Roe the courier, Lusa Fenwick and Pim Arslan the lens cutter. They never speak for them.
 - Locals may be wrong, biased or out of date. Two of them may contradict each other. No line settles the crash date, the basin's old name or what the Fallen Sun was.

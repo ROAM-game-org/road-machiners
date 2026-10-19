@@ -2,7 +2,7 @@
 import { localOfQuest } from '../sim/dialogue-rules';
 import { chooseQuestOption, leaveQuest, QUESTS, questView, type QuestView } from '../sim/quests';
 import type { QuestLine, QuestLive, World } from '../sim/types';
-import { createIcon } from './cards';
+import { createIcon, type IconName } from './cards';
 import { localName, localRole } from '../text/names';
 import { t, verbatim, type Msg } from '../text/msg';
 import { el, isBrowserChord, panel } from './dom';
@@ -15,6 +15,7 @@ import { renderLine, TermTip, type Reveal } from './quest-text';
 import { MONEY_STAT } from '../data/quests';
 import { UNITS } from '../data/units';
 import { token } from './tokens';
+import { uiSize } from './ui-size';
 
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
@@ -26,6 +27,23 @@ export function questPageStacks(width: number, frame: number): boolean {
   const gutters = parseFloat(token('--space-10')) * 2;
   const columns = parseFloat(token('--quest-text-min')) + parseFloat(token('--quest-side-width'));
   return width - gutters - frame - columns < parseFloat(token('--quest-art-min'));
+}
+
+function frameRatio(name: string): [number, number] {
+  const parts = token(name).split('/').map((n) => parseFloat(n));
+  if (parts.length !== 2 || parts.some((n) => !(n > 0))) throw new Error(`${name} is ${token(name)}, not a ratio like 3 / 4`);
+  return [parts[0]!, parts[1]!];
+}
+
+export function questFrameFits(width: number, height: number, stacked: boolean): boolean {
+  if (width === 0 || height === 0) return true;
+  const slack = 0.5;
+  if (!stacked) {
+    const [across, down] = frameRatio('--quest-frame-column');
+    return height <= (width * down) / across + slack;
+  }
+  const [across, down] = frameRatio('--quest-frame-band');
+  return width <= (height * across) / down + slack;
 }
 
 function moneyChange(cents: number): Msg {
@@ -78,7 +96,8 @@ class QuestArtStage {
 }
 
 export function loadArt(key: string, isHeld: (img: HTMLImageElement) => boolean = () => true): HTMLImageElement {
-  const focus = `${questArt(key).focusX}% 50%`;
+  const { focusX, focusY } = questArt(key);
+  const focus = `${focusX}% ${focusY}%`;
   const img = document.createElement('img');
   img.decoding = 'sync';
   img.setAttribute('aria-hidden', 'true');
@@ -106,6 +125,8 @@ async function showArt(img: HTMLImageElement, key: string, isHeld: (img: HTMLIma
   await img.decode().catch(() => undefined);
 }
 
+const LOOK_KEYS = ['KeyI', 'KeyC', 'KeyJ'];
+
 export class QuestScreen {
   private root = panel('modal');
   private shown: QuestLive | null = null;
@@ -123,17 +144,19 @@ export class QuestScreen {
   private revealEnd = 0;
   private termTip = new TermTip(this.root);
   private artStage = new QuestArtStage();
+  private look = this.lookRow();
 
-  constructor(private host: UiHost) {
+  constructor(private host: UiHost, private lookOver: () => boolean) {
     this.root.classList.add('quest-screen');
     this.root.style.display = 'none';
     this.root.addEventListener('click', (e) => this.onClick(e));
     window.addEventListener('keydown', (e) => this.onKey(e), true);
     window.addEventListener('resize', () => this.restack());
+    uiSize().subscribe(() => this.restack());
   }
 
   private restack(): void {
-    const width = window.innerWidth;
+    const width = uiSize().layerSize().width;
     if (!(width > 0)) return;
     const style = getComputedStyle(this.root);
     const frame = parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
@@ -142,6 +165,10 @@ export class QuestScreen {
 
   isOpen(): boolean {
     return this.host.world().player.quests.live !== null;
+  }
+
+  focus(): void {
+    this.root.querySelector<HTMLElement>('.quest-next, .quest-choice')?.focus();
   }
 
   render(): void {
@@ -207,7 +234,13 @@ export class QuestScreen {
     this.root.classList.toggle('quest-page', view.view === 'page');
     this.restack();
     const endMs = view.view === 'page' ? this.drawPage(w, view) : this.drawTalk(w, view);
+    this.root.append(this.look);
     this.revealEnd = performance.now() + endMs;
+  }
+
+  private lookRow(): HTMLElement {
+    const button = (key: string, icon: IconName, label: Msg) => el('button', { class: 'btn-s', 'aria-label': label, title: label, onclick: () => this.host.runKey(key) }, createIcon(icon));
+    return el('div', { class: 'quest-look' }, button('KeyI', 'truck', t('hud.inventoryLabel')), button('KeyC', 'driver', t('hud.character')), button('KeyJ', 'journal', t('journal.hint')));
   }
 
   private drawTalk(w: World, view: QuestView): number {
@@ -323,7 +356,7 @@ export class QuestScreen {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (!this.isOpen() || isBrowserChord(e)) return;
+    if (!this.isOpen() || isBrowserChord(e) || LOOK_KEYS.includes(e.code) || this.lookOver()) return;
     e.stopImmediatePropagation();
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') return this.skip(e);
     const index = KEY_DIGITS.indexOf(e.code);

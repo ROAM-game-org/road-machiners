@@ -1,8 +1,16 @@
 /* A modal takes the screen, so the log only grows while none is open. */
-#ui:not(:has(.modal:not([style*="display: none"]))) .log.expanded {
+#ui:not(.phone):not(:has(.modal:not([style*="display: none"]))) .right-column:has(.log.expanded) {
+  top: var(--hud-notice-top);
   z-index: var(--z-log-open);
+}
+#ui:not(.phone):not(:has(.modal:not([style*="display: none"]))) .right-column:has(.log.expanded) > .right-dock {
+  display: none;
+}
+#ui:not(.phone):not(:has(.modal:not([style*="display: none"]))) .log.expanded {
+  flex: 1 1 auto;
+  min-height: 0;
   width: var(--panel-l);
-  height: calc(100dvh - var(--hud-notice-top) - var(--icon-hero) - var(--space-7) - var(--space-4));
+  height: auto;
 }
 #ui .recenter {
   padding: 0;
@@ -14,7 +22,7 @@
   transform: translateX(-50%);
   z-index: var(--z-console);
   width: var(--panel-l);
-  max-width: calc(100vw - var(--icon-hero));
+  max-width: calc(var(--layer-w) - var(--icon-hero));
   font:var(--text-dense) / 1.35 var(--font-mono);
 }
 .debug-console-log {
@@ -70,8 +78,8 @@
   grid-template-columns: auto auto;
   align-items: start;
   gap: var(--space-7) var(--space-9);
-  max-height: calc(100dvh - 2 * var(--hud-inset));
-  max-width: calc(100vw - 2 * var(--hud-inset));
+  max-height: calc(var(--layer-h) - 2 * var(--hud-inset));
+  max-width: calc(var(--layer-w) - 2 * var(--hud-inset));
   overflow: auto;
   background: var(--surface-panel);
   font-size: var(--text-dense);

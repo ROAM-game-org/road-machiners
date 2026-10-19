@@ -18,7 +18,7 @@ import { ramsReadily } from "./npc-decisions";
 import type { MoveOrder, NpcActivity, Vehicle, World } from "./types";
 import { angleDiff, bearing, dist, type Vec } from "./vec";
 import { canVehicleSee } from "./vision";
-import { bodyHitChance, inArc } from "./combat";
+import { bodyHitChance, inArc, inCombat } from "./combat";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
 import { rollingOrder, runsDown } from "./hunters";
@@ -173,7 +173,16 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
     const range = Math.max(shortestRange(world, v) - RULES.arriveRadius, clearance);
     return { x: lead.x + Math.cos(b.whim.angle) * range, y: lead.y + Math.sin(b.whim.angle) * range };
   }
+  if (!runsDown(world, v) && dist(v.pos, seen.pos) > longestRange(world, v)) return interceptOf(world, v, seen);
   return fightPoint(world, v, seen, clearance);
+}
+
+export function interceptOf(world: World, v: Vehicle, seen: Vehicle): Vec {
+  const maxSpeed = vehicleStats(world, v).maxSpeed;
+  if (maxSpeed <= 0) return { ...seen.pos };
+  const turns = dist(v.pos, seen.pos) / maxSpeed;
+  const ahead = Math.min(seen.speed * turns, maxSpeed);
+  return { x: seen.pos.x + Math.cos(seen.heading) * ahead, y: seen.pos.y + Math.sin(seen.heading) * ahead };
 }
 
 function haltsOnWhim(world: World, v: Vehicle): boolean {
@@ -309,9 +318,29 @@ export function fightOrder(world: World, v: Vehicle, target: Vehicle, dest: Vec)
   return { kind: 'through', dest, pace: circling ? Math.max(F.circlePace, keepUp) : keepUp };
 }
 
+export function followsTraffic(world: World, v: Vehicle): boolean {
+  return !!v.brain || v.id === world.player.vehicleId;
+}
+
+export function yieldsToTraffic(world: World, v: Vehicle): boolean {
+  if (v.brain || v.id !== world.player.vehicleId || v.direct) return false;
+  const order = v.order;
+  if (!order || order.kind === "brake" || inCombat(world, v)) return false;
+  return trafficStops(world, v, order.dest) || holdsForApproach(world, v);
+}
+
+function holdsForApproach(world: World, v: Vehicle): boolean {
+  if (v.speed >= RULES.parkedSpeed) return false;
+  return others(world, v).some((x) => {
+    if (x.speed < RULES.parkedSpeed || !followsTraffic(world, x)) return false;
+    const approaching = Math.cos(angleDiff(x.heading, bearing(x.pos, v.pos))) > 0;
+    return approaching && dist(v.pos, x.pos) - vehicleStats(world, v).radius - vehicleStats(world, x).radius < brakingReach(world, v, x);
+  });
+}
+
 export function routeBlockers(world: World, v: Vehicle): Blocker[] {
   const standing = [...parkedVehicles(world, v.id, getHitchedTowIds(world)), ...fieldBlockers(world, v)];
-  if (!v.brain) return standing;
+  if (!followsTraffic(world, v)) return standing;
   return [...standing, ...conflicts(world, v, 1).flatMap((x) => sweptPath(world, v, x))];
 }
 
@@ -339,7 +368,7 @@ function conflicts(world: World, v: Vehicle, leadTurns: 0 | 1): Vehicle[] {
 }
 
 function closesOn(world: World, v: Vehicle, x: Vehicle, leadTurns: 0 | 1): boolean {
-  const gap = gapAhead(world, v, x);
+  const gap = gapAhead(world, v, x, RULES.traffic.crossCone);
   return gap !== null && gap < brakingReach(world, v, x) + leadTurns * (v.speed + x.speed) && pathsMeet(world, v, x);
 }
 
@@ -352,8 +381,8 @@ function facesParked(world: World, v: Vehicle): boolean {
 }
 
 function facesOncoming(world: World, v: Vehicle): boolean {
-  if (!givesWay(v)) return false;
-  return conflicts(world, v, 0).some((x) => v.id < x.id && givesWay(x) && closesOn(world, x, v, 0));
+  if (!givesWay(world, v)) return false;
+  return conflicts(world, v, 0).some((x) => v.id < x.id && givesWay(world, x) && closesOn(world, x, v, 0));
 }
 
 function horizon(world: World, v: Vehicle): { vs: number; t: number } {
@@ -397,8 +426,8 @@ function onOwnRope(world: World, tower: Vehicle, x: Vehicle): boolean {
   return ropeClientOf(world, tower.id) === x.id;
 }
 
-function gapAhead(world: World, v: Vehicle, x: Vehicle): number | null {
-  if (Math.abs(angleDiff(v.heading, bearing(v.pos, x.pos))) >= Math.PI / 4) return null;
+function gapAhead(world: World, v: Vehicle, x: Vehicle, cone: number = RULES.traffic.parkedCone): number | null {
+  if (Math.abs(angleDiff(v.heading, bearing(v.pos, x.pos))) >= cone) return null;
   return dist(v.pos, x.pos) - vehicleStats(world, v).radius - vehicleStats(world, x).radius;
 }
 
@@ -413,7 +442,7 @@ function brakingReach(world: World, v: Vehicle, x: Vehicle): number {
 }
 
 function facesOff(world: World, v: Vehicle, x: Vehicle, gap: number): boolean {
-  if (!givesWay(x) || !wantsToDrive(x) || gapAhead(world, x, v) === null) return false;
+  if (!givesWay(world, x) || !wantsToDrive(x) || gapAhead(world, x, v) === null) return false;
   return gap < RULES.yieldDistance + vehicleStats(world, v).accel + vehicleStats(world, x).accel;
 }
 
@@ -422,8 +451,8 @@ function wantsToDrive(x: Vehicle): boolean {
   return !!order && order.kind !== "brake" && dist(x.pos, order.dest) > RULES.arriveRadius * 2;
 }
 
-function givesWay(x: Vehicle): boolean {
-  if (!x.brain) return false;
+function givesWay(world: World, x: Vehicle): boolean {
+  if (!x.brain) return x.id === world.player.vehicleId && !x.direct && !inCombat(world, x);
   const kind = topGoal(x)?.kind;
   return kind !== "fight" && kind !== "flee";
 }

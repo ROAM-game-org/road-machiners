@@ -47,7 +47,7 @@ describe('error reports', () => {
     const { url, report } = sent[0];
     expect(url).toBe('https://factory.test/errors');
     expect(report).toMatchObject({ build: 'dev', version: '3.4.5+abc1234', language: 'ru', turn: 44, autosaveIsWorld: false, drive: null });
-    expect(report.screen).toEqual({ width: 1280, height: 720, pixelRatio: 2 });
+    expect(report.screen).toEqual({ width: 1280, height: 720, pixelRatio: 2, uiSize: 1 });
     expect(report.error).toMatchObject({ name: 'RangeError', message: 'wheel 7 has no axle' });
     expect(report.error.stack).toContain('wheel 7 has no axle');
     expect(report.log).toEqual(['Day 2 08:00 Sold scrap', 'Day 2 07:30 Arrived']);

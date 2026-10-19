@@ -4,7 +4,7 @@ An endless highway combat run north, with outposts as milestones, picked at New 
 
 ## Mode rules
 
-Each mode is a row of `GAME_MODES` in `src/data/modes.ts`. The row holds the rule flags, the start kit and the map a new world is laid on, `icarus` or `highway`. `src/sim/settings.ts` is the only reader. Each gate reads one flag, and no code outside the mode table and the mode picker tests a mode's id. Roaming sets every flag on but `run`. Chaos Highway sets only `run` and `npcKnockouts`:
+Each mode is a row of `GAME_MODES` in `src/data/modes.ts`: its rule flags, its start kit, the map a new world of it is laid on, `icarus` or `highway`, and the quest a new game with the intro on opens when the kit has no arrival, `opening`. `src/sim/settings.ts` is the only reader: `modeRules()` for a world, and `modeRulesOf()`, `modeMap()` and `modeOpening()` for a setup with no world yet. Each gate reads one flag, and no code outside the mode table and the mode picker tests a mode's id. Roaming sets every flag on but `run`. Chaos Highway sets only `run` and `npcKnockouts`:
 
 - `traffic`: no starting traffic, no spawn timers and no shops.
 - `looting`: no salvage at start or on renewal, no old-world loot spots, no salvage on a wreck, no story wrecks, no cargo handovers, and spilled or dumped cargo is gone.
@@ -39,12 +39,12 @@ The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheele
 - Parts: its grid has an engine bay, an armor ring, core cells and cargo bay cells. A cargo bay cell takes a cargo frame or anything stowed. So a gun, scanner, utility or store part never mounts on the hauler, and a stowed gun never fires. Only armor, engine and cargo parts can be bought for it.
 - Start: the same every run. A workhorse diesel, a full tank, base supplies and a full-health driver. It starts in the inner left lane, ahead of the player by both trucks' radii plus the yield gap.
 - Lane: it aims at the center of one of the four lanes, 12 tiles ahead. Its lane is the lane center nearest to it, so nothing about the lane is saved.
-- Hazards: when its lane is blocked within the 12 tiles ahead, by a prop, a wreck, a hazard or a truck of the run that is parked or slower than it, it takes the nearest clear lane. On a tie it takes the lane toward the road middle.
+- Hazards: when its lane is blocked within the 12 tiles ahead, by a prop, a wreck, a hazard or a truck of the run that is parked or slower than its pace, it takes the nearest clear lane. On a tie it takes the lane toward the road middle.
 - No clear lane: it keeps its lane and aims past the last prop or wreck within 32 tiles, so the router threads the gap on one route. It never aims off the asphalt, and only the router uses the shoulder or verge.
 - Stuck: when a turn on a drive order, or on its way in to the yard, moves it less than a quarter tile, it backs out to the first free spot behind, behind-left, behind-right, left or right of it, 2.5 tiles away, and then drives on. It keeps backing while it moves and drops the back-out when that also goes nowhere. `backOutSpot()` in `src/sim/back-out.ts` picks the spot, and the escort bot uses the same rule.
 - Craters: a crater dip of 0.1 or more under the hauler's width in its lane, within 32 tiles ahead, also blocks the lane. A semi that crosses a deep dip can bottom out on the rim and stop.
 - Flank trucks: a group truck that is not beaten, abeam within 6 tiles and closing across, sends it one lane away from that side. With threats on both sides, or no lane left on the far side, it holds its lane.
-- Speed: 4.5 tiles a turn, and the same 4.5 for 4 turns after it takes damage, since `hurry` equals `cruise`, so it never outruns a fight. It never brakes for a fight and never stops on the road.
+- Speed: 4.5 tiles a turn, and the same 4.5 for 4 turns after it takes damage, since `hurry` equals `cruise`, so it never outruns a fight. When the gun truck's top speed without overdrive is lower, the hauler drives at that speed instead, so a slow gun truck keeps the hauler beside it. A stranded, stalled or shut-down gun truck sets no limit. The limit reads the truck's top speed, not its speed this turn, so the hauler never brakes for a fight, a stop or a turn of the gun truck, and never stops on the road.
 - Outpost: within 25 tiles of the next outpost's yard it drives to its park spot in the yard, the left of the road's center, and parks there. Between levels it keeps driving to that spot until it is parked on it, so it clears the gateway.
 - It draws no random number. A stretch it drives alone replays exactly. A hauler that makes under a tile of road progress for 12 turns, while it is not stranded, parked at an outpost or pinned nose to nose by a group truck that is not beaten, raises the `stall` event, which is always a bug.
 
@@ -89,7 +89,9 @@ Between levels nothing spawns. The paid next outpost is a garage, as a town gara
 
 Outposts buy nothing. Once the gates are shut the trucks cannot move, the outpost screen opens by itself when the leaves stop, and it has no Leave button and does not close on Escape. The next level starts only when the player presses Drive on. Then the shop is gone: the last outpost sells nothing, and driving back into its yard through the open north gate opens no shop.
 
-The run has no end. The HUD's run readout shows the stretch and the distance to its outpost, like `3: 640 m`. Between levels it shows the next stretch at its full length.
+Parked inside the shut gates of a paid outpost 1, 4, 8 or 12 with both trucks, a hired run plays the story scene of that outpost once. It is a page in the quest window that pays nothing and changes no rule of the run. [The road story](../../architecture/quests.md#the-road-story) has the rules.
+
+The run has no end. The HUD's run readout shows the stretch and the distance to its outpost, like `3: 640 m`, and its tooltip reads "Stretch 3: 640 m to Outpost 3". Between levels it shows the next stretch at its full length.
 
 ## Hostile groups
 
@@ -146,3 +148,5 @@ The death screen names the mode, the last outpost reached and how far north the 
 ## Start
 
 The run starts parked in the yard of outpost 0, at milestone 0, with the hauler and the gun truck side by side across the road, both heading north. Outpost 0 starts paid and known, so it gives no XP and pays nothing. It is a shop like every outpost, and the run waits there until the player presses Drive on. That opens stretch 1 on the same window, with no window move. Nothing spawns before it. The Chaos Highway kit is a scout with one MG, a stock engine, no armor, a full tank, base supplies, 1 part for field patching and 80 M's to spend at outpost 0, enough for one better gun or a piece of armor. It is the same every run.
+
+A new game with the intro on opens the hiring scene `road_hire` at once, before the first turn: the driver is hired by the hauler's driver Ala at the Keepers' southern outpost. Signing on is the scene's only end. A new game with the intro skipped has no story for the run.

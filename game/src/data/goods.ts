@@ -20,6 +20,7 @@ export const GOODS: Record<string, GoodDef> = {
   parts: { id: 'parts', value: 667, tier: 1 },
   fuelDrums: { id: 'fuelDrums', value: 933, tier: 1 },
   water: { id: 'water', value: 600, tier: 1 },
+  relics: { id: 'relics', value: 4400, tier: 3 },
 };
 
 export const GOOD_IDS = Object.keys(GOODS);

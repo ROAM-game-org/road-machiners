@@ -18,6 +18,36 @@ const FLUSH = FORTS.filter(isFlush);
 const CASTLES = FORTS.filter((s) => !isFlush(s));
 const siteOf = (id: string): Site => FORTS.find((s) => s.id === id)!;
 const KEPT = ['green-pit', 'pump-station', 'scrapjaw', 'kiln'];
+const OLD_CENTRES: Record<string, Vec> = {
+  bowl: { x: 80, y: 470 },
+  nose: { x: 510, y: 175 },
+  dustwell: { x: 169, y: 160 },
+  granary: { x: 250, y: 164 },
+  'green-pit': { x: 359, y: 445 },
+  'pump-station': { x: 203.5, y: 258.5 },
+  'salvage-yard': { x: 410, y: 261 },
+  scrapjaw: { x: 110, y: 70 },
+  kiln: { x: 330, y: 380 },
+};
+const PIECE_TOLERANCE = 3;
+
+function movedWithSite(id: string, pieces: FortressPiece[]): FortressPiece[] {
+  const from = OLD_CENTRES[id];
+  const to = siteOf(id).pos;
+  return pieces.map((p) => ({ ...p, pos: { x: p.pos.x + to.x - from.x, y: p.pos.y + to.y - from.y } }));
+}
+
+function expectSamePieces(actual: FortressPiece[], expected: FortressPiece[]): void {
+  expect(actual).toHaveLength(expected.length);
+  actual.forEach((piece, k) => {
+    const want = expected[k];
+    expect(piece.kind).toBe(want.kind);
+    expect(piece.pos.x).toBeCloseTo(want.pos.x, PIECE_TOLERANCE);
+    expect(piece.pos.y).toBeCloseTo(want.pos.y, PIECE_TOLERANCE);
+    expect(piece.yaw).toBeCloseTo(want.yaw, PIECE_TOLERANCE);
+    expect(piece.r).toBeCloseTo(want.r, PIECE_TOLERANCE);
+  });
+}
 
 function covers(site: Site, piece: FortressPiece, p: Vec): boolean {
   const c = fortressFootprint(site, piece);
@@ -139,11 +169,11 @@ describe('fortress layout', () => {
   });
 
   it.each(Object.keys(BEFORE_8D))('lays %s exactly as at 8d024493 (IV26)', (id) => {
-    expect(fortressPieces(siteOf(id))).toEqual((BEFORE_8D as Record<string, FortressPiece[]>)[id]);
+    expectSamePieces(fortressPieces(siteOf(id)), movedWithSite(id, (BEFORE_8D as Record<string, FortressPiece[]>)[id]));
   });
 
   it.each(KEPT)('lays %s exactly as at 42b6c9fe (IV16)', (id) => {
-    expect(fortressPieces(siteOf(id))).toEqual((BEFORE as Record<string, FortressPiece[]>)[id]);
+    expectSamePieces(fortressPieces(siteOf(id)), movedWithSite(id, (BEFORE as Record<string, FortressPiece[]>)[id]));
   });
 
   it('sizes each gatehouse from its style', () => {

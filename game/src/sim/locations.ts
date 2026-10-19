@@ -32,10 +32,14 @@ export function discoverSites(world: World): void {
   }
 }
 
-export function discoverSite(world: World, s: { id: string }): void {
+export function chartSite(world: World, s: { id: string }): void {
   if (world.player.discovered.includes(s.id)) throw new Error(`${s.id} is already discovered`);
   world.player.discovered.push(s.id);
   world.events.push({ t: "discover", location: s.id });
+}
+
+export function discoverSite(world: World, s: { id: string }): void {
+  chartSite(world, s);
   practice(world, 'discover', 1, null, s.id);
 }
 

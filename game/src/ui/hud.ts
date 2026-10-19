@@ -1,6 +1,7 @@
 
 import { Drawers } from "./drawers";
 import { phoneMode, touchMode } from "./input-mode";
+import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
@@ -169,13 +170,13 @@ export class Hud {
   private placeInfo = (): void => {
     if (this.info.style.display === "none" || this.info.getClientRects().length === 0) return;
     const gap = parseFloat(token("--hud-gap"));
-    const top = topRight().getBoundingClientRect().bottom + gap;
+    const top = uiSize().layerRect(topRight()).bottom + gap;
     this.info.style.top = `${top}px`;
     this.info.style.width = "";
     const slot = this.floorOfInfo() - gap - top;
     this.info.style.height = `${slot}px`;
     if (this.inspectedAimable && !phoneMode()) this.growForAim(top, slot);
-    this.coverUnder(this.info.getBoundingClientRect().bottom);
+    this.coverUnder(uiSize().layerRect(this.info).bottom);
     this.inspected.fitTo(this.inspectedDraw);
   };
 
@@ -188,12 +189,12 @@ export class Hud {
   }
 
   private floorOfInfo(): number {
-    if (!phoneMode()) return this.radio.root.getBoundingClientRect().top;
+    if (!phoneMode()) return uiSize().layerRect(this.radio.root).top;
     const open = this.drawers.open();
     const frame = open === null ? null : document.querySelector<HTMLElement>(`#ui [data-drawer-frame="${open}"]`);
-    const card = this.info.getBoundingClientRect();
+    const card = uiSize().layerRect(this.info);
     const tops = [this.top, this.drawers.element, frame]
-      .map((node) => node?.getBoundingClientRect())
+      .map((node) => (node ? uiSize().layerRect(node) : undefined))
       .filter((box) => box !== undefined && box.left < card.right && box.right > card.left)
       .map((box) => box!.top);
     return Math.min(...tops);
@@ -203,7 +204,7 @@ export class Hud {
     const need = this.inspected.boxFor(parseFloat(token("--btn-h-s")));
     const wider = need.width - this.inspectedDraw.clientWidth;
     if (wider > 0) this.info.style.width = `${this.info.offsetWidth + wider}px`;
-    const tallest = this.log.root.getBoundingClientRect().bottom - top;
+    const tallest = uiSize().layerRect(this.log.root).bottom - top;
     this.info.style.height = `${tallest}px`;
     const fits = tallest - this.inspectedDraw.clientHeight + need.height;
     this.info.style.height = `${Math.min(tallest, Math.max(slot, fits))}px`;
@@ -211,11 +212,18 @@ export class Hud {
 
   private coverUnder(bottom: number | null): void {
     for (const below of [...rightDock().children, this.log.root] as HTMLElement[]) {
-      below.style.visibility = bottom !== null && bottom > below.getBoundingClientRect().top ? "hidden" : "";
+      below.style.visibility = bottom !== null && bottom > uiSize().layerRect(below).top ? "hidden" : "";
     }
   }
 
   constructor(private actions: HudActions, private radio: RadioPanel) {
+    const openLog = () => this.drawers.toggle("log");
+    this.log.strip.root.addEventListener("click", openLog);
+    this.log.strip.root.addEventListener("keydown", (e) => {
+      if (e.code !== "Enter" && e.code !== "Space") return;
+      e.preventDefault();
+      openLog();
+    });
     this.truckStack.append(this.condition.root, this.haulerGauge.root);
     bottomLeft().append(this.truckStack);
     this.dialogue = new DialoguePanel(actions.dialogue);

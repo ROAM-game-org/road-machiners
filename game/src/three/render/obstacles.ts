@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hashStr } from '../../render/noise';
 import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
-import { propPose, propReach, type PropPose } from '../../sim/mapgen';
+import { propPose, propReach, rockModel, type PropPose } from '../../sim/mapgen';
 import { propBase } from '../../sim/bridge';
 import { bodyOf } from '../../sim/body';
 import { LOOT_LOOK, lootColor } from '../../render/lootLook';
@@ -219,14 +219,14 @@ export class ObstacleViews {
   private addRocks(rocks: Obstacle[]): Set<string> {
     const byChunk = new Map<string, Obstacle[]>();
     for (const o of rocks) {
-      const key = `${Math.floor(o.pos.x / TERRAIN_CHUNK)},${Math.floor(o.pos.y / TERRAIN_CHUNK)}`;
+      const key = `${Math.floor(o.pos.x / TERRAIN_CHUNK)},${Math.floor(o.pos.y / TERRAIN_CHUNK)},${rockModel(o.id)}`;
       const list = byChunk.get(key);
       if (list) list.push(o);
       else byChunk.set(key, [o]);
     }
     for (const list of byChunk.values()) {
       const placed = list.map((o) => rockPlacement(this.terrain, o));
-      const group = instancedModel('rock', placed.map((p) => p.matrix), placed.map((p) => p.tint));
+      const group = instancedModel(rockModel(list[0].id), placed.map((p) => p.matrix), placed.map((p) => p.tint));
       const center = list.reduce((c, o) => ({ x: c.x + o.pos.x / list.length, y: c.y + o.pos.y / list.length }), { x: 0, y: 0 });
       const reach = Math.max(...list.map((o) => dist(center, o.pos) + propReach(o)));
       this.scope.add(group, center, reach);
@@ -265,7 +265,7 @@ function rockPlacement(t: Terrain, o: Obstacle): { matrix: THREE.Matrix4; tint: 
   return { matrix: g.matrix, tint: 0.9 + hashStr(o.id) * 0.2 };
 }
 
-function buildProp(t: Terrain, o: Obstacle): THREE.Object3D {
+export function buildProp(t: Terrain, o: Obstacle): THREE.Object3D {
   const pose = propPose(o);
   if (pose.model === 'hulk') return buildHulk(t, o, pose);
   const g = posed(propBase(t, o), pose);

@@ -186,6 +186,7 @@ export const BANK = {
   tries: 2,
   silentSeconds: 0.1,
   beatSlackSeconds: 0.05,
+  decodeMs: 15000,
   formats: [
     { ext: "ogg", dir: "sfx/", mime: "audio/ogg; codecs=opus", signature: { at: 0, text: "OggS" } },
     { ext: "m4a", dir: "sfx-m4a/", mime: 'audio/mp4; codecs="mp4a.40.2"', signature: { at: 4, text: "ftyp" } },

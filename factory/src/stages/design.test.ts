@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runStage } from './design';
 import { EMPTY_STATE, readState, writeState } from '../state';
@@ -53,6 +53,46 @@ function fakeCtx(agent: (run: AgentRun) => void): Ctx {
 }
 
 const PLAN = '# Task\n\n## Plan\n- step one\n\n## Verify\n';
+
+describe('design post', () => {
+  const planned = (summary: string | null) => fakeCtx((run) => {
+    mkdirSync(`${run.clone}/${run.dir}/.factory-tasks`, { recursive: true });
+    writeFileSync(`${run.clone}/${run.dir}/${TASK_FILE(7)}`, PLAN);
+    if (summary !== null) writeFileSync(`${run.clone}/${run.dir}/.factory/summary.md`, summary);
+  });
+  const designComment = () => calls.find((call) => call.startsWith('comment 7 ') && call.includes('<summary>Design and plan</summary>'));
+
+  it('puts the plain summary above the collapsed design notes', async () => {
+    await runStage(planned('Towns will give directions by landmarks you can see from the road.\n'), 7);
+    expect(designComment()).toBe(`comment 7 **Planned change**\n\nTowns will give directions by landmarks you can see from the road.\n\n<details>\n<summary>Design and plan</summary>\n\n${PLAN}\n\n</details>`);
+  });
+
+  it('posts the collapsed design notes alone when the agent wrote no summary', async () => {
+    await runStage(planned(null), 7);
+    expect(designComment()).toBe(`comment 7 <details>\n<summary>Design and plan</summary>\n\n${PLAN}\n\n</details>`);
+  });
+});
+
+describe('design stage with a groomed request', () => {
+  let seen: string | null = null;
+  const reading = () => fakeCtx((run) => {
+    const file = `${run.clone}/${run.dir}/.factory/groomed.md`;
+    seen = existsSync(file) ? readFileSync(file, 'utf8') : null;
+    writeFileSync(`${run.clone}/${run.dir}/.factory/wont-do.md`, 'stop');
+  });
+
+  it('gives the agent the groomed request triage saved', async () => {
+    mkdirSync(`${home}/groomed`, { recursive: true });
+    writeFileSync(`${home}/groomed/issue-7.md`, '## Groomed request\n\nPlayer need: money.\n');
+    await runStage(reading(), 7);
+    expect(seen).toBe('## Groomed request\n\nPlayer need: money.\n');
+  });
+
+  it('writes no groomed file when triage saved none', async () => {
+    await runStage(reading(), 7);
+    expect(seen).toBeNull();
+  });
+});
 
 describe('design stage with a bundle', () => {
   const bundled = (): void => writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), bundles: { '7': [9] } });
@@ -119,14 +159,14 @@ describe('design stage', () => {
     expect(calls.filter((call) => call.startsWith('push'))).toEqual([]);
   });
 
-  it('notifies the committee once about design questions, with the issue link and reply place', async () => {
+  it('notifies the committee once about design questions, with the link, the questions and the reply place', async () => {
     await runStage(fakeCtx((run) => writeFileSync(`${run.clone}/${run.dir}/.factory/questions.json`, '["Which horn?"]')), 7);
     const messages = calls.filter((call) => call.startsWith('message'));
     expect(messages).toHaveLength(1);
-    expect(messages[0]).toContain('Design needs answers on #7');
+    expect(messages[0]).toContain('Design asks on #7');
     expect(messages[0]).toContain('https://github.com/o/r/issues/7');
-    expect(messages[0]).toContain('Replies in this chat do not reach the stage.');
-    expect(messages[0]).not.toContain('Which horn?');
+    expect(messages[0]).toContain('Design hit a blocker it cannot settle by a sensible reading.\n\n1. Which horn?');
+    expect(messages[0]).toContain('Reply to this message to answer, or answer on GitHub.');
   });
 
   it('adds no duplicate notice when a retry asks while the earlier set is open', async () => {

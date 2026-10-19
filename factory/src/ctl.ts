@@ -171,6 +171,7 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `labels: ${shown(found.labels.join(', '))}`,
     `post only: ${state.postOnly.includes(found.issue) ? 'yes' : 'no'}`,
     `questions asked: ${shown(state.asked[key])}`,
+    `questions posts: ${shown(Object.entries(state.questionPosts).filter(([, issue]) => issue === found.issue).map(([id]) => id).join(', '))}`,
     `pending feedback from: ${shown(state.pendingFeedback[key]?.source)}`,
     `approvedResolving: ${shown(state.approvedResolving[key])}`,
     `queued approval: ${shown(state.pendingApprovals[key])}`,

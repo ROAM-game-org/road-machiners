@@ -170,6 +170,38 @@ describe("the game's styles", () => {
   });
 });
 
+const WINDOW_UNIT = /(?<![\w.-])\d*\.?\d+(?:vw|vh|dvh|svh|lvh|vmin|vmax|dvw|svw|lvw)\b/g;
+const WIDTH_QUERY = /@media[^{]*\b(?:min|max)?-?width\b/;
+const unscaled = new Set(["boot.css"]);
+
+export function windowUnits(css: string): string[] {
+  const body = css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--layer-[wh]\s*:[^;]*;/g, "");
+  return body.match(WINDOW_UNIT) ?? [];
+}
+
+export function widthQueries(css: string): string[] {
+  return css.replace(/\/\*[\s\S]*?\*\//g, "").match(new RegExp(WIDTH_QUERY, "g")) ?? [];
+}
+
+describe("the UI layer", () => {
+  it("flags window units and width queries, and passes the layer definitions", () => {
+    expect(windowUnits(".a { width: 50vw; height: 100dvh; box-shadow: 0 0 0 100vmax x; }")).toEqual(["50vw", "100dvh", "100vmax"]);
+    expect(windowUnits(":root { --layer-w: calc(100vw / var(--ui-scale)); --layer-h: calc(100dvh / var(--ui-scale)); }")).toEqual([]);
+    expect(widthQueries("@media (max-width: 720px) { .a { x: y } }")).toHaveLength(1);
+    expect(widthQueries("@media (orientation: landscape) { .a { x: y } }")).toEqual([]);
+  });
+
+  it("lays out in layer units and class breakpoints, not window units or width queries", () => {
+    const found: string[] = [];
+    const sheets = [...readdirSync(new URL(styleDir, root)).filter((f) => f.endsWith(".css") && !unscaled.has(f)).map((f) => styleDir + f), "src/ui/tokens.css", "src/ui/truck-condition.css", "src/ui/style.css"];
+    for (const f of sheets) {
+      for (const hit of windowUnits(read(f))) found.push(`${f}: ${hit}`);
+      for (const hit of widthQueries(read(f))) found.push(`${f}: ${hit}`);
+    }
+    expect(found).toEqual([]);
+  });
+});
+
 const MONEY_BUILT_BY_HAND = /\}\s?M\b|["'`] M["'`]/;
 
 export function handBuiltMoney(source: string): string[] {

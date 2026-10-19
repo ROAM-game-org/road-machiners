@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { SIGN_STAGES, SIGN_VIEWBOX, signStageMarkup } from '../render/sign';
 import { t } from '../text/msg';
 import { resolve } from '../text/resolve';
 import { FONT_FACES } from './fonts';
@@ -25,8 +26,24 @@ describe('index.html boot markup', () => {
     expect([...faceList('russian'), ...mono]).toEqual(FONT_FACES.ru);
   });
 
+  it('draws the sign from the sign module', () => {
+    const sign = `<svg class="boot-sign" viewBox="${SIGN_VIEWBOX}" aria-hidden="true">${SIGN_STAGES.map(signStageMarkup).join('')}</svg>`;
+    expect(html).toContain(sign);
+  });
+
   it('reveals the boot text when the page fails to load', () => {
-    const failure = /function failed\(e\) \{[\s\S]*?\n        \}/.exec(html)?.[0] ?? '';
+    const failure = /function show\(key, detail\) \{[\s\S]*?\n        \}/.exec(html)?.[0] ?? '';
     expect(failure).toContain("boot.dataset.fonts = 'ready'");
+  });
+
+  it.each(['en', 'ru'] as const)('repeats the %s failure texts exactly', (locale) => {
+    expect(html).toContain(`failedToLoad: '${resolve(t('boot.failedToLoad'), locale)}'`);
+    expect(html).toContain(`failedToStart: '${resolve(t('boot.failedToStart'), locale)}'`);
+  });
+
+  it('has a nomodule fallback and reads only the stored language', () => {
+    expect(html).toContain('<script nomodule>');
+    expect(html).toContain("localStorage.getItem('roam.lang')");
+    expect(html).not.toContain('navigator.language');
   });
 });

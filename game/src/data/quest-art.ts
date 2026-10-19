@@ -1,14 +1,9 @@
-export type QuestArt = { file: string; focusX: number };
+import { publicUrl } from '../public-url';
+import ENTRIES from './quest-art.json';
 
-export const QUEST_ART: Record<string, QuestArt> = {
-  arrival_rim: { file: 'arrival_rim.webp', focusX: 30 },
-  arrival_house: { file: 'arrival_house.webp', focusX: 50 },
-  arrival_pickup: { file: 'arrival_pickup.webp', focusX: 35 },
-  cab_link: { file: 'cab_link.webp', focusX: 62 },
-  fall_cab: { file: 'fall_cab.webp', focusX: 60 },
-  bowl_yard: { file: 'bowl_yard.webp', focusX: 60 },
-  bowl_scale: { file: 'bowl_scale.webp', focusX: 45 },
-};
+export type QuestArt = { file: string; focusX: number; focusY: number };
+
+export const QUEST_ART: Record<string, QuestArt> = structuredClone(ENTRIES);
 
 export function questArt(key: string): QuestArt {
   const art = QUEST_ART[key];
@@ -17,5 +12,5 @@ export function questArt(key: string): QuestArt {
 }
 
 export function questArtUrl(key: string): string {
-  return `${import.meta.env.BASE_URL}quest-art/${questArt(key).file}`;
+  return publicUrl(`quest-art/${questArt(key).file}`);
 }

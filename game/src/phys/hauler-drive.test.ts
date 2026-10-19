@@ -2,6 +2,8 @@ import { beforeAll, expect, it } from 'vitest';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from '../sim/damage';
+import { coreParts, mountedParts } from '../sim/grid';
+import { plainMaxSpeed } from '../sim/stats';
 import { advanceFar } from '../sim/far';
 import { moveWindow } from '../sim/fury-road';
 import { setHeadless } from '../sim/fidelity';
@@ -252,3 +254,33 @@ it.each([0, 1, 2, 3])('wins on entering the yard from lane %i, then parks whole 
     expect(wholeInYard(w, hauler, 1)).toBe(true);
   }
 }, budget(600_000));
+
+it('moves the hauler at the pace of a slow gun truck on open road', () => {
+  const seed = 1;
+  let w = furyRoadWorld(seed);
+  w.furyRoad!.groups = [];
+  const gun = playerVehicle(w);
+  coreParts(gun, 'wheel').forEach((wheel) => { wheel.hp = 0; });
+  mountedParts(gun, 'engine')[0].wear = 2;
+  const cap = plainMaxSpeed(w, gun);
+  expect(cap).toBeLessThan(HAULER_CRUISE);
+  let drive: Drive = buildDrive(w);
+  let stalls = 0;
+  const along = (): number => alongOf(seed, toRoad(seed, 0, haulerOf(w).pos));
+  let mark = 0;
+  const WARMUP = 10;
+  const MEASURED = 40;
+  for (let turn = 0; turn < WARMUP + MEASURED; turn++) {
+    if (turn === WARMUP) mark = along();
+    let result: TurnResult | null = null;
+    w = endTurn(w, physicsMove(drive, (next) => (result = next)));
+    stalls += w.events.filter((e) => e.t === 'stall').length;
+    freeDrive(drive);
+    drive = result!.next;
+  }
+  freeDrive(drive);
+  const perTurn = (along() - mark) / MEASURED;
+  expect(stalls).toBe(0);
+  expect(perTurn).toBeLessThanOrEqual(cap * 1.05);
+  expect(perTurn).toBeGreaterThanOrEqual(cap * 0.8);
+}, budget(300_000));

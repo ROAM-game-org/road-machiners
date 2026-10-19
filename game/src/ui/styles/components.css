@@ -7,7 +7,7 @@
   border: 2px solid var(--line-bright);
   box-shadow:
     inset 0 0 0 var(--space-2) var(--line-faint),
-    0 0 0 100vmax var(--scrim);
+    0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
 }
 
 /* A panel of the right dock: the log, the contracts and the radio. */
@@ -187,6 +187,15 @@
 .tooltip-row > .num {
   text-align: right;
 }
+.tooltip-row.base {
+  color: var(--ink-muted);
+}
+.tooltip-row.up > .num {
+  color: var(--good);
+}
+.tooltip-row.down > .num {
+  color: var(--danger-ink);
+}
 
 /* An amount of money: the M's coin, sized by the text around it, then the number. */
 .amount {
@@ -248,4 +257,31 @@
 }
 #ui .drawer-tabs > button.marked {
   border-color: var(--danger);
+}
+
+/* The newest log line on one row, on a phone above End turn. A tap opens the Log drawer. It never wraps. */
+.log-strip {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  cursor: pointer;
+}
+.log-strip > div {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.option-switch {
+  display: flex;
+  gap: var(--space-3);
+}
+.option-switch > button {
+  flex: 1;
+}
+#ui .option-switch > button[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-dim);
 }

@@ -7,7 +7,7 @@ import { gatesShut, yardSpots } from '../../sim/outpost-gates';
 import { furyRoadWorld, parkInYard } from '../../sim/testkit';
 import type { World } from '../../sim/types';
 import { endTurn } from '../../sim/world';
-import { highwayMap } from '../../sim/highway';
+import { highwayMap, outpostId } from '../../sim/highway';
 import { loadModels } from './models';
 import { OutpostGateViews } from './outpostGates';
 import { RenderScope, SightLimit } from './scope';
@@ -41,32 +41,38 @@ function leaves(root: THREE.Group): THREE.Object3D[] {
   return out;
 }
 
+function leavesOf(root: THREE.Group, gateId: string): THREE.Object3D[] {
+  return leaves(root).filter((l) => l.parent!.name === `outpost-gate-${gateId}`);
+}
+
 function span(frames: number, views: OutpostGateViews, dt: number): void {
   for (let i = 0; i < frames; i++) views.tick(dt);
 }
 
 describe('the outpost gate views', () => {
-  it('draws two leaves for the one movable gate of window 0 and builds with no fort 0', () => {
+  it('draws two leaves for each of the two movable gates of window 0', () => {
     const { views, root } = build(furyRoadWorld());
-    expect(leaves(root)).toHaveLength(2);
+    expect(leaves(root)).toHaveLength(4);
+    expect(leavesOf(root, `${outpostId(0)}-north`)).toHaveLength(2);
+    expect(leavesOf(root, `${outpostId(1)}-south`)).toHaveLength(2);
     expect(views.settled()).toBe(true);
   });
 
   it('slides the leaves shut over the slide time and holds there', () => {
     const w = furyRoadWorld();
     const { views, root } = build(w);
-    const closed = arrive(w);
-    views.sync(closed);
+    const south = leavesOf(root, `${outpostId(1)}-south`);
+    views.sync(arrive(w));
     expect(views.settled()).toBe(false);
     span(Math.round((OUTPOST_GATE.slideSeconds / 0.05) / 2), views, 0.05);
     expect(views.settled()).toBe(false);
-    const half = leaves(root).map((l) => Math.abs(l.position.z));
+    const half = south.map((l) => Math.abs(l.position.z));
     expect(half.every((z) => z > 0)).toBe(true);
     span(Math.round(OUTPOST_GATE.slideSeconds / 0.05) + 2, views, 0.05);
     expect(views.settled()).toBe(true);
-    expect(leaves(root).map((l) => Math.abs(l.position.z))).toEqual([0, 0]);
+    expect(south.map((l) => Math.abs(l.position.z))).toEqual([0, 0]);
     span(10, views, 0.05);
-    expect(leaves(root).map((l) => Math.abs(l.position.z))).toEqual([0, 0]);
+    expect(south.map((l) => Math.abs(l.position.z))).toEqual([0, 0]);
   });
 
   it('never jumps past the target on a huge or invalid frame time', () => {

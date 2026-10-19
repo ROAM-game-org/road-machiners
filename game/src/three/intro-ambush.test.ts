@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AMBUSH, GREEN_PIT, WAKE_TOWN } from '../data/intro';
-import { TOWED_TO_BOWL } from '../data/quests';
+import { HATTIE_MET, TOWED_TO_BOWL } from '../data/quests';
 import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { START_KITS, startKit } from '../data/start';
@@ -14,7 +14,7 @@ import { fightOdds } from '../sim/fight-odds';
 import { corePart, mountedParts } from '../sim/grid';
 import { answersPlea, offersGiveUp } from '../sim/parley';
 import { addGoods } from '../sim/inventory';
-import { introStep, setIntroStep } from '../sim/quests';
+import { chooseQuestOption, introStep, openWellScene, QUESTS, questView, setIntroStep } from '../sim/quests';
 import { OPENING_WRECK_ID } from '../sim/opening';
 import { emptyHidden } from '../sim/salvage';
 import { OPENING } from '../data/start';
@@ -264,6 +264,8 @@ describe('the ambush gate during the opening', () => {
   });
 });
 
+const spokenIn = (w: World): string => questView(w, QUESTS).lines.map((l) => l.text).join(' ');
+
 describe('the fall and the wake in Bowl', () => {
   it('plays the first fall, robs the cargo, spares the driver and parks the truck in Bowl', () => {
     const w = ambushed();
@@ -317,6 +319,30 @@ describe('the fall and the wake in Bowl', () => {
     next = endTurn(next, testDrive);
     expect(next.player.quests.live).toBeNull();
     expect(introStep(next)).toBe('done');
+  });
+
+  it('wakes a driver who never met Hattie on the start checkpoint and marks her met', () => {
+    const w = ambushed();
+    knockedOutBy(w);
+    const next = runUntilAwake(closeScene(w));
+    expect(spokenIn(next)).toContain('A tow man left you on my bench');
+    expect(next.player.quests.world[HATTIE_MET]).toBe(true);
+  });
+
+  it('wakes a driver who met Hattie before on a greeting that knows them, without the questions already asked', () => {
+    const w = ambushed();
+    openWellScene(w, 'meet');
+    let met = chooseQuestOption(w, QUESTS, questView(w, QUESTS).choices.indexOf('Where am I?'));
+    met = chooseQuestOption(met, QUESTS, questView(met, QUESTS).choices.indexOf("I'll go."));
+    expect(met.player.quests.session).toBeNull();
+    knockedOutBy(met);
+    const next = runUntilAwake(closeScene(met));
+    expect(next.player.quests.live?.quest).toBe('intro_bowl');
+    expect(spokenIn(next)).toContain('Back on my bench');
+    expect(next.player.quests.world[HATTIE_MET]).toBe(true);
+    const choices = questView(next, QUESTS).choices;
+    expect(choices).toContain('What happened to me?');
+    expect(choices).not.toContain('Where am I?');
   });
 
   it('opens the closing scene, not the Bowl scene, when the player wins', () => {

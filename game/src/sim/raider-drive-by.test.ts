@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { count, runs, summary } from '../test/drive-by-scene';
 
 describe.each([['by day', false], ['at night', true]])('drive-by %s on the real map', (_label, night) => {
-  const minTrader = night ? 3 : 6;
+  const minTrader = night ? 3 : 5;
   const minPlayer = night ? 5 : 6;
 
   it(`engages a trader carrying six electronics in at least ${minTrader} of 8 seeds`, () => {

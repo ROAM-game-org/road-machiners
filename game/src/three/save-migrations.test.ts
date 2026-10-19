@@ -865,13 +865,14 @@ describe('save migration 36 to 37', () => {
 describe('save migration 37 to 38', () => {
   const wagon = STORY_WRECKS[0];
   const fresh = emptyWorld();
+  const WAGON_POS_THEN = { x: 171, y: 381 };
 
-  it('gives the player an empty journal and puts wagon Seven in place as a new game has it', () => {
+  it('gives the player an empty journal and puts wagon Seven in place as a new game had it at that format', () => {
     const next = MIGRATIONS[37](FORMAT_2_37) as typeof FORMAT_2_37 & { player: { notes: unknown[] } };
 
     expect(next.player).toEqual({ ...FORMAT_2_37.player, notes: [] });
-    expect(next.obstacles).toEqual([...FORMAT_2_37.obstacles, { id: wagon.id, pos: wagon.pos, r: wagon.r, kind: 'wreck', hulk: { chassisId: wagon.chassisId, yaw: wagon.yaw } }]);
-    const placed = (list: { id: string; parts?: object[] }[]) => list.map((s) => (s.id === wagon.id ? { ...s, parts: [] } : s));
+    expect(next.obstacles).toEqual([...FORMAT_2_37.obstacles, { id: wagon.id, pos: WAGON_POS_THEN, r: wagon.r, kind: 'wreck', hulk: { chassisId: wagon.chassisId, yaw: wagon.yaw } }]);
+    const placed = (list: { id: string; parts?: object[] }[]) => list.map((s) => (s.id === wagon.id ? { ...s, pos: WAGON_POS_THEN, parts: [] } : s));
     expect(placed(next.salvage as never)).toEqual(placed([...FORMAT_2_37.salvage, fresh.salvage.find((s) => s.id === wagon.id)!] as never));
     expect(next.turn).toBe(FORMAT_2_37.turn);
   });
@@ -1615,5 +1616,149 @@ describe('save migration 76 to 77', () => {
     const world = { ...structuredClone(FORMAT_2_74), states };
 
     expect(MIGRATIONS[76](structuredClone(world))).toEqual(world);
+  });
+});
+
+describe('save migration 77 to 78', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: unknown };
+  const withQuests = (quests: Partial<Quests>) => {
+    const world = structuredClone(FORMAT_2_61) as unknown as { player: { quests: Quests } };
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: object) => MIGRATIONS[77](structuredClone(world) as SavedJson) as unknown as { player: { quests: Quests } };
+
+  it('marks Hattie met for a save that was towed to Bowl', () => {
+    const next = stepped(withQuests({ world: { towed_to_bowl: true, intro_step: 'done' } }));
+    expect(next.player.quests.world).toEqual({ towed_to_bowl: true, intro_step: 'done', hattie_met: true });
+  });
+
+  it('marks Hattie met for a save with a saved talk of hers', () => {
+    const next = stepped(withQuests({ world: { intro_step: 'done' }, local: { bowl_hattie: { hattie_rumor: true } } }));
+    expect(next.player.quests.world.hattie_met).toBe(true);
+  });
+
+  it('leaves a save that never met her as it is', () => {
+    const before = withQuests({ world: { intro_step: 'drive' }, local: { bowl_hattie: {} } });
+    expect(stepped(before)).toEqual(before);
+  });
+
+  it('changes nothing else', () => {
+    const before = withQuests({ world: { towed_to_bowl: true } });
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});
+
+describe('save migration 78 to 79', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: unknown };
+  type Saved = { player: { quests: Quests; notes: { id: string; turn: number }[] } };
+  const saved = (quests: Partial<Quests>, notes: { id: string; turn: number }[]): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    world.player.notes = notes;
+    return world;
+  };
+  const stepped = (world: Saved) => MIGRATIONS[78](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('moves the wagon half from wagon_pin to wagon_rod and Lena\'s asked mark to asked_rods, keeping their values', () => {
+    const before = saved(
+      { world: { wagon_seen: true, wagon_pin: 'held', wagon_fate: 'none' }, local: { nose_lena: { heard_swivel: true, asked_pins: true, heard_brann: true } }, session: { quest: 'wagon_bench', checkpoint: 'bench.report', seed: 17 } },
+      [{ id: 'wagonBowl', turn: 3 }, { id: 'wagonPin', turn: 40 }, { id: 'talkOnePin', turn: 41 }],
+    );
+
+    const next = stepped(before);
+
+    expect(next.player.quests).toEqual({
+      world: { wagon_seen: true, wagon_rod: 'held', wagon_fate: 'none' },
+      local: { nose_lena: { heard_swivel: true, asked_rods: true, heard_brann: true } },
+      session: { quest: 'wagon_bench', checkpoint: 'bench.report', seed: 17 },
+    });
+    expect(next.player.notes).toEqual([{ id: 'wagonBowl', turn: 3 }, { id: 'wagonRod', turn: 40 }, { id: 'talkBrakeRod', turn: 41 }]);
+  });
+
+  it('leaves a save that never found the wagon as it was', () => {
+    const before = saved({ world: { intro_step: 'done' } }, [{ id: 'greenPit', turn: 5 }]);
+    expect(stepped(before)).toEqual(before);
+  });
+
+  it('changes nothing else', () => {
+    const before = saved({ world: { wagon_pin: 'bent' } }, [{ id: 'wagonPin', turn: 9 }]);
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests, notes: before.player.notes } }).toEqual(before);
+  });
+});
+
+describe('save migration 79 to 80', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: unknown };
+  type Saved = { player: { quests: Quests } };
+  const saved = (quests: Partial<Quests>): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: Saved) => MIGRATIONS[79](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('drops the Varga truck mark and Hattie\'s Varga questions, keeping her other answers and an open talk', () => {
+    const before = saved({
+      world: { towed_to_bowl: true, varga_truck_known: true, hattie_met: true },
+      local: { bowl_hattie: { hattie_tow: true, hattie_varga: true, hattie_farm: true, hattie_rumor: true } },
+      session: { quest: 'bowl_hattie', checkpoint: 'start.hub', seed: 4 },
+    });
+
+    expect(stepped(before).player.quests).toEqual({
+      world: { towed_to_bowl: true, hattie_met: true },
+      local: { bowl_hattie: { hattie_tow: true, hattie_rumor: true } },
+      session: { quest: 'bowl_hattie', checkpoint: 'start.hub', seed: 4 },
+    });
+  });
+
+  it('removes a Hattie entry that held only the Varga questions', () => {
+    const before = saved({ local: { bowl_hattie: { hattie_varga: true } } });
+    expect(stepped(before).player.quests.local).toEqual({});
+  });
+
+  it('leaves a save that never asked about the Vargas as it was', () => {
+    const before = saved({ world: { intro_step: 'done' }, local: { bowl_hattie: { hattie_rumor: true } } });
+    expect(stepped(before)).toEqual(before);
+  });
+
+  it('changes nothing else', () => {
+    const before = saved({ world: { varga_truck_known: true } });
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});
+
+describe('save migration 80 to 81', () => {
+  it('keeps a save as it is, since ship relics are only a new key in loot goods and shop pressure', () => {
+    const before = structuredClone(FORMAT_2_75);
+
+    const next = MIGRATIONS[80](before);
+
+    expect(next).toEqual(FORMAT_2_75);
+    expect(before).toEqual(FORMAT_2_75);
+  });
+});
+
+describe('save migration 81 to 82', () => {
+  type Goal = { kind: string; destination: { x: number; y: number } | null; heard?: { x: number; y: number } };
+  type Saved = { vehicles: { brain: { goals: Goal[] } | null }[] };
+  const withGoals = (goals: Goal[]): Saved => {
+    const world = structuredClone(FORMAT_2_70) as unknown as Saved;
+    for (const v of world.vehicles) if (v.brain) v.brain.goals = structuredClone(goals);
+    return world;
+  };
+  const goalsAfter = (world: Saved) => (MIGRATIONS[81](structuredClone(world) as unknown as SavedJson) as unknown as Saved).vehicles.find((v) => v.brain)!.brain!.goals;
+
+  it('gives an investigation its destination as the heard centre', () => {
+    const goals = goalsAfter(withGoals([{ kind: 'investigate', destination: { x: 12, y: 30 } }]));
+    expect(goals[0].heard).toEqual({ x: 12, y: 30 });
+    expect(goals[0].heard).not.toBe(goals[0].destination);
+  });
+
+  it('leaves other goals and a goal that already heard alone', () => {
+    const before = [{ kind: 'travel', destination: { x: 1, y: 2 } }, { kind: 'investigate', destination: { x: 5, y: 5 }, heard: { x: 4, y: 4 } }];
+    expect(goalsAfter(withGoals(before))).toEqual(before);
   });
 });

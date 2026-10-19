@@ -1,9 +1,9 @@
 
-import { chassisDef, PLAYER_CHASSIS } from '../../data/chassis';
+import { chassisDef } from '../../data/chassis';
 import { startKit } from '../../data/start';
 import { partDef, PARTS, type PartKind } from '../../data/parts';
 import { playerVehicle, truckFor } from '../damage';
-import { buyChassis, buyStockPart, chassisTradeIn, partTradePrice, sellPart } from '../economy';
+import { buyChassis, buyStockPart, chassisTradeIn, garageChassis, partTradePrice, sellPart } from '../economy';
 import { type Spot, goodsCount, mountedItems } from '../grid';
 import { installSpot, moveItem, spareParts, storePart, takeFromStorage } from '../inventory';
 import { shopAt, shopState } from '../market';
@@ -103,9 +103,10 @@ function strongest(options: Option[]): Option | null {
 
 function chassisOptions(o: Orders, style: UpgradeStyle): Option[] {
   const load = Object.entries(goodsCount(o.me)).some(([good, n]) => good !== 'parts' || n > REPAIR_PARTS);
-  if (style.chassis === 'keep' || !townAt(o.world) || load) return [];
+  const town = townAt(o.world);
+  if (style.chassis === 'keep' || !town || load) return [];
   const current = chassisDef(o.me.chassisId);
-  return PLAYER_CHASSIS.filter((id) => id !== current.id).flatMap((id) => {
+  return garageChassis(town.id).filter((id) => id !== current.id).flatMap((id) => {
     const def = chassisDef(id);
     const gain = style.chassis === 'speed' ? def.maxSpeed - current.maxSpeed : def.value - current.value;
     return gain > 0 ? [{ gain, cost: def.value - chassisTradeIn(o.world), take: (orders: Orders) => orders.run((w) => buyChassis(w, id), 'gear') }] : [];

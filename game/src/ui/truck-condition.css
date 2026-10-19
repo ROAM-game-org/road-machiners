@@ -3,22 +3,42 @@
   left: 0;
   bottom: calc(100% + var(--space-4));
 }
-/* The bare truck's outline sits behind the parts. A part's tile takes its condition color, set inline as --tone and
-   --tint-line. The icon's own fill is clear, so only its lines and shading show, in the same hue. Line widths stay in
-   screen pixels at any tile size. */
 .condition-chassis {
   position: relative;
 }
 .condition-chassis .outline-fill {
-  --plan-line: none;
+  --plan-fill: var(--cell-side);
+  --plan-shadow: var(--shade);
+  --plan-light: var(--bevel-light-strong);
+  --plan-glass: var(--cell-line);
+  --plan-line: var(--cell-plan-line);
+  --plan-outer: 0px;
+  --plan-inner: 1px;
+}
+.condition-chassis .outline-detail {
+  z-index: var(--z-badge);
+  --plan-fill: none;
+  --plan-shadow: none;
+  --plan-light: none;
+  --plan-glass: var(--plan-glass-faint);
+  --plan-line: var(--plan-detail-faint);
+  --plan-outer: 0px;
+  --plan-inner: 1px;
 }
 .condition-chassis .outline-line {
   z-index: var(--z-outline);
   --plan-fill: none;
+  --plan-shadow: none;
+  --plan-light: none;
+  --plan-glass: none;
+  --plan-line: var(--cell-plan-line);
+  --plan-outer: var(--space-1);
+  --plan-inner: 0px;
   filter: drop-shadow(0 0 1px var(--shade-strong));
 }
 .condition-part {
   position: absolute;
+  z-index: var(--z-outline);
   box-sizing: border-box;
   border: 1px solid var(--shade);
   background: var(--tone) padding-box;
@@ -27,6 +47,17 @@
   --tint-glass: var(--bevel-light-strong);
   --tint-outer: 1px;
   --tint-inner: 0px;
+}
+.condition-part[data-look="cab"]::after {
+  content: "";
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-2);
+  right: var(--space-2);
+  height: var(--space-2);
+  border: 1px solid var(--shade);
+  border-radius: var(--radius-s);
+  background: var(--tint-glass);
 }
 .condition-part svg {
   position: absolute;

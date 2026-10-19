@@ -3,7 +3,7 @@ import { CHASSIS } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { partDef, type CoreDef } from '../data/parts';
 import BASELINE from './body-baseline.json';
-import { CLIP_TOLERANCE, bodyOf, cellCenter, cellRect, engineAnchor, highestUnder, hulkBoxes, lanesAt, restOn, surfaceAt, surfaceSamples } from './body';
+import { CLIP_TOLERANCE, bodyOf, rideOf, cellCenter, cellRect, engineAnchor, highestUnder, hulkBoxes, lanesAt, restOn, surfaceAt, surfaceSamples } from './body';
 import TRUCK_SHAPES from '../data/truck-shapes.json';
 import { baseGrid } from './grid';
 
@@ -49,12 +49,26 @@ describe('body from the base model', () => {
   it('keeps every collider box inside the chassis bottom and the roof limit', () => {
     for (const id of ids) {
       const b = bodyOf(id);
-      const roof = PHYSICS.truckRoof - (b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY);
+      const roof = PHYSICS.truckRoof - rideOf(b);
       expect(b.boxes.length, id).toBeGreaterThan(0);
       for (const box of b.boxes) {
         expect(box.at.y - box.half.y, id).toBeGreaterThanOrEqual(-b.half.y - 1e-9);
         expect(box.at.y + box.half.y, id).toBeLessThanOrEqual(roof + 1e-9);
       }
+    }
+  });
+});
+
+const COM_HEIGHT: Record<string, number> = {
+  pickup: 0.45, hauler: 0.7, buggy: 0.4, wagon: 0.75, courier: 0.3, van: 0.5, longbed: 0.65, carrier: 0.75, tractor: 0.85,
+  jeep: 0.4, convertible: 0.32, bus: 0.8, niva: 0.4, bukhanka: 0.6, lincoln: 0.32, semi: 1.1, loader: 0.95,
+};
+
+describe('centre of mass', () => {
+  it('keeps every truck\'s centre of mass at its pinned height over flat ground at rest, whatever its wheels', () => {
+    for (const id of ids) {
+      const b = bodyOf(id);
+      expect(rideOf(b) + b.comY, id).toBeCloseTo(COM_HEIGHT[CHASSIS[id].look], 6);
     }
   });
 });

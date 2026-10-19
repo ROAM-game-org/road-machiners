@@ -125,7 +125,7 @@ export type Issue = {
   author: string;
 };
 
-export type Card = { itemId: string; issue: number; column: Column; labels: string[] };
+export type Card = { itemId: string; issue: number; column: Column; labels: string[]; title?: string };
 
 export type JobStage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'adhoc' | 'incident' | 'answer' | 'dev' | 'waste';
 export const RETIRED_JOB_STAGES = ['change'] as const;
@@ -220,6 +220,7 @@ export type FactoryState = {
   stuck: Record<string, StuckRecord>;
   sweepError: string | null;
   asked: Record<string, string>;
+  questionPosts: Record<string, number>;
   pendingFeedback: Record<string, PendingFeedback>;
   routed: number[];
 };
@@ -239,6 +240,7 @@ export type UnroutedReply = { issue: number; postId: number; text: string; at: s
 
 export interface GitHub {
   candidates(labels: string[]): Promise<Issue[]>;
+  allIssues(): Promise<Issue[]>;
   issue(number: number): Promise<Issue>;
   comments(number: number): Promise<IssueComment[]>;
   comment(number: number, body: string): Promise<void>;

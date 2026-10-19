@@ -15,8 +15,10 @@ import { vehicleMass } from '../sim/mass';
 import { groundSpeed, vehicleStats, type VehicleStats } from '../sim/stats';
 import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
 import { backsToDestination, driveMode, throughSpeed } from '../sim/steering';
-import { routeBlockers } from '../sim/ai';
-import { clearanceFor, type Clearance } from '../sim/clearance';
+import { routeBlockers, yieldsToTraffic } from '../sim/ai';
+import { clearanceFor, type Clearance, type Mover } from '../sim/clearance';
+import { combatFoesOf } from '../sim/combat';
+import { ropeClientOf } from '../sim/tow';
 import { atlasOf } from '../sim/atlas';
 import { propBase, railOffset, type Deck } from '../sim/bridge';
 import { deckSegments, groundAt, heightAt, tileAt, type DeckSegment, type Terrain } from '../sim/terrain';
@@ -24,7 +26,7 @@ import { TERRAIN, TERRAIN_TYPES } from '../data/terrain';
 import { craterReach, craterRimPoints } from '../sim/craters';
 import type { Crater, MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, bearing, clamp, DEG, dist, type Vec } from '../sim/vec';
-import { bodyOf, type Body } from '../sim/body';
+import { bodyOf, rideOf, type Body } from '../sim/body';
 import { wheelMounts } from './body';
 import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius, type Stance } from './turnaround';
 import { navLayer, type NavLayer } from '../sim/nav/layer';
@@ -242,11 +244,11 @@ function addVehicle(world: RAPIER.World, w: World, v: Vehicle): number {
 }
 
 function setMass(body: RAPIER.RigidBody, v: Vehicle): void {
-  const h = bodyOf(v.chassisId).half;
+  const { half: h, comY } = bodyOf(v.chassisId);
   const mass = vehicleMass(v);
   const k = (mass / 3) * T.inertiaScale;
   const inertia = { x: k * (h.y * h.y + h.z * h.z), y: k * (h.x * h.x + h.z * h.z), z: k * (h.x * h.x + h.y * h.y) };
-  body.setAdditionalMassProperties(mass, { x: 0, y: -T.comBelow, z: 0 }, inertia, { x: 0, y: 0, z: 0, w: 1 }, true);
+  body.setAdditionalMassProperties(mass, { x: 0, y: comY, z: 0 }, inertia, { x: 0, y: 0, z: 0, w: 1 }, true);
   body.recomputeMassPropertiesFromColliders();
 }
 
@@ -266,7 +268,7 @@ function noteOwner(owner: Map<number, string>, body: RAPIER.RigidBody, vehicleId
   for (let i = 0; i < body.numColliders(); i++) owner.set(body.collider(i).handle, vehicleId);
 }
 
-export type Car = { v: Vehicle; s: VehicleStats; b: Body; body: RAPIER.RigidBody; ctl: RAPIER.DynamicRayCastVehicleController; mem: Memory; plan: Plan; result: VehicleResult; grip: number; topShare: number; oil: Circle[]; kicked: boolean; layer: NavLayer; world: RAPIER.World; holding: boolean; holdGrip: number };
+export type Car = { v: Vehicle; s: VehicleStats; b: Body; body: RAPIER.RigidBody; ctl: RAPIER.DynamicRayCastVehicleController; mem: Memory; plan: Plan; result: VehicleResult; grip: number; topShare: number; oil: Circle[]; kicked: boolean; layer: NavLayer; world: RAPIER.World; holding: boolean; holdGrip: number; avoid: Set<string>; field: Car[] };
 
 function runFreed(d: Drive, w: World, steps: number): TurnResult {
   const world = restoreWorld(d.world.takeSnapshot());
@@ -283,8 +285,9 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
     const s = vehicleStats(w, v);
     const b = bodyOf(v.chassisId);
     const mem = memory[v.id];
-    return { v, s, b, body, ctl: makeCar(world, body, b, s.mass), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false, layer: navLayer(w.terrain, w.obstacles, s.radius), world, holding: false, holdGrip: 1 };
+    return { v, s, b, body, ctl: makeCar(world, body, b, s.mass), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false, layer: navLayer(w.terrain, w.obstacles, s.radius), world, holding: false, holdGrip: 1, avoid: avoidOf(w, v), field: [] };
   });
+  for (const c of cars) c.field = cars;
   const owner = new Map<number, string>();
   for (const c of cars) noteOwner(owner, c.body, c.v.id);
   const obstacleOf = new Map(Object.entries(d.obstacles).flatMap(([id, handles]) => handles.map((h) => [h, id] as const)));
@@ -572,6 +575,7 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
   };
   if (!order) return { ...base, dest: null, route: null, target: idleTarget(speed), stopAt: false };
   if (order.kind === 'brake') return { ...base, dest: null, route: null, target: 0, stopAt: false };
+  if (yieldsToTraffic(w, v)) return { ...base, dest: null, route: null, target: 0, stopAt: false };
   const blockers = routeBlockers(w, v);
   const stored = mem.route && dist(mem.route.dest, order.dest) < RULES.arriveRadius && mem.route.radius === s.radius ? continueRoute(w, v.pos, mem.route, order.dest, s.radius, blockers, v) : null;
   const path = v.direct ? null : stored ?? [...route(w, v.pos, order.dest, s.radius, blockers, v)];
@@ -731,6 +735,26 @@ function watchClearance(c: Car, at: Vec, heading: number, speed: number, dest: V
   mem.clearBehind = watching ? freeDistance(c, -1, at, heading, mps, dest) : Infinity;
 }
 
+function avoidOf(w: World, v: Vehicle): Set<string> {
+  const client = ropeClientOf(w, v.id);
+  return new Set([v.id, ...(v.brain?.ramTarget ? [v.brain.ramTarget] : []), ...(client ? [client] : []), ...combatFoesOf(w, v)]);
+}
+
+function moversNear(c: Car, from: Vec, reach: number, seconds: number): Mover[] {
+  const parked = toMps(RULES.parkedSpeed);
+  const movers: Mover[] = [];
+  for (const o of c.field) {
+    if (c.avoid.has(o.v.id)) continue;
+    const t = o.body.translation();
+    const u = o.body.linvel();
+    if (Math.hypot(u.x, u.z) < parked) continue;
+    const pos = { x: t.x / S, y: t.z / S };
+    const vel = { x: u.x / S, y: u.z / S };
+    if (dist(from, pos) < reach + Math.hypot(vel.x, vel.y) * seconds + o.s.radius) movers.push({ id: o.v.id, pos, vel, r: o.s.radius });
+  }
+  return movers;
+}
+
 function freeDistance(c: Car, sign: 1 | -1, from: Vec, facing: number, mps: number, dest: Vec): number {
   const { plan, b, mem } = c;
   const clearance = plan.clearance!;
@@ -740,11 +764,13 @@ function freeDistance(c: Car, sign: 1 | -1, from: Vec, facing: number, mps: numb
   const grip = (D.cornerAccel * c.grip * S) / Math.max(mps * mps, 1);
   const horizon = (mps * mps) / (2 * plan.stopDecel * c.grip * S) + D.clearMargin + bodyLength(c);
   const seconds = (D.clearStep * S) / Math.max(mps, 1);
+  const movers = sign > 0 ? moversNear(c, from, horizon, (horizon * S) / Math.max(mps, 1)) : [];
   let at = from;
   let heading = facing;
   let steer = mem.steer;
   for (let travelled = 0; travelled < horizon; travelled += D.clearStep) {
     if (clearance.touches(at, heading)) return travelled;
+    if (movers.length > 0 && clearance.meetsMoving(at, heading, (travelled * S) / Math.max(mps, 1), movers)) return travelled;
     const aim = route ? routeAim(route, at) : dest;
     const want = clamp(angleDiff(heading + (sign < 0 ? Math.PI : 0), bearing(at, aim)) * gain, -plan.maxSteer, plan.maxSteer);
     steer = clamp(want, steer - T.steerRate * seconds, steer + T.steerRate * seconds);
@@ -1044,8 +1070,7 @@ function mountPoint(p: Pose, m: { x: number; z: number }): Vec {
 }
 
 function rideHeight(w: World, v: Vehicle): number {
-  const b = bodyOf(v.chassisId);
-  return heightAt(w.terrain, v.pos.x, v.pos.y) * S + b.wheelRadius + T.suspensionRest - b.wheelY;
+  return heightAt(w.terrain, v.pos.x, v.pos.y) * S + rideOf(bodyOf(v.chassisId));
 }
 
 export function isLifted(d: Drive, w: World, v: Vehicle): boolean {

@@ -95,6 +95,27 @@ describe('Glass Flats model sizes', () => {
   });
 });
 
+const ROADSIDE_SIZES = [
+  { model: 'road_sign', long: 1.6, tall: 2.6 },
+  { model: 'route_sign', long: 4, tall: 3.5 },
+  { model: 'barrel', long: 0.9, tall: 0.6 },
+] as const;
+
+describe('roadside model sizes', () => {
+  it.each(ROADSIDE_SIZES)('$model is about $long m long and $tall m tall', ({ model, long, tall }) => {
+    const boxes = shapeBoxes(model);
+    expect(Math.abs(lengthOf(boxes) - long)).toBeLessThanOrEqual(0.6);
+    expect(Math.abs(Math.max(...boxes.map((b) => b.z1)) - tall)).toBeLessThanOrEqual(0.5);
+  });
+
+  it.each(['rock', 'rock_slab', 'rock_split'])('keeps %s inside its unit circle', (model) => {
+    for (const b of shapeBoxes(model)) {
+      const reach = Math.max(...[b.x0, b.x1].flatMap((x) => [b.y0, b.y1].map((y) => Math.hypot(x, y))));
+      expect(reach, JSON.stringify(b)).toBeLessThanOrEqual(1.1);
+    }
+  });
+});
+
 const GATE_TILES: Record<string, number> = {
   fort_pumpworks_gate: FORTRESS.gate.height,
   fort_cistern_gate: FORTRESS.gate.height,

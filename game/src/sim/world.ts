@@ -24,7 +24,7 @@ import { applyGodMode, freezeDriving, freezeFire } from './cheats';
 import { assignAutoOrders, dropMagazine, fireWeapons, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
 import { cutLine } from './harpoon';
 import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout, isKnockedOut } from './defeat';
-import { advanceIntro, greetAtScale, wakeInTown } from './intro';
+import { advanceIntro, greetAtScale, greetAtWell, wakeInTown } from './intro';
 import { healPlayer } from './health';
 import { discoverSites } from './locations';
 import { findSurveySites } from './survey';
@@ -48,7 +48,7 @@ import { advanceAid, readyAid } from './aid';
 import { readyHandover } from './parcel';
 import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
-import { QUESTS, type CarriedQuestVars } from './quests';
+import { QUESTS, openRoadScene, type CarriedQuestVars } from './quests';
 import { repairQuests, type SavedRevisions } from './quest-repair';
 import { isNoteId } from '../data/locals';
 import { advanceFuryRoad, outpostFactsAt, runStart, startRun } from './fury-road';
@@ -70,6 +70,7 @@ import { advanceJobs, startAutoRepair } from './jobs';
 import { advanceEngineHeat } from './engine-heat';
 import { nearestPad } from './sites';
 import { openingObstacles, setUpOpening } from './opening';
+import { startPose } from './start-pose';
 import { clamp, dist, type Vec } from './vec';
 import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
@@ -222,28 +223,6 @@ export function startOf(seed: number, setup: WorldSetup): { pos: Vec; heading: n
 
 function wearCoreParts(world: World, truck: Vehicle, wear: number): void {
   for (const item of truck.items) if (item.kind === "part" && partDef(item.part.defId).kind === "core") item.part = makePart(world, item.part.defId, wear);
-}
-
-export function startPose(): { pos: Vec; heading: number } {
-  const { road, distance, offset } = REGION.playerStart;
-  const points = REGION.roads[road];
-  let left = distance;
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1];
-    const b = points[i];
-    const length = dist(a, b);
-    if (left > length) {
-      left -= length;
-      continue;
-    }
-    const along = Math.atan2(b.y - a.y, b.x - a.x);
-    const t = left / length;
-    return {
-      pos: { x: a.x + (b.x - a.x) * t - Math.sin(along) * offset, y: a.y + (b.y - a.y) * t + Math.cos(along) * offset },
-      heading: along - Math.PI / 2,
-    };
-  }
-  throw new Error(`Player start lies ${distance} tiles along road ${road}, past its end`);
 }
 
 export function townStart(): { pos: Vec; heading: number } {
@@ -409,8 +388,10 @@ export function endTurn(
     checkKnockout(w);
     advanceNpcKnockouts(w);
     advanceFuryRoad(w);
+    openRoadScene(w);
     spawnNpcs(w);
     advanceIntro(w);
+    greetAtWell(w);
     greetAtScale(w);
     advanceShops(w);
     practiceContacts(w, refreshVision(w));

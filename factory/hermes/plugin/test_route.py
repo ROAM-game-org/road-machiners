@@ -282,6 +282,24 @@ def test_hook_queues_a_plain_approval_reply_and_hands_it_to_hermes_with_a_header
     }
 
 
+def test_reply_to_a_questions_post_answers_them():
+    assert plugin.route("the brass one", "77", "-100", POSTS, CFG, question_posts={"77": 6}) == ("answer-questions", 6, "the brass one")
+    assert plugin.route("the brass one", "78", "-100", POSTS, CFG, question_posts={"77": 6}) is None
+    assert plugin.route("  ", "77", "-100", POSTS, CFG, question_posts={"77": 6}) is None
+
+
+def test_hook_queues_an_answer_to_questions_and_keeps_it_from_hermes(tmp_path):
+    (tmp_path / "state").mkdir()
+    (tmp_path / "state" / "state.json").write_text('{"approvalPosts": {}, "questionPosts": {"77": 6}}')
+    result, adapter, inbox = dispatch(tmp_path, "1", text="the brass one", reply="77")
+    assert result == {"action": "skip", "reason": "factory-answer-questions"}
+    assert adapter.sent == []
+    (file,) = inbox.iterdir()
+    assert json.loads(file.read_text()) == {
+        "kind": "answer-questions", "issue": 6, "text": "the brass one", "by": "1", "byName": "Ann", "chat": "-100", "messageId": 5, "postId": 77,
+    }
+
+
 def route_setup(tmp_path, session=None):
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
     committee.seed()

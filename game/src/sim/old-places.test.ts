@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ECONOMY, GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
+import { DIRECTIONS } from '../data/directions';
 import { OLD_PLACE_TYPES, OLD_TABLES, SALVAGE, type LootTable } from '../data/salvage';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
@@ -34,6 +35,18 @@ function landmark(look: Exclude<PropKind, 'rock'>, pos: Vec, k: number): Obstacl
 }
 
 const at = (o: Vec, dx: number, dy: number): Vec => ({ x: o.x + dx, y: o.y + dy });
+
+describe('roadside props', () => {
+  const roadside: readonly string[] = ['roadSign', 'routeSign', 'barrel', 'drums'];
+
+  it('make no old place and no direction cue', () => {
+    const looks = oldPlaces(baked).flatMap((p) => p.props.map((o) => (o.kind === 'landmark' ? o.look : o.kind)));
+
+    expect(looks.filter((look) => roadside.includes(look))).toEqual([]);
+    expect(DIRECTIONS.cueLooks.filter((look) => roadside.includes(look))).toEqual([]);
+    expect(baked.some((o) => o.kind === 'landmark' && o.look === 'roadSign')).toBe(true);
+  });
+});
 
 describe('old-world places', () => {
   it('types places by what stands in them, and keeps hulks apart from buildings', () => {
