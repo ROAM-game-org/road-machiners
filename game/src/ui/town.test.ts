@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { pressureHint } from "./town";
+import { goodRoutesTitle, pressureHint, showsRelief } from "./town";
+import { resetSeeAll, toggleSeeAll } from "./see-all";
+import { emptyWorld } from "../sim/testkit";
+import { RELIEF } from "../data/market";
+import { shortHere } from "../sim/market";
 import { shortBy } from "./shop-rows";
-import type { ShopDef } from "../data/market";
-import type { ShopState } from "../sim/market";
+import { SHOPS } from "../data/market";
+import { stockTarget, type ShopState } from "../sim/market";
 
 const en = (msg: Msg | null): string | null => (msg === null ? null : resolve(msg, "en"));
 const hint = (...args: Parameters<typeof pressureHint>) => {
@@ -28,20 +32,55 @@ describe("the reason a purchase is out of reach", () => {
 });
 
 describe("the price hint of a good", () => {
-  const def = { makes: ["salt"], needs: ["scrap"] } as unknown as ShopDef;
-  const state = (pressure: Record<string, number>) => ({ pressure }) as unknown as ShopState;
+  const def = SHOPS.nose;
+  const state = (goods: Record<string, number>) => ({ goods: { salt: stockTarget("nose", "salt"), scrap: stockTarget("nose", "scrap"), ...goods } }) as unknown as ShopState;
 
   it("tints a made good as cheap and a needed good as dear", () => {
     expect(hint(def, state({}), "salt")).toEqual({ tone: "good", title: "Cheap here" });
     expect(hint(def, state({}), "scrap")).toEqual({ tone: "bad", title: "Dear here" });
   });
 
-  it("says nothing about a good the shop neither makes nor needs", () => {
-    expect(pressureHint(def, state({}), "parts")).toBeNull();
+  it("lets a strong stock shortage or glut outrank what the shop makes", () => {
+    expect(hint(def, state({ salt: 0 }), "salt")).toEqual({ tone: "bad", title: "Short here" });
+    expect(hint(def, state({ scrap: 2 * stockTarget("nose", "scrap") }), "scrap")).toEqual({ tone: "good", title: "Flooded here" });
+  });
+});
+
+describe("production on the market tab", () => {
+  const relieved = () => {
+    const w = emptyWorld();
+    w.turn = RELIEF.delayTurns + 10;
+    w.shops.granary.goods.grain = 0;
+    w.shops.granary.shortSince.grain = 0;
+    return w;
+  };
+
+  it("hides where a good is made and used, and the slow import, from the player", () => {
+    resetSeeAll();
+    expect(goodRoutesTitle("grain")).toBeNull();
+    expect(showsRelief(relieved(), "granary", "grain")).toBe(false);
   });
 
-  it("lets a strong price pressure outrank what the shop makes", () => {
-    expect(hint(def, state({ salt: 1 }), "salt")).toEqual({ tone: "bad", title: "Short here" });
-    expect(hint(def, state({ scrap: -1 }), "scrap")).toEqual({ tone: "good", title: "Flooded here" });
+  it("shows them under see all", () => {
+    resetSeeAll();
+    toggleSeeAll();
+    expect(en(goodRoutesTitle("grain"))).toMatch(/^Made at .*Bowl.*\. Used at .*Granary/);
+    expect(showsRelief(relieved(), "granary", "grain")).toBe(true);
+    resetSeeAll();
+  });
+});
+
+describe("the short tone and the short rule", () => {
+  it("agree for every shop and traded good at every stock level", () => {
+    const w = emptyWorld();
+    for (const def of Object.values(SHOPS)) {
+      for (const good of def.goods) {
+        const target = stockTarget(def.id, good);
+        for (const stock of [0, Math.floor(target / 2), Math.floor(target * 0.7), target, target * 2]) {
+          w.shops[def.id].goods[good] = stock;
+          expect(hint(def, w.shops[def.id], good)?.title === "Short here").toBe(shortHere(w, def.id, good));
+        }
+      }
+    }
   });
 });

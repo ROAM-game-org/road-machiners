@@ -2,7 +2,7 @@
 import { localOfQuest } from '../sim/dialogue-rules';
 import { chooseQuestOption, leaveQuest, QUESTS, questView, type QuestView } from '../sim/quests';
 import type { QuestLine, QuestLive, World } from '../sim/types';
-import { createIcon } from './cards';
+import { createIcon, type IconName } from './cards';
 import { localName, localRole } from '../text/names';
 import { t, verbatim, type Msg } from '../text/msg';
 import { el, isBrowserChord, panel } from './dom';
@@ -133,6 +133,8 @@ async function showArt(img: HTMLImageElement, key: string, isHeld: (img: HTMLIma
   await img.decode().catch(() => undefined);
 }
 
+const LOOK_KEYS = ['KeyI', 'KeyC', 'KeyJ'];
+
 export class QuestScreen {
   private root = panel('modal');
   private shown: QuestLive | null = null;
@@ -150,8 +152,9 @@ export class QuestScreen {
   private revealEnd = 0;
   private termTip = new TermTip(this.root);
   private artStage = new QuestArtStage();
+  private look = this.lookRow();
 
-  constructor(private host: UiHost) {
+  constructor(private host: UiHost, private lookOver: () => boolean) {
     this.root.classList.add('quest-screen');
     this.root.style.display = 'none';
     this.root.addEventListener('click', (e) => this.onClick(e));
@@ -170,6 +173,10 @@ export class QuestScreen {
 
   isOpen(): boolean {
     return this.host.world().player.quests.live !== null;
+  }
+
+  focus(): void {
+    this.root.querySelector<HTMLElement>('.quest-next, .quest-choice')?.focus();
   }
 
   render(): void {
@@ -236,6 +243,7 @@ export class QuestScreen {
     this.root.classList.toggle('quest-page', view.view === 'page');
     this.restack();
     const endMs = view.view === 'page' ? this.drawPage(w, view) : this.drawTalk(w, view);
+    this.root.append(this.look);
     this.revealEnd = performance.now() + endMs;
     this.placeScroll(scroll, before);
   }
@@ -251,6 +259,11 @@ export class QuestScreen {
     };
     apply();
     requestAnimationFrame(apply);
+  }
+
+  private lookRow(): HTMLElement {
+    const button = (key: string, icon: IconName, label: Msg) => el('button', { class: 'btn-s', 'aria-label': label, title: label, onclick: () => this.host.runKey(key) }, createIcon(icon));
+    return el('div', { class: 'quest-look' }, button('KeyI', 'truck', t('hud.inventoryLabel')), button('KeyC', 'driver', t('hud.character')), button('KeyJ', 'journal', t('journal.hint')));
   }
 
   private drawTalk(w: World, view: QuestView): number {
@@ -366,7 +379,7 @@ export class QuestScreen {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (!this.isOpen() || isBrowserChord(e)) return;
+    if (!this.isOpen() || isBrowserChord(e) || LOOK_KEYS.includes(e.code) || this.lookOver()) return;
     e.stopImmediatePropagation();
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') return this.skip(e);
     const index = KEY_DIGITS.indexOf(e.code);

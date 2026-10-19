@@ -3,7 +3,7 @@
 Grid: 5 columns by 9 rows, 2.42 m across by 5.85 m along. Half height 0.5 m, from PHYSICS.bodies.van.
 Rows 0 to 2 are a short sloped hood with a cutout over the engine cells, rows 3 to 8 one tall closed box.
 The flat box roof is the row surface for rows 3 to 8, so weapons and cargo stand on it like on a roof rack.
-Wheels sit on rows 1 and 7 in the outer columns, radius 0.45 m, half width 0.18 m, mount 0.35 m below the center.
+Wheels sit on rows 1 and 7 in the outer columns, radius 0.58 m, half width 0.22 m, mount 0.35 m below the center.
 Run: blender --background --python tools/blender/base_van.py -- public/models/base_van.glb [tmp/base_van.png]
 """
 
@@ -17,13 +17,13 @@ import bpy
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import BASE_COLORS, INSET, SUSPENSION_REST, Grid, arch_profile, check_base, flare, level_sockets  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, INSET, SUSPENSION_REST, Grid, arch_profile, check_base, check_door_gap, flare, level_sockets  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 302
 G = Grid(rows=9, cols=5, half_height=0.5)
-WHEEL_R = 0.45
-WHEEL_HALF_W = 0.18
+WHEEL_R = 0.58
+WHEEL_HALF_W = 0.22
 HUB_Z = -0.35 - SUSPENSION_REST
 WHEELS_X = [G.row_x(1), G.row_x(7)]
 WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
@@ -134,6 +134,7 @@ def box(kit: Kit) -> None:
     # Front door windows follow the rake. The rest of the box side stays one closed panel.
     lo, hi = G.top + 0.12, UNDER_ROOF - 0.1
     window = [(WINDOW_BACK, lo), (rake_x(lo) - 0.12, lo), (rake_x(hi) - 0.12, hi), (WINDOW_BACK, hi)]
+    check_door_gap("side_window", WINDOW_BACK, rake_x(lo) - 0.12, lo, WHEELS_X, HUB_Z, WHEEL_R + ARCH_CLEARANCE)
     mirrored_prism(kit, "side_window", window, SIDE, SIDE + 0.015, "glass")
     top = STRIPE_Z + STRIPE_H
     rise = UNDER_ROOF - 0.12 - top

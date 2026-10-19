@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PERK_NUMBERS, XP_SOURCES } from '../data/skills';
 import { CONTRACTS, SHOPS } from '../data/market';
 import { buyPrice, sellPrice } from './economy';
-import { goodBasePrice, goodValue, vehicleValue, type Contract } from './market';
+import { goodBasePrice, goodValue, standingPressures, vehicleValue, type Contract } from './market';
 import { makePart } from './factory';
 import type { PersonalityId } from '../data/personalities';
 import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, type LineId, type Topic } from '../data/dialogue';
@@ -25,7 +25,7 @@ import { hasCargo, emptyHidden } from './salvage';
 import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { CONDITIONS, EFFECTS, PREPARES } from './dialogue-rules';
 import { addState, aidData, endState, stateOf } from './states';
-import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, startCombat, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, setShopPressure, startCombat, testDrive } from './testkit';
 import type { TraitId } from '../data/npcs';
 import type { SalvageStock, Vehicle, World } from './types';
 import { directionsTo } from './directions';
@@ -267,7 +267,7 @@ describe('NPC calls', () => {
 
   it('only the fight topics call during combat', () => {
     const fight = Object.values(TOPICS).filter((t) => t.raise?.duringCombat).map((t) => t.id);
-    expect(fight.sort()).toEqual(['demand', 'giveUp', 'mercyPlea', 'spillClaim', 'surrender', 'truceOffer']);
+    expect(fight.sort()).toEqual(['demand', 'demandCut', 'giveUp', 'mercyPlea', 'spillClaim', 'surrender', 'truceOffer']);
   });
 
   it('an NPC that does not see the player stays quiet', () => {
@@ -642,7 +642,7 @@ describe('market ears', () => {
   const askText = en(TOPICS.marketNews.ask!.say);
 
   function backFromNose(w: World, npc: Vehicle): void {
-    remember(w, npc, { kind: 'prices', shop: 'nose', pressure: { ...w.shops.nose.pressure } });
+    remember(w, npc, { kind: 'prices', shop: 'nose', pressure: standingPressures(w, 'nose') });
   }
 
   it('a trader back from a town tells its buy and sell prices', () => {
@@ -660,7 +660,7 @@ describe('market ears', () => {
     w.player.perks = ['marketEars'];
     backFromNose(w, npc);
     const goods = SHOPS.nose.goods.map((good) => ({ good, buy: buyPrice(w, 'nose', good), sell: sellPrice(w, 'nose', good) }));
-    for (const good of SHOPS.nose.goods) w.shops.nose.pressure[good] = 0.5;
+    for (const good of SHOPS.nose.goods) setShopPressure(w, 'nose', good, 0.5);
     const open = callVehicle(w, npc.id);
     const asked = chooseOption(open, optionIndex(open, askText));
     expect(asked.player.call?.vars.prices).toEqual({ kind: 'prices', town: 'nose', goods });
@@ -684,7 +684,7 @@ describe('market ears', () => {
   it('is not offered by a driver that has not been to a town', () => {
     const { w, npc } = withNpc('trader', 'independent');
     w.player.perks = ['marketEars'];
-    remember(w, npc, { kind: 'prices', shop: 'granary', pressure: { ...w.shops.granary.pressure } });
+    remember(w, npc, { kind: 'prices', shop: 'granary', pressure: standingPressures(w, 'granary') });
     expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
   });
 });
@@ -693,7 +693,7 @@ describe('trading tips', () => {
   const askText = en(TOPICS.tips.ask!.say);
 
   function visit(w: World, npc: Vehicle, shop: string): void {
-    remember(w, npc, { kind: 'prices', shop, pressure: { ...w.shops[shop].pressure } });
+    remember(w, npc, { kind: 'prices', shop, pressure: standingPressures(w, shop) });
   }
 
   function tipOf(w: World, npc: Vehicle): unknown {
@@ -707,12 +707,13 @@ describe('trading tips', () => {
   it('tells of a good it saw far over its value', () => {
     const { w, npc } = withNpc('trader', 'independent');
     visit(w, npc, 'bowl');
-    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'salt', dear: true } });
+    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'batteries', dear: true } });
   });
 
   it('tells of a good it saw far under its value', () => {
     const { w, npc } = withNpc('trader', 'independent');
-    visit(w, npc, 'salvage-yard');
+    const pressure = Object.fromEntries(SHOPS['salvage-yard'].goods.map((good) => [good, pressureFor('salvage-yard', good, good === 'parts' ? 0.6 : 1)]));
+    remember(w, npc, { kind: 'prices', shop: 'salvage-yard', pressure });
     expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'salvage-yard', good: 'parts', dear: false } });
   });
 
@@ -738,7 +739,7 @@ describe('trading tips', () => {
     expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'nose', good: 'electronics', dear: true } });
     w.turn += 1;
     visit(w, npc, 'bowl');
-    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'salt', dear: true } });
+    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'batteries', dear: true } });
   });
 
   it('tells nothing once the memory has faded', () => {
@@ -752,10 +753,10 @@ describe('trading tips', () => {
   it('tells what it saw, whatever the live prices did since, and rolls nothing', () => {
     const { w, npc } = withNpc('trader', 'independent');
     visit(w, npc, 'bowl');
-    for (const good of SHOPS.bowl.goods) w.shops.bowl.pressure[good] = 0;
-    w.shops.bowl.pressure.salt = -0.5;
+    for (const good of SHOPS.bowl.goods) setShopPressure(w, 'bowl', good, 0);
+    setShopPressure(w, 'bowl', 'salt', -0.5);
     const rng = w.rngState;
-    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'salt', dear: true } });
+    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'batteries', dear: true } });
     expect(w.rngState).toBe(rng);
   });
 
@@ -764,7 +765,7 @@ describe('trading tips', () => {
     visit(w, npc, 'bowl');
     const open = callVehicle(w, npc.id);
     const asked = chooseOption(open, optionIndex(open, askText));
-    expect(asked.player.call?.vars.tip).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'salt', dear: true } });
+    expect(asked.player.call?.vars.tip).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'batteries', dear: true } });
     expect(currentOptions(asked).map((o) => en(o.line))).toEqual(expect.arrayContaining(['Thanks. Something else.', 'Over and out.']));
   });
 
@@ -1295,8 +1296,8 @@ describe('robber truce', () => {
     forceOption('truceOffered', 'accept');
     const { w, robber } = holdup();
     const next = askTruce(w, robber.id);
-    expect(next.player.call?.node).toBe('demanded');
-    expect(currentOptions(next).map((o) => en(o.line))).toEqual(['Fine. Take it.', 'Come and get it.', 'Hang up.']);
+    expect(next.player.call?.node).toBe('tollCargo');
+    expect(currentOptions(next).map((o) => en(o.line))).toEqual(['Fine. Take it.', "Here's your money. Now back off.", 'Come and get it.', 'Hang up.']);
     expect(isHostile(next, next.vehicles.find((v) => v.id === robber.id)!, playerVehicle(next))).toBe(true);
   });
 
@@ -1312,7 +1313,7 @@ describe('robber truce', () => {
 
   it('refusing keeps the feud, hides the truce and settles the radio demand', () => {
     const { w, robber } = holdup();
-    const next = chooseOption(askTruce(w, robber.id), 1);
+    const next = chooseOption(askTruce(w, robber.id), 2);
     expect(isHostile(next, next.vehicles.find((v) => v.id === robber.id)!, playerVehicle(next))).toBe(true);
     expect(next.player.talked[robber.id]?.demand).toBe('refused');
     expect(hasCargo(playerVehicle(next))).toBe(true);
@@ -1326,7 +1327,7 @@ describe('robber truce', () => {
     const next = hangUp(open);
     expect(next.player.talked[robber.id]?.demand).toBe('refused');
     expect(stateOf(next, 'plea', next.player.vehicleId, robber.id)).not.toBeNull();
-    expect(chooseOption(structuredClone(open), 1).player.talked[robber.id]?.demand).toBe('refused');
+    expect(chooseOption(structuredClone(open), 2).player.talked[robber.id]?.demand).toBe('refused');
   });
 
   it('a defensive feud grants the truce for free', () => {

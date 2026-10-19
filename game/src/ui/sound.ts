@@ -44,7 +44,7 @@ export function knobAngle(value: number): number {
   return (value * 2 - 1) * SWEEP;
 }
 
-function nextButton(onclick: () => void): HTMLElement {
+export function nextTrackKey(onclick: () => void): HTMLElement {
   const button = el("button", { class: "radio-next", title: t("sound.next"), "aria-label": t("sound.next"), onclick });
   button.innerHTML = `<svg viewBox="0 0 14 8" focusable="false"><path d="M0 0L5 4L0 8ZM5 0L10 4L5 8Z"/><rect x="10.5" width="1.6" height="8"/></svg>`;
   return button;
@@ -52,103 +52,111 @@ function nextButton(onclick: () => void): HTMLElement {
 
 const KNOB_KEYS: Record<string, number> = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 };
 
+export type SoundView = { root: HTMLElement; dispose(): void };
+
 export class SoundSettings {
   private settings: Settings;
-  private muteSwitch: HTMLElement;
-  private knobs = new Map<Bus, HTMLElement>();
-  private readouts = new Map<Bus, HTMLElement>();
+  private readonly listeners = new Set<() => void>();
 
-  constructor(private mixer: Mixer, private storage: Storage, faceplate: HTMLElement, keys: HTMLElement, nextTrack: () => void) {
+  constructor(private readonly mixer: Mixer, private readonly storage: Storage) {
     this.settings = parseSettings(storage.getItem(KEY));
-    this.muteSwitch = el("div", { class: "radio-mute" });
-    faceplate.append(...BUSES.map((b) => this.knob(b)), this.muteSwitch);
-    keys.append(nextButton(nextTrack));
-    for (const b of BUSES) this.applyVolume(b);
-    this.applyMute();
+    for (const b of BUSES) mixer.setBusVolume(b, this.settings.volume[b]);
+    mixer.setMuted(this.settings.muted);
+  }
+
+  volume(bus: Bus): number {
+    return this.settings.volume[bus];
+  }
+
+  muted(): boolean {
+    return this.settings.muted;
+  }
+
+  setVolume(bus: Bus, value: number): void {
+    if (value === this.settings.volume[bus]) return;
+    this.settings.volume[bus] = value;
+    this.mixer.setBusVolume(bus, value);
+    this.changed();
   }
 
   toggleMute(): void {
     this.settings.muted = !this.settings.muted;
-    this.applyMute();
-    this.save();
+    this.mixer.setMuted(this.settings.muted);
+    this.changed();
   }
 
-  private knob(bus: Bus): HTMLElement {
-    const dial = el("div", { class: "knob-dial" }, el("span", { class: "knob-notch" }));
-    const knob = el("div", { class: "knob", role: "slider", tabindex: 0, "aria-label": t("sound.volume", { bus: LABEL[bus] }), "aria-valuemin": 0, "aria-valuemax": 100 }, dial);
-    this.knobs.set(bus, knob);
-    const readout = el("span", { class: "knob-readout" });
-    this.readouts.set(bus, readout);
-    const cell = el("div", { class: "knob-cell" }, knob, el("span", { class: "knob-labels" }, el("span", { class: "knob-label" }, LABEL[bus]), readout));
-    this.bindDrag(cell, bus);
-    this.bindWheel(cell, bus);
-    this.bindKeys(knob, bus);
-    return cell;
+  onChange(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => void this.listeners.delete(listener);
   }
 
-  private bindDrag(cell: HTMLElement, bus: Bus): void {
-    let drag: { pointerId: number; x: number; y: number; value: number } | null = null;
-    cell.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0 || drag) return;
-      e.preventDefault();
-      cell.setPointerCapture(e.pointerId);
-      drag = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, value: this.settings.volume[bus] };
-      cell.classList.add("turning");
-    });
-    cell.addEventListener("pointermove", (e) => {
-      if (drag?.pointerId === e.pointerId) this.setVolume(bus, dragged(drag.value, e.clientX - drag.x, e.clientY - drag.y));
-    });
-    cell.addEventListener("lostpointercapture", (e) => {
-      if (drag?.pointerId !== e.pointerId) return;
-      drag = null;
-      cell.classList.remove("turning");
-    });
+  private changed(): void {
+    this.storage.setItem(KEY, JSON.stringify(this.settings));
+    for (const listener of this.listeners) listener();
   }
+}
 
-  private bindWheel(cell: HTMLElement, bus: Bus): void {
-    cell.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      this.setVolume(bus, turned(this.settings.volume[bus], -Math.sign(e.deltaY)));
-    });
-  }
+export function muteSwitch(settings: SoundSettings): SoundView {
+  const root = el("div", { class: "radio-mute" });
+  const draw = () => {
+    const muted = settings.muted();
+    root.replaceChildren(createSwitch({ on: t("sound.on"), off: t("sound.mute"), checked: !muted, key: "M", title: muted ? t("sound.unmuteTitle") : t("sound.muteTitle"), onclick: () => settings.toggleMute() }));
+  };
+  draw();
+  return { root, dispose: settings.onChange(draw) };
+}
 
-  private bindKeys(knob: HTMLElement, bus: Bus): void {
-    knob.addEventListener("keydown", (e) => {
-      const steps = KNOB_KEYS[e.code];
-      if (steps === undefined) return;
-      e.preventDefault();
-      e.stopPropagation();
-      this.setVolume(bus, turned(this.settings.volume[bus], steps));
-    });
-  }
+export function soundSection(settings: SoundSettings): SoundView {
+  const mute = muteSwitch(settings);
+  const knobs = BUSES.map((bus) => knobCell(settings, bus));
+  const root = el("div", { class: "sound-row" }, ...knobs.map((k) => k.root), mute.root);
+  return { root, dispose: () => [mute, ...knobs].forEach((v) => v.dispose()) };
+}
 
-  private setVolume(bus: Bus, value: number): void {
-    if (value === this.settings.volume[bus]) return;
-    this.settings.volume[bus] = value;
-    this.applyVolume(bus);
-    this.save();
-  }
-
-  private applyVolume(bus: Bus): void {
-    const volume = this.settings.volume[bus];
-    this.mixer.setBusVolume(bus, volume);
-    const knob = this.knobs.get(bus)!;
+function knobCell(settings: SoundSettings, bus: Bus): SoundView {
+  const dial = el("div", { class: "knob-dial" }, el("span", { class: "knob-notch" }));
+  const knob = el("div", { class: "knob", role: "slider", tabindex: 0, "aria-label": t("sound.volume", { bus: LABEL[bus] }), "aria-valuemin": 0, "aria-valuemax": 100 }, dial);
+  const readout = el("span", { class: "knob-readout" });
+  const cell = el("div", { class: "knob-cell" }, knob, el("span", { class: "knob-labels" }, el("span", { class: "knob-label" }, LABEL[bus]), readout));
+  const draw = () => {
+    const volume = settings.volume(bus);
     const percent = Math.round(volume * 100);
     knob.setAttribute("aria-valuenow", String(percent));
     bindAttr(knob, "aria-valuetext", t("sound.percent", { n: percent }));
-    setText(this.readouts.get(bus)!, t("sound.percent", { n: percent }));
+    setText(readout, t("sound.percent", { n: percent }));
     knob.style.setProperty("--knob-angle", `${knobAngle(volume)}deg`);
-  }
+  };
+  bindDrag(cell, settings, bus);
+  cell.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    settings.setVolume(bus, turned(settings.volume(bus), -Math.sign(e.deltaY)));
+  });
+  knob.addEventListener("keydown", (e) => {
+    const steps = KNOB_KEYS[e.code];
+    if (steps === undefined) return;
+    e.preventDefault();
+    e.stopPropagation();
+    settings.setVolume(bus, turned(settings.volume(bus), steps));
+  });
+  draw();
+  return { root: cell, dispose: settings.onChange(draw) };
+}
 
-  private applyMute(): void {
-    this.mixer.setMuted(this.settings.muted);
-    const muted = this.settings.muted;
-    this.muteSwitch.replaceChildren(
-      createSwitch({ on: t("sound.on"), off: t("sound.mute"), checked: !muted, key: "M", title: muted ? t("sound.unmuteTitle") : t("sound.muteTitle"), onclick: () => this.toggleMute() }),
-    );
-  }
-
-  private save(): void {
-    this.storage.setItem(KEY, JSON.stringify(this.settings));
-  }
+function bindDrag(cell: HTMLElement, settings: SoundSettings, bus: Bus): void {
+  let drag: { pointerId: number; x: number; y: number; value: number } | null = null;
+  cell.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || drag) return;
+    e.preventDefault();
+    cell.setPointerCapture(e.pointerId);
+    drag = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, value: settings.volume(bus) };
+    cell.classList.add("turning");
+  });
+  cell.addEventListener("pointermove", (e) => {
+    if (drag?.pointerId === e.pointerId) settings.setVolume(bus, dragged(drag.value, e.clientX - drag.x, e.clientY - drag.y));
+  });
+  cell.addEventListener("lostpointercapture", (e) => {
+    if (drag?.pointerId !== e.pointerId) return;
+    drag = null;
+    cell.classList.remove("turning");
+  });
 }

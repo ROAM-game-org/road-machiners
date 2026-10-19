@@ -31,6 +31,7 @@ function strandedAmbush(): { w: World; raider: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   addGoods(w, playerVehicle(w), 'scrap', 2);
+  w.player.money = 0;
   w.player.fuel = 0;
   const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 30 }, Math.PI);
   raider.brain = npcBrain('buggy', raider.pos, ['raider']);

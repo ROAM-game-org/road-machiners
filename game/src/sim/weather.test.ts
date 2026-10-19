@@ -7,7 +7,7 @@ import { addVehicle, emptyWorld, settleStorms } from './testkit';
 import { sightRadius } from './vision';
 import { vehicleStats } from './stats';
 import type { WeatherEvent, World } from './types';
-import { advanceExposure, advanceWeather, makeWeather, stormDepth, stormShare, stormStrength, weatherAt, weatherOn } from './weather';
+import { advanceExposure, advanceWeather, isOvercast, makeWeather, stormDepth, stormShare, stormStrength, weatherAt, weatherOn } from './weather';
 
 const FADE = WEATHER.sim.stormFadeTurns;
 type Storm = Extract<WeatherEvent, { kind: 'storm' }>;
@@ -382,5 +382,16 @@ describe('heat and weather', () => {
     expect(heatAt(w, pos)).toBeGreaterThan(1);
     w.weather = [{ id: 'o1', kind: 'overcast', turnsLeft: 10 }];
     expect(heatAt(w, pos)).toBe(1);
+  });
+});
+
+describe('isOvercast', () => {
+  it('holds exactly while an overcast event is active', () => {
+    const w = emptyWorld();
+    expect(isOvercast(w)).toBe(false);
+    w.weather = [{ id: 'h', kind: 'heatwave', turnsLeft: 5 }];
+    expect(isOvercast(w)).toBe(false);
+    w.weather = [{ id: 'o', kind: 'overcast', turnsLeft: 5 }];
+    expect(isOvercast(w)).toBe(true);
   });
 });

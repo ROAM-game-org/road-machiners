@@ -11,7 +11,8 @@
   scrollbar-width: thin;
 }
 #ui:has(.modal:not([style*="display: none"]))
-  > .panel:not(.modal):not(.toast):not(.instruments):not(.log),
+  > .panel:not(.modal):not(.dialog):not(.options):not(.new-game-block):not(.toast):not(.instruments):not(.log),
+#ui:has(.modal:not([style*="display: none"])) > .right-column > .turn-control,
 #ui:has(.modal:not([style*="display: none"])) > .top-center > .panel:not(.opening-tip) {
   visibility: hidden;
 }
@@ -29,7 +30,7 @@
 #ui:has(.modal:not([style*="display: none"])) > .top-left,
 #ui:has(.modal:not([style*="display: none"])) > .top-right,
 #ui:has(.modal:not([style*="display: none"])) > .bottom-left > .recenter,
-#ui:has(.modal:not([style*="display: none"])) > .right-dock {
+#ui:has(.modal:not([style*="display: none"])) > .right-column > .right-dock {
   visibility: hidden;
 }
 #ui:has(.modal.pinned:not([style*="display: none"])) > .top-right {
@@ -38,8 +39,14 @@
 #ui:has(.modal.pinned:not([style*="display: none"])) > .top-right > .game-menu {
   visibility: visible;
 }
+#ui:has(.modal.quest-screen:not([style*="display: none"])) > .top-right {
+  z-index: var(--z-feedback);
+}
+#ui:has(.modal.quest-screen:not([style*="display: none"])) > .top-right > .game-menu {
+  visibility: visible;
+}
 #ui:has(.modal:not([style*="display: none"])) > .bottom-left > .instruments,
-#ui:has(.modal:not([style*="display: none"])) > .log {
+#ui:has(.modal:not([style*="display: none"])) > .right-column > .log {
   z-index: var(--z-over-modal);
 }
 /* The hidden weapons leave the dock, so the instruments drop to the bottom line instead of wrapping above them. */
@@ -49,6 +56,12 @@
 /* The wide modal reaches under the condition panel, which stands above the instruments. */
 #ui:has(.modal:not([style*="display: none"])) .truck-stack {
   display: none;
+}
+/* A look screen over a scene dims the scene under it with a scrim, so the scene's words never show through. */
+#ui .modal.over-scene {
+  z-index: var(--z-over-scene);
+  background: var(--surface-well);
+  box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim-heavy);
 }
 #ui .modal > h3 {
   font-size: var(--text-heading);
