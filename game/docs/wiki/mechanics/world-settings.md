@@ -34,7 +34,7 @@ Exposed now:
 - `weaponDamage` and `crashDamage`, together as Damage.
 - `fuelUseFactor` as Fuel use.
 - `suppliesPerTurn` as Supply use.
-- The rise of `FURY_ROAD.danger` as Enemy growth.
+- The gear growth of the `FURY_ROAD.director` as Enemy growth.
 
 Safe to vary per run later. Each needs its own NPC and economy work, so each is a follow-up:
 

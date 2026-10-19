@@ -5,7 +5,7 @@ import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
 import { corePart, coreParts, mountedParts } from './grid';
 import type { Vehicle, World } from './types';
 import { addState } from './states';
-import { canOverdrive, fuelCap, groundSpeed, gunDraw, gunDrag, inOverdrive, isStranded, maxSpeedSteps, workingEngineCapacity, suppliesCap, vehicleStats } from './stats';
+import { canOverdrive, fuelCap, groundSpeed, gunDraw, gunDrag, inOverdrive, isStranded, maxSpeedSteps, plainMaxSpeed, workingEngineCapacity, suppliesCap, vehicleStats } from './stats';
 import { endTurn } from './world';
 import { CHASSIS } from '../data/chassis';
 import { PARTS, type EngineDef, type StoreDef } from '../data/parts';
@@ -76,6 +76,18 @@ describe('the overdrive engine cutoff', () => {
     engine.hp = allowed;
     expect(inOverdrive(w, me)).toBe(true);
     expect(vehicleStats(w, me).maxSpeed).toBeCloseTo(off.maxSpeed * RULES.overdriveBoost);
+  });
+
+  it('gives the plain top speed without the overdrive boost', () => {
+    const { w, me } = wornEngine();
+    const off = vehicleStats(w, me).maxSpeed;
+    expect(plainMaxSpeed(w, me)).toBe(off);
+    w.player.overdrive = true;
+    expect(inOverdrive(w, me)).toBe(true);
+    expect(vehicleStats(w, me).maxSpeed).toBeCloseTo(plainMaxSpeed(w, me) * RULES.overdriveBoost);
+    expect(plainMaxSpeed(w, me)).toBe(off);
+    const npc = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 50, y: 40 });
+    expect(plainMaxSpeed(w, npc)).toBe(vehicleStats(w, npc).maxSpeed);
   });
 
   it('leaves plain driving on a badly worn engine as it was', () => {

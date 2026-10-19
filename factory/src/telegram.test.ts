@@ -69,10 +69,10 @@ describe('botClient sendMessage', () => {
     expect(body(calls[0]!)).toEqual({ chat_id: '-100', text: 'hi' });
   });
 
-  it('adds reply_parameters when replyTo is given', async () => {
+  it('adds reply_parameters that still send when the replied message is gone, when replyTo is given', async () => {
     const { fetchFn, calls } = fakeFetch([ok(1)]);
     await botClient('T', fetchFn).sendMessage('c', 'hi', 9);
-    expect(body(calls[0]!).reply_parameters).toEqual({ message_id: 9 });
+    expect(body(calls[0]!).reply_parameters).toEqual({ message_id: 9, allow_sending_without_reply: true });
   });
 
   it('splits text over 4096 chars and returns the first id', async () => {
@@ -82,7 +82,7 @@ describe('botClient sendMessage', () => {
     const parts = calls.map((c) => body(c).text as string);
     expect(parts.every((p) => p.length <= 4096)).toBe(true);
     expect(parts.join('').replace(/\n/g, '')).toBe(text.replace(/\n/g, ''));
-    expect(calls.map((c) => body(c).reply_parameters)).toEqual([{ message_id: 5 }, undefined, undefined]);
+    expect(calls.map((c) => body(c).reply_parameters)).toEqual([{ message_id: 5, allow_sending_without_reply: true }, undefined, undefined]);
   });
 
   it('splits a long text with no newline', async () => {
@@ -107,7 +107,7 @@ describe('botClient sendDocument', () => {
     expect(calls[0]!.url).toBe('https://api.telegram.org/botT/sendDocument');
     const form = calls[0]!.init.body as FormData;
     expect(form.get('chat_id')).toBe('-100');
-    expect(JSON.parse(form.get('reply_parameters') as string)).toEqual({ message_id: 4 });
+    expect(JSON.parse(form.get('reply_parameters') as string)).toEqual({ message_id: 4, allow_sending_without_reply: true });
     expect((form.get('document') as File).name).toBe('report.html');
   });
 
@@ -211,7 +211,7 @@ describe('botClient sendPhotos', () => {
     expect(await botClient('T', fetchFn).sendPhotos('c', photos(1), 4)).toEqual([9]);
     expect(calls[0]!.url).toBe('https://api.telegram.org/botT/sendPhoto');
     const form = calls[0]!.init.body as FormData;
-    expect(JSON.parse(form.get('reply_parameters') as string)).toEqual({ message_id: 4 });
+    expect(JSON.parse(form.get('reply_parameters') as string)).toEqual({ message_id: 4, allow_sending_without_reply: true });
     expect(form.get('caption')).toBe('view 0');
     expect(form.has('reply_markup')).toBe(false);
   });
@@ -228,7 +228,7 @@ describe('botClient sendPhotos', () => {
     ]);
     expect((form.get('photo0') as File).name).toBe('view0.png');
     expect((form.get('photo1') as File).type).toBe('image/png');
-    expect(JSON.parse(form.get('reply_parameters') as string)).toEqual({ message_id: 4 });
+    expect(JSON.parse(form.get('reply_parameters') as string)).toEqual({ message_id: 4, allow_sending_without_reply: true });
     expect(form.has('reply_markup')).toBe(false);
   });
 
@@ -267,5 +267,17 @@ describe('botClient sendPhotos', () => {
   it('throws when the reply holds fewer messages than photos', async () => {
     const { fetchFn } = fakeFetch([group(1)]);
     await expect(botClient('T', fetchFn).sendPhotos('c', photos(3))).rejects.toThrow('1 messages for 3 photos');
+  });
+});
+
+describe('botClient downloadFile', () => {
+  it('asks getFile for the path and fetches the file from the file endpoint', async () => {
+    const urls: string[] = [];
+    const fetchFn = (async (url: string) => {
+      urls.push(url);
+      return urls.length === 1 ? new Response(JSON.stringify({ ok: true, result: { file_path: 'photos/a.jpg' } })) : new Response(Buffer.from('jpg'));
+    }) as unknown as typeof fetch;
+    expect((await botClient('T', fetchFn).downloadFile('id1')).toString()).toBe('jpg');
+    expect(urls).toEqual(['https://api.telegram.org/botT/getFile', 'https://api.telegram.org/file/botT/photos/a.jpg']);
   });
 });

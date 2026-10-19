@@ -56,7 +56,7 @@ function fakeCtx(): Ctx {
 }
 
 describe('approve', () => {
-  it('moves an approved preview to Hardening under the approver, with no merge and no chat post', async () => {
+  it('moves an approved preview to Hardening under the approver, keeps its build, with no merge and no chat post', async () => {
     await approve(fakeCtx(), 7, 'bob');
     expect(calls).toEqual([
       'comment 7 Approved by bob in the committee chat. Hardening runs now. Then the factory checks it merged with dev and merges it by itself, with no new post.',
@@ -66,11 +66,12 @@ describe('approve', () => {
     expect(state.approvedResolving).toEqual({ 7: 'bob' });
     expect(state.approvalPosts).toEqual({ 200: 8 });
     expect(state.pendingApprovals).toEqual({});
+    expect(state.builds).toEqual({ 7: 'aaa1111', 8: 'bbb2222' });
   });
 
   it('ships a hotfix from main to itch.io, brings main into dev, leaves the open release and its candidate alone, closes the issue and tells only the committee', async () => {
     labels = ['bug', 'hotfix'];
-    writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' }, builds: { 7: 'aaa1111' } });
+    writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' }, builds: { 7: 'aaa1111' } });
     await approve(fakeCtx(), 7, 'bob');
     const changelog = 'ROAM hotfix 2026-09-30\n\nFixed: #7 Big horn';
     expect(calls.filter((call) => !call.startsWith('prepare') && !call.startsWith('shell'))).toEqual([
@@ -215,9 +216,18 @@ describe('routeFeedback', () => {
     expect(readState(`${home}/state.json`).approvalPosts).toEqual({ 200: 8 });
   });
 
-  it('writes the heading it is given in place of the committee heading', async () => {
-    await routeFeedback(fakeCtx(), 7, 'public', 'It breaks', 'patch', 100, '## Player report');
+  it('writes the player heading for a player source', async () => {
+    await routeFeedback(fakeCtx(), 7, 'public', 'It breaks', 'patch', 100, 'player');
     expect(calls).toEqual(['comment 7 ## Player report\n\nFrom public, routed as patch:\n\nIt breaks', 'move 7 Testing']);
+  });
+
+  it('records the comment body and its source as the pending feedback of a patch or redesign, and none for an answer', async () => {
+    await routeFeedback(fakeCtx(), 7, 'bob', 'q', 'answer', 100);
+    expect(readState(`${home}/state.json`).pendingFeedback).toEqual({});
+    await routeFeedback(fakeCtx(), 7, 'bob', 'Louder horn', 'patch', 100);
+    expect(readState(`${home}/state.json`).pendingFeedback).toEqual({ 7: { source: 'committee', body: '## Committee feedback\n\nFrom bob, routed as patch:\n\nLouder horn' } });
+    await routeFeedback(fakeCtx(), 7, 'public', 'It breaks', 'redesign', 100, 'player');
+    expect(readState(`${home}/state.json`).pendingFeedback[7]).toEqual({ source: 'player', body: '## Player report\n\nFrom public, routed as redesign:\n\nIt breaks' });
   });
 
   it('answer only comments, and keeps the card, its posts and its queued approval', async () => {

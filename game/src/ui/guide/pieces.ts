@@ -25,6 +25,7 @@ export const PIECES: Piece[] = [
   { name: ".tile", note: "A boxed list item edged in its tone.", build: () => sample("tile", "A tile") },
   { name: ".chip", note: "A small boxed value.", build: () => text("span", "chip", "120 scrap") },
   { name: ".tag", note: "An outlined word.", build: () => text("span", "tag", "buy") },
+  { name: ".contract-clue", note: "A told survey clue, on its own line under its contract.", build: () => text("span", "contract-clue", "Lies north of Bowl, about 2 km out") },
   { name: ".amount .coin", note: "Money from moneyEl(): the M's coin, then the number. Debt is in danger ink.", build: () => moneyEl(1500) },
   { name: ".meter", note: "A bar that fills from the left.", build: () => meter("meter", 70) },
   { name: ".meter.progress", note: "A bar for timed work.", build: () => meter("meter progress", 40) },
@@ -34,6 +35,9 @@ export const PIECES: Piece[] = [
   { name: ".tooltip", note: "A note that opens over its anchor. It also gives a disabled reason.", build: () => sample("tooltip", "Need 12 M's more") },
   { name: ".tooltip-row", note: "Label on the left, value on the right, for breakdowns.", build: () => breakdown() },
   { name: ".key", note: "A keyboard key or a mouse button, drawn as a keycap.", build: () => text("kbd", "key", "Space") },
+  { name: ".drawer-tabs", note: "The tab row of the phone layout: one icon button per drawer, .selected on the open one and .marked for attention.", build: () => drawerTabs() },
+  { name: ".log-strip", note: "The newest log line on one row above End turn on a phone. It never wraps, and a tap opens the Log drawer.", build: () => logStrip() },
+  { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
   { name: ".num", note: "A number in the mono face.", build: () => text("span", "num", "1 240") },
 ];
 
@@ -41,6 +45,15 @@ function disabled(): HTMLElement {
   const button = text("button", "", "Buy");
   button.setAttribute("aria-disabled", "true");
   return button;
+}
+
+function drawerTabs(): HTMLElement {
+  const tab = (cls: string, label: string): HTMLElement => el("button", { class: `btn-l ${cls}`, "aria-label": label }, label.slice(0, 1));
+  return el("div", { class: "drawer-tabs" }, tab("selected", "Truck"), tab("marked", "Guns"), tab("", "Radio"), tab("", "Log"));
+}
+
+function logStrip(): HTMLElement {
+  return el("div", { class: "panel log-strip" }, el("div", { class: "" }, "You find yourself stranded in an unfamiliar land. Not your finest moment."));
 }
 
 function breakdown(): HTMLElement {
@@ -52,4 +65,10 @@ function meter(cls: string, percent: number): HTMLElement {
   const fill = el("span", {});
   fill.style.width = `${percent}%`;
   return el("div", { class: cls }, fill);
+}
+
+function optionSwitch(): HTMLElement {
+  const choice = (words: string, pressed: boolean, off = false): HTMLElement =>
+    el("button", { class: "num", "aria-pressed": String(pressed), ...(off ? { "aria-disabled": "true", title: "Too big for this screen" } : {}) }, words);
+  return el("div", { class: "option-switch", role: "group" }, choice("80%", false), choice("100%", true), choice("130%", false, true));
 }

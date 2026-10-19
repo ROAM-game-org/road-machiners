@@ -23,7 +23,8 @@ function buildRows(ctx: Ctx, store: PublicStore, proposals: Proposal[]): string[
 }
 
 function placeOf(comment: StoredComment): string {
-  if (comment.issue === null) return 'standalone';
+  if (comment.issue === null) return 'no thread';
+  if (comment.linked) return `linked to #${comment.issue}`;
   return comment.relevance === 'other' ? `off-topic under #${comment.issue}` : `on #${comment.issue}`;
 }
 

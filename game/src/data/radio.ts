@@ -12,7 +12,10 @@ export type RadioTopic =
   | 'stormEnd'
   | 'haul'
   | 'fetch'
+  | 'claim'
   | 'bounty'
+  | 'search'
+  | 'survey'
   | 'rescue'
   | 'raid'
   | 'raidKnockout'
@@ -46,7 +49,10 @@ export const RADIO_VARIANTS: Record<RadioTopic, number> = {
   stormEnd: 2,
   haul: 2,
   fetch: 2,
+  claim: 2,
   bounty: 2,
+  search: 2,
+  survey: 2,
   rescue: 2,
   raid: 3,
   raidKnockout: 2,

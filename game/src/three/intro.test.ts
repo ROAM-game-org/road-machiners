@@ -20,8 +20,9 @@ import type { World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { playerSees } from '../sim/vision';
 import { maxHp } from '../sim/wear';
-import { endTurn, startPose } from '../sim/world';
-import { openingStep } from '../ui/tips';
+import { cloneWorld, endTurn } from '../sim/world';
+import { startPose } from '../sim/start-pose';
+import { openingStep } from '../sim/opening';
 import { TEST_MAP } from '../test/map';
 import { readQuestSources } from '../test/quest-compile';
 import { loadWorld, saveOf, writeSave } from './save';
@@ -65,7 +66,7 @@ function sameAfterRoundTrip(w: World): World {
 }
 
 function parked(w: World): World {
-  const next = structuredClone(w);
+  const next = cloneWorld(w);
   const me = playerVehicle(next);
   me.pos = openingStopPoint(next);
   me.speed = 0;

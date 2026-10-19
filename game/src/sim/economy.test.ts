@@ -12,6 +12,7 @@ import { CONDITION } from "../data/wear";
 import {
   basicsRepairCost,
   buyChassis,
+  garageChassis,
   buyGood,
   buyStockPart,
   buyPrice,
@@ -149,9 +150,15 @@ describe("trade", () => {
     );
   });
 
-  it("every garage prices every good", () => {
-    for (const [id] of Object.entries(SHOPS).filter(([, s]) => s.kind === "garage"))
-      for (const good of GOOD_IDS) expect(goodBasePrice(id, good)).toBeGreaterThan(0);
+  it("every shop prices every good it lists", () => {
+    for (const shop of Object.values(SHOPS))
+      for (const good of shop.goods) expect(goodBasePrice(shop.id, good)).toBeGreaterThan(0);
+  });
+
+  it("Bowl trades no ship relics and Nose pays more for them than the Yard", () => {
+    expect(GOOD_IDS).toContain("relics");
+    expect(() => goodBasePrice("bowl", "relics")).toThrow();
+    expect(goodBasePrice("nose", "relics")).toBeGreaterThan(goodBasePrice("salvage-yard", "relics"));
   });
 
   it("a lot price equals the sum of single-unit trades", () => {
@@ -351,6 +358,28 @@ describe("garage", () => {
     expect(r.player.money).toBe(w.player.money - price);
   });
 
+  it("includes the engine in repair basics, for the shown price", () => {
+    const w = startAtBowl();
+    const engine = mountedParts(w.vehicles[0]).find((p) => partDef(p.defId).kind === "engine")!;
+    engine.hp = 1;
+    const price = basicsRepairCost(w);
+
+    const r = repairBasics(w);
+
+    const fixed = mountedParts(r.vehicles[0]).find((p) => p.id === engine.id)!;
+    expect(price).toBeGreaterThan(0);
+    expect(fixed.hp).toBe(maxHp(fixed));
+    expect(r.player.money).toBe(w.player.money - price);
+  });
+
+  it("skips a junk engine in repair basics without the Rebuild perk", () => {
+    const w = startAtBowl();
+    const engine = mountedParts(w.vehicles[0]).find((p) => partDef(p.defId).kind === "engine")!;
+    engine.hp = 0;
+    engine.wear = CONDITION.maxWear + 1;
+    expect(basicsRepairCost(w)).toBe(0);
+  });
+
   it("prices repair all as repair basics plus the other parts", () => {
     const w = startAtBowl();
     const gun = mountedParts(w.vehicles[0])[0];
@@ -514,7 +543,7 @@ describe("garage", () => {
   it("refunds the difference when the trade-in beats the new chassis price", () => {
     let w = startAtBowl();
     w.player.money = 166667;
-    w = buyChassis(w, "carrier");
+    w = buyChassis(w, "tractor");
     const tradeIn = chassisTradeIn(w);
     expect(tradeIn).toBeGreaterThan(CHASSIS.scout.value);
     const before = w.player.money;
@@ -789,6 +818,20 @@ describe("garage storage at a stall", () => {
     expect(next.player.money).toBe(w.player.money + price);
     expect(next.player.storage).toEqual([]);
     expect(next.shops["pump-station"].stock.some((p) => p.id === stored.id)).toBe(true);
+  });
+
+  it("sells each town only its own lineup", () => {
+    const atBowl = startAtBowl();
+    atBowl.player.money = 500000;
+    expect(garageChassis("bowl")).toContain("hauler");
+    expect(buyChassis(atBowl, "hauler").vehicles[0].chassisId).toBe("hauler");
+    expect(() => buyChassis(atBowl, "niva")).toThrow("niva is not for sale at bowl");
+
+    const atNose = emptyWorld(sitePads(nose)[0]);
+    atNose.player.money = 500000;
+    expect(buyChassis(atNose, "niva").vehicles[0].chassisId).toBe("niva");
+    expect(() => buyChassis(atNose, "hauler")).toThrow("hauler is not for sale at nose");
+    expect(() => garageChassis("pump-station")).toThrow("No garage lineup for pump-station");
   });
 
   it("sells no chassis at a stall", () => {

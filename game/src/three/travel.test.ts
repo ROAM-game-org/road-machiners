@@ -12,10 +12,11 @@ import { endTurn, newWorld, setMoveOrder } from "../sim/world";
 import { addRopeFrames, canTravel, overshoots, Travel } from "./travel";
 import { addState } from "../sim/states";
 import { TEST_MAP } from "../test/map";
+import { reusedWorld } from "../test/world-cache";
 import { defaultSetup } from "../sim/settings";
 
 function makeSafeWorld() {
-  const world = newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup('roaming'));
+  const world = reusedWorld("travel", () => newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup('roaming')));
   world.vehicles = [playerVehicle(world)];
   world.events = [];
   return world;
@@ -249,19 +250,47 @@ describe("automatic travel safety", () => {
     expect(canTravel(makeSafeWorld())).toBe(true);
   });
 
-  it("stops for a visible hostile but not a hidden hostile or a trader", () => {
+  it("does not stop for a hostile in sight while no fight is on", () => {
     const world = makeSafeWorld();
     const enemy = structuredClone(playerVehicle(world));
     enemy.id = "enemy";
     enemy.faction = "scrapjaw";
     world.vehicles.push(enemy);
+    expect(canTravel(world)).toBe(true);
+  });
+
+  it("stops while the player is in combat, seen hostile or not", () => {
+    const world = makeSafeWorld();
+    addState(world, "combat", "enemy", world.player.vehicleId, { kind: "none" });
     expect(canTravel(world)).toBe(false);
-    const visible = world.player.visible;
-    world.player.visible = [];
+  });
+
+  it("cancels automatic travel once when a hostile comes into sight, and Space starts it again", () => {
+    const start = makeSafeWorld();
+    const world = setMoveOrder(start, { kind: "stopAt", dest: { x: playerVehicle(start).pos.x + 20, y: playerVehicle(start).pos.y } });
+    const travel = new Travel(250);
+    travel.press(0, false, true);
+    travel.release();
+    expect(travel.isAuto(world)).toBe(true);
+    travel.updateWorld(world, true);
+    expect(travel.isAuto(world)).toBe(false);
+    travel.pressTurn(false, world);
+    travel.release();
+    travel.updateWorld(world, false);
+    expect(travel.isAuto(world)).toBe(true);
+  });
+
+  it("ignores a bump into a prop or the ground but stops for a crash into a truck", () => {
+    const world = makeSafeWorld();
+    const id = world.player.vehicleId;
+    const other = { ...playerVehicle(world), id: "other" };
+    world.vehicles.push(other);
+    world.events = [{ t: "collision", a: id, b: "rock", hitsA: [], hitsB: [] }];
     expect(canTravel(world)).toBe(true);
-    world.player.visible = visible;
-    enemy.faction = "independent";
-    expect(canTravel(world)).toBe(true);
+    world.events = [{ t: "collision", a: id, b: "other", hitsA: [], hitsB: [] }];
+    expect(canTravel(world)).toBe(false);
+    world.events = [{ t: "collision", a: "other", b: id, hitsA: [], hitsB: [] }];
+    expect(canTravel(world)).toBe(false);
   });
 
   it("keeps direct driving manual", () => {
@@ -277,7 +306,6 @@ describe("automatic travel safety", () => {
   });
 
   it.each([
-    "collision",
     "shot",
     "breakdown",
     "partDisabled",
@@ -287,7 +315,6 @@ describe("automatic travel safety", () => {
     const world = makeSafeWorld();
     const id = world.player.vehicleId;
     const events: Record<string, GameEvent> = {
-      collision: { t: "collision", a: id, b: "rock", hitsA: [], hitsB: [] },
       shot: {
         t: "shot",
         shooter: "enemy",

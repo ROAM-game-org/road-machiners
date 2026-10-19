@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { emptyWorld } from "../sim/testkit";
-import type { World } from "../sim/types";
+import type { QuestLive, World } from "../sim/types";
 import { CharacterScreen } from "./character";
 import { truckChips } from "./inventory";
 
@@ -22,6 +22,8 @@ class FakeNode {
     return [...here, ...this.children.flatMap((c) => (typeof c === "string" ? [] : c.all(pred)))];
   }
 }
+
+const SCENE: QuestLive = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };
 
 const ui = new FakeNode("div");
 
@@ -139,5 +141,24 @@ describe("inventory header money", () => {
     const world = emptyWorld();
     world.setup = { ...world.setup, mode: "furyRoad" };
     expect(openCharacter(world).all((n) => n.className.split(" ").includes("standing-row"))).toEqual([]);
+  });
+
+  it("turns buying a rank and picking a perk off during a scene, with the reason", () => {
+    const world = emptyWorld();
+    world.player.xp = 1000;
+    world.player.quests.live = SCENE;
+    const buy = rankButtons(openCharacter(world))[0];
+    expect(buy.attrs.get("aria-disabled")).toBe("true");
+    expect(buy.attrs.get("data-reason")).toBe("Not during a scene");
+  });
+
+  it("gives a perk pick the scene reason before any other", () => {
+    const world = emptyWorld();
+    world.player.ranks.driving = 2;
+    world.player.state = "knockedOut";
+    world.player.quests.live = SCENE;
+    const perk = openCharacter(world).all((n) => n.tag === "button" && n.className === "perk")[0];
+    expect(perk.attrs.get("aria-disabled")).toBe("true");
+    expect(perk.attrs.get("data-reason")).toBe("Not during a scene");
   });
 });

@@ -1,22 +1,22 @@
-import { START_KITS, startKit, type StartKit } from '../data/start';
+import { startKit } from '../data/start';
 
 import { RULES } from '../data/rules';
 import { makeVehicle } from './factory';
 import { nextRandom } from './rng';
-import { mountedParts } from './grid';
+import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, type Spot } from './grid';
 import { burnFuel } from './resources';
 import { vehicleStats } from './stats';
 import type { Terrain } from './terrain';
-import { TEST_MAP } from '../test/map';
-import { onTestFinished } from 'vitest';
+import { inject, onTestFinished } from 'vitest';
+import { emptyWorldFrom, flatTerrain, PLAIN_KIT } from '../test/empty-world';
 import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions, type TraitId } from '../data/npcs';
 import type { PersonalityId } from '../data/personalities';
 import { addState } from './states';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities } from './npc-activities';
 import type { Faction, GameEvent, NpcBrain, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
-import { ICARUS_KEY } from './atlas';
-import { highwayMap } from './highway';
+import { highwayMap, milestoneAt, roadHeading, roadPoint } from './highway';
+import { HIGHWAY } from '../data/modes';
 import { dist, type Vec } from './vec';
 import { REGION } from '../data/region';
 import { propReach } from './mapgen';
@@ -27,41 +27,49 @@ import { openingStockOf } from './opening';
 import { haulerOf, playerVehicle } from './damage';
 import { stormDepth } from './weather';
 import { cloneWorld, endTurn, newWorld } from './world';
-import { outpostPad } from './fury-road';
+import { driveOn } from './fury-road';
+import { yardSpots } from './outpost-gates';
 import { addGoods } from './inventory';
 import { partDef, type PartKind } from '../data/parts';
 import { defaultSetup } from './settings';
 import { chooseQuestOption, leaveQuest, QUESTS, questView } from './quests';
 
-export function flatTerrain(size: number): Terrain {
-  return { size, heights: new Array((size + 1) * (size + 1)).fill(0), types: new Array(size * size).fill('road'), atlas: ICARUS_KEY };
-}
-
-export function furyRoadWorld(seed = 3): World {
+export function furyRoadStart(seed = 3): World {
   return newWorld(seed, startKit('furyRoad'), highwayMap(seed, 0), defaultSetup('furyRoad'));
 }
 
-export function parkOnPad(w: World, milestone: number): void {
-  const pad = outpostPad(w, milestone);
+const OPEN_ROAD = 24;
+
+export function furyRoadWorld(seed = 3): World {
+  const w = driveOn(furyRoadStart(seed));
+  const n = milestoneAt(seed, 0) + OPEN_ROAD;
+  const gap = vehicleStats(w, haulerOf(w)).radius + vehicleStats(w, playerVehicle(w)).radius + RULES.yieldDistance;
+  for (const [truck, lane, ahead] of [[playerVehicle(w), 2, 0], [haulerOf(w), 1, gap]] as const) {
+    truck.pos = roadPoint(seed, 0, n + ahead, HIGHWAY.road.lanes[lane]);
+    truck.heading = roadHeading(seed, n + ahead);
+    truck.speed = 0;
+    truck.order = null;
+  }
+  refreshVision(w);
+  w.events = [];
+  return w;
+}
+
+export function parkInYard(w: World, milestone: number): void {
+  const spots = yardSpots(w, milestone);
   const me = playerVehicle(w);
   const hauler = haulerOf(w);
-  me.pos = { ...pad };
+  me.pos = { ...spots.truck };
   me.speed = 0;
   me.order = null;
-  hauler.pos = { x: pad.x + 2, y: pad.y };
+  hauler.pos = { ...spots.hauler };
   hauler.speed = 0;
   hauler.order = null;
 }
 
 export function parkedAtOutpost(seed = 3): World {
   const w = furyRoadWorld(seed);
-  const me = playerVehicle(w);
-  const hauler = haulerOf(w);
-  const pad = outpostPad(w, 1);
-  me.pos = pad;
-  me.speed = 0;
-  hauler.pos = { x: pad.x + 2, y: pad.y };
-  hauler.speed = 0;
+  parkInYard(w, 1);
   const parked = endTurn(w, () => {});
   parked.player.money = 10_000_000;
   return parked;
@@ -71,38 +79,36 @@ export function fillCargo(w: World): void {
   addGoods(w, playerVehicle(w), 'parts', 1000);
 }
 
+export function armorSpot(w: World, part: PartInstance): Spot {
+  const me = playerVehicle(w);
+  const spot = mountSpots(gridOf(me), me.items, { id: 'i-probe', x: 0, y: 0, rot: 0, kind: 'part', part }, MOUNT_CELLS.armor)[0];
+  if (!spot) throw new Error(`The player truck has no armor spot for ${part.defId}`);
+  return spot;
+}
+
 export function stockOfKind(w: World, kind: PartKind): PartInstance {
-  const part = w.furyRoad!.outposts[0].stock.find((p) => partDef(p.defId).kind === kind);
+  const part = w.furyRoad!.outposts[1].stock.find((p) => partDef(p.defId).kind === kind);
   if (!part) throw new Error(`Outpost 1 stocks no ${kind}`);
   return part;
 }
 
 export function editableTerrain(w: World): Terrain {
-  w.terrain = { ...w.terrain, heights: [...w.terrain.heights], types: [...w.terrain.types] };
+  w.terrain = Object.freeze({ ...w.terrain, heights: [...w.terrain.heights], types: [...w.terrain.types] });
   return w.terrain;
 }
 
-export const PLAIN_KIT: StartKit = {
-  ...START_KITS.standard,
-  parts: [...START_KITS.standard.parts, 'cage'],
-  autoRepair: true,
-  opening: null,
-};
+export { PLAIN_KIT, flatTerrain };
 
 let emptyTemplate: World | undefined;
 
+function templateFromSetup(): World {
+  const provided = inject('emptyTemplate');
+  if (provided === undefined) throw new Error('The empty world template was not provided. List src/test/empty-template-setup.ts under globalSetup in the vitest config');
+  return emptyWorldFrom(provided);
+}
+
 export function emptyWorld(pos: Vec = { x: 30, y: 30 }): World {
-  if (!emptyTemplate) {
-    emptyTemplate = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
-    emptyTemplate.obstacles = [];
-    emptyTemplate.terrain = flatTerrain(emptyTemplate.size);
-    Object.freeze(emptyTemplate.terrain.heights);
-    Object.freeze(emptyTemplate.terrain.types);
-    Object.freeze(emptyTemplate.terrain);
-    emptyTemplate.vehicles = emptyTemplate.vehicles.filter((v) => v.faction === 'player');
-    emptyTemplate.states = [];
-    emptyTemplate.rngState = -1655809527;
-  }
+  emptyTemplate ??= templateFromSetup();
   const w = cloneWorld(emptyTemplate);
   const p = w.vehicles[0];
   p.pos = { ...pos };

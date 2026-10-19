@@ -345,4 +345,52 @@ describe('truck follow while planning', () => {
 
     expect(rig.focus().x).toBeCloseTo(10, 3);
   });
+
+  const truck = { x: 0, y: 0, z: 0 };
+  const far = { x: 500, y: 0, z: 0 };
+
+  function driveWithLead(): { follow: TruckFollow; rig: CameraRig } {
+    const made = setup();
+    made.follow.update(truck, null, true, Number.POSITIVE_INFINITY);
+    for (let i = 0; i < 300; i++) made.follow.update(truck, far, true, 100);
+    return made;
+  }
+
+  function offsetFromCenter(rig: CameraRig): number {
+    const at = rig.screenOf(truck);
+    return Math.hypot(at.x - 640, at.y - 360);
+  }
+
+  it('puts the truck at the screen center on recenter after a drive with a lead', () => {
+    const { follow, rig } = driveWithLead();
+    follow.pan(300, 200);
+
+    follow.recenter();
+    follow.update(truck, null, false, Number.POSITIVE_INFINITY);
+
+    expect(offsetFromCenter(rig)).toBeLessThan(1);
+  });
+
+  it('eases to the center during a turn, then the lead grows back', () => {
+    const { follow, rig } = driveWithLead();
+    const old = offsetFromCenter(rig);
+
+    follow.recenter();
+    for (let i = 0; i < 60; i++) follow.update(truck, far, true, 16);
+    expect(offsetFromCenter(rig)).toBeLessThan(old * 0.35);
+
+    for (let i = 0; i < 200; i++) follow.update(truck, far, true, 100);
+    expect(offsetFromCenter(rig)).toBeGreaterThan(old * 0.95);
+  });
+
+  it('keeps the lead when a hostile first comes into sight', () => {
+    const { follow, rig } = driveWithLead();
+    const old = offsetFromCenter(rig);
+    follow.pan(300, 200);
+
+    follow.noteDanger(true);
+    for (let i = 0; i < 300; i++) follow.update(truck, far, true, 100);
+
+    expect(offsetFromCenter(rig)).toBeCloseTo(old, 0);
+  });
 });

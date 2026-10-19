@@ -9,7 +9,8 @@ The public files GitHub issues and sends reports from the game. Triage sends bug
 - [docs/stages.md](docs/stages.md) holds the rules of each stage, model routing and reference images.
 - [docs/evidence.md](docs/evidence.md) covers screenshots, the diff guard and ad hoc files.
 - [docs/operations.md](docs/operations.md) covers queues, CPU pools, the card job limit, resume, cleanup, failures, the ledger and deploys.
-- [hermes/SOUL.md](hermes/SOUL.md) is Hermes's identity and rules.
+- [hermes/SOUL.md](hermes/SOUL.md) is Hermes's job and rules.
+- [docs/hermes.md](docs/hermes.md) holds Hermes's steps for incidents, health lines, approval replies and state changes.
 - [infra/README.md](infra/README.md) sets up the server. [mac/README.md](mac/README.md) runs the factory on a Mac. [dashboard/README.md](dashboard/README.md) covers the public dashboard.
 
 ## Settings

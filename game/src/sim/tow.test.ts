@@ -35,9 +35,10 @@ function withTower(w: World, templateId: string, faction: Vehicle['faction'], ch
   return v;
 }
 
-const FAR: Vec = { x: 80, y: 200 };
-const MID_NEAR: Vec = { x: 80, y: 420 };
-const MID_FAR: Vec = { x: 80, y: 330 };
+const BOWL = REGION.towns.find((t) => t.id === 'bowl')!.pos;
+const FAR: Vec = { x: BOWL.x, y: BOWL.y - 270 };
+const MID_NEAR: Vec = { x: BOWL.x, y: BOWL.y - 50 };
+const MID_FAR: Vec = { x: BOWL.x, y: BOWL.y - 140 };
 
 function stranded(playerPos: Vec = { x: 30, y: 30 }, traderPos: Vec = { x: 40, y: 30 }): Setup {
   const w = emptyWorld(playerPos);
@@ -571,7 +572,7 @@ describe('answering a stranded truck', () => {
       const s = stranded(at, { x: at.x + out.x * 8, y: at.y + out.y * 8 });
       return optionChances(optionWeights(s.w, s.trader, 'strandedSeen', s.w.player.vehicleId, null)).tow!;
     };
-    const atGate = towChance(0);
+    const atGate = towChance(REGION.sites.pad.length + 0.5);
     const farOut = towChance(40);
     expect(atGate).toBeGreaterThan(0);
     expect(atGate).toBeLessThan(farOut / 3);

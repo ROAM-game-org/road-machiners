@@ -11,7 +11,7 @@ import { baseGrid } from '../../sim/grid';
 import { PLAN_PAD } from '../../render/partLooks';
 import { VehicleView } from '../render/vehicle';
 import { weaponHead } from '../render/weaponHead';
-import { blueprintOf, blueprintPlanSvg, blueprintSvg, calmed, GLASS_MATERIAL, paintBlueprint, type BlueprintColors, type Calm } from './blueprint';
+import { blueprintOf, blueprintSvg, calmed, GLASS_MATERIAL, paintBlueprint, type BlueprintColors, type Calm } from './blueprint';
 import { boundsOf, edgeBand, solidMask, stripes, type Mask, type Pixels, type Rgba } from './lines';
 
 export const ICON_STYLE_VERSION = 11;
@@ -46,7 +46,7 @@ export const MARGIN = 0.06;
 const OUTER_CELLS = 0.04;
 const INNER_CELLS = 0.022;
 const ARMOR_YAW = -Math.PI / 2;
-const PLAN_STROKE = 2;
+const PLAN_PEN_PX = 2;
 const PLAN_CELL_PX = 30;
 const TOON_OUTLINE_PX = 4;
 const RAMP = [0.45, 0.75, 1];
@@ -108,11 +108,13 @@ export function renderIcon(entry: IconEntry, view: IconView, size: number): Rend
 }
 
 const TINT_COLORS: BlueprintColors = { line: 'var(--tint-line)', fill: 'var(--tint-fill)', shadow: 'var(--tint-shadow)', glass: 'var(--tint-glass)', light: 'var(--tint-light)' };
+const PLAN_COLORS: BlueprintColors = { line: 'var(--plan-line)', fill: 'var(--plan-fill)', shadow: 'var(--plan-shadow)', glass: 'var(--plan-glass)', light: 'var(--plan-light)' };
+const PLAN_PEN = { outer: 'var(--plan-outer)', inner: 'var(--plan-inner)' };
 const PLAN_CALM: Calm = { tolerance: 0.012, minArea: 0.03, minPatch: 0 };
 const TINT_CALM: Calm = { tolerance: 0.015, minArea: 0.03, minPatch: 0.08 };
 const TINT_PEN = { outer: 'var(--tint-outer)', inner: 'var(--tint-inner)' };
 
-export function renderPlan(entry: IconEntry, size: number): string {
+export function renderPlan(entry: IconEntry, size: number): { top: string; outline: string } {
   if (entry.section !== 'chassis') throw new Error(`Plan of ${entry.id}: only a chassis has a plan`);
   const { root } = build(entry);
   toon(root, 'line');
@@ -130,9 +132,12 @@ export function renderPlan(entry: IconEntry, size: number): string {
   camera.updateMatrixWorld(true);
   camera.updateProjectionMatrix();
   const scale = size / ((2 * z) / col) / PLAN_CELL_PX;
-  const pen = { outer: PLAN_STROKE * scale, inner: PLAN_STROKE * scale };
+  const pen = { outer: PLAN_PEN_PX * scale, inner: PLAN_PEN_PX * scale };
   const bp = blueprintOf(scene, camera, size, pen, (m) => draw(scene, camera, size, m));
-  return blueprintPlanSvg(calmed(bp, PLAN_CALM), PLAN_STROKE);
+  return {
+    top: blueprintSvg(bp, PLAN_COLORS, `top-clip-${entry.id}`, PLAN_PEN),
+    outline: blueprintSvg(calmed(bp, PLAN_CALM), PLAN_COLORS, `plan-clip-${entry.id}`, PLAN_PEN),
+  };
 }
 
 export function blueprintColors(entry: IconEntry): BlueprintColors {

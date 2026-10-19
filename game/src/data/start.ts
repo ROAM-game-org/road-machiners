@@ -44,6 +44,8 @@ const STANDARD_OPENING: Opening = {
   stock: { goods: { scrap: 0, parts: 3 }, parts: ['cage'] },
 };
 
+export const OPENING = { leaveDistance: 80 };
+
 export const HAULER_KIT: HaulerKit = {
   chassis: HAULER_CHASSIS,
   parts: ['workhorseDiesel'],
@@ -98,16 +100,12 @@ export const START_KITS: Record<string, StartKit> = {
   furyRoad: {
     chassis: 'scout',
     parts: ['mg', 'stockEngine'],
-    placed: [
-      { defId: 'cage', x: 2, y: 0, rot: 1 },
-      { defId: 'cage', x: 2, y: 7, rot: 1 },
-    ],
     storage: [],
     wear: 0,
-    money: 20000,
+    money: 8000,
     fuel: CHASSIS.scout.fuelCap,
     supplies: RULES.baseSupplies,
-    cargo: { parts: 4 },
+    cargo: { parts: 1 },
     costBasis: {},
     autoRepair: true,
     opening: null,

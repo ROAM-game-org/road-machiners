@@ -15,11 +15,11 @@ import { getKnownSite, getUpkeepReserve, judgeDanger, noteStripped, optionChance
 import { affordableBuyCount, getLotTradePrice, getTradePrice } from './economy';
 import { cargoRoom } from './inventory';
 import { ECONOMY, GOODS } from '../data/goods';
-import { endTurn, newWorld } from './world';
+import { endTurn } from './world';
 import { corePart, freeCells, goodsCount } from './grid';
 import { makePart } from './factory';
 import { addGoods, hasCargoRoom } from './inventory';
-import { finishGoal, getActivityDestination, patchGoal, pushGoal, resolveNpcActivities, thinkNpc, topGoal, turnCornered } from './npc-activities';
+import { finishGoal, getActivityDestination, ledPoint, patchGoal, pushGoal, resolveNpcActivities, thinkNpc, topGoal, turnCornered } from './npc-activities';
 import { leaveLoot } from './loot-warning';
 import { chooseOn, trackOf } from './tracks';
 import { watchStalls } from './npc-watchdog';
@@ -31,11 +31,10 @@ import { chassisDef } from '../data/chassis';
 import { cloneWorld } from './world';
 import { canUseSite, siteGates, sitePads } from './sites';
 import { territoryEntries, territoryOfStock, territoryPieces, territorySpots } from './territory';
-import { START_KITS } from '../data/start';
-import { TEST_MAP } from '../test/map';
+import { standardWorld } from '../test/world-cache';
 import { fuelCap, vehicleStats } from './stats';
 import { heatAt } from './sun';
-import { dist, polylineDist, type Vec } from './vec';
+import { DEG, dist, polylineDist, type Vec } from './vec';
 import { advanceFar } from './far';
 import type { NpcActivity, SalvageStock, Vehicle, World } from './types';
 import { addState, workOf } from './states';
@@ -44,7 +43,6 @@ import { inCombat } from './combat';
 import { refreshVision } from './vision';
 import { emptyHidden } from './salvage';
 import { forgetOld, recall } from './memory';
-import { defaultSetup } from './settings';
 
 function overlookSalvage(w: World, npc: Vehicle): void {
   for (const stock of w.salvage) npc.brain!.noticed[`salvageSeen:${stock.id}`] = w.turn;
@@ -368,6 +366,7 @@ describe('NPC activities', () => {
     npc.resources!.money = 166700;
     npc.resources!.fuel = fuelCap(npc);
     forceOption('idle', 'trade');
+    forceOption('escortWanted', 'go');
     planNpcOrders(w);
     const source = [...REGION.towns, ...REGION.locations].find((s) => s.id === topGoal(npc)?.targetId)!;
     npc.pos = { ...sitePads(source)[0] };
@@ -579,7 +578,7 @@ describe('NPC activities', () => {
     });
 
     it('drives into the cage by its open end to a cache inside, searches it and takes its loot', () => {
-      const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      const w = standardWorld(1337);
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
       const cage = territoryPieces(sun as never).find((p) => p.look === 'shipCage')!;
       const along = { x: Math.cos(cage.yaw), y: Math.sin(cage.yaw) };
@@ -619,7 +618,7 @@ describe('NPC activities', () => {
     });
 
     it('drives from the west road down into the crash furrow to a spot there, searches it and takes its loot', () => {
-      const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      const w = standardWorld(1337);
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
       const furrow = TERRAIN.features.furrow;
       const start = territoryEntries(sun as never)[0];
@@ -924,6 +923,37 @@ describe('NPC activities', () => {
     expect(topGoal(trader)?.kind).not.toBe('flee');
     planNpcOrders(w);
     expect(topGoal(trader)?.kind).not.toBe('flee');
+  });
+
+  describe('a fleeing driver and its flee point', () => {
+    const reach = TERRAIN.vision.radius - 5;
+    function fleeingFrom() {
+      const w = emptyWorld({ x: 30, y: 30 });
+      const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 60, y: 60 });
+      trader.brain = npcBrain('trader', trader.pos, ['trader']);
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 60 + reach, y: 60 });
+      raider.speed = 4;
+      forceOption('contactHeard', 'flee');
+      planNpcOrders(w);
+      return { w, trader, raider, first: { ...topGoal(trader)!.destination! } };
+    }
+    const threatAt = (from: { x: number; y: number }, degrees: number) => ({ x: from.x + Math.cos(degrees * DEG) * reach, y: from.y + Math.sin(degrees * DEG) * reach });
+
+    it('keeps its flee point while the threat moves around but stays behind it', () => {
+      const { w, trader, raider, first } = fleeingFrom();
+      expect(topGoal(trader)?.kind).toBe('flee');
+      raider.pos = threatAt(trader.pos, 120);
+      planNpcOrders(w);
+      expect(topGoal(trader)?.kind).toBe('flee');
+      expect(topGoal(trader)!.destination).toEqual(first);
+    });
+
+    it('picks again once the kept point leads toward the threat', () => {
+      const { w, trader, raider, first } = fleeingFrom();
+      raider.pos = threatAt(trader.pos, 170);
+      planNpcOrders(w);
+      expect(topGoal(trader)!.destination).not.toEqual(first);
+    });
   });
 
   it('a raider investigates a nearby heard player', () => {
@@ -1755,10 +1785,33 @@ describe('stall watchdog', () => {
     expect(npc.pos).toEqual(start);
   });
 
-  it('counts a new tile or a job turn as progress', () => {
+  it('raises a stall for a truck that swings back and forth inside the progress reach', () => {
+    const { w, npc } = frozen();
+    const start = { ...npc.pos };
+    for (let i = 0; i <= NPC_BEHAVIOR.stallTurns + 1; i++) {
+      npc.pos = { x: start.x + (i % 2 === 0 ? 0 : 2.5), y: start.y };
+      run(w, 1);
+    }
+    expect(w.events.some((e) => e.t === 'stall' && e.vehicle === npc.id)).toBe(true);
+  });
+
+  it('keeps the truck where it is when the player sees the swing', () => {
+    const { w, npc } = frozen();
+    w.vehicles[0].pos = { x: npc.pos.x + 5, y: npc.pos.y };
+    refreshVision(w);
+    const start = { ...npc.pos };
+    for (let i = 0; i <= NPC_BEHAVIOR.stallTurns + 1; i++) {
+      npc.pos = { x: start.x + (i % 2 === 0 ? 0 : 2.5), y: start.y };
+      run(w, 1);
+    }
+    expect(w.events.some((e) => e.t === 'stall')).toBe(true);
+    expect([0, 2.5]).toContain(npc.pos.x - start.x);
+  });
+
+  it('counts a truck that drives on past the progress reach, or a job turn, as progress', () => {
     const { w, npc } = frozen();
     for (let i = 0; i <= NPC_BEHAVIOR.stallTurns * 2; i++) {
-      npc.pos = { x: npc.pos.x + (i % 2 === 0 ? 1 : -1), y: npc.pos.y };
+      npc.pos = { x: npc.pos.x + 1, y: npc.pos.y };
       run(w, 1);
     }
     npc.job = { kind: 'weld', turnsLeft: 1000, total: 1000 };
@@ -1998,5 +2051,23 @@ describe('a loot refit under way', () => {
     npc.brain!.goals = [];
     thinkNpc(w, npc);
     expect(npc.brain!.goals.some((g) => g.kind === 'repair')).toBe(true);
+  });
+});
+
+describe('ledPoint', () => {
+  const center = { x: 50, y: 40 };
+  const heard = { x: 40, y: 40 };
+
+  it('keeps the heard centre when it moved no more than the circle', () => {
+    expect(ledPoint(center, heard, 10, 8)).toEqual(center);
+    expect(ledPoint(center, undefined, 1, 8)).toEqual(center);
+  });
+
+  it('leads along the drift by the drift beyond the circle', () => {
+    expect(ledPoint(center, heard, 6, 8)).toEqual({ x: 54, y: 40 });
+  });
+
+  it('never leads past one turn of the investigator\'s driving', () => {
+    expect(ledPoint(center, heard, 2, 5)).toEqual({ x: 55, y: 40 });
   });
 });

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { FURY_ROAD } from '../../data/modes';
 import { haulerOf, playerVehicle } from '../damage';
 import { advanceFuryRoad, endRun } from '../fury-road';
 import { furyRoadWorld } from '../testkit';
 import type { GameEvent, World } from '../types';
+import { cloneWorld } from '../world';
 import { RunLog } from './run-log';
 
 function spawnFirst(w: World): World {
-  const next = structuredClone(w);
-  next.turn = next.furyRoad!.quietFrom + FURY_ROAD.pacing.quiet;
+  const next = cloneWorld(w);
+  next.furyRoad!.groups[0].at = 0;
   advanceFuryRoad(next);
   return next;
 }
@@ -26,10 +26,26 @@ describe('the Fury Road run log', () => {
 
     expect(line).toMatchObject({ t: 'group', stretch: 1 });
     if (line.t !== 'group') throw new Error('no group line');
-    expect(line.trucks).toHaveLength(1);
+    expect(line.trucks).toHaveLength(after.furyRoad!.groups[0].templates.length);
+    expect(line.elite).toBe(after.furyRoad!.groups[0].elite);
+    expect(line.money).toBe(Math.round(after.furyRoad!.groups[0].money / 100));
     expect(line.trucks[0].guns.length).toBeGreaterThan(0);
     expect(line.trucks[0].armor).toBe(0);
     expect(line.trucks[0].gear).toBeGreaterThan(0);
+  });
+
+  it('writes a leave line with the budget and the plan when the road opens, so outpost 0 is logged', () => {
+    const w = furyRoadWorld();
+    const event: GameEvent = { t: 'roadOpened', stretch: 1 };
+
+    const line = new RunLog().note(w, w, [event]).find((l) => l.t === 'leave');
+
+    if (line?.t !== 'leave') throw new Error('no leave line');
+    expect(line.stretch).toBe(1);
+    expect(line.budget).toBeGreaterThan(0);
+    expect(line.plan).toHaveLength(w.furyRoad!.groups.length);
+    expect(line.plan.reduce((n, p) => n + p.size, 0)).toBeLessThanOrEqual(line.budget);
+    expect(line.plan.map((p) => p.template)).toEqual(w.furyRoad!.groups.map((g) => g.templates[0]));
   });
 
   it('ranks the trucks that damaged the player this stretch when the run is lost', () => {
@@ -37,7 +53,7 @@ describe('the Fury Road run log', () => {
     const foe = before.furyRoad!.groups[0].vehicles[0];
     const log = new RunLog();
     log.note(before, before, [shotAt(before, foe, 30), shotAt(before, foe, 12)]);
-    const after = structuredClone(before);
+    const after = cloneWorld(before);
     endRun(after, 'wrecked');
 
     const lines = log.note(before, after, after.events);
@@ -60,16 +76,17 @@ describe('the Fury Road run log per stretch', () => {
     const hit: GameEvent = { t: 'shot', shooter: foe, weapon: 'p0', target: hauler.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [{ hit: true, crit: false, offset: 0, struck: null, hits: [{ part: 'p1', damage: 14 }], blast: [], burst: null }] };
     const mine: GameEvent = { t: 'shot', shooter: spawned.player.vehicleId, weapon: 'p0', target: foe, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [] };
     log.note(spawned, spawned, [hit, mine]);
-    const reached = structuredClone(spawned);
+    const reached = cloneWorld(spawned);
     reached.events = [{ t: 'outpostReached', milestone: 1, pay: 30000, wrecks: 0 }];
-    reached.furyRoad!.outposts[0].paid = true;
+    reached.furyRoad!.outposts[1].paid = true;
+    reached.furyRoad!.waitingAt = 1;
 
     const lines = log.note(spawned, reached, reached.events);
     const line = lines.find((l) => l.t === 'stretch');
 
     expect(line).toMatchObject({ t: 'stretch', stretch: 1, stats: { haulerDamage: 14, playerShots: 1, fights: 1 } });
     if (line?.t !== 'stretch') throw new Error('no stretch line');
-    expect(line.stats.enemies).toHaveLength(1);
+    expect(line.stats.enemies).toHaveLength(spawned.furyRoad!.groups[0].templates.length);
     expect(line.stats.firstHit).toBe(spawned.turn);
     expect(line.choice.useful).toBeGreaterThanOrEqual(line.choice.affordable);
   });
@@ -80,7 +97,7 @@ describe('the Fury Road run log per stretch', () => {
     const log = new RunLog();
     const hit: GameEvent = { t: 'shot', shooter: before.furyRoad!.groups[0].vehicles[0], weapon: 'p0', target: hauler.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [{ hit: true, crit: false, offset: 0, struck: null, hits: [{ part: 'p1', damage: 9 }], blast: [], burst: null }] };
     log.note(before, before, [hit]);
-    const after = structuredClone(before);
+    const after = cloneWorld(before);
     after.turn += 6;
     endRun(after, 'haulerLost');
 

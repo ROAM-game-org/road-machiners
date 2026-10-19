@@ -7,7 +7,7 @@ import { playerVehicle, vehicleById } from './damage';
 import { talkOf } from './dialogue';
 import { isMeeting, supplyRoom, transfer, truckSupplyForSale, type Supply } from './economy';
 import { vehicleValue } from './market';
-import { fuelReserveFor, inDanger, meetGoal, react } from './npc-activities';
+import { fuelReserveFor, inDanger, meetGoal, react, topGoal } from './npc-activities';
 import { bodyCondition } from './npc-decisions';
 import { corePart } from './grid';
 import { dropLeftoverOrder } from './jobs';
@@ -15,7 +15,7 @@ import { practice } from './progress';
 import { getResources } from './resources';
 import { addState, aidData, endState, stateOf, type WorkLeft } from './states';
 import { fuelCap, suppliesCap } from './stats';
-import type { NpcState, StateData, StateEnding, Vehicle, World } from './types';
+import type { GoalReason, NpcState, StateData, StateEnding, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { playerCommand } from './world';
 import { noteDeed } from './relations';
@@ -51,15 +51,25 @@ function amountsBy(pick: (kind: Supply) => number): AidAmounts {
   return { fuel: pick('fuel'), supplies: pick('supplies') };
 }
 
-export function wantedAid(world: World, npc: Vehicle): AidAmounts {
+const RESUPPLY_REASON: Record<Supply, GoalReason> = { fuel: 'lowFuel', supplies: 'lowSupplies' };
+
+function headsToResupply(npc: Vehicle, kind: Supply): boolean {
+  const top = topGoal(npc);
+  return top?.kind === 'resupply' && top.reason === RESUPPLY_REASON[kind];
+}
+
+function fillTarget(world: World, npc: Vehicle, kind: Supply): number {
+  const share = capOf(npc, kind) * AID.fillShare;
+  if (kind !== 'fuel') return share;
+  return corePart(npc, 'tank')?.hp === 0 ? 0 : Math.min(share, Math.max(1, Math.ceil(fuelReserveFor(world, npc))));
+}
+
+export function wantedAid(world: World, npc: Vehicle, resupplying = false): AidAmounts {
   const held = getResources(world, npc);
-  const target = (kind: Supply) => {
-    const share = capOf(npc, kind) * AID.fillShare;
-    if (kind !== 'fuel') return share;
-    return corePart(npc, 'tank')?.hp === 0 ? 0 : Math.min(share, Math.max(1, Math.ceil(fuelReserveFor(world, npc))));
-  };
-  const want = (kind: Supply) => Math.max(0, Math.floor(target(kind) - held[kind]));
-  return amountsBy((kind) => (isLowOn(world, npc, kind) ? Math.min(want(kind), Math.floor(world.player[kind])) : 0));
+  const skipsStop = (kind: Supply) => resupplying && headsToResupply(npc, kind);
+  const want = (kind: Supply) => (skipsStop(kind) ? Math.floor(capOf(npc, kind) * AID.fillShare) : Math.max(0, Math.floor(fillTarget(world, npc, kind) - held[kind])));
+  const short = (kind: Supply) => isLowOn(world, npc, kind) || skipsStop(kind);
+  return amountsBy((kind) => (short(kind) ? Math.min(want(kind), Math.floor(world.player[kind])) : 0));
 }
 
 export function spareAid(world: World, npc: Vehicle): AidAmounts {
@@ -72,7 +82,7 @@ export function hasAid(a: AidAmounts): boolean {
   return a.fuel > 0 || a.supplies > 0;
 }
 
-function aidValue(a: AidAmounts): number {
+export function aidValue(a: AidAmounts): number {
   return a.fuel * ECONOMY.supplyPrice.fuel + a.supplies * ECONOMY.supplyPrice.supplies;
 }
 
@@ -105,12 +115,12 @@ export function checkAid(world: World, s: NpcState): StateEnding | null {
   const npc = world.vehicles.find((v) => v.id === s.holder);
   const me = world.vehicles.find((v) => v.id === s.other);
   if (!npc || !me) return null;
-  if (callsOff(world, npc, me)) return 'broken';
+  if (!aidHolds(world, npc, me)) return 'broken';
   return handoverDone(s) ? 'fulfilled' : null;
 }
 
-function callsOff(world: World, npc: Vehicle, me: Vehicle): boolean {
-  return inFeud(world, npc, me) || inCombat(world, npc) || inCombat(world, me);
+export function aidHolds(world: World, npc: Vehicle, me: Vehicle): boolean {
+  return !inFeud(world, npc, me) && !inCombat(world, npc) && !inCombat(world, me);
 }
 
 function handoverDone(s: NpcState): boolean {
@@ -190,18 +200,18 @@ function moveSupply(world: World, giver: Vehicle, receiver: Vehicle, kind: Suppl
   return n;
 }
 
-function mayHelp(world: World, npc: Vehicle): boolean {
-  return !inDanger(npc) && !inCombat(world, npc) && talkOf(npc).topics.includes('aidOffer');
+function mayHelp(npc: Vehicle): boolean {
+  return !inDanger(npc) && talkOf(npc).topics.includes('aidOffer');
 }
 
 function looksNeedy(world: World, me: Vehicle): boolean {
-  return isLow(world, me) && looksPoor(me) && !inCombat(world, me);
+  return isLow(world, me) && looksPoor(me);
 }
 
 function mayOfferAid(world: World, npc: Vehicle): boolean {
   const me = playerVehicle(world);
-  if (playerAid(world) !== null || !mayHelp(world, npc)) return false;
-  return canVehicleSee(world, npc, me.pos) && !isHostile(world, npc, me) && looksNeedy(world, me);
+  if (playerAid(world) !== null || !mayHelp(npc)) return false;
+  return aidHolds(world, npc, me) && canVehicleSee(world, npc, me.pos) && !isHostile(world, npc, me) && looksNeedy(world, me);
 }
 
 export function onNeedySeen(world: World, npc: Vehicle): void {

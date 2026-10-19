@@ -22,8 +22,8 @@ A shop holds a finite, random stock of parts and restocks every so many turns. O
 | id | kind | makes | needs | goods | supplies | stock size (parts) | restock (turns) | pressure per unit | drift per turn | contract slots |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | bowl | garage | scrap, grain, textiles, meds, electronics, parts | salt, tools, batteries, fuelDrums, water | scrap, salt, meds, grain, textiles, tools, batteries, electronics, parts, fuelDrums, water | fuel, supplies | 8 to 12 | 400 | 0.005 | 0.0075 | 3 |
-| nose | garage | salt, tools, batteries | scrap, grain, textiles, meds, electronics, parts, fuelDrums, water | scrap, salt, meds, grain, textiles, tools, batteries, electronics, parts, fuelDrums, water | fuel, supplies | 8 to 12 | 400 | 0.005 | 0.0075 | 3 |
-| salvage-yard | stall | scrap, parts | tools | scrap, parts, tools | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
+| nose | garage | salt, tools, batteries | scrap, grain, textiles, meds, electronics, parts, fuelDrums, water, relics | scrap, salt, meds, grain, textiles, tools, batteries, electronics, parts, fuelDrums, water, relics | fuel, supplies | 8 to 12 | 400 | 0.005 | 0.0075 | 3 |
+| salvage-yard | stall | scrap, parts, relics | tools | scrap, parts, tools, relics | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
 | granary | stall | grain | salt, textiles | grain, salt, textiles | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
 | pump-station | stall | batteries | scrap, parts | batteries, scrap, parts | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
 | dustwell | stall | water | tools, meds | water, scrap, tools, meds | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
@@ -36,7 +36,7 @@ Repair costs `ECONOMY.repairShare` of a part's value per share of HP restored. A
 
 ## Contracts
 
-The player holds at most `CONTRACTS.maxActive` contracts. A contract's window counts from the turn the player accepts it. A haul has a window of `CONTRACTS.haul.durationFactor` times its estimated travel, and pays `CONTRACTS.haul.rewardFactor` tier wages. A share `CONTRACTS.haul.rush.chance` of hauls are rush jobs: their window is `CONTRACTS.haul.rush.durationFactor` times the estimated travel, and they pay `CONTRACTS.haul.rush.premium` times the standard reward. A fetch pays the part's price plus a search fee of `CONTRACTS.fetch.searchFeeTurns` turns of wage. A bounty pays `CONTRACTS.bounty.rewardTurns` turns of tier 1 wage for its raider type, whatever the target carries. The player claims it at the shop that posted it, after a knockout or wreck of any truck of its type.
+The player holds at most `CONTRACTS.maxActive` contracts. A contract's window counts from the turn the player accepts it. A haul has a window of `CONTRACTS.haul.durationFactor` times its estimated travel, and pays `CONTRACTS.haul.rewardFactor` tier wages. A share `CONTRACTS.haul.rush.chance` of hauls are rush jobs: their window is `CONTRACTS.haul.rush.durationFactor` times the estimated travel, and they pay `CONTRACTS.haul.rush.premium` times the standard reward. A fetch pays the part's price plus a search fee of `CONTRACTS.fetch.searchFeeTurns` turns of wage. A bounty pays `CONTRACTS.bounty.rewardTurns` turns of tier 1 wage for its raider type, whatever the target carries. The player claims it at the shop that posted it, after a knockout or wreck of any truck of its type. A survey pays the estimated turns of the loop from the shop through its places nearest first and back, plus `CONTRACTS.survey.surveyTurns` per place and `CONTRACTS.survey.searchTurns` per place for the search around its clue, at `CONTRACTS.survey.rewardFactor` tier 1 wages, with the haul's standard window. A shop offers one when a free survey site lies within `CONTRACTS.survey.range` tiles, and no site is named by two live contracts. A clue states its distance rounded to `CONTRACTS.survey.clue.roundTiles` tiles from a named place within `CONTRACTS.survey.clue.range` tiles, and the bake keeps it only when no other old place of the same kind more than `CONTRACTS.survey.clue.nearby` tiles from the site lies in its compass eighth within `CONTRACTS.survey.clue.band` tiles of that distance.
 
 ## Upkeep
 
@@ -72,4 +72,12 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `CONTRACTS.haul.rush.premium` | 1.75 |
 | `CONTRACTS.fetch.searchFeeTurns` | 240 |
 | `CONTRACTS.bounty.rewardTurns` | {"buggy":900,"gunwagon":1350} |
+| `CONTRACTS.survey.surveyTurns` | 10 |
+| `CONTRACTS.survey.searchTurns` | 20 |
+| `CONTRACTS.survey.rewardFactor` | 15 |
+| `CONTRACTS.survey.range` | 234 |
+| `CONTRACTS.survey.clue.roundTiles` | 25 |
+| `CONTRACTS.survey.clue.range` | 234 |
+| `CONTRACTS.survey.clue.nearby` | 40 |
+| `CONTRACTS.survey.clue.band` | 40 |
 <!-- /wiki:numbers -->

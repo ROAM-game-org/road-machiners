@@ -1,5 +1,6 @@
 
 import type { Weighted } from './npcs';
+import { scalePoint } from './region';
 import type { Vec } from '../sim/vec';
 
 export type LootRange = [number, number];
@@ -21,6 +22,7 @@ export type LootTable = {
   sparePartChance: number;
   spareParts: string[];
   rare: RareSpare | null;
+  relicChance: number;
   fuel: LootRange;
   supplies: LootRange;
 };
@@ -46,6 +48,17 @@ export const OLD_PLACES = {
   npcRange: 120,
 };
 
+const LANDMARK_TABLE = {
+  goods: { scrap: [1, 2], salt: [0, 1], meds: [0, 1] },
+  parts: [1, 2],
+  sparePartChance: 0.2,
+  spareParts: ['stockEngine', 'plates', 'cage', 'mg', 'emitter', 'emitter', 'scrapersKnife', 'scrapersKnife', 'patcherCrane', 'patcherCrane'],
+  rare: null,
+  relicChance: 0,
+  fuel: [0, 8],
+  supplies: [0, 3],
+} as LootTable;
+
 export const SALVAGE = {
   unitsPerTurn: 2,
   pileTurns: 400,
@@ -54,21 +67,15 @@ export const SALVAGE = {
   coreValueShare: 0.03,
   restockShare: 0.08,
   wreckClearDays: 3,
-  landmark: {
-    goods: { scrap: [1, 2], salt: [0, 1], meds: [0, 1] },
-    parts: [1, 2],
-    sparePartChance: 0.2,
-    spareParts: ['stockEngine', 'plates', 'cage', 'mg', 'emitter', 'emitter', 'scrapersKnife', 'scrapersKnife', 'patcherCrane', 'patcherCrane'],
-    rare: null,
-    fuel: [0, 8],
-    supplies: [0, 3],
-  } as LootTable,
+  landmark: LANDMARK_TABLE,
+  hullCache: { ...LANDMARK_TABLE, relicChance: 0.14 } as LootTable,
   roadWreck: {
     goods: { scrap: [1, 1] },
     parts: [0, 1],
     sparePartChance: 0.1,
     spareParts: ['mg', 'cage', 'rack', 'flatFour', 'caltrops', 'caltrops'],
     rare: null,
+    relicChance: 0,
     fuel: [0, 4],
     supplies: [0, 1],
   } as LootTable,
@@ -78,6 +85,7 @@ export const SALVAGE = {
     sparePartChance: 0.1,
     spareParts: ['mg', 'cage', 'plates', 'flatFour', 'oilSpiller', 'oilSpiller'],
     rare: null,
+    relicChance: 0.05,
     fuel: [0, 4],
     supplies: [0, 1],
   } as LootTable,
@@ -87,6 +95,7 @@ export const SALVAGE = {
     sparePartChance: 0.05,
     spareParts: ['flatFour', 'rack'],
     rare: null,
+    relicChance: 0,
     fuel: [0, 4],
     supplies: [0, 2],
   } as LootTable,
@@ -96,6 +105,7 @@ export const SALVAGE = {
     sparePartChance: 0.15,
     spareParts: ['mg', 'plates', 'cage', 'sprout', 'sprout', 'flareCannon', 'flareCannon', 'smokeMortar', 'smokeMortar', 'harpoon', 'harpoon'],
     rare: null,
+    relicChance: 0,
     fuel: [0, 2],
     supplies: [0, 2],
   } as LootTable,
@@ -105,6 +115,7 @@ export const SALVAGE = {
     sparePartChance: 0.2,
     spareParts: ['stockEngine', 'flatFour', 'plates', 'cage'],
     rare: null,
+    relicChance: 0,
     fuel: [0, 4],
     supplies: [0, 1],
   } as LootTable,
@@ -114,6 +125,7 @@ export const SALVAGE = {
     sparePartChance: 0.05,
     spareParts: ['rack', 'flatFour'],
     rare: null,
+    relicChance: 0,
     fuel: [0, 2],
     supplies: [0, 2],
   } as LootTable,
@@ -126,6 +138,7 @@ export const OLD_TABLES: Record<OldPlaceType, LootTable> = {
     sparePartChance: 0.12,
     spareParts: ['flatFour', 'rack'],
     rare: { share: 0.25, parts: ['workhorseDiesel', 'heavyDiesel'], wear: RARE_WEAR },
+    relicChance: 0,
     fuel: [0, 1],
     supplies: [0, 1],
   },
@@ -135,6 +148,7 @@ export const OLD_TABLES: Record<OldPlaceType, LootTable> = {
     sparePartChance: 0.12,
     spareParts: ['stockEngine', 'rack', 'plates'],
     rare: { share: 0.25, parts: ['tunedEngine', 'racingV6'], wear: RARE_WEAR },
+    relicChance: 0,
     fuel: [0, 1],
     supplies: [0, 1],
   },
@@ -144,6 +158,7 @@ export const OLD_TABLES: Record<OldPlaceType, LootTable> = {
     sparePartChance: 0.12,
     spareParts: ['mg', 'cage', 'stockEngine'],
     rare: { share: 0.25, parts: ['tunedEngine', 'racingV6'], wear: RARE_WEAR },
+    relicChance: 0,
     fuel: [0, 1],
     supplies: [0, 1],
   },
@@ -153,6 +168,7 @@ export const OLD_TABLES: Record<OldPlaceType, LootTable> = {
     sparePartChance: 0.1,
     spareParts: ['plates', 'mg', 'cage'],
     rare: { share: 0.25, parts: ['heavyDiesel', 'workhorseDiesel'], wear: RARE_WEAR },
+    relicChance: 0,
     fuel: [0, 1],
     supplies: [0, 1],
   },
@@ -179,7 +195,7 @@ export const WAGON_SEVEN = 'story-wagon-seven';
 export const STORY_WRECKS: StoryWreck[] = [
   {
     id: WAGON_SEVEN,
-    pos: { x: 171, y: 381 },
+    pos: scalePoint({ x: 34.2, y: 76.2 }),
     r: 0.8,
     chassisId: 'wagon',
     yaw: 2.2,

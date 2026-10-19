@@ -147,6 +147,7 @@ describe('NPC pleas to NPCs', () => {
   function holdUp(): { w: World; a: Vehicle; b: Vehicle } {
     const w = quietWorld();
     const a = npcAt(w, 'independent', ['trader'], 34);
+    a.resources!.money = 0;
     addGoods(w, a, 'scrap', 2);
     const b = npcAt(w, 'independent', ['scavenger', 'scumbag'], 40);
     npcAt(w, 'independent', ['scavenger'], 40, 28);
@@ -198,6 +199,7 @@ describe('NPC pleas to NPCs', () => {
     forceOption('mercyBegged', 'spare');
     const w = quietWorld();
     const a = npcAt(w, 'independent', ['trader'], 34);
+    a.resources!.money = 0;
     addGoods(w, a, 'scrap', 2);
     const b = npcAt(w, 'scrapjaw', ['raider'], 40);
     feud(w, a, b);
@@ -361,6 +363,7 @@ describe('player pleas', () => {
     addGoods(start, playerVehicle(start), 'scrap', 2);
     let w = pick(callVehicle(start, npc.id), 'I give up. Let me go.');
     w = pick(w, 'Take what I carry. Just let me drive away.');
+    w = pick(w, 'Fine. Take it.');
     expect(hasCargo(playerVehicle(w))).toBe(false);
     expect(isHostile(w, w.vehicles.find((v) => v.id === npc.id)!, playerVehicle(w))).toBe(false);
   });
@@ -632,6 +635,17 @@ describe('pile claims', () => {
       yieldTo(w, victim, robber);
       expect(fights(w, robber, other)).toHaveLength(2);
     });
+  });
+
+  it('two robbers handed cargo in one turn each claim their own pile', () => {
+    const { w, robber, victim } = handover('npc');
+    const second = npcAt(w, 'independent', ['raider'], 35);
+    addGoods(w, victim, 'scrap', 3);
+    yieldTo(w, victim, second);
+    const piles = w.salvage.filter((s) => s.pile);
+    expect(new Set(piles.map((s) => s.id)).size).toBe(2);
+    expect(piles.map((s) => s.pile!.claim?.by).sort()).toEqual([robber.id, second.id].sort());
+    expect(piles.reduce((sum, s) => sum + (s.goods.scrap ?? 0), 0)).toBe(5);
   });
 
   it('a player winner makes no claim', () => {

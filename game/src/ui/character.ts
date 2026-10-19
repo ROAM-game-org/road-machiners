@@ -11,9 +11,10 @@ import { num, t, type Msg } from '../text/msg';
 import { factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
 import { modeRules } from '../sim/settings';
+import { lookReason } from './look';
 
 export class CharacterScreen {
-  private root = panel('modal dialog');
+  readonly root = panel('modal dialog');
 
   constructor(private host: UiHost) {
     this.root.classList.add('character-screen');
@@ -82,7 +83,7 @@ export class CharacterScreen {
     const next = { rank: rank + 1, cost: rankCost(rank + 1) };
     return el('button', {
       class: 'btn-s skill-buy buy-rank',
-      ...disabledWith(blocked && refusalText(world, blocked), () => this.host.announce(buyRank(this.host.world(), skill))),
+      ...disabledWith(lookReason(world) ?? (blocked ? refusalText(world, blocked) : null), () => this.host.announce(buyRank(this.host.world(), skill))),
     }, t('character.buyShort', { cost: next.cost }));
   }
 
@@ -96,7 +97,7 @@ export class CharacterScreen {
 
   private choice(world: World, pair: PerkPair): HTMLElement {
     const state = world.player.state;
-    const reason = state === 'active' ? null : refusalText(world, { id: 'notActive', state });
+    const reason = lookReason(world) ?? (state === 'active' ? null : refusalText(world, { id: 'notActive', state }));
     const button = (id: PerkId) => el('button', {
       class: 'perk',
       ...disabledWith(reason, () => this.host.apply(choosePerk(this.host.world(), id))),

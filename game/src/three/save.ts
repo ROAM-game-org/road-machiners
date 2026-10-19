@@ -14,6 +14,7 @@ import { clearTips } from '../ui/tips';
 import type { NewGameActions } from '../ui/new-game';
 import { settleAims } from '../sim/combat';
 import { stockOldSpots } from '../sim/salvage';
+import { checkCompanies } from '../sim/companies';
 import { clockOf } from '../sim/sun';
 import { allSlots, listSaves, manualSlots, requestBoot, slotLabel, type BootRequest, type SlotId } from './save-slots';
 import type { SaveSlots } from './save-db';
@@ -125,6 +126,7 @@ export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Load
     terrain: map.terrain,
   };
   stockedOldSpots(loaded, map);
+  checkCompanies(loaded);
   refreshVision(loaded);
   settleAims(loaded);
   restoreQuest(loaded, QUESTS);
@@ -344,6 +346,7 @@ export function changeMapIfMoved(run: Run, world: World, hold: SaveHold, session
   if (world.mapHash === run.mapHash) return false;
   if (hold.held) throw new Error(`The map moved to ${world.mapHash} while saves are held, so a reboot would lose the turn`);
   if (!world.events.some((e) => e.t === 'roadOpened')) throw new Error(`The map moved to ${world.mapHash} with no road opened`);
+  run.log.note(world);
   writeSave(run.slots, 'auto', world, run.runId, Date.now());
   run.mapHash = world.mapHash;
   requestBoot(session, SAVE_KEY, { slot: 'auto', reason: 'road' });

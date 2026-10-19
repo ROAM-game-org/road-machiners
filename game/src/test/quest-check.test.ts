@@ -5,10 +5,10 @@ import { newWorld } from '../sim/world';
 import { TEST_MAP } from './map';
 import { checkQuests, gameScenes, QUEST_STATE_LIMIT, questCheck, type QuestReport } from './quest-check';
 import { readQuestSources, withEnglishTwins, type QuestSources } from './quest-compile';
+import { describeQuestWalks, inWalkFile } from './quest-walk';
 
 const WORLD = `VAR heard = false\n${readQuestSources('src/data/quests')['world.ink']}`;
 const LIMIT = 200;
-const WALK_TIMEOUT_MS = 600_000;
 
 const world = () => newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
 
@@ -20,19 +20,14 @@ function check(quest: string, worldInk = WORLD): string[] {
 describe('checkQuests', () => {
   describe('the game quests', () => {
     const game = questCheck(readQuestSources('src/data/quests'));
-    const scenes = gameScenes(world());
 
     it('compile with no problems and cover every quest', () => {
       expect(game.shared.problems).toEqual([]);
       expect(game.questIds).toContain('bowl_hattie');
     });
-
-    it.each(game.questIds)('walks %s with no problems', (id) => {
-      const report = game.walk(id, scenes, QUEST_STATE_LIMIT);
-      expect(report.problems).toEqual([]);
-      expect(report.states).toBeGreaterThan(1);
-    }, WALK_TIMEOUT_MS);
   });
+
+  describeQuestWalks('the other game quests', (id) => !inWalkFile(id));
 
   describe('a load that shows no text before its choices', () => {
     const scene = (hubTag: string) =>
@@ -111,6 +106,11 @@ describe('checkQuests', () => {
 
   it('fails a section no checkpoint ever reaches', () => {
     expect(check('=== start ===\n# checkpoint: start\nHi.\n-> END\n=== attic ===\nDust.\n-> END\n')).toContain('q: section attic is never reached');
+  });
+
+  it('counts an entry knot as reached when it shares its hub with another entry', () => {
+    const hub = '=== start ===\n# checkpoint: start\n-> hub\n= hub\n+ [Ask.]\n  -> END\n=== again ===\n# checkpoint: again\n-> start.hub\n';
+    expect(check(hub)).toEqual([]);
   });
 
   it('fails an effect that throws on the way and names the picks', () => {

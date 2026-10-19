@@ -5,7 +5,7 @@ import { corePart, mountedParts } from "../sim/grid";
 import { knockOutNpc } from "../sim/defeat";
 import { STATE_TURNS } from "../data/npcs";
 import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, spotWorld, startCombat } from "../sim/testkit";
-import { outpostPad } from "../sim/fury-road";
+import { yardSpots } from "../sim/outpost-gates";
 import { maxHealthOf } from "../sim/health";
 import { suppliesCap } from "../sim/stats";
 import { maxHp } from "../sim/wear";
@@ -25,10 +25,11 @@ import { partDef } from "../data/parts";
 import { startKit } from "../data/start";
 import { actBlock, newWorld } from "../sim/world";
 import { playerVehicle } from "../sim/damage";
-import { stowPart } from "../sim/inventory";
+import { stowParcel, stowPart } from "../sim/inventory";
 import { beginSearch } from "../sim/search";
 import { dumpOnPile, emptyHidden, isRoadWreck, oldSpotPicks, oldStockId } from "../sim/salvage";
 import { TEST_MAP } from "../test/map";
+import { surveySites } from "../sim/survey";
 import { defaultSetup } from "../sim/settings";
 import { isLootSpot, territoryAt } from "../sim/territory";
 import { propReach } from "../sim/mapgen";
@@ -413,6 +414,14 @@ function rescue(w: World) {
 }
 
 describe("rescue readout", () => {
+  it("offers to end a run when only the hauler is stranded and the gun truck can drive", () => {
+    const w = furyRoadWorld();
+    expect(getRescueReadout(w)).toBeNull();
+    const hauler = w.vehicles.find((v) => v.id === w.furyRoad!.hauler.id)!;
+    hauler.resources!.fuel = 0;
+    expect(getRescueReadout(w)).toMatchObject({ kind: "stranded", canEnd: true });
+  });
+
   it("shows negative money as a negative amount with a warning", () => {
     const w = emptyWorld();
     w.player.money = -120050;
@@ -473,6 +482,39 @@ describe('trade interaction', () => {
   it('offers the town while the trader still drives', () => {
     const { w, town } = atTownWithTrader(RULES.parkedSpeed + 1);
     expect(actions(w)[0]).toMatchObject({ label: `Enter ${siteEn(town.id)}`, ready: true });
+  });
+});
+
+describe('parcel handover action', () => {
+  function withTarget(npcSpeed: number) {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = w.vehicles[0];
+    const npc = addVehicle(w, 'independent', 'scout', [], { x: me.pos.x + 3, y: me.pos.y });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    npc.speed = npcSpeed;
+    w.player.contracts.push({
+      id: 'ct-s', shop: 'bowl', kind: 'search', target: npc.id, driver: npc.brain.driver, template: 'trader',
+      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 9200, deadline: 900, window: 600, tier: 1, delivered: false,
+    });
+    stowParcel(me, { id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'ct-s' });
+    addState(w, 'handover', npc.id, w.player.vehicleId, { kind: 'none' });
+    return { w, npc };
+  }
+
+  it('is ready once the target is parked beside the player', () => {
+    const { w, npc } = withTarget(0);
+    expect(actions(w)[0]).toMatchObject({ label: `Hand the parcel to ${npcName(npc)}`, ready: true, target: { kind: 'parcel', id: npc.id } });
+  });
+
+  it('waits while the target still drives', () => {
+    const { w, npc } = withTarget(RULES.parkedSpeed + 1);
+    expect(actions(w)).toContainEqual(expect.objectContaining({ label: `Hand the parcel to ${npcName(npc)}`, ready: false }));
+  });
+
+  it('is gone with no handover open', () => {
+    const { w } = withTarget(0);
+    w.states = [];
+    expect(actions(w).some((a) => a.target.kind === 'parcel')).toBe(false);
   });
 });
 
@@ -612,7 +654,7 @@ describe('overdrive switch', () => {
 describe("Fury Road readouts", () => {
   const parkAt = (w: World, milestone: number) => {
     const me = playerVehicle(w);
-    me.pos = outpostPad(w, milestone);
+    me.pos = { ...yardSpots(w, milestone).truck };
     me.speed = 0;
   };
 
@@ -629,12 +671,12 @@ describe("Fury Road readouts", () => {
     expect(getHudReadout(w).resources.some((r) => r.id === "run")).toBe(false);
   });
 
-  it("offers to enter a reached outpost only while parked on its pad", () => {
+  it("offers to enter a reached outpost only while parked in its yard", () => {
     const w = furyRoadWorld();
     parkAt(w, 1);
     expect(actions(w).some((a) => a.target.kind === "outpost")).toBe(false);
 
-    w.furyRoad!.outposts[0].paid = true;
+    w.furyRoad!.outposts[1].paid = true;
     expect(actions(w)).toContainEqual({ label: "Enter Outpost 1", ready: true, target: { kind: "outpost" } });
     playerVehicle(w).speed = 2;
     expect(actions(w)).toContainEqual({ label: "Enter Outpost 1", ready: false, target: { kind: "outpost" } });
@@ -645,5 +687,37 @@ describe("Fury Road readouts", () => {
     w.player.fuel = 0;
 
     expect(rescue(w)).toEqual({ kind: "stranded", beacon: false, reason: "Out of fuel.", canEnd: true });
+  });
+});
+
+describe('survey interaction', () => {
+  function atSurveySite() {
+    const [site] = surveySites(TEST_MAP);
+    const w = emptyWorld({ x: site.pos.x + 1, y: site.pos.y });
+    w.player.contracts = [{ id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: true, done: false }], reward: 3000, deadline: 900, window: 900, tier: 1 }];
+    return w;
+  }
+
+  it('offers no Survey by a place not found yet', () => {
+    const w = atSurveySite();
+    const contract = w.player.contracts[0];
+    if (contract.kind === 'survey') contract.points[0].found = false;
+    expect(actions(w)).toEqual([]);
+  });
+
+  it('offers Survey the area when stopped in reach of an open site, and not once it is done', () => {
+    const w = atSurveySite();
+    expect(actions(w)).toMatchObject([{ label: 'Survey the area', ready: true }]);
+    w.vehicles[0].speed = RULES.parkedSpeed + 1;
+    expect(actions(w)).toMatchObject([{ label: 'Survey the area', ready: false }]);
+    w.vehicles[0].speed = 0;
+    const contract = w.player.contracts[0];
+    if (contract.kind === 'survey') contract.points[0].done = true;
+    expect(actions(w)).toEqual([]);
+  });
+
+  it('offers nothing off the site', () => {
+    const w = emptyWorld();
+    expect(actions(w)).toEqual([]);
   });
 });

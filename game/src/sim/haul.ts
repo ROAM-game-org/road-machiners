@@ -1,11 +1,13 @@
 
 import { GOODS } from '../data/goods';
 import { RULES } from '../data/rules';
-import { partSellPrice } from './economy';
+import { getUpkeepReserve, partSellPrice } from './economy';
+import { getResources } from './resources';
+import { UNITS } from '../data/units';
 import { findSpot, freeCells, gridOf, isMounted } from './grid';
 import { cargoRoom, stowPlace } from './inventory';
 import { looseCargo, takeError } from './salvage';
-import type { CallVar, GridItem, Vehicle } from './types';
+import type { CallVar, GridItem, Vehicle, World } from './types';
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 type GoodItem = Extract<GridItem, { kind: 'good' }>;
@@ -17,6 +19,7 @@ export function removableParts(victim: Vehicle): PartItem[] {
 }
 
 function value(item: GridItem): number {
+  if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} is nobody's loot`);
   return item.kind === 'part' ? partSellPrice(item.part) : GOODS[item.good].value;
 }
 
@@ -71,6 +74,7 @@ export function haulVar(items: GridItem[]): Extract<CallVar, { kind: 'haul' }> {
   const goods: Record<string, number> = {};
   const parts: string[] = [];
   for (const item of items) {
+    if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} is nobody's loot`);
     if (item.kind === 'good') goods[item.good] = (goods[item.good] ?? 0) + 1;
     else parts.push(item.part.defId);
   }
@@ -81,4 +85,26 @@ export function showsHaul(shown: CallVar | undefined, items: GridItem[]): boolea
   if (shown?.kind !== 'haul') return false;
   const key = (v: Extract<CallVar, { kind: 'haul' }>) => JSON.stringify([Object.entries(v.goods).sort(), [...v.parts].sort()]);
   return key(shown) === key(haulVar(items));
+}
+
+export type Ransom = { haul: GridItem[]; money: number };
+
+export function haulValue(items: GridItem[]): number {
+  return items.reduce((sum, item) => sum + value(item), 0);
+}
+
+export function cashCut(world: World, victim: Vehicle): number {
+  const spare = getResources(world, victim).money - getUpkeepReserve(victim);
+  if (spare <= 0) return 0;
+  const cut = Math.min(RULES.holdUp.cutCap, spare * RULES.holdUp.cutShare);
+  return Math.floor(cut / UNITS.centsPerM) * UNITS.centsPerM;
+}
+
+export function ransomOf(world: World, robber: Vehicle, victim: Vehicle): Ransom {
+  const haul = robber.brain ? cargoHaul(robber, victim) : looseCargo(victim);
+  return { haul, money: haul.length > 0 ? haulValue(haul) : cashCut(world, victim) };
+}
+
+export function hasRansom(ransom: Ransom): boolean {
+  return ransom.haul.length > 0 || ransom.money > 0;
 }

@@ -1,17 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { onOrchardRoad, REGION } from '../data/region';
+import { MAP_SCALE, onOrchardRoad, REGION } from '../data/region';
 import { TERRAIN } from '../data/terrain';
 import { PHYSICS } from '../data/physics';
-import { START_KITS } from '../data/start';
-import { cloneWorld, newWorld, setMoveOrder } from './world';
+import { setMoveOrder } from './world';
 import { dist, polylineDist, type Vec } from './vec';
 import { siteGap } from './sites';
 import { discoverSites } from './locations';
 import { refreshVision } from './vision';
 import { bodyOf } from './body';
-import { TEST_MAP } from '../test/map';
+import { standardWorld } from '../test/world-cache';
 import { budget } from '../test/budget';
-import { defaultSetup } from './settings';
 
 const original = [
   [16, 94], [102, 35], [22.8, 56.8], [33.8, 32], [50, 32.8],
@@ -20,16 +18,16 @@ const original = [
 ];
 
 describe('Icarus exploration distances', () => {
-  it('multiplies every pairwise destination distance by five', () => {
+  it('multiplies every pairwise destination distance by the map scale', () => {
     const sites = [...REGION.towns, ...REGION.locations];
     expect(sites).toHaveLength(original.length);
     for (let i = 0; i < sites.length; i++) for (let j = i + 1; j < sites.length; j++) {
-      expect(dist(sites[i].pos, sites[j].pos)).toBeCloseTo(Math.hypot(original[i][0] - original[j][0], original[i][1] - original[j][1]) * 5);
+      expect(Math.abs(dist(sites[i].pos, sites[j].pos) - Math.hypot(original[i][0] - original[j][0], original[i][1] - original[j][1]) * MAP_SCALE)).toBeLessThan(1);
     }
   });
 
   it('starts off the trunk road facing it, the road in grey vision past clear sight, out of clear sight of every site', () => {
-    const world = cloneWorld(newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
+    const world = standardWorld(1337);
     const player = world.vehicles.find((v) => v.id === world.player.vehicleId)!;
     refreshVision(world);
     discoverSites(world);
@@ -54,7 +52,7 @@ describe('Icarus exploration distances', () => {
   });
 
   it('shares immutable terrain between turns without sharing mutable state', () => {
-    const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(1337);
     const next = setMoveOrder(world, { kind: 'stopAt', dest: { x: 100, y: 440 } });
     expect(next.terrain).toBe(world.terrain);
     expect(Object.isFrozen(next.terrain.heights)).toBe(true);
@@ -70,14 +68,14 @@ describe('discovering an outlined territory', () => {
   const at = (s: number, c: number): Vec => ({ x: orchard.pos.x + onOrchardRoad(s, c).x, y: orchard.pos.y + onOrchardRoad(s, c).y });
 
   it('discovers the orchard from one seen tile of its north-west pocket', () => {
-    const world = cloneWorld(newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
+    const world = standardWorld(1337);
     world.player.visible = [tileAt(world.terrain.size, at(60, 30))];
     discoverSites(world);
     expect(world.player.discovered).toEqual(['orchard']);
   }, budget(15_000));
 
   it('does not discover it from a tile inside its bounding radius but past its outline', () => {
-    const world = cloneWorld(newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
+    const world = standardWorld(1337);
     const beyond = at(-30, 44);
     expect(dist(beyond, orchard.pos)).toBeLessThan(orchard.radius);
     world.player.visible = [tileAt(world.terrain.size, beyond)];

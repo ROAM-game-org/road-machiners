@@ -1,5 +1,8 @@
 
+import { SIGN_STAGES } from '../render/sign';
 import { list, t, type Msg } from '../text/msg';
+
+const SIGN_SHARES = SIGN_STAGES.length + 1;
 
 export type BootStep = 'code' | 'map' | 'physics' | 'models' | 'sounds' | 'world' | 'ground' | 'scene' | 'frame';
 export type BootState = 'waiting' | 'running' | 'done' | 'failed';
@@ -78,6 +81,15 @@ export class BootProgress {
 
   get finished(): number {
     return BOOT_STEPS.filter((s) => this.state(s) === 'done').length;
+  }
+
+  get fraction(): number {
+    const counted = this.runningEntries().reduce((sum, e) => sum + (e.total ? e.done / e.total : 0), 0);
+    return (this.finished + counted) / this.total;
+  }
+
+  get signStages(): number {
+    return Math.min(SIGN_STAGES.length, Math.floor(this.fraction * SIGN_SHARES));
   }
 
   get stageLine(): Msg | null {

@@ -99,7 +99,7 @@ describe('hills and the scanner', () => {
     raiseHill(w);
     refreshVision(w);
     const observer = w.vehicles[0];
-    observer.items = observer.items.filter((it) => it.kind === 'good' || it.part.defId !== 'mg');
+    observer.items = observer.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'mg');
     const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     target.speed = 0.2;
     expect(scannerRange(w, observer)).toBe(0);
@@ -117,7 +117,7 @@ describe('a worn scanner', () => {
   it('reaches less far', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const observer = w.vehicles[0];
-    observer.items = observer.items.filter((it) => it.kind === 'good' || it.part.defId !== 'mg');
+    observer.items = observer.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'mg');
     const scanner = makePart(w, 'scanner', 0);
     if (!mountPart(w, observer, scanner)) throw new Error('No free mount for the test scanner');
     const fresh = scannerRange(w, observer);
@@ -609,7 +609,7 @@ describe('a stranded truck', () => {
     observer.speed = 4;
     me.speed = 0;
     w.player.fuel = 10;
-    me.items = me.items.filter((it) => it.kind === 'good' || it.part.defId !== 'mg');
+    me.items = me.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'mg');
     if (!mountPart(w, me, makePart(w, 'scanner', 0))) throw new Error('No free mount for the test scanner');
     expect(contactsOf(w, me, Infinity).find((c) => c.vehicleId === observer.id)?.sources).toEqual(['radio']);
   });

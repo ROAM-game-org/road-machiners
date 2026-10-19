@@ -1,10 +1,13 @@
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
+import { TIME } from '../data/time';
 import { UNITS } from '../data/units';
 import { concat, MINUS_SIGN, num, SPACE, t, type Msg } from '../text/msg';
+import type { Vec } from '../sim/vec';
 import { el } from './dom';
 
 const MS_TO_KPH = 3.6;
+const HOURS_PER_DAY = 24;
 
 export function kph(tilesPerTurn: number): number {
   return Math.round((tilesPerTurn * PHYSICS.metersPerTile) / PHYSICS.turnSeconds * MS_TO_KPH);
@@ -12,6 +15,11 @@ export function kph(tilesPerTurn: number): number {
 
 export function mps2(tilesPerTurn2: number): number {
   return Math.round((tilesPerTurn2 * PHYSICS.metersPerTile) / PHYSICS.turnSeconds ** 2 * 10) / 10;
+}
+
+export function agoText(turns: number): Msg {
+  const hours = Math.floor(turns / (TIME.turnsPerDay / HOURS_PER_DAY));
+  return hours < 1 ? t('ago.underHour') : t('ago.hours', { n: hours });
 }
 
 export function meters(tiles: number): number {
@@ -23,6 +31,18 @@ const METERS_PER_KM = 1000;
 export function distanceText(tiles: number): Msg {
   const m = meters(tiles);
   return m >= METERS_PER_KM ? t('units.km', { n: m / METERS_PER_KM }) : t('units.m', { n: m });
+}
+
+const COMPASS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
+
+export function compassText(rad: number): Msg {
+  const step = (2 * Math.PI) / COMPASS.length;
+  const i = Math.round(rad / step);
+  return t(`compass.${COMPASS[((i % COMPASS.length) + COMPASS.length) % COMPASS.length]}`);
+}
+
+export function bearingText(from: Vec, to: Vec): Msg {
+  return compassText(Math.atan2(to.y - from.y, to.x - from.x));
 }
 
 export function liters(cells: number): number {

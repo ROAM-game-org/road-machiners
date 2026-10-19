@@ -562,7 +562,7 @@ describe('player vision', () => {
 
   it('a rock between you and a raider blocks the shot', () => {
     const { w, me, buggy, mg } = duel({ x: 34, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 32, y: 30 }, r: 0.8, kind: 'rock' }];
+    w.obstacles = [{ id: 'r', pos: { x: 32, y: 30 }, r: 1.2, kind: 'rock' }];
     refreshVision(w);
     order(me, mg.part.id, buggy.id);
     fireWeapons(w);
@@ -573,7 +573,7 @@ describe('player vision', () => {
     const { fireBlock } = await import('./combat');
     const { playerSees } = await import('./vision');
     const { w, me, buggy, mg } = duel({ x: 32.5, y: 30 });
-    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30 }, r: 0.6, kind: 'rock' }];
+    w.obstacles = [{ id: 'r', pos: { x: 31.2, y: 30 }, r: 1.2, kind: 'rock' }];
     refreshVision(w);
     expect(playerSees(w, buggy.pos)).toBe(true);
     expect(fireBlock(w, me, mg, buggy)).toBe('covered');
@@ -631,6 +631,43 @@ describe('NPC attack records and defensive fire', () => {
     npc.brain.attackers = { [prey.id]: true };
     autoOrders(w, npc);
     expect(aimed()).toEqual([prey.id]);
+  });
+
+  describe('a runner and the truck that attacked it', () => {
+    const runner = () => {
+      const w = emptyWorld({ x: 200, y: 200 });
+      const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 30, y: 30 });
+      npc.brain = npcBrain('trader', npc.pos, ['scumbag']);
+      const attacker = addVehicle(w, 'scrapjaw', 'scout', ['mg'], { x: 33, y: 30 });
+      npc.brain.goals = [{ kind: 'flee', targetId: attacker.id, destination: { x: 100, y: 100 }, phase: 'travel', reason: 'escapeAttacker' }];
+      npc.brain.attackers = {};
+      return { w, npc, attacker };
+    };
+    const aimed = (npc: Vehicle) => Object.values(npc.weaponOrders).map((order) => order.targetId);
+
+    it('keeps firing while its attacker holds a combat state, without a remembered attack', () => {
+      const { w, npc, attacker } = runner();
+      addState(w, 'combat', attacker.id, npc.id, { kind: 'none' });
+      autoOrders(w, npc);
+      expect(aimed(npc)).toEqual([attacker.id]);
+    });
+
+    it('holds fire once the combat state has ended', () => {
+      const { w, npc, attacker } = runner();
+      autoOrders(w, npc);
+      expect(aimed(npc)).toEqual([]);
+      addState(w, 'combat', npc.id, attacker.id, { kind: 'none' });
+      autoOrders(w, npc);
+      expect(aimed(npc)).toEqual([]);
+    });
+
+    it('a robber off its robbery still holds fire while fleeing', () => {
+      const { w, npc, attacker } = runner();
+      addState(w, 'feud', npc.id, attacker.id, { kind: 'feud', robbery: true });
+      addState(w, 'combat', attacker.id, npc.id, { kind: 'none' });
+      autoOrders(w, npc);
+      expect(aimed(npc)).toEqual([]);
+    });
   });
 
   it('a robber off its robbery holds its fire even after its victim shoots back', () => {

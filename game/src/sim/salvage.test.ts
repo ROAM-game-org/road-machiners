@@ -12,10 +12,11 @@ import { partDef } from '../data/parts';
 import { chassisDef } from '../data/chassis';
 import { BREAKABLE, RULES } from '../data/rules';
 import { takeAllLoot, takeLoot, takeStores, canScavenge, scavenge } from './locations';
+import { defaultSetup } from './settings';
 import {
   breakProp, canTakeAny, claimPile, claimantOf, clearPiles, collectSalvage, dropHaul, looseCargo, hasSalvage, initializeSalvage, isLootTarget, isRoadWreck, lootBlockedError, lootBlocker,
   lootClaimedBy, looterOf, removeStocks, renewSalvage, rollStock, salvageInRange, salvagePlace, salvageUnits, stockOldSpots, oldSpotOf, oldSpotPicks, oldStockId,
-  emptyHidden,
+  emptyHidden, lootableProps, stockProp,
 } from './salvage';
 import { FIELD_SPARE_WEAR, OLD_TABLES } from '../data/salvage';
 import { chance, randInt } from './rng';
@@ -33,7 +34,6 @@ import { freeCells } from './grid';
 import { endTurn } from './world';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
-import { defaultSetup } from './settings';
 
 describe('player piles', () => {
   it('goods the player dumps and takes back keep their cost basis', () => {
@@ -333,11 +333,51 @@ describe('field spare parts', () => {
   });
 });
 
+describe('ship relics', () => {
+  const relicsAfterRolls = (table: LootTable, rolls: number): number => {
+    const w = emptyWorld();
+    let found = 0;
+    for (let i = 0; i < rolls; i++) found += rollStock(w, table, `spot-${i}`, { x: 1, y: 1 }, 1).hidden.goods.relics ?? 0;
+    return found;
+  };
+
+  it('turn up in hull caches at their chance, in field spots less, and nowhere else', () => {
+    expect(relicsAfterRolls(SALVAGE.hullCache, 2000) / 2000).toBeCloseTo(SALVAGE.hullCache.relicChance, 1);
+    expect(relicsAfterRolls(SALVAGE.hullScrap, 2000) / 2000).toBeCloseTo(SALVAGE.hullScrap.relicChance, 1);
+    for (const table of [SALVAGE.landmark, SALVAGE.roadWreck, SALVAGE.farmStores, SALVAGE.armyStores, SALVAGE.engineScrap, SALVAGE.cityStores, ...Object.values(OLD_TABLES)])
+      expect(relicsAfterRolls(table, 500)).toBe(0);
+  });
+
+  it('leave the draws of a table without relics as they were', () => {
+    const a = emptyWorld();
+    const b = emptyWorld();
+    rollStock(a, SALVAGE.landmark, 'x', { x: 1, y: 1 }, 1);
+    rollStock(b, { ...SALVAGE.landmark, relicChance: 0 }, 'x', { x: 1, y: 1 }, 1);
+    expect(a.rngState).toBe(b.rngState);
+    expect(a.marketRng.rngState).toBe(b.marketRng.rngState);
+  });
+
+  it('refill an emptied stock by one and never pile past it', () => {
+    const { w, stock } = spotWorld();
+    const saved = SALVAGE.landmark.relicChance;
+    SALVAGE.landmark.relicChance = 1;
+    try {
+      emptyStock(stock);
+      for (let day = 0; day < 400; day++) {
+        runDays(w, 1);
+        expect((stock.goods.relics ?? 0) + (stock.hidden.goods.relics ?? 0)).toBeLessThanOrEqual(1);
+      }
+      expect(stock.hidden.goods.relics).toBe(1);
+    } finally {
+      SALVAGE.landmark.relicChance = saved;
+    }
+  });
+});
+
 describe('road wreck salvage', () => {
   it('gives every wreck placed on a road its own stock to search', async () => {
-    const { newWorld } = await import('./world');
-    const { startKit } = await import('../data/start');
-    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const { standardWorld } = await import('../test/world-cache');
+    const w = standardWorld(1337);
     const wrecks = w.obstacles.filter((o) => /^wreck\d+$/.test(o.id));
     expect(wrecks.length).toBeGreaterThan(0);
     for (const o of wrecks) {
@@ -726,9 +766,8 @@ describe('who loots a target', () => {
 
 describe('territory loot spots', () => {
   async function realWorld(): Promise<World> {
-    const { newWorld } = await import('./world');
-    const { startKit } = await import('../data/start');
-    return newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const { standardWorld } = await import('../test/world-cache');
+    return standardWorld(1337);
   }
   const spotsOf = (w: World) => w.obstacles.filter(isLootSpot);
 
@@ -759,12 +798,12 @@ describe('territory loot spots', () => {
     expect(w.salvage.some((s) => s.id === 'orchard')).toBe(false);
   }, budget(30_000));
 
-  it('rolls caches from the landmark table and field spots from the hull scrap table', async () => {
+  it('rolls caches from the hull cache table and field spots from the hull scrap table', async () => {
     const w = await realWorld();
     for (const o of spotsOf(w).filter((spot) => territoryAt(spot.pos)?.id === 'fallen-sun')) {
       const table = spotTable(o);
       const stock = stockOf(w, o.id);
-      expect(table).toBe(o.kind === 'landmark' && o.look === 'hullCache' ? SALVAGE.landmark : SALVAGE.hullScrap);
+      expect(table).toBe(o.kind === 'landmark' && o.look === 'hullCache' ? SALVAGE.hullCache : SALVAGE.hullScrap);
       expect(stock.hidden.goods.parts).toBeGreaterThanOrEqual(table.parts[0]);
       expect(stock.hidden.goods.parts).toBeLessThanOrEqual(table.parts[1]);
       expect(stock.hidden.fuel).toBeLessThanOrEqual(table.fuel[1]);
@@ -842,9 +881,8 @@ describe('territory loot spots', () => {
 
 describe('salvage place', () => {
   async function realWorld(): Promise<World> {
-    const { newWorld } = await import('./world');
-    const { startKit } = await import('../data/start');
-    return newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const { standardWorld } = await import('../test/world-cache');
+    return standardWorld(1337);
   }
 
   function spotStock(w: World, territory: string, look: string): SalvageStock {
@@ -1004,3 +1042,54 @@ function rollWithoutRare(w: World, table: LootTable): SalvageStock {
   const hidden = { goods, parts, fuel: randInt(w, ...table.fuel), supplies: randInt(w, ...table.supplies) };
   return { id: 's', pos: { x: 0, y: 0 }, radius: 1, goods: {}, parts: [], fuel: 0, supplies: 0, hidden };
 }
+
+describe('lootable props', () => {
+  async function realWorld(): Promise<World> {
+    const { newWorld } = await import('./world');
+    const { startKit } = await import('../data/start');
+    return newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+  }
+
+  it('names a standing prop for every stock that holds loot, and no pile', async () => {
+    const w = await realWorld();
+    const road = w.salvage.find((s) => isRoadWreck(s));
+    const old = w.salvage.find((s) => oldSpotOf(s));
+    if (!road || !old) throw new Error('No road wreck or old spot');
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
+    addGoods(w, npc, 'scrap', 3);
+    const pile = dropHaul(w, npc, looseCargo(npc));
+    const props = lootableProps(w.salvage);
+    expect(w.salvage.length).toBeLessThan(1000);
+    expect(props.has(road.id)).toBe(true);
+    expect(props.has(oldSpotOf(old)!.propId)).toBe(true);
+    expect(props.has(old.id)).toBe(false);
+    expect(props.has(pile.id)).toBe(false);
+    const standing = new Set(w.obstacles.map((o) => o.id));
+    for (const id of props) expect(standing.has(id)).toBe(true);
+  }, 30_000);
+
+  it('drops a stock once it is emptied', async () => {
+    const w = await realWorld();
+    const road = w.salvage.find((s) => isRoadWreck(s))!;
+    emptyStock(road);
+    expect(lootableProps(w.salvage).has(road.id)).toBe(false);
+  }, 30_000);
+
+  it('keeps a kill wreck while it holds parts and drops it once stripped', () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 10, y: 10 });
+    wreckVehicle(w, npc);
+    const id = `wreck-${npc.id}`;
+    expect(w.obstacles.some((o) => o.id === id)).toBe(true);
+    expect(lootableProps(w.salvage).has(id)).toBe(true);
+    emptyStock(stockOf(w, id));
+    expect(lootableProps(w.salvage).has(id)).toBe(false);
+  });
+
+  it('throws for a pile', () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
+    addGoods(w, npc, 'scrap', 3);
+    expect(() => stockProp(dropHaul(w, npc, looseCargo(npc)))).toThrow(/has no prop/);
+  });
+});

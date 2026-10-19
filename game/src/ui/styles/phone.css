@@ -1,0 +1,368 @@
+/* The phone layout. Every rule is under #ui.phone, so a desktop window keeps the layout of the other files. The bottom bar
+   holds the drawer tabs, the LCD readouts and End turn. One drawer opens above it at a time, over the full width in portrait
+   and over one half of the screen in landscape. */
+#ui .game-menu [role="menuitem"][hidden] {
+  display: none;
+}
+#ui:not(.phone) .drawer-tabs {
+  display: none;
+}
+#ui.phone {
+  --phone-top-row: var(--icon-hero);
+  --drawer-bottom: calc(var(--safe-bottom) + var(--phone-bar-h) + var(--hud-gap));
+  --drawer-top: calc(var(--safe-top) + var(--phone-top-row) + var(--hud-gap));
+  --drawer-max-h: calc(var(--layer-h) - var(--drawer-bottom) - var(--drawer-top));
+  --drawer-w: calc((var(--layer-w) - var(--safe-left) - var(--safe-right) - var(--hud-gap)) / 2);
+  --phone-tabs-w: calc(4 * var(--btn-h-l) + 3 * var(--space-2));
+  --right-column: 0px;
+}
+
+#ui.phone .bottom-left,
+#ui.phone .right-column {
+  display: contents;
+}
+#ui:not(.phone) .log-strip {
+  display: none;
+}
+#ui.phone .log-strip {
+  position: fixed;
+  z-index: var(--z-hud);
+  box-sizing: border-box;
+  left: var(--safe-left);
+  right: var(--safe-right);
+  bottom: calc(var(--safe-bottom) + var(--btn-h-l) + var(--hud-gap));
+  height: var(--phone-strip-h);
+  padding: 0 var(--space-4);
+}
+#ui.phone .log-strip:empty {
+  display: none;
+}
+#ui.phone .log-strip > div {
+  font-size: var(--text-caption);
+}
+#ui.phone .log-strip .log-time {
+  display: none;
+}
+#ui.phone .top-center {
+  left: var(--safe-left);
+  right: var(--safe-right);
+  top: var(--drawer-top);
+}
+#ui.phone .top-left > .panel {
+  padding: var(--space-2) var(--space-4);
+}
+#ui.phone .bottom-left > .recenter {
+  position: fixed;
+  top: auto;
+  left: auto;
+  right: var(--safe-right);
+  bottom: var(--drawer-bottom);
+}
+#ui.phone[data-drawer] .bottom-left > .recenter {
+  display: none;
+}
+
+#ui.phone .drawer-tabs {
+  position: fixed;
+  z-index: var(--z-hud);
+  left: var(--safe-left);
+  bottom: calc(var(--safe-bottom) + (var(--phone-readouts-h) - var(--btn-h-l)) / 2);
+  pointer-events: auto;
+}
+#ui.phone .turn-control {
+  right: var(--safe-right);
+  bottom: var(--safe-bottom);
+}
+#ui.phone .end-turn {
+  width: var(--phone-end-w);
+  min-height: var(--btn-h-l);
+  flex-direction: row;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+}
+#ui.phone .end-turn .icon {
+  width: var(--icon-l);
+  height: var(--icon-l);
+}
+
+#ui.phone {
+  --dial-w: 64px;
+  --dial-h: 39px;
+}
+#ui.phone .bottom-left > .instruments {
+  position: fixed;
+  z-index: var(--z-hud);
+  box-sizing: border-box;
+  left: var(--safe-left);
+  right: var(--safe-right);
+  bottom: calc(var(--safe-bottom) + var(--btn-h-l) + var(--hud-gap) + var(--phone-strip-h) + var(--hud-gap));
+  height: var(--phone-readouts-h);
+  overflow: hidden;
+  padding: var(--space-1) var(--space-2);
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
+  grid-template-columns: var(--dial-w) repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "dial heat money clock"
+    "dial fuel supplies engine"
+    "actions actions actions actions";
+}
+#ui.phone .instruments .speedometer {
+  grid-row: 1 / span 2;
+}
+#ui.phone .instruments .resource {
+  padding: var(--space-1) var(--space-2);
+  column-gap: var(--space-1);
+  font-size: var(--text-caption);
+}
+#ui.phone .instruments .resource :is(.icon, .coin) {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+#ui.phone .instruments .instrument-clock {
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+#ui.phone .instruments :is(.clock-day, .clock-time) {
+  font-size: var(--text-caption);
+}
+#ui.phone .instruments .instrument-actions {
+  gap: var(--space-1);
+  padding-top: var(--space-1);
+  min-height: 0;
+}
+#ui.phone .instruments .instrument-actions > * {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+}
+#ui.phone .top-right {
+  align-items: center;
+}
+#ui.phone .health-slot {
+  order: -1;
+}
+#ui.phone .health-slot .resource {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-body);
+}
+#ui.phone :is(.feedback, .camera-mode) {
+  display: none;
+}
+#ui:not(.phone) .health-slot {
+  display: none;
+}
+
+#ui.phone :is(.truck-stack, .weapons, .right-dock, .log) {
+  display: none;
+}
+#ui.phone[data-drawer="truck"] .bottom-left > .truck-stack,
+#ui.phone[data-drawer="radio"] .right-dock,
+#ui.phone[data-drawer="log"] .log {
+  display: flex;
+}
+#ui.phone[data-drawer="guns"] .weapons {
+  display: block;
+}
+#ui.phone :is(.bottom-left > .truck-stack, .weapons, .right-dock, .log) {
+  position: fixed;
+  z-index: var(--z-hud);
+  box-sizing: border-box;
+  left: var(--safe-left);
+  right: var(--safe-right);
+  top: auto;
+  bottom: var(--drawer-bottom);
+  width: auto;
+  height: auto;
+  max-height: var(--drawer-max-h);
+  overflow: auto;
+  scrollbar-width: thin;
+  pointer-events: auto;
+}
+#ui.phone .bottom-left > .truck-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--hud-gap);
+}
+#ui.phone .truck-stack > * {
+  flex: none;
+}
+#ui.phone .right-dock {
+  flex-direction: column;
+  gap: var(--hud-gap);
+}
+#ui.phone .log.log {
+  flex-direction: column;
+  height: min(var(--drawer-max-h), var(--panel-m-height));
+}
+#ui.phone .log .log-expand {
+  display: none;
+}
+
+#ui.phone .info {
+  right: var(--safe-right);
+  left: auto;
+  width: min(var(--panel-s), calc(var(--layer-w) - var(--safe-left) - var(--safe-right)));
+  max-width: none;
+  max-height: calc(0.5 * var(--layer-h));
+  overflow: auto;
+}
+
+#ui.phone:has(.modal:not([style*="display: none"])) > .top-center > .opening-tip {
+  visibility: hidden;
+}
+#ui.phone:has(:is(.modal:not([style*="display: none"]), .options)) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .log-strip, .info) {
+  display: none;
+}
+#ui.phone[data-drawer] > .top-center > .tip,
+#ui.phone:has(.info:not([style*="display: none"])) > .top-center > .tip {
+  visibility: hidden;
+}
+#ui.phone .modal {
+  left: var(--safe-left);
+  right: var(--safe-right);
+  top: var(--safe-top);
+  bottom: var(--safe-bottom);
+  width: auto;
+  height: auto;
+  max-height: none;
+  transform: none;
+  padding: var(--space-7);
+  overflow: auto;
+}
+#ui.phone .modal.quest-screen {
+  top: var(--safe-top);
+  width: auto;
+  max-height: calc(var(--layer-h) - var(--safe-top) - var(--safe-bottom));
+}
+#ui.phone .modal.quest-screen.quest-page {
+  top: var(--safe-top);
+  width: auto;
+  height: auto;
+  max-height: none;
+}
+#ui.phone .modal.quest-screen.quest-page,
+#ui .modal.quest-screen.quest-page.stacked {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+#ui.phone .quest-page .quest-art,
+#ui .quest-page.stacked .quest-art {
+  box-sizing: border-box;
+  height: calc(0.26 * var(--layer-h));
+  padding: var(--space-4);
+  border-right: 0;
+  display: flex;
+  justify-content: center;
+}
+#ui.phone .quest-page .quest-frame,
+#ui .quest-page.stacked .quest-frame {
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  max-height: none;
+  aspect-ratio: var(--quest-frame-band);
+}
+#ui.phone .quest-page .quest-text,
+#ui .quest-page.stacked .quest-text {
+  max-width: none;
+  padding: var(--space-5) var(--space-6);
+}
+#ui.phone .quest-page .quest-side,
+#ui .quest-page.stacked .quest-side {
+  max-height: calc(0.24 * var(--layer-h));
+  padding: var(--space-4) var(--space-6);
+  border-left: 0;
+  border-top: 1px solid var(--surface-raised);
+}
+#ui.phone .quest-page .quest-side .close,
+#ui .quest-page.stacked .quest-side .close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: var(--z-popup);
+}
+#ui.phone .save-panel {
+  box-sizing: border-box;
+  min-width: 0;
+  width: calc(var(--layer-w) - var(--safe-left) - var(--safe-right));
+  max-height: calc(var(--layer-h) - var(--safe-top) - var(--safe-bottom));
+  overflow: auto;
+}
+#ui.phone:has(:is(.options, .save-panel, .help)) > .top-center,
+#ui.phone:has(.game-menu [role="menu"]:not([hidden])) > .top-center {
+  visibility: hidden;
+}
+#ui.phone :is(.radio, .options-sound) {
+  --knob-size: var(--touch-target);
+}
+
+@media (orientation: portrait) {
+  #ui.phone .drawer-tabs {
+    bottom: var(--safe-bottom);
+  }
+  #ui.phone .end-turn {
+    width: calc(var(--layer-w) - var(--safe-left) - var(--safe-right) - var(--phone-tabs-w) - var(--hud-gap));
+  }
+}
+
+@media (orientation: landscape) {
+  #ui.phone .bottom-left > .instruments {
+    left: calc(var(--safe-left) + var(--phone-tabs-w) + var(--hud-gap));
+    right: calc(var(--safe-right) + var(--phone-end-w) + var(--hud-gap));
+    bottom: var(--safe-bottom);
+  }
+  #ui.phone .log-strip {
+    left: auto;
+    width: var(--drawer-w);
+    bottom: calc(var(--safe-bottom) + var(--phone-readouts-h) + var(--hud-gap));
+  }
+  #ui.phone.phone .weapons {
+    right: auto;
+    width: var(--drawer-w);
+  }
+  #ui.phone .bottom-left > .truck-stack {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  #ui.phone.phone :is(.right-dock, .log) {
+    left: auto;
+    width: var(--drawer-w);
+  }
+}
+
+#ui.phone .instruments .instrument-actions button.switch {
+  padding: var(--space-1);
+}
+#ui.phone .instruments .instrument-actions .switch::before,
+#ui.phone .instruments .instrument-actions .switch::after {
+  display: none;
+}
+#ui.phone .instruments .instrument-actions .switch-option {
+  white-space: normal;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+#ui.phone .instruments .speed-value {
+  left: auto;
+  right: 2px;
+  bottom: 1px;
+  transform: none;
+  font-size: var(--text-caption);
+}
+
+#ui:not(.phone) .quest-look {
+  display: none;
+}
+#ui.phone .quest-look {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: var(--z-badge);
+  display: flex;
+  gap: var(--space-2);
+}

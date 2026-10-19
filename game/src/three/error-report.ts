@@ -5,13 +5,14 @@ import { saveOf } from './save';
 import type { SaveSlots } from './save-db';
 import { listSaves } from './save-slots';
 import { TurnFailure } from './travel';
+import { uiSize } from '../ui/ui-size';
 
 export type ReportContext = {
   build: string;
   version: string;
   userAgent: string;
   language: string;
-  screen: { width: number; height: number; pixelRatio: number };
+  screen: { width: number; height: number; pixelRatio: number; uiSize: number };
   turn: number | null;
   log: string[];
   world: object | null;
@@ -43,7 +44,7 @@ export class GameContext {
       version: this.version,
       userAgent: navigator.userAgent,
       language: document.documentElement.lang,
-      screen: { width: window.innerWidth, height: window.innerHeight, pixelRatio: window.devicePixelRatio },
+      screen: { width: window.innerWidth, height: window.innerHeight, pixelRatio: window.devicePixelRatio, uiSize: uiSize().applied() },
     };
     if (!this.source) return { ...head, turn: null, log: [], world: null, autosave: null, autosaveIsWorld: false };
     const { slots } = this.source;

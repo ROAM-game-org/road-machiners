@@ -10,8 +10,8 @@ export const RULES = {
   npcStuckTurns: 2,
   npcRecoveryTurns: 2,
   unstick: { turns: 20, reach: 6, driveTurns: 3 },
-  stranded: { turns: 3, step: 0.25 },
-  reverse: { cone: 20, distance: 1 },
+  stranded: { turns: 3, step: 0.25, still: 0.1 },
+  reverse: { cone: 20, distance: 1, maxDistance: 6 },
   meetStep: 0.3,
   arriveRadius: 0.5,
   throttleZones: { reach: 10, brake: 0.25, hold: 0.5, accelerate: 0.25 },
@@ -22,6 +22,7 @@ export const RULES = {
   refitTurnsPerPart: 2.5,
   parkedSpeed: 0.5,
   yieldDistance: 1.5,
+  traffic: { crossCone: Math.PI / 2, parkedCone: Math.PI / 4 },
   maxBulge: 0.25,
   limpSpeed: 1.04,
   gunDragMax: 0.48,
@@ -89,9 +90,14 @@ export const RULES = {
     playerHealth: 75,
   },
   retreatTeleportTurns: 50,
+  holdUp: {
+    cutShare: 0.5,
+    cutCap: 8800,
+  },
 };
 
 export const CHEATS = {
+  armedKitTries: 50,
   spawnDistance: 10,
   spawnAngles: 12,
   searchStep: 1,
@@ -99,7 +105,7 @@ export const CHEATS = {
 };
 
 export const BREAKABLE = {
-  kinds: ['fence', 'junk', 'deadTree'] as readonly LandmarkLook[],
+  kinds: ['fence', 'junk', 'deadTree', 'roadSign', 'routeSign', 'barrel'] as readonly LandmarkLook[],
   breakSpeed: 3,
   slowdown: 0.3,
   damage: 2,

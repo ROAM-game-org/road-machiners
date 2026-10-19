@@ -13,9 +13,13 @@ import type { CameraRig } from './camera';
 import type { SightLimit } from './scope';
 import { setText } from '../../text/language';
 import { num, t } from '../../text/msg';
-import { siteName } from '../../text/names';
+import { fullName, siteName } from '../../text/names';
+import { heldSearch } from '../../sim/market';
+import { agoText } from '../../ui/units';
+import { layerPointOf } from '../../ui/ui-size';
 
 const LABEL_LIFT_PX = 90;
+const LEAD_EXTRA_LIFT_PX = 26;
 
 
 function labelEl(container: HTMLElement): HTMLDivElement {
@@ -25,19 +29,20 @@ function labelEl(container: HTMLElement): HTMLDivElement {
   return el;
 }
 
-function place(el: HTMLDivElement, world: World, pos: Vec, rig: CameraRig, limit: SightLimit, explored: boolean): void {
+function place(el: HTMLDivElement, world: World, pos: Vec, rig: CameraRig, limit: SightLimit, explored: boolean, extraLift = 0): void {
   const ground = groundPoint(world.terrain, pos);
   const seen = explored && limit.covers(ground);
   el.style.display = seen ? 'block' : 'none';
   if (!seen) return;
-  const screen = rig.screenOf(ground);
+  const screen = layerPointOf(rig.screenOf(ground));
   el.style.left = `${screen.x}px`;
-  el.style.top = `${screen.y - LABEL_LIFT_PX}px`;
+  el.style.top = `${screen.y - LABEL_LIFT_PX - extraLift}px`;
 }
 
 export class Labels {
   private els = new Map<string, HTMLDivElement>();
   private rumors = new Map<string, HTMLDivElement>();
+  private lead: HTMLDivElement | null = null;
   private escort: HTMLDivElement | null = null;
 
   constructor(private readonly container: HTMLElement) {}
@@ -52,6 +57,19 @@ export class Labels {
     this.dropGoneSites(new Set(sites.map((s) => s.id)));
     this.updateRumors(world, rig, limit);
     this.updateEscort(world, rig, limit);
+    this.updateLead(world, rig, limit);
+  }
+
+  private updateLead(world: World, rig: CameraRig, limit: SightLimit): void {
+    const search = heldSearch(world);
+    if (!search || search.delivered) {
+      this.lead?.remove();
+      this.lead = null;
+      return;
+    }
+    this.lead ??= labelEl(this.container);
+    setText(this.lead, t('map.lead', { driver: fullName(search.driver), ago: agoText(world.turn - search.lead.turn) }));
+    place(this.lead, world, search.lead.at, rig, limit, true, LEAD_EXTRA_LIFT_PX);
   }
 
   private updateEscort(world: World, rig: CameraRig, limit: SightLimit): void {
@@ -99,7 +117,7 @@ export class Labels {
         setText(el, t('map.rumor'));
         this.rumors.set(stock.id, el);
       }
-      place(el, world, stock.pos, rig, limit, true);
+      place(el, world, stock.pos, rig, limit, playerExplored(world, stock.pos));
     }
   }
 }
@@ -155,7 +173,7 @@ export class VehicleMarkers {
       node.style.display = hideAll || !f ? 'none' : 'flex';
       if (hideAll || !f) continue;
       node.classList.toggle('aims-hidden', hideAims);
-      const p = this.rig.screenOf({ x: f.pos.x, y: f.pos.y + MARKER_LIFT, z: f.pos.z });
+      const p = layerPointOf(this.rig.screenOf({ x: f.pos.x, y: f.pos.y + MARKER_LIFT, z: f.pos.z }));
       node.style.left = `${p.x}px`;
       node.style.top = `${p.y}px`;
     }

@@ -30,7 +30,7 @@ describe('a kept approval after a failed approve job or a restart', () => {
 
   it('waits while the card is stuck, held, failed, running a job, already queued or in another column', () => {
     const job = { id: 'approve-7', stage: 'approve' as const, issue: 7, pid: 1, startedAt: '', log: '' };
-    const failure = { stage: 'approve' as const, issue: 7, error: 'push failed', log: null, at: '' };
+    const failure = { stage: 'approve' as const, issue: 7, error: 'push failed', cause: 'github' as const, log: null, at: '' };
     const hold = { by: 'Ann', reason: 'r', at: '', stage: null };
     expect(readyToShip(waiting(), card('Approval', ['hotfix', 'factory-stuck']))).toBeNull();
     expect(readyToShip(waiting({ held: { 7: hold } }), card('Approval'))).toBeNull();

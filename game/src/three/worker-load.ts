@@ -1,14 +1,8 @@
+import { DownloadFailed } from "../fetch-asset";
 import { reportError } from "./crash";
 
-export const DOWNLOAD = { tries: 6, waitMs: [500, 1000, 2000, 4000, 4000] };
-
-export class DownloadFailed extends Error {
-  constructor(readonly url: string, tries: number, cause: unknown) {
-    const reason = cause instanceof Error ? cause.message : String(cause);
-    super(`Download of ${url} failed ${tries} times: ${reason}`, { cause });
-    this.name = "DownloadFailed";
-  }
-}
+export const WORKER_RETRY_DELAYS_MS: readonly number[] = [500, 1000, 2000, 4000, 4000];
+export const WORKER_LOAD_ATTEMPTS = WORKER_RETRY_DELAYS_MS.length + 1;
 
 export function workerFailure(label: string, event: ErrorEvent): string {
   if (typeof event.message === "string" && event.message !== "") return `${label} failed: ${event.message}`;
@@ -45,14 +39,14 @@ export class WorkerLoad {
   failed(event: ErrorEvent, restart: () => void): boolean {
     if (typeof event.message === "string" && event.message !== "") return false;
     this.failures++;
-    if (this.failures >= DOWNLOAD.tries) {
+    if (this.failures >= WORKER_LOAD_ATTEMPTS) {
       this.given = true;
       this.sleeping = false;
-      reportError(new DownloadFailed(this.label, DOWNLOAD.tries, new Error(workerFailure(this.label, event))));
+      reportError(new DownloadFailed(this.label, event.filename || this.label, WORKER_LOAD_ATTEMPTS, new Error(workerFailure(this.label, event))));
       return true;
     }
     this.sleeping = true;
-    this.wait(DOWNLOAD.waitMs[this.failures - 1], () => {
+    this.wait(WORKER_RETRY_DELAYS_MS[this.failures - 1], () => {
       this.sleeping = false;
       restart();
     });

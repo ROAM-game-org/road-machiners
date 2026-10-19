@@ -3,6 +3,8 @@ import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
 import { endTurn } from '../sim/world';
+import { inQuestLanguage } from '../sim/quests';
+import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
@@ -20,7 +22,8 @@ import { headingOf, toMap } from './frames';
 import { planTurns, type PlanFrames } from './plan';
 
 export type TurnState = Omit<World, 'terrain'>;
-export type TurnTask = { world: TurnState; drive: DriveSnapshot };
+export type WorldTask = { world: TurnState; drive: DriveSnapshot };
+export type TurnTask = WorldTask & { questLanguage: QuestLanguage };
 export type PreparedTurn = {
   world: TurnState;
   result: Omit<TurnResult, 'next'> & { next: DriveSnapshot };
@@ -39,7 +42,16 @@ function freezeTerrain(terrain: World['terrain']): void {
   Object.freeze(terrain);
 }
 
+function requireQuestLanguage(lang: QuestLanguage): void {
+  if (!QUEST_LANGUAGES.includes(lang)) throw new Error(`Turn task has no quest language ${lang}`);
+}
+
 export function computePreview(task: PreviewTask, terrain: World['terrain']): PlanFrames {
+  requireQuestLanguage(task.questLanguage);
+  return inQuestLanguage(task.questLanguage, () => previewIn(task, terrain));
+}
+
+function previewIn(task: PreviewTask, terrain: World['terrain']): PlanFrames {
   freezeTerrain(terrain);
   const drive = restoreDrive(task.drive);
   try {
@@ -49,7 +61,16 @@ export function computePreview(task: PreviewTask, terrain: World['terrain']): Pl
   }
 }
 
+export function computeRequestedTurn(request: TurnRequest, terrain: World['terrain']): PreparedTurn {
+  return computeTurn(request, terrain);
+}
+
 export function computeTurn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
+  return inQuestLanguage(task.questLanguage, () => computeTurnIn(task, terrain));
+}
+
+function computeTurnIn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
+  requireQuestLanguage(task.questLanguage);
   freezeTerrain(terrain);
   const drive = restoreDrive(task.drive);
   let result: TurnResult | null = null;
@@ -65,7 +86,7 @@ export function computeTurn(task: TurnTask, terrain: World['terrain']): Prepared
   }
 }
 
-function startTurnWorker(): void {
+export function startTurnWorker(): void {
   let terrain: World['terrain'] | null = null;
   const ready = initPhysics();
   self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
@@ -88,7 +109,7 @@ function startTurnWorker(): void {
 function answer(request: WorkerRequest, terrain: World['terrain']): void {
   switch (request.kind) {
     case 'turn': {
-      const turn = computeTurn(request, terrain);
+      const turn = computeRequestedTurn(request, terrain);
       self.postMessage({ id: request.id, turn, perf: perfSnapshot() } satisfies TurnResponse, {
         transfer: [turn.result.next.snapshot.buffer as ArrayBuffer],
       });
@@ -106,7 +127,6 @@ function describeWorkerError(error: unknown): string {
   return error instanceof Error ? error.stack ?? error.message : String(error);
 }
 
-if (typeof self !== 'undefined' && !('document' in self)) startTurnWorker();
 
 const EXPLORE_EVERY = 4;
 const STOPPED = 0.05;
@@ -170,11 +190,20 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   v.pos = s.pos;
   v.heading = s.heading;
   v.speed = Math.max(0, toTilesPerTurn(s.speed));
-  v.strandedTurns = s.upright && !isLifted(r.next, w, v) ? 0 : (v.strandedTurns ?? 0) + 1;
+  const free = s.upright && !isLifted(r.next, w, v) && !isHung(v, r.results[v.id], start, frames);
+  v.strandedTurns = free ? 0 : (v.strandedTurns ?? 0) + 1;
   if (v.strandedTurns >= RULES.stranded.turns) setDown(w, v);
   v.trail = trailOf(start, frames);
   burnFuel(w, v, pathLength(v.trail));
   settleOrder(w, v, r.results[v.id]);
+}
+
+function isHung(v: Vehicle, res: VehicleResult, start: Pose, frames: TurnResult['frames'][string]): boolean {
+  const last = frames.at(-1);
+  if (!last) throw new Error(`Driven vehicle ${v.id} has no frames`);
+  if (!v.order || v.order.kind === 'brake' || res.arrived || res.passed) return false;
+  if (dist(start, v.pos) >= RULES.stranded.still) return false;
+  return last.wheels.some((wheel) => !wheel.ground);
 }
 
 function settleOrder(w: World, v: Vehicle, res: VehicleResult): void {

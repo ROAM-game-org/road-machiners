@@ -2,7 +2,7 @@
 
 A turn-based game that generates history and stories for Icarus. Agents play the factions or characters, and a game master resolves what they do. The result reads like history: nobody wrote the plot, so it has the twists, failures and odd turns of real events. The rules are a simplified version of Fate Core, which treats any group as a character.
 
-Use it to write the past of a place, the rise and fall of a faction, a town's quarrel, one character's life, or the situation behind a quest. [Making a quest](../quest-authoring.md#making-a-quest) shows where it fits. Everything it produces answers to [Theme](../theme.md) and [World facts](world.md).
+Use it to write the past of a place, the rise and fall of a faction, a town's quarrel, one character's life, or the situation behind a quest. [Making a quest](../writing/quests.md#making-a-quest) shows where it fits. Everything it produces answers to [Theme](../theme.md) and [World facts](world.md).
 
 ## Roles
 
@@ -107,7 +107,7 @@ The game master keeps three files during play, in project-local `tmp/`:
 - The log: each turn's event, each action with its roll and result, deaths and successors, and the game master's truths marked as hidden.
 - The shared news for the next brief.
 
-After the game, the game master writes the log into a timeline in `docs/lore/` and moves any new names, groups and characters into the lore pages. Hidden truths go into the lore as answers, and the timeline shows only what people could know.
+After the game, the game master writes the log into a timeline in `docs/lore/` and moves any new names, groups and characters into the lore pages. Hidden truths go into the lore as answers, and the timeline shows only what people could know. [Chaos Highway](chaos-highway-story-game.md) keeps the logs of two smaller passes run for the highway story, with their combination.
 
 ## Lessons from play
 

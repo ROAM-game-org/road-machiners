@@ -1,3 +1,4 @@
+import { reportFailure } from '../fail';
 import type { Ctx } from '../types';
 import { playerName, quote } from './digest';
 import { isolated } from './isolate';
@@ -21,15 +22,38 @@ function issueBody(comment: StoredComment): string {
   ].join('\n\n');
 }
 
-export async function fileComments(ctx: Ctx, store: PublicStore): Promise<void> {
-  for (const comment of store.toFile()) {
-    const earlier = store.claimFiling(comment.id, comment.text, ctx.now());
-    if (earlier !== null) {
-      store.setFiled(comment.id, earlier);
-      continue;
-    }
-    await isolated(ctx, comment.issue, `player comment ${comment.id} could not open its own issue and is not filed`, async () => {
-      store.setFiled(comment.id, await ctx.github.createIssue(issueTitle(comment.text), issueBody(comment), playerLabels(comment.kind ?? 'feature')));
-    });
+async function isOpen(ctx: Ctx, comment: StoredComment, work: number): Promise<boolean> {
+  try {
+    return (await ctx.github.issue(work)).state === 'OPEN';
+  } catch (error) {
+    await reportFailure(ctx, 'public', work, `player comment ${comment.id} could not read #${work}, the work it is about, so it goes on as if it matched no work: ${error instanceof Error ? error.message : String(error)}`, null, []);
+    return false;
   }
+}
+
+async function linkToWork(ctx: Ctx, store: PublicStore, comment: StoredComment, work: number): Promise<boolean> {
+  store.markFiling(comment.id, ctx.now());
+  const open = await isOpen(ctx, comment, work);
+  if (open) store.link(comment.id, work);
+  return open;
+}
+
+async function fileOwnIssue(ctx: Ctx, store: PublicStore, comment: StoredComment): Promise<void> {
+  const earlier = store.claimFiling(comment.id, comment.text, ctx.now());
+  if (earlier !== null) return store.setFiled(comment.id, earlier);
+  await isolated(ctx, comment.issue, `player comment ${comment.id} could not open its own issue and is not filed`, async () => {
+    store.setFiled(comment.id, await ctx.github.createIssue(issueTitle(comment.text), issueBody(comment), playerLabels(comment.kind ?? 'feature')));
+  });
+}
+
+const asksToFile = (comment: StoredComment): boolean => (comment.kind === 'bug' || comment.kind === 'feature') && comment.wantsFiling;
+
+async function fileOne(ctx: Ctx, store: PublicStore, comment: StoredComment): Promise<void> {
+  if (comment.workIssue !== null && (await linkToWork(ctx, store, comment, comment.workIssue))) return;
+  if (asksToFile(comment)) return fileOwnIssue(ctx, store, comment);
+  store.markFiling(comment.id, ctx.now());
+}
+
+export async function fileComments(ctx: Ctx, store: PublicStore): Promise<void> {
+  for (const comment of store.toFile()) await fileOne(ctx, store, comment);
 }

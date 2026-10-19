@@ -1,13 +1,14 @@
 import { partDef, type PartKind } from "../data/parts";
 import { haulerOf, playerVehicle, truckFor } from "../sim/damage";
 import { chassisPrice, chassisSwapRefusal, type Supply } from "../sim/economy";
-import { canWaitForRoad, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from "../sim/fury-road";
+import { canDriveOn, driveOn, outpostTrucks, reachedOutpostAt, type Outpost } from "../sim/fury-road";
 import { goodsCount, MOUNT_CELLS } from "../sim/grid";
+import { gatesShut } from "../sim/outpost-gates";
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
 import type { PartInstance, World } from "../sim/types";
 import { num, SPACE, t, type Msg } from "../text/msg";
 import { goodName, refusalText, siteName } from "../text/names";
-import { chassisPortrait, compareBase, createIcon, createItemIcon } from "./cards";
+import { chassisPortrait, compareBase, createIcon, createItemTipIcon, itemTip } from "./cards";
 import { el, panel } from "./dom";
 import { commandFailure, GOODS_COLUMNS } from "./format";
 import type { UiHost } from "./host";
@@ -24,6 +25,10 @@ const GOOD_LOT = 4;
 function goodsHead(): HTMLElement {
   const c = GOODS_COLUMNS;
   return el("div", { class: "goods-head row dim" }, el("span", {}, c.good), priceHead(c.buy), el("span", {}), el("span", { class: "end" }, c.held), el("span", {}));
+}
+
+export function outpostControls(w: World): { leave: boolean; driveOn: boolean } {
+  return { leave: !gatesShut(w), driveOn: canDriveOn(w) };
 }
 
 export class OutpostScreen {
@@ -53,6 +58,11 @@ export class OutpostScreen {
   }
 
   close(): void {
+    if (!outpostControls(this.host.world()).leave) return;
+    this.leave();
+  }
+
+  private leave(): void {
     this.inventory.clearSelection();
     this.root.style.display = "none";
     this.root.replaceChildren();
@@ -75,7 +85,7 @@ export class OutpostScreen {
   private draw(): void {
     const w = this.host.world();
     const post = reachedOutpostAt(w);
-    if (!post) return this.close();
+    if (!post) return this.leave();
     if (this.shown === "hauler" && !this.haulerHere(w)) this.shown = "truck";
     const id = this.truckId(w);
     this.inventory.showTruck(id ?? null);
@@ -93,14 +103,16 @@ export class OutpostScreen {
       el("div", { class: "tabs" }, ...this.tabButtons()),
       this.error ? el("div", { class: "bad" }, this.error) : null,
       el("div", { class: "outpost-body" }, this.tabBody(w, post)),
-      this.roadButton(w),
+      this.driveOnButton(w),
     );
-    this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, t("trade.leave")),
-      el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)),
-      el("div", { class: "town-split" }, truck, shop),
-    );
+    this.root.replaceChildren(...this.leaveButton(w), el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)), el("div", { class: "town-split" }, truck, shop));
     this.inventory.fitTo(truck);
+  }
+
+  private leaveButton(w: World): HTMLElement[] {
+    const { leave } = outpostControls(w);
+    this.root.classList.toggle("pinned", !leave);
+    return leave ? [el("button", { class: "close", onclick: () => this.close() }, t("trade.leave"))] : [];
   }
 
   private haulerHere(w: World): boolean {
@@ -174,15 +186,15 @@ export class OutpostScreen {
     return refusal ? refusalText(w, refusal) : null;
   }
 
-  private roadButton(w: World): HTMLElement | null {
-    if (!canWaitForRoad(w)) return null;
-    return el("div", { class: "outpost-road" }, el("button", { class: "btn-l", onclick: () => this.waitForRoad() }, t("outpost.waitForRoad")));
+  private driveOnButton(w: World): HTMLElement | null {
+    if (!outpostControls(w).driveOn) return null;
+    return el("div", { class: "outpost-road" }, el("button", { class: "btn-l", onclick: () => this.driveOn() }, t("outpost.driveOn")));
   }
 
-  private waitForRoad(): void {
+  private driveOn(): void {
     const w = this.host.world();
-    this.close();
-    this.host.apply(waitForRoad(w));
+    this.leave();
+    this.host.apply(driveOn(w));
   }
 
   private run(cmd: ShopCommand): void {
@@ -207,7 +219,7 @@ export class OutpostScreen {
     return el(
       "div",
       { class: "good-row row" },
-      el("div", { class: "good-name" }, createItemIcon(REPAIR_GOOD), el("b", {}, goodName(REPAIR_GOOD))),
+      el("div", { class: "good-name" }, createItemTipIcon(REPAIR_GOOD), el("b", { title: itemTip(REPAIR_GOOD) }, goodName(REPAIR_GOOD))),
       el(
         "div",
         { class: "trade buy wide" },

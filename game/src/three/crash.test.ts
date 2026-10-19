@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { AssetUnreachable } from '../fetch-asset';
+import { describe, expect, it, vi } from 'vitest';
+import { AssetUnreachable, DownloadFailed } from '../fetch-asset';
 import { WebGLUnavailable } from './webgl';
-import { crashText, faultKind, isForeignError, type CrashContext, type ErrorFacts } from './crash';
+import { crashText, downloadFailedText, faultKind, isForeignError, noteError, onReport, type CrashContext, type ErrorFacts } from './crash';
 
 const PAGE = 'https://roam-game.online';
 const muted: ErrorFacts = { error: null, message: 'Script error.', filename: '', lineno: 0, colno: 0 };
@@ -76,7 +76,26 @@ describe('faultKind', () => {
     expect(faultKind(new WebGLUnavailable(null))).toBe('webgl');
   });
 
+  it('shows the lost files notice for a download that ran out of tries', () => {
+    const err = new DownloadFailed('Turn worker', 'turn.js', 6, new Error('Turn worker failed: script did not load or start'));
+    expect(faultKind(err)).toBe('lost');
+    const text = downloadFailedText(err);
+    expect(text.detail).toBe('turn.js\nTurn worker failed: script did not load or start');
+    expect([text.title, ...text.lines, text.action].length).toBe(4);
+  });
+
   it('treats any other error as a fault', () => {
     expect(faultKind(new Error('Map file map.bin failed to load: HTTP 404'))).toBe('fault');
+  });
+});
+
+describe('noteError', () => {
+  it('sends the error to the report sinks and shows no crash screen', () => {
+    const sink = vi.fn();
+    onReport(sink);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const err = new Error('stand-in');
+    noteError(err);
+    expect(sink).toHaveBeenCalledWith(err);
   });
 });

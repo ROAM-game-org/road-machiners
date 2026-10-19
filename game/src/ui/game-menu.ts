@@ -1,4 +1,5 @@
 
+import { closeLabel, phoneMode, touchMode } from "./input-mode";
 import { ERROR_REPORT_BUILD, ERROR_REPORT_URL, FEEDBACK_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
@@ -10,6 +11,7 @@ import { el, isBrowserChord, panel, topRight } from "./dom";
 import { versionLabel } from "./hud-readout";
 import { isNewGameOpen, openNewGame, type NewGameActions } from "./new-game";
 import { OptionsPanel } from "./options";
+import type { SoundSettings } from "./sound";
 import { SavePanel, type SavePanelActions } from "./save-panel";
 import type { TipSwitch } from "./tips";
 
@@ -18,7 +20,9 @@ export type GameMenuActions = SavePanelActions & {
   newGame: NewGameActions;
 };
 
-export type MenuEntry = "new" | "save" | "load" | "options" | "tips" | "help";
+export type MenuEntry = "new" | "save" | "load" | "options" | "tips" | "help" | "camera" | "report";
+
+export type PhoneMenuLinks = { cameraLabel: () => Msg; toggleCamera: () => void; report: () => void };
 
 const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "new", label: t("menu.newGame") },
@@ -27,7 +31,11 @@ const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "options", label: t("menu.options") },
   { entry: "tips", label: t("menu.showTips") },
   { entry: "help", label: t("menu.help") },
+  { entry: "camera", label: t("hud.camAuto") },
+  { entry: "report", label: t("hud.feedbackTitle") },
 ];
+
+const PHONE_ENTRIES: MenuEntry[] = ["camera", "report"];
 
 type KeyCap = string | Msg;
 type Control = { keys: KeyCap[]; on?: Msg; does: Msg; needs?: "radio" };
@@ -78,13 +86,30 @@ export const CONTROLS: ControlGroup[] = [
       { keys: ["V"], does: t("help.does.camera") },
       { keys: ["M"], does: t("help.does.mute") },
       { keys: ["I"], does: t("help.does.inventory") },
+      { keys: ["R"], on: t("help.on.inventory"), does: t("help.does.turnItem") },
       { keys: ["C"], does: t("help.does.character") },
       { keys: ["J"], does: t("help.does.journal") },
     ],
   },
 ];
 
-export function controlsFor(rules: ModeRules): ControlGroup[] {
+const TOUCH_CONTROLS: ControlGroup[] = [
+  {
+    title: t("help.group.touch"),
+    controls: [
+      { keys: [t("help.key.tap")], on: t("help.on.ground"), does: t("help.does.driveByRoad") },
+      { keys: [t("help.key.hold")], on: t("help.on.ground"), does: t("help.does.stopThere") },
+      { keys: [t("help.key.drag")], does: t("help.does.moveView") },
+      { keys: [t("help.key.pinch")], does: t("help.does.zoom") },
+      { keys: [t("help.key.tap")], on: t("help.on.truck"), does: t("help.does.look") },
+      { keys: [t("help.key.tapAgain")], on: t("help.on.truck"), does: t("help.does.aimGun") },
+      { keys: [t("help.key.hold")], on: t("help.on.control"), does: t("help.does.why") },
+    ],
+  },
+];
+
+export function controlsFor(rules: ModeRules, touch = false): ControlGroup[] {
+  if (touch) return TOUCH_CONTROLS;
   return CONTROLS.map((group) => ({ ...group, controls: group.controls.filter((c) => !c.needs || rules[c.needs]) }));
 }
 
@@ -105,7 +130,7 @@ function controlGroup(group: ControlGroup): HTMLElement {
 }
 
 export function entryEnabled(entry: MenuEntry, busy: boolean, hasSave: boolean): boolean {
-  if (entry === "help" || entry === "tips" || entry === "options") return true;
+  if (entry === "help" || entry === "tips" || entry === "options" || entry === "camera" || entry === "report") return true;
   if (entry === "load") return !busy && hasSave;
   return !busy;
 }
@@ -134,8 +159,8 @@ export class HelpPanel {
     const setup = this.setup();
     const notes = [verbatim(versionLabel()), setupText(setup), ...(ERROR_REPORT_URL ? [t("help.errorsSent")] : [])];
     root.append(
-      el("button", { class: "close btn-s", onclick: () => this.close() }, t("menu.closeEsc")),
-      el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode)).map(controlGroup)),
+      el("button", { class: "close btn-s", onclick: () => this.close() }, closeLabel()),
+      el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode), touchMode()).map(controlGroup)),
       el("div", { class: "help-notes" }, ...notes.map((note) => el("div", {}, note))),
     );
     this.root = root;
@@ -242,7 +267,7 @@ export class FeedbackForm {
   }
 
   private closeButton(): HTMLElement {
-    return el("button", { class: "close", onclick: () => this.close() }, t("menu.closeEsc"));
+    return el("button", { class: "close btn-s", onclick: () => this.close() }, closeLabel());
   }
 
   private offContent(): HTMLElement[] {
@@ -312,7 +337,7 @@ export class GameMenu {
   private items = {} as Record<MenuEntry, HTMLButtonElement>;
   private savePanel: SavePanel;
   private help: HelpPanel;
-  private options = new OptionsPanel(() => this.button.focus());
+  private options: OptionsPanel;
 
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.code === "Escape") {
@@ -340,7 +365,8 @@ export class GameMenu {
     if (e.relatedTarget instanceof Node && !this.root.contains(e.relatedTarget)) this.closeList(false);
   };
 
-  constructor(private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch) {
+  constructor(private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch, private phone: PhoneMenuLinks, sound: SoundSettings) {
+    this.options = new OptionsPanel(sound, () => this.button.focus());
     this.help = new HelpPanel(setup);
     this.savePanel = new SavePanel(actions);
     for (const { entry, label } of ENTRIES) {
@@ -364,6 +390,8 @@ export class GameMenu {
     const on = this.tips.isOn();
     this.items.tips.setAttribute("aria-checked", String(on));
     setText(this.items.tips, t(on ? "menu.showTipsOn" : "menu.showTips"));
+    setText(this.items.camera, this.phone.cameraLabel());
+    for (const entry of PHONE_ENTRIES) this.items[entry].hidden = !phoneMode();
   }
 
   private setReason(item: HTMLButtonElement, reason: Msg | null): void {
@@ -382,7 +410,7 @@ export class GameMenu {
   }
 
   private allItems(): HTMLButtonElement[] {
-    return ENTRIES.map((e) => this.items[e.entry]);
+    return ENTRIES.map((e) => this.items[e.entry]).filter((item) => !item.hidden);
   }
 
   private enabledItems(): HTMLButtonElement[] {
@@ -425,7 +453,11 @@ export class GameMenu {
     else if (entry === "tips") {
       this.tips.setOn(!this.tips.isOn());
       this.refresh();
-    } else if (entry === "help") this.help.toggle();
+    } else if (entry === "camera") {
+      this.phone.toggleCamera();
+      this.refresh();
+    } else if (entry === "report") this.phone.report();
+    else if (entry === "help") this.help.toggle();
     else this.newGame();
   }
 

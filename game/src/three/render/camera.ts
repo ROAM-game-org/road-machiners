@@ -109,8 +109,12 @@ export class CameraRig {
   }
 
   zoomBy(wheelDeltaY: number): void {
+    this.zoomByFactor(Math.exp(-wheelDeltaY * 0.001));
+  }
+
+  zoomByFactor(factor: number): void {
     this.viewMoved = true;
-    this.zoom = Math.min(ZOOM.max, Math.max(ZOOM.min, this.zoom * Math.exp(-wheelDeltaY * 0.001)));
+    this.zoom = Math.min(ZOOM.max, Math.max(ZOOM.min, this.zoom * factor));
     this.resize();
   }
 
@@ -148,6 +152,10 @@ export class CameraRig {
     return { x: rect.left + (v.x * 0.5 + 0.5) * rect.width, y: rect.top + (1 - (v.y * 0.5 + 0.5)) * rect.height };
   }
 
+  dropLead(): void {
+    this.lead.set(0, 0, 0);
+  }
+
   tick(dtMs: number): void {
     if (this.target) {
       const k = 1 - Math.exp(-dtMs / FOLLOW_TAU_MS);
@@ -179,11 +187,15 @@ export class TruckFollow {
     });
     window.addEventListener("pointermove", (e) => {
       if (!from) return;
-      this.rig.panBy(e.clientX - from.x, e.clientY - from.y);
+      this.pan(e.clientX - from.x, e.clientY - from.y);
       from = { x: e.clientX, y: e.clientY };
-      this.following = false;
     });
     window.addEventListener("pointerup", () => (from = null));
+  }
+
+  pan(dxPx: number, dyPx: number): void {
+    this.rig.panBy(dxPx, dyPx);
+    this.following = false;
   }
 
   isFollowing(): boolean {
@@ -191,6 +203,11 @@ export class TruckFollow {
   }
 
   recenter(): void {
+    this.resume();
+    this.rig.dropLead();
+  }
+
+  private resume(): void {
     this.following = true;
     this.recentering = true;
   }
@@ -200,7 +217,7 @@ export class TruckFollow {
   }
 
   noteDanger(danger: boolean): void {
-    if (danger && !this.dangerSeen) this.recenter();
+    if (danger && !this.dangerSeen) this.resume();
     this.dangerSeen = danger;
   }
 
@@ -209,7 +226,7 @@ export class TruckFollow {
     if (playing) this.recentering = false;
     if (this.following) this.aim(truck, dest, playing);
     this.rig.tick(dtMs);
-    if (this.rig.pointLeftView(truck)) this.recenter();
+    if (this.rig.pointLeftView(truck)) this.resume();
   }
 
   private aim(truck: V3, dest: V3 | null, playing: boolean): void {

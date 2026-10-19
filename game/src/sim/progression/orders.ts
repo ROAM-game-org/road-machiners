@@ -1,18 +1,20 @@
 
-import { chassisDef, PLAYER_CHASSIS } from '../../data/chassis';
+import { chassisDef } from '../../data/chassis';
 import { startKit } from '../../data/start';
 import { partDef, PARTS, type PartKind } from '../../data/parts';
 import { playerVehicle, truckFor } from '../damage';
-import { buyChassis, buyStockPart, chassisTradeIn, partTradePrice, sellPart } from '../economy';
+import { buyChassis, buyStockPart, chassisTradeIn, garageChassis, partTradePrice, sellPart } from '../economy';
 import { type Spot, goodsCount, mountedItems } from '../grid';
 import { installSpot, moveItem, spareParts, storePart, takeFromStorage } from '../inventory';
 import { shopAt, shopState } from '../market';
-import { townAt } from '../sites';
+import { canUseSite, nearestPad, townAt, type Site } from '../sites';
+import type { Vec } from '../vec';
 import { getUpkeepReserve } from '../npc-decisions';
 import { bestPlan, gearBudget, gearPlans, probe, type GearJob, type Offer } from './gear';
 import type { ThreatAnswer } from '../parley';
 import type { GameEvent, GridItem, PartInstance, Vehicle, World } from '../types';
 import { isJunk } from '../wear';
+import { setMoveOrder } from '../world';
 
 export const LEDGER_KEYS = ['fuel', 'supplies', 'repairs', 'gear', 'goodsBought', 'goodsSold', 'lootSales', 'contracts', 'fees', 'payouts', 'other'] as const;
 export type LedgerKey = (typeof LEDGER_KEYS)[number];
@@ -101,9 +103,10 @@ function strongest(options: Option[]): Option | null {
 
 function chassisOptions(o: Orders, style: UpgradeStyle): Option[] {
   const load = Object.entries(goodsCount(o.me)).some(([good, n]) => good !== 'parts' || n > REPAIR_PARTS);
-  if (style.chassis === 'keep' || !townAt(o.world) || load) return [];
+  const town = townAt(o.world);
+  if (style.chassis === 'keep' || !town || load) return [];
   const current = chassisDef(o.me.chassisId);
-  return PLAYER_CHASSIS.filter((id) => id !== current.id).flatMap((id) => {
+  return garageChassis(town.id).filter((id) => id !== current.id).flatMap((id) => {
     const def = chassisDef(id);
     const gain = style.chassis === 'speed' ? def.maxSpeed - current.maxSpeed : def.value - current.value;
     return gain > 0 ? [{ gain, cost: def.value - chassisTradeIn(o.world), take: (orders: Orders) => orders.run((w) => buyChassis(w, id), 'gear') }] : [];
@@ -137,4 +140,15 @@ function itemOf(world: World, partId: string, truckId?: string): string {
   const item = truckFor(world, truckId).items.find((it) => it.kind === 'part' && it.part.id === partId);
   if (!item) throw new Error(`Part ${partId} is not on the truck`);
   return item.id;
+}
+
+export function driveToSite(o: Orders, site: Site): void {
+  if (canUseSite(o.me.pos, site)) return;
+  driveTo(o, nearestPad(site, o.me.pos));
+}
+
+export function driveTo(o: Orders, dest: Vec): void {
+  const order = o.me.order;
+  if (order?.kind === 'stopAt' && order.dest.x === dest.x && order.dest.y === dest.y) return;
+  o.run((w) => setMoveOrder(w, { kind: 'stopAt', dest }));
 }

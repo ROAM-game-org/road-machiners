@@ -10,6 +10,9 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
+import { isNotable, nextSurveyClue, surveyClueText, surveyProgress } from "./format";
+import { surveyClue, surveySites } from "../sim/survey";
+import { TEST_MAP } from "../test/map";
 import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, CRATE_NOTE, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep } from "./format";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters, kg } from "./units";
@@ -138,6 +141,36 @@ describe("contract text", () => {
     expect([en(line.text), line.cls]).toEqual(["Bounty met: Raider outrider beaten, claim 1 M at Bowl", "good"]);
   });
 
+  describe("search", () => {
+    const search: Contract = {
+      id: "c3", shop: "bowl", kind: "search", target: "v1", driver: "Jed Cobb", template: "trader",
+      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 9200, deadline: 100, window: 100, tier: 1, delivered: false,
+    };
+
+    it("names who gets the parcel and where to claim", () => {
+      expect(en(contractSummary(search))).toBe("Bring a parcel to Trader Jed Cobb, claim at Bowl");
+    });
+
+    it("reads a delivered search as ready to claim", () => {
+      const met: Contract = { ...search, delivered: true };
+      expect(en(contractSummary(met))).toBe("Parcel delivered to Trader Jed Cobb, claim at Bowl");
+      expect(en(heldContractDue(met))).toBe("Ready");
+      expect(en(heldContractDue(search))).toBe(en(contractDue(search)));
+    });
+
+    it("logs the handover with its reward and where to claim it", () => {
+      const line = eventText(emptyWorld(), { t: "contract", contract: { ...search, delivered: true }, outcome: "fulfilled" })!;
+      expect([en(line.text), line.cls]).toEqual(["Handed the parcel to Trader Jed Cobb. Claim 92 M's at Bowl.", "good"]);
+    });
+
+    it("says the parcel is void when the search fails or lapses", () => {
+      const failed = eventText(emptyWorld(), { t: "contract", contract: search, outcome: "failed" })!;
+      const lapsed = eventText(emptyWorld(), { t: "contract", contract: search, outcome: "lapsed" })!;
+      expect(en(failed.text)).toBe("Contract failed: Bring a parcel to Trader Jed Cobb, claim at Bowl. The parcel is void.");
+      expect(en(lapsed.text)).toBe("Contract lapsed: Bring a parcel to Trader Jed Cobb, claim at Bowl. The parcel is void.");
+    });
+  });
+
   describe("a rescue", () => {
     const rescue: Extract<Contract, { kind: "rescue" }> = { id: "c9", shop: "bowl", kind: "rescue", client: "v5", driver: "Jed Cobb", need: "fuel", area: { x: 0, y: 0 }, reward: 100, deadline: 100, window: 100, tier: 1, fulfilled: false };
 
@@ -167,6 +200,38 @@ describe("contract text", () => {
 
   it("says the hand-in part must still work and be rebuilt at most once", () => {
     expect(en(contractSummary(fetch))).toBe("Bring MG turret to Bowl: working, rebuilt at most once");
+  });
+
+  it("says where a claimed part lies from the posting shop, and in which territory", () => {
+    const orchard = REGION.locations.find((l) => l.id === "orchard")!;
+    const shop = REGION.towns.find((l) => l.id === "bowl")!;
+    const claim: Contract = { id: "c4", shop: "bowl", kind: "claim", stockId: "armyTruck-1", at: { ...orchard.pos }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+    const text = en(contractSummary(claim));
+    expect(text.startsWith("Recover MG turret from an army truck ")).toBe(true);
+    expect(text).toContain(" of Bowl, about ");
+    expect(text.endsWith(", in " + en(siteName("orchard")))).toBe(true);
+    expect(shop).toBeDefined();
+  });
+
+  it("names the wreck kind, a compass point and a rounded distance in the clue", () => {
+    const shop = REGION.towns.find((l) => l.id === "bowl")!;
+    const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank east of Bowl, about 1.3 km out");
+  });
+
+  it("tells of a rival sent after a held claim, and of a claim lost to it, as notable lines", () => {
+    const w = emptyWorld();
+    const rival = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 40, y: 40 });
+    rival.brain = npcBrain("scavenger", rival.pos, ["scavenger"]);
+    const claim: Contract = { id: "c6", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: 90, y: 40 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: rival.id, leads: [] };
+    w.player.contracts = [claim];
+    const sent = eventText(w, { t: "claimRival", contract: claim.id, vehicle: rival.id })!;
+    expect([en(sent.text), sent.cls]).toEqual(["Bowl sent Jed Cobb after the MG turret too", "bad"]);
+    expect(eventText(emptyWorld(), { t: "claimRival", contract: claim.id, vehicle: rival.id })).toBeNull();
+    const lost = eventText(w, { t: "contract", contract: claim, outcome: "lapsed", cause: "rival" })!;
+    expect(en(lost.text)).toBe("Contract lapsed: Jed Cobb brought the MG turret to Bowl first");
+    expect(isNotable({ t: "contract", contract: claim, outcome: "lapsed", cause: "rival" })).toBe(true);
+    expect(isNotable({ t: "contract", contract: claim, outcome: "lapsed" })).toBe(false);
   });
 
   it("starts a rush haul's summary with Rush and leaves a standard haul plain", () => {
@@ -744,5 +809,71 @@ describe("standing numbers", () => {
     expect(en(standingStep(5))).toBe("+5");
     expect(en(standingStep(-20))).toBe("−20");
     expect(en(standingStep(0))).toBe("0");
+  });
+});
+
+describe("survey contract text", () => {
+  const [first, second] = surveySites(TEST_MAP);
+  const survey = (done: boolean[]): Extract<Contract, { kind: "survey" }> => ({
+    id: "c3", shop: "bowl", kind: "survey", reward: 3000, deadline: 100, window: 100, tier: 1,
+    points: [first, second].slice(0, done.length).map((site, i) => ({ site: site.id, found: done[i], done: done[i] })),
+  });
+
+  it("names the kinds of place to survey", () => {
+    expect(en(contractSummary(survey([false, false])))).toMatch(/^Survey /);
+    expect(en(contractSummary(survey([false])))).toContain(en(t(`contract.place.${first.type}`)));
+  });
+
+  it("reads a met survey as ready to report", () => {
+    const met = survey([true, true]);
+    expect(en(contractSummary(met))).toBe("Survey done, report at Bowl");
+    expect(en(heldContractDue(met))).toBe("Ready");
+  });
+
+  it("counts the sites done and tells the clue of the first place left", () => {
+    const c = survey([true, false]);
+    expect(en(surveyProgress(c))).toBe("1 of 2 surveyed");
+    expect(en(nextSurveyClue(c)!)).toBe(en(surveyClueText(surveyClue(c, c.points[1]))));
+    expect(nextSurveyClue(survey([true, true]))).toBeNull();
+  });
+
+  it("tells a clue as a named place, a compass word, a distance in hundreds of meters and the lay", () => {
+    const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow" } as const;
+    expect(en(surveyClueText(clue))).toBe("Lies north-east of Pump Station, about 400 m out, in a hollow");
+    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies west of Pump Station, about 1.1 km out, on high ground");
+    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25 }))).toBe("Lies south of Pump Station, about 100 m out, on flat ground");
+  });
+
+  it("tells the same clue wherever the truck is", () => {
+    const c = survey([false, false]);
+    const w = emptyWorld();
+    const told = en(nextSurveyClue(c)!);
+    for (const pos of [first.pos, second.pos, { x: 30, y: 30 }]) {
+      w.vehicles[0].pos = { ...pos };
+      expect(en(nextSurveyClue(c)!)).toBe(told);
+    }
+    expect(told).not.toMatch(/^(east|west|north|south)/);
+  });
+
+  it("raises a found place and a met survey to a toast, and keeps a surveyed site to the log", () => {
+    const c = survey([true, false]);
+    expect(isNotable({ t: "contract", contract: c, outcome: "found", site: first.id })).toBe(true);
+    expect(isNotable({ t: "contract", contract: survey([true, true]), outcome: "fulfilled" })).toBe(true);
+    expect(isNotable({ t: "contract", contract: c, outcome: "surveyed" })).toBe(false);
+    expect(isNotable({ t: "contract", contract: c, outcome: "accepted" })).toBe(false);
+  });
+
+  it("logs a found place by its kind and the shop that asked", () => {
+    const c = survey([false, false]);
+    const found = eventText(emptyWorld(), { t: "contract", contract: c, outcome: "found", site: first.id })!;
+    expect(en(found.text)).toBe(`This is the ${en(t(`contract.place.${first.type}`))} Bowl asked about.`);
+    expect(found.cls).toBe("good");
+  });
+
+  it("logs a surveyed site and a met survey", () => {
+    const c = survey([true, false]);
+    expect(en(eventText(emptyWorld(), { t: "contract", contract: c, outcome: "surveyed" })!.text)).toBe("Site surveyed, 1 of 2");
+    const met = survey([true, true]);
+    expect(en(eventText(emptyWorld(), { t: "contract", contract: met, outcome: "fulfilled" })!.text)).toContain("report at Bowl");
   });
 });

@@ -6,9 +6,9 @@ import { NPCS, type NpcTemplate } from '../data/npcs';
 import { isDefeated } from './defeat';
 import { hasLoot } from './grid';
 import { chance } from './rng';
-import { addState, boundTo, stateOf } from './states';
+import { boundTo, declareFeud, stateOf } from './states';
 import { isStranded } from './stats';
-import { escortsOf } from './tow';
+import { followersOf } from './companies';
 import { remember } from './memory';
 import { modeRules } from './settings';
 import { clockOf } from './sun';
@@ -109,12 +109,14 @@ export function attacks(world: World, a: Vehicle, b: Vehicle): boolean {
   return judges(a) && bandToward(world, a, b) === 'hostile';
 }
 
-export function huntsAsPrey(world: World, a: Vehicle, b: Vehicle): boolean {
-  return judges(a) && isRaider(a) && !bandAtLeast(bandToward(world, a, b), 'neutral');
+export function hostileFrom(world: World, a: Vehicle, b: Vehicle): boolean {
+  if (!judges(a)) return false;
+  const band = bandToward(world, a, b);
+  return band === 'hostile' || (isRaider(a) && band === 'unfriendly' && hasLoot(b));
 }
 
-export function preys(world: World, a: Vehicle, b: Vehicle): boolean {
-  return hasLoot(b) && huntsAsPrey(world, a, b);
+export function huntsAsPrey(world: World, a: Vehicle, b: Vehicle): boolean {
+  return judges(a) && isRaider(a) && !bandAtLeast(bandToward(world, a, b), 'neutral');
 }
 
 export function isAlly(world: World, a: Vehicle, b: Vehicle): boolean {
@@ -132,7 +134,7 @@ export function stanceToward(world: World, npc: Vehicle): Band {
 export type StandingRow = { faction: StandingFactionId; score: number; band: Band };
 
 export function standingBands(world: World): StandingRow[] {
-  const joinable = joinableFactions();
+  const joinable = (joinableCache ??= joinableFactions());
   return STANDING_FACTION_IDS.filter((id) => joinable.has(id)).map((id) => {
     const score = world.player.standing[id];
     return { faction: id, score, band: bandOf(score) };
@@ -144,6 +146,8 @@ export function standingParts(world: World, row: StandingRow): { base: number; d
   const deeds = world.player.deeds.filter((d) => d.faction === row.faction).reduce((sum, d) => sum + d.delta, 0);
   return { base, deeds, earlier: row.score - base - deeds };
 }
+
+let joinableCache: Set<NpcFactionId> | null = null;
 
 function joinableFactions(): Set<NpcFactionId> {
   const ids = Object.values(NPCS).flatMap(templateFactions);
@@ -162,7 +166,7 @@ export function witnessesOf(world: World, i: Incident): Vehicle[] {
 }
 
 function escortsWhoSee(world: World, i: Incident): Vehicle[] {
-  return escortsOf(world, i.victim.id).filter((v) => v.id !== i.aggressor.id && judges(v) && canVehicleSee(world, v, i.aggressor.pos));
+  return followersOf(world, i.victim.id).filter((v) => v.id !== i.aggressor.id && judges(v) && canVehicleSee(world, v, i.aggressor.pos));
 }
 
 export function reportIncident(world: World, i: Incident): Vehicle[] {
@@ -202,10 +206,8 @@ function favors(world: World, w: Vehicle, i: Incident): boolean {
 }
 
 function joinAgainst(world: World, w: Vehicle, i: Incident): void {
-  if (w.brain) w.brain.attackers[i.aggressor.id] = false;
   if (stateOf(world, 'feud', w.id, i.aggressor.id)) return;
-  addState(world, 'feud', w.id, i.aggressor.id, { kind: 'feud', robbery: false });
-  world.events.push({ t: 'hostile', vehicle: w.id, against: i.aggressor.id });
+  declareFeud(world, w, i.aggressor.id);
   const player = world.player.vehicleId;
   if (w.id !== i.victim.id && (i.aggressor.id === player || i.victim.id === player)) world.events.push({ t: 'joins', vehicle: w.id, against: i.aggressor.id, victim: i.victim.id });
 }

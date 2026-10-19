@@ -15,6 +15,8 @@ import { LOCALES, t, type Locale, type Msg } from '../text/msg';
 import { goodLower, partName, siteName, templateName } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
 import { radioLine, RadioStation, revealed, type Broadcast } from './radio';
+import { claimLookText } from './format';
+import type { ClaimLook } from '../data/market';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -120,6 +122,20 @@ describe('RadioStation', () => {
     expect(b.topic).toBe('haul');
     expect(en(b.text)).toBe('New haul posted at Bowl: grain out to Nose.');
     expect(drain(s, w2)).toBeNull();
+  });
+
+  it('announces a new search by the name of the person wanted', () => {
+    const w = world(10, ['bowl']);
+    const s = tuned(w);
+    const w2 = later(w, RADIO.minGapTurns);
+    w2.shops.bowl.contracts = [{
+      id: 's1', shop: 'bowl', kind: 'search', target: 'v1', driver: 'Jed Cobb', template: 'trader',
+      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 3700, deadline: 9999, window: 100, tier: 1, delivered: false,
+    }];
+    s.hear(w2);
+    const b = s.next()!;
+    expect(b.topic).toBe('search');
+    expect(en(b.text)).toContain('Jed Cobb');
   });
 
   it('announces a new rescue with the basin of its area', () => {
@@ -276,6 +292,8 @@ describe('RadioStation', () => {
   });
 });
 
+const CLAIM_LOOK_IDS: ClaimLook[] = ['armyTruck', 'deadTruck', 'tank', 'shipWreck'];
+
 describe('radio lines', () => {
   const longest = (words: string[]) => words.reduce((x, y) => (y.length > x.length ? y : x));
   const sites = [...REGION.towns, ...REGION.locations].map((s) => s.id);
@@ -291,6 +309,7 @@ describe('radio lines', () => {
     good: longestOf(locale, Object.keys(GOODS).map(goodLower)),
     part: longestOf(locale, Object.keys(PARTS).map(partName)),
     target: longestOf(locale, Object.keys(NPCS).map(templateName)),
+    wreck: longestOf(locale, CLAIM_LOOK_IDS.map(claimLookText)),
   });
   const lines = LOCALES.flatMap((locale) => {
     const all = slots(locale);

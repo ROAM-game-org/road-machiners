@@ -1,20 +1,21 @@
 import { stepScript } from '../activity';
+import { agentOutputPath } from '../agent-output';
 import { moveCard } from '../card-events';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { deployDev } from '../deploy';
 import { must } from '../exec';
 import { releasePostDir } from '../release-post';
 import { reportEnv, takeMaps } from '../sourcemaps';
 import { updateState } from '../state';
-import { BUG_LABEL, GAME_DIR, OUT_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type ReleasePost, type ReleaseState } from '../types';
+import { BUG_LABEL, GAME_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type ReleasePost, type ReleaseState } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeBundle } from './bundle';
 import { agentLog, fillPrompt, resetOutputs } from './common';
 import { checkAndPush, landingAgent, mergeIn, type Landing } from './merge';
 import { queueIncidents } from './incident';
 import { mergeResolving } from './merge-resolve';
-import { candidateDir, changeLines, openReleaseTasks, releaseFeatures, releaseLog, requireRelease, type Feature } from './release-common';
+import { candidateDir, changelogText, openReleaseTasks, readChanges, releaseFeatures, releaseLog, requireRelease, type Feature } from './release-common';
 
 export type ItchKeys = { itchTarget: string; butlerKey: string };
 
@@ -62,26 +63,26 @@ async function buildAndPush(ctx: Ctx, keys: ItchKeys, logName: string): Promise<
   rmSync(dir, { recursive: true, force: true });
   await ctx.repo.prepareWorkClone('main', 'main', dir);
   const log = releaseLog(ctx, logName);
-  await ctx.container.shell(dir, stepScript('Building the release', [['npm ci', 'npm ci'], ['build', 'npm run build']]), log, { SAVE_SCOPE: '', ...reportEnv(ctx.cfg, 'release') });
+  await ctx.container.shell('build', dir, stepScript('Building the release', [['npm ci', 'npm ci'], ['build', 'npm run build']]), log, { SAVE_SCOPE: '', ...reportEnv(ctx.cfg, 'release') });
   await takeMaps(ctx, dir, 'release');
   const version = await ctx.repo.headHash('main');
   const args = ['push', join(dir, GAME_DIR, 'dist'), `${keys.itchTarget}:html5`, '--userversion', version];
-  must(await ctx.run('butler', args, { env: { BUTLER_API_KEY: keys.butlerKey }, logPath: log }), 'butler push');
+  must(await ctx.run('butler', args, { activity: 'publish', env: { BUTLER_API_KEY: keys.butlerKey }, logPath: log }), 'butler push');
 }
 
 export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<void> {
   const keys = itchKeys(ctx);
   const release = await requireShippable(ctx, issue, by);
-  const clone = join(candidateDir(ctx), GAME_DIR, OUT_DIR);
-  const screenshot = join(clone, 'screenshot.png');
-  const notesPath = join(clone, 'release.md');
-  if (!existsSync(screenshot) || !existsSync(notesPath)) throw new Error('The candidate screenshot or notes are gone from its work clone, so the public post cannot be made.');
+  const home = join(candidateDir(ctx), GAME_DIR);
+  const screenshot = agentOutputPath(home, 'screenshot.png');
+  const notesPath = agentOutputPath(home, 'release.json');
+  if (screenshot === null || notesPath === null) throw new Error('The candidate screenshot or notes are gone from its work clone, so the public post cannot be made.');
   await ctx.repo.fetch();
   await requirePlayed(ctx, release);
   const features = await shippingFeatures(ctx, release);
-  const changelog = changeLines(readFileSync(notesPath, 'utf8'), features).join('\n');
+  const changelog = changelogText(readChanges(readFileSync(notesPath, 'utf8'), features));
   await landRelease(ctx, release);
-  await mergeResolving(ctx, 'ship', [{ branch: 'main', into: 'dev', message: `Merge main into dev after release ${release.day}` }]);
+  await mergeResolving(ctx, 'ship', [{ branch: 'main', into: 'dev', message: `Merge main into dev after release ${release.day}`, issue: null }]);
   await publish(ctx, keys, 'ship');
   const kept = join(releasePostDir(ctx.cfg.home, release.day), 'screenshot.png');
   mkdirSync(dirname(kept), { recursive: true });
@@ -104,7 +105,7 @@ export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<
   await moveCard(ctx, issue, 'Done', 'shipped', 'release');
   updateState(ctx.statePath, (state) => {
     const builds = { ...state.builds };
-    delete builds[String(issue)];
+    for (const shipped of [issue, ...features.map((feature) => feature.issue)]) delete builds[String(shipped)];
     return { ...state, release: null, releasePost: post, lastRelease: ctx.now().toISOString(), builds };
   });
   await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Release ${release.day} shipped with ${features.length} changes.`);
@@ -114,7 +115,7 @@ export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<
 async function shippingFeatures(ctx: Ctx, release: ReleaseState): Promise<Feature[]> {
   const sha = await ctx.repo.headHash(release.branch);
   if (release.shipping?.sha === sha) return release.shipping.features;
-  const features = await releaseFeatures(ctx, release);
+  const features = releaseFeatures(release);
   updateState(ctx.statePath, (state) => ({ ...state, release: state.release && { ...state.release, shipping: { sha, features } } }));
   return features;
 }

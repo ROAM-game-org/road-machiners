@@ -7,10 +7,19 @@ declare const __ERROR_REPORT_BUILD__: string;
 export const ERROR_REPORT_URL = __ERROR_REPORT_URL__;
 export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 
+export const TOUCH = {
+  slopPx: 10,
+  longPressMs: 500,
+};
+
 declare const __SFX_BYTES__: Record<string, number>;
 export const SFX_BYTES = __SFX_BYTES__;
+declare const __PUBLIC_HASHES__: Record<string, string>;
+export const PUBLIC_HASHES = __PUBLIC_HASHES__;
 declare const __FEEDBACK_URL__: string;
 export const FEEDBACK_URL = __FEEDBACK_URL__;
+
+export const DOWNLOAD = { tries: 3, waitMs: [1000, 3000], stallMs: 20000 };
 
 export const CONFIG = {
   startKit: 'arrival',
@@ -29,3 +38,5 @@ export const CONFIG = {
   questLineMs: 300,
   questPauseMs: 700,
 };
+
+export const OUTPOST_GATE = { slideSeconds: 2.5 };

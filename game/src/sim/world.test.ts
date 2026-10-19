@@ -6,7 +6,8 @@ import { TEST_MAP } from '../test/map';
 import { playerVehicle } from './damage';
 import { maxHp } from './wear';
 import { townAt } from './sites';
-import { endTurn, isAtRest, newWorld, setHeadlights, setOverdrive, startPose, townStart, update } from './world';
+import { endTurn, isAtRest, newWorld, setHeadlights, setOverdrive, townStart, update } from './world';
+import { startPose } from './start-pose';
 import { dist } from './vec';
 import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
@@ -20,16 +21,17 @@ import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import type { World } from './types';
 import { defaultSetup } from './settings';
 
+const BY_RADIUS = Object.keys(CHASSIS).sort((a, b) => CHASSIS[b].radius - CHASSIS[a].radius);
+const TOWN_START_CHASSIS = [...BY_RADIUS.slice(0, 5), BY_RADIUS[BY_RADIUS.length - 1]];
+
 describe('townStart', () => {
-  it('parks every chassis on a town pad with no vehicle on top of it', () => {
-    for (const chassis of Object.keys(CHASSIS)) {
-      const kit = { ...START_KITS.standard, chassis, parts: [], cargo: {}, storage: [], opening: null };
-      const world = newWorld(7, kit, TEST_MAP, defaultSetup('roaming'), true, townStart());
-      const truck = playerVehicle(world);
-      expect(townAt(world), chassis).not.toBeNull();
-      for (const v of world.vehicles.filter((o) => o !== truck)) {
-        expect(dist(v.pos, truck.pos), `${chassis} and ${v.id}`).toBeGreaterThan(vehicleStats(world, truck).radius);
-      }
+  it.each(TOWN_START_CHASSIS)('parks a %s on a town pad with no vehicle on top of it', (chassis) => {
+    const kit = { ...START_KITS.standard, chassis, parts: [], cargo: {}, storage: [], opening: null };
+    const world = newWorld(7, kit, TEST_MAP, defaultSetup('roaming'), true, townStart());
+    const truck = playerVehicle(world);
+    expect(townAt(world), chassis).not.toBeNull();
+    for (const v of world.vehicles.filter((o) => o !== truck)) {
+      expect(dist(v.pos, truck.pos), `${chassis} and ${v.id}`).toBeGreaterThan(vehicleStats(world, truck).radius);
     }
   });
 

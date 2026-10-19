@@ -85,7 +85,7 @@
   bottom: calc(100% + var(--hud-gap));
   z-index: var(--z-popup);
   width: max-content;
-  max-width: min(var(--panel-m), calc(100vw - var(--space-9)));
+  max-width: min(var(--panel-m), calc(var(--layer-w) - var(--space-9)));
   cursor: default;
 }
 .speed-max:hover .speed-tip,
@@ -363,6 +363,9 @@
 }
 .utility-slot .weapon-pick [data-status] {
   font: var(--text-caption) / 1.2 var(--font-mono);
+  white-space: normal;
+  justify-self: center;
+  text-align: center;
 }
 /* One look per utility slot state (data-state in src/ui/weapons.ts). Only aiming fills the slot. */
 #ui .utility-slot .weapon-pick {
@@ -435,8 +438,6 @@
   bottom: var(--space-1);
 }
 #ui .turn-control {
-  right: var(--space-7);
-  bottom: var(--hud-inset);
   border: 0;
   background: none;
   padding: 0;

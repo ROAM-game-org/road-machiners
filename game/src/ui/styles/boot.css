@@ -34,6 +34,9 @@
   font: 700 var(--text-heading) / 1.1 var(--font-ui);
   color: var(--ink-title);
 }
+#boot .boot-sign { width: var(--icon-sign); height: var(--icon-sign); align-self: center; fill: var(--ink-title); }
+#boot .boot-sign g { opacity: 0; transition: opacity var(--sign-fade) ease-out; }
+#boot .boot-sign g.shown { opacity: 1; }
 #boot .boot-bar { display: flex; gap: var(--space-1); height: var(--space-4); }
 #boot .boot-seg { flex: 1; background: var(--surface-raised); }
 #boot .boot-seg.done { background: var(--danger); }
@@ -54,5 +57,7 @@
 @media (prefers-reduced-motion: reduce) {
   #boot .boot-seg.running { animation: none; }
   #boot.leaving { transition: none; }
+  #boot .boot-sign g { transition: none; }
 }
 #boot .boot-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); margin: 0; }
+#boot:not([data-fonts]) :is(.boot-title, .boot-stage, .boot-steps) { visibility: hidden; }

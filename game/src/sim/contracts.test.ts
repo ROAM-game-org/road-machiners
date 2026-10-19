@@ -7,12 +7,14 @@ import { REGION } from '../data/region';
 import { playerVehicle } from './damage';
 import { makePart } from './factory';
 import { corePart, goodsCount, mountedItems } from './grid';
-import { stowPart } from './inventory';
+import { addGoods, stowParcel, stowPart } from './inventory';
 import { sitePads } from './sites';
 import { addVehicle, emptyWorld, npcBrain, practiceOf, testDrive } from './testkit';
 import { vehicleStats } from './stats';
 import { fireWeapons, resolveDestroyed } from './combat';
 import type { GameEvent, Vehicle, World } from './types';
+import { remember } from './memory';
+import { townWork } from './dialogue-rules';
 import { endTurn, update } from './world';
 import {
   acceptContract,
@@ -26,6 +28,8 @@ import {
   estimateTurns,
   fetchReward,
   contractXp,
+  noteSearchLead,
+  searchReward,
   haulPenalty,
   haulWindow,
   initializeShops,
@@ -35,7 +39,10 @@ import {
   rollContract,
   siteOf,
   vehicleValue,
+  searchCandidates,
+  searchRefusal,
   type Contract,
+  type SearchContract,
 } from './market';
 
 function addRaider(w: World, templateId: string, pos = { x: 5, y: 5 }): Vehicle {
@@ -172,7 +179,7 @@ describe('haul pay and rush', () => {
     const before = w.rngState;
     const rolled = new Set<boolean>();
     for (let i = 0; i < 100; i++) {
-      const c = rollContract(w, { id: 'bowl', pos: { x: 0, y: 0 } }, [{ id: 'nose', pos: { x: 100, y: 0 } }], ['salt'], [], []);
+      const c = rollContract(w, { id: 'bowl', pos: { x: 0, y: 0 } }, [{ id: 'nose', pos: { x: 100, y: 0 } }], ['salt'], [], [], []);
       if (c?.kind === 'haul') {
         rolled.add(c.rush);
         expect(c.window).toBe(haulWindow(estimateTurns({ x: 0, y: 0 }, { x: 100, y: 0 }), c.rush));
@@ -246,20 +253,20 @@ describe('rollContract', () => {
     w2.marketRng.rngState = 42;
     const raider = addRaider(w1, 'buggy');
     addRaider(w2, 'buggy');
-    const c1 = rollContract(w1, shop, places, goods, partDefIds, [raider]);
-    const c2 = rollContract(w2, shop, places, goods, partDefIds, [w2.vehicles.find((v) => v.faction === 'scrapjaw')!]);
+    const c1 = rollContract(w1, shop, places, goods, partDefIds, [raider], []);
+    const c2 = rollContract(w2, shop, places, goods, partDefIds, [w2.vehicles.find((v) => v.faction === 'scrapjaw')!], []);
     expect(c1).toEqual(c2);
   });
 
   it('returns null when every kind is impossible', () => {
     const w = emptyWorld();
-    expect(rollContract(w, shop, [], [], [], [])).toBeNull();
+    expect(rollContract(w, shop, [], [], [], [], [])).toBeNull();
   });
 
   it('never rolls a bounty when there are no raiders', () => {
     const w = emptyWorld();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, places, goods, partDefIds, []);
+      const c = rollContract(w, shop, places, goods, partDefIds, [], []);
       expect(c?.kind).not.toBe('bounty');
     }
   });
@@ -267,7 +274,7 @@ describe('rollContract', () => {
   it('never rolls a haul when there are no other places', () => {
     const w = emptyWorld();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, [], goods, partDefIds, []);
+      const c = rollContract(w, shop, [], goods, partDefIds, [], []);
       expect(c?.kind).not.toBe('haul');
     }
   });
@@ -275,7 +282,7 @@ describe('rollContract', () => {
   it('never rolls a fetch when there are no part defs', () => {
     const w = emptyWorld();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, places, goods, [], []);
+      const c = rollContract(w, shop, places, goods, [], [], []);
       expect(c?.kind).not.toBe('fetch');
     }
   });
@@ -285,7 +292,7 @@ describe('rollContract', () => {
     w.turn = 10;
     let haul: Contract | null = null;
     for (let i = 0; i < 50 && !haul; i++) {
-      const c = rollContract(w, shop, places, goods, [], []);
+      const c = rollContract(w, shop, places, goods, [], [], []);
       if (c?.kind === 'haul') haul = c;
     }
     expect(haul).not.toBeNull();
@@ -297,7 +304,7 @@ describe('rollContract', () => {
     const dearGoods = ['tools'];
     let haul: Contract | null = null;
     for (let i = 0; i < 50 && !haul; i++) {
-      const c = rollContract(w, shop, places, dearGoods, [], []);
+      const c = rollContract(w, shop, places, dearGoods, [], [], []);
       if (c?.kind === 'haul') haul = c;
     }
     expect(haul).not.toBeNull();
@@ -308,7 +315,7 @@ describe('rollContract', () => {
     const w = emptyWorld();
     let fetchContract: Contract | null = null;
     for (let i = 0; i < 50 && !fetchContract; i++) {
-      const c = rollContract(w, shop, [], [], ['workhorseDiesel'], []);
+      const c = rollContract(w, shop, [], [], ['workhorseDiesel'], [], []);
       if (c?.kind === 'fetch') fetchContract = c;
     }
     expect(fetchContract).not.toBeNull();
@@ -322,7 +329,7 @@ describe('rollContract', () => {
     expect(stowed).toBe(true);
     let bounty: Contract | null = null;
     for (let i = 0; i < 50 && !bounty; i++) {
-      const c = rollContract(w, shop, [], [], [], [raider]);
+      const c = rollContract(w, shop, [], [], [], [raider], []);
       if (c?.kind === 'bounty') bounty = c;
     }
     expect(bounty).not.toBeNull();
@@ -335,7 +342,7 @@ describe('rollContract', () => {
     const rewards = new Set<number>();
     const deadlines = new Set<number>();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, [], [], [], [raider]);
+      const c = rollContract(w, shop, [], [], [], [raider], []);
       if (c?.kind === 'bounty') {
         rewards.add(c.reward);
         deadlines.add(c.deadline);
@@ -814,4 +821,222 @@ describe('bounties in a real fight', () => {
     expect(w.vehicles.some((v) => v.id === raider.id)).toBe(false);
     expect(w.player.money).toBe(money);
   });
+});
+
+describe('search contracts', () => {
+  const parcels = (w: World) => playerVehicle(w).items.filter((it) => it.kind === 'parcel');
+
+  function deliverParcel(d: World): void {
+    const c = d.player.contracts.find((x): x is SearchContract => x.kind === 'search')!;
+    const me = playerVehicle(d);
+    me.items = me.items.filter((it) => it.kind !== 'parcel');
+    c.delivered = true;
+  }
+
+  const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
+  const posted = (target: string): Contract => ({
+    id: 'ct-search', shop: 'bowl', kind: 'search', target, driver: 'Mack Holt', template: 'trader',
+    lead: { at: { ...bowl.pos }, turn: 0 }, reward: searchReward(), deadline: 500, window: 500, tier: 1, delivered: false,
+  });
+
+  function worldWithTarget(): { w: World; target: Vehicle } {
+    const w = emptyWorld(sitePads(bowl)[0]);
+    const target = addVehicle(w, 'independent', 'hauler', [], { x: 300, y: 300 });
+    target.brain = npcBrain('trader', target.pos, ['trader']);
+    return { w, target };
+  }
+
+  function visit(w: World, v: Vehicle, shop: string, turn: number): void {
+    const was = w.turn;
+    w.turn = turn;
+    remember(w, v, { kind: 'prices', shop, pressure: {} });
+    w.turn = was;
+  }
+
+  const bowlSpot = { id: 'bowl', pos: bowl.pos };
+
+  it('rolls a search for a driver seen at the counter, paying the fixed reward', () => {
+    const { w, target } = worldWithTarget();
+    w.turn = 100;
+    for (let i = 0; i < 40; i++) {
+      const c = rollContract(w, bowlSpot, [], [], [], [], [], [], [{ vehicle: target, seenTurn: 90 }]);
+      expect(c).toMatchObject({ kind: 'search', target: target.id, driver: target.brain!.driver, template: 'trader', delivered: false, tier: 1, reward: searchReward(), lead: { at: bowl.pos, turn: 90 } });
+      expect(c!.window).toBeGreaterThanOrEqual(CONTRACTS.search.durationTurns[0]);
+      expect(c!.window).toBeLessThanOrEqual(CONTRACTS.search.durationTurns[1]);
+    }
+    expect(searchReward()).toBe(Math.round(CONTRACTS.search.rewardTurns * EFFORT.wage[1]));
+  });
+
+  it('posts a search at restock only for a fresh visitor who is not a raider', () => {
+    const targets = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      const { w, target } = worldWithTarget();
+      const stale = addVehicle(w, 'independent', 'hauler', [], { x: 310, y: 300 });
+      stale.brain = npcBrain('trader', stale.pos, ['trader']);
+      const raider = addRaider(w, 'buggy');
+      w.turn = 1000;
+      visit(w, target, 'bowl', 1000 - 5);
+      visit(w, stale, 'bowl', 1000 - CONTRACTS.search.freshTurns - 1);
+      visit(w, raider, 'bowl', 1000 - 5);
+      w.marketRng.rngState = seed;
+      w.shops.bowl.contracts = [];
+      initializeShops(w);
+      for (const c of w.shops.bowl.contracts) if (c.kind === 'search') targets.add(c.target);
+    }
+    expect([...targets]).toHaveLength(1);
+  });
+
+  it('never posts a search for a driver still in sight of the shop', () => {
+    const { w, target } = worldWithTarget();
+    w.turn = 1000;
+    visit(w, target, 'bowl', 1000 - 5);
+    expect(searchCandidates(w, 'bowl', w.shops.bowl).map((c) => c.vehicle.id)).toEqual([target.id]);
+    target.pos = { x: bowl.pos.x + CONTRACTS.search.awayTiles - 1, y: bowl.pos.y };
+    expect(searchCandidates(w, 'bowl', w.shops.bowl)).toEqual([]);
+  });
+
+  it('leaves search out when nobody was seen at the shop', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const { w } = worldWithTarget();
+      w.marketRng.rngState = seed;
+      initializeShops(w);
+      expect(Object.values(w.shops).flatMap((s) => s.contracts).some((c) => c.kind === 'search')).toBe(false);
+    }
+  });
+
+  it('refuses a second held search and townWork skips it', () => {
+    const { w, target } = worldWithTarget();
+    const second = { ...posted(target.id), id: 'ct-two' };
+    w.shops.bowl.contracts = [posted(target.id), second];
+    const next = acceptContract(w, 'ct-search');
+    expect(() => acceptContract(next, 'ct-two')).toThrow('already searching');
+    expect(townWork(next)).toBeNull();
+  });
+
+  it('lapses when the target is wrecked before the find', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    const held = acceptContract(w, 'ct-search');
+    const after = update(held, (d) => {
+      d.vehicles = d.vehicles.filter((v) => v.id !== target.id);
+      d.events = [];
+      advanceContracts(d);
+    });
+    expect(after.player.contracts).toEqual([]);
+    expect(after.events).toContainEqual(expect.objectContaining({ t: 'contract', outcome: 'lapsed' }));
+    expect(after.player.money).toBe(held.player.money);
+    expect(parcels(after)).toEqual([]);
+  });
+
+  it('drops a board offer whose target is gone at restock', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    w.vehicles = w.vehicles.filter((v) => v.id !== target.id);
+    w.turn = w.shops.bowl.restockAt;
+    advanceShops(w);
+    expect(w.shops.bowl.contracts.some((c) => c.id === 'ct-search')).toBe(false);
+  });
+
+  it('keeps a delivered search claimable after the target dies, and never fails it', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    const held = update(acceptContract(w, 'ct-search'), (d) => deliverParcel(d));
+    const after = update(held, (d) => {
+      d.vehicles = d.vehicles.filter((v) => v.id !== target.id);
+      d.turn = 5000;
+      d.events = [];
+      advanceContracts(d);
+    });
+    expect(after.player.contracts).toHaveLength(1);
+    expect(after.events).toEqual([]);
+  });
+
+  it('fails at the deadline with no money change when undelivered, and voids the parcel', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    const held = acceptContract(w, 'ct-search');
+    const after = update(held, (d) => {
+      d.turn = held.player.contracts[0].deadline + 1;
+      d.events = [];
+      advanceContracts(d);
+    });
+    expect(after.player.contracts).toEqual([]);
+    expect(after.events).toEqual([expect.objectContaining({ t: 'contract', outcome: 'failed' })]);
+    expect(after.player.money).toBe(held.player.money);
+    expect(parcels(after)).toEqual([]);
+  });
+
+  it('pays once with XP at the posting shop after the handover', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    const found = update(acceptContract(w, 'ct-search'), (d) => deliverParcel(d));
+    const money = found.player.money;
+    const paid = deliverContract(found, 'ct-search');
+    expect(paid.player.money).toBe(money + searchReward());
+    expect(paid.player.contracts).toEqual([]);
+    expect(practiceOf(paid, 'contract')).toMatchObject([{ target: 'bowl', xp: contractXp(posted(target.id)) }]);
+    expect(() => deliverContract(paid, 'ct-search')).toThrow();
+  });
+
+  it('refuses a claim before the handover', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    expect(() => deliverContract(acceptContract(w, 'ct-search'), 'ct-search')).toThrow('not met yet');
+  });
+
+  it('loads exactly one parcel for the search on accept', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    const held = acceptContract(w, 'ct-search');
+    expect(parcels(held)).toEqual([expect.objectContaining({ kind: 'parcel', contract: 'ct-search' })]);
+    expect(parcels(w)).toEqual([]);
+  });
+
+  it('refuses a search with no free cargo cell, and townWork skips it', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    const me = playerVehicle(w);
+    while (addGoods(w, me, 'scrap', 1) === 1);
+    expect(searchRefusal(w, posted(target.id))).toBe('noCargoRoom');
+    expect(() => acceptContract(w, 'ct-search')).toThrow('noCargoRoom');
+    expect(townWork(w)).toBeNull();
+  });
+
+  it('throws when a held search loses its parcel', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    const held = acceptContract(w, 'ct-search');
+    expect(() => update(held, (d) => {
+      const me = playerVehicle(d);
+      me.items = me.items.filter((it) => it.kind !== 'parcel');
+      advanceContracts(d);
+    })).toThrow('parcel of search ct-search is missing');
+  });
+
+  it('throws on a parcel with no open search', () => {
+    const { w } = worldWithTarget();
+    expect(() => update(w, (d) => {
+      stowParcel(playerVehicle(d), { id: 'i-stray', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'ct-gone' });
+      advanceContracts(d);
+    })).toThrow('has no open search');
+  });
+
+  it('refuses a claim away from the posting shop', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    const found = update(acceptContract(w, 'ct-search'), (d) => deliverParcel(d));
+    found.vehicles[0].pos = { x: 500, y: 500 };
+    expect(() => deliverContract(found, 'ct-search')).toThrow();
+  });
+
+  it('moves the lead only to a newer sighting', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    const held = acceptContract(w, 'ct-search');
+    const newer = update(held, (d) => noteSearchLead(d, { x: 10, y: 20 }, 50));
+    expect(newer.player.contracts[0]).toMatchObject({ lead: { at: { x: 10, y: 20 }, turn: 50 } });
+    const older = update(newer, (d) => noteSearchLead(d, { x: 99, y: 99 }, 20));
+    expect(older.player.contracts[0]).toMatchObject({ lead: { at: { x: 10, y: 20 }, turn: 50 } });
+  });
+
 });

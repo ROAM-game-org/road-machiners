@@ -2,7 +2,12 @@
 import { CRATE_MASS } from '../data/goods';
 import { CONTRACTS } from '../data/market';
 import { partDef } from '../data/parts';
-import type { Contract } from '../sim/market';
+import { isMet, siteOf, type Contract } from '../sim/market';
+import { openSurveyPoint, surveyClue, surveyPlaceType, type SurveyClue, type SurveyContract } from '../sim/survey';
+import { claimClue, rivalRunning } from '../sim/claims';
+import type { ClaimLook } from '../data/market';
+import { createIcon } from './cards';
+import { el } from './dom';
 import { escortStatus, turnsLeft } from '../sim/escort-job';
 import { PERK_LEVELS } from '../data/skills';
 import { TERRAIN } from '../data/terrain';
@@ -32,12 +37,11 @@ import { shotDamage } from '../sim/combat';
 import { shutDownTurnsLeft } from '../sim/utility';
 import type { GameEvent, GridItem, Job, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
 import { concat, list, MINUS_SIGN, num, PLUS, t, verbatim, type Msg } from '../text/msg';
-import { factionName, goalText, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
+import { driverName, factionName, goalText, fullName, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
 import { Refused } from '../sim/world';
-import { aidWords, compass, lineText } from './dialogue';
+import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
-import { siteOf } from '../sim/market';
-import { damage, distanceText, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
+import { compassText, damage, distanceText, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
 import { bandAtLeast, isRaider } from '../sim/relations';
 
 export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
@@ -45,6 +49,7 @@ export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'business') return businessLabel(job);
   if (job.kind === 'search') return t('job.search');
   if (job.kind === 'weld') return t('job.weld');
+  if (job.kind === 'survey') return t('job.survey');
   return partJobLabel(v, job);
 }
 
@@ -87,6 +92,7 @@ function partNameIn(vehicles: (Vehicle | undefined)[], loose: PartInstance[], pa
 }
 
 function itemName(it: GridItem): Msg {
+  if (it.kind === 'parcel') return t('item.parcel');
   return it.kind === 'part' ? partNameOf(it.part.defId) : goodName(it.good);
 }
 
@@ -209,8 +215,11 @@ const STATE_LABELS: Record<StateKindId, (s: NpcState) => Msg> = {
   grievance: () => t('state.grievance'),
   plea: (s) => (pleaData(s).plea === 'truce' ? t('state.pleaTruce') : t('state.pleaMercy')),
   trade: () => t('state.trade'),
+  handover: () => t('state.handover'),
   revenge: () => t('state.revenge'),
   escort: () => t('state.escort'),
+  crew: () => t('state.crew'),
+  hire: () => t('state.hire'),
   aid: (s) => (aidData(s).giver === 'npc' ? t('state.aidBringing') : t('state.aidWaiting')),
   combat: () => t('state.combat'),
   lootWarning: (s) => (lootWarningData(s).answer === 'comply' ? t('state.lootAgreed') : t('state.lootWarning')),
@@ -464,6 +473,27 @@ function escortHiredText(world: World, e: Extract<GameEvent, { t: 'escortHired' 
   return line(t('log.escortHired', { client: vehicleName(world, e.client), who: vehicleName(world, e.by), site: siteName(e.site), fee: moneyMsg(e.fee) }), 'dim');
 }
 
+function crewAskedText(world: World, e: Extract<GameEvent, { t: 'crewAsked' }>): LogLine {
+  return line(t(`log.crewAsked.${e.cause}`, { member: vehicleName(world, e.member), leader: vehicleName(world, e.leader) }), 'dim');
+}
+
+function crewFormedText(world: World, e: Extract<GameEvent, { t: 'crewFormed' }>): LogLine {
+  return line(t('log.crewFormed', { leader: vehicleName(world, e.leader), members: list(e.members.map((id) => vehicleName(world, id))) }), 'dim');
+}
+
+function crewLeftText(world: World, e: Extract<GameEvent, { t: 'crewLeft' }>): LogLine {
+  return line(t(`log.crewLeft.${e.cause}`, { member: vehicleName(world, e.member), leader: vehicleName(world, e.leader) }), 'dim');
+}
+
+function guardHiredText(world: World, e: Extract<GameEvent, { t: 'guardHired' }>): LogLine {
+  return line(t('log.guardHired', { merc: vehicleName(world, e.merc), when: clock(e.until).full, fee: moneyMsg(e.fee) }), '');
+}
+
+function guardEndedText(world: World, e: Extract<GameEvent, { t: 'guardEnded' }>): LogLine {
+  const lost = e.end === 'knockedOut' || e.end === 'hostile';
+  return line(t(`log.guardEnded.${e.end}`, { merc: vehicleName(world, e.merc) }), lost ? 'bad' : 'dim');
+}
+
 function escortRefusedText(world: World, e: Extract<GameEvent, { t: 'escortRefused' }>): LogLine {
   return line(t('log.escortRefused', { who: vehicleName(world, e.by), client: vehicleName(world, e.client) }), 'dim');
 }
@@ -516,6 +546,12 @@ const NOTICED: { [K in GameEvent['t']]?: (e: Extract<GameEvent, { t: K }>) => st
   aidStarted: (e) => [e.giver, e.receiver],
   escortHired: (e) => [e.by, e.client],
   escortRefused: (e) => [e.by, e.client],
+  crewAsked: (e) => [e.leader, e.member],
+  crewFormed: (e) => [e.leader, ...e.members],
+  crewFailed: (e) => [e.leader],
+  crewLeft: (e) => [e.leader, e.member],
+  crewLed: (e) => [e.leader, e.fallen],
+  crewDisbanded: (e) => [e.leader],
   lootArgument: (e) => [e.warner, e.looter],
   caltrops: (e) => [e.vehicle],
   lineTorn: (e) => [e.vehicle],
@@ -532,7 +568,7 @@ function searchedText(stock: string): LogLine {
   return line(site ? t('log.searchDoneAt', { site: siteName(stock) }) : t('log.searchDone'), 'good');
 }
 
-const CONTRACT_CLS = { accepted: '', fulfilled: 'good', expiring: 'bad', done: 'good', failed: 'bad', lapsed: 'dim', released: '', apart: 'bad' } as const;
+const CONTRACT_CLS = { accepted: '', found: 'good', surveyed: 'dim', fulfilled: 'good', expiring: 'bad', done: 'good', failed: 'bad', lapsed: 'dim', released: '', apart: 'bad' } as const;
 
 function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, reward: number): Msg {
   if (outcome === 'accepted' || outcome === 'done') return t(`log.escort.${outcome}`, { what, reward: moneyMsg(reward) });
@@ -540,19 +576,57 @@ function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, rewar
   throw new Error(`An escort is never ${outcome}`);
 }
 
-function contractText(c: Contract, outcome: keyof typeof CONTRACT_CLS): LogLine {
+export function isNotable(e: GameEvent): boolean {
+  if (e.t === 'contract') return e.outcome === 'found' || e.outcome === 'fulfilled' || e.cause === 'rival';
+  return e.t === 'skillUp' || e.t === 'discover' || e.t === 'standing' || e.t === 'claimRival';
+}
+
+function contractEventText(e: Extract<GameEvent, { t: 'contract' }>): LogLine {
+  if (e.outcome !== 'found') return contractText(e.contract, e.outcome);
+  return line(t('log.contract.found', { place: t(`contract.place.${surveyPlaceType(e.site)}`), site: siteName(e.contract.shop) }), CONTRACT_CLS.found);
+}
+
+function contractText(c: Contract, outcome: Exclude<keyof typeof CONTRACT_CLS, 'found'>): LogLine {
   const cls = CONTRACT_CLS[outcome];
-  if (outcome === 'fulfilled') {
-    if (c.kind === 'rescue') return line(t('log.contract.rescueFulfilled', { driver: verbatim(c.driver), reward: moneyMsg(c.reward), site: siteName(c.shop) }), cls);
-    if (c.kind !== 'bounty') throw new Error(`Only a bounty or a rescue is fulfilled, not a ${c.kind} contract`);
-    return line(t('log.contract.fulfilled', { target: templateName(c.template), reward: moneyMsg(c.reward), site: siteName(c.shop) }), cls);
+  if (outcome === 'surveyed') {
+    if (c.kind !== 'survey') throw new Error(`Only a survey is surveyed, not a ${c.kind} contract`);
+    return line(t('log.contract.surveyed', { done: c.points.filter((p) => p.done).length, n: c.points.length }), cls);
   }
+  if (outcome === 'fulfilled') return line(fulfilledText(c), cls);
   if (outcome === 'lapsed' && c.kind === 'rescue') return line(t('log.contract.rescueLapsed', { driver: verbatim(c.driver) }), cls);
   const what = contractSummary(c);
+  if (c.kind === 'search' && (outcome === 'failed' || outcome === 'lapsed')) return line(t(SEARCH_ENDS[outcome], { what }), cls);
   if (c.kind === 'escort') return line(escortContractText(outcome, what, c.reward), cls);
   if (outcome === 'released' || outcome === 'apart') throw new Error(`Only an escort is ${outcome}, not a ${c.kind} contract`);
   const text = outcome === 'expiring' ? t('log.contract.expiring', { what, due: contractDue(c) }) : t(`log.contract.${outcome}`, { what, reward: moneyMsg(c.reward) });
   return line(text, cls);
+}
+
+const SEARCH_ENDS = { failed: 'log.contract.searchFailed', lapsed: 'log.contract.searchLapsed' } as const;
+
+function fulfilledText(c: Contract): Msg {
+  if (c.kind === 'survey') return t('log.contract.surveyMet', { reward: moneyMsg(c.reward), site: siteName(c.shop) });
+  if (c.kind === 'search') return t('log.contract.parcelHanded', { who: searchTarget(c), reward: moneyMsg(c.reward), site: siteName(c.shop) });
+  if (c.kind === 'rescue') return t('log.contract.rescueFulfilled', { driver: verbatim(c.driver), reward: moneyMsg(c.reward), site: siteName(c.shop) });
+  if (c.kind !== 'bounty') throw new Error(`Only a bounty, a rescue, a search or a survey is fulfilled, not a ${c.kind} contract`);
+  return t('log.contract.fulfilled', { target: templateName(c.template), reward: moneyMsg(c.reward), site: siteName(c.shop) });
+}
+
+export function parcelTitle(world: World, parcel: Extract<GridItem, { kind: 'parcel' }>): Msg {
+  const c = world.player.contracts.find((x) => x.id === parcel.contract);
+  if (c?.kind !== 'search') throw new Error(`Parcel ${parcel.id} has no search contract ${parcel.contract}`);
+  return t('item.parcelFor', { who: searchTarget(c) });
+}
+
+export function searchTarget(c: Extract<Contract, { kind: 'search' }>): Msg {
+  return t('vehicle.npc', { profession: professionName(c.template), driver: fullName(c.driver) });
+}
+
+function rivalFirstText(world: World, c: Contract): LogLine {
+  if (c.kind !== 'claim' || c.rival === null) throw new Error(`Contract ${c.id} lapsed to a rival it never had`);
+  const rival = world.vehicles.find((v) => v.id === c.rival) ?? world.removed.find((v) => v.id === c.rival);
+  if (!rival) throw new Error(`No rival truck ${c.rival} for contract ${c.id}`);
+  return line(t('log.contract.lapsedRival', { driver: driverName(rival), part: partNameOf(c.defId), shop: siteName(c.shop) }), 'bad');
 }
 
 export function contractSummary(c: Contract): Msg {
@@ -561,16 +635,64 @@ export function contractSummary(c: Contract): Msg {
     return c.rush ? t('contract.rushHaul', haul) : t('contract.haul', haul);
   }
   if (c.kind === 'fetch') return t('contract.fetch', { part: partNameOf(c.defId), site: siteName(c.shop), n: CONTRACTS.fetch.maxWear });
+  if (c.kind === 'survey') return isMet(c) ? t('contract.surveyMet', { site: siteName(c.shop) }) : t('contract.survey', { places: surveyPlaces(c) });
+  if (c.kind === 'claim') return claimSummary(c);
   if (c.kind === 'escort') return t('contract.escort', { site: siteName(c.to) });
   if (c.kind === 'rescue') return c.fulfilled ? t('contract.rescueMet', { driver: verbatim(c.driver), site: siteName(c.shop) }) : t('contract.rescue', { driver: verbatim(c.driver) });
+  if (c.kind === 'search') return t(c.delivered ? 'contract.searchMet' : 'contract.search', { who: searchTarget(c), site: siteName(c.shop) });
   const bounty = { target: templateName(c.template), site: siteName(c.shop) };
   return c.fulfilled ? t('contract.bountyMet', bounty) : t('contract.bountyAt', bounty);
+}
+
+function surveyPlaces(c: SurveyContract): Msg {
+  const types = [...new Set(c.points.map((p) => surveyPlaceType(p.site)))];
+  return list(types.map((type) => t(`contract.place.${type}`)));
+}
+
+export function surveyProgress(c: SurveyContract): Msg {
+  return t('contract.surveyed', { done: c.points.filter((p) => p.done).length, n: c.points.length });
+}
+
+export function surveyClueText(clue: SurveyClue): Msg {
+  return t('contract.surveyClue', { dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
+}
+
+export function nextSurveyClue(c: SurveyContract): Msg | null {
+  const open = openSurveyPoint(c);
+  return open ? surveyClueText(surveyClue(c, open)) : null;
+}
+
+function claimSummary(c: Extract<Contract, { kind: 'claim' }>): Msg {
+  const clue = claimClue(c);
+  const words = { part: partNameOf(c.defId), wreck: claimLookText(clue.look), bearing: compassText(clue.angle), shop: siteName(c.shop), distance: distanceText(clue.distance) };
+  return clue.territory ? t('contract.salvageIn', { ...words, place: siteName(clue.territory) }) : t('contract.salvage', words);
+}
+
+export function claimLookText(look: ClaimLook): Msg {
+  return t(`claim.look.${look}`);
+}
+
+export function claimRivalMark(world: World, c: Contract): HTMLElement | null {
+  const rival = c.kind === 'claim' ? rivalRunning(world, c) : null;
+  return rival ? el('div', { class: 'claim-rival dim' }, createIcon('driver'), t('contract.rivalOut', { driver: driverName(rival) })) : null;
+}
+
+function claimRivalText(world: World, e: Extract<GameEvent, { t: 'claimRival' }>): LogLine | null {
+  const c = world.player.contracts.find((x) => x.id === e.contract);
+  if (c?.kind !== 'claim') return null;
+  return line(t('log.contract.rival', { shop: siteName(c.shop), driver: driverName(vehicleById(world, e.vehicle)), part: partNameOf(c.defId) }), 'bad');
+}
+
+function claimLeadText(world: World, e: Extract<GameEvent, { t: 'claimLead' }>): LogLine {
+  const c = world.player.contracts.find((x) => x.id === e.contract);
+  if (c?.kind !== 'claim') throw new Error(`A lead names claim ${e.contract}, which the player does not hold`);
+  return line(t('log.noted', { title: partNameOf(c.defId) }), 'good');
 }
 
 export function rescueWhere(c: Extract<Contract, { kind: 'rescue' }>): Msg {
   const shop = siteOf(c.shop).pos;
   const rad = Math.atan2(c.area.y - shop.y, c.area.x - shop.x);
-  return t('contract.rescueWhere', { distance: distanceText(dist(shop, c.area)), direction: compass(rad), site: siteName(c.shop) });
+  return t('contract.rescueWhere', { distance: distanceText(dist(shop, c.area)), direction: compassText(rad), site: siteName(c.shop) });
 }
 
 export function contractWindow(c: Contract): Msg {
@@ -583,7 +705,7 @@ export function contractDue(c: Contract): Msg {
 
 export function heldContractDue(c: Contract): Msg {
   if (c.kind === 'escort') return t('contract.noDeadline');
-  return (c.kind === 'bounty' || c.kind === 'rescue') && c.fulfilled ? t('contract.ready') : contractDue(c);
+  return isMet(c) ? t('contract.ready') : contractDue(c);
 }
 
 export function escortLeaves(c: Contract): Msg {
@@ -656,6 +778,14 @@ function moneyText(world: World, e: Extract<GameEvent, { t: 'money' }>): LogLine
   if (e.reason.kind === 'outpost') return null;
   const reason = moneyReasonText(world, e.reason);
   return e.amount > 0 ? line(t('log.moneyGain', { n: moneyMsg(e.amount), reason }), 'good') : line(t('log.moneyLoss', { n: moneyMsg(-e.amount), reason }), 'bad');
+}
+
+function holdUpText(world: World, e: Extract<GameEvent, { t: 'holdUp' }>): LogLine | null {
+  if (e.paid !== 'money') return null;
+  const me = world.player.vehicleId;
+  if (e.victim !== me && e.robber !== me) return null;
+  const reason = moneyReasonText(world, { kind: 'holdUp', vehicle: e.victim === me ? e.robber : e.victim });
+  return e.victim === me ? line(t('log.moneyLoss', { n: moneyMsg(e.value), reason }), 'bad') : line(t('log.moneyGain', { n: moneyMsg(e.value), reason }), 'good');
 }
 
 function discoverText(e: Extract<GameEvent, { t: 'discover' }>): LogLine | null {
@@ -757,8 +887,17 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   guardPaid: quiet,
   shopMoney: quiet,
   transfer: quiet,
+  holdUp: holdUpText,
   escortHired: escortHiredText,
   escortRefused: escortRefusedText,
+  crewAsked: crewAskedText,
+  crewFormed: crewFormedText,
+  crewFailed: (world, e) => line(t('log.crewFailed', { leader: vehicleName(world, e.leader) }), 'dim'),
+  crewLeft: crewLeftText,
+  crewLed: (world, e) => line(t('log.crewLed', { leader: vehicleName(world, e.leader), fallen: vehicleName(world, e.fallen) }), 'dim'),
+  crewDisbanded: (world, e) => line(t('log.crewDisbanded', { leader: vehicleName(world, e.leader) }), 'dim'),
+  guardHired: guardHiredText,
+  guardEnded: guardEndedText,
   note: (_, e) => line(t('log.noted', { title: noteTitle(e.id) }), 'good'),
   lootArgument: lootArgumentText,
   collision: quiet,
@@ -775,12 +914,15 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   roadOpened: quiet,
   runLost: runLostText,
   discover: (_, e) => discoverText(e),
+  encounter: quiet,
   supply: (_, e) => line(noteText(e.note), 'bad'),
   death: () => line(t('log.death'), 'bad'),
   knockout: () => line(t('log.knockout'), 'bad'),
   wake: () => line(t('log.wake'), 'dim'),
   searched: (_, e) => searchedText(e.stock),
-  contract: (_, e) => contractText(e.contract, e.outcome),
+  contract: (world, e) => (e.cause === 'rival' ? rivalFirstText(world, e.contract) : contractEventText(e)),
+  claimRival: claimRivalText,
+  claimLead: claimLeadText,
   escortEnded: escortEndedText,
   breakdown: breakdownText,
   spawn: quiet,

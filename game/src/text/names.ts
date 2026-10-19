@@ -7,6 +7,8 @@ import type { Faction, GameModeId, GoalReason, MoneyReason, Refusal, SimNote, Sk
 import { byId, list, t, type Msg } from './msg';
 
 export const partName = (defId: string): Msg => byId(`part.${defId}`);
+export const partLore = (defId: string): Msg => byId(`lore.part.${defId}`);
+export const goodLore = (id: string): Msg => byId(`lore.good.${id}`);
 export const chassisName = (id: string): Msg => byId(`chassis.${id}`);
 export const goodName = (id: string): Msg => byId(`good.${id}`);
 export const goodLower = (id: string): Msg => byId(`good.${id}.lower`);
@@ -18,6 +20,9 @@ export const siteName = (id: string): Msg => {
   const outpost = OUTPOST_ID.exec(id);
   return outpost ? outpostName(Number(outpost[1])) : byId(`site.${id}`);
 };
+export const siteSign = (id: string): Msg => byId(`way.sign.${id}`);
+export const propName = (look: string): Msg => byId(`way.prop.${look}`);
+export const compassName = (octant: string): Msg => byId(`compass.${octant}`);
 export const terrainName = (id: string): Msg => byId(`terrain.${id}`);
 export const templateName = (id: string): Msg => byId(`npc.${id}`);
 export const professionName = (id: string): Msg => byId(`npc.${id}.profession`);
@@ -97,6 +102,7 @@ export function noteText(note: SimNote): Msg {
 export function moneyReasonText(world: World, reason: MoneyReason): Msg {
   if (reason.kind === 'towing') return t('money.towing', { vehicle: vehicleTitleOf(world, reason.vehicle) });
   if (reason.kind === 'outpost') return t('money.outpost');
+  if (reason.kind === 'holdUp') return t('money.holdUp', { vehicle: vehicleTitleOf(world, reason.vehicle) });
   return reason.kind === 'contract' ? t('money.contract') : t('money.failedHaul');
 }
 
@@ -110,6 +116,7 @@ const REFUSALS: RefusalWords = {
   utilityPassive: (_, r) => t('refusal.utilityPassive', { part: partName(r.part) }),
   utilityOrder: (_, r) => t(`refusal.utilityOrder.${r.order}`, { part: partName(r.part) }),
   utilityBlocked: (_, r) => t('refusal.utilityBlocked', { part: partName(r.part), reason: t(`block.${r.block}`) }),
+  busy: (_, r) => t(`refusal.busy.${r.job}`),
   needsXp: (_, r) => t('refusal.needsXp', { cost: r.cost, have: r.have }),
 };
 

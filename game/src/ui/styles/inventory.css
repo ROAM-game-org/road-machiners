@@ -131,6 +131,11 @@
   pointer-events: none;
   --plan-line: var(--map-side);
   --plan-fill: var(--cell-none);
+  --plan-shadow: none;
+  --plan-light: none;
+  --plan-glass: none;
+  --plan-outer: var(--space-1);
+  --plan-inner: 0px;
 }
 .inv-grid .truck-outline {
   --plan-line: var(--cell-plan-line);
@@ -319,6 +324,10 @@
   width: var(--icon-l);
   height: var(--icon-l);
 }
+.inv-chip > .claim-mark {
+  width: var(--icon-m);
+  height: var(--icon-m);
+}
 .inv-item > .meter,
 .inv-chip > .meter {
   position: absolute;
@@ -326,6 +335,10 @@
   right: var(--space-1);
   bottom: var(--space-1);
   height: var(--meter-s);
+}
+.inv-item.working > .meter.progress {
+  top: var(--space-1);
+  bottom: auto;
 }
 .inv-dump {
   background: var(--surface-well);

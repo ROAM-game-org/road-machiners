@@ -6,6 +6,8 @@ export type GoodDef = { id: string; value: number; tier: Tier };
 
 export const CRATE_MASS = 50 * MASS_SCALE.cargo;
 
+export const PARCEL = { id: 'parcel', mass: 5 * MASS_SCALE.cargo };
+
 export const GOODS: Record<string, GoodDef> = {
   scrap: { id: 'scrap', value: 633, tier: 1 },
   salt: { id: 'salt', value: 867, tier: 1 },
@@ -18,6 +20,7 @@ export const GOODS: Record<string, GoodDef> = {
   parts: { id: 'parts', value: 667, tier: 1 },
   fuelDrums: { id: 'fuelDrums', value: 933, tier: 1 },
   water: { id: 'water', value: 600, tier: 1 },
+  relics: { id: 'relics', value: 4400, tier: 3 },
 };
 
 export const GOOD_IDS = Object.keys(GOODS);

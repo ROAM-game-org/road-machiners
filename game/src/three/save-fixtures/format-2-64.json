@@ -1,22 +1,16 @@
 {
-  "turn": 40,
-  "player": { "vehicleId": "v1", "money": 1200 },
+  "turn": 240,
+  "player": {
+    "money": 1200
+  },
   "vehicles": [
-    { "id": "v1", "faction": "player", "pos": { "x": 200, "y": 200 }, "brain": null },
-    { "id": "v2", "faction": "raiders", "pos": { "x": 300, "y": 300 }, "brain": { "templateId": "buggy", "home": { "x": 118, "y": 76 } } },
-    { "id": "v3", "faction": "raiders", "pos": { "x": 120, "y": 90 }, "brain": { "templateId": "gunwagon", "home": { "x": 325, "y": 372 } } },
-    { "id": "v4", "faction": "couriers", "pos": { "x": 90, "y": 460 }, "brain": { "templateId": "courier", "home": { "x": 82, "y": 466 } } },
-    { "id": "v5", "faction": "traders", "pos": { "x": 500, "y": 180 }, "brain": { "templateId": "trader", "home": { "x": 505, "y": 178 } } },
-    { "id": "v6", "faction": "scavengers", "pos": { "x": 250, "y": 250 }, "brain": { "templateId": "scavenger", "home": { "x": 250, "y": 250 } } },
-    { "id": "v7", "faction": "convoys", "pos": { "x": 300, "y": 200 }, "brain": { "templateId": "convoy", "home": { "x": 508, "y": 170 } } },
-    { "id": "v8", "faction": "convoys", "pos": { "x": 302, "y": 202 }, "brain": { "templateId": "convoyGuard", "home": { "x": 90, "y": 450 } } },
-    { "id": "v9", "faction": "convoys", "pos": { "x": 85, "y": 465 }, "brain": { "templateId": "convoyGuard", "home": { "x": 85, "y": 465 } } },
-    { "id": "v10", "faction": "bowl", "pos": { "x": 84, "y": 468 }, "brain": { "templateId": "bowlFarmer", "home": { "x": 84, "y": 468 } } },
-    { "id": "v11", "faction": "mercs", "pos": { "x": 500, "y": 170 }, "brain": { "templateId": "merc", "home": { "x": 500, "y": 170 } } }
-  ],
-  "states": [
-    { "id": "s1", "kind": "feud", "holder": "v2", "other": "v1", "turnsLeft": 20, "data": { "kind": "feud", "robbery": true } },
-    { "id": "s2", "kind": "truce", "holder": "v10", "other": "v1", "turnsLeft": 30, "data": { "kind": "none" } },
-    { "id": "s3", "kind": "escort", "holder": "v8", "other": "v7", "turnsLeft": null, "data": { "kind": "none" } }
+    { "id": "v7", "pos": { "x": 41.5, "y": 77.25 }, "brain": { "goals": [], "progress": { "key": "41,77 explore:null:explore -", "since": 231 } } },
+    { "id": "v8", "pos": { "x": 12, "y": 9 }, "brain": { "goals": [] } },
+    { "id": "v1", "pos": { "x": 30, "y": 30 }, "brain": null },
+    {
+      "id": "p1",
+      "items": [{ "kind": "part", "part": { "id": "p343", "defId": "claymoreRam", "hp": 40, "charge": { "reload": 0, "armed": true } } }],
+      "utilityOrders": { "p343": { "kind": "self" } }
+    }
   ]
 }

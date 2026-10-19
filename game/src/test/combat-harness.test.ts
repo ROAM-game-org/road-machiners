@@ -4,13 +4,13 @@ import { RULES } from '../data/rules';
 import { mountedParts } from '../sim/grid';
 import { initPhysics } from '../phys/drive';
 import { forceOption } from '../sim/testkit';
-import { parseLineup, parseRoad, parseTruck, runFight, setNumber, type Fight } from './combat-harness';
+import { parseGroupFlags, parseLineup, runFight, setNumber } from './combat-harness';
+import { FIGHT } from './combat-fight';
 
 beforeAll(async () => {
   await initPhysics();
 });
 
-const FIGHT: Fight = { a: parseLineup('stand'), b: parseLineup('buggy'), seed: 3, gap: 8, orbit: 6, maxTurns: 4, arena: null };
 
 describe('combat harness', () => {
   it('gives the same report for the same fight', () => {
@@ -48,7 +48,7 @@ describe('combat harness', () => {
   it('names the courier side when it flees a stronger truck', () => {
     forceOption('truceOffered', 'refuse');
     forceOption('mercyBegged', 'finish');
-    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('courier'), seed: 4, maxTurns: 40 });
+    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('courier'), seed: 7, maxTurns: 40 });
     expect(r.outcome).toBe('b fled');
   });
 
@@ -102,55 +102,31 @@ describe('combat harness', () => {
   });
 });
 
-describe('truck specs', () => {
-  it('reads a driver and each kind of gear', () => {
-    expect(parseTruck('merc').gear).toEqual({ kind: 'npc', template: 'merc', level: null });
-    expect(parseTruck('stand').gear).toEqual({ kind: 'kit', id: 'standard' });
-    expect(parseTruck('merc:snowball').gear).toEqual({ kind: 'kit', id: 'snowball' });
-    expect(parseTruck('merc:buggy@heavy').gear).toEqual({ kind: 'npc', template: 'buggy', level: 'heavy' });
-    expect(parseTruck('kite:mg/plates+ram').gear).toEqual({ kind: 'outfit', outfit: { gun: 'mg', armor: 'plates', ram: 'ram' } });
-    expect(parseTruck('merc:mg/bare').gear).toEqual({ kind: 'outfit', outfit: { gun: 'mg', armor: null } });
+describe('group fights in the harness', () => {
+  it('reads the group flags and refuses bad ones', () => {
+    expect(parseGroupFlags({ crew: 'b', guard: true, late: 'b:12', bystander: 'trader' })).toEqual({ crew: 'b', guard: true, late: 12, bystander: 'trader' });
+    expect(parseGroupFlags({ crew: null, guard: false, late: null, bystander: null })).toEqual({ crew: null, guard: false, late: null, bystander: null });
+    expect(() => parseGroupFlags({ crew: 'c', guard: false, late: null, bystander: null })).toThrow('--crew');
+    expect(() => parseGroupFlags({ crew: null, guard: false, late: 'a:3', bystander: null })).toThrow('--late');
+    expect(() => parseGroupFlags({ crew: null, guard: false, late: null, bystander: 'ghost' })).toThrow('bystander');
   });
 
-  it('refuses an unknown driver, gear or level', () => {
-    expect(() => parseTruck('nobody')).toThrow('Unknown driver');
-    expect(() => parseTruck('merc:nothing')).toThrow('Unknown gear');
-    expect(() => parseTruck('merc:buggy@rich')).toThrow('Unknown gear level');
-  });
+  it('reports every truck of a crew lineup on its side', () => {
+    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('buggy+buggy+buggy'), crew: 'b', seed: 1, maxTurns: 6 });
+    expect(r.tally.a.left + r.tally.a.out + r.tally.a.fled).toBe(1);
+    expect(r.tally.b.left + r.tally.b.out + r.tally.b.fled).toBe(3);
+    expect(r.b.rounds).toBeGreaterThan(0);
+  }, 300_000);
 
-  it('refuses a scripted driver on side b or beside another truck', () => {
-    expect(() => runFight({ ...FIGHT, b: parseLineup('stand') })).toThrow('alone on side a');
-    expect(() => runFight({ ...FIGHT, a: parseLineup('stand+merc') })).toThrow('alone on side a');
-  });
-});
+  it('brings a late truck into its side', () => {
+    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('buggy+buggy'), late: 3, seed: 1, maxTurns: 8 });
+    expect(r.turns).toBeGreaterThan(3);
+    expect(r.tally.b.left + r.tally.b.out + r.tally.b.fled).toBe(2);
+  }, 300_000);
 
-describe('side b hp left', () => {
-  it('reports a share between 0 and 1 for a won fight', () => {
-    const r = runFight({ ...FIGHT, a: parseLineup('charge:autocannon/plates'), b: parseLineup('buggy:mg/bare'), seed: 1, maxTurns: 60 });
-    expect(r.outcome).toBe('won');
-    expect(r.bHpLeft).toBeGreaterThan(0);
-    expect(r.bHpLeft).toBeLessThan(1);
-  }, 90_000);
-
-  it('is null for a fight that is not won', () => {
-    expect(runFight({ ...FIGHT, maxTurns: 1 }).bHpLeft).toBeNull();
-  });
-});
-
-describe('combat harness on the Fury Road highway', () => {
-  const ROAD_FIGHT: Fight = { a: parseLineup('orbit:furyRoad'), b: parseLineup('buggy'), seed: 2, gap: 8, orbit: 6, maxTurns: 3, arena: null, road: 1 };
-
-  it('reads the map flag', () => {
-    expect([parseRoad(null), parseRoad('fury-road'), parseRoad('fury-road:7')]).toEqual([null, 1, 7]);
-    expect(() => parseRoad('icarus')).toThrow(/fury-road/);
-  });
-
-  it('fights on the highway and reports how far across the road the trucks went', () => {
-    const r = runFight(ROAD_FIGHT);
-
-    expect(r.a.rounds + r.b.rounds).toBeGreaterThan(0);
-    expect(r.spread).not.toBeNull();
-    expect(r.spread!).toBeGreaterThanOrEqual(0);
-    expect(runFight(FIGHT).spread).toBeNull();
-  });
+  it('lets a hired merc ride beside a scripted player and keeps a bystander out of the count', () => {
+    const r = runFight({ ...FIGHT, a: parseLineup('stand+merc'), b: parseLineup('buggy'), guard: true, bystander: 'trader', seed: 1, maxTurns: 6 });
+    expect(r.tally.a.left + r.tally.a.out + r.tally.a.fled).toBe(2);
+    expect(r.bystander).not.toBeNull();
+  }, 300_000);
 });

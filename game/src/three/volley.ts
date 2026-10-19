@@ -14,8 +14,8 @@ import { computeRoundPoint, groundPoint, headingOf, toMap, type TurnFrames, type
 import type { Fx3D } from "./render/fx";
 import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { blastRadiusOf, projectileOf, roundSpec, type Impact, type Muzzle, type ProjectileSpec, type RoundPlan } from "./render/projectiles";
-import { viewOf, type VehicleView } from "./render/vehicle";
-import type { SoundDirector } from "./sound";
+import type { VehicleView } from "./render/vehicle";
+import { scoreEventOf, type SoundDirector } from "./sound";
 import { PARTS } from "../data/parts";
 import { PHYSICS } from "../data/physics";
 import { bodyOf } from "../sim/body";
@@ -33,7 +33,7 @@ export type VolleyHost = {
 
 const GUN_SOUNDS: Record<string, { fire: CueId; struck: CueId }> = { harpoon: { fire: "harpoon-fire", struck: "harpoon-hook" } };
 
-export type VolleyLands = { firstMs: number; lastMs: number };
+export type VolleyLands = { landsMs: number[]; lastMs: number };
 
 export function playVolley(
   host: VolleyHost,
@@ -69,7 +69,7 @@ export function playVolley(
     host.fx.shot(roundSpec(spec, k), muzzle, shown, blastRadiusOf(weapon), cues, ground, host.world.turn);
     showDamage(host, rounds[k], shown.delayMs + shown.flightMs, rows);
   });
-  return { firstMs: Math.min(...landsAt) - host.startMs, lastMs: Math.max(...landsAt) };
+  return { landsMs: landsAt, lastMs: Math.max(...landsAt) };
 }
 
 function landSound(host: VolleyHost, plan: RoundPlan, r: ShotRound, struck: CueId): void {
@@ -196,12 +196,17 @@ export function playShotFx(host: CombatHost, breaks: BreakCues): number {
   for (const e of host.world.events) {
     const lands = e.t === "shot" ? playTruckShot(host, e, rows, breaks) : null;
     if (lands === null) continue;
-    host.sound.accents([e], host.world.player.vehicleId, () => lands.firstMs);
+    queueVolleyScore(host, e, lands);
     lastMs = Math.max(lastMs, lands.lastMs);
     if (e.t === "shot") played.add(gunKey(e.shooter, e.weapon));
   }
   playDryGuns(host, played);
   return lastMs;
+}
+
+function queueVolleyScore(host: CombatHost, e: GameEvent, lands: VolleyLands): void {
+  const pick = scoreEventOf(e, host.world.player.vehicleId);
+  if (pick) host.sound.queueScoreEvent(pick.kind, lands.landsMs[pick.round ?? 0]);
 }
 
 function vehicleOf(w: World, id: string): Vehicle {
@@ -230,7 +235,23 @@ function playTruckShot(host: CombatHost, e: ShotLike, rows: Map<string, number>,
   const plans = planShot(host.poses, shot, gun, ground, Math.random);
   const dry = w.events.some((x) => x.t === "empty" && x.vehicle === e.shooter && x.weapon === e.weapon);
   const hooked = spec.rope ? () => host.lineHooked(e.shooter, e.weapon) : null;
-  return playVolley(host, plans, () => viewOf(host.views, e.shooter).muzzle(e.weapon), e, breaks, part.defId, rows, dry, hooked);
+  return playVolley(host, plans, shooterMuzzle(host, e.shooter, e.weapon), e, breaks, part.defId, rows, dry, hooked);
+}
+
+function shooterMuzzle(host: CombatHost, shooter: string, weapon: string): () => Muzzle {
+  let last: Muzzle | null = null;
+  return () => {
+    const view = host.views.get(shooter);
+    if (view) last = view.muzzle(weapon);
+    return last ?? restMuzzle(host.poses, shooter);
+  };
+}
+
+function restMuzzle(poses: TurnPoses, shooter: string): Muzzle {
+  const pos = poses.end(shooter);
+  const heading = poses.endHeading(shooter);
+  if (pos === null || heading === null) throw new Error(`Shooter ${shooter} has no end pose`);
+  return { pos, dir: { x: Math.cos(heading), y: 0, z: Math.sin(heading) } };
 }
 
 function killingRounds(w: World, e: ShotLike): (k: number) => boolean {
@@ -292,6 +313,15 @@ export function collisionSteps(events: GameEvent[], result: Steps): TimedCollisi
     timed.push({ event, step });
   }
   return timed;
+}
+
+export function scoreEventMs(e: GameEvent, timed: TimedCollision[], endStep: number, impactMs: number): number | null {
+  if (e.t === "shot") return null;
+  if (e.t === "collision") {
+    const hit = timed.find((t) => t.event === e);
+    return hit ? ((hit.step ?? endStep) / PHYSICS.stepsPerSecond) * 1000 : null;
+  }
+  return impactMs;
 }
 
 function blastStep(timed: TimedCollision[], e: ClaymoreEvent): number | null {

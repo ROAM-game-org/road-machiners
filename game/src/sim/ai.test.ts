@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PERF } from '../data/perf';
 import { RULES } from '../data/rules';
 import { TERRAIN } from '../data/terrain';
-import { planNpcOrders, routeBlockers, trafficStops } from './ai';
+import { planNpcOrders, routeBlockers, trafficStops, yieldsToTraffic } from './ai';
 import { topGoal } from './npc-activities';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { startEscort } from './tow';
@@ -95,6 +95,65 @@ function corridor(w: World): void {
   }
 }
 
+describe('the player on a route in traffic', () => {
+  function meeting(): { w: World; me: Vehicle; npc: Vehicle } {
+    const { w, npc } = scene(118, 100, Math.PI, 7);
+    const me = w.vehicles[0];
+    me.pos = { x: 100, y: 100 };
+    me.heading = 0;
+    me.speed = 4;
+    npc.pos = { x: 114, y: 100.5 };
+    npc.heading = Math.PI;
+    npc.speed = 4;
+    npc.brain!.goals.push({ kind: 'explore', targetId: null, destination: { x: 60, y: 100 }, phase: 'travel', reason: 'tripToSite' });
+    npc.order = { kind: 'through', dest: { x: 60, y: 100 }, pace: 4 };
+    me.order = { kind: 'through', dest: DEST, pace: 4 };
+    return { w, me, npc };
+  }
+
+  it('the lower id brakes and the other goes around', () => {
+    const { w, me, npc } = meeting();
+    expect(me.id < npc.id).toBe(true);
+    expect(yieldsToTraffic(w, me)).toBe(true);
+    expect(trafficStops(w, npc, { x: 60, y: 100 })).toBe(false);
+  });
+
+  it('keeps its order while it waits', () => {
+    const { w, me } = meeting();
+    const before = structuredClone(me.order);
+    yieldsToTraffic(w, me);
+    expect(me.order).toEqual(before);
+  });
+
+  it('never yields when driven by hand', () => {
+    const { w, me } = meeting();
+    me.direct = true;
+    expect(yieldsToTraffic(w, me)).toBe(false);
+  });
+
+  it('never yields to a NPC driver, which holds its own brake order', () => {
+    const { w, npc } = meeting();
+    expect(yieldsToTraffic(w, npc)).toBe(false);
+  });
+});
+
+describe('crossing traffic', () => {
+  it.each([
+    ['converging from 70 degrees to the side', -Math.PI / 2, true],
+    ['diverging at the same angle', Math.PI / 2, false],
+  ])('counts a truck as a conflict only when its path meets: %s', (_name, heading, avoids) => {
+    const w = emptyWorld({ x: 60, y: 60 });
+    const subject = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 100 });
+    subject.brain = npcBrain('trader', subject.pos, ['trader']);
+    subject.heading = 0;
+    subject.speed = 4;
+    const other = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100 + 6 * Math.cos(1.22), y: 100 + 6 * Math.sin(1.22) }, heading);
+    other.brain = npcBrain('trader', other.pos, ['trader']);
+    other.speed = 4;
+    expect(routeBlockers(w, subject).filter((b) => b.pos !== w.vehicles[0].pos).length > 0).toBe(avoids);
+  });
+});
+
 describe('NPC traffic', () => {
   it.each([
     ['oncoming in its lane', 118, 100, Math.PI, 7, true],
@@ -158,14 +217,24 @@ describe('NPC traffic', () => {
     expect(oncoming({ x: 100, y: 100 + TERRAIN.vision.radius + PERF.liveMargin + 10 })).toBe(false);
   });
 
-  it('the player routes around parked vehicles only', () => {
+  it('the player routes around the swept path of an oncoming trader', () => {
     const w = emptyWorld({ x: 100, y: 100 });
     const me = w.vehicles[0];
     me.speed = 4;
     const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 118, y: 100 }, Math.PI);
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     npc.speed = 7;
-    expect(routeBlockers(w, me)).toEqual([]);
+    expect(routeBlockers(w, me).length).toBeGreaterThan(0);
+  });
+
+  it('a brainless truck the player does not drive routes around parked vehicles only', () => {
+    const w = emptyWorld({ x: 100, y: 100 });
+    const hauler = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100, y: 120 }, 0);
+    hauler.speed = 4;
+    const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 118, y: 120 }, Math.PI);
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    npc.speed = 7;
+    expect(routeBlockers(w, hauler)).toEqual([{ pos: w.vehicles[0].pos, r: expect.any(Number) }]);
   });
 });
 

@@ -1,13 +1,15 @@
 
-import { CRATE_MASS } from "../data/goods";
+import { CRATE_MASS, PARCEL } from "../data/goods";
+import { itemLookId } from "../render/partLooks";
 import { partDef, type WeaponDef } from "../data/parts";
 import { gunBlockers, gunSpans, type FireSpan } from "../sim/armor";
 import { facingOf, itemCells, itemSize, type Cell, type Grid } from "../sim/grid";
 import type { GridItem, PartInstance, RefitJob, RefitMove, Rot, Vehicle, World } from "../sim/types";
 import { playerVehicle } from "../sim/damage";
+import { workOf } from "../sim/states";
 import { el } from "./dom";
 import { truckOutline } from "./plans";
-import { conditionMeter, gridItemIcon, toneStyle } from "./cards";
+import { conditionMeter, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
 import { kg } from "./units";
 import { byId, t, type Msg } from "../text/msg";
 import { goodName, partName } from "../text/names";
@@ -71,11 +73,11 @@ export function itemBox(it: GridItem, chassisId: string, mounted: boolean, cell:
   const x = Math.min(...cells.map((c) => c.x));
   const y = Math.min(...cells.map((c) => c.y));
   const size = itemSize(it);
-  const id = it.kind === "part" ? it.part.defId : it.good;
+  const id = itemLookId(it);
   const icon = turnedIcon(it, cell);
   const node = el(
     "div",
-    { class: itemClass(it, mounted), "data-item-id": it.id, style: `${pos(x, y, size.w, size.h, cell)};${toneStyle(id)}`, title: itemName(it), tabindex: 0, role: "button", "aria-label": itemName(it) },
+    { class: itemClass(it, mounted), "data-hold": "", "data-item-id": it.id, style: `${pos(x, y, size.w, size.h, cell)};${toneStyle(id)}`, title: itemTip(id), tabindex: 0, role: "button", "aria-label": itemName(it) },
     icon,
     el("span", { class: "inv-item-name" }, itemLabel(it).short),
   );
@@ -84,7 +86,7 @@ export function itemBox(it: GridItem, chassisId: string, mounted: boolean, cell:
 }
 
 function itemClass(it: GridItem, mounted: boolean): string {
-  if (it.kind === "good") return "inv-item";
+  if (it.kind !== "part") return "inv-item";
   if (partDef(it.part.defId).kind === "core") return "inv-item fixed";
   return mounted ? "inv-item mounted" : "inv-item spare";
 }
@@ -129,15 +131,18 @@ export function footprint(it: GridItem): { w: number; h: number } {
 }
 
 export function itemLabel(it: GridItem): { short: Msg } {
+  if (it.kind === "parcel") return { short: t("item.parcel") };
   if (it.kind === "good") return { short: byId(`good.${it.good}.short`) };
   return { short: partName(it.part.defId) };
 }
 
 export function itemName(it: GridItem): Msg {
+  if (it.kind === "parcel") return t("item.parcel");
   return it.kind === "good" ? goodName(it.good) : partName(it.part.defId);
 }
 
 export function itemState(it: GridItem, mounted: boolean): Msg {
+  if (it.kind === "parcel") return kg(PARCEL.mass);
   if (it.kind === "good") return t("item.cargo", { mass: kg(CRATE_MASS) });
   if (partDef(it.part.defId).kind === "core") return t("item.builtIn");
   return mounted ? t("item.mounted") : t("item.spare");
@@ -190,4 +195,22 @@ function spanPath(cx: number, cy: number, r: number, span: FireSpan): string {
 export function clearFan(grid: HTMLElement): void {
   grid.querySelector(".inv-fan")?.remove();
   for (const node of grid.querySelectorAll(".blocking")) node.classList.remove("blocking");
+}
+
+export type WorkMark = { itemIds: ReadonlySet<string>; done: number };
+
+export function workMarkOf(w: World, v: Vehicle): WorkMark | null {
+  const work = workOf(w, v);
+  if (work?.from !== "job") return null;
+  const job = work.job;
+  if (job.kind === "refit") return { itemIds: new Set(refitItems(w, v).map((it) => it.id)), done: jobDone(job) };
+  if (job.kind !== "repair" && job.kind !== "strip") return null;
+  const ids = v.items.filter((it) => it.kind === "part" && it.part.id === job.partId).map((it) => it.id);
+  return { itemIds: new Set(ids), done: jobDone(job) };
+}
+
+export function markWorking(node: HTMLElement, done: number): HTMLElement {
+  node.classList.add("working");
+  node.append(workMeterEl(done));
+  return node;
 }

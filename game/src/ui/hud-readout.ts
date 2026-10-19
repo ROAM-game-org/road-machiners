@@ -1,5 +1,6 @@
 import { GAME_VERSION } from "../config";
 import { playerAid, readyAid } from "../sim/aid";
+import { playerHandover, readyHandover } from "../sim/parcel";
 import { aidData } from "../sim/states";
 import { aidGoods } from "./format";
 import { inMeetingReach, isMeeting, playerTrades } from "../sim/economy";
@@ -28,6 +29,7 @@ import { canUseSite } from '../sim/sites';
 import { shopAt } from '../sim/market';
 import { downedListNear, emptySalvageNear, hasLootFor, lootBlockerHere, needsSearch, salvageListNear } from '../sim/locations';
 import { canLootTruck, canReachSalvage, salvagePlace } from '../sim/salvage';
+import { surveyActions, type SurveyAction } from '../sim/survey';
 import { playerCanAct } from '../sim/world';
 import { combatTurnsLeft } from '../sim/combat';
 import { isBusy } from '../sim/jobs';
@@ -73,7 +75,7 @@ export class ContextPicker {
 
 export function getContextActions(world: World, playing: boolean): ContextAction[] {
   if (playing || !playerCanAct(world)) return [];
-  const deals = [getAidAction(world), ...getTradeActions(world)].filter((d) => d !== null);
+  const deals = [getAidAction(world), getHandoverAction(world), ...getTradeActions(world)].filter((d) => d !== null);
   return [...deals.filter((d) => d.ready), ...getPlaceActions(world), ...deals.filter((d) => !d.ready)];
 }
 
@@ -87,6 +89,13 @@ function getAidAction(world: World): ContextAction | null {
   const words = { goods: aidGoods(s), truck: vehicleTitle(world, vehicleById(world, s.holder)) };
   const label = aidData(s).giver === "player" ? t("action.giveAid", words) : t("action.takeAid", words);
   return { label, ready: readyAid(world)?.id === s.id, target: { kind: 'aid', id: s.holder } };
+}
+
+function getHandoverAction(world: World): ContextAction | null {
+  const s = playerHandover(world);
+  if (!s || !inMeetingReach(world, s)) return null;
+  const label = t("action.handParcel", { truck: vehicleTitle(world, vehicleById(world, s.holder)) });
+  return { label, ready: readyHandover(world)?.id === s.id, target: { kind: 'parcel', id: s.holder } };
 }
 
 function getTradeActions(world: World): ContextAction[] {
@@ -112,6 +121,7 @@ function getSiteActions(world: World): ContextAction[] {
   const actions: ContextAction[] = [];
   const stocks = salvageListNear(world);
   actions.push(...stocks.flatMap((stock) => getStockActions(world, stock)));
+  actions.push(...surveyActions(world).map((a) => surveyAction(world, a)));
   if (stocks.length === 0) {
     const empty = emptySalvageNear(world);
     if (empty) actions.push({ label: stockLabel('empty', empty), ready: false, hint: t("action.noLoot"), target: { kind: 'empty' } });
@@ -124,6 +134,11 @@ function getStockActions(world: World, stock: SalvageStock): ContextAction[] {
   if (needsSearch(world, stock)) actions.push(getSearchAction(world, stock));
   if (hasLootFor(world, stock)) actions.push(withBlocker(world, stock, { label: stockLabel('loot', stock), ready: canReachSalvage(playerVehicle(world), stock), target: { kind: 'loot', id: stock.id } }));
   return actions;
+}
+
+function surveyAction(world: World, a: SurveyAction): ContextAction {
+  const combat = combatTurnsLeft(world, playerVehicle(world)) ?? undefined;
+  return { label: t("action.survey"), ready: a.ready && combat === undefined, combat, target: { kind: 'survey', id: a.site, contractId: a.contractId } };
 }
 
 export function getSearchAction(world: World, stock: SalvageStock): ContextAction {
@@ -222,9 +237,11 @@ export function getRescueReadout(w: World): RescueReadout | null {
     const data = towData(state);
     return { kind: "towed", tower: vehicleName(w, state.holder), town: siteName(data.site), fee: data.fee };
   }
-  if (p.beacon || isStranded(w, playerVehicle(w)))
-    return { kind: "stranded", beacon: p.beacon, reason: strandedReason(w), canEnd: canAbandonRun(w) };
-  return null;
+  return showsStranded(w) ? { kind: "stranded", beacon: p.beacon, reason: strandedReason(w), canEnd: canAbandonRun(w) } : null;
+}
+
+function showsStranded(w: World): boolean {
+  return w.player.beacon || isStranded(w, playerVehicle(w)) || canAbandonRun(w);
 }
 
 function strandedReason(w: World): Msg | null {

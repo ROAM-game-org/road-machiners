@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AMBUSH, GREEN_PIT, WAKE_TOWN } from '../data/intro';
-import { TOWED_TO_BOWL } from '../data/quests';
+import { HATTIE_MET, TOWED_TO_BOWL } from '../data/quests';
 import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { START_KITS, startKit } from '../data/start';
@@ -14,7 +14,10 @@ import { fightOdds } from '../sim/fight-odds';
 import { corePart, mountedParts } from '../sim/grid';
 import { answersPlea, offersGiveUp } from '../sim/parley';
 import { addGoods } from '../sim/inventory';
-import { introStep, setIntroStep } from '../sim/quests';
+import { chooseQuestOption, introStep, openWellScene, QUESTS, questView, setIntroStep } from '../sim/quests';
+import { OPENING_WRECK_ID } from '../sim/opening';
+import { emptyHidden } from '../sim/salvage';
+import { OPENING } from '../data/start';
 import { generateNpcLoadout } from '../sim/npc-loadout';
 import { fightCornered, topGoal } from '../sim/npc-activities';
 import { NPC_BEHAVIOR } from '../data/npc-behavior';
@@ -230,6 +233,39 @@ describe('the ambush', () => {
   });
 });
 
+function withOpeningWreckAt(w: World, away: number): void {
+  const me = playerVehicle(w);
+  w.salvage.push({ id: OPENING_WRECK_ID, pos: { x: me.pos.x - away, y: me.pos.y }, radius: 1, goods: { scrap: 1 }, parts: [], fuel: 0, supplies: 0, hidden: emptyHidden() });
+}
+
+describe('the ambush gate during the opening', () => {
+  it('waits while the opening wreck is unfinished and the truck is near it', () => {
+    const w = patchedWorld();
+    withOpeningWreckAt(w, 20);
+    const next = endTurn(w, testDrive);
+    expect(raidersIn(next)).toHaveLength(0);
+    expect(introStep(next)).toBe('patched');
+  });
+
+  it('comes once the truck is past the leave distance from the wreck', () => {
+    const w = patchedWorld();
+    withOpeningWreckAt(w, OPENING.leaveDistance + 10);
+    const next = endTurn(w, testDrive);
+    expect(raidersIn(next)).toHaveLength(1);
+    expect(introStep(next)).toBe('ambush');
+  });
+
+  it('comes once the opening wreck is done with', () => {
+    const w = patchedWorld();
+    withOpeningWreckAt(w, 20);
+    w.salvage.find((s) => s.id === OPENING_WRECK_ID)!.goods = {};
+    const next = endTurn(w, testDrive);
+    expect(raidersIn(next)).toHaveLength(1);
+  });
+});
+
+const spokenIn = (w: World): string => questView(w, QUESTS).lines.map((l) => l.text).join(' ');
+
 describe('the fall and the wake in Bowl', () => {
   it('plays the first fall, robs the cargo, spares the driver and parks the truck in Bowl', () => {
     const w = ambushed();
@@ -285,13 +321,62 @@ describe('the fall and the wake in Bowl', () => {
     expect(introStep(next)).toBe('done');
   });
 
-  it('ends quietly with no Bowl scene when the player wins', () => {
+  it('wakes a driver who never met Hattie on the start checkpoint and marks her met', () => {
+    const w = ambushed();
+    knockedOutBy(w);
+    const next = runUntilAwake(closeScene(w));
+    expect(spokenIn(next)).toContain('A tow man left you on my bench');
+    expect(next.player.quests.world[HATTIE_MET]).toBe(true);
+  });
+
+  it('wakes a driver who met Hattie before on a greeting that knows them, without the questions already asked', () => {
+    const w = ambushed();
+    openWellScene(w, 'meet');
+    let met = chooseQuestOption(w, QUESTS, questView(w, QUESTS).choices.indexOf('Where am I?'));
+    met = chooseQuestOption(met, QUESTS, questView(met, QUESTS).choices.indexOf("I'll go."));
+    expect(met.player.quests.session).toBeNull();
+    knockedOutBy(met);
+    const next = runUntilAwake(closeScene(met));
+    expect(next.player.quests.live?.quest).toBe('intro_bowl');
+    expect(spokenIn(next)).toContain('Back on my bench');
+    expect(next.player.quests.world[HATTIE_MET]).toBe(true);
+    const choices = questView(next, QUESTS).choices;
+    expect(choices).toContain('What happened to me?');
+    expect(choices).not.toContain('Where am I?');
+  });
+
+  it('opens the closing scene, not the Bowl scene, when the player wins', () => {
     const w = ambushed();
     knockOutNpc(w, raidersIn(w)[0]);
     const next = endTurn(w, testDrive);
     expect(introStep(next)).toBe('done');
-    expect(next.player.quests.session).toBeNull();
+    expect(next.player.quests.live?.quest).toBe('intro_road');
     expect(next.player.quests.world[TOWED_TO_BOWL]).toBeUndefined();
+  });
+
+  it('plays the closing scene once, and a load before or after it opens nothing more', () => {
+    const w = ambushed();
+    knockOutNpc(w, raidersIn(w)[0]);
+    const scene = endTurn(w, testDrive);
+    expectNothingAwarded(savedAndLoaded(scene), scene);
+    let next = closeScene(scene);
+    expect(next.player.quests.live).toBeNull();
+    for (let i = 0; i < 3; i++) next = endTurn(next, testDrive);
+    expect(next.player.quests.live).toBeNull();
+    const loaded = savedAndLoaded(next);
+    expectNothingAwarded(loaded, next);
+    expect(endTurn(loaded, testDrive).player.quests.live).toBeNull();
+  });
+
+  it('keeps the closing scene out of the knockout road, which has its own scenes', () => {
+    const w = ambushed();
+    knockedOutBy(w);
+    let next = runUntilAwake(closeScene(w));
+    expect(next.player.quests.live?.quest).toBe('intro_bowl');
+    next = closeScene(next);
+    for (let i = 0; i < 3; i++) next = endTurn(next, testDrive);
+    expect(next.player.quests.session).toBeNull();
+    expect(next.player.quests.live).toBeNull();
   });
 
   it('sends the raider back after the player when its fight ends any other way', () => {
@@ -314,6 +399,7 @@ describe('the fall and the wake in Bowl', () => {
 
   it('takes the cargo the player spilled in the fight, then still has the driver towed to Bowl', () => {
     let w = ambushed();
+    w.rngState += 1;
     playerVehicle(w).order = { kind: 'brake' };
     let broken = false;
     let spills = 0;
@@ -370,7 +456,7 @@ describe('the hunt range', () => {
     expect(raider).toBeDefined();
     expect(fightOn(raider, w.player.vehicleId)).toBeUndefined();
     expect(w.player.quests.world[TOWED_TO_BOWL]).toBeUndefined();
-    expect(w.player.quests.session).toBeNull();
+    expect(w.player.quests.live?.quest).toBe('intro_road');
   });
 
   it('keeps the forced fight while the player stays in range', () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TOWN_CHASSIS } from '../../data/chassis';
 import { REGION } from '../../data/region';
 import { startKit } from '../../data/start';
 import { playerVehicle } from '../damage';
@@ -9,6 +10,7 @@ import { nearestPad } from '../sites';
 import { vehicleStats } from '../stats';
 import { emptyWorld } from '../testkit';
 import type { World } from '../types';
+import { cloneWorld } from '../world';
 import { Orders, upgradeGear, type UpgradeStyle } from './orders';
 
 const STYLE: UpgradeStyle = { skip: [], chassis: 'value', job: 'courier' };
@@ -114,7 +116,7 @@ describe('upgradeGear', () => {
     const offer = (world: World) => { shopState(world, 'bowl').stock = [makePart(world, 'heavyMg', 0)]; };
     const trader = atBowl();
     offer(trader);
-    const fighter = structuredClone(trader);
+    const fighter = cloneWorld(trader);
     const kept = new Orders(trader);
     const spent = new Orders(fighter);
 
@@ -145,8 +147,8 @@ describe('upgradeGear for a fighter', () => {
   it('keeps the free cells it was told to keep for loot, where it would fill them otherwise', () => {
     const w = atBowl();
     offer(w);
-    const spent = new Orders(structuredClone(w));
-    const kept = new Orders(structuredClone(w));
+    const spent = new Orders(cloneWorld(w));
+    const kept = new Orders(cloneWorld(w));
 
     upgradeGear(spent, FIGHTER);
     upgradeGear(kept, { ...FIGHTER, lootRoom: roomOf(w) });
@@ -158,8 +160,8 @@ describe('upgradeGear for a fighter', () => {
   it('takes no part that drops the top speed below the speed it keeps', () => {
     const w = atBowl();
     offer(w);
-    const spent = new Orders(structuredClone(w));
-    const kept = new Orders(structuredClone(w));
+    const spent = new Orders(cloneWorld(w));
+    const kept = new Orders(cloneWorld(w));
 
     upgradeGear(spent, FIGHTER);
     upgradeGear(kept, { ...FIGHTER, minSpeed: speedOf(w) });
@@ -176,5 +178,19 @@ describe('upgradeGear for a fighter', () => {
     upgradeGear(o, { ...STYLE, minSpeed: speedOf(w) });
 
     expect(engineIds(o.world)).toEqual(['turbine']);
+  });
+});
+
+describe('chassis upgrades', () => {
+  it('only offers trucks the garage of the town sells', () => {
+    const nose = REGION.towns.find((t) => t.id === 'nose')!;
+    const w = emptyWorld(nearestPad(nose, nose.pos));
+    playerVehicle(w).speed = 0;
+    w.player.money = 1_000_000;
+    const o = new Orders(w);
+
+    upgradeGear(o, { skip: ['engine', 'weapon', 'armor', 'cargo', 'store'], chassis: 'value', job: 'courier' });
+
+    expect(TOWN_CHASSIS.nose).toContain(playerVehicle(o.world).chassisId);
   });
 });

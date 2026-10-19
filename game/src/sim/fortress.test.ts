@@ -40,9 +40,9 @@ function sag(site: (typeof SITES)[number], o: object): number {
 describe('fort prop kinds', () => {
   it('names one model per kind, and every kind is a map prop kind (IV14)', () => {
     const kinds = Object.values(FORT_PROPS).flatMap((styles) => Object.values(styles));
-    expect(new Set(kinds).size).toBe(26);
+    expect(new Set(kinds).size).toBe(29);
     for (const kind of kinds) expect(PROP_KINDS).toContain(kind);
-    expect(new Set([...FORT_MODELS.values()].map((m) => m.model)).size).toBe(26);
+    expect(new Set([...FORT_MODELS.values()].map((m) => m.model)).size).toBe(29);
   });
 
   it('drops the ship barbican kinds (IV23)', () => {
@@ -69,7 +69,7 @@ describe('fort prop kinds', () => {
 
 describe('fortress obstacles', () => {
   it('has the nine inhabited sites as fortresses', () => {
-    expect(FORT_SITES.map((s) => s.id).sort()).toEqual(Object.keys(FORTRESS_SITES).sort());
+    expect(FORT_SITES.map((s) => s.id).sort()).toEqual(Object.keys(FORTRESS_SITES).filter((id) => id !== 'outpost').sort());
     expect(FORT_SITES).toHaveLength(9);
   });
 

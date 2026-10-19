@@ -1,5 +1,6 @@
 
 import type { NpcFactionId, StateKindId } from '../sim/types';
+import { CREW, HIRE } from './npc-behavior';
 import { RULES } from './rules';
 import { START_KITS } from './start';
 
@@ -36,7 +37,7 @@ export const MIN_NPC_SPEED = RULES.limpSpeed * 2;
 export const GEAR_DRAWS = 3;
 export const GEAR_WHIM = 0.1;
 
-export const GEAR_SCORE = { armorQualityScale: 28, armorCurvePower: 2, gunSaturation: 2, gunCurvePower: 0.5, speedWeight: 0.75, cargoCurvePower: 2 };
+export const GEAR_SCORE = { armorQualityScale: 28, armorCurvePower: 2, gunSaturation: 2, gunCurvePower: 0.5, speedWeight: 0.75, cargoCurvePower: 2, minOpenArcShare: 0.5 };
 
 const GOOD_WEAR: Weighted<number>[] = [{ value: 2, weight: 1 }, { value: 3, weight: 3 }, { value: 4, weight: 12 }];
 
@@ -555,12 +556,15 @@ export type DecisionOptions = {
   warnRefused: 'leave' | 'fight';
   mugging: 'demand' | 'attack';
   resume: 'resume' | 'new';
-  idle: 'trade' | 'scavenge' | 'raid' | 'prowl' | 'wait' | 'patrol' | 'travel' | 'explore' | 'haul' | 'escort';
+  idle: 'trade' | 'scavenge' | 'raid' | 'prowl' | 'wait' | 'patrol' | 'travel' | 'explore' | 'haul' | 'escort' | 'muster';
+  crewAsked: 'join' | 'decline';
+  crewCalled: 'fight' | 'flee' | 'keep';
   escortSeen: 'keep' | 'hire';
   hireOffered: 'take' | 'decline';
   aidAsked: 'give' | 'refuse';
   escortWanted: 'go' | 'post';
   needySeen: 'keep' | 'aid';
+  strangerSeen: 'keep' | 'tale' | 'tip' | 'challenge' | 'courier';
 };
 export type DecisionId = keyof DecisionOptions;
 
@@ -590,12 +594,15 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   warnRefused: { leave: 3, fight: 1 },
   mugging: { demand: 3, attack: 2 },
   resume: { resume: 9, new: 1 },
-  idle: { trade: 0, scavenge: 1, raid: 0, prowl: 0, wait: 0.1, patrol: 0, travel: 0, explore: 0, haul: 0, escort: 0 },
+  idle: { trade: 0, scavenge: 1, raid: 0, prowl: 0, wait: 0.1, patrol: 0, travel: 0, explore: 0, haul: 0, escort: 0, muster: 0 },
+  crewAsked: { join: 2, decline: 1 },
+  crewCalled: { fight: 3, flee: 0.5, keep: 1 },
   escortSeen: { keep: 1, hire: 0 },
   hireOffered: { take: 3, decline: 1 },
   aidAsked: { give: 1, refuse: 9 },
   escortWanted: { go: 3, post: 1 },
   needySeen: { keep: 1, aid: 0 },
+  strangerSeen: { keep: 1, tale: 0, tip: 0, challenge: 0, courier: 0 },
 };
 
 export type WeightChange = { add?: number; mul?: number };
@@ -604,7 +611,7 @@ export type TraitWeights = { [D in DecisionId]?: Partial<Record<DecisionOptions[
 export const STATE_WEIGHTS: Record<StateKindId, TraitWeights> = {
   feud: { hostileSeen: { fight: { add: 4 } } },
   backedOff: { preySeen: { rob: { mul: 0.005 } } },
-  tow: {}, patch: {}, trade: {}, aid: {}, combat: {}, lootWarning: {},
+  tow: {}, patch: {}, trade: {}, handover: {}, aid: {}, combat: {}, lootWarning: {},
   truce: {},
   grievance: {},
   strayFire: {},
@@ -613,6 +620,8 @@ export const STATE_WEIGHTS: Record<StateKindId, TraitWeights> = {
   towPromise: { strandedSeen: { tow: { add: 20 } } },
   answering: {},
   escort: { strandedSeen: { tow: { add: 99 } } },
+  crew: { strandedSeen: { tow: { add: 99 } } },
+  hire: { strandedSeen: { tow: { add: 99 } } },
   revenge: {
     hostileSeen: { fight: { add: 4 } },
     contactHeard: { investigate: { add: 2 } },
@@ -634,6 +643,7 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   tow: null,
   patch: 40,
   trade: 20,
+  handover: 20,
   aid: 20,
   truce: 60,
   grievance: 5,
@@ -644,10 +654,12 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   revenge: 2000,
   answering: 20,
   escort: null,
+  crew: CREW.huntTurns,
+  hire: HIRE.turns,
   combat: 10,
   lootWarning: 30,
 };
 
 
-export { FEMALE_NAMES, FIRST_NAMES, HUNT, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
+export { CREW, FEMALE_NAMES, FIRST_NAMES, HIRE, HUNT, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';

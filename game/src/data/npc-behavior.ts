@@ -1,4 +1,5 @@
 
+import { ENCOUNTERS } from './encounters';
 import { RULES } from './rules';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
@@ -13,6 +14,7 @@ const LAW_GATE_REACH = 12;
 export const NPC_BEHAVIOR = {
   stallTurns: 100,
   stallJump: 20,
+  progressReach: 4,
   lieUp: { gap: { min: 2, max: 8 }, reach: 1.5, spacing: 1.5 },
   weakDecline: 20,
   escortWaitGap: 12,
@@ -24,7 +26,8 @@ export const NPC_BEHAVIOR = {
   patrolSpacing: 4,
   followGap: RULES.yieldDistance + 1,
   fleeCondition: 0.3,
-  fight: { angles: 16, rings: [0.25, 0.5, 0.75, 1], arcWeight: 2, threatWeight: 2, travelWeight: 1, circleWeight: 1, rammedWeight: 2, ramWeight: 2, circlePace: 3, whimTurns: 4 },
+  fleeKeepAngle: 45,
+  fight: { angles: 16, rings: [0.25, 0.5, 0.75, 1], arcWeight: 2, threatWeight: 1, travelWeight: 1, circleWeight: 1, rammedWeight: 2, ramWeight: 2, circlePace: 3, whimTurns: 4 },
   revengeChance: 0.33,
   recoverCondition: 0.5,
   threatRatio: 1,
@@ -106,8 +109,24 @@ export const HUNT = {
   watchTurns: 40,
 };
 
+export const CREW = {
+  size: 3,
+  musterTurns: 40,
+  huntTurns: 300,
+  retryTurns: 150,
+  campReach: 12,
+  askReach: 10,
+  initiative: 0.1,
+  strongerLeader: 2,
+  lowAppetite: 0.5,
+};
+
+export const HIRE = {
+  turns: TIME.turnsPerDay,
+};
+
 export const MEMORY = {
-  turns: { prices: TIME.turnsPerDay, stripped: TIME.turnsPerDay, wronged: 3 * TIME.turnsPerDay, helped: 2 * TIME.turnsPerDay } satisfies Record<MemoryFact['kind'], number>,
+  turns: { prices: TIME.turnsPerDay, stripped: TIME.turnsPerDay, wronged: ENCOUNTERS.wrongedTurns, helped: 2 * TIME.turnsPerDay, sighting: TIME.turnsPerDay } satisfies Record<MemoryFact['kind'], number>,
 };
 
 export const TRADE_TIP = { share: 0.2 };

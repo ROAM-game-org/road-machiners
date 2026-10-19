@@ -4,7 +4,8 @@ import type { CallVar, CallVars } from '../sim/types';
 import { LOCALES, type Msg } from '../text/msg';
 import { lineKey } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
-import { aidWords, haulText, lineText, tipText } from './dialogue';
+import { emptyWorld, addVehicle, npcBrain } from '../sim/testkit';
+import { aidWords, callError, haulText, lineText, sightingText, tipText } from './dialogue';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -41,32 +42,43 @@ describe('aid words', () => {
 });
 
 const PREPARE_VARS: Record<PrepareId, string[]> = {
-  nearestTown: ['town', 'bearing', 'distance'],
+  nearestTown: ['town', 'way'],
   towOffer: ['town', 'fee'],
   patchTerms: ['deal'],
-  truceAnswer: ['answer', 'haul'],
-  mercyAnswer: ['answer', 'haul'],
+  truceAnswer: ['answer', 'haul', 'price'],
+  mercyAnswer: ['answer', 'haul', 'price'],
   threatAnswer: ['answer'],
   warnAnswer: ['answer'],
   npcTowTerms: ['site', 'fee'],
   lastTownPrices: ['town', 'prices'],
-  nearestRumor: ['site', 'bearing', 'distance'],
+  nearestRumor: ['site', 'way'],
   tradeTip: ['tip'],
   trucePrice: ['price'],
+  guardOffer: ['price'],
   aidWanted: ['aid', 'price'],
   aidAnswer: ['aid'],
   aidOffered: ['aid'],
   yieldAnswer: ['answer'],
   lootWarningTerms: ['warnLine', 'answer'],
-  demandHaul: ['haul'],
+  demandHaul: ['haul', 'price'],
+  demandCut: ['price'],
+  robCutAnswer: ['answer', 'price'],
   surrenderHaul: ['haul'],
+  lastSighting: ['sighting'],
+  claimWreckBearing: ['bearing', 'distance'],
+  courierNeed: ['aid', 'price'],
+  taleNews: ['site', 'way', 'tip'],
+  tipTerms: ['price', 'way'],
+  courierNews: ['site', 'way', 'tip'],
+  courierFavorTerms: ['price'],
 };
 
 const SAMPLE: Record<string, CallVar> = {
   town: { kind: 'town', id: 'bowl' },
   site: { kind: 'site', id: 'granary' },
   bearing: { kind: 'bearing', rad: 1 },
-  distance: { kind: 'distance', tiles: 300 },
+  distance: { kind: 'distance', tiles: 12 },
+  way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
   fee: { kind: 'money', amount: 1200 },
   price: { kind: 'money', amount: 45 },
   deal: { kind: 'deal', deal: 'paid', patcher: 'npc', price: 80, parts: 2, turns: 3 },
@@ -75,6 +87,7 @@ const SAMPLE: Record<string, CallVar> = {
   aid: { kind: 'aid', fuel: 2, supplies: 3 },
   warnLine: { kind: 'line', line: 'thatsMyPick' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
+  sighting: { kind: 'sighting', driver: 'Jed Cobb', seen: { bearing: 0.8, tiles: 300, turns: 80, heading: 3.1 } },
 };
 
 const named = (line: LineId): string[] => Object.keys(schemaOf(lineKey(line)));
@@ -109,7 +122,7 @@ describe('every radio line', () => {
   });
 
   it('throws for a line missing a value it names', () => {
-    expect(() => lineText('townBearing', {})).toThrow(/town/);
+    expect(() => lineText('townWay', {})).toThrow(/town/);
   });
 });
 
@@ -136,5 +149,31 @@ describe('a driver\'s own line', () => {
     const warn = TOPICS.lootWarning.nodes.warn.line;
     const vars: CallVars = { warnLine: { kind: 'line', line: HANG_UP_LINE } };
     expect(en(lineText(warn, vars))).toBe(en(lineText(HANG_UP_LINE, {})));
+  });
+});
+
+describe('call error', () => {
+  it('is null for a driver in sight and says why otherwise', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const near = addVehicle(w, 'independent', 'scout', [], { x: 32, y: 30 });
+    near.brain = npcBrain('trader', { x: 32, y: 30 }, []);
+    const far = addVehicle(w, 'independent', 'scout', [], { x: 29, y: 29 });
+    far.brain = npcBrain('trader', { x: 29, y: 29 }, []);
+    far.pos = { x: 500, y: 500 };
+    expect(callError(w, near.id)).toBeNull();
+    expect(callError(w, far.id)).not.toBeNull();
+    expect(callError(w, 'nobody')).not.toBeNull();
+  });
+});
+
+describe('sighting words', () => {
+  it('tells the age, place and heading of what the driver saw', () => {
+    const seen = { bearing: 0, tiles: 300, turns: 60, heading: Math.PI / 2 };
+    const words = en(sightingText({ kind: 'sighting', driver: 'Jed Cobb', seen }));
+    expect(words).toMatch(/^Jed Cobb\? Saw that truck about 3 hours ago, .* east of you, heading south\.$/);
+  });
+
+  it('says they never crossed paths when nothing was seen', () => {
+    expect(en(sightingText({ kind: 'sighting', driver: 'Jed Cobb', seen: null }))).toBe('Jed Cobb? Never crossed paths.');
   });
 });

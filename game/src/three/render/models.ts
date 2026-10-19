@@ -3,10 +3,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fetchAsset } from '../../fetch-asset';
+import { publicUrl } from '../../public-url';
+import SHAPES from '../../data/prop-shapes.json';
 import { PAL } from '../../render/palette';
 import { WEAPON_POOLS } from '../../render/partLooks';
 
-const NAMES = [
+export const NAMES = [
   'base_scout',
   'base_van',
   'base_longbed',
@@ -27,6 +29,11 @@ const NAMES = [
   'wmount_riser',
   'wreck',
   'rock',
+  'rock_slab',
+  'rock_split',
+  'road_sign',
+  'route_sign',
+  'barrel',
   'pebbles',
   'scrub',
   'desert_stones',
@@ -117,6 +124,11 @@ const NAMES = [
   'fort_yard_wall',
   'fort_yard_tower',
   'fort_yard_gate',
+  'fort_outpost_wall',
+  'fort_outpost_tower',
+  'fort_outpost_gate',
+  'fort_outpost_leaf',
+  'fort_outpost_shut',
   'bowl_house_rust',
   'bowl_house_red',
   'bowl_house_grey',
@@ -199,6 +211,7 @@ const NAMES = [
   'cargo_heavy_frame',
 
   'good_scrap',
+  'parcel',
   'good_salt',
   'good_meds',
   'good_grain',
@@ -209,6 +222,7 @@ const NAMES = [
   'good_parts',
   'good_fuel_drums',
   'good_water',
+  'good_relics',
 
   'wmount_ring_small',
   'wmount_pintle',
@@ -247,22 +261,56 @@ const SOCKET_PREFIX = 'socket_';
 const loaded = new Map<ModelName, THREE.Object3D>();
 const sockets = new Map<ModelName, Map<string, THREE.Vector3>>();
 
+type Box = { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number };
+type Shape = { boxes: Box[] };
+
+export type ModelFailure = { name: ModelName; error: unknown };
+
+function standInShape(name: ModelName): Shape | undefined {
+  return (SHAPES as Record<string, Shape>)[name];
+}
+
+function standIn(name: ModelName, shape: Shape): THREE.Object3D {
+  const bounds = new THREE.Box3();
+  for (const b of shape.boxes) {
+    bounds.expandByPoint(new THREE.Vector3(b.x0, b.z0, -b.y1));
+    bounds.expandByPoint(new THREE.Vector3(b.x1, b.z1, -b.y0));
+  }
+  const size = bounds.getSize(new THREE.Vector3());
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), new THREE.MeshStandardMaterial({ color: PAL.rock.side }));
+  mesh.position.copy(bounds.getCenter(new THREE.Vector3()));
+  const root = new THREE.Group();
+  root.name = name;
+  root.add(mesh);
+  return toLambert(root);
+}
+
 export async function loadModels(
   read: (name: ModelName) => Promise<ArrayBuffer> = fetchModel,
   progress?: (done: number, total: number) => void,
-): Promise<void> {
+): Promise<ModelFailure[]> {
   const loader = new GLTFLoader();
+  const failures: ModelFailure[] = [];
   let done = 0;
   progress?.(0, NAMES.length);
   await Promise.all(
     NAMES.map(async (name) => {
-      const gltf = await loader.parseAsync(await read(name), '');
-      sockets.set(name, takeSockets(name, gltf.scene));
-      loaded.set(name, toLambert(gltf.scene));
+      try {
+        const gltf = await loader.parseAsync(await read(name), '');
+        sockets.set(name, takeSockets(name, gltf.scene));
+        loaded.set(name, toLambert(gltf.scene));
+      } catch (error) {
+        const shape = standInShape(name);
+        if (!shape) throw error;
+        sockets.set(name, new Map());
+        loaded.set(name, standIn(name, shape));
+        failures.push({ name, error });
+      }
       progress?.(++done, NAMES.length);
     }),
   );
   checkWeaponSockets();
+  return failures;
 }
 
 export function socket(name: ModelName, socketName: string): THREE.Vector3 {
@@ -302,8 +350,7 @@ function checkWeaponSockets(): void {
 }
 
 function fetchModel(name: ModelName): Promise<ArrayBuffer> {
-  const url = `${import.meta.env.BASE_URL}models/${name}.glb`;
-  return fetchAsset('Model', url);
+  return fetchAsset('Model', publicUrl(`models/${name}.glb`));
 }
 
 function source(name: ModelName): THREE.Object3D {
