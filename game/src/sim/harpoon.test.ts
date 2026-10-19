@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { partDef, type WeaponDef } from '../data/parts';
-import { PHYSICS } from '../data/physics';
 import { HARPOON } from '../data/utilities';
+import { bodyOf } from './body';
 import { fightsAgainst, fireBlock, fireWeapons, gunOf, hitOdds } from './combat';
 import { vehicleStats } from './stats';
 import { makePart } from './factory';
@@ -200,8 +200,9 @@ describe('the harpoon line', () => {
   it('pulls the shooter at its center of mass and the held truck at its body center', () => {
     const { w } = hit();
     const [anchor] = lineAnchors(w);
+    const shooter = w.vehicles.find((v) => v.id === anchor.from)!;
 
-    expect(anchor.fromAt.y).toBe(-PHYSICS.truck.comBelow);
+    expect(anchor.fromAt.y).toBe(bodyOf(shooter.chassisId).comY);
     expect(anchor.toAt.y).toBe(0);
   });
 

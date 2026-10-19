@@ -257,7 +257,8 @@ export function resetHaulerWatch(): void {
 }
 
 function parkedAtOutpost(world: World, hauler: Vehicle): boolean {
-  return (betweenLevels(world) && isParked(hauler)) || inYard(world, hauler.pos, runOf(world).window + 1);
+  const inNextYard = inYard(world, hauler.pos, runOf(world).window + 1);
+  return betweenLevels(world) ? isParked(hauler) || inNextYard : isParked(hauler) && inNextYard;
 }
 
 function stallExcused(world: World, hauler: Vehicle): boolean {
