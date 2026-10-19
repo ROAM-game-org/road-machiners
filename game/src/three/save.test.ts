@@ -10,6 +10,7 @@ import { noteDeed } from '../sim/relations';
 import { addState } from '../sim/states';
 import { canStowPart, moveItem, storePart, stowPart, stowSpot, takeFromStorage } from '../sim/inventory';
 import { buyStockPart } from '../sim/economy';
+import { buyChart } from '../sim/charts';
 import { makePart } from '../sim/factory';
 import type { Faction, GridItem, World } from '../sim/types';
 import { advanceContracts, siteOf, type Contract } from '../sim/market';
@@ -174,6 +175,22 @@ describe('game save', () => {
     expect(loaded.events.filter((e) => ['shopMoney', 'transfer', 'guardPaid', 'money'].includes(e.t))).toEqual([]);
   });
 
+  it('keeps a led investigation with the centre it heard through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    world.turn = 900;
+    const raider = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    raider.brain.goals = [{ kind: 'investigate', targetId: 'player', destination: { x: 70, y: 52 }, phase: 'travel', reason: 'springOnPrey', heard: { x: 64, y: 50 } }];
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.vehicles.find((v) => v.id === raider.id)!.brain!.goals).toEqual(raider.brain.goals);
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
   it('keeps an open directions call and its words through a reload, and load awards nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld({ x: 100, y: 450 });
@@ -268,7 +285,7 @@ describe('game save', () => {
   it('keeps a part-done survey with its found places, a survey job in progress and a survey offer on a board across a reload, and awards nothing', () => {
     const slots = makeSlots();
     const [a, b, c, d] = surveySites(TEST_MAP);
-    const world = emptyWorld({ x: c.pos.x + 4, y: c.pos.y });
+    const world = emptyWorld({ x: c.pos.x + 2, y: c.pos.y });
     const survey: Contract = {
       id: 'ct-s',
       shop: 'bowl',
@@ -392,6 +409,25 @@ describe('game save', () => {
     expect(loaded.player.money).toBe(bought.player.money);
     expect(loaded.player.xp).toEqual(xp);
     expect(loaded.events).toEqual([]);
+  });
+
+  it('keeps a bought chart through a reload and awards nothing on load', () => {
+    const slots = makeSlots();
+    const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
+    const start = emptyWorld(sitePads(bowl)[0]);
+    start.player.money = 100000;
+    start.player.explored.fill(0);
+    start.player.discovered = [];
+    const bought = buyChart(start, { col: 0, row: 4 });
+    writeSave(slots, 'auto', bought, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(bought.player.explored.every((seen, i) => seen === 0 || loaded.player.explored[i] === 1)).toBe(true);
+    expect(loaded.player.discovered).toEqual(bought.player.discovered);
+    expect(loaded.player.money).toBe(bought.player.money);
+    expect(loaded.player.xp).toEqual(bought.player.xp);
+    expect(loaded.events.filter((e) => ['discover', 'money', 'xp'].includes(e.t))).toEqual([]);
   });
 
   it('stores explored as a string', () => {

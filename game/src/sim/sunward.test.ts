@@ -105,6 +105,21 @@ describe('the silent ride', () => {
     expect(currentLine(called)).toBe('silent');
     expect(currentOptions(called).map((o) => o.line)).toEqual(['hangUp']);
   });
+
+  it('stays silent for a car with a brave or coward streak', () => {
+    for (const extra of ['brave', 'coward'] as const) {
+      const w = orderWorld();
+      const member = membersOf(w)[0];
+      member.brain!.traits = ['cultist', extra];
+      playerVehicle(w).pos = { x: member.pos.x, y: member.pos.y + 6 };
+      refreshVision(w);
+
+      const called = callVehicle(w, member.id);
+
+      expect(currentLine(called)).toBe('silent');
+      expect(currentOptions(called).map((o) => o.line)).toEqual(['hangUp']);
+    }
+  });
 });
 
 describe('the order refills', () => {

@@ -44,6 +44,9 @@ import type { UiHost } from "../ui/host";
 import { ModalScreens } from "./screens";
 import { failLoudOnShaderError } from "./shader-errors";
 import { Hud } from "../ui/hud";
+import { hasExplorationMap } from "../sim/settings";
+import { Minimap } from "../ui/minimap";
+import { minimapSetting } from "../ui/minimap-setting";
 import type { RadioPanel } from "../ui/radio";
 import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMarks, WeaponPanel, weaponsForClick } from "../ui/weapons";
 import { CameraRig, KeyPan, TruckFollow } from "./render/camera";
@@ -69,6 +72,8 @@ import { HoverArcsView, WeaponRangeView } from "./render/weaponRange";
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
+import type { SoundSettings } from "../ui/sound";
+import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { daylightAt, enableSunShadows, lightScene, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { markError, markVehicle } from "../sim/detect";
@@ -88,7 +93,7 @@ import type { CombatMusic } from "./combat-music";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
 import { isBrowserChord, uiRoot } from "../ui/dom";
-import { touchMode, watchInputMode } from "../ui/input-mode";
+import { subscribeInputMode, touchMode } from "../ui/input-mode";
 import { installTouchTips } from "../ui/touch-tip";
 import { TouchGestures, type TouchIntent } from "./touch-map";
 import { touchTapAction } from "./touch-tap";
@@ -195,6 +200,7 @@ export class Game {
   private pending: ((w: World) => World | null) | null = null;
 
   readonly hud: Hud;
+  private minimap: Minimap | null = null;
   private readonly hitCard: HitCard;
   private readonly weapons: WeaponPanel;
   readonly screens: ModalScreens;
@@ -210,7 +216,7 @@ export class Game {
     overlay: HTMLElement,
     player: SoundPlayer,
     readonly music: CombatMusic,
-    private toggleMute: () => void,
+    private readonly soundSettings: SoundSettings,
     radio: RadioPanel,
     surface: WebGLSurface,
   ) {
@@ -220,7 +226,7 @@ export class Game {
     this.drive = buildDrive(this.world);
     setTimeout(() => this.travel.warm(this.world, this.drive));
 
-    watchInputMode(uiRoot(), () => this.refreshUi());
+    subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -298,7 +304,7 @@ export class Game {
 
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
-    this.screens = new ModalScreens(host);
+    this.screens = new ModalScreens(host, () => this.menu.isOpen());
     this.hud = new Hud({
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
@@ -328,6 +334,7 @@ export class Game {
       markInspected: () => this.markInspected(),
       ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
     }, radio);
+    minimapSetting().subscribe(() => this.syncMinimap());
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
     const saves = this.saves.menuActions(() => this.world);
@@ -335,7 +342,7 @@ export class Game {
       cameraLabel: () => this.hud.cameraModeLabel(),
       toggleCamera: () => this.hud.toggleCameraMode(),
       report: () => this.hud.openFeedback(),
-    });
+    }, this.soundSettings);
     this.death = new DeathScreen(saves);
 
     this.bindInput();
@@ -445,6 +452,8 @@ export class Game {
       timed("fog", () => this.fog.update(this.world));
       this.shade.update(this.world);
     }
+    this.syncMinimap();
+    timed("minimap", () => this.minimap?.update(this.displayWorld()));
     if (!this.anim || this.anim.impacts)
       this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     this.craters.sync(this.world);
@@ -559,7 +568,7 @@ export class Game {
 
   private readonly keys: Record<string, { run: () => void; noModal?: true; idle?: true; inventoryOk?: true }> = {
     KeyF: { run: () => this.follow.recenter() },
-    KeyM: { run: () => this.toggleMute() },
+    KeyM: { run: () => this.soundSettings.toggleMute() },
     KeyQ: { run: () => this.weapons.toggleAuto(), noModal: true },
     KeyX: { run: () => this.weapons.toggleVisible(), noModal: true },
     Digit0: { run: () => this.weapons.selectWeapon(null), noModal: true },
@@ -573,7 +582,8 @@ export class Game {
     KeyG: { run: () => this.controls.douseEngine(), noModal: true, idle: true },
     KeyL: { run: () => this.controls.toggleHeadlights(), noModal: true },
     KeyN: { run: () => this.markInspected(), noModal: true, idle: true },
-    KeyC: { run: () => !this.anim && this.screens.toggle(this.screens.character), idle: true },
+    KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true },
+    KeyK: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true },
     KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true },
     KeyI: { run: () => !this.anim && this.screens.toggle(this.screens.inventory), idle: true },
     Escape: { run: () => { if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
@@ -1073,6 +1083,7 @@ export class Game {
     this.hud.showRecenter(!this.follow.isFollowing());
     lightScene(this.sun, this.sky, truck, daylightAt(this.lightTurn()));
     this.fx.light({ sun: this.sun, sky: this.sky });
+    CLOUD_SHADOWS.sync(this.world, this.lightTurn(), this.play.frameMs());
     this.vehicleLights.sync(this.world, this.frames, this.lightTurn(), (pos) => this.sightLimit.reaches(pos), truck);
     this.siteLights.sync(!sunAt(this.world.turn), this.lightTurn(), this.rig.camera, (pos) => this.sightLimit.reaches(pos), this.rig.focus(), now, this.world);
     Object.assign(this.stormTint.style, stormTintStyle(stormShare(playerVehicle(this.world))));
@@ -1088,6 +1099,21 @@ export class Game {
     this.showPlan();
   }
 
+  private syncMinimap(): void {
+    const on = minimapSetting().on() && hasExplorationMap(this.world);
+    if (on && !this.minimap) {
+      this.minimap = new Minimap(() => this.openMap());
+    } else if (!on && this.minimap) {
+      this.minimap.dispose();
+      this.minimap = null;
+    }
+  }
+
+  private openMap(): void {
+    if (this.anim) return;
+    this.screens.openCharacter("map");
+  }
+
   private updateLiveVision(): void {
     const live = this.live;
     const f = this.frames[playerVehicle(this.world).id];
@@ -1099,6 +1125,7 @@ export class Game {
     for (const t of live.visible) live.explored[t] = 1;
     const player = { ...this.world.player, visible: [...live.visible].sort((a, b) => a - b), explored: live.explored };
     timed("fog", () => this.fog.update({ ...this.world, player }));
+    timed("minimap", () => this.minimap?.update({ ...this.world, player }, { pos: at, heading: playerVehicle(this.world).heading }));
   }
 
   private lightTurn(): number {

@@ -20,10 +20,10 @@ import { askHandover, handoverWith, parcelFor } from './parcel';
 import { heardRumor, siteRumor, tradeTip, type Rumor } from './rumors';
 import { closeEncounter, encounterOfTopic, favorAmount, moveStory, pendingFor, requirePending, storyBeatDue, tipPrice, tipTarget } from './encounters';
 import { hasPerk, practice } from './progress';
-import { abandonSpill, answerPlea, standDownBeggar, backOffClaims, defyClaims, guardsClaim, answersPlea, answersSurrender, offeredSurrenderBy, answersThreat, giveUpTo, handedOver, hasStrandedPrey, hasStrippable, judgedWorthOffer, makePeace, offersGiveUp, pendingPlea, playerPleaded, settlePlayerPlea, settleThreat, spillClaimOn, standDownTo, surrenderTo, yieldTo, type ThreatAnswer } from './parley';
+import { abandonSpill, answerPlea, standDownBeggar, backOffClaims, defyClaims, guardsClaim, answersPlea, answersSurrender, offeredSurrenderBy, answersThreat, giveUpTo, handedOver, hasStrandedPrey, hasStrippable, judgedWorthOffer, makePeace, offersGiveUp, pendingPlea, playerPleaded, settlePlayerPlea, settleThreat, settleCashThreat, payOff, spillClaimOn, standDownTo, surrenderTo, yieldTo, type ThreatAnswer } from './parley';
 import { answerLootWarning, answerWarning, lootsBesidePlayer, pendingWarningTo, playerWarns, warnRefusalOf, type WarnAnswer } from './loot-warning';
 import { talkOf } from './dialogue';
-import { cargoHaul, haulVar, showsHaul, surrenderHaul } from './haul';
+import { cashCut, haulVar, ransomOf, showsHaul, surrenderHaul } from './haul';
 import { hasCargo, hasSalvage, isStoryWreck, storyStock, type ClaimContract } from './salvage';
 import { claimPartHeld, leadOf, rivalRunning } from './claims';
 import { agreePatch, canFixItself, canTakeWornPatch, needsPatch, patchTerms } from './patch';
@@ -38,9 +38,12 @@ import { bearing, dist, type Vec } from './vec';
 import { craterNews, giveWord, prepareVigilCall, refuseVigil, vigilCallDue } from './sunward-crater';
 import { directionsTo } from './directions';
 
-function demandsOnTop(world: World, npc: Vehicle): boolean {
+function demandsOnTop(world: World, npc: Vehicle, cargo: boolean): boolean {
   const top = topGoal(npc);
-  return top?.kind === 'fight' && top.targetId === world.player.vehicleId && top.demands === true && cargoHaul(npc, playerVehicle(world)).length > 0;
+  if (top?.kind !== 'fight' || top.targetId !== world.player.vehicleId || top.demands !== true) return false;
+  if (world.player.talked[npc.id]?.demand !== undefined) return false;
+  const ransom = ransomOf(world, npc, playerVehicle(world));
+  return cargo ? ransom.haul.length > 0 : ransom.haul.length === 0 && ransom.money > 0;
 }
 
 function requireOpenSearch(world: World): SearchContract {
@@ -93,6 +96,26 @@ function answerOf(vars: CallVars): string | null {
 function namesHaul(vars: CallVars): boolean {
   const v = vars.haul;
   return v?.kind === 'haul' && (v.parts.length > 0 || Object.keys(v.goods).length > 0);
+}
+
+function priceOf(vars: CallVars): number {
+  const v = vars.price;
+  return v?.kind === 'money' ? v.amount : 0;
+}
+
+function priceVars(money: number): CallVars {
+  return money > 0 ? { price: { kind: 'money', amount: money } } : {};
+}
+
+function shownPrice(world: World, npc: Vehicle, call: Call): number {
+  const named = priceOf(call.vars);
+  if (named <= 0 || named !== ransomOf(world, npc, playerVehicle(world)).money) throw new Error(`${npc.id} named a different price than the one the player pays`);
+  return named;
+}
+
+function ransomVars(world: World, npc: Vehicle): CallVars {
+  const ransom = ransomOf(world, npc, playerVehicle(world));
+  return { haul: haulVar(ransom.haul), ...priceVars(ransom.money) };
 }
 
 function shownHaul(world: World, npc: Vehicle, call: Call, surrender: boolean): GridItem[] {
@@ -303,7 +326,13 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   noDeal: (_world, _npc, vars) => vars.deal === undefined,
   hasHaul: (_world, _npc, vars) => namesHaul(vars),
   noHaul: (_world, _npc, vars) => !namesHaul(vars),
-  demandsCargo: (world, npc) => !isStranded(world, npc) && !hasStrandedPrey(world, npc) && demandsOnTop(world, npc),
+  demandsCargo: (world, npc) => !isStranded(world, npc) && !hasStrandedPrey(world, npc) && demandsOnTop(world, npc, true),
+  demandsCut: (world, npc) => !isStranded(world, npc) && !hasStrandedPrey(world, npc) && demandsOnTop(world, npc, false),
+  namesPrice: (_world, _npc, vars) => priceOf(vars) > 0,
+  noPrice: (_world, _npc, vars) => priceOf(vars) <= 0,
+  canPayPrice: (world, _npc, vars) => priceOf(vars) > 0 && world.player.money >= priceOf(vars),
+  noCargoRob: (world, npc) => world.player.talked[npc.id]?.rob === undefined,
+  noCutRob: (world, npc) => world.player.talked[npc.id]?.robCut === undefined,
   demandsSurrender: (world, npc) => hasStrandedPrey(world, npc) && wantsLoot(world, npc, playerVehicle(world)) && hasStrippable(world, npc, playerVehicle(world)),
   demandsGiveUp: (world, npc) => offersGiveUp(world, npc) && judgedWorthOffer(world, npc),
   npcBeaten: (world, npc) => isWeak(world, npc),
@@ -433,6 +462,30 @@ export const EFFECTS: Record<EffectId, Effect> = {
   settlePlea: (world, npc, call) => {
     if (playerPlea(call) === 'mercy' && answerOf(call.vars) === 'yes') shownHaul(world, npc, call, false);
     settlePlayerPlea(world, npc, playerPlea(call), answerOf(call.vars) === 'yes');
+  },
+  paySpared: (world, npc, call) => {
+    if (playerPlea(call) !== 'mercy' || answerOf(call.vars) !== 'yes') throw new Error('paySpared needs a granted mercy');
+    settlePlayerPlea(world, npc, 'mercy', true, shownPrice(world, npc, call));
+  },
+  payDemand: (world, npc, call) => {
+    payOff(world, playerVehicle(world), npc, shownPrice(world, npc, call));
+    settleDemand(world, npc, 'agreed');
+    practice(world, 'deal', 1, null, npc.id);
+  },
+  payTollMoney: (world, npc, call) => {
+    if (answerOf(call.vars) !== 'demand') throw new Error('payTollMoney needs a demand answer');
+    settlePlayerPlea(world, npc, 'truce', false);
+    payOff(world, playerVehicle(world), npc, shownPrice(world, npc, call));
+    settleDemand(world, npc, 'agreed');
+    practice(world, 'deal', 1, null, npc.id);
+  },
+  settleDemandRefused: (world, npc) => settleDemand(world, npc, 'refused'),
+  settleRobCut: (world, npc, call) => {
+    const answer = threatAnswer(call);
+    if (answer === 'comply' && priceOf(call.vars) !== cashCut(world, npc)) throw new Error(`${npc.id} named a different cut than the one it pays`);
+    settleCashThreat(world, npc, answer);
+    settle(world, npc, call, answer === 'comply' ? 'agreed' : 'refused');
+    if (answer === 'comply') practice(world, 'deal', 1, null, npc.id);
   },
   withdrawPlea: (world, npc, call) => {
     settlePlayerPlea(world, npc, playerPlea(call), false);
@@ -601,9 +654,11 @@ export const EFFECTS: Record<EffectId, Effect> = {
 export const PREPARES: Record<PrepareId, Prepare> = {
   vigilCall: (world) => prepareVigilCall(world),
   craterNews: (world) => craterNews(world),
-  truceAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'truce') }, haul: haulVar(handedOver(world, playerVehicle(world), npc)) }),
-  mercyAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'mercy') }, haul: haulVar(handedOver(world, playerVehicle(world), npc)) }),
-  demandHaul: (world, npc) => ({ haul: haulVar(handedOver(world, playerVehicle(world), npc)) }),
+  truceAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'truce') }, ...ransomVars(world, npc) }),
+  mercyAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'mercy') }, ...ransomVars(world, npc) }),
+  demandHaul: (world, npc) => ransomVars(world, npc),
+  demandCut: (world, npc) => priceVars(ransomOf(world, npc, playerVehicle(world)).money),
+  robCutAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersThreat(world, npc) }, ...priceVars(cashCut(world, npc)) }),
   surrenderHaul: (world, npc) => ({ haul: haulVar(surrenderHaul(npc, playerVehicle(world))) }),
   yieldAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersSurrender(world, npc, playerVehicle(world)) ? 'yes' : 'no' } }),
   threatAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersThreat(world, npc) } }),

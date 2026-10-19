@@ -584,10 +584,15 @@ function onContactsHeard(world: World, vehicle: Vehicle, profile: NpcProfile, co
   for (const contact of hostileContacts(world, vehicle, contacts)) {
     const option = reactHeard(world, vehicle, contact);
     if (option === null || option === 'keep') continue;
-    if (option === 'investigate') interrupt(world, vehicle, createActivity('investigate', contact.vehicleId, { ...contact.center }, isWatching(vehicle) ? 'springOnPrey' : 'heardHostile'));
+    if (option === 'investigate') interrupt(world, vehicle, heardActivity(vehicle, contact));
     else interrupt(world, vehicle, fleeFrom(world, vehicle, profile, contact.vehicleId, contact.center, 'heardHostile'));
     return;
   }
+}
+
+function heardActivity(vehicle: Vehicle, contact: Contact): NpcActivity {
+  const activity = createActivity('investigate', contact.vehicleId, { ...contact.center }, isWatching(vehicle) ? 'springOnPrey' : 'heardHostile');
+  return { ...activity, heard: { ...contact.center } };
 }
 
 function onContactSpotted(world: World, vehicle: Vehicle): void {
@@ -777,10 +782,22 @@ const STEERS: Partial<Record<NpcActivity['kind'], Steer>> = {
   investigate: steerInvestigate,
 };
 
-function steerInvestigate(_world: World, _vehicle: Vehicle, goal: NpcActivity, _profile: NpcProfile, contacts: Contact[]): void {
+export function ledPoint(center: Vec, heard: Vec | undefined, radius: number, reach: number): Vec {
+  if (!heard) return { ...center };
+  const drift = dist(center, heard);
+  if (drift <= radius) return { ...center };
+  const lead = Math.min(drift - radius, reach);
+  return { x: center.x + ((center.x - heard.x) / drift) * lead, y: center.y + ((center.y - heard.y) / drift) * lead };
+}
+
+function steerInvestigate(world: World, vehicle: Vehicle, goal: NpcActivity, _profile: NpcProfile, contacts: Contact[]): void {
   if (!goal.targetId) throw new Error('An investigation has no target');
   const contact = contacts.find((c) => c.vehicleId === goal.targetId);
-  if (contact) goal.destination = { ...contact.center };
+  if (!contact) return;
+  const reach = vehicleStats(world, vehicle).maxSpeed;
+  if (!Number.isFinite(reach)) throw new Error(`${vehicle.id} has no finite reach`);
+  goal.destination = ledPoint(contact.center, goal.heard, contact.radius, reach);
+  goal.heard = { ...contact.center };
 }
 
 function steerFlee(world: World, vehicle: Vehicle, profile: NpcProfile, contacts: Contact[], goal: NpcActivity): void {

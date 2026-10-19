@@ -3,7 +3,7 @@
 Grid: 7 columns by 11 rows, 3.39 m across by 7.15 m along. Half height 0.55 m, from PHYSICS.bodies.longbed.
 Rows 0 to 2 are a faceted round hood between two low fenders, with the wide grille and a cutout over the engine cells.
 Rows 3 and 4 are the cab with a flat roof. Rows 5 to 10 are a flat wooden deck with low stake-side rails, open on top.
-Wheels sit on rows 1 and 9 in the outer columns, radius 0.6 m, half width 0.25 m, mount 0.35 m below the center.
+Wheels sit on rows 1 and 9 in the outer columns, radius 0.64 m, half width 0.265 m, mount 0.35 m below the center.
 Run: blender --background --python tools/blender/base_longbed.py -- public/models/base_longbed.glb [tmp/base_longbed.png]
 """
 
@@ -22,8 +22,8 @@ from shapes import prism  # noqa: E402
 
 SEED = 303
 G = Grid(rows=11, cols=7, half_height=0.55)
-WHEEL_R = 0.6
-WHEEL_HALF_W = 0.25
+WHEEL_R = 0.64
+WHEEL_HALF_W = 0.265
 HUB_Z = -0.35 - SUSPENSION_REST
 WHEELS_X = [G.row_x(1), G.row_x(9)]
 WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall

@@ -36,7 +36,7 @@ const FACING_SHRINE = -Math.PI / 2;
 
 export const HOLLOW = {
   id: 'sunward-hollow',
-  pos: { x: 276, y: 225 },
+  pos: { x: 356, y: 334 },
   radius: 11,
   sightReach: 9,
   pieces: [
@@ -134,5 +134,5 @@ export const SUNWARD_TOPICS: Record<SunwardTopicId, Topic> = {
 };
 
 export const SUNWARD_TRAIT_TALK: Record<'cultist', TraitTalk> = {
-  cultist: { voice: { greeting: 'silent', repeatLine: 'silent', refusal: 'silent', warnOff: 'silent', honksBack: false }, topics: ['vigilCall1', 'vigilCall2', 'vigilCall3'] },
+  cultist: { voice: { greeting: 'silent', repeatLine: 'silent', refusal: 'silent', warnOff: 'silent', honksBack: false }, topics: ['vigilCall1', 'vigilCall2', 'vigilCall3'], only: true },
 };

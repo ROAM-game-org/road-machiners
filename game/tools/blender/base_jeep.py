@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, ARCH_SEGMENTS, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, level_sockets, surface_z  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, ARCH_SEGMENTS, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, check_door_gap, door_sill, level_sockets, surface_z  # noqa: E402
 from shapes import prism, strut  # noqa: E402
 
 SEED = 304
@@ -108,7 +108,9 @@ def ribs(kit: Kit) -> None:
         mirrored(kit, f"rib{i}", (COWL - TUB_BACK + 1.2, 0.025, 0.07), (COWL + TUB_BACK) / 2 - 0.1, SIDE + 0.0125, z, "paint")
     mirrored(kit, "rib_low", (WHEELS_X[1] - WHEELS_X[0] - 2 * ARCH_R - 0.1, 0.025, 0.05), (WHEELS_X[0] + WHEELS_X[1]) / 2, SIDE + 0.0125, -0.2, "paint")
     for i, x in enumerate((COWL - 0.04, (COWL + TUB_BACK) / 2, TUB_BACK - 0.1)):
-        mirrored(kit, f"seam{i}", (0.025, 0.012, TOP - SEAM_LOW), x, SIDE + 0.006, (TOP + SEAM_LOW) / 2, "under")
+        low = door_sill(x, x, SEAM_LOW, WHEELS_X, HUB_Z, ARCH_R)
+        check_door_gap(f"seam{i}", x, x, low, WHEELS_X, HUB_Z, ARCH_R)
+        mirrored(kit, f"seam{i}", (0.025, 0.012, TOP - low), x, SIDE + 0.006, (TOP + low) / 2, "under")
 
 
 def hood(kit: Kit) -> None:

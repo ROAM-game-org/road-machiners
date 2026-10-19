@@ -1,7 +1,7 @@
 
 import { PHYSICS } from '../data/physics';
 import { HARPOON } from '../data/utilities';
-import { cellRect } from './body';
+import { bodyOf, cellRect } from './body';
 import { damagePart } from './damage';
 import { newId } from './factory';
 import { itemCells, mountedItems } from './grid';
@@ -25,7 +25,7 @@ export function attachLine(world: World, ends: Ends, turns: number): void {
 }
 
 function anchorGap(ends: Ends): number {
-  const a = mapPoint(ends.from, anchorOf(ends.from, ends.fromPart, BRACED));
+  const a = mapPoint(ends.from, anchorOf(ends.from, ends.fromPart, bodyOf(ends.from.chassisId).comY));
   const b = mapPoint(ends.to, anchorOf(ends.to, ends.toPart, HELD));
   return Math.hypot(b.x - a.x, b.z - a.z);
 }
@@ -36,7 +36,6 @@ function mapPoint(v: Vehicle, at: BodyPoint): { x: number; z: number } {
   return { x: v.pos.x * S + cos * at.x - sin * at.z, z: v.pos.y * S + sin * at.x + cos * at.z };
 }
 
-const BRACED = -PHYSICS.truck.comBelow;
 const HELD = 0;
 
 function anchorOf(v: Vehicle, partId: string, y: number): BodyPoint {
@@ -67,7 +66,7 @@ export function lineAnchors(world: World): LineAnchor[] {
   return world.lines.flatMap((line) => {
     const ends = holdsEnds(world, line);
     if (!ends) return [];
-    return [{ id: line.id, from: line.from, to: line.to, fromAt: anchorOf(ends.from, ends.fromPart, BRACED), toAt: anchorOf(ends.to, ends.toPart, HELD), length: line.length }];
+    return [{ id: line.id, from: line.from, to: line.to, fromAt: anchorOf(ends.from, ends.fromPart, bodyOf(ends.from.chassisId).comY), toAt: anchorOf(ends.to, ends.toPart, HELD), length: line.length }];
   });
 }
 

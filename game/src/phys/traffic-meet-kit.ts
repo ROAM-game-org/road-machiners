@@ -19,7 +19,7 @@ type Bump = { a: string; b: string; impact: number };
 
 const MEETING_TURNS = 12;
 const OVERTAKE_GAP = 6;
-const START_SEARCH = 16;
+const START_SEARCH = 40;
 const MIN_BACK = 6;
 
 function turn(w: World, d: Drive, bumps: Bump[]): { w: World; d: Drive } {
@@ -66,6 +66,7 @@ export function meet(angle: number, speed: number, seconds: number): Meeting {
   const ahead = { x: t.pos.x + Math.cos(t.heading) * seconds * t.speed, y: t.pos.y + Math.sin(t.heading) * seconds * t.speed };
   const dir = t.heading + Math.PI + angle;
   const me = playerOf();
+  t.brain!.noticed[`preySeen:${me.id}`] = w.turn;
   me.pos = freeStart(w, me, ahead, dir, speed * seconds + (angle === 0 ? t.speed * seconds + OVERTAKE_GAP : 0));
   me.heading = dir + Math.PI;
   me.speed = speed;

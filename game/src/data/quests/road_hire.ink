@@ -101,5 +101,5 @@ Ala stacks her M's in front of her and waits. # page # img: road_ala
   I know who you rode with. I don't care. # speaker: Ala
   She says it loud enough for the whole bar, and the whole bar hears it. She slides Tibor his finder's fee without looking, and he is gone before the two of you have let go.
   First stretch at dawn. You're paid at the next fort's gate. # speaker: Ala
-  She goes out to the hauler. You go out to your scout and check the two pins that lock the gun mount. A loose pin will swing your own gun into your cab. Then you sleep.
+  She goes out to the hauler. You go out to your scout and check the wheel nuts on every wheel. A loose nut will put a wheel in the ditch. Then you sleep.
   -> END

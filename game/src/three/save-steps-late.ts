@@ -1,4 +1,4 @@
-import type { SavedJson } from './save-migrations';
+import { dropQuestVar, renameQuestVar, type SavedJson } from './save-migrations';
 
 type Point_70_71 = { x: number; y: number };
 
@@ -73,10 +73,37 @@ export function withHattieMet_77_78(world: SavedJson): SavedJson {
   return knowsHer ? { ...world, player: { ...player, quests: { ...quests, world: { ...quests.world, hattie_met: true } } } } : world;
 }
 
-const SUNWARD_STANDING_78_79 = -20;
+export function withoutVarga_79_80(world: SavedJson): SavedJson {
+  const noWorldVar = dropQuestVar(world, null, 'varga_truck_known');
+  return ['hattie_varga', 'hattie_farm'].reduce((w, name) => dropQuestVar(w, 'bowl_hattie', name), noWorldVar);
+}
 
-export function withSunward_78_79(world: SavedJson): SavedJson {
+const RENAMED_NOTES_78_79: Record<string, string> = { wagonPin: 'wagonRod', talkOnePin: 'talkBrakeRod' };
+
+export function withBrakeRod_78_79(world: SavedJson): SavedJson {
+  const renamed = renameQuestVar(renameQuestVar(world, null, 'wagon_pin', 'wagon_rod'), 'nose_lena', 'asked_pins', 'asked_rods');
+  const player = renamed.player as SavedJson;
+  const notes = (player.notes as { id: string }[]).map((n) => ({ ...n, id: RENAMED_NOTES_78_79[n.id] ?? n.id }));
+  return { ...renamed, player: { ...player, notes } };
+}
+
+export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
+  return world;
+}
+
+export function withHeardCentres_81_82(world: SavedJson): SavedJson {
+  const heardOf = (goal: SavedJson): SavedJson => (goal.kind === 'investigate' && goal.destination && !goal.heard ? { ...goal, heard: { ...(goal.destination as SavedJson) } } : goal);
+  const withBrain = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    return brain ? { ...v, brain: { ...brain, goals: (brain.goals as SavedJson[]).map(heardOf) } } : v;
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
+}
+
+const SUNWARD_STANDING_82_83 = -20;
+
+export function withSunward_82_83(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const sunward = world.furyRoad === null ? { collapsed: null, night: null, lastHunt: null } : null;
-  return { ...world, sunward, player: { ...player, standing: { ...(player.standing as SavedJson), sunward: SUNWARD_STANDING_78_79 } } };
+  return { ...world, sunward, player: { ...player, standing: { ...(player.standing as SavedJson), sunward: SUNWARD_STANDING_82_83 } } };
 }

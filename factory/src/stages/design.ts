@@ -2,6 +2,7 @@ import { moveCard } from '../card-events';
 import { BRANCH, BUG_LABEL, GAME_DIR, HOTFIX_LABEL, TASK_FILE, WONT_DO_LABEL, type Ctx } from '../types';
 import { releaseBundle } from './bundle';
 import { agentHome, askAuthor, baseBranchOf, catchUpBase, fillPrompt, fitComment, guardAndPush, prepareOutputs, promptFile, readOutput, runAgent, throwIfNeedsCommittee, workDir, writeIssueInput } from './common';
+import { writeGroomedInput } from './groom';
 import { existsSync, readFileSync } from 'node:fs';
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
@@ -13,6 +14,7 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const home = agentHome(clone, GAME_DIR);
   prepareOutputs(ctx, issue, home);
   await writeIssueInput(ctx, issue, home);
+  writeGroomedInput(ctx, issue, home);
   const bugExpansion = await bugExpansionFor(ctx, issue);
   const prompt = fillPrompt('design', { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, bugExpansion });
   await runAgent(ctx, issue, 'design', 'design', prompt, { effort: ctx.cfg.designEffort });
@@ -34,7 +36,7 @@ async function bugExpansionFor(ctx: Ctx, issue: number): Promise<string> {
 
 async function askBack(ctx: Ctx, issue: number, text: string): Promise<void> {
   const questions = parseQuestions(text);
-  await askAuthor(ctx, issue, questions, 'design');
+  await askAuthor(ctx, issue, questions, 'design', 'Design hit a blocker it cannot settle by a sensible reading.');
   await moveCard(ctx, issue, 'Triage', 'questions');
 }
 

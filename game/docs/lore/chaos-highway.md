@@ -60,7 +60,7 @@ The first part is what people on the road could know. [Hidden truths](#hidden-tr
 ## People of the run
 
 - Ala, 34, drives the mammoth hauler. She pays by the stretch and takes no questions. She counts the money out loud before she pays. Drive +3, Will +2. Her father Jon was a linked tanker driver, killed sixteen years ago. Her mother is Sara. Her dead sister's girl Maya, 12, lives at the Yards.
-- Geezer, 54, is the linked driver of a small scout, hired in a fort bar. He has deep link scars at the neck and old bullet scars, and he says only that he once rode with Magnus. He checks every gun pin before he speaks. He took the hardest jobs for two years. The last one ended in a mine, and a salvage crew from the Yards gave him a ride south.
+- Geezer, 54, is the linked driver of a small scout, hired in a fort bar. He has deep link scars at the neck and old bullet scars, and he says only that he once rode with Magnus. He checks every tire before he speaks. He took the hardest jobs for two years. The last one ended in a mine, and a salvage crew from the Yards gave him a ride south.
 - Tibor, the barman of the Keepers' southern outpost, sells men like parts.
 - Vale of the Strays, in her forties, leads a crew of hunters for hire. She names the price and the threat in one breath.
 - Sara, Ala's mother. She is heard only in relay slips.

@@ -44,7 +44,9 @@ import type {
   World,
 } from "../sim/types";
 import { touchMode } from "./input-mode";
-import { disabledWith, el, isBrowserChord, panel } from "./dom";
+import { disabledWith, el, isBrowserChord, panel, uiRoot } from "./dom";
+import { lookReason } from "./look";
+import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
 import { baselinePart, conditionMeter, jobDone, conditionRow, conditionTag, createIcon, createItemIcon, diffStats, footprint as footprintEl, itemIconEl, itemLore, partIconEl, partStats, statGrid, toneStyle } from "./cards";
@@ -160,7 +162,7 @@ export class InventoryView {
     this.render();
     const truck = this.root.querySelector(".inv-truck");
     if (!truck) throw new Error("Inventory view is not rendered");
-    const over = truck.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom;
+    const over = uiSize().toLayer(truck.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom);
     if (over <= 0) return;
     const rows = gridOf(this.shown(this.host.world())).h;
     this.cell = Math.max(MIN_CELL_PX, Math.floor(this.cell - over / rows));
@@ -231,8 +233,8 @@ export class InventoryView {
         if (!this.gridEl) throw new Error("Grid item pressed without a grid");
         const r = this.gridEl.getBoundingClientRect();
         const grab = {
-          x: Math.floor((e.clientX - r.left) / this.cell) - it.x,
-          y: Math.floor((e.clientY - r.top) / this.cell) - it.y,
+          x: this.cellOf(e.clientX - r.left) - it.x,
+          y: this.cellOf(e.clientY - r.top) - it.y,
         };
         if (dragStartOf(e.pointerType, needsHold(me.chassisId, it)) === "hold") this.startPress(e, "grid", it.id, it, grab);
         else this.startDrag(e, "grid", it.id, it, grab);
@@ -341,7 +343,7 @@ export class InventoryView {
     const now = Date.now();
     const double = isDoubleClick(this.lastClick, c.item.id, now);
     this.lastClick = double ? null : { id: c.item.id, at: now };
-    const cmd = double ? doubleClickCommand(this.host.world(), c, this.instant) : null;
+    const cmd = double && !this.look() ? doubleClickCommand(this.host.world(), c, this.instant) : null;
     if (cmd) {
       this.selectedItem = null;
       this.run(cmd);
@@ -368,20 +370,20 @@ export class InventoryView {
 
   private refitBanner(w: World): HTMLElement[] {
     const me = this.mine(w);
-    if (me.job?.kind === "refit") return [this.bannerEl(t("inv.refitLeft", { n: me.job.turnsLeft }), t("inv.cancelRefit"), () => this.run(cancelRefit), t("inv.cancelRefitTitle"))];
+    if (me.job?.kind === "refit") return [this.bannerEl(t("inv.refitLeft", { n: me.job.turnsLeft }), t("inv.cancelRefit"), disabledWith(this.look(), () => this.run(cancelRefit)), t("inv.cancelRefitTitle"))];
     if (Object.keys(this.plan).length === 0) return [];
     return [
       el(
         "div",
         { class: "inv-refit" },
-        el("button", { class: "btn-s", onclick: () => this.run((world) => startRefit(world, this.plan, this.gridTruck ?? undefined)) }, t("inv.refitPlanned", { n: plannedRefitTurns(w, me, this.plan) })),
+        el("button", { class: "btn-s", ...disabledWith(this.look(), () => this.run((world) => startRefit(world, this.plan, this.gridTruck ?? undefined))) }, t("inv.refitPlanned", { n: plannedRefitTurns(w, me, this.plan) })),
         el("button", { class: "btn-s", onclick: () => this.cancelPlan() }, t("inv.cancelPlan")),
       ),
     ];
   }
 
-  private bannerEl(text: Msg, label: Msg, onclick: () => void, title?: Msg): HTMLElement {
-    return el("div", { class: "inv-refit" }, el("span", {}, text), el("button", { title, onclick }, label));
+  private bannerEl(text: Msg, label: Msg, action: ReturnType<typeof disabledWith>, title?: Msg): HTMLElement {
+    return el("div", { class: "inv-refit" }, el("span", {}, text), el("button", { title, ...action }, label));
   }
 
   private cancelPlan(): void {
@@ -393,6 +395,7 @@ export class InventoryView {
     if (Object.keys(this.plan).length === 0) return;
     const layout = this.plan;
     this.plan = {};
+    if (this.look()) return;
     this.host.apply(startRefit(this.host.world(), layout, this.gridTruck ?? undefined));
   }
 
@@ -449,7 +452,7 @@ export class InventoryView {
         class: "inv-patch",
         title: reason ? undefined : t("inv.patchYield", { parts: plan.parts, needed: plan.needed, hp: Math.round(plan.hp) }),
         onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(reason, () => this.run((world) => startRepair(world, part.id))),
+        ...disabledWith(this.look() ?? reason, () => this.run((world) => startRepair(world, part.id))),
       },
       t("inv.patchLabel", { turns: plan.turns, parts: plan.parts }),
     );
@@ -474,7 +477,7 @@ export class InventoryView {
         class: "inv-patch",
         title: short ? undefined : title,
         onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(short ? t("trade.needMore", { price: moneyMsg(cost - w.player.money) }) : null, () =>
+        ...disabledWith(this.look() ?? (short ? t("trade.needMore", { price: moneyMsg(cost - w.player.money) }) : null), () =>
           this.run((world) => (this.atOutpost(world) ? outpostRepairPart(world, part.id, this.gridTruck ?? undefined) : repairPart(world, part.id))),
         ),
       },
@@ -492,7 +495,7 @@ export class InventoryView {
       {
         class: "inv-patch",
         onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(stripBlocker(w, me), () => this.run((world) => startStrip(world, part.id))),
+        ...disabledWith(this.look() ?? stripBlocker(w, me), () => this.run((world) => startStrip(world, part.id))),
       },
       t("inv.stripLabel", { turns: STRIP.turns, parts: stripYield(me, part) }),
     );
@@ -516,7 +519,7 @@ export class InventoryView {
         class: "inv-patch",
         title: reason ? undefined : t("inv.weldSpends", { scrap }),
         onpointerdown: (e: Event) => e.stopPropagation(),
-        ...disabledWith(reason, () => this.run((world) => startWeld(world))),
+        ...disabledWith(this.look() ?? reason, () => this.run((world) => startWeld(world))),
       },
       t("inv.weldLabel", { part: partName(PERK_NUMBERS.welder.part), turns }),
     );
@@ -600,7 +603,7 @@ export class InventoryView {
     return [
       el(
         "button",
-        { onclick: () => this.run((world) => takeStores(world, stock.id)) },
+        { ...disabledWith(this.look(), () => this.run((world) => takeStores(world, stock.id))) },
         t("inv.takeStores", { fuel: fuelLiters(stock.fuel ?? 0), supplies: stock.supplies ?? 0 }),
       ),
     ];
@@ -628,7 +631,7 @@ export class InventoryView {
             el(
               "button",
               {
-                onclick: () => this.run((world) => takeAllLoot(world, stockId)),
+                ...disabledWith(this.look(), () => this.run((world) => takeAllLoot(world, stockId))),
               },
               t("inv.takeAll"),
             ),
@@ -641,7 +644,7 @@ export class InventoryView {
     const action = getSearchAction(w, stock);
     const blocked = !action.ready && action.combat === undefined;
     const reason = blocked ? (action.hint ?? refusalText(w, { id: "salvageOutOfReach" })) : null;
-    return el("button", { class: "inv-search", ...disabledWith(reason, () => this.host.searchStock(stock.id)) }, t("inv.searchMore"));
+    return el("button", { class: "inv-search", ...disabledWith(this.look() ?? reason, () => this.host.searchStock(stock.id)) }, t("inv.searchMore"));
   }
 
   private truckEl(w: World, truckId: string): HTMLElement {
@@ -677,7 +680,7 @@ export class InventoryView {
     node.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
       const r = grid.getBoundingClientRect();
-      this.startDrag(e, "truck", it.id, it, { x: Math.floor((e.clientX - r.left) / this.cell) - it.x, y: Math.floor((e.clientY - r.top) / this.cell) - it.y });
+      this.startDrag(e, "truck", it.id, it, { x: this.cellOf(e.clientX - r.left) - it.x, y: this.cellOf(e.clientY - r.top) - it.y });
     });
     return node;
   }
@@ -698,7 +701,7 @@ export class InventoryView {
     item: GridItem,
     grab: { x: number; y: number },
   ): void {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || this.look()) return;
     if (dragStartOf(e.pointerType, false) === "hold") return this.startPress(e, source, id, item, grab);
     e.preventDefault();
     e.stopPropagation();
@@ -706,6 +709,7 @@ export class InventoryView {
   }
 
   private startPress(e: PointerEvent, source: ItemSource, id: string, item: GridItem, grab: Press["grab"]): void {
+    if (this.look()) return;
     e.preventDefault();
     e.stopPropagation();
     this.endPress();
@@ -748,7 +752,7 @@ export class InventoryView {
 
   private beginDrag(at: PointerEvent, source: Drag["source"], id: string, item: GridItem, grab: { x: number; y: number }): void {
     const ghost = el("div", { class: "inv-ghost" });
-    document.body.append(ghost);
+    uiRoot().append(ghost);
     this.drag = {
       source,
       id,
@@ -789,7 +793,7 @@ export class InventoryView {
   }
 
   private rotateSelected(): void {
-    if (!this.gridEl?.isConnected || this.selectedItem === null) return;
+    if (this.look() || !this.gridEl?.isConnected || this.selectedItem === null) return;
     const item = this.shown(this.host.world()).items.find(
       (it) => it.id === this.selectedItem,
     );
@@ -819,10 +823,10 @@ export class InventoryView {
     this.lastPointer = e;
     if (!this.drag) return;
     if (
-      Math.hypot(
+      uiSize().toLayer(Math.hypot(
         e.clientX - this.drag.start.x,
         e.clientY - this.drag.start.y,
-      ) >=
+      )) >=
       this.cell / 4
     )
       this.drag.moved = true;
@@ -856,9 +860,14 @@ export class InventoryView {
   }
 
   private ghostCorner(e: PointerEvent, d: Drag, onGrid: boolean): { x: number; y: number } {
-    const g = this.gridEl?.getBoundingClientRect();
+    const g = this.gridEl ? uiSize().layerRect(this.gridEl) : null;
     if (onGrid && g) return { x: g.left + d.item.x * this.cell, y: g.top + d.item.y * this.cell };
-    return { x: e.clientX - this.cell / 2, y: e.clientY - this.cell / 2 };
+    const at = uiSize().layerPoint(e.clientX, e.clientY);
+    return { x: at.x - this.cell / 2, y: at.y - this.cell / 2 };
+  }
+
+  private cellOf(screenOffset: number): number {
+    return Math.floor(uiSize().toLayer(screenOffset) / this.cell);
   }
 
   private placementProblem(d: Drag): Refusal | null {
@@ -883,8 +892,8 @@ export class InventoryView {
     const r = this.gridEl.getBoundingClientRect();
     if (cx < r.left || cy < r.top || cx >= r.right || cy >= r.bottom)
       return null;
-    const x = Math.floor((cx - r.left) / this.cell) - this.drag.grab.x;
-    const y = Math.floor((cy - r.top) / this.cell) - this.drag.grab.y;
+    const x = this.cellOf(cx - r.left) - this.drag.grab.x;
+    const y = this.cellOf(cy - r.top) - this.drag.grab.y;
     return { x, y, rot: this.drag.item.rot };
   }
 
@@ -963,12 +972,18 @@ export class InventoryView {
   }
 
   private planMove(w: World, itemId: string, to: Spot): void {
+    if (this.look()) return;
     const next = planAfterMove(this.mine(w), this.plan, itemId, to);
     if (Object.keys(next).length > 0) startRefit(w, next);
     this.plan = next;
   }
 
+  private look(): Msg | null {
+    return lookReason(this.host.world());
+  }
+
   private run(cmd: (w: World) => World, quiet = false): void {
+    if (this.look()) throw new Error("Inventory command during a scene");
     try {
       const w = this.host.world();
       const next = cmd(w);
@@ -990,7 +1005,7 @@ function offGridCommand(target: string | null | undefined, itemId: string, truck
 }
 
 export class InventoryScreen {
-  private root = panel("modal dialog");
+  readonly root = panel("modal dialog");
   private view: InventoryView;
 
   constructor(private host: UiHost) {
@@ -1034,7 +1049,11 @@ export class InventoryScreen {
   }
 
   private markRotate(button: HTMLElement): void {
-    if (this.view.canRotate()) {
+    const look = lookReason(this.host.world());
+    if (look) {
+      button.setAttribute("aria-disabled", "true");
+      bindAttr(button, "data-reason", look);
+    } else if (this.view.canRotate()) {
       button.removeAttribute("aria-disabled");
       unbindAttr(button, "data-reason");
     } else {

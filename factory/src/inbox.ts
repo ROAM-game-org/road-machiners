@@ -8,18 +8,19 @@ import { markPost } from './post-status';
 import { postDraft, publishPost } from './release-post';
 import { deny, routeFeedback } from './stages/approval';
 import { recordReleaseTask } from './stages/release-common';
+import { clearAsked, questionPostIssue } from './questions';
 import { readState, updateState } from './state';
-import { ADHOC_LABEL, RELEASE_TASK_LABEL, type Ctx, type Route } from './types';
+import { ADHOC_LABEL, NEEDS_INFO_LABEL, RELEASE_TASK_LABEL, type Ctx, type Route } from './types';
 
 const TITLE_LIMIT = 80;
-const KINDS = ['approve', 'deny', 'reply', 'answer', 'patch', 'redesign', 'adhoc', 'ship', 'remove', 'release-task', 'release-draft', 'publish'];
+const KINDS = ['approve', 'deny', 'reply', 'answer', 'answer-questions', 'patch', 'redesign', 'adhoc', 'ship', 'remove', 'release-task', 'release-draft', 'publish'];
 const ROUTES: Route[] = ['answer', 'patch', 'redesign'];
 const SILENT_KINDS: InboxCommand['kind'][] = ['adhoc', 'reply', 'answer', 'release-draft'];
 const HERMES = 'hermes';
 const HERMES_KINDS: InboxCommand['kind'][] = ['adhoc', 'answer', 'patch', 'redesign', 'release-draft'];
 
 export type InboxCommand = {
-  kind: 'approve' | 'deny' | 'reply' | Route | 'adhoc' | 'ship' | 'remove' | 'release-task' | 'release-draft' | 'publish';
+  kind: 'approve' | 'deny' | 'reply' | Route | 'answer-questions' | 'adhoc' | 'ship' | 'remove' | 'release-task' | 'release-draft' | 'publish';
   issue: number | null;
   text: string | null;
   by: string;
@@ -107,7 +108,7 @@ async function handleChatCommand(ctx: Ctx, raw: string): Promise<void> {
 
 async function deliver(ctx: Ctx, command: InboxCommand, answer: string): Promise<void> {
   if (SILENT_KINDS.includes(command.kind)) return;
-  if (command.postId === null) return void (await ctx.telegram.sendMessage(command.chat, answer, command.messageId));
+  if (command.postId === null || command.kind === 'answer-questions') return void (await ctx.telegram.sendMessage(command.chat, answer, command.messageId));
   try {
     await markPost(ctx, command, senderName(command));
   } catch (error) {
@@ -147,6 +148,7 @@ const ISSUE_HANDLERS: Partial<Record<InboxCommand['kind'], IssueHandler>> = {
   ship: (ctx, _command, issue, by) => queueShip(ctx, issue, by),
   remove: (ctx, command, issue, by) => queueRemoval(ctx, issue, by, requireText(command)),
   reply: (ctx, command, issue) => awaitRoute(ctx, command, issue),
+  'answer-questions': answerQuestions,
   answer: routed, patch: routed, redesign: routed,
   deny: async (ctx, command, issue, by) => {
     requireCurrentPost(ctx, command, issue);
@@ -184,6 +186,14 @@ async function routed(ctx: Ctx, command: InboxCommand, issue: number, by: string
   updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: Object.fromEntries(Object.entries(state.unroutedReplies).filter(([, reply]) => reply.postId !== postId)) }));
   const dropped = await routeFeedback(ctx, issue, by, requireText(command), route, postId);
   return `${ROUTE_ANSWERS[route](issue)}${dropped ? ' The queued approval is dropped.' : ''}`;
+}
+
+async function answerQuestions(ctx: Ctx, command: InboxCommand, issue: number, by: string): Promise<string> {
+  if (questionPostIssue(ctx.statePath, requirePost(command)) !== issue) throw new Error(`The questions on #${issue} were already answered or timed out, so this reply did not reach the issue.`);
+  await ctx.github.comment(issue, `Answer from ${by} in the committee chat:\n\n${requireText(command)}`);
+  await ctx.github.removeLabel(issue, NEEDS_INFO_LABEL);
+  clearAsked(ctx.statePath, issue);
+  return `The answer is on #${issue}. Triage runs again on a coming tick.`;
 }
 
 function requirePost(command: InboxCommand): number {

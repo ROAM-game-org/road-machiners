@@ -90,9 +90,14 @@ export const RULES = {
     playerHealth: 75,
   },
   retreatTeleportTurns: 50,
+  holdUp: {
+    cutShare: 0.5,
+    cutCap: 8800,
+  },
 };
 
 export const CHEATS = {
+  armedKitTries: 50,
   spawnDistance: 10,
   spawnAngles: 12,
   searchStep: 1,

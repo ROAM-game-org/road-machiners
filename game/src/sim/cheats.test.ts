@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { atlasOf, atlasSites } from './atlas';
 import { chassisDef, PLAYER_CHASSIS } from '../data/chassis';
 import { gunSpans } from './armor';
 import { mountedItems } from './grid';
@@ -308,9 +309,10 @@ describe('teleport', () => {
 
   it('finds the nearest free spot next to an obstacle', () => {
     const w = emptyWorld();
-    w.obstacles.push({ id: 'rock-x', pos: { x: 80, y: 90 }, r: 2, kind: 'rock' });
-    const moved = playerVehicle(teleport(w, { x: 80, y: 90 }));
-    const d = dist(moved.pos, { x: 80, y: 90 });
+    const rock = { x: 300, y: 300 };
+    w.obstacles.push({ id: 'rock-x', pos: rock, r: 2, kind: 'rock' });
+    const moved = playerVehicle(teleport(w, rock));
+    const d = dist(moved.pos, rock);
     expect(d).toBeGreaterThan(2);
     expect(d).toBeLessThanOrEqual(CHEATS.searchStep * CHEATS.searchRings);
   });
@@ -393,8 +395,15 @@ describe('places and time', () => {
     expect(() => startWeather(w, 'storm', 400, -1)).toThrow(CheatError);
   });
 
-  it('reveals the whole map', () => {
-    expect(revealMap(emptyWorld()).player.explored.every((t) => t === 1)).toBe(true);
+  it('reveals the whole map and charts every place without XP', () => {
+    const before = emptyWorld();
+    const after = revealMap(before);
+    expect(after.player.explored.every((t) => t === 1)).toBe(true);
+    const ids = atlasSites(atlasOf(after.terrain)).map((s) => s.id);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.filter((id) => !after.player.discovered.includes(id))).toEqual([]);
+    expect(after.player.xp).toBe(before.player.xp);
+    expect(after.player.xpToday).toEqual(before.player.xpToday);
   });
 });
 

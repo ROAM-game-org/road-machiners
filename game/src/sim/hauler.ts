@@ -1,7 +1,7 @@
 import { chassisDef } from '../data/chassis';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
-import { haulerOf } from './damage';
+import { haulerOf, playerVehicle } from './damage';
 import { backOutSpot } from './back-out';
 import { footprint, halfLength, halfWidth } from './body';
 import { isDefeated } from './defeat';
@@ -9,7 +9,8 @@ import { betweenLevels, inYard, yardSpots } from './outpost-gates';
 import { acrossOf, alongOf, roadAt, roadPoint, toRoad, windowSpan } from './highway';
 import { craterDip, windowCraters } from './road-hazards';
 import { CLEARANCE, dynamicBlockers, staticSet } from './nav/layer';
-import { isStranded } from './stats';
+import { isStalled, isStranded, plainMaxSpeed } from './stats';
+import { isShutDown } from './utility';
 import type { MoveOrder, Vehicle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 
@@ -55,7 +56,15 @@ export function haulerLane(world: World, hauler: Vehicle): number {
 
 export function haulerPace(world: World): number {
   const alarm = runOf(world).hauler.alarmUntil;
-  return alarm !== null && world.turn <= alarm ? HAULER.hurry : HAULER.cruise;
+  const own = alarm !== null && world.turn <= alarm ? HAULER.hurry : HAULER.cruise;
+  const gunTruck = playerVehicle(world);
+  const pace = setsPace(world, gunTruck) ? Math.min(own, plainMaxSpeed(world, gunTruck)) : own;
+  if (pace <= RULES.parkedSpeed) throw new Error(`Hauler pace ${pace} is at or below parked speed`);
+  return pace;
+}
+
+function setsPace(world: World, truck: Vehicle): boolean {
+  return !isStranded(world, truck) && !isStalled(world, truck) && !isShutDown(world, truck);
 }
 
 function groupTrucks(world: World): Vehicle[] {
@@ -248,7 +257,8 @@ export function resetHaulerWatch(): void {
 }
 
 function parkedAtOutpost(world: World, hauler: Vehicle): boolean {
-  return betweenLevels(world) && (isParked(hauler) || inYard(world, hauler.pos, runOf(world).window + 1));
+  const inNextYard = inYard(world, hauler.pos, runOf(world).window + 1);
+  return betweenLevels(world) ? isParked(hauler) || inNextYard : isParked(hauler) && inNextYard;
 }
 
 function stallExcused(world: World, hauler: Vehicle): boolean {

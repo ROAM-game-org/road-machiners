@@ -445,6 +445,7 @@ export const LOG: Translation<typeof EN> = {
   'money.contract': 'контракт',
   'money.failedHaul': 'проваленный контракт на перевозку',
   'money.towing': 'буксировка {vehicle, case, gen}',
+  'money.holdUp': 'ограбление, {vehicle}',
   'refusal.noFit': 'Сюда не влезает',
   'refusal.inTheWay': 'Что-то мешает',
   'refusal.armorOnly': 'По бокам ставится только броня',

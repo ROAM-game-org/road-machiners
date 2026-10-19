@@ -267,7 +267,7 @@ describe('NPC calls', () => {
 
   it('only the fight topics call during combat', () => {
     const fight = Object.values(TOPICS).filter((t) => t.raise?.duringCombat).map((t) => t.id);
-    expect(fight.sort()).toEqual(['demand', 'giveUp', 'mercyPlea', 'spillClaim', 'surrender', 'truceOffer']);
+    expect(fight.sort()).toEqual(['demand', 'demandCut', 'giveUp', 'mercyPlea', 'spillClaim', 'surrender', 'truceOffer']);
   });
 
   it('an NPC that does not see the player stays quiet', () => {
@@ -1296,8 +1296,8 @@ describe('robber truce', () => {
     forceOption('truceOffered', 'accept');
     const { w, robber } = holdup();
     const next = askTruce(w, robber.id);
-    expect(next.player.call?.node).toBe('demanded');
-    expect(currentOptions(next).map((o) => en(o.line))).toEqual(['Fine. Take it.', 'Come and get it.', 'Hang up.']);
+    expect(next.player.call?.node).toBe('tollCargo');
+    expect(currentOptions(next).map((o) => en(o.line))).toEqual(['Fine. Take it.', "Here's your money. Now back off.", 'Come and get it.', 'Hang up.']);
     expect(isHostile(next, next.vehicles.find((v) => v.id === robber.id)!, playerVehicle(next))).toBe(true);
   });
 
@@ -1313,7 +1313,7 @@ describe('robber truce', () => {
 
   it('refusing keeps the feud, hides the truce and settles the radio demand', () => {
     const { w, robber } = holdup();
-    const next = chooseOption(askTruce(w, robber.id), 1);
+    const next = chooseOption(askTruce(w, robber.id), 2);
     expect(isHostile(next, next.vehicles.find((v) => v.id === robber.id)!, playerVehicle(next))).toBe(true);
     expect(next.player.talked[robber.id]?.demand).toBe('refused');
     expect(hasCargo(playerVehicle(next))).toBe(true);
@@ -1327,7 +1327,7 @@ describe('robber truce', () => {
     const next = hangUp(open);
     expect(next.player.talked[robber.id]?.demand).toBe('refused');
     expect(stateOf(next, 'plea', next.player.vehicleId, robber.id)).not.toBeNull();
-    expect(chooseOption(structuredClone(open), 1).player.talked[robber.id]?.demand).toBe('refused');
+    expect(chooseOption(structuredClone(open), 2).player.talked[robber.id]?.demand).toBe('refused');
   });
 
   it('a defensive feud grants the truce for free', () => {

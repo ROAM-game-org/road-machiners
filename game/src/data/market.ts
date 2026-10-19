@@ -4,6 +4,7 @@ import type { TraitId, Weighted } from './npcs';
 import type { PropKind } from '../sim/terrain';
 import type { OldPlaceType } from './salvage';
 import { NPC_BEHAVIOR } from './npc-behavior';
+import { MAP_SCALE } from './region';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
 
@@ -124,12 +125,12 @@ export const CONTRACTS = {
   survey: {
     roadGap: 20,
     siteGap: 40,
-    range: 180,
-    spread: 90,
+    range: 36 * MAP_SCALE,
+    spread: 18 * MAP_SCALE,
     count: [1, 3] as [number, number],
     surveyTurns: 10,
     searchTurns: 20,
-    clue: { range: 180, roundTiles: 25, band: 40, nearby: 40, layRing: 30, rise: 2, hollow: -1.3 },
+    clue: { range: 36 * MAP_SCALE, roundTiles: 25, band: 40, nearby: 40, layRing: 30, rise: 2, hollow: -1.3 },
     rewardFactor: 15,
     knowledgeRange: 12,
     xpPerEffort: 0.003,
@@ -139,7 +140,7 @@ export const CONTRACTS = {
   },
 
   rescue: {
-    range: 132,
+    range: 26.4 * MAP_SCALE,
     areaRadius: 13,
     areaOffset: 11,
     xpPerEffort: 0.003,
@@ -222,6 +223,7 @@ export type ShopDef = {
   driftPerTurn: number;
   contractSlots: number;
   supplies: ('fuel' | 'supplies')[];
+  charts: boolean;
 };
 
 export const PRESSURE_MAX = 0.6;
@@ -244,13 +246,14 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 3,
     supplies: ['fuel', 'supplies'],
+    charts: true,
   },
   nose: {
     id: 'nose',
     kind: 'garage',
     makes: ['salt', 'tools', 'batteries'],
-    needs: ['scrap', 'grain', 'textiles', 'meds', 'electronics', 'parts', 'fuelDrums', 'water'],
-    goods: ['scrap', 'salt', 'meds', 'grain', 'textiles', 'tools', 'batteries', 'electronics', 'parts', 'fuelDrums', 'water'],
+    needs: ['scrap', 'grain', 'textiles', 'meds', 'electronics', 'parts', 'fuelDrums', 'water', 'relics'],
+    goods: ['scrap', 'salt', 'meds', 'grain', 'textiles', 'tools', 'batteries', 'electronics', 'parts', 'fuelDrums', 'water', 'relics'],
     priceFactor: PRICE_FACTOR,
     partStock: { parts: GARAGE_PARTS, wear: GARAGE_WEAR },
     stockSize: [8, 12],
@@ -259,13 +262,14 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 3,
     supplies: ['fuel', 'supplies'],
+    charts: true,
   },
   'salvage-yard': {
     id: 'salvage-yard',
     kind: 'stall',
-    makes: ['scrap', 'parts'],
+    makes: ['scrap', 'parts', 'relics'],
     needs: ['tools'],
-    goods: ['scrap', 'parts', 'tools'],
+    goods: ['scrap', 'parts', 'tools', 'relics'],
     priceFactor: PRICE_FACTOR,
     partStock: {
       parts: ([
@@ -280,6 +284,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   granary: {
     id: 'granary',
@@ -298,6 +303,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   'pump-station': {
     id: 'pump-station',
@@ -316,6 +322,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   dustwell: {
     id: 'dustwell',
@@ -334,6 +341,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   'green-pit': {
     id: 'green-pit',
@@ -352,6 +360,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
 };
 

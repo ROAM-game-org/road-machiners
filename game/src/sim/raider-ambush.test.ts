@@ -18,13 +18,13 @@ import { corePart, goodsCount, isLoot } from './grid';
 import { addGoods, spareParts } from './inventory';
 import { CLEARANCE, isTransientWreck, nearCliff, terrainNav } from './nav/layer';
 import { decide, fightOddsAgainst, huntingGrounds, judgeDanger, lawmanTowns, passReason, raiderGrounds, raiderPatrolPosts, usefulContacts } from './npc-decisions';
-import { finishGoal, resolveNpcActivities, topGoal } from './npc-activities';
+import { finishGoal, ledPoint, resolveNpcActivities, topGoal } from './npc-activities';
 import { yieldTo } from './parley';
 import { route } from './path';
 import { getResources } from './resources';
 import { siteGates, sitePads, siteUnder, type Site } from './sites';
 import { isFree } from './spawn';
-import { fuelCap } from './stats';
+import { fuelCap, vehicleStats } from './stats';
 import { addState, stateOf } from './states';
 import { isRoadTile } from './terrain';
 import { hazardZones } from './territory';
@@ -93,11 +93,11 @@ describe('watch posts on the map', () => {
     expect(posts).toBeGreaterThan(0);
   });
 
-  it('hide at least 11 of the 20 road grounds from road traffic', () => {
+  it('hide at least 20 of the 36 road grounds from road traffic', () => {
     const roadGrounds = huntingGrounds().filter((g) => REGION.roads.some((road) => polylineDist(g, road) <= REGION.roadWidth));
-    expect(roadGrounds.length).toBe(20);
+    expect(roadGrounds.length).toBe(36);
     const hidden = roadGrounds.filter((g) => watchPost(w, g) !== null && exposureAt(w, watchPost(w, g)!) === 0);
-    expect(hidden.length).toBeGreaterThanOrEqual(11);
+    expect(hidden.length).toBeGreaterThanOrEqual(20);
   });
 
   it('build for every camp on a fresh terrain within the time budget', () => {
@@ -318,7 +318,8 @@ describe('the watch', () => {
     planNpcOrders(w);
     const goal = topGoal(raider)!;
     expect(goal.kind).toBe('investigate');
-    expect(goal.destination).toEqual(newest.center);
+    expect(goal.destination).toEqual(ledPoint(newest.center, first, newest.radius, vehicleStats(w, raider).maxSpeed));
+    expect(goal.heard).toEqual(newest.center);
     expect(goal.destination).not.toEqual(first);
     expect(goal.destination).not.toEqual(trader.pos);
   });

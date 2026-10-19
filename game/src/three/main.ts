@@ -17,6 +17,9 @@ import { BOOT_TEXT } from '../ui/boot-progress';
 import { BootScreen } from '../ui/boot-screen';
 import { fontsReady } from '../ui/fonts';
 import { uiRoot } from '../ui/dom';
+import { watchInputMode } from '../ui/input-mode';
+import { loadUiSize, windowExtent } from '../ui/ui-size';
+import { loadMinimapSetting } from '../ui/minimap-setting';
 import { loadLanguage, relocalize } from '../text/language';
 import type { DevLocale } from '../text/msg';
 import type { QuestLanguage } from '../data/quests';
@@ -27,7 +30,7 @@ import { chooseSaveFate, chooseStart, saveErrorText, showCarryReport, showRepair
 import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
-import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, onReport, reportError } from './crash';
+import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteError, onReport, reportError } from './crash';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { clearGame, hasRepair, loadSave, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
@@ -36,7 +39,7 @@ import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
 import { rescueSave } from './save-rescue';
-import { loadModels } from './render/models';
+import { loadModels, type ModelFailure } from './render/models';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
 
@@ -60,7 +63,7 @@ async function bootWorld(): Promise<Booted> {
 async function startSlot(): Promise<SlotId | null> {
   const saves = listSaves(slots, CONFIG.saveSlots);
   if (urlPlay()) return saves[0]?.slot ?? null;
-  return boot.aside(() => chooseStart(saves, newGameActions));
+  return boot.aside(() => chooseStart(saves, newGameActions, soundSettings));
 }
 
 async function bootRequested(request: Exclude<BootRequest, SlotId>): Promise<Booted> {
@@ -74,7 +77,7 @@ async function bootSlot(slot: SlotId): Promise<Booted> {
     if (!loaded) return newGameSaved(defaultSetup('roaming'), true);
     const runId = savedRunId(storedSave(slots, slot));
     if (runId === null) throw new Error(`The save in ${slot} loaded but names no run`);
-    if (hasRepair(loaded.repair)) await boot.aside(() => showRepairReport(loaded.repair));
+    if (hasRepair(loaded.repair)) await boot.aside(() => showRepairReport(loaded.repair, soundSettings));
     return { world: loaded.world, runId, loadedFrom: slot, fresh: false };
   } catch (err) {
     if (!(err instanceof SaveError)) throw err;
@@ -102,10 +105,10 @@ function newGameSaved(setup: WorldSetup, intro: boolean): Booted {
 async function rescuedOrNew(error: SaveError, slot: SlotId): Promise<Booted> {
   const stored = storedSave(slots, slot);
   const canMigrate = typeof stored === 'object' && stored !== null && !Array.isArray(stored);
-  await boot.aside(() => chooseSaveFate(saveErrorText(error), canMigrate, stored, newGameActions));
+  await boot.aside(() => chooseSaveFate(saveErrorText(error), canMigrate, stored, newGameActions, soundSettings));
   const rescued = rescueSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId, Date.now());
   if (!rescued) throw new Error('The save became unreadable while migrating');
-  await boot.aside(() => showCarryReport(rescued.report));
+  await boot.aside(() => showCarryReport(rescued.report, soundSettings));
   return { world: rescued.world, runId: rescued.runId, loadedFrom: null, fresh: false };
 }
 
@@ -134,6 +137,10 @@ installCrashScreen();
 const questJump = import.meta.env.DEV ? questJumpOf(window.location.search) : null;
 const saveKey = questJump ? `${SAVE_KEY}-quest-view` : SAVE_KEY;
 const language = loadLanguage(window.localStorage, window.location.search, import.meta.env.DEV, document.documentElement);
+const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent());
+loadMinimapSetting(window.localStorage);
+window.addEventListener('resize', () => sizeOfUi.refit(windowExtent()));
+watchInputMode(uiRoot(), sizeOfUi);
 const questLanguageOf = (locale: DevLocale): QuestLanguage => (locale === 'pseudo' ? 'en' : locale);
 setQuestLanguage(questLanguageOf(language.current()));
 let relocalizeGame: (() => void) | null = null;
@@ -155,6 +162,11 @@ function whenVisible(run: () => void): void {
     document.addEventListener('visibilitychange', onChange);
   }
 }
+function reportStandIns(failures: ModelFailure[]): void {
+  for (const { name, error } of failures) {
+    noteError(new Error(`Model ${name} failed to load and stays a stand-in box: ${error instanceof Error ? error.message : String(error)}`));
+  }
+}
 async function recoverSounds(loaded: LoadedBank): Promise<void> {
   const recovered = await recoverBank(mixer.ctx, loaded, BOOT_SOUNDS, soundOptions);
   for (const failure of loaded.failures) console.warn(`Sound ${failure.file} failed to decode as ${failure.kind} and ${recovered.has(failure.file) ? 'decoded later' : 'stays a stand-in'}`, failure.errors);
@@ -167,6 +179,7 @@ if (reporter) onReport((err) => void reporter.report(err));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
+const soundSettings = new SoundSettings(mixer, window.localStorage);
 bootStep('loading physics, models and sounds');
 const soundOptions: BankOptions = { expectedBytes: SFX_BYTES, support: formatSupport(), progress: boot.count('sounds') };
 const musicFaults: unknown[] = [];
@@ -174,7 +187,7 @@ let reportMusicFault: (err: unknown) => void = (err) => musicFaults.push(err);
 const music = new CombatMusic(mixer.ctx, mixer.input('music'), bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support }), Math.random, (err) => reportMusicFault(err));
 const loading = Promise.all([
   boot.track('physics', initPhysics()),
-  boot.track('models', loadModels(undefined, boot.count('models'))),
+  boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns)),
   boot.track('sounds', Promise.all([loadBank(mixer.ctx, BOOT_SOUNDS, soundOptions), music.ready()]).then(([bank]) => bank)),
 ]);
 bootStep('loading the map');
@@ -199,11 +212,10 @@ const { bank } = loadedBank;
 if (loadedBank.format !== BANK.formats[0].ext) console.warn(`Sounds play from the ${loadedBank.format} twins, since ${BANK.formats[0].ext} did not decode`);
 for (const failure of loadedBank.unreachable) console.warn(`Sound ${failure.file} could not be fetched`, failure.errors);
 bootStep('starting the game');
-const radio = new RadioPanel(new RadioStation(Math.random));
-const soundSettings = new SoundSettings(mixer, window.localStorage, radio.faceplate, radio.keys, () => game.loops.nextTrack());
+const radio = new RadioPanel(new RadioStation(Math.random), soundSettings, () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
-const game = await boot.track('scene', () => new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), music, () => soundSettings.toggleMute(), radio, surface));
+const game = await boot.track('scene', () => new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), music, soundSettings, radio, surface));
 if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
   game.relanguageQuest();

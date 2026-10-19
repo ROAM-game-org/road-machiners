@@ -18,6 +18,7 @@ import { heldSearch } from '../../sim/market';
 import { agoText } from '../../ui/units';
 import { HOLLOW_ID } from '../../sim/sunward';
 import { HOLLOW } from '../../data/sunward';
+import { layerPointOf } from '../../ui/ui-size';
 
 const LABEL_LIFT_PX = 90;
 const LEAD_EXTRA_LIFT_PX = 26;
@@ -35,7 +36,7 @@ function place(el: HTMLDivElement, world: World, pos: Vec, rig: CameraRig, limit
   const seen = explored && limit.covers(ground);
   el.style.display = seen ? 'block' : 'none';
   if (!seen) return;
-  const screen = rig.screenOf(ground);
+  const screen = layerPointOf(rig.screenOf(ground));
   el.style.left = `${screen.x}px`;
   el.style.top = `${screen.y - LABEL_LIFT_PX - extraLift}px`;
 }
@@ -182,7 +183,7 @@ export class VehicleMarkers {
       node.style.display = hideAll || !f ? 'none' : 'flex';
       if (hideAll || !f) continue;
       node.classList.toggle('aims-hidden', hideAims);
-      const p = this.rig.screenOf({ x: f.pos.x, y: f.pos.y + MARKER_LIFT, z: f.pos.z });
+      const p = layerPointOf(this.rig.screenOf({ x: f.pos.x, y: f.pos.y + MARKER_LIFT, z: f.pos.z }));
       node.style.left = `${p.x}px`;
       node.style.top = `${p.y}px`;
     }

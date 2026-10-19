@@ -2,7 +2,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { coreParts, mountedParts } from '../sim/grid';
 import { editableTerrain, emptyWorld } from '../sim/testkit';
-import { bodyOf } from '../sim/body';
+import { bodyOf, rideOf } from '../sim/body';
 import { PHYSICS } from '../data/physics';
 import type { Quat } from './frames';
 import type { World } from '../sim/types';
@@ -42,7 +42,7 @@ function slide(grade: number, rise: number, velocity: Vec): { lost: Map<string, 
   const body = d.world.getRigidBody(d.bodies[me.id]);
   const angle = Math.atan(grade);
   const normal = { x: Math.sin(angle), y: Math.cos(angle) };
-  const lift = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY + rise;
+  const lift = rideOf(b) + rise;
   const S = PHYSICS.metersPerTile;
   body.setTranslation({ x: me.pos.x * S + normal.x * lift, y: heightOf(me.pos.x) * S + normal.y * lift, z: me.pos.y * S }, true);
   body.setRotation({ x: 0, y: 0, z: Math.sin(-angle / 2), w: Math.cos(angle / 2) }, true);

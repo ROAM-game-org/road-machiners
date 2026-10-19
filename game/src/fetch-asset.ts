@@ -1,3 +1,7 @@
+import { DOWNLOAD } from './config';
+import { attemptWithin, type Body } from './download';
+import { REAL_TIMERS } from './stall';
+
 export const ASSET_RETRY_DELAYS_MS: readonly number[] = [1000, 3000, 9000];
 
 const TRANSIENT_STATUS: ReadonlySet<number> = new Set([408, 429, 500, 502, 503, 504]);
@@ -24,7 +28,7 @@ export class AssetStatusError extends Error {
   }
 }
 
-export type AssetBody = { response: Response; bytes: ArrayBuffer };
+export type AssetBody = Body;
 
 export class AssetUnreachable extends Error {
   constructor(
@@ -48,19 +52,15 @@ export class DownloadFailed extends AssetUnreachable {
 type Attempt = { body: AssetBody } | { transient: unknown };
 
 async function attempt(label: string, url: string, init: RequestInit | undefined, net: AssetNet): Promise<Attempt> {
-  let res: Response;
+  let outcome: Awaited<ReturnType<typeof attemptWithin>>;
   try {
-    res = await net.fetch(url, init);
+    outcome = await attemptWithin(url, init, net.fetch, DOWNLOAD.stallMs, REAL_TIMERS);
   } catch (e) {
     return { transient: e };
   }
-  if (TRANSIENT_STATUS.has(res.status)) return { transient: new AssetStatusError(`HTTP ${res.status} ${res.statusText}`, res.status) };
-  if (!res.ok) throw new AssetStatusError(`${label} ${url} failed to load: HTTP ${res.status} ${res.statusText}`, res.status);
-  try {
-    return { body: { response: res, bytes: await res.arrayBuffer() } };
-  } catch (e) {
-    return { transient: e };
-  }
+  if ('body' in outcome) return { body: outcome.body };
+  if (TRANSIENT_STATUS.has(outcome.status)) return { transient: new AssetStatusError(`HTTP ${outcome.status} ${outcome.statusText}`, outcome.status) };
+  throw new AssetStatusError(`${label} ${url} failed to load: HTTP ${outcome.status} ${outcome.statusText}`, outcome.status);
 }
 
 export async function fetchAssetBody(label: string, url: string, init?: RequestInit, net: AssetNet = BROWSER_NET): Promise<AssetBody> {

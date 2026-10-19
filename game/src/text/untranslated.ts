@@ -3,6 +3,8 @@ export type Untranslated = { file: string; text: string; reason: string };
 const DEBUG_CONSOLE = 'The debug console is a dev tool. It stays English.';
 const DEV_REPORT = 'Progression and income reports are dev tools read in a terminal. They stay English.';
 const CRASH_REPORT = 'A line of the crash report a player pastes into a bug report. It stays as the code wrote it.';
+const DEV_LAB = 'The block lab is a dev page for tuning the combat score. It stays English.';
+const FONT_SAMPLE = 'A sample string that makes the browser load the font. No player reads it.';
 const SVG = 'Static SVG markup of an icon, with no words in it.';
 
 const MIGRATION_LABEL = 'A label inside a save migration error, which only the console and a bug report show.';
@@ -53,14 +55,12 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/main.ts', text: 'waiting for physics, models and sounds', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'starting the game', reason: CRASH_REPORT },
   { file: 'src/three/map-file.ts', text: 'Map file', reason: CRASH_REPORT },
-  { file: 'src/three/shader-errors.ts', text: 'no log', reason: CRASH_REPORT },
-  { file: 'src/three/shader-errors.ts', text: 'sampler limit  ', reason: CRASH_REPORT },
-  { file: 'src/three/shader-errors.ts', text: 'link log:  ', reason: CRASH_REPORT },
-  { file: 'src/three/sound.ts', text: 'score   heat  surprise  ', reason: 'A line of the score recorder that the block lab prints for tuning. It stays as the code wrote it.' },
-  { file: 'src/three/block-lab.ts', text: '*', reason: 'blocks.html is a dev page for tuning the combat score blocks. It stays English.' },
+  { file: 'src/three/shader-errors.ts', text: '*', reason: CRASH_REPORT },
+  { file: 'src/three/block-lab.ts', text: '*', reason: DEV_LAB },
+  { file: 'src/three/sound.ts', text: 'score   heat  surprise  ', reason: DEV_LAB },
   { file: 'src/sim/progression/run-timeline.ts', text: '*', reason: DEV_REPORT },
-  { file: 'src/ui/fonts.ts', text: 'Road Machiners 0123456789', reason: 'A font sample the boot measures to tell that a face has loaded. It is never shown.' },
-  { file: 'src/ui/fonts.ts', text: 'Дорожные машинисты 0123456789', reason: 'A font sample the boot measures to tell that a face has loaded. It is never shown.' },
+  { file: 'src/ui/fonts.ts', text: 'Road Machiners 0123456789', reason: FONT_SAMPLE },
+  { file: 'src/ui/fonts.ts', text: 'Дорожные машинисты 0123456789', reason: FONT_SAMPLE },
   { file: 'src/ui/quest-screen.ts', text: 'Quest art', reason: CRASH_REPORT },
   { file: 'src/three/render/models.ts', text: 'Model', reason: CRASH_REPORT },
   { file: 'src/ui/units.ts', text: '.innerHTML =', reason: SVG },

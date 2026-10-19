@@ -214,7 +214,7 @@ export type SimNote =
   | { id: 'core' }
   | { id: 'spawnBlocked'; template: string };
 
-export type MoneyReason = { kind: 'contract' } | { kind: 'failedHaul' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' };
+export type MoneyReason = { kind: 'contract' } | { kind: 'failedHaul' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' } | { kind: 'holdUp'; vehicle: string };
 
 export type PlacementRefusal = { id: 'noFit' } | { id: 'inTheWay' } | { id: 'armorOnly' };
 
@@ -286,6 +286,7 @@ export type NpcActivity = {
   left?: string[];
   posted?: true;
   asked?: string[];
+  heard?: Vec;
 };
 
 export type NpcBrain = {
@@ -567,6 +568,7 @@ export type GameEvent =
   | { t: 'guardPaid'; by: string; guard: string; fee: number }
   | { t: 'shopMoney'; vehicle: string; amount: number; kind: ShopMoneyKind }
   | { t: 'transfer'; from: string; to: string; amount: number }
+  | { t: 'holdUp'; robber: string; victim: string; paid: 'cargo' | 'money'; value: number }
   | { t: 'escortHired'; by: string; client: string; site: string; fee: number }
   | { t: 'escortRefused'; by: string; client: string }
   | { t: 'escortEnded'; contract: string; client: string; end: EscortEnd }

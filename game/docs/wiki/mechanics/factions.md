@@ -120,4 +120,4 @@ The player starts at each organized faction's view of an outside driver: Bowl 5,
 - A stranded or low truck can always get help from a driver that is not hostile: a tow, a patch or aid, asked for or offered. Independents have no standing, so a neutral rescuer always exists, and the town patch and the beacon never ask about standing.
 - Two drivers tow each other only when neither is wary of the other. Raiders still tow only raiders, and townsfolk never tow raiders.
 - A driver never robs a truck it is friendly with, and a raider never robs a gang truck.
-- The hover card tags each driver by how it treats the player: hostile in red, or wary, neutral or friendly. The character screen lists the standing with each faction, with the start, recent deeds and the rest in its tooltip.
+- The hover card tags each driver by how it treats the player: hostile in red, or wary, neutral or friendly. The character screen lists the standing with each faction, with the base, recent deeds and the rest in its tooltip.

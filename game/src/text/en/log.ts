@@ -443,6 +443,7 @@ export const LOG = {
   'note.spawnBlocked': m('No free spot to spawn {template}', { template: 'text' }),
   'money.contract': 'contract',
   'money.failedHaul': 'failed haul contract',
+  'money.holdUp': m('hold-up, {vehicle}', { vehicle: 'text' }),
   'money.towing': m('towing {vehicle}', { vehicle: 'text' }),
   'refusal.noFit': 'Does not fit there',
   'refusal.inTheWay': 'Something is in the way',

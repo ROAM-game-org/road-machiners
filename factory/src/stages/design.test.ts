@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runStage } from './design';
 import { EMPTY_STATE, readState, writeState } from '../state';
@@ -73,6 +73,27 @@ describe('design post', () => {
   });
 });
 
+describe('design stage with a groomed request', () => {
+  let seen: string | null = null;
+  const reading = () => fakeCtx((run) => {
+    const file = `${run.clone}/${run.dir}/.factory/groomed.md`;
+    seen = existsSync(file) ? readFileSync(file, 'utf8') : null;
+    writeFileSync(`${run.clone}/${run.dir}/.factory/wont-do.md`, 'stop');
+  });
+
+  it('gives the agent the groomed request triage saved', async () => {
+    mkdirSync(`${home}/groomed`, { recursive: true });
+    writeFileSync(`${home}/groomed/issue-7.md`, '## Groomed request\n\nPlayer need: money.\n');
+    await runStage(reading(), 7);
+    expect(seen).toBe('## Groomed request\n\nPlayer need: money.\n');
+  });
+
+  it('writes no groomed file when triage saved none', async () => {
+    await runStage(reading(), 7);
+    expect(seen).toBeNull();
+  });
+});
+
 describe('design stage with a bundle', () => {
   const bundled = (): void => writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), bundles: { '7': [9] } });
 
@@ -138,14 +159,14 @@ describe('design stage', () => {
     expect(calls.filter((call) => call.startsWith('push'))).toEqual([]);
   });
 
-  it('notifies the committee once about design questions, with the issue link and reply place', async () => {
+  it('notifies the committee once about design questions, with the link, the questions and the reply place', async () => {
     await runStage(fakeCtx((run) => writeFileSync(`${run.clone}/${run.dir}/.factory/questions.json`, '["Which horn?"]')), 7);
     const messages = calls.filter((call) => call.startsWith('message'));
     expect(messages).toHaveLength(1);
-    expect(messages[0]).toContain('Design needs answers on #7');
+    expect(messages[0]).toContain('Design asks on #7');
     expect(messages[0]).toContain('https://github.com/o/r/issues/7');
-    expect(messages[0]).toContain('Replies in this chat do not reach the stage.');
-    expect(messages[0]).not.toContain('Which horn?');
+    expect(messages[0]).toContain('Design hit a blocker it cannot settle by a sensible reading.\n\n1. Which horn?');
+    expect(messages[0]).toContain('Reply to this message to answer, or answer on GitHub.');
   });
 
   it('adds no duplicate notice when a retry asks while the earlier set is open', async () => {

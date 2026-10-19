@@ -15,6 +15,7 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 ## Roaming archetypes
 
 - `trader` buys goods where they are cheap and sells them where they are dear. It takes a haul contract only when trade has nothing to do.
+- A bot buys chassis only from the lineup of the town it stands in, and sells or prices a good only at a shop that trades it, so relics go to Nose.
 - `fastTrader` trades like the trader, buys no armor and picks the fastest chassis.
 - `hauler` takes the best haul contract on every board it reads, by pay per estimated turn. It trades only when no contract fits, so it measures contract pay against open trade.
 - `scavenger` scavenges first, then trades, then takes hauls.
@@ -63,9 +64,9 @@ The escort plays as an NPC guard would.
 At each outpost the escort does this in order.
 
 - It repairs both trucks. It tops up fuel and supplies and buys parts until it holds 4 for patching.
-- It refits its own truck by the merc loadout, never below the hauler's hurry pace.
+- It refits its own truck by the merc loadout.
 - It spends a share of the money left on hauler armor. The share is the hauler's part of the two trucks' repair bills on arrival, so it armors the truck that took the fire.
-- It buys the most valuable truck on offer that it can afford and that keeps its parts count. The truck must keep the hauler's hurry pace as its top speed. Money it cannot spend on gear builds up toward that truck.
+- It buys the most valuable truck on offer that it can afford and that keeps its parts count. Money it cannot spend on gear builds up toward that truck.
 
 The sprinter turns auto fire off, drives ahead to the next yard and never fires. At an outpost it repairs, refits for any speed and buys a truck. It measures whether the run can be sprinted. The hauler must lose it.
 

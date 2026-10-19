@@ -1,5 +1,5 @@
 {
- "format": "2.79",
+ "format": "2.83",
  "shape": {
   "broken": [],
   "craters": [],
@@ -474,6 +474,140 @@
       "grain": "number",
       "parts": "number",
       "textiles": "number"
+     },
+     "parts": [
+      {
+       "defId": "string",
+       "gun": {
+        "ammo": "number",
+        "cooldown": "number",
+        "reloadWork": "number"
+       },
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "defId": "string",
+      "gun": {
+       "ammo": "number",
+       "cooldown": "number",
+       "reloadWork": "number"
+      },
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "meds": "number",
+     "parts": "number",
+     "relics": "number",
+     "salt": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "meds": "number",
+      "parts": "number",
+      "relics": "number",
+      "salt": "number",
+      "scrap": "number"
+     },
+     "parts": [],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "meds": "number",
+     "parts": "number",
+     "relics": "number",
+     "salt": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "meds": "number",
+      "parts": "number",
+      "relics": "number",
+      "salt": "number",
+      "scrap": "number"
+     },
+     "parts": [
+      {
+       "charge": {
+        "reload": "number"
+       },
+       "defId": "string",
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "charge": {
+       "reload": "number"
+      },
+      "defId": "string",
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "meds": "number",
+     "parts": "number",
+     "relics": "number",
+     "salt": "number",
+     "scrap": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "meds": "number",
+      "parts": "number",
+      "relics": "number",
+      "salt": "number",
+      "scrap": "number"
      },
      "parts": [
       {
@@ -1651,6 +1785,7 @@
      "grain": "number",
      "meds": "number",
      "parts": "number",
+     "relics": "number",
      "salt": "number",
      "scrap": "number",
      "textiles": "number",
@@ -1860,6 +1995,7 @@
     ],
     "pressure": {
      "parts": "number",
+     "relics": "number",
      "scrap": "number",
      "tools": "number"
     },
@@ -2195,10 +2331,9 @@
    "road_seen_8": "boolean",
    "scale_seen": "boolean",
    "towed_to_bowl": "boolean",
-   "varga_truck_known": "boolean",
    "wagon_fate": "string",
-   "wagon_pin": "string",
    "wagon_read": "boolean",
+   "wagon_rod": "string",
    "wagon_saw": "boolean",
    "wagon_seen": "boolean",
    "wagon_watched": "boolean",
@@ -2213,7 +2348,6 @@
    },
    "bowl_hattie": {
     "hattie_came_out": "boolean",
-    "hattie_farm": "boolean",
     "hattie_flats": "boolean",
     "hattie_glass": "boolean",
     "hattie_granary": "boolean",
@@ -2224,8 +2358,7 @@
     "hattie_strip": "boolean",
     "hattie_sunward": "boolean",
     "hattie_tow": "boolean",
-    "hattie_unarmed": "boolean",
-    "hattie_varga": "boolean"
+    "hattie_unarmed": "boolean"
    },
    "bowl_jory": {
     "jory_filled": "boolean",
@@ -2318,7 +2451,7 @@
     "asked_brann": "boolean",
     "asked_glare": "boolean",
     "asked_kiln": "boolean",
-    "asked_pins": "boolean",
+    "asked_rods": "boolean",
     "asked_sun": "boolean",
     "heard_brann": "boolean",
     "heard_glare": "boolean",
@@ -2571,11 +2704,7 @@
      "towed_to_bowl"
     ],
     "readsNotes": [],
-    "writes": {
-     "varga_truck_known": [
-      true
-     ]
-    },
+    "writes": {},
     "notes": [
      "glassTank",
      "talkGlassLean",
@@ -2729,7 +2858,7 @@
     "reads": [
      "depot_thief",
      "wagon_fate",
-     "wagon_pin",
+     "wagon_rod",
      "wagon_seen"
     ],
     "readsNotes": [
@@ -2750,13 +2879,13 @@
    "links": {
     "reads": [
      "wagon_fate",
-     "wagon_pin"
+     "wagon_rod"
     ],
     "readsNotes": [],
     "writes": {},
     "notes": [
      "greenPit",
-     "talkOnePin"
+     "talkBrakeRod"
     ],
     "begins": [
      "wagon_bench"
@@ -2941,8 +3070,8 @@
    "revision": 1,
    "links": {
     "reads": [
-     "wagon_pin",
      "wagon_read",
+     "wagon_rod",
      "wagon_saw"
     ],
     "readsNotes": [],
@@ -2961,19 +3090,19 @@
    "revision": 1,
    "links": {
     "reads": [
-     "wagon_pin",
      "wagon_read",
+     "wagon_rod",
      "wagon_saw",
      "wagon_watched"
     ],
     "readsNotes": [],
     "writes": {
-     "wagon_pin": [
-      "bent",
-      "held"
-     ],
      "wagon_read": [
       true
+     ],
+     "wagon_rod": [
+      "bent",
+      "held"
      ],
      "wagon_saw": [
       true
@@ -2983,7 +3112,7 @@
      ]
     },
     "notes": [
-     "wagonPin"
+     "wagonRod"
     ],
     "begins": []
    }
@@ -2993,7 +3122,7 @@
    "links": {
     "reads": [
      "wagon_fate",
-     "wagon_pin",
+     "wagon_rod",
      "wagon_watched"
     ],
     "readsNotes": [

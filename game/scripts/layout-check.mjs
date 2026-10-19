@@ -7,7 +7,7 @@ const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://lo
 const cpu = process.argv.includes('--cpu');
 const BOOT_LIMIT_MS = process.env.TEST_TIMEOUTS === 'off' ? 0 : cpu ? 240000 : 30000;
 const SEED = 4242;
-const LOCALES = process.env.LAYOUT_LOCALES?.split(',') ?? ['en', 'ru', 'pseudo'];
+const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en', 'ru', 'pseudo'];
 const VIEWPORTS = [[1280, 720], [700, 800]];
 const TALL = [1440, 900];
 const KEY_CAPS = ['WASD', 'Shift', 'Esc'];
@@ -112,6 +112,11 @@ const closeHelp = (page) => page.evaluate(() => document.querySelector('#ui .hel
 
 const openSaves = (page) => chooseMenuItem(page, 'save');
 const openOptions = (page) => chooseMenuItem(page, 'options');
+const setMinimap = async (page, on) => {
+  await openOptions(page);
+  await page.evaluate((at) => document.querySelectorAll('#ui .minimap-switch > button')[at].click(), on ? 1 : 0);
+  await escape(page);
+};
 
 function faultsIn(page, locale) {
   return page.evaluate(async ({ locale, names, glyphs }) => {
@@ -119,6 +124,19 @@ function faultsIn(page, locale) {
     const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English'];
     return findLayoutFaults(document.getElementById('ui'), { locale, allow, glyphs });
   }, { locale, names: KEY_CAPS, glyphs: GLYPHS });
+}
+
+function frameFaults(page) {
+  return page.evaluate(async () => {
+    const { questFrameFits } = await import('/src/ui/quest-screen.ts');
+    const screen = document.querySelector('#ui .quest-screen.quest-page');
+    const frame = screen?.querySelector('.quest-frame');
+    if (!frame) return [];
+    const { width, height } = frame.getBoundingClientRect();
+    const stacked = screen.classList.contains('stacked') || document.getElementById('ui').classList.contains('phone');
+    if (questFrameFits(width, height, stacked)) return [];
+    return [{ kind: 'quest-frame-shape', path: '.quest-frame', text: `${Math.round(width)}x${Math.round(height)} stacked=${stacked}`, sizes: '' }];
+  });
 }
 
 async function probe(page, locale) {
@@ -180,9 +198,21 @@ const openStartMenu = (page) => page.evaluate(async () => {
     node.style.display = 'none';
   }
   const { chooseStart } = await import('/src/ui/save-screen.ts');
+  const { SoundSettings } = await import('/src/ui/sound.ts');
+  const sound = new SoundSettings({ setBusVolume: () => {}, setMuted: () => {} }, window.localStorage);
   const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'furyRoad' }];
-  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false });
+  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false }, sound);
 });
+
+const openStartOptions = async (page) => {
+  await openStartMenu(page);
+  await page.locator('.start-menu .btn-l').last().click();
+};
+
+const openQuestInventory = async (page) => {
+  await openQuestPage(page);
+  await key(page, 'KeyI');
+};
 
 const openStartLoad = async (page) => {
   await openStartMenu(page);
@@ -220,8 +250,12 @@ const STATES = {
   log: { setup: fillLog },
   inventory: { setup: openInventory, teardown: escape },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage },
+  'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
+  charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
+  'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
+  minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
@@ -232,6 +266,7 @@ const STATES = {
   options: { setup: openOptions, teardown: escape },
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
   'start-load': { setup: openStartLoad, teardown: closeStartMenu },
+  'start-options': { setup: openStartOptions, teardown: async (page) => { await escape(page); await closeStartMenu(page); } },
   inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
 };
@@ -246,14 +281,15 @@ const seconds = () => Math.round((Date.now() - started) / 1000);
 const report = [];
 let captures = 0;
 
-async function capture(page, locale, [width, height], [name, state]) {
+async function capture(page, locale, [width, height], [name, state], size = 1) {
   await state.setup(page);
   await page.evaluate(() => document.fonts.ready);
   await frames(page);
-  await page.screenshot({ path: `${OUT}/${name}-${locale}-${width}x${height}.png` });
-  for (const f of await faultsIn(page, locale)) report.push({ state: name, locale, viewport: `${width}x${height}`, ...f });
+  const label = size === 1 ? `${width}x${height}` : `${width}x${height}-ui${Math.round(size * 100)}`;
+  await page.screenshot({ path: `${OUT}/${name}-${locale}-${label}.png` });
+  for (const f of [...await faultsIn(page, locale), ...await frameFaults(page)]) report.push({ state: name, locale, viewport: label, ...f });
   captures++;
-  console.log(`${name} ${locale} ${width}x${height} at ${seconds()} s`);
+  console.log(`${name} ${locale} ${label} at ${seconds()} s`);
   if (state.teardown) await state.teardown(page);
   await frames(page);
 }
@@ -267,11 +303,29 @@ async function checkLocale(page, locale) {
   }
 }
 
+const SIZE_STATES = ['menu', 'inventory', 'shop', 'options'];
+const SIZE_PASSES = [[[1280, 720], 1.3], [[1280, 720], 0.8], [[640, 360], 1]];
+
+const setUiSize = (page, size) => page.evaluate(async (s) => (await import('/src/ui/ui-size.ts')).uiSize().set(s), size);
+
+async function checkUiSizes(page) {
+  await page.evaluate((l) => window.__ROAM__.language.set(l), 'en');
+  for (const [viewport, size] of SIZE_PASSES) {
+    await page.setViewportSize({ width: viewport[0], height: viewport[1] });
+    await setUiSize(page, size);
+    const applied = await page.evaluate(async () => (await import('/src/ui/ui-size.ts')).uiSize().applied());
+    if (applied !== size) report.push({ state: '-', locale: 'en', viewport: viewport.join('x'), kind: 'size-not-applied', path: '', text: `asked ${size}, applied ${applied}`, sizes: '' });
+    for (const entry of Object.entries(STATES).filter(([name]) => SIZE_STATES.includes(name))) await capture(page, 'en', viewport, entry, size);
+  }
+  await setUiSize(page, 1);
+}
+
 await mkdir(OUT, { recursive: true });
 const { browser, page, errors } = await boot();
 console.log(`booted at ${seconds()} s`);
 try {
   for (const locale of LOCALES) await checkLocale(page, locale);
+  if (!ONLY) await checkUiSizes(page);
 } finally {
   await browser.close();
 }

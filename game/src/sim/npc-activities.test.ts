@@ -19,7 +19,7 @@ import { endTurn } from './world';
 import { corePart, freeCells, goodsCount } from './grid';
 import { makePart } from './factory';
 import { addGoods, hasCargoRoom } from './inventory';
-import { finishGoal, getActivityDestination, patchGoal, pushGoal, resolveNpcActivities, thinkNpc, topGoal, turnCornered } from './npc-activities';
+import { finishGoal, getActivityDestination, ledPoint, patchGoal, pushGoal, resolveNpcActivities, thinkNpc, topGoal, turnCornered } from './npc-activities';
 import { leaveLoot } from './loot-warning';
 import { chooseOn, trackOf } from './tracks';
 import { watchStalls } from './npc-watchdog';
@@ -366,6 +366,7 @@ describe('NPC activities', () => {
     npc.resources!.money = 166700;
     npc.resources!.fuel = fuelCap(npc);
     forceOption('idle', 'trade');
+    forceOption('escortWanted', 'go');
     planNpcOrders(w);
     const source = [...REGION.towns, ...REGION.locations].find((s) => s.id === topGoal(npc)?.targetId)!;
     npc.pos = { ...sitePads(source)[0] };
@@ -2050,5 +2051,23 @@ describe('a loot refit under way', () => {
     npc.brain!.goals = [];
     thinkNpc(w, npc);
     expect(npc.brain!.goals.some((g) => g.kind === 'repair')).toBe(true);
+  });
+});
+
+describe('ledPoint', () => {
+  const center = { x: 50, y: 40 };
+  const heard = { x: 40, y: 40 };
+
+  it('keeps the heard centre when it moved no more than the circle', () => {
+    expect(ledPoint(center, heard, 10, 8)).toEqual(center);
+    expect(ledPoint(center, undefined, 1, 8)).toEqual(center);
+  });
+
+  it('leads along the drift by the drift beyond the circle', () => {
+    expect(ledPoint(center, heard, 6, 8)).toEqual({ x: 54, y: 40 });
+  });
+
+  it('never leads past one turn of the investigator\'s driving', () => {
+    expect(ledPoint(center, heard, 2, 5)).toEqual({ x: 55, y: 40 });
   });
 });

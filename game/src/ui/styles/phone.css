@@ -11,14 +11,37 @@
   --phone-top-row: var(--icon-hero);
   --drawer-bottom: calc(var(--safe-bottom) + var(--phone-bar-h) + var(--hud-gap));
   --drawer-top: calc(var(--safe-top) + var(--phone-top-row) + var(--hud-gap));
-  --drawer-max-h: calc(100dvh - var(--drawer-bottom) - var(--drawer-top));
-  --drawer-w: calc((100vw - var(--safe-left) - var(--safe-right) - var(--hud-gap)) / 2);
+  --drawer-max-h: calc(var(--layer-h) - var(--drawer-bottom) - var(--drawer-top));
+  --drawer-w: calc((var(--layer-w) - var(--safe-left) - var(--safe-right) - var(--hud-gap)) / 2);
   --phone-tabs-w: calc(4 * var(--btn-h-l) + 3 * var(--space-2));
   --right-column: 0px;
 }
 
-#ui.phone .bottom-left {
+#ui.phone .bottom-left,
+#ui.phone .right-column {
   display: contents;
+}
+#ui:not(.phone) .log-strip {
+  display: none;
+}
+#ui.phone .log-strip {
+  position: fixed;
+  z-index: var(--z-hud);
+  box-sizing: border-box;
+  left: var(--safe-left);
+  right: var(--safe-right);
+  bottom: calc(var(--safe-bottom) + var(--btn-h-l) + var(--hud-gap));
+  height: var(--phone-strip-h);
+  padding: 0 var(--space-4);
+}
+#ui.phone .log-strip:empty {
+  display: none;
+}
+#ui.phone .log-strip > div {
+  font-size: var(--text-caption);
+}
+#ui.phone .log-strip .log-time {
+  display: none;
 }
 #ui.phone .top-center {
   left: var(--safe-left);
@@ -72,7 +95,7 @@
   box-sizing: border-box;
   left: var(--safe-left);
   right: var(--safe-right);
-  bottom: calc(var(--safe-bottom) + var(--btn-h-l) + var(--hud-gap));
+  bottom: calc(var(--safe-bottom) + var(--btn-h-l) + var(--hud-gap) + var(--phone-strip-h) + var(--hud-gap));
   height: var(--phone-readouts-h);
   overflow: hidden;
   padding: var(--space-1) var(--space-2);
@@ -181,16 +204,16 @@
 #ui.phone .info {
   right: var(--safe-right);
   left: auto;
-  width: min(var(--panel-s), calc(100vw - var(--safe-left) - var(--safe-right)));
+  width: min(var(--panel-s), calc(var(--layer-w) - var(--safe-left) - var(--safe-right)));
   max-width: none;
-  max-height: 50dvh;
+  max-height: calc(0.5 * var(--layer-h));
   overflow: auto;
 }
 
 #ui.phone:has(.modal:not([style*="display: none"])) > .top-center > .opening-tip {
   visibility: hidden;
 }
-#ui.phone:has(.modal:not([style*="display: none"])) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .info) {
+#ui.phone:has(:is(.modal:not([style*="display: none"]), .options)) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .log-strip, .info) {
   display: none;
 }
 #ui.phone[data-drawer] > .top-center > .tip,
@@ -212,7 +235,7 @@
 #ui.phone .modal.quest-screen {
   top: var(--safe-top);
   width: auto;
-  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom));
+  max-height: calc(var(--layer-h) - var(--safe-top) - var(--safe-bottom));
 }
 #ui.phone .modal.quest-screen.quest-page {
   top: var(--safe-top);
@@ -229,9 +252,19 @@
 #ui.phone .quest-page .quest-art,
 #ui .quest-page.stacked .quest-art {
   box-sizing: border-box;
-  height: 26dvh;
+  height: calc(0.26 * var(--layer-h));
   padding: var(--space-4);
   border-right: 0;
+  display: flex;
+  justify-content: center;
+}
+#ui.phone .quest-page .quest-frame,
+#ui .quest-page.stacked .quest-frame {
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  max-height: none;
+  aspect-ratio: var(--quest-frame-band);
 }
 #ui.phone .quest-page .quest-text,
 #ui .quest-page.stacked .quest-text {
@@ -240,7 +273,7 @@
 }
 #ui.phone .quest-page .quest-side,
 #ui .quest-page.stacked .quest-side {
-  max-height: 24dvh;
+  max-height: calc(0.24 * var(--layer-h));
   padding: var(--space-4) var(--space-6);
   border-left: 0;
   border-top: 1px solid var(--surface-raised);
@@ -255,15 +288,15 @@
 #ui.phone .save-panel {
   box-sizing: border-box;
   min-width: 0;
-  width: calc(100vw - var(--safe-left) - var(--safe-right));
-  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom));
+  width: calc(var(--layer-w) - var(--safe-left) - var(--safe-right));
+  max-height: calc(var(--layer-h) - var(--safe-top) - var(--safe-bottom));
   overflow: auto;
 }
 #ui.phone:has(:is(.options, .save-panel, .help)) > .top-center,
 #ui.phone:has(.game-menu [role="menu"]:not([hidden])) > .top-center {
   visibility: hidden;
 }
-#ui.phone .radio {
+#ui.phone :is(.radio, .options-sound) {
   --knob-size: var(--touch-target);
 }
 
@@ -272,7 +305,7 @@
     bottom: var(--safe-bottom);
   }
   #ui.phone .end-turn {
-    width: calc(100vw - var(--safe-left) - var(--safe-right) - var(--phone-tabs-w) - var(--hud-gap));
+    width: calc(var(--layer-w) - var(--safe-left) - var(--safe-right) - var(--phone-tabs-w) - var(--hud-gap));
   }
 }
 
@@ -281,6 +314,11 @@
     left: calc(var(--safe-left) + var(--phone-tabs-w) + var(--hud-gap));
     right: calc(var(--safe-right) + var(--phone-end-w) + var(--hud-gap));
     bottom: var(--safe-bottom);
+  }
+  #ui.phone .log-strip {
+    left: auto;
+    width: var(--drawer-w);
+    bottom: calc(var(--safe-bottom) + var(--phone-readouts-h) + var(--hud-gap));
   }
   #ui.phone.phone .weapons {
     right: auto;
@@ -315,4 +353,16 @@
   bottom: 1px;
   transform: none;
   font-size: var(--text-caption);
+}
+
+#ui:not(.phone) .quest-look {
+  display: none;
+}
+#ui.phone .quest-look {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: var(--z-badge);
+  display: flex;
+  gap: var(--space-2);
 }

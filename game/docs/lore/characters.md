@@ -13,7 +13,7 @@ Each person gets a sheet, then their story, then their line. The sheet is built 
 - Secret: what they hide and from whom. A person's stated reason for a job is often not the real one.
 - Their line: how they talk, in one sentence. Full voice sheets for speakers are in [Voices](voices.md).
 
-For example, Ruth Varga's trouble is that her well drops every summer, her habit is measuring it with a knotted rope, and her fear is ending as a tenant on the Bowl terraces.
+For example, Agnes Ondra's trouble is that she is afraid to refuse the steward's oil, her habit is reading every meter at dusk, and her fear is being named as the one who talked.
 
 ## Alan Graves
 
@@ -89,7 +89,7 @@ His line is "I will be king of the camps, and I will pay any price for it."
 - Wants: A camp of workers and not a king.
 - Fears: Her tools become only weapons for one man.
 - Habit: She tests every captured gun by hand before it goes into the melt.
-- Secret: She knows the deep bore that cools her furnace drained the Varga well. She has told nobody.
+- Secret: None.
 
 Dagny founded Kiln Camp when both towns drove her band out of the crater rim. She is past 110 and still works the furnace that gives the camp its name. She melts captured guns into tools. Ain runs the camp now, and she calls no one king.
 
@@ -292,18 +292,18 @@ His line is "Those trucks are the army. I am still on duty."
 ## Ash Kerimov
 
 - Way: oppose.
-- High concept: A former raider outrider who sits alone at the north bend and tells drivers to bore a second pin.
+- High concept: A former raider outrider who sits alone at the north bend and asks drivers to show their brake rods.
 - Trouble: He gave drivers a choice, and the raiders cast him out for it.
-- Aspects: Mara Kessel's brother died at his bend; Ain Christopher no longer trusts him; A purse for other people's pins.
+- Aspects: Mara Kessel's brother died at his bend; Ain Christopher no longer trusts him; A purse for other people's brake rods.
 - Skills: best driving, worst social.
 - Wants: No driver dies at the bend.
 - Fears: Being the next man to hold a route list.
-- Habit: He walks up to each truck and checks the mount for 2 pins before he speaks.
+- Habit: He walks up to each truck and looks at its brake rod before he speaks.
 - Secret: He rode on routes that Pierce clerks sold to robbers. He hides it from the drivers he warns.
 
-Ash was Scrapjaw's sharpest outrider. He gave every robbed driver a choice, and that cost him Rook's trust and then Ain's. Now he sits alone at the north bend where Emil Kessel died. He tells every driver to get a second pin bored, and he pays for it himself when they cannot.
+Ash was Scrapjaw's sharpest outrider. He gave every robbed driver a choice, and that cost him Rook's trust and then Ain's. Now he sits alone at the north bend where Emil Kessel died. He asks every driver to show the brake rod and sends them to the Salvage Yard to buy a proper one. He pays for it himself when they cannot.
 
-His line is "Pin it twice, friend. Then you choose your road, not the bend."
+His line is "Show me the rod, friend. Then you choose your road, not the bend."
 
 ## Constance Pierce
 
@@ -317,7 +317,7 @@ His line is "Pin it twice, friend. Then you choose your road, not the bend."
 - Habit: She writes the driver's road and day into the ledger before she says what she will pay.
 - Secret: She suspects Lucan sent the hook crates to Scrapjaw. She keeps the doubt from him and from the Committee.
 
-Constance is the head underwriter of Pierce Corporation at the Nose office, a great-granddaughter of Augustin Pierce. She wrote the rule that Pierce insures only armed trucks, and later the rule that it insures only mounts with two pins. She suspects what her cousin Lucan did with the yard's guns, and she cannot prove it. She never forgives a debt and never forgets a favor.
+Constance is the head underwriter of Pierce Corporation at the Nose office, a great-granddaughter of Augustin Pierce. She wrote the rule that Pierce insures only armed trucks. She suspects what her cousin Lucan did with the yard's guns, and she cannot prove it. She never forgives a debt and never forgets a favor.
 
 Her line is "A driver who files his road with me is a driver I can pay when he is shot."
 
@@ -356,32 +356,32 @@ Her line is "You carry the gun, I carry the letters, and neither of us dies on t
 - Way: fear.
 - High concept: A trader in salt and grain who rides behind Tamsin Roe with the gun.
 - Trouble: She will not file her road, so Pierce cancelled her paper and she runs uninsured.
-- Aspects: Tamsin Roe drives in front of her; Her flatbed carried the first swivel with 2 pins; Robbed once.
+- Aspects: Tamsin Roe drives in front of her; Her flatbed carried the first Brann swivel; Robbed once.
 - Skills: best perception, worst social.
 - Wants: Never to be robbed again.
 - Fears: Kiln riders, who take trucks that run alone.
 - Habit: She checks her mirrors every minute.
 - Secret: She keeps her road and her days out of every ledger. She hides them from Pierce and from Kiln riders.
 
-Vesna is a lone trader in salt and grain. She was robbed once and swore it would never happen twice. Her flatbed carried the first double-pinned Brann swivel, and Pierce later cancelled her paper because she would not file her road. She checks her mirrors every minute.
+Vesna is a lone trader in salt and grain. She was robbed once and swore it would never happen twice. Her flatbed carried the first Brann swivel, and Pierce later cancelled her paper because she would not file her road. She checks her mirrors every minute.
 
 Her line is "Kiln riders take the trucks that run alone."
 
 ## Otto Brann
 
 - Way: fear.
-- High concept: The Salvage Yard welder who built the first swivel and puts a second pin in every mount.
-- Trouble: Kiln riders bolt his swivels onto their trucks, and Nose copies his swivel with 1 pin.
-- Aspects: His granddaughter Lenka welds beside him; Mara Kessel's brother died on a copy of his swivel; A small mark in every ring.
+- High concept: The Salvage Yard welder who built the first swivel and signs every mount.
+- Trouble: Kiln riders bolt his swivels onto their trucks, and Nose copies his swivel in cheap steel.
+- Aspects: His granddaughter Lenka welds beside him; The Administrator sells his mounts; A small mark in every ring.
 - Skills: best machining, worst social.
 - Wants: Every mount in the basin holds.
-- Fears: A loose pin on a bend.
-- Habit: He cuts his small mark into each weld and then tries the pin with his hand.
+- Fears: A mount that tears loose on a bend.
+- Habit: He cuts his small mark into each weld and then tries the mount with his hand.
 - Secret: None.
 
-Otto is the welder at the Salvage Yard who built the first swivel, a gun mount of hull plate that turns across a truck bed. He signs every weld with a small mark and adds a second pin to every mount. Drivers say a Brann mark means an honest hauler, but Kiln riders bolt captured Brann swivels onto their own trucks. The Nose copied his swivel with one pin, and it killed a man he knew. His granddaughter Lenka welds beside him and signs her own pivot rings.
+Otto is the welder at the Salvage Yard who built the first swivel, a gun mount of hull plate that turns across a truck bed. He signs every weld with a small mark. Drivers say a Brann mark means an honest hauler, but Kiln riders bolt captured Brann swivels onto their own trucks. The Nose copied his swivel in cheap steel. His granddaughter Lenka welds beside him and signs her own pivot rings.
 
-His line is "A loose pin is a gun waiting for a bend."
+His line is "A loose mount is a gun waiting for a bend."
 
 ## Pim Arslan
 
@@ -427,7 +427,7 @@ Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well
 - Habit: She writes each report twice, once for the file and once for herself.
 - Secret: She keeps a pact with the Administrator. She hides it from Captain Silver.
 
-Mara was an inspector of the Nose Order Bureau, the Committee's secret police. She proved that a Pierce clerk sold the routes of insured trucks and that Lucan Pierce armed Scrapjaw. The Committee buried her case and sent her to Captain Silver's post at the Salvage Yard. Her brother Emil died on a one-pin Nose swivel. She writes everything twice, and she keeps a quiet pact with the Administrator that Silver does not know about.
+Mara was an inspector of the Nose Order Bureau, the Committee's secret police. She proved that a Pierce clerk sold the routes of insured trucks and that Lucan Pierce armed Scrapjaw. The Committee buried her case and sent her to Captain Silver's post at the Salvage Yard. Her brother Emil died on the north bend when his Nose brake rod snapped. She writes everything twice, and she keeps a quiet pact with the Administrator that Silver does not know about.
 
 Her line is "I wrote it twice, once for the file and once for myself."
 
@@ -495,7 +495,7 @@ Sefa leads a dozen vulture families who lived in the burnt trucks of the Burnt C
 
 Her line is "We take what the road is done with and leave the water."
 
-In autumn of year 130 her men cut the tow chain on wagon Seven's cannon and could not lift it, because the ring is bent and locked by a broken pin. She means to come back with a torch after the frost. Until then she tells the Army post that raiders took the wagon.
+In autumn of year 130 her men cut the tow chain on wagon Seven's cannon and could not lift it, because the wagon lies on its frame in the hollow. She means to come back with a torch after the frost. Until then she tells the Army post that raiders took the wagon.
 
 ## Bram Teller
 
@@ -507,27 +507,27 @@ In autumn of year 130 her men cut the tow chain on wagon Seven's cannon and coul
 - Wants: To keep his stripes and his sister's ration card.
 - Fears: The ration card goes back to the clerk.
 - Habit: He checks his watch when he lies.
-- Secret: He told Command that raiders took wagon Seven, but its one-pin swivel slid on the bend. He hides it from Command and the Salvage Yard.
+- Secret: He told Command that raiders took wagon Seven, but its cheap brake rod snapped on the bend. He hides it from Command and the Salvage Yard.
 
-Teller drove Nose Army wagon Seven on the weekly water run from Dustwell down the Bowl north road to Bowl for four years, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the wagon's one-pin swivel slid on the bend into a hollow, and the cannon's breech stove in the cab and broke the arm of his relief driver. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. After the rain he drove an Army truck back to the bend alone, walked down to take the broken pin out of the ring and could not shift it.
+Teller drove Nose Army wagon Seven on the weekly water run from Dustwell down the Bowl north road to Bowl for four years, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the cheap brake rod that command ordered for the depot trucks snapped on the bend. The wagon could not slow and went over the edge into a hollow, and it hurt the arm of his relief driver when it hit the verge. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. After the rain he drove an Army truck back to the bend alone, walked down to take the broken half of the rod out of the linkage and could not shift it.
 
 His line is "Look, I've driven that track four years. You don't know the bend."
 
 ## Ilan Duvall
 
 - Way: oppose.
-- High concept: A conscript relief driver of 20 who carries half of the pin that broke.
+- High concept: A conscript relief driver of 20 who carries half of the brake rod that broke.
 - Trouble: He says the plain truth to people who can punish him for it.
-- Aspects: Half a pin in his shirt pocket; Arm in a sling; Found cracked swivels on the depot line with Lena.
+- Aspects: Half a brake rod in his shirt pocket; Arm in a sling; Found cracked brake rods on the depot line with Lena.
 - Skills: best machining, worst social.
-- Wants: Somebody writes down that the pin failed and the ring did not.
-- Fears: Sitting under a one-pin mount again.
-- Habit: He turns his half of the pin in his fingers while he talks.
+- Wants: Somebody writes down that the rod failed and the bend did not.
+- Fears: Riding behind a cheap brake rod again.
+- Habit: He turns his half of the rod in his fingers while he talks.
 - Secret: None.
 
-Ilan is the conscript relief driver of wagon Seven, twenty years old. He rode in the cab to take over the link when Teller tired on the long run, and he was under the cannon when it swung, and his arm is in a sling. He took the top half of the sheared pin from the cab and keeps it in his shirt pocket. At Kovac's desk he said the pin sheared, and Kovac wrote it in the margin beside Teller's report. With Lena he found two more cracked one-pin swivels on the depot line. His mother lives in Bowl and buys her water at Hattie's well house.
+Ilan is the conscript relief driver of wagon Seven, twenty years old. He rode in the cab to take over the link when Teller tired on the long run, and his arm is in a sling from the hit on the verge. He took half of the broken brake rod from the wagon and keeps it in his shirt pocket. At Kovac's desk he said the rod broke, and Kovac wrote it in the margin beside Teller's report. With Lena he found two more cracked rods on the depot line. Lena warned command in writing, and command filed the warning. His mother lives in Bowl and buys her water at Hattie's well house.
 
-His line is "The ring was fine. The pin wasn't."
+His line is "The bend was fine. The rod wasn't."
 
 ## Edda Moss
 
@@ -575,53 +575,35 @@ Her line is "The test is here, but the road goes out there."
 
 Karl and his brother Jens were Old Army deserters who robbed insured trucks on the Nose road with routes bought from a Pierce clerk. Karl shot Hal Sorensen in year 113. After Jens died he hid among the Burnt Convoy families, and Sefa sent him south. He rides for Kiln Camp now, and nobody there asks about his past.
 
-In year 128, on Ladle's order, he bored a second pin into the swivel ring of the Varga pickup.
-
-## Ruth Varga
+## Hattie
 
 - Way: fear.
-- High concept: The last farmer with her own water on the south rim, now a tenant on the third terrace.
-- Trouble: She measures every loss and never learns why the well fell.
-- Aspects: A knotted rope that only gets shorter; Buys her water at Hattie's well house; Left Danil Varga's key in the ignition.
-- Skills: best toughness, worst social.
-- Wants: To see Danil again.
-- Fears: Being a tenant, which she now is.
-- Habit: She draws her water every morning at Hattie's well house and pays in sorghum.
-- Secret: None.
+- High concept: The tenant who sells water to outsider drivers at the Bowl gate yard.
+- Trouble: She waters the drivers the gate keeps out, so neither the town nor the road fully trusts her.
+- Aspects: The only water an outsider may buy in Bowl; Sizes up every driver by how they arrive.
+- Skills: best perception, worst machining.
+- Wants: No driver leaves Bowl thirsty.
+- Fears: A dry well, or a driver dying of thirst within sight of her stand.
+- Habit: She sounds the well with a weighted line before she opens each morning.
+- Secret: She waters drivers the patrol has turned away, and leaves them off her slate.
 
-Ruth kept the last farm with its own water on the south rim, below a water tower the Old World built. Every evening she measured the well with a knotted rope. From year 118 it dropped each summer, and nobody ever told her that Kiln Camp's deep bore drew from the same rock. When the well died in year 127 she paid the farm's Pierce debt in goats and diesel. In year 128 she walked north to the Bowl. She lives as a tenant on the third terrace, the thing she feared most, and buys her water at Hattie's well house every morning with sorghum. She left the pickup's key in the ignition in case her son came back and needed to leave fast.
+Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Every driver who is not let past the yard buys water from her, so she is the first and the last person of Bowl they speak to. Drivers talk while their tanks fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
 
-Her line is "The rope doesn't lie. People lie. The rope only gets shorter."
-
-## Danil Varga
-
-- Way: escape.
-- High concept: A farm son born behind a wheel who rode west as a hired Machiner and never came back.
-- Trouble: Every road out of the farm leaves a debt for his mother to pay.
-- Aspects: An old square pickup with a Brann swivel; Knows every rut of the south road; Took his mother's rifle.
-- Skills: best driving, worst toughness.
-- Wants: To ride west with a long-haul convoy and never come back.
-- Fears: Dying in the farm's dust like his father.
-- Habit: He sleeps in the truck when he is angry.
-- Secret: He lifted the spare key from Amos Teague's belt and took the pickup back. He hid it from Amos and from Pierce.
-
-Ruth's son was born behind a wheel and raised behind a plough. He bought an old square pickup on Pierce credit, and Otto Brann welded one of his first swivels into its bed. Danil ran the farm's sorghum north through the Nose gate to pay for it. In year 127 Amos Teague held the pickup at the Nose for Pierce. Danil lifted the spare key from Amos's belt, drove the truck home in the dark, parked it in the shed and rode west with Dario Feld's convoy as a hired Machiner, with his mother's rifle. He never came back.
-
-His line is "Every road out of here is a road out of here."
+Her line is "Sit down before you fall down."
 
 ## Marta "Ladle" Ruiz
 
 - Way: oppose.
 - High concept: The Kiln Camp rider who runs the south road as her own toll.
 - Trouble: Her mark protects only while Kiln lets her hold the road, and Kiln can melt her down.
-- Aspects: A ladle scratched in every paid door; Karl Vosk on the junction gun; Her riders drank free at the Varga tap.
+- Aspects: A ladle scratched in every paid door; Karl Vosk on the junction gun; Tastes every water barrel she takes.
 - Skills: best social, worst machining.
 - Wants: To run the south road as her own toll.
 - Fears: Being melted down with the guns the day Kiln turns on her.
 - Habit: She tastes every water barrel she takes.
-- Secret: She paid the Varga water debt with a stripped gun. She hides from the Kiln council that her mark now covers a truck whose owners are gone.
+- Secret: None.
 
-Ladle runs the south road for Kiln Camp. She tastes every water barrel she takes, and Kiln riders drank free at the Varga tap for years in return for leaving Varga trucks alone. When the Varga well died she came for her last cup and found rust. She paid the debt her own way: a machine gun stripped from a truck that did not pay, set on the Varga pickup's swivel. Then she scratched her ladle into its door. On the south road the mark means the truck has paid. Her riders know the Vargas are gone, so to them a stranger in that truck is a thief, and the mark protects nothing. She fears that Kiln will melt her down with the guns the day it turns on her.
+Ladle runs the south road for Kiln Camp. She tastes every water barrel she takes. A truck that pays her toll gets her ladle scratched into its door. On the south road the mark means the truck has paid. She fears that Kiln will melt her down with the guns the day it turns on her.
 
 Her line is "Paid is paid. For whoever paid it."
 
@@ -629,15 +611,15 @@ Her line is "Paid is paid. For whoever paid it."
 
 - Way: control.
 - High concept: A tow man who once collected for the Pierce yard and closes every line in his ledger.
-- Trouble: He closed the Varga line on paper, but he still feels he owes Ruth.
-- Aspects: A ledger and a winch; Handed Ruth Varga the key with the yard's brass tag; Danil Varga lifted a key from his belt.
+- Trouble: He closes every line on paper, but one truck's line has no owner to close it against.
+- Aspects: A ledger and a winch; A key with the yard's brass tag; The crews of Sully Okafor took the yard he collected for.
 - Skills: best perception, worst toughness.
 - Wants: To close every open line in his ledger.
 - Fears: Being written off like the debts he fails to collect.
 - Habit: He hangs the key of every truck he seizes on his belt.
-- Secret: He towed the stranger's truck to Bowl to find Ruth. He has not faced her.
+- Secret: None.
 
-Amos collected for the Pierce yard on the south road. He took the key of every truck he seized and hung it on his belt, and he closed every line in his ledger. He closed the Varga line in year 127 and, by his own habit, handed Ruth the key of a truck that was paid for, with the yard's brass tag still on it. Since the crews took the yard he tows for whoever pays. In year 130 he found a stranger knocked out in that same pickup and knew the tag. He towed the truck to Bowl and asked at the well house after a Varga woman, then drove off before anyone could fetch her, and left his chain behind.
+Amos collected for the Pierce yard on the south road. He took the key of every truck he seized and hung it on his belt, and he closed every line in his ledger. Since the crews took the yard he tows for whoever pays. In year 130 he found a stranger knocked out in an old pickup, and its key carried the yard's brass tag. The owner is unknown. He towed the truck to Bowl, then drove off before anyone could ask, and left his chain behind.
 
 His line is "A line stays open till somebody closes it. I close them."
 
