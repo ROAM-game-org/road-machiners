@@ -4,10 +4,10 @@ import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { CONDITION } from '../data/wear';
-import { getLotTradePrice, partRepairCost, enterTown, scrapPatch } from './economy';
-import { corePart, coreParts, mountedParts } from './grid';
+import { getLotTradePrice, partRepairCost, partTradePrice, enterTown, scrapPatch } from './economy';
+import { corePart, coreParts, gridOf, mountedParts } from './grid';
 import { makePart } from './factory';
-import { addGoods, stowPart } from './inventory';
+import { addGoods, spareParts, stowPart } from './inventory';
 import { acceptContract, shopState, type Contract } from './market';
 import { sitePads } from './sites';
 import { leakFuel, tankLeaks } from './supplies';
@@ -28,6 +28,15 @@ function strandedBroke(pos = sitePads(bowl)[0]): World {
   corePart(me, 'transmission').hp = 0;
   engineOf(me).hp = 1;
   w.player.money = 0;
+  w.events = [];
+  return w;
+}
+
+function noEngine(): World {
+  const w = strandedBroke();
+  const me = w.vehicles[0];
+  corePart(me, 'transmission').hp = maxHp(corePart(me, 'transmission'));
+  me.items = me.items.filter((it) => !(it.kind === 'part' && it.part === engineOf(me)));
   w.events = [];
   return w;
 }
@@ -93,16 +102,103 @@ describe('scrap patch', () => {
     expect(isStranded(w, w.vehicles[0])).toBe(false);
   });
 
-  it('gives nothing to a truck with no engine, since no patch makes one', () => {
-    const w = strandedBroke();
+  it('leaves a truck with no engine and a loose engine to mount it for free', () => {
+    const w = noEngine();
     const me = w.vehicles[0];
-    const engine = engineOf(me);
-    me.items = me.items.filter((it) => !(it.kind === 'part' && it.part === engine));
+    expect(stowPart(w, me, makePart(w, 'stockEngine', 0))).toBe(true);
 
     scrapPatch(w);
 
-    expect(corePart(me, 'transmission').hp).toBe(0);
-    expect(w.events).not.toContainEqual(expect.objectContaining({ t: 'scrapPatch' }));
+    expect(w.player.money).toBe(0);
+    expect(mountedParts(me, 'engine')).toHaveLength(0);
+    expect(w.events).toHaveLength(0);
+  });
+
+  it('leaves a truck with no engine and a spare engine in storage alone', () => {
+    const w = noEngine();
+    w.player.storage.push(makePart(w, 'stockEngine', 0));
+
+    scrapPatch(w);
+
+    expect(w.player.money).toBe(0);
+    expect(w.events).toHaveLength(0);
+  });
+
+  it('gives a truck with no engine and nothing to pay with the cheapest shelf engine on credit', () => {
+    const w = noEngine();
+    const me = w.vehicles[0];
+    const shelf = shopState(w, 'bowl').stock;
+    const cheapest = shelf.filter((p) => partDef(p.defId).kind === 'engine').sort((a, b) => partTradePrice(w, me, a, 'buy') - partTradePrice(w, me, b, 'buy'))[0];
+    const price = partTradePrice(w, me, cheapest, 'buy');
+    const parts = shelf.length + me.items.filter((it) => it.kind === 'part').length;
+
+    scrapPatch(w);
+
+    expect(mountedParts(me, 'engine')).toEqual([cheapest]);
+    expect(shopState(w, 'bowl').stock).not.toContain(cheapest);
+    expect(w.player.money).toBe(-price);
+    expect(shelf.length + me.items.filter((it) => it.kind === 'part').length).toBe(parts);
+    expect(isStranded(w, me)).toBe(false);
+    expect(w.events).toContainEqual({ t: 'engineCredit', part: cheapest.defId });
+    expect(w.events).toContainEqual({ t: 'shopMoney', vehicle: me.id, amount: -price, kind: 'partCredit' });
+
+    w.events = [];
+    scrapPatch(w);
+    expect(w.player.money).toBe(-price);
+    expect(w.events).toHaveLength(0);
+  });
+
+  it('leaves a truck with no engine and the money for one to buy it', () => {
+    const w = noEngine();
+    w.player.money = 3333333;
+
+    scrapPatch(w);
+
+    expect(mountedParts(w.vehicles[0], 'engine')).toHaveLength(0);
+    expect(w.player.money).toBe(3333333);
+  });
+
+  it('gives nothing to a truck with no engine when the shelf holds none', () => {
+    const w = noEngine();
+    const state = shopState(w, 'bowl');
+    state.stock = state.stock.filter((p) => partDef(p.defId).kind !== 'engine');
+
+    scrapPatch(w);
+
+    expect(mountedParts(w.vehicles[0], 'engine')).toHaveLength(0);
+    expect(w.player.money).toBe(0);
+    expect(w.events).toHaveLength(0);
+  });
+
+  it('stows the credited engine when the engine cells are taken', () => {
+    const w = noEngine();
+    const me = w.vehicles[0];
+    const grid = gridOf(me);
+    grid.cells.forEach((row, y) => row.forEach((letter, x) => {
+      if (letter === 'E') me.items.push({ id: `blocker${x}-${y}`, x, y, rot: 0, kind: 'good', good: 'scrap' });
+    }));
+
+    scrapPatch(w);
+
+    expect(w.player.money).toBeLessThan(0);
+    expect(w.events).toContainEqual(expect.objectContaining({ t: 'engineCredit' }));
+    expect(mountedParts(me, 'engine')).toHaveLength(0);
+    expect([...spareParts(me), ...w.player.storage].some((p) => partDef(p.defId).kind === 'engine')).toBe(true);
+
+    w.events = [];
+    scrapPatch(w);
+    expect(w.events).toHaveLength(0);
+  });
+
+  it('pays less when the credited engine is sold back than it cost', () => {
+    const w = noEngine();
+    const me = w.vehicles[0];
+
+    scrapPatch(w);
+    const engine = mountedParts(me, 'engine')[0];
+    const debt = w.player.money;
+
+    expect(partTradePrice(w, me, engine, 'sell')).toBeLessThan(-debt);
   });
 
   it('leaves a player who can pay for the repair to the garage', () => {

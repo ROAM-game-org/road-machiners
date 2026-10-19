@@ -167,6 +167,7 @@ export const LOG = {
   'log.partDisabled': m('{who}: {part} disabled', { who: 'text', part: 'text' }),
   'log.breakdown': m('{part} broke down', { part: 'text' }),
   'log.townPatch': 'You patch your truck with scrap.',
+  'log.engineCredit': m('The garage fits a {part} on credit.', { part: 'text' }),
   'log.scrapPatch': 'You patch up your car with scrap until it starts moving again.',
   'log.scrapPatchFuel': m('You patch up your car with scrap until it starts moving again. Townsfolk spare you {liters} L of fuel.', { liters: 'int' }),
   'log.npcKnockout': m('{who} knocked out', { who: 'text' }),
