@@ -1,4 +1,4 @@
-import { bindAttr, boundMsg, TEXT_ATTRS, textNode, type TextAttr } from '../text/language';
+import { bindAttr, boundMsg, TEXT_ATTRS, textNode, unbindAttr, type TextAttr } from '../text/language';
 import { Msg, VERBATIM, type DevLocale } from '../text/msg';
 
 type TextAttrs = { [K in TextAttr]?: Msg };
@@ -115,6 +115,16 @@ type ClickAttrs = { onclick: () => void; 'aria-disabled'?: string; 'data-reason'
 export function disabledWith(reason: Msg | null, onclick: () => void): ClickAttrs {
   if (reason === null) return { onclick };
   return { onclick: () => {}, 'aria-disabled': 'true', 'data-reason': reason };
+}
+
+export function markDisabled(node: HTMLElement, reason: Msg | null): void {
+  if (reason === null) {
+    node.removeAttribute('aria-disabled');
+    unbindAttr(node, 'data-reason');
+    return;
+  }
+  node.setAttribute('aria-disabled', 'true');
+  bindAttr(node, 'data-reason', reason);
 }
 
 function bindText(node: HTMLElement, k: string, msg: Msg): void {

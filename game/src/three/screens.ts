@@ -1,4 +1,4 @@
-import { CharacterScreen } from "../ui/character";
+import { CharacterScreen, type CharacterTab } from "../ui/character";
 import type { UiHost } from "../ui/host";
 import { FullShopScreen } from "../ui/full-shop";
 import { InventoryScreen } from "../ui/inventory";
@@ -75,5 +75,15 @@ export class ModalScreens {
     const over = this.quest.isOpen() && screen.isOpen();
     screen.root.classList.toggle(OVER_SCENE, over);
     if (this.quest.isOpen() && !this.lookOver()) this.quest.focus();
+  }
+
+  openCharacter(tab: CharacterTab): void {
+    this.closeAll(this.character);
+    this.character.open(tab);
+  }
+
+  toggleCharacter(tab: CharacterTab): void {
+    this.closeAll(this.character);
+    this.character.toggle(tab);
   }
 }

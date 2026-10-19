@@ -48,6 +48,10 @@ import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repair
 import { el, panel, type Child } from "./dom";
 import { claimRivalMark, contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
+import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
+import { MapView, observeBox } from "./map-view";
+import { toPx, type Viewport } from "./map-geometry";
+import { token } from "./tokens";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
 import type { UiHost } from "./host";
@@ -58,7 +62,7 @@ import { goodName, localName, localRole, refusalText, siteName, vehicleTitle } f
 import { commandFailure } from "./format";
 import { vehicleHasPerk } from "../sim/progress";
 
-export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "contracts";
+export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "contracts" | "charts";
 
 export type StockFilter = "all" | Exclude<PartKind, "core">;
 
@@ -67,6 +71,7 @@ export const STOCK_FILTERS: StockFilter[] = ["all", "weapon", "engine", "armor",
 const GARAGE_ONLY: Tab[] = ["trucks"];
 
 const PRESSURE_HINT_AT = 0.2;
+const CHARTS_SIZE = 640;
 
 export class TownScreen {
   private root = panel("modal dialog");
@@ -74,6 +79,11 @@ export class TownScreen {
   private stockFilter: StockFilter = "all";
   private error: Msg | null = null;
   private rows = new PartRows(() => this.render());
+  private sheet: Sheet | null = null;
+  private hoverSheet: Sheet | null = null;
+  private chartOffers: SheetOffer[] = [];
+  private chartsBox: HTMLElement | null = null;
+  private chartsView = new MapView({ kind: "fit" }, CHARTS_SIZE, CHARTS_SIZE, (ctx, view) => this.drawSheets(ctx, view));
 
   private inventory: InventoryView;
 
@@ -82,6 +92,21 @@ export class TownScreen {
     this.root.style.display = "none";
     window.addEventListener("resize", () => this.render());
     this.inventory = new InventoryView(host, () => this.render(), false);
+    this.chartsView.canvas.addEventListener("click", (e) => {
+      this.sheet = this.sheetAt(e.clientX, e.clientY);
+      this.render();
+    });
+    this.chartsView.canvas.addEventListener("pointermove", (e) => {
+      const over = this.sheetAt(e.clientX, e.clientY);
+      if (over && this.hoverSheet && sheetId(over) === sheetId(this.hoverSheet)) return;
+      if (!over && !this.hoverSheet) return;
+      this.hoverSheet = over;
+      this.chartsView.update(this.host.world(), null);
+    });
+    this.chartsView.canvas.addEventListener("pointerleave", () => {
+      this.hoverSheet = null;
+      this.chartsView.update(this.host.world(), null);
+    });
   }
 
   isOpen(): boolean {
@@ -133,11 +158,12 @@ export class TownScreen {
   private normalizeTab(shopId: string, def: ShopDef): void {
     if (def.kind !== "garage" && GARAGE_ONLY.includes(this.tab)) this.tab = "market";
     if (this.tab === "people" && localsAt(shopId).length === 0) this.tab = "market";
+    if (this.tab === "charts" && !def.charts) this.tab = "market";
   }
 
   private tabButtons(shopId: string, def: ShopDef): HTMLElement[] {
     const people: Tab[] = localsAt(shopId).length > 0 ? ["people"] : [];
-    const tabs: Tab[] = [...people, "market", "buyParts", "sellParts", ...(def.kind === "garage" ? GARAGE_ONLY : []), "contracts"];
+    const tabs: Tab[] = [...people, "market", "buyParts", "sellParts", ...(def.kind === "garage" ? GARAGE_ONLY : []), "contracts", ...(def.charts ? (["charts"] as Tab[]) : [])];
     return tabs.map((tab) =>
       el(
         "button",
@@ -163,6 +189,7 @@ export class TownScreen {
       sellParts: () => this.sellParts(w),
       trucks: () => this.trucks(w, shopId),
       contracts: () => this.contracts(w, shopId),
+      charts: () => this.charts(w, shopId),
     };
     return body[this.tab]();
   }
@@ -333,6 +360,62 @@ export class TownScreen {
     }));
   }
 
+  private charts(w: World, shopId: string): HTMLElement {
+    const offers = chartsOnSale(w, shopId);
+    const picked = offers.find((o) => this.sheet && sheetId(o.sheet) === sheetId(this.sheet)) ?? null;
+    if (!picked) this.sheet = null;
+    this.chartOffers = offers;
+    this.chartsView.update(w, null);
+    const buy = picked
+      ? this.priceButton(w, t("goods.buy"), picked.price, (x) => buyChart(x, picked.sheet), null, "buy-chart")
+      : null;
+    return el("div", { class: "charts" }, this.chartsMap(), buy);
+  }
+
+  private chartsMap(): HTMLElement {
+    if (this.chartsBox) return this.chartsBox;
+    const box = el("div", { class: "charts-map" }, this.chartsView.canvas);
+    observeBox(box, this.chartsView);
+    this.chartsBox = box;
+    return box;
+  }
+
+  private sheetAt(clientX: number, clientY: number): Sheet | null {
+    const p = this.chartsView.pick(clientX, clientY);
+    if (!p) return null;
+    const sheet = sheetAt(this.host.world().size, p);
+    return this.chartOffers.some((o) => sheetId(o.sheet) === sheetId(sheet)) ? sheet : null;
+  }
+
+  private drawSheets(ctx: CanvasRenderingContext2D, view: Viewport): void {
+    const trace = (sheet: Sheet) => {
+      const b = sheetTiles(this.host.world().size, sheet);
+      const from = toPx(view, { x: b.x0, y: b.y0 });
+      const to = toPx(view, { x: b.x1, y: b.y1 });
+      ctx.beginPath();
+      ctx.rect(from.x, from.y, to.x - from.x, to.y - from.y);
+    };
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = token("--line-strong");
+    for (const o of this.chartOffers) {
+      trace(o.sheet);
+      ctx.stroke();
+    }
+    const mark = (sheet: Sheet | null, stroke: string, fill: string | null) => {
+      if (!sheet) return;
+      trace(sheet);
+      if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    };
+    mark(this.hoverSheet, token("--ink-bright"), null);
+    mark(this.sheet, token("--accent"), token("--accent-wash"));
+  }
+
   private contracts(w: World, shopId: string): HTMLElement {
     const board = shopState(w, shopId).contracts;
     const full = w.player.contracts.length >= CONTRACTS.maxActive;
@@ -432,6 +515,7 @@ export const TAB_ICON: Record<Tab, IconName> = {
   sellParts: "trade",
   trucks: "truck",
   contracts: "clock",
+  charts: "journal",
 };
 
 function theyHave(have: number, n: number, amount: (n: number) => Msg): Msg | null {
