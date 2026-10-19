@@ -1,6 +1,6 @@
 import { defaultSetup } from '../sim/settings';
 import { beforeAll, describe, expect, it } from "vitest";
-import { CHASSIS, PLAYER_CHASSIS } from "./chassis";
+import { CHASSIS, PLAYER_CHASSIS, TOWN_CHASSIS } from "./chassis";
 import { GOODS, GOOD_IDS } from "./goods";
 import { EFFORT, SHOPS, type ItemKind } from "./market";
 import { goodBasePrice, partPristineBuyPrice } from "../sim/market";
@@ -142,7 +142,10 @@ describe("equipment variety", () => {
     expect(PLAYER_CHASSIS).toHaveLength(16);
     for (const id of addedChassis) {
       expect(PLAYER_CHASSIS).toContain(id);
-      const w = buyChassis(world, id);
+      const town = REGION.towns.find((t) => TOWN_CHASSIS[t.id].includes(id))!;
+      const atTown = emptyWorld(sitePads(town)[0]);
+      atTown.player.money = world.player.money;
+      const w = buyChassis(atTown, id);
       const v = w.vehicles.find((vehicle) => vehicle.faction === "player")!;
       expect(v.chassisId).toBe(id);
       const cores = v.items.filter(

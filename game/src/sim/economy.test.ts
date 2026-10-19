@@ -12,6 +12,7 @@ import { CONDITION } from "../data/wear";
 import {
   basicsRepairCost,
   buyChassis,
+  garageChassis,
   buyGood,
   buyStockPart,
   buyPrice,
@@ -536,7 +537,7 @@ describe("garage", () => {
   it("refunds the difference when the trade-in beats the new chassis price", () => {
     let w = startAtBowl();
     w.player.money = 166667;
-    w = buyChassis(w, "carrier");
+    w = buyChassis(w, "tractor");
     const tradeIn = chassisTradeIn(w);
     expect(tradeIn).toBeGreaterThan(CHASSIS.scout.value);
     const before = w.player.money;
@@ -811,6 +812,20 @@ describe("garage storage at a stall", () => {
     expect(next.player.money).toBe(w.player.money + price);
     expect(next.player.storage).toEqual([]);
     expect(next.shops["pump-station"].stock.some((p) => p.id === stored.id)).toBe(true);
+  });
+
+  it("sells each town only its own lineup", () => {
+    const atBowl = startAtBowl();
+    atBowl.player.money = 500000;
+    expect(garageChassis("bowl")).toContain("hauler");
+    expect(buyChassis(atBowl, "hauler").vehicles[0].chassisId).toBe("hauler");
+    expect(() => buyChassis(atBowl, "niva")).toThrow("niva is not for sale at bowl");
+
+    const atNose = emptyWorld(sitePads(nose)[0]);
+    atNose.player.money = 500000;
+    expect(buyChassis(atNose, "niva").vehicles[0].chassisId).toBe("niva");
+    expect(() => buyChassis(atNose, "hauler")).toThrow("hauler is not for sale at nose");
+    expect(() => garageChassis("pump-station")).toThrow("No garage lineup for pump-station");
   });
 
   it("sells no chassis at a stall", () => {
