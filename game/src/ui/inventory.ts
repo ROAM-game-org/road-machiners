@@ -395,6 +395,7 @@ export class InventoryView {
     if (Object.keys(this.plan).length === 0) return;
     const layout = this.plan;
     this.plan = {};
+    if (this.look()) return;
     this.host.apply(startRefit(this.host.world(), layout, this.gridTruck ?? undefined));
   }
 

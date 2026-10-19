@@ -656,13 +656,13 @@ function onContactsHeard(world: World, vehicle: Vehicle, profile: NpcProfile, co
   for (const contact of hostileContacts(world, vehicle, contacts)) {
     const option = reactHeard(world, vehicle, contact);
     if (option === null || option === 'keep') continue;
-    if (option === 'investigate') interrupt(world, vehicle, heardActivity(world, vehicle, contact));
+    if (option === 'investigate') interrupt(world, vehicle, heardActivity(vehicle, contact));
     else interrupt(world, vehicle, fleeFrom(world, vehicle, profile, contact.vehicleId, contact.center, 'heardHostile'));
     return;
   }
 }
 
-function heardActivity(_world: World, vehicle: Vehicle, contact: Contact): NpcActivity {
+function heardActivity(vehicle: Vehicle, contact: Contact): NpcActivity {
   const activity = createActivity('investigate', contact.vehicleId, { ...contact.center }, isWatching(vehicle) ? 'springOnPrey' : 'heardHostile');
   return { ...activity, heard: { ...contact.center } };
 }

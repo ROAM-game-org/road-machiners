@@ -179,6 +179,7 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
 
 export function interceptOf(world: World, v: Vehicle, seen: Vehicle): Vec {
   const maxSpeed = vehicleStats(world, v).maxSpeed;
+  if (maxSpeed <= 0) return { ...seen.pos };
   const turns = dist(v.pos, seen.pos) / maxSpeed;
   const ahead = Math.min(seen.speed * turns, maxSpeed);
   return { x: seen.pos.x + Math.cos(seen.heading) * ahead, y: seen.pos.y + Math.sin(seen.heading) * ahead };
