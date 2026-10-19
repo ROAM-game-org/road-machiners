@@ -28,6 +28,7 @@ VAR scale_seen = false
 VAR hattie_met = false
 
 EXTERNAL money()
+EXTERNAL engine_missing()
 EXTERNAL give_money(amount)
 EXTERNAL pay(amount)
 EXTERNAL begin(quest)

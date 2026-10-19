@@ -5,6 +5,8 @@ import { LOCALS, type NoteId } from '../data/locals';
 import { CONTRACTS, SHOPS } from '../data/market';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
+import { partDef } from '../data/parts';
+import { playerVehicle } from './damage';
 import { holdsNote, learnNote, localsAt, townWork } from './dialogue-rules';
 import { acceptContract, type Contract } from './market';
 import { chooseQuestOption, QUESTS, restoreQuest, questView, startQuest } from './quests';
@@ -173,9 +175,11 @@ describe('the lost wagon chain', () => {
     expect(w.player.notes.map((n) => n.id)).toEqual(['wagonBowl', 'wagonNose', 'wagonFound']);
   });
 
-  it('lets Hattie talk about the tow man and the stripped truck only to a driver who was towed in', () => {
+  it('lets Hattie talk about the tow man and the stripped truck only to a driver who was towed in with no engine', () => {
     const towed = parkedAt('bowl');
     towed.player.quests.world.towed_to_bowl = true;
+    const me = playerVehicle(towed);
+    me.items = me.items.filter((item) => item.kind !== 'part' || partDef(item.part.defId).kind !== 'engine');
 
     expect(choices(parkedAt('bowl'), 'bowl_hattie')).not.toContain('Tell me about the tow man.');
     expect(choices(parkedAt('bowl'), 'bowl_hattie')).not.toContain('Who stripped my truck?');
