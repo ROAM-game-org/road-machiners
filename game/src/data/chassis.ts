@@ -390,6 +390,11 @@ export const CHASSIS: Record<string, ChassisDef> = Object.fromEntries(
 
 export const PLAYER_CHASSIS = ['scout', 'hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'];
 
+export const TOWN_CHASSIS: Record<string, readonly string[]> = {
+  bowl: ['scout', 'buggy', 'courier', 'van', 'hauler', 'bus', 'convertible', 'longbed', 'tractor', 'loader'],
+  nose: ['scout', 'buggy', 'courier', 'jeep', 'niva', 'bukhanka', 'wagon', 'carrier', 'lincoln'],
+};
+
 export const HAULER_CHASSIS = 'semi';
 
 export function chassisDef(id: string): ChassisDef {
