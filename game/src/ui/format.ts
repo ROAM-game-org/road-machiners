@@ -31,7 +31,7 @@ import type { PartHit } from '../sim/armor';
 import { shotDamage } from '../sim/combat';
 import { shutDownTurnsLeft } from '../sim/utility';
 import type { GameEvent, GridItem, Job, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
-import { concat, list, t, verbatim, type Msg } from '../text/msg';
+import { concat, list, MINUS_SIGN, num, PLUS, t, verbatim, type Msg } from '../text/msg';
 import { factionName, goalText, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
 import { Refused } from '../sim/world';
 import { aidWords, compass, lineText } from './dialogue';
@@ -853,4 +853,13 @@ export function commandFailure(world: World, err: unknown): Msg {
   if (err instanceof Refused) return refusalText(world, err.refusal);
   console.error(err);
   return t('refusal.failed');
+}
+
+export function standingNum(score: number): Msg {
+  return score < 0 ? concat([MINUS_SIGN, num(-score, 'int')]) : num(score, 'int');
+}
+
+export function standingStep(delta: number): Msg {
+  if (delta > 0) return concat([PLUS, num(delta, 'int')]);
+  return standingNum(delta);
 }

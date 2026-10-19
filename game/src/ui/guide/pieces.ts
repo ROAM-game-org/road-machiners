@@ -44,8 +44,8 @@ function disabled(): HTMLElement {
 }
 
 function breakdown(): HTMLElement {
-  const row = (label: string, value: string): HTMLElement => el("div", { class: "tooltip-row" }, el("span", {}, label), el("span", { class: "num" }, value));
-  return el("div", { class: "tooltip" }, row("Base", "120 km/h"), row("Load", "−10 km/h"));
+  const row = (label: string, value: string, tone: string): HTMLElement => el("div", { class: `tooltip-row ${tone}` }, el("span", {}, label), el("span", { class: "num" }, value));
+  return el("div", { class: "tooltip" }, row("Base", "120 km/h", "base"), row("Load", "−10 km/h", "down"), row("Tailwind", "+5 km/h", "up"));
 }
 
 function meter(cls: string, percent: number): HTMLElement {

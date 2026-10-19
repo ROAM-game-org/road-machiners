@@ -5,6 +5,7 @@ import type { SkillId, World } from '../sim/types';
 import { createIcon, type IconName } from './cards';
 import { disabledWith, el, panel } from './dom';
 import type { UiHost } from './host';
+import { standingNum, standingStep } from './format';
 import { hp } from './units';
 import { num, t, type Msg } from '../text/msg';
 import { factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
@@ -106,24 +107,24 @@ export class CharacterScreen {
 
 function standingGroup(world: World): HTMLElement {
   return el('div', { class: 'standing' },
-    el('h4', { title: t('character.standingTitle') }, t('character.standing')),
-    el('div', { class: 'standing-rows' }, ...standingBands(world).map((row) => standingRow(world, row))));
+    el('div', { class: 'standing-head' }, el('span', {}, t('character.standing'))),
+    ...standingBands(world).map((row) => standingRow(world, row)));
 }
 
 function standingRow(world: World, row: StandingRow): HTMLElement {
   const parts = standingParts(world, row);
   const tip = el('span', { class: 'tooltip standing-tip', role: 'tooltip' },
-    tipRow(t('character.standingBase'), parts.base, 'base'),
-    tipRow(t('character.standingDeeds'), parts.deeds, stepTone(parts.deeds)),
-    tipRow(t('character.standingEarlier'), parts.earlier, stepTone(parts.earlier)));
-  return el('div', { class: 'standing-row', tabindex: 0 },
+    tipRow(t('character.standingBase'), standingNum(parts.base), 'base'),
+    tipRow(t('character.standingDeeds'), standingStep(parts.deeds), stepTone(parts.deeds)),
+    tipRow(t('character.standingEarlier'), standingStep(parts.earlier), stepTone(parts.earlier)));
+  return el('div', { class: 'standing-row row' },
     el('span', {}, factionName(row.faction)),
-    el('span', { class: `tag ${row.band === 'hostile' ? 'bad' : 'dim'}` }, t(`band.${row.band}`)),
-    tip);
+    el('span', { class: `num standing-score${row.score === 0 ? ' dim' : ''}`, tabindex: 0 }, standingNum(row.score), tip),
+    el('span', { class: `tag ${row.band === 'hostile' ? 'bad' : 'dim'}` }, t(`band.${row.band}`)));
 }
 
-function tipRow(label: Msg, value: number, tone: string): HTMLElement {
-  return el('div', { class: `tooltip-row ${tone}`.trim() }, el('span', {}, label), el('span', { class: 'num' }, num(value, 'int')));
+function tipRow(label: Msg, value: Msg, tone: string): HTMLElement {
+  return el('div', { class: `tooltip-row ${tone}`.trim() }, el('span', {}, label), el('span', { class: 'num' }, value));
 }
 
 function stepTone(step: number): string {
