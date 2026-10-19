@@ -326,7 +326,7 @@ export class UtilityRow {
           class: `weapon-pick ${selected ? "on" : ""}`,
           "aria-pressed": String(selected),
           "aria-label": t("utility.slotLabel", { name, status: status.text }),
-          ...disabledAttrs(locked, key === null ? name : t("utility.keyTitle", { name, key })),
+          ...disabledAttrs(locked, key === null || touchMode() ? name : t("utility.keyTitle", { name, key })),
           onclick: () => locked === null && (key === null ? this.selectUtility(i) : this.host.runKey(`Digit${key}`)),
         },
         el("span", { class: "weapon-number" }, key === null ? null : num(key, "int")),

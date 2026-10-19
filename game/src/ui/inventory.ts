@@ -45,7 +45,7 @@ import type {
   Vehicle,
   World,
 } from "../sim/types";
-import { touchMode } from "./input-mode";
+import { keyLabel, touchMode } from "./input-mode";
 import { disabledWith, el, isBrowserChord, panel, uiRoot } from "./dom";
 import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
@@ -1162,7 +1162,7 @@ export class InventoryScreen {
     this.view.holdChanged = () => this.markRotate(rotate);
     this.markRotate(rotate);
     this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, t("inv.close")),
+      el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("inv.close"), "I")),
       el("h3", {}, t("inv.title"), truckChips(this.host.world()), rotate),
       truck,
     );

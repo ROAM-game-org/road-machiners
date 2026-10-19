@@ -1,4 +1,4 @@
-import { t, type Msg } from "../text/msg";
+import { concat, SPACE, t, type Msg } from "../text/msg";
 import { type Extent, type UiSize } from "./ui-size";
 
 export interface InputMode {
@@ -65,6 +65,13 @@ export function touchMode(): boolean {
 
 export function phoneMode(): boolean {
   return shown.phone;
+}
+
+export const ESCAPE = { key: "Esc" };
+export const RECENTER_KEY = "F";
+
+export function keyLabel(text: Msg, key: string): Msg {
+  return touchMode() ? text : concat([text, SPACE, t("ui.key", { key })]);
 }
 
 export function closeLabel(): Msg {

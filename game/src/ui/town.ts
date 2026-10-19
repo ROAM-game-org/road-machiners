@@ -54,6 +54,7 @@ import type { UiHost } from "./host";
 import { coinEl, fuelLiters, kph, moneyEl, moneyMsg, moneyNum } from "./units";
 import { fuelCap, suppliesCap, vehicleStats } from "../sim/stats";
 import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
+import { ESCAPE, keyLabel } from "./input-mode";
 import { goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
 import { vehicleHasPerk } from "../sim/progress";
@@ -123,7 +124,7 @@ export class TownScreen {
       this.inventory.render(),
     );
     this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, t("trade.leave")),
+      el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("trade.leave"), ESCAPE.key)),
       el("h3", {}, siteName(shopId), truckChips(w, { freeCells: def.kind !== "garage" })),
       el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, ...shop)),
     );
@@ -611,7 +612,7 @@ export class TruckTradeScreen {
     side.push(this.tabBody(w, npc));
     const truck = el("div", { class: "town-truck" }, this.inventory.render());
     this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, t("trade.leave")),
+      el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("trade.leave"), ESCAPE.key)),
       el("h3", {}, vehicleTitle(w, npc), truckChips(w), partnerChips(npc)),
       el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, ...side)),
     );

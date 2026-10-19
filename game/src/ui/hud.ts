@@ -1,6 +1,6 @@
 
 import { Drawers } from "./drawers";
-import { phoneMode, touchMode } from "./input-mode";
+import { keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
@@ -48,7 +48,7 @@ import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import { bindAttr, setText } from "../text/language";
-import { list, num, SPACE, t, type Msg } from "../text/msg";
+import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
 import { isMet, type Contract } from "../sim/market";
 import { driverName, factionName, refusalText, setupText, templateName, vehicleTitle } from "../text/names";
 import { stanceToward } from "../sim/relations";
@@ -248,7 +248,7 @@ export class Hud {
     this.knockedOut.append(el("span", { class: "bad" }, t("actBlock.knockedOut")));
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
-    this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter")));
+    this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
     this.showCameraMode();
     window.addEventListener("keydown", (e) => {
       if (e.code === "KeyV" && !isBrowserChord(e) && !document.activeElement?.matches("input, select, textarea")) this.toggleCameraMode();
@@ -383,7 +383,7 @@ export class Hud {
       action.hint || touchMode() ? action.label : t("hud.actionKey", { label: action.label }),
     );
     const cycle = (step: 1 | -1, glyph: Msg, key: string) =>
-      el("button", { class: "cycle", title: t("hud.cycleKey", { key }), onclick: () => onCycle(step) }, glyph);
+      el("button", { class: "cycle", title: touchMode() ? undefined : t("hud.cycleKey", { key }), onclick: () => onCycle(step) }, glyph);
     this.action.replaceChildren(
       ...(count > 1
         ? [cycle(-1, t("hud.prevMark"), "←"), use, el("span", { class: "count" }, t("hud.count", { n: index + 1, of: count })), cycle(1, t("hud.nextMark"), "→")]
@@ -489,7 +489,7 @@ export class Hud {
         class: "instrument-button",
         "aria-disabled": douseReason === null ? undefined : "true",
         onclick: () => douseReason === null && this.actions.douseEngine(),
-        title: douseReason ?? t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }),
+        title: douseReason ?? keyLabel(t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }), "G"),
       },
       t("hud.douse"),
       keyCorner("G"),
@@ -505,7 +505,7 @@ export class Hud {
         class: "instrument-button",
         "aria-disabled": busy ? "true" : undefined,
         onclick: () => !busy && this.actions.openCharacter(),
-        title: busy ? TURN_PLAYING : marked ? t("hud.characterMarked") : t("hud.character"),
+        title: busy ? TURN_PLAYING : keyLabel(marked ? t("hud.characterMarked") : t("hud.character"), "C"),
       },
       marked ? t("hud.driverMarked") : t("hud.driver"),
       keyCorner("C"),
@@ -520,7 +520,7 @@ export class Hud {
   private journalButton(busy: boolean): HTMLElement {
     return el(
       "button",
-      { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: t("journal.hint") },
+      { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: keyLabel(t("journal.hint"), "J") },
       t("hud.journal"),
       keyCorner("J"),
     );
@@ -553,7 +553,7 @@ export class Hud {
       "button",
       {
         class: "truck-instrument",
-        title: t("hud.inventoryTitle"),
+        title: keyLabel(t("hud.inventoryTitle"), "I"),
         "aria-label": t("hud.inventoryLabel"),
         disabled: busy,
         onclick: () => this.actions.openInventory(),

@@ -7,6 +7,7 @@ import { disabledWith, el, panel } from './dom';
 import type { UiHost } from './host';
 import { hp } from './units';
 import { num, t, type Msg } from '../text/msg';
+import { keyLabel } from './input-mode';
 import { factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
 import { modeRules } from '../sim/settings';
@@ -39,7 +40,7 @@ export class CharacterScreen {
     const world = this.host.world();
     const p = world.player;
     this.root.replaceChildren(
-      el('button', { class: 'close', onclick: () => this.close() }, t('character.close')),
+      el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t('character.close'), 'C')),
       el('h3', {}, t('character.title'), el('span', { class: 'chips' },
         el('span', { class: 'chip', title: t('character.health') }, createIcon('driver'), t('readout.ofMax', { n: hp(p.health), max: maxHealthOf(world) })),
         el('span', { class: 'chip', title: t('character.knockoutsTitle') }, createIcon('damage'), t('character.knockouts', { n: p.knockouts })),

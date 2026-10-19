@@ -50,7 +50,6 @@
 #ui.phone .drawer-tabs > button {
   flex: 1 1 0;
   min-width: 0;
-  padding: 0 var(--space-2);
 }
 #ui.phone .drawer-tabs .icon {
   display: none;

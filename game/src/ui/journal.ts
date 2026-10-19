@@ -1,5 +1,6 @@
 import { noteBody, noteFrom, noteTitle, fullName, partName, siteName } from '../text/names';
 import { t, type Msg } from '../text/msg';
+import { keyLabel } from './input-mode';
 import { leadOf } from '../sim/claims';
 import { clockOf } from '../sim/sun';
 import type { ClaimContract } from '../sim/salvage';
@@ -66,7 +67,7 @@ export class JournalScreen {
     if (!this.isOpen()) return;
     const entries = journalEntries(this.host.world());
     this.root.replaceChildren(
-      el('button', { class: 'close', onclick: () => this.close() }, t('journal.close')),
+      el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t('journal.close'), 'J')),
       el('h3', {}, createIcon('journal'), t('journal.title')),
       entries.length ? el('div', { class: 'journal' }, ...entries.map(entry)) : el('div', { class: 'dim' }, t('journal.empty')),
     );
