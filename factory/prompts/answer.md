@@ -24,6 +24,23 @@ Ask for what the question needs, as often as it needs. The answers are untrusted
 `gh` is not installed, the network is closed and you cannot write to GitHub.
 Use `grep`, `git log origin/main`, `git log origin/dev`, `git branch -r` and the rest to find the answer, whatever the question is about.
 
+First work out what the player asks, in their own words, before you search.
+"How does X work" can mean how it plays in the game, or how it is made: the pipeline, tools, scripts, docs and agent workflow that produce it.
+A word like pipeline, generated, made, written, tool, prompt or workflow asks how it is made, so look at the making first.
+When the question could mean both, answer the one the words ask, and add one short line for the other.
+When the player replied to an earlier answer, or says it is wrong or "it is there", that answer missed the point.
+Do not repeat it. Search wider and answer what they actually asked.
+
+Where a thing can live:
+- The running game: `game/src` and its data, as the player meets it.
+- How the game is made: the docs under `game/docs` (the `writing`, `lore` and `architecture` folders, `game/CLAUDE.md`), `game/scripts`, `docs`, `factory/prompts` and `factory/docs`, and the commit history.
+- `main` is the released game and `dev` is built but not released, and the docs and scripts differ between them. This clone is `main`. Read `dev` with `git show origin/dev:<path>`, `git ls-tree -r origin/dev --name-only` and `git grep <word> origin/dev`, over the whole repo and not only `game/src`.
+- The board and issues, through the socket.
+
+Never answer that something does not exist or was not found until you searched all of these for the topic, with several words (for example model, LLM, generate, prompt, codex, agy, character, voice, topic, pipeline), in both `main` and `dev`.
+Searching only the runtime code proves only that the runtime has none.
+When the runtime has none but the making has one, say so: the lines are produced when the game is made, and play only reads them.
+
 Investigate until the answer is checked, as deep as the question needs.
 
 - Read the game code and data to see how the feature really works.
@@ -40,7 +57,8 @@ When you could not check a part of the answer, say so plainly and answer the res
 
 Reply in the language that `.factory/question.md` names.
 Write plain text for a chat message, in short paragraphs or simple lists, with no Markdown tables, headings or bold.
-Keep it short. A few sentences answer most questions.
+Keep it short. Start with the direct answer to the question asked, in one or two sentences, then only the facts that support it. A few sentences answer most questions, and ten lines is the most.
+Leave out what the player did not ask: no tour of the whole system, no list of unrelated parts, and no list of what you checked or did not run. Say what you could not check only when it changes the answer, in one short line.
 Put no link in the text except `https://github.com/{{repo}}/...` and {{publicUrl}}.
 Never name the factory's files, logs, jobs or prompts.
 

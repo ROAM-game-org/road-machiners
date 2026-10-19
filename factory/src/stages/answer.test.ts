@@ -34,7 +34,7 @@ function reader(run: AgentRun): (path: string, method?: string) => Promise<{ cod
   });
 }
 
-function setup(answerText: string | null, issue: number | null = null, text = PLAYER_TEXT, during: (read: ReturnType<typeof reader>) => Promise<void> = async () => undefined) {
+function setup(answerText: string | null, issue: number | null = null, text = PLAYER_TEXT, during: (read: ReturnType<typeof reader>) => Promise<void> = async () => undefined, context: string | null = null) {
   const f = publicFake(CONFIG);
   fakes.push(f);
   const runs: { run: AgentRun; question: string }[] = [];
@@ -51,7 +51,7 @@ function setup(answerText: string | null, issue: number | null = null, text = PL
     },
   });
   Object.assign(f.ctx.github, { comments: async () => [] });
-  const id = f.store.addComment({ issue, source: 'telegram', sourceId: 'c13', postChat: CHANNEL, postMessageId: null, author: 'Ann Lee', sender: '42', text, at: f.clock.now.toISOString(), messageId: 13, addressed: true })!;
+  const id = f.store.addComment({ issue, source: 'telegram', sourceId: 'c13', postChat: CHANNEL, postMessageId: null, author: 'Ann Lee', sender: '42', text, at: f.clock.now.toISOString(), messageId: 13, addressed: true, context })!;
   f.store.classify(id, 'question', 'none', f.clock.now, issue === null ? 'other' : 'parent', { language: 'en' });
   f.store.markReplied(id, f.clock.now);
   updateState(f.ctx.statePath, (state) => ({ ...state, pendingAnswers: [id] }));
@@ -154,6 +154,63 @@ describe('answer job', () => {
     expect(run.prompt).not.toContain(PLAYER_TEXT);
     const env = agentEnv({ ...CONFIG, elevenlabsKey: 'e', geminiKey: 'g', codexModel: 'c' } as FactoryConfig, true);
     expect(Object.keys(env).sort()).toEqual(['CLAUDE_CODE_DISABLE_BACKGROUND_TASKS', 'CLAUDE_CODE_OAUTH_TOKEN', 'FACTORY_JOB_MAX_MINUTES']);
+  });
+
+  describe('intent grounding (issue 797)', () => {
+    const FIRST = '@road_machiners_bot расскажи как работает генерация диалогов на dev сейчас';
+    const SECOND = 'Бро расскажи пожалуйста про пайплайн генерации диалогов на деве который ТАМ ЕСТЬ';
+    const WRONG_ANSWER = 'Коротко: на dev диалоги не генерируются нейросетью и не случайны. Это заранее написанные деревья реплик.';
+
+    async function promptFor(text: string, context: string | null = null): Promise<{ prompt: string; question: string }> {
+      const { f, runs } = setup('Ок.', null, text, async () => undefined, context);
+      await answer(f.ctx);
+      return { prompt: runs[0]!.run.prompt, question: runs[0]!.question };
+    }
+
+    it('hands the agent the real player question, and the wrong answer it disputes, as untrusted text', async () => {
+      const { question } = await promptFor(SECOND, WRONG_ANSWER);
+      expect(question).toContain(`> ${SECOND}`);
+      expect(question).toContain(`> ${WRONG_ANSWER}`);
+      expect(question).toContain('Reply language: English');
+    });
+
+    it('tells how a thing is made apart from how it plays, so a pipeline question is not answered from runtime code alone', async () => {
+      const { prompt } = await promptFor(FIRST);
+      expect(prompt).toMatch(/how it is made/);
+      expect(prompt).toMatch(/pipeline/);
+      expect(prompt).toMatch(/The running game/);
+      expect(prompt).toMatch(/How the game is made/);
+      expect(prompt).toContain('game/docs');
+      expect(prompt).toContain('game/scripts');
+    });
+
+    it('sends the agent to search the whole dev branch, not only game/src, and both branches before it denies anything', async () => {
+      const { prompt } = await promptFor(SECOND);
+      expect(prompt).toContain('git grep <word> origin/dev');
+      expect(prompt).toMatch(/whole repo and not only `game\/src`/);
+      expect(prompt).toMatch(/Never answer that something does not exist or was not found until you searched/);
+      expect(prompt).toMatch(/both `main` and `dev`/);
+      expect(prompt).toMatch(/Searching only the runtime code proves only that the runtime has none/);
+    });
+
+    it('treats a dispute or a reply to an earlier answer as a sign that answer missed, and forbids repeating it', async () => {
+      const { prompt } = await promptFor(SECOND, WRONG_ANSWER);
+      expect(prompt).toMatch(/says it is wrong or "it is there", that answer missed the point/);
+      expect(prompt).toMatch(/Do not repeat it/);
+    });
+
+    it('asks for a short direct answer without a tour of unrelated parts', async () => {
+      const { prompt } = await promptFor(FIRST);
+      expect(prompt).toMatch(/Start with the direct answer to the question asked, in one or two sentences/);
+      expect(prompt).toMatch(/ten lines is the most/);
+      expect(prompt).toMatch(/Leave out what the player did not ask/);
+    });
+
+    it('stays read only: it adds no write path and no network', async () => {
+      const { prompt } = await promptFor(SECOND);
+      expect(prompt).toMatch(/cannot write to GitHub/);
+      expect(prompt).toMatch(/Do not change tracked files, do not commit and never push/);
+    });
   });
 
   it('binds each answer to the message of its own question', async () => {
