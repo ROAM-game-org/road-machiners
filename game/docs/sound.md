@@ -16,10 +16,11 @@ Sound tells the player what happens without making them read the log: where a sh
 Four buses feed the master: `ui`, `sfx`, `ambient` and `music`. Each has a player-set volume and a low-pass filter. The `sfx` bus also runs through a compressor and a short open-air reverb, so sounds from different sources sit in one place.
 
 - World sounds, like guns, hits and crashes, play where they happen. Pan follows the screen position, and level halves at `MIX.halfGainMeters` from the camera focus. They use the same points as the visual effects, so fog of war silences what the player cannot see.
-- Each turn plays at most one result sting, the most important one: level-up, discovery or money. A knockout is an attention alert and has no sting.
+- Each turn plays at most one result sting, the most important one: heatwave warning, level-up, discovery or money. A knockout is an attention alert and has no sting.
 - The engine is one recorded loop per chassis. Its pitch and level follow speed over the turn, so speeding up revs and braking drops. Continuous sounds are always bent loops like this, never short clips per state. While heat damages the engine, the loop crossfades to a strained loop, one for light trucks and one for heavy ones, started with it and bent the same way, and falls back to the healthy note over two turns once the damage stops.
 - A hard slowdown adds the air brake where the truck is. Passing or reaching an order point makes no sound of its own.
 - Wind rises near dust storms.
+- A heatwave starting plays one soft low swell on the `ui` bus, the only weather cue besides the wind. It outranks the other result stings, since it is rare. A storm stays wind.
 - Calm music plays out of combat, from a playlist shuffled once per session. After each fight it comes back as the next track, so every track plays before any repeats.
 - Town music replaces calm music while the player is within guard range of a town gate. Outpost music does the same near the gates of outposts, the trading stalls that are not towns. Abandoned music plays inside territories, the abandoned places like Fallen Sun and Old Orchard. Each entry starts the next track of a playlist shuffled once per session. Combat music plays over all of them.
 - Quest music plays over all music, combat included, while the quest screen is open. Each quest starts the next track of a playlist shuffled once per session.
