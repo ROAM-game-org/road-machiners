@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { addVehicle, emptyWorld, spotWorld } from "../sim/testkit";
-import type { World } from "../sim/types";
+import type { QuestLive, World } from "../sim/types";
 import { InventoryScreen } from "./inventory";
 
 class FakeNode {
@@ -60,7 +60,7 @@ function stubDom(): void {
   vi.stubGlobal("window", { addEventListener: () => {}, matchMedia: () => ({ matches: false, addEventListener: () => {} }), innerWidth: 1280, innerHeight: 720 });
 }
 
-const SCENE = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };
+const SCENE: QuestLive = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };
 
 function screenOver(world: World): { screen: InventoryScreen; applied: World[] } {
   stubDom();

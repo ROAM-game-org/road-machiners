@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { emptyWorld } from "../sim/testkit";
-import type { World } from "../sim/types";
+import type { QuestLive, World } from "../sim/types";
 import { QuestScreen } from "./quest-screen";
 
 class FakeNode {
@@ -56,7 +56,7 @@ function screenWith(world: World, lookOver: boolean): void {
   new QuestScreen({ world: () => world, apply: () => {}, announce: () => {}, runKey: () => {} } as never, () => lookOver);
 }
 
-const SCENE = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };
+const SCENE: QuestLive = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };
 
 describe("keys during a scene", () => {
   afterEach(() => vi.unstubAllGlobals());

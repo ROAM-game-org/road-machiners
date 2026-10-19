@@ -362,12 +362,7 @@
   position: absolute;
   top: var(--space-3);
   right: var(--space-3);
-  z-index: 1;
+  z-index: var(--z-badge);
   display: flex;
   gap: var(--space-2);
-}
-#ui.phone .quest-look button {
-  min-width: var(--touch-target);
-  min-height: var(--touch-target);
-  padding: 0;
 }

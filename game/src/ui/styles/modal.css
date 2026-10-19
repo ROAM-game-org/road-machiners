@@ -55,7 +55,7 @@
 #ui .modal.over-scene {
   z-index: var(--z-over-scene);
   background: var(--surface-well);
-  box-shadow: 0 0 0 100vmax var(--scrim-heavy);
+  box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim-heavy);
 }
 #ui .modal > h3 {
   font-size: var(--text-heading);
