@@ -156,7 +156,7 @@ export function musicPlaceAt(t: Terrain, pos: Vec): MusicPlace {
   return isInTerritory(atlas, pos) ? "abandoned" : null;
 }
 
-export type LoopState = { stormShare: number; inCombat: boolean; inQuest: boolean; place: MusicPlace; paused: boolean };
+export type LoopState = { stormShare: number; inCombat: boolean; inQuest: boolean; place: MusicPlace };
 
 export type LoopLevels = {
   windGain: number;
@@ -166,7 +166,6 @@ export type LoopLevels = {
   outpostGain: number;
   abandonedGain: number;
   combatGain: number;
-  musicCutoffHz: number;
 };
 
 function musicOf(s: LoopState): "calm" | "quest" | "combat" | NonNullable<MusicPlace> {
@@ -186,9 +185,7 @@ export function loopLevels(s: LoopState, mix: typeof MIX): LoopLevels {
     townGain: Number(music === "town"),
     outpostGain: Number(music === "outpost"),
     abandonedGain: Number(music === "abandoned"),
-    combatGain: Number(music === "combat"),
-    musicCutoffHz: s.paused && music !== "quest" ? mix.music.pauseCutoffHz : mix.music.openCutoffHz,
-  };
+    combatGain: Number(music === "combat"),  };
 }
 
 export function computeEngineGlide(
@@ -285,7 +282,7 @@ class Playlist {
 export class SoundLoops {
   private engine: { healthy: LoopHandle; strained: LoopHandle } | null = null;
   private engineChassis: string | null = null;
-  private player: Pick<SoundPlayer, "loop" | "setBusTone">;
+  private player: Pick<SoundPlayer, "loop">;
   private wind: LoopHandle;
   private calm: Playlist;
   private quest: Playlist;
@@ -293,7 +290,7 @@ export class SoundLoops {
   private places: [LoopHandle, "townGain" | "outpostGain"][];
   private last: LoopLevels | null = null;
 
-  constructor(player: Pick<SoundPlayer, "loop" | "setBusTone">, private music: Pick<CombatMusic, "setCombat" | "nextSong">) {
+  constructor(player: Pick<SoundPlayer, "loop">, private music: Pick<CombatMusic, "setCombat" | "nextSong">) {
     this.player = player;
     const silent = { pan: 0, gain: 0 };
     this.wind = player.loop("wind", silent);
@@ -340,7 +337,6 @@ export class SoundLoops {
   private updateMusic(l: LoopLevels, was: LoopLevels | null): void {
     this.updatePlaylists(l, was);
     this.updatePlaces(l, was);
-    if (was?.musicCutoffHz !== l.musicCutoffHz) this.player.setBusTone("music", l.musicCutoffHz, MIX.music.toneSeconds);
     if (was?.combatGain !== l.combatGain) this.music.setCombat(l.combatGain > 0);
   }
 
