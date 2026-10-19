@@ -209,6 +209,18 @@
   padding: var(--space-7);
   overflow: auto;
 }
+#ui.phone :is(.town-screen, .inventory-screen, .character-screen, .journal-screen) > h3 {
+  flex-wrap: wrap;
+  row-gap: var(--space-3);
+  column-gap: var(--space-4);
+}
+#ui.phone :is(.town-screen, .inventory-screen, .character-screen, .journal-screen) > h3 > .chips {
+  flex-basis: 100%;
+  order: 2;
+}
+#ui.phone .chip {
+  white-space: nowrap;
+}
 #ui.phone .modal.quest-screen {
   top: var(--safe-top);
   width: auto;
