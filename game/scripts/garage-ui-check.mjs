@@ -155,9 +155,10 @@ try {
   await page.evaluate(async () => {
     const g = window.__ROAM__;
     const { setMoney } = await import('/src/sim/cheats.ts');
-    const { buyChassis } = await import('/src/sim/economy.ts');
-    const { PLAYER_CHASSIS, chassisDef } = await import('/src/data/chassis.ts');
-    const ids = PLAYER_CHASSIS.map(c => c.id ?? c);
+    const { buyChassis, garageChassis } = await import('/src/sim/economy.ts');
+    const { townNear } = await import('/src/sim/sites.ts');
+    const { chassisDef } = await import('/src/data/chassis.ts');
+    const ids = garageChassis(townNear(g.state).id);
     const top = ids.reduce((a, b) => (chassisDef(b).value > chassisDef(a).value ? b : a));
     g.apply(buyChassis(setMoney(g.state, 1e7), top));
   });

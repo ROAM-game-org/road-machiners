@@ -91,7 +91,7 @@ export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }
 
-export function withHeardCentres_80_81(world: SavedJson): SavedJson {
+export function withHeardCentres_81_82(world: SavedJson): SavedJson {
   const heardOf = (goal: SavedJson): SavedJson => (goal.kind === 'investigate' && goal.destination && !goal.heard ? { ...goal, heard: { ...(goal.destination as SavedJson) } } : goal);
   const withBrain = (v: SavedJson): SavedJson => {
     const brain = v.brain as SavedJson | null;

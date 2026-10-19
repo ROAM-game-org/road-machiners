@@ -250,8 +250,8 @@ export const SHOPS: Record<string, ShopDef> = {
     id: 'nose',
     kind: 'garage',
     makes: ['salt', 'tools', 'batteries'],
-    needs: ['scrap', 'grain', 'textiles', 'meds', 'electronics', 'parts', 'fuelDrums', 'water'],
-    goods: ['scrap', 'salt', 'meds', 'grain', 'textiles', 'tools', 'batteries', 'electronics', 'parts', 'fuelDrums', 'water'],
+    needs: ['scrap', 'grain', 'textiles', 'meds', 'electronics', 'parts', 'fuelDrums', 'water', 'relics'],
+    goods: ['scrap', 'salt', 'meds', 'grain', 'textiles', 'tools', 'batteries', 'electronics', 'parts', 'fuelDrums', 'water', 'relics'],
     priceFactor: PRICE_FACTOR,
     partStock: { parts: GARAGE_PARTS, wear: GARAGE_WEAR },
     stockSize: [8, 12],
@@ -264,9 +264,9 @@ export const SHOPS: Record<string, ShopDef> = {
   'salvage-yard': {
     id: 'salvage-yard',
     kind: 'stall',
-    makes: ['scrap', 'parts'],
+    makes: ['scrap', 'parts', 'relics'],
     needs: ['tools'],
-    goods: ['scrap', 'parts', 'tools'],
+    goods: ['scrap', 'parts', 'tools', 'relics'],
     priceFactor: PRICE_FACTOR,
     partStock: {
       parts: ([

@@ -333,6 +333,47 @@ describe('field spare parts', () => {
   });
 });
 
+describe('ship relics', () => {
+  const relicsAfterRolls = (table: LootTable, rolls: number): number => {
+    const w = emptyWorld();
+    let found = 0;
+    for (let i = 0; i < rolls; i++) found += rollStock(w, table, `spot-${i}`, { x: 1, y: 1 }, 1).hidden.goods.relics ?? 0;
+    return found;
+  };
+
+  it('turn up in hull caches at their chance, in field spots less, and nowhere else', () => {
+    expect(relicsAfterRolls(SALVAGE.hullCache, 2000) / 2000).toBeCloseTo(SALVAGE.hullCache.relicChance, 1);
+    expect(relicsAfterRolls(SALVAGE.hullScrap, 2000) / 2000).toBeCloseTo(SALVAGE.hullScrap.relicChance, 1);
+    for (const table of [SALVAGE.landmark, SALVAGE.roadWreck, SALVAGE.farmStores, SALVAGE.armyStores, SALVAGE.engineScrap, SALVAGE.cityStores, ...Object.values(OLD_TABLES)])
+      expect(relicsAfterRolls(table, 500)).toBe(0);
+  });
+
+  it('leave the draws of a table without relics as they were', () => {
+    const a = emptyWorld();
+    const b = emptyWorld();
+    rollStock(a, SALVAGE.landmark, 'x', { x: 1, y: 1 }, 1);
+    rollStock(b, { ...SALVAGE.landmark, relicChance: 0 }, 'x', { x: 1, y: 1 }, 1);
+    expect(a.rngState).toBe(b.rngState);
+    expect(a.marketRng.rngState).toBe(b.marketRng.rngState);
+  });
+
+  it('refill an emptied stock by one and never pile past it', () => {
+    const { w, stock } = spotWorld();
+    const saved = SALVAGE.landmark.relicChance;
+    SALVAGE.landmark.relicChance = 1;
+    try {
+      emptyStock(stock);
+      for (let day = 0; day < 400; day++) {
+        runDays(w, 1);
+        expect((stock.goods.relics ?? 0) + (stock.hidden.goods.relics ?? 0)).toBeLessThanOrEqual(1);
+      }
+      expect(stock.hidden.goods.relics).toBe(1);
+    } finally {
+      SALVAGE.landmark.relicChance = saved;
+    }
+  });
+});
+
 describe('road wreck salvage', () => {
   it('gives every wreck placed on a road its own stock to search', async () => {
     const { standardWorld } = await import('../test/world-cache');
@@ -757,12 +798,12 @@ describe('territory loot spots', () => {
     expect(w.salvage.some((s) => s.id === 'orchard')).toBe(false);
   }, budget(30_000));
 
-  it('rolls caches from the landmark table and field spots from the hull scrap table', async () => {
+  it('rolls caches from the hull cache table and field spots from the hull scrap table', async () => {
     const w = await realWorld();
     for (const o of spotsOf(w).filter((spot) => territoryAt(spot.pos)?.id === 'fallen-sun')) {
       const table = spotTable(o);
       const stock = stockOf(w, o.id);
-      expect(table).toBe(o.kind === 'landmark' && o.look === 'hullCache' ? SALVAGE.landmark : SALVAGE.hullScrap);
+      expect(table).toBe(o.kind === 'landmark' && o.look === 'hullCache' ? SALVAGE.hullCache : SALVAGE.hullScrap);
       expect(stock.hidden.goods.parts).toBeGreaterThanOrEqual(table.parts[0]);
       expect(stock.hidden.goods.parts).toBeLessThanOrEqual(table.parts[1]);
       expect(stock.hidden.fuel).toBeLessThanOrEqual(table.fuel[1]);

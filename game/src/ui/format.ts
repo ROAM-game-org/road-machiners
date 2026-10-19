@@ -780,6 +780,14 @@ function moneyText(world: World, e: Extract<GameEvent, { t: 'money' }>): LogLine
   return e.amount > 0 ? line(t('log.moneyGain', { n: moneyMsg(e.amount), reason }), 'good') : line(t('log.moneyLoss', { n: moneyMsg(-e.amount), reason }), 'bad');
 }
 
+function holdUpText(world: World, e: Extract<GameEvent, { t: 'holdUp' }>): LogLine | null {
+  if (e.paid !== 'money') return null;
+  const me = world.player.vehicleId;
+  if (e.victim !== me && e.robber !== me) return null;
+  const reason = moneyReasonText(world, { kind: 'holdUp', vehicle: e.victim === me ? e.robber : e.victim });
+  return e.victim === me ? line(t('log.moneyLoss', { n: moneyMsg(e.value), reason }), 'bad') : line(t('log.moneyGain', { n: moneyMsg(e.value), reason }), 'good');
+}
+
 function discoverText(e: Extract<GameEvent, { t: 'discover' }>): LogLine | null {
   if (isOutpostSite(e.location)) return null;
   return line(t('log.discovered', { site: siteName(e.location) }), 'good');
@@ -879,6 +887,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   guardPaid: quiet,
   shopMoney: quiet,
   transfer: quiet,
+  holdUp: holdUpText,
   escortHired: escortHiredText,
   escortRefused: escortRefusedText,
   crewAsked: crewAskedText,

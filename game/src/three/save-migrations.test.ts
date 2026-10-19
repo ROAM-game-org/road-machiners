@@ -1731,6 +1731,17 @@ describe('save migration 79 to 80', () => {
 });
 
 describe('save migration 80 to 81', () => {
+  it('keeps a save as it is, since ship relics are only a new key in loot goods and shop pressure', () => {
+    const before = structuredClone(FORMAT_2_75);
+
+    const next = MIGRATIONS[80](before);
+
+    expect(next).toEqual(FORMAT_2_75);
+    expect(before).toEqual(FORMAT_2_75);
+  });
+});
+
+describe('save migration 81 to 82', () => {
   type Goal = { kind: string; destination: { x: number; y: number } | null; heard?: { x: number; y: number } };
   type Saved = { vehicles: { brain: { goals: Goal[] } | null }[] };
   const withGoals = (goals: Goal[]): Saved => {
@@ -1738,7 +1749,7 @@ describe('save migration 80 to 81', () => {
     for (const v of world.vehicles) if (v.brain) v.brain.goals = structuredClone(goals);
     return world;
   };
-  const goalsAfter = (world: Saved) => (MIGRATIONS[80](structuredClone(world) as unknown as SavedJson) as unknown as Saved).vehicles.find((v) => v.brain)!.brain!.goals;
+  const goalsAfter = (world: Saved) => (MIGRATIONS[81](structuredClone(world) as unknown as SavedJson) as unknown as Saved).vehicles.find((v) => v.brain)!.brain!.goals;
 
   it('gives an investigation its destination as the heard centre', () => {
     const goals = goalsAfter(withGoals([{ kind: 'investigate', destination: { x: 12, y: 30 } }]));
