@@ -270,6 +270,20 @@ describe('the hauler driver', () => {
     expect(RULES.parkedSpeed).toBeGreaterThan(0);
   });
 
+  it('raises no stall while it waits parked on its yard spot for the player to reach the fort', () => {
+    resetHaulerWatch();
+    const { w, hauler } = openRoad();
+    hauler.pos = { ...yardSpots(w, 1).hauler };
+    hauler.speed = 0;
+    expect(betweenLevels(w)).toBe(false);
+    for (let i = 0; i < FURY_ROAD.hauler.stallTurns * 3; i++) {
+      w.turn++;
+      w.events = [];
+      watchHaulerStall(w);
+      expect(w.events.filter((e) => e.t === 'stall')).toEqual([]);
+    }
+  });
+
   it('raises no stall while a group truck pins it nose to nose, and raises one once that truck is beaten', () => {
     resetHaulerWatch();
     const { w, hauler } = openRoad();
