@@ -79,7 +79,8 @@ class QuestArtStage {
 }
 
 export function loadArt(key: string, isHeld: (img: HTMLImageElement) => boolean = () => true): HTMLImageElement {
-  const focus = `${questArt(key).focusX}% 50%`;
+  const art = questArt(key);
+  const focus = `${art.focusX}% ${art.focusY}%`;
   const img = document.createElement('img');
   img.decoding = 'sync';
   img.setAttribute('aria-hidden', 'true');
