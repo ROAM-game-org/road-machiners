@@ -1090,7 +1090,7 @@ export class Game {
     this.fx.tick(this.play.frameMs(), dt, this.world);
     this.playPanelSounds();
     this.updateLoops();
-    this.weather.sync(this.world);
+    this.weather.sync(this.world, this.turnClock());
     this.weather.advance(this.play.frameMs());
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);

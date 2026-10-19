@@ -1,4 +1,5 @@
-import type { Vec, World } from '../../sim/types';
+import type { World } from '../../sim/types';
+import type { Vec } from '../../sim/vec';
 import type { TurnClock } from './hazards';
 
 export type Drift = { pos: Vec; vel: Vec };
