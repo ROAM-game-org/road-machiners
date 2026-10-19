@@ -2,6 +2,8 @@
 import { isNoteId, NOTE_IDS } from '../data/locals';
 import { GAME_WORLD_VARS, QUEST_LANGUAGES, WAGON_SEEN, type QuestBundle, type QuestLanguage, type QuestValue } from '../data/quests';
 import { REGION } from '../data/region';
+import { SITE_EVENTS } from '../data/market';
+import { TIME } from '../data/time';
 import { STORY_WRECKS } from '../data/salvage';
 import { MAX_RANK, SKILL_IDS } from '../data/skills';
 import { playerVehicle } from '../sim/damage';
@@ -89,11 +91,15 @@ function withWorldVars(scenes: World[], assigned: readonly [string, QuestValue][
 export function gameScenes(base: World): QuestScenes {
   const shared = { ...base, terrain: Object.freeze({ ...base.terrain }), obstacles: [], vehicles: base.vehicles.filter((v) => v.id === base.player.vehicleId), salvage: base.salvage.filter(isStoryWreck), player: { ...base.player, explored: new Uint8Array(0), visible: [] } };
   return (questId) => {
-    const local = localOfQuest(questId);
     const fresh = cloneWorld(shared);
-    if (local) parkAt(fresh, local.town);
+    parkAtLocal(fresh, questId);
     return [fresh, veteran(fresh)];
   };
+}
+
+export function parkAtLocal(world: World, questId: string): void {
+  const local = localOfQuest(questId);
+  if (local) parkAt(world, local.town);
 }
 
 function parkAt(world: World, town: string): void {
@@ -111,8 +117,18 @@ function veteran(fresh: World): World {
   w.player.quests.world = { ...w.player.quests.world, [WAGON_SEEN]: true };
   for (const skill of SKILL_IDS) w.player.ranks[skill] = MAX_RANK;
   while (shopAt(w) && townWork(w)) takeTownWork(w);
+  starveParkedShop(w);
   w.events = [];
   return w;
+}
+
+function starveParkedShop(w: World): void {
+  const shopId = shopAt(w);
+  if (!shopId) return;
+  const state = w.shops[shopId];
+  for (const good of Object.keys(state.goods)) state.goods[good] = 0;
+  const breakdown = SITE_EVENTS.find((e) => e.site === shopId && e.kind === 'breakdown');
+  if (breakdown) state.event = { kind: 'breakdown', recipe: breakdown.recipe, until: w.turn + TIME.turnsPerDay };
 }
 
 function hookProblems(bundle: QuestBundle): string[] {

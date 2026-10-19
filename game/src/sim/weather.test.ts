@@ -57,6 +57,12 @@ describe('advanceWeather', () => {
     expect(most).toBe(WEATHER.sim.maxActive.storm);
   });
 
+  it('logs a started event when a heat wave arrives', () => {
+    const w = emptyWorld();
+    for (let i = 0; i < 20000 && !w.events.some((e) => e.t === 'weather' && e.event.kind === 'heatwave'); i++) advanceWeather(w);
+    expect(w.events.some((e) => e.t === 'weather' && e.outcome === 'started' && e.event.kind === 'heatwave')).toBe(true);
+  });
+
   it('never has a heat wave and overcast at once', () => {
     const w = emptyWorld();
     for (let i = 0; i < 20000; i++) {
