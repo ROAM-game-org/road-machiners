@@ -129,3 +129,12 @@ export function withHollowFort_84_85(world: SavedJson): SavedJson {
   };
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
 }
+
+export function withProgressAnchor_65_66(world: SavedJson): SavedJson {
+  const anchored = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain?.progress) return v;
+    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
+}
