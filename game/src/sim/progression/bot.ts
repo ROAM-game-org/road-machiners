@@ -654,7 +654,7 @@ function sellAtMarket(o: Orders): boolean {
 
 function bestMarket(world: World): TownDef | null {
   const cargo = Object.entries(cargoForSale(world, playerVehicle(world)));
-  const profit = (town: TownDef) => cargo.reduce((sum, [good, n]) => sum + n * (sellAt(world, town, good) - (world.player.costBasis[good] ?? 0)), 0);
+  const profit = (town: TownDef) => cargo.filter(([good]) => tradesGood(town.id, good)).reduce((sum, [good, n]) => sum + n * (sellAt(world, town, good) - (world.player.costBasis[good] ?? 0)), 0);
   return byDistance(world, reachable(world, knownTowns(world))).reduce<TownDef | null>((best, town) => (!best || profit(town) > profit(best) ? town : best), null);
 }
 
@@ -679,6 +679,7 @@ export function haulMarginAt(world: World, spend: number, room: number): number 
 function purchase(world: World, { source, market, good, spend, room }: { source: TownDef; market: TownDef; good: string; spend: number; room: number }): Purchase {
   const me = playerVehicle(world);
   const none = { town: source, good, count: 0, profit: 0, perTurn: 0 };
+  if (!tradesGood(source.id, good) || !tradesGood(market.id, good)) return none;
   if (sellAt(world, market, good) <= getTradePrice(world, me, source.id, good, 'buy')) return none;
   const lotProfit = (count: number) => (count === 0 ? 0 : getLotTradePrice(world, me, market.id, good, count, 'sell') - getLotTradePrice(world, me, source.id, good, count, 'buy'));
   let low = 0;
@@ -702,13 +703,13 @@ function scavenge(o: Orders, stripping: boolean): boolean {
   lootHere(o);
   const stock = freeCells(o.me) > 0 ? nearestStock(o.world, knownStocks(o.world)) : null;
   if (stock) visitStock(o, stock);
-  else if (cargoToTown(o, stripping)) driveToSite(o, nearestTown(o.world));
+  else if (cargoToTown(o, stripping)) driveToSite(o, cargoBuyer(o, stripping));
   else return findSalvageSite(o);
   return true;
 }
 
 function cargoToTown(o: Orders, stripping: boolean): boolean {
-  return sellsCargo(o, stripping) && !townAt(o.world);
+  return sellsCargo(o, stripping) && !sellsHere(o, stripping);
 }
 
 function findSalvageSite(o: Orders): boolean {
@@ -946,8 +947,8 @@ function nearestVehicle(from: Vec, vehicles: readonly Vehicle[]): Vehicle | null
 
 function collectOrHunt(o: Orders): void {
   if (freeCells(o.me) === 0) {
-    if (townAt(o.world) || !sellsCargo(o, true)) return hunt(o);
-    return driveToSite(o, nearestTown(o.world));
+    if (sellsHere(o, true) || !sellsCargo(o, true)) return hunt(o);
+    return driveToSite(o, cargoBuyer(o, true));
   }
   const wreck = nearestStock(o.world, knownStocks(o.world).filter((s) => s.id.startsWith('wreck-') && playerSees(o.world, s.pos)));
   if (wreck) return visitStock(o, wreck);
@@ -1186,17 +1187,36 @@ function sellCargo(o: Orders, stripping = false): void {
 }
 
 function sellInTown(o: Orders, stripping: boolean): boolean {
-  if (townAt(o.world) && sellsCargo(o, stripping)) sellCargo(o, stripping);
+  if (sellsHere(o, stripping)) sellCargo(o, stripping);
   return o.me.job !== null;
 }
 
-function goodsToSell(o: Orders, stripping: boolean): [string, number][] {
+function cargoGoods(o: Orders, stripping: boolean): [string, number][] {
   const keep = stripping && o.fieldRepair;
   return Object.entries(cargoForSale(o.world, o.me)).filter(([good]) => !keep || good !== 'parts');
 }
 
+function goodsToSell(o: Orders, stripping: boolean): [string, number][] {
+  const shop = shopAt(o.world);
+  return cargoGoods(o, stripping).filter(([good]) => !shop || tradesGood(shop, good));
+}
+
+function tradesGood(shop: string, good: string): boolean {
+  return shopDef(shop).goods.includes(good);
+}
+
+function sellsHere(o: Orders, stripping: boolean): boolean {
+  return townAt(o.world) !== null && (goodsToSell(o, stripping).length > 0 || spareItems(o.me).length > 0);
+}
+
+function cargoBuyer(o: Orders, stripping: boolean): TownDef {
+  const goods = cargoGoods(o, stripping).map(([good]) => good);
+  const sellsGoods = (town: TownDef) => spareItems(o.me).length > 0 || goods.some((good) => tradesGood(town.id, good));
+  return byDistance(o.world, REGION.towns.filter(sellsGoods))[0] ?? nearestTown(o.world);
+}
+
 function sellsCargo(o: Orders, stripping: boolean): boolean {
-  return goodsToSell(o, stripping).length > 0 || spareItems(o.me).length > 0;
+  return cargoGoods(o, stripping).length > 0 || spareItems(o.me).length > 0;
 }
 
 function sellSpares(o: Orders, keep: boolean): void {

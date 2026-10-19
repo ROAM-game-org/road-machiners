@@ -150,9 +150,15 @@ describe("trade", () => {
     );
   });
 
-  it("every garage prices every good", () => {
-    for (const [id] of Object.entries(SHOPS).filter(([, s]) => s.kind === "garage"))
-      for (const good of GOOD_IDS) expect(goodBasePrice(id, good)).toBeGreaterThan(0);
+  it("every shop prices every good it lists", () => {
+    for (const shop of Object.values(SHOPS))
+      for (const good of shop.goods) expect(goodBasePrice(shop.id, good)).toBeGreaterThan(0);
+  });
+
+  it("Bowl trades no ship relics and Nose pays more for them than the Yard", () => {
+    expect(GOOD_IDS).toContain("relics");
+    expect(() => goodBasePrice("bowl", "relics")).toThrow();
+    expect(goodBasePrice("nose", "relics")).toBeGreaterThan(goodBasePrice("salvage-yard", "relics"));
   });
 
   it("a lot price equals the sum of single-unit trades", () => {

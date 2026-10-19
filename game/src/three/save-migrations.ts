@@ -893,6 +893,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withHattieMet_77_78,
   withBrakeRod_78_79,
   withoutVarga_79_80,
+  (world) => world,
 ];
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {
