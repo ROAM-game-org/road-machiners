@@ -193,7 +193,7 @@ export class Hud {
     const open = this.drawers.open();
     const frame = open === null ? null : document.querySelector<HTMLElement>(`#ui [data-drawer-frame="${open}"]`);
     const card = uiSize().layerRect(this.info);
-    const tops = [this.top, this.drawers.element, frame]
+    const tops = [this.top, this.drawers.element, frame, this.recenter]
       .map((node) => (node ? uiSize().layerRect(node) : undefined))
       .filter((box) => box !== undefined && box.left < card.right && box.right > card.left)
       .map((box) => box!.top);
@@ -217,6 +217,8 @@ export class Hud {
     const width = wider > 0 ? this.info.offsetWidth + wider : this.info.offsetWidth;
     if (phoneMode()) {
       this.info.style.width = `${Math.min(width, this.aimWidthCap())}px`;
+      const fits = slot - this.inspectedDraw.clientHeight + need.height;
+      this.info.style.height = `${Math.min(slot, Math.max(fits, 0))}px`;
       return;
     }
     if (wider > 0) this.info.style.width = `${width}px`;
