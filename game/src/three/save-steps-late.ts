@@ -87,6 +87,11 @@ export function withBrakeRod_78_79(world: SavedJson): SavedJson {
   return { ...renamed, player: { ...player, notes } };
 }
 
+export function withKovacMounts_81_82(world: SavedJson): SavedJson {
+  const heard = renameQuestVar(world, 'nose_kovac', 'heard_gate_law', 'heard_mounts');
+  return renameQuestVar(heard, 'nose_kovac', 'asked_gate_law', 'asked_mounts');
+}
+
 export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }

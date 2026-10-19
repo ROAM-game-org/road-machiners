@@ -2,8 +2,8 @@ INCLUDE world.ink
 
 VAR heard_workshop = false
 VAR asked_workshop = false
-VAR heard_gate_law = false
-VAR asked_gate_law = false
+VAR heard_mounts = false
+VAR asked_mounts = false
 VAR heard_courier = false
 VAR asked_courier = false
 VAR heard_paper = false
@@ -29,7 +29,7 @@ VAR asked_paper = false
   -> hub
 + [Как там дорога?]
   Плохая, как только выедешь за стены. Дорогу между нашей стеной и стеной Чаши никто не охраняет. Рейдеры Обжига, из южного лагеря, раздевают любой грузовик, который не платит и не дерется. Я записываю каждый грузовик на выезде и на въезде. Хуже всего те, что не возвращаются. Поэтому без пушки грузовик я не выпускаю. Это закон ворот. Одна курьерша ездит без пушки. Что о ней думать, я ещё не решил.
-  ~ heard_gate_law = true
+  ~ heard_mounts = true
   ~ heard_courier = true
   -> hub
 + [Есть работа?]
@@ -89,9 +89,9 @@ VAR asked_paper = false
   Старый сад, склад Старой армии. Станки принадлежат Гильдии, командование их арендует. Кто платит аренду, это выше моего чина.
   ~ asked_workshop = true
   -> hub
-+ {heard_gate_law and not asked_gate_law} [Что за закон ворот?]
++ {heard_mounts and not asked_mounts} [Что за закон ворот?]
   Нет пушки, нет пропуска. Вместе с пропуском мастерская выдает каждому водителю стальное крепление, так что никто не скажет мне, что ему некуда было ставить пушку. Что станет с креплением потом, это дело водителя и <term=pierce>«Пирса»</term>. «Пирс» пишет свою бумагу. Я не спрашиваю.
-  ~ asked_gate_law = true
+  ~ asked_mounts = true
   ~ heard_paper = true
   -> hub
 + {heard_courier and not asked_courier} [Кто та курьерша, что ездит без пушки?]

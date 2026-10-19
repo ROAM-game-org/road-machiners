@@ -2,8 +2,8 @@ INCLUDE world.ink
 
 VAR heard_workshop = false
 VAR asked_workshop = false
-VAR heard_gate_law = false
-VAR asked_gate_law = false
+VAR heard_mounts = false
+VAR asked_mounts = false
 VAR heard_courier = false
 VAR asked_courier = false
 VAR heard_paper = false
@@ -28,8 +28,8 @@ VAR asked_paper = false
   On paper the Central Committee. In the street the Army. Command gives me orders, I hand them down, nobody argues. I hear <term=bowl>Bowl</term> votes on everything. I wouldn't last a morning there.
   -> hub
 + [What is the road like?]
-  Bad once you're past the walls. Nobody keeps the road between our wall and Bowl's. Kiln riders, the raiders from the camp in the south, strip any truck that won't pay or fight. I log every truck out and every truck in. The ones that don't come back are the part I like least. That's why no truck gets out without a gun. That's the gate law. One courier goes without. I haven't decided what I think of her.
-  ~ heard_gate_law = true
+  Bad once you're past the walls. Nobody keeps the road between our wall and Bowl's. Kiln riders, the raiders from the camp in the south, strip any truck that won't pay or fight. I log every truck out and every truck in. The ones that don't come back are the part I like least. Most that don't come back went out without a gun. I don't stop them at the gate. I log them. One courier goes without. I haven't decided what I think of her.
+  ~ heard_mounts = true
   ~ heard_courier = true
   -> hub
 + [Any work?]
@@ -89,17 +89,17 @@ VAR asked_paper = false
   Old Orchard, the Old Army's depot. The machine tools are the Guild's, and command rents them. Who pays that rent is above my sheet.
   ~ asked_workshop = true
   -> hub
-+ {heard_gate_law and not asked_gate_law} [What is the gate law?]
-  No gun, no gate pass. The line hands every driver a steel mount with his pass, so nobody can tell me he had nothing to bolt on. What happens to the mount after that is between the driver and <term=pierce>Pierce</term>. Pierce writes his paper. I don't ask.
-  ~ asked_gate_law = true
++ {heard_mounts and not asked_mounts} [Why don't you stop them at the gate?]
+  The gate isn't mine to shut on a driver. The line hands a steel mount to any driver who asks, so nobody can tell me he had nothing to bolt on. What goes on it is between the driver and <term=pierce>Pierce</term>. Pierce writes his paper. I don't ask.
+  ~ asked_mounts = true
   ~ heard_paper = true
   -> hub
 + {heard_courier and not asked_courier} [Who is the courier that goes without a gun?]
-  Tamsin Roe, of the Guild. The Guild carries the mail between the towns. She drives with no gun of her own. The courier who runs with her carries the rifle. The two of them get through my gate, but I don't like what it teaches the other drivers. Brave or stupid, I haven't decided.
+  Tamsin Roe, of the Guild. The Guild carries the mail between the towns. She drives with no gun of her own. The courier who runs with her carries the rifle. The two of them sign out at my gate like any truck, but I don't like what it teaches the other drivers. Brave or stupid, I haven't decided.
   ~ asked_courier = true
   -> hub
 + {heard_paper and not asked_paper} [What is Pierce paper?]
-  It's the insurance that pays a driver when his truck is shot. Pierce writes it for any truck with a gun on it, and for no other. That's why the gate hands out mounts.
+  It's the insurance that pays a driver when his truck is shot. Pierce writes it for any truck with a gun on it, and for no other. That's why the line hands out mounts.
   ~ asked_paper = true
   -> hub
 + [Goodbye.]
