@@ -35,6 +35,7 @@ INSET = 0.04  # body sides stand this far inside the footprint, so mounted plate
 ARCH_CLEARANCE = 0.06  # between a wheel and its arch
 ARCH_SEGMENTS = 8  # straight edges around each arch, for the low-poly look
 FLARE = 0.09  # radial width of the dark fender flare around an arch
+DOOR_GAP = 0.25
 SUSPENSION_REST = 0.4  # PHYSICS.truck.suspensionRest: the wheel hub hangs this far below the wheel mount
 
 
@@ -120,6 +121,31 @@ def surface_z(g: Grid, x: int, y: int) -> float:
     if not hit:
         raise RuntimeError(f"No base surface under cell {x},{y}")
     return round(loc.z, 3)
+
+
+def door_gap(x0: float, x1: float, z0: float, wx: float, hub_z: float, arch_r: float) -> float:
+    lo, hi = min(x0, x1), max(x0, x1)
+    dx = max(lo - wx, wx - hi, 0.0)
+    dz = max(z0 - hub_z, 0.0)
+    return math.hypot(dx, dz) - arch_r - FLARE
+
+
+def door_sill(x0: float, x1: float, floor: float, wheels_x: list[float], hub_z: float, arch_r: float) -> float:
+    lo, hi = min(x0, x1), max(x0, x1)
+    reach = arch_r + FLARE + DOOR_GAP
+    sill = floor
+    for wx in wheels_x:
+        dx = max(lo - wx, wx - hi, 0.0)
+        if dx < reach:
+            sill = max(sill, hub_z + math.sqrt(reach**2 - dx**2))
+    return sill
+
+
+def check_door_gap(name: str, x0: float, x1: float, z0: float, wheels_x: list[float], hub_z: float, arch_r: float) -> None:
+    for wx in wheels_x:
+        gap = door_gap(x0, x1, z0, wx, hub_z, arch_r)
+        if gap < DOOR_GAP - 1e-6:
+            raise RuntimeError(f"{name} at x {min(x0, x1):.3f}..{max(x0, x1):.3f} from z {z0:.3f} keeps {gap:.3f} m from the flare of the wheel at x {wx:.3f}, under DOOR_GAP {DOOR_GAP}")
 
 
 def check_base(kit: Kit, name: str, g: Grid) -> None:

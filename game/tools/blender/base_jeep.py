@@ -5,7 +5,7 @@ One slab-sided body from nose to tail. Rows 0 and 1 are a flat sloped front hood
 rows 2 and 3 a closed cab behind an upright windshield with the driver's seat and a passenger seat cushion,
 under a flat hardtop roof with side windows and a rear window,
 rows 4 and 5 the rear deck with a cutout over the engine cells, row 6 a louvered tail sloping down to the rear.
-Wheels sit on rows 1 and 5 in the outer columns, radius 0.58 m, half width 0.22 m, mount 0.25 m below the center.
+Wheels sit on rows 1 and 5 in the outer columns, radius 0.45 m, half width 0.18 m, mount 0.25 m below the center.
 Run: blender --background --python tools/blender/base_jeep.py -- public/models/base_jeep.glb [tmp/base_jeep.png]
 """
 
@@ -17,13 +17,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, ARCH_SEGMENTS, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, level_sockets, surface_z  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, ARCH_SEGMENTS, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, check_door_gap, door_sill, level_sockets, surface_z  # noqa: E402
 from shapes import prism, strut  # noqa: E402
 
 SEED = 304
 G = Grid(rows=7, cols=4, half_height=0.4)
-WHEEL_R = 0.58
-WHEEL_HALF_W = 0.22
+WHEEL_R = 0.45
+WHEEL_HALF_W = 0.18
 HUB_Z = -0.25 - SUSPENSION_REST
 WHEELS_X = [G.row_x(5), G.row_x(1)]
 ARCH_R = WHEEL_R + ARCH_CLEARANCE
@@ -47,7 +47,7 @@ COWL = G.row_x(1.5)  # the windshield base and the tub front, behind the hood ro
 TUB_BACK = G.row_x(3.5)  # the tub ends at the engine bay
 FIREWALL = 0.03  # half the wall between the tub and the engine bay
 BAY_BACK = G.row_x(5.5)  # the engine cells run from row 4 to row 5, and the tail slope starts here
-SEAM_LOW = -0.28  # door seams end here, or above an arch
+SEAM_LOW = -0.28  # door seams end above the front arch
 RAKE = 0.08  # the windshield leans back this far at its top
 SCREEN_TOP = TOP + 0.42
 SEAT_TOP = 0.24  # the passenger seat cushion
@@ -108,14 +108,9 @@ def ribs(kit: Kit) -> None:
         mirrored(kit, f"rib{i}", (COWL - TUB_BACK + 1.2, 0.025, 0.07), (COWL + TUB_BACK) / 2 - 0.1, SIDE + 0.0125, z, "paint")
     mirrored(kit, "rib_low", (WHEELS_X[1] - WHEELS_X[0] - 2 * ARCH_R - 0.1, 0.025, 0.05), (WHEELS_X[0] + WHEELS_X[1]) / 2, SIDE + 0.0125, -0.2, "paint")
     for i, x in enumerate((COWL - 0.04, (COWL + TUB_BACK) / 2, TUB_BACK - 0.1)):
-        low = max(SEAM_LOW, arch_top(x) + 0.04)
+        low = door_sill(x, x, SEAM_LOW, WHEELS_X, HUB_Z, ARCH_R)
+        check_door_gap(f"seam{i}", x, x, low, WHEELS_X, HUB_Z, ARCH_R)
         mirrored(kit, f"seam{i}", (0.025, 0.012, TOP - low), x, SIDE + 0.006, (TOP + low) / 2, "under")
-
-
-def arch_top(x: float) -> float:
-    """The height of the arch edge over x, or the body bottom where no arch reaches."""
-    reach = [ARCH_R**2 - (x - wx) ** 2 for wx in WHEELS_X]
-    return max([HUB_Z + math.sqrt(r) for r in reach if r > 0], default=G.bottom)
 
 
 def hood(kit: Kit) -> None:

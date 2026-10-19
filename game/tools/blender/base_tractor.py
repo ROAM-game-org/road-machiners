@@ -4,7 +4,7 @@ Grid: 7 columns by 9 rows, 3.39 m across by 5.85 m along. Half height 0.65 m, fr
 Rows 0 to 2 are the long square hood with a cutout over the engine cells, between swept front fenders.
 Rows 3 and 4 are the tall cab over chrome fuel tanks, with exhaust stacks behind it.
 Rows 5 to 8 are the low flat deck with the fifth-wheel plate.
-Wheels sit on rows 1 and 7 in the outer columns, radius 0.88 m, half width 0.36 m, mount 0.45 m below the center.
+Wheels sit on rows 1 and 7 in the outer columns, radius 0.71 m, half width 0.305 m, mount 0.45 m below the center.
 Run: blender --background --python tools/blender/base_tractor.py -- public/models/base_tractor.glb [tmp/base_tractor.png]
 """
 
@@ -24,8 +24,8 @@ from shapes import prism  # noqa: E402
 
 SEED = 303
 G = Grid(rows=9, cols=7, half_height=0.65)
-WHEEL_R = 0.88
-WHEEL_HALF_W = 0.36
+WHEEL_R = 0.71
+WHEEL_HALF_W = 0.305
 HUB_Z = -0.45 - SUSPENSION_REST
 FRONT_WHEEL_X = G.row_x(1)
 REAR_WHEEL_X = G.row_x(7)

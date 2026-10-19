@@ -4,7 +4,7 @@ Grid: 5 columns by 7 rows, 2.42 m across by 4.55 m along. Half height 0.7 m, fro
 Rows 0 and 1 are a raised gun deck over a welded grille, rows 2 and 3 a narrow hood with a cutout over the engine cells,
 rows 4 and 5 open seats behind a flat windshield, and row 6 a short open box.
 Big separate front fenders flow into running boards. The rear body covers the rear wheels.
-Wheels sit on rows 1 and 5 in the outer columns, radius 0.76 m, half width 0.3 m, mount 0.45 m below the center.
+Wheels sit on rows 1 and 5 in the outer columns, radius 0.6 m, half width 0.25 m, mount 0.45 m below the center.
 Run: blender --background --python tools/blender/base_wagon.py -- public/models/base_wagon.glb [tmp/base_wagon.png]
 """
 
@@ -23,8 +23,8 @@ from shapes import prism  # noqa: E402
 
 SEED = 302
 G = Grid(rows=7, cols=5, half_height=0.7)
-WHEEL_R = 0.76
-WHEEL_HALF_W = 0.3
+WHEEL_R = 0.6
+WHEEL_HALF_W = 0.25
 HUB_Z = -0.45 - SUSPENSION_REST
 FRONT_WX = G.row_x(1)
 REAR_WX = G.row_x(5)

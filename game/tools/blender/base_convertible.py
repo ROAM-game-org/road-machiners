@@ -5,7 +5,7 @@ One long low slab body with a crease band wrapping around it at the beltline. Ro
 with no grille, the fuel tank hidden under it. Rows 3 and 4 are the closed hardtop cabin: a raked windshield, a flat
 roof, pillarless side windows and a sloped rear window, over two bucket seats and a rear bench. Rows 5 to 8 are a flat
 rear deck lid over the transmission, with a cutout over the engine cells and a louvered grille behind it. Round quad lamps front and back.
-Wheels sit on rows 1 and 7 in the outer columns, radius 0.55 m, half width 0.2 m, mount 0.2 m below the center.
+Wheels sit on rows 1 and 7 in the outer columns, radius 0.46 m, half width 0.18 m, mount 0.2 m below the center.
 Run: blender --background --python tools/blender/base_convertible.py -- public/models/base_convertible.glb [tmp/base_convertible.png]
 """
 
@@ -22,8 +22,8 @@ from shapes import prism, strut  # noqa: E402
 
 SEED = 305
 G = Grid(rows=9, cols=5, half_height=0.35)
-WHEEL_R = 0.55
-WHEEL_HALF_W = 0.2
+WHEEL_R = 0.46
+WHEEL_HALF_W = 0.18
 HUB_Z = -0.2 - SUSPENSION_REST
 WHEELS_X = [G.row_x(1), G.row_x(7)]
 ARCH_R = WHEEL_R + ARCH_CLEARANCE

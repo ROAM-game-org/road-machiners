@@ -5,7 +5,7 @@ Row 0 is the wide bucket, carried just over the front tires, with two lift arms 
 Row 1 is the front frame deck between the front tires. Rows 2 and 3 are the tall closed cab in the middle columns, on a side deck.
 Rows 4 to 7 are the engine hood, with a cutout over the engine cells and the transmission cell, sloping down at row 7.
 Row 8 is the heavy counterweight with the radiator grille.
-Wheels sit on rows 1 and 7 in the outer columns, radius 0.95 m, half width 0.38 m, mount 0.45 m below the center.
+Wheels sit on rows 1 and 7 in the outer columns, radius 0.8 m, half width 0.32 m, mount 0.45 m below the center.
 Run: blender --background --python tools/blender/base_loader.py -- public/models/base_loader.glb [tmp/base_loader.png]
 """
 
@@ -24,8 +24,8 @@ from shapes import prism  # noqa: E402
 
 SEED = 307
 G = Grid(rows=9, cols=7, half_height=0.65)
-WHEEL_R = 0.95
-WHEEL_HALF_W = 0.38
+WHEEL_R = 0.8
+WHEEL_HALF_W = 0.32
 HUB_Z = -0.45 - SUSPENSION_REST
 FRONT_WHEEL_X = G.row_x(1)
 REAR_WHEEL_X = G.row_x(7)
@@ -171,7 +171,7 @@ def frames(kit: Kit) -> None:
 
 def side_steps(kit: Kit) -> None:
     """Painted side pods between the tires, with the ladder up to the cab door on the left, and the deck around the cab."""
-    x0, x1 = G.row_x(5.5), G.row_x(2.5) + 0.1
+    x0, x1 = REAR_WHEEL_X + FENDER_R + FENDER_T, FRONT_WHEEL_X - FENDER_R - 0.02
     pod_out = SIDE - 0.08
     mirrored(kit, "pod", (x1 - x0, pod_out - FRAME_Y, SIDE_DECK + 0.5), (x0 + x1) / 2, (pod_out + FRAME_Y) / 2, SIDE_DECK - 0.25, "paint")
     kit.box("deck", (CAB_FRONT - CAB_BACK + 0.1, 2 * SIDE, 0.1), ((CAB_FRONT + CAB_BACK) / 2, 0, SIDE_DECK - 0.05), "paint")

@@ -4,7 +4,7 @@ Grid: 4 columns by 6 rows, 1.94 m across by 3.9 m along. Half height 0.35 m, fro
 Rows 0 to 2 are a narrow tub nose with the engine standing bare over the engine cells, rows 3 and 4 the seats
 in a closed cab built into a roll cage, with a windshield, side doors and windows, a roof and a rear window, row 5 a short tail. Tall swept fenders cover the front wheels, and the rear wheels stand bare
 under small mudguards. The cab roof is a flat gun deck, so the weapon on row 3 sits on the cab like a technical.
-Wheels sit on rows 1 and 4 in the outer columns, radius 0.65 m, half width 0.26 m, mount 0.2 m below the center.
+Wheels sit on rows 1 and 4 in the outer columns, radius 0.5 m, half width 0.22 m, mount 0.2 m below the center.
 Run: blender --background --python tools/blender/base_buggy.py -- public/models/base_buggy.glb [tmp/base_buggy.png]
 """
 
@@ -21,8 +21,8 @@ from shapes import prism, strut  # noqa: E402
 
 SEED = 302
 G = Grid(rows=6, cols=4, half_height=0.35)
-WHEEL_R = 0.65
-WHEEL_HALF_W = 0.26
+WHEEL_R = 0.5
+WHEEL_HALF_W = 0.22
 HUB_Z = -0.2 - SUSPENSION_REST
 WHEELS_X = [G.row_x(1), G.row_x(4)]
 ARCH_R = WHEEL_R + ARCH_CLEARANCE
@@ -48,8 +48,7 @@ CAGE_BACK = G.row_x(4.5) + 0.1  # the cage's rear top bar
 DECK_BACK = G.row_x(3.5) - 0.2  # the gun deck covers row 3 and a little of row 4
 BAY_FRONT = G.row_x(0.5)  # the engine cells run from row 1 to row 2
 COWL = G.row_x(2.5)  # the dash stands behind the engine cells
-SIDE_BACK = WHEELS_X[1] + 0.62  # the side panel's top ends here, over the front of the bare rear wheel
-GUARD_CLEAR = ARCH_R + 0.12  # the side panel's back edge keeps this far from the rear hub, clear of the mudguard
+SIDE_BACK = WHEELS_X[1] + ARCH_R + 0.06  # the side panel ends in front of the bare rear wheel
 
 
 def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
@@ -84,11 +83,8 @@ def sides(kit: Kit) -> None:
     wx = WHEELS_X[0]
     # The fender top sweeps down ahead of the wheel on a quarter ellipse, the Manx signature.
     swoop = [(wx + FENDER_REACH * math.cos(a), max(PAN + 0.3, HUB_Z + (HOOD_TOP - HUB_Z) * math.sin(a))) for a in (math.pi * k / 10 for k in range(1, 6))]
-    rx = WHEELS_X[1]
-    back_top = math.acos((SIDE_BACK - rx) / GUARD_CLEAR)
-    back_bottom = math.asin((PAN + 0.1 - HUB_Z) / GUARD_CLEAR)
     profile = (
-        arc(rx, GUARD_CLEAR, back_top, back_bottom, PAN + 0.1)
+        [(SIDE_BACK, PAN + 0.1)]
         + arc(wx, ARCH_R, math.pi, 0.15, PAN + 0.1)
         + swoop
         + [(SIDE_BACK + 0.12, HOOD_TOP), (SIDE_BACK, HOOD_TOP - 0.14)]
@@ -105,6 +101,7 @@ def sides(kit: Kit) -> None:
     stripe = [(SIDE_BACK + 0.1, HOOD_TOP - 0.18), (wx + 0.05, HOOD_TOP - 0.18), (wx + 0.2, HOOD_TOP - 0.06), (SIDE_BACK + 0.1, HOOD_TOP - 0.06)]
     prism(kit, "stripe_l", stripe, SIDE, SIDE + 0.02, "trim")
     prism(kit, "stripe_r", stripe, -SIDE - 0.02, -SIDE, "trim")
+    rx = WHEELS_X[1]
     guard = arc(rx, ARCH_R + 0.1, 0.3, math.pi - 0.1, PAN) + list(reversed(arc(rx, ARCH_R, 0.3, math.pi - 0.1, PAN)))
     prism(kit, "guard_l", guard, TUB, SIDE, "under")
     prism(kit, "guard_r", guard, -SIDE, -TUB, "under")

@@ -5,7 +5,7 @@ One boat-shaped hull and no separate cab. Row 0 is the sloped glacis. Rows 1 and
 Rows 3 and 4 are an engine grille deck with a cutout over the engine cells and the transmission cell.
 Rows 5 to 8 are the rear hull deck where cargo frames stand.
 The upper hull sides slope inward above the wheels, and the lower hull sides slope inward below the waist.
-Wheels sit on rows 1 and 7 in the outer columns, radius 0.82 m, half width 0.34 m, mount 0.4 m below the center.
+Wheels sit on rows 1 and 7 in the outer columns, radius 0.65 m, half width 0.28 m, mount 0.4 m below the center.
 Run: blender --background --python tools/blender/base_carrier.py -- public/models/base_carrier.glb [tmp/base_carrier.png]
 """
 
@@ -24,8 +24,8 @@ from shapes import prism  # noqa: E402
 
 SEED = 303
 G = Grid(rows=9, cols=6, half_height=0.6)
-WHEEL_R = 0.82
-WHEEL_HALF_W = 0.34
+WHEEL_R = 0.65
+WHEEL_HALF_W = 0.28
 HUB_Z = -0.4 - SUSPENSION_REST
 WHEELS_X = [G.row_x(7), G.row_x(1)]
 ARCH_R = WHEEL_R + ARCH_CLEARANCE
@@ -34,7 +34,7 @@ WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
 SIDE = G.half_y - INSET  # the hull's outer face at the waist
 FRONT = G.half_x - INSET  # the bow
 BACK = -G.half_x + INSET  # the stern
-WAIST = HUB_Z + ARCH_R + 0.09  # the hull's widest line, just over the wheel arches
+WAIST = 0.0  # the hull's widest line, just over the wheel arches
 BOW_Z = -0.3  # the bow and stern faces run from here up to the waist
 LEAN = 0.3  # the lower hull sides move inward this much per meter below the waist
 
@@ -67,9 +67,8 @@ def lower_hull(kit: Kit) -> None:
     """The V-shaped lower hull: sides leaning inward below the waist with wheel arches, a painted core and dark well liners."""
     ends = [(FRONT, BOW_Z), (FRONT, WAIST), (BACK, WAIST), (BACK, BOW_Z)]
     arches = arch(WHEELS_X[0]) + arch(WHEELS_X[1])
-    shift = LEAN * WAIST
-    prism(kit, "skin_l", arches + ends, WELL_Y - shift, SIDE - shift, "paint", lean=-LEAN)
-    prism(kit, "skin_r", arches + ends, -SIDE + shift, -WELL_Y + shift, "paint", lean=LEAN)
+    prism(kit, "skin_l", arches + ends, WELL_Y, SIDE, "paint", lean=-LEAN)
+    prism(kit, "skin_r", arches + ends, -SIDE, -WELL_Y, "paint", lean=LEAN)
     prism(kit, "keel", [arches[0], arches[-1]] + ends, -WELL_Y, WELL_Y, "paint")
     for i, wx in enumerate(WHEELS_X):
         size = (2 * ARCH_R + 0.1, 0.015, ARCH_R + 0.05)
