@@ -247,7 +247,7 @@ export class BlockSession {
     const section = this.sectionOf(spot.bar);
     const plain = spot.block.level;
     const leaned = this.levelOf(section.from, section.bars, true);
-    return this.out.lean(this.barTime(spot.bar), spot.at, length, leaned / plain, leaned, this.beatSeconds);
+    return this.out.lean(this.barTime(spot.bar), spot.at, length, leaned / plain, leaned, this.releaseOf(spot, length));
   }
 
   private guitarShare(bar: number, bars: number): number {
@@ -259,7 +259,14 @@ export class BlockSession {
     const section = this.sectionOf(spot.bar);
     const source = this.song.cymbals.from + ((spot.bar - section.from) % SCORE_BLOCKS.arc.phraseBars);
     const offset = this.barTime(source) + spot.beat * this.beatSeconds - this.song.cymbals.start;
-    return this.out.voice("cymbals", offset, spot.at, length, SCORE_BLOCKS.seamSeconds, this.song.cymbals.gain * this.cymbalGain);
+    const handle = this.out.voice("cymbals", offset, spot.at, length, SCORE_BLOCKS.seamSeconds, this.song.cymbals.gain * this.cymbalGain);
+    const release = this.releaseOf(spot, length);
+    handle.fadeOut(spot.at + length - release / 2, release / 2);
+    return handle;
+  }
+
+  private releaseOf(spot: Spot, length: number): number {
+    return Math.min(spot.barSeconds, length);
   }
 
   private sectionOf(bar: number): Section {

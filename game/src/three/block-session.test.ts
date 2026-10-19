@@ -86,12 +86,13 @@ describe("BlockSession", () => {
     expect(guitars.level).toBeLessThan(1);
   });
 
-  it("fades the guitar layer out over the last beat before the phrase ends", () => {
+  it("fades both layers out over the last bar before the phrase ends", () => {
     const { session, voices, verseAt } = playIntoVerse(WALL_SONG);
     session.fire("knockout", verseAt + 0.1);
     session.tick(verseAt + 0.1);
     const phraseEnd = verseAt + 2 * BAR_SECONDS;
-    expect(voices.find((v) => v.part === "guitars")!.release).toEqual({ from: phraseEnd - BAR_SECONDS / 4, to: phraseEnd });
+    expect(voices.find((v) => v.part === "guitars")!.release).toEqual({ from: phraseEnd - BAR_SECONDS, to: phraseEnd });
+    expect(voices.find((v) => v.part === "cymbals")!.fades[0]).toBeCloseTo(phraseEnd - BAR_SECONDS / 2);
   });
 
   it("adds no guitars to a solo, which already leads with them", () => {
