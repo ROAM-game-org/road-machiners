@@ -175,14 +175,22 @@ export function serviceVehicle(
   refuelAndRepair(world, vehicle, townId);
 }
 
-const CAMP_MARGIN = ECONOMY.spread + ECONOMY.roadSpread;
+const BASE_ROAD_MARGIN = ECONOMY.spread + ECONOMY.roadSpread;
 
 export function campGoodPrice(good: string): number {
-  return roadGoodPrice(good, CAMP_MARGIN, "sell");
+  return roadGoodPrice(good, BASE_ROAD_MARGIN, "sell");
 }
 
 export function campPartPrice(part: PartInstance): number {
-  return partPriceAt(part, CAMP_MARGIN, "sell");
+  return partPriceAt(part, BASE_ROAD_MARGIN, "sell");
+}
+
+export function roadGoodAsk(good: string): number {
+  return roadGoodPrice(good, BASE_ROAD_MARGIN, "buy");
+}
+
+export function roadPartAsk(part: PartInstance): number {
+  return partPriceAt(part, BASE_ROAD_MARGIN, "buy");
 }
 
 function requireCampService(vehicle: Vehicle, campId: string): void {

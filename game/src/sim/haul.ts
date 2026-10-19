@@ -1,7 +1,7 @@
 
 import { GOODS } from '../data/goods';
 import { RULES } from '../data/rules';
-import { getUpkeepReserve, partSellPrice } from './economy';
+import { getUpkeepReserve, partSellPrice, roadGoodAsk, roadPartAsk } from './economy';
 import { getResources } from './resources';
 import { UNITS } from '../data/units';
 import { findSpot, freeCells, gridOf, isMounted } from './grid';
@@ -93,6 +93,17 @@ export function haulValue(items: GridItem[]): number {
   return items.reduce((sum, item) => sum + value(item), 0);
 }
 
+function askOf(item: GridItem): number {
+  if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} is nobody's loot`);
+  return item.kind === 'part' ? roadPartAsk(item.part) : roadGoodAsk(item.good);
+}
+
+export function haulPrice(items: GridItem[]): number {
+  if (items.length === 0) throw new Error('A haul price needs a haul');
+  const asked = items.reduce((sum, item) => sum + askOf(item), 0);
+  return Math.ceil(asked / UNITS.centsPerM) * UNITS.centsPerM;
+}
+
 export function cashCut(world: World, victim: Vehicle): number {
   const spare = getResources(world, victim).money - getUpkeepReserve(victim);
   if (spare <= 0) return 0;
@@ -102,7 +113,7 @@ export function cashCut(world: World, victim: Vehicle): number {
 
 export function ransomOf(world: World, robber: Vehicle, victim: Vehicle): Ransom {
   const haul = robber.brain ? cargoHaul(robber, victim) : looseCargo(victim);
-  return { haul, money: haul.length > 0 ? haulValue(haul) : cashCut(world, victim) };
+  return { haul, money: haul.length > 0 ? haulPrice(haul) : cashCut(world, victim) };
 }
 
 export function hasRansom(ransom: Ransom): boolean {

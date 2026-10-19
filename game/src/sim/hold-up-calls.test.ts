@@ -57,6 +57,7 @@ describe('a demand with a price', () => {
     expect(w.player.call).toMatchObject({ with: raider.id, topic: 'demand' });
     expect(texts(w)).toEqual([DROP, PAY, REFUSE, 'Hang up.']);
     const price = ransomOf(w, raiderIn(w, raider.id), playerVehicle(w)).money;
+    expect(w.player.call!.vars.price).toEqual({ kind: 'money', amount: price });
     const before = w.player.money;
     const next = pick(w, PAY);
     expect(before - next.player.money).toBe(price);
