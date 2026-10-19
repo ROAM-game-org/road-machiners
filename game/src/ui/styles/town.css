@@ -88,7 +88,16 @@
 .town-page .town-sections [aria-disabled="true"] {
   opacity: 0.5;
 }
-:where(#ui.phone) .art-band,
-:where(#ui.narrow) .town-page .art-band {
+:where(#ui.phone, #ui.narrow) .town-page .art-band {
   height: var(--art-band-phone-height);
+}
+:where(#ui.phone, #ui.narrow) .town-page .town-title {
+  position: static;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  padding: var(--space-3) var(--space-5);
+  background: none;
+}
+:where(#ui.phone, #ui.narrow) .town-page .town-title h3 {
+  margin-right: auto;
 }
