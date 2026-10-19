@@ -338,8 +338,9 @@ async function freeCanvasPoint(page, size, vx, vy) {
 async function bringIntoView(page, touch, id, size) {
   for (let attempt = 0; attempt < 3; attempt++) {
     const at = await screenOfVehicle(page, id);
-    if (at.x > 25 && at.x < size.width * 0.28 && at.y > size.height * 0.25 && at.y < size.height * 0.75) return at;
-    const vx = size.width * 0.14 - at.x;
+    const edge = size.width < size.height ? 0.13 : 0.28;
+    if (at.x > 25 && at.x < size.width * edge && at.y > size.height * 0.25 && at.y < size.height * 0.75) return at;
+    const vx = size.width * edge * 0.6 - at.x;
     const vy = size.height * 0.5 - at.y;
     const start = await freeCanvasPoint(page, size, vx, vy);
     if (!start) throw new Error(`No free map point to drag the truck from ${JSON.stringify(at)}`);
@@ -565,7 +566,8 @@ async function placeByOneFinger(session, step) {
     const stored = await game(page, () => window.__ROAM__.state.player.storage.length);
     const touches = await game(page, () => window.__maxTouches);
     if (touches > 1) return `${touches} fingers were down at once`;
-    return placed && placed.x === plan.spot.x && placed.y === plan.spot.y && placed.rot === plan.spot.rot && stored < storedBefore + 1 ? true : `placed ${JSON.stringify(placed)}, wanted ${JSON.stringify(plan.spot)}, storage ${storedBefore} -> ${stored}`;
+    const why = await game(page, () => { const v = window.__ROAM__.screens.inventory.view; return { preview: v.preview ? [v.preview.item.x, v.preview.item.y, v.preview.item.rot] : null, error: v.error?.key ?? null, selected: v.selectedItem }; });
+    return placed && placed.x === plan.spot.x && placed.y === plan.spot.y && placed.rot === plan.spot.rot && stored < storedBefore + 1 ? true : `placed ${JSON.stringify(placed)}, wanted ${JSON.stringify(plan.spot)}, storage ${storedBefore} -> ${stored}, ${JSON.stringify(why)}`;
   });
 }
 
