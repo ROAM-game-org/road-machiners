@@ -290,7 +290,7 @@ export function scrapPatch(world: World): void {
   const noEngine = mountedParts(me, 'engine').length === 0;
   const engine = noEngine ? shelfEngine(world, town.id) : null;
   if (noEngine && (!engine || holdsLooseEngine(world, me))) return;
-  if (canPayFix(world, me, town.id)) return;
+  if (canPayFix(world, me, town.id, engine)) return;
   if (engine) fitEngineOnCredit(world, me, town.id, engine);
   const stranded = isStranded(world, me);
   if (stranded) for (const part of driveParts(me)) scrapPatchPart(part, RULES.scrapPatch);
@@ -353,11 +353,10 @@ function needsPatchInTown(world: World): TownDef | null {
   return townNear(world);
 }
 
-function canPayFix(world: World, v: Vehicle, shopId: string): boolean {
+function canPayFix(world: World, v: Vehicle, shopId: string, engine: PartInstance | null): boolean {
   const broken = driveParts(v).filter((p) => !isWorking(p));
   if (broken.some((p) => isJunk(p) && !canRebuild(world, p))) return false;
   const repairs = broken.reduce((sum, p) => sum + partRepairCost(world, p), 0);
-  const engine = mountedParts(v, 'engine').length === 0 ? shelfEngine(world, shopId) : null;
   const engineCost = engine ? partTradePrice(world, v, engine, 'buy') : 0;
   const cost = repairs + engineCost + Math.ceil(scrapFuelNeed(world, v)) * ECONOMY.supplyPrice.fuel;
   return world.player.money + saleValue(world, v, shopId) >= cost;
