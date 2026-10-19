@@ -271,7 +271,7 @@ describe('events far from the player', () => {
 
 it('says a perk can be picked when a skill reaches a perk level', () => {
   const w = emptyWorld();
-  expect(en(eventText(w, { t: 'skillUp', skill: 'driving', level: 2 })?.text)).toBe('Driving rank 2 bought. Perk ready [C].');
+  expect(en(eventText(w, { t: 'skillUp', skill: 'driving', level: 2 })?.text)).toBe('Driving rank 2 bought. Perk ready.');
   expect(en(eventText(w, { t: 'skillUp', skill: 'driving', level: 3 })?.text)).toBe('Driving rank 3 bought.');
 });
 

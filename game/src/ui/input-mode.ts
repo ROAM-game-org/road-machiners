@@ -70,8 +70,10 @@ export function phoneMode(): boolean {
 export const ESCAPE = { key: "Esc" };
 export const RECENTER_KEY = "F";
 
-export function keyLabel(text: Msg, key: string): Msg {
-  return touchMode() ? text : concat([text, SPACE, t("ui.key", { key })]);
+export function keyLabel(text: Msg, key: string, place: "after" | "before" = "after"): Msg {
+  if (touchMode()) return text;
+  const cap = t("ui.key", { key });
+  return concat(place === "after" ? [text, SPACE, cap] : [cap, SPACE, text]);
 }
 
 export function closeLabel(): Msg {
