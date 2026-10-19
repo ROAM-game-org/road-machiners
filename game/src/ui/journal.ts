@@ -40,7 +40,7 @@ export function journalEntries(world: World): JournalEntry[] {
 }
 
 export class JournalScreen {
-  private root = panel('modal');
+  readonly root = panel('modal');
 
   constructor(private host: UiHost) {
     this.root.classList.add('journal-screen');

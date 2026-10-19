@@ -79,5 +79,6 @@ export const LORE = {
   'lore.good.parts': 'Gears, bolts, bearings and springs in a bag. It is what a driver reaches for the moment something rattles.',
   'lore.good.fuelDrums': 'Drums of diesel sealed at the pumpworks and rolled across the basin by convoy. A full one in the open makes everyone around you friendlier, or hungrier.',
   'lore.good.water': 'Bowl grows nothing without it, and it arrives only by truck. Every barrel is counted, and a driver who spills one learns the figure.',
+  'lore.good.relics': 'Odd pieces pried from the fallen wreck: cold lenses, sealed boxes, wire that never rusts. Nobody knows what they do, and Nose traders pay for them anyway.',
   'lore.parcel': 'A sealed bundle with someone\'s name on it. The carrier does not know what is inside, and the road keeps it that way.',
 };

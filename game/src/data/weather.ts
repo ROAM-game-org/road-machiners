@@ -5,6 +5,7 @@ export const WEATHER = {
   wind: { x: 0.4, y: -0.14 },
   cloud: { puffs: 4, spread: 2, diameter: 3.5, height: 1.3, opacity: 0.36, color: 0xd5b58a },
   storm: { tilesPerPuff: 80, diameter: 16, height: 1.2, opacity: 0.35, color: 0x9d7954, fadePerSecond: 0.5 },
+  clouds: { clear: 0.3, overcast: 0.7, easeTurns: 12, depth: 0.45, scale: 11, speed: 5, period: 32, soft: 0.04, fadeElevation: 0.3 },
   sim: {
     spawnChance: { storm: 0.01, heatwave: 0.004, overcast: 0.004 },
     maxActive: { storm: 3, heatwave: 1, overcast: 1 },

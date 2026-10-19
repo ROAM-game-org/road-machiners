@@ -10,7 +10,7 @@ import { workOf } from "../sim/states";
 import { actBlock, cutPlayerLine, reloadWeapon, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
 import { chargeOf, chargedParts, orderKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
 import { oilShort } from "../sim/hazards";
-import { bottomLeft, el, panel } from "./dom";
+import { bottomLeft, el, panel, rightColumn } from "./dom";
 import { meters } from "./units";
 import type { UiHost } from "./host";
 import { createIcon, createItemIcon } from './cards';
@@ -381,7 +381,7 @@ function canHold(w: World, mw: MountedWeapon): boolean {
 
 export class WeaponPanel {
   private root = panel("weapons", bottomLeft());
-  private turn = panel('turn-control');
+  private turn = panel('turn-control', rightColumn());
   private expanded = true;
   readonly utilities: UtilityRow;
 

@@ -48,6 +48,8 @@ export const UI: Translation<typeof EN> = {
   'options.title': 'Настройки',
   'options.uiSize': 'Размер интерфейса',
   'options.uiSizeTooBig': 'Не помещается на экран',
+  'options.sound': 'Sound',
+  'look.inScene': 'Not during a scene',
   'help.title': 'Управление',
   'help.errorsSent': 'Ошибки игры отправляются разработчикам вместе с сохранением.',
   'feedback.title': 'Отзыв',

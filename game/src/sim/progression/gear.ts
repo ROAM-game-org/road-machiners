@@ -1,4 +1,5 @@
 import { ECONOMY, GOODS } from '../../data/goods';
+import { SHOPS } from '../../data/market';
 import { partDef, type PartKind } from '../../data/parts';
 import { freeCells, mountedItems, mountedParts, type Spot } from '../grid';
 import { getLayoutError, installSpot } from '../inventory';
@@ -37,8 +38,10 @@ export function jobScore(world: World, v: Vehicle, job: GearJob): number {
   return goodsRoom(v) * vehicleStats(world, v).maxSpeed;
 }
 
+const GARAGE_GOODS = Object.values(SHOPS).filter((shop) => shop.kind === 'garage').map((shop) => shop.goods).reduce((shared, goods) => shared.filter((good) => goods.includes(good)));
+
 function tradeCapital(v: Vehicle): number {
-  const values = Object.values(GOODS).map((g) => g.value);
+  const values = GARAGE_GOODS.map((good) => GOODS[good].value);
   const average = values.reduce((a, b) => a + b, 0) / values.length;
   return goodsRoom(v) * average * (1 + ECONOMY.spread);
 }

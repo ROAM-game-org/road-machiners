@@ -273,11 +273,12 @@ describe('the hauler driver', () => {
     expect(RULES.parkedSpeed).toBeGreaterThan(0);
   });
 
-  it('raises no stall while it waits in the fort yard for a gun truck still on the road', () => {
+  it('raises no stall while it waits parked in the fort yard for a gun truck still on the road', () => {
     resetHaulerWatch();
     const { w, hauler } = openRoad();
     hauler.pos = { ...yardSpots(w, w.furyRoad!.window + 1).hauler };
     hauler.speed = 0;
+    expect(betweenLevels(w)).toBe(false);
     for (let i = 0; i < FURY_ROAD.hauler.stallTurns * 3; i++) {
       w.turn++;
       w.events = [];
