@@ -52,6 +52,14 @@ Salvage lies hidden until a search turns it up. Territory loot spots and road wr
 
 Fuel and supplies limit range. Fuel burns per tile by chassis, times heat. Below 20% of tank capacity, the truck's top speed is halved. The truck crawls when fuel runs out. Supplies burn per turn, times heat. A full load lasts about 920 daytime turns. Without supplies the character loses health down to 30. Nothing refills supplies for free: every shop sells fuel and supplies at the same prices.
 
+## Charts
+
+Bowl and Nose sell charts of unexplored land. The map is cut into six by six square sheets, 130 tiles a side on Icarus, and each sheet is sold in the chart town nearest its centre, so every sheet has exactly one seller. A sheet is on sale while it still holds an unexplored tile.
+
+- A sheet costs the tier-1 wage of the turns a truck at the reference speed would spend sweeping its unexplored tiles with its sight: `wage * unexplored / (2 * sight radius * reference speed)`. A half-explored sheet costs half, and a fully known sheet is not sold. An unexplored sheet costs about 13 M.
+- A chart marks every tile of the sheet explored and discovers every town and location inside it, with a log line each. It gives no XP, since a bought chart is not exploring, and it shows no trucks, wrecks or loot.
+- The Map tab of the character screen [K] and the minimap, when Options turns it on, show explored and charted land. Nothing is saved besides the explored tiles and discovered places that exploring already writes.
+
 ## Search pay
 
 A search pays `CONTRACTS.search.rewardTurns` turns of the tier 1 wage, 750 turns or about 92 M, and gives a window of 600 to 900 turns from the moment the player takes it. The pay covers the truck's running costs over a typical search and adds one tier 1 wage a turn:
