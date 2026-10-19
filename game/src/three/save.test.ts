@@ -10,6 +10,7 @@ import { noteDeed } from '../sim/relations';
 import { addState } from '../sim/states';
 import { canStowPart, moveItem, storePart, stowPart, stowSpot, takeFromStorage } from '../sim/inventory';
 import { buyStockPart } from '../sim/economy';
+import { buyChart } from '../sim/charts';
 import { makePart } from '../sim/factory';
 import type { Faction, GridItem, World } from '../sim/types';
 import { advanceContracts, siteOf, type Contract } from '../sim/market';
@@ -407,6 +408,25 @@ describe('game save', () => {
     expect(loaded.player.money).toBe(bought.player.money);
     expect(loaded.player.xp).toEqual(xp);
     expect(loaded.events).toEqual([]);
+  });
+
+  it('keeps a bought chart through a reload and awards nothing on load', () => {
+    const slots = makeSlots();
+    const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
+    const start = emptyWorld(sitePads(bowl)[0]);
+    start.player.money = 100000;
+    start.player.explored.fill(0);
+    start.player.discovered = [];
+    const bought = buyChart(start, { col: 0, row: 4 });
+    writeSave(slots, 'auto', bought, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(bought.player.explored.every((seen, i) => seen === 0 || loaded.player.explored[i] === 1)).toBe(true);
+    expect(loaded.player.discovered).toEqual(bought.player.discovered);
+    expect(loaded.player.money).toBe(bought.player.money);
+    expect(loaded.player.xp).toEqual(bought.player.xp);
+    expect(loaded.events.filter((e) => ['discover', 'money', 'xp'].includes(e.t))).toEqual([]);
   });
 
   it('stores explored as a string', () => {

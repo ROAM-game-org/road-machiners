@@ -89,6 +89,7 @@ export const CONTROLS: ControlGroup[] = [
       { keys: ["R"], on: t("help.on.inventory"), does: t("help.does.turnItem") },
       { keys: ["C"], does: t("help.does.character") },
       { keys: ["J"], does: t("help.does.journal") },
+      { keys: ["K"], does: t("help.does.map") },
     ],
   },
 ];

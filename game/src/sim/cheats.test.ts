@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { atlasOf, atlasSites } from './atlas';
 import { chassisDef, PLAYER_CHASSIS } from '../data/chassis';
 import { gunSpans } from './armor';
 import { mountedItems } from './grid';
@@ -394,8 +395,15 @@ describe('places and time', () => {
     expect(() => startWeather(w, 'storm', 400, -1)).toThrow(CheatError);
   });
 
-  it('reveals the whole map', () => {
-    expect(revealMap(emptyWorld()).player.explored.every((t) => t === 1)).toBe(true);
+  it('reveals the whole map and charts every place without XP', () => {
+    const before = emptyWorld();
+    const after = revealMap(before);
+    expect(after.player.explored.every((t) => t === 1)).toBe(true);
+    const ids = atlasSites(atlasOf(after.terrain)).map((s) => s.id);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.filter((id) => !after.player.discovered.includes(id))).toEqual([]);
+    expect(after.player.xp).toBe(before.player.xp);
+    expect(after.player.xpToday).toEqual(before.player.xpToday);
   });
 });
 

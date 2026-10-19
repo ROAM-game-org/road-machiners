@@ -1,3 +1,6 @@
+#ui:where(.narrow) .minimap {
+  display: none;
+}
 :where(#ui.narrow) .speed-tip {
   position: fixed;
   left: var(--space-6);
