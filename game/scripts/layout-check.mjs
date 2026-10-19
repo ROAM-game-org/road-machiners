@@ -10,6 +10,7 @@ const SEED = 4242;
 const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en', 'ru', 'pseudo'];
 const VIEWPORTS = [[1280, 720], [700, 800]];
 const TALL = [1440, 900];
+const PHONE = [390, 844];
 const KEY_CAPS = ['WASD', 'Shift', 'Esc'];
 const OUT = 'tmp/layout';
 const GLYPHS = { font: 'Fira Sans Condensed', letter: 'Ж' };
@@ -229,7 +230,7 @@ const closeQuestPage = (page) => page.evaluate(() => {
 });
 
 const STATES = {
-  menu: { setup: () => undefined },
+  menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE] },
   log: { setup: fillLog },
   inventory: { setup: openInventory, teardown: escape },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage },
