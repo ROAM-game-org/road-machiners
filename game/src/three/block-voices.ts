@@ -76,7 +76,12 @@ export class BlockVoices implements BlockOutput {
     duck.setValueAtTime(songScale, end - release);
     duck.linearRampToValueAtTime(1, end);
     return {
-      fadeOut: guitars.fadeOut,
+      fadeOut: (t, f) => {
+        guitars.fadeOut(t, f);
+        duck.cancelScheduledValues(t - f);
+        duck.setValueAtTime(songScale, t - f);
+        duck.linearRampToValueAtTime(1, t + f);
+      },
       cut: (t) => {
         guitars.cut(t);
         duck.cancelScheduledValues(t - seam);

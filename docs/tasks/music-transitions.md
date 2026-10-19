@@ -1,6 +1,6 @@
 # Combat music transitions
 
-**Status:** reviewing
+**Status:** done
 **Branch:** music-transitions
 **Worktree:** .worktrees/music-transitions
 **Goal:** In the music lab and in a `battle` fight, the combat score follows the fight between calm and hot sections with no change a listener can pick out as an edit, and event layers never add parts the current section does not play. The user confirms by ear in the lab on both songs. Useless if: changes are smooth only because the score stops following the fight; jumps pass a numeric check but still sound like edits; the next song added through prep brings cuts back.
@@ -39,3 +39,11 @@ TDD: no (audio judged by ear; tests pin the sequencer rules, the lane rules and 
 - Designer, session and sound tests pass; the reach test fails with `jumpDb` 0.
 - Offline renders: jumps dip at most 1.7 dB, like plain block joins. A real-time lab recording showed no silence.
 - The user listened in the lab and approved this version.
+
+## Code smells
+
+- game/scripts/score-blocks-prep.py:158 — prep writes `combat-songs.json` in place, not through a temp file, and drops the jump scores, so `score-seams.py` must run after it (GPC5).
+
+## Conclusion
+
+The user approved the twin-jump score by ear in the lab. Review findings fixed: layers fade out before a jump, the score plays on whenever that is as close, the reach test checks every block, the unused beat-after score is gone, and a song without jump scores or with scores for another block size fails on load. AS1 held for both songs; the reach test guards it for new ones.

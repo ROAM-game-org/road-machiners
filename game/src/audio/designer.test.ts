@@ -20,8 +20,8 @@ const SECTIONS: Section[] = [
   { role: "wall", from: 29, bars: 8 },
 ];
 const ARC: ArcTuning = { blockBars: 2, hotHeat: 2, coolHeat: 1, phraseBars: 8, jumpDb: 3, jumpChords: 0.97, hot: ["wall", "solo"], cool: ["verse"] };
-const CLEAN = [1, 1, 1];
-const CUT = [9, 9, 0.5];
+const CLEAN = [1, 1];
+const CUT = [9, 0.5];
 const HOT = 5;
 const WARM = 1.5;
 const CALM = 0;
@@ -34,7 +34,7 @@ function jumpsOf(clean: [number, number][] = []): Jumps {
 }
 
 function sequencer(clean: [number, number][] = [], quietExits: number[] = [], roll = () => 0) {
-  return new BlockSequencer(blocksOf(SECTIONS, 2), ARC, { jumps: jumpsOf(clean), quietExits }, roll);
+  return new BlockSequencer(blocksOf(SECTIONS, 2), ARC, { jumps: jumpsOf(clean), quietExits, jumpBlockBars: 2 }, roll);
 }
 
 function play(seq: BlockSequencer, heats: number[]): number[] {
@@ -81,7 +81,8 @@ describe("BlockSequencer", () => {
   });
 
   it("fails loud when a song has no jump score", () => {
-    expect(() => new BlockSequencer(blocksOf(SECTIONS, 2), ARC, { jumps: {}, quietExits: [] }, () => 0)).toThrow(/no jump score from bar 3/);
+    expect(() => new BlockSequencer(blocksOf(SECTIONS, 2), ARC, { jumps: {}, quietExits: [], jumpBlockBars: 2 }, () => 0)).toThrow(/no jump score from bar 3/);
+    expect(() => new BlockSequencer(blocksOf(SECTIONS, 2), ARC, { jumps: jumpsOf(), quietExits: [], jumpBlockBars: 4 }, () => 0)).toThrow(/for 4 bar blocks/);
   });
 
   it("refuses a section that does not split into blocks", () => {

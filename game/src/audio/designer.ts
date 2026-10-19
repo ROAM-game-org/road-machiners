@@ -32,7 +32,7 @@ export type ArcTuning = {
 };
 
 export type Jumps = Record<string, Record<string, readonly number[]>>;
-export type SongJumps = { jumps: Jumps; quietExits: readonly number[] };
+export type SongJumps = { jumps: Jumps; quietExits: readonly number[]; jumpBlockBars: number };
 
 export type Choice = { section: number; role: Role; from: number; taken: boolean };
 
@@ -63,6 +63,8 @@ export class BlockSequencer {
     private roll: () => number,
   ) {
     if (!blocks.some((b) => b.role === "intro")) throw new Error("Song has no intro section");
+    if (!song.jumps || !song.quietExits) throw new Error("Song has no jump scores, run scripts/score-seams.py");
+    if (song.jumpBlockBars !== tuning.blockBars) throw new Error(`Song jump scores are for ${song.jumpBlockBars} bar blocks, the score plays ${tuning.blockBars}`);
     this.starts = new Set(blocks.filter((b) => this.firstOf(b.section) === b).map((b) => b.bar));
     this.ways = new Map(blocks.map((b) => [b.bar, this.waysOut(b)]));
   }
@@ -110,7 +112,7 @@ export class BlockSequencer {
     }
     const candidates = this.ways.get(current.bar)!.filter((b) => b === natural || this.mayChangeRole(current, natural, b));
     if (candidates.length === 0) throw new Error(`No way out of the ${current.role} at bar ${current.bar}`);
-    const chosen = this.closest(candidates, this.distances(welcome), natural);
+    const chosen = this.closest(candidates, this.barsTo(welcome), natural);
     this.options = candidates.map((b) => ({ section: b.section, role: b.role, from: b.bar, taken: b === chosen }));
     return chosen;
   }
@@ -118,10 +120,10 @@ export class BlockSequencer {
   private closest(candidates: Block[], distance: Map<number, number>, natural: Block | undefined): Block {
     const best = Math.min(...candidates.map((b) => distance.get(b.bar)!));
     const nearest = candidates.filter((b) => distance.get(b.bar) === best);
+    if (natural && nearest.includes(natural)) return natural;
     const age = (b: Block) => this.lastPlayed.get(b.bar) ?? -Infinity;
     const oldest = Math.min(...nearest.map(age));
     const freshest = nearest.filter((b) => age(b) === oldest);
-    if (natural && freshest.includes(natural)) return natural;
     return freshest[Math.floor(this.roll() * freshest.length)];
   }
 
@@ -130,8 +132,8 @@ export class BlockSequencer {
     return !natural || natural.role !== current.role || this.endsPhrase(current);
   }
 
-  private distances(welcome: Set<Role>): Map<number, number> {
-    const distance = new Map(this.blocks.map((b) => [b.bar, welcome.has(b.role) ? 0 : Infinity]));
+  barsTo(roles: ReadonlySet<Role>): Map<number, number> {
+    const distance = new Map(this.blocks.map((b) => [b.bar, roles.has(b.role) ? 0 : Infinity]));
     for (let changed = true; changed; ) {
       changed = false;
       for (const b of this.blocks) {
@@ -155,7 +157,7 @@ export class BlockSequencer {
     if (this.song.quietExits.includes(exit) && this.starts.has(target)) return true;
     const score = this.song.jumps[exit]?.[target];
     if (!score) throw new Error(`Song has no jump score from bar ${exit} to bar ${target}`);
-    const [before, , chords] = score;
+    const [before, chords] = score;
     return before <= this.tuning.jumpDb && chords >= this.tuning.jumpChords;
   }
 

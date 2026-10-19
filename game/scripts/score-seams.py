@@ -58,7 +58,7 @@ class Song:
 
     def sound(self, line, target):
         t, u = self.bars[line - 1], self.bars[target - 1]
-        return [round(self.beat_distance(t - self.beat, u - self.beat), 1), round(self.beat_distance(t, u), 1)]
+        return round(self.beat_distance(t - self.beat, u - self.beat), 1)
 
     def quiet(self, line):
         t = self.bars[line - 1]
@@ -88,7 +88,7 @@ def song_jumps(song, sfx_dir):
     exits = sorted({b + BLOCK_BARS for b in starts})
     jumps = {}
     for e in exits:
-        jumps[str(e)] = {str(b): [*audio.sound(e, b), round(audio.harmony(e, b), 3)] for b in starts if b != e}
+        jumps[str(e)] = {str(b): [audio.sound(e, b), round(audio.harmony(e, b), 3)] for b in starts if b != e}
     return jumps, [e for e in exits if audio.quiet(e)]
 
 
@@ -98,6 +98,7 @@ def main(songs_path, sfx_dir):
     for name, song in songs.items():
         song.pop("seams", None)
         song["jumps"], song["quietExits"] = song_jumps(song, sfx_dir)
+        song["jumpBlockBars"] = BLOCK_BARS
         print(f"{name}: {sum(len(v) for v in song['jumps'].values())} jumps scored")
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(songs, indent=1) + "\n")

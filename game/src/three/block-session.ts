@@ -14,6 +14,7 @@ export type BlockSong = {
   sections: Section[];
   jumps: Jumps;
   quietExits: number[];
+  jumpBlockBars: number;
   end: number;
 };
 export type Part = "song" | "guitars" | "cymbals";
@@ -209,7 +210,10 @@ export class BlockSession {
     const join = this.joinOf(block);
     const fade = SCORE_BLOCKS.seamSeconds;
     const entry = this.song.barEntry[block.bar - 1];
-    if (join === "jump") for (const v of this.played.at(-1)!.voices) v.fadeOut(when + entry, fade);
+    if (join === "jump") {
+      for (const v of this.played.at(-1)!.voices) v.fadeOut(when + entry, fade);
+      this.endLanesAt(when);
+    }
     const section = this.sectionOf(block.bar);
     const level = this.levelOf(section.from, section.bars, false);
     const voices = [this.out.voice("song", offset, when, length, fade, level)];
@@ -233,9 +237,22 @@ export class BlockSession {
     if (!spot || this.open(lane, spot.at)) return;
     this.wanted.delete(lane);
     if (!this.laneFits(lane, spot.bar)) return;
-    const length = (this.phraseEndBar(spot.bar) - spot.bar) * spot.barSeconds - spot.beat * this.beatSeconds;
+    const toPhraseEnd = (this.phraseEndBar(spot.bar) - spot.bar) * spot.barSeconds - spot.beat * this.beatSeconds;
+    const length = Math.min(toPhraseEnd, this.nextJumpAfter(spot.at) - spot.at);
     const handle = lane === "guitars" ? this.lean(spot, length) : this.cymbals(spot, length);
     this.overlays.push({ lane, from: spot.at, to: spot.at + length, bar: spot.bar, handle });
+  }
+
+  private nextJumpAfter(at: number): number {
+    return this.played.find((p) => p.join === "jump" && p.start > at)?.start ?? Infinity;
+  }
+
+  private endLanesAt(at: number): void {
+    for (const o of this.overlays.filter((x) => x.from < at && x.to > at)) {
+      const release = Math.min(this.beatSeconds, at - o.from);
+      o.handle.fadeOut(at - release / 2, release / 2);
+      o.to = at;
+    }
   }
 
   private laneFits(lane: Lane, bar: number): boolean {

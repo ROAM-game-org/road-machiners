@@ -5,8 +5,8 @@ import { BlockSession, type BlockOutput, type BlockSong, type Part, type VoiceHa
 import { COMBAT_SONGS, CombatMusic, type Kit } from "./combat-music";
 
 const BAR_SECONDS = 2;
-const CLEAN = [0, 0, 1];
-const CUT = [9, 9, 0];
+const CLEAN = [0, 1];
+const CUT = [9, 0];
 const BARS = 8;
 const SONG: BlockSong = {
   title: "Test",
@@ -24,6 +24,7 @@ const SONG: BlockSong = {
   ],
   jumps: { "3": { "1": CUT, "5": CLEAN }, "7": { "1": CUT, "5": CLEAN } },
   quietExits: [],
+  jumpBlockBars: 2,
   end: 7,
 };
 
@@ -122,31 +123,51 @@ describe("BlockSession", () => {
 });
 
 describe("combat songs", () => {
-  const PHASE_BLOCKS = 12;
-  const REACH_BLOCKS = 10;
+  const REACH_BARS = 20;
   for (const [name, song] of Object.entries(COMBAT_SONGS)) {
-    it(`${name} reaches a verse when a fight cools and a wall when it heats, every time`, () => {
-      const sequencer = new BlockSequencer(blocksOf(song.sections, SCORE_BLOCKS.arc.blockBars), SCORE_BLOCKS.arc, song, mulberry(7));
-      const hot = SCORE_BLOCKS.arc.hotHeat * 2;
-      for (let phase = 0; phase < 8; phase++) {
-        const heat = phase % 2 === 0 ? hot : 0;
-        const wanted: readonly string[] = heat ? SCORE_BLOCKS.arc.hot : SCORE_BLOCKS.arc.cool;
-        const roles = Array.from({ length: PHASE_BLOCKS }, () => sequencer.next(heat).role);
-        expect(roles.slice(0, REACH_BLOCKS).some((r) => wanted.includes(r)), `${name} phase ${phase}: ${roles.join(" ")}`).toBe(true);
+    it(`${name} reaches a verse and a wall from every block within ${REACH_BARS} bars`, () => {
+      const sequencer = new BlockSequencer(blocksOf(song.sections, SCORE_BLOCKS.arc.blockBars), SCORE_BLOCKS.arc, song, () => 0);
+      for (const role of ["verse", "wall"] as const) {
+        const far = [...sequencer.barsTo(new Set([role]))].filter(([, bars]) => !(bars <= REACH_BARS));
+        expect(far, `${name} blocks with no near road to a ${role}`).toEqual([]);
       }
     });
   }
 });
 
-function mulberry(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(s ^ (s >>> 15), s | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+describe("lanes at a jump", () => {
+  const BARS_LONG = 16;
+  const sections: BlockSong["sections"] = [
+    { role: "intro", from: 1, bars: 2 },
+    { role: "wall", from: 3, bars: 8 },
+    { role: "stop", from: 11, bars: 2 },
+    { role: "verse", from: 13, bars: 4 },
+  ];
+  const starts = [1, 3, 5, 7, 9, 11, 13, 15];
+  const song: BlockSong = {
+    ...WALL_SONG,
+    length: BAR_SECONDS * BARS_LONG,
+    barTimes: Array.from({ length: BARS_LONG + 1 }, (_, i) => i * BAR_SECONDS),
+    barPower: Array.from({ length: BARS_LONG }, () => ({ ss: 1, gg: 0.1, sg: 0 })),
+    barEntry: Array.from({ length: BARS_LONG }, () => 0),
+    sections,
+    jumps: Object.fromEntries(starts.map((s) => [s + 2, Object.fromEntries(starts.map((t) => [t, s + 2 === 5 && t === 9 ? CLEAN : CUT]))])),
+    end: 15,
   };
-}
+
+  it("fades a layer out where the score jumps, so it never plays over another bar", () => {
+    const { out } = recorder();
+    const session = new BlockSession(song, out, () => 0);
+    session.start(0);
+    for (let t = 0; t < 4.2; t += 0.25) session.tick(t);
+    session.fire("knockout", 4.2);
+    for (let t = 4.25; t < 9; t += 0.25) session.tick(t);
+    const jump = session.played.find((p) => p.join === "jump")!;
+    expect(jump.bar).toBe(9);
+    expect(session.overlays.length).toBeGreaterThan(0);
+    for (const o of session.overlays) expect(o.to).toBeCloseTo(jump.start);
+  });
+});
 
 describe("CombatMusic", () => {
   const fakeCtx = () => {
