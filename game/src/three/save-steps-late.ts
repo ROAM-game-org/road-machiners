@@ -90,3 +90,12 @@ export function withBrakeRod_78_79(world: SavedJson): SavedJson {
 export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }
+
+export function withHeardCentres_81_82(world: SavedJson): SavedJson {
+  const heardOf = (goal: SavedJson): SavedJson => (goal.kind === 'investigate' && goal.destination && !goal.heard ? { ...goal, heard: { ...(goal.destination as SavedJson) } } : goal);
+  const withBrain = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    return brain ? { ...v, brain: { ...brain, goals: (brain.goals as SavedJson[]).map(heardOf) } } : v;
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
+}

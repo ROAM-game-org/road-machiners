@@ -21,7 +21,7 @@ import { playerSees } from '../vision';
 import { nearestPad, nearestTown, siteGates, sitePads } from '../sites';
 import { fuelCap, isStranded, suppliesCap, vehicleStats } from '../stats';
 import { dist, pointsAway, type Vec } from '../vec';
-import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, startCombat, testDrive } from '../testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, setShopPressure, startCombat, testDrive } from '../testkit';
 import { NPC_BEHAVIOR, NPC_UPKEEP, NPCS, TRAITS } from '../../data/npcs';
 import { stateOf, towData } from '../states';
 import { playerTow, startEscort } from '../tow';
@@ -62,8 +62,8 @@ function withPrey(w: World): World {
 }
 
 function saltGlut(w: World): World {
-  w.shops.nose.pressure.salt = -PRESSURE_MAX;
-  w.shops.bowl.pressure.salt = PRESSURE_MAX;
+  setShopPressure(w, 'nose', 'salt', -PRESSURE_MAX);
+  setShopPressure(w, 'bowl', 'salt', PRESSURE_MAX);
   return w;
 }
 
@@ -109,8 +109,8 @@ describe('botOrders', () => {
 
   it('has a trader take the trade from the town it stands at over a richer one that needs an empty trip back', () => {
     const w = saltGlut(parkedAt('nose'));
-    w.shops.bowl.pressure.textiles = -PRESSURE_MAX;
-    w.shops.nose.pressure.textiles = PRESSURE_MAX;
+    setShopPressure(w, 'bowl', 'textiles', -PRESSURE_MAX);
+    setShopPressure(w, 'nose', 'textiles', PRESSURE_MAX);
 
     const turn = botOrders(w, 'trader');
 
@@ -119,8 +119,8 @@ describe('botOrders', () => {
 
   it('has a trader keep the repair bill out of the load it buys after a sale', () => {
     const w = saltGlut(parkedAt('nose'));
-    w.shops.nose.pressure.textiles = PRESSURE_MAX;
-    w.shops.bowl.pressure.electronics = PRESSURE_MAX;
+    setShopPressure(w, 'nose', 'textiles', PRESSURE_MAX);
+    setShopPressure(w, 'bowl', 'electronics', PRESSURE_MAX);
     addGoods(w, playerVehicle(w), 'electronics', 6);
     w.player.costBasis.electronics = 33;
     w.player.money = 0;
@@ -153,6 +153,35 @@ describe('botOrders', () => {
     const order = playerVehicle(turn.world).order;
     const nose = town('nose');
     expect(order).toEqual({ kind: 'stopAt', dest: nearestPad(nose, playerVehicle(w).pos) });
+  });
+
+  it('has a trader holding relics at Bowl carry them to Nose without pricing them at Bowl', () => {
+    const w = parkedAt('bowl');
+    addGoods(w, playerVehicle(w), 'relics', 1);
+
+    const turn = botOrders(w, 'trader');
+
+    expect(playerVehicle(turn.world).order).toEqual({ kind: 'stopAt', dest: nearestPad(town('nose'), playerVehicle(w).pos) });
+  });
+
+  it('has a scavenger holding relics at Bowl keep them and drive on to Nose', () => {
+    const w = parkedAt('bowl');
+    addGoods(w, playerVehicle(w), 'relics', 1);
+    w.salvage = [];
+
+    const turn = botOrders(w, 'scavenger');
+
+    expect(goodsCount(playerVehicle(turn.world)).relics).toBe(1);
+    expect(playerVehicle(turn.world).order).toEqual({ kind: 'stopAt', dest: nearestPad(town('nose'), playerVehicle(w).pos) });
+  });
+
+  it('has a scavenger holding relics at Nose sell them there', () => {
+    const w = parkedAt('nose');
+    addGoods(w, playerVehicle(w), 'relics', 1);
+
+    const turn = botOrders(w, 'scavenger');
+
+    expect(goodsCount(playerVehicle(turn.world)).relics ?? 0).toBe(0);
   });
 
   function atYardWithCargo(fuel: number) {
@@ -1294,7 +1323,7 @@ function addTrader(w: World, pos: Vec, parts: string[] = ['stockEngine']): Vehic
 function addGuardedConvoy(w: World, pos: Vec): { convoy: Vehicle; guard: Vehicle } {
   const convoy = addVehicle(w, 'bowl', 'hauler', ['stockEngine'], pos);
   convoy.brain = npcBrain('convoy', pos, ['supplier']);
-  convoy.brain.goals = [{ kind: 'haul', targetId: 'nose', destination: { ...town('nose').pos }, phase: 'travel', reason: 'loadCargo' }];
+  convoy.brain.goals = [{ kind: 'sell', targetId: 'nose', destination: { ...town('nose').pos }, phase: 'travel', reason: 'deliverCargo', shipment: { good: 'water', from: 'dustwell', to: 'nose' } }];
   if (addGoods(w, convoy, 'water', 4) < 4) throw new Error('No room for convoy cargo');
   const guardPos = { x: pos.x, y: pos.y + 3 };
   const guard = addVehicle(w, 'bowl', 'scout', ['mg', 'stockEngine'], guardPos);
@@ -1406,7 +1435,7 @@ describe('botOrders for robbers', () => {
 
 describe('the convoy robber patrol', () => {
   it('runs between the sites supply convoys haul between', () => {
-    expect(CONVOY_ROB_PATROL).toEqual([...TRAITS.supplier.haulSites, ...TRAITS.supplier.towns]);
+    expect(CONVOY_ROB_PATROL).toEqual(['pump-station', ...TRAITS.supplier.towns]);
   });
 
   it('drives to the nearest of them with no target in sight', () => {

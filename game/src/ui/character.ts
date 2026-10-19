@@ -5,15 +5,22 @@ import type { SkillId, World } from '../sim/types';
 import { createIcon, type IconName } from './cards';
 import { disabledWith, el, panel } from './dom';
 import type { UiHost } from './host';
+import { standingNum, standingStep } from './format';
 import { hp } from './units';
 import { num, t, type Msg } from '../text/msg';
 import { keyLabel } from './input-mode';
 import { factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
-import { modeRules } from '../sim/settings';
+import { hasExplorationMap, modeRules } from '../sim/settings';
+import { MapTab } from './map-tab';
+import { lookReason } from './look';
+
+export type CharacterTab = 'skills' | 'map';
 
 export class CharacterScreen {
-  private root = panel('modal dialog');
+  readonly root = panel('modal dialog');
+  private tab: CharacterTab = 'skills';
+  private map: MapTab | null = null;
 
   constructor(private host: UiHost) {
     this.root.classList.add('character-screen');
@@ -24,9 +31,17 @@ export class CharacterScreen {
     return this.root.style.display !== 'none';
   }
 
-  toggle(): void {
-    if (this.isOpen()) return this.close();
+  toggle(tab: CharacterTab = 'skills'): void {
+    if (this.isOpen() && this.tab === tab) return this.close();
+    this.open(tab);
+  }
+
+  open(requested: CharacterTab): void {
+    const tab = requested === 'map' && !hasExplorationMap(this.host.world()) ? 'skills' : requested;
+    const opening = !this.isOpen() || this.tab !== tab;
+    this.tab = tab;
     this.root.style.display = '';
+    if (opening && tab === 'map') this.mapTab().open(this.host.world());
     this.render();
   }
 
@@ -39,13 +54,40 @@ export class CharacterScreen {
     if (!this.isOpen()) return;
     const world = this.host.world();
     const p = world.player;
+    this.root.classList.toggle('map-open', this.tab === 'map');
     this.root.replaceChildren(
-      el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t('character.close'), 'C')),
+      el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t(this.tab === 'map' ? 'map.close' : 'character.close'), this.tab === 'map' ? 'K' : 'C')),
       el('h3', {}, t('character.title'), el('span', { class: 'chips' },
         el('span', { class: 'chip', title: t('character.health') }, createIcon('driver'), t('readout.ofMax', { n: hp(p.health), max: maxHealthOf(world) })),
         el('span', { class: 'chip', title: t('character.knockoutsTitle') }, createIcon('damage'), t('character.knockouts', { n: p.knockouts })),
         el('span', { class: 'chip xp-pool', title: t('character.xpPoolTitle') }, t('character.xpPool', { n: Math.floor(p.xp) })),
-      )),
+      ), this.tabs(world)),
+      ...(this.tab === 'map' ? this.mapBody(world) : this.skills(world)),
+    );
+  }
+
+  private tabs(world: World): HTMLElement {
+    const button = (tab: CharacterTab, label: Msg) =>
+      el('button', { class: this.tab === tab ? 'on' : '', 'data-tab': tab, onclick: () => this.open(tab) }, label);
+    return el('div', { class: 'tabs' },
+      button('skills', t('character.tab.skills')),
+      ...(hasExplorationMap(world) ? [button('map', t('map.full'))] : []),
+      ...(this.tab === 'map' ? [this.mapTab().controls] : []));
+  }
+
+  private mapTab(): MapTab {
+    this.map ??= new MapTab();
+    return this.map;
+  }
+
+  private mapBody(world: World): HTMLElement[] {
+    const map = this.mapTab();
+    map.render(world);
+    return [map.body];
+  }
+
+  private skills(world: World): HTMLElement[] {
+    return [
       el('div', { class: 'skill-table' },
         el('div', { class: 'skill-head' },
           el('span', { class: 'skill-name-col' }, t('character.colSkill')),
@@ -57,7 +99,7 @@ export class CharacterScreen {
         ...SKILL_IDS.map((id) => this.row(world, id)),
       ),
       ...(modeRules(world).standing ? [standingGroup(world)] : []),
-    );
+    ];
   }
 
   private row(world: World, id: SkillId): HTMLElement {
@@ -82,7 +124,7 @@ export class CharacterScreen {
     const next = { rank: rank + 1, cost: rankCost(rank + 1) };
     return el('button', {
       class: 'btn-s skill-buy buy-rank',
-      ...disabledWith(blocked && refusalText(world, blocked), () => this.host.announce(buyRank(this.host.world(), skill))),
+      ...disabledWith(lookReason(world) ?? (blocked ? refusalText(world, blocked) : null), () => this.host.announce(buyRank(this.host.world(), skill))),
     }, t('character.buyShort', { cost: next.cost }));
   }
 
@@ -97,7 +139,7 @@ export class CharacterScreen {
 
   private choice(world: World, pair: PerkPair, rank: HTMLElement): HTMLElement {
     const state = world.player.state;
-    const reason = state === 'active' ? null : refusalText(world, { id: 'notActive', state });
+    const reason = lookReason(world) ?? (state === 'active' ? null : refusalText(world, { id: 'notActive', state }));
     const button = (id: PerkId) => el('button', {
       class: 'perk',
       ...disabledWith(reason, () => this.host.apply(choosePerk(this.host.world(), id))),
@@ -108,24 +150,24 @@ export class CharacterScreen {
 
 function standingGroup(world: World): HTMLElement {
   return el('div', { class: 'standing' },
-    el('h4', { title: t('character.standingTitle') }, t('character.standing')),
-    el('div', { class: 'standing-rows' }, ...standingBands(world).map((row) => standingRow(world, row))));
+    el('div', { class: 'standing-head' }, el('span', {}, t('character.standing'))),
+    ...standingBands(world).map((row) => standingRow(world, row)));
 }
 
 function standingRow(world: World, row: StandingRow): HTMLElement {
   const parts = standingParts(world, row);
   const tip = el('span', { class: 'tooltip standing-tip', role: 'tooltip' },
-    tipRow(t('character.standingBase'), parts.base, 'base'),
-    tipRow(t('character.standingDeeds'), parts.deeds, stepTone(parts.deeds)),
-    tipRow(t('character.standingEarlier'), parts.earlier, stepTone(parts.earlier)));
-  return el('div', { class: 'standing-row', tabindex: 0 },
+    tipRow(t('character.standingBase'), standingNum(parts.base), 'base'),
+    tipRow(t('character.standingDeeds'), standingStep(parts.deeds), stepTone(parts.deeds)),
+    tipRow(t('character.standingEarlier'), standingStep(parts.earlier), stepTone(parts.earlier)));
+  return el('div', { class: 'standing-row row' },
     el('span', {}, factionName(row.faction)),
-    el('span', { class: `tag ${row.band === 'hostile' ? 'bad' : 'dim'}` }, t(`band.${row.band}`)),
-    tip);
+    el('span', { class: `num standing-score${row.score === 0 ? ' dim' : ''}`, tabindex: 0 }, standingNum(row.score), tip),
+    el('span', { class: `tag ${row.band === 'hostile' ? 'bad' : 'dim'}` }, t(`band.${row.band}`)));
 }
 
-function tipRow(label: Msg, value: number, tone: string): HTMLElement {
-  return el('div', { class: `tooltip-row ${tone}`.trim() }, el('span', {}, label), el('span', { class: 'num' }, num(value, 'int')));
+function tipRow(label: Msg, value: Msg, tone: string): HTMLElement {
+  return el('div', { class: `tooltip-row ${tone}`.trim() }, el('span', {}, label), el('span', { class: 'num' }, value));
 }
 
 function stepTone(step: number): string {

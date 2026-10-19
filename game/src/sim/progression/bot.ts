@@ -1,6 +1,6 @@
 
 import { chassisDef } from '../../data/chassis';
-import { ECONOMY, GOOD_IDS } from '../../data/goods';
+import { ECONOMY } from '../../data/goods';
 import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, TRAITS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { REGION, type TownDef } from '../../data/region';
@@ -18,7 +18,7 @@ import { isDefeated, isKnockedOut } from '../defeat';
 import { callVehicle, chooseOption, currentOptions, hangUp } from '../dialogue';
 import { offeredSurrenderBy, type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
-import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getLotTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, supplyRoom } from '../economy';
+import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getLotTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
 import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountedItems, mountedParts, type Spot } from '../grid';
 import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
 import { itemMass } from '../mass';
@@ -163,7 +163,7 @@ function goalOf(world: World, archetype: Exclude<Policy, RoadPolicy>, options: B
 const ENCOUNTER_REPLIES: Partial<Record<TopicId, LineId>> = {
   tale: 'goOnThen', salvageTip: 'noThanks', challenge: 'notLookingForTrouble', courierShort: 'noCharge', courierGrudge: 'letsCallItEven',
 };
-const DEFENDER_REPLIES: Partial<Record<TopicId, LineId>> = { ...ENCOUNTER_REPLIES, demand: 'comeAndGetIt', surrender: 'comeAndGetIt' };
+const DEFENDER_REPLIES: Partial<Record<TopicId, LineId>> = { ...ENCOUNTER_REPLIES, demand: 'comeAndGetIt', demandCut: 'comeAndGetIt', surrender: 'comeAndGetIt' };
 const HUNTER_REPLIES: Partial<Record<TopicId, LineId>> = { ...DEFENDER_REPLIES, truceOffer: 'noWeFinishThis', mercyPlea: 'standDownAndLet' };
 const REFUSE_TOW: Partial<Record<TopicId, LineId>> = { tow: 'noThanks', towFree: 'noThanks' };
 const YIELD_CARGO: LineId = 'fineTakeIt';
@@ -184,7 +184,7 @@ function keepsOff(world: World, targetId: string): boolean {
 }
 
 const OUTMATCHED_REPLIES: Partial<Record<TopicId, [LineId, LineId | undefined]>> = {
-  demand: [YIELD_CARGO, undefined], surrender: [YIELD_CARGO, undefined], lootWarning: ['rollingOn', 'findYourOwn'],
+  demand: [YIELD_CARGO, undefined], demandCut: ['hereIsYourMoney', undefined], surrender: [YIELD_CARGO, undefined], lootWarning: ['rollingOn', 'findYourOwn'],
 };
 
 function replyTo(world: World, call: Call, replies: Partial<Record<TopicId, LineId>>): LineId | undefined {
@@ -462,8 +462,10 @@ function isBadlyDamaged(part: PartInstance): boolean {
 }
 
 function serviceHere(o: Orders): void {
+  const shop = shopAt(o.world);
   for (const kind of ['fuel', 'supplies'] as const) {
-    const n = Math.min(supplyRoom(o.world, kind), Math.floor(o.world.player.money / ECONOMY.supplyPrice[kind]));
+    const room = shop ? serviceRoom(o.world, shop, kind) : supplyRoom(o.world, kind);
+    const n = Math.min(room, Math.floor(o.world.player.money / ECONOMY.supplyPrice[kind]));
     if (n > 0) o.run((w) => buySupply(w, kind, n), kind);
   }
   repairAtGarage(o);
@@ -654,7 +656,7 @@ function sellAtMarket(o: Orders): boolean {
 
 function bestMarket(world: World): TownDef | null {
   const cargo = Object.entries(cargoForSale(world, playerVehicle(world)));
-  const profit = (town: TownDef) => cargo.reduce((sum, [good, n]) => sum + n * (sellAt(world, town, good) - (world.player.costBasis[good] ?? 0)), 0);
+  const profit = (town: TownDef) => cargo.filter(([good]) => tradesGood(town.id, good)).reduce((sum, [good, n]) => sum + n * (sellAt(world, town, good) - (world.player.costBasis[good] ?? 0)), 0);
   return byDistance(world, reachable(world, knownTowns(world))).reduce<TownDef | null>((best, town) => (!best || profit(town) > profit(best) ? town : best), null);
 }
 
@@ -663,7 +665,7 @@ function bestPurchase(world: World): Purchase | null {
   const towns = knownTowns(world);
   const full = fuelCap(playerVehicle(world));
   const room = freeCells(playerVehicle(world));
-  const options = reachable(world, towns).flatMap((source) => towns.filter((t) => t.id !== source.id && fuelReaches(world, t, { pos: source.pos, fuel: full })).flatMap((market) => GOOD_IDS.map((good) => purchase(world, { source, market, good, spend, room }))));
+  const options = reachable(world, towns).flatMap((source) => towns.filter((t) => t.id !== source.id && fuelReaches(world, t, { pos: source.pos, fuel: full })).flatMap((market) => sharedGoods(source, market).map((good) => purchase(world, { source, market, good, spend, room }))));
   return options.reduce<Purchase | null>((best, p) => (p.count > 0 && p.perTurn > (best?.perTurn ?? 0) ? p : best), null);
 }
 
@@ -672,13 +674,14 @@ export function haulMarginAt(world: World, spend: number, room: number): number 
   const pairs = REGION.towns.flatMap((source) => REGION.towns.filter((t) => t.id !== source.id).map((market) => ({ source, market })));
   return Math.max(...pairs.flatMap(({ source, market }) => {
     const fuel = tripFuelCost(world, me, dist(source.pos, market.pos));
-    return GOOD_IDS.map((good) => purchase(world, { source, market, good, spend, room }).profit - fuel);
+    return sharedGoods(source, market).map((good) => purchase(world, { source, market, good, spend, room }).profit - fuel);
   }));
 }
 
 function purchase(world: World, { source, market, good, spend, room }: { source: TownDef; market: TownDef; good: string; spend: number; room: number }): Purchase {
   const me = playerVehicle(world);
   const none = { town: source, good, count: 0, profit: 0, perTurn: 0 };
+  if (!tradesGood(source.id, good) || !tradesGood(market.id, good)) return none;
   if (sellAt(world, market, good) <= getTradePrice(world, me, source.id, good, 'buy')) return none;
   const lotProfit = (count: number) => (count === 0 ? 0 : getLotTradePrice(world, me, market.id, good, count, 'sell') - getLotTradePrice(world, me, source.id, good, count, 'buy'));
   let low = 0;
@@ -693,6 +696,10 @@ function purchase(world: World, { source, market, good, spend, room }: { source:
   return { ...none, count: low, profit: lotProfit(low), perTurn: lotProfit(low) / trip };
 }
 
+function sharedGoods(source: TownDef, market: TownDef): string[] {
+  return shopDef(source.id).goods.filter((good) => tradesGood(market.id, good));
+}
+
 function sellAt(world: World, town: TownDef, good: string): number {
   return getTradePrice(world, playerVehicle(world), town.id, good, 'sell');
 }
@@ -702,13 +709,13 @@ function scavenge(o: Orders, stripping: boolean): boolean {
   lootHere(o);
   const stock = freeCells(o.me) > 0 ? nearestStock(o.world, knownStocks(o.world)) : null;
   if (stock) visitStock(o, stock);
-  else if (cargoToTown(o, stripping)) driveToSite(o, nearestTown(o.world));
+  else if (cargoToTown(o, stripping)) driveToSite(o, cargoBuyer(o, stripping));
   else return findSalvageSite(o);
   return true;
 }
 
 function cargoToTown(o: Orders, stripping: boolean): boolean {
-  return sellsCargo(o, stripping) && !townAt(o.world);
+  return sellsCargo(o, stripping) && !sellsHere(o, stripping);
 }
 
 function findSalvageSite(o: Orders): boolean {
@@ -946,8 +953,8 @@ function nearestVehicle(from: Vec, vehicles: readonly Vehicle[]): Vehicle | null
 
 function collectOrHunt(o: Orders): void {
   if (freeCells(o.me) === 0) {
-    if (townAt(o.world) || !sellsCargo(o, true)) return hunt(o);
-    return driveToSite(o, nearestTown(o.world));
+    if (sellsHere(o, true) || !sellsCargo(o, true)) return hunt(o);
+    return driveToSite(o, cargoBuyer(o, true));
   }
   const wreck = nearestStock(o.world, knownStocks(o.world).filter((s) => s.id.startsWith('wreck-') && playerSees(o.world, s.pos)));
   if (wreck) return visitStock(o, wreck);
@@ -1036,7 +1043,7 @@ export const CARGO_REASONS: readonly GoalReason[] = ['deliverCargo', 'sellCargo'
 const ROB_TEMPLATES: readonly string[] = ['trader', 'convoy'];
 const isRobTemplate = (v: Vehicle): boolean => v.brain !== null && ROB_TEMPLATES.includes(v.brain.templateId);
 function robPatrol(guarded: boolean): readonly string[] {
-  return guarded ? [...TRAITS.supplier.haulSites, ...TRAITS.supplier.towns] : ['bowl', 'nose'];
+  return guarded ? ['pump-station', ...TRAITS.supplier.towns] : ['bowl', 'nose'];
 }
 
 function robberGoal(o: Orders, guarded: boolean): void {
@@ -1186,17 +1193,36 @@ function sellCargo(o: Orders, stripping = false): void {
 }
 
 function sellInTown(o: Orders, stripping: boolean): boolean {
-  if (townAt(o.world) && sellsCargo(o, stripping)) sellCargo(o, stripping);
+  if (sellsHere(o, stripping)) sellCargo(o, stripping);
   return o.me.job !== null;
 }
 
-function goodsToSell(o: Orders, stripping: boolean): [string, number][] {
+function cargoGoods(o: Orders, stripping: boolean): [string, number][] {
   const keep = stripping && o.fieldRepair;
   return Object.entries(cargoForSale(o.world, o.me)).filter(([good]) => !keep || good !== 'parts');
 }
 
+function goodsToSell(o: Orders, stripping: boolean): [string, number][] {
+  const shop = shopAt(o.world);
+  return cargoGoods(o, stripping).filter(([good]) => !shop || tradesGood(shop, good));
+}
+
+function tradesGood(shop: string, good: string): boolean {
+  return shopDef(shop).goods.includes(good);
+}
+
+function sellsHere(o: Orders, stripping: boolean): boolean {
+  return townAt(o.world) !== null && (goodsToSell(o, stripping).length > 0 || spareItems(o.me).length > 0);
+}
+
+function cargoBuyer(o: Orders, stripping: boolean): TownDef {
+  const goods = cargoGoods(o, stripping).map(([good]) => good);
+  const sellsGoods = (town: TownDef) => spareItems(o.me).length > 0 || goods.some((good) => tradesGood(town.id, good));
+  return byDistance(o.world, REGION.towns.filter(sellsGoods))[0] ?? nearestTown(o.world);
+}
+
 function sellsCargo(o: Orders, stripping: boolean): boolean {
-  return goodsToSell(o, stripping).length > 0 || spareItems(o.me).length > 0;
+  return cargoGoods(o, stripping).length > 0 || spareItems(o.me).length > 0;
 }
 
 function sellSpares(o: Orders, keep: boolean): void {

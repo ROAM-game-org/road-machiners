@@ -96,6 +96,7 @@ export function rollStock(world: World, table: LootTable, id: string, pos: Vec, 
   goods.parts = randInt(world, table.parts[0], table.parts[1]);
   const parts: PartInstance[] = [];
   if (chance(world, table.sparePartChance)) parts.push(fieldSpare(world, table));
+  if (table.relicChance > 0 && chance(world, table.relicChance)) goods.relics = 1;
   const hidden = { goods, parts, fuel: randInt(world, ...table.fuel), supplies: randInt(world, ...table.supplies) };
   return { id, pos: { ...pos }, radius, goods: {}, parts: [], fuel: 0, supplies: 0, hidden };
 }
@@ -519,8 +520,22 @@ function spotStock(world: World, id: string): SalvageStock {
 function restockSite(world: World, stock: SalvageStock, table: LootTable): void {
   for (const [good, range] of Object.entries({ ...table.goods, parts: table.parts })) refillGood(world, stock, good, range);
   for (const kind of ['fuel', 'supplies'] as const) stock.hidden[kind] += refill(world, (stock[kind] ?? 0) + stock.hidden[kind], table[kind]);
+  restockSpare(world, stock, table);
+  restockRelic(world, stock, table);
+}
+
+function restockSpare(world: World, stock: SalvageStock, table: LootTable): void {
   if (stock.parts.length + stock.hidden.parts.length > 0 || !chance(world, table.sparePartChance * SALVAGE.restockShare)) return;
   stock.hidden.parts.push(fieldSpare(world, table));
+}
+
+function restockRelic(world: World, stock: SalvageStock, table: LootTable): void {
+  if (table.relicChance === 0 || relicsIn(stock) > 0 || !chance(world, table.relicChance * SALVAGE.restockShare)) return;
+  stock.hidden.goods.relics = 1;
+}
+
+function relicsIn(stock: SalvageStock): number {
+  return (stock.goods.relics ?? 0) + (stock.hidden.goods.relics ?? 0);
 }
 
 function refillGood(world: World, stock: SalvageStock, good: string, range: LootRange): void {
@@ -910,5 +925,5 @@ const meanOf = ([lo, hi]: LootRange): number => (lo + hi) / 2;
 export function meanLootValue(table: LootTable): number {
   const goods = Object.entries(table.goods).reduce((sum, [good, range]) => sum + meanOf(range) * GOODS[good].value, 0);
   const parts = meanOf(table.parts) * GOODS.parts.value;
-  return goods + parts + meanOf(table.fuel) * ECONOMY.supplyPrice.fuel + meanOf(table.supplies) * ECONOMY.supplyPrice.supplies;
+  return goods + parts + table.relicChance * GOODS.relics.value + meanOf(table.fuel) * ECONOMY.supplyPrice.fuel + meanOf(table.supplies) * ECONOMY.supplyPrice.supplies;
 }

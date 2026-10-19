@@ -42,9 +42,15 @@ function addScumbag(w: World, pos: Vec, parts = ['mg', 'stockEngine'], traits: T
 
 const lowest = (w: World, observer: Vehicle, v: Vehicle) => judgeDanger(w, observer, v) * (1 - NPC_BEHAVIOR.dangerSpread);
 
+function withBrain(v: Vehicle): Vehicle {
+  v.brain = npcBrain('trader', v.pos, ['trader']);
+  return v;
+}
+
 function addPrey(w: World, pos: Vec, parts: string[] = ['stockEngine'], goods = 2): Vehicle {
   const v = addVehicle(w, 'independent', 'scout', parts, pos);
   v.brain = npcBrain('trader', pos, ['trader']);
+  v.resources!.money = 0;
   if (goods > 0 && addGoods(w, v, 'scrap', goods) < goods) throw new Error('No room for prey goods');
   if (goods > 0 && addGoods(w, v, 'electronics', 4) < 4) throw new Error('No room for prey cargo');
   return v;
@@ -134,7 +140,7 @@ const UNAVAILABLE: Record<string, Setup> = {
 const JUDGED: Record<string, Setup> = {
   strong: () => {
     const w = emptyWorld({ x: 200, y: 200 });
-    const target = addVehicle(w, 'independent', 'carrier', ['sniperCannon', 'plates'], { x: 15, y: 10 });
+    const target = withBrain(addVehicle(w, 'independent', 'carrier', ['sniperCannon', 'plates'], { x: 15, y: 10 }));
     return { w, robber: addScumbag(w, { x: 10, y: 10 }), target };
   },
   robberAtGate: () => {
@@ -243,7 +249,7 @@ describe('scumbag robbery', () => {
       return robs;
     };
     const equal = count((w) => addPrey(w, { x: 15, y: 10 }, ['mg', 'stockEngine']));
-    const strong = count((w) => addVehicle(w, 'independent', 'carrier', ['sniperCannon', 'plates', 'stockEngine'], { x: 15, y: 10 }));
+    const strong = count((w) => withBrain(addVehicle(w, 'independent', 'carrier', ['sniperCannon', 'plates', 'stockEngine'], { x: 15, y: 10 })));
     expect(equal).toBeGreaterThan(0);
     expect(strong).toBeLessThan(20);
     expect(strong).toBeLessThan(equal);

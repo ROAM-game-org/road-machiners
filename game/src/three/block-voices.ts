@@ -65,16 +65,23 @@ export class BlockVoices implements BlockOutput {
     };
   }
 
-  lean(offset: number, at: number, length: number, songScale: number, level: number): VoiceHandle {
+  lean(offset: number, at: number, length: number, songScale: number, level: number, release: number): VoiceHandle {
     const seam = SCORE_BLOCKS.seamSeconds;
+    const end = at + length;
     const guitars = this.voice("guitars", offset, at, length, seam, level);
+    guitars.fadeOut(end - release / 2, release / 2);
     const duck = this.songDuck.gain;
     duck.setValueAtTime(1, at - seam);
     duck.linearRampToValueAtTime(songScale, at + seam);
-    duck.setValueAtTime(songScale, at + length - seam);
-    duck.linearRampToValueAtTime(1, at + length + seam);
+    duck.setValueAtTime(songScale, end - release);
+    duck.linearRampToValueAtTime(1, end);
     return {
-      fadeOut: guitars.fadeOut,
+      fadeOut: (t, f) => {
+        guitars.fadeOut(t, f);
+        duck.cancelScheduledValues(t - f);
+        duck.setValueAtTime(songScale, t - f);
+        duck.linearRampToValueAtTime(1, t + f);
+      },
       cut: (t) => {
         guitars.cut(t);
         duck.cancelScheduledValues(t - seam);
