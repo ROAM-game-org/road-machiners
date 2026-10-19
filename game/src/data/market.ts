@@ -223,6 +223,7 @@ export type ShopDef = {
   driftPerTurn: number;
   contractSlots: number;
   supplies: ('fuel' | 'supplies')[];
+  charts: boolean;
 };
 
 export const PRESSURE_MAX = 0.6;
@@ -245,13 +246,14 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 3,
     supplies: ['fuel', 'supplies'],
+    charts: true,
   },
   nose: {
     id: 'nose',
     kind: 'garage',
     makes: ['salt', 'tools', 'batteries'],
-    needs: ['scrap', 'grain', 'textiles', 'meds', 'electronics', 'parts', 'fuelDrums', 'water'],
-    goods: ['scrap', 'salt', 'meds', 'grain', 'textiles', 'tools', 'batteries', 'electronics', 'parts', 'fuelDrums', 'water'],
+    needs: ['scrap', 'grain', 'textiles', 'meds', 'electronics', 'parts', 'fuelDrums', 'water', 'relics'],
+    goods: ['scrap', 'salt', 'meds', 'grain', 'textiles', 'tools', 'batteries', 'electronics', 'parts', 'fuelDrums', 'water', 'relics'],
     priceFactor: PRICE_FACTOR,
     partStock: { parts: GARAGE_PARTS, wear: GARAGE_WEAR },
     stockSize: [8, 12],
@@ -260,13 +262,14 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 3,
     supplies: ['fuel', 'supplies'],
+    charts: true,
   },
   'salvage-yard': {
     id: 'salvage-yard',
     kind: 'stall',
-    makes: ['scrap', 'parts'],
+    makes: ['scrap', 'parts', 'relics'],
     needs: ['tools'],
-    goods: ['scrap', 'parts', 'tools'],
+    goods: ['scrap', 'parts', 'tools', 'relics'],
     priceFactor: PRICE_FACTOR,
     partStock: {
       parts: ([
@@ -281,6 +284,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   granary: {
     id: 'granary',
@@ -299,6 +303,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   'pump-station': {
     id: 'pump-station',
@@ -317,6 +322,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   dustwell: {
     id: 'dustwell',
@@ -335,6 +341,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
   'green-pit': {
     id: 'green-pit',
@@ -353,6 +360,7 @@ export const SHOPS: Record<string, ShopDef> = {
     driftPerTurn: 0.0075,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
+    charts: false,
   },
 };
 

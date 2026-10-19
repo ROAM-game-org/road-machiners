@@ -1,3 +1,4 @@
+import { getUpkeepReserve } from './economy';
 import { HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, TRAITS } from '../data/npcs';
 import { partDef, type PartDef } from '../data/parts';
 import { REGION } from '../data/region';
@@ -747,7 +748,15 @@ describe('holdsUp', () => {
     expect(setup(false).up()).toBe(false);
     const bare = setup(true);
     bare.me.items = bare.me.items.filter((i) => i.kind !== 'good');
+    bare.w.player.money = getUpkeepReserve(bare.me);
     expect(bare.up()).toBe(false);
+  });
+
+  it('a confident robber holds up prey with no cargo for a cash cut when its money is above the reserve', () => {
+    const bare = setup(true);
+    bare.me.items = bare.me.items.filter((i) => i.kind !== 'good');
+    bare.w.player.money = getUpkeepReserve(bare.me) + 100000;
+    expect(bare.up()).toBe(true);
   });
 
   it('a robber that follows a leader holds up nobody', () => {

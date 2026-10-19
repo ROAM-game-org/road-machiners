@@ -27,6 +27,7 @@ from parts_common_base import (  # noqa: E402
     Grid,
     arch_cut,
     check_base,
+    check_door_gap,
     cut_boxes,
     flare,
     hull_layers,
@@ -100,6 +101,7 @@ def cabin(kit: Kit) -> None:
     side_y = SIDE - 0.1
     door = [(0.5, lo), (-0.45, lo), (-0.45, hi), (0.5 - 0.15, hi)]
     quarter = [(-0.62, lo + 0.05), (-1.55, lo + 0.05), (-1.55, hi), (-0.62, hi)]
+    check_door_gap("door_glass", 0.5, -0.45, lo, WHEELS_X, HUB_Z, WHEEL_R + ARCH_CLEARANCE)
     for name, prof in (("door_glass", door), ("quarter_glass", quarter)):
         prism(kit, f"{name}_l", prof, side_y + 0.015, side_y + 0.045, "glass")
         prism(kit, f"{name}_r", prof, -side_y - 0.045, -side_y - 0.015, "glass")

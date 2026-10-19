@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHASSIS, PLAYER_CHASSIS, type ChassisDef } from './chassis';
+import { CHASSIS, HAULER_CHASSIS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef } from './chassis';
 import { FURY_ROAD } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
@@ -273,5 +273,30 @@ describe('the semi', () => {
   it('weighs over ten scouts and over twice any other chassis, so its rams land massive hits', () => {
     expect(CHASSIS.semi.mass / CHASSIS.scout.mass).toBeGreaterThan(10);
     for (const def of Object.values(CHASSIS)) if (def.id !== 'semi') expect(CHASSIS.semi.mass / def.mass, def.id).toBeGreaterThan(2);
+  });
+});
+
+describe('town garage lineups', () => {
+  const lineups = Object.entries(TOWN_CHASSIS);
+
+  it('gives every town a cheap truck and a truck of each tier', () => {
+    for (const [town, ids] of lineups) {
+      expect(ids, town).toEqual(expect.arrayContaining(['scout', 'buggy', 'courier']));
+      for (const tier of [1, 2, 3]) expect(ids.some((id) => CHASSIS[id].tier === tier), `${town} tier ${tier}`).toBe(true);
+    }
+  });
+
+  it('sells every player chassis somewhere and never the hauler semi', () => {
+    const sold = new Set(lineups.flatMap(([, ids]) => ids));
+    expect([...sold].sort()).toEqual([...PLAYER_CHASSIS].sort());
+    expect(sold.has(HAULER_CHASSIS)).toBe(false);
+  });
+
+  it('lets each town lawman roll only trucks its garage sells', () => {
+    for (const npc of Object.values(NPCS).filter((n) => n.traits.includes('lawman'))) {
+      if (npc.spawn.kind !== 'sites' || npc.spawn.ids.length !== 1) continue;
+      const town = npc.spawn.ids[0];
+      for (const c of npc.loadout.chassis) expect(TOWN_CHASSIS[town], `${npc.id} ${c.value}`).toContain(c.value);
+    }
   });
 });

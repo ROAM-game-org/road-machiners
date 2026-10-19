@@ -1,5 +1,4 @@
 
-import { PLAYER_CHASSIS } from "../data/chassis";
 import { ECONOMY, GOOD_IDS, PARCEL } from "../data/goods";
 import { CONTRACTS, shopDef, type ShopDef } from "../data/market";
 import { partDef, type PartKind } from "../data/parts";
@@ -29,6 +28,7 @@ import {
   sellTruckPart,
   supplyRoom,
   canTradeWith,
+  garageChassis,
   truckGoodPrice,
   truckPartPrice,
   truckGoodsForSale,
@@ -55,6 +55,10 @@ import { callVehicle } from "../sim/dialogue";
 import { hostileToPlayer } from "../sim/world";
 import { claimRivalMark, contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
+import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
+import { MapView, observeBox } from "./map-view";
+import { toPx, type Viewport } from "./map-geometry";
+import { token } from "./tokens";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
 import type { UiHost } from "./host";
@@ -65,9 +69,11 @@ import { driverName, factionName, goodName, localName, localRole, placeProse, re
 import { commandFailure, stanceTag } from "./format";
 import { vehicleHasPerk } from "../sim/progress";
 
-export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "contracts";
+export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "contracts" | "charts";
 
 export type GarageTab = "buyParts" | "sellParts" | "trucks";
+
+export type MarketTab = "goods" | "charts";
 
 export type StockFilter = "all" | Exclude<PartKind, "core">;
 
@@ -78,6 +84,7 @@ const GARAGE_TABS: GarageTab[] = ["buyParts", "sellParts", "trucks"];
 const GARAGE_ONLY: GarageTab[] = ["trucks"];
 
 const PRESSURE_HINT_AT = 0.2;
+const CHARTS_SIZE = 640;
 
 const CHOICE_KEYS = ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7", "Digit8", "Digit9"];
 
@@ -100,11 +107,17 @@ export class TownScreen {
   private page: TownPage = null;
   private closedAt: ClosedAt | null = null;
   private garageTab: GarageTab = "buyParts";
+  private marketTab: MarketTab = "goods";
   private stockFilter: StockFilter = "all";
   private error: Msg | null = null;
   private choices: TownChoice[] = [];
   private rows = new PartRows(() => this.render());
   private band = new ArtBand();
+  private sheet: Sheet | null = null;
+  private hoverSheet: Sheet | null = null;
+  private chartOffers: SheetOffer[] = [];
+  private chartsBox: HTMLElement | null = null;
+  private chartsView = new MapView({ kind: "fit" }, CHARTS_SIZE, CHARTS_SIZE, (ctx, view) => this.drawSheets(ctx, view));
 
   private inventory: InventoryView;
 
@@ -114,6 +127,21 @@ export class TownScreen {
     window.addEventListener("resize", () => this.render());
     window.addEventListener("keydown", (e) => this.onKey(e), true);
     this.inventory = new InventoryView(host, () => this.render(), false);
+    this.chartsView.canvas.addEventListener("click", (e) => {
+      this.sheet = this.sheetAt(e.clientX, e.clientY);
+      this.render();
+    });
+    this.chartsView.canvas.addEventListener("pointermove", (e) => {
+      const over = this.sheetAt(e.clientX, e.clientY);
+      if (over && this.hoverSheet && sheetId(over) === sheetId(this.hoverSheet)) return;
+      if (!over && !this.hoverSheet) return;
+      this.hoverSheet = over;
+      this.chartsView.update(this.host.world(), null);
+    });
+    this.chartsView.canvas.addEventListener("pointerleave", () => {
+      this.hoverSheet = null;
+      this.chartsView.update(this.host.world(), null);
+    });
   }
 
   isOpen(): boolean {
@@ -226,7 +254,7 @@ export class TownScreen {
   }
 
   private drawPage(w: World, shopId: string, page: TownPage): void {
-    const truck = page === "garage" || page === "market" ? el("div", { class: "town-truck" }, this.inventory.render()) : null;
+    const truck = this.showsTruck(w, shopId, page) ? el("div", { class: "town-truck" }, this.inventory.render()) : null;
     this.choices = page === null ? this.frontChoices(w, shopId) : this.sectionChoices(shopId, page);
     this.root.replaceChildren(
       this.bandOf(w, shopId, this.artKey(shopId)),
@@ -275,7 +303,17 @@ export class TownScreen {
     return [...locals, { id: "back", label: t("town.back"), reason: null, go: () => this.back() }];
   }
 
+  private showsTruck(w: World, shopId: string, page: TownPage): boolean {
+    if (page === "garage") return true;
+    return page === "market" && !this.chartsShown(shopId);
+  }
+
+  private chartsShown(shopId: string): boolean {
+    return this.marketTab === "charts" && shopDef(shopId).charts;
+  }
+
   private sectionPanel(w: World, shopId: string, def: ShopDef, page: TownSection, truck: HTMLElement | null): HTMLElement | null {
+    if (page === "market" && !truck) return el("div", { class: "ink-panel" }, this.marketTabs(def), this.charts(w, shopId));
     if (truck) {
       const shop = page === "garage" ? this.garage(w, shopId, def) : this.market(w, shopId, def);
       return el("div", { class: "ink-panel wide" }, el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, shop)));
@@ -302,7 +340,7 @@ export class TownScreen {
         t(`trade.tab.${tab}`),
       ),
     );
-    const body = { buyParts: () => this.buyParts(w, shopId), sellParts: () => this.sellParts(w), trucks: () => this.trucks(w) }[this.garageTab]();
+    const body = { buyParts: () => this.buyParts(w, shopId), sellParts: () => this.sellParts(w), trucks: () => this.trucks(w, shopId) }[this.garageTab]();
     return el("div", {}, this.repairBar(w), el("div", { class: "tabs sub" }, ...buttons), body);
   }
 
@@ -360,11 +398,33 @@ export class TownScreen {
     return (on) => this.inventory.hintMounts(on ? MOUNT_CELLS[kind] : null);
   }
 
+  private marketTabs(def: ShopDef): HTMLElement | null {
+    if (!def.charts) return null;
+    const tabs: MarketTab[] = ["goods", "charts"];
+    const buttons = tabs.map((tab) =>
+      el(
+        "button",
+        {
+          class: this.marketTab === tab ? "on" : "",
+          "data-market-tab": tab,
+          onclick: () => {
+            this.marketTab = tab;
+            this.showList();
+          },
+        },
+        createIcon(tab === "charts" ? TAB_ICON.charts : TAB_ICON.market),
+        t(`trade.tab.${tab === "charts" ? "charts" : "market"}`),
+      ),
+    );
+    return el("div", { class: "tabs sub" }, ...buttons);
+  }
+
   private market(w: World, shopId: string, def: ShopDef): HTMLElement {
     const state = shopState(w, shopId);
     return el(
       "div",
       {},
+      this.marketTabs(def),
       el(
         "div",
         { class: "goods" },
@@ -485,11 +545,67 @@ export class TownScreen {
     return repairBar(w, this, { basics: repairBasics, all: repairAll });
   }
 
-  private trucks(w: World): HTMLElement {
-    return truckCards(w, PLAYER_CHASSIS, (id) => ({
+  private trucks(w: World, shopId: string): HTMLElement {
+    return truckCards(w, garageChassis(shopId), (id) => ({
       reason: chassisPrice(w, id) < 0 ? null : shortBy(w.player.money, chassisPrice(w, id)),
       swap: () => this.run((x) => buyChassis(x, id)),
     }));
+  }
+
+  private charts(w: World, shopId: string): HTMLElement {
+    const offers = chartsOnSale(w, shopId);
+    const picked = offers.find((o) => this.sheet && sheetId(o.sheet) === sheetId(this.sheet)) ?? null;
+    if (!picked) this.sheet = null;
+    this.chartOffers = offers;
+    this.chartsView.update(w, null);
+    const buy = picked
+      ? this.priceButton(w, t("goods.buy"), picked.price, (x) => buyChart(x, picked.sheet), null, "buy-chart")
+      : null;
+    return el("div", { class: "charts" }, this.chartsMap(), buy);
+  }
+
+  private chartsMap(): HTMLElement {
+    if (this.chartsBox) return this.chartsBox;
+    const box = el("div", { class: "charts-map" }, this.chartsView.canvas);
+    observeBox(box, this.chartsView);
+    this.chartsBox = box;
+    return box;
+  }
+
+  private sheetAt(clientX: number, clientY: number): Sheet | null {
+    const p = this.chartsView.pick(clientX, clientY);
+    if (!p) return null;
+    const sheet = sheetAt(this.host.world().size, p);
+    return this.chartOffers.some((o) => sheetId(o.sheet) === sheetId(sheet)) ? sheet : null;
+  }
+
+  private drawSheets(ctx: CanvasRenderingContext2D, view: Viewport): void {
+    const trace = (sheet: Sheet) => {
+      const b = sheetTiles(this.host.world().size, sheet);
+      const from = toPx(view, { x: b.x0, y: b.y0 });
+      const to = toPx(view, { x: b.x1, y: b.y1 });
+      ctx.beginPath();
+      ctx.rect(from.x, from.y, to.x - from.x, to.y - from.y);
+    };
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = token("--line-strong");
+    for (const o of this.chartOffers) {
+      trace(o.sheet);
+      ctx.stroke();
+    }
+    const mark = (sheet: Sheet | null, stroke: string, fill: string | null) => {
+      if (!sheet) return;
+      trace(sheet);
+      if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    };
+    mark(this.hoverSheet, token("--ink-bright"), null);
+    mark(this.sheet, token("--accent"), token("--accent-wash"));
   }
 
   private contracts(w: World, shopId: string): HTMLElement {
@@ -591,6 +707,7 @@ export const TAB_ICON: Record<Tab, IconName> = {
   sellParts: "trade",
   trucks: "truck",
   contracts: "clock",
+  charts: "journal",
 };
 
 function theyHave(have: number, n: number, amount: (n: number) => Msg): Msg | null {

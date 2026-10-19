@@ -27,6 +27,8 @@ import type { Faction, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { randInt } from './rng';
 import { refreshVision } from './vision';
+import { atlasOf, atlasSites } from './atlas';
+import { chartSite } from './locations';
 import { WEATHER } from '../data/weather';
 import { makeWeather } from './weather';
 import { hostileToPlayer, playerCanAct, update } from './world';
@@ -295,6 +297,9 @@ export function startWeather(world: World, kind: string, turns: number | null, o
 export function revealMap(world: World): World {
   return update(world, (w) => {
     w.player.explored.fill(1);
+    for (const site of atlasSites(atlasOf(w.terrain))) {
+      if (!w.player.discovered.includes(site.id)) chartSite(w, site);
+    }
     refreshVision(w);
   });
 }

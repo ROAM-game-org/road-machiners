@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TOWN_CHASSIS } from '../../data/chassis';
 import { REGION } from '../../data/region';
 import { startKit } from '../../data/start';
 import { playerVehicle } from '../damage';
@@ -177,5 +178,19 @@ describe('upgradeGear for a fighter', () => {
     upgradeGear(o, { ...STYLE, minSpeed: speedOf(w) });
 
     expect(engineIds(o.world)).toEqual(['turbine']);
+  });
+});
+
+describe('chassis upgrades', () => {
+  it('only offers trucks the garage of the town sells', () => {
+    const nose = REGION.towns.find((t) => t.id === 'nose')!;
+    const w = emptyWorld(nearestPad(nose, nose.pos));
+    playerVehicle(w).speed = 0;
+    w.player.money = 1_000_000;
+    const o = new Orders(w);
+
+    upgradeGear(o, { skip: ['engine', 'weapon', 'armor', 'cargo', 'store'], chassis: 'value', job: 'courier' });
+
+    expect(TOWN_CHASSIS.nose).toContain(playerVehicle(o.world).chassisId);
   });
 });
