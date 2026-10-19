@@ -27,9 +27,6 @@ import { isIntroAmbusher } from './quests';
 import { fightSide, spokesman } from './sides';
 import { reportIncident } from './relations';
 
-type Named = 'haul' | 'cut';
-export type Payment = { amount: number; named: Named };
-
 export type ThreatAnswer = DecisionOptions['threatened'];
 
 export function makePeace(world: World, a: Vehicle, b: Vehicle): void {
@@ -63,20 +60,20 @@ export function handedOver(world: World, loser: Vehicle, winner: Vehicle): GridI
 export function yieldTo(world: World, loser: Vehicle, winner: Vehicle, haul: GridItem[] = handedOver(world, loser, winner)): void {
   requireLooting(world, loser);
   const stock = haul.length > 0 ? dropHaul(world, loser, haul) : null;
-  settleHoldUp(world, loser, winner, stock, 'cargo', haulValue(haul), haul.length > 0 ? 'haul' : 'cut');
+  settleHoldUp(world, loser, winner, stock, 'cargo', haulValue(haul));
 }
 
-export function payOff(world: World, loser: Vehicle, winner: Vehicle, amount: number, named: Named = 'cut'): void {
+export function payOff(world: World, loser: Vehicle, winner: Vehicle, amount: number): void {
   requireLooting(world, loser);
   if (amount <= 0) throw new Error(`${loser.id} cannot pay ${amount} to ${winner.id}`);
   transfer(world, loser, winner, amount);
-  settleHoldUp(world, loser, winner, null, 'money', amount, named);
+  settleHoldUp(world, loser, winner, null, 'money', amount);
 }
 
 export function giveInTo(world: World, loser: Vehicle, winner: Vehicle, ransom: Ransom): void {
   const spare = getResources(world, loser).money - getUpkeepReserve(loser);
   const pays = ransom.money > 0 && (ransom.haul.length === 0 || spare >= ransom.money);
-  if (pays) payOff(world, loser, winner, ransom.money, ransom.haul.length > 0 ? 'haul' : 'cut');
+  if (pays) payOff(world, loser, winner, ransom.money);
   else yieldTo(world, loser, winner, ransom.haul);
 }
 
@@ -84,11 +81,11 @@ function requireLooting(world: World, loser: Vehicle): void {
   if (!modeRules(world).looting) throw new Error(`${loser.id} cannot pay a hold-up where nothing is looted`);
 }
 
-function settleHoldUp(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock | null, paid: 'cargo' | 'money', value: number, named: Named): void {
+function settleHoldUp(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock | null, paid: 'cargo' | 'money', value: number): void {
   cede(world, loser, winner, stock, 'takeHandedCargo');
   if (loser.brain) remember(world, loser, { kind: 'wronged', by: winner.id, deed: 'robbed' });
   creditYield(world, loser, winner);
-  world.events.push({ t: 'holdUp', robber: winner.id, victim: loser.id, paid, named, value });
+  world.events.push({ t: 'holdUp', robber: winner.id, victim: loser.id, paid, value });
 }
 
 export function abandonSpill(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock): void {
@@ -165,12 +162,12 @@ export function answersHoldUp(world: World, prey: Vehicle, robber: Vehicle, answ
   else defyThreat(world, prey, robber, answer);
 }
 
-function grantPlea(world: World, pleader: Vehicle, answerer: Vehicle, plea: Plea, price: Payment | null = null): void {
+function grantPlea(world: World, pleader: Vehicle, answerer: Vehicle, plea: Plea, price: number | null = null): void {
   const held = stateOf(world, 'plea', pleader.id, answerer.id);
   if (!held) throw new Error(`${pleader.id} holds no plea to ${answerer.id}`);
   endState(world, held, 'fulfilled');
   if (plea === 'truce') makePeace(world, pleader, answerer);
-  else if (price !== null) payOff(world, pleader, answerer, price.amount, price.named);
+  else if (price !== null) payOff(world, pleader, answerer, price);
   else if (pleader.brain && answerer.brain) giveInTo(world, pleader, answerer, ransomOf(world, answerer, pleader));
   else yieldTo(world, pleader, answerer);
 }
@@ -197,7 +194,7 @@ function requireRadio(world: World, npc: Vehicle, foe: Vehicle): void {
   if (!modeRules(world).radio) throw new Error(`${npc.id} cannot plead with ${foe.id} with no radio`);
 }
 
-export function settlePlayerPlea(world: World, npc: Vehicle, plea: Plea, accepted: boolean, price: Payment | null = null): void {
+export function settlePlayerPlea(world: World, npc: Vehicle, plea: Plea, accepted: boolean, price: number | null = null): void {
   const me = playerVehicle(world);
   addState(world, 'plea', me.id, npc.id, { kind: 'plea', plea, answered: true });
   world.events.push({ t: 'plea', from: me.id, to: npc.id, plea, accepted });

@@ -98,7 +98,7 @@ describe('settling a hold-up', () => {
     payOff(w, victim, robber, 3000);
     const mine = w.events.slice(events);
     expect(mine.filter((e) => e.t === 'transfer')).toEqual([{ t: 'transfer', from: victim.id, to: robber.id, amount: 3000 }]);
-    expect(mine.filter((e) => e.t === 'holdUp')).toEqual([{ t: 'holdUp', robber: robber.id, victim: victim.id, paid: 'money', named: 'cut', value: 3000 }]);
+    expect(mine.filter((e) => e.t === 'holdUp')).toEqual([{ t: 'holdUp', robber: robber.id, victim: victim.id, paid: 'money', value: 3000 }]);
     expect(getResources(w, victim).money).toBe(97000);
     expect(getResources(w, robber).money).toBe(3000);
     expect(stateOf(w, 'combat', robber.id, victim.id)).toBeNull();

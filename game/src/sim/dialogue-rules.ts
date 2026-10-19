@@ -112,10 +112,6 @@ function shownPrice(world: World, npc: Vehicle, call: Call): number {
   return named;
 }
 
-function namedOf(world: World, npc: Vehicle): 'haul' | 'cut' {
-  return ransomOf(world, npc, playerVehicle(world)).haul.length > 0 ? 'haul' : 'cut';
-}
-
 function ransomVars(world: World, npc: Vehicle): CallVars {
   const ransom = ransomOf(world, npc, playerVehicle(world));
   return { haul: haulVar(ransom.haul), ...priceVars(ransom.money) };
@@ -463,17 +459,17 @@ export const EFFECTS: Record<EffectId, Effect> = {
   },
   paySpared: (world, npc, call) => {
     if (playerPlea(call) !== 'mercy' || answerOf(call.vars) !== 'yes') throw new Error('paySpared needs a granted mercy');
-    settlePlayerPlea(world, npc, 'mercy', true, { amount: shownPrice(world, npc, call), named: namedOf(world, npc) });
+    settlePlayerPlea(world, npc, 'mercy', true, shownPrice(world, npc, call));
   },
   payDemand: (world, npc, call) => {
-    payOff(world, playerVehicle(world), npc, shownPrice(world, npc, call), namedOf(world, npc));
+    payOff(world, playerVehicle(world), npc, shownPrice(world, npc, call));
     settleDemand(world, npc, 'agreed');
     practice(world, 'deal', 1, null, npc.id);
   },
   payTollMoney: (world, npc, call) => {
     if (answerOf(call.vars) !== 'demand') throw new Error('payTollMoney needs a demand answer');
     settlePlayerPlea(world, npc, 'truce', false);
-    payOff(world, playerVehicle(world), npc, shownPrice(world, npc, call), namedOf(world, npc));
+    payOff(world, playerVehicle(world), npc, shownPrice(world, npc, call));
     settleDemand(world, npc, 'agreed');
     practice(world, 'deal', 1, null, npc.id);
   },

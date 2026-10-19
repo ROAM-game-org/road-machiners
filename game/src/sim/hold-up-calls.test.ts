@@ -65,7 +65,7 @@ describe('a demand with a price', () => {
     expect(next.salvage.some((s) => s.id.startsWith('cargo-'))).toBe(false);
     expect(isHostile(next, raiderIn(next, raider.id), playerVehicle(next))).toBe(false);
     expect(next.player.talked[raider.id]?.demand).toBe('agreed');
-    expect(next.events.filter((e) => e.t === 'holdUp')).toEqual([{ t: 'holdUp', robber: raider.id, victim: playerVehicle(next).id, paid: 'money', named: 'haul', value: price }]);
+    expect(next.events.filter((e) => e.t === 'holdUp')).toEqual([{ t: 'holdUp', robber: raider.id, victim: playerVehicle(next).id, paid: 'money', value: price }]);
   });
 
   it('hides the pay answer when the player cannot afford the price', () => {

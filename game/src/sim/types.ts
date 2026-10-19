@@ -561,7 +561,7 @@ export type GameEvent =
   | { t: 'guardPaid'; by: string; guard: string; fee: number }
   | { t: 'shopMoney'; vehicle: string; amount: number; kind: ShopMoneyKind }
   | { t: 'transfer'; from: string; to: string; amount: number }
-  | { t: 'holdUp'; robber: string; victim: string; paid: 'cargo' | 'money'; named: 'haul' | 'cut'; value: number }
+  | { t: 'holdUp'; robber: string; victim: string; paid: 'cargo' | 'money'; value: number }
   | { t: 'escortHired'; by: string; client: string; site: string; fee: number }
   | { t: 'escortRefused'; by: string; client: string }
   | { t: 'escortEnded'; contract: string; client: string; end: EscortEnd }
