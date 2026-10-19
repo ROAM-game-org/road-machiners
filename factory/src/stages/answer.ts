@@ -3,6 +3,7 @@ import { UsageLimitError } from '../pause';
 import { openStore, type StoredComment } from '../public/store';
 import { updateState } from '../state';
 import { GAME_DIR, OUT_DIR, type Ctx } from '../types';
+import { TOOLS_MOUNT, withFactoryReads } from './answer-tools';
 import { agentHome, fillPrompt, playtestCommand, readOutput, resetOutputs, writeIssueInput } from './common';
 
 const LANGUAGE_NAME = { en: 'English', ru: 'Russian' } as const;
@@ -39,6 +40,7 @@ function questionOf(comment: StoredComment | null, id: number): Question {
 
 async function investigate(ctx: Ctx, question: Question): Promise<string> {
   const clone = `${ctx.cfg.home}/work/answer`;
+  const tools = `${ctx.cfg.home}/work/answer-tools`;
   rmSync(clone, { recursive: true, force: true });
   try {
     await ctx.repo.fetch();
@@ -47,18 +49,18 @@ async function investigate(ctx: Ctx, question: Question): Promise<string> {
     resetOutputs(home);
     writeQuestion(question, home);
     if (question.issue !== null) await writeIssueInput(ctx, question.issue, home);
-    const prompt = fillPrompt('answer', { repo: ctx.cfg.repo, publicUrl: ctx.cfg.publicUrl, playtest: playtestCommand(ctx.cfg, false) });
+    const prompt = fillPrompt('answer', { repo: ctx.cfg.repo, publicUrl: ctx.cfg.publicUrl, playtest: playtestCommand(ctx.cfg, false), tools: TOOLS_MOUNT });
     mkdirSync(`${ctx.cfg.home}/logs`, { recursive: true });
-    await runAgent(ctx, clone, prompt, `${ctx.cfg.home}/logs/answer-${question.id}.log`);
+    await withFactoryReads(ctx, tools, () => runAgent(ctx, clone, prompt, `${ctx.cfg.home}/logs/answer-${question.id}.log`, { [tools]: TOOLS_MOUNT }));
     return checkedAnswer(ctx, home);
   } finally {
     rmSync(clone, { recursive: true, force: true });
   }
 }
 
-async function runAgent(ctx: Ctx, clone: string, prompt: string, log: string): Promise<void> {
+async function runAgent(ctx: Ctx, clone: string, prompt: string, log: string, readOnly: Record<string, string>): Promise<void> {
   try {
-    await ctx.container.agent({ clone, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt, log, publicOutput: true });
+    await ctx.container.agent({ clone, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt, log, readOnly, publicOutput: true });
   } catch (error) {
     if (error instanceof UsageLimitError) throw error;
     throw new Error(`The answer agent run failed. Its log is ${log}.`);
