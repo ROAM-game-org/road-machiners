@@ -711,6 +711,7 @@
 }
 .standing-head,
 .standing-row {
+  position: relative;
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
@@ -724,7 +725,6 @@
   justify-self: end;
 }
 .standing-score {
-  position: relative;
   justify-self: end;
   text-align: right;
   text-decoration: underline dotted;
