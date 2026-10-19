@@ -1,6 +1,27 @@
-#ui .log {
+/* The one owner of the bottom right: the right dock, the log and End turn, bottom up, one gap apart and right aligned.
+   Nothing in it carries a position number of its own. */
+#ui:not(.phone) .right-column {
+  position: absolute;
   right: var(--space-7);
-  bottom: 112px;
+  bottom: var(--hud-inset);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--hud-gap);
+}
+#ui:not(.phone) .right-column > .panel {
+  position: relative;
+}
+#ui:not(.phone) .right-column > .right-dock {
+  order: 0;
+}
+#ui:not(.phone) .right-column > .log {
+  order: 1;
+}
+#ui:not(.phone) .right-column > .turn-control {
+  order: 2;
+}
+#ui .log {
   width: var(--dock-width);
   height: var(--log-height);
   display: flex;
@@ -9,9 +30,6 @@
 /* The one owner of the stack above the log: the contracts at the old contracts spot, the radio in the space above.
    Panels in it carry no position numbers of their own. */
 #ui .right-dock {
-  position: absolute;
-  right: var(--space-7);
-  bottom: 246px;
   width: var(--dock-width);
   display: flex;
   flex-direction: column;
@@ -30,6 +48,7 @@
 #ui .radio {
   --radio-line: 14px;
   --radio-lines: 3;
+  --knob-size: 28px;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);

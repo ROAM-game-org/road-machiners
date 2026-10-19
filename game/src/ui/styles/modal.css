@@ -12,6 +12,7 @@
 }
 #ui:has(.modal:not([style*="display: none"]))
   > .panel:not(.modal):not(.toast):not(.instruments):not(.log),
+#ui:has(.modal:not([style*="display: none"])) > .right-column > .turn-control,
 #ui:has(.modal:not([style*="display: none"])) > .top-center > .panel:not(.opening-tip) {
   visibility: hidden;
 }
@@ -29,7 +30,7 @@
 #ui:has(.modal:not([style*="display: none"])) > .top-left,
 #ui:has(.modal:not([style*="display: none"])) > .top-right,
 #ui:has(.modal:not([style*="display: none"])) > .bottom-left > .recenter,
-#ui:has(.modal:not([style*="display: none"])) > .right-dock {
+#ui:has(.modal:not([style*="display: none"])) > .right-column > .right-dock {
   visibility: hidden;
 }
 #ui:has(.modal.pinned:not([style*="display: none"])) > .top-right {
@@ -39,7 +40,7 @@
   visibility: visible;
 }
 #ui:has(.modal:not([style*="display: none"])) > .bottom-left > .instruments,
-#ui:has(.modal:not([style*="display: none"])) > .log {
+#ui:has(.modal:not([style*="display: none"])) > .right-column > .log {
   z-index: var(--z-over-modal);
 }
 /* The hidden weapons leave the dock, so the instruments drop to the bottom line instead of wrapping above them. */

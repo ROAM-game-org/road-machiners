@@ -495,6 +495,13 @@ async function drawersAndMenus(session, step) {
     });
   }
   await closeDrawer(page, touch);
+  await step('log-strip', () => touch.tapOn('.log-strip'), async () => {
+    const open = await game(page, () => document.getElementById('ui').dataset.drawer);
+    const tall = await page.locator('.log-strip').evaluate((node) => node.getBoundingClientRect().height >= 32);
+    if (open !== 'log') return `the log strip opened drawer ${open}`;
+    return tall ? true : 'the log strip is under 32px high';
+  });
+  await closeDrawer(page, touch);
   await step('menu-open', () => touch.tapOn('.game-menu .menu-button'), async () => ((await page.locator('.game-menu [role=menu]').isVisible()) ? true : 'menu list is not shown'));
   await step('help-open', () => touch.tapOn('.game-menu [data-entry=help]'), async () => ((await page.locator('#ui .help').isVisible()) ? true : 'help is not shown'));
   await step('help-close', () => touch.tapOn('#ui .help .close'), async () => ((await page.locator('#ui .help').count()) === 0 ? true : 'help is still shown'));

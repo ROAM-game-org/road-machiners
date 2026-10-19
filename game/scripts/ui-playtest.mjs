@@ -156,7 +156,7 @@ async function checkInstruments(page) {
   await checkSpeedTip(page, page.viewportSize().width);
 }
 
-const DOCK_VIEWPORTS = [[1920, 1080], [1280, 720], [1280, 656], [1024, 656], [900, 656], [800, 656], [700, 800]];
+const DOCK_VIEWPORTS = [[1920, 1080], [1280, 720], [1100, 700], [1280, 656], [1024, 656], [900, 656], [800, 656], [700, 800]];
 const DOCK_PANELS = ['.instruments', '.weapons', '.truck-condition', '.log', '.turn-control', '.recenter', '.info'];
 
 async function loadHeavyHud(page) {
@@ -214,6 +214,13 @@ function assertNoOverlaps(rects, width, height) {
 
 const inside = (r, box, tol = 1) => r.x >= box.x - tol && r.right <= box.right + tol && r.y >= box.y - tol && r.bottom <= box.bottom + tol;
 
+function assertStack(rects, at) {
+  const log = rects['.log'], turn = rects['.turn-control'];
+  if (!log || !turn) return;
+  assert(near(turn.y - log.bottom, 8), `The log must sit one HUD gap above End turn ${at}, got ${turn.y - log.bottom}`);
+  assert(near(log.right, turn.right), `The log and End turn must share a right edge ${at}, got ${log.right} and ${turn.right}`);
+}
+
 async function checkDockLayout(page, [width, height]) {
   await page.setViewportSize({ width, height });
   const m = await page.evaluate(([selectors, narrow]) => {
@@ -244,6 +251,7 @@ async function checkDockLayout(page, [width, height]) {
   await page.screenshot({ path: `.playtest/dock-${guns}g-${width}x${height}.png`, timeout: 180000 });
   assert(m.rects['.weapons'], `Weapons panel must show ${at}`);
   assertNoOverlaps(m.rects, width, height);
+  assertStack(m.rects, at);
   const stacked = assertDockPlace(m, at);
   assertDockFits(m, at);
   assertDockRows(m.slots, at);
@@ -412,7 +420,7 @@ async function shotLog(page, name) {
   await page.screenshot({ path: `.playtest/${name}.png`, clip: await page.locator('.log').boundingBox(), animations: 'allow' });
 }
 
-const dockGap = page => (page.viewportSize().width <= 720 ? 8 : 12);
+const dockGap = () => 8;
 
 const near = (a, b) => Math.abs(a - b) <= 1;
 

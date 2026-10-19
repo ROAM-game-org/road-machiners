@@ -97,7 +97,7 @@ The screen has fixed zones. Each zone has one job, and an element never moves be
 | Top center | Transient and waiting | Action bar at the edge, toast below it, then notices and tips |
 | Top right | System, then the cursor card | Menu and camera switch at the edge, the hover card below them |
 | Right side | Ambient and waiting on | Radio, then contracts |
-| Bottom right | Events and commit | Log above End turn |
+| Bottom right | Events and commit | Log above End turn, one stack |
 | Bottom left | My truck | Truck diagram, then the hauler gauge, above the instruments and the weapons bar |
 | Center | Task | Modals, dialogue, save and new game |
 
@@ -115,14 +115,14 @@ The always-on HUD answers a short list of questions without a click: can I keep 
 `#ui.phone` is a small UI layer: at most 560px wide or 480px tall, counted in the layer's pixels (see "The UI layer" below). `src/ui/input-mode.ts` owns the threshold and sets the class, and `phone.css` holds every rule under it. A desktop window above the threshold keeps the layout of 4.2. The phone layout answers the same always-on questions on a screen a quarter of the size.
 
 - The top row holds the health readout and Menu at the right, inside the safe area, with nothing at the left. Camera mode and Report a bug or request a feature are Menu entries on a phone. The action bar, toast, notices and tips sit under it at full width.
-- The bottom bar holds four drawer tabs (`.drawer-tabs`), the small speed dial, the LCD readouts, the action switches and End turn, all always on. In portrait the instruments take their own block above the tabs.
+- The bottom bar holds four drawer tabs (`.drawer-tabs`), the small speed dial, the LCD readouts, the action switches, End turn and the log strip (`.log-strip`), all always on. The strip is one row with the newest log line, cut with an ellipsis and with the whole line as its title. It sits right above End turn: in portrait across the width above the tabs and End turn, in landscape over the right half above the bar. A tap on it opens the Log drawer like the tab, and the bar grows by the strip and one gap, so drawers open above it. In portrait the instruments take their own block above the tabs.
 - A drawer holds what the bar does not: Truck (the truck diagram and the hauler gauge), Guns (the weapons), Radio (the radio and the contracts) and Log. One is open at a time. A tap on its tab opens or closes it, and a tap on the map leaves it open, so the player can aim with Guns open. In portrait a drawer spans the width above the bar. In landscape Truck and Guns open over the left half and Radio and Log over the right half. A drawer scrolls inside and is never taller than the space between the top row and the bar.
 - The Guns tab takes the danger edge while the player is in combat. This is the attention level of 7, a mark that stays while the state is true. Nothing opens by itself.
 - The cursor card is right-aligned under the top row and ends one gap above the bar or the drawer under it. It scrolls inside, and it never grows over the map.
 - A modal fills the viewport inside the safe area and scrolls inside, with its close button in view. The bar and the drawers hide while one is open, and while Options is open.
 - Drawer state lives in the UI and is not saved.
 
-This layout bends two rules, and each is a new pattern, not a changed principle. P2, key facts never one step away: the diagram, the weapons, the radio and the log are one tap away, since a 390 by 844 screen cannot hold them without covering the playfield, which breaks P3 and P18. The key facts for the turn stay on screen: the speed dial, the readouts, the health, the action switches, End turn and the action bar. 4.2, an element never moves between zones: in portrait a drawer spans the width. It keeps the content and the job of its zone, but not the edge.
+This layout bends two rules, and each is a new pattern, not a changed principle. P2, key facts never one step away: the diagram, the weapons, the radio and the log are one tap away (the newest log line is still on screen in the strip), since a 390 by 844 screen cannot hold them without covering the playfield, which breaks P3 and P18. The key facts for the turn stay on screen: the speed dial, the readouts, the health, the action switches, End turn and the action bar. 4.2, an element never moves between zones: in portrait a drawer spans the width. It keeps the content and the job of its zone, but not the edge.
 
 ### 4.5 The UI layer
 
@@ -266,6 +266,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.skill-level` is a row of small pips that fill from the left for a level out of a few: a skill rank, and an escort offer's danger (`.skill-level.threat`, three pips, with the level in its tooltip).
 - `.chip` is a small boxed value. `.tag` is an outlined word in the color of its text.
 - `.contract-clue` is a told survey clue on its own line under the contract it belongs to.
+- `.log-strip` is the newest log line on one row, on a phone above End turn. It is a `.panel` with a button role, one line at `--phone-strip-h` (`--touch-target`) high, and it takes a tap to open the Log drawer. It is hidden under a modal and under Options with the rest of the bar.
 - `.drawer-tabs` is the tab row of the phone layout: one icon `.btn-l` per drawer with an `aria-label`, `.selected` on the open one and `.marked` for the danger edge of attention. Its drawer is the panel of its zone, set to scroll inside.
 - `.key` is a keyboard key or a mouse button, drawn as a keycap, as in the help panel.
 - `.amount .coin` is money from `moneyEl()`: the coin, sized in em by the text around it, then the number. The coin colors are the `--coin-*` tokens.
