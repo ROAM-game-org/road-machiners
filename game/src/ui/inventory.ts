@@ -45,7 +45,7 @@ import type {
   Vehicle,
   World,
 } from "../sim/types";
-import { keyLabel, touchMode } from "./input-mode";
+import { keyLabel, phoneMode, touchMode } from "./input-mode";
 import { disabledWith, el, isBrowserChord, panel, uiRoot } from "./dom";
 import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
@@ -429,7 +429,7 @@ export class InventoryView {
       ...(item.kind === "part" ? partDetails(w, this.mine(w), item.part, mounted) : []),
       this.loreParagraph(item),
     );
-    this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
+    if (!phoneMode()) this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
 
   hintMounts(cells: readonly Cell[] | null): void {
@@ -705,7 +705,7 @@ export class InventoryView {
       ...(item.kind === "part" ? partDetails(w, playerVehicle(w), item.part, false) : []),
       this.loreParagraph(item),
     );
-    this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
+    if (!phoneMode()) this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
 
   private startDrag(

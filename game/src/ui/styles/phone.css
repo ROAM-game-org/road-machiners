@@ -346,9 +346,13 @@
   transform: none;
   font-size: var(--text-caption);
 }
+#ui.phone .modal.character-screen {
+  display: block;
+  overflow: auto;
+}
 #ui.phone .skill-table {
   display: block;
-  overflow-x: hidden;
+  overflow: visible;
 }
 #ui.phone .skill-head {
   display: none;
