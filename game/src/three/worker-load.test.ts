@@ -1,7 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { DOWNLOAD } from "../config";
 import { reportError } from "./crash";
-import { WorkerLoad, workerFailure } from "./worker-load";
+import { DOWNLOAD, WorkerLoad, workerFailure } from "./worker-load";
 
 vi.mock("./crash", () => ({ reportError: vi.fn() }));
 

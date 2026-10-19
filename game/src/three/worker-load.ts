@@ -1,6 +1,14 @@
-import { DOWNLOAD } from "../config";
-import { DownloadFailed } from "../download";
 import { reportError } from "./crash";
+
+export const DOWNLOAD = { tries: 6, waitMs: [500, 1000, 2000, 4000, 4000] };
+
+export class DownloadFailed extends Error {
+  constructor(readonly url: string, tries: number, cause: unknown) {
+    const reason = cause instanceof Error ? cause.message : String(cause);
+    super(`Download of ${url} failed ${tries} times: ${reason}`, { cause });
+    this.name = "DownloadFailed";
+  }
+}
 
 export function workerFailure(label: string, event: ErrorEvent): string {
   if (typeof event.message === "string" && event.message !== "") return `${label} failed: ${event.message}`;
