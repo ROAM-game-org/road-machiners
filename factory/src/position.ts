@@ -30,7 +30,9 @@ export function cardDrift(card: Card, state: FactoryState): string[] {
 }
 
 function questionDrift(card: Card, state: FactoryState): string[] {
-  return String(card.issue) in state.asked && !card.labels.includes(NEEDS_INFO_LABEL) ? [`#${card.issue} has an ask time but no ${NEEDS_INFO_LABEL} label`] : [];
+  const unlabeled = String(card.issue) in state.asked && !card.labels.includes(NEEDS_INFO_LABEL) ? [`#${card.issue} has an ask time but no ${NEEDS_INFO_LABEL} label`] : [];
+  const orphanPost = Object.values(state.questionPosts).includes(card.issue) && !(String(card.issue) in state.asked) ? [`#${card.issue} has a questions post but no ask time`] : [];
+  return [...unlabeled, ...orphanPost];
 }
 
 function feedbackDrift(card: Card, state: FactoryState): string[] {

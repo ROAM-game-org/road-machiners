@@ -14,6 +14,18 @@ export function recordAsked(statePath: string, issue: number, at: string): void 
   updateState(statePath, (state) => ({ ...state, asked: { ...state.asked, [String(issue)]: at } }));
 }
 
+export function recordQuestionPost(statePath: string, postId: number, issue: number): void {
+  updateState(statePath, (state) => ({ ...state, questionPosts: { ...state.questionPosts, [String(postId)]: issue } }));
+}
+
+export function questionPostIssue(statePath: string, postId: number): number | null {
+  return readState(statePath).questionPosts[String(postId)] ?? null;
+}
+
 export function clearAsked(statePath: string, issue: number): void {
-  updateState(statePath, (state) => ({ ...state, asked: Object.fromEntries(Object.entries(state.asked).filter(([key]) => key !== String(issue))) }));
+  updateState(statePath, (state) => ({
+    ...state,
+    asked: Object.fromEntries(Object.entries(state.asked).filter(([key]) => key !== String(issue))),
+    questionPosts: Object.fromEntries(Object.entries(state.questionPosts).filter(([, asker]) => asker !== issue)),
+  }));
 }

@@ -1,24 +1,27 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { OUT_DIR, type Ctx } from '../types';
+import { OUT_DIR, type Ctx, type ReleaseState } from '../types';
 import { fillPrompt, readOutput, runAgent } from './common';
 
 export type Complexity = 'trivial' | 'intermediate' | 'hard';
 export type Routing = { complexity: Complexity; why: string };
 export type Pitch = { title: string; text: string };
-export type Groomed = { verdict: 'ready'; reason: string; routing: Routing } | { verdict: 'vote'; reason: string; routing: Routing; pitch: Pitch } | { verdict: 'wont-do'; reason: string };
+export type Work = { routing: Routing; bundle: number[]; releaseFix: boolean };
+export type Groomed = ({ verdict: 'ready'; reason: string } & Work) | ({ verdict: 'vote'; reason: string; pitch: Pitch } & Work) | { verdict: 'wont-do'; reason: string } | { verdict: 'unclear'; reason: string; questions: string[] };
+type Offer = { candidates: number[]; release: ReleaseState | null };
 
 type Story = { points: string[]; changed: string[]; need: string; existing: string; version: string; fit: string };
 type RussianPitch = { title: string; summary: string; how: string; when: string; changed: string[]; pros: string[]; cons: string[] };
 
 const groomedFile = (home: string, issue: number): string => join(home, 'groomed', `issue-${issue}.md`);
 
-export async function groom(ctx: Ctx, issue: number, home: string): Promise<Groomed> {
+export async function groom(ctx: Ctx, issue: number, home: string, offer: Offer): Promise<Groomed> {
   await writeIssueList(ctx, issue, home);
   await runAgent(ctx, issue, 'triage', 'groom', fillPrompt('groom', { issue: String(issue) }), { model: ctx.cfg.designModel, effort: ctx.cfg.designEffort });
   const fields = readFields(readOutput(home, 'groom.json'));
+  if (fields.verdict === 'unclear') return { verdict: 'unclear', reason: readText(fields.reason, 'reason'), questions: readList(fields.questions, 'questions') };
   const story = readStory(fields);
-  const groomed = readGroomed(fields);
+  const groomed = readGroomed(fields, offer);
   const record = groomedText(story, groomed);
   await ctx.github.comment(issue, record);
   if (groomed.verdict !== 'wont-do') saveGroomed(ctx.cfg.home, issue, record);
@@ -83,12 +86,29 @@ function readStory(fields: Record<string, unknown>): Story {
   return { points: readList(fields.points, 'points'), changed: readChanges(fields.changed, 'changed'), need: readText(fields.need, 'need'), existing: readText(fields.existing, 'existing'), version: readText(fields.version, 'version'), fit: readText(fields.fit, 'fit') };
 }
 
-function readGroomed(fields: Record<string, unknown>): Groomed {
+function readGroomed(fields: Record<string, unknown>, offer: Offer): Groomed {
   const reason = readText(fields.reason, 'reason');
   if (fields.verdict === 'wont-do') return { verdict: 'wont-do', reason };
   if (fields.verdict !== 'ready' && fields.verdict !== 'vote') throw new Error(`groom.json has an unknown verdict: ${String(fields.verdict)}`);
-  const routing = readRouting(fields.complexity, fields.complexityReason);
-  return fields.verdict === 'ready' ? { verdict: 'ready', reason, routing } : { verdict: 'vote', reason, routing, pitch: composePitch(readPitch(fields.pitch)) };
+  const work = { routing: readRouting(fields.complexity, fields.complexityReason), bundle: readBundle(fields.bundle, offer.candidates, 'groom.json'), releaseFix: readReleaseFix(fields.releaseFix, offer.release, 'groom.json') };
+  if (fields.verdict === 'ready') return { verdict: 'ready', reason, ...work };
+  if (work.releaseFix) throw new Error('groom.json puts a release fix to a vote');
+  return { verdict: 'vote', reason, ...work, pitch: composePitch(readPitch(fields.pitch)) };
+}
+
+export function readBundle(value: unknown, candidates: number[], file: string): number[] {
+  if (!Array.isArray(value) || !value.every((item) => Number.isInteger(item))) throw new Error(`${file} needs bundle as a list of issue numbers`);
+  const bundle = value as number[];
+  const stray = bundle.find((issue) => !candidates.includes(issue));
+  if (stray !== undefined) throw new Error(`${file} bundles #${stray}, which is not an offered Triage card`);
+  if (new Set(bundle).size !== bundle.length) throw new Error(`${file} bundles an issue twice`);
+  return bundle;
+}
+
+export function readReleaseFix(value: unknown, release: ReleaseState | null, file: string): boolean {
+  if (typeof value !== 'boolean') throw new Error(`${file} needs releaseFix as true or false`);
+  if (value && release === null) throw new Error(`${file} marks a release fix, but no release takes fixes now`);
+  return value;
 }
 
 function readRouting(complexity: unknown, why: unknown): Routing {

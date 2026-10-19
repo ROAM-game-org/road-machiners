@@ -26,8 +26,8 @@ Each agent stage is one agent session that owns its stage. Each session first re
 ![Card lifecycle](diagrams/lifecycle.svg)
 
 - Intake takes every aged `bug` and `feature-request` issue into Triage. A `player-report` or `error-report` issue goes in at once, since nobody edits it after it is filed. Nobody votes on GitHub.
-- Triage passes a bug and a justified improvement of an existing thing to Design. A new feature or a substantial change gets the verdict `vote` and the label `voting`, and waits in Triage for player votes, as [Public inputs](#public-inputs) says. A bug is never put to a vote.
-- Triage grooms every request that is not a bug before it goes to Design or to a vote. A player does not know all the game has, so grooming finds the real need behind the request and the version of it that fits ROAM. That version can differ from the literal ask, and design builds it. When the game already serves the need, grooming refuses the request and names what serves it. [stages.md](stages.md#triage) has the details.
+- Triage first runs a cheap filter. It refuses junk that asks for no game change and passes a bug to Design. It never asks questions.
+- Triage grooms every request that is not a bug before it goes to Design or to a vote. The groomer decides everything else: a justified improvement of an existing thing goes to Design, and a new feature or a substantial change gets the verdict `vote` and the label `voting`, and waits in Triage for player votes, as [Public inputs](#public-inputs) says. A bug is never put to a vote. A player does not know all the game has, so grooming finds the real need behind the request and the version of it that fits ROAM. That version can differ from the literal ask, and design builds it. When the game already serves the need, grooming refuses the request and names what serves it. [stages.md](stages.md#triage) has the details.
 - A bug a collaborator labels `hotfix` skips Triage. Triage can also label a bug `hotfix`. Approve ships a hotfix at once, and the approval stays until the hotfix ships, as [Hotfix approval](#hotfix-approval) says.
 - The error service opens an `error-report` bug for each new game error, at most `FACTORY_ERROR_DAILY_ISSUES` a day. Intake takes it into Triage with no votes. A later report of the same error from a new build comments on its issue, and reopens a fixed one when the build came after the fix. [operations.md](operations.md#error-reports) has the details.
 - Triage labels a fix of an open release's feature `release-task`, until the release's candidate is posted. It runs on the release branch and ships with that release. New work stays on `dev` for the next release.
@@ -35,7 +35,7 @@ Each agent stage is one agent session that owns its stage. Each session first re
 
 The loops:
 
-- unclear and questions: the author gets questions and the label `needs-info`. The tick removes the label once someone answers on GitHub, or once `FACTORY_NEEDS_INFO_HOURS` pass with no answer. Triage then runs again. With no answer it picks the most sensible reading, and design writes each open question and its reading into the design comment as an assumption.
+- unclear and questions: only the groomer and design ask, every question in one set. The author gets them on GitHub with an @mention, and the committee chat gets them with the issue and the reason. The label `needs-info` holds the card. A reply to that chat message goes on the issue as the answer and removes the label. The tick also removes it once someone answers on GitHub, or once `FACTORY_NEEDS_INFO_HOURS` pass with no answer. Triage then runs again. With no answer it picks the most sensible reading, and design writes each open question and its reading into the design comment as an assumption.
 - plan wrong: the testing agent found that the plan itself contradicts the issue or the game docs, so no fix of the build can satisfy both. The card keeps its branch.
 - patch: a small committee change. The card goes back to Testing, whose session takes the reply as its whole task.
 - main moved: an approved hotfix whose checked build no longer sits on `main`. The card goes back to Testing with its approval kept, and comes back to Approval with no post.
@@ -108,6 +108,8 @@ A member's message outside a post reply that only thanks, like "thanks" or "сп
 Hermes writes an ad hoc task or a route for a member in the member's own words, with the facts it checked apart from its reading, as `hermes/SOUL.md` says. This is guidance to Hermes only. No code checks the text, and the ad hoc agent follows the member's words over Hermes's notes.
 
 A reply that gets no route within `FACTORY_REPLY_ROUTE_MINUTES` becomes a failure with no issue, so Hermes sees it. Its text names the issue and tells Hermes to route the reply on its best reading. The card gets no stuck label.
+
+A member's reply to a questions message skips Hermes. It goes on the issue as the answer, and the card leaves `needs-info`.
 
 A patch or a redesign queues when its text has at least `FACTORY_ROUTE_MIN_WORDS` words, so it names what to change. The plugin checks this for Hermes's route and for a member's `patch:` or `redesign:` reply. A shorter text queues nothing, and the plugin tells Hermes or the member why. Images never block a route.
 
