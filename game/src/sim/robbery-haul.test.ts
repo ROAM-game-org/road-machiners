@@ -20,6 +20,7 @@ function scene(preyGoods: Record<string, number>, fillRobber = 0) {
   if (fillRobber > 0) addGoods(w, robber, 'scrap', fillRobber);
   const prey = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 15, y: 10 });
   prey.brain = npcBrain('trader', prey.pos, ['trader']);
+  prey.resources!.money = 0;
   for (const [good, n] of Object.entries(preyGoods)) addGoods(w, prey, good, n);
   return { w, robber, prey };
 }

@@ -4,6 +4,7 @@ import type { TraitId } from '../data/npcs';
 import type { PersonalityId } from '../data/personalities';
 import { callVehicle, chooseOption, currentLine, currentOptions } from './dialogue';
 import { playerVehicle } from './damage';
+import { standingPressures } from './market';
 import { remember } from './memory';
 import { thinkNpc } from './npc-activities';
 import { STANDING_FACTION_IDS } from '../data/npc-behavior';
@@ -53,7 +54,7 @@ describe('talk by attitude band', () => {
   it('opens help topics to a friendly driver the player never helped', () => {
     const { w, npc } = driver('guidestar', ['trader'], 'tightLipped');
     w.player.standing.guidestar = 20;
-    remember(w, npc, { kind: 'prices', shop: 'nose', pressure: { ...w.shops.nose.pressure } });
+    remember(w, npc, { kind: 'prices', shop: 'nose', pressure: standingPressures(w, 'nose') });
     w.player.perks = ['marketEars'];
     const told = chooseOption(callVehicle(w, npc.id), offered(callVehicle(w, npc.id)).indexOf(ask('marketNews')));
     expect(told.player.call?.node).toBe(TOPICS.marketNews.start);

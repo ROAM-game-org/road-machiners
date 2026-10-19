@@ -6,6 +6,8 @@ import { choosePerk, pendingPerkPairs, skillLevel } from '../sim/progress';
 import { emptyWorld } from '../sim/testkit';
 import type { Obstacle, Player, Vehicle, WeatherEvent, World } from '../sim/types';
 import { stormStrength, weatherAt, weatherOn } from '../sim/weather';
+import { ECONOMY } from '../data/goods';
+import { pressureOf, priceAtPressure } from '../sim/market';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
 import FORMAT_2_1 from './save-fixtures/format-2-1.json';
 import FORMAT_2_2 from './save-fixtures/format-2-2.json';
@@ -75,6 +77,7 @@ import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
+import FORMAT_2_82 from './save-fixtures/format-2-82.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1738,5 +1741,69 @@ describe('save migration 80 to 81', () => {
 
     expect(next).toEqual(FORMAT_2_75);
     expect(before).toEqual(FORMAT_2_75);
+  });
+});
+
+describe('save migration 81 to 82', () => {
+  type Goal = { kind: string; destination: { x: number; y: number } | null; heard?: { x: number; y: number } };
+  type Saved = { vehicles: { brain: { goals: Goal[] } | null }[] };
+  const withGoals = (goals: Goal[]): Saved => {
+    const world = structuredClone(FORMAT_2_70) as unknown as Saved;
+    for (const v of world.vehicles) if (v.brain) v.brain.goals = structuredClone(goals);
+    return world;
+  };
+  const goalsAfter = (world: Saved) => (MIGRATIONS[81](structuredClone(world) as unknown as SavedJson) as unknown as Saved).vehicles.find((v) => v.brain)!.brain!.goals;
+
+  it('gives an investigation its destination as the heard centre', () => {
+    const goals = goalsAfter(withGoals([{ kind: 'investigate', destination: { x: 12, y: 30 } }]));
+    expect(goals[0].heard).toEqual({ x: 12, y: 30 });
+    expect(goals[0].heard).not.toBe(goals[0].destination);
+  });
+
+  it('leaves other goals and a goal that already heard alone', () => {
+    const before = [{ kind: 'travel', destination: { x: 1, y: 2 } }, { kind: 'investigate', destination: { x: 5, y: 5 }, heard: { x: 4, y: 4 } }];
+    expect(goalsAfter(withGoals(before))).toEqual(before);
+  });
+});
+
+describe('MIGRATIONS[82]', () => {
+  type Shop = { goods: Record<string, number>; contracts: { id: string }[]; event: unknown; shortSince: unknown; opened: unknown; pressure?: unknown };
+  const migrated = () => MIGRATIONS[82](structuredClone(FORMAT_2_82)) as unknown as { shops: Record<string, Shop>; vehicles: { id: string; job: unknown; brain: { goals: { kind: string; load?: unknown }[] } | null }[]; roadNews: unknown[]; player: unknown };
+
+  it('gives every shop a goods stock from its old pressure and drops the pressure', () => {
+    const next = migrated();
+    for (const shop of Object.values(next.shops)) {
+      expect(shop.pressure).toBeUndefined();
+      expect(shop).toMatchObject({ event: null, shortSince: {}, opened: {} });
+    }
+    expect(next.shops.nose.goods.salt).toBe(150);
+    expect(next.shops.bowl.goods.fuelDrums).toBe(0);
+    expect(next.shops.bowl.goods.water).toBe(240);
+    expect(next.shops.bowl.goods.rations).toBe(120);
+    expect(next.shops.nose.goods.relics).toBe(0);
+    expect(next.shops.granary.goods.textiles).toBeUndefined();
+    expect(Object.keys(next.shops.granary.goods).sort()).toEqual(['fuelDrums', 'grain', 'rations', 'salt', 'tools', 'water']);
+  });
+
+  it('keeps a buy price on load within a cent where the good is made in the same place as before', () => {
+    const next = migrated();
+    const before = priceAtPressure('nose', 'salt', FORMAT_2_82.shops.nose.pressure.salt, 'buy', ECONOMY.spread);
+    const after = priceAtPressure('nose', 'salt', pressureOf('nose', 'salt', next.shops.nose.goods.salt), 'buy', ECONOMY.spread);
+    expect(Math.abs(after - before)).toBeLessThanOrEqual(1);
+  });
+
+  it('drops board hauls of goods a shop no longer trades, and keeps the held contract and cargo', () => {
+    const next = migrated();
+    expect(next.shops.granary.contracts.map((c) => c.id)).toEqual(['ct-3']);
+    expect(next.player).toEqual(FORMAT_2_82.player);
+    expect(next.vehicles[0]).toEqual(FORMAT_2_82.vehicles[0]);
+  });
+
+  it('drops the free haul goals and their business, so the driver picks a new goal', () => {
+    const next = migrated();
+    expect(next.vehicles[1].brain!.goals).toEqual([]);
+    expect(next.vehicles[1].job).toBeNull();
+    expect(next.vehicles[2]).toEqual(FORMAT_2_82.vehicles[2]);
+    expect(next.roadNews).toEqual([]);
   });
 });

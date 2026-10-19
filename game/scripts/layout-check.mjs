@@ -56,6 +56,25 @@ async function openTown(page, tab) {
 
 const closeTown = (page) => page.evaluate(() => window.__ROAM__.screens.town.close());
 
+async function openShortMarket(page) {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const c = await import('/src/sim/cheats.ts');
+    const w = structuredClone(c.teleport(g.state, c.placeSpot(g.state, 'granary')));
+    w.shops.granary.goods.grain = 0;
+    w.shops.granary.shortSince = { grain: w.turn - 800 };
+    w.shops.granary.goods.fuelDrums = 0;
+    w.shops.granary.opened = {};
+    w.roadNews = [
+      { turn: w.turn - 40, kind: 'robbed', good: 'grain', units: 14, from: 'bowl', to: 'granary' },
+      { turn: w.turn - 160, kind: 'knockedOut', good: 'fuelDrums', units: 12, from: 'pump-station', to: 'salvage-yard' },
+    ];
+    g.apply(w);
+    g.screens.town.open();
+  });
+  await page.evaluate(() => document.querySelector('.town-screen [data-tab="market"]').click());
+}
+
 async function openCall(page, node) {
   await page.evaluate(async (node) => {
     const g = window.__ROAM__;
@@ -112,11 +131,16 @@ const closeHelp = (page) => page.evaluate(() => document.querySelector('#ui .hel
 
 const openSaves = (page) => chooseMenuItem(page, 'save');
 const openOptions = (page) => chooseMenuItem(page, 'options');
+const setMinimap = async (page, on) => {
+  await openOptions(page);
+  await page.evaluate((at) => document.querySelectorAll('#ui .minimap-switch > button')[at].click(), on ? 1 : 0);
+  await escape(page);
+};
 
 function faultsIn(page, locale) {
   return page.evaluate(async ({ locale, names, glyphs }) => {
     const { findLayoutFaults } = await import('/src/ui/dom.ts');
-    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English'];
+    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English', 'kg'];
     return findLayoutFaults(document.getElementById('ui'), { locale, allow, glyphs });
   }, { locale, names: KEY_CAPS, glyphs: GLYPHS });
 }
@@ -193,9 +217,21 @@ const openStartMenu = (page) => page.evaluate(async () => {
     node.style.display = 'none';
   }
   const { chooseStart } = await import('/src/ui/save-screen.ts');
+  const { SoundSettings } = await import('/src/ui/sound.ts');
+  const sound = new SoundSettings({ setBusVolume: () => {}, setMuted: () => {} }, window.localStorage);
   const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'furyRoad' }];
-  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false });
+  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false }, sound);
 });
+
+const openStartOptions = async (page) => {
+  await openStartMenu(page);
+  await page.locator('.start-menu .btn-l').last().click();
+};
+
+const openQuestInventory = async (page) => {
+  await openQuestPage(page);
+  await key(page, 'KeyI');
+};
 
 const openStartLoad = async (page) => {
   await openStartMenu(page);
@@ -233,8 +269,13 @@ const STATES = {
   log: { setup: fillLog },
   inventory: { setup: openInventory, teardown: escape },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage },
+  'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
+  'trade-shortage': { setup: openShortMarket, teardown: closeTown },
+  charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
+  'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
+  minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
@@ -245,6 +286,7 @@ const STATES = {
   options: { setup: openOptions, teardown: escape },
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
   'start-load': { setup: openStartLoad, teardown: closeStartMenu },
+  'start-options': { setup: openStartOptions, teardown: async (page) => { await escape(page); await closeStartMenu(page); } },
   inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
 };

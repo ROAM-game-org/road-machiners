@@ -34,6 +34,7 @@ import {
 } from '../data/quests';
 import BUNDLE from '../data/quests.json';
 import { isNoteId, type NoteId } from '../data/locals';
+import { GOODS } from '../data/goods';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { SKILL_IDS } from '../data/skills';
@@ -44,6 +45,8 @@ import { skillLevel } from './progress';
 import { boardFull, holdsNote, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { canDriveOn } from './fury-road';
 import { payOf } from './fury-road-director';
+import { requireShop, shortHere } from './market';
+import { worksDown } from './production';
 import { hashRandom } from './rng';
 import { storyStock } from './salvage';
 import type { QuestCheck, QuestLine, QuestLive, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
@@ -106,6 +109,8 @@ export const QUEST_QUERIES: Record<string, QuestQuery> = {
   has_work: (world) => townWork(world) !== null,
   has_offers: (world) => townOffers(world).length > 0,
   board_full: (world) => boardFull(world),
+  short_of: (world, args) => shortHere(world, requireShop(world), goodArg('short_of', args)),
+  works_down: (world) => worksDown(world, requireShop(world)),
   skill: (world, args) => skillLevel(world, skillArg('skill', args)),
   stretch_pay: (_world, args) => stretchPay(wholeArg('stretch_pay', args, 0)),
   passed: (world) => {
@@ -163,6 +168,12 @@ function skillArg(fn: string, args: readonly unknown[]): SkillId {
   const skill = SKILL_IDS.find((s) => s === id);
   if (!skill) throw new Error(`${fn} names no skill ${id}`);
   return skill;
+}
+
+function goodArg(fn: string, args: readonly unknown[]): string {
+  const id = textArg(fn, args, 0);
+  if (!GOODS[id]) throw new Error(`${fn} names no good ${id}`);
+  return id;
 }
 
 function siteArg(fn: string, args: readonly unknown[]): string {
