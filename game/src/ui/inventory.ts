@@ -810,7 +810,7 @@ export class InventoryView {
   }
 
   private setPreview(source: ItemSource, item: GridItem): void {
-    this.preview = { source, id: item.id, item, grab: { x: 0, y: 0 }, ghost: el("div"), start: { x: 0, y: 0 }, moved: true };
+    this.preview = { source, id: sourceIdOf(source, item), item, grab: { x: 0, y: 0 }, ghost: el("div"), start: { x: 0, y: 0 }, moved: true };
     this.error = null;
     this.onChange();
   }
@@ -854,7 +854,7 @@ export class InventoryView {
   private drawPreview(grid: HTMLElement, me: Vehicle): void {
     const d = this.preview;
     if (!d) return;
-    if (d.id !== this.selectedItem) {
+    if (d.item.id !== this.selectedItem) {
       this.preview = null;
       return;
     }
@@ -1083,6 +1083,11 @@ export class InventoryView {
     }
     this.onChange();
   }
+}
+
+function sourceIdOf(source: ItemSource, item: GridItem): string {
+  if (source === "grid" || source === "truck") return item.id;
+  return item.kind === "part" ? item.part.id : item.kind === "good" ? item.good : item.id;
 }
 
 function offGridCommand(target: string | null | undefined, itemId: string, truckId?: string): (w: World) => World {

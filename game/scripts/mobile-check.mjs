@@ -533,7 +533,7 @@ async function plannedPlacement(page) {
         if (placementError(gridOf({ ...me, items: [...me.items, spot] }), me.items, spot, null) === null) {
           const before = footprint(item);
           const after = footprint(turned);
-          return { id: item.id, spot: { x, y, rot: turned.rot }, tapFirst: { x: x + Math.floor((before.w - 1) / 2), y: y + Math.floor((before.h - 1) / 2) }, tapPlace: { x: x + Math.floor((after.w - 1) / 2), y: y + Math.floor((after.h - 1) / 2) } };
+          return { id: item.part.id, spot: { x, y, rot: turned.rot }, tapFirst: { x: x + Math.floor((before.w - 1) / 2), y: y + Math.floor((before.h - 1) / 2) }, tapPlace: { x: x + Math.floor((after.w - 1) / 2), y: y + Math.floor((after.h - 1) / 2) } };
         }
       }
     }
@@ -562,7 +562,7 @@ async function placeByOneFinger(session, step) {
     return at && at.rot === plan.spot.rot ? true : `preview ${JSON.stringify(at)}, wanted rot ${plan.spot.rot}`;
   });
   await step('tap-place', async () => touch.tap(...Object.values(await gridCellAt(page, touch, plan.tapPlace))), async () => {
-    const placed = await game(page, (id) => { const it = window.__me().items.find((entry) => entry.id === id); return it ? { x: it.x, y: it.y, rot: it.rot ?? 0 } : null; }, plan.id);
+    const placed = await game(page, (id) => { const it = window.__me().items.find((entry) => entry.kind === 'part' && entry.part.id === id); return it ? { x: it.x, y: it.y, rot: it.rot ?? 0 } : null; }, plan.id);
     const stored = await game(page, () => window.__ROAM__.state.player.storage.length);
     const touches = await game(page, () => window.__maxTouches);
     if (touches > 1) return `${touches} fingers were down at once`;
