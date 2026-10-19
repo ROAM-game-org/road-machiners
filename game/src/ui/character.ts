@@ -10,9 +10,14 @@ import { num, t, type Msg } from '../text/msg';
 import { factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
 import { modeRules } from '../sim/settings';
+import { MapTab } from './map-tab';
+
+export type CharacterTab = 'skills' | 'map';
 
 export class CharacterScreen {
   private root = panel('modal dialog');
+  private tab: CharacterTab = 'skills';
+  private map: MapTab | null = null;
 
   constructor(private host: UiHost) {
     this.root.classList.add('character-screen');
@@ -23,9 +28,16 @@ export class CharacterScreen {
     return this.root.style.display !== 'none';
   }
 
-  toggle(): void {
-    if (this.isOpen()) return this.close();
+  toggle(tab: CharacterTab = 'skills'): void {
+    if (this.isOpen() && this.tab === tab) return this.close();
+    this.open(tab);
+  }
+
+  open(tab: CharacterTab): void {
+    const opening = !this.isOpen() || this.tab !== tab;
+    this.tab = tab;
     this.root.style.display = '';
+    if (opening && tab === 'map') this.mapTab().open(this.host.world());
     this.render();
   }
 
@@ -38,13 +50,40 @@ export class CharacterScreen {
     if (!this.isOpen()) return;
     const world = this.host.world();
     const p = world.player;
+    this.root.classList.toggle('map-open', this.tab === 'map');
     this.root.replaceChildren(
-      el('button', { class: 'close', onclick: () => this.close() }, t('character.close')),
+      el('button', { class: 'close', onclick: () => this.close() }, t(this.tab === 'map' ? 'map.close' : 'character.close')),
       el('h3', {}, t('character.title'), el('span', { class: 'chips' },
         el('span', { class: 'chip', title: t('character.health') }, createIcon('driver'), t('readout.ofMax', { n: hp(p.health), max: maxHealthOf(world) })),
         el('span', { class: 'chip', title: t('character.knockoutsTitle') }, createIcon('damage'), t('character.knockouts', { n: p.knockouts })),
         el('span', { class: 'chip xp-pool', title: t('character.xpPoolTitle') }, t('character.xpPool', { n: Math.floor(p.xp) })),
-      )),
+      ), this.tabs()),
+      ...(this.tab === 'map' ? this.mapBody(world) : this.skills(world)),
+    );
+  }
+
+  private tabs(): HTMLElement {
+    const button = (tab: CharacterTab, label: Msg) =>
+      el('button', { class: this.tab === tab ? 'on' : '', 'data-tab': tab, onclick: () => this.open(tab) }, label);
+    return el('div', { class: 'tabs' },
+      button('skills', t('character.tab.skills')),
+      button('map', t('map.full')),
+      ...(this.tab === 'map' ? [this.mapTab().controls] : []));
+  }
+
+  private mapTab(): MapTab {
+    this.map ??= new MapTab();
+    return this.map;
+  }
+
+  private mapBody(world: World): HTMLElement[] {
+    const map = this.mapTab();
+    map.render(world);
+    return [map.body];
+  }
+
+  private skills(world: World): HTMLElement[] {
+    return [
       el('div', { class: 'skill-table' },
         el('div', { class: 'skill-head' },
           el('span', { class: 'skill-name-col' }, t('character.colSkill')),
@@ -56,7 +95,7 @@ export class CharacterScreen {
         ...SKILL_IDS.map((id) => this.row(world, id)),
       ),
       ...(modeRules(world).standing ? [standingGroup(world)] : []),
-    );
+    ];
   }
 
   private row(world: World, id: SkillId): HTMLElement {

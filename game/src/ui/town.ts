@@ -49,8 +49,8 @@ import { el, panel, type Child } from "./dom";
 import { claimRivalMark, contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
-import { MapView } from "./map-view";
-import { toPx, type MapFrame } from "./map-geometry";
+import { MapView, observeBox } from "./map-view";
+import { toPx, type Viewport } from "./map-geometry";
 import { token } from "./tokens";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
@@ -71,7 +71,7 @@ export const STOCK_FILTERS: StockFilter[] = ["all", "weapon", "engine", "armor",
 const GARAGE_ONLY: Tab[] = ["trucks"];
 
 const PRESSURE_HINT_AT = 0.2;
-const CHARTS_BACKING = 720;
+const CHARTS_SIZE = 640;
 
 export class TownScreen {
   private root = panel("modal dialog");
@@ -82,7 +82,8 @@ export class TownScreen {
   private sheet: Sheet | null = null;
   private hoverSheet: Sheet | null = null;
   private chartOffers: SheetOffer[] = [];
-  private chartsView = new MapView({ kind: "whole" }, CHARTS_BACKING, (ctx, frame) => this.drawSheets(ctx, frame));
+  private chartsBox: HTMLElement | null = null;
+  private chartsView = new MapView({ kind: "fit" }, CHARTS_SIZE, CHARTS_SIZE, (ctx, view) => this.drawSheets(ctx, view));
 
   private inventory: InventoryView;
 
@@ -368,7 +369,15 @@ export class TownScreen {
     const buy = picked
       ? this.priceButton(w, t("goods.buy"), picked.price, (x) => buyChart(x, picked.sheet), null, "buy-chart")
       : null;
-    return el("div", { class: "charts" }, el("div", { class: "charts-map" }, this.chartsView.canvas), buy);
+    return el("div", { class: "charts" }, this.chartsMap(), buy);
+  }
+
+  private chartsMap(): HTMLElement {
+    if (this.chartsBox) return this.chartsBox;
+    const box = el("div", { class: "charts-map" }, this.chartsView.canvas);
+    observeBox(box, this.chartsView);
+    this.chartsBox = box;
+    return box;
   }
 
   private sheetAt(clientX: number, clientY: number): Sheet | null {
@@ -378,16 +387,13 @@ export class TownScreen {
     return this.chartOffers.some((o) => sheetId(o.sheet) === sheetId(sheet)) ? sheet : null;
   }
 
-  private drawSheets(ctx: CanvasRenderingContext2D, frame: MapFrame): void {
+  private drawSheets(ctx: CanvasRenderingContext2D, view: Viewport): void {
     const trace = (sheet: Sheet) => {
       const b = sheetTiles(this.host.world().size, sheet);
+      const from = toPx(view, { x: b.x0, y: b.y0 });
+      const to = toPx(view, { x: b.x1, y: b.y1 });
       ctx.beginPath();
-      [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]].forEach(([x, y], i) => {
-        const at = toPx(frame, { x, y });
-        if (i === 0) ctx.moveTo(at.x, at.y);
-        else ctx.lineTo(at.x, at.y);
-      });
-      ctx.closePath();
+      ctx.rect(from.x, from.y, to.x - from.x, to.y - from.y);
     };
     ctx.lineWidth = 1;
     ctx.strokeStyle = token("--line-strong");

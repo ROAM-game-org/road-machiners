@@ -19,6 +19,7 @@ import { fontsReady } from '../ui/fonts';
 import { uiRoot } from '../ui/dom';
 import { watchInputMode } from '../ui/input-mode';
 import { loadUiSize, windowExtent } from '../ui/ui-size';
+import { loadMinimapSetting } from '../ui/minimap-setting';
 import { loadLanguage, relocalize } from '../text/language';
 import type { DevLocale } from '../text/msg';
 import type { QuestLanguage } from '../data/quests';
@@ -137,6 +138,7 @@ const questJump = import.meta.env.DEV ? questJumpOf(window.location.search) : nu
 const saveKey = questJump ? `${SAVE_KEY}-quest-view` : SAVE_KEY;
 const language = loadLanguage(window.localStorage, window.location.search, import.meta.env.DEV, document.documentElement);
 const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent());
+loadMinimapSetting(window.localStorage);
 window.addEventListener('resize', () => sizeOfUi.refit(windowExtent()));
 watchInputMode(uiRoot(), sizeOfUi);
 const questLanguageOf = (locale: DevLocale): QuestLanguage => (locale === 'pseudo' ? 'en' : locale);

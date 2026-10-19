@@ -1,4 +1,3 @@
-/* The map drawing is a square canvas that scales to its box. The minimap is a disc, the full map and the charts show the whole region as a diamond. */
 .map-view {
   display: block;
   width: 100%;
@@ -7,17 +6,20 @@
 }
 #ui .minimap {
   position: relative;
-  width: var(--minimap-size);
-  padding: 0;
-  border-radius: 50%;
   overflow: visible;
-  cursor: pointer;
+}
+.minimap-head {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.minimap-body {
+  position: relative;
+  width: var(--minimap-size);
 }
 #ui .minimap .map-view {
-  border-radius: 50%;
-}
-#ui .minimap:is(:hover, :focus-visible) {
-  border-color: var(--line-bright);
+  cursor: pointer;
 }
 .map-tip {
   position: absolute;
@@ -25,10 +27,27 @@
   pointer-events: none;
   white-space: nowrap;
 }
-#ui .world-map-screen .world-map-body {
+.map-zoom {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.map-tab {
   position: relative;
-  width: min(var(--world-map-size), 100%, calc(var(--layer-h) - var(--modal-reserve) - var(--space-10)));
-  margin: 0 auto;
+  margin-top: var(--space-4);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.map-tab .map-view {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  aspect-ratio: auto;
+  cursor: grab;
+  touch-action: none;
+}
+.map-tab.dragging .map-view {
+  cursor: grabbing;
 }
 .charts-map {
   position: relative;
@@ -44,6 +63,13 @@
 .charts-map .map-view {
   cursor: pointer;
 }
-#ui .world-map-screen .close {
-  z-index: var(--z-popup);
+.modal .tabs .map-zoom button {
+  min-width: var(--btn-h-m);
+}
+#ui .character-screen > h3 > .tabs {
+  flex: 1 1 auto;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
 }

@@ -1,57 +1,69 @@
 import type { Vec } from '../sim/vec';
 
-export type MapFrame = { center: Vec; up: Vec; scale: number; half: number };
+export type Viewport = { center: Vec; tileSize: number; width: number; height: number };
 export type MapPoint = { x: number; y: number; pinned: boolean };
 
-const RIM_INSET = 6;
-
-function rightOf(up: Vec): Vec {
-  return { x: -up.y, y: up.x };
+function requireTileSize(tileSize: number): number {
+  if (!Number.isFinite(tileSize) || tileSize <= 0) throw new Error(`Map tile size ${tileSize} is not a positive number`);
+  return tileSize;
 }
 
-export function discFrame(center: Vec, up: Vec, reach: number, half: number): MapFrame {
-  return { center, up, scale: half / reach, half };
+export function viewport(center: Vec, tileSize: number, width: number, height: number): Viewport {
+  return { center, tileSize: requireTileSize(tileSize), width, height };
 }
 
-export function wholeFrame(size: number, up: Vec, half: number): MapFrame {
-  return { center: { x: size / 2, y: size / 2 }, up, scale: (2 * half) / (size * Math.SQRT2), half };
+export function fitTileSize(size: number, width: number, height: number): number {
+  return requireTileSize(Math.min(width, height) / size);
 }
 
-export function toPx(f: MapFrame, p: Vec): { x: number; y: number } {
-  const right = rightOf(f.up);
-  const dx = p.x - f.center.x;
-  const dy = p.y - f.center.y;
+export function fitted(size: number, width: number, height: number, center: Vec): Viewport {
+  return clampPan(viewport(center, fitTileSize(size, width, height), width, height), size);
+}
+
+export function toPx(v: Viewport, p: Vec): { x: number; y: number } {
+  return { x: v.width / 2 + (p.x - v.center.x) * v.tileSize, y: v.height / 2 + (p.y - v.center.y) * v.tileSize };
+}
+
+export function toTile(v: Viewport, px: number, py: number): Vec {
+  return { x: v.center.x + (px - v.width / 2) / v.tileSize, y: v.center.y + (py - v.height / 2) / v.tileSize };
+}
+
+function clampAxis(center: number, span: number, tileSize: number, size: number): number {
+  const half = span / 2 / tileSize;
+  if (2 * half >= size) return size / 2;
+  return Math.min(size - half, Math.max(half, center));
+}
+
+export function clampPan(v: Viewport, size: number): Viewport {
   return {
-    x: f.half + f.scale * (dx * right.x + dy * right.y),
-    y: f.half - f.scale * (dx * f.up.x + dy * f.up.y),
+    ...v,
+    center: { x: clampAxis(v.center.x, v.width, v.tileSize, size), y: clampAxis(v.center.y, v.height, v.tileSize, size) },
   };
 }
 
-export function toTile(f: MapFrame, px: number, py: number): Vec {
-  const right = rightOf(f.up);
-  const u = (px - f.half) / f.scale;
-  const v = (f.half - py) / f.scale;
-  return { x: f.center.x + u * right.x + v * f.up.x, y: f.center.y + u * right.y + v * f.up.y };
+export function zoomAround(v: Viewport, factor: number, px: number, py: number, size: number, maxTileSize: number): Viewport {
+  const least = fitTileSize(size, v.width, v.height);
+  const tileSize = requireTileSize(Math.min(maxTileSize, Math.max(least, v.tileSize * factor)));
+  const held = toTile(v, px, py);
+  const center = { x: held.x - (px - v.width / 2) / tileSize, y: held.y - (py - v.height / 2) / tileSize };
+  return clampPan({ ...v, center, tileSize }, size);
 }
 
-export function pinToRim(f: MapFrame, p: Vec): MapPoint {
-  const at = toPx(f, p);
-  const dx = at.x - f.half;
-  const dy = at.y - f.half;
-  const radius = f.half - RIM_INSET;
-  const gap = Math.hypot(dx, dy);
-  if (gap <= radius) return { ...at, pinned: false };
-  return { x: f.half + (dx / gap) * radius, y: f.half + (dy / gap) * radius, pinned: true };
+export function panBy(v: Viewport, dx: number, dy: number, size: number): Viewport {
+  return clampPan({ ...v, center: { x: v.center.x - dx / v.tileSize, y: v.center.y - dy / v.tileSize } }, size);
 }
 
-export function canvasTransform(f: MapFrame): [number, number, number, number, number, number] {
-  const right = rightOf(f.up);
-  return [
-    f.scale * right.x,
-    -f.scale * f.up.x,
-    f.scale * right.y,
-    -f.scale * f.up.y,
-    f.half - f.scale * (f.center.x * right.x + f.center.y * right.y),
-    f.half + f.scale * (f.center.x * f.up.x + f.center.y * f.up.y),
-  ];
+export function pinToEdge(v: Viewport, p: Vec, inset: number): MapPoint {
+  const at = toPx(v, p);
+  const dx = at.x - v.width / 2;
+  const dy = at.y - v.height / 2;
+  const reachX = v.width / 2 - inset;
+  const reachY = v.height / 2 - inset;
+  const over = Math.max(Math.abs(dx) / reachX, Math.abs(dy) / reachY);
+  if (over <= 1) return { ...at, pinned: false };
+  return { x: v.width / 2 + dx / over, y: v.height / 2 + dy / over, pinned: true };
+}
+
+export function canvasTransform(v: Viewport): [number, number, number, number, number, number] {
+  return [v.tileSize, 0, 0, v.tileSize, v.width / 2 - v.center.x * v.tileSize, v.height / 2 - v.center.y * v.tileSize];
 }

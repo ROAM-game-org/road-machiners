@@ -1,8 +1,19 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
 import type { Terrain } from '../sim/terrain';
-import { newFogImage, paintBase, paintFog } from './minimap-paint';
+import { newFogImage, paintBase, paintFog, PAPER, QUEST_ART_RAMP } from './minimap-paint';
 import { TEST_MAP } from '../test/map';
+
+function pythonConstant(source: string, name: string): string {
+  const line = source.split('\n').find((l) => l.startsWith(`${name} = `));
+  if (!line) throw new Error(`post.py has no ${name}`);
+  return line.slice(name.length + 3).trim();
+}
+
+function brightness(img: Uint8ClampedArray, at: number): number {
+  return img[at * 4] + img[at * 4 + 1] + img[at * 4 + 2];
+}
 
 function flat(types: string[], size: number): Terrain {
   return { size, heights: new Array((size + 1) * (size + 1)).fill(0), types: types as TerrainTypeId[], atlas: { kind: 'icarus' } };
@@ -41,5 +52,28 @@ describe('minimap paint', () => {
     explored[0] = 1;
     expect(paintFog(explored, image, previous)).toBe(1);
     expect(image[3]).toBe(0);
+  });
+
+  it('leaves unknown land as bare paper, darker than the brightest known ground', () => {
+    const { image, previous } = newFogImage(2);
+    paintFog(new Uint8Array(4), image, previous);
+    for (let i = 0; i < 4; i++) {
+      for (let c = 0; c < 3; c++) expect(Math.abs(image[i * 4 + c] - PAPER[c])).toBeLessThanOrEqual(QUEST_ART_RAMP.grain + 1);
+    }
+    const ground = paintBase(TEST_MAP.terrain);
+    let brightest = 0;
+    for (let i = 0; i < TEST_MAP.terrain.size ** 2; i++) brightest = Math.max(brightest, brightness(ground, i));
+    expect(brightness(image, 0)).toBeLessThan(brightest);
+    expect(PAPER[0]).toBeGreaterThan(PAPER[2]);
+  });
+
+  it('keeps the quest-art ramp equal to the picture post-process', () => {
+    const post = readFileSync(new URL('../../tools/quest-art/post.py', import.meta.url), 'utf8');
+    const ramp = pythonConstant(post, 'RAMP').replace(/[[\]\s]/g, '').split(',').map((hex) => Number(hex));
+    expect(QUEST_ART_RAMP.ramp).toEqual(ramp);
+    expect(QUEST_ART_RAMP.steps).toBe(Number(pythonConstant(post, 'RAMP_STEPS')));
+    expect(QUEST_ART_RAMP.colorKeep).toBe(Number(pythonConstant(post, 'COLOR_KEEP')));
+    expect(QUEST_ART_RAMP.originalMix).toBe(Number(pythonConstant(post, 'ORIGINAL_MIX')));
+    expect(QUEST_ART_RAMP.grain).toBe(Number(pythonConstant(post, 'GRAIN')));
   });
 });

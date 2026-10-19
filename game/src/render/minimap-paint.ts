@@ -6,14 +6,23 @@ const ROAD_SHADE = 0.55;
 const SLOPE_GAIN = 0.12;
 const SLOPE_LIMIT = 0.35;
 const UNKNOWN = 2;
-const RAMP = [0x1a1410, 0x3a2418, 0x5e3420, 0x8a5e44, 0xb47f5d, 0xd9a878, 0xf0d2a8, 0xf4e8d4];
-const RAMP_STEPS = 12;
-const COLOR_KEEP = 0.6;
-const ORIGINAL_MIX = 0.5;
-const GRAIN = 6;
+export const QUEST_ART_RAMP = {
+  ramp: [0x1a1410, 0x3a2418, 0x5e3420, 0x8a5e44, 0xb47f5d, 0xd9a878, 0xf0d2a8, 0xf4e8d4],
+  steps: 12,
+  colorKeep: 0.6,
+  originalMix: 0.5,
+  grain: 6,
+};
+const { ramp: RAMP, steps: RAMP_STEPS, colorKeep: COLOR_KEEP, originalMix: ORIGINAL_MIX, grain: GRAIN } = QUEST_ART_RAMP;
+const PAPER_SHADE = 0.62;
 const LUMA_LOW = 0.12;
 const LUMA_HIGH = 0.85;
-const FOG = { r: 0x1c, g: 0x1a, b: 0x18 };
+
+function paperOf(light: number): [number, number, number] {
+  return [((light >> 16) & 0xff) * PAPER_SHADE, ((light >> 8) & 0xff) * PAPER_SHADE, (light & 0xff) * PAPER_SHADE];
+}
+
+export const PAPER = paperOf(RAMP[RAMP.length - 2]);
 
 function colorOf(type: string): number {
   const def = (TERRAIN_TYPES as Record<string, { color: number } | undefined>)[type];
@@ -89,9 +98,10 @@ export function paintFog(explored: Uint8Array, into: Uint8ClampedArray, previous
     const now = explored[i];
     if (now === previous[i]) continue;
     previous[i] = now;
-    into[i * 4] = FOG.r;
-    into[i * 4 + 1] = FOG.g;
-    into[i * 4 + 2] = FOG.b;
+    const noise = grain(i);
+    into[i * 4] = PAPER[0] + noise;
+    into[i * 4 + 1] = PAPER[1] + noise;
+    into[i * 4 + 2] = PAPER[2] + noise;
     into[i * 4 + 3] = now === 1 ? 0 : 255;
     changed++;
   }

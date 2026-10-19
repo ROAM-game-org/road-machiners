@@ -1,14 +1,13 @@
-import { CharacterScreen } from "../ui/character";
+import { CharacterScreen, type CharacterTab } from "../ui/character";
 import type { UiHost } from "../ui/host";
 import { FullShopScreen } from "../ui/full-shop";
 import { InventoryScreen } from "../ui/inventory";
 import { JournalScreen } from "../ui/journal";
 import { OutpostScreen } from "../ui/outpost";
 import { QuestScreen } from "../ui/quest-screen";
-import { WorldMapScreen } from "../ui/world-map";
 import { TownScreen, TruckTradeScreen } from "../ui/town";
 
-type Toggled = CharacterScreen | JournalScreen | InventoryScreen | WorldMapScreen;
+type Toggled = CharacterScreen | JournalScreen | InventoryScreen;
 
 export class ModalScreens {
   readonly town: TownScreen;
@@ -17,7 +16,6 @@ export class ModalScreens {
   readonly trade: TruckTradeScreen;
   readonly character: CharacterScreen;
   readonly journal: JournalScreen;
-  readonly worldMap: WorldMapScreen;
   readonly inventory: InventoryScreen;
   readonly quest: QuestScreen;
 
@@ -28,13 +26,12 @@ export class ModalScreens {
     this.trade = new TruckTradeScreen(host);
     this.character = new CharacterScreen(host);
     this.journal = new JournalScreen(host);
-    this.worldMap = new WorldMapScreen(host);
     this.inventory = new InventoryScreen(host);
     this.quest = new QuestScreen(host);
   }
 
   private all(): (TownScreen | OutpostScreen | FullShopScreen | TruckTradeScreen | Toggled)[] {
-    return [this.town, this.outpost, this.fullShop, this.trade, this.character, this.journal, this.worldMap, this.inventory];
+    return [this.town, this.outpost, this.fullShop, this.trade, this.character, this.journal, this.inventory];
   }
 
   anyOpen(): boolean {
@@ -63,5 +60,15 @@ export class ModalScreens {
   toggle(screen: Toggled): void {
     this.closeAll(screen);
     screen.toggle();
+  }
+
+  openCharacter(tab: CharacterTab): void {
+    this.closeAll(this.character);
+    this.character.open(tab);
+  }
+
+  toggleCharacter(tab: CharacterTab): void {
+    this.closeAll(this.character);
+    this.character.toggle(tab);
   }
 }
