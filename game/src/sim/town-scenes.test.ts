@@ -160,7 +160,7 @@ describe('the Nose counter scene', () => {
 
   it('opens nothing on entering Garage, nor on leaving Garage at Bowl', () => {
     expect(pickTownSection(parkAt(quietWorld(), 'nose'), null, 'garage').player.quests.session).toBeNull();
-    expect(pickTownSection(parkAt(quietWorld(), 'bowl'), 'garage', 'market').player.quests.session).toBeNull();
+    expect(pickTownSection(parkAt(quietWorld(), 'bowl'), 'garage', 'board').player.quests.session).toBeNull();
   });
 
   it('pays nothing and changes no money or items', () => {
