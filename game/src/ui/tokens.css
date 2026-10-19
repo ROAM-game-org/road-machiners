@@ -260,7 +260,7 @@
   --phone-readouts-h: 100px;
   --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--btn-h-l));
   --phone-end-w: 96px;
-  --phone-tab-w: 64px;
+  --phone-tab-w: 56px;
 
   /* Layers, bottom to top */
   --z-outline: 1;
