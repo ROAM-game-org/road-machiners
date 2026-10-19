@@ -73,3 +73,13 @@
   padding: 0;
   border-bottom: 0;
 }
+.ink-page .charts {
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+}
+.ink-page .charts-map {
+  flex: 0 0 auto;
+  width: min(240px, 100%);
+  margin: 0;
+}
