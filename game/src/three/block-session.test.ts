@@ -23,7 +23,7 @@ const SONG: BlockSong = {
   end: 7,
 };
 
-type Voice = { part: Part; offset: number; when: number; level: number; fades: number[] };
+type Voice = { part: Part; offset: number; when: number; level: number; fades: number[]; release?: { from: number; to: number } };
 
 function recorder() {
   const voices: Voice[] = [];
@@ -34,8 +34,8 @@ function recorder() {
       voices.push(v);
       return handle(v);
     },
-    lean: (offset, when, _length, _scale, level) => {
-      const v: Voice = { part: "guitars", offset, when, level, fades: [] };
+    lean: (offset, when, length, _scale, level, release) => {
+      const v: Voice = { part: "guitars", offset, when, level, fades: [], release: { from: when + length - release, to: when + length } };
       voices.push(v);
       return handle(v);
     },
@@ -84,6 +84,28 @@ describe("BlockSession", () => {
     expect(guitars.when).toBeCloseTo(verseAt + BAR_SECONDS);
     expect(guitars.offset).toBe(SONG.barTimes[5]);
     expect(guitars.level).toBeLessThan(1);
+  });
+
+  it("fades the guitar layer out over the last beat before the phrase ends", () => {
+    const { session, voices, verseAt } = playIntoVerse(WALL_SONG);
+    session.fire("knockout", verseAt + 0.1);
+    session.tick(verseAt + 0.1);
+    const phraseEnd = verseAt + 2 * BAR_SECONDS;
+    expect(voices.find((v) => v.part === "guitars")!.release).toEqual({ from: phraseEnd - BAR_SECONDS / 4, to: phraseEnd });
+  });
+
+  it("adds no guitars to a solo, which already leads with them", () => {
+    const sections: BlockSong["sections"] = [SONG.sections[0], { role: "wall", from: 3, bars: 2 }, { role: "solo", from: 5, bars: 2 }];
+    const seams = Object.fromEntries([2, 3, 4, 5, 6, 7].map((exit) => [exit, { "1": 0, "3": 0, "5": 0 }]));
+    const { voices, out } = recorder();
+    const session = new BlockSession({ ...WALL_SONG, sections, seams }, out, () => 0.999);
+    session.start(0);
+    const soloAt = SCORE_BLOCKS.startLeadSeconds + 4 * BAR_SECONDS;
+    for (let t = 0; t < soloAt; t += 0.5) session.tick(t);
+    expect(session.played.map((p) => p.role)).toEqual(["intro", "wall", "solo"]);
+    session.fire("knockout", soloAt + 0.1);
+    session.tick(soloAt + 0.1);
+    expect(voices.some((v) => v.part === "guitars")).toBe(false);
   });
 
   it("adds no guitars or cymbals to a verse that has none of its own", () => {

@@ -19,7 +19,7 @@ export type Part = "song" | "guitars" | "cymbals";
 export type VoiceHandle = { fadeOut(at: number, fade: number): void; cut(at: number): void };
 export type BlockOutput = {
   voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle;
-  lean(offset: number, at: number, length: number, songScale: number, guitarLevel: number): VoiceHandle;
+  lean(offset: number, at: number, length: number, songScale: number, guitarLevel: number, release: number): VoiceHandle;
 };
 export type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: VoiceHandle[]; heat: number; odds: string; join: string; level: number };
 export type Lane = "guitars" | "cymbals";
@@ -238,15 +238,16 @@ export class BlockSession {
   }
 
   private laneFits(lane: Lane, bar: number): boolean {
-    if (lane === "cymbals") return this.sectionOf(bar).role === "wall";
-    return this.guitarShare(bar, this.phraseEndBar(bar) - bar) > -SCORE_BLOCKS.guitarAbsentDb;
+    const role = this.sectionOf(bar).role;
+    if (lane === "cymbals") return role === "wall";
+    return role !== "solo" && this.guitarShare(bar, this.phraseEndBar(bar) - bar) > -SCORE_BLOCKS.guitarAbsentDb;
   }
 
   private lean(spot: Spot, length: number): VoiceHandle {
     const section = this.sectionOf(spot.bar);
     const plain = spot.block.level;
     const leaned = this.levelOf(section.from, section.bars, true);
-    return this.out.lean(this.barTime(spot.bar), spot.at, length, leaned / plain, leaned);
+    return this.out.lean(this.barTime(spot.bar), spot.at, length, leaned / plain, leaned, this.beatSeconds);
   }
 
   private guitarShare(bar: number, bars: number): number {
