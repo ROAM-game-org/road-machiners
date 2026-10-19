@@ -122,7 +122,9 @@
 }
 #ui.phone .instruments .instrument-actions {
   gap: var(--space-1);
-  padding-top: var(--space-1);
+  flex-wrap: nowrap;
+  padding-top: 0;
+  border-top: 0;
   min-height: 0;
 }
 #ui.phone .instruments .instrument-actions > * {
@@ -135,7 +137,7 @@
   text-align: center;
   line-height: 1;
   white-space: normal;
-  overflow-wrap: normal;
+  overflow-wrap: break-word;
   padding: 0 var(--space-1);
 }
 #ui.phone :is(.feedback, .camera-mode) {
@@ -344,4 +346,8 @@
   bottom: 1px;
   transform: none;
   font-size: var(--text-dense);
+}
+
+#ui.phone .instruments .instrument-actions .key-corner {
+  display: none;
 }
