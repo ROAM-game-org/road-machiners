@@ -4,6 +4,7 @@ import { PHYSICS } from '../../data/physics';
 import { CHASSIS } from '../../data/chassis';
 import { bodyOf } from '../../sim/body';
 import { dropClearance } from '../../sim/hazards';
+import { advanceDust } from '../../sim/detect';
 import { addVehicle, emptyWorld, flatTerrain } from '../../sim/testkit';
 import type { DustCloud, Vehicle, World } from '../../sim/types';
 import { cloneWorld } from '../../sim/world';
@@ -33,16 +34,6 @@ describe('DustCloudsView', () => {
     const clouds = [cloud('a', 'npc'), cloud('b', 'npc'), cloud('c', 'me')];
     view.update(worldOf(clouds, ['a']), flatTerrain(32), 0);
     expect(drawn(view)).toHaveLength(2 * DUST_LOOK.puffs);
-  });
-
-  it('glides a cloud along its velocity over the glide time', () => {
-    const view = new DustCloudsView();
-    const world = worldOf([cloud('a', 'npc')], ['a']);
-    view.update(world, flatTerrain(32), 0);
-    const before = drawn(view).reduce((s, c) => s + c.x, 0) / DUST_LOOK.puffs;
-    view.update(world, flatTerrain(32), DUST_LOOK.glideSeconds * 1000);
-    const after = drawn(view).reduce((s, c) => s + c.x, 0) / DUST_LOOK.puffs;
-    expect(after - before).toBeCloseTo(S, 0);
   });
 
   it('rises with age and fades out at the end of its life', () => {
@@ -166,33 +157,80 @@ describe('plumeShape', () => {
   });
 });
 
-describe('DustCloudsView build-up over time', () => {
-  it('grows smoothly across turn seams for the first turns', () => {
-    const view = new DustCloudsView();
-    const stepMs = 1000 / 30;
-    const glideMs = DUST_LOOK.glideSeconds * 1000;
-    const limit = 0.05 * plumeShape(DUST_LOOK.buildTurns).size * S;
-    let previous = 0;
-    let previousScatter = 0;
-    let previousAlpha = 0;
-    for (let turn = 0; turn < DUST_LOOK.buildTurns; turn++) {
-      for (let ms = 0; ms < glideMs; ms += stepMs) {
-        const world = worldOf([cloud('a', 'npc', turn)], ['a']);
-        world.turn = turn + 1;
-        view.update(world, flatTerrain(32), turn * glideMs + ms);
-        const cards = drawn(view);
-        const largest = Math.max(...cards.map((c) => c.size / 1.25));
-        const scatter = Math.max(...cards.map((c) => c.y)) - Math.min(...cards.map((c) => c.y));
-        const alpha = Math.max(...cards.map((c) => c.alpha));
-        if (turn > 0 || ms > 0) {
-          expect(Math.abs(largest - previous)).toBeLessThanOrEqual(limit);
-          expect(scatter).toBeGreaterThanOrEqual(previousScatter - 1e-6);
-          if (turn < 1) expect(alpha).toBeGreaterThanOrEqual(previousAlpha - 1e-6);
-        }
-        previous = largest;
-        previousScatter = scatter;
-        previousAlpha = alpha;
+function turnsOf(start: DustCloud, seen: boolean[]): World[] {
+  const worlds: World[] = [];
+  let world = worldOf([start], seen[0] ? [start.id] : []);
+  worlds.push(world);
+  for (let i = 1; i < seen.length; i++) {
+    world = cloneWorld(world);
+    world.turn++;
+    world.seed = 7;
+    world.vehicles = [];
+    advanceDust(world);
+    world.player.clouds = seen[i] ? world.dustClouds.map((c) => c.id) : [];
+    worlds.push(world);
+  }
+  return worlds;
+}
+
+function frameAt(world: World, before: World | null, progress: number): Card[] {
+  const view = new DustCloudsView();
+  view.update(world, world.terrain, 0, new Map(), before ? clockAt(before, progress, true) : null);
+  return drawn(view);
+}
+
+const meanOf = (cards: Card[], key: 'x' | 'z') => cards.reduce((s, c) => s + c[key], 0) / cards.length;
+const alphaOf = (cards: Card[]) => Math.max(...cards.map((c) => c.alpha));
+
+describe('DustCloudsView across turns', () => {
+  const fresh = () => ({ ...cloud('a', 'npc', 1), pos: { x: 10, y: 10 }, vel: { x: 2, y: -1 } });
+
+  it('keeps a cloud in place and as opaque across every turn seam', () => {
+    const worlds = turnsOf(fresh(), Array(6).fill(true));
+    for (let i = 1; i < worlds.length; i++) {
+      const rest = frameAt(worlds[i - 1], null, 1);
+      const start = frameAt(worlds[i], worlds[i - 1], 0);
+      expect(Math.hypot(meanOf(start, 'x') - meanOf(rest, 'x'), meanOf(start, 'z') - meanOf(rest, 'z'))).toBeLessThan(0.01);
+      expect(alphaOf(start)).toBeCloseTo(alphaOf(rest) * plumeShape(worlds[i].dustClouds[0].age).fade / plumeShape(worlds[i - 1].dustClouds[0].age + 1).fade, 6);
+    }
+  });
+
+  it('moves no cloud more than its share of the turn between frames', () => {
+    const worlds = turnsOf(fresh(), Array(6).fill(true));
+    const frames = 60;
+    for (let i = 1; i < worlds.length; i++) {
+      const [was, now] = [worlds[i - 1].dustClouds[0], worlds[i].dustClouds[0]];
+      const bound = ((Math.hypot(now.pos.x - was.pos.x, now.pos.y - was.pos.y) + Math.hypot(now.vel.x - was.vel.x, now.vel.y - was.vel.y)) * S * 2) / frames;
+      let last = frameAt(worlds[i], worlds[i - 1], 0);
+      for (let f = 1; f <= frames; f++) {
+        const next = frameAt(worlds[i], worlds[i - 1], f / frames);
+        expect(Math.hypot(meanOf(next, 'x') - meanOf(last, 'x'), meanOf(next, 'z') - meanOf(last, 'z'))).toBeLessThanOrEqual(bound);
+        last = next;
       }
     }
+  });
+
+  it('rests on the sim position and the start and end of the playback agree', () => {
+    const [was, now] = turnsOf(fresh(), [true, true]);
+    const sim = now.dustClouds[0].pos;
+    const rest = frameAt(now, null, 1);
+    const ended = frameAt(now, was, 1);
+    expect(meanOf(rest, 'x') / S).toBeCloseTo(sim.x, 0);
+    expect(meanOf(rest, 'z') / S).toBeCloseTo(sim.y, 0);
+    expect(meanOf(ended, 'x')).toBeCloseTo(meanOf(rest, 'x'), 6);
+    expect(meanOf(ended, 'z')).toBeCloseTo(meanOf(rest, 'z'), 6);
+  });
+
+  it('fades a cloud in when the player starts to see it and out when the player stops', () => {
+    const [was, now] = turnsOf(fresh(), [false, true]);
+    const full = alphaOf(frameAt(now, null, 1));
+    expect(alphaOf(frameAt(now, was, 0))).toBe(0);
+    expect(alphaOf(frameAt(now, was, 0.5))).toBeGreaterThan(0);
+    expect(alphaOf(frameAt(now, was, 0.5))).toBeLessThan(full);
+    expect(alphaOf(frameAt(now, was, 1))).toBeCloseTo(full, 9);
+    const [seen, lost] = turnsOf(fresh(), [true, false]);
+    expect(frameAt(lost, null, 1)).toHaveLength(0);
+    expect(alphaOf(frameAt(lost, seen, 0.25))).toBeGreaterThan(alphaOf(frameAt(lost, seen, 0.75)));
+    expect(frameAt(lost, seen, 1)).toHaveLength(0);
   });
 });
