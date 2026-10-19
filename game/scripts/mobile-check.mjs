@@ -417,7 +417,7 @@ async function townAndShop(session, step) {
   }, () => game(page, () => window.__ROAM__.screens.town.isOpen() || 'the town did not open'));
   const money = await game(page, () => window.__ROAM__.state.player.money);
   await step('buy-one', async () => {
-    await touch.tapOn('.town-screen [data-tab=market]');
+    await touch.tapOn('.town-screen [data-section=market]');
     await touch.tapOn('.town-screen .trade.buy button:not([aria-disabled=true]):not([disabled])');
   }, async () => {
     const now = await game(page, () => window.__ROAM__.state.player.money);

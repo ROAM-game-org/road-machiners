@@ -35,7 +35,7 @@ A run that hits a load error or a broken runner does not count. Fix the error an
 3. Run `npm run quests:check`. It fails on compile errors, broken tags, dead ends, sections never reached, effects that a load would repeat and a twin that plays out differently from its English quest. It names the picks that lead to each problem.
 4. Run `npm run quests:build` to write `src/data/quests.json`. The game reads only this bundle, and a test fails when it is stale.
 5. Run the touched tests: `npx vitest run src/test/quest-voice.test.ts src/test/quest-compile.test.ts src/sim/locals.test.ts`.
-6. See it in the game with `npm run dev`. Open the console with backquote and type `tp nose` or `tp bowl`, then open the town's People tab.
+6. See it in the game with `npm run dev`. Open the console with backquote and type `tp nose` or `tp bowl`, then open the town's People section.
 
 ## A new quest
 
@@ -63,7 +63,7 @@ Mira wipes flour off her hands. # speaker: Mira
 
 Every quest needs a way in. The voice test fails on a quest that nothing starts.
 
-- A town local: add an entry to `LOCALS` in `src/data/locals.ts` with the quest id, and its `local.<id>.name` and `local.<id>.role` in `src/text/en/story.ts` and `src/text/ru/story.ts`. The People tab lists them.
+- A town local: add an entry to `LOCALS` in `src/data/locals.ts` with the quest id, and its `local.<id>.name` and `local.<id>.role` in `src/text/en/story.ts` and `src/text/ru/story.ts`. The People section lists them.
 - A radio call: give a radio option `go: questGo('<quest>')` in `src/data/dialogue.ts`. The call ends and the quest opens.
 - Another quest: call `~ begin("<quest>")` right before `-> END`. Kovac opens the depot quest this way.
 
@@ -209,3 +209,7 @@ A quest can only ask the game through functions in `world.ink`.
 - "section is never reached": a condition can never hold in either check world, or the section is dead. Fix the condition or delete it.
 - "stopped after 5000 states": see [Keeping the checker fast](#keeping-the-checker-fast).
 - The voice test names a line that talks about a game system: reword it in character.
+
+## A town scene
+
+A quest the game opens as the player enters or leaves a town section is a row of `TOWN_SCENES` in `src/data/quests.ts`: place, section, moment, quest, checkpoint, gate and an optional condition. Declare the gate in `GAME_WORLD_VARS` and `world.ink`, and write its text in the voice of any talk. [Quests](../architecture/quests.md#town-scenes) has the rules.

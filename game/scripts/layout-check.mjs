@@ -51,7 +51,11 @@ async function openTown(page, tab) {
     g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
     g.screens.town.open();
   });
-  await page.evaluate((tab) => document.querySelector(`.town-screen [data-tab="${tab}"]`).click(), tab);
+  await page.evaluate((tab) => {
+    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', contracts: 'board' }[tab] ?? tab;
+    document.querySelector(`.town-screen [data-section="${section}"]`).click();
+    if (section === 'garage') document.querySelector(`.town-screen [data-garage-tab="${tab}"]`).click();
+  }, tab);
 }
 
 const closeTown = (page) => page.evaluate(() => window.__ROAM__.screens.town.close());
@@ -223,6 +227,8 @@ const STATES = {
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
+  'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
+  'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },

@@ -5,6 +5,10 @@ import { playUrl } from './game-url.mjs';
 
 const url = process.argv[2];
 if (!url) throw new Error('Usage: node scripts/garage-ui-check.mjs <dev-server-url>');
+const garage = async (page, tab) => {
+  await page.locator('.town-screen [data-section=garage]').click();
+  await page.locator(`.town-screen [data-garage-tab="${tab}"]`).click();
+};
 const browser = await chromium.launch();
 
 const read = (page) => page.evaluate(() => ({
@@ -65,7 +69,7 @@ async function enter(page, spot) {
     g.apply(w);
     g.screens.town.open();
   }, spot);
-  await page.waitForSelector('.town-shop .tabs button', { timeout: 90000 });
+  await page.waitForSelector('.town-sections button', { timeout: 90000 });
 }
 
 try {
@@ -77,7 +81,7 @@ try {
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: 120000 });
   for (const spot of ['nose', 'bowl']) {
     await enter(page, spot);
-    await page.locator('.town-screen [data-tab="buyParts"]').click();
+    await garage(page, 'buyParts');
     const gun = () => page.locator('.inv-item.mounted', { hasText: /turret|rifle|cannon|shotgun|MG/i }).first();
     await gun().click();
     await page.waitForTimeout(500);
@@ -126,7 +130,7 @@ try {
   assert((await read(page).then(() => page.locator('.modal:visible h3 .chip[title="Free cargo cells"]').count())) === 1, 'inventory header must keep free cells');
   await page.keyboard.press('Escape');
   await enter(page, 'nose');
-  await page.locator('.town-screen [data-tab="buyParts"]').click();
+  await garage(page, 'buyParts');
   await mkdir('.playtest', { recursive: true });
   const sizes = [[1920, 1080], [1600, 900], [1280, 730], [1024, 730], [800, 730]];
   for (const [width, height] of sizes) {
@@ -142,15 +146,15 @@ try {
     assert.equal(out, 0, `${width}: header chips and repair buttons must lie inside the town screen`);
     await page.screenshot({ path: `.playtest/garage-${width}.png` });
     for (const tab of ['Buy Parts', 'Sell Parts']) {
-      await page.locator('.town-screen .tabs button', { hasText: tab }).click();
+      await garage(page, tab === 'Buy Parts' ? 'buyParts' : 'sellParts');
       await page.waitForTimeout(200);
       assertNoScroll(await trucksLayout(page), `${width}x${height} ${tab}`);
     }
-    await page.locator('.town-screen .tabs button', { hasText: 'Trucks' }).click();
+    await garage(page, 'trucks');
     await page.waitForTimeout(300);
     await checkTrucks(page, `${width}x${height}`);
     await page.screenshot({ path: `.playtest/garage-trucks-${width}.png` });
-    await page.locator('.town-screen .tabs button', { hasText: 'Buy Parts' }).click();
+    await garage(page, 'buyParts');
   }
   await page.evaluate(async () => {
     const g = window.__ROAM__;
@@ -162,7 +166,7 @@ try {
     g.apply(buyChassis(setMoney(g.state, 1e7), top));
   });
   await page.waitForTimeout(500);
-  await page.locator('.town-screen .tabs button', { hasText: 'Trucks' }).click();
+  await garage(page, 'trucks');
   await page.waitForTimeout(300);
   const swapped = await page.evaluate(() => ({
     own: document.querySelector('.truck-card.own .card-name')?.innerText,

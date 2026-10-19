@@ -644,7 +644,7 @@ try {
     g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
     g.town.open();
   });
-  await page.waitForSelector('.town-shop .tabs button', { timeout: 90000 });
+  await page.waitForSelector('.town-sections button', { timeout: 90000 });
   assert((await checkCoins(page, 'town market')) > 1, 'The town market must show amounts');
   await checkCoinSizes(page, 'market 1600');
   const before = page.viewportSize();
