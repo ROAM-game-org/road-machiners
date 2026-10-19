@@ -1780,7 +1780,7 @@ describe('MIGRATIONS[82]', () => {
     expect(next.shops.bowl.goods.fuelDrums).toBe(0);
     expect(next.shops.bowl.goods.water).toBe(240);
     expect(next.shops.bowl.goods.rations).toBe(120);
-    expect(next.shops.nose.goods.relics).toBe(120);
+    expect(next.shops.nose.goods.relics).toBe(0);
     expect(next.shops.granary.goods.textiles).toBeUndefined();
     expect(Object.keys(next.shops.granary.goods).sort()).toEqual(['fuelDrums', 'grain', 'rations', 'salt', 'tools', 'water']);
   });

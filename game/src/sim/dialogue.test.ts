@@ -712,7 +712,8 @@ describe('trading tips', () => {
 
   it('tells of a good it saw far under its value', () => {
     const { w, npc } = withNpc('trader', 'independent');
-    visit(w, npc, 'salvage-yard');
+    const pressure = Object.fromEntries(SHOPS['salvage-yard'].goods.map((good) => [good, pressureFor('salvage-yard', good, good === 'parts' ? 0.6 : 1)]));
+    remember(w, npc, { kind: 'prices', shop: 'salvage-yard', pressure });
     expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'salvage-yard', good: 'parts', dear: false } });
   });
 

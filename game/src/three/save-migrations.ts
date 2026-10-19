@@ -1110,8 +1110,8 @@ const TOWN_GOODS_82_83: readonly string[] = ['grain', 'textiles', 'meds', 'parts
 
 const STOCK_TARGETS_82_83: Record<string, Record<string, number>> = {
   bowl: Object.fromEntries(TOWN_GOODS_82_83.map((good) => [good, 120])),
-  nose: { ...Object.fromEntries(TOWN_GOODS_82_83.filter((good) => good !== 'grain').map((good) => [good, 120])), relics: 120 },
-  'salvage-yard': { scrap: 30, parts: 30, tools: 30, rations: 30, fuelDrums: 30, relics: 30 },
+  nose: { ...Object.fromEntries(TOWN_GOODS_82_83.filter((good) => good !== 'grain').map((good) => [good, 120])), relics: 0 },
+  'salvage-yard': { scrap: 30, parts: 30, tools: 30, rations: 30, fuelDrums: 30, relics: 0 },
   granary: { rations: 38, grain: 30, salt: 30, water: 30, tools: 30, fuelDrums: 30 },
   'pump-station': { fuelDrums: 229, tools: 30, batteries: 30, rations: 30 },
   dustwell: { water: 30, tools: 30, meds: 30, rations: 30, fuelDrums: 30 },

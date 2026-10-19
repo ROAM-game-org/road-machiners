@@ -432,6 +432,10 @@ export const SITE_ECONOMY: Record<string, SiteEconomy> = {
   },
 };
 
+export function isFoundGood(good: string): boolean {
+  return Object.values(SITE_ECONOMY).some((site) => site.found?.includes(good));
+}
+
 export function siteEconomy(shopId: string): SiteEconomy {
   const site = SITE_ECONOMY[shopId];
   if (!site) throw new Error(`No production data for ${shopId}`);

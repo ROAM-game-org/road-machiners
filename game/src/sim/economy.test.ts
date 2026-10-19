@@ -166,6 +166,11 @@ describe("trade", () => {
     expect(goodBasePrice("nose", "relics")).toBeGreaterThan(goodBasePrice("salvage-yard", "relics"));
   });
 
+  it("a new world holds no ship relics until someone brings them", () => {
+    const w = startAtBowl();
+    for (const shop of ["nose", "salvage-yard"]) expect(shopState(w, shop).goods.relics).toBe(0);
+  });
+
   it("a lot price equals the sum of single-unit trades", () => {
     const w = startAtBowl();
     const state = shopState(w, "bowl");

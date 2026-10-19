@@ -5,7 +5,7 @@ import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { CONDITION } from '../data/wear';
 import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, SHOPS, SHORT_PRESSURE, shopDef, type PartStockTable, type ShopDef, type Threat, type Tier } from '../data/market';
-import { dailyFlow, graphEdges, PRODUCTION, tradedGoods, type SiteEventKind } from '../data/market';
+import { dailyFlow, graphEdges, isFoundGood, PRODUCTION, tradedGoods, type SiteEventKind } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { makePart, newId } from './factory';
 import { claimPartHeld, claimRivalAt, claimTargets, claimReward, claimWindow, fitsClaim, rivalDue, sendRival, type ClaimTarget } from './claims';
@@ -98,7 +98,7 @@ function countOfKind(perKind: Partial<Record<PartKind, number>>, kind: PartKind,
 
 export function initShop(world: World, shopId: string): ShopState {
   const def = shopDef(shopId);
-  const goods = Object.fromEntries(def.goods.map((good) => [good, stockTarget(shopId, good)]));
+  const goods = Object.fromEntries(def.goods.map((good) => [good, isFoundGood(good) ? 0 : stockTarget(shopId, good)]));
   const count = randInt(world.marketRng, def.stockSize[0], def.stockSize[1]);
   return { contracts: [], goods, stock: rollPartStock(world, world.marketRng, def.partStock, count, def.id), restockAt: world.turn + def.restockTurns, event: null, shortSince: {}, opened: {} };
 }
