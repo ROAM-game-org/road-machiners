@@ -175,7 +175,8 @@ export class Hud {
     this.info.style.width = "";
     const slot = this.floorOfInfo() - gap - top;
     this.info.style.height = `${slot}px`;
-    if (this.inspectedAimable && !phoneMode()) this.growForAim(top, slot);
+    this.info.style.maxHeight = this.inspectedAimable && phoneMode() ? "none" : "";
+    if (this.inspectedAimable) this.growForAim(top, slot);
     this.coverUnder(uiSize().layerRect(this.info).bottom);
     this.inspected.fitTo(this.inspectedDraw);
   };
@@ -200,10 +201,26 @@ export class Hud {
     return Math.min(...tops);
   }
 
+  private aimCellPx(): number {
+    return phoneMode() ? Math.max(32, 32 / uiSize().applied()) : parseFloat(token("--btn-h-s"));
+  }
+
+  private aimWidthCap(): number {
+    const layer = uiSize().layerSize();
+    const inset = parseFloat(getComputedStyle(this.info).right);
+    const full = layer.width - 2 * inset;
+    return layer.width < layer.height ? full : (full - parseFloat(token("--hud-gap"))) / 2;
+  }
+
   private growForAim(top: number, slot: number): void {
-    const need = this.inspected.boxFor(parseFloat(token("--btn-h-s")));
+    const need = this.inspected.boxFor(this.aimCellPx());
     const wider = need.width - this.inspectedDraw.clientWidth;
-    if (wider > 0) this.info.style.width = `${this.info.offsetWidth + wider}px`;
+    const width = wider > 0 ? this.info.offsetWidth + wider : this.info.offsetWidth;
+    if (phoneMode()) {
+      this.info.style.width = `${Math.min(width, this.aimWidthCap())}px`;
+      return;
+    }
+    if (wider > 0) this.info.style.width = `${width}px`;
     const tallest = uiSize().layerRect(this.log.root).bottom - top;
     this.info.style.height = `${tallest}px`;
     const fits = tallest - this.inspectedDraw.clientHeight + need.height;
