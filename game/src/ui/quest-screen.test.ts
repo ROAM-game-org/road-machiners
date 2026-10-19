@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { QuestLive } from '../sim/types';
 import { lastTagged, pagesOf, paragraphsOf } from './quest-lines';
-import { askOf, loadArt, questPageStacks } from './quest-screen';
+import { askOf, loadArt, questFrameFits, questPageStacks } from './quest-screen';
 import { QUEST_ART } from '../data/quest-art';
 
 vi.mock('../fetch-asset', async (orig) => ({ ...(await orig<typeof import('../fetch-asset')>()), fetchAsset: async () => new ArrayBuffer(1) }));
@@ -64,6 +64,32 @@ describe('questPageStacks', () => {
 
   it('answers stack for a zero width, which the screen ignores to keep its last layout', () => {
     expect(questPageStacks(0, FRAME)).toBe(true);
+  });
+});
+
+describe('questFrameFits', () => {
+  it('keeps a column frame between 3:4 and wider', () => {
+    expect(questFrameFits(300, 400, false)).toBe(true);
+    expect(questFrameFits(300, 300, false)).toBe(true);
+    expect(questFrameFits(300, 84, false)).toBe(true);
+  });
+
+  it('rejects a column frame taller than 4/3 of its width, with half a pixel of slack', () => {
+    expect(questFrameFits(300, 400.5, false)).toBe(true);
+    expect(questFrameFits(300, 401, false)).toBe(false);
+    expect(questFrameFits(84, 300, false)).toBe(false);
+  });
+
+  it('keeps a band frame no wider than 3 times its height', () => {
+    expect(questFrameFits(300, 100, true)).toBe(true);
+    expect(questFrameFits(200, 100, true)).toBe(true);
+    expect(questFrameFits(300.5, 100, true)).toBe(true);
+    expect(questFrameFits(900, 100, true)).toBe(false);
+  });
+
+  it('counts a hidden page, which has no frame size, as fitting', () => {
+    expect(questFrameFits(0, 0, false)).toBe(true);
+    expect(questFrameFits(0, 0, true)).toBe(true);
   });
 });
 
