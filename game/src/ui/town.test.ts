@@ -3,7 +3,8 @@ import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
 import { pressureHint, townPageOnOpen } from "./town";
 import { shortBy } from "./shop-rows";
-import type { ShopDef } from "../data/market";
+import { SHOPS, type ShopDef } from "../data/market";
+import { placeProse } from "../text/names";
 import type { ShopState } from "../sim/market";
 
 const en = (msg: Msg | null): string | null => (msg === null ? null : resolve(msg, "en"));
@@ -64,5 +65,14 @@ describe("the town page on open", () => {
   it("opens on the front page on a first visit", () => {
     expect(townPageOnOpen("garage", null, "nose", 40, access)).toBeNull();
     expect(townPageOnOpen(null, closedAt, "nose", 40, access)).toBeNull();
+  });
+});
+
+describe("the front page prose", () => {
+  it("has a paragraph for every place with a shop, in English and Russian", () => {
+    for (const id of Object.keys(SHOPS)) {
+      expect(resolve(placeProse(id), "en").length, id).toBeGreaterThan(40);
+      expect(resolve(placeProse(id), "ru").length, id).toBeGreaterThan(40);
+    }
   });
 });
