@@ -340,5 +340,70 @@
       "#601 Add an exploration minimap and maps you can buy"
     ],
     "expect": "stay"
+  },
+  {
+    "label": "keep",
+    "from": "chat message 387, a bug report to the bot that was not filed (#756)",
+    "text": "@road_machiners_bot машина может застрять после столкновения с объектами в мире (камни, здания), выехать не получается в обоих режимах (авто ручно) нужен фикс",
+    "expect": "file",
+    "source": "message",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ],
+    "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "made up, a bug report to the bot with no filing verb",
+    "text": "@roam_bot the fuel gauge shows full when the tank is empty after I load a save",
+    "expect": "file",
+    "source": "message",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ],
+    "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "made up, a greeting to the bot",
+    "text": "@road_machiners_bot привет, как дела?",
+    "expect": "stay",
+    "source": "message",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ],
+    "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "made up, praise to the bot",
+    "text": "@road_machiners_bot крутая игра, спасибо",
+    "expect": "stay",
+    "source": "message",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ],
+    "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "made up, a question about a known bug",
+    "text": "@roam_bot is the bridge bug fixed yet?",
+    "expect": "stay",
+    "source": "message",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ],
+    "addressed": true
   }
 ]
