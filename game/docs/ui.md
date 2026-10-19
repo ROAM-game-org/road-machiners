@@ -85,6 +85,7 @@ Every fact on a screen belongs to one tier for the decision that screen serves. 
 - An action sits at the end of the line it changes. A Buy button is inside its row. The turn commits at the bottom right.
 - A choice the game waits for opens a notice at the top center and stops nothing else on screen.
 - A task that takes the whole attention, like a shop or a save, opens a modal in the center.
+- The quest page and the `.ink-page` take the layer above the instruments and the log, and those hide while one is open, so nothing of the HUD lies over a page. The call notice still shows over it, since a call waits for an answer.
 - A modal that is the only thing the player can do at that place keeps no Leave button, and its one way out is its action button. The outpost screen behind shut gates is the case: Drive on closes it, and neither Escape nor the game's close-all does. The Menu button stays over it, in the corner the Leave button would take, so saving, options and help stay reachable.
 
 ### 4.2 Zones
@@ -316,3 +317,12 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 3. Surface: a dialog in the center, since reading it takes the player's attention and a top-left panel collided with the tips.
 4. Grid: four groups side by side, Drive, Places and talk, Fight and View. Each line is the key as a `.key` keycap, then a short action. The panel grows sideways, not down.
 5. Words: no sentences. "Space" then "Drive or pause" replaces "Space: drive on or pause." The notes are one quiet line at the bottom.
+
+### Worked example: the town page
+
+1. Decision: where in town do I go next, and once there, what do I buy, sell, take, fix or ask.
+2. Key facts: on the front page, which place this is (the band and the heading), the money chip and which ways are open. On a section page, the facts its panel shows: prices, held counts, rewards and repair costs. Supporting: truck type, mass and free cells in the chips, a Bar driver's truck and faction, a local's role. Reference: the reason a choice is off, in its tooltip. Ambient: the picture, its zoom and the prose.
+3. Surface: an `.ink-page` modal of the quest page's size, so a quest that starts in town reads as the next page. It is larger than `--modal-width` because the Garage puts the truck grid beside the part rows (P18).
+4. Grid: the band, then a centered text column with the heading, one paragraph or line, and the choices pinned to its bottom. Garage and Market set a full-width panel between them, and Board and Bar a text-column panel. This bends P13 and P14: the outline, band, heading and choices stay fixed, and only the panel width follows the section, since only those two need the grid.
+5. Choices: quest choice buttons in a fixed order, Garage, Market, Board, People, Bar and Drive on, so a digit always means the same place. An off choice keeps its slot and shows its reason at its right end. Locals are People's choices. Back ends every section page.
+6. Words: choices and prose are in story voice, reasons, chips and panel labels in the chrome voice. The prose names no price, no person and nothing the band or the choices show.
