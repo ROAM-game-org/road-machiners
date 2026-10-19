@@ -33,7 +33,7 @@ function groomOf(verdict: string | null, over: Record<string, unknown>): string 
   if (verdict === null) return null;
   const haiku = JSON.parse(verdict) as Record<string, unknown>;
   const story = { points: ['Drive at night: headlights light the road.'], changed: [], need: 'Wants to drive at night.', existing: 'Day and night cycle.', version: 'Headlights light the road.', fit: 'Fits all five tests.' };
-  return JSON.stringify({ verdict: haiku.verdict, reason: haiku.reason, complexity: haiku.complexity, complexityReason: haiku.complexityReason, ...story, pitch: RU_PITCH, ...over });
+  return JSON.stringify({ verdict: haiku.verdict, reason: haiku.reason, complexity: haiku.complexity, complexityReason: haiku.complexityReason, bundle: haiku.bundle, releaseFix: haiku.releaseFix, ...story, pitch: RU_PITCH, ...over });
 }
 
 let groomPrompt = '';
@@ -46,7 +46,7 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
     cfg: { home, designModel: 'opus', buildModel: 'sonnet', triageModel: 'haiku', triageEffort: 'low', designEffort: 'medium', repo: 'o/r', committeeChat: 'chat', minVotes: 10 },
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
-    telegram: { sendMessage: record('message') },
+    telegram: { sendMessage: async (...args: unknown[]) => { calls.push(`message ${args.join(' ')}`); return 501; } },
     log: () => undefined,
     github: {
       issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : `Horn idea ${number}`, body: number === 7 ? 'Add a horn' : `Body of ${number}`, labels: number === 7 ? labels : [], createdAt: '', state: 'OPEN', author: 'anna' }),
@@ -81,7 +81,8 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
   return fake as unknown as Ctx;
 }
 
-const verdict = (over: Record<string, unknown>): string => JSON.stringify({ verdict: 'ready', reason: 'Clear goal', questions: [], hotfix: false, releaseFix: false, complexity: 'intermediate', complexityReason: 'Touches the horn code and the audio module.', bundle: [], ...over });
+const verdict = (over: Record<string, unknown>): string => JSON.stringify({ verdict: 'ready', reason: 'Clear goal', hotfix: false, releaseFix: false, complexity: 'intermediate', complexityReason: 'Touches the horn code and the audio module.', bundle: [], ...over });
+const unclear = (questions: string[], earlier: string[] = []): Ctx => fakeCtx(verdict({}), [], earlier, { verdict: 'unclear', reason: 'It asks for a horn, but not which one.', questions });
 const card = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 
 describe('triage stage', () => {
@@ -104,7 +105,7 @@ describe('triage stage', () => {
   });
 
   it('labels a hotfix, warns the committee and moves to Design', async () => {
-    await runStage(fakeCtx(verdict({ hotfix: true, reason: 'Saves from 0.3 fail to load.' })), 7);
+    await runStage(fakeCtx(verdict({ hotfix: true, reason: 'Saves from 0.3 fail to load.' }), ['bug']), 7);
     expect(calls.slice(-4)).toEqual([
       'addLabel 7 hotfix',
       expect.stringContaining('comment 7 Triage passed as a hotfix: Saves from 0.3 fail to load.\n\nIt branches from main, and its approval ships it to main and itch.io at once.\n\nModel routing from triage:'),
@@ -165,51 +166,78 @@ describe('triage stage', () => {
     expect(calls.at(-1)).toBe('move 7 Done');
   });
 
-  it('asks the author and leaves the card when unclear', async () => {
-    await runStage(fakeCtx(verdict({ verdict: 'unclear', reason: 'Vague', questions: ['Which horn?', 'How loud?'] })), 7);
-    const post = calls.find((call) => call.startsWith('comment 7 ## Questions from the factory')) ?? '';
-    expect(post).toContain('@anna');
-    expect(post).toContain('1. Which horn?');
-    expect(post).toContain('2. How loud?');
-    expect(calls).toContain('addLabel 7 needs-info');
-    expect(calls.filter((call) => call.startsWith('move'))).toEqual([]);
+  it.each(['vote', 'unclear'])('sends a feature that Haiku marked %s to grooming, with no questions from Haiku', async (kind) => {
+    await runStage(fakeCtx(verdict({ verdict: kind, questions: ['Which horn?'] }), [], [], { verdict: 'ready' }), 7);
+    expect(calls).toContain('agent opus');
+    expect(calls).not.toContain('addLabel 7 needs-info');
+    expect(calls.at(-1)).toBe('move 7 Design');
   });
 
-  it('notifies the committee once, with stage, issue link and reply place, and no question text', async () => {
-    await runStage(fakeCtx(verdict({ verdict: 'unclear', reason: 'Vague', questions: ['Which horn?'] })), 7);
+  it.each(['vote', 'unclear'])('never lets Haiku pick %s for a bug', async (kind) => {
+    await expect(runStage(fakeCtx(verdict({ verdict: kind, questions: ['Which horn?'] }), ['bug']), 7)).rejects.toThrow(`unknown verdict: ${kind}`);
+    expect(calls.filter((call) => /^(comment|addLabel|message)/.test(call))).toEqual([]);
+  });
+
+  it('asks every groomed question in one set with an @mention, and leaves the card', async () => {
+    await runStage(unclear(['Which horn?', 'How loud?']), 7);
+    const posts = calls.filter((call) => call.startsWith('comment 7'));
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toContain('## Questions from the factory');
+    expect(posts[0]).toContain('@anna');
+    expect(posts[0]).toContain('1. Which horn?\n2. How loud?');
+    expect(calls).toContain('addLabel 7 needs-info');
+    expect(calls.filter((call) => call.startsWith('move'))).toEqual([]);
+    expect(existsSync(`${home}/groomed/issue-7.md`)).toBe(false);
+  });
+
+  it('sends the committee the title, link, reason and questions, and records the post for replies', async () => {
+    await runStage(unclear(['Which horn?', 'How loud?']), 7);
     const messages = calls.filter((call) => call.startsWith('message'));
-    expect(messages).toHaveLength(1);
-    expect(messages[0]).toContain('❓ Triage needs answers on #7');
-    expect(messages[0]).toContain('https://github.com/o/r/issues/7');
-    expect(messages[0]).toContain('Answer there. Replies in this chat do not reach the stage.');
-    expect(messages[0]).not.toContain('Which horn?');
-    expect(messages[0]).not.toContain('Big horn');
+    expect(messages).toEqual(['message chat ❓ Triage asks on #7 Big horn\nhttps://github.com/o/r/issues/7\n\nIt asks for a horn, but not which one.\n\n1. Which horn?\n2. How loud?\n\nReply to this message to answer, or answer on GitHub.']);
+    expect(readState(`${home}/state.json`).questionPosts).toEqual({ 501: 7 });
+  });
+
+  it('cuts a long notice to one Telegram message', async () => {
+    await runStage(unclear(['x'.repeat(5000)]), 7);
+    const message = calls.find((call) => call.startsWith('message chat ')) ?? '';
+    expect(message.length - 'message chat '.length).toBeLessThanOrEqual(4096);
+    expect(message).toMatch(/…\n\nReply to this message to answer, or answer on GitHub\.$/);
   });
 
   it('adds no second notice while the earlier question set is unanswered', async () => {
     writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), asked: { 7: '2026-09-30T09:00:00Z' } });
-    await runStage(fakeCtx(verdict({ verdict: 'unclear', reason: 'Vague', questions: ['Which horn?'] })), 7);
+    await runStage(unclear(['Which horn?']), 7);
     expect(calls).toContain('addLabel 7 needs-info');
     expect(calls.filter((call) => call.startsWith('message'))).toEqual([]);
   });
 
   it('notifies again for a new set after the author answered', async () => {
     writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), asked: { 7: '2026-09-30T09:00:00Z' } });
-    await runStage(fakeCtx(verdict({ verdict: 'unclear', reason: 'Vague', questions: ['Which horn?'] }), [], ['This one']), 7);
+    await runStage(unclear(['Which horn?'], ['This one']), 7);
     expect(calls.filter((call) => call.startsWith('message'))).toHaveLength(1);
     expect(readState(`${home}/state.json`).asked).toEqual({ 7: '2026-09-30T10:00:00.000Z' });
   });
 
   it('records the time of the questions it asked', async () => {
-    await runStage(fakeCtx(verdict({ verdict: 'unclear', reason: 'Vague', questions: ['Which horn?'] })), 7);
+    await runStage(unclear(['Which horn?']), 7);
     expect(readState(`${home}/state.json`).asked).toEqual({ 7: '2026-09-30T10:00:00.000Z' });
   });
 
-  it('keeps the questions and label when Telegram fails', async () => {
-    const ctx = fakeCtx(verdict({ verdict: 'unclear', reason: 'Vague', questions: ['Which horn?'] }));
+  it('keeps the questions and label when Telegram fails, and records no post', async () => {
+    const ctx = unclear(['Which horn?']);
     (ctx.telegram as { sendMessage: unknown }).sendMessage = async () => { throw new Error('down'); };
     await runStage(ctx, 7);
     expect(calls).toContain('addLabel 7 needs-info');
+    expect(readState(`${home}/state.json`).questionPosts).toEqual({});
+  });
+
+  it.each([
+    [{ questions: [] }, 'questions as a non-empty list'],
+    [{ questions: [3] }, 'questions as a non-empty string'],
+    [{ reason: ' ' }, 'reason'],
+  ])('throws on a bad unclear groom.json %#', async (over, message) => {
+    await expect(runStage(fakeCtx(verdict({}), [], [], { verdict: 'unclear', questions: ['Which horn?'], ...over }), 7)).rejects.toThrow(message);
+    expect(calls.filter((call) => /^(comment|addLabel|message)/.test(call))).toEqual([]);
   });
 
   it('throws when triage.json is missing', async () => {
@@ -221,9 +249,6 @@ describe('triage stage', () => {
     ['[]', 'unknown verdict'],
     [verdict({ verdict: 'maybe' }), 'unknown verdict: maybe'],
     [verdict({ reason: '' }), 'reason'],
-    [verdict({ verdict: 'unclear', questions: [] }), 'at least one'],
-    [verdict({ verdict: 'unclear', questions: [3] }), 'at least one'],
-    [JSON.stringify({ verdict: 'unclear', reason: 'x' }), 'at least one'],
     [JSON.stringify({ verdict: 'ready', reason: 'x' }), 'hotfix as true or false'],
     [verdict({ hotfix: 'yes' }), 'hotfix as true or false'],
     [JSON.stringify({ verdict: 'ready', reason: 'x', hotfix: false, releaseFix: false, complexity: 'intermediate', complexityReason: 'y' }), 'bundle as a list of issue numbers'],
@@ -233,11 +258,24 @@ describe('triage stage', () => {
     [verdict({ bundle: [9], hotfix: true }), 'bundles issues into a hotfix'],
     [verdict({ releaseFix: 'yes' }), 'releaseFix as true or false'],
     [verdict({ releaseFix: true }), 'no release takes fixes now'],
-  ])('throws on a bad triage.json %#', async (text, message) => {
+  ])('throws on a bad triage.json of a bug %#', async (text, message) => {
     cards = [card(7, 'Triage'), card(9, 'Triage')];
-    await expect(runStage(fakeCtx(text), 7)).rejects.toThrow(message);
+    await expect(runStage(fakeCtx(text, ['bug']), 7)).rejects.toThrow(message);
     expect(calls.filter((call) => /^(comment|move|close|addLabel)/.test(call))).toEqual([]);
     expect(readState(`${home}/state.json`).bundles).toEqual({});
+  });
+
+  it('passes a non-bug to grooming on the verdict and reason alone', async () => {
+    await runStage(fakeCtx(JSON.stringify({ verdict: 'ready', reason: 'Asks for a horn.' }), [], [], { complexity: 'intermediate', complexityReason: 'Horn code.', bundle: [], releaseFix: false }), 7);
+    expect(calls).toContain('agent opus');
+    expect(calls.at(-1)).toBe('move 7 Design');
+  });
+
+  it('tells Haiku whether the issue is labeled a bug', async () => {
+    await runStage(fakeCtx(verdict({})), 7);
+    expect(prompt).toContain('It is not labeled as a bug, so it is a request for a feature or a change.');
+    await runStage(fakeCtx(verdict({}), ['bug']), 7);
+    expect(prompt).toContain('It is labeled as a bug report.');
   });
 });
 
@@ -282,23 +320,23 @@ describe('triage release fixes', () => {
   });
 
   it('drops the dev clone of a hotfix, so Design branches it from main', async () => {
-    await runStage(fakeCtx(verdict({ hotfix: true })), 7);
+    await runStage(fakeCtx(verdict({ hotfix: true }), ['bug']), 7);
     expect(existsSync(`${home}/work/issue-7`)).toBe(false);
   });
 
   it('refuses a hotfix that is also a release fix', async () => {
     openRelease(null);
-    await expect(runStage(fakeCtx(verdict({ hotfix: true, releaseFix: true })), 7)).rejects.toThrow('marks a hotfix as a release fix');
+    await expect(runStage(fakeCtx(verdict({ hotfix: true, releaseFix: true }), ['bug']), 7)).rejects.toThrow('marks a hotfix as a release fix');
   });
 });
 
 const triageComments = (): string[] => calls.filter((call) => call.startsWith('comment 7') && !call.startsWith('comment 7 ## Groomed request'));
 
 describe('triage vote', () => {
-  const vote = (over: Record<string, unknown> = {}): string => verdict({ verdict: 'vote', reason: 'A new system that players should choose.', ...over });
+  const vote = (over: Record<string, unknown> = {}): Ctx => fakeCtx(verdict({}), [], [], { verdict: 'vote', reason: 'A new system that players should choose.', ...over });
 
   it('labels the card, stores the composed Russian pitch, comments once and leaves the card in Triage', async () => {
-    await runStage(fakeCtx(vote({ complexity: 'trivial', complexityReason: 'One constant.' })), 7);
+    await runStage(vote({ complexity: 'trivial', complexityReason: 'One constant.' }), 7);
     expect(calls).toContain('addLabel 7 design-sonnet');
     expect(calls).toContain('addLabel 7 voting');
     const comments = triageComments();
@@ -312,7 +350,7 @@ describe('triage vote', () => {
   });
 
   it('adds the voting label before it writes the proposal row, and comments after both', async () => {
-    const ctx = fakeCtx(vote());
+    const ctx = vote();
     const seen: string[] = [];
     const add = ctx.github.addLabel;
     ctx.github.addLabel = async (number: number, label: string) => {
@@ -335,7 +373,7 @@ describe('triage vote', () => {
   });
 
   it('writes no row and no triage comment when adding the voting label fails, so a rerun starts clean', async () => {
-    const ctx = fakeCtx(vote());
+    const ctx = vote();
     ctx.github.addLabel = async () => { throw new Error('GitHub down'); };
     await expect(runStage(ctx, 7)).rejects.toThrow('GitHub down');
     const store = openStore(home);
@@ -346,17 +384,25 @@ describe('triage vote', () => {
 
   it('adds the bundle like ready', async () => {
     cards = [card(7, 'Triage'), card(9, 'Triage')];
-    await runStage(fakeCtx(vote({ bundle: [9] })), 7);
+    await runStage(vote({ bundle: [9] }), 7);
     expect(calls).toContain('addLabel 9 bundled');
     expect(calls).toContain('move 9 Done');
     expect(readState(`${home}/state.json`).bundles['7']).toEqual([9]);
   });
 
+  it('makes a voted feature no hotfix, whatever Haiku wrote', async () => {
+    await runStage(fakeCtx(verdict({ hotfix: true }), [], [], { verdict: 'vote', reason: 'New.' }), 7);
+    expect(calls).not.toContain('addLabel 7 hotfix');
+    expect(calls).toContain('addLabel 7 voting');
+  });
+
   it.each([
-    [{ hotfix: true }, 'hotfix'],
-    [{ releaseFix: true }, 'release fix'],
-  ])('refuses a bad vote %#', async (over, message) => {
-    await expect(runStage(fakeCtx(vote(over)), 7)).rejects.toThrow(message);
+    [{ bundle: [11] }, 'bundles #11, which is not an offered Triage card'],
+    [{ bundle: undefined }, 'bundle as a list of issue numbers'],
+    [{ releaseFix: undefined }, 'releaseFix as true or false'],
+    [{ releaseFix: true }, 'no release takes fixes now'],
+  ])('refuses a bad groom.json bundle or release fix %#', async (over, message) => {
+    await expect(runStage(vote(over), 7)).rejects.toThrow(message);
   });
 
   it.each([
@@ -368,15 +414,8 @@ describe('triage vote', () => {
     [{ verdict: 'maybe' }, 'unknown verdict: maybe'],
     [{ complexity: 'huge' }, 'complexity as trivial'],
   ])('refuses a bad groom.json %#', async (over, message) => {
-    await expect(runStage(fakeCtx(vote(), [], [], over), 7)).rejects.toThrow(message);
+    await expect(runStage(vote(over), 7)).rejects.toThrow(message);
     expect(calls.filter((call) => /^(comment|move|close|addLabel)/.test(call))).toEqual([]);
-    const store = openStore(home);
-    expect(store.proposal(7)).toBeNull();
-    store.close();
-  });
-
-  it('refuses a vote on a bug', async () => {
-    await expect(runStage(fakeCtx(vote(), ['bug']), 7)).rejects.toThrow('bug');
     const store = openStore(home);
     expect(store.proposal(7)).toBeNull();
     store.close();
@@ -394,7 +433,7 @@ describe('triage grooming', () => {
 
   it('shows dropped or changed points on the issue and in the pitch', async () => {
     const changed = ['Rest: the game has no rest action.'];
-    await runStage(fakeCtx(verdict({ verdict: 'vote', reason: 'New.' }), [], [], { changed, pitch: { ...RU_PITCH, changed: ['Отдыха в игре нет.'] } }), 7);
+    await runStage(fakeCtx(verdict({}), [], [], { verdict: 'vote', reason: 'New.', changed, pitch: { ...RU_PITCH, changed: ['Отдыха в игре нет.'] } }), 7);
     expect(calls.find((call) => call.startsWith('comment 7 ## Groomed request'))).toContain('Dropped or changed: \n- Rest: the game has no rest action.');
     const store = openStore(home);
     expect(store.proposal(7)?.pitch).toContain('Что изменено в запросе:\n- Отдыха в игре нет.');
@@ -410,11 +449,10 @@ describe('triage grooming', () => {
     expect(groomPrompt).not.toContain('{{');
   });
 
-  it('skips grooming for a bug, a hotfix label and a hotfix verdict', async () => {
+  it('skips grooming for a bug and a hotfix label', async () => {
     await runStage(fakeCtx(verdict({}), ['bug']), 7);
     await runStage(fakeCtx(verdict({}), ['hotfix']), 7);
-    await runStage(fakeCtx(verdict({ hotfix: true })), 7);
-    expect(calls.filter((call) => call.startsWith('agent'))).toEqual(['agent haiku', 'agent haiku', 'agent haiku']);
+    expect(calls.filter((call) => call.startsWith('agent'))).toEqual(['agent haiku', 'agent haiku']);
     expect(calls.some((call) => call.includes('## Groomed request'))).toBe(false);
   });
 
@@ -443,14 +481,14 @@ describe('triage grooming', () => {
     store.close();
   });
 
-  it('lets grooming turn a vote into a ready request', async () => {
-    await runStage(fakeCtx(verdict({ verdict: 'vote', reason: 'New.' }), [], [], { verdict: 'ready', reason: 'A fairer value.' }), 7);
+  it('takes the reason of a ready request from grooming', async () => {
+    await runStage(fakeCtx(verdict({}), [], [], { verdict: 'ready', reason: 'A fairer value.' }), 7);
     expect(calls.find((call) => call.startsWith('comment 7 Triage passed:'))).toContain('A fairer value.');
     expect(calls.at(-1)).toBe('move 7 Design');
   });
 
   it('refuses a request the game already covers, and saves nothing for design', async () => {
-    await runStage(fakeCtx(verdict({ verdict: 'vote', reason: 'New.' }), [], [], { verdict: 'wont-do', reason: 'Scavenging already pays early money.' }), 7);
+    await runStage(fakeCtx(verdict({}), [], [], { verdict: 'wont-do', reason: 'Scavenging already pays early money.' }), 7);
     expect(calls).toContain('comment 7 Scavenging already pays early money.');
     expect(calls).toContain('close 7 not planned');
     expect(calls.at(-1)).toBe('move 7 Done');
@@ -466,9 +504,19 @@ describe('triage grooming', () => {
     await expect(runStage(fakeCtx(verdict({}), [], [], null), 7)).rejects.toThrow('no .factory/groom.json');
   });
 
-  it('tells Haiku not to refuse a non-bug on fit', async () => {
+  it('tells Haiku to only filter, and the groomer to decide and ask in one set', async () => {
     await runStage(fakeCtx(verdict({})), 7);
-    expect(prompt).toContain('never refuse such a request because it does not fit the game as written');
+    expect(prompt).toContain('Never refuse a request that is not a bug because it does not fit the game as written.');
+    expect(prompt).toContain('You never ask the author questions.');
+    expect(groomPrompt).toContain('You decide everything else: the verdict, the bundle, the release fix and the complexity.');
+    expect(groomPrompt).toContain('Put every open question in this one set');
+  });
+
+  it('bundles what grooming picks, not what Haiku wrote', async () => {
+    cards = [card(7, 'Triage'), card(9, 'Triage')];
+    await runStage(fakeCtx(verdict({ bundle: [9] }), [], [], { bundle: [] }), 7);
+    expect(calls).not.toContain('addLabel 9 bundled');
+    expect(readState(`${home}/state.json`).bundles).toEqual({});
   });
 });
 
@@ -502,36 +550,22 @@ describe('triage bundles', () => {
     expect(readState(`${home}/state.json`).bundles).toEqual({ '7': [9, 10] });
   });
 
-  describe('visual-reference gate for a new location', () => {
-    const ask = verdict({ verdict: 'unclear', reason: 'A new location needs a reference image.', questions: ['Can you upload a reference image of the junkyard on this issue?'] });
-
-    it('tells the agent to ask for an image when a new location has none, without wont-do', async () => {
-      await runStage(fakeCtx(ask), 7);
-      expect(prompt).toContain('Visual-reference gate.');
-      expect(prompt).toContain('NEW authored gameplay location or landmark');
-      expect(prompt).toContain('the verdict is `unclear`. Ask one short question');
-      expect(prompt).toContain('Never pick `wont-do` only because the image is missing.');
-      expect(prompt).toContain('upload it again');
+  describe('reference image for a new location', () => {
+    it('tells the groomer to ask for an image when a new location has none, without wont-do', async () => {
+      await runStage(fakeCtx(verdict({})), 7);
+      expect(groomPrompt).toContain('A request for a NEW authored gameplay location or landmark needs a reference image of the place.');
+      expect(groomPrompt).toContain('This does not apply to a change to an existing location, a generic biome or procedural-system change, or any other request.');
+      expect(groomPrompt).toContain('Never ask for one again after an earlier set asked for it.');
+      expect(groomPrompt).toContain('Never pick `wont-do` only because the image is missing.');
+      expect(groomPrompt).toContain('upload it again');
+      expect(prompt).not.toContain('reference image of');
     });
 
     it('comments the question, labels needs-info and keeps the card in Triage', async () => {
-      await runStage(fakeCtx(ask), 7);
+      await runStage(unclear(['Can you upload a reference image of the junkyard on this issue?']), 7);
       expect(calls.find((call) => call.startsWith('comment 7 ## Questions from the factory'))).toContain('1. Can you upload a reference image of the junkyard on this issue?');
       expect(calls).toContain('addLabel 7 needs-info');
       expect(calls.filter((call) => /^(move|close)/.test(call))).toEqual([]);
-    });
-
-    it('proceeds to Design with normal triage once an image exists, and never asks again', async () => {
-      await runStage(fakeCtx(verdict({})), 7);
-      expect(prompt).toContain('never ask for one again');
-      expect(calls.at(-1)).toBe('move 7 Design');
-      expect(calls).not.toContain('addLabel 7 needs-info');
-    });
-
-    it('leaves repairs, biome changes and unrelated requests out of the gate', async () => {
-      await runStage(fakeCtx(verdict({})), 7);
-      expect(prompt).toContain('It does not apply to a repair or adjustment of an existing location, a generic biome or procedural-system change, or any other request.');
-      expect(calls.at(-1)).toBe('move 7 Design');
     });
   });
 });

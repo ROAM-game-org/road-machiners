@@ -5,15 +5,18 @@ import { readState, updateState } from '../state';
 import { BRANCH, BUG_LABEL, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, OUT_DIR, RELEASE_TASK_LABEL, ROUTING_MARK, VOTING_LABEL, WONT_DO_LABEL, type Ctx, type FactoryState, type ReleaseState } from '../types';
 import { addToBundle, bundleCandidates } from './bundle';
 import { BASE_BRANCH, agentHome, askAuthor, fillPrompt, prepareOutputs, readOutput, runAgent, workDir, writeIssueInput } from './common';
-import { forgetGroomed, groom, type Complexity, type Pitch, type Routing } from './groom';
+import { forgetGroomed, groom, readBundle, readReleaseFix, type Complexity, type Pitch, type Routing } from './groom';
 import { featureLine, recordReleaseTask, releaseFeatures } from './release-common';
 
 type Ready = { verdict: 'ready'; reason: string; hotfix: boolean; releaseFix: boolean; routing: Routing; bundle: number[] };
-type Proposed = Omit<Ready, 'verdict'> & { verdict: 'vote' };
-type Vote = Omit<Proposed, 'verdict'> & { verdict: 'vote'; pitch: Pitch };
+type Vote = Omit<Ready, 'verdict'> & { verdict: 'vote'; pitch: Pitch };
 type Refusal = { verdict: 'wont-do'; reason: string };
-type Triaged = Ready | Proposed | Refusal | { verdict: 'unclear'; reason: string; questions: string[] };
-type Verdict = Ready | Vote | Refusal;
+type Unclear = { verdict: 'unclear'; reason: string; questions: string[] };
+type Filtered = Ready | Refusal | { verdict: 'groom' };
+type Verdict = Ready | Vote | Refusal | Unclear;
+
+const BUG_KIND = 'It is labeled as a bug report.';
+const FEATURE_KIND = 'It is not labeled as a bug, so it is a request for a feature or a change.';
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const clone = workDir(ctx, issue);
@@ -28,11 +31,8 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   await writeRelated(ctx, home, candidates);
   const release = fixableRelease(state);
   await writeRelease(ctx, home, release);
-  await runAgent(ctx, issue, 'triage', 'triage', fillPrompt('triage', { issue: String(issue) }), { effort: ctx.cfg.triageEffort });
-  const { labels } = await ctx.github.issue(issue);
-  const triaged = parseVerdict(readOutput(home, 'triage.json'), candidates, release, labels);
-  if (triaged.verdict === 'unclear') return askAuthor(ctx, issue, triaged.questions, 'triage');
-  const result = triaged.verdict === 'wont-do' ? triaged : await finalVerdict(ctx, issue, home, triaged, labels);
+  const result = await decide(ctx, issue, home, candidates, release);
+  if (result.verdict === 'unclear') return askAuthor(ctx, issue, result.questions, 'triage', result.reason);
   if (result.verdict === 'ready') return ready(ctx, issue, result, release);
   if (result.verdict === 'vote') return vote(ctx, issue, result);
   await ctx.github.comment(issue, result.reason);
@@ -41,19 +41,18 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   await moveCard(ctx, issue, 'Done', 'triage-wont-do');
 }
 
-const groomable = (labels: string[], work: Work): boolean => !labels.includes(BUG_LABEL) && !labels.includes(HOTFIX_LABEL) && !work.hotfix;
+async function decide(ctx: Ctx, issue: number, home: string, candidates: number[], release: ReleaseState | null): Promise<Verdict> {
+  const { labels } = await ctx.github.issue(issue);
+  const bug = labels.includes(BUG_LABEL) || labels.includes(HOTFIX_LABEL);
+  await runAgent(ctx, issue, 'triage', 'triage', fillPrompt('triage', { issue: String(issue), kind: bug ? BUG_KIND : FEATURE_KIND }), { effort: ctx.cfg.triageEffort });
+  const filtered = parseFilter(readOutput(home, 'triage.json'), candidates, release, bug);
+  return filtered.verdict === 'groom' ? groomed(ctx, issue, home, candidates, release) : filtered;
+}
 
-async function finalVerdict(ctx: Ctx, issue: number, home: string, triaged: Ready | Proposed, labels: string[]): Promise<Verdict> {
-  if (!groomable(labels, triaged)) {
-    if (triaged.verdict === 'vote') throw new Error('triage.json puts a bug or a hotfix to a vote');
-    return triaged;
-  }
-  const groomed = await groom(ctx, issue, home);
-  const work = { hotfix: triaged.hotfix, releaseFix: triaged.releaseFix, bundle: triaged.bundle };
-  if (groomed.verdict === 'wont-do') return groomed;
-  if (groomed.verdict === 'ready') return { ...work, verdict: 'ready', reason: groomed.reason, routing: groomed.routing };
-  if (work.releaseFix) throw new Error('groom.json puts a release fix to a vote');
-  return { ...work, verdict: 'vote', reason: groomed.reason, routing: groomed.routing, pitch: groomed.pitch };
+async function groomed(ctx: Ctx, issue: number, home: string, candidates: number[], release: ReleaseState | null): Promise<Verdict> {
+  const result = await groom(ctx, issue, home, { candidates, release });
+  if (result.verdict === 'wont-do' || result.verdict === 'unclear') return result;
+  return { ...result, hotfix: false };
 }
 
 async function ready(ctx: Ctx, issue: number, result: Ready, release: ReleaseState | null): Promise<void> {
@@ -147,14 +146,13 @@ async function writeRelated(ctx: Ctx, home: string, candidates: number[]): Promi
 
 type Work = Pick<Ready, 'hotfix' | 'releaseFix' | 'routing' | 'bundle'>;
 
-function parseVerdict(text: string | null, candidates: number[], release: ReleaseState | null, labels: string[]): Triaged {
+function parseFilter(text: string | null, candidates: number[], release: ReleaseState | null, bug: boolean): Filtered {
   const fields = readFields(text);
+  if (!bug && fields.verdict !== 'wont-do') return { verdict: 'groom' };
   const kind = readKind(fields.verdict);
   const why = readReason(fields.reason);
   if (kind === 'wont-do') return { verdict: kind, reason: why };
-  if (kind === 'unclear') return { verdict: kind, reason: why, questions: readQuestions(fields.questions) };
-  const work = readWork(fields, candidates, release);
-  return kind === 'ready' ? readReady(why, work) : readVote(why, work, labels);
+  return readReady(why, readWork(fields, candidates, release));
 }
 
 function readFields(text: string | null): Record<string, unknown> {
@@ -165,11 +163,11 @@ function readFields(text: string | null): Record<string, unknown> {
 }
 
 function readWork(fields: Record<string, unknown>, candidates: number[], release: ReleaseState | null): Work {
-  return { hotfix: readHotfix(fields.hotfix), releaseFix: readReleaseFix(fields.releaseFix, release), routing: readRouting(fields.complexity, fields.complexityReason), bundle: readBundle(fields.bundle, candidates) };
+  return { hotfix: readHotfix(fields.hotfix), releaseFix: readReleaseFix(fields.releaseFix, release, 'triage.json'), routing: readRouting(fields.complexity, fields.complexityReason), bundle: readBundle(fields.bundle, candidates, 'triage.json') };
 }
 
-function readKind(value: unknown): 'ready' | 'vote' | 'wont-do' | 'unclear' {
-  if (value === 'ready' || value === 'vote' || value === 'wont-do' || value === 'unclear') return value;
+function readKind(value: unknown): 'ready' | 'wont-do' {
+  if (value === 'ready' || value === 'wont-do') return value;
   throw new Error(`triage.json has an unknown verdict: ${String(value)}`);
 }
 
@@ -184,28 +182,6 @@ function readReady(reason: string, work: Work): Ready {
   return { verdict: 'ready', reason, ...work };
 }
 
-function readVote(reason: string, work: Work, labels: string[]): Proposed {
-  if (work.hotfix) throw new Error('triage.json puts a hotfix to a vote');
-  if (work.releaseFix) throw new Error('triage.json puts a release fix to a vote');
-  if (labels.includes(BUG_LABEL)) throw new Error('triage.json puts a bug to a vote');
-  return { verdict: 'vote', reason, ...work };
-}
-
-function readReleaseFix(value: unknown, release: ReleaseState | null): boolean {
-  if (typeof value !== 'boolean') throw new Error('triage.json needs releaseFix as true or false for a ready verdict');
-  if (value && release === null) throw new Error('triage.json marks a release fix, but no release takes fixes now');
-  return value;
-}
-
-function readBundle(value: unknown, candidates: number[]): number[] {
-  if (!Array.isArray(value) || !value.every((item) => Number.isInteger(item))) throw new Error('triage.json needs bundle as a list of issue numbers for a ready verdict');
-  const bundle = value as number[];
-  const stray = bundle.find((issue) => !candidates.includes(issue));
-  if (stray !== undefined) throw new Error(`triage.json bundles #${stray}, which is not an offered Triage card`);
-  if (new Set(bundle).size !== bundle.length) throw new Error('triage.json bundles an issue twice');
-  return bundle;
-}
-
 function readHotfix(value: unknown): boolean {
   if (typeof value !== 'boolean') throw new Error('triage.json needs hotfix as true or false for a ready verdict');
   return value;
@@ -215,10 +191,4 @@ function readRouting(complexity: unknown, why: unknown): Routing {
   if (complexity !== 'trivial' && complexity !== 'intermediate' && complexity !== 'hard') throw new Error('triage.json needs complexity as trivial, intermediate or hard for a ready verdict');
   if (typeof why !== 'string' || why.trim() === '') throw new Error('triage.json needs a non-empty complexityReason for a ready verdict');
   return { complexity, why: why.trim() };
-}
-
-function readQuestions(value: unknown): string[] {
-  const valid = Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === 'string' && item.trim() !== '');
-  if (!valid) throw new Error('triage.json needs at least one non-empty question for an unclear verdict');
-  return (value as string[]).map((question) => question.trim());
 }
