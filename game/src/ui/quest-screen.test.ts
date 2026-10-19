@@ -106,6 +106,14 @@ describe('loadArt', () => {
     expect(img.style.visibility).toBe('hidden');
   });
 
+  it('crops around the focus point both ways, so the zoom keeps it in place', () => {
+    const art = QUEST_ART[key]!;
+    const focus = `${art.focusX}% ${art.focusY}%`;
+    loadArt(key);
+    expect(img.style.objectPosition).toBe(focus);
+    expect(img.style.transformOrigin).toBe(focus);
+  });
+
   it('swallows a decode failure', async () => {
     img = fakeImage(() => Promise.reject(new Error('EncodingError')));
     loadArt(key);

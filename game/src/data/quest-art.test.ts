@@ -9,4 +9,11 @@ describe('quest art', () => {
       .map(([key]) => key);
     expect(missing).toEqual([]);
   });
+
+  it('gives every picture a whole-percent focus point', () => {
+    const bad = Object.entries(QUEST_ART)
+      .filter(([, art]) => [art.focusX, art.focusY].some((n) => !Number.isInteger(n) || n < 0 || n > 100))
+      .map(([key]) => key);
+    expect(bad).toEqual([]);
+  });
 });
