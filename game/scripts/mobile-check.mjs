@@ -735,6 +735,13 @@ async function landscapeJourney(browser, storage, orientation = 'landscape', uiS
     await page.waitForFunction((t) => window.__ROAM__.state.turn > t, turn, { timeout: STEP_LIMIT_MS * 4 });
     await page.waitForFunction(() => !window.__ROAM__.anim, null, { timeout: STEP_LIMIT_MS * 4 });
   }, async () => ((await game(page, () => window.__ROAM__.state.turn)) > turn ? true : 'turn did not grow'));
+  await game(page, async () => {
+    const g = window.__ROAM__;
+    const c = await import('/src/sim/cheats.ts');
+    g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
+    g.follow.recenter();
+  });
+  await page.waitForTimeout(800);
   await inventoryByTouch(session, step);
   await characterByTouch(session, step);
   await drawersAndMenus(session, step);
