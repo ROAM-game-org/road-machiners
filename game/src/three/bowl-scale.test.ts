@@ -160,3 +160,25 @@ describe('the weigher at the Bowl gate yard', () => {
     expect(next.player.quests.session).toBeNull();
   });
 });
+
+describe('Back from the Nose garage', () => {
+  const backFromGarage = (w: World): World => pickTownSection(pickTownSection(w, null, 'garage'), 'garage', null);
+
+  it('opens the counter scene', () => {
+    expect(backFromGarage(parkAt(quietWorld(), 'nose')).player.quests.session?.quest).toBe('nose_counter');
+  });
+
+  it('reopens nothing after a save and load', () => {
+    const slots = new SaveSlots(memoryBackend(), new Map());
+    const w = talkThrough(backFromGarage(parkAt(quietWorld(), 'nose')));
+    w.events = [];
+    writeSave(slots, 'auto', w, 'run', 1);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP);
+    if (!loaded) throw new Error('The save did not load');
+    expect(loaded.player.quests.world).toEqual(w.player.quests.world);
+    expect(loaded.player.money).toBe(w.player.money);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.events).toEqual([]);
+    expect(backFromGarage(finishQuest(loaded)).player.quests.session).toBeNull();
+  });
+});

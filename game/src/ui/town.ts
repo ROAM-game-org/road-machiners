@@ -50,7 +50,7 @@ import { ArtBand } from "./art-band";
 import { callError } from "./dialogue";
 import { TOWN_ART } from "../data/quest-art";
 import { TOWN_SECTIONS, type TownSection } from "../data/quests";
-import { barDrivers, pickTownSection, townSections } from "../sim/quests";
+import { barDrivers, pickTownSection, townSections, type SectionAccess } from "../sim/quests";
 import { callVehicle } from "../sim/dialogue";
 import { hostileToPlayer } from "../sim/world";
 import { claimRivalMark, contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
@@ -61,7 +61,7 @@ import type { UiHost } from "./host";
 import { coinEl, fuelLiters, kph, moneyEl, moneyMsg, moneyNum } from "./units";
 import { fuelCap, suppliesCap, vehicleStats } from "../sim/stats";
 import { list, num, PLUS, SPACE, t, type Msg } from "../text/msg";
-import { driverName, factionName, goodName, localName, localRole, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
+import { driverName, factionName, goodName, localName, localRole, placeProse, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
 import { commandFailure, stanceTag } from "./format";
 import { vehicleHasPerk } from "../sim/progress";
 
@@ -79,21 +79,37 @@ const GARAGE_ONLY: GarageTab[] = ["trucks"];
 
 const PRESSURE_HINT_AT = 0.2;
 
-const SECTION_KEYS: Record<string, TownSection> = Object.fromEntries(TOWN_SECTIONS.map((section, i) => [`Digit${i + 1}`, section]));
+const CHOICE_KEYS = ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7", "Digit8", "Digit9"];
+
+type TownPage = TownSection | null;
+
+type ClosedAt = { shopId: string; turn: number };
+
+type TownChoice = { id: string; label: Msg; reason: Msg | null; go: () => void };
+
+export type TownFrame = { band: HTMLElement; heading: Msg; art: string | null };
+
+export function townPageOnOpen(kept: TownPage, closedAt: ClosedAt | null, shopId: string, turn: number, access: Record<TownSection, SectionAccess>): TownPage {
+  if (kept === null || closedAt === null) return null;
+  if (closedAt.shopId !== shopId || closedAt.turn !== turn) return null;
+  return access[kept].open ? kept : null;
+}
 
 export class TownScreen {
   private root = panel("modal dialog");
-  private section: TownSection = "market";
+  private page: TownPage = null;
+  private closedAt: ClosedAt | null = null;
   private garageTab: GarageTab = "buyParts";
   private stockFilter: StockFilter = "all";
   private error: Msg | null = null;
+  private choices: TownChoice[] = [];
   private rows = new PartRows(() => this.render());
   private band = new ArtBand();
 
   private inventory: InventoryView;
 
   constructor(private host: UiHost) {
-    this.root.classList.add("town-screen", "town-page");
+    this.root.classList.add("town-screen", "town-page", "ink-page");
     this.root.style.display = "none";
     window.addEventListener("resize", () => this.render());
     window.addEventListener("keydown", (e) => this.onKey(e), true);
@@ -105,29 +121,48 @@ export class TownScreen {
   }
 
   open(): void {
-    if (shopAt(this.host.world())) this.host.apply(enterTown(this.host.world()));
+    const shopId = shopAt(this.host.world());
+    if (shopId) this.host.apply(enterTown(this.host.world()));
     this.root.style.display = "";
     this.error = null;
     this.rows.collapse();
-    this.normalizeSection();
-    this.run((w) => pickTownSection(w, null, this.section), true);
+    const w = this.host.world();
+    this.page = shopId ? townPageOnOpen(this.page, this.closedAt, shopId, w.turn, townSections(w, shopId)) : null;
+    this.normalizeGarageTab();
+    const page = this.page;
+    if (page === null) return this.render();
+    this.run((x) => pickTownSection(x, null, page), true);
   }
 
   close(): void {
+    if (this.isOpen()) {
+      const w = this.host.world();
+      const shopId = shopAt(w);
+      this.closedAt = shopId ? { shopId, turn: w.turn } : null;
+    }
     this.inventory.clearSelection();
     this.band.clear();
     this.root.style.display = "none";
+    this.root.classList.remove("under-quest");
     this.root.replaceChildren();
   }
 
-  leave(): void {
+  back(): void {
     if (!this.isOpen()) return;
-    try {
-      this.host.announce(pickTownSection(this.host.world(), this.section, null));
-    } catch {
-      this.error = null;
-    }
-    this.close();
+    const from = this.page;
+    if (from === null) return this.close();
+    this.page = null;
+    this.rows.collapse();
+    this.run((x) => pickTownSection(x, from, null), true);
+  }
+
+  frame(): TownFrame {
+    if (!this.isOpen()) throw new Error("The town page is closed, so a quest cannot borrow its frame");
+    const w = this.host.world();
+    const shopId = shopAt(w);
+    if (!shopId) throw new Error("The town page is open away from a shop");
+    const art = this.artKey(shopId);
+    return { band: this.bandOf(w, shopId, art), heading: this.heading(shopId), art };
   }
 
   render(): void {
@@ -136,36 +171,45 @@ export class TownScreen {
   }
 
   private onKey(e: KeyboardEvent): void {
-    const section = SECTION_KEYS[e.code];
-    if (!section || !this.isOpen() || isBrowserChord(e) || e.repeat) return;
-    const w = this.host.world();
-    if (w.player.call || w.player.quests.live) return;
+    const index = CHOICE_KEYS.indexOf(e.code);
+    if (index < 0 || !this.takesKeys(e)) return;
     e.stopImmediatePropagation();
     e.preventDefault();
-    this.pick(section);
+    this.pickChoice(index);
   }
 
-  private normalizeSection(): void {
+  private takesKeys(e: KeyboardEvent): boolean {
+    if (!this.isOpen() || isBrowserChord(e) || e.repeat) return false;
     const w = this.host.world();
-    const shopId = shopAt(w);
-    if (!shopId || !townSections(w, shopId)[this.section].open) this.section = "market";
+    return !w.player.call && !w.player.quests.live;
+  }
+
+  private pickChoice(index: number): void {
+    const choice = this.choices[index];
+    if (!choice) return;
+    if (!choice.reason) return choice.go();
+    this.error = choice.reason;
+    this.render();
+  }
+
+  private normalizeGarageTab(): void {
+    const shopId = shopAt(this.host.world());
     const def = shopId ? shopDef(shopId) : null;
     if (def && def.kind !== "garage" && GARAGE_ONLY.includes(this.garageTab)) this.garageTab = "buyParts";
   }
 
-  private pick(to: TownSection): void {
+  private go(to: TownSection): void {
     const w = this.host.world();
     const shopId = shopAt(w);
-    if (!shopId || to === this.section) return;
+    if (!shopId) throw new Error("A town page choice was picked away from a shop");
     const access = townSections(w, shopId)[to];
     if (!access.open) {
       this.error = sectionReason(access.reason);
       return this.render();
     }
-    const from = this.section;
-    this.section = to;
+    this.page = to;
     this.rows.collapse();
-    this.run((x) => pickTownSection(x, from, to), true);
+    this.run((x) => pickTownSection(x, null, to), true);
     this.rows.toTop(this.root);
   }
 
@@ -173,55 +217,69 @@ export class TownScreen {
     const w = this.host.world();
     const shopId = shopAt(w);
     if (!shopId) return this.close();
-    const def = shopDef(shopId);
-    this.normalizeSection();
-    const parts: HTMLElement[] = [this.head(w, shopId, def), el("div", { class: "tabs town-sections" }, ...this.sectionButtons(w, shopId))];
-    if (this.error) parts.push(el("div", { class: "bad town-status" }, this.error));
-    const truck = this.splitSection() ? el("div", { class: "town-truck" }, this.inventory.render()) : null;
-    parts.push(el("div", { class: "town-body" }, this.sectionBody(w, shopId, def, truck)));
-    this.root.replaceChildren(...parts);
+    const underQuest = w.player.quests.live !== null;
+    this.root.classList.toggle("under-quest", underQuest);
+    if (!underQuest) this.drawPage(w, shopId, this.page);
+  }
+
+  private drawPage(w: World, shopId: string, page: TownPage): void {
+    const truck = page === "garage" || page === "market" ? el("div", { class: "town-truck" }, this.inventory.render()) : null;
+    this.choices = page === null ? this.frontChoices(w, shopId) : this.sectionChoices(shopId, page);
+    this.root.replaceChildren(
+      this.bandOf(w, shopId, this.artKey(shopId)),
+      el(
+        "div",
+        { class: "ink-body" },
+        el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(shopId)), el("p", { class: "qt-line" }, proseOf(shopId, page))),
+        page === null ? null : this.sectionPanel(w, shopId, shopDef(shopId), page, truck),
+        el("div", { class: "ink-choices quest-choices" }, ...this.choices.map((c, i) => choiceButton(c, i))),
+        el("div", { class: "ink-status bad" }, this.error),
+      ),
+    );
     if (truck) this.inventory.fitTo(truck);
   }
 
-  private head(w: World, shopId: string, def: ShopDef): HTMLElement {
+  private artKey(shopId: string): string | null {
     const art = TOWN_ART[shopId];
-    const key = art?.sections[this.section] ?? art?.band ?? null;
-    return el(
-      "div",
-      { class: "town-head" },
-      this.band.frame(key),
-      el("div", { class: "town-title" }, el("h3", {}, siteName(shopId)), truckChips(w, { freeCells: def.kind !== "garage" })),
-      el("button", { class: "close", onclick: () => this.leave() }, t("trade.leave")),
-    );
+    return (this.page === null ? null : art?.sections[this.page]) ?? art?.band ?? null;
   }
 
-  private splitSection(): boolean {
-    return this.section === "garage" || this.section === "market";
+  private bandOf(w: World, shopId: string, art: string | null): HTMLElement {
+    const chips = truckChips(w, { freeCells: shopDef(shopId).kind !== "garage" });
+    return el("div", { class: "ink-band" }, this.band.frame(art), el("div", { class: "ink-chips" }, chips));
   }
 
-  private sectionButtons(w: World, shopId: string): HTMLElement[] {
+  private heading(shopId: string): Msg {
+    return this.page === null ? siteName(shopId) : t(`town.section.${this.page}`);
+  }
+
+  private frontChoices(w: World, shopId: string): TownChoice[] {
     const access = townSections(w, shopId);
-    return TOWN_SECTIONS.map((section, i) => {
+    const sections = TOWN_SECTIONS.map((section): TownChoice => {
       const a = access[section];
-      const reason = a.open ? null : sectionReason(a.reason);
-      const button = reasonButton([createIcon(SECTION_ICON[section]), t(`town.section.${section}`)], () => this.pick(section), reason, "", t("town.sectionKey", { n: i + 1 }));
-      button.className = this.section === section ? "on" : "";
-      button.dataset.section = section;
-      return button;
+      return { id: section, label: t(`town.go.${section}`), reason: a.open ? null : sectionReason(a.reason), go: () => this.go(section) };
     });
+    return [...sections, { id: "leave", label: t("town.go.leave"), reason: null, go: () => this.back() }];
   }
 
-  private sectionBody(w: World, shopId: string, def: ShopDef, truck: HTMLElement | null): HTMLElement {
-    if (truck) return el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, this.shopSection(w, shopId, def)));
-    return el("div", { class: "town-column" }, this.shopSection(w, shopId, def));
+  private sectionChoices(shopId: string, page: TownSection): TownChoice[] {
+    const locals = page === "people" ? localsAt(shopId).map((l): TownChoice => ({
+      id: `local:${l.id}`,
+      label: list([localName(l.id), localRole(l.id)]),
+      reason: null,
+      go: () => this.run((w) => startQuest(w, QUESTS, l.quest, "start"), true),
+    })) : [];
+    return [...locals, { id: "back", label: t("town.back"), reason: null, go: () => this.back() }];
   }
 
-  private shopSection(w: World, shopId: string, def: ShopDef): HTMLElement {
-    if (this.section === "garage") return this.garage(w, shopId, def);
-    if (this.section === "market") return this.market(w, shopId, def);
-    if (this.section === "board") return this.contracts(w, shopId);
-    if (this.section === "people") return peopleList(shopId, (cmd) => this.run(cmd, true));
-    return this.bar(w, shopId);
+  private sectionPanel(w: World, shopId: string, def: ShopDef, page: TownSection, truck: HTMLElement | null): HTMLElement | null {
+    if (truck) {
+      const shop = page === "garage" ? this.garage(w, shopId, def) : this.market(w, shopId, def);
+      return el("div", { class: "ink-panel wide" }, el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, shop)));
+    }
+    if (page === "board") return el("div", { class: "ink-panel" }, this.contracts(w, shopId));
+    if (page === "bar") return el("div", { class: "ink-panel" }, this.bar(w, shopId));
+    return null;
   }
 
   private garage(w: World, shopId: string, def: ShopDef): HTMLElement {
@@ -522,14 +580,6 @@ const FILTER_ICON: Record<Exclude<StockFilter, "all" | "weapon">, IconName> = {
 export function filterIcon(f: Exclude<StockFilter, "all">): HTMLElement {
   return f === "weapon" ? createBareItemIcon("mg") : createIcon(FILTER_ICON[f]);
 }
-
-export const SECTION_ICON: Record<TownSection, IconName> = {
-  garage: "parts",
-  market: "salt",
-  board: "clock",
-  people: "driver",
-  bar: "noise",
-};
 
 export const TAB_ICON: Record<Tab, IconName> = {
   people: "driver",
@@ -878,18 +928,14 @@ function partnerChips(npc: Vehicle): HTMLElement {
   );
 }
 
-function peopleList(town: string, run: (cmd: (w: World) => World) => void): HTMLElement {
-  return el(
-    "div",
-    { class: "people" },
-    ...localsAt(town).map((l) =>
-      el(
-        "button",
-        { class: "person", "data-local": l.id, onclick: () => run((w) => startQuest(w, QUESTS, l.quest, "start")) },
-        createIcon("driver"),
-        el("b", {}, localName(l.id)),
-        el("span", { class: "dim" }, localRole(l.id)),
-      ),
-    ),
-  );
+function proseOf(shopId: string, page: TownPage): Msg {
+  return page === null ? placeProse(shopId) : t(`town.line.${page}`);
+}
+
+function choiceButton(c: TownChoice, i: number): HTMLElement {
+  const check = c.reason ? el("span", { class: "quest-check" }, c.reason) : null;
+  const button = reasonButton([check, t("quest.choice", { n: i + 1, text: c.label })], c.go, c.reason);
+  button.classList.add("quest-choice");
+  button.dataset.townGo = c.id;
+  return button;
 }

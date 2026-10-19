@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { pressureHint } from "./town";
+import { pressureHint, townPageOnOpen } from "./town";
 import { shortBy } from "./shop-rows";
 import type { ShopDef } from "../data/market";
 import type { ShopState } from "../sim/market";
@@ -43,5 +43,26 @@ describe("the price hint of a good", () => {
   it("lets a strong price pressure outrank what the shop makes", () => {
     expect(hint(def, state({ salt: 1 }), "salt")).toEqual({ tone: "bad", title: "Short here" });
     expect(hint(def, state({ scrap: -1 }), "scrap")).toEqual({ tone: "good", title: "Flooded here" });
+  });
+});
+
+describe("the town page on open", () => {
+  const open = { open: true } as const;
+  const access = { garage: open, market: open, board: open, people: open, bar: { open: false, reason: "noDrivers" } } as const;
+  const closedAt = { shopId: "nose", turn: 40 };
+
+  it("keeps the page the player left when the place and the turn are the same", () => {
+    expect(townPageOnOpen("garage", closedAt, "nose", 40, access)).toBe("garage");
+  });
+
+  it("opens on the front page after a turn, at another place or into a section now off", () => {
+    expect(townPageOnOpen("garage", closedAt, "nose", 41, access)).toBeNull();
+    expect(townPageOnOpen("garage", closedAt, "bowl", 40, access)).toBeNull();
+    expect(townPageOnOpen("bar", closedAt, "nose", 40, access)).toBeNull();
+  });
+
+  it("opens on the front page on a first visit", () => {
+    expect(townPageOnOpen("garage", null, "nose", 40, access)).toBeNull();
+    expect(townPageOnOpen(null, closedAt, "nose", 40, access)).toBeNull();
   });
 });

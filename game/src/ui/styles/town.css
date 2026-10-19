@@ -1,67 +1,12 @@
-#ui .modal.town-page {
-  top: 40px;
-  width: min(var(--quest-page-width), calc(var(--layer-w) - var(--space-10) * 2));
-  height: min(var(--quest-page-height), calc(var(--layer-h) - var(--quest-page-clearance)));
-  max-height: none;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 0;
-  border-left: 2px solid var(--line);
-  box-shadow: 0 0 0 max(var(--layer-w), var(--layer-h)) var(--scrim);
+.town-page.under-quest {
+  visibility: hidden;
 }
-.town-page .town-head {
-  position: relative;
-  flex: none;
-}
-.town-page .town-title {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  padding: var(--space-8) var(--space-7) var(--space-4);
-  background: linear-gradient(to top, var(--scrim) 40%, transparent);
-}
-.town-page .town-title h3 {
-  margin: 0;
-}
-#ui .town-page .town-head .close {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
-}
-.town-page .town-sections {
-  flex: none;
-  padding: var(--space-4) var(--space-7) 0;
-  margin: 0;
-}
-.town-page .town-status {
-  flex: none;
-  padding: 0 var(--space-7);
-}
-.town-page .town-body {
+.town-page .ink-panel.wide > .town-split {
   flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-4) var(--space-7) var(--space-7);
-}
-.town-page .town-body > .town-split {
   margin-top: 0;
 }
-.town-page .town-column {
-  flex: 1;
-  min-height: 0;
-  width: min(var(--quest-text-width), 100%);
-  margin: 0 auto;
-  overflow: auto;
-  scrollbar-width: thin;
-}
-.town-page .town-column.wide {
-  width: 100%;
+.town-page .ink-panel h3 {
+  margin: var(--space-5) 0 var(--space-3);
 }
 .town-page .bar-list {
   display: flex;
@@ -84,20 +29,4 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--ink-muted);
-}
-.town-page .town-sections [aria-disabled="true"] {
-  opacity: 0.5;
-}
-:where(#ui.phone, #ui.narrow) .town-page .art-band {
-  height: var(--art-band-phone-height);
-}
-:where(#ui.phone, #ui.narrow) .town-page .town-title {
-  position: static;
-  flex-wrap: wrap;
-  gap: var(--space-4) var(--space-6);
-  padding: var(--space-3) var(--space-5);
-  background: none;
-}
-:where(#ui.phone, #ui.narrow) .town-page .town-title h3 {
-  margin-right: auto;
 }
