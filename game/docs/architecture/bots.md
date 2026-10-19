@@ -15,6 +15,7 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 ## Roaming archetypes
 
 - `trader` buys goods where they are cheap and sells them where they are dear. It takes a haul contract only when trade has nothing to do.
+- A bot buys chassis only from the lineup of the town it stands in, and sells or prices a good only at a shop that trades it, so relics go to Nose.
 - `fastTrader` trades like the trader, buys no armor and picks the fastest chassis.
 - `hauler` takes the best haul contract on every board it reads, by pay per estimated turn. It trades only when no contract fits, so it measures contract pay against open trade.
 - `scavenger` scavenges first, then trades, then takes hauls.
