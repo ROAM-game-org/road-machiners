@@ -20,9 +20,10 @@ import { dist, segmentDist, type Vec } from './vec';
 const O = REGION.obstacles;
 export function generateObstacles(world: World, map: BakedMap, fixed: Obstacle[]): Obstacle[] {
   const atlas = atlasOf(map.terrain);
-  const out = mapObstacles(map);
+  const baked = mapObstacles(map);
+  const out = [...baked];
   for (const o of fixed) {
-    if (overlapsAny(out, o.pos, o.r) || !clearOfSites(atlas, o.pos, o.r) || !clearOfDecks(atlas, o.pos, o.r))
+    if (overlapsAny(baked, o.pos, o.r) || !clearOfSites(atlas, o.pos, o.r) || !clearOfDecks(atlas, o.pos, o.r))
       throw new Error(`Obstacle ${o.id} at ${o.pos.x.toFixed(1)}, ${o.pos.y.toFixed(1)} overlaps a prop, a site or a deck`);
     out.push(o);
   }

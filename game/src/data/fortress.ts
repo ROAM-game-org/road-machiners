@@ -27,6 +27,7 @@ export const FORTRESS_SITES: Record<string, FortressSite> = {
   outpost: { shape: 'square', turn: 0, style: 'outpost', roadFort: true },
   scrapjaw: { shape: 'circle', turn: -10, style: 'scrap' },
   kiln: { shape: 'square', turn: 93, style: 'scrap' },
+  'sunward-hollow': { shape: 'circle', turn: 0, style: 'scrap' },
 };
 
 export const NOSE_APRON = { height: 1.25, run: 10, clear: 4, ramp: 4 };

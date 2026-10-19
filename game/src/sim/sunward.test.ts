@@ -16,12 +16,14 @@ import { topGoal } from './npc-activities';
 import { clockOf } from './sun';
 import { refreshVision } from './vision';
 import { discoverSites } from './locations';
-import { spawnAt, spawnNpcs } from './spawn';
+import { isFree, spawnAt, spawnNpcs } from './spawn';
+import { fortressProps, insideCurtain } from './fortress';
+import { siteGap } from './sites';
 import { sunwardDusk, sunwardHunt, sunwardLedger } from './cheats';
 import { generateNpcLoadout } from './npc-loadout';
 import { callVehicle, currentLine, currentOptions } from './dialogue';
 import {
-  advanceSunward, avoidsCrater, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, inFallenSun, planSunward, spawnsAtHollow, duskTurn, hollowBays, hollowObstacles, isHollowObstacle, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
+  advanceSunward, avoidsCrater, fallenSun, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, inFallenSun, planSunward, spawnsAtHollow, duskTurn, hollowBays, hollowObstacles, isHollowObstacle, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
 } from './sunward';
 import type { Vehicle, World } from './types';
 import { dist } from './vec';
@@ -81,6 +83,35 @@ describe('the Hollow', () => {
     const props = w.obstacles.filter(isHollowObstacle);
     expect(props).toEqual(hollowObstacles());
     for (const road of REGION.roads) for (const p of road) expect(dist(p, HOLLOW.pos)).toBeGreaterThan(30);
+  });
+
+  it('is a walled scrap fort with one gate toward the crater, laid by the fortress rule and never by the bake', () => {
+    const fort = hollowObstacles().flatMap((o) => (o.kind === 'landmark' && o.look.startsWith('fortScrap') ? [o] : []));
+    expect(fort.map(({ look, pos, r, yaw }) => ({ look, pos, r, yaw }))).toEqual(fortressProps(HOLLOW.site).map((p) => ({ look: p.kind, pos: p.pos, r: p.r, yaw: p.yaw })));
+    expect(fort.filter((o) => o.look === 'fortScrapGate')).toHaveLength(1);
+    expect(fort.filter((o) => o.look === 'fortScrapTower').length).toBeGreaterThan(4);
+    expect(REGION.locations.some((l) => l.id === HOLLOW.id)).toBe(false);
+    const gate = HOLLOW.site.gates[0];
+    const toGate = Math.atan2(gate.y - HOLLOW.pos.y, gate.x - HOLLOW.pos.x);
+    const toCrater = Math.atan2(fallenSun().pos.y - HOLLOW.pos.y, fallenSun().pos.x - HOLLOW.pos.x);
+    expect(Math.abs(toGate - toCrater)).toBeLessThan(0.25);
+  });
+
+  it('parks every bay inside the curtain and hangs every lamp by a fort piece or a shed', () => {
+    for (const bay of hollowBays()) expect(insideCurtain(HOLLOW.site, bay, 2)).toBe(true);
+    const pieces = hollowObstacles();
+    const lamps = [...HOLLOW.lanterns, HOLLOW.fire].map((l) => ({ x: HOLLOW.pos.x + l.x, y: HOLLOW.pos.y + l.y }));
+    for (const lamp of lamps) expect(Math.min(...pieces.map((o) => dist(o.pos, lamp) - o.r))).toBeLessThan(3);
+  });
+
+  it('stands far out in the wastes, well clear of the Fallen Sun', () => {
+    expect(siteGap(fallenSun(), HOLLOW.pos)).toBeGreaterThanOrEqual(110);
+  });
+
+  it('keeps its walls solid, so no truck spawns or parks in them', () => {
+    const w = standardWorld(5);
+    for (const wall of hollowObstacles().filter((o) => o.kind === 'landmark' && o.look === 'fortScrapWall').slice(0, 5)) expect(isFree(w, wall.pos, 0.9, null)).toBe(false);
+    for (const bay of hollowBays()) expect(isFree(w, bay, 0.9, null)).toBe(true);
   });
 
   it('is found by sight like any place, and only once', () => {

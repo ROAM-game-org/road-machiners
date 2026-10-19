@@ -1,4 +1,5 @@
-import { HOLLOW, SUNWARD } from '../data/sunward';
+import { HOLLOW, SUNWARD, type HollowPiece } from '../data/sunward';
+import { propObstacle } from './mapgen';
 import { REGION, type TerritoryDef } from '../data/region';
 import { RULES } from '../data/rules';
 import { TIME } from '../data/time';
@@ -15,6 +16,7 @@ import { canVehicleSee, grayRadius, tileCenter } from './vision';
 import { fuelCap, suppliesCap } from './stats';
 import { clockOf } from './sun';
 import { isTerritory, siteGap } from './sites';
+import { fortressProps } from './fortress';
 import { territoryGrounds } from './territory';
 import type { NpcActivity, NpcState, Obstacle, SunwardFacts, SunwardHunt, SunwardNight, Vehicle, World } from './types';
 import { hashRandom } from './rng';
@@ -105,8 +107,12 @@ export function membersOf(world: World): Vehicle[] {
 let hollowProps: Obstacle[] | null = null;
 
 export function hollowObstacles(): Obstacle[] {
-  hollowProps ??= HOLLOW.pieces.map((p, i): Obstacle => ({ id: `hollow-${i}`, kind: 'landmark', look: p.look, pos: { x: HOLLOW.pos.x + p.at.x, y: HOLLOW.pos.y + p.at.y }, r: p.r, yaw: p.yaw }));
+  hollowProps ??= [...fortressProps(HOLLOW.site).map((p, i) => propObstacle(p, i)), ...HOLLOW.pieces.map(interiorPiece)].map((o, i) => ({ ...o, id: `hollow-${i}` }));
   return hollowProps.map((o) => ({ ...o, pos: { ...o.pos } }));
+}
+
+function interiorPiece(p: HollowPiece): Obstacle {
+  return { id: p.look, kind: 'landmark', look: p.look, pos: { x: HOLLOW.pos.x + p.at.x, y: HOLLOW.pos.y + p.at.y }, r: p.r, yaw: p.yaw };
 }
 
 export function hollowObstaclesFor(world: Pick<World, 'sunward'>): Obstacle[] {
