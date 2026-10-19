@@ -11,7 +11,7 @@
   scrollbar-width: thin;
 }
 #ui:has(.modal:not([style*="display: none"]))
-  > .panel:not(.modal):not(.toast):not(.instruments):not(.log),
+  > .panel:not(.modal):not(.dialog):not(.options):not(.new-game-block):not(.toast):not(.instruments):not(.log),
 #ui:has(.modal:not([style*="display: none"])) > .right-column > .turn-control,
 #ui:has(.modal:not([style*="display: none"])) > .top-center > .panel:not(.opening-tip) {
   visibility: hidden;
@@ -37,6 +37,12 @@
   z-index: var(--z-over-modal);
 }
 #ui:has(.modal.pinned:not([style*="display: none"])) > .top-right > .game-menu {
+  visibility: visible;
+}
+#ui:has(.modal.quest-screen:not([style*="display: none"])) > .top-right {
+  z-index: var(--z-feedback);
+}
+#ui:has(.modal.quest-screen:not([style*="display: none"])) > .top-right > .game-menu {
   visibility: visible;
 }
 #ui:has(.modal:not([style*="display: none"])) > .bottom-left > .instruments,

@@ -300,7 +300,7 @@ export class Game {
 
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
-    this.screens = new ModalScreens(host);
+    this.screens = new ModalScreens(host, () => this.menu.isOpen());
     this.hud = new Hud({
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
