@@ -52,6 +52,7 @@ The model gives raw material. Before it goes in the quest:
 
 - Check every fact against the lore and the facts you gave. Cut anything the model invented.
 - Cut the length to what the scene needs.
+- Split every semicolon or dash a model left in into two sentences. The voice test rejects them.
 - Cut a tic that repeats from the line before, even if the model liked it.
 - Remove words that agree with the gender of the player, and any count of years.
 - Keep the voice. Fix rhythm and wording only. Do not smooth it into your own style.
