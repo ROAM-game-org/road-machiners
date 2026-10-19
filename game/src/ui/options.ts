@@ -5,6 +5,7 @@ import { el, panel } from "./dom";
 import { LanguageSwitch } from "./language-switch";
 import { OptionSwitch } from "./option-switch";
 import { minimapSetting } from "./minimap-setting";
+import { soundSection, type SoundSettings, type SoundView } from "./sound";
 import { UI_SIZES, uiSize } from "./ui-size";
 
 export class OptionsPanel {
@@ -17,8 +18,9 @@ export class OptionsPanel {
   private languageSwitch: LanguageSwitch | null = null;
   private sizeSwitch: OptionSwitch<number> | null = null;
   private minimapSwitch: OptionSwitch<boolean> | null = null;
+  private soundView: SoundView | null = null;
 
-  constructor(private readonly onClose?: () => void) {}
+  constructor(private readonly sound: SoundSettings, private readonly onClose?: () => void) {}
 
   isOpen(): boolean {
     return this.root !== null;
@@ -36,7 +38,9 @@ export class OptionsPanel {
     this.sizeSwitch = this.sizes(sizeSection);
     const minimapSection = el("section", { class: "options-minimap" }, el("h4", {}, t("options.minimap")));
     this.minimapSwitch = this.minimap(minimapSection);
-    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close")));
+    this.soundView = soundSection(this.sound);
+    const soundBlock = el("section", { class: "options-sound" }, el("h4", {}, t("options.sound")), this.soundView.root);
+    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, soundBlock, el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close")));
     this.root = root;
     window.addEventListener("keydown", this.onKey, true);
     root.querySelector<HTMLElement>('.option-switch > [aria-pressed="true"]')?.focus();
@@ -79,6 +83,8 @@ export class OptionsPanel {
     this.sizeSwitch = null;
     this.minimapSwitch?.dispose();
     this.minimapSwitch = null;
+    this.soundView?.dispose();
+    this.soundView = null;
     window.removeEventListener("keydown", this.onKey, true);
   }
 

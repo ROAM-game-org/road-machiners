@@ -1,6 +1,6 @@
 import { bindAttr, say } from "../text/language";
 import { t } from "../text/msg";
-import { el, panel } from "./dom";
+import { el, panel, rightColumn } from "./dom";
 import { clock, type LogLine } from "./format";
 
 export const LOG_HISTORY = 200;
@@ -34,9 +34,25 @@ function lineRow(l: LogLine): HTMLElement {
   );
 }
 
+export class LogStrip {
+  readonly root = panel("log-strip");
+
+  constructor() {
+    this.root.setAttribute("role", "button");
+    this.root.setAttribute("tabindex", "0");
+    bindAttr(this.root, "aria-label", t("log.panel"));
+  }
+
+  show(line: LogLine): void {
+    this.root.replaceChildren(lineRow(line));
+    bindAttr(this.root, "title", line.text);
+  }
+}
+
 export class LogPanel {
   private book = new LogBook();
-  readonly root = panel("log dock-panel");
+  readonly root = panel("log dock-panel", rightColumn());
+  readonly strip = new LogStrip();
   private box = el("div", { class: "log-lines", tabindex: 0 });
   private toggle = el(
     "button",
@@ -58,6 +74,10 @@ export class LogPanel {
     );
   }
 
+  newest(): LogLine | null {
+    return this.book.lines[0] ?? null;
+  }
+
   get texts(): string[] {
     return this.book.lines.map((line) => say(line.text));
   }
@@ -70,6 +90,7 @@ export class LogPanel {
       this.box.prepend(lineRow(this.book.add(turn, line)));
     }
     while (this.box.children.length > this.book.lines.length) this.box.lastElementChild?.remove();
+    this.strip.show(this.newest()!);
     if (reading) this.box.scrollTop += this.box.scrollHeight - before;
   }
 

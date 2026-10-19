@@ -85,6 +85,7 @@ Every fact on a screen belongs to one tier for the decision that screen serves. 
 - An action sits at the end of the line it changes. A Buy button is inside its row. The turn commits at the bottom right.
 - A choice the game waits for opens a notice at the top center and stops nothing else on screen.
 - A task that takes the whole attention, like a shop or a save, opens a modal in the center.
+- A look screen over a scene: while a talk window or page scene is on view, I, C and J open the inventory, character screen and journal over it in a look-only state. The screen lifts to `--z-over-scene`, with its own scrim, and its world controls are off with one reason, "Not during a scene". Escape closes it and the scene stays at the same paragraph. The Menu button stays on view above the scene (`--z-feedback`), and its save, load, options, help and report panels open over the scene and take every key while they are open; the scene lets the keys through then. On a phone the bar is hidden under the scene, so the scene window shows a row of three icon buttons (`.quest-look`) in its top corner for the same screens.
 - A modal that is the only thing the player can do at that place keeps no Leave button, and its one way out is its action button. The outpost screen behind shut gates is the case: Drive on closes it, and neither Escape nor the game's close-all does. The Menu button stays over it, in the corner the Leave button would take, so saving, options and help stay reachable.
 
 ### 4.2 Zones
@@ -97,7 +98,7 @@ The screen has fixed zones. Each zone has one job, and an element never moves be
 | Top center | Transient and waiting | Action bar at the edge, toast below it, then notices and tips |
 | Top right | System, then the cursor card | Menu and camera switch at the edge, the hover card below them |
 | Right side | Ambient and waiting on | Radio, then contracts |
-| Bottom right | Events and commit | Log above End turn |
+| Bottom right | Events and commit | Log above End turn, one stack |
 | Bottom left | My truck | Truck diagram, then the hauler gauge, above the instruments and the weapons bar |
 | Center | Task | Modals, dialogue, save and new game |
 
@@ -115,18 +116,18 @@ The always-on HUD answers a short list of questions without a click: can I keep 
 `#ui.phone` is a small UI layer: at most 560px wide or 480px tall, counted in the layer's pixels (see "The UI layer" below). `src/ui/input-mode.ts` owns the threshold and sets the class, and `phone.css` holds every rule under it. A desktop window above the threshold keeps the layout of 4.2. The phone layout answers the same always-on questions on a screen a quarter of the size.
 
 - The top row holds the health readout and Menu at the right, inside the safe area, with nothing at the left. Camera mode and Report a bug or request a feature are Menu entries on a phone. The action bar, toast, notices and tips sit under it at full width.
-- The bottom bar holds four drawer tabs (`.drawer-tabs`), the small speed dial, the LCD readouts, the action switches and End turn, all always on. In portrait the instruments take their own block above the tabs.
+- The bottom bar holds four drawer tabs (`.drawer-tabs`), the small speed dial, the LCD readouts, the action switches, End turn and the log strip (`.log-strip`), all always on. The strip is one row with the newest log line, cut with an ellipsis and with the whole line as its title. It sits right above End turn: in portrait across the width above the tabs and End turn, in landscape over the right half above the bar. A tap on it opens the Log drawer like the tab, and the bar grows by the strip and one gap, so drawers open above it. In portrait the instruments take their own block above the tabs.
 - A drawer holds what the bar does not: Truck (the truck diagram and the hauler gauge), Guns (the weapons), Radio (the radio and the contracts) and Log. One is open at a time. A tap on its tab opens or closes it, and a tap on the map leaves it open, so the player can aim with Guns open. In portrait a drawer spans the width above the bar. In landscape Truck and Guns open over the left half and Radio and Log over the right half. A drawer scrolls inside and is never taller than the space between the top row and the bar.
 - The Guns tab takes the danger edge while the player is in combat. This is the attention level of 7, a mark that stays while the state is true. Nothing opens by itself.
 - The cursor card is right-aligned under the top row and ends one gap above the bar or the drawer under it. It scrolls inside, and it never grows over the map.
 - A modal fills the viewport inside the safe area and scrolls inside, with its close button in view. The bar and the drawers hide while one is open, and while Options is open.
 - Drawer state lives in the UI and is not saved.
 
-This layout bends two rules, and each is a new pattern, not a changed principle. P2, key facts never one step away: the diagram, the weapons, the radio and the log are one tap away, since a 390 by 844 screen cannot hold them without covering the playfield, which breaks P3 and P18. The key facts for the turn stay on screen: the speed dial, the readouts, the health, the action switches, End turn and the action bar. 4.2, an element never moves between zones: in portrait a drawer spans the width. It keeps the content and the job of its zone, but not the edge.
+This layout bends two rules, and each is a new pattern, not a changed principle. P2, key facts never one step away: the diagram, the weapons, the radio and the log are one tap away (the newest log line is still on screen in the strip), since a 390 by 844 screen cannot hold them without covering the playfield, which breaks P3 and P18. The key facts for the turn stay on screen: the speed dial, the readouts, the health, the action switches, End turn and the action bar. 4.2, an element never moves between zones: in portrait a drawer spans the width. It keeps the content and the job of its zone, but not the edge.
 
 ### 4.5 The UI layer
 
-Options holds two device settings, UI size and the minimap (Off or On, see `.map-view`). UI size is 80%, 90%, 100%, 115% or 130%. It is kept in local storage, never in the save, and applies at once. `src/ui/ui-size.ts` owns it. At a size other than 100%, `#ui` and `#overlay` are laid out in a box of the window divided by the size and scaled up or down from the top left corner, so every pixel value, the drawn hardware and the map labels scale together. At 100% no transform is set. The boot screen and the crash screens stay at 100%.
+Options holds the device settings: language, UI size, the minimap and sound. Sound is the four volume knobs (music, wind, effects, interface) and the mute switch, drawn as the radio's hardware, since a level is a knob (P19) and the same piece looks the same everywhere (P8). The radio keeps only the mute switch and the next key. `SoundSettings` in `src/ui/sound.ts` owns the levels and the mute, and every `OptionsPanel` is built with it. The minimap is Off or On (see `.map-view`). UI size is 80%, 90%, 100%, 115% or 130%. It is kept in local storage, never in the save, and applies at once. `src/ui/ui-size.ts` owns it. At a size other than 100%, `#ui` and `#overlay` are laid out in a box of the window divided by the size and scaled up or down from the top left corner, so every pixel value, the drawn hardware and the map labels scale together. At 100% no transform is set. The boot screen and the crash screens stay at 100%.
 
 - The layer, not the window, is the screen. The layer must stay at least 640 by 360 (long side by short side). A size that would make it smaller is off in Options with the reason "Too big for this screen", and the game applies the largest step that fits, at most the stored pick.
 - `input-mode.ts` sets `phone`, `slim` (480px wide or less), `narrow` (720px or less) and `compact` (1100px or less) on `#ui` from the layer size. CSS breakpoints are these classes, never a width media query. Orientation queries are fine.
@@ -166,6 +167,7 @@ One grammar for every control and every selectable thing.
 | locked | Needs progress, like a rank | Lock icon |
 
 - A control uses only the states in this table.
+- A screen that is only for looking, like the inventory over a scene, gives every control that changes the world the disabled state with one reason read from one function (`lookReason()`), before any reason of its own.
 - A disabled control still takes hover and focus, so its reason can show. It uses `aria-disabled` and the shared tooltip, and the reason is one short fact like Need 12 M more.
 - Unaffordable and locked look different, because the player fixes one by earning and the other by progressing.
 - Touch has no hover, so it fills the gap. The first tap shows what hover would show: a tap on a truck only pins its card, and a tap on a point utility only sets its marker. A tap on the thing already shown does what a click does. A long press of 500ms on a control opens what hover opens, its title or its reason, and a tap on a disabled control opens its reason. A mouse click on a disabled control opens the same reason in the shared tooltip at the cursor, and the hover reason hides while it is open. The ground needs no preview tap, since a plan is free and the drawn path is its preview. A long press on the ground is Shift-click. `#ui.touch` is the primary pointer being coarse, and it only decides what the screen shows: no keycaps, the Call, Mark, Horn, Rotate and close buttons, and touch wording in tips and help. Under it the small button is 32px and a click target is at least `--touch-target`.
@@ -222,7 +224,7 @@ World colors keep their meaning in the 3D view. The UI does not reuse the cold c
 - `src/ui/tokens.css` holds every raw value: colors, fonts, type sizes, spacing, radii, shadows, layers and UI sizes. It is the only file that writes one.
 - `src/ui/style.css` imports the tokens, then the files under `src/ui/styles/`. Its import order is the cascade.
 - `src/ui/styles/components.css` holds the shared pieces below. Each other file under `styles/` holds one screen area and adds only its own layout.
-- `src/ui/styles/drawings.css` holds drawn hardware: the switch, the speed dial, the radio knobs and keys. Its shapes keep their own sizes, and its colors still come from tokens.
+- `src/ui/styles/drawings.css` holds drawn hardware: the switch, the speed dial, the volume knobs of Options and the radio keys. Its shapes keep their own sizes, and its colors still come from tokens.
 - `src/ui/tokens.ts` reads `tokens.css` for Three.js. `tokenColor("--path-plan")` gives a color number and throws on an unknown name.
 - `src/ui/style-guard.test.ts` fails on a raw value outside `tokens.css`. It reads every file under `styles/`, `truck-condition.css`, the HTML page and the inline styles of the UI and overlay scripts.
 
@@ -270,6 +272,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.skill-level` is a row of small pips that fill from the left for a level out of a few: a skill rank, and an escort offer's danger (`.skill-level.threat`, three pips, with the level in its tooltip).
 - `.chip` is a small boxed value. `.tag` is an outlined word in the color of its text.
 - `.contract-clue` is a told survey clue on its own line under the contract it belongs to.
+- `.log-strip` is the newest log line on one row, on a phone above End turn. It is a `.panel` with a button role, one line at `--phone-strip-h` (`--touch-target`) high, and it takes a tap to open the Log drawer. It is hidden under a modal and under Options with the rest of the bar.
 - `.drawer-tabs` is the tab row of the phone layout: one icon `.btn-l` per drawer with an `aria-label`, `.selected` on the open one and `.marked` for the danger edge of attention. Its drawer is the panel of its zone, set to scroll inside.
 - `.key` is a keyboard key or a mouse button, drawn as a keycap, as in the help panel.
 - `.amount .coin` is money from `moneyEl()`: the coin, sized in em by the text around it, then the number. The coin colors are the `--coin-*` tokens.

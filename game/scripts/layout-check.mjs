@@ -198,9 +198,21 @@ const openStartMenu = (page) => page.evaluate(async () => {
     node.style.display = 'none';
   }
   const { chooseStart } = await import('/src/ui/save-screen.ts');
+  const { SoundSettings } = await import('/src/ui/sound.ts');
+  const sound = new SoundSettings({ setBusVolume: () => {}, setMuted: () => {} }, window.localStorage);
   const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'furyRoad' }];
-  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false });
+  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false }, sound);
 });
+
+const openStartOptions = async (page) => {
+  await openStartMenu(page);
+  await page.locator('.start-menu .btn-l').last().click();
+};
+
+const openQuestInventory = async (page) => {
+  await openQuestPage(page);
+  await key(page, 'KeyI');
+};
 
 const openStartLoad = async (page) => {
   await openStartMenu(page);
@@ -238,6 +250,7 @@ const STATES = {
   log: { setup: fillLog },
   inventory: { setup: openInventory, teardown: escape },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage },
+  'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
@@ -253,6 +266,7 @@ const STATES = {
   options: { setup: openOptions, teardown: escape },
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
   'start-load': { setup: openStartLoad, teardown: closeStartMenu },
+  'start-options': { setup: openStartOptions, teardown: async (page) => { await escape(page); await closeStartMenu(page); } },
   inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
 };

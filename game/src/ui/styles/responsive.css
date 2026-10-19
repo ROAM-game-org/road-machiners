@@ -12,10 +12,10 @@
 #ui:where(.narrow) {
   --right-column: calc(var(--dock-width) + var(--hud-inset));
 }
-#ui:where(.narrow) .log {
-  top: auto;
-  bottom: var(--narrow-log-bottom);
+#ui:where(.narrow):not(.phone) .right-column {
   right: var(--hud-inset);
+}
+#ui:where(.narrow) .log {
   height: var(--narrow-log-height);
 }
 #ui:where(.narrow) .radio {
@@ -28,16 +28,17 @@
 #ui:where(.narrow) .radio-lcd {
   font-size: var(--text-caption);
 }
+#ui:where(.narrow) .options-sound {
+  --knob-size: calc(var(--space-9) - var(--space-1));
+}
 #ui:where(.narrow) .knob-cell {
   font-size: calc(var(--text-caption) - var(--space-1));
 }
-#ui:where(.narrow) .right-dock {
-  bottom: calc(var(--narrow-log-bottom) + var(--narrow-log-height) + var(--hud-gap));
-  right: var(--hud-inset);
+#ui:where(.narrow):not(.phone):not(:has(.modal:not([style*="display: none"]))) .right-column:has(.log.expanded) {
+  top: calc(var(--hud-hover-top) + var(--hud-gap));
 }
-#ui:where(.narrow):not(:has(.modal:not([style*="display: none"]))) .log.expanded {
+#ui:where(.narrow):not(.phone):not(:has(.modal:not([style*="display: none"]))) .log.expanded {
   width: calc(var(--layer-w) - 2 * var(--hud-inset));
-  height: calc(var(--layer-h) - var(--narrow-log-bottom) - var(--hud-hover-top) - var(--hud-gap));
 }
 #ui:where(.narrow) .modal {
   padding: var(--space-8) var(--space-7);

@@ -71,6 +71,8 @@ import { HoverArcsView, WeaponRangeView } from "./render/weaponRange";
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
+import type { SoundSettings } from "../ui/sound";
+import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { daylightAt, enableSunShadows, lightScene, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { markError, markVehicle } from "../sim/detect";
@@ -213,7 +215,7 @@ export class Game {
     overlay: HTMLElement,
     player: SoundPlayer,
     readonly music: CombatMusic,
-    private toggleMute: () => void,
+    private readonly soundSettings: SoundSettings,
     radio: RadioPanel,
     surface: WebGLSurface,
   ) {
@@ -301,7 +303,7 @@ export class Game {
 
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
-    this.screens = new ModalScreens(host);
+    this.screens = new ModalScreens(host, () => this.menu.isOpen());
     this.hud = new Hud({
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
@@ -340,7 +342,7 @@ export class Game {
       cameraLabel: () => this.hud.cameraModeLabel(),
       toggleCamera: () => this.hud.toggleCameraMode(),
       report: () => this.hud.openFeedback(),
-    });
+    }, this.soundSettings);
     this.death = new DeathScreen(saves);
 
     this.bindInput();
@@ -565,7 +567,7 @@ export class Game {
 
   private readonly keys: Record<string, { run: () => void; noModal?: true; idle?: true; inventoryOk?: true }> = {
     KeyF: { run: () => this.follow.recenter() },
-    KeyM: { run: () => this.toggleMute() },
+    KeyM: { run: () => this.soundSettings.toggleMute() },
     KeyQ: { run: () => this.weapons.toggleAuto(), noModal: true },
     KeyX: { run: () => this.weapons.toggleVisible(), noModal: true },
     Digit0: { run: () => this.weapons.selectWeapon(null), noModal: true },
@@ -1080,6 +1082,7 @@ export class Game {
     this.hud.showRecenter(!this.follow.isFollowing());
     lightScene(this.sun, this.sky, truck, daylightAt(this.lightTurn()));
     this.fx.light({ sun: this.sun, sky: this.sky });
+    CLOUD_SHADOWS.sync(this.world, this.lightTurn(), this.play.frameMs());
     this.vehicleLights.sync(this.world, this.frames, this.lightTurn(), (pos) => this.sightLimit.reaches(pos), truck);
     this.siteLights.sync(!sunAt(this.world.turn), this.lightTurn(), this.rig.camera, (pos) => this.sightLimit.reaches(pos), this.rig.focus(), now);
     Object.assign(this.stormTint.style, stormTintStyle(stormShare(playerVehicle(this.world))));

@@ -174,6 +174,22 @@ describe('game save', () => {
     expect(loaded.events.filter((e) => ['shopMoney', 'transfer', 'guardPaid', 'money'].includes(e.t))).toEqual([]);
   });
 
+  it('keeps a led investigation with the centre it heard through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    world.turn = 900;
+    const raider = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    raider.brain.goals = [{ kind: 'investigate', targetId: 'player', destination: { x: 70, y: 52 }, phase: 'travel', reason: 'springOnPrey', heard: { x: 64, y: 50 } }];
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.vehicles.find((v) => v.id === raider.id)!.brain!.goals).toEqual(raider.brain.goals);
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
   it('keeps an open directions call and its words through a reload, and load awards nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld({ x: 100, y: 450 });

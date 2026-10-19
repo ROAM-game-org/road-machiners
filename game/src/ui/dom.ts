@@ -64,12 +64,21 @@ export function topRight(): HTMLElement {
   return row;
 }
 
-export function rightDock(): HTMLElement {
+export function rightColumn(): HTMLElement {
   const root = uiRoot();
-  const found = root.querySelector<HTMLElement>(':scope > .right-dock');
+  const found = root.querySelector<HTMLElement>(':scope > .right-column');
+  if (found) return found;
+  const column = el('div', { class: 'right-column' });
+  root.append(column);
+  return column;
+}
+
+export function rightDock(): HTMLElement {
+  const column = rightColumn();
+  const found = column.querySelector<HTMLElement>(':scope > .right-dock');
   if (found) return found;
   const dock = el('div', { class: 'right-dock', 'data-drawer-frame': 'radio' });
-  root.append(dock);
+  column.append(dock);
   return dock;
 }
 
