@@ -2,14 +2,15 @@
 
 Built from the committee's photo of a Peterbilt 379 type tractor with a container trailer, scaled to the game's trucks:
 the scout is a pickup. A real rig is about 3.7 times a pickup's length, 1.3 times its width and 2.1 times its height,
-so next to the 5.2 m long, 2.44 m wide, 2.4 m tall scout the rig is 20.5 m long, 3.1 m wide and 5.2 m tall.
-The model owns the semi's body: 20.5 m along X, 3.1 m across Y, the ground 1.8 m below the origin at the collider center.
+so next to the 5.2 m long, 2.44 m wide, 2.4 m tall scout the rig is 20.5 m long, 3.1 m wide and 5.2 m tall, 5.35 m on its lifted tires.
+The model owns the semi's body: 20.5 m along X, 3.1 m across Y. Body heights stand over DATUM, 1.8 m below the origin at the
+collider center. The ground lies under it by the tire radius gained over 0.65 m, so the body rides lifted on its tires.
 The 29 by 7 grid stretches over it at about 1.09 cells per cell along and 0.92 across, inside what body.test.ts allows.
 From the front: a 0.3 m chrome bumper, a 2.6 m hood 1.76 m wide between fenders that flare to 2.88 m, a 2.05 m day cab
 with its roof 3.55 m up, a 0.55 m open gap over the frame and the fifth wheel, then a 15.0 m box trailer from 1.6 m to 5.2 m up,
 so its roof stands 1.46 times the cab roof. Twin stacks reach 4.55 m.
-Axles: steer 1.3 m behind the bumper front, the drive tandem 1.2 m and 2.6 m behind the cab, the trailer tandem 1.3 m and 2.7 m
-from the doors. Wheel radius 0.65 m. The game draws the steer pair and the outer wheels of the last trailer axle from
+Axles: steer 1.3 m behind the bumper front, the drive tandem about 1 m and 2.8 m behind the cab, the trailer tandem 1.3 m and
+3.05 m from the doors. Tandem axles stand TANDEM apart, so their tires keep TIRE_GAP between them. Wheel radius 0.8 m. The game draws the steer pair and the outer wheels of the last trailer axle from
 PHYSICS.bodies.semi; the model draws the other 14 with the look of the game's wheel model, duals on the drive and trailer axles.
 The sockets arch_front, arch_rear (the left wheel centers at the hub) and arch_front_top (the steer fender's crown) let
 wheelArches.test.ts check them against physics. The engine stands in a hole in the hood at PHYSICS.bodies.semi.engine.
@@ -34,19 +35,23 @@ from shapes import prism  # noqa: E402
 SEED = 321
 LENGTH = 20.5
 WIDTH = 3.1
-GROUND = -1.8
+DATUM = -1.8
 
 WHEEL_X = 8.95  # PHYSICS.bodies.semi.wheelX: the steer axle and the last trailer axle
 WHEEL_Y = -0.75  # PHYSICS.bodies.semi.wheelY
 WHEEL_Z = 1.24  # PHYSICS.bodies.semi.wheelZ: the steer wheels and the outer duals
-WHEEL_R = 0.65  # PHYSICS.bodies.semi.wheelRadius
-WHEEL_HALF_W = 0.18  # PHYSICS.bodies.semi.wheelHalfWidth
+WHEEL_R = 0.8  # PHYSICS.bodies.semi.wheelRadius
+WHEEL_HALF_W = 0.21  # PHYSICS.bodies.semi.wheelHalfWidth
 ENGINE = (8.35, -0.15, 0.0)  # PHYSICS.bodies.semi.engine, as Blender x, z and -y
 HUB_Z = WHEEL_Y - SUSPENSION_REST
 TIRE_R = WHEEL_R * 0.935  # the wheel model's tire body; its lugs reach the ground
 DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
-DRIVE_AXLES = (4.1, 2.7)
-TRAILER_AXLES = (-7.55, -WHEEL_X)
+TIRE_GAP = 0.15
+TANDEM = 2 * WHEEL_R + TIRE_GAP
+DRIVE_MID = 3.4
+DRIVE_AXLES = (DRIVE_MID + TANDEM / 2, DRIVE_MID - TANDEM / 2)
+TRAILER_AXLES = (-WHEEL_X + TANDEM, -WHEEL_X)
+TANDEM_COVER = TANDEM + 1.3
 MODEL_WHEELS = 14
 
 FRONT = LENGTH / 2
@@ -64,8 +69,8 @@ FENDER_HALF = 1.44
 
 
 def up(height: float) -> float:
-    """Blender Z of a height above the ground."""
-    return GROUND + height
+    """Blender Z of a height above the body datum."""
+    return DATUM + height
 
 
 FRAME_BOTTOM = up(0.9)
@@ -81,7 +86,7 @@ STACK_TOP = up(4.55)
 BAY_FRONT = ENGINE[0] + 0.55
 BAY_BACK = ENGINE[0] - 0.55
 BAY_HALF = HOOD_HALF - 0.12
-LEGS_X = DRIVE_AXLES[1] - 1.4
+LEGS_X = DRIVE_AXLES[1] - WHEEL_R - 0.75
 
 
 def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
@@ -107,8 +112,17 @@ def wheel(kit: Kit, name: str, x: float, y: float) -> None:
     kit.cylinder(f"{name}_hub", WHEEL_R * 0.22, width, (x, y, HUB_Z), "rust", rot=axle, vertices=6)
 
 
+def check_tandems() -> None:
+    """Raises when two tires of a tandem stand closer than TIRE_GAP."""
+    for name, (a, b) in (("drive", DRIVE_AXLES), ("trailer", TRAILER_AXLES)):
+        gap = abs(a - b) - 2 * WHEEL_R
+        if gap < TIRE_GAP - 1e-9:
+            raise RuntimeError(f"base_semi {name} tandem tires stand {gap:.3f} m apart, under {TIRE_GAP} m")
+
+
 def running_gear(kit: Kit) -> int:
     """The frame rails and the 14 wheels the game does not draw. Returns the wheel count."""
+    check_tandems()
     count = 0
     for x in DRIVE_AXLES + TRAILER_AXLES[:1]:
         for s in (1, -1):
@@ -219,7 +233,7 @@ def coupling(kit: Kit) -> None:
     kit.box("deck_plate", (CAB_BACK - TRAILER_FRONT + 0.3, 1.2, 0.06), (CAB_BACK - 0.3, 0, FRAME_TOP + 0.03), "metal_dark")
     for s, name in ((1, "l"), (-1, "r")):
         kit.box(f"drive_flap_{name}", (0.04, 0.62, 0.6), (DRIVE_AXLES[1] - WHEEL_R - 0.2, s * (WHEEL_Z - DUAL_STEP / 2), up(0.55)), "stripe")
-        kit.box(f"drive_fender_{name}", (2.7,0.62, 0.05), (mid, s * (WHEEL_Z - DUAL_STEP / 2), HUB_Z + WHEEL_R + 0.12), "under")
+        kit.box(f"drive_fender_{name}", (TANDEM_COVER, 0.62, 0.05), (mid, s * (WHEEL_Z - DUAL_STEP / 2), HUB_Z + WHEEL_R + 0.12), "under")
 
 
 def trailer(kit: Kit) -> None:
@@ -249,7 +263,7 @@ def trailer(kit: Kit) -> None:
         kit.box(f"trailer_flap_{name}", (0.04, 0.62, 0.6), (-WHEEL_X - WHEEL_R - 0.2, s * (WHEEL_Z - DUAL_STEP / 2), up(0.55)), "stripe")
     kit.box("leg_brace", (0.08, 1.7, 0.08), (LEGS_X, 0, up(0.8)), "metal_dark")
     kit.box("underride", (0.12, WIDTH - 0.4, 0.16), (BACK + 0.25, 0, up(0.5)), "metal_dark")
-    kit.box("bogie", (2.7, 1.2, TRAILER_FLOOR - HUB_Z - 0.2), ((TRAILER_AXLES[0] + TRAILER_AXLES[1]) / 2, 0, (TRAILER_FLOOR + HUB_Z + 0.2) / 2), "under")
+    kit.box("bogie", (TANDEM_COVER, 1.2, TRAILER_FLOOR - HUB_Z - 0.2), ((TRAILER_AXLES[0] + TRAILER_AXLES[1]) / 2, 0, (TRAILER_FLOOR + HUB_Z + 0.2) / 2), "under")
     kit.box("trailer_frame", (length - 0.4, 1.0, 0.16), ((TRAILER_FRONT + BACK) / 2, 0, TRAILER_FLOOR - 0.08), "under")
 
 

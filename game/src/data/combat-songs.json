@@ -645,9 +645,14 @@
     "bars": 16
    },
    {
-    "role": "verse",
+    "role": "stop",
     "from": 33,
-    "bars": 8
+    "bars": 4
+   },
+   {
+    "role": "verse",
+    "from": 37,
+    "bars": 4
    },
    {
     "role": "wall",

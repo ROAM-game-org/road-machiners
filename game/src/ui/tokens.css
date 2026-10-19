@@ -212,6 +212,9 @@
   --panel-m-height: 340px;
   --info-lists-height: 100px;
   --dock-width: 282px;
+  --minimap-size: 180px;
+  --world-map-size: 640px;
+  --map-chrome: 190px;
   --modal-width: 1360px;
   --modal-height: 760px;
   --modal-reserve: 250px;
@@ -240,7 +243,6 @@
   --log-height: 122px;
   --marker-min-width: 72px;
   --marker-max-width: 180px;
-  --narrow-log-bottom: 176px;
   --narrow-log-height: 80px;
   --narrow-modal-clearance: 290px;
 
@@ -258,7 +260,8 @@
   --safe-left: max(var(--hud-inset), calc(env(safe-area-inset-left) / var(--ui-scale)));
   --touch-target: max(32px, calc(32px / var(--ui-scale)));
   --phone-readouts-h: 100px;
-  --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--btn-h-l));
+  --phone-strip-h: var(--touch-target);
+  --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--btn-h-l) + var(--hud-gap) + var(--phone-strip-h));
   --phone-end-w: 96px;
   --phone-tab-w: 56px;
 
@@ -270,6 +273,7 @@
   --z-modal: 20;
   --z-over-modal: 21;
   --z-log-open: 22;
+  --z-over-scene: 23;
   --z-feedback: 25;
   --z-toast: 30;
   --z-console: 40;
@@ -294,6 +298,6 @@
 
 @media (orientation: landscape) {
   :root {
-    --phone-bar-h: var(--phone-readouts-h);
+    --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--phone-strip-h));
   }
 }

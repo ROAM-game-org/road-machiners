@@ -15,6 +15,7 @@ export type Body = {
   wheelY: number;
   wheelRadius: number;
   wheelHalfWidth: number;
+  comY: number;
 };
 
 export type CellRect = { x0: number; x1: number; z0: number; z1: number };
@@ -52,11 +53,16 @@ function buildBody(chassisId: string): Body {
     y: look.halfHeight,
     z: Math.max(...boxes.map((b) => Math.abs(b.at.z) + b.half.z)),
   };
-  return { half, boxes, wheelX: look.wheelX, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth };
+  const comY = look.comHeight - rideOf(look);
+  return { half, boxes, wheelX: look.wheelX, wheelZ: look.wheelZ, wheelY: look.wheelY, wheelRadius: look.wheelRadius, wheelHalfWidth: look.wheelHalfWidth, comY };
 }
 
-function restTop(look: { wheelY: number; wheelRadius: number }): number {
-  return PHYSICS.truckRoof - (look.wheelRadius + PHYSICS.truck.suspensionRest - look.wheelY);
+export function rideOf(body: Pick<Body, 'wheelRadius' | 'wheelY'>): number {
+  return body.wheelRadius + PHYSICS.truck.suspensionRest - body.wheelY;
+}
+
+function restTop(look: Pick<Body, 'wheelRadius' | 'wheelY'>): number {
+  return PHYSICS.truckRoof - rideOf(look);
 }
 
 function truckShape(chassisId: string): TruckShape {

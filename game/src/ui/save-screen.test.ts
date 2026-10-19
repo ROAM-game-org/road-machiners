@@ -5,6 +5,8 @@ import { resolve } from "../text/resolve";
 import { clock } from "./format";
 import { SavePanel } from "./save-panel";
 import { chooseStart } from "./save-screen";
+import { SoundSettings } from "./sound";
+import type { Mixer } from "../audio/mixer";
 
 class FakeNode {
   attrs: Record<string, string> = {};
@@ -46,7 +48,8 @@ function open(saves: SlotInfo[]) {
   const requests: BootRequest[] = [];
   const actions = { requestBoot: (r: BootRequest) => requests.push(r), reload: vi.fn(), confirm: vi.fn(() => true) };
   const chosen = vi.fn();
-  void chooseStart(saves, actions).then(chosen);
+  const sound = new SoundSettings({ setBusVolume: vi.fn(), setMuted: vi.fn() } as unknown as Mixer, { getItem: () => null, setItem: vi.fn() } as unknown as Storage);
+  void chooseStart(saves, actions, sound).then(chosen);
   const menu = ui.byClass("start-menu")[0];
   return { ui, menu, requests, actions, chosen };
 }

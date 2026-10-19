@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { GOOD_SOURCES } from '../data/market';
+import { graphEdges } from '../data/market';
+import { stockTarget } from './market';
 import { partDef } from '../data/parts';
 import { MIN_CHANCE, NPC_BEHAVIOR, NPCS, SPAWN, TRAITS, type TraitId } from '../data/npcs';
 import { RULES } from '../data/rules';
@@ -192,68 +193,72 @@ describe('independent', () => {
 });
 
 describe('supply convoys', () => {
-  it('load fuel drums free at the pump station, then sell them in a town', () => {
+  it('buy drums from the Pump Station stock and sell them into the buyer stock, with no free goods', () => {
     const pump = siteById('pump-station');
     const w = emptyWorld({ x: 300, y: 300 });
     const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], sitePads(pump)[0]);
+    npc.resources!.money = NPCS.convoy.money;
     const money = npc.resources!.money;
-    npc.brain!.goals = [{ kind: 'haul', targetId: pump.id, destination: { ...pump.pos }, phase: 'travel', reason: 'loadCargo', load: { good: 'fuelDrums' }, leg: { from: { ...npc.pos }, turn: w.turn } }];
+    const pumpStock = w.shops['pump-station'].goods.fuelDrums;
+    npc.brain!.goals = [{ kind: 'trade', targetId: pump.id, destination: { ...pump.pos }, phase: 'travel', reason: 'loadCargo', purchase: { good: 'fuelDrums', sellShop: 'dustwell' }, leg: { from: { ...npc.pos }, turn: w.turn } }];
     npc.speed = 0;
     finishBusiness(w, npc);
     const loaded = goodsCount(npc).fuelDrums ?? 0;
     expect(loaded).toBeGreaterThan(0);
-    expect(npc.resources!.money).toBe(money);
+    expect(pumpStock - w.shops['pump-station'].goods.fuelDrums).toBeGreaterThanOrEqual(loaded);
+    expect(npc.resources!.money).toBeLessThan(money);
     const sale = topGoal(npc)!;
-    expect(sale.kind).toBe('sell');
-    expect(REGION.towns.map((t) => t.id)).toContain(sale.targetId);
-    npc.pos = { ...sitePads(siteById(sale.targetId!))[0] };
+    expect(sale).toMatchObject({ kind: 'sell', targetId: 'dustwell', shipment: { good: 'fuelDrums', from: 'pump-station', to: 'dustwell' } });
+    const dustwellStock = w.shops.dustwell.goods.fuelDrums;
+    npc.pos = { ...sitePads(siteById('dustwell'))[0] };
     finishBusiness(w, npc);
     expect(goodsCount(npc).fuelDrums ?? 0).toBe(0);
-    expect(npc.resources!.money).toBeGreaterThan(money);
+    expect(w.shops.dustwell.goods.fuelDrums).toBeGreaterThan(dustwellStock);
+    expect(w.shops.dustwell.goods.fuelDrums).toBeLessThanOrEqual(dustwellStock + loaded);
   });
 
-  it('pick a haul at a known source with the good that source gives', () => {
-    const w = emptyWorld({ x: 300, y: 300 });
-    const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], sitePads(siteById('bowl'))[0]);
-    forceOption('idle', 'haul');
-    const goals = idleGoals(w, npc.id, 20).filter((g) => g.kind === 'haul');
-    expect(goals.length).toBeGreaterThan(15);
-    for (const goal of goals) expect(GOOD_SOURCES[goal.load!.good]).toContain(goal.targetId);
-  });
-
-  it('trade about one idle roll in three and haul the rest', () => {
+  it('pick supply runs only along graph edges to a buyer short of the good', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], sitePads(siteById('bowl'))[0]);
     npc.resources!.money = NPCS.convoy.money;
+    w.shops.granary.goods.grain = 0;
+    forceOption('idle', 'haul');
+    const goals = idleGoals(w, npc.id, 20).filter((g) => g.kind === 'trade');
+    expect(goals.length).toBeGreaterThan(15);
+    for (const goal of goals) {
+      expect(graphEdges()).toContainEqual({ good: goal.purchase!.good, from: goal.targetId, to: goal.purchase!.sellShop });
+      expect(w.shops[goal.purchase!.sellShop].goods[goal.purchase!.good]).toBeLessThan(stockTarget(goal.purchase!.sellShop, goal.purchase!.good));
+    }
+  });
+
+  it('trade about one idle roll in three and haul the rest while a buyer is short', () => {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], sitePads(siteById('bowl'))[0]);
+    npc.resources!.money = NPCS.convoy.money;
+    w.shops.granary.goods.grain = 0;
     const chances = optionChances(optionWeights(w, npc, 'idle', null, null));
     expect(chances.trade).toBeGreaterThan(0.28);
     expect(chances.trade).toBeLessThan(0.38);
     expect(chances.haul).toBeGreaterThan(0.6);
-    const kinds = new Set(idleGoals(w, npc.id, 30).map((g) => g.kind));
-    expect(kinds).toContain('trade');
-    expect(kinds).toContain('haul');
   });
 
-  it('only haul when too poor for a trade', () => {
+  it('neither trade nor haul with no money to buy a load', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], sitePads(siteById('bowl'))[0]);
     npc.resources!.money = 0;
+    w.shops.granary.goods.grain = 0;
     const weights = optionWeights(w, npc, 'idle', null, null);
     expect(weights).not.toHaveProperty('trade');
-    expect(weights).toHaveProperty('haul');
+    expect(weights).not.toHaveProperty('haul');
   });
 
   it('cannot haul with a full grid', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     const npc = createNpc(w, 'convoy', ['supplier'], 'scout', ['mg', 'stockEngine'], sitePads(siteById('bowl'))[0]);
+    w.shops.granary.goods.grain = 0;
     addGoods(w, npc, 'scrap', freeCells(npc));
     expect(freeCells(npc)).toBe(0);
     expect(optionWeights(w, npc, 'idle', null, null)).not.toHaveProperty('haul');
-  });
-
-  it('know only haul sources that give a good', () => {
-    const sources = new Set(Object.values(GOOD_SOURCES).flat());
-    for (const trait of Object.values(TRAITS)) for (const id of trait.haulSites) expect(sources.has(id), id).toBe(true);
   });
 });
 
