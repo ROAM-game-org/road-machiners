@@ -248,7 +248,8 @@ export function resetHaulerWatch(): void {
 }
 
 function parkedAtOutpost(world: World, hauler: Vehicle): boolean {
-  return betweenLevels(world) && (isParked(hauler) || inYard(world, hauler.pos, runOf(world).window + 1));
+  if (betweenLevels(world)) return isParked(hauler) || inYard(world, hauler.pos, runOf(world).window + 1);
+  return isParked(hauler) && dist(hauler.pos, parkSpot(world)) <= RULES.arriveRadius;
 }
 
 function stallExcused(world: World, hauler: Vehicle): boolean {
