@@ -36,7 +36,7 @@ export function tallyText(ctx: Ctx, tally: Tally): string {
 
 export function voteFooter(ctx: Ctx, tally: Tally): string {
   const { up, down } = voteSides(ctx);
-  return `Needs ${ctx.cfg.minVotes} more ${up[0]} than ${down[0]} to pass. Current: ${tallyText(ctx, tally)}/${ctx.cfg.minVotes}`;
+  return `Нужно на ${ctx.cfg.minVotes} ${up[0]} больше, чем ${down[0]}. Сейчас: ${tally.up} ${up[0]}, ${tally.down} ${down[0]}, итог ${signed(netScore(tally))}/${ctx.cfg.minVotes}`;
 }
 
 function escapeWithin(text: string, room: number): string {
@@ -49,13 +49,14 @@ function escapeWithin(text: string, room: number): string {
   return fitted;
 }
 
-export const ACCEPTED_BY_COMMITTEE = '✅ Accepted by committee member';
-export const REJECTED_BY_COMMITTEE = '❌ Rejected by committee member';
-export const CLOSED_CONCLUSION = 'Closed';
+export const ACCEPTED_BY_COMMITTEE = '✅ Принято участником комитета';
+export const REJECTED_BY_COMMITTEE = '❌ Отклонено участником комитета';
+export const CLOSED_CONCLUSION = 'Закрыто';
+export const acceptedWith = (score: number): string => `✅ Принято с итогом ${signed(score)}`;
 
 export function proposalText(ctx: Ctx, issue: number, pitch: string, footer: string): string {
   const links = [issue, ...bundleOf(readState(ctx.statePath), issue)].map((number) => issueLink(ctx, number));
-  const heading = `<b>Proposal: ${escapeHtml(pitchTitle(pitch))}</b>`;
+  const heading = `<b>Предложение: ${escapeHtml(pitchTitle(pitch))}</b>`;
   const tail = `${escapeHtml(links.join('\n'))}\n\n${escapeHtml(footer)}`;
   const body = escapeWithin(pitchBody(pitch), MESSAGE_LIMIT - heading.length - tail.length - 4);
   return [heading, body, tail].filter((part) => part !== '').join('\n\n');

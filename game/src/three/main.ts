@@ -1,16 +1,14 @@
 
-import { loadBank, recoverBank, reportFailures, type BankOptions, type LoadedBank } from '../audio/bank';
+import { formatSupport, loadBank, recoverBank, reportFailures, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_URL, SFX_BYTES } from '../config';
-import { download } from '../download';
-import { MIX, SOUNDS } from '../data/sounds';
+import { BANK, MIX, SOUNDS } from '../data/sounds';
 import { startKit } from '../data/start';
-import { MAPGEN } from '../data/terrain';
 import { PHYSICS } from '../data/physics';
 import { initPhysics } from '../phys/drive';
 import { perfSnapshot, resetPerf } from '../perf';
-import { decodeMap, type BakedMap } from '../sim/terrain';
+import { fetchMap } from './map-file';
 import type { World, WorldSetup } from '../sim/types';
 import { newGame } from '../sim/new-game';
 import { DebugConsole, Noclip } from '../ui/console';
@@ -27,7 +25,7 @@ import { chooseSaveFate, chooseStart, saveErrorText, showCarryReport } from '../
 import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
-import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, onReport, reportError } from './crash';
+import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteError, onReport, reportError } from './crash';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
@@ -36,7 +34,7 @@ import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, newestSlot, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
 import { rescueSave } from './save-rescue';
-import { loadModels } from './render/models';
+import { loadModels, type ModelFailure } from './render/models';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
 
@@ -44,10 +42,6 @@ function element(id: string): HTMLElement {
   const el = document.getElementById(id);
   if (!el) throw new Error(`#${id} element missing from the page`);
   return el;
-}
-
-async function fetchMap(): Promise<BakedMap> {
-  return decodeMap(new Uint8Array(await download(MAPGEN.file)));
 }
 
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };
@@ -157,10 +151,15 @@ function whenVisible(run: () => void): void {
     document.addEventListener('visibilitychange', onChange);
   }
 }
+function reportStandIns(failures: ModelFailure[]): void {
+  for (const { name, error } of failures) {
+    noteError(new Error(`Model ${name} failed to load and stays a stand-in box: ${error instanceof Error ? error.message : String(error)}`));
+  }
+}
 async function recoverSounds(loaded: LoadedBank): Promise<void> {
-  const recovered = await recoverBank(mixer.ctx, loaded, soundOptions);
-  for (const failure of loaded.failures) console.warn(`Sound ${failure.file} failed to decode as ${failure.kind} and ${recovered.has(failure.file) ? 'decoded later' : 'stays a stand-in'}`, failure.error);
-  for (const report of reportFailures(loaded.failures, loaded.bank.size, recovered)) reportError(report);
+  const recovered = await recoverBank(mixer.ctx, loaded, SOUNDS, soundOptions);
+  for (const failure of loaded.failures) console.warn(`Sound ${failure.file} failed to decode as ${failure.kind} and ${recovered.has(failure.file) ? 'decoded later' : 'stays a stand-in'}`, failure.errors);
+  for (const report of reportFailures(loaded.failures, loaded.bank.size, recovered, soundOptions.support)) reportError(report);
 }
 const boot = BootScreen.adopt();
 const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
@@ -169,10 +168,10 @@ const surface = openWebGL(document.createElement('canvas'), GAME_GL);
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 bootStep('loading physics, models and sounds');
-const soundOptions: BankOptions = { expectedBytes: SFX_BYTES, opusSupport: new Audio().canPlayType('audio/ogg; codecs=opus'), progress: boot.count('sounds') };
+const soundOptions: BankOptions = { expectedBytes: SFX_BYTES, support: formatSupport(), progress: boot.count('sounds') };
 const loading = Promise.all([
   boot.track('physics', initPhysics()),
-  boot.track('models', loadModels(undefined, boot.count('models'))),
+  boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns)),
   boot.track('sounds', loadBank(mixer.ctx, SOUNDS, soundOptions)),
 ]);
 bootStep('loading the map');
@@ -193,7 +192,8 @@ await boot.track('ground', () => groundTexture(world));
 bootStep('waiting for physics, models and sounds');
 const [, , loadedBank] = await loading;
 const { bank } = loadedBank;
-for (const failure of loadedBank.unreachable) console.warn(`Sound ${failure.file} could not be fetched`, failure.error);
+if (loadedBank.format !== BANK.formats[0].ext) console.warn(`Sounds play from the ${loadedBank.format} twins, since ${BANK.formats[0].ext} did not decode`);
+for (const failure of loadedBank.unreachable) console.warn(`Sound ${failure.file} could not be fetched`, failure.errors);
 bootStep('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random));
 const soundSettings = new SoundSettings(mixer, window.localStorage, radio.faceplate, radio.keys, () => game.loops.nextTrack());

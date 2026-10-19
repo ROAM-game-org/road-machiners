@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classifyComments } from './classify-comments';
-import type { Classify, Decision, FilterInput } from './decision';
+import { TransientFilterError, type Classify, type Decision, type FilterInput } from './decision';
 import { CHANNEL, filterOf, publicFake } from './public-fakes';
 
 const ACCEPT: Classify = async () => ({ verdict: 'accept', intent: 'sincere', sincere: 0.9, kind: 'bug', route: 'none', relevance: 'parent' });
@@ -86,5 +86,30 @@ describe('classifyComments', () => {
     await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input); return { ...(await ACCEPT(input)), ...decide[input.text] }; }));
     expect(seen.map((input) => input.work)).toEqual([['#8 Winch upgrade: A stronger winch.'], ['#8 Winch upgrade: A stronger winch.'], ['#8 Winch upgrade: A stronger winch.']]);
     expect(f.store.recentChat(3).map((comment) => comment.workIssue)).toEqual([null, null, null]);
+  });
+
+  it('tries a comment again on the next tick after a transient filter failure, gives its hit back, and keeps it rejected after three', async () => {
+    const f = publicFake({ filterPerTick: 10, reportIpPerHour: 1 });
+    addFrom(f, '1', 'ann 1');
+    const busy = filterOf(async () => { throw new TransientFilterError('The filter call failed with status 529.'); });
+    await classifyComments(f.ctx, f.store, busy);
+    expect(f.store.unclassifiedComments(10).map((comment) => [comment.text, comment.filterAttempts])).toEqual([['ann 1', 1]]);
+    expect(f.calls).toEqual([]);
+    await classifyComments(f.ctx, f.store, filterOf(ACCEPT));
+    expect(f.store.unclassifiedComments(10)).toEqual([]);
+    expect(f.store.comment(1)?.kind).toBe('bug');
+    addFrom(f, '2', 'bob 1');
+    for (let tick = 0; tick < 3; tick++) await classifyComments(f.ctx, f.store, busy);
+    expect(f.store.unclassifiedComments(10)).toEqual([]);
+    expect(f.store.comment(2)?.kind).toBe('rejected');
+    expect(f.logs.filter((line) => line.includes('stays rejected'))).toHaveLength(1);
+  });
+
+  it('keeps a comment rejected at once when the filter fails for good', async () => {
+    const f = publicFake();
+    addFrom(f, '1', 'ann 1');
+    await classifyComments(f.ctx, f.store, filterOf(async () => { throw new Error('The filter call failed with status 401.'); }));
+    expect(f.store.unclassifiedComments(10)).toEqual([]);
+    expect(f.store.comment(1)?.kind).toBe('rejected');
   });
 });

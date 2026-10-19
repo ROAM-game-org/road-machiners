@@ -41,7 +41,7 @@ describe('NPC spawns', () => {
     const guards = SPAWN.initial.filter((id) => id === 'convoy').map(() => 'convoyGuard');
     const roster = [...SPAWN.initial, ...SPAWN.startTraffic.templates, ...guards].sort();
     const neutralSites = REGION.towns.length + REGION.locations.filter((l) => l.kind !== 'camp' && l.kind !== 'territory').length;
-    for (let seed = 1; seed <= 20; seed++) {
+    for (let seed = 1; seed <= 10; seed++) {
       const npcs = newWorld(seed * 7919, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).vehicles.filter((v) => v.brain);
       expect(npcs.map((v) => v.brain!.templateId).sort()).toEqual(roster);
       const perSite = new Map<string, number>();

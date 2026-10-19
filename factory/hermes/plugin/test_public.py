@@ -109,6 +109,27 @@ def test_removed_reaction_has_empty_list(tmp_path):
     assert written(tmp_path)["502.json"]["emoji"] == []
 
 
+def test_removal_without_new_reaction_is_recorded(tmp_path):
+    raw = reaction_update()
+    raw["message_reaction"]["old_reaction"] = [{"type": "emoji", "emoji": "\U0001F44D"}]
+    del raw["message_reaction"]["new_reaction"]
+    cfg = cfg_for(tmp_path)
+    assert public.handle_public_update(raw, cfg) is True
+    assert written(tmp_path) == {"502.json": {
+        "updateId": 502, "kind": "reaction", "chat": DISCUSSION, "messageId": 17, "user": "42", "emoji": [],
+    }}
+    assert not public.alert_path(cfg).exists()
+
+
+def test_count_without_reactions_is_recorded_as_no_counts(tmp_path):
+    raw = count_update()
+    del raw["message_reaction_count"]["reactions"]
+    cfg = cfg_for(tmp_path)
+    assert public.handle_public_update(raw, cfg) is True
+    assert written(tmp_path)["501.json"]["counts"] == {}
+    assert not public.alert_path(cfg).exists()
+
+
 def test_anonymous_reaction_writes_nothing_and_stops(tmp_path):
     assert public.handle_public_update(reaction_update(user=False), cfg_for(tmp_path)) is True
     assert written(tmp_path) == {}
@@ -135,7 +156,7 @@ def test_discussion_comment_event(tmp_path):
     assert written(tmp_path) == {"504.json": {
         "updateId": 504, "kind": "comment", "chat": DISCUSSION, "messageId": 91, "threadId": 90,
         "author": "Ann Lee", "sender": "42", "text": "Add a trailer please", "at": "2023-11-14T22:13:23Z",
-        "addressed": False, "standalone": True, "context": None,
+        "addressed": False, "standalone": True, "context": None, "images": [],
     }}
 
 
@@ -169,6 +190,23 @@ def test_comment_is_attributed_to_the_replied_message_not_the_thread_root(tmp_pa
     raw = comment_update(message_thread_id=90, reply_to_message={"message_id": 200, "chat": chat(DISCUSSION)})
     public.handle_public_update(raw, cfg_for(tmp_path))
     assert written(tmp_path)["504.json"]["threadId"] == 200
+
+
+def test_comment_keeps_the_largest_photo_and_the_replied_persons_photo(tmp_path):
+    photos = [{"file_id": "small", "width": 90, "height": 60}, {"file_id": "large", "width": 1280, "height": 853}]
+    replied = {"message_id": 200, "from": {"id": 7, "is_bot": False, "first_name": "Bo"}, "document": {"file_id": "doc", "mime_type": "image/png"}}
+    raw = comment_update(caption="See this", photo=photos, reply_to_message=replied)
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["images"] == ["large", "doc"]
+
+
+def test_comment_keeps_no_image_of_a_bot_post_a_channel_post_or_a_non_image_file(tmp_path):
+    bot_post = {"message_id": 200, "from": {"id": 555, "is_bot": True}, "photo": [{"file_id": "bot", "width": 1, "height": 1}]}
+    channel = {"message_id": 201, "from": {"id": 1, "is_bot": False}, "sender_chat": {"id": CHANNEL}, "photo": [{"file_id": "chan", "width": 1, "height": 1}]}
+    for replied in (bot_post, channel):
+        raw = comment_update(reply_to_message=replied, document={"file_id": "zip", "mime_type": "application/zip"})
+        public.handle_public_update(raw, cfg_for(tmp_path))
+        assert written(tmp_path)["504.json"]["images"] == []
 
 
 def test_comment_uses_thread_when_there_is_no_reply(tmp_path):

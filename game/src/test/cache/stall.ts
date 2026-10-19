@@ -1,9 +1,26 @@
-export function stallMinutes(env: NodeJS.ProcessEnv): number | null {
-  const raw = env.TEST_STALL_MINUTES;
+function envMinutes(env: NodeJS.ProcessEnv, key: string): number | null {
+  const raw = env[key];
   if (raw === undefined) return null;
   const minutes = Number(raw);
-  if (raw.trim() === '' || !Number.isFinite(minutes) || minutes <= 0) throw new Error(`TEST_STALL_MINUTES must be a positive number of minutes, got "${raw}".`);
+  if (raw.trim() === '' || !Number.isFinite(minutes) || minutes <= 0) throw new Error(`${key} must be a positive number of minutes, got "${raw}".`);
   return minutes;
+}
+
+export function stallMinutes(env: NodeJS.ProcessEnv): number | null {
+  return envMinutes(env, 'TEST_STALL_MINUTES');
+}
+
+export function suiteMinutes(env: NodeJS.ProcessEnv): number | null {
+  return envMinutes(env, 'TEST_SUITE_MINUTES');
+}
+
+export type FileTime = { file: string; ms: number };
+
+const SLOWEST_SHOWN = 10;
+
+export function suiteOverMessage(limitMinutes: number, finished: FileTime[]): string {
+  const slowest = [...finished].sort((a, b) => b.ms - a.ms).slice(0, SLOWEST_SHOWN).map(({ file, ms }) => `${file} ${Math.round(ms / 1000)} s`);
+  return `[test-cache] SuiteTimeError: the suite ran past its limit of ${limitMinutes} minutes. Make the slowest test files cheaper. Slowest finished files: ${slowest.join(', ')}`;
 }
 
 export type StallWatch = {

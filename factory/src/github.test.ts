@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ghClient } from './github';
+import { GithubError, ghClient } from './github';
 import { COLUMNS, type FactoryConfig, type Run, type RunResult } from './types';
 
 const CFG = { repo: 'o/r', projectOwner: 'o', projectNumber: 3, githubAppId: '42', githubRetries: 3, githubRetryBaseSeconds: 15, githubTimeoutSeconds: 60 } as FactoryConfig;
@@ -31,7 +31,7 @@ function fake(calls: string[][], projectJson: string): Run {
     if (text.includes('projectV2(number')) return ok(projectJson);
     if (text.includes('items(first')) {
       const items = { pageInfo: { hasNextPage: false, endCursor: '' }, nodes: [
-        { id: 'I7', fieldValueByName: { name: 'Design' }, content: { number: 7, repository: { nameWithOwner: 'o/r' }, labels: { nodes: [{ name: 'bug' }] } } },
+        { id: 'I7', fieldValueByName: { name: 'Design' }, content: { number: 7, title: 'Winch', repository: { nameWithOwner: 'o/r' }, labels: { nodes: [{ name: 'bug' }] } } },
         { id: 'I8', fieldValueByName: { name: 'Done' }, content: { number: 8, repository: { nameWithOwner: 'x/y' }, labels: { nodes: [] } } },
         { id: 'I9', fieldValueByName: null, content: { number: 9, repository: { nameWithOwner: 'o/r' }, labels: { nodes: [] } } },
       ] };
@@ -97,6 +97,11 @@ describe('ghClient', () => {
     expect(calls).toBe(1);
   });
 
+  it('throws a GithubError for every failed gh call', async () => {
+    const run: Run = async () => ({ code: 1, stdout: '', stderr: 'HTTP 404: Not Found' });
+    await expect(ghClient(run, CFG, async () => {}).reopen(7)).rejects.toBeInstanceOf(GithubError);
+  });
+
   it('gives every call the timeout and does not retry a call that timed out', async () => {
     const timeouts: (number | undefined)[] = [];
     const run: Run = async (_cmd, _args, opts) => { timeouts.push(opts?.timeoutMs); return { code: 1, stdout: '', stderr: 'gh timed out after 60000 ms and was killed' }; };
@@ -137,7 +142,7 @@ describe('ghClient', () => {
 
   it('lists cards of this repo with a status', async () => {
     const cards = await ghClient(fake([], project(ALL)), CFG).cards();
-    expect(cards).toEqual([{ itemId: 'I7', issue: 7, column: 'Design', labels: ['bug'] }]);
+    expect(cards).toEqual([{ itemId: 'I7', issue: 7, column: 'Design', labels: ['bug'], title: 'Winch' }]);
   });
 
   it('move sets the status option of the item', async () => {
@@ -200,12 +205,12 @@ describe('ghClient', () => {
     const run: Run = async (_cmd, args) => {
       calls.push(args);
       if (args[0] === 'label' && args[1] === 'list') return ok('maintenance\n');
-      return ok(args[0] === 'issue' ? 'https://github.com/o/r/issues/31\n' : '');
+      return ok(args[0] === 'api' ? '31\n' : '');
     };
     const number = await ghClient(run, CFG).createIssue('T', 'B', ['release-task', 'maintenance']);
     expect(number).toBe(31);
-    expect(calls.map((args) => args.slice(0, 3).join(' '))).toEqual(['label list -R', 'label create release-task', 'issue create -R']);
-    expect(calls[2]).toEqual(['issue', 'create', '-R', 'o/r', '--title', 'T', '--body', 'B', '--label', 'release-task', '--label', 'maintenance']);
+    expect(calls.map((args) => args.slice(0, 3).join(' '))).toEqual(['label list -R', 'label create release-task', 'api repos/o/r/issues -f']);
+    expect(calls[2]).toEqual(['api', 'repos/o/r/issues', '-f', 'title=T', '-f', 'body=B', '-f', 'labels[]=release-task', '-f', 'labels[]=maintenance', '--jq', '.number']);
   });
 
   it('reads the repo labels once and adds a known label with one write', async () => {
@@ -215,21 +220,6 @@ describe('ghClient', () => {
     await client.addLabel(4, 'factory-stuck');
     await client.addLabel(5, 'factory-stuck');
     expect(calls.map((args) => args.slice(0, 3).join(' '))).toEqual(['label list -R', 'issue edit 4', 'issue edit 5']);
-  });
-
-  it('finds the oldest error-report issue whose body holds the exact fingerprint line, open or closed', async () => {
-    const calls: string[][] = [];
-    const found = [
-      { number: 9, state: 'OPEN', stateReason: '', closedAt: '', body: 'mentions 0123456789abcdef in a comment' },
-      { number: 7, state: 'CLOSED', stateReason: 'COMPLETED', closedAt: '2026-10-03T00:00:00Z', body: 'x\nError fingerprint: 0123456789abcdef' },
-      { number: 8, state: 'OPEN', stateReason: '', closedAt: '', body: 'Error fingerprint: 0123456789abcdef' },
-    ];
-    const run: Run = async (_cmd, args) => { calls.push(args); return ok(JSON.stringify(found)); };
-    const client = ghClient(run, CFG);
-    expect(await client.findByFingerprint('0123456789abcdef')).toEqual({ number: 7, state: 'CLOSED', stateReason: 'COMPLETED', closedAt: '2026-10-03T00:00:00Z' });
-    expect(calls[0]).toEqual(['issue', 'list', '-R', 'o/r', '--state', 'all', '--label', 'error-report', '--search', '"0123456789abcdef" in:body', '--json', 'number,state,stateReason,closedAt,body']);
-    const none: Run = async () => ok(JSON.stringify([found[0]]));
-    expect(await ghClient(none, CFG).findByFingerprint('0123456789abcdef')).toBeNull();
   });
 
   it('reads an open error-report issue with empty close fields as null', async () => {

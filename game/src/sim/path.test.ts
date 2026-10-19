@@ -22,9 +22,11 @@ import { dist, polylineDist, segmentDist, type Vec } from './vec';
 import { newWorld } from './world';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
+import { reusedWorld } from '../test/world-cache';
 import { defaultSetup } from './settings';
 
-const w1337 = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+const startWorld = (seed: number): World => reusedWorld(`path ${seed}`, () => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false));
+const w1337 = startWorld(1337);
 
 describe("route", () => {
   it("goes straight when nothing is in the way", () => {
@@ -539,7 +541,7 @@ describe('raiders that keep off roads', () => {
   });
 
   it('turns off the road toward its camp on the real map', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = startWorld(1337);
     const kiln = REGION.locations.find((l) => l.id === 'kiln')!;
     const pad = siteGates(kiln)[0];
     const start = { x: 354.5, y: 331.5 };
@@ -578,6 +580,7 @@ describe('raiders that keep off roads', () => {
 });
 
 namespace Ref {
+  const SITES_PRICED_LIKE_ROAD = [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')];
   export const CELL = 0.5;
   export const CLEARANCE = 0.4;
   export type Grid = { n: number; blocked: Uint8Array; slow: Float32Array };
@@ -591,22 +594,30 @@ namespace Ref {
     const tile = tileAt(t, p);
     const type = t.types[tile];
     const c = { x: Math.floor(p.x) + 0.5, y: Math.floor(p.y) + 0.5 };
-    const bySite = [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')].some((s) => siteGap(s, c) < REGION.roadWidth);
+    const bySite = SITES_PRICED_LIKE_ROAD.some((s) => siteGap(s, c) < REGION.roadWidth);
     const s = tileSlope(t, tile);
     const slope = flat ? 1 : 1 + REGION.navigation.slopeCost * (Math.hypot(s.x, s.y) / TERRAIN.drive.maxSlope) ** 2;
     return ((type === 'road' || bySite ? 1 : REGION.navigation.offRoadCost) / TERRAIN_TYPES[type].speed) * slope;
   }
 
+  const slowByTerrain = new WeakMap<Terrain, Float32Array>();
+
+  function slowCosts(t: Terrain, n: number): Float32Array {
+    const known = slowByTerrain.get(t);
+    if (known) return known;
+    const slow = new Float32Array(n * n);
+    for (let y = 0; y < n; y++)
+      for (let x = 0; x < n; x++) slow[y * n + x] = tileCost(t, { x: (x + 0.5) * CELL, y: (y + 0.5) * CELL });
+    slowByTerrain.set(t, slow);
+    return slow;
+  }
+
   export function terrainLayer(t: Terrain, radius: number): { n: number; cliff: Uint8Array; slow: Float32Array } {
     const n = Math.ceil(t.size / CELL);
     const cliff = new Uint8Array(n * n);
-    const slow = new Float32Array(n * n);
+    const slow = slowCosts(t, n);
     for (let y = 0; y < n; y++)
-      for (let x = 0; x < n; x++) {
-        const c = { x: (x + 0.5) * CELL, y: (y + 0.5) * CELL };
-        if (nearCliff(t, c, radius + CLEARANCE)) cliff[y * n + x] = 1;
-        slow[y * n + x] = tileCost(t, c);
-      }
+      for (let x = 0; x < n; x++) if (nearCliff(t, { x: (x + 0.5) * CELL, y: (y + 0.5) * CELL }, radius + CLEARANCE)) cliff[y * n + x] = 1;
     return { n, cliff, slow };
   }
 
@@ -840,8 +851,14 @@ namespace Ref {
     return best;
   }
 
+  const staticBlockers = new WeakMap<Obstacle[], { count: number; list: Blocker[] }>();
+
   export function blockers(w: World, extra: Blocker[]): Blocker[] {
-    return [...w.obstacles.filter(isDriveObstacle).map(blocker), ...extra];
+    const known = staticBlockers.get(w.obstacles);
+    if (known && known.count === w.obstacles.length) return [...known.list, ...extra];
+    const list = w.obstacles.filter(isDriveObstacle).map(blocker);
+    staticBlockers.set(w.obstacles, { count: w.obstacles.length, list });
+    return [...list, ...extra];
   }
 
   function blocker(o: Obstacle): Blocker {
@@ -863,8 +880,20 @@ function mulberry(seed: number): () => number {
   return () => nextRandom(r);
 }
 
+const referenceLayers = new WeakMap<Terrain, Map<number, ReturnType<typeof Ref.terrainLayer>>>();
+
+function referenceLayer(terrain: Terrain, radius: number): ReturnType<typeof Ref.terrainLayer> {
+  const byRadius = referenceLayers.get(terrain) ?? new Map<number, ReturnType<typeof Ref.terrainLayer>>();
+  referenceLayers.set(terrain, byRadius);
+  const known = byRadius.get(radius);
+  if (known) return known;
+  const built = Ref.terrainLayer(terrain, radius);
+  byRadius.set(radius, built);
+  return built;
+}
+
 describe('nav layers match the old grid rules', () => {
-  const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+  const w = startWorld(1);
   const rand = mulberry(7);
   const at = (lo: number, hi: number) => lo + (hi - lo) * rand();
   for (let i = 0; i < 4; i++) w.obstacles.push({ id: `wreck-t${i}`, pos: { x: at(40, w.size - 40), y: at(40, w.size - 40) }, r: 1, kind: 'wreck' });
@@ -875,11 +904,7 @@ describe('nav layers match the old grid rules', () => {
     const extra: Blocker[] = [{ pos: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }, r: 0.9 }];
     return { from, to, extra, radius: i % 3 === 0 ? 0.8 : 0.6 };
   });
-  const refLayers = new Map<number, ReturnType<typeof Ref.terrainLayer>>();
-  const refLayer = (radius: number) => {
-    if (!refLayers.has(radius)) refLayers.set(radius, Ref.terrainLayer(w.terrain, radius));
-    return refLayers.get(radius)!;
-  };
+  const refLayer = (radius: number) => referenceLayer(w.terrain, radius);
 
   it('A* cells avoid every blocked cell and cost within 1% of the reference', () => {
     let searched = 0;
@@ -954,7 +979,7 @@ describe('nav layers match the old grid rules', () => {
 });
 
 describe('long routes search a coarse corridor', () => {
-  const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+  const w = startWorld(1);
 
   it('coarse regions are the connected pieces of each block, linked where their cells touch', () => {
     const layer = navLayer(w.terrain, w.obstacles, 0.6);
@@ -1028,7 +1053,7 @@ describe('long routes search a coarse corridor', () => {
     const radius = 0.6;
     const layer = navLayer(local.terrain, local.obstacles, radius);
     const overlay = stampOverlay(layer, dynamicBlockers(local.obstacles, local.terrain, []), radius);
-    const g = Ref.grid(Ref.terrainLayer(local.terrain, radius), Ref.blockers(local, []), radius);
+    const g = Ref.grid(referenceLayer(local.terrain, radius), Ref.blockers(local, []), radius);
     const goal = Ref.cellOf(g, center);
     const from = { x: 40, y: 40 };
     const start = nearestFreeCell(layer, overlay, Ref.cellOf(g, from))!;
@@ -1098,7 +1123,7 @@ describe('raider hunting routes on the map', () => {
     const saved = REGION.navigation.roadShyBand;
     REGION.navigation.roadShyBand = band;
     try {
-      const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      const w = startWorld(1);
       w.terrain = { ...TEST_MAP.terrain };
       const driver = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 100, y: 100 });
       driver.brain = npcBrain('buggy', driver.pos, ['raider']);
@@ -1149,7 +1174,7 @@ describe('raider hunting routes on the map', () => {
     const normal = { x: -along.y / len, y: along.x / len };
     const centre = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const side = (s: number): Vec => ({ x: centre.x + normal.x * 14 * s, y: centre.y + normal.y * 14 * s });
-    const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = startWorld(1);
     const driver = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], side(-1));
     driver.brain = npcBrain('buggy', driver.pos, ['raider']);
     driver.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'travel', reason: 'raid' }];

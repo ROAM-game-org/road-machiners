@@ -9,7 +9,9 @@ export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 
 declare const __SFX_BYTES__: Record<string, number>;
 export const SFX_BYTES = __SFX_BYTES__;
-export const DOWNLOAD = { tries: 6, waitMs: [500, 1000, 2000, 4000, 4000] };
+declare const __PUBLIC_HASHES__: Record<string, string>;
+export const PUBLIC_HASHES = __PUBLIC_HASHES__;
+export const DOWNLOAD = { tries: 6, waitMs: [500, 1000, 2000, 4000, 4000], stallMs: 20000 };
 declare const __FEEDBACK_URL__: string;
 export const FEEDBACK_URL = __FEEDBACK_URL__;
 

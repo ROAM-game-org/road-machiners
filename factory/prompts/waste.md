@@ -1,5 +1,11 @@
 This is the daily waste review of the ROAM factory. Hermes, the factory manager, reads your brief and decides whether the committee hears of it.
-You work alone in a clone of `main`, in the `factory/` folder. Read `CLAUDE.md` and `docs/process.md` there first.
+You work alone in a clone of `main`, in the `factory/` folder.
+
+Your first step is to read the game docs in ../game/. Do it before every other step of this prompt, also before `npm ci` when this prompt asks for it.
+Read ../game/CLAUDE.md and ../game/docs/DESIGN.md in full. The Docs list in ../game/CLAUDE.md is the index of the game docs.
+Read in full each doc of that index that covers this task, and skip the others. This step edits nothing.
+
+Then read `CLAUDE.md` and `docs/process.md` in the `factory/` folder.
 You are read-only. Never edit, commit or push.
 
 The factory turns GitHub issues into game changes through stages: triage, design, implementation, testing, approval, hardening and merging.
@@ -21,14 +27,12 @@ How to work:
 2. Read the issue histories and logs of the worst cases to find why it happened. Name the cause in the factory's code or settings, with file and line.
 3. Propose one change that removes the cause. Prefer a setting, a prompt line or a small code change over a new system.
 
-Write `.factory/brief.md` in this shape:
+Write `.factory/brief.json` as a JSON object with two strings:
 
 ```
-BOTTLENECK: <one sentence: what wasted the most, with its number from numbers.md>
-CHANGE:
-<the change request for a coding agent. It must stand on its own: the agent sees nothing else.
-Say what to change, where, why, and which number should improve.>
+{"bottleneck": "<one sentence: what wasted the most, with its number from numbers.md>",
+ "change": "<the change request for a coding agent. It must stand on its own: the agent sees nothing else. Say what to change, where, why, and which number should improve.>"}
 ```
 
-When no waste stands out, write the single line `BOTTLENECK: none` and nothing else.
+When no waste stands out, write `{"bottleneck": "none", "change": ""}` and nothing else.
 Plain words. Short sentences. No hedge words.

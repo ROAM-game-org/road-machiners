@@ -1,9 +1,10 @@
 import { rmSync } from 'node:fs';
-import { cardFlow, moveCard } from '../card-events';
+import { cardFlow, moveCard, type CardFacts } from '../card-events';
 import { appendLedger } from '../ledger';
 import { adoptReplyMedia, dropReplyMedia, replyMediaLines } from '../reply-media';
 import { readState, updateState } from '../state';
-import { BRANCH, BaseMovedError, FEEDBACK_HEADING, QUESTION_HEADING, MergeConflictError, WONT_DO_LABEL, type Ctx, type KeptApproval, type Route } from '../types';
+import { recordFeedback } from '../pending-feedback';
+import { BRANCH, BaseMovedError, FEEDBACK_HEADING, PLAYER_REPORT_HEADING, QUESTION_HEADING, MergeConflictError, WONT_DO_LABEL, type Ctx, type FeedbackSource, type KeptApproval, type Route } from '../types';
 import { HOTFIX_BASE, baseBranchFor, mediaDir, workDir } from './common';
 import { releaseBundle } from './bundle';
 import { shipHotfix } from './hotfix';
@@ -14,14 +15,14 @@ async function requireApproval(ctx: Ctx, issue: number): Promise<void> {
   if (card?.column !== 'Approval') throw new Error(`Issue #${issue} is not in Approval, it is in ${card?.column ?? 'no column'}`);
 }
 
-function forgetPosts(ctx: Ctx, issue: number): void {
+function forgetPosts(ctx: Ctx, issue: number, keepBuild = false): void {
   const closed = Object.entries(readState(ctx.statePath).approvalPosts).filter(([, number]) => number === issue).map(([post]) => Number(post));
   updateState(ctx.statePath, (state) => {
     const approvalPosts = Object.fromEntries(Object.entries(state.approvalPosts).filter(([, number]) => number !== issue));
     const pendingApprovals = { ...state.pendingApprovals };
     delete pendingApprovals[String(issue)];
     const builds = { ...state.builds };
-    delete builds[String(issue)];
+    if (!keepBuild) delete builds[String(issue)];
     const approvedResolving = { ...state.approvedResolving };
     delete approvedResolving[String(issue)];
     const postOnly = state.postOnly.filter((n) => n !== issue);
@@ -39,7 +40,7 @@ export async function approve(ctx: Ctx, issue: number, by: string): Promise<void
   const { approval, build } = keepApproval(ctx, issue, by);
   try {
     const message = await shipHotfix(ctx, issue, item.title, approval, build);
-    await closeMerged(ctx, issue, item.labels, message);
+    await closeMerged(ctx, issue, item.labels, message, { into: HOTFIX_BASE });
   } catch (error) {
     const reason = movedReason(error, issue);
     if (reason === null) throw error;
@@ -61,7 +62,7 @@ function keepApproval(ctx: Ctx, issue: number, by: string): { approval: KeptAppr
 
 function movedReason(error: unknown, issue: number): string | null {
   if (error instanceof BaseMovedError && error.branch === BRANCH(issue)) return error.message;
-  if (error instanceof MergeConflictError && error.branch === BRANCH(issue)) return `main moved on, and the branch conflicts with it in ${error.files.join(', ')}.`;
+  if (error instanceof MergeConflictError && error.step.issue === issue) return `main moved on, and the branch conflicts with it in ${error.files.join(', ')}.`;
   return null;
 }
 
@@ -74,7 +75,7 @@ async function integrateAgain(ctx: Ctx, issue: number, labels: string[], approva
 }
 
 async function harden(ctx: Ctx, issue: number, by: string, base: string): Promise<void> {
-  forgetPosts(ctx, issue);
+  forgetPosts(ctx, issue, true);
   dropKeptApproval(ctx, issue);
   updateState(ctx.statePath, (state) => ({ ...state, approvedResolving: { ...state.approvedResolving, [String(issue)]: by } }));
   await ctx.github.comment(issue, `Approved by ${by} in the committee chat. Hardening runs now. Then the factory checks it merged with ${base} and merges it by itself, with no new post.`);
@@ -82,21 +83,23 @@ async function harden(ctx: Ctx, issue: number, by: string, base: string): Promis
   ctx.log('approve', issue, `approved by ${by}, to Hardening`);
 }
 
-export async function closeMerged(ctx: Ctx, issue: number, labels: string[], message: string | null): Promise<void> {
-  await moveCard(ctx, issue, 'Done', 'merged', cardFlow(labels));
-  forgetPosts(ctx, issue);
+export async function closeMerged(ctx: Ctx, issue: number, labels: string[], message: string | null, merge: CardFacts): Promise<void> {
+  await moveCard(ctx, issue, 'Done', 'merged', cardFlow(labels), merge);
+  forgetPosts(ctx, issue, merge.into !== HOTFIX_BASE);
   dropKeptApproval(ctx, issue);
   rmSync(workDir(ctx, issue), { recursive: true, force: true });
   rmSync(`${ctx.cfg.home}/work/check-issue-${issue}`, { recursive: true, force: true });
   if (message !== null) await ctx.telegram.sendMessage(ctx.cfg.committeeChat, message);
 }
 
-export async function routeFeedback(ctx: Ctx, issue: number, by: string, text: string, route: Route, post: number, heading: string = FEEDBACK_HEADING): Promise<boolean> {
+export async function routeFeedback(ctx: Ctx, issue: number, by: string, text: string, route: Route, post: number, source: FeedbackSource = 'committee'): Promise<boolean> {
   await requireApproval(ctx, issue);
   const state = readState(ctx.statePath);
-  await ctx.github.comment(issue, routeComment(ctx, issue, by, text, route, post, heading));
+  const body = routeComment(ctx, issue, by, text, route, post, source === 'player' ? PLAYER_REPORT_HEADING : FEEDBACK_HEADING);
+  await ctx.github.comment(issue, body);
   appendLedger(ctx.cfg.home, { kind: 'route', issue, route, by, at: ctx.now().toISOString() });
   if (route === 'answer') return false;
+  recordFeedback(ctx.statePath, issue, { source, body });
   await moveCard(ctx, issue, route === 'patch' ? 'Testing' : 'Design', route);
   forgetPosts(ctx, issue);
   await invalidateApproval(ctx, issue, `${by} sent it back as a ${route}, which changes what was approved.`);

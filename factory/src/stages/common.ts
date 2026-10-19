@@ -1,9 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readAgentOutput } from '../agent-output';
 import { fetchMedia, mediaSection } from '../media';
 import { CommitteeDecisionError, guardDiff } from '../diff-guard';
-import { isAnswered, isQuestion } from '../questions';
+import { askedAt, isAnswered, recordAsked, recordQuestionPost } from '../questions';
+import { MESSAGE_LIMIT } from '../telegram-limits';
 import { resumeError, resumedStage, roundSession } from '../sessions';
 import { readCommitteeMedia } from '../reply-media';
 import { issueReports } from '../error-reports/service';
@@ -26,7 +28,15 @@ const TESTED_DOCS = `${GAME_DIR}/docs/wiki/`;
 
 export async function docsOnly(ctx: Ctx, issue: number, base: string): Promise<boolean> {
   const files = await ctx.repo.changedFiles(base, BRANCH(issue));
-  return files.length > 0 && files.every((file) => file.endsWith('.md') && !file.startsWith(TESTED_DOCS));
+  return files.length > 0 && files.every(isUntestedDoc);
+}
+
+function isUntestedDoc(file: string): boolean {
+  return file.endsWith('.md') && !file.startsWith(TESTED_DOCS);
+}
+
+export function isGameSource(file: string): boolean {
+  return file.startsWith(`${GAME_DIR}/`) && !isUntestedDoc(file);
 }
 
 export async function baseBranchOf(ctx: Ctx, issue: number): Promise<string> {
@@ -53,8 +63,7 @@ export function resetOutputs(home: string): void {
 }
 
 export function readOutput(home: string, name: string): string | null {
-  const path = `${home}/${OUT_DIR}/${name}`;
-  return existsSync(path) ? readFileSync(path, 'utf8') : null;
+  return readAgentOutput(home, name);
 }
 
 export async function writeIssueInput(ctx: Ctx, issue: number, home: string): Promise<void> {
@@ -73,9 +82,12 @@ export function playtestCommand(cfg: FactoryConfig, fpsGate: boolean): string {
   return fpsGate ? 'npm run playtest' : 'npm run playtest -- --no-fps-gate';
 }
 
+export function promptFile(name: string): string {
+  return readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').trim();
+}
+
 export function fillPrompt(name: string, vars: Record<string, string>): string {
-  const path = fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url));
-  let text = readFileSync(path, 'utf8');
+  let text = readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').replaceAll('{{gameDocs}}', promptFile('game-docs')).replaceAll('{{fixDocs}}', promptFile('fix-docs'));
   for (const [key, value] of Object.entries(vars)) text = text.replaceAll(`{{${key}}}`, value);
   const left = text.match(/\{\{[^}]*\}\}/);
   if (left) throw new Error(`Prompt ${name} has an unfilled ${left[0]}`);
@@ -104,7 +116,7 @@ export function mediaDir(ctx: Ctx, issue: number): string {
 }
 
 async function githubToken(ctx: Ctx): Promise<string | undefined> {
-  const out = await ctx.run('gh', ['auth', 'token']).catch(() => null);
+  const out = await ctx.run('gh', ['auth', 'token'], { activity: 'git' }).catch(() => null);
   return out !== null && out.code === 0 && out.stdout.trim() !== '' ? out.stdout.trim() : undefined;
 }
 
@@ -137,7 +149,7 @@ export function prepareOutputs(ctx: Ctx, issue: number, home: string): void {
   mkdirSync(`${home}/${OUT_DIR}`, { recursive: true });
 }
 
-export type AgentExtras = { skill?: string; effort?: string; fresh?: boolean; disallowedTools?: string[]; continue?: boolean };
+export type AgentExtras = { model?: string; skill?: string; effort?: string; fresh?: boolean; disallowedTools?: string[]; continue?: boolean };
 
 function agentSession(ctx: Ctx, issue: number, stage: CardStage, round: string, extras: AgentExtras): AgentSession {
   const session = roundSession(ctx.cfg.home, issue, round, extras.continue === true || (extras.fresh !== true && isResuming(ctx, issue)));
@@ -145,9 +157,14 @@ function agentSession(ctx: Ctx, issue: number, stage: CardStage, round: string, 
   return session;
 }
 
-export async function runAgent(ctx: Ctx, issue: number, stage: CardStage, round: string, prompt: string, extras: AgentExtras = {}): Promise<string> {
+async function agentModel(ctx: Ctx, issue: number, stage: CardStage, extras: AgentExtras): Promise<string> {
+  if (extras.model !== undefined) return extras.model;
   const { labels } = await ctx.github.issue(issue);
-  const model = modelFor(ctx.cfg, stage, labels);
+  return modelFor(ctx.cfg, stage, labels);
+}
+
+export async function runAgent(ctx: Ctx, issue: number, stage: CardStage, round: string, prompt: string, extras: AgentExtras = {}): Promise<string> {
+  const model = await agentModel(ctx, issue, stage, extras);
   ctx.log(stage, issue, `agent model ${model}`);
   const advisor = advisorFor(ctx.cfg, stage, model);
   const openNetwork = await useOpenNetwork(ctx, stage, issue);
@@ -164,16 +181,30 @@ export function fitComment(text: string, fullAt: string): string {
   return text.length > COMMENT_TEXT_LIMIT ? `${text.slice(0, COMMENT_TEXT_LIMIT)}\n\n(cut here, the full text is in ${fullAt})` : text;
 }
 
-export async function askAuthor(ctx: Ctx, issue: number, questions: string[], stage: 'triage' | 'design'): Promise<void> {
-  const [{ author }, earlier] = await Promise.all([ctx.github.issue(issue), ctx.github.comments(issue)]);
-  const stillOpen = earlier.some(isQuestion) && !isAnswered(earlier);
+export async function askAuthor(ctx: Ctx, issue: number, questions: string[], stage: 'triage' | 'design', context: string): Promise<void> {
+  const [{ author, title }, earlier] = await Promise.all([ctx.github.issue(issue), ctx.github.comments(issue)]);
+  const before = askedAt(ctx.statePath, issue);
+  const stillOpen = before !== null && !isAnswered(earlier, before);
   const numbered = questions.map((question, index) => `${index + 1}. ${question}`);
   const body = [QUESTIONS_HEADING, `@${author}`, numbered.join('\n'), 'The work continues once someone answers here.'].join('\n\n');
+  const at = ctx.now().toISOString();
   await ctx.github.comment(issue, body);
   await ctx.github.addLabel(issue, NEEDS_INFO_LABEL);
+  recordAsked(ctx.statePath, issue, at);
   if (stillOpen) return;
-  const text = `❓ ${stage === 'triage' ? 'Triage' : 'Design'} needs answers on #${issue}. The questions are on the GitHub issue: https://github.com/${ctx.cfg.repo}/issues/${issue}\nAnswer there. Replies in this chat do not reach the stage.`;
-  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, text).catch((error: unknown) => ctx.log(stage, issue, `could not notify the committee of the questions: ${error instanceof Error ? error.message : String(error)}`));
+  const head = `❓ ${stage === 'triage' ? 'Triage' : 'Design'} asks on #${issue} ${title}\nhttps://github.com/${ctx.cfg.repo}/issues/${issue}`;
+  const postId = await ctx.telegram.sendMessage(ctx.cfg.committeeChat, questionsNotice(head, [context, numbered.join('\n')].join('\n\n'))).catch((error: unknown) => {
+    ctx.log(stage, issue, `could not notify the committee of the questions: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  });
+  if (postId !== null) recordQuestionPost(ctx.statePath, postId, issue);
+}
+
+const QUESTIONS_TAIL = 'Reply to this message to answer, or answer on GitHub.';
+
+function questionsNotice(head: string, body: string): string {
+  const room = MESSAGE_LIMIT - head.length - QUESTIONS_TAIL.length - 4;
+  return [head, body.length > room ? `${body.slice(0, room - 1)}…` : body, QUESTIONS_TAIL].join('\n\n');
 }
 
 export function throwIfNeedsCommittee(home: string): void {
@@ -198,7 +229,7 @@ async function guardedHead(ctx: Ctx, issue: number, base: string, stage: CardSta
   const untracked = await ctx.repo.untrackFactoryFiles(workDir(ctx, issue));
   if (untracked.length > 0) ctx.log(stage, issue, `took factory files out of the branch: ${untracked.join(', ')}`);
   const head = await ctx.repo.fetchFromWork(workDir(ctx, issue), BRANCH(issue));
-  guardDiff(await ctx.repo.diff(base, head));
+  guardDiff({ files: await ctx.repo.changedFiles(base, head), diff: await ctx.repo.diff(base, head) });
   return head;
 }
 

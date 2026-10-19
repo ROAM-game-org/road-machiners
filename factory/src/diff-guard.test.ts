@@ -1,29 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { changedAgainstAll, guardAgainstAll } from './diff-guard';
+import { changedAgainstAll, guardAgainstAll, type Side } from './diff-guard';
 
 const section = (file: string, line: string): string => `diff --git a/${file} b/${file}\n--- a/${file}\n+++ b/${file}\n@@ -1 +1 @@\n-old\n+${line}\n`;
+const side = (...parts: [string, string][]): Side => ({ files: parts.map(([file]) => file), diff: parts.map(([file, line]) => section(file, line)).join('') });
 
 describe('changedAgainstAll', () => {
   it('keeps a file that differs from every approved side and drops one that only a side brought', () => {
-    const fromMain = section('.github/ci.yml', 'release side') + section('game/a.ts', 'fix');
-    const fromRelease = section('game/a.ts', 'fix') + section('factory/x.ts', 'main side');
-    expect(changedAgainstAll([fromMain, fromRelease])).toBe(section('game/a.ts', 'fix'));
+    expect(changedAgainstAll([['.github/ci.yml', 'game/a.ts'], ['game/a.ts', 'factory/x.ts']])).toEqual(['game/a.ts']);
   });
 
-  it('keeps the whole diff when one side is approved', () => {
-    const diff = section('.github/ci.yml', 'x') + section('game/a.ts', 'y');
-    expect(changedAgainstAll([diff])).toBe(diff);
+  it('keeps every file when one side is approved', () => {
+    expect(changedAgainstAll([['.github/ci.yml', 'game/a.ts']])).toEqual(['.github/ci.yml', 'game/a.ts']);
   });
 
-  it('keeps nothing from an empty diff', () => {
-    expect(changedAgainstAll(['', section('game/a.ts', 'y')])).toBe('');
+  it('keeps nothing from an empty side', () => {
+    expect(changedAgainstAll([[], ['game/a.ts']])).toEqual([]);
   });
 });
 
 describe('guardAgainstAll', () => {
   const SAVE = 'game/src/three/save-migrations.ts';
-  const bump = section(SAVE, 'export const SAVE_MAJOR = 4;');
-  const other = section(SAVE, 'const note = 1;');
+  const bump = side([SAVE, 'export const SAVE_MAJOR = 4;']);
+  const other = side([SAVE, 'const note = 1;']);
 
   it('passes a SAVE_MAJOR bump that one approved side already holds', () => {
     expect(() => guardAgainstAll([bump, other])).not.toThrow();
@@ -34,6 +32,6 @@ describe('guardAgainstAll', () => {
   });
 
   it('refuses a protected path that differs from every approved side', () => {
-    expect(() => guardAgainstAll([section('.github/ci.yml', 'x'), section('.github/ci.yml', 'x')])).toThrow('.github/ci.yml');
+    expect(() => guardAgainstAll([side(['.github/ci.yml', 'x']), side(['.github/ci.yml', 'x'])])).toThrow('.github/ci.yml');
   });
 });
