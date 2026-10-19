@@ -1807,3 +1807,30 @@ describe('MIGRATIONS[82]', () => {
     expect(next.roadNews).toEqual([]);
   });
 });
+
+describe('MIGRATIONS[83]', () => {
+  type Saved = { player: { call: unknown } };
+  const base = () => MIGRATIONS[82](structuredClone(FORMAT_2_82)) as unknown as Saved;
+  const haul = { kind: 'haul', goods: { scrap: 2 }, parts: [] };
+  const withCall = (topic: string, vars: Record<string, unknown>): Saved => {
+    const world = base();
+    world.player.call = { with: 'npc-1', topic, node: 'start', vars, line: { line: 'demand', vars } };
+    return world;
+  };
+  const step = (world: Saved) => MIGRATIONS[83](world as never) as unknown as Saved;
+
+  it.each(['demand', 'truce', 'mercy'])('drops an open %s call that names cargo and a price', (topic) => {
+    expect(step(withCall(topic, { haul, price: { kind: 'money', amount: 1266 } })).player.call).toBeNull();
+  });
+
+  it('keeps a cash-only demand call', () => {
+    const world = withCall('demand', { price: { kind: 'money', amount: 500 } });
+    expect(step(structuredClone(world))).toEqual(world);
+  });
+
+  it('keeps a world with no call', () => {
+    const world = base();
+    world.player.call = null;
+    expect(step(structuredClone(world))).toEqual(world);
+  });
+});
