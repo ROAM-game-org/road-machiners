@@ -23,7 +23,7 @@
   align-items: center;
   gap: var(--space-8);
   padding: var(--space-8) var(--space-7) var(--space-4);
-  background: linear-gradient(to top, var(--scrim), transparent);
+  background: linear-gradient(to top, var(--scrim) 40%, transparent);
 }
 .town-page .town-title h3 {
   margin: 0;
@@ -63,12 +63,18 @@
 .town-page .town-column.wide {
   width: 100%;
 }
+.town-page .bar-list {
+  display: flex;
+  flex-direction: column;
+}
 .town-page .bar-row {
+  padding: var(--space-3) 0;
   display: flex;
   align-items: center;
   gap: var(--space-6);
 }
 .town-page .bar-row .bar-name {
+  flex: none;
   font-weight: 700;
 }
 .town-page .bar-row .bar-quiet {

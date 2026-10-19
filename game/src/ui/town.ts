@@ -248,7 +248,7 @@ export class TownScreen {
   private bar(w: World, shopId: string): HTMLElement {
     const drivers = barDrivers(w, shopId);
     if (drivers.length === 0) return el("div", { class: "dim" }, sectionReason("noDrivers"));
-    return el("div", { class: "jobs" }, ...drivers.map((v) => this.barRow(w, v)));
+    return el("div", { class: "bar-list" }, ...drivers.map((v) => this.barRow(w, v)));
   }
 
   private barRow(w: World, v: Vehicle): HTMLElement {
