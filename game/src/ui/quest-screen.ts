@@ -19,6 +19,14 @@ import { uiSize } from './ui-size';
 
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
+export type ScrollKind = 'append' | 'same' | 'fresh';
+
+export function scrollTarget(kind: ScrollKind, before: number, box: { scrollHeight: number; clientHeight: number }): number {
+  if (kind === 'fresh') return 0;
+  if (kind === 'same') return before;
+  return Math.max(0, box.scrollHeight - box.clientHeight);
+}
+
 export function askOf(shown: QuestLive | null, live: QuestLive, ask: string | null): string | null {
   return shown?.quest === live.quest ? ask : null;
 }
@@ -225,8 +233,9 @@ export class QuestScreen {
     this.artStage.clear();
   }
 
-  private draw(): void {
+  private draw(scroll: ScrollKind = 'fresh'): void {
     this.termTip.hide();
+    const before = this.scrollBox()?.scrollTop ?? 0;
     const w = this.host.world();
     const view = questView(w, QUESTS);
     this.root.style.display = '';
@@ -236,6 +245,20 @@ export class QuestScreen {
     const endMs = view.view === 'page' ? this.drawPage(w, view) : this.drawTalk(w, view);
     this.root.append(this.look);
     this.revealEnd = performance.now() + endMs;
+    this.placeScroll(scroll, before);
+  }
+
+  private scrollBox(): HTMLElement | null {
+    return this.root.querySelector<HTMLElement>('.quest-talk, .quest-text');
+  }
+
+  private placeScroll(kind: ScrollKind, before: number): void {
+    const apply = () => {
+      const box = this.scrollBox();
+      if (box?.isConnected) box.scrollTop = scrollTarget(kind, before, box);
+    };
+    apply();
+    requestAnimationFrame(apply);
   }
 
   private lookRow(): HTMLElement {
@@ -307,7 +330,7 @@ export class QuestScreen {
     const view = questView(this.host.world(), QUESTS);
     if (!this.onLastParagraph(view)) {
       this.paragraph += 1;
-      return this.draw();
+      return this.draw('append');
     }
     if (!this.onLastPage(view)) this.nextPage();
   }
@@ -341,7 +364,7 @@ export class QuestScreen {
     } catch (e) {
       this.asked = null;
       this.error = commandFailure(this.host.world(), e);
-      if (this.host.world().player.quests.live) this.draw();
+      if (this.host.world().player.quests.live) this.draw('same');
     }
   }
 
