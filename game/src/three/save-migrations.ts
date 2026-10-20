@@ -896,7 +896,8 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => world,
   withHeardCentres_81_82,
   withShopGoods_82_83,
-  withoutPricedHaulCalls_83_84,
+  withStapleRestock_83_84,
+  withoutPricedHaulCalls_84_85,
 ];
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {
@@ -1157,18 +1158,31 @@ function withShopGoods_82_83(world: SavedJson): SavedJson {
   return { ...world, shops, vehicles, roadNews: [] };
 }
 
-function namesCargo_83_84(vars: SavedJson): boolean {
+const STAPLE_SHOPS_83_84 = ['bowl', 'nose'];
+const STAPLE_PART_83_84 = 'stockEngine';
+type SavedShop = { stock: { defId: string }[]; restockAt: number };
+
+function withStapleRestock_83_84(world: SavedJson): SavedJson {
+  const shops = { ...(world.shops as Record<string, SavedShop>) };
+  for (const id of STAPLE_SHOPS_83_84) {
+    const shop = shops[id];
+    if (shop && !shop.stock.some((part) => part.defId === STAPLE_PART_83_84)) shops[id] = { ...shop, restockAt: world.turn as number };
+  }
+  return { ...world, shops };
+}
+
+function namesCargo_84_85(vars: SavedJson): boolean {
   const price = vars.price as SavedJson | undefined;
   const haul = vars.haul as { kind: string; goods: Record<string, number>; parts: string[] } | undefined;
   if (price?.kind !== 'money' || haul?.kind !== 'haul') return false;
   return Object.keys(haul.goods).length + haul.parts.length > 0;
 }
 
-function withoutPricedHaulCalls_83_84(world: SavedJson): SavedJson {
+function withoutPricedHaulCalls_84_85(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
   const topics = ['demand', 'truce', 'mercy'];
-  if (!call || !topics.includes(call.topic as string) || !namesCargo_83_84(call.vars as SavedJson)) return world;
+  if (!call || !topics.includes(call.topic as string) || !namesCargo_84_85(call.vars as SavedJson)) return world;
   return { ...world, player: { ...player, call: null } };
 }
 

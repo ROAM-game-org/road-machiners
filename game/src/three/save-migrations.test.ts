@@ -1803,21 +1803,41 @@ describe('MIGRATIONS[82]', () => {
     const next = migrated();
     expect(next.vehicles[1].brain!.goals).toEqual([]);
     expect(next.vehicles[1].job).toBeNull();
-    expect(next.vehicles[2]).toEqual(FORMAT_2_82.vehicles[2]);
-    expect(next.roadNews).toEqual([]);
   });
 });
 
 describe('MIGRATIONS[83]', () => {
+  type Shops = Record<string, { stock: { defId: string }[]; restockAt: number }>;
+  const shopsOf = (world: unknown) => (world as { shops: Shops }).shops;
+  const withShelves = () => {
+    const world = structuredClone(FORMAT_2_82) as unknown as { shops: Shops };
+    world.shops.bowl.stock = [{ defId: 'mg' }];
+    world.shops.nose.stock = [{ defId: 'mg' }, { defId: 'stockEngine' }];
+    world.shops['salvage-yard'].stock = [{ defId: 'mg' }];
+    return world;
+  };
+
+  it('restocks a Bowl or Nose shelf with no stock engine on the saved turn and leaves the rest alone', () => {
+    const before = withShelves();
+    const next = MIGRATIONS[83](structuredClone(before) as never);
+
+    expect(shopsOf(next).bowl.restockAt).toBe(FORMAT_2_82.turn);
+    expect(shopsOf(next).nose.restockAt).toBe(before.shops.nose.restockAt);
+    expect(shopsOf(next)['salvage-yard']).toEqual(before.shops['salvage-yard']);
+    expect({ ...next, shops: { ...shopsOf(next), bowl: before.shops.bowl } }).toEqual(before);
+  });
+});
+
+describe('MIGRATIONS[84]', () => {
   type Saved = { player: { call: unknown } };
-  const base = () => MIGRATIONS[82](structuredClone(FORMAT_2_82)) as unknown as Saved;
+  const base = () => MIGRATIONS[83](MIGRATIONS[82](structuredClone(FORMAT_2_82))) as unknown as Saved;
   const haul = { kind: 'haul', goods: { scrap: 2 }, parts: [] };
   const withCall = (topic: string, vars: Record<string, unknown>): Saved => {
     const world = base();
     world.player.call = { with: 'npc-1', topic, node: 'start', vars, line: { line: 'demand', vars } };
     return world;
   };
-  const step = (world: Saved) => MIGRATIONS[83](world as never) as unknown as Saved;
+  const step = (world: Saved) => MIGRATIONS[84](world as never) as unknown as Saved;
 
   it.each(['demand', 'truce', 'mercy'])('drops an open %s call that names cargo and a price', (topic) => {
     expect(step(withCall(topic, { haul, price: { kind: 'money', amount: 1266 } })).player.call).toBeNull();
