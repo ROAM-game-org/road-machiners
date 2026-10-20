@@ -14,7 +14,7 @@ export function restoreWorld(snapshot: Uint8Array): RAPIER.World {
 }
 
 export function stepWorld(world: RAPIER.World, events?: RAPIER.EventQueue): void {
-  if (!world.physicsPipeline) throw new Error("Physics world was stepped after it was freed");
+  if (!world.physicsPipeline) throw new Error('Physics world was stepped after it was freed');
   world.physicsPipeline.step(world.gravity, world.integrationParameters, world.islands, world.broadPhase, world.narrowPhase, world.bodies, world.colliders, world.softBodies, world.impulseJoints, world.multibodyJoints, world.ccdSolver, events);
 }
 
