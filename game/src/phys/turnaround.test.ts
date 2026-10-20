@@ -32,7 +32,7 @@ describe('turnaround room', () => {
   });
 
   it('a back-up is blocked by a rock behind the truck and clear otherwise', () => {
-    const behind = roomWith([{ x: 17.5, y: 20 }]);
+    const behind = roomWith([{ x: 18, y: 20 }]);
     expect(backUpClear(behind.room, stance, 4, 1, 1, behind.size)).toBe(false);
     const ahead = roomWith([{ x: 23, y: 20 }]);
     expect(backUpClear(ahead.room, stance, 4, 1, 1, ahead.size)).toBe(true);
