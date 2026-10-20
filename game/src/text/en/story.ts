@@ -9,6 +9,7 @@ export const STORY = {
   'quest.bowl_jory.title': 'Talks with Jory Baptiste',
   'quest.bowl_ruben.title': 'Talks with Ruben',
   'quest.bowl_scale.title': 'The scale at the Bowl gate',
+  'quest.fallen_light.title': 'In the light',
   'quest.first_fall.title': 'The first fall',
   'quest.granary_odile.title': 'Talks with Odile Marsh',
   'quest.intro_arrival.title': 'Down from the rim',
