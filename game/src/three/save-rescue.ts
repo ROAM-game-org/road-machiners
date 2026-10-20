@@ -276,8 +276,7 @@ function formatNumber(raw: unknown): number {
 }
 
 function centsOf(value: unknown, scale: number): number | null {
-  const money = countOf(value);
-  return money === null ? null : Math.round(money * scale);
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * scale) : null;
 }
 
 function pooledOf(player: Json): Pick<Carried, 'xp' | 'ranks'> {
