@@ -100,6 +100,26 @@ export function withHeardCentres_81_82(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
 }
 
+function withFollowHeading_87_88(step: SavedJson): SavedJson {
+  return step.do === 'follow' ? { ...step, heading: null } : step;
+}
+
+function followHeadingVars_87_88(vars: SavedJson): SavedJson {
+  return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
+    const value = v as SavedJson;
+    return [name, value.kind === 'directions' ? { ...value, steps: (value.steps as SavedJson[]).map(withFollowHeading_87_88) } : value];
+  }));
+}
+
+export function withFollowHeadings_87_88(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  if (!call) return world;
+  const line = call.line as SavedJson;
+  const next = { ...call, vars: followHeadingVars_87_88(call.vars as SavedJson), line: { ...line, vars: followHeadingVars_87_88(line.vars as SavedJson) } };
+  return { ...world, player: { ...player, call: next } };
+}
+
 const SUNWARD_STANDING_84_85 = -20;
 
 export function withSunward_84_85(world: SavedJson): SavedJson {
@@ -166,8 +186,14 @@ export function withDutyLegs_59_60(world: SavedJson): SavedJson {
   return { ...world, vehicles };
 }
 
-const STANDARD_PAINT_87_88 = 'standard';
+const STANDARD_PAINT_88_89 = 'standard';
 
-export function withStandardPaint_87_88(world: SavedJson): SavedJson {
-  return { ...world, player: { ...(world.player as SavedJson), paint: STANDARD_PAINT_87_88 } };
+export function withStandardPaint_88_89(world: SavedJson): SavedJson {
+  return { ...world, player: { ...(world.player as SavedJson), paint: STANDARD_PAINT_88_89 } };
+}
+
+export function withEncounters_64_65(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  if (player.encounters !== undefined) return world;
+  return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
 }

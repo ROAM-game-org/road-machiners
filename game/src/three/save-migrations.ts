@@ -3,7 +3,7 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
-import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withoutVarga_79_80, withSunward_84_85, withHollowFort_85_86, withOfferedNight_86_87, withProgressAnchor_65_66, withDutyLegs_59_60, withStandardPaint_87_88 } from './save-steps-late';
+import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withoutVarga_79_80, withSunward_84_85, withHollowFort_85_86, withOfferedNight_86_87, withFollowHeadings_87_88, withProgressAnchor_65_66, withDutyLegs_59_60, withEncounters_64_65, withStandardPaint_88_89 } from './save-steps-late';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -900,7 +900,8 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withSunward_84_85,
   withHollowFort_85_86,
   withOfferedNight_86_87,
-  withStandardPaint_87_88,
+  withFollowHeadings_87_88,
+  withStandardPaint_88_89,
 ];
 
 
@@ -1066,12 +1067,6 @@ function withCountableDirections_71_72(world: SavedJson): SavedJson {
   const line = call.line as SavedJson;
   const next = { ...call, vars: countableVars_71_72(call.vars as SavedJson), line: { ...line, vars: countableVars_71_72(line.vars as SavedJson) } };
   return { ...world, player: { ...player, call: next } };
-}
-
-function withEncounters_64_65(world: SavedJson): SavedJson {
-  const player = world.player as SavedJson;
-  if (player.encounters !== undefined) return world;
-  return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
 }
 
 const BEARING_LINES_67_68: readonly string[] = ['townBearing', 'siteBearing', 'aWreckNobodyPicked', 'rolledPastSite'];

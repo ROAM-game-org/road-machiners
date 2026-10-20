@@ -4,7 +4,10 @@ import { propPose } from '../sim/mapgen';
 import { baseGrid, isMounted, placementError } from '../sim/grid';
 import { choosePerk, pendingPerkPairs, skillLevel } from '../sim/progress';
 import { emptyWorld } from '../sim/testkit';
-import type { Obstacle, Player, Vehicle, WeatherEvent, World } from '../sim/types';
+import type { CallVars, Obstacle, Player, Vehicle, WeatherEvent, World } from '../sim/types';
+import type { LineId } from '../data/dialogue';
+import { resolve } from '../text/resolve';
+import { lineText } from '../ui/dialogue';
 import { stormStrength, weatherAt, weatherOn } from '../sim/weather';
 import { ECONOMY } from '../data/goods';
 import { pressureOf, priceAtPressure } from '../sim/market';
@@ -76,12 +79,13 @@ import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
-import FORMAT_2_84 from './save-fixtures/format-2-84.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
+import FORMAT_2_88 from './save-fixtures/format-2-88.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
+import FORMAT_2_84 from './save-fixtures/format-2-84.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1905,11 +1909,47 @@ describe('save migration 86 to 87', () => {
   });
 });
 
-describe('MIGRATIONS[87]', () => {
+describe('save migration 87 to 88', () => {
+  type Step = { do: string; heading?: unknown };
+  type Saved = { turn: number; player: { money: number; call: { vars: Record<string, { kind: string; steps?: Step[] }>; line: { line: string; vars: Record<string, { kind: string; steps?: Step[] }> } } | null } };
+  const migrate = (world: unknown) => MIGRATIONS[87](structuredClone(world) as never) as unknown as Saved;
+
+  it('marks every follow step of an open directions answer as planned before headings', () => {
+    const next = migrate(FORMAT_2_87);
+    for (const vars of [next.player.call!.vars, next.player.call!.line.vars]) {
+      const steps = vars.way.steps!;
+      expect(steps.filter((s) => s.do === 'follow').map((s) => s.heading)).toEqual([null]);
+      expect(steps.filter((s) => s.do !== 'follow').every((s) => !('heading' in s))).toBe(true);
+    }
+  });
+
+  it('changes nothing else in the save', () => {
+    const next = migrate(FORMAT_2_87);
+    const strip = (vars: Record<string, { kind: string; steps?: Step[] }>) => ({ ...vars, way: { ...vars.way, steps: vars.way.steps!.map(({ heading: _heading, ...rest }) => rest) } });
+    expect({ ...next, player: { ...next.player, call: { ...next.player.call!, vars: strip(next.player.call!.vars), line: { ...next.player.call!.line, vars: strip(next.player.call!.line.vars) } } } }).toEqual(FORMAT_2_87);
+  });
+
+  it('reads a migrated answer with the words it had before headings, in both languages', () => {
+    const call = migrate(FORMAT_2_87).player.call!;
+    const said = (locale: 'en' | 'ru') => resolve(lineText(call.line.line as LineId, call.line.vars as CallVars), locale);
+    expect(said('en')).toContain('Take the road to Bowl.');
+    expect(said('ru').length).toBeGreaterThan(0);
+  });
+
+  it('passes a save with no call or no directions answer unchanged', () => {
+    const noCall = { ...FORMAT_2_87, player: { ...FORMAT_2_87.player, call: null } };
+    expect(migrate(noCall)).toEqual(noCall);
+    const town = { town: FORMAT_2_87.player.call.vars.town };
+    const noWay = { ...FORMAT_2_87, player: { ...FORMAT_2_87.player, call: { ...FORMAT_2_87.player.call, vars: town, line: { ...FORMAT_2_87.player.call.line, vars: town } } } };
+    expect(migrate(noWay)).toEqual(noWay);
+  });
+});
+
+describe('MIGRATIONS[88]', () => {
   it('gives the player the standard paint and changes nothing else', () => {
-    const next = MIGRATIONS[87](structuredClone(FORMAT_2_87)) as unknown as typeof FORMAT_2_87 & { player: { paint: string } };
+    const next = MIGRATIONS[88](structuredClone(FORMAT_2_88)) as unknown as typeof FORMAT_2_88 & { player: { paint: string } };
     expect(next.player.paint).toBe('standard');
     const { paint: _paint, ...player } = next.player;
-    expect({ ...next, player }).toEqual(FORMAT_2_87);
+    expect({ ...next, player }).toEqual(FORMAT_2_88);
   });
 });

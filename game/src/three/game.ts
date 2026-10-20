@@ -310,6 +310,7 @@ export class Game {
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
       openJournal: () => this.runKey("KeyJ"),
+      openMap: () => this.runKey("KeyK"),
       toggleManual: () => this.runKey("KeyR"),
       toggleAutoRepair: () => this.runKey("KeyP"),
       toggleOverdrive: () => this.runKey("KeyO"),

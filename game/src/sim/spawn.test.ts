@@ -5,6 +5,8 @@ import { START_KITS } from '../data/start';
 import { playerVehicle } from './damage';
 import { siteGap, siteGates, sitePads } from './sites';
 import { allegianceFor, isFree, spawnNpcs } from './spawn';
+import { carriedWorld } from './world';
+import type { World } from './types';
 import { territoryPieces } from './territory';
 import { addVehicle, emptyWorld, testDrive } from './testkit';
 import { dist } from './vec';
@@ -138,7 +140,7 @@ describe('NPC spawns', () => {
     });
   });
 
-  it('never respawns a driver close to the player', () => {
+  it('never respawns a driver close to the player (timed spawns)', () => {
     const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
     const w = emptyWorld(sitePads(bowl)[0]);
     for (let i = 0; i < 60; i++) {
@@ -149,6 +151,102 @@ describe('NPC spawns', () => {
       w.vehicles = w.vehicles.filter((v) => !v.brain);
     }
   });
+});
+
+describe('spawn room', () => {
+  const SEEDS = Array.from({ length: 20 }, (_, i) => i + 1);
+  const carried = (seed: number) =>
+    reusedWorld(`carried ${seed}`, () =>
+      carriedWorld(
+        { seed, money: 0, xp: 0, ranks: {}, xpBySource: {}, perks: [], paint: null, discovered: [], knockouts: 0, autoFire: true, autoRepair: false, fuel: 5, supplies: 3, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {} },
+        START_KITS.standard,
+        () => TEST_MAP,
+        () => seed,
+      ).world,
+    );
+
+  const leaders = (w: World) => {
+    const followers = new Set(w.states.filter((s) => s.kind === 'escort').map((s) => s.holder));
+    return w.vehicles.filter((v) => v.brain && !followers.has(v.id));
+  };
+
+  it('places no driver close to a migrated player and keeps the roster whole', () => {
+    const roster = SPAWN.initial.length + SPAWN.startTraffic.templates.length;
+    for (const seed of SEEDS) {
+      const w = carried(seed);
+      const npcs = w.vehicles.filter((v) => v.brain);
+      expect(npcs.length).toBeGreaterThanOrEqual(roster);
+      for (const v of npcs) expect(dist(v.pos, playerVehicle(w).pos)).toBeGreaterThanOrEqual(SPAWN.minPlayerDist);
+    }
+  }, budget(120_000));
+
+  it('never spawns a leader into a crowd', () => {
+    for (const seed of SEEDS) {
+      for (const w of [startWorld(seed), carried(seed)]) {
+        for (const v of leaders(w)) {
+          const before = w.vehicles.slice(0, w.vehicles.indexOf(v));
+          const crowd = before.filter((o) => dist(o.pos, v.pos) < SPAWN.crowd.reach).length;
+          expect(crowd).toBeLessThan(SPAWN.crowd.most);
+        }
+      }
+    }
+  }, budget(120_000));
+
+  it('sends a respawn past a crowded gate', () => {
+    const towns = REGION.towns;
+    const open = towns[0];
+    const w = emptyWorld({ x: 5, y: 5 });
+    let n = 0;
+    for (const site of [...towns, ...REGION.locations.filter((l) => l.kind !== 'camp' && l.kind !== 'territory')].filter((s) => s.id !== open.id)) {
+      for (const gate of siteGates(site)) {
+        for (let i = 0; i < SPAWN.crowd.most; i++) {
+          addVehicle(w, 'independent', 'scout', [], { x: gate.x + (i % 2) * 0.1, y: gate.y + i * 0.1 });
+          n++;
+        }
+      }
+    }
+    for (let i = 0; i < 30; i++) {
+      w.spawnTimer.trader = 1;
+      const before = w.vehicles.length;
+      spawnNpcs(w);
+      const fresh = w.vehicles.slice(before).find((v) => v.brain?.templateId === 'trader');
+      if (fresh) {
+        const crowd = w.vehicles.filter((v) => !v.brain && dist(v.pos, fresh.pos) < SPAWN.crowd.reach).length;
+        expect(crowd).toBeLessThan(SPAWN.crowd.most);
+        w.vehicles = w.vehicles.filter((v) => v !== fresh);
+      } else expect(w.events.some((e) => e.t === 'info' && e.note.id === 'spawnBlocked')).toBe(true);
+    }
+  }, budget(30_000));
+
+  it('keeps a courier partner away from the player', () => {
+    const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
+    const w = emptyWorld(sitePads(bowl)[0]);
+    for (let i = 0; i < 20; i++) {
+      w.spawnTimer.courier = 1;
+      spawnNpcs(w);
+      for (const v of w.vehicles.filter((x) => x.brain)) expect(dist(v.pos, playerVehicle(w).pos)).toBeGreaterThanOrEqual(SPAWN.minPlayerDist);
+      w.vehicles = w.vehicles.filter((v) => !v.brain);
+      w.states = [];
+    }
+  });
+
+  it('staggers the first respawn of templates that share an interval', () => {
+    const w = emptyWorld({ x: 5, y: 5 });
+    const turns: Record<string, number[]> = {};
+    for (let t = 1; t <= 300; t++) {
+      const before = w.vehicles.length;
+      spawnNpcs(w);
+      for (const v of w.vehicles.slice(before)) (turns[v.brain!.templateId] ??= []).push(t);
+      w.vehicles = w.vehicles.filter((v) => !v.brain);
+      w.states = [];
+    }
+    expect(turns.trader[0]).toBe(NPCS.trader.interval);
+    expect(turns.scavenger[0]).toBe(NPCS.scavenger.interval + NPCS.scavenger.interval / 2);
+    const solo = Object.values(NPCS).filter((tpl) => tpl.spawn.kind !== 'escort' && turns[tpl.id]);
+    for (const a of solo) for (const b of solo) {
+      if (a.id < b.id && a.interval === b.interval) expect(turns[a.id].filter((t) => turns[b.id].includes(t))).toEqual([]);
+    }
+  }, budget(30_000));
 });
 
 describe('free spots', () => {

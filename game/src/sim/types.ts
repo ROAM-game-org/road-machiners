@@ -418,7 +418,7 @@ export type TurnSide = 'left' | 'right' | 'keepLeft' | 'keepRight';
 export type DirectionTarget = { kind: 'site'; id: string } | { kind: 'spot'; pos: Vec; clue: 'wreck' };
 export type DirectionStep =
   | { do: 'join'; octant: Octant; span: Span }
-  | { do: 'follow'; road: RoadName; span: Span }
+  | { do: 'follow'; road: RoadName; heading: Octant | null; span: Span }
   | { do: 'turn'; side: TurnSide; at: Cue; road: RoadName; span: Span }
   | { do: 'arrive'; site: string; area: boolean }
   | { do: 'leave'; at: Cue; octant: Octant; span: Span }

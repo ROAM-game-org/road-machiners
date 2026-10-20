@@ -244,6 +244,8 @@ describe('game save', () => {
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
 
     expect(loaded.player.call).toEqual(opened.player.call);
+    const way = loaded.player.call!.vars.way;
+    expect(way.kind === 'directions' && way.steps.find((s) => s.do === 'follow')).toMatchObject({ heading: expect.any(String) });
     const said = (w: World, locale: 'en' | 'ru') => resolve(lineText(w.player.call!.line.line, w.player.call!.line.vars.way ? w.player.call!.line.vars : w.player.call!.vars), locale);
     expect(said(loaded, 'en')).toBe(said(opened, 'en'));
     expect(said(loaded, 'ru')).toBe(said(opened, 'ru'));

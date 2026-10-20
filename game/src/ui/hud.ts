@@ -5,7 +5,7 @@ import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
-import { modeRules } from "../sim/settings";
+import { hasExplorationMap, modeRules } from "../sim/settings";
 import { playerCanAct } from "../sim/world";
 import type { Vehicle, World } from "../sim/types";
 import { workOf, type Work } from "../sim/states";
@@ -84,6 +84,7 @@ type HudActions = {
   openInventory: () => void;
   openCharacter: () => void;
   openJournal: () => void;
+  openMap: () => void;
   toggleManual: () => void;
   toggleAutoRepair: () => void;
   toggleOverdrive: () => void;
@@ -129,6 +130,18 @@ export class MaxSpeedView {
       ...lines.map((line) => el('div', { class: 'speed-line' }, el('span', {}, line.label), el('span', { class: `num ${TONE_CLASS[line.tone]}` }, line.value))),
     );
   }
+}
+
+export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTMLElement[] {
+  if (!hasExplorationMap(w)) return [];
+  return [
+    el(
+      "button",
+      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : undefined },
+      t("map.full"),
+      keyCorner("K"),
+    ),
+  ];
 }
 
 function readoutClass(r: { warning: boolean; danger?: boolean }): string {
@@ -448,11 +461,6 @@ export class Hud {
     );
   }
 
-  private surveyProgress(c: Contract): HTMLElement | null {
-    if (c.kind !== "survey" || isMet(c)) return null;
-    return el("span", { class: "dim" }, SPACE, surveyProgress(c), el("span", { class: "contract-clue" }, nextSurveyClue(c)));
-  }
-
   private renderContracts(w: World): void {
     const guard = playerGuard(w);
     if (w.player.contracts.length === 0 && guard === null) {
@@ -462,13 +470,7 @@ export class Hud {
     this.contracts.style.display = "";
     this.contracts.replaceChildren(
       el("h3", { class: "panel-title" }, t("hud.contracts")),
-      ...w.player.contracts.map((c) =>
-        el(
-          "div",
-          { class: "contract-line" },
-          c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c)),
-        ),
-      ),
+      ...w.player.contracts.map((c) => contractLine(w, c)),
       ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
     );
   }
@@ -643,6 +645,7 @@ export class Hud {
       }),
       ...this.engineButtons(w, busy),
       this.characterButton(w, busy),
+      ...mapInstrument(w, busy, () => this.actions.openMap()),
       this.journalButton(busy),
       ...(modeRules(w).radio ? [this.hornButton(w)] : []),
     );
@@ -754,6 +757,17 @@ function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
   );
 }
 
-function escortLine(w: World, c: EscortContract): HTMLElement {
-  return el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, escortStatusText(w, c));
+function escortLine(w: World, c: EscortContract): HTMLElement | null {
+  const status = escortStatusText(w, c);
+  return status ? el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, status) : null;
+}
+
+function surveyProgressLine(c: Contract): HTMLElement | null {
+  if (c.kind !== "survey" || isMet(c)) return null;
+  return el("div", { class: "dim" }, surveyProgress(c), SPACE, el("span", { class: "contract-clue" }, nextSurveyClue(c)));
+}
+
+export function contractLine(w: World, c: Contract): HTMLElement {
+  const state = c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c));
+  return el("div", { class: "contract-line" }, el("div", {}, contractSummary(c), surveyProgressLine(c), claimRivalMark(w, c)), state);
 }
