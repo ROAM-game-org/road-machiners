@@ -76,17 +76,22 @@ def arch_profile(g: Grid, wheels_x: list[float], hub_z: float, radius: float, to
     return pts
 
 
-def flare(kit: Kit, name: str, g: Grid, wx: float, hub_z: float, radius: float, y0: float, y1: float, bottom: float | None = None) -> None:
-    """A dark low-poly ring over the top of one arch, from the body bottom (or bottom) on both sides, cut off at the footprint ends."""
-    low = g.bottom if bottom is None else bottom
+def flare_profile(wx: float, hub_z: float, radius: float, low: float, x_min: float, x_max: float, segments: int = ARCH_SEGMENTS) -> list[tuple[float, float]]:
+    """The XZ outline of a dark low-poly ring over the top of one arch, down to low on both sides, cut off at x_min and x_max."""
     r0 = radius + ARCH_CLEARANCE
     r1 = r0 + FLARE
     inner, outer = [], []
-    for k in range(ARCH_SEGMENTS + 1):
-        a = math.pi * k / ARCH_SEGMENTS
-        inner.append((g.clamp_x(wx + r0 * math.cos(a)), max(low, hub_z + r0 * math.sin(a))))
-        outer.append((g.clamp_x(wx + r1 * math.cos(a)), max(low, hub_z + r1 * math.sin(a))))
-    prism(kit, name, outer + list(reversed(inner)), y0, y1, "under")
+    for k in range(segments + 1):
+        a = math.pi * k / segments
+        inner.append((min(x_max, max(x_min, wx + r0 * math.cos(a))), max(low, hub_z + r0 * math.sin(a))))
+        outer.append((min(x_max, max(x_min, wx + r1 * math.cos(a))), max(low, hub_z + r1 * math.sin(a))))
+    return outer + list(reversed(inner))
+
+
+def flare(kit: Kit, name: str, g: Grid, wx: float, hub_z: float, radius: float, y0: float, y1: float, bottom: float | None = None) -> None:
+    """A dark low-poly ring over the top of one arch, from the body bottom (or bottom) on both sides, cut off at the footprint ends."""
+    low = g.bottom if bottom is None else bottom
+    prism(kit, name, flare_profile(wx, hub_z, radius, low, -g.half_x, g.half_x), y0, y1, "under")
 
 
 def level_sockets(

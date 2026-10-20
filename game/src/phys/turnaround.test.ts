@@ -52,7 +52,7 @@ describe('turnaround room', () => {
 
   it('a rock touching the side does not block a straight back-up', () => {
     const { room, size } = roomWith([{ x: 20, y: 21.2 }]);
-    expect(room.touches(stance.at, 0)).toBe(true);
+    expect(room.touches(stance.at, 0, undefined)).toBe(true);
     expect(backUpClear(room, stance, Infinity, 1, 1, size)).toBe(true);
   });
 

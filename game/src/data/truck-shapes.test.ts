@@ -24,8 +24,9 @@ async function readModel(name: string): Promise<Uint8Array> {
 describe('truck shapes', () => {
   const names = Object.keys(SHAPES) as (keyof typeof SHAPES)[];
 
-  it('has a shape for the base model of every chassis', () => {
-    expect(names.sort()).toEqual(Object.keys(CHASSIS).map((id) => `base_${id}`).sort());
+  it('has a shape for the base model of every chassis and the rear unit of every rig', () => {
+    const rears = Object.values(CHASSIS).flatMap((c) => (c.coupling ? [`base_${(PHYSICS.couplings as Record<string, { rear: { model: string } }>)[c.look].rear.model}`] : []));
+    expect(names.sort()).toEqual([...Object.keys(CHASSIS).map((id) => `base_${id}`), ...rears].sort());
   });
 
   it.each(names)('%s matches its model file', async (name) => {
@@ -102,11 +103,31 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi', Reference> = {
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
 };
 
+type ShapeName = keyof typeof SHAPES;
+
+function straightUnits(id: string): { name: ShapeName; offset: number }[] {
+  const coupling = (PHYSICS.couplings as Record<string, { rear: { model: string }; pivotFront: number; pivotRear: number }>)[id];
+  const front = { name: `base_${id}` as ShapeName, offset: 0 };
+  return coupling ? [front, { name: `base_${coupling.rear.model}` as ShapeName, offset: coupling.pivotFront - coupling.pivotRear }] : [front];
+}
+
+function straightProfile(id: string): Profile {
+  const columns = new Map<number, { x: number; top: number }>();
+  for (const { name, offset } of straightUnits(id)) {
+    for (const p of profileOf(name)) {
+      const key = Math.round((p.x + offset) * 10);
+      const known = columns.get(key);
+      if (!known || known.top < p.top) columns.set(key, { x: key / 10, top: p.top });
+    }
+  }
+  return [...columns.values()].sort((a, b) => b.x - a.x);
+}
+
 describe('trucks built from a reference photo keep its proportions', () => {
   it.each(['lincoln', 'niva', 'bukhanka', 'semi'] as const)('%s', (id) => {
     const body = PHYSICS.bodies[id];
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
-    const got = stationsOf(profileOf(`base_${id}` as const), ground);
+    const got = stationsOf(straightProfile(id), ground);
     const misses: string[] = [];
     for (const [key, band] of Object.entries(REFERENCE[id]) as [keyof Reference, Band][]) {
       if (got[key] < band[0] || got[key] > band[1]) misses.push(`${key} ${got[key].toFixed(3)} outside ${band[0]}..${band[1]}`);
@@ -117,12 +138,12 @@ describe('trucks built from a reference photo keep its proportions', () => {
 
 describe('the hauler semi', () => {
   it('keeps a real rig to pickup ratio to the scout: 20.5 m along and 3.1 m across, about 3.9 scouts long and 1.27 wide', () => {
-    const extent = (name: keyof typeof SHAPES) => {
-      const boxes = SHAPES[name].boxes;
+    const extent = (id: string) => {
+      const boxes = straightUnits(id).flatMap(({ name, offset }) => SHAPES[name].boxes.map((b) => ({ ...b, x0: b.x0 + offset, x1: b.x1 + offset })));
       return { along: Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0)), across: Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0)) };
     };
-    const semi = extent('base_semi');
-    const scout = extent('base_scout');
+    const semi = extent('semi');
+    const scout = extent('scout');
     expect(Math.abs(semi.along - 20.5)).toBeLessThanOrEqual(0.1);
     expect(Math.abs(semi.across - 3.1)).toBeLessThanOrEqual(0.05);
     expect(semi.along / scout.along).toBeGreaterThan(3.7);

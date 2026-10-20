@@ -100,6 +100,33 @@ export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }
 
+const SEMI_93_94 = 'semi';
+const TRACTOR_AHEAD_TILES_93_94 = 5.73875 / 4;
+
+export function withTractorPivot_93_94(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_93_94 ? { ...v, pos: tractorAt_93_94(v.pos as Point_93_94, v.heading as number), bend: 0 } : v));
+  const obstacles = (world.obstacles as SavedJson[]).map((o) => {
+    const hulk = o.hulk as SavedJson | undefined;
+    return hulk?.chassisId === SEMI_93_94 ? { ...o, pos: tractorAt_93_94(o.pos as Point_93_94, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
+  });
+  return { ...world, vehicles, obstacles };
+}
+
+type Point_93_94 = { x: number; y: number };
+
+function tractorAt_93_94(pos: Point_93_94, heading: number): Point_93_94 {
+  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_93_94, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_93_94 };
+}
+
+export function withProgressAnchor_65_66(world: SavedJson): SavedJson {
+  const anchored = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain?.progress) return v;
+    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
+}
+
 export function withHeardCentres_81_82(world: SavedJson): SavedJson {
   const heardOf = (goal: SavedJson): SavedJson => (goal.kind === 'investigate' && goal.destination && !goal.heard ? { ...goal, heard: { ...(goal.destination as SavedJson) } } : goal);
   const withBrain = (v: SavedJson): SavedJson => {
@@ -157,15 +184,6 @@ export function withHollowFort_85_86(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, home: { ...FORT_BAYS_86[bay] } } };
   };
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
-}
-
-export function withProgressAnchor_65_66(world: SavedJson): SavedJson {
-  const anchored = (v: SavedJson): SavedJson => {
-    const brain = v.brain as SavedJson | null;
-    if (!brain?.progress) return v;
-    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
-  };
-  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
 }
 
 export function withOfferedNight_86_87(world: SavedJson): SavedJson {

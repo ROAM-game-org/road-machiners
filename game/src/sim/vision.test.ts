@@ -85,7 +85,7 @@ describe('vision', () => {
       w.obstacles = [{ id: 'wreck-npc7', pos: { x: 33, y: 30 }, r: 0.9, kind: 'wreck', hulk: { chassisId, yaw: Math.PI / 2 } }];
       return hasLineOfFire(w, { x: 30, y: 30 }, { x: 36.5, y: 30 });
     };
-    const reachesEye = (chassisId: string) => hulkBoxes(chassisId).some((b) => b.z0 <= eye && b.z1 >= eye && b.x0 <= 0 && b.x1 >= 0);
+    const reachesEye = (chassisId: string) => hulkBoxes(chassisId, undefined).some(({ box: b }) => b.z0 <= eye && b.z1 >= eye && b.x0 <= 0 && b.x1 >= 0);
 
     expect(reachesEye('tractor')).toBe(true);
     expect(reachesEye('buggy')).toBe(false);
