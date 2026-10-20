@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { REGION } from "../data/region";
 import { CONDITION } from "../data/wear";
 import type { Contract } from "../sim/market";
@@ -10,7 +10,7 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { isNotable, nextSurveyClue, surveyClueText, surveyProgress } from "./format";
+import { isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress } from "./format";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
 import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep } from "./format";
@@ -31,6 +31,15 @@ function en(msg: Msg | null | undefined): string | null {
 function logEn(world: World, e: GameEvent): { text: string; cls: string } | null {
   const line = eventText(world, e);
   return line ? { text: en(line.text), cls: line.cls } : null;
+}
+
+class TextNode {
+  className = "";
+  children: (TextNode | string)[] = [];
+  append(...children: (TextNode | string)[]) { this.children.push(...children); }
+  setAttribute() {}
+  text(): string { return this.children.map((child) => typeof child === "string" ? child : child.text()).join(""); }
+  all(cls: string): TextNode[] { return [...(this.className.split(" ").includes(cls) ? [this] : []), ...this.children.flatMap((child) => typeof child === "string" ? [] : child.all(cls))]; }
 }
 
 function part(wear: number): PartInstance {
@@ -840,11 +849,57 @@ describe("survey contract text", () => {
     expect(en(heldContractDue(met))).toBe("Ready");
   });
 
+
   it("counts the sites done and tells the clue of the first place left", () => {
     const c = survey([true, false]);
     expect(en(surveyProgress(c))).toBe("1 of 2 surveyed");
-    expect(en(nextSurveyClue(c)!)).toBe(en(surveyClueText(surveyClue(c, c.points[1]))));
-    expect(nextSurveyClue(survey([true, true]))).toBeNull();
+    expect(en(surveyPlacesLeft(c))).toBe(`1 place left: ${en(t(`contract.place.${second.type}`))}`);
+    expect(en(surveyPlacesLeft(survey([false, false])))).toBe(`2 places left: ${en(t(`contract.place.${first.type}`))}, ${en(t(`contract.place.${second.type}`))}`);
+    const other = surveySites(TEST_MAP).find((site) => site.type !== first.type)!;
+    const mixed = { ...c, points: [{ site: first.id, found: true, done: true }, { site: second.id, found: true, done: false }, { site: other.id, found: false, done: false }] };
+    expect(en(surveyPlacesLeft(mixed))).toBe(`2 places left: ${en(t(`contract.place.${second.type}`))}, ${en(t(`contract.place.${other.type}`))}`);
+    expect(resolve(surveyPlacesLeft(mixed), "ru")).toBe(`Осталось 2 места: ${resolve(t(`contract.place.${second.type}`), "ru").toLowerCase()}, ${resolve(t(`contract.place.${other.type}`), "ru").toLowerCase()}`);
+  });
+
+  it("shows every open place with its kind and found state", () => {
+    vi.stubGlobal("document", {
+      createElement: () => new TextNode(),
+      createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
+    });
+    try {
+      const sites = surveySites(TEST_MAP);
+      const third = sites.find((site) => site.type !== first.type) ?? sites[2];
+      const c: Extract<Contract, { kind: "survey" }> = {
+        ...survey([false, false]),
+        points: [{ site: first.id, found: true, done: true }, { site: second.id, found: true, done: false }, { site: third.id, found: false, done: false }],
+      };
+      const lines = surveyClueLines(c) as unknown as TextNode[];
+      expect(lines).toHaveLength(2);
+      expect(lines[0].text()).toMatch(new RegExp(`^${en(t(`contract.placeName.${second.type}`))}:`));
+      expect(lines[0].all("tag").map((node) => node.text())).toEqual(["found"]);
+      expect(lines[1].text()).toMatch(new RegExp(`^${en(t(`contract.placeName.${third.type}`))}:`));
+      expect(lines[1].all("tag")).toHaveLength(0);
+      expect(surveyClueLines({ ...c, points: c.points.map((point) => ({ ...point, done: true })) })).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("uses Russian cases and agreement for every survey place", () => {
+    const forms = {
+      homestead: ["хутор", "Хутор разведан"],
+      hamlet: ["деревню", "Деревня разведана"],
+      lookout: ["вышку", "Вышка разведана"],
+      hulks: ["остовы", "Остовы разведаны"],
+    } as const;
+    const w = emptyWorld();
+    for (const [type, [accusative, surveyed]] of Object.entries(forms)) {
+      const site = surveySites(TEST_MAP).find((item) => item.type === type)!;
+      const job: Job = { kind: "survey", contractId: "c3", site: site.id, turnsLeft: 10, total: 10 };
+      expect(resolve(jobLabel(w, w.vehicles[0], job), "ru")).toBe(`Разведать ${accusative}`);
+      const c: Extract<Contract, { kind: "survey" }> = { ...survey([true]), points: [{ site: site.id, found: true, done: true }] };
+      expect(resolve(eventText(w, { t: "contract", contract: c, outcome: "surveyed", site: site.id })!.text, "ru")).toBe(`${surveyed}, 1 из 1`);
+    }
   });
 
   it("tells a clue as a named place, a compass word, a distance in hundreds of meters and the lay", () => {
@@ -857,10 +912,10 @@ describe("survey contract text", () => {
   it("tells the same clue wherever the truck is", () => {
     const c = survey([false, false]);
     const w = emptyWorld();
-    const told = en(nextSurveyClue(c)!);
+    const told = en(surveyClueText(surveyClue(c, c.points[0])));
     for (const pos of [first.pos, second.pos, { x: 30, y: 30 }]) {
       w.vehicles[0].pos = { ...pos };
-      expect(en(nextSurveyClue(c)!)).toBe(told);
+      expect(en(surveyClueText(surveyClue(c, c.points[0])))).toBe(told);
     }
     expect(told).not.toMatch(/^(east|west|north|south)/);
   });
@@ -869,8 +924,9 @@ describe("survey contract text", () => {
     const c = survey([true, false]);
     expect(isNotable({ t: "contract", contract: c, outcome: "found", site: first.id })).toBe(true);
     expect(isNotable({ t: "contract", contract: survey([true, true]), outcome: "fulfilled" })).toBe(true);
-    expect(isNotable({ t: "contract", contract: c, outcome: "surveyed" })).toBe(false);
+    expect(isNotable({ t: "contract", contract: c, outcome: "surveyed", site: first.id })).toBe(false);
     expect(isNotable({ t: "contract", contract: c, outcome: "accepted" })).toBe(false);
+    expect(isNotable({ t: "guardEnded", merc: "guard", end: "dismissed" })).toBe(true);
   });
 
   it("logs a found place by its kind and the shop that asked", () => {
@@ -882,8 +938,16 @@ describe("survey contract text", () => {
 
   it("logs a surveyed site and a met survey", () => {
     const c = survey([true, false]);
-    expect(en(eventText(emptyWorld(), { t: "contract", contract: c, outcome: "surveyed" })!.text)).toBe("Site surveyed, 1 of 2");
+    expect(en(eventText(emptyWorld(), { t: "contract", contract: c, outcome: "surveyed", site: first.id })!.text)).toBe(`${en(t(`contract.placeName.${first.type}`))} surveyed, 1 of 2`);
     const met = survey([true, true]);
     expect(en(eventText(emptyWorld(), { t: "contract", contract: met, outcome: "fulfilled" })!.text)).toContain("report at Bowl");
+  });
+
+  it("names a survey job's place and logs completion only once", () => {
+    const w = emptyWorld();
+    const job: Job = { kind: "survey", contractId: "c3", site: first.id, turnsLeft: 10, total: 10 };
+    expect(en(jobLabel(w, w.vehicles[0], job))).toBe(`Survey the ${en(t(`contract.place.${first.type}`))}`);
+    expect(eventText(w, { t: "job", vehicle: w.player.vehicleId, job, outcome: "done" })).toBeNull();
+    expect(en(eventText(w, { t: "job", vehicle: w.player.vehicleId, job, outcome: "started" })!.text)).toContain(`Survey the ${en(t(`contract.place.${first.type}`))}`);
   });
 });

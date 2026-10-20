@@ -51,7 +51,7 @@ import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItem
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
-import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
+import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, surveyClueLines, surveyPlacesLeft, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
 import { MapView, observeBox } from "./map-view";
@@ -497,7 +497,7 @@ function escortDetail(w: World, c: Extract<Contract, { kind: "escort" }>): Child
 }
 
 function notReady(w: World, c: Contract): Msg {
-  if (c.kind === "survey") return t("contract.notSurveyed");
+  if (c.kind === "survey") return surveyPlacesLeft(c);
   if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
   if (c.kind === "fetch") return t("contract.needsPart");
   if (c.kind === "search") return t("contract.handOverFirst");
@@ -594,8 +594,7 @@ function profitCell(e: SaleEstimate): HTMLElement {
 }
 
 function surveyLine(c: Contract): HTMLElement | null {
-  const clue = c.kind === "survey" ? nextSurveyClue(c) : null;
-  return clue ? el("span", { class: "dim contract-clue" }, clue) : null;
+  return c.kind === "survey" ? el("span", { class: "dim" }, ...surveyClueLines(c)) : null;
 }
 
 function escortClock(w: World, c: Extract<Contract, { kind: "escort" }>, posted: boolean): HTMLElement {

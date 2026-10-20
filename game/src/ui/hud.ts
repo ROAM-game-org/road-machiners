@@ -19,7 +19,7 @@ import {
   contractSummary,
   surveyProgress,
   isNotable,
-  nextSurveyClue,
+  surveyClueLines,
   eventText,
   formatNpcPass,
   workLabel,
@@ -428,11 +428,6 @@ export class Hud {
     );
   }
 
-  private surveyProgress(c: Contract): HTMLElement | null {
-    if (c.kind !== "survey" || isMet(c)) return null;
-    return el("span", { class: "dim" }, SPACE, surveyProgress(c), el("span", { class: "contract-clue" }, nextSurveyClue(c)));
-  }
-
   private renderContracts(w: World): void {
     const guard = playerGuard(w);
     if (w.player.contracts.length === 0 && guard === null) {
@@ -442,13 +437,7 @@ export class Hud {
     this.contracts.style.display = "";
     this.contracts.replaceChildren(
       el("h3", { class: "panel-title" }, t("hud.contracts")),
-      ...w.player.contracts.map((c) =>
-        el(
-          "div",
-          { class: "contract-line" },
-          c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c)),
-        ),
-      ),
+      ...w.player.contracts.map((c) => heldContractLine(w, c)),
       ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
     );
   }
@@ -652,6 +641,7 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
+      if (isNotable(e)) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
     this.radio.hear(w);
@@ -727,6 +717,16 @@ function quietLines(w: World, v: Vehicle): Msg[] {
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {
   const blocks = work?.from === "job" && !isAutoPatch(work.job);
   return action && !action.hint && !blocks ? null : work;
+}
+
+export function heldContractLine(w: World, c: Contract): HTMLElement {
+  const survey = c.kind === 'survey' && !isMet(c);
+  return el(
+    'div',
+    { class: 'contract-line' },
+    c.kind === 'escort' ? escortLine(w, c) : el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c)) : null, claimRivalMark(w, c)),
+    c.kind === 'escort' ? null : el('span', { class: 'num' }, heldContractDue(c)),
+  );
 }
 
 function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {

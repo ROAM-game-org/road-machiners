@@ -705,11 +705,14 @@ describe('survey interaction', () => {
     expect(actions(w)).toEqual([]);
   });
 
-  it('offers Survey the area when stopped in reach of an open site, and not once it is done', () => {
+  it('names the place when stopped in reach of an open site, and not once it is done', () => {
     const w = atSurveySite();
-    expect(actions(w)).toMatchObject([{ label: 'Survey the area', ready: true }]);
+    const [site] = surveySites(TEST_MAP);
+    const label = `Survey the ${resolve(t(`contract.place.${site.type}`), 'en')}`;
+    expect(actions(w)).toMatchObject([{ label, ready: true }]);
+    expect(resolve(getContextActions(w, false)[0].label, 'ru')).toBe('Разведать хутор');
     w.vehicles[0].speed = RULES.parkedSpeed + 1;
-    expect(actions(w)).toMatchObject([{ label: 'Survey the area', ready: false }]);
+    expect(actions(w)).toMatchObject([{ label, ready: false }]);
     w.vehicles[0].speed = 0;
     const contract = w.player.contracts[0];
     if (contract.kind === 'survey') contract.points[0].done = true;

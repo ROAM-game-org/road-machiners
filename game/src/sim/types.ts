@@ -549,8 +549,8 @@ export type GameEvent =
   | { t: 'practice'; source: XpSource; amount: number; difficulty: number | null; target: string; xp: number }
   | { t: 'skillUp'; skill: SkillId; level: number }
   | { t: 'money'; amount: number; reason: MoneyReason }
-  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'surveyed' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
-  | { t: 'contract'; contract: Contract; outcome: 'found'; site: string; cause?: undefined }
+  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
+  | { t: 'contract'; contract: Contract; outcome: 'found' | 'surveyed'; site: string; cause?: undefined }
   | { t: 'claimRival'; contract: string; vehicle: string }
   | { t: 'claimLead'; contract: string; driver: string }
   | { t: 'discover'; location: string }
