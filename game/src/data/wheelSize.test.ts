@@ -72,7 +72,7 @@ describe('tire size rule', () => {
     expect(PHYSICS.bodies.semi.wheelHalfWidth).toBe(SEMI_TIRE.halfWidth);
   });
 
-  it('keeps the sorokonoga on the tire its low stake bed allows, since a tractor-sized tire would stand taller than the deck', () => {
+  it('keeps the sorokonoga on the tire its driving numbers are tuned on, since a tractor-sized tire would change its ride and physics', () => {
     expect(PHYSICS.bodies.sorokonoga.wheelRadius).toBe(SOROKONOGA_TIRE.radius);
     expect(PHYSICS.bodies.sorokonoga.wheelHalfWidth).toBe(SOROKONOGA_TIRE.halfWidth);
     expect(PHYSICS.couplings.sorokonoga.rear.wheelRadius).toBe(SOROKONOGA_TIRE.radius);
