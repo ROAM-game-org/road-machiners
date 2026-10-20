@@ -67,6 +67,7 @@
   z-index: var(--z-hud);
   left: var(--safe-left);
   bottom: calc(var(--safe-bottom) + (var(--phone-readouts-h) - var(--btn-h-l)) / 2);
+  width: var(--phone-tabs-w);
   pointer-events: auto;
 }
 #ui.phone .drawer-tabs > button {
@@ -137,7 +138,9 @@
   height: var(--icon-xs);
 }
 #ui.phone .instruments .instrument-clock {
-  gap: var(--space-2);
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
 }
 #ui.phone .instruments :is(.clock-day, .clock-time) {
@@ -149,6 +152,8 @@
   padding-top: 0;
   border-top: 0;
   min-height: 0;
+  justify-content: center;
+  flex-wrap: nowrap;
 }
 #ui.phone .instruments .instrument-actions > * {
   flex: 1 1 0;
@@ -225,7 +230,7 @@
 #ui.phone:has(.modal:not([style*="display: none"])) > .top-center > .opening-tip {
   visibility: hidden;
 }
-#ui.phone:has(:is(.modal:not([style*="display: none"]), .options)) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .log-strip, .info) {
+#ui.phone:has(:is(.modal:not([style*="display: none"]), .options, .help)) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .log-strip, .info) {
   display: none;
 }
 #ui.phone[data-drawer] > .top-center > .tip,
@@ -243,6 +248,24 @@
   transform: none;
   padding: var(--space-7);
   overflow: auto;
+}
+#ui.phone :is(.town-screen, .inventory-screen, .character-screen, .journal-screen) > h3 {
+  flex-wrap: wrap;
+  row-gap: var(--space-3);
+  column-gap: var(--space-4);
+  padding-right: 0;
+  line-height: var(--touch-target);
+}
+#ui.phone .character-screen > h3 {
+  padding-right: calc(var(--space-10) * 3);
+}
+#ui.phone :is(.town-screen, .inventory-screen, .character-screen, .journal-screen) > h3 > .chips {
+  flex-basis: 100%;
+  order: 2;
+  line-height: normal;
+}
+#ui.phone .chip {
+  white-space: nowrap;
 }
 #ui.phone .modal.quest-screen {
   top: var(--safe-top);
@@ -376,6 +399,54 @@
 
 #ui.phone .instruments .instrument-actions .key-corner {
   display: none;
+}
+#ui.phone .modal.character-screen {
+  display: block;
+  overflow: auto;
+}
+#ui.phone .skill-table {
+  display: block;
+  overflow: visible;
+}
+#ui.phone .skill-head {
+  display: none;
+}
+#ui.phone .skill-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name name name level"
+    "today today today buy"
+    "perk-a perk-a perk-b perk-b";
+  gap: var(--space-3) var(--space-5);
+  margin-bottom: var(--space-3);
+}
+#ui.phone.slim .skill-row {
+  grid-template-areas:
+    "name name name level"
+    "today today today buy"
+    "perk-a perk-a perk-a perk-a"
+    "perk-b perk-b perk-b perk-b";
+}
+#ui.phone .skill-row > :nth-child(1) {
+  grid-area: name;
+}
+#ui.phone .skill-row > :nth-child(2) {
+  grid-area: level;
+}
+#ui.phone .skill-row > :nth-child(3) {
+  grid-area: perk-a;
+}
+#ui.phone .skill-row > :nth-child(4) {
+  grid-area: perk-b;
+}
+#ui.phone .skill-row > :nth-child(5) {
+  grid-area: today;
+}
+#ui.phone .skill-row > :nth-child(6) {
+  grid-area: buy;
+}
+#ui.phone .perk-rank {
+  display: block;
 }
 
 #ui:not(.phone) .quest-look {

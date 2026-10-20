@@ -27,7 +27,7 @@ Pull up by the well. I'm Hattie. Where'd you come from, and how much water do yo
   He found your truck dead in the badlands, you in the seat. He took the lot for abandoned and hooked it up.
   ~ hattie_tow = true
   -> hub
-+ {towed_to_bowl and not hattie_strip} [Who stripped my truck?]
++ {towed_to_bowl and engine_missing() and not hattie_strip} [Who stripped my truck?]
   Wasn't the tow man, if that's where you're looking. Whoever it was took their time and left you breathing.
   ~ hattie_strip = true
   -> hub
