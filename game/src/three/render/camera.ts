@@ -30,15 +30,15 @@ export class CameraRig {
   private zoom = 1;
   private ray = new THREE.Raycaster();
 
-  constructor(private container: HTMLElement) {
+  constructor(private view: HTMLElement) {
     this.camera.position.copy(this.center).add(OFFSET);
     this.camera.lookAt(this.center);
     this.resize();
   }
 
   resize(): void {
-    const w = this.container.clientWidth;
-    const h = this.container.clientHeight;
+    const w = this.view.clientWidth;
+    const h = this.view.clientHeight;
     if (!(w > 0 && h > 0)) return;
     const half = VIEW_METERS / 2 / this.zoom;
     const aspect = w / h;
@@ -86,7 +86,7 @@ export class CameraRig {
     this.target = null;
     this.heading = null;
     this.viewMoved = true;
-    const metersPerPixel = (this.camera.right - this.camera.left) / this.container.clientWidth;
+    const metersPerPixel = (this.camera.right - this.camera.left) / this.view.clientWidth;
     const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
     const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
     right.y = 0;
@@ -125,7 +125,7 @@ export class CameraRig {
   }
 
   private aimRay(clientX: number, clientY: number): void {
-    const rect = this.container.getBoundingClientRect();
+    const rect = this.view.getBoundingClientRect();
     const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.ray.setFromCamera(ndc, this.camera);
   }
@@ -148,7 +148,7 @@ export class CameraRig {
 
   screenOf(p: V3): { x: number; y: number } {
     const v = new THREE.Vector3(p.x, p.y, p.z).project(this.camera);
-    const rect = this.container.getBoundingClientRect();
+    const rect = this.view.getBoundingClientRect();
     return { x: rect.left + (v.x * 0.5 + 0.5) * rect.width, y: rect.top + (1 - (v.y * 0.5 + 0.5)) * rect.height };
   }
 

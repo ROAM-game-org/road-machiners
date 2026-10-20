@@ -92,7 +92,17 @@ export function fortressPieces(site: Site): FortressPiece[] {
   const outline = corners.map((c) => c.pos);
   const walls = cutOutline(outline, cuts, (i) => onFortressRock(site, lerpVec(outline[i], outline[(i + 1) % outline.length], 0.5))).flatMap((run) => wallRun(mergeShortEnds(run, corners)));
   const standing = cornerPieces(site, corners, houses).filter((p) => !onFortressRock(site, p.pos));
-  return [...laid.flatMap((l) => l.pieces), ...walls, ...standing];
+  const gates = laid.flatMap((l) => l.pieces);
+  return [...(fortressOf(site).openGate ? gates.flatMap((p) => gateTowers(site, p)) : gates), ...walls, ...standing];
+}
+
+function gateTowers(site: Site, piece: FortressPiece): FortressPiece[] {
+  if (piece.kind !== 'gate') return [piece];
+  const tangent = { x: Math.cos(piece.yaw), y: Math.sin(piece.yaw) };
+  return [-1, 1].map((side) => {
+    const pos = along(piece.pos, tangent, side * piece.r);
+    return { kind: 'tower', pos, yaw: bearing(site.pos, pos) + Math.PI / 2, r: FORTRESS.towerSize / 2 };
+  });
 }
 
 export function onFortressRock(site: Site, p: Vec): boolean {

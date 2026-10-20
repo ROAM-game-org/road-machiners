@@ -1,17 +1,17 @@
 import { PHYSICS } from '../data/physics';
 import { unitBody, unitsOf } from './body';
-import { trailUnits } from './rig';
+import { followPose, trailUnits } from './rig';
 import { boxDistance } from './mapgen';
 import { nearCliff, dynamicBlockers, staticSet, terrainNav } from './nav/layer';
 import type { Blocker } from './nav/buckets';
-import type { Vehicle, World } from './types';
+import type { Pose, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 
 export type Footprint = { offsets: number[]; r: number };
 
 export type Mover = { id: string; pos: Vec; vel: Vec; r: number };
 
-export type Clearance = { touches(at: Vec, heading: number, bend: number | undefined): boolean; meetsMoving(at: Vec, heading: number, bend: number | undefined, seconds: number, movers: Mover[]): boolean };
+export type Clearance = { touches(at: Vec, heading: number, bend: number | undefined): boolean; depth(at: Vec, heading: number, bend: number | undefined): number; worsensFrom(at: Vec, heading: number, bend: number | undefined): (to: Vec, heading: number, bend: number | undefined) => boolean; meetsMoving(at: Vec, heading: number, bend: number | undefined, seconds: number, movers: Mover[]): boolean; follow(prev: Pose, next: Pose): Pose };
 
 const footprints = new Map<string, Footprint>();
 
@@ -46,13 +46,27 @@ export function clearanceFor(world: World, v: Vehicle, extra: Blocker[]): Cleara
   const solid = staticSet(world.obstacles, world.terrain).solidBuckets;
   const moving = dynamicBlockers(world.obstacles, world.terrain, extra);
   const nav = terrainNav(world.terrain);
+  function depth(at: Vec, heading: number, bend: number | undefined): number {
+    if (![at.x, at.y, heading].every(Number.isFinite)) throw new Error('Clearance depth asked at a non-finite pose');
+    let deepest = 0;
+    for (const { c, r } of bodyCircles(v.chassisId, prints, at, heading, bend)) {
+      const reach = r + PHYSICS.driver.clearMargin;
+      for (const b of solid.alongSegment(c, c, reach)) deepest = Math.max(deepest, overlap(b, c, reach));
+      for (const b of moving) deepest = Math.max(deepest, overlap(b, c, reach));
+    }
+    return deepest;
+  }
+  function nearsCliff(at: Vec, heading: number, bend: number | undefined): boolean {
+    return bodyCircles(v.chassisId, prints, at, heading, bend).some(({ c, r }) => nearCliff(nav, c.x, c.y, r));
+  }
   return {
-    touches(at, heading, bend) {
-      for (const { c, r } of bodyCircles(v.chassisId, prints, at, heading, bend)) {
-        const reach = r + PHYSICS.driver.clearMargin;
-        if (nearCliff(nav, c.x, c.y, r) || hitsAny(solid.alongSegment(c, c, reach), c, reach) || hitsAny(moving, c, reach)) return true;
-      }
-      return false;
+    touches: (at, heading, bend) => depth(at, heading, bend) > 0 || nearsCliff(at, heading, bend),
+    depth,
+    follow: (prev, next) => followPose(v.chassisId, prev, next),
+    worsensFrom(at, heading, bend) {
+      const limit = Math.max(0, depth(at, heading, bend)) + PHYSICS.driver.roomSlack;
+      const startCliff = nearsCliff(at, heading, bend);
+      return (to, facing, toBend) => depth(to, facing, toBend) > limit || (!startCliff && nearsCliff(to, facing, toBend));
     },
     meetsMoving(at, heading, bend, seconds, movers) {
       const circles = bodyCircles(v.chassisId, prints, at, heading, bend);
@@ -68,11 +82,9 @@ export function clearanceFor(world: World, v: Vehicle, extra: Blocker[]): Cleara
   };
 }
 
-function hitsAny(blockers: Blocker[], c: Vec, reach: number): boolean {
-  return blockers.some((b) => hits(b, c, reach));
-}
-
-function hits(b: Blocker, c: Vec, reach: number): boolean {
-  if (dist(b.pos, c) >= b.r + reach) return false;
-  return b.prop ? b.prop.boxes.some((box) => boxDistance(box, c) < reach) : true;
+function overlap(b: Blocker, c: Vec, reach: number): number {
+  const gap = dist(b.pos, c);
+  if (gap >= b.r + reach) return 0;
+  if (!b.prop) return b.r + reach - gap;
+  return b.prop.boxes.reduce((deepest, box) => Math.max(deepest, reach - boxDistance(box, c)), 0);
 }

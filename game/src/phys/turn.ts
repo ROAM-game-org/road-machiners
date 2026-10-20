@@ -1,4 +1,5 @@
 
+import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
@@ -14,6 +15,7 @@ import { breakProp } from '../sim/salvage';
 import { isOnRope } from '../sim/tow';
 import { burnFuel } from '../sim/resources';
 import { setDownSpot } from '../sim/steering';
+import { clearanceFor } from '../sim/clearance';
 import type { MoveOrder, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp } from '../sim/vec';
 import { exploreFrom } from '../sim/vision';
@@ -191,7 +193,7 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   const start = poseOf(v);
   Object.assign(v, { pos: s.pos, heading: s.heading, speed: Math.max(0, toTilesPerTurn(s.speed)) }, bendField(heldBend(v.chassisId, s.bend)));
   checkBend(v);
-  const free = s.upright && !isLifted(r.next, w, v) && !isHung(v, r.results[v.id], start, frames);
+  const free = s.upright && !isLifted(r.next, w, v) && !isHung(v, r.results[v.id], start, frames) && !isPinned(w, v, r.results[v.id], start);
   v.strandedTurns = free ? 0 : (v.strandedTurns ?? 0) + 1;
   if (v.strandedTurns >= RULES.stranded.turns) setDown(w, v);
   v.trail = trailOf(start, frames);
@@ -209,6 +211,13 @@ function isHung(v: Vehicle, res: VehicleResult, start: Pose, frames: TurnResult[
 
 function allWheels(f: VehicleFrame): WheelFrame[] {
   return f.rear ? [...f.wheels, ...f.rear.wheels] : f.wheels;
+}
+
+function isPinned(w: World, v: Vehicle, res: VehicleResult, start: Pose): boolean {
+  if (!v.order || v.order.kind === 'brake' || res.arrived || res.passed) return false;
+  if (res.pushedSteps < TURN_STEPS * PHYSICS.driver.pinnedShare) return false;
+  if (dist(start, v.pos) >= RULES.stranded.still) return false;
+  return clearanceFor(w, v, []).touches(v.pos, v.heading, v.bend);
 }
 
 function settleOrder(w: World, v: Vehicle, res: VehicleResult): void {

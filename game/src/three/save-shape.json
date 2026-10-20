@@ -1,5 +1,5 @@
 {
- "format": "2.85",
+ "format": "2.89",
  "shape": {
   "broken": [],
   "craters": [],
@@ -97,7 +97,8 @@
     "guidestar": "number",
     "kiln": "number",
     "nose": "number",
-    "scrapjaw": "number"
+    "scrapjaw": "number",
+    "sunward": "number"
    },
    "state": "string",
    "storage": [],
@@ -2072,97 +2073,13 @@
     "turnsLeft": "null"
    }
   ],
+  "sunward": {
+   "collapsed": "null",
+   "lastHunt": "null",
+   "night": "null"
+  },
   "turn": "number",
   "vehicles": [
-   {
-    "bend": "number",
-    "brain": {
-     "attackers": {},
-     "driver": "string",
-     "goal": "null",
-     "goals": [],
-     "home": {
-      "x": "number",
-      "y": "number"
-     },
-     "hurt": "number",
-     "memories": [],
-     "noticed": {},
-     "personality": "string",
-     "stepIndex": "number",
-     "templateId": "string",
-     "tracks": {},
-     "traits": [
-      "string"
-     ]
-    },
-    "chassisId": "string",
-    "direct": "boolean",
-    "faction": "string",
-    "heading": "number",
-    "id": "string",
-    "items": [
-     {
-      "good": "string",
-      "id": "string",
-      "kind": "string",
-      "rot": "number",
-      "x": "number",
-      "y": "number"
-     },
-     {
-      "id": "string",
-      "kind": "string",
-      "part": {
-       "charge": {
-        "reload": "number"
-       },
-       "defId": "string",
-       "hp": "number",
-       "id": "string",
-       "wear": "number"
-      },
-      "rot": "number",
-      "x": "number",
-      "y": "number"
-     },
-     {
-      "id": "string",
-      "kind": "string",
-      "part": {
-       "defId": "string",
-       "gun": {
-        "ammo": "number",
-        "cooldown": "number",
-        "reloadWork": "number"
-       },
-       "hp": "number",
-       "id": "string",
-       "wear": "number"
-      },
-      "rot": "number",
-      "x": "number",
-      "y": "number"
-     }
-    ],
-    "job": "null",
-    "lastHitBy": "null",
-    "order": "null",
-    "pos": {
-     "x": "number",
-     "y": "number"
-    },
-    "resources": {
-     "fuel": "number",
-     "health": "number",
-     "money": "number",
-     "supplies": "number"
-    },
-    "speed": "number",
-    "stormExposure": {},
-    "utilityOrders": {},
-    "weaponOrders": {}
-   },
    {
     "brain": "null",
     "chassisId": "string",
@@ -2491,6 +2408,7 @@
     "asked_pay": "boolean",
     "asked_where": "boolean"
    },
+   "fallen_light": {},
    "first_fall": {},
    "granary_odile": {
     "asked_gate": "boolean",
@@ -2694,6 +2612,9 @@
    "bowl_scale": [
     "start"
    ],
+   "fallen_light": [
+    "start"
+   ],
    "first_fall": [
     "start"
    ],
@@ -2823,6 +2744,7 @@
      ]
     },
     "notes": [
+     "sunwardDragged",
      "talkKilnFight",
      "wagonDag"
     ],
@@ -2878,6 +2800,16 @@
     "notes": [
      "orchardIron"
     ],
+    "begins": []
+   }
+  },
+  "fallen_light": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
     "begins": []
    }
   },
@@ -2977,6 +2909,7 @@
     "writes": {},
     "notes": [
      "burntConvoy",
+     "sunwardLamps",
      "talkArmyStarved",
      "talkCommitteeRent"
     ],

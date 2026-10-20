@@ -8,7 +8,7 @@ import { STORY_WRECKS } from '../data/salvage';
 import { PROP_KINDS, type BakedMap, type BakedProp, type PropKind, type Terrain } from './terrain';
 import { siteGap } from './sites';
 import { ROCK_LOOKS, TERRAIN } from '../data/terrain';
-import { randInt, randRange } from './rng';
+import { hashId, randInt, randRange } from './rng';
 import { hulkBoxes, type HulkBox } from './body';
 import { chassisDef } from '../data/chassis';
 import { propBase, underDeck } from './bridge';
@@ -20,9 +20,10 @@ import { dist, segmentDist, type Vec } from './vec';
 const O = REGION.obstacles;
 export function generateObstacles(world: World, map: BakedMap, fixed: Obstacle[]): Obstacle[] {
   const atlas = atlasOf(map.terrain);
-  const out = mapObstacles(map);
+  const baked = mapObstacles(map);
+  const out = [...baked];
   for (const o of fixed) {
-    if (overlapsAny(out, o.pos, o.r) || !clearOfSites(atlas, o.pos, o.r) || !clearOfDecks(atlas, o.pos, o.r))
+    if (overlapsAny(baked, o.pos, o.r) || !clearOfSites(atlas, o.pos, o.r) || !clearOfDecks(atlas, o.pos, o.r))
       throw new Error(`Obstacle ${o.id} at ${o.pos.x.toFixed(1)}, ${o.pos.y.toFixed(1)} overlaps a prop, a site or a deck`);
     out.push(o);
   }
@@ -245,9 +246,9 @@ const SHAPE_BOXES = new Map<string, readonly ShapeBox[]>(Object.entries(SHAPES).
 export function propPose(o: Obstacle): PropPose {
   const pos = { ...o.pos };
   if (o.kind === 'landmark') return landmarkPose(o);
-  if (o.kind === 'rock') return { model: rockModel(o.id), pos, yaw: -idHash(o.id) * TURN, scale: even(o.r * M) };
+  if (o.kind === 'rock') return { model: rockModel(o.id), pos, yaw: -hashId(o.id) * TURN, scale: even(o.r * M) };
   if (o.kind === 'wreck') return wreckPose(o, pos);
-  if (o.kind === 'building') return { model: 'building', pos, yaw: idHash(o.id) * Math.PI, scale: buildingScale(o) };
+  if (o.kind === 'building') return { model: 'building', pos, yaw: hashId(o.id) * Math.PI, scale: buildingScale(o) };
   throw new Error(`Obstacle ${o.id} of kind ${o.kind} has no prop model`);
 }
 
@@ -263,12 +264,12 @@ export function rockModel(id: string): RockModel {
 }
 
 function rockPick(id: string): number {
-  return idHash(`${id}:shape`);
+  return hashId(`${id}:shape`);
 }
 
 function wreckPose(o: Exclude<Obstacle, Landmark>, pos: Vec): PropPose {
   if (o.hulk) return { model: 'hulk', chassisId: o.hulk.chassisId, pos, yaw: o.hulk.yaw, scale: even(1), ...(o.hulk.bend === undefined ? {} : { bend: o.hulk.bend }) };
-  return { model: 'wreck', pos, yaw: idHash(o.id) * TURN, scale: even(o.r / WRECK_RADIUS) };
+  return { model: 'wreck', pos, yaw: hashId(o.id) * TURN, scale: even(o.r / WRECK_RADIUS) };
 }
 
 export function propShape(model: string): readonly ShapeBox[] {
@@ -295,23 +296,13 @@ function landmarkPose(o: Landmark): PropPose {
 
 function buildingScale(o: Obstacle): PropScale {
   const size = o.r * BUILDING_FILL * 2 * M;
-  return { x: size, y: size, z: (16 + idHash(o.id) * 20) * (M / 45) };
+  return { x: size, y: size, z: (16 + hashId(o.id) * 20) * (M / 45) };
 }
 
 function even(s: number): PropScale {
   return { x: s, y: s, z: s };
 }
 
-function idHash(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
-  h ^= h >>> 16;
-  h = Math.imul(h, 0x85ebca6b);
-  h ^= h >>> 13;
-  h = Math.imul(h, 0xc2b2ae35);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
 
 export type PosedBox = { center: Vec; axis: Vec; half: Vec; z0: number; z1: number };
 type PosedShape = { key: string; reach: number; boxes: readonly PosedBox[] };

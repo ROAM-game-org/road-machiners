@@ -91,22 +91,22 @@ export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }
 
-const SEMI_84_85 = 'semi';
-const TRACTOR_AHEAD_TILES_84_85 = 5.7375 / 4;
+const SEMI_88_89 = 'semi';
+const TRACTOR_AHEAD_TILES_88_89 = 5.7375 / 4;
 
-export function withTractorPivot_84_85(world: SavedJson): SavedJson {
-  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_84_85 ? { ...v, pos: tractorAt_84_85(v.pos as Point_84_85, v.heading as number), bend: 0 } : v));
+export function withTractorPivot_88_89(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_88_89 ? { ...v, pos: tractorAt_88_89(v.pos as Point_88_89, v.heading as number), bend: 0 } : v));
   const obstacles = (world.obstacles as SavedJson[]).map((o) => {
     const hulk = o.hulk as SavedJson | undefined;
-    return hulk?.chassisId === SEMI_84_85 ? { ...o, pos: tractorAt_84_85(o.pos as Point_84_85, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
+    return hulk?.chassisId === SEMI_88_89 ? { ...o, pos: tractorAt_88_89(o.pos as Point_88_89, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
   });
   return { ...world, vehicles, obstacles };
 }
 
-type Point_84_85 = { x: number; y: number };
+type Point_88_89 = { x: number; y: number };
 
-function tractorAt_84_85(pos: Point_84_85, heading: number): Point_84_85 {
-  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_84_85, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_84_85 };
+function tractorAt_88_89(pos: Point_88_89, heading: number): Point_88_89 {
+  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_88_89, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_88_89 };
 }
 
 export function withProgressAnchor_65_66(world: SavedJson): SavedJson {
@@ -125,4 +125,87 @@ export function withHeardCentres_81_82(world: SavedJson): SavedJson {
     return brain ? { ...v, brain: { ...brain, goals: (brain.goals as SavedJson[]).map(heardOf) } } : v;
   };
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
+}
+
+function withFollowHeading_87_88(step: SavedJson): SavedJson {
+  return step.do === 'follow' ? { ...step, heading: null } : step;
+}
+
+function followHeadingVars_87_88(vars: SavedJson): SavedJson {
+  return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
+    const value = v as SavedJson;
+    return [name, value.kind === 'directions' ? { ...value, steps: (value.steps as SavedJson[]).map(withFollowHeading_87_88) } : value];
+  }));
+}
+
+export function withFollowHeadings_87_88(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  if (!call) return world;
+  const line = call.line as SavedJson;
+  const next = { ...call, vars: followHeadingVars_87_88(call.vars as SavedJson), line: { ...line, vars: followHeadingVars_87_88(line.vars as SavedJson) } };
+  return { ...world, player: { ...player, call: next } };
+}
+
+const SUNWARD_STANDING_84_85 = -20;
+
+export function withSunward_84_85(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const sunward = world.furyRoad === null ? { collapsed: null, night: null, lastHunt: null } : null;
+  return { ...world, sunward, player: { ...player, standing: { ...(player.standing as SavedJson), sunward: SUNWARD_STANDING_84_85 } } };
+}
+
+const OLD_HOLLOW_BAYS_85 = [
+  { x: 348, y: 334 }, { x: 351.2, y: 334 }, { x: 354.4, y: 334 }, { x: 357.6, y: 334 }, { x: 360.8, y: 334 }, { x: 364, y: 334 },
+  { x: 349.6, y: 338.5 }, { x: 352.8, y: 338.5 }, { x: 356, y: 338.5 }, { x: 359.2, y: 338.5 }, { x: 362.4, y: 338.5 },
+];
+const FORT_BAYS_86 = [
+  { x: 284.053, y: 243.604 }, { x: 280.429, y: 250.736 }, { x: 281.2, y: 242.155 }, { x: 277.576, y: 249.287 }, { x: 278.346, y: 240.705 }, { x: 274.723, y: 247.838 },
+  { x: 275.493, y: 239.256 }, { x: 271.87, y: 246.389 }, { x: 272.64, y: 237.807 }, { x: 269.017, y: 244.94 }, { x: 269.787, y: 236.358 },
+];
+const BAY_MATCH_86 = 0.01;
+
+export function withHollowFort_85_86(world: SavedJson): SavedJson {
+  const rehome = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (v.faction !== 'sunward' || !brain) return v;
+    const home = brain.home as { x: number; y: number };
+    const bay = OLD_HOLLOW_BAYS_85.findIndex((b) => Math.hypot(b.x - home.x, b.y - home.y) <= BAY_MATCH_86);
+    if (bay < 0) throw new Error(`Sunward car ${String(v.id)} calls ${home.x}, ${home.y} home, which is no bay of the old Hollow`);
+    return { ...v, brain: { ...brain, home: { ...FORT_BAYS_86[bay] } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
+}
+
+export function withOfferedNight_86_87(world: SavedJson): SavedJson {
+  const sunward = world.sunward as SavedJson | null;
+  const night = sunward?.night as SavedJson | null | undefined;
+  if (!sunward || !night) return world;
+  return { ...world, sunward: { ...sunward, night: { ...night, offered: [] } } };
+}
+
+const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
+const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];
+const CONVOY_DUTIES_59_60: readonly string[] = ['haul', 'trade', 'sell'];
+
+function isDutyGoal_59_60(templateId: string, goal: SavedJson): boolean {
+  if (LAWMEN_59_60.includes(templateId)) return goal.kind === 'patrol' && goal.reason === 'patrolTown';
+  if (templateId === 'courier') return goal.kind === 'travel' && SHOPS_59_60.includes(goal.targetId as string);
+  return templateId === 'convoy' && CONVOY_DUTIES_59_60.includes(goal.kind as string);
+}
+
+export function withDutyLegs_59_60(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain) return v;
+    const goals = (brain.goals as SavedJson[]).map((goal) => (isDutyGoal_59_60(brain.templateId as string, goal) ? { ...goal, leg: { from: { ...(v.pos as SavedJson) }, turn: world.turn } } : goal));
+    return { ...v, brain: { ...brain, goals } };
+  });
+  return { ...world, vehicles };
+}
+
+export function withEncounters_64_65(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  if (player.encounters !== undefined) return world;
+  return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
 }

@@ -3,7 +3,7 @@ import { RULES } from "../data/rules";
 import { restBend, rigDiscs } from "./rig";
 import type { VehicleStats } from "./stats";
 import type { Blocker } from "./path";
-import { nearestPad, siteUnder } from "./sites";
+import { hasPads, nearestPad, siteUnder } from "./sites";
 import { straightClear } from "./path";
 import type { MoveOrder, Vehicle, World } from "./types";
 import { clamp, DEG, dist, type Vec } from "./vec";
@@ -83,7 +83,7 @@ export function zoneSpeed(s: VehicleStats, speed: number, d: number): number {
 
 export function clickOrder(t: Terrain, dest: Vec, shift: boolean, me: Pick<Vehicle, "pos" | "order">): MoveOrder {
   const site = siteUnder(atlasOf(t), dest);
-  return site ? { kind: "stopAt", dest: nearestPad(site, me.pos) } : groundOrder(dest, shift, me.order);
+  return site && hasPads(site) ? { kind: "stopAt", dest: nearestPad(site, me.pos) } : groundOrder(dest, shift, me.order);
 }
 
 function groundOrder(dest: Vec, shift: boolean, current: MoveOrder | null): MoveOrder {

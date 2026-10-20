@@ -7,6 +7,7 @@ import { newId } from './factory';
 import { itemCells, mountedItems } from './grid';
 import { localToWorld } from './rig';
 import type { GridItem, HarpoonLine, Vehicle, World } from './types';
+import { shoutGiven } from './sunward-crater';
 
 const S = PHYSICS.metersPerTile;
 
@@ -21,6 +22,7 @@ export type Ends = { from: Vehicle; fromPart: string; to: Vehicle; toPart: strin
 export function attachLine(world: World, ends: Ends, turns: number): void {
   const length = anchorGap(ends);
   world.lines.push({ id: newId(world, 'l'), from: ends.from.id, fromPart: ends.fromPart, to: ends.to.id, toPart: ends.toPart, length, turnsLeft: turns });
+  shoutGiven(world, ends.from, ends.to);
 }
 
 function anchorGap(ends: Ends): number {

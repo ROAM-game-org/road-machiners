@@ -9,6 +9,7 @@ import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSet
 import { QUESTS, restoreQuest } from '../sim/quests';
 import { newerQuests, questRevisions, repairQuests, type QuestRepair, type SavedRevisions } from '../sim/quest-repair';
 import { refreshVision } from '../sim/vision';
+import { hollowObstaclesFor, isHollowObstacle } from '../sim/sunward';
 import { isMode, modeMap, repairSetup, type SettingId } from '../sim/settings';
 import { clearTips } from '../ui/tips';
 import type { NewGameActions } from '../ui/new-game';
@@ -112,7 +113,7 @@ export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Load
   const map = mapFor(world, icarus);
   if (world.mapHash !== map.hash) throw new SaveError('otherMap', null, `map ${world.mapHash}, not ${map.hash}`);
   const explored = unpackExplored(world.player.explored, world.size * world.size);
-  if (world.obstacles.some(isBakedObstacle)) throw new SaveError('bakedProps');
+  if (world.obstacles.some((o) => isBakedObstacle(o) || isHollowObstacle(o))) throw new SaveError('bakedProps');
   const baked = mapObstacles(map);
   const broken = brokenProps(baked, world.broken);
   const gone = new Set(world.broken.map((b) => b.id));
@@ -120,7 +121,7 @@ export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Load
     ...world,
     player: { ...world.player, explored, visible: [], contacts: [], clouds: [], notes: quests.notes, quests: { ...quests.quests, live: null } },
     vehicles: world.vehicles.map((v) => ({ ...v, trail: [] })),
-    obstacles: [...baked.filter((o) => !gone.has(o.id)), ...world.obstacles],
+    obstacles: [...baked.filter((o) => !gone.has(o.id)), ...hollowObstaclesFor(world), ...world.obstacles],
     broken,
     events: [],
     removed: [],
@@ -273,7 +274,7 @@ export function saveOf(world: World): { format: typeof SAVE_FORMAT; quests: Save
   const { terrain: _terrain, events: _events, removed: _removed, ...saved } = world;
   const { visible: _visible, contacts: _contacts, clouds: _clouds, quests: { live: _live, ...quests }, ...player } = saved.player;
   const vehicles = saved.vehicles.map(({ trail: _trail, ...vehicle }) => vehicle);
-  const obstacles = saved.obstacles.filter((o) => !isBakedObstacle(o));
+  const obstacles = saved.obstacles.filter((o) => !isBakedObstacle(o) && !isHollowObstacle(o));
   const broken = saved.broken.map(({ obstacle, turn }) => ({ id: obstacle.id, turn }));
   return { format: SAVE_FORMAT, quests: questRevisions(QUESTS), world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, obstacles, broken } };
 }

@@ -61,6 +61,28 @@ describe('what a truck at a pose touches', () => {
   });
 });
 
+describe('how deep a pose sits in props', () => {
+  const rock = (x: number, y: number): Obstacle => ({ id: 'rock1', pos: { x, y }, r: 0.9, kind: 'rock' });
+  const at = { x: 30, y: 30 };
+  const depthIn = (obstacles: Obstacle[]) => {
+    const w = emptyWorld(at);
+    w.obstacles = obstacles;
+    return clearanceFor(w, w.vehicles[0], []);
+  };
+
+  it('is 0 clear of props and grows as the pose moves into a rock', () => {
+    const c = depthIn([rock(33, 30)]);
+    expect(depthIn([]).depth(at, 0, undefined)).toBe(0);
+    expect(c.depth({ x: 30, y: 30 }, 0, undefined)).toBe(0);
+    expect(c.depth({ x: 31.5, y: 30 }, 0, undefined)).toBeGreaterThan(0);
+    expect(c.depth({ x: 32.2, y: 30 }, 0, undefined)).toBeGreaterThan(c.depth({ x: 31.5, y: 30 }, 0, undefined));
+  });
+
+  it('throws on a non-finite pose', () => {
+    expect(() => depthIn([]).depth({ x: NaN, y: 30 }, 0, undefined)).toThrow();
+  });
+});
+
 describe('a truck meeting a moving truck', () => {
   const at = { x: 30, y: 30 };
   const clearance = () => clearanceFor(emptyWorld(at), emptyWorld(at).vehicles[0], []);
