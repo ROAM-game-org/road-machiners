@@ -751,5 +751,5 @@ function surveyProgressLine(c: Contract): HTMLElement | null {
 
 export function contractLine(w: World, c: Contract): HTMLElement {
   const state = c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c));
-  return el("div", { class: "contract-line" }, el("span", {}, contractSummary(c), surveyProgressLine(c), claimRivalMark(w, c)), state);
+  return el("div", { class: "contract-line" }, el("div", {}, contractSummary(c), surveyProgressLine(c), claimRivalMark(w, c)), state);
 }
