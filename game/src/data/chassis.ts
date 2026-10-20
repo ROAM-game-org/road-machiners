@@ -405,25 +405,43 @@ export function chassisDef(id: string): ChassisDef {
 
 export type Paint = { top: number; side: number; cab: number; cabSide: number };
 
-export const PAINT_IDS = ['standard', 'plum', 'lavender', 'bone', 'mint', 'rose'] as const;
+export const PALETTE_IDS = ['tan', 'olive', 'plum', 'wine', 'rose', 'pink', 'lavender', 'mint', 'navy'] as const;
 
-export type PaintId = (typeof PAINT_IDS)[number];
+export type PaletteId = (typeof PALETTE_IDS)[number];
 
-export const PAINT_JOBS: Record<PaintId, Paint> = {
-  standard: { top: 0x9c7a3e, side: 0x6e5428, cab: 0x7e8a5a, cabSide: 0x566040 },
-  plum: { top: 0x6e3a64, side: 0x4d2946, cab: 0xe4cc9c, cabSide: 0xa08f6d },
-  lavender: { top: 0xb8a0e0, side: 0x81709d, cab: 0x3e2a5a, cabSide: 0x2b1d3f },
-  bone: { top: 0xf4e8c0, side: 0xaba286, cab: 0x26346a, cabSide: 0x1b244a },
-  mint: { top: 0xa0dcb4, side: 0x709a7e, cab: 0x6a2e3a, cabSide: 0x4a2029 },
-  rose: { top: 0xc48a8a, side: 0x896161, cab: 0x5a2a4e, cabSide: 0x3f1d37 },
+export const PALETTE: Record<PaletteId, number> = {
+  tan: 0x9c7a3e,
+  olive: 0x7e8a5a,
+  plum: 0x6e3a64,
+  wine: 0x6a2e3a,
+  rose: 0xc48a8a,
+  pink: 0xe0a0c0,
+  lavender: 0xb8a0e0,
+  mint: 0xa0dcb4,
+  navy: 0x26346a,
 };
+
+export type TruckPaint = { body: PaletteId; cab: PaletteId; gear: PaletteId };
+
+export const PAINT_SLOTS = ['body', 'cab', 'gear'] as const satisfies readonly (keyof TruckPaint)[];
 
 export const PAINT = {
   share: 0.05,
-  standard: 'standard' as PaintId,
+  standard: { body: 'tan', cab: 'olive', gear: 'tan' } as const satisfies TruckPaint,
   minApart: 20,
+  minBetween: 15,
 };
 
-export function isPaintId(id: string): id is PaintId {
-  return (PAINT_IDS as readonly string[]).includes(id);
+export function isPaletteId(id: unknown): id is PaletteId {
+  return typeof id === 'string' && (PALETTE_IDS as readonly string[]).includes(id);
+}
+
+export function isTruckPaint(x: unknown): x is TruckPaint {
+  if (typeof x !== 'object' || x === null) return false;
+  const paint = x as Record<string, unknown>;
+  return PAINT_SLOTS.every((slot) => isPaletteId(paint[slot]));
+}
+
+export function samePaint(a: TruckPaint, b: TruckPaint): boolean {
+  return PAINT_SLOTS.every((slot) => a[slot] === b[slot]);
 }

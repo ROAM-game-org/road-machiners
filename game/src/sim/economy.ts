@@ -1,5 +1,5 @@
 
-import { chassisDef, isPaintId, PAINT, TOWN_CHASSIS } from "../data/chassis";
+import { chassisDef, isTruckPaint, PAINT, samePaint, TOWN_CHASSIS, type TruckPaint } from "../data/chassis";
 import { ECONOMY, GOODS } from "../data/goods";
 import { SHOPS, shopDef } from "../data/market";
 import { SERVICE_GOOD } from "../data/market";
@@ -652,13 +652,13 @@ export function paintPrice(world: World): number {
   return Math.round(PAINT.share * chassisDef(playerVehicle(world).chassisId).value);
 }
 
-export function repaint(world: World, paintId: string): World {
+export function repaint(world: World, paint: TruckPaint): World {
   return playerCommand(world, (w) => {
     requireTown(w);
-    if (!isPaintId(paintId)) throw new Error(`No paint job ${paintId}`);
-    if (w.player.paint === paintId) throw new Error(`The truck is already in ${paintId}`);
+    if (!isTruckPaint(paint)) throw new Error(`No paint ${JSON.stringify(paint)}`);
+    if (samePaint(w.player.paint, paint)) throw new Error(`The truck is already in ${JSON.stringify(paint)}`);
     pay(w, paintPrice(w));
-    w.player.paint = paintId;
+    w.player.paint = { body: paint.body, cab: paint.cab, gear: paint.gear };
   });
 }
 

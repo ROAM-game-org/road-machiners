@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHASSIS, HAULER_CHASSIS, PAINT, PAINT_IDS, PAINT_JOBS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef } from './chassis';
+import { CHASSIS, HAULER_CHASSIS, isTruckPaint, PAINT, PALETTE, PALETTE_IDS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef, type PaletteId } from './chassis';
 import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
 import { FURY_ROAD } from './modes';
 import { NPCS } from './npcs';
@@ -325,30 +325,38 @@ function deltaE(a: number, b: number): number {
 }
 
 const ROLE_TOPS = [...Object.values(GANG_PAINT), ...Object.values(TEMPLATE_PAINT)].map((p) => p.top);
-const NEW_PRESETS = PAINT_IDS.filter((id) => id !== PAINT.standard);
+const OLD_STANDARD = new Set<PaletteId>(['tan', 'olive']);
+const NEW_COLORS = PALETTE_IDS.filter((id) => !OLD_STANDARD.has(id));
 
-describe('paint presets', () => {
-  it('keeps the standard pair equal to the paint every player truck had before paint jobs', () => {
-    expect(PAINT_JOBS[PAINT.standard]).toEqual({ top: 0x9c7a3e, side: 0x6e5428, cab: 0x7e8a5a, cabSide: 0x566040 });
-    expect(PAINT_IDS[0]).toBe(PAINT.standard);
+describe('the paint palette', () => {
+  it('keeps the standard paint equal to the paint every player truck had before paint jobs', () => {
+    expect(PALETTE[PAINT.standard.body]).toBe(0x9c7a3e);
+    expect(PALETTE[PAINT.standard.cab]).toBe(0x7e8a5a);
+    expect(PAINT.standard.gear).toBe(PAINT.standard.body);
   });
 
-  it('offers five pairs besides the standard one', () => {
-    expect(NEW_PRESETS).toHaveLength(5);
+  it('offers nine colors for every surface', () => {
+    expect(PALETTE_IDS).toHaveLength(9);
+    expect(Object.keys(PALETTE).sort()).toEqual([...PALETTE_IDS].sort());
     expect(PAINT.minApart).toBeGreaterThanOrEqual(20);
   });
 
-  it.each(NEW_PRESETS)('keeps the body and cab of %s apart from every role paint', (id) => {
-    const paint = PAINT_JOBS[id];
-    for (const role of ROLE_TOPS) {
-      expect(deltaE(paint.top, role)).toBeGreaterThanOrEqual(PAINT.minApart);
-      expect(deltaE(paint.cab, role)).toBeGreaterThanOrEqual(PAINT.minApart);
+  it.each(NEW_COLORS)('keeps %s apart from every role body paint', (id) => {
+    for (const role of ROLE_TOPS) expect(deltaE(PALETTE[id], role)).toBeGreaterThanOrEqual(PAINT.minApart);
+  });
+
+  it('keeps every two palette colors apart', () => {
+    for (const [i, a] of PALETTE_IDS.entries()) {
+      for (const b of PALETTE_IDS.slice(i + 1)) expect(deltaE(PALETTE[a], PALETTE[b]), `${a} ${b}`).toBeGreaterThanOrEqual(PAINT.minBetween);
     }
   });
 
-  it('keeps every two presets apart by body color', () => {
-    for (const [i, a] of PAINT_IDS.entries()) {
-      for (const b of PAINT_IDS.slice(i + 1)) expect(deltaE(PAINT_JOBS[a].top, PAINT_JOBS[b].top)).toBeGreaterThanOrEqual(PAINT.minApart);
-    }
+  it('knows a paint only when each of its three slots is a palette id', () => {
+    expect(isTruckPaint(PAINT.standard)).toBe(true);
+    expect(isTruckPaint({ body: 'plum', cab: 'navy', gear: 'mint' })).toBe(true);
+    expect(isTruckPaint({ body: 'plum', cab: 'gold', gear: 'mint' })).toBe(false);
+    expect(isTruckPaint({ body: 'plum', cab: 'navy' })).toBe(false);
+    expect(isTruckPaint('plum')).toBe(false);
+    expect(isTruckPaint(null)).toBe(false);
   });
 });

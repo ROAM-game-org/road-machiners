@@ -1,6 +1,6 @@
 
 import { settleCrews } from './crews';
-import { CHASSIS, isPaintId, PAINT } from '../data/chassis';
+import { CHASSIS, isPaletteId, PAINT, PAINT_SLOTS } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
@@ -118,7 +118,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
         profit: 0, deal: 0, call: 0, honk: 0, contract: 0, freeTow: 0, aid: 0,
       },
       perks: [],
-      paint: PAINT.standard,
+      paint: { ...PAINT.standard },
       marked: [],
       rumored: [],
       encounters: { next: 0, pending: null, story: null },
@@ -506,6 +506,8 @@ export function threatToPlayer(world: World, v: Vehicle): boolean {
 export type CarriedPart = { defId: string; wear: number; hp: number; rebuilt: boolean };
 export type CarriedItem = ({ kind: 'part'; part: CarriedPart } | { kind: 'good'; good: string }) & { x: number; y: number; rot: Rot };
 
+export type CarriedPaint = Partial<Record<(typeof PAINT_SLOTS)[number], string>>;
+
 export type Carried = {
   seed: number | null;
   money: number | null;
@@ -513,7 +515,7 @@ export type Carried = {
   ranks: Partial<Record<string, number>>;
   xpBySource: Partial<Record<string, number>>;
   perks: string[];
-  paint: string | null;
+  paint: CarriedPaint | null;
   discovered: string[];
   knockouts: number | null;
   autoFire: boolean | null;
@@ -635,10 +637,13 @@ function carryPlayer(world: World, c: Carried): void {
   carryPerks(world, c.perks);
 }
 
-function carryPaint(world: World, paint: string | null, report: CarryReport): void {
+function carryPaint(world: World, paint: CarriedPaint | null, report: CarryReport): void {
   if (paint === null) return;
-  if (isPaintId(paint)) world.player.paint = paint;
-  else report.lost.push(paint);
+  for (const slot of PAINT_SLOTS) {
+    const id = paint[slot];
+    if (isPaletteId(id)) world.player.paint[slot] = id;
+    else if (id !== undefined) report.lost.push(id);
+  }
 }
 
 function knownSite(world: World, id: string): boolean {

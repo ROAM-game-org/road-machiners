@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PAINT } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { REGION } from '../data/region';
 import { START_KITS } from '../data/start';
@@ -91,12 +92,14 @@ describe('carriedWorld', () => {
     expect(other.world.player.money).toBe(777 + other.report.sold.reduce((n, s) => n + s.money, 0));
   });
 
-  it('carries a known paint job and lists an unknown one as lost', () => {
-    expect(carriedWorld(carriedOf({ paint: 'rose' }), KIT, () => TEST_MAP, fresh).world.player.paint).toBe('rose');
-    const { world, report } = carriedWorld(carriedOf({ paint: 'gold' }), KIT, () => TEST_MAP, fresh);
-    expect(world.player.paint).toBe('standard');
+  it('carries a known paint slot by slot and turns an unknown slot into its standard color', () => {
+    const rose = { body: 'rose', cab: 'navy', gear: 'mint' };
+    expect(carriedWorld(carriedOf({ paint: rose }), KIT, () => TEST_MAP, fresh).world.player.paint).toEqual(rose);
+    const { world, report } = carriedWorld(carriedOf({ paint: { body: 'rose', cab: 'gold', gear: 'mint' } }), KIT, () => TEST_MAP, fresh);
+    expect(world.player.paint).toEqual({ body: 'rose', cab: PAINT.standard.cab, gear: 'mint' });
     expect(report.lost).toContain('gold');
-    expect(carriedWorld(carriedOf({ paint: null }), KIT, () => TEST_MAP, fresh).world.player.paint).toBe('standard');
+    expect(carriedWorld(carriedOf({ paint: { body: 'plum' } }), KIT, () => TEST_MAP, fresh).world.player.paint).toEqual({ ...PAINT.standard, body: 'plum' });
+    expect(carriedWorld(carriedOf({ paint: null }), KIT, () => TEST_MAP, fresh).world.player.paint).toEqual(PAINT.standard);
   });
 
   it('drops perks above the carried rank and a second perk of one pair', () => {
