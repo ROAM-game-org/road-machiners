@@ -5,7 +5,7 @@ import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
-import { modeRules } from "../sim/settings";
+import { hasExplorationMap, modeRules } from "../sim/settings";
 import { playerCanAct } from "../sim/world";
 import type { Vehicle, World } from "../sim/types";
 import { workOf, type Work } from "../sim/states";
@@ -84,6 +84,7 @@ type HudActions = {
   openInventory: () => void;
   openCharacter: () => void;
   openJournal: () => void;
+  openMap: () => void;
   toggleManual: () => void;
   toggleAutoRepair: () => void;
   toggleOverdrive: () => void;
@@ -129,6 +130,18 @@ export class MaxSpeedView {
       ...lines.map((line) => el('div', { class: 'speed-line' }, el('span', {}, line.label), el('span', { class: `num ${TONE_CLASS[line.tone]}` }, line.value))),
     );
   }
+}
+
+export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTMLElement[] {
+  if (!hasExplorationMap(w)) return [];
+  return [
+    el(
+      "button",
+      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : undefined },
+      t("map.full"),
+      keyCorner("K"),
+    ),
+  ];
 }
 
 export class Hud {
@@ -628,6 +641,7 @@ export class Hud {
       }),
       ...this.engineButtons(w, busy),
       this.characterButton(w, busy),
+      ...mapInstrument(w, busy, () => this.actions.openMap()),
       this.journalButton(busy),
       ...(modeRules(w).radio ? [this.hornButton(w)] : []),
     );
