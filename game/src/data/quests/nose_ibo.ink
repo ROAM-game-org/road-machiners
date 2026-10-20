@@ -54,6 +54,14 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   It's a low, steady note that comes and goes, always from the crater's side. Some say it counts the years since the fall. I've no key to decode it, and the Army never asked me to log it. If it counts, it counts without me.
   ~ asked_tone = true
   -> hub
++ {heard_tone} [Hear anything from the crater at night?]
+  { cult_broken():
+    Eh? Quieter than it's been in years. A line of lamps used to cross to the crater every dusk, and if you called them you got an open channel and somebody breathing on it. Now there's nothing at all. I'd wager somebody finally stopped them. Do not tell the Sergeant I was glad.
+  - else:
+    Eh? Nobody out there talks, that's the odd part. Every dusk a line of lamps goes out to the crater, and if you call them you get an open channel and somebody breathing on it, nothing more. Joss Ardo, who sings with the Children of Noah now, rode with them once and got out. I'd wager he's the only one who ever did.
+    ~ note("sunwardLamps")
+  }
+  -> hub
 + {heard_couriers and not asked_couriers} [Who are the Guild couriers?]
   They carry the mail between the towns. They run in pairs now, two trucks together. I remember when they went out alone, before the Kiln riders got bold. Kiln's the raider camp in the south. Tamsin Roe's the odd one, with no gun at all. I hear her call-sign more than any other.
   ~ asked_couriers = true
