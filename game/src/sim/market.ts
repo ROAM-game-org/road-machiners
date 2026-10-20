@@ -567,7 +567,7 @@ function fillBoard(world: World, shopId: string, state: ShopState): void {
   const clients = modeRules(world).rescue ? rescueClients(world, { id: shopId, pos: shopPos(shopId) }) : [];
   while (state.contracts.length < def.contractSlots) {
     const postedTemplates = new Set(state.contracts.filter((c) => c.kind === 'bounty').map((c) => c.template));
-    const raiders = world.vehicles.filter((v) => isOutlaw(v.faction) && v.brain && !postedTemplates.has(v.brain.templateId));
+    const raiders = world.vehicles.filter((v) => isOutlaw(v.faction) && v.brain && v.brain.templateId in CONTRACTS.bounty.rewardTurns && !postedTemplates.has(v.brain.templateId));
     const legs = haulLegs(world, shopId).filter((leg) => !state.contracts.some((c) => c.kind === 'haul' && c.good === leg.good && c.to === leg.to.id));
     const surveys = freeSurveySites(world, shopPos(shopId));
     const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, legs, partDefIds, raiders, claimTargets(world), clients, searchCandidates(world, shopId, state), surveys);

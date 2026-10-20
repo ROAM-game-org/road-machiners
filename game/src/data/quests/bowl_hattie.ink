@@ -27,7 +27,7 @@ Park that wreck clear of my well, driver, and tell me how much water you need. I
   He found your truck dead in the badlands with you in the seat, took it for abandoned and hooked up the lot.
   ~ hattie_tow = true
   -> hub
-+ {towed_to_bowl and not hattie_strip} [Who stripped my truck?]
++ {towed_to_bowl and engine_missing() and not hattie_strip} [Who stripped my truck?]
   Wasn't the tow man, if that's where you're looking. Whoever it was took their time and left you breathing.
   ~ hattie_strip = true
   -> hub
@@ -60,12 +60,12 @@ Park that wreck clear of my well, driver, and tell me how much water you need. I
   -> hub
 + {hattie_soldiers and not hattie_roads} [Will the Nose soldiers stop me on the road?]
   No, and they won't stop whoever comes to take your truck either.
-  Take that truck to Nose without a gun and you're parking till you find one.
+  Nobody keeps the road between the towns, and Kiln riders strip any truck that can't fight and won't pay.
   ~ hattie_roads = true
   -> hub
 + {hattie_roads and not hattie_unarmed} [What if I go up to Nose unarmed?]
   Nose will let you in unarmed, sure.
-  Try leaving and they'll make you buy a gun at whatever price they fancy.
+  Nose lets you in and out, gun or no gun, and doesn't care. I only heard Pierce won't insure a truck without one.
   ~ hattie_unarmed = true
   -> hub
 + {hattie_flats and not hattie_glass} [What about the glass at the Glass Flats?]
@@ -79,6 +79,9 @@ Park that wreck clear of my well, driver, and tell me how much water you need. I
   Never been in, never will; I sell water, not sense.
   ~ note("talkSunwardTake")
   ~ hattie_sunward = true
+  -> hub
++ {hattie_sunward and cult_broken()} [Have the Sunward gone quiet?]
+  Quiet as a dry well. Bo's cousin says the lamps stopped crossing to the crater at dusk, and a man with a green shine on his hands came to my well asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
   -> hub
 + {hattie_sunward and not hattie_came_out} [Have you seen one come out?]
   I saw one at dusk once, a woman with her hands shining green. She emptied bucket after bucket without a word.

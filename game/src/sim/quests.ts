@@ -39,6 +39,8 @@ import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { SKILL_IDS } from '../data/skills';
 import { UNITS } from '../data/units';
+import { playerVehicle } from './damage';
+import { mountedParts } from './grid';
 import { skillLevel } from './progress';
 import { boardFull, holdsNote, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { canDriveOn } from './fury-road';
@@ -48,6 +50,8 @@ import { worksDown } from './production';
 import { hashRandom } from './rng';
 import { storyStock } from './salvage';
 import type { QuestCheck, QuestLine, QuestLive, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
+import { sunwardFacts } from './sunward';
+import { offeredTonight } from './sunward-crater';
 import { update } from './world';
 
 export type QuestView = {
@@ -100,8 +104,11 @@ const SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
 
 export const QUEST_QUERIES: Record<string, QuestQuery> = {
   money: (world) => Math.floor(world.player.money / UNITS.centsPerM),
+  engine_missing: (world) => mountedParts(playerVehicle(world), 'engine').length === 0,
   has_note: (world, args) => holdsNote(world, noteArg('has_note', args)),
   found: (world, args) => world.player.discovered.includes(siteArg('found', args)),
+  cult_broken: (world) => sunwardFacts(world).collapsed !== null,
+  offered_tonight: (world) => offeredTonight(world, world.player.vehicleId),
   searched: (world, args) => world.player.scavenged.includes(storyStock(world, textArg('searched', args, 0)).id),
   has_work: (world) => townWork(world) !== null,
   has_offers: (world) => townOffers(world).length > 0,
@@ -306,6 +313,11 @@ export function openWreckScene(w: World, stockId: string): void {
   if (questVar(w, QUESTS, GAME_OPENED_QUESTS.wagonSeven, WAGON_SEEN) === true) return;
   setWorldVar(w, WAGON_SEEN, true);
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.wagonSeven, 'start');
+}
+
+export function openCoreDeath(w: World): void {
+  if (w.player.quests.session) return;
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.coreDeath, 'start');
 }
 
 export function openRoadScene(w: World): void {

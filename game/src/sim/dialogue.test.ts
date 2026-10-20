@@ -1086,7 +1086,8 @@ describe('fuel and supply aid', () => {
     const offerers = (Object.keys(TRAIT_TALK) as TraitId[]).filter((id) => TRAIT_TALK[id].topics.includes('aidOffer'));
     expect(helpers.sort()).toEqual(['courier', 'lawman', 'roamer', 'scavenger', 'supplier', 'trader']);
     expect(offerers.sort()).toEqual(helpers);
-    expect(Object.values(TRAIT_TALK).every((t) => t.topics.includes('offerAid'))).toBe(true);
+    expect(Object.entries(TRAIT_TALK).filter(([id]) => id !== 'cultist').every(([, t]) => t.topics.includes('offerAid'))).toBe(true);
+    expect(TRAIT_TALK.cultist.topics.filter((id) => TOPICS[id].ask !== null)).toEqual([]);
   });
 
   it('a player who is not low cannot ask for aid, and a low one can', () => {

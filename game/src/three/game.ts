@@ -86,7 +86,7 @@ import { SoundRingView } from "./render/soundRing";
 import { reportError } from "./crash";
 import { GameSaves, TURN_FAILED_NOTE, type Run } from "./save";
 import { GameMenu } from "../ui/game-menu";
-import { confirmedEndRun, DeathScreen } from "../ui/death";
+import { confirmedEndRun, DeathScreen, deathShows } from "../ui/death";
 import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
@@ -96,6 +96,7 @@ import { subscribeInputMode, touchMode } from "../ui/input-mode";
 import { installTouchTips } from "../ui/touch-tip";
 import { TouchGestures, type TouchIntent } from "./touch-map";
 import { touchTapAction } from "./touch-tap";
+import { swallowNextClick } from "./ghost-click";
 import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
@@ -172,6 +173,7 @@ export class Game {
   private phase: TurnPhase = null;
   private readonly weaponRange = new WeaponRangeView(PAL.select, READY_ARC_BIT);
   private readonly hoverArcs: HoverArcsView;
+  private readonly view: HTMLElement;
   private readonly markers: VehicleMarkers;
   private readonly overlay: HTMLElement;
   private live: LiveVision | null = null;
@@ -227,13 +229,13 @@ export class Game {
     subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode);
     this.renderer.setPixelRatio(window.devicePixelRatio);
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
     enableSunShadows(this.renderer);
     failLoudOnShaderError(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);
-    this.rig = new CameraRig(container);
+    this.view = container;
+    this.rig = new CameraRig(this.renderer.domElement);
     this.follow = new TruckFollow(this.rig, new KeyPan(this.ignoresKey), this.renderer.domElement);
 
     this.scene.background = new THREE.Color(PAL.bg);
@@ -307,6 +309,7 @@ export class Game {
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
       openJournal: () => this.runKey("KeyJ"),
+      openMap: () => this.runKey("KeyK"),
       toggleManual: () => this.runKey("KeyR"),
       toggleAutoRepair: () => this.runKey("KeyP"),
       toggleOverdrive: () => this.runKey("KeyO"),
@@ -344,8 +347,9 @@ export class Game {
     this.death = new DeathScreen(saves);
 
     this.bindInput();
-    window.addEventListener("resize", () => this.resize());
-    this.resize();
+    window.addEventListener("resize", () => this.fitView());
+    new ResizeObserver(() => this.fitView()).observe(container);
+    this.fitView();
     this.refreshUi();
     requestAnimationFrame((t) => this.tick(t));
   }
@@ -418,9 +422,16 @@ export class Game {
     this.refreshUi();
   }
 
-  private resize(): void {
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  private fitView(): void {
+    const width = this.view.clientWidth;
+    const height = this.view.clientHeight;
+    if (!Number.isFinite(width) || !Number.isFinite(height)) throw new Error(`View size must be finite, got ${width}x${height}`);
+    if (!(width > 0 && height > 0)) return;
+    this.renderer.setSize(width, height);
     this.rig.resize();
+    this.path.setDrawSize(width, height);
+    this.weaponRange.setDrawSize(width, height);
+    this.hoverArcs.setDrawSize(width, height);
   }
 
   private modalOpen(): boolean {
@@ -458,7 +469,7 @@ export class Game {
     this.hud.renderTop(this.displayWorld());
     this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
     this.hud.renderRescue(this.displayWorld());
-    if (!this.anim && this.world.player.state === "dead") this.death.show(this.world);
+    if (!this.anim && deathShows(this.world)) this.death.show(this.world);
     this.weapons.render();
     this.screens.render();
     const { action, count, index } = this.context.shown();
@@ -669,6 +680,7 @@ export class Game {
     if (tap.kind !== "preview") this.touchPreview = null;
     switch (tap.kind) {
       case "pin":
+        swallowNextClick();
         return this.pinVehicle(tap.id);
       case "aim":
         return this.aimVehicle(tap.id);
@@ -1078,7 +1090,7 @@ export class Game {
     this.fx.light({ sun: this.sun, sky: this.sky });
     CLOUD_SHADOWS.sync(this.world, this.lightTurn(), this.play.frameMs());
     this.vehicleLights.sync(this.world, this.frames, this.lightTurn(), (pos) => this.sightLimit.reaches(pos), truck);
-    this.siteLights.sync(!sunAt(this.world.turn), this.lightTurn(), this.rig.camera, (pos) => this.sightLimit.reaches(pos), this.rig.focus(), now);
+    this.siteLights.sync(!sunAt(this.world.turn), this.lightTurn(), this.rig.camera, (pos) => this.sightLimit.reaches(pos), this.rig.focus(), now, this.world);
     Object.assign(this.stormTint.style, stormTintStyle(stormShare(playerVehicle(this.world))));
     this.fx.tick(this.play.frameMs(), dt, this.world);
     this.playPanelSounds();

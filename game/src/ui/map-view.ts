@@ -1,6 +1,7 @@
 import { MINIMAP, WORLD_MAP } from '../data/minimap';
 import { paintBase, newFogImage, paintFog } from '../render/minimap-paint';
 import { atlasKeyString, atlasOf, atlasSites } from '../sim/atlas';
+import { mappedSites } from '../sim/locations';
 import type { Terrain } from '../sim/terrain';
 import { playerVehicle } from '../sim/damage';
 import type { World } from '../sim/types';
@@ -8,13 +9,14 @@ import type { Vec } from '../sim/vec';
 import { say } from '../text/language';
 import { el } from './dom';
 import { siteName } from '../text/names';
+import { t, type Msg } from '../text/msg';
 import { canvasTransform, fitTileSize, fitted, pinToEdge, toPx, toTile, viewport, zoomAround, panBy, clampPan, type MapPoint, type Viewport } from './map-geometry';
 import { token } from './tokens';
 import { uiSize } from './ui-size';
 
 export type MapRule = { kind: 'follow'; reach: number } | { kind: 'free' } | { kind: 'fit' };
 export type MapTruck = { pos: Vec; heading: number };
-export type MapSite = { id: string; kind: 'town' | 'site' | 'wreck'; pos: Vec };
+export type MapSite = { id: string; kind: 'town' | 'site' | 'wreck'; pos: Vec; known: boolean };
 export type MapOverlay = (ctx: CanvasRenderingContext2D, view: Viewport) => void;
 
 const BASES_KEPT = 3;
@@ -85,13 +87,18 @@ export function poseOf(world: World): MapTruck {
 }
 
 export function mapSites(world: World): MapSite[] {
-  const known = new Set(world.player.discovered);
+  const found = new Set(world.player.discovered);
+  const mapped = mappedSites(world);
   const towns = new Set(atlasOf(world.terrain).towns.map((s) => s.id));
   const sites: MapSite[] = atlasSites(atlasOf(world.terrain))
-    .filter((s) => known.has(s.id))
-    .map((s) => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos }));
+    .filter((s) => mapped.has(s.id))
+    .map((s) => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: found.has(s.id) }));
   const wrecks = world.salvage.filter((s) => world.player.rumored.includes(s.id));
-  return [...sites, ...wrecks.map((s): MapSite => ({ id: s.id, kind: 'wreck', pos: s.pos }))];
+  return [...sites, ...wrecks.map((s): MapSite => ({ id: s.id, kind: 'wreck', pos: s.pos, known: true }))];
+}
+
+function markName(site: MapSite): Msg {
+  return site.known ? siteName(site.id) : t('map.unknownSite');
 }
 
 export class MapView {
@@ -183,7 +190,7 @@ export class MapView {
       if (!site || site.kind === 'wreck') return hide();
       if (shown !== site.id) {
         shown = site.id;
-        tip.replaceChildren(el('span', {}, siteName(site.id)));
+        tip.replaceChildren(el('span', {}, markName(site)));
       }
       const box = this.canvas.getBoundingClientRect();
       tip.style.display = '';
@@ -288,7 +295,7 @@ export class MapView {
     const taken: Box[] = named.map(({ at }) => around(at, MARK.town + 1));
     if (this.truck) taken.push(around(toPx(view, this.truck.pos), MARK.truck + 1));
     for (const { site, at } of named) {
-      const text = say(siteName(site.id));
+      const text = say(markName(site));
       const plate = placePlate(at, ctx.measureText(text).width + 2 * NAME.padX, tall, taken);
       taken.push(plate);
       ctx.fillStyle = token('--surface-overlay');

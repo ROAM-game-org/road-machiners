@@ -1,18 +1,23 @@
 
 import { NPC_BEHAVIOR, NPC_UPKEEP, NPCS, SPAWN } from '../data/npcs';
-import { shopDef } from '../data/market';
+import { SHOPS, shopDef } from '../data/market';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { isDefeated, refitAtHome } from './defeat';
 import { scrapFuel, serviceAtCamp, serviceAtStall, serviceVehicle } from './economy';
-import { dropGoal, finishGoal, isBroke, noteShop, popGoal, pushGoal, reachSite, topGoal } from './npc-activities';
+import { charCodes, chooseNearestSite, createSiteActivity, dropGoal, finishGoal, noteShop, popGoal, pushGoal, reachSite, saleGoal, topGoal } from './npc-activities';
 import { dealDue } from './npc-business';
-import { fitToHunt, getKnownSite, huntsPrey, npcProfile, type NpcProfile } from './npc-decisions';
+import { fitToHunt, getKnownSite, hasSaleCargo, huntsPrey, npcProfile, yields, type NpcProfile } from './npc-decisions';
+import { isDamaged, isStrandedForGood } from './npc-repair';
+import { getResources } from './resources';
+import { hashRandom } from './rng';
+import { heatAt } from './sun';
+import { ECONOMY } from '../data/goods';
 import { route } from './path';
 import { randRange } from './rng';
 import { canUseSite, type Site } from './sites';
 import { isFree } from './spawn';
-import { isStranded, vehicleStats } from './stats';
+import { isStranded, suppliesCap, vehicleStats } from './stats';
 import { isOnRope } from './tow';
 import type { GoalReason, NpcActivity, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
@@ -103,7 +108,8 @@ function tryLieUpSpot(world: World, vehicle: Vehicle, site: Site): Vec | null {
 
 export function liesUp(vehicle: Vehicle): boolean {
   const top = topGoal(vehicle);
-  return top?.kind === 'rearm' && dist(vehicle.pos, top.destination!) <= NPC_BEHAVIOR.lieUp.reach;
+  const lying = top?.kind === 'rearm' || (top?.kind === 'wait' && top.reason === 'restHollow');
+  return lying && dist(vehicle.pos, top.destination!) <= NPC_BEHAVIOR.lieUp.reach;
 }
 
 export function rearmInvalid(world: World, vehicle: Vehicle): GoalReason | null {
@@ -117,4 +123,77 @@ export function resolveRearm(world: World, vehicle: Vehicle, activity: NpcActivi
   if (world.turn < activity.until) return;
   refitAtHome(world, vehicle);
   finishGoal(world, vehicle, 'refitted');
+}
+
+type ServiceNeed = { reason: GoalReason };
+
+function unfitHunter(world: World, vehicle: Vehicle): boolean {
+  return huntsPrey(vehicle) && !fitToHunt(world, vehicle);
+}
+
+export function pumpsOf(vehicle: Vehicle, profile: NpcProfile, broke: boolean): string[] {
+  if (broke) return servingSiteIds(profile);
+  if (profile.bases.length > 0) return profile.bases;
+  if (profile.towns.length === 0) throw new Error(`${vehicle.id} knows no pump`);
+  return [...profile.towns, ...SERVICE_STALLS];
+}
+
+const SERVICE_STALLS: readonly string[] = Object.values(SHOPS).filter((s) => s.kind === 'stall').map((s) => s.id);
+
+function fuelToPump(world: World, vehicle: Vehicle, profile: NpcProfile): number {
+  const pump = chooseNearestSite(vehicle, pumpsOf(vehicle, profile, isBroke(world, vehicle)));
+  return dist(vehicle.pos, pump.pos) * vehicleStats(world, vehicle).fuelPerTile * heatAt(world, vehicle.pos);
+}
+
+function fuelSense(world: World, vehicle: Vehicle): number {
+  const roll = hashRandom(world.seed, ...charCodes(vehicle.id), ...charCodes('fuel'));
+  return 1 + NPC_UPKEEP.fuelSense * (2 * roll - 1);
+}
+
+export function fuelReserveFor(world: World, vehicle: Vehicle, profile: NpcProfile = npcProfile(vehicle)): number {
+  return fuelToPump(world, vehicle, profile) * NPC_UPKEEP.fuelReserve * profile.fuelMargin * fuelSense(world, vehicle);
+}
+
+export const isLowOnFuel = (world: World, vehicle: Vehicle, profile: NpcProfile): boolean => getResources(world, vehicle).fuel <= fuelReserveFor(world, vehicle, profile);
+
+function serviceNeed(world: World, vehicle: Vehicle, profile: NpcProfile): ServiceNeed | null {
+  if (holdsRearm(vehicle) || !yields(world)) return null;
+  const needs: [GoalReason, boolean][] = [
+    ['lowFuel', isLowOnFuel(world, vehicle, profile)],
+    ['lowSupplies', getResources(world, vehicle).supplies <= suppliesCap(vehicle) * NPC_UPKEEP.lowSupplies],
+    ['needsRepairs', isDamaged(vehicle)],
+    ['unfitToHunt', unfitHunter(world, vehicle)],
+  ];
+  const held = needs.filter(([, need]) => need).map(([reason]) => reason);
+  if (held.length === 0) return null;
+  return { reason: held[0] };
+}
+
+export function isBroke(world: World, vehicle: Vehicle): boolean {
+  return getResources(world, vehicle).money < Math.min(ECONOMY.supplyPrice.fuel, ECONOMY.supplyPrice.supplies);
+}
+
+export function serviceGoal(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity | null {
+  const need = serviceNeed(world, vehicle, profile);
+  if (!need) return null;
+  if (isBroke(world, vehicle)) return brokeServiceGoal(world, vehicle, profile, need);
+  return serviceTrip(world, vehicle, profile, need);
+}
+
+function brokeServiceGoal(world: World, vehicle: Vehicle, profile: NpcProfile, need: ServiceNeed): NpcActivity | null {
+  if (hasSaleCargo(vehicle)) return saleGoal(world, vehicle, profile);
+  const trip = isStranded(world, vehicle) || isLowOnFuel(world, vehicle, profile) || unfitHunter(world, vehicle);
+  return trip ? serviceTrip(world, vehicle, profile, need) : null;
+}
+
+function serviceTrip(world: World, vehicle: Vehicle, profile: NpcProfile, need: ServiceNeed): NpcActivity {
+  const stop = chooseNearestSite(vehicle, serviceStops(world, vehicle, profile));
+  if (!stop) throw new Error(`${vehicle.id} knows no service stop`);
+  return createSiteActivity('resupply', stop.id, need.reason);
+}
+
+function serviceStops(world: World, vehicle: Vehicle, profile: NpcProfile): string[] {
+  if (profile.bases.length > 0) return profile.bases;
+  if (isStrandedForGood(vehicle)) return servingSiteIds(profile);
+  return pumpsOf(vehicle, profile, isBroke(world, vehicle));
 }

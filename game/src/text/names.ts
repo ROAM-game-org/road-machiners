@@ -87,6 +87,7 @@ const NOTES: NoteWords = {
   tankLeak: (n) => t('note.tankLeak', { fuel: n.fuel }),
   filledSupplies: (n) => t('note.filledSupplies', { site: siteName(n.site) }),
   hazard: () => t('note.hazard'),
+  core: () => t('note.core'),
   spawnBlocked: (n) => t('note.spawnBlocked', { template: templateName(n.template) }),
 };
 

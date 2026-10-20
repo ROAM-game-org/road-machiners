@@ -15,7 +15,7 @@ describe('trading tip text', () => {
   });
 
   it('names the site and the good of a cheap tip', () => {
-    expect(en(tipText({ kind: 'tip', tip: { shop: 'granary', good: 'grain', dear: false } }))).toBe('Last time I was at The Granary, grain was going cheap.');
+    expect(en(tipText({ kind: 'tip', tip: { shop: 'granary', good: 'grain', dear: false } }))).toBe('Last time I was at The Granary, sorgut was going cheap.');
   });
 
   it('fits the verb to a good with a plural name', () => {
@@ -42,6 +42,8 @@ describe('aid words', () => {
 });
 
 const PREPARE_VARS: Record<PrepareId, string[]> = {
+  vigilCall: [],
+  craterNews: ['news'],
   nearestTown: ['town', 'way'],
   towOffer: ['town', 'fee'],
   patchTerms: ['deal'],
@@ -78,7 +80,7 @@ const SAMPLE: Record<string, CallVar> = {
   site: { kind: 'site', id: 'granary' },
   bearing: { kind: 'bearing', rad: 1 },
   distance: { kind: 'distance', tiles: 12 },
-  way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
+  way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
   fee: { kind: 'money', amount: 1200 },
   price: { kind: 'money', amount: 45 },
   deal: { kind: 'deal', deal: 'paid', patcher: 'npc', price: 80, parts: 2, turns: 3 },
@@ -86,6 +88,7 @@ const SAMPLE: Record<string, CallVar> = {
   tip: { kind: 'tip', tip: { shop: 'nose', good: 'meds', dear: false } },
   aid: { kind: 'aid', fuel: 2, supplies: 3 },
   warnLine: { kind: 'line', line: 'thatsMyPick' },
+  news: { kind: 'line', line: 'carsDraggedIntoTheDark' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
   sighting: { kind: 'sighting', driver: 'Jed Cobb', seen: { bearing: 0.8, tiles: 300, turns: 80, heading: 3.1 } },
 };

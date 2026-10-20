@@ -692,6 +692,10 @@
   flex-direction: column;
   gap: var(--space-1);
 }
+.perk-rank {
+  display: none;
+  font-size: var(--text-caption);
+}
 .perk-cell.picked {
   color: var(--ink-bright);
 }

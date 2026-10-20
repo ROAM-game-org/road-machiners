@@ -1,6 +1,7 @@
 import { t, type Msg } from "../text/msg";
 import { createIcon } from "./cards";
 import { el } from "./dom";
+import { keyLabel } from "./input-mode";
 
 export interface SwitchOptions {
   on: Msg;
@@ -26,7 +27,7 @@ export function createSwitch(o: SwitchOptions): HTMLElement {
       role: "switch",
       "aria-checked": String(o.checked),
       "aria-disabled": reason === null ? undefined : "true",
-      title: reason ?? o.title,
+      title: reason ?? (o.key ? keyLabel(o.title, o.key) : o.title),
       onclick: () => reason === null && o.onclick(),
     },
     el("span", { class: "switch-option" }, o.checked ? o.on : o.off),

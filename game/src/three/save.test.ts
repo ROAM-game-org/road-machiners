@@ -28,6 +28,8 @@ import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
 import { TEST_MAP } from '../test/map';
+import { hollowBays, hollowObstacles, membersOf } from '../sim/sunward';
+import { fillHollow } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { breakProp, oldSpotOf, oldSpotPicks, oldStockId } from '../sim/salvage';
@@ -228,6 +230,8 @@ describe('game save', () => {
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
 
     expect(loaded.player.call).toEqual(opened.player.call);
+    const way = loaded.player.call!.vars.way;
+    expect(way.kind === 'directions' && way.steps.find((s) => s.do === 'follow')).toMatchObject({ heading: expect.any(String) });
     const said = (w: World, locale: 'en' | 'ru') => resolve(lineText(w.player.call!.line.line, w.player.call!.line.vars.way ? w.player.call!.line.vars : w.player.call!.vars), locale);
     expect(said(loaded, 'en')).toBe(said(opened, 'en'));
     expect(said(loaded, 'ru')).toBe(said(opened, 'ru'));
@@ -693,7 +697,7 @@ describe('game save', () => {
 
     expect(baked.size).toBeGreaterThan(0);
     expect(saved.filter((o) => baked.has(o.id))).toEqual([]);
-    expect(saved.length).toBe(world.obstacles.length - baked.size);
+    expect(saved.length).toBe(world.obstacles.length - baked.size - hollowObstacles().length);
     expect(loadWorld(slots, 'auto', TEST_MAP)!.obstacles).toEqual(world.obstacles);
   });
 
@@ -1093,5 +1097,50 @@ describe('relations in a save', () => {
     expect(loaded.events).toEqual([]);
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.player.money).toBe(w.player.money);
+  });
+
+  it('gives back the Sunward record and the order\'s night ledger after a save and load', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    w.sunward = { collapsed: 330, night: { dusk: 245, roster: ['v9', 'v10'], beaten: ['v9'], calls: { v1: { count: 2, turn: 300 } }, hunt: { party: ['v11'], grounds: [{ x: 1, y: 2 }, { x: 3, y: 4 }], prey: null, over: true, breaks: 1 }, shouted: ['v1'], offered: ['v1'] }, lastHunt: 1 };
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.sunward).toEqual(w.sunward);
+    expect(loaded.player.standing.sunward).toBe(-20);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('gives back the order parked in the fort bays, awarding nothing at load', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    fillHollow(w);
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    const members = (x: typeof w) => membersOf(x).map((v) => ({ id: v.id, pos: v.pos, home: v.brain!.home }));
+    expect(members(loaded)).toEqual(members(w));
+    expect(members(loaded).every((m) => hollowBays().some((b) => b.x === m.home.x && b.y === m.home.y))).toBe(true);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.player.money).toBe(w.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('keeps the Hollow out of the save and builds it again at load, also for a save that never held it', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const saved = savedWorldOf(slots, 'auto');
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(saved.obstacles.some((o) => o.id.startsWith('hollow-'))).toBe(false);
+    expect(loaded.obstacles.filter((o) => o.id.startsWith('hollow-'))).toEqual(w.obstacles.filter((o) => o.id.startsWith('hollow-')));
+    expect(loaded.obstacles).toEqual(w.obstacles);
   });
 });

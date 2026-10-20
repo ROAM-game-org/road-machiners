@@ -47,7 +47,7 @@ By year 130 nobody drives the open road without a gun. Every driver knows why, a
 - For thirty years the Old Army held the guns and patrolled the roads. When it ended in year 112, its rifles went loose across the basin and nobody patrolled the roads.
 - Each town guards only the road near its walls. The Nose refused to share the cost of a guard for the whole basin. The open road between the towns has no guard.
 - Pierce insures only trucks that carry a gun.
-- The Nose lets no truck out of its gate without a gun. Its workshop line hands out a steel turning mount with every gate pass.
+- The Nose workshop line hands a steel turning mount to any driver who asks at its gate, so nobody can say there was nothing to bolt a gun on. The Nose stops no truck at its gate, armed or not.
 - Kiln Camp strips trucks that neither pay nor fight. A truck that fights hard is often let go.
 - Hull plate from the wrecks is everywhere, and a welder can cut a gun mount from it in a day. The turning mount on a truck bed is called a swivel. Otto Brann of the Salvage Yard built the first one.
 - A swivel turns on an electric motor. The driver aims and fires it through the link. Nobody rides in the bed or holds the gun.
@@ -61,6 +61,7 @@ Drivers check their brake rod before the north bend. The cheap steel rod that th
 - Each town holds a few thousand. Bowl is larger than Nose.
 - Each smaller site holds a few hundred. The rest are squatters and drivers.
 - Most people in the basin descend in part from the Given, the survivors who came down in the ship's escape pods. See [Peoples](peoples.md).
+- While the Sunward ride, drivers keep away from the Fallen Sun after dark. By day they still work the crater.
 
 ## Beyond the basin
 

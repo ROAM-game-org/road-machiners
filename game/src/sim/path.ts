@@ -4,10 +4,11 @@ import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
 import { canStepOut, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
-import { CELL, CLEARANCE, blockerKey, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
+import { CELL, CLEARANCE, blockerKey, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, nightTaste, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
 import { keepsOffRoads } from './off-road';
 import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
+import { avoidsCrater, CRATER_NIGHT } from './sunward';
 import { dist, segmentDist, type Vec } from './vec';
 
 export type { Blocker };
@@ -38,8 +39,13 @@ export function route(world: World, from: Vec, dest: Vec, radius: number, extra:
 
 function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined): Taste | null {
   const taste = tasteOf(world, driver);
-  const keeping = taste && driver && keepsOffRoads(world, driver) ? offRoadTaste(taste, nav) : taste;
-  return driver ? climbTaste(keeping, nav, climbLimit(world, driver)) : keeping;
+  if (!taste || !driver) return driver ? climbTaste(taste, nav, climbLimit(world, driver)) : taste;
+  return climbTaste(styledTaste(world, nav, driver, taste), nav, climbLimit(world, driver));
+}
+
+function styledTaste(world: World, nav: TerrainNav, driver: Vehicle, taste: Taste): Taste {
+  const keeping = keepsOffRoads(world, driver) ? offRoadTaste(taste, nav) : taste;
+  return avoidsCrater(world, driver) ? nightTaste(keeping, nav, CRATER_NIGHT) : keeping;
 }
 
 function climbLimit(world: World, driver: Vehicle): number {
@@ -104,14 +110,18 @@ export function clearLines(world: World, radius: number, extra: Blocker[]): (a: 
   return (a, b) => lineCost(nav, statics, blockers, a, b, radius + CLEARANCE, Infinity, nav.tileCost, null) < Infinity;
 }
 
-export type KeptRoute = { dest: Vec; points: Vec[]; blockers: string[]; offRoad: boolean };
+export type KeptRoute = { dest: Vec; points: Vec[]; blockers: string[]; offRoad: boolean; night: boolean };
 
 export function keepRoute(world: World, dest: Vec, points: Vec[], extra: Blocker[], driver?: Vehicle): KeptRoute {
-  return { dest: { ...dest }, points, blockers: dynamicBlockers(world.obstacles, world.terrain, extra).map((o) => blockerKey([o])), offRoad: plansOffRoad(world, driver) };
+  return { dest: { ...dest }, points, blockers: dynamicBlockers(world.obstacles, world.terrain, extra).map((o) => blockerKey([o])), offRoad: plansOffRoad(world, driver), night: plansNight(world, driver) };
 }
 
 function plansOffRoad(world: World, driver: Vehicle | undefined): boolean {
   return driver !== undefined && keepsOffRoads(world, driver);
+}
+
+function plansNight(world: World, driver: Vehicle | undefined): boolean {
+  return driver !== undefined && avoidsCrater(world, driver);
 }
 
 export function continueRoute(world: World, from: Vec, kept: KeptRoute, to: Vec, radius: number, extra: Blocker[], driver?: Vehicle): Vec[] | null {
@@ -119,7 +129,7 @@ export function continueRoute(world: World, from: Vec, kept: KeptRoute, to: Vec,
 }
 
 function continueKept(world: World, from: Vec, kept: KeptRoute, to: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined): Vec[] | null {
-  if (kept.offRoad !== plansOffRoad(world, driver)) return null;
+  if (kept.offRoad !== plansOffRoad(world, driver) || kept.night !== plansNight(world, driver)) return null;
   const c = legCheck(world, kept, radius, extra);
   const { rest, moved } = remainingPoints(from, kept, to);
   if (lastBrokenLeg(c, from, rest, moved) >= 0) return null;
