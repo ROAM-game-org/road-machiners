@@ -78,6 +78,7 @@ import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
+import FORMAT_2_84 from './save-fixtures/format-2-84.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1825,5 +1826,14 @@ describe('MIGRATIONS[83]', () => {
     expect(shopsOf(next).nose.restockAt).toBe(before.shops.nose.restockAt);
     expect(shopsOf(next)['salvage-yard']).toEqual(before.shops['salvage-yard']);
     expect({ ...next, shops: { ...shopsOf(next), bowl: before.shops.bowl } }).toEqual(before);
+  });
+});
+
+describe('MIGRATIONS[84]', () => {
+  it('gives the player the standard paint and changes nothing else', () => {
+    const next = MIGRATIONS[84](structuredClone(FORMAT_2_84)) as unknown as typeof FORMAT_2_84 & { player: { paint: string } };
+    expect(next.player.paint).toBe('standard');
+    const { paint: _paint, ...player } = next.player;
+    expect({ ...next, player }).toEqual(FORMAT_2_84);
   });
 });

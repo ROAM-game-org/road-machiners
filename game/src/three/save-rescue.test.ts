@@ -48,6 +48,12 @@ describe('readCarried', () => {
     expect({ xp: old.xp, ranks: old.ranks }).toEqual({ xp: migrated.xp, ranks: migrated.ranks });
   });
 
+  it('reads the saved paint job, and none from a save without one', () => {
+    expect(readCarried({ world: { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: 'sky' } } }).paint).toBe('sky');
+    expect(readCarried({ world: FORMAT_2_9 }).paint).toBeNull();
+    expect(readCarried({ world: { player: { paint: 7 } } }).paint).toBeNull();
+  });
+
   it('keeps old perks whose rank holds and drops the rest', () => {
     const world = { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, perks: ['welder', 'desertRat', 'steadyAim'] } };
     const { world: rescued } = carriedWorld(readCarried({ world }), KIT, () => TEST_MAP, fresh);

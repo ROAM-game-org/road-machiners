@@ -156,6 +156,20 @@ describe('game save', () => {
     expect(loaded.events).toEqual([]);
   });
 
+  it('keeps the paint job through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    world.player.paint = 'indigo';
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.player.paint).toBe('indigo');
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.player.xp).toBe(world.player.xp);
+    expect(loaded.events).toEqual([]);
+  });
+
   it('keeps a duty leg in flight through a reload, and load pays nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld();

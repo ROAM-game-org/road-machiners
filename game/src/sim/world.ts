@@ -1,6 +1,6 @@
 
 import { settleCrews } from './crews';
-import { CHASSIS, PAINT } from '../data/chassis';
+import { CHASSIS, isPaintId, PAINT } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
@@ -510,6 +510,7 @@ export type Carried = {
   ranks: Partial<Record<string, number>>;
   xpBySource: Partial<Record<string, number>>;
   perks: string[];
+  paint: string | null;
   discovered: string[];
   knockouts: number | null;
   autoFire: boolean | null;
@@ -553,6 +554,7 @@ export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: Wor
   const from = startOutpost(run);
   const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed, from), setup, true, carriedStart(seed, setup, from));
   carryPlayer(world, carried);
+  carryPaint(world, carried.paint, report);
   carryQuests(world, carried, report);
   carryPlayerTruck(world, carried, carried.truck !== null && truckKit !== kit, report);
   if (run) carryRun(world, run, report);
@@ -628,6 +630,12 @@ function carryPlayer(world: World, c: Carried): void {
   for (const skill of SKILL_IDS) p.ranks[skill] = Math.min(MAX_RANK, Math.max(0, Math.floor(pick(c.ranks[skill], 0))));
   for (const source of Object.keys(XP_SOURCES) as XpSource[]) p.xpBySource[source] = pick(c.xpBySource[source], 0);
   carryPerks(world, c.perks);
+}
+
+function carryPaint(world: World, paint: string | null, report: CarryReport): void {
+  if (paint === null) return;
+  if (isPaintId(paint)) world.player.paint = paint;
+  else report.lost.push(paint);
 }
 
 function knownSite(world: World, id: string): boolean {

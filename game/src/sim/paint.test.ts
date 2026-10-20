@@ -69,6 +69,6 @@ describe('a paint job', () => {
     const readers = readdirSync('src/sim', { recursive: true, encoding: 'utf8' })
       .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
       .filter((f) => /player\.paint\b/.test(readFileSync(`src/sim/${f}`, 'utf8')));
-    expect(readers.sort()).toEqual(['economy.ts']);
+    expect(readers.sort()).toEqual(['economy.ts', 'world.ts']);
   });
 });

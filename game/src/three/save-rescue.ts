@@ -126,7 +126,7 @@ function soldAt(run: Json, milestone: number): string[] {
 }
 
 const NO_CARRIED: Carried = {
-  seed: null, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: null, autoFire: null,
+  seed: null, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], paint: null, discovered: [], knockouts: null, autoFire: null,
   autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {},
 };
 
@@ -141,6 +141,7 @@ export function readCarried(raw: unknown): Carried {
     ...pooledOf(player),
     xpBySource: countsOf(player.xpBySource),
     perks: listOf(player.perks).flatMap((id) => idOf(id) ?? []),
+    paint: idOf(player.paint),
     discovered: listOf(player.discovered).flatMap((id) => idOf(id) ?? []),
     knockouts: countOf(player.knockouts),
     autoFire: flagOf(player.autoFire),
