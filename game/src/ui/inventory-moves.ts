@@ -44,6 +44,15 @@ export function selectionAfterClick(selected: string | null, clicked: string): s
   return selected === clicked ? null : clicked;
 }
 
+export type GridPoint = { x: number; y: number };
+
+export type GridTap = { kind: "preview"; at: GridPoint } | { kind: "place" };
+
+export function touchGridTap(preview: GridPoint | null, cell: GridPoint, size: { w: number; h: number }): GridTap {
+  if (preview && cell.x >= preview.x && cell.x < preview.x + size.w && cell.y >= preview.y && cell.y < preview.y + size.h) return { kind: "place" };
+  return { kind: "preview", at: { x: cell.x - Math.floor((size.w - 1) / 2), y: cell.y - Math.floor((size.h - 1) / 2) } };
+}
+
 export function needsHold(chassisId: string, item: GridItem): boolean {
   return item.kind === "part" && partDef(item.part.defId).kind !== "core" && isMounted(chassisId, item);
 }
