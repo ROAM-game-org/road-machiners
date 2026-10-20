@@ -268,6 +268,8 @@ export const TALK: Translation<typeof EN> = {
   'way.join': 'Срезай {octant} до дороги, {span}.',
   'way.follow': 'Езжай по {road}.',
   'way.followThere': 'Езжай по дороге.',
+  'way.followHeading': 'Езжай по {road}, {octant}.',
+  'way.followThereHeading': 'Езжай по дороге {octant}.',
   'way.longHaul': 'Путь неблизкий.',
   'way.turn.left': '{at}, сверни налево и езжай по {road}.',
   'way.turn.right': '{at}, сверни направо и езжай по {road}.',
