@@ -130,11 +130,18 @@ export class NightPools {
 
   bake(lamps: PoolLamp[], worldSize: number, maxTextureSize: number): void {
     const grid = poolGrid(worldSize, maxTextureSize);
-    const texture = new THREE.DataTexture(bakePools(lamps, grid), grid.side, grid.side, THREE.RedFormat, THREE.UnsignedByteType);
-    texture.magFilter = THREE.LinearFilter;
-    texture.minFilter = THREE.LinearFilter;
-    texture.needsUpdate = true;
-    this.uniforms.poolMap.value = texture;
+    const data = bakePools(lamps, grid);
+    const held = this.uniforms.poolMap.value;
+    if (held && held.image.width === grid.side) {
+      (held.image.data as Uint8Array).set(data);
+      held.needsUpdate = true;
+    } else {
+      const texture = new THREE.DataTexture(data, grid.side, grid.side, THREE.RedFormat, THREE.UnsignedByteType);
+      texture.magFilter = THREE.LinearFilter;
+      texture.minFilter = THREE.LinearFilter;
+      texture.needsUpdate = true;
+      this.uniforms.poolMap.value = texture;
+    }
     this.uniforms.poolSpan.value = worldSize * S;
   }
 

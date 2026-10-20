@@ -63,6 +63,7 @@ import { PathView } from "./render/path";
 import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 import { RenderScope, SightLimit } from "./render/scope";
 import { addSites } from "./render/sites";
+import { SiteReveal } from "./render/site-reveal";
 import { SiteLights } from "./render/siteLights";
 import { addShipDecks } from "./render/ship-decks";
 import { terrainMesh } from "./render/terrain";
@@ -127,6 +128,7 @@ export class Game {
   private readonly play = new PlayClock(CONFIG.playEaseMs);
   private readonly vehicleLights = new VehicleLights(this.scene);
   private readonly siteLights: SiteLights;
+  private readonly siteReveal: SiteReveal;
   private readonly vignette = Object.assign(document.createElement("div"), {
     className: "vignette",
   });
@@ -249,9 +251,11 @@ export class Game {
     this.craters = new CraterViews(this.world, this.sightLimit, this.scene);
     this.scopes = [groundScope, propScope, this.craters.scope];
     const groundChunks = terrainMesh(this.world, groundScope);
-    this.siteLights = new SiteLights(this.scene, addSites(this.world.terrain, propScope, this.play), { worldSize: this.world.size, maxTextureSize: this.renderer.capabilities.maxTextureSize });
+    const builtSites = addSites(this.world.terrain, propScope, this.play);
+    this.siteLights = new SiteLights(this.scene, builtSites, { worldSize: this.world.size, maxTextureSize: this.renderer.capabilities.maxTextureSize });
+    this.siteReveal = new SiteReveal(builtSites.roots, this.siteLights);
     addShipDecks(this.world.terrain, propScope);
-    this.obstacles = new ObstacleViews(propScope, this.world.terrain, () => this.screens.pinOutpost());
+    this.obstacles = new ObstacleViews(propScope, this.world.terrain, () => this.screens.pinOutpost(), hasExplorationMap(this.world) ? (id, obj) => this.siteReveal.addFortPiece(id, obj) : null);
     this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     addScatter(this.world.terrain, this.world.obstacles, propScope);
     this.fog = new FogView(this.world, groundChunks, this.sightLimit);
@@ -449,6 +453,7 @@ export class Game {
       this.selected = null;
     if (!this.anim) {
       timed("fog", () => this.fog.update(this.world));
+      this.siteReveal.sync(this.world);
       this.shade.update(this.world);
     }
     this.syncMinimap();
@@ -880,7 +885,9 @@ export class Game {
       this.frames[id] = fs[fs.length - 1];
     this.live = null;
     this.phase = a.combat ? "firing" : "results";
-    timed("fog", () => this.fog.update(this.combatFogWorld()));
+    const fogWorld = this.combatFogWorld();
+    timed("fog", () => this.fog.update(fogWorld));
+    this.siteReveal.sync(fogWorld);
     const host = this.combatHost();
     playCrashes(host, this.crashCues, null);
     playUtilitySounds(host);
@@ -1123,6 +1130,7 @@ export class Game {
     for (const t of live.visible) live.explored[t] = 1;
     const player = { ...this.world.player, visible: [...live.visible].sort((a, b) => a - b), explored: live.explored };
     timed("fog", () => this.fog.update({ ...this.world, player }));
+    this.siteReveal.sync({ ...this.world, player });
     timed("minimap", () => this.minimap?.update({ ...this.world, player }, { pos: at, heading: playerVehicle(this.world).heading }));
   }
 

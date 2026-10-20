@@ -547,13 +547,15 @@ export function buildSites(t: Terrain): BuiltSite {
   return { root, movers, lights, lamps };
 }
 
-export function addSites(t: Terrain, scope: RenderScope, play: PlayClock): { lights: SiteLight[]; lamps: PoolLamp[] } {
+export function addSites(t: Terrain, scope: RenderScope, play: PlayClock): { lights: SiteLight[]; lamps: PoolLamp[]; roots: Map<string, THREE.Object3D> } {
   const motion = new SiteMotion();
   const lights: SiteLight[] = [];
   const lamps: PoolLamp[] = [];
+  const roots = new Map<string, THREE.Object3D>();
   for (const site of sitesOf(t)) {
     const built = buildSite(t, site);
     scope.add(built.root, site.pos, site.radius);
+    roots.set(site.id, built.root);
     lights.push(...built.lights);
     lamps.push(...built.lamps);
     const phase = hash2(site.pos.x, site.pos.y) * MOTION_PHASE_SPAN;
@@ -569,7 +571,7 @@ export function addSites(t: Terrain, scope: RenderScope, play: PlayClock): { lig
     const deck = deckOf(t, id);
     if (deck) scope.add(build(t), { x: deck.from.x + (deck.axis.x * deck.length) / 2, y: deck.from.y + (deck.axis.y * deck.length) / 2 }, deck.length / 2);
   }
-  return { lights, lamps };
+  return { lights, lamps, roots };
 }
 
 export function poseOnDeck(obj: THREE.Object3D, deck: Deck, seg: DeckSegment, top: number): void {

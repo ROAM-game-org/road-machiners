@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { V3 } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import { DEG } from '../../sim/vec';
+import { timed } from '../../perf';
 import { lampsOn } from './daylight';
 import { NIGHT_POOLS, type PoolLamp } from './lightPools';
 
@@ -72,14 +73,27 @@ export class SiteLights {
   private lastMs: number | null = null;
   private level = 0;
   private readonly lights: SiteLight[];
+  private readonly lamps: PoolLamp[];
+  private revealed = new Set<string>();
 
   constructor(
     private readonly scene: THREE.Scene,
     sites: { lights: SiteLight[]; lamps: PoolLamp[] },
-    pools: { worldSize: number; maxTextureSize: number },
+    private readonly pools: { worldSize: number; maxTextureSize: number },
   ) {
     this.lights = sites.lights;
-    NIGHT_POOLS.bake(sites.lamps, pools.worldSize, pools.maxTextureSize);
+    this.lamps = sites.lamps;
+    this.bakePools();
+  }
+
+  reveal(ids: Set<string>): void {
+    this.revealed = ids;
+    this.bakePools();
+  }
+
+  private bakePools(): void {
+    const lit = this.lamps.filter((l) => this.revealed.has(l.site.id));
+    timed('pools', () => NIGHT_POOLS.bake(lit, this.pools.worldSize, this.pools.maxTextureSize));
   }
 
   get pooled(): number {
@@ -109,7 +123,7 @@ export class SiteLights {
     projected.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(projected);
     const inView = (l: SiteLight) => frustum.intersectsSphere(sphere.set(centre.set(l.at.x, l.at.y, l.at.z), lookOf(l).range));
-    const order = siteLightOrder(this.lights, inView, reaches, focus);
+    const order = siteLightOrder(this.lights.filter((l) => this.revealed.has(l.siteId)), inView, reaches, focus);
     const shadowed = order.filter((l) => lookOf(l).shadow);
     const plain = order.filter((l) => !lookOf(l).shadow);
     this.slots.forEach((slot, i) => {
