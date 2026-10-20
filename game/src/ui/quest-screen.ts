@@ -2,7 +2,7 @@
 import { localOfQuest } from '../sim/dialogue-rules';
 import { chooseQuestOption, leaveQuest, QUESTS, questView, type QuestView } from '../sim/quests';
 import type { QuestLine, QuestLive, World } from '../sim/types';
-import { createIcon } from './cards';
+import { createIcon, type IconName } from './cards';
 import { localName, localRole } from '../text/names';
 import { t, verbatim, type Msg } from '../text/msg';
 import { el, isBrowserChord, panel } from './dom';
@@ -18,6 +18,14 @@ import { token } from './tokens';
 import { uiSize } from './ui-size';
 
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
+
+export type ScrollKind = 'append' | 'same' | 'fresh';
+
+export function scrollTarget(kind: ScrollKind, before: number, box: { scrollHeight: number; clientHeight: number }): number {
+  if (kind === 'fresh') return 0;
+  if (kind === 'same') return before;
+  return Math.max(0, box.scrollHeight - box.clientHeight);
+}
 
 export function askOf(shown: QuestLive | null, live: QuestLive, ask: string | null): string | null {
   return shown?.quest === live.quest ? ask : null;
@@ -125,6 +133,8 @@ async function showArt(img: HTMLImageElement, key: string, isHeld: (img: HTMLIma
   await img.decode().catch(() => undefined);
 }
 
+const LOOK_KEYS = ['KeyI', 'KeyC', 'KeyJ'];
+
 export class QuestScreen {
   private root = panel('modal');
   private shown: QuestLive | null = null;
@@ -142,8 +152,9 @@ export class QuestScreen {
   private revealEnd = 0;
   private termTip = new TermTip(this.root);
   private artStage = new QuestArtStage();
+  private look = this.lookRow();
 
-  constructor(private host: UiHost) {
+  constructor(private host: UiHost, private lookOver: () => boolean) {
     this.root.classList.add('quest-screen');
     this.root.style.display = 'none';
     this.root.addEventListener('click', (e) => this.onClick(e));
@@ -162,6 +173,10 @@ export class QuestScreen {
 
   isOpen(): boolean {
     return this.host.world().player.quests.live !== null;
+  }
+
+  focus(): void {
+    this.root.querySelector<HTMLElement>('.quest-next, .quest-choice')?.focus();
   }
 
   render(): void {
@@ -218,8 +233,9 @@ export class QuestScreen {
     this.artStage.clear();
   }
 
-  private draw(): void {
+  private draw(scroll: ScrollKind = 'fresh'): void {
     this.termTip.hide();
+    const before = this.scrollBox()?.scrollTop ?? 0;
     const w = this.host.world();
     const view = questView(w, QUESTS);
     this.root.style.display = '';
@@ -227,7 +243,27 @@ export class QuestScreen {
     this.root.classList.toggle('quest-page', view.view === 'page');
     this.restack();
     const endMs = view.view === 'page' ? this.drawPage(w, view) : this.drawTalk(w, view);
+    this.root.append(this.look);
     this.revealEnd = performance.now() + endMs;
+    this.placeScroll(scroll, before);
+  }
+
+  private scrollBox(): HTMLElement | null {
+    return this.root.querySelector<HTMLElement>('.quest-talk, .quest-text');
+  }
+
+  private placeScroll(kind: ScrollKind, before: number): void {
+    const apply = () => {
+      const box = this.scrollBox();
+      if (box?.isConnected) box.scrollTop = scrollTarget(kind, before, box);
+    };
+    apply();
+    requestAnimationFrame(apply);
+  }
+
+  private lookRow(): HTMLElement {
+    const button = (key: string, icon: IconName, label: Msg) => el('button', { class: 'btn-s', 'aria-label': label, title: label, onclick: () => this.host.runKey(key) }, createIcon(icon));
+    return el('div', { class: 'quest-look' }, button('KeyI', 'truck', t('hud.inventoryLabel')), button('KeyC', 'driver', t('hud.character')), button('KeyJ', 'journal', t('journal.hint')));
   }
 
   private drawTalk(w: World, view: QuestView): number {
@@ -294,7 +330,7 @@ export class QuestScreen {
     const view = questView(this.host.world(), QUESTS);
     if (!this.onLastParagraph(view)) {
       this.paragraph += 1;
-      return this.draw();
+      return this.draw('append');
     }
     if (!this.onLastPage(view)) this.nextPage();
   }
@@ -328,7 +364,7 @@ export class QuestScreen {
     } catch (e) {
       this.asked = null;
       this.error = commandFailure(this.host.world(), e);
-      if (this.host.world().player.quests.live) this.draw();
+      if (this.host.world().player.quests.live) this.draw('same');
     }
   }
 
@@ -343,7 +379,7 @@ export class QuestScreen {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (!this.isOpen() || isBrowserChord(e)) return;
+    if (!this.isOpen() || isBrowserChord(e) || LOOK_KEYS.includes(e.code) || this.lookOver()) return;
     e.stopImmediatePropagation();
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') return this.skip(e);
     const index = KEY_DIGITS.indexOf(e.code);

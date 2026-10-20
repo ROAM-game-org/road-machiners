@@ -4,6 +4,7 @@
   left: var(--safe-left);
   top: var(--safe-top);
   display: flex;
+  flex-direction: column;
   gap: var(--space-3);
   align-items: flex-start;
 }

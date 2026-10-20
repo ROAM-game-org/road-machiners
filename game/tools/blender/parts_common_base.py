@@ -35,6 +35,7 @@ INSET = 0.04  # body sides stand this far inside the footprint, so mounted plate
 ARCH_CLEARANCE = 0.06  # between a wheel and its arch
 ARCH_SEGMENTS = 8  # straight edges around each arch, for the low-poly look
 FLARE = 0.09  # radial width of the dark fender flare around an arch
+DOOR_GAP = 0.25
 SUSPENSION_REST = 0.4  # PHYSICS.truck.suspensionRest: the wheel hub hangs this far below the wheel mount
 
 
@@ -52,6 +53,10 @@ class Grid:
     def row_x(self, y: float) -> float:
         """Blender X of row y's center. Fractions give row edges: row_x(y - 0.5) is its front edge."""
         return self.half_x - CELL_ALONG * (y + 0.5)
+
+    def clamp_x(self, x: float) -> float:
+        """x held inside the footprint's ends."""
+        return min(self.half_x, max(-self.half_x, x))
 
     def col_y(self, x: float) -> float:
         """Blender Y of column x's center. Fractions give column edges."""
@@ -79,15 +84,15 @@ def arch_profile(
 
 
 def flare(kit: Kit, name: str, g: Grid, wx: float, hub_z: float, radius: float, y0: float, y1: float, bottom: float | None = None) -> None:
-    """A dark low-poly ring over the top of one arch, from the body bottom (or bottom) on both sides."""
+    """A dark low-poly ring over the top of one arch, from the body bottom (or bottom) on both sides, cut off at the footprint ends."""
     low = g.bottom if bottom is None else bottom
     r0 = radius + ARCH_CLEARANCE
     r1 = r0 + FLARE
     inner, outer = [], []
     for k in range(ARCH_SEGMENTS + 1):
         a = math.pi * k / ARCH_SEGMENTS
-        inner.append((wx + r0 * math.cos(a), max(low, hub_z + r0 * math.sin(a))))
-        outer.append((wx + r1 * math.cos(a), max(low, hub_z + r1 * math.sin(a))))
+        inner.append((g.clamp_x(wx + r0 * math.cos(a)), max(low, hub_z + r0 * math.sin(a))))
+        outer.append((g.clamp_x(wx + r1 * math.cos(a)), max(low, hub_z + r1 * math.sin(a))))
     prism(kit, name, outer + list(reversed(inner)), y0, y1, "under")
 
 
@@ -123,6 +128,31 @@ def surface_z(g: Grid, x: int, y: int) -> float:
     if not hit:
         raise RuntimeError(f"No base surface under cell {x},{y}")
     return round(loc.z, 3)
+
+
+def door_gap(x0: float, x1: float, z0: float, wx: float, hub_z: float, arch_r: float) -> float:
+    lo, hi = min(x0, x1), max(x0, x1)
+    dx = max(lo - wx, wx - hi, 0.0)
+    dz = max(z0 - hub_z, 0.0)
+    return math.hypot(dx, dz) - arch_r - FLARE
+
+
+def door_sill(x0: float, x1: float, floor: float, wheels_x: list[float], hub_z: float, arch_r: float) -> float:
+    lo, hi = min(x0, x1), max(x0, x1)
+    reach = arch_r + FLARE + DOOR_GAP
+    sill = floor
+    for wx in wheels_x:
+        dx = max(lo - wx, wx - hi, 0.0)
+        if dx < reach:
+            sill = max(sill, hub_z + math.sqrt(reach**2 - dx**2))
+    return sill
+
+
+def check_door_gap(name: str, x0: float, x1: float, z0: float, wheels_x: list[float], hub_z: float, arch_r: float) -> None:
+    for wx in wheels_x:
+        gap = door_gap(x0, x1, z0, wx, hub_z, arch_r)
+        if gap < DOOR_GAP - 1e-6:
+            raise RuntimeError(f"{name} at x {min(x0, x1):.3f}..{max(x0, x1):.3f} from z {z0:.3f} keeps {gap:.3f} m from the flare of the wheel at x {wx:.3f}, under DOOR_GAP {DOOR_GAP}")
 
 
 def check_base(kit: Kit, name: str, g: Grid) -> None:

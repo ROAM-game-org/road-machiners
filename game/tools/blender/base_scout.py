@@ -5,7 +5,7 @@ The painted sides stand 1.81 m apart and the tires stand 0.09 m past the flares.
 a gap parts the cab from the long bed, and the hood falls to the nose. The body bottom sits at the collider bottom with the frame showing below it.
 Grid: 5 columns by 8 rows, 2.42 m across by 5.2 m along, stretched over the model by the projection. Half height 0.45 m, from PHYSICS.bodies.pickup.
 Rows 0 to 2 are the hood with a cutout over the engine cells, rows 3 and 4 the cab, rows 5 to 7 the bed.
-Wheels sit on rows 1 and 6, radius 0.45 m, half width 0.18 m, mount 0.3 m below the center, 0.89 m off the center line.
+Wheels sit on rows 1 and 6, radius 0.46 m, half width 0.185 m, mount 0.3 m below the center, 0.89 m off the center line.
 Sockets arch_front, arch_rear and arch_front_top mark the arches for wheelArches.test.ts.
 Run: blender --background --python tools/blender/base_scout.py -- public/models/base_scout.glb [tmp/base_scout.png]
 """
@@ -27,8 +27,8 @@ SEED = 301
 LENGTH = 5.2
 WIDTH = 1.96
 G = Grid(rows=8, cols=5, half_height=0.45)
-WHEEL_R = 0.45
-WHEEL_HALF_W = 0.18
+WHEEL_R = 0.46
+WHEEL_HALF_W = 0.185
 WHEEL_Z = 0.89
 HUB_Z = -0.3 - SUSPENSION_REST
 WHEELS_X = [G.row_x(1), G.row_x(6)]

@@ -325,7 +325,7 @@ describe('the fall and the wake in Bowl', () => {
     const w = ambushed();
     knockedOutBy(w);
     const next = runUntilAwake(closeScene(w));
-    expect(spokenIn(next)).toContain('A tow man brought you in');
+    expect(spokenIn(next)).toContain('A tow man left you on my bench');
     expect(next.player.quests.world[HATTIE_MET]).toBe(true);
   });
 
@@ -338,7 +338,7 @@ describe('the fall and the wake in Bowl', () => {
     knockedOutBy(met);
     const next = runUntilAwake(closeScene(met));
     expect(next.player.quests.live?.quest).toBe('intro_bowl');
-    expect(spokenIn(next)).toContain('not on your own wheels');
+    expect(spokenIn(next)).toContain('Back on my bench');
     expect(next.player.quests.world[HATTIE_MET]).toBe(true);
     const choices = questView(next, QUESTS).choices;
     expect(choices).toContain('What happened to me?');

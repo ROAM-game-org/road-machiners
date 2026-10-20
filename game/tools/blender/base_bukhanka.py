@@ -27,6 +27,7 @@ from parts_common_base import (  # noqa: E402
     Grid,
     arch_cut,
     check_base,
+    check_door_gap,
     cut_boxes,
     flare,
     hull_layers,
@@ -110,6 +111,7 @@ def glazing(kit: Kit) -> None:
             "glass",
             rot=(0, -rake, 0),
         )
+    check_door_gap("door_window", *DOOR_WINDOW, WIN_BOTTOM, WHEELS_X, HUB_Z, WHEEL_R + ARCH_CLEARANCE)
     for lo, hi in (DOOR_WINDOW, *SIDE_WINDOWS):
         mirrored(kit, f"window{lo:.2f}", (abs(hi - lo), 0.03, WIN_TOP - WIN_BOTTOM), (lo + hi) / 2, SIDE - 0.035, (WIN_TOP + WIN_BOTTOM) / 2, "glass")
 

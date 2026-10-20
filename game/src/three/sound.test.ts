@@ -27,20 +27,32 @@ describe("stingOf", () => {
     expect(stingOf(events, "p")).toBeNull();
     expect(stingOf([{ t: "arrived", vehicle: "p" }], "p")).toBeNull();
   });
+  it("warns softly when a heatwave starts, ahead of money", () => {
+    const heatwave = { id: "h1", kind: "heatwave" as const, turnsLeft: 10 };
+    const started: GameEvent = { t: "weather", event: heatwave, outcome: "started" };
+    expect(stingOf([started], "p")).toBe("heatwave-warning");
+    expect(stingOf([{ t: "money", amount: 20, reason: { kind: "contract" } }, started], "p")).toBe("heatwave-warning");
+    expect(stingOf([{ t: "weather", event: heatwave, outcome: "ended" }], "p")).toBeNull();
+  });
+  it("gives no sting for a storm or overcast starting", () => {
+    const storm = { id: "s1", kind: "storm" as const, pos: { x: 1, y: 1 }, radius: 5, vel: { x: 1, y: 0 }, turnsLeft: 5, born: 0 };
+    const overcast = { id: "o1", kind: "overcast" as const, turnsLeft: 5 };
+    expect(stingOf([{ t: "weather", event: storm, outcome: "started" }], "p")).toBeNull();
+    expect(stingOf([{ t: "weather", event: overcast, outcome: "started" }], "p")).toBeNull();
+  });
   it("plays no sting on a knockout, which is only a log line and a mark", () => {
     expect(stingOf([{ t: "knockout" }], "p")).toBeNull();
   });
 });
 
 describe("loopLevels", () => {
-  const calm = { stormShare: 0, inCombat: false, inQuest: false, place: null, paused: false } as const;
+  const calm = { stormShare: 0, inCombat: false, inQuest: false, place: null } as const;
   const gains = (l: ReturnType<typeof loopLevels>) => [l.calmGain, l.townGain, l.outpostGain, l.abandonedGain, l.combatGain];
-  it("plays quest music over every other music while a quest is open, unmuffled", () => {
+  it("plays quest music over every other music while a quest is open", () => {
     for (const place of [null, "town", "outpost", "abandoned"] as const)
       for (const inCombat of [true, false]) {
-        const l = loopLevels({ ...calm, place, inCombat, inQuest: true, paused: true }, MIX);
+        const l = loopLevels({ ...calm, place, inCombat, inQuest: true }, MIX);
         expect([l.questGain, ...gains(l)]).toEqual([1, 0, 0, 0, 0, 0]);
-        expect(l.musicCutoffHz).toBe(MIX.music.openCutoffHz);
       }
     expect(loopLevels(calm, MIX).questGain).toBe(0);
   });
@@ -68,14 +80,10 @@ describe("loopLevels", () => {
     for (const place of ["town", "outpost", "abandoned"] as const)
       expect(gains(loopLevels({ ...calm, place, inCombat: true }, MIX))).toEqual([0, 0, 0, 0, 1]);
   });
-  it("muffles music during a pause between turns", () => {
-    expect(loopLevels(calm, MIX).musicCutoffHz).toBe(MIX.music.openCutoffHz);
-    expect(loopLevels({ ...calm, paused: true }, MIX).musicCutoffHz).toBe(MIX.music.pauseCutoffHz);
-  });
-  it("keeps the music choice when paused or near storms", () => {
+  it("keeps the music choice near storms", () => {
     for (const inCombat of [true, false]) {
       const base = loopLevels({ ...calm, inCombat }, MIX);
-      const other = loopLevels({ ...calm, inCombat, paused: true, stormShare: 1 }, MIX);
+      const other = loopLevels({ ...calm, inCombat, stormShare: 1 }, MIX);
       expect([other.calmGain, other.combatGain]).toEqual([base.calmGain, base.combatGain]);
     }
   });
@@ -249,7 +257,6 @@ describe("next track", () => {
     const quest: { file?: string; gains: number[]; stops: number[] }[] = [];
     const abandoned: { file?: string; gains: number[]; stops: number[] }[] = [];
     const player = {
-      setBusTone: () => {},
       loop: (id: string, _at: unknown, file?: string) => {
         const handle = { file, gains: [] as number[], stops: [] as number[] };
         if (id === "music-calm") calm.push(handle);
@@ -261,7 +268,7 @@ describe("next track", () => {
     const songs: string[] = [];
     return { calm, quest, abandoned, songs, loops: new SoundLoops(player, { setCombat: () => {}, nextSong: () => songs.push("next") }) };
   };
-  const road = { stormShare: 1, inCombat: false, inQuest: false, place: null, paused: false } as const;
+  const road = { stormShare: 1, inCombat: false, inQuest: false, place: null } as const;
 
   it("starts the next quest track on each quest and fades the calm music under it", () => {
     const { calm, quest, loops } = fake();

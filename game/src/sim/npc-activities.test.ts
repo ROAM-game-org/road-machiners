@@ -1,7 +1,8 @@
 import { TERRAIN } from '../data/terrain';
 import { describe, expect, it } from 'vitest';
 import { contactsOf } from './detect';
-import { emptyWorld, addLootSpot, addVehicle, editableTerrain, finishBusiness, forceOption, npcBrain, rngStateForForcedRolls, testDrive , startCombat } from './testkit';
+import { emptyWorld, addLootSpot, addVehicle, editableTerrain, finishBusiness, forceOption, npcBrain, rngStateForForcedRolls, testDrive , startCombat, setShopPressure } from './testkit';
+import { standingPressures } from './market';
 import { propReach } from './mapgen';
 import { planNpcOrders } from './ai';
 import { getResources } from './resources';
@@ -19,7 +20,7 @@ import { endTurn } from './world';
 import { corePart, freeCells, goodsCount } from './grid';
 import { makePart } from './factory';
 import { addGoods, hasCargoRoom } from './inventory';
-import { finishGoal, getActivityDestination, patchGoal, pushGoal, resolveNpcActivities, thinkNpc, topGoal, turnCornered } from './npc-activities';
+import { finishGoal, getActivityDestination, ledPoint, patchGoal, pushGoal, resolveNpcActivities, thinkNpc, topGoal, turnCornered } from './npc-activities';
 import { leaveLoot } from './loot-warning';
 import { chooseOn, trackOf } from './tracks';
 import { watchStalls } from './npc-watchdog';
@@ -83,7 +84,7 @@ describe('NPC activities', () => {
   it('uses Icarus sites for every trait destination', () => {
     const sites = [...REGION.towns, ...REGION.locations];
     for (const profile of Object.values(TRAITS)) {
-      for (const id of [...profile.towns, ...profile.bases, ...profile.salvageSites, ...profile.travelSites, ...profile.haulSites]) {
+      for (const id of [...profile.towns, ...profile.bases, ...profile.salvageSites, ...profile.travelSites]) {
         expect(sites.find((site) => site.id === id), `missing site ${id}`).toBeDefined();
       }
     }
@@ -147,7 +148,7 @@ describe('NPC activities', () => {
     npc.pos = { ...sitePads(REGION.towns[1])[0] };
     npc.brain!.goals = [{ kind, targetId: town, destination: { ...npc.pos }, phase: 'travel', reason: 'tripToSite' }];
     finishBusiness(w, npc);
-    expect(recall(npc, 'prices')).toEqual([{ turn: w.turn, fact: { kind: 'prices', shop: town, pressure: w.shops[town].pressure } }]);
+    expect(recall(npc, 'prices')).toEqual([{ turn: w.turn, fact: { kind: 'prices', shop: town, pressure: standingPressures(w, town) } }]);
   });
 
   it('remembers the prices of a stall where it resupplied', () => {
@@ -170,11 +171,13 @@ describe('NPC activities', () => {
     visit();
     const first = recall(npc, 'prices')[0].fact.pressure;
     w.turn += 5;
-    const good = Object.keys(w.shops[town].pressure)[0];
-    w.shops[town].pressure[good] = 0.3;
+    const good = Object.keys(w.shops[town].goods)[0];
+    setShopPressure(w, town, good, 0.3);
     visit();
-    expect(recall(npc, 'prices')).toEqual([{ turn: w.turn, fact: { kind: 'prices', shop: town, pressure: expect.objectContaining({ [good]: 0.3 }) } }]);
-    expect(first[good]).not.toBe(0.3);
+    const seen = standingPressures(w, town)[good];
+    expect(seen).toBeCloseTo(0.3, 2);
+    expect(recall(npc, 'prices')).toEqual([{ turn: w.turn, fact: { kind: 'prices', shop: town, pressure: expect.objectContaining({ [good]: seen }) } }]);
+    expect(first[good]).not.toBe(seen);
   });
 
   it('leaves the goal of a knocked-out NPC with a working cab untouched', () => {
@@ -1427,12 +1430,13 @@ describe('loot out of reach', () => {
 });
 
 describe('a trader too poor to trade', () => {
-  it('hauls free cargo far more often than it waits', () => {
+  it('finds no free cargo to haul, so it neither trades nor hauls', () => {
     const { w, npc } = createTrader();
     getResources(w, npc).money = 0;
+    w.shops.granary.goods.grain = 0;
     const chances = optionChances(optionWeights(w, npc, 'idle', null, null));
     expect(chances.trade).toBeUndefined();
-    expect(chances.haul!).toBeGreaterThan(chances.wait! * 5);
+    expect(chances.haul).toBeUndefined();
   });
 });
 
@@ -2051,5 +2055,23 @@ describe('a loot refit under way', () => {
     npc.brain!.goals = [];
     thinkNpc(w, npc);
     expect(npc.brain!.goals.some((g) => g.kind === 'repair')).toBe(true);
+  });
+});
+
+describe('ledPoint', () => {
+  const center = { x: 50, y: 40 };
+  const heard = { x: 40, y: 40 };
+
+  it('keeps the heard centre when it moved no more than the circle', () => {
+    expect(ledPoint(center, heard, 10, 8)).toEqual(center);
+    expect(ledPoint(center, undefined, 1, 8)).toEqual(center);
+  });
+
+  it('leads along the drift by the drift beyond the circle', () => {
+    expect(ledPoint(center, heard, 6, 8)).toEqual({ x: 54, y: 40 });
+  });
+
+  it('never leads past one turn of the investigator\'s driving', () => {
+    expect(ledPoint(center, heard, 2, 5)).toEqual({ x: 55, y: 40 });
   });
 });
