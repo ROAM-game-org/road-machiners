@@ -59,14 +59,14 @@ describe('readCarried', () => {
 
   it.each(['plum', 'lavender', 'mint', 'rose', 'standard'])('rescues the %s paint job in the colors a migrated save gets', (preset) => {
     const old = { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: preset } };
-    const migrated = MIGRATIONS[94](MIGRATIONS[93](structuredClone(old)));
+    const migrated = MIGRATIONS[96](MIGRATIONS[95](structuredClone(old)));
     expect(readCarried({ world: old }).paint).toEqual(readCarried({ world: migrated }).paint);
   });
 
   it('rescues a paint of retired colors in the colors a migrated save gets', () => {
     const old = { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: { body: 'plum', cab: 'navy', gear: 'pink' } } };
     expect(readCarried({ world: old }).paint).toEqual({ body: 'oxblood', cab: 'slate', gear: 'chalk' });
-    expect(readCarried({ world: MIGRATIONS[94](structuredClone(old)) }).paint).toEqual({ body: 'oxblood', cab: 'slate', gear: 'chalk' });
+    expect(readCarried({ world: MIGRATIONS[96](structuredClone(old)) }).paint).toEqual({ body: 'oxblood', cab: 'slate', gear: 'chalk' });
   });
 
   it('keeps old perks whose rank holds and drops the rest', () => {
