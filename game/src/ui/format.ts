@@ -658,18 +658,21 @@ export function contractSummary(c: Contract): Msg {
   throw new Error(`A ${c.kind} contract has no met wording`);
 }
 
+type PostedWords = { [K in Contract['kind']]: (c: Extract<Contract, { kind: K }>) => Msg };
+
+const POSTED_WORDS: PostedWords = {
+  haul: (c) => t(c.rush ? 'contract.rushHaul' : 'contract.haul', { n: c.units, good: goodName(c.good), site: siteName(c.to) }),
+  fetch: (c) => t('contract.fetch', { part: partNameOf(c.defId), site: siteName(c.shop), n: CONTRACTS.fetch.maxWear }),
+  survey: (c) => t('contract.survey', { places: surveyPlaces(c) }),
+  claim: (c) => claimSummary(c),
+  escort: (c) => t('contract.escort', { site: siteName(c.to) }),
+  rescue: (c) => t('contract.rescue', { driver: verbatim(c.driver) }),
+  search: (c) => t('contract.search', { who: searchTarget(c), site: siteName(c.shop) }),
+  bounty: (c) => t('contract.bountyAt', { target: templateName(c.template), site: siteName(c.shop) }),
+};
+
 export function postedSummary(c: Contract): Msg {
-  if (c.kind === 'haul') {
-    const haul = { n: c.units, good: goodName(c.good), site: siteName(c.to) };
-    return c.rush ? t('contract.rushHaul', haul) : t('contract.haul', haul);
-  }
-  if (c.kind === 'fetch') return t('contract.fetch', { part: partNameOf(c.defId), site: siteName(c.shop), n: CONTRACTS.fetch.maxWear });
-  if (c.kind === 'survey') return t('contract.survey', { places: surveyPlaces(c) });
-  if (c.kind === 'claim') return claimSummary(c);
-  if (c.kind === 'escort') return t('contract.escort', { site: siteName(c.to) });
-  if (c.kind === 'rescue') return t('contract.rescue', { driver: verbatim(c.driver) });
-  if (c.kind === 'search') return t('contract.search', { who: searchTarget(c), site: siteName(c.shop) });
-  return t('contract.bountyAt', { target: templateName(c.template), site: siteName(c.shop) });
+  return (POSTED_WORDS[c.kind] as (x: Contract) => Msg)(c);
 }
 
 export function gameHours(turns: number): number {
