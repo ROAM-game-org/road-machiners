@@ -39,6 +39,8 @@ import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { SKILL_IDS } from '../data/skills';
 import { UNITS } from '../data/units';
+import { playerVehicle } from './damage';
+import { mountedParts } from './grid';
 import { skillLevel } from './progress';
 import { boardFull, holdsNote, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { canDriveOn } from './fury-road';
@@ -100,6 +102,7 @@ const SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
 
 export const QUEST_QUERIES: Record<string, QuestQuery> = {
   money: (world) => Math.floor(world.player.money / UNITS.centsPerM),
+  engine_missing: (world) => mountedParts(playerVehicle(world), 'engine').length === 0,
   has_note: (world, args) => holdsNote(world, noteArg('has_note', args)),
   found: (world, args) => world.player.discovered.includes(siteArg('found', args)),
   searched: (world, args) => world.player.scavenged.includes(storyStock(world, textArg('searched', args, 0)).id),
