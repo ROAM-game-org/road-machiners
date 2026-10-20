@@ -315,8 +315,6 @@
 @media (orientation: portrait) {
   #ui.phone .drawer-tabs {
     bottom: var(--safe-bottom);
-  }
-  #ui.phone .drawer-tabs {
     right: calc(var(--safe-right) + var(--phone-end-w) + var(--hud-gap));
   }
   #ui.phone .drawer-tabs > button {
