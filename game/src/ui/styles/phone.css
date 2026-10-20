@@ -244,6 +244,9 @@
   padding-right: 0;
   line-height: var(--touch-target);
 }
+#ui.phone .character-screen > h3 {
+  padding-right: calc(var(--space-10) * 3);
+}
 #ui.phone :is(.town-screen, .inventory-screen, .character-screen, .journal-screen) > h3 > .chips {
   flex-basis: 100%;
   order: 2;
