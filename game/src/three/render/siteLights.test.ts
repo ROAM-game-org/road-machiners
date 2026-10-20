@@ -24,9 +24,7 @@ function setup(lights: SiteLight[]) {
   const camera = new THREE.PerspectiveCamera(50, 1, 1, 1000);
   camera.position.set(0, 50, 50);
   camera.lookAt(0, 0, 0);
-  const pool = new SiteLights(scene, { lights, lamps: [] }, { worldSize: 8, maxTextureSize: 64 });
-  pool.reveal(new Set(lights.map((l) => l.siteId)));
-  return { scene, camera, pool };
+  return { scene, camera, pool: new SiteLights(scene, { lights, lamps: [] }, { worldSize: 8, maxTextureSize: 64 }) };
 }
 const spotsIn = (scene: THREE.Scene) => scene.children.filter((c) => c instanceof THREE.SpotLight);
 

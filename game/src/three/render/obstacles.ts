@@ -19,8 +19,7 @@ import { DebrisSim, disposeTree, FLY_REACH, truckBoxes } from './debris';
 import { jag } from './vehicle';
 import { instancedModel, model, socket } from './models';
 import { NIGHT_POOLS } from './lightPools';
-import { FORT_MODELS, fortressPieceSite } from '../../sim/fortress';
-import { atlasOf } from '../../sim/atlas';
+import { FORT_MODELS } from '../../sim/fortress';
 import { OutpostGateViews } from './outpostGates';
 import { PartDebris } from './partDebris';
 import type { RenderScope } from './scope';
@@ -49,7 +48,7 @@ export class ObstacleViews {
 
   private gates: OutpostGateViews | null = null;
 
-  constructor(private readonly scope: RenderScope, private readonly terrain: Terrain, private readonly onGatesShut: () => void = () => {}, private readonly onFortPiece: ((siteId: string, obj: THREE.Object3D) => void) | null = null) {
+  constructor(private readonly scope: RenderScope, private readonly terrain: Terrain, private readonly onGatesShut: () => void = () => {}) {
     this.flying = new DebrisSim(terrain);
     this.parts = new PartDebris(scope, terrain);
   }
@@ -111,7 +110,6 @@ export class ObstacleViews {
     });
     this.swatches.set(o.id, (obj.userData.lootSwatches as LootSwatch[] | undefined) ?? lootSwatches(obj));
     this.scope.add(obj, o.pos, viewReach(o));
-    if (this.onFortPiece && o.kind === 'landmark' && FORT_MODELS.has(o.look)) this.onFortPiece(fortressPieceSite(atlasOf(this.terrain), o.look, o.pos), obj);
     this.byId.set(o.id, obj);
     if (obj.userData.glow) this.glows.set(o.id, obj.userData.glow as Glow);
   }
