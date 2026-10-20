@@ -47,7 +47,7 @@ Every other problem is fixed inside the stage that found it: a bug, a wrong look
 The early ends:
 
 - wont-do: triage or design refuses the request, and the issue closes.
-- bundled: triage folds the issue into a lead, and it closes when the lead ships.
+- bundled: triage folds the issue into a lead, and it closes when the lead ships. A duplicate of a card already in work joins that card the same way, a hotfix too.
 - Deny: the committee rejects the build, and the issue closes.
 
 A branch that changes only Markdown docs cannot change the game, so it runs no testing or hardening session, and its post checkpoint only builds it. The merge checkpoint still checks it. A wiki page in `game/docs/wiki/` does not count as docs, since the game tests check its tables. [stages.md](stages.md#docs-changes) has the rules.
