@@ -1762,3 +1762,47 @@ describe('save migration 81 to 82', () => {
     expect(goalsAfter(withGoals(before))).toEqual(before);
   });
 });
+
+describe('save migration 82 to 83', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: { quest: string; checkpoint: string; seed: number } | null };
+  type Saved = { player: { quests: Quests } };
+  const saved = (quests: Partial<Quests>): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: Saved) => MIGRATIONS[82](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('drops the twelfth scene, its gate and the answers the short scenes no longer read, keeping the other gates', () => {
+    const before = saved({
+      world: { ala_hired: true, road_seen_1: true, road_seen_4: true, road_seen_12: true, geezer_pitch: 'link', ring_told: 'told', death_answer: 'road', why_answer: 'pay', ala_knows: 'ring', father_told: true, promised: true, hand_shook: true },
+      local: { road_stretch_12: { pass_said: true }, road_stretch_4: { asked_trailer: true, asked_north: true, asked_hunters: true }, road_stretch_8: { asked_run: true, grief_said: 'sorry' } },
+    });
+
+    expect(stepped(before).player.quests).toEqual({ world: { ala_hired: true, road_seen_1: true, road_seen_4: true, geezer_pitch: 'link' }, local: {}, session: null });
+  });
+
+  it('drops the hiring questions that are gone and keeps the pay question', () => {
+    const before = saved({ local: { road_hire: { asked_pay: true, asked_north: true, asked_who: true, asked_trailer: true, walked_out: true } } });
+    expect(stepped(before).player.quests.local).toEqual({ road_hire: { asked_pay: true } });
+  });
+
+  it('moves an open scene to its start, whichever page it stood on', () => {
+    for (const [quest, checkpoint] of [['road_stretch_1', 'start.tougher'], ['road_stretch_4', 'start.hub'], ['road_stretch_8', 'start.close']]) {
+      const before = saved({ session: { quest, checkpoint, seed: 3 } });
+      expect(stepped(before).player.quests.session).toEqual({ quest, checkpoint: 'start', seed: 3 });
+    }
+  });
+
+  it('closes an open twelfth scene and leaves the hiring scene open on its own page', () => {
+    expect(stepped(saved({ session: { quest: 'road_stretch_12', checkpoint: 'start.hub', seed: 3 } })).player.quests.session).toBeNull();
+    const hiring = { quest: 'road_hire', checkpoint: 'start.hub', seed: 3 };
+    expect(stepped(saved({ session: hiring })).player.quests.session).toEqual(hiring);
+  });
+
+  it('changes nothing else', () => {
+    const before = saved({ world: { road_seen_12: true } });
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});

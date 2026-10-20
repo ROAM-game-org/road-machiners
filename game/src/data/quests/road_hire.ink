@@ -2,40 +2,61 @@
 INCLUDE world.ink
 
 VAR asked_pay = false
-VAR asked_north = false
-VAR asked_who = false
-VAR asked_trailer = false
-VAR walked_out = false
 
 === start ===
 # checkpoint: start
-The bar of the last fort before the empty road smells of diesel and wet wool. # place: The southern outpost # img: road_bar
-You sit with your back to the wall, which is how you've sat for thirty years. The <term=keepers>Keepers</term> who hold this fort write down every truck through the gate and every man through the bar door. You're in their book as a name and a night's rent, nothing more.
-Two weeks ago you drove a truck up the north road that is now a black patch beside a crater. Somebody had buried a mine for somebody else's wheels, and yours were first. A crew of salvagers came out from <term=the_yards>the Yards</term> to strip what was left, and they gave you a ride south on top of the scrap. They talked the whole way about an old hauler and the woman who drives it. # page
-The fort's yard sold you a scout, the smallest thing on four wheels, for nearly all the M's you had left.
-At the next table, a woman counts M's out of a roll, brass discs each stamped with an M. She says every sum under her breath, flat and even, the way you'd read a gauge. Her coat has gone pale at the knees. A smear of red wax is still stuck to her cuff, and an hour ago she came down from the Commandant's tower with a clerk bowing her out. Nobody bows to hired drivers. # img: road_ala # page
-Tibor, the barman, has pulled up a chair across from her. He sells men the way other men sell spare axles.
-Rode with Magnus, they say, and the scars say so too. The <term=burnt_drivers>Burnt Drivers</term>, if you're old enough to remember. He takes the jobs nobody else will touch. # speaker: Tibor # img: road_geezer
-The bar has talked of nothing else since noon. The trailer on the pad carries the cure, they say, for the <term=black_water>black-water sickness</term>, and every man with a gun and a debt has put down his cup to think about that. # page # img: road_hauler
-A woman with a hunter's hands sits down at Ala's table without being asked. She doesn't look at Ala. She looks out of the window at your scout.
-That scout's got one driver. One. # speaker: Vale
-Out. # speaker: Ala
-She says it with two fingers lifted, as if shooing a fly. The hunter goes, slowly, and takes her time over the door.
-The woman looks out of the window instead of at you. Your scout sits on the pad under the lamp with one gun on its mount, small as a dog. Behind it the hauler fills the rest of the window, a mammoth eighteen-wheeler, and the seal on its trailer door is the same red as the wax on her cuff. # img: road_hauler # page
-That's what he drives? A toy like that won't last a stretch, fort to fort. # speaker: Ala
+
+This is not the worst bar you have seen. Far from it. # place: The southern outpost # img: road_bar
+
+Still, you sit with your back to the wall. But force of habit.
+
+You reminisce about the beautiful truck you drove just two weeks ago. Now it is nothing but a black patch beside a crater. All it takes is one unlucky landmine. As if there is such a thing as a lucky landmine.
+
+What's really lucky is that a crew of salvagers came out to strip what was left. They had good manners and gave you a ride south on top of the black scrap. The fort's yard had no manners and ripped you off on a scout pick-up. # page
+
+Still, this bar is not the worst thing to see after a landmine, and the tinnitus is almost gone.
+
+You glance at a table across the room. The table, the one attracting the most attention here.
+
+It houses two: Tibor, the barman, and a woman. A linked woman driver is rare, but not unheard of.
+The conversation they are having is evidently not going well. More obviously so when the woman glances your way. And then Tibor turns around in his chair to wave for you. You two go way back, though not exactly friends.
+
+As you approach, you hear a piece of a phrase.
+
+"Yes, but if you knew who he rode with..." # speaker: Tibor
+
+Hastily cut short at the sound of your heavy boots. Tibor's eyes are welcoming, but, as always, a little watery and darting in your presence. Like a ferret's. You saw a ferret in a book, once. 
+
+Ala is ? # img: road_ala # page
+
+The woman takes a moment to size you up, but then her eyes go past you, out of the window, to the pad under the lamp. Your scout is parked there. Next to it stands the biggest hauler you have seen in years, a mammoth eighteen-wheeler, and your scout looks like a pup next to it. 
+
+The great machine and the tiny woman that drives it have been the talk of the fort. Both were rare to find around the Northern Road. People here are more landmine-oriented, which doesn't attract the prettiest women. # img: road_hauler # page
+
+"This pickup can barely cover two wheels of my Bertha." # speaker: Ala
+
+She is not wrong. You had the same thought when the yard took your M's. She is also not speaking to you, which grates your nerves. 
+
+"It's not about the truck, it's about the man, Ala. Geezer is straight edge. In your situation, there is no one better." # speaker: Tibor
+
+Must be a shit situation then. But you keep your mouth shut, for now. Tibor has sold your services before, he is good at it.
+
+Finally, Ala does not look at the trucks, or Tibor. She looks at you.
+
+"I need protection up North. Far North. I can pay by the stretch, but the job is tough. Can you handle it?" # speaker: Ala
 -> pitch
 
 = pitch
-Tibor spreads his hands. Your move, he means. She wants a reason to hire you, and you have two. The burn at your neck says the link went deep in you, and you lived. The bullet scars say you have been shot at and kept driving. Which one does she hear first?
-+ [Show her the burn on your neck.]
+Tibor spreads his hands. Your move, he means. She wants a reason to hire you, and you have two. 
++ [Show her the burn.]
   ~ geezer_pitch = "link"
   -> link_scar
-+ [Show her the bullet scars.]
++ [Show her the scars.]
   ~ geezer_pitch = "bullets"
   -> bullet_scars
 
 = link_scar
-You turn your collar down and tilt your head. A linked driver has a socket at the base of the skull. The cable from the seat plugs into it, and the truck answers like an arm. Around yours runs a ring of thick pale skin, where the flesh once cooked around the metal.
+You turn your collar down and tilt your head. A linked driver has a socket at the base of the skull. The cable from the seat plugs into it. Around yours runs a ring of thick pale skin, where the flesh once cooked around the metal.
 When she bent over the M's you saw her own socket under her hair, small and clean. She looks at yours a good while. Her mouth tightens, and it isn't pity.
 Linked. Deeper than I am. # speaker: Ala
 She doesn't need you to open your shirt. The old holes show through the torn cloth at your ribs, and she counts them anyway. -> both
@@ -70,30 +91,6 @@ Ala stacks her M's in front of her and waits. # page # img: road_ala
   I drive the hauler. You ride ahead and take what comes. I pay by the stretch, fort to fort: {stretch_pay(1)} M's for the first, and {stretch_pay(2) - stretch_pay(1)} more for each stretch after that. # speaker: Ala
   Fuel, repairs, guns, tires: they come out of that, for my rig and for yours. It covers both, if you're careful. The first stretch's fuel comes out of what you have left. After that, the pay carries you. # speaker: Ala
   She pushes three stacks across the table with one finger, to show you what the first three stretches pay: {stretch_pay(1)}, {stretch_pay(2)}, {stretch_pay(3)}. It is only a demonstration. The M's are paid at the far gate.
-  -> menu
-+ {not asked_trailer} [What's in the trailer?]
-  ~ asked_trailer = true
-  Sealed. The Commandant's wax. That's all I'll say, and it's all the Commandant said to me. # speaker: Ala
-  She says it too quickly. Tibor, for once, has nothing to add.
-  -> menu
-+ {not asked_north} [Why north?]
-  ~ asked_north = true
-  Somebody's waiting on it. No more questions than that. # speaker: Ala
-  She says it like something she has said many times, and it sounds like a dodge.
-  Tibor suddenly finds something interesting in his hands. He sold you the job, not the road.
-  -> menu
-+ {not asked_who} [Who's coming for the truck?]
-  ~ asked_who = true
-  <term=blackwell>Blackwell</term> wants that truck. The refinery posted a reward in diesel for the crates, and nobody there cares what state the driver's in. # speaker: Tibor
-  And half this bar thinks there's a cure in there. Those would come for it with no reward at all. # speaker: Tibor
-  Ala doesn't correct him. She turns her cuff over so the wax doesn't show.
-  -> menu
-+ {asked_pay and not walked_out} [Hold out for more.]
-  ~ walked_out = true
-  You tell her it isn't enough, and you push your chair back.
-  Nobody pays more. The ones who'd pay more for that trailer want the trailer, not the man who drives it. # speaker: Ala
-  She still doesn't look up. Ala is still counting, and Tibor is still smiling.
-  I'd have thought less of you if you hadn't tried. The offer is the offer. Sit down. # speaker: Ala
   -> menu
 + [Sign on.]
   ~ ala_hired = true

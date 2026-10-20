@@ -54,21 +54,6 @@
     "focusX": 40,
     "focusY": 50
   },
-  "road_gate": {
-    "file": "road_gate.webp",
-    "focusX": 20,
-    "focusY": 45
-  },
-  "road_tankline": {
-    "file": "road_tankline.webp",
-    "focusX": 20,
-    "focusY": 50
-  },
-  "road_walkers": {
-    "file": "road_walkers.webp",
-    "focusX": 47,
-    "focusY": 50
-  },
   "bowl_scale": {
     "file": "bowl_scale.webp",
     "focusX": 45,

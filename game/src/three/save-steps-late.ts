@@ -1,4 +1,4 @@
-import { dropQuestVar, renameQuestVar, type SavedJson } from './save-migrations';
+import { dropQuest, dropQuestVar, moveQuestCheckpoint, renameQuestVar, type SavedJson } from './save-migrations';
 
 type Point_70_71 = { x: number; y: number };
 
@@ -98,4 +98,25 @@ export function withHeardCentres_81_82(world: SavedJson): SavedJson {
     return brain ? { ...v, brain: { ...brain, goals: (brain.goals as SavedJson[]).map(heardOf) } } : v;
   };
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
+}
+
+const DROPPED_ROAD_WORLD_VARS_82_83: readonly string[] = ['road_seen_12', 'ring_told', 'death_answer', 'why_answer', 'ala_knows', 'father_told', 'promised', 'hand_shook'];
+
+const DROPPED_ROAD_LOCAL_VARS_82_83: Record<string, readonly string[]> = {
+  road_hire: ['asked_north', 'asked_who', 'asked_trailer', 'walked_out'],
+  road_stretch_4: ['asked_trailer', 'asked_north', 'asked_hunters'],
+  road_stretch_8: ['asked_hunters', 'asked_run', 'grief_said'],
+};
+
+const DROPPED_ROAD_CHECKPOINTS_82_83: Record<string, readonly string[]> = {
+  road_stretch_1: ['start.tougher', 'start.close'],
+  road_stretch_4: ['start.death_machine', 'start.hub', 'start.maya'],
+  road_stretch_8: ['start.news', 'start.loss', 'start.hub', 'start.close'],
+};
+
+export function withShortRoadScenes_82_83(world: SavedJson): SavedJson {
+  const withoutScene = dropQuest(world, 'road_stretch_12');
+  const withoutWorldVars = DROPPED_ROAD_WORLD_VARS_82_83.reduce((w, name) => dropQuestVar(w, null, name), withoutScene);
+  const withoutLocalVars = Object.entries(DROPPED_ROAD_LOCAL_VARS_82_83).reduce((w, [quest, names]) => names.reduce((v, name) => dropQuestVar(v, quest, name), w), withoutWorldVars);
+  return Object.entries(DROPPED_ROAD_CHECKPOINTS_82_83).reduce((w, [quest, names]) => names.reduce((v, from) => moveQuestCheckpoint(v, quest, from, 'start'), w), withoutLocalVars);
 }

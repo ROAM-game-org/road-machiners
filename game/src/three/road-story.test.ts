@@ -100,7 +100,7 @@ describe('the scenes at parked outposts', () => {
     expect(questOpen(endTurn(paid, still))).toBe(GAME_OPENED_QUESTS.roadStretch1);
   });
 
-  it('opens a scene only at stretches 1, 4, 8 and 12, keeps the gates through the window move and changes nothing but the quests', () => {
+  it('opens a scene only at stretches 1, 4 and 8, keeps the gates through the window move and changes nothing but the quests', () => {
     let w = hiredRun();
     const gates: string[] = [];
     for (let stretch = 1; stretch <= 5; stretch++) {
