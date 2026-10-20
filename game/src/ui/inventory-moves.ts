@@ -15,7 +15,7 @@ import { takeLoot } from "../sim/locations";
 import { atGarage } from "../sim/garage";
 import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
 
-export const ROTATE_KEY_CODE = "KeyR";
+const ROTATE_KEY_CODE = "KeyR";
 
 export function isRotateKey(e: Pick<KeyboardEvent, "code" | "repeat" | "ctrlKey" | "metaKey" | "altKey">): boolean {
   return e.code === ROTATE_KEY_CODE && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey;
