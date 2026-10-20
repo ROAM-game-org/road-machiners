@@ -49,8 +49,8 @@ describe('backing out', () => {
     const w = ordered({ kind: 'through', dest: { x: 60, y: 30 } });
     for (let y = 26; y <= 34; y += 1) w.obstacles.push({ id: `end${y}`, pos: { x: 33.5, y }, r: 0.7, kind: 'rock' });
     for (let x = 27; x <= 33; x += 1) w.obstacles.push({ id: `left${x}`, pos: { x, y: 26 }, r: 0.7, kind: 'rock' }, { id: `right${x}`, pos: { x, y: 34 }, r: 0.7, kind: 'rock' });
-    const backed: boolean[] = [];
-    turns(w, 6, (next, d) => backed.push(d.memory[me(next).id].backFrom !== null || d.memory[me(next).id].reverse));
-    expect(backed.some(Boolean)).toBe(true);
+    const xs = [me(w).pos.x];
+    turns(w, 6, (next) => xs.push(me(next).pos.x));
+    expect(xs.some((x, i) => i > 0 && x < xs[i - 1] - 1)).toBe(true);
   }, budget(60_000));
 });
