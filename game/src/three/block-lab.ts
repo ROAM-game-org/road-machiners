@@ -353,7 +353,7 @@ const songTitle = el("div", { class: "score-lab-song" }, music.title ?? "");
 const timelinePanel = panel(el("div", { class: "score-lab-bar" }, songTitle, zoomChoice), holder);
 
 const ledgerRows = el("div", { class: "score-lab-rows" });
-const ledgerHead = el("div", { class: "score-lab-entry score-lab-head" }, ...["", "Block", "Bars", "Starts", "Heat", "", "Join and odds"].map((word) => el("span", {}, word)));
+const ledgerHead = el("div", { class: "score-lab-entry score-lab-head" }, ...["", "Block", "Bars", "Starts", "Heat", "", "Join and ways"].map((word) => el("span", {}, word)));
 const ledgerPanel = panel(ledgerHead, ledgerRows);
 
 function statRows(): [string, string][] {
@@ -386,7 +386,7 @@ function ledgerRow(p: Played, i: number, first: number): HTMLElement {
     el("span", { class: "num" }, `${(p.start - first).toFixed(1)} s`),
     el("span", { class: "num" }, p.heat.toFixed(1)),
     el("span", {}, ""),
-    el("span", { class: "dim" }, p.odds ? `${p.join}. Odds were ${p.odds}` : p.join),
+    el("span", { class: "dim" }, p.ways ? `${p.join}. Ways were ${p.ways}` : p.join),
   );
 }
 

@@ -1,5 +1,5 @@
 {
- "format": "2.82",
+ "format": "2.84",
  "shape": {
   "broken": [],
   "craters": [],
@@ -137,6 +137,7 @@
    }
   },
   "rngState": "number",
+  "roadNews": [],
   "salvage": [
    {
     "fuel": "number",
@@ -1355,20 +1356,24 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
      "batteries": "number",
      "electronics": "number",
      "fuelDrums": "number",
      "grain": "number",
      "meds": "number",
      "parts": "number",
+     "rations": "number",
      "salt": "number",
      "scrap": "number",
      "textiles": "number",
      "tools": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1466,13 +1471,17 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
      "meds": "number",
-     "scrap": "number",
+     "rations": "number",
      "tools": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1570,12 +1579,18 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
      "grain": "number",
+     "rations": "number",
      "salt": "number",
-     "textiles": "number"
+     "tools": "number",
+     "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1673,13 +1688,17 @@
       "window": "number"
      }
     ],
-    "pressure": {
-     "grain": "number",
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
+     "rations": "number",
      "salt": "number",
      "textiles": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1777,13 +1796,14 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
      "batteries": "number",
      "electronics": "number",
      "fuelDrums": "number",
-     "grain": "number",
      "meds": "number",
      "parts": "number",
+     "rations": "number",
      "relics": "number",
      "salt": "number",
      "scrap": "number",
@@ -1791,7 +1811,9 @@
      "tools": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1889,12 +1911,16 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
      "batteries": "number",
-     "parts": "number",
-     "scrap": "number"
+     "fuelDrums": "number",
+     "rations": "number",
+     "tools": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1992,13 +2018,18 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
      "parts": "number",
+     "rations": "number",
      "relics": "number",
      "scrap": "number",
      "tools": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -2372,6 +2403,10 @@
     "asked_where": "boolean"
    },
    "first_fall": {},
+   "granary_odile": {
+    "asked_gate": "boolean",
+    "asked_need": "boolean"
+   },
    "intro_arrival": {
     "arrival_rope": "boolean"
    },
@@ -2452,6 +2487,10 @@
     "heard_sun": "boolean",
     "heard_swivel": "boolean"
    },
+   "pit_hadiza": {
+    "asked_hooks": "boolean",
+    "asked_want": "boolean"
+   },
    "pump_agnes": {
     "asked_leak": "boolean",
     "asked_man": "boolean",
@@ -2512,6 +2551,9 @@
     "asked_run": "boolean",
     "grief_said": "string"
    },
+   "station_still": {
+    "asked_buyers": "boolean"
+   },
    "wagon_bench": {
     "fee": "number",
     "halves_fit": "boolean",
@@ -2566,6 +2608,10 @@
    "first_fall": [
     "start"
    ],
+   "granary_odile": [
+    "start",
+    "start.hub"
+   ],
    "intro_arrival": [
     "start",
     "start.farm",
@@ -2600,6 +2646,10 @@
     "start.hub"
    ],
    "nose_lena": [
+    "start",
+    "start.hub"
+   ],
+   "pit_hadiza": [
     "start",
     "start.hub"
    ],
@@ -2647,6 +2697,10 @@
     "start.loss",
     "start.hub",
     "start.close"
+   ],
+   "station_still": [
+    "start",
+    "start.hub"
    ],
    "wagon_bench": [
     "start",
@@ -2744,6 +2798,16 @@
     "reads": [
      "intro_step"
     ],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "granary_odile": {
+   "revision": 1,
+   "links": {
+    "reads": [],
     "readsNotes": [],
     "writes": {},
     "notes": [],
@@ -2868,6 +2932,16 @@
     "begins": [
      "wagon_bench"
     ]
+   }
+  },
+  "pit_hadiza": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
    }
   },
   "pump_agnes": {
@@ -3040,6 +3114,16 @@
       "silent"
      ]
     },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "station_still": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
     "notes": [],
     "begins": []
    }

@@ -1,5 +1,4 @@
 
-import { CRATE_MASS } from '../data/goods';
 import { CONTRACTS } from '../data/market';
 import { partDef } from '../data/parts';
 import { isMet, siteOf, type Contract } from '../sim/market';
@@ -35,13 +34,15 @@ import { clockOf } from '../sim/sun';
 import type { PartHit } from '../sim/armor';
 import { shotDamage } from '../sim/combat';
 import { shutDownTurnsLeft } from '../sim/utility';
-import type { GameEvent, GridItem, Job, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
+import type { GameEvent, GridItem, Job, NpcActivity, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
 import { concat, list, MINUS_SIGN, num, PLUS, t, verbatim, type Msg } from '../text/msg';
-import { driverName, factionName, goalText, fullName, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
+import { siteRecipes } from '../data/market';
+import { driverName, factionName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
 import { Refused } from '../sim/world';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
 import { compassText, damage, distanceText, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
+import { seesAll } from './see-all';
 import { bandAtLeast, isRaider } from '../sim/relations';
 
 export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
@@ -59,7 +60,7 @@ function partJobLabel(v: Vehicle, job: Extract<Job, { kind: 'repair' | 'strip' }
   return job.kind === 'repair' ? t('job.repair', { part: what }) : t('job.strip', { part: what });
 }
 
-const BUSINESS_LABELS = { resupply: 'job.business.resupply', sell: 'job.business.sell', trade: 'job.business.trade', haul: 'job.business.haul' } as const;
+const BUSINESS_LABELS = { resupply: 'job.business.resupply', sell: 'job.business.sell', trade: 'job.business.trade' } as const;
 
 function businessLabel(job: Extract<Job, { kind: 'business' }>): Msg {
   const key: (typeof BUSINESS_LABELS)[keyof typeof BUSINESS_LABELS] | undefined = BUSINESS_LABELS[job.deal];
@@ -168,7 +169,12 @@ export function formatNpcActivity(world: World, vehicle: Vehicle): Msg | null {
   if (!vehicle.brain || !playerSees(world, vehicle.pos)) return null;
   if (isKnockedOut(vehicle)) return gaveUp(vehicle) ? t('npc.gaveUp') : t('npc.knockedOut');
   const activity = topGoal(vehicle);
-  return activity ? goalText(activity.reason) : null;
+  return activity ? goalLine(activity) : null;
+}
+
+function goalLine(activity: NpcActivity): Msg {
+  const shipment = activity.shipment;
+  return shipment ? t('goal.deliverShipment', { good: goodLower(shipment.good), site: siteName(shipment.to) }) : goalText(activity.reason);
 }
 
 export function formatNpcPass(world: World, vehicle: Vehicle): Msg | null {
@@ -182,13 +188,17 @@ export function formatNpcPass(world: World, vehicle: Vehicle): Msg | null {
   return t('npc.letsPass', { why: t(`pass.${passReason(world, vehicle, player, judgeDanger(world, vehicle, player))}`) });
 }
 
+function revealedBy(world: World, perk: 'readDriver' | 'cargoEye'): boolean {
+  return hasPerk(world, perk) || seesAll();
+}
+
 export function formatNpcTraits(world: World, vehicle: Vehicle): Msg | null {
   const traits = npcTraits(vehicle);
-  return hasPerk(world, 'readDriver') ? t('npc.traits', { traits: list(traits.map(traitName)) }) : null;
+  return revealedBy(world, 'readDriver') ? t('npc.traits', { traits: list(traits.map(traitName)) }) : null;
 }
 
 export function formatNpcCargo(world: World, vehicle: Vehicle): Msg | null {
-  if (!hasPerk(world, 'cargoEye')) return null;
+  if (!revealedBy(world, 'cargoEye')) return null;
   const goods = Object.entries(goodsCount(vehicle)).map(([good, n]) => t('npc.goodCount', { good: goodName(good), n }));
   const spares = spareParts(vehicle).map((part) => partNameOf(part.defId));
   if (goods.length === 0 && spares.length === 0) return t('npc.cargoEmpty');
@@ -262,6 +272,12 @@ export type LogSpan = { text: Msg; cls: string };
 export type LogLine = { text: Msg; cls: string; spans?: LogSpan[] };
 
 const line = (text: Msg, cls: string): LogLine => ({ text, cls });
+
+function recipeOutput(shopId: string, recipeId: string): string {
+  const recipe = siteRecipes(shopId).find((r) => r.id === recipeId);
+  if (!recipe) throw new Error(`${shopId} has no recipe ${recipeId}`);
+  return Object.keys(recipe.outputs)[0];
+}
 
 function spanLine(cls: string, spans: LogSpan[]): LogLine {
   return { text: concat(spans.map((s) => s.text)), cls, spans };
@@ -644,6 +660,10 @@ export function contractSummary(c: Contract): Msg {
   return c.fulfilled ? t('contract.bountyMet', bounty) : t('contract.bountyAt', bounty);
 }
 
+export function gameHours(turns: number): number {
+  return Math.max(1, Math.round(turns / (TIME.turnsPerDay / 24)));
+}
+
 function surveyPlaces(c: SurveyContract): Msg {
   const types = [...new Set(c.points.map((p) => surveyPlaceType(p.site)))];
   return list(types.map((type) => t(`contract.place.${type}`)));
@@ -696,7 +716,7 @@ export function rescueWhere(c: Extract<Contract, { kind: 'rescue' }>): Msg {
 }
 
 export function contractWindow(c: Contract): Msg {
-  return t('contract.window', { h: Math.max(1, Math.round(c.window / (TIME.turnsPerDay / 24))) });
+  return t('contract.window', { h: gameHours(c.window) });
 }
 
 export function contractDue(c: Contract): Msg {
@@ -857,6 +877,12 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   preyPassed: preyPassedText,
   info: infoText,
   townPatch: () => line(t('log.townPatch'), 'good'),
+  siteEvent: (_, e) => {
+    if (!seesAll()) return null;
+    const params = { site: siteName(e.shop), good: goodLower(recipeOutput(e.shop, e.recipe)) };
+    return line(e.kind === 'surge' ? t('log.siteEvent.surge', params) : t('log.siteEvent.breakdown', params), 'dim');
+  },
+  engineCredit: (_, e) => line(t('log.engineCredit', { part: partNameOf(e.part) }), 'good'),
   scrapPatch: (_, e) => line(e.fuel > 0 ? t('log.scrapPatchFuel', { liters: fuelLiters(e.fuel) }) : t('log.scrapPatch'), 'good'),
   npcKnockout: (world, e) => line(t('log.npcKnockout', { who: vehicleName(world, e.vehicle) }), 'good'),
   npcWake: (world, e) => line(t('log.npcWake', { who: vehicleName(world, e.vehicle) }), 'dim'),
@@ -942,10 +968,8 @@ export type SaleEstimate =
   | { kind: "even"; avgCost: number };
 
 export const GOODS_COLUMNS = {
-  good: t('goods.good'), theirs: t('goods.theirs'), buy: t('goods.buy'), sell: t('goods.sell'), held: t('goods.held'), profit: t('goods.profit'),
+  good: t('goods.good'), theirs: t('goods.theirs'), buy: t('goods.buy'), sell: t('goods.sell'), stock: t('goods.stock'), held: t('goods.held'), profit: t('goods.profit'),
 } as const;
-
-export const CRATE_NOTE = t('goods.crateNote', { mass: kg(CRATE_MASS) });
 
 export const PROFIT_HEAD_TITLE = t('goods.profitTitle');
 

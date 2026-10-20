@@ -74,6 +74,16 @@ VAR tip = 20
   }
   The man in the grey coat puts down his mug and walks over. The same lantern is stitched on his collar as painted on the tanker's door.
   -> watched
++ [Ask what Dustwell sends out.]
+  Water, from deep rock. The pumpjack brings it up, and the trucks carry it down to <term=bowl>Bowl</term>'s canals and to the <term=granary>Granary</term>. # speaker: Agnes
+  The pumpjack wears out tools. <term=nose>Nose</term> makes them, and somebody has to bring them up the road. # speaker: Agnes
+  { works_down():
+    The pump's broken down. The big dial hardly moves, and I write that down too. # speaker: Agnes
+  }
+  { short_of("tools"):
+    I'm out of tools. One more stripped bolt and the pump runs at half. # speaker: Agnes
+  }
+  -> hub
 + {not asked_man and not trusted} [Ask the man on the drum what he's waiting for.]
   ~ asked_man = true
   Just finishing my tea. # speaker: Watchman
