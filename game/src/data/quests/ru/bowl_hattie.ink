@@ -27,7 +27,7 @@ VAR hattie_unarmed = false
   Он нашел твой грузовик в пустошах. Стоит, не едет, а в кресле ты. Решил, что грузовик бросили, зацепил и притащил сюда вместе с тобой.
   ~ hattie_tow = true
   -> hub
-+ {towed_to_bowl and not hattie_strip} [Кто ободрал мой грузовик?]
++ {towed_to_bowl and engine_missing() and not hattie_strip} [Кто ободрал мой грузовик?]
   Не буксировщик, если ты на него думаешь. Кто ободрал, тот не спешил, а тебя в живых оставил.
   ~ hattie_strip = true
   -> hub
@@ -79,6 +79,9 @@ VAR hattie_unarmed = false
   Я в тот кратер не ходила и не пойду. Водой торгую, а ум свой при себе держу.
   ~ note("talkSunwardTake")
   ~ hattie_sunward = true
+  -> hub
++ {hattie_sunward and cult_broken()} [Have the Sunward gone quiet?]
+  Quiet as a dry well. Bo's cousin says the lamps stopped crossing to the crater at dusk, and a man with a green shine on his hands came to my well asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
   -> hub
 + {hattie_sunward and not hattie_came_out} [А кто-нибудь выходил на твоих глазах?]
   Одну видела, в сумерках. Руки у нее в темноте зеленым светились, а воду пила молча, ведро за ведром.

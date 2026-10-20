@@ -41,6 +41,7 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 - A query only reads the world. An effect changes the world of the running command, and ink never runs it ahead of a pick.
 - Money crosses in whole M: `money()` reads it, `give_money(amount)` pays the player and `pay(amount)` takes from the player. `pay()` throws when the player holds less, so the quest checks `money()` first.
 - `begin(quest)` opens another quest at its `start` once this one ends. It must come right before `-> END`, or the pick throws. Kovac starts the depot quest this way.
+- `engine_missing()` tells whether the player's truck has no engine mounted. A line that says an engine was taken branches on it, so the scene matches the truck.
 - `note(id)` writes a journal note and `has_note(id)` reads one. `found(site)` reads whether a town or location is found, and `searched(wreck)` whether a story wreck is searched. Each throws on an id the game does not know.
 - `has_work()`, `has_offers()` and `board_full()` read the board of the town the truck is parked at, and `take_work()` takes its best offer as the Contracts tab does. They throw away from a town. The offer is the best-paying open contract the truck can take, from `townWork()` in `src/sim/dialogue-rules.ts`. `has_offers()` tells a board with open contracts the truck cannot take from an empty one.
 - `short_of(good)` reads whether the shop the truck is parked at runs short of a good, by `shortHere()` in `src/sim/market.ts`, the same rule as the market's Short here tone. `works_down()` reads whether that site's works are broken down now. Both throw away from a shop. `short_of()` throws on a good the shop does not trade, and `works_down()` at a site with no breakdown in `SITE_EVENTS`. The veteran check world empties every good of the shop it is parked at and breaks its works down where they can break, so both branches are walked.
@@ -120,6 +121,12 @@ The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo t
 - The scene offers no choice, since every choice would lead to the same outcome. Its pages run behind Next buttons, and the session ends as it opens. A save made while the pages show does not show them again on load.
 - While a quest is on view, `autoRuns()` is false. The knocked-out turns wait until the scene closes.
 - `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The arrival and `bowl_scale` are among them. The voice test counts it as a way in next to locals, radio calls and `begin()`.
+
+## The fallen light
+
+`fallen_light.ink` is a page scene the game opens by itself when the player dies in the reactor core. `applyHazards()` in `src/sim/hazard.ts` pushes a `coreBurn` event for every core burn, and `checkDeath()` in `src/sim/defeat.ts` gives the `death` event the cause `core` when the dying truck burned that turn, and calls `openCoreDeath()` in `src/sim/quests.ts`. The scene offers no choice. `deathShows()` in `src/ui/death.ts` holds the death screen back while a quest is on view, so Leave gives way to it. Any other death has the cause `injury` and opens nothing. No world variable gates it, since a dead world is never saved.
+
+The game function `cult_broken()` reads `world.sunward.collapsed` and throws on Chaos Highway. Dag, Ibo, Sefa, Hattie and Ruben branch on it, and the veteran check world holds a fallen order, so both branches are walked.
 
 ## The ambush and the wake in Bowl
 
