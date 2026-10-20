@@ -204,6 +204,10 @@
   padding-top: var(--space-2);
   border-top: 1px solid var(--bevel-light);
 }
+#ui .instrument-actions button.instrument-button > .icon-lock {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
 #ui .instrument-actions button.instrument-button {
   position: relative;
   display: inline-flex;

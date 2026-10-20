@@ -260,6 +260,7 @@ export const UI: Translation<typeof EN> = {
   'character.xpPool': '{n} опыта',
   'character.buyShort': 'Купить за {cost} опыта',
   'character.colPerk': 'Перк {rank} ранга',
+  'character.colBasic': 'Прием {rank} ранга',
   'character.colToday': 'Сегодня, до {cap} опыта',
   'stat.value': '{text} {unit}',
   'stat.valueTight': '{text}{unit}',

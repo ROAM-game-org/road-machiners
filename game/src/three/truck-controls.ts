@@ -6,7 +6,7 @@ import { handOverParcel, readyHandover } from "../sim/parcel";
 import { playerVehicle } from "../sim/damage";
 import { canDouse, douseEngine } from "../sim/engine-heat";
 import { isBusy } from "../sim/jobs";
-import { canOverdrive, inOverdrive } from "../sim/stats";
+import { inOverdrive, overdriveBlock } from "../sim/stats";
 import { canLoot, canScavenge, scavenge } from "../sim/locations";
 import { startSurvey } from "../sim/survey";
 import { shopAt } from "../sim/market";
@@ -45,7 +45,7 @@ export class TruckControls {
     if (!playerCanAct(w)) return;
     const me = playerVehicle(w);
     const on = !inOverdrive(w, me);
-    if (on && !canOverdrive(me)) return;
+    if (on && overdriveBlock(w, me) !== null) return;
     this.host.apply(setOverdrive(w, on));
     this.host.refreshPlan();
     if (on) this.host.revved();

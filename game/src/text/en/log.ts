@@ -456,6 +456,7 @@ export const LOG = {
   'refusal.looting.wreck': m('{by} is looting this wreck', { by: 'text' }),
   'refusal.looting.truck': m('{by} is looting this truck', { by: 'text' }),
   'refusal.needsSpotter': 'Marking a truck needs the spotter perk',
+  'refusal.needsBasic': m('Needs {skill} {rank}', { skill: 'text', rank: 'int' }),
   'refusal.cannotAct': 'You cannot act now',
   'refusal.noTruck': 'No other truck to mark',
   'refusal.unseen': 'You do not see that truck',

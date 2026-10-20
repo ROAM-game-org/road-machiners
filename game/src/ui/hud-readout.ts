@@ -9,8 +9,9 @@ import { RULES } from "../data/rules";
 import { maxHp } from "../sim/wear";
 import { playerVehicle, vehicleById } from "../sim/damage";
 import { maxHealthOf } from "../sim/health";
-import { corePart, mountedItems, mountedParts, itemSize } from "../sim/grid";
-import { canOverdrive, fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, workingEngineCapacity, type SpeedStep } from "../sim/stats";
+import { corePart, mountedItems, itemSize } from "../sim/grid";
+import { fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, overdriveBlock, workingEngineCapacity, type OverdriveBlock, type SpeedStep } from "../sim/stats";
+import { basicSkill } from "../sim/progress";
 import { fuelLimit, lowFuelSpeed } from "../sim/far";
 import { towData } from "../sim/states";
 import { playerTow } from "../sim/tow";
@@ -34,20 +35,24 @@ import { playerCanAct } from '../sim/world';
 import { combatTurnsLeft } from '../sim/combat';
 import { isBusy } from '../sim/jobs';
 import { list, num, t, type Msg } from '../text/msg';
-import { partName, siteName, vehicleTitle } from '../text/names';
+import { partName, refusalText, siteName, vehicleTitle } from '../text/names';
 
-export function overdriveSwitch(w: World): { checked: boolean; reason: Msg | null; title: Msg } {
+export function overdriveSwitch(w: World): { checked: boolean; locked: boolean; reason: Msg | null; title: Msg } {
   const me = playerVehicle(w);
-  const reason = canOverdrive(me)
-    ? null
-    : mountedParts(me, "engine").length === 0
-      ? t("hud.overdriveNoEngine")
-      : t("hud.overdriveWorn", { pct: Math.round(RULES.overdriveMinEngineShare * 100) });
+  const block = overdriveBlock(w, me);
+  const reason = block === null ? null : overdriveReason(w, block);
   return {
     checked: inOverdrive(w, me),
+    locked: block === "noBasic",
     reason,
     title: reason ?? t("hud.overdriveTitle"),
   };
+}
+
+function overdriveReason(w: World, block: OverdriveBlock): Msg {
+  if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("overdrive") });
+  if (block === "noEngine") return t("hud.overdriveNoEngine");
+  return t("hud.overdriveWorn", { pct: Math.round(RULES.overdriveMinEngineShare * 100) });
 }
 
 function shopNear(world: World): string | null {

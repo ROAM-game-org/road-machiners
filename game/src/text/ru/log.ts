@@ -457,6 +457,7 @@ export const LOG: Translation<typeof EN> = {
   'refusal.looting.wreck': 'Эти обломки уже грабит {by, case, nom}',
   'refusal.looting.truck': 'Этот грузовик уже грабит {by, case, nom}',
   'refusal.needsSpotter': 'Чтобы метить грузовики, нужен навык «Наводчик»',
+  'refusal.needsBasic': 'Требуется {skill} {rank}',
   'refusal.cannotAct': 'Сейчас нельзя действовать',
   'refusal.noTruck': 'Некого пометить',
   'refusal.unseen': 'Вы не видите этот грузовик',

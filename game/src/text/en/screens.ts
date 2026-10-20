@@ -429,6 +429,7 @@ export const SCREENS = {
   'icon.patch': 'Field repair',
   'icon.tall': 'Tall',
   'icon.clock': 'Time left',
+  'icon.lock': 'Locked',
   'icon.journal': 'Journal',
   'stat.same': '=',
   'stat.footprint': m('{w}×{h} cells', { w: 'int', h: 'int' }),

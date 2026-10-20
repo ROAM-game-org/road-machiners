@@ -42,7 +42,7 @@ import {
 import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
-import { acceptContract, deliverContract, fitsFetch, goodStock, haulShort, isMet, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, fitsFetch, goodStock, haulShort, isMet, knowsMarket, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { PartInstance, RoadNews, Vehicle, World } from "../sim/types";
 import { onRelief, recipeRunning } from "../sim/production";
@@ -284,7 +284,7 @@ export class TownScreen {
       "div",
       { class: "good-row row" },
       stockedGoodName(w, shopId, g),
-      this.stockedBuyCell(w, shopId, g, pressureHint(def, state, g), stock),
+      this.stockedBuyCell(w, shopId, g, marketHint(w, def, state, g), stock),
       el(
         "div",
         { class: "trade sell" },
@@ -295,7 +295,7 @@ export class TownScreen {
       ),
       countCell("stock", stock),
       countCell("held", held),
-      profitCell(saleEstimate(held, sell, w.player.costBasis[g])),
+      profitCell(tradeEstimate(w, held, sell, g)),
     );
   }
 
@@ -585,6 +585,14 @@ function theirsHead(): HTMLElement {
 
 function countCell(cls: "theirs" | "held" | "stock", n: number, text: Msg = num(n, "int")): HTMLElement {
   return el("div", { class: `count ${cls}` }, caption(GOODS_COLUMNS[cls]), el("span", { class: n === 0 ? "num dim" : "num" }, text));
+}
+
+export function marketHint(w: World, def: ShopDef, state: ShopState, good: string): PriceHint | null {
+  return knowsMarket(w) ? pressureHint(def, state, good) : null;
+}
+
+export function tradeEstimate(w: World, held: number, sell: number, good: string): SaleEstimate {
+  return knowsMarket(w) ? saleEstimate(held, sell, w.player.costBasis[good]) : { kind: "none" };
 }
 
 function profitCell(e: SaleEstimate): HTMLElement {
@@ -883,7 +891,7 @@ export class TruckTradeScreen {
         this.button(t("trade.all"), (x) => sellTruckGood(x, npc.id, g, held), sellReason(held), `${g}:sellAll`),
       ),
       countCell("held", held),
-      profitCell(saleEstimate(held, sell, w.player.costBasis[g])),
+      profitCell(tradeEstimate(w, held, sell, g)),
     );
   }
 

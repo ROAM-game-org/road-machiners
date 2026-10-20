@@ -19,7 +19,7 @@ import { recall, sightingOf } from './memory';
 import { askHandover, handoverWith, parcelFor } from './parcel';
 import { heardRumor, siteRumor, tradeTip, type Rumor } from './rumors';
 import { closeEncounter, encounterOfTopic, favorAmount, moveStory, pendingFor, requirePending, storyBeatDue, tipPrice, tipTarget } from './encounters';
-import { hasPerk, practice } from './progress';
+import { hasBasic, hasPerk, practice } from './progress';
 import { abandonSpill, answerPlea, standDownBeggar, backOffClaims, defyClaims, guardsClaim, answersPlea, answersSurrender, offeredSurrenderBy, answersThreat, giveUpTo, handedOver, hasStrandedPrey, hasStrippable, judgedWorthOffer, makePeace, offersGiveUp, pendingPlea, playerPleaded, settlePlayerPlea, settleThreat, settleCashThreat, payOff, spillClaimOn, standDownTo, surrenderTo, yieldTo, type ThreatAnswer } from './parley';
 import { answerLootWarning, answerWarning, lootsBesidePlayer, pendingWarningTo, playerWarns, warnRefusalOf, type WarnAnswer } from './loot-warning';
 import { talkOf } from './dialogue';
@@ -308,6 +308,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   npcNeedsPatch: (world, npc) => needsPatch(world, npc) && !canFixItself(world, npc) && !inPatch(world, npc.id),
   npcWorn: (world, npc) => canTakeWornPatch(world, npc) && !canFixItself(world, npc) && !inPatch(world, npc.id) && !isTowing(world, npc.id) && !isStranded(world, playerVehicle(world)),
   npcOffRope: (world, npc) => !isOnRope(world, npc.id),
+  playerPatches: (world) => hasBasic(world, 'patching'),
   escortFollowed: (world, npc) => {
     const job = heldEscort(world);
     return job !== null && job.client === npc.id && job.holdUntil === null;

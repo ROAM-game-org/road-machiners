@@ -1,12 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { TIME } from '../data/time';
-import { MAX_RANK, type PerkId, RANK_COSTS, XP_RULES, XP_SOURCES } from '../data/skills';
+import { BASIC_IDS, BASICS, MAX_RANK, type PerkId, RANK_COSTS, XP_RULES, XP_SOURCES } from '../data/skills';
 import {
-  affordableRanks, buyCheapestRanks, buyRank, canBuyRank, choosePerk, cumulativeCost, hasPerk, pendingPerkPairs, practice, rankCost, ranksCoveredBy, skillEffect,
+  affordableRanks, basicRefusal, basicSkill, buyCheapestRanks, buyRank, canBuyRank, choosePerk, cumulativeCost, hasBasic, hasPerk, pendingPerkPairs, practice, rankCost, ranksCoveredBy, skillEffect,
   skillLevel, vehicleHasPerk, xpFor, xpTodayOf,
 } from './progress';
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld } from './testkit';
+
+describe('rank 1 basics', () => {
+  it('maps each skill to its own basic', () => {
+    expect(new Set(BASIC_IDS).size).toBe(5);
+    for (const [skill, basic] of Object.entries(BASICS)) expect(basicSkill(basic)).toBe(skill);
+  });
+
+  it('are closed at rank 0 with the rank they need, and open at once when rank 1 is bought', () => {
+    let w = emptyWorld();
+    expect(BASIC_IDS.filter((basic) => hasBasic(w, basic))).toEqual([]);
+    expect(basicRefusal(w, 'lookOver')).toEqual({ id: 'needsBasic', skill: 'perception' });
+    w.player.xp = 10_000;
+    w = buyRank(w, 'perception');
+    expect(hasBasic(w, 'lookOver')).toBe(true);
+    expect(basicRefusal(w, 'lookOver')).toBeNull();
+    expect(BASIC_IDS.filter((basic) => hasBasic(w, basic))).toEqual(['lookOver']);
+  });
+});
 
 describe('rank costs', () => {
   it('price each rank from the table', () => {

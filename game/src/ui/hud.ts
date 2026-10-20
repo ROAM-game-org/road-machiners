@@ -41,7 +41,7 @@ import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
-import { affordableRanks, pendingPerkPairs } from "../sim/progress";
+import { affordableRanks, basicSkill, pendingPerkPairs } from "../sim/progress";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
@@ -76,7 +76,12 @@ function actionTitle(action: ContextAction): Msg | undefined {
   return action.ready ? undefined : t("hud.stopToUse");
 }
 
-const douseMsg = (block: DouseBlock): Msg => (block === "noSupplies" ? t("hud.douseBlock.noSupplies", { n: ENGINE_HEAT.douseSupplies }) : t("hud.douseBlock.engineCool"));
+function douseMsg(w: World, block: DouseBlock | null): Msg | null {
+  if (block === null) return null;
+  if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("douse") });
+  if (block === "noSupplies") return t("hud.douseBlock.noSupplies", { n: ENGINE_HEAT.douseSupplies });
+  return t("hud.douseBlock.engineCool");
+}
 
 export const combatBlocked = (turns: number): Msg => t("hud.combatBlocked", { n: turns });
 
@@ -468,23 +473,29 @@ export class Hud {
       checked: od.checked,
       key: "O",
       reason: lock ?? od.reason,
+      locked: od.locked,
       title: od.title,
       onclick: () => this.actions.toggleOverdrive(),
     });
-    const douseBlocked = douseBlock(w);
-    const douseReason = lock ?? (douseBlocked === null ? null : douseMsg(douseBlocked));
-    const douse = el(
+    const douse = this.douseButton(w, lock);
+    return [headlights, overdrive, douse];
+  }
+
+  private douseButton(w: World, lock: Msg | null): HTMLElement {
+    const block = douseBlock(w);
+    const reason = lock ?? douseMsg(w, block);
+    return el(
       "button",
       {
         class: "instrument-button",
-        "aria-disabled": douseReason === null ? undefined : "true",
-        onclick: () => douseReason === null && this.actions.douseEngine(),
-        title: douseReason ?? t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }),
+        "aria-disabled": reason === null ? undefined : "true",
+        onclick: () => reason === null && this.actions.douseEngine(),
+        title: reason ?? t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }),
       },
+      block === "noBasic" ? createIcon("lock") : null,
       t("hud.douse"),
       keyCorner("G"),
     );
-    return [headlights, overdrive, douse];
   }
 
   private characterButton(w: World, busy: boolean): HTMLElement {

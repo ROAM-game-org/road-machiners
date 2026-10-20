@@ -5,7 +5,7 @@ import type { TraitId } from './npcs';
 export type TopicId = 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'demandCut' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'robCut' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'escortHold' | 'escortGo'
   | 'tale' | 'salvageTip' | 'challenge' | 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor' | 'lastSeen' | 'parcel' | 'claimWreck' | 'hireGuard' | 'dismissGuard';
 export type ConditionId =
-  | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsCut' | 'namesPrice' | 'noPrice' | 'canPayPrice' | 'noCargoRob' | 'noCutRob' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
+  | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'playerPatches' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsCut' | 'namesPrice' | 'noPrice' | 'canPayPrice' | 'noCargoRob' | 'noCutRob' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
   | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
   | 'accepts' | 'refuses' | 'complies' | 'resists' | 'runs' | 'claimsPlayerLoot' | 'holdsOn' | 'canTowNpc' | 'towedByPlayer' | 'noTrade' | 'npcCalm'
   | 'knowsLastTown' | 'hearsRumor' | 'rumorOfSite' | 'rumorOfWreck' | 'canPayTruce'
@@ -237,7 +237,7 @@ export const TOPICS: Record<TopicId, Topic> = {
     id: 'patchRequest',
     once: true,
     ask: null,
-    raise: { when: ['npcNeedsPatch', 'npcOffRope', 'npcCalm', 'atPeace'], priority: 1, duringFeud: false, duringCombat: false },
+    raise: { when: ['playerPatches', 'npcNeedsPatch', 'npcOffRope', 'npcCalm', 'atPeace'], priority: 1, duringFeud: false, duringCombat: false },
     prepare: 'patchTerms',
     hangUp: ['settleRefused'],
     start: 'ask',
@@ -661,7 +661,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   offerPatch: {
     id: 'offerPatch',
     once: false,
-    ask: { say: 'yourTruckLooksDead', when: ['npcNeedsPatch', 'npcOffRope', 'atPeace'], duringFeud: false },
+    ask: { say: 'yourTruckLooksDead', when: ['playerPatches', 'npcNeedsPatch', 'npcOffRope', 'atPeace'], duringFeud: false },
     raise: null,
     prepare: 'patchTerms',
     hangUp: [],
@@ -686,7 +686,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   offerPatchWorn: {
     id: 'offerPatchWorn',
     once: false,
-    ask: { say: 'yourEngineSoundsRough', when: ['npcWorn', 'npcOffRope', 'npcCalm', 'atPeace'], duringFeud: false },
+    ask: { say: 'yourEngineSoundsRough', when: ['playerPatches', 'npcWorn', 'npcOffRope', 'npcCalm', 'atPeace'], duringFeud: false },
     raise: null,
     prepare: 'patchTerms',
     hangUp: [],

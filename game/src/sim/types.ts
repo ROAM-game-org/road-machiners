@@ -234,6 +234,7 @@ export type Refusal =
   | { id: 'truckPartGone' }
   | { id: 'looting'; by: string; place: 'here' | 'wreck' | 'truck' }
   | { id: 'needsSpotter' }
+  | { id: 'needsBasic'; skill: SkillId }
   | { id: 'cannotAct' }
   | { id: 'noTruck' }
   | { id: 'unseen' }

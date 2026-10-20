@@ -1,4 +1,5 @@
 import { t, type Msg } from "../text/msg";
+import { createIcon } from "./cards";
 import { el } from "./dom";
 
 export interface SwitchOptions {
@@ -8,6 +9,7 @@ export interface SwitchOptions {
   key?: string;
   title: Msg;
   reason?: Msg | null;
+  locked?: boolean;
   onclick: () => void;
 }
 
@@ -28,9 +30,13 @@ export function createSwitch(o: SwitchOptions): HTMLElement {
       onclick: () => reason === null && o.onclick(),
     },
     el("span", { class: "switch-option" }, o.checked ? o.on : o.off),
-    switchLever(o.checked),
+    switchHandle(o),
     o.key ? keyCorner(o.key) : null,
   );
+}
+
+function switchHandle(o: SwitchOptions): HTMLElement {
+  return o.locked ? createIcon("lock") : switchLever(o.checked);
 }
 
 function switchLever(up: boolean): HTMLElement {

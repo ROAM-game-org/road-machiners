@@ -259,6 +259,7 @@ export const UI = {
   'character.xpPool': m("{n} XP", { n: 'int' }),
   'character.buyShort': m("Buy {cost} XP", { cost: 'int' }),
   'character.colPerk': m("Rank {rank} perk", { rank: 'int' }),
+  'character.colBasic': m("Rank {rank} basic", { rank: 'int' }),
   'character.colToday': m("Today, max {cap} XP", { cap: 'int' }),
   'stat.value': m("{text} {unit}", { text: 'text', unit: 'text' }),
   'stat.valueTight': m("{text}{unit}", { text: 'text', unit: 'text' }),
