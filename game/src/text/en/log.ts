@@ -211,6 +211,7 @@ export const LOG = {
   'log.townPatch': 'You patch your truck with scrap.',
   'log.siteEvent.surge': m('{site} turns out extra {good} today.', { site: 'text', good: 'text' }),
   'log.siteEvent.breakdown': m('The works at {site} break down. Little {good} comes out until they are fixed.', { site: 'text', good: 'text' }),
+  'log.engineCredit': m('The garage fits a {part} on credit.', { part: 'text' }),
   'log.scrapPatch': 'You patch up your car with scrap until it starts moving again.',
   'log.scrapPatchFuel': m('You patch up your car with scrap until it starts moving again. Townsfolk spare you {liters} L of fuel.', { liters: 'int' }),
   'log.npcKnockout': m('{who} knocked out', { who: 'text' }),
