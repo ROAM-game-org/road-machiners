@@ -155,7 +155,7 @@ export class Fx3D {
   private terrain: Terrain | null = null;
 
   constructor(private scene: THREE.Scene, private overlay: HTMLElement, private rig: CameraRig, private readonly world: () => World) {
-    scene.add(...this.cards.lit.meshes, ...this.cards.glow.meshes, ...this.chunks.meshes);
+    scene.add(this.cards.lit.mesh, this.cards.glow.mesh, ...this.chunks.meshes);
     this.flashes = new MuzzleFlashes(scene);
     this.casings = new Casings(scene);
     this.ruts = new Ruts(scene);
