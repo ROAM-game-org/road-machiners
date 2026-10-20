@@ -67,14 +67,14 @@ describe('stranded trucks', () => {
     w.states = [];
     w.obstacles = [hungRock];
     const truck = w.vehicles[0];
-    truck.pos = besideRock(1.1565, 0.4948);
-    truck.heading = -1.5101;
+    truck.pos = besideRock(1.4, 0);
+    truck.heading = Math.PI;
     truck.order = order;
     return w;
   }
 
   it('sets down a truck hung on a rock that tries to drive and does not move', () => {
-    const order: MoveOrder = { kind: 'stopAt', dest: besideRock(5.3665, 3.0398) };
+    const order: MoveOrder = { kind: 'stopAt', dest: besideRock(-6, 0) };
     const w = hungOnRock(order);
     const { w: after, counts } = strandedRun(w, buildDrive(w), RULES.stranded.turns + 1);
     expect(counts).toEqual(expected);
