@@ -428,11 +428,6 @@ export class Hud {
     );
   }
 
-  private surveyProgress(c: Contract): HTMLElement | null {
-    if (c.kind !== "survey" || isMet(c)) return null;
-    return el("span", { class: "dim" }, SPACE, surveyProgress(c), el("span", { class: "contract-clue" }, nextSurveyClue(c)));
-  }
-
   private renderContracts(w: World): void {
     const guard = playerGuard(w);
     if (w.player.contracts.length === 0 && guard === null) {
@@ -442,13 +437,7 @@ export class Hud {
     this.contracts.style.display = "";
     this.contracts.replaceChildren(
       el("h3", { class: "panel-title" }, t("hud.contracts")),
-      ...w.player.contracts.map((c) =>
-        el(
-          "div",
-          { class: "contract-line" },
-          c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c)),
-        ),
-      ),
+      ...w.player.contracts.map((c) => contractLine(w, c)),
       ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
     );
   }
@@ -738,6 +727,17 @@ function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
   );
 }
 
-function escortLine(w: World, c: EscortContract): HTMLElement {
-  return el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, escortStatusText(w, c));
+function escortLine(w: World, c: EscortContract): HTMLElement | null {
+  const status = escortStatusText(w, c);
+  return status ? el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, status) : null;
+}
+
+function surveyProgressLine(c: Contract): HTMLElement | null {
+  if (c.kind !== "survey" || isMet(c)) return null;
+  return el("div", { class: "dim" }, surveyProgress(c), SPACE, el("span", { class: "contract-clue" }, nextSurveyClue(c)));
+}
+
+export function contractLine(w: World, c: Contract): HTMLElement {
+  const state = c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c));
+  return el("div", { class: "contract-line" }, el("span", {}, contractSummary(c), surveyProgressLine(c), claimRivalMark(w, c)), state);
 }
