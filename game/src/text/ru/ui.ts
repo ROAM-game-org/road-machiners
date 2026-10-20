@@ -38,6 +38,7 @@ export const UI: Translation<typeof EN> = {
   'card.unpin': 'Закрыть карточку грузовика',
   'card.call': 'Вызвать',
   'card.mark': 'Пометить',
+  'card.lookOver': 'Осмотреть',
   'hud.horn': 'Гудок',
   'call.knockedOut': 'Водитель без сознания',
   'money.minus': '−{n, plural, one {# М} few {# М} many {# М} other {# М}}',

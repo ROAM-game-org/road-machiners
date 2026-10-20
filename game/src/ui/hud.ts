@@ -25,6 +25,7 @@ import {
   workLabel,
   workProgress,
   formatNpcCargo,
+  formatNpcLookOver,
   formatNpcMark,
   formatNpcTraits,
   formatVehicleState,
@@ -41,7 +42,8 @@ import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
-import { affordableRanks, basicSkill, pendingPerkPairs } from "../sim/progress";
+import { affordableRanks, basicSkill, hasBasic, pendingPerkPairs } from "../sim/progress";
+import { canLookOver } from "../sim/look-over";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
@@ -103,10 +105,11 @@ type HudActions = {
   dialogue: DialogueHost;
   recenter: () => void;
   unpin: () => void;
-  markInspected: () => void;
+  cardAction: (action: CardAction) => void;
   aimPart: (vehicleId: string, partId: string) => void;
   aimState: (vehicleId: string) => AimState;
 };
+export type CardAction = 'mark' | 'lookOver';
 export type CameraMode = "centered" | "auto";
 
 const TOAST_MS = 3500;
@@ -640,9 +643,15 @@ export class Hud {
     const own = v.faction === "player";
     const call = !own && v.brain && modeRules(w).radio ? [el("button", { class: "btn-s", ...disabledWith(callError(w, v.id), () => this.dialogue.callInspected()) }, t("card.call"))] : [];
     const refusal = markError(w, v.id);
-    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.markInspected()) }, t("card.mark"))];
+    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("mark")) }, t("card.mark"))];
     const close = el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: () => this.actions.unpin() }, t("hint.closeMark"));
-    return el("span", { class: "info-touch touch-only" }, ...call, ...mark, close);
+    return el("span", { class: "info-touch touch-only" }, ...call, ...this.lookOverButton(w, v), ...mark, close);
+  }
+
+  private lookOverButton(w: World, v: Vehicle): HTMLElement[] {
+    if (v.faction === "player" || !hasBasic(w, "lookOver")) return [];
+    const refusal = canLookOver(w, playerVehicle(w), v);
+    return [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("lookOver")) }, t("card.lookOver"))];
   }
 
   flushHorn(): void {
@@ -724,7 +733,7 @@ function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {
 
 function quietLines(w: World, v: Vehicle): Msg[] {
   if (!v.brain) return [];
-  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcMark(w, v)].filter((line) => line !== null);
+  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcLookOver(w, v), formatNpcMark(w, v)].filter((line) => line !== null);
 }
 
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {

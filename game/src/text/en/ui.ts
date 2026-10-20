@@ -37,6 +37,7 @@ export const UI = {
   'card.unpin': 'Close the truck card',
   'card.call': 'Call',
   'card.mark': 'Mark',
+  'card.lookOver': 'Look over',
   'hud.horn': 'Horn',
   'call.knockedOut': 'Their driver is knocked out',
   'money.minus': m("−{n, plural, one {# M} other {# M's}}", { n: 'count' }),

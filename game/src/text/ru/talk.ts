@@ -2,6 +2,9 @@ import type { TALK as EN } from '../en/talk';
 import type { Translation } from '../msg';
 
 export const TALK: Translation<typeof EN> = {
+  'line.whatAreYouLookingAt': 'Чего высматриваешь?',
+  'line.nothingMovingOn': 'Ничего. Еду дальше.',
+  'line.yourLoad': 'Твой груз.',
   'line.warnTerms': '{warnLine}',
   'line.thisOneIsSpokenFor': 'Эта уже занята, дружище. Проезжай.',
   'line.thatsMyPick': 'Это моя добыча. Катись дальше.',

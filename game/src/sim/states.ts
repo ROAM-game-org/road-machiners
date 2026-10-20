@@ -13,6 +13,7 @@ import { checkHire, endHireState } from './hire';
 import { checkEscort, checkPlayerTow, checkTowPromise, lapseClaim, payEscort } from './tow';
 import { checkTrade, isMeeting } from './economy';
 import { checkHandover } from './parcel';
+import { checkLookOver, checkSizedUp, lookOverWork, onLookedOver } from './look-over';
 import { inCombat, isHostile } from './combat';
 import { getResources } from './resources';
 import type { Job, NpcState, StateData, StateEnding, StateKindId, Vehicle, World } from './types';
@@ -27,7 +28,7 @@ export type StateKind = {
   refresh(w: World, s: NpcState): boolean;
   check(w: World, s: NpcState): StateEnding | null;
   hooks: Partial<Record<StateEnding, (w: World, s: NpcState) => void>>;
-  work(w: World, s: NpcState): WorkLeft | null;
+  work(w: World, s: NpcState, v: Vehicle): WorkLeft | null;
   binds: boolean;
 };
 
@@ -90,6 +91,8 @@ export const STATE_KINDS: Record<StateKindId, StateKind> = {
   lootWarning: { refresh: never, check: checkLootWarning, hooks: { expired: lapseLootWarning, broken: defendWarned }, work: noWork, binds: false },
   crew: { refresh: never, check: checkCrew, hooks: endingHooks(endCrewState), work: noWork, binds: true },
   hire: { refresh: never, check: checkHire, hooks: endingHooks(endHireState), work: noWork, binds: true },
+  lookOver: { refresh: never, check: checkLookOver, hooks: { fulfilled: onLookedOver }, work: lookOverWork, binds: false },
+  sizedUp: { refresh: never, check: checkSizedUp, hooks: {}, work: noWork, binds: false },
 };
 
 function endingHooks(end: (w: World, s: NpcState, ending: StateEnding) => void): StateKind['hooks'] {
@@ -137,7 +140,7 @@ function turnsOf(kind: StateKindId): number | null {
   return STATE_TURNS[kind];
 }
 
-const DATA_KIND: Record<StateKindId, StateData['kind']> = { feud: 'feud', backedOff: 'none', tow: 'tow', turnedDown: 'none', towPromise: 'towPromise', answering: 'none', patch: 'patch', truce: 'none', grievance: 'none', plea: 'plea', trade: 'none', handover: 'none', revenge: 'none', escort: 'escort', strayFire: 'strayFire', aid: 'aid', combat: 'none', lootWarning: 'lootWarning', crew: 'crew', hire: 'hire' };
+const DATA_KIND: Record<StateKindId, StateData['kind']> = { feud: 'feud', backedOff: 'none', tow: 'tow', turnedDown: 'none', towPromise: 'towPromise', answering: 'none', patch: 'patch', truce: 'none', grievance: 'none', plea: 'plea', trade: 'none', handover: 'none', revenge: 'none', escort: 'escort', strayFire: 'strayFire', aid: 'aid', combat: 'none', lootWarning: 'lootWarning', crew: 'crew', hire: 'hire', lookOver: 'none', sizedUp: 'none' };
 
 export function addState(w: World, kind: StateKindId, holder: string, other: string, data: StateData): NpcState {
   kindOf(kind);
@@ -302,7 +305,7 @@ export function workOf(w: World, v: Vehicle): Work | null {
   if (v.job) return { from: 'job', job: v.job, turnsLeft: v.job.turnsLeft, total: v.job.total };
   for (const state of w.states) {
     if (state.holder !== v.id && state.other !== v.id) continue;
-    const left = kindOf(state.kind).work(w, state);
+    const left = kindOf(state.kind).work(w, state, v);
     if (left) return { from: 'state', state, ...left };
   }
   return null;

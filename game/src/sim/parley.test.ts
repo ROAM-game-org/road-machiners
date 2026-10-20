@@ -15,7 +15,7 @@ import { makePeace, plead, standDownTo, surrenderTo, yieldTo } from './parley';
 import { claimantOf, emptyHidden, hasCargo, lootBlocker, looterOf } from './salvage';
 import { beginSearch } from './search';
 import { addState, endState, stateOf } from './states';
-import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, sizedUp } from './testkit';
 import type { Contract } from './market';
 import type { Faction, Vehicle, World } from './types';
 import { refreshVision } from './vision';
@@ -154,6 +154,7 @@ describe('NPC pleas to NPCs', () => {
     npcAt(w, 'independent', ['scavenger'], 40, 32);
     addState(w, 'feud', b.id, a.id, { kind: 'feud', robbery: true });
     addState(w, 'feud', a.id, b.id, { kind: 'feud', robbery: false });
+    sizedUp(w, b, a);
     return { w, a, b };
   }
 

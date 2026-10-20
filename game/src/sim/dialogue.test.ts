@@ -25,7 +25,7 @@ import { hasCargo, emptyHidden } from './salvage';
 import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { CONDITIONS, EFFECTS, PREPARES } from './dialogue-rules';
 import { addState, aidData, endState, stateOf } from './states';
-import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, setShopPressure, startCombat, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, setShopPressure, sizedUp, startCombat, testDrive } from './testkit';
 import type { TraitId } from '../data/npcs';
 import type { SalvageStock, Vehicle, World } from './types';
 import { directionsTo } from './directions';
@@ -387,6 +387,7 @@ describe('demand', () => {
     addGoods(w, playerVehicle(w), 'scrap', 2);
     const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    sizedUp(w, raider, playerVehicle(w));
     forceOption('hostileSeen', 'fight');
     forceOption('mugging', mugging);
     return { w, raider };
@@ -1282,6 +1283,7 @@ describe('robber truce', () => {
     for (const y of [28, 32]) addVehicle(w, 'independent', 'buggy', ['stockEngine', 'mg'], { x: 40, y }, Math.PI).brain = npcBrain('scavenger', { x: 40, y }, ['scavenger']);
     addState(w, 'feud', robber.id, w.player.vehicleId, { kind: 'feud', robbery });
     addState(w, 'feud', w.player.vehicleId, robber.id, { kind: 'feud', robbery: false });
+    sizedUp(w, robber, playerVehicle(w));
     refreshVision(w);
     return { w, robber };
   }

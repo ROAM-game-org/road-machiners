@@ -99,3 +99,16 @@ export function withHeardCentres_81_82(world: SavedJson): SavedJson {
   };
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
 }
+
+const STAPLE_SHOPS_83_84 = ['bowl', 'nose'];
+const STAPLE_PART_83_84 = 'stockEngine';
+type SavedShop = { stock: { defId: string }[]; restockAt: number };
+
+export function withStapleRestock_83_84(world: SavedJson): SavedJson {
+  const shops = { ...(world.shops as Record<string, SavedShop>) };
+  for (const id of STAPLE_SHOPS_83_84) {
+    const shop = shops[id];
+    if (shop && !shop.stock.some((part) => part.defId === STAPLE_PART_83_84)) shops[id] = { ...shop, restockAt: world.turn as number };
+  }
+  return { ...world, shops };
+}

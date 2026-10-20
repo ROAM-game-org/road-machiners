@@ -1,11 +1,9 @@
 
-import { DETECT } from './detect';
-import type { TraitId } from './npcs';
 
-export type TopicId = 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'demandCut' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'robCut' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'escortHold' | 'escortGo'
+export type TopicId = 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'demandCut' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'robCut' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'escortHold' | 'escortGo' | 'lookWarning'
   | 'tale' | 'salvageTip' | 'challenge' | 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor' | 'lastSeen' | 'parcel' | 'claimWreck' | 'hireGuard' | 'dismissGuard';
 export type ConditionId =
-  | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'playerPatches' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsCut' | 'namesPrice' | 'noPrice' | 'canPayPrice' | 'noCargoRob' | 'noCutRob' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
+  | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'playerPatches' | 'lookWarned' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsCut' | 'namesPrice' | 'noPrice' | 'canPayPrice' | 'noCargoRob' | 'noCutRob' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
   | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
   | 'accepts' | 'refuses' | 'complies' | 'resists' | 'runs' | 'claimsPlayerLoot' | 'holdsOn' | 'canTowNpc' | 'towedByPlayer' | 'noTrade' | 'npcCalm'
   | 'knowsLastTown' | 'hearsRumor' | 'rumorOfSite' | 'rumorOfWreck' | 'canPayTruce'
@@ -16,6 +14,7 @@ export type ConditionId =
   | 'asksCourierAid' | 'courierThanksDue' | 'courierSquareDue' | 'courierColdDue' | 'courierGrudgeDue' | 'courierFavorDue';
 export type EffectId =
   | 'revealTown' | 'settleDone' | 'settleRefused' | 'acceptTow' | 'refuseTow' | 'askTow' | 'agreePatch' | 'handOver' | 'surrender' | 'giveUp' | 'backOffClaim' | 'defyClaim'
+  | 'endLookWarning' | 'answerLoadThreat'
   | 'acceptPlea' | 'refusePlea' | 'settlePlea' | 'payToll' | 'payDemand' | 'payTollMoney' | 'paySpared' | 'settleRobCut' | 'settleDemandRefused' | 'refuseToll' | 'withdrawPlea' | 'settleThreat' | 'settleWarning' | 'hitchNpc' | 'hitchNpcFree' | 'releaseNpc' | 'startTrade'
   | 'revealRumor' | 'payTruce' | 'giveAidPaid' | 'giveAidFree' | 'takeAid' | 'acceptAidOffer' | 'refuseAidOffer' | 'yieldToPlayer' | 'askStandDown' | 'standDownPlea' | 'abandonSpill' | 'noteWagonRoad' | 'noteClaimLead'
   | 'leaveLootWarning' | 'refuseLootWarning' | 'fightLootWarning' | 'hangUpLootWarning' | 'payTalk' | 'holdEscort' | 'releaseHold'
@@ -39,6 +38,7 @@ export type Topic = {
 };
 
 export const LINE_IDS = [
+  'whatAreYouLookingAt', 'nothingMovingOn', 'yourLoad',
   'armyWagonTold', 'seenADeadArmy', 'seenThatWreck', 'claimWreckTold', 'anyoneElseAsking', 'crewAskedTheSame', 'nobodyElseAsked', 'whatElseDidYouSee', 'agreedGunsDown', 'allRightIAm', 'allRightItIs', 'alreadySaid', 'anythingInteresting',
   'busy', 'canYouDoAnything', 'clearTheChannel', 'comeAndGetIt', 'comeAndTakeIt', 'dealHitchMeUp', 'dealHitchUp',
   'dealIWillStay', 'dealPlain', 'dealPullOverAnd', 'dealSendingIt', 'dealStayWhereYou', 'dealTerms', 'demandCargo',
@@ -573,6 +573,29 @@ export const TOPICS: Record<TopicId, Topic> = {
       },
       backsOff: { line: 'keepYourScrapsThen', options: [{ say: 'thoughtSo', when: [], effects: [], go: END }] },
       fights: { line: 'thenWeSettleIt', options: [{ say: 'bringIt', when: [], effects: [], go: END }] },
+    },
+  },
+  lookWarning: {
+    id: 'lookWarning',
+    once: false,
+    ask: null,
+    raise: { when: ['lookWarned', 'atPeace', 'npcCalm'], priority: 2, duringFeud: false, duringCombat: false },
+    prepare: 'threatAnswer',
+    hangUp: ['endLookWarning'],
+    start: 'warn',
+    nodes: {
+      warn: {
+        line: 'whatAreYouLookingAt',
+        options: [
+          { say: 'nothingMovingOn', when: [], effects: ['endLookWarning'], go: END },
+          { say: 'yourLoad', when: ['npcHasCargo', 'noCargoRob', 'complies'], effects: ['endLookWarning', 'answerLoadThreat'], go: 'comply' },
+          { say: 'yourLoad', when: ['npcHasCargo', 'noCargoRob', 'resists'], effects: ['endLookWarning', 'answerLoadThreat'], go: 'fightBack' },
+          { say: 'yourLoad', when: ['npcHasCargo', 'noCargoRob', 'runs'], effects: ['endLookWarning', 'answerLoadThreat'], go: 'flee' },
+        ],
+      },
+      comply: { line: 'allRightItIs', options: [{ say: 'smartChoice', when: [], effects: [], go: END }] },
+      fightBack: { line: 'comeAndTakeIt', options: [{ say: 'yourFuneral', when: [], effects: [], go: END }] },
+      flee: { line: 'notTodayRun', options: [{ say: 'runThen', when: [], effects: [], go: END }] },
     },
   },
   truceOffer: {
@@ -1116,46 +1139,4 @@ export const TOPICS: Record<TopicId, Topic> = {
   },
 };
 
-export type Voice = {
-  greeting: LineId;
-  repeatLine: LineId;
-  refusal: LineId;
-  warnOff: LineId;
-  honksBack: boolean;
-};
-
-export type TraitTalk = { voice: Voice | null; topics: TopicId[] };
-
-export const HONK_RANGE = DETECT.sound.limp;
-
-export type TalkGate = 'service' | 'rescue';
-
-export const TOPIC_GATES: Partial<Record<TopicId, TalkGate>> = {
-  directions: 'service', trade: 'service', marketNews: 'service', rumor: 'service', armyWagon: 'service', tips: 'service',
-  tow: 'rescue', towFree: 'rescue', askTow: 'rescue', patch: 'rescue', askAid: 'rescue', aidOffer: 'rescue', patchRequest: 'rescue',
-  offerTow: 'rescue', offerPatch: 'rescue', offerPatchWorn: 'rescue', offerAid: 'rescue', releaseTow: 'rescue',
-};
-
-export const COLD_LINES = { known: 'iKnowWhatYouDid', kind: 'notYourKind' } as const satisfies Record<string, LineId>;
-
-const TALES: TopicId[] = ['tale'];
-const CHALLENGE: TopicId[] = ['challenge'];
-const COURIER_STORY: TopicId[] = ['courierShort', 'courierThanks', 'courierSquare', 'courierCold', 'courierGrudge', 'courierFavor'];
-
-const PARLEY: TopicId[] = ['spillClaim', 'surrender', 'giveUp', 'claim', 'truce', 'mercy', 'yieldDemand', 'buyTruce', 'rob', 'robCut', 'lootWarning', 'warnOff', 'truceOffer', 'mercyPlea', 'offerTow', 'releaseTow', 'offerPatch', 'offerPatchWorn', 'offerAid'];
-
-export const TRAIT_TALK: Record<TraitId, TraitTalk> = {
-  trader: { voice: { greeting: 'goAhead', repeatLine: 'weAlreadyTalkedAbout', refusal: 'nothingToSayTo', warnOff: 'thisOneIsSpokenFor', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', 'escortHold', 'escortGo', ...TALES, ...CHALLENGE, ...PARLEY] },
-  scavenger: { voice: { greeting: 'yeahMakeItQuick', repeatLine: 'iToldYouAlready', refusal: 'getOffMyChannel', warnOff: 'thatsMyPick', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...PARLEY] },
-  raider: { voice: { greeting: 'getLost', repeatLine: 'getLost', refusal: 'hehNo', warnOff: 'offMyLootNow', honksBack: false }, topics: ['demand', 'demandCut', ...CHALLENGE, ...PARLEY] },
-  scumbag: { voice: null, topics: ['demand', 'demandCut', ...CHALLENGE, ...PARLEY] },
-  coward: { voice: null, topics: PARLEY },
-  brave: { voice: null, topics: [...CHALLENGE, ...PARLEY] },
-  lawman: { voice: { greeting: 'speakUp', repeatLine: 'heardYouTheFirst', refusal: 'clearTheChannel', warnOff: 'leaveThatSalvageBe', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', ...PARLEY] },
-  courier: { voice: { greeting: 'makeItShort', repeatLine: 'saidThatAlready', refusal: 'noTimeOut', warnOff: 'imTakingThatOne', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...TALES, ...CHALLENGE, ...COURIER_STORY, ...PARLEY] },
-  roamer: { voice: { greeting: 'whatDoYouWant', repeatLine: 'oldNewsFriend', refusal: 'notTalking', warnOff: 'sawThisOneFirst', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...PARLEY] },
-  vulture: { voice: { greeting: 'keepItShort', repeatLine: 'alreadySaid', refusal: 'nothingForYou', warnOff: 'mineGoPickAnother', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'patchRequest', 'trade', 'salvageTip', ...CHALLENGE, ...PARLEY] },
-  supplier: { voice: { greeting: 'listening', repeatLine: 'weCoveredThat', refusal: 'keepOffThisChannel', warnOff: 'weAreTakingThisOne', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...TALES, ...PARLEY] },
-  guard: { voice: { greeting: 'stateYourBusiness', repeatLine: 'heardYou', refusal: 'moveAlong', warnOff: 'backAwayFromThat', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', ...PARLEY] },
-  merc: { voice: { greeting: 'talk', repeatLine: 'youSaidThat', refusal: 'notInterested', warnOff: 'thatsMineWalkAway', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', 'hireGuard', 'dismissGuard', ...CHALLENGE, ...PARLEY] },
-};
+export { COLD_LINES, HONK_RANGE, TOPIC_GATES, TRAIT_TALK, type TalkGate, type TraitTalk, type Voice } from './personalities';

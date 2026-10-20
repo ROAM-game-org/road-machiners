@@ -1,6 +1,9 @@
 import { m } from '../msg';
 
 export const TALK = {
+  'line.whatAreYouLookingAt': 'What are you looking at?',
+  'line.nothingMovingOn': 'Nothing. Moving on.',
+  'line.yourLoad': 'Your load.',
   'line.warnTerms': m('{warnLine}', { warnLine: 'text' }),
   'line.thisOneIsSpokenFor': 'This one\'s spoken for, friend. Move along.',
   'line.thatsMyPick': 'That\'s my pick. Roll on.',
