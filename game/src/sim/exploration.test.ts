@@ -5,7 +5,11 @@ import { PHYSICS } from '../data/physics';
 import { setMoveOrder } from './world';
 import { dist, polylineDist, type Vec } from './vec';
 import { siteGap } from './sites';
-import { discoverSites } from './locations';
+import { discoverSites, mappedSites } from './locations';
+import { buyChart, sheetAt } from './charts';
+import { sitePads } from './sites';
+import { emptyWorld } from './testkit';
+import { tileCenter } from './vision';
 import { refreshVision } from './vision';
 import { bodyOf } from './body';
 import { standardWorld } from '../test/world-cache';
@@ -82,4 +86,64 @@ describe('discovering an outlined territory', () => {
     discoverSites(world);
     expect(world.player.discovered).toEqual([]);
   }, budget(15_000));
+});
+
+describe('sites on the player map', () => {
+  const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
+  const orchard = REGION.locations.find((l) => l.id === 'orchard')!;
+  const blank = () => {
+    const world = emptyWorld(sitePads(bowl)[0]);
+    world.player.explored.fill(0);
+    world.player.discovered = [];
+    return world;
+  };
+  const tileWhere = (world: ReturnType<typeof blank>, test: (center: Vec) => boolean, near: Vec): number => {
+    let best = -1;
+    for (let idx = 0; idx < world.size * world.size; idx++) {
+      const c = tileCenter(world, idx);
+      if (test(c) && (best < 0 || dist(c, near) < dist(tileCenter(world, best), near))) best = idx;
+    }
+    return best;
+  };
+
+  it('leaves a told town off the map while no tile of it is explored', () => {
+    const world = blank();
+    world.player.discovered = ['nose'];
+    expect(mappedSites(world).size).toBe(0);
+  }, budget(15_000));
+
+  it('maps Bowl from one explored tile at its pad reach while its centre stays unexplored', () => {
+    const world = blank();
+    const reach = REGION.sites.pad.length;
+    const edge = tileWhere(world, (c) => siteGap(bowl, c) <= reach && siteGap(bowl, c) > reach - 1, sitePads(bowl)[0]);
+    const past = tileWhere(world, (c) => siteGap(bowl, c) > reach + 1, sitePads(bowl)[0]);
+    world.player.explored[past] = 1;
+    expect(mappedSites(world).has('bowl')).toBe(false);
+    world.player.explored[edge] = 1;
+    expect(mappedSites(world).has('bowl')).toBe(true);
+    expect(world.player.explored[tileWhere(world, () => true, bowl.pos)]).toBe(0);
+  }, budget(30_000));
+
+  it('maps the orchard from one explored tile inside its outline', () => {
+    const world = blank();
+    const inside = tileWhere(world, (c) => siteGap(orchard, c) <= 0, orchard.pos);
+    world.player.explored[inside] = 1;
+    expect([...mappedSites(world)]).toEqual(['orchard']);
+  }, budget(30_000));
+
+  it('maps the sites on a bought chart and changes nothing in the world', () => {
+    const world = blank();
+    world.player.money = 100000;
+    const bought = buyChart(world, sheetAt(world.size, bowl.pos));
+    const before = JSON.stringify([bought.player.explored.length, bought.player.discovered, bought.events.length]);
+    expect(mappedSites(bought).has('bowl')).toBe(true);
+    expect(JSON.stringify([bought.player.explored.length, bought.player.discovered, bought.events.length])).toBe(before);
+  }, budget(30_000));
+
+  it('discovers Bowl from its pad tiles in sight', () => {
+    const world = blank();
+    refreshVision(world);
+    discoverSites(world);
+    expect(world.player.discovered).toContain('bowl');
+  }, budget(30_000));
 });
