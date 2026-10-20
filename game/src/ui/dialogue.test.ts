@@ -15,7 +15,7 @@ describe('trading tip text', () => {
   });
 
   it('names the site and the good of a cheap tip', () => {
-    expect(en(tipText({ kind: 'tip', tip: { shop: 'granary', good: 'grain', dear: false } }))).toBe('Last time I was at The Granary, grain was going cheap.');
+    expect(en(tipText({ kind: 'tip', tip: { shop: 'granary', good: 'grain', dear: false } }))).toBe('Last time I was at The Granary, sorgut was going cheap.');
   });
 
   it('fits the verb to a good with a plural name', () => {
@@ -53,6 +53,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   lastTownPrices: ['town', 'prices'],
   nearestRumor: ['site', 'way'],
   tradeTip: ['tip'],
+  roadLesson: ['lesson'],
   trucePrice: ['price'],
   guardOffer: ['price'],
   aidWanted: ['aid', 'price'],
@@ -86,6 +87,7 @@ const SAMPLE: Record<string, CallVar> = {
   tip: { kind: 'tip', tip: { shop: 'nose', good: 'meds', dear: false } },
   aid: { kind: 'aid', fuel: 2, supplies: 3 },
   warnLine: { kind: 'line', line: 'thatsMyPick' },
+  lesson: { kind: 'line', line: 'lessonLawGates' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
   sighting: { kind: 'sighting', driver: 'Jed Cobb', seen: { bearing: 0.8, tiles: 300, turns: 80, heading: 3.1 } },
 };
