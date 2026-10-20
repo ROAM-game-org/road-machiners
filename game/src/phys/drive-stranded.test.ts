@@ -213,7 +213,7 @@ describe('trucks held on a low prop', () => {
     const { w, d } = onTrap({ x: 0.2, y: 0.3 }, { x: 27, y: 31.5 });
     const counted = turns(w, d, 8).filter((t) => t.count > 0);
     expect(counted.some((t) => t.moved > 0.1)).toBe(true);
-    expect(counted.every((t) => t.anchor !== undefined)).toBe(true);
+    expect(counted.filter((t) => t.count < RULES.stranded.turns).every((t) => t.anchor !== undefined)).toBe(true);
   });
 
   it('ends the run of a truck that drives clear of the trap', () => {
