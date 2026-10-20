@@ -77,7 +77,7 @@ async function bootSlot(slot: SlotId): Promise<Booted> {
     if (!loaded) return newGameSaved(defaultSetup('roaming'), true);
     const runId = savedRunId(storedSave(slots, slot));
     if (runId === null) throw new Error(`The save in ${slot} loaded but names no run`);
-    if (hasRepair(loaded.repair)) await boot.aside(() => showRepairReport(loaded.repair, soundSettings));
+    if (hasRepair(loaded.repair)) await boot.aside(() => showRepairReport(loaded.world, loaded.repair, soundSettings));
     return { world: loaded.world, runId, loadedFrom: slot, fresh: false };
   } catch (err) {
     return unloadedSlot(err, slot);

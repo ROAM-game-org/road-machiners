@@ -2,7 +2,7 @@ import { CHASSIS, chassisDef } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { HUB, LINE_IDS, REFUSED, TOPICS } from '../data/dialogue';
 import { isNoteId } from '../data/locals';
-import { SHOPS } from '../data/market';
+import { SHOPS, SITE_EVENTS } from '../data/market';
 import { FURY_ROAD } from '../data/modes';
 import { FIRST_NAMES, NPCS, SURNAMES, TRAITS } from '../data/npcs';
 import { PARTS, partDef } from '../data/parts';
@@ -22,31 +22,32 @@ import { isPerkId } from './progress';
 import { modeRules } from './settings';
 import { endState, STATE_KINDS, settleStates } from './states';
 import { fuelCap, suppliesCap } from './stats';
-import type { Call, GridItem, Job, NpcActivity, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World } from './types';
+import type { Call, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World } from './types';
 import { carryHp, maxHp } from './wear';
 import { wornReload } from './utility';
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
+type ParcelItem = Extract<GridItem, { kind: 'parcel' }>;
 type ShopDefinition = (typeof SHOPS)[string];
 
 export function repairContent(world: World): string[] {
-  const owned: Sinks = { mine: [], world: [] };
+  const lost: string[] = [];
   dropStateKinds(world);
-  dropGoneContent(world, owned);
+  dropGoneContent(world, lost);
   const doomed = new Set<string>();
-  repairTrucks(world, doomed, owned);
+  repairTrucks(world, doomed, lost);
   removeNpcs(world, doomed);
   clampParts(world);
   for (const v of world.vehicles) fitGoals(world, v);
   repairShops(world);
   renameDrivers(world);
-  owned.mine.push(...repairPlayer(world));
+  lost.push(...repairPlayer(world));
   repairCall(world);
   for (const v of world.vehicles) fitPriceMemories(v);
   fitRoadNews(world);
-  fitEscorts(world);
+  fitSites(world);
   fitWaves(world);
-  return [...new Set(owned.mine)];
+  return [...new Set(lost)];
 }
 
 function isShop(id: string): boolean {
@@ -66,9 +67,22 @@ function goalNames(goal: NpcActivity): { goods: string[]; shops: string[] } {
   };
 }
 
+const SITE_GOALS: ReadonlySet<NpcActivity['kind']> = new Set(['travel', 'resupply', 'sell', 'trade', 'retreat']);
+
+function targetFits(world: World, goal: NpcActivity): boolean {
+  const id = goal.targetId;
+  if (id === null) return true;
+  if (Object.hasOwn(world.shops, id) && !isShop(id)) return false;
+  return isSite(id) || siteOptional(world, goal.kind, id);
+}
+
+function siteOptional(world: World, kind: NpcActivity['kind'], id: string): boolean {
+  if (kind === 'tow') return world.vehicles.some((v) => v.id === id);
+  return !SITE_GOALS.has(kind);
+}
+
 function goalFits(world: World, goal: NpcActivity): boolean {
-  const target = goal.targetId;
-  if (target !== null && Object.hasOwn(world.shops, target) && !isShop(target)) return false;
+  if (!targetFits(world, goal)) return false;
   const names = goalNames(goal);
   return names.goods.every(isGood) && names.shops.every(isShop);
 }
@@ -81,10 +95,21 @@ function fitRoadNews(world: World): void {
   world.roadNews = world.roadNews.filter((n) => isGood(n.good) && isShop(n.from) && isShop(n.to));
 }
 
-function fitEscorts(world: World): void {
-  for (const s of [...world.states]) {
-    if (s.data.kind === 'escort' && s.data.site !== null && !isSite(s.data.site)) endState(world, s, 'broken');
-  }
+function stateSite(s: NpcState): string | null {
+  return s.data.kind === 'tow' || s.data.kind === 'towPromise' || s.data.kind === 'escort' ? s.data.site : null;
+}
+
+function jobSite(job: Job | null): string | null {
+  return job?.kind === 'business' ? job.siteId : null;
+}
+
+function siteGone(site: string | null): boolean {
+  return site !== null && !isSite(site);
+}
+
+function fitSites(world: World): void {
+  for (const s of world.states.filter((x) => siteGone(stateSite(x)))) if (world.states.includes(s)) endState(world, s, 'broken');
+  for (const v of world.vehicles) if (siteGone(jobSite(v.job))) v.job = null;
 }
 
 function isWaveTemplate(id: string): boolean {
@@ -97,12 +122,6 @@ function fitWaves(world: World): void {
     group.templates = group.templates.filter(isWaveTemplate);
     if (group.templates.length === 0) group.spawned = true;
   }
-}
-
-type Sinks = { mine: string[]; world: string[] };
-
-function sinkOf(world: World, v: Vehicle, sinks: Sinks): string[] {
-  return ownTruckIds(world).has(v.id) ? sinks.mine : sinks.world;
 }
 
 function fitPriceMemories(v: Vehicle): void {
@@ -140,55 +159,53 @@ function dropStateKinds(world: World): void {
   world.states = world.states.filter((s) => Object.hasOwn(STATE_KINDS, s.kind));
 }
 
-function dropGoneContent(world: World, sinks: Sinks): void {
-  for (const v of world.vehicles) stripVehicle(v, sinkOf(world, v, sinks));
-  world.player.storage = knownParts(world.player.storage, sinks.mine);
-  for (const stock of world.salvage) stripSalvage(stock, sinks.world);
-  for (const shop of Object.values(world.shops)) stripShop(shop, sinks.world);
-  for (const outpost of outpostsOf(world)) outpost.stock = knownParts(outpost.stock, sinks.world);
-  dropOwnContracts(world, sinks.mine);
-  dropUnknownKeys(world.player.costBasis, sinks.world);
-  dropHulks(world, sinks.world);
+function dropGoneContent(world: World, lost: string[]): void {
+  const own = ownTruckIds(world);
+  for (const v of world.vehicles) {
+    const gone = stripVehicle(v);
+    if (own.has(v.id)) lost.push(...gone);
+  }
+  lost.push(...world.player.storage.filter((p) => !isPart(p.defId)).map((p) => p.defId));
+  world.player.storage = knownParts(world.player.storage);
+  for (const stock of world.salvage) stripSalvage(stock);
+  for (const shop of Object.values(world.shops)) stripShop(shop);
+  for (const outpost of outpostsOf(world)) outpost.stock = knownParts(outpost.stock);
+  dropOwnContracts(world, lost);
+  dropUnknownKeys(world.player.costBasis);
+  dropHulks(world);
 }
 
 function outpostsOf(world: World): OutpostFacts[] {
   return world.furyRoad ? world.furyRoad.outposts : [];
 }
 
-function stripSalvage(stock: SalvageStock, lost: string[]): void {
-  stock.parts = knownParts(stock.parts, lost);
-  stock.hidden.parts = knownParts(stock.hidden.parts, lost);
-  dropUnknownKeys(stock.goods, lost);
-  dropUnknownKeys(stock.hidden.goods, lost);
-  if (stock.pile) dropUnknownKeys(stock.pile.basis, lost);
+function stripSalvage(stock: SalvageStock): void {
+  stock.parts = knownParts(stock.parts);
+  stock.hidden.parts = knownParts(stock.hidden.parts);
+  dropUnknownKeys(stock.goods);
+  dropUnknownKeys(stock.hidden.goods);
+  if (stock.pile) dropUnknownKeys(stock.pile.basis);
 }
 
-function stripShop(shop: ShopState, lost: string[]): void {
-  shop.stock = knownParts(shop.stock, lost);
-  shop.contracts = shop.contracts.filter((c) => contractKept(c, lost));
+function stripShop(shop: ShopState): void {
+  shop.stock = knownParts(shop.stock);
+  shop.contracts = shop.contracts.filter((c) => contractGone(c) === null);
 }
 
-function knownParts(parts: PartInstance[], lost: string[]): PartInstance[] {
-  const gone = parts.filter((p) => !isPart(p.defId));
-  if (gone.length === 0) return parts;
-  lost.push(...gone.map((p) => p.defId));
+function knownParts(parts: PartInstance[]): PartInstance[] {
   return parts.filter((p) => isPart(p.defId));
 }
 
-function dropUnknownKeys(goods: Record<string, number>, lost: string[]): void {
-  for (const good of Object.keys(goods)) {
-    if (isGood(good)) continue;
-    delete goods[good];
-    lost.push(good);
-  }
+function dropUnknownKeys(goods: Record<string, number>): void {
+  for (const good of Object.keys(goods)) if (!isGood(good)) delete goods[good];
 }
 
-function stripVehicle(v: Vehicle, lost: string[]): void {
+function stripVehicle(v: Vehicle): string[] {
   const gone = v.items.filter((it) => (isPartItem(it) && !isPart(it.part.defId)) || (it.kind === 'good' && !isGood(it.good)));
-  if (gone.length === 0) return;
-  lost.push(...gone.map(itemContent));
+  if (gone.length === 0) return [];
   v.items = v.items.filter((it) => !gone.includes(it));
   forget(v, idsOf(gone));
+  return gone.map(itemContent);
 }
 
 function itemContent(item: GridItem): string {
@@ -219,12 +236,6 @@ function refitUses(job: RefitJob, ids: ReadonlySet<string>): boolean {
 
 function pickupUses(pickup: RefitPickup | null, ids: ReadonlySet<string>): boolean {
   return pickup !== null && (ids.has(pickup.partId) || ids.has(pickup.itemId));
-}
-
-function contractKept(c: Contract, lost: string[]): boolean {
-  const gone = contractGone(c);
-  if (gone !== null) lost.push(gone);
-  return gone === null;
 }
 
 function contractGone(c: Contract): string | null {
@@ -259,26 +270,23 @@ function dropOwnContracts(world: World, lost: string[]): void {
   if (doomed.length === 0) return;
   const truck = world.vehicles.find((v) => v.id === world.player.vehicleId);
   for (const c of doomed) if (c.kind === 'search' && truck && parcelOf(truck, c.id)) removeParcel(truck, c.id);
-  world.player.contracts = world.player.contracts.filter((c) => contractKept(c, lost));
+  lost.push(...doomed.map((c) => contractGone(c)!));
+  world.player.contracts = world.player.contracts.filter((c) => !doomed.includes(c));
 }
 
-function dropHulks(world: World, lost: string[]): void {
-  for (const o of world.obstacles) {
-    if (o.kind === 'landmark' || !o.hulk || isChassis(o.hulk.chassisId)) continue;
-    lost.push(o.hulk.chassisId);
-    delete o.hulk;
-  }
+function dropHulks(world: World): void {
+  for (const o of world.obstacles) if (o.kind !== 'landmark' && o.hulk && !isChassis(o.hulk.chassisId)) delete o.hulk;
 }
 
 function ownTruckIds(world: World): Set<string> {
   return new Set([world.player.vehicleId, ...(world.furyRoad ? [world.furyRoad.hauler.id] : [])]);
 }
 
-function repairTrucks(world: World, doomed: Set<string>, sinks: Sinks): void {
+function repairTrucks(world: World, doomed: Set<string>, lost: string[]): void {
   const own = ownTruckIds(world);
   for (const v of world.vehicles) {
-    if (own.has(v.id)) repairOwnTruck(world, v, sinks.mine);
-    else repairNpc(world, v, doomed, sinks.world);
+    if (own.has(v.id)) repairOwnTruck(world, v, lost);
+    else repairNpc(world, v, doomed);
   }
 }
 
@@ -287,14 +295,12 @@ function repairOwnTruck(world: World, v: Vehicle, lost: string[]): void {
     lost.push(v.chassisId);
     swapChassis(world, v, lost);
   } else if (!coresSeated(v)) reseatCores(world, v, lost);
-  fitItems(world, v, true, lost);
+  lost.push(...fitItems(world, v, true));
 }
 
-function repairNpc(world: World, v: Vehicle, doomed: Set<string>, lost: string[]): void {
-  const unknown = unknownOf(v);
-  if (unknown === null && coresSeated(v)) return fitItems(world, v, false, lost);
-  doomed.add(v.id);
-  lost.push(unknown ?? v.chassisId);
+function repairNpc(world: World, v: Vehicle, doomed: Set<string>): void {
+  if (unknownOf(v) === null && coresSeated(v)) fitItems(world, v, false);
+  else doomed.add(v.id);
 }
 
 function unknownOf(v: Vehicle): string | null {
@@ -313,7 +319,7 @@ function startChassis(world: World, v: Vehicle): string {
 
 function swapChassis(world: World, v: Vehicle, lost: string[]): void {
   const spares = v.items.filter(isPartItem).filter((it) => !isCoreItem(it));
-  const parcels = v.items.filter((it) => it.kind === 'parcel');
+  const parcels = v.items.filter((it): it is ParcelItem => it.kind === 'parcel');
   const goods = Object.entries(goodsHeld(v));
   world.player.storage.push(...spares.map((it) => it.part));
   v.chassisId = startChassis(world, v);
@@ -322,8 +328,8 @@ function swapChassis(world: World, v: Vehicle, lost: string[]): void {
   v.utilityOrders = {};
   v.job = null;
   addCoreParts(world, v);
+  for (const parcel of parcels) if (!placeParcel(v, parcel)) lost.push(...dropParcelContract(world, parcel.contract));
   for (const [good, units] of goods) for (let i = addGoods(world, v, good, units); i < units; i++) lost.push(good);
-  for (const parcel of parcels) placeParcel(v, parcel);
   fitFuel(world, v);
 }
 
@@ -333,10 +339,11 @@ function goodsHeld(v: Vehicle): Record<string, number> {
   return held;
 }
 
-function placeParcel(v: Vehicle, parcel: GridItem): void {
+function placeParcel(v: Vehicle, parcel: GridItem): boolean {
   const spot = findSpot(gridOf(v), v.items, parcel, null, null);
-  if (!spot) throw new Error(`No cargo cell for parcel ${parcel.id} on ${v.id}`);
+  if (!spot) return false;
   v.items.push({ ...parcel, ...spot });
+  return true;
 }
 
 function fitFuel(world: World, v: Vehicle): void {
@@ -380,16 +387,16 @@ function seatedCore(world: World, spec: CoreSpec, old: PartItem | null): GridIte
 }
 
 function fitRank(item: GridItem): number {
-  if (item.kind === 'part') return partDef(item.part.defId).kind === 'cargo' ? 0 : 1;
-  return item.kind === 'good' ? 2 : 3;
+  if (item.kind === 'part') return partDef(item.part.defId).kind === 'cargo' ? 0 : 2;
+  return item.kind === 'parcel' ? 1 : 3;
 }
 
-function fitItems(world: World, v: Vehicle, mine: boolean, lost: string[]): void {
+function fitItems(world: World, v: Vehicle, mine: boolean): string[] {
   const dropped = misfits(v);
-  if (dropped.length === 0) return;
-  for (const item of dropped) lost.push(...displaced(world, item, mine));
+  if (dropped.length === 0) return [];
   v.items = v.items.filter((it) => !dropped.includes(it));
   forget(v, idsOf(dropped));
+  return dropped.flatMap((item) => displaced(world, item, mine));
 }
 
 function misfits(v: Vehicle): GridItem[] {
@@ -412,19 +419,24 @@ function fitsGrid(grid: Grid, kept: GridItem[], item: GridItem): boolean {
 function relocated(grid: Grid, kept: GridItem[], item: GridItem): boolean {
   if (item.kind === 'part') return false;
   const spot = findSpot(grid, kept, item, null, null);
-  if (!spot) {
-    if (item.kind === 'parcel') throw new Error(`No cargo cell for parcel ${item.id}`);
-    return false;
-  }
+  if (!spot) return false;
   Object.assign(item, spot);
   kept.push(item);
   return true;
 }
 
 function displaced(world: World, item: GridItem, mine: boolean): string[] {
+  if (item.kind === 'parcel') return dropParcelContract(world, item.contract);
   if (!isPartItem(item) || !mine || isCoreItem(item)) return [itemContent(item)];
   world.player.storage.push(item.part);
   return [];
+}
+
+function dropParcelContract(world: World, id: string): string[] {
+  const contract = world.player.contracts.find((c) => c.id === id);
+  if (!contract) throw new Error(`Parcel names contract ${id}, which the player does not hold`);
+  world.player.contracts = world.player.contracts.filter((c) => c !== contract);
+  return [contract.kind === 'search' ? contract.template : contract.id];
 }
 
 function removeNpcs(world: World, doomed: ReadonlySet<string>): void {
@@ -471,12 +483,20 @@ function clampCharge(part: PartInstance): void {
 
 function repairShops(world: World): void {
   for (const id of Object.keys(world.shops)) if (!Object.hasOwn(SHOPS, id)) delete world.shops[id];
-  for (const [id, state] of Object.entries(world.shops)) fitGoods(state, SHOPS[id]);
+  for (const [id, state] of Object.entries(world.shops)) {
+    fitGoods(state, SHOPS[id]);
+    fitEvent(id, state);
+  }
   if (modeRules(world).traffic) addMissingShops(world);
 }
 
 function addMissingShops(world: World): void {
   for (const id of Object.keys(SHOPS)) if (!Object.hasOwn(world.shops, id)) addShop(world, id);
+}
+
+function fitEvent(id: string, state: ShopState): void {
+  const event = state.event;
+  if (event && !SITE_EVENTS.some((e) => e.site === id && e.kind === event.kind && e.recipe === event.recipe)) state.event = null;
 }
 
 function fitGoods(state: ShopState, def: ShopDefinition): void {

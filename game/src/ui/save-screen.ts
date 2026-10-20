@@ -1,5 +1,7 @@
 
+import type { World } from '../sim/types';
 import type { CarryReport } from '../sim/world';
+import { eventText } from './format';
 import { bindAttr } from '../text/language';
 import { list, t, verbatim, type Msg } from '../text/msg';
 import { goodName, partName, questTitle, settingName } from '../text/names';
@@ -84,8 +86,9 @@ export function showCarryReport(report: CarryReport, sound: SoundSettings): Prom
   return showReport(t('save.migrated'), lines.length === 0 ? [t('save.allCarried')] : lines, sound);
 }
 
-export function showRepairReport(repair: LoadRepair, sound: SoundSettings): Promise<void> {
-  return showReport(t('save.repaired'), [...repairLines(repair.questsReset), ...changeLines(repair)], sound);
+export function showRepairReport(world: World, repair: LoadRepair, sound: SoundSettings): Promise<void> {
+  const logged = repair.events.flatMap((e) => eventText(world, e)?.text ?? []);
+  return showReport(t('save.repaired'), [...repairLines(repair.questsReset), ...changeLines(repair), ...logged], sound);
 }
 
 function showReport(title: Msg, lines: readonly Msg[], sound: SoundSettings): Promise<void> {

@@ -66,7 +66,7 @@ describe('repairMap positions', () => {
     const saved = savedOf(oldScaleBase(), OLD_SIZE);
     saved.player.explored[10 * OLD_SIZE + 20] = 1;
     saved.player.explored[599 * OLD_SIZE + 599] = 1;
-    const { world } = repairMap(saved, TEST_MAP);
+    const world = repairMap(saved, TEST_MAP);
     const size = TEST_MAP.terrain.size;
     expect(world.size).toBe(size);
     expect(world.mapHash).toBe(TEST_MAP.hash);
@@ -80,7 +80,7 @@ describe('repairMap positions', () => {
     const world = base();
     const saved = savedOf(world);
     saved.player.explored[5 * world.size + 7] = 1;
-    expect(repairMap(saved, TEST_MAP).world.player.explored).toEqual(saved.player.explored);
+    expect(repairMap(saved, TEST_MAP).player.explored).toEqual(saved.player.explored);
   });
 
   it('scales a truck, its order, its brain and every position its goals and memories hold', () => {
@@ -107,7 +107,7 @@ describe('repairMap positions', () => {
     me.order = { kind: 'stopAt', dest: { x: 150, y: 150 } };
     const before = { npc: npc.pos, me: me.pos };
 
-    const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP).world;
+    const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP);
     const moved = out.vehicles.find((v) => v.id === npc.id)!;
     expectNear(moved.pos, scaled(before.npc));
     expect(moved.order).toBeNull();
@@ -143,7 +143,7 @@ describe('repairMap positions', () => {
     w.states = [offering, drag];
     w.sunward = { collapsed: null, night: { dusk: 1, roster: [], beaten: [], calls: {}, hunt: { party: [], grounds: [{ x: 31, y: 32 }, { x: 33, y: 34 }], prey: null, over: false, breaks: 0 }, shouted: [], offered: [] }, lastHunt: null };
 
-    const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP).world;
+    const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP);
     const [seen, area] = out.player.contracts;
     expectNear((seen as { seen: Vec }).seen, scaled({ x: 11, y: 12 }));
     expect((seen as { seen: { turn: number } }).seen.turn).toBe(5);
@@ -166,7 +166,7 @@ describe('repairMap positions', () => {
       const bay = bays.reduce((best, b) => (dist(b, v.brain!.home) < dist(best, v.brain!.home) ? b : best));
       v.brain!.home = { x: bay.x / RATIO + 0.1, y: bay.y / RATIO - 0.1 };
     });
-    const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP).world;
+    const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP);
     for (const v of membersOf(out)) expect(bays.some((b) => b.x === v.brain!.home.x && b.y === v.brain!.home.y)).toBe(true);
   });
 
@@ -180,7 +180,7 @@ describe('repairMap positions', () => {
     const free = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], freeSpotNear(w, { x: rock.pos.x + 12, y: rock.pos.y }, radius, null)!);
     const freeAt = { ...free.pos };
 
-    const out = repairMap(savedOf(w), TEST_MAP).world;
+    const out = repairMap(savedOf(w), TEST_MAP);
     const moved = out.vehicles.find((v) => v.id === stuck.id)!;
     expect(isFree(out, moved.pos, radius, moved.id)).toBe(true);
     expect(dist(moved.pos, rock.pos)).toBeLessThanOrEqual(CHEATS.searchRings * CHEATS.searchStep);
@@ -212,7 +212,7 @@ describe('repairMap transient state', () => {
     playerVehicle(w).trail = [{ x: 1, y: 1, heading: 0 }];
     playerVehicle(w).stormExposure = { w1: 2 };
 
-    const out = repairMap(savedOf(w), TEST_MAP).world;
+    const out = repairMap(savedOf(w), TEST_MAP);
     expect([out.craters, out.smoke, out.dustClouds, out.fields, out.flares, out.lines, out.weather, out.events, out.removed]).toEqual([[], [], [], [], [], [], [], [], []]);
     expect(playerVehicle(out).trail).toEqual([]);
     expect(playerVehicle(out).stormExposure).toEqual({});
@@ -226,7 +226,7 @@ describe('repairMap obstacles', () => {
     const stale: Obstacle = { id: 'rock999999', pos: { x: 50, y: 50 }, r: 1, kind: 'rock' };
     const saved = savedOf({ ...w, obstacles: [...w.obstacles.filter((o) => o !== fence), stale], broken: [{ obstacle: fence, turn: 2 }] });
     saved.obstacles.push(stale);
-    const { world } = repairMap(saved, TEST_MAP);
+    const world = repairMap(saved, TEST_MAP);
     const baked = mapObstacles(TEST_MAP);
     expect(world.obstacles.filter(isBakedObstacle).map((o) => o.id)).toEqual(baked.map((o) => o.id));
     expect(world.obstacles.some((o) => o.id === stale.id)).toBe(false);
@@ -241,7 +241,7 @@ describe('repairMap obstacles', () => {
     const wreck = w.obstacles.find(isRoadWreck)!;
     wreck.pos = { ...rock.pos };
     w.salvage.find((s) => s.id === wreck.id)!.pos = { ...rock.pos };
-    const { world } = repairMap(savedOf(w), TEST_MAP);
+    const world = repairMap(savedOf(w), TEST_MAP);
     const placed = world.obstacles.find((o) => o.id === wreck.id)!;
     expect(dist(placed.pos, rock.pos)).toBeGreaterThan(0);
     expect(world.obstacles.filter((o) => o !== placed).some((o) => o.kind !== 'site' && dist(o.pos, placed.pos) < o.r + placed.r)).toBe(false);
@@ -254,7 +254,7 @@ describe('repairMap obstacles', () => {
     const original = { ...story.pos };
     story.pos = { x: 1, y: 1 };
     w.salvage.find((s) => s.id === story.id)!.pos = { x: 1, y: 1 };
-    const out = repairMap(savedOf(w), TEST_MAP).world;
+    const out = repairMap(savedOf(w), TEST_MAP);
     expect(out.obstacles.find((o) => o.id === story.id)!.pos).toEqual(original);
     expect(out.salvage.find((s) => s.id === story.id)!.pos).toEqual(original);
   });
@@ -280,7 +280,7 @@ describe('repairMap stocks', () => {
     w.salvage = w.salvage.filter((s) => s.id !== missingOld && s.id !== missingSpot.id);
     w.salvage.push({ ...stockOf(w, heldOld), id: 'old-hamlet-house-999999' }, { ...stockOf(w, heldSpot.id), id: 'deadTruck-999999' });
 
-    const { world } = repairMap(savedOf(w), TEST_MAP);
+    const world = repairMap(savedOf(w), TEST_MAP);
     expect(stockOf(world, heldOld).goods).toEqual({ scrap: 777 });
     expect(stockOf(world, heldSpot.id).goods).toEqual({ scrap: 777 });
     for (const id of [movedOld, movedSpot.id, missingOld, missingSpot.id]) expect(stockOf(world, id).goods).toEqual({});
@@ -297,7 +297,7 @@ describe('repairMap stocks', () => {
     const w = oldScaleBase();
     const pile: SalvageStock = { id: 'cargo-v1-4', pos: { x: 100, y: 100 }, radius: 1, goods: { scrap: 2 }, parts: [], hidden: { goods: {}, parts: [], fuel: 0, supplies: 0 }, pile: { until: 99, fromPlayer: false, basis: {} } };
     w.salvage.push(pile);
-    const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP).world;
+    const out = repairMap(savedOf(w, OLD_SIZE), TEST_MAP);
     expectNear(stockOf(out, 'cargo-v1-4').pos, scaled(pile.pos));
   });
 });
@@ -306,7 +306,7 @@ describe('repairMap references to dropped stocks and sites', () => {
   const claim = (id: string, stockId: string, over: Partial<Contract> = {}): Contract => ({ id, shop: 'bowl', kind: 'claim', stockId, at: { x: 1, y: 1 }, partId: 'p1', defId: 'mg', reward: 5, deadline: 999, window: 99, tier: 1, rivalAt: 999, rival: null, leads: [], ...over }) as Contract;
   const survey = (id: string, sites: string[], done: boolean): Contract => ({ id, shop: 'bowl', kind: 'survey', points: sites.map((site) => ({ site, found: done, done })), reward: 5, deadline: 999, window: 99, tier: 1 });
 
-  it('cancels contracts that name a dropped stock or a missing survey site, with no money, no event and no penalty', () => {
+  it('lapses contracts that name a dropped stock or a missing survey site, with a log event and no money or penalty', () => {
     const w = base();
     const gone = 'deadTruck-999999';
     const goodSite = surveySites(TEST_MAP)[0].id;
@@ -319,10 +319,11 @@ describe('repairMap references to dropped stocks and sites', () => {
     const money = w.player.money;
     const xp = w.player.xp;
 
-    const out = repairMap(savedOf(w), TEST_MAP).world;
+    const out = repairMap(savedOf(w), TEST_MAP);
     expect(out.player.contracts.map((c) => c.id)).toEqual(['ct-kept', 'ct-good-site', 'ct-met']);
     expect(out.shops.bowl.contracts.map((c) => c.id)).toEqual(['ct-offer-kept']);
-    expect([out.player.money, out.player.xp, out.events]).toEqual([money, xp, []]);
+    expect([out.player.money, out.player.xp]).toEqual([money, xp]);
+    expect(out.events.flatMap((e) => (e.t === 'contract' ? [[e.contract.id, e.outcome]] : []))).toEqual([['ct-gone', 'lapsed'], ['ct-lost-site', 'lapsed']]);
     expect(playerVehicle(out).job).toBeNull();
     const kept = out.player.contracts[0] as Extract<Contract, { kind: 'claim' }>;
     expect(kept.at).toEqual(out.salvage.find((s) => s.id === kept.stockId)!.pos);
@@ -350,7 +351,7 @@ describe('repairMap references to dropped stocks and sites', () => {
     const warning: NpcState = { id: 'sw', kind: 'lootWarning', holder: npc.id, other: w.player.vehicleId, turnsLeft: 3, born: 1, data: { kind: 'lootWarning', targetId: gone, answer: null } };
     w.states = [warning];
 
-    const out = repairMap(savedOf(w), TEST_MAP).world;
+    const out = repairMap(savedOf(w), TEST_MAP);
     const moved = out.vehicles.find((v) => v.id === npc.id)!;
     expect(out.player.scavenged).toEqual(['wreck0']);
     expect(out.player.rumored).toEqual([keptSite]);

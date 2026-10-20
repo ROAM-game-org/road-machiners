@@ -4,10 +4,10 @@ import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { townAt } from '../sim/sites';
 import { reachedOutpostAt } from '../sim/fury-road';
 import { highwayMap } from '../sim/highway';
-import { repairMap, type MapRepair, type SavedMapWorld } from '../sim/map-repair';
+import { repairMap, type SavedBroken, type SavedMapWorld } from '../sim/map-repair';
 import { repairContent } from '../sim/save-repair';
 export { newMapFor } from '../sim/highway';
-import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
+import type { BrokenProp, GameEvent, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
 import { QUESTS, restoreQuest } from '../sim/quests';
 import { newerQuests, questRevisions, repairQuests, type QuestRepair, type SavedRevisions } from '../sim/quest-repair';
 import { refreshVision } from '../sim/vision';
@@ -79,7 +79,7 @@ export function carriesOnLoad(error: SaveError): boolean {
 
 export type SaveEnvelope = { format: typeof SAVE_FORMAT; quests: SavedRevisions; savedAt: number; runId: string; world: object };
 
-export type LoadRepair = { questsReset: string[]; lost: string[]; settingsReset: SettingId[] };
+export type LoadRepair = { questsReset: string[]; lost: string[]; settingsReset: SettingId[]; events: GameEvent[] };
 export type LoadedSave = { world: World; repair: LoadRepair };
 
 export function clearSlot(slots: SaveSlots, slot: SlotId): void {
@@ -107,8 +107,6 @@ export function savedRunId(envelope: unknown): string | null {
   return null;
 }
 
-type SavedBroken = { id: string; turn: number };
-
 type SavedWorld = Omit<World, 'terrain' | 'events' | 'removed' | 'broken' | 'vehicles' | 'player'> & {
   broken: SavedBroken[];
   vehicles: Omit<Vehicle, 'trail'>[];
@@ -135,7 +133,7 @@ export function loadWorld(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Wor
 }
 
 export function hasRepair(repair: LoadRepair): boolean {
-  return repair.questsReset.length + repair.lost.length + repair.settingsReset.length > 0;
+  return repair.questsReset.length + repair.lost.length + repair.settingsReset.length + repair.events.length > 0;
 }
 
 export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): LoadedSave | null {
@@ -155,14 +153,15 @@ function loadedSave(envelope: unknown, icarus: BakedMap): LoadedSave {
   const repaired = savedQuests(world.player.quests, world.player.notes, revisions);
   const map = mapFor(world, icarus);
   const staged = stagedWorld(world, repaired);
-  const loaded = (world.mapHash === map.hash ? onSameMap(staged, map) : repairedMap(staged, map)).world;
+  const loaded = world.mapHash === map.hash ? onSameMap(staged, map) : repairedMap(staged, map);
   const quests = restoredQuests(loaded, world, revisions, repaired);
   const lost = [...quests.lost, ...repairContent(loaded)];
   stockedOldSpots(loaded, map);
   checkCompanies(loaded);
   refreshVision(loaded);
   settleAims(loaded);
-  return { world: loaded, repair: { questsReset: quests.reset, lost, settingsReset } };
+  const events = loaded.events;
+  return { world: { ...loaded, events: [] }, repair: { questsReset: quests.reset, lost, settingsReset, events } };
 }
 
 function stagedWorld(world: SavedWorld, quests: QuestRepair): SavedMapWorld {
@@ -190,21 +189,20 @@ function restoredQuests(loaded: World, saved: SavedWorld, revisions: SavedRevisi
   }
 }
 
-function onSameMap(staged: SavedMapWorld, map: BakedMap): MapRepair {
+function onSameMap(staged: SavedMapWorld, map: BakedMap): World {
   if (staged.obstacles.some((o) => isBakedObstacle(o) || isHollowObstacle(o))) throw new SaveError('bakedProps');
   const baked = mapObstacles(map);
   const broken = brokenProps(baked, staged.broken);
   const gone = new Set(staged.broken.map((b) => b.id));
-  const world: World = {
+  return {
     ...staged,
     obstacles: [...baked.filter((o) => !gone.has(o.id)), ...hollowObstaclesFor(staged), ...staged.obstacles],
     broken,
     terrain: map.terrain,
   };
-  return { world };
 }
 
-function repairedMap(staged: SavedMapWorld, map: BakedMap): MapRepair {
+function repairedMap(staged: SavedMapWorld, map: BakedMap): World {
   try {
     return repairMap(staged, map);
   } catch (error) {

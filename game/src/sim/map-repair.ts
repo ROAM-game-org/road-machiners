@@ -18,7 +18,6 @@ import { dist, type Vec } from './vec';
 
 export type SavedBroken = { id: string; turn: number };
 export type SavedMapWorld = Omit<World, 'terrain' | 'broken'> & { broken: SavedBroken[] };
-export type MapRepair = { world: World };
 
 type Move = 'keep' | 'shift' | 'rebuild' | 'drop';
 type Table<T> = { [K in keyof T]-?: Move };
@@ -380,7 +379,7 @@ const WORLD_HANDLERS: Handlers<World, typeof REBAKE_MOVE> = {
   lines: () => [],
 };
 
-export function repairMap(saved: SavedMapWorld, map: BakedMap): MapRepair {
+export function repairMap(saved: SavedMapWorld, map: BakedMap): World {
   const world: World = { ...structuredClone(saved), terrain: map.terrain, broken: [] };
   const ctx: Ctx = { ratio: map.terrain.size / saved.size, fromSize: saved.size, toSize: map.terrain.size, playerId: saved.player.vehicleId, self: null };
   const savedObstacles = world.obstacles;
@@ -395,7 +394,7 @@ export function repairMap(saved: SavedMapWorld, map: BakedMap): MapRepair {
   purgeDropped(world, stocks.dropped, map);
   snapSunwardHomes(world);
   settleTrucks(world);
-  return { world };
+  return world;
 }
 
 type Fate = Map<string, Obstacle | null>;
@@ -497,7 +496,6 @@ function cancelContracts(world: World, dropped: Set<string>, sites: Set<string>)
     for (const c of shop.contracts.filter((x) => lapses(x, dropped, sites))) cancelled.add(c.id);
     shop.contracts = shop.contracts.filter((c) => !cancelled.has(c.id));
   }
-  world.events = [];
   return cancelled;
 }
 

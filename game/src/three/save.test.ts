@@ -608,7 +608,7 @@ describe('game save', () => {
       const saved = saveOf(world).world as { player: Record<string, unknown> };
       slots.put('auto', { format: SAVE_FORMAT, world: { ...saved, player: { ...saved.player, quests } } });
       const loaded = loadSave(slots, 'auto', TEST_MAP);
-      expect(loaded?.repair).toEqual({ ...repair, settingsReset: [] });
+      expect(loaded?.repair).toEqual({ ...repair, settingsReset: [], events: [] });
       expect(loaded && questProblems(loaded.world.player.quests, QUESTS)).toEqual([]);
       expect(loaded?.world.player.quests).toEqual({ world: {}, local: {}, session: null, live: null });
     }
@@ -650,7 +650,7 @@ describe('game save', () => {
     it('loads a save with no revisions as revision 1 everywhere, with nothing to repair', () => {
       const mid = hattieMid();
       const loaded = loadSave(savedAt(mid, undefined), 'auto', TEST_MAP);
-      expect(loaded?.repair).toEqual({ questsReset: [], lost: [], settingsReset: [] });
+      expect(loaded?.repair).toEqual({ questsReset: [], lost: [], settingsReset: [], events: [] });
       expect(loaded?.world.player.quests.session).toEqual(mid.player.quests.session);
     });
 
@@ -672,7 +672,7 @@ describe('game save', () => {
       expect(loadSave(slots, 'auto', TEST_MAP)!.repair).toEqual(first.repair);
       writeSave(slots, 'auto', first.world, RUN, 2);
       const next = loadSave(slots, 'auto', TEST_MAP)!;
-      expect(next.repair).toEqual({ questsReset: [], lost: [], settingsReset: [] });
+      expect(next.repair).toEqual({ questsReset: [], lost: [], settingsReset: [], events: [] });
       expect(next.world.player.quests).toEqual(first.world.player.quests);
     });
 

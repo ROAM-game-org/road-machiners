@@ -2,7 +2,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { PARTS, partDef } from '../data/parts';
 import { SHOPS } from '../data/market';
 import { HAULER_KIT, START_KITS } from '../data/start';
-import { FIRST_NAMES, SURNAMES } from '../data/npcs';
+import { FIRST_NAMES, NPCS, SURNAMES } from '../data/npcs';
+import { addGoods } from './inventory';
 import { CONDITION } from '../data/wear';
 import { PLAIN_KIT } from '../test/empty-world';
 import { TEST_MAP } from '../test/map';
@@ -354,6 +355,56 @@ describe('repairContent', () => {
     expect(sorted(repairContent(w))).toEqual(['ghostShop', 'ghostTown']);
     expect(w.player.contracts.some((c) => c.id === 'c-haul' || c.id === 'c-fetch')).toBe(false);
     expect(() => advanceContracts(w)).not.toThrow();
+  });
+
+  it('clears a site event whose definition left the data', () => {
+    const w = fresh();
+    w.shops.bowl.event = { kind: 'breakdown', recipe: 'ghostRecipe', until: w.turn + 30 };
+
+    expect(repairContent(w)).toEqual([]);
+    expect(w.shops.bowl.event).toBeNull();
+  });
+
+  it('drops NPC goals aimed at a site that left the data and keeps goals aimed at live trucks', () => {
+    const w = fresh();
+    const [a, b] = npcs(w);
+    const gone = { kind: 'travel', targetId: 'ghost-camp', destination: { x: 10, y: 10 }, phase: 'travel', reason: 'trade' } as const;
+    const live = { kind: 'follow', targetId: b.id, destination: null, phase: 'travel', reason: 'trade' } as const;
+    a.brain!.goals = [gone as never, live as never];
+
+    expect(repairContent(w)).toEqual([]);
+    expect(a.brain!.goals.map((g) => g.targetId)).toEqual([b.id]);
+  });
+
+  it('ends tow states and business jobs that name a site that left the data', () => {
+    const w = fresh();
+    const [a, b] = npcs(w);
+    const me = playerVehicle(w);
+    addState(w, 'tow', me.id, a.id, { kind: 'tow', site: 'ghost-camp', fee: 0, waived: 0, hitched: true });
+    a.brain!.goals = [{ kind: 'tow', targetId: 'ghost-camp', destination: { x: 10, y: 10 }, phase: 'travel', reason: 'towPlayer' }];
+    b.job = { kind: 'business', siteId: 'ghost-camp', deal: 'sell', turnsLeft: 2, total: 3 };
+    expect(() => settleStates(cloneWorld(w))).toThrow(/Unknown site/);
+
+    expect(repairContent(w)).toEqual([]);
+    expect(w.states.some((s) => s.kind === 'tow' && s.holder === me.id)).toBe(false);
+    expect(a.brain!.goals).toEqual([]);
+    expect(b.job).toBeNull();
+    expect(() => settleStates(w)).not.toThrow();
+  });
+
+  it('gives a stranded parcel room before goods, and lists the goods that no longer fit', () => {
+    const w = fresh();
+    const me = playerVehicle(w);
+    const good = SHOPS.bowl.goods[0];
+    addGoods(w, me, good, 999);
+    const crates = me.items.filter((it) => it.kind === 'good').length;
+    const search = { id: 'c-search', shop: 'bowl', kind: 'search', target: 'v-x', driver: 'x', template: Object.keys(NPCS)[0], lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 5, deadline: w.turn + 20, window: 20, tier: 'low', delivered: false } as const;
+    w.player.contracts.push(search as never);
+    me.items.push({ id: 'i-parcel', x: 999, y: 999, rot: 0, kind: 'parcel', contract: 'c-search' });
+
+    expect(repairContent(w)).toEqual([good]);
+    expect(me.items.some((it) => it.kind === 'parcel' && it.contract === 'c-search')).toBe(true);
+    expect(me.items.filter((it) => it.kind === 'good').length).toBeLessThan(crates);
   });
 
   it('breaks an escort bound for a site that left the data', () => {

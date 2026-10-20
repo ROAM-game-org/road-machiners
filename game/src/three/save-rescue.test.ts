@@ -372,8 +372,8 @@ describe('a shipped save on an older bake of the map', () => {
       if (c.kind === 'claim') expect(stocks.has(c.stockId), c.id).toBe(true);
       if (c.kind === 'survey') expect(c.points.every((p) => sites.has(p.site)), c.id).toBe(true);
     }
-    const heldBefore = saved.player.contracts.filter((c) => c.kind !== 'claim' && c.kind !== 'survey').map((c) => c.id);
-    expect(world.player.contracts.map((c) => c.id)).toEqual(expect.arrayContaining(heldBefore));
+    const lapsed = repair.events.flatMap((e) => (e.t === 'contract' && e.outcome === 'lapsed' ? [e.contract.id] : []));
+    expect([...world.player.contracts.map((c) => c.id), ...lapsed].sort()).toEqual(saved.player.contracts.map((c) => c.id).sort());
     for (const id of [...world.player.scavenged, ...world.player.rumored].filter((x) => /^(wreck|old-|story-)/.test(x))) expect(stocks.has(id), id).toBe(true);
   }, 60_000);
 
