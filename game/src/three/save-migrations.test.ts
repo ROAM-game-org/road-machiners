@@ -76,7 +76,6 @@ import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
-import FORMAT_2_83 from './save-fixtures/format-2-83.json';
 import FORMAT_2_84 from './save-fixtures/format-2-84.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
