@@ -59,7 +59,7 @@ export class TouchGestures {
     this.fingers.delete(id);
     switch (finger.phase) {
       case "down":
-        return { kind: "tap", x: finger.x, y: finger.y };
+        return { kind: "tap", x: finger.startX, y: finger.startY };
       case "drag":
       case "held":
       case "spent":
