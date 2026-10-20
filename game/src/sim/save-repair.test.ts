@@ -19,7 +19,7 @@ import { npcTraits } from './npc-decisions';
 import { skillLevel } from './progress';
 import { repairContent } from './save-repair';
 import { defaultSetup } from './settings';
-import { addState, advanceStates } from './states';
+import { addState, advanceStates, settleStates } from './states';
 import { furyRoadStart } from './testkit';
 import type { GridItem, NpcState, Vehicle, World } from './types';
 import { maxHp, restorePart } from './wear';
@@ -332,5 +332,63 @@ describe('repairContent', () => {
     const prices = npc.brain!.memories.flatMap((m) => (m.fact.kind === 'prices' ? [m.fact] : []));
     expect(prices.some((fact) => fact.shop === 'ghostShop')).toBe(false);
     expect(prices.find((fact) => fact.shop === 'dustwell')!.pressure).toEqual({ [traded]: 0.1 });
+  });
+
+  it('drops perks that left the data, lists them, and gives a missing skill its xp of the day', () => {
+    const w = fresh();
+    w.player.perks.push('ghostPerk' as never);
+    delete (w.player.xpToday as Partial<typeof w.player.xpToday>).perception;
+
+    expect(repairContent(w)).toEqual(['ghostPerk']);
+    expect(w.player.perks).not.toContain('ghostPerk');
+    expect(w.player.xpToday.perception).toBe(0);
+  });
+
+  it('drops player contracts whose shop or destination left the data, and lists the place', () => {
+    const w = fresh();
+    const good = SHOPS.bowl.goods[0];
+    const haul = { id: 'c-haul', shop: 'bowl', kind: 'haul', good, units: 2, to: 'ghostTown', reward: 10, deadline: w.turn + 20, window: 20, rush: false, tier: 'low' } as const;
+    const fetch = { id: 'c-fetch', shop: 'ghostShop', kind: 'fetch', defId: Object.keys(PARTS)[0], reward: 10, deadline: w.turn + 20, window: 20, tier: 'low' } as const;
+    w.player.contracts.push(haul as never, fetch as never);
+
+    expect(sorted(repairContent(w))).toEqual(['ghostShop', 'ghostTown']);
+    expect(w.player.contracts.some((c) => c.id === 'c-haul' || c.id === 'c-fetch')).toBe(false);
+    expect(() => advanceContracts(w)).not.toThrow();
+  });
+
+  it('breaks an escort bound for a site that left the data', () => {
+    const w = fresh();
+    const [a, b] = npcs(w);
+    addState(w, 'escort', a.id, b.id, { kind: 'escort', site: 'ghostTown', fee: 0 });
+    expect(() => settleStates(cloneWorld(w))).toThrow(/Unknown site/);
+
+    expect(repairContent(w)).toEqual([]);
+    expect(w.states.some((s) => s.kind === 'escort' && s.holder === a.id)).toBe(false);
+    expect(() => settleStates(w)).not.toThrow();
+  });
+
+  it('drops NPC goals and road news that name a good or shop that left the data', () => {
+    const w = fresh();
+    const npc = npcs(w)[0];
+    const good = SHOPS.bowl.goods[0];
+    const goal = { kind: 'trade', targetId: null, destination: null, phase: 'travel', reason: 'trade', shipment: { good: 'ghostGood', from: 'bowl', to: 'dustwell' } } as const;
+    npc.brain!.goals.unshift(goal as never);
+    w.roadNews.push({ turn: w.turn, kind: 'robbed', good: 'ghostGood', units: 1, from: 'bowl', to: 'dustwell' }, { turn: w.turn, kind: 'robbed', good, units: 1, from: 'ghostShop', to: 'dustwell' }, { turn: w.turn, kind: 'robbed', good, units: 1, from: 'bowl', to: 'dustwell' });
+
+    expect(repairContent(w)).toEqual([]);
+    expect(npc.brain!.goals.some((g) => g.shipment?.good === 'ghostGood')).toBe(false);
+    expect(w.roadNews).toEqual([{ turn: w.turn, kind: 'robbed', good, units: 1, from: 'bowl', to: 'dustwell' }]);
+  });
+
+  it('drops wave templates that left the data, and an emptied wave never spawns', () => {
+    const w = furyRoadStart();
+    const [first, second] = w.furyRoad!.groups.filter((g) => !g.spawned);
+    const kept = first.templates[0];
+    first.templates = [kept, 'ghostRaider'];
+    second.templates = ['ghostRaider'];
+
+    expect(repairContent(w)).toEqual([]);
+    expect(first.templates).toEqual([kept]);
+    expect(second.spawned).toBe(true);
   });
 });

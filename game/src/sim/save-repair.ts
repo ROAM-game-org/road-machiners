@@ -3,9 +3,11 @@ import { GOODS } from '../data/goods';
 import { HUB, LINE_IDS, REFUSED, TOPICS } from '../data/dialogue';
 import { isNoteId } from '../data/locals';
 import { SHOPS } from '../data/market';
+import { FURY_ROAD } from '../data/modes';
 import { FIRST_NAMES, NPCS, SURNAMES, TRAITS } from '../data/npcs';
 import { PARTS, partDef } from '../data/parts';
 import { PERSONALITIES } from '../data/personalities';
+import { REGION } from '../data/region';
 import { SKILL_IDS } from '../data/skills';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { CONDITION } from '../data/wear';
@@ -16,10 +18,11 @@ import { addGoods } from './inventory';
 import { addShop, parcelOf, removeParcel, type Contract, type ShopState } from './market';
 import { reviseMemories } from './memory';
 import { getResources } from './resources';
+import { isPerkId } from './progress';
 import { modeRules } from './settings';
-import { STATE_KINDS, settleStates } from './states';
+import { endState, STATE_KINDS, settleStates } from './states';
 import { fuelCap, suppliesCap } from './stats';
-import type { Call, GridItem, Job, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World } from './types';
+import type { Call, GridItem, Job, NpcActivity, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World } from './types';
 import { carryHp, maxHp } from './wear';
 import { wornReload } from './utility';
 
@@ -34,12 +37,66 @@ export function repairContent(world: World): string[] {
   repairTrucks(world, doomed, owned);
   removeNpcs(world, doomed);
   clampParts(world);
+  for (const v of world.vehicles) fitGoals(world, v);
   repairShops(world);
   renameDrivers(world);
   owned.mine.push(...repairPlayer(world));
   repairCall(world);
   for (const v of world.vehicles) fitPriceMemories(v);
+  fitRoadNews(world);
+  fitEscorts(world);
+  fitWaves(world);
   return [...new Set(owned.mine)];
+}
+
+function isShop(id: string): boolean {
+  return Object.hasOwn(SHOPS, id);
+}
+
+function isSite(id: string): boolean {
+  return [...REGION.towns, ...REGION.locations].some((site) => site.id === id);
+}
+
+function goalNames(goal: NpcActivity): { goods: string[]; shops: string[] } {
+  const purchase = goal.purchase ? [goal.purchase] : [];
+  const shipment = goal.shipment ? [goal.shipment] : [];
+  return {
+    goods: [...purchase, ...shipment].map((x) => x.good),
+    shops: [...purchase.map((p) => p.sellShop), ...shipment.flatMap((s) => [s.from, s.to])],
+  };
+}
+
+function goalFits(world: World, goal: NpcActivity): boolean {
+  const target = goal.targetId;
+  if (target !== null && Object.hasOwn(world.shops, target) && !isShop(target)) return false;
+  const names = goalNames(goal);
+  return names.goods.every(isGood) && names.shops.every(isShop);
+}
+
+function fitGoals(world: World, v: Vehicle): void {
+  if (v.brain) v.brain.goals = v.brain.goals.filter((goal) => goalFits(world, goal));
+}
+
+function fitRoadNews(world: World): void {
+  world.roadNews = world.roadNews.filter((n) => isGood(n.good) && isShop(n.from) && isShop(n.to));
+}
+
+function fitEscorts(world: World): void {
+  for (const s of [...world.states]) {
+    if (s.data.kind === 'escort' && s.data.site !== null && !isSite(s.data.site)) endState(world, s, 'broken');
+  }
+}
+
+function isWaveTemplate(id: string): boolean {
+  return Object.hasOwn(NPCS, id) && Object.hasOwn(FURY_ROAD.cards, id);
+}
+
+function fitWaves(world: World): void {
+  for (const group of world.furyRoad?.groups ?? []) {
+    if (group.spawned) continue;
+    group.templates = group.templates.filter(isWaveTemplate);
+    if (group.templates.length === 0) group.spawned = true;
+  }
 }
 
 type Sinks = { mine: string[]; world: string[] };
@@ -171,10 +228,22 @@ function contractKept(c: Contract, lost: string[]): boolean {
 }
 
 function contractGone(c: Contract): string | null {
-  if (c.kind === 'haul') return goneIf(isGood, c.good);
-  if (c.kind === 'fetch' || c.kind === 'claim') return goneIf(isPart, c.defId);
-  if (c.kind === 'bounty' || c.kind === 'search') return goneIf(isTemplate, c.template);
-  return null;
+  return goneIf(isShop, c.shop) ?? contentGone(c);
+}
+
+const CONTRACT_CONTENT: { [K in Contract['kind']]: (c: Extract<Contract, { kind: K }>) => string | null } = {
+  haul: (c) => goneIf(isGood, c.good) ?? goneIf(isShop, c.to),
+  escort: (c) => goneIf(isSite, c.to),
+  fetch: (c) => goneIf(isPart, c.defId),
+  claim: (c) => goneIf(isPart, c.defId),
+  bounty: (c) => goneIf(isTemplate, c.template),
+  search: (c) => goneIf(isTemplate, c.template),
+  rescue: () => null,
+  survey: () => null,
+};
+
+function contentGone(c: Contract): string | null {
+  return (CONTRACT_CONTENT[c.kind] as (c: Contract) => string | null)(c);
 }
 
 function goneIf(known: (id: string) => boolean, id: string): string | null {
@@ -461,8 +530,13 @@ function repairPlayer(world: World): string[] {
   const player = world.player;
   const unknown = player.notes.filter((n) => !isNoteId(n.id));
   if (unknown.length > 0) player.notes = player.notes.filter((n) => isNoteId(n.id));
-  for (const skill of SKILL_IDS) if (player.ranks[skill] === undefined) player.ranks[skill] = 0;
-  return unknown.map((n) => n.id);
+  for (const skill of SKILL_IDS) {
+    if (player.ranks[skill] === undefined) player.ranks[skill] = 0;
+    if (player.xpToday[skill] === undefined) player.xpToday[skill] = 0;
+  }
+  const perks = player.perks.filter((id) => !isPerkId(id));
+  player.perks = player.perks.filter(isPerkId);
+  return [...unknown.map((n) => n.id), ...perks];
 }
 
 function talkGone(call: Call): string | null {
