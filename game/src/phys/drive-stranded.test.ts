@@ -129,7 +129,6 @@ describe('a truck held against a prop with every wheel down', () => {
   it('sets down a truck that pushes against rocks all around it and does not move', () => {
     const w = setDirect(pocket(), true);
     w.vehicles[0].order = { kind: 'through', dest: { x: 50, y: 30 } };
-    w.money = 0;
     const run = counts(w, RULES.stranded.turns + 2);
     expect(run.counts).toEqual([0, ...Array.from({ length: RULES.stranded.turns }, (_, i) => i + 1), 0]);
     expect(w.obstacles.every((o) => dist(run.w.vehicles[0].pos, o.pos) > o.r)).toBe(true);
