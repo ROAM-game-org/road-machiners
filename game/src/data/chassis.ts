@@ -417,7 +417,7 @@ export const PALETTE: Record<PaletteId, number> = {
   umber: 0x6a4430,
   oxblood: 0x5a2026,
   bottle: 0x2c4636,
-  slate: 0x3e4a62,
+  slate: 0x4a5060,
   petrol: 0x1e5258,
 };
 

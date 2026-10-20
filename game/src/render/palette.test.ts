@@ -61,7 +61,7 @@ describe('paintSheetPixels', () => {
   it('paints a fully masked pixel in the new color', () => {
     const out = paintSheetPixels(sheet, mask, STANDARD, TO);
     expect([...out.slice(0, 3)]).toEqual([0x5a, 0x20, 0x26]);
-    expect([...out.slice(8, 11)]).toEqual([0x3e, 0x4a, 0x62]);
+    expect([...out.slice(8, 11)]).toEqual([0x4a, 0x50, 0x60]);
   });
 
   it('carries a dark toon step over to the new color', () => {
