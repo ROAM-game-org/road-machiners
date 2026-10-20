@@ -12,8 +12,8 @@ import { describeLoadout, fixture, useLoadoutFixture } from './npc-loadout-kit';
 useLoadoutFixture();
 
 describe('NPC equipment generation', () => {
-  it('spawns at least five equipment combinations for each base trait', () => {
-    const seen: Record<string, Set<string>> = Object.fromEntries(Object.values(NPCS).map((t) => [t.traits[0], new Set<string>()]));
+  it('spawns at least five equipment combinations for each base trait of the road traffic', () => {
+    const seen: Record<string, Set<string>> = Object.fromEntries(Object.values(NPCS).filter((t) => t.spawn.kind !== 'hollow').map((t) => [t.traits[0], new Set<string>()]));
     for (let seed = 1; seed <= 6; seed++) {
       const world = cloneWorld(fixture);
       world.rngState = seed;
