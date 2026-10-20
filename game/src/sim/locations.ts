@@ -16,7 +16,7 @@ import { beginSearch } from './search';
 import { practice } from './progress';
 import { isFortress, siteGap, type Site } from './sites';
 import { atGarage } from './garage';
-import { hasExplorationMap, modeRules } from './settings';
+import { modeRules } from './settings';
 import type { GridItem, PartInstance, SalvageStock, Vehicle, World } from './types';
 import { tileCenter } from './vision';
 import { playerCommand, Refused } from './world';
@@ -30,14 +30,6 @@ export function discoverSites(world: World): void {
       continue;
     discoverSite(world, s);
   }
-}
-
-export function revealedSites(world: World): Set<string> {
-  const sites = atlasSites(atlasOf(world.terrain));
-  if (!hasExplorationMap(world)) return new Set(sites.map((s) => s.id));
-  const known = new Set(world.player.discovered);
-  for (const s of sites) if (!known.has(s.id) && seesArea(world, s)) known.add(s.id);
-  return known;
 }
 
 export function chartSite(world: World, s: { id: string }): void {

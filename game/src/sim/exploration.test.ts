@@ -5,15 +5,10 @@ import { PHYSICS } from '../data/physics';
 import { setMoveOrder } from './world';
 import { dist, polylineDist, type Vec } from './vec';
 import { siteGap } from './sites';
-import { discoverSites, revealedSites } from './locations';
+import { discoverSites } from './locations';
 import { refreshVision } from './vision';
 import { bodyOf } from './body';
 import { standardWorld } from '../test/world-cache';
-import { newWorld } from './world';
-import { START_KITS } from '../data/start';
-import { defaultSetup } from './settings';
-import { atlasOf, atlasSites } from './atlas';
-import { highwayMap } from './highway';
 import { budget } from '../test/budget';
 
 const original = [
@@ -85,33 +80,6 @@ describe('discovering an outlined territory', () => {
     expect(dist(beyond, orchard.pos)).toBeLessThan(orchard.radius);
     world.player.visible = [tileAt(world.terrain.size, beyond)];
     discoverSites(world);
-    expect(world.player.discovered).toEqual([]);
-  }, budget(15_000));
-});
-
-describe('which sites the player knows', () => {
-  const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
-
-  it('leaves out an undiscovered site out of sight', () => {
-    const world = standardWorld(1337);
-    expect(revealedSites(world).has('bowl')).toBe(false);
-  }, budget(15_000));
-
-  it('takes in every site when the map has no exploration', () => {
-    const world = newWorld(3, START_KITS.furyRoad, highwayMap(3, 0), defaultSetup('furyRoad'));
-    expect(revealedSites(world).size).toBe(atlasSites(atlasOf(world.terrain)).length);
-  }, budget(15_000));
-
-  it('takes in a discovered site', () => {
-    const world = standardWorld(1337);
-    world.player.discovered = ['bowl'];
-    expect(revealedSites(world).has('bowl')).toBe(true);
-  }, budget(15_000));
-
-  it('takes in a site whose area is in sight without discovering it', () => {
-    const world = standardWorld(1337);
-    world.player.visible = [Math.floor(bowl.pos.y) * world.terrain.size + Math.floor(bowl.pos.x)];
-    expect(revealedSites(world).has('bowl')).toBe(true);
     expect(world.player.discovered).toEqual([]);
   }, budget(15_000));
 });
