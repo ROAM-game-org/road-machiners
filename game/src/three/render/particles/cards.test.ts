@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { perfSnapshot } from '../../../perf';
-import { CardBatch, OVERFILL_COUNTER, type Card } from './cards';
+import { ballDepth, CardBatch, OVERFILL_COUNTER, type Card } from './cards';
 
 const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 1, 100);
 camera.updateProjectionMatrix();
@@ -11,7 +11,7 @@ function card(alpha: number, size: number): Card {
 }
 
 function drawn(batch: CardBatch): number {
-  return (batch.meshes[0].geometry as THREE.InstancedBufferGeometry).instanceCount;
+  return (batch.mesh.geometry as THREE.InstancedBufferGeometry).instanceCount;
 }
 
 describe('card fill ceiling', () => {
@@ -29,7 +29,7 @@ describe('card fill ceiling', () => {
     batch.flush(camera);
     expect(drawn(batch)).toBe(2);
     expect(perfSnapshot()[OVERFILL_COUNTER].calls - before).toBe(4);
-    const tints = batch.meshes[0].geometry.getAttribute('tint');
+    const tints = batch.mesh.geometry.getAttribute('tint');
     const kept = [tints.getW(0), tints.getW(1)].sort();
     expect(kept[0]).toBeCloseTo(0.8);
     expect(kept[1]).toBeCloseTo(0.9);
@@ -41,5 +41,25 @@ describe('card fill ceiling', () => {
     batch.push(card(0.5, 5));
     batch.flush(camera);
     expect(drawn(batch)).toBe(1);
+  });
+});
+
+describe('card ball depth', () => {
+  it('bulges by the radius at the centre and not at all at the rim', () => {
+    expect(ballDepth(2, 0)).toBe(2);
+    expect(ballDepth(2, 1)).toBe(0);
+    expect(ballDepth(2, 1.5)).toBe(0);
+  });
+
+  it('rejects a negative radius', () => {
+    expect(() => ballDepth(-1, 0)).toThrow();
+  });
+
+  it('builds one depth tested mesh that writes no depth and no stencil', () => {
+    const batch = new CardBatch(4, 'lit', new THREE.Texture(), 2);
+    const material = batch.mesh.material as THREE.ShaderMaterial;
+    expect(material.depthTest).toBe(true);
+    expect(material.depthWrite).toBe(false);
+    expect(material.stencilWrite).toBe(false);
   });
 });

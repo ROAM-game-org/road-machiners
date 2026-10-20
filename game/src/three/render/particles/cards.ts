@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { count } from '../../../perf';
-import { PROP_BIT, TRUCK_BIT } from '../models';
 
 export const CARD_SHAPES = 4;
 export const ROUND_SHAPE = CARD_SHAPES;
@@ -13,6 +12,12 @@ const CARD_ORDER = { lit: 904, glow: 906 };
 const FILL_ALPHA_STEPS = 64;
 const ROUND_EDGE = '(1.0 - smoothstep(0.84, 1.0, length(vBall)))';
 const CARD_BODY = 'mix(texture2D(shapes, vUv).a, pow(max(0.0, 1.0 - dot(vBall, vBall)), 2.0), vRound)';
+export function ballDepth(radius: number, rim2: number): number {
+  if (!(radius >= 0)) throw new Error(`A card ball needs a non-negative radius, got ${radius}`);
+  return radius * Math.sqrt(Math.max(0, 1 - rim2));
+}
+
+const BALL_DEPTH = 'gl_FragDepth = (vDepth.x + vDepth.y * sqrt(max(0.0, 1.0 - dot(vBall, vBall)))) * 0.5 + 0.5;';
 export const OVERFILL_COUNTER = 'fx.cards.overfilled';
 
 export type CardLight = { sunDir: THREE.Vector3; sun: THREE.Color; sky: THREE.Color; ground: THREE.Color };
@@ -48,6 +53,7 @@ const VERTEX = `
   varying vec4 vTint;
   varying vec3 vSun;
   varying vec3 vUp;
+  varying vec2 vDepth;
   void main() {
     float c = cos(sizeSpin.y);
     float s = sin(sizeSpin.y);
@@ -66,9 +72,8 @@ const VERTEX = `
     vec2 ax = reach > 0.0001 ? along / reach : vec2(1.0, 0.0);
     vec2 corner = position.xy * sizeSpin.x;
     mv.xy += reach > 0.0001 ? ax * position.x * (sizeSpin.x + reach) + vec2(-ax.y, ax.x) * corner.y - along * 0.5 : corner;
-    #ifdef OVER_SOLIDS
-    mv.z -= sizeSpin.x * 0.5;
-    #endif
+    float centreNdc = projectionMatrix[2][2] * mv.z + projectionMatrix[3][2];
+    vDepth = vec2(centreNdc, projectionMatrix[2][2] * sizeSpin.x * 0.5);
     gl_Position = projectionMatrix * mv;
   }
 `;
@@ -84,9 +89,11 @@ const LIT_FRAGMENT = `
   varying vec4 vTint;
   varying vec3 vSun;
   varying vec3 vUp;
+  varying vec2 vDepth;
   void main() {
     float a = vTint.a * ${CARD_BODY} * ${ROUND_EDGE};
     if (a <= 0.003) discard;
+    ${BALL_DEPTH}
     vec3 n = normalize(vec3(vBall, sqrt(max(0.0, 1.0 - dot(vBall, vBall) * 0.5))));
     vec3 sky = mix(groundColor, skyColor, 0.5 * dot(n, vUp) + 0.5);
     float wrap = 0.5 * dot(n, vSun) + 0.5;
@@ -103,16 +110,18 @@ const GLOW_FRAGMENT = `
   varying vec2 vBall;
   varying float vRound;
   varying vec4 vTint;
+  varying vec2 vDepth;
   void main() {
     float a = vTint.a * ${CARD_BODY} * ${ROUND_EDGE};
     if (a <= 0.003) discard;
+    ${BALL_DEPTH}
     gl_FragColor = vec4(vTint.rgb, a);
     #include <colorspace_fragment>
   }
 `;
 
 export class CardBatch {
-  readonly meshes: readonly THREE.Mesh[];
+  readonly mesh: THREE.Mesh;
   private readonly geo = new THREE.InstancedBufferGeometry();
   private readonly uniforms = {
     shapes: { value: null as THREE.Texture | null },
@@ -141,12 +150,9 @@ export class CardBatch {
     this.shapes = this.attribute('shape', 1);
     this.tints = this.attribute('tint', 4);
     this.geo.instanceCount = 0;
-    this.meshes = [false, true].map((overSolids) => {
-      const mesh = new THREE.Mesh(this.geo, cardMaterial(kind, this.uniforms, overSolids));
-      mesh.frustumCulled = false;
-      mesh.renderOrder = kind === 'lit' ? CARD_ORDER.lit : CARD_ORDER.glow;
-      return mesh;
-    });
+    this.mesh = new THREE.Mesh(this.geo, cardMaterial(kind, this.uniforms));
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = kind === 'lit' ? CARD_ORDER.lit : CARD_ORDER.glow;
     this.uniforms.shapes.value = shapes;
   }
 
@@ -212,20 +218,14 @@ export class CardBatch {
   }
 }
 
-function cardMaterial(kind: 'lit' | 'glow', uniforms: Record<string, THREE.IUniform>, overSolids: boolean): THREE.ShaderMaterial {
+function cardMaterial(kind: 'lit' | 'glow', uniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     vertexShader: VERTEX,
     fragmentShader: kind === 'lit' ? LIT_FRAGMENT : GLOW_FRAGMENT,
-    defines: overSolids ? { OVER_SOLIDS: '' } : {},
     uniforms,
     transparent: true,
     depthWrite: false,
     blending: kind === 'lit' ? THREE.NormalBlending : THREE.AdditiveBlending,
-    stencilWrite: true,
-    stencilRef: 0,
-    stencilFuncMask: TRUCK_BIT | PROP_BIT,
-    stencilWriteMask: 0,
-    stencilFunc: overSolids ? THREE.NotEqualStencilFunc : THREE.EqualStencilFunc,
   });
 }
 
