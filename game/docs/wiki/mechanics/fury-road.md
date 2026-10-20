@@ -89,7 +89,7 @@ Between levels nothing spawns. The paid next outpost is a garage, as a town gara
 
 Outposts buy nothing. Once the gates are shut the trucks cannot move, the outpost screen opens by itself when the leaves stop, and it has no Leave button and does not close on Escape. The next level starts only when the player presses Drive on. Then the shop is gone: the last outpost sells nothing, and driving back into its yard through the open north gate opens no shop.
 
-Parked inside the shut gates of a paid outpost 1, 4, 8 or 12 with both trucks, a hired run plays the story scene of that outpost once. It is a page in the quest window that pays nothing and changes no rule of the run. [The road story](../../architecture/quests.md#the-road-story) has the rules.
+Parked inside the shut gates of the paid first outpost with both trucks, a hired run plays the story scene of that outpost once. It is a page in the quest window that pays nothing and changes no rule of the run. [The road story](../../architecture/quests.md#the-road-story) has the rules.
 
 The run has no end. The HUD's run readout shows the stretch and the distance to its outpost, like `3: 640 m`, and its tooltip reads "Stretch 3: 640 m to Outpost 3". Between levels it shows the next stretch at its full length.
 
@@ -150,4 +150,4 @@ The death screen names the mode, the last outpost reached and how far north the 
 
 The run starts parked in the yard of outpost 0, at milestone 0, with the hauler and the gun truck side by side across the road, both heading north. Outpost 0 starts paid and known, so it gives no XP and pays nothing. It is a shop like every outpost, and the run waits there until the player presses Drive on. That opens stretch 1 on the same window, with no window move. Nothing spawns before it. The Chaos Highway kit is a scout with one MG, a stock engine, no armor, a full tank, base supplies, 1 part for field patching and 80 M's to spend at outpost 0, enough for one better gun or a piece of armor. It is the same every run. Every skill starts at rank 1, so every basic technique works from the first stretch.
 
-A new game with the intro on opens the hiring scene `road_hire` at once, before the first turn: the driver is hired by the hauler's driver Ala at the Keepers' southern outpost. Signing on is the scene's only end. A new game with the intro skipped has no story for the run.
+A new game with the intro on opens the hiring scene `chaos_highway_intro` at once, before the first turn: the driver is hired by the hauler's driver Ala at the southern outpost. The scene has no choices and always ends with the hire. A new game with the intro skipped has no story for the run.

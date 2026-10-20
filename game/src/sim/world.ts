@@ -163,7 +163,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     flares: [],
     lines: [],
     furyRoad: null,
-    sunward: setup.mode === 'roaming' ? freshSunward() : null,
+    sunward: modeMap(setup.mode) === 'icarus' ? freshSunward() : null,
   };
   world.obstacles = generateObstacles(world, map, [...hollowObstaclesFor(world), ...openingObstacles(kit, start)]);
   const truck = makeVehicle(world, {
