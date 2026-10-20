@@ -15,6 +15,7 @@ import { clockOf } from './sun';
 import type { DeedId, Faction, HelpDeed, MemoryFact, NpcFactionId, StandingFactionId, Vehicle, World, WrongDeed } from './types';
 import { dist } from './vec';
 import { canVehicleSee } from './vision';
+import { noteSunwardDefeat } from './sunward';
 
 export function isOutlaw(faction: Faction): boolean {
   return faction !== 'player' && factionDef(faction).outlaw;
@@ -279,6 +280,7 @@ export function driftStanding(world: World): void {
 export function noteDefeat(world: World, beaten: Vehicle, wrecked: boolean): void {
   const actor = world.vehicles.find((v) => v.id === beaten.lastHitBy);
   if (!actor || actor.id === beaten.id) return;
+  noteSunwardDefeat(world, beaten, actor);
   for (const subject of defendedBy(world, beaten, actor)) noteDeed(world, actor, subject, 'defended', canVehicleSee(world, subject, actor.pos));
   if (wrecked && wrongedBefore(world, actor, beaten)) noteDeed(world, actor, beaten, 'killed', true);
 }

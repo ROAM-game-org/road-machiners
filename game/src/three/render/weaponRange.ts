@@ -32,6 +32,7 @@ export class WeaponRangeView {
   readonly root = new THREE.Group();
   private fill: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   private edges: Line2[] = [];
+  private drawSize = { width: 1, height: 1 };
 
   constructor(private readonly color: number, stencilBit: number) {
     this.fill = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({
@@ -73,6 +74,11 @@ export class WeaponRangeView {
     this.drawEdges(outlines, LINE_ALPHA);
   }
 
+  setDrawSize(width: number, height: number): void {
+    this.drawSize = { width, height };
+    for (const edge of this.edges) edge.material.resolution.set(width, height);
+  }
+
   private drawEdges(outlines: THREE.Vector3[][], opacity: number): void {
     while (this.edges.length < outlines.length) {
       const edge = new Line2(new LineGeometry(), new LineMaterial({ color: this.color, linewidth: LINE_WIDTH_PX, transparent: true, opacity: LINE_ALPHA, depthTest: false }));
@@ -86,7 +92,7 @@ export class WeaponRangeView {
       if (!outline) return;
       edge.geometry.dispose();
       edge.geometry = new LineGeometry().setPositions(outline.flatMap((p) => [p.x, p.y, p.z]));
-      edge.material.resolution.set(window.innerWidth, window.innerHeight);
+      edge.material.resolution.set(this.drawSize.width, this.drawSize.height);
       edge.material.opacity = opacity;
     });
   }
@@ -136,6 +142,11 @@ export class HoverArcsView {
   constructor(private readonly overlay: HTMLElement, private readonly rig: CameraRig) {
     this.root.add(this.ready.root, this.spent.root);
     this.hide();
+  }
+
+  setDrawSize(width: number, height: number): void {
+    this.ready.setDrawSize(width, height);
+    this.spent.setDrawSize(width, height);
   }
 
   follow(world: World, hovered: string | null, frames: Record<string, VehicleFrame>, off: boolean): void {
