@@ -76,6 +76,32 @@ describe('directionsText', () => {
     expect(resolve(directionsText(steps), 'en')).toBe('Follow the road. The road takes you to the gate.');
   });
 
+  it('names the way along the first road once, in its first sentence', () => {
+    const answer = (road: DirectionStep & { do: 'follow' }, rest: DirectionStep[]) => resolve(directionsText([road, ...rest]), 'en');
+    const arrive: DirectionStep = { do: 'arrive', site: 'bowl', area: false };
+    expect(answer({ do: 'follow', road: { kind: 'to', site: 'bowl' }, heading: 'west', span: 'near' }, [arrive])).toBe('Follow the road west. The road takes you to the gate.');
+    expect(answer({ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'east', span: 'far' }, [])).toBe("Take the road to Nose, heading east. It's a long haul.");
+    expect(answer({ do: 'follow', road: { kind: 'heading', octant: 'north' }, heading: 'north', span: 'near' }, [])).toBe('Take the road heading north.');
+    expect(answer({ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'east', span: 'near' }, [{ do: 'turn', side: 'left', at: { kind: 'fork', nth: 2 }, road: { kind: 'to', site: 'bowl' }, span: 'near' }, arrive])).toBe('Take the road to Nose, heading east. At the second fork, turn left. The road takes you to the gate.');
+  });
+
+  it('reads an answer planned before headings with the old words', () => {
+    expect(resolve(directionsText([{ do: 'follow', road: { kind: 'to', site: 'bowl' }, heading: null, span: 'near' }, { do: 'arrive', site: 'bowl', area: false }]), 'en')).toBe('Follow the road. The road takes you to the gate.');
+    expect(resolve(directionsText([{ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span: 'near' }]), 'en')).toBe('Take the road to Nose.');
+  });
+
+  it('says the heading in Russian too, and never a heading road twice', () => {
+    const cases: DirectionStep[][] = [
+      [{ do: 'follow', road: { kind: 'to', site: 'bowl' }, heading: 'west', span: 'near' }, { do: 'arrive', site: 'bowl', area: false }],
+      [{ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'east', span: 'near' }],
+      [{ do: 'follow', road: { kind: 'heading', octant: 'north' }, heading: 'north', span: 'near' }],
+    ];
+    const [west, east, north] = cases.map((steps) => resolve(directionsText(steps), 'ru'));
+    expect(west).toContain('к западу');
+    expect(east).toContain('к востоку');
+    expect(north.match(/к северу/g)).toHaveLength(1);
+  });
+
   it('warns once about a long road leg, and not after a long cut to the road', () => {
     const road = (span: 'fair' | 'far') => ({ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span }) as const;
     expect(resolve(directionsText([road('far')]), 'en')).toBe("Take the road to Nose. It's a long haul.");
