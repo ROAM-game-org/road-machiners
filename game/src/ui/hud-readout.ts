@@ -14,7 +14,7 @@ import { keyLabel } from "./input-mode";
 import { canOverdrive, fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, workingEngineCapacity, type SpeedStep } from "../sim/stats";
 import { fuelLimit, lowFuelSpeed } from "../sim/far";
 import { towData } from "../sim/states";
-import { playerTow } from "../sim/tow";
+import { dragOf, playerTow } from "../sim/tow";
 import { heatAt } from "../sim/sun";
 import { TERRAIN } from "../data/terrain";
 import { dist, type Vec } from "../sim/vec";
@@ -227,18 +227,22 @@ export function moneyLabel(money: number): Msg {
 export type RescueReadout =
   | { kind: "knockedOut" }
   | { kind: "towed"; tower: Msg; town: Msg; fee: number }
+  | { kind: "dragged" }
   | { kind: "stranded"; beacon: boolean; reason: Msg | null; canEnd: boolean };
 
 export function getRescueReadout(w: World): RescueReadout | null {
   const p = w.player;
   if (p.state === "knockedOut") return { kind: "knockedOut" };
   if (p.state === "dead") return null;
+  return ropeReadout(w) ?? (showsStranded(w) ? { kind: "stranded", beacon: p.beacon, reason: strandedReason(w), canEnd: canAbandonRun(w) } : null);
+}
+
+function ropeReadout(w: World): RescueReadout | null {
+  if (dragOf(w, w.player.vehicleId)) return { kind: "dragged" };
   const state = playerTow(w);
-  if (state && towData(state).hitched) {
-    const data = towData(state);
-    return { kind: "towed", tower: vehicleName(w, state.holder), town: siteName(data.site), fee: data.fee };
-  }
-  return showsStranded(w) ? { kind: "stranded", beacon: p.beacon, reason: strandedReason(w), canEnd: canAbandonRun(w) } : null;
+  if (!state || !towData(state).hitched) return null;
+  const data = towData(state);
+  return { kind: "towed", tower: vehicleName(w, state.holder), town: siteName(data.site), fee: data.fee };
 }
 
 function showsStranded(w: World): boolean {
@@ -349,7 +353,7 @@ export function powerChip(steps: SpeedStep[], v: Vehicle): PowerChip {
   return { text, detail, over };
 }
 
-export type Readout = { id: string; label: Msg; value: Msg; warning: boolean; progress?: number; icon?: IconName; balance?: number; tip?: Msg };
+export type Readout = { id: string; label: Msg; value: Msg; warning: boolean; danger?: boolean; progress?: number; icon?: IconName; balance?: number; tip?: Msg };
 
 export function getHudReadout(w: World) {
   const me = playerVehicle(w);
@@ -365,7 +369,7 @@ export function getHudReadout(w: World) {
     { id: "money", label: t("readout.money"), value: moneyLabel(p.money), balance: p.money, warning: p.money < 0 },
     { id: "fuel", label: t("readout.fuel"), value: t("readout.litersShort", { n: fuelLiters(p.fuel) }), warning: p.fuel < capacity * RULES.lowFuelThreshold, icon: "fuel", tip: fuelTip },
     { id: "supplies", label: t("readout.supplies"), value: t("readout.kgShort", { n: Math.round(p.supplies) }), warning: p.supplies <= RULES.suppliesLow, icon: "supplies" },
-    { id: "driver", label: t("readout.driver"), value: num(hp(p.health), "int"), warning: p.health < maxHealth, icon: "health" },
+    { id: "driver", label: t("readout.driver"), value: num(hp(p.health), "int"), warning: p.health < maxHealth, danger: coreBurning(w, me), icon: "health" },
     ...runResources(w),
   ];
   const storm = w.weather.some((e) => e.kind === "storm" && dist(me.pos, e.pos) - e.radius <= TERRAIN.vision.radius);
@@ -383,6 +387,10 @@ export function getHudReadout(w: World) {
     resources,
     survival,
   };
+}
+
+function coreBurning(w: World, me: Vehicle): boolean {
+  return w.events.some((e) => e.t === "coreBurn" && e.vehicle === me.id);
 }
 
 function runResources(w: World): Readout[] {

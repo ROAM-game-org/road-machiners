@@ -175,6 +175,9 @@
   background: var(--lcd-ink);
   color: var(--lcd);
 }
+.resource.danger {
+  border-color: var(--danger);
+}
 .resource.alert .icon svg {
   fill: var(--lcd);
   stroke: var(--lcd);

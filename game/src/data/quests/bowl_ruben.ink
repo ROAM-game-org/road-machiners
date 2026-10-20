@@ -50,6 +50,7 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   -> hub
 + {found("fallen-sun")} [What is the Fallen Sun really?]
   So you've stood in that crater, and you know more of it than I do. <term=nose>Nose</term> calls the ship a warship, and Hattie at the well house calls it a seed ship that lost its way. I can only tell you that nothing grows near it, and of any place that is the worst thing I know how to say.
+  { cult_broken(): Folk go out there after dark again, now the lamps have stopped crossing. | Don't be out there after dark, either. The Sunward cross to it at dusk with their lamps, and I don't know a canal family that would follow them. }
   -> hub
 + {ruben_water || found("dustwell")} [What do you know about Dustwell?]
   In the last dry year the pumps at Green Pit drew mud by noon, and the Senate argued over whose fault that was, as if the pumps had been listening.

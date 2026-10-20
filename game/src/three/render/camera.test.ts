@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CameraRig, KeyPan, TruckFollow } from './camera';
+import { PHYSICS } from '../../data/physics';
+
+const S = PHYSICS.metersPerTile;
 
 function rigAt(): CameraRig {
   const container = {
@@ -392,5 +395,20 @@ describe('truck follow while planning', () => {
     for (let i = 0; i < 300; i++) follow.update(truck, far, true, 100);
 
     expect(offsetFromCenter(rig)).toBeCloseTo(old, 0);
+  });
+});
+
+describe('camera view box', () => {
+  it.each([[1280, 720], [390, 664]])('round-trips a ground point through screenOf and groundUnder in a %i x %i view', (w, h) => {
+    const view = { clientWidth: w, clientHeight: h, getBoundingClientRect: () => ({ left: 0, top: 0, width: w, height: h }) } as HTMLElement;
+    const rig = new CameraRig(view);
+    rig.tick(0);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2));
+    ground.updateMatrixWorld(true);
+    const point = { x: 4, y: 0, z: 6 };
+    const screen = rig.screenOf(point);
+    const hit = rig.groundUnder(screen.x, screen.y, ground)!;
+    expect(hit.x).toBeCloseTo(point.x / S, 1);
+    expect(hit.y).toBeCloseTo(point.z / S, 1);
   });
 });

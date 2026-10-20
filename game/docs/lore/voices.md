@@ -317,6 +317,26 @@ Strangers: the player is a stranger until the first fuel, then someone he owes o
 
 Sample: "Courier here. I have a run to finish and I will not make it on what is left."
 
+### The Sunward rider at the vigil
+
+Vocabulary: the light, the Keeper, a place kept, given by the sky, watching. He never names the reactor, the breach, death or the order's rules.
+
+Rhythm: slow and soft, short sentences with pauses between them. Each call is a little closer and a little stranger than the last, and only the third is plainly a demand.
+
+Habits: he calls a stranger "stranger" and the order "we". On the road he says nothing at all, and a call to him gets an open channel and breathing. Once a stranger agrees, he tells them where to drive and promises to stay behind them.
+
+Cares about: getting the stranger into the light without a fight, because a fight is work and a given truck arrives whole.
+
+Strangers: something the sky gave. He is gentle with it the way a man is gentle with a goat he means to sell.
+
+Sample: "Stranger. You came out to the crater at night. Stay a while and watch the light with us."
+
+### The road driver who knows about the lamps
+
+A trader, scavenger, courier, roamer, vulture or supplier who lives near the crater, or saw a car of the order, answers a question about the crater at night with one thing they saw or heard themselves, in short plain sentences, and tells it once. Each tells a different thing: lamps crossing at dusk, a radio that answered with breathing, drag furrows on the rim, the beacon keepers' dark lamps, trading there only by day, the shout "Given by the sky" as hearsay, wrecks left alone after dark, or a cousin who stopped by the rim and was never found. Only one of them counts eight lamps, and only one lost kin. After the order falls they speak of the quiet, the lamps that stopped crossing, the empty fort and drivers back at the crater at night, and still say to keep off the glow.
+
+Sample: "Passed the rim one morning. Two deep furrows ran through the sand from open ground into the crater. I didn't see a truck."
+
 ## Green Pit and the Pump Station
 
 ### Hadiza Okon, Green Pit pump and canteen
