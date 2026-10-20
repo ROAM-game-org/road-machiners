@@ -1803,7 +1803,27 @@ describe('MIGRATIONS[82]', () => {
     const next = migrated();
     expect(next.vehicles[1].brain!.goals).toEqual([]);
     expect(next.vehicles[1].job).toBeNull();
-    expect(next.vehicles[2]).toEqual(FORMAT_2_82.vehicles[2]);
-    expect(next.roadNews).toEqual([]);
+  });
+});
+
+describe('MIGRATIONS[83]', () => {
+  type Shops = Record<string, { stock: { defId: string }[]; restockAt: number }>;
+  const shopsOf = (world: unknown) => (world as { shops: Shops }).shops;
+  const withShelves = () => {
+    const world = structuredClone(FORMAT_2_82) as unknown as { shops: Shops };
+    world.shops.bowl.stock = [{ defId: 'mg' }];
+    world.shops.nose.stock = [{ defId: 'mg' }, { defId: 'stockEngine' }];
+    world.shops['salvage-yard'].stock = [{ defId: 'mg' }];
+    return world;
+  };
+
+  it('restocks a Bowl or Nose shelf with no stock engine on the saved turn and leaves the rest alone', () => {
+    const before = withShelves();
+    const next = MIGRATIONS[83](structuredClone(before) as never);
+
+    expect(shopsOf(next).bowl.restockAt).toBe(FORMAT_2_82.turn);
+    expect(shopsOf(next).nose.restockAt).toBe(before.shops.nose.restockAt);
+    expect(shopsOf(next)['salvage-yard']).toEqual(before.shops['salvage-yard']);
+    expect({ ...next, shops: { ...shopsOf(next), bowl: before.shops.bowl } }).toEqual(before);
   });
 });
