@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { TINY_STEPS, type SavedJson } from './save-migrations';
-import { anchorMinors, RELEASE_STEPS, SAVE_FORMAT, stepsFrom, stepsOf, TINY_FROM, type Step } from './save';
+import { RELEASE_STEPS, TINY_FROM, TINY_STEPS, type ReleaseStep, type SavedJson } from './save-migrations';
+import { anchorMinors, SAVE_FORMAT, stepsFrom, stepsOf } from './save';
+
+type Step = ReleaseStep['step'];
 
 const mark = (tag: string): Step => (world) => ({ ...world, trail: [...((world.trail as string[] | undefined) ?? []), tag] });
 const run = (steps: readonly Step[]): unknown => steps.reduce<SavedJson>((world, step) => step(world), { trail: [] }).trail;

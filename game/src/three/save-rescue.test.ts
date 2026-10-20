@@ -10,7 +10,6 @@ import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
 import FORMAT_2_1 from './save-fixtures/format-2-1.json';
 import FORMAT_2_9 from './save-fixtures/format-2-9.json';
-import { TINY_STEPS } from './save-migrations';
 import { defaultSetup, repairSetup } from '../sim/settings';
 
 const KIT = startKit('standard');
@@ -40,12 +39,10 @@ describe('readCarried', () => {
     expect(carried.truck?.items.some((it) => it.kind === 'part' && it.part.defId === 'mg')).toBe(true);
   });
 
-  it('reads skill XP from before format 2.10 as the 9 to 10 step does', () => {
+  it('pools skill XP from before format 2.10 into ranks and spare XP', () => {
     const old = readCarried({ format: { major: 2, minor: 9 }, world: FORMAT_2_9 });
-    const migrated = readCarried({ format: { major: 2, minor: 10 }, world: TINY_STEPS[9](FORMAT_2_9) });
     expect(old.ranks).toEqual({ driving: 0, perception: 1, machining: 2, toughness: 5, social: 3 });
     expect(old.xp).toBe(1549);
-    expect({ xp: old.xp, ranks: old.ranks }).toEqual({ xp: migrated.xp, ranks: migrated.ranks });
   });
 
   it('keeps old perks whose rank holds and drops the rest', () => {

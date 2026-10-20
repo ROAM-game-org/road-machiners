@@ -23,16 +23,11 @@ import { reportError } from './crash';
 import { CONFIG, GAME_VERSION } from '../config';
 import { download } from '../ui/dom';
 import type { RunLog } from './run-log';
-import { SAVE_MAJOR, TINY_STEPS, type SavedJson } from './save-migrations';
+import { RELEASE_STEPS, SAVE_MAJOR, TINY_FROM, TINY_STEPS, type ReleaseStep, type SavedJson } from './save-migrations';
 
 declare const __SAVE_SCOPE__: string;
 
-export type Step = (world: SavedJson) => SavedJson;
-export type ReleaseStep = { from: number; to: number; step: Step };
-
-export const RELEASE_STEPS: readonly ReleaseStep[] = [];
-
-export const TINY_FROM = 0;
+type Step = ReleaseStep['step'];
 
 export const SAVE_FORMAT = { major: SAVE_MAJOR, minor: TINY_FROM + TINY_STEPS.length } as const;
 

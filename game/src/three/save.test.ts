@@ -941,18 +941,14 @@ describe('saved world settings', () => {
     expect(loadWorld(slots, 'slot2', TEST_MAP)?.setup).toEqual(tuned(0.5, 1));
   });
 
-  it('gives a save from format 2.13 the default Roaming setup, once', () => {
+  it('sends a save at a format no build shipped to the carry route, and keeps the stored save', () => {
     const slots = makeSlots();
     const save = JSON.parse(JSON.stringify(saveOf(newWorld(1337, startKit('standard'), TEST_MAP, tuned(2, 2)))));
-    delete save.world.setup;
-    save.world.events = [];
-    save.world.removed = [];
-    for (const vehicle of save.world.vehicles) vehicle.trail = [];
-    slots.put('auto', { ...save, format: { major: SAVE_MAJOR, minor: 13 } });
-    writeSave(slots, 'slot1', newWorld(1337, startKit('standard'), TEST_MAP, tuned(2, 2)), RUN, 1000);
+    const stored = { ...save, format: { major: SAVE_MAJOR, minor: 13 } };
+    slots.put('auto', stored);
 
-    expect(loadWorld(slots, 'auto', TEST_MAP)?.setup).toEqual(defaultSetup('roaming'));
-    expect(loadWorld(slots, 'slot1', TEST_MAP)?.setup).toEqual(tuned(2, 2));
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/outOfReach/);
+    expect(slots.get('auto')).toEqual(stored);
   });
 
   it.each([
@@ -985,8 +981,8 @@ describe('saveKey', () => {
 
   it('throws a SaveError when a migration step cannot read an old save', () => {
     const slots = makeSlots();
-    slots.put('auto', { format: { major: SAVE_MAJOR, minor: 0 }, world: { vehicles: 5, player: 7 } });
-    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
+    slots.put('auto', { format: { major: SAVE_MAJOR, minor: 1 }, world: { vehicles: 5, player: 7 } });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/notMigrated/);
   });
 });
 

@@ -87,7 +87,7 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
 
     expectWaitingAt(world, MID_STRETCH.world.furyRoad.window);
     expectKept(world, MID_STRETCH);
-    expect(report!.report).toEqual({ toGarage: [], sold: [], lost: [], settingsReset: [], questsReset: [] });
+    expect(report!.report).toEqual({ toGarage: [], sold: [], refunded: [], lost: [], settingsReset: [], questsReset: [] });
     expect(report!.runId).toBe(MID_STRETCH.runId);
     expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual({ ...world, events: [], removed: [] });
   });

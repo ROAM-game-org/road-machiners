@@ -1,5 +1,0 @@
-{
-  "turn": 3,
-  "setup": { "mode": "furyRoad", "settings": { "damage": 1.5, "fuelUse": 0.75, "supplyUse": 1 } },
-  "player": { "money": 1200 }
-}
