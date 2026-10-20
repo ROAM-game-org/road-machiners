@@ -706,8 +706,6 @@ export const SCREENS: Translation<typeof EN> = {
   'journal.close': 'Закрыть',
   'journal.title': 'Журнал',
   'journal.empty': 'Пока нечего записывать.',
-  'journal.survey.title': 'Разведка для {site, case, gen}',
-  'journal.survey.taken': 'День {day}',
   'journal.survey.found': 'найдено',
   'journal.survey.done': 'разведано',
   'journal.claimLead': '{bearing} от места разговора, ехать примерно {distance}',
