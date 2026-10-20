@@ -3,6 +3,5 @@ INCLUDE world.ink
 
 === start ===
 # checkpoint: start
-The fourth fort has a water cistern on its roof. # place: The fourth outpost # img: road_hauler
-Hunters came out of the badlands, and both trucks got through.
+The hunters came two at a time on the way up, and both trucks got through. The hauler's cab still has its glass. # place: The fourth outpost # img: road_hauler
 -> END
