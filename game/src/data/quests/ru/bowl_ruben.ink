@@ -50,6 +50,7 @@ VAR ruben_water = false
   -> hub
 + {found("fallen-sun")} [Что такое Павшее солнце на самом деле?]
   Значит, тебе довелось побывать в том кратере, и ты знаешь о нем больше моего. <term=nose>Нос</term> зовет корабль боевым, а Хэтти из колодезной зовет его кораблем с семенами, который сбился с пути. Мне известно одно: рядом с ним ничего не растет. Хуже этого я не могу сказать ни об одном месте.
+  { cult_broken(): Folk go out there after dark again, now the lamps have stopped crossing. | Don't be out there after dark, either. The Sunward cross to it at dusk with their lamps, and I don't know a canal family that would follow them. }
   -> hub
 + {ruben_water || found("dustwell")} [Что ты знаешь о Пыльном колодце?]
   В последний сухой год насосы Зеленой ямы к полудню качали грязь. А Сенат спорил, чья это вина, как будто насосы слушали.

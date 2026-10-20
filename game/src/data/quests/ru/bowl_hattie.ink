@@ -80,6 +80,9 @@ VAR hattie_unarmed = false
   ~ note("talkSunwardTake")
   ~ hattie_sunward = true
   -> hub
++ {hattie_sunward and cult_broken()} [Have the Sunward gone quiet?]
+  Quiet as a dry well. Bo's cousin says the lamps stopped crossing to the crater at dusk, and a man with a green shine on his hands came to my well asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
+  -> hub
 + {hattie_sunward and not hattie_came_out} [А кто-нибудь выходил на твоих глазах?]
   Одну видела, в сумерках. Руки у нее в темноте зеленым светились, а воду пила молча, ведро за ведром.
   Не заплатила ни М и пошла обратно к кратеру.

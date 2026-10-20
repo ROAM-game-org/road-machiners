@@ -54,6 +54,14 @@ VAR asked_tools = false
   Это низкий ровный звук, то появится, то пропадет, и всё время со стороны кратера. Одни говорят, что он считает годы с падения. Никакого ключа для шифра у меня нет, а Армия записывать его никогда не просила. Если он считает, то считает без меня.
   ~ asked_tone = true
   -> hub
++ {heard_tone} [Hear anything from the crater at night?]
+  { cult_broken():
+    Eh? Quieter than it's been in years. A line of lamps used to cross to the crater every dusk, and if you called them you got an open channel and somebody breathing on it. Now there's nothing at all. I'd wager somebody finally stopped them. Do not tell the Sergeant I was glad.
+  - else:
+    Eh? Nobody out there talks, that's the odd part. Every dusk a line of lamps goes out to the crater, and if you call them you get an open channel and somebody breathing on it, nothing more. Joss Ardo, who sings with the Children of Noah now, rode with them once and got out. I'd wager he's the only one who ever did.
+    ~ note("sunwardLamps")
+  }
+  -> hub
 + {heard_couriers and not asked_couriers} [Кто такие курьеры Гильдии?]
   Возят почту между городами. Теперь ездят парами, по два грузовика. Помню, как они ездили поодиночке, пока рейдеры Обжига не обнаглели. Обжиг — это лагерь рейдеров на юге. Тэмсин Роу тут особая: у нее вообще нет оружия. Её позывной я слышу чаще всех.
   ~ asked_couriers = true

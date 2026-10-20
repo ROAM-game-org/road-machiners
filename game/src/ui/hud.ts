@@ -144,6 +144,10 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
   ];
 }
 
+function readoutClass(r: { warning: boolean; danger?: boolean }): string {
+  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : ""].filter(Boolean).join(" ");
+}
+
 export class Hud {
   private top = panel("instruments", bottomLeft());
   private clockSlot = el("div", { class: "instrument-clock", role: "timer", title: t("hud.clockTitle") });
@@ -417,17 +421,16 @@ export class Hud {
     this.dialogue.render(w);
     const r = getRescueReadout(w);
     this.knockedOut.style.display = rescueOf(r, "knockedOut") ? "" : "none";
-    this.renderMiddle(rescueOf(r, "towed"));
+    this.renderMiddle(rescueOf(r, "towed") ?? rescueOf(r, "dragged"));
     this.renderStranded(rescueOf(r, "stranded"));
   }
 
-  private renderMiddle(r: Extract<RescueReadout, { kind: "towed" }> | null): void {
+  private renderMiddle(r: Extract<RescueReadout, { kind: "towed" | "dragged" }> | null): void {
     this.rescue.style.display = r ? "" : "none";
     if (!r) return this.rescue.replaceChildren();
     this.rescue.replaceChildren(
       el("h3", {}, t("hud.underTow")),
-      el("div", {}, t("hud.towsYou", { who: r.tower, town: r.town })),
-      el("div", { class: "dim" }, t("hud.fee"), SPACE, moneyEl(r.fee)),
+      ...(r.kind === "towed" ? [el("div", {}, t("hud.towsYou", { who: r.tower, town: r.town })), el("div", { class: "dim" }, t("hud.fee"), SPACE, moneyEl(r.fee))] : []),
       el(
         "div",
         { class: "rescue-buttons" },
@@ -595,7 +598,7 @@ export class Hud {
         el(
           "span",
           {
-            class: `resource ${resource.warning ? "alert" : ""}`,
+            class: readoutClass(resource),
             title: resource.tip ?? resource.label,
             "aria-label": resource.warning ? t("hud.readoutWarning", { label: resource.label, value: resource.value }) : t("hud.readout", { label: resource.label, value: resource.value }),
             "data-resource": resource.id,
@@ -680,6 +683,7 @@ export class Hud {
       lines.push(line);
     }
     this.log.add(w.turn, lines);
+    if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
     this.radio.hear(w);
   }
 

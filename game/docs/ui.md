@@ -289,6 +289,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.tooltip-row` is one line of a tooltip breakdown: the label on the left in the UI face and the value on the right in mono, like Base and then each cause. `.base` marks the Base row in muted ink, `.up` a step that raises the number in good ink and `.down` a step that lowers it in danger ink.
 - `.standing` is the character screen's list of faction standing: one `.standing-row` per faction with its band word, and a `.tooltip.standing-tip` of `.tooltip-row` lines (base, deeds, earlier) on hover and focus. The HUD's driver card shows only the band tag of that driver toward the player.
 - `.option-switch` is a row of equal buttons that picks one value of a setting: the language, the UI size and the minimap. `aria-pressed` with the accent edge marks the chosen one. A value that cannot be used is `aria-disabled` and gives its reason through the shared tooltip.
+- `.resource.danger` gives an HUD readout the danger edge while its state is true, the attention level of 7. The health readout takes it in a turn the reactor core burns the driver.
 - `.num` is a number in the mono face. `.dim`, `.good` and `.bad` color a word.
 
 ## 13. How to build a screen
