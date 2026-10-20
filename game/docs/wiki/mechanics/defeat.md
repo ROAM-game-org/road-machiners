@@ -45,7 +45,7 @@ Health at 0 kills the player. The death screen offers Load save and New game. Ne
 
 A parked driver with supplies heals each turn, five times as fast in a town. Healing spends extra supplies. Starving and the reactor's drain take health down to 30 and no lower, so only cab damage and the reactor core itself can kill. Only a fight or a crash can knock the driver out.
 
-A death in the reactor core plays a short page scene of the light and the link losing the driver before the death screen. Any other death shows the death screen alone.
+A death in the reactor core plays a short page scene before the death screen. It opens at the reactor's breach, in the light the driver stayed in, says so when the player gave the order its word that night, follows the link losing the driver and ends in plain death. Any other death shows the death screen alone.
 
 At night a car of the Sunward can drag a beaten or stranded truck on its tow bar to the reactor's breach, as [World](world.md#the-sunward) describes. The victim can cut free with Unhitch whenever it is awake.
 
