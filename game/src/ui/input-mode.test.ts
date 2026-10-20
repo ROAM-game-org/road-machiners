@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { inputModeOf } from "./input-mode";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { t } from "../text/msg";
+import { resolve } from "../text/resolve";
+import { inputModeOf, keyLabel, watchInputMode } from "./input-mode";
+import type { UiSize } from "./ui-size";
 
 const layer = (width: number, height: number) => ({ width, height });
 
@@ -45,5 +48,25 @@ describe("input mode", () => {
   });
   it("makes a laptop at 130% compact but not narrow", () => {
     expect(inputModeOf(false, layer(1280 / 1.3, 720 / 1.3))).toMatchObject({ phone: false, narrow: false, compact: true });
+  });
+});
+
+describe("key label", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function watch(coarse: boolean): void {
+    vi.stubGlobal("window", { matchMedia: () => ({ matches: coarse, addEventListener: () => {} }) });
+    const size = { layerSize: () => layer(1280, 720), subscribe: () => () => {} } as unknown as UiSize;
+    watchInputMode({ classList: { toggle: () => {} } } as unknown as HTMLElement, size);
+  }
+
+  it("is the plain text under touch", () => {
+    watch(true);
+    expect(resolve(keyLabel(t("menu.close"), "C"), "en")).toBe("Close");
+  });
+
+  it("adds the key cap with a mouse", () => {
+    watch(false);
+    expect(resolve(keyLabel(t("menu.close"), "C"), "en")).toBe("Close [C]");
   });
 });

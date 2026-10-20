@@ -4,6 +4,7 @@ import { groundPoint, type VehicleFrame } from '../../phys/frames';
 import type { World } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
 import { el } from '../../ui/dom';
+import { keyLabel } from '../../ui/input-mode';
 import { createBareItemIcon } from '../../ui/cards';
 import type { JobMark, VehicleMark, WeaponMark } from '../../ui/weapons';
 import { playerExplored, playerSees } from '../../sim/vision';
@@ -154,7 +155,7 @@ function weaponsRow(weapons: WeaponMark[]): HTMLElement | null {
 function markerNode(mark: VehicleMark): HTMLElement {
   return el('div', { class: 'vehicle-marker' },
     weaponsRow(mark.weapons),
-    mark.radio ? el('div', { class: 'marker-radio' }, t('map.radio')) : null,
+    mark.radio ? el('div', { class: 'marker-radio' }, keyLabel(t('map.radio'), 'T', 'before')) : null,
     mark.out ? el('div', { class: 'marker-out' }, mark.gaveUp ? t('npc.gaveUp') : t('npc.knockedOut')) : null,
     mark.job ? jobChip(mark.job) : null,
   );

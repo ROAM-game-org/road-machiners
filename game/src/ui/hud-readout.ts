@@ -10,6 +10,7 @@ import { maxHp } from "../sim/wear";
 import { playerVehicle, vehicleById } from "../sim/damage";
 import { maxHealthOf } from "../sim/health";
 import { corePart, mountedItems, mountedParts, itemSize } from "../sim/grid";
+import { keyLabel } from "./input-mode";
 import { canOverdrive, fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, workingEngineCapacity, type SpeedStep } from "../sim/stats";
 import { fuelLimit, lowFuelSpeed } from "../sim/far";
 import { towData } from "../sim/states";
@@ -42,7 +43,7 @@ export function overdriveSwitch(w: World): { checked: boolean; reason: Msg | nul
     ? null
     : mountedParts(me, "engine").length === 0
       ? t("hud.overdriveNoEngine")
-      : t("hud.overdriveWorn", { pct: Math.round(RULES.overdriveMinEngineShare * 100) });
+      : keyLabel(t("hud.overdriveWorn", { pct: Math.round(RULES.overdriveMinEngineShare * 100) }), "O");
   return {
     checked: inOverdrive(w, me),
     reason,
