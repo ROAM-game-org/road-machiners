@@ -26,6 +26,7 @@ export const SUNWARD = {
   straightReach: 4,
   vigilInset: 3,
   fileGap: 4,
+  apronGap: 4,
   meetTurns: 12,
   postGap: 3,
   postSamples: 96,

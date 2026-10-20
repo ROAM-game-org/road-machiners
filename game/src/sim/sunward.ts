@@ -338,8 +338,27 @@ function scheduleGoal(world: World, v: Vehicle): NpcActivity {
 function columnGoal(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
   const ahead = carAhead(world, v, phase);
   if (!ahead) return leadGoal(world, v, phase);
-  if (atStation(world, v, phase) && atStation(world, ahead, phase)) return holdStation(world, v, phase);
+  if (atStation(world, v, phase) && notClearYet(world, ahead, phase)) return holdStation(world, v, phase);
+  return followGoal(v, ahead, phase);
+}
+
+function followGoal(v: Vehicle, ahead: Vehicle, phase: NightPhase): NpcActivity {
+  if (phase === 'ride' && inTheYard(v)) return goal('explore', gateApron(), 'rideVigil');
   return goal('follow', ahead.pos, phase === 'ride' ? 'rideVigil' : 'rideHome', ahead.id);
+}
+
+function notClearYet(world: World, ahead: Vehicle, phase: NightPhase): boolean {
+  return phase === 'ride' ? dist(ahead.pos, HOLLOW.pos) < HOLLOW.radius - SUNWARD.fileGap : atStation(world, ahead, phase);
+}
+
+function inTheYard(v: Vehicle): boolean {
+  return dist(v.pos, HOLLOW.pos) < HOLLOW.radius;
+}
+
+function gateApron(): Vec {
+  const gate = HOLLOW.site.gates[0];
+  const out = { x: (gate.x - HOLLOW.pos.x) / HOLLOW.radius, y: (gate.y - HOLLOW.pos.y) / HOLLOW.radius };
+  return { x: gate.x + out.x * SUNWARD.apronGap, y: gate.y + out.y * SUNWARD.apronGap };
 }
 
 function stationOf(world: World, v: Vehicle, phase: NightPhase): Vec {

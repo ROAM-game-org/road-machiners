@@ -11,7 +11,7 @@ import { parkedVehicles } from "./steering";
 import { fieldBlockers } from "./hazards";
 import { isStranded, vehicleStats, type MountedWeapon } from "./stats";
 import { traderWaits } from "./escort-job";
-import { followersOf } from "./companies";
+import { AWAITED_KINDS, followersOf } from "./companies";
 import { followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
 import { ramImpact, ramValue } from "./crash-contact";
 import { ramsReadily } from "./npc-decisions";
@@ -125,7 +125,7 @@ function orderPoint(world: World, v: Vehicle, activity: NpcActivity): Vec | null
 
 function waitsForEscort(world: World, v: Vehicle, activity: NpcActivity): boolean {
   if (activity.kind === "fight" || activity.kind === "flee" || activity.kind === "resupply") return false;
-  return followersOf(world, v.id).some((e) => (e.brain ? waitsForGuard(world, v, e) : traderWaits(world, v, e)));
+  return followersOf(world, v.id, AWAITED_KINDS).some((e) => (e.brain ? waitsForGuard(world, v, e) : traderWaits(world, v, e)));
 }
 
 function waitsForGuard(world: World, v: Vehicle, guard: Vehicle): boolean {

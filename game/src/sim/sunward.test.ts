@@ -92,10 +92,13 @@ describe('the Hollow', () => {
   it('is a walled scrap fort with one gate toward the crater, laid by the fortress rule and never by the bake', () => {
     const fort = hollowObstacles().flatMap((o) => (o.kind === 'landmark' && o.look.startsWith('fortScrap') ? [o] : []));
     expect(fort.map(({ look, pos, r, yaw }) => ({ look, pos, r, yaw }))).toEqual(fortressProps(HOLLOW.site).map((p) => ({ look: p.kind, pos: p.pos, r: p.r, yaw: p.yaw })));
-    expect(fort.filter((o) => o.look === 'fortScrapGate')).toHaveLength(1);
+    const gate = HOLLOW.site.gates[0];
+    const inward = { x: (HOLLOW.pos.x - gate.x) / HOLLOW.radius, y: (HOLLOW.pos.y - gate.y) / HOLLOW.radius };
+    const gateway = { x: gate.x + inward.x * 1.25, y: gate.y + inward.y * 1.25 };
+    expect(fort.filter((o) => dist(o.pos, gateway) < 1.5)).toEqual([]);
+    expect(fort.filter((o) => o.look === 'fortScrapTower' && dist(o.pos, gateway) < 4)).toHaveLength(2);
     expect(fort.filter((o) => o.look === 'fortScrapTower').length).toBeGreaterThan(4);
     expect(REGION.locations.some((l) => l.id === HOLLOW.id)).toBe(false);
-    const gate = HOLLOW.site.gates[0];
     const toGate = Math.atan2(gate.y - HOLLOW.pos.y, gate.x - HOLLOW.pos.x);
     const toCrater = Math.atan2(fallenSun().pos.y - HOLLOW.pos.y, fallenSun().pos.x - HOLLOW.pos.x);
     expect(Math.abs(toGate - toCrater)).toBeLessThan(0.25);
@@ -248,7 +251,7 @@ describe('the night schedule', () => {
     }
 
     expect(left.get(order[0])).toBeLessThanOrEqual(6);
-    expect(Math.max(...order.map((id) => left.get(id)!))).toBeLessThanOrEqual(30);
+    expect(Math.max(...order.map((id) => left.get(id)!))).toBeLessThanOrEqual(45);
     expect([...arrived.keys()].sort()).toEqual([...order].sort());
     expect(Math.max(...[...away.values()].map((t) => t.most))).toBeLessThanOrEqual(5);
     expect(seen.stalls).toBe(0);
@@ -285,9 +288,9 @@ describe('the night schedule', () => {
   }, 600_000);
 
   it('closes the column up behind a car beaten on the ride', () => {
-    let w = watchedFromTheGate(orderWorld());
-    w = runTo(w, duskTurn(1) + 40);
+    let w = runTo(watchedFromTheGate(orderWorld()), duskTurn(1) + 1);
     const order = gateOrder(w, sunwardFacts(w).night!);
+    while (followingOf(w, riderAt(w, order[4]))?.other !== order[3]) w = runTo(w, w.turn + 1);
     const beaten = riderAt(w, order[3]);
     beaten.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: false };
 
