@@ -13,7 +13,7 @@
   --drawer-top: calc(var(--safe-top) + var(--phone-top-row) + var(--hud-gap));
   --drawer-max-h: calc(var(--layer-h) - var(--drawer-bottom) - var(--drawer-top));
   --drawer-w: calc((var(--layer-w) - var(--safe-left) - var(--safe-right) - var(--hud-gap)) / 2);
-  --phone-tabs-w: calc(4 * var(--btn-h-l) + 3 * var(--space-2));
+  --phone-tabs-w: calc(4 * var(--phone-tab-w) + 3 * var(--space-2));
   --right-column: 0px;
 }
 
@@ -69,6 +69,9 @@
   bottom: calc(var(--safe-bottom) + (var(--phone-readouts-h) - var(--btn-h-l)) / 2);
   pointer-events: auto;
 }
+#ui.phone .drawer-tabs > button {
+  width: var(--phone-tab-w);
+}
 #ui.phone .turn-control {
   right: var(--safe-right);
   bottom: var(--safe-bottom);
@@ -76,18 +79,19 @@
 #ui.phone .end-turn {
   width: var(--phone-end-w);
   min-height: var(--btn-h-l);
-  flex-direction: row;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
+  justify-content: center;
+  padding: var(--space-2) var(--space-3);
+  text-align: center;
+  line-height: 1;
+  overflow-wrap: normal;
 }
 #ui.phone .end-turn .icon {
-  width: var(--icon-l);
-  height: var(--icon-l);
+  display: none;
 }
 
 #ui.phone {
-  --dial-w: 64px;
-  --dial-h: 39px;
+  --dial-w: 96px;
+  --dial-h: 58px;
 }
 #ui.phone .bottom-left > .instruments {
   position: fixed;
@@ -102,19 +106,31 @@
   column-gap: var(--space-2);
   row-gap: var(--space-1);
   grid-template-columns: var(--dial-w) repeat(3, minmax(0, 1fr));
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: repeat(3, auto) 1fr;
   grid-template-areas:
-    "dial heat money clock"
-    "dial fuel supplies engine"
+    "dial driver fuel supplies"
+    "dial engine heat weather"
+    "dial money clock run"
     "actions actions actions actions";
 }
 #ui.phone .instruments .speedometer {
-  grid-row: 1 / span 2;
+  grid-row: 1 / span 3;
+}
+#ui.phone .instruments .resource[data-resource="weather"] {
+  grid-area: weather;
+}
+#ui.phone .instruments .resource[data-resource="run"] {
+  grid-area: run;
 }
 #ui.phone .instruments .resource {
+  grid-template-columns: var(--icon-xs) minmax(0, 1fr);
+  justify-content: stretch;
   padding: var(--space-1) var(--space-2);
   column-gap: var(--space-1);
   font-size: var(--text-caption);
+}
+#ui.phone .instruments .resource > :last-child {
+  justify-self: end;
 }
 #ui.phone .instruments .resource :is(.icon, .coin) {
   width: var(--icon-xs);
@@ -129,29 +145,25 @@
 }
 #ui.phone .instruments .instrument-actions {
   gap: var(--space-1);
-  padding-top: var(--space-1);
+  flex-wrap: nowrap;
+  padding-top: 0;
+  border-top: 0;
   min-height: 0;
 }
 #ui.phone .instruments .instrument-actions > * {
   flex: 1 1 0;
   min-width: 0;
-  padding-left: var(--space-1);
-  padding-right: var(--space-1);
-}
-#ui.phone .top-right {
+  height: var(--touch-target);
+  display: flex;
   align-items: center;
-}
-#ui.phone .health-slot {
-  order: -1;
-}
-#ui.phone .health-slot .resource {
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-body);
+  justify-content: center;
+  text-align: center;
+  line-height: 1;
+  white-space: normal;
+  overflow-wrap: break-word;
+  padding: 0 var(--space-1);
 }
 #ui.phone :is(.feedback, .camera-mode) {
-  display: none;
-}
-#ui:not(.phone) .health-slot {
   display: none;
 }
 
@@ -303,9 +315,12 @@
 @media (orientation: portrait) {
   #ui.phone .drawer-tabs {
     bottom: var(--safe-bottom);
+    right: calc(var(--safe-right) + var(--phone-end-w) + var(--hud-gap));
   }
-  #ui.phone .end-turn {
-    width: calc(var(--layer-w) - var(--safe-left) - var(--safe-right) - var(--phone-tabs-w) - var(--hud-gap));
+  #ui.phone .drawer-tabs > button {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
   }
 }
 
@@ -345,14 +360,22 @@
 #ui.phone .instruments .instrument-actions .switch-option {
   white-space: normal;
   text-align: center;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  line-height: 1;
+}
+#ui.phone .instruments .instrument-actions .switch-lever {
+  display: none;
 }
 #ui.phone .instruments .speed-value {
   left: auto;
   right: 2px;
   bottom: 1px;
   transform: none;
-  font-size: var(--text-caption);
+  font-size: var(--text-dense);
+}
+
+#ui.phone .instruments .instrument-actions .key-corner {
+  display: none;
 }
 
 #ui:not(.phone) .quest-look {
