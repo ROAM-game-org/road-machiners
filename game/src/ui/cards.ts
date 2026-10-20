@@ -307,7 +307,7 @@ async function paintedSheet(paint: TruckPaint): Promise<string> {
 }
 
 async function sheetBitmap(file: string): Promise<ImageBitmap> {
-  const bytes = await fetchAsset(`Chassis sheet ${file}`, publicUrl(`icons/${file}`));
+  const bytes = await fetchAsset("Chassis sheet", publicUrl(`icons/${file}`));
   return createImageBitmap(new Blob([bytes], { type: "image/png" }), { premultiplyAlpha: "none", colorSpaceConversion: "none" });
 }
 
