@@ -6,7 +6,7 @@ import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF } from "../data/market";
 import { shortHere } from "../sim/market";
-import { shortBy } from "./shop-rows";
+import { livePaintPick, paintStyle, shortBy } from "./shop-rows";
 import { SHOPS } from "../data/market";
 import { stockTarget, type ShopState } from "../sim/market";
 
@@ -82,5 +82,19 @@ describe("the short tone and the short rule", () => {
         }
       }
     }
+  });
+});
+
+describe("the paint row", () => {
+  it("colors each swatch with its preset's body and cab", () => {
+    expect(paintStyle("standard")).toBe("--paint-top:#9c7a3e;--paint-cab:#7e8a5a");
+    expect(paintStyle("bone")).toBe("--paint-top:#f4e8c0;--paint-cab:#26346a");
+  });
+
+  it("offers a repaint only for a pick that differs from the current paint", () => {
+    expect(livePaintPick("standard", null)).toBeNull();
+    expect(livePaintPick("standard", "standard")).toBeNull();
+    expect(livePaintPick("standard", "sky")).toBe("sky");
+    expect(livePaintPick("sky", "sky")).toBeNull();
   });
 });
