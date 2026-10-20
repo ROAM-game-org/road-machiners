@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { TOUCH } from "../config";
 import { TouchGestures } from "./touch-map";
 
+describe("touch gestures", () => {
   it("gives a tap at the press point when the finger stayed inside the slop", () => {
-  it("gives a tap on lift when the finger stayed inside the slop", () => {
     const g = new TouchGestures();
     g.down(1, 100, 100, 0);
     expect(g.move(1, 100 + TOUCH.slopPx - 1, 100)).toBeNull();
