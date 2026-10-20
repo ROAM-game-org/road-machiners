@@ -352,7 +352,7 @@ export function powerChip(steps: SpeedStep[], v: Vehicle): PowerChip {
   return { text, detail, over };
 }
 
-export type Readout = { id: string; label: Msg; value: Msg; warning: boolean; progress?: number; icon?: IconName; balance?: number; tip?: Msg };
+export type Readout = { id: string; label: Msg; value: Msg; warning: boolean; danger?: boolean; progress?: number; icon?: IconName; balance?: number; tip?: Msg };
 
 export function getHudReadout(w: World) {
   const me = playerVehicle(w);
@@ -368,7 +368,7 @@ export function getHudReadout(w: World) {
     { id: "money", label: t("readout.money"), value: moneyLabel(p.money), balance: p.money, warning: p.money < 0 },
     { id: "fuel", label: t("readout.fuel"), value: t("readout.litersShort", { n: fuelLiters(p.fuel) }), warning: p.fuel < capacity * RULES.lowFuelThreshold, icon: "fuel", tip: fuelTip },
     { id: "supplies", label: t("readout.supplies"), value: t("readout.kgShort", { n: Math.round(p.supplies) }), warning: p.supplies <= RULES.suppliesLow, icon: "supplies" },
-    { id: "driver", label: t("readout.driver"), value: num(hp(p.health), "int"), warning: p.health < maxHealth, icon: "health" },
+    { id: "driver", label: t("readout.driver"), value: num(hp(p.health), "int"), warning: p.health < maxHealth, danger: coreBurning(w, me), icon: "health" },
     ...runResources(w),
   ];
   const storm = w.weather.some((e) => e.kind === "storm" && dist(me.pos, e.pos) - e.radius <= TERRAIN.vision.radius);
@@ -386,6 +386,10 @@ export function getHudReadout(w: World) {
     resources,
     survival,
   };
+}
+
+function coreBurning(w: World, me: Vehicle): boolean {
+  return w.events.some((e) => e.t === "coreBurn" && e.vehicle === me.id);
 }
 
 function runResources(w: World): Readout[] {

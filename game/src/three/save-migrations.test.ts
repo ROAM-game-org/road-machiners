@@ -78,6 +78,7 @@ import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_83 from './save-fixtures/format-2-83.json';
 import FORMAT_2_84 from './save-fixtures/format-2-84.json';
+import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
@@ -1860,5 +1861,25 @@ describe('save migration 84 to 85', () => {
     lost.vehicles[1].brain!.home = { x: 10, y: 10 };
 
     expect(() => MIGRATIONS[84](lost)).toThrow(/no bay of the old Hollow/);
+  });
+});
+
+describe('save migration 85 to 86', () => {
+  it('gives the night of the vigil an empty list of words given and keeps the rest', () => {
+    const before = structuredClone(FORMAT_2_85);
+
+    const next = MIGRATIONS[85](before) as typeof FORMAT_2_85 & { sunward: { night: { offered: string[] } } };
+
+    expect(next.sunward.night).toEqual({ ...FORMAT_2_85.sunward.night, offered: [] });
+    expect(next.vehicles).toEqual(FORMAT_2_85.vehicles);
+    expect(before).toEqual(FORMAT_2_85);
+  });
+
+  it('passes a world with no night open, or no order, unchanged', () => {
+    const day = { ...structuredClone(FORMAT_2_85), sunward: { ...FORMAT_2_85.sunward, night: null } };
+    const highway = { ...structuredClone(FORMAT_2_85), sunward: null };
+
+    expect(MIGRATIONS[85](day)).toEqual(day);
+    expect(MIGRATIONS[85](highway)).toEqual(highway);
   });
 });

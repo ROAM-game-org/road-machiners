@@ -721,3 +721,18 @@ describe('survey interaction', () => {
     expect(actions(w)).toEqual([]);
   });
 });
+
+describe("the health readout at the reactor core", () => {
+  it("takes the danger edge only in a turn the core burns the driver", () => {
+    const w = newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+    const health = () => getHudReadout(w).resources.find((r) => r.id === "driver")!;
+    w.events = [{ t: "info", note: { id: "hazard" } }];
+    expect(health().danger).toBe(false);
+
+    w.events = [{ t: "coreBurn", vehicle: w.player.vehicleId }];
+    expect(health().danger).toBe(true);
+
+    w.events = [{ t: "coreBurn", vehicle: "someone-else" }];
+    expect(health().danger).toBe(false);
+  });
+});

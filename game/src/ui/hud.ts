@@ -131,6 +131,10 @@ export class MaxSpeedView {
   }
 }
 
+function readoutClass(r: { warning: boolean; danger?: boolean }): string {
+  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : ""].filter(Boolean).join(" ");
+}
+
 export class Hud {
   private top = panel("instruments", bottomLeft());
   private clockSlot = el("div", { class: "instrument-clock", role: "timer", title: t("hud.clockTitle") });
@@ -569,7 +573,7 @@ export class Hud {
         el(
           "span",
           {
-            class: `resource ${resource.warning ? "alert" : ""}`,
+            class: readoutClass(resource),
             title: resource.tip ?? resource.label,
             "aria-label": resource.warning ? t("hud.readoutWarning", { label: resource.label, value: resource.value }) : t("hud.readout", { label: resource.label, value: resource.value }),
             "data-resource": resource.id,

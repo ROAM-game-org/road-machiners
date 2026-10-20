@@ -166,6 +166,17 @@ describe("turns that run on their own", () => {
     expect(travel.stopAuto(world)).toBe(false);
   });
 
+  it("keeps running a knocked-out player's turns while a drag pulls the truck into the drain", () => {
+    const world = makeSafeWorld();
+    world.player.state = "knockedOut";
+    world.events = [{ t: "info", note: { id: "hazard" } }];
+    const travel = new Travel(250);
+
+    travel.updateWorld(world, false);
+
+    expect(travel.autoAllowed(world)).toBe(true);
+  });
+
   it("a stop ends with the stranded spell", () => {
     const world = makeSafeWorld();
     world.player.state = "knockedOut";
@@ -291,6 +302,30 @@ describe("automatic travel safety", () => {
     expect(canTravel(world)).toBe(false);
     world.events = [{ t: "collision", a: "other", b: id, hitsA: [], hitsB: [] }];
     expect(canTravel(world)).toBe(false);
+  });
+
+  it("stops automatic travel in the turn the truck enters the reactor's drain, and again at its core", () => {
+    for (const id of ["hazard", "core"] as const) {
+      const world = makeSafeWorld();
+      world.events = [{ t: "info", note: { id } }];
+      expect(canTravel(world)).toBe(false);
+    }
+    const quiet = makeSafeWorld();
+    quiet.events = [{ t: "info", note: { id: "engineHot" } }];
+    expect(canTravel(quiet)).toBe(true);
+  });
+
+  it("lets go of a held Space at the drain's edge, so the next turn needs a fresh press", () => {
+    const world = makeSafeWorld();
+    const travel = new Travel(250);
+    travel.press(0, false, true);
+    expect(travel.isFast(1000)).toBe(true);
+    world.events = [{ t: "info", note: { id: "hazard" } }];
+
+    travel.updateWorld(world, false);
+
+    expect(travel.isFast(2000)).toBe(false);
+    expect(travel.shouldAdvance(2000)).toBe(false);
   });
 
   it("keeps direct driving manual", () => {

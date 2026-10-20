@@ -118,6 +118,10 @@ export function craterNews(world: World): CallVars {
   return { news: { kind: 'line', line: orderStands(world) ? 'carsDraggedIntoTheDark' : 'crowdAtTheCraterAgain' } };
 }
 
+export function offeredTonight(world: World, id: string): boolean {
+  return nightWindow(world) && (nightOf(world)?.offered.includes(id) ?? false);
+}
+
 export function refuseVigil(world: World, caller: Vehicle): void {
   const me = playerVehicle(world);
   if (!offeringOf(world, me.id)) seize(world, caller, me);
@@ -134,6 +138,8 @@ function offeringData(s: NpcState): Extract<StateData, { kind: 'offering' }> {
 
 export function giveWord(world: World, holder: Vehicle, caller: Vehicle): NpcState {
   const zone = lightZone();
+  const night = nightOf(world);
+  if (night && !night.offered.includes(holder.id)) night.offered.push(holder.id);
   return addState(world, 'offering', holder.id, caller.id, { kind: 'offering', core: { ...zone.pos }, closest: dist(holder.pos, zone.pos) });
 }
 

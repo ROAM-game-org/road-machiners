@@ -173,7 +173,7 @@ function openNight(world: World, dusk: number): SunwardNight {
   const day = clockOf(dusk).day;
   const hunt = huntTonight(world, day) ? openHunt(world, day) : null;
   if (hunt) sunwardFacts(world).lastHunt = day;
-  return { dusk, roster, beaten: [], calls: {}, hunt, shouted: [] };
+  return { dusk, roster, beaten: [], calls: {}, hunt, shouted: [], offered: [] };
 }
 
 export function startHuntTonight(world: World): void {

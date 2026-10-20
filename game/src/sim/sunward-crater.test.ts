@@ -9,7 +9,7 @@ import { checkDeath } from './defeat';
 import { followTower, dragOf, isOnRope, startDrag, unhitch } from './tow';
 import { advanceStates } from './states';
 import { refreshVision } from './vision';
-import { callStrangers, dropSpot, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf } from './sunward-crater';
+import { callStrangers, dropSpot, giveWord, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf } from './sunward-crater';
 import { chooseOn } from './tracks';
 import { endTurn } from './world';
 import { testDrive } from './testkit';
@@ -182,6 +182,26 @@ describe('the reactor core', () => {
     expect(leaveQuest(w).player.quests.live).toBeNull();
   });
 
+  it('opens the scene in the breach of the reactor and names the word given tonight only when it was given', () => {
+    const dieInTheCore = (offered: boolean): string => {
+      const w = crater();
+      advanceSunward(w);
+      if (offered) giveWord(w, playerVehicle(w), member(w, { x: playerVehicle(w).pos.x + 4, y: playerVehicle(w).pos.y }));
+      w.states = w.states.filter((s) => s.kind !== 'offering');
+      inZone(w, 2.5);
+      w.player.health = 6;
+      applyHazards(w);
+      checkDeath(w);
+      const page = w.player.quests.live!.lines;
+      expect(page[0].text).toMatch(/reactor/);
+      expect(page[0].tags).toContain('place: The reactor of the Fallen Sun');
+      return page.map((l) => l.text).join(' ');
+    };
+
+    expect(dieInTheCore(true)).toMatch(/your word tonight/);
+    expect(dieInTheCore(false)).not.toMatch(/your word/);
+  });
+
   it('shows no scene for a death by any other cause', () => {
     const w = crater();
     w.player.health = 0;
@@ -254,7 +274,7 @@ describe('the vigil invitation', () => {
 
   it('treats hanging up on the last call as a refusal', () => {
     let { w, caller } = vigil();
-    sunwardFacts(w).night = { dusk: duskTurn(1), roster: [], beaten: [], calls: { [w.player.vehicleId]: { count: 2, turn: w.turn - SUNWARD.callGap } }, hunt: null, shouted: [] };
+    sunwardFacts(w).night = { dusk: duskTurn(1), roster: [], beaten: [], calls: { [w.player.vehicleId]: { count: 2, turn: w.turn - SUNWARD.callGap } }, hunt: null, shouted: [], offered: [] };
     w = call(w);
     expect(w.player.call?.topic).toBe('vigilCall3');
 
@@ -307,7 +327,7 @@ describe('the vigil invitation', () => {
     refreshVision(w);
     const spot = vigilGrounds()[0];
     const scav = spawnAt(w, NPCS.scavenger, generateNpcLoadout(w, NPCS.scavenger), { x: spot.x - 4, y: spot.y }, 'independent');
-    sunwardFacts(w).night = { dusk: duskTurn(1), roster: [], beaten: [], calls: {}, hunt: null, shouted: [] };
+    sunwardFacts(w).night = { dusk: duskTurn(1), roster: [], beaten: [], calls: {}, hunt: null, shouted: [], offered: [] };
 
     callStrangers(w);
     callStrangers(w);

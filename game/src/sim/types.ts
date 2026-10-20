@@ -644,7 +644,7 @@ export type WorldSetup = { mode: GameModeId; settings: WorldSettings };
 export type DeathCause = 'core' | 'injury';
 export type VigilCalls = { count: number; turn: number };
 export type SunwardHunt = { party: string[]; grounds: Vec[]; prey: string | null; over: boolean; breaks: number };
-export type SunwardNight = { dusk: number; roster: string[]; beaten: string[]; calls: Record<string, VigilCalls>; hunt: SunwardHunt | null; shouted: string[] };
+export type SunwardNight = { dusk: number; roster: string[]; beaten: string[]; calls: Record<string, VigilCalls>; hunt: SunwardHunt | null; shouted: string[]; offered: string[] };
 export type SunwardFacts = { collapsed: number | null; night: SunwardNight | null; lastHunt: number | null };
 
 export type Crater = { id: string; pos: Vec; radius: number; turn: number };
