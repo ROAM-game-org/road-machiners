@@ -1,14 +1,14 @@
-"""Shared shapes of the sorokonoga: a short Old World cab-over tractor and a long low stake bed that swivel on a fifth wheel.
+"""Shared shapes of the sorokonoga: an armored cab-over tractor and a compact enclosed machinery module that swivel on a fifth wheel.
 
-There is no reference image. The brief: about 17 m long and 2.9 m wide, the tractor short so it turns tight, the bed low and long
-on four close axles of dual wheels, so its many wheels give it its name. Every shape is laid out in the straight rig frame,
-16.8 m along X from -8.4 to 8.4 and 2.9 m across Y, the ground 1.35 m below the origin. The 9 by 24 grid stretches over it at
-0.7 m a row and 0.41 m a column, inside what body.test.ts allows.
+The brief is the committee's concept sheet: a short armored cab with a grille guard, a roof gun and a bull bar, and behind it,
+hitched by a coupling disc, a closed boxy machinery module on two axles with a radiator grille, a tank, pipes and an upright
+exhaust stack. There is no open deck. Every shape is laid out in the straight rig frame, 11.2 m along X from 8.4 to -2.8
+and 2.9 m across Y, the ground 1.35 m below the origin. The grid's 16 rows stretch over it at 0.7 m a row, 7 on the tractor and 9
+on the module, and its 9 columns at 0.41 m.
 From the front: a 0.15 m bumper, a 2.2 m flat-faced cab 2.5 m wide standing over the steer axle with its roof 3.2 m up, a 2 m
-engine house with the engine hole over the grid's engine cells, then the frame, the drive axle and the fifth wheel. The tractor
-ends at x 2.6. The bed starts at x 4.4, so its nose rides over the fifth wheel, and runs back to x -8.4 at 1.35 m deck height,
-with a headboard, stakes along both sides and four axles 1.2 m apart near its tail. Wheel radius 0.55 m.
-base_sorokonoga.py writes the tractor and base_sorokonoga_rear.py the bed, each moved so its origin is its own collider center.
+engine house with the engine hole over the grid's engine cells, then the frame, the drive axle and the fifth wheel with its coupling
+disc. The tractor ends at x 3.5, where the module's nose begins and runs back to x -2.8. Wheel radius 0.55 m.
+base_sorokonoga.py writes the tractor and base_sorokonoga_rear.py the module, each moved so its origin is its own collider center.
 """
 
 from __future__ import annotations
@@ -23,7 +23,9 @@ from parts_common_base import BASE_COLORS, SUSPENSION_REST, cut_boxes, hull_mesh
 from rig_units import check_unit as check_rig_unit, unit_wheels as count_wheels  # noqa: E402
 
 SEED = 640
-LENGTH = 16.8
+FRONT = 8.4
+BACK = -2.8
+LENGTH = FRONT - BACK
 WIDTH = 2.9
 GROUND = -1.35
 HALF_W = WIDTH / 2
@@ -36,20 +38,18 @@ HUB_Z = WHEEL_Y - SUSPENSION_REST
 TIRE_R = WHEEL_R * 0.935  # the wheel model's tire body; its lugs reach the ground
 DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
 
-FRONT = LENGTH / 2
-BACK = -LENGTH / 2
-TRACTOR_REAR = 2.6
+TRACTOR_REAR = 3.5
 TRACTOR_ORIGIN = (FRONT + TRACTOR_REAR) / 2
-STEER_X = 7.4  # PHYSICS.bodies.sorokonoga.wheelX ahead of the tractor's center
-DRIVE_X = 3.6  # PHYSICS.bodies.sorokonoga.wheelX behind the tractor's center
-PIVOT_X = 3.9  # PHYSICS.couplings.sorokonoga pivotFront and pivotRear, in the straight rig frame
-BED_FRONT = 4.4
+STEER_X = 7.85  # PHYSICS.bodies.sorokonoga.wheelX ahead of the tractor's center
+DRIVE_X = 4.05  # PHYSICS.bodies.sorokonoga.wheelX behind the tractor's center
+PIVOT_X = 3.8  # PHYSICS.couplings.sorokonoga pivotFront and pivotRear, in the straight rig frame
+BED_FRONT = TRACTOR_REAR
+MODULE_FRONT = BED_FRONT
 BED_ORIGIN = (BED_FRONT + BACK) / 2
-MODULE_BACK = 0.9
-BED_AXLES = (-3.6, -4.8, -6.0, -7.2)  # the last one is PHYSICS.couplings.sorokonoga.rear.wheelX behind the bed's center
-UNIT_MODEL_WHEELS = (2, 14)
+BED_AXLES = (-0.4, -2.0)  # the last one is PHYSICS.couplings.sorokonoga.rear.wheelX behind the module's center
+UNIT_MODEL_WHEELS = (2, 2)
 
-ROW = LENGTH / 24
+ROW = 0.7
 COL = WIDTH / 7
 ENGINE = (FRONT - 5 * ROW, -0.4, 2 * COL - HALF_W)  # PHYSICS.bodies.sorokonoga.engine plus the tractor's center, as Blender x, z and -y
 BAY_FRONT = FRONT - 4 * ROW
@@ -80,9 +80,6 @@ HOUSE_BACK = 4.2
 HOUSE_TOP = up(1.65)
 HOUSE_HALF = 1.2
 FENDER_TOP = up(1.25)
-DECK_TOP = 0.0
-DECK_BOTTOM = DECK_TOP - 0.15
-STAKE_H = 0.9
 
 
 def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
@@ -185,67 +182,71 @@ def tractor_frame(kit: Kit) -> int:
     mirrored(kit, "fender", (HOUSE_BACK + 0.05 - TRACTOR_REAR, HALF_W - 0.95, 0.06), (HOUSE_BACK + 0.05 + TRACTOR_REAR) / 2, (HALF_W + 0.95) / 2, FENDER_TOP - 0.03, "metal_dark")
     mirrored(kit, "flap", (0.04, 0.5, 0.55), TRACTOR_REAR + 0.2, WHEEL_Z - DUAL_STEP / 2, up(0.5), "under")
     kit.box("deck_plate", (HOUSE_BACK - TRACTOR_REAR, 1.9, 0.05), ((HOUSE_BACK + TRACTOR_REAR) / 2, 0, FRAME_TOP + 0.025), "metal_dark")
-    kit.box("fifth_wheel", (0.9, 1.1, 0.12), (PIVOT_X, 0, up(1.11)), "metal_dark")
+    kit.box("fifth_wheel", (0.6, 1.1, 0.12), (PIVOT_X, 0, up(1.11)), "metal_dark")
+    kit.cylinder("coupling_disc", 0.3, 0.14, (PIVOT_X, 0, up(1.24)), "rust", vertices=12)
+    kit.cylinder("coupling_clamp", 0.2, 0.08, (PIVOT_X, 0, up(1.34)), "metal_light", vertices=8)
     return wheels
 
 
 def bed(kit: Kit) -> int:
-    """The machinery rear unit: an armored engine module on its nose with a grille, tanks and an exhaust stack, then an open deck with low armored sides.
+    """The machinery rear unit: a closed armored module on two axles, hitched to the fifth wheel just behind the tractor.
 
-    Four axles of duals sit under armored fender skirts. The game draws the outer wheels of the last axle. Returns the wheels the model draws.
+    The game draws the single wheels of the last axle. The model draws the single wheels of the axle before it. Returns the wheels the model draws.
     """
-    length = BED_FRONT - BACK
-    mid = (BED_FRONT + BACK) / 2
-    kit.box("deck", (length, WIDTH, DECK_TOP - DECK_BOTTOM), (mid, 0, (DECK_TOP + DECK_BOTTOM) / 2), "metal_dark")
-    for i in range(10):
-        kit.box(f"deck_rib_{i}", (0.08, WIDTH - 0.4, 0.03), (MODULE_BACK - 0.6 - i * 0.9, 0, DECK_TOP + 0.015), "metal")
-    mirrored(kit, "side_beam", (length, 0.12, 0.28), mid, HALF_W - 0.06, DECK_BOTTOM - 0.14, "paint")
-    mirrored(kit, "bed_rail", (length - 0.3, 0.16, 0.4), mid - 0.15, 0.5, DECK_BOTTOM - 0.2, "under")
-    wall_len = MODULE_BACK - BACK
-    mirrored(kit, "wall", (wall_len, 0.1, 0.5), (MODULE_BACK + BACK) / 2, HALF_W - 0.05, DECK_TOP + 0.25, "paint")
-    mirrored(kit, "wall_cap", (wall_len, 0.12, 0.08), (MODULE_BACK + BACK) / 2, HALF_W - 0.07, DECK_TOP + 0.54, "metal_dark")
-    for i in range(7):
-        x = MODULE_BACK - 0.5 - i * (wall_len - 1.0) / 6
-        mirrored(kit, f"post_{i}", (0.14, 0.14, 0.7), x, HALF_W - 0.08, DECK_TOP + 0.35, "metal_dark")
     module(kit)
-    wheels = sum(duals(kit, x) for x in BED_AXLES[:-1]) + duals(kit, BED_AXLES[-1], (1,))
-    skirt_len = BED_AXLES[0] - BED_AXLES[-1] + 2 * WHEEL_R + 0.3
-    mirrored(kit, "skirt", (skirt_len, 0.06, DECK_BOTTOM - HUB_Z + 0.1), (BED_AXLES[0] + BED_AXLES[-1]) / 2, HALF_W - 0.03, (DECK_BOTTOM + HUB_Z - 0.1) / 2, "metal_dark")
-    mirrored(kit, "skirt_top", (skirt_len, 0.08, 0.12), (BED_AXLES[0] + BED_AXLES[-1]) / 2, HALF_W - 0.04, DECK_BOTTOM - 0.06, "paint")
-    kit.box("bogie", (BED_AXLES[0] - BED_AXLES[-1] + 0.8, 1.2, DECK_BOTTOM - 0.4 - HUB_Z), ((BED_AXLES[0] + BED_AXLES[-1]) / 2, 0, (DECK_BOTTOM - 0.4 + HUB_Z) / 2), "under")
-    mirrored(kit, "tail_flap", (0.04, 0.5, 0.5), BED_AXLES[-1] - WHEEL_R - 0.15, WHEEL_Z - DUAL_STEP / 2, up(0.5), "under")
-    mirrored(kit, "tail_lamp", (0.06, 0.25, 0.12), BACK + 0.03, HALF_W - 0.3, DECK_BOTTOM - 0.1, "red")
-    kit.box("tail_plate", (0.12, WIDTH - 0.3, 0.55), (BACK + 0.06, 0, DECK_TOP + 0.25), "rust")
-    kit.box("underride", (0.12, WIDTH - 0.5, 0.16), (BACK + 0.4, 0, up(0.5)), "metal_dark")
-    mirrored(kit, "leg", (0.12, 0.12, DECK_BOTTOM - up(0.3)), 2.4, 0.8, (DECK_BOTTOM + up(0.3)) / 2, "metal_dark")
-    mirrored(kit, "foot", (0.3, 0.3, 0.06), 2.4, 0.8, up(0.3), "metal_dark")
-    kit.cylinder("king_pin", 0.08, 0.2, (PIVOT_X, 0, DECK_BOTTOM - 0.1), "metal_dark", vertices=8)
+    wheels = duals(kit, BED_AXLES[0], (0,))
+    duals_axle_only(kit, BED_AXLES[1])
+    for x in BED_AXLES:
+        mirrored(kit, f"arch_{x}", (2 * WHEEL_R + 0.5, 0.35, 0.08), x, HALF_W - 0.2, HUB_Z + WHEEL_R + 0.28, "metal_dark")
+        mirrored(kit, f"arch_lip_{x}", (2 * WHEEL_R + 0.5, 0.08, 0.3), x, HALF_W - 0.04, HUB_Z + WHEEL_R + 0.15, "paint")
+        mirrored(kit, f"flap_{x}", (0.04, 0.5, 0.4), x - WHEEL_R - 0.18, WHEEL_Z, up(0.5), "under")
+    mirrored(kit, "tail_lamp", (0.06, 0.25, 0.12), BACK + 0.03, HALF_W - 0.3, up(1.0), "red")
+    kit.box("underride", (0.12, WIDTH - 0.5, 0.16), (BACK + 0.15, 0, up(0.55)), "metal_dark")
     return wheels
 
 
+def duals_axle_only(kit: Kit, x: float) -> None:
+    """The axle beam alone, for the wheels the game draws."""
+    kit.box(f"axle_{x}", (0.14, 2 * WHEEL_Z - 0.4, 0.14), (x, 0, HUB_Z), "under")
+
+
 def module(kit: Kit) -> None:
-    """The engine module on the bed's nose: an armored block with a radiator grille on each side, a tank, pipes and a tall exhaust stack."""
-    top = DECK_TOP + 1.6
-    points = [(x, y, z) for x in (BED_FRONT, MODULE_BACK) for y in (1.2, -1.2) for z in (DECK_TOP, DECK_TOP + 1.2)]
-    points += [(x, y, top) for x in (BED_FRONT - 0.5, MODULE_BACK + 0.3) for y in (0.95, -0.95)]
-    hull(kit, "module", points, "paint")
-    mid = (BED_FRONT + MODULE_BACK) / 2
-    kit.box("module_cap", (BED_FRONT - MODULE_BACK - 1.2, 1.6, 0.1), (mid, 0, top + 0.05), "metal_dark")
-    kit.box("headboard", (0.15, WIDTH, 0.9), (BED_FRONT - 0.075, 0, DECK_TOP + 0.45), "metal_dark")
+    """The closed module: a chamfered armored enclosure on the nose, a machinery section behind it with grilles, a tank, pipes and a tall exhaust stack."""
+    bottom = up(1.0)
+    enclosure_back = 0.7
+    hold = [(x, y, z) for x in (MODULE_FRONT, enclosure_back) for y in (1.25, -1.25) for z in (bottom, up(1.95))]
+    hold += [(x, y, up(2.45)) for x in (MODULE_FRONT - 0.5, enclosure_back + 0.1) for y in (1.0, -1.0)]
+    hull(kit, "enclosure", hold, "paint")
+    kit.box("enclosure_cap", (MODULE_FRONT - enclosure_back - 1.2, 1.6, 0.08), ((MODULE_FRONT + enclosure_back) / 2 - 0.1, 0, up(2.49)), "metal_dark")
+    machinery_top = up(2.0)
+    machinery = [(x, y, z) for x in (enclosure_back, BACK) for y in (1.2, -1.2) for z in (bottom, machinery_top)]
+    hull(kit, "machinery", machinery, "metal_dark")
+    mid = (enclosure_back + BACK) / 2
     for s in (1, -1):
-        kit.box(f"grille_frame_{s}", (1.8, 0.06, 0.95), (mid - 0.2, s * 1.22, DECK_TOP + 0.75), "metal_dark")
+        kit.box(f"enclosure_door_{s}", (1.5, 0.05, 1.0), (MODULE_FRONT - 1.2, s * 1.27, up(1.55)), "metal_dark")
+        kit.box(f"enclosure_rib_{s}", (0.1, 0.07, 1.2), (MODULE_FRONT - 0.3, s * 1.27, up(1.5)), "rust")
+        kit.box(f"grille_frame_{s}", (2.0, 0.06, 0.95), (mid - 0.1, s * 1.22, up(1.5)), "metal_light")
         for i in range(6):
-            kit.box(f"grille_slat_{s}_{i}", (1.7, 0.08, 0.06), (mid - 0.2, s * 1.25, DECK_TOP + 0.4 + 0.15 * i), "under")
-        kit.box(f"armor_panel_{s}", (1.2, 0.06, 0.9), (MODULE_BACK + 0.8, s * 1.22, DECK_TOP + 0.55), "rust")
-        kit.cylinder(f"pipe_{s}", 0.08, MODULE_BACK - BED_FRONT + 4.2, (mid - 0.1, s * 0.55, top + 0.3), "rust", rot=(0, math.pi / 2, 0), vertices=8)
-    kit.cylinder("tank", 0.42, 1.8, (mid - 0.6, 0, top + 0.5), "rust_side", rot=(0, math.pi / 2, 0), vertices=10)
+            kit.box(f"grille_slat_{s}_{i}", (1.9, 0.08, 0.06), (mid - 0.1, s * 1.25, up(1.15 + 0.15 * i)), "under")
+        kit.box(f"armor_panel_{s}", (0.8, 0.06, 0.6), (enclosure_back - 0.1, s * 1.27, up(2.0)), "rust")
+    kit.box("module_frame", (BED_FRONT - 0.2 - BACK, 1.5, bottom - up(0.55)), ((BED_FRONT - 0.2 + BACK) / 2, 0, (bottom + up(0.55)) / 2), "under")
+    kit.box("rear_grille", (0.06, 1.8, 0.95), (BACK + 0.03, 0, up(1.45)), "metal_light")
+    for i in range(6):
+        kit.box(f"rear_slat_{i}", (0.08, 1.7, 0.06), (BACK + 0.04, 0, up(1.1 + 0.15 * i)), "under")
+    kit.box("tail_plate", (0.1, WIDTH - 0.5, 0.35), (BACK + 0.05, 0, up(0.95)), "rust")
+    top = machinery_top
+    kit.cylinder("tank", 0.5, 2.0, (mid + 0.1, 0.1, top + 0.5), "rust_side", rot=(0, math.pi / 2, 0), vertices=10)
     for i in range(3):
-        kit.cylinder(f"tank_band_{i}", 0.44, 0.08, (mid - 1.2 + i * 0.6, 0, top + 0.5), "metal_dark", rot=(0, math.pi / 2, 0), vertices=10)
-    stack_x = MODULE_BACK + 0.6
-    kit.cylinder("exhaust", 0.2, 1.4, (stack_x, -0.7, top + 0.7), "metal_light", vertices=8)
-    kit.cylinder("exhaust_cap", 0.26, 0.14, (stack_x, -0.7, top + 1.45), "metal_dark", vertices=8)
-    kit.cylinder("exhaust_elbow", 0.16, 0.6, (stack_x + 0.1, -0.7, top + 1.75), "metal_light", rot=(0, math.pi / 3, 0), vertices=8)
-    kit.box("tool_box", (0.9, 0.5, 0.45), (MODULE_BACK - 0.55, 0.6, DECK_TOP + 0.225), "rust")
+        kit.cylinder(f"tank_band_{i}", 0.52, 0.08, (mid - 0.5 + i * 0.6, 0.1, top + 0.5), "metal_dark", rot=(0, math.pi / 2, 0), vertices=10)
+    for s in (1, -1):
+        kit.cylinder(f"pipe_{s}", 0.09, 2.2, (mid - 0.1, s * 0.85, top + 0.3), "rust", rot=(0, math.pi / 2, 0), vertices=8)
+    kit.box("engine_block", (1.2, 0.7, 0.5), (mid + 1.0, -0.75, top + 0.25), "metal_dark")
+    kit.box("tool_box", (0.9, 0.5, 0.45), (enclosure_back + 0.2, 0.7, up(2.0) + 0.2), "rust")
+    kit.box("tool_box_back", (0.6, 0.5, 0.4), (enclosure_back + 0.2, -0.7, up(2.0) + 0.2), "metal_dark")
+    stack_x = BACK + 0.55
+    kit.cylinder("exhaust", 0.2, 1.5, (stack_x, -0.85, top + 0.75), "metal_light", vertices=8)
+    kit.cylinder("exhaust_cap", 0.26, 0.14, (stack_x, -0.85, top + 1.5), "metal_dark", vertices=8)
+    kit.cylinder("exhaust_elbow", 0.16, 0.6, (stack_x - 0.15, -0.85, top + 1.75), "metal_light", rot=(0, -math.pi / 3, 0), vertices=8)
 
 
 def build_tractor(kit: Kit) -> int:
@@ -260,4 +261,4 @@ def check_unit(kit: Kit, name: str, front: float, back: float) -> None:
 
 
 def unit_wheels(name: str, wheels: int, unit: int) -> None:
-    count_wheels(name, wheels, UNIT_MODEL_WHEELS[unit], 22)
+    count_wheels(name, wheels, UNIT_MODEL_WHEELS[unit], 10)

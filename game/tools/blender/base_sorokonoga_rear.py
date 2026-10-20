@@ -1,9 +1,9 @@
-"""The sorokonoga's rear unit: the long low stake bed on four close axles of dual wheels, with its king pin and landing legs.
+"""The sorokonoga's rear unit: a closed machinery module on two axles, hitched at the tractor's fifth wheel.
 
-sorokonoga_common.py lays out the rig. The bed is 12.8 m long and 2.9 m wide, from x 4.4 to -8.4 of the straight rig frame,
-and its origin is its center there, 2 m behind the rig's center. The king pin, the pivot socket, is 5.9 m ahead of the origin,
-PHYSICS.couplings.sorokonoga.pivotRear. The game draws the outer wheels of the last axle, 5.2 m behind the origin at
-PHYSICS.couplings.sorokonoga.rear.wheelX; the model draws the other 14 wheels. Cargo on the bed shows on its open deck.
+sorokonoga_common.py lays out the rig. The unit is 6.3 m long and 2.9 m wide, from x 3.5 to -2.8 of the straight rig frame,
+and its origin is its center there. The pivot socket, the tractor's coupling disc, is 3.45 m ahead of the origin, 0.3 m outside the nose,
+at PHYSICS.couplings.sorokonoga.pivotRear. The game draws the single wheels of the last axle, 2.35 m behind the origin at
+PHYSICS.couplings.sorokonoga.rear.wheelX; the model draws the two wheels of the axle before it. The module is closed, with no open deck.
 Run: blender --background --python tools/blender/base_sorokonoga_rear.py -- public/models/base_sorokonoga_rear.glb [tmp/base_sorokonoga_rear.png]
 """
 

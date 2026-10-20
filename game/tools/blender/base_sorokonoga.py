@@ -1,10 +1,10 @@
-"""The sorokonoga's front unit: a short Old World cab-over tractor with an engine house, a fifth wheel and two axles.
+"""The sorokonoga's front unit: a short Old World cab-over tractor with an engine house, a fifth wheel for the module and two axles.
 
-sorokonoga_common.py lays out the rig. The tractor is 5.8 m long, from x 8.4 to 2.6 of the straight rig frame, and its origin
+sorokonoga_common.py lays out the rig. The tractor is 4.9 m long, from x 8.4 to 3.5 of the straight rig frame, and its origin
 is its center there, halfway between the steer axle and the drive axle. So the physics wheels sit 1.9 m either way of it,
 PHYSICS.bodies.sorokonoga.wheelX, and the engine hole at PHYSICS.bodies.sorokonoga.engine. The game draws the steer pair and
-the drive axle's outer duals; the model draws the inner duals. The pivot socket marks the fifth wheel's king pin, 1.6 m behind
-the origin, where the bed swivels. The arch sockets let wheelArches.test.ts check the wheels against physics.
+the drive axle's outer duals; the model draws the inner duals. The pivot socket marks the fifth wheel, 2.15 m behind
+the origin, where the drawbar swivels. The arch sockets let wheelArches.test.ts check the wheels against physics.
 Run: blender --background --python tools/blender/base_sorokonoga.py -- public/models/base_sorokonoga.glb [tmp/base_sorokonoga.png]
 """
 
