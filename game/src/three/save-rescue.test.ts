@@ -2,11 +2,21 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { startKit } from '../data/start';
+import { chassisDef } from '../data/chassis';
+import { REGION } from '../data/region';
+import { CHEATS } from '../data/rules';
 import { playerVehicle } from '../sim/damage';
+import { advanceFar } from '../sim/far';
+import { isRoadWreck } from '../sim/salvage';
+import { isFree } from '../sim/spawn';
+import { surveySites } from '../sim/survey';
+import type { World } from '../sim/types';
+import { dist, type Vec } from '../sim/vec';
 import { TEST_MAP } from '../test/map';
 import { townAt } from '../sim/sites';
-import { carriedWorld, newWorld } from '../sim/world';
-import { carriesOnLoad, loadWorld, SaveError, saveOf, savedRunId } from './save';
+import { carriedWorld, endTurn, newWorld } from '../sim/world';
+import { carriesOnLoad, loadSave, loadWorld, SaveError, saveOf, savedRunId, stepsFrom } from './save';
+import { TINY_FROM } from './save-migrations';
 import { memoryBackend, SaveSlots } from './save-db';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
@@ -198,12 +208,12 @@ describe('carriedSave', () => {
 });
 
 describe('rescueSave', () => {
-  it('turns a save from another map into a world that then loads, in the same run', () => {
+  it('turns a save that names the wrong kind of map into a world that then loads, in the same run', () => {
     const slots = makeSlots();
     const save = currentSave();
-    save.world.mapHash = 'other';
+    save.world.mapHash = 'highway:0:21:0';
     slots.put('auto', { ...save, runId: 'old-run' });
-    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow();
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/otherMap/);
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 1000)!;
     expect(townAt(rescued.world)).not.toBeNull();
     expect(rescued.world.player.money).toBe(4321);
@@ -319,4 +329,65 @@ describe('readCarried on every shipped save', () => {
       expect(carriesOnLoad(error as SaveError), String(error)).toBe(true);
     }
   });
+});
+
+const reachable = readdirSync(ANCHOR_DIR).filter((file) => file.endsWith('-roaming.json') && stepsFrom(Number(file.split('-')[1])) !== null);
+
+describe('a shipped save on an older bake of the map', () => {
+  it('has anchors to load', () => {
+    expect(reachable).toContain('2-63-roaming.json');
+  });
+
+  it.each(reachable)('loads %s onto the current map with its place and progress kept', (file) => {
+    const envelope = JSON.parse(readFileSync(join(ANCHOR_DIR, file), 'utf8')) as { format: { minor: number }; world: World & { vehicles: { id: string; pos: Vec }[] } };
+    const slots = new SaveSlots(memoryBackend(), new Map());
+    slots.put('auto', envelope);
+    const saved = envelope.world;
+    const { world, repair } = loadSave(slots, 'auto', TEST_MAP)!;
+
+    expect(world.size).toBe(TEST_MAP.terrain.size);
+    expect(world.mapHash).toBe(TEST_MAP.hash);
+    expect(world.player.explored).toHaveLength(world.size ** 2);
+    expect(world.events).toEqual([]);
+
+    const me = playerVehicle(world);
+    const radius = chassisDef(me.chassisId).radius;
+    const oldPos = saved.vehicles.find((v) => v.id === saved.player.vehicleId)!.pos;
+    const ratio = world.size / saved.size;
+    const target = { x: oldPos.x * ratio, y: oldPos.y * ratio };
+    expect(isFree(world, me.pos, radius, me.id)).toBe(true);
+    if (isFree(world, target, radius, me.id)) expect(me.pos).toEqual(target);
+    else expect(dist(me.pos, target)).toBeLessThanOrEqual(CHEATS.searchRings * CHEATS.searchStep);
+    for (const v of world.vehicles) expect(isFree(world, v.pos, chassisDef(v.chassisId).radius, v.id), v.id).toBe(true);
+
+    const carried = readCarried(envelope);
+    expect(world.player.money).toBe(carried.money);
+    expect(world.player.xp).toBe(carried.xp);
+    const known = new Set([...REGION.towns, ...REGION.locations].map((site) => site.id));
+    expect(world.player.discovered).toEqual(expect.arrayContaining(carried.discovered.filter((id) => known.has(id))));
+    expect(repair.lost.filter((id) => !/-\d+$/.test(id) && !isRoadWreck({ id }))).toEqual([]);
+
+    const stocks = new Set(world.salvage.map((s) => s.id));
+    const sites = new Set(surveySites(TEST_MAP).map((s) => s.id));
+    const contracts = [...world.player.contracts, ...Object.values(world.shops).flatMap((s) => s.contracts)];
+    for (const c of contracts) {
+      if (c.kind === 'claim') expect(stocks.has(c.stockId), c.id).toBe(true);
+      if (c.kind === 'survey') expect(c.points.every((p) => sites.has(p.site)), c.id).toBe(true);
+    }
+    const heldBefore = saved.player.contracts.filter((c) => c.kind !== 'claim' && c.kind !== 'survey').map((c) => c.id);
+    expect(world.player.contracts.map((c) => c.id)).toEqual(expect.arrayContaining(heldBefore));
+    for (const id of [...world.player.scavenged, ...world.player.rumored].filter((x) => /^(wreck|old-|story-)/.test(x))) expect(stocks.has(id), id).toBe(true);
+  }, 60_000);
+
+  it.each(reachable.filter((file) => Number(file.split('-')[1]) >= TINY_FROM))('plays 20 turns of %s without a throw or a stall', (file) => {
+    const slots = new SaveSlots(memoryBackend(), new Map());
+    slots.put('auto', JSON.parse(readFileSync(join(ANCHOR_DIR, file), 'utf8')));
+    let w = loadSave(slots, 'auto', TEST_MAP)!.world;
+    const start = w.turn;
+    for (let i = 0; i < 20; i++) {
+      w = endTurn(w, (d) => d.vehicles.forEach((v) => v.brain && advanceFar(d, v)));
+      expect(w.events.filter((e) => e.t === 'stall')).toEqual([]);
+    }
+    expect(w.turn).toBe(start + 20);
+  }, 120_000);
 });

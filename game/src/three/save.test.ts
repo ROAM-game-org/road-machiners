@@ -59,6 +59,12 @@ function makeSlots(): SaveSlots {
   return new SaveSlots(memoryBackend(), new Map());
 }
 
+function putOnMap(slots: SaveSlots, world: World, mapHash: string): void {
+  const save = JSON.parse(JSON.stringify(saveOf(world))) as { world: { mapHash: string } };
+  save.world.mapHash = mapHash;
+  slots.put('auto', { ...save, savedAt: 1000, runId: RUN });
+}
+
 function makeStorage(): Storage {
   const values = new Map<string, string>();
   return {
@@ -810,14 +816,25 @@ describe('game save', () => {
     }
   });
 
-  it('rejects a save made on an older bake of the map', () => {
+  it('repairs a save made on an older bake of the map instead of rejecting it', () => {
     const slots = makeSlots();
     const world = standardWorld();
-    writeSave(slots, 'auto', world, RUN, 1000);
-    const rebaked = { ...TEST_MAP, hash: 'ffffffff' };
-    expect(() => loadWorld(slots, 'auto', rebaked)).toThrow(SaveError);
-    expect(() => loadWorld(slots, 'auto', rebaked)).toThrow(/mapChanged/);
-    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(world);
+    const broken = world.obstacles.find(isBreakable)!;
+    putOnMap(slots, { ...world, broken: [{ obstacle: broken, turn: 1 }], obstacles: world.obstacles.filter((o) => o !== broken) }, 'older-bake');
+    const loaded = loadSave(slots, 'auto', TEST_MAP)!;
+    expect(loaded.world.mapHash).toBe(TEST_MAP.hash);
+    expect(loaded.world.size).toBe(TEST_MAP.terrain.size);
+    expect(loaded.world.broken).toEqual([]);
+    expect(loaded.world.obstacles.some((o) => o.id === broken.id)).toBe(true);
+    expect(loaded.repair.lost).toEqual([broken.id]);
+    expect(loaded.world.player.money).toBe(world.player.money);
+    expect(loaded.world.events).toEqual([]);
+  });
+
+  it('still rejects a Roaming save that names a highway map', () => {
+    const slots = makeSlots();
+    putOnMap(slots, standardWorld(), 'highway:0:21:0');
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/otherMap/);
   });
 
   it('saves only after each twentieth completed turn', () => {

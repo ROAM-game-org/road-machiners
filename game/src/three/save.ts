@@ -4,6 +4,7 @@ import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { townAt } from '../sim/sites';
 import { reachedOutpostAt } from '../sim/fury-road';
 import { highwayMap } from '../sim/highway';
+import { repairMap, type MapRepair, type SavedMapWorld } from '../sim/map-repair';
 export { newMapFor } from '../sim/highway';
 import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
 import { QUESTS, restoreQuest } from '../sim/quests';
@@ -142,28 +143,44 @@ export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Load
   const { world, settingsReset } = savedWorld(envelope);
   const quests = savedQuests(world.player.quests, world.player.notes, savedRevisionsOf(envelope));
   const map = mapFor(world, icarus);
-  if (world.mapHash !== map.hash) throw new SaveError('mapChanged', null, `map ${world.mapHash}, not ${map.hash}`);
   const explored = unpackExplored(world.player.explored, world.size * world.size);
-  if (world.obstacles.some((o) => isBakedObstacle(o) || isHollowObstacle(o))) throw new SaveError('bakedProps');
-  const baked = mapObstacles(map);
-  const broken = brokenProps(baked, world.broken);
-  const gone = new Set(world.broken.map((b) => b.id));
-  const loaded: World = {
+  const staged: SavedMapWorld = {
     ...world,
     player: { ...world.player, explored, visible: [], contacts: [], clouds: [], notes: quests.notes, quests: { ...quests.quests, live: null } },
     vehicles: world.vehicles.map((v) => ({ ...v, trail: [] })),
-    obstacles: [...baked.filter((o) => !gone.has(o.id)), ...hollowObstaclesFor(world), ...world.obstacles],
-    broken,
     events: [],
     removed: [],
-    terrain: map.terrain,
   };
+  const placed = world.mapHash === map.hash ? onSameMap(staged, map) : repairedMap(staged, map);
+  const loaded = placed.world;
   stockedOldSpots(loaded, map);
   checkCompanies(loaded);
   refreshVision(loaded);
   settleAims(loaded);
   restoreQuest(loaded, QUESTS);
-  return { world: loaded, repair: { questsReset: quests.reset, lost: quests.lost, settingsReset } };
+  return { world: loaded, repair: { questsReset: quests.reset, lost: [...quests.lost, ...placed.lost], settingsReset } };
+}
+
+function onSameMap(staged: SavedMapWorld, map: BakedMap): MapRepair {
+  if (staged.obstacles.some((o) => isBakedObstacle(o) || isHollowObstacle(o))) throw new SaveError('bakedProps');
+  const baked = mapObstacles(map);
+  const broken = brokenProps(baked, staged.broken);
+  const gone = new Set(staged.broken.map((b) => b.id));
+  const world: World = {
+    ...staged,
+    obstacles: [...baked.filter((o) => !gone.has(o.id)), ...hollowObstaclesFor(staged), ...staged.obstacles],
+    broken,
+    terrain: map.terrain,
+  };
+  return { world, lost: [] };
+}
+
+function repairedMap(staged: SavedMapWorld, map: BakedMap): MapRepair {
+  try {
+    return repairMap(staged, map);
+  } catch (error) {
+    throw new SaveError('invalidWorld', null, `The map changed to ${map.hash} and the save could not follow: ${(error as Error).message}`);
+  }
 }
 
 function savedQuests(value: unknown, notes: unknown, revisions: SavedRevisions): QuestRepair {
