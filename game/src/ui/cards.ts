@@ -1,6 +1,6 @@
 
 import { oilSlickLength } from "../data/utilities";
-import { CHASSIS, chassisDef, isPaintId, type PaintId } from "../data/chassis";
+import { CHASSIS, chassisDef, isTruckPaint, PAINT, samePaint, type TruckPaint } from "../data/chassis";
 import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ArmorDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
 import { baseGrid, cargoCellsGained, cellCount, mountedParts, type Cell } from "../sim/grid";
@@ -8,9 +8,11 @@ import { maxHp, partValue, wornDef } from "../sim/wear";
 import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
 import { workOf } from "../sim/states";
 import { GOODS, PARCEL } from "../data/goods";
-import { chassisSheetFile, itemLookId, itemTone } from "../render/partLooks";
+import { CHASSIS_MASK, CHASSIS_SHEET, itemLookId, itemTone } from "../render/partLooks";
+import { fetchAsset } from "../fetch-asset";
+import { noteError } from "../three/crash";
 import { publicUrl } from "../public-url";
-import { ITEM_TONES } from "../render/palette";
+import { ITEM_TONES, paintSheetPixels, playerColors } from "../render/palette";
 import ICONS from "../data/item-icons.json";
 import { num, t, type Msg } from "../text/msg";
 import { chassisName, goodLore, goodName, partLore, partName } from "../text/names";
@@ -169,13 +171,13 @@ export function itemTip(id: string): Msg {
   return t("item.tip", { name: itemIconLabel(id), lore: itemLore(id) });
 }
 
-export function chassisPortraitCell(chassisId: string, paint: PaintId): IconCell {
+export function chassisPortraitCell(chassisId: string, paint: TruckPaint): IconCell {
   const icons: Record<string, ManifestCell> = ICONS.chassis;
   const icon = icons[chassisId];
   if (!icon) throw new Error(`No chassis icon for ${chassisId}. Run npm run icons.`);
-  if (!isPaintId(paint)) throw new Error(`No paint job ${paint}`);
+  if (!isTruckPaint(paint)) throw new Error(`No paint ${JSON.stringify(paint)}`);
   const cell = sheetCell("chassis", icon, chassisName(chassisDef(chassisId).id));
-  return { ...cell, file: chassisSheetFile(paint), view: viewOf(ICONS.views.chassis) };
+  return { ...cell, file: CHASSIS_SHEET, view: viewOf(ICONS.views.chassis) };
 }
 
 function viewOf(view: string): View {
@@ -191,7 +193,7 @@ function sheetCell(sheet: Sheet, icon: ManifestCell, label: Msg): Omit<IconCell,
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const SHEET_FILES: Record<Sheet, string> = { items: "items.svg", chassis: "chassis.png" };
+const SHEET_FILES: Record<Sheet, string> = { items: "items.svg", chassis: CHASSIS_SHEET };
 
 function sheetIcon(cell: IconCell, cls: string, crop: Box, title: Msg | null): HTMLElement {
   const icon = el("span", { class: cls, role: "img", "aria-label": cell.label, ...(title ? { title } : {}) });
@@ -249,9 +251,64 @@ export function gridItemIcon(item: GridItem): HTMLElement {
   return sheetIcon(cell, "icon item-icon", cell.box, null);
 }
 
-export function chassisPortrait(chassisId: string, paint: PaintId): HTMLElement {
+export function chassisPortrait(chassisId: string, paint: TruckPaint): HTMLElement {
   const cell = chassisPortraitCell(chassisId, paint);
-  return sheetIcon(cell, "chassis-portrait", cell.box, cell.label);
+  const portrait = sheetIcon(cell, "chassis-portrait", cell.box, cell.label);
+  if (!samePaint(paint, PAINT.standard)) void showPainted(portrait, paint);
+  return portrait;
+}
+
+const PAINTED_KEPT = 4;
+const painted = new Map<string, Promise<string>>();
+let paintFailureNoted = false;
+
+async function showPainted(portrait: HTMLElement, paint: TruckPaint): Promise<void> {
+  try {
+    const url = await paintedSheetUrl(paint);
+    portrait.querySelector("image")?.setAttribute("href", url);
+  } catch (err) {
+    if (!paintFailureNoted) noteError(err);
+    paintFailureNoted = true;
+  }
+}
+
+export function paintedSheetUrl(paint: TruckPaint): Promise<string> {
+  const key = `${paint.body}|${paint.cab}|${paint.gear}`;
+  const made = painted.get(key) ?? paintedSheet(paint);
+  painted.delete(key);
+  painted.set(key, made);
+  made.catch(() => painted.delete(key));
+  for (const [old, url] of painted) {
+    if (painted.size <= PAINTED_KEPT) break;
+    painted.delete(old);
+    url.then((u) => URL.revokeObjectURL(u), () => undefined);
+  }
+  return made;
+}
+
+async function paintedSheet(paint: TruckPaint): Promise<string> {
+  const [sheet, mask] = await Promise.all([CHASSIS_SHEET, CHASSIS_MASK].map(sheetBitmap));
+  const canvas = document.createElement("canvas");
+  canvas.width = sheet.width;
+  canvas.height = sheet.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("No 2D canvas context to paint the chassis sheet");
+  const pixels = (image: ImageBitmap): ImageData => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0);
+    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+  };
+  const shades = pixels(mask).data;
+  const standard = pixels(sheet);
+  standard.data.set(paintSheetPixels(standard.data, shades, playerColors(PAINT.standard), playerColors(paint)));
+  ctx.putImageData(standard, 0, 0);
+  const blob = await new Promise<Blob>((done, fail) => canvas.toBlob((b) => (b ? done(b) : fail(new Error("The painted chassis sheet did not encode"))), "image/png"));
+  return URL.createObjectURL(blob);
+}
+
+async function sheetBitmap(file: string): Promise<ImageBitmap> {
+  const bytes = await fetchAsset(`Chassis sheet ${file}`, publicUrl(`icons/${file}`));
+  return createImageBitmap(new Blob([bytes], { type: "image/png" }), { premultiplyAlpha: "none", colorSpaceConversion: "none" });
 }
 
 export function statGrid(diffs: StatDiff[]): HTMLElement {

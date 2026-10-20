@@ -1,9 +1,9 @@
 
-import { CHASSIS, PAINT, PAINT_IDS } from '../../data/chassis';
+import { CHASSIS, PAINT } from '../../data/chassis';
 import { GOODS } from '../../data/goods';
 import { PARTS } from '../../data/parts';
 import { ITEM_TONES } from '../../render/palette';
-import { chassisSheetFile, iconCatalog, itemTone, ICON_SECTIONS, ICON_WEAPON_PICKS, type IconEntry, type IconSection } from '../../render/partLooks';
+import { CHASSIS_MASK, CHASSIS_SHEET, iconCatalog, itemTone, ICON_SECTIONS, ICON_WEAPON_PICKS, type IconEntry, type IconSection } from '../../render/partLooks';
 import { publicUrl } from '../../public-url';
 import { loadModels, type ModelName } from '../render/models';
 import {
@@ -95,13 +95,11 @@ async function build(): Promise<IconBuild> {
 }
 
 function paintSheets(rendered: readonly Rendered[]): Record<string, string> {
-  const chassis = inSheet(rendered, 'chassis');
-  return Object.fromEntries(
-    PAINT_IDS.map((paint) => {
-      const cells = paint === PAINT.standard ? cellsOf(rendered, 'chassis') : chassis.map((r) => renderIcon(r.entry, iconView(r.entry), CELL.chassis, paint).icon);
-      return [`public/icons/${chassisSheetFile(paint)}`, gridOf(cells, 'chassis').toDataURL('image/png')];
-    }),
-  );
+  const mask = inSheet(rendered, 'chassis').map((r) => renderIcon(r.entry, iconView(r.entry), CELL.chassis, 'mask').icon);
+  return {
+    [`public/icons/${CHASSIS_SHEET}`]: gridOf(cellsOf(rendered, 'chassis'), 'chassis').toDataURL('image/png'),
+    [`public/icons/${CHASSIS_MASK}`]: gridOf(mask, 'chassis').toDataURL('image/png'),
+  };
 }
 
 async function modelBytes(catalog: readonly IconEntry[]): Promise<Map<ModelName, Uint8Array>> {

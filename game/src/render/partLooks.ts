@@ -1,6 +1,6 @@
 
 import type { ModelName } from '../three/render/models';
-import { PAINT, type ChassisDef, type PaintId } from '../data/chassis';
+import type { ChassisDef } from '../data/chassis';
 import { GOODS, PARCEL, type GoodDef } from '../data/goods';
 import { PARTS, type PartDef, type PartKind } from '../data/parts';
 import { hashStr } from './noise';
@@ -386,9 +386,8 @@ const PART_SECTION: Record<PartDef['kind'], IconSection> = {
   core: 'core',
 };
 
-export function chassisSheetFile(paint: PaintId): string {
-  return paint === PAINT.standard ? 'chassis.png' : `chassis-${paint}.png`;
-}
+export const CHASSIS_SHEET = 'chassis.png';
+export const CHASSIS_MASK = 'chassis-paint.png';
 
 export function iconCatalog(
   parts: Record<string, PartDef>,

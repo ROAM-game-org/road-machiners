@@ -1,8 +1,8 @@
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
-import { ITEM_TONES, PAL } from '../../render/palette';
-import { PAINT as PAINT_JOB, PAINT_JOBS, type PaintId } from '../../data/chassis';
+import { ITEM_TONES, PAL, playerColors } from '../../render/palette';
+import { PAINT as PAINT_JOB, type TruckPaint } from '../../data/chassis';
 import { itemTone, renderKey, type IconEntry } from '../../render/partLooks';
 import { model, socket, type ModelName } from '../render/models';
 import { wheelMounts } from '../../phys/body';
@@ -57,8 +57,11 @@ const COLOR_SHADE = 0.35;
 const COLOR_LIGHT = 0.15;
 const INK = PAL.outline;
 const GLASS_COLOR = 0x6a7a80;
-const PAINT = 'paint';
-const TRIM = 'trim';
+const MASK_PAINT: TruckPaint = { body: 'plum', cab: 'mint', gear: 'navy' };
+const MASK_COLORS = new Map(Object.entries(playerColors(MASK_PAINT)).map(([slot, color]) => [color, { body: 0xff0000, cab: 0x00ff00, gear: 0x0000ff }[slot] ?? 0]));
+const OPAQUE = 255;
+
+export type IconPaint = TruckPaint | 'mask';
 
 type Vec2 = { x: number; y: number };
 
@@ -79,9 +82,9 @@ function renderer(): { renderer: THREE.WebGLRenderer; ramp: THREE.DataTexture } 
 }
 
 export type RenderedIcon = { icon: HTMLCanvasElement; svg: string | null; tint: string | null };
-export function renderIcon(entry: IconEntry, view: IconView, size: number, paintId: PaintId): RenderedIcon {
+export function renderIcon(entry: IconEntry, view: IconView, size: number, paintJob: IconPaint): RenderedIcon {
   const big = size * SUPERSAMPLE;
-  const { scene, camera } = stage(entry, view, paintId);
+  const { scene, camera } = stage(entry, view, paintJob);
   const style = iconStyle(entry);
   if (style !== 'toon') {
     const perMeter = CELL.along * (big / (camera.right - camera.left));
@@ -100,12 +103,24 @@ export function renderIcon(entry: IconEntry, view: IconView, size: number, paint
     };
   }
   const color = draw(scene, camera, big, null);
+  if (paintJob === 'mask') return { icon: maskIcon(color, entry, size), svg: null, tint: null };
   const normal = draw(scene, camera, big, new THREE.MeshNormalMaterial({ flatShading: true }));
   const depth = draw(scene, camera, big, new THREE.MeshDepthMaterial());
   toonInk(color, creaseMask(color, normal, depth), TOON_OUTLINE_PX * SUPERSAMPLE);
   const solid = solidMask(color);
   if (entry.rank > 1) paint(color, stripes(solid, boundsOf(solid), entry.rank - 1, TOON_OUTLINE_PX * SUPERSAMPLE), [...rgbOf(INK), 255]);
   return { icon: shrink(color, size), svg: null, tint: null };
+}
+
+function maskIcon(color: Pixels, entry: IconEntry, size: number): HTMLCanvasElement {
+  const solid = solidMask(color);
+  if (entry.rank > 1) paint(color, stripes(solid, boundsOf(solid), entry.rank - 1, TOON_OUTLINE_PX * SUPERSAMPLE), [0, 0, 0, OPAQUE]);
+  const icon = shrink(color, size);
+  const ctx = context(icon);
+  const pixels = ctx.getImageData(0, 0, size, size);
+  for (let at = 3; at < pixels.data.length; at += 4) pixels.data[at] = OPAQUE;
+  ctx.putImageData(pixels, 0, 0);
+  return icon;
 }
 
 const TINT_COLORS: BlueprintColors = { line: 'var(--tint-line)', fill: 'var(--tint-fill)', shadow: 'var(--tint-shadow)', glass: 'var(--tint-glass)', light: 'var(--tint-light)' };
@@ -118,7 +133,7 @@ const TINT_PEN = { outer: 'var(--tint-outer)', inner: 'var(--tint-inner)' };
 export function renderPlan(entry: IconEntry, size: number): { top: string; outline: string } {
   if (entry.section !== 'chassis') throw new Error(`Plan of ${entry.id}: only a chassis has a plan`);
   const { root } = build(entry, PAINT_JOB.standard);
-  toon(root, 'line', PAINT_JOB.standard);
+  toon(root, 'line');
   const scene = new THREE.Scene();
   scene.add(root);
   const grid = baseGrid(entry.id);
@@ -163,10 +178,11 @@ export function barrelReads(entry: IconEntry, view: IconView, size: number): Bar
 
 type Stage = { scene: THREE.Scene; camera: THREE.OrthographicCamera; head: THREE.Vector3; tip: THREE.Vector3 };
 
-function stage(entry: IconEntry, view: IconView, paint: PaintId): Stage {
+function stage(entry: IconEntry, view: IconView, paint: IconPaint): Stage {
   const scene = new THREE.Scene();
-  const { root, head, tip } = build(entry, paint);
-  toon(root, iconStyle(entry), paint);
+  const { root, head, tip } = build(entry, paint === 'mask' ? MASK_PAINT : paint);
+  if (paint === 'mask') maskMaterials(root);
+  else toon(root, iconStyle(entry));
   scene.add(root);
   const camera = frame(root, view);
   const key = new THREE.DirectionalLight(0xffffff, 2.2);
@@ -176,7 +192,7 @@ function stage(entry: IconEntry, view: IconView, paint: PaintId): Stage {
   return { scene, camera, head, tip };
 }
 
-function build(entry: IconEntry, paint: PaintId): Omit<Stage, 'scene' | 'camera'> & { root: THREE.Group } {
+function build(entry: IconEntry, paint: TruckPaint): Omit<Stage, 'scene' | 'camera'> & { root: THREE.Group } {
   const root = new THREE.Group();
   if (entry.section === 'chassis') {
     root.add(bareTruck(entry.id, paint));
@@ -201,7 +217,7 @@ function build(entry: IconEntry, paint: PaintId): Omit<Stage, 'scene' | 'camera'
   return { root, head: at.clone(), tip: built.tip.add(at) };
 }
 
-function bareTruck(chassisId: string, paint: PaintId): THREE.Object3D {
+function bareTruck(chassisId: string, paint: TruckPaint): THREE.Object3D {
   const v = bareVehicle({ nextId: 0 }, { faction: 'player', chassisId, pos: { x: 0, y: 0 }, heading: 0, brain: null });
   const view = new VehicleView(v, false, paint);
   const wheels = wheelMounts(bodyOf(chassisId)).map(() => ({ steer: 0, spin: 0, suspension: PHYSICS.truck.suspensionRest, ground: true }));
@@ -209,9 +225,19 @@ function bareTruck(chassisId: string, paint: PaintId): THREE.Object3D {
   return view.root;
 }
 
-function toon(root: THREE.Object3D, style: IconStyle, paintId: PaintId): void {
+function toon(root: THREE.Object3D, style: IconStyle): void {
   const { ramp } = renderer();
-  const paint = PAINT_JOBS[paintId];
+  swapMaterials(root, (old) => {
+    const color = old.name === GLASS_MATERIAL ? GLASS_COLOR : old.color.getHex();
+    return style === 'toon' ? new THREE.MeshToonMaterial({ color, gradientMap: ramp }) : new THREE.MeshBasicMaterial({ color });
+  });
+}
+
+function maskMaterials(root: THREE.Object3D): void {
+  swapMaterials(root, (old) => new THREE.MeshBasicMaterial({ color: MASK_COLORS.get(old.color.getHex()) ?? 0 }));
+}
+
+function swapMaterials(root: THREE.Object3D, swap: (old: THREE.MeshLambertMaterial) => THREE.Material): void {
   root.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     const old = o.material as THREE.MeshLambertMaterial;
@@ -219,8 +245,7 @@ function toon(root: THREE.Object3D, style: IconStyle, paintId: PaintId): void {
       o.visible = false;
       return;
     }
-    const color = { [PAINT]: paint.top, [TRIM]: paint.cab, [GLASS_MATERIAL]: GLASS_COLOR }[old.name] ?? old.color.getHex();
-    o.material = style === 'toon' ? new THREE.MeshToonMaterial({ color, gradientMap: ramp }) : new THREE.MeshBasicMaterial({ color });
+    o.material = swap(old);
     o.material.name = old.name;
     old.dispose();
   });
@@ -369,6 +394,6 @@ function fnv1a(bytes: Uint8Array): string {
 
 export function iconHash(entry: IconEntry, view: IconView, modelBytes: (name: ModelName) => Uint8Array): string {
   const files = entry.models.map((name) => fnv1a(modelBytes(name))).join(',');
-  const paints = entry.section === 'chassis' ? JSON.stringify(PAINT_JOBS) : '';
+  const paints = entry.section === 'chassis' ? `${JSON.stringify(playerColors(PAINT_JOB.standard))}|mask` : '';
   return fnv1a(new TextEncoder().encode(`${ICON_STYLE_VERSION}|${view}|${renderKey(entry)}|${files}${paints}`));
 }

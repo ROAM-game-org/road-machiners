@@ -140,3 +140,28 @@ export function mix(a: number, b: number, t: number): number {
   const bl = Math.round((a & 0xff) * u + (b & 0xff) * t);
   return (r << 16) | (g << 8) | bl;
 }
+
+const MASK_CHANNELS = ['body', 'cab', 'gear'] as const satisfies readonly (keyof TruckColors)[];
+
+export function paintSheetPixels(sheet: Uint8ClampedArray, mask: Uint8ClampedArray, from: TruckColors, to: TruckColors): Uint8ClampedArray {
+  if (sheet.length !== mask.length) throw new Error(`Paint mask has ${mask.length} bytes for a sheet of ${sheet.length}`);
+  const out = new Uint8ClampedArray(sheet);
+  const shifts = MASK_CHANNELS.map((slot) => ({ from: rgb(from[slot]), to: rgb(to[slot]), lum: brightness(rgb(from[slot])) }));
+  for (let at = 0; at < sheet.length; at += 4) {
+    const shade = brightness([sheet[at], sheet[at + 1], sheet[at + 2]]);
+    for (let c = 0; c < 3; c++) {
+      let v = sheet[at + c];
+      for (const [i, s] of shifts.entries()) v += (mask[at + i] / 255) * (shade / s.lum) * (s.to[c] - s.from[c]);
+      out[at + c] = v;
+    }
+  }
+  return out;
+}
+
+function rgb(color: number): [number, number, number] {
+  return [(color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff];
+}
+
+function brightness([r, g, b]: readonly number[]): number {
+  return Math.max(1, 0.299 * r + 0.587 * g + 0.114 * b);
+}

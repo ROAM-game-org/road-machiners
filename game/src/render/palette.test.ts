@@ -4,7 +4,7 @@ import { NPCS } from '../data/npcs';
 import { fallbackFaction } from '../sim/spawn';
 import { MEMBER_TEMPLATES } from '../sim/sunward';
 import { npcBrain } from '../sim/testkit';
-import { GANG_PAINT, paintOf, playerColors, TEMPLATE_PAINT } from './palette';
+import { GANG_PAINT, paintOf, paintSheetPixels, playerColors, TEMPLATE_PAINT } from './palette';
 
 const PLUM: TruckPaint = { body: 'plum', cab: 'navy', gear: 'mint' };
 
@@ -35,5 +35,46 @@ describe('truck paint', () => {
 
   it('throws on a color the palette does not hold', () => {
     expect(() => playerColors({ ...PLUM, gear: 'gold' } as unknown as TruckPaint)).toThrow(/gold/);
+  });
+});
+
+describe('paintSheetPixels', () => {
+  const STANDARD = playerColors(PAINT.standard);
+  const TO = playerColors({ body: 'plum', cab: 'navy', gear: 'mint' });
+  const px = (...pixels: number[][]): Uint8ClampedArray => new Uint8ClampedArray(pixels.flat());
+  const tan = [0x9c, 0x7a, 0x3e, 255];
+  const darkTan = [0x4e, 0x3d, 0x1f, 255];
+  const sheet = px(tan, darkTan, [0x7e, 0x8a, 0x5a, 255], [10, 200, 30, 128]);
+  const mask = px([255, 0, 0, 255], [255, 0, 0, 255], [0, 255, 0, 255], [0, 0, 0, 255]);
+
+  it('gives the standard sheet back for the standard paint', () => {
+    const out = paintSheetPixels(sheet, mask, STANDARD, STANDARD);
+    for (const [i, v] of sheet.entries()) expect(Math.abs(out[i] - v)).toBeLessThanOrEqual(1);
+  });
+
+  it('moves only masked pixels and keeps every alpha', () => {
+    const out = paintSheetPixels(sheet, mask, STANDARD, TO);
+    expect([...out.slice(12, 16)]).toEqual([10, 200, 30, 128]);
+    expect([out[3], out[7], out[11]]).toEqual([255, 255, 255]);
+  });
+
+  it('paints a fully masked pixel in the new color', () => {
+    const out = paintSheetPixels(sheet, mask, STANDARD, TO);
+    expect([...out.slice(0, 3)]).toEqual([0x6e, 0x3a, 0x64]);
+    expect([...out.slice(8, 11)]).toEqual([0x26, 0x34, 0x6a]);
+  });
+
+  it('carries a dark toon step over to the new color', () => {
+    const out = paintSheetPixels(sheet, mask, STANDARD, TO);
+    for (let c = 0; c < 3; c++) expect(Math.abs(out[4 + c] - out[c] / 2)).toBeLessThanOrEqual(2);
+  });
+
+  it('blends a half-masked pixel halfway', () => {
+    const out = paintSheetPixels(px(tan), px([128, 0, 0, 255]), STANDARD, TO);
+    for (let c = 0; c < 3; c++) expect(Math.abs(out[c] - (tan[c] + [0x6e, 0x3a, 0x64][c]) / 2)).toBeLessThanOrEqual(2);
+  });
+
+  it('throws on a mask of another size', () => {
+    expect(() => paintSheetPixels(sheet, px(tan), STANDARD, TO)).toThrow(/mask/);
   });
 });
