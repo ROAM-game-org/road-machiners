@@ -360,12 +360,18 @@ export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
 function passesClear(world: World, v: Vehicle, x: Vehicle, around: Vec[]): boolean {
   const radii = vehicleStats(world, v).radius + vehicleStats(world, x).radius + PHYSICS.driver.clearMargin;
   const { vs, t } = horizon(world, v);
-  const at = (d: number): Vec => alongRoute(v.pos, around, d);
+  const ahead = aheadOf(v, around);
+  const at = (d: number): Vec => alongRoute(v.pos, ahead, d);
   for (let s = 0; s <= t; s += RULES.traffic.passStep) {
     const there = { x: x.pos.x + Math.cos(x.heading) * x.speed * s, y: x.pos.y + Math.sin(x.heading) * x.speed * s };
     if (dist(at(vs * s), there) < radii + PHYSICS.driver.moverSpread * s) return false;
   }
   return true;
+}
+
+function aheadOf(v: Vehicle, points: Vec[]): Vec[] {
+  const first = points.findIndex((p) => Math.cos(angleDiff(v.heading, bearing(v.pos, p))) > 0);
+  return first < 0 ? points : points.slice(first);
 }
 
 function alongRoute(from: Vec, points: Vec[], d: number): Vec {
