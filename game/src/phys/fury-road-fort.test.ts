@@ -14,7 +14,7 @@ beforeAll(async () => {
   await initPhysics();
 });
 
-const BRAKING_TURNS = 12;
+const BRAKING_TURNS = 4;
 const TURNS = 60;
 
 function scene(): World {
