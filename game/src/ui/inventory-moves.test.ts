@@ -223,30 +223,26 @@ describe("field patch gate", () => {
 describe("touch tap on the grid", () => {
   const two = { w: 2, h: 1 };
 
-  it("clears when nothing is selected", () => {
-    expect(touchGridTap(false, null, { x: 3, y: 3 }, two)).toEqual({ kind: "clear" });
-  });
-
   it("previews the selected item centered on the tapped cell", () => {
-    expect(touchGridTap(true, null, { x: 3, y: 4 }, { w: 3, h: 3 })).toEqual({ kind: "preview", at: { x: 2, y: 3 } });
+    expect(touchGridTap(null, { x: 3, y: 4 }, { w: 3, h: 3 })).toEqual({ kind: "preview", at: { x: 2, y: 3 } });
   });
 
   it("previews with the footprint's first cell on the tap for an item two cells wide", () => {
-    expect(touchGridTap(true, null, { x: 3, y: 4 }, two)).toEqual({ kind: "preview", at: { x: 3, y: 4 } });
+    expect(touchGridTap(null, { x: 3, y: 4 }, two)).toEqual({ kind: "preview", at: { x: 3, y: 4 } });
   });
 
   it("places on a tap inside the preview, also on its far cell", () => {
-    expect(touchGridTap(true, { x: 2, y: 2 }, { x: 2, y: 2 }, two)).toEqual({ kind: "place" });
-    expect(touchGridTap(true, { x: 2, y: 2 }, { x: 3, y: 2 }, two)).toEqual({ kind: "place" });
+    expect(touchGridTap({ x: 2, y: 2 }, { x: 2, y: 2 }, two)).toEqual({ kind: "place" });
+    expect(touchGridTap({ x: 2, y: 2 }, { x: 3, y: 2 }, two)).toEqual({ kind: "place" });
   });
 
   it("moves the preview on a tap outside it", () => {
-    expect(touchGridTap(true, { x: 2, y: 2 }, { x: 4, y: 2 }, two)).toEqual({ kind: "preview", at: { x: 4, y: 2 } });
+    expect(touchGridTap({ x: 2, y: 2 }, { x: 4, y: 2 }, two)).toEqual({ kind: "preview", at: { x: 4, y: 2 } });
   });
 
   it("follows a turned footprint", () => {
     const turned = { w: 1, h: 2 };
-    expect(touchGridTap(true, { x: 2, y: 2 }, { x: 3, y: 2 }, turned)).toEqual({ kind: "preview", at: { x: 3, y: 2 } });
-    expect(touchGridTap(true, { x: 2, y: 2 }, { x: 2, y: 3 }, turned)).toEqual({ kind: "place" });
+    expect(touchGridTap({ x: 2, y: 2 }, { x: 3, y: 2 }, turned)).toEqual({ kind: "preview", at: { x: 3, y: 2 } });
+    expect(touchGridTap({ x: 2, y: 2 }, { x: 2, y: 3 }, turned)).toEqual({ kind: "place" });
   });
 });

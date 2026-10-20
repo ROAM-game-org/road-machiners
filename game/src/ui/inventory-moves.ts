@@ -46,10 +46,9 @@ export function selectionAfterClick(selected: string | null, clicked: string): s
 
 export type GridPoint = { x: number; y: number };
 
-export type GridTap = { kind: "preview"; at: GridPoint } | { kind: "place" } | { kind: "clear" };
+export type GridTap = { kind: "preview"; at: GridPoint } | { kind: "place" };
 
-export function touchGridTap(selected: boolean, preview: GridPoint | null, cell: GridPoint, size: { w: number; h: number }): GridTap {
-  if (!selected) return { kind: "clear" };
+export function touchGridTap(preview: GridPoint | null, cell: GridPoint, size: { w: number; h: number }): GridTap {
   if (preview && cell.x >= preview.x && cell.x < preview.x + size.w && cell.y >= preview.y && cell.y < preview.y + size.h) return { kind: "place" };
   return { kind: "preview", at: { x: cell.x - Math.floor((size.w - 1) / 2), y: cell.y - Math.floor((size.h - 1) / 2) } };
 }

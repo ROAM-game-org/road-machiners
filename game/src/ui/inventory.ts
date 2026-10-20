@@ -837,9 +837,8 @@ export class InventoryView {
     const r = this.gridEl.getBoundingClientRect();
     const cell = { x: this.cellOf(e.clientX - r.left), y: this.cellOf(e.clientY - r.top) };
     const current = this.preview?.item ?? selection.item;
-    const action = touchGridTap(true, this.preview ? { x: this.preview.item.x, y: this.preview.item.y } : null, cell, footprint(current));
+    const action = touchGridTap(this.preview ? { x: this.preview.item.x, y: this.preview.item.y } : null, cell, footprint(current));
     if (action.kind === "place") return this.placeSelected();
-    if (action.kind === "clear") return this.select(null);
     this.setPreview(this.preview?.source ?? (selection.own ? "grid" : this.offGridSelection()!.source), { ...current, x: action.at.x, y: action.at.y });
   }
 
