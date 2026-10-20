@@ -6,7 +6,7 @@ import { MEMBER_TEMPLATES } from '../sim/sunward';
 import { npcBrain } from '../sim/testkit';
 import { GANG_PAINT, paintOf, paintSheetPixels, playerColors, TEMPLATE_PAINT } from './palette';
 
-const PLUM: TruckPaint = { body: 'plum', cab: 'navy', gear: 'mint' };
+const OXBLOOD: TruckPaint = { body: 'oxblood', cab: 'slate', gear: 'chalk' };
 
 describe('truck paint', () => {
   it('gives every NPC template a paint for the faction it rides for', () => {
@@ -24,23 +24,23 @@ describe('truck paint', () => {
     for (const tpl of Object.values(NPCS)) {
       const truck = { id: tpl.id, faction: fallbackFaction(tpl), brain: npcBrain(tpl.id, { x: 0, y: 0 }, tpl.traits) };
       const role = truck.faction === 'scrapjaw' || truck.faction === 'kiln' ? GANG_PAINT[truck.faction] : TEMPLATE_PAINT[tpl.id];
-      expect(paintOf(truck, PLUM), tpl.id).toEqual({ body: role.top, cab: role.cab, gear: role.top });
+      expect(paintOf(truck, OXBLOOD), tpl.id).toEqual({ body: role.top, cab: role.cab, gear: role.top });
     }
   });
 
   it('paints the player body, cab and gear from the palette', () => {
-    expect(paintOf({ id: 'me', faction: 'player', brain: null }, PLUM)).toEqual({ body: PALETTE.plum, cab: PALETTE.navy, gear: PALETTE.mint });
+    expect(paintOf({ id: 'me', faction: 'player', brain: null }, OXBLOOD)).toEqual({ body: PALETTE.oxblood, cab: PALETTE.slate, gear: PALETTE.chalk });
     expect(playerColors(PAINT.standard)).toEqual({ body: 0x9c7a3e, cab: 0x7e8a5a, gear: 0x9c7a3e });
   });
 
   it('throws on a color the palette does not hold', () => {
-    expect(() => playerColors({ ...PLUM, gear: 'gold' } as unknown as TruckPaint)).toThrow(/gold/);
+    expect(() => playerColors({ ...OXBLOOD, gear: 'gold' } as unknown as TruckPaint)).toThrow(/gold/);
   });
 });
 
 describe('paintSheetPixels', () => {
   const STANDARD = playerColors(PAINT.standard);
-  const TO = playerColors({ body: 'plum', cab: 'navy', gear: 'mint' });
+  const TO = playerColors({ body: 'oxblood', cab: 'slate', gear: 'chalk' });
   const px = (...pixels: number[][]): Uint8ClampedArray => new Uint8ClampedArray(pixels.flat());
   const tan = [0x9c, 0x7a, 0x3e, 255];
   const darkTan = [0x4e, 0x3d, 0x1f, 255];
@@ -60,8 +60,8 @@ describe('paintSheetPixels', () => {
 
   it('paints a fully masked pixel in the new color', () => {
     const out = paintSheetPixels(sheet, mask, STANDARD, TO);
-    expect([...out.slice(0, 3)]).toEqual([0x6e, 0x3a, 0x64]);
-    expect([...out.slice(8, 11)]).toEqual([0x26, 0x34, 0x6a]);
+    expect([...out.slice(0, 3)]).toEqual([0x5a, 0x20, 0x26]);
+    expect([...out.slice(8, 11)]).toEqual([0x3e, 0x4a, 0x62]);
   });
 
   it('carries a dark toon step over to the new color', () => {
@@ -71,7 +71,7 @@ describe('paintSheetPixels', () => {
 
   it('blends a half-masked pixel halfway', () => {
     const out = paintSheetPixels(px(tan), px([128, 0, 0, 255]), STANDARD, TO);
-    for (let c = 0; c < 3; c++) expect(Math.abs(out[c] - (tan[c] + [0x6e, 0x3a, 0x64][c]) / 2)).toBeLessThanOrEqual(2);
+    for (let c = 0; c < 3; c++) expect(Math.abs(out[c] - (tan[c] + [0x5a, 0x20, 0x26][c]) / 2)).toBeLessThanOrEqual(2);
   });
 
   it('throws on a mask of another size', () => {

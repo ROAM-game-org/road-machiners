@@ -57,7 +57,7 @@ const COLOR_SHADE = 0.35;
 const COLOR_LIGHT = 0.15;
 const INK = PAL.outline;
 const GLASS_COLOR = 0x6a7a80;
-const MASK_PAINT: TruckPaint = { body: 'plum', cab: 'mint', gear: 'navy' };
+const MASK_PAINT: TruckPaint = { body: 'oxblood', cab: 'chalk', gear: 'petrol' };
 const MASK_COLORS = new Map(Object.entries(playerColors(MASK_PAINT)).map(([slot, color]) => [color, { body: 0xff0000, cab: 0x00ff00, gear: 0x0000ff }[slot] ?? 0]));
 const OPAQUE = 255;
 

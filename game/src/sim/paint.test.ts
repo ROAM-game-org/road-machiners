@@ -15,7 +15,7 @@ const atBowl = (): World => {
   return w;
 };
 
-const PLUM: TruckPaint = { body: 'plum', cab: 'olive', gear: 'tan' };
+const OXBLOOD: TruckPaint = { body: 'oxblood', cab: 'olive', gear: 'tan' };
 
 describe('a paint job', () => {
   it('starts every new player at the standard paint', () => {
@@ -31,8 +31,8 @@ describe('a paint job', () => {
 
   it('charges the price and sets the paint with no turn, event or XP', () => {
     const w = atBowl();
-    const done = repaint(w, PLUM);
-    expect(done.player.paint).toEqual(PLUM);
+    const done = repaint(w, OXBLOOD);
+    expect(done.player.paint).toEqual(OXBLOOD);
     expect(done.player.money).toBe(w.player.money - paintPrice(w));
     expect(done.turn).toBe(w.turn);
     expect(done.events).toEqual(w.events);
@@ -43,42 +43,42 @@ describe('a paint job', () => {
 
   it.each(['body', 'cab', 'gear'] as const)('sets the %s alone and keeps the other two slots', (slot) => {
     const w = atBowl();
-    const done = repaint(w, { ...PAINT.standard, [slot]: 'navy' });
-    expect(done.player.paint).toEqual({ ...PAINT.standard, [slot]: 'navy' });
+    const done = repaint(w, { ...PAINT.standard, [slot]: 'slate' });
+    expect(done.player.paint).toEqual({ ...PAINT.standard, [slot]: 'slate' });
     expect(done.player.money).toBe(w.player.money - paintPrice(w));
   });
 
   it('keeps its own copy of the paint it was given', () => {
-    const asked = { ...PLUM };
+    const asked = { ...OXBLOOD };
     const done = repaint(atBowl(), asked);
-    asked.body = 'mint';
-    expect(done.player.paint.body).toBe('plum');
+    asked.body = 'chalk';
+    expect(done.player.paint.body).toBe('oxblood');
   });
 
   it('refuses a player who cannot pay and changes nothing', () => {
     const w = atBowl();
     w.player.money = paintPrice(w) - 1;
-    expect(() => repaint(w, PLUM)).toThrow(Refused);
+    expect(() => repaint(w, OXBLOOD)).toThrow(Refused);
     expect(w.player.paint).toEqual(PAINT.standard);
     w.player.money = paintPrice(w);
-    expect(repaint(w, PLUM).player.money).toBe(0);
+    expect(repaint(w, OXBLOOD).player.money).toBe(0);
   });
 
   it('throws away from a town, on an unknown color and on the current paint', () => {
-    expect(() => repaint({ ...emptyWorld(), player: { ...emptyWorld().player, money: 1_000_000 } }, PLUM)).toThrow(/town/);
-    expect(() => repaint(atBowl(), { ...PLUM, cab: 'gold' } as unknown as TruckPaint)).toThrow(/gold/);
+    expect(() => repaint({ ...emptyWorld(), player: { ...emptyWorld().player, money: 1_000_000 } }, OXBLOOD)).toThrow(/town/);
+    expect(() => repaint(atBowl(), { ...OXBLOOD, cab: 'gold' } as unknown as TruckPaint)).toThrow(/gold/);
     expect(() => repaint(atBowl(), { ...PAINT.standard })).toThrow(/already/);
   });
 
   it('is not sold at a Chaos Highway outpost', () => {
     const w = parkedAtOutpost();
     w.player.money = 1_000_000;
-    expect(() => repaint(w, PLUM)).toThrow(/town/);
+    expect(() => repaint(w, OXBLOOD)).toThrow(/town/);
   });
 
   it('stays through a chassis swap', () => {
-    const painted = repaint(atBowl(), PLUM);
-    expect(buyChassis(painted, 'longbed').player.paint).toEqual(PLUM);
+    const painted = repaint(atBowl(), OXBLOOD);
+    expect(buyChassis(painted, 'longbed').player.paint).toEqual(OXBLOOD);
   });
 
   it('is read by no sim rule but the repaint and the rescue', () => {

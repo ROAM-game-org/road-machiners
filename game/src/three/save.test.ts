@@ -161,12 +161,12 @@ describe('game save', () => {
   it('keeps the paint job through a reload, and load awards nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld();
-    world.player.paint = { body: 'lavender', cab: 'navy', gear: 'mint' };
+    world.player.paint = { body: 'petrol', cab: 'slate', gear: 'chalk' };
     writeSave(slots, 'auto', world, RUN, 1000);
 
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
 
-    expect(loaded.player.paint).toEqual({ body: 'lavender', cab: 'navy', gear: 'mint' });
+    expect(loaded.player.paint).toEqual({ body: 'petrol', cab: 'slate', gear: 'chalk' });
     expect(loaded.player.money).toBe(world.player.money);
     expect(loaded.player.xp).toBe(world.player.xp);
     expect(loaded.events).toEqual([]);

@@ -93,12 +93,12 @@ describe('carriedWorld', () => {
   });
 
   it('carries a known paint slot by slot and turns an unknown slot into its standard color', () => {
-    const rose = { body: 'rose', cab: 'navy', gear: 'mint' };
-    expect(carriedWorld(carriedOf({ paint: rose }), KIT, () => TEST_MAP, fresh).world.player.paint).toEqual(rose);
-    const { world, report } = carriedWorld(carriedOf({ paint: { body: 'rose', cab: 'gold', gear: 'mint' } }), KIT, () => TEST_MAP, fresh);
-    expect(world.player.paint).toEqual({ body: 'rose', cab: PAINT.standard.cab, gear: 'mint' });
+    const sanded = { body: 'sand', cab: 'slate', gear: 'chalk' };
+    expect(carriedWorld(carriedOf({ paint: sanded }), KIT, () => TEST_MAP, fresh).world.player.paint).toEqual(sanded);
+    const { world, report } = carriedWorld(carriedOf({ paint: { body: 'sand', cab: 'gold', gear: 'chalk' } }), KIT, () => TEST_MAP, fresh);
+    expect(world.player.paint).toEqual({ body: 'sand', cab: PAINT.standard.cab, gear: 'chalk' });
     expect(report.lost).toContain('gold');
-    expect(carriedWorld(carriedOf({ paint: { body: 'plum' } }), KIT, () => TEST_MAP, fresh).world.player.paint).toEqual({ ...PAINT.standard, body: 'plum' });
+    expect(carriedWorld(carriedOf({ paint: { body: 'oxblood' } }), KIT, () => TEST_MAP, fresh).world.player.paint).toEqual({ ...PAINT.standard, body: 'oxblood' });
     expect(carriedWorld(carriedOf({ paint: null }), KIT, () => TEST_MAP, fresh).world.player.paint).toEqual(PAINT.standard);
   });
 

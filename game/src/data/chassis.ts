@@ -405,20 +405,20 @@ export function chassisDef(id: string): ChassisDef {
 
 export type Paint = { top: number; side: number; cab: number; cabSide: number };
 
-export const PALETTE_IDS = ['tan', 'olive', 'plum', 'wine', 'rose', 'pink', 'lavender', 'mint', 'navy'] as const;
+export const PALETTE_IDS = ['tan', 'olive', 'sand', 'chalk', 'umber', 'oxblood', 'bottle', 'slate', 'petrol'] as const;
 
 export type PaletteId = (typeof PALETTE_IDS)[number];
 
 export const PALETTE: Record<PaletteId, number> = {
   tan: 0x9c7a3e,
   olive: 0x7e8a5a,
-  plum: 0x6e3a64,
-  wine: 0x6a2e3a,
-  rose: 0xc48a8a,
-  pink: 0xe0a0c0,
-  lavender: 0xb8a0e0,
-  mint: 0xa0dcb4,
-  navy: 0x26346a,
+  sand: 0xc8a46c,
+  chalk: 0xf0ece2,
+  umber: 0x6a4430,
+  oxblood: 0x5a2026,
+  bottle: 0x2c4636,
+  slate: 0x3e4a62,
+  petrol: 0x1e5258,
 };
 
 export type TruckPaint = { body: PaletteId; cab: PaletteId; gear: PaletteId };
@@ -428,9 +428,26 @@ export const PAINT_SLOTS = ['body', 'cab', 'gear'] as const satisfies readonly (
 export const PAINT = {
   share: 0.05,
   standard: { body: 'tan', cab: 'olive', gear: 'tan' } as const satisfies TruckPaint,
-  minApart: 20,
+  minApart: 15,
   minBetween: 15,
+  earthHue: [15, 120] as const,
+  earthChroma: 40,
+  coolChroma: 20,
+  paleLight: 60,
+  paleMinHue: 60,
+  minLight: 20,
+  maxLight: 95,
+  schemeContrast: 20,
 };
+
+export const PAINT_SCHEMES: readonly TruckPaint[] = [
+  PAINT.standard,
+  { body: 'sand', cab: 'umber', gear: 'umber' },
+  { body: 'bottle', cab: 'sand', gear: 'bottle' },
+  { body: 'slate', cab: 'chalk', gear: 'slate' },
+  { body: 'oxblood', cab: 'sand', gear: 'umber' },
+  { body: 'petrol', cab: 'chalk', gear: 'petrol' },
+];
 
 export function isPaletteId(id: unknown): id is PaletteId {
   return typeof id === 'string' && (PALETTE_IDS as readonly string[]).includes(id);

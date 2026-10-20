@@ -114,7 +114,7 @@ describe('part wear look', () => {
 
 describe('paint job look', () => {
   const npc = (v: Vehicle, templateId: string): Vehicle => ({ ...v, faction: 'independent', brain: { ...({} as NonNullable<Vehicle['brain']>), templateId } });
-  const PAINTS: TruckPaint[] = [PAINT.standard, { ...PAINT.standard, body: 'plum' }, { ...PAINT.standard, cab: 'plum' }, { ...PAINT.standard, gear: 'plum' }];
+  const PAINTS: TruckPaint[] = [PAINT.standard, { ...PAINT.standard, body: 'oxblood' }, { ...PAINT.standard, cab: 'oxblood' }, { ...PAINT.standard, gear: 'oxblood' }];
 
   it('keys the rebuild on each of the three colors on its own', () => {
     const v = truck();
@@ -124,10 +124,10 @@ describe('paint job look', () => {
 
   it('paints the body and the gear apart', () => {
     const v = truck();
-    const view = new VehicleView(v, true, { body: 'plum', cab: 'navy', gear: 'mint' });
+    const view = new VehicleView(v, true, { body: 'oxblood', cab: 'slate', gear: 'chalk' });
     const drawn = colors(view);
-    expect(drawn).toContain(String(PALETTE.plum));
-    expect(drawn).toContain(String(PALETTE.mint));
+    expect(drawn).toContain(String(PALETTE.oxblood));
+    expect(drawn).toContain(String(PALETTE.chalk));
     expect(drawn).not.toContain(String(PALETTE.tan));
   });
 
@@ -135,11 +135,11 @@ describe('paint job look', () => {
     const v = truck();
     const view = new VehicleView(v, true, PAINT.standard);
     const standard = colors(view);
-    const gearOnly: TruckPaint = { ...PAINT.standard, gear: 'mint' };
+    const gearOnly: TruckPaint = { ...PAINT.standard, gear: 'chalk' };
     view.update(v, true, gearOnly);
     const mint = colors(view);
     expect(mint).not.toBe(standard);
-    expect(mint).toContain(String(PALETTE.mint));
+    expect(mint).toContain(String(PALETTE.chalk));
     expect(mint).toContain(String(PALETTE.tan));
     const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
     part.hp = 1;

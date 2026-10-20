@@ -202,7 +202,7 @@ describe("item tones", () => {
 });
 
 describe("chassis portraits", () => {
-  const PLUM: TruckPaint = { body: "plum", cab: "navy", gear: "mint" };
+  const OXBLOOD: TruckPaint = { body: "oxblood", cab: "slate", gear: "chalk" };
 
   it.each(Object.keys(CHASSIS))("crop the %s portrait to its drawing", (id) => {
     expect(chassisPortraitCell(id, PAINT.standard).box).toEqual(boxOf(ICONS.chassis[id as keyof typeof ICONS.chassis].box));
@@ -210,12 +210,12 @@ describe("chassis portraits", () => {
 
   it("start from the standard sheet in the same cell for any paint", () => {
     expect(chassisPortraitCell("scout", PAINT.standard).file).toBe("chassis.png");
-    expect(chassisPortraitCell("scout", PLUM).file).toBe("chassis.png");
-    expect(chassisPortraitCell("scout", PLUM).box).toEqual(chassisPortraitCell("scout", PAINT.standard).box);
+    expect(chassisPortraitCell("scout", OXBLOOD).file).toBe("chassis.png");
+    expect(chassisPortraitCell("scout", OXBLOOD).box).toEqual(chassisPortraitCell("scout", PAINT.standard).box);
   });
 
   it("fail on a paint the build does not know", () => {
-    expect(() => chassisPortraitCell("scout", { ...PLUM, cab: "gold" } as unknown as TruckPaint)).toThrow(/gold/);
+    expect(() => chassisPortraitCell("scout", { ...OXBLOOD, cab: "gold" } as unknown as TruckPaint)).toThrow(/gold/);
   });
 });
 
