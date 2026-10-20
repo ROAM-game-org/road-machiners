@@ -1188,11 +1188,11 @@ export class Game {
       ids.add(v.id);
       let view = this.views.get(v.id);
       if (!view) {
-        view = new VehicleView(v, seen);
+        view = new VehicleView(v, seen, this.world.player.paint);
         this.views.set(v.id, view);
         this.scene.add(view.root);
       }
-      view.update(display, seen);
+      view.update(display, seen, this.world.player.paint);
       view.lamps(vehicleLampsOn(this.world, v, this.lightTurn()));
       view.radio(this.radioLights.lit(v.id, now));
       view.outline(look === "dark");

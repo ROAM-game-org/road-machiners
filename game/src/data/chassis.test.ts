@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CHASSIS, HAULER_CHASSIS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef } from './chassis';
+import { CHASSIS, HAULER_CHASSIS, isTruckPaint, PAINT, PAINT_SCHEMES, PALETTE, PALETTE_IDS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef, type PaletteId } from './chassis';
+import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
 import { FURY_ROAD } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
@@ -299,5 +300,116 @@ describe('town garage lineups', () => {
       const town = npc.spawn.ids[0];
       for (const c of npc.loadout.chassis) expect(TOWN_CHASSIS[town], `${npc.id} ${c.value}`).toContain(c.value);
     }
+  });
+});
+
+function lab(color: number): [number, number, number] {
+  const [r, g, b] = [16, 8, 0].map((shift) => linear(((color >> shift) & 0xff) / 255));
+  const x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+  const y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+  const z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+  return [116 * labCurve(y) - 16, 500 * (labCurve(x) - labCurve(y)), 200 * (labCurve(y) - labCurve(z))];
+}
+
+function linear(v: number): number {
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+}
+
+function labCurve(t: number): number {
+  return t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+}
+
+function deltaE(a: number, b: number): number {
+  const p = lab(a);
+  const q = lab(b);
+  return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+}
+
+const ROLE_TOPS = [...Object.values(GANG_PAINT), ...Object.values(TEMPLATE_PAINT)].map((p) => p.top);
+const OLD_STANDARD = new Set<PaletteId>(['tan', 'olive']);
+const NEW_COLORS = PALETTE_IDS.filter((id) => !OLD_STANDARD.has(id));
+
+function lch(color: number): { light: number; chroma: number; hue: number } {
+  const [light, a, b] = lab(color);
+  const hue = (Math.atan2(b, a) * 180) / Math.PI;
+  return { light, chroma: Math.hypot(a, b), hue: hue < 0 ? hue + 360 : hue };
+}
+
+function isEarthHue(hue: number): boolean {
+  return hue >= PAINT.earthHue[0] && hue <= PAINT.earthHue[1];
+}
+
+describe('the paint palette', () => {
+  it('keeps the standard paint equal to the paint every player truck had before paint jobs', () => {
+    expect(PALETTE[PAINT.standard.body]).toBe(0x9c7a3e);
+    expect(PALETTE[PAINT.standard.cab]).toBe(0x7e8a5a);
+    expect(PAINT.standard.gear).toBe(PAINT.standard.body);
+  });
+
+  it('offers nine colors for every surface', () => {
+    expect(PALETTE_IDS).toHaveLength(9);
+    expect(Object.keys(PALETTE).sort()).toEqual([...PALETTE_IDS].sort());
+    expect(PAINT.minApart).toBeGreaterThanOrEqual(15);
+  });
+
+  it.each(PALETTE_IDS)('keeps %s a muted paint, saturated only in an earth hue', (id) => {
+    const { chroma, hue } = lch(PALETTE[id]);
+    expect(chroma).toBeLessThanOrEqual(isEarthHue(hue) ? PAINT.earthChroma : PAINT.coolChroma);
+  });
+
+  it.each(PALETTE_IDS)('keeps %s neither black nor white, and pale only as sand or bone', (id) => {
+    const { light, hue } = lch(PALETTE[id]);
+    expect(light).toBeGreaterThanOrEqual(PAINT.minLight);
+    expect(light).toBeLessThanOrEqual(PAINT.maxLight);
+    if (light > PAINT.paleLight) expect(hue).toBeGreaterThanOrEqual(PAINT.paleMinHue);
+  });
+
+  it('turns down the candy tones the committee rejected', () => {
+    const rejected = [0x6e3a64, 0xc48a8a, 0xe0a0c0, 0xb8a0e0, 0xa0dcb4, 0x26346a];
+    for (const color of rejected) {
+      const { light, chroma, hue } = lch(color);
+      const tooBright = chroma > (isEarthHue(hue) ? PAINT.earthChroma : PAINT.coolChroma);
+      const palePink = light > PAINT.paleLight && hue < PAINT.paleMinHue;
+      expect(tooBright || palePink, color.toString(16)).toBe(true);
+    }
+  });
+
+  it.each(NEW_COLORS)('keeps %s apart from every role body paint', (id) => {
+    for (const role of ROLE_TOPS) expect(deltaE(PALETTE[id], role)).toBeGreaterThanOrEqual(PAINT.minApart);
+  });
+
+  it('keeps every two palette colors apart', () => {
+    for (const [i, a] of PALETTE_IDS.entries()) {
+      for (const b of PALETTE_IDS.slice(i + 1)) expect(deltaE(PALETTE[a], PALETTE[b]), `${a} ${b}`).toBeGreaterThanOrEqual(PAINT.minBetween);
+    }
+  });
+
+  it('knows a paint only when each of its three slots is a palette id', () => {
+    expect(isTruckPaint(PAINT.standard)).toBe(true);
+    expect(isTruckPaint({ body: 'oxblood', cab: 'slate', gear: 'chalk' })).toBe(true);
+    expect(isTruckPaint({ body: 'oxblood', cab: 'gold', gear: 'chalk' })).toBe(false);
+    expect(isTruckPaint({ body: 'oxblood', cab: 'slate' })).toBe(false);
+    expect(isTruckPaint('oxblood')).toBe(false);
+    expect(isTruckPaint(null)).toBe(false);
+  });
+});
+
+describe('the paint schemes', () => {
+  it('starts with the standard paint', () => {
+    expect(PAINT_SCHEMES[0]).toEqual(PAINT.standard);
+  });
+
+  it('offers six schemes made of palette colors', () => {
+    expect(PAINT_SCHEMES).toHaveLength(6);
+    for (const scheme of PAINT_SCHEMES) expect(isTruckPaint(scheme), JSON.stringify(scheme)).toBe(true);
+  });
+
+  it.each(PAINT_SCHEMES.map((scheme) => [`${scheme.body} ${scheme.cab} ${scheme.gear}`, scheme] as const))('keeps the body and cab of %s apart', (_, scheme) => {
+    expect(deltaE(PALETTE[scheme.body], PALETTE[scheme.cab])).toBeGreaterThanOrEqual(PAINT.schemeContrast);
+  });
+
+  it('never repeats a scheme', () => {
+    const keys = PAINT_SCHEMES.map((scheme) => `${scheme.body} ${scheme.cab} ${scheme.gear}`);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
