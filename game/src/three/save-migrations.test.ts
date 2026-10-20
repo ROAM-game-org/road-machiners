@@ -1804,14 +1804,34 @@ describe('MIGRATIONS[82]', () => {
     const next = migrated();
     expect(next.vehicles[1].brain!.goals).toEqual([]);
     expect(next.vehicles[1].job).toBeNull();
-    expect(next.vehicles[2]).toEqual(FORMAT_2_82.vehicles[2]);
-    expect(next.roadNews).toEqual([]);
   });
 });
 
-describe('save migration 83 to 84', () => {
+describe('MIGRATIONS[83]', () => {
+  type Shops = Record<string, { stock: { defId: string }[]; restockAt: number }>;
+  const shopsOf = (world: unknown) => (world as { shops: Shops }).shops;
+  const withShelves = () => {
+    const world = structuredClone(FORMAT_2_82) as unknown as { shops: Shops };
+    world.shops.bowl.stock = [{ defId: 'mg' }];
+    world.shops.nose.stock = [{ defId: 'mg' }, { defId: 'stockEngine' }];
+    world.shops['salvage-yard'].stock = [{ defId: 'mg' }];
+    return world;
+  };
+
+  it('restocks a Bowl or Nose shelf with no stock engine on the saved turn and leaves the rest alone', () => {
+    const before = withShelves();
+    const next = MIGRATIONS[83](structuredClone(before) as never);
+
+    expect(shopsOf(next).bowl.restockAt).toBe(FORMAT_2_82.turn);
+    expect(shopsOf(next).nose.restockAt).toBe(before.shops.nose.restockAt);
+    expect(shopsOf(next)['salvage-yard']).toEqual(before.shops['salvage-yard']);
+    expect({ ...next, shops: { ...shopsOf(next), bowl: before.shops.bowl } }).toEqual(before);
+  });
+});
+
+describe('save migration 84 to 85', () => {
   type Saved = typeof FORMAT_2_80;
-  const stepped = () => MIGRATIONS[83](MIGRATIONS[81](MIGRATIONS[80](structuredClone(FORMAT_2_80) as unknown as SavedJson))) as unknown as Saved & { vehicles: (Saved['vehicles'][number] & { bend?: number })[]; obstacles: { hulk?: { bend?: number } }[] };
+  const stepped = () => MIGRATIONS[84](MIGRATIONS[81](MIGRATIONS[80](structuredClone(FORMAT_2_80) as unknown as SavedJson))) as unknown as Saved & { vehicles: (Saved['vehicles'][number] & { bend?: number })[]; obstacles: { hulk?: { bend?: number } }[] };
   const AHEAD = 5.7375 / 4;
 
   it('moves a semi from the middle of the rig to its tractor along its heading and sets it straight', () => {

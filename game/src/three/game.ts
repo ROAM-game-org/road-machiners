@@ -97,6 +97,7 @@ import { subscribeInputMode, touchMode } from "../ui/input-mode";
 import { installTouchTips } from "../ui/touch-tip";
 import { TouchGestures, type TouchIntent } from "./touch-map";
 import { touchTapAction } from "./touch-tap";
+import { swallowNextClick } from "./ghost-click";
 import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
@@ -673,6 +674,7 @@ export class Game {
     if (tap.kind !== "preview") this.touchPreview = null;
     switch (tap.kind) {
       case "pin":
+        swallowNextClick();
         return this.pinVehicle(tap.id);
       case "aim":
         return this.aimVehicle(tap.id);

@@ -71,6 +71,7 @@
   scrollbar-width: thin;
 }
 .quest-screen :is(.quest-talk, .quest-text) {
+  overflow-anchor: none;
   font-size: var(--text-lead);
   line-height: 1.55;
 }
@@ -690,6 +691,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+}
+.perk-rank {
+  display: none;
+  font-size: var(--text-caption);
 }
 .perk-cell.picked {
   color: var(--ink-bright);

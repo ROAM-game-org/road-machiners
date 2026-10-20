@@ -91,22 +91,22 @@ export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }
 
-const SEMI_82_83 = 'semi';
-const TRACTOR_AHEAD_TILES_82_83 = 5.7375 / 4;
+const SEMI_84_85 = 'semi';
+const TRACTOR_AHEAD_TILES_84_85 = 5.7375 / 4;
 
-export function withTractorPivot_83_84(world: SavedJson): SavedJson {
-  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_82_83 ? { ...v, pos: tractorAt_82_83(v.pos as Point_82_83, v.heading as number), bend: 0 } : v));
+export function withTractorPivot_84_85(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_84_85 ? { ...v, pos: tractorAt_84_85(v.pos as Point_84_85, v.heading as number), bend: 0 } : v));
   const obstacles = (world.obstacles as SavedJson[]).map((o) => {
     const hulk = o.hulk as SavedJson | undefined;
-    return hulk?.chassisId === SEMI_82_83 ? { ...o, pos: tractorAt_82_83(o.pos as Point_82_83, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
+    return hulk?.chassisId === SEMI_84_85 ? { ...o, pos: tractorAt_84_85(o.pos as Point_84_85, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
   });
   return { ...world, vehicles, obstacles };
 }
 
-type Point_82_83 = { x: number; y: number };
+type Point_84_85 = { x: number; y: number };
 
-function tractorAt_82_83(pos: Point_82_83, heading: number): Point_82_83 {
-  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_82_83, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_82_83 };
+function tractorAt_84_85(pos: Point_84_85, heading: number): Point_84_85 {
+  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_84_85, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_84_85 };
 }
 
 export function withProgressAnchor_65_66(world: SavedJson): SavedJson {

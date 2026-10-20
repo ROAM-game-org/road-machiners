@@ -189,8 +189,8 @@ const TABLES: WikiTable[] = [
   },
   {
     id: 'shops',
-    headers: ['id', 'kind', 'makes', 'needs', 'goods', 'supplies', 'stock size (parts)', 'restock (turns)', 'contract slots'],
-    rows: () => Object.values(SHOPS).map((s) => [s.id, s.kind, s.makes, s.needs, s.goods, s.supplies, s.stockSize.join(' to '), s.restockTurns, s.contractSlots]),
+    headers: ['id', 'kind', 'makes', 'needs', 'goods', 'supplies', 'stock size (parts)', 'staple parts', 'restock (turns)', 'contract slots'],
+    rows: () => Object.values(SHOPS).map((s) => [s.id, s.kind, s.makes, s.needs, s.goods, s.supplies, s.stockSize.join(' to '), s.staples, s.restockTurns, s.contractSlots]),
   },
   {
     id: 'recipes',

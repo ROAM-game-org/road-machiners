@@ -132,6 +132,7 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | money | ui | false | 0.8 | 1 | 3 |
 | level-up | ui | false | 1 | 1 | 1 |
 | discover | ui | false | 0.9 | 1 | 1 |
+| heatwave-warning | ui | false | 0.84 | 1 | 1 |
 | air-brake | sfx | false | 0.5 | 1 | 3 |
 | defeat | ui | false | 1 | 1 | 1 |
 | mg-fire | sfx | false | 0.6 | 6 | 3 |
