@@ -81,6 +81,7 @@ import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
+import FORMAT_2_90 from './save-fixtures/format-2-90.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -2062,5 +2063,19 @@ describe('save migration 91 to 92', () => {
     const before = saved({ world: { geezer_pitch: 'bullets' } });
     const next = stepped(before);
     expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});
+
+describe('save migration 92 to 93', () => {
+  const stepped = (world: unknown) => MIGRATIONS[92](structuredClone(world) as SavedJson) as unknown as typeof FORMAT_2_90 & { player: { pastContracts: unknown[] } };
+
+  it('gives the player an empty list of past contracts', () => {
+    expect(stepped(FORMAT_2_90).player.pastContracts).toEqual([]);
+  });
+
+  it('keeps the held contracts and the rest of the save as they were', () => {
+    const next = stepped(FORMAT_2_90);
+
+    expect({ ...next, player: { ...next.player, pastContracts: undefined } }).toEqual(FORMAT_2_90);
   });
 });

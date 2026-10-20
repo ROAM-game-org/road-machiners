@@ -68,6 +68,8 @@ export const EFFORT = {
 export const CONTRACTS = {
   maxActive: 3,
 
+  pastKept: 30,
+
   warnTurns: Math.round(TIME.turnsPerDay / 12),
 
   haul: {
