@@ -95,7 +95,7 @@ describe('error reports', () => {
 
     const report = sent[0].report;
     expect(report.error).toEqual({ name: 'TypeError', message: 'no route', stack: workerStack });
-    expect(report.drive).toEqual({ bodies: { player: 3 }, obstacles: {}, craters: {}, memory: {}, terrain: 1, decks: [], snapshot: 'AAH+/w==' });
+    expect(report.drive).toEqual({ bodies: { player: 3 }, rears: {}, couplings: {}, shapes: { player: 'scout' }, obstacles: {}, craters: {}, memory: {}, terrain: 1, decks: [], snapshot: 'AAH+/w==' });
   });
 
   it('only warns when the endpoint refuses, so the game goes on', async () => {
