@@ -218,6 +218,36 @@ export function withThreeColorPaint_93_94(world: SavedJson): SavedJson {
   return { ...world, player: { ...player, paint: paintOfPreset_93_94(String(player.paint)) } };
 }
 
+const STANDARD_PAINT_94_95: Paint_93_94 = { body: 'tan', cab: 'olive', gear: 'tan' };
+
+const COLORS_94_95: readonly string[] = ['tan', 'olive', 'sand', 'chalk', 'umber', 'oxblood', 'bottle', 'slate', 'petrol'];
+
+const RETIRED_COLORS_94_95: Record<string, string> = {
+  plum: 'oxblood',
+  wine: 'oxblood',
+  rose: 'sand',
+  pink: 'chalk',
+  lavender: 'chalk',
+  mint: 'chalk',
+  navy: 'slate',
+};
+
+export function mutedColor_94_95(id: string): string {
+  return Object.hasOwn(RETIRED_COLORS_94_95, id) ? RETIRED_COLORS_94_95[id] : id;
+}
+
+function colorOf_94_95(slot: keyof Paint_93_94, id: unknown): string {
+  const color = typeof id === 'string' ? mutedColor_94_95(id) : null;
+  return color !== null && COLORS_94_95.includes(color) ? color : STANDARD_PAINT_94_95[slot];
+}
+
+export function withMutedPaint_94_95(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const saved = typeof player.paint === 'object' && player.paint !== null ? (player.paint as SavedJson) : {};
+  const paint = { body: colorOf_94_95('body', saved.body), cab: colorOf_94_95('cab', saved.cab), gear: colorOf_94_95('gear', saved.gear) };
+  return { ...world, player: { ...player, paint } };
+}
+
 export function withEncounters_64_65(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   if (player.encounters !== undefined) return world;

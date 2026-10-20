@@ -83,6 +83,7 @@ import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
 import FORMAT_2_92 from './save-fixtures/format-2-92.json';
 import FORMAT_2_93 from './save-fixtures/format-2-93.json';
+import FORMAT_2_94 from './save-fixtures/format-2-94.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -2097,5 +2098,37 @@ describe('MIGRATIONS[93]', () => {
 
   it.each(['bone', 'gold', 'constructor', undefined])('gives the standard paint for %s', (preset) => {
     expect(migrate(preset).player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'tan' });
+  });
+});
+
+describe('MIGRATIONS[94]', () => {
+  const migrate = (paint: unknown) => MIGRATIONS[94](structuredClone({ ...FORMAT_2_94, player: { ...FORMAT_2_94.player, paint } })) as unknown as typeof FORMAT_2_94 & { player: { paint: unknown } };
+
+  it('moves each retired color to its new color, keeps a current one and changes nothing else', () => {
+    const next = MIGRATIONS[94](structuredClone(FORMAT_2_94)) as unknown as typeof FORMAT_2_94;
+    expect(next.player.paint).toEqual({ body: 'chalk', cab: 'slate', gear: 'sand' });
+    expect({ ...next, player: { ...next.player, paint: FORMAT_2_94.player.paint } }).toEqual(FORMAT_2_94);
+  });
+
+  it.each([
+    ['plum', 'oxblood'],
+    ['wine', 'oxblood'],
+    ['rose', 'sand'],
+    ['pink', 'chalk'],
+    ['lavender', 'chalk'],
+    ['mint', 'chalk'],
+    ['navy', 'slate'],
+  ])('moves %s to %s in every slot', (old, color) => {
+    expect(migrate({ body: old, cab: old, gear: old }).player.paint).toEqual({ body: color, cab: color, gear: color });
+  });
+
+  it('keeps a paint of current colors as it is', () => {
+    const paint = { body: 'petrol', cab: 'chalk', gear: 'umber' };
+    expect(migrate(paint).player.paint).toEqual(paint);
+  });
+
+  it('gives a slot it knows neither way its standard color', () => {
+    expect(migrate({ body: 'gold', cab: 7, gear: 'bottle' }).player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'bottle' });
+    expect(migrate('plum').player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'tan' });
   });
 });
