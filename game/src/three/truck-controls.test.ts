@@ -75,7 +75,9 @@ function controlsOf(world: World) {
 
 describe('the overdrive key', () => {
   it('switches overdrive on with a rev, and off again', () => {
-    const { c, host } = controlsOf(emptyWorld());
+    const w = emptyWorld();
+    w.player.ranks.driving = 1;
+    const { c, host } = controlsOf(w);
     c.toggleOverdrive();
     expect(host.world.player.overdrive).toBe(true);
     expect(host.revs).toBe(1);
@@ -92,5 +94,12 @@ describe('the overdrive key', () => {
     expect(host.world.player.overdrive).toBe(false);
     expect(host.applied).toBe(0);
     expect(host.revs).toBe(0);
+  });
+
+  it('does nothing at Driving 0', () => {
+    const { c, host } = controlsOf(emptyWorld());
+    c.toggleOverdrive();
+    expect(host.world.player.overdrive).toBe(false);
+    expect(host.applied).toBe(0);
   });
 });

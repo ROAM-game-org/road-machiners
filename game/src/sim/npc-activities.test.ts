@@ -1,7 +1,7 @@
 import { TERRAIN } from '../data/terrain';
 import { describe, expect, it } from 'vitest';
 import { contactsOf } from './detect';
-import { emptyWorld, addLootSpot, addVehicle, editableTerrain, finishBusiness, forceOption, npcBrain, rngStateForForcedRolls, testDrive , startCombat, setShopPressure } from './testkit';
+import { addLootSpot, addVehicle, editableTerrain, emptyWorld, finishBusiness, forceOption, npcBrain, rngStateForForcedRolls, setShopPressure, sizedUp, startCombat, testDrive } from './testkit';
 import { standingPressures } from './market';
 import { propReach } from './mapgen';
 import { planNpcOrders } from './ai';
@@ -472,6 +472,7 @@ describe('NPC activities', () => {
     forceOption('idle', 'scavenge');
     forceOption('surrenderOffered', 'refuse');
     forceOption('mugging', 'attack');
+    forceOption('sizedUp', 'rob');
     const victim = addVehicle(w0, 'independent', 'scout', [], { x: 16, y: 12 });
     victim.brain = npcBrain('scavenger', victim.pos, ['scavenger']);
     corePart(victim, 'cab').hp = 1;
@@ -992,7 +993,7 @@ describe('NPC activities', () => {
       closeIn(w, player, raider);
       forceOption('hostileSeen', 'fight');
       thinkNpc(w, raider);
-      expect(topGoal(raider)).toMatchObject({ kind: 'fight', targetId: player.id });
+      expect(topGoal(raider)).toMatchObject({ kind: 'sizeUp', targetId: player.id });
       expect(raider.brain!.goals.some((g) => g.kind === 'investigate')).toBe(false);
     });
 
@@ -1126,7 +1127,7 @@ describe('NPC activities', () => {
       player.pos = { x: raider.pos.x - 4, y: raider.pos.y };
       forceOption('hostileSeen', 'fight');
       thinkNpc(w, raider);
-      expect(topGoal(raider)).toMatchObject({ kind: 'fight', targetId: player.id });
+      expect(topGoal(raider)).toMatchObject({ kind: 'sizeUp', targetId: player.id });
     });
   });
 
@@ -1141,7 +1142,7 @@ describe('NPC activities', () => {
     forceOption('hostileSeen', 'fight');
     forceOption('contactHeard', 'investigate');
     planNpcOrders(w);
-    expect(topGoal(raider)?.kind).toBe('fight');
+    expect(topGoal(raider)?.kind).toBe('sizeUp');
     expect(topGoal(raider)?.targetId).toBe(trader.id);
   });
 
@@ -1215,6 +1216,7 @@ describe('hunting a lost fight target', () => {
     const player = w.vehicles[0];
     const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    sizedUp(w, raider, player);
     forceOption('hostileSeen', 'fight');
     planNpcOrders(w);
     expect(topGoal(raider)).toMatchObject({ kind: 'fight', targetId: player.id });

@@ -1,6 +1,3 @@
-// Multi-turn plan preview: thick lines lying on the ground, first turn in the caller's color, later turns
-// fainter in PAL.plan, with a marker at each turn's end. A thin faint line continues along the rest of
-// the course to its point. Depth-tested, so trucks drive over them.
 
 import * as THREE from 'three';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';

@@ -10,8 +10,11 @@ const { values, positionals } = parseArgs({
     then: { type: 'string', multiple: true, default: [] }, set: { type: 'string', multiple: true, default: [] },
     skill: { type: 'string', multiple: true, default: [] },
     lang: { type: 'string', default: 'en' }, prompt: { type: 'string', default: 'docs/writing/playtest-prompt.md' },
+    player: { type: 'string' },
   },
 });
+const playerTool = values.player ?? (values.lang === 'ru' ? 'agy' : 'codex');
+if (playerTool !== 'agy' && playerTool !== 'codex') throw new Error(`--player must be agy or codex, got ${playerTool}`);
 const quests = positionals;
 if (quests.length === 0 || !values.situation || !values.out) {
   throw new Error('Usage: npm run quest:playtest -- <quest> [<next quest> ...] --situation "<what the player sees on arrival>" [--then "<what happens before the next quest>" ...] [--skill <skill>=<level> ...] --out tmp/<notes>.md');
@@ -102,7 +105,7 @@ function game(quest, runFile, pick, from) {
 }
 
 function player(prompt, schema) {
-  return values.lang === 'ru' ? agy(prompt, schema) : codex(prompt, schema);
+  return playerTool === 'agy' ? agy(prompt, schema) : codex(prompt, schema);
 }
 
 function agyArgs(prompt, schema) {

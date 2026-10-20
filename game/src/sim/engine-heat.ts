@@ -7,7 +7,7 @@ import { PERK_NUMBERS } from '../data/skills';
 import { damagePart, wornDef } from './wear';
 import { playerVehicle } from './damage';
 import { mountedParts } from './grid';
-import { practice, regionOf, skillEffect, vehicleHasPerk } from './progress';
+import { hasBasic, practice, regionOf, skillEffect, vehicleHasPerk } from './progress';
 import { inOverdrive, vehicleStats } from './stats';
 import { cappedHeatAt, heatAt } from './sun';
 import type { PartInstance, Vehicle, World } from './types';
@@ -51,9 +51,10 @@ function heatedEngines(v: Vehicle): PartInstance[] {
   return mountedParts(v).filter((p) => partDef(p.defId).kind === 'engine' && p.hp > 0);
 }
 
-export type DouseBlock = 'noSupplies' | 'engineCool';
+export type DouseBlock = 'noBasic' | 'noSupplies' | 'engineCool';
 
 export function douseBlock(world: World): DouseBlock | null {
+  if (!hasBasic(world, 'douse')) return 'noBasic';
   if (world.player.supplies < ENGINE_HEAT.douseSupplies) return 'noSupplies';
   if (world.player.engineHeat <= 0) return 'engineCool';
   return null;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { goodRoutesTitle, pressureHint, showsRelief } from "./town";
+import { goodRoutesTitle, marketHint, pressureHint, showsRelief, tradeEstimate } from "./town";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF } from "../data/market";
@@ -43,6 +43,26 @@ describe("the price hint of a good", () => {
   it("lets a strong stock shortage or glut outrank what the shop makes", () => {
     expect(hint(def, state({ salt: 0 }), "salt")).toEqual({ tone: "bad", title: "Short here" });
     expect(hint(def, state({ scrap: 2 * stockTarget("nose", "scrap") }), "scrap")).toEqual({ tone: "good", title: "Flooded here" });
+  });
+});
+
+describe("trade hints and the sale profit under Acumen", () => {
+  const def = SHOPS.nose;
+  const state = { goods: { salt: stockTarget("nose", "salt") } } as unknown as ShopState;
+
+  it("are absent at Social 0, while the price stays", () => {
+    const w = emptyWorld();
+    w.player.costBasis.salt = 100;
+    expect(marketHint(w, def, state, "salt")).toBeNull();
+    expect(tradeEstimate(w, 3, 150, "salt")).toEqual({ kind: "none" });
+  });
+
+  it("show from Social 1", () => {
+    const w = emptyWorld();
+    w.player.ranks.social = 1;
+    w.player.costBasis.salt = 100;
+    expect(marketHint(w, def, state, "salt")?.tone).toBe("good");
+    expect(tradeEstimate(w, 3, 150, "salt")).toEqual({ kind: "gain", perUnit: 50, avgCost: 100 });
   });
 });
 

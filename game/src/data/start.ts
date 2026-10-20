@@ -18,6 +18,7 @@ export type StartKit = {
   cargo: Record<string, number>;
   costBasis: Record<string, number>;
   autoRepair: boolean;
+  ranks: number;
   opening: Opening | null;
   intro: Intro | null;
 };
@@ -66,6 +67,7 @@ export const START_KITS: Record<string, StartKit> = {
     cargo: { scrap: 2, parts: 2 },
     costBasis: { scrap: 333 },
     autoRepair: false,
+    ranks: 0,
     opening: { ...STANDARD_OPENING, wreck: ARRIVAL.wreck },
     intro: { pose: ARRIVAL.pose, farm: ARRIVAL.farm, health: ARRIVAL.health },
   },
@@ -80,6 +82,7 @@ export const START_KITS: Record<string, StartKit> = {
     cargo: { scrap: 2, parts: 2 },
     costBasis: { scrap: 333 },
     autoRepair: false,
+    ranks: 0,
     opening: STANDARD_OPENING,
     intro: null,
   },
@@ -94,6 +97,7 @@ export const START_KITS: Record<string, StartKit> = {
     cargo: { scrap: 2 },
     costBasis: { scrap: 333 },
     autoRepair: true,
+    ranks: 0,
     opening: null,
     intro: null,
   },
@@ -108,6 +112,7 @@ export const START_KITS: Record<string, StartKit> = {
     cargo: { parts: 1 },
     costBasis: {},
     autoRepair: true,
+    ranks: 1,
     opening: null,
     intro: null,
   },
@@ -122,6 +127,7 @@ export const START_KITS: Record<string, StartKit> = {
     cargo: { parts: 2 },
     costBasis: {},
     autoRepair: true,
+    ranks: 0,
     opening: null,
     intro: null,
   },
@@ -136,6 +142,7 @@ export const START_KITS: Record<string, StartKit> = {
     cargo: {},
     costBasis: {},
     autoRepair: true,
+    ranks: 0,
     opening: null,
     intro: null,
   },

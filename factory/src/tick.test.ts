@@ -473,6 +473,19 @@ describe('tick', () => {
     expect(picks).toEqual([{ stage: 'verify', issue: 1 }, { stage: 'checks', issue: 2 }]);
   });
 
+  it('gives a second verify worker to a normal card when two hotfixes wait for verify', () => {
+    const cards = [card(4, 'Testing', [HOTFIX_LABEL]), card(5, 'Testing', [HOTFIX_LABEL]), card(6, 'Testing')];
+    expect(chooseJobs(state(), cards, NOW, { ...CFG, verifyWorkers: 2 })).toEqual([{ stage: 'verify', issue: 4 }, { stage: 'verify', issue: 6 }]);
+  });
+
+  it('holds a second hotfix while one hotfix runs in verify, and lets a normal card start', () => {
+    const s = state({ jobs: [running('verify', 4)] });
+    const cards = [card(4, 'Testing', [HOTFIX_LABEL]), card(5, 'Testing', [HOTFIX_LABEL]), card(6, 'Testing'), card(7, 'Design', [HOTFIX_LABEL])];
+    const report = evaluateSchedule(s, cards, NOW, { ...CFG, verifyWorkers: 2 });
+    expect(report.picks).toEqual([{ stage: 'design', issue: 7 }, { stage: 'verify', issue: 6 }]);
+    expect(report.decisions.find((item) => item.issue === 5)?.reasons).toEqual(['hotfix-verify']);
+  });
+
   it('picks harden for a Hardening card, ahead of Testing', () => {
     const cards = [card(1, 'Testing'), card(5, 'Hardening'), card(6, 'Hardening')];
     const picks = chooseJobs(state({}), cards, NOW, { ...CFG, verifyWorkers: 3, testWorkers: 2 });
