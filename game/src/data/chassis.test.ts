@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHASSIS, HAULER_CHASSIS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef } from './chassis';
+import { CHASSIS, CHASSIS_FEATURES, chassisFeature, HAULER_CHASSIS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef } from './chassis';
 import { FURY_ROAD } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
@@ -246,14 +246,23 @@ describe('chassis tradeoffs', () => {
     expect(chassisDominates(CHASSIS.van, better)).toBe(false);
   });
 
-  it('keeps every chassis from issue 149 from matching or beating another of its tier on every stat', () => {
-    for (const id of ['lincoln', 'niva', 'bukhanka']) {
-      for (const other of Object.values(CHASSIS).filter((c) => c.tier === CHASSIS[id].tier && c.id !== id)) {
+  it('keeps every player chassis from matching or beating another of its tier on every stat', () => {
+    for (const id of PLAYER_CHASSIS) {
+      for (const other of PLAYER_CHASSIS.map((o) => CHASSIS[o]).filter((c) => c.tier === CHASSIS[id].tier && c.id !== id)) {
         expect(chassisDominates(CHASSIS[id], other), `${id} beats ${other.id}`).toBe(false);
         expect(chassisDominates(other, CHASSIS[id]), `${other.id} beats ${id}`).toBe(false);
         expect(axes(CHASSIS[id]), `${id} matches ${other.id}`).not.toEqual(axes(other));
       }
     }
+  });
+});
+
+describe('chassis features', () => {
+  it('gives every player chassis one feature, the semi none, and uses every feature', () => {
+    for (const id of PLAYER_CHASSIS) expect(chassisFeature(id), id).not.toBeNull();
+    expect(chassisFeature('semi')).toBeNull();
+    const used = new Set(PLAYER_CHASSIS.map((id) => chassisFeature(id)));
+    expect([...used].sort()).toEqual(Object.keys(CHASSIS_FEATURES).sort());
   });
 });
 

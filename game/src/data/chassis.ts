@@ -2,7 +2,38 @@
 import type { Tier } from './market';
 import { PARTS } from './parts';
 
+export type ChassisFeatureId = 'junkBuilt' | 'lightFrame' | 'quietEngine' | 'offRoad' | 'cargoBed' | 'heavyHitch';
+
+export const CHASSIS_FEATURES = {
+  junkBuilt: { fullPatchRoles: ['wheel', 'transmission', 'tank'] as readonly string[] },
+  lightFrame: { roughWearShare: 0.5 },
+  quietEngine: { soundShare: 2 / 3 },
+  offRoad: { roughCut: 0.5 },
+  cargoBed: { extraRows: 1, minCells: 4 },
+  heavyHitch: { towSpeedShare: 1 },
+};
+
+const FEATURE_OF: Record<string, ChassisFeatureId> = {
+  scout: 'junkBuilt',
+  wagon: 'junkBuilt',
+  buggy: 'lightFrame',
+  convertible: 'lightFrame',
+  courier: 'quietEngine',
+  lincoln: 'quietEngine',
+  jeep: 'offRoad',
+  niva: 'offRoad',
+  bukhanka: 'offRoad',
+  van: 'cargoBed',
+  hauler: 'cargoBed',
+  longbed: 'cargoBed',
+  bus: 'cargoBed',
+  tractor: 'heavyHitch',
+  loader: 'heavyHitch',
+  carrier: 'heavyHitch',
+};
+
 export type ChassisDef = {
+  feature: ChassisFeatureId | null;
   id: string;
   maxSpeed: number;
   accel: number;
@@ -27,7 +58,7 @@ export type ChassisDef = {
 
 export const CHASSIS_PRICE_MODIFIERS = { perDeckCell: 2000, perArmorCell: 1000, perTopSpeed: 2666.67 };
 
-export type ChassisInput = Omit<ChassisDef, 'value' | 'ratedMass'>;
+export type ChassisInput = Omit<ChassisDef, 'value' | 'ratedMass' | 'feature'>;
 
 export function chassisModifier(def: ChassisInput): number {
   const cells = def.layout.join('');
@@ -49,7 +80,7 @@ export function ratedMassOf(def: ChassisInput): number {
 function finishChassis(def: ChassisInput): ChassisDef {
   const value = Math.round(def.base + chassisModifier(def));
   if (value <= 0) throw new Error(`Chassis ${def.id} prices at ${value}. Raise its base.`);
-  return { ...def, value, ratedMass: ratedMassOf(def) };
+  return { ...def, value, ratedMass: ratedMassOf(def), feature: FEATURE_OF[def.id] ?? null };
 }
 
 const CHASSIS_INPUTS: Record<string, ChassisInput> = {
@@ -401,4 +432,8 @@ export function chassisDef(id: string): ChassisDef {
   const def = CHASSIS[id];
   if (!def) throw new Error(`Unknown chassis ${id}`);
   return def;
+}
+
+export function chassisFeature(chassisId: string): ChassisFeatureId | null {
+  return chassisDef(chassisId).feature;
 }
