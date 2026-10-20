@@ -12,7 +12,7 @@ import { findPart, haulerOf, playerTrucks, playerVehicle } from './damage';
 import { makePart, makeVehicle, newId } from './factory';
 import { gridOf, placementError } from './grid';
 import { addGoods } from './inventory';
-import { isPerkId, pickedFromPair, skillLevel } from './progress';
+import { basicRefusal, isPerkId, pickedFromPair, skillLevel } from './progress';
 import { fitStores, getResources } from './resources';
 import { isOutpostSite } from './highway';
 import { generateObstacles, touchesObstacle } from './mapgen';
@@ -54,7 +54,7 @@ import { isNoteId } from '../data/locals';
 import { advanceFuryRoad, outpostFactsAt, runStart, startRun } from './fury-road';
 import { gatesShut } from './outpost-gates';
 import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
-import { canOverdrive, vehicleStats } from './stats';
+import { overdriveBlock, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
 import { noteEscape } from './escape';
 import { advanceWeather } from './weather';
@@ -106,7 +106,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       standing: startStanding(),
       deeds: [],
       xp: 0,
-      ranks: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 },
+      ranks: { driving: kit.ranks, perception: kit.ranks, machining: kit.ranks, toughness: kit.ranks, social: kit.ranks },
       xpToday: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 },
       xpDay: 1,
       repeats: {},
@@ -253,7 +253,7 @@ export function update(world: World, fn: (draft: World) => void): World {
 }
 
 function settleOverdrive(w: World): void {
-  if (!w.player.overdrive || canOverdrive(playerVehicle(w))) return;
+  if (!w.player.overdrive || overdriveBlock(w, playerVehicle(w)) === null) return;
   w.player.overdrive = false;
   w.events.push({ t: 'info', note: { id: 'overdriveCutOut' } });
 }
@@ -477,7 +477,9 @@ export function setAutoRepair(world: World, on: boolean): World {
 
 export function setOverdrive(world: World, on: boolean): World {
   return update(world, (w) => {
-    if (on && !canOverdrive(playerVehicle(w))) {
+    const refusal = on ? basicRefusal(w, 'overdrive') : null;
+    if (refusal) throw new Refused(refusal);
+    if (on && overdriveBlock(w, playerVehicle(w)) !== null) {
       throw new Error(`Cannot overdrive: the engine is at or below ${RULES.overdriveMinEngineShare * 100}% of its max HP`);
     }
     w.player.overdrive = on;

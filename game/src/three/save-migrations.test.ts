@@ -1972,3 +1972,14 @@ describe('save migration 88 to 89', () => {
     expect(stepped(before)).toEqual(before);
   });
 });
+
+describe('save migration 89 to 90', () => {
+  it('keeps a save as it is, since look-overs, sized-up trucks and rank 1 basics are new state kinds or derived from ranks', () => {
+    const before = structuredClone(FORMAT_2_87);
+
+    const next = MIGRATIONS[89](before as unknown as SavedJson);
+
+    expect(next).toEqual(FORMAT_2_87);
+    expect(before).toEqual(FORMAT_2_87);
+  });
+});

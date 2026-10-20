@@ -431,6 +431,7 @@ export const SCREENS: Translation<typeof EN> = {
   'icon.patch': 'Полевой ремонт',
   'icon.tall': 'Высота',
   'icon.clock': 'Осталось времени',
+  'icon.lock': 'Закрыто',
   'icon.journal': 'Журнал',
   'stat.same': '=',
   'stat.footprint': '{w}×{h} ячеек',

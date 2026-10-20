@@ -21,7 +21,7 @@ import { installSpot, removeAllGoods, spareParts, stowSpot } from './inventory';
 import { clockOf } from './sun';
 import { maxHp } from './wear';
 import { addState, stateOf } from './states';
-import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, startCombat, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, sizedUp, startCombat, testDrive } from './testkit';
 import type { World } from './types';
 import { dist } from './vec';
 import { stormStrength } from './weather';
@@ -221,7 +221,8 @@ describe('frozen NPCs', () => {
     forceOption('mugging', 'demand');
     const called = (frozen: boolean): boolean => {
       const start = frozen ? toggleFrozen(emptyWorld()) : emptyWorld();
-      const { w } = withSpawned(start, 'gunwagon', true);
+      const { w, id } = withSpawned(start, 'gunwagon', true);
+      sizedUp(w, w.vehicles.find((v) => v.id === id)!, w.vehicles.find((v) => v.id === w.player.vehicleId)!);
       w.rngState = rngStateForForcedRolls(1);
       return endTurn(w, testDrive).player.call !== null;
     };

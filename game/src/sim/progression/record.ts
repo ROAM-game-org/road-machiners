@@ -124,11 +124,12 @@ function modeSetup(picked: GameModeId | undefined, settings: Record<string, numb
 export function startWorld(seed: number, kit = 'standard', rank = 0, settings?: Record<string, number>, mode?: GameModeId): World {
   if (!Number.isInteger(rank) || rank < 0 || rank > MAX_RANK) throw new Error(`No skill rank ${rank}; ranks run 0 to ${MAX_RANK}`);
   const setup = modeSetup(mode, settings);
-  return update(newWorld(seed, startKit(kit), newMapFor(setup, seed, TEST_MAP), setup), (w) => {
+  const startedKit = startKit(kit);
+  return update(newWorld(seed, startedKit, newMapFor(setup, seed, TEST_MAP), setup), (w) => {
     const p = w.player;
     p.xp = 0;
     for (const skill of Object.keys(p.ranks) as (keyof typeof p.ranks)[]) {
-      p.ranks[skill] = rank;
+      p.ranks[skill] = Math.max(rank, startedKit.ranks);
       p.xpToday[skill] = 0;
     }
     for (const source of Object.keys(p.xpBySource) as XpSource[]) p.xpBySource[source] = 0;

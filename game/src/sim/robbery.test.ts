@@ -16,7 +16,7 @@ import { checkKnockout, knockOutNpc } from './defeat';
 import { playerVehicle } from './damage';
 import { corePart, hasLoot, mountedParts } from './grid';
 import { addState, advanceStates, endState, stateOf } from './states';
-import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, rngStateWhere, startCombat } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, rngStateWhere, sizedUp, startCombat } from './testkit';
 import type { NpcActivity, Vehicle, World } from './types';
 import type { Vec } from './vec';
 import { cloneWorld } from './world';
@@ -155,12 +155,18 @@ const JUDGED: Record<string, Setup> = {
 
 function passing() {
   const w = emptyWorld({ x: 200, y: 200 });
-  return { w, robber: addScumbag(w, { x: 10, y: 10 }), target: addPrey(w, { x: 15, y: 10 }) };
+  const robber = addScumbag(w, { x: 10, y: 10 });
+  const target = addPrey(w, { x: 15, y: 10 });
+  sizedUp(w, robber, target);
+  return { w, robber, target };
 }
 
 const FULL_ROB = TRAITS.scumbag.weights.preySeen!.rob!.add!;
 
-const robWeight = (w: World, robber: Vehicle, target: Vehicle, danger: number) => optionWeights(w, robber, 'preySeen', target.id, danger).rob;
+const robWeight = (w: World, robber: Vehicle, target: Vehicle, danger: number) => {
+  if (!stateOf(w, 'sizedUp', robber.id, target.id)) sizedUp(w, robber, target);
+  return optionWeights(w, robber, 'preySeen', target.id, danger).rob;
+};
 
 describe('robbery checks', () => {
   it('a weaker truck with loot in sight away from towns gets the full rob weight', () => {
@@ -178,6 +184,7 @@ describe('robbery checks', () => {
   for (const [name, make] of Object.entries(UNAVAILABLE)) {
     it(`makes rob unavailable when only ${name} fails`, () => {
       const { w, robber, target } = make();
+      sizedUp(w, robber, target);
       expect(optionWeights(w, robber, 'preySeen', target.id, lowest(w, robber, target))).not.toHaveProperty('rob');
     });
   }
@@ -238,6 +245,7 @@ describe('scumbag robbery', () => {
       const w = emptyWorld({ x: 200, y: 200 });
       const robber = addScumbag(w, { x: 10, y: 10 });
       const target = make(w);
+      sizedUp(w, robber, target);
       let robs = 0;
       for (let seed = 0; seed < 200; seed++) {
         const x = cloneWorld(w);
@@ -442,6 +450,7 @@ describe('hold-ups of NPC prey', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const robber = addScumbag(w, { x: 10, y: 10 }, ['heavyMg', 'mg', 'stockEngine']);
     const target = addPrey(w, { x: 15, y: 10 }, ['mg', 'stockEngine']);
+    sizedUp(w, robber, target);
     thinkNpc(w, robber);
     return { w, robber, target };
   };
@@ -605,6 +614,7 @@ describe('cargo value', () => {
     const poor = addPrey(w, { x: 15, y: 10 }, [], 0);
     addGoods(w, poor, 'scrap', 2);
     addGoods(w, poor, 'parts', 2);
+    sizedUp(w, robber, poor);
     expect(chance(w, robber, 'preySeen', poor, 'rob')).toBeLessThan(0.025);
     const rich = addPrey(w, { x: 15, y: 12 });
     expect(robWeight(w, robber, rich, judgeDanger(w, robber, rich))).toBe(FULL_ROB);
@@ -619,6 +629,7 @@ describe('cargo value', () => {
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       const target = addPrey(w, { x: 15, y: 10 }, [], 0);
       for (const [good, n] of goods) addGoods(w, target, good, n);
+      sizedUp(w, raider, target);
       setup?.(w, raider, target);
       return chance(w, raider, 'hostileSeen', target, 'fight');
     };
