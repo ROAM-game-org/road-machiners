@@ -407,7 +407,7 @@ function syncTrees(fixed: Fixed, obstacles: readonly Obstacle[]): void {
 
 export const REACTOR_GLOW = { emissive: 2.2, intensity: 500, range: 40, decay: 1.5 };
 export const BOW_BREACH = { along: 10, height: 5, out: 17, radius: 7 };
-const BREACH_LIGHT = { tilt: (35 * Math.PI) / 180, angle: (45 * Math.PI) / 180, penumbra: 0.6 };
+const BREACH_LIGHT = { tilt: (25 * Math.PI) / 180, angle: (55 * Math.PI) / 180, penumbra: 0.5 };
 const SHIP_GLOW = { emissive: 1.0, base: 0.2 };
 const REACTOR_PULSE = { share: 0.2, period: 5 };
 type Glow = { materials: THREE.MeshLambertMaterial[]; lights: THREE.SpotLight[] };
