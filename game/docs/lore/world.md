@@ -61,6 +61,7 @@ Drivers check their brake rod before the north bend. The cheap steel rod that th
 - Each town holds a few thousand. Bowl is larger than Nose.
 - Each smaller site holds a few hundred. The rest are squatters and drivers.
 - Most people in the basin descend in part from the Given, the survivors who came down in the ship's escape pods. See [Peoples](peoples.md).
+- While the Sunward ride, drivers keep away from the Fallen Sun after dark. By day they still work the crater.
 
 ## Beyond the basin
 

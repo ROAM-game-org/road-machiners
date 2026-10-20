@@ -27,7 +27,7 @@ Park that wreck clear of my well, driver, and tell me how much water you need. I
   He found your truck dead in the badlands with you in the seat, took it for abandoned and hooked up the lot.
   ~ hattie_tow = true
   -> hub
-+ {towed_to_bowl and not hattie_strip} [Who stripped my truck?]
++ {towed_to_bowl and engine_missing() and not hattie_strip} [Who stripped my truck?]
   Wasn't the tow man, if that's where you're looking. Whoever it was took their time and left you breathing.
   ~ hattie_strip = true
   -> hub
@@ -79,6 +79,9 @@ Park that wreck clear of my well, driver, and tell me how much water you need. I
   Never been in, never will; I sell water, not sense.
   ~ note("talkSunwardTake")
   ~ hattie_sunward = true
+  -> hub
++ {hattie_sunward and cult_broken()} [Have the Sunward gone quiet?]
+  Quiet as a dry well. Bo's cousin says the lamps stopped crossing to the crater at dusk, and a man with a green shine on his hands came to my well asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
   -> hub
 + {hattie_sunward and not hattie_came_out} [Have you seen one come out?]
   I saw one at dusk once, a woman with her hands shining green. She emptied bucket after bucket without a word.

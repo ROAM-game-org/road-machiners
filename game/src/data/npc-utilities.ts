@@ -19,6 +19,8 @@ export const NPC_UTILITY_PARTS: Record<string, Weighted<string | null>[]> = {
   vulture: [{ value: null, weight: 1.5 }, { value: 'harpoon', weight: 2 }, { value: 'caltrops', weight: 3 }, { value: 'scrapersKnife', weight: 1 }],
   convoy: [{ value: null, weight: 1.5 }, { value: 'patcherCrane', weight: 3 }, { value: 'sprout', weight: 1 }],
   convoyGuard: [{ value: null, weight: 1.5 }, { value: 'smokeMortar', weight: 2 }, { value: 'flareCannon', weight: 2 }, { value: 'sprout', weight: 1 }],
+  cavalcade: [{ value: null, weight: 0.5 }, { value: 'harpoon', weight: 8 }],
+  hunter: [{ value: 'harpoon', weight: 1 }],
   merc: [
     { value: null, weight: 1.5 },
     { value: 'harpoon', weight: 2 },

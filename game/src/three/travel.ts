@@ -62,12 +62,18 @@ function crashedIntoTruck(event: Extract<GameEvent, { t: "collision" }>, id: str
   return other !== null && world.vehicles.some((v) => v.id === other);
 }
 
+function entersTheLight(event: GameEvent): boolean {
+  return event.t === "info" && (event.note.id === "hazard" || event.note.id === "core");
+}
+
 function interruptsTravel(event: GameEvent, id: string, world: World): boolean {
   switch (event.t) {
     case "collision":
       return crashedIntoTruck(event, id, world);
     case "shot":
       return [event.shooter, event.target].includes(id);
+    case "info":
+      return entersTheLight(event);
     default:
       return stopsVehicle(event, id);
   }
@@ -186,7 +192,7 @@ export class Travel {
   }
 
   updateWorld(world: World, sighted: boolean): void {
-    if (this.autoPress && !autoRuns(world)) this.dropPress();
+    if (!autoRuns(world) && (this.autoPress || world.events.some(entersTheLight))) this.dropPress();
     const order = playerVehicle(world).order;
     this.update(
       canTravel(world) && !sighted,

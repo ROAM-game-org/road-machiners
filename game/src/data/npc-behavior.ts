@@ -160,6 +160,7 @@ export const FACTIONS: Record<NpcFactionId, FactionDef> = {
   administrators: { organized: true, outlaw: false },
   scrapjaw: { organized: true, outlaw: true },
   kiln: { organized: true, outlaw: true },
+  sunward: { organized: true, outlaw: true },
   independent: { organized: false, outlaw: false },
 };
 
@@ -169,13 +170,14 @@ export const STANDING_FACTION_IDS = NPC_FACTION_IDS.filter((id): id is StandingF
 export const NEUTRAL = 0;
 
 export const ATTITUDE: Record<NpcFactionId, Record<NpcFactionId, number>> = {
-  bowl: { bowl: 60, nose: -25, guidestar: 20, administrators: NEUTRAL, scrapjaw: -40, kiln: -30, independent: 5 },
-  nose: { bowl: -5, nose: 60, guidestar: 20, administrators: -20, scrapjaw: -40, kiln: -40, independent: 5 },
-  guidestar: { bowl: 20, nose: 20, guidestar: 60, administrators: 5, scrapjaw: -30, kiln: -30, independent: 10 },
-  administrators: { bowl: NEUTRAL, nose: -35, guidestar: 5, administrators: 60, scrapjaw: -5, kiln: -5, independent: 10 },
-  scrapjaw: { bowl: -30, nose: -40, guidestar: -25, administrators: -5, scrapjaw: 60, kiln: -10, independent: -30 },
-  kiln: { bowl: -10, nose: -40, guidestar: -20, administrators: -5, scrapjaw: -10, kiln: 60, independent: -30 },
-  independent: { bowl: 5, nose: 5, guidestar: 10, administrators: 5, scrapjaw: -30, kiln: -30, independent: NEUTRAL },
+  bowl: { bowl: 60, nose: -25, guidestar: 20, administrators: NEUTRAL, scrapjaw: -40, kiln: -30, sunward: -30, independent: 5 },
+  nose: { bowl: -5, nose: 60, guidestar: 20, administrators: -20, scrapjaw: -40, kiln: -40, sunward: -30, independent: 5 },
+  guidestar: { bowl: 20, nose: 20, guidestar: 60, administrators: 5, scrapjaw: -30, kiln: -30, sunward: -20, independent: 10 },
+  administrators: { bowl: NEUTRAL, nose: -35, guidestar: 5, administrators: 60, scrapjaw: -5, kiln: -5, sunward: -10, independent: 10 },
+  scrapjaw: { bowl: -30, nose: -40, guidestar: -25, administrators: -5, scrapjaw: 60, kiln: -10, sunward: -20, independent: -30 },
+  kiln: { bowl: -10, nose: -40, guidestar: -20, administrators: -5, scrapjaw: -10, kiln: 60, sunward: -20, independent: -30 },
+  sunward: { bowl: -20, nose: -20, guidestar: -20, administrators: -20, scrapjaw: -20, kiln: -20, sunward: 60, independent: -20 },
+  independent: { bowl: 5, nose: 5, guidestar: 10, administrators: 5, scrapjaw: -30, kiln: -30, sunward: -20, independent: NEUTRAL },
 };
 
 export type Band = 'hostile' | 'unfriendly' | 'neutral' | 'friendly' | 'allied';

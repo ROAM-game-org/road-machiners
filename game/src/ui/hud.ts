@@ -1,6 +1,6 @@
 
 import { Drawers } from "./drawers";
-import { phoneMode, touchMode } from "./input-mode";
+import { keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
@@ -48,7 +48,7 @@ import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import { bindAttr, setText } from "../text/language";
-import { list, num, SPACE, t, type Msg } from "../text/msg";
+import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
 import { isMet, type Contract } from "../sim/market";
 import { driverName, factionName, refusalText, setupText, templateName, vehicleTitle } from "../text/names";
 import { stanceToward } from "../sim/relations";
@@ -131,6 +131,10 @@ export class MaxSpeedView {
   }
 }
 
+function readoutClass(r: { warning: boolean; danger?: boolean }): string {
+  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : ""].filter(Boolean).join(" ");
+}
+
 export class Hud {
   private top = panel("instruments", bottomLeft());
   private clockSlot = el("div", { class: "instrument-clock", role: "timer", title: t("hud.clockTitle") });
@@ -158,7 +162,6 @@ export class Hud {
   private truckStack = el("div", { class: "truck-stack", "data-drawer-frame": "truck" });
   private stranded = panel("stranded notice", this.truckStack);
   private recenter = panel("recenter", bottomLeft());
-  private healthSlot = el("div", { class: "health-slot" });
   private cameraSwitch = panel("camera-mode", topRight());
   private tips = new Tips(window.localStorage, topCenter(), () => this.toast(t("hud.tipsOff")));
   cameraMode: CameraMode = "auto";
@@ -175,7 +178,8 @@ export class Hud {
     this.info.style.width = "";
     const slot = this.floorOfInfo() - gap - top;
     this.info.style.height = `${slot}px`;
-    if (this.inspectedAimable && !phoneMode()) this.growForAim(top, slot);
+    this.info.style.maxHeight = this.inspectedAimable && phoneMode() ? "none" : "";
+    if (this.inspectedAimable) this.growForAim(top, slot);
     this.coverUnder(uiSize().layerRect(this.info).bottom);
     this.inspected.fitTo(this.inspectedDraw);
   };
@@ -193,17 +197,35 @@ export class Hud {
     const open = this.drawers.open();
     const frame = open === null ? null : document.querySelector<HTMLElement>(`#ui [data-drawer-frame="${open}"]`);
     const card = uiSize().layerRect(this.info);
-    const tops = [this.top, this.drawers.element, frame]
+    const tops = [this.top, this.drawers.element, frame, this.recenter]
       .map((node) => (node ? uiSize().layerRect(node) : undefined))
       .filter((box) => box !== undefined && box.left < card.right && box.right > card.left)
       .map((box) => box!.top);
     return Math.min(...tops);
   }
 
+  private aimCellPx(): number {
+    return phoneMode() ? Math.max(32, 32 / uiSize().applied()) : parseFloat(token("--btn-h-s"));
+  }
+
+  private aimWidthCap(): number {
+    const layer = uiSize().layerSize();
+    const inset = parseFloat(getComputedStyle(this.info).right);
+    const full = layer.width - 2 * inset;
+    return layer.width < layer.height ? full : (full - parseFloat(token("--hud-gap"))) / 2;
+  }
+
   private growForAim(top: number, slot: number): void {
-    const need = this.inspected.boxFor(parseFloat(token("--btn-h-s")));
+    const need = this.inspected.boxFor(this.aimCellPx());
     const wider = need.width - this.inspectedDraw.clientWidth;
-    if (wider > 0) this.info.style.width = `${this.info.offsetWidth + wider}px`;
+    const width = wider > 0 ? this.info.offsetWidth + wider : this.info.offsetWidth;
+    if (phoneMode()) {
+      this.info.style.width = `${Math.min(width, this.aimWidthCap())}px`;
+      const fits = slot - this.inspectedDraw.clientHeight + need.height;
+      this.info.style.height = `${Math.min(slot, Math.max(fits, 0))}px`;
+      return;
+    }
+    if (wider > 0) this.info.style.width = `${width}px`;
     const tallest = uiSize().layerRect(this.log.root).bottom - top;
     this.info.style.height = `${tallest}px`;
     const fits = tallest - this.inspectedDraw.clientHeight + need.height;
@@ -239,8 +261,7 @@ export class Hud {
     this.knockedOut.append(el("span", { class: "bad" }, t("actBlock.knockedOut")));
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
-    this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter")));
-    topRight().prepend(this.healthSlot);
+    this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
     this.showCameraMode();
     window.addEventListener("keydown", (e) => {
       if (e.code === "KeyV" && !isBrowserChord(e) && !document.activeElement?.matches("input, select, textarea")) this.toggleCameraMode();
@@ -375,7 +396,7 @@ export class Hud {
       action.hint || touchMode() ? action.label : t("hud.actionKey", { label: action.label }),
     );
     const cycle = (step: 1 | -1, glyph: Msg, key: string) =>
-      el("button", { class: "cycle", title: t("hud.cycleKey", { key }), onclick: () => onCycle(step) }, glyph);
+      el("button", { class: "cycle", title: touchMode() ? undefined : t("hud.cycleKey", { key }), onclick: () => onCycle(step) }, glyph);
     this.action.replaceChildren(
       ...(count > 1
         ? [cycle(-1, t("hud.prevMark"), "←"), use, el("span", { class: "count" }, t("hud.count", { n: index + 1, of: count })), cycle(1, t("hud.nextMark"), "→")]
@@ -387,17 +408,16 @@ export class Hud {
     this.dialogue.render(w);
     const r = getRescueReadout(w);
     this.knockedOut.style.display = rescueOf(r, "knockedOut") ? "" : "none";
-    this.renderMiddle(rescueOf(r, "towed"));
+    this.renderMiddle(rescueOf(r, "towed") ?? rescueOf(r, "dragged"));
     this.renderStranded(rescueOf(r, "stranded"));
   }
 
-  private renderMiddle(r: Extract<RescueReadout, { kind: "towed" }> | null): void {
+  private renderMiddle(r: Extract<RescueReadout, { kind: "towed" | "dragged" }> | null): void {
     this.rescue.style.display = r ? "" : "none";
     if (!r) return this.rescue.replaceChildren();
     this.rescue.replaceChildren(
       el("h3", {}, t("hud.underTow")),
-      el("div", {}, t("hud.towsYou", { who: r.tower, town: r.town })),
-      el("div", { class: "dim" }, t("hud.fee"), SPACE, moneyEl(r.fee)),
+      ...(r.kind === "towed" ? [el("div", {}, t("hud.towsYou", { who: r.tower, town: r.town })), el("div", { class: "dim" }, t("hud.fee"), SPACE, moneyEl(r.fee))] : []),
       el(
         "div",
         { class: "rescue-buttons" },
@@ -481,7 +501,7 @@ export class Hud {
         class: "instrument-button",
         "aria-disabled": douseReason === null ? undefined : "true",
         onclick: () => douseReason === null && this.actions.douseEngine(),
-        title: douseReason ?? t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }),
+        title: douseReason ?? keyLabel(t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }), "G"),
       },
       t("hud.douse"),
       keyCorner("G"),
@@ -495,9 +515,10 @@ export class Hud {
       "button",
       {
         class: "instrument-button",
+        "data-action": "character",
         "aria-disabled": busy ? "true" : undefined,
         onclick: () => !busy && this.actions.openCharacter(),
-        title: busy ? TURN_PLAYING : marked ? t("hud.characterMarked") : t("hud.character"),
+        title: busy ? TURN_PLAYING : keyLabel(marked ? t("hud.characterMarked") : t("hud.character"), "C"),
       },
       marked ? t("hud.driverMarked") : t("hud.driver"),
       keyCorner("C"),
@@ -512,7 +533,7 @@ export class Hud {
   private journalButton(busy: boolean): HTMLElement {
     return el(
       "button",
-      { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: t("journal.hint") },
+      { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: keyLabel(t("journal.hint"), "J") },
       t("hud.journal"),
       keyCorner("J"),
     );
@@ -528,7 +549,7 @@ export class Hud {
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
     this.renderSpeedometer(readout, busy);
-    this.renderReadouts(readout);
+    this.fillReadouts(readout);
     this.renderActions(w, readout.manual, busy);
   }
 
@@ -545,7 +566,7 @@ export class Hud {
       "button",
       {
         class: "truck-instrument",
-        title: t("hud.inventoryTitle"),
+        title: keyLabel(t("hud.inventoryTitle"), "I"),
         "aria-label": t("hud.inventoryLabel"),
         disabled: busy,
         onclick: () => this.actions.openInventory(),
@@ -558,19 +579,13 @@ export class Hud {
     this.maxSpeed.render(readout.maxSpeed, readout.maxSpeedTip);
   }
 
-  private renderReadouts(readout: ReturnType<typeof getHudReadout>): void {
-    this.fillReadouts(readout);
-    const health = this.readoutSlot.querySelector('[data-resource="driver"]');
-    this.healthSlot.replaceChildren(...(phoneMode() && health ? [health] : []));
-  }
-
   private fillReadouts(readout: ReturnType<typeof getHudReadout>): void {
     this.readoutSlot.replaceChildren(
       ...readout.resources.map((resource) =>
         el(
           "span",
           {
-            class: `resource ${resource.warning ? "alert" : ""}`,
+            class: readoutClass(resource),
             title: resource.tip ?? resource.label,
             "aria-label": resource.warning ? t("hud.readoutWarning", { label: resource.label, value: resource.value }) : t("hud.readout", { label: resource.label, value: resource.value }),
             "data-resource": resource.id,
@@ -654,6 +669,7 @@ export class Hud {
       lines.push(line);
     }
     this.log.add(w.turn, lines);
+    if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
     this.radio.hear(w);
   }
 
