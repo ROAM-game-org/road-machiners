@@ -346,9 +346,18 @@ export function lightBreach(g: THREE.Group): THREE.SpotLight {
   spot.position.set(BOW_BREACH.along, BOW_BREACH.height, BOW_BREACH.out);
   spot.target.position.set(BOW_BREACH.along, BOW_BREACH.height - Math.sin(BREACH_LIGHT.tilt), BOW_BREACH.out + Math.cos(BREACH_LIGHT.tilt));
   g.add(spot, spot.target);
-  const glow: Glow = { materials: [], lights: [spot] };
+  const core = breachCore();
+  g.add(core);
+  const glow: Glow = { materials: [core.material as THREE.MeshLambertMaterial], lights: [spot] };
   g.userData.glow = glow;
   return spot;
+}
+
+function breachCore(): THREE.Mesh {
+  const material = new THREE.MeshLambertMaterial({ color: 0x000000, emissive: new THREE.Color(PAL.reactorGlow).multiplyScalar(BREACH_CORE.strength), emissiveIntensity: REACTOR_GLOW.emissive, side: THREE.DoubleSide });
+  const core = new THREE.Mesh(new THREE.CircleGeometry(BREACH_CORE.radius, 16), material);
+  core.position.set(BOW_BREACH.along, BOW_BREACH.height, BOW_BREACH.out - BREACH_CORE.inset);
+  return core;
 }
 
 export function paintShipGlow(obj: THREE.Object3D): void {
@@ -408,6 +417,7 @@ function syncTrees(fixed: Fixed, obstacles: readonly Obstacle[]): void {
 export const REACTOR_GLOW = { emissive: 2.2, intensity: 500, range: 40, decay: 1.5 };
 export const BOW_BREACH = { along: 10, height: 5, out: 17, radius: 7 };
 const BREACH_LIGHT = { tilt: (25 * Math.PI) / 180, angle: (55 * Math.PI) / 180, penumbra: 0.5 };
+const BREACH_CORE = { radius: 6.2, inset: 1.5, strength: 0.4 };
 const SHIP_GLOW = { emissive: 1.0, base: 0.2 };
 const REACTOR_PULSE = { share: 0.2, period: 5 };
 type Glow = { materials: THREE.MeshLambertMaterial[]; lights: THREE.SpotLight[] };
