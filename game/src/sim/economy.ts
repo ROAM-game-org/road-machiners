@@ -320,10 +320,35 @@ export function scrapPatch(world: World): void {
   const town = needsPatchInTown(world);
   if (!town) return;
   const me = playerVehicle(world);
-  if (canPayFix(world, me, town.id)) return;
-  if (isStranded(world, me)) for (const part of driveParts(me)) scrapPatchPart(part, RULES.scrapPatch);
+  const noEngine = mountedParts(me, 'engine').length === 0;
+  const engine = noEngine ? shelfEngine(world, town.id) : null;
+  if (noEngine && (!engine || holdsLooseEngine(world, me))) return;
+  if (canPayFix(world, me, town.id, engine)) return;
+  if (engine) fitEngineOnCredit(world, me, town.id, engine);
+  const stranded = isStranded(world, me);
+  if (stranded) for (const part of driveParts(me)) scrapPatchPart(part, RULES.scrapPatch);
   const fuel = scrapFuel(world, me);
-  world.events.push({ t: 'scrapPatch', fuel });
+  if (stranded || fuel > 0) world.events.push({ t: 'scrapPatch', fuel });
+}
+
+function shelfEngine(world: World, shopId: string): PartInstance | null {
+  const engines = shopState(world, shopId).stock.filter((p) => partDef(p.defId).kind === 'engine');
+  const me = playerVehicle(world);
+  const price = (p: PartInstance) => partTradePrice(world, me, p, 'buy');
+  return engines.reduce<PartInstance | null>((best, p) => (best && price(best) <= price(p) ? best : p), null);
+}
+
+function holdsLooseEngine(world: World, v: Vehicle): boolean {
+  return [...spareParts(v), ...world.player.storage].some((p) => partDef(p.defId).kind === 'engine');
+}
+
+function fitEngineOnCredit(world: World, me: Vehicle, shopId: string, engine: PartInstance): void {
+  if (partDef(engine.defId).kind !== 'engine') throw new Error(`${engine.defId} is not an engine`);
+  const price = partTradePrice(world, me, engine, 'buy');
+  const part = takeStockPart(shopState(world, shopId), engine.id);
+  if (!mountPart(world, me, part)) receiveBoughtPart(world, part, me);
+  shopMoney(world, me, -price, 'partCredit');
+  world.events.push({ t: 'engineCredit', part: part.defId });
 }
 
 export function scrapFuelNeed(world: World, v: Vehicle): number {
@@ -356,16 +381,17 @@ function criticalParts(v: Vehicle): PartInstance[] {
 
 function needsPatchInTown(world: World): TownDef | null {
   const me = playerVehicle(world);
-  if (world.player.state !== 'active' || mountedParts(me, 'engine').length === 0) return null;
+  if (world.player.state !== 'active') return null;
   if (!isStranded(world, me) && scrapFuelNeed(world, me) === 0) return null;
   return townNear(world);
 }
 
-function canPayFix(world: World, v: Vehicle, shopId: string): boolean {
+function canPayFix(world: World, v: Vehicle, shopId: string, engine: PartInstance | null): boolean {
   const broken = driveParts(v).filter((p) => !isWorking(p));
   if (broken.some((p) => isJunk(p) && !canRebuild(world, p))) return false;
   const repairs = broken.reduce((sum, p) => sum + partRepairCost(world, p), 0);
-  const cost = repairs + Math.ceil(scrapFuelNeed(world, v)) * ECONOMY.supplyPrice.fuel;
+  const engineCost = engine ? partTradePrice(world, v, engine, 'buy') : 0;
+  const cost = repairs + engineCost + Math.ceil(scrapFuelNeed(world, v)) * ECONOMY.supplyPrice.fuel;
   return world.player.money + saleValue(world, v, shopId) >= cost;
 }
 
