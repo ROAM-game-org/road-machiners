@@ -47,7 +47,7 @@ function thinkOrderPoint(world: World, v: Vehicle): Plan {
 
 function setOrder(world: World, { v, activity, goal }: Plan): void {
   noteStuck(world, v, goal);
-  const stops = goal !== null && trafficStops(world, v, goal);
+  const stops = goal !== null && !(activity.kind === "fight" && runsDown(world, v)) && trafficStops(world, v, goal);
   noteStall(world, v, stops && activity.kind !== "fight" && activity.kind !== "flee");
   v.order = nextOrder(world, v, activity, goal, stops);
   v.direct = dragsStraight(world, v);

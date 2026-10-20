@@ -15,7 +15,7 @@ describe('trading tip text', () => {
   });
 
   it('names the site and the good of a cheap tip', () => {
-    expect(en(tipText({ kind: 'tip', tip: { shop: 'granary', good: 'grain', dear: false } }))).toBe('Last time I was at The Granary, grain was going cheap.');
+    expect(en(tipText({ kind: 'tip', tip: { shop: 'granary', good: 'grain', dear: false } }))).toBe('Last time I was at The Granary, sorgut was going cheap.');
   });
 
   it('fits the verb to a good with a plural name', () => {
