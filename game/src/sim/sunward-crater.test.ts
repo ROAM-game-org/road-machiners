@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
 import { generateNpcLoadout } from './npc-loadout';
-import { spawnAt } from './spawn';
+import { fillHollow, isFree, spawnAt } from './spawn';
 import { standardWorld } from '../test/world-cache';
 import { playerVehicle } from './damage';
 import { applyHazards } from './hazard';
@@ -9,8 +9,11 @@ import { checkDeath } from './defeat';
 import { followTower, dragOf, isOnRope, startDrag, unhitch } from './tow';
 import { advanceStates } from './states';
 import { refreshVision } from './vision';
-import { callStrangers, dropSpot, inDropRing, lightZone, offeringOf } from './sunward-crater';
-import { advanceSunward, planSunward, dawnAfter, duskTurn, fallenSun, isSunwardMember, returnTurn, sunwardFacts, vigilGrounds } from './sunward';
+import { callStrangers, dropSpot, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf } from './sunward-crater';
+import { chooseOn } from './tracks';
+import { endTurn } from './world';
+import { testDrive } from './testkit';
+import { advanceSunward, craterExit, gateOrder, isCavalcadeCar, planSunward, dawnAfter, duskTurn, fallenSun, isSunwardMember, returnTurn, sunwardFacts, vigilGrounds, vigilPosts } from './sunward';
 import { callVehicle, chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
 import { topGoal } from './npc-activities';
 import { SUNWARD } from '../data/sunward';
@@ -371,5 +374,99 @@ describe('talk of the order', () => {
     expect(QUEST_QUERIES.cult_broken(w, [])).toBe(true);
     w.sunward = null;
     expect(() => QUEST_QUERIES.cult_broken(w, [])).toThrow(/no Sunward order/);
+  });
+});
+
+describe('meeting the stranger at the vigil', () => {
+  function ring(): World {
+    const w = standardWorld(5);
+    w.vehicles = [playerVehicle(w)];
+    fillHollow(w);
+    w.vehicles = w.vehicles.filter((v) => !isSunwardMember(v) || isCavalcadeCar(v));
+    w.turn = duskTurn(1) + SUNWARD.driveTurns + 10;
+    advanceSunward(w);
+    const posts = vigilPosts(w);
+    gateOrder(w, sunwardFacts(w).night!).forEach((id, seat) => pose(w.vehicles.find((v) => v.id === id)!, posts[seat]));
+    for (const v of w.vehicles.filter(isSunwardMember)) planSunward(w, v);
+    w.events = [];
+    return w;
+  }
+
+  function besideTheDrain(w: World): Vec {
+    const zone = lightZone();
+    const posts = vigilPosts(w);
+    const middle = { x: posts.reduce((a, p) => a + p.x, 0) / posts.length, y: posts.reduce((a, p) => a + p.y, 0) / posts.length };
+    const ring = Array.from({ length: 72 }, (_, k) => (k * Math.PI) / 36).map((a) => ({ x: zone.pos.x + Math.cos(a) * (zone.radius + 1.5), y: zone.pos.y + Math.sin(a) * (zone.radius + 1.5) }));
+    return ring.filter((p) => isFree({ ...w, vehicles: [] }, p, 1.2, null)).sort((a, b) => dist(b, middle) - dist(a, middle))[0];
+  }
+
+  const claim = (v: Vehicle) => v.brain!.goals.find((g) => g.kind === 'meet' && g.reason === 'meetStranger');
+  const hear = (w: World, member: Vehicle, stranger: Vehicle) => chooseOn(w, member, stranger.id, stranger.pos, 'keep', false);
+
+  it('calls a player parked lamps-off beside the drain within the meeting time, and the first call stays open', () => {
+    let w = ring();
+    const me = playerVehicle(w);
+    pose(me, besideTheDrain(w));
+    w.player.headlights = false;
+    refreshVision(w);
+
+    for (let turn = 0; turn < SUNWARD.meetTurns && !w.player.call; turn++) w = endTurn(w, testDrive);
+
+    expect(w.player.call?.topic).toBe('vigilCall1');
+  }, 600_000);
+
+  it('sends the nearest car that only hears a stranger to meet it, over its post', () => {
+    const w = ring();
+    const me = playerVehicle(w);
+    pose(me, besideTheDrain(w));
+    const members = w.vehicles.filter(isSunwardMember);
+    const far = members.sort((a, b) => dist(b.pos, me.pos) - dist(a.pos, me.pos))[0];
+    hear(w, far, me);
+
+    meetStrangers(w);
+
+    expect(claim(far)).toMatchObject({ targetId: me.id, until: w.turn + SUNWARD.meetTurns });
+    expect(far.brain!.goals[0].reason).toBe('keepVigil');
+    expect(members.filter((m) => claim(m))).toHaveLength(1);
+  });
+
+  it('gives two strangers two cars, one each', () => {
+    const w = ring();
+    const me = playerVehicle(w);
+    pose(me, besideTheDrain(w));
+    const scav = spawnAt(w, NPCS.scavenger, generateNpcLoadout(w, NPCS.scavenger), { x: me.pos.x + 4, y: me.pos.y }, 'independent');
+    const [a, b] = w.vehicles.filter(isSunwardMember);
+    for (const m of [a, b]) for (const x of [me, scav]) hear(w, m, x);
+
+    meetStrangers(w);
+
+    expect(new Set([claim(a)?.targetId, claim(b)?.targetId])).toEqual(new Set([me.id, scav.id]));
+  });
+
+  it('drops the meeting when the stranger leaves the crater, and the car keeps its post', () => {
+    const w = ring();
+    const me = playerVehicle(w);
+    pose(me, besideTheDrain(w));
+    const car = w.vehicles.find(isSunwardMember)!;
+    hear(w, car, me);
+    meetStrangers(w);
+
+    pose(me, craterExit(me.pos));
+
+    expect(meetingLapsed(w, car, claim(car)!)).toBe('contactGone');
+    expect(car.brain!.goals[0]).toMatchObject({ kind: 'wait', reason: 'keepVigil' });
+  });
+
+  it('lets a meeting lapse after its time', () => {
+    const w = ring();
+    const me = playerVehicle(w);
+    pose(me, besideTheDrain(w));
+    const car = w.vehicles.find(isSunwardMember)!;
+    hear(w, car, me);
+    meetStrangers(w);
+
+    w.turn += SUNWARD.meetTurns;
+
+    expect(meetingLapsed(w, car, claim(car)!)).toBe('meetingOff');
   });
 });

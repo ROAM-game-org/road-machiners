@@ -48,6 +48,7 @@ import { isDefeated, isKnockedOut } from './defeat';
 import { payDuty, stampLeg } from './duty';
 import { beginRearm, isLowOnFuel, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, serviceGoal } from './npc-service';
 import { isSunwardMember, nightSafe, planSunward, shunsAtNight, sunwardNext, sunwardRetreat } from './sunward';
+import { meetingLapsed } from './sunward-crater';
 
 export const INTERRUPTIONS: readonly NpcActivity['kind'][] = ['fight', 'flee', 'investigate', 'resupply', 'tow', 'loot', 'repair', 'patch', 'meet', 'retreat', 'rearm', 'follow'];
 
@@ -399,10 +400,14 @@ const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   loot: lootInvalid,
   tow: towInvalid,
   patch: patchInvalid,
-  meet: (world, vehicle, goal) => (world.states.some((s) => (s.kind === 'trade' || s.kind === 'handover' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff'),
+  meet: (world, vehicle, goal) => (goal.reason === 'meetStranger' ? meetingLapsed(world, vehicle, goal) : dealMeetInvalid(world, vehicle, goal)),
   follow: (world, vehicle, goal) => (follows(world, vehicle, goal.targetId!) ? null : 'leftLeader'),
   claim: claimInvalid,
 };
+
+function dealMeetInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
+  return world.states.some((s) => (s.kind === 'trade' || s.kind === 'handover' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff';
+}
 
 const EXPOSED: readonly NpcActivity['kind'][] = ['repair', 'patch', 'meet', 'tow', 'loot'];
 const BROKEN_OFF: readonly NpcState['kind'][] = ['patch', 'trade', 'handover', 'aid'];

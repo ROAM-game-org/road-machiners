@@ -10,7 +10,8 @@ import { makePeace } from './parley';
 import { addState, declareFeud, stateOf } from './states';
 import { hazardZones, type HazardZone } from './territory';
 import { checkDrag, isOnRope, releaseDragged } from './tow';
-import type { CallVars, NpcState, StateData, StateEnding, SunwardNight, Vehicle, VigilCalls, World } from './types';
+import { trackOf } from './tracks';
+import type { CallVars, GoalReason, NpcActivity, NpcState, StateData, StateEnding, SunwardNight, Vehicle, VigilCalls, World } from './types';
 import { dist, type Vec } from './vec';
 import { dawnAfter, inFallenSun, isSunwardMember, lastDusk, nightWindow, orderStands, returnTurn, sunwardFacts, sunwardPhase } from './sunward';
 
@@ -88,9 +89,18 @@ function bound(world: World, member: Vehicle, stranger: Vehicle): boolean {
 
 export function vigilCallDue(world: World, member: Vehicle, nth: number): boolean {
   const me = playerVehicle(world);
-  if (!isSunwardMember(member) || !atTheVigil(world, member) || !inFallenSun(me.pos) || bound(world, member, me)) return false;
+  if (!isSunwardMember(member) || !atTheVigil(world, member) || !inFallenSun(me.pos)) return false;
+  return onTheLine(world, member, nth) || nextCallDue(world, member, me, nth);
+}
+
+function nextCallDue(world: World, member: Vehicle, me: Vehicle, nth: number): boolean {
   const calls = callsTo(world, me.id);
-  return calls.count === nth - 1 && world.turn - calls.turn >= SUNWARD.callGap;
+  return !bound(world, member, me) && calls.count === nth - 1 && world.turn - calls.turn >= SUNWARD.callGap;
+}
+
+function onTheLine(world: World, member: Vehicle, nth: number): boolean {
+  const call = world.player.call;
+  return call !== null && call.with === member.id && call.topic === `vigilCall${nth}` && callsTo(world, world.player.vehicleId).count === nth;
 }
 
 function noteCall(world: World, strangerId: string): void {
@@ -167,10 +177,50 @@ function atTheVigil(world: World, member: Vehicle): boolean {
 
 export function callStrangers(world: World): void {
   if (!nightOf(world)) return;
+  meetStrangers(world);
   for (const member of world.vehicles.filter((v) => isSunwardMember(v) && !isDefeated(v) && atTheVigil(world, v))) {
     const stranger = world.vehicles.find((x) => calledStranger(world, member, x));
     if (stranger) answerCall(world, member, stranger);
   }
+}
+
+export function meetStrangers(world: World): void {
+  const members = world.vehicles.filter((v) => isSunwardMember(v) && !isDefeated(v) && atTheVigil(world, v));
+  const claimed = new Set(members.flatMap((m) => m.brain!.goals.filter(isMeeting).map((g) => g.targetId)));
+  for (const stranger of world.vehicles.filter((x) => !claimed.has(x.id) && strangerToMeet(world, x))) {
+    const claimer = members.filter((m) => freeAtPost(m) && !bound(world, m, stranger) && sensesNow(world, m, stranger)).sort((a, b) => dist(a.pos, stranger.pos) - dist(b.pos, stranger.pos))[0];
+    if (!claimer) continue;
+    pushGoal(world, claimer, { kind: 'meet', targetId: stranger.id, destination: { ...stranger.pos }, phase: 'travel', reason: 'meetStranger', until: world.turn + SUNWARD.meetTurns });
+    members.splice(members.indexOf(claimer), 1);
+  }
+}
+
+function isMeeting(g: NpcActivity): boolean {
+  return g.kind === 'meet' && g.reason === 'meetStranger';
+}
+
+function strangerToMeet(world: World, x: Vehicle): boolean {
+  return !isSunwardMember(x) && !isDefeated(x) && inFallenSun(x.pos) && !isOnRope(world, x.id) && offeringOf(world, x.id) === null;
+}
+
+function freeAtPost(member: Vehicle): boolean {
+  const top = member.brain!.goals.at(-1);
+  return top?.kind === 'wait' && top.reason === 'keepVigil';
+}
+
+function sensesNow(world: World, member: Vehicle, stranger: Vehicle): boolean {
+  const track = trackOf(member, stranger.id);
+  return track !== undefined && track.turn >= world.turn - 1;
+}
+
+export function meetingLapsed(world: World, member: Vehicle, goal: NpcActivity): GoalReason | null {
+  const stranger = world.vehicles.find((x) => x.id === goal.targetId);
+  if (!stranger || !stillToMeet(world, member, stranger)) return 'contactGone';
+  return goal.until !== undefined && world.turn >= goal.until ? 'meetingOff' : null;
+}
+
+function stillToMeet(world: World, member: Vehicle, stranger: Vehicle): boolean {
+  return nightOf(world) !== null && strangerToMeet(world, stranger) && !bound(world, member, stranger);
 }
 
 function calledStranger(world: World, member: Vehicle, x: Vehicle): boolean {
