@@ -267,6 +267,8 @@ export const TALK = {
   'way.join': m('Cut {octant} {span} to the road.', { octant: 'text', span: 'text' }),
   'way.follow': m('Take {road}.', { road: 'text' }),
   'way.followThere': 'Follow the road.',
+  'way.followHeading': m('Take {road}, heading {octant}.', { road: 'text', octant: 'text' }),
+  'way.followThereHeading': m('Follow the road {octant}.', { octant: 'text' }),
   'way.longHaul': "It's a long haul.",
   'way.turn.left': m('{at}, turn left onto {road}.', { at: 'text', road: 'text' }),
   'way.turn.right': m('{at}, turn right onto {road}.', { at: 'text', road: 'text' }),
