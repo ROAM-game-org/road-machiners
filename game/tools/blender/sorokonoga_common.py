@@ -4,7 +4,7 @@ The silhouette follows the committee's concept sheet, drawn in the house style o
 panels, a paint body, a trim roof, dark flares over the arches, a framed grille and round lamps. Every shape is laid out in the
 straight rig frame, 11.2 m along X from 8.4 to -2.8 and 2.9 m across Y, the ground 1.35 m below the origin. The grid's 16 rows
 stretch over it at 0.7 m a row, 7 on the tractor and 9 on the module, and its 9 columns at 0.41 m.
-From the front: a 0.15 m bumper, a 2.05 m flat-faced cab 2.5 m wide over the steer axle with its trim roof 2.98 m up, a 2 m
+From the front: a 0.15 m bumper, a 2.65 m flat-faced cab 2.8 m wide over the steer axle with its trim roof 2.98 m up, a 1.4 m
 low engine house with the engine hole over the grid's engine cells, then the frame, the drive axle and the fifth wheel with its
 coupling disc. The tractor ends at x 3.5, where the module's nose begins. The module is one closed box 2.5 m wide with a flat
 trim roof 2.35 m up, on two axles, and its deck rows rest on that roof. The flares reach the full 2.9 m. Wheel radius 0.55 m.
@@ -71,10 +71,10 @@ def up(height: float) -> float:
 FRAME_BOTTOM = up(0.45)
 FRAME_TOP = up(0.75)
 CAB_FRONT = FRONT - 0.15
-CAB_BACK = 6.2
+CAB_BACK = BAY_FRONT  # the cab covers its grid rows, so what the game stands on its last row stands on the roof
 CAB_BOTTOM = FRAME_TOP
 CAB_ROOF = up(2.9)
-CAB_HALF = 1.25
+CAB_HALF = HALF_W - 0.05
 NOSE_TOP = up(1.9)  # the flat face ends here and the hood slopes back to the screen
 SCREEN_FOOT = (CAB_FRONT - 0.55, up(2.45))
 SCREEN_TOP_X = CAB_FRONT - 0.95
@@ -183,7 +183,7 @@ def cab(kit: Kit) -> None:
         lo, hi = foot_z + 0.06, CAB_ROOF - 0.12
         screen = [(foot_x - (foot_x - SCREEN_TOP_X) * (z - foot_z) / (CAB_ROOF - foot_z) + d, s * y, z) for z in (lo, hi) for y in (0.06, CAB_HALF - 0.16) for d in (0.0, 0.02)]
         hull(kit, f"windshield_{name}", screen, "glass")
-        kit.box(f"door_glass_{name}", (1.0, 0.03, 0.5), (CAB_FRONT - 1.15, s * (CAB_HALF + 0.005), up(2.45)), "glass")
+        kit.box(f"door_glass_{name}", (1.2, 0.03, 0.5), ((SCREEN_TOP_X + CAB_BACK) / 2, s * (CAB_HALF + 0.005), up(2.45)), "glass")
         round_lamp(kit, f"lamp_{name}", CAB_FRONT + SKIN / 2, s * (CAB_HALF - 0.28), up(1.45), 0.13)
     grille(kit, "grille", (CAB_FRONT + GRILLE_REACH - SKIN, 0, up(1.45)), (1.5, 0.62), "x", True)
     kit.box("bumper", (FRONT - CAB_FRONT, 2 * (HALF_W - 0.15), 0.4), ((FRONT + CAB_FRONT) / 2, 0, up(0.7)), "metal_dark")
