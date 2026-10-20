@@ -87,7 +87,7 @@ import { SoundRingView } from "./render/soundRing";
 import { reportError } from "./crash";
 import { GameSaves, TURN_FAILED_NOTE, type Run } from "./save";
 import { GameMenu } from "../ui/game-menu";
-import { confirmedEndRun, DeathScreen } from "../ui/death";
+import { confirmedEndRun, DeathScreen, deathShows } from "../ui/death";
 import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
@@ -460,7 +460,7 @@ export class Game {
     this.hud.renderTop(this.displayWorld());
     this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
     this.hud.renderRescue(this.displayWorld());
-    if (!this.anim && this.world.player.state === "dead") this.death.show(this.world);
+    if (!this.anim && deathShows(this.world)) this.death.show(this.world);
     this.weapons.render();
     this.screens.render();
     const { action, count, index } = this.context.shown();
@@ -1085,7 +1085,7 @@ export class Game {
     this.fx.light({ sun: this.sun, sky: this.sky });
     CLOUD_SHADOWS.sync(this.world, this.lightTurn(), this.play.frameMs());
     this.vehicleLights.sync(this.world, this.frames, this.lightTurn(), (pos) => this.sightLimit.reaches(pos), truck);
-    this.siteLights.sync(!sunAt(this.world.turn), this.lightTurn(), this.rig.camera, (pos) => this.sightLimit.reaches(pos), this.rig.focus(), now);
+    this.siteLights.sync(!sunAt(this.world.turn), this.lightTurn(), this.rig.camera, (pos) => this.sightLimit.reaches(pos), this.rig.focus(), now, this.world);
     Object.assign(this.stormTint.style, stormTintStyle(stormShare(playerVehicle(this.world))));
     this.fx.tick(this.play.frameMs(), dt, this.world);
     this.playPanelSounds();
