@@ -10,7 +10,7 @@ export type Footprint = { offsets: number[]; r: number };
 
 export type Mover = { id: string; pos: Vec; vel: Vec; r: number };
 
-export type Clearance = { touches(at: Vec, heading: number): boolean; depth(at: Vec, heading: number): number; nearsCliff(at: Vec, heading: number): boolean; meetsMoving(at: Vec, heading: number, seconds: number, movers: Mover[]): boolean };
+export type Clearance = { touches(at: Vec, heading: number): boolean; depth(at: Vec, heading: number): number; worsensFrom(at: Vec, heading: number): (to: Vec, heading: number) => boolean; meetsMoving(at: Vec, heading: number, seconds: number, movers: Mover[]): boolean };
 
 const footprints = new Map<string, Footprint>();
 
@@ -54,7 +54,11 @@ export function clearanceFor(world: World, v: Vehicle, extra: Blocker[]): Cleara
   return {
     touches: (at, heading) => depth(at, heading) > 0 || nearsCliff(at, heading),
     depth,
-    nearsCliff,
+    worsensFrom(at, heading) {
+      const limit = Math.max(0, depth(at, heading)) + PHYSICS.driver.roomSlack;
+      const startCliff = nearsCliff(at, heading);
+      return (to, facing) => depth(to, facing) > limit || (!startCliff && nearsCliff(to, facing));
+    },
     meetsMoving(at, heading, seconds, movers) {
       const cos = Math.cos(heading);
       const sin = Math.sin(heading);

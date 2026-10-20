@@ -770,9 +770,7 @@ function freeDistance(c: Car, sign: 1 | -1, from: Vec, facing: number, mps: numb
   const horizon = (mps * mps) / (2 * plan.stopDecel * c.grip * S) + D.clearMargin + bodyLength(c);
   const seconds = (D.clearStep * S) / Math.max(mps, 1);
   const movers = sign > 0 ? moversNear(c, from, horizon, (horizon * S) / Math.max(mps, 1)) : [];
-  const startDepth = Math.max(0, clearance.depth(from, facing)) + D.roomSlack;
-  const startCliff = clearance.nearsCliff(from, facing);
-  const held = (pose: Vec, angle: number) => clearance.depth(pose, angle) > startDepth || (!startCliff && clearance.nearsCliff(pose, angle));
+  const held = clearance.worsensFrom(from, facing);
   let at = from;
   let heading = facing;
   let steer = mem.steer;

@@ -22,15 +22,13 @@ function arcPoint(stance: Stance, curvature: number, length: number): Vec {
 
 function arcClear(room: Clearance, stance: Stance, curvature: number, length: number, direction: 1 | -1, size: number): boolean {
   const step = PHYSICS.driver.turnSample;
-  const limit = Math.max(0, room.depth(stance.at, stance.heading)) + PHYSICS.driver.roomSlack;
-  const startCliff = room.nearsCliff(stance.at, stance.heading);
+  const worse = room.worsensFrom(stance.at, stance.heading);
   for (let s = step; s < length + step; s += step) {
     const signed = direction * Math.min(s, length);
     const at = arcPoint(stance, curvature, signed);
     const heading = stance.heading + curvature * signed;
     if (at.x < 0 || at.y < 0 || at.x >= size || at.y >= size) return false;
-    if (room.depth(at, heading) > limit) return false;
-    if (!startCliff && room.nearsCliff(at, heading)) return false;
+    if (worse(at, heading)) return false;
   }
   return true;
 }
