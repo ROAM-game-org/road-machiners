@@ -19,7 +19,8 @@ import {
   contractSummary,
   surveyProgress,
   isNotable,
-  nextSurveyClue,
+  surveyClueLines,
+  surveyHowTo,
   eventText,
   formatNpcPass,
   workLabel,
@@ -479,7 +480,7 @@ export class Hud {
     this.contracts.style.display = "";
     this.contracts.replaceChildren(
       el("h3", { class: "panel-title" }, t("hud.contracts")),
-      ...w.player.contracts.map((c) => contractLine(w, c)),
+      ...w.player.contracts.map((c) => heldContractLine(w, c)),
       ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
     );
   }
@@ -691,6 +692,7 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
+      if (isNotable(e)) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
     if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
@@ -769,6 +771,16 @@ function shownWork(action: ContextAction | null, work: Work | null): Work | null
   return action && !action.hint && !blocks ? null : work;
 }
 
+export function heldContractLine(w: World, c: Contract): HTMLElement {
+  const survey = c.kind === 'survey' && !isMet(c);
+  return el(
+    'div',
+    { class: 'contract-line' },
+    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c), surveyHowTo(c)) : null, claimRivalMark(w, c)),
+    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: 'num' }, heldContractDue(c)),
+  );
+}
+
 function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
   return el(
     "div",
@@ -781,14 +793,4 @@ function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
 function escortLine(w: World, c: EscortContract): HTMLElement | null {
   const status = escortStatusText(w, c);
   return status ? el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, status) : null;
-}
-
-function surveyProgressLine(c: Contract): HTMLElement | null {
-  if (c.kind !== "survey" || isMet(c)) return null;
-  return el("div", { class: "dim" }, surveyProgress(c), SPACE, el("span", { class: "contract-clue" }, nextSurveyClue(c)));
-}
-
-export function contractLine(w: World, c: Contract): HTMLElement {
-  const state = c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c));
-  return el("div", { class: "contract-line" }, el("div", {}, contractSummary(c), surveyProgressLine(c), claimRivalMark(w, c)), state);
 }
