@@ -6,7 +6,7 @@ import { TEST_MAP } from '../test/map';
 import { defaultSetup } from '../sim/settings';
 import type { MoveOrder, Obstacle, World } from '../sim/types';
 import { angleDiff, DEG, dist, type Vec } from '../sim/vec';
-import { endTurn, newWorld, setDirect } from '../sim/world';
+import { endTurn, newWorld, setDirect, setMoveOrder } from '../sim/world';
 import { PHYSICS } from '../data/physics';
 import { chassisDef } from '../data/chassis';
 import { bodyOf } from '../sim/body';
@@ -151,6 +151,84 @@ describe('a truck held against a prop with every wheel down', () => {
     const w = pocket();
     w.vehicles[0].order = { kind: 'brake' };
     expect(counts(w, RULES.stranded.turns + 1).counts).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe('trucks held on a low prop', () => {
+  const reach = RULES.stranded.reach;
+
+  function onTrap(offset: Vec, dest: Vec): { w: World; d: Drive } {
+    let w = emptyWorld();
+    const truck = w.vehicles[0];
+    truck.heading = 0;
+    truck.speed = 0;
+    w.obstacles = [{ id: 'trap', kind: 'landmark', look: 'tankTrap', pos: { x: truck.pos.x + offset.x, y: truck.pos.y + offset.y }, r: 0.25, yaw: 0.7 }];
+    w = setMoveOrder(w, { kind: 'stopAt', dest });
+    const d = buildDrive(w);
+    const body = d.world.getRigidBody(d.bodies[w.vehicles[0].id]);
+    const at = body.translation();
+    body.setTranslation({ x: at.x, y: at.y + 1.6, z: at.z }, true);
+    return { w, d };
+  }
+
+  interface Turn {
+    count: number;
+    anchor: Vec | undefined;
+    pos: Vec;
+    moved: number;
+  }
+
+  function turns(w: World, d: Drive, n: number): Turn[] {
+    const out: Turn[] = [];
+    for (let i = 0; i < n; i++) {
+      const before = { ...w.vehicles[0].pos };
+      let next: Drive | null = null;
+      w = endTurn(w, physicsMove(d, (r) => (next = r.next)));
+      freeDrive(d);
+      d = next!;
+      const v = w.vehicles[0];
+      out.push({ count: v.strandedTurns ?? 0, anchor: v.strandedAt, pos: { ...v.pos }, moved: dist(before, v.pos) });
+    }
+    freeDrive(d);
+    return out;
+  }
+
+  const rocking: [string, Vec, Vec][] = [
+    ['to the side', { x: 0.2, y: 0.3 }, { x: 27, y: 31.5 }],
+    ['behind', { x: 0.2, y: -0.3 }, { x: 27, y: 31.5 }],
+  ];
+
+  it.each(rocking)('counts a truck rocking on a tank trap up to the set-down, order %s', (_, offset, dest) => {
+    const { w, d } = onTrap(offset, dest);
+    const run = turns(w, d, 8);
+    const first = run.findIndex((t) => t.count > 0);
+    const from = run[first].pos;
+    const window = run.slice(first, first + RULES.stranded.turns);
+    const gotClear = window.some((t) => dist(t.pos, from) >= reach);
+    expect(gotClear || window.at(-1)!.count === RULES.stranded.turns).toBe(true);
+    expect(dist(run.at(-1)!.pos, dest)).toBeLessThan(1.5);
+  });
+
+  it('keeps counting while the truck rocks inside reach of its anchor', () => {
+    const { w, d } = onTrap({ x: 0.2, y: 0.3 }, { x: 27, y: 31.5 });
+    const counted = turns(w, d, 8).filter((t) => t.count > 0);
+    expect(counted.some((t) => t.moved > 0.1)).toBe(true);
+    expect(counted.every((t) => t.anchor !== undefined)).toBe(true);
+  });
+
+  it('ends the run of a truck that drives clear of the trap', () => {
+    const { w, d } = onTrap({ x: 0.55, y: 0 }, { x: 26, y: 30 });
+    const last = turns(w, d, 6).at(-1)!;
+    expect([last.count, last.anchor]).toEqual([0, undefined]);
+  });
+
+  it.each([
+    ['straight behind', { x: 27, y: 30 }],
+    ['behind to the side', { x: 27, y: 33 }],
+  ])('never holds a truck turning around on open ground with an order %s', (_, dest) => {
+    const w = emptyWorld();
+    w.vehicles[0].order = { kind: 'stopAt', dest };
+    expect(turns(w, buildDrive(w), 8).map((t) => t.count)).toEqual(Array(8).fill(0));
   });
 });
 
