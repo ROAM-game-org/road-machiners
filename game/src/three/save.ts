@@ -63,12 +63,16 @@ export const SAVE_KEY = saveKey(__SAVE_SCOPE__);
 
 export type SaveErrorCode =
   | 'unreadable' | 'otherMap' | 'bakedProps' | 'brokenProp' | 'invalidWorld' | 'invalidSave' | 'badSetup'
-  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badOldSpots' | 'badQuests' | 'newerQuests' | 'outOfReach';
+  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badOldSpots' | 'badQuests' | 'newerQuests' | 'outOfReach' | 'mapChanged';
 
 export class SaveError extends Error {
   constructor(readonly code: SaveErrorCode, readonly format: { major: number; minor: number } | null = null, detail = '') {
     super(`Save error ${code}${detail ? `: ${detail}` : ''}`);
   }
+}
+
+export function carriesOnLoad(error: SaveError): boolean {
+  return error.code === 'outOfReach' || error.code === 'mapChanged';
 }
 
 export type SaveEnvelope = { format: typeof SAVE_FORMAT; quests: SavedRevisions; savedAt: number; runId: string; world: object };
@@ -117,10 +121,10 @@ export function mapFor(saved: Pick<World, 'mapHash' | 'seed' | 'setup' | 'furyRo
     if (highway) throw new SaveError('otherMap', null, `A ${saved.setup.mode} save names highway map ${saved.mapHash}`);
     return icarus;
   }
-  if (!saved.furyRoad) throw new SaveError('otherMap', null, 'This Fury Road run is from older rules: it was laid on Icarus roads or has no hauler, and the highway has replaced them');
+  if (!saved.furyRoad) throw new SaveError('mapChanged', null, 'This Fury Road run is from older rules: it was laid on Icarus roads or has no hauler, and the highway has replaced them');
   if (!highway) throw new SaveError('otherMap', null, `A Fury Road save names map ${saved.mapHash}, which is no highway`);
   const map = highwayMap(saved.seed, saved.furyRoad.window);
-  if (map.hash !== saved.mapHash) throw new SaveError('otherMap', null, `map ${saved.mapHash}, not the current highway ${map.hash}`);
+  if (map.hash !== saved.mapHash) throw new SaveError('mapChanged', null, `map ${saved.mapHash}, not the current highway ${map.hash}`);
   return map;
 }
 
@@ -138,7 +142,7 @@ export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Load
   const { world, settingsReset } = savedWorld(envelope);
   const quests = savedQuests(world.player.quests, world.player.notes, savedRevisionsOf(envelope));
   const map = mapFor(world, icarus);
-  if (world.mapHash !== map.hash) throw new SaveError('otherMap', null, `map ${world.mapHash}, not ${map.hash}`);
+  if (world.mapHash !== map.hash) throw new SaveError('mapChanged', null, `map ${world.mapHash}, not ${map.hash}`);
   const explored = unpackExplored(world.player.explored, world.size * world.size);
   if (world.obstacles.some((o) => isBakedObstacle(o) || isHollowObstacle(o))) throw new SaveError('bakedProps');
   const baked = mapObstacles(map);

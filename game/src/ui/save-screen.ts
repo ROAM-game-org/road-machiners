@@ -15,7 +15,12 @@ import { moneyMsg } from './units';
 
 export function saveErrorText(error: SaveError): Msg {
   const code = error.code;
-  if (code !== 'incompatible' && code !== 'newer' && code !== 'notMigrated' && code !== 'outOfReach') return t(`save.error.${code}`);
+  if (code === 'outOfReach' || code === 'mapChanged') throw new Error(`Save error ${code} carries on load and never reaches the save screen`);
+  return formatErrorText(error, code);
+}
+
+function formatErrorText(error: SaveError, code: Exclude<SaveError['code'], 'outOfReach' | 'mapChanged'>): Msg {
+  if (code !== 'incompatible' && code !== 'newer' && code !== 'notMigrated') return t(`save.error.${code}`);
   if (!error.format) throw new Error(`Save error ${code} names no format`);
   return t(`save.error.${code}`, error.format);
 }

@@ -33,7 +33,7 @@ import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteError, onReport, reportError } from './crash';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
-import { clearGame, hasRepair, loadSave, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
+import { carriesOnLoad, clearGame, hasRepair, loadSave, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
 import { openSaves } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
@@ -86,7 +86,7 @@ async function bootSlot(slot: SlotId): Promise<Booted> {
 
 function unloadedSlot(err: unknown, slot: SlotId): Promise<Booted> {
   if (!(err instanceof SaveError)) throw err;
-  return err.code === 'outOfReach' ? carriedOrNew(slot) : rescuedOrNew(err, slot);
+  return carriesOnLoad(err) ? carriedOrNew(slot) : rescuedOrNew(err, slot);
 }
 
 async function carriedOrNew(slot: SlotId): Promise<Booted> {

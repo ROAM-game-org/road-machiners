@@ -6,7 +6,7 @@ import { playerVehicle } from '../sim/damage';
 import { TEST_MAP } from '../test/map';
 import { townAt } from '../sim/sites';
 import { carriedWorld, newWorld } from '../sim/world';
-import { loadWorld, SAVE_FORMAT, saveOf, savedRunId, stepsFrom } from './save';
+import { carriesOnLoad, loadWorld, SAVE_FORMAT, SaveError, saveOf, savedRunId, stepsFrom } from './save';
 import type { SavedJson } from './save-migrations';
 import { memoryBackend, SaveSlots } from './save-db';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
@@ -309,5 +309,16 @@ describe('readCarried on every shipped save', () => {
     const progression = ({ money, xp, ranks, xpBySource, perks, knockouts, fuel, supplies, costBasis, notes, quests, run, revisions }: ReturnType<typeof readCarried>) =>
       ({ money, xp, ranks, xpBySource: Object.fromEntries(Object.entries(xpBySource).filter(([, n]) => n !== 0)), perks, knockouts, fuel, supplies, costBasis, notes, quests, run, revisions });
     expect(progression(readCarried(envelope))).toEqual(progression(readCarried({ ...envelope, format: SAVE_FORMAT, world: migrated })));
+  });
+
+  it.each(readdirSync(ANCHOR_DIR))('loads %s or carries it on load, never through the save screen', (file) => {
+    const slots = makeSlots();
+    slots.put('auto', JSON.parse(readFileSync(join(ANCHOR_DIR, file), 'utf8')));
+    try {
+      loadWorld(slots, 'auto', TEST_MAP);
+    } catch (error) {
+      expect(error).toBeInstanceOf(SaveError);
+      expect(carriesOnLoad(error as SaveError), String(error)).toBe(true);
+    }
   });
 });

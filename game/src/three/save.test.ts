@@ -810,13 +810,13 @@ describe('game save', () => {
     }
   });
 
-  it('rejects a save made on another map', () => {
+  it('rejects a save made on an older bake of the map', () => {
     const slots = makeSlots();
     const world = standardWorld();
     writeSave(slots, 'auto', world, RUN, 1000);
-    const otherMap = { ...TEST_MAP, hash: 'ffffffff' };
-    expect(() => loadWorld(slots, 'auto', otherMap)).toThrow(SaveError);
-    expect(() => loadWorld(slots, 'auto', otherMap)).toThrow(/map/);
+    const rebaked = { ...TEST_MAP, hash: 'ffffffff' };
+    expect(() => loadWorld(slots, 'auto', rebaked)).toThrow(SaveError);
+    expect(() => loadWorld(slots, 'auto', rebaked)).toThrow(/mapChanged/);
     expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(world);
   });
 
