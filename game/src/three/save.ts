@@ -1,10 +1,11 @@
 import { t, type Msg } from '../text/msg';
+import { isNoteId } from '../data/locals';
 import type { BakedMap } from '../sim/terrain';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { townAt } from '../sim/sites';
 import { reachedOutpostAt } from '../sim/fury-road';
 import { highwayMap } from '../sim/highway';
-import { repairMap, type SavedBroken, type SavedMapWorld } from '../sim/map-repair';
+import { repairMap, settleTrucks, type SavedBroken, type SavedMapWorld } from '../sim/map-repair';
 import { repairContent } from '../sim/save-repair';
 export { newMapFor } from '../sim/highway';
 import type { BrokenProp, GameEvent, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
@@ -153,15 +154,17 @@ function loadedSave(envelope: unknown, icarus: BakedMap): LoadedSave {
   const repaired = savedQuests(world.player.quests, world.player.notes, revisions);
   const map = mapFor(world, icarus);
   const staged = stagedWorld(world, repaired);
-  const loaded = world.mapHash === map.hash ? onSameMap(staged, map) : repairedMap(staged, map);
+  const rebaked = world.mapHash !== map.hash;
+  const loaded = rebaked ? repairMap(staged, map) : onSameMap(staged, map);
+  const content = repairContent(loaded);
+  if (rebaked) settleTrucks(loaded);
   const quests = restoredQuests(loaded, world, revisions, repaired);
-  const lost = [...quests.lost, ...repairContent(loaded)];
   stockedOldSpots(loaded, map);
   checkCompanies(loaded);
   refreshVision(loaded);
   settleAims(loaded);
-  const events = loaded.events;
-  return { world: { ...loaded, events: [] }, repair: { questsReset: quests.reset, lost, settingsReset, events } };
+  const events = loaded.events.filter((e) => e.t === 'contract');
+  return { world: { ...loaded, events: [] }, repair: { questsReset: quests.reset, lost: [...quests.lost, ...content], settingsReset, events } };
 }
 
 function stagedWorld(world: SavedWorld, quests: QuestRepair): SavedMapWorld {
@@ -184,7 +187,7 @@ function restoredQuests(loaded: World, saved: SavedWorld, revisions: SavedRevisi
     if (!session) throw error;
     const redone = savedQuests(saved.player.quests, saved.player.notes, revisions, [session.quest]);
     loaded.player.quests = { ...redone.quests, live: null };
-    loaded.player.notes = redone.notes;
+    loaded.player.notes = redone.notes.filter((n) => isNoteId(n.id));
     return redone;
   }
 }
@@ -202,13 +205,6 @@ function onSameMap(staged: SavedMapWorld, map: BakedMap): World {
   };
 }
 
-function repairedMap(staged: SavedMapWorld, map: BakedMap): World {
-  try {
-    return repairMap(staged, map);
-  } catch (error) {
-    throw new SaveError('invalidWorld', null, `The map changed to ${map.hash} and the save could not follow: ${(error as Error).message}`);
-  }
-}
 
 function savedQuests(value: unknown, notes: unknown, revisions: SavedRevisions, unrestorable: readonly string[] = []): QuestRepair {
   if (!isQuestState(value)) throw new SaveError('badQuests');

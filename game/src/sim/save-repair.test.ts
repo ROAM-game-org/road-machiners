@@ -4,6 +4,7 @@ import { SHOPS } from '../data/market';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { FIRST_NAMES, NPCS, SURNAMES } from '../data/npcs';
 import { addGoods } from './inventory';
+import { fuelCap, suppliesCap } from './stats';
 import { CONDITION } from '../data/wear';
 import { PLAIN_KIT } from '../test/empty-world';
 import { TEST_MAP } from '../test/map';
@@ -239,6 +240,51 @@ describe('repairContent', () => {
       expect(() => npcTraits(npc)).not.toThrow();
       expect(() => talkOf(npc)).not.toThrow();
     }
+  });
+
+  it('drops a removed trait and keeps the NPC when it has others', () => {
+    const w = fresh();
+    const npc = npcs(w).find((v) => v.brain!.traits.length > 0)!;
+    const traits = [...npc.brain!.traits];
+    npc.brain!.traits.push('ghostTrait' as never);
+
+    expect(repairContent(w)).toEqual([]);
+    expect(npc.brain!.traits).toEqual(traits);
+    expect(w.vehicles).toContain(npc);
+  });
+
+  it('lapses a held bounty whose last target the repair removes, with the event the report shows', () => {
+    const w = fresh();
+    const npc = npcs(w)[0];
+    const template = npc.brain!.templateId;
+    for (const v of npcs(w)) if (v.brain!.templateId === template) v.chassisId = 'ghostChassis';
+    w.player.contracts.push({ id: 'c-bounty', shop: 'bowl', kind: 'bounty', template, reward: 10, deadline: w.turn + 20, window: 20, tier: 'low', fulfilled: false } as never);
+
+    expect(repairContent(w)).toEqual([]);
+    expect(w.player.contracts.some((c) => c.id === 'c-bounty')).toBe(false);
+    expect(w.events.flatMap((e) => (e.t === 'contract' ? [[e.contract.id, e.outcome]] : []))).toEqual([['c-bounty', 'lapsed']]);
+  });
+
+  it('drops a trade goal that buys a good at a shop that no longer trades it', () => {
+    const w = fresh();
+    const npc = npcs(w)[0];
+    const untraded = Object.keys(GOODS).find((good) => !SHOPS.bowl.goods.includes(good))!;
+    const traded = SHOPS.bowl.goods[0];
+    const trade = (good: string) => ({ kind: 'trade', targetId: 'bowl', destination: null, phase: 'travel', reason: 'trade', purchase: { good, sellShop: 'dustwell' } }) as never;
+    npc.brain!.goals = [trade(untraded), trade(traded)];
+
+    expect(repairContent(w)).toEqual([]);
+    expect(npc.brain!.goals.map((g) => g.purchase!.good)).toEqual([traded]);
+  });
+
+  it('clamps fuel and supplies to the tank and the crates', () => {
+    const w = fresh();
+    const me = playerVehicle(w);
+    w.player.fuel = fuelCap(me) + 100;
+    w.player.supplies = suppliesCap(me) + 100;
+
+    expect(repairContent(w)).toEqual([]);
+    expect([w.player.fuel, w.player.supplies]).toEqual([fuelCap(me), suppliesCap(me)]);
   });
 
   it('gives a driver outside the name lists a new name picked from the vehicle id', () => {

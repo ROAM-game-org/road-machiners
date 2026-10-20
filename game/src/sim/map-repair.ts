@@ -393,7 +393,6 @@ export function repairMap(saved: SavedMapWorld, map: BakedMap): World {
   world.salvage = stocks.salvage;
   purgeDropped(world, stocks.dropped, map);
   snapSunwardHomes(world);
-  settleTrucks(world);
   return world;
 }
 
@@ -544,7 +543,7 @@ function snapSunwardHomes(world: World): void {
   }
 }
 
-function settleTrucks(world: World): void {
+export function settleTrucks(world: World): void {
   const player = world.player.vehicleId;
   for (const v of [...world.vehicles.filter((x) => x.id !== player), ...world.vehicles.filter((x) => x.id === player)]) {
     const radius = chassisDef(v.chassisId).radius;

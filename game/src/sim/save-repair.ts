@@ -15,7 +15,8 @@ import { settleAims } from './combat';
 import { newId, chargeFor, gunFor, makePart, addCoreParts } from './factory';
 import { findSpot, gridOf, mountedItems, onDeadRow, placementError, type Grid } from './grid';
 import { addGoods } from './inventory';
-import { addShop, parcelOf, removeParcel, type Contract, type ShopState } from './market';
+import { settleEscortJob } from './escort-job';
+import { addShop, bountyLapsed, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
 import { reviseMemories } from './memory';
 import { getResources } from './resources';
 import { isPerkId } from './progress';
@@ -38,6 +39,7 @@ export function repairContent(world: World): string[] {
   repairTrucks(world, doomed, lost);
   removeNpcs(world, doomed);
   clampParts(world);
+  for (const v of world.vehicles) fitFuel(world, v);
   for (const v of world.vehicles) fitGoals(world, v);
   repairShops(world);
   renameDrivers(world);
@@ -81,10 +83,15 @@ function siteOptional(world: World, kind: NpcActivity['kind'], id: string): bool
   return !SITE_GOALS.has(kind);
 }
 
+function boughtThere(goal: NpcActivity): boolean {
+  const shop = goal.targetId;
+  return !goal.purchase || shop === null || !isShop(shop) || SHOPS[shop].goods.includes(goal.purchase.good);
+}
+
 function goalFits(world: World, goal: NpcActivity): boolean {
   if (!targetFits(world, goal)) return false;
   const names = goalNames(goal);
-  return names.goods.every(isGood) && names.shops.every(isShop);
+  return names.goods.every(isGood) && names.shops.every(isShop) && boughtThere(goal);
 }
 
 function fitGoals(world: World, v: Vehicle): void {
@@ -299,18 +306,16 @@ function repairOwnTruck(world: World, v: Vehicle, lost: string[]): void {
 }
 
 function repairNpc(world: World, v: Vehicle, doomed: Set<string>): void {
-  if (unknownOf(v) === null && coresSeated(v)) fitItems(world, v, false);
+  if (npcKnown(v) && coresSeated(v)) fitItems(world, v, false);
   else doomed.add(v.id);
 }
 
-function unknownOf(v: Vehicle): string | null {
-  if (!isChassis(v.chassisId)) return v.chassisId;
+function npcKnown(v: Vehicle): boolean {
   const brain = v.brain;
-  if (!brain) return null;
-  if (!Object.hasOwn(NPCS, brain.templateId)) return brain.templateId;
-  const trait = brain.traits.find((id) => !Object.hasOwn(TRAITS, id));
-  if (trait !== undefined) return trait;
-  return Object.hasOwn(PERSONALITIES, brain.personality) ? null : brain.personality;
+  if (!isChassis(v.chassisId)) return false;
+  if (!brain) return true;
+  brain.traits = brain.traits.filter((id) => Object.hasOwn(TRAITS, id));
+  return Object.hasOwn(NPCS, brain.templateId) && brain.traits.length > 0 && Object.hasOwn(PERSONALITIES, brain.personality);
 }
 
 function startChassis(world: World, v: Vehicle): string {
@@ -330,7 +335,6 @@ function swapChassis(world: World, v: Vehicle, lost: string[]): void {
   addCoreParts(world, v);
   for (const parcel of parcels) if (!placeParcel(v, parcel)) lost.push(...dropParcelContract(world, parcel.contract));
   for (const [good, units] of goods) for (let i = addGoods(world, v, good, units); i < units; i++) lost.push(good);
-  fitFuel(world, v);
 }
 
 function goodsHeld(v: Vehicle): Record<string, number> {
@@ -441,10 +445,23 @@ function dropParcelContract(world: World, id: string): string[] {
 
 function removeNpcs(world: World, doomed: ReadonlySet<string>): void {
   if (doomed.size === 0) return;
+  const templates = new Set(world.vehicles.flatMap((v) => (doomed.has(v.id) && v.brain ? [v.brain.templateId] : [])));
   world.vehicles = world.vehicles.filter((v) => !doomed.has(v.id));
   if (world.player.call && doomed.has(world.player.call.with)) world.player.call = null;
   settleStates(world);
   settleAims(world);
+  for (const c of world.player.contracts.filter((x) => !isMet(x) && namesGone(world, x, doomed, templates))) settleLost(world, c);
+}
+
+function namesGone(world: World, c: Contract, doomed: ReadonlySet<string>, templates: ReadonlySet<string>): boolean {
+  if (c.kind === 'escort' || c.kind === 'rescue') return doomed.has(c.client);
+  if (c.kind === 'search') return doomed.has(c.target);
+  return c.kind === 'bounty' && templates.has(c.template) && bountyLapsed(world, c);
+}
+
+function settleLost(world: World, c: Contract): void {
+  if (c.kind === 'escort') settleEscortJob(world, c);
+  else finishContract(world, c, 'lapsed');
 }
 
 function allParts(world: World): PartInstance[] {

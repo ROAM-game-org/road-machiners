@@ -8,7 +8,7 @@ import { reusedWorld } from '../test/world-cache';
 import { playerVehicle } from './damage';
 import { freeSpotNear } from './free-spot';
 import { isBakedObstacle, isBreakable, mapObstacles } from './mapgen';
-import { repairMap, type SavedMapWorld } from './map-repair';
+import { repairMap, settleTrucks, type SavedMapWorld } from './map-repair';
 import { isRoadWreck, oldSpotOf, oldSpotPicks, oldStockId, renewSalvage, stockOldSpots } from './salvage';
 import { defaultSetup } from './settings';
 import { fillHollow, isFree } from './spawn';
@@ -181,6 +181,7 @@ describe('repairMap positions', () => {
     const freeAt = { ...free.pos };
 
     const out = repairMap(savedOf(w), TEST_MAP);
+    settleTrucks(out);
     const moved = out.vehicles.find((v) => v.id === stuck.id)!;
     expect(isFree(out, moved.pos, radius, moved.id)).toBe(true);
     expect(dist(moved.pos, rock.pos)).toBeLessThanOrEqual(CHEATS.searchRings * CHEATS.searchStep);
@@ -192,7 +193,7 @@ describe('repairMap positions', () => {
   it('throws when no free ground lies within reach of a truck', () => {
     const w = base();
     addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: -1000, y: -1000 });
-    expect(() => repairMap(savedOf(w), TEST_MAP)).toThrow(/No free spot/);
+    expect(() => settleTrucks(repairMap(savedOf(w), TEST_MAP))).toThrow(/No free spot/);
   });
 });
 

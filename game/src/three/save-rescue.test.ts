@@ -388,4 +388,19 @@ describe('a shipped save on an older bake of the map', () => {
     }
     expect(w.turn).toBe(start + 20);
   }, 120_000);
+
+  it('loads a shipped save after a rebake and a removed chassis together, and reports only what the player held', () => {
+    const envelope = JSON.parse(readFileSync(join(ANCHOR_DIR, '2-63-roaming.json'), 'utf8')) as { world: { player: { vehicleId: string }; vehicles: { id: string; chassisId: string }[] } };
+    for (const v of envelope.world.vehicles) v.chassisId = 'ghostChassis';
+    const slots = new SaveSlots(memoryBackend(), new Map());
+    slots.put('auto', envelope);
+
+    const { world, repair } = loadSave(slots, 'auto', TEST_MAP)!;
+
+    expect(repair.lost).toContain('ghostChassis');
+    expect(repair.events.every((e) => e.t === 'contract')).toBe(true);
+    const me = playerVehicle(world);
+    expect(isFree(world, me.pos, chassisDef(me.chassisId).radius, me.id)).toBe(true);
+    expect(() => endTurn(world, () => {})).not.toThrow();
+  }, 60_000);
 });
