@@ -76,9 +76,15 @@ function padsOf(site: Site): Vec[] {
   });
 }
 
+export function hasPads(site: Site): boolean {
+  return sitePads(site).length > 0;
+}
+
 export function nearestPad(site: Site, from: Vec): Vec {
   if (isTerritory(site)) throw new Error(`Territory ${site.id} has no pads; use territoryEntries`);
-  return sitePads(site).reduce((a, b) => (dist(from, a) <= dist(from, b) ? a : b));
+  const pads = sitePads(site);
+  if (pads.length === 0) throw new Error(`Site ${site.id} has no pads`);
+  return pads.reduce((a, b) => (dist(from, a) <= dist(from, b) ? a : b));
 }
 
 export function canUseSite(pos: Vec, site: Site): boolean {

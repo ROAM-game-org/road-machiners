@@ -76,6 +76,9 @@ import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
+import FORMAT_2_84 from './save-fixtures/format-2-84.json';
+import FORMAT_2_86 from './save-fixtures/format-2-86.json';
+import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
@@ -1825,5 +1828,78 @@ describe('MIGRATIONS[83]', () => {
     expect(shopsOf(next).nose.restockAt).toBe(before.shops.nose.restockAt);
     expect(shopsOf(next)['salvage-yard']).toEqual(before.shops['salvage-yard']);
     expect({ ...next, shops: { ...shopsOf(next), bowl: before.shops.bowl } }).toEqual(before);
+  });
+});
+
+describe('save migration 84 to 85', () => {
+  it('gives a Roaming world a standing Sunward order and the player the Sunward start standing', () => {
+    const before = structuredClone(FORMAT_2_84);
+
+    const next = MIGRATIONS[84](before) as typeof FORMAT_2_84 & { sunward: unknown; player: { standing: Record<string, number> } };
+
+    expect(next.sunward).toEqual({ collapsed: null, night: null, lastHunt: null });
+    expect(next.player.standing).toEqual({ ...FORMAT_2_84.player.standing, sunward: -20 });
+    expect(next.vehicles).toEqual(FORMAT_2_84.vehicles);
+    expect(next.player.money).toBe(4200);
+    expect(before).toEqual(FORMAT_2_84);
+  });
+
+  it('gives a Chaos Highway world no order', () => {
+    const highway = { ...structuredClone(FORMAT_2_84), setup: { ...FORMAT_2_84.setup, mode: 'furyRoad' }, furyRoad: { window: 0 } };
+
+    const next = MIGRATIONS[84](highway) as typeof highway & { sunward: unknown };
+
+    expect(next.sunward).toBeNull();
+    expect(next.furyRoad).toEqual({ window: 0 });
+  });
+});
+
+describe('save migration 85 to 86', () => {
+  type Saved = { vehicles: { id: string; pos: { x: number; y: number }; brain: { home: { x: number; y: number } } | null }[] };
+
+  it('moves each Sunward car home to the fort bay of the same index and moves no car', () => {
+    const before = structuredClone(FORMAT_2_85);
+
+    const next = MIGRATIONS[85](before) as unknown as Saved;
+
+    const home = (id: string) => next.vehicles.find((v) => v.id === id)!.brain!.home;
+    expect(home('v31')).toEqual({ x: 284.053, y: 243.604 });
+    expect(home('v32')).toEqual({ x: 269.787, y: 236.358 });
+    expect(home('v40')).toEqual({ x: 351.2, y: 334 });
+    expect(next.vehicles.map((v) => v.pos)).toEqual(FORMAT_2_85.vehicles.map((v) => v.pos));
+    expect(before).toEqual(FORMAT_2_85);
+  });
+
+  it('passes a world with no Sunward car unchanged', () => {
+    const quiet = { ...structuredClone(FORMAT_2_85), vehicles: FORMAT_2_85.vehicles.filter((v) => v.faction !== 'sunward') };
+
+    expect(MIGRATIONS[85](quiet)).toEqual(quiet);
+  });
+
+  it('throws on a Sunward car whose home is no bay of the old Hollow', () => {
+    const lost = structuredClone(FORMAT_2_85);
+    lost.vehicles[1].brain!.home = { x: 10, y: 10 };
+
+    expect(() => MIGRATIONS[85](lost)).toThrow(/no bay of the old Hollow/);
+  });
+});
+
+describe('save migration 86 to 87', () => {
+  it('gives the night of the vigil an empty list of words given and keeps the rest', () => {
+    const before = structuredClone(FORMAT_2_86);
+
+    const next = MIGRATIONS[86](before) as typeof FORMAT_2_86 & { sunward: { night: { offered: string[] } } };
+
+    expect(next.sunward.night).toEqual({ ...FORMAT_2_86.sunward.night, offered: [] });
+    expect(next.vehicles).toEqual(FORMAT_2_86.vehicles);
+    expect(before).toEqual(FORMAT_2_86);
+  });
+
+  it('passes a world with no night open, or no order, unchanged', () => {
+    const day = { ...structuredClone(FORMAT_2_86), sunward: { ...FORMAT_2_86.sunward, night: null } };
+    const highway = { ...structuredClone(FORMAT_2_86), sunward: null };
+
+    expect(MIGRATIONS[86](day)).toEqual(day);
+    expect(MIGRATIONS[86](highway)).toEqual(highway);
   });
 });
