@@ -514,6 +514,7 @@ export const SPAWN = {
   ],
   startTraffic: { town: "bowl", templates: ["trader", "trader"] },
   minPlayerDist: 16,
+  crowd: { reach: 12, most: 4 },
   gateSpread: 12,
   gateAngle: 0.3,
   tries: 40,
