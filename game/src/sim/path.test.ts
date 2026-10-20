@@ -6,7 +6,7 @@ import { FALLEN_SUN_DECKS } from '../data/territory';
 import { deckById } from './bridge';
 import { boxSegmentDistance, propBoxes } from './mapgen';
 import { offRoadTaste, tasteKey, tasteOf, terrainNav, tileIndex } from './nav/layer';
-import { continueRoute, keepRoute, route, routeLength, straightClear, type Blocker } from './path';
+import { continueRoute, keepRoute, reachesFrom, route, routeLength, straightClear, type Blocker } from './path';
 import { tileAt } from './terrain';
 import type { NpcActivity, Vehicle, World } from './types';
 import type { TraitId } from '../data/npcs';
@@ -519,3 +519,33 @@ describe('routes prefer roads', () => {
   });
 });
 
+
+describe('reachesFrom', () => {
+  const center = { x: 60, y: 60 };
+  const ringed = () => {
+    const w = emptyWorld(center);
+    w.obstacles = Array.from({ length: 16 }, (_, i) => {
+      const a = (2 * Math.PI * i) / 16;
+      return { id: `ring${i}`, pos: { x: center.x + Math.cos(a) * 3.5, y: center.y + Math.sin(a) * 3.5 }, r: 1.2, kind: 'rock' as const };
+    });
+    return w;
+  };
+
+  it('is false inside a closed ring of rocks and true beside the anchor', () => {
+    const w = ringed();
+    const reaches = reachesFrom(w, { x: 80, y: 60 }, 0.6);
+    expect(reaches(center)).toBe(false);
+    expect(reaches({ x: 79, y: 60 })).toBe(true);
+  });
+
+  it('is false off the map', () => {
+    const reaches = reachesFrom(emptyWorld(), { x: 80, y: 60 }, 0.6);
+    expect(reaches({ x: -1, y: 60 })).toBe(false);
+  });
+
+  it('throws on an anchor inside a solid rock', () => {
+    const w = emptyWorld();
+    w.obstacles = [{ id: 'big', pos: { x: 80, y: 60 }, r: 8, kind: 'rock' }];
+    expect(() => reachesFrom(w, { x: 80, y: 60 }, 0.6)).toThrow(/No nav component/);
+  });
+});
