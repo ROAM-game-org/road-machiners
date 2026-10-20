@@ -903,9 +903,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withFollowHeadings_87_88,
   withKovacMounts_88_89,
   (world) => world, withShortRoadScenes_90_91, withChaosHighwayIntro_91_92,
-  withStandardPaint_92_93,
-  withThreeColorPaint_93_94,
-  withMutedPaint_94_95,
+  withStandardPaint_92_93, withThreeColorPaint_93_94, withMutedPaint_94_95,
 ];
 
 
