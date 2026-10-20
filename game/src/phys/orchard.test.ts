@@ -99,6 +99,7 @@ describe('driving through Old Orchard', () => {
     while (goal.targetId !== barn.id) goal = spotGoal(w, 'orchard');
     npc.brain.goals = [goal];
     forceOption('salvageSeen', 'keep');
+    for (const stock of w.salvage) npc.brain.noticed[`salvageSeen:${stock.id}`] = w.turn;
 
     let d = buildDrive(w);
     let turns = 0;
