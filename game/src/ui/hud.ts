@@ -546,7 +546,7 @@ export class Hud {
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
     this.renderSpeedometer(readout, busy);
-    this.renderReadouts(readout);
+    this.fillReadouts(readout);
     this.renderActions(w, readout.manual, busy);
   }
 
@@ -574,10 +574,6 @@ export class Hud {
     );
     this.dialSlot.replaceChildren(dial);
     this.maxSpeed.render(readout.maxSpeed, readout.maxSpeedTip);
-  }
-
-  private renderReadouts(readout: ReturnType<typeof getHudReadout>): void {
-    this.fillReadouts(readout);
   }
 
   private fillReadouts(readout: ReturnType<typeof getHudReadout>): void {

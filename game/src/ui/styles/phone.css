@@ -13,7 +13,7 @@
   --drawer-top: calc(var(--safe-top) + var(--phone-top-row) + var(--hud-gap));
   --drawer-max-h: calc(var(--layer-h) - var(--drawer-bottom) - var(--drawer-top));
   --drawer-w: calc((var(--layer-w) - var(--safe-left) - var(--safe-right) - var(--hud-gap)) / 2);
-  --phone-tabs-w: calc(4 * var(--icon-hero) + 3 * var(--space-2));
+  --phone-tabs-w: calc(4 * var(--phone-tab-w) + 3 * var(--space-2));
   --right-column: 0px;
 }
 
@@ -71,11 +71,7 @@
   pointer-events: auto;
 }
 #ui.phone .drawer-tabs > button {
-  flex: 1 1 0;
-  min-width: 0;
-}
-#ui.phone .drawer-tabs .icon {
-  display: none;
+  width: var(--phone-tab-w);
 }
 #ui.phone .turn-control {
   right: var(--safe-right);
@@ -84,17 +80,19 @@
 #ui.phone .end-turn {
   width: var(--phone-end-w);
   min-height: var(--btn-h-l);
-  flex-direction: row;
   justify-content: center;
   padding: var(--space-2) var(--space-3);
+  text-align: center;
+  line-height: 1;
+  overflow-wrap: normal;
 }
 #ui.phone .end-turn .icon {
   display: none;
 }
 
 #ui.phone {
-  --dial-w: 76px;
-  --dial-h: 46px;
+  --dial-w: 96px;
+  --dial-h: 58px;
 }
 #ui.phone .bottom-left > .instruments {
   position: fixed;
@@ -108,20 +106,32 @@
   padding: var(--space-1) var(--space-2);
   column-gap: var(--space-2);
   row-gap: var(--space-1);
-  grid-template-columns: var(--dial-w) repeat(3, minmax(0, 1fr)) auto;
-  grid-template-rows: auto auto 1fr;
+  grid-template-columns: var(--dial-w) repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, auto) 1fr;
   grid-template-areas:
-    "dial driver heat money clock"
-    "dial fuel supplies engine clock"
-    "actions actions actions actions actions";
+    "dial driver fuel supplies"
+    "dial engine heat weather"
+    "dial money clock run"
+    "actions actions actions actions";
 }
 #ui.phone .instruments .speedometer {
-  grid-row: 1 / span 2;
+  grid-row: 1 / span 3;
+}
+#ui.phone .instruments .resource[data-resource="weather"] {
+  grid-area: weather;
+}
+#ui.phone .instruments .resource[data-resource="run"] {
+  grid-area: run;
 }
 #ui.phone .instruments .resource {
-  padding: var(--space-1);
+  grid-template-columns: var(--icon-xs) minmax(0, 1fr);
+  justify-content: stretch;
+  padding: var(--space-1) var(--space-2);
   column-gap: var(--space-1);
   font-size: var(--text-caption);
+}
+#ui.phone .instruments .resource > :last-child {
+  justify-self: end;
 }
 #ui.phone .instruments .resource :is(.icon, .coin) {
   width: var(--icon-xs);
@@ -138,23 +148,25 @@
 }
 #ui.phone .instruments .instrument-actions {
   gap: var(--space-1);
-  padding: 0;
+  flex-wrap: nowrap;
+  padding-top: 0;
+  border-top: 0;
   min-height: 0;
   justify-content: center;
   flex-wrap: nowrap;
 }
 #ui.phone .instruments .instrument-actions > * {
-  flex: 0 1 auto;
-  min-width: var(--touch-target);
-  min-height: var(--touch-target);
+  flex: 1 1 0;
+  min-width: 0;
   height: var(--touch-target);
+  display: flex;
+  align-items: center;
   justify-content: center;
   text-align: center;
-  padding-left: var(--space-1);
-  padding-right: var(--space-1);
-}
-#ui.phone .top-right {
-  align-items: center;
+  line-height: 1;
+  white-space: normal;
+  overflow-wrap: break-word;
+  padding: 0 var(--space-1);
 }
 #ui.phone :is(.feedback, .camera-mode) {
   display: none;
@@ -326,10 +338,12 @@
 @media (orientation: portrait) {
   #ui.phone .drawer-tabs {
     bottom: var(--safe-bottom);
-  }
-  #ui.phone .drawer-tabs {
-    width: auto;
     right: calc(var(--safe-right) + var(--phone-end-w) + var(--hud-gap));
+  }
+  #ui.phone .drawer-tabs > button {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
   }
 }
 
@@ -369,14 +383,22 @@
 #ui.phone .instruments .instrument-actions .switch-option {
   white-space: normal;
   text-align: center;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  line-height: 1;
+}
+#ui.phone .instruments .instrument-actions .switch-lever {
+  display: none;
 }
 #ui.phone .instruments .speed-value {
   left: auto;
   right: 2px;
   bottom: 1px;
   transform: none;
-  font-size: var(--text-caption);
+  font-size: var(--text-dense);
+}
+
+#ui.phone .instruments .instrument-actions .key-corner {
+  display: none;
 }
 #ui.phone .modal.character-screen {
   display: block;
