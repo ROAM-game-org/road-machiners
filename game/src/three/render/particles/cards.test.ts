@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { perfSnapshot } from '../../../perf';
-import { ballDepth, CardBatch, OVERFILL_COUNTER, type Card } from './cards';
+import { CardBatch, OVERFILL_COUNTER, type Card } from './cards';
 
 const camera = new THREE.OrthographicCamera(-5, 5, 5, -5, 1, 100);
 camera.updateProjectionMatrix();
@@ -44,17 +44,7 @@ describe('card fill ceiling', () => {
   });
 });
 
-describe('card ball depth', () => {
-  it('bulges by the radius at the centre and not at all at the rim', () => {
-    expect(ballDepth(2, 0)).toBe(2);
-    expect(ballDepth(2, 1)).toBe(0);
-    expect(ballDepth(2, 1.5)).toBe(0);
-  });
-
-  it('rejects a negative radius', () => {
-    expect(() => ballDepth(-1, 0)).toThrow();
-  });
-
+describe('card material', () => {
   it('builds one depth tested mesh that writes no depth and no stencil', () => {
     const batch = new CardBatch(4, 'lit', new THREE.Texture(), 2);
     const material = batch.mesh.material as THREE.ShaderMaterial;

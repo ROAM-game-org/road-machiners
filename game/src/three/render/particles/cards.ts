@@ -12,11 +12,6 @@ const CARD_ORDER = { lit: 904, glow: 906 };
 const FILL_ALPHA_STEPS = 64;
 const ROUND_EDGE = '(1.0 - smoothstep(0.84, 1.0, length(vBall)))';
 const CARD_BODY = 'mix(texture2D(shapes, vUv).a, pow(max(0.0, 1.0 - dot(vBall, vBall)), 2.0), vRound)';
-export function ballDepth(radius: number, rim2: number): number {
-  if (!(radius >= 0)) throw new Error(`A card ball needs a non-negative radius, got ${radius}`);
-  return radius * Math.sqrt(Math.max(0, 1 - rim2));
-}
-
 const BALL_DEPTH = 'gl_FragDepth = (vDepth.x + vDepth.y * sqrt(max(0.0, 1.0 - dot(vBall, vBall)))) * 0.5 + 0.5;';
 export const OVERFILL_COUNTER = 'fx.cards.overfilled';
 
