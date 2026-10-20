@@ -107,13 +107,16 @@ One owner per concept. Use these and do not decide the same thing elsewhere:
 Players keep their saves across updates. Migrate old saves whenever possible. [Saves](docs/architecture/saves.md) has the details.
 
 - A change to the saved shape needs a new format. That covers any type in `src/sim/types.ts` reachable from `World`, and any renamed or removed content id in `src/data/`.
-- A change that old saves can follow adds one step to `MIGRATIONS` in `src/three/save-migrations.ts`.
+- A change that old saves can follow adds one tiny step to `TINY_STEPS` in `src/three/save-migrations.ts`.
 - A quest change that old progress in the quest cannot follow raises the quest's `# revision:` tag instead of a step. Load then resets that quest and what stands on it. [Changing a shipped quest](docs/writing/quests.md#changing-a-shipped-quest) says when.
-- A change that old saves cannot follow bumps `SAVE_MAJOR` and empties `MIGRATIONS`. Ask me before any major bump. A new map file needs no bump.
-- A step is a pure function from the saved world JSON of minor format N to N+1. It never imports sim or data code. It holds its own copies of any old ids or values it needs.
-- Never edit a committed step. Fix a bad step with a new step.
-- Every step gets a Vitest test on a fixture from `src/three/save-fixtures/`.
+- A change that old saves cannot follow bumps `SAVE_MAJOR` and empties `RELEASE_STEPS` and `TINY_STEPS`. Ask me before any major bump. A new map file needs no bump.
+- A step is a pure function of the saved world JSON. It never imports sim or data code. It holds its own copies of any old ids or values it needs.
+- Every tiny step gets a Vitest test on a fixture from `src/three/save-fixtures/`.
 - Run `npm run save:shape` after the new step or major bump.
+- Tiny steps live only after the newest shipped format. After a release or hotfix ships a new format, fold the tiny steps up to it into one release step, as [Saves](docs/architecture/saves.md#folding-tiny-steps) describes. `save-anchors.test.ts` fails once a second shipped format waits for its fold.
+- Never edit a release step. Fix a bad one with a new tiny step.
+- Release steps cover the last 10 releases. A save older than that, or at a format no build shipped, carries over through the rescue on load.
+- A step that moves a progression field the rescue carries, like money, XP, ranks, notes or quest variables, also teaches `readCarried()` in `src/three/save-rescue.ts` the old form. A step that removes a part or good id adds its price to `RETIRED_PRICES_RESCUE`.
 - A change to world state gets a test that saves the world, loads it and checks the loaded world. Load must give back the same world and award nothing: no XP, money or events.
 - A save holds only what load cannot rebuild. Load rebuilds derived state with the same function the turn uses, so that function must not change anything else. Rewards for what a refresh finds go in a separate call in the turn pipeline, as `practiceContacts()` does for `refreshVision()`.
 
