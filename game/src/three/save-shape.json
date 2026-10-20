@@ -1,5 +1,5 @@
 {
- "format": "2.95",
+ "format": "2.98",
  "shape": {
   "broken": [],
   "craters": [],
@@ -71,6 +71,11 @@
    "money": "number",
    "notes": [],
    "overdrive": "boolean",
+   "paint": {
+    "body": "string",
+    "cab": "string",
+    "gear": "string"
+   },
    "pastContracts": [],
    "perks": [],
    "quests": {

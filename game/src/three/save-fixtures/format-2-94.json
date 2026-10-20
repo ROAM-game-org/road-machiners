@@ -1,7 +1,11 @@
 {
+  "turn": 2400,
+  "player": {
+    "money": 7300,
+    "perks": [],
+    "storage": []
+  },
   "vehicles": [
-    { "id": "v1", "faction": "player", "chassisId": "scout", "pos": { "x": 204.5, "y": 283.25 }, "heading": -1.7, "speed": 0 },
-    { "id": "v7", "faction": "independent", "chassisId": "buggy", "pos": { "x": 179.75, "y": 274.5 }, "heading": 0.6, "speed": 0, "strandedTurns": 2 },
-    { "id": "v9", "faction": "independent", "chassisId": "bus", "pos": { "x": 150.25, "y": 210.5 }, "heading": 1.2, "speed": 3, "strandedTurns": 0 }
+    { "id": "v1", "chassisId": "scout", "faction": "player", "pos": { "x": 5, "y": 6 } }
   ]
 }
