@@ -90,7 +90,7 @@ This part was generated with a second, smaller run of the story game. Its player
 - Year 119. Scrapjaw riders take the fuel truck of the pod field at the edge of the Glass Flats, in the debris trail. Its young driver Tam is shot in the leg. A western driver, Remy Castell, opens a stall of western rifles at the crossroads.
 - Year 118. Absalom Reyne preaches at the Sunward's fire, and people call him the Preacher.
 - Year 119. Joss Ardo, Pell Ardo's nephew, deserts the Sunward with the singers' help and tells the Senate what he saw. The Senate stops all grain to the Sunward.
-- Year 120. The Nose posts a gate law: no truck leaves for the open road without a gun.
+- Year 120. The Nose workshop line starts handing a steel turning mount to any driver who asks at its gate.
 - Year 121. The Lunar Society votes to read the count in the open. Teo refuses, and they cast him out. People call him the Apprentice. The tower announces that the tone from the central wreck counts the years since the fall.
 - Year 122. The Bowl refuses a Pierce loan. Pierce pays its crews late. Vulture families of the Burnt Convoy stop a Pierce office truck and take a debtor book listing what the Nose Committee and the Bowl Senate owe Pierce.
 - Year 123. The Pierce yard's crews stop answering to Pierce and run the yard themselves: the Salvage Yard. Their crew boss Sully Okafor buys the debtor book from the squatters and keeps it shut. Hull pieces, relics and the Old Army's stripped guns are sold there.

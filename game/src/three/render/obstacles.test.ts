@@ -4,9 +4,10 @@ import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
 import { LOOT_LOOK, lootColor } from '../../render/lootLook';
 import { emptyHidden } from '../../sim/salvage';
-import { flatTerrain } from '../../sim/testkit';
+import { emptyWorld, flatTerrain } from '../../sim/testkit';
+import { TERRITORIES } from '../../data/territory';
 import type { Obstacle, SalvageStock } from '../../sim/types';
-import { ObstacleViews, paintShipGlow } from './obstacles';
+import { BOW_BREACH, buildProp, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
 import { initPhysics } from '../../phys/drive';
 import { loadModels } from './models';
 import { RenderScope, SightLimit } from './scope';
@@ -198,5 +199,179 @@ describe('roadside props broken at load', () => {
 
     views.sync([sign], [], []);
     expect(meshesAt(root)).toBe(standing);
+  });
+});
+
+describe('reactor light', () => {
+  const S = PHYSICS.metersPerTile;
+  const SIZE = 128;
+  const BOW_SITE = { x: 60, y: 60 };
+  const bowPiece = TERRITORIES['fallen-sun'].wreck?.pieces.find((p) => p.look === 'shipBow');
+  const reactorAt = TERRITORIES['fallen-sun'].reactor;
+  if (!bowPiece || !reactorAt) throw new Error('The Fallen Sun has no bow or no reactor');
+  const bow: Obstacle = { id: 'bow', pos: BOW_SITE, r: bowPiece.r, kind: 'landmark', look: 'shipBow', yaw: bowPiece.yaw };
+  const reactor: Obstacle = {
+    id: 'reactor',
+    pos: { x: BOW_SITE.x + reactorAt.at.x - bowPiece.at.x, y: BOW_SITE.y + reactorAt.at.y - bowPiece.at.y },
+    r: reactorAt.radius,
+    kind: 'landmark',
+    look: 'reactor',
+    yaw: 0,
+  };
+
+  function built(): { bowGroup: THREE.Object3D; reactorGroup: THREE.Object3D; root: THREE.Group } {
+    const terrain = flatTerrain(SIZE);
+    const root = new THREE.Group();
+    const bowGroup = buildProp(terrain, bow);
+    const reactorGroup = buildProp(terrain, reactor);
+    root.add(bowGroup, reactorGroup);
+    root.updateMatrixWorld(true);
+    return { bowGroup, reactorGroup, root };
+  }
+
+  function lightsOf(g: THREE.Object3D): THREE.Light[] {
+    const found: THREE.Light[] = [];
+    g.traverse((o) => {
+      if (o instanceof THREE.Light) found.push(o);
+    });
+    return found;
+  }
+
+  function hullMeshes(bowGroup: THREE.Object3D): THREE.Mesh[] {
+    const meshes: THREE.Mesh[] = [];
+    bowGroup.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const solid = new THREE.Mesh(o.geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+      solid.matrixWorld.copy(o.matrixWorld);
+      solid.matrixAutoUpdate = false;
+      meshes.push(solid);
+    });
+    return meshes;
+  }
+
+  type Sample = { at: THREE.Vector3; normal: THREE.Vector3; twoSided: boolean };
+
+  function hullSamples(bowGroup: THREE.Object3D): Sample[] {
+    const out: Sample[] = [];
+    const [a, b, c] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+    bowGroup.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const pos = o.geometry.attributes.position;
+      const index = o.geometry.index;
+      const count = index ? index.count : pos.count;
+      const at = (i: number): number => (index ? index.getX(i) : i);
+      const twoSided = (Array.isArray(o.material) ? o.material[0] : o.material).side === THREE.DoubleSide;
+      for (let i = 0; i + 2 < count; i += 3) {
+        a.fromBufferAttribute(pos, at(i)).applyMatrix4(o.matrixWorld);
+        b.fromBufferAttribute(pos, at(i + 1)).applyMatrix4(o.matrixWorld);
+        c.fromBufferAttribute(pos, at(i + 2)).applyMatrix4(o.matrixWorld);
+        const normal = new THREE.Vector3().subVectors(c, b).cross(new THREE.Vector3().subVectors(a, b)).normalize();
+        out.push({ at: a.clone().add(b).add(c).divideScalar(3), normal, twoSided });
+      }
+    });
+    return out;
+  }
+
+  function groundSamples(around: THREE.Vector3, reach: number, y: number): Sample[] {
+    const out: Sample[] = [];
+    for (let x = -reach; x <= reach; x++) {
+      for (let z = -reach; z <= reach; z++) {
+        out.push({ at: new THREE.Vector3(around.x + x, y, around.z + z), normal: new THREE.Vector3(0, 1, 0), twoSided: false });
+      }
+    }
+    return out;
+  }
+
+  function reaches(light: THREE.Light, sample: Sample): boolean {
+    const from = light.getWorldPosition(new THREE.Vector3());
+    const toSample = sample.at.clone().sub(from);
+    const range = (light as THREE.PointLight | THREE.SpotLight).distance;
+    if (toSample.length() > range) return false;
+    const toLight = toSample.clone().negate();
+    const facing = sample.normal.dot(toLight);
+    if (!sample.twoSided && facing <= 0) return false;
+    if (sample.twoSided && Math.abs(facing) < 1e-6) return false;
+    if (!(light instanceof THREE.SpotLight)) return true;
+    const aim = light.target.getWorldPosition(new THREE.Vector3()).sub(from);
+    return toSample.angleTo(aim) <= light.angle;
+  }
+
+  function leaks(): { found: THREE.Vector3[]; reached: number } {
+    const { bowGroup, reactorGroup, root } = built();
+    const lights = [...lightsOf(bowGroup), ...lightsOf(reactorGroup)];
+    const hull = hullMeshes(bowGroup);
+    const ground = bowGroup.getWorldPosition(new THREE.Vector3()).y;
+    const raycaster = new THREE.Raycaster();
+    const found: THREE.Vector3[] = [];
+    let reached = 0;
+    for (const light of lights) {
+      const from = light.getWorldPosition(new THREE.Vector3());
+      const range = (light as THREE.PointLight).distance;
+      const samples = [...hullSamples(bowGroup), ...groundSamples(from, Math.ceil(range), ground)];
+      for (const sample of samples) {
+        if (!reaches(light, sample)) continue;
+        reached++;
+        const ray = sample.at.clone().sub(from);
+        const length = ray.length();
+        raycaster.set(from, ray.normalize());
+        raycaster.far = length;
+        const hit = raycaster.intersectObjects(hull, false)[0];
+        if (hit && hit.distance < length - 0.05) found.push(sample.at);
+      }
+    }
+    root.clear();
+    return { found, reached };
+  }
+
+  it('lights nothing the bow hides from it (IV1)', () => {
+    const { found, reached } = leaks();
+    expect(reached).toBeGreaterThan(50);
+    expect(found.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)},${p.z.toFixed(1)}`).slice(0, 10)).toEqual([]);
+  }, 120000);
+
+  it('puts the light in the breach mouth, aimed out of it (IV2)', () => {
+    const { bowGroup } = built();
+    const [spot] = lightsOf(bowGroup);
+    if (!(spot instanceof THREE.SpotLight)) throw new Error('The bow holds no spot light');
+    const inverse = bowGroup.matrixWorld.clone().invert();
+    const apex = spot.getWorldPosition(new THREE.Vector3()).applyMatrix4(inverse);
+    const centre = new THREE.Vector3(BOW_BREACH.along, BOW_BREACH.height, BOW_BREACH.out);
+    expect(apex.distanceTo(centre)).toBeLessThanOrEqual(BOW_BREACH.radius);
+    const aim = spot.target.getWorldPosition(new THREE.Vector3()).applyMatrix4(inverse).sub(apex);
+    const outward = new THREE.Vector3(0, 0, 1);
+    expect(aim.angleTo(outward) + spot.angle).toBeLessThan(Math.PI / 2);
+  });
+
+  it('stands the reactor inside the bow, behind the breach (IV3)', () => {
+    const { bowGroup, reactorGroup } = built();
+    const inBow = reactorGroup.getWorldPosition(new THREE.Vector3()).applyMatrix4(bowGroup.matrixWorld.clone().invert());
+    expect(Math.hypot(inBow.y - BOW_BREACH.height, inBow.z)).toBeLessThan(BOW_BREACH.out);
+    expect(inBow.z).toBeGreaterThan(0);
+    expect(Math.abs(inBow.x - BOW_BREACH.along)).toBeLessThan(BOW_BREACH.radius);
+  });
+
+  it('casts no shadow, gives the reactor no light and the bow one spot (IV4, IV6)', () => {
+    const { bowGroup, reactorGroup } = built();
+    expect(lightsOf(reactorGroup)).toEqual([]);
+    const lights = lightsOf(bowGroup);
+    expect(lights).toHaveLength(1);
+    expect(lights[0]).toBeInstanceOf(THREE.SpotLight);
+    expect(lights[0].castShadow).toBe(false);
+  });
+
+  it('pulses the rod and the light together (IV5)', () => {
+    const root = new THREE.Group();
+    const views = new ObstacleViews(new RenderScope(root, SIZE, new SightLimit(SIZE), true, true), flatTerrain(SIZE));
+    views.sync([bow, reactor], [], []);
+    views.play(null, null, emptyWorld(), {}, 1.3);
+    let rod = 0;
+    let light = 0;
+    root.traverse((o) => {
+      if (o instanceof THREE.SpotLight) light = o.intensity;
+      if (o instanceof THREE.Mesh && (o.material as THREE.MeshLambertMaterial).name === 'glow') rod = (o.material as THREE.MeshLambertMaterial).emissiveIntensity;
+    });
+    expect(rod).toBeGreaterThan(0);
+    expect(light).toBeGreaterThan(0);
+    expect(rod / REACTOR_GLOW.emissive).toBeCloseTo(light / REACTOR_GLOW.intensity, 6);
   });
 });
