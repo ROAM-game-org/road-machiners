@@ -18,7 +18,7 @@ import type { QuestLanguage, QuestValue } from "../data/quests";
 
 export type PatchDeal = DecisionOptions["patchDeal"];
 
-export type NpcFactionId = "bowl" | "nose" | "guidestar" | "administrators" | "scrapjaw" | "kiln" | "independent";
+export type NpcFactionId = "bowl" | "nose" | "guidestar" | "administrators" | "scrapjaw" | "kiln" | "sunward" | "independent";
 export type StandingFactionId = Exclude<NpcFactionId, "independent">;
 export type Faction = "player" | NpcFactionId;
 export type WrongDeed = "attacked" | "robbed" | "stole";
@@ -198,7 +198,8 @@ export type GoalReason =
   | 'avoidRanFrom' | 'breakOffFight' | 'cannotWearDown' | 'holdFull' | 'leftPost' | 'lootWontFit' | 'ranFromIt' | 'salvageOutOfReach'
   | 'takeSpilledCargo' | 'watchedRoad' | 'cornered' | 'defeated'
   | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey'
-  | 'musterCrew' | 'crewLeader' | 'hiredGuard';
+  | 'musterCrew' | 'crewLeader' | 'hiredGuard'
+  | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger';
 
 export type SimNote =
   | { id: 'engineHot' }
@@ -211,6 +212,7 @@ export type SimNote =
   | { id: 'tankLeak'; fuel: number }
   | { id: 'filledSupplies'; site: string }
   | { id: 'hazard' }
+  | { id: 'core' }
   | { id: 'spawnBlocked'; template: string };
 
 export type MoneyReason = { kind: 'contract' } | { kind: 'failedHaul' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' } | { kind: 'holdUp'; vehicle: string };
@@ -321,7 +323,7 @@ export type NpcBrain = {
     fightTurn?: 1 | -1;
     targetSeen?: { id: string; turn: number; pos: Vec; heading: number; speed: number };
     whim?: { kind: 'keep' | 'rush' | 'halt' | 'veer'; until: number; angle: number };
-    farRoute?: { dest: Vec; points: Vec[]; offRoad: boolean };
+    farRoute?: { dest: Vec; points: Vec[]; offRoad: boolean; night?: true };
     musteredAt?: number;
     memories: Memory[];
 };
@@ -374,7 +376,7 @@ export type Obstacle =
 
 export type BrokenProp = { obstacle: Obstacle; turn: number };
 
-export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire';
+export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire' | 'cavalcade' | 'offering' | 'drag';
 export type StateEnding = 'expired' | 'fulfilled' | 'broken';
 export type Plea = 'truce' | 'mercy';
 export type StateData =
@@ -389,6 +391,8 @@ export type StateData =
   | { kind: 'strayFire'; damage: number }
   | { kind: 'aid'; giver: 'player' | 'npc'; fuel: number; supplies: number; price: number; free: boolean; agreed: boolean; started: boolean; work: number; workLeft: number }
   | { kind: 'lootWarning'; targetId: string; answer: LootWarnAnswer | null }
+  | { kind: 'offering'; core: Vec; closest: number }
+  | { kind: 'drag'; drop: Vec }
   | { kind: 'none' };
 export type LootWarnAnswer = 'comply' | 'refuse' | 'fightBack';
 export type NpcState = {
@@ -559,7 +563,9 @@ export type GameEvent =
   | { t: 'encounter'; vehicle: string; encounter: EncounterId | CourierTopic }
   | { t: 'note'; id: NoteId }
   | { t: 'supply'; what: string; note: SimNote }
-  | { t: 'death' }
+  | { t: 'death'; cause: DeathCause }
+  | { t: 'coreBurn'; vehicle: string }
+  | { t: 'sunwardFallen' }
   | { t: 'knockout' }
   | { t: 'wake' }
   | { t: 'scrapPatch'; fuel: number }
@@ -638,6 +644,12 @@ export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: Wa
 export type WorldSettings = { damage: number; fuelUse: number; supplyUse: number; enemyGearGrowth: number };
 export type WorldSetup = { mode: GameModeId; settings: WorldSettings };
 
+export type DeathCause = 'core' | 'injury';
+export type VigilCalls = { count: number; turn: number };
+export type SunwardHunt = { party: string[]; grounds: Vec[]; prey: string | null; over: boolean; breaks: number };
+export type SunwardNight = { dusk: number; roster: string[]; beaten: string[]; calls: Record<string, VigilCalls>; hunt: SunwardHunt | null; shouted: string[]; offered: string[] };
+export type SunwardFacts = { collapsed: number | null; night: SunwardNight | null; lastHunt: number | null };
+
 export type Crater = { id: string; pos: Vec; radius: number; turn: number };
 
 export type World = {
@@ -671,4 +683,5 @@ export type World = {
   lines: HarpoonLine[];
   searchRng: Rng;
   furyRoad: FuryRoadRun | null;
+  sunward: SunwardFacts | null;
 };

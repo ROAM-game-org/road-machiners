@@ -19,6 +19,8 @@ NPC behavior has three layers. Traits in `brain.traits` are permanent. A goal st
 | convoy | Supply convoy | Convoy driver | spawn site, else bowl | supplier | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 2 | 100 | {"kind":"sites","ids":["bowl","nose"]} |
 | convoyGuard | Convoy guard | Convoy guard | its leader, else bowl | guard, brave | scumbag (0.25) | hold | 0 | 2 | 100 | {"kind":"escort","of":"convoy"} |
 | merc | Merc | Merc | independent | merc | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 3 | 70 | {"kind":"sites","ids":["bowl","nose"]} |
+| cavalcade | Cavalcade car | Sunward rider | sunward | cultist | brave (0.2), coward (0.15) | circle | 11 | 8 | 20 | {"kind":"hollow"} |
+| hunter | Sunward hunter | Sunward hunter | sunward | cultist | brave (0.2), coward (0.15) | circle | 13 | 3 | 40 | {"kind":"hollow"} |
 <!-- /wiki:npc-templates -->
 
 ## Traits
@@ -40,6 +42,7 @@ NPC behavior has three layers. Traits in `brain.traits` are permanent. A goal st
 | supplier | never | 1 | 1 | idle.haul +30, idle.trade +15, idle.scavenge  x0.001, strandedSeen.tow +9, hostileSeen.fight  x0.002, attacked.fightBack  x0.1, threatened.comply +1, threatened.fightBack  x0.1, warnedOff.comply +1, warnedOff.fightBack  x0.1, strangerSeen.tale +0.1 |
 | guard | never | 1 | 1 | idle.escort +30, idle.wait +5, idle.travel +1, idle.scavenge  x0.001, hostileSeen.fight +8, attacked.fightBack  x2, threatened.comply  x0.2, threatened.fightBack +2, warnedOff.comply  x0.2, warnedOff.fightBack +2 |
 | merc | offDuty | 1 | 1 | idle.wait +10, idle.travel +1, idle.scavenge  x0.001, hostileSeen.fight +4, attacked.fightBack  x2, threatened.comply  x0.2, threatened.fightBack +2, warnedOff.comply  x0.2, warnedOff.fightBack +2 |
+| cultist | never | 1.2 | 1 | hostileSeen.fight +4, attacked.fightBack  x2, strandedSeen.tow  x0.001, salvageSeen.loot  x0.2, parley.truce  x0.3, parley.beg  x0.3, truceOffered.refuse +2, threatened.comply  x0.3, threatened.fightBack +2, warnedOff.comply  x0.5, aidAsked.give  x0.001, needySeen.aid  x0.001, escortSeen.hire  x0.001 |
 | brave | offDuty | 1.5 | 1 | strangerSeen.challenge +0.05, hostileSeen.flee  x0.05, contactHeard.flee  x0.05, attacked.flee  x0.05, parley.truce  x0.05, parley.beg  x0.05, threatened.flee  x0.05, threatened.comply  x0.05, warnedOff.comply  x0.05, lootContested.warn  x2, lootContested.leave  x0.5, lootContested.fight  x3, warnRefused.fight  x3, fightWhim.rush  x3, crewAsked.join  x2, crewCalled.flee  x0.05 |
 <!-- /wiki:traits -->
 
@@ -134,6 +137,9 @@ Base weights of every option at each decision point. Traits and states add or mu
 | strangerSeen | tip | 0 |
 | strangerSeen | challenge | 0 |
 | strangerSeen | courier | 0 |
+| vigilCalled | accept | 0.3 |
+| vigilCalled | refuse | 1 |
+| vigilCalled | flee | 3 |
 <!-- /wiki:decisions -->
 
 ## States
@@ -163,6 +169,9 @@ A timed state between two vehicles, like a feud or a tow, is owned by `src/sim/s
 | lootWarning | 30 | false |
 | crew | 300 | true |
 | hire | 450 | true |
+| cavalcade |  | true |
+| offering |  | true |
+| drag | 120 | false |
 <!-- /wiki:state-kinds -->
 
 ## Gear levels
@@ -194,6 +203,8 @@ A timed state between two vehicles, like a feud or a tow, is owned by `src/sim/s
 | convoy | 1 | 1 | 3 | 3 |
 | convoyGuard | 1 | 3 | 2 | 0 |
 | merc | 1 | 3 | 2 | 0 |
+| cavalcade | 2 | 3 | 2 | 0 |
+| hunter | 3 | 2 | 1 | 0 |
 <!-- /wiki:loadout-priorities -->
 
 ## Numbers

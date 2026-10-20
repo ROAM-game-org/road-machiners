@@ -22,7 +22,7 @@ export const RULES = {
   refitTurnsPerPart: 2.5,
   parkedSpeed: 0.5,
   yieldDistance: 1.5,
-  traffic: { crossCone: Math.PI / 2, parkedCone: Math.PI / 4 },
+  traffic: { crossCone: Math.PI / 2, parkedCone: Math.PI / 4, passStep: 0.25 },
   maxBulge: 0.25,
   limpSpeed: 1.04,
   gunDragMax: 0.48,

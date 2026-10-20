@@ -28,6 +28,7 @@ VAR scale_seen = false
 VAR hattie_met = false
 
 EXTERNAL money()
+EXTERNAL engine_missing()
 EXTERNAL give_money(amount)
 EXTERNAL pay(amount)
 EXTERNAL begin(quest)
@@ -43,4 +44,6 @@ EXTERNAL works_down()
 EXTERNAL take_work()
 EXTERNAL skill(id)
 EXTERNAL passed()
+EXTERNAL cult_broken()
+EXTERNAL offered_tonight()
 EXTERNAL stretch_pay(stretch)
