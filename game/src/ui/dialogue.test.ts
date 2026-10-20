@@ -78,7 +78,7 @@ const SAMPLE: Record<string, CallVar> = {
   site: { kind: 'site', id: 'granary' },
   bearing: { kind: 'bearing', rad: 1 },
   distance: { kind: 'distance', tiles: 12 },
-  way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
+  way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
   fee: { kind: 'money', amount: 1200 },
   price: { kind: 'money', amount: 45 },
   deal: { kind: 'deal', deal: 'paid', patcher: 'npc', price: 80, parts: 2, turns: 3 },

@@ -10,7 +10,7 @@ import { siteName } from '../text/names';
 
 const STEPS: DirectionStep[] = [
   { do: 'join', octant: 'northWest', span: 'near' },
-  { do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'far' },
+  { do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span: 'far' },
   { do: 'turn', side: 'left', at: { kind: 'site', id: 'dustwell' }, road: { kind: 'heading', octant: 'south' }, span: 'fair' },
   { do: 'turn', side: 'right', at: { kind: 'prop', look: 'waterTower' }, road: { kind: 'to', site: 'granary' }, span: 'near' },
   { do: 'turn', side: 'keepLeft', at: { kind: 'fork', nth: 2 }, road: { kind: 'to', site: 'bowl' }, span: 'near' },
@@ -63,7 +63,7 @@ describe('directionsText', () => {
   it('names the place once and leaves the span off a road leg', () => {
     const steps: DirectionStep[] = [
       { do: 'join', octant: 'northWest', span: 'fair' },
-      { do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'fair' },
+      { do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span: 'fair' },
       { do: 'turn', side: 'left', at: { kind: 'fork', nth: 2 }, road: { kind: 'to', site: 'glass-flats' }, span: 'near' },
       { do: 'arrive', site: 'glass-flats', area: true },
       { do: 'search', clue: { kind: 'site', id: 'glass-flats' }, rough: false },
@@ -72,19 +72,19 @@ describe('directionsText', () => {
   });
 
   it('follows the road without naming it when it leads to the place', () => {
-    const steps: DirectionStep[] = [{ do: 'follow', road: { kind: 'to', site: 'bowl' }, span: 'near' }, { do: 'arrive', site: 'bowl', area: false }];
+    const steps: DirectionStep[] = [{ do: 'follow', road: { kind: 'to', site: 'bowl' }, heading: null, span: 'near' }, { do: 'arrive', site: 'bowl', area: false }];
     expect(resolve(directionsText(steps), 'en')).toBe('Follow the road. The road takes you to the gate.');
   });
 
   it('warns once about a long road leg, and not after a long cut to the road', () => {
-    const road = (span: 'fair' | 'far') => ({ do: 'follow', road: { kind: 'to', site: 'nose' }, span }) as const;
+    const road = (span: 'fair' | 'far') => ({ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span }) as const;
     expect(resolve(directionsText([road('far')]), 'en')).toBe("Take the road to Nose. It's a long haul.");
     expect(resolve(directionsText([{ do: 'join', octant: 'east', span: 'far' }, road('far')]), 'en')).toBe('Cut east a long way to the road. Take the road to Nose.');
   });
 
   it('warns of a long haul once across successive long road legs', () => {
     const steps: DirectionStep[] = [
-      { do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'far' },
+      { do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span: 'far' },
       { do: 'turn', side: 'left', at: { kind: 'fork', nth: 2 }, road: { kind: 'heading', octant: 'north' }, span: 'far' },
       { do: 'askAgain' },
     ];
