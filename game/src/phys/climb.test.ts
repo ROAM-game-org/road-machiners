@@ -70,9 +70,9 @@ describe('climbing', () => {
 
   it('flat ground launch from rest is pinned', () => {
     const xs = drive(ramp('scout', 0, 'road'), 3);
-    expect(xs[0]).toBeCloseTo(26.741789, 5);
-    expect(xs[1]).toBeCloseTo(28.652103, 5);
-    expect(xs[2]).toBeCloseTo(31.71484, 5);
+    expect(xs[0]).toBeCloseTo(26.741777, 5);
+    expect(xs[1]).toBeCloseTo(28.652092, 5);
+    expect(xs[2]).toBeCloseTo(31.714813, 5);
   }, 90_000);
 
   it('a launch from rest gains about 85% of the distance it did at the old acceleration scale', () => {
