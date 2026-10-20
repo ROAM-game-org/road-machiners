@@ -6,6 +6,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
 import { obstacleColliders } from '../../phys/drive';
+import { stepWorld } from '../../phys/snapshot';
 import type { Quat, V3, VehicleFrame } from '../../phys/frames';
 import { hashStr } from '../../render/noise';
 import { bodyOf } from '../../sim/body';
@@ -137,7 +138,7 @@ export class DebrisSim {
   }
 
   private tick(): void {
-    this.world.step();
+    stepWorld(this.world);
     for (const burst of this.bursts) burst.pieces = burst.pieces.filter((p) => this.fly(p));
     for (const burst of this.bursts.filter((b) => b.pieces.length === 0)) {
       for (const c of burst.fixed) this.world.removeCollider(c, false);
