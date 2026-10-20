@@ -207,6 +207,8 @@ Jobs pick in this order. A job starts when its queue has a free worker and no ot
 
 A held card gets no job of any kind, and its queued approval waits while the next one runs.
 
+At most one hotfix job runs in the verify queue. A second hotfix card waits for it, and the free verify worker goes to the next normal card. Hotfix jobs in other queues are not limited.
+
 Queues:
 
 - triage: triage and the waste review.
