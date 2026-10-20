@@ -3,7 +3,7 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
-import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withoutVarga_79_80 } from './save-steps-late';
+import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withoutVarga_79_80 } from './save-steps-late';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -894,6 +894,9 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withBrakeRod_78_79,
   withoutVarga_79_80,
   (world) => world,
+  withHeardCentres_81_82,
+  withShopGoods_82_83,
+  withStapleRestock_83_84,
 ];
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {
@@ -1102,6 +1105,69 @@ function withoutBearingCall_67_68(world: SavedJson): SavedJson {
   const call = player.call as SavedJson | null;
   const said = (call?.line as SavedJson | undefined)?.line;
   return typeof said === 'string' && BEARING_LINES_67_68.includes(said) ? { ...world, player: { ...player, call: null } } : world;
+}
+
+const TOWN_GOODS_82_83: readonly string[] = ['grain', 'textiles', 'meds', 'parts', 'electronics', 'water', 'scrap', 'batteries', 'salt', 'tools', 'rations', 'fuelDrums'];
+
+const STOCK_TARGETS_82_83: Record<string, Record<string, number>> = {
+  bowl: Object.fromEntries(TOWN_GOODS_82_83.map((good) => [good, 120])),
+  nose: { ...Object.fromEntries(TOWN_GOODS_82_83.filter((good) => good !== 'grain').map((good) => [good, 120])), relics: 0 },
+  'salvage-yard': { scrap: 30, parts: 30, tools: 30, rations: 30, fuelDrums: 30, relics: 0 },
+  granary: { rations: 38, grain: 30, salt: 30, water: 30, tools: 30, fuelDrums: 30 },
+  'pump-station': { fuelDrums: 229, tools: 30, batteries: 30, rations: 30 },
+  dustwell: { water: 30, tools: 30, meds: 30, rations: 30, fuelDrums: 30 },
+  'green-pit': { water: 30, salt: 30, textiles: 30, rations: 30, fuelDrums: 30 },
+};
+
+const ELASTICITY_82_83 = 0.6;
+
+function stockFromPressure_82_83(target: number, pressure: number | undefined): number {
+  return Math.max(0, Math.round(target * (1 - (pressure ?? 0) / ELASTICITY_82_83)));
+}
+
+function tradesAt_82_83(shopId: string, good: string): boolean {
+  return good in (STOCK_TARGETS_82_83[shopId] ?? {});
+}
+
+function haulStillRuns_82_83(contract: SavedJson): boolean {
+  return contract.kind !== 'haul' || (tradesAt_82_83(contract.shop as string, contract.good as string) && tradesAt_82_83(contract.to as string, contract.good as string));
+}
+
+function shopWithGoods_82_83(shopId: string, shop: SavedJson): SavedJson {
+  const { pressure = {}, ...rest } = shop as SavedJson & { pressure?: Record<string, number> };
+  const targets = STOCK_TARGETS_82_83[shopId];
+  if (!targets) throw new Error(`Save holds an unknown shop ${shopId}`);
+  const goods = Object.fromEntries(Object.entries(targets).map(([good, target]) => [good, stockFromPressure_82_83(target, pressure[good])]));
+  const contracts = (rest.contracts as SavedJson[]).filter(haulStillRuns_82_83);
+  return { ...rest, contracts, goods, event: null, shortSince: {}, opened: {} };
+}
+
+function withoutHaulGoal_82_83(vehicle: SavedJson): SavedJson {
+  const brain = vehicle.brain as SavedJson | null;
+  if (!brain) return vehicle;
+  const goals = (brain.goals as SavedJson[]).filter((goal) => goal.kind !== 'haul').map(({ load: _load, ...goal }) => goal);
+  const job = vehicle.job as SavedJson | null | undefined;
+  const hauling = job?.kind === 'business' && job.deal === 'haul';
+  return { ...vehicle, job: hauling ? null : job, brain: { ...brain, goals } };
+}
+
+function withShopGoods_82_83(world: SavedJson): SavedJson {
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, shopWithGoods_82_83(id, shop)]));
+  const vehicles = (world.vehicles as SavedJson[]).map(withoutHaulGoal_82_83);
+  return { ...world, shops, vehicles, roadNews: [] };
+}
+
+const STAPLE_SHOPS_83_84 = ['bowl', 'nose'];
+const STAPLE_PART_83_84 = 'stockEngine';
+type SavedShop = { stock: { defId: string }[]; restockAt: number };
+
+function withStapleRestock_83_84(world: SavedJson): SavedJson {
+  const shops = { ...(world.shops as Record<string, SavedShop>) };
+  for (const id of STAPLE_SHOPS_83_84) {
+    const shop = shops[id];
+    if (shop && !shop.stock.some((part) => part.defId === STAPLE_PART_83_84)) shops[id] = { ...shop, restockAt: world.turn as number };
+  }
+  return { ...world, shops };
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

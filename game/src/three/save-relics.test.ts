@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { startKit } from '../data/start';
 import { playerVehicle } from '../sim/damage';
 import { getTradePrice } from '../sim/economy';
-import { shopState } from '../sim/market';
 import { defaultSetup } from '../sim/settings';
 import type { World } from '../sim/types';
 import { newWorld } from '../sim/world';
@@ -36,15 +35,9 @@ describe('a saved world with ship relics', () => {
     expect(loaded.events).toEqual([]);
   });
 
-  it('prices relics at Nose and the Yard from zero pressure, as an old save without them would', () => {
-    const w = freshWorld();
-    for (const shop of ['nose', 'salvage-yard']) delete shopState(w, shop).pressure.relics;
+  it('pays for relics at Nose and the Yard after a reload', () => {
+    const loaded = reload(freshWorld());
 
-    const loaded = reload(w);
-
-    for (const shop of ['nose', 'salvage-yard']) {
-      expect(shopState(loaded, shop).pressure.relics ?? 0).toBe(0);
-      expect(getTradePrice(loaded, playerVehicle(loaded), shop, 'relics', 'buy')).toBeGreaterThan(0);
-    }
+    for (const shop of ['nose', 'salvage-yard']) expect(getTradePrice(loaded, playerVehicle(loaded), shop, 'relics', 'sell')).toBeGreaterThan(0);
   });
 });

@@ -18,6 +18,7 @@ const FLAP_KINDS = new Set(['towDropped', 'towOffer', 'towHitched', 'stateEnded'
 
 const HUNT_ROAD_TARGET = 0.25;
 const HUNT_GOALS = new Set(HUNT.offRoadGoals);
+const GANGS = new Set(['scrapjaw', 'kiln']);
 
 const BROKE_BELOW = Math.min(ECONOMY.supplyPrice.fuel, ECONOMY.supplyPrice.supplies);
 const SOLVENCY_DAYS = 5;
@@ -226,8 +227,6 @@ function printPopulation(lines) {
     console.log(`turn ${snap.t}: ${text}`);
   }
 }
-
-const GANGS = new Set(['scrapjaw', 'kiln']);
 
 function printOffRoad(lines) {
   const moving = lines.flatMap((l) => l.trucks ?? []).filter((v) => GANGS.has(v.faction) && v.speed > 0);

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { Mixer } from "../audio/mixer";
 import { MIX } from "../data/sounds";
-import { dragged, knobAngle, parseSettings, turned } from "./sound";
+import { dragged, knobAngle, parseSettings, SoundSettings, turned } from "./sound";
 
 describe("parseSettings", () => {
   it("starts from the mix volumes", () => {
@@ -63,5 +64,58 @@ describe("knobAngle", () => {
     expect(knobAngle(0)).toBe(-135);
     expect(knobAngle(0.5)).toBe(0);
     expect(knobAngle(1)).toBe(135);
+  });
+});
+
+describe("SoundSettings", () => {
+  function settingsOver(stored: string | null) {
+    const store = new Map<string, string>(stored === null ? [] : [["roam-sound", stored]]);
+    const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) } as unknown as Storage;
+    const mixer = { setBusVolume: vi.fn(), setMuted: vi.fn() };
+    return { settings: new SoundSettings(mixer as unknown as Mixer, storage), mixer, store };
+  }
+
+  it("applies stored settings to the mixer when built", () => {
+    const { mixer, settings } = settingsOver(JSON.stringify({ muted: true, volume: { ui: 0.3, sfx: 0.6, ambient: 0.1, music: 0.9 } }));
+    expect(settings.muted()).toBe(true);
+    expect(mixer.setMuted).toHaveBeenCalledWith(true);
+    expect(mixer.setBusVolume).toHaveBeenCalledWith("music", 0.9);
+    expect(settings.volume("ui")).toBe(0.3);
+  });
+
+  it("saves a volume and the mute under roam-sound in the shape parseSettings reads", () => {
+    const { settings, store, mixer } = settingsOver(null);
+    settings.setVolume("music", 0.25);
+    settings.toggleMute();
+    expect(mixer.setBusVolume).toHaveBeenLastCalledWith("music", 0.25);
+    expect(mixer.setMuted).toHaveBeenLastCalledWith(true);
+    expect(parseSettings(store.get("roam-sound")!)).toEqual({ muted: true, volume: { ...MIX.busVolume, music: 0.25 } });
+  });
+
+  it("tells every listener about a change, and a returned function stops one", () => {
+    const { settings } = settingsOver(null);
+    const first = vi.fn();
+    const second = vi.fn();
+    const stop = settings.onChange(first);
+    settings.onChange(second);
+    settings.setVolume("sfx", 0.1);
+    settings.toggleMute();
+    stop();
+    settings.toggleMute();
+    expect(first).toHaveBeenCalledTimes(2);
+    expect(second).toHaveBeenCalledTimes(3);
+  });
+
+  it("stays silent and saves nothing for a volume that did not change", () => {
+    const { settings, store } = settingsOver(null);
+    const listener = vi.fn();
+    settings.onChange(listener);
+    settings.setVolume("music", settings.volume("music"));
+    expect(listener).not.toHaveBeenCalled();
+    expect(store.size).toBe(0);
+  });
+
+  it("fails loud on corrupt stored settings", () => {
+    expect(() => settingsOver("{")).toThrow();
   });
 });

@@ -26,7 +26,7 @@ import { TERRAIN, TERRAIN_TYPES } from '../data/terrain';
 import { craterReach, craterRimPoints } from '../sim/craters';
 import type { Crater, MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, bearing, clamp, DEG, dist, type Vec } from '../sim/vec';
-import { bodyOf, type Body } from '../sim/body';
+import { bodyOf, rideOf, type Body } from '../sim/body';
 import { wheelMounts } from './body';
 import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius, type Stance } from './turnaround';
 import { navLayer, type NavLayer } from '../sim/nav/layer';
@@ -244,11 +244,11 @@ function addVehicle(world: RAPIER.World, w: World, v: Vehicle): number {
 }
 
 function setMass(body: RAPIER.RigidBody, v: Vehicle): void {
-  const h = bodyOf(v.chassisId).half;
+  const { half: h, comY } = bodyOf(v.chassisId);
   const mass = vehicleMass(v);
   const k = (mass / 3) * T.inertiaScale;
   const inertia = { x: k * (h.y * h.y + h.z * h.z), y: k * (h.x * h.x + h.z * h.z), z: k * (h.x * h.x + h.y * h.y) };
-  body.setAdditionalMassProperties(mass, { x: 0, y: -T.comBelow, z: 0 }, inertia, { x: 0, y: 0, z: 0, w: 1 }, true);
+  body.setAdditionalMassProperties(mass, { x: 0, y: comY, z: 0 }, inertia, { x: 0, y: 0, z: 0, w: 1 }, true);
   body.recomputeMassPropertiesFromColliders();
 }
 
@@ -1073,8 +1073,7 @@ function mountPoint(p: Pose, m: { x: number; z: number }): Vec {
 }
 
 function rideHeight(w: World, v: Vehicle): number {
-  const b = bodyOf(v.chassisId);
-  return heightAt(w.terrain, v.pos.x, v.pos.y) * S + b.wheelRadius + T.suspensionRest - b.wheelY;
+  return heightAt(w.terrain, v.pos.x, v.pos.y) * S + rideOf(bodyOf(v.chassisId));
 }
 
 export function isLifted(d: Drive, w: World, v: Vehicle): boolean {

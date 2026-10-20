@@ -1,5 +1,5 @@
 import { mkdirSync } from 'node:fs';
-import { chromium } from 'playwright';
+import { chromium, firefox } from 'playwright';
 import { playUrl } from './game-url.mjs';
 
 const arg = (name, fallback) => {
@@ -9,6 +9,10 @@ const arg = (name, fallback) => {
 const url = arg('url', 'http://localhost:5173');
 const only = arg('only', '');
 const cpu = process.argv.includes('--cpu');
+const ENGINES = { chromium, firefox };
+const engine = arg('browser', 'chromium');
+if (!ENGINES[engine]) throw new Error(`Unknown --browser ${engine}. Use chromium or firefox.`);
+const SHOT_PREFIX = engine === 'chromium' ? '.playtest/boot-' : `.playtest/boot-${engine}-`;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
 const UNREACHABLE_TEXT = 'The game files did not arrive. Check your connection.';
 const BOOT_LIMIT_MS = timeoutsOff ? 0 : 60000;
@@ -29,7 +33,7 @@ const GPU_ARGS = {
   linux: ['--use-angle=vulkan', '--enable-features=Vulkan', '--disable-vulkan-surface'],
 };
 function launchArgs() {
-  if (cpu) return [];
+  if (cpu || engine !== 'chromium') return [];
   const angle = GPU_ARGS[process.platform];
   if (!angle) throw new Error(`No GPU flags for ${process.platform}. Run with --cpu.`);
   return [...angle, '--enable-gpu', '--ignore-gpu-blocklist'];
@@ -112,7 +116,7 @@ async function freshGame(browser, viewport) {
   await page.goto(playUrl(url));
   await page.waitForSelector('#boot [role=progressbar]');
   await page.waitForFunction(() => document.querySelector('#boot .boot-seg.running') && document.querySelector('[role=progressbar]').getAttribute('aria-valuenow') !== null);
-  await shot(page, `.playtest/boot-${viewport.name}-loading.png`);
+  await shot(page, `${SHOT_PREFIX}${viewport.name}-loading.png`);
   const mid = await page.evaluate(() => {
     const bar = document.querySelector('#boot [role=progressbar]');
     return { now: Number(bar.getAttribute('aria-valuenow')), max: Number(bar.getAttribute('aria-valuemax')), running: document.querySelectorAll('#boot .boot-seg.running').length };
@@ -127,7 +131,7 @@ async function freshGame(browser, viewport) {
   expect(stages(log).includes('Reading the map'), `${viewport.name}: the map step shows its name`);
   expect(/Loading sounds \d+ of \d+/.test(stages(log)), `${viewport.name}: sounds show a real file count`);
   expect(await page.evaluate(() => !document.body.innerText.includes('The game crashed')), `${viewport.name}: no crash screen`);
-  await shot(page, `.playtest/boot-${viewport.name}-playing.png`);
+  await shot(page, `${SHOT_PREFIX}${viewport.name}-playing.png`);
   expect(errors.length === 0, `${viewport.name}: no page errors ${errors.join('; ')}`);
   return page;
 }
@@ -167,7 +171,7 @@ async function rescue(browser, viewport) {
   await page.reload();
   await page.waitForSelector('#ui .save-screen', { state: 'visible', timeout: BOOT_LIMIT_MS });
   expect(await page.evaluate(() => document.getElementById('boot').hidden), `${viewport.name}: #boot is hidden while the rescue panel waits`);
-  await shot(page, `.playtest/boot-${viewport.name}-rescue.png`);
+  await shot(page, `${SHOT_PREFIX}${viewport.name}-rescue.png`);
   await page.getByRole('button', { name: 'New game' }).click();
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   await cleared(page);
@@ -187,7 +191,7 @@ async function startMenu(browser, viewport) {
   expect(await page.evaluate(() => document.getElementById('boot').hidden), `${viewport.name}: #boot is hidden while the start menu waits`);
   expect((await continueOff()) === 'true', `${viewport.name}: Continue is off with no save`);
   expect((await page.getByRole('button', { name: 'Load', exact: true }).getAttribute('aria-disabled')) === 'true', `${viewport.name}: Load is off with no save`);
-  await shot(page, `.playtest/boot-${viewport.name}-start-menu.png`);
+  await shot(page, `${SHOT_PREFIX}${viewport.name}-start-menu.png`);
   await page.getByRole('button', { name: 'New game' }).click();
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   await cleared(page);
@@ -212,7 +216,7 @@ async function failedMap(browser, viewport) {
   await page.route('**/maps/**', (route) => route.fulfill({ status: 404, body: 'gone' }));
   await page.goto(playUrl(url));
   await page.waitForFunction(() => document.body.innerText.includes('Map file'), null, { timeout: BOOT_LIMIT_MS });
-  await shot(page, `.playtest/boot-${viewport.name}-map-failed.png`);
+  await shot(page, `${SHOT_PREFIX}${viewport.name}-map-failed.png`);
   const state = await page.evaluate(() => ({
     mapSegment: document.querySelectorAll('#boot .boot-seg')[1]?.className,
     failed: document.getElementById('boot').classList.contains('failed'),
@@ -230,7 +234,7 @@ async function unreachable(browser, viewport) {
   await page.route('**/maps/**', (route) => (blocked ? route.abort('failed') : route.continue()));
   await page.goto(playUrl(url));
   await page.waitForSelector('#boot .boot-retry', { timeout: BOOT_LIMIT_MS });
-  await shot(page, `.playtest/boot-${viewport.name}-unreachable.png`);
+  await shot(page, `${SHOT_PREFIX}${viewport.name}-unreachable.png`);
   const state = await page.evaluate(() => ({
     crash: document.querySelector('.crash-screen') !== null,
     stage: document.querySelector('#boot .boot-stage').textContent,
@@ -267,7 +271,7 @@ async function failedCode(browser, viewport) {
   await page.route('**/src/three/main.ts*', (route) => route.abort());
   await page.goto(playUrl(url));
   await page.waitForSelector('#boot.failed', { timeout: BOOT_LIMIT_MS });
-  await shot(page, `.playtest/boot-${viewport.name}-code-failed.png`);
+  await shot(page, `${SHOT_PREFIX}${viewport.name}-code-failed.png`);
   const stage = await page.textContent('#boot .boot-stage');
   const valuetext = await page.getAttribute('#boot [role=progressbar]', 'aria-valuetext');
   expect(stage === FAILED_CODE_TEXT && valuetext === FAILED_CODE_TEXT, `${viewport.name}: a failed game module shows the failure text`);
@@ -280,7 +284,7 @@ async function brokenCode(browser, viewport, language) {
   await page.route('**/src/three/main.ts*', (route) => route.fulfill({ status: 200, contentType: 'text/javascript', body: 'let x = ;' }));
   await page.goto(playUrl(url));
   await page.waitForSelector('#boot.failed', { timeout: BOOT_LIMIT_MS });
-  await shot(page, `.playtest/boot-${viewport.name}-code-broken-${language}.png`);
+  await shot(page, `${SHOT_PREFIX}${viewport.name}-code-broken-${language}.png`);
   const stage = await page.textContent('#boot .boot-stage');
   const detail = await page.textContent('#boot .boot-steps');
   expect(stage === START_TEXT[language], `${viewport.name}: broken game code says the game could not start (${language})`);
@@ -295,7 +299,7 @@ async function stalledMap(browser, viewport) {
   await page.route('**/maps/**', () => {});
   await page.goto(playUrl(url));
   await page.waitForSelector('.crash-screen', { timeout: timeoutsOff ? 0 : STALL_LIMIT_MS });
-  await shot(page, `.playtest/boot-${viewport.name}-map-stalled.png`);
+  await shot(page, `${SHOT_PREFIX}${viewport.name}-map-stalled.png`);
   const title = await page.textContent('.crash-title');
   const focused = await page.evaluate(() => document.activeElement?.textContent);
   expect(title === 'Road Machiners could not download its files', `${viewport.name}: a stalled map shows the connection notice`);
@@ -320,7 +324,7 @@ async function hungSaves(browser, viewport) {
 async function droppedModel(browser, viewport) {
   const page = await open(browser, viewport, []);
   let seen = 0;
-  await page.route('**/models/base_carrier.glb', (route) => (++seen <= 2 ? route.abort('internetdisconnected') : route.continue()));
+  await page.route('**/models/base_carrier.glb', (route) => (++seen <= 2 ? route.abort('failed') : route.continue()));
   await page.goto(playUrl(url));
   await cleared(page);
   const crashed = await page.locator('.crash-screen').count();
@@ -333,10 +337,10 @@ async function lostModel(browser, viewport) {
   const page = await open(browser, viewport, []);
   const posts = [];
   page.on('request', (request) => request.method() === 'POST' && posts.push(request.url()));
-  await page.route('**/models/base_carrier.glb', (route) => route.abort('internetdisconnected'));
+  await page.route('**/models/base_carrier.glb', (route) => route.abort('failed'));
   await page.goto(playUrl(url));
   await page.waitForSelector('#boot .boot-retry', { timeout: BOOT_LIMIT_MS });
-  await shot(page, `.playtest/boot-${viewport.name}-load-failed.png`);
+  await shot(page, `${SHOT_PREFIX}${viewport.name}-load-failed.png`);
   const state = await page.evaluate(() => ({
     crash: document.querySelector('.crash-screen') !== null,
     stage: document.querySelector('#boot .boot-stage').textContent,
@@ -352,7 +356,7 @@ async function lostModel(browser, viewport) {
 async function droppedWorker(browser, viewport) {
   const page = await open(browser, viewport, []);
   let seen = 0;
-  await page.route('**/phys/turn*', (route) => (++seen <= 2 ? route.abort('internetdisconnected') : route.continue()));
+  await page.route('**/phys/turn*', (route) => (++seen <= 2 ? route.abort('failed') : route.continue()));
   await page.goto(playUrl(url));
   await cleared(page);
   await page.evaluate(() => window.__ROAM__.endTurn());
@@ -367,12 +371,12 @@ async function lostWorker(browser, viewport) {
   const page = await open(browser, viewport, []);
   const posts = [];
   page.on('request', (request) => request.method() === 'POST' && posts.push(request.url()));
-  await page.route('**/phys/turn*', (route) => route.abort('internetdisconnected'));
+  await page.route('**/phys/turn*', (route) => route.abort('failed'));
   await page.goto(playUrl(url));
   await cleared(page);
   await page.evaluate(() => window.__ROAM__.endTurn());
   await page.waitForSelector('.crash-screen', { timeout: BOOT_LIMIT_MS });
-  await shot(page, `.playtest/boot-${viewport.name}-worker-lost.png`);
+  await shot(page, `${SHOT_PREFIX}${viewport.name}-worker-lost.png`);
   const title = await page.textContent('.crash-title');
   const focused = await page.evaluate(() => document.activeElement?.textContent);
   expect(title === 'Road Machiners could not download its files', `${viewport.name}: a lost worker shows the load-failed title`);
@@ -383,7 +387,7 @@ async function lostWorker(browser, viewport) {
 
 mkdirSync('.playtest', { recursive: true });
 async function inBrowser(run) {
-  const browser = await chromium.launch({ args: launchArgs() });
+  const browser = await ENGINES[engine].launch({ args: launchArgs(), headless: engine === 'chromium' });
   try {
     await run(browser);
   } finally {

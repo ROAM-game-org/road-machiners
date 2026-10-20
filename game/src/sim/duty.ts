@@ -12,7 +12,7 @@ import { dist, type Vec } from './vec';
 export type DutyLeg = { from: Vec; turn: number };
 type Duty = 'patrol' | 'dispatch' | 'guard';
 
-const CONVOY_DUTY_KINDS: readonly NpcActivity['kind'][] = ['haul', 'trade', 'sell'];
+const CONVOY_DUTY_KINDS: readonly NpcActivity['kind'][] = ['trade', 'sell'];
 
 const DUTIES: readonly { trait: TraitId; duty: Duty; pays: (goal: NpcActivity) => boolean }[] = [
   { trait: 'lawman', duty: 'patrol', pays: (goal) => goal.kind === 'patrol' && goal.reason === 'patrolTown' },

@@ -495,13 +495,24 @@ async function drawersAndMenus(session, step) {
     });
   }
   await closeDrawer(page, touch);
+  await step('log-strip', () => touch.tapOn('.log-strip'), async () => {
+    const open = await game(page, () => document.getElementById('ui').dataset.drawer);
+    const tall = await page.locator('.log-strip').evaluate((node) => node.getBoundingClientRect().height >= 32);
+    if (open !== 'log') return `the log strip opened drawer ${open}`;
+    return tall ? true : 'the log strip is under 32px high';
+  });
+  await closeDrawer(page, touch);
   await step('menu-open', () => touch.tapOn('.game-menu .menu-button'), async () => ((await page.locator('.game-menu [role=menu]').isVisible()) ? true : 'menu list is not shown'));
   await step('help-open', () => touch.tapOn('.game-menu [data-entry=help]'), async () => ((await page.locator('#ui .help').isVisible()) ? true : 'help is not shown'));
   await step('help-close', () => touch.tapOn('#ui .help .close'), async () => ((await page.locator('#ui .help').count()) === 0 ? true : 'help is still shown'));
   await step('options-open', async () => {
     await touch.tapOn('.game-menu .menu-button');
     await touch.tapOn('.game-menu [data-entry=options]');
-  }, async () => ((await page.locator('#ui .options-language').isVisible()) ? true : 'options are not shown'));
+  }, async () => {
+    if (!(await page.locator('#ui .options-language').isVisible())) return 'options are not shown';
+    if ((await page.locator('#ui .options .knob').count()) !== 4) return 'Options does not hold the four volume knobs';
+    return (await page.locator('#ui .options .knob').last().isVisible()) ? true : 'the Sound section is not reachable';
+  });
   await step('options-close', () => touch.tapOn('#ui .options-language >> xpath=../button[contains(@class,"close")]'), async () => ((await page.locator('#ui .options-language').count()) === 0 ? true : 'options are still shown'));
 }
 
