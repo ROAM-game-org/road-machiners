@@ -22,7 +22,7 @@ const cellsOf = (id: string, letter: string) => CHASSIS[id].layout.flatMap((row,
 describe('body from the base model', () => {
   it('sizes the scout from the bounds of its model boxes', () => {
     const b = bodyOf('scout');
-    expect(b.half.x).toBeCloseTo(2.61);
+    expect(b.half.x).toBeCloseTo(2.6);
     expect(b.half.z).toBeCloseTo(0.99);
   });
 

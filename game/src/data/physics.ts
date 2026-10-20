@@ -32,7 +32,7 @@ export const PHYSICS = {
   },
   cell: { across: 0.484, along: 0.65 },
   bodies: {
-    pickup: { halfHeight: 0.45, wheelY: -0.3, wheelX: 1.625, wheelZ: 0.89, engine: { x: 1.3, y: 0.05, z: -0.242 }, wheelRadius: 0.46, wheelHalfWidth: 0.185, comHeight: 0.45 },
+    pickup: { halfHeight: 0.45, wheelY: -0.3, wheelX: 1.625, wheelZ: 0.89, engine: { x: 1.475, y: 0.05, z: -0.242 }, wheelRadius: 0.46, wheelHalfWidth: 0.185, comHeight: 0.45 },
     hauler: { halfHeight: 0.6, wheelY: -0.4, wheelX: 1.95, wheelZ: 1.452, engine: { x: 1.625, y: 1.21, z: -0.242 }, wheelRadius: 0.6, wheelHalfWidth: 0.25, comHeight: 0.7 },
     buggy: { halfHeight: 0.35, wheelY: -0.2, wheelX: 0.975, wheelZ: 0.726, engine: { x: 0.65, y: 0.05, z: 0 }, wheelRadius: 0.5, wheelHalfWidth: 0.22, comHeight: 0.4 },
     wagon: { halfHeight: 0.7, wheelY: -0.45, wheelX: 1.3, wheelZ: 0.968, engine: { x: 0.325, y: 0.3, z: -0.242 }, wheelRadius: 0.6, wheelHalfWidth: 0.25, comHeight: 0.75 },
