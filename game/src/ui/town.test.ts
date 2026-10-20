@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { goodRoutesTitle, pressureHint, showsRelief } from "./town";
+import { GARAGE_ONLY, goodRoutesTitle, pressureHint, showsRelief } from "./town";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF } from "../data/market";
 import { shortHere } from "../sim/market";
-import { shortBy } from "./shop-rows";
+import { livePaintPlan, paletteStyle, shortBy } from "./shop-rows";
+import { PAINT } from "../data/chassis";
 import { SHOPS } from "../data/market";
 import { stockTarget, type ShopState } from "../sim/market";
 
@@ -82,5 +83,23 @@ describe("the short tone and the short rule", () => {
         }
       }
     }
+  });
+});
+
+describe("the paint tab", () => {
+  it("colors each swatch with its palette color", () => {
+    expect(paletteStyle("tan")).toBe("--paint:#9c7a3e");
+    expect(paletteStyle("navy")).toBe("--paint:#26346a");
+  });
+
+  it("offers a repaint only for a plan that differs from the current paint in some slot", () => {
+    expect(livePaintPlan(PAINT.standard, null)).toBeNull();
+    expect(livePaintPlan(PAINT.standard, { ...PAINT.standard })).toBeNull();
+    expect(livePaintPlan(PAINT.standard, { ...PAINT.standard, gear: "mint" })).toEqual({ ...PAINT.standard, gear: "mint" });
+    expect(livePaintPlan({ ...PAINT.standard, cab: "navy" }, { ...PAINT.standard, cab: "navy" })).toBeNull();
+  });
+
+  it("shows only at a garage, right after the trucks", () => {
+    expect(GARAGE_ONLY).toEqual(["trucks", "paint"]);
   });
 });

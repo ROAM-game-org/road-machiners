@@ -1043,6 +1043,55 @@
   height: var(--meter-l);
 }
 
+/* Paint: the chassis in the planned paint on the left, one palette row per surface on the right, Buy under the rows. */
+.paint-tab {
+  display: grid;
+  grid-template-columns: calc(var(--portrait-w) * 1.5) 1fr;
+  gap: var(--space-7);
+  align-items: start;
+}
+.paint-preview .chassis-portrait {
+  width: calc(var(--portrait-w) * 1.5);
+  height: calc(var(--portrait-h) * 1.5);
+}
+.paint-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.paint-slot {
+  display: grid;
+  grid-template-columns: var(--icon-3xl) 1fr;
+  align-items: center;
+  gap: var(--space-4);
+}
+.paint-switch {
+  gap: var(--space-2);
+}
+.paint-slot-name {
+  font-size: var(--text-caption);
+  color: var(--ink-label);
+}
+.paint-switch > button {
+  flex: none;
+}
+#ui .paint-switch > button.planned {
+  outline: 1px dashed var(--accent);
+  outline-offset: 1px;
+}
+.paint-swatch {
+  display: block;
+  width: var(--icon-m);
+  height: var(--icon-xs);
+  border: 1px solid var(--line-soft);
+  background: var(--paint);
+}
+.paint-buy {
+  display: flex;
+  justify-content: flex-end;
+  min-height: var(--btn-h-m);
+}
+
 /* Trucks: the layout map beside the stats. */
 .cards.trucks {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-truck-min)), 1fr));

@@ -2,10 +2,13 @@
 import { ECONOMY, GOOD_IDS, PARCEL } from "../data/goods";
 import { CONTRACTS, SHOPS, SHORT_PRESSURE, shopDef, siteRecipes, type Recipe, type ShopDef } from "../data/market";
 import { RULES } from "../data/rules";
+import type { TruckPaint } from "../data/chassis";
 import { partDef, type PartKind } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
 import {
   buyChassis,
+  paintPrice,
+  repaint,
   buyGood,
   buyPrice,
   buyStockPart,
@@ -49,7 +52,7 @@ import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
-import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
+import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
 import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
@@ -69,13 +72,13 @@ import { commandFailure } from "./format";
 import { seesAll } from "./see-all";
 import { vehicleHasPerk } from "../sim/progress";
 
-export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "contracts" | "charts";
+export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "paint" | "contracts" | "charts";
 
 export type StockFilter = "all" | Exclude<PartKind, "core">;
 
 export const STOCK_FILTERS: StockFilter[] = ["all", "weapon", "engine", "armor", "cargo", "scanner", "store", "utility"];
 
-const GARAGE_ONLY: Tab[] = ["trucks"];
+export const GARAGE_ONLY: Tab[] = ["trucks", "paint"];
 
 const CHARTS_SIZE = 640;
 
@@ -84,6 +87,7 @@ export class TownScreen {
   private tab: Tab = "market";
   private stockFilter: StockFilter = "all";
   private error: Msg | null = null;
+  private paintPlan: TruckPaint | null = null;
   private rows = new PartRows(() => this.render());
   private sheet: Sheet | null = null;
   private hoverSheet: Sheet | null = null;
@@ -123,6 +127,7 @@ export class TownScreen {
     if (shopAt(this.host.world())) this.host.apply(enterTown(this.host.world()));
     this.root.style.display = "";
     this.error = null;
+    this.paintPlan = null;
     this.rows.collapse();
     this.render();
   }
@@ -178,6 +183,7 @@ export class TownScreen {
           "data-tab": tab,
           onclick: () => {
             this.tab = tab;
+            this.paintPlan = null;
             this.showList();
           },
         },
@@ -194,6 +200,7 @@ export class TownScreen {
       buyParts: () => this.buyParts(w, shopId),
       sellParts: () => this.sellParts(w),
       trucks: () => this.trucks(w, shopId),
+      paint: () => this.paint(w),
       contracts: () => this.contracts(w, shopId),
       charts: () => this.charts(w, shopId),
     };
@@ -376,6 +383,22 @@ export class TownScreen {
     }));
   }
 
+  private paint(w: World): HTMLElement {
+    const current = w.player.paint;
+    const plan = livePaintPlan(current, this.paintPlan);
+    const buy = plan ? this.priceButton(w, t("goods.buy"), paintPrice(w), (x) => repaint(x, plan), null, "repaint") : null;
+    return paintTab({
+      current,
+      plan,
+      chassisId: playerVehicle(w).chassisId,
+      pick: (slot, id) => {
+        this.paintPlan = { ...(this.paintPlan ?? current), [slot]: id };
+        this.render();
+      },
+      buy,
+    });
+  }
+
   private charts(w: World, shopId: string): HTMLElement {
     const offers = chartsOnSale(w, shopId);
     const picked = offers.find((o) => this.sheet && sheetId(o.sheet) === sheetId(this.sheet)) ?? null;
@@ -530,6 +553,7 @@ export const TAB_ICON: Record<Tab, IconName> = {
   buyParts: "parts",
   sellParts: "trade",
   trucks: "truck",
+  paint: "paint",
   contracts: "clock",
   charts: "journal",
 };

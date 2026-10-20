@@ -1,4 +1,5 @@
 import { ECONOMY } from "../data/goods";
+import { PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
 import { playerVehicle } from "../sim/damage";
 import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
 import { mountedParts } from "../sim/grid";
@@ -126,6 +127,55 @@ export function keepFocus(root: HTMLElement, render: () => void): void {
 export function bar(share: number): HTMLElement {
   return el("div", { class: "meter" }, el("div", { style: `width:${Math.max(0, Math.min(1, share)) * 100}%` }));
 }
+
+export function paletteStyle(id: PaletteId): string {
+  return `--paint:#${PALETTE[id].toString(16).padStart(6, "0")}`;
+}
+
+export function livePaintPlan(current: TruckPaint, plan: TruckPaint | null): TruckPaint | null {
+  return plan && !samePaint(plan, current) ? plan : null;
+}
+
+export type PaintSlot = (typeof PAINT_SLOTS)[number];
+
+export type PaintChoice = {
+  current: TruckPaint;
+  plan: TruckPaint | null;
+  chassisId: string;
+  pick: (slot: PaintSlot, id: PaletteId) => void;
+  buy: HTMLElement | null;
+};
+
+export function paintTab(choice: PaintChoice): HTMLElement {
+  const shown = choice.plan ?? choice.current;
+  return el(
+    "div",
+    { class: "paint-tab" },
+    el("div", { class: "paint-preview" }, chassisPortrait(choice.chassisId, shown)),
+    el("div", { class: "paint-slots" }, ...PAINT_SLOTS.map((slot) => paintSlot(choice, slot)), el("div", { class: "paint-buy" }, choice.buy)),
+  );
+}
+
+function paintSlot(choice: PaintChoice, slot: PaintSlot): HTMLElement {
+  const planned = choice.plan?.[slot];
+  const swatches = PALETTE_IDS.map((id, i) =>
+    el(
+      "button",
+      {
+        class: `btn-s${planned === id && id !== choice.current[slot] ? " planned" : ""}`,
+        "data-paint": id,
+        "aria-pressed": String(choice.current[slot] === id),
+        "aria-label": num(i + 1, "int"),
+        onclick: () => choice.pick(slot, id),
+      },
+      el("span", { class: "paint-swatch", style: paletteStyle(id) }),
+    ),
+  );
+  const name = SLOT_NAMES[slot]();
+  return el("div", { class: "paint-slot", "data-slot": slot }, el("span", { class: "paint-slot-name" }, name), el("div", { class: "option-switch paint-switch", role: "group", "aria-label": name }, ...swatches));
+}
+
+const SLOT_NAMES: Record<PaintSlot, () => Msg> = { body: () => t("paint.body"), cab: () => t("paint.cab"), gear: () => t("paint.gear") };
 
 export type SwapOffer = { reason: Msg | null; swap: () => void };
 
