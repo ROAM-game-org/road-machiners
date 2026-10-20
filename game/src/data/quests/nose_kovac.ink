@@ -32,6 +32,19 @@ VAR asked_paper = false
   ~ heard_mounts = true
   ~ heard_courier = true
   -> hub
++ [What does Nose turn out?]
+  Salt off the pans under the wall. Tools from the forge. Batteries from the cell shop.
+  The forge burns scrap and diesel. The cell shop burns parts and diesel. The scrap and the parts come from the <term=salvage_yard>Yard</term>, the diesel from the Pump Station. Short of any of it, the line stops.
+  { short_of("scrap"):
+    Scrap's short. The forge is cold until the Yard trucks come in. I log it.
+  }
+  { short_of("fuelDrums"):
+    Diesel's short. The forge and the cells both wait on the convoys. I log that too.
+  }
+  { short_of("parts"):
+    Parts are short. The cell shop stands idle, and command asks me why.
+  }
+  -> hub
 + [Any work?]
   {
     - board_full():

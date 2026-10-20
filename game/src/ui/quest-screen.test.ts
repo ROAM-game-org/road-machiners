@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { QuestLive } from '../sim/types';
 import { lastTagged, pagesOf, paragraphsOf } from './quest-lines';
-import { askOf, loadArt, questFrameFits, questPageStacks } from './quest-screen';
+import { askOf, loadArt, scrollTarget, questFrameFits, questPageStacks } from './quest-screen';
 import { QUEST_ART } from '../data/quest-art';
 
 vi.mock('../fetch-asset', async (orig) => ({ ...(await orig<typeof import('../fetch-asset')>()), fetchAsset: async () => new ArrayBuffer(1) }));
@@ -145,5 +145,25 @@ describe('loadArt', () => {
     loadArt(key);
     await vi.advanceTimersByTimeAsync(0);
     expect(img.hasAttribute('src')).toBe(true);
+  });
+});
+
+describe('scrollTarget', () => {
+  const box = { scrollHeight: 900, clientHeight: 400 };
+
+  it('goes to the bottom when a paragraph is added', () => {
+    expect(scrollTarget('append', 120, box)).toBe(500);
+  });
+
+  it('keeps the position after an error redraw', () => {
+    expect(scrollTarget('same', 120, box)).toBe(120);
+  });
+
+  it('starts at the top for a new page', () => {
+    expect(scrollTarget('fresh', 120, box)).toBe(0);
+  });
+
+  it('gives 0 for a box with no size', () => {
+    expect(scrollTarget('append', 0, { scrollHeight: 0, clientHeight: 0 })).toBe(0);
   });
 });

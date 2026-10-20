@@ -6,7 +6,7 @@ One long low slab body with a straight beltline at 0.10 m. The hood runs 41 % of
 with a low center ridge and a cutout over the engine cells, an upright chrome grille standing proud of the nose between squared fender ends,
 and a chrome wrap bumper. The hardtop greenhouse is narrower than the body, in dark vinyl: the windshield stands upright because guns on the roof cells need a step, not a slope,
 the roof runs back to -0.97 and a thick C-pillar slopes to the trunk lid at -1.62. The trunk is the last 27 %.
-Wheels sit on rows 1 and 9 in the outer columns, radius 0.42 m, half width 0.17 m, mount 0.2 m below the center. Arches are cut on them.
+Wheels sit on rows 1 and 9 in the outer columns, radius 0.48 m, half width 0.19 m, mount 0.2 m below the center. Arches are cut on them.
 The sockets arch_front, arch_rear (the left arch center at the hub) and arch_front_top (its crown) let wheelArches.test.ts check them against physics.
 The sill hangs 0.15 m below the collider bottom as skin only.
 Run: blender --background --python tools/blender/base_lincoln.py -- public/models/base_lincoln.glb [tmp/base_lincoln.png]
@@ -39,8 +39,8 @@ SEED = 314
 G = Grid(rows=11, cols=5, half_height=0.35)
 WHEEL_X = 1.95  # PHYSICS.bodies.lincoln.wheelX
 WHEEL_Y = -0.2  # PHYSICS.bodies.lincoln.wheelY
-WHEEL_R = 0.42  # PHYSICS.bodies.lincoln.wheelRadius
-WHEEL_HALF_W = 0.17  # PHYSICS.bodies.lincoln.wheelHalfWidth
+WHEEL_R = 0.48
+WHEEL_HALF_W = 0.19
 HUB_Z = WHEEL_Y - SUSPENSION_REST
 WHEELS_X = [WHEEL_X, -WHEEL_X]
 WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall

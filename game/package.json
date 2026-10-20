@@ -51,7 +51,8 @@
     "quests:check": "vite-node scripts/quests-check.mjs",
     "quest": "vite-node scripts/quest.mjs",
     "quest:playtest": "node scripts/quest-playtest.mjs",
-    "quest:view": "node scripts/quest-view.mjs"
+    "quest:view": "node scripts/quest-view.mjs",
+    "economy:shock": "vite-node scripts/economy-shock.mjs"
   },
   "license": "PolyForm-Noncommercial-1.0.0",
   "description": "",

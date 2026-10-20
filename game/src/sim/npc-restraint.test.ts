@@ -94,7 +94,7 @@ describe('NPC restraint', () => {
       assignAutoOrders(x);
       const fights = topGoal(me)?.kind === 'fight';
       if (fights) expect(Object.keys(me.weaponOrders)).toHaveLength(1);
-      const paid = topGoal(me)?.kind === 'loot' && topGoal(me)?.reason === 'takeHandedCargo';
+      const paid = (topGoal(me)?.kind === 'loot' && topGoal(me)?.reason === 'takeHandedCargo') || x.events.some((e) => e.t === 'holdUp');
       return fights || paid;
     });
     expect(fought).toBeGreaterThan(0.9);

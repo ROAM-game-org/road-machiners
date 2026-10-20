@@ -95,12 +95,6 @@ def check_hits(song_path, bars, plan):
         check_silence(s, [loud(bars[s["from"] - 1] + k * beat) for k in range(s["bars"] * BEATS_PER_BAR)], level)
 
 
-def guitar_wall(plan):
-    bar = plan["guitarWall"]
-    if not any(s["role"] == "wall" and s["from"] == bar and s["bars"] >= PHRASE_BARS for s in plan["sections"]):
-        raise ValueError(f"guitarWall {bar} must start a wall of at least {PHRASE_BARS} bars")
-    return bar
-
 
 def bar_entries(song_path, bars):
     y, sr = librosa.load(song_path, sr=22050, mono=True)
@@ -143,7 +137,7 @@ def map_song(name, plan, song_path, stems_dir, sfx_dir):
     for s in plan["sections"]:
         print(f"{s['role']} {s['from']}: sound enters {entries[s['from'] - 1]:.2f} s after the bar line")
     print(f"wrote {name} with {len(plan['sections'])} sections, guitar lane from {plan['guitarStem']}")
-    return {"title": plan["title"], "file": files["song"].name, "guitars": files["guitars"].name, "cymbals": cymbal, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": power, "barEntry": entries, "guitarWall": guitar_wall(plan), "sections": plan["sections"], "end": plan["end"]}
+    return {"title": plan["title"], "file": files["song"].name, "guitars": files["guitars"].name, "cymbals": cymbal, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": power, "barEntry": entries, "sections": plan["sections"], "end": plan["end"]}
 
 
 def split_once(source, work):

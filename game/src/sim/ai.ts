@@ -173,7 +173,16 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
     const range = Math.max(shortestRange(world, v) - RULES.arriveRadius, clearance);
     return { x: lead.x + Math.cos(b.whim.angle) * range, y: lead.y + Math.sin(b.whim.angle) * range };
   }
+  if (!runsDown(world, v) && dist(v.pos, seen.pos) > longestRange(world, v)) return interceptOf(world, v, seen);
   return fightPoint(world, v, seen, clearance);
+}
+
+export function interceptOf(world: World, v: Vehicle, seen: Vehicle): Vec {
+  const maxSpeed = vehicleStats(world, v).maxSpeed;
+  if (maxSpeed <= 0) return { ...seen.pos };
+  const turns = dist(v.pos, seen.pos) / maxSpeed;
+  const ahead = Math.min(seen.speed * turns, maxSpeed);
+  return { x: seen.pos.x + Math.cos(seen.heading) * ahead, y: seen.pos.y + Math.sin(seen.heading) * ahead };
 }
 
 function haltsOnWhim(world: World, v: Vehicle): boolean {

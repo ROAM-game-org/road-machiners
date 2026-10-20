@@ -9,6 +9,7 @@ import type { Vec } from '../../sim/vec';
 import type { V3 } from '../../phys/frames';
 import { TERRAIN_CHUNK } from './terrain';
 import { outlineProps } from './models';
+import { CLOUD_SHADOWS } from './cloudShadows';
 
 const S = PHYSICS.metersPerTile;
 const MARGIN = 8 * S;
@@ -47,6 +48,7 @@ export class RenderScope {
     chunk.group.add(obj);
     this.owner.set(obj, chunk);
     this.limit.patch(obj, this.grey);
+    CLOUD_SHADOWS.shadeTree(obj);
   }
 
   remove(obj: THREE.Object3D): void {

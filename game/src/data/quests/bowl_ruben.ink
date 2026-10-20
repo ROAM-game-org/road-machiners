@@ -27,6 +27,19 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   I only open the gates. The water that goes through them belongs to the families, and the water trucks bring it from <term=dustwell>Dustwell</term>. That's a well outpost up the north road, hours away. They pour it into the canals at the bottom of Bowl, and the families share it out.
   ~ ruben_water = true
   -> hub
++ [What does Bowl make?]
+  Sorgut, mostly. Every barrel the trucks bring from <term=dustwell>Dustwell</term> goes through my gates to the terraces, and the terraces give it back three sacks for one.
+  The weavers and the clinic need nothing from outside but patience. The machinists' benches eat scrap, and the workshop wants batteries from Nose for its radios. My grandmother called that buying thunder in a box.
+  { short_of("water"):
+    The canals are low this week. The terraces drink after the houses, so the sorgut comes in thin, and nobody thanks the man at the gate.
+  }
+  { short_of("scrap"):
+    The machinists sit idle for want of scrap, and an idle machinist talks more than a dry canal.
+  }
+  { short_of("batteries"):
+    The workshop is out of batteries, so the radios lie open on the benches like fish on a bank.
+  }
+  -> hub
 + {ruben_old} [What did your grandmother tell you about the old days?]
   She said the whole basin was orchards in her own grandmother's time, from wall to wall, and the canals ran full in every season. Then the sky fell and the fruit went with it. She never could agree with herself on which came first.
   What fell is what people call the Fallen Sun.

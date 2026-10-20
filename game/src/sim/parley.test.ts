@@ -147,6 +147,7 @@ describe('NPC pleas to NPCs', () => {
   function holdUp(): { w: World; a: Vehicle; b: Vehicle } {
     const w = quietWorld();
     const a = npcAt(w, 'independent', ['trader'], 34);
+    a.resources!.money = 0;
     addGoods(w, a, 'scrap', 2);
     const b = npcAt(w, 'independent', ['scavenger', 'scumbag'], 40);
     npcAt(w, 'independent', ['scavenger'], 40, 28);
@@ -198,6 +199,7 @@ describe('NPC pleas to NPCs', () => {
     forceOption('mercyBegged', 'spare');
     const w = quietWorld();
     const a = npcAt(w, 'independent', ['trader'], 34);
+    a.resources!.money = 0;
     addGoods(w, a, 'scrap', 2);
     const b = npcAt(w, 'scrapjaw', ['raider'], 40);
     feud(w, a, b);
@@ -361,6 +363,7 @@ describe('player pleas', () => {
     addGoods(start, playerVehicle(start), 'scrap', 2);
     let w = pick(callVehicle(start, npc.id), 'I give up. Let me go.');
     w = pick(w, 'Take what I carry. Just let me drive away.');
+    w = pick(w, 'Fine. Take it.');
     expect(hasCargo(playerVehicle(w))).toBe(false);
     expect(isHostile(w, w.vehicles.find((v) => v.id === npc.id)!, playerVehicle(w))).toBe(false);
   });
