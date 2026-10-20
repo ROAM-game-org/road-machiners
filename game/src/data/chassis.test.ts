@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CHASSIS, HAULER_CHASSIS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef } from './chassis';
+import { CHASSIS, HAULER_CHASSIS, PAINT, PAINT_IDS, PAINT_JOBS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef } from './chassis';
+import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
 import { FURY_ROAD } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
@@ -297,6 +298,57 @@ describe('town garage lineups', () => {
       if (npc.spawn.kind !== 'sites' || npc.spawn.ids.length !== 1) continue;
       const town = npc.spawn.ids[0];
       for (const c of npc.loadout.chassis) expect(TOWN_CHASSIS[town], `${npc.id} ${c.value}`).toContain(c.value);
+    }
+  });
+});
+
+function lab(color: number): [number, number, number] {
+  const [r, g, b] = [16, 8, 0].map((shift) => linear(((color >> shift) & 0xff) / 255));
+  const x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+  const y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+  const z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+  return [116 * labCurve(y) - 16, 500 * (labCurve(x) - labCurve(y)), 200 * (labCurve(y) - labCurve(z))];
+}
+
+function linear(v: number): number {
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+}
+
+function labCurve(t: number): number {
+  return t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+}
+
+function deltaE(a: number, b: number): number {
+  const p = lab(a);
+  const q = lab(b);
+  return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+}
+
+const ROLE_TOPS = [...Object.values(GANG_PAINT), ...Object.values(TEMPLATE_PAINT)].map((p) => p.top);
+const NEW_PRESETS = PAINT_IDS.filter((id) => id !== PAINT.standard);
+
+describe('paint presets', () => {
+  it('keeps the standard pair equal to the paint every player truck had before paint jobs', () => {
+    expect(PAINT_JOBS[PAINT.standard]).toEqual({ top: 0x9c7a3e, side: 0x6e5428, cab: 0x7e8a5a, cabSide: 0x566040 });
+    expect(PAINT_IDS[0]).toBe(PAINT.standard);
+  });
+
+  it('offers five pairs besides the standard one', () => {
+    expect(NEW_PRESETS).toHaveLength(5);
+    expect(PAINT.minApart).toBeGreaterThanOrEqual(20);
+  });
+
+  it.each(NEW_PRESETS)('keeps the body and cab of %s apart from every role paint', (id) => {
+    const paint = PAINT_JOBS[id];
+    for (const role of ROLE_TOPS) {
+      expect(deltaE(paint.top, role)).toBeGreaterThanOrEqual(PAINT.minApart);
+      expect(deltaE(paint.cab, role)).toBeGreaterThanOrEqual(PAINT.minApart);
+    }
+  });
+
+  it('keeps every two presets apart by body color', () => {
+    for (const [i, a] of PAINT_IDS.entries()) {
+      for (const b of PAINT_IDS.slice(i + 1)) expect(deltaE(PAINT_JOBS[a].top, PAINT_JOBS[b].top)).toBeGreaterThanOrEqual(PAINT.minApart);
     }
   });
 });

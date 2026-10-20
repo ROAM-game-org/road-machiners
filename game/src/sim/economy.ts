@@ -1,5 +1,5 @@
 
-import { chassisDef, TOWN_CHASSIS } from "../data/chassis";
+import { chassisDef, isPaintId, PAINT, TOWN_CHASSIS } from "../data/chassis";
 import { ECONOMY, GOODS } from "../data/goods";
 import { SHOPS, shopDef } from "../data/market";
 import { SERVICE_GOOD } from "../data/market";
@@ -645,6 +645,20 @@ export function buyChassis(world: World, chassisId: string): World {
     if (!garageChassis(town.id).includes(chassisId))
       throw new Error(`${chassisId} is not for sale at ${town.id}`);
     swapChassis(w, chassisId);
+  });
+}
+
+export function paintPrice(world: World): number {
+  return Math.round(PAINT.share * chassisDef(playerVehicle(world).chassisId).value);
+}
+
+export function repaint(world: World, paintId: string): World {
+  return playerCommand(world, (w) => {
+    requireTown(w);
+    if (!isPaintId(paintId)) throw new Error(`No paint job ${paintId}`);
+    if (w.player.paint === paintId) throw new Error(`The truck is already in ${paintId}`);
+    pay(w, paintPrice(w));
+    w.player.paint = paintId;
   });
 }
 

@@ -1,6 +1,6 @@
 
 import { settleCrews } from './crews';
-import { CHASSIS } from '../data/chassis';
+import { CHASSIS, PAINT } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
@@ -117,6 +117,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
         profit: 0, deal: 0, call: 0, honk: 0, contract: 0, freeTow: 0, aid: 0,
       },
       perks: [],
+      paint: PAINT.standard,
       marked: [],
       rumored: [],
       encounters: { next: 0, pending: null, story: null },
