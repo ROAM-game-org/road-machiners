@@ -132,6 +132,7 @@ Group trucks spawn out of sight with full tanks and no cargo, parked and heading
 - Its drive hunts its prey. While its moving prey is more than 6 tiles behind it on the road, it rolls north toward the prey's lane instead. It rolls at half the prey's speed while the prey is 46 tiles back, and speeds up as the prey closes, so it reaches the prey's speed as the prey reaches it. While its moving prey is ahead of it beyond its gun reach, it drives at its full speed for a point 12 tiles ahead of the prey. `rollingOrder()` in `src/sim/hunters.ts` holds both rules.
 - Each gun fires on the prey when it can hit it now, in range, in arc and with a line of fire, and otherwise on the nearest player truck it can hit.
 - A hunter drives to where its target will be when it gets there, at most 30 tiles ahead of it and never past the flank spawns.
+- A group truck never drives into a fort. Its drive goal stops 3 tiles short of the fort's wall, the same reach its spawn keeps, and beside the gate lane, so the gate stays open for the convoy. It brakes there and keeps fighting with its guns, and hunts on as soon as its prey is back on the stretch. `holdOnStretch()` in `src/sim/hunters.ts` holds the rule.
 - A group truck that turns to flee is brought back to the fight on the next turn.
 - A group truck never parks on a halt whim, the fight whim that parks a roaming truck for a few turns. It keeps its fight drive instead.
 - Group trucks are never hostile to each other, whatever their factions, so they never fight among themselves.
