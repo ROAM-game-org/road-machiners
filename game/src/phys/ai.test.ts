@@ -35,6 +35,10 @@ function turn(w: World, d: Drive): { w: World; d: Drive } {
   return { w, d: next! };
 }
 
+function dropClaims(w: World): void {
+  for (const shop of Object.values(w.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
+}
+
 function backedTiles(before: Vehicle, after: Vehicle): number {
   const along = (after.pos.x - before.pos.x) * Math.cos(after.heading) + (after.pos.y - before.pos.y) * Math.sin(after.heading);
   return Math.max(0, -along);
@@ -164,9 +168,11 @@ describe('NPC driving', () => {
     addGoods(w, npc, 'scrap', 1);
     npc.brain.goals = [{ kind: 'sell', targetId: nose.id, destination: { ...nose.pos }, phase: 'travel', reason: 'deliverCargo' }];
     let arrived = false;
+    dropClaims(w);
     let d = buildDrive(w);
     for (let i = 0; i < w.size && !arrived; i++) {
       ({ w, d } = turn(w, d));
+      dropClaims(w);
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player' || v.id === npc.id);
       const actor = w.vehicles.find((v) => v.id === npc.id)!;
       arrived = canUseSite(actor.pos, nose);
