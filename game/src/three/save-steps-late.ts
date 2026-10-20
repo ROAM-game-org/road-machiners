@@ -171,6 +171,26 @@ export function withOfferedNight_86_87(world: SavedJson): SavedJson {
   return { ...world, sunward: { ...sunward, night: { ...night, offered: [] } } };
 }
 
+const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
+const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];
+const CONVOY_DUTIES_59_60: readonly string[] = ['haul', 'trade', 'sell'];
+
+function isDutyGoal_59_60(templateId: string, goal: SavedJson): boolean {
+  if (LAWMEN_59_60.includes(templateId)) return goal.kind === 'patrol' && goal.reason === 'patrolTown';
+  if (templateId === 'courier') return goal.kind === 'travel' && SHOPS_59_60.includes(goal.targetId as string);
+  return templateId === 'convoy' && CONVOY_DUTIES_59_60.includes(goal.kind as string);
+}
+
+export function withDutyLegs_59_60(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain) return v;
+    const goals = (brain.goals as SavedJson[]).map((goal) => (isDutyGoal_59_60(brain.templateId as string, goal) ? { ...goal, leg: { from: { ...(v.pos as SavedJson) }, turn: world.turn } } : goal));
+    return { ...v, brain: { ...brain, goals } };
+  });
+  return { ...world, vehicles };
+}
+
 export function withEncounters_64_65(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   if (player.encounters !== undefined) return world;

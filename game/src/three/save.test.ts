@@ -37,7 +37,7 @@ import { sunAt } from '../sim/sun';
 import { playerSees, practiceContacts, refreshVision } from '../sim/vision';
 import { surveySites } from '../sim/survey';
 import { TIME } from '../data/time';
-import { SAVE_MAJOR, TINY_FROM } from './save-migrations';
+import { SAVE_MAJOR } from './save-migrations';
 import SAVED_SHAPE from './save-shape.json';
 import { allSlots, type SlotId } from './save-slots';
 import { lostQuestNames, newGameShape, questLinks, questNames } from '../test/save-shape';
@@ -981,7 +981,7 @@ describe('saveKey', () => {
 
   it('throws a SaveError when a migration step cannot read an old save', () => {
     const slots = makeSlots();
-    slots.put('auto', { format: { major: SAVE_MAJOR, minor: TINY_FROM }, world: { vehicles: 5, player: 7 } });
+    slots.put('auto', { format: { major: SAVE_MAJOR, minor: 1 }, world: { vehicles: 5, player: 7 } });
     expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/notMigrated/);
   });
 });

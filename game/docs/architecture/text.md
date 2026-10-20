@@ -33,7 +33,7 @@ The sim never imports `src/text/` and never makes English. `src/sim/types.ts` de
 - `UnitId`: the unit of a counted call value.
 - `LineId` in `src/data/dialogue.ts`: every radio line, by id. A call keeps the id of the line said last.
 
-A truck has no saved name. Its title comes from the player's own truck or from its template's profession and its driver. A bounty names its target by template. Saves from before the text ids sit on an older map and carry over through the rescue, as [Saves](saves.md) describes.
+A truck has no saved name. Its title comes from the player's own truck or from its template's profession and its driver. A bounty names its target by template. Save step 19 to 20 maps old saves to the ids, as [Saves](saves.md) describes.
 
 ## The active language and live text
 
@@ -58,6 +58,7 @@ All of them run in `npm test` and `npm run typecheck`. Together the text tests t
 - `src/text/catalog.test.ts`: no Russian entry holds a form the committee rejected, like «чинено» or «удлинённая платформа». Every entry parses in every language, uses exactly its schema's params, and has exactly the language's plural forms (`one, other` in English and `one, few, many, other` in Russian). No Russian entry may copy its English, apart from a short list of brands and language names. Radio talk and broadcasts hold none of the game phrases in `src/test/out-of-character.ts`, like "your turn", "level up" or «твой ход». Everyday words like "turn", "level", «ход» and «уровень» pass.
 - `src/text/coverage.test.ts`: every data id the game can show, like each part, chassis, good, template, site, terrain, trait, skill, perk, radio line and broadcast, has its words in every language.
 - `src/text/scan.test.ts`: it parses every production file of `src/ui`, `src/three`, `src/sim`, `src/data`, `src/render` and `src/text` with `oxc-parser`. It fails on a prose literal, on a text sink like `.textContent =`, `.title =`, `setAttribute` of a text attribute or `confirm()` without `say()`, on `.innerHTML =`, on Cyrillic outside `src/text/ru/`, and on `as Msg`, `new Msg` or `verbatim` of a literal outside `src/text/`. Each failure prints `file:line`, the rule and the literal.
+- `src/text/fixtures.test.ts`: an old save migrates, and every goal, call, contract and truck title it holds reads in both languages.
 - `src/sim/text-free.test.ts`: a seeded world played for 120 turns holds no phrase in its events, goals or call.
 - `npm run layout`, below, checks the real DOM. `npm run playtest` picks Russian by keyboard alone through Menu → Options → Language, checks the HUD and the log, checks that the choice outlives a reload, and picks English back by mouse. It fails on any language control outside the Options panel.
 - `npm run text:review` is not a check. It writes the review sheet for reading Russian in context, as [Russian copy](../writing/russian.md) describes.
