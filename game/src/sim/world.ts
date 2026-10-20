@@ -526,7 +526,10 @@ export type Carried = {
   notes: string[];
   revisions: SavedRevisions;
   run: CarriedRun | null;
+  refunded: Refund[];
 };
+
+export type Refund = { id: string; money: number };
 
 export type CarriedRun = {
   from: number;
@@ -539,6 +542,7 @@ export type CarriedRun = {
 export type CarryReport = {
   toGarage: string[];
   sold: { good: string; units: number; money: number }[];
+  refunded: Refund[];
   lost: string[];
   settingsReset: (keyof WorldSettings)[];
   questsReset: string[];
@@ -548,13 +552,14 @@ const KNOWN_SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.
 
 export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: WorldSetup, seed: number, window: number) => BakedMap, freshSeed: () => number): { world: World; report: CarryReport } {
   const { setup, reset } = carriedSetup(carried.setup);
-  const report: CarryReport = { toGarage: [], sold: [], lost: [], settingsReset: reset, questsReset: [] };
+  const report: CarryReport = { toGarage: [], sold: [], refunded: [], lost: [], settingsReset: reset, questsReset: [] };
   const truckKit = carriedKit(carried, kit, report);
   const seed = pick(carried.seed, freshSeed());
   const run = runIn(setup, carried.run);
   const from = startOutpost(run);
   const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed, from), setup, true, carriedStart(seed, setup, from));
   carryPlayer(world, carried);
+  carryRefunds(world, carried.refunded, report);
   carryQuests(world, carried, report);
   carryPlayerTruck(world, carried, carried.truck !== null && truckKit !== kit, report);
   if (run) carryRun(world, run, report);
@@ -630,6 +635,11 @@ function carryPlayer(world: World, c: Carried): void {
   for (const skill of SKILL_IDS) p.ranks[skill] = Math.min(MAX_RANK, Math.max(0, Math.floor(pick(c.ranks[skill], 0))));
   for (const source of Object.keys(XP_SOURCES) as XpSource[]) p.xpBySource[source] = pick(c.xpBySource[source], 0);
   carryPerks(world, c.perks);
+}
+
+function carryRefunds(world: World, refunds: Refund[], report: CarryReport): void {
+  for (const refund of refunds) world.player.money += refund.money;
+  report.refunded.push(...refunds);
 }
 
 function knownSite(world: World, id: string): boolean {

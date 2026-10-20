@@ -6,12 +6,12 @@ import { townAt } from '../sim/sites';
 import { carriedWorld, newWorld } from '../sim/world';
 import { loadWorld, saveOf, savedRunId } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { readCarried, rescueSave } from './save-rescue';
+import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
 import FORMAT_2_1 from './save-fixtures/format-2-1.json';
 import FORMAT_2_9 from './save-fixtures/format-2-9.json';
-import { MIGRATIONS } from './save-migrations';
-import { defaultSetup } from '../sim/settings';
+import { TINY_STEPS } from './save-migrations';
+import { defaultSetup, repairSetup } from '../sim/settings';
 
 const KIT = startKit('standard');
 const fresh = () => 5;
@@ -42,7 +42,7 @@ describe('readCarried', () => {
 
   it('reads skill XP from before format 2.10 as the 9 to 10 step does', () => {
     const old = readCarried({ format: { major: 2, minor: 9 }, world: FORMAT_2_9 });
-    const migrated = readCarried({ format: { major: 2, minor: 10 }, world: MIGRATIONS[9](FORMAT_2_9) });
+    const migrated = readCarried({ format: { major: 2, minor: 10 }, world: TINY_STEPS[9](FORMAT_2_9) });
     expect(old.ranks).toEqual({ driving: 0, perception: 1, machining: 2, toughness: 5, social: 3 });
     expect(old.xp).toBe(1549);
     expect({ xp: old.xp, ranks: old.ranks }).toEqual({ xp: migrated.xp, ranks: migrated.ranks });
@@ -91,6 +91,109 @@ describe('readCarried', () => {
     const carried = readCarried(save);
     expect(carried.truck!.items).toHaveLength(truck.items.length - 1);
     expect(carried.money).toBeNull();
+  });
+
+  it('carries money in cents and pooled skills from a trimmed 2.1 save', () => {
+    const world = { ...FORMAT_2_1, player: { ...FORMAT_2_1.player, money: 300, skills: { driving: 250, social: 700 } } };
+    const carried = readCarried({ format: { major: 2, minor: 1 }, world });
+    expect(carried.money).toBe(10000);
+    expect(carried.ranks).toEqual({ driving: 1, social: 2 });
+    expect(carried.xp).toBe(50 + 100);
+    const { world: rescued } = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
+    expect(rescued.player.money).toBe(10000);
+    expect(rescued.player.ranks.social).toBe(2);
+  });
+
+  it('renames the cab cores that format 2.2 replaced instead of losing them', () => {
+    for (const retired of ['cabOver', 'cabRow', 'cabWide', 'cabNarrow']) {
+      const part = { defId: retired, wear: 3, hp: 10, rebuilt: false };
+      const save = { world: { player: { vehicleId: 'p', storage: [part] }, vehicles: [] } };
+      expect(readCarried(save).storage).toEqual([{ ...part, defId: 'cabPickup' }]);
+    }
+  });
+
+  it('turns a retired part and a retired good into their prices and lists each', () => {
+    const save = currentSave() as unknown as { world: SavedWorld & { player: { storage: unknown[] } } };
+    const truck = save.world.vehicles.find((v) => v.id === save.world.player.vehicleId)!;
+    const before = truck.items.length;
+    (truck.items as unknown[]).push({ kind: 'good', good: 'ghostGood', x: 0, y: 0, rot: 0 }, { kind: 'good', good: 'ghostGood', x: 1, y: 0, rot: 0 });
+    save.world.player.storage.push({ defId: 'ghostPlate', wear: 1, hp: 5, rebuilt: false });
+    const prices = { ghostPlate: 5000, ghostGood: 300 };
+    const carried = readCarried(save, prices);
+    expect(carried.refunded).toEqual([{ id: 'ghostGood', money: 600 }, { id: 'ghostPlate', money: 5000 }]);
+    expect(carried.truck!.items).toHaveLength(before);
+    expect(carried.storage).toEqual([]);
+    expect(carried.money).toBe(4321);
+
+    const { world, report } = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
+    expect(world.player.money).toBe(4321 + 5600);
+    expect(report.refunded).toEqual(carried.refunded);
+    expect(report.lost).not.toContain('ghostPlate');
+    expect(report.lost).not.toContain('ghostGood');
+  });
+
+  it('refunds nothing for ids the table does not hold, and lists unknown ids as lost', () => {
+    const save = currentSave() as unknown as { world: SavedWorld & { player: { storage: unknown[] } } };
+    save.world.player.storage.push({ defId: 'ghostPlate', wear: 0, hp: 0, rebuilt: false });
+    const carried = readCarried(save);
+    expect(carried.refunded).toEqual([]);
+    const { world, report } = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
+    expect(report.lost).toContain('ghostPlate');
+    expect(report.refunded).toEqual([]);
+    expect(world.player.money).toBe(4321);
+  });
+
+  it('moves notes and quest variables that later steps renamed, and marks Hattie met', () => {
+    const player = {
+      notes: [{ id: 'wagonPin' }, { id: 'talkOnePin' }, { id: 'greenPit' }],
+      quests: {
+        world: { wagon_pin: 'sold', towed_to_bowl: true },
+        local: { nose_lena: { asked_pins: true }, bowl_hattie: { hattie_sunward: true }, nose_kovac: { heard_gate_law: true, asked_gate_law: true } },
+      },
+    };
+    const carried = readCarried({ format: { major: 2, minor: 50 }, world: { player } });
+    expect(carried.notes).toEqual(['wagonRod', 'talkBrakeRod', 'greenPit']);
+    expect(carried.quests.world).toEqual({ wagon_rod: 'sold', towed_to_bowl: true, hattie_met: true });
+    expect(carried.quests.local).toEqual({ nose_lena: { asked_rods: true }, bowl_hattie: { hattie_glass: true }, nose_kovac: { heard_mounts: true, asked_mounts: true } });
+    const current = readCarried({ format: { major: 2, minor: 89 }, world: { player } });
+    expect(current.quests.world).toEqual({ wagon_pin: 'sold', towed_to_bowl: true });
+  });
+
+  it('keeps a variable that already holds its new name', () => {
+    const player = { quests: { world: { wagon_pin: 'sold', wagon_rod: 'kept' }, local: {} } };
+    expect(readCarried({ format: { major: 2, minor: 10 }, world: { player } }).quests.world).toEqual({ wagon_pin: 'sold', wagon_rod: 'kept' });
+  });
+
+  it('reads the first highway mode as Chaos Highway with the gear setting it lacked', () => {
+    const setup = { mode: 'gauntlet', settings: { damage: 1.5, fuelUse: 1, supplyUse: 1 } };
+    const carried = readCarried({ format: { major: 2, minor: 48 }, world: { setup, player: { money: 5 } } });
+    expect(carried.setup).toEqual({ mode: 'furyRoad', settings: { enemyGearGrowth: 1, damage: 1.5, fuelUse: 1, supplyUse: 1 } });
+    expect(repairSetup(carried.setup)).toEqual({ setup: carried.setup, reset: [] });
+  });
+});
+
+describe('carriedSave', () => {
+  it('returns the carried world, report and run id and writes nothing to any slot', () => {
+    const slots = makeSlots();
+    const save = currentSave();
+    save.world.mapHash = 'other';
+    slots.put('slot2', { ...save, runId: 'old-run' });
+    const before = JSON.stringify(slots.get('slot2'));
+    const carried = carriedSave(slots, 'slot2', TEST_MAP, KIT, fresh, freshRun)!;
+    expect(carried.runId).toBe('old-run');
+    expect(carried.world.player.money).toBe(4321);
+    expect(carried.report.refunded).toEqual([]);
+    expect(JSON.stringify(slots.get('slot2'))).toBe(before);
+    expect(slots.has('auto')).toBe(false);
+  });
+
+  it('names a run after the seed or makes a fresh run id, and gives null for an unreadable save', () => {
+    const slots = makeSlots();
+    expect(carriedSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun)).toBeNull();
+    slots.put('auto', { world: { player: { money: 5 } } });
+    expect(carriedSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun)!.runId).toBe('new-run');
+    slots.put('auto', currentSave());
+    expect(carriedSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun)!.runId).toBe('legacy-1337');
   });
 });
 

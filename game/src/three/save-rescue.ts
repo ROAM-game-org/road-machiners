@@ -1,15 +1,57 @@
 
 import type { StartKit } from '../data/start';
 import type { BakedMap } from '../sim/terrain';
-import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type CarriedRun, type CarryReport } from '../sim/world';
+import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type CarriedRun, type CarryReport, type Refund } from '../sim/world';
 import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
-import { CENTS_PER_MONEY_29_30, pooledSkills_9_10 } from './save-migrations';
 import { savedRevisionsOf, savedRunId, storedSave, writeSave } from './save';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
+
+const CENTS_PER_MONEY_29_30 = 100 / 3;
+const XP_TO_REACH_9_10 = [0, 200, 600, 1200, 2000, 3000];
+
+function pooledSkills_9_10(skills: Record<string, number>): { xp: number; ranks: Record<string, number> } {
+  let xp = 0;
+  const ranks: Record<string, number> = {};
+  for (const [skill, total] of Object.entries(skills)) {
+    let level = 0;
+    while (level < XP_TO_REACH_9_10.length - 1 && total >= XP_TO_REACH_9_10[level + 1]) level++;
+    ranks[skill] = level;
+    xp += total - XP_TO_REACH_9_10[level];
+  }
+  return { xp, ranks };
+}
+
+export const RETIRED_PRICES_RESCUE: Readonly<Record<string, number>> = {};
+
+const RENAMED_PARTS_RESCUE: Readonly<Record<string, string>> = { cabOver: 'cabPickup', cabRow: 'cabPickup', cabWide: 'cabPickup', cabNarrow: 'cabPickup' };
+const RENAMED_NOTES_RESCUE: Readonly<Record<string, string>> = { wagonPin: 'wagonRod', talkOnePin: 'talkBrakeRod' };
+
+type VarRename = { before: number; quest: string | null; from: string; to: string };
+
+const RENAMED_VARS_RESCUE: readonly VarRename[] = [
+  { before: 56, quest: 'bowl_hattie', from: 'hattie_sunward', to: 'hattie_glass' },
+  { before: 79, quest: null, from: 'wagon_pin', to: 'wagon_rod' },
+  { before: 79, quest: 'nose_lena', from: 'asked_pins', to: 'asked_rods' },
+  { before: 89, quest: 'nose_kovac', from: 'heard_gate_law', to: 'heard_mounts' },
+  { before: 89, quest: 'nose_kovac', from: 'asked_gate_law', to: 'asked_mounts' },
+];
+
+const HATTIE_MET_BEFORE = 78;
+const FURY_ROAD_MODE_BEFORE = 49;
+const GEAR_GROWTH_BEFORE = 58;
+const GEAR_GROWTH_START = 1;
+
+function formatBefore(format: number, minor: number): boolean {
+  return format < 2000 + minor;
+}
+
+function renamedIn(table: Readonly<Record<string, string>>, id: string): string {
+  return Object.hasOwn(table, id) ? table[id] : id;
+}
 
 function objectOf(value: unknown): Json | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Json) : null;
@@ -40,7 +82,7 @@ function partOf(value: unknown): CarriedPart | null {
   const part = objectOf(value);
   const defId = idOf(part?.defId);
   if (!part || defId === null) return null;
-  return { defId, wear: countOf(part.wear) ?? 0, hp: countOf(part.hp) ?? 0, rebuilt: part.rebuilt === true };
+  return { defId: renamedIn(RENAMED_PARTS_RESCUE, defId), wear: countOf(part.wear) ?? 0, hp: countOf(part.hp) ?? 0, rebuilt: part.rebuilt === true };
 }
 
 function isGridInt(value: unknown): value is number {
@@ -127,14 +169,19 @@ function soldAt(run: Json, milestone: number): string[] {
 
 const NO_CARRIED: Carried = {
   seed: null, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: null, autoFire: null,
-  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {},
+  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: [],
 };
 
-export function readCarried(raw: unknown): Carried {
+export function readCarried(raw: unknown, prices: Readonly<Record<string, number>> = RETIRED_PRICES_RESCUE): Carried {
   const world = objectOf(objectOf(raw)?.world);
   const player = objectOf(world?.player);
   if (!world || !player) return NO_CARRIED;
-  const scale = moneyScale_29_30(raw);
+  return refundedRetired(readFormatted(raw, world, player), prices);
+}
+
+function readFormatted(raw: unknown, world: Json, player: Json): Carried {
+  const format = formatNumber(raw);
+  const scale = formatBefore(format, 30) ? CENTS_PER_MONEY_29_30 : 1;
   return {
     seed: isGridInt(world.seed) ? world.seed : null,
     money: centsOf(player.money, scale),
@@ -150,33 +197,82 @@ export function readCarried(raw: unknown): Carried {
     costBasis: Object.fromEntries(Object.entries(countsOf(player.costBasis)).map(([good, basis]) => [good, basis * scale])),
     truck: truckOf(world, player),
     storage: listOf(player.storage).flatMap((p) => partOf(p) ?? []),
-    setup: world.setup,
-    quests: questVarsOf(player.quests),
-    run: runOf(world, formatNumber(raw)),
-    notes: listOf(player.notes).flatMap(noteOf),
+    setup: setupOf(world.setup, format),
+    quests: questVarsOf(player.quests, format),
+    run: runOf(world, format),
+    notes: [...new Set(listOf(player.notes).flatMap(noteOf))],
     revisions: savedRevisionsOf(raw),
+    refunded: [],
   };
 }
 
 function noteOf(value: unknown): string[] {
   const id = idOf(objectOf(value)?.id);
-  return id === null ? [] : [id];
+  return id === null ? [] : [renamedIn(RENAMED_NOTES_RESCUE, id)];
 }
 
-function questVarsOf(value: unknown): Carried['quests'] {
+function questVarsOf(value: unknown, format: number): Carried['quests'] {
   const quests = objectOf(value);
   const local = Object.entries(objectOf(quests?.local) ?? {}).flatMap(([id, vars]) => (objectOf(vars) ? [[id, objectOf(vars) as Json] as const] : []));
-  return { world: objectOf(quests?.world) ?? {}, local: Object.fromEntries(local) };
+  const read = { world: objectOf(quests?.world) ?? {}, local: Object.fromEntries(local) };
+  return withHattieMet(RENAMED_VARS_RESCUE.filter((r) => formatBefore(format, r.before)).reduce(withRenamedVar, read), format);
+}
+
+function withRenamedVar(quests: Carried['quests'], { quest, from, to }: VarRename): Carried['quests'] {
+  const vars = quest === null ? quests.world : quests.local[quest];
+  if (!vars || !(from in vars) || to in vars) return quests;
+  const { [from]: value, ...rest } = vars;
+  const moved = { ...rest, [to]: value };
+  return quest === null ? { ...quests, world: moved } : { ...quests, local: { ...quests.local, [quest]: moved } };
+}
+
+function withHattieMet(quests: Carried['quests'], format: number): Carried['quests'] {
+  const knowsHer = quests.world.towed_to_bowl === true || Object.keys(quests.local.bowl_hattie ?? {}).length > 0;
+  return formatBefore(format, HATTIE_MET_BEFORE) && knowsHer ? { ...quests, world: { ...quests.world, hattie_met: true } } : quests;
+}
+
+function setupOf(setup: unknown, format: number): unknown {
+  const read = objectOf(setup);
+  if (!read) return setup;
+  const mode = formatBefore(format, FURY_ROAD_MODE_BEFORE) && read.mode === 'gauntlet' ? 'furyRoad' : read.mode;
+  const settings = formatBefore(format, GEAR_GROWTH_BEFORE) ? { enemyGearGrowth: GEAR_GROWTH_START, ...objectOf(read.settings) } : read.settings;
+  return { ...read, mode, settings };
+}
+
+const idOfItem = (item: CarriedItem): string => (item.kind === 'part' ? item.part.defId : item.good);
+
+function refundedRetired(carried: Carried, prices: Readonly<Record<string, number>>): Carried {
+  const retired = (id: string): boolean => Object.hasOwn(prices, id);
+  const gone = retiredIdsOf(carried).filter(retired);
+  return { ...carried, ...withoutRetired(carried, retired), refunded: refundsOf(gone, prices) };
+}
+
+function retiredIdsOf(carried: Carried): string[] {
+  const hauled = carried.run ? carried.run.hauler.items : [];
+  const mounted = carried.truck ? carried.truck.items : [];
+  return [...mounted, ...hauled].map(idOfItem).concat(carried.storage.map((p) => p.defId));
+}
+
+function withoutRetired(carried: Carried, retired: (id: string) => boolean): Pick<Carried, 'truck' | 'storage' | 'run'> {
+  const kept = (items: CarriedItem[]): CarriedItem[] => items.filter((item) => !retired(idOfItem(item)));
+  const { truck, run } = carried;
+  return {
+    truck: truck && { ...truck, items: kept(truck.items) },
+    storage: carried.storage.filter((p) => !retired(p.defId)),
+    run: run && { ...run, hauler: { ...run.hauler, items: kept(run.hauler.items) } },
+  };
+}
+
+function refundsOf(ids: string[], prices: Readonly<Record<string, number>>): Refund[] {
+  const totals = new Map<string, number>();
+  for (const id of ids) totals.set(id, (totals.get(id) ?? 0) + prices[id]);
+  return [...totals].map(([id, money]) => ({ id, money })).sort((a, b) => a.id.localeCompare(b.id));
 }
 
 function formatNumber(raw: unknown): number {
   const format = objectOf(objectOf(raw)?.format);
   const part = (key: 'major' | 'minor'): number => (typeof format?.[key] === 'number' ? format[key] : 0);
   return part('major') * 1000 + part('minor');
-}
-
-function moneyScale_29_30(raw: unknown): number {
-  return formatNumber(raw) < 2030 ? CENTS_PER_MONEY_29_30 : 1;
 }
 
 function centsOf(value: unknown, scale: number): number | null {
@@ -189,11 +285,17 @@ function pooledOf(player: Json): Pick<Carried, 'xp' | 'ranks'> {
   return pooledSkills_9_10(countsOf(player.skills));
 }
 
-export function rescueSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap, kit: StartKit, freshSeed: () => number, freshRunId: () => string, savedAt: number): { world: World; report: CarryReport; runId: string } | null {
+type Carry = { world: World; report: CarryReport; runId: string };
+
+export function carriedSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap, kit: StartKit, freshSeed: () => number, freshRunId: () => string): Carry | null {
   const parsed = storedSave(slots, slot);
   if (objectOf(parsed) === null) return null;
-  const rescued = carriedWorld(readCarried(parsed), kit, (setup, seed, window) => mapAt(setup, seed, window, icarus), freshSeed);
-  const runId = savedRunId(parsed) ?? freshRunId();
-  writeSave(slots, slot, rescued.world, runId, savedAt);
-  return { ...rescued, runId };
+  const carried = carriedWorld(readCarried(parsed), kit, (setup, seed, window) => mapAt(setup, seed, window, icarus), freshSeed);
+  return { ...carried, runId: savedRunId(parsed) ?? freshRunId() };
+}
+
+export function rescueSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap, kit: StartKit, freshSeed: () => number, freshRunId: () => string, savedAt: number): Carry | null {
+  const carried = carriedSave(slots, slot, icarus, kit, freshSeed, freshRunId);
+  if (carried) writeSave(slots, slot, carried.world, carried.runId, savedAt);
+  return carried;
 }

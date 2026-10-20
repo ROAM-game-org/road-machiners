@@ -23,9 +23,42 @@ import { reportError } from './crash';
 import { CONFIG, GAME_VERSION } from '../config';
 import { download } from '../ui/dom';
 import type { RunLog } from './run-log';
-import { MIGRATIONS, SAVE_FORMAT, SAVE_MAJOR, type SavedJson } from './save-migrations';
+import { SAVE_MAJOR, TINY_STEPS, type SavedJson } from './save-migrations';
 
 declare const __SAVE_SCOPE__: string;
+
+export type Step = (world: SavedJson) => SavedJson;
+export type ReleaseStep = { from: number; to: number; step: Step };
+
+export const RELEASE_STEPS: readonly ReleaseStep[] = [];
+
+export const TINY_FROM = 0;
+
+export const SAVE_FORMAT = { major: SAVE_MAJOR, minor: TINY_FROM + TINY_STEPS.length } as const;
+
+function checkedChain(releases: readonly ReleaseStep[], tinyFrom: number): void {
+  releases.forEach((release, i) => {
+    if (release.to <= release.from) throw new Error(`Release step ${release.from} does not move forward`);
+    const next = i + 1 < releases.length ? releases[i + 1].from : tinyFrom;
+    if (release.to !== next) throw new Error(`Release step ${release.from} to ${release.to} does not meet ${next}`);
+  });
+}
+
+export function stepsOf(releases: readonly ReleaseStep[], tinyFrom: number, tiny: readonly Step[], minor: number): readonly Step[] | null {
+  checkedChain(releases, tinyFrom);
+  if (minor >= tinyFrom && minor <= tinyFrom + tiny.length) return tiny.slice(minor - tinyFrom);
+  const anchor = releases.findIndex((release) => release.from === minor);
+  if (anchor < 0) return null;
+  return [...releases.slice(anchor).map((release) => release.step), ...tiny];
+}
+
+export function stepsFrom(minor: number): readonly Step[] | null {
+  return stepsOf(RELEASE_STEPS, TINY_FROM, TINY_STEPS, minor);
+}
+
+export function anchorMinors(): number[] {
+  return [...RELEASE_STEPS.map((release) => release.from), TINY_FROM];
+}
 
 export function saveKey(scope: string): string {
   return scope === '' ? 'roam.save' : `roam.save.${scope}`;
@@ -35,7 +68,7 @@ export const SAVE_KEY = saveKey(__SAVE_SCOPE__);
 
 export type SaveErrorCode =
   | 'unreadable' | 'otherMap' | 'bakedProps' | 'brokenProp' | 'invalidWorld' | 'invalidSave' | 'badSetup'
-  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badOldSpots' | 'badQuests' | 'newerQuests';
+  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badOldSpots' | 'badQuests' | 'newerQuests' | 'outOfReach';
 
 export class SaveError extends Error {
   constructor(readonly code: SaveErrorCode, readonly format: { major: number; minor: number } | null = null, detail = '') {
@@ -190,10 +223,12 @@ function migratedWorld(stored: unknown): unknown {
   const save = envelopeOf(stored);
   const { major, minor } = formatOf(save);
   if (major !== SAVE_MAJOR) throw new SaveError('incompatible', { major, minor });
-  if (minor > MIGRATIONS.length) throw new SaveError('newer', { major, minor });
+  if (minor > SAVE_FORMAT.minor) throw new SaveError('newer', { major, minor });
+  const steps = stepsFrom(minor);
+  if (!steps) throw new SaveError('outOfReach', { major, minor });
   if (!isJsonObject(save.world)) throw new SaveError('invalidWorld');
   try {
-    return MIGRATIONS.slice(minor).reduce((world, step) => step(world), save.world);
+    return steps.reduce((world, step) => step(world), save.world);
   } catch (err) {
     throw new SaveError('notMigrated', { major, minor }, String(err));
   }

@@ -22,7 +22,7 @@ import { goodsCount } from '../sim/grid';
 import { dropHaul, looseCargo, lootableProps } from '../sim/salvage';
 import { wreckVehicle } from '../sim/combat';
 import { itemMass, vehicleMass } from '../sim/mass';
-import { clearGame, clearSlot, hasSave, loadSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave } from './save';
+import { clearGame, clearSlot, hasSave, loadSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave, SAVE_FORMAT } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
@@ -37,7 +37,7 @@ import { sunAt } from '../sim/sun';
 import { playerSees, practiceContacts, refreshVision } from '../sim/vision';
 import { surveySites } from '../sim/survey';
 import { TIME } from '../data/time';
-import { MIGRATIONS, SAVE_FORMAT, SAVE_MAJOR } from './save-migrations';
+import { SAVE_MAJOR } from './save-migrations';
 import SAVED_SHAPE from './save-shape.json';
 import { allSlots, type SlotId } from './save-slots';
 import { lostQuestNames, newGameShape, questLinks, questNames } from '../test/save-shape';
@@ -498,7 +498,7 @@ describe('game save', () => {
     const cases = [
       [{ major: SAVE_MAJOR - 1, minor: 0 }, saved, /incompatible/],
       [{ major: SAVE_MAJOR + 1, minor: 0 }, saved, /incompatible/],
-      [{ major: SAVE_MAJOR, minor: MIGRATIONS.length + 1 }, saved, /newer/],
+      [{ major: SAVE_MAJOR, minor: SAVE_FORMAT.minor + 1 }, saved, /newer/],
       [{ major: SAVE_MAJOR, minor: -1 }, saved, /noFormat/],
       [SAVE_FORMAT, { turn: 21 }, /invalidWorld/],
     ] as const;
@@ -515,7 +515,7 @@ describe('game save', () => {
     const ids = oldSpotPicks(TEST_MAP).map(oldStockId);
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     saved.salvage = saved.salvage.filter((stock: { id: string }) => !oldSpotOf(stock));
-    slots.put('auto', { format: { major: SAVE_MAJOR, minor: MIGRATIONS.length - 1 }, world: saved, savedAt: 1000, runId: RUN });
+    slots.put('auto', { format: { major: SAVE_MAJOR, minor: SAVE_FORMAT.minor - 1 }, world: saved, savedAt: 1000, runId: RUN });
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
     const oldIds = (w: World): string[] => w.salvage.filter((stock) => oldSpotOf(stock)).map((stock) => stock.id);
     expect(oldIds(loaded)).toEqual(ids);

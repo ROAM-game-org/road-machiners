@@ -15,7 +15,7 @@ import { moneyMsg } from './units';
 
 export function saveErrorText(error: SaveError): Msg {
   const code = error.code;
-  if (code !== 'incompatible' && code !== 'newer' && code !== 'notMigrated') return t(`save.error.${code}`);
+  if (code !== 'incompatible' && code !== 'newer' && code !== 'notMigrated' && code !== 'outOfReach') return t(`save.error.${code}`);
   if (!error.format) throw new Error(`Save error ${code} names no format`);
   return t(`save.error.${code}`, error.format);
 }
@@ -112,7 +112,8 @@ function repairLines(questsReset: readonly string[]): Msg[] {
 
 function carryLines(report: CarryReport): Msg[] {
   const sold = report.sold.map((s) => t('save.sold', { n: s.units, good: goodName(s.good), money: moneyMsg(s.money) }));
-  return [...(report.toGarage.length > 0 ? [t('save.toGarage', { parts: list(report.toGarage.map(partName)) })] : []), ...sold];
+  const refunded = report.refunded.map((r) => t('save.refunded', { id: verbatim(r.id), money: moneyMsg(r.money) }));
+  return [...(report.toGarage.length > 0 ? [t('save.toGarage', { parts: list(report.toGarage.map(partName)) })] : []), ...sold, ...refunded];
 }
 
 function changeLines(changes: Pick<CarryReport, 'lost' | 'settingsReset'>): Msg[] {

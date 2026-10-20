@@ -38,7 +38,7 @@ import { openSaves } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
-import { rescueSave } from './save-rescue';
+import { carriedSave, rescueSave } from './save-rescue';
 import { loadModels, type ModelFailure } from './render/models';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
@@ -80,9 +80,20 @@ async function bootSlot(slot: SlotId): Promise<Booted> {
     if (hasRepair(loaded.repair)) await boot.aside(() => showRepairReport(loaded.repair, soundSettings));
     return { world: loaded.world, runId, loadedFrom: slot, fresh: false };
   } catch (err) {
-    if (!(err instanceof SaveError)) throw err;
-    return rescuedOrNew(err, slot);
+    return unloadedSlot(err, slot);
   }
+}
+
+function unloadedSlot(err: unknown, slot: SlotId): Promise<Booted> {
+  if (!(err instanceof SaveError)) throw err;
+  return err.code === 'outOfReach' ? carriedOrNew(slot) : rescuedOrNew(err, slot);
+}
+
+async function carriedOrNew(slot: SlotId): Promise<Booted> {
+  const carried = carriedSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId);
+  if (!carried) throw new Error('The save became unreadable while carrying');
+  await boot.aside(() => showCarryReport(carried.report, soundSettings));
+  return { world: carried.world, runId: carried.runId, loadedFrom: null, fresh: false };
 }
 
 function freshRun(setup: WorldSetup, intro: boolean): Booted {

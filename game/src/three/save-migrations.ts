@@ -768,7 +768,7 @@ function withEscortJobs_62_63(world: SavedJson): SavedJson {
   return world;
 }
 
-export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
+export const TINY_STEPS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => ({ ...world, player: { ...(world.player as SavedJson), townPatched: false } }),
   (world) => {
     const player = { ...(world.player as Player), storage: [...(world.player as Player).storage] };
@@ -1192,5 +1192,3 @@ export function dropQuest(world: SavedJson, quest: string): SavedJson {
   const { [quest]: _dropped, ...local } = questsOf(quests).local;
   return withQuests(quests, { ...questsOf(quests), local });
 }
-
-export const SAVE_FORMAT = { major: SAVE_MAJOR, minor: MIGRATIONS.length } as const;

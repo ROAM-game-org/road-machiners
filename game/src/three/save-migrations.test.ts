@@ -88,7 +88,7 @@ import FORMAT_2_84 from './save-fixtures/format-2-84.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
-import { dropQuest, dropQuestVar, endQuestSession, MIGRATIONS, moveQuestCheckpoint, pooledSkills_9_10, renameQuestVar, type SavedJson } from './save-migrations';
+import { dropQuest, dropQuestVar, endQuestSession, moveQuestCheckpoint, pooledSkills_9_10, renameQuestVar, TINY_STEPS, type SavedJson } from './save-migrations';
 import FORMAT_2_37 from './save-fixtures/format-2-37.json';
 import FORMAT_2_38 from './save-fixtures/format-2-38.json';
 import FORMAT_2_39 from './save-fixtures/format-2-39.json';
@@ -96,7 +96,7 @@ import FORMAT_2_40 from './save-fixtures/format-2-40.json';
 
 describe('save migrations', () => {
   it('0 to 1 gives the player townPatched false and keeps every other field', () => {
-    const next = MIGRATIONS[0](FORMAT_2_0);
+    const next = TINY_STEPS[0](FORMAT_2_0);
 
     expect(next).toEqual({ ...FORMAT_2_0, player: { ...FORMAT_2_0.player, townPatched: false } });
   });
@@ -104,7 +104,7 @@ describe('save migrations', () => {
 
 describe('save migration 1 to 2', () => {
   type Saved = { player: { vehicleId: string; money: number; storage: { id: string; defId: string }[] }; vehicles: Vehicle[]; removed: Vehicle[] };
-  const next = MIGRATIONS[1](FORMAT_2_1) as Saved;
+  const next = TINY_STEPS[1](FORMAT_2_1) as Saved;
   const all = [...next.vehicles, ...next.removed];
   const vehicle = (id: string) => all.find((v) => v.id === id)!;
   const spot = (v: Vehicle, id: string) => {
@@ -181,7 +181,7 @@ describe('save migration 1 to 2', () => {
 
 describe('save migration 2 to 3', () => {
   it('gives the player aid XP 0 and keeps every other XP source and field', () => {
-    const next = MIGRATIONS[2](FORMAT_2_2);
+    const next = TINY_STEPS[2](FORMAT_2_2);
 
     expect(next).toEqual({
       ...FORMAT_2_2,
@@ -192,20 +192,20 @@ describe('save migration 2 to 3', () => {
 
 describe('save migration 3 to 4', () => {
   it('packs explored into the same bitset a new save writes and keeps other fields', () => {
-    const next = MIGRATIONS[3](FORMAT_2_3) as { player: Record<string, unknown>; turn: number };
+    const next = TINY_STEPS[3](FORMAT_2_3) as { player: Record<string, unknown>; turn: number };
 
     expect(next.player.explored).toBe(packExplored(Uint8Array.from(FORMAT_2_3.player.explored)));
     expect(next).toEqual({ ...FORMAT_2_3, player: { ...FORMAT_2_3.player, explored: next.player.explored } });
   });
 
   it('throws on a value other than 0 or 1', () => {
-    expect(() => MIGRATIONS[3]({ player: { explored: [0, 2] } })).toThrow();
+    expect(() => TINY_STEPS[3]({ player: { explored: [0, 2] } })).toThrow();
   });
 });
 
 describe('save migration 4 to 5', () => {
   type Saved = { kind: string; window?: number; rush?: boolean };
-  const next = MIGRATIONS[4](FORMAT_2_4) as unknown as {
+  const next = TINY_STEPS[4](FORMAT_2_4) as unknown as {
     turn: number;
     player: { money: number; contracts: Saved[] };
     shops: { nose: { contracts: Saved[] } };
@@ -233,7 +233,7 @@ describe('save migration 4 to 5', () => {
 
 describe('save migration 5 to 6', () => {
   it('gives every aid state an unstarted one-turn handover and leaves other states alone', () => {
-    const next = MIGRATIONS[5](FORMAT_2_5) as { states: { data: object }[] };
+    const next = TINY_STEPS[5](FORMAT_2_5) as { states: { data: object }[] };
 
     expect(next.states[0].data).toEqual({ ...FORMAT_2_5.states[0].data, started: false, work: 1, workLeft: 1 });
     expect(next.states[1]).toEqual(FORMAT_2_5.states[1]);
@@ -242,7 +242,7 @@ describe('save migration 5 to 6', () => {
 
 describe('save migration 6 to 7', () => {
   it('marks a defeat as gave up only for a driver out with a working cab', () => {
-    const next = MIGRATIONS[6](FORMAT_2_6) as { vehicles: { defeat?: { gaveUp: boolean } }[] };
+    const next = TINY_STEPS[6](FORMAT_2_6) as { vehicles: { defeat?: { gaveUp: boolean } }[] };
     const [gaveUp, knocked, retreating, free] = next.vehicles;
 
     expect(gaveUp.defeat).toEqual({ ...FORMAT_2_6.vehicles[0].defeat, gaveUp: true });
@@ -253,7 +253,7 @@ describe('save migration 6 to 7', () => {
 });
 
 describe('save migration 7 to 8', () => {
-  const next = MIGRATIONS[7](FORMAT_2_7) as { salvage: { id: string }[]; player: { scavenged: string[] }; vehicles: { job: { stockId: string } | null }[] };
+  const next = TINY_STEPS[7](FORMAT_2_7) as { salvage: { id: string }[]; player: { scavenged: string[] }; vehicles: { job: { stockId: string } | null }[] };
 
   it('drops the Fallen Sun stock and its searched mark, and keeps every other stock', () => {
     expect(next.salvage.map((stock) => stock.id)).toEqual(['wreck3']);
@@ -267,7 +267,7 @@ describe('save migration 7 to 8', () => {
 });
 
 describe('save migration 8 to 9', () => {
-  const next = MIGRATIONS[8](FORMAT_2_8) as { salvage: { id: string }[]; player: { scavenged: string[] }; vehicles: { job: { stockId: string } | null }[] };
+  const next = TINY_STEPS[8](FORMAT_2_8) as { salvage: { id: string }[]; player: { scavenged: string[] }; vehicles: { job: { stockId: string } | null }[] };
 
   it('drops the Old Orchard stock and its searched mark, and keeps every other stock', () => {
     expect(next.salvage.map((stock) => stock.id)).toEqual(['wreck3']);
@@ -282,7 +282,7 @@ describe('save migration 8 to 9', () => {
 
 describe('save migration 9 to 10', () => {
   const reach = [0, 200, 600, 1200, 2000, 3000];
-  const migrated = () => MIGRATIONS[9](FORMAT_2_9) as { player: Pick<Player, 'xp' | 'ranks' | 'perks'> & Record<string, unknown> };
+  const migrated = () => TINY_STEPS[9](FORMAT_2_9) as { player: Pick<Player, 'xp' | 'ranks' | 'perks'> & Record<string, unknown> };
 
   it('turns each old level into the same rank, at 0, mid level, on a threshold and past the top', () => {
     expect(migrated().player.ranks).toEqual({ driving: 0, perception: 1, machining: 2, toughness: 5, social: 3 });
@@ -319,7 +319,7 @@ describe('save migration 9 to 10', () => {
 });
 
 describe('save migration 10 to 11', () => {
-  const next = MIGRATIONS[10](FORMAT_2_10) as { obstacles: Obstacle[] };
+  const next = TINY_STEPS[10](FORMAT_2_10) as { obstacles: Obstacle[] };
 
   it('keeps the world as it was', () => {
     expect(next).toEqual(FORMAT_2_10);
@@ -336,7 +336,7 @@ describe('save migration 10 to 11', () => {
 
 describe('save migration 11 to 12', () => {
   type Brain = { lastTown?: string; memories: unknown[] } | null;
-  const next = MIGRATIONS[11](FORMAT_2_11) as { vehicles: { brain: Brain }[]; removed: { brain: Brain }[] };
+  const next = TINY_STEPS[11](FORMAT_2_11) as { vehicles: { brain: Brain }[]; removed: { brain: Brain }[] };
   const noseMemory = { turn: 900, fact: { kind: 'prices', shop: 'nose', pressure: { salt: -0.2, scrap: 0.1 } } };
 
   it('turns a last town into a memory of its saved prices, on the saved turn', () => {
@@ -363,7 +363,7 @@ describe('save migration 11 to 12', () => {
 
 describe('save migration 12 to 13', () => {
   it('gives the player the headlight switch off and keeps every other field', () => {
-    const next = MIGRATIONS[12](FORMAT_2_12);
+    const next = TINY_STEPS[12](FORMAT_2_12);
 
     expect(next).toEqual({ ...FORMAT_2_12, player: { ...FORMAT_2_12.player, headlights: false } });
   });
@@ -371,7 +371,7 @@ describe('save migration 12 to 13', () => {
 
 describe('save migration 13 to 14', () => {
   const before = structuredClone(FORMAT_2_13);
-  const next = MIGRATIONS[13](FORMAT_2_13) as { states: { data: { partIds?: string[] } }[] };
+  const next = TINY_STEPS[13](FORMAT_2_13) as { states: { data: { partIds?: string[] } }[] };
 
   it('gives a patch the ids of its client parts at 0 HP, in item order', () => {
     expect(next.states[0].data.partIds).toEqual(['p1', 'p2']);
@@ -389,13 +389,13 @@ describe('save migration 13 to 14', () => {
 
 describe('save migration 14 to 15', () => {
   it('keeps a defeated driver on its retreat as it is, so it lies up when it gets home', () => {
-    expect(MIGRATIONS[14](structuredClone(FORMAT_2_14))).toEqual(FORMAT_2_14);
+    expect(TINY_STEPS[14](structuredClone(FORMAT_2_14))).toEqual(FORMAT_2_14);
   });
 });
 
 describe('save migration 15 to 16', () => {
   it('adds no craters and gives every shot and guard round a null burst, changing nothing else', () => {
-    const next = MIGRATIONS[15](FORMAT_2_15);
+    const next = TINY_STEPS[15](FORMAT_2_15);
     const [shot, guard, arrived] = FORMAT_2_15.events;
     const burstless = (rounds: object[]) => rounds.map((round) => ({ ...round, burst: null }));
 
@@ -408,7 +408,7 @@ describe('save migration 15 to 16', () => {
 });
 
 describe('save migration 16 to 17', () => {
-  const next = MIGRATIONS[16](FORMAT_2_16) as { turn: number; weather: WeatherEvent[] };
+  const next = TINY_STEPS[16](FORMAT_2_16) as { turn: number; weather: WeatherEvent[] };
 
   it('gives a storm a birth turn past its build-up and changes nothing else', () => {
     expect(next).toEqual({ ...FORMAT_2_16, weather: [{ ...FORMAT_2_16.weather[0], born: 470 }, FORMAT_2_16.weather[1]] });
@@ -422,7 +422,7 @@ describe('save migration 16 to 17', () => {
 });
 
 describe('save migration 17 to 18', () => {
-  const next = MIGRATIONS[17](FORMAT_2_17) as unknown as World;
+  const next = TINY_STEPS[17](FORMAT_2_17) as unknown as World;
   const shares = (id: string) => next.vehicles.find((v) => v.id === id)!.stormExposure;
 
   it('gives each truck the share each storm has settled to where it stands, and nothing outside', () => {
@@ -445,7 +445,7 @@ describe('save migration 17 to 18', () => {
 });
 
 describe('save migration 18 to 19', () => {
-  const next = MIGRATIONS[18](FORMAT_2_18);
+  const next = TINY_STEPS[18](FORMAT_2_18);
 
   it('marks every far route of a truck in play or removed as planned with roads', () => {
     const route = (v: (typeof FORMAT_2_18.vehicles)[number]) => ({ ...v, brain: { ...v.brain, farRoute: { ...v.brain!.farRoute, offRoad: false } } });
@@ -459,7 +459,7 @@ describe('save migration 18 to 19', () => {
 
 describe('save migration 19 to 20', () => {
   it('drops guard shots, guard kill credit and the gate a driver was shot by, and keeps every other field', () => {
-    const next = MIGRATIONS[19](FORMAT_2_19);
+    const next = TINY_STEPS[19](FORMAT_2_19);
 
     expect(next).toEqual({
       ...FORMAT_2_19,
@@ -472,7 +472,7 @@ describe('save migration 19 to 20', () => {
 
 describe('save migration 20 to 21', () => {
   it('stamps every flee goal with the save turn and keeps every other field', () => {
-    const next = MIGRATIONS[20](FORMAT_2_20);
+    const next = TINY_STEPS[20](FORMAT_2_20);
     const [player, runner, fighter] = FORMAT_2_20.vehicles;
     const fled = (g: { kind: string }) => (g.kind === 'flee' ? { ...g, perceived: 620 } : g);
 
@@ -486,7 +486,7 @@ describe('save migration 20 to 21', () => {
 
 describe('save migration 21 to 22', () => {
   it('gives every fight goal a fresh wear window from the save turn and keeps every other field', () => {
-    const next = MIGRATIONS[21](FORMAT_2_21);
+    const next = TINY_STEPS[21](FORMAT_2_21);
     const [player, raider, runner] = FORMAT_2_21.vehicles;
     const worn = (g: { kind: string }) => (g.kind === 'fight' ? { ...g, worn: { turn: 700, condition: 1 } } : g);
 
@@ -500,7 +500,7 @@ describe('save migration 21 to 22', () => {
 
 describe('save migration 22 to 23', () => {
   it('turns noted hostiles and fight or flee targets into tracks, and keeps every other field', () => {
-    const next = MIGRATIONS[22](FORMAT_2_22) as typeof FORMAT_2_22;
+    const next = TINY_STEPS[22](FORMAT_2_22) as typeof FORMAT_2_22;
     const [player, raider, runner] = FORMAT_2_22.vehicles;
     const [raid, fight] = raider.brain!.goals;
     const { perceived: _, ...untimedFight } = fight;
@@ -536,7 +536,7 @@ describe('save migration 22 to 23', () => {
 
 describe('save migration 23 to 24', () => {
   it('marks every track out of sight and keeps every other field', () => {
-    const next = MIGRATIONS[23](FORMAT_2_23) as typeof FORMAT_2_23;
+    const next = TINY_STEPS[23](FORMAT_2_23) as typeof FORMAT_2_23;
     const [player, runner] = FORMAT_2_23.vehicles;
     const tracks = runner.brain!.tracks;
 
@@ -551,12 +551,12 @@ describe('save migration 24 to 25', () => {
   const before = structuredClone(FORMAT_2_24);
 
   it('does not mutate its input', () => {
-    MIGRATIONS[24](FORMAT_2_24);
+    TINY_STEPS[24](FORMAT_2_24);
     expect(FORMAT_2_24).toEqual(before);
   });
 
   it('drops the circles of the fortress sites and the Bowl and Nose buildings, and keeps every other obstacle', () => {
-    const next = MIGRATIONS[24](FORMAT_2_24) as { obstacles: { id: string }[] };
+    const next = TINY_STEPS[24](FORMAT_2_24) as { obstacles: { id: string }[] };
 
     expect(next.obstacles.map((o) => o.id)).toEqual(['site-old-mill', 'bld-dustwell-1', 'cw-convoy-0', 'wreck4']);
     expect(next.obstacles[0]).toEqual(FORMAT_2_24.obstacles[5]);
@@ -566,13 +566,13 @@ describe('save migration 24 to 25', () => {
     const world = { ...FORMAT_2_24, obstacles: [
       { id: 'pond-dustwell' }, { id: 'pond-green-pit' }, { id: 'pond-old-mill' }, { id: 'lake-west' },
     ] };
-    const next = MIGRATIONS[24](world) as { obstacles: { id: string }[] };
+    const next = TINY_STEPS[24](world) as { obstacles: { id: string }[] };
     expect(next.obstacles.map((o) => o.id)).toEqual(['pond-old-mill', 'lake-west']);
   });
 
   it('drops the old salvage yard wrecks, which a fortress yard no longer has', () => {
     const world = { ...FORMAT_2_24, obstacles: [{ id: 'cw-salvage-yard-0' }, { id: 'cw-convoy-0' }] };
-    const next = MIGRATIONS[24](world) as { obstacles: { id: string }[] };
+    const next = TINY_STEPS[24](world) as { obstacles: { id: string }[] };
 
     expect(next.obstacles.map((o) => o.id)).toEqual(['cw-convoy-0']);
   });
@@ -591,7 +591,7 @@ describe('save migration 25 to 26', () => {
     searchRng: { rngState: number };
     salvage: Stock[];
   };
-  const next = MIGRATIONS[25](FORMAT_2_25) as Saved;
+  const next = TINY_STEPS[25](FORMAT_2_25) as Saved;
   const stock = (id: string) => next.salvage.find((s) => s.id === id)!;
   const before = (id: string) => FORMAT_2_25.salvage.find((s) => s.id === id)!;
   const NO_HIDDEN = { goods: {}, parts: [], fuel: 0, supplies: 0 };
@@ -638,7 +638,7 @@ describe('save migration 25 to 26', () => {
 
 describe('save migration 26 to 27', () => {
   type Contracts = { contracts: Record<string, unknown>[] };
-  const next = MIGRATIONS[26](FORMAT_2_26) as { turn: number; player: Contracts & { money: number }; shops: Record<string, Contracts> };
+  const next = TINY_STEPS[26](FORMAT_2_26) as { turn: number; player: Contracts & { money: number }; shops: Record<string, Contracts> };
 
   it('starts every held and posted bounty unfulfilled', () => {
     expect(next.player.contracts[0]).toEqual({ ...FORMAT_2_26.player.contracts[0], fulfilled: false });
@@ -655,7 +655,7 @@ describe('save migration 26 to 27', () => {
 
 describe('save migration 27 to 28', () => {
   const before = structuredClone(FORMAT_2_27);
-  const next = MIGRATIONS[27](FORMAT_2_27) as { salvage: { id: string }[]; player: { scavenged: string[] }; vehicles: { job: { stockId: string } | null }[] };
+  const next = TINY_STEPS[27](FORMAT_2_27) as { salvage: { id: string }[]; player: { scavenged: string[] }; vehicles: { job: { stockId: string } | null }[] };
 
   it('drops the Glass Flats stock and its searched mark, and keeps every other stock', () => {
     expect(next.salvage.map((stock) => stock.id)).toEqual(FORMAT_2_27.salvage.map((stock) => stock.id).filter((id) => id !== 'glass-flats'));
@@ -671,14 +671,14 @@ describe('save migration 27 to 28', () => {
 
 describe('save migration 28 to 29', () => {
   it('gives the world the default Roaming setup and keeps every other field', () => {
-    const next = MIGRATIONS[28](FORMAT_2_28);
+    const next = TINY_STEPS[28](FORMAT_2_28);
 
     expect(next).toEqual({ ...FORMAT_2_28, setup: { mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1 } } });
   });
 });
 
 describe('save migration 29 to 30', () => {
-  const next = MIGRATIONS[29](structuredClone(FORMAT_2_29)) as typeof FORMAT_2_29;
+  const next = TINY_STEPS[29](structuredClone(FORMAT_2_29)) as typeof FORMAT_2_29;
   const cents = (money: number) => Math.round((money * 100) / 3);
 
   it('turns player money, debt included, cost basis and contract rewards into cents', () => {
@@ -740,7 +740,7 @@ describe('save migration 29 to 30', () => {
 
   it('throws on a money field that is not a number', () => {
     const bad = { ...structuredClone(FORMAT_2_29), player: { ...structuredClone(FORMAT_2_29.player), money: 'x' } };
-    expect(() => MIGRATIONS[29](bad)).toThrow(/player money/);
+    expect(() => TINY_STEPS[29](bad)).toThrow(/player money/);
   });
 
   it('converts every money-named field of the saved shape', () => {
@@ -767,7 +767,7 @@ describe('save migration 29 to 30', () => {
 });
 
 describe('save migration 30 to 31', () => {
-  const next = MIGRATIONS[30](FORMAT_2_30) as typeof FORMAT_2_30;
+  const next = TINY_STEPS[30](FORMAT_2_30) as typeof FORMAT_2_30;
 
   it('keeps the world as it was', () => {
     expect(next).toEqual(FORMAT_2_30);
@@ -782,7 +782,7 @@ describe('save migration 30 to 31', () => {
 });
 
 describe('save migration 31 to 32', () => {
-  const next = MIGRATIONS[31](FORMAT_2_31) as Record<string, unknown> & { vehicles: object[]; player: object; broken: object[] };
+  const next = TINY_STEPS[31](FORMAT_2_31) as Record<string, unknown> & { vehicles: object[]; player: object; broken: object[] };
 
   it('drops trails, the visible tiles, the last turn events and removed vehicles', () => {
     expect(next.vehicles).toEqual(FORMAT_2_31.vehicles.map(({ trail: _t, ...rest }) => rest));
@@ -804,7 +804,7 @@ describe('save migration 31 to 32', () => {
 
 describe('save migration 32 to 33', () => {
   it('drops the contacts and seen clouds and keeps the dust clouds', () => {
-    const next = MIGRATIONS[32](FORMAT_2_32);
+    const next = TINY_STEPS[32](FORMAT_2_32);
     const { contacts: _c, clouds: _s, ...player } = FORMAT_2_32.player;
 
     expect(next).toEqual({ ...FORMAT_2_32, player });
@@ -813,21 +813,21 @@ describe('save migration 32 to 33', () => {
 
 describe('save migration 33 to 34', () => {
   it('keeps a save with only price memories as it is', () => {
-    expect(MIGRATIONS[33](structuredClone(FORMAT_2_33))).toEqual(FORMAT_2_33);
+    expect(TINY_STEPS[33](structuredClone(FORMAT_2_33))).toEqual(FORMAT_2_33);
   });
 });
 
 describe('save migration 34 to 35', () => {
   it('leaves a save from before old-world loot spots as it is, for the load to stock them', () => {
-    const before = MIGRATIONS[33](structuredClone(FORMAT_2_33));
+    const before = TINY_STEPS[33](structuredClone(FORMAT_2_33));
 
-    expect(MIGRATIONS[34](structuredClone(before))).toEqual(before);
+    expect(TINY_STEPS[34](structuredClone(before))).toEqual(before);
   });
 });
 
 describe('save migration 35 to 36', () => {
   it('keeps the states and the open call as they are', () => {
-    expect(MIGRATIONS[35](FORMAT_2_35)).toEqual(FORMAT_2_35);
+    expect(TINY_STEPS[35](FORMAT_2_35)).toEqual(FORMAT_2_35);
   });
 });
 
@@ -838,7 +838,7 @@ describe('save migration 36 to 37', () => {
     player: { call: { line: unknown; vars: Record<string, unknown> } | null; contracts: Record<string, unknown>[] };
     shops: Record<string, { contracts: Record<string, unknown>[] }>;
   };
-  const next = MIGRATIONS[36](FORMAT_2_36) as unknown as Saved;
+  const next = TINY_STEPS[36](FORMAT_2_36) as unknown as Saved;
   const reasons = (v: { brain: { goals: Goal[] } | null }) => v.brain?.goals.map((g) => g.reason);
 
   it('turns known goal reasons into ids, an old phrase into the id that replaced it, and an unknown one into legacy', () => {
@@ -861,14 +861,14 @@ describe('save migration 36 to 37', () => {
   it('turns the warning line of an open loot call into its id', () => {
     const call = { ...FORMAT_2_36.player.call, topic: 'lootWarning', line: { text: '{warnLine}', vars: {} }, vars: { warnLine: { kind: 'line', text: "That's my pick. Roll on." } } };
     const saved = { ...FORMAT_2_36, player: { ...FORMAT_2_36.player, call } };
-    const migrated = MIGRATIONS[36](saved) as unknown as Saved;
+    const migrated = TINY_STEPS[36](saved) as unknown as Saved;
     expect(migrated.player.call?.vars).toEqual({ warnLine: { kind: 'line', line: 'thatsMyPick' } });
     expect(migrated.player.call?.line).toEqual({ line: 'warnTerms', vars: {} });
   });
 
   it('hangs up a call on a line no table knows', () => {
     const unknown = { ...FORMAT_2_36, player: { ...FORMAT_2_36.player, call: { ...FORMAT_2_36.player.call, line: { text: 'Words from a mod', vars: {} } } } };
-    expect((MIGRATIONS[36](unknown) as unknown as Saved).player.call).toBeNull();
+    expect((TINY_STEPS[36](unknown) as unknown as Saved).player.call).toBeNull();
   });
 });
 
@@ -878,7 +878,7 @@ describe('save migration 37 to 38', () => {
   const WAGON_POS_THEN = { x: 171, y: 381 };
 
   it('gives the player an empty journal and puts wagon Seven in place as a new game had it at that format', () => {
-    const next = MIGRATIONS[37](FORMAT_2_37) as typeof FORMAT_2_37 & { player: { notes: unknown[] } };
+    const next = TINY_STEPS[37](FORMAT_2_37) as typeof FORMAT_2_37 & { player: { notes: unknown[] } };
 
     expect(next.player).toEqual({ ...FORMAT_2_37.player, notes: [] });
     expect(next.obstacles).toEqual([...FORMAT_2_37.obstacles, { id: wagon.id, pos: WAGON_POS_THEN, r: wagon.r, kind: 'wreck', hulk: { chassisId: wagon.chassisId, yaw: wagon.yaw } }]);
@@ -888,9 +888,9 @@ describe('save migration 37 to 38', () => {
   });
 
   it('adds no second wagon to a save that holds one', () => {
-    const once = MIGRATIONS[37](FORMAT_2_37);
+    const once = TINY_STEPS[37](FORMAT_2_37);
 
-    const twice = MIGRATIONS[37](once) as typeof FORMAT_2_37;
+    const twice = TINY_STEPS[37](once) as typeof FORMAT_2_37;
 
     expect(twice.obstacles.filter((o) => o.id === wagon.id)).toHaveLength(1);
     expect(twice.salvage.filter((s) => s.id === wagon.id)).toHaveLength(1);
@@ -899,7 +899,7 @@ describe('save migration 37 to 38', () => {
 
 describe('save migration 38 to 39', () => {
   it('gives the player empty quest state with no open quest', () => {
-    const next = MIGRATIONS[38](FORMAT_2_38);
+    const next = TINY_STEPS[38](FORMAT_2_38);
 
     expect(next).toEqual({ ...FORMAT_2_38, player: { ...FORMAT_2_38.player, quests: { world: {}, local: {}, session: null } } });
   });
@@ -907,7 +907,7 @@ describe('save migration 38 to 39', () => {
 
 describe('save migration 39 to 40', () => {
   it('drops the sample quests and their world variable and keeps every other quest name', () => {
-    const next = MIGRATIONS[39](FORMAT_2_39);
+    const next = TINY_STEPS[39](FORMAT_2_39);
 
     expect(next).toEqual({
       ...FORMAT_2_39,
@@ -918,7 +918,7 @@ describe('save migration 39 to 40', () => {
 
 describe('save migration 40 to 41', () => {
   it('drops the depot quest counters that facts replaced and keeps the rest of the open quest', () => {
-    const next = MIGRATIONS[40](FORMAT_2_40);
+    const next = TINY_STEPS[40](FORMAT_2_40);
 
     expect(next).toEqual({
       ...FORMAT_2_40,
@@ -929,7 +929,7 @@ describe('save migration 40 to 41', () => {
 
 describe('save migration 41 to 42', () => {
   it('sets every lie-up spot to its driver place and keeps every other field', () => {
-    const next = MIGRATIONS[41](FORMAT_2_41);
+    const next = TINY_STEPS[41](FORMAT_2_41);
     const [player, resting, patrol] = FORMAT_2_41.vehicles;
 
     expect(next).toEqual({
@@ -940,7 +940,7 @@ describe('save migration 41 to 42', () => {
 });
 
 describe('save migration 42 to 43', () => {
-  const next = MIGRATIONS[42](FORMAT_2_42) as { vehicles: { id: string; items: { id: string; rot: number }[] }[]; player: { storage: { id: string }[] } };
+  const next = TINY_STEPS[42](FORMAT_2_42) as { vehicles: { id: string; items: { id: string; rot: number }[] }[]; player: { storage: { id: string }[] } };
   const itemsOf = (id: string) => next.vehicles.find((v) => v.id === id)!.items;
 
   it('keeps a machine gun whose second cell is free on the same kind of cell as it was', () => {
@@ -1018,7 +1018,7 @@ describe('quest migration helpers', () => {
 
 describe('save migration 43 to 44', () => {
   const before = structuredClone(FORMAT_2_43);
-  const next = MIGRATIONS[43](FORMAT_2_43) as {
+  const next = TINY_STEPS[43](FORMAT_2_43) as {
     salvage: { id: string }[];
     shops: Record<string, { contracts: unknown[]; pressure: Record<string, number>; stock: unknown[]; restockAt: number }>;
     obstacles: { id: string }[];
@@ -1068,19 +1068,19 @@ describe('save migration 43 to 44', () => {
 
 describe('save migration 44 to 45', () => {
   it('keeps a save holding a call that names a haul as it is', () => {
-    expect(MIGRATIONS[44](structuredClone(FORMAT_2_44))).toEqual(FORMAT_2_44);
+    expect(TINY_STEPS[44](structuredClone(FORMAT_2_44))).toEqual(FORMAT_2_44);
   });
 });
 
 describe('save migration 45 to 46', () => {
   it('returns the world unchanged, since no old save holds a business job', () => {
-    expect(MIGRATIONS[45](structuredClone(FORMAT_2_44))).toEqual(FORMAT_2_44);
+    expect(TINY_STEPS[45](structuredClone(FORMAT_2_44))).toEqual(FORMAT_2_44);
   });
 });
 
 describe('save migration 47 to 48', () => {
   it('drops a Gauntlet run laid on Icarus roads and keeps the mode, for the load to rescue it', () => {
-    const next = MIGRATIONS[47](structuredClone(FORMAT_2_47));
+    const next = TINY_STEPS[47](structuredClone(FORMAT_2_47));
 
     expect(next).toEqual({ ...FORMAT_2_47, gauntlet: null });
     expect((next.setup as { mode: string }).mode).toBe('gauntlet');
@@ -1089,7 +1089,7 @@ describe('save migration 47 to 48', () => {
   it('keeps a world with no run as it is', () => {
     const roaming = { ...FORMAT_2_47, setup: { ...FORMAT_2_47.setup, mode: 'roaming' }, gauntlet: null };
 
-    expect(MIGRATIONS[47](structuredClone(roaming))).toEqual(roaming);
+    expect(TINY_STEPS[47](structuredClone(roaming))).toEqual(roaming);
   });
 });
 
@@ -1099,13 +1099,13 @@ describe('save migration 50 to 51', () => {
     const outposts = run.outposts.map((post) => ({ ...post, trucksSold: [] }));
     const groups = run.groups.map((group) => ({ ...group, counted: [] }));
 
-    expect(MIGRATIONS[50](structuredClone(FORMAT_2_50))).toEqual({ ...FORMAT_2_50, furyRoad: { ...run, outposts, groups } });
+    expect(TINY_STEPS[50](structuredClone(FORMAT_2_50))).toEqual({ ...FORMAT_2_50, furyRoad: { ...run, outposts, groups } });
   });
 
   it('keeps a world with no run as it is', () => {
     const roaming = { ...structuredClone(FORMAT_2_50), setup: { ...FORMAT_2_50.setup, mode: 'roaming' }, furyRoad: null };
 
-    expect(MIGRATIONS[50](structuredClone(roaming))).toEqual(roaming);
+    expect(TINY_STEPS[50](structuredClone(roaming))).toEqual(roaming);
   });
 });
 
@@ -1114,13 +1114,13 @@ describe('save migration 49 to 50', () => {
     const run = structuredClone(FORMAT_2_49.furyRoad);
     const groups = run.groups.map(({ at: _at, ...group }) => ({ ...group, engaged: [] }));
 
-    expect(MIGRATIONS[49](structuredClone(FORMAT_2_49))).toEqual({ ...FORMAT_2_49, furyRoad: { ...run, groups, quietFrom: 412 } });
+    expect(TINY_STEPS[49](structuredClone(FORMAT_2_49))).toEqual({ ...FORMAT_2_49, furyRoad: { ...run, groups, quietFrom: 412 } });
   });
 
   it('keeps a world with no run as it is', () => {
     const roaming = { ...structuredClone(FORMAT_2_49), setup: { ...FORMAT_2_49.setup, mode: 'roaming' }, furyRoad: null };
 
-    expect(MIGRATIONS[49](structuredClone(roaming))).toEqual(roaming);
+    expect(TINY_STEPS[49](structuredClone(roaming))).toEqual(roaming);
   });
 });
 
@@ -1128,20 +1128,20 @@ describe('save migration 48 to 49', () => {
   it('renames the Gauntlet mode and its run to Fury Road and keeps the run', () => {
     const { gauntlet, ...rest } = structuredClone(FORMAT_2_48);
 
-    expect(MIGRATIONS[48](structuredClone(FORMAT_2_48))).toEqual({ ...rest, setup: { ...rest.setup, mode: 'furyRoad' }, furyRoad: gauntlet });
+    expect(TINY_STEPS[48](structuredClone(FORMAT_2_48))).toEqual({ ...rest, setup: { ...rest.setup, mode: 'furyRoad' }, furyRoad: gauntlet });
   });
 
   it('keeps a Roaming world as it is but for the run key', () => {
     const { gauntlet: _run, ...rest } = structuredClone(FORMAT_2_48);
     const roaming = { ...rest, setup: { ...rest.setup, mode: 'roaming' }, gauntlet: null };
 
-    expect(MIGRATIONS[48](structuredClone(roaming))).toEqual({ ...rest, setup: roaming.setup, furyRoad: null });
+    expect(TINY_STEPS[48](structuredClone(roaming))).toEqual({ ...rest, setup: roaming.setup, furyRoad: null });
   });
 });
 
 describe('save migration 46 to 47', () => {
   it('adds an empty Gauntlet run and keeps the rest of the world', () => {
-    expect(MIGRATIONS[46](structuredClone(FORMAT_2_44))).toEqual({ ...FORMAT_2_44, gauntlet: null });
+    expect(TINY_STEPS[46](structuredClone(FORMAT_2_44))).toEqual({ ...FORMAT_2_44, gauntlet: null });
   });
 });
 
@@ -1149,7 +1149,7 @@ describe('save migration 51 to 52', () => {
   const personalityIn = (world: { vehicles: { id: string; brain: object | null }[] }, id: string) => (world.vehicles.find((v) => v.id === id)!.brain as { personality?: string } | null)?.personality;
 
   it('gives every driver a personality from its vehicle id and leaves the rest of the brain alone', () => {
-    const next = MIGRATIONS[51](FORMAT_2_51) as typeof FORMAT_2_51;
+    const next = TINY_STEPS[51](FORMAT_2_51) as typeof FORMAT_2_51;
 
     expect(personalityIn(next, 'npc1')).toBe('braggart');
     expect(personalityIn(next, 'npc2')).toBe('grim');
@@ -1158,13 +1158,13 @@ describe('save migration 51 to 52', () => {
   });
 
   it('gives the player no personality', () => {
-    const next = MIGRATIONS[51](FORMAT_2_51) as typeof FORMAT_2_51;
+    const next = TINY_STEPS[51](FORMAT_2_51) as typeof FORMAT_2_51;
 
     expect(next.vehicles[0]).toEqual(FORMAT_2_51.vehicles[0]);
   });
 
   it('draws the same personality each time it runs', () => {
-    expect(MIGRATIONS[51](FORMAT_2_51)).toEqual(MIGRATIONS[51](FORMAT_2_51));
+    expect(TINY_STEPS[51](FORMAT_2_51)).toEqual(TINY_STEPS[51](FORMAT_2_51));
   });
 });
 
@@ -1178,21 +1178,21 @@ describe('save migration 52 to 53', () => {
   };
 
   it('sends a save made inside the arrival back to its first page and forgets the walk step', () => {
-    const next = questsIn(MIGRATIONS[52](structuredClone(FORMAT_2_52)));
+    const next = questsIn(TINY_STEPS[52](structuredClone(FORMAT_2_52)));
 
     expect(next.session).toEqual({ quest: 'intro_arrival', checkpoint: 'start', seed: 17 });
     expect(next.world).toEqual({ first_knockout_seen: true });
   });
 
   it('sends a save made inside the first fall back to its first page', () => {
-    expect(questsIn(MIGRATIONS[52](withSession('first_fall', 'look'))).session?.checkpoint).toBe('start');
+    expect(questsIn(TINY_STEPS[52](withSession('first_fall', 'look'))).session?.checkpoint).toBe('start');
   });
 
   it('leaves other quests and later intro steps alone', () => {
     const other = withSession('nose_kovac', 'start.hub');
     other.player.quests.world.intro_step = 'ambush';
 
-    expect(MIGRATIONS[52](structuredClone(other))).toEqual(other);
+    expect(TINY_STEPS[52](structuredClone(other))).toEqual(other);
   });
 });
 
@@ -1201,7 +1201,7 @@ describe('save migration 53 to 54', () => {
   const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
 
   it('drops the cut quests, their world variables and their notes, and keeps the rest', () => {
-    const next = playerOf(MIGRATIONS[53](structuredClone(FORMAT_2_53)));
+    const next = playerOf(TINY_STEPS[53](structuredClone(FORMAT_2_53)));
 
     expect(next.quests).toEqual({ world: { intro_step: 'done', pipe_fate: 'delivered' }, local: { bowl_hattie: { hattie_flats: true } }, session: null });
     expect(next.notes.map((n) => n.id)).toEqual(['wagonBowl', 'pipeBook']);
@@ -1212,7 +1212,7 @@ describe('save migration 53 to 54', () => {
     const world = structuredClone(FORMAT_2_53);
     world.player.quests.session = { quest: 'pump_pipe', checkpoint: 'road', seed: 17 };
 
-    expect(playerOf(MIGRATIONS[53](world)).quests.session).toEqual({ quest: 'pump_pipe', checkpoint: 'road', seed: 17 });
+    expect(playerOf(TINY_STEPS[53](world)).quests.session).toEqual({ quest: 'pump_pipe', checkpoint: 'road', seed: 17 });
   });
 });
 
@@ -1221,7 +1221,7 @@ describe('save migration 54 to 55', () => {
   const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
 
   it("drops Kovac's Kessel variables and keeps his other talk, the session and the rest", () => {
-    const next = playerOf(MIGRATIONS[54](structuredClone(FORMAT_2_54)));
+    const next = playerOf(TINY_STEPS[54](structuredClone(FORMAT_2_54)));
 
     expect(next.quests).toEqual({
       world: { intro_step: 'done' },
@@ -1238,7 +1238,7 @@ describe('save migration 55 to 56', () => {
   const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
 
   it("moves Hattie's heard-the-glass mark to hattie_glass, so her Sunward question still waits, and keeps the rest", () => {
-    const next = playerOf(MIGRATIONS[55](structuredClone(FORMAT_2_55)));
+    const next = playerOf(TINY_STEPS[55](structuredClone(FORMAT_2_55)));
 
     expect(next.quests).toEqual({
       world: { intro_step: 'done' },
@@ -1251,7 +1251,7 @@ describe('save migration 55 to 56', () => {
 
   it('leaves a save that never heard of the glass as it was', () => {
     const fresh = structuredClone(FORMAT_2_54);
-    expect(MIGRATIONS[55](fresh)).toEqual(fresh);
+    expect(TINY_STEPS[55](fresh)).toEqual(fresh);
   });
 });
 
@@ -1260,7 +1260,7 @@ describe('save migration 56 to 57', () => {
   const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
 
   it("drops the Pump Station variables the rewrite cut and keeps Agnes's trust, the road, the session and the rest", () => {
-    const next = playerOf(MIGRATIONS[56](structuredClone(FORMAT_2_56)));
+    const next = playerOf(TINY_STEPS[56](structuredClone(FORMAT_2_56)));
 
     expect(next.quests).toEqual({
       world: { intro_step: 'done' },
@@ -1274,7 +1274,7 @@ describe('save migration 56 to 57', () => {
 
 describe('save migration 57 to 58', () => {
   it('gives the setup the default enemy gear growth and keeps the other settings and fields', () => {
-    const next = MIGRATIONS[57](structuredClone(FORMAT_2_57));
+    const next = TINY_STEPS[57](structuredClone(FORMAT_2_57));
 
     expect(next).toEqual({
       turn: 3,
@@ -1286,7 +1286,7 @@ describe('save migration 57 to 58', () => {
 
 describe('save migration 58 to 59', () => {
   it('drops the engaged list and turns groups from behind into groups from ahead, keeping the rest', () => {
-    const next = MIGRATIONS[58](structuredClone(FORMAT_2_58));
+    const next = TINY_STEPS[58](structuredClone(FORMAT_2_58));
     const groups = FORMAT_2_58.furyRoad.groups.map(({ engaged: _engaged, ...g }) => g);
 
     expect(next).toEqual({ ...FORMAT_2_58, furyRoad: { ...FORMAT_2_58.furyRoad, groups: [{ ...groups[0], from: 'ahead' }, groups[1]] } });
@@ -1295,13 +1295,13 @@ describe('save migration 58 to 59', () => {
   it('leaves a Roaming save alone', () => {
     const roaming = { ...structuredClone(FORMAT_2_58), furyRoad: null };
 
-    expect(MIGRATIONS[58](structuredClone(roaming))).toEqual(roaming);
+    expect(TINY_STEPS[58](structuredClone(roaming))).toEqual(roaming);
   });
 });
 
 describe('save migration 59 to 60', () => {
   it('starts each in-flight duty leg where the truck stands on the save turn, and leaves other goals alone', () => {
-    const next = MIGRATIONS[59](structuredClone(FORMAT_2_59)) as typeof FORMAT_2_59;
+    const next = TINY_STEPS[59](structuredClone(FORMAT_2_59)) as typeof FORMAT_2_59;
     const leg = (id: string) => ({ from: FORMAT_2_59.vehicles.find((v) => v.id === id)!.pos, turn: 820 });
     const goalsOf = (id: string) => next.vehicles.find((v) => v.id === id)!.brain!.goals;
     const before = (id: string) => FORMAT_2_59.vehicles.find((v) => v.id === id)!.brain!.goals;
@@ -1318,7 +1318,7 @@ describe('save migration 59 to 60', () => {
 
 describe('save migration 60 to 61', () => {
   it('drops a Fury Road run without a hauler and keeps the mode, for the load to rescue it', () => {
-    const next = MIGRATIONS[60](structuredClone(FORMAT_2_60));
+    const next = TINY_STEPS[60](structuredClone(FORMAT_2_60));
 
     expect(next).toEqual({ ...FORMAT_2_60, furyRoad: null });
     expect((next.setup as { mode: string }).mode).toBe('furyRoad');
@@ -1328,17 +1328,17 @@ describe('save migration 60 to 61', () => {
     const run = { ...structuredClone(FORMAT_2_60.furyRoad), hauler: { id: 'v9', alarmUntil: null } };
     const world = { ...structuredClone(FORMAT_2_60), furyRoad: run };
 
-    expect(MIGRATIONS[60](structuredClone(world))).toEqual(world);
+    expect(TINY_STEPS[60](structuredClone(world))).toEqual(world);
   });
 
   it('keeps a Roaming world as it is', () => {
     const roaming = { ...structuredClone(FORMAT_2_60), setup: { ...FORMAT_2_60.setup, mode: 'roaming' }, furyRoad: null };
 
-    expect(MIGRATIONS[60](structuredClone(roaming))).toEqual(roaming);
+    expect(TINY_STEPS[60](structuredClone(roaming))).toEqual(roaming);
   });
 });
 
-describe('MIGRATIONS[61]', () => {
+describe('TINY_STEPS[61]', () => {
   const sessionOf = (world: unknown) => (world as { player: { quests: { session: unknown } } }).player.quests.session;
   const at = (quest: string, checkpoint: string) => {
     const world = structuredClone(FORMAT_2_61) as { player: { quests: { session: unknown } } };
@@ -1347,22 +1347,22 @@ describe('MIGRATIONS[61]', () => {
   };
 
   it('moves the wagon_seven hub session to the start of the scene', () => {
-    const next = MIGRATIONS[61](structuredClone(FORMAT_2_61));
+    const next = TINY_STEPS[61](structuredClone(FORMAT_2_61));
 
     expect(sessionOf(next)).toEqual({ quest: 'wagon_seven', checkpoint: 'start', seed: 17 });
     expect({ ...next, player: { ...(next.player as object), quests: null } }).toEqual({ ...FORMAT_2_61, player: { ...FORMAT_2_61.player, quests: null } });
   });
 
   it('moves the wagon_bench hub session to the report', () => {
-    expect(sessionOf(MIGRATIONS[61](at('wagon_bench', 'bench.hub')))).toEqual({ quest: 'wagon_bench', checkpoint: 'bench.report', seed: 17 });
+    expect(sessionOf(TINY_STEPS[61](at('wagon_bench', 'bench.hub')))).toEqual({ quest: 'wagon_bench', checkpoint: 'bench.report', seed: 17 });
   });
 
   it('keeps another quest at start.hub and a save with no session as they are', () => {
     const other = at('nose_kovac', 'start.hub');
-    expect(MIGRATIONS[61](structuredClone(other))).toEqual(other);
+    expect(TINY_STEPS[61](structuredClone(other))).toEqual(other);
     const none = at('x', 'y');
     none.player.quests.session = null;
-    expect(MIGRATIONS[61](structuredClone(none))).toEqual(none);
+    expect(TINY_STEPS[61](structuredClone(none))).toEqual(none);
   });
 });
 
@@ -1374,12 +1374,12 @@ describe('save migration 62 to 63', () => {
     };
     const world = { ...structuredClone(FORMAT_2_62), shops: { bowl: { contracts: [escort] } } };
 
-    expect(MIGRATIONS[62](structuredClone(world))).toEqual(world);
-    expect(MIGRATIONS[62](structuredClone(FORMAT_2_62))).toEqual(FORMAT_2_62);
+    expect(TINY_STEPS[62](structuredClone(world))).toEqual(world);
+    expect(TINY_STEPS[62](structuredClone(FORMAT_2_62))).toEqual(FORMAT_2_62);
   });
 
   it('keeps every contract as it is in step 63 to 64, since old saves hold no rescue and the new kind adds no field to the others', () => {
-    const next = MIGRATIONS[63](structuredClone(FORMAT_2_62));
+    const next = TINY_STEPS[63](structuredClone(FORMAT_2_62));
 
     expect(next).toEqual(FORMAT_2_62);
   });
@@ -1387,7 +1387,7 @@ describe('save migration 62 to 63', () => {
 
 describe('save migration 64 to 65', () => {
   it('gives an old save an idle encounter log and changes nothing else', () => {
-    const next = MIGRATIONS[64](structuredClone(FORMAT_2_64)) as { player: { encounters: unknown; money: number } };
+    const next = TINY_STEPS[64](structuredClone(FORMAT_2_64)) as { player: { encounters: unknown; money: number } };
 
     expect(next.player.encounters).toEqual({ next: 0, pending: null, story: null });
     expect(next.player.money).toBe(1200);
@@ -1398,13 +1398,13 @@ describe('save migration 64 to 65', () => {
     const log = { next: 40, pending: null, story: null };
     const world = { ...structuredClone(FORMAT_2_64), player: { ...FORMAT_2_64.player, encounters: log } };
 
-    expect(MIGRATIONS[64](structuredClone(world))).toEqual(world);
+    expect(TINY_STEPS[64](structuredClone(world))).toEqual(world);
   });
 });
 
-describe('MIGRATIONS[65]', () => {
+describe('TINY_STEPS[65]', () => {
   it('anchors each saved progress at the truck position and leaves other trucks alone', () => {
-    const next = MIGRATIONS[65](structuredClone(FORMAT_2_64)) as { vehicles: { brain: { progress?: { key: string; since: number; at: { x: number; y: number } } } | null }[] };
+    const next = TINY_STEPS[65](structuredClone(FORMAT_2_64)) as { vehicles: { brain: { progress?: { key: string; since: number; at: { x: number; y: number } } } | null }[] };
 
     expect(next.vehicles[0].brain!.progress).toEqual({ key: '41,77 explore:null:explore -', since: 231, at: { x: 41.5, y: 77.25 } });
     expect(next.vehicles[1]).toEqual(FORMAT_2_64.vehicles[1]);
@@ -1412,18 +1412,18 @@ describe('MIGRATIONS[65]', () => {
   });
 });
 
-describe('MIGRATIONS[66]', () => {
+describe('TINY_STEPS[66]', () => {
   it('keeps a save with an armed ram and its order as it is', () => {
     const before = structuredClone(FORMAT_2_64);
 
-    const next = MIGRATIONS[66](before);
+    const next = TINY_STEPS[66](before);
 
     expect(next).toEqual(FORMAT_2_64);
     expect(before).toEqual(FORMAT_2_64);
   });
 });
 
-describe('MIGRATIONS[67]', () => {
+describe('TINY_STEPS[67]', () => {
   const callOf = (world: unknown) => (world as { player: { call: unknown } }).player.call;
   const saying = (line: string) => {
     const world = structuredClone(FORMAT_2_67) as { player: { call: { line: { line: string } } } };
@@ -1432,32 +1432,32 @@ describe('MIGRATIONS[67]', () => {
   };
 
   it('hangs up a call on the old town bearing line and keeps every other field', () => {
-    const next = MIGRATIONS[67](structuredClone(FORMAT_2_67));
+    const next = TINY_STEPS[67](structuredClone(FORMAT_2_67));
     expect(callOf(next)).toBeNull();
     expect({ ...next, player: { ...(next.player as object), call: null } }).toEqual({ ...FORMAT_2_67, player: { ...FORMAT_2_67.player, call: null } });
   });
 
   it('hangs up a call on the old site and wreck bearing lines', () => {
-    expect(callOf(MIGRATIONS[67](saying('siteBearing')))).toBeNull();
-    expect(callOf(MIGRATIONS[67](saying('aWreckNobodyPicked')))).toBeNull();
+    expect(callOf(TINY_STEPS[67](saying('siteBearing')))).toBeNull();
+    expect(callOf(TINY_STEPS[67](saying('aWreckNobodyPicked')))).toBeNull();
   });
 
   it('keeps a call on another line and a save with no call as they are', () => {
     const other = saying('heardYou');
-    expect(MIGRATIONS[67](structuredClone(other))).toEqual(other);
+    expect(TINY_STEPS[67](structuredClone(other))).toEqual(other);
     const none = { turn: 3, player: { call: null } };
-    expect(MIGRATIONS[67](structuredClone(none))).toEqual(none);
+    expect(TINY_STEPS[67](structuredClone(none))).toEqual(none);
   });
 });
 
 describe('save migration 68 to 69', () => {
   it('keeps a held search and a driver sighting as they are, since both only add union members', () => {
-    expect(MIGRATIONS[68](structuredClone(FORMAT_2_68))).toEqual(FORMAT_2_68);
+    expect(TINY_STEPS[68](structuredClone(FORMAT_2_68))).toEqual(FORMAT_2_68);
   });
 });
 
 describe('save migration 69 to 70', () => {
-  const migrated = () => MIGRATIONS[69](structuredClone(FORMAT_2_69)) as typeof FORMAT_2_69;
+  const migrated = () => TINY_STEPS[69](structuredClone(FORMAT_2_69)) as typeof FORMAT_2_69;
 
   it('drops every radio-era search, since none carries a parcel, and keeps the other contracts', () => {
     const w = migrated();
@@ -1475,12 +1475,12 @@ describe('save migration 69 to 70', () => {
   it('keeps a call on another topic', () => {
     const save = structuredClone(FORMAT_2_69);
     save.player.call.topic = 'lastSeen';
-    expect((MIGRATIONS[69](save) as typeof FORMAT_2_69).player.call).toEqual(save.player.call);
+    expect((TINY_STEPS[69](save) as typeof FORMAT_2_69).player.call).toEqual(save.player.call);
   });
 });
 
-describe('MIGRATIONS[70]', () => {
-  const next = MIGRATIONS[70](structuredClone(FORMAT_2_70)) as { player: Record<string, unknown>; vehicles: { id: string; faction: string }[]; states: unknown[] };
+describe('TINY_STEPS[70]', () => {
+  const next = TINY_STEPS[70](structuredClone(FORMAT_2_70)) as { player: Record<string, unknown>; vehicles: { id: string; faction: string }[]; states: unknown[] };
   const factionOf = (id: string) => next.vehicles.find((v) => v.id === id)?.faction;
 
   it('puts each raider in the camp nearest its home, whatever its position', () => {
@@ -1518,9 +1518,9 @@ describe('MIGRATIONS[70]', () => {
   });
 });
 
-describe('MIGRATIONS[71]', () => {
+describe('TINY_STEPS[71]', () => {
   type Saved = { player: { money: number; call: { vars: { way: { steps: { do: string; at?: unknown }[] } }; line: { vars: { way: { steps: { do: string; at?: unknown }[] } } } } } };
-  const next = () => MIGRATIONS[71](structuredClone(FORMAT_2_71)) as unknown as Saved;
+  const next = () => TINY_STEPS[71](structuredClone(FORMAT_2_71)) as unknown as Saved;
 
   it('cuts the steps at a fork counted past the third and asks again, in both copies of the call', () => {
     const { call } = next().player;
@@ -1533,7 +1533,7 @@ describe('MIGRATIONS[71]', () => {
     const only = structuredClone(FORMAT_2_71) as unknown as Saved;
     only.player.call.vars.way.steps = [{ do: 'askAgain', at: { kind: 'fork', nth: 3 } }];
     only.player.call.line.vars.way.steps = [{ do: 'askAgain', at: { kind: 'none' } }];
-    const { call } = (MIGRATIONS[71](only as never) as unknown as Saved).player;
+    const { call } = (TINY_STEPS[71](only as never) as unknown as Saved).player;
     expect(call.vars.way.steps).toEqual([{ do: 'askAgain' }]);
     expect(call.line.vars.way.steps).toEqual([{ do: 'askAgain' }]);
   });
@@ -1543,33 +1543,33 @@ describe('MIGRATIONS[71]', () => {
     expect(rest).toEqual({ turn: 3 });
     expect(player.money).toBe(1200);
     const none = { turn: 3, player: { call: null } };
-    expect(MIGRATIONS[71](structuredClone(none))).toEqual(none);
+    expect(TINY_STEPS[71](structuredClone(none))).toEqual(none);
   });
 
   it('keeps the steps of a call whose forks are all countable', () => {
     const fine = structuredClone(FORMAT_2_71) as unknown as Saved;
     fine.player.call.vars.way.steps = [{ do: 'turn', at: { kind: 'fork', nth: 3 } }];
     fine.player.call.line.vars.way.steps = [{ do: 'turn', at: { kind: 'fork', nth: 3 } }];
-    expect(MIGRATIONS[71](structuredClone(fine) as never)).toEqual(fine);
+    expect(TINY_STEPS[71](structuredClone(fine) as never)).toEqual(fine);
   });
 });
 
 describe('save migration 72 to 73', () => {
   it('has a run parked at its paid next outpost wait there for the road', () => {
-    expect(MIGRATIONS[72](structuredClone(FORMAT_2_72))).toEqual({ ...FORMAT_2_72, furyRoad: { ...FORMAT_2_72.furyRoad, waitingAt: 2 } });
+    expect(TINY_STEPS[72](structuredClone(FORMAT_2_72))).toEqual({ ...FORMAT_2_72, furyRoad: { ...FORMAT_2_72.furyRoad, waitingAt: 2 } });
   });
 
   it('has a run on the road wait nowhere', () => {
     const run = { ...structuredClone(FORMAT_2_72.furyRoad), outposts: [FORMAT_2_72.furyRoad.outposts[0], { ...FORMAT_2_72.furyRoad.outposts[1], paid: false }] };
     const world = { ...structuredClone(FORMAT_2_72), furyRoad: run };
 
-    expect(MIGRATIONS[72](structuredClone(world))).toEqual({ ...world, furyRoad: { ...run, waitingAt: null } });
+    expect(TINY_STEPS[72](structuredClone(world))).toEqual({ ...world, furyRoad: { ...run, waitingAt: null } });
   });
 
   it('keeps a world with no run as it is', () => {
     const roaming = { ...structuredClone(FORMAT_2_72), furyRoad: null };
 
-    expect(MIGRATIONS[72](structuredClone(roaming))).toEqual(roaming);
+    expect(TINY_STEPS[72](structuredClone(roaming))).toEqual(roaming);
   });
 });
 
@@ -1578,25 +1578,25 @@ describe('save migration 73 to 74', () => {
     const { quietFrom: _quietFrom, ...run } = FORMAT_2_73.furyRoad;
     const groups = FORMAT_2_73.furyRoad.groups.map((group) => ({ ...group, at: 0, money: 20000, elite: false }));
 
-    expect(MIGRATIONS[73](structuredClone(FORMAT_2_73))).toEqual({ ...FORMAT_2_73, furyRoad: { ...run, groups } });
+    expect(TINY_STEPS[73](structuredClone(FORMAT_2_73))).toEqual({ ...FORMAT_2_73, furyRoad: { ...run, groups } });
   });
 
   it('keeps a world with no run as it is', () => {
     const roaming = { ...structuredClone(FORMAT_2_73), furyRoad: null };
 
-    expect(MIGRATIONS[73](structuredClone(roaming))).toEqual(roaming);
+    expect(TINY_STEPS[73](structuredClone(roaming))).toEqual(roaming);
   });
 });
 
 describe('save migration 74 to 75', () => {
   it('keeps a save as it is, since survey contracts are a new variant no old save holds', () => {
-    expect(MIGRATIONS[74](structuredClone(FORMAT_2_73))).toEqual(FORMAT_2_73);
+    expect(TINY_STEPS[74](structuredClone(FORMAT_2_73))).toEqual(FORMAT_2_73);
   });
 });
 
 describe('save migration 75 to 76', () => {
   it('gives every posted and held claim no rival, no leads and a rival turn at its deadline, and leaves other contracts be', () => {
-    const next = MIGRATIONS[75](structuredClone(FORMAT_2_75)) as typeof FORMAT_2_75;
+    const next = TINY_STEPS[75](structuredClone(FORMAT_2_75)) as typeof FORMAT_2_75;
     const [fetch, posted] = next.shops.bowl.contracts;
     const [held, haul] = next.player.contracts;
     expect(fetch).toEqual(FORMAT_2_75.shops.bowl.contracts[0]);
@@ -1611,7 +1611,7 @@ describe('save migration 76 to 77', () => {
   it('keeps a save as it is, since crews, hires and the muster goal only widen unions', () => {
     const before = structuredClone(FORMAT_2_74);
 
-    const next = MIGRATIONS[76](before);
+    const next = TINY_STEPS[76](before);
 
     expect(next).toEqual(FORMAT_2_74);
     expect(before).toEqual(FORMAT_2_74);
@@ -1625,7 +1625,7 @@ describe('save migration 76 to 77', () => {
     ];
     const world = { ...structuredClone(FORMAT_2_74), states };
 
-    expect(MIGRATIONS[76](structuredClone(world))).toEqual(world);
+    expect(TINY_STEPS[76](structuredClone(world))).toEqual(world);
   });
 });
 
@@ -1636,7 +1636,7 @@ describe('save migration 77 to 78', () => {
     world.player.quests = { world: {}, local: {}, session: null, ...quests };
     return world;
   };
-  const stepped = (world: object) => MIGRATIONS[77](structuredClone(world) as SavedJson) as unknown as { player: { quests: Quests } };
+  const stepped = (world: object) => TINY_STEPS[77](structuredClone(world) as SavedJson) as unknown as { player: { quests: Quests } };
 
   it('marks Hattie met for a save that was towed to Bowl', () => {
     const next = stepped(withQuests({ world: { towed_to_bowl: true, intro_step: 'done' } }));
@@ -1669,7 +1669,7 @@ describe('save migration 78 to 79', () => {
     world.player.notes = notes;
     return world;
   };
-  const stepped = (world: Saved) => MIGRATIONS[78](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+  const stepped = (world: Saved) => TINY_STEPS[78](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
 
   it('moves the wagon half from wagon_pin to wagon_rod and Lena\'s asked mark to asked_rods, keeping their values', () => {
     const before = saved(
@@ -1707,7 +1707,7 @@ describe('save migration 79 to 80', () => {
     world.player.quests = { world: {}, local: {}, session: null, ...quests };
     return world;
   };
-  const stepped = (world: Saved) => MIGRATIONS[79](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+  const stepped = (world: Saved) => TINY_STEPS[79](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
 
   it('drops the Varga truck mark and Hattie\'s Varga questions, keeping her other answers and an open talk', () => {
     const before = saved({
@@ -1744,7 +1744,7 @@ describe('save migration 80 to 81', () => {
   it('keeps a save as it is, since ship relics are only a new key in loot goods and shop pressure', () => {
     const before = structuredClone(FORMAT_2_75);
 
-    const next = MIGRATIONS[80](before);
+    const next = TINY_STEPS[80](before);
 
     expect(next).toEqual(FORMAT_2_75);
     expect(before).toEqual(FORMAT_2_75);
@@ -1759,7 +1759,7 @@ describe('save migration 81 to 82', () => {
     for (const v of world.vehicles) if (v.brain) v.brain.goals = structuredClone(goals);
     return world;
   };
-  const goalsAfter = (world: Saved) => (MIGRATIONS[81](structuredClone(world) as unknown as SavedJson) as unknown as Saved).vehicles.find((v) => v.brain)!.brain!.goals;
+  const goalsAfter = (world: Saved) => (TINY_STEPS[81](structuredClone(world) as unknown as SavedJson) as unknown as Saved).vehicles.find((v) => v.brain)!.brain!.goals;
 
   it('gives an investigation its destination as the heard centre', () => {
     const goals = goalsAfter(withGoals([{ kind: 'investigate', destination: { x: 12, y: 30 } }]));
@@ -1773,9 +1773,9 @@ describe('save migration 81 to 82', () => {
   });
 });
 
-describe('MIGRATIONS[82]', () => {
+describe('TINY_STEPS[82]', () => {
   type Shop = { goods: Record<string, number>; contracts: { id: string }[]; event: unknown; shortSince: unknown; opened: unknown; pressure?: unknown };
-  const migrated = () => MIGRATIONS[82](structuredClone(FORMAT_2_82)) as unknown as { shops: Record<string, Shop>; vehicles: { id: string; job: unknown; brain: { goals: { kind: string; load?: unknown }[] } | null }[]; roadNews: unknown[]; player: unknown };
+  const migrated = () => TINY_STEPS[82](structuredClone(FORMAT_2_82)) as unknown as { shops: Record<string, Shop>; vehicles: { id: string; job: unknown; brain: { goals: { kind: string; load?: unknown }[] } | null }[]; roadNews: unknown[]; player: unknown };
 
   it('gives every shop a goods stock from its old pressure and drops the pressure', () => {
     const next = migrated();
@@ -1813,7 +1813,7 @@ describe('MIGRATIONS[82]', () => {
   });
 });
 
-describe('MIGRATIONS[83]', () => {
+describe('TINY_STEPS[83]', () => {
   type Shops = Record<string, { stock: { defId: string }[]; restockAt: number }>;
   const shopsOf = (world: unknown) => (world as { shops: Shops }).shops;
   const withShelves = () => {
@@ -1826,7 +1826,7 @@ describe('MIGRATIONS[83]', () => {
 
   it('restocks a Bowl or Nose shelf with no stock engine on the saved turn and leaves the rest alone', () => {
     const before = withShelves();
-    const next = MIGRATIONS[83](structuredClone(before) as never);
+    const next = TINY_STEPS[83](structuredClone(before) as never);
 
     expect(shopsOf(next).bowl.restockAt).toBe(FORMAT_2_82.turn);
     expect(shopsOf(next).nose.restockAt).toBe(before.shops.nose.restockAt);
@@ -1839,7 +1839,7 @@ describe('save migration 84 to 85', () => {
   it('gives a Roaming world a standing Sunward order and the player the Sunward start standing', () => {
     const before = structuredClone(FORMAT_2_84);
 
-    const next = MIGRATIONS[84](before) as typeof FORMAT_2_84 & { sunward: unknown; player: { standing: Record<string, number> } };
+    const next = TINY_STEPS[84](before) as typeof FORMAT_2_84 & { sunward: unknown; player: { standing: Record<string, number> } };
 
     expect(next.sunward).toEqual({ collapsed: null, night: null, lastHunt: null });
     expect(next.player.standing).toEqual({ ...FORMAT_2_84.player.standing, sunward: -20 });
@@ -1851,7 +1851,7 @@ describe('save migration 84 to 85', () => {
   it('gives a Chaos Highway world no order', () => {
     const highway = { ...structuredClone(FORMAT_2_84), setup: { ...FORMAT_2_84.setup, mode: 'furyRoad' }, furyRoad: { window: 0 } };
 
-    const next = MIGRATIONS[84](highway) as typeof highway & { sunward: unknown };
+    const next = TINY_STEPS[84](highway) as typeof highway & { sunward: unknown };
 
     expect(next.sunward).toBeNull();
     expect(next.furyRoad).toEqual({ window: 0 });
@@ -1864,7 +1864,7 @@ describe('save migration 85 to 86', () => {
   it('moves each Sunward car home to the fort bay of the same index and moves no car', () => {
     const before = structuredClone(FORMAT_2_85);
 
-    const next = MIGRATIONS[85](before) as unknown as Saved;
+    const next = TINY_STEPS[85](before) as unknown as Saved;
 
     const home = (id: string) => next.vehicles.find((v) => v.id === id)!.brain!.home;
     expect(home('v31')).toEqual({ x: 284.053, y: 243.604 });
@@ -1877,14 +1877,14 @@ describe('save migration 85 to 86', () => {
   it('passes a world with no Sunward car unchanged', () => {
     const quiet = { ...structuredClone(FORMAT_2_85), vehicles: FORMAT_2_85.vehicles.filter((v) => v.faction !== 'sunward') };
 
-    expect(MIGRATIONS[85](quiet)).toEqual(quiet);
+    expect(TINY_STEPS[85](quiet)).toEqual(quiet);
   });
 
   it('throws on a Sunward car whose home is no bay of the old Hollow', () => {
     const lost = structuredClone(FORMAT_2_85);
     lost.vehicles[1].brain!.home = { x: 10, y: 10 };
 
-    expect(() => MIGRATIONS[85](lost)).toThrow(/no bay of the old Hollow/);
+    expect(() => TINY_STEPS[85](lost)).toThrow(/no bay of the old Hollow/);
   });
 });
 
@@ -1892,7 +1892,7 @@ describe('save migration 86 to 87', () => {
   it('gives the night of the vigil an empty list of words given and keeps the rest', () => {
     const before = structuredClone(FORMAT_2_86);
 
-    const next = MIGRATIONS[86](before) as typeof FORMAT_2_86 & { sunward: { night: { offered: string[] } } };
+    const next = TINY_STEPS[86](before) as typeof FORMAT_2_86 & { sunward: { night: { offered: string[] } } };
 
     expect(next.sunward.night).toEqual({ ...FORMAT_2_86.sunward.night, offered: [] });
     expect(next.vehicles).toEqual(FORMAT_2_86.vehicles);
@@ -1903,15 +1903,15 @@ describe('save migration 86 to 87', () => {
     const day = { ...structuredClone(FORMAT_2_86), sunward: { ...FORMAT_2_86.sunward, night: null } };
     const highway = { ...structuredClone(FORMAT_2_86), sunward: null };
 
-    expect(MIGRATIONS[86](day)).toEqual(day);
-    expect(MIGRATIONS[86](highway)).toEqual(highway);
+    expect(TINY_STEPS[86](day)).toEqual(day);
+    expect(TINY_STEPS[86](highway)).toEqual(highway);
   });
 });
 
 describe('save migration 87 to 88', () => {
   type Step = { do: string; heading?: unknown };
   type Saved = { turn: number; player: { money: number; call: { vars: Record<string, { kind: string; steps?: Step[] }>; line: { line: string; vars: Record<string, { kind: string; steps?: Step[] }> } } | null } };
-  const migrate = (world: unknown) => MIGRATIONS[87](structuredClone(world) as never) as unknown as Saved;
+  const migrate = (world: unknown) => TINY_STEPS[87](structuredClone(world) as never) as unknown as Saved;
 
   it('marks every follow step of an open directions answer as planned before headings', () => {
     const next = migrate(FORMAT_2_87);
@@ -1952,7 +1952,7 @@ describe('save migration 88 to 89', () => {
     world.player.quests = { world: {}, local: {}, session: null, ...quests };
     return world;
   };
-  const stepped = (world: Saved) => MIGRATIONS[88](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+  const stepped = (world: Saved) => TINY_STEPS[88](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
 
   it('renames Kovac\'s gate law marks to the mount marks, keeping their values', () => {
     const before = saved({ world: { intro_step: 'done' }, local: { nose_kovac: { heard_workshop: true, heard_gate_law: true, asked_gate_law: false, heard_paper: true } } });

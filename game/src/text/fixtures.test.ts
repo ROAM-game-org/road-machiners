@@ -6,10 +6,10 @@ import type { CallVars, World } from '../sim/types';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import FORMAT_2_36 from '../three/save-fixtures/format-2-36.json';
-import { loadWorld, saveOf } from '../three/save';
+import { loadWorld, SAVE_FORMAT, saveOf } from '../three/save';
 import { memoryBackend, SaveSlots } from '../three/save-db';
 import { defaultSetup } from '../sim/settings';
-import { MIGRATIONS, SAVE_FORMAT } from '../three/save-migrations';
+import { TINY_STEPS } from '../three/save-migrations';
 import { GOAL_REASONS_2_19, LINES_2_19 } from '../three/save-text-2-19';
 import { lineText } from '../ui/dialogue';
 import { contractSummary } from '../ui/format';
@@ -37,7 +37,7 @@ const ENGLISH_LINE = new Map(Object.entries(LINES_2_19).map(([text, id]) => [id,
 
 describe('old saves in every language', () => {
   it('the 2.34 fixture migrates and every goal, call, contract and title reads in both languages', () => {
-    const migrated = MIGRATIONS[36](FORMAT_2_36) as unknown as World;
+    const migrated = TINY_STEPS[36](FORMAT_2_36) as unknown as World;
     const world = { ...migrated, player: { ...migrated.player, vehicleId: 'player' } } as World;
     const words = renderAll(world);
     expect(words.length).toBeGreaterThan(10);
