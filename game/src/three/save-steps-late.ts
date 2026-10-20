@@ -213,6 +213,63 @@ export function withDutyLegs_59_60(world: SavedJson): SavedJson {
   return { ...world, vehicles };
 }
 
+const STANDARD_PAINT_94_95 = 'standard';
+
+export function withStandardPaint_94_95(world: SavedJson): SavedJson {
+  return { ...world, player: { ...(world.player as SavedJson), paint: STANDARD_PAINT_94_95 } };
+}
+
+type Paint_95_96 = { body: string; cab: string; gear: string };
+
+const STANDARD_PAINT_95_96: Paint_95_96 = { body: 'tan', cab: 'olive', gear: 'tan' };
+
+const OLD_PRESETS_95_96: Record<string, Paint_95_96> = {
+  standard: STANDARD_PAINT_95_96,
+  plum: { body: 'plum', cab: 'olive', gear: 'plum' },
+  lavender: { body: 'lavender', cab: 'navy', gear: 'lavender' },
+  mint: { body: 'mint', cab: 'wine', gear: 'mint' },
+  rose: { body: 'rose', cab: 'plum', gear: 'rose' },
+};
+
+export function paintOfPreset_95_96(preset: string): Paint_95_96 {
+  return { ...(Object.hasOwn(OLD_PRESETS_95_96, preset) ? OLD_PRESETS_95_96[preset] : STANDARD_PAINT_95_96) };
+}
+
+export function withThreeColorPaint_95_96(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  return { ...world, player: { ...player, paint: paintOfPreset_95_96(String(player.paint)) } };
+}
+
+const STANDARD_PAINT_96_97: Paint_95_96 = { body: 'tan', cab: 'olive', gear: 'tan' };
+
+const COLORS_96_97: readonly string[] = ['tan', 'olive', 'sand', 'chalk', 'umber', 'oxblood', 'bottle', 'slate', 'petrol'];
+
+const RETIRED_COLORS_96_97: Record<string, string> = {
+  plum: 'oxblood',
+  wine: 'oxblood',
+  rose: 'sand',
+  pink: 'chalk',
+  lavender: 'chalk',
+  mint: 'chalk',
+  navy: 'slate',
+};
+
+export function mutedColor_96_97(id: string): string {
+  return Object.hasOwn(RETIRED_COLORS_96_97, id) ? RETIRED_COLORS_96_97[id] : id;
+}
+
+function colorOf_96_97(slot: keyof Paint_95_96, id: unknown): string {
+  const color = typeof id === 'string' ? mutedColor_96_97(id) : null;
+  return color !== null && COLORS_96_97.includes(color) ? color : STANDARD_PAINT_96_97[slot];
+}
+
+export function withMutedPaint_96_97(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const saved = typeof player.paint === 'object' && player.paint !== null ? (player.paint as SavedJson) : {};
+  const paint = { body: colorOf_96_97('body', saved.body), cab: colorOf_96_97('cab', saved.cab), gear: colorOf_96_97('gear', saved.gear) };
+  return { ...world, player: { ...player, paint } };
+}
+
 export function withEncounters_64_65(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   if (player.encounters !== undefined) return world;

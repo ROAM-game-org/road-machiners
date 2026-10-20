@@ -83,6 +83,9 @@ import FORMAT_2_80 from './save-fixtures/format-2-80.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
 import FORMAT_2_90 from './save-fixtures/format-2-90.json';
+import FORMAT_2_94 from './save-fixtures/format-2-94.json';
+import FORMAT_2_95 from './save-fixtures/format-2-95.json';
+import FORMAT_2_96 from './save-fixtures/format-2-96.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -2107,5 +2110,70 @@ describe('save migration 93 to 94', () => {
     const hulk = stepped().obstacles[0] as typeof before & { hulk: { bend: number } };
     expect(hulk.hulk).toEqual({ ...before.hulk, bend: 0 });
     expect(hulk.pos.x).toBeCloseTo(before.pos.x + Math.cos(before.hulk!.yaw) * AHEAD, 9);
+  });
+});
+
+describe('MIGRATIONS[94]', () => {
+  it('gives the player the standard paint and changes nothing else', () => {
+    const next = MIGRATIONS[94](structuredClone(FORMAT_2_94)) as unknown as typeof FORMAT_2_94 & { player: { paint: string } };
+    expect(next.player.paint).toBe('standard');
+    const { paint: _paint, ...player } = next.player;
+    expect({ ...next, player }).toEqual(FORMAT_2_94);
+  });
+});
+
+describe('MIGRATIONS[95]', () => {
+  const migrate = (paint: unknown) => MIGRATIONS[95](structuredClone({ ...FORMAT_2_95, player: { ...FORMAT_2_95.player, paint } })) as unknown as typeof FORMAT_2_95 & { player: { paint: unknown } };
+
+  it('turns an old paint job into its body, cab and gear colors and changes nothing else', () => {
+    const next = migrate('plum');
+    expect(next.player.paint).toEqual({ body: 'plum', cab: 'olive', gear: 'plum' });
+    expect({ ...next, player: { ...next.player, paint: 'plum' } }).toEqual(FORMAT_2_95);
+    expect(MIGRATIONS[95](structuredClone(FORMAT_2_95))).toEqual(next);
+  });
+
+  it.each([
+    ['standard', { body: 'tan', cab: 'olive', gear: 'tan' }],
+    ['lavender', { body: 'lavender', cab: 'navy', gear: 'lavender' }],
+    ['mint', { body: 'mint', cab: 'wine', gear: 'mint' }],
+    ['rose', { body: 'rose', cab: 'plum', gear: 'rose' }],
+  ])('turns %s into its three colors', (preset, paint) => {
+    expect(migrate(preset).player.paint).toEqual(paint);
+  });
+
+  it.each(['bone', 'gold', 'constructor', undefined])('gives the standard paint for %s', (preset) => {
+    expect(migrate(preset).player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'tan' });
+  });
+});
+
+describe('MIGRATIONS[96]', () => {
+  const migrate = (paint: unknown) => MIGRATIONS[96](structuredClone({ ...FORMAT_2_96, player: { ...FORMAT_2_96.player, paint } })) as unknown as typeof FORMAT_2_96 & { player: { paint: unknown } };
+
+  it('moves each retired color to its new color, keeps a current one and changes nothing else', () => {
+    const next = MIGRATIONS[96](structuredClone(FORMAT_2_96)) as unknown as typeof FORMAT_2_96;
+    expect(next.player.paint).toEqual({ body: 'chalk', cab: 'slate', gear: 'sand' });
+    expect({ ...next, player: { ...next.player, paint: FORMAT_2_96.player.paint } }).toEqual(FORMAT_2_96);
+  });
+
+  it.each([
+    ['plum', 'oxblood'],
+    ['wine', 'oxblood'],
+    ['rose', 'sand'],
+    ['pink', 'chalk'],
+    ['lavender', 'chalk'],
+    ['mint', 'chalk'],
+    ['navy', 'slate'],
+  ])('moves %s to %s in every slot', (old, color) => {
+    expect(migrate({ body: old, cab: old, gear: old }).player.paint).toEqual({ body: color, cab: color, gear: color });
+  });
+
+  it('keeps a paint of current colors as it is', () => {
+    const paint = { body: 'petrol', cab: 'chalk', gear: 'umber' };
+    expect(migrate(paint).player.paint).toEqual(paint);
+  });
+
+  it('gives a slot it knows neither way its standard color', () => {
+    expect(migrate({ body: 'gold', cab: 7, gear: 'bottle' }).player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'bottle' });
+    expect(migrate('plum').player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'tan' });
   });
 });

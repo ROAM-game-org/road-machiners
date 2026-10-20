@@ -1,4 +1,5 @@
 
+import { PAINT } from '../data/chassis';
 import * as THREE from 'three';
 import { partDef } from '../data/parts';
 import { BODY_PARTS, itemLookId, partModel, weaponLook } from '../render/partLooks';
@@ -64,7 +65,7 @@ function obstacles(v: Vehicle, skip: GridItem): Box[] {
 }
 
 export function clips(world: World, v: Vehicle): string[] {
-  const view = new VehicleView(v, true);
+  const view = new VehicleView(v, true, PAINT.standard);
   const problems: string[] = [];
   for (const gun of v.items.filter((it): it is Extract<GridItem, { kind: 'part' }> => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon')) {
     if (itemCells(gun).some((c) => c.y >= baseGrid(v.chassisId).h)) continue;

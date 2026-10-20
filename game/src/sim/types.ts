@@ -9,6 +9,7 @@ import type { LineId, TopicId } from "../data/dialogue";
 import type { PersonalityId } from "../data/personalities";
 import type { DecisionOptions } from "../data/npcs";
 import type { Contract, PastContract, ShopState } from "./market";
+import type { TruckPaint } from "../data/chassis";
 import type { Rng } from "./rng";
 import type { PerkId } from "../data/skills";
 import type { NoteId } from "../data/locals";
@@ -484,6 +485,7 @@ export type Player = {
   repeats: Record<string, Repeat>;
   xpBySource: Record<XpSource, number>;
   perks: PerkId[];
+  paint: TruckPaint;
   health: number;
   fuel: number;
   supplies: number;

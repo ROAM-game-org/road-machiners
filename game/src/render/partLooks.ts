@@ -396,6 +396,9 @@ const PART_SECTION: Record<PartDef['kind'], IconSection> = {
   core: 'core',
 };
 
+export const CHASSIS_SHEET = 'chassis.png';
+export const CHASSIS_MASK = 'chassis-paint.png';
+
 export function iconCatalog(
   parts: Record<string, PartDef>,
   goods: Record<string, GoodDef>,
