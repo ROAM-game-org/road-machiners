@@ -67,7 +67,7 @@ describe('stranded trucks', () => {
     w.states = [];
     w.obstacles = [hungRock];
     const truck = w.vehicles[0];
-    truck.pos = besideRock(1.1565, 0.4948);
+    truck.pos = besideRock(0.6, 0.4948);
     truck.heading = -1.5101;
     truck.order = order;
     return w;
