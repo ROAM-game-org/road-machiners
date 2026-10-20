@@ -650,18 +650,26 @@ function rivalFirstText(world: World, c: Contract): LogLine {
 }
 
 export function contractSummary(c: Contract): Msg {
+  if (!isMet(c)) return postedSummary(c);
+  if (c.kind === 'survey') return t('contract.surveyMet', { site: siteName(c.shop) });
+  if (c.kind === 'rescue') return t('contract.rescueMet', { driver: verbatim(c.driver), site: siteName(c.shop) });
+  if (c.kind === 'search') return t('contract.searchMet', { who: searchTarget(c), site: siteName(c.shop) });
+  if (c.kind === 'bounty') return t('contract.bountyMet', { target: templateName(c.template), site: siteName(c.shop) });
+  throw new Error(`A ${c.kind} contract has no met wording`);
+}
+
+export function postedSummary(c: Contract): Msg {
   if (c.kind === 'haul') {
     const haul = { n: c.units, good: goodName(c.good), site: siteName(c.to) };
     return c.rush ? t('contract.rushHaul', haul) : t('contract.haul', haul);
   }
   if (c.kind === 'fetch') return t('contract.fetch', { part: partNameOf(c.defId), site: siteName(c.shop), n: CONTRACTS.fetch.maxWear });
-  if (c.kind === 'survey') return isMet(c) ? t('contract.surveyMet', { site: siteName(c.shop) }) : t('contract.survey', { places: surveyPlaces(c) });
+  if (c.kind === 'survey') return t('contract.survey', { places: surveyPlaces(c) });
   if (c.kind === 'claim') return claimSummary(c);
   if (c.kind === 'escort') return t('contract.escort', { site: siteName(c.to) });
-  if (c.kind === 'rescue') return c.fulfilled ? t('contract.rescueMet', { driver: verbatim(c.driver), site: siteName(c.shop) }) : t('contract.rescue', { driver: verbatim(c.driver) });
-  if (c.kind === 'search') return t(c.delivered ? 'contract.searchMet' : 'contract.search', { who: searchTarget(c), site: siteName(c.shop) });
-  const bounty = { target: templateName(c.template), site: siteName(c.shop) };
-  return c.fulfilled ? t('contract.bountyMet', bounty) : t('contract.bountyAt', bounty);
+  if (c.kind === 'rescue') return t('contract.rescue', { driver: verbatim(c.driver) });
+  if (c.kind === 'search') return t('contract.search', { who: searchTarget(c), site: siteName(c.shop) });
+  return t('contract.bountyAt', { target: templateName(c.template), site: siteName(c.shop) });
 }
 
 export function gameHours(turns: number): number {

@@ -13,7 +13,7 @@ import { startAid } from "../sim/aid";
 import { isNotable, nextSurveyClue, surveyClueText, surveyProgress } from "./format";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep } from "./format";
+import { contractDue, heldContractDue, workLabel, contractSummary, postedSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep } from "./format";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
@@ -134,6 +134,11 @@ describe("contract text", () => {
     expect(en(heldContractDue(met))).toBe("Ready");
     expect(en(heldContractDue(bounty))).toBe(en(contractDue(bounty)));
     expect(en(heldContractDue(fetch))).toBe(en(contractDue(fetch)));
+  });
+
+  it("keeps the posted wording of a met contract for its history", () => {
+    const met: Contract = { ...bounty, fulfilled: true };
+    expect(en(postedSummary(met))).toBe(en(contractSummary(bounty)));
   });
 
   it("logs a met bounty with its reward and where to claim it", () => {
