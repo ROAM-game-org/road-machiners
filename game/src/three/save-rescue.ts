@@ -7,7 +7,7 @@ import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
 import { CENTS_PER_MONEY_29_30, pooledSkills_9_10 } from './save-migrations';
 import { savedRevisionsOf, savedRunId, storedSave, writeSave } from './save';
-import { mutedColor_94_95, paintOfPreset_93_94 } from './save-steps-late';
+import { mutedColor_96_97, paintOfPreset_95_96 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
@@ -34,11 +34,11 @@ function idOf(value: unknown): string | null {
 
 function paintOf(value: unknown): CarriedPaint | null {
   const preset = idOf(value);
-  const slots = preset === null ? objectOf(value) : paintOfPreset_93_94(preset);
+  const slots = preset === null ? objectOf(value) : paintOfPreset_95_96(preset);
   if (!slots) return null;
   return Object.fromEntries((['body', 'cab', 'gear'] as const).flatMap((slot) => {
     const id = idOf(slots[slot]);
-    return id === null ? [] : [[slot, mutedColor_94_95(id)]];
+    return id === null ? [] : [[slot, mutedColor_96_97(id)]];
   }));
 }
 

@@ -79,11 +79,13 @@ import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
+import FORMAT_2_80 from './save-fixtures/format-2-80.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
-import FORMAT_2_92 from './save-fixtures/format-2-92.json';
-import FORMAT_2_93 from './save-fixtures/format-2-93.json';
+import FORMAT_2_90 from './save-fixtures/format-2-90.json';
 import FORMAT_2_94 from './save-fixtures/format-2-94.json';
+import FORMAT_2_95 from './save-fixtures/format-2-95.json';
+import FORMAT_2_96 from './save-fixtures/format-2-96.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -2068,23 +2070,66 @@ describe('save migration 91 to 92', () => {
   });
 });
 
-describe('MIGRATIONS[92]', () => {
-  it('gives the player the standard paint and changes nothing else', () => {
-    const next = MIGRATIONS[92](structuredClone(FORMAT_2_92)) as unknown as typeof FORMAT_2_92 & { player: { paint: string } };
-    expect(next.player.paint).toBe('standard');
-    const { paint: _paint, ...player } = next.player;
-    expect({ ...next, player }).toEqual(FORMAT_2_92);
+describe('save migration 92 to 93', () => {
+  const stepped = (world: unknown) => MIGRATIONS[92](structuredClone(world) as SavedJson) as unknown as typeof FORMAT_2_90 & { player: { pastContracts: unknown[] } };
+
+  it('gives the player an empty list of past contracts', () => {
+    expect(stepped(FORMAT_2_90).player.pastContracts).toEqual([]);
+  });
+
+  it('keeps the held contracts and the rest of the save as they were', () => {
+    const next = stepped(FORMAT_2_90);
+
+    expect({ ...next, player: { ...next.player, pastContracts: undefined } }).toEqual(FORMAT_2_90);
   });
 });
 
-describe('MIGRATIONS[93]', () => {
-  const migrate = (paint: unknown) => MIGRATIONS[93](structuredClone({ ...FORMAT_2_93, player: { ...FORMAT_2_93.player, paint } })) as unknown as typeof FORMAT_2_93 & { player: { paint: unknown } };
+describe('save migration 93 to 94', () => {
+  type Saved = typeof FORMAT_2_80;
+  const stepped = () => MIGRATIONS[93](MIGRATIONS[81](MIGRATIONS[80](structuredClone(FORMAT_2_80) as unknown as SavedJson))) as unknown as Saved & { vehicles: (Saved['vehicles'][number] & { bend?: number })[]; obstacles: { hulk?: { bend?: number } }[] };
+  const AHEAD = 5.73875 / 4;
+
+  it('moves a semi from the middle of the rig to its tractor along its heading and sets it straight', () => {
+    const before = FORMAT_2_80.vehicles[1];
+    const semi = stepped().vehicles[1];
+    expect(semi.pos.x).toBeCloseTo(before.pos.x + Math.cos(before.heading) * AHEAD, 9);
+    expect(semi.pos.y).toBeCloseTo(before.pos.y + Math.sin(before.heading) * AHEAD, 9);
+    expect(semi.bend).toBe(0);
+    expect({ ...semi, pos: before.pos, bend: undefined }).toEqual({ ...before, bend: undefined });
+  });
+
+  it('folds nothing and moves nothing else: other trucks, other hulks and props stay as they were', () => {
+    const next = stepped();
+    expect(next.vehicles[0]).toEqual(FORMAT_2_80.vehicles[0]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_80.vehicles[2]);
+    expect(next.obstacles.slice(1)).toEqual(FORMAT_2_80.obstacles.slice(1));
+  });
+
+  it('gives a semi hulk a straight bend at its tractor', () => {
+    const before = FORMAT_2_80.obstacles[0];
+    const hulk = stepped().obstacles[0] as typeof before & { hulk: { bend: number } };
+    expect(hulk.hulk).toEqual({ ...before.hulk, bend: 0 });
+    expect(hulk.pos.x).toBeCloseTo(before.pos.x + Math.cos(before.hulk!.yaw) * AHEAD, 9);
+  });
+});
+
+describe('MIGRATIONS[94]', () => {
+  it('gives the player the standard paint and changes nothing else', () => {
+    const next = MIGRATIONS[94](structuredClone(FORMAT_2_94)) as unknown as typeof FORMAT_2_94 & { player: { paint: string } };
+    expect(next.player.paint).toBe('standard');
+    const { paint: _paint, ...player } = next.player;
+    expect({ ...next, player }).toEqual(FORMAT_2_94);
+  });
+});
+
+describe('MIGRATIONS[95]', () => {
+  const migrate = (paint: unknown) => MIGRATIONS[95](structuredClone({ ...FORMAT_2_95, player: { ...FORMAT_2_95.player, paint } })) as unknown as typeof FORMAT_2_95 & { player: { paint: unknown } };
 
   it('turns an old paint job into its body, cab and gear colors and changes nothing else', () => {
     const next = migrate('plum');
     expect(next.player.paint).toEqual({ body: 'plum', cab: 'olive', gear: 'plum' });
-    expect({ ...next, player: { ...next.player, paint: 'plum' } }).toEqual(FORMAT_2_93);
-    expect(MIGRATIONS[93](structuredClone(FORMAT_2_93))).toEqual(next);
+    expect({ ...next, player: { ...next.player, paint: 'plum' } }).toEqual(FORMAT_2_95);
+    expect(MIGRATIONS[95](structuredClone(FORMAT_2_95))).toEqual(next);
   });
 
   it.each([
@@ -2101,13 +2146,13 @@ describe('MIGRATIONS[93]', () => {
   });
 });
 
-describe('MIGRATIONS[94]', () => {
-  const migrate = (paint: unknown) => MIGRATIONS[94](structuredClone({ ...FORMAT_2_94, player: { ...FORMAT_2_94.player, paint } })) as unknown as typeof FORMAT_2_94 & { player: { paint: unknown } };
+describe('MIGRATIONS[96]', () => {
+  const migrate = (paint: unknown) => MIGRATIONS[96](structuredClone({ ...FORMAT_2_96, player: { ...FORMAT_2_96.player, paint } })) as unknown as typeof FORMAT_2_96 & { player: { paint: unknown } };
 
   it('moves each retired color to its new color, keeps a current one and changes nothing else', () => {
-    const next = MIGRATIONS[94](structuredClone(FORMAT_2_94)) as unknown as typeof FORMAT_2_94;
+    const next = MIGRATIONS[96](structuredClone(FORMAT_2_96)) as unknown as typeof FORMAT_2_96;
     expect(next.player.paint).toEqual({ body: 'chalk', cab: 'slate', gear: 'sand' });
-    expect({ ...next, player: { ...next.player, paint: FORMAT_2_94.player.paint } }).toEqual(FORMAT_2_94);
+    expect({ ...next, player: { ...next.player, paint: FORMAT_2_96.player.paint } }).toEqual(FORMAT_2_96);
   });
 
   it.each([

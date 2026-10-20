@@ -1,1 +1,11 @@
-{"turn": 2410, "player": {"money": 7300, "perks": [], "storage": [], "paint": {"body": "lavender", "cab": "navy", "gear": "sand"}}, "vehicles": [{"id": "v1", "chassisId": "scout", "faction": "player", "pos": {"x": 5, "y": 6}}]}
+{
+  "turn": 2400,
+  "player": {
+    "money": 7300,
+    "perks": [],
+    "storage": []
+  },
+  "vehicles": [
+    { "id": "v1", "chassisId": "scout", "faction": "player", "pos": { "x": 5, "y": 6 } }
+  ]
+}

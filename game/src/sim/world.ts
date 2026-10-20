@@ -136,6 +136,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       scavenged: [],
       storage: [],
       contracts: [],
+      pastContracts: [],
       costBasis: { ...kit.costBasis },
       knockouts: 0,
       state: 'active',

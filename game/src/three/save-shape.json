@@ -1,5 +1,5 @@
 {
- "format": "2.95",
+ "format": "2.97",
  "shape": {
   "broken": [],
   "craters": [],
@@ -76,6 +76,7 @@
     "cab": "string",
     "gear": "string"
    },
+   "pastContracts": [],
    "perks": [],
    "quests": {
     "local": {},

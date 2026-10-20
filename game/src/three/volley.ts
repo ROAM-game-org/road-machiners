@@ -18,7 +18,7 @@ import type { VehicleView } from "./render/vehicle";
 import { scoreEventOf, type SoundDirector } from "./sound";
 import { PARTS } from "../data/parts";
 import { PHYSICS } from "../data/physics";
-import { bodyOf } from "../sim/body";
+import { spanOf } from "../sim/body";
 
 export type VolleyHost = {
   world: World;
@@ -219,6 +219,12 @@ function missAt(w: World, from: Vec, target: Vec): (offset: number) => V3 {
   return (offset) => groundPoint(w.terrain, missPoint(from, target, offset));
 }
 
+function gunOf(view: VehicleView | undefined, weapon: string, defId: string, spec: ProjectileSpec): Gun {
+  const rangeM = weaponRange(defId) * PHYSICS.metersPerTile;
+  if (!view) return { spec, rangeM, blastRadius: blastRadiusOf(defId), unit: 0, covers: () => false };
+  return { spec, rangeM, blastRadius: blastRadiusOf(defId), unit: view.turretUnit(weapon), covers: (heading, yaw) => view.covers(weapon, heading, yaw) };
+}
+
 function playTruckShot(host: CombatHost, e: ShotLike, rows: Map<string, number>, breaks: BreakCues): VolleyLands | null {
   if (!host.eventPoint(e.shooter) || !host.eventPoint(e.target)) return null;
   const w = host.world;
@@ -226,10 +232,9 @@ function playTruckShot(host: CombatHost, e: ShotLike, rows: Map<string, number>,
   const target = vehicleOf(w, e.target);
   const part = carriedPart(w, e.shooter, e.weapon);
   if (!part) throw new Error(`Shot from ${e.shooter} names no mounted weapon ${e.weapon}`);
-  const view = host.views.get(e.shooter);
   const spec = projectileOf(part.defId);
-  const gun: Gun = { spec, rangeM: weaponRange(part.defId) * PHYSICS.metersPerTile, blastRadius: blastRadiusOf(part.defId), covers: (heading, yaw) => view?.covers(e.weapon, heading, yaw) ?? false };
-  const half = bodyOf(target.chassisId).half;
+  const gun = gunOf(host.views.get(e.shooter), e.weapon, part.defId, spec);
+  const half = spanOf(target.chassisId).half;
   const shot: Shot = { shooter: e.shooter, target: e.target, rounds: e.rounds, late: killingRounds(w, e), missAt: missAt(w, shooter.pos, target.pos), targetHalf: { length: half.x, width: half.z } };
   const ground = (p: V3) => groundPoint(w.terrain, toMap(p)).y;
   const plans = planShot(host.poses, shot, gun, ground, Math.random);
@@ -353,7 +358,7 @@ export type TurnPoses = {
   moveMs: number;
   stepMs: number;
   at: (vehicleId: string, step: number) => V3 | null;
-  headingAt: (vehicleId: string, step: number) => number | null;
+  headingAt: (vehicleId: string, step: number, unit?: number) => number | null;
   end: (vehicleId: string) => V3 | null;
   endHeading: (vehicleId: string) => number | null;
 };
@@ -373,9 +378,10 @@ export function posesOf(world: World, frames: TurnFrames, clock: PoseClock, show
       const f = frames[id]?.[step];
       return f ? lift(f) : null;
     },
-    headingAt: (id, step) => {
+    headingAt: (id, step, unit = 0) => {
       const f = frames[id]?.[step];
-      return f ? headingOf(f.rot) : null;
+      if (!f) return null;
+      return unit > 0 && f.rear ? headingOf(f.rear.rot) : headingOf(f.rot);
     },
     end: (id) => {
       const f = endFrame(id);
@@ -388,7 +394,7 @@ export function posesOf(world: World, frames: TurnFrames, clock: PoseClock, show
   };
 }
 
-export type Gun = { spec: ProjectileSpec; rangeM: number; blastRadius: number; covers: (heading: number, yaw: number) => boolean };
+export type Gun = { spec: ProjectileSpec; rangeM: number; blastRadius: number; unit: number; covers: (heading: number, yaw: number) => boolean };
 
 export type Shot = { shooter: string; target: string; rounds: ShotRound[]; late: (k: number) => boolean; missAt: (offset: number) => V3; targetHalf: { length: number; width: number } };
 
@@ -413,7 +419,7 @@ export function fireSteps(poses: TurnPoses, shot: Pick<Shot, "shooter" | "target
 function firesAt(poses: TurnPoses, shot: Pick<Shot, "shooter" | "target">, gun: Gun, s: number): boolean {
   const a = poses.at(shot.shooter, s);
   const b = poses.at(shot.target, s);
-  const heading = poses.headingAt(shot.shooter, s);
+  const heading = poses.headingAt(shot.shooter, s, gun.unit);
   if (!a || !b || heading === null || flat(a, b) > gun.rangeM) return false;
   return gun.covers(heading, Math.atan2(b.z - a.z, b.x - a.x)) && s * poses.stepMs + flightMsOf(gun.spec, a, b) <= poses.moveMs;
 }

@@ -9,7 +9,7 @@ import { PROP_KINDS, type BakedMap, type BakedProp, type PropKind, type Terrain 
 import { siteGap } from './sites';
 import { ROCK_LOOKS, TERRAIN } from '../data/terrain';
 import { hashId, randInt, randRange } from './rng';
-import { hulkBoxes } from './body';
+import { hulkBoxes, type HulkBox } from './body';
 import { chassisDef } from '../data/chassis';
 import { propBase, underDeck } from './bridge';
 import { atlasOf, atlasSites, type Atlas } from './atlas';
@@ -117,7 +117,7 @@ export function clearOfSites(atlas: Atlas, pos: Vec, r: number): boolean {
 export type PropScale = { x: number; y: number; z: number };
 export type PropPose =
   | { model: PropModel; pos: Vec; yaw: number; scale: PropScale }
-  | { model: 'hulk'; chassisId: string; pos: Vec; yaw: number; scale: PropScale };
+  | { model: 'hulk'; chassisId: string; pos: Vec; yaw: number; scale: PropScale; bend?: number };
 export type ShapeBox = { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number };
 
 type FortLook = Exclude<Extract<PropKind, `fort${string}`>, 'fortOutpostShut'>;
@@ -268,7 +268,7 @@ function rockPick(id: string): number {
 }
 
 function wreckPose(o: Exclude<Obstacle, Landmark>, pos: Vec): PropPose {
-  if (o.hulk) return { model: 'hulk', chassisId: o.hulk.chassisId, pos, yaw: o.hulk.yaw, scale: even(1) };
+  if (o.hulk) return { model: 'hulk', chassisId: o.hulk.chassisId, pos, yaw: o.hulk.yaw, scale: even(1), ...(o.hulk.bend === undefined ? {} : { bend: o.hulk.bend }) };
   return { model: 'wreck', pos, yaw: hashId(o.id) * TURN, scale: even(o.r / WRECK_RADIUS) };
 }
 
@@ -381,27 +381,31 @@ function posedShape(o: Obstacle): PosedShape {
 
 function localShape(pose: PropPose): PosedShape {
   const { x: sx, y: sy, z: sz } = pose.scale;
-  const model = pose.model === 'hulk' ? `hulk:${pose.chassisId}` : pose.model;
+  const model = pose.model === 'hulk' ? `hulk:${pose.chassisId}${pose.bend === undefined ? '' : `:${pose.bend}`}` : pose.model;
   const key = `${model}|${pose.yaw}|${sx}|${sy}|${sz}`;
   const hit = LOCAL_SHAPES.get(key);
   if (hit) return hit;
   const c = Math.cos(pose.yaw);
   const s = Math.sin(pose.yaw);
   let reach = 0;
-  const boxes = poseBoxes(pose).map((b) => {
-    const mx = ((b.x0 + b.x1) / 2) * sx;
-    const my = ((b.y0 + b.y1) / 2) * sy;
+  const boxes = poseBoxes(pose).map(({ box: b, x, y, turn }) => {
+    const bx = (b.x0 + b.x1) / 2;
+    const by = (b.y0 + b.y1) / 2;
+    const mx = (x + bx * Math.cos(turn) - by * Math.sin(turn)) * sx;
+    const my = (y + bx * Math.sin(turn) + by * Math.cos(turn)) * sy;
     const half = { x: ((b.x1 - b.x0) / 2) * (sx / M), y: ((b.y1 - b.y0) / 2) * (sy / M) };
-    reach = Math.max(reach, Math.hypot(Math.abs(mx) / M + half.x, Math.abs(my) / M + half.y));
-    return { center: { x: (mx * c + my * s) / M, y: (mx * s - my * c) / M }, axis: { x: c, y: s }, half, z0: b.z0 * sz, z1: b.z1 * sz };
+    const far = turn === 0 ? Math.hypot(Math.abs(mx) / M + half.x, Math.abs(my) / M + half.y) : Math.hypot(mx, my) / M + Math.hypot(half.x, half.y);
+    reach = Math.max(reach, far);
+    const axis = turn === 0 ? { x: c, y: s } : { x: Math.cos(pose.yaw - turn), y: Math.sin(pose.yaw - turn) };
+    return { center: { x: (mx * c + my * s) / M, y: (mx * s - my * c) / M }, axis, half, z0: b.z0 * sz, z1: b.z1 * sz };
   });
   const shape = { key, reach, boxes };
   LOCAL_SHAPES.set(key, shape);
   return shape;
 }
 
-function poseBoxes(pose: PropPose): readonly ShapeBox[] {
-  return pose.model === 'hulk' ? hulkBoxes(pose.chassisId) : propShape(pose.model);
+function poseBoxes(pose: PropPose): readonly HulkBox[] {
+  return pose.model === 'hulk' ? hulkBoxes(pose.chassisId, pose.bend) : propShape(pose.model).map((box) => ({ box, x: 0, y: 0, turn: 0 }));
 }
 
 function boxLocal(box: PosedBox, p: Vec): Vec {

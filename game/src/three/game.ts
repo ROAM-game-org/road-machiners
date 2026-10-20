@@ -14,7 +14,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import {
-  frameAt,
+  frameAt, framePoints, staleFrame,
   groundPoint,
   toMap,
   type TurnFrames,
@@ -68,7 +68,7 @@ import { addShipDecks } from "./render/ship-decks";
 import { terrainMesh } from "./render/terrain";
 import { type WebGLSurface } from "./webgl";
 import { RadioLights, VehicleView } from "./render/vehicle";
-import { HoverArcsView, WeaponRangeView } from "./render/weaponRange";
+import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponRange";
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
@@ -113,7 +113,6 @@ type TurnPhase = ReturnType<UiHost["getTurnPhase"]>;
 
 const MOVE_MS = (TURN_STEPS / PHYSICS.stepsPerSecond) * 1000;
 const stepMs = (step: number) => (step / PHYSICS.stepsPerSecond) * 1000;
-const MOVED_BY_RULES = 0.5;
 
 const GUN_HEIGHT = 1.6;
 
@@ -784,8 +783,10 @@ export class Game {
     for (const v of this.world.vehicles) {
       const f = this.frames[v.id];
       if (!f || !this.isVehicleVisible(v)) continue;
-      const s = this.rig.screenOf(f.pos);
-      const d = Math.hypot(s.x - cx, s.y - cy);
+      const d = Math.min(...framePoints(f).map((p) => {
+        const s = this.rig.screenOf(p);
+        return Math.hypot(s.x - cx, s.y - cy);
+      }));
       if (d < bestD) {
         best = v;
         bestD = d;
@@ -1175,7 +1176,7 @@ export class Game {
     for (const [i, v] of shown.entries()) {
       this.pin.note(v, i < this.world.vehicles.length);
       const kept = this.frames[v.id];
-      const stale = !this.anim && kept && dist(toMap(kept.pos), v.pos) > MOVED_BY_RULES;
+      const stale = staleFrame(kept, v, this.anim !== null);
       const f = (frames && frameAt(frames[v.id], at!)) ?? (kept && !stale ? kept : restFrame(this.world, v));
       this.frames[v.id] = f;
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);
@@ -1245,7 +1246,7 @@ export class Game {
     const me = playerVehicle(this.world);
     const s = vehicleStats(this.world, me);
     const sel = s.weapons.filter((m) => m.part.id === this.selected);
-    this.weaponRange.set(this.world.terrain, me.pos, me.heading, sel);
+    this.weaponRange.set(this.world.terrain, vehicleOrigins(me), sel);
     if (!me.direct) this.zones.hideBands();
     else
       this.zones.update(

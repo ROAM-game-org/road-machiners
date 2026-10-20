@@ -8,7 +8,8 @@ import { hasBasic, skillEffect } from './progress';
 import { TOW } from '../data/tow';
 import { maxHp, wornDef } from './wear';
 import { gunSpans, type FireSpan } from './armor';
-import { corePart, coreParts, facingOf, mountedItems, mountedParts } from './grid';
+import { corePart, coreParts, facingOf, itemCells, mountedItems, mountedParts } from './grid';
+import { unitOfCells } from './body';
 import { loadFactor, vehicleMass } from './mass';
 import { getResources } from './resources';
 import { isTowing } from './tow';
@@ -18,7 +19,7 @@ import { DEG } from './vec';
 import { weatherOn } from './weather';
 import { fuelUseScale } from './settings';
 
-export type MountedWeapon = { part: PartInstance; def: WeaponDef; spans: FireSpan[]; facing: number };
+export type MountedWeapon = { part: PartInstance; def: WeaponDef; spans: FireSpan[]; facing: number; unit: number };
 
 export type VehicleStats = {
   maxSpeed: number;
@@ -189,7 +190,7 @@ export function vehicleStats(world: World, v: Vehicle): VehicleStats {
     roughSkill: skillEffect(world, v, 'driving', 'roughSpeed'),
     mass,
     radius: ch.radius,
-    weapons: mountedItems(v, 'weapon').map((item) => ({ part: item.part, def: wornDef<WeaponDef>(item.part), spans: gunSpans(v, item), facing: facingOf(item) })),
+    weapons: mountedItems(v, 'weapon').map((item) => ({ part: item.part, def: wornDef<WeaponDef>(item.part), spans: gunSpans(v, item), facing: facingOf(item), unit: unitOfCells(v.chassisId, itemCells(item)).index })),
   };
 }
 

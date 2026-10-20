@@ -169,7 +169,7 @@ describe('parts on bare nose and tail cells', () => {
     const v = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 30, y: 30 });
     const cab = partOf(v, 'cab');
     const view = new VehicleView(v, true, PAINT.standard);
-    view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: wheelMounts(bodyOf(v.chassisId)).map(() => ({ suspension: 0, steer: 0, spin: 0, ground: true })) }, 0.016);
+    view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: wheelMounts(bodyOf(v.chassisId), 0).map(() => ({ suspension: 0, steer: 0, spin: 0, ground: true })) }, 0.016);
     const rect = cellRect('buggy', itemCells(cab));
     const at = view.partPoint(cab.part.id);
     expect(at.x).toBeCloseTo((rect.x0 + rect.x1) / 2);

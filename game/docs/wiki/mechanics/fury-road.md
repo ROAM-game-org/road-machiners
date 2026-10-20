@@ -35,7 +35,7 @@ The road winds, so a sprinter has no long straight run. It runs straight for 40 
 
 The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheeler that the player's hired driver drives north by itself. `playerTrucks()` names both, and `haulerOf()` the hauler. The hauler is a normal vehicle of faction `player` with its own driver resources and no brain. Steering, physics, wear, damage, fuel and supplies are the shared rules.
 
-- Chassis: `semi`, a long-nose tractor and a box trailer drawn as one rigid model. It tops out at 6 tiles a turn. It is in no truck offer and no NPC template.
+- Chassis: `semi`, a long-nose tractor and a box trailer on a pivot, a rig as in [Truck](truck.md). The trailer bends behind the tractor on lane changes, crater dodges and the roadblock detour, and it hits props and trucks as a body of its own. It tops out at 6 tiles a turn. It is in no truck offer and no NPC template.
 - Parts: its grid has an engine bay, an armor ring, core cells and cargo bay cells. A cargo bay cell takes a cargo frame or anything stowed. So a gun, scanner, utility or store part never mounts on the hauler, and a stowed gun never fires. Only armor, engine and cargo parts can be bought for it.
 - Start: the same every run. A workhorse diesel, a full tank, base supplies and a full-health driver. It starts in the inner left lane, ahead of the player by both trucks' radii plus the yield gap.
 - Lane: it aims at the center of one of the four lanes, 12 tiles ahead. Its lane is the lane center nearest to it, so nothing about the lane is saved.
@@ -46,7 +46,7 @@ The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheele
 - Flank trucks: a group truck that is not beaten, abeam within 6 tiles and closing across, sends it one lane away from that side. With threats on both sides, or no lane left on the far side, it holds its lane.
 - Speed: 4.5 tiles a turn, and the same 4.5 for 4 turns after it takes damage, since `hurry` equals `cruise`, so it never outruns a fight. When the gun truck's top speed without overdrive is lower, the hauler drives at that speed instead, so a slow gun truck keeps the hauler beside it. A stranded, stalled or shut-down gun truck sets no limit. The limit reads the truck's top speed, not its speed this turn, so the hauler never brakes for a fight, a stop or a turn of the gun truck, and never stops on the road.
 - Outpost: within 25 tiles of the next outpost's yard it drives to its park spot in the yard, the left of the road's center, and parks there. Between levels it keeps driving to that spot until it is parked on it, so it clears the gateway.
-- It draws no random number. A stretch it drives alone replays exactly. A hauler that makes under a tile of road progress for 12 turns, while it is not stranded, parked at an outpost or pinned nose to nose by a group truck that is not beaten, raises the `stall` event, which is always a bug.
+- It draws no random number. A stretch it drives alone replays exactly. A hauler that makes under a tile of road progress for 12 turns, while it is not stranded, parked at an outpost, parked on its spot in the next yard waiting for the gun truck, or pinned nose to nose by a group truck that is not beaten, raises the `stall` event, which is always a bug.
 
 ## Scenes
 

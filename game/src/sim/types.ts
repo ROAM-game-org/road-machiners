@@ -8,7 +8,7 @@ import type { Vec } from "./vec";
 import type { LineId, TopicId } from "../data/dialogue";
 import type { PersonalityId } from "../data/personalities";
 import type { DecisionOptions } from "../data/npcs";
-import type { Contract, ShopState } from "./market";
+import type { Contract, PastContract, ShopState } from "./market";
 import type { TruckPaint } from "../data/chassis";
 import type { Rng } from "./rng";
 import type { PerkId } from "../data/skills";
@@ -82,7 +82,7 @@ export type UtilityOrder =
   | { kind: 'point'; pos: Vec }
   | { kind: 'disarm' };
 
-export type Pose = { x: number; y: number; heading: number };
+export type Pose = { x: number; y: number; heading: number; bend?: number };
 
 export type MoveOrder =
   | { kind: "through"; dest: Vec; pace?: number }
@@ -354,6 +354,7 @@ export type Vehicle = {
   items: GridItem[];
   pos: Vec;
   heading: number;
+  bend?: number;
   speed: number;
   stormExposure: Record<string, number>;
   strandedTurns?: number;
@@ -375,7 +376,7 @@ export type Defeat = { phase: 'out' | 'retreat'; turns: number; unseen: number; 
 
 export type LandmarkLook = Exclude<PropKind, "rock">;
 
-export type Hulk = { chassisId: string; yaw: number };
+export type Hulk = { chassisId: string; yaw: number; bend?: number };
 
 export type Obstacle =
   | { id: string; pos: Vec; r: number; kind: "rock" | "wreck" | "building" | "water" | "site"; hulk?: Hulk }
@@ -498,6 +499,7 @@ export type Player = {
   scavenged: string[];
   storage: PartInstance[];
   contracts: Contract[];
+  pastContracts: PastContract[];
   costBasis: Record<string, number>;
   knockouts: number;
   state: "active" | "knockedOut" | "dead";

@@ -7,7 +7,8 @@ import { itemTone, renderKey, type IconEntry } from '../../render/partLooks';
 import { model, socket, type ModelName } from '../render/models';
 import { wheelMounts } from '../../phys/body';
 import { bareVehicle } from '../../sim/factory';
-import { bodyOf } from '../../sim/body';
+import { spanOf, unitBody, unitsOf } from '../../sim/body';
+import type { VehicleFrame } from '../../phys/frames';
 import { baseGrid } from '../../sim/grid';
 import { PLAN_PAD } from '../../render/partLooks';
 import { VehicleView } from '../render/vehicle';
@@ -137,14 +138,14 @@ export function renderPlan(entry: IconEntry, size: number): { top: string; outli
   const scene = new THREE.Scene();
   scene.add(root);
   const grid = baseGrid(entry.id);
-  const { half } = bodyOf(entry.id);
+  const { center, half } = spanOf(entry.id);
   const col = (2 * half.z) / (grid.w - 2);
   const x = half.x + (PLAN_PAD * 2 * half.x) / grid.h;
   const z = half.z + PLAN_PAD * col;
   const camera = new THREE.OrthographicCamera(-z, z, x, -x, 0.01, 100);
-  camera.position.set(0, 30, 0);
+  camera.position.set(center, 30, 0);
   camera.up.set(1, 0, 0);
-  camera.lookAt(0, 0, 0);
+  camera.lookAt(center, 0, 0);
   camera.updateMatrixWorld(true);
   camera.updateProjectionMatrix();
   const scale = size / ((2 * z) / col) / PLAN_CELL_PX;
@@ -220,8 +221,11 @@ function build(entry: IconEntry, paint: TruckPaint): Omit<Stage, 'scene' | 'came
 function bareTruck(chassisId: string, paint: TruckPaint): THREE.Object3D {
   const v = bareVehicle({ nextId: 0 }, { faction: 'player', chassisId, pos: { x: 0, y: 0 }, heading: 0, brain: null });
   const view = new VehicleView(v, false, paint);
-  const wheels = wheelMounts(bodyOf(chassisId)).map(() => ({ steer: 0, spin: 0, suspension: PHYSICS.truck.suspensionRest, ground: true }));
-  view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels }, 0);
+  const rest = (unit: number) => wheelMounts(unitBody(chassisId, unit), unit).map(() => ({ steer: 0, spin: 0, suspension: PHYSICS.truck.suspensionRest, ground: true }));
+  const units = unitsOf(chassisId);
+  const frame: VehicleFrame = { pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: rest(0) };
+  if (units[1]) frame.rear = { pos: { x: units[1].offset, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, wheels: rest(1) };
+  view.pose(frame, 0);
   return view.root;
 }
 

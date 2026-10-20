@@ -323,6 +323,20 @@ describe('game save', () => {
     expect(loadWorld(slots, 'auto', TEST_MAP)?.player.contracts).toEqual([{ ...bounty, fulfilled: true }]);
   });
 
+  it('keeps the past contracts across a reload, and awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 10000, deadline: 500, window: 500, rush: false, tier: 1 };
+    const claim: Contract = { id: 'ct-c', shop: 'nose', kind: 'claim', stockId: 's-1', at: { x: 50, y: 50 }, partId: 'p-1', defId: 'mg', reward: 12000, deadline: 900, window: 600, tier: 1, rivalAt: 700, rival: null, leads: [{ turn: 40, from: { x: 3, y: 4 }, driver: 'd-1' }] };
+    world.player.pastContracts = [{ contract: haul, outcome: 'failed', turn: 501, amount: -1800 }, { contract: claim, outcome: 'done', turn: 640, amount: 12000 }];
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.player.pastContracts).toEqual(world.player.pastContracts);
+    expect({ money: loaded.player.money, xp: loaded.player.xp, events: loaded.events }).toEqual({ money: world.player.money, xp: world.player.xp, events: [] });
+  });
+
   it('keeps a part-done survey with its found places, a survey job in progress and a survey offer on a board across a reload, and awards nothing', () => {
     const slots = makeSlots();
     const [a, b, c, d] = surveySites(TEST_MAP);

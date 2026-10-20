@@ -22,7 +22,8 @@ export type ChassisDef = {
   value: number;
   showsCores: boolean;
   tier: Tier;
-  look: 'pickup' | 'hauler' | 'buggy' | 'wagon' | 'courier' | 'van' | 'longbed' | 'carrier' | 'tractor' | 'jeep' | 'convertible' | 'bus' | 'loader' | 'niva' | 'bukhanka' | 'lincoln' | 'semi';
+  coupling?: { row: number };
+  look: 'pickup' | 'hauler' | 'buggy' | 'wagon' | 'courier' | 'van' | 'longbed' | 'carrier' | 'tractor' | 'jeep' | 'convertible' | 'bus' | 'loader' | 'niva' | 'bukhanka' | 'lincoln' | 'semi' | 'sorokonoga';
 };
 
 export const CHASSIS_PRICE_MODIFIERS = { perDeckCell: 2000, perArmorCell: 1000, perTopSpeed: 2666.67 };
@@ -380,7 +381,39 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 26 },
       { defId: 'wheelMid', x: 7, y: 26 },
     ],
-    fuelCap: 160, fuelPerTile: 0.5, base: 56000, showsCores: false, tier: 3, look: 'semi',
+    fuelCap: 160, fuelPerTile: 0.5, base: 56000, showsCores: false, tier: 3, coupling: { row: 11 }, look: 'semi',
+  },
+  sorokonoga: {
+    id: 'sorokonoga', maxSpeed: 3.4, accel: 0.7, brake: 1.6, turnSlow: 75, turnFast: 24, reverseTurn: 25,
+    mass: 4100, handlingMass: 8400, radius: 1.0,
+    layout: [
+      ' FFFFFFF ',
+      'LX.....XR',
+      'LX.XXX.XR',
+      'L..XXX..R',
+      'L.EEXXX.R',
+      'L.EEXXX.R',
+      'L.......R',
+      'LDDDDDDDR',
+      'LDDDDDDDR',
+      'LDDDDDDDR',
+      'L.......R',
+      'L.......R',
+      'LDDDDDDDR',
+      'LX.DDD.XR',
+      'LX.DDD.XR',
+      ' BBBBBBB ',
+    ],
+    core: [
+      { defId: 'cabPickup', x: 3, y: 2 },
+      { defId: 'transmissionHeavy', x: 4, y: 4 },
+      { defId: 'tankHeavy', x: 6, y: 4 },
+      { defId: 'wheelHeavy', x: 1, y: 1 },
+      { defId: 'wheelHeavy', x: 7, y: 1 },
+      { defId: 'wheelHeavy', x: 1, y: 13 },
+      { defId: 'wheelHeavy', x: 7, y: 13 },
+    ],
+    fuelCap: 140, fuelPerTile: 0.55, base: 57500, showsCores: false, tier: 3, coupling: { row: 7 }, look: 'sorokonoga',
   },
 };
 
@@ -388,10 +421,10 @@ export const CHASSIS: Record<string, ChassisDef> = Object.fromEntries(
   Object.entries(CHASSIS_INPUTS).map(([id, def]) => [id, finishChassis(def)]),
 );
 
-export const PLAYER_CHASSIS = ['scout', 'hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'];
+export const PLAYER_CHASSIS = ['scout', 'hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon', 'sorokonoga'];
 
 export const TOWN_CHASSIS: Record<string, readonly string[]> = {
-  bowl: ['scout', 'buggy', 'courier', 'van', 'hauler', 'bus', 'convertible', 'longbed', 'tractor', 'loader'],
+  bowl: ['scout', 'buggy', 'courier', 'van', 'hauler', 'bus', 'convertible', 'longbed', 'tractor', 'loader', 'sorokonoga'],
   nose: ['scout', 'buggy', 'courier', 'jeep', 'niva', 'bukhanka', 'wagon', 'carrier', 'lincoln'],
 };
 
