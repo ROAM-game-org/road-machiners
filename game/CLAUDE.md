@@ -114,7 +114,7 @@ Players keep their saves across updates. Migrate old saves whenever possible. [S
 - Every tiny step gets a Vitest test on a fixture from `src/three/save-fixtures/`.
 - Run `npm run save:shape` after the new step or major bump.
 - Tiny steps live only after the newest shipped format. After a release or hotfix ships a new format, fold the tiny steps up to it into one release step, as [Saves](docs/architecture/saves.md#folding-tiny-steps) describes. `save-anchors.test.ts` fails once a second shipped format waits for its fold.
-- Never edit a release step. Fix a bad one with a new tiny step.
+- Never edit a committed tiny step outside a fold, and never edit a release step. Fix a bad step with a new tiny step.
 - Release steps cover the last 10 releases. A save older than that, or at a format no build shipped, carries over through the rescue on load.
 - A step that moves a progression field the rescue carries, like money, XP, ranks, notes or quest variables, also teaches `readCarried()` in `src/three/save-rescue.ts` the old form. A step that removes a part or good id adds its price to `RETIRED_PRICES_RESCUE`.
 - A change to world state gets a test that saves the world, loads it and checks the loaded world. Load must give back the same world and award nothing: no XP, money or events.

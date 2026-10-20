@@ -1,10 +1,13 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { startKit } from '../data/start';
 import { playerVehicle } from '../sim/damage';
 import { TEST_MAP } from '../test/map';
 import { townAt } from '../sim/sites';
 import { carriedWorld, newWorld } from '../sim/world';
-import { loadWorld, saveOf, savedRunId } from './save';
+import { loadWorld, SAVE_FORMAT, saveOf, savedRunId, stepsFrom } from './save';
+import type { SavedJson } from './save-migrations';
 import { memoryBackend, SaveSlots } from './save-db';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
@@ -294,5 +297,17 @@ describe('rescueSave', () => {
     expect(rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 1000)).toBeNull();
     slots.put('auto', [1]);
     expect(rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 1000)).toBeNull();
+  });
+});
+
+const ANCHOR_DIR = join(__dirname, 'save-fixtures/anchors');
+
+describe('readCarried on every shipped save', () => {
+  it.each(readdirSync(ANCHOR_DIR))('reads the progression of %s as it reads the same save carried by the steps', (file) => {
+    const envelope = JSON.parse(readFileSync(join(ANCHOR_DIR, file), 'utf8')) as { format: { minor: number }; world: SavedJson };
+    const migrated = stepsFrom(envelope.format.minor)!.reduce((world, step) => step(world), structuredClone(envelope.world));
+    const progression = ({ money, xp, ranks, xpBySource, perks, knockouts, fuel, supplies, costBasis, notes, quests, run, revisions }: ReturnType<typeof readCarried>) =>
+      ({ money, xp, ranks, xpBySource: Object.fromEntries(Object.entries(xpBySource).filter(([, n]) => n !== 0)), perks, knockouts, fuel, supplies, costBasis, notes, quests, run, revisions });
+    expect(progression(readCarried(envelope))).toEqual(progression(readCarried({ ...envelope, format: SAVE_FORMAT, world: migrated })));
   });
 });
