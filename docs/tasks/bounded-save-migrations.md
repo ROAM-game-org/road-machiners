@@ -1,6 +1,6 @@
 # Bounded save migrations
 
-**Status:** executing
+**Status:** validating
 **Branch:** bounded-save-migrations
 **Worktree:** .worktrees/bounded-save-migrations
 **Goal:** Save migration code stays bounded as the game ships. Small steps live only between two shipped builds, each shipped format gets one release step, and the last 10 releases keep full migration. Every older save loads through a carry migration that keeps progression and refunds what it cannot carry, and no save in format 2 at or below the current minor ever ends at a refusal. Players keep their saves, and maintainers stop paying for steps that grow without end. Useless if: the step count drops but a save at a shipped format loads to a different world than the old chain gave, a carried save loses more than today's rescue loses, the code still grows with every release, or a player save at 2.62 reads as "from a newer version".
