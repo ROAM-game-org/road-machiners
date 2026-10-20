@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FORTRESS, FORTRESS_SITES, FORTRESS_STYLES, type FortressSite } from '../data/fortress';
 import { REGION } from '../data/region';
+import { HOLLOW } from '../data/sunward';
 import { siteGates, type Site } from './sites';
 import { DEG, dist, segmentDist, type Vec } from './vec';
 import { fortressFootprint, fortressGates, fortressOutline, insideCurtain, fortressPieces, onFortressRock, type FortressPiece } from './fortress';
@@ -70,7 +71,7 @@ function outward(site: Site, p: Vec): Vec {
 
 describe('fortress data', () => {
   it('names the nine inhabited sites', () => {
-    expect(Object.keys(FORTRESS_SITES).filter((id) => id !== 'outpost').sort()).toEqual(['bowl', 'dustwell', 'granary', 'green-pit', 'kiln', 'nose', 'pump-station', 'salvage-yard', 'scrapjaw']);
+    expect(Object.keys(FORTRESS_SITES).filter((id) => id !== 'outpost' && id !== HOLLOW.id).sort()).toEqual(['bowl', 'dustwell', 'granary', 'green-pit', 'kiln', 'nose', 'pump-station', 'salvage-yard', 'scrapjaw']);
     expect(FORTS).toHaveLength(9);
   });
 });
