@@ -5,6 +5,7 @@ The world of ROAM. Everything here answers to [Theme](../theme.md).
 - [World facts](world.md): the timeline, technology, population and what lies beyond the basin.
 - [The end of the Old World](old-world-end.md): the Spiral, the Cry, the Race, the Exodus, the Chaos and the Forsaken, as they happened and as people tell them, and their signs.
 - [Peoples](peoples.md): towns, groups and faiths, and how each copes with the world.
+- [The Sunward](sunward.md): the night order's internal history, from the story game.
 - [Characters](characters.md): named people.
 - [Rumors](rumors.md): what people say.
 - [Stories](stories.md): seeds for events and jobs.
@@ -29,7 +30,7 @@ Each of these needs one true answer, written here once it is chosen. The game wi
 
 - Why the ship came back and why it fell. It was an Exodus ship, as [Timeline](timeline.md) records.
 - Whether Nose's wreck is part of the Fallen Sun's ship or a second ship.
-- What lies in the Fallen Sun's crater, and what the green glow does to people.
+- What lies in the Fallen Sun's crater. What the green glow does to people is answered: it is the ship's leaking reactor core, and its sickness brings the fever dreams.
 - Why the Old Army left Old Orchard.
 - What the Given were. Many basin people descend from these pod survivors, as [Peoples](peoples.md) records. Whether they were sleeping passengers or people the ship grew, and why they woke remembering nothing, is open.
 - What the basin was called before.

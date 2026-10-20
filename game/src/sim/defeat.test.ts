@@ -58,9 +58,10 @@ describe('death', () => {
     w.player.health = 0;
     checkDeath(w);
     expect(w.player.state).toBe('dead');
-    expect(w.events).toEqual([{ t: 'death' }]);
+    expect(w.events).toEqual([{ t: 'death', cause: 'injury' }]);
     checkDeath(w);
-    expect(w.events).toEqual([{ t: 'death' }]);
+    expect(w.events).toEqual([{ t: 'death', cause: 'injury' }]);
+    expect(w.player.quests.live).toBeNull();
   });
 
   it('keeps a living player alive', () => {

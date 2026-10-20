@@ -157,6 +157,7 @@ describe("queries", () => {
         "seeall",
         "skills",
         "spawn",
+        "sunward",
         "supplies",
         "tp",
         "weather",
