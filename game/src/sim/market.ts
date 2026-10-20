@@ -593,6 +593,12 @@ export function initializeShops(world: World): void {
   for (const [shopId, state] of Object.entries(world.shops)) fillBoard(world, shopId, state);
 }
 
+export function addShop(world: World, shopId: string): void {
+  const state = initShop(world, shopId);
+  world.shops[shopId] = state;
+  fillBoard(world, shopId, state);
+}
+
 export function advanceShops(world: World): void {
   pruneEscortOffers(world);
   for (const [shopId, state] of Object.entries(world.shops)) {
