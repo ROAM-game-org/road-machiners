@@ -7,7 +7,6 @@ import { REGION } from '../data/region';
 import { CHEATS } from '../data/rules';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
-import { isRoadWreck } from '../sim/salvage';
 import { isFree } from '../sim/spawn';
 import { surveySites } from '../sim/survey';
 import type { World } from '../sim/types';
@@ -16,7 +15,6 @@ import { TEST_MAP } from '../test/map';
 import { townAt } from '../sim/sites';
 import { carriedWorld, endTurn, newWorld } from '../sim/world';
 import { carriesOnLoad, loadSave, loadWorld, SaveError, saveOf, savedRunId, stepsFrom } from './save';
-import { TINY_FROM } from './save-migrations';
 import { memoryBackend, SaveSlots } from './save-db';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
@@ -365,7 +363,7 @@ describe('a shipped save on an older bake of the map', () => {
     expect(world.player.xp).toBe(carried.xp);
     const known = new Set([...REGION.towns, ...REGION.locations].map((site) => site.id));
     expect(world.player.discovered).toEqual(expect.arrayContaining(carried.discovered.filter((id) => known.has(id))));
-    expect(repair.lost.filter((id) => !/-\d+$/.test(id) && !isRoadWreck({ id }))).toEqual([]);
+    expect(repair.lost).toEqual([]);
 
     const stocks = new Set(world.salvage.map((s) => s.id));
     const sites = new Set(surveySites(TEST_MAP).map((s) => s.id));
@@ -379,7 +377,7 @@ describe('a shipped save on an older bake of the map', () => {
     for (const id of [...world.player.scavenged, ...world.player.rumored].filter((x) => /^(wreck|old-|story-)/.test(x))) expect(stocks.has(id), id).toBe(true);
   }, 60_000);
 
-  it.each(reachable.filter((file) => Number(file.split('-')[1]) >= TINY_FROM))('plays 20 turns of %s without a throw or a stall', (file) => {
+  it.each(reachable)('plays 20 turns of %s without a throw or a stall', (file) => {
     const slots = new SaveSlots(memoryBackend(), new Map());
     slots.put('auto', JSON.parse(readFileSync(join(ANCHOR_DIR, file), 'utf8')));
     let w = loadSave(slots, 'auto', TEST_MAP)!.world;

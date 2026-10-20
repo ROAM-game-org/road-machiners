@@ -826,7 +826,7 @@ describe('game save', () => {
     expect(loaded.world.size).toBe(TEST_MAP.terrain.size);
     expect(loaded.world.broken).toEqual([]);
     expect(loaded.world.obstacles.some((o) => o.id === broken.id)).toBe(true);
-    expect(loaded.repair.lost).toEqual([broken.id]);
+    expect(loaded.repair.lost).toEqual([]);
     expect(loaded.world.player.money).toBe(world.player.money);
     expect(loaded.world.events).toEqual([]);
   });

@@ -220,18 +220,17 @@ describe('repairMap transient state', () => {
 });
 
 describe('repairMap obstacles', () => {
-  it('rebuilds the baked props from the map, drops every saved broken prop into lost and keeps the saved wrecks', () => {
+  it('rebuilds the baked props from the map, stands every saved broken prop up again and keeps the saved wrecks', () => {
     const w = base();
     const fence = w.obstacles.find(isBreakable)!;
     const stale: Obstacle = { id: 'rock999999', pos: { x: 50, y: 50 }, r: 1, kind: 'rock' };
     const saved = savedOf({ ...w, obstacles: [...w.obstacles.filter((o) => o !== fence), stale], broken: [{ obstacle: fence, turn: 2 }] });
     saved.obstacles.push(stale);
-    const { world, lost } = repairMap(saved, TEST_MAP);
+    const { world } = repairMap(saved, TEST_MAP);
     const baked = mapObstacles(TEST_MAP);
     expect(world.obstacles.filter(isBakedObstacle).map((o) => o.id)).toEqual(baked.map((o) => o.id));
     expect(world.obstacles.some((o) => o.id === stale.id)).toBe(false);
     expect(world.broken).toEqual([]);
-    expect(lost).toEqual([fence.id]);
     expect(world.obstacles.filter(isRoadWreck)).toHaveLength(w.obstacles.filter(isRoadWreck).length);
     expect(world.obstacles.some((o) => o.id === 'opening-wreck')).toBe(true);
   });
@@ -242,12 +241,11 @@ describe('repairMap obstacles', () => {
     const wreck = w.obstacles.find(isRoadWreck)!;
     wreck.pos = { ...rock.pos };
     w.salvage.find((s) => s.id === wreck.id)!.pos = { ...rock.pos };
-    const { world, lost } = repairMap(savedOf(w), TEST_MAP);
+    const { world } = repairMap(savedOf(w), TEST_MAP);
     const placed = world.obstacles.find((o) => o.id === wreck.id)!;
     expect(dist(placed.pos, rock.pos)).toBeGreaterThan(0);
     expect(world.obstacles.filter((o) => o !== placed).some((o) => o.kind !== 'site' && dist(o.pos, placed.pos) < o.r + placed.r)).toBe(false);
     expect(world.salvage.find((s) => s.id === wreck.id)!.pos).toEqual(placed.pos);
-    expect(lost).toEqual([]);
   });
 
   it('puts the story wreck back at the position its data gives', () => {

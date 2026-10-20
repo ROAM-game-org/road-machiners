@@ -41,6 +41,11 @@ export function sightingOf(vehicle: Vehicle, targetId: string): (Memory & { fact
   return recall(vehicle, 'sighting').find((m) => m.fact.vehicle === targetId) ?? null;
 }
 
+export function reviseMemories(vehicle: Vehicle, revise: (memory: Memory) => Memory | null): void {
+  const brain = brainOf(vehicle);
+  brain.memories = brain.memories.flatMap((m) => revise(m) ?? []);
+}
+
 export function forgetOld(world: World): void {
   const fresh = (m: Memory): boolean => world.turn - m.turn < MEMORY.turns[m.fact.kind];
   for (const v of world.vehicles) {

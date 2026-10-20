@@ -13,12 +13,12 @@ type Doomed = { quests: Set<string>; vars: Set<string>; notes: Set<NoteId> };
 
 const GAME_NOTE_IDS: readonly NoteId[] = Object.values(GAME_NOTES);
 
-export function repairQuests(quests: RawQuests, notes: Player['notes'], revisions: SavedRevisions, bundle: QuestBundle): QuestRepair {
+export function repairQuests(quests: RawQuests, notes: Player['notes'], revisions: SavedRevisions, bundle: QuestBundle, unrestorable: readonly string[] = []): QuestRepair {
   checkQuestLinks(bundle);
   const kept = keptOf(quests, bundle);
   const saved = { quests: kept.quests, notes };
   const progressed = new Set(questIds(bundle).filter((id) => hasProgress(id, saved, bundle)));
-  const roots = brokenQuests(kept.quests, revisions, bundle).filter((id) => progressed.has(id));
+  const roots = [...brokenQuests(kept.quests, revisions, bundle), ...unrestorable].filter((id) => progressed.has(id));
   const doomed = closeOver(saved, roots, progressed, bundle);
   const reset = questIds(bundle).filter((id) => doomed.quests.has(id) && losesState(id, saved, doomed, bundle));
   return { ...applied(saved, doomed, bundle), reset, lost: kept.lost };

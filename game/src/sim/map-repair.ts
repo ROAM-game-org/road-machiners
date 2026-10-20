@@ -5,6 +5,7 @@ import { atlasOf, type Atlas } from './atlas';
 import { freeSpotNear, spotNear } from './free-spot';
 import { clearOfDecks, clearOfSites, findRoadWreckSpot, isBakedObstacle, mapObstacles, overlapsAny, propReach } from './mapgen';
 import { finishContract, type Contract } from './market';
+import { reviseMemories } from './memory';
 import { isRoadWreck, isStockGoal, isStoryWreck, liveClaims, oldSpotOf, oldSpotPicks, oldStockId, rollStock, type OldSpotPick } from './salvage';
 import { modeRules } from './settings';
 import { isFree } from './spawn';
@@ -17,7 +18,7 @@ import { dist, type Vec } from './vec';
 
 export type SavedBroken = { id: string; turn: number };
 export type SavedMapWorld = Omit<World, 'terrain' | 'broken'> & { broken: SavedBroken[] };
-export type MapRepair = { world: World; lost: string[] };
+export type MapRepair = { world: World };
 
 type Move = 'keep' | 'shift' | 'rebuild' | 'drop';
 type Table<T> = { [K in keyof T]-?: Move };
@@ -382,7 +383,6 @@ const WORLD_HANDLERS: Handlers<World, typeof REBAKE_MOVE> = {
 export function repairMap(saved: SavedMapWorld, map: BakedMap): MapRepair {
   const world: World = { ...structuredClone(saved), terrain: map.terrain, broken: [] };
   const ctx: Ctx = { ratio: map.terrain.size / saved.size, fromSize: saved.size, toSize: map.terrain.size, playerId: saved.player.vehicleId, self: null };
-  const lost = saved.broken.map((b) => b.id);
   const savedObstacles = world.obstacles;
   const savedSalvage = world.salvage;
   applyMoves(world, REBAKE_MOVE, WORLD_HANDLERS, ctx);
@@ -390,29 +390,26 @@ export function repairMap(saved: SavedMapWorld, map: BakedMap): MapRepair {
   world.mapHash = map.hash;
   const placed = rebuiltObstacles(world, savedObstacles, map, ctx);
   world.obstacles = placed.obstacles;
-  lost.push(...placed.lost);
   const stocks = rebuiltSalvage(world, savedSalvage, placed.fate, map, ctx);
   world.salvage = stocks.salvage;
   purgeDropped(world, stocks.dropped, map);
   snapSunwardHomes(world);
   settleTrucks(world);
-  return { world, lost };
+  return { world };
 }
 
 type Fate = Map<string, Obstacle | null>;
 
-function rebuiltObstacles(world: World, saved: Obstacle[], map: BakedMap, ctx: Ctx): { obstacles: Obstacle[]; fate: Fate; lost: string[] } {
+function rebuiltObstacles(world: World, saved: Obstacle[], map: BakedMap, ctx: Ctx): { obstacles: Obstacle[]; fate: Fate } {
   const atlas = atlasOf(map.terrain);
   const obstacles = [...mapObstacles(map), ...hollowObstaclesFor(world)];
   const fate: Fate = new Map();
-  const lost: string[] = [];
   for (const o of saved.filter((x) => !isDerived(x))) {
     const placed = placedObstacle(world, obstacles, atlas, o, ctx);
     fate.set(o.id, placed);
     if (placed) obstacles.push(placed);
-    else lost.push(o.id);
   }
-  return { obstacles, fate, lost };
+  return { obstacles, fate };
 }
 
 function isDerived(o: Obstacle): boolean {
@@ -531,7 +528,7 @@ function purgeDropped(world: World, dropped: Set<string>, map: BakedMap): void {
     if (jobLapses(v.job, dropped, cancelled)) v.job = null;
     if (!v.brain) continue;
     v.brain.goals = v.brain.goals.filter((goal) => !namesDropped(goal, dropped, cancelled));
-    v.brain.memories = v.brain.memories.filter((m) => m.fact.kind !== 'stripped' || !dropped.has(m.fact.stock));
+    reviseMemories(v, (m) => (m.fact.kind === 'stripped' && dropped.has(m.fact.stock) ? null : m));
   }
 }
 

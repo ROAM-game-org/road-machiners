@@ -22,8 +22,6 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/save-migrations.ts', text: 'call buy price', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'call sell price', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: '  waived fee', reason: MIGRATION_LABEL },
-  { file: 'src/three/save-migrations.ts', text: 'money event', reason: MIGRATION_LABEL },
-  { file: 'src/three/save-migrations.ts', text: 'aid paid', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'vehicle   money', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'player money', reason: MIGRATION_LABEL },
   { file: 'src/three/save-migrations.ts', text: 'cost basis', reason: MIGRATION_LABEL },

@@ -5,6 +5,7 @@ import { townAt } from '../sim/sites';
 import { reachedOutpostAt } from '../sim/fury-road';
 import { highwayMap } from '../sim/highway';
 import { repairMap, type MapRepair, type SavedMapWorld } from '../sim/map-repair';
+import { repairContent } from '../sim/save-repair';
 export { newMapFor } from '../sim/highway';
 import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
 import { QUESTS, restoreQuest } from '../sim/quests';
@@ -140,25 +141,53 @@ export function hasRepair(repair: LoadRepair): boolean {
 export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): LoadedSave | null {
   const envelope = slots.get(slot);
   if (envelope === null) return null;
+  try {
+    return loadedSave(envelope, icarus);
+  } catch (error) {
+    if (error instanceof SaveError) throw error;
+    throw new SaveError('invalidWorld', null, `Loading failed: ${(error as Error).message}`);
+  }
+}
+
+function loadedSave(envelope: unknown, icarus: BakedMap): LoadedSave {
   const { world, settingsReset } = savedWorld(envelope);
-  const quests = savedQuests(world.player.quests, world.player.notes, savedRevisionsOf(envelope));
+  const revisions = savedRevisionsOf(envelope);
+  const repaired = savedQuests(world.player.quests, world.player.notes, revisions);
   const map = mapFor(world, icarus);
+  const staged = stagedWorld(world, repaired);
+  const loaded = (world.mapHash === map.hash ? onSameMap(staged, map) : repairedMap(staged, map)).world;
+  const quests = restoredQuests(loaded, world, revisions, repaired);
+  const lost = [...quests.lost, ...repairContent(loaded)];
+  stockedOldSpots(loaded, map);
+  checkCompanies(loaded);
+  refreshVision(loaded);
+  settleAims(loaded);
+  return { world: loaded, repair: { questsReset: quests.reset, lost, settingsReset } };
+}
+
+function stagedWorld(world: SavedWorld, quests: QuestRepair): SavedMapWorld {
   const explored = unpackExplored(world.player.explored, world.size * world.size);
-  const staged: SavedMapWorld = {
+  return {
     ...world,
     player: { ...world.player, explored, visible: [], contacts: [], clouds: [], notes: quests.notes, quests: { ...quests.quests, live: null } },
     vehicles: world.vehicles.map((v) => ({ ...v, trail: [] })),
     events: [],
     removed: [],
   };
-  const placed = world.mapHash === map.hash ? onSameMap(staged, map) : repairedMap(staged, map);
-  const loaded = placed.world;
-  stockedOldSpots(loaded, map);
-  checkCompanies(loaded);
-  refreshVision(loaded);
-  settleAims(loaded);
-  restoreQuest(loaded, QUESTS);
-  return { world: loaded, repair: { questsReset: quests.reset, lost: [...quests.lost, ...placed.lost], settingsReset } };
+}
+
+function restoredQuests(loaded: World, saved: SavedWorld, revisions: SavedRevisions, repair: QuestRepair): QuestRepair {
+  const session = repair.quests.session;
+  try {
+    restoreQuest(loaded, QUESTS);
+    return repair;
+  } catch (error) {
+    if (!session) throw error;
+    const redone = savedQuests(saved.player.quests, saved.player.notes, revisions, [session.quest]);
+    loaded.player.quests = { ...redone.quests, live: null };
+    loaded.player.notes = redone.notes;
+    return redone;
+  }
 }
 
 function onSameMap(staged: SavedMapWorld, map: BakedMap): MapRepair {
@@ -172,7 +201,7 @@ function onSameMap(staged: SavedMapWorld, map: BakedMap): MapRepair {
     broken,
     terrain: map.terrain,
   };
-  return { world, lost: [] };
+  return { world };
 }
 
 function repairedMap(staged: SavedMapWorld, map: BakedMap): MapRepair {
@@ -183,12 +212,12 @@ function repairedMap(staged: SavedMapWorld, map: BakedMap): MapRepair {
   }
 }
 
-function savedQuests(value: unknown, notes: unknown, revisions: SavedRevisions): QuestRepair {
+function savedQuests(value: unknown, notes: unknown, revisions: SavedRevisions, unrestorable: readonly string[] = []): QuestRepair {
   if (!isQuestState(value)) throw new SaveError('badQuests');
   if (!Array.isArray(notes) || !notes.every((note) => isJsonObject(note) && typeof note.id === 'string')) throw new SaveError('invalidWorld', null, 'player notes are no list of notes');
   const newer = newerQuests(revisions, QUESTS);
   if (newer.length > 0) throw new SaveError('newerQuests', null, newer.join(', '));
-  return repairQuests(value, notes, revisions, QUESTS);
+  return repairQuests(value, notes, revisions, QUESTS, unrestorable);
 }
 
 export function savedRevisionsOf(envelope: unknown): SavedRevisions {
