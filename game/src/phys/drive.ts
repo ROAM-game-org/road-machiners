@@ -1,7 +1,7 @@
 
 import RAPIER from '@dimforge/rapier3d-compat';
 import { chassisDef } from '../data/chassis';
-import { freeOnThrow, restoreWorld } from './snapshot';
+import { freeOnThrow, restoreWorld, stepWorld } from './snapshot';
 import { backsOutFurther, blockedInFront, bodyLength, boxedIn, captureCrash, captureGroundCrash, captureImpactMotion, GROUND, type Crash, type ImpactMotion } from './contacts';
 
 export { GROUND, type Crash };
@@ -304,7 +304,7 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
     lines.pull(i);
     for (const c of cars) holdStill(c);
     landings.note(cars, before, i);
-    world.step(events);
+    stepWorld(world, events);
     events.drainCollisionEvents((h1, h2, started) => {
       if (started) contacts.add(crashOf(h1, h2, owner, obstacleOf, d, before, world, w), i);
     });
