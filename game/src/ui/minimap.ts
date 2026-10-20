@@ -1,6 +1,7 @@
 import { MINIMAP } from '../data/minimap';
 import type { World } from '../sim/types';
 import { t } from '../text/msg';
+import { keyLabel } from './input-mode';
 import { el, markDisabled, panel, topLeft } from './dom';
 import { MapView, observeBox, poseOf, type MapTruck } from './map-view';
 
@@ -19,7 +20,7 @@ export class Minimap {
 
   constructor(onOpen: () => void) {
     const tip = el('div', { class: 'map-tip tooltip', role: 'tooltip' });
-    const open = el('button', { class: 'log-expand', title: t('map.open'), 'aria-label': t('map.open'), onclick: onOpen }, t('log.expandMark'));
+    const open = el('button', { class: 'log-expand', title: keyLabel(t('map.open'), 'K'), 'aria-label': t('map.open'), onclick: onOpen }, t('log.expandMark'));
     this.view.canvas.addEventListener('click', onOpen);
     this.view.bindTip(tip);
     const body = el('div', { class: 'minimap-body' }, this.view.canvas, tip);

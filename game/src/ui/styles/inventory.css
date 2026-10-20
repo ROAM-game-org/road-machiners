@@ -384,3 +384,6 @@
   border-color: var(--danger-ink);
   background: var(--danger-wash);
 }
+.inv-ghost.placed {
+  position: absolute;
+}

@@ -18,10 +18,12 @@ import {
 } from "../sim/grid";
 import {
   dumpItem,
+  installSpot,
   moveItem,
   planItemMove,
   plannedRefitTurns,
   startRefit,
+  stowSpot,
   storePart,
   takeFromStorage,
   type RefitLayout,
@@ -43,7 +45,7 @@ import type {
   Vehicle,
   World,
 } from "../sim/types";
-import { touchMode } from "./input-mode";
+import { keyLabel, phoneMode, touchMode } from "./input-mode";
 import { disabledWith, el, isBrowserChord, panel, uiRoot } from "./dom";
 import { lookReason } from "./look";
 import { uiSize } from "./ui-size";
@@ -87,6 +89,7 @@ import {
   isDoubleClick,
   needsHold,
   selectionAfterClick,
+  touchGridTap,
   type ClickedItem,
   type ItemSource,
   type LastClick,
@@ -111,11 +114,15 @@ type Drag = {
   moved: boolean;
 };
 
+type Tap = { pointerId: number; x: number; y: number };
+
 type Press = { timer: number; source: ItemSource; id: string; item: GridItem; grab: { x: number; y: number } };
 
 export class InventoryView {
   private drag: Drag | null = null;
   private press: Press | null = null;
+  private preview: Drag | null = null;
+  private tap: Tap | null = null;
   private lastClick: LastClick = null;
   private lastPointer: PointerEvent | null = null;
   private holdId: number | null = null;
@@ -143,6 +150,7 @@ export class InventoryView {
     window.addEventListener("pointercancel", (e) => this.onCancel(e));
     this.root.addEventListener("pointerdown", (e) => {
       if ((e.target as HTMLElement).closest("button, .inv-inspection, .inv-item, .inv-chip")) return;
+      if (this.beginGridTap(e)) return;
       this.select(null);
     });
     window.addEventListener("keydown", (e) => {
@@ -188,6 +196,7 @@ export class InventoryView {
     grid.append(...this.gridItems(w, me));
     this.gridEl = grid;
     this.showFan(me, this.selectedGun(me));
+    this.drawPreview(grid, me);
     this.root.replaceChildren(
       el(
         "div",
@@ -305,12 +314,16 @@ export class InventoryView {
   }
 
   private otherItems(w: World): GridItem[] {
+    return this.otherSources(w).map((entry) => entry.item);
+  }
+
+  private otherSources(w: World): { source: ItemSource; item: GridItem }[] {
     const stock = this.loot ? w.salvage.find((s) => s.id === this.loot) : undefined;
     const target = this.truck ? w.vehicles.find((v) => v.id === this.truck) : undefined;
     return [
-      ...w.player.storage.map(storageItem),
-      ...(stock ? [...stock.parts.map(lootPartItem), ...Object.keys(stock.goods).map(lootGoodItem)] : []),
-      ...(target ? target.items : []),
+      ...w.player.storage.map((p) => ({ source: "storage" as const, item: storageItem(p) })),
+      ...(stock ? [...stock.parts.map(lootPartItem), ...Object.keys(stock.goods).map(lootGoodItem)] : []).map((item) => ({ source: "loot" as const, item })),
+      ...(target ? target.items : []).map((item) => ({ source: "truck" as const, item })),
     ];
   }
 
@@ -330,12 +343,14 @@ export class InventoryView {
 
   clearSelection(): void {
     this.selectedItem = null;
+    this.preview = null;
     this.lastClick = null;
   }
 
   private select(id: string | null): void {
     if (this.selectedItem === id) return;
     this.selectedItem = id;
+    this.preview = null;
     this.onChange();
   }
 
@@ -362,6 +377,7 @@ export class InventoryView {
     this.gridTruck = id;
     this.plan = {};
     this.selectedItem = null;
+    this.preview = null;
   }
 
   private mine(w: World): Vehicle {
@@ -415,7 +431,7 @@ export class InventoryView {
       ...(item.kind === "part" ? partDetails(w, this.mine(w), item.part, mounted) : []),
       this.loreParagraph(item),
     );
-    this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
+    if (!phoneMode()) this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
 
   hintMounts(cells: readonly Cell[] | null): void {
@@ -691,7 +707,7 @@ export class InventoryView {
       ...(item.kind === "part" ? partDetails(w, playerVehicle(w), item.part, false) : []),
       this.loreParagraph(item),
     );
-    this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
+    if (!phoneMode()) this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
 
   private startDrag(
@@ -773,12 +789,84 @@ export class InventoryView {
   }
 
   rotateHeld(): void {
-    if (this.drag) this.rotate();
-    else this.rotateSelected();
+    if (this.drag) return this.rotate();
+    if (this.preview) return this.rotatePreview();
+    const off = this.offGridSelection();
+    if (off) return this.previewOffGrid(off.source, off.item);
+    this.rotateSelected();
   }
 
   canRotate(): boolean {
-    return this.drag !== null || this.selectedItem !== null;
+    return this.drag !== null || this.preview !== null || this.selectedItem !== null;
+  }
+
+  private offGridSelection(): { source: ItemSource; item: GridItem } | null {
+    return this.otherSources(this.host.world()).find((entry) => entry.item.id === this.selectedItem) ?? null;
+  }
+
+  private previewOffGrid(source: ItemSource, item: GridItem): void {
+    const w = this.host.world();
+    const spot = source === "storage" && item.kind === "part" ? installSpot(this.mine(w), item) : stowSpot(playerVehicle(w), item);
+    const at = spot ?? { x: 0, y: 0, rot: item.rot };
+    this.setPreview(source, { ...item, x: at.x, y: at.y, rot: at.rot });
+    this.rotatePreview();
+  }
+
+  private setPreview(source: ItemSource, item: GridItem): void {
+    this.preview = { source, id: sourceIdOf(source, item), item, grab: { x: 0, y: 0 }, ghost: el("div"), start: { x: 0, y: 0 }, moved: true };
+    this.error = null;
+    this.onChange();
+  }
+
+  private rotatePreview(): void {
+    if (!this.preview) throw new Error("No placement preview to turn");
+    this.setPreview(this.preview.source, { ...this.preview.item, rot: nextRot(this.preview.item) });
+  }
+
+  private beginGridTap(e: PointerEvent): boolean {
+    if (e.pointerType !== "touch" || this.selectedItem === null || !this.gridEl?.contains(e.target as Node)) return false;
+    this.tap = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
+    return true;
+  }
+
+  private finishGridTap(e: PointerEvent, tap: Tap): void {
+    if (uiSize().toLayer(Math.hypot(e.clientX - tap.x, e.clientY - tap.y)) >= this.cell / 4) return;
+    const w = this.host.world();
+    const selection = this.selection(w);
+    if (!selection || !this.gridEl) return this.select(null);
+    const r = this.gridEl.getBoundingClientRect();
+    const cell = { x: this.cellOf(e.clientX - r.left), y: this.cellOf(e.clientY - r.top) };
+    const current = this.preview?.item ?? selection.item;
+    const action = touchGridTap(this.preview ? { x: this.preview.item.x, y: this.preview.item.y } : null, cell, footprint(current));
+    if (action.kind === "place") return this.placeSelected();
+    this.setPreview(this.preview?.source ?? (selection.own ? "grid" : this.offGridSelection()!.source), { ...current, x: action.at.x, y: action.at.y });
+  }
+
+  private placeSelected(): void {
+    const d = this.preview;
+    if (!d || !this.gridEl) throw new Error("No placement preview to place");
+    this.preview = null;
+    this.run((w) => this.dropOnGrid(w, d), true);
+    if (this.error) {
+      this.preview = d;
+      this.onChange();
+    }
+  }
+
+  private drawPreview(grid: HTMLElement, me: Vehicle): void {
+    const d = this.preview;
+    if (!d) return;
+    if (d.item.id !== this.selectedItem) {
+      this.preview = null;
+      return;
+    }
+    const size = footprint(d.item);
+    d.ghost.className = `inv-ghost placed ${this.ghostTone(d, true)}`;
+    d.ghost.replaceChildren(turnedIcon(d.item, this.cell));
+    d.ghost.style.cssText = `left:${d.item.x * this.cell}px;top:${d.item.y * this.cell}px;width:${size.w * this.cell}px;height:${size.h * this.cell}px`;
+    clearFan(grid);
+    this.drawFan(grid, me, d.item);
+    grid.append(d.ghost);
   }
 
   private rotate(): void {
@@ -898,6 +986,7 @@ export class InventoryView {
   }
 
   private onCancel(e: PointerEvent): void {
+    if (this.tap?.pointerId === e.pointerId) this.tap = null;
     if (!this.ownsPointer(e)) return;
     this.endPress();
     const d = this.drag;
@@ -909,6 +998,11 @@ export class InventoryView {
   }
 
   private onDrop(e: PointerEvent): void {
+    const tap = this.tap;
+    if (tap?.pointerId === e.pointerId) {
+      this.tap = null;
+      return this.finishGridTap(e, tap);
+    }
     if (!this.ownsPointer(e)) return;
     const press = this.endPress();
     if (press) {
@@ -999,6 +1093,11 @@ export class InventoryView {
   }
 }
 
+function sourceIdOf(source: ItemSource, item: GridItem): string {
+  if (source === "grid" || source === "truck") return item.id;
+  return item.kind === "part" ? item.part.id : item.kind === "good" ? item.good : item.id;
+}
+
 function offGridCommand(target: string | null | undefined, itemId: string, truckId?: string): (w: World) => World {
   if (target === "storage") return (w) => storePart(w, itemId, truckId);
   return target === "dump" ? (w) => dumpItem(w, itemId, truckId) : (w) => w;
@@ -1069,6 +1168,7 @@ export class InventoryScreen {
       "button",
       {
         class: "btn-s",
+        "data-action": "rotate",
         onpointerdown: () => this.view.rotateHeld(),
         onclick: (e: Event) => {
           if ((e as MouseEvent).detail === 0) this.view.rotateHeld();
@@ -1080,7 +1180,7 @@ export class InventoryScreen {
     this.view.holdChanged = () => this.markRotate(rotate);
     this.markRotate(rotate);
     this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, t("inv.close")),
+      el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("inv.close"), "I")),
       el("h3", {}, t("inv.title"), truckChips(this.host.world()), rotate),
       truck,
     );
