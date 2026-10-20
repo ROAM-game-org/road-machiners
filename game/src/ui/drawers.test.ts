@@ -49,4 +49,13 @@ describe("drawers", () => {
     const guns = (drawers.element as unknown as FakeNode).children.find((n) => n.attrs.get("data-tab") === "guns")!;
     expect(guns.classes.has("marked")).toBe(true);
   });
+
+  it("names each tab by its visible word and draws no icon", () => {
+    const root = new FakeNode("div");
+    const drawers = new Drawers(root as never);
+    for (const tab of (drawers.element as unknown as FakeNode).children) {
+      expect(tab.attrs.has("aria-label")).toBe(false);
+      expect(tab.children.map((child) => child.tag)).toEqual(["#text"]);
+    }
+  });
 });
