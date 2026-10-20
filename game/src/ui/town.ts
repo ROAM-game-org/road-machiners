@@ -51,7 +51,7 @@ import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItem
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
-import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, surveyClueLines, surveyPlacesLeft, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
+import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, surveyClueLines, surveyHowTo, surveyPlacesLeft, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
 import { MapView, observeBox } from "./map-view";
@@ -595,7 +595,7 @@ function profitCell(e: SaleEstimate): HTMLElement {
 }
 
 function surveyLine(c: Contract): HTMLElement | null {
-  return c.kind === "survey" ? el("span", { class: "dim" }, ...surveyClueLines(c)) : null;
+  return c.kind === "survey" ? el("span", { class: "dim" }, ...surveyClueLines(c), surveyHowTo(c)) : null;
 }
 
 function escortClock(w: World, c: Extract<Contract, { kind: "escort" }>, posted: boolean): HTMLElement {

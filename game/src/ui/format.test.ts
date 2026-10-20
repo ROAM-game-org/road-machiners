@@ -890,7 +890,7 @@ describe("survey contract text", () => {
       homestead: ["хутор", "Хутор разведан"],
       hamlet: ["деревню", "Деревня разведана"],
       lookout: ["вышку", "Вышка разведана"],
-      hulks: ["остовы", "Остовы разведаны"],
+      hulks: ["танковые остовы", "Танковые остовы разведаны"],
     } as const;
     const w = emptyWorld();
     for (const [type, [accusative, surveyed]] of Object.entries(forms)) {

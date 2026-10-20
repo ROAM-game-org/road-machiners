@@ -687,7 +687,11 @@ export function surveyPlaceLine(c: SurveyContract, point: SurveyPoint): HTMLElem
   if (point.done) throw new Error(`Survey place ${point.site} is already done`);
   const clue = surveyClue(c, point);
   const text = t('contract.placeClue', { place: t(`contract.placeName.${clue.type}`), dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
-  return el('span', { class: 'contract-clue' }, text, point.found ? SPACE : null, point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null);
+  return el('span', { class: 'contract-clue' }, text, point.found ? SPACE : null, point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null, SPACE, t(`contract.lookFor.${clue.type}`));
+}
+
+export function surveyHowTo(c: SurveyContract): HTMLElement | null {
+  return c.points.some((p) => !p.done && !p.found) ? el('span', { class: 'contract-hint' }, t('contract.surveyHowTo')) : null;
 }
 
 export function surveyClueLines(c: SurveyContract): HTMLElement[] {
