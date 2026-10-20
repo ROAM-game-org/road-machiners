@@ -93,7 +93,7 @@ export function facesCamera(direction: Vec): boolean {
 }
 
 export function graffitiTarget(size: number): number {
-  return Math.max(1, Math.round((size * size) / GRAFFITI.tilesPerSign));
+  return Math.max(1, Math.floor((size * size) / GRAFFITI.tilesPerSign));
 }
 
 function paintOf(id: string): GraffitiPaint {

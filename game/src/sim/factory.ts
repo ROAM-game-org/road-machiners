@@ -9,6 +9,7 @@ import { gridOf, isMounted, placementError } from './grid';
 import { addGoods, mountPart, stowPart } from './inventory';
 import type { Faction, GridItem, NpcBrain, PartInstance, Vehicle, World } from './types';
 import type { Vec } from './vec';
+import { straighten } from './rig';
 
 export type PartSpec = { defId: string; wear: number; at?: Pick<GridItem, 'x' | 'y' | 'rot'> };
 
@@ -91,6 +92,7 @@ export function bareVehicle(world: IdSource, spec: Omit<VehicleSpec, 'parts' | '
     lastHitBy: null,
     job: null,
   };
+  straighten(v);
   addCoreParts(world, v);
   return v;
 }

@@ -8,7 +8,7 @@ import { sitePads } from "../sim/sites";
 import { emptyWorld } from "../sim/testkit";
 import { update } from "../sim/world";
 import type { GridItem, Rot, World } from "../sim/types";
-import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, needsHold, canFieldPatch, planAfterMove, plannedVehicle, selectionAfterClick, touchGridTap, type ClickedItem } from "./inventory-moves";
+import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, isRotateKey, needsHold, canFieldPatch, planAfterMove, plannedVehicle, selectionAfterClick, touchGridTap, type ClickedItem } from "./inventory-moves";
 import { emptyHidden } from "../sim/salvage";
 
 const bowl = REGION.towns.find((t) => t.id === "bowl")!;
@@ -244,5 +244,19 @@ describe("touch tap on the grid", () => {
     const turned = { w: 1, h: 2 };
     expect(touchGridTap({ x: 2, y: 2 }, { x: 3, y: 2 }, turned)).toEqual({ kind: "preview", at: { x: 3, y: 2 } });
     expect(touchGridTap({ x: 2, y: 2 }, { x: 2, y: 3 }, turned)).toEqual({ kind: "place" });
+  });
+});
+
+describe("isRotateKey", () => {
+  const press = (over: Partial<KeyboardEvent>) => ({ code: "KeyR", repeat: false, ctrlKey: false, metaKey: false, altKey: false, ...over });
+
+  it("accepts the physical R key whatever character it types", () => {
+    expect(isRotateKey(press({}))).toBe(true);
+  });
+
+  it("ignores other physical keys, repeats and chords", () => {
+    expect(isRotateKey(press({ code: "KeyT" }))).toBe(false);
+    expect(isRotateKey(press({ repeat: true }))).toBe(false);
+    expect(isRotateKey(press({ ctrlKey: true }))).toBe(false);
   });
 });

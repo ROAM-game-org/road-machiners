@@ -4,7 +4,7 @@ import { buildDrive, freeDrive, initPhysics, type Drive, type TurnResult } from 
 import type { VehicleFrame } from '../../phys/frames';
 import { physicsMove } from '../../phys/turn';
 import { haulerOf } from '../../sim/damage';
-import { bodyOf } from '../../sim/body';
+import { spanOf, unitsOf } from '../../sim/body';
 import { acrossOf, toRoad } from '../../sim/highway';
 import { furyRoadWorld } from '../../sim/testkit';
 import { endTurn } from '../../sim/world';
@@ -47,10 +47,14 @@ function peakPitch(frames: VehicleFrame[], half: number, wheelY: number): number
 it('keeps the hauler in its lane while it speeds up and rocks its drawn body no more than a bus', () => {
   const { frames, widest, chassisId } = haulerStart(1, 5);
   expect(widest).toBeLessThan(0.25);
-  const body = bodyOf(chassisId);
-  const hauler = peakPitch(frames, body.half.x, body.wheelY);
-  const bus = peakPitch(frames, 3.91, body.wheelY);
-  expect((hauler * 180) / Math.PI).toBeLessThanOrEqual(2.0);
-  expect(Math.sin(hauler) * body.half.x).toBeLessThanOrEqual(0.36);
-  expect(hauler).toBeLessThanOrEqual(bus);
+  const [tractor, trailer] = unitsOf(chassisId).map((u) => u.body);
+  const rears = frames.map((f): VehicleFrame => ({ pos: f.rear!.pos, rot: f.rear!.rot, acc: f.acc, wheels: f.rear!.wheels }));
+  const rig = spanOf(chassisId).half.x;
+  for (const [unit, unitFrames] of [[tractor, frames], [trailer, rears]] as const) {
+    const hauler = peakPitch(unitFrames, rig, unit.wheelY);
+    const bus = peakPitch(unitFrames, 3.91, unit.wheelY);
+    expect((hauler * 180) / Math.PI).toBeLessThanOrEqual(2.0);
+    expect(Math.sin(hauler) * unit.half.x).toBeLessThanOrEqual(0.36);
+    expect(hauler).toBeLessThanOrEqual(bus);
+  }
 }, budget(300_000));

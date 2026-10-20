@@ -42,7 +42,7 @@ export class TruckConditionView {
   private cols = 1;
   private rows = 1;
 
-  constructor() {
+  constructor(private readonly maxRows: number | null) {
     this.body.append(this.tip);
     this.root.append(this.body);
   }
@@ -59,12 +59,7 @@ export class TruckConditionView {
   }
 
   render(vehicle: Vehicle, aim?: ConditionAim, working?: PartWork | null): void {
-    const grid = baseGrid(vehicle.chassisId);
-    this.cols = grid.w;
-    this.rows = grid.h;
-    this.body.style.width = `${grid.w * CELL}px`;
-    this.body.style.height = `${grid.h * CELL}px`;
-    this.body.style.margin = `${PLAN_PAD * CELL}px 0`;
+    this.sizeGrid(vehicle.chassisId);
     if (this.chassisId !== vehicle.chassisId) {
       this.chassisId = vehicle.chassisId;
       for (const old of this.outline) old.remove();
@@ -84,6 +79,16 @@ export class TruckConditionView {
     for (const part of parts) this.renderPart(part, aim, doneOf(working, part.id));
     this.tiles = parts;
     this.showTip();
+  }
+
+  private sizeGrid(chassisId: string): void {
+    const grid = baseGrid(chassisId);
+    this.cols = grid.w;
+    this.rows = grid.h;
+    this.body.style.width = `${grid.w * CELL}px`;
+    this.body.style.height = `${grid.h * CELL}px`;
+    this.body.style.margin = `${PLAN_PAD * CELL}px 0`;
+    if (this.maxRows !== null) this.root.style.zoom = String(Math.min(1, this.maxRows / grid.h));
   }
 
   private showTip(): void {

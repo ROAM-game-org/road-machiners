@@ -28,6 +28,7 @@ import { tankLeaks } from "./supplies";
 import { fuelCap, isStranded, isWorking, suppliesCap } from "./stats";
 import { modeRules } from './settings';
 import { isOutlaw } from "./relations";
+import { straighten } from './rig';
 
 export type Supply = "fuel" | "supplies";
 
@@ -658,6 +659,8 @@ export function swapChassis(world: World, chassisId: string): void {
   const parts = movableParts(me);
   const parcels = me.items.filter((it): it is ParcelItem => it.kind === "parcel");
   me.chassisId = chassisId;
+  straighten(me);
+  me.trail = [];
   me.items = [];
   addCoreParts(world, me);
   for (const part of parts) placeSwappedPart(world, me, part, mounted.has(part.id));

@@ -101,6 +101,18 @@ def arch_profile(
     return pts
 
 
+def flare_profile(wx: float, hub_z: float, radius: float, low: float, x_min: float, x_max: float, segments: int = ARCH_SEGMENTS) -> list[tuple[float, float]]:
+    """The XZ outline of a dark low-poly ring over the top of one arch, down to low on both sides, cut off at x_min and x_max."""
+    r0 = radius + ARCH_CLEARANCE
+    r1 = r0 + FLARE
+    inner, outer = [], []
+    for k in range(segments + 1):
+        a = math.pi * k / segments
+        inner.append((min(x_max, max(x_min, wx + r0 * math.cos(a))), max(low, hub_z + r0 * math.sin(a))))
+        outer.append((min(x_max, max(x_min, wx + r1 * math.cos(a))), max(low, hub_z + r1 * math.sin(a))))
+    return outer + list(reversed(inner))
+
+
 def flare(
     kit: Kit, name: str, g: Grid, wx: float, hub_z: float, radius: float, y0: float, y1: float, bottom: float | None = None, crown: float | None = None, chamfer: float = 0.0
 ) -> None:

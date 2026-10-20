@@ -79,6 +79,7 @@ import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
+import FORMAT_2_80 from './save-fixtures/format-2-80.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
 import FORMAT_2_90 from './save-fixtures/format-2-90.json';
@@ -2077,5 +2078,34 @@ describe('save migration 92 to 93', () => {
     const next = stepped(FORMAT_2_90);
 
     expect({ ...next, player: { ...next.player, pastContracts: undefined } }).toEqual(FORMAT_2_90);
+  });
+});
+
+describe('save migration 93 to 94', () => {
+  type Saved = typeof FORMAT_2_80;
+  const stepped = () => MIGRATIONS[93](MIGRATIONS[81](MIGRATIONS[80](structuredClone(FORMAT_2_80) as unknown as SavedJson))) as unknown as Saved & { vehicles: (Saved['vehicles'][number] & { bend?: number })[]; obstacles: { hulk?: { bend?: number } }[] };
+  const AHEAD = 5.73875 / 4;
+
+  it('moves a semi from the middle of the rig to its tractor along its heading and sets it straight', () => {
+    const before = FORMAT_2_80.vehicles[1];
+    const semi = stepped().vehicles[1];
+    expect(semi.pos.x).toBeCloseTo(before.pos.x + Math.cos(before.heading) * AHEAD, 9);
+    expect(semi.pos.y).toBeCloseTo(before.pos.y + Math.sin(before.heading) * AHEAD, 9);
+    expect(semi.bend).toBe(0);
+    expect({ ...semi, pos: before.pos, bend: undefined }).toEqual({ ...before, bend: undefined });
+  });
+
+  it('folds nothing and moves nothing else: other trucks, other hulks and props stay as they were', () => {
+    const next = stepped();
+    expect(next.vehicles[0]).toEqual(FORMAT_2_80.vehicles[0]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_80.vehicles[2]);
+    expect(next.obstacles.slice(1)).toEqual(FORMAT_2_80.obstacles.slice(1));
+  });
+
+  it('gives a semi hulk a straight bend at its tractor', () => {
+    const before = FORMAT_2_80.obstacles[0];
+    const hulk = stepped().obstacles[0] as typeof before & { hulk: { bend: number } };
+    expect(hulk.hulk).toEqual({ ...before.hulk, bend: 0 });
+    expect(hulk.pos.x).toBeCloseTo(before.pos.x + Math.cos(before.hulk!.yaw) * AHEAD, 9);
   });
 });

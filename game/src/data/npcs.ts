@@ -155,6 +155,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "tractor", weight: 1 },
       { value: "scout", weight: 2 },
       { value: "bus", weight: 2 }, { value: "bukhanka", weight: 2 },
+      { value: "sorokonoga", weight: 1 },
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
@@ -303,6 +304,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "hauler", weight: 6 },
       { value: "longbed", weight: 3 },
       { value: "bus", weight: 2 },
+      { value: "sorokonoga", weight: 1 },
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [

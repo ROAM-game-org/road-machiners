@@ -33,7 +33,7 @@ describe('gun risers', () => {
             const { at: { pos }, bottom, top } = weaponStand({ chassisId: id }, item);
             const rect = cellRect(id, itemCells(item));
             const label = `${def.id} rot ${rot} at ${x},${y}`;
-            const surface = highestUnder(id, postColumn(pos));
+            const surface = highestUnder(id, postColumn(pos, rect.unit));
             if (!Number.isFinite(surface)) problems.push(`${label}: no surface under the post`);
             else if (bottom - surface > CLIP_TOLERANCE) problems.push(`${label}: base ${bottom.toFixed(2)} over surface ${surface.toFixed(2)}`);
             else if (bottom < top && Math.abs(bottom - surface) > 1e-9) problems.push(`${label}: post starts at ${bottom.toFixed(2)} over surface ${surface.toFixed(2)}`);

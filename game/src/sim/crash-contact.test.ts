@@ -23,7 +23,7 @@ describe('crash contacts', () => {
   });
 
   it('selects the touched front lane rather than the whole vehicle', () => {
-    const contact = locateCrashContact('scout', [{ x: 2, y: 0 }], { x: 1, y: 0 });
+    const contact = locateCrashContact('scout', 0, [{ x: 2, y: 0 }], { x: 1, y: 0 });
     expect(contact.side).toBe('front');
     expect(contact.lanes).toHaveLength(1);
   });
@@ -85,7 +85,7 @@ describe('crash contacts', () => {
   });
 
   it('rejects missing geometry', () => {
-    expect(() => locateCrashContact('scout', [], { x: 1, y: 0 })).toThrow('no contact points');
+    expect(() => locateCrashContact('scout', 0, [], { x: 1, y: 0 })).toThrow('no contact points');
     expect(() => computeClosingSpeed({ x: 2, y: 0 }, { x: 0, y: 0 })).toThrow('no horizontal direction');
   });
 });

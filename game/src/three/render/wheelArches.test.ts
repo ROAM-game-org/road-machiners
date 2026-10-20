@@ -28,4 +28,15 @@ describe('wheel arches of the reference photo bases', () => {
     expect(Math.abs(Math.abs(front.z) - body.wheelZ)).toBeLessThan(TOLERANCE);
     expect(Math.abs(top.y - front.y - (body.wheelRadius + ARCH_CLEARANCE[id]))).toBeLessThan(TOLERANCE);
   });
+
+  it.each(Object.entries(PHYSICS.couplings))('%s rear unit: its last axle arch sits on the trailer wheels and its pivot meets the front unit pivot', (look, coupling) => {
+    const rear = coupling.rear;
+    const name = `base_${rear.model}` as ModelName;
+    const arch = socket(name, 'arch_rear');
+    expect(Math.abs(arch.x + rear.wheelX)).toBeLessThan(TOLERANCE);
+    expect(Math.abs(arch.y - (rear.wheelY - PHYSICS.truck.suspensionRest))).toBeLessThan(TOLERANCE);
+    expect(Math.abs(Math.abs(arch.z) - rear.wheelZ)).toBeLessThan(TOLERANCE);
+    expect(Math.abs(socket(name, 'pivot').x - coupling.pivotRear)).toBeLessThan(TOLERANCE);
+    expect(Math.abs(socket(`base_${look}` as ModelName, 'pivot').x - coupling.pivotFront)).toBeLessThan(TOLERANCE);
+  });
 });

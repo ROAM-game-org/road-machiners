@@ -6,7 +6,7 @@ import { clockOf, sunAt } from "../../sim/sun";
 import { hashStr } from "../../render/noise";
 import type { V3, VehicleFrame } from "../../phys/frames";
 import { PAL } from "../../render/palette";
-import { bodyOf } from "../../sim/body";
+import { frontBody } from "../../sim/body";
 import type { Vehicle, World } from "../../sim/types";
 import { DEG, type Vec } from "../../sim/vec";
 export { enableSunShadows } from "./shadowFilter";
@@ -351,7 +351,7 @@ export class VehicleLights {
     const f = v.frame;
     const rot = scratchRot.set(f.rot.x, f.rot.y, f.rot.z, f.rot.w);
     const at = scratchAt.set(f.pos.x, f.pos.y, f.pos.z);
-    const nose = bodyOf(v.chassisId).half.x;
+    const nose = frontBody(v.chassisId).half.x;
     beam.position.set(nose, BEAM_HEIGHT, 0).applyQuaternion(rot).add(at);
     beam.target.position.set(nose + BEAM_AIM.ahead, -BEAM_AIM.down, 0).applyQuaternion(rot).add(at);
   }
