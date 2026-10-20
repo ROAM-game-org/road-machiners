@@ -1,7 +1,3 @@
-// Travel for vehicles far from the player. They have no physics body: each turn they follow their
-// stored route at the speed the physics driver would plan and burn fuel for the distance, like the physics turn. They never
-// crash, but they cannot drive into another vehicle: a truck in the way holds them just short of it at its speed, and
-// the next route goes around it. A breakable prop on the way breaks.
 
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
@@ -18,6 +14,7 @@ import { fieldBlockers } from './hazards';
 import { getHitchedTowIds, isOnRope, ropeClientOf } from './tow';
 import type { Blocker } from './nav/buckets';
 import type { MoveOrder, Obstacle, Pose, Vehicle, World } from './types';
+import { avoidsCrater } from './sunward';
 import { bearing, dist, segmentDist, type Vec } from './vec';
 
 export function isNear(w: World, v: Vehicle): boolean {
@@ -59,8 +56,8 @@ export function advanceFar(w: World, v: Vehicle): void {
 
   const s = fuelLimited(w, v, full, v.speed, order);
   const next = order.kind === 'through' ? throughSpeed(s, v.speed, dist(v.pos, order.dest), order.pace, driveMode(v)) : Math.min(s.maxSpeed, v.speed + s.accel);
-  const offRoad = keepsOffRoads(w, v);
-  const points = farPoints(w, v, order.dest, offRoad, full, s);
+  const style = { offRoad: keepsOffRoads(w, v), night: avoidsCrater(w, v) };
+  const points = farPoints(w, v, order.dest, style, full, s);
 
   const planned = follow(v.pos, points, (v.speed + next) / 2);
   const block = firstContact(w, v, planned.path, full.radius);
@@ -75,17 +72,17 @@ export function advanceFar(w: World, v: Vehicle): void {
   v.speed = done && order.kind === 'stopAt' ? 0 : block ? Math.min(next, block.other.speed) : next;
   burnFuel(w, v, walk.moved);
   breakCrossed(w, v, walk.path, full.radius);
-  keepFarRoute(v, done || block ? undefined : { dest: { ...order.dest }, points: walk.ahead, offRoad });
+  keepFarRoute(v, done || block ? undefined : farRouteOf(order.dest, walk.ahead, style));
   if (done) {
     w.events.push({ t: 'arrived', vehicle: v.id });
     v.order = null;
   }
 }
 
-function farPoints(w: World, v: Vehicle, dest: Vec, offRoad: boolean, full: VehicleStats, s: VehicleStats): Vec[] {
+function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: VehicleStats, s: VehicleStats): Vec[] {
   const onRope = getHitchedTowIds(w);
   const stored = keptFarRoute(v);
-  if (stored && stored.dest.x === dest.x && stored.dest.y === dest.y && keptOffRoad(stored) === offRoad) return stored.points;
+  if (stored && stored.dest.x === dest.x && stored.dest.y === dest.y && sameStyle(stored, style)) return stored.points;
   return route(w, v.pos, dest, full.radius, [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)], v);
 }
 
@@ -100,7 +97,18 @@ function radiusOf(v: Vehicle): number {
   return chassisDef(v.chassisId).radius;
 }
 
-type FarRoute = { dest: Vec; points: Vec[]; offRoad: boolean };
+type FarRoute = { dest: Vec; points: Vec[]; offRoad: boolean; night?: true };
+type RouteStyle = { offRoad: boolean; night: boolean };
+
+function farRouteOf(dest: Vec, points: Vec[], style: RouteStyle): FarRoute {
+  const route: FarRoute = { dest: { ...dest }, points, offRoad: style.offRoad };
+  if (style.night) route.night = true;
+  return route;
+}
+
+function sameStyle(stored: FarRoute, style: RouteStyle): boolean {
+  return keptOffRoad(stored) === style.offRoad && (stored.night === true) === style.night;
+}
 const playerRoutes = new Map<string, { route: FarRoute; at: Vec }>();
 
 export function clearFarRoutes(): void {

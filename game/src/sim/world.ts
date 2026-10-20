@@ -75,6 +75,7 @@ import { startPose } from './start-pose';
 import { clamp, dist, type Vec } from './vec';
 import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
+import { advanceSunward, freshSunward, HOLLOW_ID, hollowObstaclesFor } from "./sunward";
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -162,8 +163,9 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     flares: [],
     lines: [],
     furyRoad: null,
+    sunward: setup.mode === 'roaming' ? freshSunward() : null,
   };
-  world.obstacles = generateObstacles(world, map, openingObstacles(kit, start));
+  world.obstacles = generateObstacles(world, map, [...hollowObstaclesFor(world), ...openingObstacles(kit, start)]);
   const truck = makeVehicle(world, {
     faction: "player",
     chassisId: kit.chassis,
@@ -392,6 +394,7 @@ export function endTurn(
     advanceFuryRoad(w);
     openRoadScene(w);
     spawnNpcs(w);
+    advanceSunward(w);
     advanceIntro(w);
     greetAtWell(w);
     greetAtScale(w);
@@ -541,7 +544,7 @@ export type CarryReport = {
   questsReset: string[];
 };
 
-const KNOWN_SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
+const KNOWN_SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id).concat(HOLLOW_ID));
 
 export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: WorldSetup, seed: number, window: number) => BakedMap, freshSeed: () => number): { world: World; report: CarryReport } {
   const { setup, reset } = carriedSetup(carried.setup);

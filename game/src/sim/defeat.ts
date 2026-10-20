@@ -7,7 +7,7 @@ import { isJunk, maxHp, restorePart } from "./wear";
 import { haulerOf, playerVehicle } from "./damage";
 import { beatenBy, isHostile } from "./combat";
 import { rollCabKnock } from "./cab-knock";
-import { openFirstFall } from "./quests";
+import { openCoreDeath, openFirstFall } from "./quests";
 import { corePart, mountedParts } from "./grid";
 import { cancelJob } from "./jobs";
 import { practice, vehicleHasPerk } from "./progress";
@@ -31,12 +31,15 @@ import { wreckStockId } from "./salvage";
 import { dist, type Vec } from "./vec";
 import { canVehicleSee, grayRadius } from "./vision";
 import { isRaider, noteDefeat } from "./relations";
+import { isSunwardMember } from "./sunward";
 
 export function checkDeath(world: World): void {
   const p = world.player;
   if (p.health > 0 || p.state === "dead") return;
   p.state = "dead";
-  world.events.push({ t: "death" });
+  const cause = world.events.some((e) => e.t === "coreBurn" && e.vehicle === p.vehicleId) ? "core" : "injury";
+  world.events.push({ t: "death", cause });
+  if (cause === "core") openCoreDeath(world);
 }
 
 export function checkKnockout(world: World): void {
@@ -215,7 +218,7 @@ function advanceRetreat(world: World, v: Vehicle): void {
 }
 
 function staysPut(world: World, v: Vehicle): boolean {
-  return holdsRearm(v) || towOf(world, v.id) !== null || answered(world, v);
+  return holdsRearm(v) || towOf(world, v.id) !== null || answered(world, v) || isSunwardMember(v);
 }
 
 function answered(world: World, v: Vehicle): boolean {
