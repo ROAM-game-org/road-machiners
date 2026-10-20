@@ -1006,7 +1006,7 @@ describe('old-world loot spots', () => {
     expect(oldStocks(w)).toHaveLength(picks.length);
   });
 
-  it('stocks a world with none once, and refuses a partial or stray set', () => {
+  it('stocks a world with none once, rolls the missing ones of a partial set, and refuses a stray', () => {
     const w = emptyWorld();
     const held = oldStocks(w).map((stock) => structuredClone(stock));
     stockOldSpots(w, TEST_MAP);
@@ -1015,7 +1015,8 @@ describe('old-world loot spots', () => {
     stockOldSpots(w, TEST_MAP);
     expect(oldStocks(w).map((stock) => stock.id)).toEqual(picks.map(oldStockId));
     w.salvage = w.salvage.filter((stock) => stock.id !== oldStockId(picks[0]));
-    expect(() => stockOldSpots(w, TEST_MAP)).toThrow(/partial/);
+    stockOldSpots(w, TEST_MAP);
+    expect(oldStocks(w).map((stock) => stock.id).sort()).toEqual(picks.map(oldStockId).sort());
     const stray = emptyWorld();
     stray.salvage.push({ id: 'old-hamlet-ruin-999999', pos: { x: 0, y: 0 }, radius: 1, goods: {}, parts: [], hidden: emptyHidden() });
     expect(() => stockOldSpots(stray, TEST_MAP)).toThrow(/no old spot/);

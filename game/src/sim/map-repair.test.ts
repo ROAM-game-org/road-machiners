@@ -8,7 +8,7 @@ import { reusedWorld } from '../test/world-cache';
 import { playerVehicle } from './damage';
 import { freeSpotNear } from './free-spot';
 import { isBakedObstacle, isBreakable, mapObstacles } from './mapgen';
-import { repairMap, settleTrucks, type SavedMapWorld } from './map-repair';
+import { fitBake, repairMap, settleTrucks, type SavedMapWorld } from './map-repair';
 import { isRoadWreck, oldSpotOf, oldSpotPicks, oldStockId, renewSalvage, stockOldSpots } from './salvage';
 import { defaultSetup } from './settings';
 import { fillHollow, isFree } from './spawn';
@@ -307,7 +307,7 @@ describe('repairMap references to dropped stocks and sites', () => {
   const claim = (id: string, stockId: string, over: Partial<Contract> = {}): Contract => ({ id, shop: 'bowl', kind: 'claim', stockId, at: { x: 1, y: 1 }, partId: 'p1', defId: 'mg', reward: 5, deadline: 999, window: 99, tier: 1, rivalAt: 999, rival: null, leads: [], ...over }) as Contract;
   const survey = (id: string, sites: string[], done: boolean): Contract => ({ id, shop: 'bowl', kind: 'survey', points: sites.map((site) => ({ site, found: done, done })), reward: 5, deadline: 999, window: 99, tier: 1 });
 
-  it('lapses contracts that name a dropped stock or a missing survey site, with a log event and no money or penalty', () => {
+  it('lapses claims on a dropped stock with a log event, and drops survey points whose site is gone', () => {
     const w = base();
     const gone = 'deadTruck-999999';
     const goodSite = surveySites(TEST_MAP)[0].id;
@@ -321,13 +321,32 @@ describe('repairMap references to dropped stocks and sites', () => {
     const xp = w.player.xp;
 
     const out = repairMap(savedOf(w), TEST_MAP);
-    expect(out.player.contracts.map((c) => c.id)).toEqual(['ct-kept', 'ct-good-site', 'ct-met']);
+    expect(out.player.contracts.map((c) => c.id)).toEqual(['ct-kept', 'ct-lost-site', 'ct-good-site', 'ct-met']);
+    const points = (id: string) => (out.player.contracts.find((c) => c.id === id) as Extract<Contract, { kind: 'survey' }>).points.map((p) => p.site);
+    expect([points('ct-lost-site'), points('ct-good-site'), points('ct-met')]).toEqual([[], [goodSite], []]);
     expect(out.shops.bowl.contracts.map((c) => c.id)).toEqual(['ct-offer-kept']);
     expect([out.player.money, out.player.xp]).toEqual([money, xp]);
-    expect(out.events.flatMap((e) => (e.t === 'contract' ? [[e.contract.id, e.outcome]] : []))).toEqual([['ct-gone', 'lapsed'], ['ct-lost-site', 'lapsed']]);
+    expect(out.events.flatMap((e) => (e.t === 'contract' ? [[e.contract.id, e.outcome]] : []))).toEqual([['ct-gone', 'lapsed']]);
     expect(playerVehicle(out).job).toBeNull();
     const kept = out.player.contracts[0] as Extract<Contract, { kind: 'claim' }>;
     expect(kept.at).toEqual(out.salvage.find((s) => s.id === kept.stockId)!.pos);
+  });
+
+  it('on the same map, drops old spot stocks the picks no longer hold, lapses their claims, rolls the missing ones and fits surveys', () => {
+    const w = base();
+    const [first, second] = oldSpotPicks(TEST_MAP);
+    const stray = { ...w.salvage.find((s) => s.id === oldStockId(first))!, id: oldStockId({ type: first.type, propId: '99999' }) };
+    w.salvage = [...w.salvage.filter((s) => s.id !== oldStockId(second)), stray];
+    w.player.contracts = [claim('ct-stray', stray.id), survey('ct-survey', ['survey-gone-1', surveySites(TEST_MAP)[0].id], false)];
+
+    fitBake(w, TEST_MAP);
+    stockOldSpots(w, TEST_MAP);
+
+    expect(w.salvage.some((s) => s.id === stray.id)).toBe(false);
+    expect(w.salvage.some((s) => s.id === oldStockId(second))).toBe(true);
+    expect(w.player.contracts.map((c) => c.id)).toEqual(['ct-survey']);
+    expect((w.player.contracts[0] as Extract<Contract, { kind: 'survey' }>).points.map((p) => p.site)).toEqual([surveySites(TEST_MAP)[0].id]);
+    expect(w.events.flatMap((e) => (e.t === 'contract' ? [[e.contract.id, e.outcome]] : []))).toEqual([['ct-stray', 'lapsed']]);
   });
 
   it('drops the scavenged, rumored, stripped, goal, job and warning references to a dropped stock', () => {

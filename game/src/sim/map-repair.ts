@@ -10,7 +10,7 @@ import { isRoadWreck, isStockGoal, isStoryWreck, liveClaims, oldSpotOf, oldSpotP
 import { modeRules } from './settings';
 import { isFree } from './spawn';
 import { hollowBays, hollowObstaclesFor, isHollowObstacle, isSunwardMember } from './sunward';
-import { isSurveyMet, surveySites } from './survey';
+import { surveySites } from './survey';
 import { isLootSpot, spotTable } from './territory';
 import type { BakedMap } from './terrain';
 import type { Job, NpcActivity, NpcBrain, NpcState, RefitPickup, Obstacle, Player, SalvageStock, StateData, SunwardFacts, SunwardHunt, SunwardNight, Vehicle, World } from './types';
@@ -396,6 +396,13 @@ export function repairMap(saved: SavedMapWorld, map: BakedMap): World {
   return world;
 }
 
+export function fitBake(world: World, map: BakedMap): void {
+  const picks = new Map((modeRules(world).looting ? oldSpotPicks(map) : []).map((p) => [oldStockId(p), p]));
+  const dropped = new Set(world.salvage.filter((s) => oldSpotOf(s) && sameProp(s, s.pos, picks.get(s.id)) === null).map((s) => s.id));
+  world.salvage = world.salvage.filter((s) => !dropped.has(s.id));
+  purgeDropped(world, dropped, map);
+}
+
 type Fate = Map<string, Obstacle | null>;
 
 function rebuiltObstacles(world: World, saved: Obstacle[], map: BakedMap, ctx: Ctx): { obstacles: Obstacle[]; fate: Fate } {
@@ -480,19 +487,24 @@ function storyStock(stock: SalvageStock): SalvageStock | null {
   return wreck ? { ...stock, pos: { ...wreck.pos }, radius: wreck.r * RULES.wreckRadiusScale } : null;
 }
 
-function lapses(c: Contract, dropped: Set<string>, sites: Set<string>): boolean {
-  if (c.kind === 'claim') return dropped.has(c.stockId);
-  return c.kind === 'survey' && !isSurveyMet(c) && c.points.some((p) => !sites.has(p.site));
+function lapses(c: Contract, dropped: Set<string>): boolean {
+  return c.kind === 'claim' && dropped.has(c.stockId);
+}
+
+function fitSurveyPoints(contracts: Contract[], sites: Set<string>): void {
+  for (const c of contracts) if (c.kind === 'survey') c.points = c.points.filter((p) => sites.has(p.site));
 }
 
 function cancelContracts(world: World, dropped: Set<string>, sites: Set<string>): Set<string> {
+  fitSurveyPoints([...world.player.contracts, ...Object.values(world.shops).flatMap((s) => s.contracts)], sites);
+  for (const shop of Object.values(world.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'survey' || c.points.length > 0);
   const cancelled = new Set<string>();
-  for (const c of world.player.contracts.filter((x) => lapses(x, dropped, sites))) {
+  for (const c of world.player.contracts.filter((x) => lapses(x, dropped))) {
     cancelled.add(c.id);
     finishContract(world, c, 'lapsed');
   }
   for (const shop of Object.values(world.shops)) {
-    for (const c of shop.contracts.filter((x) => lapses(x, dropped, sites))) cancelled.add(c.id);
+    for (const c of shop.contracts.filter((x) => lapses(x, dropped))) cancelled.add(c.id);
     shop.contracts = shop.contracts.filter((c) => !cancelled.has(c.id));
   }
   return cancelled;
@@ -503,10 +515,10 @@ function namesDropped(goal: NpcActivity, dropped: Set<string>, cancelled: Set<st
   return isStockGoal(goal) && [goal.targetId, ...(goal.left ?? [])].some((id) => id !== null && dropped.has(id));
 }
 
-function jobLapses(job: Job | null, dropped: Set<string>, cancelled: Set<string>): boolean {
+function jobLapses(job: Job | null, dropped: Set<string>, cancelled: Set<string>, sites: Set<string>): boolean {
   if (job === null) return false;
   if (job.kind === 'search') return dropped.has(job.stockId);
-  if (job.kind === 'survey') return cancelled.has(job.contractId);
+  if (job.kind === 'survey') return cancelled.has(job.contractId) || !sites.has(job.site);
   return job.kind === 'refit' && pickupLapses(job.pickup, dropped);
 }
 
@@ -522,7 +534,7 @@ function purgeDropped(world: World, dropped: Set<string>, map: BakedMap): void {
   world.player.rumored = world.player.rumored.filter((id) => !dropped.has(id));
   world.states = world.states.filter((s) => s.data.kind !== 'lootWarning' || !dropped.has(s.data.targetId));
   for (const v of world.vehicles) {
-    if (jobLapses(v.job, dropped, cancelled)) v.job = null;
+    if (jobLapses(v.job, dropped, cancelled, sites)) v.job = null;
     if (!v.brain) continue;
     v.brain.goals = v.brain.goals.filter((goal) => !namesDropped(goal, dropped, cancelled));
     reviseMemories(v, (m) => (m.fact.kind === 'stripped' && dropped.has(m.fact.stock) ? null : m));

@@ -107,10 +107,8 @@ export function stockOldSpots(world: World, map: BakedMap): void {
   const ids = new Set(picks.map(oldStockId));
   const stray = world.salvage.find((stock) => oldSpotOf(stock) && !ids.has(stock.id));
   if (stray) throw new Error(`Old spot stock ${stray.id} is no old spot of map ${map.hash}`);
-  const held = world.salvage.filter((stock) => ids.has(stock.id)).length;
-  if (held === picks.length) return;
-  if (held > 0) throw new Error(`Old spot stocks are partial: ${held} of ${picks.length}`);
-  for (const p of picks) world.salvage.push(rollStock(world, OLD_TABLES[p.type], oldStockId(p), p.pos, p.reach));
+  const held = new Set(world.salvage.filter((stock) => ids.has(stock.id)).map((stock) => stock.id));
+  for (const p of picks.filter((pick) => !held.has(oldStockId(pick)))) world.salvage.push(rollStock(world, OLD_TABLES[p.type], oldStockId(p), p.pos, p.reach));
 }
 
 export function emptyHidden(): HiddenLoot {

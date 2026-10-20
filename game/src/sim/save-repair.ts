@@ -18,12 +18,10 @@ import { addGoods } from './inventory';
 import { settleEscortJob } from './escort-job';
 import { addShop, bountyLapsed, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
 import { reviseMemories } from './memory';
-import { getResources } from './resources';
 import { isPerkId } from './progress';
 import { modeRules } from './settings';
 import { endState, STATE_KINDS, settleStates } from './states';
-import { fuelCap, suppliesCap } from './stats';
-import type { Call, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World } from './types';
+import type { Call, CallVar, CallVars, DirectionStep, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World } from './types';
 import { carryHp, maxHp } from './wear';
 import { wornReload } from './utility';
 
@@ -39,7 +37,6 @@ export function repairContent(world: World): string[] {
   repairTrucks(world, doomed, lost);
   removeNpcs(world, doomed);
   clampParts(world);
-  for (const v of world.vehicles) fitFuel(world, v);
   for (const v of world.vehicles) fitGoals(world, v);
   repairShops(world);
   renameDrivers(world);
@@ -350,12 +347,6 @@ function placeParcel(v: Vehicle, parcel: GridItem): boolean {
   return true;
 }
 
-function fitFuel(world: World, v: Vehicle): void {
-  const stores = getResources(world, v);
-  stores.fuel = Math.min(stores.fuel, fuelCap(v));
-  stores.supplies = Math.min(stores.supplies, suppliesCap(v));
-}
-
 function roleCounts(defIds: string[]): string {
   const counts: Record<string, number> = {};
   for (const id of defIds) {
@@ -583,10 +574,46 @@ function talkGone(call: Call): string | null {
 }
 
 function lineGone(call: Call): string | null {
-  return goneIf((id) => (LINE_IDS as readonly string[]).includes(id), call.line.line);
+  return goneIf(isLine, call.line.line);
+}
+
+function isLine(id: string): boolean {
+  return (LINE_IDS as readonly string[]).includes(id);
+}
+
+function trades(shop: string, good: string): boolean {
+  return isShop(shop) && SHOPS[shop].goods.includes(good);
+}
+
+function stepFits(step: DirectionStep): boolean {
+  if (step.do === 'arrive') return isSite(step.site);
+  return !('road' in step) || step.road.kind !== 'to' || isSite(step.road.site);
+}
+
+const CALL_VAR_FITS: { [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>) => boolean } = {
+  town: (v) => isSite(v.id),
+  site: (v) => isSite(v.id),
+  money: () => true,
+  count: () => true,
+  deal: () => true,
+  haul: (v) => Object.keys(v.goods).every(isGood) && v.parts.every(isPart),
+  aid: () => true,
+  prices: (v) => v.goods.every((g) => trades(v.town, g.good)),
+  tip: (v) => v.tip === null || trades(v.tip.shop, v.tip.good),
+  sighting: (v) => isName(v.driver),
+  bearing: () => true,
+  distance: () => true,
+  answer: () => true,
+  line: (v) => isLine(v.line),
+  directions: (v) => v.steps.every(stepFits),
+};
+
+function varsFit(vars: CallVars): boolean {
+  return Object.values(vars).every((v) => (CALL_VAR_FITS[v.kind] as (v: CallVar) => boolean)(v));
 }
 
 function repairCall(world: World): void {
   const call = world.player.call;
-  if (call && (talkGone(call) ?? lineGone(call)) !== null) world.player.call = null;
+  if (!call) return;
+  if ((talkGone(call) ?? lineGone(call)) !== null || !varsFit(call.vars) || !varsFit(call.line.vars)) world.player.call = null;
 }

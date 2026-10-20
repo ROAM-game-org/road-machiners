@@ -530,15 +530,14 @@ describe('game save', () => {
     expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(loaded);
   });
 
-  it('refuses a save holding only some old-world loot spots', () => {
+  it('rolls the old-world loot spots a save lacks', () => {
     const slots = makeSlots();
     const world = standardWorld();
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     const first = oldStockId(oldSpotPicks(TEST_MAP)[0]);
     saved.salvage = saved.salvage.filter((stock: { id: string }) => stock.id !== first);
     slots.put('auto', { format: SAVE_FORMAT, world: saved, savedAt: 1000, runId: RUN });
-    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
-    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/partial/);
+    expect(loadWorld(slots, 'auto', TEST_MAP)!.salvage.some((stock) => stock.id === first)).toBe(true);
   });
 
   it('records the saved shape of the current format', () => {

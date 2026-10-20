@@ -4,7 +4,6 @@ import { SHOPS } from '../data/market';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { FIRST_NAMES, NPCS, SURNAMES } from '../data/npcs';
 import { addGoods } from './inventory';
-import { fuelCap, suppliesCap } from './stats';
 import { CONDITION } from '../data/wear';
 import { PLAIN_KIT } from '../test/empty-world';
 import { TEST_MAP } from '../test/map';
@@ -23,7 +22,7 @@ import { repairContent } from './save-repair';
 import { defaultSetup } from './settings';
 import { addState, advanceStates, settleStates } from './states';
 import { furyRoadStart } from './testkit';
-import type { GridItem, NpcState, Vehicle, World } from './types';
+import type { CallVars, GridItem, NpcState, Vehicle, World } from './types';
 import { maxHp, restorePart } from './wear';
 import { cloneWorld, newWorld } from './world';
 
@@ -277,16 +276,6 @@ describe('repairContent', () => {
     expect(npc.brain!.goals.map((g) => g.purchase!.good)).toEqual([traded]);
   });
 
-  it('clamps fuel and supplies to the tank and the crates', () => {
-    const w = fresh();
-    const me = playerVehicle(w);
-    w.player.fuel = fuelCap(me) + 100;
-    w.player.supplies = suppliesCap(me) + 100;
-
-    expect(repairContent(w)).toEqual([]);
-    expect([w.player.fuel, w.player.supplies]).toEqual([fuelCap(me), suppliesCap(me)]);
-  });
-
   it('gives a driver outside the name lists a new name picked from the vehicle id', () => {
     const w = fresh();
     const [a, b] = npcs(w);
@@ -338,6 +327,20 @@ describe('repairContent', () => {
       if (over.topic) expect(() => currentOptions(w)).toThrow();
       if (over.topic) expect(() => currentLine(w)).toThrow();
 
+      expect(repairContent(w)).toEqual([]);
+      expect(w.player.call).toBeNull();
+    }
+  });
+
+  it('closes an open call whose vars name a good, site or driver that left the data', () => {
+    const vars: CallVars[] = [
+      { haul: { kind: 'haul', goods: { ghostGood: 2 }, parts: [] } },
+      { at: { kind: 'site', id: 'ghost-camp' } },
+      { who: { kind: 'sighting', driver: 'Retired Name', seen: null } },
+    ];
+    for (const v of vars) {
+      const w = fresh();
+      w.player.call = { with: npcs(w)[0].id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: v } };
       expect(repairContent(w)).toEqual([]);
       expect(w.player.call).toBeNull();
     }
