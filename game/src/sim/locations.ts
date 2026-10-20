@@ -1,6 +1,6 @@
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
-import { atlasOf, atlasSites } from './atlas';
+import { atlasKeyString, atlasOf, atlasSites } from './atlas';
 import { playerVehicle } from './damage';
 import { isKnockedOut } from './defeat';
 import { inTowReach } from './tow';
@@ -45,9 +45,67 @@ export function discoverSite(world: World, s: { id: string }): void {
   practice(world, 'discover', 1, null, s.id);
 }
 
+function siteReach(site: Site): number {
+  return isFortress(site) ? REGION.sites.pad.length : 0;
+}
+
+const AREAS_KEPT = 4;
+const AREAS = new Map<string, Map<string, ReadonlySet<number>>>();
+
+function areasOf(world: World): Map<string, ReadonlySet<number>> {
+  const key = `${atlasKeyString(world.terrain.atlas)}:${world.size}`;
+  let areas = AREAS.get(key);
+  if (!areas) {
+    if (AREAS.size >= AREAS_KEPT) AREAS.clear();
+    areas = new Map();
+    AREAS.set(key, areas);
+  }
+  return areas;
+}
+
+function tilesWithin(world: World, site: Site): Set<number> {
+  const reach = siteReach(site);
+  const span = site.radius + reach;
+  const x0 = Math.max(0, Math.floor(site.pos.x - span));
+  const x1 = Math.min(world.size - 1, Math.ceil(site.pos.x + span));
+  const y0 = Math.max(0, Math.floor(site.pos.y - span));
+  const y1 = Math.min(world.size - 1, Math.ceil(site.pos.y + span));
+  const tiles = new Set<number>();
+  for (let y = y0; y <= y1; y++)
+    for (let x = x0; x <= x1; x++) {
+      const idx = y * world.size + x;
+      if (siteGap(site, tileCenter(world, idx)) <= reach) tiles.add(idx);
+    }
+  return tiles;
+}
+
+export function siteArea(world: World, site: Site): ReadonlySet<number> {
+  const areas = areasOf(world);
+  let area = areas.get(site.id);
+  if (!area) {
+    area = tilesWithin(world, site);
+    if (area.size === 0) throw new Error(`Site ${site.id} has no map area`);
+    areas.set(site.id, area);
+  }
+  return area;
+}
+
 function seesArea(world: World, site: Site): boolean {
-  const reach = isFortress(site) ? REGION.sites.pad.length : 0;
-  return world.player.visible.some((idx) => siteGap(site, tileCenter(world, idx)) <= reach);
+  const area = siteArea(world, site);
+  return world.player.visible.some((idx) => area.has(idx));
+}
+
+export function mappedSites(world: World): Set<string> {
+  const mapped = new Set<string>();
+  for (const site of atlasSites(atlasOf(world.terrain))) {
+    for (const idx of siteArea(world, site)) {
+      if (world.player.explored[idx] === 1) {
+        mapped.add(site.id);
+        break;
+      }
+    }
+  }
+  return mapped;
 }
 
 export function salvageHere(world: World): SalvageStock | null {
