@@ -44,16 +44,17 @@ function thinkOrderPoint(world: World, v: Vehicle): Plan {
 }
 
 function setOrder(world: World, { v, activity, goal }: Plan): void {
-  noteStuck(world, v, goal);
+  const held = heldGoal(world, v, goal);
+  noteStuck(world, v, held);
   const stops = goal !== null && trafficStops(world, v, goal);
-  noteStall(world, v, (stops && activity.kind !== "fight" && activity.kind !== "flee") || waitsOnHold(world, v, goal));
+  noteStall(world, v, (stops && activity.kind !== "fight" && activity.kind !== "flee") || waitsOnHold(v, goal, held));
   v.order = nextOrder(world, v, activity, goal, stops);
   v.direct = false;
 }
 
 function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {
   const b = v.brain!;
-  b.stuck = heldAway(v, heldGoal(world, v, goal)) ? (b.stuck ?? 0) + 1 : 0;
+  b.stuck = heldAway(v, goal) ? (b.stuck ?? 0) + 1 : 0;
   if (b.stuck < RULES.unstick.turns) return;
   if (turnCornered(world, v)) {
     b.stuck = 0;
@@ -66,8 +67,7 @@ function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {
   b.stuck = 0;
 }
 
-function waitsOnHold(world: World, v: Vehicle, goal: Vec | null): boolean {
-  const held = heldGoal(world, v, goal);
+function waitsOnHold(v: Vehicle, goal: Vec | null, held: Vec | null): boolean {
   return held !== goal && dist(v.pos, held!) <= RULES.arriveRadius * 2;
 }
 
