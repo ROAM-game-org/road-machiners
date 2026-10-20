@@ -100,6 +100,61 @@ describe('stranded trucks', () => {
   });
 });
 
+describe('a truck held against a prop with every wheel down', () => {
+  const pocket = (): World => {
+    const w = emptyWorld();
+    w.obstacles = [
+      { id: 'rock-a', kind: 'rock', pos: { x: 32.3, y: 30 }, r: 1.5 },
+      { id: 'rock-b', kind: 'rock', pos: { x: 30, y: 32.3 }, r: 1.5 },
+      { id: 'rock-c', kind: 'rock', pos: { x: 30, y: 27.7 }, r: 1.5 },
+      { id: 'rock-d', kind: 'rock', pos: { x: 27.7, y: 30 }, r: 1.5 },
+    ];
+    return w;
+  };
+
+  function counts(w: World, turns: number): { w: World; counts: number[] } {
+    let d = buildDrive(w);
+    const out: number[] = [];
+    for (let i = 0; i < turns; i++) {
+      let next: Drive | null = null;
+      w = endTurn(w, physicsMove(d, (r) => (next = r.next)));
+      freeDrive(d);
+      d = next!;
+      out.push(w.vehicles[0].strandedTurns!);
+    }
+    freeDrive(d);
+    return { w, counts: out };
+  }
+
+  it('sets down a truck that pushes against rocks all around it and does not move', () => {
+    const w = setDirect(pocket(), true);
+    w.vehicles[0].order = { kind: 'through', dest: { x: 50, y: 30 } };
+    w.money = 0;
+    const run = counts(w, RULES.stranded.turns + 2);
+    expect(run.counts).toEqual([0, ...Array.from({ length: RULES.stranded.turns }, (_, i) => i + 1), 0]);
+    expect(w.obstacles.every((o) => dist(run.w.vehicles[0].pos, o.pos) > o.r)).toBe(true);
+  });
+
+  it('does not count a truck with no order', () => {
+    expect(counts(pocket(), RULES.stranded.turns + 1).counts).toEqual([0, 0, 0, 0]);
+  });
+
+  it('does not count a truck pushing nose to nose against another truck', () => {
+    const w = emptyWorld();
+    const other = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 33, y: 30 });
+    other.heading = Math.PI;
+    w.vehicles = [w.vehicles[0], other];
+    w.vehicles[0].order = { kind: 'through', dest: { x: 50, y: 30 } };
+    expect(counts(setDirect(w, true), RULES.stranded.turns + 1).counts).toEqual([0, 0, 0, 0]);
+  });
+
+  it('does not count a braking truck', () => {
+    const w = pocket();
+    w.vehicles[0].order = { kind: 'brake' };
+    expect(counts(w, RULES.stranded.turns + 1).counts).toEqual([0, 0, 0, 0]);
+  });
+});
+
 describe('oil patches', () => {
   function oiled(dest: Vec, patches: Vec[], r = 1.25): World {
     const w = setDirect(ordered({ kind: 'through', dest }, 6), true);

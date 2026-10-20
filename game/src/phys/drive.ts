@@ -63,7 +63,7 @@ export type Drive = {
 export type DeckColliders = { plates: number[]; rails: number[]; lips: number[] };
 
 export type Break = { prop: string; vehicle: string; step: number };
-export type VehicleResult = { passed: boolean; arrived: boolean };
+export type VehicleResult = { passed: boolean; arrived: boolean; pushedSteps: number };
 export type Landing = { vehicle: string; impact: number; step: number };
 export type Tear = { line: string; step: number };
 export type TurnResult = { next: Drive; frames: TurnFrames; crashes: Crash[]; breaks: Break[]; landings: Landing[]; tears: Tear[]; results: Record<string, VehicleResult> };
@@ -284,7 +284,7 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
     const s = vehicleStats(w, v);
     const b = bodyOf(v.chassisId);
     const mem = memory[v.id];
-    return { v, s, b, body, ctl: makeCar(world, body, b, s.mass), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false, size: w.terrain.size, world, holding: false, holdGrip: 1, avoid: avoidOf(w, v), field: [] };
+    return { v, s, b, body, ctl: makeCar(world, body, b, s.mass), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false, pushedSteps: 0 }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false, size: w.terrain.size, world, holding: false, holdGrip: 1, avoid: avoidOf(w, v), field: [] };
   });
   for (const c of cars) c.field = cars;
   const owner = new Map<number, string>();
@@ -651,6 +651,7 @@ function driveStep(c: Car, terrain: Terrain): void {
   if (!driving) c.mem.stall = 0;
   const command = driving ? commandToward(c, c.plan.dest!, speed) : { target: c.plan.target, steerTo: 0 };
   if (c.result.arrived) command.target = 0;
+  if (Math.abs(command.target) >= D.pushSpeed && flatSpeed(c.body) < D.stallSpeed) c.result.pushedSteps++;
   if (!c.plan.dest) {
     c.mem.reverse = false;
     c.mem.backFrom = null;
