@@ -96,11 +96,20 @@ function countOfKind(perKind: Partial<Record<PartKind, number>>, kind: PartKind,
   return count;
 }
 
+function rollShopStock(world: World, def: ShopDef): PartInstance[] {
+  const count = randInt(world.marketRng, def.stockSize[0], def.stockSize[1]);
+  const stock = rollPartStock(world, world.marketRng, def.partStock, count, def.id);
+  for (const staple of def.staples) {
+    if (stock.some((part) => part.defId === staple)) continue;
+    stock.push(makePart(world, staple, sampleWeighted(world.marketRng, def.partStock.wear)));
+  }
+  return stock;
+}
+
 export function initShop(world: World, shopId: string): ShopState {
   const def = shopDef(shopId);
   const goods = Object.fromEntries(def.goods.map((good) => [good, isFoundGood(good) ? 0 : stockTarget(shopId, good)]));
-  const count = randInt(world.marketRng, def.stockSize[0], def.stockSize[1]);
-  return { contracts: [], goods, stock: rollPartStock(world, world.marketRng, def.partStock, count, def.id), restockAt: world.turn + def.restockTurns, event: null, shortSince: {}, opened: {} };
+  return { contracts: [], goods, stock: rollShopStock(world, def), restockAt: world.turn + def.restockTurns, event: null, shortSince: {}, opened: {} };
 }
 
 export function goodStock(state: ShopState, good: string): number {
@@ -150,8 +159,7 @@ export function shortHere(world: World, shopId: string, good: string): boolean {
 export function advanceShop(world: World, shopId: string, state: ShopState): void {
   const def = shopDef(shopId);
   if (world.turn >= state.restockAt) {
-    const count = randInt(world.marketRng, def.stockSize[0], def.stockSize[1]);
-    state.stock = rollPartStock(world, world.marketRng, def.partStock, count, def.id);
+    state.stock = rollShopStock(world, def);
     state.restockAt = world.turn + def.restockTurns;
   }
 }

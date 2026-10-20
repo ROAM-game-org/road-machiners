@@ -215,6 +215,7 @@ export const LOG: Translation<typeof EN> = {
   'log.townPatch': 'Вы латаете грузовик ломом.',
   'log.siteEvent.surge': '{site, case, at} сегодня производят больше {good, case, gen}.',
   'log.siteEvent.breakdown': 'Производство {site, case, at} встало. Пока не починят, {good, case, gen} почти не будет.',
+  'log.engineCredit': 'В гараже вам ставят {part, case, acc} в долг.',
   'log.scrapPatch': 'Вы латаете машину ломом, и она снова трогается с места.',
   'log.scrapPatchFuel': 'Вы латаете машину ломом, и она снова трогается с места. Горожане отдали вам {liters} л топлива.',
   'log.npcKnockout': '{who} {who, gender, m {потерял} f {потеряла} n {потеряло} pl {потеряли}} сознание',

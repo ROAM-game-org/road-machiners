@@ -1,5 +1,5 @@
 {
- "format": "2.86",
+ "format": "2.84",
  "shape": {
   "broken": [],
   "craters": [],
@@ -97,8 +97,7 @@
     "guidestar": "number",
     "kiln": "number",
     "nose": "number",
-    "scrapjaw": "number",
-    "sunward": "number"
+    "scrapjaw": "number"
    },
    "state": "string",
    "storage": [],
@@ -2073,11 +2072,6 @@
     "turnsLeft": "null"
    }
   ],
-  "sunward": {
-   "collapsed": "null",
-   "lastHunt": "null",
-   "night": "null"
-  },
   "turn": "number",
   "vehicles": [
    {
@@ -2408,7 +2402,6 @@
     "asked_pay": "boolean",
     "asked_where": "boolean"
    },
-   "fallen_light": {},
    "first_fall": {},
    "granary_odile": {
     "asked_gate": "boolean",
@@ -2612,9 +2605,6 @@
    "bowl_scale": [
     "start"
    ],
-   "fallen_light": [
-    "start"
-   ],
    "first_fall": [
     "start"
    ],
@@ -2744,7 +2734,6 @@
      ]
     },
     "notes": [
-     "sunwardDragged",
      "talkKilnFight",
      "wagonDag"
     ],
@@ -2800,16 +2789,6 @@
     "notes": [
      "orchardIron"
     ],
-    "begins": []
-   }
-  },
-  "fallen_light": {
-   "revision": 1,
-   "links": {
-    "reads": [],
-    "readsNotes": [],
-    "writes": {},
-    "notes": [],
     "begins": []
    }
   },
@@ -2909,7 +2888,6 @@
     "writes": {},
     "notes": [
      "burntConvoy",
-     "sunwardLamps",
      "talkArmyStarved",
      "talkCommitteeRent"
     ],

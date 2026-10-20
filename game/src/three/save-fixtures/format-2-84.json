@@ -1,14 +1,15 @@
 {
-  "turn": 1650,
+  "turn": 1210,
   "setup": { "mode": "roaming", "settings": { "damage": 1, "fuelUse": 1, "supplyUse": 1, "enemyGearGrowth": 1 } },
   "furyRoad": null,
-  "sunward": { "collapsed": null, "night": null, "lastHunt": null },
-  "player": { "vehicleId": "v1", "money": 4200 },
+  "player": {
+    "vehicleId": "v1",
+    "money": 4200,
+    "standing": { "bowl": 12, "nose": -8, "guidestar": 10, "administrators": 10, "scrapjaw": -45, "kiln": -30 }
+  },
   "vehicles": [
-    { "id": "v1", "faction": "player", "pos": { "x": 300, "y": 300 }, "brain": null },
-    { "id": "v31", "faction": "sunward", "pos": { "x": 348.2, "y": 334.1 }, "brain": { "templateId": "cavalcade", "home": { "x": 348, "y": 334 }, "goals": [] } },
-    { "id": "v32", "faction": "sunward", "pos": { "x": 390, "y": 360 }, "brain": { "templateId": "hunter", "home": { "x": 362.4, "y": 338.5 }, "goals": [] } },
-    { "id": "v40", "faction": "kiln", "pos": { "x": 356, "y": 334 }, "brain": { "templateId": "buggy", "home": { "x": 351.2, "y": 334 }, "goals": [] } }
+    { "id": "v1", "faction": "player", "brain": null },
+    { "id": "v7", "faction": "kiln", "brain": { "templateId": "buggy", "goals": [] } }
   ],
   "states": []
 }

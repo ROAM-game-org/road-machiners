@@ -3,17 +3,16 @@
   "title": "Dust and Iron",
   "source": "Dust_and_Iron_2026-10-15T223016.wav",
   "guitarStem": "other.wav",
-  "guitarWall": 17,
   "bpm": 100,
   "bars": 87,
   "sections": [
    { "role": "intro", "from": 7, "bars": 2 },
    { "role": "verse", "from": 9, "bars": 8 },
    { "role": "wall", "from": 17, "bars": 16 },
-   { "role": "stop", "from": 33, "bars": 4 },
-   { "role": "verse", "from": 37, "bars": 4 },
+   { "role": "verse", "from": 33, "bars": 8 },
    { "role": "wall", "from": 41, "bars": 24 },
-   { "role": "stop", "from": 65, "bars": 4 }
+   { "role": "stop", "from": 65, "bars": 2 },
+   { "role": "wall", "from": 69, "bars": 16 }
   ],
   "end": 86
  },
@@ -21,7 +20,6 @@
   "title": "Convoy At Dusk",
   "source": "Convoy_At_Dusk_2026-10-15T225738.wav",
   "guitarStem": "guitar.wav",
-  "guitarWall": 41,
   "bpm": 125,
   "bars": 103,
   "sections": [

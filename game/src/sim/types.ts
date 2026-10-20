@@ -524,7 +524,7 @@ export type VehicleHits = { vehicle: string; hits: PartHit[] };
 
 export type PassReason = 'nothing' | 'busy' | 'outgunned' | 'poorLoad' | 'chance';
 
-export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'campSale' | 'patrolPay' | 'dispatchPay' | 'claimReward';
+export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'partCredit' | 'campSale' | 'patrolPay' | 'dispatchPay' | 'claimReward';
 
 export type CrewAskCause = 'joined' | 'grudge' | 'weak' | 'busy' | 'declined';
 export type CrewLeftCause = 'fled' | 'knockedOut' | 'hostile';
@@ -567,6 +567,7 @@ export type GameEvent =
   | { t: 'knockout' }
   | { t: 'wake' }
   | { t: 'scrapPatch'; fuel: number }
+  | { t: 'engineCredit'; part: string }
   | { t: 'townPatch' }
   | { t: 'siteEvent'; shop: string; kind: 'surge' | 'breakdown'; recipe: string }
   | { t: 'towOffer'; by: string; town: string; fee: number }
