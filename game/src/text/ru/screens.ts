@@ -714,7 +714,7 @@ export const SCREENS: Translation<typeof EN> = {
   'journal.entryHead': 'День {day}, {from}',
   'journal.work': 'Контракты',
   'journal.notes': 'Записи',
-  'journal.past': 'Прошлые',
+  'journal.past': 'Завершённые',
   'journal.past.done': 'выполнен',
   'journal.past.failed': 'провален',
   'journal.past.lapsed': 'истёк',
