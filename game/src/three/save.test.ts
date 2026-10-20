@@ -237,6 +237,28 @@ describe('game save', () => {
     expect(loaded.events.filter((e) => e.t === 'discover' || e.t === 'money')).toEqual([]);
   });
 
+  it('keeps an open road lesson and a settled one through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld({ x: 100, y: 450 });
+    const npc = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 106, y: 450 });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    world.player.talked['someone-else'] = { roadLesson: 'done' };
+    refreshVision(world);
+    let opened = callVehicle(world, npc.id);
+    opened = chooseOption(opened, currentOptions(opened).findIndex((o) => o.line === TOPICS.roadLesson.ask!.say));
+    expect(opened.player.call?.line.line).toBe('lessonTold');
+    writeSave(slots, 'auto', opened, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.player.call).toEqual(opened.player.call);
+    expect(loaded.player.talked).toEqual(opened.player.talked);
+    expect(resolve(lineText('lessonTold', loaded.player.call!.vars), 'en')).toBe(resolve(lineText('lessonTold', opened.player.call!.vars), 'en'));
+    expect(loaded.player.xp).toBe(opened.player.xp);
+    expect(loaded.player.money).toBe(opened.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
   it('loads a save with overdrive on and a worn engine as not overdriving, and clears the flag on the next update', () => {
     const slots = makeSlots();
     const world = emptyWorld();
