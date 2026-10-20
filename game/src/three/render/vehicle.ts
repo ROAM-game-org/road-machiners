@@ -2,14 +2,14 @@
 import { CLOUD_SHADOWS } from './cloudShadows';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { chassisDef, type Paint, type PaintId } from '../../data/chassis';
+import { chassisDef, type TruckPaint } from '../../data/chassis';
 import { partDef, type PartDef, type PartKind } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { CLIP_TOLERANCE, bodyOf, cellCenter, cellRect, engineAnchor, highestUnder, restOn, surfaceAt, surfaceSamples, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
-import { PAL, paintOf } from '../../render/palette';
+import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, baseModel, drawsOwnBumpers, grayShare, grayed, jagOffset, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle, World } from '../../sim/types';
@@ -70,7 +70,7 @@ type Anchor = { local: THREE.Vector3; parent: THREE.Object3D };
 
 type Placement = { pos: THREE.Vector3; yaw: number; scale: THREE.Vector3 };
 
-export function signatureOf(v: Vehicle, playerPaint: PaintId): string {
+export function signatureOf(v: Vehicle, playerPaint: TruckPaint): string {
   const items = v.items
     .map((it) => {
       const what = it.kind === 'part' ? `${it.part.defId}#${it.part.id}:${wearLookStep(it.part)}` : itemLookId(it);
@@ -78,7 +78,7 @@ export function signatureOf(v: Vehicle, playerPaint: PaintId): string {
     })
     .join(',');
   const paint = paintOf(v, playerPaint);
-  return `${v.chassisId}|${paint.top}|${paint.cab}|${items}`;
+  return `${v.chassisId}|${paint.body}|${paint.cab}|${paint.gear}|${items}`;
 }
 
 export class VehicleView {
@@ -104,12 +104,12 @@ export class VehicleView {
   private darkMat!: THREE.MeshBasicMaterial;
   private dark = false;
 
-  constructor(v: Vehicle, seen: boolean, playerPaint: PaintId) {
+  constructor(v: Vehicle, seen: boolean, playerPaint: TruckPaint) {
     this.root.add(this.body);
     this.update(v, seen, playerPaint);
   }
 
-  update(v: Vehicle, seen: boolean, playerPaint: PaintId): void {
+  update(v: Vehicle, seen: boolean, playerPaint: TruckPaint): void {
     const sig = signatureOf(v, playerPaint);
     if (sig !== this.sig) this.rebuild(v, paintOf(v, playerPaint));
     this.sig = sig;
@@ -206,7 +206,7 @@ export class VehicleView {
     disposeChildren(this.root);
   }
 
-  private rebuild(v: Vehicle, colors: Paint): void {
+  private rebuild(v: Vehicle, colors: TruckColors): void {
     disposeChildren(this.body);
     disposeChildren(this.root);
     this.root.add(this.body);
@@ -217,7 +217,7 @@ export class VehicleView {
     this.anchors.clear();
     const body = bodyOf(v.chassisId);
     this.motion = new TruckMotion(this.body, new THREE.Vector3(0, body.wheelY, 0), body.half.x, hashStr(v.id));
-    const paint = colors.top;
+    const paint = colors.gear;
     const on = this.lampMat.color.getHex() === PAL.lamp.on;
     this.lampMat = new THREE.MeshBasicMaterial({ color: on ? PAL.lamp.on : PAL.lamp.off });
     this.radioMat = new THREE.MeshBasicMaterial({ color: radioColor(this.radioOn) });
@@ -226,7 +226,7 @@ export class VehicleView {
 
     const still = new THREE.Group();
     const onBody = v.items.filter((item) => onChassis(v, item));
-    this.buildBase(v, body, baseModel(v.chassisId), still, paint, colors.cab, bumperlessCells(v, onBody), cabLook(v));
+    this.buildBase(v, body, baseModel(v.chassisId), still, colors.body, colors.cab, bumperlessCells(v, onBody), cabLook(v));
     const wheelItems: PartItem[] = [];
     const guns: PartItem[] = [];
     const obstacles: Obstacle[] = [];
@@ -245,7 +245,7 @@ export class VehicleView {
     this.buildSuspension(body, paint);
     this.buildLooseParts(v, body, onBody.length === v.items.length);
     this.body.add(mergeStatic(still));
-    this.buildSilhouette(paint);
+    this.buildSilhouette(colors.body);
     this.darkMat = new THREE.MeshBasicMaterial({ color: PAL.outline });
     markStencil(this.darkMat);
     this.dark = false;

@@ -178,7 +178,7 @@ export class DialoguePanel {
     if (key === this.drawn) return;
     this.drawn = key;
     const npc = vehicleById(w, call.with);
-    this.root.style.borderLeftColor = `#${paintOf(npc, w.player.paint).top.toString(16).padStart(6, '0')}`;
+    this.root.style.borderLeftColor = `#${paintOf(npc, w.player.paint).body.toString(16).padStart(6, '0')}`;
     this.root.classList.remove('qt-done');
     const options = offered.map((o, i) =>
       el('button', { class: 'dialogue-option', onclick: () => this.choose(i) }, t('call.option', { n: i + 1, line: lineText(o.line, call.vars) })),

@@ -1,6 +1,6 @@
 
 import type { Vehicle } from '../sim/types';
-import { isPaintId, PAINT_JOBS, type Paint, type PaintId } from '../data/chassis';
+import { isPaletteId, PAINT_SLOTS, PALETTE, type Paint, type TruckPaint } from '../data/chassis';
 import type { ItemTone } from './partLooks';
 import { tokenColor } from '../ui/tokens';
 
@@ -101,17 +101,27 @@ export const TEMPLATE_PAINT: Record<string, Paint> = {
   hunter: { top: 0xb2a284, side: 0x7a6e58, cab: 0x2c2824, cabSide: 0x1d1b18 },
 };
 
-export function paintOf(v: Pick<Vehicle, 'id' | 'faction' | 'brain'>, playerPaint: PaintId): Paint {
-  if (v.faction === 'player') return playerPaintOf(playerPaint);
+export type TruckColors = { body: number; cab: number; gear: number };
+
+export function paintOf(v: Pick<Vehicle, 'id' | 'faction' | 'brain'>, playerPaint: TruckPaint): TruckColors {
+  if (v.faction === 'player') return playerColors(playerPaint);
+  return roleColors(rolePaint(v));
+}
+
+function rolePaint(v: Pick<Vehicle, 'id' | 'faction' | 'brain'>): Paint {
   if (v.faction === 'scrapjaw' || v.faction === 'kiln') return GANG_PAINT[v.faction];
   const paint = v.brain ? TEMPLATE_PAINT[v.brain.templateId] : undefined;
   if (!paint) throw new Error(`${v.id} of ${v.faction} has no paint`);
   return paint;
 }
 
-export function playerPaintOf(id: string): Paint {
-  if (!isPaintId(id)) throw new Error(`No paint job ${id}`);
-  return PAINT_JOBS[id];
+function roleColors(paint: Paint): TruckColors {
+  return { body: paint.top, cab: paint.cab, gear: paint.top };
+}
+
+export function playerColors(paint: TruckPaint): TruckColors {
+  for (const slot of PAINT_SLOTS) if (!isPaletteId(paint[slot])) throw new Error(`No palette color ${String(paint[slot])} for the ${slot}`);
+  return { body: PALETTE[paint.body], cab: PALETTE[paint.cab], gear: PALETTE[paint.gear] };
 }
 
 export const ITEM_TONES = { weapon: 0x8c3a30, armor: 0x4f5458, cargo: 0x6e5236, other: 0x35587a } satisfies Record<ItemTone, number>;

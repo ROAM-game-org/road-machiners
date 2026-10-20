@@ -1,6 +1,6 @@
 // A truck draws each part's wear as a look step, and answers where each part is.
 
-import { PAINT, PAINT_IDS, PAINT_JOBS, type PaintId } from '../../data/chassis';
+import { PAINT, PALETTE, type TruckPaint } from '../../data/chassis';
 import { GANG_PAINT, paintOf, TEMPLATE_PAINT } from '../../render/palette';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
@@ -114,40 +114,52 @@ describe('part wear look', () => {
 
 describe('paint job look', () => {
   const npc = (v: Vehicle, templateId: string): Vehicle => ({ ...v, faction: 'independent', brain: { ...({} as NonNullable<Vehicle['brain']>), templateId } });
+  const PAINTS: TruckPaint[] = [PAINT.standard, { ...PAINT.standard, body: 'plum' }, { ...PAINT.standard, cab: 'plum' }, { ...PAINT.standard, gear: 'plum' }];
 
-  it('keys the rebuild on the body and the cab color of every preset', () => {
+  it('keys the rebuild on each of the three colors on its own', () => {
     const v = truck();
-    const sigs = PAINT_IDS.map((id) => signatureOf(v, id));
-    expect(new Set(sigs).size).toBe(PAINT_IDS.length);
-    expect(signatureOf(v, 'plum')).toContain(`|${PAINT_JOBS.plum.cab}|`);
+    const sigs = PAINTS.map((paint) => signatureOf(v, paint));
+    expect(new Set(sigs).size).toBe(PAINTS.length);
+  });
+
+  it('paints the body and the gear apart', () => {
+    const v = truck();
+    const view = new VehicleView(v, true, { body: 'plum', cab: 'navy', gear: 'mint' });
+    const drawn = colors(view);
+    expect(drawn).toContain(String(PALETTE.plum));
+    expect(drawn).toContain(String(PALETTE.mint));
+    expect(drawn).not.toContain(String(PALETTE.tan));
   });
 
   it('repaints the player truck at once and keeps the wear look on top', () => {
     const v = truck();
     const view = new VehicleView(v, true, PAINT.standard);
     const standard = colors(view);
-    view.update(v, true, 'bone');
-    const bone = colors(view);
-    expect(bone).not.toBe(standard);
-    expect(bone).toContain(String(PAINT_JOBS.bone.top));
+    const gearOnly: TruckPaint = { ...PAINT.standard, gear: 'mint' };
+    view.update(v, true, gearOnly);
+    const mint = colors(view);
+    expect(mint).not.toBe(standard);
+    expect(mint).toContain(String(PALETTE.mint));
+    expect(mint).toContain(String(PALETTE.tan));
     const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
     part.hp = 1;
-    view.update(v, true, 'bone');
-    expect(colors(view)).not.toBe(bone);
+    view.update(v, true, gearOnly);
+    expect(colors(view)).not.toBe(mint);
   });
 
   it('keeps the role paint of every NPC whatever the player paint', () => {
     const base = truck();
     for (const templateId of Object.keys(TEMPLATE_PAINT)) {
-      const v = npc(base, templateId);
-      for (const id of PAINT_IDS) expect(paintOf(v, id)).toBe(TEMPLATE_PAINT[templateId]);
+      const role = TEMPLATE_PAINT[templateId];
+      for (const paint of PAINTS) expect(paintOf(npc(base, templateId), paint)).toEqual({ body: role.top, cab: role.cab, gear: role.top });
     }
     for (const gang of ['scrapjaw', 'kiln'] as const) {
-      for (const id of PAINT_IDS) expect(paintOf({ ...base, faction: gang }, id)).toBe(GANG_PAINT[gang]);
+      const role = GANG_PAINT[gang];
+      for (const paint of PAINTS) expect(paintOf({ ...base, faction: gang }, paint)).toEqual({ body: role.top, cab: role.cab, gear: role.top });
     }
   });
 
   it('throws on a paint the build does not know', () => {
-    expect(() => paintOf(truck(), 'gold' as PaintId)).toThrow(/gold/);
+    expect(() => paintOf(truck(), { ...PAINT.standard, body: 'gold' } as unknown as TruckPaint)).toThrow(/gold/);
   });
 });
