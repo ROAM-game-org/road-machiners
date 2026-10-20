@@ -60,7 +60,6 @@ VAR hattie_unarmed = false
   -> hub
 + {hattie_soldiers and not hattie_roads} [Солдаты с Носа остановят меня на дороге?]
   Не остановят. И тех, кто придет твой грузовик отбирать, тоже не остановят.
-  Только без пушки на Нос не суйся: пока не найдешь пушку, никуда не выпустят.
   ~ hattie_roads = true
   -> hub
 + {hattie_roads and not hattie_unarmed} [А если приехать на Нос без оружия?]
