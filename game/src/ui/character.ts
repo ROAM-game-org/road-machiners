@@ -8,6 +8,7 @@ import type { UiHost } from './host';
 import { standingNum, standingStep } from './format';
 import { hp } from './units';
 import { num, t, type Msg } from '../text/msg';
+import { keyLabel } from './input-mode';
 import { factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
 import { hasExplorationMap, modeRules } from '../sim/settings';
@@ -55,7 +56,7 @@ export class CharacterScreen {
     const p = world.player;
     this.root.classList.toggle('map-open', this.tab === 'map');
     this.root.replaceChildren(
-      el('button', { class: 'close', onclick: () => this.close() }, t(this.tab === 'map' ? 'map.close' : 'character.close')),
+      el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t(this.tab === 'map' ? 'map.close' : 'character.close'), this.tab === 'map' ? 'K' : 'C')),
       el('h3', {}, t('character.title'), el('span', { class: 'chips' },
         el('span', { class: 'chip', title: t('character.health') }, createIcon('driver'), t('readout.ofMax', { n: hp(p.health), max: maxHealthOf(world) })),
         el('span', { class: 'chip', title: t('character.knockoutsTitle') }, createIcon('damage'), t('character.knockouts', { n: p.knockouts })),
@@ -109,7 +110,7 @@ export class CharacterScreen {
       el('span', { class: 'skill-name', title: t('character.grows', { what: skillGrows(id) }) }, createIcon(SKILL_ICON[id]), skillName(id)),
       el('div', { class: 'skill-level', title: t('character.rankOf', { rank, max: MAX_RANK }) },
         ...Array.from({ length: MAX_RANK }, (_, i) => el('i', { class: i < rank ? 'on' : '' }))),
-      ...PERK_LEVELS.map((level) => this.perkCell(world, perkPair(id, level), open.some((o) => o.level === level))),
+      ...PERK_LEVELS.map((level) => this.perkCell(world, perkPair(id, level), open.some((o) => o.level === level), level)),
       el('div', { class: 'skill-today' },
         el('div', { class: 'meter progress' }, el('div', { style: `width:${Math.min(today / XP_RULES.dailyCap, 1) * 100}%` })),
         el('span', { class: `num${today === 0 ? ' dim' : ''}` }, num(today, 'int'))),
@@ -127,22 +128,23 @@ export class CharacterScreen {
     }, t('character.buyShort', { cost: next.cost }));
   }
 
-  private perkCell(world: World, pair: PerkPair, isOpen: boolean): HTMLElement {
+  private perkCell(world: World, pair: PerkPair, isOpen: boolean, level: number): HTMLElement {
+    const rank = el('span', { class: 'perk-rank dim' }, t('character.colPerk', { rank: level }));
     const picked = pair.perks.find((id) => hasPerk(world, id));
-    if (picked) return el('div', { class: 'perk-cell picked', title: perkRule(picked) }, perkName(picked));
-    if (isOpen) return this.choice(world, pair);
-    return el('div', { class: 'perk-cell locked' },
+    if (picked) return el('div', { class: 'perk-cell picked', title: perkRule(picked) }, rank, perkName(picked));
+    if (isOpen) return this.choice(world, pair, rank);
+    return el('div', { class: 'perk-cell locked' }, rank,
       ...pair.perks.map((id) => el('span', { title: perkRule(id) }, perkName(id))));
   }
 
-  private choice(world: World, pair: PerkPair): HTMLElement {
+  private choice(world: World, pair: PerkPair, rank: HTMLElement): HTMLElement {
     const state = world.player.state;
     const reason = lookReason(world) ?? (state === 'active' ? null : refusalText(world, { id: 'notActive', state }));
     const button = (id: PerkId) => el('button', {
       class: 'perk',
       ...disabledWith(reason, () => this.host.apply(choosePerk(this.host.world(), id))),
     }, el('b', {}, perkName(id)), el('span', {}, perkRule(id)));
-    return el('div', { class: 'perk-cell perk-choice' }, ...pair.perks.map(button));
+    return el('div', { class: 'perk-cell perk-choice' }, rank, ...pair.perks.map(button));
   }
 }
 
