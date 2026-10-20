@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PAINT } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { REGION } from '../data/region';
 import { START_KITS } from '../data/start';
@@ -31,7 +32,7 @@ function kitItems(): CarriedItem[] {
 
 function carriedOf(over: Partial<Carried> = {}): Carried {
   return {
-    seed: 99, money: 777, xp: 340, ranks: { driving: 2, social: 1 }, xpBySource: { ram: 12 }, perks: [], discovered: [],
+    seed: 99, money: 777, xp: 340, ranks: { driving: 2, social: 1 }, xpBySource: { ram: 12 }, perks: [], paint: null, discovered: [],
     knockouts: 2, autoFire: true, autoRepair: false, fuel: 5, supplies: 3, costBasis: { scrap: 8 },
     truck: { chassisId: 'scout', items: kitItems() }, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, ...over,
   };
@@ -89,6 +90,16 @@ describe('carriedWorld', () => {
     expect(other.world.player.storage.map((p) => p.defId)).toEqual(expect.arrayContaining(['mg']));
     expect(other.report.sold.every((s) => s.money === s.units * GOODS[s.good].value)).toBe(true);
     expect(other.world.player.money).toBe(777 + other.report.sold.reduce((n, s) => n + s.money, 0));
+  });
+
+  it('carries a known paint slot by slot and turns an unknown slot into its standard color', () => {
+    const sanded = { body: 'sand', cab: 'slate', gear: 'chalk' };
+    expect(carriedWorld(carriedOf({ paint: sanded }), KIT, () => TEST_MAP, fresh).world.player.paint).toEqual(sanded);
+    const { world, report } = carriedWorld(carriedOf({ paint: { body: 'sand', cab: 'gold', gear: 'chalk' } }), KIT, () => TEST_MAP, fresh);
+    expect(world.player.paint).toEqual({ body: 'sand', cab: PAINT.standard.cab, gear: 'chalk' });
+    expect(report.lost).toContain('gold');
+    expect(carriedWorld(carriedOf({ paint: { body: 'oxblood' } }), KIT, () => TEST_MAP, fresh).world.player.paint).toEqual({ ...PAINT.standard, body: 'oxblood' });
+    expect(carriedWorld(carriedOf({ paint: null }), KIT, () => TEST_MAP, fresh).world.player.paint).toEqual(PAINT.standard);
   });
 
   it('drops perks above the carried rank and a second perk of one pair', () => {

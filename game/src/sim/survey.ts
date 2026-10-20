@@ -254,7 +254,7 @@ export function surveyTurn(world: World, job: SurveyJob): boolean {
   job.turnsLeft = Math.max(0, job.turnsLeft - 1);
   if (job.turnsLeft > 0) return false;
   open.point.done = true;
-  world.events.push({ t: 'contract', contract: { ...open.contract }, outcome: 'surveyed' });
+  world.events.push({ t: 'contract', contract: { ...open.contract }, outcome: 'surveyed', site: job.site });
   if (isSurveyMet(open.contract)) world.events.push({ t: 'contract', contract: { ...open.contract }, outcome: 'fulfilled' });
   rumorAround(world, surveySite(world, job.site));
   return true;

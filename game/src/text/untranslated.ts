@@ -63,6 +63,7 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/ui/fonts.ts', text: 'Дорожные машинисты 0123456789', reason: FONT_SAMPLE },
   { file: 'src/ui/quest-screen.ts', text: 'Quest art', reason: CRASH_REPORT },
   { file: 'src/three/render/models.ts', text: 'Model', reason: CRASH_REPORT },
+  { file: 'src/ui/cards.ts', text: 'Chassis sheet', reason: CRASH_REPORT },
   { file: 'src/ui/units.ts', text: '.innerHTML =', reason: SVG },
   { file: 'src/three/webgl.ts', text: 'Firefox/', reason: 'A token tested in the browser user agent string, never shown.' },
   { file: 'src/three/icons/page.ts', text: '*', reason: 'icons.html is a dev page for checking the icon sheets. It stays English.' },

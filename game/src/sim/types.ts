@@ -9,6 +9,7 @@ import type { LineId, TopicId } from "../data/dialogue";
 import type { PersonalityId } from "../data/personalities";
 import type { DecisionOptions } from "../data/npcs";
 import type { Contract, PastContract, ShopState } from "./market";
+import type { TruckPaint } from "../data/chassis";
 import type { Rng } from "./rng";
 import type { PerkId } from "../data/skills";
 import type { NoteId } from "../data/locals";
@@ -484,6 +485,7 @@ export type Player = {
   repeats: Record<string, Repeat>;
   xpBySource: Record<XpSource, number>;
   perks: PerkId[];
+  paint: TruckPaint;
   health: number;
   fuel: number;
   supplies: number;
@@ -562,8 +564,8 @@ export type GameEvent =
   | { t: 'practice'; source: XpSource; amount: number; difficulty: number | null; target: string; xp: number }
   | { t: 'skillUp'; skill: SkillId; level: number }
   | { t: 'money'; amount: number; reason: MoneyReason }
-  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'surveyed' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
-  | { t: 'contract'; contract: Contract; outcome: 'found'; site: string; cause?: undefined }
+  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
+  | { t: 'contract'; contract: Contract; outcome: 'found' | 'surveyed'; site: string; cause?: undefined }
   | { t: 'claimRival'; contract: string; vehicle: string }
   | { t: 'claimLead'; contract: string; driver: string }
   | { t: 'discover'; location: string }

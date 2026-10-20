@@ -35,8 +35,14 @@
   flex-direction: column;
   gap: var(--hud-gap);
 }
+#ui:not(.phone) .right-dock {
+  max-height: calc(var(--layer-h) - var(--safe-top) - var(--hud-inset) - var(--log-height) - var(--icon-hero) - var(--space-9) - var(--hud-gap) - var(--hud-gap));
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
 #ui .right-dock > .panel {
   position: static;
+  flex: none;
 }
 #ui .right-dock > .radio {
   order: 0;
