@@ -772,7 +772,7 @@ function freeDistance(c: Car, sign: 1 | -1, from: Vec, facing: number, mps: numb
   let steer = mem.steer;
   let moving = Infinity;
   for (let travelled = 0; travelled < horizon; travelled += D.clearStep) {
-    if (clearance.touches(at, heading)) return { solid: travelled, moving: Math.min(moving, travelled) };
+    if (travelled > 0 && clearance.touches(at, heading)) return { solid: travelled, moving: Math.min(moving, travelled) };
     if (moving === Infinity && movers.length > 0 && clearance.meetsMoving(at, heading, (travelled * S) / Math.max(mps, 1), movers)) moving = travelled;
     const aim = route ? routeAim(route, at) : dest;
     const want = clamp(angleDiff(heading + (sign < 0 ? Math.PI : 0), bearing(at, aim)) * gain, -plan.maxSteer, plan.maxSteer);
