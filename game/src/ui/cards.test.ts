@@ -5,6 +5,7 @@ import { playerVehicle } from "../sim/damage";
 import { addVehicle } from "../sim/testkit";
 import { newWorld } from "../sim/world";
 import type { PartInstance } from "../sim/types";
+import type { PaintId } from "../data/chassis";
 import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
 import { addGoods } from "../sim/inventory";
 import { startRepair } from "../sim/jobs";
@@ -169,7 +170,7 @@ describe("item icons", () => {
   });
 
   it.each(Object.keys(CHASSIS))("names the %s portrait after its chassis", (id) => {
-    expect(en(chassisPortraitCell(id).label)).toBe(en(chassisName(id)));
+    expect(en(chassisPortraitCell(id, "standard").label)).toBe(en(chassisName(id)));
   });
 });
 
@@ -202,7 +203,17 @@ describe("item tones", () => {
 
 describe("chassis portraits", () => {
   it.each(Object.keys(CHASSIS))("crop the %s portrait to its drawing", (id) => {
-    expect(chassisPortraitCell(id).box).toEqual(boxOf(ICONS.chassis[id as keyof typeof ICONS.chassis].box));
+    expect(chassisPortraitCell(id, "standard").box).toEqual(boxOf(ICONS.chassis[id as keyof typeof ICONS.chassis].box));
+  });
+
+  it("draw the chassis from the sheet of the player's paint, in the same cell", () => {
+    expect(chassisPortraitCell("scout", "standard").file).toBe("chassis.png");
+    expect(chassisPortraitCell("scout", "plum").file).toBe("chassis-plum.png");
+    expect(chassisPortraitCell("scout", "plum").box).toEqual(chassisPortraitCell("scout", "standard").box);
+  });
+
+  it("fail on a paint the build does not know", () => {
+    expect(() => chassisPortraitCell("scout", "gold" as PaintId)).toThrow(/gold/);
   });
 });
 

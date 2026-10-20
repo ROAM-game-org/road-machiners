@@ -1,5 +1,6 @@
 
 import type { Vehicle } from '../sim/types';
+import { isPaintId, PAINT_JOBS, type Paint, type PaintId } from '../data/chassis';
 import type { ItemTone } from './partLooks';
 import { tokenColor } from '../ui/tokens';
 
@@ -80,10 +81,6 @@ export const PAL = {
   damageText: tokenColorCss('--path-damage'),
 };
 
-export type Paint = { top: number; side: number; cab: number; cabSide: number };
-
-export const PLAYER_PAINT: Paint = { top: 0x9c7a3e, side: 0x6e5428, cab: 0x7e8a5a, cabSide: 0x566040 };
-
 export const GANG_PAINT: Record<'scrapjaw' | 'kiln', Paint> = {
   scrapjaw: { top: 0x8e2e22, side: 0x5e1e18, cab: 0x3a3230, cabSide: 0x262020 },
   kiln: { top: 0xa8521e, side: 0x6e3412, cab: 0x2e2a28, cabSide: 0x1e1a18 },
@@ -102,12 +99,17 @@ export const TEMPLATE_PAINT: Record<string, Paint> = {
   merc: { top: 0x2a2a2c, side: 0x1a1a1c, cab: 0x5a6068, cabSide: 0x3e4248 },
 };
 
-export function paintOf(v: Pick<Vehicle, 'id' | 'faction' | 'brain'>): Paint {
-  if (v.faction === 'player') return PLAYER_PAINT;
+export function paintOf(v: Pick<Vehicle, 'id' | 'faction' | 'brain'>, playerPaint: PaintId): Paint {
+  if (v.faction === 'player') return playerPaintOf(playerPaint);
   if (v.faction === 'scrapjaw' || v.faction === 'kiln') return GANG_PAINT[v.faction];
   const paint = v.brain ? TEMPLATE_PAINT[v.brain.templateId] : undefined;
   if (!paint) throw new Error(`${v.id} of ${v.faction} has no paint`);
   return paint;
+}
+
+export function playerPaintOf(id: string): Paint {
+  if (!isPaintId(id)) throw new Error(`No paint job ${id}`);
+  return PAINT_JOBS[id];
 }
 
 export const ITEM_TONES = { weapon: 0x8c3a30, armor: 0x4f5458, cargo: 0x6e5236, other: 0x35587a } satisfies Record<ItemTone, number>;

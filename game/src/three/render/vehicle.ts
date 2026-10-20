@@ -2,7 +2,7 @@
 import { CLOUD_SHADOWS } from './cloudShadows';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { chassisDef } from '../../data/chassis';
+import { chassisDef, type Paint, type PaintId } from '../../data/chassis';
 import { partDef, type PartDef, type PartKind } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
@@ -70,14 +70,15 @@ type Anchor = { local: THREE.Vector3; parent: THREE.Object3D };
 
 type Placement = { pos: THREE.Vector3; yaw: number; scale: THREE.Vector3 };
 
-export function signatureOf(v: Vehicle): string {
+export function signatureOf(v: Vehicle, playerPaint: PaintId): string {
   const items = v.items
     .map((it) => {
       const what = it.kind === 'part' ? `${it.part.defId}#${it.part.id}:${wearLookStep(it.part)}` : itemLookId(it);
       return `${what}@${it.x},${it.y},${it.rot}`;
     })
     .join(',');
-  return `${v.chassisId}|${paintOf(v).top}|${items}`;
+  const paint = paintOf(v, playerPaint);
+  return `${v.chassisId}|${paint.top}|${paint.cab}|${items}`;
 }
 
 export class VehicleView {
@@ -103,14 +104,14 @@ export class VehicleView {
   private darkMat!: THREE.MeshBasicMaterial;
   private dark = false;
 
-  constructor(v: Vehicle, seen: boolean) {
+  constructor(v: Vehicle, seen: boolean, playerPaint: PaintId) {
     this.root.add(this.body);
-    this.update(v, seen);
+    this.update(v, seen, playerPaint);
   }
 
-  update(v: Vehicle, seen: boolean): void {
-    const sig = signatureOf(v);
-    if (sig !== this.sig) this.rebuild(v);
+  update(v: Vehicle, seen: boolean, playerPaint: PaintId): void {
+    const sig = signatureOf(v, playerPaint);
+    if (sig !== this.sig) this.rebuild(v, paintOf(v, playerPaint));
     this.sig = sig;
     this.silhouetteMat.visible = seen;
     this.running = engineRuns(v);
@@ -205,7 +206,7 @@ export class VehicleView {
     disposeChildren(this.root);
   }
 
-  private rebuild(v: Vehicle): void {
+  private rebuild(v: Vehicle, colors: Paint): void {
     disposeChildren(this.body);
     disposeChildren(this.root);
     this.root.add(this.body);
@@ -216,7 +217,7 @@ export class VehicleView {
     this.anchors.clear();
     const body = bodyOf(v.chassisId);
     this.motion = new TruckMotion(this.body, new THREE.Vector3(0, body.wheelY, 0), body.half.x, hashStr(v.id));
-    const paint = paintOf(v).top;
+    const paint = colors.top;
     const on = this.lampMat.color.getHex() === PAL.lamp.on;
     this.lampMat = new THREE.MeshBasicMaterial({ color: on ? PAL.lamp.on : PAL.lamp.off });
     this.radioMat = new THREE.MeshBasicMaterial({ color: radioColor(this.radioOn) });
@@ -225,7 +226,7 @@ export class VehicleView {
 
     const still = new THREE.Group();
     const onBody = v.items.filter((item) => onChassis(v, item));
-    this.buildBase(v, body, baseModel(v.chassisId), still, paint, paintOf(v).cab, bumperlessCells(v, onBody), cabLook(v));
+    this.buildBase(v, body, baseModel(v.chassisId), still, paint, colors.cab, bumperlessCells(v, onBody), cabLook(v));
     const wheelItems: PartItem[] = [];
     const guns: PartItem[] = [];
     const obstacles: Obstacle[] = [];

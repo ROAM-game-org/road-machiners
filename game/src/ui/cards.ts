@@ -1,6 +1,6 @@
 
 import { oilSlickLength } from "../data/utilities";
-import { CHASSIS, chassisDef } from "../data/chassis";
+import { CHASSIS, chassisDef, isPaintId, type PaintId } from "../data/chassis";
 import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ArmorDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
 import { baseGrid, cargoCellsGained, cellCount, mountedParts, type Cell } from "../sim/grid";
@@ -8,7 +8,7 @@ import { maxHp, partValue, wornDef } from "../sim/wear";
 import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
 import { workOf } from "../sim/states";
 import { GOODS, PARCEL } from "../data/goods";
-import { itemLookId, itemTone } from "../render/partLooks";
+import { chassisSheetFile, itemLookId, itemTone } from "../render/partLooks";
 import { publicUrl } from "../public-url";
 import { ITEM_TONES } from "../render/palette";
 import ICONS from "../data/item-icons.json";
@@ -134,6 +134,7 @@ export type Box = { x: number; y: number; w: number; h: number };
 
 export type IconCell = {
   sheet: Sheet;
+  file: string;
   label: Msg;
   col: number;
   row: number;
@@ -168,11 +169,13 @@ export function itemTip(id: string): Msg {
   return t("item.tip", { name: itemIconLabel(id), lore: itemLore(id) });
 }
 
-export function chassisPortraitCell(chassisId: string): IconCell {
+export function chassisPortraitCell(chassisId: string, paint: PaintId): IconCell {
   const icons: Record<string, ManifestCell> = ICONS.chassis;
   const icon = icons[chassisId];
   if (!icon) throw new Error(`No chassis icon for ${chassisId}. Run npm run icons.`);
-  return { ...sheetCell("chassis", icon, chassisName(chassisDef(chassisId).id)), view: viewOf(ICONS.views.chassis) };
+  if (!isPaintId(paint)) throw new Error(`No paint job ${paint}`);
+  const cell = sheetCell("chassis", icon, chassisName(chassisDef(chassisId).id));
+  return { ...cell, file: chassisSheetFile(paint), view: viewOf(ICONS.views.chassis) };
 }
 
 function viewOf(view: string): View {
@@ -184,7 +187,7 @@ function sheetCell(sheet: Sheet, icon: ManifestCell, label: Msg): Omit<IconCell,
   const cols = ICONS.cols[sheet];
   const rows = Math.ceil(Object.keys(ICONS[sheet]).length / cols);
   const [x, y, w, h] = icon.box;
-  return { sheet, label, col: icon.index % cols, row: Math.floor(icon.index / cols), cols, rows, box: { x, y, w, h } };
+  return { sheet, file: SHEET_FILES[sheet], label, col: icon.index % cols, row: Math.floor(icon.index / cols), cols, rows, box: { x, y, w, h } };
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -199,7 +202,7 @@ function sheetIcon(cell: IconCell, cls: string, crop: Box, title: Msg | null): H
   clip.setAttribute("viewBox", `${cell.col + crop.x} ${cell.row + crop.y} ${crop.w} ${crop.h}`);
   for (const [k, v] of [["width", crop.w], ["height", crop.h]] as const) clip.setAttribute(k, String(v));
   const image = document.createElementNS(SVG_NS, "image");
-  image.setAttribute("href", publicUrl(`icons/${SHEET_FILES[cell.sheet]}`));
+  image.setAttribute("href", publicUrl(`icons/${cell.file}`));
   image.setAttribute("width", String(cell.cols));
   image.setAttribute("height", String(cell.rows));
   image.setAttribute("preserveAspectRatio", "none");
@@ -246,8 +249,8 @@ export function gridItemIcon(item: GridItem): HTMLElement {
   return sheetIcon(cell, "icon item-icon", cell.box, null);
 }
 
-export function chassisPortrait(chassisId: string): HTMLElement {
-  const cell = chassisPortraitCell(chassisId);
+export function chassisPortrait(chassisId: string, paint: PaintId): HTMLElement {
+  const cell = chassisPortraitCell(chassisId, paint);
   return sheetIcon(cell, "chassis-portrait", cell.box, cell.label);
 }
 
