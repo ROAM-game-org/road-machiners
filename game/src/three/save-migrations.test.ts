@@ -82,6 +82,7 @@ import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_80 from './save-fixtures/format-2-80.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
+import FORMAT_2_94 from './save-fixtures/format-2-94.json';
 import FORMAT_2_90 from './save-fixtures/format-2-90.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
@@ -2107,5 +2108,23 @@ describe('save migration 93 to 94', () => {
     const hulk = stepped().obstacles[0] as typeof before & { hulk: { bend: number } };
     expect(hulk.hulk).toEqual({ ...before.hulk, bend: 0 });
     expect(hulk.pos.x).toBeCloseTo(before.pos.x + Math.cos(before.hulk!.yaw) * AHEAD, 9);
+  });
+});
+
+describe('save migration 94 to 95', () => {
+  type Saved = typeof FORMAT_2_94;
+  const stepped = () => MIGRATIONS[94](structuredClone(FORMAT_2_94) as unknown as SavedJson) as unknown as { vehicles: (Saved['vehicles'][number] & { strandedAt?: { x: number; y: number } })[] };
+
+  it('anchors a held truck at its saved position, with a copy of the position', () => {
+    const held = stepped().vehicles[1];
+    expect(held.strandedAt).toEqual(FORMAT_2_94.vehicles[1].pos);
+    expect(held.strandedAt).not.toBe(held.pos);
+  });
+
+  it('gives a truck with no held turns no anchor and changes nothing else', () => {
+    const next = stepped();
+    expect(next.vehicles[0]).toEqual(FORMAT_2_94.vehicles[0]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_94.vehicles[2]);
+    expect({ ...next.vehicles[1], strandedAt: undefined }).toEqual({ ...FORMAT_2_94.vehicles[1], strandedAt: undefined });
   });
 });
