@@ -1,5 +1,5 @@
 
-import { chassisDef } from '../data/chassis';
+import { CHASSIS_FEATURES, chassisDef } from '../data/chassis';
 import { partDef, type EngineDef, type StoreDef, type WeaponDef } from '../data/parts';
 import { MIN_NPC_SPEED, NPCS, PRIORITY_TOP, SPEED_SHARE, type LoadoutPriorities } from '../data/npcs';
 import { PHYSICS } from '../data/physics';
@@ -31,6 +31,7 @@ export type VehicleStats = {
   limpSpeed: number;
   limpAccel: number;
   roughSkill: number;
+  roughCut: number;
   mass: number;
   radius: number;
   weapons: MountedWeapon[];
@@ -132,6 +133,10 @@ function transmissionSpeed(v: Vehicle, from: number, limpSpeed: number, steps: S
   return limpSpeed;
 }
 
+function towSpeedShare(v: Vehicle): number {
+  return chassisDef(v.chassisId).feature === 'heavyHitch' ? CHASSIS_FEATURES.heavyHitch.towSpeedShare : TOW.speedShare;
+}
+
 function conditionSpeed(world: World, v: Vehicle, from: number, steps: SpeedStep[] | null): number {
   let speed = from;
   const weather = weatherOn(world, v).speed;
@@ -139,9 +144,10 @@ function conditionSpeed(world: World, v: Vehicle, from: number, steps: SpeedStep
     speed *= weather;
     steps?.push({ kind: 'weather', factor: weather, speed });
   }
-  if (isTowing(world, v.id)) {
-    speed *= TOW.speedShare;
-    steps?.push({ kind: 'towing', factor: TOW.speedShare, speed });
+  const towShare = towSpeedShare(v);
+  if (isTowing(world, v.id) && towShare < 1) {
+    speed *= towShare;
+    steps?.push({ kind: 'towing', factor: towShare, speed });
   }
   return speed;
 }
@@ -187,6 +193,7 @@ export function vehicleStats(world: World, v: Vehicle): VehicleStats {
     limpSpeed,
     limpAccel,
     roughSkill: skillEffect(world, v, 'driving', 'roughSpeed'),
+    roughCut: ch.feature === 'offRoad' ? CHASSIS_FEATURES.offRoad.roughCut : 0,
     mass,
     radius: ch.radius,
     weapons: mountedItems(v, 'weapon').map((item) => ({ part: item.part, def: wornDef<WeaponDef>(item.part), spans: gunSpans(v, item), facing: facingOf(item) })),
@@ -298,7 +305,7 @@ function limpSpeedOf(world: World, v: Vehicle): number {
 }
 
 export function groundSpeed(s: VehicleStats, factor: number): number {
-  return 1 - (1 - factor) * (1 - s.roughSkill);
+  return 1 - (1 - factor) * (1 - s.roughSkill) * (1 - s.roughCut);
 }
 
 export function maxTurn(s: VehicleStats, speed: number): number {

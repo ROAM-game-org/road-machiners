@@ -6,7 +6,7 @@ import { REGION } from '../data/region';
 import { buyChassis } from './economy';
 import { partDef } from '../data/parts';
 import { makePart, makeVehicle } from './factory';
-import { MOUNT_CELLS, baseGrid, cargoCellsGained, cellCount, freeCells, gridOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, plateSide, sideOf, type Cell } from './grid';
+import { MOUNT_CELLS, baseGrid, cargoCellsGained, cargoRowsOn, cellCount, freeCells, gridOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, plateSide, sideOf, type Cell } from './grid';
 import { moveItem, mountPart, storePart } from './inventory';
 import { generateNpcLoadout } from './npc-loadout';
 import { addVehicle, emptyWorld } from './testkit';
@@ -99,7 +99,7 @@ describe('cargo rows', () => {
 });
 
 describe('broken cargo rows', () => {
-  const boxRows = (PARTS.trailerBox as { extraRows: number }).extraRows;
+  const boxRows = cargoRowsOn('hauler', 'trailerBox');
   const rackRows = (PARTS.rack as { extraRows: number }).extraRows;
   function boxTruck(parts: string[]) {
     const w = emptyWorld();

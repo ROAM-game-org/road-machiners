@@ -1,5 +1,5 @@
 
-import { chassisDef } from '../data/chassis';
+import { CHASSIS_FEATURES, chassisDef } from '../data/chassis';
 import { partDef, type CoreDef, type PartKind } from '../data/parts';
 import type { GridItem, PartInstance, PlacementRefusal, Rot, Vehicle } from './types';
 
@@ -103,7 +103,7 @@ export function gridOf(v: Vehicle): Grid {
   let working = 0;
   let dead = 0;
   for (const it of mountedItems(v, 'cargo')) {
-    const rows = (partDef(it.part.defId) as { extraRows: number }).extraRows;
+    const rows = cargoRowsOn(v.chassisId, it.part.defId);
     if (it.part.hp > 0) working += rows;
     else dead += rows;
   }
@@ -126,7 +126,15 @@ export function gridOf(v: Vehicle): Grid {
 export function cargoCellsGained(chassisId: string, defId: string): number {
   const def = partDef(defId);
   if (def.kind !== 'cargo') throw new Error(`${defId} is not a cargo part`);
-  return def.extraRows * baseGrid(chassisId).w - def.w * def.h;
+  return cargoRowsOn(chassisId, defId) * baseGrid(chassisId).w - def.w * def.h;
+}
+
+export function cargoRowsOn(chassisId: string, defId: string): number {
+  const def = partDef(defId);
+  if (def.kind !== 'cargo') throw new Error(`${defId} is not a cargo part`);
+  const bed = CHASSIS_FEATURES.cargoBed;
+  const onBed = chassisDef(chassisId).feature === 'cargoBed' && def.w * def.h >= bed.minCells;
+  return def.extraRows + (onBed ? bed.extraRows : 0);
 }
 
 export function onDeadRow(g: Grid, item: GridItem): boolean {

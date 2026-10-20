@@ -3,7 +3,7 @@ import { oilSlickLength } from "../data/utilities";
 import { CHASSIS, chassisDef } from "../data/chassis";
 import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ArmorDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
-import { baseGrid, cargoCellsGained, cellCount, mountedParts, type Cell } from "../sim/grid";
+import { baseGrid, cargoCellsGained, cargoRowsOn, cellCount, mountedParts, type Cell } from "../sim/grid";
 import { maxHp, partValue, wornDef } from "../sim/wear";
 import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
 import { workOf } from "../sim/states";
@@ -506,9 +506,11 @@ function storeStats(part: PartInstance): Stat[] {
 
 function cargoStats(world: World, part: PartInstance): Stat[] {
   const d = partDefOf<CargoDef>(part);
-  const cells = cargoCellsGained(playerVehicle(world).chassisId, part.defId);
+  const chassisId = playerVehicle(world).chassisId;
+  const cells = cargoCellsGained(chassisId, part.defId);
+  const extraRows = cargoRowsOn(chassisId, part.defId);
   const gained = { ...stat("cells", t("stat.cells"), cells, null, "more"), text: signed(cells, 0) };
-  const rows = { ...stat("rows", t("stat.extraRows"), d.extraRows, null, "more"), text: signed(d.extraRows, 0), unit: t("stat.rowsUnit", { n: d.extraRows }) };
+  const rows = { ...stat("rows", t("stat.extraRows"), extraRows, null, "more"), text: signed(extraRows, 0), unit: t("stat.rowsUnit", { n: extraRows }) };
   return [gained, rows, tallStat(d)];
 }
 

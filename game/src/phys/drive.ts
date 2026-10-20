@@ -609,7 +609,7 @@ function applyTerrainGrip(c: Car, terrain: Terrain, slick: readonly boolean[]): 
   const p = c.body.translation();
   const ground = TERRAIN_TYPES[terrain.types[tileAt(terrain, { x: p.x / S, y: p.z / S })]];
   c.grip = ground.grip;
-  c.topShare = ground.paved ? 1 : TERRAIN.drive.unpavedTopSpeed;
+  c.topShare = ground.paved ? 1 : 1 - (1 - TERRAIN.drive.unpavedTopSpeed) * (1 - c.s.roughCut);
   const grip = T.frictionSlip * groundSpeed(c.s, ground.speed) * ground.grip;
   c.holdGrip = (ground.grip * slick.reduce((sum, wet) => sum + (wet ? OIL.grip : 1), 0)) / slick.length;
   for (let i = 0; i < 4; i++) {
