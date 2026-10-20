@@ -242,7 +242,7 @@
   font: var(--text-dense) var(--font-mono);
 }
 
-/* The tab row of the phone layout: one icon button per drawer. The open drawer's tab is .selected, and a tab whose drawer
+/* The tab row of the phone layout: one word button per drawer. The open drawer's tab is .selected, and a tab whose drawer
    has something that needs the player takes the danger edge with .marked, which stays while the state is true. */
 .drawer-tabs {
   display: flex;
@@ -250,10 +250,15 @@
 }
 #ui .drawer-tabs > button {
   min-width: var(--btn-h-l);
-  padding: 0;
+  padding: 0 var(--space-1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-size: var(--text-dense);
+  line-height: 1;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: normal;
 }
 #ui .drawer-tabs > button.marked {
   border-color: var(--danger);

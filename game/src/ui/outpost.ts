@@ -7,6 +7,7 @@ import { gatesShut } from "../sim/outpost-gates";
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
 import type { PartInstance, World } from "../sim/types";
 import { num, SPACE, t, type Msg } from "../text/msg";
+import { ESCAPE, keyLabel } from "./input-mode";
 import { goodName, refusalText, siteName } from "../text/names";
 import { chassisPortrait, compareBase, createIcon, createItemTipIcon, itemTip } from "./cards";
 import { el, panel } from "./dom";
@@ -112,7 +113,7 @@ export class OutpostScreen {
   private leaveButton(w: World): HTMLElement[] {
     const { leave } = outpostControls(w);
     this.root.classList.toggle("pinned", !leave);
-    return leave ? [el("button", { class: "close", onclick: () => this.close() }, t("trade.leave"))] : [];
+    return leave ? [el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("trade.leave"), ESCAPE.key))] : [];
   }
 
   private haulerHere(w: World): boolean {

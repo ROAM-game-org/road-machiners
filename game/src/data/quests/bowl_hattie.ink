@@ -27,7 +27,7 @@ Park that wreck clear of my well, driver, and tell me how much water you need. I
   He found your truck dead in the badlands with you in the seat, took it for abandoned and hooked up the lot.
   ~ hattie_tow = true
   -> hub
-+ {towed_to_bowl and not hattie_strip} [Who stripped my truck?]
++ {towed_to_bowl and engine_missing() and not hattie_strip} [Who stripped my truck?]
   Wasn't the tow man, if that's where you're looking. Whoever it was took their time and left you breathing.
   ~ hattie_strip = true
   -> hub
