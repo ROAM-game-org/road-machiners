@@ -4,7 +4,10 @@ import { propPose } from '../sim/mapgen';
 import { baseGrid, isMounted, placementError } from '../sim/grid';
 import { choosePerk, pendingPerkPairs, skillLevel } from '../sim/progress';
 import { emptyWorld } from '../sim/testkit';
-import type { Obstacle, Player, Vehicle, WeatherEvent, World } from '../sim/types';
+import type { CallVars, Obstacle, Player, Vehicle, WeatherEvent, World } from '../sim/types';
+import type { LineId } from '../data/dialogue';
+import { resolve } from '../text/resolve';
+import { lineText } from '../ui/dialogue';
 import { stormStrength, weatherAt, weatherOn } from '../sim/weather';
 import { ECONOMY } from '../data/goods';
 import { pressureOf, priceAtPressure } from '../sim/market';
@@ -76,8 +79,12 @@ import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
+import FORMAT_2_86 from './save-fixtures/format-2-86.json';
+import FORMAT_2_87 from './save-fixtures/format-2-87.json';
+import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
+import FORMAT_2_84 from './save-fixtures/format-2-84.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1825,5 +1832,114 @@ describe('MIGRATIONS[83]', () => {
     expect(shopsOf(next).nose.restockAt).toBe(before.shops.nose.restockAt);
     expect(shopsOf(next)['salvage-yard']).toEqual(before.shops['salvage-yard']);
     expect({ ...next, shops: { ...shopsOf(next), bowl: before.shops.bowl } }).toEqual(before);
+  });
+});
+
+describe('save migration 84 to 85', () => {
+  it('gives a Roaming world a standing Sunward order and the player the Sunward start standing', () => {
+    const before = structuredClone(FORMAT_2_84);
+
+    const next = MIGRATIONS[84](before) as typeof FORMAT_2_84 & { sunward: unknown; player: { standing: Record<string, number> } };
+
+    expect(next.sunward).toEqual({ collapsed: null, night: null, lastHunt: null });
+    expect(next.player.standing).toEqual({ ...FORMAT_2_84.player.standing, sunward: -20 });
+    expect(next.vehicles).toEqual(FORMAT_2_84.vehicles);
+    expect(next.player.money).toBe(4200);
+    expect(before).toEqual(FORMAT_2_84);
+  });
+
+  it('gives a Chaos Highway world no order', () => {
+    const highway = { ...structuredClone(FORMAT_2_84), setup: { ...FORMAT_2_84.setup, mode: 'furyRoad' }, furyRoad: { window: 0 } };
+
+    const next = MIGRATIONS[84](highway) as typeof highway & { sunward: unknown };
+
+    expect(next.sunward).toBeNull();
+    expect(next.furyRoad).toEqual({ window: 0 });
+  });
+});
+
+describe('save migration 85 to 86', () => {
+  type Saved = { vehicles: { id: string; pos: { x: number; y: number }; brain: { home: { x: number; y: number } } | null }[] };
+
+  it('moves each Sunward car home to the fort bay of the same index and moves no car', () => {
+    const before = structuredClone(FORMAT_2_85);
+
+    const next = MIGRATIONS[85](before) as unknown as Saved;
+
+    const home = (id: string) => next.vehicles.find((v) => v.id === id)!.brain!.home;
+    expect(home('v31')).toEqual({ x: 284.053, y: 243.604 });
+    expect(home('v32')).toEqual({ x: 269.787, y: 236.358 });
+    expect(home('v40')).toEqual({ x: 351.2, y: 334 });
+    expect(next.vehicles.map((v) => v.pos)).toEqual(FORMAT_2_85.vehicles.map((v) => v.pos));
+    expect(before).toEqual(FORMAT_2_85);
+  });
+
+  it('passes a world with no Sunward car unchanged', () => {
+    const quiet = { ...structuredClone(FORMAT_2_85), vehicles: FORMAT_2_85.vehicles.filter((v) => v.faction !== 'sunward') };
+
+    expect(MIGRATIONS[85](quiet)).toEqual(quiet);
+  });
+
+  it('throws on a Sunward car whose home is no bay of the old Hollow', () => {
+    const lost = structuredClone(FORMAT_2_85);
+    lost.vehicles[1].brain!.home = { x: 10, y: 10 };
+
+    expect(() => MIGRATIONS[85](lost)).toThrow(/no bay of the old Hollow/);
+  });
+});
+
+describe('save migration 86 to 87', () => {
+  it('gives the night of the vigil an empty list of words given and keeps the rest', () => {
+    const before = structuredClone(FORMAT_2_86);
+
+    const next = MIGRATIONS[86](before) as typeof FORMAT_2_86 & { sunward: { night: { offered: string[] } } };
+
+    expect(next.sunward.night).toEqual({ ...FORMAT_2_86.sunward.night, offered: [] });
+    expect(next.vehicles).toEqual(FORMAT_2_86.vehicles);
+    expect(before).toEqual(FORMAT_2_86);
+  });
+
+  it('passes a world with no night open, or no order, unchanged', () => {
+    const day = { ...structuredClone(FORMAT_2_86), sunward: { ...FORMAT_2_86.sunward, night: null } };
+    const highway = { ...structuredClone(FORMAT_2_86), sunward: null };
+
+    expect(MIGRATIONS[86](day)).toEqual(day);
+    expect(MIGRATIONS[86](highway)).toEqual(highway);
+  });
+});
+
+describe('save migration 87 to 88', () => {
+  type Step = { do: string; heading?: unknown };
+  type Saved = { turn: number; player: { money: number; call: { vars: Record<string, { kind: string; steps?: Step[] }>; line: { line: string; vars: Record<string, { kind: string; steps?: Step[] }> } } | null } };
+  const migrate = (world: unknown) => MIGRATIONS[87](structuredClone(world) as never) as unknown as Saved;
+
+  it('marks every follow step of an open directions answer as planned before headings', () => {
+    const next = migrate(FORMAT_2_87);
+    for (const vars of [next.player.call!.vars, next.player.call!.line.vars]) {
+      const steps = vars.way.steps!;
+      expect(steps.filter((s) => s.do === 'follow').map((s) => s.heading)).toEqual([null]);
+      expect(steps.filter((s) => s.do !== 'follow').every((s) => !('heading' in s))).toBe(true);
+    }
+  });
+
+  it('changes nothing else in the save', () => {
+    const next = migrate(FORMAT_2_87);
+    const strip = (vars: Record<string, { kind: string; steps?: Step[] }>) => ({ ...vars, way: { ...vars.way, steps: vars.way.steps!.map(({ heading: _heading, ...rest }) => rest) } });
+    expect({ ...next, player: { ...next.player, call: { ...next.player.call!, vars: strip(next.player.call!.vars), line: { ...next.player.call!.line, vars: strip(next.player.call!.line.vars) } } } }).toEqual(FORMAT_2_87);
+  });
+
+  it('reads a migrated answer with the words it had before headings, in both languages', () => {
+    const call = migrate(FORMAT_2_87).player.call!;
+    const said = (locale: 'en' | 'ru') => resolve(lineText(call.line.line as LineId, call.line.vars as CallVars), locale);
+    expect(said('en')).toContain('Take the road to Bowl.');
+    expect(said('ru').length).toBeGreaterThan(0);
+  });
+
+  it('passes a save with no call or no directions answer unchanged', () => {
+    const noCall = { ...FORMAT_2_87, player: { ...FORMAT_2_87.player, call: null } };
+    expect(migrate(noCall)).toEqual(noCall);
+    const town = { town: FORMAT_2_87.player.call.vars.town };
+    const noWay = { ...FORMAT_2_87, player: { ...FORMAT_2_87.player, call: { ...FORMAT_2_87.player.call, vars: town, line: { ...FORMAT_2_87.player.call.line, vars: town } } } };
+    expect(migrate(noWay)).toEqual(noWay);
   });
 });

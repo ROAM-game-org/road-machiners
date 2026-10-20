@@ -62,6 +62,7 @@ export class PathView {
   private readonly arrow = flatIcon(new THREE.ShapeGeometry(arrowShape()), PAL.plan);
   private lines: Line2[] = [];
   private markers: THREE.Mesh[] = [];
+  private drawSize = { width: 1, height: 1 };
 
   constructor(private readonly terrain: Terrain) {
     this.through.add(flatIcon(new THREE.RingGeometry(ORDER_R * ORDER_RING_INNER, ORDER_R, 32), PAL.plan), this.arrow);
@@ -110,6 +111,11 @@ export class PathView {
     this.markers.push(marker);
   }
 
+  setDrawSize(width: number, height: number): void {
+    this.drawSize = { width, height };
+    for (const line of this.lines) line.material.resolution.set(width, height);
+  }
+
   set(turns: VehicleFrame[][], firstColor: number, course: Vec[] | null, waypoint: boolean): void {
     this.clear();
     if (course) this.addCourse(course, waypoint);
@@ -121,7 +127,7 @@ export class PathView {
         new LineGeometry().setPositions(frames.flatMap((f) => this.ground(f.pos))),
         new LineMaterial({ color, linewidth: LINE_WIDTH_PX, transparent: true, opacity: solid ? OPACITY.first : OPACITY.later, depthWrite: false }),
       );
-      line.material.resolution.set(window.innerWidth, window.innerHeight);
+      line.material.resolution.set(this.drawSize.width, this.drawSize.height);
       line.computeLineDistances();
       line.renderOrder = 820;
       this.preview.add(line);
@@ -143,7 +149,7 @@ export class PathView {
       new LineGeometry().setPositions(positions),
       new LineMaterial({ color: PAL.plan, linewidth: COURSE_WIDTH_PX, transparent: true, opacity: OPACITY.course, depthWrite: false }),
     );
-    line.material.resolution.set(window.innerWidth, window.innerHeight);
+    line.material.resolution.set(this.drawSize.width, this.drawSize.height);
     line.computeLineDistances();
     line.renderOrder = 820;
     this.preview.add(line);
