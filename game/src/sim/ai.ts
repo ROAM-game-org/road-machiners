@@ -21,7 +21,7 @@ import { canVehicleSee } from "./vision";
 import { bodyHitChance, inArc, inCombat } from "./combat";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
-import { rollingOrder, runsDown } from "./hunters";
+import { heldGoal, holdOnStretch, rollingOrder, runsDown } from "./hunters";
 
 function planners(world: World): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v));
@@ -46,14 +46,14 @@ function thinkOrderPoint(world: World, v: Vehicle): Plan {
 function setOrder(world: World, { v, activity, goal }: Plan): void {
   noteStuck(world, v, goal);
   const stops = goal !== null && trafficStops(world, v, goal);
-  noteStall(world, v, stops && activity.kind !== "fight" && activity.kind !== "flee");
+  noteStall(world, v, (stops && activity.kind !== "fight" && activity.kind !== "flee") || waitsOnHold(world, v, goal));
   v.order = nextOrder(world, v, activity, goal, stops);
   v.direct = false;
 }
 
 function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {
   const b = v.brain!;
-  b.stuck = heldAway(v, goal) ? (b.stuck ?? 0) + 1 : 0;
+  b.stuck = heldAway(v, heldGoal(world, v, goal)) ? (b.stuck ?? 0) + 1 : 0;
   if (b.stuck < RULES.unstick.turns) return;
   if (turnCornered(world, v)) {
     b.stuck = 0;
@@ -64,6 +64,11 @@ function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {
   b.recovery = RULES.unstick.driveTurns;
   b.recoveryGoal = spot;
   b.stuck = 0;
+}
+
+function waitsOnHold(world: World, v: Vehicle, goal: Vec | null): boolean {
+  const held = heldGoal(world, v, goal);
+  return held !== goal && dist(v.pos, held!) <= RULES.arriveRadius * 2;
 }
 
 function heldAway(v: Vehicle, goal: Vec | null): boolean {
@@ -107,9 +112,9 @@ function startRecovery(v: Vehicle): void {
 
 function nextOrder(world: World, v: Vehicle, activity: NpcActivity, goal: Vec | null, stops: boolean): MoveOrder {
   if (!goal) return { kind: "brake" };
-  if (v.brain!.recovery) return { kind: "stopAt", dest: v.brain!.recoveryGoal! };
+  if (v.brain!.recovery) return holdOnStretch(world, v, { kind: "stopAt", dest: v.brain!.recoveryGoal! });
   if (stops || waitsForEscort(world, v, activity)) return { kind: "brake" };
-  return driveOrder(world, v, activity, goal);
+  return holdOnStretch(world, v, driveOrder(world, v, activity, goal));
 }
 
 function orderPoint(world: World, v: Vehicle, activity: NpcActivity): Vec | null {
