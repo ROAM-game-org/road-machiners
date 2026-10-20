@@ -349,18 +349,29 @@ describe('oncoming NPCs', () => {
 
 describe('getting unstuck', () => {
   function waitingLeader(): { w: World; leader: Vehicle } {
-    const w = emptyWorld({ x: 30, y: 30 });
-    const leader = addVehicle(w, 'bowl', 'hauler', ['mg', 'workhorseDiesel'], { x: 100, y: 100 });
-    leader.brain = npcBrain('convoy', leader.pos, ['supplier']);
-    leader.brain.goals = [{ kind: 'explore', targetId: null, destination: { x: 170, y: 100 }, phase: 'travel', reason: 'tripToSite' }];
+    const { w, leader } = heldDriver();
     const guard = addVehicle(w, 'bowl', 'scout', ['mg', 'stockEngine'], { x: 60, y: 100 });
     guard.brain = npcBrain('convoyGuard', guard.pos, ['guard']);
     startEscort(w, guard, leader, null, 0);
     return { w, leader };
   }
 
+  function heldDriver(): { w: World; leader: Vehicle } {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const leader = addVehicle(w, 'bowl', 'hauler', ['mg', 'workhorseDiesel'], { x: 100, y: 100 });
+    leader.brain = npcBrain('convoy', leader.pos, ['supplier']);
+    leader.brain.goals = [{ kind: 'explore', targetId: null, destination: { x: 170, y: 100 }, phase: 'travel', reason: 'tripToSite' }];
+    return { w, leader };
+  }
+
   it('a driver held in place drives to a free spot nearby after the unstick wait', () => {
-    const { w, leader } = waitingLeader();
+    const { w, leader } = heldDriver();
+    leader.heading = 0;
+    const ahead = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 104, y: 100 });
+    ahead.brain = npcBrain('trader', ahead.pos, ['trader']);
+    ahead.heading = Math.PI;
+    ahead.brain.goals.push({ kind: 'explore', targetId: null, destination: { x: 40, y: 100 }, phase: 'travel', reason: 'tripToSite' });
+    lowerIdFirst(leader, ahead);
     for (let i = 0; i < RULES.unstick.turns; i++) {
       planNpcOrders(w);
       expect(leader.order?.kind).toBe('brake');
@@ -369,6 +380,15 @@ describe('getting unstuck', () => {
     expect(leader.order?.kind).toBe('stopAt');
     const spot = leader.order!.kind === 'stopAt' ? leader.order!.dest : null;
     expect(dist(spot!, leader.pos)).toBeLessThanOrEqual(RULES.unstick.reach);
+  });
+
+  it('a leader braking for its guard waits and never counts as stuck', () => {
+    const { w, leader } = waitingLeader();
+    for (let i = 0; i < RULES.unstick.turns * 2; i++) {
+      planNpcOrders(w);
+      expect(leader.order?.kind).toBe('brake');
+    }
+    expect(leader.brain!.recovery ?? 0).toBe(0);
   });
 
   it('a driver parked on its goal point never counts as stuck', () => {
