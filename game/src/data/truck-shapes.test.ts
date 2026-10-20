@@ -118,13 +118,13 @@ describe('trucks built from a reference photo keep its proportions', () => {
 });
 
 describe('the scout pickup', () => {
-  it('keeps the HiLux blueprint: 5.2 m long, with a width to length of 0.377 across its flares', () => {
+  it('keeps the HiLux blueprint: 5.2 m long, with a width to length of 0.423 across its flares', () => {
     const boxes = SHAPES.base_scout.boxes;
     const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
     const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
     expect(Math.abs(along - 5.2)).toBeLessThanOrEqual(0.05);
-    expect(across / along).toBeGreaterThanOrEqual(0.365);
-    expect(across / along).toBeLessThanOrEqual(0.395);
+    expect(across / along).toBeGreaterThanOrEqual(0.41);
+    expect(across / along).toBeLessThanOrEqual(0.44);
   });
 
   const { heights } = SHAPES.base_scout;
@@ -136,7 +136,7 @@ describe('the scout pickup', () => {
     const tail = Math.min(...columns.map((c) => c.x));
     const nose = Math.max(...columns.map((c) => c.x));
     const station = tail + 0.2 * (nose - tail);
-    const rail = Math.max(...columns.filter((c) => Math.abs(c.x - station) <= 0.2 && Math.abs(c.y) >= 0.75 && Math.abs(c.y) <= 0.95).map((c) => c.top));
+    const rail = Math.max(...columns.filter((c) => Math.abs(c.x - station) <= 0.2 && Math.abs(c.y) >= 0.85 && Math.abs(c.y) <= 1.05).map((c) => c.top));
     expect(rail - ground).toBeGreaterThanOrEqual(1.47);
     expect(rail - ground).toBeLessThanOrEqual(1.58);
   });
@@ -148,13 +148,13 @@ describe('the scout pickup', () => {
     const margin = 0.05;
     const half = { x: (rect.x1 - rect.x0) / 2 + margin, y: (rect.z1 - rect.z0) / 2 + margin };
     const inHole = (c: { x: number; y: number }) => Math.abs(c.x - anchor.x) <= half.x && Math.abs(-c.y - anchor.z) <= half.y;
-    const open = columns.filter((c) => c.x >= 0.9 && c.x <= 2.3 && Math.abs(c.y) <= 0.88 && !inHole(c) && c.top < 0.15);
+    const open = columns.filter((c) => c.x >= 0.9 && c.x <= 2.3 && Math.abs(c.y) <= 1.0 && !inHole(c) && c.top < 0.15);
     expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
   });
 });
 
 describe('the hauler semi', () => {
-  it('keeps a real rig to pickup ratio to the scout: 20.5 m along and 3.1 m across, about 3.9 scouts long and 1.58 wide', () => {
+  it('keeps a real rig to pickup ratio to the scout: 20.5 m along and 3.1 m across, about 3.9 scouts long and 1.41 wide', () => {
     const extent = (name: keyof typeof SHAPES) => {
       const boxes = SHAPES[name].boxes;
       return { along: Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0)), across: Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0)) };

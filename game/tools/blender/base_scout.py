@@ -1,6 +1,6 @@
 """The scout base: a lifted 1997 Toyota HiLux Mk IV 4WD regular-cab long-bed pickup, from the the-blueprints.com sheet.
 
-Measured from the sheet and scaled by 1.077: 5.2 m long, 1.96 m wide across the flares, 2.09 m tall on its tires, a 3.25 m wheelbase.
+Measured from the sheet and scaled by 1.077: 5.2 m long, 2.2 m wide across the flares, 2.09 m tall on its tires, a 3.25 m wheelbase.
 The ground is 1.16 m below the center. Levels: roof 0.93, beltline and bed rail 0.37, painted body bottom -0.34, frame and steps
 down to -0.45, axles down to -0.63. The closed hood falls from 0.39 at the cowl (x 0.96) to 0.21 at the nose. The windshield rakes
 back to the roof front at x 0.36, the painted roof is narrower than the body and ends at the cab back, x -0.45, and a 0.05 m gap
@@ -12,7 +12,7 @@ and the tires keep the tire rule's 0.46 m radius.
 The engine shows through a hole in the hood, x 1.0 to 1.95, over a dark bay floor at 0.05: the part of the engine cells that
 restOn() rests on the floor, centered on PHYSICS.bodies.pickup.engine.
 Grid: 5 columns by 8 rows, stretched over the model by the projection. Half height 0.45 m, from PHYSICS.bodies.pickup.
-Wheels sit on rows 1 and 6, radius 0.46 m, half width 0.185 m, mount 0.3 m below the center, 0.89 m off the center line.
+Wheels sit on rows 1 and 6, radius 0.46 m, half width 0.185 m, mount 0.3 m below the center, 1.0 m off the center line.
 Sockets arch_front, arch_rear and arch_front_top (the painted crown) mark the arches for wheelArches.test.ts.
 Run: blender --background --python tools/blender/base_scout.py -- public/models/base_scout.glb [tmp/base_scout.png]
 """
@@ -44,11 +44,11 @@ from shapes import prism  # noqa: E402
 
 SEED = 301
 LENGTH = 5.2
-WIDTH = 1.96
+WIDTH = 2.2
 G = Grid(rows=8, cols=5, half_height=0.45)
 WHEEL_R = 0.46  # PHYSICS.bodies.pickup.wheelRadius
 WHEEL_HALF_W = 0.185  # PHYSICS.bodies.pickup.wheelHalfWidth
-WHEEL_Z = 0.89  # PHYSICS.bodies.pickup.wheelZ
+WHEEL_Z = 1.0  # PHYSICS.bodies.pickup.wheelZ
 HUB_Z = -0.3 - SUSPENSION_REST  # PHYSICS.bodies.pickup.wheelY
 WHEELS_X = [G.row_x(1), G.row_x(6)]
 WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03

@@ -23,7 +23,7 @@ describe('body from the base model', () => {
   it('sizes the scout from the bounds of its model boxes', () => {
     const b = bodyOf('scout');
     expect(b.half.x).toBeCloseTo(2.6);
-    expect(b.half.z).toBeCloseTo(0.99);
+    expect(b.half.z).toBeCloseTo(1.11);
   });
 
   it('keeps half extents, boxes and wheel mounts of every chassis at the values recorded before the grid split', () => {
