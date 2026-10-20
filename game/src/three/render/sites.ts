@@ -24,6 +24,7 @@ import { buildOutpost } from './interiors/outpost';
 import { buildNose } from './interiors/nose';
 import { buildSalvageYard } from './interiors/salvage';
 import { NIGHT_POOLS, type PoolLamp } from './lightPools';
+import { HOLLOW } from '../../data/sunward';
 import { SITE_LIGHT_POOL, type SiteLight, type SiteLightKind } from './siteLights';
 
 const S = PHYSICS.metersPerTile;
@@ -547,7 +548,7 @@ export function buildSites(t: Terrain): BuiltSite {
   return { root, movers, lights, lamps };
 }
 
-export function addSites(t: Terrain, scope: RenderScope, play: PlayClock): { lights: SiteLight[]; lamps: PoolLamp[] } {
+export function addSites(t: Terrain, scope: RenderScope, play: PlayClock): { lights: SiteLight[]; lamps: PoolLamp[]; hollow: HollowLamps | null } {
   const motion = new SiteMotion();
   const lights: SiteLight[] = [];
   const lamps: PoolLamp[] = [];
@@ -569,7 +570,7 @@ export function addSites(t: Terrain, scope: RenderScope, play: PlayClock): { lig
     const deck = deckOf(t, id);
     if (deck) scope.add(build(t), { x: deck.from.x + (deck.axis.x * deck.length) / 2, y: deck.from.y + (deck.axis.y * deck.length) / 2 }, deck.length / 2);
   }
-  return { lights, lamps };
+  return { lights, lamps, hollow: t.atlas.kind === 'icarus' ? new HollowLamps(t, scope) : null };
 }
 
 export function poseOnDeck(obj: THREE.Object3D, deck: Deck, seg: DeckSegment, top: number): void {
@@ -584,4 +585,45 @@ export function soleSegment(t: Terrain, deck: Deck): DeckSegment {
   const segments = deckSegments(t, deck);
   if (segments.length !== 1) throw new Error(`Deck ${deck.id} has ${segments.length} pieces, not one`);
   return segments[0];
+}
+
+function gateTowerLamps(b: SiteBuilder, site: Site, fort: FortGate): THREE.Mesh[] {
+  const towers = fortressPieces(site).filter((p) => p.kind === 'tower' && Math.hypot(p.pos.x - fort.gate.x, p.pos.y - fort.gate.y) < fort.width);
+  const mount = lampMount(site, 'tower');
+  return towers.map((t) => {
+    const face = { x: t.pos.x - site.pos.x + fort.out.x * t.r, z: t.pos.y - site.pos.y + fort.out.y * t.r };
+    return b.addWallLamp(face, { x: fort.out.x, z: fort.out.y }, mount.height, b.groundAt(face.x, face.z));
+  });
+}
+
+export class HollowLamps {
+  private readonly glass = new THREE.MeshLambertMaterial({ color: PAL.lamp.amber, flatShading: true });
+  private readonly glow = new THREE.SpriteMaterial({ map: NIGHT_POOLS.haloMaterial.map, color: PAL.lamp.amber, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 });
+
+  constructor(terrain: Terrain, scope: RenderScope) {
+    const site = HOLLOW.site;
+    const builder = new SiteBuilder(terrain, site);
+    const gateLamps = fortressGates(site).flatMap((fort) => gateTowerLamps(builder, site, fort));
+    const lanterns = HOLLOW.lanterns.map((l) => builder.addLantern(l.x, l.y, Math.atan2(l.y, -l.x)));
+    for (const head of [...gateLamps, ...lanterns, builder.addFirePit(HOLLOW.fire.x, HOLLOW.fire.y)]) this.lightUp(head);
+    scope.add(builder.root, site.pos, site.radius);
+  }
+
+  private lightUp(head: THREE.Mesh): void {
+    head.material = this.glass;
+    const halo = new THREE.Sprite(this.glow);
+    halo.scale.copy(NIGHT_POOLS.halo().scale);
+    halo.name = 'halo';
+    head.add(halo);
+  }
+
+  get level(): number {
+    return this.glow.opacity;
+  }
+
+  sync(level: number): void {
+    this.glow.opacity = level;
+    this.glass.emissive.setHex(level > 0 ? PAL.lamp.amber : 0);
+    this.glass.emissiveIntensity = level;
+  }
 }

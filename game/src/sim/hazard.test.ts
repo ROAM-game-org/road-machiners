@@ -15,6 +15,7 @@ import { dist, polylineDist } from './vec';
 const sun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
 const hazard = TERRITORIES['fallen-sun'].reactor!.hazard!;
 const core = reactorPos(sun as never);
+const ring = { x: core.x, y: core.y - (hazard.core!.radius + hazard.radius) / 2 };
 const outsidePos = { x: core.x + hazard.radius + 3, y: core.y };
 
 function worldAt(pos: { x: number; y: number }): World {
@@ -31,7 +32,7 @@ describe('the reactor hazard', () => {
   });
 
   it('costs driver health inside the zone, stops at the floor and spares trucks outside', () => {
-    const w = worldAt(core);
+    const w = worldAt(ring);
     applyHazards(w);
     expect(w.player.health).toBe(100 - hazard.healthPerTurn);
     for (let i = 0; i < 30; i++) applyHazards(w);
@@ -42,7 +43,7 @@ describe('the reactor hazard', () => {
   });
 
   it('leaves health already below the floor alone', () => {
-    const w = worldAt(core);
+    const w = worldAt(ring);
     w.player.health = hazard.floor - 10;
     applyHazards(w);
     expect(w.player.health).toBe(hazard.floor - 10);
@@ -50,7 +51,7 @@ describe('the reactor hazard', () => {
 
   it('hurts an NPC truck by the same rule, and spares its parts', () => {
     const w = worldAt(outsidePos);
-    const npc = addVehicle(w, 'independent', 'scout', [], core);
+    const npc = addVehicle(w, 'independent', 'scout', [], ring);
     npc.resources = { money: 0, fuel: 10, supplies: 10, health: 100 };
     const hp = npc.items.map((i) => (i.kind === 'part' ? i.part.hp : 0));
     applyHazards(w);
@@ -60,16 +61,43 @@ describe('the reactor hazard', () => {
   });
 
   it('tells the player once for each entry, and uses no numbers', () => {
-    const w = worldAt(core);
+    const w = worldAt(ring);
     const me = w.vehicles[0];
     me.trail = [{ ...outsidePos, heading: 0 }];
     applyHazards(w);
     const lines = w.events.filter((e) => e.t === 'info');
     expect(lines).toHaveLength(1);
     expect(lines[0]).toEqual({ t: 'info', note: { id: 'hazard' } });
-    me.trail = [{ ...core, heading: 0 }];
+    me.trail = [{ ...ring, heading: 0 }];
     applyHazards(w);
     expect(w.events.filter((e) => e.t === 'info')).toHaveLength(1);
+  });
+
+  it('burns with no floor inside the core, for NPCs too, and tells the player once on entry', () => {
+    const w = worldAt(core);
+    const me = w.vehicles[0];
+    me.trail = [{ ...ring, heading: 0 }];
+    const npc = addVehicle(w, 'independent', 'scout', [], { x: core.x + 0.5, y: core.y });
+    npc.resources = { money: 0, fuel: 10, supplies: 10, health: hazard.floor };
+    w.player.health = hazard.floor;
+    applyHazards(w);
+    expect(w.player.health).toBe(hazard.floor - hazard.core!.healthPerTurn);
+    expect(getResources(w, npc).health).toBe(hazard.floor - hazard.core!.healthPerTurn);
+    expect(w.events.filter((e) => e.t === 'info').map((e) => e.t === 'info' && e.note.id)).toEqual(['core']);
+    me.trail = [{ ...core, heading: 0 }];
+    for (let i = 0; i < 10; i++) applyHazards(w);
+    expect(w.player.health).toBe(0);
+    expect(w.events.filter((e) => e.t === 'info')).toHaveLength(1);
+  });
+
+  it('reports a core burn only when it took health', () => {
+    const w = worldAt(core);
+    w.player.health = 0;
+    applyHazards(w);
+    expect(w.events.some((e) => e.t === 'coreBurn')).toBe(false);
+    w.player.health = 5;
+    applyHazards(w);
+    expect(w.events.some((e) => e.t === 'coreBurn')).toBe(true);
   });
 
   it('keeps routes out of the zone', () => {
