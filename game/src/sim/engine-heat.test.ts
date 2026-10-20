@@ -17,7 +17,7 @@ import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld, practiceOf } from './testkit';
 import { heatAt } from './sun';
 import type { Vec } from './vec';
-import { newWorld } from './world';
+import { cloneWorld, newWorld } from './world';
 import { defaultSetup } from './settings';
 
 const NOON = 1 + (((TIME.sunrise + TIME.sunset) / 2 - TIME.startHour) * TIME.turnsPerDay) / 24;
@@ -174,7 +174,7 @@ describe('engine heat on the road', () => {
     const points = [from, ...route(base, from, nearestPad(nose, from), vehicleStats(base, playerVehicle(base)).radius, [])];
     const engines = Object.values(PARTS).filter((p) => p.kind === 'engine');
     const cool = engines.filter((e) => {
-      const w = structuredClone(base);
+      const w = cloneWorld(base);
       const me = playerVehicle(w);
       mountedParts(me, 'engine')[0].defId = e.id;
       w.turn = 1 + ((10 - TIME.startHour) * TIME.turnsPerDay) / 24;

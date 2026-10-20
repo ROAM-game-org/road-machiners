@@ -8,14 +8,12 @@ import type { VehicleFrame } from './frames';
 
 const UPRIGHT = Math.cos(Math.PI / 6);
 
-let fixture: World;
 beforeAll(async () => {
   await initPhysics();
-  fixture = emptyWorld();
 });
 
 function soloWorld(chassisId: string): { world: World; vehicle: Vehicle } {
-  const world = structuredClone(fixture);
+  const world = emptyWorld();
   const vehicle = makeVehicle(world, { faction: 'player', chassisId, parts: [{ defId: 'stockEngine', wear: 0 }], spares: [], cargo: {}, pos: { x: 30, y: 30 }, heading: 0, brain: null });
   world.vehicles = [vehicle];
   world.player.vehicleId = vehicle.id;
