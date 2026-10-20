@@ -1,6 +1,6 @@
 
 import { chassisDef } from '../../data/chassis';
-import { ECONOMY, GOOD_IDS } from '../../data/goods';
+import { ECONOMY } from '../../data/goods';
 import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, TRAITS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { REGION, type TownDef } from '../../data/region';
@@ -18,7 +18,7 @@ import { isDefeated, isKnockedOut } from '../defeat';
 import { callVehicle, chooseOption, currentOptions, hangUp } from '../dialogue';
 import { offeredSurrenderBy, type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
-import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getLotTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, supplyRoom } from '../economy';
+import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getLotTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
 import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountedItems, mountedParts, type Spot } from '../grid';
 import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
 import { itemMass } from '../mass';
@@ -462,8 +462,10 @@ function isBadlyDamaged(part: PartInstance): boolean {
 }
 
 function serviceHere(o: Orders): void {
+  const shop = shopAt(o.world);
   for (const kind of ['fuel', 'supplies'] as const) {
-    const n = Math.min(supplyRoom(o.world, kind), Math.floor(o.world.player.money / ECONOMY.supplyPrice[kind]));
+    const room = shop ? serviceRoom(o.world, shop, kind) : supplyRoom(o.world, kind);
+    const n = Math.min(room, Math.floor(o.world.player.money / ECONOMY.supplyPrice[kind]));
     if (n > 0) o.run((w) => buySupply(w, kind, n), kind);
   }
   repairAtGarage(o);
@@ -663,7 +665,7 @@ function bestPurchase(world: World): Purchase | null {
   const towns = knownTowns(world);
   const full = fuelCap(playerVehicle(world));
   const room = freeCells(playerVehicle(world));
-  const options = reachable(world, towns).flatMap((source) => towns.filter((t) => t.id !== source.id && fuelReaches(world, t, { pos: source.pos, fuel: full })).flatMap((market) => GOOD_IDS.map((good) => purchase(world, { source, market, good, spend, room }))));
+  const options = reachable(world, towns).flatMap((source) => towns.filter((t) => t.id !== source.id && fuelReaches(world, t, { pos: source.pos, fuel: full })).flatMap((market) => sharedGoods(source, market).map((good) => purchase(world, { source, market, good, spend, room }))));
   return options.reduce<Purchase | null>((best, p) => (p.count > 0 && p.perTurn > (best?.perTurn ?? 0) ? p : best), null);
 }
 
@@ -672,7 +674,7 @@ export function haulMarginAt(world: World, spend: number, room: number): number 
   const pairs = REGION.towns.flatMap((source) => REGION.towns.filter((t) => t.id !== source.id).map((market) => ({ source, market })));
   return Math.max(...pairs.flatMap(({ source, market }) => {
     const fuel = tripFuelCost(world, me, dist(source.pos, market.pos));
-    return GOOD_IDS.map((good) => purchase(world, { source, market, good, spend, room }).profit - fuel);
+    return sharedGoods(source, market).map((good) => purchase(world, { source, market, good, spend, room }).profit - fuel);
   }));
 }
 
@@ -692,6 +694,10 @@ function purchase(world: World, { source, market, good, spend, room }: { source:
   if (low === 0 || lotProfit(low) <= 0) return none;
   const trip = estimateTurns(me.pos, source.pos) + estimateTurns(source.pos, market.pos);
   return { ...none, count: low, profit: lotProfit(low), perTurn: lotProfit(low) / trip };
+}
+
+function sharedGoods(source: TownDef, market: TownDef): string[] {
+  return shopDef(source.id).goods.filter((good) => tradesGood(market.id, good));
 }
 
 function sellAt(world: World, town: TownDef, good: string): number {
@@ -1037,7 +1043,7 @@ export const CARGO_REASONS: readonly GoalReason[] = ['deliverCargo', 'sellCargo'
 const ROB_TEMPLATES: readonly string[] = ['trader', 'convoy'];
 const isRobTemplate = (v: Vehicle): boolean => v.brain !== null && ROB_TEMPLATES.includes(v.brain.templateId);
 function robPatrol(guarded: boolean): readonly string[] {
-  return guarded ? [...TRAITS.supplier.haulSites, ...TRAITS.supplier.towns] : ['bowl', 'nose'];
+  return guarded ? ['pump-station', ...TRAITS.supplier.towns] : ['bowl', 'nose'];
 }
 
 function robberGoal(o: Orders, guarded: boolean): void {

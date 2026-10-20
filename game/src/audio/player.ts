@@ -1,4 +1,4 @@
-import type { Bus, Cue } from "../data/sounds";
+import type { Cue } from "../data/sounds";
 import type { Bank } from "./bank";
 import type { Mixer } from "./mixer";
 import { pickVariant, VoiceLimiter } from "./pick";
@@ -35,10 +35,6 @@ export class SoundPlayer {
     src.playbackRate.value = rate;
     this.chain(src, cue, at);
     src.start(start);
-  }
-
-  setBusTone(bus: Bus, cutoffHz: number, rampSeconds: number): void {
-    this.mixer.setBusTone(bus, cutoffHz, rampSeconds);
   }
 
   now(): number {

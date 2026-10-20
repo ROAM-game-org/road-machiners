@@ -12,6 +12,7 @@ import { PERK_NUMBERS } from '../data/skills';
 import { makePart } from '../sim/factory';
 import { addGoods, stowPart } from '../sim/inventory';
 import { kph } from './units';
+import { resetSeeAll, toggleSeeAll } from './see-all';
 import type { World } from '../sim/types';
 import { cloneWorld } from '../sim/world';
 import type { Msg } from '../text/msg';
@@ -110,6 +111,18 @@ it('shows an empty NPC truck as empty with the cargo eye perk', () => {
 it('hides NPC cargo without the cargo eye perk', () => {
   const { w, npc } = loadedHauler();
   expect(en(formatNpcCargo(w, npc))).toBeNull();
+});
+
+it('shows NPC traits and cargo without the perks under see all, and hides them again after it', () => {
+  const { w, npc } = loadedHauler();
+  resetSeeAll();
+  toggleSeeAll();
+  expect(en(formatNpcTraits(w, npc))).toBe('Traits: trader');
+  expect(en(formatNpcCargo(w, npc))).toBe('Cargo: Salt ×2, Scrap metal ×1. Spares: MG turret');
+  expect(en(formatNpcMark(w, npc))).toBeNull();
+  toggleSeeAll();
+  expect(formatNpcTraits(w, npc)).toBeNull();
+  expect(formatNpcCargo(w, npc)).toBeNull();
 });
 
 it('offers the mark key on an unmarked truck with the spotter perk', () => {
