@@ -2,7 +2,7 @@
 
 Sight, engine sound, dust, the radio scanner, flares and how NPCs react to contacts. The principles behind them are in [DESIGN.md](../../DESIGN.md).
 
-Sight reaches 20 tiles with line of sight, halved at night and cut in dust storms. A vehicle within 3 tiles is seen even behind a hill. Gray vision shows ground and buildings out to four sight radii, but no vehicles. Beyond sight, a moving vehicle still gives itself away: engine sound, dust clouds, or a mounted radio scanner.
+Sight reaches 20 tiles with line of sight, halved at night and cut in dust storms. A vehicle within 3 tiles is seen even behind a hill. Gray vision shows ground and buildings out to four sight radii, but no vehicles, and no town or location the player has not found. Beyond sight, a moving vehicle still gives itself away: engine sound, dust clouds, or a mounted radio scanner.
 
 A contact is a vehicle detected this way. It is a rough circle that always holds the true position. For sound the circle grows with distance, so a far sound gives little more than a direction. A scanner fixes a position much more tightly.
 
