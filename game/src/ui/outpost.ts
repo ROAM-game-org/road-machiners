@@ -140,7 +140,7 @@ export class OutpostScreen {
             this.render();
           },
         },
-        chassisPortrait(chassisId),
+        chassisPortrait(chassisId, w.player.paint),
         t(`outpost.${which}`),
       );
     return el("div", { class: "tabs truck-switch" }, choice("truck", playerVehicle(w).chassisId, null), choice("hauler", haulerOf(w).chassisId, away ? t("outpost.haulerAway") : null));

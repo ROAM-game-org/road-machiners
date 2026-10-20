@@ -197,6 +197,7 @@ describe('survey job', () => {
     const outcomes = next.events.flatMap((e) => (e.t === 'contract' ? [e.outcome] : []));
     expect(outcomes.filter((o) => o === 'fulfilled')).toHaveLength(1);
     expect(outcomes).toContain('surveyed');
+    expect(next.events.find((e) => e.t === 'contract' && e.outcome === 'surveyed')).toMatchObject({ site: site.id });
     expect(isSurveyMet(next.player.contracts[0] as SurveyContract)).toBe(true);
   });
 

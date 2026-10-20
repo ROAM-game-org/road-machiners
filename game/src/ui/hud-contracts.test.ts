@@ -3,7 +3,7 @@ import { emptyWorld } from "../sim/testkit";
 import type { Contract } from "../sim/market";
 import { resolve } from "../text/resolve";
 import { contractSummary, heldContractDue } from "./format";
-import { contractLine } from "./hud";
+import { heldContractLine } from "./hud";
 
 class FakeNode {
   className = "";
@@ -37,7 +37,7 @@ const contracts: Contract[] = [
 describe("held contract line", () => {
   for (const c of contracts) {
     it(`names what the ${c.kind} contract asks (${c.id})`, () => {
-      const line = contractLine(emptyWorld(), c) as unknown as FakeNode;
+      const line = heldContractLine(emptyWorld(), c) as unknown as FakeNode;
       expect(line.className).toBe("contract-line");
       expect(line.textContent).toContain(en(contractSummary(c)));
       if (c.kind !== "escort") expect(line.textContent).toContain(en(heldContractDue(c)));
