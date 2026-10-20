@@ -36,7 +36,7 @@ export const PIECES: Piece[] = [
   { name: ".tooltip-row", note: "Label on the left, value on the right, for breakdowns.", build: () => breakdown() },
   { name: ".map-view", note: "The north-up map drawing: explored ground on paper, discovered places and the truck. The minimap is a square panel with zoom and open buttons in its head row.", build: () => minimapPiece() },
   { name: ".key", note: "A keyboard key or a mouse button, drawn as a keycap.", build: () => text("kbd", "key", "Space") },
-  { name: ".drawer-tabs", note: "The tab row of the phone layout: one icon button per drawer, .selected on the open one and .marked for attention.", build: () => drawerTabs() },
+  { name: ".drawer-tabs", note: "The tab row of the phone layout: one word button per drawer, .selected on the open one and .marked for attention.", build: () => drawerTabs() },
   { name: ".log-strip", note: "The newest log line on one row above End turn on a phone. It never wraps, and a tap opens the Log drawer.", build: () => logStrip() },
   { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
   { name: ".num", note: "A number in the mono face.", build: () => text("span", "num", "1 240") },
@@ -55,7 +55,7 @@ function disabled(): HTMLElement {
 }
 
 function drawerTabs(): HTMLElement {
-  const tab = (cls: string, label: string): HTMLElement => el("button", { class: `btn-l ${cls}`, "aria-label": label }, label.slice(0, 1));
+  const tab = (cls: string, label: string): HTMLElement => el("button", { class: `btn-l ${cls}` }, label);
   return el("div", { class: "drawer-tabs" }, tab("selected", "Truck"), tab("marked", "Guns"), tab("", "Radio"), tab("", "Log"));
 }
 

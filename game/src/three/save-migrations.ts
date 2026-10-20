@@ -3,7 +3,7 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
-import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withoutVarga_79_80 } from './save-steps-late';
+import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withoutVarga_79_80, withSunward_84_85, withHollowFort_85_86, withOfferedNight_86_87, withProgressAnchor_65_66, withDutyLegs_59_60 } from './save-steps-late';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -896,36 +896,12 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => world,
   withHeardCentres_81_82,
   withShopGoods_82_83,
+  withStapleRestock_83_84,
+  withSunward_84_85,
+  withHollowFort_85_86,
+  withOfferedNight_86_87,
 ];
 
-function withProgressAnchor_65_66(world: SavedJson): SavedJson {
-  const anchored = (v: SavedJson): SavedJson => {
-    const brain = v.brain as SavedJson | null;
-    if (!brain?.progress) return v;
-    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
-  };
-  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
-}
-
-const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
-const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];
-const CONVOY_DUTIES_59_60: readonly string[] = ['haul', 'trade', 'sell'];
-
-function isDutyGoal_59_60(templateId: string, goal: SavedJson): boolean {
-  if (LAWMEN_59_60.includes(templateId)) return goal.kind === 'patrol' && goal.reason === 'patrolTown';
-  if (templateId === 'courier') return goal.kind === 'travel' && SHOPS_59_60.includes(goal.targetId as string);
-  return templateId === 'convoy' && CONVOY_DUTIES_59_60.includes(goal.kind as string);
-}
-
-function withDutyLegs_59_60(world: SavedJson): SavedJson {
-  const vehicles = (world.vehicles as SavedJson[]).map((v) => {
-    const brain = v.brain as SavedJson | null;
-    if (!brain) return v;
-    const goals = (brain.goals as SavedJson[]).map((goal) => (isDutyGoal_59_60(brain.templateId as string, goal) ? { ...goal, leg: { from: { ...(v.pos as SavedJson) }, turn: world.turn } } : goal));
-    return { ...v, brain: { ...brain, goals } };
-  });
-  return { ...world, vehicles };
-}
 
 function withSearches_68_69(world: SavedJson): SavedJson {
   return world;
@@ -1154,6 +1130,19 @@ function withShopGoods_82_83(world: SavedJson): SavedJson {
   const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, shopWithGoods_82_83(id, shop)]));
   const vehicles = (world.vehicles as SavedJson[]).map(withoutHaulGoal_82_83);
   return { ...world, shops, vehicles, roadNews: [] };
+}
+
+const STAPLE_SHOPS_83_84 = ['bowl', 'nose'];
+const STAPLE_PART_83_84 = 'stockEngine';
+type SavedShop = { stock: { defId: string }[]; restockAt: number };
+
+function withStapleRestock_83_84(world: SavedJson): SavedJson {
+  const shops = { ...(world.shops as Record<string, SavedShop>) };
+  for (const id of STAPLE_SHOPS_83_84) {
+    const shop = shops[id];
+    if (shop && !shop.stock.some((part) => part.defId === STAPLE_PART_83_84)) shops[id] = { ...shop, restockAt: world.turn as number };
+  }
+  return { ...world, shops };
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

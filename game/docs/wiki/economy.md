@@ -19,15 +19,15 @@ A good's price is its base price times one plus its pressure. Pressure comes fro
 A shop holds a finite, random stock of parts and restocks every so many turns. Only garages repair. Stalls trade, sell and fuel. The `src/sim/market.ts` rolls draw from a separate random stream, so a shop change never shifts combat.
 
 <!-- wiki:shops -->
-| id | kind | makes | needs | goods | supplies | stock size (parts) | restock (turns) | contract slots |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| bowl | garage | grain, textiles, meds, parts, electronics | water, scrap, batteries, salt, tools, rations, fuelDrums | grain, textiles, meds, parts, electronics, water, scrap, batteries, salt, tools, rations, fuelDrums | fuel, supplies | 8 to 12 | 400 | 3 |
-| nose | garage | salt, tools, batteries | scrap, fuelDrums, parts, rations, water, textiles, meds, electronics, relics | salt, tools, batteries, scrap, fuelDrums, parts, rations, water, textiles, meds, electronics, relics | fuel, supplies | 8 to 12 | 400 | 3 |
-| salvage-yard | stall | scrap, parts, relics | tools, rations, fuelDrums | scrap, parts, relics, tools, rations, fuelDrums | fuel, supplies | 2 to 4 | 300 | 1 |
-| granary | stall | rations | grain, salt, water, tools, fuelDrums | rations, grain, salt, water, tools, fuelDrums | fuel, supplies | 2 to 4 | 300 | 1 |
-| pump-station | stall | fuelDrums | tools, batteries, rations | fuelDrums, tools, batteries, rations | fuel, supplies | 2 to 4 | 300 | 1 |
-| dustwell | stall | water | tools, meds, rations, fuelDrums | water, tools, meds, rations, fuelDrums | fuel, supplies | 2 to 4 | 300 | 1 |
-| green-pit | stall | water | salt, textiles, rations, fuelDrums | water, salt, textiles, rations, fuelDrums | fuel, supplies | 2 to 4 | 300 | 1 |
+| id | kind | makes | needs | goods | supplies | stock size (parts) | staple parts | restock (turns) | contract slots |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| bowl | garage | grain, textiles, meds, parts, electronics | water, scrap, batteries, salt, tools, rations, fuelDrums | grain, textiles, meds, parts, electronics, water, scrap, batteries, salt, tools, rations, fuelDrums | fuel, supplies | 8 to 12 | stockEngine | 400 | 3 |
+| nose | garage | salt, tools, batteries | scrap, fuelDrums, parts, rations, water, textiles, meds, electronics, relics | salt, tools, batteries, scrap, fuelDrums, parts, rations, water, textiles, meds, electronics, relics | fuel, supplies | 8 to 12 | stockEngine | 400 | 3 |
+| salvage-yard | stall | scrap, parts, relics | tools, rations, fuelDrums | scrap, parts, relics, tools, rations, fuelDrums | fuel, supplies | 2 to 4 |  | 300 | 1 |
+| granary | stall | rations | grain, salt, water, tools, fuelDrums | rations, grain, salt, water, tools, fuelDrums | fuel, supplies | 2 to 4 |  | 300 | 1 |
+| pump-station | stall | fuelDrums | tools, batteries, rations | fuelDrums, tools, batteries, rations | fuel, supplies | 2 to 4 |  | 300 | 1 |
+| dustwell | stall | water | tools, meds, rations, fuelDrums | water, tools, meds, rations, fuelDrums | fuel, supplies | 2 to 4 |  | 300 | 1 |
+| green-pit | stall | water | salt, textiles, rations, fuelDrums | water, salt, textiles, rations, fuelDrums | fuel, supplies | 2 to 4 |  | 300 | 1 |
 <!-- /wiki:shops -->
 
 ## Production

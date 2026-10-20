@@ -18,7 +18,8 @@ import { playerCommand, requireActivePlayer, update } from './world';
 export type OfferedOption = { line: LineId; topic: TopicId | null; option: DialogueOption | null };
 
 export function talkOf(npc: Vehicle): Voice & { topics: TopicId[]; personality: Personality } {
-  const talks = npcTraits(npc).map((id) => TRAIT_TALK[id]);
+  const all = npcTraits(npc).map((id) => TRAIT_TALK[id]);
+  const talks = all.some((t) => t.only) ? all.filter((t) => t.only) : all;
   const voice = talks.find((t) => t.voice)?.voice;
   if (!voice) throw new Error(`${npc.id} has no trait with a voice`);
   return { ...voice, topics: [...new Set(talks.flatMap((t) => t.topics))], personality: personalityOf(npc) };

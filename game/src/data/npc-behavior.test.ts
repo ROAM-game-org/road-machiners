@@ -24,8 +24,15 @@ describe('faction table', () => {
     expect(ATTITUDE.bowl.kiln).toBeLessThanOrEqual(BANDS.unfriendly);
   });
 
+  it('keeps the Sunward wary of everyone, and Bowl and Nose warier of them than the rest', () => {
+    for (const id of NPC_FACTION_IDS.filter((f) => f !== 'sunward')) expect(ATTITUDE.sunward[id]).toBe(-20);
+    expect(ATTITUDE.bowl.sunward).toBe(-30);
+    expect(ATTITUDE.nose.sunward).toBe(-30);
+    expect(FACTIONS.sunward).toEqual({ organized: true, outlaw: true });
+  });
+
   it('starts the player at each organized faction view of an outside driver and gives independents no standing', () => {
-    expect(startStanding()).toEqual({ bowl: 5, nose: 5, guidestar: 10, administrators: 10, scrapjaw: -30, kiln: -30 });
+    expect(startStanding()).toEqual({ bowl: 5, nose: 5, guidestar: 10, administrators: 10, scrapjaw: -30, kiln: -30, sunward: -20 });
     expect('independent' in startStanding()).toBe(false);
   });
 });

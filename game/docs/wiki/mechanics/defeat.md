@@ -31,7 +31,7 @@ A towed truck rolls on its rear wheels behind its tower on a tow bar, cuts a lit
 
 A player who opens a town with E for the first time on a visit gets the engine, transmission, wheels, tank and cab raised free to 15% of their max HP, if they are below it. Leaving the town ends the visit. A junk part stays junk.
 
-A player at a town who is stranded or at or below 20% fuel, and whose money plus everything the town would buy cannot pay for the fix, gets patched with scrap. A low tank alone gets fuel, and a holed tank is patched to 40% with it. Mounted parts count as things to sell. The engine, transmission, wheels and tank rise to 40% of their max HP. A junk engine goes back to its last wear step first. A tank at or below 20% gets topped up to 40% of its room. A truck with no engine gets nothing.
+A player at a town who is stranded or at or below 20% fuel, and whose money plus everything the town would buy cannot pay for the fix, gets patched with scrap. A low tank alone gets fuel, and a holed tank is patched to 40% with it. Mounted parts count as things to sell. The engine, transmission, wheels and tank rise to 40% of their max HP. A junk engine goes back to its last wear step first. A tank at or below 20% gets topped up to 40% of its room. A truck with no engine gets the cheapest engine on the town shelf fitted on credit when its money plus everything the town would buy cannot pay for the engine and the fix. The engine comes off the shelf and its buy price is charged, so money can go below zero, as after a tow. A truck that carries a loose engine, or a town shelf with none, gets no credit fit.
 
 A stranded player can switch on an emergency beacon. Every vehicle within 325 tiles hears it, through hills. Traders and scavengers come as if they saw the truck, and one of them answers. Raiders hear it too, so a stripped truck calls safely and a truck with cargo draws raiders. Turns run on their own while the beacon calls and no offer is open. The beacon switches off when the truck can drive again or gets towed.
 
@@ -43,6 +43,10 @@ The player can radio a stranded NPC in reach and offer a tow to the place it nam
 
 Health at 0 kills the player. The death screen offers Load save and New game. New game opens the new game setup and starts on a confirmed Start. A dead world is never saved. The game keeps three manual save slots, an Autosave every 20 turns and in town, and a Day start autosave at the start of each game day. Load lists them all, newest first, and New game deletes only the autosaves. A save that no longer loads, like one from an older map, offers Migrate save, which keeps skills, perks, money, truck, parts and cargo and moves the truck to a town, or New game. A Chaos Highway run keeps both trucks, the hauler's cargo and the run's totals, and goes back to the start of the stretch it was on. Cab damage costs health at a quarter of its amount, so a lost fight costs about 30 health.
 
-A parked driver with supplies heals each turn, five times as fast in a town. Healing spends extra supplies. Starving takes health down to 30 and no lower, so only cab damage can kill. Only a fight or a crash can knock the driver out.
+A parked driver with supplies heals each turn, five times as fast in a town. Healing spends extra supplies. Starving and the reactor's drain take health down to 30 and no lower, so only cab damage and the reactor core itself can kill. Only a fight or a crash can knock the driver out.
+
+A death in the reactor core plays a short page scene before the death screen. It opens at the reactor's breach, in the light the driver stayed in, says so when the player gave the order its word that night, follows the link losing the driver and ends in plain death. Any other death shows the death screen alone.
+
+At night a car of the Sunward can drag a beaten or stranded truck on its tow bar to the reactor's breach, as [World](world.md#the-sunward) describes. The victim can cut free with Unhitch whenever it is awake.
 
 Losing a truck is one natural way to change trucks.
