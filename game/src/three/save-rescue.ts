@@ -1,12 +1,13 @@
 
 import type { StartKit } from '../data/start';
 import type { BakedMap } from '../sim/terrain';
-import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type CarriedRun, type CarryReport } from '../sim/world';
+import { carriedWorld, type Carried, type CarriedItem, type CarriedPaint, type CarriedPart, type CarriedRun, type CarryReport } from '../sim/world';
 import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
 import { CENTS_PER_MONEY_29_30, pooledSkills_9_10 } from './save-migrations';
 import { savedRevisionsOf, savedRunId, storedSave, writeSave } from './save';
+import { paintOfPreset_89_90 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
@@ -29,6 +30,17 @@ function flagOf(value: unknown): boolean | null {
 
 function idOf(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null;
+}
+
+function paintOf(value: unknown): CarriedPaint | null {
+  const preset = idOf(value);
+  if (preset !== null) return paintOfPreset_89_90(preset);
+  const slots = objectOf(value);
+  if (!slots) return null;
+  return Object.fromEntries((['body', 'cab', 'gear'] as const).flatMap((slot) => {
+    const id = idOf(slots[slot]);
+    return id === null ? [] : [[slot, id]];
+  }));
 }
 
 function countsOf(value: unknown): Record<string, number> {
@@ -141,7 +153,7 @@ export function readCarried(raw: unknown): Carried {
     ...pooledOf(player),
     xpBySource: countsOf(player.xpBySource),
     perks: listOf(player.perks).flatMap((id) => idOf(id) ?? []),
-    paint: idOf(player.paint),
+    paint: paintOf(player.paint),
     discovered: listOf(player.discovered).flatMap((id) => idOf(id) ?? []),
     knockouts: countOf(player.knockouts),
     autoFire: flagOf(player.autoFire),

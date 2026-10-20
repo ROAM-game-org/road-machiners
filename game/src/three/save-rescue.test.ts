@@ -48,8 +48,11 @@ describe('readCarried', () => {
     expect({ xp: old.xp, ranks: old.ranks }).toEqual({ xp: migrated.xp, ranks: migrated.ranks });
   });
 
-  it('reads the saved paint job, and none from a save without one', () => {
-    expect(readCarried({ world: { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: 'mint' } } }).paint).toBe('mint');
+  it('reads the saved paint slot by slot, an old paint job as the save step does, and none from a save without one', () => {
+    const paint = { body: 'mint', cab: 'gold', gear: 7 };
+    expect(readCarried({ world: { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint } } }).paint).toEqual({ body: 'mint', cab: 'gold' });
+    expect(readCarried({ world: { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: 'mint' } } }).paint).toEqual({ body: 'mint', cab: 'wine', gear: 'mint' });
+    expect(readCarried({ world: { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: 'bone' } } }).paint).toEqual({ body: 'tan', cab: 'olive', gear: 'tan' });
     expect(readCarried({ world: FORMAT_2_9 }).paint).toBeNull();
     expect(readCarried({ world: { player: { paint: 7 } } }).paint).toBeNull();
   });

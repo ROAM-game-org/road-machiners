@@ -192,6 +192,27 @@ export function withStandardPaint_88_89(world: SavedJson): SavedJson {
   return { ...world, player: { ...(world.player as SavedJson), paint: STANDARD_PAINT_88_89 } };
 }
 
+type Paint_89_90 = { body: string; cab: string; gear: string };
+
+const STANDARD_PAINT_89_90: Paint_89_90 = { body: 'tan', cab: 'olive', gear: 'tan' };
+
+const OLD_PRESETS_89_90: Record<string, Paint_89_90> = {
+  standard: STANDARD_PAINT_89_90,
+  plum: { body: 'plum', cab: 'olive', gear: 'plum' },
+  lavender: { body: 'lavender', cab: 'navy', gear: 'lavender' },
+  mint: { body: 'mint', cab: 'wine', gear: 'mint' },
+  rose: { body: 'rose', cab: 'plum', gear: 'rose' },
+};
+
+export function paintOfPreset_89_90(preset: string): Paint_89_90 {
+  return { ...(Object.hasOwn(OLD_PRESETS_89_90, preset) ? OLD_PRESETS_89_90[preset] : STANDARD_PAINT_89_90) };
+}
+
+export function withThreeColorPaint_89_90(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  return { ...world, player: { ...player, paint: paintOfPreset_89_90(String(player.paint)) } };
+}
+
 export function withEncounters_64_65(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   if (player.encounters !== undefined) return world;

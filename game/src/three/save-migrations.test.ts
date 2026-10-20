@@ -82,6 +82,7 @@ import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
 import FORMAT_2_88 from './save-fixtures/format-2-88.json';
+import FORMAT_2_89 from './save-fixtures/format-2-89.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -1951,5 +1952,29 @@ describe('MIGRATIONS[88]', () => {
     expect(next.player.paint).toBe('standard');
     const { paint: _paint, ...player } = next.player;
     expect({ ...next, player }).toEqual(FORMAT_2_88);
+  });
+});
+
+describe('MIGRATIONS[89]', () => {
+  const migrate = (paint: unknown) => MIGRATIONS[89](structuredClone({ ...FORMAT_2_89, player: { ...FORMAT_2_89.player, paint } })) as unknown as typeof FORMAT_2_89 & { player: { paint: unknown } };
+
+  it('turns an old paint job into its body, cab and gear colors and changes nothing else', () => {
+    const next = migrate('plum');
+    expect(next.player.paint).toEqual({ body: 'plum', cab: 'olive', gear: 'plum' });
+    expect({ ...next, player: { ...next.player, paint: 'plum' } }).toEqual(FORMAT_2_89);
+    expect(MIGRATIONS[89](structuredClone(FORMAT_2_89))).toEqual(next);
+  });
+
+  it.each([
+    ['standard', { body: 'tan', cab: 'olive', gear: 'tan' }],
+    ['lavender', { body: 'lavender', cab: 'navy', gear: 'lavender' }],
+    ['mint', { body: 'mint', cab: 'wine', gear: 'mint' }],
+    ['rose', { body: 'rose', cab: 'plum', gear: 'rose' }],
+  ])('turns %s into its three colors', (preset, paint) => {
+    expect(migrate(preset).player.paint).toEqual(paint);
+  });
+
+  it.each(['bone', 'gold', 'constructor', undefined])('gives the standard paint for %s', (preset) => {
+    expect(migrate(preset).player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'tan' });
   });
 });
