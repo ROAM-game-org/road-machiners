@@ -1946,8 +1946,37 @@ describe('save migration 87 to 88', () => {
 });
 
 describe('save migration 88 to 89', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: unknown };
+  type Saved = { player: { quests: Quests } };
+  const saved = (quests: Partial<Quests>): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: Saved) => MIGRATIONS[88](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('renames Kovac\'s gate law marks to the mount marks, keeping their values', () => {
+    const before = saved({ world: { intro_step: 'done' }, local: { nose_kovac: { heard_workshop: true, heard_gate_law: true, asked_gate_law: false, heard_paper: true } } });
+
+    const next = stepped(before);
+
+    expect(next.player.quests).toEqual({
+      world: { intro_step: 'done' },
+      local: { nose_kovac: { heard_workshop: true, heard_mounts: true, asked_mounts: false, heard_paper: true } },
+      session: null,
+    });
+  });
+
+  it('leaves a save that never met Kovac as it was', () => {
+    const before = saved({ world: { intro_step: 'done' } });
+
+    expect(stepped(before)).toEqual(before);
+  });
+});
+
+describe('save migration 89 to 90', () => {
   type Saved = typeof FORMAT_2_80;
-  const stepped = () => MIGRATIONS[88](MIGRATIONS[81](MIGRATIONS[80](structuredClone(FORMAT_2_80) as unknown as SavedJson))) as unknown as Saved & { vehicles: (Saved['vehicles'][number] & { bend?: number })[]; obstacles: { hulk?: { bend?: number } }[] };
+  const stepped = () => MIGRATIONS[89](MIGRATIONS[81](MIGRATIONS[80](structuredClone(FORMAT_2_80) as unknown as SavedJson))) as unknown as Saved & { vehicles: (Saved['vehicles'][number] & { bend?: number })[]; obstacles: { hulk?: { bend?: number } }[] };
   const AHEAD = 5.7375 / 4;
 
   it('moves a semi from the middle of the rig to its tractor along its heading and sets it straight', () => {

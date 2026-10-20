@@ -87,26 +87,31 @@ export function withBrakeRod_78_79(world: SavedJson): SavedJson {
   return { ...renamed, player: { ...player, notes } };
 }
 
+export function withKovacMounts_88_89(world: SavedJson): SavedJson {
+  const heard = renameQuestVar(world, 'nose_kovac', 'heard_gate_law', 'heard_mounts');
+  return renameQuestVar(heard, 'nose_kovac', 'asked_gate_law', 'asked_mounts');
+}
+
 export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }
 
-const SEMI_88_89 = 'semi';
-const TRACTOR_AHEAD_TILES_88_89 = 5.7375 / 4;
+const SEMI_89_90 = 'semi';
+const TRACTOR_AHEAD_TILES_89_90 = 5.7375 / 4;
 
-export function withTractorPivot_88_89(world: SavedJson): SavedJson {
-  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_88_89 ? { ...v, pos: tractorAt_88_89(v.pos as Point_88_89, v.heading as number), bend: 0 } : v));
+export function withTractorPivot_89_90(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_89_90 ? { ...v, pos: tractorAt_89_90(v.pos as Point_89_90, v.heading as number), bend: 0 } : v));
   const obstacles = (world.obstacles as SavedJson[]).map((o) => {
     const hulk = o.hulk as SavedJson | undefined;
-    return hulk?.chassisId === SEMI_88_89 ? { ...o, pos: tractorAt_88_89(o.pos as Point_88_89, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
+    return hulk?.chassisId === SEMI_89_90 ? { ...o, pos: tractorAt_89_90(o.pos as Point_89_90, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
   });
   return { ...world, vehicles, obstacles };
 }
 
-type Point_88_89 = { x: number; y: number };
+type Point_89_90 = { x: number; y: number };
 
-function tractorAt_88_89(pos: Point_88_89, heading: number): Point_88_89 {
-  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_88_89, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_88_89 };
+function tractorAt_89_90(pos: Point_89_90, heading: number): Point_89_90 {
+  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_89_90, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_89_90 };
 }
 
 export function withProgressAnchor_65_66(world: SavedJson): SavedJson {
