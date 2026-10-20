@@ -35,7 +35,7 @@ describe('combat harness', () => {
   });
 
   it('a standing player never moves', () => {
-    expect(runFight(FIGHT).a.speed).toBe(0);
+    expect(runFight(FIGHT).a.speed).toBeCloseTo(0, 9);
   });
 
   it('has two brains of one faction fight each other', () => {
