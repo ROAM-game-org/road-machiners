@@ -241,7 +241,9 @@ async function townFrameP95(night) {
     out.push(await page.evaluate(async ({ x, y, pad, zoom, settle, sample, night }) => {
       const g = window.__ROAM__;
       let w = { ...g.state, vehicles: g.state.vehicles.map((v) => (v.id === g.state.player.vehicleId ? { ...v, pos: pad, order: null } : v)) };
-      if (night) w = (await import('/src/sim/cheats.ts')).skipToHour(w, 23);
+      const cheats = await import('/src/sim/cheats.ts');
+      w = cheats.revealMap(w);
+      if (night) w = cheats.skipToHour(w, 23);
       g.apply(w);
       g.debugView(x, y, zoom);
       await new Promise((r) => setTimeout(r, settle));
