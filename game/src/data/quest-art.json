@@ -39,6 +39,11 @@
     "focusX": 55,
     "focusY": 50
   },
+  "road_table": {
+    "file": "road_table.webp",
+    "focusX": 54,
+    "focusY": 30
+  },
   "road_ala": {
     "file": "road_ala.webp",
     "focusX": 55,
@@ -46,28 +51,13 @@
   },
   "road_geezer": {
     "file": "road_geezer.webp",
-    "focusX": 30,
-    "focusY": 36
+    "focusX": 46,
+    "focusY": 32
   },
   "road_hauler": {
     "file": "road_hauler.webp",
-    "focusX": 40,
-    "focusY": 50
-  },
-  "road_gate": {
-    "file": "road_gate.webp",
-    "focusX": 20,
-    "focusY": 45
-  },
-  "road_tankline": {
-    "file": "road_tankline.webp",
-    "focusX": 20,
-    "focusY": 50
-  },
-  "road_walkers": {
-    "file": "road_walkers.webp",
-    "focusX": 47,
-    "focusY": 50
+    "focusX": 30,
+    "focusY": 55
   },
   "bowl_scale": {
     "file": "bowl_scale.webp",

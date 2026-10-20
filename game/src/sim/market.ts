@@ -16,7 +16,7 @@ import { findSpot, freeCells, goodsCount, gridOf } from './grid';
 import { addGoods, removeGoods, spareParts, stowParcel, type ParcelItem } from './inventory';
 import { cancelJob } from './jobs';
 import { liveClaims, type ClaimContract } from './salvage';
-import { practice } from './progress';
+import { hasBasic, practice } from './progress';
 import { chance, randInt, type Rng } from './rng';
 import { canUseSite, type Site } from './sites';
 import { modeRules } from './settings';
@@ -150,6 +150,10 @@ export function pressureOf(shopId: string, good: string, stock: number): number 
 
 export function stockShort(shopId: string, state: ShopState, good: string): boolean {
   return pressureOf(shopId, good, goodStock(state, good)) >= SHORT_PRESSURE;
+}
+
+export function knowsMarket(world: World): boolean {
+  return hasBasic(world, 'acumen');
 }
 
 export function shortHere(world: World, shopId: string, good: string): boolean {

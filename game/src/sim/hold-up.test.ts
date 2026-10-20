@@ -8,7 +8,7 @@ import { holdsUp } from './npc-decisions';
 import { giveInTo, payOff, yieldTo } from './parley';
 import { getResources } from './resources';
 import { addState, stateOf } from './states';
-import { addVehicle, emptyWorld, npcBrain } from './testkit';
+import { addVehicle, emptyWorld, npcBrain, sizedUp } from './testkit';
 import type { Vehicle, World } from './types';
 
 function setup(): { w: World; robber: Vehicle; victim: Vehicle } {
@@ -73,6 +73,11 @@ describe('the hold-up price', () => {
     const { w, robber, victim } = setup();
     fillRoom(w, robber);
     addState(w, 'feud', robber.id, victim.id, { kind: 'feud', robbery: true });
+    victim.resources!.money = getUpkeepReserve(victim);
+    expect(holdsUp(w, robber, victim, null)).toBe(false);
+    victim.resources!.money = getUpkeepReserve(victim) + 100000;
+    expect(holdsUp(w, robber, victim, null)).toBe(false);
+    sizedUp(w, robber, victim);
     victim.resources!.money = getUpkeepReserve(victim);
     expect(hasRansom(ransomOf(w, robber, victim))).toBe(false);
     expect(holdsUp(w, robber, victim, null)).toBe(false);

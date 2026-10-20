@@ -430,6 +430,7 @@ export const SCREENS = {
   'icon.tall': 'Tall',
   'icon.clock': 'Time left',
   'icon.paint': 'Paint',
+  'icon.lock': 'Locked',
   'icon.journal': 'Journal',
   'stat.same': '=',
   'stat.footprint': m('{w}×{h} cells', { w: 'int', h: 'int' }),

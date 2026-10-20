@@ -138,6 +138,16 @@
   display: none;
 }
 /* The lever stands on a hex nut and leans up when the switch is on. */
+.switch > .icon-lock {
+  width: var(--icon-l);
+  height: var(--icon-l);
+  margin: var(--space-1) 0;
+}
+:is(.instrument-actions, .weapon-head) .switch > .icon-lock {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+  margin: var(--space-1) 0 0;
+}
 .switch-lever {
   position: relative;
   width: 22px;

@@ -25,7 +25,8 @@ import { judgeDanger, npcTraits, passReason } from '../sim/npc-decisions';
 import { huntsOffRoad } from '../sim/hunt-style';
 import { isHostile } from '../sim/combat';
 import { trackOf } from '../sim/tracks';
-import { hasPerk } from '../sim/progress';
+import { hasBasic, hasPerk } from '../sim/progress';
+import { canLookOver, knowsCargo } from '../sim/look-over';
 import { aidData, lootWarningData, pleaData, statesHeld, strayData, towData } from '../sim/states';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
@@ -39,7 +40,7 @@ import { concat, list, MINUS_SIGN, num, PLUS, t, verbatim, type Msg } from '../t
 import { siteRecipes } from '../data/market';
 import { keyLabel } from './input-mode';
 import { driverName, factionName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
-import { Refused } from '../sim/world';
+import { playerCanAct, Refused } from '../sim/world';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
 import { compassText, damage, distanceText, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
@@ -102,9 +103,14 @@ export function workLabel(world: World, v: Vehicle, work: Work): Msg {
   if (work.from === 'job') return jobLabel(world, v, work.job);
   const s = work.state;
   if (s.kind === 'aid') return aidWorkLabel(world, v, s);
+  if (s.kind === 'lookOver') return lookOverLabel(world, s);
   if (s.kind !== 'patch') throw new Error(`No work label for a ${s.kind} state`);
   if (s.holder === v.id) return t('job.patch', { truck: vehicleTitle(world, vehicleById(world, s.other)) });
   return t('job.patchedBy', { truck: vehicleTitle(world, vehicleById(world, s.holder)) });
+}
+
+function lookOverLabel(world: World, s: NpcState): Msg {
+  return s.other === world.player.vehicleId ? t('state.lookOver') : t('job.lookOver', { truck: vehicleTitle(world, vehicleById(world, s.other)) });
 }
 
 export function aidGoods(s: NpcState): Msg {
@@ -189,7 +195,7 @@ export function formatNpcPass(world: World, vehicle: Vehicle): Msg | null {
   return t('npc.letsPass', { why: t(`pass.${passReason(world, vehicle, player, judgeDanger(world, vehicle, player))}`) });
 }
 
-function revealedBy(world: World, perk: 'readDriver' | 'cargoEye'): boolean {
+function revealedBy(world: World, perk: 'readDriver'): boolean {
   return hasPerk(world, perk) || seesAll();
 }
 
@@ -198,14 +204,23 @@ export function formatNpcTraits(world: World, vehicle: Vehicle): Msg | null {
   return revealedBy(world, 'readDriver') ? t('npc.traits', { traits: list(traits.map(traitName)) }) : null;
 }
 
+function showsCargo(world: World, vehicle: Vehicle): boolean {
+  return knowsCargo(world, playerVehicle(world), vehicle) || seesAll();
+}
+
 export function formatNpcCargo(world: World, vehicle: Vehicle): Msg | null {
-  if (!revealedBy(world, 'cargoEye')) return null;
+  if (!showsCargo(world, vehicle)) return null;
   const goods = Object.entries(goodsCount(vehicle)).map(([good, n]) => t('npc.goodCount', { good: goodName(good), n }));
   const spares = spareParts(vehicle).map((part) => partNameOf(part.defId));
   if (goods.length === 0 && spares.length === 0) return t('npc.cargoEmpty');
   if (spares.length === 0) return t('npc.cargo', { goods: list(goods) });
   if (goods.length === 0) return t('npc.spares', { spares: list(spares) });
   return t('npc.cargoAndSpares', { goods: list(goods), spares: list(spares) });
+}
+
+export function formatNpcLookOver(world: World, vehicle: Vehicle): Msg | null {
+  if (!hasBasic(world, 'lookOver') || !playerCanAct(world)) return null;
+  return canLookOver(world, playerVehicle(world), vehicle) === null ? keyLabel(t('npc.lookOverKey'), 'B', 'before') : null;
 }
 
 export function formatNpcMark(world: World, vehicle: Vehicle): Msg | null {
@@ -237,6 +252,8 @@ const STATE_LABELS: Record<StateKindId, (s: NpcState) => Msg> = {
   aid: (s) => (aidData(s).giver === 'npc' ? t('state.aidBringing') : t('state.aidWaiting')),
   combat: () => t('state.combat'),
   lootWarning: (s) => (lootWarningData(s).answer === 'comply' ? t('state.lootAgreed') : t('state.lootWarning')),
+  lookOver: () => t('state.lookOver'),
+  sizedUp: () => t('state.sizedUp'),
   strayFire: (s) => t('state.strayFire', { forgiven: Math.round(strayData(s).damage), of: RULES.stray.feudDamage }),
 };
 
@@ -804,6 +821,13 @@ function moneyText(world: World, e: Extract<GameEvent, { t: 'money' }>): LogLine
   return e.amount > 0 ? line(t('log.moneyGain', { n: moneyMsg(e.amount), reason }), 'good') : line(t('log.moneyLoss', { n: moneyMsg(-e.amount), reason }), 'bad');
 }
 
+function lookedOverText(world: World, e: Extract<GameEvent, { t: 'lookedOver' }>): LogLine | null {
+  if (e.target !== world.player.vehicleId) return null;
+  const looker = findAny(world, e.by);
+  if (!looker || !playerSees(world, looker.pos)) return null;
+  return line(t('log.lookedOver', { who: vehicleName(world, e.by) }), '');
+}
+
 function holdUpText(world: World, e: Extract<GameEvent, { t: 'holdUp' }>): LogLine | null {
   if (e.paid !== 'money') return null;
   const me = world.player.vehicleId;
@@ -891,6 +915,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   npcKnockout: (world, e) => line(t('log.npcKnockout', { who: vehicleName(world, e.vehicle) }), 'good'),
   npcWake: (world, e) => line(t('log.npcWake', { who: vehicleName(world, e.vehicle) }), 'dim'),
   stateEnded: stateEndedText,
+  lookedOver: lookedOverText,
   empty: quiet,
   utility: quiet,
   caltrops: caltropsText,

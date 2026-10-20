@@ -255,6 +255,10 @@ function driveOne(world: World, v: Vehicle): void {
   burnFuel(world, v, speed);
 }
 
+export function sizedUp(w: World, looker: Vehicle, target: Vehicle): void {
+  addState(w, 'sizedUp', looker.id, target.id, { kind: 'none' });
+}
+
 export function startCombat(w: World, aggressor: Vehicle, target: Vehicle): void {
   addState(w, 'combat', aggressor.id, target.id, { kind: 'none' });
 }
