@@ -10,7 +10,7 @@ export type Footprint = { offsets: number[]; r: number };
 
 export type Mover = { id: string; pos: Vec; vel: Vec; r: number };
 
-export type Clearance = { touches(at: Vec, heading: number): boolean; meetsMoving(at: Vec, heading: number, seconds: number, movers: Mover[]): boolean };
+export type Clearance = { touches(at: Vec, heading: number): boolean; depth(at: Vec, heading: number): number; nearsCliff(at: Vec, heading: number): boolean; meetsMoving(at: Vec, heading: number, seconds: number, movers: Mover[]): boolean };
 
 const footprints = new Map<string, Footprint>();
 
@@ -34,16 +34,27 @@ export function clearanceFor(world: World, v: Vehicle, extra: Blocker[]): Cleara
   const solid = staticSet(world.obstacles, world.terrain).solidBuckets;
   const moving = dynamicBlockers(world.obstacles, world.terrain, extra);
   const nav = terrainNav(world.terrain);
+  function depth(at: Vec, heading: number): number {
+    if (![at.x, at.y, heading].every(Number.isFinite)) throw new Error('Clearance depth asked at a non-finite pose');
+    const cos = Math.cos(heading);
+    const sin = Math.sin(heading);
+    let deepest = 0;
+    for (const o of offsets) {
+      const c = { x: at.x + cos * o, y: at.y + sin * o };
+      for (const b of solid.alongSegment(c, c, reach)) deepest = Math.max(deepest, overlap(b, c, reach));
+      for (const b of moving) deepest = Math.max(deepest, overlap(b, c, reach));
+    }
+    return deepest;
+  }
+  function nearsCliff(at: Vec, heading: number): boolean {
+    const cos = Math.cos(heading);
+    const sin = Math.sin(heading);
+    return offsets.some((o) => nearCliff(nav, at.x + cos * o, at.y + sin * o, r));
+  }
   return {
-    touches(at, heading) {
-      const cos = Math.cos(heading);
-      const sin = Math.sin(heading);
-      for (const o of offsets) {
-        const c = { x: at.x + cos * o, y: at.y + sin * o };
-        if (nearCliff(nav, c.x, c.y, r) || hitsAny(solid.alongSegment(c, c, reach), c, reach) || hitsAny(moving, c, reach)) return true;
-      }
-      return false;
-    },
+    touches: (at, heading) => depth(at, heading) > 0 || nearsCliff(at, heading),
+    depth,
+    nearsCliff,
     meetsMoving(at, heading, seconds, movers) {
       const cos = Math.cos(heading);
       const sin = Math.sin(heading);
@@ -59,11 +70,9 @@ export function clearanceFor(world: World, v: Vehicle, extra: Blocker[]): Cleara
   };
 }
 
-function hitsAny(blockers: Blocker[], c: Vec, reach: number): boolean {
-  return blockers.some((b) => hits(b, c, reach));
-}
-
-function hits(b: Blocker, c: Vec, reach: number): boolean {
-  if (dist(b.pos, c) >= b.r + reach) return false;
-  return b.prop ? b.prop.boxes.some((box) => boxDistance(box, c) < reach) : true;
+function overlap(b: Blocker, c: Vec, reach: number): number {
+  const gap = dist(b.pos, c);
+  if (gap >= b.r + reach) return 0;
+  if (!b.prop) return b.r + reach - gap;
+  return b.prop.boxes.reduce((deepest, box) => Math.max(deepest, reach - boxDistance(box, c)), 0);
 }
