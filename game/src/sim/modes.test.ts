@@ -49,7 +49,7 @@ describe('game mode rules', () => {
       rules: { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false },
       kit: 'furyRoad',
       map: 'highway',
-      opening: 'road_hire',
+      opening: 'chaos_highway_intro',
     });
   });
 

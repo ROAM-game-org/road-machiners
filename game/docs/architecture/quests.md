@@ -188,14 +188,14 @@ Dustwell is a stall with no board of work. Its locals never call `has_work()`, `
 - Sim code reads and writes a world variable through `worldVar()` and `setWorldVar()` in `src/sim/quests.ts`, and the intro step through `introStep()` and `setIntroStep()`. `setWorldVar()` throws on an unknown name, a wrong type or an open quest session, since the next pick would undo the write.
 ## The road story
 
-Four page quests tell the story of Geezer and Ala on Chaos Highway. The player is Geezer, who drives the gun truck, and Ala drives the hauler. The canon is in [Chaos Highway](../lore/chaos-highway.md). The scenes pay nothing and change no run rule: a test checks that money, the run and the trucks are equal before and after each scene.
+Two page quests tell the story of Geezer and Ala on Chaos Highway. The player is Geezer, who drives the gun truck, and Ala drives the hauler. The canon is in [Chaos Highway](../lore/chaos-highway.md). The scenes pay nothing and change no run rule: a test checks that money, the run and the trucks are equal before and after each scene.
 
-- `road_hire` is the hiring at the southern outpost. `newGame()` opens it for a mode whose `opening` names it, when the intro is on and the kit has no arrival. Its only end, Sign on, sets the world variable `ala_hired`. The picks set `geezer_pitch`.
-- `ROAD_STORY` in `src/data/quests.ts` maps stretches 1, 4 and 8 to a quest and a gate world variable, `road_seen_<n>`. Each gate is in `GAME_WORLD_VARS` and gates its quest.
+- `chaos_highway_intro` is the hiring at the southern outpost. `newGame()` opens it for a mode whose `opening` names it, when the intro is on and the kit has no arrival. It has no choices, and its end sets the world variable `ala_hired`.
+- `ROAD_STORY` in `src/data/quests.ts` maps stretch 1 to a quest and a gate world variable, `road_seen_<n>`. Each gate is in `GAME_WORLD_VARS` and gates its quest.
 - `openRoadScene()` in `src/sim/quests.ts` runs each turn after `advanceFuryRoad()`. It returns unless a run exists, no quest is open, `ala_hired` is true, `canDriveOn()` holds and the stretch ahead has a `ROAD_STORY` entry with an unset gate. Then it sets the gate and opens the quest at `start`, so a scene opens once per run and a save or a window move never opens it again. A run with the intro off never sets `ala_hired`, and a `newWorld()` world never plays the hiring, so neither meets a scene.
 - A scene opening, the text before its first choice, states only what every run that reaches the outpost shares: hunters came, both trucks got through and the pay was settled. It never states an act of the player's in a fight. A test in `src/three/road-story.test.ts` greps the openings for the old ram phrases.
 - Restart run on the death screen carries the story: `restartsWithStory()` in `src/ui/death.ts` sends the intro when the dead run was hired.
-- Every page of every road scene shows a picture: the scene's first line carries an `# img`, and each checkpoint takes the last picture above it. The keys are `road_bar`, `road_ala`, `road_geezer` and `road_hauler`, all in `QUEST_ART`.
+- Every page of every road scene shows a picture: the scene's first line carries an `# img`, and each checkpoint takes the last picture above it. The keys are `road_table`, `road_ala`, `road_geezer` and `road_hauler`, all in `QUEST_ART`.
 
 ## Language
 

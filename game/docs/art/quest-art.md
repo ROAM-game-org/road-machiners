@@ -7,7 +7,7 @@ Quest pictures set the mood of a scene. They do not need to show every detail th
 A prompt is the style block, word for word, followed by a scene block. Attach the rim picture `public/quest-art/arrival_rim.webp`, saved as PNG, as the style reference. It holds the look better than words.
 
 ```
-Style: a matte plein-air painting study in thin dry-brush gouache on canvas-textured paper. Short, flat, angular strokes follow the forms, and the canvas weave shows through the thin paint. Edges are loose, and detail is suggested more than rendered. Earthy palette of ochre, rust, burnt sienna and warm browns, with cool blue-violet shadows.
+Style: a matte plein-air painting study in thin dry-brush gouache on canvas-textured paper. The canvas weave shows through the thin paint. Edges are loose, and detail is suggested more than rendered. Earthy palette of ochre, rust, burnt sienna and warm browns, with cool blue-violet shadows.
 ```
 
 The style block names only the medium, the brushwork and the palette. Light, mood, time of day and framing belong to the scene block, so a night or indoor scene can set its own.
@@ -36,7 +36,7 @@ The page crops every picture to a frame between 3:4 and 3:1, and a talk shows it
 
 ## Generate
 
-Codex draws the picture with gpt-image through the ChatGPT login, so it needs no API key. Pipe a request to `codex exec -s workspace-write -i <style reference png> -` that asks for one 16:9 image from the prompt and names the PNG to save under `tmp/`. Run three takes in parallel and pick among them.
+Codex draws the picture with gpt-image through the ChatGPT login, so it needs no API key. Pipe a request to `codex exec -s workspace-write -i <style reference png> -` that asks for one 16:9 image from the prompt and names the PNG to save under `tmp/`. Run two takes in parallel and show the user both.
 
 Check every take in close crops before anyone sees it. Guns, hands and anything seen through bars or slats break most often, and a thing behind bars can come out painted over them.
 

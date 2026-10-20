@@ -44,6 +44,7 @@ export const LOCALS: Record<LocalId, LocalDef> = {
 export const TERM_IDS = [
   'bowl', 'nose', 'pierce', 'granary', 'glass_flats', 'fallen_sun', 'sunward', 'senate', 'farmers',
   'pump_station', 'dustwell', 'committee', 'salvage_yard', 'kiln', 'scrapjaw', 'old_army', 'guild', 'old_world', 'chaos',
+  'keepers', 'machiner', 'link',
 ] as const;
 
 export type TermId = (typeof TERM_IDS)[number];

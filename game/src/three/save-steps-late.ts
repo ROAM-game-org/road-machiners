@@ -120,3 +120,12 @@ export function withShortRoadScenes_82_83(world: SavedJson): SavedJson {
   const withoutLocalVars = Object.entries(DROPPED_ROAD_LOCAL_VARS_82_83).reduce((w, [quest, names]) => names.reduce((v, name) => dropQuestVar(v, quest, name), w), withoutWorldVars);
   return Object.entries(DROPPED_ROAD_CHECKPOINTS_82_83).reduce((w, [quest, names]) => names.reduce((v, from) => moveQuestCheckpoint(v, quest, from, 'start'), w), withoutLocalVars);
 }
+
+export function withChaosHighwayIntro_83_84(world: SavedJson): SavedJson {
+  const withoutScenes = ['road_hire', 'road_stretch_4', 'road_stretch_8'].reduce((w, quest) => dropQuest(w, quest), world);
+  const withoutVars = ['geezer_pitch', 'road_seen_4', 'road_seen_8'].reduce((w, name) => dropQuestVar(w, null, name), withoutScenes);
+  const quests = (world.player as { quests: { session: { quest: string; checkpoint: string; seed: number } | null } }).quests;
+  if (quests.session?.quest !== 'road_hire') return withoutVars;
+  const player = withoutVars.player as { quests: SavedJson };
+  return { ...withoutVars, player: { ...player, quests: { ...player.quests, session: { ...quests.session, quest: 'chaos_highway_intro', checkpoint: 'start' } } } };
+}

@@ -1806,3 +1806,40 @@ describe('save migration 82 to 83', () => {
     expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
   });
 });
+
+describe('save migration 83 to 84', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: { quest: string; checkpoint: string; seed: number } | null };
+  type Saved = { player: { quests: Quests } };
+  const saved = (quests: Partial<Quests>): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: Saved) => MIGRATIONS[83](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('drops the scar pick and the old hiring scene questions, keeping the hire', () => {
+    const before = saved({ world: { ala_hired: true, road_seen_1: true, geezer_pitch: 'link' }, local: { road_hire: { asked_pay: true }, bowl_scale: { asked_pay: true } } });
+    expect(stepped(before).player.quests).toEqual({ world: { ala_hired: true, road_seen_1: true }, local: { bowl_scale: { asked_pay: true } }, session: null });
+  });
+
+  it('moves an open hiring scene to the start of the renamed intro', () => {
+    const before = saved({ session: { quest: 'road_hire', checkpoint: 'start.hub', seed: 3 } });
+    expect(stepped(before).player.quests.session).toEqual({ quest: 'chaos_highway_intro', checkpoint: 'start', seed: 3 });
+  });
+
+  it('drops the fourth and eighth scenes and their gates, keeping the first', () => {
+    const before = saved({ world: { ala_hired: true, road_seen_1: true, road_seen_4: true, road_seen_8: true }, session: { quest: 'road_stretch_8', checkpoint: 'start', seed: 3 } });
+    expect(stepped(before).player.quests).toEqual({ world: { ala_hired: true, road_seen_1: true }, local: {}, session: null });
+  });
+
+  it('leaves other open scenes alone', () => {
+    const session = { quest: 'road_stretch_1', checkpoint: 'start', seed: 3 };
+    expect(stepped(saved({ session })).player.quests.session).toEqual(session);
+  });
+
+  it('changes nothing else', () => {
+    const before = saved({ world: { geezer_pitch: 'bullets' } });
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});
