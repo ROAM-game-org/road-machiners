@@ -1,11 +1,8 @@
 import { t } from "../text/msg";
-import { createIcon, type IconName } from "./cards";
 import { el } from "./dom";
 
 export const DRAWERS = ["truck", "guns", "radio", "log"] as const;
 export type Drawer = (typeof DRAWERS)[number];
-
-const TAB_ICON: Record<Drawer, IconName> = { truck: "truck", guns: "magazine", radio: "noise", log: "journal" };
 
 export class Drawers {
   readonly element: HTMLElement;
@@ -43,8 +40,8 @@ export class Drawers {
   private tab(drawer: Drawer): HTMLElement {
     return el(
       "button",
-      { class: "btn-l", "data-tab": drawer, "aria-label": t(`drawer.${drawer}`), "aria-pressed": "false", onclick: () => this.toggle(drawer) },
-      createIcon(TAB_ICON[drawer]),
+      { class: "btn-l", "data-tab": drawer, "aria-pressed": "false", onclick: () => this.toggle(drawer) },
+      t(`drawer.${drawer}`),
     );
   }
 }
