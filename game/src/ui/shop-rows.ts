@@ -33,8 +33,16 @@ export function repairBar(w: World, buttons: ShopButtons, repair: { basics: Shop
   );
 }
 
-export function supplyRow(w: World, k: Supply, buttons: ShopButtons, buy: (w: World, k: Supply, n: number) => World, truck: Vehicle = playerVehicle(w)): HTMLElement {
-  const room = supplyRoom(w, k, truck);
+export type SupplyLimit = { room: number; tag: HTMLElement | null };
+
+type SupplyBuy = (w: World, k: Supply, n: number) => World;
+
+export function supplyRow(w: World, k: Supply, buttons: ShopButtons, buy: SupplyBuy, truck: Vehicle = playerVehicle(w)): HTMLElement {
+  return limitedSupplyRow(w, k, buttons, buy, truck, { room: supplyRoom(w, k, truck), tag: null });
+}
+
+export function limitedSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy: SupplyBuy, truck: Vehicle, limit: SupplyLimit): HTMLElement {
+  const room = limit.room;
   const price = ECONOMY.supplyPrice[k];
   const afford = Math.min(room, Math.floor(w.player.money / price));
   const amount = (n: number) => supplyAmount(k, n);
@@ -42,7 +50,7 @@ export function supplyRow(w: World, k: Supply, buttons: ShopButtons, buy: (w: Wo
   return supplyLine(k, getResources(w, truck)[k], supplyCap(w, k, truck), null, price, shortBy(w.player.money, price) === null, [
     buttons.button(t("trade.plusAmount", { amount: amount(1) }), (x) => buy(x, k, 1), reason),
     buttons.button(afford > 0 ? t("trade.fill", { amount: amount(afford) }) : t("trade.fillBare"), (x) => buy(x, k, afford), reason),
-  ]);
+  ], limit.tag);
 }
 
 export type PriceHint = { tone: "good" | "bad" | ""; title: Msg };
@@ -63,7 +71,7 @@ export function supplyUnit(k: Supply): Msg {
   return k === "fuel" ? t("trade.perUnit", { unit: supplyAmount(k, 1) }) : t("trade.eachUnit");
 }
 
-export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLElement | null, price: number, payable: boolean, buttons: HTMLElement[]): HTMLElement {
+export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLElement | null, price: number, payable: boolean, buttons: HTMLElement[], tag: HTMLElement | null = null): HTMLElement {
   const amount = (n: number) => supplyAmount(k, n);
   return el(
     "div",
@@ -73,6 +81,7 @@ export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLEle
       { class: "good-name supply" },
       createIcon(k),
       el("div", { class: "service-meter" }, el("span", {}, t("trade.ofCap", { have: amount(have), cap: amount(cap) })), bar(have / cap)),
+      tag,
     ),
     theirs,
     el("div", { class: "trade buy wide" }, caption(GOODS_COLUMNS.buy, true), priceEl(price, payable, { tone: "", title: supplyUnit(k) }), ...buttons),

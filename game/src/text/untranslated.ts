@@ -68,6 +68,7 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/icons/page.ts', text: '*', reason: 'icons.html is a dev page for checking the icon sheets. It stays English.' },
   { file: 'src/data/sounds.ts', text: '*', reason: 'Sound prompts feed the dev sound generator and the sound board, never the player.' },
   { file: 'src/data/npc-behavior.ts', text: '*', reason: 'Driver first names and surnames are ids. Each language spells them in src/text/<locale>/drivers.ts.' },
+  { file: 'src/sim/progression/economy-shock.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/income-report.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/income.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/record.ts', text: '*', reason: DEV_REPORT },
