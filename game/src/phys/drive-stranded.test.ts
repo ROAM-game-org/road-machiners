@@ -349,7 +349,7 @@ describe('rope frames roll the wheels', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const v = w.vehicles[0];
     v.trail = [{ x: 30, y: 30, heading: 0 }, { x: 31, y: 30, heading: 0 }];
-    const start = restWheels(v.chassisId).map((wheel) => ({ ...wheel, spin: 2 }));
+    const start = { front: restWheels(v.chassisId).front.map((wheel) => ({ ...wheel, spin: 2 })), rear: null };
     const frames = trailFrames(w, v, start);
     expect(frames).toHaveLength(TURN_STEPS);
     const roll = PHYSICS.metersPerTile / bodyOf(v.chassisId).wheelRadius;
@@ -370,7 +370,7 @@ describe('rope frames roll the wheels', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const v = w.vehicles[0];
     v.trail = [{ x: 30, y: 30, heading: 0 }, { x: 31, y: 30, heading: 0 }];
-    expect(() => trailFrames(w, v, [])).toThrow(/wheels/);
+    expect(() => trailFrames(w, v, { front: [], rear: null })).toThrow(/wheels/);
   });
 });
 

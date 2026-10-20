@@ -81,7 +81,7 @@ export type UtilityOrder =
   | { kind: 'point'; pos: Vec }
   | { kind: 'disarm' };
 
-export type Pose = { x: number; y: number; heading: number };
+export type Pose = { x: number; y: number; heading: number; bend?: number };
 
 export type MoveOrder =
   | { kind: "through"; dest: Vec; pace?: number }
@@ -353,6 +353,7 @@ export type Vehicle = {
   items: GridItem[];
   pos: Vec;
   heading: number;
+  bend?: number;
   speed: number;
   stormExposure: Record<string, number>;
   strandedTurns?: number;
@@ -374,7 +375,7 @@ export type Defeat = { phase: 'out' | 'retreat'; turns: number; unseen: number; 
 
 export type LandmarkLook = Exclude<PropKind, "rock">;
 
-export type Hulk = { chassisId: string; yaw: number };
+export type Hulk = { chassisId: string; yaw: number; bend?: number };
 
 export type Obstacle =
   | { id: string; pos: Vec; r: number; kind: "rock" | "wreck" | "building" | "water" | "site"; hulk?: Hulk }

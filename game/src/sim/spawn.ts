@@ -3,7 +3,8 @@ import { FIRST_NAMES, NPCS, OPPOSED_TRAITS, SPAWN, SURNAMES, type NpcTemplate, t
 import { SITE_FACTIONS, TOWN_TRADER_SHARE } from "../data/npc-behavior";
 import { isOutlaw } from "./relations";
 import { chassisDef } from "../data/chassis";
-import { footprint } from "./body";
+import { isRig } from "./body";
+import { footprint, rigDiscs } from "./rig";
 import { PERSONALITY_IDS, type PersonalityId } from "../data/personalities";
 import { REGION } from "../data/region";
 import { playerVehicle } from "./damage";
@@ -349,6 +350,10 @@ export function isFree(world: World, pos: Vec, radius: number, ignoreId: string 
   const margin = 0.3;
   if (world.obstacles.filter(isDriveObstacle).some((o) => touchesObstacle(o, world.terrain, pos, radius, margin))) return false;
   return world.vehicles.every(
-    (v) => v.id === ignoreId || dist(v.pos, pos) >= footprint(v.chassisId) + radius + margin,
+    (v) => v.id === ignoreId || spawnDiscs(v).every((d) => dist(d.pos, pos) >= d.r + radius + margin),
   );
+}
+
+function spawnDiscs(v: Vehicle): { pos: Vec; r: number }[] {
+  return isRig(v.chassisId) ? rigDiscs(v) : [{ pos: v.pos, r: footprint(v.chassisId) }];
 }

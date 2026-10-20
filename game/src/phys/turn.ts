@@ -20,7 +20,8 @@ import type { MoveOrder, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp } from '../sim/vec';
 import { exploreFrom } from '../sim/vision';
 import { bodyState, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
-import { headingOf, toMap } from './frames';
+import { frameBend, headingOf, toMap, type VehicleFrame, type WheelFrame } from './frames';
+import { bendField, checkBend, heldBend, poseOf, straighten } from '../sim/rig';
 import { planTurns, type PlanFrames } from './plan';
 
 export type TurnState = Omit<World, 'terrain'>;
@@ -182,16 +183,16 @@ function applyBreaks(w: World, r: TurnResult): void {
 
 function setDown(w: World, v: Vehicle): void {
   v.pos = setDownSpot(w, v);
+  straighten(v);
   v.speed = 0;
 }
 
 function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['frames'][string]): void {
   if (v.brain) delete v.brain.farRoute;
   const s = bodyState(r.next, v.id);
-  const start: Pose = { x: v.pos.x, y: v.pos.y, heading: v.heading };
-  v.pos = s.pos;
-  v.heading = s.heading;
-  v.speed = Math.max(0, toTilesPerTurn(s.speed));
+  const start = poseOf(v);
+  Object.assign(v, { pos: s.pos, heading: s.heading, speed: Math.max(0, toTilesPerTurn(s.speed)) }, bendField(heldBend(v.chassisId, s.bend)));
+  checkBend(v);
   const free = s.upright && !isLifted(r.next, w, v) && !isHung(v, r.results[v.id], start, frames) && !isPinned(w, v, r.results[v.id], start);
   v.strandedTurns = free ? 0 : (v.strandedTurns ?? 0) + 1;
   if (v.strandedTurns >= RULES.stranded.turns) setDown(w, v);
@@ -205,14 +206,18 @@ function isHung(v: Vehicle, res: VehicleResult, start: Pose, frames: TurnResult[
   if (!last) throw new Error(`Driven vehicle ${v.id} has no frames`);
   if (!v.order || v.order.kind === 'brake' || res.arrived || res.passed) return false;
   if (dist(start, v.pos) >= RULES.stranded.still) return false;
-  return last.wheels.some((wheel) => !wheel.ground);
+  return allWheels(last).some((wheel) => !wheel.ground);
+}
+
+function allWheels(f: VehicleFrame): WheelFrame[] {
+  return f.rear ? [...f.wheels, ...f.rear.wheels] : f.wheels;
 }
 
 function isPinned(w: World, v: Vehicle, res: VehicleResult, start: Pose): boolean {
   if (!v.order || v.order.kind === 'brake' || res.arrived || res.passed) return false;
   if (res.pushedSteps < TURN_STEPS * PHYSICS.driver.pinnedShare) return false;
   if (dist(start, v.pos) >= RULES.stranded.still) return false;
-  return clearanceFor(w, v, []).touches(v.pos, v.heading);
+  return clearanceFor(w, v, []).touches(v.pos, v.heading, v.bend);
 }
 
 function settleOrder(w: World, v: Vehicle, res: VehicleResult): void {
@@ -250,7 +255,7 @@ function poseAt(start: Pose, frames: TurnResult['frames'][string], step: number)
     if (k === 0) return start;
     const f = frames[k - 1];
     const p = toMap(f.pos);
-    return { x: p.x, y: p.y, heading: headingOf(f.rot) };
+    return { x: p.x, y: p.y, heading: headingOf(f.rot), ...bendField(frameBend(f)) };
   };
   const lo = Math.min(Math.floor(step), TURN_STEPS);
   const hi = Math.min(lo + 1, TURN_STEPS);
@@ -258,7 +263,8 @@ function poseAt(start: Pose, frames: TurnResult['frames'][string], step: number)
   const a = poseOfFrame(lo);
   if (t === 0 || hi === lo) return a;
   const b = poseOfFrame(hi);
-  return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), heading: a.heading + angleDiff(a.heading, b.heading) * t };
+  const bend = a.bend === undefined || b.bend === undefined ? undefined : lerp(a.bend, b.bend, t);
+  return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), heading: a.heading + angleDiff(a.heading, b.heading) * t, ...bendField(bend) };
 }
 
 function pathLength(trail: Pose[]): number {

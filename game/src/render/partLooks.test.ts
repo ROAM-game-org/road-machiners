@@ -29,8 +29,10 @@ describe('part looks', () => {
   });
 
   it('gives every chassis a base model', () => {
-    for (const id of Object.keys(CHASSIS)) expect(baseModel(id), id).toBe(`base_${id}`);
-    expect(() => baseModel('nope')).toThrow();
+    for (const id of Object.keys(CHASSIS)) expect(baseModel(id, 0), id).toBe(`base_${id}`);
+    expect(baseModel('semi', 1)).toBe('base_semi_rear');
+    expect(() => baseModel('nope', 0)).toThrow();
+    expect(() => baseModel('scout', 1)).toThrow();
   });
 
   it('throws on an unknown id', () => {

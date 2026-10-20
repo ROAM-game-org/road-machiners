@@ -9,7 +9,8 @@ import { BROKEN_WING, BROKEN_WING_POINT } from '../data/region';
 import { FALLEN_SUN_DECKS } from '../data/territory';
 import { WEAR } from '../data/wear';
 import { START_KITS } from '../data/start';
-import { bodyOf, rideOf } from '../sim/body';
+import { bodyOf, rideOf, unitsOf } from '../sim/body';
+import { reachMeters } from '../sim/rig';
 import { coreParts } from '../sim/grid';
 import { vehicleStats } from '../sim/stats';
 import { maxHp } from '../sim/wear';
@@ -166,8 +167,7 @@ describe('prop colliders follow the model shape', () => {
   });
 
   it('every truck roof at rest is below the clearance under which props are left out', () => {
-    for (const id of Object.keys(CHASSIS)) {
-      const b = bodyOf(id);
+    for (const [id, b] of Object.keys(CHASSIS).flatMap((chassis) => unitsOf(chassis).map((u) => [chassis, u.body] as const))) {
       const roof = rideOf(b) + Math.max(...b.boxes.map((box) => box.at.y + box.half.y));
       expect(roof, id).toBeLessThanOrEqual(PHYSICS.truckRoof + 1e-9);
       expect(PHYSICS.truckRoof, id).toBeLessThan(PHYSICS.truckClearance);
@@ -189,11 +189,9 @@ describe('prop colliders follow the model shape', () => {
     freeDrive(d);
   });
 
-  it('the live margin for props covers a turn of the fastest truck plus the longest body', () => {
-    const topSpeed = Math.max(...Object.values(CHASSIS).map((c) => c.maxSpeed));
+  it('the live margin for props covers a turn of every truck at its top speed plus its whole body', () => {
     const bonus = Math.max(...Object.values(PARTS).map((p) => ('speedBonus' in p ? p.speedBonus : 0)));
-    const longest = Math.max(...Object.keys(CHASSIS).map((id) => Math.hypot(bodyOf(id).half.x, bodyOf(id).half.z))) / S;
-    expect((topSpeed + bonus) * RULES.overdriveBoost + longest).toBeLessThan(PHYSICS.propLiveMargin);
+    for (const c of Object.values(CHASSIS)) expect((c.maxSpeed + bonus) * RULES.overdriveBoost + reachMeters(c.id) / S, c.id).toBeLessThan(PHYSICS.propLiveMargin);
   });
 });
 

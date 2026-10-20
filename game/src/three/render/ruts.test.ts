@@ -28,7 +28,7 @@ function truckOf(w: World): Vehicle {
 }
 
 function frameAt(v: Vehicle, x: number, ground = true, y = Y * S): VehicleFrame {
-  const wheels = wheelMounts(bodyOf(v.chassisId)).map(() => ({ steer: 0, spin: 0, suspension: 0, ground }));
+  const wheels = wheelMounts(bodyOf(v.chassisId), 0).map(() => ({ steer: 0, spin: 0, suspension: 0, ground }));
   return { pos: { x, y: 1, z: y }, rot: headingQuat(0), acc: { x: 0, y: 0, z: 0 }, wheels };
 }
 
@@ -223,7 +223,7 @@ describe('tirePoints', () => {
     t.heights.forEach((_, k) => (t.heights[k] = (k % (t.size + 1)) * 0.05));
     const v = truckOf(w);
     const f: VehicleFrame = { ...frameAt(v, 100), rot: headingQuat(Math.PI / 2) };
-    const mounts = wheelMounts(bodyOf(v.chassisId));
+    const mounts = wheelMounts(bodyOf(v.chassisId), 0);
 
     const points = tirePoints(t, v.chassisId, f);
 
