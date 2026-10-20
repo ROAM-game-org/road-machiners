@@ -783,7 +783,10 @@ export class Game {
     for (const v of this.world.vehicles) {
       const f = this.frames[v.id];
       if (!f || !this.isVehicleVisible(v)) continue;
-      const d = Math.min(...framePoints(f).map((p) => Math.hypot(this.rig.screenOf(p).x - cx, this.rig.screenOf(p).y - cy)));
+      const d = Math.min(...framePoints(f).map((p) => {
+        const s = this.rig.screenOf(p);
+        return Math.hypot(s.x - cx, s.y - cy);
+      }));
       if (d < bestD) {
         best = v;
         bestD = d;

@@ -97,7 +97,7 @@ export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
 }
 
 const SEMI_92_93 = 'semi';
-const TRACTOR_AHEAD_TILES_92_93 = 5.7375 / 4;
+const TRACTOR_AHEAD_TILES_92_93 = 5.73875 / 4;
 
 export function withTractorPivot_92_93(world: SavedJson): SavedJson {
   const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_92_93 ? { ...v, pos: tractorAt_92_93(v.pos as Point_92_93, v.heading as number), bend: 0 } : v));

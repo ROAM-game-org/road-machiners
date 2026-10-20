@@ -100,16 +100,18 @@ export function spillOil(world: World, v: Vehicle, spill: OilSpill): void {
 }
 
 export function caltropHits(world: World): void {
-  for (const f of world.fields) if (f.kind === 'caltrops') hitCrossers(world, f);
+  const trails = new Map<string, Vec[][]>();
+  const trailsOf = (v: Vehicle) => trails.get(v.id) ?? trails.set(v.id, unitTrails(v)).get(v.id)!;
+  for (const f of world.fields) if (f.kind === 'caltrops') hitCrossers(world, f, trailsOf);
 }
 
-function hitCrossers(world: World, f: GroundField): void {
-  for (const v of world.vehicles) if (!f.hit.includes(v.id) && crosses(v, f)) hitWheels(world, f, v);
+function hitCrossers(world: World, f: GroundField, trailsOf: (v: Vehicle) => Vec[][]): void {
+  for (const v of world.vehicles) if (!f.hit.includes(v.id) && crosses(trailsOf(v), v, f)) hitWheels(world, f, v);
 }
 
-function crosses(v: Vehicle, f: GroundField): boolean {
+function crosses(trails: Vec[][], v: Vehicle, f: GroundField): boolean {
   const reach = f.r + chassisDef(v.chassisId).radius;
-  return unitTrails(v).some((points) => points.some((p, i) => segmentDist(f.pos, points[Math.max(0, i - 1)], p) <= reach));
+  return trails.some((points) => points.some((p, i) => segmentDist(f.pos, points[Math.max(0, i - 1)], p) <= reach));
 }
 
 function unitTrails(v: Vehicle): Vec[][] {

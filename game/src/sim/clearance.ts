@@ -33,12 +33,16 @@ export function footprintOf(chassisId: string, unit: number): Footprint {
 type Circle = { c: Vec; r: number };
 
 function bodyCircles(chassisId: string, prints: readonly Footprint[], at: Vec, heading: number, bend: number | undefined): Circle[] {
+  if (prints.length === 1) return circlesOf(prints[0], at, heading);
   return trailUnits(chassisId, { x: at.x, y: at.y, heading, ...(bend === undefined ? {} : { bend }) }).flatMap((p) => {
-    const { offsets, r } = prints[p.unit];
-    const cos = Math.cos(p.heading);
-    const sin = Math.sin(p.heading);
-    return offsets.map((o) => ({ c: { x: p.pos.x + cos * o, y: p.pos.y + sin * o }, r }));
+    return circlesOf(prints[p.unit], p.pos, p.heading);
   });
+}
+
+function circlesOf({ offsets, r }: Footprint, at: Vec, heading: number): Circle[] {
+  const cos = Math.cos(heading);
+  const sin = Math.sin(heading);
+  return offsets.map((o) => ({ c: { x: at.x + cos * o, y: at.y + sin * o }, r }));
 }
 
 export function clearanceFor(world: World, v: Vehicle, extra: Blocker[]): Clearance {

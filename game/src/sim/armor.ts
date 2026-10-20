@@ -108,8 +108,8 @@ export function planBlast(v: Vehicle, p: Vec, radius: number, round: Round, skip
     if (!best || meters(p, c.center) < meters(p, best.center)) nearest.set(c.part.id, c);
   }
   return [...nearest.values()]
-    .filter((c) => c.part.id !== skip && meters(p, c.center) <= radius * PHYSICS.metersPerTile)
-    .map((c) => ({ part: c.part, amount: blastAmount(c, shields(cells, p, c), round, 1 - meters(p, c.center) / (radius * PHYSICS.metersPerTile)) }));
+    .filter((c) => c.part.id !== skip && meters(p, c.center) <= radius)
+    .map((c) => ({ part: c.part, amount: blastAmount(c, shields(cells, p, c), round, 1 - meters(p, c.center) / radius) }));
 }
 
 function blastCells(v: Vehicle): BlastCell[] {

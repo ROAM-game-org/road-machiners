@@ -1,7 +1,7 @@
 
 import { PHYSICS } from '../data/physics';
 import { HARPOON } from '../data/utilities';
-import { bodyOf, cellRect } from './body';
+import { unitBody, cellRect } from './body';
 import { damagePart } from './damage';
 import { newId } from './factory';
 import { itemCells, mountedItems } from './grid';
@@ -26,8 +26,8 @@ export function attachLine(world: World, ends: Ends, turns: number): void {
 }
 
 function anchorGap(ends: Ends): number {
-  const a = mapPoint(ends.from, anchorOf(ends.from, ends.fromPart, bodyOf(ends.from.chassisId).comY));
-  const b = mapPoint(ends.to, anchorOf(ends.to, ends.toPart, HELD));
+  const a = mapPoint(ends.from, anchorOf(ends.from, ends.fromPart, false));
+  const b = mapPoint(ends.to, anchorOf(ends.to, ends.toPart, true));
   return Math.hypot(b.x - a.x, b.z - a.z);
 }
 
@@ -38,11 +38,11 @@ function mapPoint(v: Vehicle, at: BodyPoint): { x: number; z: number } {
 
 const HELD = 0;
 
-function anchorOf(v: Vehicle, partId: string, y: number): BodyPoint {
+function anchorOf(v: Vehicle, partId: string, held: boolean): BodyPoint {
   const item = mountedItem(v, partId);
   if (!item) throw new Error(`${v.id} has no mounted part ${partId}`);
   const r = cellRect(v.chassisId, itemCells(item));
-  return { unit: r.unit, x: (r.x0 + r.x1) / 2, y, z: (r.z0 + r.z1) / 2 };
+  return { unit: r.unit, x: (r.x0 + r.x1) / 2, y: held ? HELD : unitBody(v.chassisId, r.unit).comY, z: (r.z0 + r.z1) / 2 };
 }
 
 function mountedItem(v: Vehicle, partId: string): PartItem | undefined {
@@ -66,7 +66,7 @@ export function lineAnchors(world: World): LineAnchor[] {
   return world.lines.flatMap((line) => {
     const ends = holdsEnds(world, line);
     if (!ends) return [];
-    return [{ id: line.id, from: line.from, to: line.to, fromAt: anchorOf(ends.from, ends.fromPart, bodyOf(ends.from.chassisId).comY), toAt: anchorOf(ends.to, ends.toPart, HELD), length: line.length }];
+    return [{ id: line.id, from: line.from, to: line.to, fromAt: anchorOf(ends.from, ends.fromPart, false), toAt: anchorOf(ends.to, ends.toPart, true), length: line.length }];
   });
 }
 

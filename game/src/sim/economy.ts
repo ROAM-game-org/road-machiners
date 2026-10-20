@@ -660,6 +660,7 @@ export function swapChassis(world: World, chassisId: string): void {
   const parcels = me.items.filter((it): it is ParcelItem => it.kind === "parcel");
   me.chassisId = chassisId;
   straighten(me);
+  me.trail = [];
   me.items = [];
   addCoreParts(world, me);
   for (const part of parts) placeSwappedPart(world, me, part, mounted.has(part.id));

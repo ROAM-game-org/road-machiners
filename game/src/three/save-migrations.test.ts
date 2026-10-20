@@ -2069,7 +2069,7 @@ describe('save migration 91 to 92', () => {
 describe('save migration 92 to 93', () => {
   type Saved = typeof FORMAT_2_80;
   const stepped = () => MIGRATIONS[92](MIGRATIONS[81](MIGRATIONS[80](structuredClone(FORMAT_2_80) as unknown as SavedJson))) as unknown as Saved & { vehicles: (Saved['vehicles'][number] & { bend?: number })[]; obstacles: { hulk?: { bend?: number } }[] };
-  const AHEAD = 5.7375 / 4;
+  const AHEAD = 5.73875 / 4;
 
   it('moves a semi from the middle of the rig to its tractor along its heading and sets it straight', () => {
     const before = FORMAT_2_80.vehicles[1];
