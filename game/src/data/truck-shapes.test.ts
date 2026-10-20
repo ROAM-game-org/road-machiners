@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CHASSIS } from './chassis';
 import { PHYSICS } from './physics';
 import SHAPES from './truck-shapes.json';
+import { cellRect, engineAnchor, restOn } from '../sim/body';
 
 const FILES = import.meta.glob<string>('/public/models/base_*.glb', { query: '?url&inline', import: 'default' });
 const DATA_URL = 'data:model/gltf-binary;base64,';
@@ -96,11 +97,12 @@ function stationsOf(profile: Profile, ground: number) {
 type Band = [number, number];
 type Reference = { height: Band; hood?: Band; roof: Band; deck?: Band; roofStart?: Band; noseDrop?: Band; tailDrop?: Band };
 
-const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi', Reference> = {
+const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
   niva: { height: [1.89, 2.19], hood: [0.22, 0.28], roof: [0.55, 1], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
+  scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
 };
 
 type ShapeName = keyof typeof SHAPES;
@@ -124,8 +126,8 @@ function straightProfile(id: string): Profile {
 }
 
 describe('trucks built from a reference photo keep its proportions', () => {
-  it.each(['lincoln', 'niva', 'bukhanka', 'semi'] as const)('%s', (id) => {
-    const body = PHYSICS.bodies[id];
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout'] as const)('%s', (id) => {
+    const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
     const got = stationsOf(straightProfile(id), ground);
     const misses: string[] = [];
@@ -136,8 +138,44 @@ describe('trucks built from a reference photo keep its proportions', () => {
   });
 });
 
+describe('the scout pickup', () => {
+  it('keeps the HiLux blueprint: 5.2 m long, with a width to length of 0.423 across its flares', () => {
+    const boxes = SHAPES.base_scout.boxes;
+    const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
+    const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
+    expect(Math.abs(along - 5.2)).toBeLessThanOrEqual(0.05);
+    expect(across / along).toBeGreaterThanOrEqual(0.41);
+    expect(across / along).toBeLessThanOrEqual(0.44);
+  });
+
+  const { heights } = SHAPES.base_scout;
+  const pickup = PHYSICS.bodies.pickup;
+  const ground = pickup.wheelY - PHYSICS.truck.suspensionRest - pickup.wheelRadius;
+  const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
+
+  it('keeps the blueprint beltline: the bed rail 1.47 to 1.58 m over the ground', () => {
+    const tail = Math.min(...columns.map((c) => c.x));
+    const nose = Math.max(...columns.map((c) => c.x));
+    const station = tail + 0.2 * (nose - tail);
+    const rail = Math.max(...columns.filter((c) => Math.abs(c.x - station) <= 0.2 && Math.abs(c.y) >= 0.85 && Math.abs(c.y) <= 1.05).map((c) => c.top));
+    expect(rail - ground).toBeGreaterThanOrEqual(1.47);
+    expect(rail - ground).toBeLessThanOrEqual(1.58);
+  });
+
+  it('closes the hood round the engine footprint', () => {
+    const engineCells = CHASSIS.scout.layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
+    const { rect } = restOn('scout', cellRect('scout', engineCells));
+    const anchor = engineAnchor('scout');
+    const margin = 0.05;
+    const half = { x: (rect.x1 - rect.x0) / 2 + margin, y: (rect.z1 - rect.z0) / 2 + margin };
+    const inHole = (c: { x: number; y: number }) => Math.abs(c.x - anchor.x) <= half.x && Math.abs(-c.y - anchor.z) <= half.y;
+    const open = columns.filter((c) => c.x >= 0.9 && c.x <= 2.3 && Math.abs(c.y) <= 1.0 && !inHole(c) && c.top < 0.15);
+    expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
+  });
+});
+
 describe('the hauler semi', () => {
-  it('keeps a real rig to pickup ratio to the scout: 20.5 m along and 3.1 m across, about 3.9 scouts long and 1.27 wide', () => {
+  it('keeps a real rig to pickup ratio to the scout: 20.5 m along and 3.1 m across, about 3.9 scouts long and 1.41 wide', () => {
     const extent = (id: string) => {
       const boxes = straightUnits(id).flatMap(({ name, offset }) => SHAPES[name].boxes.map((b) => ({ ...b, x0: b.x0 + offset, x1: b.x1 + offset })));
       return { along: Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0)), across: Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0)) };
