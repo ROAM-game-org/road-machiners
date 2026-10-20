@@ -146,6 +146,7 @@ export function spawnsAtHollow(world: World): boolean {
 
 export function discoverHollow(world: World, discover: (world: World, site: { id: string }) => void): void {
   if (world.sunward === null || world.player.discovered.includes(HOLLOW_ID)) return;
+  if (dist(playerVehicle(world).pos, HOLLOW.pos) > grayRadius(world) + HOLLOW.sightReach) return;
   const seen = world.player.visible.some((idx) => dist(tileCenter(world, idx), HOLLOW.pos) <= HOLLOW.sightReach);
   if (seen) discover(world, { id: HOLLOW_ID });
 }

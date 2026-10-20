@@ -90,6 +90,16 @@ describe('the reactor hazard', () => {
     expect(w.events.filter((e) => e.t === 'info')).toHaveLength(1);
   });
 
+  it('reports a core burn only when it took health', () => {
+    const w = worldAt(core);
+    w.player.health = 0;
+    applyHazards(w);
+    expect(w.events.some((e) => e.t === 'coreBurn')).toBe(false);
+    w.player.health = 5;
+    applyHazards(w);
+    expect(w.events.some((e) => e.t === 'coreBurn')).toBe(true);
+  });
+
   it('keeps routes out of the zone', () => {
     const w = worldAt(outsidePos);
     const far = { x: core.x - hazard.radius - 3, y: core.y };

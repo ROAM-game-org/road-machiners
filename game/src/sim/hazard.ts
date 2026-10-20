@@ -33,8 +33,9 @@ function drain(world: World, vehicle: Vehicle, zone: HazardZone): void {
 
 function burn(world: World, vehicle: Vehicle, zone: HazardZone): void {
   const resources = getResources(world, vehicle);
-  resources.health -= Math.min(zone.core!.healthPerTurn, resources.health);
-  world.events.push({ t: 'coreBurn', vehicle: vehicle.id });
+  const burned = Math.min(zone.core!.healthPerTurn, resources.health);
+  resources.health -= burned;
+  if (burned > 0) world.events.push({ t: 'coreBurn', vehicle: vehicle.id });
 }
 
 function notePlayer(world: World, vehicle: Vehicle, zone: HazardZone, core: boolean): void {

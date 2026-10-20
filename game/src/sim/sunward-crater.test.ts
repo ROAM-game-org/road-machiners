@@ -7,7 +7,7 @@ import { playerVehicle } from './damage';
 import { applyHazards } from './hazard';
 import { checkDeath } from './defeat';
 import { followTower, dragOf, isOnRope, startDrag, unhitch } from './tow';
-import { advanceStates } from './states';
+import { advanceStates, settleStates } from './states';
 import { refreshVision } from './vision';
 import { callStrangers, craterNews, dropSpot, giveWord, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf } from './sunward-crater';
 import { chooseOn } from './tracks';
@@ -64,6 +64,19 @@ describe('the hostile drag', () => {
     expect(isOnRope(w, me.id)).toBe(true);
     expect(w.events.filter((e) => e.t === 'hostile' || e.t === 'joins')).toEqual([]);
     expect(() => startDrag(w, member(w, { x: me.pos.x - 3, y: me.pos.y }), me, dropSpot(me.pos).stop, isSunwardMember)).toThrow(/cannot drag/);
+  });
+
+  it('ends when the dragger is wrecked and removed, without throwing', () => {
+    const w = crater();
+    const me = playerVehicle(w);
+    const dragger = member(w, { x: me.pos.x + 3, y: me.pos.y });
+    knockOutPlayer(w, dragger);
+    startDrag(w, dragger, me, dropSpot(dragger.pos).stop, isSunwardMember);
+    w.vehicles = w.vehicles.filter((v) => v.id !== dragger.id);
+
+    settleStates(w);
+
+    expect(dragOf(w, me.id)).toBeNull();
   });
 
   it('pulls the victim behind the dragger on the tow bar', () => {

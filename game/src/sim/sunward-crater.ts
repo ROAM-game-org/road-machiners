@@ -1,6 +1,6 @@
 import { CRATER_ACCOUNTS, SUNWARD } from '../data/sunward';
 import { hashId } from './rng';
-import { playerVehicle, vehicleById } from './damage';
+import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
 import { decide, npcProfile } from './npc-decisions';
 import { fightCornered, fleeFrom, interrupt, pushGoal } from './npc-activities';
@@ -56,7 +56,8 @@ export function dragDawn(s: NpcState): number {
 export function checkSunwardDrag(world: World, s: NpcState): StateEnding | null {
   const ending = checkDrag(world, s);
   if (ending) return ending;
-  if (inDropRing(vehicleById(world, s.other).pos)) return 'fulfilled';
+  const victim = world.vehicles.find((v) => v.id === s.other);
+  if (victim && inDropRing(victim.pos)) return 'fulfilled';
   return world.turn >= dragDawn(s) ? 'expired' : null;
 }
 
@@ -157,7 +158,8 @@ export function giveWord(world: World, holder: Vehicle, caller: Vehicle): NpcSta
 }
 
 export function checkOffering(world: World, s: NpcState): StateEnding | null {
-  const holder = vehicleById(world, s.holder);
+  const holder = world.vehicles.find((v) => v.id === s.holder);
+  if (!holder) return null;
   const data = offeringData(s);
   const gap = dist(holder.pos, data.core);
   if (inCore(lightZone(), holder.pos)) return 'fulfilled';

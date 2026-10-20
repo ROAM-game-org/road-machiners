@@ -130,10 +130,11 @@ export function startDrag(world: World, dragger: Vehicle, victim: Vehicle, drop:
 }
 
 export function checkDrag(world: World, s: NpcState): StateEnding | null {
-  const dragger = vehicleById(world, s.holder);
-  const victim = vehicleById(world, s.other);
+  const dragger = world.vehicles.find((v) => v.id === s.holder);
+  const victim = world.vehicles.find((v) => v.id === s.other);
+  if (!dragger || !victim) return null;
   if (isDefeated(dragger) || isStranded(world, dragger) || inCombatWithOther(world, dragger, victim.id)) return 'broken';
-  if (!isPlayer(world, victim) && !isKnockedOut(victim)) return 'broken';
+  if (!isPlayer(world, victim) && !isKnockedOut(victim) && !isStranded(world, victim)) return 'broken';
   return null;
 }
 
