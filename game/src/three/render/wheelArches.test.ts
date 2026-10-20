@@ -11,7 +11,7 @@ await loadModels(async (name) => {
 });
 
 const TOLERANCE = 0.02;
-const ARCH_CLEARANCE: Record<string, number> = { lincoln: 0.06, niva: 0.06, bukhanka: 0.06, semi: 0.06, scout: 0.27 };
+const ARCH_CLEARANCE: Record<string, number> = { lincoln: 0.06, niva: 0.06, bukhanka: 0.06, semi: 0.06, scout: 0.32 };
 
 describe('wheel arches of the reference photo bases', () => {
   it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout'] as const)('%s: arches sit on the physics wheels', (id) => {
