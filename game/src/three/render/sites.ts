@@ -331,29 +331,18 @@ function addSconces(b: SiteBuilder, site: Site, all: Placed[]): void {
   }
 }
 
-function gateSpot(site: Site, fort: FortGate): (reach: number, side: number) => { x: number; z: number } {
-  const { face, out } = fort;
-  return (reach, side) => ({ x: face.x - site.pos.x + out.x * reach - out.y * side, z: face.y - site.pos.y + out.y * reach + out.x * side });
-}
-
-function hangGateLamps(b: SiteBuilder, site: Site, fort: FortGate, base: number): THREE.Mesh[] {
-  const mount = lampMount(site, 'gate');
-  const a = Math.atan2(fort.out.y, fort.out.x);
-  const at = gateSpot(site, fort);
-  return [-1, 1].map((side) => {
-    const p = at(LAMP_REACH - mount.face, (side * fort.width) / 4);
-    const bracket = at(LAMP_REACH / 2 - mount.face, (side * fort.width) / 4);
-    b.addBracket(bracket.x, bracket.z, LAMP_REACH, mount.height, -a, base);
-    return b.addLampHead(p.x, p.z, mount.height, -a, base);
-  });
-}
-
 function dressGate(b: SiteBuilder, site: Site, fort: FortGate, guarded: boolean, base: number): void {
+  const mount = lampMount(site, 'gate');
   const { face, out, width, height } = fort;
   const a = Math.atan2(out.y, out.x);
-  const at = gateSpot(site, fort);
-  const heads = hangGateLamps(b, site, fort, base);
-  b.addLight('gate', heads[1], at(GATE_APRON_AIM, 0));
+  const at = (reach: number, side: number) => ({ x: face.x - site.pos.x + out.x * reach - out.y * side, z: face.y - site.pos.y + out.y * reach + out.x * side });
+  for (const side of [-1, 1]) {
+    const p = at(LAMP_REACH - mount.face, (side * width) / 4);
+    const bracket = at(LAMP_REACH / 2 - mount.face, (side * width) / 4);
+    b.addBracket(bracket.x, bracket.z, LAMP_REACH, mount.height, -a, base);
+    const head = b.addLampHead(p.x, p.z, mount.height, -a, base);
+    if (side === 1) b.addLight('gate', head, at(GATE_APRON_AIM, 0));
+  }
   if (!guarded) return;
   const lift = (x: number, z: number) => b.groundAt(face.x - site.pos.x, face.y - site.pos.y) - b.groundAt(x, z);
   const depth = FORTRESS_STYLES[fortressStyle(site)].gate.depth;
@@ -598,6 +587,15 @@ export function soleSegment(t: Terrain, deck: Deck): DeckSegment {
   return segments[0];
 }
 
+function gateTowerLamps(b: SiteBuilder, site: Site, fort: FortGate): THREE.Mesh[] {
+  const towers = fortressPieces(site).filter((p) => p.kind === 'tower' && Math.hypot(p.pos.x - fort.gate.x, p.pos.y - fort.gate.y) < fort.width);
+  const mount = lampMount(site, 'tower');
+  return towers.map((t) => {
+    const face = { x: t.pos.x - site.pos.x + fort.out.x * t.r, z: t.pos.y - site.pos.y + fort.out.y * t.r };
+    return b.addWallLamp(face, { x: fort.out.x, z: fort.out.y }, mount.height, b.groundAt(face.x, face.z));
+  });
+}
+
 export class HollowLamps {
   private readonly glass = new THREE.MeshLambertMaterial({ color: PAL.lamp.amber, flatShading: true });
   private readonly glow = new THREE.SpriteMaterial({ map: NIGHT_POOLS.haloMaterial.map, color: PAL.lamp.amber, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 });
@@ -605,7 +603,7 @@ export class HollowLamps {
   constructor(terrain: Terrain, scope: RenderScope) {
     const site = HOLLOW.site;
     const builder = new SiteBuilder(terrain, site);
-    const gateLamps = fortressGates(site).flatMap((fort) => hangGateLamps(builder, site, fort, heightAt(terrain, fort.face.x, fort.face.y)));
+    const gateLamps = fortressGates(site).flatMap((fort) => gateTowerLamps(builder, site, fort));
     const lanterns = HOLLOW.lanterns.map((l) => builder.addLantern(l.x, l.y, Math.atan2(l.y, -l.x)));
     for (const head of [...gateLamps, ...lanterns, builder.addFirePit(HOLLOW.fire.x, HOLLOW.fire.y)]) this.lightUp(head);
     scope.add(builder.root, site.pos, site.radius);
