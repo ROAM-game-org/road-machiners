@@ -14,7 +14,7 @@ import { playerVehicle } from '../sim/damage';
 import { groundSpeed, vehicleStats, type VehicleStats } from '../sim/stats';
 import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
 import { backsToDestination, driveMode, throughSpeed } from '../sim/steering';
-import { routeBlockers, standingBlockers, yieldsToTraffic } from '../sim/ai';
+import { givesWayTo, routeBlockers, standingBlockers, yieldsToTraffic } from '../sim/ai';
 import { clearanceFor, type Clearance, type Mover } from '../sim/clearance';
 import { combatFoesOf } from '../sim/combat';
 import { ropeClientOf } from '../sim/tow';
@@ -793,7 +793,7 @@ function watchClearance(c: Car, at: Vec, heading: number, speed: number, dest: V
 
 function avoidOf(w: World, v: Vehicle): Set<string> {
   const client = ropeClientOf(w, v.id);
-  return new Set([v.id, ...(v.brain?.ramTarget ? [v.brain.ramTarget] : []), ...(client ? [client] : []), ...combatFoesOf(w, v)]);
+  return new Set([v.id, ...(v.brain?.ramTarget ? [v.brain.ramTarget] : []), ...(client ? [client] : []), ...combatFoesOf(w, v), ...w.vehicles.filter((x) => givesWayTo(w, x, v)).map((x) => x.id)]);
 }
 
 function moversNear(c: Car, from: Vec, reach: number, seconds: number): Mover[] {

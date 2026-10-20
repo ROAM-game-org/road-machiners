@@ -10,7 +10,7 @@ import { isMounted } from './grid';
 import { hasCargo } from './salvage';
 import { addState, stateOf } from './states';
 import { isHostile } from './combat';
-import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, sizedUp, testDrive } from './testkit';
 import { endTurn } from './world';
 import { refreshVision } from './vision';
 import { lineKey } from '../text/names';
@@ -38,6 +38,7 @@ function ambush(cargo: boolean, fullRobber = false): { w: World; raider: Vehicle
   raider.brain = npcBrain('buggy', raider.pos, ['raider']);
   raider.resources!.money = 0;
   if (fullRobber) while (cargoRoom(raider) > 0) addGoods(w, raider, 'scrap', 1);
+  sizedUp(w, raider, playerVehicle(w));
   forceOption('hostileSeen', 'fight');
   forceOption('mugging', 'demand');
   return { w, raider };
@@ -145,6 +146,7 @@ describe('a robber truce with a price', () => {
     for (const y of [28, 32]) addVehicle(w, 'independent', 'buggy', ['stockEngine', 'mg'], { x: 40, y }, Math.PI).brain = npcBrain('scavenger', { x: 40, y }, ['scavenger']);
     addState(w, 'feud', robber.id, w.player.vehicleId, { kind: 'feud', robbery: true });
     addState(w, 'feud', w.player.vehicleId, robber.id, { kind: 'feud', robbery: false });
+    sizedUp(w, robber, playerVehicle(w));
     refreshVision(w);
     return { w, robber };
   }

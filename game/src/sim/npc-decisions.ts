@@ -24,9 +24,9 @@ import { sensesOf } from './detect';
 import { affordableBuyCount, getTradePrice, getUpkeepReserve } from './economy';
 export { getUpkeepReserve } from './economy';
 import { cargoRoom } from './inventory';
-import { cargoValue } from './market';
+import { hasPerceivedLoot, knowsCargo, perceivedLoad } from './look-over';
 import { maxHp } from './wear';
-import { corePart, freeCells, hasLoot, mountedParts } from './grid';
+import { corePart, freeCells, mountedParts } from './grid';
 import { hasRansom, ransomOf } from './haul';
 import { hasCargoRoom } from './inventory';
 import { topGoal } from './npc-activities';
@@ -495,7 +495,7 @@ export function travelSitesAway(vehicle: Vehicle) {
 }
 
 export function canRob(w: World, robber: Vehicle, target: Vehicle): boolean {
-  if (robber.id === target.id || !isRobbable(w, target) || inCombatWithOther(w, target, robber.id)) return false;
+  if (robber.id === target.id || !isRobbable(w, robber, target) || inCombatWithOther(w, target, robber.id)) return false;
   return isFairGame(w, robber, target) && canVehicleSee(w, robber, target.pos);
 }
 
@@ -504,8 +504,17 @@ function isFairGame(w: World, robber: Vehicle, target: Vehicle): boolean {
   return !(isRaider(robber) && isOutlaw(target.faction)) && !bandAtLeast(bandToward(w, robber, target), 'friendly');
 }
 
-function isRobbable(w: World, target: Vehicle): boolean {
-  return hasLoot(target) && !isKnockedOut(target) && !isOnRope(w, target.id);
+function isRobbable(w: World, robber: Vehicle, target: Vehicle): boolean {
+  return hasPerceivedLoot(w, robber, target) && !isKnockedOut(target) && !isOnRope(w, target.id);
+}
+
+function canWarn(world: World, _vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
+  return decision !== 'lookedOver' || (subject === world.player.vehicleId && modeRules(world).radio);
+}
+
+function canRobSized(world: World, robber: Vehicle, target: Vehicle): boolean {
+  if (!knowsCargo(world, robber, target) || !isRobbable(world, robber, target) || inCombatWithOther(world, target, robber.id)) return false;
+  return huntsForLoot(world, robber, target) || canRob(world, robber, target);
 }
 
 type Availability = (world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null) => boolean;
@@ -547,8 +556,9 @@ function canDrive(world: World, vehicle: Vehicle): boolean {
 }
 
 function canRobSubject(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
-  if (isStranded(world, vehicle) || !traitsAllowRobbing(vehicle)) return false;
-  return firepower(world, vehicle) > 0 && canRob(world, vehicle, subjectOf(world, decision, subject));
+  if (isStranded(world, vehicle) || !traitsAllowRobbing(vehicle) || firepower(world, vehicle) <= 0) return false;
+  const target = subjectOf(world, decision, subject);
+  return decision === 'sizedUp' ? canRobSized(world, vehicle, target) : canRob(world, vehicle, target);
 }
 
 function traitsAllowRobbing(vehicle: Vehicle): boolean {
@@ -672,7 +682,8 @@ const AVAILABLE: Record<OptionName, Availability> = {
   decline: always,
   give: canSpareSubject,
   aid: canSpareSubject,
-  warn: always,
+  warn: canWarn,
+  keepAway: canDrive,
   leave: always,
   tale: (world, vehicle) => encounterAvailable(world, vehicle, 'tale'),
   tip: (world, vehicle) => encounterAvailable(world, vehicle, 'tip'),
@@ -729,15 +740,22 @@ export function lootAppeal(value: number, curve: AppealCurve): number {
 }
 
 function appealOf(world: World, vehicle: Vehicle, target: Vehicle, curve: AppealCurve): number {
-  return stateOf(world, 'revenge', vehicle.id, target.id) ? 1 : lootAppeal(cargoValue(target), curve);
+  return stateOf(world, 'revenge', vehicle.id, target.id) ? 1 : lootAppeal(perceivedLoad(world, vehicle, target), curve);
 }
 
 function robFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   const target = subjectOf(world, decision, subject);
+  if (decision === 'sizedUp' && huntsForLoot(world, vehicle, target)) return raidFactor(world, vehicle, target, danger);
   const seen = danger === null ? null : danger * (1 + skillEffect(world, target, 'social', 'robberyDanger'));
   const stronger = seen !== null && seen >= npcProfile(vehicle).boldness;
   const appeal = appealOf(world, vehicle, target, NPC_BEHAVIOR.lootAppeal.rob);
   return (stronger ? NPC_BEHAVIOR.robStronger : 1) * appeal * guardFactor(vehicle, target, NPC_BEHAVIOR.robNearGuards);
+}
+
+function raidFactor(world: World, vehicle: Vehicle, target: Vehicle, danger: number | null): number {
+  const eager = danger !== null && isManageable(vehicle, danger);
+  const appeal = appealOf(world, vehicle, target, huntCurve(vehicle));
+  return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * guardFactor(vehicle, target, NPC_BEHAVIOR.fightNearGuards);
 }
 
 function guardFactor(vehicle: Vehicle, subject: Vehicle, nearGuards: number): number {
@@ -751,7 +769,7 @@ export function huntCurve(vehicle: Vehicle): AppealCurve {
 
 export function passReason(world: World, hunter: Vehicle, other: Vehicle, danger: number): PassReason {
   if (!huntsPrey(hunter)) throw new Error(`${hunter.id} is not a raider, so it has no pass reason`);
-  if (!hasLoot(other) && !inFeud(world, hunter, other)) return 'nothing';
+  if (!hasPerceivedLoot(world, hunter, other) && !inFeud(world, hunter, other)) return 'nothing';
   if (inCombatWithOther(world, hunter, other.id)) return 'busy';
   if (!isManageable(hunter, danger)) return 'outgunned';
   return appealOf(world, hunter, other, huntCurve(hunter)) < 1 ? 'poorLoad' : 'chance';
@@ -812,7 +830,7 @@ function refuseFactor(world: World, vehicle: Vehicle, _decision: DecisionId, sub
 function robs(world: World, vehicle: Vehicle, subject: string | null): boolean {
   if (subject === null) return false;
   const target = vehicleById(world, subject);
-  return robbing(world, vehicle.id, target.id) || (isRaider(vehicle) && !isOutlaw(target.faction) && hasLoot(target));
+  return robbing(world, vehicle.id, target.id) || (isRaider(vehicle) && !isOutlaw(target.faction) && hasPerceivedLoot(world, vehicle, target));
 }
 
 export function wantsLoot(world: World, vehicle: Vehicle, target: Vehicle): boolean {
@@ -820,7 +838,7 @@ export function wantsLoot(world: World, vehicle: Vehicle, target: Vehicle): bool
 }
 
 export function holdsUp(world: World, robber: Vehicle, prey: Vehicle, danger: number | null): boolean {
-  return wantsLoot(world, robber, prey) && hasRansom(ransomOf(world, robber, prey)) && !wantsPeace(world, robber, danger);
+  return wantsLoot(world, robber, prey) && knowsCargo(world, robber, prey) && hasRansom(ransomOf(world, robber, prey)) && !wantsPeace(world, robber, danger);
 }
 
 export function robbedFor(world: World, vehicle: Vehicle, target: Vehicle): boolean {
@@ -919,6 +937,7 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   give: neutral,
   aid: neutral,
   warn: neutral,
+  keepAway: neutral,
   leave: leaveFactor,
   tale: neutral,
   tip: neutral,
@@ -988,6 +1007,8 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   contactHeard: 'response',
   attacked: 'response',
   preySeen: 'venture',
+  sizedUp: 'venture',
+  lookedOver: 'response',
   strandedSeen: 'venture',
   salvageSeen: 'venture',
   patchDeal: 'response',

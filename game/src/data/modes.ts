@@ -14,7 +14,7 @@ const RUN: ModeRules = { traffic: false, looting: false, npcKnockouts: true, pla
 
 export const GAME_MODES: Record<GameModeId, GameMode> = {
   roaming: { rules: OPEN_WORLD, kit: null, map: 'icarus', opening: null },
-  furyRoad: { rules: RUN, kit: 'furyRoad', map: 'highway', opening: GAME_OPENED_QUESTS.roadHire },
+  furyRoad: { rules: RUN, kit: 'furyRoad', map: 'highway', opening: GAME_OPENED_QUESTS.chaosHighwayIntro },
 };
 
 export type WorldSettingDef = { default: number; min: number; max: number; step: number; modes: readonly GameModeId[] };

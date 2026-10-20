@@ -6,7 +6,7 @@ import { FEMALE_NAMES, FIRST_NAMES, NPCS, SURNAMES, TRAITS } from '../data/npcs'
 import { PARTS } from '../data/parts';
 import { DIRECTIONS, RADIO_VARIANTS } from '../data/radio';
 import { REGION } from '../data/region';
-import { PERK_IDS, SKILL_IDS } from '../data/skills';
+import { BASIC_IDS, PERK_IDS, SKILL_IDS } from '../data/skills';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { EN } from './en';
 import { RU } from './ru';
@@ -27,6 +27,7 @@ const REQUIRED: [string, string[]][] = [
   ['trait', ids(TRAITS).map((id) => `trait.${id}`)],
   ['skill', SKILL_IDS.flatMap((id) => [`skill.${id}`, `skill.${id}.grows`])],
   ['perk', PERK_IDS.flatMap((id) => [`perk.${id}`, `perk.${id}.rule`])],
+  ['basic', BASIC_IDS.flatMap((id) => [`basic.${id}`, `basic.${id}.rule`])],
   ['radio line', LINE_IDS.map((id) => `line.${id}`)],
   ['broadcast', Object.entries(RADIO_VARIANTS).flatMap(([topic, n]) => Array.from({ length: n }, (_, i) => `radio.${topic}.${i}`))],
   ['direction', DIRECTIONS.flatMap((d) => [`radio.basin.${d}`, `radio.heading.${d}`])],

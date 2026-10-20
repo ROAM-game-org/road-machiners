@@ -19,7 +19,7 @@ import { aimAt, offeredSurrenderBy, plead } from './parley';
 import { addState, stateOf } from './states';
 import { topGoal } from './npc-activities';
 import { chooseOn } from './tracks';
-import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, sizedUp, testDrive } from './testkit';
 import type { GridItem, Vehicle, World } from './types';
 import { endTurn } from './world';
 import { lineKey } from '../text/names';
@@ -35,6 +35,7 @@ function strandedAmbush(): { w: World; raider: Vehicle } {
   w.player.fuel = 0;
   const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 30 }, Math.PI);
   raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+  sizedUp(w, raider, playerVehicle(w));
   forceOption('hostileSeen', 'fight');
   return { w, raider };
 }

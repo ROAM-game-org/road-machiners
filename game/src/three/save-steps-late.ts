@@ -1,4 +1,4 @@
-import { dropQuestVar, renameQuestVar, type SavedJson } from './save-migrations';
+import { dropQuest, dropQuestVar, moveQuestCheckpoint, renameQuestVar, type SavedJson } from './save-migrations';
 
 type Point_70_71 = { x: number; y: number };
 
@@ -96,22 +96,22 @@ export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }
 
-const SEMI_89_90 = 'semi';
-const TRACTOR_AHEAD_TILES_89_90 = 5.7375 / 4;
+const SEMI_92_93 = 'semi';
+const TRACTOR_AHEAD_TILES_92_93 = 5.7375 / 4;
 
-export function withTractorPivot_89_90(world: SavedJson): SavedJson {
-  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_89_90 ? { ...v, pos: tractorAt_89_90(v.pos as Point_89_90, v.heading as number), bend: 0 } : v));
+export function withTractorPivot_92_93(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_92_93 ? { ...v, pos: tractorAt_92_93(v.pos as Point_92_93, v.heading as number), bend: 0 } : v));
   const obstacles = (world.obstacles as SavedJson[]).map((o) => {
     const hulk = o.hulk as SavedJson | undefined;
-    return hulk?.chassisId === SEMI_89_90 ? { ...o, pos: tractorAt_89_90(o.pos as Point_89_90, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
+    return hulk?.chassisId === SEMI_92_93 ? { ...o, pos: tractorAt_92_93(o.pos as Point_92_93, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
   });
   return { ...world, vehicles, obstacles };
 }
 
-type Point_89_90 = { x: number; y: number };
+type Point_92_93 = { x: number; y: number };
 
-function tractorAt_89_90(pos: Point_89_90, heading: number): Point_89_90 {
-  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_89_90, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_89_90 };
+function tractorAt_92_93(pos: Point_92_93, heading: number): Point_92_93 {
+  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_92_93, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_92_93 };
 }
 
 export function withProgressAnchor_65_66(world: SavedJson): SavedJson {
@@ -213,4 +213,47 @@ export function withEncounters_64_65(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   if (player.encounters !== undefined) return world;
   return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
+}
+
+const STAPLE_SHOPS_83_84 = ['bowl', 'nose'];
+const STAPLE_PART_83_84 = 'stockEngine';
+type SavedShop = { stock: { defId: string }[]; restockAt: number };
+
+export function withStapleRestock_83_84(world: SavedJson): SavedJson {
+  const shops = { ...(world.shops as Record<string, SavedShop>) };
+  for (const id of STAPLE_SHOPS_83_84) {
+    const shop = shops[id];
+    if (shop && !shop.stock.some((part) => part.defId === STAPLE_PART_83_84)) shops[id] = { ...shop, restockAt: world.turn as number };
+  }
+  return { ...world, shops };
+}
+
+const DROPPED_ROAD_WORLD_VARS_90_91: readonly string[] = ['road_seen_12', 'ring_told', 'death_answer', 'why_answer', 'ala_knows', 'father_told', 'promised', 'hand_shook'];
+
+const DROPPED_ROAD_LOCAL_VARS_90_91: Record<string, readonly string[]> = {
+  road_hire: ['asked_north', 'asked_who', 'asked_trailer', 'walked_out'],
+  road_stretch_4: ['asked_trailer', 'asked_north', 'asked_hunters'],
+  road_stretch_8: ['asked_hunters', 'asked_run', 'grief_said'],
+};
+
+const DROPPED_ROAD_CHECKPOINTS_90_91: Record<string, readonly string[]> = {
+  road_stretch_1: ['start.tougher', 'start.close'],
+  road_stretch_4: ['start.death_machine', 'start.hub', 'start.maya'],
+  road_stretch_8: ['start.news', 'start.loss', 'start.hub', 'start.close'],
+};
+
+export function withShortRoadScenes_90_91(world: SavedJson): SavedJson {
+  const withoutScene = dropQuest(world, 'road_stretch_12');
+  const withoutWorldVars = DROPPED_ROAD_WORLD_VARS_90_91.reduce((w, name) => dropQuestVar(w, null, name), withoutScene);
+  const withoutLocalVars = Object.entries(DROPPED_ROAD_LOCAL_VARS_90_91).reduce((w, [quest, names]) => names.reduce((v, name) => dropQuestVar(v, quest, name), w), withoutWorldVars);
+  return Object.entries(DROPPED_ROAD_CHECKPOINTS_90_91).reduce((w, [quest, names]) => names.reduce((v, from) => moveQuestCheckpoint(v, quest, from, 'start'), w), withoutLocalVars);
+}
+
+export function withChaosHighwayIntro_91_92(world: SavedJson): SavedJson {
+  const withoutScenes = ['road_hire', 'road_stretch_4', 'road_stretch_8'].reduce((w, quest) => dropQuest(w, quest), world);
+  const withoutVars = ['geezer_pitch', 'road_seen_4', 'road_seen_8'].reduce((w, name) => dropQuestVar(w, null, name), withoutScenes);
+  const quests = (world.player as { quests: { session: { quest: string; checkpoint: string; seed: number } | null } }).quests;
+  if (quests.session?.quest !== 'road_hire') return withoutVars;
+  const player = withoutVars.player as { quests: SavedJson };
+  return { ...withoutVars, player: { ...player, quests: { ...player.quests, session: { ...quests.session, quest: 'chaos_highway_intro', checkpoint: 'start' } } } };
 }

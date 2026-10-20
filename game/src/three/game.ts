@@ -76,7 +76,6 @@ import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
 import { daylightAt, enableSunShadows, lightScene, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
-import { markError, markVehicle } from "../sim/detect";
 import { ContactsView } from "./render/contacts";
 import { CloudViews } from "./render/clouds";
 import type { TurnClock } from "./render/hazards";
@@ -332,7 +331,7 @@ export class Game {
       dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
       recenter: () => this.runKey("KeyF"),
       unpin: () => this.unpin(),
-      markInspected: () => this.markInspected(),
+      cardAction: (action) => this.context.onCard(action, this.inspected()),
       ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
     }, radio);
     minimapSetting().subscribe(() => this.syncMinimap());
@@ -590,7 +589,8 @@ export class Game {
     KeyO: { run: () => this.controls.toggleOverdrive(), noModal: true, idle: true },
     KeyG: { run: () => this.controls.douseEngine(), noModal: true, idle: true },
     KeyL: { run: () => this.controls.toggleHeadlights(), noModal: true },
-    KeyN: { run: () => this.markInspected(), noModal: true, idle: true },
+    KeyN: { run: () => this.context.onCard('mark', this.inspected()), noModal: true, idle: true },
+    KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), noModal: true, idle: true },
     KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true },
     KeyK: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true },
     KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true },
@@ -600,11 +600,6 @@ export class Game {
 
   unpin(): void {
     this.pin.clear();
-  }
-
-  markInspected(): void {
-    const id = this.inspected();
-    if (id && !markError(this.world, id)) this.apply(markVehicle(this.world, id));
   }
 
   private selectUtility(id: string | null): void {
