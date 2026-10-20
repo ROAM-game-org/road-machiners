@@ -6,7 +6,7 @@ import { thinkNpc } from './npc-activities';
 import { answersHoldUp, hasStrippable, surrenderTo } from './parley';
 import { RULES } from '../data/rules';
 import { hasCargo } from './salvage';
-import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, sizedUp, testDrive } from './testkit';
 import type { Vehicle, World } from './types';
 import { endTurn } from './world';
 
@@ -22,6 +22,7 @@ function scene(preyGoods: Record<string, number>, fillRobber = 0) {
   prey.brain = npcBrain('trader', prey.pos, ['trader']);
   prey.resources!.money = 0;
   for (const [good, n] of Object.entries(preyGoods)) addGoods(w, prey, good, n);
+  sizedUp(w, robber, prey);
   return { w, robber, prey };
 }
 

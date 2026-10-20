@@ -411,7 +411,7 @@ function facesParked(world: World, v: Vehicle): boolean {
   });
 }
 
-function givesWayTo(world: World, giver: Vehicle, holder: Vehicle): boolean {
+export function givesWayTo(world: World, giver: Vehicle, holder: Vehicle): boolean {
   return giver.id < holder.id && givesWay(world, giver) && givesWay(world, holder) && closesOn(world, giver, holder, 0) && closesOn(world, holder, giver, 0);
 }
 

@@ -22,7 +22,6 @@ afterEach(() => {
   fakes = [];
 });
 
-// Reads the way the agent does in its container: over the job's unix socket, while the job runs.
 function reader(run: AgentRun): (path: string, method?: string) => Promise<{ code: number; text: string }> {
   const [host] = Object.keys(run.readOnly ?? {});
   return (path, method = 'GET') => new Promise((resolve, reject) => {

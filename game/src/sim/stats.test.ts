@@ -37,6 +37,7 @@ describe('worn parts in vehicle stats', () => {
 describe('the overdrive engine cutoff', () => {
   function wornEngine() {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     const me = w.vehicles[0];
     const engine = mountedParts(me, 'engine')[0];
     engine.wear = 2;
@@ -344,6 +345,7 @@ describe('max speed steps', () => {
       build: () => {
         const s = base(['stockEngine']);
         s.w.player.vehicleId = s.v.id;
+        s.w.player.ranks.driving = 1;
         s.w.player.overdrive = true;
         return s;
       },
@@ -463,6 +465,7 @@ describe('the acceleration scale', () => {
     const w = emptyWorld();
     const v = addVehicle(w, 'scrapjaw', 'scout', parts, { x: 40, y: 40 });
     w.player.vehicleId = v.id;
+    w.player.ranks.driving = 1;
     w.player.overdrive = overdrive;
     w.player.fuel = 999;
     return vehicleStats(w, v);

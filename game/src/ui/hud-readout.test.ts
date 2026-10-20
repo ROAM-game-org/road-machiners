@@ -628,6 +628,7 @@ describe('context picker', () => {
 describe('overdrive switch', () => {
   function wornTo(extra: number) {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     const engine = mountedParts(playerVehicle(w), 'engine')[0];
     engine.wear = 2;
     engine.hp = Math.floor(RULES.overdriveMinEngineShare * maxHp(engine)) + extra;
@@ -648,6 +649,13 @@ describe('overdrive switch', () => {
     expect({ checked: s.checked, reason: s.reason, title: en(s.title) }).toEqual({ checked: false, reason: null, title: 'Faster, but the engine heats fast' });
     w.player.overdrive = true;
     expect(overdriveSwitch(w).checked).toBe(true);
+  });
+
+  it('is locked at Driving 0 and names the rank it needs', () => {
+    const w = emptyWorld();
+    w.player.overdrive = true;
+    const s = overdriveSwitch(w);
+    expect({ checked: s.checked, locked: s.locked, reason: s.reason && en(s.reason) }).toEqual({ checked: false, locked: true, reason: 'Needs Driving 1' });
   });
 });
 

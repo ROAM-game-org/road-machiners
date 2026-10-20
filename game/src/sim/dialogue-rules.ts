@@ -19,7 +19,8 @@ import { recall, sightingOf } from './memory';
 import { askHandover, handoverWith, parcelFor } from './parcel';
 import { heardRumor, siteRumor, tradeTip, type Rumor } from './rumors';
 import { closeEncounter, encounterOfTopic, favorAmount, moveStory, pendingFor, requirePending, storyBeatDue, tipPrice, tipTarget } from './encounters';
-import { hasPerk, practice } from './progress';
+import { hasBasic, hasPerk, practice } from './progress';
+import { forgetLookWarning, knowsCargo, warnsOffLooker } from './look-over';
 import { abandonSpill, answerPlea, standDownBeggar, backOffClaims, defyClaims, guardsClaim, answersPlea, answersSurrender, offeredSurrenderBy, answersThreat, giveUpTo, handedOver, hasStrandedPrey, hasStrippable, judgedWorthOffer, makePeace, offersGiveUp, pendingPlea, playerPleaded, settlePlayerPlea, settleThreat, settleCashThreat, payOff, spillClaimOn, standDownTo, surrenderTo, yieldTo, type ThreatAnswer } from './parley';
 import { answerLootWarning, answerWarning, lootsBesidePlayer, pendingWarningTo, playerWarns, warnRefusalOf, type WarnAnswer } from './loot-warning';
 import { talkOf } from './dialogue';
@@ -38,10 +39,14 @@ import { bearing, dist, type Vec } from './vec';
 import { craterNews, giveWord, knowsTheCrater, prepareVigilCall, refuseVigil, vigilCallDue } from './sunward-crater';
 import { directionsTo } from './directions';
 
+function mayDemand(world: World, npc: Vehicle): boolean {
+  return world.player.talked[npc.id]?.demand === undefined && knowsCargo(world, npc, playerVehicle(world));
+}
+
 function demandsOnTop(world: World, npc: Vehicle, cargo: boolean): boolean {
   const top = topGoal(npc);
   if (top?.kind !== 'fight' || top.targetId !== world.player.vehicleId || top.demands !== true) return false;
-  if (world.player.talked[npc.id]?.demand !== undefined) return false;
+  if (!mayDemand(world, npc)) return false;
   const ransom = ransomOf(world, npc, playerVehicle(world));
   return cargo ? ransom.haul.length > 0 : ransom.haul.length === 0 && ransom.money > 0;
 }
@@ -313,6 +318,8 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   npcNeedsPatch: (world, npc) => needsPatch(world, npc) && !canFixItself(world, npc) && !inPatch(world, npc.id),
   npcWorn: (world, npc) => canTakeWornPatch(world, npc) && !canFixItself(world, npc) && !inPatch(world, npc.id) && !isTowing(world, npc.id) && !isStranded(world, playerVehicle(world)),
   npcOffRope: (world, npc) => !isOnRope(world, npc.id),
+  playerPatches: (world) => hasBasic(world, 'patching'),
+  lookWarned: (world, npc) => warnsOffLooker(world, npc),
   escortFollowed: (world, npc) => {
     const job = heldEscort(world);
     return job !== null && job.client === npc.id && job.holdUntil === null;
@@ -507,6 +514,13 @@ export const EFFECTS: Record<EffectId, Effect> = {
   hitchNpc: (world, npc) => hitchNpc(world, npc, false),
   hitchNpcFree: (world, npc) => hitchNpc(world, npc, true),
   releaseNpc: (world, npc) => releaseNpc(world, npc),
+  endLookWarning: (world, npc) => forgetLookWarning(world, npc),
+  answerLoadThreat: (world, npc, call) => {
+    const answer = threatAnswer(call);
+    settleThreat(world, npc, answer);
+    world.player.talked[npc.id] = { ...world.player.talked[npc.id], rob: answer === 'comply' ? 'agreed' : 'refused' };
+    if (answer === 'comply') practice(world, 'deal', 1, null, npc.id);
+  },
   settleThreat: (world, npc, call) => {
     const answer = threatAnswer(call);
     settleThreat(world, npc, answer);

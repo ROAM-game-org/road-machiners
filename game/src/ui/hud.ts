@@ -26,6 +26,7 @@ import {
   workLabel,
   workProgress,
   formatNpcCargo,
+  formatNpcLookOver,
   formatNpcMark,
   formatNpcTraits,
   formatVehicleState,
@@ -42,7 +43,8 @@ import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
-import { affordableRanks, pendingPerkPairs } from "../sim/progress";
+import { affordableRanks, basicSkill, hasBasic, pendingPerkPairs } from "../sim/progress";
+import { canLookOver } from "../sim/look-over";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
@@ -77,7 +79,12 @@ function actionTitle(action: ContextAction): Msg | undefined {
   return action.ready ? undefined : t("hud.stopToUse");
 }
 
-const douseMsg = (block: DouseBlock): Msg => (block === "noSupplies" ? t("hud.douseBlock.noSupplies", { n: ENGINE_HEAT.douseSupplies }) : t("hud.douseBlock.engineCool"));
+function douseMsg(w: World, block: DouseBlock | null): Msg | null {
+  if (block === null) return null;
+  if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("douse") });
+  if (block === "noSupplies") return t("hud.douseBlock.noSupplies", { n: ENGINE_HEAT.douseSupplies });
+  return t("hud.douseBlock.engineCool");
+}
 
 export const combatBlocked = (turns: number): Msg => t("hud.combatBlocked", { n: turns });
 
@@ -100,10 +107,11 @@ type HudActions = {
   dialogue: DialogueHost;
   recenter: () => void;
   unpin: () => void;
-  markInspected: () => void;
+  cardAction: (action: CardAction) => void;
   aimPart: (vehicleId: string, partId: string) => void;
   aimState: (vehicleId: string) => AimState;
 };
+export type CardAction = 'mark' | 'lookOver';
 export type CameraMode = "centered" | "auto";
 
 const TOAST_MS = 3500;
@@ -493,23 +501,29 @@ export class Hud {
       checked: od.checked,
       key: "O",
       reason: lock ?? od.reason,
+      locked: od.locked,
       title: od.title,
       onclick: () => this.actions.toggleOverdrive(),
     });
-    const douseBlocked = douseBlock(w);
-    const douseReason = lock ?? (douseBlocked === null ? null : douseMsg(douseBlocked));
-    const douse = el(
+    const douse = this.douseButton(w, lock);
+    return [headlights, overdrive, douse];
+  }
+
+  private douseButton(w: World, lock: Msg | null): HTMLElement {
+    const block = douseBlock(w);
+    const reason = lock ?? douseMsg(w, block);
+    return el(
       "button",
       {
         class: "instrument-button",
-        "aria-disabled": douseReason === null ? undefined : "true",
-        onclick: () => douseReason === null && this.actions.douseEngine(),
-        title: douseReason ?? keyLabel(t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }), "G"),
+        "aria-disabled": reason === null ? undefined : "true",
+        onclick: () => reason === null && this.actions.douseEngine(),
+        title: reason ?? keyLabel(t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }), "G"),
       },
+      block === "noBasic" ? createIcon("lock") : null,
       t("hud.douse"),
       keyCorner("G"),
     );
-    return [headlights, overdrive, douse];
   }
 
   private characterButton(w: World, busy: boolean): HTMLElement {
@@ -656,9 +670,15 @@ export class Hud {
     const own = v.faction === "player";
     const call = !own && v.brain && modeRules(w).radio ? [el("button", { class: "btn-s", ...disabledWith(callError(w, v.id), () => this.dialogue.callInspected()) }, t("card.call"))] : [];
     const refusal = markError(w, v.id);
-    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.markInspected()) }, t("card.mark"))];
+    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("mark")) }, t("card.mark"))];
     const close = el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: () => this.actions.unpin() }, t("hint.closeMark"));
-    return el("span", { class: "info-touch touch-only" }, ...call, ...mark, close);
+    return el("span", { class: "info-touch touch-only" }, ...call, ...this.lookOverButton(w, v), ...mark, close);
+  }
+
+  private lookOverButton(w: World, v: Vehicle): HTMLElement[] {
+    if (v.faction === "player" || !hasBasic(w, "lookOver")) return [];
+    const refusal = canLookOver(w, playerVehicle(w), v);
+    return [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("lookOver")) }, t("card.lookOver"))];
   }
 
   flushHorn(): void {
@@ -742,7 +762,7 @@ function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {
 
 function quietLines(w: World, v: Vehicle): Msg[] {
   if (!v.brain) return [];
-  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcMark(w, v)].filter((line) => line !== null);
+  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcLookOver(w, v), formatNpcMark(w, v)].filter((line) => line !== null);
 }
 
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {

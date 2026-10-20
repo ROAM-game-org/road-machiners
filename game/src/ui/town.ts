@@ -1,5 +1,5 @@
 
-import { ECONOMY, GOOD_IDS, PARCEL } from "../data/goods";
+import { ECONOMY, GOOD_IDS } from "../data/goods";
 import { CONTRACTS, SHOPS, SHORT_PRESSURE, shopDef, siteRecipes, type Recipe, type ShopDef } from "../data/market";
 import { RULES } from "../data/rules";
 import { partDef, type PartKind } from "../data/parts";
@@ -42,7 +42,7 @@ import {
 import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
-import { acceptContract, deliverContract, fitsFetch, goodStock, haulShort, isMet, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, fitsFetch, goodStock, haulShort, isMet, knowsMarket, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { PartInstance, RoadNews, Vehicle, World } from "../sim/types";
 import { onRelief, recipeRunning } from "../sim/production";
@@ -50,9 +50,10 @@ import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
-import { el, panel, type Child } from "./dom";
-import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, surveyClueLines, surveyHowTo, surveyPlacesLeft, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
+import { el, panel } from "./dom";
+import { escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
+import { contractRow } from "./contract-row";
 import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
 import { MapView, observeBox } from "./map-view";
 import { toPx, type Viewport } from "./map-geometry";
@@ -60,9 +61,9 @@ import { token } from "./tokens";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
 import type { UiHost } from "./host";
-import { coinEl, fuelLiters, kph, moneyEl, moneyMsg, moneyNum } from "./units";
-import { fuelCap, suppliesCap, vehicleStats } from "../sim/stats";
-import { list, num, PLUS, SPACE, t, type Msg } from "../text/msg";
+import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum } from "./units";
+import { fuelCap, suppliesCap } from "../sim/stats";
+import { list, num, SPACE, t, type Msg } from "../text/msg";
 import { ESCAPE, keyLabel } from "./input-mode";
 import { goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
@@ -285,7 +286,7 @@ export class TownScreen {
       "div",
       { class: "good-row row" },
       stockedGoodName(w, shopId, g),
-      this.stockedBuyCell(w, shopId, g, pressureHint(def, state, g), stock),
+      this.stockedBuyCell(w, shopId, g, marketHint(w, def, state, g), stock),
       el(
         "div",
         { class: "trade sell" },
@@ -296,7 +297,7 @@ export class TownScreen {
       ),
       countCell("stock", stock),
       countCell("held", held),
-      profitCell(saleEstimate(held, sell, w.player.costBasis[g])),
+      profitCell(tradeEstimate(w, held, sell, g)),
     );
   }
 
@@ -487,16 +488,6 @@ function escortRefusal(w: World, c: Contract): Msg | null {
   return t("contract.needsStronger", { win: Math.round(fit.win * 100), need: Math.round(fit.need * 100) });
 }
 
-function threatPips(threat: number): HTMLElement {
-  return el("div", { class: "skill-level threat", title: t("contract.threat", { n: threat }) }, ...Array.from({ length: 3 }, (_, i) => el("i", { class: i < threat ? "on" : "" })));
-}
-
-function escortDetail(w: World, c: Extract<Contract, { kind: "escort" }>): Child[] {
-  const trader = w.vehicles.find((v) => v.id === c.client);
-  if (!trader) return [];
-  return [el("span", {}, t("contract.trader", { who: vehicleName(w, c.client), n: kph(vehicleStats(w, trader).maxSpeed) })), threatPips(c.threat)];
-}
-
 function notReady(w: World, c: Contract): Msg {
   if (c.kind === "survey") return surveyPlacesLeft(c);
   if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
@@ -548,17 +539,6 @@ function stockCount(stock: PartInstance[], f: StockFilter): number {
   return f === "all" ? stock.length : stock.filter((p) => partDef(p.defId).kind === f).length;
 }
 
-const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
-  haul: () => createIcon("cargo"),
-  fetch: () => createIcon("parts"),
-  claim: () => createIcon("parts"),
-  bounty: () => createBareItemIcon("cannon"),
-  search: () => createBareItemIcon(PARCEL.id),
-  survey: () => createIcon("scanner"),
-  escort: () => createIcon("truck"),
-  rescue: () => createIcon("truck"),
-};
-
 const PROFIT_TONE = { gain: "better", loss: "worse", even: "same" } as const;
 
 function goodsHead(withTheirs: boolean, withStock = false): HTMLElement {
@@ -588,38 +568,18 @@ function countCell(cls: "theirs" | "held" | "stock", n: number, text: Msg = num(
   return el("div", { class: `count ${cls}` }, caption(GOODS_COLUMNS[cls]), el("span", { class: n === 0 ? "num dim" : "num" }, text));
 }
 
+export function marketHint(w: World, def: ShopDef, state: ShopState, good: string): PriceHint | null {
+  return knowsMarket(w) ? pressureHint(def, state, good) : null;
+}
+
+export function tradeEstimate(w: World, held: number, sell: number, good: string): SaleEstimate {
+  return knowsMarket(w) ? saleEstimate(held, sell, w.player.costBasis[good]) : { kind: "none" };
+}
+
 function profitCell(e: SaleEstimate): HTMLElement {
   if (e.kind === "none") return el("div", { class: "profit" });
   const tone = e.kind === "unrecorded" ? "dim" : `delta ${PROFIT_TONE[e.kind]}`;
   return el("div", { class: "profit", title: estimateTitle(e) }, caption(GOODS_COLUMNS.profit, true), el("span", { class: `num ${tone}` }, estimateText(e)));
-}
-
-function surveyLine(c: Contract): HTMLElement | null {
-  return c.kind === "survey" ? el("span", { class: "dim" }, ...surveyClueLines(c), surveyHowTo(c)) : null;
-}
-
-function escortClock(w: World, c: Extract<Contract, { kind: "escort" }>, posted: boolean): HTMLElement {
-  if (posted) return el("span", { class: "price", title: t("contract.leavesTitle", { n: Math.max(0, c.deadline - w.turn) }) }, createIcon("clock"), escortLeaves(c));
-  const status = escortStatusText(w, c);
-  return status ? el("span", { class: "price dim", title: heldContractDue(c) }, createIcon("clock"), status) : el("span", {});
-}
-
-function contractRow(w: World, c: Contract, action: HTMLElement, posted = false): HTMLElement {
-  const met = isMet(c);
-  const clock = c.kind === "escort" ? escortClock(w, c, posted) : posted
-    ? el("span", { class: "price", title: t("contract.windowTitle", { n: c.window }) }, createIcon("clock"), contractWindow(c))
-    : el("span", { class: "price", title: met ? undefined : t("contract.dueTitle", { n: c.deadline - w.turn }) }, createIcon("clock"), heldContractDue(c));
-  return el(
-    "div",
-    { class: "job" },
-    CONTRACT_ICON[c.kind](),
-    c.kind === "escort" && posted
-      ? el("div", { class: "job-what" }, el("span", {}, contractSummary(c)), el("div", { class: "job-detail dim" }, ...escortDetail(w, c)))
-      : contractSummaryCell(w, c),
-    el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
-    clock,
-    action,
-  );
 }
 
 function haulStockReason(w: World, c: Contract): Msg | null {
@@ -700,12 +660,6 @@ function newsRow(w: World, n: RoadNews): HTMLElement {
     el("span", {}, t("news.route", { from: siteName(n.from), to: siteName(n.to) })),
     el("span", { class: "num dim" }, t("news.ago", { h: gameHours(w.turn - n.turn) })),
   );
-}
-
-function contractSummaryCell(w: World, c: Contract): HTMLElement {
-  if (c.kind !== "rescue") return el("span", {}, contractSummary(c), surveyLine(c), claimRivalMark(w, c));
-  const need = el("span", { class: "tag", title: t("contract.rescueAlt") }, t(`contract.need.${c.need}`));
-  return el("span", {}, need, SPACE, contractSummary(c), c.fulfilled ? null : el("div", { class: "dim" }, rescueWhere(c)));
 }
 
 export function pressureHint(def: ShopDef, state: ShopState, good: string): PriceHint | null {
@@ -883,7 +837,7 @@ export class TruckTradeScreen {
         this.button(t("trade.all"), (x) => sellTruckGood(x, npc.id, g, held), sellReason(held), `${g}:sellAll`),
       ),
       countCell("held", held),
-      profitCell(saleEstimate(held, sell, w.player.costBasis[g])),
+      profitCell(tradeEstimate(w, held, sell, g)),
     );
   }
 

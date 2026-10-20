@@ -6,14 +6,17 @@ import { handOverParcel, readyHandover } from "../sim/parcel";
 import { playerVehicle } from "../sim/damage";
 import { canDouse, douseEngine } from "../sim/engine-heat";
 import { isBusy } from "../sim/jobs";
-import { canOverdrive, inOverdrive } from "../sim/stats";
+import { inOverdrive, overdriveBlock } from "../sim/stats";
 import { canLoot, canScavenge, scavenge } from "../sim/locations";
 import { startSurvey } from "../sim/survey";
 import { shopAt } from "../sim/market";
 import { reachedOutpostAt } from "../sim/fury-road";
 import type { World } from "../sim/types";
-import { playerCanAct, setAutoRepair, setDirect, setHeadlights, setOverdrive } from "../sim/world";
-import { type ContextAction, type ContextTarget } from "../ui/hud";
+import { playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setOverdrive } from "../sim/world";
+import { markError, markVehicle } from "../sim/detect";
+import { lookOver } from "../sim/look-over";
+import { hasBasic } from "../sim/progress";
+import { type CardAction, type ContextAction, type ContextTarget } from "../ui/hud";
 import { ContextPicker, getContextActions } from "../ui/hud-readout";
 
 export type ControlsHost = {
@@ -45,7 +48,7 @@ export class TruckControls {
     if (!playerCanAct(w)) return;
     const me = playerVehicle(w);
     const on = !inOverdrive(w, me);
-    if (on && !canOverdrive(me)) return;
+    if (on && overdriveBlock(w, me) !== null) return;
     this.host.apply(setOverdrive(w, on));
     this.host.refreshPlan();
     if (on) this.host.revved();
@@ -90,6 +93,22 @@ export class TruckContext {
 
   cycle(step: 1 | -1): void {
     this.picker.cycle(getContextActions(this.host.world(), this.host.playing()), step);
+  }
+
+  onCard(action: CardAction, id: string | null): void {
+    const w = this.host.world();
+    if (!id) return;
+    if (action === 'mark' && !markError(w, id)) this.host.apply(markVehicle(w, id));
+    if (action === 'lookOver' && hasBasic(w, 'lookOver')) this.refusable(() => lookOver(w, id));
+  }
+
+  private refusable(next: () => World): void {
+    try {
+      this.host.apply(next());
+    } catch (err) {
+      if (!(err instanceof Refused)) throw err;
+      this.host.note(refusalText(this.host.world(), err.refusal));
+    }
   }
 
   use(): void {

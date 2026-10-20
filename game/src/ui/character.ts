@@ -1,6 +1,6 @@
-import { MAX_RANK, PERK_LEVELS, type PerkId, SKILL_IDS, XP_RULES } from '../data/skills';
+import { BASIC_RANK, BASICS, MAX_RANK, PERK_LEVELS, type PerkId, SKILL_IDS, XP_RULES } from '../data/skills';
 import { maxHealthOf } from '../sim/health';
-import { buyRank, canBuyRank, choosePerk, hasPerk, pendingPerkPairs, perkPair, type PerkPair, rankCost, xpTodayOf } from '../sim/progress';
+import { buyRank, canBuyRank, choosePerk, hasBasic, hasPerk, pendingPerkPairs, perkPair, type PerkPair, rankCost, xpTodayOf } from '../sim/progress';
 import type { SkillId, World } from '../sim/types';
 import { createIcon, type IconName } from './cards';
 import { disabledWith, el, panel } from './dom';
@@ -9,7 +9,7 @@ import { standingNum, standingStep } from './format';
 import { hp } from './units';
 import { num, t, type Msg } from '../text/msg';
 import { keyLabel } from './input-mode';
-import { factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
+import { basicName, basicRule, factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
 import { hasExplorationMap, modeRules } from '../sim/settings';
 import { MapTab } from './map-tab';
@@ -92,6 +92,7 @@ export class CharacterScreen {
         el('div', { class: 'skill-head' },
           el('span', { class: 'skill-name-col' }, t('character.colSkill')),
           el('span', {}, t('character.colRank')),
+          el('span', {}, t('character.colBasic', { rank: BASIC_RANK })),
           ...PERK_LEVELS.map((level) => el('span', {}, t('character.colPerk', { rank: level }))),
           el('span', {}, t('character.colToday', { cap: XP_RULES.dailyCap })),
           el('span', {}),
@@ -110,6 +111,7 @@ export class CharacterScreen {
       el('span', { class: 'skill-name', title: t('character.grows', { what: skillGrows(id) }) }, createIcon(SKILL_ICON[id]), skillName(id)),
       el('div', { class: 'skill-level', title: t('character.rankOf', { rank, max: MAX_RANK }) },
         ...Array.from({ length: MAX_RANK }, (_, i) => el('i', { class: i < rank ? 'on' : '' }))),
+      basicCell(world, id),
       ...PERK_LEVELS.map((level) => this.perkCell(world, perkPair(id, level), open.some((o) => o.level === level), level)),
       el('div', { class: 'skill-today' },
         el('div', { class: 'meter progress' }, el('div', { style: `width:${Math.min(today / XP_RULES.dailyCap, 1) * 100}%` })),
@@ -146,6 +148,11 @@ export class CharacterScreen {
     }, el('b', {}, perkName(id)), el('span', {}, perkRule(id)));
     return el('div', { class: 'perk-cell perk-choice' }, rank, ...pair.perks.map(button));
   }
+}
+
+function basicCell(world: World, skill: SkillId): HTMLElement {
+  const basic = BASICS[skill];
+  return el('div', { class: `perk-cell basic-cell ${hasBasic(world, basic) ? 'picked' : 'locked'}`, title: basicRule(basic) }, basicName(basic));
 }
 
 function standingGroup(world: World): HTMLElement {

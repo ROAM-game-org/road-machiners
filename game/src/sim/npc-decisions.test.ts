@@ -14,7 +14,7 @@ import { noteHurt, thinkNpc, topGoal } from './npc-activities';
 import { chooseOn, trackOf } from './tracks';
 import { addState, endState, stateOf } from './states';
 import { playerVehicle } from './damage';
-import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, sizedUp } from './testkit';
 import { watchPost } from './watch-posts';
 import type { TraitId } from '../data/npcs';
 import type { Faction, Vehicle, World } from './types';
@@ -660,7 +660,7 @@ describe('a driver that gave its word', () => {
     expect(npc.brain!.noticed).not.toHaveProperty([`preySeen:${passer.id}`]);
     endState(w, stateOf(w, 'trade', npc.id, me.id)!, 'fulfilled');
     thinkNpc(w, npc);
-    expect(topGoal(npc)).toMatchObject({ kind: 'fight', targetId: passer.id });
+    expect(topGoal(npc)).toMatchObject({ kind: 'sizeUp', targetId: passer.id });
   });
 
   it('still reacts to a hostile in sight', () => {
@@ -726,6 +726,7 @@ describe('holdsUp', () => {
     const robber = addNpc(w, 'independent', 'scavenger', ['scavenger', 'scumbag'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
     addState(w, 'feud', robber.id, me.id, { kind: 'feud', robbery });
     addGoods(w, me, 'scrap', 2);
+    sizedUp(w, robber, me);
     return { w, me, robber, up: () => holdsUp(w, robber, me, judgeDanger(w, robber, me)) };
   };
 
@@ -738,6 +739,8 @@ describe('holdsUp', () => {
     const me = find(w, w.player.vehicleId);
     const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
     addGoods(w, me, 'scrap', 2);
+    expect(holdsUp(w, raider, me, judgeDanger(w, raider, me))).toBe(false);
+    sizedUp(w, raider, me);
     expect(holdsUp(w, raider, me, judgeDanger(w, raider, me))).toBe(true);
   });
 
