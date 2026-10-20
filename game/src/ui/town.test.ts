@@ -94,7 +94,7 @@ describe("the paint row", () => {
   it("offers a repaint only for a pick that differs from the current paint", () => {
     expect(livePaintPick("standard", null)).toBeNull();
     expect(livePaintPick("standard", "standard")).toBeNull();
-    expect(livePaintPick("standard", "sky")).toBe("sky");
-    expect(livePaintPick("sky", "sky")).toBeNull();
+    expect(livePaintPick("standard", "mint")).toBe("mint");
+    expect(livePaintPick("mint", "mint")).toBeNull();
   });
 });

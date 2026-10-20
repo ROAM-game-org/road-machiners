@@ -49,7 +49,7 @@ describe('readCarried', () => {
   });
 
   it('reads the saved paint job, and none from a save without one', () => {
-    expect(readCarried({ world: { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: 'sky' } } }).paint).toBe('sky');
+    expect(readCarried({ world: { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: 'mint' } } }).paint).toBe('mint');
     expect(readCarried({ world: FORMAT_2_9 }).paint).toBeNull();
     expect(readCarried({ world: { player: { paint: 7 } } }).paint).toBeNull();
   });

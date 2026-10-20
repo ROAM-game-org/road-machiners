@@ -42,10 +42,10 @@ describe('a paint job', () => {
   it('refuses a player who cannot pay and changes nothing', () => {
     const w = atBowl();
     w.player.money = paintPrice(w) - 1;
-    expect(() => repaint(w, 'sky')).toThrow(Refused);
+    expect(() => repaint(w, 'mint')).toThrow(Refused);
     expect(w.player.paint).toBe(PAINT.standard);
     w.player.money = paintPrice(w);
-    expect(repaint(w, 'sky').player.money).toBe(0);
+    expect(repaint(w, 'mint').player.money).toBe(0);
   });
 
   it('throws away from a town, on an unknown paint and on the current paint', () => {

@@ -405,16 +405,16 @@ export function chassisDef(id: string): ChassisDef {
 
 export type Paint = { top: number; side: number; cab: number; cabSide: number };
 
-export const PAINT_IDS = ['standard', 'plum', 'indigo', 'bone', 'sky', 'rose'] as const;
+export const PAINT_IDS = ['standard', 'plum', 'lavender', 'bone', 'mint', 'rose'] as const;
 
 export type PaintId = (typeof PAINT_IDS)[number];
 
 export const PAINT_JOBS: Record<PaintId, Paint> = {
   standard: { top: 0x9c7a3e, side: 0x6e5428, cab: 0x7e8a5a, cabSide: 0x566040 },
   plum: { top: 0x6e3a64, side: 0x4d2946, cab: 0xe4cc9c, cabSide: 0xa08f6d },
-  indigo: { top: 0x3a4488, side: 0x29305f, cab: 0xe8d8a8, cabSide: 0xa29776 },
+  lavender: { top: 0xb8a0e0, side: 0x81709d, cab: 0x3e2a5a, cabSide: 0x2b1d3f },
   bone: { top: 0xf4e8c0, side: 0xaba286, cab: 0x26346a, cabSide: 0x1b244a },
-  sky: { top: 0x78b0d8, side: 0x547b97, cab: 0x2a3a66, cabSide: 0x1d2947 },
+  mint: { top: 0xa0dcb4, side: 0x709a7e, cab: 0x6a2e3a, cabSide: 0x4a2029 },
   rose: { top: 0xc48a8a, side: 0x896161, cab: 0x5a2a4e, cabSide: 0x3f1d37 },
 };
 
