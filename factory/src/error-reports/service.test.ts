@@ -102,6 +102,20 @@ describe('error reports', () => {
     expect(Object.values(readStore(home).known).map((known) => known.count)).toEqual([2]);
   });
 
+  it('counts one error for messages that differ only in a file name, a URL or a sign', async () => {
+    const { home, deps, calls } = setup({ errorDailyIssues: 10 });
+    const reports = new ErrorReports(deps);
+    const stack = 'Error\n    at Xy (https://play.test/dev/assets/index-abc.js:1:10)';
+    await reports.take(report({ error: { name: 'Error', message: 'Sound hit-metal-2.ogg failed to decode', stack } }));
+    await reports.take(report({ error: { name: 'Error', message: 'Sound music_calm.ogg failed to decode', stack } }));
+    await reports.take(report({ error: { name: 'Error', message: 'Quest art cab_link failed to load from https://html.itch.zone/a/cab_link.webp', stack } }));
+    await reports.take(report({ error: { name: 'Error', message: 'Quest art arrival_rim failed to load from https://html.itch.zone/b/arrival_rim.webp', stack } }));
+    await reports.take(report({ error: { name: 'Error', message: 'No surface under x 1.95..1.95', stack } }));
+    await reports.take(report({ error: { name: 'Error', message: 'No surface under x -1.95..-1.95', stack } }));
+    expect(calls.filter((call) => call.startsWith('create'))).toHaveLength(3);
+    expect(Object.values(readStore(home).known).map((known) => known.count)).toEqual([2, 2, 2]);
+  });
+
   it('comments on the open issue when the error comes from a new commit', async () => {
     const { deps, calls } = setup();
     const reports = new ErrorReports(deps);

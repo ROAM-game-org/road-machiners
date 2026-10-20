@@ -13,7 +13,7 @@ import { startAid } from "../sim/aid";
 import { isNotable, nextSurveyClue, surveyClueText, surveyProgress } from "./format";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep } from "./format";
+import { contractDue, heldContractDue, workLabel, contractSummary, postedSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
@@ -134,6 +134,11 @@ describe("contract text", () => {
     expect(en(heldContractDue(met))).toBe("Ready");
     expect(en(heldContractDue(bounty))).toBe(en(contractDue(bounty)));
     expect(en(heldContractDue(fetch))).toBe(en(contractDue(fetch)));
+  });
+
+  it("keeps the posted wording of a met contract for its history", () => {
+    const met: Contract = { ...bounty, fulfilled: true };
+    expect(en(postedSummary(met))).toBe(en(contractSummary(bounty)));
   });
 
   it("logs a met bounty with its reward and where to claim it", () => {
@@ -643,6 +648,35 @@ describe("aid handover text", () => {
     const theirs = next.vehicles.find((v) => v.id === npc.id)!;
     expect(en(workLabel(next, theirs, workOf(next, theirs)!))).toMatch(/^Taking .* from you$/);
     expect(en(eventText(next, next.events.find((e) => e.t === "aidStarted")!)?.text)).toMatch(/^You start handing/);
+  });
+});
+
+describe("look-over text", () => {
+  it("labels the looker's work, logs a driver looking the player over, and shows the load once known", () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.player.ranks.perception = 1;
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
+    npc.brain = npcBrain("trader", npc.pos, ["trader"]);
+    expect(en(formatNpcLookOver(w, npc))).toBe("[B] Look over");
+    expect(formatNpcCargo(w, npc)).toBeNull();
+    addState(w, "lookOver", w.player.vehicleId, npc.id, { kind: "none" });
+    const mine = w.vehicles[0];
+    expect(en(workLabel(w, mine, workOf(w, mine)!))).toMatch(/^Look over Trader /);
+    const theirs = addState(w, "lookOver", npc.id, w.player.vehicleId, { kind: "none" });
+    expect(en(workLabel(w, npc, workOf(w, npc)!))).toBe("Looking you over");
+    w.states = w.states.filter((s) => s !== theirs);
+    expect(formatNpcLookOver(w, npc)).toBeNull();
+    addState(w, "sizedUp", w.player.vehicleId, npc.id, { kind: "none" });
+    expect(formatNpcCargo(w, npc)).not.toBeNull();
+    expect(en(eventText(w, { t: "lookedOver", by: npc.id, target: w.player.vehicleId })?.text)).toMatch(/^Trader .* looks your truck over\.$/);
+    expect(eventText(w, { t: "lookedOver", by: w.player.vehicleId, target: npc.id })).toBeNull();
+  });
+
+  it("hides the look-over key without Perception 1", () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
+    npc.brain = npcBrain("trader", npc.pos, ["trader"]);
+    expect(formatNpcLookOver(w, npc)).toBeNull();
   });
 });
 

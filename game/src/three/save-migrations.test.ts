@@ -81,6 +81,7 @@ import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
+import FORMAT_2_90 from './save-fixtures/format-2-90.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -1970,5 +1971,111 @@ describe('save migration 88 to 89', () => {
     const before = saved({ world: { intro_step: 'done' } });
 
     expect(stepped(before)).toEqual(before);
+  });
+});
+
+describe('save migration 89 to 90', () => {
+  it('keeps a save as it is, since look-overs, sized-up trucks and rank 1 basics are new state kinds or derived from ranks', () => {
+    const before = structuredClone(FORMAT_2_87);
+
+    const next = MIGRATIONS[89](before as unknown as SavedJson);
+
+    expect(next).toEqual(FORMAT_2_87);
+    expect(before).toEqual(FORMAT_2_87);
+  });
+});
+
+describe('save migration 90 to 91', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: { quest: string; checkpoint: string; seed: number } | null };
+  type Saved = { player: { quests: Quests } };
+  const saved = (quests: Partial<Quests>): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: Saved) => MIGRATIONS[90](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('drops the twelfth scene, its gate and the answers the short scenes no longer read, keeping the other gates', () => {
+    const before = saved({
+      world: { ala_hired: true, road_seen_1: true, road_seen_4: true, road_seen_12: true, geezer_pitch: 'link', ring_told: 'told', death_answer: 'road', why_answer: 'pay', ala_knows: 'ring', father_told: true, promised: true, hand_shook: true },
+      local: { road_stretch_12: { pass_said: true }, road_stretch_4: { asked_trailer: true, asked_north: true, asked_hunters: true }, road_stretch_8: { asked_run: true, grief_said: 'sorry' } },
+    });
+
+    expect(stepped(before).player.quests).toEqual({ world: { ala_hired: true, road_seen_1: true, road_seen_4: true, geezer_pitch: 'link' }, local: {}, session: null });
+  });
+
+  it('drops the hiring questions that are gone and keeps the pay question', () => {
+    const before = saved({ local: { road_hire: { asked_pay: true, asked_north: true, asked_who: true, asked_trailer: true, walked_out: true } } });
+    expect(stepped(before).player.quests.local).toEqual({ road_hire: { asked_pay: true } });
+  });
+
+  it('moves an open scene to its start, whichever page it stood on', () => {
+    for (const [quest, checkpoint] of [['road_stretch_1', 'start.tougher'], ['road_stretch_4', 'start.hub'], ['road_stretch_8', 'start.close']]) {
+      const before = saved({ session: { quest, checkpoint, seed: 3 } });
+      expect(stepped(before).player.quests.session).toEqual({ quest, checkpoint: 'start', seed: 3 });
+    }
+  });
+
+  it('closes an open twelfth scene and leaves the hiring scene open on its own page', () => {
+    expect(stepped(saved({ session: { quest: 'road_stretch_12', checkpoint: 'start.hub', seed: 3 } })).player.quests.session).toBeNull();
+    const hiring = { quest: 'road_hire', checkpoint: 'start.hub', seed: 3 };
+    expect(stepped(saved({ session: hiring })).player.quests.session).toEqual(hiring);
+  });
+
+  it('changes nothing else', () => {
+    const before = saved({ world: { road_seen_12: true } });
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});
+
+describe('save migration 91 to 92', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: { quest: string; checkpoint: string; seed: number } | null };
+  type Saved = { player: { quests: Quests } };
+  const saved = (quests: Partial<Quests>): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: Saved) => MIGRATIONS[91](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('drops the scar pick and the old hiring scene questions, keeping the hire', () => {
+    const before = saved({ world: { ala_hired: true, road_seen_1: true, geezer_pitch: 'link' }, local: { road_hire: { asked_pay: true }, bowl_scale: { asked_pay: true } } });
+    expect(stepped(before).player.quests).toEqual({ world: { ala_hired: true, road_seen_1: true }, local: { bowl_scale: { asked_pay: true } }, session: null });
+  });
+
+  it('moves an open hiring scene to the start of the renamed intro', () => {
+    const before = saved({ session: { quest: 'road_hire', checkpoint: 'start.hub', seed: 3 } });
+    expect(stepped(before).player.quests.session).toEqual({ quest: 'chaos_highway_intro', checkpoint: 'start', seed: 3 });
+  });
+
+  it('drops the fourth and eighth scenes and their gates, keeping the first', () => {
+    const before = saved({ world: { ala_hired: true, road_seen_1: true, road_seen_4: true, road_seen_8: true }, session: { quest: 'road_stretch_8', checkpoint: 'start', seed: 3 } });
+    expect(stepped(before).player.quests).toEqual({ world: { ala_hired: true, road_seen_1: true }, local: {}, session: null });
+  });
+
+  it('leaves other open scenes alone', () => {
+    const session = { quest: 'road_stretch_1', checkpoint: 'start', seed: 3 };
+    expect(stepped(saved({ session })).player.quests.session).toEqual(session);
+  });
+
+  it('changes nothing else', () => {
+    const before = saved({ world: { geezer_pitch: 'bullets' } });
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});
+
+describe('save migration 92 to 93', () => {
+  const stepped = (world: unknown) => MIGRATIONS[92](structuredClone(world) as SavedJson) as unknown as typeof FORMAT_2_90 & { player: { pastContracts: unknown[] } };
+
+  it('gives the player an empty list of past contracts', () => {
+    expect(stepped(FORMAT_2_90).player.pastContracts).toEqual([]);
+  });
+
+  it('keeps the held contracts and the rest of the save as they were', () => {
+    const next = stepped(FORMAT_2_90);
+
+    expect({ ...next, player: { ...next.player, pastContracts: undefined } }).toEqual(FORMAT_2_90);
   });
 });

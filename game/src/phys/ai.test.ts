@@ -20,6 +20,10 @@ import { budget } from '../test/budget';
 import { defaultSetup } from '../sim/settings';
 import { reusedWorld } from '../test/world-cache';
 
+function dropClaimRuns(w: World): void {
+  for (const shop of Object.values(w.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
+}
+
 function standardWorld(): World {
   return reusedWorld('standard', () => newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
 }
@@ -166,6 +170,7 @@ describe('NPC driving', () => {
     let arrived = false;
     let d = buildDrive(w);
     for (let i = 0; i < w.size && !arrived; i++) {
+      dropClaimRuns(w);
       ({ w, d } = turn(w, d));
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player' || v.id === npc.id);
       const actor = w.vehicles.find((v) => v.id === npc.id)!;
