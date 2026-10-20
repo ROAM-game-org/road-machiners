@@ -81,6 +81,7 @@ export class DustCloudsView {
   private lastWorld: World | null = null;
   private vehicles = new Map<string, Vehicle>();
   private readonly beforeClouds = new BeforeTurn<DustCloud>((w) => w.dustClouds);
+  private seenAfter = new Set<string>();
   private seenBeforeOf: World | null = null;
   private seenBefore = new Set<string>();
   private readonly tints = new Map<string, THREE.Color>();
@@ -94,9 +95,10 @@ export class DustCloudsView {
     if (world !== this.lastWorld) {
       this.lastWorld = world;
       this.vehicles = new Map(world.vehicles.map((v) => [v.id, v]));
+      this.seenAfter = seenSet(world);
     }
     const share = turnShare(clock);
-    const seenAfter = seenSet(world);
+    const seenAfter = this.seenAfter;
     const seenBefore = this.seenBeforeSet(clock);
     const shown = world.dustClouds.filter((c) => seenAfter.has(c.id) || (share < 1 && seenBefore.has(c.id)));
     const clouds = shown.filter((c) => this.revealed(c, clock)).slice(0, DUST_LOOK.maxCards);
