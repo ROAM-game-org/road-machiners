@@ -52,7 +52,7 @@ import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
-import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, type PriceHint } from "./shop-rows";
+import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
 import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
@@ -392,7 +392,11 @@ export class TownScreen {
       plan,
       chassisId: playerVehicle(w).chassisId,
       pick: (slot, id) => {
-        this.paintPlan = { ...(this.paintPlan ?? current), [slot]: id };
+        this.paintPlan = planWithSlot(current, this.paintPlan, slot, id);
+        this.render();
+      },
+      pickScheme: (scheme) => {
+        this.paintPlan = { ...scheme };
         this.render();
       },
       buy,

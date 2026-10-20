@@ -1,5 +1,5 @@
 import { ECONOMY } from "../data/goods";
-import { PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
+import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
 import { playerVehicle } from "../sim/damage";
 import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
 import { mountedParts } from "../sim/grid";
@@ -128,8 +128,20 @@ export function bar(share: number): HTMLElement {
   return el("div", { class: "meter" }, el("div", { style: `width:${Math.max(0, Math.min(1, share)) * 100}%` }));
 }
 
+function paletteHex(id: PaletteId): string {
+  return `#${PALETTE[id].toString(16).padStart(6, "0")}`;
+}
+
 export function paletteStyle(id: PaletteId): string {
-  return `--paint:#${PALETTE[id].toString(16).padStart(6, "0")}`;
+  return `--paint:${paletteHex(id)}`;
+}
+
+export function schemeStyle(scheme: TruckPaint): string {
+  return PAINT_SLOTS.map((slot) => `--paint-${slot}:${paletteHex(scheme[slot])}`).join(";");
+}
+
+export function planWithSlot(current: TruckPaint, plan: TruckPaint | null, slot: PaintSlot, id: PaletteId): TruckPaint {
+  return { ...(plan ?? current), [slot]: id };
 }
 
 export function livePaintPlan(current: TruckPaint, plan: TruckPaint | null): TruckPaint | null {
@@ -143,6 +155,7 @@ export type PaintChoice = {
   plan: TruckPaint | null;
   chassisId: string;
   pick: (slot: PaintSlot, id: PaletteId) => void;
+  pickScheme: (scheme: TruckPaint) => void;
   buy: HTMLElement | null;
 };
 
@@ -152,8 +165,26 @@ export function paintTab(choice: PaintChoice): HTMLElement {
     "div",
     { class: "paint-tab" },
     el("div", { class: "paint-preview" }, chassisPortrait(choice.chassisId, shown)),
-    el("div", { class: "paint-slots" }, ...PAINT_SLOTS.map((slot) => paintSlot(choice, slot)), el("div", { class: "paint-buy" }, choice.buy)),
+    el("div", { class: "paint-slots" }, schemeRow(choice), ...PAINT_SLOTS.map((slot) => paintSlot(choice, slot)), el("div", { class: "paint-buy" }, choice.buy)),
   );
+}
+
+function schemeRow(choice: PaintChoice): HTMLElement {
+  const chips = PAINT_SCHEMES.map((scheme, i) => {
+    const current = samePaint(scheme, choice.current);
+    return el(
+      "button",
+      {
+        class: `btn-s${!current && choice.plan && samePaint(scheme, choice.plan) ? " planned" : ""}`,
+        "data-scheme": String(i),
+        "aria-pressed": String(current),
+        "aria-label": num(i + 1, "int"),
+        onclick: () => choice.pickScheme(scheme),
+      },
+      el("span", { class: "paint-scheme", style: schemeStyle(scheme) }, el("span", { class: "paint-scheme-body" }), el("span", { class: "paint-scheme-cab" }), el("span", { class: "paint-scheme-gear" })),
+    );
+  });
+  return el("div", { class: "paint-slot", "data-slot": "scheme" }, el("span"), el("div", { class: "option-switch paint-switch", role: "group" }, ...chips));
 }
 
 function paintSlot(choice: PaintChoice, slot: PaintSlot): HTMLElement {

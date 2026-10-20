@@ -6,8 +6,8 @@ import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF } from "../data/market";
 import { shortHere } from "../sim/market";
-import { livePaintPlan, paletteStyle, shortBy } from "./shop-rows";
-import { PAINT } from "../data/chassis";
+import { livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
+import { PAINT, PAINT_SCHEMES } from "../data/chassis";
 import { SHOPS } from "../data/market";
 import { stockTarget, type ShopState } from "../sim/market";
 
@@ -109,7 +109,7 @@ describe("the short tone and the short rule", () => {
 describe("the paint tab", () => {
   it("colors each swatch with its palette color", () => {
     expect(paletteStyle("tan")).toBe("--paint:#9c7a3e");
-    expect(paletteStyle("slate")).toBe("--paint:#3e4a62");
+    expect(paletteStyle("slate")).toBe("--paint:#4a5060");
   });
 
   it("offers a repaint only for a plan that differs from the current paint in some slot", () => {
@@ -117,6 +117,18 @@ describe("the paint tab", () => {
     expect(livePaintPlan(PAINT.standard, { ...PAINT.standard })).toBeNull();
     expect(livePaintPlan(PAINT.standard, { ...PAINT.standard, gear: "chalk" })).toEqual({ ...PAINT.standard, gear: "chalk" });
     expect(livePaintPlan({ ...PAINT.standard, cab: "slate" }, { ...PAINT.standard, cab: "slate" })).toBeNull();
+  });
+
+  it("colors a scheme chip with the body, cab and gear of its scheme", () => {
+    expect(schemeStyle({ body: "slate", cab: "chalk", gear: "petrol" })).toBe("--paint-body:#4a5060;--paint-cab:#f0ece2;--paint-gear:#1e5258");
+  });
+
+  it("plans a scheme whole and lets one row pick change only that surface", () => {
+    const scheme = PAINT_SCHEMES[3];
+    const plan = planWithSlot(PAINT.standard, { ...scheme }, "cab", "sand");
+    expect(plan).toEqual({ ...scheme, cab: "sand" });
+    expect(planWithSlot(PAINT.standard, null, "gear", "umber")).toEqual({ ...PAINT.standard, gear: "umber" });
+    expect(livePaintPlan(PAINT.standard, { ...PAINT_SCHEMES[0] })).toBeNull();
   });
 
   it("shows only at a garage, right after the trucks", () => {
