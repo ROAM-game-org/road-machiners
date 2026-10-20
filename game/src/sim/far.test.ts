@@ -249,6 +249,23 @@ describe('far NPC travel', () => {
     expect(far.brain.farRoute!.dest).toEqual({ x: 150, y: 100 });
   });
 
+  it('keeps its route while the stop point shifts by less than the arrive radius, so a jittering stop never turns it back', () => {
+    const w = emptyWorld();
+    w.obstacles = [{ id: 'rock1', pos: { x: 135, y: 120 }, r: 3, kind: 'rock' }];
+    const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    far.brain = npcBrain('trader', { x: 0, y: 0 }, ['trader']);
+    far.order = { kind: 'stopAt', dest: { x: 150, y: 120 } };
+    advanceFar(w, far);
+    const marker = { x: 150, y: 120 };
+    far.brain.farRoute!.points = [marker];
+    far.order = { kind: 'stopAt', dest: { x: 150.1, y: 119.9 } };
+    advanceFar(w, far);
+    expect(far.brain.farRoute!.points).toEqual([marker]);
+    far.order = { kind: 'stopAt', dest: { x: 150, y: 120 + RULES.arriveRadius * 2 } };
+    advanceFar(w, far);
+    expect(far.brain.farRoute!.dest).toEqual({ x: 150, y: 120 + RULES.arriveRadius * 2 });
+  });
+
   it('drops a kept road route once a raider runs dry, and plans one off the road to the same point', () => {
     const w = emptyWorld();
     const t = editableTerrain(w);
