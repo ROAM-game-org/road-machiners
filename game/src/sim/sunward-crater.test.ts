@@ -9,14 +9,17 @@ import { checkDeath } from './defeat';
 import { followTower, dragOf, isOnRope, startDrag, unhitch } from './tow';
 import { advanceStates } from './states';
 import { refreshVision } from './vision';
-import { callStrangers, dropSpot, giveWord, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf } from './sunward-crater';
+import { callStrangers, craterNews, dropSpot, giveWord, inDropRing, lightZone, meetingLapsed, meetStrangers, offeringOf } from './sunward-crater';
 import { chooseOn } from './tracks';
 import { endTurn } from './world';
 import { testDrive } from './testkit';
 import { advanceSunward, craterExit, gateOrder, isCavalcadeCar, planSunward, dawnAfter, duskTurn, fallenSun, isSunwardMember, returnTurn, sunwardFacts, vigilGrounds, vigilPosts } from './sunward';
-import { callVehicle, chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
+import { callVehicle, chooseOption, currentOptions, hangUp, raiseCalls, talkOf } from './dialogue';
 import { topGoal } from './npc-activities';
-import { SUNWARD } from '../data/sunward';
+import { CRATER_ACCOUNTS, SUNWARD } from '../data/sunward';
+import { REGION } from '../data/region';
+import { t } from '../text/msg';
+import { resolve } from '../text/resolve';
 import { leaveQuest, QUEST_QUERIES, QUESTS, questView } from './quests';
 import { inTruce } from './relations';
 import type { Vehicle, World } from './types';
@@ -376,15 +379,74 @@ describe('talk of the order', () => {
     return chooseOption(open, index);
   }
 
-  it('has road drivers warn of the lamps while the order stands, and tell of the quiet once it falls', () => {
+  const offers = (w: World, npc: Vehicle) => currentOptions(callVehicle(w, npc.id)).some((o) => o.line === 'askAboutTheCrater');
+  const newsOf = (w: World): string => {
+    const news = w.player.call?.vars.news;
+    if (!news || news.kind !== 'line') throw new Error('No crater account on the line');
+    return news.line;
+  };
+  const told = (w: World, npc: Vehicle) => newsOf(askCrater(w, npc));
+
+  function farFromTheCrater(w: World, npc: Vehicle): void {
+    npc.brain!.home = { ...REGION.towns.find((t) => t.id === 'nose')!.pos };
+    npc.brain!.memories = [];
+  }
+
+  it('lets only a driver with reason to know talk of the crater: one who lives near it or saw a car of the order', () => {
     const w = crater();
+    w.turn = duskTurn(1) - 100;
+    const near = trader(w);
+    const far = trader(w);
+    farFromTheCrater(w, far);
+    refreshVision(w);
+
+    expect(offers(w, near)).toBe(true);
+    expect(offers(w, far)).toBe(false);
+    expect(() => craterNews(w, far)).toThrow(/knows nothing of the crater/);
+
+    const rider = member(w, { x: 10, y: 10 });
+    far.brain!.memories = [{ turn: w.turn, fact: { kind: 'sighting', vehicle: rider.id, at: { ...rider.pos }, heading: 0 } }];
+    expect(offers(w, far)).toBe(true);
+  });
+
+  it('has each driver tell its own account once, then answer with its repeat line', () => {
+    let w = crater();
     w.turn = duskTurn(1) - 100;
     const npc = trader(w);
     refreshVision(w);
 
-    expect(askCrater(w, npc).player.call?.vars.news).toEqual({ kind: 'line', line: 'carsDraggedIntoTheDark' });
+    w = askCrater(w, npc);
+    expect(CRATER_ACCOUNTS.standing).toContain(newsOf(w));
+    w = hangUp(w);
+
+    expect(askCrater(w, npc).player.call?.line.line).toBe(talkOf(npc).repeatLine);
+  });
+
+  it('spreads the accounts over the drivers, with the eight lamps and the lost cousin each told by one account only', () => {
+    const w = crater();
+    w.turn = duskTurn(1) - 100;
+    const drivers = Array.from({ length: 20 }, () => trader(w));
+    refreshVision(w);
+
+    const accounts = drivers.map((d) => (craterNews(w, d).news as { line: string }).line);
+
+    const counts = new Map<string, number>();
+    for (const a of accounts) counts.set(a, (counts.get(a) ?? 0) + 1);
+    expect(counts.size).toBeGreaterThanOrEqual(6);
+    expect(Math.max(...counts.values())).toBeLessThanOrEqual(5);
+    const text = (id: string) => resolve(t(`line.${id}` as never, {} as never), 'en');
+    expect(CRATER_ACCOUNTS.standing.filter((id) => /\beight\b/i.test(text(id)))).toEqual(['craterLamps']);
+    expect(CRATER_ACCOUNTS.standing.filter((id) => /cousin|brother|sister|uncle|aunt/i.test(text(id)))).toEqual(['carsDraggedIntoTheDark']);
+  });
+
+  it('tells only of the quiet once the order falls', () => {
+    const w = crater();
+    w.turn = duskTurn(1) - 100;
     sunwardFacts(w).collapsed = w.turn;
-    expect(askCrater(w, npc).player.call?.vars.news).toEqual({ kind: 'line', line: 'crowdAtTheCraterAgain' });
+    const drivers = Array.from({ length: 8 }, () => trader(w));
+
+    for (const d of drivers) expect(CRATER_ACCOUNTS.fallen).toContain((craterNews(w, d).news as { line: string }).line);
+    expect(told(w, drivers[0])).toBe((craterNews(w, drivers[0]).news as { line: string }).line);
   });
 
   it('answers cult_broken() from the world and fails loud where no order exists', () => {

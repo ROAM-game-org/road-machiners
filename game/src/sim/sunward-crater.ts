@@ -1,4 +1,5 @@
-import { SUNWARD } from '../data/sunward';
+import { CRATER_ACCOUNTS, SUNWARD } from '../data/sunward';
+import { hashId } from './rng';
 import { playerVehicle, vehicleById } from './damage';
 import { isDefeated } from './defeat';
 import { decide, npcProfile } from './npc-decisions';
@@ -13,7 +14,7 @@ import { checkDrag, isOnRope, releaseDragged } from './tow';
 import { trackOf } from './tracks';
 import type { CallVars, GoalReason, NpcActivity, NpcState, StateData, StateEnding, SunwardNight, Vehicle, VigilCalls, World } from './types';
 import { dist, type Vec } from './vec';
-import { dawnAfter, inFallenSun, isSunwardMember, lastDusk, nightWindow, orderStands, returnTurn, sunwardFacts, sunwardPhase } from './sunward';
+import { dawnAfter, fallenSun, inFallenSun, isSunwardMember, lastDusk, nightWindow, orderStands, returnTurn, sunwardFacts, sunwardPhase } from './sunward';
 
 
 let crater: HazardZone | null = null;
@@ -114,8 +115,20 @@ export function prepareVigilCall(world: World): CallVars {
   return {};
 }
 
-export function craterNews(world: World): CallVars {
-  return { news: { kind: 'line', line: orderStands(world) ? 'carsDraggedIntoTheDark' : 'crowdAtTheCraterAgain' } };
+export function knowsTheCrater(world: World, npc: Vehicle): boolean {
+  if (!npc.brain) return false;
+  return dist(npc.brain.home, fallenSun().pos) <= SUNWARD.talkReach || npc.brain.memories.some((m) => m.fact.kind === 'sighting' && sawMember(world, m.fact.vehicle));
+}
+
+function sawMember(world: World, id: string): boolean {
+  const seen = world.vehicles.find((v) => v.id === id);
+  return seen !== undefined && (isSunwardMember(seen) || seen.faction === 'sunward');
+}
+
+export function craterNews(world: World, npc: Vehicle): CallVars {
+  if (!knowsTheCrater(world, npc)) throw new Error(`${npc.id} knows nothing of the crater to tell`);
+  const pool = orderStands(world) ? CRATER_ACCOUNTS.standing : CRATER_ACCOUNTS.fallen;
+  return { news: { kind: 'line', line: pool[Math.floor(hashId(`${npc.id}:crater`) * pool.length)] } };
 }
 
 export function offeredTonight(world: World, id: string): boolean {

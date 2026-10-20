@@ -35,7 +35,7 @@ import { spread, startTrade, tradeWith, transfer } from './economy';
 import { acceptOffer, canTowNpc, isTowing, hitchNpc, isOnRope, npcTowTerms, playerTow, playerTowing, refuseOffer, releaseNpc, strandedPlayerAt } from './tow';
 import type { Call, CallVar, CallVars, DirectionTarget, GridItem, MemoryFact, NpcState, Plea, TopicOutcome, Vehicle, World } from './types';
 import { bearing, dist, type Vec } from './vec';
-import { craterNews, giveWord, prepareVigilCall, refuseVigil, vigilCallDue } from './sunward-crater';
+import { craterNews, giveWord, knowsTheCrater, prepareVigilCall, refuseVigil, vigilCallDue } from './sunward-crater';
 import { directionsTo } from './directions';
 
 function demandsOnTop(world: World, npc: Vehicle, cargo: boolean): boolean {
@@ -292,6 +292,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   firstVigilCall: (world, npc) => vigilCallDue(world, npc, 1),
   secondVigilCall: (world, npc) => vigilCallDue(world, npc, 2),
   lastVigilCall: (world, npc) => vigilCallDue(world, npc, 3),
+  knowsTheCrater: (world, npc) => knowsTheCrater(world, npc),
   canPayTalk: (world, _npc, vars) => world.player.money >= namedPrice({ vars }),
   mercForHire: (world, npc) => world.player.talked[npc.id]?.hireGuard !== 'refused' && canHireGuard(world, npc),
   takesGuard: (_world, _npc, vars) => answerOf(vars) === 'take',
@@ -653,7 +654,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
 
 export const PREPARES: Record<PrepareId, Prepare> = {
   vigilCall: (world) => prepareVigilCall(world),
-  craterNews: (world) => craterNews(world),
+  craterNews: (world, npc) => craterNews(world, npc),
   truceAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'truce') }, ...ransomVars(world, npc) }),
   mercyAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'mercy') }, ...ransomVars(world, npc) }),
   demandHaul: (world, npc) => ransomVars(world, npc),

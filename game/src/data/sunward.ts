@@ -28,6 +28,7 @@ export const SUNWARD = {
   fileGap: 4,
   apronGap: 4,
   meetTurns: 12,
+  talkReach: 150,
   postGap: 3,
   postSamples: 96,
   postClearance: 1.6,
@@ -94,14 +95,21 @@ export const HOLLOW = {
 };
 
 export type SunwardTopicId = 'vigilCall1' | 'vigilCall2' | 'vigilCall3' | 'sunwardTalk';
-export type SunwardConditionId = 'firstVigilCall' | 'secondVigilCall' | 'lastVigilCall';
+export type SunwardConditionId = 'firstVigilCall' | 'secondVigilCall' | 'lastVigilCall' | 'knowsTheCrater';
 export type SunwardEffectId = 'acceptOffering' | 'refuseVigil';
 export type SunwardPrepareId = 'vigilCall' | 'craterNews';
 export const SUNWARD_LINES = [
   'vigilCall1', 'vigilCall2', 'vigilCall3', 'comeAndWatch', 'notGoing', 'driveIntoTheLight', 'givenBySky',
   'askAboutTheCrater', 'craterNews', 'carsDraggedIntoTheDark', 'crowdAtTheCraterAgain',
+  'craterLamps', 'craterSilentRadio', 'craterFurrows', 'craterDarkBeacons', 'craterDayTrade', 'craterGivenHearsay', 'craterNoLooting',
+  'craterLampsStopped', 'craterFortEmpty', 'craterBackAtNight',
 ] as const;
 export type SunwardLineId = (typeof SUNWARD_LINES)[number];
+
+export const CRATER_ACCOUNTS: { standing: readonly SunwardLineId[]; fallen: readonly SunwardLineId[] } = {
+  standing: ['craterLamps', 'craterSilentRadio', 'craterFurrows', 'craterDarkBeacons', 'craterDayTrade', 'craterGivenHearsay', 'craterNoLooting', 'carsDraggedIntoTheDark'],
+  fallen: ['crowdAtTheCraterAgain', 'craterLampsStopped', 'craterFortEmpty', 'craterBackAtNight'],
+};
 
 const SUNWARD_END = 'end';
 const SUNWARD_HUB = 'hub';
@@ -134,18 +142,18 @@ export const SUNWARD_TOPICS: Record<SunwardTopicId, Topic> = {
   vigilCall3: vigilCall('vigilCall3', 'lastVigilCall', ['refuseVigil']),
   sunwardTalk: {
     id: 'sunwardTalk',
-    once: false,
-    ask: { say: 'askAboutTheCrater', when: [], duringFeud: false },
+    once: true,
+    ask: { say: 'askAboutTheCrater', when: ['knowsTheCrater'], duringFeud: false },
     raise: null,
     prepare: 'craterNews',
-    hangUp: [],
+    hangUp: ['settleDone'],
     start: 'answer',
     nodes: {
       answer: {
         line: 'craterNews',
         options: [
-          { say: 'thanksSomethingElse', when: [], effects: [], go: SUNWARD_HUB },
-          { say: 'thanksOverAndOut', when: [], effects: [], go: SUNWARD_END },
+          { say: 'thanksSomethingElse', when: [], effects: ['settleDone'], go: SUNWARD_HUB },
+          { say: 'thanksOverAndOut', when: [], effects: ['settleDone'], go: SUNWARD_END },
         ],
       },
     },
