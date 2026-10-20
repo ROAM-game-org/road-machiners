@@ -1,7 +1,7 @@
 import { DIRECTIONS } from '../data/directions';
 import { REGION } from '../data/region';
 import { atlasOf, atlasSites } from './atlas';
-import { cueAt, octantOf, roadName, spanOf, type CueSpot } from './direction-cues';
+import { cueAt, headingAlong, octantOf, roadName, spanOf, type CueSpot } from './direction-cues';
 import { exitsAt, isJunction, nearestRoadPoints, roadNetworkOf, shortestPath, splitAt, type RoadGraph, type RoadPath, type RoadPoint } from './road-network';
 import { isTerritory } from './sites';
 import { isCliff, tileAt } from './terrain';
@@ -134,6 +134,10 @@ function walkPath(world: World, graph: RoadGraph, path: RoadPath): { spoken: Spo
   return { spoken, legs, tail: { pos, legStart, leg, earlier, forks, junctionHere: false } };
 }
 
+function firstLegOf(path: RoadPath, spoken: readonly Spoken[]): number[] {
+  return path.edges.slice(0, spoken.length > 0 ? spoken[0].at : path.edges.length);
+}
+
 function lengthOf(graph: RoadGraph, edges: readonly number[]): number {
   return edges.reduce((sum, id) => sum + graph.edges[id].length, 0);
 }
@@ -141,7 +145,10 @@ function lengthOf(graph: RoadGraph, edges: readonly number[]): number {
 function speakPath(world: World, graph: RoadGraph, path: RoadPath, target: DirectionTarget, spot: Vec | null): DirectionStep[] {
   const { spoken, legs, tail } = walkPath(world, graph, path);
   const steps: DirectionStep[] = [];
-  if (path.edges.length > 0) steps.push({ do: 'follow', road: roadName(graph, path.edges[0], path.nodes[0]), span: spanOf(legs[0]) });
+  if (path.edges.length > 0) {
+    const heading = headingAlong(legLines(graph, firstLegOf(path, spoken), path.nodes, 0), DIRECTIONS.headingReach);
+    steps.push({ do: 'follow', road: roadName(graph, path.edges[0], path.nodes[0]), heading, span: spanOf(legs[0]) });
+  }
   const firstUnreliable = spoken.findIndex((s) => s.cue === null);
   const allowed = spoken.slice(0, Math.min(DIRECTIONS.maxSteps, firstUnreliable < 0 ? spoken.length : firstUnreliable));
   allowed.forEach((s, j) => steps.push({ do: 'turn', side: s.side, at: s.cue as Cue, road: roadName(graph, s.out, path.nodes[s.at]), span: spanOf(legs[j + 1]) }));

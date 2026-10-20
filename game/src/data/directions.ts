@@ -8,6 +8,7 @@ export const DIRECTIONS = {
   leaveReach: 60,
   directReach: 40,
   cueReach: 25,
+  headingReach: 25,
   keepAngle: 0.5,
   maxSteps: 5,
   maxCount: 3,
