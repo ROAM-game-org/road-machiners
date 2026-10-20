@@ -896,6 +896,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => world,
   withHeardCentres_81_82,
   withShopGoods_82_83,
+  withStapleRestock_83_84,
 ];
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {
@@ -1154,6 +1155,19 @@ function withShopGoods_82_83(world: SavedJson): SavedJson {
   const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, shopWithGoods_82_83(id, shop)]));
   const vehicles = (world.vehicles as SavedJson[]).map(withoutHaulGoal_82_83);
   return { ...world, shops, vehicles, roadNews: [] };
+}
+
+const STAPLE_SHOPS_83_84 = ['bowl', 'nose'];
+const STAPLE_PART_83_84 = 'stockEngine';
+type SavedShop = { stock: { defId: string }[]; restockAt: number };
+
+function withStapleRestock_83_84(world: SavedJson): SavedJson {
+  const shops = { ...(world.shops as Record<string, SavedShop>) };
+  for (const id of STAPLE_SHOPS_83_84) {
+    const shop = shops[id];
+    if (shop && !shop.stock.some((part) => part.defId === STAPLE_PART_83_84)) shops[id] = { ...shop, restockAt: world.turn as number };
+  }
+  return { ...world, shops };
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

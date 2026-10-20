@@ -71,6 +71,7 @@
   scrollbar-width: thin;
 }
 .quest-screen :is(.quest-talk, .quest-text) {
+  overflow-anchor: none;
   font-size: var(--text-lead);
   line-height: 1.55;
 }
