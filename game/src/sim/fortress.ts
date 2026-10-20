@@ -1,6 +1,7 @@
 
 import { FORTRESS, FORTRESS_SITES, FORTRESS_STYLES, type FortressBastions, type FortressKind, type FortressSite, type FortressStyle, type FortressStyleDef } from '../data/fortress';
-import { siteGates, siteLook, type Site } from './sites';
+import type { Atlas } from './atlas';
+import { isFortress, siteGates, siteLook, type Site } from './sites';
 import type { BakedProp, PropKind } from './terrain';
 import { bearing, DEG, dist, pointInPolygon, polygonEdgeDist, segmentDist, type Vec } from './vec';
 
@@ -155,6 +156,29 @@ export function fortressStyle(site: Site): FortressStyle {
 export function fortressProps(site: Site): BakedProp[] {
   const style = fortressStyle(site);
   return fortressPieces(site).map((piece) => bakedPiece(style, piece));
+}
+
+const pieceSites = new WeakMap<Atlas, ReadonlyMap<string, string>>();
+
+function pieceKey(look: string, pos: Vec): string {
+  return `${look}@${Math.fround(pos.x)},${Math.fround(pos.y)}`;
+}
+
+export function fortressPieceSites(atlas: Atlas): ReadonlyMap<string, string> {
+  let found = pieceSites.get(atlas);
+  if (!found) {
+    const map = new Map<string, string>();
+    for (const site of [...atlas.towns, ...atlas.locations].filter(isFortress)) for (const prop of fortressProps(site)) map.set(pieceKey(prop.kind, prop.pos), site.id);
+    found = map;
+    pieceSites.set(atlas, found);
+  }
+  return found;
+}
+
+export function fortressPieceSite(atlas: Atlas, look: string, pos: Vec): string {
+  const id = fortressPieceSites(atlas).get(pieceKey(look, pos));
+  if (id === undefined) throw new Error(`Fort piece ${look} at ${pos.x},${pos.y} belongs to no fortress`);
+  return id;
 }
 
 function bakedPiece(style: FortressStyle, piece: FortressPiece): BakedProp {

@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { FORTRESS, FORTRESS_SITES, FORTRESS_STYLES } from '../data/fortress';
 import { REGION } from '../data/region';
 import { TEST_MAP } from '../test/map';
-import { FORT_MODELS, FORT_PROPS, fortressCore, fortressGates, fortressOutline, fortressPieces, pitDepth } from './fortress';
+import { FORT_MODELS, FORT_PROPS, fortressCore, fortressPieceSite, fortressGates, fortressOutline, fortressPieces, pitDepth } from './fortress';
 import { PROP_KINDS } from './terrain';
 import type { Obstacle } from './types';
 import { boxDistance, isDriveObstacle, isBakedObstacle, mapObstacles, propBoxes, propPose } from './mapgen';
 import { isFree } from './spawn';
 import { canUseSite, isFortress, sitePads } from './sites';
+import { atlasOf } from './atlas';
 import { discoverSites } from './locations';
 import { refreshVision } from './vision';
 import { cloneWorld } from './world';
@@ -240,5 +241,22 @@ describe('Bowl pit', () => {
   it('throws for a site with no pit', () => {
     const dustwell = SITES.find((s) => s.id === 'dustwell')!;
     expect(() => pitDepth(dustwell, dustwell.pos)).toThrow(/pit/);
+  });
+});
+
+describe('fort piece owners', () => {
+  const pieces = mapObstacles(TEST_MAP).filter((o): o is Extract<Obstacle, { kind: 'landmark' }> => o.kind === 'landmark' && FORT_MODELS.has(o.look));
+
+  it('maps every fort piece on the map to the fortress that holds it', () => {
+    const atlas = atlasOf(world.terrain);
+    expect(pieces.length).toBeGreaterThan(0);
+    for (const o of pieces) {
+      const site = FORT_SITES.find((s) => s.id === fortressPieceSite(atlas, o.look, o.pos))!;
+      expect(dist(o.pos, site.pos), o.id).toBeLessThanOrEqual(site.radius + 20);
+    }
+  });
+
+  it('throws on a piece no fortress holds', () => {
+    expect(() => fortressPieceSite(atlasOf(world.terrain), 'fortRingWall', { x: -5, y: -5 })).toThrow(/belongs to no fortress/);
   });
 });
