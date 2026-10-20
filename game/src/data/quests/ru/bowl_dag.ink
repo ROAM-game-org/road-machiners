@@ -59,6 +59,14 @@ VAR dag_wagon = false
   Кое-кто ездит. Водители хорошие, но голоса у них нет, поэтому ездят в наших куртках и в списке граждан не значатся. <term=senate>Сенат</term> хочет, чтобы они были на дороге, но не в списке.
   Джори Батист шлет и шлет новых. Не пойму, то ли благодарить его, то ли приглядывать за ним.
   -> hub
++ {dag_road} [Does the patrol go out to the crater?]
+  { cult_broken():
+    By day it does, and by night as well now. The lamps stopped crossing at dusk, and nobody has gone missing off the rim road since. Still keep off the green glow, whatever the hour.
+  - else:
+    By day, yes. After dark, no, and that goes for every truck I ride with. Lamps cross the open ground out there at dusk and go back before sunup, and a truck that stops by the rim at night isn't always there in the morning. Be off the crater road before sundown.
+    ~ note("sunwardDragged")
+  }
+  -> hub
 + {has_note("wagonBowl") and not dag_wagon} [Знаешь, где тот армейский фургон?]
   Знаю. Он лежит в лощине под поворотом нашей северной дороги, ниже того места, где отходит колея к <term=pump_station>Насосной станции</term>. Отсюда на северо-восток. Я сам спускался к нему.
   Правило такое: ничего из той лощины на Нос не вози. Нос винит первого водителя, которого найдет рядом со своими пушками. А потом шлет по моей дороге грузовики с вопросами.

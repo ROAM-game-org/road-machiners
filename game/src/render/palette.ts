@@ -100,6 +100,8 @@ export const TEMPLATE_PAINT: Record<string, Paint> = {
   convoy: { top: 0xb8b8b0, side: 0x86867e, cab: 0x9a5a34, cabSide: 0x6e3e24 },
   convoyGuard: { top: 0xb8b8b0, side: 0x86867e, cab: 0x9a5a34, cabSide: 0x6e3e24 },
   merc: { top: 0x2a2a2c, side: 0x1a1a1c, cab: 0x5a6068, cabSide: 0x3e4248 },
+  cavalcade: { top: 0xcac0a6, side: 0x8f8774, cab: 0x2c2824, cabSide: 0x1d1b18 },
+  hunter: { top: 0xb2a284, side: 0x7a6e58, cab: 0x2c2824, cabSide: 0x1d1b18 },
 };
 
 export function paintOf(v: Pick<Vehicle, 'id' | 'faction' | 'brain'>): Paint {

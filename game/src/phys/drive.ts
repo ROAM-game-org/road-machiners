@@ -15,7 +15,7 @@ import { vehicleMass } from '../sim/mass';
 import { groundSpeed, vehicleStats, type VehicleStats } from '../sim/stats';
 import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
 import { backsToDestination, driveMode, throughSpeed } from '../sim/steering';
-import { routeBlockers, yieldsToTraffic } from '../sim/ai';
+import { routeBlockers, standingBlockers, yieldsToTraffic } from '../sim/ai';
 import { clearanceFor, type Clearance, type Mover } from '../sim/clearance';
 import { combatFoesOf } from '../sim/combat';
 import { ropeClientOf } from '../sim/tow';
@@ -49,7 +49,7 @@ export const RAIL = 'rail';
 export const toMps = (tilesPerTurn: number) => (tilesPerTurn * S) / PHYSICS.turnSeconds;
 export const toTilesPerTurn = (mps: number) => (mps * PHYSICS.turnSeconds) / S;
 
-type Memory = { steer: number; reverse: boolean; route: (KeptRoute & { radius: number }) | null; ahead: Vec | null; stall: number; backFrom: Vec | null; swing: number; airborne: boolean; clearAhead: number; clearBehind: number; clearAt: number; anchor: V3 | null };
+type Memory = { steer: number; reverse: boolean; route: (KeptRoute & { radius: number }) | null; ahead: Vec | null; stall: number; backFrom: Vec | null; swing: number; airborne: boolean; clearAhead: number; clearMoving: number; clearBehind: number; clearAt: number; anchor: V3 | null };
 
 export type Drive = {
   world: RAPIER.World;
@@ -215,7 +215,7 @@ function syncVehicle(d: Drive, w: World, v: Vehicle): void {
   const handle = d.bodies[v.id];
   if (handle === undefined) {
     d.bodies[v.id] = addVehicle(d.world, w, v);
-    d.memory[v.id] = { steer: 0, reverse: false, route: null, ahead: null, stall: 0, backFrom: null, swing: 0, airborne: false, clearAhead: Infinity, clearBehind: Infinity, clearAt: 0, anchor: null };
+    d.memory[v.id] = { steer: 0, reverse: false, route: null, ahead: null, stall: 0, backFrom: null, swing: 0, airborne: false, clearAhead: Infinity, clearMoving: Infinity, clearBehind: Infinity, clearAt: 0, anchor: null };
     return;
   }
   const body = d.world.getRigidBody(handle);
@@ -580,8 +580,8 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
   const stored = mem.route && dist(mem.route.dest, order.dest) < RULES.arriveRadius && mem.route.radius === s.radius ? continueRoute(w, v.pos, mem.route, order.dest, s.radius, blockers, v) : null;
   const path = v.direct ? null : stored ?? [...route(w, v.pos, order.dest, s.radius, blockers, v)];
   mem.route = path ? { ...keepRoute(w, order.dest, path, blockers, v), radius: s.radius } : null;
-  const clearance = v.direct ? null : clearanceFor(w, v, blockers);
-  Object.assign(mem, { clearAhead: Infinity, clearBehind: Infinity, clearAt: 0 });
+  const clearance = v.direct ? null : clearanceFor(w, v, standingBlockers(w, v));
+  Object.assign(mem, { clearAhead: Infinity, clearMoving: Infinity, clearBehind: Infinity, clearAt: 0 });
   const drive = (next: number) => toMps(engine ? next : speed);
   if (order.kind === 'stopAt') return { ...base, clearance, dest: stopPoint(path, order.dest), route: path, target: drive(Math.min(s.maxSpeed, speed + s.accel)), stopAt: true };
   const next = throughSpeed(s, speed, dist(v.pos, order.dest), order.pace, driveMode(v));
@@ -717,7 +717,7 @@ function commandToward(c: Car, dest: Vec, speed: number): Command {
     return { target: -Math.min(D.reverseSpeed, plan.target, clearCap(c, c.mem.clearBehind)), steerTo };
   }
   const corner = Math.min(aimSpeed(c, ang, dist(at, aim) * S), routeCornerSpeed(plan.route, at, Math.abs(speed), plan.stopDecel * c.grip, c.grip));
-  return { target: Math.min(target, corner, clearCap(c, c.mem.clearAhead)), steerTo: clamp(ang * D.steerGain, -plan.maxSteer, plan.maxSteer) };
+  return { target: Math.min(target, corner, clearCap(c, Math.min(c.mem.clearAhead, c.mem.clearMoving))), steerTo: clamp(ang * D.steerGain, -plan.maxSteer, plan.maxSteer) };
 }
 
 function clearCap(c: Car, free: number): number {
@@ -730,9 +730,11 @@ function watchClearance(c: Car, at: Vec, heading: number, speed: number, dest: V
   if (!c.plan.clearance || mem.clearAt++ % D.clearEvery !== 0) return;
   if (!Number.isFinite(speed)) throw new Error(`Truck ${c.v.id} has a non-finite speed`);
   const mps = Math.abs(speed);
-  mem.clearAhead = freeDistance(c, 1, at, heading, mps, dest);
+  const free = freeDistance(c, 1, at, heading, mps, dest);
+  mem.clearAhead = free.solid;
+  mem.clearMoving = free.moving;
   const watching = mem.reverse || mem.backFrom !== null || mem.clearAhead < bodyLength(c);
-  mem.clearBehind = watching ? freeDistance(c, -1, at, heading, mps, dest) : Infinity;
+  mem.clearBehind = watching ? freeDistance(c, -1, at, heading, mps, dest).solid : Infinity;
 }
 
 function avoidOf(w: World, v: Vehicle): Set<string> {
@@ -755,7 +757,7 @@ function moversNear(c: Car, from: Vec, reach: number, seconds: number): Mover[] 
   return movers;
 }
 
-function freeDistance(c: Car, sign: 1 | -1, from: Vec, facing: number, mps: number, dest: Vec): number {
+function freeDistance(c: Car, sign: 1 | -1, from: Vec, facing: number, mps: number, dest: Vec): { solid: number; moving: number } {
   const { plan, b, mem } = c;
   const clearance = plan.clearance!;
   const route = plan.route ? [...plan.route] : null;
@@ -768,16 +770,17 @@ function freeDistance(c: Car, sign: 1 | -1, from: Vec, facing: number, mps: numb
   let at = from;
   let heading = facing;
   let steer = mem.steer;
+  let moving = Infinity;
   for (let travelled = 0; travelled < horizon; travelled += D.clearStep) {
-    if (clearance.touches(at, heading)) return travelled;
-    if (movers.length > 0 && clearance.meetsMoving(at, heading, (travelled * S) / Math.max(mps, 1), movers)) return travelled;
+    if (clearance.touches(at, heading)) return { solid: travelled, moving: Math.min(moving, travelled) };
+    if (moving === Infinity && movers.length > 0 && clearance.meetsMoving(at, heading, (travelled * S) / Math.max(mps, 1), movers)) moving = travelled;
     const aim = route ? routeAim(route, at) : dest;
     const want = clamp(angleDiff(heading + (sign < 0 ? Math.PI : 0), bearing(at, aim)) * gain, -plan.maxSteer, plan.maxSteer);
     steer = clamp(want, steer - T.steerRate * seconds, steer + T.steerRate * seconds);
     heading += sign * Math.sign(steer) * Math.min(Math.abs(Math.tan(steer)) / wheelbase, grip) * D.clearStep;
     at = { x: at.x + sign * Math.cos(heading) * D.clearStep, y: at.y + sign * Math.sin(heading) * D.clearStep };
   }
-  return Infinity;
+  return { solid: Infinity, moving };
 }
 
 function kTurnSide(c: Car, at: Vec, heading: number, ang: number): 1 | -1 | 0 {
