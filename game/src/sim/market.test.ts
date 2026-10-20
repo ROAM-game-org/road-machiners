@@ -89,6 +89,20 @@ describe('market', () => {
     }
   });
 
+  it('keeps every staple on a garage shelf after each roll and adds none to a stall', () => {
+    const w = emptyWorld();
+    for (const id of ['bowl', 'nose']) {
+      const state = initShop(w, id);
+      for (let roll = 0; roll < 60; roll++) {
+        expect(state.stock.some((p) => p.defId === 'stockEngine')).toBe(true);
+        w.turn = state.restockAt;
+        advanceShop(w, id, state);
+      }
+    }
+    expect(SHOPS['salvage-yard'].staples).toEqual([]);
+    expect(initShop(w, 'salvage-yard').stock.length).toBeLessThanOrEqual(SHOPS['salvage-yard'].stockSize[1]);
+  });
+
   it('walks a lot through stock one crate at a time', () => {
     const w = emptyWorld();
     const state = initShop(w, 'granary');

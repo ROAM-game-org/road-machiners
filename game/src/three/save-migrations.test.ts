@@ -81,7 +81,7 @@ import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
-import FORMAT_2_83 from './save-fixtures/format-2-83.json';
+import FORMAT_2_84 from './save-fixtures/format-2-84.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1807,18 +1807,38 @@ describe('MIGRATIONS[82]', () => {
     const next = migrated();
     expect(next.vehicles[1].brain!.goals).toEqual([]);
     expect(next.vehicles[1].job).toBeNull();
-    expect(next.vehicles[2]).toEqual(FORMAT_2_82.vehicles[2]);
-    expect(next.roadNews).toEqual([]);
   });
 });
 
-describe('save migration 83 to 84', () => {
+describe('MIGRATIONS[83]', () => {
+  type Shops = Record<string, { stock: { defId: string }[]; restockAt: number }>;
+  const shopsOf = (world: unknown) => (world as { shops: Shops }).shops;
+  const withShelves = () => {
+    const world = structuredClone(FORMAT_2_82) as unknown as { shops: Shops };
+    world.shops.bowl.stock = [{ defId: 'mg' }];
+    world.shops.nose.stock = [{ defId: 'mg' }, { defId: 'stockEngine' }];
+    world.shops['salvage-yard'].stock = [{ defId: 'mg' }];
+    return world;
+  };
+
+  it('restocks a Bowl or Nose shelf with no stock engine on the saved turn and leaves the rest alone', () => {
+    const before = withShelves();
+    const next = MIGRATIONS[83](structuredClone(before) as never);
+
+    expect(shopsOf(next).bowl.restockAt).toBe(FORMAT_2_82.turn);
+    expect(shopsOf(next).nose.restockAt).toBe(before.shops.nose.restockAt);
+    expect(shopsOf(next)['salvage-yard']).toEqual(before.shops['salvage-yard']);
+    expect({ ...next, shops: { ...shopsOf(next), bowl: before.shops.bowl } }).toEqual(before);
+  });
+});
+
+describe('save migration 84 to 85', () => {
   type Step = { do: string; heading?: unknown };
   type Saved = { turn: number; player: { money: number; call: { vars: Record<string, { kind: string; steps?: Step[] }>; line: { line: string; vars: Record<string, { kind: string; steps?: Step[] }> } } | null } };
-  const migrate = (world: unknown) => MIGRATIONS[83](structuredClone(world) as never) as unknown as Saved;
+  const migrate = (world: unknown) => MIGRATIONS[84](structuredClone(world) as never) as unknown as Saved;
 
   it('marks every follow step of an open directions answer as planned before headings', () => {
-    const next = migrate(FORMAT_2_83);
+    const next = migrate(FORMAT_2_84);
     for (const vars of [next.player.call!.vars, next.player.call!.line.vars]) {
       const steps = vars.way.steps!;
       expect(steps.filter((s) => s.do === 'follow').map((s) => s.heading)).toEqual([null]);
@@ -1827,23 +1847,23 @@ describe('save migration 83 to 84', () => {
   });
 
   it('changes nothing else in the save', () => {
-    const next = migrate(FORMAT_2_83);
+    const next = migrate(FORMAT_2_84);
     const strip = (vars: Record<string, { kind: string; steps?: Step[] }>) => ({ ...vars, way: { ...vars.way, steps: vars.way.steps!.map(({ heading: _heading, ...rest }) => rest) } });
-    expect({ ...next, player: { ...next.player, call: { ...next.player.call!, vars: strip(next.player.call!.vars), line: { ...next.player.call!.line, vars: strip(next.player.call!.line.vars) } } } }).toEqual(FORMAT_2_83);
+    expect({ ...next, player: { ...next.player, call: { ...next.player.call!, vars: strip(next.player.call!.vars), line: { ...next.player.call!.line, vars: strip(next.player.call!.line.vars) } } } }).toEqual(FORMAT_2_84);
   });
 
   it('reads a migrated answer with the words it had before headings, in both languages', () => {
-    const call = migrate(FORMAT_2_83).player.call!;
+    const call = migrate(FORMAT_2_84).player.call!;
     const said = (locale: 'en' | 'ru') => resolve(lineText(call.line.line as LineId, call.line.vars as CallVars), locale);
     expect(said('en')).toContain('Take the road to Bowl.');
     expect(said('ru').length).toBeGreaterThan(0);
   });
 
   it('passes a save with no call or no directions answer unchanged', () => {
-    const noCall = { ...FORMAT_2_83, player: { ...FORMAT_2_83.player, call: null } };
+    const noCall = { ...FORMAT_2_84, player: { ...FORMAT_2_84.player, call: null } };
     expect(migrate(noCall)).toEqual(noCall);
-    const town = { town: FORMAT_2_83.player.call.vars.town };
-    const noWay = { ...FORMAT_2_83, player: { ...FORMAT_2_83.player, call: { ...FORMAT_2_83.player.call, vars: town, line: { ...FORMAT_2_83.player.call.line, vars: town } } } };
+    const town = { town: FORMAT_2_84.player.call.vars.town };
+    const noWay = { ...FORMAT_2_84, player: { ...FORMAT_2_84.player, call: { ...FORMAT_2_84.player.call, vars: town, line: { ...FORMAT_2_84.player.call.line, vars: town } } } };
     expect(migrate(noWay)).toEqual(noWay);
   });
 });

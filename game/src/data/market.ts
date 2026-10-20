@@ -218,6 +218,7 @@ export type ShopDef = {
   contractSlots: number;
   supplies: ('fuel' | 'supplies')[];
   charts: boolean;
+  staples: string[];
 };
 
 export const PRESSURE_MAX = 0.6;
@@ -237,6 +238,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     contractSlots: 3,
     supplies: ['fuel', 'supplies'],
     charts: true,
+    staples: ['stockEngine'],
   },
   nose: {
     id: 'nose',
@@ -248,6 +250,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     contractSlots: 3,
     supplies: ['fuel', 'supplies'],
     charts: true,
+    staples: ['stockEngine'],
   },
   'salvage-yard': {
     id: 'salvage-yard',
@@ -265,6 +268,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
     charts: false,
+    staples: [],
   },
   granary: {
     id: 'granary',
@@ -279,6 +283,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
     charts: false,
+    staples: [],
   },
   'pump-station': {
     id: 'pump-station',
@@ -293,6 +298,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
     charts: false,
+    staples: [],
   },
   dustwell: {
     id: 'dustwell',
@@ -307,6 +313,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
     charts: false,
+    staples: [],
   },
   'green-pit': {
     id: 'green-pit',
@@ -321,6 +328,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
     charts: false,
+    staples: [],
   },
 };
 

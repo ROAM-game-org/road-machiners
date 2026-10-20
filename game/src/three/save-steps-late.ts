@@ -100,23 +100,23 @@ export function withHeardCentres_81_82(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
 }
 
-function withFollowHeading_83_84(step: SavedJson): SavedJson {
+function withFollowHeading_84_85(step: SavedJson): SavedJson {
   return step.do === 'follow' ? { ...step, heading: null } : step;
 }
 
-function followHeadingVars_83_84(vars: SavedJson): SavedJson {
+function followHeadingVars_84_85(vars: SavedJson): SavedJson {
   return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
     const value = v as SavedJson;
-    return [name, value.kind === 'directions' ? { ...value, steps: (value.steps as SavedJson[]).map(withFollowHeading_83_84) } : value];
+    return [name, value.kind === 'directions' ? { ...value, steps: (value.steps as SavedJson[]).map(withFollowHeading_84_85) } : value];
   }));
 }
 
-export function withFollowHeadings_83_84(world: SavedJson): SavedJson {
+export function withFollowHeadings_84_85(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
   if (!call) return world;
   const line = call.line as SavedJson;
-  const next = { ...call, vars: followHeadingVars_83_84(call.vars as SavedJson), line: { ...line, vars: followHeadingVars_83_84(line.vars as SavedJson) } };
+  const next = { ...call, vars: followHeadingVars_84_85(call.vars as SavedJson), line: { ...line, vars: followHeadingVars_84_85(line.vars as SavedJson) } };
   return { ...world, player: { ...player, call: next } };
 }
 
