@@ -1,5 +1,4 @@
 import { ECONOMY } from "../data/goods";
-import { PAINT_IDS, PAINT_JOBS, type PaintId } from "../data/chassis";
 import { playerVehicle } from "../sim/damage";
 import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
 import { mountedParts } from "../sim/grid";
@@ -126,38 +125,6 @@ export function keepFocus(root: HTMLElement, render: () => void): void {
 
 export function bar(share: number): HTMLElement {
   return el("div", { class: "meter" }, el("div", { style: `width:${Math.max(0, Math.min(1, share)) * 100}%` }));
-}
-
-export function paintStyle(id: PaintId): string {
-  const css = (color: number): string => `#${color.toString(16).padStart(6, "0")}`;
-  return `--paint-top:${css(PAINT_JOBS[id].top)};--paint-cab:${css(PAINT_JOBS[id].cab)}`;
-}
-
-export function paintSwatch(id: PaintId): HTMLElement {
-  return el("span", { class: "paint-swatch", style: paintStyle(id) }, el("i", { class: "paint-body" }), el("i", { class: "paint-cab" }));
-}
-
-export function livePaintPick(current: PaintId, pick: PaintId | null): PaintId | null {
-  return pick === current ? null : pick;
-}
-
-export type PaintChoice = { current: PaintId; pick: PaintId | null; choose: (id: PaintId) => void; buy: HTMLElement | null };
-
-export function paintRow(choice: PaintChoice): HTMLElement {
-  const swatches = PAINT_IDS.map((id, i) =>
-    el(
-      "button",
-      {
-        class: `btn-s${choice.pick === id ? " planned" : ""}`,
-        "data-paint": id,
-        "aria-pressed": String(choice.current === id),
-        "aria-label": num(i + 1, "int"),
-        onclick: () => choice.choose(id),
-      },
-      paintSwatch(id),
-    ),
-  );
-  return el("div", { class: "paint-row" }, el("div", { class: "option-switch paint-switch", role: "group" }, ...swatches), el("div", { class: "paint-buy" }, choice.buy));
 }
 
 export type SwapOffer = { reason: Msg | null; swap: () => void };

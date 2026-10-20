@@ -2,13 +2,10 @@
 import { ECONOMY, GOOD_IDS, PARCEL } from "../data/goods";
 import { CONTRACTS, SHOPS, SHORT_PRESSURE, shopDef, siteRecipes, type Recipe, type ShopDef } from "../data/market";
 import { RULES } from "../data/rules";
-import type { PaintId } from "../data/chassis";
 import { partDef, type PartKind } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
 import {
   buyChassis,
-  paintPrice,
-  repaint,
   buyGood,
   buyPrice,
   buyStockPart,
@@ -52,7 +49,7 @@ import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
-import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPick, paintRow, type PriceHint } from "./shop-rows";
+import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
 import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
@@ -87,7 +84,6 @@ export class TownScreen {
   private tab: Tab = "market";
   private stockFilter: StockFilter = "all";
   private error: Msg | null = null;
-  private paintPick: PaintId | null = null;
   private rows = new PartRows(() => this.render());
   private sheet: Sheet | null = null;
   private hoverSheet: Sheet | null = null;
@@ -127,7 +123,6 @@ export class TownScreen {
     if (shopAt(this.host.world())) this.host.apply(enterTown(this.host.world()));
     this.root.style.display = "";
     this.error = null;
-    this.paintPick = null;
     this.rows.collapse();
     this.render();
   }
@@ -183,7 +178,6 @@ export class TownScreen {
           "data-tab": tab,
           onclick: () => {
             this.tab = tab;
-            this.paintPick = null;
             this.showList();
           },
         },
@@ -376,21 +370,10 @@ export class TownScreen {
   }
 
   private trucks(w: World, shopId: string): HTMLElement {
-    const cards = truckCards(w, garageChassis(shopId), (id) => ({
+    return truckCards(w, garageChassis(shopId), (id) => ({
       reason: chassisPrice(w, id) < 0 ? null : shortBy(w.player.money, chassisPrice(w, id)),
       swap: () => this.run((x) => buyChassis(x, id)),
     }));
-    return el("div", { class: "trucks-tab" }, this.paintRow(w), cards);
-  }
-
-  private paintRow(w: World): HTMLElement {
-    const pick = livePaintPick(w.player.paint, this.paintPick);
-    const choose = (id: PaintId): void => {
-      this.paintPick = id;
-      this.render();
-    };
-    const buy = pick ? this.priceButton(w, t("goods.buy"), paintPrice(w), (x) => repaint(x, pick), null, "repaint") : null;
-    return paintRow({ current: w.player.paint, pick, choose, buy });
   }
 
   private charts(w: World, shopId: string): HTMLElement {
