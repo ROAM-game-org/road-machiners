@@ -8,7 +8,7 @@ import type { Vec } from "./vec";
 import type { LineId, TopicId } from "../data/dialogue";
 import type { PersonalityId } from "../data/personalities";
 import type { DecisionOptions } from "../data/npcs";
-import type { Contract, ShopState } from "./market";
+import type { Contract, PastContract, ShopState } from "./market";
 import type { Rng } from "./rng";
 import type { PerkId } from "../data/skills";
 import type { NoteId } from "../data/locals";
@@ -489,6 +489,7 @@ export type Player = {
   scavenged: string[];
   storage: PartInstance[];
   contracts: Contract[];
+  pastContracts: PastContract[];
   costBasis: Record<string, number>;
   knockouts: number;
   state: "active" | "knockedOut" | "dead";

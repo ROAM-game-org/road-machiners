@@ -92,6 +92,10 @@ export function withKovacMounts_88_89(world: SavedJson): SavedJson {
   return renameQuestVar(heard, 'nose_kovac', 'asked_gate_law', 'asked_mounts');
 }
 
+export function withPastContracts_89_90(world: SavedJson): SavedJson {
+  return { ...world, player: { ...(world.player as SavedJson), pastContracts: [] } };
+}
+
 export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }
