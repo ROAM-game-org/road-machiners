@@ -46,10 +46,11 @@ function thinkOrderPoint(world: World, v: Vehicle): Plan {
 }
 
 function setOrder(world: World, { v, activity, goal }: Plan): void {
-  noteStuck(world, v, goal);
+  const waiting = waitsForEscort(world, v, activity);
+  noteStuck(world, v, waiting ? null : goal);
   const stops = goal !== null && !(activity.kind === "fight" && runsDown(world, v)) && trafficStops(world, v, goal);
   noteStall(world, v, stops && activity.kind !== "fight" && activity.kind !== "flee");
-  v.order = nextOrder(world, v, activity, goal, stops);
+  v.order = nextOrder(world, v, activity, goal, stops || waiting);
   v.direct = dragsStraight(world, v);
 }
 
@@ -110,7 +111,7 @@ function startRecovery(v: Vehicle): void {
 function nextOrder(world: World, v: Vehicle, activity: NpcActivity, goal: Vec | null, stops: boolean): MoveOrder {
   if (!goal) return { kind: "brake" };
   if (v.brain!.recovery) return { kind: "stopAt", dest: v.brain!.recoveryGoal! };
-  if (stops || waitsForEscort(world, v, activity)) return { kind: "brake" };
+  if (stops) return { kind: "brake" };
   return driveOrder(world, v, activity, goal);
 }
 
