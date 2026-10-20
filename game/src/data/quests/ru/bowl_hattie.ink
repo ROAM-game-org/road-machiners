@@ -27,7 +27,7 @@ VAR hattie_unarmed = false
   Он нашел твой грузовик в пустошах. Стоит, не едет, а в кресле ты. Решил, что грузовик бросили, зацепил и притащил сюда вместе с тобой.
   ~ hattie_tow = true
   -> hub
-+ {towed_to_bowl and not hattie_strip} [Кто ободрал мой грузовик?]
++ {towed_to_bowl and engine_missing() and not hattie_strip} [Кто ободрал мой грузовик?]
   Не буксировщик, если ты на него думаешь. Кто ободрал, тот не спешил, а тебя в живых оставил.
   ~ hattie_strip = true
   -> hub
