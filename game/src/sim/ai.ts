@@ -1,6 +1,7 @@
 import { NPC_BEHAVIOR, NPCS, SPAWN } from "../data/npcs";
 import { sustainedDamage } from "../data/parts";
 import { RULES } from "../data/rules";
+import { PHYSICS } from "../data/physics";
 import { isKnockedOut } from "./defeat";
 import { isNear } from "./far";
 import { getActivityDestination, thinkNpc, topGoal, turnCornered } from "./npc-activities";
@@ -327,29 +328,23 @@ export function yieldsToTraffic(world: World, v: Vehicle): boolean {
   if (v.brain || v.id !== world.player.vehicleId || v.direct) return false;
   const order = v.order;
   if (!order || order.kind === "brake" || inCombat(world, v)) return false;
-  return trafficStops(world, v, order.dest) || holdsForApproach(world, v);
+  return trafficStops(world, v, order.dest);
 }
 
-function holdsForApproach(world: World, v: Vehicle): boolean {
-  if (v.speed >= RULES.parkedSpeed) return false;
-  return others(world, v).some((x) => {
-    if (x.speed < RULES.parkedSpeed || !followsTraffic(world, x)) return false;
-    const approaching = Math.cos(angleDiff(x.heading, bearing(x.pos, v.pos))) > 0;
-    return approaching && dist(v.pos, x.pos) - vehicleStats(world, v).radius - vehicleStats(world, x).radius < brakingReach(world, v, x);
-  });
+export function standingBlockers(world: World, v: Vehicle): Blocker[] {
+  return [...parkedVehicles(world, v.id, getHitchedTowIds(world)), ...fieldBlockers(world, v)];
 }
 
 export function routeBlockers(world: World, v: Vehicle): Blocker[] {
-  const standing = [...parkedVehicles(world, v.id, getHitchedTowIds(world)), ...fieldBlockers(world, v)];
+  const standing = standingBlockers(world, v);
   if (!followsTraffic(world, v)) return standing;
-  return [...standing, ...conflicts(world, v, 1).flatMap((x) => sweptPath(world, v, x))];
+  return [...standing, ...conflicts(world, v, 1).filter((x) => !givesWayTo(world, x, v)).flatMap((x) => sweptPath(world, v, x))];
 }
 
 export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
   if (facesParked(world, v)) return true;
   if (!isNear(world, v)) return false;
-  if (facesOncoming(world, v)) return true;
-  const moving = conflicts(world, v, 0);
+  const moving = meeting(world, v);
   if (moving.length === 0) return false;
   const parked = parkedVehicles(world, v.id, getHitchedTowIds(world));
   const radius = vehicleStats(world, v).radius;
@@ -357,11 +352,41 @@ export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
   const around = route(world, v.pos, dest, radius, [...parked, ...moving.flatMap((x) => sweptPath(world, v, x))], v);
   if (dist(open.at(-1)!, around.at(-1)!) > 0) return true;
   const { vs, t } = horizon(world, v);
-  return routeLength(v.pos, around) - routeLength(v.pos, open) > vs * t;
+  if (routeLength(v.pos, around) - routeLength(v.pos, open) > vs * t) return true;
+  return moving.some((x) => !passesClear(world, v, x, around));
+}
+
+function passesClear(world: World, v: Vehicle, x: Vehicle, around: Vec[]): boolean {
+  const radii = vehicleStats(world, v).radius + vehicleStats(world, x).radius + PHYSICS.driver.clearMargin;
+  const { vs, t } = horizon(world, v);
+  const at = (d: number): Vec => alongRoute(v.pos, around, d);
+  for (let s = 0; s <= t; s += RULES.traffic.passStep) {
+    const there = { x: x.pos.x + Math.cos(x.heading) * x.speed * s, y: x.pos.y + Math.sin(x.heading) * x.speed * s };
+    if (dist(at(vs * s), there) < radii + PHYSICS.driver.moverSpread * s) return false;
+  }
+  return true;
+}
+
+function alongRoute(from: Vec, points: Vec[], d: number): Vec {
+  let at = from;
+  let left = d;
+  for (const p of points) {
+    const leg = dist(at, p);
+    if (left <= leg) return leg === 0 ? at : { x: at.x + ((p.x - at.x) * left) / leg, y: at.y + ((p.y - at.y) * left) / leg };
+    left -= leg;
+    at = p;
+  }
+  return at;
 }
 
 function others(world: World, v: Vehicle): Vehicle[] {
   return world.vehicles.filter((x) => x.id !== v.id && x.id !== v.brain?.ramTarget && !onOwnRope(world, v, x));
+}
+
+function meeting(world: World, v: Vehicle): Vehicle[] {
+  const closing = conflicts(world, v, 0);
+  const stopped = v.speed < RULES.parkedSpeed ? others(world, v).filter((x) => x.speed >= RULES.parkedSpeed && closesOn(world, x, v, 0) && !closing.includes(x)) : [];
+  return [...closing, ...stopped].filter((x) => !givesWayTo(world, x, v));
 }
 
 function conflicts(world: World, v: Vehicle, leadTurns: 0 | 1): Vehicle[] {
@@ -381,9 +406,8 @@ function facesParked(world: World, v: Vehicle): boolean {
   });
 }
 
-function facesOncoming(world: World, v: Vehicle): boolean {
-  if (!givesWay(world, v)) return false;
-  return conflicts(world, v, 0).some((x) => v.id < x.id && givesWay(world, x) && closesOn(world, x, v, 0));
+function givesWayTo(world: World, giver: Vehicle, holder: Vehicle): boolean {
+  return giver.id < holder.id && givesWay(world, giver) && givesWay(world, holder) && closesOn(world, giver, holder, 0) && closesOn(world, holder, giver, 0);
 }
 
 function horizon(world: World, v: Vehicle): { vs: number; t: number } {
@@ -404,8 +428,9 @@ function sweptPath(world: World, v: Vehicle, x: Vehicle): Blocker[] {
   const circles: Blocker[] = [];
   for (let i = 0; i <= steps; i++) {
     const d = (reach * i) / steps;
+    const margin = PHYSICS.driver.clearMargin + (PHYSICS.driver.moverSpread * d) / xs;
     const pos = { x: x.pos.x + Math.cos(x.heading) * d, y: x.pos.y + Math.sin(x.heading) * d };
-    if (i === 0 || dist(v.pos, pos) - radii <= (vs * (d + tail)) / xs) circles.push({ pos, r });
+    if (i === 0 || dist(v.pos, pos) - radii <= (vs * (d + tail)) / xs) circles.push({ pos, r: r + margin });
   }
   return circles;
 }
