@@ -27,6 +27,19 @@ describe("stingOf", () => {
     expect(stingOf(events, "p")).toBeNull();
     expect(stingOf([{ t: "arrived", vehicle: "p" }], "p")).toBeNull();
   });
+  it("warns softly when a heatwave starts, ahead of money", () => {
+    const heatwave = { id: "h1", kind: "heatwave" as const, turnsLeft: 10 };
+    const started: GameEvent = { t: "weather", event: heatwave, outcome: "started" };
+    expect(stingOf([started], "p")).toBe("heatwave-warning");
+    expect(stingOf([{ t: "money", amount: 20, reason: { kind: "contract" } }, started], "p")).toBe("heatwave-warning");
+    expect(stingOf([{ t: "weather", event: heatwave, outcome: "ended" }], "p")).toBeNull();
+  });
+  it("gives no sting for a storm or overcast starting", () => {
+    const storm = { id: "s1", kind: "storm" as const, pos: { x: 1, y: 1 }, radius: 5, vel: { x: 1, y: 0 }, turnsLeft: 5, born: 0 };
+    const overcast = { id: "o1", kind: "overcast" as const, turnsLeft: 5 };
+    expect(stingOf([{ t: "weather", event: storm, outcome: "started" }], "p")).toBeNull();
+    expect(stingOf([{ t: "weather", event: overcast, outcome: "started" }], "p")).toBeNull();
+  });
   it("plays no sting on a knockout, which is only a log line and a mark", () => {
     expect(stingOf([{ t: "knockout" }], "p")).toBeNull();
   });

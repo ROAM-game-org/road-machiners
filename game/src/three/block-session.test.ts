@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { SCORE_BLOCKS } from "../data/sounds";
+import { BlockSequencer, blocksOf } from "../audio/designer";
 import { BlockSession, type BlockOutput, type BlockSong, type Part, type VoiceHandle } from "./block-session";
 import { COMBAT_SONGS, CombatMusic, type Kit } from "./combat-music";
 
 const BAR_SECONDS = 2;
+const CLEAN = [0, 1];
+const CUT = [9, 0];
 const BARS = 8;
 const SONG: BlockSong = {
   title: "Test",
@@ -15,15 +18,17 @@ const SONG: BlockSong = {
   barTimes: Array.from({ length: BARS + 1 }, (_, i) => i * BAR_SECONDS),
   barPower: Array.from({ length: BARS }, (_, i) => ({ ss: 1, gg: i >= 4 ? 1e-4 : 0.1, sg: 0 })),
   barEntry: [0, 0, 0, 0, 0.3, 0, 0, 0],
-  guitarWall: 1,
   sections: [
     { role: "intro", from: 1, bars: 2 },
     { role: "verse", from: 5, bars: 2 },
   ],
+  jumps: { "3": { "1": CUT, "5": CLEAN }, "7": { "1": CUT, "5": CLEAN } },
+  quietExits: [],
+  jumpBlockBars: 2,
   end: 7,
 };
 
-type Voice = { part: Part; offset: number; when: number; level: number; fades: number[] };
+type Voice = { part: Part; offset: number; when: number; level: number; fades: number[]; release?: { from: number; to: number } };
 
 function recorder() {
   const voices: Voice[] = [];
@@ -34,8 +39,8 @@ function recorder() {
       voices.push(v);
       return handle(v);
     },
-    lean: (offset, when, _length, _scale, level) => {
-      const v: Voice = { part: "guitars", offset, when, level, fades: [] };
+    lean: (offset, when, length, _scale, level, release) => {
+      const v: Voice = { part: "guitars", offset, when, level, fades: [], release: { from: when + length - release, to: when + length } };
       voices.push(v);
       return handle(v);
     },
@@ -43,9 +48,15 @@ function recorder() {
   return { voices, out };
 }
 
-function playIntoVerse() {
+const WALL_SONG: BlockSong = {
+  ...SONG,
+  barPower: SONG.barPower.map((p) => ({ ...p, gg: 0.1 })),
+  sections: [SONG.sections[0], { role: "wall", from: 5, bars: 2 }],
+};
+
+function playIntoVerse(song = SONG) {
   const { voices, out } = recorder();
-  const session = new BlockSession(SONG, out, () => 0);
+  const session = new BlockSession(song, out, () => 0);
   session.start(0);
   const verseAt = SCORE_BLOCKS.startLeadSeconds + 2 * BAR_SECONDS;
   session.tick(verseAt - 1);
@@ -60,7 +71,7 @@ describe("BlockSession", () => {
   });
 
   it("plays the cymbal lane from its own file, at the song's cymbal level", () => {
-    const { session, voices, verseAt } = playIntoVerse();
+    const { session, voices, verseAt } = playIntoVerse(WALL_SONG);
     session.fire("knockout", verseAt + 0.1);
     session.tick(verseAt + 0.1);
     const cymbals = voices.find((v) => v.part === "cymbals")!;
@@ -70,14 +81,91 @@ describe("BlockSession", () => {
     expect(cymbals.level).toBe(SONG.cymbals.gain * SCORE_BLOCKS.cymbalGain);
   });
 
-  it("leans a verse with no guitars of its own on the guitar wall's matching bar", () => {
-    const { session, voices, verseAt } = playIntoVerse();
+  it("leans a wall on its own guitars from the next bar", () => {
+    const { session, voices, verseAt } = playIntoVerse(WALL_SONG);
     session.fire("knockout", verseAt + 0.1);
     session.tick(verseAt + 0.1);
     const guitars = voices.find((v) => v.part === "guitars")!;
     expect(guitars.when).toBeCloseTo(verseAt + BAR_SECONDS);
-    expect(guitars.offset).toBe(SONG.barTimes[SONG.guitarWall]);
+    expect(guitars.offset).toBe(SONG.barTimes[5]);
     expect(guitars.level).toBeLessThan(1);
+  });
+
+  it("fades both layers out over the last bar before the phrase ends", () => {
+    const { session, voices, verseAt } = playIntoVerse(WALL_SONG);
+    session.fire("knockout", verseAt + 0.1);
+    session.tick(verseAt + 0.1);
+    const phraseEnd = verseAt + 2 * BAR_SECONDS;
+    expect(voices.find((v) => v.part === "guitars")!.release).toEqual({ from: phraseEnd - BAR_SECONDS, to: phraseEnd });
+    expect(voices.find((v) => v.part === "cymbals")!.fades[0]).toBeCloseTo(phraseEnd - BAR_SECONDS / 2);
+  });
+
+  it("adds no guitars to a solo, which already leads with them", () => {
+    const sections: BlockSong["sections"] = [SONG.sections[0], { role: "wall", from: 3, bars: 2 }, { role: "solo", from: 5, bars: 2 }];
+    const jumps = Object.fromEntries([3, 5, 7].map((exit) => [exit, { "1": CLEAN, "3": CLEAN, "5": CLEAN }]));
+    const { voices, out } = recorder();
+    const session = new BlockSession({ ...WALL_SONG, sections, jumps }, out, () => 0.999);
+    session.start(0);
+    const soloAt = SCORE_BLOCKS.startLeadSeconds + 4 * BAR_SECONDS;
+    for (let t = 0; t < soloAt; t += 0.5) session.tick(t);
+    expect(session.played.map((p) => p.role)).toEqual(["intro", "wall", "solo"]);
+    session.fire("knockout", soloAt + 0.1);
+    session.tick(soloAt + 0.1);
+    expect(voices.some((v) => v.part === "guitars")).toBe(false);
+  });
+
+  it("adds no guitars or cymbals to a verse that has none of its own", () => {
+    const { session, voices, verseAt } = playIntoVerse();
+    session.fire("knockout", verseAt + 0.1);
+    session.tick(verseAt + 0.1);
+    expect(voices.map((v) => v.part)).toEqual(["song", "song"]);
+  });
+});
+
+describe("combat songs", () => {
+  const REACH_BARS = 20;
+  for (const [name, song] of Object.entries(COMBAT_SONGS)) {
+    it(`${name} reaches a verse and a wall from every block within ${REACH_BARS} bars`, () => {
+      const sequencer = new BlockSequencer(blocksOf(song.sections, SCORE_BLOCKS.arc.blockBars), SCORE_BLOCKS.arc, song, () => 0);
+      for (const role of ["verse", "wall"] as const) {
+        const far = [...sequencer.barsTo(new Set([role]))].filter(([, bars]) => !(bars <= REACH_BARS));
+        expect(far, `${name} blocks with no near road to a ${role}`).toEqual([]);
+      }
+    });
+  }
+});
+
+describe("lanes at a jump", () => {
+  const BARS_LONG = 16;
+  const sections: BlockSong["sections"] = [
+    { role: "intro", from: 1, bars: 2 },
+    { role: "wall", from: 3, bars: 8 },
+    { role: "stop", from: 11, bars: 2 },
+    { role: "verse", from: 13, bars: 4 },
+  ];
+  const starts = [1, 3, 5, 7, 9, 11, 13, 15];
+  const song: BlockSong = {
+    ...WALL_SONG,
+    length: BAR_SECONDS * BARS_LONG,
+    barTimes: Array.from({ length: BARS_LONG + 1 }, (_, i) => i * BAR_SECONDS),
+    barPower: Array.from({ length: BARS_LONG }, () => ({ ss: 1, gg: 0.1, sg: 0 })),
+    barEntry: Array.from({ length: BARS_LONG }, () => 0),
+    sections,
+    jumps: Object.fromEntries(starts.map((s) => [s + 2, Object.fromEntries(starts.map((t) => [t, s + 2 === 5 && t === 9 ? CLEAN : CUT]))])),
+    end: 15,
+  };
+
+  it("fades a layer out where the score jumps, so it never plays over another bar", () => {
+    const { out } = recorder();
+    const session = new BlockSession(song, out, () => 0);
+    session.start(0);
+    for (let t = 0; t < 4.2; t += 0.25) session.tick(t);
+    session.fire("knockout", 4.2);
+    for (let t = 4.25; t < 9; t += 0.25) session.tick(t);
+    const jump = session.played.find((p) => p.join === "jump")!;
+    expect(jump.bar).toBe(9);
+    expect(session.overlays.length).toBeGreaterThan(0);
+    for (const o of session.overlays) expect(o.to).toBeCloseTo(jump.start);
   });
 });
 

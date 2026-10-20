@@ -6,6 +6,8 @@ import { choosePerk, pendingPerkPairs, skillLevel } from '../sim/progress';
 import { emptyWorld } from '../sim/testkit';
 import type { Obstacle, Player, Vehicle, WeatherEvent, World } from '../sim/types';
 import { stormStrength, weatherAt, weatherOn } from '../sim/weather';
+import { ECONOMY } from '../data/goods';
+import { pressureOf, priceAtPressure } from '../sim/market';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
 import FORMAT_2_1 from './save-fixtures/format-2-1.json';
 import FORMAT_2_2 from './save-fixtures/format-2-2.json';
@@ -75,6 +77,7 @@ import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
+import FORMAT_2_82 from './save-fixtures/format-2-82.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1760,5 +1763,67 @@ describe('save migration 81 to 82', () => {
   it('leaves other goals and a goal that already heard alone', () => {
     const before = [{ kind: 'travel', destination: { x: 1, y: 2 } }, { kind: 'investigate', destination: { x: 5, y: 5 }, heard: { x: 4, y: 4 } }];
     expect(goalsAfter(withGoals(before))).toEqual(before);
+  });
+});
+
+describe('MIGRATIONS[82]', () => {
+  type Shop = { goods: Record<string, number>; contracts: { id: string }[]; event: unknown; shortSince: unknown; opened: unknown; pressure?: unknown };
+  const migrated = () => MIGRATIONS[82](structuredClone(FORMAT_2_82)) as unknown as { shops: Record<string, Shop>; vehicles: { id: string; job: unknown; brain: { goals: { kind: string; load?: unknown }[] } | null }[]; roadNews: unknown[]; player: unknown };
+
+  it('gives every shop a goods stock from its old pressure and drops the pressure', () => {
+    const next = migrated();
+    for (const shop of Object.values(next.shops)) {
+      expect(shop.pressure).toBeUndefined();
+      expect(shop).toMatchObject({ event: null, shortSince: {}, opened: {} });
+    }
+    expect(next.shops.nose.goods.salt).toBe(150);
+    expect(next.shops.bowl.goods.fuelDrums).toBe(0);
+    expect(next.shops.bowl.goods.water).toBe(240);
+    expect(next.shops.bowl.goods.rations).toBe(120);
+    expect(next.shops.nose.goods.relics).toBe(0);
+    expect(next.shops.granary.goods.textiles).toBeUndefined();
+    expect(Object.keys(next.shops.granary.goods).sort()).toEqual(['fuelDrums', 'grain', 'rations', 'salt', 'tools', 'water']);
+  });
+
+  it('keeps a buy price on load within a cent where the good is made in the same place as before', () => {
+    const next = migrated();
+    const before = priceAtPressure('nose', 'salt', FORMAT_2_82.shops.nose.pressure.salt, 'buy', ECONOMY.spread);
+    const after = priceAtPressure('nose', 'salt', pressureOf('nose', 'salt', next.shops.nose.goods.salt), 'buy', ECONOMY.spread);
+    expect(Math.abs(after - before)).toBeLessThanOrEqual(1);
+  });
+
+  it('drops board hauls of goods a shop no longer trades, and keeps the held contract and cargo', () => {
+    const next = migrated();
+    expect(next.shops.granary.contracts.map((c) => c.id)).toEqual(['ct-3']);
+    expect(next.player).toEqual(FORMAT_2_82.player);
+    expect(next.vehicles[0]).toEqual(FORMAT_2_82.vehicles[0]);
+  });
+
+  it('drops the free haul goals and their business, so the driver picks a new goal', () => {
+    const next = migrated();
+    expect(next.vehicles[1].brain!.goals).toEqual([]);
+    expect(next.vehicles[1].job).toBeNull();
+  });
+});
+
+describe('MIGRATIONS[83]', () => {
+  type Shops = Record<string, { stock: { defId: string }[]; restockAt: number }>;
+  const shopsOf = (world: unknown) => (world as { shops: Shops }).shops;
+  const withShelves = () => {
+    const world = structuredClone(FORMAT_2_82) as unknown as { shops: Shops };
+    world.shops.bowl.stock = [{ defId: 'mg' }];
+    world.shops.nose.stock = [{ defId: 'mg' }, { defId: 'stockEngine' }];
+    world.shops['salvage-yard'].stock = [{ defId: 'mg' }];
+    return world;
+  };
+
+  it('restocks a Bowl or Nose shelf with no stock engine on the saved turn and leaves the rest alone', () => {
+    const before = withShelves();
+    const next = MIGRATIONS[83](structuredClone(before) as never);
+
+    expect(shopsOf(next).bowl.restockAt).toBe(FORMAT_2_82.turn);
+    expect(shopsOf(next).nose.restockAt).toBe(before.shops.nose.restockAt);
+    expect(shopsOf(next)['salvage-yard']).toEqual(before.shops['salvage-yard']);
+    expect({ ...next, shops: { ...shopsOf(next), bowl: before.shops.bowl } }).toEqual(before);
   });
 });

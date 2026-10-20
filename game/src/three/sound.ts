@@ -25,6 +25,7 @@ const STINGS: {
   cue: CueId;
   match: (e: GameEvent, playerId: string) => boolean;
 }[] = [
+  { cue: "heatwave-warning", match: (e) => e.t === "weather" && e.outcome === "started" && e.event.kind === "heatwave" },
   { cue: "level-up", match: (e) => e.t === "skillUp" },
   { cue: "discover", match: (e) => e.t === "discover" },
   { cue: "money", match: (e) => e.t === "money" && e.amount > 0 },

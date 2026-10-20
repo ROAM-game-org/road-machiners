@@ -402,6 +402,7 @@ export const WINDOW_MOVE = {
   removed: 'keep',
   spawnTimer: 'keep',
   shops: 'keep',
+  roadNews: 'keep',
   salvage: 'keep',
   player: 'shift',
   vehicles: 'shift',
