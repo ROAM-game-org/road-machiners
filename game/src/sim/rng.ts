@@ -39,3 +39,7 @@ export function hashRandom(seed: number, ...keys: number[]): number {
   h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
 }
+
+export function charCodes(text: string): number[] {
+  return Array.from(text, (ch) => ch.charCodeAt(0));
+}

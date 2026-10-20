@@ -1,4 +1,5 @@
 
+import { pickLesson } from './lessons';
 import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
 import { COLD_LINES, TOPIC_GATES, type ConditionId, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
 import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
@@ -646,6 +647,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
 };
 
 export const PREPARES: Record<PrepareId, Prepare> = {
+  roadLesson: (world, npc) => ({ lesson: { kind: 'line', line: pickLesson(world, npc, playerVehicle(world)) } }),
   truceAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'truce') }, ...ransomVars(world, npc) }),
   mercyAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'mercy') }, ...ransomVars(world, npc) }),
   demandHaul: (world, npc) => ransomVars(world, npc),
