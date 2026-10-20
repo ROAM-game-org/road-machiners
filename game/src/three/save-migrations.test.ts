@@ -81,8 +81,8 @@ import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
-import FORMAT_2_88 from './save-fixtures/format-2-88.json';
 import FORMAT_2_89 from './save-fixtures/format-2-89.json';
+import FORMAT_2_90 from './save-fixtures/format-2-90.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -1946,23 +1946,52 @@ describe('save migration 87 to 88', () => {
   });
 });
 
-describe('MIGRATIONS[88]', () => {
-  it('gives the player the standard paint and changes nothing else', () => {
-    const next = MIGRATIONS[88](structuredClone(FORMAT_2_88)) as unknown as typeof FORMAT_2_88 & { player: { paint: string } };
-    expect(next.player.paint).toBe('standard');
-    const { paint: _paint, ...player } = next.player;
-    expect({ ...next, player }).toEqual(FORMAT_2_88);
+describe('save migration 88 to 89', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: unknown };
+  type Saved = { player: { quests: Quests } };
+  const saved = (quests: Partial<Quests>): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: Saved) => MIGRATIONS[88](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('renames Kovac\'s gate law marks to the mount marks, keeping their values', () => {
+    const before = saved({ world: { intro_step: 'done' }, local: { nose_kovac: { heard_workshop: true, heard_gate_law: true, asked_gate_law: false, heard_paper: true } } });
+
+    const next = stepped(before);
+
+    expect(next.player.quests).toEqual({
+      world: { intro_step: 'done' },
+      local: { nose_kovac: { heard_workshop: true, heard_mounts: true, asked_mounts: false, heard_paper: true } },
+      session: null,
+    });
+  });
+
+  it('leaves a save that never met Kovac as it was', () => {
+    const before = saved({ world: { intro_step: 'done' } });
+
+    expect(stepped(before)).toEqual(before);
   });
 });
 
 describe('MIGRATIONS[89]', () => {
-  const migrate = (paint: unknown) => MIGRATIONS[89](structuredClone({ ...FORMAT_2_89, player: { ...FORMAT_2_89.player, paint } })) as unknown as typeof FORMAT_2_89 & { player: { paint: unknown } };
+  it('gives the player the standard paint and changes nothing else', () => {
+    const next = MIGRATIONS[89](structuredClone(FORMAT_2_89)) as unknown as typeof FORMAT_2_89 & { player: { paint: string } };
+    expect(next.player.paint).toBe('standard');
+    const { paint: _paint, ...player } = next.player;
+    expect({ ...next, player }).toEqual(FORMAT_2_89);
+  });
+});
+
+describe('MIGRATIONS[90]', () => {
+  const migrate = (paint: unknown) => MIGRATIONS[90](structuredClone({ ...FORMAT_2_90, player: { ...FORMAT_2_90.player, paint } })) as unknown as typeof FORMAT_2_90 & { player: { paint: unknown } };
 
   it('turns an old paint job into its body, cab and gear colors and changes nothing else', () => {
     const next = migrate('plum');
     expect(next.player.paint).toEqual({ body: 'plum', cab: 'olive', gear: 'plum' });
-    expect({ ...next, player: { ...next.player, paint: 'plum' } }).toEqual(FORMAT_2_89);
-    expect(MIGRATIONS[89](structuredClone(FORMAT_2_89))).toEqual(next);
+    expect({ ...next, player: { ...next.player, paint: 'plum' } }).toEqual(FORMAT_2_90);
+    expect(MIGRATIONS[90](structuredClone(FORMAT_2_90))).toEqual(next);
   });
 
   it.each([

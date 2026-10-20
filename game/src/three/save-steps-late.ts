@@ -87,6 +87,11 @@ export function withBrakeRod_78_79(world: SavedJson): SavedJson {
   return { ...renamed, player: { ...player, notes } };
 }
 
+export function withKovacMounts_88_89(world: SavedJson): SavedJson {
+  const heard = renameQuestVar(world, 'nose_kovac', 'heard_gate_law', 'heard_mounts');
+  return renameQuestVar(heard, 'nose_kovac', 'asked_gate_law', 'asked_mounts');
+}
+
 export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
 }
@@ -186,31 +191,31 @@ export function withDutyLegs_59_60(world: SavedJson): SavedJson {
   return { ...world, vehicles };
 }
 
-const STANDARD_PAINT_88_89 = 'standard';
+const STANDARD_PAINT_89_90 = 'standard';
 
-export function withStandardPaint_88_89(world: SavedJson): SavedJson {
-  return { ...world, player: { ...(world.player as SavedJson), paint: STANDARD_PAINT_88_89 } };
+export function withStandardPaint_89_90(world: SavedJson): SavedJson {
+  return { ...world, player: { ...(world.player as SavedJson), paint: STANDARD_PAINT_89_90 } };
 }
 
-type Paint_89_90 = { body: string; cab: string; gear: string };
+type Paint_90_91 = { body: string; cab: string; gear: string };
 
-const STANDARD_PAINT_89_90: Paint_89_90 = { body: 'tan', cab: 'olive', gear: 'tan' };
+const STANDARD_PAINT_90_91: Paint_90_91 = { body: 'tan', cab: 'olive', gear: 'tan' };
 
-const OLD_PRESETS_89_90: Record<string, Paint_89_90> = {
-  standard: STANDARD_PAINT_89_90,
+const OLD_PRESETS_90_91: Record<string, Paint_90_91> = {
+  standard: STANDARD_PAINT_90_91,
   plum: { body: 'plum', cab: 'olive', gear: 'plum' },
   lavender: { body: 'lavender', cab: 'navy', gear: 'lavender' },
   mint: { body: 'mint', cab: 'wine', gear: 'mint' },
   rose: { body: 'rose', cab: 'plum', gear: 'rose' },
 };
 
-export function paintOfPreset_89_90(preset: string): Paint_89_90 {
-  return { ...(Object.hasOwn(OLD_PRESETS_89_90, preset) ? OLD_PRESETS_89_90[preset] : STANDARD_PAINT_89_90) };
+export function paintOfPreset_90_91(preset: string): Paint_90_91 {
+  return { ...(Object.hasOwn(OLD_PRESETS_90_91, preset) ? OLD_PRESETS_90_91[preset] : STANDARD_PAINT_90_91) };
 }
 
-export function withThreeColorPaint_89_90(world: SavedJson): SavedJson {
+export function withThreeColorPaint_90_91(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
-  return { ...world, player: { ...player, paint: paintOfPreset_89_90(String(player.paint)) } };
+  return { ...world, player: { ...player, paint: paintOfPreset_90_91(String(player.paint)) } };
 }
 
 export function withEncounters_64_65(world: SavedJson): SavedJson {
