@@ -81,7 +81,7 @@ import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
-import FORMAT_2_89 from './save-fixtures/format-2-89.json';
+import FORMAT_2_90 from './save-fixtures/format-2-90.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -1975,15 +1975,26 @@ describe('save migration 88 to 89', () => {
 });
 
 describe('save migration 89 to 90', () => {
-  const stepped = (world: unknown) => MIGRATIONS[89](structuredClone(world) as SavedJson) as unknown as typeof FORMAT_2_89 & { player: { pastContracts: unknown[] } };
+  it('keeps a save as it is, since look-overs, sized-up trucks and rank 1 basics are new state kinds or derived from ranks', () => {
+    const before = structuredClone(FORMAT_2_87);
+
+    const next = MIGRATIONS[89](before as unknown as SavedJson);
+
+    expect(next).toEqual(FORMAT_2_87);
+    expect(before).toEqual(FORMAT_2_87);
+  });
+});
+
+describe('save migration 90 to 91', () => {
+  const stepped = (world: unknown) => MIGRATIONS[90](structuredClone(world) as SavedJson) as unknown as typeof FORMAT_2_90 & { player: { pastContracts: unknown[] } };
 
   it('gives the player an empty list of past contracts', () => {
-    expect(stepped(FORMAT_2_89).player.pastContracts).toEqual([]);
+    expect(stepped(FORMAT_2_90).player.pastContracts).toEqual([]);
   });
 
   it('keeps the held contracts and the rest of the save as they were', () => {
-    const next = stepped(FORMAT_2_89);
+    const next = stepped(FORMAT_2_90);
 
-    expect({ ...next, player: { ...next.player, pastContracts: undefined } }).toEqual(FORMAT_2_89);
+    expect({ ...next, player: { ...next.player, pastContracts: undefined } }).toEqual(FORMAT_2_90);
   });
 });

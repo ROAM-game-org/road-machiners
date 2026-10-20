@@ -4,7 +4,7 @@ import { partDef, type EngineDef, type StoreDef, type WeaponDef } from '../data/
 import { MIN_NPC_SPEED, NPCS, PRIORITY_TOP, SPEED_SHARE, type LoadoutPriorities } from '../data/npcs';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
-import { skillEffect } from './progress';
+import { hasBasic, skillEffect } from './progress';
 import { TOW } from '../data/tow';
 import { maxHp, wornDef } from './wear';
 import { gunSpans, type FireSpan } from './armor';
@@ -272,7 +272,15 @@ function templateSpeedShare(v: Vehicle): number {
 }
 
 export function inOverdrive(world: World, v: Vehicle): boolean {
-  return v.id === world.player.vehicleId && world.player.overdrive && canOverdrive(v);
+  return v.id === world.player.vehicleId && world.player.overdrive && hasBasic(world, 'overdrive') && canOverdrive(v);
+}
+
+export type OverdriveBlock = 'noBasic' | 'noEngine' | 'worn';
+
+export function overdriveBlock(world: World, v: Vehicle): OverdriveBlock | null {
+  if (!hasBasic(world, 'overdrive')) return 'noBasic';
+  if (mountedParts(v, 'engine').length === 0) return 'noEngine';
+  return canOverdrive(v) ? null : 'worn';
 }
 
 export function canOverdrive(v: Vehicle): boolean {

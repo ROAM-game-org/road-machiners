@@ -198,7 +198,8 @@ export type GoalReason =
   | 'takeSpilledCargo' | 'watchedRoad' | 'cornered' | 'defeated'
   | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey'
   | 'musterCrew' | 'crewLeader' | 'hiredGuard'
-  | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger';
+  | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger'
+  | 'sizingUp' | 'poorLoad' | 'sizedUpBy';
 
 export type SimNote =
   | { id: 'engineHot' }
@@ -236,6 +237,12 @@ export type Refusal =
   | { id: 'truckPartGone' }
   | { id: 'looting'; by: string; place: 'here' | 'wreck' | 'truck' }
   | { id: 'needsSpotter' }
+  | { id: 'needsBasic'; skill: SkillId }
+  | { id: 'lookOverFar' }
+  | { id: 'lookOverUnseen' }
+  | { id: 'lookOverKnown' }
+  | { id: 'lookOverRunning' }
+  | { id: 'lookOverDown' }
   | { id: 'cannotAct' }
   | { id: 'noTruck' }
   | { id: 'unseen' }
@@ -270,7 +277,7 @@ export type DriverResources = {
 export type NpcActivity = {
   kind:
     | 'scavenge' | 'prowl' | 'sell' | 'trade' | 'resupply' | 'raid' | 'fight' | 'flee' | 'wait' | 'investigate' | 'tow' | 'loot' | 'repair' | 'patch'
-    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'follow' | 'claim' | 'muster';
+    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'follow' | 'claim' | 'muster' | 'sizeUp';
   targetId: string | null;
   destination: Vec | null;
   phase: "travel" | "act";
@@ -375,7 +382,7 @@ export type Obstacle =
 
 export type BrokenProp = { obstacle: Obstacle; turn: number };
 
-export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire' | 'cavalcade' | 'offering' | 'drag';
+export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire' | 'cavalcade' | 'offering' | 'drag' | 'lookOver' | 'sizedUp';
 export type StateEnding = 'expired' | 'fulfilled' | 'broken';
 export type Plea = 'truce' | 'mercy';
 export type StateData =
@@ -592,6 +599,7 @@ export type GameEvent =
   | { t: 'guardEnded'; merc: string; end: GuardEnd }
   | { t: 'towDropped'; by: string; client: string; reason: 'refused' | 'unhitched' | 'danger' | 'stranded' | 'gone' | 'blocked' }
   | { t: 'stateEnded'; state: NpcState; ending: StateEnding }
+  | { t: 'lookedOver'; by: string; target: string }
   | { t: 'job'; vehicle: string; job: Job; outcome: 'started' | 'done' | 'cancelled' }
   | { t: 'breakdown'; vehicle: string; part: string }
   | { t: 'searched'; stock: string }

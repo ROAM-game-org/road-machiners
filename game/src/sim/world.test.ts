@@ -47,6 +47,7 @@ describe('the overdrive cutoff', () => {
 
   function overdriving(hp: number): World {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     w.player.overdrive = true;
     engineOf(w).hp = hp;
     return w;
@@ -89,6 +90,7 @@ describe('the overdrive cutoff', () => {
 
   it('refuses to switch overdrive on while the engine is too worn', () => {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     engineOf(w).hp = Math.floor(RULES.overdriveMinEngineShare * stockHp());
     expect(() => setOverdrive(w, true)).toThrow(/overdrive/i);
     expect(setOverdrive(w, false).player.overdrive).toBe(false);
@@ -100,6 +102,25 @@ describe('the overdrive cutoff', () => {
     expect(canOverdrive(playerVehicle(fixed))).toBe(true);
     expect(fixed.player.overdrive).toBe(false);
     expect(setOverdrive(fixed, true).player.overdrive).toBe(true);
+  });
+
+  it('refuses overdrive at Driving 0 with the rank it needs, and opens it at Driving 1', () => {
+    const w = emptyWorld();
+    expect(() => setOverdrive(w, true)).toThrow(expect.objectContaining({ refusal: { id: 'needsBasic', skill: 'driving' } }));
+    expect(setOverdrive(w, false).player.overdrive).toBe(false);
+    w.player.ranks.driving = 1;
+    expect(setOverdrive(w, true).player.overdrive).toBe(true);
+  });
+
+  it('cuts a saved overdrive at Driving 0 on the next step, with the cut-out note', () => {
+    const w = emptyWorld();
+    w.player.overdrive = true;
+    const me = playerVehicle(w);
+    const plain = { ...w, player: { ...w.player, overdrive: false } };
+    expect(vehicleStats(w, me).maxSpeed).toBe(vehicleStats(plain, me).maxSpeed);
+    const next = update(w, () => {});
+    expect(next.player.overdrive).toBe(false);
+    expect(cutEvents(next)).toBe(1);
   });
 
   it('logs nothing for a worn engine with overdrive already off', () => {

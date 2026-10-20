@@ -1,6 +1,6 @@
 
 import {
-  MAX_RANK, PERK_IDS, PERK_LEVELS, PERKS, type PerkId, type PerkLevel, RANK_COSTS, SKILL_EFFECTS, SKILL_IDS,
+  BASIC_RANK, BASICS, type BasicId, MAX_RANK, PERK_IDS, PERK_LEVELS, PERKS, type PerkId, type PerkLevel, RANK_COSTS, SKILL_EFFECTS, SKILL_IDS,
   type SkillEffect, XP_RULES, XP_SOURCES,
 } from '../data/skills';
 import { clockOf } from './sun';
@@ -142,6 +142,20 @@ export function buyCheapestRanks(world: World): World {
     const cheapest = affordable.reduce((best, skill) => (cost(skill) < cost(best) ? skill : best));
     world = buyRank(world, cheapest);
   }
+}
+
+export function basicSkill(basic: BasicId): SkillId {
+  const skill = SKILL_IDS.find((id) => BASICS[id] === basic);
+  if (!skill) throw new Error(`No skill opens the basic ${basic}`);
+  return skill;
+}
+
+export function hasBasic(world: World, basic: BasicId): boolean {
+  return skillLevel(world, basicSkill(basic)) >= BASIC_RANK;
+}
+
+export function basicRefusal(world: World, basic: BasicId): Refusal | null {
+  return hasBasic(world, basic) ? null : { id: 'needsBasic', skill: basicSkill(basic) };
 }
 
 export type PerkPair = { skill: SkillId; level: PerkLevel; perks: PerkId[] };

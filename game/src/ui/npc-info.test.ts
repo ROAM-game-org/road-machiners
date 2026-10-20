@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { chooseOn } from '../sim/tracks';
 import { STATE_TURNS } from '../data/npcs';
-import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
+import { addVehicle, emptyWorld, npcBrain, sizedUp } from '../sim/testkit';
 import { playerVehicle } from '../sim/damage';
 import { corePart, hasLoot, isLoot } from '../sim/grid';
 import type { GameEvent } from '../sim/types';
@@ -350,6 +350,7 @@ describe('the pass line of a hunting raider', () => {
     const { w, npc, player } = hunter();
     player.items = player.items.filter((item) => !isLoot(player.chassisId, item));
     expect(hasLoot(player)).toBe(false);
+    sizedUp(w, npc, player);
     expect(en(formatNpcPass(w, npc))).toBe('Lets you pass: nothing worth taking');
   });
 

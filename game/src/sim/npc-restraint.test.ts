@@ -15,7 +15,7 @@ import { inShade, sunAt } from './sun';
 import { straightClear } from './path';
 import { vehicleStats } from './stats';
 import { cloneWorld, endTurn } from './world';
-import { addVehicle, emptyWorld, finishBusiness, npcBrain, testDrive  } from './testkit';
+import { addVehicle, emptyWorld, finishBusiness, npcBrain, sizedUp, testDrive } from './testkit';
 import { siteGates, sitePads } from './sites';
 import { budget } from '../test/budget';
 import type { NpcActivity, Vehicle, World } from './types';
@@ -76,19 +76,28 @@ describe('NPC restraint', () => {
 
   it('judges the nearby hostile faction group before attacking', () => {
     const { world, npc } = createNpc('buggy');
-    loadedTrader(world, { x: 33, y: 30 });
+    sizedUp(world, npc, loadedTrader(world, { x: 33, y: 30 }));
     const alone = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
-    loadedTrader(world, { x: 33, y: 32 }, ['mg', 'mg', 'mg', 'stockEngine']);
+    sizedUp(world, npc, loadedTrader(world, { x: 33, y: 32 }, ['mg', 'mg', 'mg', 'stockEngine']));
     const grouped = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
     expect(grouped).toBeGreaterThan(0.25);
     expect(grouped).toBeGreaterThan(alone + 0.2);
   });
 
-  it('mostly sets on an isolated manageable target, and robs it or fights it', () => {
+  it('mostly sets on an isolated manageable target, sizes it up holding fire, and then robs it or fights it', () => {
     const { world, npc } = createNpc('buggy');
     const prey = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 33, y: 30 });
     prey.brain = npcBrain('trader', prey.pos, ['trader']);
     addGoods(world, prey, 'electronics', 3);
+    const sizing = shareOfSeeds(world, npc.id, (x, me) => {
+      planNpcOrders(x);
+      assignAutoOrders(x);
+      const sizes = topGoal(me)?.kind === 'sizeUp';
+      if (sizes) expect(me.weaponOrders).toEqual({});
+      return sizes;
+    });
+    expect(sizing).toBeGreaterThan(0.6);
+    sizedUp(world, npc, prey);
     const fought = shareOfSeeds(world, npc.id, (x, me) => {
       planNpcOrders(x);
       assignAutoOrders(x);

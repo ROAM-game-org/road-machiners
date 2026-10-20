@@ -92,7 +92,7 @@ export function withKovacMounts_88_89(world: SavedJson): SavedJson {
   return renameQuestVar(heard, 'nose_kovac', 'asked_gate_law', 'asked_mounts');
 }
 
-export function withPastContracts_89_90(world: SavedJson): SavedJson {
+export function withPastContracts_90_91(world: SavedJson): SavedJson {
   return { ...world, player: { ...(world.player as SavedJson), pastContracts: [] } };
 }
 
@@ -199,4 +199,17 @@ export function withEncounters_64_65(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   if (player.encounters !== undefined) return world;
   return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
+}
+
+const STAPLE_SHOPS_83_84 = ['bowl', 'nose'];
+const STAPLE_PART_83_84 = 'stockEngine';
+type SavedShop = { stock: { defId: string }[]; restockAt: number };
+
+export function withStapleRestock_83_84(world: SavedJson): SavedJson {
+  const shops = { ...(world.shops as Record<string, SavedShop>) };
+  for (const id of STAPLE_SHOPS_83_84) {
+    const shop = shops[id];
+    if (shop && !shop.stock.some((part) => part.defId === STAPLE_PART_83_84)) shops[id] = { ...shop, restockAt: world.turn as number };
+  }
+  return { ...world, shops };
 }
