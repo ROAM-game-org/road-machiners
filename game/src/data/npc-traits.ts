@@ -109,7 +109,7 @@ export const TRAITS: Record<TraitId, Trait> = {
     },
   },
   marshal: {
-    towns: ['bowl', 'nose'], bases: ['marshal-post'], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 14, boldness: 1.2, fuelMargin: 1, robs: 'never', tradeStake: BASE_TRADE_STAKE,
+    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 14, boldness: 1.2, fuelMargin: 1, robs: 'never', tradeStake: BASE_TRADE_STAKE,
     weights: {
       hostileSeen: { fight: { add: 4 } }, attacked: { fightBack: { mul: 2 } }, strandedSeen: { tow: { add: 2 } }, salvageSeen: { loot: { mul: 0.001 } },
       parley: { truce: { mul: 0.3 }, beg: { mul: 0.3 } }, threatened: { comply: { mul: 0.2 }, fightBack: { add: 2 } }, warnedOff: { comply: { mul: 0.2 }, fightBack: { add: 2 } },

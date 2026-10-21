@@ -470,7 +470,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'circle',
     money: NPC_RESOURCES.money,
     cap: 2,
-    pairs: false,
+    pairs: true,
     interval: 90,
     spawn: { kind: "sites", ids: ["marshal-post"] },
   },
