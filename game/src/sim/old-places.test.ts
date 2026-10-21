@@ -4,6 +4,7 @@ import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
 import { DIRECTIONS } from '../data/directions';
 import { OLD_PLACE_TYPES, OLD_TABLES, SALVAGE, type LootTable } from '../data/salvage';
+import { BOATS, TERRAIN } from '../data/terrain';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { clearOfSites, mapObstacles, propReach } from './mapgen';
@@ -15,7 +16,7 @@ import type { Obstacle, SalvageStock } from './types';
 import { partValue } from './wear';
 import { defaultSetup } from './settings';
 import { newWorld } from './world';
-import type { Vec } from './vec';
+import { polylineDist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
 
 const baked = mapObstacles(TEST_MAP);
@@ -172,6 +173,14 @@ describe('old-world loot spot picks on the committed map', () => {
       expect(clearOfSites(icarusAtlas(), b.pos, b.r), b.id).toBe(true);
     }
     expect(new Set(boats.map((b) => b.kind === 'landmark' && b.look)).size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps every river boat out of the middle lane of the dry river', () => {
+    const river = TERRAIN.features.dryRiver;
+    const boats = baked.filter((o) => o.kind === 'landmark' && ['fishingBoat', 'riverBarge', 'skiff'].includes(o.look));
+    const onFloor = boats.filter((b) => polylineDist(b.pos, river.path) <= river.width);
+    expect(onFloor.length).toBeGreaterThan(0);
+    for (const b of onFloor) expect(polylineDist(b.pos, river.path) - b.r, b.id).toBeGreaterThanOrEqual(BOATS.passLane / 2);
   });
 
   it('puts a loot spot on some boat places and not on others', () => {
