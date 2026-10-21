@@ -19,6 +19,7 @@ import type { NewGameActions } from '../ui/new-game';
 import { settleAims } from '../sim/combat';
 import { stockOldSpots } from '../sim/salvage';
 import { checkCompanies } from '../sim/companies';
+import { checkRigs } from '../sim/rig';
 import { clockOf } from '../sim/sun';
 import { allSlots, listSaves, manualSlots, requestBoot, slotLabel, type BootRequest, type SlotId } from './save-slots';
 import type { SaveSlots } from './save-db';
@@ -151,6 +152,7 @@ function loadedWorld(envelope: unknown, icarus: BakedMap): World {
   restoredQuests(loaded, world, revisions, repaired);
   stockOldSpots(loaded, map);
   checkCompanies(loaded);
+  checkSavedRigs(loaded);
   refreshVision(loaded);
   settleAims(loaded);
   return { ...loaded, events: [] };
@@ -192,6 +194,13 @@ function onSameMap(staged: SavedMapWorld, map: BakedMap): World {
   };
 }
 
+function checkSavedRigs(world: World): void {
+  try {
+    checkRigs(world);
+  } catch (error) {
+    throw new SaveError('invalidWorld', null, (error as Error).message);
+  }
+}
 
 function savedQuests(value: unknown, notes: unknown, revisions: SavedRevisions, unrestorable: readonly string[] = []): QuestRepair {
   if (!isQuestState(value)) throw new SaveError('badQuests');

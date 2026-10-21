@@ -164,6 +164,20 @@ describe('game save', () => {
     expect(loaded.events).toEqual([]);
   });
 
+  it('keeps the paint job through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    world.player.paint = { body: 'petrol', cab: 'slate', gear: 'chalk' };
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.player.paint).toEqual({ body: 'petrol', cab: 'slate', gear: 'chalk' });
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.player.xp).toBe(world.player.xp);
+    expect(loaded.events).toEqual([]);
+  });
+
   it('keeps a duty leg in flight through a reload, and load pays nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld();
@@ -313,6 +327,20 @@ describe('game save', () => {
     expect(after.player.money).toBe(loaded.player.money);
     writeSave(slots, 'auto', after, RUN, 1000);
     expect(loadWorld(slots, 'auto', TEST_MAP)?.player.contracts).toEqual([{ ...bounty, fulfilled: true }]);
+  });
+
+  it('keeps the past contracts across a reload, and awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 10000, deadline: 500, window: 500, rush: false, tier: 1 };
+    const claim: Contract = { id: 'ct-c', shop: 'nose', kind: 'claim', stockId: 's-1', at: { x: 50, y: 50 }, partId: 'p-1', defId: 'mg', reward: 12000, deadline: 900, window: 600, tier: 1, rivalAt: 700, rival: null, leads: [{ turn: 40, from: { x: 3, y: 4 }, driver: 'd-1' }] };
+    world.player.pastContracts = [{ contract: haul, outcome: 'failed', turn: 501, amount: -1800 }, { contract: claim, outcome: 'done', turn: 640, amount: 12000 }];
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.player.pastContracts).toEqual(world.player.pastContracts);
+    expect({ money: loaded.player.money, xp: loaded.player.xp, events: loaded.events }).toEqual({ money: world.player.money, xp: world.player.xp, events: [] });
   });
 
   it('keeps a part-done survey with its found places, a survey job in progress and a survey offer on a board across a reload, and awards nothing', () => {
@@ -793,6 +821,20 @@ describe('game save', () => {
     expect(drivers.length).toBeGreaterThan(0);
     expect(loaded.vehicles.filter((v) => v.brain).map((v) => v.brain!.personality)).toEqual(drivers.map((v) => v.brain!.personality));
     expect(loaded.vehicles.map((v) => v.resources)).toEqual(world.vehicles.map((v) => v.resources));
+    expect([loaded.player.money, loaded.player.xp, loaded.player.repeats, loaded.events]).toEqual([world.player.money, world.player.xp, world.player.repeats, []]);
+  });
+
+  it('keeps the stranded count and anchor of a held truck through a reload, and awards nothing on load', () => {
+    const slots = makeSlots();
+    const world = standardWorld();
+    const held = world.vehicles.find((v) => v.brain)!;
+    held.strandedTurns = 2;
+    held.strandedAt = { x: held.pos.x + 0.25, y: held.pos.y };
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    const back = loaded.vehicles.find((v) => v.id === held.id)!;
+    expect([back.strandedTurns, back.strandedAt]).toEqual([2, held.strandedAt]);
     expect([loaded.player.money, loaded.player.xp, loaded.player.repeats, loaded.events]).toEqual([world.player.money, world.player.xp, world.player.repeats, []]);
   });
 

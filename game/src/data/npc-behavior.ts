@@ -77,6 +77,13 @@ export const NPC_BEHAVIOR = {
   guardedComply: 0.1,
 };
 
+export const LOOK_OVER = {
+  turns: 1,
+  reach: TERRAIN.vision.radius / 2,
+  guessShare: 0.4,
+  holdShare: 0.7,
+};
+
 export const NPC_UPKEEP = {
   businessTurns: 3,
   repairParts: 2,
@@ -100,7 +107,7 @@ export const HUNT = {
   roadSpacing: 60,
   siteDistance: 40,
   lawReach: NPC_BEHAVIOR.patrolRadius + TERRAIN.vision.radius,
-  offRoadGoals: ['raid', 'patrol', 'investigate'] as const,
+  offRoadGoals: ['raid', 'patrol', 'investigate', 'sizeUp'] as const,
   postRoadGap: 6,
   postRings: [7, 10, 14, 18, 22],
   roadSample: 4,
@@ -202,6 +209,8 @@ export const DEEDS = { repeatTurns: TIME.turnsPerDay };
 export const STANDING = { dailyDrift: 10, dailyGainCap: 15 };
 
 export const INTERVENE = { range: 10, friendly: 0.25 };
+
+export const HELP_CALL = { allied: 450, friendly: 27, law: 450 };
 
 export const REFUSE_KNOWN_AT = -15;
 

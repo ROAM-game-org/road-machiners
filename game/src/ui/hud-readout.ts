@@ -9,9 +9,10 @@ import { RULES } from "../data/rules";
 import { maxHp } from "../sim/wear";
 import { playerVehicle, vehicleById } from "../sim/damage";
 import { maxHealthOf } from "../sim/health";
-import { corePart, mountedItems, mountedParts, itemSize } from "../sim/grid";
+import { corePart, mountedItems, itemSize } from "../sim/grid";
 import { keyLabel } from "./input-mode";
-import { canOverdrive, fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, workingEngineCapacity, type SpeedStep } from "../sim/stats";
+import { fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, overdriveBlock, workingEngineCapacity, type OverdriveBlock, type SpeedStep } from "../sim/stats";
+import { basicSkill } from "../sim/progress";
 import { fuelLimit, lowFuelSpeed } from "../sim/far";
 import { towData } from "../sim/states";
 import { dragOf, playerTow } from "../sim/tow";
@@ -30,25 +31,29 @@ import { canUseSite } from '../sim/sites';
 import { shopAt } from '../sim/market';
 import { downedListNear, emptySalvageNear, hasLootFor, lootBlockerHere, needsSearch, salvageListNear } from '../sim/locations';
 import { canLootTruck, canReachSalvage, salvagePlace } from '../sim/salvage';
-import { surveyActions, type SurveyAction } from '../sim/survey';
+import { surveyActions, surveyPlaceType, type SurveyAction } from '../sim/survey';
 import { playerCanAct } from '../sim/world';
 import { combatTurnsLeft } from '../sim/combat';
 import { isBusy } from '../sim/jobs';
 import { list, num, t, type Msg } from '../text/msg';
-import { partName, siteName, vehicleTitle } from '../text/names';
+import { partName, refusalText, siteName, vehicleTitle } from '../text/names';
 
-export function overdriveSwitch(w: World): { checked: boolean; reason: Msg | null; title: Msg } {
+export function overdriveSwitch(w: World): { checked: boolean; locked: boolean; reason: Msg | null; title: Msg } {
   const me = playerVehicle(w);
-  const reason = canOverdrive(me)
-    ? null
-    : mountedParts(me, "engine").length === 0
-      ? t("hud.overdriveNoEngine")
-      : keyLabel(t("hud.overdriveWorn", { pct: Math.round(RULES.overdriveMinEngineShare * 100) }), "O");
+  const block = overdriveBlock(w, me);
+  const reason = block === null ? null : overdriveReason(w, block);
   return {
     checked: inOverdrive(w, me),
+    locked: block === "noBasic",
     reason,
     title: reason ?? t("hud.overdriveTitle"),
   };
+}
+
+function overdriveReason(w: World, block: OverdriveBlock): Msg {
+  if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("overdrive") });
+  if (block === "noEngine") return t("hud.overdriveNoEngine");
+  return keyLabel(t("hud.overdriveWorn", { pct: Math.round(RULES.overdriveMinEngineShare * 100) }), "O");
 }
 
 function shopNear(world: World): string | null {
@@ -139,7 +144,7 @@ function getStockActions(world: World, stock: SalvageStock): ContextAction[] {
 
 function surveyAction(world: World, a: SurveyAction): ContextAction {
   const combat = combatTurnsLeft(world, playerVehicle(world)) ?? undefined;
-  return { label: t("action.survey"), ready: a.ready && combat === undefined, combat, target: { kind: 'survey', id: a.site, contractId: a.contractId } };
+  return { label: t("action.survey", { place: t(`contract.place.${surveyPlaceType(a.site)}`) }), ready: a.ready && combat === undefined, combat, target: { kind: 'survey', id: a.site, contractId: a.contractId } };
 }
 
 export function getSearchAction(world: World, stock: SalvageStock): ContextAction {

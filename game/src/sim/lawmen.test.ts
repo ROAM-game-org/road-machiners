@@ -9,7 +9,7 @@ import { REGION } from '../data/region';
 import { siteGates } from './sites';
 import { stateOf } from './states';
 import { vehicleStats } from './stats';
-import { addVehicle, emptyWorld, forceOption, npcBrain } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, sizedUp } from './testkit';
 import type { Faction, GameEvent, Vehicle, World } from './types';
 import type { Vec } from './vec';
 import { gunFor } from './factory';
@@ -105,6 +105,7 @@ describe('lawmen', () => {
     prey.brain = npcBrain('trader', prey.pos, ['trader']);
     if (addGoods(w, prey, 'scrap', 2) < 2) throw new Error('No room for prey goods');
     const lawman = addLawman(w, { x: 14, y: 16 });
+    sizedUp(w, robber, prey);
     forceOption('preySeen', 'rob');
     thinkNpc(w, robber);
     expect(stateOf(w, 'feud', robber.id, prey.id)).not.toBeNull();

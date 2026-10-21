@@ -3,7 +3,7 @@ import { readObservation, type Observation, type ActivityData } from '../observa
 import { QUEUE_OF, type FactoryState, type Job, type JobStage } from '../types';
 import type { ScheduleReport, WaitReason } from '../tick';
 
-const WAIT_REASONS: WaitReason[] = ['queue-full', 'issue-running','card-budget', 'needs-info', 'voting', 'failed', 'approval', 'held'];
+const WAIT_REASONS: WaitReason[] = ['queue-full', 'issue-running','card-budget', 'needs-info', 'voting', 'failed', 'approval', 'held', 'hotfix-verify'];
 export function createWorkerKey(id: string): string { return createHash('sha256').update(id).digest('hex'); }
 function isPrivateStage(stage: JobStage): boolean { return stage === 'adhoc'; }
 function readPublicIssue(stage: JobStage, issue: number | null): number | null { return isPrivateStage(stage) ? null : issue; }

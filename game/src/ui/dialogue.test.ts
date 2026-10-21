@@ -57,6 +57,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   tradeTip: ['tip'],
   trucePrice: ['price'],
   guardOffer: ['price'],
+  helpAnswer: ['answer'],
   aidWanted: ['aid', 'price'],
   aidAnswer: ['aid'],
   aidOffered: ['aid'],

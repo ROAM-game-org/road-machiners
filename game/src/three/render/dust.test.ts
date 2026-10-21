@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DETECT } from '../../data/detect';
 import { PHYSICS } from '../../data/physics';
 import { CHASSIS } from '../../data/chassis';
-import { bodyOf } from '../../sim/body';
+import { tailReach } from '../../sim/rig';
 import { dropClearance } from '../../sim/hazards';
 import { addVehicle, emptyWorld, flatTerrain } from '../../sim/testkit';
 import type { DustCloud, Vehicle, World } from '../../sim/types';
@@ -111,13 +111,13 @@ describe('DustCloudsView reveal', () => {
 });
 
 describe('DustCloudsView fit', () => {
-  const byLength = Object.keys(CHASSIS).sort((a, b) => bodyOf(a).half.x - bodyOf(b).half.x);
+  const byLength = Object.keys(CHASSIS).sort((a, b) => tailReach(a) - tailReach(b));
   const ends = [byLength[0], byLength[byLength.length - 1]];
 
   it.each(ends.flatMap((id) => [0, 1, 3].flatMap((age) => [0.3, 1].map((tiles) => [id, tiles, age] as const))))('keeps every card of %s clear of the truck at %s tiles at cloud age %s', (id, tiles, age) => {
     const { world, me } = drove(id);
     world.dustClouds[0].age = age;
-    const half = bodyOf(id).half.x;
+    const half = tailReach(id) * S;
     for (const heading of [0, Math.PI / 2]) {
       me.heading = heading;
       const truck = viewAt(27.5 * S + Math.cos(heading) * tiles * S, 30 * S + Math.sin(heading) * tiles * S);

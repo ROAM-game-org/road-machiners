@@ -279,6 +279,7 @@ const STATES = {
   'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
+  paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },

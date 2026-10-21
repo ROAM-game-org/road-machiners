@@ -4,7 +4,7 @@ import { PHYSICS } from '../../data/physics';
 import { TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
 import { PAL } from '../../render/palette';
 import { hash2, valueNoise } from '../../render/noise';
-import { bodyOf } from '../../sim/body';
+import { tailReach } from '../../sim/rig';
 import { dropClearance } from '../../sim/hazards';
 import { heightAt, tileAt, type Terrain } from '../../sim/terrain';
 import type { DustCloud, Vehicle, World } from '../../sim/types';
@@ -114,7 +114,7 @@ export class DustCloudsView {
     const truck = views.get(c.source)?.center() ?? null;
     if (!source || !truck) return 1;
     const center = { x: (c.pos.x + c.vel.x * glide) * S, z: (c.pos.y + c.vel.y * glide) * S };
-    return fitToTruck(center, truck, bodyOf(source.chassisId).half.x, reachAt(c.age + glide));
+    return fitToTruck(center, truck, tailReach(source.chassisId) * S, reachAt(c.age + glide));
   }
 
   private place(terrain: Terrain, c: DustCloud, puffs: number, glide: number, seconds: number, fit: number): void {

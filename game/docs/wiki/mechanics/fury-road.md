@@ -35,7 +35,7 @@ The road winds, so a sprinter has no long straight run. It runs straight for 40 
 
 The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheeler that the player's hired driver drives north by itself. `playerTrucks()` names both, and `haulerOf()` the hauler. The hauler is a normal vehicle of faction `player` with its own driver resources and no brain. Steering, physics, wear, damage, fuel and supplies are the shared rules.
 
-- Chassis: `semi`, a long-nose tractor and a box trailer drawn as one rigid model. It tops out at 6 tiles a turn. It is in no truck offer and no NPC template.
+- Chassis: `semi`, a long-nose tractor and a box trailer on a pivot, a rig as in [Truck](truck.md). The trailer bends behind the tractor on lane changes, crater dodges and the roadblock detour, and it hits props and trucks as a body of its own. It tops out at 6 tiles a turn. It is in no truck offer and no NPC template.
 - Parts: its grid has an engine bay, an armor ring, core cells and cargo bay cells. A cargo bay cell takes a cargo frame or anything stowed. So a gun, scanner, utility or store part never mounts on the hauler, and a stowed gun never fires. Only armor, engine and cargo parts can be bought for it.
 - Start: the same every run. A workhorse diesel, a full tank, base supplies and a full-health driver. It starts in the inner left lane, ahead of the player by both trucks' radii plus the yield gap.
 - Lane: it aims at the center of one of the four lanes, 12 tiles ahead. Its lane is the lane center nearest to it, so nothing about the lane is saved.
@@ -46,7 +46,7 @@ The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheele
 - Flank trucks: a group truck that is not beaten, abeam within 6 tiles and closing across, sends it one lane away from that side. With threats on both sides, or no lane left on the far side, it holds its lane.
 - Speed: 4.5 tiles a turn, and the same 4.5 for 4 turns after it takes damage, since `hurry` equals `cruise`, so it never outruns a fight. When the gun truck's top speed without overdrive is lower, the hauler drives at that speed instead, so a slow gun truck keeps the hauler beside it. A stranded, stalled or shut-down gun truck sets no limit. The limit reads the truck's top speed, not its speed this turn, so the hauler never brakes for a fight, a stop or a turn of the gun truck, and never stops on the road.
 - Outpost: within 25 tiles of the next outpost's yard it drives to its park spot in the yard, the left of the road's center, and parks there. Between levels it keeps driving to that spot until it is parked on it, so it clears the gateway.
-- It draws no random number. A stretch it drives alone replays exactly. A hauler that makes under a tile of road progress for 12 turns, while it is not stranded, parked at an outpost or pinned nose to nose by a group truck that is not beaten, raises the `stall` event, which is always a bug.
+- It draws no random number. A stretch it drives alone replays exactly. A hauler that makes under a tile of road progress for 12 turns, while it is not stranded, parked at an outpost, parked on its spot in the next yard waiting for the gun truck, or pinned nose to nose by a group truck that is not beaten, raises the `stall` event, which is always a bug.
 
 ## Scenes
 
@@ -89,7 +89,7 @@ Between levels nothing spawns. The paid next outpost is a garage, as a town gara
 
 Outposts buy nothing. Once the gates are shut the trucks cannot move, the outpost screen opens by itself when the leaves stop, and it has no Leave button and does not close on Escape. The next level starts only when the player presses Drive on. Then the shop is gone: the last outpost sells nothing, and driving back into its yard through the open north gate opens no shop.
 
-Parked inside the shut gates of a paid outpost 1, 4, 8 or 12 with both trucks, a hired run plays the story scene of that outpost once. It is a page in the quest window that pays nothing and changes no rule of the run. [The road story](../../architecture/quests.md#the-road-story) has the rules.
+Parked inside the shut gates of the paid first outpost with both trucks, a hired run plays the story scene of that outpost once. It is a page in the quest window that pays nothing and changes no rule of the run. [The road story](../../architecture/quests.md#the-road-story) has the rules.
 
 The run has no end. The HUD's run readout shows the stretch and the distance to its outpost, like `3: 640 m`, and its tooltip reads "Stretch 3: 640 m to Outpost 3". Between levels it shows the next stretch at its full length.
 
@@ -148,6 +148,6 @@ The death screen names the mode, the last outpost reached and how far north the 
 
 ## Start
 
-The run starts parked in the yard of outpost 0, at milestone 0, with the hauler and the gun truck side by side across the road, both heading north. Outpost 0 starts paid and known, so it gives no XP and pays nothing. It is a shop like every outpost, and the run waits there until the player presses Drive on. That opens stretch 1 on the same window, with no window move. Nothing spawns before it. The Chaos Highway kit is a scout with one MG, a stock engine, no armor, a full tank, base supplies, 1 part for field patching and 80 M's to spend at outpost 0, enough for one better gun or a piece of armor. It is the same every run.
+The run starts parked in the yard of outpost 0, at milestone 0, with the hauler and the gun truck side by side across the road, both heading north. Outpost 0 starts paid and known, so it gives no XP and pays nothing. It is a shop like every outpost, and the run waits there until the player presses Drive on. That opens stretch 1 on the same window, with no window move. Nothing spawns before it. The Chaos Highway kit is a scout with one MG, a stock engine, no armor, a full tank, base supplies, 1 part for field patching and 80 M's to spend at outpost 0, enough for one better gun or a piece of armor. It is the same every run. Every skill starts at rank 1, so every basic technique works from the first stretch.
 
-A new game with the intro on opens the hiring scene `road_hire` at once, before the first turn: the driver is hired by the hauler's driver Ala at the Keepers' southern outpost. Signing on is the scene's only end. A new game with the intro skipped has no story for the run.
+A new game with the intro on opens the hiring scene `chaos_highway_intro` at once, before the first turn: the driver is hired by the hauler's driver Ala at the southern outpost. The scene has no choices and always ends with the hire. A new game with the intro skipped has no story for the run.

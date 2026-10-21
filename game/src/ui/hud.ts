@@ -19,12 +19,14 @@ import {
   contractSummary,
   surveyProgress,
   isNotable,
-  nextSurveyClue,
+  surveyClueLines,
+  surveyHowTo,
   eventText,
   formatNpcPass,
   workLabel,
   workProgress,
   formatNpcCargo,
+  formatNpcLookOver,
   formatNpcMark,
   formatNpcTraits,
   formatVehicleState,
@@ -41,7 +43,8 @@ import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
-import { affordableRanks, pendingPerkPairs } from "../sim/progress";
+import { affordableRanks, basicSkill, hasBasic, pendingPerkPairs } from "../sim/progress";
+import { canLookOver } from "../sim/look-over";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
@@ -76,7 +79,12 @@ function actionTitle(action: ContextAction): Msg | undefined {
   return action.ready ? undefined : t("hud.stopToUse");
 }
 
-const douseMsg = (block: DouseBlock): Msg => (block === "noSupplies" ? t("hud.douseBlock.noSupplies", { n: ENGINE_HEAT.douseSupplies }) : t("hud.douseBlock.engineCool"));
+function douseMsg(w: World, block: DouseBlock | null): Msg | null {
+  if (block === null) return null;
+  if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("douse") });
+  if (block === "noSupplies") return t("hud.douseBlock.noSupplies", { n: ENGINE_HEAT.douseSupplies });
+  return t("hud.douseBlock.engineCool");
+}
 
 export const combatBlocked = (turns: number): Msg => t("hud.combatBlocked", { n: turns });
 
@@ -99,13 +107,15 @@ type HudActions = {
   dialogue: DialogueHost;
   recenter: () => void;
   unpin: () => void;
-  markInspected: () => void;
+  cardAction: (action: CardAction) => void;
   aimPart: (vehicleId: string, partId: string) => void;
   aimState: (vehicleId: string) => AimState;
 };
+export type CardAction = 'mark' | 'lookOver';
 export type CameraMode = "centered" | "auto";
 
 const TOAST_MS = 3500;
+const CONDITION_ROWS = 12;
 
 const TONE_CLASS: Record<TipLine['tone'], string> = { base: 'dim', bad: 'bad', good: 'good', plain: '' };
 
@@ -156,9 +166,9 @@ export class Hud {
   private speedSlot = el("div", { class: "speedometer" }, this.dialSlot, this.maxSpeed.root);
   private readoutSlot = el("div", { class: "readouts" });
   private actionSlot = el("div", { class: "instrument-actions" });
-  private condition = new TruckConditionView();
+  private condition = new TruckConditionView(CONDITION_ROWS);
   private haulerGauge = new HaulerGauge();
-  private inspected = new TruckConditionView();
+  private inspected = new TruckConditionView(null);
   private inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
   private inspectedAimable = false;
   private infoColumn = el("div", { class: "info-column" });
@@ -470,7 +480,7 @@ export class Hud {
     this.contracts.style.display = "";
     this.contracts.replaceChildren(
       el("h3", { class: "panel-title" }, t("hud.contracts")),
-      ...w.player.contracts.map((c) => contractLine(w, c)),
+      ...w.player.contracts.map((c) => heldContractLine(w, c)),
       ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
     );
   }
@@ -492,23 +502,29 @@ export class Hud {
       checked: od.checked,
       key: "O",
       reason: lock ?? od.reason,
+      locked: od.locked,
       title: od.title,
       onclick: () => this.actions.toggleOverdrive(),
     });
-    const douseBlocked = douseBlock(w);
-    const douseReason = lock ?? (douseBlocked === null ? null : douseMsg(douseBlocked));
-    const douse = el(
+    const douse = this.douseButton(w, lock);
+    return [headlights, overdrive, douse];
+  }
+
+  private douseButton(w: World, lock: Msg | null): HTMLElement {
+    const block = douseBlock(w);
+    const reason = lock ?? douseMsg(w, block);
+    return el(
       "button",
       {
         class: "instrument-button",
-        "aria-disabled": douseReason === null ? undefined : "true",
-        onclick: () => douseReason === null && this.actions.douseEngine(),
-        title: douseReason ?? keyLabel(t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }), "G"),
+        "aria-disabled": reason === null ? undefined : "true",
+        onclick: () => reason === null && this.actions.douseEngine(),
+        title: reason ?? keyLabel(t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }), "G"),
       },
+      block === "noBasic" ? createIcon("lock") : null,
       t("hud.douse"),
       keyCorner("G"),
     );
-    return [headlights, overdrive, douse];
   }
 
   private characterButton(w: World, busy: boolean): HTMLElement {
@@ -655,9 +671,15 @@ export class Hud {
     const own = v.faction === "player";
     const call = !own && v.brain && modeRules(w).radio ? [el("button", { class: "btn-s", ...disabledWith(callError(w, v.id), () => this.dialogue.callInspected()) }, t("card.call"))] : [];
     const refusal = markError(w, v.id);
-    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.markInspected()) }, t("card.mark"))];
+    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("mark")) }, t("card.mark"))];
     const close = el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: () => this.actions.unpin() }, t("hint.closeMark"));
-    return el("span", { class: "info-touch touch-only" }, ...call, ...mark, close);
+    return el("span", { class: "info-touch touch-only" }, ...call, ...this.lookOverButton(w, v), ...mark, close);
+  }
+
+  private lookOverButton(w: World, v: Vehicle): HTMLElement[] {
+    if (v.faction === "player" || !hasBasic(w, "lookOver")) return [];
+    const refusal = canLookOver(w, playerVehicle(w), v);
+    return [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("lookOver")) }, t("card.lookOver"))];
   }
 
   flushHorn(): void {
@@ -670,6 +692,7 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
+      if (isNotable(e)) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
     if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
@@ -740,12 +763,22 @@ function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {
 
 function quietLines(w: World, v: Vehicle): Msg[] {
   if (!v.brain) return [];
-  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcMark(w, v)].filter((line) => line !== null);
+  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcLookOver(w, v), formatNpcMark(w, v)].filter((line) => line !== null);
 }
 
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {
   const blocks = work?.from === "job" && !isAutoPatch(work.job);
   return action && !action.hint && !blocks ? null : work;
+}
+
+export function heldContractLine(w: World, c: Contract): HTMLElement {
+  const survey = c.kind === 'survey' && !isMet(c);
+  return el(
+    'div',
+    { class: 'contract-line' },
+    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c), surveyHowTo(c)) : null, claimRivalMark(w, c)),
+    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: 'num' }, heldContractDue(c)),
+  );
 }
 
 function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
@@ -760,14 +793,4 @@ function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
 function escortLine(w: World, c: EscortContract): HTMLElement | null {
   const status = escortStatusText(w, c);
   return status ? el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, status) : null;
-}
-
-function surveyProgressLine(c: Contract): HTMLElement | null {
-  if (c.kind !== "survey" || isMet(c)) return null;
-  return el("div", { class: "dim" }, surveyProgress(c), SPACE, el("span", { class: "contract-clue" }, nextSurveyClue(c)));
-}
-
-export function contractLine(w: World, c: Contract): HTMLElement {
-  const state = c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c));
-  return el("div", { class: "contract-line" }, el("div", {}, contractSummary(c), surveyProgressLine(c), claimRivalMark(w, c)), state);
 }

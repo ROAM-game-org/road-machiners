@@ -124,6 +124,9 @@ const FINGERPRINT_FRAMES = 3;
 export function fingerprintOf(error: ErrorReport['error'], frames: readonly Frame[]): string {
   const game = frames.filter((frame) => !frame.source.includes('node_modules'));
   const top = (game.length > 0 ? game : frames).slice(0, FINGERPRINT_FRAMES).map((frame) => `${frame.source}:${frame.name ?? ''}`);
-  const message = error.message.replace(/\d+(\.\d+)?/g, 'N');
+  const message = error.message
+    .replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, 'URL')
+    .replace(/\S*[A-Za-z]\S*?[_./-]\S*[A-Za-z0-9]/g, 'NAME')
+    .replace(/-?\d+(\.\d+)?/g, 'N');
   return createHash('sha256').update([error.name, message, ...top].join('\n')).digest('hex').slice(0, 16);
 }

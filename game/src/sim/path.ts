@@ -63,6 +63,14 @@ export function drivable(world: World, from: Vec, to: Vec, radius: number): bool
   return connected(layer, cellOf(layer, from), cellOf(layer, to));
 }
 
+export function reachesFrom(world: World, anchor: Vec, radius: number): (p: Vec) => boolean {
+  const layer = navLayer(world.terrain, world.obstacles, radius);
+  const target = startComponent(layer, cellOf(layer, anchor));
+  if (target === 0) throw new Error(`No nav component at anchor (${anchor.x}, ${anchor.y}) for radius ${radius}`);
+  const size = world.terrain.size;
+  return (p) => p.x >= 0 && p.y >= 0 && p.x < size && p.y < size && startComponent(layer, cellOf(layer, p)) === target;
+}
+
 export function warmRoutes(world: World, radii: number[]): void {
   timed('warm-routes', () => {
     for (const r of radii) navLayer(world.terrain, world.obstacles, r);

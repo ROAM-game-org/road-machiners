@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { goodRoutesTitle, pressureHint, showsRelief } from "./town";
+import { GARAGE_ONLY, goodRoutesTitle, marketHint, pressureHint, showsRelief, tradeEstimate } from "./town";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF } from "../data/market";
 import { shortHere } from "../sim/market";
-import { shortBy } from "./shop-rows";
+import { livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
+import { PAINT, PAINT_SCHEMES } from "../data/chassis";
 import { SHOPS } from "../data/market";
 import { stockTarget, type ShopState } from "../sim/market";
 
@@ -46,6 +47,26 @@ describe("the price hint of a good", () => {
   });
 });
 
+describe("trade hints and the sale profit under Acumen", () => {
+  const def = SHOPS.nose;
+  const state = { goods: { salt: stockTarget("nose", "salt") } } as unknown as ShopState;
+
+  it("are absent at Social 0, while the price stays", () => {
+    const w = emptyWorld();
+    w.player.costBasis.salt = 100;
+    expect(marketHint(w, def, state, "salt")).toBeNull();
+    expect(tradeEstimate(w, 3, 150, "salt")).toEqual({ kind: "none" });
+  });
+
+  it("show from Social 1", () => {
+    const w = emptyWorld();
+    w.player.ranks.social = 1;
+    w.player.costBasis.salt = 100;
+    expect(marketHint(w, def, state, "salt")?.tone).toBe("good");
+    expect(tradeEstimate(w, 3, 150, "salt")).toEqual({ kind: "gain", perUnit: 50, avgCost: 100 });
+  });
+});
+
 describe("production on the market tab", () => {
   const relieved = () => {
     const w = emptyWorld();
@@ -82,5 +103,35 @@ describe("the short tone and the short rule", () => {
         }
       }
     }
+  });
+});
+
+describe("the paint tab", () => {
+  it("colors each swatch with its palette color", () => {
+    expect(paletteStyle("tan")).toBe("--paint:#9c7a3e");
+    expect(paletteStyle("slate")).toBe("--paint:#4a5060");
+  });
+
+  it("offers a repaint only for a plan that differs from the current paint in some slot", () => {
+    expect(livePaintPlan(PAINT.standard, null)).toBeNull();
+    expect(livePaintPlan(PAINT.standard, { ...PAINT.standard })).toBeNull();
+    expect(livePaintPlan(PAINT.standard, { ...PAINT.standard, gear: "chalk" })).toEqual({ ...PAINT.standard, gear: "chalk" });
+    expect(livePaintPlan({ ...PAINT.standard, cab: "slate" }, { ...PAINT.standard, cab: "slate" })).toBeNull();
+  });
+
+  it("colors a scheme chip with the body, cab and gear of its scheme", () => {
+    expect(schemeStyle({ body: "slate", cab: "chalk", gear: "petrol" })).toBe("--paint-body:#4a5060;--paint-cab:#f0ece2;--paint-gear:#1e5258");
+  });
+
+  it("plans a scheme whole and lets one row pick change only that surface", () => {
+    const scheme = PAINT_SCHEMES[3];
+    const plan = planWithSlot(PAINT.standard, { ...scheme }, "cab", "sand");
+    expect(plan).toEqual({ ...scheme, cab: "sand" });
+    expect(planWithSlot(PAINT.standard, null, "gear", "umber")).toEqual({ ...PAINT.standard, gear: "umber" });
+    expect(livePaintPlan(PAINT.standard, { ...PAINT_SCHEMES[0] })).toBeNull();
+  });
+
+  it("shows only at a garage, right after the trucks", () => {
+    expect(GARAGE_ONLY).toEqual(["trucks", "paint"]);
   });
 });

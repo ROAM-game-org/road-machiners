@@ -15,13 +15,20 @@ import FORMAT_2_70 from './save-fixtures/format-2-70.json';
 import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
-import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
-import FORMAT_2_82 from './save-fixtures/format-2-82.json';
-import FORMAT_2_84 from './save-fixtures/format-2-84.json';
-import FORMAT_2_85 from './save-fixtures/format-2-85.json';
+import FORMAT_2_80 from './save-fixtures/format-2-80.json';
 import FORMAT_2_86 from './save-fixtures/format-2-86.json';
 import FORMAT_2_87 from './save-fixtures/format-2-87.json';
+import FORMAT_2_90 from './save-fixtures/format-2-90.json';
+import FORMAT_2_94 from './save-fixtures/format-2-94.json';
+import FORMAT_2_95 from './save-fixtures/format-2-95.json';
+import FORMAT_2_96 from './save-fixtures/format-2-96.json';
+import FORMAT_2_97 from './save-fixtures/format-2-97.json';
+import FORMAT_2_98 from './save-fixtures/format-2-98.json';
+import FORMAT_2_85 from './save-fixtures/format-2-85.json';
+import FORMAT_2_74 from './save-fixtures/format-2-74.json';
+import FORMAT_2_82 from './save-fixtures/format-2-82.json';
+import FORMAT_2_84 from './save-fixtures/format-2-84.json';
 import { TINY_FROM, TINY_STEPS as STEPS, type SavedJson } from './save-migrations';
 
 const TINY_STEPS: Record<number, (world: SavedJson) => SavedJson> = Object.fromEntries(STEPS.map((step, i) => [TINY_FROM + i, step]));
@@ -619,5 +626,229 @@ describe('save migration 88 to 89', () => {
     const before = saved({ world: { intro_step: 'done' } });
 
     expect(stepped(before)).toEqual(before);
+  });
+});
+
+describe('save migration 89 to 90', () => {
+  it('keeps a save as it is, since look-overs, sized-up trucks and rank 1 basics are new state kinds or derived from ranks', () => {
+    const before = structuredClone(FORMAT_2_87);
+
+    const next = TINY_STEPS[89](before as unknown as SavedJson);
+
+    expect(next).toEqual(FORMAT_2_87);
+    expect(before).toEqual(FORMAT_2_87);
+  });
+});
+
+describe('save migration 90 to 91', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: { quest: string; checkpoint: string; seed: number } | null };
+  type Saved = { player: { quests: Quests } };
+  const saved = (quests: Partial<Quests>): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: Saved) => TINY_STEPS[90](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('drops the twelfth scene, its gate and the answers the short scenes no longer read, keeping the other gates', () => {
+    const before = saved({
+      world: { ala_hired: true, road_seen_1: true, road_seen_4: true, road_seen_12: true, geezer_pitch: 'link', ring_told: 'told', death_answer: 'road', why_answer: 'pay', ala_knows: 'ring', father_told: true, promised: true, hand_shook: true },
+      local: { road_stretch_12: { pass_said: true }, road_stretch_4: { asked_trailer: true, asked_north: true, asked_hunters: true }, road_stretch_8: { asked_run: true, grief_said: 'sorry' } },
+    });
+
+    expect(stepped(before).player.quests).toEqual({ world: { ala_hired: true, road_seen_1: true, road_seen_4: true, geezer_pitch: 'link' }, local: {}, session: null });
+  });
+
+  it('drops the hiring questions that are gone and keeps the pay question', () => {
+    const before = saved({ local: { road_hire: { asked_pay: true, asked_north: true, asked_who: true, asked_trailer: true, walked_out: true } } });
+    expect(stepped(before).player.quests.local).toEqual({ road_hire: { asked_pay: true } });
+  });
+
+  it('moves an open scene to its start, whichever page it stood on', () => {
+    for (const [quest, checkpoint] of [['road_stretch_1', 'start.tougher'], ['road_stretch_4', 'start.hub'], ['road_stretch_8', 'start.close']]) {
+      const before = saved({ session: { quest, checkpoint, seed: 3 } });
+      expect(stepped(before).player.quests.session).toEqual({ quest, checkpoint: 'start', seed: 3 });
+    }
+  });
+
+  it('closes an open twelfth scene and leaves the hiring scene open on its own page', () => {
+    expect(stepped(saved({ session: { quest: 'road_stretch_12', checkpoint: 'start.hub', seed: 3 } })).player.quests.session).toBeNull();
+    const hiring = { quest: 'road_hire', checkpoint: 'start.hub', seed: 3 };
+    expect(stepped(saved({ session: hiring })).player.quests.session).toEqual(hiring);
+  });
+
+  it('changes nothing else', () => {
+    const before = saved({ world: { road_seen_12: true } });
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});
+
+describe('save migration 91 to 92', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: { quest: string; checkpoint: string; seed: number } | null };
+  type Saved = { player: { quests: Quests } };
+  const saved = (quests: Partial<Quests>): Saved => {
+    const world = structuredClone(FORMAT_2_61) as unknown as Saved;
+    world.player.quests = { world: {}, local: {}, session: null, ...quests };
+    return world;
+  };
+  const stepped = (world: Saved) => TINY_STEPS[91](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+
+  it('drops the scar pick and the old hiring scene questions, keeping the hire', () => {
+    const before = saved({ world: { ala_hired: true, road_seen_1: true, geezer_pitch: 'link' }, local: { road_hire: { asked_pay: true }, bowl_scale: { asked_pay: true } } });
+    expect(stepped(before).player.quests).toEqual({ world: { ala_hired: true, road_seen_1: true }, local: { bowl_scale: { asked_pay: true } }, session: null });
+  });
+
+  it('moves an open hiring scene to the start of the renamed intro', () => {
+    const before = saved({ session: { quest: 'road_hire', checkpoint: 'start.hub', seed: 3 } });
+    expect(stepped(before).player.quests.session).toEqual({ quest: 'chaos_highway_intro', checkpoint: 'start', seed: 3 });
+  });
+
+  it('drops the fourth and eighth scenes and their gates, keeping the first', () => {
+    const before = saved({ world: { ala_hired: true, road_seen_1: true, road_seen_4: true, road_seen_8: true }, session: { quest: 'road_stretch_8', checkpoint: 'start', seed: 3 } });
+    expect(stepped(before).player.quests).toEqual({ world: { ala_hired: true, road_seen_1: true }, local: {}, session: null });
+  });
+
+  it('leaves other open scenes alone', () => {
+    const session = { quest: 'road_stretch_1', checkpoint: 'start', seed: 3 };
+    expect(stepped(saved({ session })).player.quests.session).toEqual(session);
+  });
+
+  it('changes nothing else', () => {
+    const before = saved({ world: { geezer_pitch: 'bullets' } });
+    const next = stepped(before);
+    expect({ ...next, player: { ...next.player, quests: before.player.quests } }).toEqual(before);
+  });
+});
+
+describe('save migration 92 to 93', () => {
+  const stepped = (world: unknown) => TINY_STEPS[92](structuredClone(world) as SavedJson) as unknown as typeof FORMAT_2_90 & { player: { pastContracts: unknown[] } };
+
+  it('gives the player an empty list of past contracts', () => {
+    expect(stepped(FORMAT_2_90).player.pastContracts).toEqual([]);
+  });
+
+  it('keeps the held contracts and the rest of the save as they were', () => {
+    const next = stepped(FORMAT_2_90);
+
+    expect({ ...next, player: { ...next.player, pastContracts: undefined } }).toEqual(FORMAT_2_90);
+  });
+});
+
+describe('save migration 93 to 94', () => {
+  type Saved = typeof FORMAT_2_80;
+  const stepped = () => TINY_STEPS[93](TINY_STEPS[81](TINY_STEPS[80](structuredClone(FORMAT_2_80) as unknown as SavedJson))) as unknown as Saved & { vehicles: (Saved['vehicles'][number] & { bend?: number })[]; obstacles: { hulk?: { bend?: number } }[] };
+  const AHEAD = 5.73875 / 4;
+
+  it('moves a semi from the middle of the rig to its tractor along its heading and sets it straight', () => {
+    const before = FORMAT_2_80.vehicles[1];
+    const semi = stepped().vehicles[1];
+    expect(semi.pos.x).toBeCloseTo(before.pos.x + Math.cos(before.heading) * AHEAD, 9);
+    expect(semi.pos.y).toBeCloseTo(before.pos.y + Math.sin(before.heading) * AHEAD, 9);
+    expect(semi.bend).toBe(0);
+    expect({ ...semi, pos: before.pos, bend: undefined }).toEqual({ ...before, bend: undefined });
+  });
+
+  it('folds nothing and moves nothing else: other trucks, other hulks and props stay as they were', () => {
+    const next = stepped();
+    expect(next.vehicles[0]).toEqual(FORMAT_2_80.vehicles[0]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_80.vehicles[2]);
+    expect(next.obstacles.slice(1)).toEqual(FORMAT_2_80.obstacles.slice(1));
+  });
+
+  it('gives a semi hulk a straight bend at its tractor', () => {
+    const before = FORMAT_2_80.obstacles[0];
+    const hulk = stepped().obstacles[0] as typeof before & { hulk: { bend: number } };
+    expect(hulk.hulk).toEqual({ ...before.hulk, bend: 0 });
+    expect(hulk.pos.x).toBeCloseTo(before.pos.x + Math.cos(before.hulk!.yaw) * AHEAD, 9);
+  });
+});
+
+describe('TINY_STEPS[94]', () => {
+  it('gives the player the standard paint and changes nothing else', () => {
+    const next = TINY_STEPS[94](structuredClone(FORMAT_2_94)) as unknown as typeof FORMAT_2_94 & { player: { paint: string } };
+    expect(next.player.paint).toBe('standard');
+    const { paint: _paint, ...player } = next.player;
+    expect({ ...next, player }).toEqual(FORMAT_2_94);
+  });
+});
+
+describe('TINY_STEPS[95]', () => {
+  const migrate = (paint: unknown) => TINY_STEPS[95](structuredClone({ ...FORMAT_2_95, player: { ...FORMAT_2_95.player, paint } })) as unknown as typeof FORMAT_2_95 & { player: { paint: unknown } };
+
+  it('turns an old paint job into its body, cab and gear colors and changes nothing else', () => {
+    const next = migrate('plum');
+    expect(next.player.paint).toEqual({ body: 'plum', cab: 'olive', gear: 'plum' });
+    expect({ ...next, player: { ...next.player, paint: 'plum' } }).toEqual(FORMAT_2_95);
+    expect(TINY_STEPS[95](structuredClone(FORMAT_2_95))).toEqual(next);
+  });
+
+  it.each([
+    ['standard', { body: 'tan', cab: 'olive', gear: 'tan' }],
+    ['lavender', { body: 'lavender', cab: 'navy', gear: 'lavender' }],
+    ['mint', { body: 'mint', cab: 'wine', gear: 'mint' }],
+    ['rose', { body: 'rose', cab: 'plum', gear: 'rose' }],
+  ])('turns %s into its three colors', (preset, paint) => {
+    expect(migrate(preset).player.paint).toEqual(paint);
+  });
+
+  it.each(['bone', 'gold', 'constructor', undefined])('gives the standard paint for %s', (preset) => {
+    expect(migrate(preset).player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'tan' });
+  });
+});
+
+describe('TINY_STEPS[96]', () => {
+  const migrate = (paint: unknown) => TINY_STEPS[96](structuredClone({ ...FORMAT_2_96, player: { ...FORMAT_2_96.player, paint } })) as unknown as typeof FORMAT_2_96 & { player: { paint: unknown } };
+
+  it('moves each retired color to its new color, keeps a current one and changes nothing else', () => {
+    const next = TINY_STEPS[96](structuredClone(FORMAT_2_96)) as unknown as typeof FORMAT_2_96;
+    expect(next.player.paint).toEqual({ body: 'chalk', cab: 'slate', gear: 'sand' });
+    expect({ ...next, player: { ...next.player, paint: FORMAT_2_96.player.paint } }).toEqual(FORMAT_2_96);
+  });
+
+  it.each([
+    ['plum', 'oxblood'],
+    ['wine', 'oxblood'],
+    ['rose', 'sand'],
+    ['pink', 'chalk'],
+    ['lavender', 'chalk'],
+    ['mint', 'chalk'],
+    ['navy', 'slate'],
+  ])('moves %s to %s in every slot', (old, color) => {
+    expect(migrate({ body: old, cab: old, gear: old }).player.paint).toEqual({ body: color, cab: color, gear: color });
+  });
+
+  it('keeps a paint of current colors as it is', () => {
+    const paint = { body: 'petrol', cab: 'chalk', gear: 'umber' };
+    expect(migrate(paint).player.paint).toEqual(paint);
+  });
+
+  it('gives a slot it knows neither way its standard color', () => {
+    expect(migrate({ body: 'gold', cab: 7, gear: 'bottle' }).player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'bottle' });
+    expect(migrate('plum').player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'tan' });
+  });
+});
+
+describe('save migration 97 to 98', () => {
+  type Saved = typeof FORMAT_2_97;
+  const stepped = () => TINY_STEPS[97](structuredClone(FORMAT_2_97) as unknown as SavedJson) as unknown as { vehicles: (Saved['vehicles'][number] & { strandedAt?: { x: number; y: number } })[] };
+
+  it('anchors a held truck at its saved position, with a copy of the position', () => {
+    const held = stepped().vehicles[1];
+    expect(held.strandedAt).toEqual(FORMAT_2_97.vehicles[1].pos);
+    expect(held.strandedAt).not.toBe(held.pos);
+  });
+
+  it('gives a truck with no held turns no anchor and changes nothing else', () => {
+    const next = stepped();
+    expect(next.vehicles[0]).toEqual(FORMAT_2_97.vehicles[0]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_97.vehicles[2]);
+    expect({ ...next.vehicles[1], strandedAt: undefined }).toEqual({ ...FORMAT_2_97.vehicles[1], strandedAt: undefined });
+  });
+});
+
+describe('TINY_STEPS[98]', () => {
+  it('leaves a world with a refused call for help and an answered call as it is', () => {
+    expect(TINY_STEPS[98](structuredClone(FORMAT_2_98))).toEqual(FORMAT_2_98);
   });
 });

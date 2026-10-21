@@ -97,6 +97,7 @@ One owner per concept. Use these and do not decide the same thing elsewhere:
 - `talkOf()` in `src/sim/dialogue.ts` is the one place talk reads traits and personality.
 - `propPose()` in `src/sim/mapgen.ts` gives each prop's turn and scale.
 - `src/sim/body.ts` is the only conversion between grid cells and meters.
+- `src/sim/rig.ts` owns the unit poses of a rig: its rear unit's pose, the bend and every cell, box and disc on either unit.
 - `src/sim/utility.ts` owns utility charge, orders, the activation step and the emitter shutdown. Each utility effect's world object has one owner: `hazards.ts` for smoke, ground fields and flares, and `claymore.ts`. `harpoon.ts` owns the lines of the harpoon, which is a gun.
 - Timed deals between two trucks are states in `src/sim/states.ts`. New group work adds a state kind, not a goal.
 - A `stall` event is always a bug.

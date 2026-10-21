@@ -184,6 +184,7 @@ describe('a stranded driver asking the player', () => {
   function brokenNpc(): { w: World; npc: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+    w.player.ranks.machining = 1;
     w.player.autoRepair = false;
     setParts(w, playerVehicle(w), 4);
     const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
@@ -242,6 +243,15 @@ describe('a stranded driver asking the player', () => {
     expect(topGoal(find(w, npc.id))?.reason).toBe('waitPatch');
   });
 
+  it('at Machining 0 the driver does not ask and the player cannot offer a patch', () => {
+    const { w: start, npc } = brokenNpc();
+    start.player.ranks.machining = 0;
+    const w = endTurn(start, testDrive);
+    expect(w.player.call?.topic).not.toBe('patchRequest');
+    const called = callVehicle(cloneWorld(start), npc.id);
+    expect(currentOptions(called).map((o) => en(o.line))).not.toContain('Your truck looks dead. Want me to patch it?');
+  });
+
   it('a driver with a sound truck gets no patch offer', () => {
     const { w: start, npc } = brokenNpc();
     mountedParts(npc, 'engine')[0].hp = partDef('stockEngine').hp;
@@ -252,6 +262,7 @@ describe('a stranded driver asking the player', () => {
   it('a hostile raider gets no patch until a truce, then waits parked for it', () => {
     const w0 = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) w0.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+    w0.player.ranks.machining = 1;
     w0.player.autoRepair = false;
     setParts(w0, playerVehicle(w0), 4);
     const raider = addVehicle(w0, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 }, Math.PI);
@@ -325,6 +336,7 @@ describe('a holed fuel tank', () => {
   function holedNpc(fuel: number): { w: World; npc: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+    w.player.ranks.machining = 1;
     w.player.autoRepair = false;
     setParts(w, playerVehicle(w), 4);
     const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
@@ -516,6 +528,7 @@ describe('patching a worn truck that still drives', () => {
   function wornNpc(): { w: World; npc: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+    w.player.ranks.machining = 1;
     w.player.autoRepair = false;
     setParts(w, playerVehicle(w), 4);
     const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 }, Math.PI);
@@ -655,6 +668,7 @@ describe('patching a worn truck that still drives', () => {
     expect(offered(w, npc.id)).toBe(true);
     const engine = mountedParts(npc, 'engine')[0];
     const cases: [string, (x: World, n: Vehicle) => void][] = [
+      ['machining 0', (x) => { x.player.ranks.machining = 0; }],
       ['healthy', (_x, n) => { mountedParts(n, 'engine')[0].hp = partDef('stockEngine').hp; }],
       ['at target', (_x, n) => { const e = mountedParts(n, 'engine')[0]; e.hp = target(e); }],
       ['junk', (_x, n) => { mountedParts(n, 'engine')[0].wear = CONDITION.maxWear + 1; }],

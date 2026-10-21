@@ -2,12 +2,17 @@ import { RULES } from "../data/rules";
 import { describe, expect, it } from "vitest";
 import { vehicleStats } from "./stats";
 import { chassisDef } from "../data/chassis";
-import { backsToDestination, clickOrder, parkedVehicles, setDownSpot, throttleFor, throughSpeed, zoneEdges, zoneSpeed } from "./steering";
+import { backsToDestination, clickOrder, parkedVehicles, setDown, setDownSpot, throttleFor, throughSpeed, zoneEdges, zoneSpeed } from "./steering";
 import { DEG, dist } from "./vec";
 import { addVehicle, emptyWorld, npcBrain } from "./testkit";
 import { addState } from "./states";
 import { getHitchedTowIds } from "./tow";
 import { TEST_MAP } from '../test/map';
+import { reachesFrom } from "./path";
+import { nearestSitePad } from "./sites";
+import { atlasOf } from "./atlas";
+import type { Obstacle, World } from "./types";
+import type { Vec } from "./vec";
 
 function setup(speed: number) {
   const w = emptyWorld();
@@ -161,5 +166,33 @@ describe("setting a stranded truck down", () => {
     w.obstacles = [{ id: "big", pos: { ...me.pos }, r: 7, kind: "rock" }];
     const spot = setDownSpot(w, me);
     expect(dist(spot, me.pos)).toBeGreaterThan(4);
+  });
+
+  function ringed(center: Vec): World {
+    const w = emptyWorld(center);
+    w.obstacles = Array.from({ length: 16 }, (_, i): Obstacle => {
+      const a = (2 * Math.PI * i) / 16;
+      return { id: `ring${i}`, pos: { x: center.x + Math.cos(a) * 3.5, y: center.y + Math.sin(a) * 3.5 }, r: 1.2, kind: "rock" };
+    });
+    return w;
+  }
+
+  it("sets a truck inside a closed ring of rocks down outside it, where a pad can be reached", () => {
+    const w = ringed({ x: 60, y: 60 });
+    const me = w.vehicles[0];
+    const spot = setDownSpot(w, me);
+    expect(dist(spot, me.pos)).toBeGreaterThan(4.7);
+    const anchor = nearestSitePad(atlasOf(w.terrain), me.pos).pad;
+    expect(reachesFrom(w, anchor, vehicleStats(w, me).radius)(spot)).toBe(true);
+  });
+
+  it("leaves a truck stranded for the whole stranded count, straight and at rest", () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    me.speed = 3;
+    me.strandedTurns = 0;
+    setDown(w, me);
+    expect(me.strandedTurns).toBe(RULES.stranded.turns);
+    expect(me.speed).toBe(0);
   });
 });

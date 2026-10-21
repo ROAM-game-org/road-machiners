@@ -1,11 +1,12 @@
 
 import type { StartKit } from '../data/start';
 import type { BakedMap } from '../sim/terrain';
-import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type CarriedRun } from '../sim/world';
+import { carriedWorld, type Carried, type CarriedItem, type CarriedPaint, type CarriedPart, type CarriedRun } from '../sim/world';
 import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
 import { savedRevisionsOf, savedRunId, storedSave, writeSave } from './save';
+import { mutedColor_96_97, paintOfPreset_95_96 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
@@ -71,6 +72,16 @@ function flagOf(value: unknown): boolean | null {
 
 function idOf(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null;
+}
+
+function paintOf(value: unknown): CarriedPaint | null {
+  const preset = idOf(value);
+  const slots = preset === null ? objectOf(value) : paintOfPreset_95_96(preset);
+  if (!slots) return null;
+  return Object.fromEntries((['body', 'cab', 'gear'] as const).flatMap((slot) => {
+    const id = idOf(slots[slot]);
+    return id === null ? [] : [[slot, mutedColor_96_97(id)]];
+  }));
 }
 
 function countsOf(value: unknown): Record<string, number> {
@@ -168,7 +179,7 @@ function soldAt(run: Json, milestone: number): string[] {
 }
 
 const NO_CARRIED: Carried = {
-  seed: null, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: null, autoFire: null,
+  seed: null, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], paint: null, discovered: [], knockouts: null, autoFire: null,
   autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0,
 };
 
@@ -188,6 +199,7 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
     ...pooledOf(player),
     xpBySource: countsOf(player.xpBySource),
     perks: listOf(player.perks).flatMap((id) => idOf(id) ?? []),
+    paint: paintOf(player.paint),
     discovered: listOf(player.discovered).flatMap((id) => idOf(id) ?? []),
     knockouts: countOf(player.knockouts),
     autoFire: flagOf(player.autoFire),

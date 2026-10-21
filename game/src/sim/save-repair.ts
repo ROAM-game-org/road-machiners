@@ -168,6 +168,7 @@ function dropGoneContent(world: World): void {
   for (const shop of Object.values(world.shops)) stripShop(shop);
   for (const outpost of outpostsOf(world)) outpost.stock = knownParts(outpost.stock);
   dropOwnContracts(world);
+  world.player.pastContracts = world.player.pastContracts.filter((p) => contractFits(p.contract));
   dropUnknownKeys(world.player.costBasis);
   dropHulks(world);
 }

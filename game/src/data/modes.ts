@@ -14,7 +14,7 @@ const RUN: ModeRules = { traffic: false, looting: false, npcKnockouts: true, pla
 
 export const GAME_MODES: Record<GameModeId, GameMode> = {
   roaming: { rules: OPEN_WORLD, kit: null, map: 'icarus', opening: null },
-  furyRoad: { rules: RUN, kit: 'furyRoad', map: 'highway', opening: GAME_OPENED_QUESTS.roadHire },
+  furyRoad: { rules: RUN, kit: 'furyRoad', map: 'highway', opening: GAME_OPENED_QUESTS.chaosHighwayIntro },
 };
 
 export type WorldSettingDef = { default: number; min: number; max: number; step: number; modes: readonly GameModeId[] };
@@ -93,7 +93,7 @@ export const FURY_ROAD = {
   pay: { base: { first: 25000, step: 10000 } as Line },
   hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32 },
   stockPerKind: { weapon: 5, engine: 3, armor: 6, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
-  trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'] },
+  trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon', 'sorokonoga'] },
   goodsMarkup: 1.5,
   maxTries: 400,
 };

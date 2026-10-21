@@ -299,7 +299,7 @@ const poses: TurnPoses = {
   endHeading: (id) => (id === "s" || id === "t" || id === "o" ? 0 : null),
 };
 
-const gun = (key: string, covers: Gun["covers"] = () => true, blastRadius = 0): Gun => ({ spec: projectileOf(key), rangeM: 100, blastRadius, covers });
+const gun = (key: string, covers: Gun["covers"] = () => true, blastRadius = 0): Gun => ({ spec: projectileOf(key), rangeM: 100, blastRadius, unit: 0, covers });
 const round = (struck: string | null, offset = 0, more: Partial<ShotRound> = {}): ShotRound => ({ hit: struck === "t", crit: false, offset, struck, hits: [], blast: [], burst: null, ...more });
 const TARGET_HALF = { length: 2.5, width: 1 };
 const shot = (rounds: ShotRound[], late: (k: number) => boolean = () => false): Shot => ({ shooter: "s", target: "t", rounds, late, missAt: (offset) => ({ x: 40, y: 0, z: 11.8 + offset }), targetHalf: TARGET_HALF });
@@ -466,7 +466,7 @@ describe("playShotFx after the shooter's view is gone", () => {
   it("plays the gun-empty cue once at the last muzzle when the view goes before the rounds land", () => {
     const views = new Map<string, unknown>();
     const { shooter, kept, sounds } = emptyingShot(views);
-    views.set(shooter, { covers: () => true, muzzle: () => M1 });
+    views.set(shooter, { covers: () => true, turretUnit: () => 0, muzzle: () => M1 });
     kept.forEach((k) => k.muzzle());
     views.delete(shooter);
     for (const k of kept) k.landed();
@@ -488,7 +488,7 @@ describe("playShotFx after the shooter's view is gone", () => {
     const { shooter, kept } = emptyingShot(views);
     const M2: Muzzle = { pos: { x: 9, y: 2, z: 1 }, dir: { x: 0, y: 0, z: 1 } };
     let live = M1;
-    views.set(shooter, { covers: () => true, muzzle: () => live });
+    views.set(shooter, { covers: () => true, turretUnit: () => 0, muzzle: () => live });
     expect(kept[0].muzzle()).toEqual(M1);
     live = M2;
     expect(kept[0].muzzle()).toEqual(M2);
@@ -511,7 +511,7 @@ describe("playShotFx through the move", () => {
     const frames = { [shooter.id]: parked(0), [target.id]: parked(15) };
     const host = {
       world,
-      views: new Map([[shooter.id, { covers: () => true }]]),
+      views: new Map([[shooter.id, { covers: () => true, turretUnit: () => 0 }]]),
       fx: { shot: (_s: unknown, _m: unknown, plan: PlannedRound, _r: unknown, cues: { landed: () => void }) => (launched.push(plan), cues.landed()), label: () => {} },
       sound: { at: () => {}, queueScoreEvent: (kind: string, atMs: number) => queued.push([kind, atMs]) },
       eventPoint: () => ORIGIN,

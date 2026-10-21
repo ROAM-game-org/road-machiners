@@ -91,6 +91,10 @@ known if the victim saw the attacker, or a lawman or an ally of the victim saw i
 
 A driver that steps in starts a feud with the attacker. It still fights by its own sight, danger and guns, so it never shoots through a hill or at a truck it cannot reach.
 
+## Called for help
+
+The player can radio a driver in sight to join a fight, which [Social](social.md) describes. The driver holds back by the same two tests as a witness, applied to each foe of the player: bound to or in a truce with the foe, or (unless a lawman) liking the foe at least as much as the player. It also refuses when it is knocked out or stranded. A lawman agrees as an allied driver does unless the player attacked or robbed a lawful foe, and the answer is a weighted roll by standing: allied about 98 in 100, friendly about 3 in 4, neutral about 1 in 10. An agreeing driver starts a feud with every foe the same way a witness does.
+
 ## Standing
 
 The player starts at each organized faction's view of an outside driver: Bowl 5, Nose 5, Guidestar 10, Administrators 10, Scrapjaw −30, Kiln −30, Sunward −20. A deed changes standing with the faction of the driver it touched, and the victim's memory, when the deed is known.

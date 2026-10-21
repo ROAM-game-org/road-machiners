@@ -16,6 +16,7 @@ import { townAt } from '../sim/sites';
 import { carriedWorld, endTurn, newWorld } from '../sim/world';
 import { carriesOnLoad, loadWorld, SaveError, saveOf, savedRunId, stepsFrom } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
+import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
 import FORMAT_2_1 from './save-fixtures/format-2-1.json';
@@ -25,6 +26,7 @@ import { defaultSetup, repairSetup } from '../sim/settings';
 
 const KIT = startKit('standard');
 const fresh = () => 5;
+const stepFrom = (minor: number) => (world: object): SavedJson => TINY_STEPS[minor - TINY_FROM](world as SavedJson);
 const freshRun = () => 'new-run';
 const makeSlots = () => new SaveSlots(memoryBackend(), new Map());
 
@@ -54,6 +56,27 @@ describe('readCarried', () => {
     const old = readCarried({ format: { major: 2, minor: 9 }, world: FORMAT_2_9 });
     expect(old.ranks).toEqual({ driving: 0, perception: 1, machining: 2, toughness: 5, social: 3 });
     expect(old.xp).toBe(1549);
+  });
+
+  it('reads the saved paint slot by slot, an old paint job or retired color as the save steps do, and none from a save without one', () => {
+    const paint = { body: 'mint', cab: 'gold', gear: 7 };
+    expect(readCarried({ world: { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint } } }).paint).toEqual({ body: 'chalk', cab: 'gold' });
+    expect(readCarried({ world: { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: 'mint' } } }).paint).toEqual({ body: 'chalk', cab: 'oxblood', gear: 'chalk' });
+    expect(readCarried({ world: { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: 'bone' } } }).paint).toEqual({ body: 'tan', cab: 'olive', gear: 'tan' });
+    expect(readCarried({ world: FORMAT_2_9 }).paint).toBeNull();
+    expect(readCarried({ world: { player: { paint: 7 } } }).paint).toBeNull();
+  });
+
+  it.each(['plum', 'lavender', 'mint', 'rose', 'standard'])('rescues the %s paint job in the colors a migrated save gets', (preset) => {
+    const old = { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: preset } };
+    const migrated = stepFrom(96)(stepFrom(95)(structuredClone(old)));
+    expect(readCarried({ world: old }).paint).toEqual(readCarried({ world: migrated }).paint);
+  });
+
+  it('rescues a paint of retired colors in the colors a migrated save gets', () => {
+    const old = { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, paint: { body: 'plum', cab: 'navy', gear: 'pink' } } };
+    expect(readCarried({ world: old }).paint).toEqual({ body: 'oxblood', cab: 'slate', gear: 'chalk' });
+    expect(readCarried({ world: stepFrom(96)(structuredClone(old)) }).paint).toEqual({ body: 'oxblood', cab: 'slate', gear: 'chalk' });
   });
 
   it('keeps old perks whose rank holds and drops the rest', () => {

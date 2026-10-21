@@ -155,6 +155,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "tractor", weight: 1 },
       { value: "scout", weight: 2 },
       { value: "bus", weight: 2 }, { value: "bukhanka", weight: 2 },
+      { value: "sorokonoga", weight: 1 },
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
@@ -303,6 +304,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "hauler", weight: 6 },
       { value: "longbed", weight: 3 },
       { value: "bus", weight: 2 },
+      { value: "sorokonoga", weight: 1 },
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
@@ -577,6 +579,8 @@ export type DecisionOptions = {
   contactHeard: 'keep' | 'investigate' | 'flee';
   attacked: 'keep' | 'flee' | 'fightBack';
   preySeen: 'keep' | 'rob';
+  sizedUp: 'keep' | 'rob';
+  lookedOver: 'keep' | 'keepAway' | 'warn';
   strandedSeen: 'keep' | 'tow';
   salvageSeen: 'keep' | 'loot';
   patchDeal: 'paid' | 'ownParts' | 'free';
@@ -604,6 +608,7 @@ export type DecisionOptions = {
   needySeen: 'keep' | 'aid';
   strangerSeen: 'keep' | 'tale' | 'tip' | 'challenge' | 'courier';
   vigilCalled: 'accept' | 'refuse' | 'flee';
+  helpCalled: 'help' | 'refuse';
 };
 export type DecisionId = keyof DecisionOptions;
 
@@ -617,6 +622,8 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   contactHeard: { keep: 1, investigate: 0, flee: 3 },
   attacked: { keep: 0.5, flee: 1, fightBack: 2 },
   preySeen: { keep: 1, rob: 0 },
+  sizedUp: { keep: 1, rob: 2 },
+  lookedOver: { keep: 4, keepAway: 0.25, warn: 0 },
   strandedSeen: { keep: 1, tow: 0 },
   salvageSeen: { keep: 1, loot: 0 },
   patchDeal: { paid: 6, ownParts: 3, free: 1 },
@@ -643,6 +650,7 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   needySeen: { keep: 1, aid: 0 },
   strangerSeen: { keep: 1, tale: 0, tip: 0, challenge: 0, courier: 0 },
   vigilCalled: { accept: 0.3, refuse: 1, flee: 3 },
+  helpCalled: { help: 0.11, refuse: 1 },
 };
 
 export type WeightChange = { add?: number; mul?: number };
@@ -651,11 +659,12 @@ export type TraitWeights = { [D in DecisionId]?: Partial<Record<DecisionOptions[
 export const STATE_WEIGHTS: Record<StateKindId, TraitWeights> = {
   feud: { hostileSeen: { fight: { add: 4 } } },
   backedOff: { preySeen: { rob: { mul: 0.005 } } },
-  tow: {}, patch: {}, trade: {}, handover: {}, aid: {}, combat: {}, lootWarning: {},
+  tow: {}, patch: {}, trade: {}, handover: {}, aid: {}, combat: {}, lootWarning: {}, lookOver: {}, sizedUp: {},
   truce: {},
   grievance: {},
   strayFire: {},
   plea: { parley: { truce: { mul: 0.01 }, beg: { mul: 0.01 } } },
+  helpRefused: {},
   turnedDown: { strandedSeen: { tow: { mul: 0.001 } } },
   towPromise: { strandedSeen: { tow: { add: 20 } } },
   answering: {},
@@ -690,6 +699,7 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   grievance: 5,
   strayFire: 60,
   plea: 20,
+  helpRefused: 20,
   turnedDown: null,
   towPromise: null,
   revenge: 2000,
@@ -699,11 +709,13 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   hire: HIRE.turns,
   combat: 10,
   lootWarning: 30,
+  lookOver: null,
+  sizedUp: null,
   cavalcade: null,
   offering: null,
   drag: SUNWARD.dragTurns,
 };
 
 
-export { CREW, FEMALE_NAMES, FIRST_NAMES, HIRE, HUNT, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
+export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';

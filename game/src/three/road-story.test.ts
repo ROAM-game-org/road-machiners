@@ -41,7 +41,7 @@ function throughRoundTrip(w: World): World {
 }
 
 function questOpen(w: World): string | null {
-  return w.player.quests.session?.quest ?? null;
+  return w.player.quests.live?.quest ?? null;
 }
 
 function withoutQuests(w: World): unknown {
@@ -53,7 +53,7 @@ describe('the opening of a new run', () => {
   const chaos = (intro: boolean) => newGame(SEED, 'furyRoad', intro, highwayMap(SEED, 0), defaultSetup('furyRoad'));
 
   it('opens the hiring on Chaos Highway with the intro on, and nothing with the intro off', () => {
-    expect(questOpen(chaos(true))).toBe(GAME_OPENED_QUESTS.roadHire);
+    expect(questOpen(chaos(true))).toBe(GAME_OPENED_QUESTS.chaosHighwayIntro);
     expect(questOpen(chaos(false))).toBeNull();
   });
 
@@ -61,10 +61,9 @@ describe('the opening of a new run', () => {
     expect(questOpen(newGame(SEED, 'arrival', true, TEST_MAP, defaultSetup('roaming')))).toBe(GAME_OPENED_QUESTS.arrival);
   });
 
-  it('hires the driver only at the end of the hiring', () => {
-    const w = chaos(true);
-    expect(worldVar(w, ALA_HIRED)).toBe(false);
-    expect(worldVar(finishQuest(w), ALA_HIRED)).toBe(true);
+  it('hires the driver with the hiring, which has no choice, and not with the intro off', () => {
+    expect(worldVar(chaos(true), ALA_HIRED)).toBe(true);
+    expect(worldVar(chaos(false), ALA_HIRED)).toBe(false);
   });
 
   it('restarts with the story only after a hired run', () => {
@@ -100,7 +99,7 @@ describe('the scenes at parked outposts', () => {
     expect(questOpen(endTurn(paid, still))).toBe(GAME_OPENED_QUESTS.roadStretch1);
   });
 
-  it('opens a scene only at stretches 1, 4, 8 and 12, keeps the gates through the window move and changes nothing but the quests', () => {
+  it('opens a scene only at stretch 1, keeps the gates through the window move and changes nothing but the quests', () => {
     let w = hiredRun();
     const gates: string[] = [];
     for (let stretch = 1; stretch <= 5; stretch++) {
@@ -130,12 +129,12 @@ describe('the scenes at parked outposts', () => {
 
   it('opens nothing while another quest is open', () => {
     const w = hiredRun();
-    const open = newGame(SEED, 'furyRoad', true, highwayMap(SEED, 0), defaultSetup('furyRoad'));
-    w.player.quests = open.player.quests;
-    expect(questOpen(w)).toBe(GAME_OPENED_QUESTS.roadHire);
+    const open = newGame(SEED, 'arrival', true, TEST_MAP, defaultSetup('roaming'));
+    w.player.quests = { ...open.player.quests, world: w.player.quests.world };
+    expect(w.player.quests.session?.quest).toBe(GAME_OPENED_QUESTS.arrival);
     parkInYard(w, 1);
     const after = endTurn(w, still);
-    expect(questOpen(after)).toBe(GAME_OPENED_QUESTS.roadHire);
+    expect(questOpen(after)).toBe(GAME_OPENED_QUESTS.arrival);
     expect(haulerOf(after).id).not.toBe(playerVehicle(after).id);
   });
 });
@@ -153,7 +152,7 @@ describe('the road story data', () => {
       expect(QUESTS.quests[quest].checkpoints).toContain('start');
       expect(GAME_WORLD_VARS[gate].gates).toBe(quest);
     }
-    expect(QUESTS.quests[GAME_OPENED_QUESTS.roadHire].checkpoints).toContain('start');
+    expect(QUESTS.quests[GAME_OPENED_QUESTS.chaosHighwayIntro].checkpoints).toContain('start');
   });
 });
 

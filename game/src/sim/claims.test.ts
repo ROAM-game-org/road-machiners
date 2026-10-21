@@ -244,6 +244,12 @@ describe('delivery', () => {
   });
 });
 
+describe('boat wrecks', () => {
+  it('are never claim wrecks', () => {
+    expect(claimSpots(real).filter((stock) => oldSpotOf(stock)?.type === 'boats')).toEqual([]);
+  });
+});
+
 describe('reachability', () => {
   it('only offers spots a truck can reach from the road', () => {
     const baked = mapObstacles(TEST_MAP);

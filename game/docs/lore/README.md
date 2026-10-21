@@ -10,7 +10,7 @@ The world of ROAM. Everything here answers to [Theme](../theme.md).
 - [Rumors](rumors.md): what people say.
 - [Stories](stories.md): seeds for events and jobs.
 - [Story game](story-game.md): a turn-based game that generates history and stories with agents.
-- [Chaos Highway](chaos-highway.md): the highway region, its people and the hidden truths of the Geezer and Ala story, with [the story game log](chaos-highway-story-game.md).
+- [Chaos Highway](chaos-highway.md): the skeleton of the Geezer and Ala story on the highway.
 
 ## Icarus
 

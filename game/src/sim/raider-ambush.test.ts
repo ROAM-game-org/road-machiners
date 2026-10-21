@@ -28,7 +28,7 @@ import { fuelCap, vehicleStats } from './stats';
 import { addState, stateOf } from './states';
 import { isRoadTile } from './terrain';
 import { hazardZones } from './territory';
-import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, sizedUp, testDrive } from './testkit';
 import type { NpcActivity, Vehicle, World } from './types';
 import { lineKey } from '../text/names';
 import { entryText } from '../text/resolve';
@@ -186,7 +186,7 @@ function watchingRaider(traderGap: number) {
   return { w, raider, trader };
 }
 
-function drawShare(w: World, raider: Vehicle, decision: 'hostileSeen' | 'contactHeard', subject: string, danger: number | null, option: string): number {
+function drawShare(w: World, raider: Vehicle, decision: 'hostileSeen' | 'contactHeard' | 'sizedUp', subject: string, danger: number | null, option: string): number {
   const draws = 400;
   let hits = 0;
   for (let i = 0; i < draws; i++) if (decide(w, raider, decision, subject, danger) === option) hits++;
@@ -247,19 +247,22 @@ describe('the watch', () => {
     expect(drawShare(w, raider, 'contactHeard', trader.id, null, 'investigate')).toBeGreaterThanOrEqual(0.8);
   });
 
-  it('attacks the start-kit player about half the time and rarely flees', () => {
+  it('sizes up the start-kit player nearly always, rarely flees, and robs it about half the time once it has looked', () => {
     const { w, raider, player } = watchingRaiderSeeing();
     const danger = judgeDanger(w, raider, player);
-    const fight = drawShare(w, raider, 'hostileSeen', player.id, danger, 'fight');
-    expect(fight).toBeGreaterThanOrEqual(0.35);
-    expect(fight).toBeLessThanOrEqual(0.6);
+    expect(drawShare(w, raider, 'hostileSeen', player.id, danger, 'fight')).toBeGreaterThanOrEqual(0.8);
     expect(drawShare(w, raider, 'hostileSeen', player.id, danger, 'flee')).toBeLessThanOrEqual(0.1);
+    sizedUp(w, raider, player);
+    const rob = drawShare(w, raider, 'sizedUp', player.id, danger, 'rob');
+    expect(rob).toBeGreaterThanOrEqual(0.35);
+    expect(rob).toBeLessThanOrEqual(0.7);
   });
 
   it('almost always attacks a player carrying six electronics', () => {
     const { w, raider, player } = watchingRaiderSeeing();
     if (addGoods(w, player, 'electronics', 6) < 6) throw new Error('No room for the cargo');
-    expect(drawShare(w, raider, 'hostileSeen', player.id, judgeDanger(w, raider, player), 'fight')).toBeGreaterThanOrEqual(0.9);
+    sizedUp(w, raider, player);
+    expect(drawShare(w, raider, 'sizedUp', player.id, judgeDanger(w, raider, player), 'rob')).toBeGreaterThanOrEqual(0.9);
   });
 
   it('flees prey that outguns it, when it has a getaway', () => {
@@ -351,7 +354,7 @@ describe('the watch', () => {
     w.turn++;
     planNpcOrders(w);
     expect(w.events).toContainEqual(expect.objectContaining({ t: 'activity', vehicle: raider.id, previous: 'investigate', reason: 'spottedHeard' }));
-    expect(w.events).toContainEqual(expect.objectContaining({ t: 'activity', vehicle: raider.id, activity: 'fight', reason: 'fightHostile' }));
+    expect(w.events).toContainEqual(expect.objectContaining({ t: 'activity', vehicle: raider.id, activity: 'sizeUp', reason: 'sizingUp' }));
     expect(raider.brain!.goals.some((g) => g.kind === 'investigate')).toBe(false);
   });
 
@@ -379,6 +382,7 @@ describe('the watch', () => {
   describe('pass reasons', () => {
     function staged() {
       const s = watchingRaiderSeeing();
+      sizedUp(s.w, s.raider, s.player);
       return { ...s, danger: () => judgeDanger(s.w, s.raider, s.player) };
     }
 
@@ -421,18 +425,19 @@ describe('the watch', () => {
     const { w, raider, trader } = watchingRaider(TERRAIN.vision.radius - 6);
     trader.speed = 4;
     forceOption('hostileSeen', 'fight');
+    forceOption('sizedUp', 'rob');
     planNpcOrders(w);
-    expect(topGoal(raider)).toMatchObject({ kind: 'fight', targetId: trader.id });
+    expect(topGoal(raider)).toMatchObject({ kind: 'sizeUp', targetId: trader.id });
     expect(raider.brain!.goals[0].kind).toBe('raid');
-    const next = endTurn(w, testDrive);
-    expect(inCombat(next, vehicle(next, raider.id))).toBe(true);
+    const next = playUntil(w, 6, (x) => topGoal(vehicle(x, raider.id))?.kind === 'fight');
+    expect(topGoal(vehicle(next, raider.id))).toMatchObject({ kind: 'fight', targetId: trader.id });
   });
 
   it('ends the watch when a fight pops back onto it, instead of parking away from the post', () => {
     const { w, raider, trader } = watchingRaider(TERRAIN.vision.radius - 6);
     forceOption('hostileSeen', 'fight');
     planNpcOrders(w);
-    expect(topGoal(raider)?.kind).toBe('fight');
+    expect(topGoal(raider)?.kind).toBe('sizeUp');
     finishGoal(w, raider, 'lostTarget');
     expect(raider.brain!.goals.some((g) => g.kind === 'raid' && g.phase === 'act')).toBe(false);
     expect(isWatching(raider)).toBe(false);
@@ -443,17 +448,18 @@ describe('the watch', () => {
     const { w, raider, trader } = watchingRaider(TERRAIN.vision.radius - 6);
     forceOption('hostileSeen', 'fight');
     planNpcOrders(w);
-    expect(topGoal(raider)?.kind).toBe('fight');
+    expect(topGoal(raider)?.kind).toBe('sizeUp');
     trader.pos = { x: raider.pos.x + TERRAIN.vision.radius + 10, y: raider.pos.y };
     trader.speed = 0;
     for (let i = 0; i < NPC_BEHAVIOR.fightSearchTurns; i++) {
       w.turn++;
       planNpcOrders(w);
-      expect(topGoal(raider)?.kind).toBe('fight');
+      expect(topGoal(raider)?.kind).toBe('sizeUp');
     }
     w.turn++;
     planNpcOrders(w);
-    expect(topGoal(raider)?.kind).not.toBe('fight');
+    expect(topGoal(raider)?.kind).not.toBe('sizeUp');
+    expect(stateOf(w, 'backedOff', raider.id, trader.id)).not.toBeNull();
   });
 
   it('ignores a truck it neither sees nor hears', () => {
@@ -595,7 +601,9 @@ describe('going home with loot', () => {
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     raider.brain.goals = [raidGoal(raider.pos)];
     forceOption('hostileSeen', 'fight');
-    const demanded = playUntil(start, 4, (x) => x.player.call?.topic === 'demand');
+    forceOption('sizedUp', 'rob');
+    forceOption('resume', 'new');
+    const demanded = playUntil(start, 8, (x) => x.player.call?.topic === 'demand');
     expect(inCombat(demanded, vehicle(demanded, raider.id))).toBe(true);
     const handed = chooseOption(demanded, currentOptions(demanded).findIndex((o) => en(o.line) === 'Fine. Take it.'));
     expect(inCombat(handed, vehicle(handed, raider.id))).toBe(false);

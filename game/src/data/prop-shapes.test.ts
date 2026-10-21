@@ -35,6 +35,12 @@ const GLASS_FLATS_SIZES = [
   { model: 'scrap_wall', meters: 7.6, tall: 3.6 },
 ] as const;
 
+const BOAT_SIZES = [
+  { model: 'boat_fishing', meters: 10, tall: 3.3 },
+  { model: 'boat_barge', meters: 14, tall: 3.2 },
+  { model: 'boat_skiff', meters: 5, tall: 1.2 },
+] as const;
+
 function shapeBoxes(model: string): readonly Box[] {
   const shape = (SHAPES as Record<string, { boxes: Box[] } | undefined>)[model];
   if (shape === undefined) throw new Error(`Model ${model} has no shape in prop-shapes.json. Run npm run models:shapes.`);
@@ -78,6 +84,14 @@ describe('orchard model sizes (IV11)', () => {
 
   it('fails loudly on a model missing from prop-shapes.json', () => {
     expect(() => shapeBoxes('no_such_model')).toThrow('no shape');
+  });
+});
+
+describe('riverbed boat sizes', () => {
+  it.each(BOAT_SIZES)('$model is $meters m long and $tall m tall, within 15%', ({ model, meters, tall }) => {
+    const boxes = shapeBoxes(model);
+    expect(Math.abs(lengthOf(boxes) - meters)).toBeLessThanOrEqual(meters * 0.15);
+    expect(Math.abs(Math.max(...boxes.map((b) => b.z1)) - tall)).toBeLessThanOrEqual(tall * 0.15);
   });
 });
 

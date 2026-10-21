@@ -10,6 +10,7 @@ let calls: string[] = [];
 let prompt = '';
 let effort: string | undefined;
 let related = '';
+let inWork = '';
 let releaseInput = '';
 let cards: Card[] = [];
 
@@ -21,6 +22,7 @@ beforeEach(() => {
   groomPrompt = '';
   groomEffort = undefined;
   related = '';
+  inWork = '';
   cards = [card(7, 'Triage')];
   writeState(`${home}/state.json`, structuredClone(EMPTY_STATE));
 });
@@ -68,6 +70,7 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
         }
         effort = run.effort;
         related = readFileSync(`${run.clone}/${run.dir}/.factory/related.md`, 'utf8');
+        inWork = readFileSync(`${run.clone}/${run.dir}/.factory/in-work.md`, 'utf8');
         releaseInput = readFileSync(`${run.clone}/${run.dir}/.factory/release.md`, 'utf8');
         prompt = run.prompt;
         if (verdict !== null) writeFileSync(`${run.clone}/${run.dir}/.factory/triage.json`, verdict);
@@ -255,11 +258,13 @@ describe('triage stage', () => {
     [verdict({ bundle: ['9'] }), 'bundle as a list of issue numbers'],
     [verdict({ bundle: [11] }), 'bundles #11, which is not an offered Triage card'],
     [verdict({ bundle: [9, 9] }), 'bundles an issue twice'],
-    [verdict({ bundle: [9], hotfix: true }), 'bundles issues into a hotfix'],
+    [JSON.stringify({ verdict: 'duplicate', reason: 'Same failure.' }), 'duplicateOf as an issue number'],
+    [JSON.stringify({ verdict: 'duplicate', reason: 'Same failure.', duplicateOf: 9 }), "names #9 as the duplicate's card, which is not an offered card in work"],
+    [JSON.stringify({ verdict: 'duplicate', reason: '', duplicateOf: 20 }), 'reason'],
     [verdict({ releaseFix: 'yes' }), 'releaseFix as true or false'],
     [verdict({ releaseFix: true }), 'no release takes fixes now'],
   ])('throws on a bad triage.json of a bug %#', async (text, message) => {
-    cards = [card(7, 'Triage'), card(9, 'Triage')];
+    cards = [card(7, 'Triage'), card(9, 'Triage'), card(20, 'Testing')];
     await expect(runStage(fakeCtx(text, ['bug']), 7)).rejects.toThrow(message);
     expect(calls.filter((call) => /^(comment|move|close|addLabel)/.test(call))).toEqual([]);
     expect(readState(`${home}/state.json`).bundles).toEqual({});
@@ -567,5 +572,49 @@ describe('triage bundles', () => {
       expect(calls).toContain('addLabel 7 needs-info');
       expect(calls.filter((call) => /^(move|close)/.test(call))).toEqual([]);
     });
+  });
+});
+
+describe('triage duplicates', () => {
+  const duplicate = (duplicateOf: number): string => JSON.stringify({ verdict: 'duplicate', reason: 'Same sound decode failure as #20.', duplicateOf });
+
+  it('offers every card from Design to Merging, hotfixes included, and no Triage, Done or bundled card', async () => {
+    cards = [card(7, 'Triage'), card(9, 'Triage'), card(20, 'Merging'), card(21, 'Testing', ['hotfix']), card(22, 'Done'), card(23, 'Design', ['bundled'])];
+    await runStage(fakeCtx(verdict({}), ['bug']), 7);
+    expect(inWork).toContain('UNTRUSTED USER TEXT');
+    expect(inWork).toContain('# #20 Horn idea 20\n\nBody of 20');
+    expect(inWork).toContain('# #21 Horn idea 21');
+    expect(inWork).not.toMatch(/# #(7|9|22|23) /);
+  });
+
+  it('says when no card is in work', async () => {
+    await runStage(fakeCtx(verdict({}), ['bug']), 7);
+    expect(inWork).toContain('No card is in work.');
+  });
+
+  it.each([[['bug']], [[]]])('folds a duplicate into its card in work with no card of its own, and skips grooming %#', async (labels) => {
+    cards = [card(7, 'Triage'), card(20, 'Testing', ['hotfix'])];
+    await runStage(fakeCtx(duplicate(20), labels), 7);
+    expect(calls.find((call) => call.startsWith('comment 7'))).toContain('Triage bundled this into #20');
+    expect(calls).toContain('addLabel 7 bundled');
+    expect(calls.at(-1)).toBe('move 7 Done');
+    expect(calls.filter((call) => call.startsWith('agent'))).toEqual(['agent haiku']);
+    expect(readState(`${home}/state.json`).bundles['20']).toEqual([7]);
+  });
+
+  it('fails when the card left the work columns while triage ran, so the retry sees the board again', async () => {
+    cards = [card(7, 'Triage'), card(20, 'Merging')];
+    const ctx = fakeCtx(duplicate(20), ['bug']);
+    let reads = 0;
+    ctx.github.cards = async () => (reads++ === 0 ? cards : [card(7, 'Triage'), card(20, 'Done')]);
+    await expect(runStage(ctx, 7)).rejects.toThrow('#20 left the work columns while triage ran');
+    expect(readState(`${home}/state.json`).bundles).toEqual({});
+  });
+
+  it('lets a hotfix bundle a duplicate waiting in Triage', async () => {
+    cards = [card(7, 'Triage'), card(9, 'Triage')];
+    await runStage(fakeCtx(verdict({ hotfix: true, bundle: [9] }), ['bug']), 7);
+    expect(calls).toContain('addLabel 7 hotfix');
+    expect(readState(`${home}/state.json`).bundles['7']).toEqual([9]);
   });
 });

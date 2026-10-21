@@ -14,16 +14,25 @@ const DT = 1 / PHYSICS.stepsPerSecond;
 export const GROUND = 'ground';
 export type Crash = { a: string; b: string; impact: number; contact: CrashGeometry; step: number };
 
-export function captureCrash(physics: RAPIER.World, state: World, before: Map<string, ImpactMotion>, pair: { a: string; b: string; first: number; other: number }, va: ImpactMotion): Omit<Crash, 'step'> | null {
-  const vb = before.get(pair.b) ?? { velocity: { x: 0, y: 0, z: 0 }, spin: { x: 0, y: 0, z: 0 }, heading: 0 };
+export type CrashPair = { a: string; b: string; first: number; other: number; unitA: number; unitB: number };
+
+const STILL: ImpactMotion = { velocity: { x: 0, y: 0, z: 0 }, spin: { x: 0, y: 0, z: 0 }, heading: 0 };
+
+export function captureCrash(physics: RAPIER.World, state: World, before: Map<string, ImpactMotion>, pair: CrashPair, va: ImpactMotion): Omit<Crash, 'step'> | null {
+  const vb = before.get(pair.unitB > 0 ? `${pair.b}/rear` : pair.b) ?? STILL;
   const vehicle = state.vehicles.find((v) => v.id === pair.a);
   if (!vehicle) throw new Error(`Unknown crash vehicle ${pair.a}`);
-  const target = state.vehicles.find((v) => v.id === pair.b) ?? null;
-  const hit = readCrashContact(physics, physics.getCollider(pair.first), physics.getCollider(pair.other), vehicle, target, va, vb);
+  const hit = readCrashContact(physics, physics.getCollider(pair.first), physics.getCollider(pair.other), { vehicle, unit: pair.unitA, motion: va }, crashSide(state, pair, vb), vb);
   return hit ? { a: pair.a, b: pair.b, ...hit } : null;
 }
 
-export function captureGroundCrash(physics: RAPIER.World, state: World, a: string, first: number, ground: number, motion: ImpactMotion): Omit<Crash, 'step'> | null {
+function crashSide(state: World, pair: CrashPair, motion: ImpactMotion): CrashSide | null {
+  const target = state.vehicles.find((v) => v.id === pair.b);
+  return target ? { vehicle: target, unit: pair.unitB, motion } : null;
+}
+
+export function captureGroundCrash(physics: RAPIER.World, state: World, owner: { a: string; unit: number }, first: number, ground: number, motion: ImpactMotion): Omit<Crash, 'step'> | null {
+  const a = owner.a;
   const vehicle = state.vehicles.find((v) => v.id === a);
   if (!vehicle) throw new Error(`Unknown crash vehicle ${a}`);
   const hits: { impact: number; contact: CrashGeometry }[] = [];
@@ -35,7 +44,7 @@ export function captureGroundCrash(physics: RAPIER.World, state: World, a: strin
     const points = readManifoldPoints(manifold, flipped);
     if (points.a.length === 0) return;
     const local = flipped ? manifold.localNormal2() : manifold.localNormal1();
-    hits.push({ impact, contact: { a: locateCrashContact(vehicle.chassisId, points.a, { x: local.x, y: local.z }), b: null } });
+    hits.push({ impact, contact: { a: locateCrashContact(vehicle.chassisId, owner.unit, points.a, { x: local.x, y: local.z }), b: null } });
   });
   hits.sort((x, y) => y.impact - x.impact);
   return hits[0] ? { a, b: GROUND, ...hits[0] } : null;
@@ -63,7 +72,10 @@ function readManifoldPoints(manifold: RAPIER.TempContactManifold, flipped: boole
   return points;
 }
 
-function readCrashContact(world: RAPIER.World, first: RAPIER.Collider, second: RAPIER.Collider, a: Vehicle, b: Vehicle | null, motionA: ImpactMotion, motionB: ImpactMotion): { impact: number; contact: CrashGeometry } | null {
+type CrashSide = { vehicle: Vehicle; unit: number; motion: ImpactMotion };
+
+function readCrashContact(world: RAPIER.World, first: RAPIER.Collider, second: RAPIER.Collider, sideA: CrashSide, sideB: CrashSide | null, motionB: ImpactMotion): { impact: number; contact: CrashGeometry } | null {
+  const motionA = sideA.motion;
   const hits: { impact: number; contact: CrashGeometry }[] = [];
   world.contactPair(first, second, (manifold, flipped) => {
     const raw = manifold.normal();
@@ -74,8 +86,8 @@ function readCrashContact(world: RAPIER.World, first: RAPIER.Collider, second: R
     const points = readManifoldPoints(manifold, flipped);
     if (points.a.length === 0) return;
     const contact = {
-      a: locateCrashContact(a.chassisId, points.a, rotateToBody(normal, motionA.heading)),
-      b: b ? locateCrashContact(b.chassisId, points.b, rotateToBody({ x: -normal.x, y: -normal.y }, motionB.heading)) : null,
+      a: locateCrashContact(sideA.vehicle.chassisId, sideA.unit, points.a, rotateToBody(normal, motionA.heading)),
+      b: sideB ? locateCrashContact(sideB.vehicle.chassisId, sideB.unit, points.b, rotateToBody({ x: -normal.x, y: -normal.y }, motionB.heading)) : null,
     };
     hits.push({ impact, contact });
   });

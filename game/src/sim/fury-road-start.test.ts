@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD } from '../data/modes';
+import { BASIC_IDS } from '../data/skills';
+import { hasBasic } from './progress';
 import { PARTS, partDef } from '../data/parts';
 import { GARAGE_STOCK } from '../data/market';
 import { RU } from '../text/ru';
@@ -19,7 +21,7 @@ import { rollPartStockPerKind } from './market';
 import { alongOf, toRoad } from './highway';
 import { furyRoadStart, furyRoadWorld } from './testkit';
 import { RULES } from '../data/rules';
-import { halfWidth } from './body';
+import { sideReach } from './rig';
 import { yardSpots } from './outpost-gates';
 import { dist } from './vec';
 import type { Vehicle } from './types';
@@ -29,6 +31,12 @@ function partsOf(w: ReturnType<typeof furyRoadWorld>) {
 }
 
 describe('Fury Road starter kit', () => {
+  it('starts every skill at rank 1, so every basic is open', () => {
+    const w = furyRoadStart(3);
+    expect(Object.values(w.player.ranks)).toEqual([1, 1, 1, 1, 1]);
+    expect(BASIC_IDS.every((basic) => hasBasic(w, basic))).toBe(true);
+  });
+
   it('is a scout with one machine gun, no armor and the start money on every seed', () => {
     for (const seed of [1, 3, 99]) {
       const w = furyRoadStart(seed);
@@ -94,7 +102,7 @@ describe('Fury Road hauler', () => {
       const me = playerVehicle(w);
       expect(hauler.pos).toEqual(yardSpots(w, 0).hauler);
       expect(me.pos).toEqual(yardSpots(w, 0).truck);
-      expect(dist(hauler.pos, me.pos) - halfWidth(hauler.chassisId) - halfWidth(me.chassisId)).toBeGreaterThan(RULES.yieldDistance / 2);
+      expect(dist(hauler.pos, me.pos) - sideReach(hauler.chassisId) - sideReach(me.chassisId)).toBeGreaterThan(RULES.yieldDistance / 2);
     }
   });
 

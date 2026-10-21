@@ -66,9 +66,11 @@ const VEHICLE_MOVE = {
   items: 'keep',
   pos: 'shift',
   heading: 'keep',
+  bend: 'keep',
   speed: 'keep',
   stormExposure: 'drop',
   strandedTurns: 'keep',
+  strandedAt: 'shift',
   stalledUntil: 'keep',
   order: 'shift',
   direct: 'keep',
@@ -147,6 +149,7 @@ const PLAYER_MOVE = {
   repeats: 'keep',
   xpBySource: 'keep',
   perks: 'keep',
+  paint: 'keep',
   health: 'keep',
   fuel: 'keep',
   supplies: 'keep',
@@ -160,6 +163,7 @@ const PLAYER_MOVE = {
   scavenged: 'keep',
   storage: 'keep',
   contracts: 'shift',
+  pastContracts: 'keep',
   costBasis: 'keep',
   knockouts: 'keep',
   state: 'keep',
@@ -223,6 +227,7 @@ function applyMoves<T extends object, M extends Table<T>>(target: T, table: M, h
 
 const VEHICLE_HANDLERS: Handlers<Vehicle, typeof VEHICLE_MOVE> = {
   pos: (pos, ctx) => at(ctx, pos),
+  strandedAt: (anchor, ctx) => anchor && at(ctx, anchor),
   order: (order, ctx) => {
     if (order === null || ctx.self !== ctx.playerId) return null;
     return order.kind === 'brake' ? order : { ...order, dest: at(ctx, order.dest) };
@@ -560,6 +565,7 @@ export function settleTrucks(world: World): void {
     const spot = freeSpotNear(world, v.pos, radius, v.id);
     if (!spot) throw new Error(`No free spot near ${v.pos.x.toFixed(1)}, ${v.pos.y.toFixed(1)} for ${v.id} on map ${world.mapHash}`);
     v.pos = spot;
+    if (v.strandedAt) v.strandedAt = { ...spot };
     v.speed = 0;
     v.order = null;
   }
