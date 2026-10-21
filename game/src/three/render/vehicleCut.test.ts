@@ -97,7 +97,9 @@ describe.each(Object.keys(CHASSIS).filter((id) => !isRig(id)))('armor cut on %s'
 
   it('has armor meshes, their twins and an armor outline apart from the body outline', () => {
     expect(lit.length).toBeGreaterThan(0);
-    expect(twins).toHaveLength(lit.length);
+    const drawn = (list: THREE.Mesh[]) => list.reduce((n, m) => n + (m.geometry.index?.count ?? m.geometry.getAttribute('position').count), 0);
+    expect(twins.length).toBeGreaterThan(0);
+    expect(drawn(twins)).toBe(drawn(lit));
     expect(armorOutlines).toHaveLength(1);
     expect(bodyOutlines.length).toBeGreaterThan(0);
   });

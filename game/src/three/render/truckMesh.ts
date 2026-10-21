@@ -131,7 +131,51 @@ function mergedGroup(buckets: Bucket[]): THREE.Group {
   return out;
 }
 
-export const CONTACT_SHADOW = { darkness: 0.55, core: 0.125, side: 64, lift: 0.02, spread: { length: 1.25, width: 1.4 } };
+type Twins = { plain: THREE.Mesh[]; armor: THREE.Mesh[] };
+
+function twinsByParent(meshes: THREE.Mesh[]): Map<THREE.Object3D, Twins> {
+  const out = new Map<THREE.Object3D, Twins>();
+  for (const mesh of meshes) {
+    if (!mesh.parent) throw new Error(`Truck mesh ${mesh.name} has no parent to hold its twin`);
+    const twins = out.get(mesh.parent) ?? { plain: [], armor: [] };
+    (mesh.userData.armor ? twins.armor : twins.plain).push(mesh);
+    out.set(mesh.parent, twins);
+  }
+  return out;
+}
+
+function localGeometry(mesh: THREE.Mesh): THREE.BufferGeometry {
+  mesh.updateMatrix();
+  const plain = new THREE.BufferGeometry();
+  plain.setAttribute('position', mesh.geometry.getAttribute('position').clone());
+  if (mesh.geometry.index) plain.setIndex(mesh.geometry.index.clone());
+  const geo = plain.index ? plain.toNonIndexed() : plain;
+  geo.applyMatrix4(mesh.matrix);
+  if (mesh.matrix.determinant() < 0) flipWinding(geo);
+  return geo;
+}
+
+function mergedTwin(meshes: THREE.Mesh[], material: THREE.Material, order: number): THREE.Mesh {
+  const geos = meshes.map(localGeometry);
+  const merged = mergeGeometries(geos);
+  if (!merged) throw new Error(`Could not merge ${meshes.length} truck meshes into one twin`);
+  for (const geo of geos) geo.dispose();
+  const twin = new THREE.Mesh(merged, material);
+  twin.renderOrder = order;
+  return twin;
+}
+
+export function addTwins(meshes: THREE.Mesh[], material: THREE.Material, order: number): void {
+  for (const [parent, twins] of twinsByParent(meshes)) {
+    if (twins.plain.length > 0) parent.add(mergedTwin(twins.plain, material, order));
+    if (twins.armor.length === 0) continue;
+    const armor = mergedTwin(twins.armor, material, order);
+    armor.userData.armor = true;
+    parent.add(armor);
+  }
+}
+
+export const CONTACT_SHADOW ={ darkness: 0.55, core: 0.125, side: 64, lift: 0.02, spread: { length: 1.25, width: 1.4 } };
 let contactTexture: THREE.DataTexture | null = null;
 
 export function contactShadowFor(b: Body): THREE.Mesh {

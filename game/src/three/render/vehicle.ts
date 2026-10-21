@@ -15,7 +15,7 @@ import type { GridItem, Vehicle, World } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, sweepOf, type Obstacle } from './gunClearance';
 import { model, socket, TRUCK_BIT, type ModelName } from './models';
-import { bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
+import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
 import { hashStr } from '../../render/noise';
 import { callTrucks, radioSpeakers } from '../../sim/dialogue';
@@ -416,17 +416,8 @@ export class VehicleView {
     this.root.traverse((o) => {
       if (o instanceof THREE.Mesh && !this.isContactShadow(o) && !o.userData.outline) meshes.push(o);
     });
-    for (const mesh of meshes) {
-      markStencil(mesh.material as THREE.Material);
-      if (!silhouette) continue;
-      const twin = new THREE.Mesh(mesh.geometry, silhouette);
-      twin.userData.armor = mesh.userData.armor;
-      twin.position.copy(mesh.position);
-      twin.quaternion.copy(mesh.quaternion);
-      twin.scale.copy(mesh.scale);
-      twin.renderOrder = SILHOUETTE_ORDER;
-      mesh.parent!.add(twin);
-    }
+    for (const mesh of meshes) markStencil(mesh.material as THREE.Material);
+    if (silhouette) addTwins(meshes, silhouette, SILHOUETTE_ORDER);
   }
 
   private useLamp(obj: THREE.Object3D): void {
