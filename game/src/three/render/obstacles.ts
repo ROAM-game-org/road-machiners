@@ -45,12 +45,15 @@ export class ObstacleViews {
   private readonly swatches = new Map<string, LootSwatch[]>();
   private lit = new Set<string>();
   private clock = 0;
+  private readonly bows = new Map<string, THREE.Object3D>();
+  private readonly breach = breachSpot();
 
   private gates: OutpostGateViews | null = null;
 
   constructor(private readonly scope: RenderScope, private readonly terrain: Terrain, private readonly onGatesShut: () => void = () => {}) {
     this.flying = new DebrisSim(terrain);
     this.parts = new PartDebris(scope, terrain);
+    scope.pin(this.breach, this.breach.target);
   }
 
   sync(obstacles: Obstacle[], salvage: SalvageStock[], broken: readonly BrokenProp[]): void {
@@ -69,6 +72,7 @@ export class ObstacleViews {
       disposeTree(obj);
       this.byId.delete(id);
       this.glows.delete(id);
+      this.bows.delete(id);
       this.swatches.delete(id);
       this.lit.delete(id);
     }
@@ -112,6 +116,7 @@ export class ObstacleViews {
     this.scope.add(obj, o.pos, viewReach(o));
     this.byId.set(o.id, obj);
     if (obj.userData.glow) this.glows.set(o.id, obj.userData.glow as Glow);
+    if (obj.userData.breach) this.bows.set(o.id, obj);
   }
 
   play(anim: { result: Pick<TurnResult, 'breaks' | 'frames'> } | null, step: number | null, world: World, frames: Record<string, VehicleFrame>, dt: number): void {
@@ -120,7 +125,7 @@ export class ObstacleViews {
     this.flying.moveTrucks(trucks);
     this.flying.step(dt);
     this.parts.play(trucks, dt);
-    this.pulse(dt);
+    this.pulse(dt, nearestBow(this.bows.values(), frames[world.player.vehicleId]?.pos));
     this.slideGates(anim !== null, world, dt);
   }
 
@@ -130,13 +135,15 @@ export class ObstacleViews {
     if (this.gates.frame(world, playing, dt)) this.onGatesShut();
   }
 
-  private pulse(dt: number): void {
+  private pulse(dt: number, bow: THREE.Object3D | null): void {
     this.clock += dt;
     const k = 1 + REACTOR_PULSE.share * Math.sin((this.clock / REACTOR_PULSE.period) * Math.PI * 2);
     for (const glow of this.glows.values()) {
       for (const m of glow.materials) m.emissiveIntensity = REACTOR_GLOW.emissive * k;
       for (const light of glow.lights) light.intensity = REACTOR_GLOW.intensity * k;
     }
+    if (bow) aimBreach(this.breach, bow);
+    this.breach.intensity = bow ? REACTOR_GLOW.intensity * k : 0;
   }
 
   private smash(result: Pick<TurnResult, 'breaks' | 'frames'>, step: number, broken: readonly BrokenProp[]): void {
@@ -355,16 +362,40 @@ function lightCore(reactor: THREE.Object3D, g: THREE.Group): void {
   g.userData.glow = glow;
 }
 
-export function lightBreach(g: THREE.Group): THREE.SpotLight {
-  const spot = new THREE.SpotLight(PAL.reactorLight, REACTOR_GLOW.intensity, REACTOR_GLOW.range, BREACH_LIGHT.angle, BREACH_LIGHT.penumbra, REACTOR_GLOW.decay);
-  spot.position.set(BOW_BREACH.along, BOW_BREACH.height, BOW_BREACH.out);
-  spot.target.position.set(BOW_BREACH.along, BOW_BREACH.height - Math.sin(BREACH_LIGHT.tilt), BOW_BREACH.out + Math.cos(BREACH_LIGHT.tilt));
-  g.add(spot, spot.target);
+export function lightBreach(g: THREE.Group): void {
   const core = breachCore();
   g.add(core);
-  const glow: Glow = { materials: [core.material as THREE.MeshLambertMaterial], lights: [spot] };
+  const glow: Glow = { materials: [core.material as THREE.MeshLambertMaterial], lights: [] };
   g.userData.glow = glow;
+  g.userData.breach = true;
+}
+
+function breachSpot(): THREE.SpotLight {
+  return new THREE.SpotLight(PAL.reactorLight, 0, REACTOR_GLOW.range, BREACH_LIGHT.angle, BREACH_LIGHT.penumbra, REACTOR_GLOW.decay);
+}
+
+function aimBreach(spot: THREE.SpotLight, bow: THREE.Object3D): void {
+  spot.position.set(BOW_BREACH.along, BOW_BREACH.height, BOW_BREACH.out).applyMatrix4(bow.matrix);
+  spot.target.position.set(BOW_BREACH.along, BOW_BREACH.height - Math.sin(BREACH_LIGHT.tilt), BOW_BREACH.out + Math.cos(BREACH_LIGHT.tilt)).applyMatrix4(bow.matrix);
+  spot.updateMatrixWorld();
+  spot.target.updateMatrixWorld();
+}
+
+export function aimedBreach(bow: THREE.Object3D): THREE.SpotLight {
+  const spot = breachSpot();
+  aimBreach(spot, bow);
   return spot;
+}
+
+function nearestBow(bows: Iterable<THREE.Object3D>, at: V3 | undefined): THREE.Object3D | null {
+  if (!at) return null;
+  let best: THREE.Object3D | null = null;
+  let bestDist = Infinity;
+  for (const bow of bows) {
+    const d = Math.hypot(bow.matrix.elements[12] - at.x, bow.matrix.elements[14] - at.z);
+    if (d < bestDist) [best, bestDist] = [bow, d];
+  }
+  return best;
 }
 
 function breachCore(): THREE.Mesh {
