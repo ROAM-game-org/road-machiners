@@ -159,12 +159,12 @@ describe('after the answer', () => {
     expect(canAskHelp(w, w.vehicles.find((v) => v.id === no.helper.id)!)).toBe(false);
   });
 
-  it('keeps the helper fighting a few turns and sets no money or XP', () => {
+  it('moves no money and gives no XP', () => {
     const c = fight('bowl', ['trader'], 60);
-    const before = playerVehicle(c.w).cargo;
+    const { money, xp } = c.w.player;
     joinPlayerFight(c.w, c.helper);
     expect(inCombat(c.w, playerVehicle(c.w))).toBe(true);
-    expect(playerVehicle(c.w).cargo).toEqual(before);
+    expect([c.w.player.money, c.w.player.xp]).toEqual([money, xp]);
   });
 });
 
