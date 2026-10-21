@@ -69,7 +69,7 @@ function glowLayers(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
 }
 
 function haloLayers(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
-  const lit = parts.filter((part) => part.tier === "crit" || part.tier === "broken");
+  const lit = parts.filter((part) => part.tier !== "ok");
   return lit.map((part) => layerImage("cond-halo", portrait, portrait.glow(part.id, part.tier), part.tier));
 }
 

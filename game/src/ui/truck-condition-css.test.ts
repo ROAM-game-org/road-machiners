@@ -46,10 +46,11 @@ describe("truck condition css", () => {
     expect(brightness("--cond-body-filter")).toBeLessThan(brightness("--cond-parts-filter"));
   });
 
-  it("gives halos to critical and broken parts only", () => {
+  it("gives every damage tier a glow in its own color", () => {
+    expect(rule(".cond-halo[data-tier=\"hurt\"]")).toContain("--cond-halo-hurt");
     expect(rule(".cond-halo[data-tier=\"crit\"]")).toContain("--cond-halo-crit");
     expect(rule(".cond-halo[data-tier=\"broken\"]")).toContain("--cond-halo-broken");
-    expect(css).not.toContain(".cond-halo[data-tier=\"hurt\"]");
+    expect(css).not.toContain(".cond-halo[data-tier=\"ok\"]");
   });
 
   it("lets the pointer reach only the hit layer", () => {

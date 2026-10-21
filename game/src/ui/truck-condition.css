@@ -50,6 +50,9 @@
 .cond-glow:is([data-tier="hurt"], [data-tier="crit"], [data-tier="broken"]) {
   filter: var(--cond-glow-edge-damaged);
 }
+.cond-halo[data-tier="hurt"] {
+  filter: var(--cond-halo-hurt);
+}
 .cond-halo[data-tier="crit"] {
   filter: var(--cond-halo-crit);
 }
