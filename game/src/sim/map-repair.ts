@@ -48,6 +48,7 @@ export const REBAKE_MOVE = {
   shops: 'shift',
   states: 'shift',
   sunward: 'shift',
+  crimes: 'shift',
   events: 'drop',
   removed: 'drop',
   weather: 'drop',
@@ -256,7 +257,7 @@ const BRAIN_HANDLERS: Handlers<NpcBrain, typeof BRAIN_MOVE> = {
   recoveryGoal: () => undefined,
   targetSeen: (seen, ctx) => seen && { ...seen, pos: at(ctx, seen.pos) },
   farRoute: () => undefined,
-  memories: (memories, ctx) => memories.map((m) => (m.fact.kind === 'sighting' ? { ...m, fact: { ...m.fact, at: at(ctx, m.fact.at) } } : m)),
+  memories: (memories, ctx) => memories.map((m) => (m.fact.kind === 'sighting' || m.fact.kind === 'witnessed' ? { ...m, fact: { ...m.fact, at: at(ctx, m.fact.at) } } : m)),
 };
 
 const ACTIVITY_HANDLERS: Handlers<NpcActivity, typeof ACTIVITY_MOVE> = {
@@ -301,6 +302,7 @@ const STATE_SHIFT: { [K in StateData['kind']]: (d: Extract<StateData, { kind: K 
   none: (d) => d,
   offering: (d, ctx) => ({ ...d, core: at(ctx, d.core) }),
   drag: (d, ctx) => ({ ...d, drop: at(ctx, d.drop) }),
+  bountyStop: (d) => d,
 };
 
 function shiftStateData(data: StateData, ctx: Ctx): StateData {
@@ -374,6 +376,7 @@ const WORLD_HANDLERS: Handlers<World, typeof REBAKE_MOVE> = {
     applyMoves(sunward, SUNWARD_MOVE, SUNWARD_HANDLERS, ctx);
     return sunward;
   },
+  crimes: (crimes, ctx) => crimes.map((c) => ({ ...c, at: at(ctx, c.at), lead: c.lead && { ...c.lead, at: at(ctx, c.lead.at) } })),
   events: () => [],
   removed: () => [],
   weather: () => [],

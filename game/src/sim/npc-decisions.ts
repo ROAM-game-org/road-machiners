@@ -1,4 +1,5 @@
 
+import { canPayBounty } from './crime';
 import { dealAvailable } from './patch';
 import { encounterAvailable } from './encounters';
 import { canSpareFor } from './aid';
@@ -657,6 +658,7 @@ type OptionName = DecisionOptions[DecisionId];
 
 const AVAILABLE: Record<OptionName, Availability> = {
   keep: always,
+  pay: (world, vehicle) => canPayBounty(world, vehicle),
   fight: canFightSubject,
   fightBack: canFightSubject,
   flee: canDrive,
@@ -746,7 +748,7 @@ function fleeAttackedFactor(world: World, vehicle: Vehicle, decision: DecisionId
   return hit * weakFlee(world, vehicle) * threatFlee(world, vehicle, decision, subject, danger);
 }
 
-const FLEE_FACTORS: Partial<Record<DecisionId, SituationFactor>> = { hostileSeen: fleeSeenFactor, contactHeard: fleeHeardFactor, attacked: fleeAttackedFactor, threatened: fleeSeenFactor, parley: fleeSeenFactor, crewCalled: fleeSeenFactor, vigilCalled: fleeSeenFactor };
+const FLEE_FACTORS: Partial<Record<DecisionId, SituationFactor>> = { hostileSeen: fleeSeenFactor, contactHeard: fleeHeardFactor, attacked: fleeAttackedFactor, threatened: fleeSeenFactor, bountyDemanded: fleeSeenFactor, parley: fleeSeenFactor, crewCalled: fleeSeenFactor, vigilCalled: fleeSeenFactor };
 
 function fleeFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   const factor = FLEE_FACTORS[decision];
@@ -912,6 +914,7 @@ function scavengeFactor(world: World, vehicle: Vehicle): number {
 
 const SITUATION: Record<OptionName, SituationFactor> = {
   keep: keepFactor,
+  pay: neutral,
   fight: fightFactor,
   fightBack: fightBackFactor,
   flee: fleeFactor,
@@ -1043,6 +1046,7 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   truceOffered: 'response',
   mercyBegged: 'response',
   threatened: 'response',
+  bountyDemanded: 'response',
   warnedOff: 'response',
   lootContested: 'response',
   warnRefused: 'response',

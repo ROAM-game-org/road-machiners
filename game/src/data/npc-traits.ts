@@ -108,6 +108,14 @@ export const TRAITS: Record<TraitId, Trait> = {
       aidAsked: { give: { mul: 0.001 } }, needySeen: { aid: { mul: 0.001 } }, escortSeen: { hire: { mul: 0.001 } },
     },
   },
+  marshal: {
+    towns: ['bowl', 'nose'], bases: ['marshal-post'], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 14, boldness: 1.2, fuelMargin: 1, robs: 'never', tradeStake: BASE_TRADE_STAKE,
+    weights: {
+      hostileSeen: { fight: { add: 4 } }, attacked: { fightBack: { mul: 2 } }, strandedSeen: { tow: { add: 2 } }, salvageSeen: { loot: { mul: 0.001 } },
+      parley: { truce: { mul: 0.3 }, beg: { mul: 0.3 } }, threatened: { comply: { mul: 0.2 }, fightBack: { add: 2 } }, warnedOff: { comply: { mul: 0.2 }, fightBack: { add: 2 } },
+      escortSeen: { hire: { mul: 0.001 } }, lootContested: { leave: { mul: 3 } },
+    },
+  },
   brave: {
     towns: [], bases: [], markets: STALL_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 0, boldness: 1.5, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE,
     weights: {

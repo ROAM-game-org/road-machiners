@@ -32,6 +32,7 @@ import { dist, type Vec } from "./vec";
 import { canVehicleSee, grayRadius } from "./vision";
 import { isRaider, noteDefeat } from "./relations";
 import { isSunwardMember } from "./sunward";
+import { noteKnockout } from "./crime";
 
 export function checkDeath(world: World): void {
   const p = world.player;
@@ -58,6 +59,7 @@ function knockOutPlayer(world: World, me: Vehicle): void {
   const watchers = world.vehicles.filter((v) => isHostile(world, v, me) && canVehicleSee(world, v, me.pos));
   if (watchers.length > 0) practice(world, "knockout", 1, null, "driver");
   me.defeat = { phase: "out", turns: 0, unseen: 0, foes: withLastHitter(world, me, watchers.map((v) => v.id)), gaveUp: false };
+  noteKnockout(world, me);
   p.state = "knockedOut";
   p.knockoutTurns = 0;
   p.knockouts++;
@@ -135,6 +137,7 @@ export function standDown(world: World, v: Vehicle, winnerId: string): void {
 
 export function knockOutNpc(world: World, v: Vehicle): void {
   noteDefeat(world, v, false);
+  noteKnockout(world, v);
   reportLostTruck(world, v, "knockedOut");
   layDown(world, v, foesOf(world, v), false);
   const by = beatenBy(world, v);

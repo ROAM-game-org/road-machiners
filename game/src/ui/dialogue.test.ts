@@ -56,6 +56,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   nearestRumor: ['site', 'way'],
   tradeTip: ['tip'],
   trucePrice: ['price'],
+  bountyOwed: ['price', 'offense'],
   guardOffer: ['price'],
   helpAnswer: ['answer'],
   aidWanted: ['aid', 'price'],
@@ -90,6 +91,7 @@ const SAMPLE: Record<string, CallVar> = {
   aid: { kind: 'aid', fuel: 2, supplies: 3 },
   warnLine: { kind: 'line', line: 'thatsMyPick' },
   news: { kind: 'line', line: 'carsDraggedIntoTheDark' },
+  offense: { kind: 'line', line: 'offenseRobbed' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
   sighting: { kind: 'sighting', driver: 'Jed Cobb', seen: { bearing: 0.8, tiles: 300, turns: 80, heading: 3.1 } },
 };

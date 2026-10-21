@@ -14,6 +14,7 @@ export const NPC_UTILITY_PARTS: Record<string, Weighted<string | null>[]> = {
   scavenger: [{ value: null, weight: 1.5 }, { value: 'patcherCrane', weight: 4 }, { value: 'scrapersKnife', weight: 2 }],
   bowlFarmer: LAW_UTILITY,
   noseArmy: LAW_UTILITY,
+  marshal: LAW_UTILITY,
   courier: [{ value: null, weight: 1.5 }, { value: 'oilSpiller', weight: 3 }, { value: 'sprout', weight: 2 }],
   roamer: [{ value: null, weight: 1.5 }, { value: 'patcherCrane', weight: 3 }, { value: 'sprout', weight: 1 }],
   vulture: [{ value: null, weight: 1.5 }, { value: 'harpoon', weight: 2 }, { value: 'caltrops', weight: 3 }, { value: 'scrapersKnife', weight: 1 }],

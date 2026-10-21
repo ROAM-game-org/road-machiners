@@ -26,6 +26,7 @@ import FORMAT_2_96 from './save-fixtures/format-2-96.json';
 import FORMAT_2_97 from './save-fixtures/format-2-97.json';
 import FORMAT_2_98 from './save-fixtures/format-2-98.json';
 import FORMAT_2_99 from './save-fixtures/format-2-99.json';
+import FORMAT_2_100 from './save-fixtures/format-2-100.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -857,5 +858,15 @@ describe('TINY_STEPS[98]', () => {
 describe('TINY_STEPS[99]', () => {
   it('leaves a world with a running first aid job as it is', () => {
     expect(TINY_STEPS[99](structuredClone(FORMAT_2_99))).toEqual(FORMAT_2_99);
+  });
+});
+
+describe('TINY_STEPS[100]', () => {
+  it('gives the world an empty crime ledger and the player a neutral standing with the Marshalls, keeping every other standing', () => {
+    const next = TINY_STEPS[100](structuredClone(FORMAT_2_100));
+
+    expect(next.crimes).toEqual([]);
+    expect((next.player as SavedJson).standing).toEqual({ ...FORMAT_2_100.player.standing, marshals: 0 });
+    expect({ ...next, crimes: undefined, player: { ...(next.player as SavedJson), standing: FORMAT_2_100.player.standing } }).toEqual({ ...FORMAT_2_100, crimes: undefined });
   });
 });

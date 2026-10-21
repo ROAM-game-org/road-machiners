@@ -1,4 +1,5 @@
 
+import { optionShort } from './dialogue-rules';
 import { BUSY_LINE, END, handoffQuest, HANG_UP_LINE, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, TRAIT_TALK, type DialogueOption, type LineId, type Topic, type TopicId, type Voice } from '../data/dialogue';
 import { PERSONALITIES, TALK_PRICE, type Gate, type Personality } from '../data/personalities';
 import { inCombat, inCombatWithOther, inFeud, isHostile } from './combat';
@@ -15,7 +16,7 @@ import { openQuest, QUESTS } from './quests';
 import { canVehicleSee } from './vision';
 import { playerCommand, requireActivePlayer, update } from './world';
 
-export type OfferedOption = { line: LineId; topic: TopicId | null; option: DialogueOption | null };
+export type OfferedOption = { line: LineId; topic: TopicId | null; option: DialogueOption | null; short?: number };
 
 export function talkOf(npc: Vehicle): Voice & { topics: TopicId[]; personality: Personality } {
   const all = npcTraits(npc).map((id) => TRAIT_TALK[id]);
@@ -70,7 +71,7 @@ export function currentOptions(world: World): OfferedOption[] {
   if (isRefused(call)) return [hangUp];
   if (!call.topic) return [...askable(world, npc).map((t) => ({ line: t.ask!.say, topic: t.id, option: null })), hangUp];
   const node = TOPICS[call.topic].nodes[call.node];
-  const options = node.options.filter((o) => holds(world, npc, o.when, call.vars)).map((o) => ({ line: o.say, topic: call.topic, option: o }));
+  const options = node.options.filter((o) => holds(world, npc, o.when, call.vars)).map((o) => ({ line: o.say, topic: call.topic, option: o, short: optionShort(world, o) }));
   return [...options, hangUp];
 }
 

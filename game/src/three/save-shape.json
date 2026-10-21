@@ -1,8 +1,9 @@
 {
- "format": "2.100",
+ "format": "2.101",
  "shape": {
   "broken": [],
   "craters": [],
+  "crimes": [],
   "dustClouds": [],
   "fields": [],
   "flares": [],
@@ -102,6 +103,7 @@
     "bowl": "number",
     "guidestar": "number",
     "kiln": "number",
+    "marshals": "number",
     "nose": "number",
     "scrapjaw": "number",
     "sunward": "number"

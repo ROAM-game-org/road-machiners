@@ -1,4 +1,5 @@
 
+import { advanceCrimes } from './crime';
 import { settleCrews } from './crews';
 import { CHASSIS, isPaletteId, PAINT, PAINT_SLOTS } from '../data/chassis';
 import { GOODS } from '../data/goods';
@@ -166,6 +167,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     lines: [],
     furyRoad: null,
     sunward: modeMap(setup.mode) === 'icarus' ? freshSunward() : null,
+    crimes: [],
   };
   world.obstacles = generateObstacles(world, map, [...hollowObstaclesFor(world), ...openingObstacles(kit, start)]);
   const truck = makeVehicle(world, {
@@ -381,6 +383,7 @@ export function endTurn(
     advancePatches(w);
     advanceAid(w);
     advanceStates(w);
+    advanceCrimes(w);
     advanceRescues(w);
     checkBeacon(w);
     forgetOld(w);

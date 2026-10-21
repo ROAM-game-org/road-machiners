@@ -1,7 +1,9 @@
 
+import { owedBy } from './crime';
+import { answerDemand, demandOpen, huntedCases, isMarshal, payHailedBounty, bountyTerms } from './marshals';
 import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall } from './help-call';
 import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
-import { COLD_LINES, TOPIC_GATES, type ConditionId, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
+import { COLD_LINES, TOPIC_GATES, type ConditionId, type DialogueOption, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
 import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
 import { bandAtLeast, personalTerm, stanceToward } from './relations';
 import { CONTRACTS } from '../data/market';
@@ -295,6 +297,8 @@ export function coldLine(world: World, npc: Vehicle, topics: readonly TopicId[])
 }
 
 export const CONDITIONS: Record<ConditionId, Condition> = {
+  bountyDemandOpen: (world, npc) => isMarshal(npc) && demandOpen(world, npc, playerVehicle(world)) !== null,
+  huntsPlayer: (world, npc) => isMarshal(npc) && huntedCases(world, npc, world.player.vehicleId).length > 0,
   firstVigilCall: (world, npc) => vigilCallDue(world, npc, 1),
   secondVigilCall: (world, npc) => vigilCallDue(world, npc, 2),
   lastVigilCall: (world, npc) => vigilCallDue(world, npc, 3),
@@ -410,6 +414,9 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
 };
 
 export const EFFECTS: Record<EffectId, Effect> = {
+  payBounty: (world, npc) => answerDemand(world, npc, playerVehicle(world), 'pay'),
+  refuseBounty: (world, npc) => { if (demandOpen(world, npc, playerVehicle(world))) answerDemand(world, npc, playerVehicle(world), 'refuse'); },
+  payBountyHail: (world, npc) => payHailedBounty(world, npc, playerVehicle(world)),
   acceptOffering: (world, npc) => { giveWord(world, playerVehicle(world), npc); },
   refuseVigil: (world, npc) => refuseVigil(world, npc),
   payTalk: (world, npc, call) => transfer(world, playerVehicle(world), npc, namedPrice(call)),
@@ -674,6 +681,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
 };
 
 export const PREPARES: Record<PrepareId, Prepare> = {
+  bountyOwed: (world) => bountyTerms(world),
   vigilCall: (world) => prepareVigilCall(world),
   craterNews: (world, npc) => craterNews(world, npc),
   truceAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'truce') }, ...ransomVars(world, npc) }),
@@ -841,4 +849,11 @@ function requireEscort(world: World): EscortContract {
   const job = heldEscort(world);
   if (!job) throw new Error('The player holds no escort job');
   return job;
+}
+
+const PRICED_BY_BOUNTY: readonly EffectId[] = ['payBounty', 'payBountyHail'];
+
+export function optionShort(world: World, option: DialogueOption): number {
+  if (!option.effects.some((e) => PRICED_BY_BOUNTY.includes(e))) return 0;
+  return Math.max(0, owedBy(world, world.player.vehicleId) - world.player.money);
 }
