@@ -11,7 +11,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import type { VehicleFrame } from "../phys/frames";
-import { SentObstacles, type LiveSight, type PreparedTurn, type TurnRequest, type TurnResponse } from "../phys/turn";
+import { joinTurn, SentObstacles, type LiveSight, type PreparedTurn, type TurnRequest, type TurnResponse } from "../phys/turn";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
@@ -365,7 +365,7 @@ export class TurnPreparation {
       const response = event.data;
       if ("error" in response) return this.fail(response.id, response.error);
       mergePerf(response.id === this.warmId ? { "turn-warm": response.perf.turn } : response.perf);
-      if (this.pending?.id === response.id) this.pending.ready = response.turn;
+      if (this.pending?.id === response.id) this.pending.ready = joinTurn(response.turn, response.obstacles, this.pending.before);
     };
     worker.onerror = (event) => {
       event.preventDefault();

@@ -81,7 +81,12 @@ export class SentObstacles {
 export type TerrainRequest = { kind: 'terrain'; terrain: World['terrain'] };
 export type WorkerRequest = TurnRequest | PreviewRequest | TerrainRequest;
 export type WorkerFailure = { id: number; error: string };
-export type TurnResponse = { id: number; turn: PreparedTurn; perf: Record<string, PerfStat> } | WorkerFailure;
+export type PostedTurn = Omit<PreparedTurn, 'world'> & { world: Omit<TurnState, 'obstacles'> };
+export type TurnResponse = { id: number; turn: PostedTurn; obstacles: Obstacle[] | null; perf: Record<string, PerfStat> } | WorkerFailure;
+
+export function joinTurn(turn: PostedTurn, obstacles: Obstacle[] | null, before: TurnState): PreparedTurn {
+  return { ...turn, world: { ...turn.world, obstacles: obstacles ?? before.obstacles } };
+}
 export type PreviewResponse = { id: number; preview: PlanFrames; perf: Record<string, PerfStat> } | WorkerFailure;
 
 function freezeTerrain(terrain: World['terrain']): void {
@@ -171,8 +176,9 @@ function taskOf(request: TurnRequest | PreviewRequest, obstacles: Obstacle[] | n
 function answer(request: Answerable, terrain: World['terrain']): void {
   switch (request.kind) {
     case 'turn': {
-      const turn = computeRequestedTurn(request, terrain);
-      self.postMessage({ id: request.id, turn, perf: perfSnapshot() } satisfies TurnResponse, {
+      const { world: { obstacles, ...world }, ...turn } = computeRequestedTurn(request, terrain);
+      const changed = sameData(obstacles, request.world.obstacles) ? null : obstacles;
+      self.postMessage({ id: request.id, turn: { ...turn, world }, obstacles: changed, perf: perfSnapshot() } satisfies TurnResponse, {
         transfer: [turn.result.next.snapshot.buffer as ArrayBuffer],
       });
       return;

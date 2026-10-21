@@ -71,8 +71,8 @@ it("prepares once and exposes a result only when ready for the same world", () =
   expect(turns.take(world)).toBeNull();
   const worker = TestWorker.latest;
   expect(worker?.requests).toHaveLength(1);
-  worker.respond({ id: worker.requests[0].id, turn: reply, perf: {} });
-  expect(turns.take(world)).toBe(reply);
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });
+  expect(turns.take(world)).toEqual(reply);
   expect(turns.take(world)).toBeNull();
 });
 
@@ -89,13 +89,13 @@ it("computes a prepared turn again after a language switch", () => {
   turns.prepare(world, drive);
   const worker = TestWorker.latest;
   setQuestLanguage("ru");
-  worker.respond({ id: worker.requests[0].id, turn: reply, perf: {} });
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });
   expect(turns.take(world)).toBeNull();
   turns.prepare(world, drive);
   expect(worker.requests).toHaveLength(2);
   expect(worker.requests[1].questLanguage).toBe("ru");
-  worker.respond({ id: worker.requests[1].id, turn: reply, perf: {} });
-  expect(turns.take(world)).toBe(reply);
+  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: null, perf: {} });
+  expect(turns.take(world)).toEqual(reply);
 });
 
 it("discards a stale result after replanning and sends stable terrain only once", () => {
@@ -110,11 +110,11 @@ it("discards a stale result after replanning and sends stable terrain only once"
   expect(worker?.requests).toHaveLength(2);
   expect(worker.requests[0].terrain).toBe(world.terrain);
   expect(worker.requests[1].terrain).toBeNull();
-  worker.respond({ id: worker.requests[0].id, turn: reply, perf: {} });
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });
   expect(turns.take(changed)).toBeNull();
-  worker.respond({ id: worker.requests[1].id, turn: reply, perf: {} });
+  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: null, perf: {} });
   expect(turns.take(world)).toBeNull();
-  expect(turns.take(changed)).toBe(reply);
+  expect(turns.take(changed)).toEqual(reply);
 });
 
 it("throws a calculation failure once, then prepares again", () => {
@@ -152,8 +152,8 @@ it("restarts a worker whose script did not load and sends the pending turn again
   expect(second.requests).toHaveLength(1);
   expect(second.requests[0].terrain).toBe(world.terrain);
   expect(second.requests[0].drive.snapshot.byteLength).toBeGreaterThan(0);
-  second.respond({ id: second.requests[0].id, turn: reply, perf: {} });
-  expect(turns.take(world)).toBe(reply);
+  second.respond({ id: second.requests[0].id, turn: reply, obstacles: null, perf: {} });
+  expect(turns.take(world)).toEqual(reply);
 });
 
 it("does not report a warm-up that did not load and reaches a new worker on the next turn", () => {
@@ -202,7 +202,7 @@ it("waits the download back-off between restarts and resets the count on an answ
   vi.advanceTimersByTime(1);
   expect(TestWorker.created).toBe(3);
   const worker = TestWorker.latest;
-  worker.respond({ id: worker.requests[0].id, turn: reply, perf: {} });
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });
   turns.take(world);
   turns.prepare(changedWorld(), drive);
   worker.onerror?.(noScript);
@@ -268,4 +268,17 @@ it("tells the worker the language quests play in", () => {
   } finally {
     setQuestLanguage("en");
   }
+});
+
+it("keeps the posted world's obstacle list when the worker reports no change, and takes a changed list", () => {
+  const turns = new TurnPreparation();
+  turns.prepare(world, drive);
+  const worker = TestWorker.latest;
+  worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });
+  expect(turns.take(world)?.world.obstacles).toBe(world.obstacles);
+  const moved = setMoveOrder(world, { kind: "stopAt", dest: { x: 38, y: 31 } });
+  turns.prepare(moved, drive);
+  const fresh = [...world.obstacles];
+  worker.respond({ id: worker.requests[1].id, turn: reply, obstacles: fresh, perf: {} });
+  expect(turns.take(moved)?.world.obstacles).toBe(fresh);
 });
