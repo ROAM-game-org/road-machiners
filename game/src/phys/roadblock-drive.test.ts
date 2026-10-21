@@ -1,12 +1,12 @@
 import { beforeAll, expect, it } from 'vitest';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
-import { haulerOf, playerVehicle } from '../sim/damage';
+import { haulerOf } from '../sim/damage';
 import { advanceFar } from '../sim/far';
 import { setHeadless } from '../sim/fidelity';
 import { moveWindow } from '../sim/fury-road';
 import { acrossOf, alongOf, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { stretchLayout } from '../sim/road-hazards';
-import { furyRoadWorld, parkInYard } from '../sim/testkit';
+import { furyRoadWorld, parkInYard, sendGunTruckAway } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn } from '../sim/world';
 import { budget } from '../test/budget';
@@ -53,7 +53,7 @@ it.each(CASES)('drives the hauler around a stretch $stretch roadblock on its own
   const ahead = roadPoint(seed, window, start + 4, HIGHWAY.road.lanes[lane]);
   hauler.heading = Math.atan2(ahead.y - hauler.pos.y, ahead.x - hauler.pos.x);
   hauler.speed = FURY_ROAD.hauler.cruise;
-  playerVehicle(w).pos = roadPoint(seed, window, start - 20, HIGHWAY.road.lanes[1]);
+  sendGunTruckAway(w);
   let drive: Drive = buildDrive(w);
   let hits = 0;
   let stalls = 0;
@@ -84,7 +84,7 @@ it.each(CASES)('carries the hauler around a stretch $stretch roadblock by far tr
   const hauler = haulerOf(w);
   hauler.pos = roadPoint(seed, window, block.from - LEAD, HIGHWAY.road.lanes[lane]);
   hauler.heading = roadHeading(seed, block.from - LEAD);
-  playerVehicle(w).pos = roadPoint(seed, window, block.from - LEAD - 20, HIGHWAY.road.lanes[1]);
+  sendGunTruckAway(w);
   let stalls = 0;
   let crossing = Infinity;
   for (let turn = 0; turn < TURNS; turn++) {

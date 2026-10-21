@@ -7,10 +7,10 @@ import { TERRAIN } from '../data/terrain';
 import { buildDrive, bodyState, freeDrive, initPhysics, syncDrive, TURN_STEPS, type Drive, type TurnResult } from '../phys/drive';
 import { PHYSICS } from '../data/physics';
 import { physicsMove } from '../phys/turn';
-import { advanceFar, fuelLimit, fuelLimited, isNear, lowFuelSpeed } from './far';
+import { advanceFar, fuelLimit, fuelLimited, isNear, lowFuelSpeed, plainFuelSpeed } from './far';
 import { getResources } from './resources';
 import { addState } from './states';
-import { fuelCap, vehicleStats } from './stats';
+import { fuelCap, plainMaxSpeed, vehicleStats } from './stats';
 import { addVehicle, editableTerrain, emptyWorld, npcBrain } from './testkit';
 import type { Obstacle, Pose, World } from './types';
 import { dist } from './vec';
@@ -161,6 +161,15 @@ describe('far NPC travel', () => {
     const order = { kind: 'through', dest: { x: 200, y: 30 } } as const;
     expect(fuelLimit(w, me, true)).toBe('low');
     expect(fuelLimited(w, me, s, 0, order).maxSpeed).toBeCloseTo(lowFuelSpeed(s.maxSpeed));
+  });
+
+  it('gives the plain top speed over the low-fuel mark and half of it under', () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    w.player.fuel = fuelCap(me);
+    expect(plainFuelSpeed(w, me)).toBe(plainMaxSpeed(w, me));
+    w.player.fuel = fuelCap(me) * RULES.lowFuelThreshold * 0.5;
+    expect(plainFuelSpeed(w, me)).toBeCloseTo(lowFuelSpeed(plainMaxSpeed(w, me)));
   });
 
   it('names the fuel limit: low, empty or none', () => {

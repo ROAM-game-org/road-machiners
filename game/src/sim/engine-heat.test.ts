@@ -9,11 +9,11 @@ import { TIME } from '../data/time';
 import { ENGINE_HEAT } from '../data/wear';
 import { SKILL_EFFECTS } from '../data/skills';
 import { playerVehicle } from './damage';
-import { advanceEngineHeat, douseBlock, douseEngine, engineOverheating } from './engine-heat';
+import { advanceEngineHeat, douseBlock, douseEngine, engineHot, engineOverheating, heldHeatSpeed } from './engine-heat';
 import { mountedParts } from './grid';
 import { route } from './path';
 import { nearestPad } from './sites';
-import { vehicleStats } from './stats';
+import { plainMaxSpeed, vehicleStats } from './stats';
 import { addVehicle, emptyWorld, practiceOf } from './testkit';
 import { heatAt } from './sun';
 import type { Vec } from './vec';
@@ -58,6 +58,35 @@ describe('engine heat', () => {
     advanceEngineHeat(w);
     expect(w.player.engineHeat).toBeLessThan(1);
     expect(engine(w).hp).toBe(hp);
+  });
+
+  it('holds its heat at the held-heat speed at noon and warms above it', () => {
+    const w = emptyWorld();
+    w.turn = NOON;
+    const me = w.vehicles[0];
+    const held = heldHeatSpeed(w, me);
+    expect(held).toBeLessThan(plainMaxSpeed(w, me));
+    me.speed = held;
+    w.player.engineHeat = 0.8;
+    advanceEngineHeat(w);
+    expect(Math.abs(w.player.engineHeat - 0.8)).toBeLessThan(1e-9);
+    me.speed = held * 1.1;
+    advanceEngineHeat(w);
+    expect(w.player.engineHeat).toBeGreaterThan(0.8);
+  });
+
+  it('holds the plain top speed at night', () => {
+    const w = emptyWorld();
+    w.turn = NIGHT;
+    expect(heldHeatSpeed(w, w.vehicles[0])).toBe(plainMaxSpeed(w, w.vehicles[0]));
+  });
+
+  it('is hot from the warning mark', () => {
+    const w = emptyWorld();
+    w.player.engineHeat = ENGINE_HEAT.warnAt - 0.01;
+    expect(engineHot(w)).toBe(false);
+    w.player.engineHeat = ENGINE_HEAT.warnAt;
+    expect(engineHot(w)).toBe(true);
   });
 
   it('never warms while driving at night', () => {

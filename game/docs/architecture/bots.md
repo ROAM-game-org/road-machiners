@@ -69,7 +69,7 @@ At each outpost the escort does this in order.
 - It spends a share of the money left on hauler armor. The share is the hauler's part of the two trucks' repair bills on arrival, so it armors the truck that took the fire.
 - It buys the most valuable truck on offer that it can afford and that keeps its parts count. Money it cannot spend on gear builds up toward that truck.
 
-The sprinter turns auto fire off, drives ahead to the next yard and never fires. At an outpost it repairs, refits for any speed and buys a truck. It measures whether the run can be sprinted. The hauler must lose it.
+The sprinter turns auto fire off, drives ahead to the next yard and never fires. At an outpost it repairs, refits for any speed and buys a truck. It measures whether the run can be sprinted. The hauler must lose it, since it waits only for a gun truck behind it.
 
 ## Reading a run
 
