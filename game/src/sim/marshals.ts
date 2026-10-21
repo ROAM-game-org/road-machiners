@@ -107,7 +107,7 @@ function newLead(world: World, marshal: Vehicle, goal: NpcActivity & { targetId:
 function trackLead(world: World, marshal: Vehicle, goal: NpcActivity, cases: CrimeCase[]): void {
   const lead = leadOf(cases[0]);
   if (world.turn >= (goal.until ?? Infinity)) return giveUp(world, marshal, cases);
-  if (dist(marshal.pos, lead.at) <= BOUNTY.leadReach) searchOn(world, marshal, goal, cases, lead);
+  if (dist(marshal.pos, lead.at) <= BOUNTY.leadReach) searchOn(world, goal, cases, lead);
 }
 
 function pursuitOf(marshal: Vehicle): NpcActivity & { targetId: string } {
@@ -116,10 +116,16 @@ function pursuitOf(marshal: Vehicle): NpcActivity & { targetId: string } {
   return goal as NpcActivity & { targetId: string };
 }
 
-function searchOn(world: World, marshal: Vehicle, goal: NpcActivity, cases: CrimeCase[], lead: CaseLead): void {
-  const searched = searchLead(world, lead);
-  if (searched) follow(world, goal, cases, { at: searched, turn: lead.turn, heading: null });
-  else giveUp(world, marshal, cases);
+function searchOn(world: World, goal: NpcActivity, cases: CrimeCase[], lead: CaseLead): void {
+  const searched = searchLead(world, lead) ?? nextPad(lead.at);
+  follow(world, goal, cases, { at: searched, turn: lead.turn, heading: null });
+}
+
+function nextPad(from: Vec): Vec {
+  const pads = CRIME.reportSites.map((id) => nearestPad(getKnownSite(id), from)).filter((pad) => dist(pad, from) > BOUNTY.leadReach);
+  pads.sort((a, b) => dist(a, from) - dist(b, from));
+  if (!pads[0]) throw new Error('No reporting pad to search from');
+  return { ...pads[0] };
 }
 
 function follow(world: World, goal: NpcActivity, cases: CrimeCase[], lead: CaseLead): void {

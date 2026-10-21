@@ -85,6 +85,18 @@ describe('the Marshall hunt', () => {
     expect(searchLead(emptyWorld(), { at: from, turn: 1, heading: null })).toBeNull();
   });
 
+  it('rides on from a cold lead with no heading to the nearest other reporting pad, asking on the way', () => {
+    const { w, marshal } = hunting();
+    const lead = w.crimes[0].lead!;
+    w.crimes[0].lead = { ...lead, heading: null };
+    marshal.pos = { ...lead.at };
+    hunt(w, marshal, []);
+    const next = topGoal(marshal)!;
+    expect(next.kind).toBe('pursue');
+    expect(dist(next.destination!, lead.at)).toBeGreaterThan(BOUNTY.leadReach);
+    expect(CRIME.reportSites.some((id) => dist(nearestPad(getKnownSite(id), lead.at), next.destination!) < 0.01)).toBe(true);
+  });
+
   it('gives up after its hunt turns with no newer lead, and takes the case again after the retry wait', () => {
     const { w, marshal, target } = hunting();
     w.turn += BOUNTY.huntTurns;
