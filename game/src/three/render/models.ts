@@ -531,14 +531,14 @@ function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry):
   return outline;
 }
 
-type Surface = { dirt: [number, number, number]; edge: number; chips: number };
+type Surface = { dirt: [number, number, number]; edge: number; chips: number; shine: number };
 
 const SURFACES = {
-  paint: { dirt: [0.22, 0.18, 0.14], edge: 0.25, chips: 1 },
-  metal: { dirt: [0.35, 0.2, 0.12], edge: 0.6, chips: 0 },
-  rust: { dirt: [0.25, 0.17, 0.12], edge: 0.2, chips: 0 },
-  grime: { dirt: [0.2, 0.19, 0.17], edge: 0.35, chips: 0 },
-  plain: { dirt: [0.25, 0.24, 0.22], edge: 0.15, chips: 0 },
+  paint: { dirt: [0.22, 0.18, 0.14], edge: 0.25, chips: 1, shine: 0 },
+  metal: { dirt: [0.35, 0.2, 0.12], edge: 0.6, chips: 0, shine: 1 },
+  rust: { dirt: [0.25, 0.17, 0.12], edge: 0.2, chips: 0, shine: 0 },
+  grime: { dirt: [0.2, 0.19, 0.17], edge: 0.35, chips: 0, shine: 0 },
+  plain: { dirt: [0.25, 0.24, 0.22], edge: 0.15, chips: 0, shine: 0 },
 } satisfies Record<string, Surface>;
 
 export type SurfaceName = keyof typeof SURFACES;
@@ -566,9 +566,10 @@ const SURFACE_OF_MATERIAL: Record<string, SurfaceName | null> = {
   glow: null,
 };
 
-const CHIP = { color: new THREE.Color(0x5b5a57), scale: 7, at: 0.75 };
+const CHIP = { color: new THREE.Color(0x5b5a57), scale: 7, at: 1.05, share: 0.5 };
+const CHROME = { reflect: 0.55, grazing: 0.35, horizon: 1.6, gain: 0.25 };
 
-export const SURFACE_LOOK = { chips: { value: 1 }, chipAt: { value: CHIP.at } };
+export const SURFACE_LOOK = { chips: { value: CHIP.share }, chipAt: { value: CHIP.at }, chrome: { value: CHROME.gain } };
 
 export function surfaceOf(materialName: string): SurfaceName | null {
   const named = SURFACE_OF_MATERIAL[materialName];
@@ -585,6 +586,8 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
     surfaceChips: { value: own.chips },
     surfaceChipShare: SURFACE_LOOK.chips,
     surfaceChipAt: SURFACE_LOOK.chipAt,
+    surfaceShine: { value: own.shine },
+    surfaceChrome: SURFACE_LOOK.chrome,
   };
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -593,7 +596,8 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSurfacePos = position;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${SURFACE_UNIFORMS}`)
-      .replace('#include <color_fragment>', SURFACE_COLOR);
+      .replace('#include <color_fragment>', SURFACE_COLOR)
+      .replace('#include <opaque_fragment>', `${SURFACE_CHROME}\n#include <opaque_fragment>`);
   };
   material.customProgramCacheKey = () => 'surface';
   return material;
@@ -607,6 +611,8 @@ uniform float surfaceEdge;
 uniform float surfaceChips;
 uniform float surfaceChipShare;
 uniform float surfaceChipAt;
+uniform float surfaceShine;
+uniform float surfaceChrome;
 float surfaceHash(vec3 p) {
   return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
 }
@@ -629,4 +635,22 @@ const SURFACE_COLOR = `
   float chipWidth = fwidth(chipField);
   float chip = smoothstep(surfaceChipAt - chipWidth, surfaceChipAt + chipWidth, chipField) * surfaceChips * surfaceChipShare;
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${f(CHIP.color.r)}, ${f(CHIP.color.g)}, ${f(CHIP.color.b)}) * mix(0.6, 1.0, surfaceAo), chip);
+`;
+
+const SURFACE_CHROME = `
+#if NUM_HEMI_LIGHTS > 0
+  if (surfaceShine > 0.0) {
+    vec3 chromeView = normalize(vViewPosition);
+    vec3 chromeRay = reflect(-chromeView, normal);
+    float chromeUp = dot(chromeRay, hemisphereLights[0].direction);
+    vec3 chromeSky = hemisphereLights[0].skyColor;
+    vec3 chromeHorizon = chromeSky * ${f(CHROME.horizon)};
+    vec3 chromeEnv = chromeUp > 0.0
+      ? mix(chromeHorizon, chromeSky, sqrt(chromeUp))
+      : mix(chromeHorizon, hemisphereLights[0].groundColor, pow(-chromeUp, 0.4));
+    float chromeFresnel = pow(1.0 - max(dot(normal, chromeView), 0.0), 5.0);
+    float chromeShare = clamp(surfaceShine * (${f(CHROME.reflect)} + ${f(CHROME.grazing)} * chromeFresnel), 0.0, 1.0);
+    outgoingLight = mix(outgoingLight, chromeEnv * surfaceChrome * surfaceAo, chromeShare);
+  }
+#endif
 `;
