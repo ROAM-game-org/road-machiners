@@ -93,6 +93,30 @@ export function signatureOf(v: Vehicle, playerPaint: TruckPaint): string {
   return `${v.chassisId}|${paint.body}|${paint.cab}|${paint.gear}|${items}`;
 }
 
+export type RebuildBudget = { take(): boolean };
+
+const UNLIMITED: RebuildBudget = { take: () => true };
+
+class PerAnimationFrame implements RebuildBudget {
+  private frame: CSSNumberish | null | undefined = undefined;
+  private left = 0;
+
+  constructor(private readonly perFrame: number) {}
+
+  take(): boolean {
+    const frame = document.timeline.currentTime;
+    if (frame !== this.frame) {
+      this.frame = frame;
+      this.left = this.perFrame;
+    }
+    if (this.left <= 0) return false;
+    this.left--;
+    return true;
+  }
+}
+
+export const FRAME_REBUILDS: RebuildBudget = new PerAnimationFrame(1);
+
 export class VehicleView {
   readonly root = new THREE.Group();
   private readonly body = new THREE.Group();
@@ -121,10 +145,12 @@ export class VehicleView {
     this.update(v, seen, playerPaint);
   }
 
-  update(v: Vehicle, seen: boolean, playerPaint: TruckPaint): void {
+  update(v: Vehicle, seen: boolean, playerPaint: TruckPaint, budget: RebuildBudget = UNLIMITED): void {
     const sig = signatureOf(v, playerPaint);
-    if (sig !== this.sig) this.rebuild(v, paintOf(v, playerPaint));
-    this.sig = sig;
+    if (sig !== this.sig && budget.take()) {
+      this.rebuild(v, paintOf(v, playerPaint));
+      this.sig = sig;
+    }
     for (const silhouette of this.silhouettes) silhouette.visible = seen;
     this.running = engineRuns(v);
   }

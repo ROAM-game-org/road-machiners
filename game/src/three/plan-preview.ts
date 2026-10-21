@@ -1,6 +1,6 @@
 import { captureDrive, type Drive, type DriveSnapshot } from "../phys/drive";
 import type { PlanFrames } from "../phys/plan";
-import type { PreviewRequest, PreviewResponse } from "../phys/turn";
+import type { PreviewRequest, PreviewResponse, TerrainRequest } from "../phys/turn";
 import { mergePerf } from "../perf";
 import { PAL } from "../render/palette";
 import { driveMode, throttleFor } from "../sim/steering";
@@ -36,6 +36,13 @@ export class PlanPreparation {
     this.queued = { world, drive: captureDrive(drive), meId };
     this.latest = { id: null, world, ready: null };
     if (this.running === null) this.postQueued();
+  }
+
+  warm(terrain: World["terrain"]): void {
+    if (this.load.gaveUp || this.load.waiting || this.terrain === terrain) return;
+    this.worker ??= this.createWorker();
+    this.worker.postMessage({ kind: "terrain", terrain } satisfies TerrainRequest);
+    this.terrain = terrain;
   }
 
   take(world: World): PlanFrames | null {

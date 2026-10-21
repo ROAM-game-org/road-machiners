@@ -34,7 +34,8 @@ export type PreparedTurn = {
 export type PreviewTask = TurnTask & { meId: string };
 export type TurnRequest = TurnTask & { kind: 'turn'; id: number; terrain: World['terrain'] | null };
 export type PreviewRequest = PreviewTask & { kind: 'preview'; id: number; terrain: World['terrain'] | null };
-export type WorkerRequest = TurnRequest | PreviewRequest;
+export type TerrainRequest = { kind: 'terrain'; terrain: World['terrain'] };
+export type WorkerRequest = TurnRequest | PreviewRequest | TerrainRequest;
 export type WorkerFailure = { id: number; error: string };
 export type TurnResponse = { id: number; turn: PreparedTurn; perf: Record<string, PerfStat> } | WorkerFailure;
 export type PreviewResponse = { id: number; preview: PlanFrames; perf: Record<string, PerfStat> } | WorkerFailure;
@@ -94,6 +95,10 @@ export function startTurnWorker(): void {
   const ready = initPhysics();
   self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     const request = event.data;
+    if (request.kind === 'terrain') {
+      terrain = request.terrain;
+      return;
+    }
     try {
       await ready;
       if (request.terrain) {

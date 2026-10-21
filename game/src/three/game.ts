@@ -42,7 +42,7 @@ import { timed } from "../perf";
 import { HitCard } from "../ui/hitCard";
 import type { UiHost } from "../ui/host";
 import { ModalScreens } from "./screens";
-import { failLoudOnShaderError } from "./shader-errors";
+import { ShaderWarmup } from "./shader-errors";
 import { Hud } from "../ui/hud";
 import { hasExplorationMap } from "../sim/settings";
 import { Minimap } from "../ui/minimap";
@@ -67,7 +67,7 @@ import { SiteLights } from "./render/siteLights";
 import { addShipDecks } from "./render/ship-decks";
 import { terrainMesh } from "./render/terrain";
 import { type WebGLSurface } from "./webgl";
-import { RadioLights, VehicleView } from "./render/vehicle";
+import { FRAME_REBUILDS, RadioLights, VehicleView } from "./render/vehicle";
 import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponRange";
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
@@ -135,6 +135,7 @@ export class Game {
     className: "storm-tint",
   });
   readonly rig: CameraRig;
+  private readonly shaders: ShaderWarmup;
   private readonly ground = new THREE.Group();
   private readonly props = new THREE.Group();
   private readonly scopes: RenderScope[];
@@ -225,25 +226,23 @@ export class Game {
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
     this.drive = buildDrive(this.world);
-    setTimeout(() => this.travel.warm(this.world, this.drive));
+    setTimeout(() => (this.travel.warm(this.world, this.drive), this.plans.warm(this.world.terrain)));
 
     subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     enableSunShadows(this.renderer);
-    failLoudOnShaderError(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);
     this.view = container;
     this.rig = new CameraRig(this.renderer.domElement);
+    this.shaders = new ShaderWarmup(this.renderer, this.scene, this.rig.camera, reportError);
     this.follow = new TruckFollow(this.rig, new KeyPan(this.ignoresKey), this.renderer.domElement);
 
     this.scene.background = new THREE.Color(PAL.bg);
     this.renderer.domElement.classList.add("view");
-    this.scene.add(this.sky);
-    this.scene.add(this.sun, this.sun.target);
-    this.scene.add(this.pickRing.mesh);
+    this.scene.add(this.sky, this.sun, this.sun.target, this.pickRing.mesh);
 
     this.sightLimit = new SightLimit(this.world.size);
     const groundScope = new RenderScope(this.ground, this.world.size, this.sightLimit, false, false);
@@ -1108,7 +1107,7 @@ export class Game {
     this.weather.advance(this.play.frameMs());
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);
-    this.renderer.render(this.scene, this.rig.camera);
+    this.shaders.render();
     this.refreshPlan();
     this.showPlan();
   }
@@ -1138,7 +1137,7 @@ export class Game {
     live.visible = visibleTiles(this.world, at);
     for (const t of live.visible) live.explored[t] = 1;
     const player = { ...this.world.player, visible: [...live.visible].sort((a, b) => a - b), explored: live.explored };
-    timed("fog", () => this.fog.update({ ...this.world, player }));
+    timed("fog", () => this.fog.updateSight({ ...this.world, player }));
     timed("minimap", () => this.minimap?.update({ ...this.world, player }, { pos: at, heading: playerVehicle(this.world).heading }));
   }
 
@@ -1200,7 +1199,7 @@ export class Game {
         this.views.set(v.id, view);
         this.scene.add(view.root);
       }
-      view.update(display, seen, this.world.player.paint);
+      view.update(display, seen, this.world.player.paint, FRAME_REBUILDS);
       view.lamps(vehicleLampsOn(this.world, v, this.lightTurn()));
       view.radio(this.radioLights.lit(v.id, now));
       view.outline(look === "dark");
