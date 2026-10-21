@@ -1003,19 +1003,9 @@ function disposeChildren(group: THREE.Group): void {
   for (const child of [...group.children]) {
     group.remove(child);
     child.traverse((o) => {
-      if (o instanceof THREE.Sprite) o.material.dispose();
-      if (o instanceof THREE.Mesh) disposeMesh(o);
+      if (o instanceof THREE.Mesh) o.geometry.dispose();
     });
   }
-}
-
-function disposeMesh(o: THREE.Mesh): void {
-  o.geometry.dispose();
-  const mats = Array.isArray(o.material) ? o.material : [o.material];
-  for (const m of mats) m.dispose();
-  o.userData.litMat?.dispose();
-  o.customDepthMaterial?.dispose();
-  o.userData.darkMat?.dispose();
 }
 
 function isWheel(def: PartDef): boolean {

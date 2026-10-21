@@ -532,6 +532,6 @@ export function buildPortrait(renderer: THREE.WebGLRenderer, pristine: Vehicle, 
     return withRendererState(renderer, () => composePortrait(renderer, view, pristine, trash));
   } finally {
     view.dispose();
-    for (const item of trash) item.dispose();
+    for (const item of trash) if (!(item instanceof THREE.Material)) item.dispose();
   }
 }
