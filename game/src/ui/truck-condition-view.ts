@@ -18,14 +18,6 @@ const FLASH_MS = 300;
 const FLASH_TURNS = 2;
 const FLASH_HOLD = 0.65;
 
-export type PartLook = "cab" | "icon";
-
-export function partLook(defId: string): PartLook {
-  const def = partDef(defId);
-  if (def.kind !== "core") return "icon";
-  return def.role === "cab" ? "cab" : "icon";
-}
-
 type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type PartWork = { partId: string; done: number };
 export type ConditionAim = { marks: ReadonlyMap<string, number[]>; pick: (partId: string) => void };
