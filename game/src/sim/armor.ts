@@ -6,7 +6,7 @@ import { footprint, nearestUnit, poseToWorld, sideReach, unitPose, worldToPose, 
 import { partDef, type PartDef, type WeaponDef } from '../data/parts';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
-import { cellKey, facingOf, gridOf, itemCells, isMounted, itemSize, mountedItems, mountedParts, sideOf, type Grid, type SideLetter } from './grid';
+import { baseGrid, cellKey, facingOf, gridOf, itemCells, isMounted, itemSize, mountedItems, mountedParts, sideOf, type Grid, type SideLetter } from './grid';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
 import { angleDiff, bearing, dist, type Vec } from './vec';
 
@@ -38,6 +38,12 @@ export function ramMult(v: Vehicle, side: Side): number {
 
 export function coversSide(v: Vehicle, part: PartInstance, side: Side): boolean {
   return sideOf(v, part) === LETTER[side];
+}
+
+export function bareSides(v: Vehicle): Side[] {
+  const mounts = new Set(baseGrid(v.chassisId).cells.flat());
+  const armor = mountedParts(v, 'armor').filter((p) => p.hp > 0);
+  return (Object.keys(LETTER) as Side[]).filter((side) => mounts.has(LETTER[side]) && !armor.some((p) => coversSide(v, p, side)));
 }
 
 export function cabShield(v: Vehicle): number {

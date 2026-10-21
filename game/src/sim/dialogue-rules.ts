@@ -1,6 +1,7 @@
 
 import { owedBy } from './crime';
 import { answerDemand, demandOpen, huntedCases, isMarshal, payHailedBounty, bountyTerms } from './marshals';
+import { pickLesson } from './lessons';
 import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall } from './help-call';
 import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
 import { COLD_LINES, TOPIC_GATES, type ConditionId, type DialogueOption, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
@@ -682,6 +683,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
 
 export const PREPARES: Record<PrepareId, Prepare> = {
   bountyOwed: (world) => bountyTerms(world),
+  roadLesson: (world, npc) => ({ lesson: { kind: 'line', line: pickLesson(world, npc, playerVehicle(world)) } }),
   vigilCall: (world) => prepareVigilCall(world),
   craterNews: (world, npc) => craterNews(world, npc),
   truceAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'truce') }, ...ransomVars(world, npc) }),

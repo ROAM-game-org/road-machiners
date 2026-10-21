@@ -4,6 +4,7 @@ import { LOCALES, type EnEntry, type Locale, type Noun } from './msg';
 import { entryText, grammarParams, nounOf, parse, placeholders, pluralCategories, schemaOf } from './resolve';
 import { RU } from './ru';
 import { OUT_OF_CHARACTER } from '../test/out-of-character';
+import { SEMICOLON } from '../test/prose-tells';
 
 const CATALOGS: Record<Locale, Readonly<Record<string, EnEntry | Noun>>> = { en: EN, ru: RU };
 const KEYS = Object.keys(EN);
@@ -57,6 +58,12 @@ describe('the catalog', () => {
     for (const locale of LOCALES) {
       const text = entryText(locale, 'mode.furyRoad.description');
       expect(text, locale).not.toMatch(/to the wreck|до обломков/i);
+    }
+  });
+
+  it('holds no semicolon in any entry, in any language', () => {
+    for (const locale of LOCALES) {
+      for (const key of KEYS) expect(entryText(locale, key), `${locale} ${key}`).not.toMatch(SEMICOLON);
     }
   });
 

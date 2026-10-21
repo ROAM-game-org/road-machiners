@@ -567,6 +567,7 @@ export function canStartFight(world: World, vehicle: Vehicle, target: Vehicle): 
 }
 
 function canFightSubject(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
+  if (decision === 'hostileSeen' && !canDrive(world, vehicle)) return false;
   return canStartFight(world, vehicle, subjectOf(world, decision, subject));
 }
 
@@ -575,7 +576,11 @@ function canInvestigate(world: World, vehicle: Vehicle, decision: DecisionId, su
 }
 
 function canDrive(world: World, vehicle: Vehicle): boolean {
-  return getResources(world, vehicle).fuel > 0;
+  return !isStranded(world, vehicle);
+}
+
+export function canFlee(world: World, vehicle: Vehicle): boolean {
+  return allowedByMode(world, 'flee') && canDrive(world, vehicle);
 }
 
 function canRobSubject(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {

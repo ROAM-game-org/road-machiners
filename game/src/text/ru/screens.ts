@@ -4,7 +4,7 @@ import type { Translation } from '../msg';
 export const SCREENS: Translation<typeof EN> = {
   'menu.save': 'Сохранить',
   'menu.load': 'Загрузить',
-  'menu.unstuck': 'Выбраться',
+  'menu.unstuck': 'Освободить грузовик',
   'menu.newGame': 'Новая игра',
   'menu.continue': 'Продолжить',
   'menu.loadSave': 'Загрузить сохранение',

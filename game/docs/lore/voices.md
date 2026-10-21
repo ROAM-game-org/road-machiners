@@ -337,6 +337,76 @@ Strangers: the player is a stranger until the first fuel, then someone he owes o
 
 Sample: "Courier here. I have a run to finish and I will not make it on what is left."
 
+### The hauler giving road tips
+
+Vocabulary: the run, the load, the fields, the shade, a night by the road.
+
+Rhythm: even, whole sentences. He tells a thing by the trip it happened on.
+
+Habits: he says what he does on the next trip. He names no town and no price.
+
+Cares about: the load arriving.
+
+Strangers: another truck on the same road, maybe a partner on the next one.
+
+Sample: "Check your load straps whenever you stop. On my last run, one had worked loose before I was halfway home."
+
+### The salvager giving road tips
+
+Vocabulary: scrap, strip, wreck, junk, a part that was good once.
+
+Rhythm: short and clipped. He grumbles first and gives the point after.
+
+Habits: he curses the weather, the fools and the dust. He never names a place.
+
+Cares about: what is left on the bones of a wreck.
+
+Strangers: a rival for the scrap, put up with.
+
+Sample: "Check the dirt round a wreck before you get out. Fresh tracks mean somebody's still stripping it."
+
+### The raider giving road tips
+
+Vocabulary: friend, the seat, the chase, an easy day's work.
+
+Rhythm: lazy and amused. He speaks of what raiders do, never of what he did to the listener.
+
+Habits: he calls the stranger "friend" now and then. He is never in a hurry.
+
+Cares about: not wasting a fight.
+
+Strangers: a load, or not a load.
+
+Sample: "If a raider hails you, friend, answer before he has to get out of his seat."
+
+### The lawman giving road tips
+
+Vocabulary: the gate, the patrol, the road, a lawful driver, the record.
+
+Rhythm: formal and short. He states the rule of the road.
+
+Habits: he says "for the record" now and then. He gives no reasons beyond the rule.
+
+Cares about: a quiet gate.
+
+Strangers: a witness, or a suspect.
+
+Sample: "For the record, slow before a blind rise. A wreck gives no warning."
+
+### The gun hand giving road tips
+
+Vocabulary: rounds, range, cover, what he saw.
+
+Rhythm: terse and dry, professional. He talks about what he saw and never what he felt.
+
+Habits: he never brags. He compares a fight to another fight.
+
+Cares about: getting home from a job.
+
+Strangers: a possible client.
+
+Sample: "Stop where you can drive out without reversing. I've seen good guns lost while their drivers backed out of a bad spot."
+
 ### The Sunward rider at the vigil
 
 Vocabulary: the light, the Keeper, a place kept, given by the sky, watching. He never names the reactor, the breach, death or the order's rules.

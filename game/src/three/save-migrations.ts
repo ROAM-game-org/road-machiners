@@ -797,14 +797,15 @@ export const TINY_STEPS: readonly Step[] = [
   withStrandedAnchors_97_98,
   (world) => world,
   (world) => world,
-  withCrimes_100_101,
+  withoutPricedHaulCalls_100_101,
+  withCrimes_101_102,
 ];
 
-const MARSHALS_STANDING_100_101 = 0;
+const MARSHALS_STANDING_101_102 = 0;
 
-function withCrimes_100_101(world: SavedJson): SavedJson {
+function withCrimes_101_102(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
-  return { ...world, crimes: [], player: { ...player, standing: { ...(player.standing as SavedJson), marshals: MARSHALS_STANDING_100_101 } } };
+  return { ...world, crimes: [], player: { ...player, standing: { ...(player.standing as SavedJson), marshals: MARSHALS_STANDING_101_102 } } };
 }
 
 function withStrandedAnchors_97_98(world: SavedJson): SavedJson {
@@ -954,6 +955,21 @@ function withShopGoods_82_83(world: SavedJson): SavedJson {
   const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, shopWithGoods_82_83(id, shop)]));
   const vehicles = (world.vehicles as SavedJson[]).map(withoutHaulGoal_82_83);
   return { ...world, shops, vehicles, roadNews: [] };
+}
+
+function namesCargo_100_101(vars: SavedJson): boolean {
+  const price = vars.price as SavedJson | undefined;
+  const haul = vars.haul as { kind: string; goods: Record<string, number>; parts: string[] } | undefined;
+  if (price?.kind !== 'money' || haul?.kind !== 'haul') return false;
+  return Object.keys(haul.goods).length + haul.parts.length > 0;
+}
+
+function withoutPricedHaulCalls_100_101(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const topics = ['demand', 'truce', 'mercy'];
+  if (!call || !topics.includes(call.topic as string) || !namesCargo_100_101(call.vars as SavedJson)) return world;
+  return { ...world, player: { ...player, call: null } };
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };
