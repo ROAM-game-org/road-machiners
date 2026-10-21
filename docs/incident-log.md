@@ -1,59 +1,81 @@
 # Incident log
 
-An entry is a class of bug that cost players, saves, data or a lot of work. A new bug of a known class updates that class's entry. A one-off bug that fits no class gets no entry. Design plans around these classes, testing plays their checks, and hardening reviews the change against them. A repeat of a class is a serious finding.
-
-Each entry has five lines: `ID`, `repo`, `rule`, `check` and `seen`. The repo is `game` or `factory`. The rule says what the code must do. The check says how a reviewer or a playtest finds a break. The seen line lists the bugs of the class and what they cost. Ids run R1, R2 and so on. A blank line separates entries.
-
 ID: R1
-repo: game
-rule: Code that runs per point, per segment, per turn or per frame finds things through a spatial index or a cached result, never a full pass over a world list. Data that does not change is built once. Turn work runs off the main thread, with its preview and warm-up.
-check: For each loop in turn, frame or map setup code, ask what it walks. A pass over all obstacles, props, road segments or chassis inside another loop is a repeat. So is derived data rebuilt on every call, and turn work left on the main thread.
-seen: Terrain and scatter scanned every road segment per point until RoadIndex in commits 03c81e69 and 962f671b, after the scan was written twice. Route planning took most of a turn until ObstacleBuckets in commit 3a977fde. propsNear() still filters all 2148 obstacles, and sight checks took 32% of headless turn time on 2026-10-02. Commits 99230d56 and 9241e607 fixed rebuilds on every call in armor.ts and NPC loadouts. Hotfix #494 moved the path preview off the main thread after turn seams froze for 115 to 265 ms, a repeat of issue #40.
+what: Code that runs every point, turn or frame walked whole world lists, like every road segment or every obstacle, instead of using a spatial index or a cached result. Derived data was rebuilt on every call, and turn work ran on the main thread.
+cost: Turns took seconds and froze between moves, and the same slowness was fixed several times over.
 
 ID: R2
-repo: game
-rule: A price, wage or fee comes from a measured run of the economy harness or from a formula on a measured number, never from a guess or a run that crashed.
-check: For each new or changed number in game/src/data, find the run or formula it comes from. A number with no source, or with a source run that crashed, is a repeat.
-seen: EFFORT.wage tier 1 in market.ts came from a 30-day calibration that crashed on 2026-09-28, and every item price followed it in commit 4c78d169. The contracts bot lost money. TOW fees in tow.ts came from a guessed trade-run profit, so stranded players got offers of 300 to 400 until issue #97 derived the fee from the wage.
+what: Prices, wages, fees and contract rewards were guessed instead of measured with the economy harness, or taken from a run that had crashed.
+cost: Jobs paid too little to bother with, items cost absurd amounts, broke players got tows they could not pay, and the committee had to send features back to run the economy sim.
 
 ID: R3
-repo: game
-rule: A stranded truck is never stuck for good, as DESIGN.md says. Every rescue finishes for a player with no money, and every claim on a rescue has a timer.
-check: Play a stranded player with money 0 or less, and a responder whose path is blocked. The rescue must arrive, must not cost more than the player can pay, and must free its claim when it cannot get through.
-seen: Issue #97 fixed tow offers of 2.4 days of earnings. Issue #94 fixed a blocked tower that held its claim for good, and a responder that rammed a patrol. Issue #93 fixed an offer that put a broke player into debt. All three shipped until release 2026-10-07.
+what: A player could end up stuck for good: a rescue that cost more than a broke player had, a rescuer that held its claim forever, and a story path that stripped the engine with no engine for sale where the player arrived.
+cost: Real players got stuck, and the softlock needed a hotfix on main.
 
 ID: R4
-repo: game
-rule: The boot survives the failure of any one asset, fetch or browser feature. It retries a dropped fetch, gives a failed asset a stand-in, reports it and goes on. Each error names its real cause.
-check: Boot with one sound, model or map fetch dropped, with one sound that never decodes, with IndexedDB refused, and with a fetch, an IndexedDB open or a decode that never answers, and with game code that throws. The game must reach the menu each time. A network failure must not be reported as a decode failure.
-seen: Hotfixes #483, #482, #493 and #496 fixed sound and asset failures on release 2.61.0, after Safari, Firefox on Android and Android Chrome players could not start the game. Hotfix #519 fixed an iPhone Safari player whose browser refused IndexedDB. A wrong "failed to decode" message sent triage toward a corrupt file. Hotfix #733 versioned every public file URL by content hash after a cached map from the last dev build crashed the boot with an error that blamed `old-spots.json`. Issue #730: a stalled fetch, a silent IndexedDB open and a game script that threw all left the page on a loading screen or blamed the connection. Each now ends in a retry, a fallback or a named failure.
+what: The boot, saves and sound broke when one browser feature or download failed, like a sound that did not decode, a dropped fetch, IndexedDB refused or closed, or a zero-size view. Each fix patched one symptom, and the errors blamed the wrong cause.
+cost: Players on Safari, Firefox and Android could not start the game or lost saves, and it took a long string of hotfixes before anyone fixed the cause.
 
 ID: R5
-repo: game
-rule: Save code survives a browser that refuses, closes or aborts IndexedDB. It reopens a dropped connection, falls back to local storage, uses default transaction options, and sends every backend error to the save note instead of out of the turn.
-check: Run a save with the connection closed mid-session, and with a transaction that aborts with no error. The turn must finish, and later saves must land.
-seen: Hotfix #519 fixed a refused open on iPhone Safari. Hotfix #524 fixed a connection Safari closed, after which no save in the session could land. Hotfix #481 dropped `durability: 'strict'`, which made every Safari write abort from turn 1. All three were on release 2.61.x and put a player's progress at risk.
+what: The UI asked the sim about a state the sim does not hold, like a part mounted only in a planned refit, or a part on a cell the lookup did not expect, and the lookup threw.
+cost: The game crashed for players until hotfixes on main.
 
 ID: R6
-repo: game
-rule: A view asks the sim only about state the sim holds. A planned or pending state is answered from the plan. A sim lookup for a placement the rules allow never throws.
-check: For each view call into game/src/sim, list the states the rules allow for its input, such as a planned refit or a part on a bare nose or tail cell. Each must return a value.
-seen: Hotfix #515 fixed the inventory, which asked repairPlan() about a part mounted only in the pending refit and crashed on releases 2.61.0 to 2.61.43. Hotfix #502 fixed a buggy with caltrops on its nose cell, which crashed every frame it was in view. 35 placements on 7 chassis could do the same.
+what: Restoring a snapshot shared records with the original instead of copying them, so later changes corrupted both.
+cost: A player could not get past one turn of their game until a fix shipped.
 
 ID: R7
-repo: game
-rule: A restore or copy of a snapshot deep-copies every record it may change. A physics handle is checked with a named error.
-check: For each copy of a snapshot, world or drive, find the records it later changes, and confirm the source does not share them.
-seen: restoreDrive() shared records with the playback snapshot, so the worker got a missing Rapier handle, and a player could not pass turn T58. It shipped from release 2026-10-01 until issue #96 in release 2026-10-07.
+what: The factory wrote to GitHub too often: reactions to pass the vote gate, progress comments on every job, and the same write repeated on every tick.
+cost: GitHub suspended the bot account, hundreds of issues were hidden, and the factory had to move to a new organization.
 
 ID: R8
-repo: game
-rule: Code that reads a browser size or event handles the zero, missing and refused cases. A zero-size view keeps its last good state. A browser unlock retries until it works. A non-finite number fails loud where it is made.
-check: Play with the view at zero width, the page hidden and the phone rotated, and start a game with mouse clicks only. Turns must play, and sound must start.
-seen: Hotfix #537 fixed a zero-size view on Android Chrome that made a NaN sound pan, so turn 8 failed. Hotfix #492 fixed an audio unlock that fired only on the first input, so a player who clicked heard nothing.
+what: Designs pointed the player at targets with map markers, rings on the ground, floating labels, exact distances and tutorial tips, or finished a task by radio, instead of letting the player find things in the world.
+cost: The committee redesigned four contract features in one day, and still could not tell what a survey target was or how to find it.
 
 ID: R9
-repo: factory
-rule: The factory writes to GitHub as an App, and as little as it can. It never reacts or votes, never comments progress, and never repeats a write on each tick.
-check: For each new GitHub write, count how often it runs per card and per tick. A write that can repeat before the board catches up, a comment that only reports progress, and any reaction are repeats.
-seen: GitHub suspended the bot account on 2026-10-14. Hermes thumbs-upped at least 27 issues to pass the vote gate. 866 of 1,780 bot comments from Oct 3 to Oct 8 were "finished after N min" notes. Intake re-added cards with a comment on each tick, 19 extra times in one day. About 355 issues and PRs were hidden, and the factory moved to a new org. Commits e6b21614, 04708b06 and e66c407b moved the factory to a GitHub App, stopped the re-adds and made the gh wrapper refuse reactions.
+what: Agents fixed a nearby, easier problem instead of the one reported, like brightening the night when terrain had vanished, or changing the 3D world when the issue meant the map.
+cost: The committee played builds that did not touch the report, and each one went back for a redesign.
+
+ID: R10
+what: New truck models ignored the reference image and the game's scale: too small next to other trucks, wrong proportions, too much detail, and wheels too big or clipping through doors.
+cost: Each model took three rounds of committee feedback, and the owner had to ask for a stronger model by hand.
+
+ID: R11
+what: A change that applied to many things was built and shown on one, like a diagram drawn for one chassis only, a size picked per truck instead of by one rule, or a few keys opened in a scene but not the menu.
+cost: Four rounds of patches on one card, and the owner had to ask for an atlas of every case.
+
+ID: R12
+what: Screens ignored the UI design system: oversized buttons, wasted space, stray captions, a rotated map with no zoom, garish colors, and a phone layout that hid the speedometer and health.
+cost: Many redesigns of screens, and mobile play stayed unusable across several releases.
+
+ID: R13
+what: Features did not work when played, though the post said they did: a scripted event that never fired, a blank portrait, story talk reachable from only one path, a follower that drove off, and a new mode that crashed new games.
+cost: This was the most common critique, and players reported new modes broken after they shipped.
+
+ID: R14
+what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural.
+cost: Every text quest had to be cleaned up, and the committee rejected the copy again and again.
+
+ID: R15
+what: Effects did not look physical: spills and grounds drawn as circles, dust that popped up instead of forming, hits shown at turn end, light through walls, and a glow with no visible source.
+cost: Repeated patches on the same light and effects, and an exasperated committee.
+
+ID: R16
+what: Bug fixes treated the symptom with a guard or a retry and never asked why the bad state happened.
+cost: The same bugs came back, and the owner approved many duplicate fixes one by one.
+
+ID: R17
+what: Builds dropped points of the request, or added things nobody asked for, like labels and big buttons.
+cost: A follow-up card for every dropped point, and redesigns to remove the extras.
+
+ID: R18
+what: Merges brought back an old version of a feature, or dropped a piece another card had added, like an icon or a panel.
+cost: Approved work vanished from the game, and urgent fixes went to main.
+
+ID: R19
+what: The post's screenshots and text did not show what they claimed: a popup over the subject, or a claim with no screenshot behind it.
+cost: The committee had to play builds just to learn what the screenshots should have shown.
+
+ID: R20
+what: Proposals against the game's pillars reached a vote or a build: real-time driving and combat, map coordinates, waypoints and a compass, and activities that are not about trucks and the road.
+cost: Members vetoed them in the player chat, and one was built and then denied.

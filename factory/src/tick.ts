@@ -46,7 +46,7 @@ function queued(state: FactoryState): JobPick[] {
     ...approvals.map((issue) => ({ stage: 'approve' as const, issue })),
     ...state.pendingRemovals.map((removal) => ({ stage: 'remove' as const, issue: removal.issue })),
     ...ship,
-    ...state.pendingIncidents.map((issue) => ({ stage: 'incident' as const, issue })),
+    ...state.pendingIncidents.slice(0, 1).map((issue) => ({ stage: 'incident' as const, issue })),
     ...(state.pendingAnswers.length > 0 ? [{ stage: 'answer' as const, issue: null }] : []),
   ];
 }
