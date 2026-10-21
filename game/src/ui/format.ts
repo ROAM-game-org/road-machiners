@@ -52,6 +52,7 @@ export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'business') return businessLabel(job);
   if (job.kind === 'search') return t('job.search');
   if (job.kind === 'weld') return t('job.weld');
+  if (job.kind === 'firstAid') return t('job.firstAid');
   if (job.kind === 'survey') return t('job.survey', { place: t(`contract.place.${surveyPlaceType(job.site)}`) });
   return partJobLabel(v, job);
 }

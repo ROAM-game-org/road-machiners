@@ -5,6 +5,7 @@ import { readyAid, startAid } from "../sim/aid";
 import { handOverParcel, readyHandover } from "../sim/parcel";
 import { playerVehicle } from "../sim/damage";
 import { canDouse, douseEngine } from "../sim/engine-heat";
+import { startFirstAid } from "../sim/jobs";
 import { isBusy } from "../sim/jobs";
 import { inOverdrive, overdriveBlock } from "../sim/stats";
 import { canLoot, canScavenge, scavenge } from "../sim/locations";
@@ -25,6 +26,7 @@ export type ControlsHost = {
   commit: (next: World) => void;
   refreshPlan: () => void;
   doused: () => void;
+  note: (text: Msg) => void;
   revved: () => void;
 };
 
@@ -64,6 +66,17 @@ export class TruckControls {
     if (!playerCanAct(w) || !canDouse(w)) return;
     this.host.apply(douseEngine(w));
     this.host.doused();
+  }
+
+  firstAid(): void {
+    const w = this.host.world();
+    if (!playerCanAct(w) || !hasBasic(w, 'firstAid')) return;
+    try {
+      this.host.apply(startFirstAid(w));
+    } catch (err) {
+      if (!(err instanceof Refused)) throw err;
+      this.host.note(refusalText(w, err.refusal));
+    }
   }
 }
 

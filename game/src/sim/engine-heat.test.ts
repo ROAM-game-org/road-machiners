@@ -306,7 +306,7 @@ describe('engineOverheating', () => {
 describe('dousing the engine', () => {
   it('spends supplies to cool the engine at once', () => {
     const w = emptyWorld();
-    w.player.ranks.toughness = 1;
+    w.player.ranks.driving = 1;
     w.player.engineHeat = 0.9;
     const supplies = w.player.supplies;
     const next = douseEngine(w);
@@ -316,14 +316,14 @@ describe('dousing the engine', () => {
 
   it('never cools below cold', () => {
     const w = emptyWorld();
-    w.player.ranks.toughness = 1;
+    w.player.ranks.driving = 1;
     w.player.engineHeat = 0.1;
     expect(douseEngine(w).player.engineHeat).toBe(0);
   });
 
   it('refuses without enough supplies', () => {
     const w = emptyWorld();
-    w.player.ranks.toughness = 1;
+    w.player.ranks.driving = 1;
     w.player.engineHeat = 0.9;
     w.player.supplies = ENGINE_HEAT.douseSupplies / 2;
     expect(() => douseEngine(w)).toThrow(/supplies/);
@@ -362,7 +362,7 @@ describe('desert rat', () => {
 describe('douse reasons', () => {
   it('names what blocks cooling the engine', () => {
     const w = emptyWorld();
-    w.player.ranks.toughness = 1;
+    w.player.ranks.driving = 1;
     w.player.supplies = 0;
     w.player.engineHeat = 0.5;
     expect(douseBlock(w)).toBe('noSupplies');
@@ -372,7 +372,16 @@ describe('douse reasons', () => {
     w.player.engineHeat = 0.5;
     expect(douseBlock(w)).toBeNull();
   });
-  it('is closed at Toughness 0, before any other reason', () => {
+  it('opens with Overdrive at Driving 1 whatever the Toughness', () => {
+    const w = emptyWorld();
+    w.player.engineHeat = 0.5;
+    w.player.ranks.toughness = 1;
+    expect(douseBlock(w)).toBe('noBasic');
+    w.player.ranks.toughness = 0;
+    w.player.ranks.driving = 1;
+    expect(douseBlock(w)).toBeNull();
+  });
+  it('is closed at Driving 0, before any other reason', () => {
     const w = emptyWorld();
     w.player.supplies = 0;
     w.player.engineHeat = 0.5;

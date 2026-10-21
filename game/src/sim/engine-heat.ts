@@ -54,7 +54,7 @@ function heatedEngines(v: Vehicle): PartInstance[] {
 export type DouseBlock = 'noBasic' | 'noSupplies' | 'engineCool';
 
 export function douseBlock(world: World): DouseBlock | null {
-  if (!hasBasic(world, 'douse')) return 'noBasic';
+  if (!hasBasic(world, 'overdrive')) return 'noBasic';
   if (world.player.supplies < ENGINE_HEAT.douseSupplies) return 'noSupplies';
   if (world.player.engineHeat <= 0) return 'engineCool';
   return null;

@@ -284,7 +284,7 @@ export class Game {
     this.labels = new Labels(overlay);
     this.fx = new Fx3D(this.scene, overlay, this.rig, () => this.world);
     this.truckFx = new TruckFx(this.fx);
-    this.controls = new TruckControls({ world: () => this.world, apply: (next) => this.apply(next), commit: (next) => { this.world = next; this.refreshUi(); }, refreshPlan: () => this.refreshPlan(), doused: () => { this.truckFx.douse(); this.hud.pushEvents(this.world); }, revved: () => this.loops.rev(playerVehicle(this.world).chassisId) });
+    this.controls = new TruckControls({ world: () => this.world, apply: (next) => this.apply(next), commit: (next) => { this.world = next; this.refreshUi(); }, refreshPlan: () => this.refreshPlan(), doused: () => { this.truckFx.douse(); this.hud.pushEvents(this.world); }, note: (text) => this.hud.refuse(text), revved: () => this.loops.rev(playerVehicle(this.world).chassisId) });
     this.context = new TruckContext({
       world: () => this.world,
       playing: () => this.anim !== null,
@@ -317,6 +317,7 @@ export class Game {
       toggleHeadlights: () => this.runKey("KeyL"),
       headlightsOn: () => this.world.player.headlights,
       douseEngine: () => this.runKey("KeyG"),
+      firstAid: () => this.runKey("KeyU"),
       unhitch: () =>
         this.rescueCommand((w) =>
           w.player.state === "active" && isTowed(w) ? unhitch(w) : null,
@@ -590,6 +591,7 @@ export class Game {
     KeyP: { run: () => this.controls.toggleAutoRepair(), noModal: true, idle: true },
     KeyO: { run: () => this.controls.toggleOverdrive(), noModal: true, idle: true },
     KeyG: { run: () => this.controls.douseEngine(), noModal: true, idle: true },
+    KeyU: { run: () => this.controls.firstAid(), noModal: true, idle: true },
     KeyL: { run: () => this.controls.toggleHeadlights(), noModal: true },
     KeyN: { run: () => this.context.onCard('mark', this.inspected()), noModal: true, idle: true },
     KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), noModal: true, idle: true },
