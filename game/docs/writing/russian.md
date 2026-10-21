@@ -159,6 +159,7 @@ How it reads:
 - The player has no gender in the game. Never write a past-tense verb or a short adjective that agrees with the player. Write «Ты это видел?» as «Видно было?» or «Ты это видишь?», and «ты прав» as «тут не поспоришь».
 - Ink has no plurals. A number from a variable sits before a word whose form does not change, like «М», or the sentence is rewritten around it.
 - Table rows use the Russian number format: a decimal comma and a no-break space between thousands.
+- Quest text holds no semicolon. Split it into two sentences. The voice test fails on one. The dialogue dash «—» stays.
 - A dialogue dash is «—». A hyphen at the start of a line is an ink gather, so never start a line of text with «-».
 - Each speaker keeps their voice from [the voice sheets](../lore/voices.md): their words, rhythm and habits.
 

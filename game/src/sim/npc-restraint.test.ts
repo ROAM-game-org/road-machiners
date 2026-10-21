@@ -160,6 +160,7 @@ describe('NPC field repairs', () => {
 
   it('keeps repairing where it stands after drifting off its shade spot', () => {
     const { world, npc } = createNpc();
+    world.vehicles[0].pos = { x: 30, y: 36 };
     addGoods(world, npc, 'parts', 2);
     const cab = corePart(npc, 'cab');
     cab.hp = partDef(cab.defId).hp * 0.4;
