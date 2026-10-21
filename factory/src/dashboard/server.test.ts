@@ -1,4 +1,6 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { request } from 'node:http';
+import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DashboardServer } from './server';
@@ -10,7 +12,7 @@ afterEach(async () => {
   for (const server of servers.splice(0)) await server.stop();
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
-async function startServer(options: { refreshMs?: number; padding?: string } = {}) {
+async function startServer(options: { refreshMs?: number; padding?: string; socket?: string } = {}) {
   mkdirSync('tmp', { recursive: true });
   const assets = mkdtempSync(resolve('tmp/dashboard-http-'));
   dirs.push(assets);
@@ -23,10 +25,24 @@ async function startServer(options: { refreshMs?: number; padding?: string } = {
   } as unknown as SnapshotCollector;
   const server = new DashboardServer(collector, assets, { refreshMs: options.refreshMs ?? 60_000, githubRefreshMs: 60_000 });
   servers.push(server);
-  const address = await server.start({ port: 0, socket: null });
+  const address = await server.start(options.socket === undefined ? { port: 0, socket: null } : { port: null, socket: options.socket });
   return { url: `http://127.0.0.1:${address}`, getRefreshes: () => refreshes };
 }
+function getOverSocket(socketPath: string, path: string): Promise<number> {
+  return new Promise((done, fail) => {
+    request({ socketPath, path }, (response) => { response.resume(); done(response.statusCode ?? 0); }).on('error', fail).end();
+  });
+}
 describe('public dashboard HTTP', () => {
+  it('replaces a stale socket file that a crash left behind', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dashboard-sock-'));
+    dirs.push(dir);
+    const socket = join(dir, 'http.sock');
+    writeFileSync(socket, '');
+    await startServer({ socket });
+    expect(await getOverSocket(socket, '/factory/')).toBe(200);
+  });
+
   it('serves assets and snapshots with restrictive browser headers', async () => {
     const { url } = await startServer();
     const page = await fetch(`${url}/factory/`);
