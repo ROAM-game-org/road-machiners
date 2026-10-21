@@ -15,7 +15,7 @@ import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type Sid
 import type { GridItem, Vehicle, World } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, sweepOf, type Obstacle } from './gunClearance';
-import { model, outlineOf, socket, surfacedMaterial, surfaceOf, TRUCK_BIT, type ModelName, type SurfaceName } from './models';
+import { EDGE_DISTANCE, MASK_UV, model, neutralSurface, outlineOf, socket, surfacedMaterial, surfaceOf, TRUCK_BIT, type ModelName, type SurfaceName } from './models';
 import { hashStr } from '../../render/noise';
 import { callTrucks, radioSpeakers } from '../../sim/dialogue';
 import { TruckMotion, WHIPS } from './truckMotion';
@@ -100,6 +100,8 @@ export class VehicleView {
   private glassMat = new THREE.MeshLambertMaterial({ flatShading: true });
   private readonly glassGlow = new THREE.Color(0);
   private silhouetteMat!: THREE.MeshBasicMaterial;
+  private contactShadow!: THREE.Mesh;
+  private wheelRadius = 0;
   private darkMat!: THREE.MeshBasicMaterial;
   private dark = false;
 
@@ -130,6 +132,24 @@ export class VehicleView {
     this.motion.step(f, dt, this.running);
     this.body.updateMatrix();
     this.poseSuspension();
+    this.groundContactShadow();
+  }
+
+  private buildContactShadow(body: Body): void {
+    const length = 2 * Math.max(body.half.x, body.wheelX + body.wheelRadius) * CONTACT_SHADOW.spread.length;
+    const width = 2 * Math.max(body.half.z, body.wheelZ + body.wheelHalfWidth) * CONTACT_SHADOW.spread.width;
+    const material = new THREE.MeshBasicMaterial({ map: contactShadowTexture(), transparent: true, depthWrite: false });
+    this.contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(length, width), material);
+    this.contactShadow.rotation.x = -Math.PI / 2;
+    this.contactShadow.raycast = () => {};
+    this.contactShadow.userData.outline = true;
+    this.root.add(this.contactShadow);
+    this.groundContactShadow();
+  }
+
+  private groundContactShadow(): void {
+    const hubs = this.wheels.reduce((sum, w) => sum + w.mount.position.y, 0) / this.wheels.length;
+    this.contactShadow.position.y = hubs - this.wheelRadius + CONTACT_SHADOW.lift;
   }
 
   private poseSuspension(): void {
@@ -240,6 +260,8 @@ export class VehicleView {
     }
     for (const gun of guns) this.buildWeapon(v, gun, isMounted(v.chassisId, gun), still, paint, obstacles);
     this.buildWheels(v, body, wheelItems, paint);
+    this.wheelRadius = body.wheelRadius;
+    this.buildContactShadow(body);
     this.anchorUndrawn(v, body);
     this.buildSuspension(body, paint);
     this.buildLooseParts(v, body, onBody.length === v.items.length);
@@ -764,13 +786,20 @@ function place(obj: THREE.Object3D, at: Placement): void {
   obj.scale.copy(at.scale);
 }
 
+export const BODY_PAINT_SATURATION = 0.8;
+
+export function bodyPaint(paint: number): number {
+  const hsl = new THREE.Color(paint).getHSL({ h: 0, s: 0, l: 0 });
+  return new THREE.Color().setHSL(hsl.h, hsl.s * BODY_PAINT_SATURATION, hsl.l).getHex();
+}
+
 function tint(obj: THREE.Object3D, paint: number, look: Look): void {
   const share = grayShare(look.step);
   obj.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     const mat = o.material;
     if (!(mat instanceof THREE.MeshLambertMaterial)) throw new Error(`Part mesh ${o.name} has material ${mat.type}, expected one Lambert material`);
-    if (mat.name === PAINT) mat.color.setHex(paint);
+    if (mat.name === PAINT) mat.color.setHex(bodyPaint(paint));
     mat.color.setHex(grayed(mat.color.getHex(), share));
     mat.color.multiplyScalar(look.tone);
   });
@@ -823,15 +852,14 @@ function flipWinding(geo: THREE.BufferGeometry): void {
   }
 }
 
-function shadeOf(geo: THREE.BufferGeometry): THREE.BufferAttribute {
-  const count = geo.getAttribute('position').count;
-  const baked = geo.getAttribute('color');
-  const shade = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) shade.set(baked ? [baked.getX(i), baked.getY(i), baked.getZ(i)] : [1, 0, 0], i * 3);
-  return new THREE.BufferAttribute(shade, 3);
+function giveSurface(geo: THREE.BufferGeometry): void {
+  if (geo.getAttribute(MASK_UV)) return;
+  const neutral = neutralSurface(geo.getAttribute('position').count);
+  geo.setAttribute(MASK_UV, neutral.maskUv);
+  geo.setAttribute(EDGE_DISTANCE, neutral.edgeDistance);
 }
 
-const KEPT_ATTRIBUTES = new Set(['position', 'normal', 'color']);
+const KEPT_ATTRIBUTES = new Set(['position', 'normal', MASK_UV, EDGE_DISTANCE]);
 
 function staticGeometry(mesh: THREE.Mesh, toGroup: THREE.Matrix4): THREE.BufferGeometry {
   const toHere = toGroup.clone().multiply(mesh.matrixWorld);
@@ -839,7 +867,7 @@ function staticGeometry(mesh: THREE.Mesh, toGroup: THREE.Matrix4): THREE.BufferG
   if (geo.index) geo = geo.toNonIndexed();
   if (toHere.determinant() < 0) flipWinding(geo);
   if (!geo.getAttribute('normal')) geo.computeVertexNormals();
-  geo.setAttribute('color', shadeOf(geo));
+  giveSurface(geo);
   for (const name of Object.keys(geo.attributes)) if (!KEPT_ATTRIBUTES.has(name)) geo.deleteAttribute(name);
   geo.morphAttributes = {};
   geo.clearGroups();
@@ -918,6 +946,28 @@ function haloMap(): THREE.DataTexture {
   haloTexture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
   haloTexture.needsUpdate = true;
   return haloTexture;
+}
+
+const CONTACT_SHADOW = { darkness: 0.55, core: 0.125, side: 64, lift: 0.02, spread: { length: 1.25, width: 1.4 } };
+let contactTexture: THREE.DataTexture | null = null;
+
+function contactShadowTexture(): THREE.DataTexture {
+  if (contactTexture) return contactTexture;
+  const { side, core, darkness } = CONTACT_SHADOW;
+  const pixels = new Uint8Array(side * side * 4);
+  for (let y = 0; y < side; y++) {
+    for (let x = 0; x < side; x++) {
+      const r = Math.hypot(x + 0.5 - side / 2, y + 0.5 - side / 2) / (side / 2);
+      const fade = THREE.MathUtils.clamp((1 - r) / (1 - core), 0, 1);
+      pixels[(y * side + x) * 4 + 3] = Math.round(255 * darkness * fade);
+    }
+  }
+  contactTexture = new THREE.DataTexture(pixels, side, side);
+  contactTexture.magFilter = THREE.LinearFilter;
+  contactTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  contactTexture.generateMipmaps = true;
+  contactTexture.needsUpdate = true;
+  return contactTexture;
 }
 
 function disposeChildren(group: THREE.Group): void {

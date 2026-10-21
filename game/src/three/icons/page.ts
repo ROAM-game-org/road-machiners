@@ -5,7 +5,7 @@ import { PARTS } from '../../data/parts';
 import { ITEM_TONES } from '../../render/palette';
 import { iconCatalog, itemTone, ICON_SECTIONS, ICON_WEAPON_PICKS, type IconEntry, type IconSection } from '../../render/partLooks';
 import { publicUrl } from '../../public-url';
-import { loadModels, type ModelName } from '../render/models';
+import { loadModels, paintSurfaceMasks, type ModelName } from '../render/models';
 import {
   barrelReads,
   context,
@@ -74,6 +74,7 @@ export type IconBuild = {
 
 async function build(): Promise<IconBuild> {
   await loadModels();
+  await paintSurfaceMasks();
   const catalog = iconCatalog(PARTS, GOODS, CHASSIS, ICON_WEAPON_PICKS);
   const bytes = await modelBytes(catalog);
   const rendered: Rendered[] = catalog.map((entry) => {
@@ -289,6 +290,7 @@ declare global {
 
 async function plans(): Promise<Record<string, string>> {
   await loadModels();
+  await paintSurfaceMasks();
   const catalog = iconCatalog(PARTS, GOODS, CHASSIS, ICON_WEAPON_PICKS).filter((e) => e.section === 'chassis');
   const symbols = catalog.flatMap((entry) => {
     const s = PLAN_SIZE;

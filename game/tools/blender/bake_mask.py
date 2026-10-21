@@ -5,22 +5,17 @@ from pathlib import Path
 
 import bmesh
 import bpy
-from mathutils import kdtree
 
 DENSE_EDGE = 0.12
-DENSE_PASSES = 8
+DENSE_PASSES = 14
 AO_DISTANCE = 1.0
 AO_CURVE = 1.6
 AO_SAMPLES = 512
-EDGE_WIDTH = 0.045
-EDGE_ANGLE = 0.5
-EDGE_STEP = 0.01
 UV_ANGLE = math.radians(66)
-UV_MARGIN = 0.02
 UV_FILL = 0.55
-BAKE_MARGIN = 8
-MASK_MIN = 32
-MASK_MAX = 1024
+ISLAND_GAP_PX = 4
+BAKE_MARGIN_PX = 8
+MASK_MIN = 16
 MARKER = "surfaceMask"
 BAKE_NODE = "surface_mask_bake"
 GLTF_GROUP = "glTF Material Output"
@@ -33,6 +28,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("out", type=Path)
     parser.add_argument("--version", type=int, required=True)
     parser.add_argument("--texel", type=float, required=True, help="meters per mask pixel")
+    parser.add_argument("--max-side", type=int, required=True, help="largest mask side in pixels")
     return parser.parse_args(argv)
 
 
@@ -49,44 +45,23 @@ def joined_mesh() -> bpy.types.Object:
     return bpy.context.object
 
 
-def unwrap(obj: bpy.types.Object) -> None:
+def mask_side(obj: bpy.types.Object, texel: float, max_side: int) -> int:
+    area = sum(p.area for p in obj.data.polygons)
+    want = math.sqrt(area / UV_FILL) / texel
+    side = MASK_MIN
+    while side < want and side < max_side:
+        side *= 2
+    return side
+
+
+def unwrap(obj: bpy.types.Object, side: int) -> None:
     while obj.data.uv_layers:
         obj.data.uv_layers.remove(obj.data.uv_layers[0])
     obj.data.uv_layers.new(name="UVMap")
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=UV_ANGLE, island_margin=UV_MARGIN, scale_to_bounds=False)
+    bpy.ops.uv.smart_project(angle_limit=UV_ANGLE, island_margin=ISLAND_GAP_PX / side, scale_to_bounds=False)
     bpy.ops.object.mode_set(mode="OBJECT")
-
-
-def mask_side(obj: bpy.types.Object, texel: float) -> int:
-    area = sum(p.area for p in obj.data.polygons)
-    want = math.sqrt(area / UV_FILL) / texel
-    side = MASK_MIN
-    while side < want and side < MASK_MAX:
-        side *= 2
-    return side
-
-
-def convex_edges(obj: bpy.types.Object) -> kdtree.KDTree | None:
-    bm = bmesh.new()
-    bm.from_mesh(obj.data)
-    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-4)
-    points = []
-    for e in bm.edges:
-        if len(e.link_faces) != 2 or not e.is_convex or e.calc_face_angle(0.0) < EDGE_ANGLE:
-            continue
-        a, b = e.verts[0].co, e.verts[1].co
-        n = max(1, math.ceil((b - a).length / EDGE_STEP))
-        points += [a.lerp(b, i / n) for i in range(n + 1)]
-    bm.free()
-    if not points:
-        return None
-    tree = kdtree.KDTree(len(points))
-    for i, p in enumerate(points):
-        tree.insert(p, i)
-    tree.balance()
-    return tree
 
 
 def dense_twin(obj: bpy.types.Object) -> bpy.types.Object:
@@ -96,14 +71,18 @@ def dense_twin(obj: bpy.types.Object) -> bpy.types.Object:
     bpy.context.scene.collection.objects.link(twin)
     bm = bmesh.new()
     bm.from_mesh(twin.data)
+    longest = math.inf
     for _ in range(DENSE_PASSES):
         long = [e for e in bm.edges if e.calc_length() > DENSE_EDGE]
-        if not long:
+        now = max((e.calc_length() for e in long), default=0.0)
+        if not long or now >= longest:
             break
+        longest = now
         bmesh.ops.subdivide_edges(bm, edges=long, cuts=1, use_grid_fill=True)
         bmesh.ops.triangulate(bm, faces=bm.faces[:])
-    else:
-        raise RuntimeError(f"{obj.name} still has edges over {DENSE_EDGE} m after {DENSE_PASSES} passes")
+    stuck = max((e.calc_length() for e in bm.edges), default=0.0)
+    if stuck > DENSE_EDGE * 2:
+        raise RuntimeError(f"{obj.name} still has a {stuck:.2f} m edge after {DENSE_PASSES} passes")
     bm.to_mesh(twin.data)
     bm.free()
     twin.data.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
@@ -117,7 +96,7 @@ def only_selected(obj: bpy.types.Object) -> None:
     bpy.context.view_layer.objects.active = obj
 
 
-def bake_ao(twin: bpy.types.Object, hidden: bpy.types.Object) -> None:
+def bake_shadow(twin: bpy.types.Object, hidden: bpy.types.Object) -> None:
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
@@ -129,17 +108,9 @@ def bake_ao(twin: bpy.types.Object, hidden: bpy.types.Object) -> None:
     only_selected(twin)
     bpy.ops.object.bake(type="AO", target="VERTEX_COLORS")
     hidden.hide_render = False
-
-
-def write_masks(twin: bpy.types.Object, edges: kdtree.KDTree | None) -> None:
-    col = twin.data.color_attributes["Col"]
-    for d, vert in zip(col.data, twin.data.vertices):
+    for d in twin.data.color_attributes["Col"].data:
         shadow = d.color[0] ** AO_CURVE
-        wear = 0.0
-        if edges:
-            _, _, dist = edges.find(vert.co)
-            wear = max(0.0, 1.0 - dist / EDGE_WIDTH)
-        d.color = (shadow, wear, 0.0, 1.0)
+        d.color = (shadow, shadow, shadow, 1.0)
 
 
 def bake_material(image: bpy.types.Image) -> bpy.types.Material:
@@ -167,13 +138,13 @@ def bake_image(twin: bpy.types.Object, name: str, side: int) -> bpy.types.Image:
         poly.material_index = 0
     scene = bpy.context.scene
     scene.cycles.samples = 1
-    scene.render.bake.margin = BAKE_MARGIN
+    scene.render.bake.margin = BAKE_MARGIN_PX
     scene.render.bake.margin_type = "EXTEND"
     only_selected(twin)
     bpy.ops.object.bake(type="EMIT", target="IMAGE_TEXTURES")
     settings = scene.render.image_settings
     settings.file_format = "PNG"
-    settings.color_mode = "RGB"
+    settings.color_mode = "BW"
     settings.color_depth = "8"
     settings.compression = 100
     path = Path(bpy.app.tempdir) / f"{name}_mask.png"
@@ -215,12 +186,10 @@ def main() -> None:
     name = args.src.stem
     obj = joined_mesh()
     faces = len(obj.data.polygons)
-    unwrap(obj)
-    side = mask_side(obj, args.texel)
-    edges = convex_edges(obj)
+    side = mask_side(obj, args.texel, args.max_side)
+    unwrap(obj, side)
     twin = dense_twin(obj)
-    bake_ao(twin, obj)
-    write_masks(twin, edges)
+    bake_shadow(twin, obj)
     image = bake_image(twin, name, side)
     bpy.data.objects.remove(twin)
     attach_mask(obj, image)

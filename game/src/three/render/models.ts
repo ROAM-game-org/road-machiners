@@ -1,12 +1,13 @@
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader, type GLTF, type GLTFLoaderPlugin, type GLTFParser } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fetchAsset } from '../../fetch-asset';
 import { publicUrl } from '../../public-url';
 import SHAPES from '../../data/prop-shapes.json';
 import { PAL } from '../../render/palette';
-import { WEAPON_POOLS } from '../../render/partLooks';
+import { SURFACE_MODELS, WEAPON_POOLS } from '../../render/partLooks';
+import { edgeDistances, NEUTRAL_SLOT, packMasks, slotUv, WEAR_EDGE, type AtlasLayout } from './truckSurface';
 
 export const NAMES = [
   'base_scout',
@@ -290,15 +291,17 @@ export async function loadModels(
   read: (name: ModelName) => Promise<ArrayBuffer> = fetchModel,
   progress?: (done: number, total: number) => void,
 ): Promise<ModelFailure[]> {
-  const loader = new GLTFLoader();
+  const loader = new GLTFLoader().register(keepMaskBytes);
   const failures: ModelFailure[] = [];
   let done = 0;
+  maskImages.clear();
   progress?.(0, NAMES.length);
   await Promise.all(
     NAMES.map(async (name) => {
       try {
         const gltf = await loader.parseAsync(await read(name), '');
         sockets.set(name, takeSockets(name, gltf.scene));
+        takeMask(name, gltf);
         loaded.set(name, toLambert(gltf.scene));
       } catch (error) {
         const shape = standInShape(name);
@@ -311,6 +314,7 @@ export async function loadModels(
     }),
   );
   checkWeaponSockets();
+  prepareSurfaces(new Set(failures.map((f) => f.name)));
   return failures;
 }
 
@@ -531,6 +535,8 @@ function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry):
   return outline;
 }
 
+export const SURFACE_MASK = { version: 1, metersPerPixel: 0.1, maxSide: 256 };
+
 type Surface = { dirt: [number, number, number]; edge: number; chips: number; shine: number; grain: number; neutral: number };
 
 const SURFACES = {
@@ -566,10 +572,11 @@ const SURFACE_OF_MATERIAL: Record<string, SurfaceName | null> = {
   glow: null,
 };
 
-const CHIP = { color: new THREE.Color(0x5b5a57), scale: 7, at: 1.05, share: 0.5 };
+const CHIP = { color: new THREE.Color(0x5b5a57), scale: 7, at: 1.05, share: 0.5, slope: 1.35 };
+const WEAR = { width: 0.08 };
 const CHROME = { reflect: 0.55, grazing: 0.35, horizon: 1.6, gain: 0.1, body: 0 };
 
-const GRAIN = { scale: 40, amount: 0 };
+const GRAIN = { scale: 40, amount: 0.05 };
 
 export const SURFACE_LOOK = { chips: { value: CHIP.share }, chipAt: { value: CHIP.at }, chrome: { value: CHROME.gain }, chromeBody: { value: CHROME.body }, grain: { value: GRAIN.amount } };
 
@@ -579,10 +586,11 @@ export function surfaceOf(materialName: string): SurfaceName | null {
 }
 
 export function surfacedMaterial(color: number, surface: SurfaceName | null): THREE.MeshLambertMaterial {
-  const material = new THREE.MeshLambertMaterial({ color, flatShading: true, vertexColors: surface !== null });
+  const material = new THREE.MeshLambertMaterial({ color, flatShading: true });
   if (surface === null) return material;
   const own = SURFACES[surface];
   const uniforms = {
+    surfaceMask: SURFACE_ATLAS,
     surfaceDirt: { value: new THREE.Vector3(...own.dirt) },
     surfaceEdge: { value: own.edge },
     surfaceChips: { value: own.chips },
@@ -596,10 +604,11 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
     surfaceNeutral: { value: own.neutral },
   };
   material.onBeforeCompile = (shader) => {
+    if (!SURFACE_ATLAS.value) throw new Error('Call paintSurfaceMasks() after loadModels() before drawing trucks');
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vSurfacePos;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSurfacePos = position;');
+      .replace('#include <common>', `#include <common>\nvarying vec3 vSurfacePos;\nvarying vec2 vMaskUv;\nvarying vec3 vEdgeDistance;\nattribute vec2 ${MASK_UV};\nattribute vec3 ${EDGE_DISTANCE};`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\nvSurfacePos = position;\nvMaskUv = ${MASK_UV};\nvEdgeDistance = ${EDGE_DISTANCE};`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${SURFACE_UNIFORMS}`)
       .replace('#include <color_fragment>', SURFACE_COLOR)
@@ -612,6 +621,9 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
 const f = (n: number) => n.toFixed(4);
 
 const SURFACE_UNIFORMS = `varying vec3 vSurfacePos;
+varying vec2 vMaskUv;
+varying vec3 vEdgeDistance;
+uniform sampler2D surfaceMask;
 uniform vec3 surfaceDirt;
 uniform float surfaceEdge;
 uniform float surfaceChips;
@@ -637,18 +649,24 @@ float surfaceNoise(vec3 p) {
 }`;
 
 const SURFACE_COLOR = `
-  float surfaceAo = vColor.r;
-  float surfaceWorn = vColor.g;
+  float surfaceAo = texture2D(surfaceMask, vMaskUv).r;
+  float surfaceFold = min(min(vEdgeDistance.x, vEdgeDistance.y), vEdgeDistance.z);
+  float surfaceWorn = clamp(1.0 - surfaceFold / ${f(WEAR.width)}, 0.0, 1.0);
   diffuseColor.rgb *= mix(surfaceDirt, vec3(1.0), surfaceAo);
   diffuseColor.rgb *= 1.0 + surfaceEdge * surfaceWorn;
   vec3 grainAt = vSurfacePos * ${f(GRAIN.scale)};
-  float grain = surfaceNoise(grainAt) * 0.6 + surfaceNoise(grainAt * 2.3) * 0.4 - 0.5;
-  float grainFade = 1.0 - smoothstep(0.35, 1.0, length(fwidth(grainAt)));
-  diffuseColor.rgb *= 1.0 + 2.0 * grain * surfaceGrain * surfaceGrainShare * grainFade;
-  float chipField = surfaceWorn * (0.55 + 0.9 * surfaceNoise(vSurfacePos * ${f(CHIP.scale)}));
-  float chipWidth = fwidth(chipField);
-  float chip = smoothstep(surfaceChipAt - chipWidth, surfaceChipAt + chipWidth, chipField) * surfaceChips * surfaceChipShare;
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${f(CHIP.color.r)}, ${f(CHIP.color.g)}, ${f(CHIP.color.b)}) * mix(0.6, 1.0, surfaceAo), chip);
+  float grainShare = surfaceGrain * surfaceGrainShare * (1.0 - smoothstep(0.35, 1.0, length(fwidth(grainAt))));
+  if (grainShare > 0.0) {
+    float grain = surfaceNoise(grainAt) * 0.6 + surfaceNoise(grainAt * 2.3) * 0.4 - 0.5;
+    diffuseColor.rgb *= 1.0 + 2.0 * grain * grainShare;
+  }
+  float chipWidth = fwidth(surfaceWorn) * 1.45 + surfaceWorn * length(fwidth(vSurfacePos)) * ${f(CHIP.scale * CHIP.slope)};
+  float chipShare = surfaceChips * surfaceChipShare;
+  if (surfaceWorn > 0.0 && chipShare > 0.0) {
+    float chipField = surfaceWorn * (0.55 + 0.9 * surfaceNoise(vSurfacePos * ${f(CHIP.scale)}));
+    float chip = smoothstep(surfaceChipAt - chipWidth, surfaceChipAt + chipWidth, chipField) * chipShare;
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${f(CHIP.color.r)}, ${f(CHIP.color.g)}, ${f(CHIP.color.b)}) * mix(0.6, 1.0, surfaceAo), chip);
+  }
 `;
 
 const SURFACE_NEUTRAL = `
@@ -673,3 +691,119 @@ const SURFACE_CHROME = `
   }
 #endif
 `;
+
+type MaskImage = { side: number; bytes: Uint8Array<ArrayBuffer>; mime: string };
+type MaskMarker = { version: number; side: number };
+
+const maskImages = new Map<ModelName, MaskImage>();
+let maskLayout: AtlasLayout | null = null;
+export const SURFACE_ATLAS: { value: THREE.Texture | null } = { value: null };
+
+function keepMaskBytes(parser: GLTFParser): GLTFLoaderPlugin {
+  return {
+    name: 'roam_surface_mask',
+    loadTexture: async (index: number) => {
+      const image = parser.json.images[parser.json.textures[index].source];
+      const view: ArrayBuffer = await parser.getDependency('bufferView', image.bufferView);
+      const texture = new THREE.Texture();
+      texture.userData.mask = { bytes: new Uint8Array(view), mime: image.mimeType };
+      return texture;
+    },
+  };
+}
+
+function maskBytesOf(root: THREE.Object3D): Omit<MaskImage, 'side'> | undefined {
+  let found: Omit<MaskImage, 'side'> | undefined;
+  root.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) found ??= (m as THREE.MeshStandardMaterial).aoMap?.userData.mask;
+  });
+  return found;
+}
+
+function takeMask(name: ModelName, gltf: GLTF): void {
+  const marker = gltf.scene.userData.surfaceMask as MaskMarker | undefined;
+  const bytes = maskBytesOf(gltf.scene);
+  if (!marker && !bytes) return;
+  maskImages.set(name, { side: checkedMarker(name, marker).side, ...bakedBytes(name, bytes) });
+}
+
+function checkedMarker(name: ModelName, marker: MaskMarker | undefined): MaskMarker {
+  if (!marker) throw new Error(`Model ${name} has a mask image but no mask marker. Run npm run models:bake ${name}.`);
+  if (marker.version !== SURFACE_MASK.version) throw new Error(`Model ${name} has mask version ${marker.version}, the game reads ${SURFACE_MASK.version}. Run npm run models:bake ${name}.`);
+  return marker;
+}
+
+function bakedBytes(name: ModelName, bytes: Omit<MaskImage, 'side'> | undefined): Omit<MaskImage, 'side'> {
+  if (!bytes) throw new Error(`Model ${name} has a mask marker but no mask image. Run npm run models:bake ${name}.`);
+  return bytes;
+}
+
+function prepareSurfaces(failed: ReadonlySet<ModelName>): void {
+  const missing = SURFACE_MODELS.filter((n) => !failed.has(n) && !maskImages.has(n));
+  if (missing.length) throw new Error(`Truck models without a surface mask: ${missing.join(', ')}. Run npm run models:bake.`);
+  maskLayout = packMasks(new Map([...maskImages].map(([n, m]) => [n, m.side])));
+  for (const name of maskImages.keys()) surfaceGeometry(name, source(name), maskLayout);
+}
+
+function surfaceGeometry(name: ModelName, root: THREE.Object3D, layout: AtlasLayout): void {
+  root.updateMatrixWorld(true);
+  const toRoot = root.matrixWorld.clone().invert();
+  const slot = layout.slots.get(name)!;
+  const meshes: THREE.Mesh[] = [];
+  root.traverse((o) => {
+    if (o instanceof THREE.Mesh) meshes.push(o);
+  });
+  const soups = meshes.map((mesh) => {
+    const geo = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
+    if (geo !== mesh.geometry) mesh.geometry.dispose();
+    mesh.geometry = geo;
+    const uv = geo.getAttribute('uv');
+    if (!uv) throw new Error(`Model ${name} mesh ${mesh.name} has a surface mask but no UVs`);
+    const atlasUv = new Float32Array(uv.count * 2);
+    for (let i = 0; i < uv.count; i++) atlasUv.set(slotUv(layout, slot, uv.getX(i), uv.getY(i)), i * 2);
+    geo.setAttribute(MASK_UV, new THREE.BufferAttribute(atlasUv, 2));
+    geo.deleteAttribute('uv');
+    return geo.getAttribute('position').clone().applyMatrix4(toRoot.clone().multiply(mesh.matrixWorld)).array as Float32Array;
+  });
+  const all = new Float32Array(soups.reduce((n, s) => n + s.length, 0));
+  soups.reduce((at, s) => (all.set(s, at), at + s.length), 0);
+  const distances = edgeDistances(all);
+  soups.reduce((at, s, i) => (meshes[i].geometry.setAttribute(EDGE_DISTANCE, new THREE.BufferAttribute(distances.slice(at, at + s.length), 3)), at + s.length), 0);
+}
+
+export const MASK_UV = 'maskUv';
+export const EDGE_DISTANCE = 'edgeDistance';
+
+export function neutralSurface(count: number): { maskUv: THREE.BufferAttribute; edgeDistance: THREE.BufferAttribute } {
+  if (!maskLayout) throw new Error('Call loadModels() before building truck surfaces');
+  const slot = maskLayout.slots.get(NEUTRAL_SLOT)!;
+  const center = slotUv(maskLayout, slot, 0.5, 0.5);
+  const uv = new Float32Array(count * 2);
+  for (let i = 0; i < count; i++) uv.set(center, i * 2);
+  return { maskUv: new THREE.BufferAttribute(uv, 2), edgeDistance: new THREE.BufferAttribute(new Float32Array(count * 3).fill(WEAR_EDGE.far), 3) };
+}
+
+export async function paintSurfaceMasks(): Promise<void> {
+  const layout = maskLayout;
+  if (!layout) throw new Error('Call loadModels() before paintSurfaceMasks()');
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = layout.side;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('No 2D canvas for the truck surface masks');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, layout.side, layout.side);
+  await Promise.all(
+    [...maskImages].map(async ([name, mask]) => {
+      const bitmap = await createImageBitmap(new Blob([mask.bytes], { type: mask.mime }), { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+      const slot = layout.slots.get(name)!;
+      if (bitmap.width !== slot.side || bitmap.height !== slot.side) throw new Error(`Mask of ${name} is ${bitmap.width}x${bitmap.height}, its marker says ${slot.side}`);
+      ctx.drawImage(bitmap, slot.x, slot.y);
+      bitmap.close();
+    }),
+  );
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.flipY = false;
+  texture.colorSpace = THREE.NoColorSpace;
+  SURFACE_ATLAS.value = texture;
+}

@@ -260,6 +260,17 @@ export const WEAPON_POOLS: Record<string, WeaponPool> = {
   },
 };
 
+const TRUCK_FITTINGS: readonly ModelName[] = ['bumper_front', 'bumper_rear', 'wmount_riser', 'antenna', 'tow_chain', 'wheel', 'coilover', 'axle'];
+
+export const SURFACE_MODELS: readonly ModelName[] = [
+  ...new Set([
+    ...Object.values(BASE_MODELS),
+    ...Object.values(PART_MODELS),
+    ...Object.values(WEAPON_POOLS).flatMap((p) => [...p.mount, ...p.receiver, ...p.barrel, ...p.extra]),
+    ...TRUCK_FITTINGS,
+  ]),
+];
+
 export type WeaponLook = { mount: ModelName; receiver: ModelName; barrel: ModelName; extra: ModelName | null };
 
 export function itemLookId(item: GridItem): string {

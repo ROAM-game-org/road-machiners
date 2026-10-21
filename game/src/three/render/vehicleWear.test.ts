@@ -1,4 +1,3 @@
-// A truck draws each part's wear as a look step, and answers where each part is.
 
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
@@ -14,7 +13,8 @@ import { maxHp } from '../../sim/wear';
 import { newWorld } from '../../sim/world';
 import { TEST_MAP } from '../../test/map';
 import { loadModels } from './models';
-import { signatureOf, VehicleView } from './vehicle';
+import { BODY_PAINT_SATURATION, bodyPaint, signatureOf, VehicleView } from './vehicle';
+import { paintOf } from '../../render/palette';
 import { defaultSetup } from '../../sim/settings';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -107,5 +107,18 @@ describe('part wear look', () => {
       expect(Math.min(...mounts.map((m) => Math.hypot(at.x - m.x, at.z - m.z)))).toBeLessThan(0.1);
     }
     expect(() => view.partPoint('nope')).toThrow();
+  });
+});
+
+describe('body paint', () => {
+  it('mutes the body paint and keeps the faction cab color at full strength', () => {
+    const v = truck();
+    const drawn = colors(new VehicleView(v, true)).split(',').map(Number);
+    const { top, cab } = paintOf(v);
+    expect(drawn).toContain(bodyPaint(top));
+    expect(drawn).not.toContain(top);
+    expect(drawn).toContain(cab);
+    const saturation = (hex: number) => new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }).s;
+    expect(saturation(bodyPaint(top))).toBeCloseTo(saturation(top) * BODY_PAINT_SATURATION, 2);
   });
 });
