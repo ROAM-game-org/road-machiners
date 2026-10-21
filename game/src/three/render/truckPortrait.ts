@@ -428,8 +428,9 @@ function renderParts(pass: Pass, view: VehicleView, meshes: Drawn[], isPart: (me
   return parts;
 }
 
-function renderPartIds(pass: Pass, view: VehicleView, v: Vehicle, solid: Drawn[], isPart: (mesh: Drawn) => boolean, numberOf: Numbering, trash: Disposable[]): Uint16Array {
+function renderPartIds(pass: Pass, view: VehicleView, v: Vehicle, solid: Drawn[], isPart: (mesh: Drawn) => boolean, numberOf: Numbering, trash: Disposable[], cabs: CabSpan[]): Uint16Array {
   paintIds(solid, (m) => (isPart(m) ? numberOf(m.userData.partId) : BODY_ID));
+  paintCabs(solid, cabs, numberOf);
   const scene = new THREE.Scene();
   scene.add(view.root);
   let ids = renderIds(pass.renderer, pass.flat, scene, pass.camera);
@@ -449,31 +450,34 @@ function renderCellIds(pass: Pass, v: Vehicle, solid: Drawn[], numberOf: Numberi
   return renderIds(pass.renderer, pass.flat, footprintScene(conditionItems(v), numberOf, column, trash), pass.camera);
 }
 
-function renderCabColumn(pass: Pass, v: Vehicle, solid: Drawn[], cab: PartItem, numberOf: Numbering, trash: Disposable[]): Uint16Array {
-  const heightOf = heightsOf(v, solid);
-  const column = { boxOf: (item: PartItem) => cellBox(v, item, 0, heightOf(item)), depthTest: false };
-  return renderIds(pass.renderer, pass.flat, footprintScene([cab], numberOf, column, trash), pass.camera);
+const CAB_SPAN_VERTEX = 'vCabX = (modelMatrix * vec4(transformed, 1.0)).x;';
+const CAB_SPAN_FRAGMENT = 'if (vCabX >= cabFrom && vCabX <= cabTo) diffuseColor.rgb = cabColor;';
+
+function cabSpanMaterial(side: THREE.Side, cab: number, from: number, to: number): THREE.MeshBasicMaterial {
+  const material = new THREE.MeshBasicMaterial({ color: idColor(BODY_ID), side });
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, { cabFrom: { value: from }, cabTo: { value: to }, cabColor: { value: idColor(cab) } });
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying float vCabX;').replace('#include <project_vertex>', `#include <project_vertex>\n${CAB_SPAN_VERTEX}`);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vCabX;\nuniform float cabFrom;\nuniform float cabTo;\nuniform vec3 cabColor;').replace('#include <color_fragment>', `#include <color_fragment>\n${CAB_SPAN_FRAGMENT}`);
+  };
+  material.customProgramCacheKey = () => 'cab-span';
+  return material;
 }
 
-function rowsOf(cells: Uint16Array, size: PixelSize, id: number): { top: number; bottom: number } {
-  let top = size.height;
-  let bottom = -1;
-  for (let p = 0; p < cells.length; p++) {
-    if (cells[p] !== id) continue;
-    const y = Math.floor(p / size.width);
-    top = Math.min(top, y);
-    bottom = Math.max(bottom, y);
-  }
-  if (bottom < 0) throw new Error(`Cab ${id} has no cells in the truck portrait`);
-  return { top, bottom };
-}
+type CabSpan = { partId: string; span: THREE.Box3 };
 
-function cabBand(ids: Uint16Array, cells: Uint16Array, size: PixelSize, cab: number): Uint16Array {
-  const { top, bottom } = rowsOf(cells, size, cab);
-  return ids.map((id, p) => {
-    const y = Math.floor(p / size.width);
-    return id === cab && (y < top || y > bottom) ? BODY_ID : id;
+function cabSpans(v: Vehicle, glass: Drawn[]): CabSpan[] {
+  return conditionItems(v).filter((item) => isCab(partDef(item.part.defId))).map((item) => {
+    const span = cellBox(v, item, 0, { min: 0, max: 0 });
+    for (const mesh of glass) if (mesh.userData.partId === item.part.id) span.union(new THREE.Box3().setFromObject(mesh));
+    return { partId: item.part.id, span };
   });
+}
+
+function paintCabs(solid: Drawn[], cabs: CabSpan[], numberOf: Numbering): void {
+  for (const { partId, span } of cabs) {
+    for (const mesh of solid) if (mesh.userData.partId === partId) mesh.material = cabSpanMaterial(mesh.material.side, numberOf(partId), span.min.x, span.max.x);
+  }
 }
 
 function deckBoxesOf(v: Vehicle, solid: Drawn[]): (item: PartItem) => THREE.Box3 {
@@ -509,6 +513,7 @@ function heightsOf(v: Vehicle, solid: Drawn[]): (item: PartItem) => Heights {
 function composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: Vehicle, trash: Disposable[]): Portrait {
   poseAtRest(view, v);
   const meshes = drawnMeshes(view.root);
+  const cabs = cabSpans(v, glassMeshes(meshes));
   sheenGlass(meshes);
   neutralizeReds(meshes, trash);
   const { camera, size } = settledCamera(meshes);
@@ -521,10 +526,8 @@ function composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: Ve
   const items = conditionItems(v);
   for (const item of items) numberOf(item.part.id);
   const solid = meshes.filter((m) => m.visible);
-  const cells = renderCellIds(pass, v, solid, numberOf, trash);
-  let ids = renderPartIds(pass, view, v, solid, (m) => Boolean(m.userData.partId), numberOf, trash);
-  for (const item of items) if (isCab(partDef(item.part.defId))) ids = cabBand(ids, renderCabColumn(pass, v, solid, item, numberOf, trash), size, numberOf(item.part.id));
-  const maps = { size, lit, ids, cells };
+  const ids = renderPartIds(pass, view, v, solid, isPart, numberOf, trash, cabs);
+  const maps = { size, lit, ids, cells: renderCellIds(pass, v, solid, numberOf, trash) };
   checkCovered(v, items, maps, numberOf);
   return portraitOver(v, items, maps, numberOf, { body: canvasOf(lit, size), parts: canvasOf(parts, size) });
 }
