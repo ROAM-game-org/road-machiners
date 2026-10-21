@@ -14,14 +14,14 @@ import { tearLine } from '../sim/harpoon';
 import { breakProp } from '../sim/salvage';
 import { isOnRope } from '../sim/tow';
 import { burnFuel } from '../sim/resources';
-import { setDownSpot } from '../sim/steering';
+import { setDown } from '../sim/steering';
 import { clearanceFor } from '../sim/clearance';
 import type { MoveOrder, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp } from '../sim/vec';
 import { exploreFrom } from '../sim/vision';
 import { bodyState, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
 import { frameBend, headingOf, toMap, type VehicleFrame, type WheelFrame } from './frames';
-import { bendField, checkBend, heldBend, poseOf, straighten } from '../sim/rig';
+import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
 import { planTurns, type PlanFrames } from './plan';
 
 export type TurnState = Omit<World, 'terrain'>;
@@ -181,31 +181,51 @@ function applyBreaks(w: World, r: TurnResult): void {
   for (const b of r.breaks) breakProp(w, b.prop, b.vehicle);
 }
 
-function setDown(w: World, v: Vehicle): void {
-  v.pos = setDownSpot(w, v);
-  straighten(v);
-  v.speed = 0;
-}
-
 function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['frames'][string]): void {
   if (v.brain) delete v.brain.farRoute;
   const s = bodyState(r.next, v.id);
   const start = poseOf(v);
   Object.assign(v, { pos: s.pos, heading: s.heading, speed: Math.max(0, toTilesPerTurn(s.speed)) }, bendField(heldBend(v.chassisId, s.bend)));
   checkBend(v);
-  const free = s.upright && !isLifted(r.next, w, v) && !isHung(v, r.results[v.id], start, frames) && !isPinned(w, v, r.results[v.id], start);
-  v.strandedTurns = free ? 0 : (v.strandedTurns ?? 0) + 1;
-  if (v.strandedTurns >= RULES.stranded.turns) setDown(w, v);
+  if ((v.strandedTurns ?? 0) >= RULES.stranded.turns) v.strandedTurns = 0;
+  const held = heldTurn(w, r, v, s, frames);
+  if (held) holdAt(v);
+  else releaseHold(v);
+  if ((v.strandedTurns ?? 0) >= RULES.stranded.turns) {
+    setDown(w, v);
+    delete v.strandedAt;
+  }
   v.trail = trailOf(start, frames);
   burnFuel(w, v, pathLength(v.trail));
   settleOrder(w, v, r.results[v.id]);
 }
 
-function isHung(v: Vehicle, res: VehicleResult, start: Pose, frames: TurnResult['frames'][string]): boolean {
+function holdAt(v: Vehicle): void {
+  v.strandedTurns = (v.strandedTurns ?? 0) + 1;
+  v.strandedAt ??= { x: v.pos.x, y: v.pos.y };
+}
+
+function releaseHold(v: Vehicle): void {
+  v.strandedTurns = 0;
+  delete v.strandedAt;
+}
+
+function heldTurn(w: World, r: TurnResult, v: Vehicle, s: ReturnType<typeof bodyState>, frames: TurnResult['frames'][string]): boolean {
   const last = frames.at(-1);
   if (!last) throw new Error(`Driven vehicle ${v.id} has no frames`);
-  if (!v.order || v.order.kind === 'brake' || res.arrived || res.passed) return false;
-  if (dist(start, v.pos) >= RULES.stranded.still) return false;
+  const started = (v.strandedTurns ?? 0) > 0;
+  if (started !== (v.strandedAt !== undefined)) throw new Error(`Vehicle ${v.id} has a stranded count without an anchor, or an anchor without a count`);
+  if (v.strandedAt && dist(v.pos, v.strandedAt) >= RULES.stranded.reach) return false;
+  if (!s.upright || isLifted(r.next, w, v)) return true;
+  if (!unmetOrder(v, r.results[v.id])) return false;
+  return started || isHung(last) || isPinned(w, v, r.results[v.id]);
+}
+
+function unmetOrder(v: Vehicle, res: VehicleResult): boolean {
+  return !!v.order && v.order.kind !== 'brake' && !res.arrived && !res.passed;
+}
+
+function isHung(last: VehicleFrame): boolean {
   return allWheels(last).some((wheel) => !wheel.ground);
 }
 
@@ -213,10 +233,8 @@ function allWheels(f: VehicleFrame): WheelFrame[] {
   return f.rear ? [...f.wheels, ...f.rear.wheels] : f.wheels;
 }
 
-function isPinned(w: World, v: Vehicle, res: VehicleResult, start: Pose): boolean {
-  if (!v.order || v.order.kind === 'brake' || res.arrived || res.passed) return false;
+function isPinned(w: World, v: Vehicle, res: VehicleResult): boolean {
   if (res.pushedSteps < TURN_STEPS * PHYSICS.driver.pinnedShare) return false;
-  if (dist(start, v.pos) >= RULES.stranded.still) return false;
   return clearanceFor(w, v, []).touches(v.pos, v.heading, v.bend);
 }
 

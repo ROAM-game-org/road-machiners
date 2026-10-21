@@ -358,6 +358,7 @@ export type Vehicle = {
   speed: number;
   stormExposure: Record<string, number>;
   strandedTurns?: number;
+  strandedAt?: Vec;
   stalledUntil?: number;
   order: MoveOrder | null;
   direct: boolean;

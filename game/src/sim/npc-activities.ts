@@ -47,7 +47,7 @@ import { joinLeader, safeBesidePartner } from './pairs';
 import { musterGoal, onCrewCall, steerMuster } from './crews';
 import { isDefeated, isKnockedOut } from './defeat';
 import { payDuty, stampLeg } from './duty';
-import { beginRearm, isLowOnFuel, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, serviceGoal } from './npc-service';
+import { beginRearm, fuelReserveFor, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, serviceGoal } from './npc-service';
 import { isSunwardMember, nightSafe, planSunward, shunsAtNight, sunwardNext, sunwardRetreat } from './sunward';
 import { meetingLapsed } from './sunward-crater';
 
@@ -137,7 +137,7 @@ export function createActivity(kind: NpcActivity['kind'], targetId: string | nul
   return { kind, targetId, destination, reason, phase: destination ? 'travel' : 'act' };
 }
 
-export function chooseNearestSite(vehicle: Vehicle, ids: string[]) {
+export function chooseNearestSite(vehicle: Pick<Vehicle, 'pos'>, ids: string[]) {
   return ids.map(getKnownSite).sort((a, b) => dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos))[0];
 }
 
@@ -913,7 +913,7 @@ function staysOnWork(world: World, vehicle: Vehicle): boolean {
 function needsUrgentSupplies(world: World, vehicle: Vehicle, profile: NpcProfile): boolean {
   const resources = getResources(world, vehicle);
   if (resources.supplies <= suppliesCap(vehicle) * NPC_UPKEEP.lowSupplies) return true;
-  return resources.fuel > 0 && isLowOnFuel(world, vehicle, profile);
+  return resources.fuel > 0 && resources.fuel <= fuelReserveFor(world, vehicle, profile);
 }
 
 function keepRepairing(world: World, vehicle: Vehicle): boolean {
@@ -947,8 +947,12 @@ export function awaitsTower(world: World, vehicle: Vehicle): boolean {
 function nextGoal(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity {
   if (isSunwardMember(vehicle)) return sunwardNext(world, vehicle);
   const next = nightSafe(world, vehicle, hasSaleCargo(vehicle) ? saleGoal(world, vehicle, profile) : idleGoal(world, vehicle));
-  if (next.kind !== 'wait' && topGoal(vehicle) !== next) pushGoal(world, vehicle, next);
-  return next;
+  if (next.kind === 'wait' || topGoal(vehicle) === next) return next;
+  pushGoal(world, vehicle, next);
+  const service = serviceGoal(world, vehicle, profile);
+  if (!service || goalsOf(vehicle).some((g) => g.kind === service.kind)) return next;
+  pushGoal(world, vehicle, service);
+  return service;
 }
 
 export function noteHurt(world: World): void {

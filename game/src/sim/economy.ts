@@ -272,6 +272,10 @@ export function buyFuel(world: World, vehicle: Vehicle, siteId: string): void {
   topUp(world, vehicle, ['fuel'], siteId in SHOPS ? siteId : null);
 }
 
+export function fuelRoomAt(world: World, vehicle: Vehicle, siteId: string): number {
+  return siteId in SHOPS ? serviceRoom(world, siteId, 'fuel', vehicle) : supplyRoom(world, 'fuel', vehicle);
+}
+
 function topUp(world: World, vehicle: Vehicle, kinds: readonly Supply[], shopId: string | null): void {
   const resources = getResources(world, vehicle);
   if (resources.money < 0) return;
