@@ -132,6 +132,10 @@ function unfitHunter(world: World, vehicle: Vehicle): boolean {
   return huntsPrey(vehicle) && !fitToHunt(world, vehicle);
 }
 
+export function knowsPump(profile: NpcProfile): boolean {
+  return profile.bases.length > 0 || profile.towns.length > 0;
+}
+
 export function pumpsOf(vehicle: Vehicle, profile: NpcProfile, broke: boolean): string[] {
   if (broke) return servingSiteIds(profile);
   if (profile.bases.length > 0) return profile.bases;
