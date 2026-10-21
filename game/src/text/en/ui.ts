@@ -90,7 +90,6 @@ export const UI = {
   'setting.enemyGearGrowth.description': 'How fast the enemies get stronger and more numerous with each stretch.',
   'save.download': 'Download save',
   'save.reportBug': 'If this looks like a bug, download the save and attach it to a GitHub issue.',
-  'save.settingReset': m('{setting} was reset to {pct}%', { setting: 'text', pct: 'int' }),
   'inv.nothingFound': 'Nothing found yet.',
   'inv.instantHint': 'Parts fit at once: drag them onto a mount or off it.',
   'block.unmounted': 'not mounted',

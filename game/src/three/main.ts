@@ -26,14 +26,14 @@ import type { QuestLanguage } from '../data/quests';
 import { setQuestLanguage } from '../sim/quests';
 import { t } from '../text/msg';
 import type { NewGameActions } from '../ui/new-game';
-import { chooseSaveFate, chooseStart, saveErrorText, showCarryReport, showRepairReport } from '../ui/save-screen';
+import { chooseSaveFate, chooseStart } from '../ui/save-screen';
 import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, noteError, onReport, reportError } from './crash';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
-import { carriesOnLoad, clearGame, hasRepair, loadSave, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
+import { carriesOnLoad, clearGame, loadSave, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
 import { openSaves } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
@@ -77,7 +77,6 @@ async function bootSlot(slot: SlotId): Promise<Booted> {
     if (!loaded) return newGameSaved(defaultSetup('roaming'), true);
     const runId = savedRunId(storedSave(slots, slot));
     if (runId === null) throw new Error(`The save in ${slot} loaded but names no run`);
-    if (hasRepair(loaded.repair)) await boot.aside(() => showRepairReport(loaded.world, loaded.repair, soundSettings));
     return { world: loaded.world, runId, loadedFrom: slot, fresh: false };
   } catch (err) {
     return unloadedSlot(err, slot);
@@ -100,7 +99,6 @@ function carried(slot: SlotId): NonNullable<ReturnType<typeof carriedSave>> | Sa
 async function carriedOrNew(slot: SlotId): Promise<Booted> {
   const carry = carried(slot);
   if (carry instanceof SaveError) return rescuedOrNew(carry, slot, false);
-  await boot.aside(() => showCarryReport(carry.report, soundSettings));
   return { world: carry.world, runId: carry.runId, loadedFrom: null, fresh: false };
 }
 
@@ -124,10 +122,9 @@ function newGameSaved(setup: WorldSetup, intro: boolean): Booted {
 async function rescuedOrNew(error: SaveError, slot: SlotId, carries: boolean): Promise<Booted> {
   const stored = storedSave(slots, slot);
   const canMigrate = carries && typeof stored === 'object' && stored !== null && !Array.isArray(stored);
-  await boot.aside(() => chooseSaveFate(saveErrorText(error), canMigrate, stored, newGameActions, soundSettings));
+  await boot.aside(() => chooseSaveFate(error, canMigrate, stored, newGameActions, soundSettings));
   const rescued = rescueSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId, Date.now());
   if (!rescued) throw new Error('The save became unreadable while migrating');
-  await boot.aside(() => showCarryReport(rescued.report, soundSettings));
   return { world: rescued.world, runId: rescued.runId, loadedFrom: null, fresh: false };
 }
 

@@ -91,7 +91,6 @@ export const UI: Translation<typeof EN> = {
   'setting.enemyGearGrowth.description': 'Как быстро враги становятся сильнее и многочисленнее с каждым перегоном.',
   'save.download': 'Скачать сохранение',
   'save.reportBug': 'Если это похоже на ошибку, скачайте сохранение и приложите его к обращению на GitHub.',
-  'save.settingReset': 'Настройка «{setting}» сброшена до {pct}%',
   'inv.nothingFound': 'Пока ничего не найдено.',
   'inv.instantHint': 'Детали встают сразу: перетащите их на крепление или с него.',
   'block.unmounted': 'не установлено',
