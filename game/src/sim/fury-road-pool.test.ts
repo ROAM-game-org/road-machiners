@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { NPCS } from '../data/npcs';
 import { FURY_ROAD } from '../data/modes';
 import { haulerOf } from './damage';
 import { advanceFar } from './far';
@@ -32,8 +31,8 @@ function meetsHauler(e: GameEvent, id: string, me: string): boolean {
   return e.t === 'destroyed' && e.vehicle === id;
 }
 
-describe('every NPC template as a Fury Road hostile', () => {
-  for (const template of Object.keys(NPCS).filter((id) => id in FURY_ROAD.cards)) {
+describe('every Fury Road card as a hostile', () => {
+  for (const template of Object.keys(FURY_ROAD.cards)) {
     it(`closes on the hauler as a ${template}, and shoots it, rams it or is wrecked, with no flight and no stall`, () => {
       let w = loneGroup(template);
       const id = w.furyRoad!.groups[0].vehicles[0];

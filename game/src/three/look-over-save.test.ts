@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { playerVehicle } from '../sim/damage';
 import { addGoods } from '../sim/inventory';
+import { startFirstAid } from '../sim/jobs';
 import { lookOver } from '../sim/look-over';
 import { addVehicle, emptyWorld } from '../sim/testkit';
 import { TEST_MAP } from '../test/map';
@@ -41,5 +42,24 @@ describe('look-overs and basics in saves', () => {
     expect(loaded.player.overdrive).toBe(true);
     expect(loaded.player.ranks).toEqual(w.player.ranks);
     expect(playerVehicle(loaded).speed).toBe(playerVehicle(w).speed);
+  });
+});
+
+describe('first aid in saves', () => {
+  it('gives back a running first aid job with no award', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.player.ranks.toughness = 1;
+    Object.assign(w.player, { health: 30, supplies: 10 });
+    playerVehicle(w).speed = 0;
+    const dressing = startFirstAid(w);
+
+    const loaded = reload(dressing);
+
+    expect(playerVehicle(loaded).job).toEqual(playerVehicle(dressing).job);
+    expect(loaded.player.health).toBe(dressing.player.health);
+    expect(loaded.player.supplies).toBe(dressing.player.supplies);
+    expect(loaded.player.xp).toBe(dressing.player.xp);
+    expect(loaded.player.money).toBe(dressing.player.money);
+    expect(loaded.events).toEqual([]);
   });
 });

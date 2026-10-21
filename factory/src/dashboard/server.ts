@@ -1,3 +1,4 @@
+import { rmSync } from 'node:fs';
 import { readFile, chmod } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { resolve } from 'node:path';
@@ -30,6 +31,7 @@ export class DashboardServer {
   constructor(private readonly collector: SnapshotCollector, private readonly assets: string, private readonly intervals: { refreshMs: number; githubRefreshMs: number }) {}
   async start(listener: { port: number | null; socket: string | null }): Promise<number> {
     await this.refresh('local');
+    if (listener.socket !== null) rmSync(listener.socket, { force: true });
     await new Promise<void>((resolve, reject) => {
       this.server.once('error', reject);
       const listen = () => { this.server.off('error', reject); resolve(); };

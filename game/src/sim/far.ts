@@ -8,7 +8,7 @@ import { route } from './path';
 import { propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
 import { burnFuel, getResources } from './resources';
-import { fuelCap, vehicleStats, type VehicleStats } from './stats';
+import { fuelCap, plainFuelPerTile, plainMaxSpeed, vehicleStats, type VehicleStats } from './stats';
 import { driveMode, parkedVehicles, throughSpeed } from './steering';
 import { fieldBlockers } from './hazards';
 import { getHitchedTowIds, isOnRope, ropeClientOf } from './tow';
@@ -33,6 +33,11 @@ export function fuelLimit(w: World, v: Vehicle, burnsFuel: boolean): 'low' | 'em
 export function lowFuelSpeed(maxSpeed: number): number {
   return maxSpeed * RULES.lowFuelSpeedFactor;
 }
+export function plainFuelSpeed(w: World, v: Vehicle): number {
+  const top = plainMaxSpeed(w, v);
+  return fuelLimit(w, v, plainFuelPerTile(w, v) > 0) === 'low' ? lowFuelSpeed(top) : top;
+}
+
 export function fuelLimited(w: World, v: Vehicle, s: VehicleStats, speed: number, order: MoveOrder | null): VehicleStats {
   const fuel = getResources(w, v).fuel;
   const low = fuelLimit(w, v, s.fuelPerTile > 0) === 'low';

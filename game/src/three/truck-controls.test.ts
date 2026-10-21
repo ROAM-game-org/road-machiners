@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { playerVehicle } from '../sim/damage';
+import { maxHealthOf } from '../sim/health';
 import { mountedParts } from '../sim/grid';
 import { aidData, addState } from '../sim/states';
 import { playerAid } from '../sim/aid';
@@ -61,13 +62,14 @@ describe('the E key on a deal', () => {
 });
 
 function controlsOf(world: World) {
-  const host = { world, revs: 0, applied: 0 };
+  const host = { world, revs: 0, applied: 0, notes: [] as unknown[] };
   const c = new TruckControls({
     world: () => host.world,
     apply: (next) => { host.world = next; host.applied++; },
     commit: (next) => { host.world = next; },
     refreshPlan: () => {},
     doused: () => {},
+    note: (text) => { host.notes.push(text); },
     revved: () => { host.revs++; },
   });
   return { c, host };
@@ -100,6 +102,39 @@ describe('the overdrive key', () => {
     const { c, host } = controlsOf(emptyWorld());
     c.toggleOverdrive();
     expect(host.world.player.overdrive).toBe(false);
+    expect(host.applied).toBe(0);
+  });
+});
+
+describe('the first aid key', () => {
+  function hurtWorld(): World {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.player.ranks.toughness = 1;
+    Object.assign(w.player, { health: 30, supplies: 10 });
+    w.vehicles[0].speed = 0;
+    return w;
+  }
+
+  it('starts first aid when parked and hurt', () => {
+    const { c, host } = controlsOf(hurtWorld());
+    c.firstAid();
+    expect(playerVehicle(host.world).job?.kind).toBe('firstAid');
+  });
+
+  it('notes why when it is refused', () => {
+    const w = hurtWorld();
+    w.player.health = maxHealthOf(w);
+    const { c, host } = controlsOf(w);
+    c.firstAid();
+    expect(playerVehicle(host.world).job).toBeNull();
+    expect(host.notes).toHaveLength(1);
+  });
+
+  it('does nothing without the basic', () => {
+    const w = hurtWorld();
+    w.player.ranks.toughness = 0;
+    const { c, host } = controlsOf(w);
+    c.firstAid();
     expect(host.applied).toBe(0);
   });
 });

@@ -25,6 +25,7 @@ import FORMAT_2_95 from './save-fixtures/format-2-95.json';
 import FORMAT_2_96 from './save-fixtures/format-2-96.json';
 import FORMAT_2_97 from './save-fixtures/format-2-97.json';
 import FORMAT_2_98 from './save-fixtures/format-2-98.json';
+import FORMAT_2_99 from './save-fixtures/format-2-99.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -850,5 +851,11 @@ describe('save migration 97 to 98', () => {
 describe('TINY_STEPS[98]', () => {
   it('leaves a world with a refused call for help and an answered call as it is', () => {
     expect(TINY_STEPS[98](structuredClone(FORMAT_2_98))).toEqual(FORMAT_2_98);
+  });
+});
+
+describe('TINY_STEPS[99]', () => {
+  it('leaves a world with a running first aid job as it is', () => {
+    expect(TINY_STEPS[99](structuredClone(FORMAT_2_99))).toEqual(FORMAT_2_99);
   });
 });

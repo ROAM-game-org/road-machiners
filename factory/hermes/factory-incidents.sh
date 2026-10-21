@@ -60,6 +60,8 @@ jq -r '.sweepError // empty | "stuck sweep failed: " + (split("\n")[0])' /factor
 jq -r 'select(.devFailed != null) | "dev build failed at \(.devFailed)" + (if .devError then ": " + (.devError | split("\n")[0]) else "" end)' /factory/home/state/state.json
 # factory-update could not deploy main. Its log is logs/update.log.
 if [ -f /factory/home/update-failed ]; then echo "update failed: $(cat /factory/home/update-failed)"; fi
+# The boot check found a service down after a boot. Its log is logs/boot-check.log.
+if [ -f /factory/home/boot-failed ]; then echo "boot check failed: $(paste -sd ' ' /factory/home/boot-failed)"; fi
 # Every tick, paused or not, writes the health file. A tick waits up to 15 minutes on the repo lock and the timer runs every minute, so 20 minutes without one means ticks stopped.
 if [ -f /factory/home/health ]; then
   jq -r 'select(.freeGb < .minFreeGb) | "disk low: under \(.minFreeGb) GB free"' /factory/home/health

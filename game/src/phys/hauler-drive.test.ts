@@ -10,8 +10,8 @@ import { setHeadless } from '../sim/fidelity';
 import { acrossOf, alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { stretchLayout } from '../sim/road-hazards';
 import { inYard, wholeInYard, yardSpots } from '../sim/outpost-gates';
-import { furyRoadWorld, parkInYard } from '../sim/testkit';
-import type { World } from '../sim/types';
+import { furyRoadWorld, parkInYard, sendGunTruckAway } from '../sim/testkit';
+import type { Vehicle, World } from '../sim/types';
 import { dist } from '../sim/vec';
 import { endTurn } from '../sim/world';
 import { budget } from '../test/budget';
@@ -43,6 +43,7 @@ function haulerRun(seed: number): HaulerRun {
 function playHauler(seed: number): HaulerRun {
   let w = furyRoadWorld(seed);
   w.furyRoad!.groups = [];
+  sendGunTruckAway(w);
   let drive: Drive = buildDrive(w);
   let stalls = 0;
   let widest = 0;
@@ -85,6 +86,7 @@ function farRun(seed: number): { w: World; turns: number; stalls: number } {
   setHeadless(true);
   let w = furyRoadWorld(seed);
   w.furyRoad!.groups = [];
+  sendGunTruckAway(w);
   let stalls = 0;
   let turns = 0;
   for (; turns < TURNS && !onPad(w); turns++) {
@@ -171,7 +173,7 @@ it('threads a checkpoint that blocks every lane from the outer lane, with no hit
   const ahead = roadPoint(CHECKPOINT_SEED, stretch - 1, start + 4, HIGHWAY.road.lanes[OUTER_LANE]);
   hauler.heading = Math.atan2(ahead.y - hauler.pos.y, ahead.x - hauler.pos.x);
   hauler.speed = HAULER_CRUISE;
-  playerVehicle(w).pos = roadPoint(CHECKPOINT_SEED, stretch - 1, start - 20, HIGHWAY.road.lanes[1]);
+  sendGunTruckAway(w);
   let drive: Drive = buildDrive(w);
   let hits = 0;
   let stalls = 0;
@@ -203,7 +205,7 @@ it('drives a semi free when it sits nose first against a checkpoint barrier', ()
   hauler.heading = WEDGE_HEADING;
   hauler.speed = 0;
   w.furyRoad!.waitingAt = null;
-  playerVehicle(w).pos = { x: WEDGE_POS.x - 4, y: WEDGE_POS.y + 20 };
+  sendGunTruckAway(w);
   let drive: Drive = buildDrive(w);
   let stalls = 0;
   for (let turn = 0; turn < WEDGE_TURNS; turn++) {
@@ -255,11 +257,14 @@ it.each([0, 1, 2, 3])('wins on entering the yard from lane %i, then parks whole 
   }
 }, budget(600_000));
 
+const GUN_AHEAD = 60;
+
 it('moves the hauler at the pace of a slow gun truck on open road', () => {
   const seed = 1;
   let w = furyRoadWorld(seed);
   w.furyRoad!.groups = [];
   const gun = playerVehicle(w);
+  gun.pos = roadPoint(seed, 0, alongOf(seed, toRoad(seed, 0, haulerOf(w).pos)) + GUN_AHEAD, HIGHWAY.road.lanes[3]);
   coreParts(gun, 'wheel').forEach((wheel) => { wheel.hp = 0; });
   mountedParts(gun, 'engine')[0].wear = 2;
   const cap = plainMaxSpeed(w, gun);
@@ -268,10 +273,11 @@ it('moves the hauler at the pace of a slow gun truck on open road', () => {
   let stalls = 0;
   const along = (): number => alongOf(seed, toRoad(seed, 0, haulerOf(w).pos));
   let mark = 0;
-  const WARMUP = 10;
-  const MEASURED = 40;
+  const WARMUP = 6;
+  const MEASURED = 12;
   for (let turn = 0; turn < WARMUP + MEASURED; turn++) {
     if (turn === WARMUP) mark = along();
+    coreParts(playerVehicle(w), 'wheel').forEach((wheel) => { wheel.hp = 0; });
     let result: TurnResult | null = null;
     w = endTurn(w, physicsMove(drive, (next) => (result = next)));
     stalls += w.events.filter((e) => e.t === 'stall').length;
@@ -283,4 +289,41 @@ it('moves the hauler at the pace of a slow gun truck on open road', () => {
   expect(stalls).toBe(0);
   expect(perTurn).toBeLessThanOrEqual(cap * 1.05);
   expect(perTurn).toBeGreaterThanOrEqual(cap * 0.8);
+}, budget(300_000));
+
+it('stops on its lane within a few tiles past gun reach for a parked gun truck, then drives on once it closes in', () => {
+  const seed = 1;
+  const { waitGap, resumeGap } = FURY_ROAD.hauler;
+  let w = furyRoadWorld(seed);
+  w.furyRoad!.groups = [];
+  let drive: Drive = buildDrive(w);
+  let stalls = 0;
+  const along = (v: Vehicle): number => alongOf(seed, toRoad(seed, 0, v.pos));
+  const lag = (): number => along(haulerOf(w)) - along(playerVehicle(w));
+  const play = (turns: number): void => {
+    for (let turn = 0; turn < turns; turn++) {
+      let result: TurnResult | null = null;
+      w = endTurn(w, physicsMove(drive, (next) => (result = next)));
+      stalls += w.events.filter((e) => e.t === 'stall').length;
+      freeDrive(drive);
+      drive = result!.next;
+    }
+  };
+  play(20);
+  const stoppedAt = lag();
+  play(10);
+  expect(haulerOf(w).speed).toBeLessThanOrEqual(RULES.parkedSpeed);
+  expect(lag()).toBeCloseTo(stoppedAt, 0);
+  expect(stoppedAt).toBeGreaterThan(waitGap);
+  expect(stoppedAt).toBeLessThan(waitGap + 6);
+  const gun = playerVehicle(w);
+  const near = along(haulerOf(w)) - resumeGap + 2;
+  gun.pos = roadPoint(seed, 0, near, HIGHWAY.road.lanes[2]);
+  freeDrive(drive);
+  drive = buildDrive(w);
+  const before = along(haulerOf(w));
+  play(3);
+  freeDrive(drive);
+  expect(along(haulerOf(w))).toBeGreaterThan(before + 1);
+  expect(stalls).toBe(0);
 }, budget(300_000));

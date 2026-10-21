@@ -20,15 +20,18 @@ Find what is broken and fix it yourself, in this session.
 
 ## Attack the change
 
+Your first task is to stop a repeat of a logged mistake.
+Read `../docs/incident-log.md`. Each entry is an incident: what went wrong and what it cost.
+For each incident the change could repeat, try to prove the repeat with a probe. A proven repeat is a serious finding, and you fix it.
+
 Run up:uverify on {{taskFile}}. Its stance is that the change is broken. Prove it with probes, then fix each break.
 
-Then run the `/code-review` skill on the change, and fix every correctness finding it reports.
+Then run the `/code-review` skill on the change, with the incident log as context, and fix every correctness finding it reports and every repeat of a logged incident.
 Read its other findings and fix the ones that make the code shorter or clearer: dead code and duplicated logic.
 
 While you attack and review:
 
 - Trace a bad value backward to the earliest broken invariant, and fix it there. Then trace it forward through its consumers, also in files the change did not edit.
-- Read `../docs/incident-log.md`. Each entry is a class of bug that already cost players or work. For each class the change touches, run its check and fix a repeat.
 - Check the change against the architecture principles below. A deviation the task file names and explains is fine.
 - Question the need and the completeness of each test the change added.
 - Crave fewer lines. Delete what a reader would not miss.

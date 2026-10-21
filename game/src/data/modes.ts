@@ -1,6 +1,8 @@
 
 import type { GameModeId, MapKind, ModeRules, WorldSettings } from '../sim/types';
 import { GAME_OPENED_QUESTS } from './quests';
+import { NPC_BEHAVIOR } from './npc-behavior';
+import { UNPRICED_WEAPONS } from './weapons';
 import type { GearRules } from '../sim/npc-loadout';
 import type { GearLevel } from './npcs';
 import type { PartKind } from './parts';
@@ -91,7 +93,7 @@ export const FURY_ROAD = {
   maxAlive: 8,
   spawnRetryTurns: 20,
   pay: { base: { first: 25000, step: 10000 } as Line },
-  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32 },
+  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, crawl: 1.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32, waitGap: Math.max(...Object.values(UNPRICED_WEAPONS).map((w) => w.range)), resumeGap: NPC_BEHAVIOR.escortWaitGap, apartGap: NPC_BEHAVIOR.escortCatchUpGap },
   stockPerKind: { weapon: 5, engine: 3, armor: 6, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon', 'sorokonoga'] },
   goodsMarkup: 1.5,

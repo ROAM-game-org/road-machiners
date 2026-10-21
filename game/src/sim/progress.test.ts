@@ -14,6 +14,12 @@ describe('rank 1 basics', () => {
     for (const [skill, basic] of Object.entries(BASICS)) expect(basicSkill(basic)).toBe(skill);
   });
 
+  it('puts the water douse under Overdrive and First aid under Toughness', () => {
+    expect(basicSkill('overdrive')).toBe('driving');
+    expect(basicSkill('firstAid')).toBe('toughness');
+    expect(BASIC_IDS).not.toContain('douse');
+  });
+
   it('are closed at rank 0 with the rank they need, and open at once when rank 1 is bought', () => {
     let w = emptyWorld();
     expect(BASIC_IDS.filter((basic) => hasBasic(w, basic))).toEqual([]);
