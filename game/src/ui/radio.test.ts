@@ -120,7 +120,7 @@ describe('RadioStation', () => {
     s.hear(w2);
     const b = s.next()!;
     expect(b.topic).toBe('haul');
-    expect(en(b.text)).toBe('New haul posted at Bowl: grain out to Nose.');
+    expect(en(b.text)).toBe('New haul posted at Bowl: sorgut out to Nose.');
     expect(drain(s, w2)).toBeNull();
   });
 

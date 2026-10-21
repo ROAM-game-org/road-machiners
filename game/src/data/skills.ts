@@ -80,7 +80,7 @@ export const XP_RULES = {
 };
 
 
-export type BasicId = 'overdrive' | 'lookOver' | 'patching' | 'douse' | 'acumen';
+export type BasicId = 'overdrive' | 'lookOver' | 'patching' | 'firstAid' | 'acumen';
 
 export const BASIC_RANK = 1;
 
@@ -88,7 +88,7 @@ export const BASICS: Record<SkillId, BasicId> = {
   driving: 'overdrive',
   perception: 'lookOver',
   machining: 'patching',
-  toughness: 'douse',
+  toughness: 'firstAid',
   social: 'acumen',
 };
 

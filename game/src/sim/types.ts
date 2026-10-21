@@ -137,6 +137,7 @@ export type Job =
   | { kind: "search"; stockId: string; turnsLeft: number; total: number }
   | { kind: "strip"; partId: string; turnsLeft: number; total: number }
   | { kind: "weld"; turnsLeft: number; total: number }
+  | { kind: "firstAid"; turnsLeft: number; total: number }
   | { kind: "survey"; contractId: string; site: string; turnsLeft: number; total: number }
   | { kind: "business"; siteId: string; deal: BusinessDeal; turnsLeft: number; total: number }
   | RefitJob;
@@ -252,6 +253,8 @@ export type Refusal =
   | { id: 'needsXp'; cost: number; have: number }
   | { id: 'noMoney' }
   | { id: 'noCargoRoom' }
+  | { id: 'unhurt' }
+  | { id: 'noSupplies' }
   | { id: 'noStock' }
   | { id: 'theyHaveNoRoom' }
   | { id: 'noSupplyRoom' }

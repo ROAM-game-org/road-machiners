@@ -270,7 +270,7 @@ export const UI = {
   'unstuck.towing': 'Towing a truck',
   'unstuck.harpoon': 'On a harpoon line',
   'hud.tipsOff': 'Tips are off. Menu, Show tips turns them back on.',
-  'hud.douseBlock.noSupplies': m('Need {n} supplies', { n: 'int' }),
+  'hud.needSupplies': m('Need {n} supplies', { n: 'int' }),
   'hud.douseBlock.engineCool': 'Engine is cool',
   'mode.furyRoad': 'Chaos Highway',
   'mode.furyRoad.description': 'An endless highway north between forts.',
