@@ -35,6 +35,10 @@ describe("truck condition css", () => {
     expect(rule(".truck-condition.aimable .condition-hit[data-over=\"part\"]")).toContain("cursor: crosshair");
   });
 
+  it("takes the pointer even inside a HUD zone that passes clicks through", () => {
+    expect(rule(".condition-hit")).toContain("pointer-events: auto");
+  });
+
   it("draws the body darker than the parts", () => {
     expect(rule(".cond-body")).toContain("var(--cond-body-filter)");
     expect(rule(".cond-parts")).toContain("var(--cond-parts-filter)");

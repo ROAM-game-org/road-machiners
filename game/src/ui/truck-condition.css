@@ -77,6 +77,7 @@
 }
 .condition-hit {
   cursor: default;
+  pointer-events: auto;
 }
 .truck-condition.aimable .condition-hit[data-over="part"] {
   cursor: crosshair;
