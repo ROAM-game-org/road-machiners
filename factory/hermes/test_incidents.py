@@ -11,9 +11,11 @@ from pathlib import Path
 SCRIPT = Path(__file__).parent / "factory-incidents.sh"
 
 
-def run(tmp_path: Path, health: dict | None, pause_age_minutes: int | None = None, audit: str = "exit 0", review: str | None = None, gh: str = "exit 0", dev: dict | None = None, error_alert: str | None = None, public_alert: str | None = None, state: dict | None = None) -> list[str]:
+def run(tmp_path: Path, health: dict | None, pause_age_minutes: int | None = None, audit: str = "exit 0", review: str | None = None, gh: str = "exit 0", dev: dict | None = None, error_alert: str | None = None, public_alert: str | None = None, state: dict | None = None, boot_failed: str | None = None) -> list[str]:
     home = tmp_path / "home"
     (home / "state").mkdir(parents=True)
+    if boot_failed is not None:
+        (home / "boot-failed").write_text(boot_failed)
     (home / "state" / "state.json").write_text(json.dumps({"failures": [], "lastTickError": None, "devFailed": None, **(dev or {}), **(state or {})}))
     if review is not None:
         (home / "review-pending").write_text(review)
@@ -68,6 +70,11 @@ def health(minutes_ago: int = 1, free_gb: float = 20.5, available_gb: float | No
 
 def test_fresh_health_with_room_prints_nothing(tmp_path):
     assert run(tmp_path, health()) == []
+
+
+def test_a_failed_boot_check_prints_every_failed_check_on_one_line(tmp_path):
+    report = "boot check at 2026-10-21T17:15:00Z:\nroam-factory-dashboard.service is not active\nhttps://x/factory/ answers 502, not 200\n"
+    assert run(tmp_path, health(), boot_failed=report) == ["boot check failed: boot check at 2026-10-21T17:15:00Z: roam-factory-dashboard.service is not active https://x/factory/ answers 502, not 200"]
 
 
 def test_a_failed_dev_build_names_its_commit_and_what_broke(tmp_path):

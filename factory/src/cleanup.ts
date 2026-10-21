@@ -38,7 +38,7 @@ function busy(name: string, state: FactoryState, lockRoot: string): boolean {
   const numbered = NUMBERED.exec(name);
   if (!numbered) return state.jobs.some((job) => NAMED[name].stages.includes(job.stage));
   const id = Number(numbered[2]);
-  return state.jobs.some((job) => job.issue === id) || state.interrupted.includes(id);
+  return state.jobs.some((job) => job.issue === id) || state.interrupted.includes(id) || String(id) in state.held;
 }
 
 function needed(name: string, state: FactoryState, cards: Card[]): boolean {

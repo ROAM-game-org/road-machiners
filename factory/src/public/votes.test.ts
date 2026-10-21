@@ -193,6 +193,16 @@ describe('countVotes', () => {
     expect(lines).toEqual([expect.objectContaining({ kind: 'card', issue: 7, step: 'denied', to: 'Done' })]);
   });
 
+  it('queues a vetoed proposal for the incident job and queues an accepted one for nothing', async () => {
+    const vetoed = posted({ '👍': 5 });
+    react(vetoed, 2, '42', ['👎']);
+    await countVotes(vetoed.ctx, vetoed.store);
+    expect(readState(vetoed.ctx.statePath).pendingIncidents).toEqual([7]);
+    const accepted = posted({ '👍': 4 });
+    await countVotes(accepted.ctx, accepted.store);
+    expect(readState(accepted.ctx.statePath).pendingIncidents).toEqual([]);
+  });
+
   it('counts a player thumbs-down against the proposal and never rejects on it', async () => {
     const f = posted(null);
     for (const [updateId, user] of [[2, '7'], [3, '8'], [4, '9'], [5, '10']] as const) react(f, updateId, user, ['👍']);
