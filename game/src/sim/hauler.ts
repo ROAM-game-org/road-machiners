@@ -3,7 +3,7 @@ import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from './damage';
 import { backOutSpot } from './back-out';
-import { footprint, halfLength, halfWidth } from './body';
+import { footprint, noseReach, rigMiddle, sideReach } from './rig';
 import { isDefeated } from './defeat';
 import { betweenLevels, inYard, yardSpots } from './outpost-gates';
 import { acrossOf, alongOf, roadAt, roadPoint, toRoad, windowSpan } from './highway';
@@ -32,7 +32,7 @@ function roadPos(world: World, pos: Vec) {
 }
 
 function alongNow(world: World, v: Vehicle): number {
-  return alongOf(world.seed, roadPos(world, v.pos));
+  return alongOf(world.seed, roadPos(world, rigMiddle(v)));
 }
 
 function acrossNow(world: World, pos: Vec): number {
@@ -46,7 +46,7 @@ function lanePoint(world: World, along: number, lane: number): Vec {
 }
 
 export function haulerLane(world: World, hauler: Vehicle): number {
-  const across = acrossNow(world, hauler.pos);
+  const across = acrossNow(world, rigMiddle(hauler));
   let best = 0;
   LANES.forEach((center, i) => {
     if (Math.abs(center - across) < Math.abs(LANES[best] - across)) best = i;
@@ -128,13 +128,13 @@ function nearestClearLane(world: World, hauler: Vehicle, from: number): number |
 
 function closesAcross(world: World, hauler: Vehicle, t: Vehicle, across: number): boolean {
   const next = { x: t.pos.x + Math.cos(t.heading) * t.speed, y: t.pos.y + Math.sin(t.heading) * t.speed };
-  const gap = across - acrossNow(world, hauler.pos);
+  const gap = across - acrossNow(world, rigMiddle(hauler));
   return (acrossNow(world, next) - across) * gap < 0;
 }
 
 export function sideThreat(world: World, hauler: Vehicle): SideThreat {
   const along = alongNow(world, hauler);
-  const mine = acrossNow(world, hauler.pos);
+  const mine = acrossNow(world, rigMiddle(hauler));
   let left = false;
   let right = false;
   for (const t of groupTrucks(world)) {
@@ -276,7 +276,7 @@ function blocksNose(hauler: Vehicle, foe: Vehicle): boolean {
   const ahead = dx * Math.cos(hauler.heading) + dy * Math.sin(hauler.heading);
   const side = Math.abs(-dx * Math.sin(hauler.heading) + dy * Math.cos(hauler.heading));
   const reach = footprint(foe.chassisId) + RULES.yieldDistance;
-  return ahead > 0 && ahead <= halfLength(hauler.chassisId) + reach && side <= halfWidth(hauler.chassisId) + reach;
+  return ahead > 0 && ahead <= noseReach(hauler.chassisId) + reach && side <= sideReach(hauler.chassisId) + reach;
 }
 
 export function watchHaulerStall(world: World): void {

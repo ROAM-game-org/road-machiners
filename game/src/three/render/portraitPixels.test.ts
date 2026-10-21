@@ -36,9 +36,15 @@ describe("partMaskOf", () => {
 });
 
 describe("centerOf", () => {
-  it("is the middle of the part's pixels", () => {
+  it("is a part pixel next to the middle of the part's pixels", () => {
     const map = ids(4, [[0, 0, 0, 0], [0, 5, 5, 0], [0, 5, 5, 0], [0, 0, 0, 0]]);
-    expect(centerOf(map, size(4, 4), 5)).toEqual({ x: 2, y: 2 });
+    expect(centerOf(map, size(4, 4), 5)).toEqual({ x: 1.5, y: 1.5 });
+  });
+
+  it("stays on the part when the middle of a bent part falls outside it", () => {
+    const map = ids(3, [[5, 5, 5], [0, 0, 5], [0, 0, 5]]);
+    const c = centerOf(map, size(3, 3), 5);
+    expect(map[Math.floor(c.y) * 3 + Math.floor(c.x)]).toBe(5);
   });
 
   it("fails loud for a part with no pixels", () => {

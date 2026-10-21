@@ -75,6 +75,7 @@ export const STATE_KINDS: Record<StateKindId, StateKind> = {
   truce: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
   grievance: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
   plea: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
+  helpRefused: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
   patch: {
     refresh: isPatching,
     check: checkPatch,
@@ -144,7 +145,7 @@ function turnsOf(kind: StateKindId): number | null {
   return STATE_TURNS[kind];
 }
 
-const DATA_KIND: Record<StateKindId, StateData['kind']> = { feud: 'feud', backedOff: 'none', tow: 'tow', turnedDown: 'none', towPromise: 'towPromise', answering: 'none', patch: 'patch', truce: 'none', grievance: 'none', plea: 'plea', trade: 'none', handover: 'none', revenge: 'none', escort: 'escort', strayFire: 'strayFire', aid: 'aid', combat: 'none', lootWarning: 'lootWarning', crew: 'crew', hire: 'hire', cavalcade: 'none', offering: 'offering', drag: 'drag', lookOver: 'none', sizedUp: 'none' };
+const DATA_KIND: Record<StateKindId, StateData['kind']> = { feud: 'feud', backedOff: 'none', tow: 'tow', turnedDown: 'none', towPromise: 'towPromise', answering: 'none', patch: 'patch', truce: 'none', grievance: 'none', plea: 'plea', helpRefused: 'none', trade: 'none', handover: 'none', revenge: 'none', escort: 'escort', strayFire: 'strayFire', aid: 'aid', combat: 'none', lootWarning: 'lootWarning', crew: 'crew', hire: 'hire', cavalcade: 'none', offering: 'offering', drag: 'drag', lookOver: 'none', sizedUp: 'none' };
 
 export function addState(w: World, kind: StateKindId, holder: string, other: string, data: StateData): NpcState {
   kindOf(kind);

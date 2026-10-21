@@ -9,13 +9,13 @@ import { legRisk } from './road-news';
 import { goodStock, goodValue, shopState, stockTarget } from './market';
 import { routeThreat } from './escort-job';
 import {
-  CREW, DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
+  CREW, DECISIONS, HELP_CALL, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
   type DecisionId, type DecisionOptions, type Trait, type TraitId, type TraitWeights, type Weighted, type WeightChange,
 } from '../data/npcs';
 import { REGION } from '../data/region';
 import { modeRules } from './settings';
 import { RULES } from '../data/rules';
-import { fightsAgainst, huntsForLoot, inCombatWithOther, inFeud, inTruce, isHostile } from './combat';
+import { awakeFoesOf, fightsAgainst, huntsForLoot, inCombatWithOther, inFeud, inTruce, isHostile } from './combat';
 import { ramFactor, ramImpact } from './crash-contact';
 import { isDefeated, isKnockedOut } from './defeat';
 import { fightOdds, type FightOdds } from './fight-odds';
@@ -29,7 +29,7 @@ import { maxHp } from './wear';
 import { corePart, freeCells, mountedParts } from './grid';
 import { hasRansom, ransomOf } from './haul';
 import { hasCargoRoom } from './inventory';
-import { topGoal } from './npc-activities';
+import { inDanger, topGoal } from './npc-activities';
 import { sampleWeighted } from './npc-loadout';
 import { getResources } from './resources';
 import { skillEffect } from './progress';
@@ -52,7 +52,7 @@ import { icarusAtlas } from './atlas';
 import { canVehicleSee } from './vision';
 import { huntsOffRoad } from './hunt-style';
 import { postsOf } from './watch-posts';
-import { bandAtLeast, bandToward, isAlly, isOutlaw, isRaider } from './relations';
+import { bandAtLeast, bandToward, heedsCall, isAlly, isOutlaw, isRaider, lawCalls } from './relations';
 
 export type NpcProfile = {
   towns: string[];
@@ -142,6 +142,28 @@ export function judgeDanger(world: World, observer: Vehicle, other: Vehicle): nu
 export function perceiveDanger(world: World, observer: Vehicle, other: Vehicle): number {
   const spread = NPC_BEHAVIOR.dangerSpread;
   return judgeDanger(world, observer, other) * randRange(world, 1 - spread, 1 + spread);
+}
+
+export function dangerJoining(world: World, vehicle: Vehicle, friend: Vehicle, foes: Vehicle[]): number {
+  const ours = new Map([...ownSide(world, vehicle), ...perceivedGroup(world, vehicle, friend)].map((v) => [v.id, v]));
+  const theirs = new Map(foes.flatMap((foe) => perceivedGroup(world, vehicle, foe)).filter((v) => !ours.has(v.id)).map((v) => [v.id, v]));
+  const spread = NPC_BEHAVIOR.dangerSpread;
+  return strengthRatio(fightOdds(world, [...ours.values()], [...theirs.values()])) * randRange(world, 1 - spread, 1 + spread);
+}
+
+export function canAnswerCall(world: World, vehicle: Vehicle, caller: Vehicle): boolean {
+  const foes = awakeFoesOf(world, caller);
+  if (foes.length === 0 || vehicle.brain === null || !heedsCall(world, vehicle, caller, foes)) return false;
+  if (isDefeated(vehicle) || isStranded(world, vehicle) || firepower(world, vehicle) <= 0 || inDanger(vehicle)) return false;
+  if (hasTrait(vehicle, 'coward') && !bandAtLeast(bandToward(world, vehicle, caller), 'friendly')) return false;
+  return !keepsWord(world, vehicle, 'helpCalled', caller.id);
+}
+
+function helpFactor(world: World, vehicle: Vehicle, _decision: DecisionId, subject: string | null): number {
+  const caller = subjectOf(world, 'helpCalled', subject);
+  if (lawCalls(vehicle, caller, awakeFoesOf(world, caller))) return HELP_CALL.law;
+  const band = bandToward(world, vehicle, caller);
+  return band === 'allied' ? HELP_CALL.allied : band === 'friendly' ? HELP_CALL.friendly : 1;
 }
 
 export function isManageable(vehicle: Vehicle, danger: number): boolean {
@@ -677,6 +699,7 @@ const AVAILABLE: Record<OptionName, Availability> = {
   comply: always,
   demand: always,
   attack: always,
+  help: (world, vehicle, decision, subject) => canAnswerCall(world, vehicle, subjectOf(world, decision, subject)),
   hire: canHireSubject,
   take: canTakeSubject,
   decline: always,
@@ -931,6 +954,7 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   halt: neutral,
   veer: neutral,
   comply: complyFactor,
+  help: helpFactor,
   hire: neutral,
   take: neutral,
   decline: (world, vehicle) => declineFactor(world, vehicle),
@@ -1036,6 +1060,7 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   crewAsked: 'response',
   crewCalled: 'response',
   vigilCalled: 'response',
+  helpCalled: 'venture',
 };
 
 export function keepsWord(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {

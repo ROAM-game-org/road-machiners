@@ -99,6 +99,15 @@ describe('tow offer', () => {
     expect(w.events).toContainEqual({ t: 'call', with: tow.holder, outcome: 'ended' });
   });
 
+  it('a trader whose tank cannot carry the tow never offers it, and the player can still tow with any fuel', () => {
+    const dry = stranded();
+    getResources(dry.w, dry.trader).fuel = 1;
+    expect(runUntil(dry.w, 30, (w) => playerTow(w) !== null).w.states.some((st) => st.kind === 'tow')).toBe(false);
+    const full = stranded();
+    getResources(full.w, full.trader).fuel = fuelCap(full.trader);
+    expect(playerTow(runUntil(full.w, 30, (w) => playerTow(w) !== null).w)).not.toBeNull();
+  });
+
   it('a trader that sees a stranded player drives over and offers a tow', () => {
     const s = stranded();
     const r = runUntil(s.w, 30, (w) => playerTow(w) !== null);

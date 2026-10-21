@@ -16,6 +16,7 @@ import { BUILT_FIELD, BUILT_OLD_ROAD, oldWorldLayer, tilesWithin } from './oldwo
 import { fortressLayer } from './fortress';
 import { stampTerritoryGround } from './ground-stamps';
 import { keepStartClear } from './start-ground';
+import { boatLayer } from './boats';
 import { roadsideLayer } from './roadside';
 import { territoryLayer } from './territory';
 import { cornerNeighbors, geologyLayer, pondDepths, type Neighbors } from './geology';
@@ -27,7 +28,8 @@ export function bakeMap(seed: number): MapDraft {
   d = timed('rocks', () => rockLayer(seed, d));
   d = timed('fortresses', () => fortressLayer(d));
   d = timed('start', () => keepStartClear(d));
-  return timed('roadside', () => roadsideLayer(seed, d));
+  d = timed('roadside', () => roadsideLayer(seed, d));
+  return timed('boats', () => boatLayer(seed, d));
 }
 
 export function groundForTerritories(seed: number): MapDraft {

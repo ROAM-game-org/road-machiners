@@ -32,6 +32,21 @@ function fortScene(template = 'buggy') {
   return { w, truck, me, hauler, fort };
 }
 
+function heldDest(v: Vehicle): { x: number; y: number } {
+  if (!v.order || v.order.kind === 'brake') throw new Error(`${v.id} holds no point to wait at`);
+  return v.order.dest;
+}
+
+function parkOnHold(w: World, v: Vehicle): void {
+  for (let leg = 0; leg < 3; leg++) {
+    planNpcOrders(w);
+    const hold = heldDest(v);
+    if (hold.x === v.pos.x && hold.y === v.pos.y) return;
+    v.pos = { ...hold };
+  }
+  throw new Error(`${v.id} found no hold to wait at`);
+}
+
 function alongAt(w: World, v: Vehicle): number {
   return alongOf(w.seed, toRoad(w.seed, 0, v.pos));
 }
@@ -74,8 +89,8 @@ describe('hostiles stay out of the fort', () => {
     const { w, truck, me } = fortScene();
     me.pos = roadPoint(w.seed, 0, alongAt(w, truck) - 60, 0);
     me.speed = 0;
-    truck.pos = heldGoal(w, truck, yardSpots(w, 1).truck)!;
     advanceFuryRoad(w);
+    parkOnHold(w, truck);
     for (let i = 0; i <= 6; i++) planNpcOrders(w);
     expect(truck.brain!.recovery ?? 0).toBe(0);
     expectHeld(w, truck);

@@ -42,6 +42,7 @@
     "icons": "node scripts/icons.mjs",
     "quest-art": "uv run --quiet --with pillow --with numpy python -I tools/quest-art/post.py",
     "quest-art:crops": "uv run --quiet --with pillow python -I tools/quest-art/crops.py",
+    "models:bake": "vite-node scripts/models-bake.mjs",
     "models:shapes": "node scripts/prop-shapes.mjs && node scripts/truck-shapes.mjs",
     "save:shape": "vite-node scripts/save-shape.mjs",
     "old-spots": "vite-node scripts/old-spots.mjs",

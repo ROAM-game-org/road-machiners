@@ -19,7 +19,8 @@ import {
   contractSummary,
   surveyProgress,
   isNotable,
-  nextSurveyClue,
+  surveyClueLines,
+  surveyHowTo,
   eventText,
   formatNpcPass,
   workLabel,
@@ -117,6 +118,7 @@ export type CardAction = 'mark' | 'lookOver';
 export type CameraMode = "centered" | "auto";
 
 const TOAST_MS = 3500;
+const CONDITION_ROWS = 12;
 
 const TONE_CLASS: Record<TipLine['tone'], string> = { base: 'dim', bad: 'bad', good: 'good', plain: '' };
 
@@ -265,8 +267,8 @@ export class Hud {
 
   constructor(private actions: HudActions, private radio: RadioPanel, renderer: THREE.WebGLRenderer) {
     this.portraits = new TruckPortraits(renderer);
-    this.condition = new TruckConditionView(this.portraits);
-    this.inspected = new TruckConditionView(this.portraits);
+    this.condition = new TruckConditionView(this.portraits, CONDITION_ROWS);
+    this.inspected = new TruckConditionView(this.portraits, null);
     this.inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
     const openLog = () => this.drawers.toggle("log");
     this.log.strip.root.addEventListener("click", openLog);
@@ -486,7 +488,7 @@ export class Hud {
     this.contracts.style.display = "";
     this.contracts.replaceChildren(
       el("h3", { class: "panel-title" }, t("hud.contracts")),
-      ...w.player.contracts.map((c) => contractLine(w, c)),
+      ...w.player.contracts.map((c) => heldContractLine(w, c)),
       ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
     );
   }
@@ -566,7 +568,7 @@ export class Hud {
   renderTop(w: World): void {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
-    this.condition.render(playerVehicle(w), undefined, repairingPart(w, playerVehicle(w)));
+    this.condition.render(playerVehicle(w), w.player.paint, undefined, repairingPart(w, playerVehicle(w)));
     this.haulerGauge.render(w);
     this.renderContracts(w);
     this.tips.update(w, this.actions.autoTravel());
@@ -698,6 +700,7 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
+      if (isNotable(e)) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
     if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
@@ -731,7 +734,7 @@ export class Hud {
     }
     const aim = this.aimOf(w, v);
     this.inspectedAimable = aim !== undefined;
-    this.inspected.render(v, aim);
+    this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
       infoHead(w, v, hostile, this.cardButtons(w, v)),
@@ -777,6 +780,16 @@ function shownWork(action: ContextAction | null, work: Work | null): Work | null
   return action && !action.hint && !blocks ? null : work;
 }
 
+export function heldContractLine(w: World, c: Contract): HTMLElement {
+  const survey = c.kind === 'survey' && !isMet(c);
+  return el(
+    'div',
+    { class: 'contract-line' },
+    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c), surveyHowTo(c)) : null, claimRivalMark(w, c)),
+    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: 'num' }, heldContractDue(c)),
+  );
+}
+
 function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
   return el(
     "div",
@@ -789,14 +802,4 @@ function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
 function escortLine(w: World, c: EscortContract): HTMLElement | null {
   const status = escortStatusText(w, c);
   return status ? el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, status) : null;
-}
-
-function surveyProgressLine(c: Contract): HTMLElement | null {
-  if (c.kind !== "survey" || isMet(c)) return null;
-  return el("div", { class: "dim" }, surveyProgress(c), SPACE, el("span", { class: "contract-clue" }, nextSurveyClue(c)));
-}
-
-export function contractLine(w: World, c: Contract): HTMLElement {
-  const state = c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c));
-  return el("div", { class: "contract-line" }, el("div", {}, contractSummary(c), surveyProgressLine(c), claimRivalMark(w, c)), state);
 }

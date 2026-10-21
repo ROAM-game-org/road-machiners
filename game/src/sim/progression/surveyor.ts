@@ -22,6 +22,7 @@ const LOOKS: Record<OldPlaceType, readonly LandmarkLook[]> = {
   hamlet: ['house', 'ruin', 'gasStation'],
   lookout: ['house', 'ruin', 'gasStation'],
   hulks: ['tank'],
+  boats: ['fishingBoat', 'riverBarge', 'skiff'],
 };
 const SWEEP_RADIUS = 40;
 const SWEEP_STOPS = 8;

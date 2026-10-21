@@ -5,7 +5,7 @@ import { TERRAIN_TYPES } from '../../data/terrain';
 import { drawnWheelPoints } from '../../render/partLooks';
 import { TIME } from '../../data/time';
 import { groundPoint, headingOf, toMap, type V3, type VehicleFrame } from '../../phys/frames';
-import { bodyOf } from '../../sim/body';
+import { unitBody } from '../../sim/body';
 import { atlasOf } from '../../sim/atlas';
 import { deckAt } from '../../sim/bridge';
 import { tileAt, type Terrain } from '../../sim/terrain';
@@ -55,9 +55,10 @@ export class Ruts {
   }
 
   layTracks(world: World, v: Vehicle, f: VehicleFrame, tires: V3[]): void {
-    if (tires.length !== f.wheels.length) throw new Error(`Vehicle ${v.id} has ${f.wheels.length} wheel frames for ${tires.length} wheels`);
+    const wheels = [...f.wheels, ...(f.rear?.wheels ?? [])];
+    if (tires.length !== wheels.length) throw new Error(`Vehicle ${v.id} has ${wheels.length} wheel frames for ${tires.length} wheels`);
     const ends = this.endsOf(v.id, tires.length);
-    for (const i of RUT.wheels) this.extend(ends, i, tires[i], f.wheels[i].ground ? rutAt(world.terrain, tires[i]) : 0, world.turn);
+    for (const i of rutWheels(f)) this.extend(ends, i, tires[i], wheels[i].ground ? rutAt(world.terrain, tires[i]) : 0, world.turn);
   }
 
   tick(turn: number): void {
@@ -95,7 +96,7 @@ export class Ruts {
 
   private endsOf(id: string, wheels: number): (V3 | null)[] {
     let ends = this.last.get(id);
-    if (!ends) {
+    if (!ends || ends.length !== wheels) {
       ends = new Array<V3 | null>(wheels).fill(null);
       this.last.set(id, ends);
     }
@@ -138,10 +139,17 @@ function fadeOf(age: number): number {
 }
 
 export function tirePoints(terrain: Terrain, chassisId: string, f: VehicleFrame): V3[] {
-  const h = headingOf(f.rot);
-  const at = toMap(f.pos);
-  return drawnWheelPoints(bodyOf(chassisId)).map((m) => {
-    const off = { x: m.x * Math.cos(h) - m.z * Math.sin(h), z: m.x * Math.sin(h) + m.z * Math.cos(h) };
-    return groundPoint(terrain, { x: at.x + off.x / PHYSICS.metersPerTile, y: at.y + off.z / PHYSICS.metersPerTile });
+  const units = [{ unit: 0, pos: f.pos, rot: f.rot }, ...(f.rear ? [{ unit: 1, pos: f.rear.pos, rot: f.rear.rot }] : [])];
+  return units.flatMap(({ unit, pos, rot }) => {
+    const h = headingOf(rot);
+    const at = toMap(pos);
+    return drawnWheelPoints(unitBody(chassisId, unit), unit).map((m) => {
+      const off = { x: m.x * Math.cos(h) - m.z * Math.sin(h), z: m.x * Math.sin(h) + m.z * Math.cos(h) };
+      return groundPoint(terrain, { x: at.x + off.x / PHYSICS.metersPerTile, y: at.y + off.z / PHYSICS.metersPerTile });
+    });
   });
+}
+
+export function rutWheels(f: VehicleFrame): readonly number[] {
+  return f.rear ? [...RUT.wheels, f.wheels.length, f.wheels.length + 1] : RUT.wheels;
 }

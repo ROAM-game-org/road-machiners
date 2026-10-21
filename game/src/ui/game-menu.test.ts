@@ -5,10 +5,10 @@ import { modeRulesOf } from "../sim/settings";
 
 describe("entryEnabled", () => {
   const states = [
-    { busy: false, hasSave: false, expected: { new: true, save: true, load: false, options: true, tips: true, help: true, camera: true, report: true } },
-    { busy: false, hasSave: true, expected: { new: true, save: true, load: true, options: true, tips: true, help: true, camera: true, report: true } },
-    { busy: true, hasSave: false, expected: { new: false, save: false, load: false, options: true, tips: true, help: true, camera: true, report: true } },
-    { busy: true, hasSave: true, expected: { new: false, save: false, load: false, options: true, tips: true, help: true, camera: true, report: true } },
+    { busy: false, hasSave: false, expected: { new: true, save: true, unstuck: true, load: false, options: true, tips: true, help: true, camera: true, report: true } },
+    { busy: false, hasSave: true, expected: { new: true, save: true, unstuck: true, load: true, options: true, tips: true, help: true, camera: true, report: true } },
+    { busy: true, hasSave: false, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, camera: true, report: true } },
+    { busy: true, hasSave: true, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, camera: true, report: true } },
   ];
   for (const { busy, hasSave, expected } of states) {
     it(`busy ${busy}, saved ${hasSave}`, () => {

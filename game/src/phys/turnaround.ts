@@ -1,6 +1,8 @@
 import { PHYSICS } from '../data/physics';
 import type { Body } from '../sim/body';
 import type { Clearance } from '../sim/clearance';
+import { bendField } from '../sim/rig';
+import type { Pose } from '../sim/types';
 import type { Vec } from '../sim/vec';
 
 export function turnRadius(body: Body, maxSteer: number): number {
@@ -11,7 +13,7 @@ export function turnaroundSpeed(body: Body, maxSteer: number, grip: number): num
   return Math.sqrt(PHYSICS.driver.cornerAccel * grip * turnRadius(body, maxSteer));
 }
 
-export type Stance = { at: Vec; heading: number };
+export type Stance = { at: Vec; heading: number; bend?: number };
 
 function arcPoint(stance: Stance, curvature: number, length: number): Vec {
   const { at, heading } = stance;
@@ -22,13 +24,14 @@ function arcPoint(stance: Stance, curvature: number, length: number): Vec {
 
 function arcClear(room: Clearance, stance: Stance, curvature: number, length: number, direction: 1 | -1, size: number): boolean {
   const step = PHYSICS.driver.turnSample;
-  const worse = room.worsensFrom(stance.at, stance.heading);
+  const worse = room.worsensFrom(stance.at, stance.heading, stance.bend);
+  let pose: Pose = { x: stance.at.x, y: stance.at.y, heading: stance.heading, ...bendField(stance.bend) };
   for (let s = step; s < length + step; s += step) {
     const signed = direction * Math.min(s, length);
     const at = arcPoint(stance, curvature, signed);
-    const heading = stance.heading + curvature * signed;
+    pose = room.follow(pose, { x: at.x, y: at.y, heading: stance.heading + curvature * signed });
     if (at.x < 0 || at.y < 0 || at.x >= size || at.y >= size) return false;
-    if (worse(at, heading)) return false;
+    if (worse(at, pose.heading, pose.bend)) return false;
   }
   return true;
 }

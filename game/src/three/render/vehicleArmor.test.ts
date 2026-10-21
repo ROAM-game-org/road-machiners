@@ -4,7 +4,7 @@ import { CHASSIS } from '../../data/chassis';
 import { PARTS } from '../../data/parts';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import { itemLookId, partModel } from '../../render/partLooks';
-import { bodyOf, cellRect, restOn } from '../../sim/body';
+import { bodyOf, cellRect, restOn, unitBody } from '../../sim/body';
 import { baseGrid, isMounted, itemCells, placementError, plateSide } from '../../sim/grid';
 import type { GridItem } from '../../sim/types';
 import { loadModels, model } from './models';
@@ -49,13 +49,17 @@ function placedBox(chassisId: string, item: PartItem): THREE.Box3 {
   return new THREE.Box3().setFromObject(obj);
 }
 
+function overhangOf(box: THREE.Box3, half: { x: number; z: number }): number {
+  return Math.max(0, box.max.x - half.x, -half.x - box.min.x, box.max.z - half.z, -half.z - box.min.z);
+}
+
 describe('mounted armor', () => {
   it.each(Object.keys(CHASSIS))('%s: every armor part sits with its inner face at the body face minus the inset', (id) => {
-    const body = bodyOf(id);
     const problems: string[] = [];
     const items = mountedArmor(id);
     expect(items.length).toBeGreaterThan(0);
     for (const item of items) {
+      const body = unitBody(id, cellRect(id, itemCells(item)).unit);
       const side = plateSide(id, item);
       const box = placedBox(id, item);
       const label = `${item.part.defId} rot ${item.rot} at ${item.x},${item.y} side ${side}`;
@@ -80,9 +84,9 @@ describe('mounted armor', () => {
     }
   });
 
-  it.each(Object.keys(CHASSIS))('%s: no loose part or good reaches into armor by more than the inset', (id) => {
+  it.each(Object.keys(CHASSIS))('%s: no loose part or good reaches into armor by more than the inset plus its own overhang past the body', (id) => {
     const grid = baseGrid(id);
-    const armor = mountedArmor(id).map((item) => ({ box: placedBox(id, item), cells: new Set(itemCells(item).map((c) => `${c.x},${c.y}`)) }));
+    const armor = mountedArmor(id).map((item) => ({ box: placedBox(id, item), unit: cellRect(id, itemCells(item)).unit, cells: new Set(itemCells(item).map((c) => `${c.x},${c.y}`)) }));
     const looks: GridItem[] = [];
     for (let y = 0; y < grid.chassisH; y++) {
       for (let x = 0; x < grid.w; x++) {
@@ -100,9 +104,10 @@ describe('mounted armor', () => {
       const at = footprint({ chassisId: id }, item, restOn(id, cellRect(id, itemCells(item))).y);
       const drawn = new THREE.Box3().setFromObject(model(partModel(itemLookId(item)))).applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
       const mine = itemCells(item).map((c) => `${c.x},${c.y}`);
-      for (const a of armor.filter((o) => !mine.some((k) => o.cells.has(k)))) {
+      const unit = cellRect(id, itemCells(item)).unit;
+      for (const a of armor.filter((o) => o.unit === unit && !mine.some((k) => o.cells.has(k)))) {
         const reach = Math.min(drawn.max.x - a.box.min.x, a.box.max.x - drawn.min.x, drawn.max.z - a.box.min.z, a.box.max.z - drawn.min.z, drawn.max.y - a.box.min.y, a.box.max.y - drawn.min.y);
-        worst = Math.max(worst, reach);
+        worst = Math.max(worst, reach - overhangOf(drawn, unitBody(id, unit).half));
       }
     }
     expect(checked).toBeGreaterThan(0);

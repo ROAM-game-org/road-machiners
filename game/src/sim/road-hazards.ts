@@ -328,7 +328,7 @@ const SHAPES = new WeakMap<Local, Shape[]>();
 function shapesOf(p: Local): Shape[] {
   let shapes = SHAPES.get(p);
   if (!shapes) {
-    if (p.hulk) hulkBoxes(p.hulk);
+    if (p.hulk) hulkBoxes(p.hulk, undefined);
     shapes = p.kind === 'rock' || p.kind === 'crag' ? [{ circle: { c: { x: p.o, y: -p.a }, r: p.r } }] : propBoxes(propObstacle(proxyProp(p), 0)).map((box) => ({ box }));
     SHAPES.set(p, shapes);
   }

@@ -106,12 +106,12 @@ class Placer {
   }
 }
 
-function turnGap(a: number, b: number): number {
+export function turnGap(a: number, b: number): number {
   const d = (2 * (a - b)) % TURN;
   return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) / 2;
 }
 
-function lineGap(a: Vec, b: Vec, c: Vec): number {
+export function lineGap(a: Vec, b: Vec, c: Vec): number {
   return Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / dist(a, b);
 }
 
@@ -119,7 +119,7 @@ function key(x: number, y: number): number {
   return y * 4096 + x;
 }
 
-function tileFlow(d: MapDraft, tile: number): number {
+export function tileFlow(d: MapDraft, tile: number): number {
   const w = d.size + 1;
   const k = Math.floor(tile / d.size) * w + (tile % d.size);
   return Math.max(d.flow[k], d.flow[k + 1], d.flow[k + w], d.flow[k + w + 1]);

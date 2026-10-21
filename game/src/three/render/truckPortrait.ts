@@ -25,7 +25,9 @@ import {
   type Tier,
   type TintName,
 } from './portraitPixels';
-import { bodyOf, cellRect, highestUnder } from '../../sim/body';
+import { cellRect, highestUnder, unitBody, unitsOf } from '../../sim/body';
+import type { TruckPaint } from '../../data/chassis';
+import type { VehicleFrame } from '../../phys/frames';
 import { itemCells } from '../../sim/grid';
 import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
@@ -45,7 +47,7 @@ const LOOK = {
   redMaxHue: 0.025,
   redMinSaturation: 0.5,
   snapRadiusPx: 12,
-  minHiddenSpanM: 0.2,
+  hiddenSpansM: [0.2, 1.2],
   skyColor: 0xfff4e0,
   groundColor: 0x504030,
   skyIntensity: 1.6,
@@ -76,7 +78,7 @@ export type Portrait = {
   glow(partId: string, tier: Tier): Glow;
 };
 
-export type BuildPortrait = (renderer: THREE.WebGLRenderer, pristine: Vehicle) => Portrait;
+export type BuildPortrait = (renderer: THREE.WebGLRenderer, pristine: Vehicle, playerPaint: TruckPaint) => Portrait;
 
 export function pristineOf(v: Vehicle): Vehicle {
   const copy = structuredClone(v);
@@ -96,13 +98,13 @@ export class TruckPortraits {
     private readonly build: BuildPortrait = buildPortrait,
   ) {}
 
-  portraitOf(v: Vehicle): Portrait {
+  portraitOf(v: Vehicle, playerPaint: TruckPaint): Portrait {
     const pristine = pristineOf(v);
-    const key = `${v.id}|${signatureOf(pristine)}`;
+    const key = `${v.id}|${signatureOf(pristine, playerPaint)}`;
     const known = this.built.get(key);
     if (known) return known.portrait;
     for (const [other, entry] of this.built) if (entry.vehicleId === v.id) this.built.delete(other);
-    const portrait = this.build(this.renderer, pristine);
+    const portrait = this.build(this.renderer, pristine, playerPaint);
     this.built.set(key, { vehicleId: v.id, portrait });
     return portrait;
   }
@@ -127,9 +129,11 @@ function hideOutlines(root: THREE.Object3D): void {
 }
 
 function poseAtRest(view: VehicleView, v: Vehicle): void {
-  const rest = { steer: 0, spin: 0, suspension: PHYSICS.truck.suspensionRest, ground: true };
-  const wheels = wheelMounts(bodyOf(v.chassisId)).map(() => ({ ...rest }));
-  view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels }, 0);
+  const rest = (unit: number) => wheelMounts(unitBody(v.chassisId, unit), unit).map(() => ({ steer: 0, spin: 0, suspension: PHYSICS.truck.suspensionRest, ground: true }));
+  const units = unitsOf(v.chassisId);
+  const frame: VehicleFrame = { pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: rest(0) };
+  if (units[1]) frame.rear = { pos: { x: units[1].offset, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, wheels: rest(1) };
+  view.pose(frame, 0);
   view.root.updateMatrixWorld(true);
 }
 
@@ -285,26 +289,29 @@ function paintIds(meshes: Drawn[], idOfMesh: (mesh: Drawn) => number, trash: Dis
   for (const mesh of meshes) paintAsId(mesh, idOfMesh(mesh), shared, trash);
 }
 
-function widened(lo: number, hi: number): [number, number] {
-  const pad = Math.max(0, LOOK.minHiddenSpanM - (hi - lo)) / 2;
+type Column = { heightOf: (item: PartItem) => { min: number; max: number }; span: number };
+
+function widened(lo: number, hi: number, span: number): [number, number] {
+  const pad = Math.max(0, span - (hi - lo)) / 2;
   return [lo - pad, hi + pad];
 }
 
-function footprintColumn(v: Vehicle, item: PartItem, id: number, height: { min: number; max: number }, trash: Disposable[]): THREE.Mesh {
+function footprintColumn(v: Vehicle, item: PartItem, id: number, column: Column, trash: Disposable[]): THREE.Mesh {
   const rect = cellRect(v.chassisId, itemCells(item));
-  const [x0, x1] = widened(rect.x0, rect.x1);
-  const [z0, z1] = widened(rect.z0, rect.z1);
+  const height = column.heightOf(item);
+  const [x0, x1] = widened(rect.x0, rect.x1, column.span);
+  const [z0, z1] = widened(rect.z0, rect.z1, column.span);
   const geometry = new THREE.BoxGeometry(x1 - x0, height.max - height.min, z1 - z0);
   const material = new THREE.MeshBasicMaterial({ color: idColor(id), side: THREE.DoubleSide, depthTest: false });
   trash.push(geometry, material);
-  const column = new THREE.Mesh(geometry, material);
-  column.position.set((x0 + x1) / 2, (height.min + height.max) / 2, (z0 + z1) / 2);
-  return column;
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set((x0 + x1) / 2 + unitsOf(v.chassisId)[rect.unit].offset, (height.min + height.max) / 2, (z0 + z1) / 2);
+  return mesh;
 }
 
-function footprintScene(v: Vehicle, items: PartItem[], numberOf: Numbering, heightOf: (item: PartItem) => { min: number; max: number }, trash: Disposable[]): THREE.Scene {
+function footprintScene(v: Vehicle, items: PartItem[], numberOf: Numbering, column: Column, trash: Disposable[]): THREE.Scene {
   const scene = new THREE.Scene();
-  for (const item of items) scene.add(footprintColumn(v, item, numberOf(item.part.id), heightOf(item), trash));
+  for (const item of items) scene.add(footprintColumn(v, item, numberOf(item.part.id), column, trash));
   return scene;
 }
 
@@ -418,11 +425,14 @@ function renderPartIds(pass: Pass, view: VehicleView, v: Vehicle, solid: Drawn[]
   paintIds(solid, (m) => (isPart(m) ? numberOf(m.userData.partId) : BODY_ID), trash);
   const scene = new THREE.Scene();
   scene.add(view.root);
-  const placed = renderIds(pass.renderer, pass.flat, scene, pass.camera);
-  const seen = new Set(placed);
-  const hidden = conditionItems(v).filter((item) => !seen.has(numberOf(item.part.id)));
-  if (hidden.length === 0) return placed;
-  return hiddenOver(placed, renderIds(pass.renderer, pass.flat, footprintScene(v, hidden, numberOf, heightsOf(v, solid), trash), pass.camera));
+  let ids = renderIds(pass.renderer, pass.flat, scene, pass.camera);
+  for (const span of LOOK.hiddenSpansM) {
+    const seen = new Set(ids);
+    const hidden = conditionItems(v).filter((item) => !seen.has(numberOf(item.part.id)));
+    if (hidden.length === 0) return ids;
+    ids = hiddenOver(ids, renderIds(pass.renderer, pass.flat, footprintScene(v, hidden, numberOf, { heightOf: heightsOf(v, solid), span }, trash), pass.camera));
+  }
+  return ids;
 }
 
 function heightsOf(v: Vehicle, solid: Drawn[]): (item: PartItem) => { min: number; max: number } {
@@ -458,8 +468,8 @@ function composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: Ve
   return portraitOver(v, items, { size, lit, ids }, numberOf, { body: canvasOf(lit, size), parts: canvasOf(parts, size) });
 }
 
-export function buildPortrait(renderer: THREE.WebGLRenderer, pristine: Vehicle): Portrait {
-  const view = new VehicleView(pristine, false, 'portrait');
+export function buildPortrait(renderer: THREE.WebGLRenderer, pristine: Vehicle, playerPaint: TruckPaint): Portrait {
+  const view = new VehicleView(pristine, false, playerPaint, 'portrait');
   const trash: Disposable[] = [];
   try {
     return withRendererState(renderer, () => composePortrait(renderer, view, pristine, trash));

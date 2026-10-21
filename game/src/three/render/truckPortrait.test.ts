@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { CHASSIS } from '../../data/chassis';
+import { CHASSIS, PAINT } from '../../data/chassis';
 import { conditionItems } from './portraitPixels';
 import { cellRect } from '../../sim/body';
 import { coreParts, itemCells, mountedItems, mountedParts } from '../../sim/grid';
@@ -31,11 +31,11 @@ describe('truck portrait cache', () => {
     const { build, built } = counting();
     const portraits = new TruckPortraits(RENDERER, build);
     const v = truck();
-    const first = portraits.portraitOf(v);
+    const first = portraits.portraitOf(v, PAINT.standard);
     const engine = mountedParts(v, 'engine')[0];
     engine.hp = engine.hp / 3;
     engine.wear = 3;
-    expect(portraits.portraitOf(v)).toBe(first);
+    expect(portraits.portraitOf(v, PAINT.standard)).toBe(first);
     expect(built).toHaveLength(1);
   });
 
@@ -45,7 +45,7 @@ describe('truck portrait cache', () => {
     const engine = mountedParts(v, 'engine')[0];
     engine.hp = 1;
     engine.wear = 3;
-    new TruckPortraits(RENDERER, build).portraitOf(v);
+    new TruckPortraits(RENDERER, build).portraitOf(v, PAINT.standard);
     const copy = mountedParts(built[0], 'engine')[0];
     expect(copy.wear).toBe(0);
     expect(copy.hp).toBe(maxHp(copy));
@@ -57,13 +57,13 @@ describe('truck portrait cache', () => {
     const { build, built } = counting();
     const portraits = new TruckPortraits(RENDERER, build);
     const v = truck();
-    portraits.portraitOf(v);
+    portraits.portraitOf(v, PAINT.standard);
     const engine = mountedItems(v, 'engine')[0];
     engine.x += 1;
-    portraits.portraitOf(v);
+    portraits.portraitOf(v, PAINT.standard);
     expect(built).toHaveLength(2);
     engine.x -= 1;
-    portraits.portraitOf(v);
+    portraits.portraitOf(v, PAINT.standard);
     expect(built).toHaveLength(3);
   });
 
@@ -72,13 +72,13 @@ describe('truck portrait cache', () => {
     const portraits = new TruckPortraits(RENDERER, build);
     const a = truck();
     const b = { ...structuredClone(a), id: 'other' };
-    portraits.portraitOf(a);
-    portraits.portraitOf(b);
+    portraits.portraitOf(a, PAINT.standard);
+    portraits.portraitOf(b, PAINT.standard);
     expect(built).toHaveLength(2);
     portraits.forget(new Set([a.id]));
-    portraits.portraitOf(a);
+    portraits.portraitOf(a, PAINT.standard);
     expect(built).toHaveLength(2);
-    portraits.portraitOf(b);
+    portraits.portraitOf(b, PAINT.standard);
     expect(built).toHaveLength(3);
   });
 });
@@ -87,7 +87,7 @@ describe('truck portrait scene on every chassis', () => {
   it.each(Object.keys(CHASSIS))('%s: has glass to tint and a drawn mesh or a footprint for every readout part', (id) => {
     const { world, v } = bare(id);
     lineWithArmor(world, v, 'steelPlate');
-    const view = new VehicleView(pristineOf(v), false, 'portrait');
+    const view = new VehicleView(pristineOf(v), false, PAINT.standard, 'portrait');
     const drawn = new Set<string>();
     const meshes: THREE.Mesh<THREE.BufferGeometry, THREE.Material>[] = [];
     view.root.traverse((o) => {
@@ -106,7 +106,7 @@ describe('truck portrait scene on every chassis', () => {
 
   it.each(Object.keys(CHASSIS))('%s: the wheels carry their wheel part id', (id) => {
     const { v } = bare(id);
-    const view = new VehicleView(pristineOf(v), false, 'portrait');
+    const view = new VehicleView(pristineOf(v), false, PAINT.standard, 'portrait');
     const drawn = new Set<string>();
     view.root.traverse((o) => {
       if (o instanceof THREE.Mesh && o.visible && o.userData.partId) drawn.add(o.userData.partId);
@@ -128,15 +128,15 @@ describe('truck portrait view', () => {
 
   it('shares no material with the same truck in the world, so recoloring it cannot touch the world truck', () => {
     const v = addVehicle(emptyWorld(), 'player', 'buggy', ['mg', 'stockEngine', 'scrapPanels'], { x: 33, y: 30 });
-    const world = materialsOf(new VehicleView(v, true, 'world'));
-    const portrait = materialsOf(new VehicleView(pristineOf(v), false, 'portrait'));
+    const world = materialsOf(new VehicleView(v, true, PAINT.standard, 'world'));
+    const portrait = materialsOf(new VehicleView(pristineOf(v), false, PAINT.standard, 'portrait'));
     expect(world.size).toBeGreaterThan(0);
     expect([...portrait].filter((m) => world.has(m))).toEqual([]);
   });
 
   it('keeps the armor cut on red armor it turns neutral', () => {
     const v = addVehicle(emptyWorld(), 'player', 'buggy', ['mg', 'stockEngine', 'scrapPanels'], { x: 33, y: 30 });
-    const view = new VehicleView(pristineOf(v), false, 'portrait');
+    const view = new VehicleView(pristineOf(v), false, PAINT.standard, 'portrait');
     const meshes: THREE.Mesh<THREE.BufferGeometry, THREE.Material>[] = [];
     view.root.traverse((o) => {
       if (o instanceof THREE.Mesh && !o.userData.outline) meshes.push(o);

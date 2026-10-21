@@ -39,7 +39,7 @@ import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
 import { rescueSave } from './save-rescue';
-import { loadModels, type ModelFailure } from './render/models';
+import { loadModels, paintSurfaceMasks, type ModelFailure } from './render/models';
 import { groundTexture } from './render/terrain';
 import { defaultSetup, modeKit } from '../sim/settings';
 
@@ -187,7 +187,7 @@ let reportMusicFault: (err: unknown) => void = (err) => musicFaults.push(err);
 const music = new CombatMusic(mixer.ctx, mixer.input('music'), bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support }), Math.random, (err) => reportMusicFault(err));
 const loading = Promise.all([
   boot.track('physics', initPhysics()),
-  boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns)),
+  boot.track('models', loadModels(undefined, boot.count('models')).then(reportStandIns).then(paintSurfaceMasks)),
   boot.track('sounds', Promise.all([loadBank(mixer.ctx, BOOT_SOUNDS, soundOptions), music.ready()]).then(([bank]) => bank)),
 ]);
 bootStep('loading the map');

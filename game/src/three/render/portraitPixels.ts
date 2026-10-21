@@ -95,7 +95,22 @@ export function centerOf(ids: Uint16Array, size: PixelSize, idOf: number): { x: 
     count++;
   }
   if (count === 0) throw new Error(`No pixels hold id ${idOf}`);
-  return { x: sumX / count + 0.5, y: sumY / count + 0.5 };
+  return nearestOwnPixel(ids, size, idOf, sumX / count, sumY / count);
+}
+
+function nearestOwnPixel(ids: Uint16Array, size: PixelSize, idOf: number, cx: number, cy: number): { x: number; y: number } {
+  let best = { x: cx, y: cy };
+  let bestDist = Infinity;
+  for (let p = 0; p < ids.length; p++) {
+    if (ids[p] !== idOf) continue;
+    const x = p % size.width;
+    const y = Math.floor(p / size.width);
+    const dist = (x - cx) ** 2 + (y - cy) ** 2;
+    if (dist >= bestDist) continue;
+    bestDist = dist;
+    best = { x, y };
+  }
+  return { x: best.x + 0.5, y: best.y + 0.5 };
 }
 
 export function snapIds(ids: Uint16Array, size: PixelSize, aimable: ReadonlySet<number>, radiusPx: number): Uint16Array {

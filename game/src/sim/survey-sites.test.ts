@@ -16,6 +16,14 @@ const layer = navLayer(TEST_MAP.terrain, baked, MAX_RADIUS);
 const sites = surveySites(TEST_MAP);
 const rules = CONTRACTS.survey;
 
+describe('boat survey sites', () => {
+  it('names at least one boat group of the committed map, and not every boat group', () => {
+    const boats = sites.filter((site) => site.type === 'boats');
+    expect(boats.length).toBeGreaterThan(0);
+    expect(boats.length).toBeLessThan(sites.length);
+  });
+});
+
 describe('survey sites', () => {
   it('are the sites the bake would pick now', () => {
     expect(sites).toEqual(JSON.parse(JSON.stringify(makeSurveySites(TEST_MAP))));

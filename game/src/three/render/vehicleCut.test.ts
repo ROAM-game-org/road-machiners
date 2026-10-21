@@ -7,21 +7,27 @@ import { TRUCK_LOOK, drawnWheelPoints } from '../../render/partLooks';
 import { wheelMounts } from '../../phys/body';
 import { PAL } from '../../render/palette';
 import { baseModel } from '../../render/partLooks';
-import { bodyOf } from '../../sim/body';
+import { bodyOf, frontBody, isRig, unitBody, unitsOf } from '../../sim/body';
+import { PAINT } from '../../data/chassis';
+import type { VehicleFrame } from '../../phys/frames';
 import type { Vehicle } from '../../sim/types';
 import { bare, lineWithArmor } from '../../test/gun-clearance-kit';
 import { lampIslands } from './armorCut';
-import { model } from './models';
+import { model, SURFACE_ATLAS } from './models';
 import { hidesInside, VehicleView, type ViewScene } from './vehicle';
 
 const LAMP_MATERIAL = 'light';
+SURFACE_ATLAS.value = new THREE.Texture();
 
 function armoredView(chassisId: string, scene: ViewScene): { view: VehicleView; v: Vehicle } {
   const { world, v } = bare(chassisId);
   lineWithArmor(world, v, 'steelPlate');
-  const view = new VehicleView(v, true, scene);
-  const wheels = wheelMounts(bodyOf(chassisId)).map(() => ({ steer: 0, spin: 0, suspension: PHYSICS.truck.suspensionRest, ground: true }));
-  view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels }, 0);
+  const view = new VehicleView(v, true, PAINT.standard, scene);
+  const rest = (unit: number) => wheelMounts(unitBody(chassisId, unit), unit).map(() => ({ steer: 0, spin: 0, suspension: PHYSICS.truck.suspensionRest, ground: true }));
+  const units = unitsOf(chassisId);
+  const frame: VehicleFrame = { pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: rest(0) };
+  if (units[1]) frame.rear = { pos: { x: units[1].offset, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, wheels: rest(1) };
+  view.pose(frame, 0);
   return { view, v };
 }
 
@@ -54,18 +60,29 @@ function uniformsOf(material: THREE.Material): Record<string, { value: unknown }
 }
 
 function expectedEndLamps(chassisId: string): THREE.Box3[] {
-  const base = model(baseModel(chassisId));
+  const base = model(baseModel(chassisId, 0));
   base.updateMatrixWorld(true);
   const islands: THREE.Box3[] = [];
   base.traverse((o) => {
     if (!(o instanceof THREE.Mesh) || o.material.name !== LAMP_MATERIAL) return;
     islands.push(...lampIslands(o.geometry.clone().applyMatrix4(o.matrixWorld)));
   });
-  const reach = bodyOf(chassisId).half.x * TRUCK_LOOK.lampEndShare;
+  const reach = frontBody(chassisId).half.x * TRUCK_LOOK.lampEndShare;
   return islands.filter((b) => Math.abs(b.getCenter(new THREE.Vector3()).x) > reach);
 }
 
-describe.each(Object.keys(CHASSIS))('armor cut on %s', (id) => {
+describe('armor cut on a rig', () => {
+  const rigs = Object.keys(CHASSIS).filter(isRig);
+
+  it.each(rigs)('%s: cuts each unit around its own wheels', (id) => {
+    const { view } = armoredView(id, 'world');
+    const counts = new Set(meshesOf(view).filter((m) => m.userData.armor && !m.userData.outline).map((m) => cutCounts(materialOf(m))?.wheels));
+    expect(counts.has(undefined)).toBe(false);
+    expect([...counts].every((n) => n === 4 || n === 2)).toBe(true);
+  });
+});
+
+describe.each(Object.keys(CHASSIS).filter((id) => !isRig(id)))('armor cut on %s', (id) => {
   const { view, v } = armoredView(id, 'world');
   const meshes = meshesOf(view);
   const isTwin = (m: THREE.Mesh) => materialOf(m).transparent;
@@ -93,7 +110,7 @@ describe.each(Object.keys(CHASSIS))('armor cut on %s', (id) => {
     for (const island of lamps) expect(windows.some((w) => w.containsBox(island)), 'window around the island').toBe(true);
     for (const w of windows) expect(w.min.x).toBeGreaterThan(0);
     const wheelAt = uniforms.cutWheelAt.value as THREE.Vector4[];
-    const expected = drawnWheelPoints(bodyOf(id)).map((p) => [p.x, p.y - PHYSICS.truck.suspensionRest, p.z]);
+    const expected = drawnWheelPoints(bodyOf(id), 0).map((p) => [p.x, p.y - PHYSICS.truck.suspensionRest, p.z]);
     expect(wheelAt).toHaveLength(expected.length);
     wheelAt.forEach((w, i) => {
       expect(w.x).toBeCloseTo(expected[i][0], 9);

@@ -1,6 +1,7 @@
+import type { TruckPaint } from "../data/chassis";
 import { partDef } from "../data/parts";
 import { PX_PER_METER } from "../three/render/portraitPixels";
-import { bodyOf } from "../sim/body";
+import { spanOf } from "../sim/body";
 import { baseGrid } from "../sim/grid";
 import type { Vehicle } from "../sim/types";
 import type { Glow, Portrait, TruckPortraits } from "../three/render/truckPortrait";
@@ -138,7 +139,7 @@ export class TruckConditionView {
   private pointerType = "mouse";
   private pressedId: string | null = null;
 
-  constructor(private readonly portraits: TruckPortraits) {
+  constructor(private readonly portraits: TruckPortraits, private readonly maxRows: number | null) {
     this.stage.append(this.layers, this.outline, this.marks, this.flashes, this.hit, this.tip);
     this.root.append(this.stage);
     this.hit.addEventListener("pointerdown", (e) => this.pressed(e));
@@ -168,12 +169,14 @@ export class TruckConditionView {
     return { width: natural.width * k + outline, height: natural.height * k + outline };
   }
 
-  render(vehicle: Vehicle, aim?: ConditionAim, working?: PartWork | null): void {
-    const portrait = this.portraits.portraitOf(vehicle);
+  render(vehicle: Vehicle, playerPaint: TruckPaint, aim?: ConditionAim, working?: PartWork | null): void {
+    const portrait = this.portraits.portraitOf(vehicle, playerPaint);
     this.portrait = portrait;
     this.aim = aim;
     this.parts = this.readout.update(vehicle);
-    this.scale = CELL / (PX_PER_METER * ((2 * bodyOf(vehicle.chassisId).half.x) / baseGrid(vehicle.chassisId).h));
+    const rows = baseGrid(vehicle.chassisId).h;
+    this.scale = CELL / (PX_PER_METER * ((2 * spanOf(vehicle.chassisId).half.x) / rows));
+    if (this.maxRows !== null) this.root.style.zoom = String(Math.min(1, this.maxRows / rows));
     this.stage.style.width = `${portrait.width * this.scale}px`;
     this.stage.style.height = `${portrait.height * this.scale}px`;
     this.root.classList.toggle("aimable", aim !== undefined);

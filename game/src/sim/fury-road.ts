@@ -4,7 +4,7 @@ import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
 import { HAULER_KIT } from '../data/start';
-import { footprint } from './body';
+import { footprint } from './rig';
 import { makeVehicle } from './factory';
 import { groupPrey } from './combat';
 import { holdAlong, stretchSpan } from './hunters';
