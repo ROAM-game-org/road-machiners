@@ -568,7 +568,7 @@ const SURFACE_OF_MATERIAL: Record<string, SurfaceName | null> = {
 
 const CHIP = { color: new THREE.Color(0x5b5a57), scale: 7, at: 0.75 };
 
-export const SURFACE_LOOK = { chips: { value: 1 } };
+export const SURFACE_LOOK = { chips: { value: 1 }, chipAt: { value: CHIP.at } };
 
 export function surfaceOf(materialName: string): SurfaceName | null {
   const named = SURFACE_OF_MATERIAL[materialName];
@@ -584,6 +584,7 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
     surfaceEdge: { value: own.edge },
     surfaceChips: { value: own.chips },
     surfaceChipShare: SURFACE_LOOK.chips,
+    surfaceChipAt: SURFACE_LOOK.chipAt,
   };
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -605,6 +606,7 @@ uniform vec3 surfaceDirt;
 uniform float surfaceEdge;
 uniform float surfaceChips;
 uniform float surfaceChipShare;
+uniform float surfaceChipAt;
 float surfaceHash(vec3 p) {
   return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
 }
@@ -625,6 +627,6 @@ const SURFACE_COLOR = `
   diffuseColor.rgb *= 1.0 + surfaceEdge * surfaceWorn;
   float chipField = surfaceWorn * (0.55 + 0.9 * surfaceNoise(vSurfacePos * ${f(CHIP.scale)}));
   float chipWidth = fwidth(chipField);
-  float chip = smoothstep(${f(CHIP.at)} - chipWidth, ${f(CHIP.at)} + chipWidth, chipField) * surfaceChips * surfaceChipShare;
+  float chip = smoothstep(surfaceChipAt - chipWidth, surfaceChipAt + chipWidth, chipField) * surfaceChips * surfaceChipShare;
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${f(CHIP.color.r)}, ${f(CHIP.color.g)}, ${f(CHIP.color.b)}) * mix(0.6, 1.0, surfaceAo), chip);
 `;
