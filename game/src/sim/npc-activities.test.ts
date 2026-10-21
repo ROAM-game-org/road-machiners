@@ -1050,6 +1050,32 @@ describe('NPC activities', () => {
     });
   });
 
+  describe('a stranded driver on its way to service', () => {
+    function crawlingHome(hostileAt: number) {
+      const w = emptyWorld({ x: 200, y: 200 });
+      const player = w.vehicles[0];
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 100, y: 100 });
+      raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+      raider.brain.goals = [{ kind: 'resupply', targetId: 'kiln', destination: { x: 180, y: 100 }, phase: 'travel', reason: 'needsRepairs' }];
+      mountedParts(raider, 'engine')[0].hp = 0;
+      player.pos = { x: 100 + hostileAt, y: 100 };
+      return { w, raider };
+    }
+
+    it.each([[4], [25]])('keeps to its trip when a hostile is %s tiles away', (gap) => {
+      const { w, raider } = crawlingHome(gap);
+      for (let turn = 0; turn < 8; turn++) {
+        w.turn += 1;
+        thinkNpc(w, raider);
+      }
+      const kinds = raider.brain!.goals.map((g) => g.kind);
+      expect(kinds).toContain('resupply');
+      expect(kinds).not.toContain('flee');
+      expect(kinds).not.toContain('investigate');
+      expect(kinds).not.toContain('fight');
+    });
+  });
+
   describe('a truck the driver ran from', () => {
     function ranFrom() {
       const w = emptyWorld({ x: 30, y: 30 });
