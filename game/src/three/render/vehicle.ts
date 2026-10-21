@@ -147,6 +147,10 @@ export class VehicleView {
     this.groundContactShadow();
   }
 
+  dropContactShadow(): void {
+    this.contactShadow.removeFromParent();
+  }
+
   private groundContactShadow(): void {
     const hubs = this.wheels.reduce((sum, w) => sum + w.mount.position.y, 0) / this.wheels.length;
     this.contactShadow.position.y = hubs - this.wheelRadius + CONTACT_SHADOW.lift;
