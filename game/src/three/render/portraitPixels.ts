@@ -15,9 +15,9 @@ export const FIRST_PART_ID = 2;
 export const TINTS = {
   steel: { rgb: [150, 156, 162], lo: 0.3, hi: 0.68 },
   tire: { rgb: [150, 150, 146], lo: 0.3, hi: 0.6 },
-  hurt: { rgb: [255, 196, 60], lo: 0.55, hi: 1 },
-  crit: { rgb: [255, 120, 40], lo: 0.55, hi: 1 },
-  broken: { rgb: [255, 44, 40], lo: 0.55, hi: 1 },
+  hurt: { rgb: [255, 196, 60], lo: 0.2, hi: 1 },
+  crit: { rgb: [255, 120, 40], lo: 0.2, hi: 1 },
+  broken: { rgb: [255, 44, 40], lo: 0.2, hi: 1 },
 } as const satisfies Record<string, Tint>;
 
 export type TintName = keyof typeof TINTS;
