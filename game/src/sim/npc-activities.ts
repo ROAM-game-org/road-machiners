@@ -23,7 +23,7 @@ import { getResources } from './resources';
 import { standingPressures } from './market';
 import { claimInvalid, resolveClaim } from './claim-run';
 import { remember, rememberSightings } from './memory';
-import { chance, hashRandom, randInt, randRange } from './rng';
+import { chance, charCodes, hashRandom, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
 import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, CLAIMED, claimOnly, hasSalvage, isStockGoal, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf, oldSpotsNear, oldStockId } from './salvage';
 import { beginSearch } from './search';
@@ -993,10 +993,6 @@ function siteSpot(world: World, vehicle: Vehicle, site: ReturnType<typeof getKno
   const angle = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
   const side = (REGION.sites.pad.width / 2 - out) * (2 * spot - 1);
   return { x: pad.x - Math.sin(angle) * side, y: pad.y + Math.cos(angle) * side };
-}
-
-export function charCodes(text: string): number[] {
-  return Array.from(text, (ch) => ch.charCodeAt(0));
 }
 
 type Resolver = (world: World, vehicle: Vehicle, activity: NpcActivity) => void;

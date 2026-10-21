@@ -524,7 +524,7 @@ export const LOG: Translation<typeof EN> = {
   'refusal.busy.strip': 'Сначала закончите разборку',
   'refusal.busy.search': 'Сначала закончите поиски',
   'refusal.busy.weld': 'Сначала закончите сварку',
-  'refusal.busy.firstAid': 'Сначала закончите перевязку',
+  'refusal.busy.firstAid': 'Сначала закончите оказывать первую помощь',
   'refusal.unhurt': 'Вы не ранены',
   'refusal.noSupplies': 'Не хватает припасов',
   'refusal.busy.business': 'Сначала закончите сделку',

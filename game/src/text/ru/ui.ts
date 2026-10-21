@@ -269,7 +269,7 @@ export const UI: Translation<typeof EN> = {
   'actBlock.onRadio': 'В эфире',
   'unstuck.combat': 'Вы в бою',
   'unstuck.towing': 'Вы буксируете грузовик',
-  'unstuck.harpoon': 'Вы на гарпунном тросе',
+  'unstuck.harpoon': 'Грузовик на гарпунном тросе',
   'hud.tipsOff': 'Подсказки выключены. Меню, Показывать подсказки, включит их снова.',
   'hud.needSupplies': 'Нужно припасов: {n}',
   'hud.douseBlock.engineCool': 'Двигатель холодный',
