@@ -567,9 +567,9 @@ const SURFACE_OF_MATERIAL: Record<string, SurfaceName | null> = {
 };
 
 const CHIP = { color: new THREE.Color(0x5b5a57), scale: 7, at: 1.05, share: 0.5 };
-const CHROME = { reflect: 0.55, grazing: 0.35, horizon: 1.6, gain: 0.1 };
+const CHROME = { reflect: 0.55, grazing: 0.35, horizon: 1.6, gain: 0.1, body: 1 };
 
-export const SURFACE_LOOK = { chips: { value: CHIP.share }, chipAt: { value: CHIP.at }, chrome: { value: CHROME.gain } };
+export const SURFACE_LOOK = { chips: { value: CHIP.share }, chipAt: { value: CHIP.at }, chrome: { value: CHROME.gain }, chromeBody: { value: CHROME.body } };
 
 export function surfaceOf(materialName: string): SurfaceName | null {
   const named = SURFACE_OF_MATERIAL[materialName];
@@ -588,6 +588,7 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
     surfaceChipAt: SURFACE_LOOK.chipAt,
     surfaceShine: { value: own.shine },
     surfaceChrome: SURFACE_LOOK.chrome,
+    surfaceChromeBody: SURFACE_LOOK.chromeBody,
   };
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -613,6 +614,7 @@ uniform float surfaceChipShare;
 uniform float surfaceChipAt;
 uniform float surfaceShine;
 uniform float surfaceChrome;
+uniform float surfaceChromeBody;
 float surfaceHash(vec3 p) {
   return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
 }
@@ -649,7 +651,7 @@ const SURFACE_CHROME = `
       ? mix(chromeHorizon, chromeSky, sqrt(chromeUp))
       : mix(chromeHorizon, hemisphereLights[0].groundColor, pow(-chromeUp, 0.4));
     float chromeFresnel = pow(1.0 - max(dot(normal, chromeView), 0.0), 5.0);
-    float chromeShare = clamp(surfaceShine * (${f(CHROME.reflect)} + ${f(CHROME.grazing)} * chromeFresnel), 0.0, 1.0);
+    float chromeShare = clamp(surfaceShine * mix(surfaceChromeBody, 1.0, surfaceWorn) * (${f(CHROME.reflect)} + ${f(CHROME.grazing)} * chromeFresnel), 0.0, 1.0);
     vec3 chromeTint = diffuseColor.rgb / max(max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)), 0.001);
     outgoingLight = mix(outgoingLight, chromeEnv * chromeTint * surfaceChrome * surfaceAo, chromeShare);
   }
