@@ -6,7 +6,7 @@ import { townAt } from '../sim/sites';
 import { reachedOutpostAt } from '../sim/fury-road';
 import { highwayMap } from '../sim/highway';
 import { fitBake, repairMap, settleTrucks, type SavedBroken, type SavedMapWorld } from '../sim/map-repair';
-import { repairContent } from '../sim/save-repair';
+import { repairContent, type GoodsSold } from '../sim/save-repair';
 export { newMapFor } from '../sim/highway';
 import type { BrokenProp, GameEvent, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
 import { QUESTS, restoreQuest } from '../sim/quests';
@@ -80,7 +80,7 @@ export function carriesOnLoad(error: SaveError): boolean {
 
 export type SaveEnvelope = { format: typeof SAVE_FORMAT; quests: SavedRevisions; savedAt: number; runId: string; world: object };
 
-export type LoadRepair = { questsReset: string[]; lost: string[]; settingsReset: SettingId[]; events: GameEvent[] };
+export type LoadRepair = { questsReset: string[]; lost: string[]; sold: GoodsSold[]; settingsReset: SettingId[]; events: GameEvent[] };
 export type LoadedSave = { world: World; repair: LoadRepair };
 
 export function clearSlot(slots: SaveSlots, slot: SlotId): void {
@@ -134,7 +134,7 @@ export function loadWorld(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Wor
 }
 
 export function hasRepair(repair: LoadRepair): boolean {
-  return repair.questsReset.length + repair.lost.length + repair.settingsReset.length + repair.events.length > 0;
+  return repair.questsReset.length + repair.lost.length + repair.sold.length + repair.settingsReset.length + repair.events.length > 0;
 }
 
 export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): LoadedSave | null {
@@ -165,7 +165,7 @@ function loadedSave(envelope: unknown, icarus: BakedMap): LoadedSave {
   refreshVision(loaded);
   settleAims(loaded);
   const events = loaded.events.filter((e) => e.t === 'contract');
-  return { world: { ...loaded, events: [] }, repair: { questsReset: quests.reset, lost: [...quests.lost, ...content], settingsReset, events } };
+  return { world: { ...loaded, events: [] }, repair: { questsReset: quests.reset, lost: [...quests.lost, ...content.lost], sold: content.sold, settingsReset, events } };
 }
 
 function stagedWorld(world: SavedWorld, quests: QuestRepair): SavedMapWorld {

@@ -2,11 +2,12 @@ import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
 import { OLD_TABLES, STORY_WRECKS } from '../data/salvage';
 import { atlasOf, type Atlas } from './atlas';
+import { claimPartHeld } from './claims';
 import { freeSpotNear, spotNear } from './free-spot';
 import { clearOfDecks, clearOfSites, findRoadWreckSpot, isBakedObstacle, mapObstacles, overlapsAny, propReach } from './mapgen';
 import { finishContract, type Contract } from './market';
 import { reviseMemories } from './memory';
-import { isRoadWreck, isStockGoal, isStoryWreck, liveClaims, oldSpotOf, oldSpotPicks, oldStockId, rollStock, type OldSpotPick } from './salvage';
+import { isRoadWreck, isStockGoal, isStoryWreck, liveClaims, oldSpotOf, oldSpotPicks, oldStockId, rollStock, type ClaimContract, type OldSpotPick } from './salvage';
 import { modeRules } from './settings';
 import { isFree } from './spawn';
 import { hollowBays, hollowObstaclesFor, isHollowObstacle, isSunwardMember } from './sunward';
@@ -487,7 +488,7 @@ function storyStock(stock: SalvageStock): SalvageStock | null {
   return wreck ? { ...stock, pos: { ...wreck.pos }, radius: wreck.r * RULES.wreckRadiusScale } : null;
 }
 
-function lapses(c: Contract, dropped: Set<string>): boolean {
+function lapses(c: Contract, dropped: Set<string>): c is ClaimContract {
   return c.kind === 'claim' && dropped.has(c.stockId);
 }
 
@@ -499,7 +500,7 @@ function cancelContracts(world: World, dropped: Set<string>, sites: Set<string>)
   fitSurveyPoints([...world.player.contracts, ...Object.values(world.shops).flatMap((s) => s.contracts)], sites);
   for (const shop of Object.values(world.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'survey' || c.points.length > 0);
   const cancelled = new Set<string>();
-  for (const c of world.player.contracts.filter((x) => lapses(x, dropped))) {
+  for (const c of world.player.contracts.filter((x) => lapses(x, dropped) && claimPartHeld(world, x) !== 'player')) {
     cancelled.add(c.id);
     finishContract(world, c, 'lapsed');
   }
@@ -529,7 +530,7 @@ function pickupLapses(pickup: RefitPickup | null, dropped: Set<string>): boolean
 function purgeDropped(world: World, dropped: Set<string>, map: BakedMap): void {
   const sites = new Set(surveySites(map).map((s) => s.id));
   const cancelled = cancelContracts(world, dropped, sites);
-  for (const claim of liveClaims(world)) claim.at = { ...stockNamed(world, claim.stockId).pos };
+  for (const claim of liveClaims(world).filter((c) => !dropped.has(c.stockId))) claim.at = { ...stockNamed(world, claim.stockId).pos };
   world.player.scavenged = world.player.scavenged.filter((id) => !dropped.has(id));
   world.player.rumored = world.player.rumored.filter((id) => !dropped.has(id));
   world.states = world.states.filter((s) => s.data.kind !== 'lootWarning' || !dropped.has(s.data.targetId));

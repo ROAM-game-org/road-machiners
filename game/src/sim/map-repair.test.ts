@@ -332,6 +332,19 @@ describe('repairMap references to dropped stocks and sites', () => {
     expect(kept.at).toEqual(out.salvage.find((s) => s.id === kept.stockId)!.pos);
   });
 
+  it('keeps a claim on a dropped stock when the player already holds its part', () => {
+    const w = base();
+    const gone = 'deadTruck-999999';
+    const keptStock = w.salvage.find((s) => isRoadWreck(s))!;
+    w.salvage.push({ ...keptStock, id: gone, parts: [], hidden: { ...keptStock.hidden, parts: [] } });
+    const part = w.player.storage[0] ?? playerVehicle(w).items.flatMap((it) => (it.kind === 'part' ? [it.part] : []))[0];
+    w.player.contracts = [claim('ct-held', gone, { partId: part.id, defId: part.defId })];
+
+    const out = repairMap(savedOf(w), TEST_MAP);
+    expect(out.player.contracts.map((c) => c.id)).toEqual(['ct-held']);
+    expect(out.events.filter((e) => e.t === 'contract')).toEqual([]);
+  });
+
   it('on the same map, drops old spot stocks the picks no longer hold, lapses their claims, rolls the missing ones and fits surveys', () => {
     const w = base();
     const [first, second] = oldSpotPicks(TEST_MAP);

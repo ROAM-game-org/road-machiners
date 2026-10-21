@@ -30,12 +30,16 @@ type PartItem = Extract<GridItem, { kind: 'part' }>;
 type ParcelItem = Extract<GridItem, { kind: 'parcel' }>;
 type ShopDefinition = (typeof SHOPS)[string];
 
-export function repairContent(world: World): string[] {
+export type GoodsSold = { good: string; units: number; money: number };
+export type ContentRepair = { lost: string[]; sold: GoodsSold[] };
+
+export function repairContent(world: World): ContentRepair {
   const lost: string[] = [];
+  const sold: GoodsSold[] = [];
   dropStateKinds(world);
   dropGoneContent(world, lost);
   const doomed = new Set<string>();
-  repairTrucks(world, doomed, lost);
+  repairTrucks(world, doomed, { lost, sold });
   removeNpcs(world, doomed);
   clampParts(world);
   for (const v of world.vehicles) fitGoals(world, v);
@@ -47,7 +51,7 @@ export function repairContent(world: World): string[] {
   fitRoadNews(world);
   fitSites(world);
   fitWaves(world);
-  return [...new Set(lost)];
+  return { lost: [...new Set(lost)], sold };
 }
 
 function isShop(id: string): boolean {
@@ -287,25 +291,34 @@ function ownTruckIds(world: World): Set<string> {
   return new Set([world.player.vehicleId, ...(world.furyRoad ? [world.furyRoad.hauler.id] : [])]);
 }
 
-function repairTrucks(world: World, doomed: Set<string>, lost: string[]): void {
+function repairTrucks(world: World, doomed: Set<string>, repair: ContentRepair): void {
   const own = ownTruckIds(world);
   for (const v of world.vehicles) {
-    if (own.has(v.id)) repairOwnTruck(world, v, lost);
+    if (own.has(v.id)) repairOwnTruck(world, v, repair);
     else repairNpc(world, v, doomed);
   }
 }
 
-function repairOwnTruck(world: World, v: Vehicle, lost: string[]): void {
+function repairOwnTruck(world: World, v: Vehicle, repair: ContentRepair): void {
   if (!isChassis(v.chassisId)) {
-    lost.push(v.chassisId);
-    swapChassis(world, v, lost);
-  } else if (!coresSeated(v)) reseatCores(world, v, lost);
-  lost.push(...fitItems(world, v, true));
+    repair.lost.push(v.chassisId);
+    swapChassis(world, v, repair);
+  } else if (!coresSeated(v)) reseatCores(world, v, repair.lost);
+  for (const item of fitItems(v)) displaced(world, item, repair);
 }
 
 function repairNpc(world: World, v: Vehicle, doomed: Set<string>): void {
-  if (npcKnown(v) && coresSeated(v)) fitItems(world, v, false);
+  if (npcKnown(v) && coresSeated(v)) fitItems(v);
   else doomed.add(v.id);
+}
+
+function sell(world: World, good: string, units: number, sold: GoodsSold[]): void {
+  if (units <= 0) return;
+  const money = units * GOODS[good].value;
+  world.player.money += money;
+  const entry = sold.find((s) => s.good === good);
+  if (entry) Object.assign(entry, { units: entry.units + units, money: entry.money + money });
+  else sold.push({ good, units, money });
 }
 
 function npcKnown(v: Vehicle): boolean {
@@ -320,7 +333,7 @@ function startChassis(world: World, v: Vehicle): string {
   return v.id === world.player.vehicleId ? START_KITS.standard.chassis : HAULER_KIT.chassis;
 }
 
-function swapChassis(world: World, v: Vehicle, lost: string[]): void {
+function swapChassis(world: World, v: Vehicle, repair: ContentRepair): void {
   const spares = v.items.filter(isPartItem).filter((it) => !isCoreItem(it));
   const parcels = v.items.filter((it): it is ParcelItem => it.kind === 'parcel');
   const goods = Object.entries(goodsHeld(v));
@@ -331,8 +344,8 @@ function swapChassis(world: World, v: Vehicle, lost: string[]): void {
   v.utilityOrders = {};
   v.job = null;
   addCoreParts(world, v);
-  for (const parcel of parcels) if (!placeParcel(v, parcel)) lost.push(...dropParcelContract(world, parcel.contract));
-  for (const [good, units] of goods) for (let i = addGoods(world, v, good, units); i < units; i++) lost.push(good);
+  for (const parcel of parcels) if (!placeParcel(v, parcel)) repair.lost.push(...dropParcelContract(world, parcel.contract));
+  for (const [good, units] of goods) sell(world, good, units - addGoods(world, v, good, units), repair.sold);
 }
 
 function goodsHeld(v: Vehicle): Record<string, number> {
@@ -387,12 +400,12 @@ function fitRank(item: GridItem): number {
   return item.kind === 'parcel' ? 1 : 3;
 }
 
-function fitItems(world: World, v: Vehicle, mine: boolean): string[] {
+function fitItems(v: Vehicle): GridItem[] {
   const dropped = misfits(v);
   if (dropped.length === 0) return [];
   v.items = v.items.filter((it) => !dropped.includes(it));
   forget(v, idsOf(dropped));
-  return dropped.flatMap((item) => displaced(world, item, mine));
+  return dropped;
 }
 
 function misfits(v: Vehicle): GridItem[] {
@@ -421,11 +434,11 @@ function relocated(grid: Grid, kept: GridItem[], item: GridItem): boolean {
   return true;
 }
 
-function displaced(world: World, item: GridItem, mine: boolean): string[] {
-  if (item.kind === 'parcel') return dropParcelContract(world, item.contract);
-  if (!isPartItem(item) || !mine || isCoreItem(item)) return [itemContent(item)];
-  world.player.storage.push(item.part);
-  return [];
+function displaced(world: World, item: GridItem, repair: ContentRepair): void {
+  if (item.kind === 'parcel') repair.lost.push(...dropParcelContract(world, item.contract));
+  else if (item.kind === 'good') sell(world, item.good, 1, repair.sold);
+  else if (isCoreItem(item)) repair.lost.push(itemContent(item));
+  else world.player.storage.push(item.part);
 }
 
 function dropParcelContract(world: World, id: string): string[] {

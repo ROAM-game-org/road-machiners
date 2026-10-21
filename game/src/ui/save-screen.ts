@@ -88,7 +88,7 @@ export function showCarryReport(report: CarryReport, sound: SoundSettings): Prom
 
 export function showRepairReport(world: World, repair: LoadRepair, sound: SoundSettings): Promise<void> {
   const logged = repair.events.flatMap((e) => eventText(world, e)?.text ?? []);
-  return showReport(t('save.repaired'), [...repairLines(repair.questsReset), ...changeLines(repair), ...logged], sound);
+  return showReport(t('save.repaired'), [...repairLines(repair.questsReset), ...soldLines(repair.sold), ...changeLines(repair), ...logged], sound);
 }
 
 function showReport(title: Msg, lines: readonly Msg[], sound: SoundSettings): Promise<void> {
@@ -118,8 +118,12 @@ function repairLines(questsReset: readonly string[]): Msg[] {
   return questsReset.length > 0 ? [t('save.questsReset', { quests: list(questsReset.map(questTitle)) })] : [];
 }
 
+function soldLines(sold: CarryReport['sold']): Msg[] {
+  return sold.map((s) => t('save.sold', { n: s.units, good: goodName(s.good), money: moneyMsg(s.money) }));
+}
+
 function carryLines(report: CarryReport): Msg[] {
-  const sold = report.sold.map((s) => t('save.sold', { n: s.units, good: goodName(s.good), money: moneyMsg(s.money) }));
+  const sold = soldLines(report.sold);
   const refunded = report.refunded.map((r) => t('save.refunded', { id: verbatim(r.id), money: moneyMsg(r.money) }));
   return [...(report.toGarage.length > 0 ? [t('save.toGarage', { parts: list(report.toGarage.map(partName)) })] : []), ...sold, ...refunded];
 }

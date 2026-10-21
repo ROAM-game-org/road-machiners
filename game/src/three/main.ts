@@ -86,14 +86,22 @@ async function bootSlot(slot: SlotId): Promise<Booted> {
 
 function unloadedSlot(err: unknown, slot: SlotId): Promise<Booted> {
   if (!(err instanceof SaveError)) throw err;
-  return carriesOnLoad(err) ? carriedOrNew(slot) : rescuedOrNew(err, slot);
+  return carriesOnLoad(err) ? carriedOrNew(slot) : rescuedOrNew(err, slot, true);
+}
+
+function carried(slot: SlotId): NonNullable<ReturnType<typeof carriedSave>> | SaveError {
+  try {
+    return carriedSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId) ?? new SaveError('unreadable');
+  } catch (error) {
+    return new SaveError('invalidSave', null, (error as Error).message);
+  }
 }
 
 async function carriedOrNew(slot: SlotId): Promise<Booted> {
-  const carried = carriedSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId);
-  if (!carried) throw new Error('The save became unreadable while carrying');
-  await boot.aside(() => showCarryReport(carried.report, soundSettings));
-  return { world: carried.world, runId: carried.runId, loadedFrom: null, fresh: false };
+  const carry = carried(slot);
+  if (carry instanceof SaveError) return rescuedOrNew(carry, slot, false);
+  await boot.aside(() => showCarryReport(carry.report, soundSettings));
+  return { world: carry.world, runId: carry.runId, loadedFrom: null, fresh: false };
 }
 
 function freshRun(setup: WorldSetup, intro: boolean): Booted {
@@ -113,9 +121,9 @@ function newGameSaved(setup: WorldSetup, intro: boolean): Booted {
   return { world, runId, loadedFrom: null, fresh: true };
 }
 
-async function rescuedOrNew(error: SaveError, slot: SlotId): Promise<Booted> {
+async function rescuedOrNew(error: SaveError, slot: SlotId, carries: boolean): Promise<Booted> {
   const stored = storedSave(slots, slot);
-  const canMigrate = typeof stored === 'object' && stored !== null && !Array.isArray(stored);
+  const canMigrate = carries && typeof stored === 'object' && stored !== null && !Array.isArray(stored);
   await boot.aside(() => chooseSaveFate(saveErrorText(error), canMigrate, stored, newGameActions, soundSettings));
   const rescued = rescueSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId, Date.now());
   if (!rescued) throw new Error('The save became unreadable while migrating');
