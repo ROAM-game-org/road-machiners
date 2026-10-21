@@ -10,7 +10,7 @@ import { SUITE_BRANCH, auditDir, playtest } from './playtest';
 import { SUITE_DOWN_MARK } from './remote-suite';
 import { logText } from './playtest-fixtures';
 import type { Finding, Review } from './playtest-review';
-import { ROOT, fake, reset, type Fake } from './test-fakes';
+import { ROOT, fake, issueMerge, reset, type Fake } from './test-fakes';
 
 vi.mock('node:os', async (original) => ({ ...(await original<typeof Os>()), availableParallelism: () => 8 }));
 
@@ -25,10 +25,14 @@ const releaseBug: Finding = { id: 'F1', severity: 'important', title: 'Raiders c
 const oldBug: Finding = { id: 'F2', severity: 'important', title: 'Escorts to a territory never end', evidence: 'v722 from 1259', cause: 'old', why: 'the baseline log has the same unpaid escort at 1300', known: null };
 const review = (over: Partial<Review> = {}): string => JSON.stringify({
   verdict: 'clean', summary: 'A full run.', drama: 'A raid at turn 300.', observations: ['trade at turn 20'], suspected: [], limitations: ['far mode'],
-  findings: [], fixes: [], explanations: { death: null, quiet: null }, blocker: null, ...over,
+  findings: [], fixes: [], coverage: [], explanations: { death: null, quiet: null }, blocker: null, ...over,
 });
 const fixed = (commit: string): Turn => ({ review: review({ verdict: 'fixed', findings: [releaseBug], fixes: ['end the raid goal after a lost target'] }), commit });
 const clean: Turn = { review: review(), report: '## Run\nAll good.' };
+
+const MERGES = [issueMerge(5, 'Salvage chain'), issueMerge(6, 'Hauler chassis')];
+const line = (issue: number) => ({ issue, how: 'played it on the dev server to its end', result: 'it works' });
+const full = review({ coverage: [line(5), line(6)] });
 
 type Turn = { review?: string; report?: string; commit?: string };
 type Run = {
@@ -49,6 +53,7 @@ function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
     f, shells: [], prompts: [], sessions: [], releaseHead: start, cloneHead: start, turns: [], checkFailures: 0, dirty: '', pushFails: false, mainMerged: true, passedAncestor: true,
     changed: ['game/src/sim/raid.ts'], suites: [], failingSuites: [], replaced: [],
   };
+  f.ctx.github.comments = async () => [];
   f.ctx.github.dispatchSuite = async (sha: string) => run.suites.push(sha);
   f.ctx.github.suiteRun = async (id: number) => {
     const failed = run.failingSuites.includes(run.suites[id - 1]!);
@@ -132,6 +137,40 @@ describe('playtest', () => {
     expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: 'abc1234', blocked: null });
     expect(comments(run.f)).toEqual([expect.stringContaining('Release playtest: clean after 1 plays. Seed 20261007, 100 turns, from commit abc1234 to abc1234.\nThe candidate builds from abc1234.')]);
     expect(comments(run.f)[0]).toContain('All good.');
+  });
+
+  it('writes the features of the release with their issue text for the agent', async () => {
+    const run = setup({ merges: MERGES });
+    run.turns = [{ review: full }];
+    await playtest(run.f.ctx, 11);
+    const text = readFileSync(join(HOME, 'release-features.md'), 'utf8');
+    expect(text).toContain('#5 Salvage chain');
+    expect(text).toContain('#6 Hauler chassis');
+    expect(text).toContain('merge5');
+    expect(text).toContain('Simulate battles');
+  });
+
+  it('sends a skipped feature back to the same session once, and passes when the next play covers it', async () => {
+    const run = setup({ merges: MERGES });
+    run.turns = [{ review: review({ coverage: [line(5)] }) }, { review: review({ coverage: [line(6)] }) }];
+    await playtest(run.f.ctx, 11);
+    expect(run.prompts).toHaveLength(2);
+    expect(run.prompts[1]).toContain('#6 Hauler chassis');
+    expect(run.prompts[1]).not.toContain('#5 Salvage chain');
+    expect(run.sessions[1]).toEqual({ ...run.sessions[0], resume: true });
+    expect(release(run.f).playtest).toMatchObject({ runs: 2, passed: 'abc1234', blocked: null });
+    expect(comments(run.f)[0]).toContain('- play 1 at abc1234: Not played: #6');
+    expect(comments(run.f)[0]).toContain('- play 2 at abc1234: clean');
+  });
+
+  it('never blocks and never exceeds the play limit: a feature still missing on the last play is named in the outcome', async () => {
+    const run = setup({ merges: MERGES });
+    run.turns = [{ review: review() }, { review: review() }, { review: review({ coverage: [line(5)] }) }];
+    await playtest(run.f.ctx, 11);
+    expect(run.prompts).toHaveLength(3);
+    expect(release(run.f).playtest).toMatchObject({ runs: 3, passed: 'abc1234', blocked: null });
+    expect(comments(run.f)[0]).toContain('- play 3 at abc1234: clean. Not played: #6');
+    expect(JSON.parse(readFileSync(join(auditDir(run.f.ctx, RELEASE, 3), 'meta.json'), 'utf8'))).toMatchObject({ outcome: 'clean', reason: 'clean. Not played: #6' });
   });
 
   it('runs the full suite of the release head on GitHub Actions and none on the laptop', async () => {

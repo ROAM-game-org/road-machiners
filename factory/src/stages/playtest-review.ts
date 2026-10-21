@@ -1,11 +1,11 @@
-// The rules of the release playtest that need no agent: what the run log proves and whether a review may pass it.
-// The factory computes the facts, so a review cannot pass a run that crashed, ended early with no word on it or did nothing.
 
 export type Ending = 'complete' | 'death' | 'error';
 export type LogSummary = { turns: number; shots: number; destroyed: number; knockouts: number; deaths: number; stalls: number; moneyIn: number; moneyOut: number; npcGoals: Record<string, number>; playerTiles: number };
 export type LogFacts = { seed: number; turns: number; sha: string | null; lines: number; events: number; ending: Ending; endTurn: number; message: string | null; summary: LogSummary; quiet: string[] };
 
 export type Finding = { id: string; severity: 'important' | 'minor'; title: string; evidence: string; cause: 'release' | 'old'; why: string; known: number | null };
+export type Coverage = { issue: number; how: string; result: string };
+export type FeatureRef = { issue: number; title: string };
 export type Review = {
   verdict: 'clean' | 'fixed' | 'blocked';
   summary: string;
@@ -15,6 +15,7 @@ export type Review = {
   limitations: string[];
   findings: Finding[];
   fixes: string[];
+  coverage: Coverage[];
   explanations: { death: string | null; quiet: string | null };
   blocker: string | null;
 };
@@ -53,7 +54,7 @@ export function quietParts(summary: LogSummary): string[] {
 const VERDICTS = ['clean', 'fixed', 'blocked'];
 const SEVERITIES = ['important', 'minor'];
 const CAUSES = ['release', 'old'];
-const LISTS = ['observations', 'suspected', 'limitations', 'findings', 'fixes'] as const;
+const LISTS = ['observations', 'suspected', 'limitations', 'findings', 'fixes', 'coverage'] as const;
 
 export function readReview(text: string | null): Review {
   if (text === null) throw new Error('The playtest agent wrote no .factory/playtest.json');
@@ -61,7 +62,7 @@ export function readReview(text: string | null): Review {
   if (!VERDICTS.includes(review.verdict)) throw new Error(`The playtest verdict ${String(review.verdict)} is not clean, fixed or blocked`);
   const missing = LISTS.find((key) => !Array.isArray(review[key]));
   if (missing) throw new Error(`The playtest review has no ${missing} list`);
-  return { ...review, findings: review.findings.map(readFinding), explanations: explanationsOf(review.explanations), blocker: review.blocker ?? null };
+  return { ...review, findings: review.findings.map(readFinding), coverage: review.coverage.map(readCoverage), explanations: explanationsOf(review.explanations), blocker: review.blocker ?? null };
 }
 
 const FINDING_RULES: ((finding: Finding) => string | null)[] = [
@@ -80,21 +81,46 @@ function readFinding(given: Finding): Finding {
   return finding;
 }
 
+function readCoverage(given: Coverage, index: number): Coverage {
+  const line = `Coverage line ${index + 1}`;
+  if (!Number.isInteger(given.issue)) throw new Error(`${line} has issue ${String(given.issue)}, not an issue number`);
+  if (typeof given.how !== 'string' || given.how.trim() === '') throw new Error(`${line} says nothing on how the feature was played`);
+  if (typeof given.result !== 'string' || given.result.trim() === '') throw new Error(`${line} says nothing on the result`);
+  return given;
+}
+
+export function missingFeatures(review: Review, features: FeatureRef[]): FeatureRef[] {
+  const covered = new Set(review.coverage.map((line) => line.issue));
+  return features.filter((feature) => !covered.has(feature.issue));
+}
+
+function notPlayed(missing: FeatureRef[]): string {
+  return `Not played: ${missing.map((feature) => `#${feature.issue}`).join(', ')}`;
+}
+
 function explanationsOf(given: Partial<Review['explanations']> | undefined): Review['explanations'] {
   return { death: given?.death ?? null, quiet: given?.quiet ?? null };
 }
 
-export function judge(facts: LogFacts, review: Review, play: PlayState): Outcome {
-  if (review.verdict === 'blocked') return { outcome: 'blocked', reason: review.blocker ?? review.summary };
-  if (review.verdict === 'fixed' && !play.moved) return { outcome: 'blocked', reason: 'The review says it fixed findings but committed nothing.' };
-  if (play.moved) return replay(review, play.last);
-  return judgeClean(facts, review);
+export function judge(facts: LogFacts, review: Review, play: PlayState, features: FeatureRef[] = []): Outcome {
+  const stopped = reviewBlock(review, play);
+  if (stopped !== null) return stopped;
+  const missing = missingFeatures(review, features);
+  if (play.moved) return replay(review, play.last, missing);
+  return judgeClean(facts, review, play.last, missing);
 }
 
-function replay(review: Review, last: boolean): Outcome {
+function reviewBlock(review: Review, play: PlayState): Outcome | null {
+  if (review.verdict === 'blocked') return { outcome: 'blocked', reason: review.blocker ?? review.summary };
+  if (review.verdict === 'fixed' && !play.moved) return { outcome: 'blocked', reason: 'The review says it fixed findings but committed nothing.' };
+  return null;
+}
+
+function replay(review: Review, last: boolean, missing: FeatureRef[]): Outcome {
   const fixes = review.fixes.length ? review.fixes.join('; ') : 'commits with no fix named';
-  if (last) return { outcome: 'blocked', reason: `The last play left fixes that no play checked: ${fixes}.` };
-  return { outcome: 'replay', reason: `${review.fixes.length} fixes to replay` };
+  const unplayed = missing.length > 0 ? ` ${notPlayed(missing)}` : '';
+  if (last) return { outcome: 'blocked', reason: `The last play left fixes that no play checked: ${fixes}.${unplayed}${unplayed ? '.' : ''}` };
+  return { outcome: 'replay', reason: `${review.fixes.length} fixes to replay${unplayed ? `.${unplayed}` : ''}` };
 }
 
 const CLEAN_RULES: ((facts: LogFacts, review: Review) => string | null)[] = [
@@ -107,10 +133,12 @@ const CLEAN_RULES: ((facts: LogFacts, review: Review) => string | null)[] = [
   (facts, review) => (facts.quiet.length > 0 && !review.explanations.quiet ? `The run was quiet (${facts.quiet.join(', ')}), and the clean review does not explain it.` : null),
 ];
 
-function judgeClean(facts: LogFacts, review: Review): Outcome {
+function judgeClean(facts: LogFacts, review: Review, last: boolean, missing: FeatureRef[]): Outcome {
   for (const rule of CLEAN_RULES) {
     const reason = rule(facts, review);
     if (reason !== null) return { outcome: 'blocked', reason };
   }
-  return { outcome: 'clean', reason: 'clean' };
+  if (missing.length === 0) return { outcome: 'clean', reason: 'clean' };
+  if (last) return { outcome: 'clean', reason: `clean. ${notPlayed(missing)}` };
+  return { outcome: 'replay', reason: `${notPlayed(missing)}, so the features go back to the same session` };
 }
