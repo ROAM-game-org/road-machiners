@@ -4,7 +4,7 @@ import type { Translation } from '../msg';
 export const SCREENS: Translation<typeof EN> = {
   'menu.save': 'Сохранить',
   'menu.load': 'Загрузить',
-  'menu.unstuck': 'Get unstuck',
+  'menu.unstuck': 'Выбраться',
   'menu.newGame': 'Новая игра',
   'menu.continue': 'Продолжить',
   'menu.loadSave': 'Загрузить сохранение',
@@ -145,7 +145,7 @@ export const SCREENS: Translation<typeof EN> = {
   'hud.overdriveTitle': 'Быстрее, но двигатель быстро греется',
   'hud.costsSupplies': 'Расход: {n, plural, one {# ящик} few {# ящика} many {# ящиков} other {# ящика}}',
   'hud.douse': 'Остудить',
-  'hud.firstAid': 'First aid',
+  'hud.firstAid': 'Первая помощь',
   'hud.characterMarked': 'Есть опыт или навык на выбор',
   'hud.character': 'Водитель и навыки',
   'hud.driverMarked': 'Водитель !',
