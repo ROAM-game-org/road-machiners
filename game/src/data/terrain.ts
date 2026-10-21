@@ -904,3 +904,26 @@ export const ROADSIDE = {
     band: [253, 507] as RoadsideBand,
   },
 };
+
+export type BoatKind = { kind: 'fishingBoat' | 'riverBarge' | 'skiff'; radius: number; weight: number };
+
+export const BOATS = {
+  seedOffset: 7601,
+  kinds: [
+    { kind: 'fishingBoat', radius: 1.4, weight: 3 },
+    { kind: 'riverBarge', radius: 1.9, weight: 1 },
+    { kind: 'skiff', radius: 0.7, weight: 4 },
+  ] as readonly BoatKind[],
+  group: [1, 3] as readonly [number, number],
+  maxBarges: 1,
+  groupReach: 4,
+  groupGap: 30,
+  passLane: 3,
+  roadGap: 4,
+  relief: 0.9,
+  placeTries: 14,
+  groundTypes: ['hardpan', 'sand', 'scrub', 'gravel', 'ash', 'saltCrust'] as readonly TerrainTypeId[],
+  river: { step: 70, jitter: 15, chance: 0.7, bankShare: [0.55, 0.85] as readonly [number, number], band: [4, 7] as RoadsideBand },
+  wash: { reach: 70, minFlow: 0.5, groups: 2, band: [1, 2] as RoadsideBand },
+  boatBand: [8, 20] as RoadsideBand,
+};
