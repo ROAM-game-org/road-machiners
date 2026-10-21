@@ -1,13 +1,10 @@
 import {
-  captureDrive,
-  restoreDrive,
   type DriveSnapshot,
   restFrames,
   frameWheels,
   restWheels,
   trailFrames,
   type UnitWheels,
-  type Drive,
   type TurnResult,
 } from "../phys/drive";
 import type { VehicleFrame } from "../phys/frames";
@@ -42,8 +39,7 @@ export function nextSightSample(live: LiveVision, step: number): number | null {
 }
 
 export type Playback = {
-  result: TurnResult;
-  nextSnapshot: DriveSnapshot;
+  result: PreparedTurn["result"];
   before: World;
   lastTick: number | null;
   elapsed: number;
@@ -224,11 +220,11 @@ export class Travel {
     return this.isPlaying(playback) || this.shouldAdvance(now);
   }
 
-  warm(world: World, drive: Drive): void {
+  warm(world: World, drive: DriveSnapshot): void {
     this.turns.warm(world, drive);
   }
 
-  request(world: World, drive: Drive): void {
+  request(world: World, drive: DriveSnapshot): void {
     this.requested = true;
     this.turns.prepare(world, drive);
   }
@@ -241,7 +237,7 @@ export class Travel {
     return this.isAdvancing(null, now) || this.runsOnItsOwn(world, now);
   }
 
-  takeReady(world: World, drive: Drive, now: number, held = false): PreparedTurn | null {
+  takeReady(world: World, drive: DriveSnapshot, now: number, held = false): PreparedTurn | null {
     if (world.player.state === "dead") {
       this.pause();
       return null;
@@ -261,7 +257,7 @@ export class Travel {
 
   prepareNext(world: World, playback: Playback | null, now: number): void {
     if (playback && (this.shouldAdvance(now) || this.runsOnItsOwn(world, now)))
-      this.turns.prepareFrom(world, playback.nextSnapshot);
+      this.turns.prepare(world, playback.result.next);
   }
 
   beginPlayback(
@@ -273,8 +269,6 @@ export class Travel {
   ): { world: World; playback: Playback; towed: boolean } {
     const world = { ...prepared.world, terrain: before.terrain };
     addRopeFrames(before, world, prepared.result.frames, shown);
-    const nextSnapshot = prepared.result.next;
-    const result: TurnResult = { ...prepared.result, next: restoreDrive(nextSnapshot) };
     if (playerCanAct(before) && !playerCanAct(world)) this.pause();
     else if (!playerCanAct(world)) {
       this.automatic = false;
@@ -282,8 +276,7 @@ export class Travel {
     }
     const towed = isTowed(before) || isTowed(world);
     const playback: Playback = {
-      result,
-      nextSnapshot,
+      result: prepared.result,
       before,
       lastTick: now,
       elapsed,
@@ -387,7 +380,7 @@ export class TurnPreparation {
   private restart(): void {
     const pending = this.pending;
     if (!pending || pending.ready || pending.failure) return;
-    pending.id = this.post(pending.before, { ...pending.drive, snapshot: pending.drive.snapshot.slice() });
+    pending.id = this.post(pending.before, pending.drive);
   }
 
   private fail(id: number | null, message: string): void {
@@ -395,23 +388,18 @@ export class TurnPreparation {
     else reportError(new Error(message));
   }
 
-  warm(world: World, drive: Drive): void {
+  warm(world: World, drive: DriveSnapshot): void {
     if (world.player.call || world.player.state === "dead") return;
-    this.warmId = this.post(world, captureDrive(drive));
+    this.warmId = this.post(world, drive);
   }
 
   private isFresh(world: World): boolean {
     return this.pending?.before === world && this.pending.lang === currentQuestLanguage();
   }
 
-  prepare(world: World, drive: Drive): void {
-    if (!this.isFresh(world)) this.prepareFrom(world, captureDrive(drive));
-  }
-
-  prepareFrom(world: World, saved: DriveSnapshot): void {
+  prepare(world: World, saved: DriveSnapshot): void {
     if (this.isFresh(world)) return;
-    const copy = { ...saved, snapshot: saved.snapshot.slice() };
-    this.pending = { id: this.post(world, copy), before: world, lang: currentQuestLanguage(), drive: saved, ready: null, failure: null };
+    this.pending = { id: this.post(world, saved), before: world, lang: currentQuestLanguage(), drive: saved, ready: null, failure: null };
   }
 
   private post(world: World, saved: DriveSnapshot): number {
@@ -419,16 +407,17 @@ export class TurnPreparation {
     const id = ++this.serial;
     if (this.load.gaveUp || this.load.waiting) return id;
     this.worker ??= this.createWorker();
+    const snapshot = saved.snapshot.slice();
     this.worker.postMessage(
       {
         kind: "turn",
         id,
         questLanguage: currentQuestLanguage(),
         ...this.obstacles.split(state),
-        drive: saved,
+        drive: { ...saved, snapshot },
         terrain: this.terrain === terrain ? null : terrain,
       } satisfies TurnRequest,
-      [saved.snapshot.buffer as ArrayBuffer],
+      [snapshot.buffer],
     );
     this.terrain = terrain;
     return id;

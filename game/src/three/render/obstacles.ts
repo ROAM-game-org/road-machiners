@@ -114,7 +114,7 @@ export class ObstacleViews {
     if (obj.userData.glow) this.glows.set(o.id, obj.userData.glow as Glow);
   }
 
-  play(anim: { result: TurnResult } | null, step: number | null, world: World, frames: Record<string, VehicleFrame>, dt: number): void {
+  play(anim: { result: Pick<TurnResult, 'breaks' | 'frames'> } | null, step: number | null, world: World, frames: Record<string, VehicleFrame>, dt: number): void {
     if (anim) this.smash(anim.result, step ?? Infinity, world.broken);
     const trucks = truckBoxes(world.vehicles, frames);
     this.flying.moveTrucks(trucks);
@@ -139,7 +139,7 @@ export class ObstacleViews {
     }
   }
 
-  private smash(result: TurnResult, step: number, broken: readonly BrokenProp[]): void {
+  private smash(result: Pick<TurnResult, 'breaks' | 'frames'>, step: number, broken: readonly BrokenProp[]): void {
     for (const b of result.breaks) {
       if (b.step > step || this.debris.has(b.prop)) continue;
       const found = broken.find((p) => p.obstacle.id === b.prop);

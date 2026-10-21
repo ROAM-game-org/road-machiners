@@ -19,7 +19,7 @@ import { clearanceFor } from '../sim/clearance';
 import type { MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp, type Vec } from '../sim/vec';
 import { exploreFrom, visibleTiles } from '../sim/vision';
-import { bodyState, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
+import { bodyState, buildDrive, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
 import { frameBend, headingOf, toMap, type VehicleFrame, type WheelFrame } from './frames';
 import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
 import { planTurns, type PlanFrames } from './plan';
@@ -99,6 +99,15 @@ function requireQuestLanguage(lang: QuestLanguage): void {
   if (!QUEST_LANGUAGES.includes(lang)) throw new Error(`Turn task has no quest language ${lang}`);
 }
 
+export function driveSnapshotOf(w: World): DriveSnapshot {
+  const drive = buildDrive(w);
+  try {
+    return captureDrive(drive);
+  } finally {
+    freeDrive(drive);
+  }
+}
+
 export function computePreview(task: PreviewTask, terrain: World['terrain']): PlanFrames {
   requireQuestLanguage(task.questLanguage);
   return inQuestLanguage(task.questLanguage, () => previewIn(task, terrain));
@@ -107,8 +116,10 @@ export function computePreview(task: PreviewTask, terrain: World['terrain']): Pl
 function previewIn(task: PreviewTask, terrain: World['terrain']): PlanFrames {
   freezeTerrain(terrain);
   const drive = restoreDrive(task.drive);
+  const world = { ...task.world, terrain };
   try {
-    return timed('preview', () => planTurns(drive, { ...task.world, terrain }, task.meId));
+    syncDrive(drive, world);
+    return timed('preview', () => planTurns(drive, world, task.meId));
   } finally {
     freeDrive(drive);
   }

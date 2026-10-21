@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { RULES } from "../data/rules";
-import { buildDrive, captureDrive, freeDrive, initPhysics, restFrame, TURN_STEPS, type Drive } from "../phys/drive";
+import { buildDrive, captureDrive, freeDrive, initPhysics, restFrame, TURN_STEPS, type Drive, type DriveSnapshot } from "../phys/drive";
 import { PHYSICS } from "../data/physics";
 import { physicsMove } from "../phys/turn";
 import { emptyWorld } from "../sim/testkit";
@@ -441,11 +441,11 @@ describe("turns on a tow rope", () => {
   function travelWithPrepared() {
     const prepare = vi.fn();
     const travel = new Travel(250);
-    Object.assign(travel, { turns: { prepareFrom: prepare, take: () => null } });
+    Object.assign(travel, { turns: { prepare, take: () => null } });
     return { travel, prepare };
   }
 
-  const playback = { result: { next: {} }, nextSnapshot: {} } as unknown as Parameters<Travel["prepareNext"]>[1];
+  const playback = { result: { next: {} } } as unknown as Parameters<Travel["prepareNext"]>[1];
 
   it("prepare the next turn during playback with no key held", () => {
     const { travel, prepare } = travelWithPrepared();
@@ -485,20 +485,19 @@ describe("every turn that runs on its own", () => {
 
   function travelWithTurns(take: () => unknown = () => null) {
     const prepare = vi.fn();
-    const prepareFrom = vi.fn();
     const travel = new Travel(250);
-    Object.assign(travel, { turns: { prepare, prepareFrom, take } });
-    return { travel, prepare, prepareFrom };
+    Object.assign(travel, { turns: { prepare, take } });
+    return { travel, prepare };
   }
 
-  const playback = { result: { next: {} }, nextSnapshot: {} } as unknown as Parameters<Travel["prepareNext"]>[1];
-  const drive = {} as Drive;
+  const playback = { result: { next: {} } } as unknown as Parameters<Travel["prepareNext"]>[1];
+  const drive = {} as DriveSnapshot;
   const kinds = ["knockedOut", "towed", "beacon"] as const;
 
   it.each(kinds)("prepares the next turn during playback while %s", (kind) => {
-    const { travel, prepareFrom } = travelWithTurns();
+    const { travel, prepare } = travelWithTurns();
     travel.prepareNext(stranded(kind), playback, 0);
-    expect(prepareFrom).toHaveBeenCalledTimes(1);
+    expect(prepare).toHaveBeenCalledTimes(1);
   });
 
   it.each(kinds)("begins the prepared turn with no key held while %s", (kind) => {
@@ -507,11 +506,11 @@ describe("every turn that runs on its own", () => {
   });
 
   it.each(kinds)("waits once stopped while %s", (kind) => {
-    const { travel, prepareFrom } = travelWithTurns(() => ready);
+    const { travel, prepare } = travelWithTurns(() => ready);
     const world = stranded(kind);
     travel.stopAuto(world);
     travel.prepareNext(world, playback, 0);
-    expect(prepareFrom).not.toHaveBeenCalled();
+    expect(prepare).not.toHaveBeenCalled();
     expect(travel.takeReady(world, drive, 0)).toBeNull();
   });
 
@@ -586,7 +585,7 @@ describe("every turn that runs on its own", () => {
     });
 
     it.each(["wake", "call", "dead"])("lets a held press end with the run on %s", (end) => {
-      const { travel, prepareFrom } = travelWithTurns(() => ready);
+      const { travel, prepare } = travelWithTurns(() => ready);
       const world = stranded("knockedOut");
       at(1000);
       travel.pressTurn(true, world);
@@ -598,7 +597,7 @@ describe("every turn that runs on its own", () => {
       expect(travel.shouldAdvance(2000)).toBe(false);
       expect(travel.takeReady(world, drive, 2000)).toBeNull();
       travel.prepareNext(world, playback, 2000);
-      expect(prepareFrom).not.toHaveBeenCalled();
+      expect(prepare).not.toHaveBeenCalled();
     });
 
     it("keeps a held press through turns while still knocked out, but drops it at the knockout", () => {

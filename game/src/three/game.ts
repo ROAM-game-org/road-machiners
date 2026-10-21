@@ -5,12 +5,9 @@ import { QUESTS, relanguageQuest } from "../sim/quests";
 import { getSearchAction } from "../ui/hud-readout";
 import { PHYSICS } from "../data/physics";
 import {
-  buildDrive,
-  freeDrive,
   restFrame,
-  syncDrive,
   TURN_STEPS,
-  type Drive,
+  type DriveSnapshot,
   type TurnResult,
 } from "../phys/drive";
 import {
@@ -21,7 +18,7 @@ import {
   type V3,
   type VehicleFrame,
 } from "../phys/frames";
-import { type PreparedTurn } from "../phys/turn";
+import { driveSnapshotOf, type PreparedTurn } from "../phys/turn";
 import { playerTrucks, playerVehicle, vehicleById } from "../sim/damage";
 
 import { inOverdrive, isStranded, maxTurn, vehicleStats } from "../sim/stats";
@@ -119,7 +116,7 @@ const GUN_HEIGHT = 1.6;
 
 export class Game {
   private world: World;
-  private drive: Drive;
+  private drive: DriveSnapshot;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly sun = sunLight();
@@ -224,7 +221,7 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
-    this.drive = buildDrive(this.world);
+    this.drive = driveSnapshotOf(this.world);
     setTimeout(() => (this.travel.warm(this.world, this.drive), this.plans.warm(this.world.terrain)));
 
     subscribeInputMode(() => this.refreshUi());
@@ -417,7 +414,6 @@ export class Game {
     this.travel.pause();
     this.world = next;
     this.saves.logWorld(next);
-    syncDrive(this.drive, this.world);
     this.refreshUi();
   }
 
@@ -877,9 +873,7 @@ export class Game {
 
   private finishMovement(a: Playback): void {
     a.moved = true;
-    freeDrive(this.drive);
     this.drive = a.result.next;
-    syncDrive(this.drive, this.world);
     for (const [id, fs] of Object.entries(a.result.frames))
       this.frames[id] = fs[fs.length - 1];
     this.live = null;
@@ -959,7 +953,7 @@ export class Game {
     if (sting) this.sound.ui(sting);
   }
 
-  private playDriveSound(result: TurnResult): void {
+  private playDriveSound(result: Pick<TurnResult, "frames">): void {
     const me = playerVehicle(this.world);
     const frames = result.frames[me.id];
     const g = computeEngineGlide(frames, MOVE_MS / 1000, MIX, inOverdrive(this.world, me));
