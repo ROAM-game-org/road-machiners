@@ -21,7 +21,8 @@ import { reviseMemories } from './memory';
 import { isPerkId } from './progress';
 import { modeRules } from './settings';
 import { endState, STATE_KINDS, settleStates } from './states';
-import type { Call, CallVar, CallVars, DirectionStep, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World } from './types';
+import { DECKS } from './bridge';
+import type { Call, CallVar, CallVars, Cue, DirectionStep, RoadName, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World } from './types';
 import { carryHp, maxHp } from './wear';
 import { wornReload } from './utility';
 
@@ -585,9 +586,23 @@ function trades(shop: string, good: string): boolean {
   return isShop(shop) && SHOPS[shop].goods.includes(good);
 }
 
+function cueFits(cue: Cue): boolean {
+  if (cue.kind === 'site') return isSite(cue.id);
+  return cue.kind !== 'deck' || DECKS.some((d) => d.id === cue.id);
+}
+
+function roadFits(road: RoadName): boolean {
+  return road.kind !== 'to' || isSite(road.site);
+}
+
+function wayFits(step: DirectionStep): boolean {
+  return (!('at' in step) || cueFits(step.at)) && (!('road' in step) || roadFits(step.road));
+}
+
 function stepFits(step: DirectionStep): boolean {
   if (step.do === 'arrive') return isSite(step.site);
-  return !('road' in step) || step.road.kind !== 'to' || isSite(step.road.site);
+  if (step.do === 'search') return step.clue.kind !== 'site' || isSite(step.clue.id);
+  return wayFits(step);
 }
 
 const CALL_VAR_FITS: { [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>) => boolean } = {

@@ -65,7 +65,7 @@ export function saveKey(scope: string): string {
 export const SAVE_KEY = saveKey(__SAVE_SCOPE__);
 
 export type SaveErrorCode =
-  | 'unreadable' | 'otherMap' | 'bakedProps' | 'brokenProp' | 'invalidWorld' | 'invalidSave' | 'badSetup'
+  | 'unreadable' | 'otherMap' | 'bakedProps' | 'invalidWorld' | 'invalidSave' | 'badSetup'
   | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badOldSpots' | 'badQuests' | 'newerQuests' | 'outOfReach' | 'mapChanged';
 
 export class SaveError extends Error {
@@ -197,7 +197,7 @@ function onSameMap(staged: SavedMapWorld, map: BakedMap): World {
   if (staged.obstacles.some((o) => isBakedObstacle(o) || isHollowObstacle(o))) throw new SaveError('bakedProps');
   const baked = mapObstacles(map);
   const broken = brokenProps(baked, staged.broken);
-  const gone = new Set(staged.broken.map((b) => b.id));
+  const gone = new Set(broken.map((b) => b.obstacle.id));
   return {
     ...staged,
     obstacles: [...baked.filter((o) => !gone.has(o.id)), ...hollowObstaclesFor(staged), ...staged.obstacles],
@@ -240,10 +240,9 @@ function stockedOldSpots(world: World, map: BakedMap): void {
 
 function brokenProps(baked: readonly Obstacle[], broken: readonly SavedBroken[]): BrokenProp[] {
   const byId = new Map(baked.map((o) => [o.id, o]));
-  return broken.map(({ id, turn }) => {
+  return broken.flatMap(({ id, turn }) => {
     const obstacle = byId.get(id);
-    if (!obstacle || !isBreakable(obstacle)) throw new SaveError('brokenProp', null, id);
-    return { obstacle, turn };
+    return obstacle && isBreakable(obstacle) ? [{ obstacle, turn }] : [];
   });
 }
 

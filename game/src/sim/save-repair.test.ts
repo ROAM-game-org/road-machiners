@@ -3,6 +3,8 @@ import { PARTS, partDef } from '../data/parts';
 import { SHOPS } from '../data/market';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { FIRST_NAMES, NPCS, SURNAMES } from '../data/npcs';
+import { REGION } from '../data/region';
+import { DECKS } from './bridge';
 import { addGoods } from './inventory';
 import { CONDITION } from '../data/wear';
 import { PLAIN_KIT } from '../test/empty-world';
@@ -337,6 +339,9 @@ describe('repairContent', () => {
       { haul: { kind: 'haul', goods: { ghostGood: 2 }, parts: [] } },
       { at: { kind: 'site', id: 'ghost-camp' } },
       { who: { kind: 'sighting', driver: 'Retired Name', seen: null } },
+      { way: { kind: 'directions', steps: [{ do: 'turn', side: 'left', at: { kind: 'site', id: 'ghost-camp' }, road: { kind: 'heading', octant: 'north' }, span: 'near' }] } },
+      { way: { kind: 'directions', steps: [{ do: 'leave', at: { kind: 'deck', id: 'ghost-deck' }, octant: 'north', span: 'near' }] } },
+      { way: { kind: 'directions', steps: [{ do: 'search', clue: { kind: 'site', id: 'ghost-camp' }, rough: false }] } },
     ];
     for (const v of vars) {
       const w = fresh();
@@ -349,7 +354,13 @@ describe('repairContent', () => {
   it('keeps a call that still fits', () => {
     const w = fresh();
     const npc = npcs(w)[0];
-    w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: {} } };
+    const site = REGION.towns[0].id;
+    const way: CallVars = { way: { kind: 'directions', steps: [
+      { do: 'turn', side: 'left', at: { kind: 'site', id: site }, road: { kind: 'to', site }, span: 'near' },
+      { do: 'leave', at: { kind: 'deck', id: DECKS[0].id }, octant: 'north', span: 'near' },
+      { do: 'search', clue: { kind: 'site', id: site }, rough: false },
+    ] } };
+    w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: way } };
     expect(repairContent(w)).toEqual([]);
     expect(w.player.call).not.toBeNull();
   });

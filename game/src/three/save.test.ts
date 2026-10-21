@@ -801,7 +801,7 @@ describe('game save', () => {
     expect([loaded.player.money, loaded.player.xp, loaded.player.repeats, loaded.events]).toEqual([world.player.money, world.player.xp, world.player.repeats, []]);
   });
 
-  it('rejects a save whose broken props do not match the map', () => {
+  it('stands a broken prop up again when the map no longer has it as a breakable prop', () => {
     const slots = makeSlots();
     const world = standardWorld();
     const rock = mapObstacles(TEST_MAP).find((o) => o.kind === 'rock')!;
@@ -809,9 +809,10 @@ describe('game save', () => {
     const stranger = { ...fence, id: 'fence-999999' };
 
     for (const obstacle of [rock, stranger]) {
-      writeSave(slots, 'auto', { ...world, broken: [{ obstacle, turn: 1 }] }, RUN, 1000);
-      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
-      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/broken/);
+      writeSave(slots, 'auto', { ...world, broken: [{ obstacle, turn: 1 }], obstacles: world.obstacles.filter((o) => o.id !== obstacle.id) }, RUN, 1000);
+      const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+      expect(loaded.broken).toEqual([]);
+      expect(loaded.obstacles.filter((o) => o.id === obstacle.id)).toHaveLength(obstacle === rock ? 1 : 0);
     }
   });
 

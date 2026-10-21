@@ -55,7 +55,6 @@ export const SCREENS = {
   'save.turnFailed': 'The turn failed and did not play. The game was not saved.',
   'save.error.unreadable': 'Game save is unreadable',
   'save.error.otherMap': 'Game save was made on another map',  'save.error.bakedProps': 'Game save holds baked map props, which come from the map file',
-  'save.error.brokenProp': 'Game save holds a broken prop that is no breakable prop of the map',
   'save.error.invalidWorld': 'Invalid saved world',
   'save.error.invalidSave': 'Invalid game save',
   'save.error.incompatible': m('Game save format {major}.{minor} is from an incompatible game version', { major: 'int', minor: 'int' }),

@@ -57,7 +57,6 @@ export const SCREENS: Translation<typeof EN> = {
   'save.error.unreadable': 'Сохранение не читается',
   'save.error.otherMap': 'Сохранение сделано на другой карте',
   'save.error.bakedProps': 'В сохранении есть объекты карты, которые берутся из файла карты',
-  'save.error.brokenProp': 'В сохранении есть сломанный объект, которого нет среди разрушаемых объектов карты',
   'save.error.invalidWorld': 'Сохраненный мир поврежден',
   'save.error.invalidSave': 'Сохранение повреждено',
   'save.error.incompatible': 'Формат сохранения {major}.{minor} от несовместимой версии игры',
