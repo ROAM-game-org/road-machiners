@@ -40,6 +40,7 @@ export function nextSightSample(live: LiveVision, step: number): number | null {
 
 export type Playback = {
   result: PreparedTurn["result"];
+  starts: Record<string, VehicleFrame>;
   before: World;
   lastTick: number | null;
   elapsed: number;
@@ -287,6 +288,7 @@ export class Travel {
     const towed = isTowed(before) || isTowed(world);
     const playback: Playback = {
       result: prepared.result,
+      starts: { ...shown },
       before,
       lastTick: now,
       elapsed,

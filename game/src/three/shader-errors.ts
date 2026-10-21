@@ -38,9 +38,37 @@ function materialsOf(o: Drawn): THREE.Material[] {
   return Array.isArray(o.material) ? o.material : [o.material];
 }
 
+function variantOf(o: Drawn): string {
+  const mesh = o as Partial<THREE.InstancedMesh & THREE.SkinnedMesh & THREE.BatchedMesh>;
+  const morphs = Object.keys(o.geometry.morphAttributes).join('+');
+  return [mesh.isInstancedMesh, Boolean(mesh.instanceColor), mesh.isSkinnedMesh, mesh.isBatchedMesh, o.receiveShadow, morphs, 'tangent' in o.geometry.attributes].join('|');
+}
+
+class Variants {
+  private readonly byMaterial = new WeakMap<THREE.Material, Set<string>>();
+
+  has(material: THREE.Material, variant: string): boolean {
+    return this.byMaterial.get(material)?.has(variant) ?? false;
+  }
+
+  known(material: THREE.Material): boolean {
+    return this.byMaterial.has(material);
+  }
+
+  add(material: THREE.Material, variant: string): void {
+    const set = this.byMaterial.get(material) ?? new Set<string>();
+    set.add(variant);
+    this.byMaterial.set(material, set);
+  }
+
+  delete(material: THREE.Material, variant: string): void {
+    this.byMaterial.get(material)?.delete(variant);
+  }
+}
+
 export class ShaderWarmup {
-  private readonly compiled = new WeakSet<THREE.Material>();
-  private readonly compiling = new WeakSet<THREE.Material>();
+  private readonly compiled = new Variants();
+  private readonly compiling = new Variants();
   private held: THREE.Object3D[] = [];
 
   constructor(
@@ -64,29 +92,31 @@ export class ShaderWarmup {
 
   private holdUncompiled(): void {
     this.scene.traverseVisible((o) => {
-      if (!isDrawn(o) || materialsOf(o).every((m) => this.isCompiled(m))) return;
-      this.compile(o);
+      if (!isDrawn(o)) return;
+      const variant = variantOf(o);
+      if (materialsOf(o).every((m) => this.isCompiled(m, variant))) return;
+      this.compile(o, variant);
       o.visible = false;
       this.held.push(o);
     });
   }
 
-  private isCompiled(material: THREE.Material): boolean {
-    if (this.compiled.has(material)) return true;
+  private isCompiled(material: THREE.Material, variant: string): boolean {
+    if (this.compiled.has(material, variant)) return true;
     const properties = this.renderer.properties.get(material) as { currentProgram?: unknown };
-    if (this.compiling.has(material) || !properties.currentProgram) return false;
-    this.compiled.add(material);
+    if (this.compiling.has(material, variant) || this.compiled.known(material) || !properties.currentProgram) return false;
+    this.compiled.add(material, variant);
     return true;
   }
 
-  private compile(o: Drawn): void {
-    const fresh = materialsOf(o).filter((m) => !this.compiling.has(m));
+  private compile(o: Drawn, variant: string): void {
+    const fresh = materialsOf(o).filter((m) => !this.compiling.has(m, variant));
     if (fresh.length === 0) return;
-    for (const m of fresh) this.compiling.add(m);
+    for (const m of fresh) this.compiling.add(m, variant);
     this.renderer.compileAsync(o, this.camera, this.scene).then(() => {
       for (const m of fresh) {
-        this.compiling.delete(m);
-        this.compiled.add(m);
+        this.compiling.delete(m, variant);
+        this.compiled.add(m, variant);
       }
     }, this.onError);
   }

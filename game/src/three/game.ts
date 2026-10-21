@@ -827,9 +827,9 @@ export class Game {
     this.refreshUi();
   }
 
-  private tryBeginTurn(now: number, wasPlaying: boolean, held: boolean, phase: TurnPhase): "began" | "none" | "failed" {
+  private tryBeginTurn(now: number, wasPlaying: boolean, held: boolean): "began" | "none" | "failed" {
     try {
-      const prepared = this.anim || this.phase !== phase ? null : this.travel.takeReady(this.world, this.drive, now, held);
+      const prepared = this.anim ? null : this.travel.takeReady(this.world, this.drive, now, held);
       if (prepared) this.beginTurn(prepared, now, this.travel.getRemainder(wasPlaying));
       return prepared ? "began" : "none";
     } catch (err) {
@@ -865,7 +865,7 @@ export class Game {
     this.uiStale = true;
   }
 
-  private finishMovement(a: Playback): null {
+  private finishMovement(a: Playback): void {
     a.moved = true;
     this.drive = a.result.next;
     for (const [id, fs] of Object.entries(a.result.frames))
@@ -877,10 +877,9 @@ export class Game {
     playCrashes(host, this.crashCues, null);
     playUtilitySounds(host);
     this.weapons.render();
-    return null;
   }
 
-  private landImpacts(a: Playback): null {
+  private landImpacts(a: Playback): void {
     a.impacts = true;
     this.phase = "results";
     this.craters.revealAll(this.world.turn);
@@ -895,7 +894,6 @@ export class Game {
     if (searched) this.screens.inventory.openLoot(searched.stock);
     this.uiStale = true;
     for (const b of this.breakCues.rest()) this.playBreak(b);
-    return null;
   }
 
   private finishPlayback(): void {
@@ -1040,7 +1038,7 @@ export class Game {
     let at = this.animStep(now, speed);
     this.updateLiveVision(at);
     this.updateTravel();
-    const began = this.tryBeginTurn(now, wasPlaying, held, phase);
+    const began = this.tryBeginTurn(now, wasPlaying, held);
     if (began === "failed") return { at, speed };
     if (began === "began") {
       at = this.animStep(now, speed);
@@ -1078,7 +1076,7 @@ export class Game {
     const sightRadius = grayRadius(this.world) * PHYSICS.metersPerTile;
     this.sightLimit.set(truck, sightRadius);
     this.rig.leash(truck, sightRadius);
-    this.follow.update(truck, this.hud.cameraMode === "auto" ? this.orderPoint() : null, this.anim !== null, dt);
+    this.follow.update(truck, this.hud.cameraMode === "auto" ? this.orderPoint() : null, this.travel.isAdvancing(this.anim, now), dt);
     this.hud.showRecenter(!this.follow.isFollowing());
     lightScene(this.sun, this.sky, truck, daylightAt(this.lightTurn()));
     this.fx.light({ sun: this.sun, sky: this.sky });
@@ -1144,10 +1142,10 @@ export class Game {
     this.play.advance(elapsed - from);
     this.sound.playDueScoreEvents(elapsed, speed);
     if (elapsed < MOVE_MS)
-      return (elapsed / 1000) * PHYSICS.stepsPerSecond;
-    if (!a.moved) return this.finishMovement(a);
+      return (elapsed / 1000) * PHYSICS.stepsPerSecond - 1;
+    if (!a.moved) this.finishMovement(a);
     const impactAt = a.impactAtMs;
-    if (elapsed >= impactAt && !a.impacts) return this.landImpacts(a);
+    if (elapsed >= impactAt && !a.impacts) this.landImpacts(a);
     const finishAt = impactAt + (a.volley ? CONFIG.combatReadMs : 0);
     if (elapsed >= finishAt) {
       this.travel.finishClock(elapsed, finishAt);
@@ -1168,7 +1166,7 @@ export class Game {
       this.pin.note(v, i < this.world.vehicles.length);
       const kept = this.frames[v.id];
       const stale = staleFrame(kept, v, this.anim !== null);
-      const f = (frames && frameAt(frames[v.id], at!)) ?? (kept && !stale ? kept : restFrame(this.world, v));
+      const f = (frames && frameAt(frames[v.id], at!, this.anim!.starts[v.id])) ?? (kept && !stale ? kept : restFrame(this.world, v));
       this.frames[v.id] = f;
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);
       if (seen) this.lastSeen.set(v.id, this.world.turn);

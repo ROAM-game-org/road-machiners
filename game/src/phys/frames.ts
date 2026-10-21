@@ -71,13 +71,18 @@ export function headingOf(q: Quat): number {
   return Math.atan2(fz, fx);
 }
 
-export function frameAt(frames: readonly VehicleFrame[] | undefined, at: number): VehicleFrame | undefined {
+export function frameAt(frames: readonly VehicleFrame[] | undefined, at: number, start?: VehicleFrame): VehicleFrame | undefined {
   if (!frames) return undefined;
+  if (at < 0) return startBlend(frames[0], at + 1, start);
   const i = Math.floor(at);
   const a = frames[i];
   const b = frames[i + 1];
   if (!a || !b) return a;
   return blendFrames(a, b, at - i);
+}
+
+function startBlend(first: VehicleFrame | undefined, t: number, start: VehicleFrame | undefined): VehicleFrame | undefined {
+  return start && first ? blendFrames(start, first, t) : first;
 }
 
 export function blendFrames(a: VehicleFrame, b: VehicleFrame, t: number): VehicleFrame {

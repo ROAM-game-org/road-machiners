@@ -79,6 +79,26 @@ describe('ShaderWarmup', () => {
     expect(compiles).toBe(1);
   });
 
+  it('holds an instanced mesh whose material only has the plain shader, since instancing needs its own program', async () => {
+    const { renderer, drawn, finish } = warmupRenderer();
+    const material = new THREE.MeshBasicMaterial();
+    const plain = new THREE.Mesh(new THREE.BoxGeometry(), material);
+    const scene = sceneWith(plain);
+    const warmup = new ShaderWarmup(renderer, scene, new THREE.PerspectiveCamera(), (e) => { throw e; });
+    warmup.render();
+    finish();
+    await Promise.resolve();
+    const instanced = new THREE.InstancedMesh(new THREE.BoxGeometry(), material, 2);
+    scene.children.unshift(instanced);
+    warmup.render();
+    expect(drawn.at(-1)).toBe(false);
+    expect(instanced.visible).toBe(true);
+    finish();
+    await Promise.resolve();
+    warmup.render();
+    expect(drawn.at(-1)).toBe(true);
+  });
+
   it('leaves a mesh the game hid hidden', () => {
     const { renderer } = warmupRenderer();
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
