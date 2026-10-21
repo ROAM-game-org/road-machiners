@@ -796,6 +796,7 @@ export const TINY_STEPS: readonly Step[] = [
   withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97,
   withStrandedAnchors_97_98,
   (world) => world,
+  (world) => world,
 ];
 
 function withStrandedAnchors_97_98(world: SavedJson): SavedJson {

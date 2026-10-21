@@ -271,7 +271,7 @@ export const UI: Translation<typeof EN> = {
   'unstuck.towing': 'Towing a truck',
   'unstuck.harpoon': 'On a harpoon line',
   'hud.tipsOff': 'Подсказки выключены. Меню, Показывать подсказки, включит их снова.',
-  'hud.douseBlock.noSupplies': 'Нужно припасов: {n}',
+  'hud.needSupplies': 'Нужно припасов: {n}',
   'hud.douseBlock.engineCool': 'Двигатель холодный',
   'mode.furyRoad': 'Шоссе хаоса',
   'mode.furyRoad.description': 'Бесконечное шоссе на север от форпоста к форпосту.',

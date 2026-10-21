@@ -14,10 +14,10 @@ XP comes from use and goes into one shared pool. The player spends the pool on r
 
 Rank 1 of each skill opens one basic technique, with no pick. Until then the technique is closed, and a locked control names the rank it needs.
 
-- Driving 1, Overdrive: the O switch. At Driving 0 it shows locked with "Needs Driving 1".
+- Driving 1, Overdrive: the O switch, and the G button that pours water over a hot engine to cool it. At Driving 0 both show locked with "Needs Driving 1".
 - Perception 1, Look-over: look a seen truck over from within 10 tiles in one turn, then see its goods and spare parts on its card while it stays in sight. B or the card's Look over button starts it.
 - Machining 1, Roadside patch: the player can offer patches to other drivers, and stranded drivers ask the player for one. A patch, tow or scrap patch for the player needs no rank.
-- Toughness 1, Water douse: the G button. At Toughness 0 it shows locked with "Needs Toughness 1".
+- Toughness 1, First aid: the U button, a timed job. Parked and out of combat, the driver heals as fast as in a town until at full health. Away from a town it costs extra supplies each turn, priced at the tier 1 wage for the turns it saves, about 0.3 supplies a turn, so a full heal from 30 health takes 14 turns and about 4 supplies instead of 70 turns of resting. It stops when the truck moves, combat starts or supplies run short. At Toughness 0 it shows locked with "Needs Toughness 1".
 - Social 1, Acumen: the trade screens show the cheap, dear, short and flooded tints and the profit on a sale. Without it they show bare prices and stock.
 
 The character screen shows each basic in a Rank 1 column before the perks. Chaos Highway starts every skill at rank 1.

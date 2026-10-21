@@ -5,6 +5,7 @@ import { RULES } from "../data/rules";
 import { STRIP } from "../data/salvage";
 import { WORK } from "../data/utilities";
 import { PERK_NUMBERS } from "../data/skills";
+import { firstAidTurns, firstAidTurnSupplies, maxHealthOf } from "./health";
 import { inCombat } from "./combat";
 import { playerVehicle } from "./damage";
 import { partValue } from "./wear";
@@ -14,7 +15,7 @@ import { makePart } from "./factory";
 import { promisedParts } from "./patch";
 import { isJunk, maxHp } from "./wear";
 import { repairPlan, repairTurn } from "./repair";
-import { practice, vehicleHasPerk } from "./progress";
+import { hasBasic, practice, vehicleHasPerk } from "./progress";
 import { finishTruckPickup } from "./salvage";
 import { isSearchStalled, searchTurn } from "./search";
 import { isSurveyStalled, surveyTurn } from "./survey";
@@ -182,6 +183,39 @@ export function startWeld(world: World): World {
   });
 }
 
+export type FirstAidBlock = "noBasic" | "inCombat" | "stopFirst" | "busy" | "unhurt" | "noSupplies";
+
+export function firstAidBlock(world: World): FirstAidBlock | null {
+  if (!hasBasic(world, "firstAid")) return "noBasic";
+  const refusal = workBlocker(world, playerVehicle(world));
+  if (refusal) return refusal.id as FirstAidBlock;
+  if (world.player.health >= maxHealthOf(world)) return "unhurt";
+  if (world.player.supplies < firstAidTurnSupplies(world)) return "noSupplies";
+  return null;
+}
+
+export function canFirstAid(world: World): boolean {
+  return firstAidBlock(world) === null;
+}
+
+export function startFirstAid(world: World): World {
+  return playerCommand(world, (w) => {
+    const v = playerVehicle(w);
+    const block = firstAidBlock(w);
+    if (block === "noBasic") throw new Error("First aid needs Toughness 1");
+    if (block === "unhurt" || block === "noSupplies") throw new Refused({ id: block });
+    const turns = firstAidTurns(w);
+    startJob(w, v, { kind: "firstAid", turnsLeft: turns, total: turns });
+  });
+}
+
+function firstAidTurn(world: World, v: Vehicle, job: Extract<Job, { kind: "firstAid" }>): boolean {
+  if (v.id !== world.player.vehicleId) throw new Error("Only the player dresses wounds");
+  if (world.player.health >= maxHealthOf(world)) return true;
+  job.turnsLeft = firstAidTurns(world);
+  return false;
+}
+
 function hasWeldScrap(v: Vehicle): boolean {
   return (goodsCount(v).scrap ?? 0) >= PERK_NUMBERS.welder.scrap;
 }
@@ -215,11 +249,12 @@ function isStalled(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "strip") return isStripStalled(v, job.partId);
   if (job.kind === "search") return isSearchStalled(world, v, job);
   if (job.kind === "survey") return isSurveyStalled(world, job);
-  return isSiteWorkStalled(v, job);
+  return isSiteWorkStalled(world, v, job);
 }
 
-function isSiteWorkStalled(v: Vehicle, job: Job): boolean {
+function isSiteWorkStalled(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "business") return !canUseSite(v.pos, getKnownSite(job.siteId));
+  if (job.kind === "firstAid") return world.player.supplies < firstAidTurnSupplies(world);
   return job.kind === "weld" && (!hasWeldScrap(v) || !weldFits(v));
 }
 
@@ -230,6 +265,7 @@ function jobTurn(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "strip") return stripTurn(world, v, job);
   if (job.kind === "weld") return weldTurn(world, v, job);
   if (job.kind === "business") return businessTurn(job);
+  if (job.kind === "firstAid") return firstAidTurn(world, v, job);
   throw new Error(`Unhandled job kind ${job.kind}`);
 }
 
