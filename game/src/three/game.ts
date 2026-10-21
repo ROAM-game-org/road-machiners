@@ -11,7 +11,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import {
-  playedFrame, framePoints, staleFrame,
+  frameAt, framePoints, staleFrame,
   groundPoint,
   toMap,
   type TurnFrames,
@@ -100,7 +100,7 @@ import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { HostileSighting } from "./hostile-sighting";
-import { creepStep, freezeCreep, nextSightSample, threatsIn, Travel, type Creep, type Playback, type Shown, type LiveVision } from "./travel";
+import { nextSightSample, threatsIn, Travel, type Playback, type LiveVision } from "./travel";
 import { PlayClock } from "./play-clock";
 
 
@@ -167,7 +167,6 @@ export class Game {
   private frames: Record<string, VehicleFrame> = {};
   private anim: Playback | null = null;
   private turnStart: World | null = null;
-  private creep: Creep | null = null;
   private crashCues: CollisionCues | null = null;
   private breakCues = new BreakCues([]);
   private readonly travel = new Travel(CONFIG.travelHoldMs);
@@ -801,8 +800,7 @@ export class Game {
   }
 
   private beginTurn(prepared: PreparedTurn, now: number, elapsed: number): void {
-    const { world: played, playback, towed } = this.travel.beginPlayback(this.world, prepared, now, elapsed, this.frames, this.creep);
-    this.creep = null;
+    const { world: played, playback, towed } = this.travel.beginPlayback(this.world, prepared, now, elapsed, this.frames);
     const world = relanguageQuest(played, QUESTS);
     if (this.saves.changeMapIfMoved(world)) return;
     this.world = world;
@@ -872,13 +870,6 @@ export class Game {
     this.hud.flushHorn();
     this.shade.update(this.world);
     this.uiStale = true;
-    this.creep = this.travel.creepFrom(this.world, this.frames);
-  }
-
-  private shownAt(at: number | null, now: number): { at: number | null; play: Shown | null } {
-    if (this.anim || !this.creep) return { at, play: this.anim };
-    if (this.creep.world !== this.world) return { at: freezeCreep(this.creep, now), play: null };
-    return { at: creepStep(this.creep, now), play: this.creep };
   }
 
   private getUnstuck(): void {
@@ -1014,7 +1005,7 @@ export class Game {
       at = this.animStep(now, speed);
       this.updateTravel();
     }
-    this.travel.prepareNext(this.world, this.anim);
+    this.travel.prepareNext(this.world, this.anim, now);
     this.flushUi(began, phase);
     return { at, speed };
   }
@@ -1038,8 +1029,7 @@ export class Game {
     this.play.coast(Math.max(0, dt), this.travel.isAdvancing(null, now), speed);
     const playDt = this.play.frameMs() / 1000;
     const step = at === null ? null : Math.floor(at);
-    const shown = this.shownAt(at, now);
-    this.syncVehicles(shown.at, shown.play, Math.max(0, dt) / 1000, playDt);
+    this.syncVehicles(at, Math.max(0, dt) / 1000, playDt);
     this.obstacles.play(this.anim, step, this.world, this.frames, playDt);
     if (step !== null) playCrashes(this.combatHost(), this.crashCues, step);
     this.drawOverlays();
@@ -1047,7 +1037,7 @@ export class Game {
     const sightRadius = grayRadius(this.world) * PHYSICS.metersPerTile;
     this.sightLimit.set(truck, sightRadius);
     this.rig.leash(truck, sightRadius);
-    this.follow.update(truck, this.hud.cameraMode === "auto" ? this.orderPoint() : null, this.travel.isAdvancing(this.anim, now) || this.creep !== null, dt);
+    this.follow.update(truck, this.hud.cameraMode === "auto" ? this.orderPoint() : null, this.travel.isAdvancing(this.anim, now), dt);
     this.hud.showRecenter(!this.follow.isFollowing());
     lightScene(this.sun, this.sky, truck, daylightAt(this.lightTurn()));
     this.fx.light({ sun: this.sun, sky: this.sky });
@@ -1125,8 +1115,8 @@ export class Game {
     return null;
   }
 
-  private syncVehicles(at: number | null, play: Shown | null, dt: number, playDt: number): void {
-    const frames: TurnFrames | null = at === null || !play ? null : play.result.frames;
+  private syncVehicles(at: number | null, dt: number, playDt: number): void {
+    const frames: TurnFrames | null = at === null || !this.anim ? null : this.anim.result.frames;
     const landed = !this.anim || this.anim.impacts;
     const glass = daylightAt(this.lightTurn()).glass;
     const now = performance.now();
@@ -1135,7 +1125,7 @@ export class Game {
     const ids = new Set<string>();
     for (const [i, v] of shown.entries()) {
       this.pin.note(v, i < this.world.vehicles.length);
-      const f = this.shownFrame(v, frames && play && playedFrame(frames[v.id], at!, play.starts[v.id], play.startAt));
+      const f = this.shownFrame(v, frames && frameAt(frames[v.id], at!, this.anim!.starts[v.id]));
       this.frames[v.id] = f;
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);
       if (seen) this.lastSeen.set(v.id, this.world.turn);

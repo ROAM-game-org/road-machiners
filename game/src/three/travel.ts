@@ -20,8 +20,6 @@ import { dist } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
 import { autoRuns, playerCanAct, threatToPlayer } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
-import { CONFIG } from "../config";
-import { PHYSICS } from "../data/physics";
 
 export type LiveVision = {
   visible: Set<number>;
@@ -40,49 +38,10 @@ export function nextSightSample(live: LiveVision, step: number): number | null {
   return k;
 }
 
-export type Shown = {
+export type Playback = {
   result: PreparedTurn["result"];
   starts: Record<string, VehicleFrame>;
-  startAt: number;
-};
-
-export type Creep = Shown & { world: World; since: number | null; lead: number; frozen: number | null };
-
-export function creepMs(sinceMs: number): number {
-  return (CONFIG.turnCreepMs * sinceMs) / (sinceMs + CONFIG.turnCreepMs);
-}
-
-export function freezeCreep(creep: Creep, now: number): null {
-  if (creep.since !== null) creep.frozen ??= creepMs(now - creep.since);
-  return null;
-}
-
-export function creepStep(creep: Creep, now: number): number {
-  creep.since ??= now - creep.lead;
-  return (creepMs(now - creep.since) / 1000) * PHYSICS.stepsPerSecond - 1;
-}
-
-const creepRate = (sinceMs: number): number => (CONFIG.turnCreepMs / (sinceMs + CONFIG.turnCreepMs)) ** 2;
-
-type Ramp = { since: number; rate: number };
-
-function rampRate(ramp: Ramp | null, now: number): number {
-  return ramp ? 1 - (1 - ramp.rate) * creepRate(now - ramp.since) : 1;
-}
-
-type Join = { elapsed: number; startAt: number; ramp: Ramp | null; starts: Record<string, VehicleFrame> };
-
-function joinOf(creep: Creep | null, prepared: PreparedTurn, now: number, carried: number, shown: Record<string, VehicleFrame>): Join {
-  if (creep?.since == null) return { elapsed: carried, startAt: -1, ramp: null, starts: { ...shown } };
-  const elapsed = creep.frozen ?? creepMs(now - creep.since);
-  const ramp = { since: now, rate: creep.frozen === null ? creepRate(now - creep.since) : 0 };
-  if (creep.result === prepared.result) return { elapsed, startAt: -1, ramp, starts: creep.starts };
-  return { elapsed, startAt: (elapsed / 1000) * PHYSICS.stepsPerSecond - 1, ramp, starts: { ...shown } };
-}
-
-export type Playback = Shown & {
   before: World;
-  ramp: Ramp | null;
   lastTick: number | null;
   elapsed: number;
   moved: boolean;
@@ -307,24 +266,18 @@ export class Travel {
     return null;
   }
 
-  prepareNext(world: World, playback: Playback | null): void {
-    if (playback && world.player.state !== "dead") this.turns.prepare(world, playback.result.next);
-  }
-
-  creepFrom(world: World, shown: Record<string, VehicleFrame>): Creep | null {
-    const ready = this.turns.peek(world);
-    return ready ? { result: ready.result, starts: { ...shown }, startAt: -1, world, since: null, lead: this.remainder, frozen: null } : null;
+  prepareNext(world: World, playback: Playback | null, now: number): void {
+    if (playback && (this.shouldAdvance(now) || this.runsOnItsOwn(world, now)))
+      this.turns.prepare(world, playback.result.next);
   }
 
   beginPlayback(
     before: World,
     prepared: PreparedTurn,
     now: number,
-    carried: number,
+    elapsed: number,
     shown: Record<string, VehicleFrame>,
-    creep: Creep | null = null,
   ): { world: World; playback: Playback; towed: boolean } {
-    const { elapsed, startAt, ramp, starts } = joinOf(creep, prepared, now, carried, shown);
     const world = { ...prepared.world, terrain: before.terrain };
     addRopeFrames(before, world, prepared.result.frames, shown);
     if (playerCanAct(before) && !playerCanAct(world)) this.pause();
@@ -335,9 +288,7 @@ export class Travel {
     const towed = isTowed(before) || isTowed(world);
     const playback: Playback = {
       result: prepared.result,
-      starts,
-      startAt,
-      ramp,
+      starts: { ...shown },
       before,
       lastTick: now,
       elapsed,
@@ -358,7 +309,7 @@ export class Travel {
 
   advanceClock(playback: Playback, now: number, speed: number, maxFrameMs: number): number {
     if (playback.lastTick !== null)
-      playback.elapsed += Math.min(now - playback.lastTick, maxFrameMs) * speed * rampRate(playback.ramp, now);
+      playback.elapsed += Math.min(now - playback.lastTick, maxFrameMs) * speed;
     playback.lastTick = now;
     return playback.elapsed;
   }
@@ -482,11 +433,6 @@ export class TurnPreparation {
     );
     this.terrain = terrain;
     return id;
-  }
-
-  peek(world: World): PreparedTurn | null {
-    const pending = this.pending;
-    return pending && this.isFresh(world) && !pending.failure ? pending.ready : null;
   }
 
   take(world: World): PreparedTurn | null {
