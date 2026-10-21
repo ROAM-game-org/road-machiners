@@ -19,6 +19,7 @@ export class FogView {
   private readonly state: Uint8Array;
   private readonly dirty: Uint8Array;
   private readonly visible: Uint8Array;
+  private readonly known: Uint8Array;
   private shown: readonly number[] = [];
   private readonly lookOf: Look[] = [{ grey: 0, bright: 1 }, TERRAIN.fog.seen, TERRAIN.fog.unseen];
 
@@ -36,16 +37,30 @@ export class FogView {
       this.chunks[(g.y / TERRAIN_CHUNK) * this.perSide + g.x / TERRAIN_CHUNK] = { x: g.x, y: g.y, width: g.width, depth: g.depth, look };
     }
     for (const mat of materials) greyOut(mat);
-    this.update(world);
+    this.show(world.player.visible);
+    for (let t = 0; t < n * n; t++) this.restate(t, n, world.player.explored);
+    this.known = world.player.explored.slice();
+    this.writeDirty(n);
   }
 
   update(world: World): void {
     const n = world.size;
-    this.show(world.player.visible);
-    const { visible, state } = this;
+    const before = this.shown;
     const explored = world.player.explored;
-    for (let t = 0; t < n * n; t++) if ((visible[t] ? VISIBLE : explored[t] ? EXPLORED : DARK) !== state[t]) this.restate(t, n, explored);
+    this.show(world.player.visible);
+    for (const t of before) this.restate(t, n, explored);
+    for (const t of this.shown) this.restate(t, n, explored);
+    this.restateExplored(explored, n);
     this.writeDirty(n);
+  }
+
+  private restateExplored(explored: Uint8Array, n: number): void {
+    const words = explored.length >> 2;
+    const now = new Uint32Array(explored.buffer, explored.byteOffset, words);
+    const was = new Uint32Array(this.known.buffer, 0, words);
+    for (let w = 0; w < words; w++) if (now[w] !== was[w]) for (let t = w * 4; t < w * 4 + 4; t++) this.restate(t, n, explored);
+    for (let t = words * 4; t < explored.length; t++) this.restate(t, n, explored);
+    this.known.set(explored);
   }
 
   updateSight(world: World): void {
