@@ -475,6 +475,7 @@ function outlineMaterial(): THREE.MeshBasicMaterial {
         if (dot(outlineDir, outlineDir) > 1e-8) gl_Position.xy += normalize(outlineDir) * outlineWidth * 2.0 / viewport * gl_Position.w;`);
   };
   material.customProgramCacheKey = () => 'outline';
+  material.userData.shared = true;
   return material;
 }
 
