@@ -44,7 +44,7 @@ export const OLD_PLACES = {
   tankGap: 10,
   boatGap: 14,
   roadGap: 5,
-  chance: { homestead: 0.5, hamlet: 0.35, lookout: 0.4, hulks: 0.25, boats: 0.3 } as Record<OldPlaceType, number>,
+  chance: { homestead: 0.5, hamlet: 0.35, lookout: 0.4, hulks: 0.25, boats: 0.2 } as Record<OldPlaceType, number>,
   npcShare: 0.3,
   npcRange: 120,
 };
@@ -176,7 +176,7 @@ export const OLD_TABLES: Record<OldPlaceType, LootTable> = {
   boats: {
     goods: { scrap: [1, 2] },
     parts: [0, 1],
-    sparePartChance: 0.1,
+    sparePartChance: 0.05,
     spareParts: ['plates', 'rack'],
     rare: { share: 0.25, parts: ['workhorseDiesel'], wear: RARE_WEAR },
     relicChance: 0,
