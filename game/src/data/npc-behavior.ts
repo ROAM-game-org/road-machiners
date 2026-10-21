@@ -210,6 +210,8 @@ export const STANDING = { dailyDrift: 10, dailyGainCap: 15 };
 
 export const INTERVENE = { range: 10, friendly: 0.25 };
 
+export const HELP_CALL = { allied: 450, friendly: 27, law: 450 };
+
 export const REFUSE_KNOWN_AT = -15;
 
 export const SITE_FACTIONS: Partial<Record<string, NpcFactionId>> = {

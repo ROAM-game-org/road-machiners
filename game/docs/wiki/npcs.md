@@ -38,12 +38,12 @@ NPC behavior has three layers. Traits in `brain.traits` are permanent. A goal st
 | lawman | never | 1 | 1 | idle.patrol +20, idle.wait +2, idle.scavenge  x0.05, hostileSeen.fight +8, attacked.fightBack  x2, strandedSeen.tow +9, parley.truce  x0.3, parley.beg  x0.3, threatened.comply  x0.2, threatened.fightBack +2, warnedOff.comply  x0.2, warnedOff.fightBack +2 |
 | courier | offDuty | 1 | 1 | idle.travel +20, idle.escort +180, idle.scavenge  x0.001, strandedSeen.tow +2, hostileSeen.fight  x0.1, threatened.comply +1, warnedOff.comply +1, escortSeen.hire +0.5, lootContested.leave  x3, strangerSeen.tale +0.1, strangerSeen.courier +1 |
 | roamer | offDuty | 1 | 1 | idle.explore +10, idle.trade +3, idle.scavenge +2, salvageSeen.loot +3, strandedSeen.tow +3, escortSeen.hire +0.2, aidAsked.give  x2, needySeen.aid +0.02, strangerSeen.tale +0.1, strangerSeen.tip +0.08 |
-| vulture | offDuty | 1 | 1 | idle.prowl +10, idle.scavenge +2, salvageSeen.loot +20, crashed.retaliate +0.5, strangerSeen.tip +0.08 |
+| vulture | offDuty | 1 | 1 | idle.prowl +10, idle.scavenge +2, salvageSeen.loot +20, crashed.retaliate +0.5, strangerSeen.tip +0.08, helpCalled.help  x0.3 |
 | supplier | never | 1 | 1 | idle.haul +30, idle.trade +15, idle.scavenge  x0.001, strandedSeen.tow +9, hostileSeen.fight  x0.002, attacked.fightBack  x0.1, threatened.comply +1, threatened.fightBack  x0.1, warnedOff.comply +1, warnedOff.fightBack  x0.1, strangerSeen.tale +0.1 |
 | guard | never | 1 | 1 | idle.escort +30, idle.wait +5, idle.travel +1, idle.scavenge  x0.001, hostileSeen.fight +8, attacked.fightBack  x2, threatened.comply  x0.2, threatened.fightBack +2, warnedOff.comply  x0.2, warnedOff.fightBack +2 |
 | merc | offDuty | 1 | 1 | idle.wait +10, idle.travel +1, idle.scavenge  x0.001, hostileSeen.fight +4, attacked.fightBack  x2, threatened.comply  x0.2, threatened.fightBack +2, warnedOff.comply  x0.2, warnedOff.fightBack +2 |
 | cultist | never | 1.2 | 1 | hostileSeen.fight +4, attacked.fightBack  x2, strandedSeen.tow  x0.001, salvageSeen.loot  x0.2, parley.truce  x0.3, parley.beg  x0.3, truceOffered.refuse +2, threatened.comply  x0.3, threatened.fightBack +2, warnedOff.comply  x0.5, aidAsked.give  x0.001, needySeen.aid  x0.001, escortSeen.hire  x0.001 |
-| brave | offDuty | 1.5 | 1 | strangerSeen.challenge +0.05, lookedOver.warn +1.5, lookedOver.keepAway  x0.2, hostileSeen.flee  x0.05, contactHeard.flee  x0.05, attacked.flee  x0.05, parley.truce  x0.05, parley.beg  x0.05, threatened.flee  x0.05, threatened.comply  x0.05, warnedOff.comply  x0.05, lootContested.warn  x2, lootContested.leave  x0.5, lootContested.fight  x3, warnRefused.fight  x3, fightWhim.rush  x3, crewAsked.join  x2, crewCalled.flee  x0.05 |
+| brave | offDuty | 1.5 | 1 | strangerSeen.challenge +0.05, lookedOver.warn +1.5, lookedOver.keepAway  x0.2, helpCalled.help  x2.5, hostileSeen.flee  x0.05, contactHeard.flee  x0.05, attacked.flee  x0.05, parley.truce  x0.05, parley.beg  x0.05, threatened.flee  x0.05, threatened.comply  x0.05, warnedOff.comply  x0.05, lootContested.warn  x2, lootContested.leave  x0.5, lootContested.fight  x3, warnRefused.fight  x3, fightWhim.rush  x3, crewAsked.join  x2, crewCalled.flee  x0.05 |
 <!-- /wiki:traits -->
 
 ## Decisions
@@ -145,6 +145,8 @@ Base weights of every option at each decision point. Traits and states add or mu
 | vigilCalled | accept | 0.3 |
 | vigilCalled | refuse | 1 |
 | vigilCalled | flee | 3 |
+| helpCalled | help | 0.11 |
+| helpCalled | refuse | 1 |
 <!-- /wiki:decisions -->
 
 ## States
@@ -163,6 +165,7 @@ A timed state between two vehicles, like a feud or a tow, is owned by `src/sim/s
 | truce | 60 | false |
 | grievance | 5 | false |
 | plea | 20 | false |
+| helpRefused | 20 | false |
 | patch | 40 | true |
 | trade | 20 | true |
 | handover | 20 | true |

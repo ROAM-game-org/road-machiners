@@ -192,6 +192,12 @@ describe('planBlast', () => {
     expect(planBlast(v, { x: face.x, y: face.y - 20 }, 2, round, null)).toEqual([]);
   });
 
+  it('reads the radius in meters, so a small blast a tile off the hull touches nothing', () => {
+    const { v } = scout();
+    const face = lanePoint(v, 'left', Math.floor(laneCount(v, 'left') / 2));
+    expect(planBlast(v, { x: face.x, y: face.y - 1 }, 1.5, round, null)).toEqual([]);
+  });
+
   it('shields a part behind another, so it takes more once the part in front is broken', () => {
     const { v } = scout();
     const lane = Math.floor(laneCount(v, 'left') / 2);

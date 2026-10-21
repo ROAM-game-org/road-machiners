@@ -155,6 +155,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "tractor", weight: 1 },
       { value: "scout", weight: 2 },
       { value: "bus", weight: 2 }, { value: "bukhanka", weight: 2 },
+      { value: "sorokonoga", weight: 1 },
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
@@ -303,6 +304,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "hauler", weight: 6 },
       { value: "longbed", weight: 3 },
       { value: "bus", weight: 2 },
+      { value: "sorokonoga", weight: 1 },
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
@@ -606,6 +608,7 @@ export type DecisionOptions = {
   needySeen: 'keep' | 'aid';
   strangerSeen: 'keep' | 'tale' | 'tip' | 'challenge' | 'courier';
   vigilCalled: 'accept' | 'refuse' | 'flee';
+  helpCalled: 'help' | 'refuse';
 };
 export type DecisionId = keyof DecisionOptions;
 
@@ -647,6 +650,7 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   needySeen: { keep: 1, aid: 0 },
   strangerSeen: { keep: 1, tale: 0, tip: 0, challenge: 0, courier: 0 },
   vigilCalled: { accept: 0.3, refuse: 1, flee: 3 },
+  helpCalled: { help: 0.11, refuse: 1 },
 };
 
 export type WeightChange = { add?: number; mul?: number };
@@ -660,6 +664,7 @@ export const STATE_WEIGHTS: Record<StateKindId, TraitWeights> = {
   grievance: {},
   strayFire: {},
   plea: { parley: { truce: { mul: 0.01 }, beg: { mul: 0.01 } } },
+  helpRefused: {},
   turnedDown: { strandedSeen: { tow: { mul: 0.001 } } },
   towPromise: { strandedSeen: { tow: { add: 20 } } },
   answering: {},
@@ -694,6 +699,7 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   grievance: 5,
   strayFire: 60,
   plea: 20,
+  helpRefused: 20,
   turnedDown: null,
   towPromise: null,
   revenge: 2000,
@@ -711,5 +717,5 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
 };
 
 
-export { CREW, FEMALE_NAMES, FIRST_NAMES, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
+export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';

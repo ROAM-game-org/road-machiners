@@ -14,7 +14,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import {
-  frameAt,
+  frameAt, framePoints, staleFrame,
   groundPoint,
   toMap,
   type TurnFrames,
@@ -68,7 +68,7 @@ import { addShipDecks } from "./render/ship-decks";
 import { terrainMesh } from "./render/terrain";
 import { type WebGLSurface } from "./webgl";
 import { RadioLights, VehicleView } from "./render/vehicle";
-import { HoverArcsView, WeaponRangeView } from "./render/weaponRange";
+import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponRange";
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
@@ -86,6 +86,8 @@ import { SoundRingView } from "./render/soundRing";
 import { reportError } from "./crash";
 import { GameSaves, TURN_FAILED_NOTE, type Run } from "./save";
 import { GameMenu } from "../ui/game-menu";
+import { unstuckReason } from "../ui/unstuck-reason";
+import { getUnstuck } from "../sim/unstuck";
 import { confirmedEndRun, DeathScreen, deathShows } from "../ui/death";
 import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
@@ -113,7 +115,6 @@ type TurnPhase = ReturnType<UiHost["getTurnPhase"]>;
 
 const MOVE_MS = (TURN_STEPS / PHYSICS.stepsPerSecond) * 1000;
 const stepMs = (step: number) => (step / PHYSICS.stepsPerSecond) * 1000;
-const MOVED_BY_RULES = 0.5;
 
 const GUN_HEIGHT = 1.6;
 
@@ -339,7 +340,7 @@ export class Game {
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
     const saves = this.saves.menuActions(() => this.world);
-    this.menu = new GameMenu(saves, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), {
+    this.menu = new GameMenu({ ...saves, unstuck: { reason: () => unstuckReason(this.world, this.anim !== null, this.screens.quest.isOpen()), run: () => this.getUnstuck() } }, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), {
       cameraLabel: () => this.hud.cameraModeLabel(),
       toggleCamera: () => this.hud.toggleCameraMode(),
       report: () => this.hud.openFeedback(),
@@ -784,8 +785,10 @@ export class Game {
     for (const v of this.world.vehicles) {
       const f = this.frames[v.id];
       if (!f || !this.isVehicleVisible(v)) continue;
-      const s = this.rig.screenOf(f.pos);
-      const d = Math.hypot(s.x - cx, s.y - cy);
+      const d = Math.min(...framePoints(f).map((p) => {
+        const s = this.rig.screenOf(p);
+        return Math.hypot(s.x - cx, s.y - cy);
+      }));
       if (d < bestD) {
         best = v;
         bestD = d;
@@ -924,6 +927,12 @@ export class Game {
     this.hud.flushHorn();
     this.shade.update(this.world);
     this.uiStale = true;
+  }
+
+  private getUnstuck(): void {
+    this.screens.closeAll(null);
+    this.runRescue(getUnstuck);
+    this.endTurn();
   }
 
   private rescueCommand(fn: (w: World) => World | null): void {
@@ -1175,7 +1184,7 @@ export class Game {
     for (const [i, v] of shown.entries()) {
       this.pin.note(v, i < this.world.vehicles.length);
       const kept = this.frames[v.id];
-      const stale = !this.anim && kept && dist(toMap(kept.pos), v.pos) > MOVED_BY_RULES;
+      const stale = staleFrame(kept, v, this.anim !== null);
       const f = (frames && frameAt(frames[v.id], at!)) ?? (kept && !stale ? kept : restFrame(this.world, v));
       this.frames[v.id] = f;
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);
@@ -1187,11 +1196,11 @@ export class Game {
       ids.add(v.id);
       let view = this.views.get(v.id);
       if (!view) {
-        view = new VehicleView(v, seen);
+        view = new VehicleView(v, seen, this.world.player.paint);
         this.views.set(v.id, view);
         this.scene.add(view.root);
       }
-      view.update(display, seen);
+      view.update(display, seen, this.world.player.paint);
       view.lamps(vehicleLampsOn(this.world, v, this.lightTurn()));
       view.radio(this.radioLights.lit(v.id, now));
       view.outline(look === "dark");
@@ -1245,7 +1254,7 @@ export class Game {
     const me = playerVehicle(this.world);
     const s = vehicleStats(this.world, me);
     const sel = s.weapons.filter((m) => m.part.id === this.selected);
-    this.weaponRange.set(this.world.terrain, me.pos, me.heading, sel);
+    this.weaponRange.set(this.world.terrain, vehicleOrigins(me), sel);
     if (!me.direct) this.zones.hideBands();
     else
       this.zones.update(

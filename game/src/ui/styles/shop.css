@@ -354,15 +354,40 @@
   }
 }
 
-/* Journal: one card per note, newest first. */
+/* Journal: held work, then notes newest first, then past work newest first. */
 #ui .modal.journal-screen {
   max-width: var(--talk-width);
 }
 .journal {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-9);
   margin-top: var(--space-4);
+}
+.journal-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.journal-group > h4 {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-dense);
+  font-weight: normal;
+}
+.journal .jobs {
+  grid-template-columns: var(--icon-xl) 1fr auto auto;
+}
+.journal-past .job > :last-child {
+  justify-self: end;
+}
+.journal-work .job:has(+ .journal-detail) {
+  border-bottom: 0;
+}
+.journal-detail {
+  grid-column: 2 / -1;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line-faint);
 }
 .journal-note {
   padding: var(--space-4) var(--space-6);
@@ -373,7 +398,7 @@
 .journal-place {
   margin-top: var(--space-4);
 }
-.journal-note .journal-head {
+.journal .journal-head {
   display: flex;
   justify-content: space-between;
   gap: var(--space-6);
@@ -1041,6 +1066,81 @@
 }
 .service-meter .meter {
   height: var(--meter-l);
+}
+
+/* Paint: the chassis in the planned paint on the left, one palette row per surface on the right, Buy under the rows. */
+.paint-tab {
+  display: grid;
+  grid-template-columns: calc(var(--portrait-w) * 1.5) 1fr;
+  gap: var(--space-7);
+  align-items: start;
+}
+.paint-preview .chassis-portrait {
+  width: calc(var(--portrait-w) * 1.5);
+  height: calc(var(--portrait-h) * 1.5);
+}
+.paint-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.paint-slot {
+  display: grid;
+  grid-template-columns: var(--icon-3xl) 1fr;
+  align-items: center;
+  gap: var(--space-4);
+}
+.paint-switch {
+  gap: var(--space-2);
+}
+.paint-slot-name {
+  font-size: var(--text-caption);
+  color: var(--ink-label);
+}
+.paint-switch > button {
+  flex: 1;
+}
+#ui .paint-switch > button.planned {
+  outline: 1px dashed var(--accent);
+  outline-offset: 1px;
+}
+.paint-swatch {
+  display: block;
+  width: var(--icon-m);
+  height: var(--icon-xs);
+  margin: 0 auto;
+  border: 1px solid var(--line-soft);
+  background: var(--paint);
+}
+.paint-scheme {
+  display: grid;
+  grid-template-columns: 1fr var(--icon-xs);
+  grid-template-rows: var(--space-1) 1fr var(--space-2);
+  width: var(--icon-2xl);
+  height: var(--icon-s);
+  margin: 0 auto;
+}
+.paint-scheme > span {
+  border: 1px solid var(--line-soft);
+}
+.paint-scheme-body {
+  grid-area: 2 / 1;
+  border-right: 0;
+  background: var(--paint-body);
+}
+.paint-scheme-cab {
+  grid-area: 1 / 2 / 3;
+  background: var(--paint-cab);
+}
+.paint-scheme-gear {
+  grid-area: 3 / 1 / 4 / 3;
+  border-top: 0;
+  background: var(--paint-gear);
+}
+.paint-buy {
+  display: flex;
+  justify-content: flex-end;
+  min-height: var(--btn-h-m);
 }
 
 /* Trucks: the layout map beside the stats. */

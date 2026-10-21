@@ -1,9 +1,10 @@
 
+import { PAINT } from '../data/chassis';
 import * as THREE from 'three';
 import { partDef } from '../data/parts';
 import { BODY_PARTS, itemLookId, partModel, weaponLook } from '../render/partLooks';
 import { aimWithin, gunSpans } from '../sim/armor';
-import { cellRect, highestUnder, restOn, surfaceSamples } from '../sim/body';
+import { cellRect, highestUnder, restOn, surfaceSamples, unitOfCells } from '../sim/body';
 import { makeVehicle, newId } from '../sim/factory';
 import { baseGrid, isMounted, itemCells } from '../sim/grid';
 import { emptyWorld } from '../sim/testkit';
@@ -45,6 +46,7 @@ function obstacles(v: Vehicle, skip: GridItem): Box[] {
   const out: Box[] = [];
   for (const it of v.items) {
     if (it === skip || itemCells(it).some((c) => c.y >= g.h)) continue;
+    if (unitOfCells(v.chassisId, itemCells(it)).index !== unitOfCells(v.chassisId, itemCells(skip)).index) continue;
     let what: string = itemLookId(it);
     if (it.kind === 'part') {
       const d = partDef(it.part.defId);
@@ -63,7 +65,7 @@ function obstacles(v: Vehicle, skip: GridItem): Box[] {
 }
 
 export function clips(world: World, v: Vehicle): string[] {
-  const view = new VehicleView(v, true);
+  const view = new VehicleView(v, true, PAINT.standard);
   const problems: string[] = [];
   for (const gun of v.items.filter((it): it is Extract<GridItem, { kind: 'part' }> => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon')) {
     if (itemCells(gun).some((c) => c.y >= baseGrid(v.chassisId).h)) continue;
@@ -88,9 +90,9 @@ export function clips(world: World, v: Vehicle): string[] {
         for (const b of boxes) {
           if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 && b.top - y > worst) { worst = b.top - y; where = `${b.what} at yaw ${a}`; }
         }
-        const cell = surfaceSamples(v.chassisId, { x, z }, 0.08).find((c) => Math.abs(c.x - x) <= c.half && Math.abs(c.z - z) <= c.half);
+        const cell = surfaceSamples(v.chassisId, own.unit, { x, z }, 0.08).find((c) => Math.abs(c.x - x) <= c.half && Math.abs(c.z - z) <= c.half);
         if (cell && cell.x >= own.x0 && cell.x <= own.x1 && cell.z >= own.z0 && cell.z <= own.z1) continue;
-        const surface = highestUnder(v.chassisId, { x0: x - 0.02, x1: x + 0.02, z0: z - 0.02, z1: z + 0.02 });
+        const surface = highestUnder(v.chassisId, { unit: own.unit, x0: x - 0.02, x1: x + 0.02, z0: z - 0.02, z1: z + 0.02 });
         if (surface - y > worst) { worst = surface - y; where = `body at yaw ${a}`; }
       }
     }

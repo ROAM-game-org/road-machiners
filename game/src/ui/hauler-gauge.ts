@@ -17,7 +17,7 @@ export class HaulerGauge {
     const share = haulerShare(hauler);
     this.root.style.display = "";
     this.root.replaceChildren(
-      chassisPortrait(hauler.chassisId),
+      chassisPortrait(hauler.chassisId, w.player.paint),
       el("div", { class: `meter${share === 0 ? " broken" : ""}`, title: t("hud.haulerTip", { percent: Math.round(share * 100) }) }, el("div", { style: `width:${share * 100}%` })),
     );
   }

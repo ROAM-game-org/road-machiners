@@ -8,7 +8,8 @@ import type { Vec } from "./vec";
 import type { LineId, TopicId } from "../data/dialogue";
 import type { PersonalityId } from "../data/personalities";
 import type { DecisionOptions } from "../data/npcs";
-import type { Contract, ShopState } from "./market";
+import type { Contract, PastContract, ShopState } from "./market";
+import type { TruckPaint } from "../data/chassis";
 import type { Rng } from "./rng";
 import type { PerkId } from "../data/skills";
 import type { NoteId } from "../data/locals";
@@ -81,7 +82,7 @@ export type UtilityOrder =
   | { kind: 'point'; pos: Vec }
   | { kind: 'disarm' };
 
-export type Pose = { x: number; y: number; heading: number };
+export type Pose = { x: number; y: number; heading: number; bend?: number };
 
 export type MoveOrder =
   | { kind: "through"; dest: Vec; pace?: number }
@@ -193,10 +194,10 @@ export type GoalReason =
   | 'salvageGone' | 'searchSite' | 'searchSpot' | 'sellCargo' | 'soldCargo' | 'spottedHeard' | 'strandedRobbery'
   | 'takeClaimedLoot' | 'takeHandedCargo' | 'towNotNeeded' | 'towOff' | 'towOfferLeft' | 'towPlayer' | 'towStranded'
   | 'towUnanswered' | 'towedPlayer' | 'towedStranded' | 'tripToSite' | 'truckGotAway' | 'unfitToHunt' | 'waitPatch'
-  | 'waitTow' | 'waitTowAnswer' | 'warnedOff'
+  | 'waitTow' | 'waitTowAnswer' | 'warnedOff' | 'answeredCall'
   | 'avoidRanFrom' | 'breakOffFight' | 'cannotWearDown' | 'holdFull' | 'leftPost' | 'lootWontFit' | 'ranFromIt' | 'salvageOutOfReach'
   | 'takeSpilledCargo' | 'watchedRoad' | 'cornered' | 'defeated'
-  | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey'
+  | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldBoats' | 'searchOldRuin' | 'springOnPrey'
   | 'musterCrew' | 'crewLeader' | 'hiredGuard'
   | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger'
   | 'sizingUp' | 'poorLoad' | 'sizedUpBy';
@@ -353,9 +354,11 @@ export type Vehicle = {
   items: GridItem[];
   pos: Vec;
   heading: number;
+  bend?: number;
   speed: number;
   stormExposure: Record<string, number>;
   strandedTurns?: number;
+  strandedAt?: Vec;
   stalledUntil?: number;
   order: MoveOrder | null;
   direct: boolean;
@@ -374,7 +377,7 @@ export type Defeat = { phase: 'out' | 'retreat'; turns: number; unseen: number; 
 
 export type LandmarkLook = Exclude<PropKind, "rock">;
 
-export type Hulk = { chassisId: string; yaw: number };
+export type Hulk = { chassisId: string; yaw: number; bend?: number };
 
 export type Obstacle =
   | { id: string; pos: Vec; r: number; kind: "rock" | "wreck" | "building" | "water" | "site"; hulk?: Hulk }
@@ -382,7 +385,7 @@ export type Obstacle =
 
 export type BrokenProp = { obstacle: Obstacle; turn: number };
 
-export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire' | 'cavalcade' | 'offering' | 'drag' | 'lookOver' | 'sizedUp';
+export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'helpRefused' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire' | 'cavalcade' | 'offering' | 'drag' | 'lookOver' | 'sizedUp';
 export type StateEnding = 'expired' | 'fulfilled' | 'broken';
 export type Plea = 'truce' | 'mercy';
 export type StateData =
@@ -483,6 +486,7 @@ export type Player = {
   repeats: Record<string, Repeat>;
   xpBySource: Record<XpSource, number>;
   perks: PerkId[];
+  paint: TruckPaint;
   health: number;
   fuel: number;
   supplies: number;
@@ -496,6 +500,7 @@ export type Player = {
   scavenged: string[];
   storage: PartInstance[];
   contracts: Contract[];
+  pastContracts: PastContract[];
   costBasis: Record<string, number>;
   knockouts: number;
   state: "active" | "knockedOut" | "dead";
@@ -560,8 +565,8 @@ export type GameEvent =
   | { t: 'practice'; source: XpSource; amount: number; difficulty: number | null; target: string; xp: number }
   | { t: 'skillUp'; skill: SkillId; level: number }
   | { t: 'money'; amount: number; reason: MoneyReason }
-  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'surveyed' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
-  | { t: 'contract'; contract: Contract; outcome: 'found'; site: string; cause?: undefined }
+  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
+  | { t: 'contract'; contract: Contract; outcome: 'found' | 'surveyed'; site: string; cause?: undefined }
   | { t: 'claimRival'; contract: string; vehicle: string }
   | { t: 'claimLead'; contract: string; driver: string }
   | { t: 'discover'; location: string }

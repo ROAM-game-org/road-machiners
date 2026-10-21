@@ -6,7 +6,7 @@ import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
 import { propPose, propReach, rockModel, type PropPose } from '../../sim/mapgen';
 import { propBase } from '../../sim/bridge';
-import { bodyOf } from '../../sim/body';
+import { unitsOf } from '../../sim/body';
 import { LOOT_LOOK, lootColor } from '../../render/lootLook';
 import { baseModel, grayed, HULK_TILT, HULK_TONE, WEAR_LOOK_STEPS } from '../../render/partLooks';
 import { heightAt, type Terrain } from '../../sim/terrain';
@@ -291,12 +291,26 @@ export type HulkPose = Extract<PropPose, { model: 'hulk' }>;
 
 export function buildHulk(t: Terrain, o: Obstacle, pose: HulkPose): THREE.Group {
   const g = posed(propBase(t, o), pose);
-  const obj = model(baseModel(pose.chassisId));
-  g.userData.lootSwatches = char(obj);
-  jag(obj, o.id, WEAR_LOOK_STEPS);
-  obj.position.y = bodyOf(pose.chassisId).half.y;
-  obj.rotation.set((hashStr(`${o.id}:roll`) * 2 - 1) * HULK_TILT, 0, (hashStr(`${o.id}:pitch`) * 2 - 1) * HULK_TILT);
-  g.add(obj);
+  const swatches = unitsOf(pose.chassisId).map((u) => {
+    const obj = model(baseModel(pose.chassisId, u.index));
+    const swatch = char(obj);
+    const key = u.index === 0 ? o.id : `${o.id}:${u.index}`;
+    jag(obj, key, WEAR_LOOK_STEPS);
+    const unit = new THREE.Group();
+    unit.position.y = u.body.half.y;
+    const bend = pose.bend ?? 0;
+    if (u.pivot !== null && u.index > 0) {
+      const pivot = u.offset + u.pivot;
+      unit.position.x = pivot - u.pivot * Math.cos(bend);
+      unit.position.z = u.pivot * Math.sin(bend);
+      unit.rotation.y = bend;
+    }
+    obj.rotation.set((hashStr(`${key}:roll`) * 2 - 1) * HULK_TILT, 0, (hashStr(`${key}:pitch`) * 2 - 1) * HULK_TILT);
+    unit.add(obj);
+    g.add(unit);
+    return swatch;
+  });
+  g.userData.lootSwatches = swatches.flat();
   return g;
 }
 

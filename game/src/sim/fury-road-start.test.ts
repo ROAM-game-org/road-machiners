@@ -21,7 +21,7 @@ import { rollPartStockPerKind } from './market';
 import { alongOf, toRoad } from './highway';
 import { furyRoadStart, furyRoadWorld } from './testkit';
 import { RULES } from '../data/rules';
-import { halfWidth } from './body';
+import { sideReach } from './rig';
 import { yardSpots } from './outpost-gates';
 import { dist } from './vec';
 import type { Vehicle } from './types';
@@ -102,7 +102,7 @@ describe('Fury Road hauler', () => {
       const me = playerVehicle(w);
       expect(hauler.pos).toEqual(yardSpots(w, 0).hauler);
       expect(me.pos).toEqual(yardSpots(w, 0).truck);
-      expect(dist(hauler.pos, me.pos) - halfWidth(hauler.chassisId) - halfWidth(me.chassisId)).toBeGreaterThan(RULES.yieldDistance / 2);
+      expect(dist(hauler.pos, me.pos) - sideReach(hauler.chassisId) - sideReach(me.chassisId)).toBeGreaterThan(RULES.yieldDistance / 2);
     }
   });
 

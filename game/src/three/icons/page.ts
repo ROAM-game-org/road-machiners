@@ -1,9 +1,9 @@
 
-import { CHASSIS } from '../../data/chassis';
+import { CHASSIS, PAINT } from '../../data/chassis';
 import { GOODS } from '../../data/goods';
 import { PARTS } from '../../data/parts';
 import { ITEM_TONES } from '../../render/palette';
-import { iconCatalog, itemTone, ICON_SECTIONS, ICON_WEAPON_PICKS, type IconEntry, type IconSection } from '../../render/partLooks';
+import { CHASSIS_MASK, CHASSIS_SHEET, iconCatalog, itemTone, ICON_SECTIONS, ICON_WEAPON_PICKS, type IconEntry, type IconSection } from '../../render/partLooks';
 import { publicUrl } from '../../public-url';
 import { loadModels, paintSurfaceMasks, type ModelName } from '../render/models';
 import {
@@ -79,20 +79,28 @@ async function build(): Promise<IconBuild> {
   const bytes = await modelBytes(catalog);
   const rendered: Rendered[] = catalog.map((entry) => {
     const sheet: Sheet = entry.section === 'chassis' ? 'chassis' : 'items';
-    const top = renderIcon(entry, 'top', CELL[sheet]);
-    const diagonal = renderIcon(entry, 'diagonal', CELL[sheet]);
+    const top = renderIcon(entry, 'top', CELL[sheet], PAINT.standard);
+    const diagonal = renderIcon(entry, 'diagonal', CELL[sheet], PAINT.standard);
     const shown = iconView(entry) === 'top' ? top : diagonal;
     return { entry, sheet, views: { top: top.icon, diagonal: diagonal.icon }, svg: shown.svg, tint: shown.tint };
   });
   const files: Record<string, string> = {
     'src/ui/tint.svg': `data:image/svg+xml;base64,${btoa(tintSheetOf(rendered))}`,
     'public/icons/items.svg': `data:image/svg+xml;base64,${btoa(svgSheetOf(rendered))}`,
-    'public/icons/chassis.png': sheetOf(rendered, 'chassis').toDataURL('image/png'),
+    ...paintSheets(rendered),
     'public/icons/atlas/atlas-top.png': atlasOf(sectionsOf(rendered, () => 'top'), TOP_CAPTION).toDataURL('image/png'),
     'public/icons/atlas/atlas-diagonal.png': atlasOf(sectionsOf(rendered, () => 'diagonal'), DIAGONAL_CAPTION).toDataURL('image/png'),
     'public/icons/atlas/atlas-game.png': atlasOf(sectionsOf(rendered, iconView), GAME_CAPTION).toDataURL('image/png'),
   };
   return { files, manifest: manifestOf(rendered, bytes), orientation: orientationOf(catalog), report: reportOf(rendered) };
+}
+
+function paintSheets(rendered: readonly Rendered[]): Record<string, string> {
+  const mask = inSheet(rendered, 'chassis').map((r) => renderIcon(r.entry, iconView(r.entry), CELL.chassis, 'mask').icon);
+  return {
+    [`public/icons/${CHASSIS_SHEET}`]: gridOf(cellsOf(rendered, 'chassis'), 'chassis').toDataURL('image/png'),
+    [`public/icons/${CHASSIS_MASK}`]: gridOf(mask, 'chassis').toDataURL('image/png'),
+  };
 }
 
 async function modelBytes(catalog: readonly IconEntry[]): Promise<Map<ModelName, Uint8Array>> {
@@ -139,8 +147,7 @@ function tintSheetOf(rendered: readonly Rendered[]): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" style="display:none">${symbols.join('')}</svg>\n`;
 }
 
-function sheetOf(rendered: readonly Rendered[], sheet: Sheet): HTMLCanvasElement {
-  const cells = cellsOf(rendered, sheet);
+function gridOf(cells: readonly HTMLCanvasElement[], sheet: Sheet): HTMLCanvasElement {
   const cell = CELL[sheet];
   const canvas = document.createElement('canvas');
   canvas.width = COLS[sheet] * cell;

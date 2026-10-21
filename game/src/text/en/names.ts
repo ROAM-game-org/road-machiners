@@ -86,6 +86,7 @@ export const NAMES = {
   'chassis.bukhanka': 'Bukhanka',
   'chassis.lincoln': 'Lincoln',
   'chassis.semi': 'Semi',
+  'chassis.sorokonoga': 'Sorokonoga',
   'good.scrap': 'Scrap metal',
   'good.scrap.lower': 'scrap metal',
   'good.scrap.subject': 'scrap metal was',

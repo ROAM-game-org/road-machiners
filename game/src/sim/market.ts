@@ -247,6 +247,10 @@ export type Contract =
 
 export type SearchContract = Extract<Contract, { kind: 'search' }>;
 
+export type ContractEnd = 'done' | 'failed' | 'lapsed' | 'released';
+
+export type PastContract = { contract: Contract; outcome: ContractEnd; turn: number; amount: number };
+
 export type SearchRefusal = 'oneSearch' | 'noCargoRoom';
 
 export function estimateTurns(from: Vec, to: Vec): number {
@@ -760,29 +764,41 @@ export function contractXp(c: Contract): number {
   return Math.round(effort * CONTRACTS[c.kind].xpPerEffort);
 }
 
-export function finishContract(world: World, c: Contract, outcome: 'done' | 'failed' | 'lapsed' | 'released', cause?: 'rival'): void {
+export function finishContract(world: World, c: Contract, outcome: ContractEnd, cause?: 'rival'): void {
   if (outcome !== 'done' && isMet(c)) throw new Error(`A met ${c.kind} cannot be ${outcome}`);
   world.player.contracts = world.player.contracts.filter((x) => x.id !== c.id);
   const me = playerVehicle(world);
   if (me.job?.kind === 'survey' && me.job.contractId === c.id) cancelJob(world, me);
   world.events.push(contractEvent(c, outcome, cause));
-  if (outcome === 'done') payContract(world, c, c.reward);
-  if (outcome === 'released') payContract(world, c, c.kind === 'escort' ? Math.round(c.reward * escortShare(c)) : 0);
+  const amount = endingAmount(c, outcome);
+  if (amount > 0) payContract(world, c, amount);
   if (outcome !== 'done') voidParcel(world, c);
-  if (outcome === 'failed' && c.kind === 'haul') chargeHaulPenalty(world, c);
+  if (amount < 0) chargeHaulPenalty(world, -amount);
+  recordPast(world, c, outcome, amount);
+}
+
+function endingAmount(c: Contract, outcome: ContractEnd): number {
+  if (outcome === 'done') return c.reward;
+  if (outcome === 'released' && c.kind === 'escort') return Math.round(c.reward * escortShare(c));
+  if (outcome === 'failed' && c.kind === 'haul') return -haulPenalty(c, goodValue(c.good));
+  return 0;
+}
+
+function recordPast(world: World, c: Contract, outcome: ContractEnd, amount: number): void {
+  const past = [...world.player.pastContracts, { contract: structuredClone(c), outcome, turn: world.turn, amount }];
+  world.player.pastContracts = past.slice(-CONTRACTS.pastKept);
 }
 
 function voidParcel(world: World, c: Contract): void {
   if (c.kind === 'search') removeParcel(playerVehicle(world), c.id);
 }
 
-function contractEvent(c: Contract, outcome: 'done' | 'failed' | 'lapsed' | 'released', cause: 'rival' | undefined): GameEvent {
+function contractEvent(c: Contract, outcome: ContractEnd, cause: 'rival' | undefined): GameEvent {
   const event: GameEvent = { t: 'contract', contract: { ...c }, outcome };
   return cause ? { ...event, cause } : event;
 }
 
 function payContract(world: World, c: Contract, amount: number): void {
-  if (amount <= 0) return;
   world.player.money += amount;
   world.events.push({ t: 'money', amount, reason: { kind: 'contract' } });
   practice(world, 'contract', contractXp({ ...c, reward: amount }), null, c.shop);
@@ -790,8 +806,7 @@ function payContract(world: World, c: Contract, amount: number): void {
   if (faction) noteContractDeed(world, c.id, faction);
 }
 
-function chargeHaulPenalty(world: World, c: Extract<Contract, { kind: 'haul' }>): void {
-  const penalty = haulPenalty(c, goodValue(c.good));
+function chargeHaulPenalty(world: World, penalty: number): void {
   world.player.money -= penalty;
   world.events.push({ t: 'money', amount: -penalty, reason: { kind: 'failedHaul' } });
 }
