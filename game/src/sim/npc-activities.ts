@@ -16,7 +16,7 @@ import { huntsOffRoad } from './hunt-style';
 import {
   tradeOffers, supplyOffers, decide, keepsWord, offersChoice, perceiveDanger, getKnownSite, patrolStopsOf, patrolSite, travelSitesAway,
   huntingGroundsAway, raiderGroundsAway, isHostileContact, isWeak, huntsPrey, npcProfile, salvageSitesAway, npcSenses, usefulContacts, visibleDowned, visibleHostiles, visibleSalvage, type NpcProfile, type TradePlan,
-  passReason, canStartFight, lootTaken, stockLootInvalid, truckLootInvalid, worksOnLoot, holdsOffRobbery, giveUpStrandedRobberies, forgetFullHold, noteCannotHold, noteStripped, hasSaleCargo, lootPassedUp, robbedFor, bodyCondition, givesUpUnarmed, yields,
+  passReason, canStartFight, lootTaken, stockLootInvalid, truckLootInvalid, worksOnLoot, holdsOffRobbery, giveUpStrandedRobberies, forgetFullHold, noteCannotHold, noteStripped, hasSaleCargo, lootPassedUp, robbedFor, bodyCondition, givesUpUnarmed, yields, canFlee,
 } from './npc-decisions';
 import { chooseNpcRepair, continueNpcRepair, repairsHere, resolveNpcRepair } from './npc-repair';
 import { getResources } from './resources';
@@ -530,7 +530,7 @@ function reactSeen(world: World, vehicle: Vehicle, enemy: Vehicle, profile: NpcP
 }
 
 function runsAgain(world: World, vehicle: Vehicle, track: Track, enemy: Vehicle, profile: NpcProfile): 'flee' | null {
-  if (!yields(world) || !comesInSight(world, track) || topGoal(vehicle)?.kind === 'flee') return null;
+  if (!canFlee(world, vehicle) || !comesInSight(world, track) || topGoal(vehicle)?.kind === 'flee') return null;
   const run = fleeGoal(world, vehicle, profile, enemy.id, enemy.pos, 'avoidRanFrom');
   return withinReach(vehicle, run) ? null : 'flee';
 }

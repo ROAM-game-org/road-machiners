@@ -166,21 +166,21 @@ describe('crippled drivers', () => {
     return { world, raider, me: world.player.vehicleId };
   }
 
-  it('counts a dead engine as weak even while its cab and gun work, so fleeing a new hostile rises', () => {
+  it('counts a dead engine as weak even while its cab and gun work, and offers it no flight', () => {
     const { world, raider } = createFight();
     const me = world.player.vehicleId;
-    const intact = optionWeights(world, raider, 'hostileSeen', me, 0).flee!;
+    expect(optionWeights(world, raider, 'hostileSeen', me, 0)).toHaveProperty('flee');
     mountedParts(raider, 'engine')[0].hp = 0;
     expect(isWeak(world, raider)).toBe(true);
-    expect(optionWeights(world, raider, 'hostileSeen', me, 0).flee).toBeCloseTo(intact * NPC_BEHAVIOR.weakFlee);
+    expect(optionWeights(world, raider, 'hostileSeen', me, 0)).not.toHaveProperty('flee');
   });
 
-  it('rarely closes in on a heard contact when crippled, and heads for repairs', () => {
+  it('does not close in on a heard contact when crippled, and heads for repairs', () => {
     const { world, raider, me } = createListener();
     addState(world, 'feud', raider.id, me, { kind: 'feud', robbery: false });
-    const intact = optionWeights(world, raider, 'contactHeard', me, null).investigate!;
+    expect(optionWeights(world, raider, 'contactHeard', me, null)).toHaveProperty('investigate');
     mountedParts(raider, 'engine')[0].hp = 0;
-    expect(optionWeights(world, raider, 'contactHeard', me, null).investigate).toBeCloseTo(intact * NPC_BEHAVIOR.crippledInvestigate);
+    expect(optionWeights(world, raider, 'contactHeard', me, null)).not.toHaveProperty('investigate');
     thinkNpc(world, raider);
     expect(raider.brain!.goals.some((g) => g.kind === 'resupply')).toBe(true);
   });
