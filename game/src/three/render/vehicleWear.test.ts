@@ -34,7 +34,10 @@ function truck(): Vehicle {
 function colors(view: VehicleView): string {
   const hexes = new Set<number>();
   view.root.traverse((o) => {
-    if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial) hexes.add(o.material.color.getHex());
+    if (!(o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial)) return;
+    const tint = o.geometry.getAttribute('color');
+    if (!o.material.vertexColors || !tint) return void hexes.add(o.material.color.getHex());
+    for (let i = 0; i < tint.count; i++) hexes.add(new THREE.Color(tint.getX(i), tint.getY(i), tint.getZ(i)).getHex());
   });
   return [...hexes].sort().join(',');
 }

@@ -654,7 +654,7 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
       .replace('#include <begin_vertex>', `#include <begin_vertex>\nvSurfacePos = position;\nvMaskUv = ${MASK_UV};\nvEdgeDistance = ${EDGE_DISTANCE};`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${SURFACE_UNIFORMS}`)
-      .replace('#include <color_fragment>', SURFACE_COLOR)
+      .replace('#include <color_fragment>', `#include <color_fragment>\n${SURFACE_COLOR}`)
       .replace('#include <opaque_fragment>', `${SURFACE_CHROME}\n${SURFACE_NEUTRAL}\n#include <opaque_fragment>`);
   };
   material.customProgramCacheKey = () => 'surface';

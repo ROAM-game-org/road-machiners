@@ -46,7 +46,14 @@ function staticGeometry(mesh: THREE.Mesh, toGroup: THREE.Matrix4): THREE.BufferG
   return geo;
 }
 
-type Bucket = { hex: number; surface: SurfaceName | null; partId: string | null; armor: boolean; geos: THREE.BufferGeometry[] };
+function tinted(geo: THREE.BufferGeometry, tint: THREE.Color): THREE.BufferGeometry {
+  const count = geo.getAttribute('position').count;
+  const rgb = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) rgb.set([tint.r, tint.g, tint.b], i * 3);
+  return geo.setAttribute('color', new THREE.Float32BufferAttribute(rgb, 3));
+}
+
+type Bucket = { hex: number; surface: SurfaceName | null; partId: string | null; armor: boolean; tinted: boolean; geos: THREE.BufferGeometry[] };
 type Buckets = Map<string, Bucket>;
 type Owner = { partId: string | null; armor: boolean };
 
@@ -61,11 +68,13 @@ function ownerOf(mesh: THREE.Mesh, armorIds: ReadonlySet<string>, split: MergeSp
 }
 
 function surfacedMesh(bucket: Bucket): THREE.Mesh {
-  const { hex, surface, partId, armor, geos } = bucket;
+  const { hex, surface, partId, armor, tinted, geos } = bucket;
   const merged = mergeGeometries(geos);
   if (!merged) throw new Error(`Could not merge ${geos.length} truck meshes of color ${hex.toString(16)}`);
   for (const g of geos) g.dispose();
-  const mesh = new THREE.Mesh(merged, surfacedMaterial(hex, surface));
+  const material = surfacedMaterial(tinted ? 0xffffff : hex, surface);
+  material.vertexColors = tinted;
+  const mesh = new THREE.Mesh(merged, material);
   if (partId) mesh.userData.partId = partId;
   if (armor) mesh.userData.armor = true;
   mesh.castShadow = true;
@@ -73,11 +82,11 @@ function surfacedMesh(bucket: Bucket): THREE.Mesh {
   return mesh;
 }
 
-function bucketFor(buckets: Buckets, mat: THREE.MeshLambertMaterial, owner: Owner): Bucket {
+function bucketFor(buckets: Buckets, mat: THREE.MeshLambertMaterial, owner: Owner, tinted: boolean): Bucket {
   const hex = mat.color.getHex();
   const surface = surfaceOf(mat.name);
-  const key = `${hex}|${surface}|${owner.partId}|${owner.armor}`;
-  const bucket = buckets.get(key) ?? { hex, surface, ...owner, geos: [] };
+  const key = `${tinted ? 'tinted' : hex}|${surface}|${owner.partId}|${owner.armor}`;
+  const bucket = buckets.get(key) ?? { hex, surface, ...owner, tinted, geos: [] };
   buckets.set(key, bucket);
   return bucket;
 }
@@ -108,7 +117,10 @@ export function mergeParts(group: THREE.Group, armorIds: ReadonlySet<string>, sp
       lamps.push(o);
       return;
     }
-    bucketFor(buckets, o.material as THREE.MeshLambertMaterial, ownerOf(o, armorIds, split)).geos.push(staticGeometry(o, toGroup));
+    const material = o.material as THREE.MeshLambertMaterial;
+    const byTint = split === 'armor';
+    const geo = staticGeometry(o, toGroup);
+    bucketFor(buckets, material, ownerOf(o, armorIds, split), byTint).geos.push(byTint ? tinted(geo, material.color) : geo);
     used.push(o);
   });
   const out = mergedGroup([...buckets.values()]);
