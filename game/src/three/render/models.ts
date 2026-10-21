@@ -567,7 +567,7 @@ const SURFACE_OF_MATERIAL: Record<string, SurfaceName | null> = {
 };
 
 const CHIP = { color: new THREE.Color(0x5b5a57), scale: 7, at: 1.05, share: 0.5 };
-const CHROME = { reflect: 0.55, grazing: 0.35, horizon: 1.6, gain: 0.1, body: 1 };
+const CHROME = { reflect: 0.55, grazing: 0.35, horizon: 1.6, gain: 0.1, body: 0 };
 
 export const SURFACE_LOOK = { chips: { value: CHIP.share }, chipAt: { value: CHIP.at }, chrome: { value: CHROME.gain }, chromeBody: { value: CHROME.body } };
 
