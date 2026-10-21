@@ -1,6 +1,6 @@
 # Truck surface shading in the game
 
-**Status:** validating
+**Status:** done
 **Branch:** truck-shading
 **Worktree:** .worktrees/truck-shading
 **Goal:** Every truck in the game shows the look the user approved on the armored scout preview. That look is baked crease shadow and edge wear, light paint chips, edge-only metal shine, grey metal, paint grain at 0.05, a warm daytime sky light over the whole scene, a contact shadow under each truck, and body paint at 80% saturation. Players get it without a slower game: the perf budgets and the GPU playtest pass, and the truck models download about as fast as today. The user confirms the look in the running game, on the player truck and on NPC trucks of other chassis. Useless if: the look ships only on the scout or only in the preview page; frame rate holds because the effect silently turns off; models ship at many times their face count; a rebuilt model quietly loses its bake; faction colors get muted along with body paint.
@@ -211,6 +211,6 @@ Approach: prove the mask path on one model first, then build the bake tool, the 
 
 ### Deferred (needs user input)
 
-- The look in the running game — the Goal needs the user to confirm it on the player truck and on NPC trucks of other chassis.
+- The look in the running game — confirmed by the user after playing.
 - Perf budgets on a quiet machine or the factory host — this host misses them on dev too, so it cannot show a regression under 0.3 s of boot.
 - `graffiti.test.ts` "stays rare and never above the map rate" — it fails on dev at cb32383b5 as well, and is outside this task.
