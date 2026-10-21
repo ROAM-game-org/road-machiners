@@ -531,14 +531,14 @@ function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry):
   return outline;
 }
 
-type Surface = { dirt: [number, number, number]; edge: number; chips: number; shine: number };
+type Surface = { dirt: [number, number, number]; edge: number; chips: number; shine: number; grain: number };
 
 const SURFACES = {
-  paint: { dirt: [0.22, 0.18, 0.14], edge: 0.25, chips: 1, shine: 0 },
-  metal: { dirt: [0.35, 0.2, 0.12], edge: 0.6, chips: 0, shine: 1 },
-  rust: { dirt: [0.25, 0.17, 0.12], edge: 0.2, chips: 0, shine: 0 },
-  grime: { dirt: [0.2, 0.19, 0.17], edge: 0.35, chips: 0, shine: 0 },
-  plain: { dirt: [0.25, 0.24, 0.22], edge: 0.15, chips: 0, shine: 0 },
+  paint: { dirt: [0.22, 0.18, 0.14], edge: 0.25, chips: 1, shine: 0, grain: 1 },
+  metal: { dirt: [0.35, 0.2, 0.12], edge: 0.6, chips: 0, shine: 1, grain: 0 },
+  rust: { dirt: [0.25, 0.17, 0.12], edge: 0.2, chips: 0, shine: 0, grain: 0 },
+  grime: { dirt: [0.2, 0.19, 0.17], edge: 0.35, chips: 0, shine: 0, grain: 0 },
+  plain: { dirt: [0.25, 0.24, 0.22], edge: 0.15, chips: 0, shine: 0, grain: 0 },
 } satisfies Record<string, Surface>;
 
 export type SurfaceName = keyof typeof SURFACES;
@@ -569,7 +569,9 @@ const SURFACE_OF_MATERIAL: Record<string, SurfaceName | null> = {
 const CHIP = { color: new THREE.Color(0x5b5a57), scale: 7, at: 1.05, share: 0.5 };
 const CHROME = { reflect: 0.55, grazing: 0.35, horizon: 1.6, gain: 0.1, body: 0 };
 
-export const SURFACE_LOOK = { chips: { value: CHIP.share }, chipAt: { value: CHIP.at }, chrome: { value: CHROME.gain }, chromeBody: { value: CHROME.body } };
+const GRAIN = { scale: 40, amount: 0 };
+
+export const SURFACE_LOOK = { chips: { value: CHIP.share }, chipAt: { value: CHIP.at }, chrome: { value: CHROME.gain }, chromeBody: { value: CHROME.body }, grain: { value: GRAIN.amount } };
 
 export function surfaceOf(materialName: string): SurfaceName | null {
   const named = SURFACE_OF_MATERIAL[materialName];
@@ -589,6 +591,8 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
     surfaceShine: { value: own.shine },
     surfaceChrome: SURFACE_LOOK.chrome,
     surfaceChromeBody: SURFACE_LOOK.chromeBody,
+    surfaceGrain: { value: own.grain },
+    surfaceGrainShare: SURFACE_LOOK.grain,
   };
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -615,6 +619,8 @@ uniform float surfaceChipAt;
 uniform float surfaceShine;
 uniform float surfaceChrome;
 uniform float surfaceChromeBody;
+uniform float surfaceGrain;
+uniform float surfaceGrainShare;
 float surfaceHash(vec3 p) {
   return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
 }
@@ -633,6 +639,10 @@ const SURFACE_COLOR = `
   float surfaceWorn = vColor.g;
   diffuseColor.rgb *= mix(surfaceDirt, vec3(1.0), surfaceAo);
   diffuseColor.rgb *= 1.0 + surfaceEdge * surfaceWorn;
+  vec3 grainAt = vSurfacePos * ${f(GRAIN.scale)};
+  float grain = surfaceNoise(grainAt) * 0.6 + surfaceNoise(grainAt * 2.3) * 0.4 - 0.5;
+  float grainFade = 1.0 - smoothstep(0.35, 1.0, length(fwidth(grainAt)));
+  diffuseColor.rgb *= 1.0 + 2.0 * grain * surfaceGrain * surfaceGrainShare * grainFade;
   float chipField = surfaceWorn * (0.55 + 0.9 * surfaceNoise(vSurfacePos * ${f(CHIP.scale)}));
   float chipWidth = fwidth(chipField);
   float chip = smoothstep(surfaceChipAt - chipWidth, surfaceChipAt + chipWidth, chipField) * surfaceChips * surfaceChipShare;
