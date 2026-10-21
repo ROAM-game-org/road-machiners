@@ -7,7 +7,7 @@ import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, testDrive } from './te
 import { addGoods } from './inventory';
 import { knockOutNpc } from './defeat';
 import { siteGap, sitePads } from './sites';
-import { standardWorld } from '../test/world-cache';
+import { reusedWorld, standardWorld } from '../test/world-cache';
 import { playerVehicle } from './damage';
 import { endTurn } from './world';
 import { followingOf, joinCompany } from './companies';
@@ -196,6 +196,10 @@ describe('the order refills', () => {
 });
 
 function orderWorld(): World {
+  return reusedWorld('sunward order', spawnedOrder);
+}
+
+function spawnedOrder(): World {
   const w = quietWorld();
   for (let i = 0; i < 400 && membersOf(w).length < SUNWARD.cavalcade + SUNWARD.hunters; i++) {
     w.turn++;
