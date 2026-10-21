@@ -24,6 +24,7 @@
 .condition-layers img,
 .condition-hover img,
 .cond-hatch,
+.cond-cells,
 .cond-flash {
   position: absolute;
   inset: 0;
@@ -57,6 +58,11 @@
 }
 .cond-hatch {
   background: var(--cond-hatch);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+.cond-cells {
+  background: var(--cond-cells);
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
 }

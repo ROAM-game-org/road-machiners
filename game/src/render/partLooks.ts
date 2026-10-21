@@ -17,7 +17,7 @@ const enName = (msg: Msg): string => resolve(msg, 'en');
 export const PLAN_PAD = 0.5;
 
 export const TRUCK_LOOK = {
-  wheelPush: 0.24,
+  wheelPush: 0.12,
   armorDepth: 0.24,
   armorRise: 0.1,
   armorInset: 0.1,

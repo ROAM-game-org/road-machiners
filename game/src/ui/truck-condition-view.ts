@@ -292,7 +292,10 @@ export class TruckConditionView {
 
   private showOutline(): void {
     const part = this.hovered();
-    if (!part || !this.portrait || !this.aim) return this.outline.replaceChildren();
-    this.outline.replaceChildren(layerImage("cond-pick", this.portrait, this.portrait.glow(part.id, part.tier), part.tier));
+    if (!part || !this.portrait) return this.outline.replaceChildren();
+    this.outline.replaceChildren(
+      maskedLayer("cond-cells", this.portrait, this.portrait.footprint(part.id)),
+      layerImage("cond-pick", this.portrait, this.portrait.glow(part.id, part.tier), part.tier),
+    );
   }
 }

@@ -39,6 +39,17 @@ describe('truck portrait cache', () => {
     expect(built).toHaveLength(1);
   });
 
+  it('draws only parts that show condition and builds once when cargo changes', () => {
+    const { build, built } = counting();
+    const portraits = new TruckPortraits(RENDERER, build);
+    const v = truck();
+    const first = portraits.portraitOf(v, PAINT.standard);
+    v.items.push({ id: 'crate', kind: 'good', good: 'scrap', x: 0, y: 0, rot: 0 });
+    expect(portraits.portraitOf(v, PAINT.standard)).toBe(first);
+    expect(built).toHaveLength(1);
+    expect(built[0].items.map((it) => it.id)).toEqual(conditionItems(v).map((it) => it.id));
+  });
+
   it('builds the pristine truck, not the damaged one', () => {
     const { build, built } = counting();
     const v = truck();

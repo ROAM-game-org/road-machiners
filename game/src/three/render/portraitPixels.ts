@@ -83,6 +83,49 @@ export function partMaskOf(lit: Uint8ClampedArray, ids: Uint16Array, idOf: numbe
   return mask;
 }
 
+export function regionOf(mask: Uint8ClampedArray, cells: Uint16Array, idOf: number): Uint8Array {
+  if (mask.length !== cells.length * 4) throw new Error(`Mask holds ${mask.length} values for ${cells.length} cell pixels`);
+  const region = new Uint8Array(cells.length);
+  for (let p = 0; p < cells.length; p++) region[p] = mask[p * 4 + 3] > OPAQUE_ALPHA || cells[p] === idOf ? 1 : 0;
+  return region;
+}
+
+type Line = { start: number; count: number; stride: number };
+
+function grownAlong(from: Uint8Array, into: Uint8Array, line: Line, radius: number): void {
+  for (let i = 0; i < line.count; i++) {
+    if (!from[line.start + i * line.stride]) continue;
+    const last = Math.min(line.count - 1, i + radius);
+    for (let j = Math.max(0, i - radius); j <= last; j++) into[line.start + j * line.stride] = 1;
+  }
+}
+
+function dilated(bits: Uint8Array, size: PixelSize, radius: number): Uint8Array {
+  const across = new Uint8Array(bits.length);
+  const out = new Uint8Array(bits.length);
+  for (let y = 0; y < size.height; y++) grownAlong(bits, across, { start: y * size.width, count: size.width, stride: 1 }, radius);
+  for (let x = 0; x < size.width; x++) grownAlong(across, out, { start: x, count: size.height, stride: size.width }, radius);
+  return out;
+}
+
+export function ringed(px: Uint8ClampedArray, region: Uint8Array, size: PixelSize, radius: number, rgb: readonly [number, number, number]): Uint8ClampedArray {
+  expectSize(region.length, size, 1);
+  const grown = dilated(region, size, radius);
+  const out = px.slice();
+  for (let p = 0; p < region.length; p++) {
+    if (!grown[p] || region[p]) continue;
+    out.set(rgb, p * 4);
+    out[p * 4 + 3] = BYTE;
+  }
+  return out;
+}
+
+export function solidMaskOf(ids: Uint16Array, idOf: number): Uint8ClampedArray {
+  const mask = new Uint8ClampedArray(ids.length * 4);
+  for (let p = 0; p < ids.length; p++) if (ids[p] === idOf) mask.fill(BYTE, p * 4, p * 4 + 4);
+  return mask;
+}
+
 export function centerOf(ids: Uint16Array, size: PixelSize, idOf: number): { x: number; y: number } {
   expectSize(ids.length, size, 1);
   let sumX = 0;
@@ -111,54 +154,6 @@ function nearestOwnPixel(ids: Uint16Array, size: PixelSize, idOf: number, cx: nu
     best = { x, y };
   }
   return { x: best.x + 0.5, y: best.y + 0.5 };
-}
-
-export function snapIds(ids: Uint16Array, size: PixelSize, aimable: ReadonlySet<number>, radiusPx: number): Uint16Array {
-  expectSize(ids.length, size, 1);
-  const field = seedField(ids, aimable);
-  sweep(field, size, FORWARD_STEPS, false);
-  sweep(field, size, BACKWARD_STEPS, true);
-  const out = ids.slice();
-  for (let p = 0; p < ids.length; p++) if (isOpen(ids[p]) && field.dist[p] <= radiusPx) out[p] = field.near[p];
-  return out;
-}
-
-type Step = readonly [number, number, number];
-type Field = { near: Uint16Array; dist: Float32Array };
-
-const FORWARD_STEPS: readonly Step[] = [[-1, 0, 1], [-1, -1, Math.SQRT2], [0, -1, 1], [1, -1, Math.SQRT2]];
-const BACKWARD_STEPS: readonly Step[] = [[1, 0, 1], [1, 1, Math.SQRT2], [0, 1, 1], [-1, 1, Math.SQRT2]];
-
-function isOpen(id: number): boolean {
-  return id === EMPTY_ID || id === BODY_ID;
-}
-
-function seedField(ids: Uint16Array, aimable: ReadonlySet<number>): Field {
-  const field = { near: new Uint16Array(ids.length), dist: new Float32Array(ids.length).fill(Infinity) };
-  for (let p = 0; p < ids.length; p++) {
-    if (!aimable.has(ids[p])) continue;
-    field.near[p] = ids[p];
-    field.dist[p] = 0;
-  }
-  return field;
-}
-
-function sweep(field: Field, size: PixelSize, steps: readonly Step[], backward: boolean): void {
-  const count = size.width * size.height;
-  for (let i = 0; i < count; i++) {
-    const p = backward ? count - 1 - i : i;
-    for (const step of steps) relax(field, size, p, step);
-  }
-}
-
-function relax(field: Field, size: PixelSize, p: number, [dx, dy, cost]: Step): void {
-  const x = (p % size.width) + dx;
-  const y = Math.floor(p / size.width) + dy;
-  if (x < 0 || x >= size.width || y < 0 || y >= size.height) return;
-  const q = y * size.width + x;
-  if (field.dist[q] + cost >= field.dist[p]) return;
-  field.dist[p] = field.dist[q] + cost;
-  field.near[p] = field.near[q];
 }
 
 export function hiddenOver(ids: Uint16Array, hidden: Uint16Array): Uint16Array {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BODY_ID, EMPTY_ID, TINTS, boundsOf, centerOf, cropOf, flipRows, hiddenOver, idsOf, linearToSrgb, partMaskOf, snapIds, tintMask, unpremultiply } from "./portraitPixels";
+import { BODY_ID, EMPTY_ID, TINTS, boundsOf, centerOf, cropOf, flipRows, hiddenOver, idsOf, linearToSrgb, partMaskOf, regionOf, ringed, solidMaskOf, tintMask, unpremultiply } from "./portraitPixels";
 
 const size = (width: number, height: number) => ({ width, height });
 
@@ -52,52 +52,30 @@ describe("centerOf", () => {
   });
 });
 
-describe("snapIds", () => {
-  const AIM = 4;
-  const MORTAR = 5;
-
-  it("gives empty and body pixels near an aimable part to that part", () => {
-    const map = ids(7, [[EMPTY_ID, EMPTY_ID, BODY_ID, AIM, EMPTY_ID, EMPTY_ID, EMPTY_ID]]);
-    const snapped = snapIds(map, size(7, 1), new Set([AIM]), 2);
-    expect(Array.from(snapped)).toEqual([EMPTY_ID, AIM, AIM, AIM, AIM, AIM, EMPTY_ID]);
+describe("ringed", () => {
+  it("draws an unbroken ring of the color around the region and keeps the inside", () => {
+    const px = new Uint8ClampedArray(5 * 5 * 4);
+    const region = new Uint8Array(25);
+    region[12] = 1;
+    px.set([9, 9, 9, 255], 12 * 4);
+    const out = ringed(px, region, size(5, 5), 1, [200, 100, 0]);
+    const alpha = Array.from({ length: 25 }, (_, p) => (out[p * 4 + 3] ? 1 : 0));
+    expect(alpha).toEqual([0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0]);
+    expect(Array.from(out.subarray(12 * 4, 12 * 4 + 4))).toEqual([9, 9, 9, 255]);
+    expect(Array.from(out.subarray(6 * 4, 6 * 4 + 4))).toEqual([200, 100, 0, 255]);
   });
 
-  it("never takes a pixel of a part that is not aimable", () => {
-    const map = ids(5, [[AIM, MORTAR, MORTAR, MORTAR, AIM]]);
-    const snapped = snapIds(map, size(5, 1), new Set([AIM]), 10);
-    expect(Array.from(snapped)).toEqual([AIM, MORTAR, MORTAR, MORTAR, AIM]);
+  it("rings the cells of a part even where the part has no pixels", () => {
+    const mask = new Uint8ClampedArray(3 * 4);
+    const region = regionOf(mask, ids(3, [[0, 4, 0]]), 4);
+    expect(Array.from(region)).toEqual([0, 1, 0]);
   });
+});
 
-  it("leaves other aimable parts as they are", () => {
-    const map = ids(4, [[AIM, 6, 6, BODY_ID]]);
-    const snapped = snapIds(map, size(4, 1), new Set([AIM, 6]), 3);
-    expect(Array.from(snapped)).toEqual([AIM, 6, 6, 6]);
-  });
-
-  it("leaves pixels beyond the radius alone", () => {
-    const map = ids(9, [[AIM, ...Array(8).fill(EMPTY_ID)]]);
-    const snapped = snapIds(map, size(9, 1), new Set([AIM]), 3);
-    expect(Array.from(snapped)).toEqual([AIM, AIM, AIM, AIM, EMPTY_ID, EMPTY_ID, EMPTY_ID, EMPTY_ID, EMPTY_ID]);
-  });
-
-  it("picks the nearer of two aimable parts", () => {
-    const map = ids(7, [[AIM, EMPTY_ID, EMPTY_ID, EMPTY_ID, EMPTY_ID, EMPTY_ID, 6]]);
-    const snapped = snapIds(map, size(7, 1), new Set([AIM, 6]), 10);
-    expect(Array.from(snapped)).toEqual([AIM, AIM, AIM, AIM, 6, 6, 6]);
-  });
-
-  it("works across rows", () => {
-    const map = ids(3, [[AIM, EMPTY_ID, EMPTY_ID], [EMPTY_ID, EMPTY_ID, EMPTY_ID], [EMPTY_ID, EMPTY_ID, EMPTY_ID]]);
-    const snapped = snapIds(map, size(3, 3), new Set([AIM]), 1);
-    expect(snapped[3]).toBe(AIM);
-    expect(snapped[1]).toBe(AIM);
-    expect(snapped[4]).toBe(EMPTY_ID);
-  });
-
-  it("does not change its input", () => {
-    const map = ids(3, [[AIM, EMPTY_ID, EMPTY_ID]]);
-    snapIds(map, size(3, 1), new Set([AIM]), 2);
-    expect(Array.from(map)).toEqual([AIM, EMPTY_ID, EMPTY_ID]);
+describe("solidMaskOf", () => {
+  it("fills every pixel of the id opaque and leaves the rest clear", () => {
+    const mask = solidMaskOf(ids(3, [[4, BODY_ID, 4]]), 4);
+    expect(Array.from(mask)).toEqual([255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255]);
   });
 });
 

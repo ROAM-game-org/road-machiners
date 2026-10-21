@@ -18,7 +18,9 @@ import {
   idsOf,
   linearToSrgb,
   partMaskOf,
-  snapIds,
+  regionOf,
+  ringed,
+  solidMaskOf,
   tintMask,
   unpremultiply,
   type PixelSize,
@@ -46,8 +48,8 @@ const LOOK = {
   neutralRed: 0x4a4642,
   redMaxHue: 0.025,
   redMinSaturation: 0.5,
-  snapRadiusPx: 12,
   hiddenSpansM: [0.2, 1.2],
+  ringPx: 1.5,
   skyColor: 0xfff4e0,
   groundColor: 0x504030,
   skyIntensity: 1.6,
@@ -64,7 +66,7 @@ type Drawn = THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
 type Disposable = { dispose(): void };
 type Numbering = (partId: string) => number;
 type Canvases = { body: HTMLCanvasElement; parts: HTMLCanvasElement };
-type Maps = { size: PixelSize; lit: Uint8ClampedArray; ids: Uint16Array };
+type Maps = { size: PixelSize; lit: Uint8ClampedArray; ids: Uint16Array; cells: Uint16Array };
 
 export type Glow = { canvas: HTMLCanvasElement; x: number; y: number; width: number; height: number };
 
@@ -76,18 +78,17 @@ export type Portrait = {
   partAt(x: number, y: number): string | null;
   centerOf(partId: string): { x: number; y: number };
   glow(partId: string, tier: Tier): Glow;
+  footprint(partId: string): Glow;
 };
 
 export type BuildPortrait = (renderer: THREE.WebGLRenderer, pristine: Vehicle, playerPaint: TruckPaint) => Portrait;
 
 export function pristineOf(v: Vehicle): Vehicle {
-  const copy = structuredClone(v);
-  for (const item of copy.items) {
-    if (item.kind !== 'part') continue;
-    item.part.wear = 0;
-    item.part.hp = maxHp(item.part);
-  }
-  return copy;
+  const items = conditionItems(v).map((item) => {
+    const part = { ...item.part, wear: 0 };
+    return { ...item, part: { ...part, hp: maxHp(part) } };
+  });
+  return { ...v, items };
 }
 
 export class TruckPortraits {
@@ -289,29 +290,36 @@ function paintIds(meshes: Drawn[], idOfMesh: (mesh: Drawn) => number, trash: Dis
   for (const mesh of meshes) paintAsId(mesh, idOfMesh(mesh), shared, trash);
 }
 
-type Column = { heightOf: (item: PartItem) => { min: number; max: number }; span: number };
+type Heights = { min: number; max: number };
+type Column = { boxOf: (item: PartItem) => THREE.Box3; depthTest: boolean };
 
 function widened(lo: number, hi: number, span: number): [number, number] {
   const pad = Math.max(0, span - (hi - lo)) / 2;
   return [lo - pad, hi + pad];
 }
 
-function footprintColumn(v: Vehicle, item: PartItem, id: number, column: Column, trash: Disposable[]): THREE.Mesh {
+function cellBox(v: Vehicle, item: PartItem, span: number, height: Heights): THREE.Box3 {
   const rect = cellRect(v.chassisId, itemCells(item));
-  const height = column.heightOf(item);
-  const [x0, x1] = widened(rect.x0, rect.x1, column.span);
-  const [z0, z1] = widened(rect.z0, rect.z1, column.span);
-  const geometry = new THREE.BoxGeometry(x1 - x0, height.max - height.min, z1 - z0);
-  const material = new THREE.MeshBasicMaterial({ color: idColor(id), side: THREE.DoubleSide, depthTest: false });
+  const offset = unitsOf(v.chassisId)[rect.unit].offset;
+  const [x0, x1] = widened(rect.x0, rect.x1, span);
+  const [z0, z1] = widened(rect.z0, rect.z1, span);
+  return new THREE.Box3(new THREE.Vector3(x0 + offset, height.min, z0), new THREE.Vector3(x1 + offset, height.max, z1));
+}
+
+function footprintColumn(item: PartItem, id: number, column: Column, trash: Disposable[]): THREE.Mesh {
+  const box = column.boxOf(item);
+  const size = box.getSize(new THREE.Vector3());
+  const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+  const material = new THREE.MeshBasicMaterial({ color: idColor(id), side: THREE.DoubleSide, depthTest: column.depthTest });
   trash.push(geometry, material);
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set((x0 + x1) / 2 + unitsOf(v.chassisId)[rect.unit].offset, (height.min + height.max) / 2, (z0 + z1) / 2);
+  mesh.position.copy(box.getCenter(new THREE.Vector3()));
   return mesh;
 }
 
-function footprintScene(v: Vehicle, items: PartItem[], numberOf: Numbering, column: Column, trash: Disposable[]): THREE.Scene {
+function footprintScene(items: PartItem[], numberOf: Numbering, column: Column, trash: Disposable[]): THREE.Scene {
   const scene = new THREE.Scene();
-  for (const item of items) scene.add(footprintColumn(v, item, numberOf(item.part.id), column, trash));
+  for (const item of items) scene.add(footprintColumn(item, numberOf(item.part.id), column, trash));
   return scene;
 }
 
@@ -363,16 +371,21 @@ function pixelIndex(size: PixelSize, x: number, y: number): number | null {
 }
 
 function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, numberOf: Numbering, canvases: Canvases): Portrait {
-  const { size, lit, ids } = maps;
+  const { size, lit, ids, cells } = maps;
   const itemOf = new Map(items.map((item) => [item.part.id, item]));
   const partOfNumber = new Map(items.map((item) => [numberOf(item.part.id), item.part.id]));
-  const snapped = snapIds(ids, size, new Set(partOfNumber.keys()), LOOK.snapRadiusPx * LOOK.supersample);
   const glows = new Map<string, { tier: Tier; glow: Glow }>();
+  const footprints = new Map<string, Glow>();
   const centers = new Map<string, { x: number; y: number }>();
   const known = (partId: string): PartItem => {
     const item = itemOf.get(partId);
     if (!item) throw new Error(`Portrait of ${v.id} has no readout part ${partId}`);
     return item;
+  };
+  const cropped = (mask: Uint8ClampedArray): Glow => {
+    const box = boundsOf(mask, size);
+    const k = LOOK.supersample;
+    return { canvas: canvasOf(cropOf(mask, size, box), box), x: box.x / k, y: box.y / k, width: box.width / k, height: box.height / k };
   };
   return {
     width: size.width / LOOK.supersample,
@@ -380,7 +393,16 @@ function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, numberOf: Numbe
     ...canvases,
     partAt(x, y) {
       const at = pixelIndex(size, x, y);
-      return at === null ? null : (partOfNumber.get(snapped[at]) ?? null);
+      if (at === null) return null;
+      return partOfNumber.get(ids[at]) ?? partOfNumber.get(cells[at]) ?? null;
+    },
+    footprint(partId) {
+      const cached = footprints.get(partId);
+      if (cached) return cached;
+      const id = numberOf(known(partId).part.id);
+      const footprint = cropped(cells.includes(id) ? solidMaskOf(cells, id) : partMaskOf(lit, ids, id));
+      footprints.set(partId, footprint);
+      return footprint;
     },
     centerOf(partId) {
       const cached = centers.get(partId);
@@ -393,12 +415,11 @@ function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, numberOf: Numbe
     glow(partId, tier) {
       const cached = glows.get(partId);
       if (cached?.tier === tier) return cached.glow;
-      const mask = partMaskOf(lit, ids, numberOf(known(partId).part.id));
+      const id = numberOf(known(partId).part.id);
+      const mask = partMaskOf(lit, ids, id);
       const tint = tintOf(partKind(known(partId)), tier);
-      const box = boundsOf(mask, size);
-      const canvas = canvasOf(cropOf(tint ? tintMask(mask, TINTS[tint]) : mask, size, box), box);
-      const k = LOOK.supersample;
-      const glow = { canvas, x: box.x / k, y: box.y / k, width: box.width / k, height: box.height / k };
+      const tinted = tint ? tintMask(mask, TINTS[tint]) : mask;
+      const glow = cropped(tier === 'ok' ? tinted : ringed(tinted, regionOf(mask, cells, id), size, LOOK.ringPx * LOOK.supersample, TINTS[tier].rgb));
       glows.set(partId, { tier, glow });
       return glow;
     },
@@ -430,22 +451,45 @@ function renderPartIds(pass: Pass, view: VehicleView, v: Vehicle, solid: Drawn[]
     const seen = new Set(ids);
     const hidden = conditionItems(v).filter((item) => !seen.has(numberOf(item.part.id)));
     if (hidden.length === 0) return ids;
-    ids = hiddenOver(ids, renderIds(pass.renderer, pass.flat, footprintScene(v, hidden, numberOf, { heightOf: heightsOf(v, solid), span }, trash), pass.camera));
+    const heightOf = heightsOf(v, solid);
+    const column = { boxOf: (item: PartItem) => cellBox(v, item, span, heightOf(item)), depthTest: false };
+    ids = hiddenOver(ids, renderIds(pass.renderer, pass.flat, footprintScene(hidden, numberOf, column, trash), pass.camera));
   }
   return ids;
 }
 
-function heightsOf(v: Vehicle, solid: Drawn[]): (item: PartItem) => { min: number; max: number } {
+function renderCellIds(pass: Pass, v: Vehicle, solid: Drawn[], numberOf: Numbering, trash: Disposable[]): Uint16Array {
+  const column = { boxOf: deckBoxesOf(v, solid), depthTest: true };
+  return renderIds(pass.renderer, pass.flat, footprintScene(conditionItems(v), numberOf, column, trash), pass.camera);
+}
+
+function deckBoxesOf(v: Vehicle, solid: Drawn[]): (item: PartItem) => THREE.Box3 {
+  const heightOf = heightsOf(v, solid);
   return (item) => {
-    const own = solid.filter((mesh) => mesh.userData.partId === item.part.id);
-    if (own.length === 0) {
-      const top = highestUnder(v.chassisId, cellRect(v.chassisId, itemCells(item)));
-      if (!Number.isFinite(top)) throw new Error(`Hidden part ${item.part.id} on ${v.chassisId} has no body surface over its cells`);
-      return { min: top, max: top };
-    }
-    const box = new THREE.Box3();
-    for (const mesh of own) box.expandByObject(mesh);
-    return { min: box.min.y, max: box.max.y };
+    const drawn = heightOf(item);
+    const deck = highestUnder(v.chassisId, cellRect(v.chassisId, itemCells(item)));
+    const floor = Number.isFinite(deck) ? deck : drawn.min;
+    const box = cellBox(v, item, 0, { min: floor, max: Math.max(floor, drawn.max) });
+    const own = partKind(item) === 'armor' ? ownBox(solid, item.part.id) : null;
+    return own ? box.union(own) : box;
+  };
+}
+
+function ownBox(solid: Drawn[], partId: string): THREE.Box3 | null {
+  const own = solid.filter((mesh) => mesh.userData.partId === partId);
+  if (own.length === 0) return null;
+  const box = new THREE.Box3();
+  for (const mesh of own) box.expandByObject(mesh);
+  return box;
+}
+
+function heightsOf(v: Vehicle, solid: Drawn[]): (item: PartItem) => Heights {
+  return (item) => {
+    const own = ownBox(solid, item.part.id);
+    if (own) return { min: own.min.y, max: own.max.y };
+    const top = highestUnder(v.chassisId, cellRect(v.chassisId, itemCells(item)));
+    if (!Number.isFinite(top)) throw new Error(`Hidden part ${item.part.id} on ${v.chassisId} has no body surface over its cells`);
+    return { min: top, max: top };
   };
 }
 
@@ -463,9 +507,11 @@ function composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: Ve
   const numberOf = numbering();
   const items = conditionItems(v);
   for (const item of items) numberOf(item.part.id);
-  const ids = renderPartIds(pass, view, v, meshes.filter((m) => m.visible), isPart, numberOf, trash);
-  checkCovered(v, items, { size, lit, ids }, numberOf);
-  return portraitOver(v, items, { size, lit, ids }, numberOf, { body: canvasOf(lit, size), parts: canvasOf(parts, size) });
+  const solid = meshes.filter((m) => m.visible);
+  const ids = renderPartIds(pass, view, v, solid, isPart, numberOf, trash);
+  const maps = { size, lit, ids, cells: renderCellIds(pass, v, solid, numberOf, trash) };
+  checkCovered(v, items, maps, numberOf);
+  return portraitOver(v, items, maps, numberOf, { body: canvasOf(lit, size), parts: canvasOf(parts, size) });
 }
 
 export function buildPortrait(renderer: THREE.WebGLRenderer, pristine: Vehicle, playerPaint: TruckPaint): Portrait {
