@@ -1,7 +1,6 @@
 
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF, type GLTFLoaderPlugin, type GLTFParser } from 'three/addons/loaders/GLTFLoader.js';
-import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fetchAsset } from '../../fetch-asset';
 import { publicUrl } from '../../public-url';
 import SHAPES from '../../data/prop-shapes.json';
@@ -482,18 +481,52 @@ function outlineMaterial(): THREE.MeshBasicMaterial {
 const truckOutline = outlineMaterial();
 const propOutline = outlineMaterial();
 
+const WELD_PER_METER = 1e3;
+
+type WeldGrid = { min: [number, number, number]; span: [number, number, number] };
+
+function weldStep(v: number): number {
+  return Math.trunc(v * WELD_PER_METER + 0.5);
+}
+
+function weldGrid(geos: readonly THREE.BufferGeometry[]): WeldGrid {
+  const box = new THREE.Box3();
+  for (const g of geos) box.union(new THREE.Box3().setFromBufferAttribute(g.getAttribute('position') as THREE.BufferAttribute));
+  const min: WeldGrid['min'] = [weldStep(box.min.x), weldStep(box.min.y), weldStep(box.min.z)];
+  const span: WeldGrid['span'] = [weldStep(box.max.x) - min[0] + 1, weldStep(box.max.y) - min[1] + 1, weldStep(box.max.z) - min[2] + 1];
+  if (span[0] * span[1] * span[2] > Number.MAX_SAFE_INTEGER) throw new Error(`Outline of ${box.max.x - box.min.x} by ${box.max.y - box.min.y} by ${box.max.z - box.min.z} meters is outside the weld range`);
+  return { min, span };
+}
+
+function weldKey(grid: WeldGrid, x: number, y: number, z: number): number {
+  const [i, j, k] = [weldStep(x) - grid.min[0], weldStep(y) - grid.min[1], weldStep(z) - grid.min[2]];
+  return (i * grid.span[1] + j) * grid.span[2] + k;
+}
+
 function weld(geos: readonly THREE.BufferGeometry[]): THREE.BufferGeometry {
-  const plain = geos.map((g) => {
-    const p = new THREE.BufferGeometry();
-    p.setAttribute('position', g.getAttribute('position').clone());
-    if (g.index) p.setIndex(g.index.clone());
-    return p.index ? p.toNonIndexed() : p;
-  });
-  const merged = mergeGeometries(plain);
-  if (!merged) throw new Error(`Could not merge ${geos.length} meshes for an outline`);
-  for (const p of plain) p.dispose();
-  const welded = mergeVertices(merged, 1e-3);
-  merged.dispose();
+  const origin = weldGrid(geos);
+  const slots = new Map<number, number>();
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (const g of geos) {
+    const pos = g.getAttribute('position');
+    const count = g.index ? g.index.count : pos.count;
+    for (let n = 0; n < count; n++) {
+      const at = g.index ? g.index.getX(n) : n;
+      const [x, y, z] = [pos.getX(at), pos.getY(at), pos.getZ(at)];
+      const key = weldKey(origin, x, y, z);
+      let slot = slots.get(key);
+      if (slot === undefined) {
+        slot = slots.size;
+        slots.set(key, slot);
+        positions.push(x, y, z);
+      }
+      indices.push(slot);
+    }
+  }
+  const welded = new THREE.BufferGeometry();
+  welded.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  welded.setIndex(indices);
   welded.computeVertexNormals();
   return welded;
 }
