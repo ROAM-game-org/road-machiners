@@ -60,6 +60,25 @@ describe('ShaderWarmup', () => {
     expect(drawn).toEqual([false, false, true]);
   });
 
+  it('compiles a material once even when three leaves it without a program', async () => {
+    let compiles = 0;
+    const renderer = {
+      debug: { onShaderError: null },
+      properties: { get: () => ({}) },
+      compileAsync: () => {
+        compiles++;
+        return Promise.resolve();
+      },
+      render: () => {},
+    } as unknown as THREE.WebGLRenderer;
+    const warmup = new ShaderWarmup(renderer, sceneWith(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial())), new THREE.PerspectiveCamera(), (e) => { throw e; });
+    warmup.render();
+    await Promise.resolve();
+    warmup.render();
+    warmup.render();
+    expect(compiles).toBe(1);
+  });
+
   it('leaves a mesh the game hid hidden', () => {
     const { renderer } = warmupRenderer();
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());

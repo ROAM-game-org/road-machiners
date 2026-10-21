@@ -84,7 +84,10 @@ export class ShaderWarmup {
     if (fresh.length === 0) return;
     for (const m of fresh) this.compiling.add(m);
     this.renderer.compileAsync(o, this.camera, this.scene).then(() => {
-      for (const m of fresh) this.compiling.delete(m);
+      for (const m of fresh) {
+        this.compiling.delete(m);
+        this.compiled.add(m);
+      }
     }, this.onError);
   }
 }
