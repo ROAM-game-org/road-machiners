@@ -1,5 +1,6 @@
 import { moveCard } from '../card-events';
 import { readCommittee, telegramIds } from '../committee';
+import { queueIncidents } from '../stages/incident';
 import { VOTING_LABEL, WONT_DO_LABEL, type Ctx } from '../types';
 import { isolated } from './isolate';
 import { ACCEPTED_BY_COMMITTEE, acceptedWith, CLOSED_CONCLUSION, netScore, proposalText, REJECTED_BY_COMMITTEE, signed, voteFooter, voteSides, type VoteSides } from './proposals';
@@ -75,6 +76,7 @@ async function reject(ctx: Ctx, issue: number): Promise<void> {
   await ctx.github.addLabel(issue, WONT_DO_LABEL);
   await ctx.github.close(issue, 'not planned');
   await moveCard(ctx, issue, 'Done', 'denied');
+  queueIncidents(ctx, [issue]);
 }
 
 const editPost = (ctx: Ctx, proposal: Proposal, footer: string): Promise<void> =>
