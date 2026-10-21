@@ -35,15 +35,16 @@ export const FIELD_SPARE_WEAR: Weighted<number>[] = [
   { value: 4, weight: 2 },
 ];
 
-export type OldPlaceType = 'homestead' | 'hamlet' | 'lookout' | 'hulks';
-export const OLD_PLACE_TYPES: readonly OldPlaceType[] = ['homestead', 'hamlet', 'lookout', 'hulks'];
+export type OldPlaceType = 'homestead' | 'hamlet' | 'lookout' | 'hulks' | 'boats';
+export const OLD_PLACE_TYPES: readonly OldPlaceType[] = ['homestead', 'hamlet', 'lookout', 'hulks', 'boats'];
 
 export const OLD_PLACES = {
   seedOffset: 7351,
   buildingGap: 12,
   tankGap: 10,
+  boatGap: 14,
   roadGap: 5,
-  chance: { homestead: 0.5, hamlet: 0.35, lookout: 0.4, hulks: 0.25 } as Record<OldPlaceType, number>,
+  chance: { homestead: 0.5, hamlet: 0.35, lookout: 0.4, hulks: 0.25, boats: 0.3 } as Record<OldPlaceType, number>,
   npcShare: 0.3,
   npcRange: 120,
 };
@@ -168,6 +169,16 @@ export const OLD_TABLES: Record<OldPlaceType, LootTable> = {
     sparePartChance: 0.1,
     spareParts: ['plates', 'mg', 'cage'],
     rare: { share: 0.25, parts: ['heavyDiesel', 'workhorseDiesel'], wear: RARE_WEAR },
+    relicChance: 0,
+    fuel: [0, 1],
+    supplies: [0, 1],
+  },
+  boats: {
+    goods: { scrap: [1, 2] },
+    parts: [0, 1],
+    sparePartChance: 0.1,
+    spareParts: ['plates', 'rack'],
+    rare: { share: 0.25, parts: ['workhorseDiesel'], wear: RARE_WEAR },
     relicChance: 0,
     fuel: [0, 1],
     supplies: [0, 1],

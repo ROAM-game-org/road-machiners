@@ -11,7 +11,7 @@ import { lineGap, tileFlow, turnGap } from './roadside';
 import { onReservedGround } from './start-ground';
 
 type Rules = typeof BOATS;
-type River = (typeof TERRAIN.features)['dryRiver'];
+type River = { path: Vec[]; width: number; bank: number };
 type Counts = { river: number; wash: number; boats: number };
 
 const TURN = Math.PI * 2;

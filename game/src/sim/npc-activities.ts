@@ -37,7 +37,7 @@ import { isStranded, suppliesCap, vehicleStats } from './stats';
 import type { Contact, GoalReason, Job, NpcActivity, NpcBrain, NpcState, RefitJob, SalvageStock, Track, Vehicle, World } from './types';
 import { canUseSite, GOAL_REACH, isTerritory, nearestPad, parkedOn, type Site } from './sites';
 import { spotGoal, territoryOfStock, tripGoal } from './territory';
-import { OLD_PLACES } from '../data/salvage';
+import { OLD_PLACES, type OldPlaceType } from '../data/salvage';
 import { clamp, dist, leadsAwayBy, pointsAway, type Vec } from './vec';
 import { canVehicleSee } from './vision';
 import { isWatching, startWatch, watchOver } from './watch-posts';
@@ -189,11 +189,19 @@ function siteGoal(world: World, vehicle: Vehicle): NpcActivity {
   return isTerritory(site) ? spotGoal(world, site.id) : createSiteActivity('scavenge', site.id, 'searchSite');
 }
 
+const OLD_SPOT_GOALS: Record<OldPlaceType, GoalReason> = {
+  homestead: 'searchOldRuin',
+  hamlet: 'searchOldRuin',
+  lookout: 'searchOldRuin',
+  hulks: 'searchOldHulks',
+  boats: 'searchOldBoats',
+};
+
 function oldSpotGoal(world: World, vehicle: Vehicle): NpcActivity | null {
   const near = oldSpotsNear(world, vehicle.pos, OLD_PLACES.npcRange);
   if (near.length === 0 || !chance(world, OLD_PLACES.npcShare)) return null;
   const pick = near[randInt(world, 0, near.length - 1)];
-  return createActivity('scavenge', oldStockId(pick), { ...pick.pos }, pick.type === 'hulks' ? 'searchOldHulks' : 'searchOldRuin');
+  return createActivity('scavenge', oldStockId(pick), { ...pick.pos }, OLD_SPOT_GOALS[pick.type]);
 }
 
 type IdleGoal = (world: World, vehicle: Vehicle) => NpcActivity;

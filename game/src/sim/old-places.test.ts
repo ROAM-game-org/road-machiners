@@ -8,7 +8,7 @@ import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { clearOfSites, mapObstacles, propReach } from './mapgen';
 import { navLayer } from './nav/layer';
-import { makeOldSpotPicks, MAX_RADIUS, oldPlaces, oldSpotOf, oldSpotPicks, oldStockId, offRoad, placeSpot, reachable } from './salvage';
+import { makeOldSpotPicks, MAX_RADIUS, meanLootValue, oldPlaces, salvagePlace, oldSpotOf, oldSpotPicks, oldStockId, offRoad, placeSpot, reachable } from './salvage';
 import { isLootSpot, spotTable, territoryAt } from './territory';
 import type { PropKind } from './terrain';
 import type { Obstacle, SalvageStock } from './types';
@@ -74,6 +74,32 @@ describe('old-world places', () => {
     ]);
   });
 
+  it('makes one boats place of a linked group of boats, apart from tanks', () => {
+    const o = openGround();
+    const props = [landmark('fishingBoat', o, 1), landmark('skiff', at(o, 6, 0), 2), landmark('riverBarge', at(o, 12, 0), 3), landmark('tank', at(o, 0, 30), 4)];
+    expect(props.every((p) => territoryAt(p.pos) === null && clearOfSites(icarusAtlas(), p.pos, p.r))).toBe(true);
+    const places = oldPlaces(props).map((p) => ({ type: p.type, ids: p.props.map((q) => q.id).sort() }));
+    expect(places).toEqual([
+      { type: 'hulks', ids: ['tank-90004'] },
+      { type: 'boats', ids: ['fishingBoat-90001', 'riverBarge-90003', 'skiff-90002'] },
+    ]);
+  });
+
+  it('reads a boat spot id back as a boats place, and prompts Search the wreck', () => {
+    for (const look of ['fishingBoat', 'riverBarge', 'skiff'] as const) {
+      const id = `${look}-1234`;
+      expect(oldSpotOf({ id: `old-boats-${id}` })).toEqual({ type: 'boats', propId: id });
+    }
+    const pick = oldSpotPicks(TEST_MAP).find((p) => p.type === 'boats')!;
+    const stock = { id: oldStockId(pick), pos: pick.pos } as SalvageStock;
+    expect(salvagePlace(stock)).toBe('wreck');
+  });
+
+  it('stocks boats about as richly as tank hulks, with no relic', () => {
+    expect(Math.abs(meanLootValue(OLD_TABLES.boats) / meanLootValue(OLD_TABLES.hulks) - 1)).toBeLessThanOrEqual(0.1);
+    expect(OLD_TABLES.boats.relicChance).toBe(0);
+  });
+
   it('skips a building ringed by rocks, so a place with only it gets no spot', () => {
     const o = openGround();
     const house = landmark('house', o, 1);
@@ -135,6 +161,23 @@ describe('old-world loot spot picks on the committed map', () => {
       expect(c.withSpot, c.type).toBeGreaterThan(0);
       expect(c.withSpot, c.type).toBeLessThan(c.places);
     }
+  });
+
+  it('holds boat groups of every kind, on open ground clear of roads and earlier props', () => {
+    const boats = baked.filter((o) => o.kind === 'landmark' && ['fishingBoat', 'riverBarge', 'skiff'].includes(o.look));
+    expect(boats.length).toBeGreaterThanOrEqual(8);
+    expect(boats.length).toBeLessThanOrEqual(20);
+    for (const b of boats) {
+      expect(territoryAt(b.pos), b.id).toBeNull();
+      expect(clearOfSites(icarusAtlas(), b.pos, b.r), b.id).toBe(true);
+    }
+    expect(new Set(boats.map((b) => b.kind === 'landmark' && b.look)).size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('puts a loot spot on some boat places and not on others', () => {
+    const boatPlaces = oldPlaces(baked).filter((p) => p.type === 'boats');
+    expect(picks.some((p) => p.type === 'boats')).toBe(true);
+    expect(picks.filter((p) => p.type === 'boats').length).toBeLessThan(boatPlaces.length);
   });
 
   it('names the place type in the stock id', () => {
