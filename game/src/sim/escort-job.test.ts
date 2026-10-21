@@ -7,7 +7,7 @@ import { awaitsEscort, escortBlocked, escortFit, escortReward, escortShare, esco
 import { acceptContract, advanceContracts, advanceShops, siteOf } from './market';
 import { sitePads } from './sites';
 import { getResources } from './resources';
-import { stateOf } from './states';
+import { addState, stateOf } from './states';
 import { addVehicle, emptyWorld, npcBrain, startCombat, testDrive } from './testkit';
 import type { GameEvent, NpcActivity, Vehicle, World } from './types';
 import { dist } from './vec';
@@ -357,7 +357,7 @@ describe('the trader waits for a player escort', () => {
     expect(traderWaits(next, leader, me)).toBe(false);
   });
 
-  it('waits beside a stranded player and not when the player is far', () => {
+  it('waits for a stranded player at any distance', () => {
     const { w, trader, offer } = setup();
     const next = take(w, offer);
     const me = playerVehicle(next);
@@ -366,7 +366,31 @@ describe('the trader waits for a player escort', () => {
     leader.pos = { x: me.pos.x + 10, y: me.pos.y };
     expect(traderWaits(next, leader, me)).toBe(true);
     leader.pos = { x: me.pos.x + ESCORT_JOB.apartGap + 10, y: me.pos.y };
-    expect(traderWaits(next, leader, me)).toBe(false);
+    expect(traderWaits(next, leader, me)).toBe(true);
+  });
+
+  it('waits for a player on a rope 60 tiles off', () => {
+    const { w, trader, offer } = setup();
+    const next = take(w, offer);
+    const me = playerVehicle(next);
+    const leader = next.vehicles.find((v) => v.id === trader.id)!;
+    leader.pos = { x: me.pos.x + 60, y: me.pos.y };
+    addState(next, 'drag', 'dragger', me.id, { kind: 'drag', drop: { x: me.pos.x, y: me.pos.y } });
+    expect(traderWaits(next, leader, me)).toBe(true);
+  });
+
+  it('stops waiting once the stuck contract is released', () => {
+    const { w, trader, offer } = setup();
+    const next = take(w, offer);
+    const me = playerVehicle(next);
+    getResources(next, me).fuel = 0;
+    const leader = traderIn(next, trader);
+    leader.pos = { x: me.pos.x + ESCORT_JOB.apartGap + 30, y: me.pos.y };
+    tick(next, ESCORT_JOB.stuckTurns - 1);
+    expect(traderWaits(next, traderIn(next, trader), playerVehicle(next))).toBe(true);
+    tick(next, 1);
+    expect(heldEscort(next)).toBeNull();
+    expect(traderWaits(next, traderIn(next, trader), playerVehicle(next))).toBe(false);
   });
 
   it('waits under a hold', () => {
