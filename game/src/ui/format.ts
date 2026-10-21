@@ -234,6 +234,7 @@ const STATE_LABELS: Record<StateKindId, (s: NpcState) => Msg> = {
   backedOff: () => t('state.backedOff'),
   tow: (s) => (towData(s).hitched ? t('state.towing') : t('state.towOffer')),
   turnedDown: () => t('state.turnedDown'),
+  helpRefused: () => t('state.helpRefused'),
   towPromise: () => t('state.towPromise'),
   answering: () => t('state.answering'),
   patch: () => t('state.patch'),
