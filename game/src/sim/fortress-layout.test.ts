@@ -70,9 +70,9 @@ function outward(site: Site, p: Vec): Vec {
 }
 
 describe('fortress data', () => {
-  it('names the nine inhabited sites', () => {
-    expect(Object.keys(FORTRESS_SITES).filter((id) => id !== 'outpost' && id !== HOLLOW.id).sort()).toEqual(['bowl', 'dustwell', 'granary', 'green-pit', 'kiln', 'nose', 'pump-station', 'salvage-yard', 'scrapjaw']);
-    expect(FORTS).toHaveLength(9);
+  it('names the ten inhabited sites', () => {
+    expect(Object.keys(FORTRESS_SITES).filter((id) => id !== 'outpost' && id !== HOLLOW.id).sort()).toEqual(['bowl', 'dustwell', 'granary', 'green-pit', 'kiln', 'marshal-post', 'nose', 'pump-station', 'salvage-yard', 'scrapjaw']);
+    expect(FORTS).toHaveLength(10);
   });
 });
 

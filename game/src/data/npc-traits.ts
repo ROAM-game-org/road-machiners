@@ -62,7 +62,7 @@ export const TRAITS: Record<TraitId, Trait> = {
     },
   },
   courier: {
-    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: ['bowl', 'nose', 'orchard', 'dustwell', 'granary', 'glass-flats', 'green-pit', 'pump-station', 'fallen-sun', 'salvage-yard'],
+    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: ['bowl', 'nose', 'orchard', 'dustwell', 'granary', 'glass-flats', 'green-pit', 'pump-station', 'fallen-sun', 'salvage-yard', 'marshal-post'],
     contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE,
     weights: {
       idle: { travel: { add: 20 }, escort: { add: 180 }, scavenge: { mul: 0.001 } }, strandedSeen: { tow: { add: 2 } },

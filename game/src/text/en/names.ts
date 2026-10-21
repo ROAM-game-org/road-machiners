@@ -158,6 +158,7 @@ export const NAMES = {
   'site.broken-wing': 'Broken Wing',
   'site.scrapjaw': 'Scrapjaw Camp',
   'site.kiln': 'Kiln Camp',
+  'site.marshal-post': 'Roadhouse',
   'terrain.road': 'Road',
   'terrain.hardpan': 'Hardpan',
   'terrain.sand': 'Loose sand',

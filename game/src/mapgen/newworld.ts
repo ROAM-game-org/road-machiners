@@ -1,8 +1,6 @@
-// New-world layer: what squatters and weather made of the old world since, placed by rules from terrain,
-// water, today's sites and roads and the old world's props and marks. It reads the draft after the old
-// world. It marks pool and scrub tiles in d.built and appends shacks, fence segments, junk piles and car
-
 import { REGION } from '../data/region';
+import { HOLLOW } from '../data/sunward';
+import { siteGap } from '../sim/sites';
 import {
   GEOLOGY,
   NEW_WORLD,
@@ -78,13 +76,17 @@ function onSpur(p: BakedProp): boolean {
   return SPURS.some((s) => polylineDist(p.pos, s.points) < s.width / 2 + p.r + O.gap);
 }
 
+function inHollow(p: BakedProp): boolean {
+  return siteGap(HOLLOW.site, p.pos) <= O.siteClearance + p.r;
+}
+
 function settle(d: MapDraft, p: BakedProp, roadGap: number): boolean {
-  if (isPool(d.built[tileOf(d.size, p.pos)]) || onSpur(p)) return false;
+  if (isPool(d.built[tileOf(d.size, p.pos)]) || onSpur(p) || inHollow(p)) return false;
   return place(d, p, roadGap);
 }
 
 function settleFence(d: MapDraft, p: BakedProp, roadGap: number): boolean {
-  if (!clearGround(d.size, p.pos, p.r, roadGap) || isPool(d.built[tileOf(d.size, p.pos)])) return false;
+  if (!clearGround(d.size, p.pos, p.r, roadGap) || isPool(d.built[tileOf(d.size, p.pos)]) || inHollow(p)) return false;
   if (tileSteepness(d.heights, d.size, tileOf(d.size, p.pos)) > TERRAIN.drive.maxSlope) return false;
   if (d.props.some((o) => !sameLine(o, p) && dist(o.pos, p.pos) < o.r + p.r + O.gap)) return false;
   d.props.push(p);

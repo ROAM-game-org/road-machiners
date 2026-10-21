@@ -1,5 +1,6 @@
 import { PAL } from '../../../render/palette';
 import type { SiteBuilder } from '../sites';
+import { addShed } from './shed';
 
 const STRIP = 6.15;
 const DRUM_CLUSTERS = [
@@ -35,4 +36,48 @@ function addRack(b: SiteBuilder): void {
 
 function addLantern(b: SiteBuilder): void {
   b.addLantern(LANTERN.x, LANTERN.z, Math.PI);
+}
+
+const MAST = { x: -2.2, z: -1.6, half: 0.22, height: 6, leg: 0.06, rungEvery: 0.75, rung: 0.04, beacon: 0.16 };
+const ROADHOUSE_SHED = { x: 1.6, z: -2.3, yaw: -Math.PI / 2 };
+const LEAN_TO = { x: 2.2, z: 1.4, yaw: Math.PI };
+const TABLE = { x: -0.2, z: 1.5, length: 1.4, width: 0.5, height: 0.22, top: 0.05 };
+const BENCHES = [-0.55, 0.55];
+const ROADHOUSE_DRUMS = [
+  { x: -3.1, z: 1.2, yaw: 0.4 },
+  { x: 3.2, z: -0.6, yaw: 1.9 },
+];
+const ROADHOUSE_CRATES = { x: -3.0, z: 2.4, yaw: 0.2 };
+const ROADHOUSE_LANTERN = { x: 0.8, z: 2.6, yaw: Math.PI / 2 };
+
+export function buildRoadhouse(b: SiteBuilder): void {
+  addMast(b);
+  addShed(b, 'marshal-post', ROADHOUSE_SHED);
+  b.addModel('scrap_shelter_lean', LEAN_TO.x, LEAN_TO.z, LEAN_TO.yaw).name = 'marshal-post-lean-to';
+  addHearingTable(b);
+  for (const d of ROADHOUSE_DRUMS) b.addModel('drums', d.x, d.z, d.yaw).name = 'marshal-post-drums';
+  b.addModel('crates', ROADHOUSE_CRATES.x, ROADHOUSE_CRATES.z, ROADHOUSE_CRATES.yaw).name = 'marshal-post-crates';
+  b.addLantern(ROADHOUSE_LANTERN.x, ROADHOUSE_LANTERN.z, ROADHOUSE_LANTERN.yaw);
+}
+
+function addMast(b: SiteBuilder): void {
+  const { x, z, half, height, leg, rungEvery, rung, beacon } = MAST;
+  for (const [dx, dz] of [[-half, -half], [half, -half], [half, half], [-half, half]]) {
+    b.addBox(x + dx, z + dz, leg, height, leg, PAL.metal).name = 'marshal-post-mast';
+  }
+  for (let lift = rungEvery; lift < height; lift += rungEvery) {
+    b.addBox(x, z - half, half * 2, rung, rung, PAL.rust.dark, lift);
+    b.addBox(x, z + half, half * 2, rung, rung, PAL.rust.dark, lift);
+    b.addBox(x - half, z, rung, rung, half * 2, PAL.rust.dark, lift);
+    b.addBox(x + half, z, rung, rung, half * 2, PAL.rust.dark, lift);
+  }
+  b.addBox(x, z, half * 2.4, rung * 2, half * 2.4, PAL.metalLight, height);
+  b.addBox(x, z, beacon, beacon, beacon, PAL.lamp.amber, height + rung * 2).name = 'marshal-post-mast-lamp';
+}
+
+function addHearingTable(b: SiteBuilder): void {
+  const { x, z, length, width, height, top } = TABLE;
+  b.addBox(x, z, length, top, width, PAL.crate, height);
+  for (const end of [-1, 1]) b.addBox(x + (end * (length - 0.1)) / 2, z, 0.06, height, width * 0.8, PAL.rust.dark);
+  for (const side of BENCHES) b.addBox(x, z + side, length * 0.9, 0.12, 0.18, PAL.trunk);
 }
