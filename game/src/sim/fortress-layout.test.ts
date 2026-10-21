@@ -7,6 +7,7 @@ import { fortressFootprint, fortressGates, fortressOutline, insideCurtain, fortr
 import { PHYSICS } from '../data/physics';
 import { boxDistance, propBoxes, propObstacle, type PosedBox } from './mapgen';
 import { noseRocks } from './nose';
+import { HOLLOW } from '../data/sunward';
 import BEFORE from './fortress-pieces-42b6c9fe.json';
 import BEFORE_8D from './fortress-pieces-8d024493.json';
 
@@ -70,7 +71,7 @@ function outward(site: Site, p: Vec): Vec {
 
 describe('fortress data', () => {
   it('names the nine inhabited sites', () => {
-    expect(Object.keys(FORTRESS_SITES).filter((id) => id !== 'outpost').sort()).toEqual(['bowl', 'dustwell', 'granary', 'green-pit', 'kiln', 'nose', 'pump-station', 'salvage-yard', 'scrapjaw']);
+    expect(Object.keys(FORTRESS_SITES).filter((id) => id !== 'outpost' && id !== HOLLOW.id).sort()).toEqual(['bowl', 'dustwell', 'granary', 'green-pit', 'kiln', 'nose', 'pump-station', 'salvage-yard', 'scrapjaw']);
     expect(FORTS).toHaveLength(9);
   });
 });
