@@ -350,7 +350,7 @@ export type MemoryFact =
   | { kind: 'wronged'; by: string; deed: WrongDeed }
   | { kind: 'helped'; by: string; deed: HelpDeed }
   | { kind: 'sighting'; vehicle: string; at: Vec; heading: number }
-  | { kind: 'witnessed'; crime: string; by: string; victim: string; offense: CrimeOffense; at: Vec };
+  | { kind: 'witnessed'; crime: string; by: string; victim: string; offense: CrimeOffense; at: Vec; heading: number };
 export type SightingFact = Extract<MemoryFact, { kind: 'sighting' }>;
 export type Memory = { turn: number; fact: MemoryFact };
 
@@ -698,6 +698,7 @@ export type CrimeCase = {
   closed: number | null;
   hunter: string | null;
   retryAt: number | null;
+  offered: number | null;
   lead: CaseLead | null;
 };
 

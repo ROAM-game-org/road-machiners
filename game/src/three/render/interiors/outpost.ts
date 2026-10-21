@@ -38,7 +38,7 @@ function addLantern(b: SiteBuilder): void {
   b.addLantern(LANTERN.x, LANTERN.z, Math.PI);
 }
 
-const MAST = { x: -2.2, z: -1.6, half: 0.22, height: 6, leg: 0.06, rungEvery: 0.75, rung: 0.04, beacon: 0.16 };
+const MAST = { x: -2.2, z: -1.6, half: 0.22, height: 6, leg: 0.06, rungEvery: 0.75, rung: 0.04 };
 const ROADHOUSE_SHED = { x: 1.6, z: -2.3, yaw: -Math.PI / 2 };
 const LEAN_TO = { x: 2.2, z: 1.4, yaw: Math.PI };
 const TABLE = { x: -0.2, z: 1.5, length: 1.4, width: 0.5, height: 0.22, top: 0.05 };
@@ -61,7 +61,7 @@ export function buildRoadhouse(b: SiteBuilder): void {
 }
 
 function addMast(b: SiteBuilder): void {
-  const { x, z, half, height, leg, rungEvery, rung, beacon } = MAST;
+  const { x, z, half, height, leg, rungEvery, rung } = MAST;
   for (const [dx, dz] of [[-half, -half], [half, -half], [half, half], [-half, half]]) {
     b.addBox(x + dx, z + dz, leg, height, leg, PAL.metal).name = 'marshal-post-mast';
   }
@@ -72,7 +72,7 @@ function addMast(b: SiteBuilder): void {
     b.addBox(x + half, z, rung, rung, half * 2, PAL.rust.dark, lift);
   }
   b.addBox(x, z, half * 2.4, rung * 2, half * 2.4, PAL.metalLight, height);
-  b.addBox(x, z, beacon, beacon, beacon, PAL.lamp.amber, height + rung * 2).name = 'marshal-post-mast-lamp';
+  b.addLampHead(x, z, height + rung * 2, 0).name = 'marshal-post-mast-lamp';
 }
 
 function addHearingTable(b: SiteBuilder): void {

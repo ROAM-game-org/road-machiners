@@ -59,7 +59,7 @@ import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
 import { isMet, type Contract } from "../sim/market";
-import { driverName, factionName, offenseName, refusalText, setupText, siteName, templateName, vehicleTitle } from "../text/names";
+import { driverName, factionName, refusalText, setupText, siteName, templateName, vehicleTitle } from "../text/names";
 import { stanceToward } from "../sim/relations";
 
 export type ContextTarget =
@@ -498,10 +498,10 @@ export class Hud {
     this.wanted.style.display = cases.length > 0 ? "" : "none";
     if (cases.length === 0) return this.wanted.replaceChildren();
     const owed = cases.reduce((sum, c) => sum + c.owed, 0);
-    const tip = el("span", { class: "tooltip wanted-tip", role: "tooltip" }, ...cases.map((c) => wantedRow(w, c)));
+    this.wanted.tabIndex = 0;
     this.wanted.replaceChildren(
-      el("span", { class: "panel-title" }, t("hud.wanted")),
-      el("span", { class: "num wanted-owed", tabindex: 0 }, moneyEl(owed), tip),
+      el("div", { class: "wanted-cases" }, ...cases.map((c) => wantedRow(w, c))),
+      el("div", { class: "wanted-head" }, el("span", { class: "panel-title" }, t("hud.wanted")), el("span", { class: "num wanted-owed" }, moneyEl(owed))),
     );
   }
 
@@ -851,6 +851,6 @@ function escortLine(w: World, c: EscortContract): HTMLElement | null {
 
 function wantedRow(w: World, c: CrimeCase): HTMLElement {
   const victim = w.vehicles.find((v) => v.id === c.victim);
-  const label = t("desk.case", { offense: offenseName(c.offense), victim: victim ? vehicleTitle(w, victim) : t("log.someDriver") });
+  const label = t(`desk.case.${c.offense}`, { victim: victim ? vehicleTitle(w, victim) : t("log.someDriver") });
   return el("div", { class: "tooltip-row" }, el("span", {}, label), el("span", { class: "num" }, t("hud.wantedFiled", { site: siteName(c.site), when: clock(c.turn).full })));
 }

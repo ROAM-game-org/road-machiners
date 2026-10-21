@@ -28,7 +28,7 @@ const traderAt = (w: World, faction: Faction, pos: Vec) => npc(w, faction, 'trad
 
 function fileAgainst(w: World, culprit: Vehicle, at: Vec): void {
   const bowl = traderAt(w, 'bowl', { x: 100, y: 600 });
-  remember(w, bowl, { kind: 'witnessed', crime: `${w.turn}:${culprit.id}:${bowl.id}:robbed`, by: culprit.id, victim: bowl.id, offense: 'robbed', at: { ...at } });
+  remember(w, bowl, { kind: 'witnessed', crime: `${w.turn}:${culprit.id}:${bowl.id}:robbed`, by: culprit.id, victim: bowl.id, offense: 'robbed', at: { ...at }, heading: 0 });
   bowl.pos = { ...nearestPad(getKnownSite('bowl'), bowl.pos) };
   bowl.speed = 0;
   fileReports(w, bowl);
@@ -222,5 +222,22 @@ describe('a broke target', () => {
     noteKnockout(after, hit);
     expect(after.crimes[0].status).toBe('collected');
     expect(after.player.money).toBe(1000);
+  });
+});
+
+describe('a hunt in the turn pipeline', () => {
+  it('rides out after its target through the turns, parks beside it and raises no stall', () => {
+    let w = emptyWorld({ x: 100, y: 100 });
+    const target = traderAt(w, 'independent', { x: 420, y: 420 });
+    target.brain = null;
+    fileAgainst(w, target, { x: 420, y: 420 });
+    const marshal = marshalAt(w, { x: 400, y: 400 });
+    const stalls: unknown[] = [];
+    for (let i = 0; i < 40; i++) {
+      w = endTurn(w, testDrive);
+      stalls.push(...w.events.filter((e) => e.t === 'stall' && e.vehicle === marshal.id));
+    }
+    expect(stalls).toEqual([]);
+    expect(w.states.some((s) => s.kind === 'bountyStop' && s.holder === marshal.id) || w.crimes[0].status !== 'open' || w.states.some((s) => s.kind === 'feud' && s.holder === marshal.id)).toBe(true);
   });
 });

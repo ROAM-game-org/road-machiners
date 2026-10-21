@@ -68,7 +68,7 @@ import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum } from "./units";
 import { fuelCap, suppliesCap } from "../sim/stats";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
 import { ESCAPE, keyLabel } from "./input-mode";
-import { factionName, goodName, localName, localRole, offenseName, refusalText, siteName, vehicleTitle } from "../text/names";
+import { factionName, goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
 import { seesAll } from "./see-all";
 import { vehicleHasPerk } from "../sim/progress";
@@ -203,7 +203,7 @@ export class TownScreen {
     return el(
       "div",
       { class: "row desk-case" },
-      el("span", {}, t("desk.case", { offense: offenseName(c.offense), victim })),
+      el("span", {}, t(`desk.case.${c.offense}`, { victim })),
       el("span", { class: "dim" }, t("desk.filed", { issuer: issuerName(w, c), site: siteName(c.site), when: clock(c.turn).full })),
       this.priceButton(w, t("desk.pay"), c.owed, (x) => payAtDesk(x, [c.id])),
     );

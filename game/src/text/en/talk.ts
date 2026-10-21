@@ -154,7 +154,7 @@ export const TALK = {
   'line.marshalRepeat': 'I answered that.',
   'line.marshalRefusal': "I won't talk with you. Keep the channel clear.",
   'line.marshalWarnOff': 'This salvage is spoken for. Leave it where it is and back off.',
-  'line.bountyDemand': m('{offense} The book names {price}. Will you pay it, or do I come and collect?', { offense: 'text', price: 'text' }),
+  'line.bountyDemand': m('{offense} It comes to {price}. Will you pay it, or do I come and collect?', { offense: 'text', price: 'text' }),
   'line.offenseAttacked': "The book says you shot at a driver who'd done nothing to you on the open road, and someone who saw it brought the claim in.",
   'line.offenseRobbed': 'The book names you for robbing a lawful driver on the open road, on the word of someone who saw it.',
   'line.offenseKilled': "Someone who saw it brought the claim to the book: you wrecked and killed a driver you'd already wronged that day.",

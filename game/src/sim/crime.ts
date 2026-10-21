@@ -51,7 +51,7 @@ function recordCrime(world: World, culprit: Vehicle, victim: Vehicle, offense: C
   if (!crimeOf(world, culprit, victim, offense)) return;
   const reporters = [...(victimReports && namesCulprit(world, victim, culprit) ? [victim] : []), ...seen.filter((w) => willReport(world, w, culprit, victim))];
   const crime = `${world.turn}:${culprit.id}:${victim.id}:${offense}`;
-  for (const r of reporters) remember(world, r, { kind: 'witnessed', crime, by: culprit.id, victim: victim.id, offense, at: { ...victim.pos } });
+  for (const r of reporters) remember(world, r, { kind: 'witnessed', crime, by: culprit.id, victim: victim.id, offense, at: { ...victim.pos }, heading: culprit.heading });
 }
 
 function requireInWorld(world: World, v: Vehicle): void {
@@ -113,7 +113,7 @@ function openCase(world: World, reporter: Vehicle, fact: Witnessed, site: string
   const c: CrimeCase = {
     id: newId(world, 'case'), crime: fact.crime, offense: fact.offense, target: target.id, victim: fact.victim, issuer,
     reporters: [reporter.id], site, at: { ...fact.at }, turn: crimeTurn(fact.crime), filed: world.turn, owed: stake, escrow,
-    status: 'open', closed: null, hunter: null, retryAt: null, lead: { at: { ...fact.at }, turn: crimeTurn(fact.crime), heading: null },
+    status: 'open', closed: null, hunter: null, retryAt: null, offered: null, lead: { at: { ...fact.at }, turn: crimeTurn(fact.crime), heading: fact.heading },
   };
   world.crimes = [...world.crimes, c];
   world.events.push({ t: 'bountyFiled', case: c.id, target: c.target, reporter: reporter.id, offense: c.offense, victim: c.victim, site, owed: c.owed });
@@ -212,6 +212,14 @@ export function takeHunt(world: World, targetId: string, hunterId: string): Crim
   if (cases.length === 0) throw new Error(`No open case on ${targetId} to hunt`);
   for (const c of cases) c.hunter = hunterId;
   return cases[0];
+}
+
+export function offerCases(world: World, cases: CrimeCase[]): void {
+  for (const c of cases) c.offered = world.turn;
+}
+
+export function lastOffer(cases: CrimeCase[]): number {
+  return Math.max(-Infinity, ...cases.map((c) => c.offered ?? -Infinity));
 }
 
 export function leadCases(cases: CrimeCase[], lead: CaseLead): void {

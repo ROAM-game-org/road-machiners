@@ -2,7 +2,7 @@ import { BOUNTY, CRIME } from '../data/market';
 import { OFFENSE_LINES } from '../data/personalities';
 import { getKnownSite, decide, npcProfile } from './npc-decisions';
 import { createActivity, finishGoal, fightGoal, fleeFrom, interrupt, pushGoal, topGoal } from './npc-activities';
-import { canPayBounty, dropHunt, leadCases, openCasesOn, owedBy, payBounty, takeHunt } from './crime';
+import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, takeHunt } from './crime';
 import { isDefeated } from './defeat';
 import { sightingOf } from './memory';
 import { lieUpSpot } from './npc-service';
@@ -176,12 +176,10 @@ export function demandOpen(world: World, marshal: Vehicle, target: Vehicle): Npc
 
 export function demand(world: World, marshal: Vehicle, target: Vehicle): void {
   if (stateOf(world, 'bountyStop', marshal.id, target.id)) return;
-  const key = `bountyDemand:${target.id}`;
-  const last = marshal.brain!.noticed[key];
-  if (last !== undefined && world.turn - last < BOUNTY.offerGapTurns) return;
+  const cases = openCasesOn(world, target.id);
+  if (cases.length === 0 || world.turn - lastOffer(cases) < BOUNTY.offerGapTurns) return;
   const owed = owedBy(world, target.id);
-  if (owed <= 0) return;
-  marshal.brain!.noticed[key] = world.turn;
+  offerCases(world, cases);
   addState(world, 'bountyStop', marshal.id, target.id, { kind: 'bountyStop', owed, answered: false });
   if (target.brain) answerDemandAsNpc(world, marshal, target);
 }

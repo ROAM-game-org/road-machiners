@@ -137,7 +137,7 @@ describe('funding', () => {
     poor.resources!.money = 20000;
     const before = poor.resources!.money;
     const fileCase = (reporter: Vehicle, victim: Vehicle, n: number) => {
-      remember(w, reporter, { kind: 'witnessed', crime: `${n}:${robber.id}:${victim.id}:attacked`, by: robber.id, victim: victim.id, offense: 'attacked', at: { x: 400, y: 400 } });
+      remember(w, reporter, { kind: 'witnessed', crime: `${n}:${robber.id}:${victim.id}:attacked`, by: robber.id, victim: victim.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0 });
       toPad(reporter, 'granary');
       fileReports(w, reporter);
     };
@@ -201,7 +201,7 @@ describe('closing a case', () => {
   it('lapses a case after its days and returns an independent escrow', () => {
     const { w, robber } = scene();
     const poor = trader(w, 'independent', { x: 300, y: 300 });
-    remember(w, poor, { kind: 'witnessed', crime: `1:${robber.id}:${poor.id}:attacked`, by: robber.id, victim: poor.id, offense: 'attacked', at: { x: 400, y: 400 } });
+    remember(w, poor, { kind: 'witnessed', crime: `1:${robber.id}:${poor.id}:attacked`, by: robber.id, victim: poor.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0 });
     toPad(poor, 'granary');
     fileReports(w, poor);
     const before = cloneWorld(w);
@@ -247,7 +247,7 @@ describe('the Marshalls desk', () => {
     const w = atDesk();
     expect(deskRows(w)).toEqual({ cases: [], owed: 0, settlements: [] });
     const bowl = trader(w, 'bowl', { x: 300, y: 300 });
-    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:robbed`, by: w.player.vehicleId, victim: bowl.id, offense: 'robbed', at: { x: 300, y: 300 } });
+    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:robbed`, by: w.player.vehicleId, victim: bowl.id, offense: 'robbed', at: { x: 300, y: 300 }, heading: 0 });
     toPad(bowl, 'bowl');
     fileReports(w, bowl);
     w.crimes[0].hunter = 'gone';
@@ -268,7 +268,7 @@ describe('the Marshalls desk', () => {
     expect(settlementQuote(w, 'bowl')!.refusal).toEqual({ id: 'noMoney' });
     w.player.money = quote.price;
     const bowl = trader(w, 'bowl', { x: 300, y: 300 });
-    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:attacked`, by: w.player.vehicleId, victim: bowl.id, offense: 'attacked', at: { x: 300, y: 300 } });
+    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:attacked`, by: w.player.vehicleId, victim: bowl.id, offense: 'attacked', at: { x: 300, y: 300 }, heading: 0 });
     toPad(bowl, 'bowl');
     fileReports(w, bowl);
     expect(settlementQuote(w, 'bowl')!.refusal).toEqual({ id: 'payBountiesFirst', faction: 'bowl' });
