@@ -6,8 +6,10 @@ import { PHYSICS } from '../../data/physics';
 import { WEATHER } from '../../data/weather';
 import { hash2 } from '../../render/noise';
 import { heightAt, type Terrain } from '../../sim/terrain';
-import type { World } from '../../sim/types';
+import type { WeatherEvent, World } from '../../sim/types';
 import { stormStrength } from '../../sim/weather';
+import type { TurnClock } from './hazards';
+import { BeforeTurn, driftAt, turnShare } from './turn-blend';
 
 const S = PHYSICS.metersPerTile;
 const WRAP_MARGIN = WEATHER.cloud.spread + WEATHER.cloud.diameter;
@@ -40,6 +42,7 @@ export class WeatherView {
   readonly root = new THREE.Group();
   private readonly clouds: Bank[] = [];
   private readonly storms = new Map<string, StormBank>();
+  private readonly beforeStorms = new BeforeTurn<WeatherEvent>((w) => w.weather);
   private readonly terrain: Terrain;
   private readonly texture: THREE.CanvasTexture;
 
@@ -57,7 +60,8 @@ export class WeatherView {
     for (const bank of this.storms.values()) this.show(bank, bank.target);
   }
 
-  sync(world: World): void {
+  sync(world: World, clock: TurnClock | null = null): void {
+    const share = turnShare(clock);
     for (const bank of this.storms.values()) bank.target = 0;
     for (const e of world.weather) {
       if (e.kind !== 'storm') continue;
@@ -69,8 +73,10 @@ export class WeatherView {
         this.storms.set(e.id, bank);
       }
       bank.target = stormStrength(world, e);
-      bank.x = e.pos.x;
-      bank.y = e.pos.y;
+      const before = this.beforeStorms.of(clock, e.id);
+      const at = before?.kind === 'storm' ? driftAt(before, e, share) : e.pos;
+      bank.x = at.x;
+      bank.y = at.y;
       this.placeBank(bank);
     }
   }
