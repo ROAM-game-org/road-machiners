@@ -162,13 +162,13 @@ function towAllowed(world: World, tower: Vehicle, client: Vehicle): boolean {
 
 function canTow(world: World, tower: Vehicle, client: Vehicle): boolean {
   return canPull(world, tower, client) && ropesFree(world, tower, client) && unclaimed(world, tower, client)
-    && awake(world, client) && towDestination(world, tower, client) !== null && towerHasFuel(world, tower, client);
+    && awake(world, client) && towerHasFuel(world, tower, client);
 }
 
 function towerHasFuel(world: World, tower: Vehicle, client: Vehicle): boolean {
-  if (isPlayer(world, tower)) return true;
-  const site = towDestination(world, tower, client)!;
-  return getResources(world, tower).fuel > fuelForWay(world, tower, npcProfile(tower), [client.pos, site.pos]);
+  const site = towDestination(world, tower, client);
+  if (!site) return false;
+  return isPlayer(world, tower) || getResources(world, tower).fuel > fuelForWay(world, tower, npcProfile(tower), [client.pos, site.pos]);
 }
 
 function canPull(world: World, tower: Vehicle, client: Vehicle): boolean {
