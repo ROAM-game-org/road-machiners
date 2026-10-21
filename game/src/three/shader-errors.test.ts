@@ -116,6 +116,19 @@ describe('ShaderWarmup', () => {
     expect(drawn.at(-1)).toBe(false);
   });
 
+  it('trusts a program three built before the warmup only when it was built with the material as it is now', () => {
+    const { renderer, drawn } = warmupRenderer();
+    const material = new THREE.MeshBasicMaterial();
+    (renderer.properties.get(material) as { currentProgram?: object }).currentProgram = { cacheKey: `basic,${material.customProgramCacheKey()}` };
+    new ShaderWarmup(renderer, sceneWith(new THREE.Mesh(new THREE.BoxGeometry(), material)), new THREE.PerspectiveCamera(), (e) => { throw e; }).render();
+    expect(drawn.at(-1)).toBe(true);
+    const patched = new THREE.MeshBasicMaterial();
+    (renderer.properties.get(patched) as { currentProgram?: object }).currentProgram = { cacheKey: `basic,${patched.customProgramCacheKey()}` };
+    patched.customProgramCacheKey = () => 'sight-grey';
+    new ShaderWarmup(renderer, sceneWith(new THREE.Mesh(new THREE.BoxGeometry(), patched)), new THREE.PerspectiveCamera(), (e) => { throw e; }).render();
+    expect(drawn.at(-1)).toBe(false);
+  });
+
   it('leaves a mesh the game hid hidden', () => {
     const { renderer } = warmupRenderer();
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());

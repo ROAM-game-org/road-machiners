@@ -114,10 +114,14 @@ export class ShaderWarmup {
 
   private isCompiled(material: THREE.Material, variant: string): boolean {
     if (this.compiled.has(material, variant)) return true;
-    const properties = this.renderer.properties.get(material) as { currentProgram?: unknown };
-    if (this.compiling.has(material, variant) || this.compiled.known(material) || !properties.currentProgram) return false;
+    if (this.compiling.has(material, variant) || this.compiled.known(material) || !this.builtAsIs(material)) return false;
     this.compiled.add(material, variant);
     return true;
+  }
+
+  private builtAsIs(material: THREE.Material): boolean {
+    const program = (this.renderer.properties.get(material) as { currentProgram?: { cacheKey?: string } }).currentProgram;
+    return program?.cacheKey?.endsWith(material.customProgramCacheKey()) ?? false;
   }
 
   private compile(o: Drawn, variant: string): void {
