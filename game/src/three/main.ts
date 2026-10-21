@@ -83,9 +83,12 @@ async function bootSlot(slot: SlotId): Promise<Booted> {
   }
 }
 
-function unloadedSlot(err: unknown, slot: SlotId): Promise<Booted> {
+async function unloadedSlot(err: unknown, slot: SlotId): Promise<Booted> {
   if (!(err instanceof SaveError)) throw err;
-  return carriesOnLoad(err) ? carriedOrNew(slot) : rescuedOrNew(err, slot, true);
+  const carry = carried(slot);
+  if (carry instanceof SaveError) return rescuedOrNew(carriesOnLoad(err) ? carry : err, slot, false);
+  if (carriesOnLoad(err)) return { world: carry.world, runId: carry.runId, loadedFrom: null, fresh: false };
+  return rescuedOrNew(err, slot, true);
 }
 
 function carried(slot: SlotId): NonNullable<ReturnType<typeof carriedSave>> | SaveError {
@@ -94,12 +97,6 @@ function carried(slot: SlotId): NonNullable<ReturnType<typeof carriedSave>> | Sa
   } catch (error) {
     return new SaveError('invalidSave', null, (error as Error).message);
   }
-}
-
-async function carriedOrNew(slot: SlotId): Promise<Booted> {
-  const carry = carried(slot);
-  if (carry instanceof SaveError) return rescuedOrNew(carry, slot, false);
-  return { world: carry.world, runId: carry.runId, loadedFrom: null, fresh: false };
 }
 
 function freshRun(setup: WorldSetup, intro: boolean): Booted {
@@ -120,9 +117,7 @@ function newGameSaved(setup: WorldSetup, intro: boolean): Booted {
 }
 
 async function rescuedOrNew(error: SaveError, slot: SlotId, carries: boolean): Promise<Booted> {
-  const stored = storedSave(slots, slot);
-  const canMigrate = carries && typeof stored === 'object' && stored !== null && !Array.isArray(stored);
-  await boot.aside(() => chooseSaveFate(error, canMigrate, stored, newGameActions, soundSettings));
+  await boot.aside(() => chooseSaveFate(error, carries, storedSave(slots, slot), newGameActions, soundSettings));
   const rescued = rescueSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId, Date.now());
   if (!rescued) throw new Error('The save became unreadable while migrating');
   return { world: rescued.world, runId: rescued.runId, loadedFrom: null, fresh: false };

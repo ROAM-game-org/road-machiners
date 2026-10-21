@@ -158,7 +158,7 @@ describe('spawn room', () => {
   const carried = (seed: number) =>
     reusedWorld(`carried ${seed}`, () =>
       carriedWorld(
-        { seed, money: 0, xp: 0, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: 0, autoFire: true, autoRepair: false, fuel: 5, supplies: 3, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: [] },
+        { seed, money: 0, xp: 0, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: 0, autoFire: true, autoRepair: false, fuel: 5, supplies: 3, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0 },
         START_KITS.standard,
         () => TEST_MAP,
         () => seed,

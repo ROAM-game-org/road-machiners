@@ -128,7 +128,7 @@ describe('readCarried', () => {
     save.world.player.storage.push({ defId: 'ghostPlate', wear: 1, hp: 5, rebuilt: false });
     const prices = { ghostPlate: 5000, ghostGood: 300 };
     const carried = readCarried(save, prices);
-    expect(carried.refunded).toEqual([{ id: 'ghostGood', money: 600 }, { id: 'ghostPlate', money: 5000 }]);
+    expect(carried.refunded).toBe(5600);
     expect(carried.truck!.items).toHaveLength(before);
     expect(carried.storage).toEqual([]);
     expect(carried.money).toBe(4321);
@@ -141,7 +141,7 @@ describe('readCarried', () => {
     const save = currentSave() as unknown as { world: SavedWorld & { player: { storage: unknown[] } } };
     save.world.player.storage.push({ defId: 'ghostPlate', wear: 0, hp: 0, rebuilt: false });
     const carried = readCarried(save);
-    expect(carried.refunded).toEqual([]);
+    expect(carried.refunded).toBe(0);
     const world = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
     expect(world.player.storage.map((p) => p.defId)).not.toContain('ghostPlate');
     expect(world.player.money).toBe(4321);

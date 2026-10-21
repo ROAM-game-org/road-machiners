@@ -526,10 +526,8 @@ export type Carried = {
   notes: string[];
   revisions: SavedRevisions;
   run: CarriedRun | null;
-  refunded: Refund[];
+  refunded: number;
 };
-
-export type Refund = { id: string; money: number };
 
 export type CarriedRun = {
   from: number;
@@ -549,7 +547,7 @@ export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: Wor
   const from = startOutpost(run);
   const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed, from), setup, true, carriedStart(seed, setup, from));
   carryPlayer(world, carried);
-  for (const refund of carried.refunded) world.player.money += refund.money;
+  world.player.money += carried.refunded;
   carryQuests(world, carried);
   carryPlayerTruck(world, carried, carried.truck !== null && truckKit !== kit);
   if (run) carryRun(world, run);

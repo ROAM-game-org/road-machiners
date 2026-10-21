@@ -4,6 +4,7 @@ import { HUB, LINE_IDS, REFUSED, TOPICS } from '../data/dialogue';
 import { isNoteId } from '../data/locals';
 import { SHOPS, SITE_EVENTS } from '../data/market';
 import { FURY_ROAD } from '../data/modes';
+import { FACTIONS } from '../data/npc-behavior';
 import { FIRST_NAMES, NPCS, SURNAMES, TRAITS } from '../data/npcs';
 import { PARTS, partDef } from '../data/parts';
 import { PERSONALITIES } from '../data/personalities';
@@ -256,7 +257,13 @@ function dropOwnContracts(world: World): void {
   if (doomed.length === 0) return;
   const truck = world.vehicles.find((v) => v.id === world.player.vehicleId);
   if (truck) clearContractWork(truck, new Set(doomed.map((c) => c.id)));
+  for (const c of doomed.filter(isMet)) world.player.money += c.reward;
+  endEscorts(world, new Set(doomed.flatMap((c) => (c.kind === 'escort' ? [c.client] : []))));
   world.player.contracts = world.player.contracts.filter((c) => !doomed.includes(c));
+}
+
+function endEscorts(world: World, clients: ReadonlySet<string>): void {
+  for (const s of world.states.filter((x) => x.kind === 'escort' && (clients.has(x.holder) || clients.has(x.other)))) endState(world, s, 'broken');
 }
 
 function dropHulks(world: World): void {
@@ -289,10 +296,9 @@ function repairNpc(world: World, v: Vehicle, doomed: Set<string>): void {
 
 function npcKnown(v: Vehicle): boolean {
   const brain = v.brain;
-  if (!isChassis(v.chassisId)) return false;
+  if (!isChassis(v.chassisId) || !Object.hasOwn(FACTIONS, v.faction)) return false;
   if (!brain) return true;
-  brain.traits = brain.traits.filter((id) => Object.hasOwn(TRAITS, id));
-  return Object.hasOwn(NPCS, brain.templateId) && brain.traits.length > 0 && Object.hasOwn(PERSONALITIES, brain.personality);
+  return Object.hasOwn(NPCS, brain.templateId) && brain.traits.every((id) => Object.hasOwn(TRAITS, id)) && Object.hasOwn(PERSONALITIES, brain.personality);
 }
 
 function startChassis(world: World, v: Vehicle): string {

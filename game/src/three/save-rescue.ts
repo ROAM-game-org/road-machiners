@@ -1,7 +1,7 @@
 
 import type { StartKit } from '../data/start';
 import type { BakedMap } from '../sim/terrain';
-import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type CarriedRun, type Refund } from '../sim/world';
+import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type CarriedRun } from '../sim/world';
 import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
@@ -169,7 +169,7 @@ function soldAt(run: Json, milestone: number): string[] {
 
 const NO_CARRIED: Carried = {
   seed: null, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: null, autoFire: null,
-  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: [],
+  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: 0,
 };
 
 export function readCarried(raw: unknown, prices: Readonly<Record<string, number>> = RETIRED_PRICES_RESCUE): Carried {
@@ -202,7 +202,7 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
     run: runOf(world, format),
     notes: [...new Set(listOf(player.notes).flatMap(noteOf))],
     revisions: savedRevisionsOf(raw),
-    refunded: [],
+    refunded: 0,
   };
 }
 
@@ -244,7 +244,7 @@ const idOfItem = (item: CarriedItem): string => (item.kind === 'part' ? item.par
 function refundedRetired(carried: Carried, prices: Readonly<Record<string, number>>): Carried {
   const retired = (id: string): boolean => Object.hasOwn(prices, id);
   const gone = retiredIdsOf(carried).filter(retired);
-  return { ...carried, ...withoutRetired(carried, retired), refunded: refundsOf(gone, prices) };
+  return { ...carried, ...withoutRetired(carried, retired), refunded: gone.reduce((sum, id) => sum + prices[id], 0) };
 }
 
 function retiredIdsOf(carried: Carried): string[] {
@@ -261,12 +261,6 @@ function withoutRetired(carried: Carried, retired: (id: string) => boolean): Pic
     storage: carried.storage.filter((p) => !retired(p.defId)),
     run: run && { ...run, hauler: { ...run.hauler, items: kept(run.hauler.items) } },
   };
-}
-
-function refundsOf(ids: string[], prices: Readonly<Record<string, number>>): Refund[] {
-  const totals = new Map<string, number>();
-  for (const id of ids) totals.set(id, (totals.get(id) ?? 0) + prices[id]);
-  return [...totals].map(([id, money]) => ({ id, money })).sort((a, b) => a.id.localeCompare(b.id));
 }
 
 function formatNumber(raw: unknown): number {

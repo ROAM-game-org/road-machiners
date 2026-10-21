@@ -26,7 +26,7 @@ import { addState, advanceStates, settleStates } from './states';
 import { furyRoadStart } from './testkit';
 import type { CallVars, GridItem, NpcState, Vehicle, World } from './types';
 import { maxHp, restorePart } from './wear';
-import { cloneWorld, newWorld } from './world';
+import { cloneWorld, endTurn, newWorld } from './world';
 
 let base: World;
 
@@ -240,15 +240,32 @@ describe('repairContent', () => {
     }
   });
 
-  it('drops a removed trait and keeps the NPC when it has others', () => {
+  it('removes an NPC with any trait or faction that left the data, since its services rest on them', () => {
     const w = fresh();
-    const npc = npcs(w).find((v) => v.brain!.traits.length > 0)!;
-    const traits = [...npc.brain!.traits];
-    npc.brain!.traits.push('ghostTrait' as never);
+    const [a, b] = npcs(w);
+    a.brain!.traits.push('ghostTrait' as never);
+    b.faction = 'ghostFaction' as never;
 
     repairContent(w);
-    expect(npc.brain!.traits).toEqual(traits);
-    expect(w.vehicles).toContain(npc);
+    expect(w.vehicles.some((v) => v.id === a.id || v.id === b.id)).toBe(false);
+    expect(() => endTurn(w, () => {})).not.toThrow();
+  });
+
+  it('pays a met contract whose shop left the data, and ends an escort whose shop left', () => {
+    const w = fresh();
+    const [client] = npcs(w);
+    const me = playerVehicle(w);
+    const survey = { id: 'c-done', shop: 'ghostShop', kind: 'survey', points: [{ site: REGION.towns[0].id, found: true, done: true }], reward: 900, deadline: w.turn + 20, window: 20, tier: 'low' } as const;
+    const escort = { id: 'c-esc', shop: 'ghostShop', kind: 'escort', client: client.id, to: REGION.towns[0].id, reward: 500, deadline: w.turn + 20, window: 20, tier: 'low', threat: 'low', span: 10, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null } as const;
+    w.player.contracts.push(survey as never, escort as never);
+    addState(w, 'escort', me.id, client.id, { kind: 'escort', site: REGION.towns[0].id, fee: 0 });
+    const money = w.player.money;
+
+    repairContent(w);
+    expect(w.player.money).toBe(money + 900);
+    expect(w.player.contracts.some((c) => c.id === 'c-done' || c.id === 'c-esc')).toBe(false);
+    expect(w.states.some((s) => s.kind === 'escort' && s.holder === me.id && s.other === client.id)).toBe(false);
+    expect(() => endTurn(w, () => {})).not.toThrow();
   });
 
   it('lapses a held bounty whose last target the repair removes, with the event the report shows', () => {
