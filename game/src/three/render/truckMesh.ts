@@ -46,21 +46,60 @@ function staticGeometry(mesh: THREE.Mesh, toGroup: THREE.Matrix4): THREE.BufferG
   return geo;
 }
 
-function surfacedMesh(key: string, geos: THREE.BufferGeometry[]): THREE.Mesh {
-  const [hex, surface] = key.split('|');
+type Bucket = { hex: number; surface: SurfaceName | null; partId: string | null; armor: boolean; geos: THREE.BufferGeometry[] };
+type Buckets = Map<string, Bucket>;
+type Owner = { partId: string | null; armor: boolean };
+
+export type MergeSplit = 'parts' | 'armor';
+
+const NO_ARMOR: ReadonlySet<string> = new Set();
+
+function ownerOf(mesh: THREE.Mesh, armorIds: ReadonlySet<string>, split: MergeSplit): Owner {
+  const tagged: string | null = mesh.userData.partId ?? null;
+  const armor = tagged !== null && armorIds.has(tagged);
+  return { partId: split === 'parts' ? tagged : null, armor };
+}
+
+function surfacedMesh(bucket: Bucket): THREE.Mesh {
+  const { hex, surface, partId, armor, geos } = bucket;
   const merged = mergeGeometries(geos);
-  if (!merged) throw new Error(`Could not merge ${geos.length} truck meshes of color ${Number(hex).toString(16)}`);
+  if (!merged) throw new Error(`Could not merge ${geos.length} truck meshes of color ${hex.toString(16)}`);
   for (const g of geos) g.dispose();
-  const mesh = new THREE.Mesh(merged, surfacedMaterial(Number(hex), surface === 'null' ? null : (surface as SurfaceName)));
+  const mesh = new THREE.Mesh(merged, surfacedMaterial(hex, surface));
+  if (partId) mesh.userData.partId = partId;
+  if (armor) mesh.userData.armor = true;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
 }
 
+function bucketFor(buckets: Buckets, mat: THREE.MeshLambertMaterial, owner: Owner): Bucket {
+  const hex = mat.color.getHex();
+  const surface = surfaceOf(mat.name);
+  const key = `${hex}|${surface}|${owner.partId}|${owner.armor}`;
+  const bucket = buckets.get(key) ?? { hex, surface, ...owner, geos: [] };
+  buckets.set(key, bucket);
+  return bucket;
+}
+
+function movedLamp(lamp: THREE.Mesh, toGroup: THREE.Matrix4): THREE.Mesh {
+  const toHere = toGroup.clone().multiply(lamp.matrixWorld);
+  const geo = lamp.geometry.clone().applyMatrix4(toHere);
+  if (toHere.determinant() < 0) flipWinding(geo);
+  lamp.geometry.dispose();
+  const mesh = new THREE.Mesh(geo, lamp.material);
+  if (lamp.userData.partId) mesh.userData.partId = lamp.userData.partId;
+  return mesh;
+}
+
 export function mergeStatic(group: THREE.Group): THREE.Group {
+  return mergeParts(group, NO_ARMOR, 'parts');
+}
+
+export function mergeParts(group: THREE.Group, armorIds: ReadonlySet<string>, split: MergeSplit): THREE.Group {
   group.updateMatrixWorld(true);
   const toGroup = group.matrixWorld.clone().invert();
-  const byColor = new Map<string, THREE.BufferGeometry[]>();
+  const buckets: Buckets = new Map();
   const used: THREE.Mesh[] = [];
   const lamps: THREE.Mesh[] = [];
   group.traverse((o) => {
@@ -69,23 +108,11 @@ export function mergeStatic(group: THREE.Group): THREE.Group {
       lamps.push(o);
       return;
     }
-    const mat = o.material as THREE.MeshLambertMaterial;
-    const key = `${mat.color.getHex()}|${surfaceOf(mat.name)}`;
-    const list = byColor.get(key) ?? [];
-    list.push(staticGeometry(o, toGroup));
-    byColor.set(key, list);
+    bucketFor(buckets, o.material as THREE.MeshLambertMaterial, ownerOf(o, armorIds, split)).geos.push(staticGeometry(o, toGroup));
     used.push(o);
   });
-  const out = new THREE.Group();
-  out.add(...outlineOf([...byColor.values()].flat()));
-  for (const [key, geos] of byColor) out.add(surfacedMesh(key, geos));
-  for (const lamp of lamps) {
-    const toHere = toGroup.clone().multiply(lamp.matrixWorld);
-    const geo = lamp.geometry.clone().applyMatrix4(toHere);
-    if (toHere.determinant() < 0) flipWinding(geo);
-    lamp.geometry.dispose();
-    out.add(new THREE.Mesh(geo, lamp.material));
-  }
+  const out = mergedGroup([...buckets.values()]);
+  for (const lamp of lamps) out.add(movedLamp(lamp, toGroup));
   for (const m of used) {
     m.geometry.dispose();
     (m.material as THREE.Material).dispose();
@@ -93,7 +120,62 @@ export function mergeStatic(group: THREE.Group): THREE.Group {
   return out;
 }
 
-export const CONTACT_SHADOW = { darkness: 0.55, core: 0.125, side: 64, lift: 0.02, spread: { length: 1.25, width: 1.4 } };
+function mergedGroup(buckets: Bucket[]): THREE.Group {
+  const out = new THREE.Group();
+  out.add(...outlineOf(buckets.filter((b) => !b.armor).flatMap((b) => b.geos)));
+  for (const outline of outlineOf(buckets.filter((b) => b.armor).flatMap((b) => b.geos))) {
+    outline.userData.armor = true;
+    out.add(outline);
+  }
+  for (const bucket of buckets) out.add(surfacedMesh(bucket));
+  return out;
+}
+
+type Twins = { plain: THREE.Mesh[]; armor: THREE.Mesh[] };
+
+function twinsByParent(meshes: THREE.Mesh[]): Map<THREE.Object3D, Twins> {
+  const out = new Map<THREE.Object3D, Twins>();
+  for (const mesh of meshes) {
+    if (!mesh.parent) throw new Error(`Truck mesh ${mesh.name} has no parent to hold its twin`);
+    const twins = out.get(mesh.parent) ?? { plain: [], armor: [] };
+    (mesh.userData.armor ? twins.armor : twins.plain).push(mesh);
+    out.set(mesh.parent, twins);
+  }
+  return out;
+}
+
+function localGeometry(mesh: THREE.Mesh): THREE.BufferGeometry {
+  mesh.updateMatrix();
+  const plain = new THREE.BufferGeometry();
+  plain.setAttribute('position', mesh.geometry.getAttribute('position').clone());
+  if (mesh.geometry.index) plain.setIndex(mesh.geometry.index.clone());
+  const geo = plain.index ? plain.toNonIndexed() : plain;
+  geo.applyMatrix4(mesh.matrix);
+  if (mesh.matrix.determinant() < 0) flipWinding(geo);
+  return geo;
+}
+
+function mergedTwin(meshes: THREE.Mesh[], material: THREE.Material, order: number): THREE.Mesh {
+  const geos = meshes.map(localGeometry);
+  const merged = mergeGeometries(geos);
+  if (!merged) throw new Error(`Could not merge ${meshes.length} truck meshes into one twin`);
+  for (const geo of geos) geo.dispose();
+  const twin = new THREE.Mesh(merged, material);
+  twin.renderOrder = order;
+  return twin;
+}
+
+export function addTwins(meshes: THREE.Mesh[], material: THREE.Material, order: number): void {
+  for (const [parent, twins] of twinsByParent(meshes)) {
+    if (twins.plain.length > 0) parent.add(mergedTwin(twins.plain, material, order));
+    if (twins.armor.length === 0) continue;
+    const armor = mergedTwin(twins.armor, material, order);
+    armor.userData.armor = true;
+    parent.add(armor);
+  }
+}
+
+export const CONTACT_SHADOW ={ darkness: 0.55, core: 0.125, side: 64, lift: 0.02, spread: { length: 1.25, width: 1.4 } };
 let contactTexture: THREE.DataTexture | null = null;
 
 export function contactShadowFor(b: Body): THREE.Mesh {

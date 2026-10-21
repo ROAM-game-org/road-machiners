@@ -14,6 +14,7 @@ import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
 import { newWorld } from '../../sim/world';
 import { TEST_MAP } from '../../test/map';
+import { drawnWheelPoints } from '../../render/partLooks';
 import { loadModels } from './models';
 import { signatureOf, VehicleView } from './vehicle';
 import { BODY_PAINT_SATURATION, bodyPaint } from './truckMesh';
@@ -59,7 +60,7 @@ describe('part wear look', () => {
 
   it('grays a worn truck and gives the original colors back on repair', () => {
     const v = truck();
-    const view = new VehicleView(v, true, PAINT.standard);
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
     const clean = colors(view);
     const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
     const max = maxHp(part);
@@ -76,12 +77,12 @@ describe('part wear look', () => {
     const step = (defId: string) => wearLookStep(mountedParts(v).find((p) => p.defId === defId)!);
     expect(step('stockEngine')).toBe(WEAR_LOOK_STEPS - 1);
     expect(step('cabPickup')).toBeGreaterThan(0);
-    expect(colors(new VehicleView(v, true, PAINT.standard))).not.toBe(colors(new VehicleView(truck(), true, PAINT.standard)));
+    expect(colors(new VehicleView(v, true, PAINT.standard, 'world'))).not.toBe(colors(new VehicleView(truck(), true, PAINT.standard, 'world')));
   });
 
   it('wears the body with the cab part and restores it on repair', () => {
     const v = truck();
-    const view = new VehicleView(v, true, PAINT.standard);
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
     const clean = colors(view);
     const full = signatureOf(v, PAINT.standard);
     const cab = mountedParts(v).find((p) => BODY_PARTS.has(p.defId))!;
@@ -98,10 +99,10 @@ describe('part wear look', () => {
 
   it('answers a world point for every mounted part, a wheel at its mount', () => {
     const v = truck();
-    const view = new VehicleView(v, true, PAINT.standard);
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
     view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: wheelMounts(bodyOf(v.chassisId), 0).map(() => ({ suspension: 0, steer: 0, spin: 0, ground: true })) }, 0.016);
     for (const p of mountedParts(v)) expect(view.partPoint(p.id), p.id).toBeDefined();
-    const mounts = wheelMounts(bodyOf(v.chassisId), 0);
+    const mounts = drawnWheelPoints(bodyOf(v.chassisId), 0);
     const wheels = mountedParts(v, 'core').filter((p) => p.defId.startsWith('wheel'));
     expect(wheels.length).toBe(mounts.length);
     for (const w of wheels) {
@@ -124,7 +125,7 @@ describe('paint job look', () => {
 
   it('paints the body and the gear apart', () => {
     const v = truck();
-    const view = new VehicleView(v, true, { body: 'oxblood', cab: 'slate', gear: 'chalk' });
+    const view = new VehicleView(v, true, { body: 'oxblood', cab: 'slate', gear: 'chalk' }, 'world');
     const drawn = colors(view);
     expect(drawn).toContain(String(bodyPaint(PALETTE.oxblood)));
     expect(drawn).toContain(String(bodyPaint(PALETTE.chalk)));
@@ -133,7 +134,7 @@ describe('paint job look', () => {
 
   it('repaints the player truck at once and keeps the wear look on top', () => {
     const v = truck();
-    const view = new VehicleView(v, true, PAINT.standard);
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
     const standard = colors(view);
     const gearOnly: TruckPaint = { ...PAINT.standard, gear: 'chalk' };
     view.update(v, true, gearOnly);
@@ -166,7 +167,7 @@ describe('paint job look', () => {
 
 describe('body paint', () => {
   it('mutes the body paint and keeps the cab color at full strength', () => {
-    const drawn = colors(new VehicleView(truck(), true, { body: 'oxblood', cab: 'slate', gear: 'oxblood' })).split(',').map(Number);
+    const drawn = colors(new VehicleView(truck(), true, { body: 'oxblood', cab: 'slate', gear: 'oxblood' }, 'world')).split(',').map(Number);
     expect(drawn).toContain(bodyPaint(PALETTE.oxblood));
     expect(drawn).not.toContain(PALETTE.oxblood);
     expect(drawn).toContain(PALETTE.slate);

@@ -335,7 +335,7 @@ export class Game {
       unpin: () => this.unpin(),
       cardAction: (action) => this.context.onCard(action, this.inspected()),
       ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
-    }, radio);
+    }, radio, this.renderer);
     minimapSetting().subscribe(() => this.syncMinimap());
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
@@ -352,7 +352,7 @@ export class Game {
     new ResizeObserver(() => this.fitView()).observe(container);
     this.fitView();
     this.refreshUi();
-    requestAnimationFrame((t) => this.tick(t));
+    void this.renderer.compileAsync(this.scene, this.rig.camera).then(() => requestAnimationFrame((t) => this.tick(t)), reportError);
   }
 
   private uiHost(): UiHost {
@@ -1196,7 +1196,7 @@ export class Game {
       ids.add(v.id);
       let view = this.views.get(v.id);
       if (!view) {
-        view = new VehicleView(v, seen, this.world.player.paint);
+        view = new VehicleView(v, seen, this.world.player.paint, "world");
         this.views.set(v.id, view);
         this.scene.add(view.root);
       }

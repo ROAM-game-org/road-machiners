@@ -1,146 +1,90 @@
+import type { TruckPaint } from "../data/chassis";
 import { partDef } from "../data/parts";
-import { workMeterEl } from "./cards";
+import { PX_PER_METER } from "../three/render/portraitPixels";
+import { spanOf } from "../sim/body";
 import { baseGrid } from "../sim/grid";
 import type { Vehicle } from "../sim/types";
-import { bindAttr } from "../text/language";
+import type { Glow, Portrait, TruckPortraits } from "../three/render/truckPortrait";
+import { bindAttr, unbindAttr } from "../text/language";
 import { t, verbatim } from "../text/msg";
+import { workMeterEl } from "./cards";
 import { el } from "./dom";
 import { conditionLabel, TruckConditionReadout } from "./hud-readout";
-import { chassisTop, tintedIcon } from "./plans";
-import { PLAN_PAD } from "../render/partLooks";
 import { token } from "./tokens";
 import { registerTipSource } from "./touch-tip";
 import "./truck-condition.css";
 
 const CELL = 30;
-
-export type PartLook = "cab" | "icon";
-
-export function partLook(defId: string): PartLook {
-  const def = partDef(defId);
-  if (def.kind !== "core") return "icon";
-  return def.role === "cab" ? "cab" : "icon";
-}
+const FLASH_MS = 300;
+const FLASH_TURNS = 2;
+const FLASH_HOLD = 0.65;
 
 type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type PartWork = { partId: string; done: number };
 export type ConditionAim = { marks: ReadonlyMap<string, number[]>; pick: (partId: string) => void };
 
-export class TruckConditionView {
-  readonly root = el("div", {
-    class: "truck-condition",
-    "aria-label": t("condition.panel"),
-  });
-  private body = el("div", { class: "condition-chassis" });
-  private readout = new TruckConditionReadout();
-  private nodes = new Map<string, HTMLElement>();
-  private tip = el("div", { class: "condition-tip tooltip" });
-  private hoverId: string | null = null;
-  private tiles: ConditionPart[] = [];
-  private outline: HTMLElement[] = [];
-  private chassisId: string | null = null;
-  private cols = 1;
-  private rows = 1;
+const urls = new WeakMap<HTMLCanvasElement, string>();
 
-  constructor(private readonly maxRows: number | null) {
-    this.body.append(this.tip);
-    this.root.append(this.body);
-  }
+function urlOf(canvas: HTMLCanvasElement): string {
+  const known = urls.get(canvas);
+  if (known) return known;
+  const url = canvas.toDataURL("image/png");
+  urls.set(canvas, url);
+  return url;
+}
 
-  fitTo(box: HTMLElement): void {
-    const outline = parseFloat(token("--space-4"));
-    const cell = Math.min((box.clientHeight - outline) / (this.rows + 2 * PLAN_PAD), (box.clientWidth - outline) / this.cols);
-    this.root.style.zoom = String(cell / CELL);
-  }
+function wholeOf(portrait: Portrait, canvas: HTMLCanvasElement): Glow {
+  return { canvas, x: 0, y: 0, width: portrait.width, height: portrait.height };
+}
 
-  boxFor(cell: number): { width: number; height: number } {
-    const outline = parseFloat(token("--space-4"));
-    return { width: this.cols * cell + outline, height: (this.rows + 2 * PLAN_PAD) * cell + outline };
-  }
+function placeGlow(node: HTMLElement, portrait: Portrait, glow: Glow): HTMLElement {
+  node.style.left = `${(100 * glow.x) / portrait.width}%`;
+  node.style.top = `${(100 * glow.y) / portrait.height}%`;
+  node.style.width = `${(100 * glow.width) / portrait.width}%`;
+  node.style.height = `${(100 * glow.height) / portrait.height}%`;
+  return node;
+}
 
-  render(vehicle: Vehicle, aim?: ConditionAim, working?: PartWork | null): void {
-    this.sizeGrid(vehicle.chassisId);
-    if (this.chassisId !== vehicle.chassisId) {
-      this.chassisId = vehicle.chassisId;
-      for (const old of this.outline) old.remove();
-      this.outline = [chassisTop(vehicle.chassisId, CELL), chassisTop(vehicle.chassisId, CELL), chassisTop(vehicle.chassisId, CELL)];
-      this.outline[0].classList.add("outline-fill");
-      this.outline[1].classList.add("outline-line");
-      this.outline[2].classList.add("outline-detail");
-      this.body.prepend(...this.outline);
-    }
-    const parts = this.readout.update(vehicle);
-    const ids = new Set(parts.map((part) => part.id));
-    for (const [id, node] of this.nodes) {
-      if (ids.has(id)) continue;
-      node.remove();
-      this.nodes.delete(id);
-    }
-    for (const part of parts) this.renderPart(part, aim, doneOf(working, part.id));
-    this.tiles = parts;
-    this.showTip();
-  }
+function layerImage(className: string, portrait: Portrait, glow: Glow, tier: string): HTMLElement {
+  const img = el("img", { class: className, "data-tier": tier, "aria-hidden": "true" });
+  (img as HTMLImageElement).src = urlOf(glow.canvas);
+  return placeGlow(img, portrait, glow);
+}
 
-  private sizeGrid(chassisId: string): void {
-    const grid = baseGrid(chassisId);
-    this.cols = grid.w;
-    this.rows = grid.h;
-    this.body.style.width = `${grid.w * CELL}px`;
-    this.body.style.height = `${grid.h * CELL}px`;
-    this.body.style.margin = `${PLAN_PAD * CELL}px 0`;
-    if (this.maxRows !== null) this.root.style.zoom = String(Math.min(1, this.maxRows / grid.h));
-  }
+function maskedLayer(className: string, portrait: Portrait, glow: Glow): HTMLElement {
+  const layer = el("div", { class: className });
+  layer.style.setProperty("-webkit-mask-image", `url("${urlOf(glow.canvas)}")`);
+  layer.style.setProperty("mask-image", `url("${urlOf(glow.canvas)}")`);
+  return placeGlow(layer, portrait, glow);
+}
 
-  private showTip(): void {
-    const part = this.tiles.find((p) => p.id === this.hoverId);
-    this.tip.style.display = part ? "" : "none";
-    if (!part) return;
-    this.tip.replaceChildren(...tipRows(part));
-    this.tip.style.left = `${part.x * CELL}px`;
-    this.tip.style.top = `${part.y === 0 ? (part.y + part.h) * CELL + 2 : part.y * CELL - 22}px`;
-  }
+function keepsOwnColor(part: ConditionPart): boolean {
+  const def = partDef(part.defId);
+  return def.kind !== "armor" && !(def.kind === "core" && def.role === "wheel");
+}
 
-  private renderPart(part: ConditionPart, aim: ConditionAim | undefined, done: number | null): void {
-    let node = this.nodes.get(part.id);
-    if (!node) {
-      node = el("div", { class: "condition-part", "data-part-id": part.id });
-      this.nodes.set(part.id, node);
-      this.body.append(node);
-    }
-    const look = partLook(part.defId);
-    if (node.dataset.look !== look) {
-      node.dataset.look = look;
-      node.replaceChildren(tintedIcon(part.defId));
-    }
-    node.dataset.condition = part.state;
-    node.classList.toggle("broken", part.broken);
-    markAim(node, part.id, aim);
-    markWork(node, done);
-    bindAttr(node, "aria-label", conditionLabel(part));
-    registerTipSource(node, () => el("div", { class: "tooltip-row" }, ...tipRows(this.tiles.find((p) => p.id === part.id) ?? part)));
-    node.onmouseenter = () => {
-      this.hoverId = part.id;
-      this.showTip();
-    };
-    node.onmouseleave = () => {
-      if (this.hoverId === part.id) this.hoverId = null;
-      this.showTip();
-    };
-    const tone = conditionTone(part.percent);
-    node.style.cssText = `${boxStyle(part.x, part.y, part.w, part.h)};--tone:${tone.fill};--tint-line:${tone.shade};--tint-shadow:${tone.shade};--tint-light:${tone.light}`;
-    if (part.hit) this.flashDamage(node);
-  }
+function glowLayers(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
+  const glowing = parts.filter((part) => part.tier !== "ok" || !keepsOwnColor(part));
+  return glowing.map((part) => layerImage("cond-glow", portrait, portrait.glow(part.id, part.tier), part.tier));
+}
 
-  private flashDamage(node: HTMLElement): void {
-    for (const animation of node.getAnimations()) animation.cancel();
-    node.animate(
-      [
-        { background: token("--alarm"), offset: 0 },
-        { background: token("--alarm"), offset: 0.65 },
-      ],
-      { duration: 300, iterations: 2 },
-    );
-  }
+function haloLayers(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
+  const lit = parts.filter((part) => part.tier !== "ok");
+  return lit.map((part) => layerImage("cond-halo", portrait, portrait.glow(part.id, part.tier), part.tier));
+}
+
+function hatchLayers(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
+  return parts.filter((part) => part.tier === "broken").map((part) => maskedLayer("cond-hatch", portrait, portrait.glow(part.id, part.tier)));
+}
+
+function layersFor(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
+  return [
+    layerImage("cond-body", portrait, wholeOf(portrait, portrait.body), "ok"),
+    ...haloLayers(portrait, parts),
+    layerImage("cond-parts", portrait, wholeOf(portrait, portrait.parts), "ok"),
+    ...glowLayers(portrait, parts),
+    ...hatchLayers(portrait, parts),
+  ];
 }
 
 function tipRows(part: ConditionPart): HTMLElement[] {
@@ -150,45 +94,208 @@ function tipRows(part: ConditionPart): HTMLElement[] {
   ];
 }
 
-function boxStyle(x: number, y: number, w: number, h: number): string {
-  return `left:${x * CELL}px;top:${y * CELL}px;width:${w * CELL}px;height:${h * CELL}px`;
-}
-
 function doneOf(working: PartWork | null | undefined, partId: string): number | null {
   return working?.partId === partId ? working.done : null;
 }
 
-function markWork(node: HTMLElement, done: number | null): void {
-  node.querySelector(":scope > .meter")?.remove();
-  if (done !== null) node.append(workMeterEl(done));
+function markFor(guns: number[] | undefined, done: number | null): HTMLElement | null {
+  if (!guns && done === null) return null;
+  const mark = el("div", { class: "condition-mark" });
+  if (guns) mark.append(el("span", { class: "condition-aim", title: t("condition.aimedBy", { guns: verbatim(guns.join(", ")) }) }, verbatim(guns.join(" "))));
+  if (done !== null) mark.append(workMeterEl(done));
+  return mark;
 }
 
-function markAim(node: HTMLElement, partId: string, aim?: ConditionAim): void {
-  node.classList.toggle("aimable", aim !== undefined);
-  node.onclick = aim ? () => aim.pick(partId) : null;
-  node.querySelector(".condition-aim")?.remove();
-  const guns = aim?.marks.get(partId);
-  if (guns) node.append(el("span", { class: "condition-aim", title: t("condition.aimedBy", { guns: verbatim(guns.join(", ")) }) }, verbatim(guns.join(" "))));
+function pxToken(name: string): number {
+  const value = token(name);
+  const alias = value.match(/^var\((--[a-z0-9-]+)\)$/);
+  const px = parseFloat(alias ? token(alias[1]!) : value);
+  if (!Number.isFinite(px)) throw new Error(`tokens: ${name} is ${value}, not a length in px`);
+  return px;
 }
 
-type Tone = { fill: string; shade: string; light: string };
-const BROKEN_TONE: Tone = { fill: token("--cond-broken-fill"), shade: token("--cond-broken-shade"), light: token("--cond-broken-light") };
-const TONE_STOPS: readonly { at: number; rgb: readonly [number, number, number] }[] = [
-  { at: 0, rgb: [128, 46, 38] },
-  { at: 0.5, rgb: [140, 116, 48] },
-  { at: 1, rgb: [62, 108, 66] },
-];
-const SHADE_DARKEN = 0.3;
-const LIGHT_LIGHTEN = 0.25;
+function placeAt(node: HTMLElement, center: { x: number; y: number }, scale: number): void {
+  node.style.left = `${center.x * scale}px`;
+  node.style.top = `${center.y * scale}px`;
+}
 
-function conditionTone(percent: number): Tone {
-  if (percent === 0) return BROKEN_TONE;
-  const t = percent / 100;
-  const i = TONE_STOPS.findIndex((s) => s.at >= t);
-  const [a, b] = i <= 0 ? [TONE_STOPS[0], TONE_STOPS[0]] : [TONE_STOPS[i - 1], TONE_STOPS[i]];
-  const k = b.at === a.at ? 0 : (t - a.at) / (b.at - a.at);
-  const rgb = a.rgb.map((v, c) => v + (b.rgb[c] - v) * k);
-  const hex = (mix: number): string =>
-    `#${rgb.map((v) => Math.round(mix >= 0 ? v + (255 - v) * mix : v * (1 + mix)).toString(16).padStart(2, "0")).join("")}`;
-  return { fill: hex(0), shade: hex(-SHADE_DARKEN), light: hex(LIGHT_LIGHTEN) };
+export class TruckConditionView {
+  readonly root = el("div", { class: "truck-condition", "aria-label": t("condition.panel") });
+  private readonly stage = el("div", { class: "condition-stage" });
+  private readonly layers = el("div", { class: "condition-layers" });
+  private readonly outline = el("div", { class: "condition-hover" });
+  private readonly marks = el("div", { class: "condition-marks" });
+  private readonly flashes = el("div", { class: "condition-flashes" });
+  private readonly hit = el("div", { class: "condition-hit" });
+  private readonly tip = el("div", { class: "condition-tip tooltip" });
+  private readonly readout = new TruckConditionReadout();
+  private portrait: Portrait | null = null;
+  private layered: Portrait | null = null;
+  private layerKey = "";
+  private parts: ConditionPart[] = [];
+  private aim: ConditionAim | undefined;
+  private scale = 1;
+  private hoverId: string | null = null;
+  private pointerType = "mouse";
+  private pressedId: string | null = null;
+
+  constructor(private readonly portraits: TruckPortraits, private readonly maxRows: number | null) {
+    this.stage.append(this.layers, this.outline, this.marks, this.flashes, this.hit, this.tip);
+    this.root.append(this.stage);
+    this.hit.addEventListener("pointerdown", (e) => this.pressed(e));
+    this.hit.addEventListener("pointermove", (e) => this.moved(e));
+    this.hit.addEventListener("pointerleave", (e) => this.left(e));
+    this.hit.addEventListener("click", (e) => this.clicked(e));
+    registerTipSource(this.hit, () => el("div", { class: "tooltip-row" }, ...this.tipRowsOfPress()));
+    this.tip.style.display = "none";
+  }
+
+  private naturalSize(): { width: number; height: number } {
+    if (!this.portrait) throw new Error("The condition view has no truck drawn yet");
+    const pad = pxToken("--cond-pad");
+    return { width: this.portrait.width * this.scale + 2 * pad, height: this.portrait.height * this.scale + 2 * pad };
+  }
+
+  fitTo(box: HTMLElement): void {
+    const outline = parseFloat(token("--space-4"));
+    const natural = this.naturalSize();
+    this.root.style.zoom = String(Math.min((box.clientHeight - outline) / natural.height, (box.clientWidth - outline) / natural.width));
+  }
+
+  boxFor(cell: number): { width: number; height: number } {
+    const outline = parseFloat(token("--space-4"));
+    const natural = this.naturalSize();
+    const k = cell / CELL;
+    return { width: natural.width * k + outline, height: natural.height * k + outline };
+  }
+
+  render(vehicle: Vehicle, playerPaint: TruckPaint, aim?: ConditionAim, working?: PartWork | null): void {
+    const portrait = this.portraits.portraitOf(vehicle, playerPaint);
+    this.portrait = portrait;
+    this.aim = aim;
+    this.parts = this.readout.update(vehicle);
+    const rows = baseGrid(vehicle.chassisId).h;
+    this.scale = CELL / (PX_PER_METER * ((2 * spanOf(vehicle.chassisId).half.x) / rows));
+    if (this.maxRows !== null) this.root.style.zoom = String(Math.min(1, this.maxRows / rows));
+    this.stage.style.width = `${portrait.width * this.scale}px`;
+    this.stage.style.height = `${portrait.height * this.scale}px`;
+    this.root.classList.toggle("aimable", aim !== undefined);
+    this.paintLayers(portrait);
+    this.paintMarks(portrait, aim, working);
+    for (const part of this.parts.filter((p) => p.hit)) this.flash(portrait, part);
+    this.focus(this.parts.some((p) => p.id === this.hoverId) ? this.hoverId : null);
+  }
+
+  private paintLayers(portrait: Portrait): void {
+    const key = this.parts.map((part) => `${part.id}:${part.tier}`).join(",");
+    if (this.layered === portrait && this.layerKey === key) return;
+    this.layered = portrait;
+    this.layerKey = key;
+    this.layers.replaceChildren(...layersFor(portrait, this.parts));
+  }
+
+  private paintMarks(portrait: Portrait, aim: ConditionAim | undefined, working: PartWork | null | undefined): void {
+    const nodes: HTMLElement[] = [];
+    for (const part of this.parts) {
+      const mark = markFor(aim?.marks.get(part.id), doneOf(working, part.id));
+      if (!mark) continue;
+      placeAt(mark, portrait.centerOf(part.id), this.scale);
+      nodes.push(mark);
+    }
+    this.marks.replaceChildren(...nodes);
+  }
+
+  private flash(portrait: Portrait, part: ConditionPart): void {
+    const flash = maskedLayer("cond-flash", portrait, portrait.glow(part.id, part.tier));
+    this.flashes.append(flash);
+    const run = flash.animate(
+      [
+        { opacity: 1, offset: 0 },
+        { opacity: 1, offset: FLASH_HOLD },
+        { opacity: 0, offset: 1 },
+      ],
+      { duration: FLASH_MS, iterations: FLASH_TURNS },
+    );
+    run.onfinish = () => flash.remove();
+  }
+
+  private partUnder(e: MouseEvent): string | null {
+    if (!this.portrait) return null;
+    const rect = this.hit.getBoundingClientRect();
+    return this.portrait.partAt(((e.clientX - rect.left) / rect.width) * this.portrait.width, ((e.clientY - rect.top) / rect.height) * this.portrait.height);
+  }
+
+  private pressed(e: PointerEvent): void {
+    this.pointerType = e.pointerType;
+    this.pressedId = this.partUnder(e);
+    this.hit.toggleAttribute("data-hold", this.pressedId === null);
+  }
+
+  private moved(e: PointerEvent): void {
+    if (e.pointerType === "touch") return;
+    this.focus(this.partUnder(e));
+  }
+
+  private left(e: PointerEvent): void {
+    if (e.pointerType !== "touch") this.focus(null);
+  }
+
+  private clicked(e: MouseEvent): void {
+    const id = this.partUnder(e);
+    if (this.pointerType === "touch") return this.tapped(id);
+    if (id && this.aim) this.aim.pick(id);
+  }
+
+  private tapped(id: string | null): void {
+    if (id !== null && id === this.hoverId && this.aim) return this.aim.pick(id);
+    this.focus(id);
+  }
+
+  private focus(id: string | null): void {
+    this.hoverId = id;
+    this.hit.dataset.over = id === null ? "" : "part";
+    this.labelHit();
+    this.showTip();
+    this.showOutline();
+  }
+
+  private labelHit(): void {
+    const part = this.hovered();
+    if (part) bindAttr(this.hit, "aria-label", conditionLabel(part));
+    else unbindAttr(this.hit, "aria-label");
+  }
+
+  private hovered(): ConditionPart | undefined {
+    return this.parts.find((p) => p.id === this.hoverId);
+  }
+
+  private tipRowsOfPress(): HTMLElement[] {
+    const part = this.parts.find((p) => p.id === this.pressedId);
+    return part ? tipRows(part) : [];
+  }
+
+  private showTip(): void {
+    const part = this.hovered();
+    this.tip.style.display = part && this.portrait ? "" : "none";
+    if (!part || !this.portrait) return;
+    const center = this.portrait.centerOf(part.id);
+    this.tip.replaceChildren(...tipRows(part));
+    this.tip.dataset.side = center.y < this.portrait.height / 2 ? "below" : "above";
+    placeAt(this.tip, { x: this.tipX(center.x), y: center.y }, this.scale);
+  }
+
+  private tipX(x: number): number {
+    if (!this.portrait) throw new Error("The condition view has no truck drawn yet");
+    const half = this.tip.offsetWidth / 2 / this.scale;
+    return Math.min(Math.max(x, half), Math.max(half, this.portrait.width - half));
+  }
+
+  private showOutline(): void {
+    const part = this.hovered();
+    if (!part || !this.portrait) return this.outline.replaceChildren();
+    this.outline.replaceChildren(
+      maskedLayer("cond-cells", this.portrait, this.portrait.footprint(part.id)),
+      layerImage("cond-pick", this.portrait, this.portrait.glow(part.id, part.tier), part.tier),
+    );
+  }
 }
