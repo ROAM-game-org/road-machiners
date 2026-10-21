@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { EMPTY_STATE, readState, writeState } from '../state';
+import { EMPTY_STATE, clearQueued, readState, writeState } from '../state';
 import type { AgentRun, Ctx, MergeStep } from '../types';
 import { queueIncidents, runStage } from './incident';
 
@@ -74,17 +74,19 @@ describe('incident stage', () => {
     expect(inputs.eight).toContain('Body of 8');
   });
 
-  it('removes only the batch from the queue and keeps an issue queued during the run', async () => {
-    queuedDuringRun = [9];
+  it('removes the batch it saw and leaves the lead for the job end, so a critique queued during the run stays queued', async () => {
+    queuedDuringRun = [9, 8, 7];
     await runStage(fakeCtx(), 7);
-    expect(readState(`${home}/state.json`).pendingIncidents).toEqual([9]);
+    const left = readState(`${home}/state.json`).pendingIncidents;
+    expect(left).toEqual([7, 9, 8, 7]);
+    expect(clearQueued(readState(`${home}/state.json`), 'incident', 7).pendingIncidents).toEqual([9, 8, 7]);
   });
 
   it('merges nothing when the agent committed nothing', async () => {
     changed = [];
     await runStage(fakeCtx(), 7);
     expect(mergeCalls()).toEqual([]);
-    expect(readState(`${home}/state.json`).pendingIncidents).toEqual([]);
+    expect(readState(`${home}/state.json`).pendingIncidents).toEqual([7]);
   });
 
   it('writes no issue comment', async () => {
@@ -101,11 +103,10 @@ describe('incident stage', () => {
 });
 
 describe('queueIncidents', () => {
-  it('adds each issue once', () => {
+  it('appends each critique, so a second rejection of an issue stays queued', () => {
     const ctx = fakeCtx();
-    queueIncidents(ctx, [7, 8]);
     queueIncidents(ctx, [8, 9]);
     queueIncidents(ctx, []);
-    expect(readState(ctx.statePath).pendingIncidents).toEqual([7, 8, 9]);
+    expect(readState(ctx.statePath).pendingIncidents).toEqual([7, 8, 8, 9]);
   });
 });

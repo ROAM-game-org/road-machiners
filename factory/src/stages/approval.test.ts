@@ -234,7 +234,7 @@ describe('routeFeedback', () => {
     await routeFeedback(fakeCtx(), 7, 'bob', 'Louder horn', 'patch', 100);
     expect(readState(`${home}/state.json`).pendingIncidents).toEqual([7]);
     await routeFeedback(fakeCtx(), 7, 'bob', 'Make it louder', 'redesign', 100);
-    expect(readState(`${home}/state.json`).pendingIncidents).toEqual([7]);
+    expect(readState(`${home}/state.json`).pendingIncidents).toEqual([7, 7]);
   });
 
   it('queues nothing for a player route or an answer', async () => {

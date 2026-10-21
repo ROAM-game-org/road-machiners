@@ -41,7 +41,7 @@ Keep the log at 25 entries or fewer after every run, since every design, testing
 Merge entries that describe the same kind of incident.
 Drop or merge an old incident that stopped repeating.
 Never drop an entry that this batch just repeated.
-A new entry takes the next free id after the highest one ever used.
+A new entry takes the highest id in the log plus one.
 
 Edit only `../docs/incident-log.md`.
 Commit it alone on the current branch, with a message that names the issues of the batch and what changed.

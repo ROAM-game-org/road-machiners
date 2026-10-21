@@ -1,15 +1,16 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { readState, updateState } from '../state';
+import { readState, updateState, withoutFirst } from '../state';
 import { GAME_DIR, INCIDENT_BRANCH, INCIDENT_LOG, OUT_DIR, type Ctx } from '../types';
 import { BASE_BRANCH, agentHome, agentLog, fillPrompt, issueText, resetOutputs, useOpenNetwork } from './common';
 
 export function queueIncidents(ctx: Ctx, issues: number[]): void {
   if (issues.length === 0) return;
-  updateState(ctx.statePath, (state) => ({ ...state, pendingIncidents: [...new Set([...state.pendingIncidents, ...issues])] }));
+  updateState(ctx.statePath, (state) => ({ ...state, pendingIncidents: [...state.pendingIncidents, ...issues] }));
 }
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
-  const batch = [...new Set([issue, ...readState(ctx.statePath).pendingIncidents])];
+  const seen = readState(ctx.statePath).pendingIncidents;
+  const batch = [...new Set([issue, ...seen])];
   const clone = `${ctx.cfg.home}/work/incident-${issue}`;
   rmSync(clone, { recursive: true, force: true });
   await ctx.repo.fetch();
@@ -20,7 +21,7 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const openNetwork = await useOpenNetwork(ctx, 'incident', issue);
   await ctx.container.agent({ clone, dir: GAME_DIR, model: ctx.cfg.designModel, prompt: fillPrompt('incident', { branch: INCIDENT_BRANCH(issue) }), log: agentLog(ctx, issue, 'incident'), openNetwork });
   const landed = await land(ctx, issue, batch, clone);
-  updateState(ctx.statePath, (state) => ({ ...state, pendingIncidents: state.pendingIncidents.filter((queued) => !batch.includes(queued)) }));
+  updateState(ctx.statePath, (state) => ({ ...state, pendingIncidents: withoutFirst(state.pendingIncidents, withoutFirst(seen, [issue])) }));
   rmSync(clone, { recursive: true, force: true });
   ctx.log('incident', issue, `batch ${batch.map((number) => `#${number}`).join(', ')}: ${landed ? 'log updated' : 'no change'}`);
 }
