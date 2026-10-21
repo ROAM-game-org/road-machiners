@@ -16,6 +16,7 @@ import { estimateTurns } from './market';
 import { route, routeLength } from './path';
 import { decide, getKnownSite, getUpkeepReserve, isWeak, npcProfile } from './npc-decisions';
 import { placeBase, popGoal } from './npc-activities';
+import { fuelForWay } from './npc-service';
 import { skillEffect } from './progress';
 import { canUseSite, nearestPad, parkedOn, reachedSite, type Site } from './sites';
 import { addState, endState, stateOf, towData, towPromiseData } from './states';
@@ -161,7 +162,13 @@ function towAllowed(world: World, tower: Vehicle, client: Vehicle): boolean {
 
 function canTow(world: World, tower: Vehicle, client: Vehicle): boolean {
   return canPull(world, tower, client) && ropesFree(world, tower, client) && unclaimed(world, tower, client)
-    && awake(world, client) && towDestination(world, tower, client) !== null;
+    && awake(world, client) && towerHasFuel(world, tower, client);
+}
+
+function towerHasFuel(world: World, tower: Vehicle, client: Vehicle): boolean {
+  const site = towDestination(world, tower, client);
+  if (!site) return false;
+  return isPlayer(world, tower) || getResources(world, tower).fuel > fuelForWay(world, tower, npcProfile(tower), [client.pos, site.pos]);
 }
 
 function canPull(world: World, tower: Vehicle, client: Vehicle): boolean {
