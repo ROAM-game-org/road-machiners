@@ -181,6 +181,11 @@ Approach: prove the mask path on one model first, then build the bake tool, the 
 - The atlas and edge code share one file, `truckSurface.ts`, because the quality gate limits files per 1,000 lines.
 - The warm sky change landed in the same commit as the surfaces.
 
+### Review
+
+- The independent review found nothing critical. Four findings were fixed in 7ebaf1076. Mask UVs outside 0 to 1 now fail the bake and the load. The atlas resets and disposes on every model load and paint. The contact shadow is checked by identity instead of the outline flag. The bake step is in `docs/art/models.md`, `docs/tools.md` and `docs/architecture/render.md`.
+- PC2 holds only in part. The mask has one channel, and both the bake and the shader hardcode red as crease shadow.
+
 ### Unknowns
 
 - UK1: 10 cm per pixel, 256 px cap, 1024 px atlas.
