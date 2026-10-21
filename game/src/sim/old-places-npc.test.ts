@@ -111,7 +111,7 @@ describe('scavengers pick old-world loot spots', () => {
     const reasons = new Set<string>();
     for (let k = 0; k < 40 && !reasons.has('searchOldBoats'); k++) {
       const { w, npc } = scavengerAt({ x: boats.pos.x + 60, y: boats.pos.y });
-      w.rng = { rngState: k + 1 };
+      w.rngState = k + 1;
       planNpcOrders(w);
       const goal = topGoal(npc)!;
       const picked = picks.find((p) => oldStockId(p) === goal.targetId);
