@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BODY_ID, EMPTY_ID, TINTS, centerOf, flipRows, hiddenOver, idsOf, linearToSrgb, partMaskOf, snapIds, tintMask, unpremultiply } from "./portraitPixels";
+import { BODY_ID, EMPTY_ID, TINTS, boundsOf, centerOf, cropOf, flipRows, hiddenOver, idsOf, linearToSrgb, partMaskOf, snapIds, tintMask, unpremultiply } from "./portraitPixels";
 
 const size = (width: number, height: number) => ({ width, height });
 
@@ -107,6 +107,21 @@ describe("idsOf", () => {
   it("reads the id from red and green and treats clear pixels as empty", () => {
     const rgba = Uint8ClampedArray.from([5, 0, 0, 255, 0x2c, 0x01, 0, 255, 9, 9, 9, 0]);
     expect(Array.from(idsOf(rgba))).toEqual([5, 0x12c, EMPTY_ID]);
+  });
+});
+
+describe("boundsOf and cropOf", () => {
+  it("crops a mask to its lit pixels", () => {
+    const rgba = new Uint8ClampedArray(4 * 3 * 4);
+    rgba.set([9, 9, 9, 255], (1 * 4 + 1) * 4);
+    rgba.set([7, 7, 7, 255], (2 * 4 + 2) * 4);
+    const box = boundsOf(rgba, size(4, 3));
+    expect(box).toEqual({ x: 1, y: 1, width: 2, height: 2 });
+    expect(Array.from(cropOf(rgba, size(4, 3), box))).toEqual([9, 9, 9, 255, 0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 7, 255]);
+  });
+
+  it("fails loud on a mask with no lit pixels", () => {
+    expect(() => boundsOf(new Uint8ClampedArray(16), size(2, 2))).toThrow();
   });
 });
 

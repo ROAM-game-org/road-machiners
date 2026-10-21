@@ -9,7 +9,9 @@ import {
   PX_PER_METER,
   SUPERSAMPLE,
   TINTS,
+  boundsOf,
   centerOf,
+  cropOf,
   conditionItems,
   flipRows,
   hiddenOver,
@@ -62,6 +64,8 @@ type Numbering = (partId: string) => number;
 type Canvases = { body: HTMLCanvasElement; parts: HTMLCanvasElement };
 type Maps = { size: PixelSize; lit: Uint8ClampedArray; ids: Uint16Array };
 
+export type Glow = { canvas: HTMLCanvasElement; x: number; y: number; width: number; height: number };
+
 export type Portrait = {
   width: number;
   height: number;
@@ -69,7 +73,7 @@ export type Portrait = {
   parts: HTMLCanvasElement;
   partAt(x: number, y: number): string | null;
   centerOf(partId: string): { x: number; y: number };
-  glow(partId: string, tier: Tier): HTMLCanvasElement;
+  glow(partId: string, tier: Tier): Glow;
 };
 
 export type BuildPortrait = (renderer: THREE.WebGLRenderer, pristine: Vehicle) => Portrait;
@@ -149,10 +153,14 @@ function isRed(color: THREE.Color): boolean {
   return Math.min(hsl.h, 1 - hsl.h) <= LOOK.redMaxHue && hsl.s >= LOOK.redMinSaturation;
 }
 
-function neutralizeReds(meshes: Drawn[], trash: Disposable[]): void {
+export function neutralizeReds(meshes: Drawn[], trash: Disposable[]): void {
   for (const mesh of meshes) {
     const color = (mesh.material as THREE.Material & { color?: THREE.Color }).color;
     if (!color || !isRed(color)) continue;
+    if (mesh.userData.armor) {
+      color.setHex(LOOK.neutralRed);
+      continue;
+    }
     const own = mesh.material.clone() as THREE.Material & { color: THREE.Color };
     own.color.setHex(LOOK.neutralRed);
     mesh.material = own;
@@ -352,7 +360,7 @@ function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, numberOf: Numbe
   const itemOf = new Map(items.map((item) => [item.part.id, item]));
   const partOfNumber = new Map(items.map((item) => [numberOf(item.part.id), item.part.id]));
   const snapped = snapIds(ids, size, new Set(partOfNumber.keys()), LOOK.snapRadiusPx * LOOK.supersample);
-  const glows = new Map<string, HTMLCanvasElement>();
+  const glows = new Map<string, { tier: Tier; glow: Glow }>();
   const centers = new Map<string, { x: number; y: number }>();
   const known = (partId: string): PartItem => {
     const item = itemOf.get(partId);
@@ -376,14 +384,16 @@ function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, numberOf: Numbe
       return center;
     },
     glow(partId, tier) {
-      const key = `${partId}|${tier}`;
-      const cached = glows.get(key);
-      if (cached) return cached;
+      const cached = glows.get(partId);
+      if (cached?.tier === tier) return cached.glow;
       const mask = partMaskOf(lit, ids, numberOf(known(partId).part.id));
       const tint = tintOf(partKind(known(partId)), tier);
-      const canvas = canvasOf(tint ? tintMask(mask, TINTS[tint]) : mask, size);
-      glows.set(key, canvas);
-      return canvas;
+      const box = boundsOf(mask, size);
+      const canvas = canvasOf(cropOf(tint ? tintMask(mask, TINTS[tint]) : mask, size, box), box);
+      const k = LOOK.supersample;
+      const glow = { canvas, x: box.x / k, y: box.y / k, width: box.width / k, height: box.height / k };
+      glows.set(partId, { tier, glow });
+      return glow;
     },
   };
 }

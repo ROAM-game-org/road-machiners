@@ -254,7 +254,8 @@ export class VehicleView {
     this.anchorUndrawn(v, body);
     this.buildSuspension(body, paint);
     this.buildLooseParts(v, body, onBody.length === v.items.length);
-    const merged = mergeStatic(still, armorIdsOf(v));
+    const armorIds = armorIdsOf(v);
+    const merged = mergeParts(still, armorIds,this.scene === 'portrait' ? 'all' : armorIds);
     this.body.add(merged);
     this.buildSilhouette(paint);
     this.darkMat = new THREE.MeshBasicMaterial({ color: PAL.outline });
@@ -873,7 +874,11 @@ type Bucket = { hex: number; partId: string | null; geos: THREE.BufferGeometry[]
 
 const NO_ARMOR: ReadonlySet<string> = new Set();
 
-function mergeStatic(group: THREE.Group, armorIds: ReadonlySet<string> = NO_ARMOR): THREE.Group {
+function mergeStatic(group: THREE.Group): THREE.Group {
+  return mergeParts(group, NO_ARMOR, 'all');
+}
+
+function mergeParts(group: THREE.Group, armorIds: ReadonlySet<string>, splitIds: ReadonlySet<string> | 'all'): THREE.Group {
   group.updateMatrixWorld(true);
   const toGroup = group.matrixWorld.clone().invert();
   const byColor = new Map<number, Map<string | null, Bucket>>();
@@ -886,8 +891,7 @@ function mergeStatic(group: THREE.Group, armorIds: ReadonlySet<string> = NO_ARMO
       return;
     }
     const hex = (o.material as THREE.MeshLambertMaterial).color.getHex();
-    const partId: string | null = o.userData.partId ?? null;
-    bucketFor(byColor, hex, partId).geos.push(bakedGeometry(o, toGroup));
+    bucketFor(byColor, hex, splitKey(o, splitIds)).geos.push(bakedGeometry(o, toGroup));
     used.push(o);
   });
   const buckets = [...byColor.values()].flatMap((byPart) => [...byPart.values()]);
@@ -905,6 +909,12 @@ function mergeStatic(group: THREE.Group, armorIds: ReadonlySet<string> = NO_ARMO
     (m.material as THREE.Material).dispose();
   }
   return out;
+}
+
+function splitKey(mesh: THREE.Mesh, splitIds: ReadonlySet<string> | 'all'): string | null {
+  const tagged: string | null = mesh.userData.partId ?? null;
+  if (tagged === null) return null;
+  return splitIds === 'all' || splitIds.has(tagged) ? tagged : null;
 }
 
 function bucketFor(byColor: Map<number, Map<string | null, Bucket>>, hex: number, partId: string | null): Bucket {

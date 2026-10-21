@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../../data/chassis';
+import { partDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { TRUCK_LOOK, drawnWheelPoints } from '../../render/partLooks';
 import { wheelMounts } from '../../phys/body';
@@ -133,6 +134,19 @@ describe.each(Object.keys(CHASSIS))('armor cut on %s', (id) => {
     view.root.updateMatrixWorld(true);
     for (const m of lit) expect(m.matrixWorld.equals(new THREE.Matrix4()), `${m.userData.partId}`).toBe(true);
   });
+
+  it('tags a mesh for every armor part, so the cut and its outline find it', () => {
+    const tagged = new Set(meshes.map((m) => m.userData.partId));
+    for (const item of v.items) {
+      if (item.kind !== 'part' || hidesInside(v, item) || partDef(item.part.defId).kind !== 'armor') continue;
+      expect(tagged.has(item.part.id), item.part.defId).toBe(true);
+    }
+  });
+});
+
+describe.each(Object.keys(CHASSIS))('portrait tags on %s', (id) => {
+  const { view, v } = armoredView(id, 'portrait');
+  const meshes = meshesOf(view);
 
   it('tags a mesh for every drawn part', () => {
     const tagged = new Set(meshes.map((m) => m.userData.partId));

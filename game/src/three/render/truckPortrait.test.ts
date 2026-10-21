@@ -8,7 +8,7 @@ import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
 import { bare, lineWithArmor } from '../../test/gun-clearance-kit';
-import { TruckPortraits, glassMeshes, pristineOf, type BuildPortrait, type Portrait } from './truckPortrait';
+import { TruckPortraits, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait } from './truckPortrait';
 import { VehicleView } from './vehicle';
 
 const RENDERER = {} as THREE.WebGLRenderer;
@@ -132,5 +132,25 @@ describe('truck portrait view', () => {
     const portrait = materialsOf(new VehicleView(pristineOf(v), false, 'portrait'));
     expect(world.size).toBeGreaterThan(0);
     expect([...portrait].filter((m) => world.has(m))).toEqual([]);
+  });
+
+  it('keeps the armor cut on red armor it turns neutral', () => {
+    const v = addVehicle(emptyWorld(), 'player', 'buggy', ['mg', 'stockEngine', 'scrapPanels'], { x: 33, y: 30 });
+    const view = new VehicleView(pristineOf(v), false, 'portrait');
+    const meshes: THREE.Mesh<THREE.BufferGeometry, THREE.Material>[] = [];
+    view.root.traverse((o) => {
+      if (o instanceof THREE.Mesh && !o.userData.outline) meshes.push(o);
+    });
+    const armor = () => meshes.filter((m) => m.userData.armor);
+    const red = (m: THREE.Mesh<THREE.BufferGeometry, THREE.Material>) => {
+      const hsl = (m.material as THREE.MeshLambertMaterial).color.getHSL({ h: 0, s: 0, l: 0 });
+      return Math.min(hsl.h, 1 - hsl.h) <= 0.025 && hsl.s >= 0.5;
+    };
+    expect(armor().some(red)).toBe(true);
+    neutralizeReds(meshes, []);
+    expect(armor().some(red)).toBe(false);
+    expect(armor().length).toBeGreaterThan(0);
+    for (const mesh of armor()) expect(mesh.material.defines?.CUT_WHEELS, mesh.name).toBeGreaterThan(0);
+    view.dispose();
   });
 });

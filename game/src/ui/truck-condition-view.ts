@@ -3,7 +3,7 @@ import { PX_PER_METER } from "../three/render/portraitPixels";
 import { bodyOf } from "../sim/body";
 import { baseGrid } from "../sim/grid";
 import type { Vehicle } from "../sim/types";
-import type { Portrait, TruckPortraits } from "../three/render/truckPortrait";
+import type { Glow, Portrait, TruckPortraits } from "../three/render/truckPortrait";
 import { bindAttr, unbindAttr } from "../text/language";
 import { t, verbatim } from "../text/msg";
 import { workMeterEl } from "./cards";
@@ -32,17 +32,29 @@ function urlOf(canvas: HTMLCanvasElement): string {
   return url;
 }
 
-function layerImage(className: string, canvas: HTMLCanvasElement, tier: string): HTMLElement {
-  const img = el("img", { class: className, "data-tier": tier, "aria-hidden": "true" });
-  (img as HTMLImageElement).src = urlOf(canvas);
-  return img;
+function wholeOf(portrait: Portrait, canvas: HTMLCanvasElement): Glow {
+  return { canvas, x: 0, y: 0, width: portrait.width, height: portrait.height };
 }
 
-function hatchLayer(canvas: HTMLCanvasElement): HTMLElement {
-  const layer = el("div", { class: "cond-hatch" });
-  layer.style.setProperty("-webkit-mask-image", `url("${urlOf(canvas)}")`);
-  layer.style.setProperty("mask-image", `url("${urlOf(canvas)}")`);
-  return layer;
+function placeGlow(node: HTMLElement, portrait: Portrait, glow: Glow): HTMLElement {
+  node.style.left = `${(100 * glow.x) / portrait.width}%`;
+  node.style.top = `${(100 * glow.y) / portrait.height}%`;
+  node.style.width = `${(100 * glow.width) / portrait.width}%`;
+  node.style.height = `${(100 * glow.height) / portrait.height}%`;
+  return node;
+}
+
+function layerImage(className: string, portrait: Portrait, glow: Glow, tier: string): HTMLElement {
+  const img = el("img", { class: className, "data-tier": tier, "aria-hidden": "true" });
+  (img as HTMLImageElement).src = urlOf(glow.canvas);
+  return placeGlow(img, portrait, glow);
+}
+
+function maskedLayer(className: string, portrait: Portrait, glow: Glow): HTMLElement {
+  const layer = el("div", { class: className });
+  layer.style.setProperty("-webkit-mask-image", `url("${urlOf(glow.canvas)}")`);
+  layer.style.setProperty("mask-image", `url("${urlOf(glow.canvas)}")`);
+  return placeGlow(layer, portrait, glow);
 }
 
 function keepsOwnColor(part: ConditionPart): boolean {
@@ -52,23 +64,23 @@ function keepsOwnColor(part: ConditionPart): boolean {
 
 function glowLayers(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
   const glowing = parts.filter((part) => part.tier !== "ok" || !keepsOwnColor(part));
-  return glowing.map((part) => layerImage("cond-glow", portrait.glow(part.id, part.tier), part.tier));
+  return glowing.map((part) => layerImage("cond-glow", portrait, portrait.glow(part.id, part.tier), part.tier));
 }
 
 function haloLayers(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
   const lit = parts.filter((part) => part.tier === "crit" || part.tier === "broken");
-  return lit.map((part) => layerImage("cond-halo", portrait.glow(part.id, part.tier), part.tier));
+  return lit.map((part) => layerImage("cond-halo", portrait, portrait.glow(part.id, part.tier), part.tier));
 }
 
 function hatchLayers(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
-  return parts.filter((part) => part.tier === "broken").map((part) => hatchLayer(portrait.glow(part.id, part.tier)));
+  return parts.filter((part) => part.tier === "broken").map((part) => maskedLayer("cond-hatch", portrait, portrait.glow(part.id, part.tier)));
 }
 
 function layersFor(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
   return [
-    layerImage("cond-body", portrait.body, "ok"),
+    layerImage("cond-body", portrait, wholeOf(portrait, portrait.body), "ok"),
     ...haloLayers(portrait, parts),
-    layerImage("cond-parts", portrait.parts, "ok"),
+    layerImage("cond-parts", portrait, wholeOf(portrait, portrait.parts), "ok"),
     ...glowLayers(portrait, parts),
     ...hatchLayers(portrait, parts),
   ];
@@ -191,9 +203,7 @@ export class TruckConditionView {
   }
 
   private flash(portrait: Portrait, part: ConditionPart): void {
-    const flash = el("div", { class: "cond-flash" });
-    flash.style.setProperty("-webkit-mask-image", `url("${urlOf(portrait.glow(part.id, part.tier))}")`);
-    flash.style.setProperty("mask-image", `url("${urlOf(portrait.glow(part.id, part.tier))}")`);
+    const flash = maskedLayer("cond-flash", portrait, portrait.glow(part.id, part.tier));
     this.flashes.append(flash);
     const run = flash.animate(
       [
@@ -280,6 +290,6 @@ export class TruckConditionView {
   private showOutline(): void {
     const part = this.hovered();
     if (!part || !this.portrait || !this.aim) return this.outline.replaceChildren();
-    this.outline.replaceChildren(layerImage("cond-pick", this.portrait.glow(part.id, part.tier), part.tier));
+    this.outline.replaceChildren(layerImage("cond-pick", this.portrait, this.portrait.glow(part.id, part.tier), part.tier));
   }
 }

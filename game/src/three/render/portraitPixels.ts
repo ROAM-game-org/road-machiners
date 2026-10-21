@@ -48,6 +48,31 @@ function expectSize(length: number, size: PixelSize, stride: number): void {
   if (length !== size.width * size.height * stride) throw new Error(`Pixel buffer holds ${length} values, expected ${size.width * size.height * stride}`);
 }
 
+export type PixelBox = { x: number; y: number; width: number; height: number };
+
+export function boundsOf(rgba: Uint8ClampedArray, size: PixelSize): PixelBox {
+  expectSize(rgba.length, size, 4);
+  let [x0, y0, x1, y1] = [size.width, size.height, -1, -1];
+  for (let p = 0; p < rgba.length / 4; p++) {
+    if (rgba[p * 4 + 3] <= OPAQUE_ALPHA) continue;
+    const x = p % size.width;
+    const y = Math.floor(p / size.width);
+    [x0, y0, x1, y1] = [Math.min(x0, x), Math.min(y0, y), Math.max(x1, x), Math.max(y1, y)];
+  }
+  if (x1 < 0) throw new Error("No lit pixels to bound");
+  return { x: x0, y: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
+}
+
+export function cropOf(rgba: Uint8ClampedArray, size: PixelSize, box: PixelBox): Uint8ClampedArray {
+  expectSize(rgba.length, size, 4);
+  const out = new Uint8ClampedArray(box.width * box.height * 4);
+  for (let row = 0; row < box.height; row++) {
+    const from = ((box.y + row) * size.width + box.x) * 4;
+    out.set(rgba.subarray(from, from + box.width * 4), row * box.width * 4);
+  }
+  return out;
+}
+
 export function partMaskOf(lit: Uint8ClampedArray, ids: Uint16Array, idOf: number): Uint8ClampedArray {
   if (lit.length !== ids.length * 4) throw new Error(`Lit buffer holds ${lit.length} values for ${ids.length} id pixels`);
   const mask = new Uint8ClampedArray(lit.length);
