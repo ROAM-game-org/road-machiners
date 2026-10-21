@@ -7,6 +7,7 @@ import { hashStr } from "../../render/noise";
 import type { V3, VehicleFrame } from "../../phys/frames";
 import { PAL } from "../../render/palette";
 import { frontBody } from "../../sim/body";
+import { callTrucks, radioSpeakers } from "../../sim/dialogue";
 import type { Vehicle, World } from "../../sim/types";
 import { DEG, type Vec } from "../../sim/vec";
 export { enableSunShadows } from "./shadowFilter";
@@ -354,5 +355,111 @@ export class VehicleLights {
     const nose = frontBody(v.chassisId).half.x;
     beam.position.set(nose, BEAM_HEIGHT, 0).applyQuaternion(rot).add(at);
     beam.target.position.set(nose + BEAM_AIM.ahead, -BEAM_AIM.down, 0).applyQuaternion(rot).add(at);
+  }
+}
+
+export const RADIO_LIGHT = {
+  flashMs: 200,
+  talkMs: 1200,
+};
+
+export type RadioCue = { start: number; end: number | null };
+
+function closeStart(cue: RadioCue): number {
+  return cue.end === null ? Infinity : Math.max(cue.end, cue.start + 4 * RADIO_LIGHT.flashMs);
+}
+
+function cueEnd(cue: RadioCue): number {
+  return closeStart(cue) + 2 * RADIO_LIGHT.flashMs;
+}
+
+export function radioLit(cue: RadioCue, now: number): boolean {
+  const f = RADIO_LIGHT.flashMs;
+  if (now < cue.start) return false;
+  const open = now - cue.start;
+  if (open < 4 * f) return Math.floor(open / f) % 2 === 0;
+  const close = now - closeStart(cue);
+  if (close < 0) return true;
+  return close >= f && close < 2 * f;
+}
+
+export class RadioLights {
+  private readonly cues = new Map<string, RadioCue[]>();
+  private noted: World | null = null;
+  private calling = new Set<string>();
+  private beacon = false;
+
+  note(world: World, now: number): void {
+    this.prune(now);
+    if (world === this.noted) return;
+    const first = this.noted === null;
+    this.noted = world;
+    const call = new Set(callTrucks(world));
+    this.noteCall(call, now);
+    if (!first) this.noteTalk(world, call, now);
+    this.calling = call;
+    this.beacon = world.player.beacon;
+  }
+
+  private noteCall(call: Set<string>, now: number): void {
+    for (const id of call) if (!this.calling.has(id)) this.open(id, now);
+    for (const id of this.calling) if (!call.has(id)) this.close(id, now);
+  }
+
+  private noteTalk(world: World, call: Set<string>, now: number): void {
+    for (const id of radioSpeakers(world.events, world.player.vehicleId)) {
+      if (!this.calling.has(id) && !call.has(id)) this.talk(id, now);
+    }
+    this.noteBeacon(world, call, now);
+  }
+
+  private noteBeacon(world: World, call: Set<string>, now: number): void {
+    const switchedOn = world.player.beacon && !this.beacon;
+    if (switchedOn && call.size === 0) this.talk(world.player.vehicleId, now);
+  }
+
+  lit(id: string, now: number): boolean {
+    const list = this.cues.get(id);
+    if (!list) return false;
+    for (const cue of list) if (radioLit(cue, now)) return true;
+    return false;
+  }
+
+  private open(id: string, now: number): void {
+    const joined = this.joinable(id, now);
+    if (joined) joined.end = null;
+    else this.push(id, now, null);
+  }
+
+  private close(id: string, now: number): void {
+    const last = this.cues.get(id)?.at(-1);
+    if (last && last.end === null) last.end = now;
+  }
+
+  private talk(id: string, now: number): void {
+    const joined = this.joinable(id, now);
+    if (joined) {
+      if (joined.end !== null) joined.end = Math.max(joined.end, now + RADIO_LIGHT.talkMs);
+    } else this.push(id, now, now + RADIO_LIGHT.talkMs);
+  }
+
+  private joinable(id: string, now: number): RadioCue | null {
+    const last = this.cues.get(id)?.at(-1);
+    return last && now < closeStart(last) ? last : null;
+  }
+
+  private push(id: string, now: number, end: number | null): void {
+    const list = this.cues.get(id) ?? [];
+    const last = list.at(-1);
+    const start = last ? Math.max(now, cueEnd(last) + RADIO_LIGHT.flashMs) : now;
+    list.push({ start, end: end === null ? null : start + (end - now) });
+    this.cues.set(id, list);
+  }
+
+  private prune(now: number): void {
+    for (const [id, list] of this.cues) {
+      while (list.length > 0 && cueEnd(list[0]) <= now) list.shift();
+      if (list.length === 0) this.cues.delete(id);
+    }
   }
 }

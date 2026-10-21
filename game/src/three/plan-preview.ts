@@ -1,6 +1,6 @@
 import { captureDrive, type Drive, type DriveSnapshot } from "../phys/drive";
 import type { PlanFrames } from "../phys/plan";
-import type { PreviewRequest, PreviewResponse, TerrainRequest } from "../phys/turn";
+import { SentObstacles, type PreviewRequest, type PreviewResponse, type TerrainRequest } from "../phys/turn";
 import { mergePerf } from "../perf";
 import { PAL } from "../render/palette";
 import { driveMode, throttleFor } from "../sim/steering";
@@ -27,6 +27,7 @@ export class PlanPreparation {
   private answered = false;
   private worker: Worker | null = null;
   private terrain: World["terrain"] | null = null;
+  private readonly obstacles = new SentObstacles();
   private serial = 0;
   private running: number | null = null;
   private queued: Wanted | null = null;
@@ -64,7 +65,7 @@ export class PlanPreparation {
       {
         kind: "preview",
         id,
-        world: state,
+        ...this.obstacles.split(state),
         drive: wanted.drive,
         meId: wanted.meId,
         questLanguage: currentQuestLanguage(),
@@ -96,6 +97,7 @@ export class PlanPreparation {
     this.worker?.terminate();
     this.worker = null;
     this.terrain = null;
+    this.obstacles.forget();
     this.running = null;
     this.answered = false;
     this.queued ??= this.sent;

@@ -11,14 +11,13 @@ import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/f
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, drawnWheelPoints, grayShare, grayed, jagOffset, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
-import type { GridItem, Vehicle, World } from '../../sim/types';
+import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, sweepOf, type Obstacle } from './gunClearance';
 import { model, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
 import { hashStr } from '../../render/noise';
-import { callTrucks, radioSpeakers } from '../../sim/dialogue';
 import { TruckMotion, WHIPS } from './truckMotion';
 import { weaponHead } from './weaponHead';
 
@@ -119,9 +118,10 @@ export const FRAME_REBUILDS: RebuildBudget = new PerAnimationFrame(1);
 
 export class VehicleView {
   readonly root = new THREE.Group();
-  private readonly body = new THREE.Group();
+  private body = new THREE.Group();
 
   private sig = '';
+  private pending: { sig: string; twin: VehicleView; steps: Generator<void, void> } | null = null;
   private units: UnitView[] = [];
   private running = false;
   private turrets = new Map<string, Turret>();
@@ -140,17 +140,14 @@ export class VehicleView {
   private darkMat!: THREE.MeshBasicMaterial;
   private dark = false;
 
-  constructor(v: Vehicle, seen: boolean, playerPaint: TruckPaint, private readonly scene: ViewScene) {
+  constructor(v: Vehicle | null, seen: boolean, playerPaint: TruckPaint, private readonly scene: ViewScene) {
     this.root.add(this.body);
-    this.update(v, seen, playerPaint);
+    if (v) this.update(v, seen, playerPaint);
   }
 
   update(v: Vehicle, seen: boolean, playerPaint: TruckPaint, budget: RebuildBudget = UNLIMITED): void {
     const sig = signatureOf(v, playerPaint);
-    if (sig !== this.sig && budget.take()) {
-      this.rebuild(v, paintOf(v, playerPaint));
-      this.sig = sig;
-    }
+    if (sig !== this.sig) this.rebuildToward(v, playerPaint, sig, budget);
     for (const silhouette of this.silhouettes) silhouette.visible = seen;
     this.running = engineRuns(v);
   }
@@ -284,47 +281,94 @@ export class VehicleView {
   }
 
   dispose(): void {
+    this.dropPending();
     disposeChildren(this.root);
   }
 
-  private rebuild(v: Vehicle, colors: TruckColors): void {
-    disposeChildren(this.body);
+  private rebuildToward(v: Vehicle, playerPaint: TruckPaint, sig: string, budget: RebuildBudget): void {
+    const pending = this.pending?.sig === sig ? this.pending : this.startRebuild(v, playerPaint, sig);
+    while (budget.take()) {
+      if (pending.steps.next().done) return this.finishRebuild(pending.twin, sig);
+    }
+  }
+
+  private startRebuild(v: Vehicle, playerPaint: TruckPaint, sig: string): NonNullable<VehicleView['pending']> {
+    this.dropPending();
+    const twin = this.sig === '' ? this : new VehicleView(null, false, playerPaint, this.scene);
+    this.pending = { sig, twin, steps: twin.build(v, paintOf(v, playerPaint)) };
+    return this.pending;
+  }
+
+  private finishRebuild(twin: VehicleView, sig: string): void {
+    if (twin !== this) this.adopt(twin);
+    this.sig = sig;
+    this.pending = null;
+  }
+
+  private dropPending(): void {
+    if (this.pending && this.pending.twin !== this) this.pending.twin.dispose();
+    this.pending = null;
+  }
+
+  private adopt(twin: VehicleView): void {
     disposeChildren(this.root);
-    this.root.add(this.body);
-    this.turrets.clear();
-    this.anchors.clear();
+    this.root.add(...twin.root.children);
+    twin.units[0].root = this.root;
+    ({ body: this.body, units: this.units, turrets: this.turrets, anchors: this.anchors, lampMat: this.lampMat, radioMat: this.radioMat, halo: this.halo } = twin);
+    ({ glassMat: this.glassMat, silhouettes: this.silhouettes, contactShadows: this.contactShadows, darkMat: this.darkMat, dark: this.dark } = twin);
     this.lastFrame = null;
     this.rearFrame = null;
+  }
+
+  private *build(v: Vehicle, colors: TruckColors): Generator<void, void> {
     this.units = unitsOf(v.chassisId).map((u) => this.unitView(v, u.index, u.body));
     const paint = colors.gear;
-    const on = this.lampMat.color.getHex() === PAL.lamp.on;
-    this.lampMat = new THREE.MeshBasicMaterial({ color: on ? PAL.lamp.on : PAL.lamp.off });
-    this.radioMat = new THREE.MeshBasicMaterial({ color: radioColor(this.radioOn) });
-    this.halo = null;
-    this.glassMat = new THREE.MeshLambertMaterial({ flatShading: true, emissive: this.glassGlow });
-
+    this.freshMaterials();
     const onBody = v.items.filter((item) => onChassis(v, item));
     this.buildBases(v, colors.body, colors.cab, cabLook(v));
-    const wheelItems: PartItem[] = [];
-    const guns: PartItem[] = [];
-    for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it))) this.drawItem(v, item, paint, wheelItems, guns);
+    yield;
+    const { wheelItems, guns } = this.drawItems(v, onBody, paint);
+    yield;
     for (const gun of guns) this.buildWeapon(v, gun, isMounted(v.chassisId, gun), paint);
+    yield;
     this.buildWheels(v, wheelItems, paint);
     this.buildContactShadows();
     this.anchorUndrawn(v);
     for (const unit of this.units) this.buildSuspension(unit, paint);
     this.buildLooseParts(v, onBody.length === v.items.length);
-    const armorIds = armorIdsOf(v);
-    const merged = this.units.map((unit) => {
-      const group = mergeParts(unit.still, armorIds, this.scene === 'portrait' ? 'parts' : 'armor');
-      unit.body.add(group);
-      return group;
-    });
+    yield;
+    const merged: THREE.Group[] = [];
+    yield* this.mergeUnits(v, merged);
     this.buildSilhouette(colors.body);
     this.darkMat = new THREE.MeshBasicMaterial({ color: PAL.outline });
     markStencil(this.darkMat);
     this.dark = false;
     this.finishLook(merged);
+  }
+
+  private freshMaterials(): void {
+    const on = this.lampMat.color.getHex() === PAL.lamp.on;
+    this.lampMat = new THREE.MeshBasicMaterial({ color: on ? PAL.lamp.on : PAL.lamp.off });
+    this.radioMat = new THREE.MeshBasicMaterial({ color: radioColor(this.radioOn) });
+    this.halo = null;
+    this.glassMat = new THREE.MeshLambertMaterial({ flatShading: true, emissive: this.glassGlow });
+  }
+
+  private drawItems(v: Vehicle, onBody: GridItem[], paint: number): { wheelItems: PartItem[]; guns: PartItem[] } {
+    const wheelItems: PartItem[] = [];
+    const guns: PartItem[] = [];
+    for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it))) this.drawItem(v, item, paint, wheelItems, guns);
+    return { wheelItems, guns };
+  }
+
+  private *mergeUnits(v: Vehicle, merged: THREE.Group[]): Generator<void, void> {
+    const armorIds = armorIdsOf(v);
+    for (const unit of this.units) {
+      const group = mergeParts(unit.still, armorIds, this.scene === 'portrait' ? 'parts' : 'armor');
+      unit.body.add(group);
+      merged.push(group);
+      yield;
+    }
   }
 
   private finishLook(merged: THREE.Group[]): void {
@@ -1028,110 +1072,4 @@ function disposeChildren(group: THREE.Group): void {
 
 function isWheel(def: PartDef): boolean {
   return def.kind === 'core' && def.role === 'wheel';
-}
-
-export const RADIO_LIGHT = {
-  flashMs: 200,
-  talkMs: 1200,
-};
-
-export type RadioCue = { start: number; end: number | null };
-
-function closeStart(cue: RadioCue): number {
-  return cue.end === null ? Infinity : Math.max(cue.end, cue.start + 4 * RADIO_LIGHT.flashMs);
-}
-
-function cueEnd(cue: RadioCue): number {
-  return closeStart(cue) + 2 * RADIO_LIGHT.flashMs;
-}
-
-export function radioLit(cue: RadioCue, now: number): boolean {
-  const f = RADIO_LIGHT.flashMs;
-  if (now < cue.start) return false;
-  const open = now - cue.start;
-  if (open < 4 * f) return Math.floor(open / f) % 2 === 0;
-  const close = now - closeStart(cue);
-  if (close < 0) return true;
-  return close >= f && close < 2 * f;
-}
-
-export class RadioLights {
-  private readonly cues = new Map<string, RadioCue[]>();
-  private noted: World | null = null;
-  private calling = new Set<string>();
-  private beacon = false;
-
-  note(world: World, now: number): void {
-    this.prune(now);
-    if (world === this.noted) return;
-    const first = this.noted === null;
-    this.noted = world;
-    const call = new Set(callTrucks(world));
-    this.noteCall(call, now);
-    if (!first) this.noteTalk(world, call, now);
-    this.calling = call;
-    this.beacon = world.player.beacon;
-  }
-
-  private noteCall(call: Set<string>, now: number): void {
-    for (const id of call) if (!this.calling.has(id)) this.open(id, now);
-    for (const id of this.calling) if (!call.has(id)) this.close(id, now);
-  }
-
-  private noteTalk(world: World, call: Set<string>, now: number): void {
-    for (const id of radioSpeakers(world.events, world.player.vehicleId)) {
-      if (!this.calling.has(id) && !call.has(id)) this.talk(id, now);
-    }
-    this.noteBeacon(world, call, now);
-  }
-
-  private noteBeacon(world: World, call: Set<string>, now: number): void {
-    const switchedOn = world.player.beacon && !this.beacon;
-    if (switchedOn && call.size === 0) this.talk(world.player.vehicleId, now);
-  }
-
-  lit(id: string, now: number): boolean {
-    const list = this.cues.get(id);
-    if (!list) return false;
-    for (const cue of list) if (radioLit(cue, now)) return true;
-    return false;
-  }
-
-  private open(id: string, now: number): void {
-    const joined = this.joinable(id, now);
-    if (joined) joined.end = null;
-    else this.push(id, now, null);
-  }
-
-  private close(id: string, now: number): void {
-    const last = this.cues.get(id)?.at(-1);
-    if (last && last.end === null) last.end = now;
-  }
-
-  private talk(id: string, now: number): void {
-    const joined = this.joinable(id, now);
-    if (joined) {
-      if (joined.end !== null) joined.end = Math.max(joined.end, now + RADIO_LIGHT.talkMs);
-    } else this.push(id, now, now + RADIO_LIGHT.talkMs);
-  }
-
-  private joinable(id: string, now: number): RadioCue | null {
-    const last = this.cues.get(id)?.at(-1);
-    return last && now < closeStart(last) ? last : null;
-  }
-
-  private push(id: string, now: number, end: number | null): void {
-    const list = this.cues.get(id) ?? [];
-    const last = list.at(-1);
-    const start = last ? Math.max(now, cueEnd(last) + RADIO_LIGHT.flashMs) : now;
-    list.push({ start, end: end === null ? null : start + (end - now) });
-    this.cues.set(id, list);
-  }
-
-  private prune(now: number): void {
-    for (const [id, list] of this.cues) {
-      while (list.length > 0 && cueEnd(list[0]) <= now) list.shift();
-      if (list.length === 0) this.cues.delete(id);
-    }
-  }
 }

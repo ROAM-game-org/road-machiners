@@ -72,6 +72,31 @@ describe('part wear look', () => {
     expect(colors(view)).toBe(clean);
   });
 
+  it('keeps the old look while a budgeted rebuild runs in steps, then shows the new look in the same root', () => {
+    const v = truck();
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
+    const clean = colors(view);
+    const root = view.root;
+    const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
+    part.hp = 1;
+    const oneStep = { take: () => ((oneStep.left -= 1) >= 0), left: 0 };
+    let calls = 0;
+    while (colors(view) === clean) {
+      oneStep.left = 1;
+      view.update(v, true, PAINT.standard, oneStep);
+      calls++;
+      expect(calls).toBeLessThan(20);
+    }
+    expect(calls).toBeGreaterThan(3);
+    expect(view.root).toBe(root);
+    expect(colors(view)).toBe(colors(new VehicleView(v, true, PAINT.standard, 'world')));
+    const meshes = (view.root.children.length);
+    oneStep.left = 1;
+    view.update(v, true, PAINT.standard, oneStep);
+    expect(oneStep.left).toBe(1);
+    expect(view.root.children.length).toBe(meshes);
+  });
+
   it('draws the new-game truck with a nearly broken engine and a worn body', () => {
     const v = playerVehicle(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming')));
     const step = (defId: string) => wearLookStep(mountedParts(v).find((p) => p.defId === defId)!);

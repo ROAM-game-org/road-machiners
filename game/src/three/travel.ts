@@ -11,7 +11,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import type { VehicleFrame } from "../phys/frames";
-import type { LiveSight, PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
+import { SentObstacles, type LiveSight, type PreparedTurn, type TurnRequest, type TurnResponse } from "../phys/turn";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
@@ -344,6 +344,7 @@ export class TurnPreparation {
   private readonly load = new WorkerLoad("turn worker");
   private worker: Worker | null = null;
   private terrain: World["terrain"] | null = null;
+  private readonly obstacles = new SentObstacles();
   private serial = 0;
   private warmId = 0;
   private pending: {
@@ -380,6 +381,7 @@ export class TurnPreparation {
     this.worker?.terminate();
     this.worker = null;
     this.terrain = null;
+    this.obstacles.forget();
   }
 
   private restart(): void {
@@ -422,7 +424,7 @@ export class TurnPreparation {
         kind: "turn",
         id,
         questLanguage: currentQuestLanguage(),
-        world: state,
+        ...this.obstacles.split(state),
         drive: saved,
         terrain: this.terrain === terrain ? null : terrain,
       } satisfies TurnRequest,

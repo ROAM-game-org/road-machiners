@@ -16,7 +16,7 @@ import { isOnRope } from '../sim/tow';
 import { burnFuel } from '../sim/resources';
 import { setDown } from '../sim/steering';
 import { clearanceFor } from '../sim/clearance';
-import type { MoveOrder, Pose, Vehicle, World } from '../sim/types';
+import type { MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp, type Vec } from '../sim/vec';
 import { exploreFrom, visibleTiles } from '../sim/vision';
 import { bodyState, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
@@ -49,8 +49,35 @@ export function liveSightOf(world: World, frames: readonly VehicleFrame[] | unde
   return sight;
 }
 export type PreviewTask = TurnTask & { meId: string };
-export type TurnRequest = TurnTask & { kind: 'turn'; id: number; terrain: World['terrain'] | null };
-export type PreviewRequest = PreviewTask & { kind: 'preview'; id: number; terrain: World['terrain'] | null };
+type Posted<T extends WorldTask> = Omit<T, 'world'> & { world: Omit<TurnState, 'obstacles'>; obstacles: Obstacle[] | null; terrain: World['terrain'] | null };
+export type TurnRequest = Posted<TurnTask> & { kind: 'turn'; id: number };
+export type PreviewRequest = Posted<PreviewTask> & { kind: 'preview'; id: number };
+
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === 'object' && x !== null;
+}
+
+function sameData(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (!isRecord(a) || !isRecord(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => sameData(a[k], b[k]));
+}
+
+export class SentObstacles {
+  private last: readonly Obstacle[] | null = null;
+
+  split(world: TurnState): { world: Omit<TurnState, 'obstacles'>; obstacles: Obstacle[] | null } {
+    const { obstacles, ...rest } = world;
+    if (this.last && sameData(this.last, obstacles)) return { world: rest, obstacles: null };
+    this.last = obstacles;
+    return { world: rest, obstacles };
+  }
+
+  forget(): void {
+    this.last = null;
+  }
+}
 export type TerrainRequest = { kind: 'terrain'; terrain: World['terrain'] };
 export type WorkerRequest = TurnRequest | PreviewRequest | TerrainRequest;
 export type WorkerFailure = { id: number; error: string };
@@ -82,7 +109,7 @@ function previewIn(task: PreviewTask, terrain: World['terrain']): PlanFrames {
   }
 }
 
-export function computeRequestedTurn(request: TurnRequest, terrain: World['terrain']): PreparedTurn {
+export function computeRequestedTurn(request: TurnTask, terrain: World['terrain']): PreparedTurn {
   return computeTurn(request, terrain);
 }
 
@@ -110,6 +137,7 @@ function computeTurnIn(task: TurnTask, terrain: World['terrain']): PreparedTurn 
 
 export function startTurnWorker(): void {
   let terrain: World['terrain'] | null = null;
+  let obstacles: Obstacle[] | null = null;
   const ready = initPhysics();
   self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     const request = event.data;
@@ -117,22 +145,30 @@ export function startTurnWorker(): void {
       terrain = request.terrain;
       return;
     }
+    obstacles = request.obstacles ?? obstacles;
     try {
       await ready;
-      if (request.terrain) {
-        terrain = request.terrain;
-        if (request.kind === 'turn') warmRoutes({ ...request.world, terrain }, [...new Set(Object.values(CHASSIS).map((chassis) => chassis.radius))]);
-      }
-      if (!terrain) throw new Error('Turn worker has no terrain');
+      terrain = request.terrain ?? terrain;
+      const task = taskOf(request, obstacles, terrain);
       resetPerf();
-      answer(request, terrain);
+      answer(task, task.terrain);
     } catch (error) {
       self.postMessage({ id: request.id, error: describeWorkerError(error) } satisfies WorkerFailure);
     }
   };
 }
 
-function answer(request: WorkerRequest, terrain: World['terrain']): void {
+type Answerable = (TurnTask & { kind: 'turn'; id: number }) | (PreviewTask & { kind: 'preview'; id: number });
+
+function taskOf(request: TurnRequest | PreviewRequest, obstacles: Obstacle[] | null, terrain: World['terrain'] | null): Answerable & { terrain: World['terrain'] } {
+  if (!obstacles) throw new Error('Turn worker has no obstacles');
+  if (!terrain) throw new Error('Turn worker has no terrain');
+  const world = { ...request.world, obstacles };
+  if (request.terrain && request.kind === 'turn') warmRoutes({ ...world, terrain }, [...new Set(Object.values(CHASSIS).map((chassis) => chassis.radius))]);
+  return { ...request, world, terrain };
+}
+
+function answer(request: Answerable, terrain: World['terrain']): void {
   switch (request.kind) {
     case 'turn': {
       const turn = computeRequestedTurn(request, terrain);

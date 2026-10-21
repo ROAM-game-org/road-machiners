@@ -17,7 +17,7 @@ import {
   syncDrive,
   type Drive,
 } from "./drive";
-import { computeTurn, liveSightOf, physicsMove } from "./turn";
+import { computeTurn, liveSightOf, physicsMove, SentObstacles } from "./turn";
 import { toMap, type VehicleFrame } from "./frames";
 import { PHYSICS } from "../data/physics";
 import { visibleTiles } from "../sim/vision";
@@ -170,4 +170,18 @@ it("samples live sight along the player's frames every sight step, with the tile
   expect(sight.steps).toEqual([0, 4, 8]);
   sight.steps.forEach((step, k) => expect(sight.tiles[k]).toEqual([...visibleTiles(world, toMap(frames[step].pos))].sort((a, b) => a - b)));
   expect(liveSightOf(world, undefined)).toEqual({ steps: [], tiles: [] });
+});
+
+it("sends the obstacles to a worker only when their content changed since the last send", () => {
+  const sent = new SentObstacles();
+  const { terrain: _terrain, ...state } = newWorld(7, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+  expect(sent.split(state).obstacles).toBe(state.obstacles);
+  const copy = structuredClone(state);
+  const again = sent.split(copy);
+  expect(again.obstacles).toBeNull();
+  expect("obstacles" in again.world).toBe(false);
+  copy.obstacles[0] = { ...copy.obstacles[0], r: copy.obstacles[0].r + 1 };
+  expect(sent.split(copy).obstacles).toBe(copy.obstacles);
+  sent.forget();
+  expect(sent.split(copy).obstacles).toBe(copy.obstacles);
 });

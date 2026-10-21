@@ -11,7 +11,8 @@ import type { World } from '../../sim/types';
 import { newWorld } from '../../sim/world';
 import { TEST_MAP } from '../../test/map';
 import { loadModels } from './models';
-import { RADIO_LIGHT, RadioLights, radioLit, VehicleView, type RadioCue } from './vehicle';
+import { VehicleView } from './vehicle';
+import { RADIO_LIGHT, RadioLights, radioLit, type RadioCue } from './daylight';
 import { defaultSetup } from '../../sim/settings';
 
 
