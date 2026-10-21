@@ -472,6 +472,13 @@ function joinColumn(world: World, v: Vehicle, wanted: NpcActivity): void {
   if (wanted.kind === 'follow' && !followingOf(world, v)) joinCompany(world, v, columnHead(world, wanted), 'cavalcade', { kind: 'none' });
 }
 
+function leaveColumn(world: World, v: Vehicle): void {
+  const held = followingOf(world, v);
+  if (held?.kind !== 'cavalcade') return;
+  endState(world, held, 'expired');
+  v.brain!.goals = v.brain!.goals.filter((g) => !(g.kind === 'follow' && g.targetId === held.other));
+}
+
 function columnHead(world: World, wanted: NpcActivity): Vehicle {
   const leader = world.vehicles.find((x) => x.id === wanted.targetId);
   if (!leader) throw new Error(`The Cavalcade's leader ${wanted.targetId} is gone`);
@@ -508,6 +515,7 @@ export function sunwardNext(world: World, v: Vehicle): NpcActivity {
 
 export function sunwardRetreat(world: World, v: Vehicle): NpcActivity {
   const wanted = homeGoal(world, v);
+  leaveColumn(world, v);
   if (!sameGoal(v.brain!.goals[0], wanted) || topGoal(v) === null) placeBase(world, v, wanted);
   return topGoal(v)!;
 }

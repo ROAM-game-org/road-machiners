@@ -299,6 +299,23 @@ describe('the night schedule', () => {
     expect(followingOf(w, riderAt(w, order[4]))?.other).toBe(order[2]);
   }, 600_000);
 
+  it('sends a car beaten on the ride out of the column and home to its bay', () => {
+    let w = runTo(watchedFromTheGate(orderWorld()), duskTurn(1) + 1);
+    const order = gateOrder(w, sunwardFacts(w).night!);
+    while (followingOf(w, riderAt(w, order[3]))?.other !== order[2]) w = runTo(w, w.turn + 1);
+    riderAt(w, order[3]).defeat = { phase: 'retreat', turns: 0, unseen: 0, foes: [], gaveUp: false };
+    seen.stalls = 0;
+
+    w = runTo(w, w.turn + 1);
+    const beaten = riderAt(w, order[3]);
+    expect(followingOf(w, beaten)).toBeNull();
+    expect(topGoal(beaten)?.reason).toBe('rideHome');
+
+    w = runTo(w, w.turn + 60);
+    expect(dist(riderAt(w, order[3]).pos, riderAt(w, order[3]).brain!.home)).toBeLessThanOrEqual(RULES.arriveRadius * 2);
+    expect(seen.stalls).toBe(0);
+  }, 600_000);
+
   it('rides the cars out in the order of their bays, the bay by the gate first', () => {
     const w = orderWorld();
     const night = { dusk: duskTurn(1), roster: membersOf(w).filter((v) => v.brain!.templateId === 'cavalcade').map((v) => v.id).reverse(), beaten: [], calls: {}, hunt: null, shouted: [], offered: [] };
