@@ -906,6 +906,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withPastContracts_92_93,
   withTractorPivot_93_94,
   withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97,
+  (world) => world,
 ];
 
 function withSearches_68_69(world: SavedJson): SavedJson {

@@ -86,6 +86,7 @@ import FORMAT_2_90 from './save-fixtures/format-2-90.json';
 import FORMAT_2_94 from './save-fixtures/format-2-94.json';
 import FORMAT_2_95 from './save-fixtures/format-2-95.json';
 import FORMAT_2_96 from './save-fixtures/format-2-96.json';
+import FORMAT_2_97 from './save-fixtures/format-2-97.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -2175,5 +2176,11 @@ describe('MIGRATIONS[96]', () => {
   it('gives a slot it knows neither way its standard color', () => {
     expect(migrate({ body: 'gold', cab: 7, gear: 'bottle' }).player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'bottle' });
     expect(migrate('plum').player.paint).toEqual({ body: 'tan', cab: 'olive', gear: 'tan' });
+  });
+});
+
+describe('MIGRATIONS[97]', () => {
+  it('leaves a world with a refused call for help and an answered call as it is', () => {
+    expect(MIGRATIONS[97](structuredClone(FORMAT_2_97))).toEqual(FORMAT_2_97);
   });
 });

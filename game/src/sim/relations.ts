@@ -9,7 +9,7 @@ import { chance } from './rng';
 import { boundTo, declareFeud, stateOf } from './states';
 import { isStranded } from './stats';
 import { followersOf } from './companies';
-import { remember } from './memory';
+import { recall, remember } from './memory';
 import { modeRules } from './settings';
 import { clockOf } from './sun';
 import type { DeedId, Faction, HelpDeed, MemoryFact, NpcFactionId, StandingFactionId, Vehicle, World, WrongDeed } from './types';
@@ -35,7 +35,7 @@ export function isRaider(v: Vehicle): boolean {
   return v.brain ? v.brain.traits.includes('raider') : isOutlaw(v.faction);
 }
 
-function isLawman(v: Vehicle): boolean {
+export function isLawman(v: Vehicle): boolean {
   return v.brain?.traits.includes('lawman') === true;
 }
 
@@ -184,7 +184,7 @@ export function reportIncident(world: World, i: Incident): Vehicle[] {
 }
 
 function willsToStepIn(world: World, w: Vehicle, i: Incident): boolean {
-  if (isRestrained(world, w, i.aggressor) || favors(world, w, i)) return false;
+  if (isRestrained(world, w, i.aggressor) || favors(world, w, i.aggressor, i.victim)) return false;
   if (answersLawCall(w, i.victim)) return true;
   return dist(w.pos, i.victim.pos) <= INTERVENE.range && defendsByBand(world, bandToward(world, w, i.victim));
 }
@@ -198,19 +198,39 @@ function defendsByBand(world: World, band: Band): boolean {
   return band === 'friendly' && chance(world, INTERVENE.friendly);
 }
 
-function isRestrained(world: World, w: Vehicle, aggressor: Vehicle): boolean {
+export function isRestrained(world: World, w: Vehicle, aggressor: Vehicle): boolean {
   return isDefeated(w) || isStranded(world, w) || boundTo(world, w.id, aggressor.id) || inTruce(world, w, aggressor);
 }
 
-function favors(world: World, w: Vehicle, i: Incident): boolean {
-  return !isLawman(w) && attitude(world, w, i.aggressor) >= attitude(world, w, i.victim);
+export function favors(world: World, w: Vehicle, aggressor: Vehicle, victim: Vehicle): boolean {
+  return !isLawman(w) && attitude(world, w, aggressor) >= attitude(world, w, victim);
+}
+
+export function sideAgainst(world: World, w: Vehicle, aggressorId: string): boolean {
+  if (stateOf(world, 'feud', w.id, aggressorId)) return false;
+  declareFeud(world, w, aggressorId);
+  return true;
 }
 
 function joinAgainst(world: World, w: Vehicle, i: Incident): void {
-  if (stateOf(world, 'feud', w.id, i.aggressor.id)) return;
-  declareFeud(world, w, i.aggressor.id);
+  if (!sideAgainst(world, w, i.aggressor.id)) return;
   const player = world.player.vehicleId;
   if (w.id !== i.victim.id && (i.aggressor.id === player || i.victim.id === player)) world.events.push({ t: 'joins', vehicle: w.id, against: i.aggressor.id, victim: i.victim.id });
+}
+
+function wrongedLawfulFoe(caller: Vehicle, foes: Vehicle[]): boolean {
+  return foes.some((foe) => judges(foe) && !isOutlaw(foe.faction) && foe.brain !== undefined
+    && recall(foe, 'wronged').some((m) => m.fact.by === caller.id));
+}
+
+export function lawCalls(helper: Vehicle, caller: Vehicle, foes: Vehicle[]): boolean {
+  return isLawman(helper) && !wrongedLawfulFoe(caller, foes);
+}
+
+export function heedsCall(world: World, helper: Vehicle, caller: Vehicle, foes: Vehicle[]): boolean {
+  if (isOutlaw(helper.faction) || !bandAtLeast(bandToward(world, helper, caller), 'neutral')) return false;
+  if (isLawman(helper) && wrongedLawfulFoe(caller, foes)) return false;
+  return foes.every((foe) => !isRestrained(world, helper, foe) && !favors(world, helper, foe, caller));
 }
 
 function isAttributed(world: World, i: Incident, seen: Vehicle[]): boolean {
