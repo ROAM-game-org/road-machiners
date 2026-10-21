@@ -162,7 +162,7 @@ describe('spawn room', () => {
         START_KITS.standard,
         () => TEST_MAP,
         () => seed,
-      ).world,
+      ),
     );
 
   const leaders = (w: World) => {

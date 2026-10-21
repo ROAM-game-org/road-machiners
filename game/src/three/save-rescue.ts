@@ -1,7 +1,7 @@
 
 import type { StartKit } from '../data/start';
 import type { BakedMap } from '../sim/terrain';
-import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type CarriedRun, type CarryReport, type Refund } from '../sim/world';
+import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type CarriedRun, type Refund } from '../sim/world';
 import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
@@ -284,13 +284,13 @@ function pooledOf(player: Json): Pick<Carried, 'xp' | 'ranks'> {
   return pooledSkills_9_10(countsOf(player.skills));
 }
 
-type Carry = { world: World; report: CarryReport; runId: string };
+type Carry = { world: World; runId: string };
 
 export function carriedSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap, kit: StartKit, freshSeed: () => number, freshRunId: () => string): Carry | null {
   const parsed = storedSave(slots, slot);
   if (objectOf(parsed) === null) return null;
-  const carried = carriedWorld(readCarried(parsed), kit, (setup, seed, window) => mapAt(setup, seed, window, icarus), freshSeed);
-  return { ...carried, runId: savedRunId(parsed) ?? freshRunId() };
+  const world = carriedWorld(readCarried(parsed), kit, (setup, seed, window) => mapAt(setup, seed, window, icarus), freshSeed);
+  return { world, runId: savedRunId(parsed) ?? freshRunId() };
 }
 
 export function rescueSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap, kit: StartKit, freshSeed: () => number, freshRunId: () => string, savedAt: number): Carry | null {

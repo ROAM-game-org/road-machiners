@@ -78,7 +78,7 @@ describe('new-game opening', () => {
 
   it('leaves a kit without an opening and a carried save with no opening wreck', () => {
     expect(openingStockOf(newWorld(1, startKit('combat'), TEST_MAP, defaultSetup('roaming'), false))).toBeNull();
-    const { world } = carriedWorld({
+    const world = carriedWorld({
       seed: 5, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: null,
       autoFire: null, autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: defaultSetup('roaming'), quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, refunded: [],
     }, KIT, () => TEST_MAP, () => 7);

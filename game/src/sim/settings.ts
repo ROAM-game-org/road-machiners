@@ -21,12 +21,11 @@ export function parseSetup(raw: unknown): WorldSetup {
   return { mode: setup.mode, settings: { ...defaultSetup(setup.mode).settings, ...pickSettings(settings) } };
 }
 
-export function repairSetup(raw: unknown): { setup: WorldSetup; reset: SettingId[] } {
+export function repairSetup(raw: unknown): WorldSetup {
   const { mode, settings } = knownParts(raw);
   const setup = defaultSetup(mode);
   const bad = SETTING_IDS.filter((id) => !validSetting(id, settings[id]));
-  const reset = bad.filter((id) => WORLD_SETTINGS[id].modes.includes(mode));
-  return { setup: { ...setup, settings: { ...setup.settings, ...pickSettings(settings, bad) } }, reset };
+  return { ...setup, settings: { ...setup.settings, ...pickSettings(settings, bad) } };
 }
 
 export function modeRules(world: World): ModeRules {

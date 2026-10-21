@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { startKit } from '../data/start';
+import { START_KITS, startKit } from '../data/start';
 import { chassisDef } from '../data/chassis';
 import { REGION } from '../data/region';
 import { CHEATS } from '../data/rules';
@@ -14,7 +14,7 @@ import { dist, type Vec } from '../sim/vec';
 import { TEST_MAP } from '../test/map';
 import { townAt } from '../sim/sites';
 import { carriedWorld, endTurn, newWorld } from '../sim/world';
-import { carriesOnLoad, loadSave, loadWorld, SaveError, saveOf, savedRunId, stepsFrom } from './save';
+import { carriesOnLoad, loadWorld, SaveError, saveOf, savedRunId, stepsFrom } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
@@ -58,7 +58,7 @@ describe('readCarried', () => {
 
   it('keeps old perks whose rank holds and drops the rest', () => {
     const world = { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, perks: ['welder', 'desertRat', 'steadyAim'] } };
-    const { world: rescued } = carriedWorld(readCarried({ world }), KIT, () => TEST_MAP, fresh);
+    const rescued = carriedWorld(readCarried({ world }), KIT, () => TEST_MAP, fresh);
     expect(rescued.player.perks).toEqual(['welder', 'desertRat']);
     expect(rescued.player.ranks.toughness).toBe(5);
   });
@@ -107,7 +107,7 @@ describe('readCarried', () => {
     expect(carried.money).toBe(10000);
     expect(carried.ranks).toEqual({ driving: 1, social: 2 });
     expect(carried.xp).toBe(50 + 100);
-    const { world: rescued } = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
+    const rescued = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
     expect(rescued.player.money).toBe(10000);
     expect(rescued.player.ranks.social).toBe(2);
   });
@@ -120,7 +120,7 @@ describe('readCarried', () => {
     }
   });
 
-  it('turns a retired part and a retired good into their prices and lists each', () => {
+  it('turns a retired part and a retired good into their prices', () => {
     const save = currentSave() as unknown as { world: SavedWorld & { player: { storage: unknown[] } } };
     const truck = save.world.vehicles.find((v) => v.id === save.world.player.vehicleId)!;
     const before = truck.items.length;
@@ -133,21 +133,17 @@ describe('readCarried', () => {
     expect(carried.storage).toEqual([]);
     expect(carried.money).toBe(4321);
 
-    const { world, report } = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
+    const world = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
     expect(world.player.money).toBe(4321 + 5600);
-    expect(report.refunded).toEqual(carried.refunded);
-    expect(report.lost).not.toContain('ghostPlate');
-    expect(report.lost).not.toContain('ghostGood');
   });
 
-  it('refunds nothing for ids the table does not hold, and lists unknown ids as lost', () => {
+  it('refunds nothing for ids the table does not hold, and drops unknown ids', () => {
     const save = currentSave() as unknown as { world: SavedWorld & { player: { storage: unknown[] } } };
     save.world.player.storage.push({ defId: 'ghostPlate', wear: 0, hp: 0, rebuilt: false });
     const carried = readCarried(save);
     expect(carried.refunded).toEqual([]);
-    const { world, report } = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
-    expect(report.lost).toContain('ghostPlate');
-    expect(report.refunded).toEqual([]);
+    const world = carriedWorld(carried, KIT, () => TEST_MAP, fresh);
+    expect(world.player.storage.map((p) => p.defId)).not.toContain('ghostPlate');
     expect(world.player.money).toBe(4321);
   });
 
@@ -176,12 +172,12 @@ describe('readCarried', () => {
     const setup = { mode: 'gauntlet', settings: { damage: 1.5, fuelUse: 1, supplyUse: 1 } };
     const carried = readCarried({ format: { major: 2, minor: 48 }, world: { setup, player: { money: 5 } } });
     expect(carried.setup).toEqual({ mode: 'furyRoad', settings: { enemyGearGrowth: 1, damage: 1.5, fuelUse: 1, supplyUse: 1 } });
-    expect(repairSetup(carried.setup)).toEqual({ setup: carried.setup, reset: [] });
+    expect(repairSetup(carried.setup)).toEqual(carried.setup);
   });
 });
 
 describe('carriedSave', () => {
-  it('returns the carried world, report and run id and writes nothing to any slot', () => {
+  it('returns the carried world and run id and writes nothing to any slot', () => {
     const slots = makeSlots();
     const save = currentSave();
     save.world.mapHash = 'other';
@@ -190,7 +186,6 @@ describe('carriedSave', () => {
     const carried = carriedSave(slots, 'slot2', TEST_MAP, KIT, fresh, freshRun)!;
     expect(carried.runId).toBe('old-run');
     expect(carried.world.player.money).toBe(4321);
-    expect(carried.report.refunded).toEqual([]);
     expect(JSON.stringify(slots.get('slot2'))).toBe(before);
     expect(slots.has('auto')).toBe(false);
   });
@@ -238,33 +233,30 @@ describe('rescueSave', () => {
     save.world.mapHash = 'other';
     save.world.setup = { mode: 'roaming', settings: { damage: 1.5, fuelUse: 2, supplyUse: 0.75, enemyGearGrowth: 1 } };
     slots.put('auto', save);
-    const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 1000)!;
+    rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 1000);
 
-    expect(rescued.report.settingsReset).toEqual([]);
     expect(loadWorld(slots, 'auto', TEST_MAP)!.setup).toEqual(save.world.setup);
   });
 
-  it('resets bad world settings to their defaults, keeps the good ones and reports each reset', () => {
+  it('resets bad world settings to their defaults and keeps the good ones', () => {
     const slots = makeSlots();
     const save = currentSave() as ReturnType<typeof currentSave> & { world: { setup: unknown } };
     save.world.setup = { mode: 'roaming', settings: { damage: null, fuelUse: 1.5, supplyUse: 40, enemyGearGrowth: 1 } };
     slots.put('auto', save);
-    const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 1000)!;
+    rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 1000);
 
-    expect(rescued.report.settingsReset).toEqual(['damage', 'supplyUse']);
     expect(loadWorld(slots, 'auto', TEST_MAP)!.setup.settings).toEqual({ damage: 1, fuelUse: 1.5, supplyUse: 1, enemyGearGrowth: 1 });
   });
 
-  it('gives a save from before world settings the default Roaming setup and reports no reset', () => {
+  it('gives a save from before world settings the default Roaming setup', () => {
     const slots = makeSlots();
     slots.put('auto', { format: { major: 2, minor: 1 }, world: FORMAT_2_1 });
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 1000)!;
 
     expect(rescued.world.setup).toEqual(defaultSetup('roaming'));
-    expect(rescued.report.settingsReset).toEqual([]);
   });
 
-  it('lists quest state this version does not know as lost, resets a quest whose variables no longer fit, and closes any open quest', () => {
+  it('drops quest state this version does not know, resets a quest whose variables no longer fit, and closes any open quest', () => {
     const slots = makeSlots();
     const save = currentSave() as unknown as { format: unknown; world: SavedWorld & { player: { quests: unknown } } };
     save.world.mapHash = 'old-map';
@@ -276,8 +268,6 @@ describe('rescueSave', () => {
     slots.put('auto', save);
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 2000);
     expect(rescued?.world.player.quests).toEqual({ world: {}, local: {}, session: null, live: null });
-    expect(rescued?.report.lost).toEqual(expect.arrayContaining(['retired_flag', 'gone_quest']));
-    expect(rescued?.report.questsReset).toEqual(['bowl_hattie']);
     expect(loadWorld(slots, 'auto', TEST_MAP)?.player.quests.session).toBeNull();
   });
 
@@ -291,8 +281,6 @@ describe('rescueSave', () => {
     slots.put('auto', save);
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 2000)!;
 
-    expect(rescued.report.questsReset).toEqual(['pump_pipe']);
-    expect(rescued.report.lost).toEqual(expect.arrayContaining(['retiredNote']));
     expect(rescued.world.player.quests.world).toEqual({ depot_thief: 'vance' });
     expect(rescued.world.player.quests.local).toEqual({});
     expect(rescued.world.player.notes).toEqual([{ id: 'burntConvoy', turn: rescued.world.turn }]);
@@ -341,7 +329,7 @@ describe('a shipped save on an older bake of the map', () => {
     const slots = new SaveSlots(memoryBackend(), new Map());
     slots.put('auto', envelope);
     const saved = envelope.world;
-    const { world, repair } = loadSave(slots, 'auto', TEST_MAP)!;
+    const world = loadWorld(slots, 'auto', TEST_MAP)!;
 
     expect(world.size).toBe(TEST_MAP.terrain.size);
     expect(world.mapHash).toBe(TEST_MAP.hash);
@@ -363,7 +351,8 @@ describe('a shipped save on an older bake of the map', () => {
     expect(world.player.xp).toBe(carried.xp);
     const known = new Set([...REGION.towns, ...REGION.locations].map((site) => site.id));
     expect(world.player.discovered).toEqual(expect.arrayContaining(carried.discovered.filter((id) => known.has(id))));
-    expect(repair.lost).toEqual([]);
+    const held = (parts: { defId: string }[], items: { kind: string; part?: { defId: string } }[]) => [...parts.map((p) => p.defId), ...items.flatMap((it) => (it.part ? [it.part.defId] : []))].sort();
+    expect(held(world.player.storage, me.items)).toEqual(held(carried.storage, carried.truck!.items));
 
     const stocks = new Set(world.salvage.map((s) => s.id));
     const sites = new Set(surveySites(TEST_MAP).map((s) => s.id));
@@ -372,15 +361,15 @@ describe('a shipped save on an older bake of the map', () => {
       if (c.kind === 'claim') expect(stocks.has(c.stockId), c.id).toBe(true);
       if (c.kind === 'survey') expect(c.points.every((p) => sites.has(p.site)), c.id).toBe(true);
     }
-    const lapsed = repair.events.flatMap((e) => (e.t === 'contract' && e.outcome === 'lapsed' ? [e.contract.id] : []));
-    expect([...world.player.contracts.map((c) => c.id), ...lapsed].sort()).toEqual(saved.player.contracts.map((c) => c.id).sort());
+    const kept = new Set(world.player.contracts.map((c) => c.id));
+    expect(saved.player.contracts.filter((c) => !kept.has(c.id) && c.kind !== 'claim')).toEqual([]);
     for (const id of [...world.player.scavenged, ...world.player.rumored].filter((x) => /^(wreck|old-|story-)/.test(x))) expect(stocks.has(id), id).toBe(true);
   }, 60_000);
 
   it.each(reachable)('plays 20 turns of %s without a throw or a stall', (file) => {
     const slots = new SaveSlots(memoryBackend(), new Map());
     slots.put('auto', JSON.parse(readFileSync(join(ANCHOR_DIR, file), 'utf8')));
-    let w = loadSave(slots, 'auto', TEST_MAP)!.world;
+    let w = loadWorld(slots, 'auto', TEST_MAP)!;
     const start = w.turn;
     for (let i = 0; i < 20; i++) {
       w = endTurn(w, (d) => d.vehicles.forEach((v) => v.brain && advanceFar(d, v)));
@@ -389,17 +378,16 @@ describe('a shipped save on an older bake of the map', () => {
     expect(w.turn).toBe(start + 20);
   }, 120_000);
 
-  it('loads a shipped save after a rebake and a removed chassis together, and reports only what the player held', () => {
+  it('loads a shipped save after a rebake and a removed chassis together', () => {
     const envelope = JSON.parse(readFileSync(join(ANCHOR_DIR, '2-63-roaming.json'), 'utf8')) as { world: { player: { vehicleId: string }; vehicles: { id: string; chassisId: string }[] } };
     for (const v of envelope.world.vehicles) v.chassisId = 'ghostChassis';
     const slots = new SaveSlots(memoryBackend(), new Map());
     slots.put('auto', envelope);
 
-    const { world, repair } = loadSave(slots, 'auto', TEST_MAP)!;
+    const world = loadWorld(slots, 'auto', TEST_MAP)!;
 
-    expect(repair.lost).toContain('ghostChassis');
-    expect(repair.events.every((e) => e.t === 'contract')).toBe(true);
     const me = playerVehicle(world);
+    expect(me.chassisId).toBe(START_KITS.standard.chassis);
     expect(isFree(world, me.pos, chassisDef(me.chassisId).radius, me.id)).toBe(true);
     expect(() => endTurn(world, () => {})).not.toThrow();
   }, 60_000);

@@ -6,14 +6,14 @@ import { townAt } from '../sim/sites';
 import { reachedOutpostAt } from '../sim/fury-road';
 import { highwayMap } from '../sim/highway';
 import { fitBake, repairMap, settleTrucks, type SavedBroken, type SavedMapWorld } from '../sim/map-repair';
-import { repairContent, type GoodsSold } from '../sim/save-repair';
+import { repairContent } from '../sim/save-repair';
 export { newMapFor } from '../sim/highway';
-import type { BrokenProp, GameEvent, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
+import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
 import { QUESTS, restoreQuest } from '../sim/quests';
 import { newerQuests, questRevisions, repairQuests, type QuestRepair, type SavedRevisions } from '../sim/quest-repair';
 import { refreshVision } from '../sim/vision';
 import { hollowObstaclesFor, isHollowObstacle } from '../sim/sunward';
-import { isMode, modeMap, repairSetup, type SettingId } from '../sim/settings';
+import { isMode, modeMap, repairSetup } from '../sim/settings';
 import { clearTips } from '../ui/tips';
 import type { NewGameActions } from '../ui/new-game';
 import { settleAims } from '../sim/combat';
@@ -80,9 +80,6 @@ export function carriesOnLoad(error: SaveError): boolean {
 
 export type SaveEnvelope = { format: typeof SAVE_FORMAT; quests: SavedRevisions; savedAt: number; runId: string; world: object };
 
-export type LoadRepair = { questsReset: string[]; lost: string[]; sold: GoodsSold[]; settingsReset: SettingId[]; events: GameEvent[] };
-export type LoadedSave = { world: World; repair: LoadRepair };
-
 export function clearSlot(slots: SaveSlots, slot: SlotId): void {
   slots.remove(slot);
 }
@@ -130,26 +127,18 @@ export function mapFor(saved: Pick<World, 'mapHash' | 'seed' | 'setup' | 'furyRo
 }
 
 export function loadWorld(slots: SaveSlots, slot: SlotId, icarus: BakedMap): World | null {
-  return loadSave(slots, slot, icarus)?.world ?? null;
-}
-
-export function hasRepair(repair: LoadRepair): boolean {
-  return repair.questsReset.length + repair.lost.length + repair.sold.length + repair.settingsReset.length + repair.events.length > 0;
-}
-
-export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): LoadedSave | null {
   const envelope = slots.get(slot);
   if (envelope === null) return null;
   try {
-    return loadedSave(envelope, icarus);
+    return loadedWorld(envelope, icarus);
   } catch (error) {
     if (error instanceof SaveError) throw error;
     throw new SaveError('invalidWorld', null, `Loading failed: ${(error as Error).message}`);
   }
 }
 
-function loadedSave(envelope: unknown, icarus: BakedMap): LoadedSave {
-  const { world, settingsReset } = savedWorld(envelope);
+function loadedWorld(envelope: unknown, icarus: BakedMap): World {
+  const world = savedWorld(envelope);
   const revisions = savedRevisionsOf(envelope);
   const repaired = savedQuests(world.player.quests, world.player.notes, revisions);
   const map = mapFor(world, icarus);
@@ -157,15 +146,14 @@ function loadedSave(envelope: unknown, icarus: BakedMap): LoadedSave {
   const rebaked = world.mapHash !== map.hash;
   const loaded = rebaked ? repairMap(staged, map) : onSameMap(staged, map);
   if (!rebaked) fitBake(loaded, map);
-  const content = repairContent(loaded);
+  repairContent(loaded);
   if (rebaked) settleTrucks(loaded);
-  const quests = restoredQuests(loaded, world, revisions, repaired);
+  restoredQuests(loaded, world, revisions, repaired);
   stockOldSpots(loaded, map);
   checkCompanies(loaded);
   refreshVision(loaded);
   settleAims(loaded);
-  const events = loaded.events.filter((e) => e.t === 'contract');
-  return { world: { ...loaded, events: [] }, repair: { questsReset: quests.reset, lost: [...quests.lost, ...content.lost], sold: content.sold, settingsReset, events } };
+  return { ...loaded, events: [] };
 }
 
 function stagedWorld(world: SavedWorld, quests: QuestRepair): SavedMapWorld {
@@ -179,17 +167,15 @@ function stagedWorld(world: SavedWorld, quests: QuestRepair): SavedMapWorld {
   };
 }
 
-function restoredQuests(loaded: World, saved: SavedWorld, revisions: SavedRevisions, repair: QuestRepair): QuestRepair {
+function restoredQuests(loaded: World, saved: SavedWorld, revisions: SavedRevisions, repair: QuestRepair): void {
   const session = repair.quests.session;
   try {
     restoreQuest(loaded, QUESTS);
-    return repair;
   } catch (error) {
     if (!session) throw error;
     const redone = savedQuests(saved.player.quests, saved.player.notes, revisions, [session.quest]);
     loaded.player.quests = { ...redone.quests, live: null };
     loaded.player.notes = redone.notes.filter((n) => isNoteId(n.id));
-    return redone;
   }
 }
 
@@ -239,14 +225,13 @@ function brokenProps(baked: readonly Obstacle[], broken: readonly SavedBroken[])
   });
 }
 
-function savedWorld(save: unknown): { world: SavedWorld; settingsReset: SettingId[] } {
+function savedWorld(save: unknown): SavedWorld {
   const world = migratedWorld(save);
   if (!isWorld(world)) throw new SaveError('invalidWorld');
-  const { setup, reset } = savedSetup(world.setup);
-  return { world: { ...world, setup }, settingsReset: reset };
+  return { ...world, setup: savedSetup(world.setup) };
 }
 
-function savedSetup(setup: unknown): { setup: WorldSetup; reset: SettingId[] } {
+function savedSetup(setup: unknown): WorldSetup {
   if (!isJsonObject(setup) || !isMode(setup.mode)) throw new SaveError('badSetup', null, `Unknown game mode in ${JSON.stringify(setup) ?? 'no setup'}`);
   return repairSetup(setup);
 }

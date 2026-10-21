@@ -52,32 +52,23 @@ function partOf(v: Vehicle, defId: string): Extract<GridItem, { kind: 'part' }> 
   return item;
 }
 
-function sorted(ids: string[]): string[] {
-  return [...ids].sort();
-}
-
-function lostOf(world: World): string[] {
-  const repair = repairContent(world);
-  expect(repair.sold).toEqual([]);
-  return repair.lost;
-}
 
 describe('repairContent', () => {
-  it('leaves a world with no drift alone and returns nothing', () => {
+  it('leaves a world with no drift alone', () => {
     const w = fresh();
     const before = cloneWorld(w);
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(w).toEqual(before);
   });
 
   it('leaves a Chaos Highway world with no drift alone', () => {
     const w = furyRoadStart();
     const before = cloneWorld(w);
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(w).toEqual(before);
   });
 
-  it('drops parts, goods and chassis that left the data, from every container, and lists only what the player held', () => {
+  it('drops parts, goods and chassis that left the data, from every container', () => {
     const w = fresh();
     const me = playerVehicle(w);
     me.items.push(partItem('ghost', 'ghostPart', 20, 20), { id: 'i-gg', kind: 'good', x: 21, y: 21, rot: 0, good: 'ghostGood' });
@@ -90,9 +81,8 @@ describe('repairContent', () => {
     w.player.costBasis.ghostCrate = 5;
     expect(() => vehicleMass(me)).toThrow();
 
-    const lost = lostOf(w);
+    repairContent(w);
 
-    expect(sorted(lost)).toEqual(sorted(['ghostPart', 'ghostGood', 'ghostStored']));
     expect(npc.items.some((it) => it.kind === 'part' && it.part.defId === 'ghostNpcPart')).toBe(false);
     expect(w.salvage[0].parts.some((p) => p.defId === 'ghostSalvaged')).toBe(false);
     expect(w.shops.bowl.stock.some((p) => p.defId === 'ghostSold')).toBe(false);
@@ -112,9 +102,8 @@ describe('repairContent', () => {
     me.chassisId = 'ghostChassis';
     expect(() => gridOf(me)).toThrow();
 
-    const lost = lostOf(w);
+    repairContent(w);
 
-    expect(lost).toEqual(['ghostChassis']);
     expect(me.chassisId).toBe(START_KITS.standard.chassis);
     const mounted = me.items.filter((it) => spares.includes(it));
     expect(mounted.length).toBeGreaterThan(0);
@@ -129,7 +118,7 @@ describe('repairContent', () => {
     const hauler = haulerOf(w);
     hauler.chassisId = 'ghostChassis';
 
-    expect(lostOf(w)).toEqual(['ghostChassis']);
+    repairContent(w);
     expect(hauler.chassisId).toBe(HAULER_KIT.chassis);
     expect(() => corePart(hauler, 'transmission')).not.toThrow();
   });
@@ -144,7 +133,7 @@ describe('repairContent', () => {
     addState(w, 'patch', npc.id, me.id, { kind: 'patch', deal: 'free', parts: 0, partIds: [], price: 0, work: 1, workLeft: 1 } as never);
     w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: {} } };
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(w.vehicles.some((v) => v.id === npc.id)).toBe(false);
     expect(w.states.some((s) => s.holder === npc.id || s.other === npc.id)).toBe(false);
     expect(w.player.call).toBeNull();
@@ -167,7 +156,7 @@ describe('repairContent', () => {
     gun.y = 90;
     expect(() => corePart(me, 'transmission')).toThrow(/mounted transmission/);
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(() => corePart(me, 'transmission')).not.toThrow();
     expect(corePart(me, 'transmission').hp).toBe(7);
     expect(me.items.includes(spare)).toBe(false);
@@ -184,7 +173,7 @@ describe('repairContent', () => {
     transmission.y = -5;
     expect(() => corePart(npc, 'transmission')).toThrow(/mounted transmission/);
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(w.vehicles.includes(npc)).toBe(false);
   });
 
@@ -200,7 +189,7 @@ describe('repairContent', () => {
     utility.charge!.reload = 999;
     expect(() => restorePart(gun, maxHp(gun))).toThrow(/would lower/);
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
 
     expect(gun.wear).toBe(CONDITION.maxWear + 1);
     expect(gun.hp).toBe(maxHp(gun));
@@ -213,7 +202,7 @@ describe('repairContent', () => {
     const w = fresh();
     const gun = mountedParts(playerVehicle(w), 'weapon')[0];
     gun.hp = 0;
-    lostOf(w);
+    repairContent(w);
     expect(gun.hp).toBe(0);
   });
 
@@ -225,7 +214,7 @@ describe('repairContent', () => {
     w.shops.ghostShop = cloneWorld(w).shops.bowl;
     expect(() => goodStock(w.shops.bowl, good)).toThrow();
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(goodStock(w.shops.bowl, good)).toBe(0);
     expect(w.shops.ghostShop).toBeUndefined();
     expect(Object.keys(w.shops).sort()).toEqual(Object.keys(SHOPS).sort());
@@ -242,7 +231,7 @@ describe('repairContent', () => {
     addState(w, 'feud', a.id, playerVehicle(w).id, { kind: 'feud', robbery: false });
     expect(() => npcTraits(b)).toThrow();
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(w.vehicles.some((v) => [a, b, c].some((gone) => gone.id === v.id))).toBe(false);
     expect(w.states.some((s) => s.holder === a.id)).toBe(false);
     for (const npc of npcs(w)) {
@@ -257,7 +246,7 @@ describe('repairContent', () => {
     const traits = [...npc.brain!.traits];
     npc.brain!.traits.push('ghostTrait' as never);
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(npc.brain!.traits).toEqual(traits);
     expect(w.vehicles).toContain(npc);
   });
@@ -269,7 +258,7 @@ describe('repairContent', () => {
     for (const v of npcs(w)) if (v.brain!.templateId === template) v.chassisId = 'ghostChassis';
     w.player.contracts.push({ id: 'c-bounty', shop: 'bowl', kind: 'bounty', template, reward: 10, deadline: w.turn + 20, window: 20, tier: 'low', fulfilled: false } as never);
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(w.player.contracts.some((c) => c.id === 'c-bounty')).toBe(false);
     expect(w.events.flatMap((e) => (e.t === 'contract' ? [[e.contract.id, e.outcome]] : []))).toEqual([['c-bounty', 'lapsed']]);
   });
@@ -282,7 +271,7 @@ describe('repairContent', () => {
     const trade = (good: string) => ({ kind: 'trade', targetId: 'bowl', destination: null, phase: 'travel', reason: 'trade', purchase: { good, sellShop: 'dustwell' } }) as never;
     npc.brain!.goals = [trade(untraded), trade(traded)];
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(npc.brain!.goals.map((g) => g.purchase!.good)).toEqual([traded]);
   });
 
@@ -295,7 +284,7 @@ describe('repairContent', () => {
     expect(() => fullName(a.brain!.driver)).toThrow();
     const twin = cloneWorld(w);
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     repairContent(twin);
 
     for (const v of [a, b]) {
@@ -316,9 +305,8 @@ describe('repairContent', () => {
     expect(() => entryText('en', 'journalNote.ghostNote.title')).toThrow();
     expect(Number.isFinite(skillLevel(w, 'perception'))).toBe(false);
 
-    const lost = lostOf(w);
+    repairContent(w);
 
-    expect(lost).toEqual(['ghostNote']);
     expect(w.player.notes).toEqual([]);
     expect(w.player.ranks.perception).toBe(0);
     expect(Number.isFinite(skillLevel(w, 'perception'))).toBe(true);
@@ -337,7 +325,7 @@ describe('repairContent', () => {
       if (over.topic) expect(() => currentOptions(w)).toThrow();
       if (over.topic) expect(() => currentLine(w)).toThrow();
 
-      expect(lostOf(w)).toEqual([]);
+      repairContent(w);
       expect(w.player.call).toBeNull();
     }
   });
@@ -354,7 +342,7 @@ describe('repairContent', () => {
     for (const v of vars) {
       const w = fresh();
       w.player.call = { with: npcs(w)[0].id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: v } };
-      expect(lostOf(w)).toEqual([]);
+      repairContent(w);
       expect(w.player.call).toBeNull();
     }
   });
@@ -369,7 +357,7 @@ describe('repairContent', () => {
       { do: 'search', clue: { kind: 'site', id: site }, rough: false },
     ] } };
     w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: way } };
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(w.player.call).not.toBeNull();
   });
 
@@ -380,7 +368,7 @@ describe('repairContent', () => {
     w.states.push(ghost);
     expect(() => advanceStates(w)).toThrow(/Unknown state kind/);
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(w.states.includes(ghost)).toBe(false);
     expect(() => advanceStates(w)).not.toThrow();
   });
@@ -396,31 +384,31 @@ describe('repairContent', () => {
     );
     expect(() => standingPrice('dustwell', untraded, 0.2)).toThrow(/does not trade/);
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
 
     const prices = npc.brain!.memories.flatMap((m) => (m.fact.kind === 'prices' ? [m.fact] : []));
     expect(prices.some((fact) => fact.shop === 'ghostShop')).toBe(false);
     expect(prices.find((fact) => fact.shop === 'dustwell')!.pressure).toEqual({ [traded]: 0.1 });
   });
 
-  it('drops perks that left the data, lists them, and gives a missing skill its xp of the day', () => {
+  it('drops perks that left the data and gives a missing skill its xp of the day', () => {
     const w = fresh();
     w.player.perks.push('ghostPerk' as never);
     delete (w.player.xpToday as Partial<typeof w.player.xpToday>).perception;
 
-    expect(lostOf(w)).toEqual(['ghostPerk']);
+    repairContent(w);
     expect(w.player.perks).not.toContain('ghostPerk');
     expect(w.player.xpToday.perception).toBe(0);
   });
 
-  it('drops player contracts whose shop or destination left the data, and lists the place', () => {
+  it('drops player contracts whose shop or destination left the data', () => {
     const w = fresh();
     const good = SHOPS.bowl.goods[0];
     const haul = { id: 'c-haul', shop: 'bowl', kind: 'haul', good, units: 2, to: 'ghostTown', reward: 10, deadline: w.turn + 20, window: 20, rush: false, tier: 'low' } as const;
     const fetch = { id: 'c-fetch', shop: 'ghostShop', kind: 'fetch', defId: Object.keys(PARTS)[0], reward: 10, deadline: w.turn + 20, window: 20, tier: 'low' } as const;
     w.player.contracts.push(haul as never, fetch as never);
 
-    expect(sorted(lostOf(w))).toEqual(['ghostShop', 'ghostTown']);
+    repairContent(w);
     expect(w.player.contracts.some((c) => c.id === 'c-haul' || c.id === 'c-fetch')).toBe(false);
     expect(() => advanceContracts(w)).not.toThrow();
   });
@@ -431,7 +419,7 @@ describe('repairContent', () => {
     w.player.contracts.push(survey as never);
     playerVehicle(w).job = { kind: 'survey', contractId: 'c-survey', site: 'x', turnsLeft: 2, total: 3 };
 
-    lostOf(w);
+    repairContent(w);
     expect(playerVehicle(w).job).toBeNull();
   });
 
@@ -439,7 +427,7 @@ describe('repairContent', () => {
     const w = fresh();
     w.shops.bowl.event = { kind: 'breakdown', recipe: 'ghostRecipe', until: w.turn + 30 };
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(w.shops.bowl.event).toBeNull();
   });
 
@@ -450,7 +438,7 @@ describe('repairContent', () => {
     const live = { kind: 'follow', targetId: b.id, destination: null, phase: 'travel', reason: 'trade' } as const;
     a.brain!.goals = [gone as never, live as never];
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(a.brain!.goals.map((g) => g.targetId)).toEqual([b.id]);
   });
 
@@ -463,7 +451,7 @@ describe('repairContent', () => {
     b.job = { kind: 'business', siteId: 'ghost-camp', deal: 'sell', turnsLeft: 2, total: 3 };
     expect(() => settleStates(cloneWorld(w))).toThrow(/Unknown site/);
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(w.states.some((s) => s.kind === 'tow' && s.holder === me.id)).toBe(false);
     expect(a.brain!.goals).toEqual([]);
     expect(b.job).toBeNull();
@@ -481,11 +469,10 @@ describe('repairContent', () => {
     w.player.contracts.push(search as never);
     me.items.push({ id: 'i-parcel', x: 999, y: 999, rot: 0, kind: 'parcel', contract: 'c-search' });
 
-    const repair = repairContent(w);
+    repairContent(w);
 
     const units = crates - me.items.filter((it) => it.kind === 'good').length;
     expect(units).toBeGreaterThan(0);
-    expect(repair).toEqual({ lost: [], sold: [{ good, units, money: units * GOODS[good].value }] });
     expect(w.player.money).toBe(money + units * GOODS[good].value);
     expect(me.items.some((it) => it.kind === 'parcel' && it.contract === 'c-search')).toBe(true);
   });
@@ -496,16 +483,16 @@ describe('repairContent', () => {
     const good = SHOPS.bowl.goods[0];
     addGoods(w, me, good, 999);
     const crates = me.items.filter((it) => it.kind === 'good').length;
+    const money = w.player.money;
     const rack = me.items.find((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'cargo');
     if (!rack || rack.kind !== 'part') throw new Error('The start truck has no cargo part to remove');
     rack.part.defId = 'ghostRack';
 
-    const repair = repairContent(w);
+    repairContent(w);
 
     const units = crates - me.items.filter((it) => it.kind === 'good').length;
-    expect(repair.lost).toEqual(['ghostRack']);
     expect(units).toBeGreaterThan(0);
-    expect(repair.sold).toEqual([{ good, units, money: units * GOODS[good].value }]);
+    expect(w.player.money).toBe(money + units * GOODS[good].value);
   });
 
   it('breaks an escort bound for a site that left the data', () => {
@@ -514,7 +501,7 @@ describe('repairContent', () => {
     addState(w, 'escort', a.id, b.id, { kind: 'escort', site: 'ghostTown', fee: 0 });
     expect(() => settleStates(cloneWorld(w))).toThrow(/Unknown site/);
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(w.states.some((s) => s.kind === 'escort' && s.holder === a.id)).toBe(false);
     expect(() => settleStates(w)).not.toThrow();
   });
@@ -527,7 +514,7 @@ describe('repairContent', () => {
     npc.brain!.goals.unshift(goal as never);
     w.roadNews.push({ turn: w.turn, kind: 'robbed', good: 'ghostGood', units: 1, from: 'bowl', to: 'dustwell' }, { turn: w.turn, kind: 'robbed', good, units: 1, from: 'ghostShop', to: 'dustwell' }, { turn: w.turn, kind: 'robbed', good, units: 1, from: 'bowl', to: 'dustwell' });
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(npc.brain!.goals.some((g) => g.shipment?.good === 'ghostGood')).toBe(false);
     expect(w.roadNews).toEqual([{ turn: w.turn, kind: 'robbed', good, units: 1, from: 'bowl', to: 'dustwell' }]);
   });
@@ -539,7 +526,7 @@ describe('repairContent', () => {
     first.templates = [kept, 'ghostRaider'];
     second.templates = ['ghostRaider'];
 
-    expect(lostOf(w)).toEqual([]);
+    repairContent(w);
     expect(first.templates).toEqual([kept]);
     expect(second.spawned).toBe(true);
   });

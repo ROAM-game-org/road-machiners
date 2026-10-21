@@ -87,7 +87,6 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
 
     expectWaitingAt(world, MID_STRETCH.world.furyRoad.window);
     expectKept(world, MID_STRETCH);
-    expect(report!.report).toEqual({ toGarage: [], sold: [], refunded: [], lost: [], settingsReset: [], questsReset: [] });
     expect(report!.runId).toBe(MID_STRETCH.runId);
     expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual({ ...world, events: [], removed: [] });
   });
@@ -164,7 +163,7 @@ describe('a carried run start', () => {
   it.each([1, 2, 7, 21, 4242])('parks both trucks clear on the pad of each start outpost of seed %i', (seed) => {
     for (const from of [0, 1, 2, 3]) {
       const run: Carried['run'] = { ...carried.run!, from };
-      const { world } = carriedWorld({ ...carried, seed, run }, KIT, (setup, s, window) => mapAt(setup, s, window, TEST_MAP), fresh);
+      const world = carriedWorld({ ...carried, seed, run }, KIT, (setup, s, window) => mapAt(setup, s, window, TEST_MAP), fresh);
       expect(world.setup.mode).toBe(defaultSetup('furyRoad').mode);
       expectWaitingAt(world, from);
     }
