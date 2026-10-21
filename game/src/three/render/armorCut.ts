@@ -98,7 +98,7 @@ uniform vec3 cutLampMax[CUT_LAMPS];
 #endif`;
 const FRAGMENT_DISCARD = `#if CUT_WHEELS > 0
 for (int i = 0; i < CUT_WHEELS; i++) {
-  if (length(vCutPos.xy - cutWheelAt[i].xy) < cutWheelAt[i].w && abs(vCutPos.z - cutWheelAt[i].z) < cutWheelHalfWidth[i]) discard;
+  if (length(vCutPos.xy - cutWheelAt[i].xy) < cutWheelAt[i].w && sign(cutWheelAt[i].z) * (vCutPos.z - cutWheelAt[i].z) > -cutWheelHalfWidth[i]) discard;
 }
 #endif
 #if CUT_LAMPS > 0
