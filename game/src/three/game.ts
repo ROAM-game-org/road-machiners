@@ -445,13 +445,7 @@ export class Game {
     this.uiStale = false;
     this.menu.refresh();
     const me = playerVehicle(this.world);
-    if (
-      this.selected &&
-      !vehicleStats(this.world, me).weapons.some(
-        (mw) => mw.part.id === this.selected,
-      )
-    )
-      this.selected = null;
+    if (this.selected && !vehicleStats(this.world, me).weapons.some((mw) => mw.part.id === this.selected)) this.selected = null;
     if (!this.anim) {
       timed("fog", () => this.fog.update(this.world));
       this.shade.update(this.world);
@@ -833,9 +827,9 @@ export class Game {
     this.refreshUi();
   }
 
-  private tryBeginTurn(now: number, wasPlaying: boolean, held: boolean): "began" | "none" | "failed" {
+  private tryBeginTurn(now: number, wasPlaying: boolean, held: boolean, phase: TurnPhase): "began" | "none" | "failed" {
     try {
-      const prepared = this.anim ? null : this.travel.takeReady(this.world, this.drive, now, held);
+      const prepared = this.anim || this.phase !== phase ? null : this.travel.takeReady(this.world, this.drive, now, held);
       if (prepared) this.beginTurn(prepared, now, this.travel.getRemainder(wasPlaying));
       return prepared ? "began" : "none";
     } catch (err) {
@@ -871,7 +865,7 @@ export class Game {
     this.uiStale = true;
   }
 
-  private finishMovement(a: Playback): void {
+  private finishMovement(a: Playback): null {
     a.moved = true;
     this.drive = a.result.next;
     for (const [id, fs] of Object.entries(a.result.frames))
@@ -883,9 +877,10 @@ export class Game {
     playCrashes(host, this.crashCues, null);
     playUtilitySounds(host);
     this.weapons.render();
+    return null;
   }
 
-  private landImpacts(a: Playback): void {
+  private landImpacts(a: Playback): null {
     a.impacts = true;
     this.phase = "results";
     this.craters.revealAll(this.world.turn);
@@ -900,6 +895,7 @@ export class Game {
     if (searched) this.screens.inventory.openLoot(searched.stock);
     this.uiStale = true;
     for (const b of this.breakCues.rest()) this.playBreak(b);
+    return null;
   }
 
   private finishPlayback(): void {
@@ -1031,8 +1027,8 @@ export class Game {
     if (plan) this.path.set(plan.turns, firstTurnColor(playerVehicle(this.world)), plan.course, plan.waypoint);
   }
 
-  private flushUi(turnBegan: boolean): void {
-    if (this.uiStale && !turnBegan) this.refreshUi();
+  private flushUi(began: string, phase: TurnPhase): void {
+    if (this.uiStale && began !== "began" && this.phase === phase) this.refreshUi();
   }
 
   private advanceTurn(now: number): { at: number | null; speed: number } {
@@ -1040,17 +1036,18 @@ export class Game {
     if (held) this.travel.pause();
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
     const wasPlaying = this.anim !== null;
+    const phase = this.phase;
     let at = this.animStep(now, speed);
     this.updateLiveVision(at);
     this.updateTravel();
-    const began = this.tryBeginTurn(now, wasPlaying, held);
+    const began = this.tryBeginTurn(now, wasPlaying, held, phase);
     if (began === "failed") return { at, speed };
     if (began === "began") {
       at = this.animStep(now, speed);
       this.updateTravel();
     }
     this.travel.prepareNext(this.world, this.anim, now);
-    this.flushUi(began === "began");
+    this.flushUi(began, phase);
     return { at, speed };
   }
 
@@ -1148,9 +1145,9 @@ export class Game {
     this.sound.playDueScoreEvents(elapsed, speed);
     if (elapsed < MOVE_MS)
       return (elapsed / 1000) * PHYSICS.stepsPerSecond;
-    if (!a.moved) this.finishMovement(a);
+    if (!a.moved) return this.finishMovement(a);
     const impactAt = a.impactAtMs;
-    if (elapsed >= impactAt && !a.impacts) this.landImpacts(a);
+    if (elapsed >= impactAt && !a.impacts) return this.landImpacts(a);
     const finishAt = impactAt + (a.volley ? CONFIG.combatReadMs : 0);
     if (elapsed >= finishAt) {
       this.travel.finishClock(elapsed, finishAt);
