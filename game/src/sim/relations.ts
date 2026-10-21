@@ -219,7 +219,7 @@ function joinAgainst(world: World, w: Vehicle, i: Incident): void {
 }
 
 function wrongedLawfulFoe(caller: Vehicle, foes: Vehicle[]): boolean {
-  return foes.some((foe) => judges(foe) && !isOutlaw(foe.faction) && foe.brain !== undefined
+  return foes.some((foe) => judges(foe) && !isOutlaw(foe.faction) && foe.brain !== null
     && recall(foe, 'wronged').some((m) => m.fact.by === caller.id));
 }
 
