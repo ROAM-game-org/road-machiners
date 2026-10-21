@@ -9,7 +9,8 @@ import { RULES } from "../data/rules";
 import { maxHp } from "../sim/wear";
 import { playerVehicle, vehicleById } from "../sim/damage";
 import { maxHealthOf } from "../sim/health";
-import { corePart, mountedItems, itemSize } from "../sim/grid";
+import { corePart, itemSize } from "../sim/grid";
+import { conditionItems, type Tier } from "../three/render/portraitPixels";
 import { keyLabel } from "./input-mode";
 import { fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, overdriveBlock, workingEngineCapacity, type OverdriveBlock, type SpeedStep } from "../sim/stats";
 import { basicSkill } from "../sim/progress";
@@ -165,11 +166,14 @@ function stockLabel(verb: 'search' | 'loot' | 'empty', stock: SalvageStock): Msg
 }
 
 
-function getConditionState(ratio: number): string {
-  if (ratio <= 0.25) return "critical";
-  return ratio < 1 ? "damaged" : "healthy";
-}
+export const HURT_BELOW = 70;
+export const CRITICAL_BELOW = 40;
 
+export function tierOf(percent: number): Tier {
+  if (percent === 0) return "broken";
+  if (percent < CRITICAL_BELOW) return "crit";
+  return percent < HURT_BELOW ? "hurt" : "ok";
+}
 
 export function conditionLabel(part: { name: Msg; percent: number }): Msg {
   return part.percent === 0 ? t("condition.broken", { part: part.name }) : t("condition.percent", { part: part.name, pct: part.percent });
@@ -184,29 +188,25 @@ export class TruckConditionReadout {
     this.vehicleId = vehicle.id;
     const previous = this.health;
     this.health = new Map();
-    return mountedItems(vehicle)
-      .filter((item) =>
-        ["core", "engine", "weapon", "armor"].includes(partDef(item.part.defId).kind),
-      )
-      .map((item) => {
-        const def = partDef(item.part.defId);
-        const hp = item.part.hp;
-        this.health.set(item.part.id, hp);
-        const before = previous.get(item.part.id);
-        const ratio = hp / maxHp(item.part);
-        return {
-          id: item.part.id,
-          name: partName(def.id),
-          defId: def.id,
-          x: item.x,
-          y: item.y,
-          ...itemSize(item),
-          percent: hp > 0 ? Math.max(1, Math.floor(ratio * 100)) : 0,
-          state: getConditionState(ratio),
-          broken: hp <= 0,
-          hit: before !== undefined && hp < before,
-        };
-      });
+    return conditionItems(vehicle).map((item) => {
+      const def = partDef(item.part.defId);
+      const hp = item.part.hp;
+      this.health.set(item.part.id, hp);
+      const before = previous.get(item.part.id);
+      const percent = hp > 0 ? Math.max(1, Math.floor((hp / maxHp(item.part)) * 100)) : 0;
+      return {
+        id: item.part.id,
+        name: partName(def.id),
+        defId: def.id,
+        x: item.x,
+        y: item.y,
+        ...itemSize(item),
+        percent,
+        tier: tierOf(percent),
+        broken: hp <= 0,
+        hit: before !== undefined && hp < before,
+      };
+    });
   }
 }
 

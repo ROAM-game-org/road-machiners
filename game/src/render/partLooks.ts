@@ -4,6 +4,8 @@ import type { ChassisDef } from '../data/chassis';
 import { GOODS, PARCEL, type GoodDef } from '../data/goods';
 import { PARTS, type PartDef, type PartKind } from '../data/parts';
 import { hashStr } from './noise';
+import { wheelMounts } from '../phys/body';
+import type { Body } from '../sim/body';
 import type { GridItem, PartInstance } from '../sim/types';
 import { maxHp } from '../sim/wear';
 import { chassisName, goodName, partName } from '../text/names';
@@ -13,6 +15,20 @@ import { resolve } from '../text/resolve';
 const enName = (msg: Msg): string => resolve(msg, 'en');
 
 export const PLAN_PAD = 0.5;
+
+export const TRUCK_LOOK = {
+  wheelPush: 0.24,
+  armorDepth: 0.24,
+  armorRise: 0.1,
+  armorInset: 0.1,
+  cutScale: 1.2,
+  lampEndShare: 0.5,
+  lampReach: 0.6,
+};
+
+export function drawnWheelPoints(b: Body): { x: number; y: number; z: number }[] {
+  return wheelMounts(b).map((m) => ({ x: m.x, y: m.y, z: m.z + Math.sign(m.z) * TRUCK_LOOK.wheelPush }));
+}
 
 const BASE_MODELS: Record<string, ModelName> = {
   scout: 'base_scout',
@@ -38,12 +54,6 @@ export function baseModel(chassisId: string): ModelName {
   const base = BASE_MODELS[chassisId];
   if (!base) throw new Error(`Chassis ${chassisId} has no base model in BASE_MODELS`);
   return base;
-}
-
-const OWN_BUMPER_BASES: ReadonlySet<string> = new Set(['semi']);
-
-export function drawsOwnBumpers(chassisId: string): boolean {
-  return OWN_BUMPER_BASES.has(chassisId);
 }
 
 export const BODY_PARTS: ReadonlySet<string> = new Set(

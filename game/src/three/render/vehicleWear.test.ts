@@ -1,4 +1,3 @@
-// A truck draws each part's wear as a look step, and answers where each part is.
 
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
@@ -13,6 +12,7 @@ import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
 import { newWorld } from '../../sim/world';
 import { TEST_MAP } from '../../test/map';
+import { drawnWheelPoints } from '../../render/partLooks';
 import { loadModels } from './models';
 import { signatureOf, VehicleView } from './vehicle';
 import { defaultSetup } from '../../sim/settings';
@@ -57,7 +57,7 @@ describe('part wear look', () => {
 
   it('grays a worn truck and gives the original colors back on repair', () => {
     const v = truck();
-    const view = new VehicleView(v, true);
+    const view = new VehicleView(v, true, 'world');
     const clean = colors(view);
     const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
     const max = maxHp(part);
@@ -74,12 +74,12 @@ describe('part wear look', () => {
     const step = (defId: string) => wearLookStep(mountedParts(v).find((p) => p.defId === defId)!);
     expect(step('stockEngine')).toBe(WEAR_LOOK_STEPS - 1);
     expect(step('cabPickup')).toBeGreaterThan(0);
-    expect(colors(new VehicleView(v, true))).not.toBe(colors(new VehicleView(truck(), true)));
+    expect(colors(new VehicleView(v, true, 'world'))).not.toBe(colors(new VehicleView(truck(), true, 'world')));
   });
 
   it('wears the body with the cab part and restores it on repair', () => {
     const v = truck();
-    const view = new VehicleView(v, true);
+    const view = new VehicleView(v, true, 'world');
     const clean = colors(view);
     const full = signatureOf(v);
     const cab = mountedParts(v).find((p) => BODY_PARTS.has(p.defId))!;
@@ -96,10 +96,10 @@ describe('part wear look', () => {
 
   it('answers a world point for every mounted part, a wheel at its mount', () => {
     const v = truck();
-    const view = new VehicleView(v, true);
+    const view = new VehicleView(v, true, 'world');
     view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: wheelMounts(bodyOf(v.chassisId)).map(() => ({ suspension: 0, steer: 0, spin: 0, ground: true })) }, 0.016);
     for (const p of mountedParts(v)) expect(view.partPoint(p.id), p.id).toBeDefined();
-    const mounts = wheelMounts(bodyOf(v.chassisId));
+    const mounts = drawnWheelPoints(bodyOf(v.chassisId));
     const wheels = mountedParts(v, 'core').filter((p) => p.defId.startsWith('wheel'));
     expect(wheels.length).toBe(mounts.length);
     for (const w of wheels) {

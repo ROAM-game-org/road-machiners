@@ -24,7 +24,7 @@ function drawn(gun: string, headingDeg: number, aimDeg: number | null, rot: Rot 
   item.rot = rot;
   if (spot) Object.assign(item, { x: spot.x, y: spot.y });
   const id = item.part.id;
-  const view = new VehicleView(v, true);
+  const view = new VehicleView(v, true, 'world');
   view.pose(restFrame(w, v), 0.016);
   view.aim(() => (aimDeg === null ? null : aimDeg * DEG));
   const { dir } = view.muzzle(id);
