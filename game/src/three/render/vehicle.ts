@@ -338,12 +338,14 @@ export class VehicleView {
     const onBody = v.items.filter((item) => onChassis(v, item));
     this.buildBases(v, colors.body, colors.cab, cabLook(v));
     yield;
-    const { wheelItems, guns } = this.drawItems(v, onBody, paint);
-    yield;
-    for (const gun of guns) this.buildWeapon(v, gun, isMounted(v.chassisId, gun), paint);
-    yield;
+    const { wheelItems, guns } = yield* this.drawItems(v, onBody, paint);
+    for (const gun of guns) {
+      this.buildWeapon(v, gun, isMounted(v.chassisId, gun), paint);
+      yield;
+    }
     this.buildWheels(v, wheelItems, paint);
     this.buildContactShadows();
+    yield;
     this.anchorUndrawn(v);
     for (const unit of this.units) this.buildSuspension(unit, paint);
     this.buildLooseParts(v, onBody.length === v.items.length);
@@ -351,6 +353,7 @@ export class VehicleView {
     const merged: THREE.Group[] = [];
     yield* this.mergeUnits(v, merged);
     this.buildSilhouette(colors.body);
+    yield;
     this.darkMat = new THREE.MeshBasicMaterial({ color: PAL.outline });
     markStencil(this.darkMat);
     this.dark = false;
@@ -365,10 +368,13 @@ export class VehicleView {
     this.glassMat = new THREE.MeshLambertMaterial({ flatShading: true, emissive: this.glassGlow });
   }
 
-  private drawItems(v: Vehicle, onBody: GridItem[], paint: number): { wheelItems: PartItem[]; guns: PartItem[] } {
+  private *drawItems(v: Vehicle, onBody: GridItem[], paint: number): Generator<void, { wheelItems: PartItem[]; guns: PartItem[] }> {
     const wheelItems: PartItem[] = [];
     const guns: PartItem[] = [];
-    for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it))) this.drawItem(v, item, paint, wheelItems, guns);
+    for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it))) {
+      this.drawItem(v, item, paint, wheelItems, guns);
+      yield;
+    }
     return { wheelItems, guns };
   }
 
