@@ -295,6 +295,9 @@ export async function loadModels(
   const failures: ModelFailure[] = [];
   let done = 0;
   maskImages.clear();
+  maskLayout = null;
+  SURFACE_ATLAS.value?.dispose();
+  SURFACE_ATLAS.value = null;
   progress?.(0, NAMES.length);
   await Promise.all(
     NAMES.map(async (name) => {
@@ -761,7 +764,7 @@ function surfaceGeometry(name: ModelName, root: THREE.Object3D, layout: AtlasLay
     const uv = geo.getAttribute('uv');
     if (!uv) throw new Error(`Model ${name} mesh ${mesh.name} has a surface mask but no UVs`);
     const atlasUv = new Float32Array(uv.count * 2);
-    for (let i = 0; i < uv.count; i++) atlasUv.set(slotUv(layout, slot, uv.getX(i), uv.getY(i)), i * 2);
+    for (let i = 0; i < uv.count; i++) atlasUv.set(slotUv(layout, slot, maskCoord(name, uv.getX(i)), maskCoord(name, uv.getY(i))), i * 2);
     geo.setAttribute(MASK_UV, new THREE.BufferAttribute(atlasUv, 2));
     geo.deleteAttribute('uv');
     return geo.getAttribute('position').clone().applyMatrix4(toRoot.clone().multiply(mesh.matrixWorld)).array as Float32Array;
@@ -787,6 +790,8 @@ export function neutralSurface(count: number): { maskUv: THREE.BufferAttribute; 
 export async function paintSurfaceMasks(): Promise<void> {
   const layout = maskLayout;
   if (!layout) throw new Error('Call loadModels() before paintSurfaceMasks()');
+  SURFACE_ATLAS.value?.dispose();
+  SURFACE_ATLAS.value = null;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = layout.side;
   const ctx = canvas.getContext('2d');
@@ -806,4 +811,9 @@ export async function paintSurfaceMasks(): Promise<void> {
   texture.flipY = false;
   texture.colorSpace = THREE.NoColorSpace;
   SURFACE_ATLAS.value = texture;
+}
+
+function maskCoord(name: ModelName, t: number): number {
+  if (t < 0 || t > 1) throw new Error(`Model ${name} has a mask UV of ${t}, outside its mask. Rebake it with npm run models:bake ${name}.`);
+  return t;
 }

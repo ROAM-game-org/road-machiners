@@ -4,6 +4,8 @@ Static props, obstacles, landmarks and truck parts are low-poly Blender models. 
 
 Some models come from Blender scripts in `tools/blender/`. Blender is installed with `brew install --cask blender`. Each script writes a `.glb` into `public/models/`, and both are committed. Rebuild one with `blender --background --python tools/blender/<name>.py -- public/models/<name>.glb tmp/<name>.png`. The second path is an optional preview render from the game camera angle.
 
+A truck model, any name in `SURFACE_MODELS` in `src/render/partLooks.ts`, also needs its surface bake after every rebuild. Run `npm run models:bake <name>`, then `npm run icons`. The bake writes a crease shadow mask onto the model's own faces, in place. Boot fails on a truck model without its current bake, so a forgotten bake shows at once.
+
 ## Adding a model
 
 1. Copy `tools/blender/wreck.py` as the template. It shows the script shape: a `COLORS` table, a `build(kit)` function and a `main()`.

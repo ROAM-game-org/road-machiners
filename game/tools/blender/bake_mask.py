@@ -62,6 +62,9 @@ def unwrap(obj: bpy.types.Object, side: int) -> None:
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.smart_project(angle_limit=UV_ANGLE, island_margin=ISLAND_GAP_PX / side, scale_to_bounds=False)
     bpy.ops.object.mode_set(mode="OBJECT")
+    coords = [c for d in obj.data.uv_layers.active.data for c in d.uv]
+    if min(coords) < 0 or max(coords) > 1:
+        raise RuntimeError(f"{obj.name} UVs reach {min(coords):.3f} to {max(coords):.3f}, outside the mask")
 
 
 def dense_twin(obj: bpy.types.Object) -> bpy.types.Object:

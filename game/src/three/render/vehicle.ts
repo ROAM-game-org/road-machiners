@@ -142,7 +142,6 @@ export class VehicleView {
     this.contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(length, width), material);
     this.contactShadow.rotation.x = -Math.PI / 2;
     this.contactShadow.raycast = () => {};
-    this.contactShadow.userData.outline = true;
     this.root.add(this.contactShadow);
     this.groundContactShadow();
   }
@@ -192,7 +191,7 @@ export class VehicleView {
 
   private keepsLook(o: THREE.Mesh): boolean {
     const m = o.material;
-    return m === this.silhouetteMat || m === this.lampMat || m === this.radioMat || o.userData.outline;
+    return m === this.silhouetteMat || m === this.lampMat || m === this.radioMat || o === this.contactShadow || o.userData.outline;
   }
 
   windows(glow: THREE.Color): void {
@@ -334,7 +333,7 @@ export class VehicleView {
     this.silhouetteMat = silhouetteMaterial(paint);
     const meshes: THREE.Mesh[] = [];
     this.root.traverse((o) => {
-      if (o instanceof THREE.Mesh && !o.userData.outline) meshes.push(o);
+      if (o instanceof THREE.Mesh && o !== this.contactShadow && !o.userData.outline) meshes.push(o);
     });
     for (const mesh of meshes) {
       markStencil(mesh.material as THREE.Material);
