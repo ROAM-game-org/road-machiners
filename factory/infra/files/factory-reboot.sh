@@ -27,19 +27,23 @@ user_busy() {
   systemctl is-active --quiet "user-$(id -u "$user").slice"
 }
 
+trap 'log "failed at line $LINENO with no reboot. Any planned reboot pause stays for Hermes to lift."' ERR
+
 if [ -f "$home/paused" ]; then
   log "skipped: the factory is already paused: $(cat "$home/paused")"
   exit 0
 fi
-if grub-editenv list | grep -q '^next_entry='; then
-  log "skipped: GRUB has a one-time boot entry, so the reboot may not come back to this system: $(grub-editenv list)"
+grub_env=$(grub-editenv list)
+if grep -q '^next_entry=' <<< "$grub_env"; then
+  log "skipped: GRUB has a one-time boot entry, so the reboot may not come back to this system: $grub_env"
   exit 0
 fi
 
 factory pause "$NOTE"
 log "paused, draining for at most $drain_minutes minutes"
 for _ in $(seq "$drain_minutes"); do
-  if [ -z "$(running_jobs)" ] && ! user_busy; then break; fi
+  cut=$(running_jobs)
+  if [ -z "$cut" ] && ! user_busy; then break; fi
   sleep 60
 done
 

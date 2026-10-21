@@ -6,7 +6,7 @@ set -euo pipefail
 
 root=${1:?factory root}
 user=${2:?factory user}
-check_minutes=${3:?check minutes}
+check_seconds=${3:?check seconds}
 public_url=${4:?public url}
 home=$root/home
 failed=$home/boot-failed
@@ -22,7 +22,7 @@ factory() {
 lift_reboot_pause() {
   [ -f "$home/paused" ] || return 0
   if jq -e --arg note "$NOTE" '.kind == "factory" and .note == $note' "$home/paused" > /dev/null; then
-    factory resume
+    factory resume || return 1
     log "lifted the planned reboot pause"
   fi
 }
@@ -49,8 +49,10 @@ check_public() {
 # The monotonic exit time resets at boot, so a nonzero one means a tick ended since this boot.
 check_tick() {
   local result ended
-  result=$(systemctl show roam-factory-tick.service -p Result --value)
-  ended=$(systemctl show roam-factory-tick.service -p ExecMainExitTimestampMonotonic --value)
+  if ! result=$(systemctl show roam-factory-tick.service -p Result --value) || ! ended=$(systemctl show roam-factory-tick.service -p ExecMainExitTimestampMonotonic --value); then
+    echo "cannot read roam-factory-tick.service"
+    return
+  fi
   if [ "$ended" = 0 ] || [ "$result" != success ]; then echo "no tick has finished with success since boot, last result $result"; fi
 }
 
@@ -61,19 +63,28 @@ problems() {
   check_tick
 }
 
-lift_reboot_pause
-found=""
-for _ in $(seq $((check_minutes * 60 / CHECK_SECONDS))); do
-  found=$(problems)
-  [ -n "$found" ] || break
+report_failure() {
+  printf 'boot check at %s:\n%s\n' "$(date -u +%FT%TZ)" "$1" > "$failed"
+  chown "$user:$user" "$failed"
+  log "failed: $(echo "$1" | paste -sd ';' -)"
+  exit 1
+}
+
+trap 'report_failure "the boot check script failed at line $LINENO"' ERR
+
+lift_error=""
+if ! lifted=$(lift_reboot_pause 2>&1); then lift_error="could not lift the planned reboot pause: $lifted"; fi
+[ -z "$lifted" ] || echo "$lifted"
+
+# The limit is clock time, since one round of checks can take as long as the curl limit.
+deadline=$((SECONDS + check_seconds))
+found=$(problems)
+while [ -n "$found" ] && [ "$SECONDS" -lt "$deadline" ]; do
   sleep "$CHECK_SECONDS"
+  found=$(problems)
 done
 
-if [ -n "$found" ]; then
-  printf 'boot check at %s:\n%s\n' "$(date -u +%FT%TZ)" "$found" > "$failed"
-  chown "$user:$user" "$failed"
-  log "failed: $(echo "$found" | paste -sd ';' -)"
-  exit 1
-fi
+found=$(printf '%s\n%s' "$lift_error" "$found" | sed '/^$/d')
+[ -z "$found" ] || report_failure "$found"
 rm -f "$failed"
 log "every service works"

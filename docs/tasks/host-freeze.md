@@ -1,6 +1,6 @@
 # Host freeze and planned reboots
 
-**Status:** executing
+**Status:** validating
 **Branch:** factory/host-freeze
 **Worktree:** .worktrees/host-freeze
 **Goal:** The factory server cannot be frozen again by a runaway process from Hermes's host shell. A weekly planned reboot drains the factory, reboots, and a boot check proves every service is back or raises an incident. The boot check runs after every boot, so today's dead dashboard would have raised an incident. Confirming it needs a provision or deploy run and one watched production reboot, which the user runs. Useless if: the cap leaves swap open so the box still thrashes, the boot check passes while `/factory/` returns 502, or the reboot kills running jobs while a quiet moment was minutes away.
@@ -53,7 +53,23 @@ On 2026-10-21 the server froze at about 17:49 local and stayed frozen until a ma
 5. `hermes/factory-incidents.sh` prints `boot-failed`.
 6. Docs: `docs/hermes.md`, `docs/operations.md`, `infra/README.md`.
 
+## Verify
+
+- Targeted tests pass: `cleanup.test.ts`, `dashboard/server.test.ts`, `config.test.ts`, `hermes/test_incidents.py` and all 36 infra tests, including 12 new tests for the reboot and boot check scripts.
+- The desktop session belongs to `boris`, uid 1000, so the cap and the drain's slice check touch only the factory user's sessions.
+- The server matches the assumptions: cgroup v2, `user-1001.slice` is inactive with no factory session, the tick unit reports `Result` and `ExecMainExitTimestampMonotonic`, `grub-editenv` exists with no `next_entry`, and `systemd-analyze` accepts the calendar. The next reboot would be Mon 2026-10-26 05:00.
+- `pyinfra --dry` loads `deploy.py` with the new settings against the server.
+- Not run: provision or deploy, and a real reboot. Both change production, so the user runs them.
+
 ## Conclusion
+
+The review found 4 problems, and all are fixed with tests:
+- The boot check now waits on clock time. Before, slow curl rounds could outlast the unit's limit, so systemd killed the check before it wrote `boot-failed`.
+- A failed pause lift now lands in `boot-failed`.
+- An unreadable state file now stops the reboot with a log line, and never counts as drained.
+- The GRUB guard reads its output first, so `pipefail` cannot turn it off by chance.
+
+AS1 and AS2 held on the server. The Goal still waits on a deploy and one watched reboot.
 
 ### Hands-off decisions
 

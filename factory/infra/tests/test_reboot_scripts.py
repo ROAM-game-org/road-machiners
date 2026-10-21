@@ -8,6 +8,7 @@ Each shim reads its answers from files in the shim folder, so a test changes one
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 
 FILES = Path(__file__).parent.parent / "files"
@@ -42,6 +43,7 @@ esac
 [ -f "$SHIM_DIR/running-$4" ] && echo true || exit 1
 ''',
     "curl": '''#!/bin/bash
+[ ! -f "$SHIM_DIR/curl-hangs" ] || /bin/sleep 2
 cat "$SHIM_DIR/http-code"
 ''',
     "grub-editenv": '''#!/bin/bash
@@ -176,14 +178,45 @@ def test_boot_check_writes_every_failed_check_when_the_dashboard_stays_down(tmp_
     (host.shims / "active-roam-factory-dashboard.service").unlink()
     host.answer("http-code", "502")
     host.answer("show-ExecMainExitTimestampMonotonic", "0\n")
-    result = host.run(BOOT_CHECK, "1", "https://example.org")
+    result = host.run(BOOT_CHECK, "0", "https://example.org")
     assert result.returncode == 1
     assert (host.home / "boot-failed").read_text().splitlines()[1:] == [
         "roam-factory-dashboard.service is not active",
         "https://example.org/factory/ answers 502, not 200",
         "no tick has finished with success since boot, last result success",
     ]
-    assert host.calls().count("sleep 10") == 6
+
+
+def test_boot_check_ends_on_clock_time_when_each_round_is_slow(tmp_path):
+    host = Host(tmp_path)
+    host.healthy()
+    host.answer("curl-hangs")
+    host.answer("http-code", "000")
+    started = time.monotonic()
+    result = host.run(BOOT_CHECK, "3", "https://example.org")
+    assert result.returncode == 1
+    assert time.monotonic() - started < 10
+    assert "answers 000, not 200" in (host.home / "boot-failed").read_text()
+
+
+def test_boot_check_reports_a_pause_it_could_not_lift(tmp_path):
+    host = Host(tmp_path)
+    host.healthy()
+    (host.home / "paused").write_text('{"kind":"factory","note":"planned reboot","by":"factory","at":"x"}\n')
+    host.answer("npm", "#!/bin/bash\necho 'state file is broken' >&2\nexit 1\n")
+    (host.shims / "npm").chmod(0o755)
+    result = host.run(BOOT_CHECK, "0", "https://example.org")
+    assert result.returncode == 1
+    assert "could not lift the planned reboot pause: state file is broken" in (host.home / "boot-failed").read_text()
+
+
+def test_reboot_does_not_reboot_when_it_cannot_read_the_jobs(tmp_path):
+    host = Host(tmp_path)
+    (host.home / "state" / "state.json").write_text("{broken")
+    result = host.run(REBOOT, "50")
+    assert result.returncode != 0
+    assert "systemctl reboot" not in host.calls()
+    assert "failed at line" in result.stdout
 
 
 def test_boot_check_skips_a_unit_that_is_not_installed(tmp_path):

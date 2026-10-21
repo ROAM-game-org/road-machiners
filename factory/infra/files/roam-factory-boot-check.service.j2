@@ -5,9 +5,10 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart={{ script }} {{ factory_root }} {{ service_user }} {{ check_minutes }} {{ public_url }}
+ExecStart={{ script }} {{ factory_root }} {{ service_user }} {{ check_minutes * 60 }} {{ public_url }}
 StandardOutput=append:{{ home_dir }}/logs/boot-check.log
 StandardError=append:{{ home_dir }}/logs/boot-check.log
+# The last round of checks can start just before the limit and take up to a minute.
 TimeoutStartSec={{ check_minutes + 5 }}min
 
 [Install]
