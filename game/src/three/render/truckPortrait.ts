@@ -282,21 +282,21 @@ function widened(lo: number, hi: number): [number, number] {
   return [lo - pad, hi + pad];
 }
 
-function footprintPlane(v: Vehicle, item: PartItem, id: number, trash: Disposable[]): THREE.Mesh {
+function footprintColumn(v: Vehicle, item: PartItem, id: number, height: { min: number; max: number }, trash: Disposable[]): THREE.Mesh {
   const rect = cellRect(v.chassisId, itemCells(item));
   const [x0, x1] = widened(rect.x0, rect.x1);
   const [z0, z1] = widened(rect.z0, rect.z1);
-  const geometry = new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2);
+  const geometry = new THREE.BoxGeometry(x1 - x0, height.max - height.min, z1 - z0);
   const material = new THREE.MeshBasicMaterial({ color: idColor(id), side: THREE.DoubleSide, depthTest: false });
   trash.push(geometry, material);
-  const plane = new THREE.Mesh(geometry, material);
-  plane.position.set((x0 + x1) / 2, highestUnder(v.chassisId, rect), (z0 + z1) / 2);
-  return plane;
+  const column = new THREE.Mesh(geometry, material);
+  column.position.set((x0 + x1) / 2, (height.min + height.max) / 2, (z0 + z1) / 2);
+  return column;
 }
 
-function footprintScene(v: Vehicle, items: PartItem[], numberOf: Numbering, trash: Disposable[]): THREE.Scene {
+function footprintScene(v: Vehicle, items: PartItem[], numberOf: Numbering, heightOf: (item: PartItem) => { min: number; max: number }, trash: Disposable[]): THREE.Scene {
   const scene = new THREE.Scene();
-  for (const item of items) scene.add(footprintPlane(v, item, numberOf(item.part.id), trash));
+  for (const item of items) scene.add(footprintColumn(v, item, numberOf(item.part.id), heightOf(item), trash));
   return scene;
 }
 
@@ -412,7 +412,21 @@ function renderPartIds(pass: Pass, view: VehicleView, v: Vehicle, solid: Drawn[]
   const seen = new Set(placed);
   const hidden = conditionItems(v).filter((item) => !seen.has(numberOf(item.part.id)));
   if (hidden.length === 0) return placed;
-  return hiddenOver(placed, renderIds(pass.renderer, pass.flat, footprintScene(v, hidden, numberOf, trash), pass.camera));
+  return hiddenOver(placed, renderIds(pass.renderer, pass.flat, footprintScene(v, hidden, numberOf, heightsOf(v, solid), trash), pass.camera));
+}
+
+function heightsOf(v: Vehicle, solid: Drawn[]): (item: PartItem) => { min: number; max: number } {
+  return (item) => {
+    const own = solid.filter((mesh) => mesh.userData.partId === item.part.id);
+    if (own.length === 0) {
+      const top = highestUnder(v.chassisId, cellRect(v.chassisId, itemCells(item)));
+      if (!Number.isFinite(top)) throw new Error(`Hidden part ${item.part.id} on ${v.chassisId} has no body surface over its cells`);
+      return { min: top, max: top };
+    }
+    const box = new THREE.Box3();
+    for (const mesh of own) box.expandByObject(mesh);
+    return { min: box.min.y, max: box.max.y };
+  };
 }
 
 function composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: Vehicle, trash: Disposable[]): Portrait {

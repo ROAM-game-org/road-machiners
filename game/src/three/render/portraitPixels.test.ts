@@ -127,6 +127,12 @@ describe("tintMask", () => {
     expect(brightest[2]).toBeCloseTo(tint.rgb[2] * tint.hi, 0);
   });
 
+  it("gives a flat patch the full tint, not the darkest level", () => {
+    const flat = litAll(50);
+    const out = tintMask(flat, TINTS.crit);
+    expect(out[0]).toBeCloseTo(TINTS.crit.rgb[0] * TINTS.crit.hi, 0);
+  });
+
   it("keeps alpha and skips clear pixels", () => {
     const mask = gradient();
     mask.set([200, 200, 200, 0], 0);

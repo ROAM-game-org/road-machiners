@@ -24,6 +24,7 @@ export type TintName = keyof typeof TINTS;
 
 const LEVEL_LOW_SHARE = 0.05;
 const LEVEL_HIGH_SHARE = 0.95;
+const MIN_LEVEL_SPAN = 64;
 export const OPAQUE_ALPHA = 8;
 const BYTE = 255;
 const LUMA = [0.3, 0.59, 0.11] as const;
@@ -138,8 +139,9 @@ function levelsOf(mask: Uint8ClampedArray): { low: number; span: number } {
   for (let p = 0; p < mask.length; p += 4) if (mask[p + 3] > OPAQUE_ALPHA) lums.push(luminance(mask, p));
   if (lums.length === 0) throw new Error("No lit pixels to tint");
   const sorted = Float32Array.from(lums).sort();
-  const low = sorted[Math.floor(sorted.length * LEVEL_LOW_SHARE)];
-  return { low, span: Math.max(sorted[Math.floor(sorted.length * LEVEL_HIGH_SHARE)] - low, 1) };
+  const high = sorted[Math.floor(sorted.length * LEVEL_HIGH_SHARE)];
+  const span = Math.max(high - sorted[Math.floor(sorted.length * LEVEL_LOW_SHARE)], MIN_LEVEL_SPAN);
+  return { low: high - span, span };
 }
 
 export function tintMask(mask: Uint8ClampedArray, tint: Tint): Uint8ClampedArray {

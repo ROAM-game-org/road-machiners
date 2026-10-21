@@ -101,6 +101,14 @@ function markFor(guns: number[] | undefined, done: number | null): HTMLElement |
   return mark;
 }
 
+function pxToken(name: string): number {
+  const value = token(name);
+  const alias = value.match(/^var\((--[a-z0-9-]+)\)$/);
+  const px = parseFloat(alias ? token(alias[1]!) : value);
+  if (!Number.isFinite(px)) throw new Error(`tokens: ${name} is ${value}, not a length in px`);
+  return px;
+}
+
 function placeAt(node: HTMLElement, center: { x: number; y: number }, scale: number): void {
   node.style.left = `${center.x * scale}px`;
   node.style.top = `${center.y * scale}px`;
@@ -139,7 +147,7 @@ export class TruckConditionView {
 
   private naturalSize(): { width: number; height: number } {
     if (!this.portrait) throw new Error("The condition view has no truck drawn yet");
-    const pad = parseFloat(token("--cond-pad"));
+    const pad = pxToken("--cond-pad");
     return { width: this.portrait.width * this.scale + 2 * pad, height: this.portrait.height * this.scale + 2 * pad };
   }
 
@@ -268,7 +276,13 @@ export class TruckConditionView {
     const center = this.portrait.centerOf(part.id);
     this.tip.replaceChildren(...tipRows(part));
     this.tip.dataset.side = center.y < this.portrait.height / 2 ? "below" : "above";
-    placeAt(this.tip, center, this.scale);
+    placeAt(this.tip, { x: this.tipX(center.x), y: center.y }, this.scale);
+  }
+
+  private tipX(x: number): number {
+    if (!this.portrait) throw new Error("The condition view has no truck drawn yet");
+    const half = this.tip.offsetWidth / 2 / this.scale;
+    return Math.min(Math.max(x, half), Math.max(half, this.portrait.width - half));
   }
 
   private showOutline(): void {
