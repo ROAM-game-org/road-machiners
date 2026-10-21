@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
 import { UNITS } from '../data/units';
-import { getUpkeepReserve } from './economy';
-import { cashCut, hasRansom, haulValue, ransomOf } from './haul';
+import { getUpkeepReserve, roadGoodAsk } from './economy';
+import { cashCut, hasRansom, haulPrice, haulValue, ransomOf } from './haul';
 import { addGoods, cargoRoom } from './inventory';
 import { holdsUp } from './npc-decisions';
 import { giveInTo, payOff, yieldTo } from './parley';
@@ -33,12 +33,33 @@ function fillRoom(w: World, v: Vehicle): void {
 const whole = (cents: number) => cents / UNITS.centsPerM;
 
 describe('the hold-up price', () => {
-  it('is the haul value when the robber can load cargo', () => {
+  it('is the road ask of the haul, rounded up to whole M', () => {
     const { w, robber, victim } = setup();
     addGoods(w, victim, 'electronics', 2);
     const ransom = ransomOf(w, robber, victim);
     expect(ransom.haul.length).toBeGreaterThan(0);
-    expect(ransom.money).toBe(haulValue(ransom.haul));
+    expect(ransom.money).toBe(Math.ceil((2 * roadGoodAsk('electronics')) / UNITS.centsPerM) * UNITS.centsPerM);
+    expect(ransom.money).toBe(haulPrice(ransom.haul));
+    expect(ransom.money).toBeGreaterThan(haulValue(ransom.haul));
+  });
+
+  it('asks 19 M for two scrap crates', () => {
+    const { w, robber, victim } = setup();
+    addGoods(w, victim, 'scrap', 2);
+    expect(ransomOf(w, robber, victim).money).toBe(1900);
+  });
+
+  it('is the same for an NPC victim and the player for the same goods', () => {
+    const a = setup();
+    const b = setup();
+    addGoods(a.w, a.victim, 'electronics', 2);
+    addGoods(b.w, b.victim, 'electronics', 2);
+    b.victim.resources!.money = 100000;
+    expect(ransomOf(b.w, b.robber, b.victim).money).toBe(ransomOf(a.w, a.robber, a.victim).money);
+  });
+
+  it('refuses a price for nothing', () => {
+    expect(() => haulPrice([])).toThrow();
   });
 
   it('is a cut of the money above the reserve when the robber cannot load anything', () => {
