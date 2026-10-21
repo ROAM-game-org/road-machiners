@@ -19,7 +19,8 @@ import { makePart } from './factory';
 import { corePart, gridOf, mountedParts } from './grid';
 import { vehicleMass } from './mass';
 import { npcTraits } from './npc-decisions';
-import { skillLevel } from './progress';
+import { practice, skillLevel } from './progress';
+import { TIME } from '../data/time';
 import { repairContent } from './save-repair';
 import { defaultSetup } from './settings';
 import { addState, advanceStates, settleStates } from './states';
@@ -406,6 +407,19 @@ describe('repairContent', () => {
     const prices = npc.brain!.memories.flatMap((m) => (m.fact.kind === 'prices' ? [m.fact] : []));
     expect(prices.some((fact) => fact.shop === 'ghostShop')).toBe(false);
     expect(prices.find((fact) => fact.shop === 'dustwell')!.pressure).toEqual({ [traded]: 0.1 });
+  });
+
+  it('drops the XP tallies of an XP source that left the data, so the next game day starts clean', () => {
+    const w = fresh();
+    (w.player.xpBySource as Record<string, number>).ghostSource = 4;
+    w.player.repeats['ghostSource:10,23'] = { count: 2, turn: w.turn };
+    const kept = { ...w.player.repeats };
+
+    repairContent(w);
+    expect(w.player.xpBySource).not.toHaveProperty('ghostSource');
+    expect(w.player.repeats).toEqual(Object.fromEntries(Object.entries(kept).filter(([key]) => !key.startsWith('ghostSource'))));
+    w.turn += TIME.turnsPerDay;
+    expect(() => practice(w, 'contract', 10, null, 'bowl')).not.toThrow();
   });
 
   it('drops perks that left the data and gives a missing skill its xp of the day', () => {

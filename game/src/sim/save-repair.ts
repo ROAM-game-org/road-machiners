@@ -9,7 +9,7 @@ import { FIRST_NAMES, NPCS, SURNAMES, TRAITS } from '../data/npcs';
 import { PARTS, partDef } from '../data/parts';
 import { PERSONALITIES } from '../data/personalities';
 import { REGION } from '../data/region';
-import { SKILL_IDS } from '../data/skills';
+import { SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { CONDITION } from '../data/wear';
 import { settleAims } from './combat';
@@ -22,7 +22,7 @@ import { isPerkId } from './progress';
 import { modeRules } from './settings';
 import { endState, STATE_KINDS, settleStates } from './states';
 import { DECKS } from './bridge';
-import type { Call, CallVar, CallVars, Cue, DirectionStep, RoadName, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World } from './types';
+import type { Call, CallVar, CallVars, Cue, DirectionStep, RoadName, GridItem, Job, NpcActivity, NpcState, OutpostFacts, PartInstance, RefitJob, RefitPickup, SalvageStock, Vehicle, World, XpSource } from './types';
 import { carryHp, maxHp } from './wear';
 import { wornReload } from './utility';
 
@@ -517,6 +517,13 @@ function repairPlayer(world: World): void {
     if (player.xpToday[skill] === undefined) player.xpToday[skill] = 0;
   }
   player.perks = player.perks.filter(isPerkId);
+  dropGoneSources(player);
+}
+
+function dropGoneSources(player: World['player']): void {
+  const known = (key: string) => Object.hasOwn(XP_SOURCES, key.split(':')[0]);
+  player.xpBySource = Object.fromEntries(Object.entries(player.xpBySource).filter(([source]) => known(source))) as Record<XpSource, number>;
+  player.repeats = Object.fromEntries(Object.entries(player.repeats).filter(([key]) => known(key)));
 }
 
 function talkFits(call: Call): boolean {
