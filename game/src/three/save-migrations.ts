@@ -906,7 +906,17 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withPastContracts_92_93,
   withTractorPivot_93_94,
   withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97,
+  withStrandedAnchors_97_98,
 ];
+
+function withStrandedAnchors_97_98(world: SavedJson): SavedJson {
+  const anchored = (v: SavedJson): SavedJson => {
+    if (!((v.strandedTurns as number | undefined) ?? 0)) return v;
+    const pos = v.pos as { x: number; y: number };
+    return { ...v, strandedAt: { x: pos.x, y: pos.y } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
+}
 
 function withSearches_68_69(world: SavedJson): SavedJson {
   return world;

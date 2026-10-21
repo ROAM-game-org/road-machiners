@@ -824,6 +824,20 @@ describe('game save', () => {
     expect([loaded.player.money, loaded.player.xp, loaded.player.repeats, loaded.events]).toEqual([world.player.money, world.player.xp, world.player.repeats, []]);
   });
 
+  it('keeps the stranded count and anchor of a held truck through a reload, and awards nothing on load', () => {
+    const slots = makeSlots();
+    const world = standardWorld();
+    const held = world.vehicles.find((v) => v.brain)!;
+    held.strandedTurns = 2;
+    held.strandedAt = { x: held.pos.x + 0.25, y: held.pos.y };
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    const back = loaded.vehicles.find((v) => v.id === held.id)!;
+    expect([back.strandedTurns, back.strandedAt]).toEqual([2, held.strandedAt]);
+    expect([loaded.player.money, loaded.player.xp, loaded.player.repeats, loaded.events]).toEqual([world.player.money, world.player.xp, world.player.repeats, []]);
+  });
+
   it('rejects a save whose broken props do not match the map', () => {
     const slots = makeSlots();
     const world = standardWorld();
