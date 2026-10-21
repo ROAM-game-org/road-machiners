@@ -30,19 +30,13 @@ export function firstAidTurns(world: World): number {
   return Math.ceil(missing / (RULES.healPerTurn * RULES.townHealMult));
 }
 
-function dressingWounds(world: World, me: Vehicle): boolean {
-  const dressing = world.vehicles.filter((v) => v.job?.kind === 'firstAid');
-  if (dressing.some((v) => v.id !== world.player.vehicleId)) throw new Error('Only the player dresses wounds');
-  return me.job?.kind === 'firstAid';
-}
-
 export function healPlayer(world: World): void {
   const p = world.player;
   const max = maxHealthOf(world);
   if (p.state === 'dead' || p.health <= 0 || p.supplies <= 0 || p.health >= max) return;
   const me = playerVehicle(world);
   if (!restsNow(world, me)) return;
-  const dressing = dressingWounds(world, me);
+  const dressing = me.job?.kind === 'firstAid';
   const townRate = RULES.healPerTurn * RULES.townHealMult;
   const rate = townNear(world) || dressing ? townRate : RULES.healPerTurn;
   p.health = Math.min(max, p.health + rate);
