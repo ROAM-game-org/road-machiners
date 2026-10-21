@@ -206,7 +206,6 @@ export class SightLimit {
     };
     mat.customProgramCacheKey = () => `${key()}|sight${grey ? '-grey' : ''}${sampled ? '-at' : ''}`;
     mat.needsUpdate = true;
-    mat.needsUpdate = true;
   }
 }
 

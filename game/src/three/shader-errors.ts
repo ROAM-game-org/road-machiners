@@ -56,10 +56,10 @@ function variantOf(o: Drawn): string {
 }
 
 class Variants {
-  private readonly byMaterial = new WeakMap<THREE.Material, Map<string, number>>();
+  private readonly byMaterial = new WeakMap<THREE.Material, Map<string, THREE.Material['customProgramCacheKey']>>();
 
   has(material: THREE.Material, variant: string): boolean {
-    return this.byMaterial.get(material)?.get(variant) === material.version;
+    return this.byMaterial.get(material)?.get(variant) === material.customProgramCacheKey;
   }
 
   known(material: THREE.Material): boolean {
@@ -67,9 +67,9 @@ class Variants {
   }
 
   add(material: THREE.Material, variant: string): void {
-    const versions = this.byMaterial.get(material) ?? new Map<string, number>();
-    versions.set(variant, material.version);
-    this.byMaterial.set(material, versions);
+    const patches = this.byMaterial.get(material) ?? new Map<string, THREE.Material['customProgramCacheKey']>();
+    patches.set(variant, material.customProgramCacheKey);
+    this.byMaterial.set(material, patches);
   }
 
   delete(material: THREE.Material, variant: string): void {

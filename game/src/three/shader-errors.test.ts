@@ -99,7 +99,7 @@ describe('ShaderWarmup', () => {
     expect(drawn.at(-1)).toBe(true);
   });
 
-  it('holds a mesh again once its material changed after it compiled, since the change needs a new program', async () => {
+  it('holds a mesh again once a patch changed its material after it compiled, since the patch needs a new program', async () => {
     const { renderer, drawn, finish } = warmupRenderer();
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
     const warmup = new ShaderWarmup(renderer, sceneWith(mesh), new THREE.PerspectiveCamera(), (e) => { throw e; });
@@ -109,6 +109,9 @@ describe('ShaderWarmup', () => {
     warmup.render();
     expect(drawn.at(-1)).toBe(true);
     mesh.material.needsUpdate = true;
+    warmup.render();
+    expect(drawn.at(-1)).toBe(true);
+    mesh.material.customProgramCacheKey = () => 'patched';
     warmup.render();
     expect(drawn.at(-1)).toBe(false);
   });
