@@ -449,6 +449,33 @@ function renderCellIds(pass: Pass, v: Vehicle, solid: Drawn[], numberOf: Numberi
   return renderIds(pass.renderer, pass.flat, footprintScene(conditionItems(v), numberOf, column, trash), pass.camera);
 }
 
+function renderCabColumn(pass: Pass, v: Vehicle, solid: Drawn[], cab: PartItem, numberOf: Numbering, trash: Disposable[]): Uint16Array {
+  const heightOf = heightsOf(v, solid);
+  const column = { boxOf: (item: PartItem) => cellBox(v, item, 0, heightOf(item)), depthTest: false };
+  return renderIds(pass.renderer, pass.flat, footprintScene([cab], numberOf, column, trash), pass.camera);
+}
+
+function rowsOf(cells: Uint16Array, size: PixelSize, id: number): { top: number; bottom: number } {
+  let top = size.height;
+  let bottom = -1;
+  for (let p = 0; p < cells.length; p++) {
+    if (cells[p] !== id) continue;
+    const y = Math.floor(p / size.width);
+    top = Math.min(top, y);
+    bottom = Math.max(bottom, y);
+  }
+  if (bottom < 0) throw new Error(`Cab ${id} has no cells in the truck portrait`);
+  return { top, bottom };
+}
+
+function cabBand(ids: Uint16Array, cells: Uint16Array, size: PixelSize, cab: number): Uint16Array {
+  const { top, bottom } = rowsOf(cells, size, cab);
+  return ids.map((id, p) => {
+    const y = Math.floor(p / size.width);
+    return id === cab && (y < top || y > bottom) ? BODY_ID : id;
+  });
+}
+
 function deckBoxesOf(v: Vehicle, solid: Drawn[]): (item: PartItem) => THREE.Box3 {
   const heightOf = heightsOf(v, solid);
   return (item) => {
@@ -494,8 +521,10 @@ function composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: Ve
   const items = conditionItems(v);
   for (const item of items) numberOf(item.part.id);
   const solid = meshes.filter((m) => m.visible);
-  const ids = renderPartIds(pass, view, v, solid, isPart, numberOf, trash);
-  const maps = { size, lit, ids, cells: renderCellIds(pass, v, solid, numberOf, trash) };
+  const cells = renderCellIds(pass, v, solid, numberOf, trash);
+  let ids = renderPartIds(pass, view, v, solid, (m) => Boolean(m.userData.partId), numberOf, trash);
+  for (const item of items) if (isCab(partDef(item.part.defId))) ids = cabBand(ids, renderCabColumn(pass, v, solid, item, numberOf, trash), size, numberOf(item.part.id));
+  const maps = { size, lit, ids, cells };
   checkCovered(v, items, maps, numberOf);
   return portraitOver(v, items, maps, numberOf, { body: canvasOf(lit, size), parts: canvasOf(parts, size) });
 }
