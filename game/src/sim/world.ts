@@ -1,6 +1,6 @@
 
 import { settleCrews } from './crews';
-import { CHASSIS } from '../data/chassis';
+import { CHASSIS, isPaletteId, PAINT, PAINT_SLOTS } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
@@ -12,7 +12,7 @@ import { findPart, haulerOf, playerTrucks, playerVehicle } from './damage';
 import { makePart, makeVehicle, newId } from './factory';
 import { gridOf, placementError } from './grid';
 import { addGoods } from './inventory';
-import { isPerkId, pickedFromPair, skillLevel } from './progress';
+import { basicRefusal, isPerkId, pickedFromPair, skillLevel } from './progress';
 import { fitStores, getResources } from './resources';
 import { isOutpostSite } from './highway';
 import { generateObstacles, touchesObstacle } from './mapgen';
@@ -46,7 +46,7 @@ import { endCallIfOut, raiseCalls } from './dialogue';
 import { advancePatches } from './patch';
 import { advanceAid, readyAid } from './aid';
 import { readyHandover } from './parcel';
-import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
+import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSetup, XpSource } from './types';
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
 import { QUESTS, openRoadScene, type CarriedQuestVars } from './quests';
 import { repairQuests, type SavedRevisions } from './quest-repair';
@@ -54,7 +54,7 @@ import { isNoteId } from '../data/locals';
 import { advanceFuryRoad, outpostFactsAt, runStart, startRun } from './fury-road';
 import { gatesShut } from './outpost-gates';
 import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
-import { canOverdrive, vehicleStats } from './stats';
+import { overdriveBlock, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
 import { noteEscape } from './escape';
 import { advanceWeather } from './weather';
@@ -75,6 +75,7 @@ import { startPose } from './start-pose';
 import { clamp, dist, type Vec } from './vec';
 import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
+import { advanceSunward, freshSunward, HOLLOW_ID, hollowObstaclesFor } from "./sunward";
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -105,7 +106,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       standing: startStanding(),
       deeds: [],
       xp: 0,
-      ranks: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 },
+      ranks: { driving: kit.ranks, perception: kit.ranks, machining: kit.ranks, toughness: kit.ranks, social: kit.ranks },
       xpToday: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 },
       xpDay: 1,
       repeats: {},
@@ -117,6 +118,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
         profit: 0, deal: 0, call: 0, honk: 0, contract: 0, freeTow: 0, aid: 0,
       },
       perks: [],
+      paint: { ...PAINT.standard },
       marked: [],
       rumored: [],
       encounters: { next: 0, pending: null, story: null },
@@ -134,6 +136,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       scavenged: [],
       storage: [],
       contracts: [],
+      pastContracts: [],
       costBasis: { ...kit.costBasis },
       knockouts: 0,
       state: 'active',
@@ -162,8 +165,9 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     flares: [],
     lines: [],
     furyRoad: null,
+    sunward: modeMap(setup.mode) === 'icarus' ? freshSunward() : null,
   };
-  world.obstacles = generateObstacles(world, map, openingObstacles(kit, start));
+  world.obstacles = generateObstacles(world, map, [...hollowObstaclesFor(world), ...openingObstacles(kit, start)]);
   const truck = makeVehicle(world, {
     faction: "player",
     chassisId: kit.chassis,
@@ -251,7 +255,7 @@ export function update(world: World, fn: (draft: World) => void): World {
 }
 
 function settleOverdrive(w: World): void {
-  if (!w.player.overdrive || canOverdrive(playerVehicle(w))) return;
+  if (!w.player.overdrive || overdriveBlock(w, playerVehicle(w)) === null) return;
   w.player.overdrive = false;
   w.events.push({ t: 'info', note: { id: 'overdriveCutOut' } });
 }
@@ -392,6 +396,7 @@ export function endTurn(
     advanceFuryRoad(w);
     openRoadScene(w);
     spawnNpcs(w);
+    advanceSunward(w);
     advanceIntro(w);
     greetAtWell(w);
     greetAtScale(w);
@@ -474,7 +479,9 @@ export function setAutoRepair(world: World, on: boolean): World {
 
 export function setOverdrive(world: World, on: boolean): World {
   return update(world, (w) => {
-    if (on && !canOverdrive(playerVehicle(w))) {
+    const refusal = on ? basicRefusal(w, 'overdrive') : null;
+    if (refusal) throw new Refused(refusal);
+    if (on && overdriveBlock(w, playerVehicle(w)) !== null) {
       throw new Error(`Cannot overdrive: the engine is at or below ${RULES.overdriveMinEngineShare * 100}% of its max HP`);
     }
     w.player.overdrive = on;
@@ -502,6 +509,8 @@ export function threatToPlayer(world: World, v: Vehicle): boolean {
 export type CarriedPart = { defId: string; wear: number; hp: number; rebuilt: boolean };
 export type CarriedItem = ({ kind: 'part'; part: CarriedPart } | { kind: 'good'; good: string }) & { x: number; y: number; rot: Rot };
 
+export type CarriedPaint = Partial<Record<(typeof PAINT_SLOTS)[number], string>>;
+
 export type Carried = {
   seed: number | null;
   money: number | null;
@@ -509,6 +518,7 @@ export type Carried = {
   ranks: Partial<Record<string, number>>;
   xpBySource: Partial<Record<string, number>>;
   perks: string[];
+  paint: CarriedPaint | null;
   discovered: string[];
   knockouts: number | null;
   autoFire: boolean | null;
@@ -523,6 +533,7 @@ export type Carried = {
   notes: string[];
   revisions: SavedRevisions;
   run: CarriedRun | null;
+  refunded: number;
 };
 
 export type CarriedRun = {
@@ -533,33 +544,26 @@ export type CarriedRun = {
   hauler: { items: CarriedItem[]; fuel: number | null; supplies: number | null };
 };
 
-export type CarryReport = {
-  toGarage: string[];
-  sold: { good: string; units: number; money: number }[];
-  lost: string[];
-  settingsReset: (keyof WorldSettings)[];
-  questsReset: string[];
-};
+const KNOWN_SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id).concat(HOLLOW_ID));
 
-const KNOWN_SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
-
-export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: WorldSetup, seed: number, window: number) => BakedMap, freshSeed: () => number): { world: World; report: CarryReport } {
-  const { setup, reset } = carriedSetup(carried.setup);
-  const report: CarryReport = { toGarage: [], sold: [], lost: [], settingsReset: reset, questsReset: [] };
-  const truckKit = carriedKit(carried, kit, report);
+export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: WorldSetup, seed: number, window: number) => BakedMap, freshSeed: () => number): World {
+  const setup = carried.setup === undefined ? defaultSetup('roaming') : repairSetup(carried.setup);
+  const truckKit = carriedKit(carried, kit);
   const seed = pick(carried.seed, freshSeed());
   const run = runIn(setup, carried.run);
   const from = startOutpost(run);
   const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed, from), setup, true, carriedStart(seed, setup, from));
   carryPlayer(world, carried);
-  carryQuests(world, carried, report);
-  carryPlayerTruck(world, carried, carried.truck !== null && truckKit !== kit, report);
-  if (run) carryRun(world, run, report);
+  world.player.money += carried.refunded;
+  carryPaint(world, carried.paint);
+  carryQuests(world, carried);
+  carryPlayerTruck(world, carried, carried.truck !== null && truckKit !== kit);
+  if (run) carryRun(world, run);
   world.player.costBasis = heldBasis(world, carried.costBasis);
   for (const truck of playerTrucks(world)) fitStores(world, truck);
   refreshVision(world);
   world.events = [];
-  return { world, report };
+  return world;
 }
 
 function carriedStart(seed: number, setup: WorldSetup, from: number): { pos: Vec; heading: number } {
@@ -575,12 +579,12 @@ function startOutpost(run: CarriedRun | null): number {
   return run === null ? 0 : run.from;
 }
 
-function carryPlayerTruck(world: World, carried: Carried, stay: boolean, report: CarryReport): void {
-  const garage = carryTruck(world, playerVehicle(world), carried.truck?.items ?? [], stay, report);
-  storeParts(world, [...carried.storage, ...garage], report);
+function carryPlayerTruck(world: World, carried: Carried, stay: boolean): void {
+  const garage = carryTruck(world, playerVehicle(world), carried.truck?.items ?? [], stay);
+  storeParts(world, [...carried.storage, ...garage]);
 }
 
-function carryRun(world: World, carried: CarriedRun, report: CarryReport): void {
+function carryRun(world: World, carried: CarriedRun): void {
   const run = world.furyRoad;
   if (!run) throw new Error('A carried Chaos Highway run needs a world with a run');
   run.earned = carried.earned;
@@ -588,23 +592,15 @@ function carryRun(world: World, carried: CarriedRun, report: CarryReport): void 
   outpostFactsAt(world, carried.from).trucksSold = [...carried.trucksSold];
   const hauler = haulerOf(world);
   hauler.items = hauler.items.filter((it) => it.kind === 'part' && isCore(it.part.defId));
-  storeParts(world, carryTruck(world, hauler, carried.hauler.items, true, report), report);
+  storeParts(world, carryTruck(world, hauler, carried.hauler.items, true));
   const stores = getResources(world, hauler);
   stores.fuel = pick(carried.hauler.fuel, stores.fuel);
   stores.supplies = pick(carried.hauler.supplies, stores.supplies);
 }
 
-function carriedSetup(setup: unknown): ReturnType<typeof repairSetup> {
-  return setup === undefined ? { setup: defaultSetup('roaming'), reset: [] } : repairSetup(setup);
-}
-
-function carriedKit(carried: Carried, kit: StartKit, report: CarryReport): StartKit {
+function carriedKit(carried: Carried, kit: StartKit): StartKit {
   const saved = carried.truck;
-  if (!saved) return kit;
-  if (!(saved.chassisId in CHASSIS)) {
-    report.lost.push(saved.chassisId);
-    return kit;
-  }
+  if (!saved || !(saved.chassisId in CHASSIS)) return kit;
   return { ...kit, chassis: saved.chassisId, parts: [], storage: [], cargo: {}, costBasis: {} };
 }
 
@@ -629,17 +625,23 @@ function carryPlayer(world: World, c: Carried): void {
   carryPerks(world, c.perks);
 }
 
+function carryPaint(world: World, paint: CarriedPaint | null): void {
+  if (paint === null) return;
+  for (const slot of PAINT_SLOTS) {
+    const id = paint[slot];
+    if (isPaletteId(id)) world.player.paint[slot] = id;
+  }
+}
+
 function knownSite(world: World, id: string): boolean {
   return KNOWN_SITES.has(id) || (world.furyRoad !== null && isOutpostSite(id));
 }
 
-function carryQuests(world: World, carried: Carried, report: CarryReport): void {
+function carryQuests(world: World, carried: Carried): void {
   const known = carried.notes.filter(isNoteId).map((id) => ({ id, turn: world.turn }));
   const repair = repairQuests({ ...carried.quests, session: null }, known, carried.revisions, QUESTS);
   world.player.quests = { ...repair.quests, live: null };
   world.player.notes = repair.notes;
-  report.lost.push(...repair.lost, ...carried.notes.filter((id) => !isNoteId(id)));
-  report.questsReset.push(...repair.reset);
 }
 
 function carryPerks(world: World, perks: string[]): void {
@@ -656,31 +658,28 @@ function heldBasis(world: World, basis: Record<string, number>): Record<string, 
 
 type TruckCarry = { truck: Vehicle; stay: boolean; coresDone: Set<string> };
 
-function carryTruck(world: World, truck: Vehicle, items: CarriedItem[], stay: boolean, report: CarryReport): CarriedPart[] {
+function carryTruck(world: World, truck: Vehicle, items: CarriedItem[], stay: boolean): CarriedPart[] {
   const into: TruckCarry = { truck, stay, coresDone: new Set() };
   const goods: Record<string, number> = {};
   const garage: CarriedPart[] = [];
   for (const item of items) {
     if (item.kind === 'good') goods[item.good] = pick(goods[item.good], 0) + 1;
-    else if (!carryPartItem(world, into, item, report)) garage.push(item.part);
+    else if (!carryPartItem(world, into, item)) garage.push(item.part);
   }
-  carryGoods(world, truck, goods, stay, report);
+  carryGoods(world, truck, goods, stay);
   return garage;
 }
 
-function carryPartItem(world: World, into: TruckCarry, item: CarriedItem & { kind: 'part' }, report: CarryReport): boolean {
+function carryPartItem(world: World, into: TruckCarry, item: CarriedItem & { kind: 'part' }): boolean {
   const { defId } = item.part;
-  if (!isKnownPart(defId)) report.lost.push(defId);
-  else if (isCore(defId)) carryCore(world, into, item.part);
-  else if (into.stay && placePart(world, into.truck, item)) return true;
-  else report.toGarage.push(defId);
-  return !isKnownPart(defId) || isCore(defId);
+  if (!isKnownPart(defId)) return true;
+  if (!isCore(defId)) return into.stay && placePart(world, into.truck, item);
+  carryCore(world, into, item.part);
+  return true;
 }
 
-function storeParts(world: World, parts: CarriedPart[], report: CarryReport): void {
-  const [known, unknown] = [parts.filter((p) => isKnownPart(p.defId)), parts.filter((p) => !isKnownPart(p.defId))];
-  report.lost.push(...unknown.map((p) => p.defId));
-  world.player.storage.push(...known.filter((p) => !isCore(p.defId)).map((p) => carryPart(world, p)));
+function storeParts(world: World, parts: CarriedPart[]): void {
+  world.player.storage.push(...parts.filter((p) => isKnownPart(p.defId) && !isCore(p.defId)).map((p) => carryPart(world, p)));
 }
 
 function isKnownPart(defId: string): boolean {
@@ -721,16 +720,8 @@ function placePart(world: World, truck: Vehicle, item: CarriedItem & { kind: 'pa
   return true;
 }
 
-function carryGoods(world: World, truck: Vehicle, goods: Record<string, number>, stay: boolean, report: CarryReport): void {
+function carryGoods(world: World, truck: Vehicle, goods: Record<string, number>, stay: boolean): void {
   for (const [good, units] of Object.entries(goods)) {
-    if (!(good in GOODS)) report.lost.push(good);
-    else sellGoods(world, good, units - (stay ? addGoods(world, truck, good, units) : 0), report);
+    if (good in GOODS) world.player.money += (units - (stay ? addGoods(world, truck, good, units) : 0)) * GOODS[good].value;
   }
-}
-
-function sellGoods(world: World, good: string, units: number, report: CarryReport): void {
-  if (units <= 0) return;
-  const money = units * GOODS[good].value;
-  world.player.money += money;
-  report.sold.push({ good, units, money });
 }

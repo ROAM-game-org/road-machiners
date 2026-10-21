@@ -4,6 +4,8 @@ import type { ChassisDef } from '../data/chassis';
 import { GOODS, PARCEL, type GoodDef } from '../data/goods';
 import { PARTS, type PartDef, type PartKind } from '../data/parts';
 import { hashStr } from './noise';
+import { wheelMounts } from '../phys/body';
+import type { Body } from '../sim/body';
 import type { GridItem, PartInstance } from '../sim/types';
 import { maxHp } from '../sim/wear';
 import { chassisName, goodName, partName } from '../text/names';
@@ -13,6 +15,20 @@ import { resolve } from '../text/resolve';
 const enName = (msg: Msg): string => resolve(msg, 'en');
 
 export const PLAN_PAD = 0.5;
+
+export const TRUCK_LOOK = {
+  wheelPush: 0.12,
+  armorDepth: 0.24,
+  armorRise: 0.1,
+  armorInset: 0.1,
+  cutScale: 1.2,
+  lampEndShare: 0.5,
+  lampReach: 0.6,
+};
+
+export function drawnWheelPoints(b: Body, unit: number): { x: number; y: number; z: number }[] {
+  return wheelMounts(b, unit).map((m) => ({ x: m.x, y: m.y, z: m.z + Math.sign(m.z) * TRUCK_LOOK.wheelPush }));
+}
 
 const BASE_MODELS: Record<string, ModelName> = {
   scout: 'base_scout',
@@ -32,18 +48,22 @@ const BASE_MODELS: Record<string, ModelName> = {
   bukhanka: 'base_bukhanka',
   lincoln: 'base_lincoln',
   semi: 'base_semi',
+  sorokonoga: 'base_sorokonoga',
 };
 
-export function baseModel(chassisId: string): ModelName {
-  const base = BASE_MODELS[chassisId];
-  if (!base) throw new Error(`Chassis ${chassisId} has no base model in BASE_MODELS`);
+const REAR_BASE_MODELS: Record<string, ModelName> = {
+  semi: 'base_semi_rear',
+  sorokonoga: 'base_sorokonoga_rear',
+};
+
+export function baseModel(chassisId: string, unit: number): ModelName {
+  const base = unit === 0 ? BASE_MODELS[chassisId] : REAR_BASE_MODELS[chassisId];
+  if (!base) throw new Error(`Chassis ${chassisId} has no base model for unit ${unit}`);
   return base;
 }
 
-const OWN_BUMPER_BASES: ReadonlySet<string> = new Set(['semi']);
-
-export function drawsOwnBumpers(chassisId: string): boolean {
-  return OWN_BUMPER_BASES.has(chassisId);
+export function baseModels(chassisId: string): ModelName[] {
+  return REAR_BASE_MODELS[chassisId] ? [baseModel(chassisId, 0), baseModel(chassisId, 1)] : [baseModel(chassisId, 0)];
 }
 
 export const BODY_PARTS: ReadonlySet<string> = new Set(
@@ -260,6 +280,18 @@ export const WEAPON_POOLS: Record<string, WeaponPool> = {
   },
 };
 
+const TRUCK_FITTINGS: readonly ModelName[] = ['bumper_front', 'bumper_rear', 'wmount_riser', 'antenna', 'tow_chain', 'wheel', 'coilover', 'axle'];
+
+export const SURFACE_MODELS: readonly ModelName[] = [
+  ...new Set([
+    ...Object.values(BASE_MODELS),
+    ...Object.values(REAR_BASE_MODELS),
+    ...Object.values(PART_MODELS),
+    ...Object.values(WEAPON_POOLS).flatMap((p) => [...p.mount, ...p.receiver, ...p.barrel, ...p.extra]),
+    ...TRUCK_FITTINGS,
+  ]),
+];
+
 export type WeaponLook = { mount: ModelName; receiver: ModelName; barrel: ModelName; extra: ModelName | null };
 
 export function itemLookId(item: GridItem): string {
@@ -386,6 +418,9 @@ const PART_SECTION: Record<PartDef['kind'], IconSection> = {
   core: 'core',
 };
 
+export const CHASSIS_SHEET = 'chassis.png';
+export const CHASSIS_MASK = 'chassis-paint.png';
+
 export function iconCatalog(
   parts: Record<string, PartDef>,
   goods: Record<string, GoodDef>,
@@ -433,7 +468,7 @@ const PORTRAIT_MODELS: readonly ModelName[] = ['coilover', 'axle', 'antenna', 't
 function chassisDraft(def: ChassisDef): IconDraft {
   const footprint = { w: def.layout[0].length, h: def.layout.length };
   const cores = def.core.filter((c) => !BODY_PARTS.has(c.defId)).map((c) => partModel(c.defId));
-  const models = [...new Set([baseModel(def.id), ...cores, ...PORTRAIT_MODELS])];
+  const models = [...new Set([...baseModels(def.id), ...cores, ...PORTRAIT_MODELS])];
   return { entry: { id: def.id, section: 'chassis', label: enName(chassisName(def.id)), models, footprint, weapon: null }, hp: 0 };
 }
 

@@ -1,4 +1,4 @@
-import { dropQuestVar, renameQuestVar, type SavedJson } from './save-migrations';
+import { dropQuest, dropQuestVar, moveQuestCheckpoint, renameQuestVar, type SavedJson } from './save-migrations';
 
 type Point_70_71 = { x: number; y: number };
 
@@ -87,8 +87,44 @@ export function withBrakeRod_78_79(world: SavedJson): SavedJson {
   return { ...renamed, player: { ...player, notes } };
 }
 
+export function withKovacMounts_88_89(world: SavedJson): SavedJson {
+  const heard = renameQuestVar(world, 'nose_kovac', 'heard_gate_law', 'heard_mounts');
+  return renameQuestVar(heard, 'nose_kovac', 'asked_gate_law', 'asked_mounts');
+}
+
+export function withPastContracts_92_93(world: SavedJson): SavedJson {
+  return { ...world, player: { ...(world.player as SavedJson), pastContracts: [] } };
+}
+
 export function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
   return world;
+}
+
+const SEMI_93_94 = 'semi';
+const TRACTOR_AHEAD_TILES_93_94 = 5.73875 / 4;
+
+export function withTractorPivot_93_94(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => (v.chassisId === SEMI_93_94 ? { ...v, pos: tractorAt_93_94(v.pos as Point_93_94, v.heading as number), bend: 0 } : v));
+  const obstacles = (world.obstacles as SavedJson[]).map((o) => {
+    const hulk = o.hulk as SavedJson | undefined;
+    return hulk?.chassisId === SEMI_93_94 ? { ...o, pos: tractorAt_93_94(o.pos as Point_93_94, hulk.yaw as number), hulk: { ...hulk, bend: 0 } } : o;
+  });
+  return { ...world, vehicles, obstacles };
+}
+
+type Point_93_94 = { x: number; y: number };
+
+function tractorAt_93_94(pos: Point_93_94, heading: number): Point_93_94 {
+  return { x: pos.x + Math.cos(heading) * TRACTOR_AHEAD_TILES_93_94, y: pos.y + Math.sin(heading) * TRACTOR_AHEAD_TILES_93_94 };
+}
+
+export function withProgressAnchor_65_66(world: SavedJson): SavedJson {
+  const anchored = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain?.progress) return v;
+    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
 }
 
 export function withHeardCentres_81_82(world: SavedJson): SavedJson {
@@ -98,4 +134,187 @@ export function withHeardCentres_81_82(world: SavedJson): SavedJson {
     return brain ? { ...v, brain: { ...brain, goals: (brain.goals as SavedJson[]).map(heardOf) } } : v;
   };
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withBrain) };
+}
+
+function withFollowHeading_87_88(step: SavedJson): SavedJson {
+  return step.do === 'follow' ? { ...step, heading: null } : step;
+}
+
+function followHeadingVars_87_88(vars: SavedJson): SavedJson {
+  return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
+    const value = v as SavedJson;
+    return [name, value.kind === 'directions' ? { ...value, steps: (value.steps as SavedJson[]).map(withFollowHeading_87_88) } : value];
+  }));
+}
+
+export function withFollowHeadings_87_88(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  if (!call) return world;
+  const line = call.line as SavedJson;
+  const next = { ...call, vars: followHeadingVars_87_88(call.vars as SavedJson), line: { ...line, vars: followHeadingVars_87_88(line.vars as SavedJson) } };
+  return { ...world, player: { ...player, call: next } };
+}
+
+const SUNWARD_STANDING_84_85 = -20;
+
+export function withSunward_84_85(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const sunward = world.furyRoad === null ? { collapsed: null, night: null, lastHunt: null } : null;
+  return { ...world, sunward, player: { ...player, standing: { ...(player.standing as SavedJson), sunward: SUNWARD_STANDING_84_85 } } };
+}
+
+const OLD_HOLLOW_BAYS_85 = [
+  { x: 348, y: 334 }, { x: 351.2, y: 334 }, { x: 354.4, y: 334 }, { x: 357.6, y: 334 }, { x: 360.8, y: 334 }, { x: 364, y: 334 },
+  { x: 349.6, y: 338.5 }, { x: 352.8, y: 338.5 }, { x: 356, y: 338.5 }, { x: 359.2, y: 338.5 }, { x: 362.4, y: 338.5 },
+];
+const FORT_BAYS_86 = [
+  { x: 284.053, y: 243.604 }, { x: 280.429, y: 250.736 }, { x: 281.2, y: 242.155 }, { x: 277.576, y: 249.287 }, { x: 278.346, y: 240.705 }, { x: 274.723, y: 247.838 },
+  { x: 275.493, y: 239.256 }, { x: 271.87, y: 246.389 }, { x: 272.64, y: 237.807 }, { x: 269.017, y: 244.94 }, { x: 269.787, y: 236.358 },
+];
+const BAY_MATCH_86 = 0.01;
+
+export function withHollowFort_85_86(world: SavedJson): SavedJson {
+  const rehome = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (v.faction !== 'sunward' || !brain) return v;
+    const home = brain.home as { x: number; y: number };
+    const bay = OLD_HOLLOW_BAYS_85.findIndex((b) => Math.hypot(b.x - home.x, b.y - home.y) <= BAY_MATCH_86);
+    if (bay < 0) throw new Error(`Sunward car ${String(v.id)} calls ${home.x}, ${home.y} home, which is no bay of the old Hollow`);
+    return { ...v, brain: { ...brain, home: { ...FORT_BAYS_86[bay] } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
+}
+
+export function withOfferedNight_86_87(world: SavedJson): SavedJson {
+  const sunward = world.sunward as SavedJson | null;
+  const night = sunward?.night as SavedJson | null | undefined;
+  if (!sunward || !night) return world;
+  return { ...world, sunward: { ...sunward, night: { ...night, offered: [] } } };
+}
+
+const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
+const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];
+const CONVOY_DUTIES_59_60: readonly string[] = ['haul', 'trade', 'sell'];
+
+function isDutyGoal_59_60(templateId: string, goal: SavedJson): boolean {
+  if (LAWMEN_59_60.includes(templateId)) return goal.kind === 'patrol' && goal.reason === 'patrolTown';
+  if (templateId === 'courier') return goal.kind === 'travel' && SHOPS_59_60.includes(goal.targetId as string);
+  return templateId === 'convoy' && CONVOY_DUTIES_59_60.includes(goal.kind as string);
+}
+
+export function withDutyLegs_59_60(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain) return v;
+    const goals = (brain.goals as SavedJson[]).map((goal) => (isDutyGoal_59_60(brain.templateId as string, goal) ? { ...goal, leg: { from: { ...(v.pos as SavedJson) }, turn: world.turn } } : goal));
+    return { ...v, brain: { ...brain, goals } };
+  });
+  return { ...world, vehicles };
+}
+
+const STANDARD_PAINT_94_95 = 'standard';
+
+export function withStandardPaint_94_95(world: SavedJson): SavedJson {
+  return { ...world, player: { ...(world.player as SavedJson), paint: STANDARD_PAINT_94_95 } };
+}
+
+type Paint_95_96 = { body: string; cab: string; gear: string };
+
+const STANDARD_PAINT_95_96: Paint_95_96 = { body: 'tan', cab: 'olive', gear: 'tan' };
+
+const OLD_PRESETS_95_96: Record<string, Paint_95_96> = {
+  standard: STANDARD_PAINT_95_96,
+  plum: { body: 'plum', cab: 'olive', gear: 'plum' },
+  lavender: { body: 'lavender', cab: 'navy', gear: 'lavender' },
+  mint: { body: 'mint', cab: 'wine', gear: 'mint' },
+  rose: { body: 'rose', cab: 'plum', gear: 'rose' },
+};
+
+export function paintOfPreset_95_96(preset: string): Paint_95_96 {
+  return { ...(Object.hasOwn(OLD_PRESETS_95_96, preset) ? OLD_PRESETS_95_96[preset] : STANDARD_PAINT_95_96) };
+}
+
+export function withThreeColorPaint_95_96(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  return { ...world, player: { ...player, paint: paintOfPreset_95_96(String(player.paint)) } };
+}
+
+const STANDARD_PAINT_96_97: Paint_95_96 = { body: 'tan', cab: 'olive', gear: 'tan' };
+
+const COLORS_96_97: readonly string[] = ['tan', 'olive', 'sand', 'chalk', 'umber', 'oxblood', 'bottle', 'slate', 'petrol'];
+
+const RETIRED_COLORS_96_97: Record<string, string> = {
+  plum: 'oxblood',
+  wine: 'oxblood',
+  rose: 'sand',
+  pink: 'chalk',
+  lavender: 'chalk',
+  mint: 'chalk',
+  navy: 'slate',
+};
+
+export function mutedColor_96_97(id: string): string {
+  return Object.hasOwn(RETIRED_COLORS_96_97, id) ? RETIRED_COLORS_96_97[id] : id;
+}
+
+function colorOf_96_97(slot: keyof Paint_95_96, id: unknown): string {
+  const color = typeof id === 'string' ? mutedColor_96_97(id) : null;
+  return color !== null && COLORS_96_97.includes(color) ? color : STANDARD_PAINT_96_97[slot];
+}
+
+export function withMutedPaint_96_97(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const saved = typeof player.paint === 'object' && player.paint !== null ? (player.paint as SavedJson) : {};
+  const paint = { body: colorOf_96_97('body', saved.body), cab: colorOf_96_97('cab', saved.cab), gear: colorOf_96_97('gear', saved.gear) };
+  return { ...world, player: { ...player, paint } };
+}
+
+export function withEncounters_64_65(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  if (player.encounters !== undefined) return world;
+  return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
+}
+
+const STAPLE_SHOPS_83_84 = ['bowl', 'nose'];
+const STAPLE_PART_83_84 = 'stockEngine';
+type SavedShop = { stock: { defId: string }[]; restockAt: number };
+
+export function withStapleRestock_83_84(world: SavedJson): SavedJson {
+  const shops = { ...(world.shops as Record<string, SavedShop>) };
+  for (const id of STAPLE_SHOPS_83_84) {
+    const shop = shops[id];
+    if (shop && !shop.stock.some((part) => part.defId === STAPLE_PART_83_84)) shops[id] = { ...shop, restockAt: world.turn as number };
+  }
+  return { ...world, shops };
+}
+
+const DROPPED_ROAD_WORLD_VARS_90_91: readonly string[] = ['road_seen_12', 'ring_told', 'death_answer', 'why_answer', 'ala_knows', 'father_told', 'promised', 'hand_shook'];
+
+const DROPPED_ROAD_LOCAL_VARS_90_91: Record<string, readonly string[]> = {
+  road_hire: ['asked_north', 'asked_who', 'asked_trailer', 'walked_out'],
+  road_stretch_4: ['asked_trailer', 'asked_north', 'asked_hunters'],
+  road_stretch_8: ['asked_hunters', 'asked_run', 'grief_said'],
+};
+
+const DROPPED_ROAD_CHECKPOINTS_90_91: Record<string, readonly string[]> = {
+  road_stretch_1: ['start.tougher', 'start.close'],
+  road_stretch_4: ['start.death_machine', 'start.hub', 'start.maya'],
+  road_stretch_8: ['start.news', 'start.loss', 'start.hub', 'start.close'],
+};
+
+export function withShortRoadScenes_90_91(world: SavedJson): SavedJson {
+  const withoutScene = dropQuest(world, 'road_stretch_12');
+  const withoutWorldVars = DROPPED_ROAD_WORLD_VARS_90_91.reduce((w, name) => dropQuestVar(w, null, name), withoutScene);
+  const withoutLocalVars = Object.entries(DROPPED_ROAD_LOCAL_VARS_90_91).reduce((w, [quest, names]) => names.reduce((v, name) => dropQuestVar(v, quest, name), w), withoutWorldVars);
+  return Object.entries(DROPPED_ROAD_CHECKPOINTS_90_91).reduce((w, [quest, names]) => names.reduce((v, from) => moveQuestCheckpoint(v, quest, from, 'start'), w), withoutLocalVars);
+}
+
+export function withChaosHighwayIntro_91_92(world: SavedJson): SavedJson {
+  const withoutScenes = ['road_hire', 'road_stretch_4', 'road_stretch_8'].reduce((w, quest) => dropQuest(w, quest), world);
+  const withoutVars = ['geezer_pitch', 'road_seen_4', 'road_seen_8'].reduce((w, name) => dropQuestVar(w, null, name), withoutScenes);
+  const quests = (world.player as { quests: { session: { quest: string; checkpoint: string; seed: number } | null } }).quests;
+  if (quests.session?.quest !== 'road_hire') return withoutVars;
+  const player = withoutVars.player as { quests: SavedJson };
+  return { ...withoutVars, player: { ...player, quests: { ...player.quests, session: { ...quests.session, quest: 'chaos_highway_intro', checkpoint: 'start' } } } };
 }

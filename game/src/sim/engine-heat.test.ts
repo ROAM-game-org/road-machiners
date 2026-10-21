@@ -9,11 +9,11 @@ import { TIME } from '../data/time';
 import { ENGINE_HEAT } from '../data/wear';
 import { SKILL_EFFECTS } from '../data/skills';
 import { playerVehicle } from './damage';
-import { advanceEngineHeat, douseBlock, douseEngine, engineOverheating } from './engine-heat';
+import { advanceEngineHeat, douseBlock, douseEngine, engineHot, engineOverheating, heldHeatSpeed } from './engine-heat';
 import { mountedParts } from './grid';
 import { route } from './path';
 import { nearestPad } from './sites';
-import { vehicleStats } from './stats';
+import { plainMaxSpeed, vehicleStats } from './stats';
 import { addVehicle, emptyWorld, practiceOf } from './testkit';
 import { heatAt } from './sun';
 import type { Vec } from './vec';
@@ -58,6 +58,35 @@ describe('engine heat', () => {
     advanceEngineHeat(w);
     expect(w.player.engineHeat).toBeLessThan(1);
     expect(engine(w).hp).toBe(hp);
+  });
+
+  it('holds its heat at the held-heat speed at noon and warms above it', () => {
+    const w = emptyWorld();
+    w.turn = NOON;
+    const me = w.vehicles[0];
+    const held = heldHeatSpeed(w, me);
+    expect(held).toBeLessThan(plainMaxSpeed(w, me));
+    me.speed = held;
+    w.player.engineHeat = 0.8;
+    advanceEngineHeat(w);
+    expect(Math.abs(w.player.engineHeat - 0.8)).toBeLessThan(1e-9);
+    me.speed = held * 1.1;
+    advanceEngineHeat(w);
+    expect(w.player.engineHeat).toBeGreaterThan(0.8);
+  });
+
+  it('holds the plain top speed at night', () => {
+    const w = emptyWorld();
+    w.turn = NIGHT;
+    expect(heldHeatSpeed(w, w.vehicles[0])).toBe(plainMaxSpeed(w, w.vehicles[0]));
+  });
+
+  it('is hot from the warning mark', () => {
+    const w = emptyWorld();
+    w.player.engineHeat = ENGINE_HEAT.warnAt - 0.01;
+    expect(engineHot(w)).toBe(false);
+    w.player.engineHeat = ENGINE_HEAT.warnAt;
+    expect(engineHot(w)).toBe(true);
   });
 
   it('never warms while driving at night', () => {
@@ -195,6 +224,7 @@ describe('engine heat on the road', () => {
 describe('engine overdrive', () => {
   it('raises top speed and acceleration for the player only', () => {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     const me = w.vehicles[0];
     const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 50, y: 30 });
     const normal = vehicleStats(w, me);
@@ -207,6 +237,7 @@ describe('engine overdrive', () => {
 
   it('overheats a driving engine even at night', () => {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     w.turn = NIGHT;
     w.player.overdrive = true;
     engine(w).wear = 0;
@@ -224,6 +255,7 @@ describe('engine overdrive', () => {
   it('heats much faster than normal driving in the noon sun', () => {
     const turnsToOverheat = (overdrive: boolean) => {
       const w = emptyWorld();
+      w.player.ranks.driving = 1;
       w.turn = NOON;
       w.player.overdrive = overdrive;
       const me = w.vehicles[0];
@@ -240,6 +272,7 @@ describe('engine overdrive', () => {
 
   it('adds no heat while parked', () => {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     w.turn = NIGHT;
     w.player.overdrive = true;
     w.player.engineHeat = 0.5;
@@ -302,6 +335,7 @@ describe('engineOverheating', () => {
 describe('dousing the engine', () => {
   it('spends supplies to cool the engine at once', () => {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     w.player.engineHeat = 0.9;
     const supplies = w.player.supplies;
     const next = douseEngine(w);
@@ -311,12 +345,14 @@ describe('dousing the engine', () => {
 
   it('never cools below cold', () => {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     w.player.engineHeat = 0.1;
     expect(douseEngine(w).player.engineHeat).toBe(0);
   });
 
   it('refuses without enough supplies', () => {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     w.player.engineHeat = 0.9;
     w.player.supplies = ENGINE_HEAT.douseSupplies / 2;
     expect(() => douseEngine(w)).toThrow(/supplies/);
@@ -355,6 +391,7 @@ describe('desert rat', () => {
 describe('douse reasons', () => {
   it('names what blocks cooling the engine', () => {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     w.player.supplies = 0;
     w.player.engineHeat = 0.5;
     expect(douseBlock(w)).toBe('noSupplies');
@@ -363,5 +400,21 @@ describe('douse reasons', () => {
     expect(douseBlock(w)).toBe('engineCool');
     w.player.engineHeat = 0.5;
     expect(douseBlock(w)).toBeNull();
+  });
+  it('opens with Overdrive at Driving 1 whatever the Toughness', () => {
+    const w = emptyWorld();
+    w.player.engineHeat = 0.5;
+    w.player.ranks.toughness = 1;
+    expect(douseBlock(w)).toBe('noBasic');
+    w.player.ranks.toughness = 0;
+    w.player.ranks.driving = 1;
+    expect(douseBlock(w)).toBeNull();
+  });
+  it('is closed at Driving 0, before any other reason', () => {
+    const w = emptyWorld();
+    w.player.supplies = 0;
+    w.player.engineHeat = 0.5;
+    expect(douseBlock(w)).toBe('noBasic');
+    expect(() => douseEngine(w)).toThrow(/douse/i);
   });
 });

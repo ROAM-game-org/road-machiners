@@ -93,10 +93,11 @@ One owner per concept. Use these and do not decide the same thing elsewhere:
 - `src/sim/wear.ts` is the only writer of part HP.
 - `workOf()` in `src/sim/states.ts` gives timed work, so new work gets a progress bar.
 - `practice()` in `src/sim/progress.ts` is the only way to gain XP.
-- `src/text/` owns all player text. The sim keeps ids, and new text ships its English and Russian entries in the same change. agy writes all Russian text, never Claude. Read [Russian copy](docs/writing/russian.md) before any change that needs Russian.
+- `src/text/` owns all player text. The sim keeps ids, and new text ships its English and Russian entries in the same change. agy writes all Russian text, never Claude. When agy is unavailable (not installed, error 402 or 429, missing key or login, service down, or `AGY_MAX_RUNS` spent), Codex writes it with `timeout 900 codex exec -o tmp/ru-reply.md - < tmp/ru-request.md`, and when Codex is unavailable too, Claude Sonnet writes it with `timeout 900 claude -p --model sonnet --tools Read,Grep,Glob --no-session-persistence < tmp/ru-request.md`. A writer that fails on the request itself is not unavailable: fix the request. Read [Russian copy](docs/writing/russian.md) before any change that needs Russian.
 - `talkOf()` in `src/sim/dialogue.ts` is the one place talk reads traits and personality.
 - `propPose()` in `src/sim/mapgen.ts` gives each prop's turn and scale.
 - `src/sim/body.ts` is the only conversion between grid cells and meters.
+- `src/sim/rig.ts` owns the unit poses of a rig: its rear unit's pose, the bend and every cell, box and disc on either unit.
 - `src/sim/utility.ts` owns utility charge, orders, the activation step and the emitter shutdown. Each utility effect's world object has one owner: `hazards.ts` for smoke, ground fields and flares, and `claymore.ts`. `harpoon.ts` owns the lines of the harpoon, which is a gun.
 - Timed deals between two trucks are states in `src/sim/states.ts`. New group work adds a state kind, not a goal.
 - A `stall` event is always a bug.
@@ -107,13 +108,16 @@ One owner per concept. Use these and do not decide the same thing elsewhere:
 Players keep their saves across updates. Migrate old saves whenever possible. [Saves](docs/architecture/saves.md) has the details.
 
 - A change to the saved shape needs a new format. That covers any type in `src/sim/types.ts` reachable from `World`, and any renamed or removed content id in `src/data/`.
-- A change that old saves can follow adds one step to `MIGRATIONS` in `src/three/save-migrations.ts`.
+- A change that old saves can follow adds one tiny step to `TINY_STEPS` in `src/three/save-migrations.ts`.
 - A quest change that old progress in the quest cannot follow raises the quest's `# revision:` tag instead of a step. Load then resets that quest and what stands on it. [Changing a shipped quest](docs/writing/quests.md#changing-a-shipped-quest) says when.
-- A change that old saves cannot follow bumps `SAVE_MAJOR` and empties `MIGRATIONS`. Ask me before any major bump. A new map file needs no bump.
-- A step is a pure function from the saved world JSON of minor format N to N+1. It never imports sim or data code. It holds its own copies of any old ids or values it needs.
-- Never edit a committed step. Fix a bad step with a new step.
-- Every step gets a Vitest test on a fixture from `src/three/save-fixtures/`.
+- A change that old saves cannot follow bumps `SAVE_MAJOR` and empties `RELEASE_STEPS` and `TINY_STEPS`. Ask me before any major bump. A new map file, a removed id or a balance change needs no step. Load repairs drift in place and silently, as [Saves](docs/architecture/saves.md) describes. A renamed id still needs a tiny step, or the repair drops what the player held under the old name. A save that still throws on drift needs a rule in `src/sim/save-repair.ts` or `src/sim/map-repair.ts`.
+- A step is a pure function of the saved world JSON. It never imports sim or data code. It holds its own copies of any old ids or values it needs.
+- Every tiny step gets a Vitest test on a fixture from `src/three/save-fixtures/`.
 - Run `npm run save:shape` after the new step or major bump.
+- Tiny steps live only after the newest shipped format. After a release or hotfix ships a new format, fold the tiny steps up to it into one release step, as [Saves](docs/architecture/saves.md#folding-tiny-steps) describes. `save-anchors.test.ts` fails once a second shipped format waits for its fold.
+- Never edit a committed tiny step outside a fold, and never edit a release step. Fix a bad step with a new tiny step.
+- Release steps cover the last 10 releases. A save older than that, or at a format no build shipped, carries over through the rescue on load.
+- A step that moves a progression field the rescue carries, like money, XP, ranks, notes or quest variables, also teaches `readCarried()` in `src/three/save-rescue.ts` the old form. A step that removes a part or good id adds its price to `RETIRED_PRICES_RESCUE`.
 - A change to world state gets a test that saves the world, loads it and checks the loaded world. Load must give back the same world and award nothing: no XP, money or events.
 - A save holds only what load cannot rebuild. Load rebuilds derived state with the same function the turn uses, so that function must not change anything else. Rewards for what a refresh finds go in a separate call in the turn pipeline, as `practiceContacts()` does for `refreshVision()`.
 

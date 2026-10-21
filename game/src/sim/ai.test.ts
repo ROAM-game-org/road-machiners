@@ -111,11 +111,34 @@ describe('the player on a route in traffic', () => {
     return { w, me, npc };
   }
 
-  it('the lower id brakes and the other goes around', () => {
+  it('the lower id goes around and the other holds its line', () => {
     const { w, me, npc } = meeting();
     expect(me.id < npc.id).toBe(true);
-    expect(yieldsToTraffic(w, me)).toBe(true);
+    expect(yieldsToTraffic(w, me)).toBe(false);
+    expect(routeBlockers(w, me).length).toBeGreaterThan(1);
+    expect(routeBlockers(w, npc).every((b) => b.pos === me.pos)).toBe(true);
     expect(trafficStops(w, npc, { x: 60, y: 100 })).toBe(false);
+  });
+
+  it('the lower id still brakes when the way around is blocked', () => {
+    const { w, me } = meeting();
+    corridor(w);
+    expect(yieldsToTraffic(w, me)).toBe(true);
+  });
+
+  it('a stopped player does not wait for a truck passing five tiles to the side', () => {
+    const { w, me, npc } = meeting();
+    me.speed = 0;
+    npc.pos = { x: 110, y: 105 };
+    expect(yieldsToTraffic(w, me)).toBe(false);
+  });
+
+  it('a stopped player does not wait for a truck crossing far ahead', () => {
+    const { w, me, npc } = meeting();
+    me.speed = 0;
+    npc.pos = { x: 112, y: 94 };
+    npc.heading = Math.PI / 2;
+    expect(yieldsToTraffic(w, me)).toBe(false);
   });
 
   it('keeps its order while it waits', () => {
@@ -150,7 +173,7 @@ describe('crossing traffic', () => {
     const other = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100 + 6 * Math.cos(1.22), y: 100 + 6 * Math.sin(1.22) }, heading);
     other.brain = npcBrain('trader', other.pos, ['trader']);
     other.speed = 4;
-    expect(routeBlockers(w, subject).filter((b) => b.pos !== w.vehicles[0].pos).length > 0).toBe(avoids);
+    expect(routeBlockers(w, subject).filter((b) => dist(b.pos, w.vehicles[0].pos) > 0).length > 0).toBe(avoids);
   });
 });
 
@@ -163,6 +186,7 @@ describe('NPC traffic', () => {
     ['ahead in the next lane, slower', 106, 103, 0, 2, false],
   ])('routes around a moving truck only when their paths meet: %s', (_name, x, y, heading, speed, avoids) => {
     const { w, npc } = scene(x, y, heading, speed);
+    w.vehicles[0].direct = true;
     expect(routeBlockers(w, npc).length > 0).toBe(avoids);
   });
 
@@ -174,10 +198,17 @@ describe('NPC traffic', () => {
     expect(trafficStops(w, npc, DEST)).toBe(false);
   });
 
-  it('stops when an oncoming truck fills its only lane', () => {
+  it('stops when an oncoming truck that gives no way fills its only lane', () => {
     const { w, npc } = scene(112, 100, Math.PI, 5);
+    w.vehicles[0].direct = true;
     corridor(w);
     expect(trafficStops(w, npc, DEST)).toBe(true);
+  });
+
+  it('holds its line for an oncoming truck that gives way, even in its only lane', () => {
+    const { w, npc } = scene(112, 100, Math.PI, 5);
+    corridor(w);
+    expect(trafficStops(w, npc, DEST)).toBe(false);
   });
 
   it('stops behind a slower truck in its only lane', () => {
@@ -254,14 +285,24 @@ describe('oncoming NPCs', () => {
     return { w, first, second };
   }
 
-  it('of two NPCs closing head-on, the lower id brakes and the higher drives on', () => {
+  it('of two NPCs closing head-on, the lower id goes around and the higher holds its line', () => {
     const { w, first, second } = headOn();
+    planNpcOrders(w);
+    expect(first.order?.kind).not.toBe('brake');
+    expect(second.order?.kind).toBe('stopAt');
+    expect(routeBlockers(w, first).some((b) => dist(b.pos, second.pos) < 0.5)).toBe(true);
+    expect(routeBlockers(w, second).some((b) => dist(b.pos, first.pos) < 0.5)).toBe(false);
+  });
+
+  it('of two NPCs head-on in a corridor with no way around, the lower id brakes', () => {
+    const { w, first, second } = headOn();
+    corridor(w);
     planNpcOrders(w);
     expect(first.order?.kind).toBe('brake');
     expect(second.order?.kind).toBe('stopAt');
   });
 
-  it('a lower id at rest waits for the higher id closing on it, which goes around', () => {
+  it('a lower id at rest sets off around the higher id closing on it', () => {
     const w = emptyWorld({ x: 270, y: 190 });
     const first = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 268.77, y: 160.4 }, (-40.78 * Math.PI) / 180);
     first.brain = npcBrain('scavenger', first.pos, ['scavenger']);
@@ -272,7 +313,7 @@ describe('oncoming NPCs', () => {
     second.brain.goals.push({ kind: 'explore', targetId: null, destination: { x: 223.7, y: 194.2 }, phase: 'travel', reason: 'tripToSite' });
     lowerIdFirst(first, second);
     planNpcOrders(w);
-    expect(first.order?.kind).toBe('brake');
+    expect(first.order?.kind).not.toBe('brake');
     expect(second.order?.kind).toBe('stopAt');
   });
 

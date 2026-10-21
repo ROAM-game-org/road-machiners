@@ -7,7 +7,7 @@ import { ENGINE_HEAT } from '../../data/wear';
 import { wheelMounts } from '../../phys/body';
 import { headingOf, toMap, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL } from '../../render/palette';
-import { bodyOf } from '../../sim/body';
+import { frontBody, unitsOf } from '../../sim/body';
 import { corePart, mountedParts } from '../../sim/grid';
 import { inOverdrive, isStranded, vehicleStats } from '../../sim/stats';
 import { tileAt, type Terrain } from '../../sim/terrain';
@@ -155,7 +155,7 @@ export class Fx3D {
   private terrain: Terrain | null = null;
 
   constructor(private scene: THREE.Scene, private overlay: HTMLElement, private rig: CameraRig, private readonly world: () => World) {
-    scene.add(...this.cards.lit.meshes, ...this.cards.glow.meshes, ...this.chunks.meshes);
+    scene.add(this.cards.lit.mesh, this.cards.glow.mesh, ...this.chunks.meshes);
     this.flashes = new MuzzleFlashes(scene);
     this.casings = new Casings(scene);
     this.ruts = new Ruts(scene);
@@ -396,7 +396,7 @@ export class TruckFx {
 
   emit(world: World, v: Vehicle, f: VehicleFrame, moving: boolean, dt: number, seen: boolean): void {
     const traits = this.traitsOf(world, v);
-    const pose: Pose = { f, h: headingOf(f.rot), half: bodyOf(v.chassisId).half };
+    const pose: Pose = { f, h: headingOf(f.rot), half: frontBody(v.chassisId).half };
     if (moving) this.driving(world, v, pose, traits, seen, dt);
     if (v.id === world.player.vehicleId) {
       this.overdriveExhaust(world, v, traits, pose, dt);
@@ -452,7 +452,7 @@ export class TruckFx {
     const loose = sprayShare(ground);
     const rate = SPRAY.dust.perMeter * metersPerSecond * loose;
     const clodRate = metersPerSecond > SPRAY.clods.minMetersPerSecond ? SPRAY.clods.perMeter * metersPerSecond * loose : 0;
-    const mounts = wheelMounts(bodyOf(v.chassisId));
+    const mounts = unitsOf(v.chassisId).flatMap((u) => wheelMounts(u.body, u.index));
     for (const [i, tire] of tires.entries()) {
       const side = Math.sign(mounts[i].z);
       const out = { x: -Math.sin(pose.h) * side, y: 0, z: Math.cos(pose.h) * side };

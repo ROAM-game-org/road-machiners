@@ -2,7 +2,7 @@ import { WORLD_SETTINGS } from '../data/modes';
 import type { LineId } from '../data/dialogue';
 import type { LocalId, NoteId, TermId } from '../data/locals';
 import { FEMALE_NAMES, FIRST_NAMES, SURNAMES, type TraitId } from '../data/npcs';
-import type { PerkId } from '../data/skills';
+import { BASIC_RANK, type BasicId, type PerkId } from '../data/skills';
 import type { Faction, GameModeId, GoalReason, MoneyReason, Refusal, SimNote, SkillId, UnitId, Vehicle, World, WorldSetup, WorldSettings } from '../sim/types';
 import { byId, list, t, type Msg } from './msg';
 
@@ -30,6 +30,8 @@ export const traitName = (id: TraitId): Msg => t(`trait.${id}`);
 export const factionName = (id: Faction): Msg => t(`faction.${id}`);
 export const skillName = (id: SkillId): Msg => t(`skill.${id}`);
 export const skillGrows = (id: SkillId): Msg => t(`skill.${id}.grows`);
+export const basicName = (id: BasicId): Msg => t(`basic.${id}`);
+export const basicRule = (id: BasicId): Msg => t(`basic.${id}.rule`);
 export const perkName = (id: PerkId): Msg => t(`perk.${id}`);
 export const perkRule = (id: PerkId): Msg => t(`perk.${id}.rule`);
 export const goalText = (reason: GoalReason): Msg => t(`goal.${reason}`);
@@ -85,6 +87,7 @@ const NOTES: NoteWords = {
   tankLeak: (n) => t('note.tankLeak', { fuel: n.fuel }),
   filledSupplies: (n) => t('note.filledSupplies', { site: siteName(n.site) }),
   hazard: () => t('note.hazard'),
+  core: () => t('note.core'),
   spawnBlocked: (n) => t('note.spawnBlocked', { template: templateName(n.template) }),
 };
 
@@ -113,6 +116,7 @@ const REFUSALS: RefusalWords = {
   looting: (world, r) => t(`refusal.looting.${r.place}`, { by: vehicleTitleOf(world, r.by) }),
   notActive: (_, r) => t(`refusal.notActive.${r.state}`),
   topRank: (_, r) => t('refusal.topRank', { skill: skillName(r.skill) }),
+  needsBasic: (_, r) => t('refusal.needsBasic', { skill: skillName(r.skill), rank: BASIC_RANK }),
   utilityPassive: (_, r) => t('refusal.utilityPassive', { part: partName(r.part) }),
   utilityOrder: (_, r) => t(`refusal.utilityOrder.${r.order}`, { part: partName(r.part) }),
   utilityBlocked: (_, r) => t('refusal.utilityBlocked', { part: partName(r.part), reason: t(`block.${r.block}`) }),

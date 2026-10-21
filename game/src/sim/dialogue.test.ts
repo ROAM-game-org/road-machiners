@@ -25,7 +25,7 @@ import { hasCargo, emptyHidden } from './salvage';
 import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { CONDITIONS, EFFECTS, PREPARES } from './dialogue-rules';
 import { addState, aidData, endState, stateOf } from './states';
-import { addVehicle, emptyWorld, furyRoadWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, setShopPressure, startCombat, testDrive } from './testkit';
+import { addVehicle, emptyWorld, furyRoadWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, setShopPressure, sizedUp, startCombat, testDrive } from './testkit';
 import type { TraitId } from '../data/npcs';
 import type { SalvageStock, Vehicle, World } from './types';
 import { directionsTo } from './directions';
@@ -389,6 +389,7 @@ describe('demand', () => {
     addGoods(w, playerVehicle(w), 'scrap', 2);
     const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    sizedUp(w, raider, playerVehicle(w));
     forceOption('hostileSeen', 'fight');
     forceOption('mugging', mugging);
     return { w, raider };
@@ -1087,7 +1088,8 @@ describe('fuel and supply aid', () => {
     const offerers = (Object.keys(TRAIT_TALK) as TraitId[]).filter((id) => TRAIT_TALK[id].topics.includes('aidOffer'));
     expect(helpers.sort()).toEqual(['courier', 'lawman', 'roamer', 'scavenger', 'supplier', 'trader']);
     expect(offerers.sort()).toEqual(helpers);
-    expect(Object.values(TRAIT_TALK).every((t) => t.topics.includes('offerAid'))).toBe(true);
+    expect(Object.entries(TRAIT_TALK).filter(([id]) => id !== 'cultist').every(([, t]) => t.topics.includes('offerAid'))).toBe(true);
+    expect(TRAIT_TALK.cultist.topics.filter((id) => TOPICS[id].ask !== null)).toEqual([]);
   });
 
   it('a player who is not low cannot ask for aid, and a low one can', () => {
@@ -1284,6 +1286,7 @@ describe('robber truce', () => {
     for (const y of [28, 32]) addVehicle(w, 'independent', 'buggy', ['stockEngine', 'mg'], { x: 40, y }, Math.PI).brain = npcBrain('scavenger', { x: 40, y }, ['scavenger']);
     addState(w, 'feud', robber.id, w.player.vehicleId, { kind: 'feud', robbery });
     addState(w, 'feud', w.player.vehicleId, robber.id, { kind: 'feud', robbery: false });
+    sizedUp(w, robber, playerVehicle(w));
     refreshVision(w);
     return { w, robber };
   }

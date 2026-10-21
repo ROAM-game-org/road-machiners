@@ -61,6 +61,11 @@ describe('chooseJobs with no daily cap', () => {
     expect(chooseJobs(busy, [card(6, 'Implementation', ['adhoc'])], NOW, CFG)).toEqual([{ stage: 'release', issue: null }, { stage: 'adhoc', issue: 6 }]);
   });
 
+  it('queues one incident job for the whole batch, led by the oldest pending issue', () => {
+    const decisions = evaluateSchedule({ ...busy, lastRelease: FRESH.lastRelease, pendingIncidents: [7, 8, 9] }, [], NOW, CFG).decisions;
+    expect(decisions.filter((decision) => decision.stage === 'incident')).toEqual([{ stage: 'incident', issue: 7, reasons: [] }]);
+  });
+
   it('runs one incident job at a time, since each appends to the same incident log, beside a queued ship', () => {
     const capped = { ...busy, lastRelease: FRESH.lastRelease };
     const queuedIncident = { ...capped, pendingIncidents: [7, 8] };
@@ -471,6 +476,19 @@ describe('tick', () => {
     const cards = [card(1, 'Testing'), card(2, 'Testing')];
     const picks = chooseJobs(state({ postOnly: [2] }), cards, NOW, { ...CFG, verifyWorkers: 2, testWorkers: 2 });
     expect(picks).toEqual([{ stage: 'verify', issue: 1 }, { stage: 'checks', issue: 2 }]);
+  });
+
+  it('gives a second verify worker to a normal card when two hotfixes wait for verify', () => {
+    const cards = [card(4, 'Testing', [HOTFIX_LABEL]), card(5, 'Testing', [HOTFIX_LABEL]), card(6, 'Testing')];
+    expect(chooseJobs(state(), cards, NOW, { ...CFG, verifyWorkers: 2 })).toEqual([{ stage: 'verify', issue: 4 }, { stage: 'verify', issue: 6 }]);
+  });
+
+  it('holds a second hotfix while one hotfix runs in verify, and lets a normal card start', () => {
+    const s = state({ jobs: [running('verify', 4)] });
+    const cards = [card(4, 'Testing', [HOTFIX_LABEL]), card(5, 'Testing', [HOTFIX_LABEL]), card(6, 'Testing'), card(7, 'Design', [HOTFIX_LABEL])];
+    const report = evaluateSchedule(s, cards, NOW, { ...CFG, verifyWorkers: 2 });
+    expect(report.picks).toEqual([{ stage: 'design', issue: 7 }, { stage: 'verify', issue: 6 }]);
+    expect(report.decisions.find((item) => item.issue === 5)?.reasons).toEqual(['hotfix-verify']);
   });
 
   it('picks harden for a Hardening card, ahead of Testing', () => {

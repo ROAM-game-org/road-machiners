@@ -14,6 +14,7 @@ import { REGION } from '../data/region';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { endTurn, setDirect, setMoveOrder } from '../sim/world';
 import { PHYSICS } from '../data/physics';
+import { CLAYMORE } from '../data/utilities';
 import { bodyOf } from '../sim/body';
 import { buildDrive, freeDrive, GROUND, toMps, initPhysics, routeAim, simulateTurn, syncDrive, type Drive, type TurnResult } from './drive';
 import { rotateBy, upOf } from './frames';
@@ -102,6 +103,10 @@ describe('impact geometry', () => {
     }
   });
 
+  it('keeps the claymore throw impulse and lift', () => {
+    expect(CLAYMORE.throw).toEqual({ impulse: 40000, lift: 0.35 });
+  });
+
   it('blows an armed claymore ram in a nose ram', () => {
     const { w, blasts } = ramTurns(noseRam(true), 2);
     expect(blasts).toEqual([w.vehicles[1].id]);
@@ -144,7 +149,7 @@ describe('impact geometry', () => {
 });
 
 const HILL_GRADE = 0.2;
-const CRAWL_GRADE = 0.53;
+const CRAWL_GRADE = 0.5;
 
 describe('physics turns', () => {
   const staleHandle = (d: Drive) => {

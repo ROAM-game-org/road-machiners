@@ -502,6 +502,19 @@ class GroundFieldsView {
   });
   private readonly sheenTexture = createSheenTexture();
 
+  constructor() {
+    const primers = new THREE.Group();
+    primers.visible = false;
+    primers.add(new THREE.Mesh(new THREE.BufferGeometry(), this.oilMaterial), new THREE.Mesh(new THREE.BufferGeometry(), this.sheenMaterial(OIL_LOOK.sheen.opacity)));
+    this.root.add(primers);
+  }
+
+  private sheenMaterial(opacity: number): THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({
+      map: this.sheenTexture, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+    });
+  }
+
   update(world: World, terrain: Terrain, clock: TurnClock | null, nowMs: number): void {
     const shown = new Map(world.fields.filter((f) => fieldShown(world, f, clock) && isShown(world, f)).map((f) => [f.id, f]));
     for (const [id, view] of this.views) markGone(view, shown.has(id), nowMs);
@@ -537,10 +550,7 @@ class GroundFieldsView {
     view.root.add(view.slick);
     const { share, opacity } = OIL_LOOK.sheen;
     if (hash2(seed, 29) >= share) return;
-    const material = new THREE.MeshBasicMaterial({
-      map: this.sheenTexture, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
-    });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), material);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), this.sheenMaterial(opacity));
     const angle = hash2(seed, 31) * 2 * Math.PI;
     mesh.rotation.y = angle;
     mesh.renderOrder = FIELD_ORDER + 1;

@@ -60,22 +60,19 @@ const CHAIN_NOTES = notesOf('wagonBowl', 'greenPit');
 describe('repairQuests', () => {
   it('resets a quest whose revision rose and the quests that stand on it, and keeps the one that began it', () => {
     const repair = repairQuests(CHAIN_STATE, CHAIN_NOTES, {}, CHAIN);
-    expect(repair.reset).toEqual(['b', 'c']);
-    expect(repair.lost).toEqual([]);
     expect(repair.quests).toEqual(saved({ local: { a: { talked: true } } }));
     expect(repair.notes).toEqual(notesOf('wagonBowl'));
   });
 
   it('reads a save with no revisions as revision 1, and a save at the bundle revision as fitting', () => {
-    expect(repairQuests(CHAIN_STATE, CHAIN_NOTES, { b: 2 }, CHAIN).reset).toEqual([]);
-    expect(repairQuests(CHAIN_STATE, CHAIN_NOTES, { b: 1 }, CHAIN).reset).toEqual(['b', 'c']);
+    expect(repairQuests(CHAIN_STATE, CHAIN_NOTES, { b: 2 }, CHAIN).quests).toEqual(CHAIN_STATE);
+    expect(repairQuests(CHAIN_STATE, CHAIN_NOTES, { b: 1 }, CHAIN).quests).toEqual(saved({ local: { a: { talked: true } } }));
   });
 
   it('resets a quest that reads a reset outcome through a read alone', () => {
     const bundle = bundleOf({ b: { revision: 2, links: { writes: { b_out: ['done'] } } }, c: { links: { reads: ['b_out'] } } });
     const repair = repairQuests(saved({ world: { b_out: 'done' }, local: { c: { talked: true } } }), [], {}, bundle);
-    expect(repair.reset).toEqual(['b', 'c']);
-    expect(repair.quests.world).toEqual({});
+    expect(repair.quests).toEqual(saved({}));
   });
 
   it('keeps a shared outcome another live quest could have written, and resets one only the reset quest writes', () => {
@@ -85,13 +82,11 @@ describe('repairQuests', () => {
       kovac: { links: { reads: ['fate'] } },
     });
     const sold = repairQuests(saved({ world: { fate: 'sold' }, local: { bench: { talked: true }, kovac: { talked: true } } }), [], {}, bundle);
-    expect(sold.reset).toEqual(['bench']);
     expect(sold.quests.world).toEqual({ fate: 'sold' });
     expect(sold.quests.local).toEqual({ kovac: { talked: true } });
 
     const onlyBench = bundleOf({ bench: { revision: 2, links: { writes: { fate: ['logged'] } } }, sefa: { links: { writes: { fate: ['sold'] } } }, kovac: { links: { reads: ['fate'] } } });
     const logged = repairQuests(saved({ world: { fate: 'logged' }, local: { kovac: { talked: true } } }), [], {}, onlyBench);
-    expect(logged.reset).toEqual(['bench', 'kovac']);
     expect(logged.quests).toEqual(saved({}));
   });
 
@@ -103,8 +98,7 @@ describe('repairQuests', () => {
       leak: { links: { writes: { z_out: [true] } } },
     });
     const repair = repairQuests(saved({ world: { b_out: 'done', z_out: true }, local: { kovac: { talked: true } } }), [], {}, bundle);
-    expect(repair.reset).toEqual(['b', 'kovac']);
-    expect(repair.quests.world).toEqual({ z_out: true });
+    expect(repair.quests).toEqual(saved({ world: { z_out: true } }));
   });
 
   it('never resets a value the game writes, and resets the gate of a scene the game opens with its scene', () => {
@@ -113,8 +107,7 @@ describe('repairQuests', () => {
       kovac: { links: { reads: ['wagon_seen'] } },
     });
     const repair = repairQuests(saved({ world: { intro_step: 'done', wagon_seen: true }, local: { wagon_seven: { talked: true }, kovac: { talked: true } } }), [], {}, bundle);
-    expect(repair.reset).toEqual(['wagon_seven', 'kovac']);
-    expect(repair.quests.world).toEqual({ intro_step: 'done' });
+    expect(repair.quests).toEqual(saved({ world: { intro_step: 'done' } }));
   });
 
   it('keeps a note the game gives outside quests', () => {
@@ -126,19 +119,16 @@ describe('repairQuests', () => {
   it('resets a quest whose variables or open checkpoint no longer fit, as a broken quest', () => {
     const bundle = bundleOf({ b: { links: { begins: ['c'] }, vars: { step: STEP } }, c: { links: { reads: ['b_out'] } }, d: {} });
     const undeclared = repairQuests(saved({ local: { b: { gone: true }, c: { talked: true } } }), [], {}, bundle);
-    expect(undeclared.reset).toEqual(['b', 'c']);
-    const retyped = repairQuests(saved({ local: { b: { step: 'three' } } }), [], {}, bundle);
-    expect(retyped.reset).toEqual(['b']);
+    expect(undeclared.quests).toEqual(saved({}));
+    const retyped = repairQuests(saved({ local: { b: { step: 'three' }, d: { talked: true } } }), [], {}, bundle);
+    expect(retyped.quests).toEqual(saved({ local: { d: { talked: true } } }));
     const lostCheckpoint = repairQuests(saved({ local: { d: { talked: true } }, session: { quest: 'd', checkpoint: 'start.gone', seed: 1 } }), [], {}, bundle);
-    expect(lostCheckpoint.reset).toEqual(['d']);
     expect(lostCheckpoint.quests).toEqual(saved({}));
   });
 
-  it('drops a quest the game no longer has and a world variable it no longer declares, as lost', () => {
+  it('drops a quest the game no longer has and a world variable it no longer declares', () => {
     const bundle = bundleOf({ c: { links: { reads: ['b_out'] } } });
     const repair = repairQuests(saved({ world: { old_var: 1, z_out: 'yes' }, local: { gone: { talked: true }, c: { talked: true } }, session: { quest: 'gone', checkpoint: 'start', seed: 1 } }), [], {}, bundle);
-    expect(repair.lost).toEqual(['old_var', 'z_out', 'gone']);
-    expect(repair.reset).toEqual([]);
     expect(repair.quests).toEqual(saved({ local: { c: { talked: true } } }));
   });
 
@@ -146,7 +136,6 @@ describe('repairQuests', () => {
     const bundle = bundleOf({ b: { links: { writes: { b_out: ['done'] } } }, c: { links: { reads: ['b_out'] } } });
     const repair = repairQuests(saved({ world: { b_out: 'ruined' }, local: { c: { talked: true } } }), [], {}, bundle);
     expect(repair.quests).toEqual(saved({}));
-    expect(repair.reset).toEqual(['c']);
   });
 
   it('lets a cycle of writers and readers settle', () => {
@@ -155,14 +144,14 @@ describe('repairQuests', () => {
       bench: { links: { reads: ['fate'], writes: { fate: ['logged'] } } },
     });
     const repair = repairQuests(saved({ world: { fate: 'told' }, local: { dag: { talked: true }, bench: { talked: true } } }), [], {}, bundle);
-    expect(repair.reset).toEqual(['dag', 'bench']);
+    expect(repair.quests).toEqual(saved({}));
   });
 
   it('touches nothing that already fits, and changes nothing on its own output', () => {
     const fits = repairQuests(CHAIN_STATE, CHAIN_NOTES, { b: 2 }, CHAIN);
-    expect(fits).toEqual({ quests: CHAIN_STATE, notes: CHAIN_NOTES, reset: [], lost: [] });
+    expect(fits).toEqual({ quests: CHAIN_STATE, notes: CHAIN_NOTES });
     const repaired = repairQuests(CHAIN_STATE, CHAIN_NOTES, {}, CHAIN);
-    expect(again(CHAIN, {}, repaired)).toEqual({ ...repaired, reset: [], lost: [] });
+    expect(again(CHAIN, {}, repaired)).toEqual(repaired);
   });
 
   it('fits a new game and a veteran of every shipped quest', () => {
@@ -170,7 +159,7 @@ describe('repairQuests', () => {
     const [start, veteran] = gameScenes(fresh)('nose_kovac');
     for (const w of [start, veteran]) {
       const state = saved({ world: w.player.quests.world, local: w.player.quests.local, session: w.player.quests.session });
-      expect(repairQuests(state, w.player.notes, {}, QUESTS)).toEqual({ quests: state, notes: w.player.notes, reset: [], lost: [] });
+      expect(repairQuests(state, w.player.notes, {}, QUESTS)).toEqual({ quests: state, notes: w.player.notes });
     }
   });
 

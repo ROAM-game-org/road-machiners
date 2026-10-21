@@ -28,7 +28,8 @@ function bakedMap(): BakedMap {
 
 const map = bakedMap();
 const legacy = map.props.slice(0, LEGACY_PROPS);
-const added = map.props.slice(LEGACY_PROPS);
+const BOAT_KINDS: readonly PropKind[] = ['fishingBoat', 'riverBarge', 'skiff'];
+const added = map.props.slice(LEGACY_PROPS).filter((p) => !BOAT_KINDS.includes(p.kind));
 const terrain: Terrain = map.terrain;
 
 function count(props: BakedProp[], kind: PropKind): number {

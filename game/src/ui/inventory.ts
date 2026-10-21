@@ -46,7 +46,7 @@ import type {
   World,
 } from "../sim/types";
 import { keyLabel, phoneMode, touchMode } from "./input-mode";
-import { disabledWith, el, isBrowserChord, panel, uiRoot } from "./dom";
+import { disabledWith, el, panel, uiRoot } from "./dom";
 import { lookReason } from "./look";
 import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
@@ -93,6 +93,7 @@ import {
   type ClickedItem,
   type ItemSource,
   type LastClick,
+  isRotateKey,
 } from "./inventory-moves";
 import type { Refusal } from "../sim/types";
 import { bindAttr, setText, unbindAttr } from "../text/language";
@@ -154,7 +155,7 @@ export class InventoryView {
       this.select(null);
     });
     window.addEventListener("keydown", (e) => {
-      if (e.key.toLowerCase() !== ROTATE_KEY.toLowerCase() || e.repeat || isBrowserChord(e)) return;
+      if (!isRotateKey(e)) return;
       if (this.drag) this.rotate();
       else this.rotateSelected();
     });
@@ -1174,7 +1175,7 @@ export class InventoryScreen {
           if ((e as MouseEvent).detail === 0) this.view.rotateHeld();
         },
       },
-      el("kbd", { class: "key no-touch" }, verbatim(ROTATE_KEY)),
+      el("kbd", { class: "key no-touch" }, verbatim(ROTATE_KEYCAP)),
       t("inv.rotate"),
     );
     this.view.holdChanged = () => this.markRotate(rotate);
@@ -1213,7 +1214,7 @@ function powerChipNode(w: World, me: Vehicle): HTMLElement {
   return el("span", { class: `chip${chip.over ? " bad" : ""}`, title: chip.detail, "aria-label": chip.detail }, createIcon("power"), chip.text);
 }
 
-const ROTATE_KEY = "R";
+const ROTATE_KEYCAP = "R";
 
 function fieldPatchable(part: PartInstance): boolean {
   const def = partDef(part.defId);

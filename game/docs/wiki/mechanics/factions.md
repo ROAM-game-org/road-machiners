@@ -12,11 +12,12 @@ Every driver belongs to one faction, does one job and may ride in a group for a 
 | Administrators | yes | no | nobody yet |
 | Scrapjaw | yes | yes | raiders from Scrapjaw Camp |
 | Kiln | yes | yes | raiders from Kiln Camp |
+| Sunward | yes | yes | the eight Cavalcade cars and the three hunters of the Sunward Hollow |
 | Independent | no | no | the other traders, scavengers, roamers, vultures and mercs |
 
 An organized faction keeps a standing with the player, and its members defend each other. Independent is no organization. It is the label for drivers with no town to speak for them, so independents share no loyalty and judge each other only by what they remember. Lawmen fight outlaws on sight, and stalls refuse them.
 
-A raider takes the faction of the camp it spawns at, a lawman and a convoy the town it spawns at, and a guard the faction of the convoy it escorts. A courier is always Guidestar, and the road drivers are always independent. A trader that starts in Bowl or Nose carries that town's papers one time in three. A truck that spawns with no site, as on Chaos Highway, takes its template's home faction.
+A raider takes the faction of the camp it spawns at, a Sunward car is always Sunward, a lawman and a convoy the town it spawns at, and a guard the faction of the convoy it escorts. A courier is always Guidestar, and the road drivers are always independent. A trader that starts in Bowl or Nose carries that town's papers one time in three. A truck that spawns with no site, as on Chaos Highway, takes its template's home faction.
 
 A new faction gets its own row and column in the table below, with 0 for every pair the lore does not settle. Nothing falls back to a default.
 
@@ -34,19 +35,21 @@ Every attitude is a whole number from −100 to 100, read in five bands.
 
 How a faction judges another. The row judges the column.
 
-| | Bowl | Nose | Guidestar | Administrators | Scrapjaw | Kiln | Independent |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Bowl | 60 | −25 | 20 | 0 | −40 | −30 | 5 |
-| Nose | −5 | 60 | 20 | −20 | −40 | −40 | 5 |
-| Guidestar | 20 | 20 | 60 | 5 | −30 | −30 | 10 |
-| Administrators | 0 | −35 | 5 | 60 | −5 | −5 | 10 |
-| Scrapjaw | −30 | −40 | −25 | −5 | 60 | −10 | −30 |
-| Kiln | −10 | −40 | −20 | −5 | −10 | 60 | −30 |
-| Independent | 5 | 5 | 10 | 5 | −30 | −30 | 0 |
+| | Bowl | Nose | Guidestar | Administrators | Scrapjaw | Kiln | Sunward | Independent |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Bowl | 60 | −25 | 20 | 0 | −40 | −30 | −30 | 5 |
+| Nose | −5 | 60 | 20 | −20 | −40 | −40 | −30 | 5 |
+| Guidestar | 20 | 20 | 60 | 5 | −30 | −30 | −20 | 10 |
+| Administrators | 0 | −35 | 5 | 60 | −5 | −5 | −10 | 10 |
+| Scrapjaw | −30 | −40 | −25 | −5 | 60 | −10 | −20 | −30 |
+| Kiln | −10 | −40 | −20 | −5 | −10 | 60 | −20 | −30 |
+| Sunward | −20 | −20 | −20 | −20 | −20 | −20 | 60 | −20 |
+| Independent | 5 | 5 | 10 | 5 | −30 | −30 | −20 | 0 |
 
 - Bowl would destroy Nose and calls that defense. Nose thinks Bowl slow but needs its grain.
 - The Bowl Granary pays Kiln a sack for every armed truck that crosses, so Kiln lets Bowl trucks pass. Bowl still does not trust Kiln, and Bowl lawmen still fight Kiln riders on sight.
 - Scrapjaw and Kiln are rival camps that neither rob nor help each other.
+- The Sunward are wary of everyone, and everyone of them. Bowl and Nose are warier, since the Senate stopped the order's grain and Nose families lost children to it.
 - Nobody in the table is hostile. War on sight comes only from the law, a feud or a personal grudge.
 
 What a driver thinks of another truck, in this order:
@@ -88,9 +91,13 @@ known if the victim saw the attacker, or a lawman or an ally of the victim saw i
 
 A driver that steps in starts a feud with the attacker. It still fights by its own sight, danger and guns, so it never shoots through a hill or at a truck it cannot reach.
 
+## Called for help
+
+The player can radio a driver in sight to join a fight, which [Social](social.md) describes. The driver holds back by the same two tests as a witness, applied to each foe of the player: bound to or in a truce with the foe, or (unless a lawman) liking the foe at least as much as the player. It also refuses when it is knocked out or stranded. A lawman agrees as an allied driver does unless the player attacked or robbed a lawful foe, and the answer is a weighted roll by standing: allied about 98 in 100, friendly about 3 in 4, neutral about 1 in 10. An agreeing driver starts a feud with every foe the same way a witness does.
+
 ## Standing
 
-The player starts at each organized faction's view of an outside driver: Bowl 5, Nose 5, Guidestar 10, Administrators 10, Scrapjaw −30, Kiln −30. A deed changes standing with the faction of the driver it touched, and the victim's memory, when the deed is known.
+The player starts at each organized faction's view of an outside driver: Bowl 5, Nose 5, Guidestar 10, Administrators 10, Scrapjaw −30, Kiln −30, Sunward −20. A deed changes standing with the faction of the driver it touched, and the victim's memory, when the deed is known.
 
 | Deed | When | Standing | Memory |
 | --- | --- | --- | --- |

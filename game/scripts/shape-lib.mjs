@@ -3,7 +3,17 @@
 // slabs its geometry fills. Cells merge into boxes by height band, and then the boxes merge down to cfg.maxBoxes.
 
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Vector3 } from 'three';
+import { LoadingManager, Texture, Vector3 } from 'three';
+
+globalThis.self ??= globalThis;
+
+const NO_TEXTURES = { load: (_url, onLoad) => onLoad(new Texture()) };
+
+function geometryOnlyLoader() {
+  const manager = new LoadingManager();
+  manager.addHandler(/^blob:/, NO_TEXTURES);
+  return new GLTFLoader(manager);
+}
 
 const CM = 100;
 
@@ -36,7 +46,7 @@ export function fnv1a(bytes) {
 
 export async function loadTriangles(bytes) {
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-  const gltf = await new GLTFLoader().parseAsync(buffer, '');
+  const gltf = await geometryOnlyLoader().parseAsync(buffer, '');
   gltf.scene.updateMatrixWorld(true);
   const tris = [];
   gltf.scene.traverse((o) => {

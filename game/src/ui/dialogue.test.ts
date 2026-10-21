@@ -42,6 +42,8 @@ describe('aid words', () => {
 });
 
 const PREPARE_VARS: Record<PrepareId, string[]> = {
+  vigilCall: [],
+  craterNews: ['news'],
   nearestTown: ['town', 'way'],
   towOffer: ['town', 'fee'],
   patchTerms: ['deal'],
@@ -56,6 +58,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   roadLesson: ['lesson'],
   trucePrice: ['price'],
   guardOffer: ['price'],
+  helpAnswer: ['answer'],
   aidWanted: ['aid', 'price'],
   aidAnswer: ['aid'],
   aidOffered: ['aid'],
@@ -79,7 +82,7 @@ const SAMPLE: Record<string, CallVar> = {
   site: { kind: 'site', id: 'granary' },
   bearing: { kind: 'bearing', rad: 1 },
   distance: { kind: 'distance', tiles: 12 },
-  way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
+  way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
   fee: { kind: 'money', amount: 1200 },
   price: { kind: 'money', amount: 45 },
   deal: { kind: 'deal', deal: 'paid', patcher: 'npc', price: 80, parts: 2, turns: 3 },
@@ -88,6 +91,7 @@ const SAMPLE: Record<string, CallVar> = {
   aid: { kind: 'aid', fuel: 2, supplies: 3 },
   warnLine: { kind: 'line', line: 'thatsMyPick' },
   lesson: { kind: 'line', line: 'lessonLawGates' },
+  news: { kind: 'line', line: 'carsDraggedIntoTheDark' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
   sighting: { kind: 'sighting', driver: 'Jed Cobb', seen: { bearing: 0.8, tiles: 300, turns: 80, heading: 3.1 } },
 };

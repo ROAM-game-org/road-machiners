@@ -1,5 +1,5 @@
 
-import { chassisDef, TOWN_CHASSIS } from "../data/chassis";
+import { chassisDef, isTruckPaint, PAINT, samePaint, TOWN_CHASSIS, type TruckPaint } from "../data/chassis";
 import { ECONOMY, GOODS } from "../data/goods";
 import { SHOPS, shopDef } from "../data/market";
 import { SERVICE_GOOD } from "../data/market";
@@ -28,6 +28,7 @@ import { tankLeaks } from "./supplies";
 import { fuelCap, isStranded, isWorking, suppliesCap } from "./stats";
 import { modeRules } from './settings';
 import { isOutlaw } from "./relations";
+import { straighten } from './rig';
 
 export type Supply = "fuel" | "supplies";
 
@@ -269,6 +270,10 @@ export function getUpkeepReserve(vehicle: Vehicle): number {
 
 export function buyFuel(world: World, vehicle: Vehicle, siteId: string): void {
   topUp(world, vehicle, ['fuel'], siteId in SHOPS ? siteId : null);
+}
+
+export function fuelRoomAt(world: World, vehicle: Vehicle, siteId: string): number {
+  return siteId in SHOPS ? serviceRoom(world, siteId, 'fuel', vehicle) : supplyRoom(world, 'fuel', vehicle);
 }
 
 function topUp(world: World, vehicle: Vehicle, kinds: readonly Supply[], shopId: string | null): void {
@@ -648,6 +653,20 @@ export function buyChassis(world: World, chassisId: string): World {
   });
 }
 
+export function paintPrice(world: World): number {
+  return Math.round(PAINT.share * chassisDef(playerVehicle(world).chassisId).value);
+}
+
+export function repaint(world: World, paint: TruckPaint): World {
+  return playerCommand(world, (w) => {
+    requireTown(w);
+    if (!isTruckPaint(paint)) throw new Error(`No paint ${JSON.stringify(paint)}`);
+    if (samePaint(w.player.paint, paint)) throw new Error(`The truck is already in ${JSON.stringify(paint)}`);
+    pay(w, paintPrice(w));
+    w.player.paint = { body: paint.body, cab: paint.cab, gear: paint.gear };
+  });
+}
+
 export function swapChassis(world: World, chassisId: string): void {
   const me = playerVehicle(world);
   if (me.chassisId === chassisId)
@@ -658,6 +677,8 @@ export function swapChassis(world: World, chassisId: string): void {
   const parts = movableParts(me);
   const parcels = me.items.filter((it): it is ParcelItem => it.kind === "parcel");
   me.chassisId = chassisId;
+  straighten(me);
+  me.trail = [];
   me.items = [];
   addCoreParts(world, me);
   for (const part of parts) placeSwappedPart(world, me, part, mounted.has(part.id));

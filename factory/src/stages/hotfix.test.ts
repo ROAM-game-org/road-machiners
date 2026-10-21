@@ -48,6 +48,15 @@ describe('hotfix fan-out', () => {
     expect(readState(f.ctx.statePath).release?.postId).toBe(42);
   });
 
+  it('closes the duplicates triage folded into the hotfix when it ships', async () => {
+    const f = hotfixable();
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), bundles: { 7: [21, 22] } });
+    await shipHotfix(f.ctx, 7, 'Big horn', ANN, 'abc1234');
+    expect(f.calls.filter((call) => call.endsWith('It shipped as part of #7.'))).toHaveLength(2);
+    expect(f.calls.filter((call) => call === 'close completed')).toHaveLength(3);
+    expect(readState(f.ctx.statePath).bundles).toEqual({});
+  });
+
   it('leaves a conflict of the hotfix branch itself to the approval', async () => {
     const f = hotfixable();
     f.mergeConflicts = ['factory/issue-7 main'];

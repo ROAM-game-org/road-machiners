@@ -38,7 +38,7 @@ function driver(w: World, traits: TraitId[], id?: string): Vehicle {
 describe('lesson data', () => {
   it('maps every voiced trait to one trade and no voiceless trait', () => {
     for (const [trait, talk] of Object.entries(TRAIT_TALK)) {
-      expect(Object.hasOwn(LESSON_TRADES, trait)).toBe(talk.voice !== null);
+      expect(Object.hasOwn(LESSON_TRADES, trait)).toBe(talk.voice !== null && !talk.only);
     }
   });
 

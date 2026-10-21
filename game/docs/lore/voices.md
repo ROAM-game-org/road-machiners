@@ -387,6 +387,26 @@ Strangers: a possible client.
 
 Sample: "Stop where you can drive out without reversing. I've seen good guns lost while their drivers backed out of a bad spot."
 
+### The Sunward rider at the vigil
+
+Vocabulary: the light, the Keeper, a place kept, given by the sky, watching. He never names the reactor, the breach, death or the order's rules.
+
+Rhythm: slow and soft, short sentences with pauses between them. Each call is a little closer and a little stranger than the last, and only the third is plainly a demand.
+
+Habits: he calls a stranger "stranger" and the order "we". On the road he says nothing at all, and a call to him gets an open channel and breathing. Once a stranger agrees, he tells them where to drive and promises to stay behind them.
+
+Cares about: getting the stranger into the light without a fight, because a fight is work and a given truck arrives whole.
+
+Strangers: something the sky gave. He is gentle with it the way a man is gentle with a goat he means to sell.
+
+Sample: "Stranger. You came out to the crater at night. Stay a while and watch the light with us."
+
+### The road driver who knows about the lamps
+
+A trader, scavenger, courier, roamer, vulture or supplier who lives near the crater, or saw a car of the order, answers a question about the crater at night with one thing they saw or heard themselves, in short plain sentences, and tells it once. Each tells a different thing: lamps crossing at dusk, a radio that answered with breathing, drag furrows on the rim, the beacon keepers' dark lamps, trading there only by day, the shout "Given by the sky" as hearsay, wrecks left alone after dark, or a cousin who stopped by the rim and was never found. Only one of them counts eight lamps, and only one lost kin. After the order falls they speak of the quiet, the lamps that stopped crossing, the empty fort and drivers back at the crater at night, and still say to keep off the glow.
+
+Sample: "Passed the rim one morning. Two deep furrows ran through the sand from open ground into the crater. I didn't see a truck."
+
 ## Green Pit and the Pump Station
 
 ### Hadiza Okon, Green Pit pump and canteen
@@ -416,63 +436,3 @@ He cares about keeping the stills hot and the pump turning. He avoids talk about
 He treats a stranger as a buyer or a pair of hands.
 
 Sample: "Pump brings the crude up, the stills cook it, and the drums go out on the convoys. Bring me tools and I'll fill yours."
-
-## Chaos Highway
-
-The highway has its own speakers. Geezer is the player, so his sheet is the voice of the narration in the head of a man who has stopped talking about himself. See [Chaos Highway](chaos-highway.md) for the world.
-
-### Ala, hauler driver
-
-Ala talks of money, stretches, fuel and the next fort. She compares things to loads and to what a day on the road costs.
-
-Her sentences are short and level. She counts out loud, and she says a sum before she says anything else.
-
-She wants a driver who asks no questions and does the job. She steers around Maya until the first stretch, around her father until he asks or the eighth stretch, and around what is in the trailer until the fourth.
-
-She notices the truck first, then the scars. A man's gear tells her what he costs.
-
-Strangers: a hire, until one saves her life. Then she asks once, and only once.
-
-Sample: "Eighty for the stretch. Count it. I don't pay twice."
-
-### Geezer, as narration
-
-The narration runs through the head of a man who checks tires and avoids the past. It is dry and tired, and it sizes up every truck by what it can take from him.
-
-Its sentences run short. It answers a question with the smallest true thing and goes back to the road.
-
-It checks every tire before it speaks. It avoids the Burnt Drivers, the tank line, the pass, his age, and why he took the job. When the past comes up, the narration looks at something else.
-
-He wants a ride that ends it. By the end of the road, he wants the people behind her to arrive, and one girl to drink.
-
-Sample: "All four tires are even. Somebody keeps this truck alive. Nobody does that for free."
-
-### Tibor, barman
-
-Tibor talks of what people cost, what they carry and who owes what. He sells men like parts.
-
-His sentences are smooth and quick, like a trader's. He names a price and a warranty in one breath.
-
-He wants the sale made before the rival at the next table hears of it. He avoids saying who pays him, and he never names the Keepers' office.
-
-He notices the truck outside the window and the money in the room.
-
-Sample: "Rode with Magnus, they say. Scars to prove it. I don't sell lies, only men whose lies are cheap."
-
-### Vale, hunter
-
-A minor speaker, a hunter for hire who leads a small crew. She names the price and the threat in one breath, and she never says a thing twice.
-
-Sample: "That scout's got one driver. One."
-
-### Bram, old gatekeeper
-
-A minor speaker with one job: a Keeper at a gate who has counted trucks for thirty years and remembers a burn. He says one thing and no more, and he has no quirk.
-
-Sample: "I knew a man with a burn like that."
-
-### Sara, Ala's mother
-
-A minor speaker, heard only in relay slips that Ala reads aloud. Her slips are short, hard and kind. She never asks for anything for herself.
-
-Sample: "Don't come back. Keep going north. Maya asks for you every hour."

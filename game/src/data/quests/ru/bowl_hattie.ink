@@ -60,12 +60,12 @@ VAR hattie_unarmed = false
   -> hub
 + {hattie_soldiers and not hattie_roads} [Солдаты с Носа остановят меня на дороге?]
   Не остановят. И тех, кто придет твой грузовик отбирать, тоже не остановят.
-  Только без пушки на Нос не суйся: пока не найдешь пушку, никуда не выпустят.
+  Между городами дорогу никто не охраняет, а рейдеры Обжига обдирают любой грузовик, который не может отбиться и не платит.
   ~ hattie_roads = true
   -> hub
-+ {hattie_roads and not hattie_unarmed} [А если приехать на Нос без оружия?]
++ {hattie_roads and not hattie_unarmed} [А если приехать на Нос без пушки?]
   Впустить-то тебя впустят.
-  А на выезде заставят купить пушку, и цену назначат сами.
+  На Носе тебя и впустят, и выпустят — с пушкой или без. Им все равно. Только слыхала, что «Пирс» грузовик без пушки не страхует.
   ~ hattie_unarmed = true
   -> hub
 + {hattie_flats and not hattie_glass} [Что со стеклом на Стеклянной равнине?]
@@ -79,6 +79,9 @@ VAR hattie_unarmed = false
   Я в тот кратер не ходила и не пойду. Водой торгую, а ум свой при себе держу.
   ~ note("talkSunwardTake")
   ~ hattie_sunward = true
+  -> hub
++ {hattie_sunward and cult_broken()} [Have the Sunward gone quiet?]
+  Quiet as a dry well. Bo's cousin says the lamps stopped crossing to the crater at dusk, and a man with a green shine on his hands came to my well asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
   -> hub
 + {hattie_sunward and not hattie_came_out} [А кто-нибудь выходил на твоих глазах?]
   Одну видела, в сумерках. Руки у нее в темноте зеленым светились, а воду пила молча, ведро за ведром.

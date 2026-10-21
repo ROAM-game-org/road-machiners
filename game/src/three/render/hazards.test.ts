@@ -229,7 +229,7 @@ describe('HazardViews', () => {
     const camera = new THREE.PerspectiveCamera();
     const slickWidth = () => {
       let width = 0;
-      views.root.traverse((o) => {
+      views.root.traverseVisible((o) => {
         if (o instanceof THREE.Mesh && (o.material as THREE.MeshStandardMaterial).color?.getHex() === PAL.oil.slick) {
           o.geometry.computeBoundingBox();
           width = o.geometry.boundingBox!.max.x - o.geometry.boundingBox!.min.x;

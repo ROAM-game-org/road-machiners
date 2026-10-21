@@ -8,6 +8,7 @@ import { BRANCH, BaseMovedError, FEEDBACK_HEADING, PLAYER_REPORT_HEADING, QUESTI
 import { HOTFIX_BASE, baseBranchFor, mediaDir, workDir } from './common';
 import { releaseBundle } from './bundle';
 import { shipHotfix } from './hotfix';
+import { queueIncidents } from './incident';
 import { dropKeptApproval, invalidateApproval } from './kept-approval';
 
 async function requireApproval(ctx: Ctx, issue: number): Promise<void> {
@@ -102,6 +103,7 @@ export async function routeFeedback(ctx: Ctx, issue: number, by: string, text: s
   recordFeedback(ctx.statePath, issue, { source, body });
   await moveCard(ctx, issue, route === 'patch' ? 'Testing' : 'Design', route);
   forgetPosts(ctx, issue);
+  if (source === 'committee') queueIncidents(ctx, [issue]);
   await invalidateApproval(ctx, issue, `${by} sent it back as a ${route}, which changes what was approved.`);
   return String(issue) in state.pendingApprovals;
 }
@@ -115,6 +117,7 @@ function routeComment(ctx: Ctx, issue: number, by: string, text: string, route: 
 export async function deny(ctx: Ctx, issue: number, by: string): Promise<void> {
   await requireApproval(ctx, issue);
   await closeCard(ctx, issue, `Denied by ${by} in the committee chat.`, 'denied');
+  queueIncidents(ctx, [issue]);
 }
 
 export async function closeCard(ctx: Ctx, issue: number, comment: string, step: 'denied' | 'dropped'): Promise<void> {

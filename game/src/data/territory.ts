@@ -8,11 +8,12 @@ import type { DeckSpec, DeckStation } from './terrain';
 export { onOrchardRoad };
 
 export type SpotTable = 'landmark' | 'hullCache' | 'hullScrap' | 'roadWreck' | 'farmStores' | 'armyStores' | 'engineScrap' | 'cityStores';
-export const WRECK_LOOKS: readonly PropKind[] = ['armyTruck', 'shipCache', 'hullCache', 'engineCache', 'deadTruck', 'tank'];
+export const WRECK_LOOKS: readonly PropKind[] = ['armyTruck', 'shipCache', 'hullCache', 'engineCache', 'deadTruck', 'tank', 'fishingBoat', 'riverBarge', 'skiff'];
 export type Hazard = {
   radius: number;
   healthPerTurn: number;
   floor: number;
+  core: { radius: number; healthPerTurn: number } | null;
 };
 export type HullPiece = { look: LandmarkLook; at: Vec; yaw: number; r: number; sink?: number };
 export type Cache = { at: Vec; yaw: number };
@@ -336,6 +337,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         radius: 8,
         healthPerTurn: 5,
         floor: 30,
+        core: { radius: 3.5, healthPerTurn: 8 },
       },
     },
   },

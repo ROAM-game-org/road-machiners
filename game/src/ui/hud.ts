@@ -5,7 +5,7 @@ import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
-import { modeRules } from "../sim/settings";
+import { hasExplorationMap, modeRules } from "../sim/settings";
 import { playerCanAct } from "../sim/world";
 import type { Vehicle, World } from "../sim/types";
 import { workOf, type Work } from "../sim/states";
@@ -19,12 +19,14 @@ import {
   contractSummary,
   surveyProgress,
   isNotable,
-  nextSurveyClue,
+  surveyClueLines,
+  surveyHowTo,
   eventText,
   formatNpcPass,
   workLabel,
   workProgress,
   formatNpcCargo,
+  formatNpcLookOver,
   formatNpcMark,
   formatNpcTraits,
   formatVehicleState,
@@ -41,12 +43,18 @@ import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
-import { affordableRanks, pendingPerkPairs } from "../sim/progress";
+import { affordableRanks, basicSkill, hasBasic, pendingPerkPairs } from "../sim/progress";
+import { canLookOver } from "../sim/look-over";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
+import { firstAidBlock, type FirstAidBlock } from "../sim/jobs";
+import { firstAidTurns, firstAidTurnSupplies } from "../sim/health";
 import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
+import type * as THREE from "three";
+import { TruckPortraits } from "../three/render/truckPortrait";
+import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
 import { isMet, type Contract } from "../sim/market";
@@ -76,7 +84,21 @@ function actionTitle(action: ContextAction): Msg | undefined {
   return action.ready ? undefined : t("hud.stopToUse");
 }
 
-const douseMsg = (block: DouseBlock): Msg => (block === "noSupplies" ? t("hud.douseBlock.noSupplies", { n: ENGINE_HEAT.douseSupplies }) : t("hud.douseBlock.engineCool"));
+function douseMsg(w: World, block: DouseBlock | null): Msg | null {
+  if (block === null) return null;
+  if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("overdrive") });
+  if (block === "noSupplies") return t("hud.needSupplies", { n: ENGINE_HEAT.douseSupplies });
+  return t("hud.douseBlock.engineCool");
+}
+
+export function firstAidMsg(w: World, block: FirstAidBlock | null): Msg | null {
+  if (block === null) return null;
+  if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("firstAid") });
+  if (block === "noSupplies") return t("hud.needSupplies", { n: Math.ceil(firstAidTurnSupplies(w)) });
+  const job = playerVehicle(w).job;
+  if (block === "busy" && job) return refusalText(w, { id: "busy", job: job.kind });
+  return refusalText(w, { id: block === "busy" ? "stopFirst" : block });
+}
 
 export const combatBlocked = (turns: number): Msg => t("hud.combatBlocked", { n: turns });
 
@@ -84,12 +106,14 @@ type HudActions = {
   openInventory: () => void;
   openCharacter: () => void;
   openJournal: () => void;
+  openMap: () => void;
   toggleManual: () => void;
   toggleAutoRepair: () => void;
   toggleOverdrive: () => void;
   toggleHeadlights: () => void;
   headlightsOn: () => boolean;
   douseEngine: () => void;
+  firstAid: () => void;
   unhitch: () => void;
   setBeacon: (on: boolean) => void;
   endRun: () => void;
@@ -98,13 +122,15 @@ type HudActions = {
   dialogue: DialogueHost;
   recenter: () => void;
   unpin: () => void;
-  markInspected: () => void;
+  cardAction: (action: CardAction) => void;
   aimPart: (vehicleId: string, partId: string) => void;
   aimState: (vehicleId: string) => AimState;
 };
+export type CardAction = 'mark' | 'lookOver';
 export type CameraMode = "centered" | "auto";
 
 const TOAST_MS = 3500;
+const CONDITION_ROWS = 12;
 
 const TONE_CLASS: Record<TipLine['tone'], string> = { base: 'dim', bad: 'bad', good: 'good', plain: '' };
 
@@ -131,6 +157,22 @@ export class MaxSpeedView {
   }
 }
 
+export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTMLElement[] {
+  if (!hasExplorationMap(w)) return [];
+  return [
+    el(
+      "button",
+      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : undefined },
+      t("map.full"),
+      keyCorner("K"),
+    ),
+  ];
+}
+
+function readoutClass(r: { warning: boolean; danger?: boolean }): string {
+  return ["resource", r.warning ? "alert" : "", r.danger ? "danger" : ""].filter(Boolean).join(" ");
+}
+
 export class Hud {
   private top = panel("instruments", bottomLeft());
   private clockSlot = el("div", { class: "instrument-clock", role: "timer", title: t("hud.clockTitle") });
@@ -139,10 +181,11 @@ export class Hud {
   private speedSlot = el("div", { class: "speedometer" }, this.dialSlot, this.maxSpeed.root);
   private readoutSlot = el("div", { class: "readouts" });
   private actionSlot = el("div", { class: "instrument-actions" });
-  private condition = new TruckConditionView();
+  private readonly portraits: TruckPortraits;
+  private readonly condition: TruckConditionView;
   private haulerGauge = new HaulerGauge();
-  private inspected = new TruckConditionView();
-  private inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
+  private readonly inspected: TruckConditionView;
+  private readonly inspectedDraw: HTMLElement;
   private inspectedAimable = false;
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel", rightDock());
@@ -234,7 +277,11 @@ export class Hud {
     }
   }
 
-  constructor(private actions: HudActions, private radio: RadioPanel) {
+  constructor(private actions: HudActions, private radio: RadioPanel, renderer: THREE.WebGLRenderer) {
+    this.portraits = new TruckPortraits(renderer);
+    this.condition = new TruckConditionView(this.portraits, CONDITION_ROWS);
+    this.inspected = new TruckConditionView(this.portraits, null);
+    this.inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
     const openLog = () => this.drawers.toggle("log");
     this.log.strip.root.addEventListener("click", openLog);
     this.log.strip.root.addEventListener("keydown", (e) => {
@@ -404,17 +451,16 @@ export class Hud {
     this.dialogue.render(w);
     const r = getRescueReadout(w);
     this.knockedOut.style.display = rescueOf(r, "knockedOut") ? "" : "none";
-    this.renderMiddle(rescueOf(r, "towed"));
+    this.renderMiddle(rescueOf(r, "towed") ?? rescueOf(r, "dragged"));
     this.renderStranded(rescueOf(r, "stranded"));
   }
 
-  private renderMiddle(r: Extract<RescueReadout, { kind: "towed" }> | null): void {
+  private renderMiddle(r: Extract<RescueReadout, { kind: "towed" | "dragged" }> | null): void {
     this.rescue.style.display = r ? "" : "none";
     if (!r) return this.rescue.replaceChildren();
     this.rescue.replaceChildren(
       el("h3", {}, t("hud.underTow")),
-      el("div", {}, t("hud.towsYou", { who: r.tower, town: r.town })),
-      el("div", { class: "dim" }, t("hud.fee"), SPACE, moneyEl(r.fee)),
+      ...(r.kind === "towed" ? [el("div", {}, t("hud.towsYou", { who: r.tower, town: r.town })), el("div", { class: "dim" }, t("hud.fee"), SPACE, moneyEl(r.fee))] : []),
       el(
         "div",
         { class: "rescue-buttons" },
@@ -445,11 +491,6 @@ export class Hud {
     );
   }
 
-  private surveyProgress(c: Contract): HTMLElement | null {
-    if (c.kind !== "survey" || isMet(c)) return null;
-    return el("span", { class: "dim" }, SPACE, surveyProgress(c), el("span", { class: "contract-clue" }, nextSurveyClue(c)));
-  }
-
   private renderContracts(w: World): void {
     const guard = playerGuard(w);
     if (w.player.contracts.length === 0 && guard === null) {
@@ -459,13 +500,7 @@ export class Hud {
     this.contracts.style.display = "";
     this.contracts.replaceChildren(
       el("h3", { class: "panel-title" }, t("hud.contracts")),
-      ...w.player.contracts.map((c) =>
-        el(
-          "div",
-          { class: "contract-line" },
-          c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c)),
-        ),
-      ),
+      ...w.player.contracts.map((c) => heldContractLine(w, c)),
       ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
     );
   }
@@ -487,23 +522,47 @@ export class Hud {
       checked: od.checked,
       key: "O",
       reason: lock ?? od.reason,
+      locked: od.locked,
       title: od.title,
       onclick: () => this.actions.toggleOverdrive(),
     });
-    const douseBlocked = douseBlock(w);
-    const douseReason = lock ?? (douseBlocked === null ? null : douseMsg(douseBlocked));
-    const douse = el(
+    const douse = this.douseButton(w, lock);
+    return [headlights, overdrive, douse, this.firstAidButton(w, lock)];
+  }
+
+  private douseButton(w: World, lock: Msg | null): HTMLElement {
+    const block = douseBlock(w);
+    const reason = lock ?? douseMsg(w, block);
+    return el(
       "button",
       {
         class: "instrument-button",
-        "aria-disabled": douseReason === null ? undefined : "true",
-        onclick: () => douseReason === null && this.actions.douseEngine(),
-        title: douseReason ?? keyLabel(t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }), "G"),
+        "aria-disabled": reason === null ? undefined : "true",
+        onclick: () => reason === null && this.actions.douseEngine(),
+        title: reason ?? keyLabel(t("hud.costsSupplies", { n: ENGINE_HEAT.douseSupplies }), "G"),
       },
+      block === "noBasic" ? createIcon("lock") : null,
       t("hud.douse"),
       keyCorner("G"),
     );
-    return [headlights, overdrive, douse];
+  }
+
+  private firstAidButton(w: World, lock: Msg | null): HTMLElement {
+    const block = firstAidBlock(w);
+    const reason = lock ?? firstAidMsg(w, block);
+    const cost = Math.ceil(firstAidTurns(w) * firstAidTurnSupplies(w));
+    return el(
+      "button",
+      {
+        class: "instrument-button",
+        "aria-disabled": reason === null ? undefined : "true",
+        onclick: () => reason === null && this.actions.firstAid(),
+        title: reason ?? keyLabel(t("hud.costsSupplies", { n: cost }), "U"),
+      },
+      block === "noBasic" ? createIcon("lock") : null,
+      t("hud.firstAid"),
+      keyCorner("U"),
+    );
   }
 
   private characterButton(w: World, busy: boolean): HTMLElement {
@@ -539,7 +598,7 @@ export class Hud {
   renderTop(w: World): void {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
-    this.condition.render(playerVehicle(w), undefined, repairingPart(w, playerVehicle(w)));
+    this.condition.render(playerVehicle(w), w.player.paint, undefined, repairingPart(w, playerVehicle(w)));
     this.haulerGauge.render(w);
     this.renderContracts(w);
     this.tips.update(w, this.actions.autoTravel());
@@ -582,7 +641,7 @@ export class Hud {
         el(
           "span",
           {
-            class: `resource ${resource.warning ? "alert" : ""}`,
+            class: readoutClass(resource),
             title: resource.tip ?? resource.label,
             "aria-label": resource.warning ? t("hud.readoutWarning", { label: resource.label, value: resource.value }) : t("hud.readout", { label: resource.label, value: resource.value }),
             "data-resource": resource.id,
@@ -640,6 +699,7 @@ export class Hud {
       }),
       ...this.engineButtons(w, busy),
       this.characterButton(w, busy),
+      ...mapInstrument(w, busy, () => this.actions.openMap()),
       this.journalButton(busy),
       ...(modeRules(w).radio ? [this.hornButton(w)] : []),
     );
@@ -649,9 +709,15 @@ export class Hud {
     const own = v.faction === "player";
     const call = !own && v.brain && modeRules(w).radio ? [el("button", { class: "btn-s", ...disabledWith(callError(w, v.id), () => this.dialogue.callInspected()) }, t("card.call"))] : [];
     const refusal = markError(w, v.id);
-    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.markInspected()) }, t("card.mark"))];
+    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("mark")) }, t("card.mark"))];
     const close = el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: () => this.actions.unpin() }, t("hint.closeMark"));
-    return el("span", { class: "info-touch touch-only" }, ...call, ...mark, close);
+    return el("span", { class: "info-touch touch-only" }, ...call, ...this.lookOverButton(w, v), ...mark, close);
+  }
+
+  private lookOverButton(w: World, v: Vehicle): HTMLElement[] {
+    if (v.faction === "player" || !hasBasic(w, "lookOver")) return [];
+    const refusal = canLookOver(w, playerVehicle(w), v);
+    return [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("lookOver")) }, t("card.lookOver"))];
   }
 
   flushHorn(): void {
@@ -664,8 +730,10 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
+      if (isNotable(e)) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
+    if (w.events.some((e) => e.t === 'sunwardFallen')) this.toast(t('log.sunwardFallen'));
     this.radio.hear(w);
   }
 
@@ -688,6 +756,7 @@ export class Hud {
   }
 
   showInfo(w: World, v: Vehicle | null, hostile: boolean): void {
+    this.portraits.forget(new Set([playerVehicle(w).id, ...w.vehicles.filter((x) => playerSees(w, x.pos)).map((x) => x.id)]));
     if (!v) {
       this.info.style.display = "none";
       this.coverUnder(null);
@@ -695,7 +764,7 @@ export class Hud {
     }
     const aim = this.aimOf(w, v);
     this.inspectedAimable = aim !== undefined;
-    this.inspected.render(v, aim);
+    this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
       infoHead(w, v, hostile, this.cardButtons(w, v)),
@@ -733,12 +802,22 @@ function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {
 
 function quietLines(w: World, v: Vehicle): Msg[] {
   if (!v.brain) return [];
-  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcMark(w, v)].filter((line) => line !== null);
+  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcLookOver(w, v), formatNpcMark(w, v)].filter((line) => line !== null);
 }
 
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {
   const blocks = work?.from === "job" && !isAutoPatch(work.job);
   return action && !action.hint && !blocks ? null : work;
+}
+
+export function heldContractLine(w: World, c: Contract): HTMLElement {
+  const survey = c.kind === 'survey' && !isMet(c);
+  return el(
+    'div',
+    { class: 'contract-line' },
+    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c), surveyHowTo(c)) : null, claimRivalMark(w, c)),
+    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: 'num' }, heldContractDue(c)),
+  );
 }
 
 function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
@@ -750,6 +829,7 @@ function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
   );
 }
 
-function escortLine(w: World, c: EscortContract): HTMLElement {
-  return el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, escortStatusText(w, c));
+function escortLine(w: World, c: EscortContract): HTMLElement | null {
+  const status = escortStatusText(w, c);
+  return status ? el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, status) : null;
 }

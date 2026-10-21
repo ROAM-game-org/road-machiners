@@ -9,7 +9,7 @@ import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { heldPart, laneCount, lanePoint, partLane, planBlast, planLane, sideToward, spansHold, walkLane, type FireSpan, type PartHit, type Round, type Side } from './armor';
 import { damagePart, haulerOf, playerVehicle, wholeDamage } from './damage';
-import { bodyOf } from './body';
+import { presentedSpan, reachMeters, unitPose } from './rig';
 import { rollCabKnock } from "./cab-knock";
 import { corePart, itemSize, mountedItems, mountedParts } from './grid';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
@@ -81,7 +81,7 @@ function preyOf(world: World, shooter: Vehicle): string | null {
 }
 
 export type ShotSource = { def: WeaponDef };
-export type AimedSource = ShotSource & { spans: FireSpan[]; facing: number };
+export type AimedSource = ShotSource & { spans: FireSpan[]; facing: number; unit: number };
 
 
 export function inArc(shooter: Vehicle, mw: AimedSource, target: Vehicle): boolean {
@@ -91,11 +91,13 @@ export function inArc(shooter: Vehicle, mw: AimedSource, target: Vehicle): boole
 function inGunArc(shooter: Vehicle, src: AimedSource, target: Vehicle): boolean {
   const { arc } = src.def;
   if (arc >= 360) return true;
-  return Math.abs(angleDiff(shooter.heading + src.facing * DEG, bearing(shooter.pos, target.pos))) <= (arc / 2) * DEG;
+  const gun = unitPose(shooter, src.unit);
+  return Math.abs(angleDiff(gun.heading + src.facing * DEG, bearing(gun.pos, target.pos))) <= (arc / 2) * DEG;
 }
 
 function clearOfTall(shooter: Vehicle, mw: AimedSource, target: Vehicle): boolean {
-  return spansHold(mw.spans, angleDiff(shooter.heading, bearing(shooter.pos, target.pos)) / DEG);
+  const gun = unitPose(shooter, mw.unit);
+  return spansHold(mw.spans, angleDiff(gun.heading, bearing(gun.pos, target.pos)) / DEG);
 }
 
 export function fireBlock(
@@ -202,9 +204,7 @@ function across(shooter: Vehicle, target: Vehicle): Vec {
 }
 
 export function presentedWidth(shooter: Vehicle, target: Vehicle): number {
-  const half = bodyOf(target.chassisId).half;
-  const a = angleDiff(target.heading, bearing(shooter.pos, target.pos));
-  return 2 * (Math.abs(half.x * Math.sin(a)) + Math.abs(half.z * Math.cos(a)));
+  return presentedSpan(target, shooter.pos);
 }
 
 function laneSign(side: Side): number {
@@ -436,9 +436,8 @@ const OFF_TRUCK_STEPS = 64;
 
 function offTruckReach(c: Reach, o: Spread): number {
   if (c.round.splashRadius <= 0) return 0;
-  const half = bodyOf(c.target.chassisId).half;
   const edge = c.a.body / 2;
-  const step = (Math.hypot(half.x, half.z) + c.round.splashRadius - edge) / OFF_TRUCK_STEPS;
+  const step = (reachMeters(c.target.chassisId) + c.round.splashRadius - edge) / OFF_TRUCK_STEPS;
   let sum = 0;
   for (const sign of [-1, 1])
     for (let i = 0; i < OFF_TRUCK_STEPS; i++) {
@@ -813,6 +812,10 @@ export function combatFoesOf(world: World, v: Vehicle): string[] {
   return combatStatesOf(world, v.id).map((s) => (s.holder === v.id ? s.other : s.holder));
 }
 
+export function awakeFoesOf(world: World, v: Vehicle): Vehicle[] {
+  return combatFoesOf(world, v).map((id) => world.vehicles.find((x) => x.id === id)).filter((x): x is Vehicle => x !== undefined && !isDefeated(x));
+}
+
 export function combatTurnsLeft(world: World, v: Vehicle): number | null {
   const left = combatStatesOf(world, v.id).map((s) => s.turnsLeft ?? 0);
   return left.length > 0 ? Math.max(...left) : null;
@@ -956,7 +959,7 @@ export function wreckVehicle(world: World, v: Vehicle): void {
     pos: { ...v.pos },
     r: vehicleStats(world, v).radius * RULES.wreckRadiusScale,
     kind: "wreck",
-    hulk: { chassisId: v.chassisId, yaw: v.heading },
+    hulk: { chassisId: v.chassisId, yaw: v.heading, ...(v.bend === undefined ? {} : { bend: v.bend }) },
   });
   world.events.push({
     t: "destroyed",

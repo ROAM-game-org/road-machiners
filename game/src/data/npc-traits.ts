@@ -30,7 +30,7 @@ export const TRAITS: Record<TraitId, Trait> = {
       hostileSeen: { fight: { mul: 0.002 } }, attacked: { fightBack: { mul: 0.1 } }, ramChance: { ram: { mul: 0.001 } },
       crashed: { retaliate: { mul: 0.2 } }, parley: { truce: { add: 2 } }, truceOffered: { accept: { add: 4 } },
       mercyBegged: { spare: { add: 3 } }, threatened: { comply: { add: 1 }, fightBack: { mul: 0.1 } }, warnedOff: { comply: { add: 1 }, fightBack: { mul: 0.1 } },
-      lootContested: { leave: { mul: 3 } }, warnRefused: { leave: { mul: 3 } },
+      lootContested: { leave: { mul: 3 } }, warnRefused: { leave: { mul: 3 } }, lookedOver: { keepAway: { add: 1 } },
       escortSeen: { hire: { add: 1 } }, aidAsked: { give: { mul: 2 } }, needySeen: { aid: { add: 0.02 } }, escortWanted: { post: { add: 1 } }, strangerSeen: { tale: { add: 0.1 } },
     },
   },
@@ -40,16 +40,16 @@ export const TRAITS: Record<TraitId, Trait> = {
       idle: { raid: { add: 9 }, patrol: { add: 6 }, muster: { add: 12 } }, contactHeard: { investigate: { add: 10.8 } }, hostileSeen: { fight: { add: 7.2 } }, strandedSeen: { tow: { add: 9 } },
       crashed: { retaliate: { add: 3 } }, parley: { truce: { mul: 0.3 }, beg: { mul: 0.3 } }, truceOffered: { refuse: { add: 2 } },
       mercyBegged: { finish: { add: 2 } }, threatened: { comply: { mul: 0.2 }, fightBack: { add: 2 } }, warnedOff: { comply: { mul: 0.2 }, fightBack: { add: 2 } },
-      lootContested: { warn: { add: 4 }, fight: { add: 1 } }, warnRefused: { fight: { add: 2 } },
+      lootContested: { warn: { add: 4 }, fight: { add: 1 } }, warnRefused: { fight: { add: 2 } }, sizedUp: { rob: { add: 7 } }, lookedOver: { warn: { add: 1 } },
     },
   },
-  scumbag: { towns: [], bases: [], markets: STALL_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 0, boldness: 1.3, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE, weights: { strangerSeen: { tip: { add: 0.08 }, challenge: { add: 0.03 } }, preySeen: { rob: { add: 0.45 } }, crashed: { retaliate: { add: 1 } }, lootContested: { warn: { add: 2 }, fight: { add: 0.5 } }, warnRefused: { fight: { add: 1 } } } },
+  scumbag: { towns: [], bases: [], markets: STALL_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 0, boldness: 1.3, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE, weights: { strangerSeen: { tip: { add: 0.08 }, challenge: { add: 0.03 } }, preySeen: { rob: { add: 0.45 } }, sizedUp: { rob: { add: 1 } }, lookedOver: { warn: { add: 0.5 } }, crashed: { retaliate: { add: 1 } }, lootContested: { warn: { add: 2 }, fight: { add: 0.5 } }, warnRefused: { fight: { add: 1 } } } },
   coward: {
     towns: [], bases: [], markets: STALL_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 0, boldness: 0.6, fuelMargin: 1.4, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE,
     weights: {
       hostileSeen: { flee: { mul: 3 }, fight: { mul: 0.5 } }, attacked: { flee: { mul: 3 }, fightBack: { mul: 0.3 } },
       parley: { truce: { mul: 2 }, beg: { mul: 3 } }, threatened: { flee: { mul: 3 }, comply: { add: 1 } }, warnedOff: { comply: { add: 1 } },
-      lootContested: { leave: { mul: 3 } }, warnRefused: { leave: { mul: 3 } },
+      lootContested: { leave: { mul: 3 } }, warnRefused: { leave: { mul: 3 } }, lookedOver: { keepAway: { add: 2 } },
       escortSeen: { hire: { mul: 3 } }, escortWanted: { post: { mul: 3 } }, fightWhim: { veer: { mul: 3 } }, crewAsked: { join: { mul: 0.5 } }, crewCalled: { flee: { mul: 3 } },
     },
   },
@@ -76,7 +76,7 @@ export const TRAITS: Record<TraitId, Trait> = {
   },
   vulture: {
     towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: ['fallen-sun', 'orchard', 'glass-flats'], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE,
-    weights: { idle: { prowl: { add: 10 }, scavenge: { add: 2 } }, salvageSeen: { loot: { add: 20 } }, crashed: { retaliate: { add: 0.5 } }, strangerSeen: { tip: { add: 0.08 } } },
+    weights: { idle: { prowl: { add: 10 }, scavenge: { add: 2 } }, salvageSeen: { loot: { add: 20 } }, crashed: { retaliate: { add: 0.5 } }, strangerSeen: { tip: { add: 0.08 } }, helpCalled: { help: { mul: 0.3 } } },
   },
   supplier: {
     towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'never', tradeStake: 83300,
@@ -100,10 +100,18 @@ export const TRAITS: Record<TraitId, Trait> = {
       hostileSeen: { fight: { add: 4 } }, attacked: { fightBack: { mul: 2 } }, threatened: { comply: { mul: 0.2 }, fightBack: { add: 2 } }, warnedOff: { comply: { mul: 0.2 }, fightBack: { add: 2 } },
     },
   },
+  cultist: {
+    towns: [], bases: [], markets: [], salvageSites: [], travelSites: [], contactReactRadius: 14, boldness: 1.2, fuelMargin: 1, robs: 'never', tradeStake: BASE_TRADE_STAKE,
+    weights: {
+      hostileSeen: { fight: { add: 4 } }, attacked: { fightBack: { mul: 2 } }, strandedSeen: { tow: { mul: 0.001 } }, salvageSeen: { loot: { mul: 0.2 } },
+      parley: { truce: { mul: 0.3 }, beg: { mul: 0.3 } }, truceOffered: { refuse: { add: 2 } }, threatened: { comply: { mul: 0.3 }, fightBack: { add: 2 } }, warnedOff: { comply: { mul: 0.5 } },
+      aidAsked: { give: { mul: 0.001 } }, needySeen: { aid: { mul: 0.001 } }, escortSeen: { hire: { mul: 0.001 } },
+    },
+  },
   brave: {
     towns: [], bases: [], markets: STALL_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 0, boldness: 1.5, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE,
     weights: {
-      strangerSeen: { challenge: { add: 0.05 } },
+      strangerSeen: { challenge: { add: 0.05 } }, lookedOver: { warn: { add: 1.5 }, keepAway: { mul: 0.2 } }, helpCalled: { help: { mul: 2.5 } },
       hostileSeen: { flee: { mul: 0.05 } }, contactHeard: { flee: { mul: 0.05 } }, attacked: { flee: { mul: 0.05 } },
       parley: { truce: { mul: 0.05 }, beg: { mul: 0.05 } }, threatened: { flee: { mul: 0.05 }, comply: { mul: 0.05 } }, warnedOff: { comply: { mul: 0.05 } },
       lootContested: { warn: { mul: 2 }, leave: { mul: 0.5 }, fight: { mul: 3 } }, warnRefused: { fight: { mul: 3 } },

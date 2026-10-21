@@ -10,6 +10,7 @@ import type { FireSpan } from '../../sim/armor';
 import { fireBlock } from '../../sim/combat';
 import { vehicleStats, type MountedWeapon } from '../../sim/stats';
 import { markHeightAt, type Terrain } from '../../sim/terrain';
+import { unitPoses } from '../../sim/rig';
 import type { Vehicle, World } from '../../sim/types';
 import { DEG, type Vec } from '../../sim/vec';
 import { createBareItemIcon } from '../../ui/cards';
@@ -32,6 +33,7 @@ export class WeaponRangeView {
   readonly root = new THREE.Group();
   private fill: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   private edges: Line2[] = [];
+  private drawSize = { width: 1, height: 1 };
 
   constructor(private readonly color: number, stencilBit: number) {
     this.fill = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({
@@ -44,33 +46,40 @@ export class WeaponRangeView {
     this.root.visible = false;
   }
 
-  set(terrain: Terrain, pos: Vec, heading: number, weapons: MountedWeapon[]): void {
-    this.draw(terrain, pos, heading, weapons.map((w) => ({ range: w.def.range, spans: w.spans })));
+  set(terrain: Terrain, origins: readonly GunOrigin[], weapons: MountedWeapon[]): void {
+    this.draw(terrain, weapons.map((w) => ({ ...originOf(origins, w.unit), range: w.def.range, spans: w.spans })));
   }
 
   hide(): void {
     this.root.visible = false;
   }
 
-  private draw(terrain: Terrain, pos: Vec, heading: number, reaches: { range: number; spans: FireSpan[] }[]): void {
+  private draw(terrain: Terrain, reaches: (GunOrigin & { range: number; spans: FireSpan[] })[]): void {
     this.root.visible = reaches.length > 0;
-    const at = (x: number, y: number) => new THREE.Vector3(x * S, markHeightAt(terrain, pos, x, y) * S + LIFT, y * S);
-    const center = at(pos.x, pos.y);
-    const points: THREE.Vector3[] = [center];
+    const points: THREE.Vector3[] = [];
     const idx: number[] = [];
-    const outlines = reaches.flatMap(({ range, spans }) =>
-      spans.map((span) => {
+    const outlines = reaches.flatMap(({ pos, heading, range, spans }) => {
+      const at = (x: number, y: number) => new THREE.Vector3(x * S, markHeightAt(terrain, pos, x, y) * S + LIFT, y * S);
+      const center = at(pos.x, pos.y);
+      const middle = points.length;
+      points.push(center);
+      return spans.map((span) => {
         const rim = rimPoints(span, heading, (a) => at(pos.x + Math.cos(a) * range, pos.y + Math.sin(a) * range));
         const first = points.length;
         points.push(...rim);
-        for (let i = 0; i < rim.length - 1; i++) idx.push(0, first + i, first + i + 1);
+        for (let i = 0; i < rim.length - 1; i++) idx.push(middle, first + i, first + i + 1);
         return span.to - span.from >= 360 ? rim : [center, ...rim, center];
-      }),
-    );
+      });
+    });
     this.fill.geometry.dispose();
     this.fill.geometry = new THREE.BufferGeometry().setFromPoints(points).setIndex(idx);
     this.fill.material.opacity = FILL_ALPHA;
     this.drawEdges(outlines, LINE_ALPHA);
+  }
+
+  setDrawSize(width: number, height: number): void {
+    this.drawSize = { width, height };
+    for (const edge of this.edges) edge.material.resolution.set(width, height);
   }
 
   private drawEdges(outlines: THREE.Vector3[][], opacity: number): void {
@@ -86,10 +95,27 @@ export class WeaponRangeView {
       if (!outline) return;
       edge.geometry.dispose();
       edge.geometry = new LineGeometry().setPositions(outline.flatMap((p) => [p.x, p.y, p.z]));
-      edge.material.resolution.set(window.innerWidth, window.innerHeight);
+      edge.material.resolution.set(this.drawSize.width, this.drawSize.height);
       edge.material.opacity = opacity;
     });
   }
+}
+
+export type GunOrigin = { pos: Vec; heading: number };
+
+function originOf(origins: readonly GunOrigin[], unit: number): GunOrigin {
+  const origin = origins[unit];
+  if (!origin) throw new Error(`No gun origin for unit ${unit}`);
+  return origin;
+}
+
+export function vehicleOrigins(v: Vehicle): GunOrigin[] {
+  return unitPoses(v);
+}
+
+export function frameOrigins(frame: VehicleFrame): GunOrigin[] {
+  const front = { pos: toMap(frame.pos), heading: headingOf(frame.rot) };
+  return frame.rear ? [front, { pos: toMap(frame.rear.pos), heading: headingOf(frame.rear.rot) }] : [front];
 }
 
 function rimPoints(span: FireSpan, heading: number, point: (angle: number) => THREE.Vector3): THREE.Vector3[] {
@@ -138,6 +164,11 @@ export class HoverArcsView {
     this.hide();
   }
 
+  setDrawSize(width: number, height: number): void {
+    this.ready.setDrawSize(width, height);
+    this.spent.setDrawSize(width, height);
+  }
+
   follow(world: World, hovered: string | null, frames: Record<string, VehicleFrame>, off: boolean): void {
     const vehicle = hovered === null ? undefined : world.vehicles.find((v) => v.id === hovered);
     const frame = vehicle && frames[vehicle.id];
@@ -146,13 +177,13 @@ export class HoverArcsView {
   }
 
   private update(terrain: Terrain, arcs: HoverArc[], frame: VehicleFrame): void {
-    const pos = toMap(frame.pos);
-    const heading = headingOf(frame.rot);
-    this.ready.set(terrain, pos, heading, arcs.filter((a) => !a.spent).map((a) => a.weapon));
-    this.spent.set(terrain, pos, heading, arcs.filter((a) => a.spent).map((a) => a.weapon));
+    const origins = frameOrigins(frame);
+    this.ready.set(terrain, origins, arcs.filter((a) => !a.spent).map((a) => a.weapon));
+    this.spent.set(terrain, origins, arcs.filter((a) => a.spent).map((a) => a.weapon));
     this.root.visible = true;
     this.syncIcons(arcs);
     for (const arc of arcs) {
+      const { pos, heading } = originOf(origins, arc.weapon.unit);
       const a = heading + arc.spot.angle * DEG;
       const x = pos.x + Math.cos(a) * arc.spot.distance;
       const y = pos.y + Math.sin(a) * arc.spot.distance;

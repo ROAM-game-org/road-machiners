@@ -251,4 +251,17 @@ describe('ship', () => {
     expect(f.calls.some((call) => call.startsWith('photo') || call.startsWith('message'))).toBe(false);
     expect(readState(f.ctx.statePath).release).not.toBeNull();
   });
+
+  it('counts the upload as done when itch.io already has this version, so a retry after a later failure finishes', async () => {
+    const f = shippable();
+    f.ctx.run = async (cmd) => (cmd === 'butler' ? { code: 1, stdout: '', stderr: `itch.io API error (400): /wharf/builds: enforcing unique versions, 1 build(s) already exist with version abc1234` } : { code: 0, stdout: CLONE_SHA, stderr: '' });
+    await ship(f.ctx, 11, 'Ann');
+    expect(readState(f.ctx.statePath).release).toBeNull();
+  });
+
+  it('still fails when itch.io has a different version', async () => {
+    const f = shippable();
+    f.ctx.run = async (cmd) => (cmd === 'butler' ? { code: 1, stdout: '', stderr: 'enforcing unique versions, 1 build(s) already exist with version other99' } : { code: 0, stdout: CLONE_SHA, stderr: '' });
+    await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('butler push failed');
+  });
 });

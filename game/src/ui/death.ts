@@ -24,6 +24,10 @@ export function confirmedEndRun(world: World): World | null {
   return canAbandonRun(world) && window.confirm(say(CONFIRM_END_RUN)) ? abandonRun(world) : null;
 }
 
+export function deathShows(world: World): boolean {
+  return world.player.state === "dead" && world.player.quests.live === null;
+}
+
 export class DeathScreen {
   private root: HTMLElement | null = null;
 

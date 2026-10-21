@@ -3,6 +3,7 @@ import type { NpcFactionId, StateKindId } from '../sim/types';
 import { CREW, HIRE } from './npc-behavior';
 import { RULES } from './rules';
 import { START_KITS } from './start';
+import { SUNWARD } from './sunward';
 
 export const NPC_RESOURCES = {
   money: START_KITS.standard.money,
@@ -10,7 +11,7 @@ export const NPC_RESOURCES = {
   supplies: START_KITS.standard.supplies,
 };
 
-export type TraitId = 'trader' | 'scavenger' | 'raider' | 'scumbag' | 'coward' | 'lawman' | 'courier' | 'roamer' | 'vulture' | 'supplier' | 'guard' | 'merc' | 'brave';
+export type TraitId = 'trader' | 'scavenger' | 'raider' | 'scumbag' | 'coward' | 'lawman' | 'courier' | 'roamer' | 'vulture' | 'supplier' | 'guard' | 'merc' | 'brave' | 'cultist';
 
 export type Weighted<T> = { value: T; weight: number };
 export type Load = { kg: number; cells: number };
@@ -67,7 +68,7 @@ const TRADER_SPARES: SpareTable = {
   ],
 };
 
-export type SpawnPlace = { kind: 'camp' } | { kind: 'town' } | { kind: 'sites'; ids: string[] } | { kind: 'escort'; of: string };
+export type SpawnPlace = { kind: 'camp' } | { kind: 'town' } | { kind: 'sites'; ids: string[] } | { kind: 'escort'; of: string } | { kind: 'hollow' };
 
 export type Allegiance =
   | { kind: 'site'; fallback: NpcFactionId }
@@ -154,6 +155,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "tractor", weight: 1 },
       { value: "scout", weight: 2 },
       { value: "bus", weight: 2 }, { value: "bukhanka", weight: 2 },
+      { value: "sorokonoga", weight: 1 },
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
@@ -302,6 +304,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "hauler", weight: 6 },
       { value: "longbed", weight: 3 },
       { value: "bus", weight: 2 },
+      { value: "sorokonoga", weight: 1 },
     ],
     priorities: { speed: 1, firepower: 1, armor: 3, cargo: 3 },
     cargoPart: [
@@ -328,6 +331,32 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     haul: { kg: 0, cells: 0 },
     spares: null,
   },
+  cavalcade: {
+    levels: [{ value: "light", weight: 2 }, { value: "standard", weight: 5 }, { value: "heavy", weight: 1 }],
+    chassis: [
+      { value: "buggy", weight: 5 },
+      { value: "jeep", weight: 3 },
+      { value: "scout", weight: 3 },
+      { value: "niva", weight: 2 },
+    ],
+    priorities: { speed: 2, firepower: 3, armor: 2, cargo: 0 },
+    cargoPart: [{ value: null, weight: 1 }],
+    goods: NO_GOODS,
+    haul: { kg: 0, cells: 0 },
+    spares: null,
+  },
+  hunter: {
+    levels: [{ value: "standard", weight: 4 }, { value: "heavy", weight: 1 }],
+    chassis: [
+      { value: "buggy", weight: 6 },
+      { value: "courier", weight: 3 },
+    ],
+    priorities: { speed: 3, firepower: 2, armor: 1, cargo: 0 },
+    cargoPart: [{ value: null, weight: 1 }],
+    goods: NO_GOODS,
+    haul: { kg: 0, cells: 0 },
+    spares: null,
+  },
   merc: {
     levels: [{ value: "standard", weight: 3 }, { value: "heavy", weight: 4 }, { value: "loaded", weight: 2 }],
     chassis: [
@@ -348,6 +377,7 @@ const NEUTRAL_EXTRAS: NpcTemplate['extraTraits'] = [{ trait: 'scumbag', chance: 
 const VULTURE_EXTRAS: NpcTemplate['extraTraits'] = [{ trait: 'coward', chance: 0.6 }, { trait: 'scumbag', chance: 0.35 }, { trait: 'brave', chance: 0.1 }];
 const RAIDER_EXTRAS: NpcTemplate['extraTraits'] = [{ trait: 'brave', chance: 0.15 }];
 const GUARD_EXTRAS: NpcTemplate['extraTraits'] = [{ trait: 'scumbag', chance: 0.25 }];
+const CULT_EXTRAS: NpcTemplate['extraTraits'] = [{ trait: 'brave', chance: 0.2 }, { trait: 'coward', chance: 0.15 }];
 
 export const OPPOSED_TRAITS: readonly [TraitId, TraitId][] = [['coward', 'brave']];
 
@@ -489,6 +519,28 @@ export const NPCS: Record<string, NpcTemplate> = {
     interval: 70,
     spawn: { kind: "sites", ids: ["bowl", "nose"] },
   },
+  cavalcade: {
+    id: 'cavalcade', allegiance: { kind: 'fixed', faction: 'sunward' }, traits: ['cultist'], extraTraits: CULT_EXTRAS,
+    loadout: LOADOUTS.cavalcade,
+    aggroRange: 11,
+    fightStyle: 'circle',
+    money: NPC_RESOURCES.money,
+    cap: SUNWARD.cavalcade,
+    pairs: false,
+    interval: 20,
+    spawn: { kind: 'hollow' },
+  },
+  hunter: {
+    id: 'hunter', allegiance: { kind: 'fixed', faction: 'sunward' }, traits: ['cultist'], extraTraits: CULT_EXTRAS,
+    loadout: LOADOUTS.hunter,
+    aggroRange: 13,
+    fightStyle: 'circle',
+    money: NPC_RESOURCES.money,
+    cap: SUNWARD.hunters,
+    pairs: false,
+    interval: 40,
+    spawn: { kind: 'hollow' },
+  },
 };
 
 export const SPAWN = {
@@ -514,6 +566,7 @@ export const SPAWN = {
   ],
   startTraffic: { town: "bowl", templates: ["trader", "trader"] },
   minPlayerDist: 16,
+  crowd: { reach: 12, most: 4 },
   gateSpread: 12,
   gateAngle: 0.3,
   tries: 40,
@@ -526,6 +579,8 @@ export type DecisionOptions = {
   contactHeard: 'keep' | 'investigate' | 'flee';
   attacked: 'keep' | 'flee' | 'fightBack';
   preySeen: 'keep' | 'rob';
+  sizedUp: 'keep' | 'rob';
+  lookedOver: 'keep' | 'keepAway' | 'warn';
   strandedSeen: 'keep' | 'tow';
   salvageSeen: 'keep' | 'loot';
   patchDeal: 'paid' | 'ownParts' | 'free';
@@ -552,6 +607,8 @@ export type DecisionOptions = {
   escortWanted: 'go' | 'post';
   needySeen: 'keep' | 'aid';
   strangerSeen: 'keep' | 'tale' | 'tip' | 'challenge' | 'courier';
+  vigilCalled: 'accept' | 'refuse' | 'flee';
+  helpCalled: 'help' | 'refuse';
 };
 export type DecisionId = keyof DecisionOptions;
 
@@ -565,6 +622,8 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   contactHeard: { keep: 1, investigate: 0, flee: 3 },
   attacked: { keep: 0.5, flee: 1, fightBack: 2 },
   preySeen: { keep: 1, rob: 0 },
+  sizedUp: { keep: 1, rob: 2 },
+  lookedOver: { keep: 4, keepAway: 0.25, warn: 0 },
   strandedSeen: { keep: 1, tow: 0 },
   salvageSeen: { keep: 1, loot: 0 },
   patchDeal: { paid: 6, ownParts: 3, free: 1 },
@@ -590,6 +649,8 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   escortWanted: { go: 3, post: 1 },
   needySeen: { keep: 1, aid: 0 },
   strangerSeen: { keep: 1, tale: 0, tip: 0, challenge: 0, courier: 0 },
+  vigilCalled: { accept: 0.3, refuse: 1, flee: 3 },
+  helpCalled: { help: 0.11, refuse: 1 },
 };
 
 export type WeightChange = { add?: number; mul?: number };
@@ -598,17 +659,19 @@ export type TraitWeights = { [D in DecisionId]?: Partial<Record<DecisionOptions[
 export const STATE_WEIGHTS: Record<StateKindId, TraitWeights> = {
   feud: { hostileSeen: { fight: { add: 4 } } },
   backedOff: { preySeen: { rob: { mul: 0.005 } } },
-  tow: {}, patch: {}, trade: {}, handover: {}, aid: {}, combat: {}, lootWarning: {},
+  tow: {}, patch: {}, trade: {}, handover: {}, aid: {}, combat: {}, lootWarning: {}, lookOver: {}, sizedUp: {},
   truce: {},
   grievance: {},
   strayFire: {},
   plea: { parley: { truce: { mul: 0.01 }, beg: { mul: 0.01 } } },
+  helpRefused: {},
   turnedDown: { strandedSeen: { tow: { mul: 0.001 } } },
   towPromise: { strandedSeen: { tow: { add: 20 } } },
   answering: {},
   escort: { strandedSeen: { tow: { add: 99 } } },
   crew: { strandedSeen: { tow: { add: 99 } } },
   hire: { strandedSeen: { tow: { add: 99 } } },
+  cavalcade: {}, offering: {}, drag: {},
   revenge: {
     hostileSeen: { fight: { add: 4 } },
     contactHeard: { investigate: { add: 2 } },
@@ -636,6 +699,7 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   grievance: 5,
   strayFire: 60,
   plea: 20,
+  helpRefused: 20,
   turnedDown: null,
   towPromise: null,
   revenge: 2000,
@@ -645,8 +709,13 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   hire: HIRE.turns,
   combat: 10,
   lootWarning: 30,
+  lookOver: null,
+  sizedUp: null,
+  cavalcade: null,
+  offering: null,
+  drag: SUNWARD.dragTurns,
 };
 
 
-export { CREW, FEMALE_NAMES, FIRST_NAMES, HIRE, HUNT, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
+export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';

@@ -3,12 +3,14 @@ import {
   restoreDrive,
   type DriveSnapshot,
   restFrames,
+  frameWheels,
   restWheels,
   trailFrames,
+  type UnitWheels,
   type Drive,
   type TurnResult,
 } from "../phys/drive";
-import type { VehicleFrame, WheelFrame } from "../phys/frames";
+import type { VehicleFrame } from "../phys/frames";
 import type { PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
@@ -62,12 +64,18 @@ function crashedIntoTruck(event: Extract<GameEvent, { t: "collision" }>, id: str
   return other !== null && world.vehicles.some((v) => v.id === other);
 }
 
+function entersTheLight(event: GameEvent): boolean {
+  return event.t === "info" && (event.note.id === "hazard" || event.note.id === "core");
+}
+
 function interruptsTravel(event: GameEvent, id: string, world: World): boolean {
   switch (event.t) {
     case "collision":
       return crashedIntoTruck(event, id, world);
     case "shot":
       return [event.shooter, event.target].includes(id);
+    case "info":
+      return entersTheLight(event);
     default:
       return stopsVehicle(event, id);
   }
@@ -89,8 +97,9 @@ export function addRopeFrames(before: World, after: World, frames: TurnResult["f
   }
 }
 
-function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): WheelFrame[] {
-  return shown[v.id]?.wheels ?? restWheels(v.chassisId);
+function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): UnitWheels {
+  const frame = shown[v.id];
+  return frame && Boolean(frame.rear) === (restWheels(v.chassisId).rear !== null) ? frameWheels(frame) : restWheels(v.chassisId);
 }
 
 export function canTravel(world: World): boolean {
@@ -186,7 +195,7 @@ export class Travel {
   }
 
   updateWorld(world: World, sighted: boolean): void {
-    if (this.autoPress && !autoRuns(world)) this.dropPress();
+    if (!autoRuns(world) && (this.autoPress || world.events.some(entersTheLight))) this.dropPress();
     const order = playerVehicle(world).order;
     this.update(
       canTravel(world) && !sighted,

@@ -9,7 +9,7 @@ import { furyRoadWorld, parkInYard } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
-import { changeMapIfMoved, loadWorld, mapFor, SaveError, SaveHold, SAVE_KEY, writeSave, type Run } from './save';
+import { changeMapIfMoved, loadWorld, mapFor, SaveHold, SAVE_KEY, writeSave, type Run } from './save';
 import { RunLog } from './run-log';
 import { takeBootRequest } from './save-slots';
 import { memoryBackend, SaveSlots } from './save-db';
@@ -100,13 +100,13 @@ describe('the map of a saved world', () => {
   const furyRoad = furyRoadWorld(21);
 
   it('throws on a highway hash that no longer matches the generator', () => {
-    expect(() => mapFor({ ...furyRoad, mapHash: 'highway:0:21:0' }, TEST_MAP)).toThrow(SaveError);
+    expect(() => mapFor({ ...furyRoad, mapHash: 'highway:0:21:0' }, TEST_MAP)).toThrow(/mapChanged/);
   });
 
   it('throws on a Fury Road world with no run or on Icarus, and on a Roaming world on a highway', () => {
-    expect(() => mapFor({ ...furyRoad, furyRoad: null }, TEST_MAP)).toThrow(/Icarus roads/);
-    expect(() => mapFor({ ...furyRoad, mapHash: TEST_MAP.hash }, TEST_MAP)).toThrow(SaveError);
-    expect(() => mapFor({ ...furyRoad, setup: defaultSetup('roaming') }, TEST_MAP)).toThrow(SaveError);
+    expect(() => mapFor({ ...furyRoad, furyRoad: null }, TEST_MAP)).toThrow(/mapChanged.*Icarus roads/);
+    expect(() => mapFor({ ...furyRoad, mapHash: TEST_MAP.hash }, TEST_MAP)).toThrow(/otherMap/);
+    expect(() => mapFor({ ...furyRoad, setup: defaultSetup('roaming') }, TEST_MAP)).toThrow(/otherMap/);
   });
 
   it('gives a Roaming world the Icarus map', () => {

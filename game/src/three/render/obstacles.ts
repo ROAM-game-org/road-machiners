@@ -6,7 +6,7 @@ import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
 import { propPose, propReach, rockModel, type PropPose } from '../../sim/mapgen';
 import { propBase } from '../../sim/bridge';
-import { bodyOf } from '../../sim/body';
+import { unitsOf } from '../../sim/body';
 import { LOOT_LOOK, lootColor } from '../../render/lootLook';
 import { baseModel, grayed, HULK_TILT, HULK_TONE, WEAR_LOOK_STEPS } from '../../render/partLooks';
 import { heightAt, type Terrain } from '../../sim/terrain';
@@ -135,7 +135,7 @@ export class ObstacleViews {
     const k = 1 + REACTOR_PULSE.share * Math.sin((this.clock / REACTOR_PULSE.period) * Math.PI * 2);
     for (const glow of this.glows.values()) {
       for (const m of glow.materials) m.emissiveIntensity = REACTOR_GLOW.emissive * k;
-      glow.light.intensity = REACTOR_GLOW.intensity * k;
+      for (const light of glow.lights) light.intensity = REACTOR_GLOW.intensity * k;
     }
   }
 
@@ -275,6 +275,7 @@ export function buildProp(t: Terrain, o: Obstacle): THREE.Object3D {
   g.add(obj);
   paintShipGlow(obj);
   if (pose.model === 'reactor') lightCore(obj, g);
+  if (pose.model === 'ship_bow') lightBreach(g);
   return g;
 }
 
@@ -290,12 +291,26 @@ export type HulkPose = Extract<PropPose, { model: 'hulk' }>;
 
 export function buildHulk(t: Terrain, o: Obstacle, pose: HulkPose): THREE.Group {
   const g = posed(propBase(t, o), pose);
-  const obj = model(baseModel(pose.chassisId));
-  g.userData.lootSwatches = char(obj);
-  jag(obj, o.id, WEAR_LOOK_STEPS);
-  obj.position.y = bodyOf(pose.chassisId).half.y;
-  obj.rotation.set((hashStr(`${o.id}:roll`) * 2 - 1) * HULK_TILT, 0, (hashStr(`${o.id}:pitch`) * 2 - 1) * HULK_TILT);
-  g.add(obj);
+  const swatches = unitsOf(pose.chassisId).map((u) => {
+    const obj = model(baseModel(pose.chassisId, u.index));
+    const swatch = char(obj);
+    const key = u.index === 0 ? o.id : `${o.id}:${u.index}`;
+    jag(obj, key, WEAR_LOOK_STEPS);
+    const unit = new THREE.Group();
+    unit.position.y = u.body.half.y;
+    const bend = pose.bend ?? 0;
+    if (u.pivot !== null && u.index > 0) {
+      const pivot = u.offset + u.pivot;
+      unit.position.x = pivot - u.pivot * Math.cos(bend);
+      unit.position.z = u.pivot * Math.sin(bend);
+      unit.rotation.y = bend;
+    }
+    obj.rotation.set((hashStr(`${key}:roll`) * 2 - 1) * HULK_TILT, 0, (hashStr(`${key}:pitch`) * 2 - 1) * HULK_TILT);
+    unit.add(obj);
+    g.add(unit);
+    return swatch;
+  });
+  g.userData.lootSwatches = swatches.flat();
   return g;
 }
 
@@ -336,11 +351,27 @@ function lightCore(reactor: THREE.Object3D, g: THREE.Group): void {
     m.emissiveIntensity = REACTOR_GLOW.emissive;
     materials.push(m);
   });
-  const light = new THREE.PointLight(PAL.reactorLight, REACTOR_GLOW.intensity, REACTOR_GLOW.range, REACTOR_GLOW.decay);
-  light.position.set(0, REACTOR_GLOW.height, 0);
-  g.add(light);
-  const glow: Glow = { materials, light };
+  const glow: Glow = { materials, lights: [] };
   g.userData.glow = glow;
+}
+
+export function lightBreach(g: THREE.Group): THREE.SpotLight {
+  const spot = new THREE.SpotLight(PAL.reactorLight, REACTOR_GLOW.intensity, REACTOR_GLOW.range, BREACH_LIGHT.angle, BREACH_LIGHT.penumbra, REACTOR_GLOW.decay);
+  spot.position.set(BOW_BREACH.along, BOW_BREACH.height, BOW_BREACH.out);
+  spot.target.position.set(BOW_BREACH.along, BOW_BREACH.height - Math.sin(BREACH_LIGHT.tilt), BOW_BREACH.out + Math.cos(BREACH_LIGHT.tilt));
+  g.add(spot, spot.target);
+  const core = breachCore();
+  g.add(core);
+  const glow: Glow = { materials: [core.material as THREE.MeshLambertMaterial], lights: [spot] };
+  g.userData.glow = glow;
+  return spot;
+}
+
+function breachCore(): THREE.Mesh {
+  const material = new THREE.MeshLambertMaterial({ color: 0x000000, emissive: new THREE.Color(PAL.reactorGlow).multiplyScalar(BREACH_CORE.strength), emissiveIntensity: REACTOR_GLOW.emissive, side: THREE.DoubleSide });
+  const core = new THREE.Mesh(new THREE.CircleGeometry(BREACH_CORE.radius, 16), material);
+  core.position.set(BOW_BREACH.along, BOW_BREACH.height, BOW_BREACH.out - BREACH_CORE.inset);
+  return core;
 }
 
 export function paintShipGlow(obj: THREE.Object3D): void {
@@ -397,10 +428,13 @@ function syncTrees(fixed: Fixed, obstacles: readonly Obstacle[]): void {
   for (const id of fixed.treeIds) if (!standing.has(id)) fixed.trees.hide(id);
 }
 
-const REACTOR_GLOW = { emissive: 2.2, intensity: 500, range: 40, decay: 1.5, height: 8 };
+export const REACTOR_GLOW = { emissive: 2.2, intensity: 500, range: 40, decay: 1.5 };
+export const BOW_BREACH = { along: 10, height: 5, out: 17, radius: 7 };
+const BREACH_LIGHT = { tilt: (25 * Math.PI) / 180, angle: (55 * Math.PI) / 180, penumbra: 0.5 };
+const BREACH_CORE = { radius: 6.2, inset: 1.5, strength: 0.4 };
 const SHIP_GLOW = { emissive: 1.0, base: 0.2 };
 const REACTOR_PULSE = { share: 0.2, period: 5 };
-type Glow = { materials: THREE.MeshLambertMaterial[]; light: THREE.PointLight };
+type Glow = { materials: THREE.MeshLambertMaterial[]; lights: THREE.SpotLight[] };
 const WIRES = ['wire0', 'wire1', 'wire2'];
 const SAG = 0.7;
 const WIRE_POINTS = 8;

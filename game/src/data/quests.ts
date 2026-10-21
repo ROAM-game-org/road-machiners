@@ -26,18 +26,13 @@ export const GAME_OPENED_QUESTS = {
   introRoad: 'intro_road',
   wagonSeven: 'wagon_seven',
   scale: 'bowl_scale',
-  roadHire: 'road_hire',
+  coreDeath: 'fallen_light',
+  chaosHighwayIntro: 'chaos_highway_intro',
   roadStretch1: 'road_stretch_1',
-  roadStretch4: 'road_stretch_4',
-  roadStretch8: 'road_stretch_8',
-  roadStretch12: 'road_stretch_12',
 } as const;
 export const ALA_HIRED = 'ala_hired';
 export const ROAD_STORY: Record<number, { quest: string; gate: string }> = {
   1: { quest: GAME_OPENED_QUESTS.roadStretch1, gate: 'road_seen_1' },
-  4: { quest: GAME_OPENED_QUESTS.roadStretch4, gate: 'road_seen_4' },
-  8: { quest: GAME_OPENED_QUESTS.roadStretch8, gate: 'road_seen_8' },
-  12: { quest: GAME_OPENED_QUESTS.roadStretch12, gate: 'road_seen_12' },
 };
 export const FIRST_FALL_SEEN = 'first_knockout_seen';
 export const WAGON_SEEN = 'wagon_seen';

@@ -628,6 +628,7 @@ describe('context picker', () => {
 describe('overdrive switch', () => {
   function wornTo(extra: number) {
     const w = emptyWorld();
+    w.player.ranks.driving = 1;
     const engine = mountedParts(playerVehicle(w), 'engine')[0];
     engine.wear = 2;
     engine.hp = Math.floor(RULES.overdriveMinEngineShare * maxHp(engine)) + extra;
@@ -648,6 +649,13 @@ describe('overdrive switch', () => {
     expect({ checked: s.checked, reason: s.reason, title: en(s.title) }).toEqual({ checked: false, reason: null, title: 'Faster, but the engine heats fast' });
     w.player.overdrive = true;
     expect(overdriveSwitch(w).checked).toBe(true);
+  });
+
+  it('is locked at Driving 0 and names the rank it needs', () => {
+    const w = emptyWorld();
+    w.player.overdrive = true;
+    const s = overdriveSwitch(w);
+    expect({ checked: s.checked, locked: s.locked, reason: s.reason && en(s.reason) }).toEqual({ checked: false, locked: true, reason: 'Needs Driving 1' });
   });
 });
 
@@ -705,11 +713,14 @@ describe('survey interaction', () => {
     expect(actions(w)).toEqual([]);
   });
 
-  it('offers Survey the area when stopped in reach of an open site, and not once it is done', () => {
+  it('names the place when stopped in reach of an open site, and not once it is done', () => {
     const w = atSurveySite();
-    expect(actions(w)).toMatchObject([{ label: 'Survey the area', ready: true }]);
+    const [site] = surveySites(TEST_MAP);
+    const label = `Survey the ${resolve(t(`contract.place.${site.type}`), 'en')}`;
+    expect(actions(w)).toMatchObject([{ label, ready: true }]);
+    expect(resolve(getContextActions(w, false)[0].label, 'ru')).toBe('Разведать хутор');
     w.vehicles[0].speed = RULES.parkedSpeed + 1;
-    expect(actions(w)).toMatchObject([{ label: 'Survey the area', ready: false }]);
+    expect(actions(w)).toMatchObject([{ label, ready: false }]);
     w.vehicles[0].speed = 0;
     const contract = w.player.contracts[0];
     if (contract.kind === 'survey') contract.points[0].done = true;
@@ -719,5 +730,20 @@ describe('survey interaction', () => {
   it('offers nothing off the site', () => {
     const w = emptyWorld();
     expect(actions(w)).toEqual([]);
+  });
+});
+
+describe("the health readout at the reactor core", () => {
+  it("takes the danger edge only in a turn the core burns the driver", () => {
+    const w = newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+    const health = () => getHudReadout(w).resources.find((r) => r.id === "driver")!;
+    w.events = [{ t: "info", note: { id: "hazard" } }];
+    expect(health().danger).toBe(false);
+
+    w.events = [{ t: "coreBurn", vehicle: w.player.vehicleId }];
+    expect(health().danger).toBe(true);
+
+    w.events = [{ t: "coreBurn", vehicle: "someone-else" }];
+    expect(health().danger).toBe(false);
   });
 });

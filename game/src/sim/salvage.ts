@@ -107,10 +107,8 @@ export function stockOldSpots(world: World, map: BakedMap): void {
   const ids = new Set(picks.map(oldStockId));
   const stray = world.salvage.find((stock) => oldSpotOf(stock) && !ids.has(stock.id));
   if (stray) throw new Error(`Old spot stock ${stray.id} is no old spot of map ${map.hash}`);
-  const held = world.salvage.filter((stock) => ids.has(stock.id)).length;
-  if (held === picks.length) return;
-  if (held > 0) throw new Error(`Old spot stocks are partial: ${held} of ${picks.length}`);
-  for (const p of picks) world.salvage.push(rollStock(world, OLD_TABLES[p.type], oldStockId(p), p.pos, p.reach));
+  const held = new Set(world.salvage.filter((stock) => ids.has(stock.id)).map((stock) => stock.id));
+  for (const p of picks.filter((pick) => !held.has(oldStockId(pick)))) world.salvage.push(rollStock(world, OLD_TABLES[p.type], oldStockId(p), p.pos, p.reach));
 }
 
 export function emptyHidden(): HiddenLoot {
@@ -793,6 +791,7 @@ export type OldSpotPick = { propId: string; type: OldPlaceType; pos: Vec; reach:
 
 const BUILDINGS: readonly PropKind[] = ['house', 'ruin', 'silo', 'waterTower', 'gasStation'];
 const TOWERS: readonly PropKind[] = ['silo', 'waterTower'];
+const BOAT_LOOKS: readonly PropKind[] = ['fishingBoat', 'riverBarge', 'skiff'];
 const RING_DIRECTIONS = 24;
 const RING_PAST = 2;
 
@@ -803,7 +802,8 @@ export function oldPlaces(baked: readonly Obstacle[]): OldPlace[] {
   const candidates = baked.filter((o) => o.kind === 'landmark' && territoryAt(o.pos) === null && clearOfSites(icarusAtlas(), o.pos, o.r));
   const buildings = linked(candidates.filter((o) => o.kind === 'landmark' && BUILDINGS.includes(o.look)), OLD_PLACES.buildingGap);
   const tanks = linked(candidates.filter((o) => o.kind === 'landmark' && o.look === 'tank'), OLD_PLACES.tankGap);
-  return [...buildings.map((props) => place(buildingType(props), props)), ...tanks.map((props) => place('hulks', props))];
+  const boats = linked(candidates.filter((o) => o.kind === 'landmark' && BOAT_LOOKS.includes(o.look)), OLD_PLACES.boatGap);
+  return [...buildings.map((props) => place(buildingType(props), props)), ...tanks.map((props) => place('hulks', props)), ...boats.map((props) => place('boats', props))];
 }
 
 function buildingType(props: Obstacle[]): OldPlaceType {

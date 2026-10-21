@@ -46,7 +46,7 @@ function queued(state: FactoryState): JobPick[] {
     ...approvals.map((issue) => ({ stage: 'approve' as const, issue })),
     ...state.pendingRemovals.map((removal) => ({ stage: 'remove' as const, issue: removal.issue })),
     ...ship,
-    ...state.pendingIncidents.map((issue) => ({ stage: 'incident' as const, issue })),
+    ...state.pendingIncidents.slice(0, 1).map((issue) => ({ stage: 'incident' as const, issue })),
     ...(state.pendingAnswers.length > 0 ? [{ stage: 'answer' as const, issue: null }] : []),
   ];
 }
@@ -191,7 +191,7 @@ function limits(cfg: Due): Record<Queue, number> {
   };
 }
 
-export type WaitReason = 'queue-full' | 'issue-running' | 'card-budget' | 'needs-info' | 'voting' | 'failed' | 'approval' | 'held';
+export type WaitReason = 'queue-full' | 'issue-running' | 'card-budget' | 'needs-info' | 'voting' | 'failed' | 'approval' | 'held' | 'hotfix-verify';
 export type ScheduleDecision = JobPick & { reasons: WaitReason[] };
 export type ScheduleReport = { picks: JobPick[]; decisions: ScheduleDecision[]; release: ReleaseGate };
 function findCapacityReasons(state: FactoryState, pick: JobPick, running: JobPick[], cfg: Due): WaitReason[] {
@@ -202,6 +202,10 @@ function findCapacityReasons(state: FactoryState, pick: JobPick, running: JobPic
   const group = ONE_AT_A_TIME.find((stages) => stages.includes(pick.stage));
   if (group !== undefined && running.some((job) => group.includes(job.stage))) reasons.push('issue-running');
   return reasons;
+}
+function readHotfixVerifyReasons(pick: JobPick, running: JobPick[], hotfixes: Set<number>): WaitReason[] {
+  const inVerify = (job: JobPick): boolean => QUEUE_OF[job.stage] === 'verify' && job.issue !== null && hotfixes.has(job.issue);
+  return inVerify(pick) && running.some(inVerify) ? ['hotfix-verify'] : [];
 }
 const ONE_AT_A_TIME: JobStage[][] = [['ship', 'remove'], ['incident'], ['catch-up']];
 const LABEL_WAITS: [string, WaitReason][] = [[STUCK_LABEL, 'failed'], [NEEDS_INFO_LABEL, 'needs-info'], [VOTING_LABEL, 'voting']];
@@ -231,12 +235,14 @@ const NO_HEADS: Heads = { dev: null, release: null, main: null };
 export function evaluateSchedule(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads = NO_HEADS): ScheduleReport {
   const picks: JobPick[] = [];
   const pickedForCard = new Map<number, number>();
+  const hotfixes = new Set(cards.filter(has(HOTFIX_LABEL)).map((card) => card.issue));
   const decisions = cards.filter((card) => card.column !== 'Done' && !card.labels.includes(RELEASE_LABEL)).flatMap((card) => readCardWait(state, card));
   for (const candidate of [...branchCandidates(state, cards, now, cfg, heads), ...wasteReview(state, now, cfg), ...cardCandidates(state, cards)]) {
     const pick = { stage: candidate.stage, issue: candidate.issue };
     const limited = !candidate.pastCardLimit && countsTowardCardLimit(pick.stage);
     const cardLeft = readCardLeft(state, now, cfg, pickedForCard, pick.issue);
-    const reasons = [...findCapacityReasons(state, pick, [...state.jobs, ...picks], cfg), ...readCardReasons(limited, cardLeft)];
+    const running = [...state.jobs, ...picks];
+    const reasons = [...findCapacityReasons(state, pick, running, cfg), ...readHotfixVerifyReasons(pick, running, hotfixes), ...readCardReasons(limited, cardLeft)];
     decisions.push({ ...pick, reasons });
     if (reasons.length) continue;
     countCardPick(pickedForCard, limited, pick.issue);

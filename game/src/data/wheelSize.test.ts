@@ -29,9 +29,12 @@ const STOCK_FLOOR: Record<Look, Tire> = {
   lincoln: { radius: 0.42, halfWidth: 0.17 },
   semi: { radius: 0.65, halfWidth: 0.18 },
   loader: { radius: 0.8, halfWidth: 0.32 },
+  sorokonoga: { radius: 0.55, halfWidth: 0.2 },
 };
 
 const SEMI_TIRE: Tire = { radius: 0.8, halfWidth: 0.21 };
+const SOROKONOGA_TIRE: Tire = { radius: 0.55, halfWidth: 0.2 };
+const RIGS: readonly string[] = ['semi', 'sorokonoga'];
 
 function sideRadius(base: keyof typeof SHAPES): number {
   const boxes = SHAPES[base].boxes;
@@ -48,13 +51,13 @@ function ruleTire(look: Look, base: keyof typeof SHAPES): Tire {
 }
 
 const RULED = Object.entries(CHASSIS)
-  .filter(([, def]) => def.look !== 'semi')
+  .filter(([, def]) => !RIGS.includes(def.look))
   .map(([id, def]) => ({ id, look: def.look, base: `base_${id}` as keyof typeof SHAPES }));
 
 describe('tire size rule', () => {
-  it('covers every look but the semi', () => {
+  it('covers every look but the rigs', () => {
     const looks = new Set(RULED.map((c) => c.look));
-    expect([...looks].sort()).toEqual(Object.keys(PHYSICS.bodies).filter((l) => l !== 'semi').sort());
+    expect([...looks].sort()).toEqual(Object.keys(PHYSICS.bodies).filter((l) => !RIGS.includes(l)).sort());
   });
 
   it.each(RULED)('$id rolls on the larger of its side share of the body and its stock tire', ({ look, base }) => {
@@ -67,5 +70,11 @@ describe('tire size rule', () => {
   it('keeps the semi on the tire its tandem spacing and photo height allow, since its trailer box is not what its tires carry', () => {
     expect(PHYSICS.bodies.semi.wheelRadius).toBe(SEMI_TIRE.radius);
     expect(PHYSICS.bodies.semi.wheelHalfWidth).toBe(SEMI_TIRE.halfWidth);
+  });
+
+  it('keeps the sorokonoga on the tire its driving numbers are tuned on, since a tractor-sized tire would change its ride and physics', () => {
+    expect(PHYSICS.bodies.sorokonoga.wheelRadius).toBe(SOROKONOGA_TIRE.radius);
+    expect(PHYSICS.bodies.sorokonoga.wheelHalfWidth).toBe(SOROKONOGA_TIRE.halfWidth);
+    expect(PHYSICS.couplings.sorokonoga.rear.wheelRadius).toBe(SOROKONOGA_TIRE.radius);
   });
 });
