@@ -18,12 +18,11 @@ Each line is JSON with a `k` field:
 `.factory/playtest-facts.json` and `.factory/playtest-baseline-facts.json` hold the facts the factory read from each log. `.factory/playtest-history.md` lists the earlier plays of this release and the committee's decisions. Respect those decisions. `.factory/open-bugs.md` lists the open bug issues.
 
 Read the whole release log, start to end. It is long, so read it in chunks with jq, grep or a short script, and keep going until you covered every turn.
-`.factory/release-features.md` lists every feature the release brings, with its issue, title, merge commit and issue text. The seed run does not play them, so you play each one yourself, to its end:
+`.factory/release-features.md` lists every feature the release brings, with its issue, title and issue text. The seed run does not play them, so you play each one yourself, to its end:
 - Use the progression harness or a Playwright script on the dev server, whichever reaches the feature. A quest chain is played to its last step. Every new chassis is driven on the road. Every new screen is opened in both languages.
 - Read `../docs/incident-log.md`. Each entry is an incident: what went wrong and what it cost. For each incident this release could repeat, play the release the way that incident would show.
-- Never claim you played a feature you only read. When you cannot play one, say so in its `coverage` result and in `limitations`.
-A feature that comes back with no `coverage` line goes back to you once, and a feature still missing on the last play is named in the release post.
-A replay re-checks only the features you fixed and the features you skipped.
+- Never claim you played a feature you only read. When you cannot play one, say so in the report and in `limitations`.
+A replay re-checks only the features you fixed.
 
 Check:
 - movement and goals: trucks that go somewhere and arrive, goals that start and end, trucks that stop moving, stall events.
@@ -58,19 +57,19 @@ Write `.factory/playtest.json`:
   "limitations": ["what this run cannot show"],
   "findings": [{ "id": "F1", "severity": "important" | "minor", "title": "short", "evidence": "turns, vehicle ids and lines", "cause": "release" | "old", "why": "the evidence for the cause", "known": 123 | null }],
   "fixes": ["what each commit of this round changed"],
-  "coverage": [{ "issue": 123, "how": "what you did to play the feature, with the commands or steps", "result": "what happened, with the evidence" }],
   "explanations": { "death": "why the player died, or null", "quiet": "why the run lacks each quiet part, or null" },
   "blocker": "why the release must wait for a person, or null"
 }
 - clean: no important `release` finding, and you committed nothing.
 - fixed: you committed fixes for the important `release` findings. The factory replays the seed on them.
 - blocked: a finding that needs a design or taste decision, a fix you cannot make safe, or a gate you cannot judge. Say in `blocker` what a member must decide.
-`coverage` has one line per feature in `.factory/release-features.md`. `how` and `result` say what you did and saw, never the feature title again. An empty `how` or `result` fails the review.
 `findings` lists what this log shows, also what you fixed in this round.
 
 Write `.factory/playtest.md`, the report for the committee, in plain words, under 400 lines. Keep it up to date in each round, so it covers the whole job:
 ## Run
 Seed, turns, commit, baseline, how the run ended.
+## Features
+One line per feature of the release: how you played it and what happened. Say plainly which features you could not play and why.
 ## Observations
 ## Suspected issues
 ## Limitations

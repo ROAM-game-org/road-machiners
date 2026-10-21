@@ -104,7 +104,6 @@ export type FactoryConfig = {
   filterPerTick: number;
   reportIpPerHour: number;
   reportMaxChars: number;
-  incidentMaxEntries: number;
 };
 
 export type TokenPrice = { input: number; output: number; cacheRead: number; cacheWrite5m: number; cacheWrite1h: number };

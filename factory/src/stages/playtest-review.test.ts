@@ -1,18 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { judge, logFacts, missingFeatures, readReview, type LogFacts, type Review } from './playtest-review';
+import { judge, logFacts, readReview, type LogFacts, type Review } from './playtest-review';
 import { WANT, logText } from './playtest-fixtures';
 
 
 const review = (over: Partial<Review> = {}): Review => ({
-  verdict: 'clean', summary: 's', drama: 'd', observations: [], suspected: [], limitations: ['far mode'], findings: [], fixes: [], coverage: [],
+  verdict: 'clean', summary: 's', drama: 'd', observations: [], suspected: [], limitations: ['far mode'], findings: [], fixes: [],
   explanations: { death: null, quiet: null }, blocker: null, ...over,
 });
 const important = { id: 'F1', severity: 'important' as const, title: 'Raiders never stop', evidence: 'turn 40', cause: 'release' as const, why: 'the raid goal of #12 never ends', known: null };
 const old = { ...important, id: 'F2', cause: 'old' as const, why: 'the baseline log shows the same loop at turn 300' };
 const facts = (over: Partial<LogFacts> = {}): LogFacts => ({ ...logFacts(logText(), WANT), ...over });
 const play = { moved: false, last: false };
-const features = [{ issue: 5, title: 'Salvage chain' }, { issue: 6, title: 'Hauler chassis' }];
-const covered = (issue: number) => ({ issue, how: 'played the chain to its last step on the dev server', result: 'the reward paid out' });
 
 describe('logFacts', () => {
   it('reads the ending, the event count and the summary of the run', () => {
@@ -49,13 +47,6 @@ describe('readReview', () => {
     expect(() => readReview(JSON.stringify(review({ findings: [{ ...important, cause: 'maybe' as 'old' }] })))).toThrow('Finding F1 has cause maybe, not release or old');
     expect(() => readReview(JSON.stringify(review({ findings: [{ ...important, why: ' ' }] })))).toThrow('Finding F1 gives no reason for its cause');
     expect(() => readReview(JSON.stringify(review({ findings: [{ ...old, known: '12' as unknown as number }] })))).toThrow('Finding F2 has known 12, not an issue number or null');
-  });
-
-  it('fails on a missing coverage list or a coverage line with no issue, no how or no result', () => {
-    expect(() => readReview(JSON.stringify({ ...review(), coverage: undefined }))).toThrow('no coverage list');
-    expect(() => readReview(JSON.stringify(review({ coverage: [{ ...covered(5), issue: '5' as unknown as number }] })))).toThrow('Coverage line 1 has issue 5, not an issue number');
-    expect(() => readReview(JSON.stringify(review({ coverage: [{ ...covered(5), how: ' ' }] })))).toThrow('Coverage line 1 says nothing on how the feature was played');
-    expect(() => readReview(JSON.stringify(review({ coverage: [{ ...covered(5), result: '' }] })))).toThrow('Coverage line 1 says nothing on the result');
   });
 
   it('fills missing explanations, blocker and known with null', () => {
@@ -105,38 +96,5 @@ describe('judge', () => {
 
   it('blocks with the reviewer reason on a blocked verdict', () => {
     expect(judge(facts(), review({ verdict: 'blocked', blocker: 'Should raiders flee at night? A design call.' }), play)).toEqual({ outcome: 'blocked', reason: 'Should raiders flee at night? A design call.' });
-  });
-
-  it('replays a play that skipped release features before the last play, and names them', () => {
-    const outcome = judge(facts(), review({ coverage: [covered(5)] }), play, features);
-    expect(outcome.outcome).toBe('replay');
-    expect(outcome.reason).toContain('#6');
-    expect(outcome.reason).not.toContain('#5');
-  });
-
-  it('never blocks the last play for a skipped feature, and ends the clean reason with the features not played', () => {
-    expect(judge(facts(), review({ coverage: [covered(5)] }), { moved: false, last: true }, features)).toEqual({ outcome: 'clean', reason: 'clean. Not played: #6' });
-    expect(judge(facts(), review(), { moved: false, last: true }, features).reason).toBe('clean. Not played: #5, #6');
-  });
-
-  it('passes a play that covered every feature, and ignores coverage of issues the release does not hold', () => {
-    expect(judge(facts(), review({ coverage: [covered(6), covered(5), covered(99)] }), play, features)).toEqual({ outcome: 'clean', reason: 'clean' });
-  });
-
-  it('keeps every blocking rule ahead of the coverage replay', () => {
-    expect(judge(facts({ ending: 'error', message: 'stalled' }), review(), play, features).outcome).toBe('blocked');
-    expect(judge(facts(), review({ verdict: 'blocked', blocker: 'A design call.' }), play, features).outcome).toBe('blocked');
-  });
-
-  it('names the missing features in the reason of fixes to replay and of fixes left on the last play', () => {
-    const fixes = review({ verdict: 'fixed', fixes: ['a'], coverage: [covered(5)] });
-    expect(judge(facts(), fixes, { moved: true, last: false }, features).reason).toBe('1 fixes to replay. Not played: #6');
-    expect(judge(facts(), fixes, { moved: true, last: true }, features).reason).toBe('The last play left fixes that no play checked: a. Not played: #6.');
-  });
-});
-
-describe('missingFeatures', () => {
-  it('lists the features with no coverage line, in release order', () => {
-    expect(missingFeatures(review({ coverage: [covered(6)] }), features)).toEqual([features[0]]);
   });
 });
