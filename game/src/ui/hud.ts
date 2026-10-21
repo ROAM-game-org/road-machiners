@@ -50,6 +50,9 @@ import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
+import type * as THREE from "three";
+import { TruckPortraits } from "../three/render/truckPortrait";
+import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
 import { isMet, type Contract } from "../sim/market";
@@ -166,10 +169,11 @@ export class Hud {
   private speedSlot = el("div", { class: "speedometer" }, this.dialSlot, this.maxSpeed.root);
   private readoutSlot = el("div", { class: "readouts" });
   private actionSlot = el("div", { class: "instrument-actions" });
-  private condition = new TruckConditionView(CONDITION_ROWS);
+  private readonly portraits: TruckPortraits;
+  private readonly condition: TruckConditionView;
   private haulerGauge = new HaulerGauge();
-  private inspected = new TruckConditionView(null);
-  private inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
+  private readonly inspected: TruckConditionView;
+  private readonly inspectedDraw: HTMLElement;
   private inspectedAimable = false;
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel", rightDock());
@@ -261,7 +265,11 @@ export class Hud {
     }
   }
 
-  constructor(private actions: HudActions, private radio: RadioPanel) {
+  constructor(private actions: HudActions, private radio: RadioPanel, renderer: THREE.WebGLRenderer) {
+    this.portraits = new TruckPortraits(renderer);
+    this.condition = new TruckConditionView(this.portraits, CONDITION_ROWS);
+    this.inspected = new TruckConditionView(this.portraits, null);
+    this.inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
     const openLog = () => this.drawers.toggle("log");
     this.log.strip.root.addEventListener("click", openLog);
     this.log.strip.root.addEventListener("keydown", (e) => {
@@ -560,7 +568,7 @@ export class Hud {
   renderTop(w: World): void {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
-    this.condition.render(playerVehicle(w), undefined, repairingPart(w, playerVehicle(w)));
+    this.condition.render(playerVehicle(w), w.player.paint, undefined, repairingPart(w, playerVehicle(w)));
     this.haulerGauge.render(w);
     this.renderContracts(w);
     this.tips.update(w, this.actions.autoTravel());
@@ -718,6 +726,7 @@ export class Hud {
   }
 
   showInfo(w: World, v: Vehicle | null, hostile: boolean): void {
+    this.portraits.forget(new Set([playerVehicle(w).id, ...w.vehicles.filter((x) => playerSees(w, x.pos)).map((x) => x.id)]));
     if (!v) {
       this.info.style.display = "none";
       this.coverUnder(null);
@@ -725,7 +734,7 @@ export class Hud {
     }
     const aim = this.aimOf(w, v);
     this.inspectedAimable = aim !== undefined;
-    this.inspected.render(v, aim);
+    this.inspected.render(v, w.player.paint, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
       infoHead(w, v, hostile, this.cardButtons(w, v)),

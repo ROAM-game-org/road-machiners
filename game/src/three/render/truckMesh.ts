@@ -46,21 +46,59 @@ function staticGeometry(mesh: THREE.Mesh, toGroup: THREE.Matrix4): THREE.BufferG
   return geo;
 }
 
-function surfacedMesh(key: string, geos: THREE.BufferGeometry[]): THREE.Mesh {
-  const [hex, surface] = key.split('|');
+type Bucket = { hex: number; surface: SurfaceName | null; partId: string | null; geos: THREE.BufferGeometry[] };
+type Buckets = Map<string, Map<string | null, Bucket>>;
+
+const NO_ARMOR: ReadonlySet<string> = new Set();
+
+function surfacedMesh(bucket: Bucket, armor: boolean): THREE.Mesh {
+  const { hex, surface, partId, geos } = bucket;
   const merged = mergeGeometries(geos);
-  if (!merged) throw new Error(`Could not merge ${geos.length} truck meshes of color ${Number(hex).toString(16)}`);
+  if (!merged) throw new Error(`Could not merge ${geos.length} truck meshes of color ${hex.toString(16)}`);
   for (const g of geos) g.dispose();
-  const mesh = new THREE.Mesh(merged, surfacedMaterial(Number(hex), surface === 'null' ? null : (surface as SurfaceName)));
+  const mesh = new THREE.Mesh(merged, surfacedMaterial(hex, surface));
+  if (partId) mesh.userData.partId = partId;
+  if (armor) mesh.userData.armor = true;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
 }
 
+function splitKey(mesh: THREE.Mesh, splitIds: ReadonlySet<string> | 'all'): string | null {
+  const tagged: string | null = mesh.userData.partId ?? null;
+  if (tagged === null) return null;
+  return splitIds === 'all' || splitIds.has(tagged) ? tagged : null;
+}
+
+function bucketFor(buckets: Buckets, mat: THREE.MeshLambertMaterial, partId: string | null): Bucket {
+  const hex = mat.color.getHex();
+  const surface = surfaceOf(mat.name);
+  const key = `${hex}|${surface}`;
+  const byPart = buckets.get(key) ?? new Map<string | null, Bucket>();
+  buckets.set(key, byPart);
+  const bucket = byPart.get(partId) ?? { hex, surface, partId, geos: [] };
+  byPart.set(partId, bucket);
+  return bucket;
+}
+
+function movedLamp(lamp: THREE.Mesh, toGroup: THREE.Matrix4): THREE.Mesh {
+  const toHere = toGroup.clone().multiply(lamp.matrixWorld);
+  const geo = lamp.geometry.clone().applyMatrix4(toHere);
+  if (toHere.determinant() < 0) flipWinding(geo);
+  lamp.geometry.dispose();
+  const mesh = new THREE.Mesh(geo, lamp.material);
+  if (lamp.userData.partId) mesh.userData.partId = lamp.userData.partId;
+  return mesh;
+}
+
 export function mergeStatic(group: THREE.Group): THREE.Group {
+  return mergeParts(group, NO_ARMOR, 'all');
+}
+
+export function mergeParts(group: THREE.Group, armorIds: ReadonlySet<string>, splitIds: ReadonlySet<string> | 'all'): THREE.Group {
   group.updateMatrixWorld(true);
   const toGroup = group.matrixWorld.clone().invert();
-  const byColor = new Map<string, THREE.BufferGeometry[]>();
+  const buckets: Buckets = new Map();
   const used: THREE.Mesh[] = [];
   const lamps: THREE.Mesh[] = [];
   group.traverse((o) => {
@@ -69,27 +107,27 @@ export function mergeStatic(group: THREE.Group): THREE.Group {
       lamps.push(o);
       return;
     }
-    const mat = o.material as THREE.MeshLambertMaterial;
-    const key = `${mat.color.getHex()}|${surfaceOf(mat.name)}`;
-    const list = byColor.get(key) ?? [];
-    list.push(staticGeometry(o, toGroup));
-    byColor.set(key, list);
+    bucketFor(buckets, o.material as THREE.MeshLambertMaterial, splitKey(o, splitIds)).geos.push(staticGeometry(o, toGroup));
     used.push(o);
   });
-  const out = new THREE.Group();
-  out.add(...outlineOf([...byColor.values()].flat()));
-  for (const [key, geos] of byColor) out.add(surfacedMesh(key, geos));
-  for (const lamp of lamps) {
-    const toHere = toGroup.clone().multiply(lamp.matrixWorld);
-    const geo = lamp.geometry.clone().applyMatrix4(toHere);
-    if (toHere.determinant() < 0) flipWinding(geo);
-    lamp.geometry.dispose();
-    out.add(new THREE.Mesh(geo, lamp.material));
-  }
+  const out = mergedGroup([...buckets.values()].flatMap((byPart) => [...byPart.values()]), armorIds);
+  for (const lamp of lamps) out.add(movedLamp(lamp, toGroup));
   for (const m of used) {
     m.geometry.dispose();
     (m.material as THREE.Material).dispose();
   }
+  return out;
+}
+
+function mergedGroup(buckets: Bucket[], armorIds: ReadonlySet<string>): THREE.Group {
+  const isArmor = (b: Bucket) => b.partId !== null && armorIds.has(b.partId);
+  const out = new THREE.Group();
+  out.add(...outlineOf(buckets.filter((b) => !isArmor(b)).flatMap((b) => b.geos)));
+  for (const outline of outlineOf(buckets.filter(isArmor).flatMap((b) => b.geos))) {
+    outline.userData.armor = true;
+    out.add(outline);
+  }
+  for (const bucket of buckets) out.add(surfacedMesh(bucket, isArmor(bucket)));
   return out;
 }
 

@@ -9,13 +9,14 @@ import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { CLIP_TOLERANCE, cellCenter, cellRect, engineAnchor, highestUnder, restOn, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
-import { BODY_PARTS, baseModel, drawsOwnBumpers, grayShare, grayed, jagOffset, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
+import { BODY_PARTS, TRUCK_LOOK, baseModel, drawnWheelPoints, grayShare, grayed, jagOffset, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle, World } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, sweepOf, type Obstacle } from './gunClearance';
 import { model, socket, TRUCK_BIT, type ModelName } from './models';
-import { bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeStatic } from './truckMesh';
+import { bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
+import { cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
 import { hashStr } from '../../render/noise';
 import { callTrucks, radioSpeakers } from '../../sim/dialogue';
 import { TruckMotion, WHIPS } from './truckMotion';
@@ -39,8 +40,15 @@ const ROT_YAW = Math.PI / 2;
 
 const SIDE_YAW: Record<SideLetter, number> = { F: 0, B: Math.PI, R: -Math.PI / 2, L: Math.PI / 2 };
 
-const EDGE_H = 1;
-const SIDE_SKIN = 0.1;
+const SIDE_FACE: Record<SideLetter, { axis: 'x' | 'z'; outward: 1 | -1 }> = {
+  F: { axis: 'x', outward: 1 },
+  B: { axis: 'x', outward: -1 },
+  R: { axis: 'z', outward: 1 },
+  L: { axis: 'z', outward: -1 },
+};
+
+type ArmorDef = Extract<PartDef, { kind: 'armor' }>;
+
 const GUN_GAP = 0.03;
 const SAMPLE_REACH = 0.1;
 const SKIRT = 0.22;
@@ -67,6 +75,8 @@ type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: FireSpan[]; facing
 type Look = { tone: number; step: number; partId: string | null };
 const THINNEST_FLOOR = 0.01;
 const PRISTINE: Look = { tone: 1, step: 0, partId: null };
+
+export type ViewScene = 'world' | 'portrait';
 
 type Anchor = { local: THREE.Vector3; parent: THREE.Object3D };
 
@@ -101,12 +111,12 @@ export class VehicleView {
   private radioOn = false;
   private glassMat = new THREE.MeshLambertMaterial({ flatShading: true });
   private readonly glassGlow = new THREE.Color(0);
-  private silhouetteMat!: THREE.MeshBasicMaterial;
+  private silhouettes: THREE.MeshBasicMaterial[] = [];
   private contactShadows: ContactShadow[] = [];
   private darkMat!: THREE.MeshBasicMaterial;
   private dark = false;
 
-  constructor(v: Vehicle, seen: boolean, playerPaint: TruckPaint) {
+  constructor(v: Vehicle, seen: boolean, playerPaint: TruckPaint, private readonly scene: ViewScene) {
     this.root.add(this.body);
     this.update(v, seen, playerPaint);
   }
@@ -115,7 +125,7 @@ export class VehicleView {
     const sig = signatureOf(v, playerPaint);
     if (sig !== this.sig) this.rebuild(v, paintOf(v, playerPaint));
     this.sig = sig;
-    this.silhouetteMat.visible = seen;
+    for (const silhouette of this.silhouettes) silhouette.visible = seen;
     this.running = engineRuns(v);
   }
 
@@ -197,7 +207,7 @@ export class VehicleView {
       if (!(o instanceof THREE.Mesh) || this.keepsLook(o)) return;
       if (dark) {
         o.userData.litMat = o.material;
-        o.material = this.darkMat;
+        o.material = o.userData.darkMat ?? this.darkMat;
       } else {
         o.material = o.userData.litMat;
         delete o.userData.litMat;
@@ -207,7 +217,7 @@ export class VehicleView {
 
   private keepsLook(o: THREE.Mesh): boolean {
     const m = o.material;
-    return m === this.silhouetteMat || m === this.lampMat || m === this.radioMat || this.isContactShadow(o) || o.userData.outline;
+    return this.silhouettes.includes(m as THREE.MeshBasicMaterial) || m === this.lampMat || m === this.radioMat || this.isContactShadow(o) || o.userData.outline;
   }
 
   windows(glow: THREE.Color): void {
@@ -269,7 +279,6 @@ export class VehicleView {
 
     const onBody = v.items.filter((item) => onChassis(v, item));
     this.buildBases(v, colors.body, colors.cab, cabLook(v));
-    this.buildBumpers(v, colors.body, bumperlessCells(v, onBody), cabLook(v));
     const wheelItems: PartItem[] = [];
     const guns: PartItem[] = [];
     for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it))) this.drawItem(v, item, paint, wheelItems, guns);
@@ -279,12 +288,50 @@ export class VehicleView {
     this.anchorUndrawn(v);
     for (const unit of this.units) this.buildSuspension(unit, paint);
     this.buildLooseParts(v, onBody.length === v.items.length);
-    for (const unit of this.units) unit.body.add(mergeStatic(unit.still));
+    const armorIds = armorIdsOf(v);
+    const merged = this.units.map((unit) => {
+      const group = mergeParts(unit.still, armorIds, this.scene === 'portrait' ? 'all' : armorIds);
+      unit.body.add(group);
+      return group;
+    });
     this.buildSilhouette(colors.body);
     this.darkMat = new THREE.MeshBasicMaterial({ color: PAL.outline });
     markStencil(this.darkMat);
     this.dark = false;
-    CLOUD_SHADOWS.shadeTree(this.root);
+    this.finishLook(merged);
+  }
+
+  private finishLook(merged: THREE.Group[]): void {
+    if (this.scene === 'world') CLOUD_SHADOWS.shadeTree(this.root);
+    const plain = [...this.silhouettes];
+    this.units.forEach((unit, i) => this.cutArmor(unit, merged[i], plain));
+    if (this.scene === 'portrait') {
+      this.dropContactShadow();
+      dropShadows(this.root);
+    }
+  }
+
+  private cutArmor(unit: UnitView, merged: THREE.Group, plain: THREE.MeshBasicMaterial[]): void {
+    const lamps = merged.children.flatMap((o) => (o instanceof THREE.Mesh && o.material === this.lampMat ? lampIslands(o.geometry) : []));
+    const spec = cutSpec(restingWheelBoxes(unit), lamps, unit.b.half, TRUCK_LOOK);
+    const cut: ArmorCut = {
+      spec,
+      depth: withCut(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), spec),
+      dark: withCut(this.darkMat, spec),
+      silhouettes: new Map(plain.map((s) => [s, withCut(s, spec)])),
+    };
+    this.silhouettes.push(...cut.silhouettes.values());
+    unit.root.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.userData.armor && this.unitOwns(unit, o)) cutMesh(o, cut);
+    });
+  }
+
+  private unitOwns(unit: UnitView, o: THREE.Object3D): boolean {
+    for (let p: THREE.Object3D | null = o; p; p = p.parent) {
+      const owner = this.units.find((u) => u.root === p);
+      if (owner) return owner === unit;
+    }
+    return false;
   }
 
   private unitView(v: Vehicle, index: number, b: Body): UnitView {
@@ -363,14 +410,17 @@ export class VehicleView {
   }
 
   private buildSilhouette(paint: number): void {
-    this.silhouetteMat = silhouetteMaterial(paint);
+    const silhouette = this.scene === 'world' ? silhouetteMaterial(paint) : null;
+    this.silhouettes = silhouette ? [silhouette] : [];
     const meshes: THREE.Mesh[] = [];
     this.root.traverse((o) => {
       if (o instanceof THREE.Mesh && !this.isContactShadow(o) && !o.userData.outline) meshes.push(o);
     });
     for (const mesh of meshes) {
       markStencil(mesh.material as THREE.Material);
-      const twin = new THREE.Mesh(mesh.geometry, this.silhouetteMat);
+      if (!silhouette) continue;
+      const twin = new THREE.Mesh(mesh.geometry, silhouette);
+      twin.userData.armor = mesh.userData.armor;
       twin.position.copy(mesh.position);
       twin.quaternion.copy(mesh.quaternion);
       twin.scale.copy(mesh.scale);
@@ -401,23 +451,6 @@ export class VehicleView {
       tint(obj, paint, look);
       this.useLamp(obj);
       unit.still.add(obj);
-    }
-  }
-
-  private buildBumpers(v: Vehicle, paint: number, bumperless: Set<string>, look: Look): void {
-    const grid = baseGrid(v.chassisId);
-    if (drawsOwnBumpers(v.chassisId)) return;
-    const ends: [number, ModelName, number][] = [[0, 'bumper_front', 0], [grid.h - 1, 'bumper_rear', Math.PI]];
-    for (const [y, bumperName, yaw] of ends) {
-      for (let x = 0; x < grid.w; x++) {
-        if (grid.cells[y][x] === null || bumperless.has(`${x},${y}`)) continue;
-        const rect = cellRect(v.chassisId, [{ x, y }]);
-        const unit = this.units[rect.unit];
-        const bumper = model(bumperName);
-        place(bumper, bumperPlacement(rect, y === 0, unit.b.half.y, yaw, (2 * unit.b.half.y + SKIRT) / EDGE_H));
-        tint(bumper, paint, look);
-        unit.still.add(bumper);
-      }
     }
   }
 
@@ -502,7 +535,7 @@ export class VehicleView {
   }
 
   private buildWheels(v: Vehicle, items: PartItem[], paint: number): void {
-    const mounts = this.units.flatMap((unit) => wheelMounts(unit.b, unit.index).map((m) => ({ unit, m })));
+    const mounts = this.units.flatMap((unit) => drawnWheelPoints(unit.b, unit.index).map((m) => ({ unit, m })));
     const looks = this.units.length === 1 ? cornerWheels(v, mounts.map(({ m }) => m), items) : nearestWheels(v, mounts, items);
     mounts.forEach(({ unit, m }, i) => {
       const item = looks[i];
@@ -619,6 +652,42 @@ function nearestWheels(v: Vehicle, mounts: { unit: UnitView; m: { x: number; z: 
   return picks;
 }
 
+type ArmorCut = { spec: CutSpec; depth: THREE.MeshDepthMaterial; dark: THREE.MeshBasicMaterial; silhouettes: Map<THREE.MeshBasicMaterial, THREE.MeshBasicMaterial> };
+
+function cutMesh(mesh: THREE.Mesh, cut: ArmorCut): void {
+  const plain = mesh.material as THREE.Material;
+  const twin = cut.silhouettes.get(plain as THREE.MeshBasicMaterial);
+  if (twin) {
+    mesh.material = twin;
+    return;
+  }
+  mesh.material = withCut(plain, cut.spec);
+  mesh.userData.darkMat = cut.dark;
+  if (mesh.userData.outline) return;
+  plain.dispose();
+  mesh.customDepthMaterial = cut.depth;
+}
+
+function dropShadows(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    o.castShadow = false;
+    o.receiveShadow = false;
+  });
+}
+
+function armorIdsOf(v: Vehicle): Set<string> {
+  return new Set(v.items.flatMap((it) => (it.kind === 'part' && partDef(it.part.defId).kind === 'armor' ? [it.part.id] : [])));
+}
+
+function restingWheelBoxes(unit: UnitView): THREE.Box3[] {
+  const reach = new THREE.Vector3(unit.b.wheelRadius, unit.b.wheelRadius, unit.b.wheelHalfWidth);
+  return drawnWheelPoints(unit.b, unit.index).map((m) => {
+    const center = new THREE.Vector3(m.x, m.y - T.suspensionRest, m.z);
+    return new THREE.Box3(center.clone().sub(reach), center.add(reach));
+  });
+}
+
 function engineRuns(v: Vehicle): boolean {
   return v.items.some((it) => it.kind === 'part' && it.part.hp > 0 && partDef(it.part.defId).kind === 'engine' && isMounted(v.chassisId, it));
 }
@@ -670,8 +739,6 @@ function onChassis(v: Vehicle, item: GridItem): boolean {
   return inside === cells.length;
 }
 
-const BUMPER_LOOKS: readonly string[] = ['ram', 'cage'];
-
 export function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   if (inCargoBay(v, item)) return true;
   if (item.kind !== 'part') return false;
@@ -682,18 +749,6 @@ export function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): bool
 function inCargoBay(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   const grid = baseGrid(v.chassisId);
   return itemCells(item).every((c) => grid.cells[c.y]?.[c.x] === 'C');
-}
-
-function replacesBumper(v: Vehicle, item: GridItem): boolean {
-  if (item.kind !== 'part' || !isMounted(v.chassisId, item)) return false;
-  const def = partDef(item.part.defId);
-  return def.kind === 'armor' && BUMPER_LOOKS.includes(def.look);
-}
-
-function bumperlessCells(v: Vehicle, items: GridItem[]): Set<string> {
-  const cells = new Set<string>();
-  for (const item of items.filter((it) => replacesBumper(v, it))) for (const c of itemCells(item)) cells.add(`${c.x},${c.y}`);
-  return cells;
 }
 
 export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem): { at: Placement; bottom: number; top: number; foot: number } {
@@ -772,41 +827,42 @@ export function armorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, bo
   const def = partDef(item.part.defId);
   if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
   const side = armorSide(v, item);
-  const across = side === 'F' || side === 'B';
-  const n = Math.max(def.w, def.h);
-  if (!isMounted(v.chassisId, item)) {
-    const { rect, y } = restOf(v, item);
-    const dx = rect.x1 - rect.x0;
-    const dz = rect.z1 - rect.z0;
-    const size = box.getSize(new THREE.Vector3());
-    const middle = box.getCenter(new THREE.Vector3());
-    const scale = across ? new THREE.Vector3(dx / size.x, 1, dz / size.z) : new THREE.Vector3(dz / size.x, 1, dx / size.z);
-    const yaw = SIDE_YAW[side];
-    const shiftX = middle.x * scale.x;
-    const shiftZ = middle.z * scale.z;
-    const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2 - (shiftX * Math.cos(yaw) + shiftZ * Math.sin(yaw)), y, (rect.z0 + rect.z1) / 2 - (shiftZ * Math.cos(yaw) - shiftX * Math.sin(yaw)));
-    return { pos, yaw, scale };
-  }
-  const scaleOf = (depth: number, span: number) => new THREE.Vector3(depth / CELL.along, 1, span / (n * CELL.across));
+  return isMounted(v.chassisId, item) ? mountedArmorPlacement(v, item, def, side, box) : spareArmorPlacement(v, item, side, box);
+}
+
+function spareArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, side: SideLetter, box: THREE.Box3): Placement {
+  const { rect, y } = restOf(v, item);
+  const dx = rect.x1 - rect.x0;
+  const dz = rect.z1 - rect.z0;
+  const size = box.getSize(new THREE.Vector3());
+  const middle = box.getCenter(new THREE.Vector3());
+  const scale = SIDE_FACE[side].axis === 'x' ? new THREE.Vector3(dx / size.x, 1, dz / size.z) : new THREE.Vector3(dz / size.x, 1, dx / size.z);
+  const yaw = SIDE_YAW[side];
+  const shiftX = middle.x * scale.x;
+  const shiftZ = middle.z * scale.z;
+  const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2 - (shiftX * Math.cos(yaw) + shiftZ * Math.sin(yaw)), y, (rect.z0 + rect.z1) / 2 - (shiftZ * Math.cos(yaw) - shiftX * Math.sin(yaw)));
+  return { pos, yaw, scale };
+}
+
+function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, def: ArmorDef, side: SideLetter, box: THREE.Box3): Placement {
+  const thickness = thinDepthOf(def, box);
+  const { axis, outward } = SIDE_FACE[side];
+  const across = axis === 'x';
+  const depthScale = Math.max(across && def.look !== 'plates' ? 1 : 0, TRUCK_LOOK.armorDepth / thickness);
   const rect = rectOf(v, item);
-  const depth = across ? CELL.along : SIDE_SKIN;
-  const half = unitBody(v.chassisId, rect.unit).half.y;
-  const y = { plates: half - box.max.y, ram: -half, cage: half - box.max.y }[def.look];
+  const half = unitBody(v.chassisId, rect.unit).half;
+  const span = across ? rect.z1 - rect.z0 : rect.x1 - rect.x0;
+  const y = { plates: half.y - box.max.y, ram: -half.y, cage: half.y - box.max.y }[def.look] + TRUCK_LOOK.armorRise;
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
-  seatArmor(pos, rect, side, depth);
-  return { pos, yaw: SIDE_YAW[side], scale: scaleOf(depth, across ? rect.z1 - rect.z0 : rect.x1 - rect.x0) };
+  pos[axis] = outward * (half[axis] - TRUCK_LOOK.armorInset - depthScale * box.min.x);
+  return { pos, yaw: SIDE_YAW[side], scale: new THREE.Vector3(depthScale, 1, span / (Math.max(def.w, def.h) * CELL.across)) };
 }
 
-function seatArmor(pos: THREE.Vector3, rect: CellRect, side: SideLetter, depth: number): void {
-  if (side === 'F') pos.x = rect.x1 - depth / 2;
-  else if (side === 'B') pos.x = rect.x0 + depth / 2;
-  else pos.z += Math.sign(pos.z) * (depth / 2);
-}
-
-function bumperPlacement(rect: CellRect, nose: boolean, top: number, yaw: number, stretch: number): Placement {
-  const x = nose ? rect.x1 - CELL.along / 2 : rect.x0 + CELL.along / 2;
-  const width = rect.z1 > rect.z0 ? (rect.z1 - rect.z0) / CELL.across : 1;
-  return { pos: new THREE.Vector3(x, top, (rect.z0 + rect.z1) / 2), yaw, scale: new THREE.Vector3(1, stretch, width) };
+function thinDepthOf(def: ArmorDef, box: THREE.Box3): number {
+  const depth = box.max.x - box.min.x;
+  const width = box.max.z - box.min.z;
+  if (!(depth < width)) throw new Error(`Armor model of ${def.id} is ${depth.toFixed(2)} m deep and ${width.toFixed(2)} m wide, expected its thin axis along x`);
+  return depth;
 }
 
 function itemModel(item: GridItem) {
@@ -873,6 +929,7 @@ function tint(obj: THREE.Object3D, paint: number, look: Look): void {
     if (mat.name === PAINT) mat.color.setHex(bodyPaint(paint));
     mat.color.setHex(grayed(mat.color.getHex(), share));
     mat.color.multiplyScalar(look.tone);
+    if (look.partId) o.userData.partId = look.partId;
   });
   if (look.partId && look.step > 0) jag(obj, look.partId, look.step);
 }
@@ -947,14 +1004,18 @@ function disposeChildren(group: THREE.Group): void {
     group.remove(child);
     child.traverse((o) => {
       if (o instanceof THREE.Sprite) o.material.dispose();
-      if (o instanceof THREE.Mesh) {
-        o.geometry.dispose();
-        const mats = Array.isArray(o.material) ? o.material : [o.material];
-        for (const m of mats) m.dispose();
-        o.userData.litMat?.dispose();
-      }
+      if (o instanceof THREE.Mesh) disposeMesh(o);
     });
   }
+}
+
+function disposeMesh(o: THREE.Mesh): void {
+  o.geometry.dispose();
+  const mats = Array.isArray(o.material) ? o.material : [o.material];
+  for (const m of mats) m.dispose();
+  o.userData.litMat?.dispose();
+  o.customDepthMaterial?.dispose();
+  o.userData.darkMat?.dispose();
 }
 
 function isWheel(def: PartDef): boolean {

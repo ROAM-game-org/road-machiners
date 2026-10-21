@@ -220,7 +220,7 @@ function build(entry: IconEntry, paint: TruckPaint): Omit<Stage, 'scene' | 'came
 
 function bareTruck(chassisId: string, paint: TruckPaint): THREE.Object3D {
   const v = bareVehicle({ nextId: 0 }, { faction: 'player', chassisId, pos: { x: 0, y: 0 }, heading: 0, brain: null });
-  const view = new VehicleView(v, false, paint);
+  const view = new VehicleView(v, false, paint, 'world');
   const rest = (unit: number) => wheelMounts(unitBody(chassisId, unit), unit).map(() => ({ steer: 0, spin: 0, suspension: PHYSICS.truck.suspensionRest, ground: true }));
   const units = unitsOf(chassisId);
   const frame: VehicleFrame = { pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: rest(0) };

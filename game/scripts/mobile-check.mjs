@@ -378,14 +378,19 @@ async function inspectAndAim(session, step, orientation) {
     return `no aim after the second tap: ${JSON.stringify(await game(page, ({ x, y }) => ({ pin: window.__ROAM__.pin.id, selected: window.__ROAM__.selected, anim: !!window.__ROAM__.anim, hit: document.elementFromPoint(x, y)?.tagName, log: window.__ROAM__.hud.logTexts().slice(-2), orders: JSON.stringify(window.__me().weaponOrders), auto: window.__ROAM__.state.player.autoFire }), at))}`;
   });
   await step('tap-part-aims', async () => {
-    await touch.tapOn('.info .condition-part.aimable');
+    const spot = await game(page, () => {
+      const view = window.__ROAM__.hud.inspected;
+      const part = view.parts[view.parts.length - 1];
+      const c = view.portrait.centerOf(part.id);
+      const r = view.hit.getBoundingClientRect();
+      return { x: r.left + (c.x / view.portrait.width) * r.width, y: r.top + (c.y / view.portrait.height) * r.height };
+    });
+    await touch.tap(spot.x, spot.y);
+    await sleep(300);
+    await touch.tap(spot.x, spot.y);
   }, async () => {
     const aims = await game(page, () => Object.values(window.__me().weaponOrders).map((o) => o.aim));
-    const sizes = await game(page, () => [...document.querySelectorAll('.info .condition-part.aimable')].map((el) => { const r = el.getBoundingClientRect(); return Math.round(Math.min(r.width, r.height)); }));
-    const smallest = Math.min(...sizes);
-    if (!aims.some((aim) => aim !== 'body')) return `no gun aims at a part: ${JSON.stringify(aims)}`;
-    if (smallest < FAULT_OPTIONS.minTarget) return orientation === 'portrait' ? `aim cells are ${smallest}px, under ${FAULT_OPTIONS.minTarget}px` : true;
-    return true;
+    return aims.some((aim) => aim !== 'body') ? true : `no gun aims at a part: ${JSON.stringify(aims)}`;
   });
   await step('card-unpin', () => touch.tapOn('.info .info-touch button[aria-label]'), async () => ((await game(page, () => window.__ROAM__.pin.id)) === null ? true : 'still pinned'));
 }

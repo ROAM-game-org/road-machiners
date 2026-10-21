@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
 import { TERRAIN_TYPES } from '../../data/terrain';
-import { wheelMounts } from '../../phys/body';
+import { drawnWheelPoints } from '../../render/partLooks';
 import { TIME } from '../../data/time';
 import { groundPoint, headingOf, toMap, type V3, type VehicleFrame } from '../../phys/frames';
 import { unitBody } from '../../sim/body';
@@ -143,7 +143,7 @@ export function tirePoints(terrain: Terrain, chassisId: string, f: VehicleFrame)
   return units.flatMap(({ unit, pos, rot }) => {
     const h = headingOf(rot);
     const at = toMap(pos);
-    return wheelMounts(unitBody(chassisId, unit), unit).map((m) => {
+    return drawnWheelPoints(unitBody(chassisId, unit), unit).map((m) => {
       const off = { x: m.x * Math.cos(h) - m.z * Math.sin(h), z: m.x * Math.sin(h) + m.z * Math.cos(h) };
       return groundPoint(terrain, { x: at.x + off.x / PHYSICS.metersPerTile, y: at.y + off.z / PHYSICS.metersPerTile });
     });
