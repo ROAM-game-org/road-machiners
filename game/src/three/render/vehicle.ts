@@ -641,6 +641,7 @@ export class VehicleView {
     inner.add(raw);
     const merged = mergeStatic(inner);
     merged.scale.copy(thick);
+    merged.traverse((o) => (o.castShadow = false));
     const outer = new THREE.Group();
     outer.add(merged);
     unit.root.add(outer);
