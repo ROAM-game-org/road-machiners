@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { planNpcOrders } from './ai';
 import { fuelRoomAt } from './economy';
 import { createActivity, pushGoal, topGoal } from './npc-activities';
-import { fuelForWay, fuelReserveFor, isLowOnFuel } from './npc-service';
+import { fuelForWay, fuelReserveFor, isLowOnFuel, knowsPump } from './npc-service';
 import { npcProfile } from './npc-decisions';
 import { getResources } from './resources';
 import { sitePads } from './sites';
@@ -81,5 +82,17 @@ describe('NPC fuel judgment at a pump', () => {
     getResources(w, follower).fuel = 1;
     pushGoal(w, follower, createActivity('follow', leader.id, null, 'crewLeader'));
     expect(isLowOnFuel(w, follower, npcProfile(follower))).toBe(true);
+  });
+});
+
+describe('knowing a pump', () => {
+  it('a trader knows its towns and a Sunward hunter, with no town or base, knows none', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 30 }, 0);
+    trader.brain = npcBrain('trader', trader.pos, NPCS.trader.traits);
+    const hunter = addVehicle(w, 'sunward', 'buggy', ['stockEngine'], { x: 50, y: 30 }, 0);
+    hunter.brain = npcBrain('hunter', hunter.pos, NPCS.hunter.traits);
+    expect(knowsPump(npcProfile(trader))).toBe(true);
+    expect(knowsPump(npcProfile(hunter))).toBe(false);
   });
 });

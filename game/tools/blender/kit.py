@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import bpy
-from mathutils import Vector
+from mathutils import Euler, Matrix, Vector
 
 Vec3 = tuple[float, float, float]
 
@@ -96,6 +96,14 @@ class Kit:
         """Adds a cylinder with its axis along local Z before rot. Low vertex counts keep the faceted look."""
         bpy.ops.mesh.primitive_cylinder_add(vertices=vertices, radius=radius, depth=depth, location=loc, rotation=rot)
         return self._add(bpy.context.object, name, mat, dent_by)
+
+    def settle(self, rot: Vec3, drop: float) -> None:
+        """Tilts every part so far about the origin (euler XYZ in radians), then lowers it by drop meters."""
+        m = Matrix.Translation((0, 0, -drop)) @ Euler(rot, "XYZ").to_matrix().to_4x4()
+        for obj in self._parts:
+            obj.data.transform(obj.matrix_basis)
+            obj.matrix_basis = Matrix.Identity(4)
+            obj.data.transform(m)
 
     def socket(self, name: str, loc: Vec3) -> None:
         """Adds an empty named socket_<name> at loc, where another model attaches. models.ts reads and removes it."""

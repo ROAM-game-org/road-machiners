@@ -123,7 +123,7 @@ export type ShapeBox = { x0: number; x1: number; y0: number; y1: number; z0: num
 type FortLook = Exclude<Extract<PropKind, `fort${string}`>, 'fortOutpostShut'>;
 type Landmark = Extract<Obstacle, { kind: 'landmark' }>;
 type RockModel = (typeof ROCK_LOOKS)[number]['model'];
-type PropModel = RockModel | 'road_sign' | 'route_sign' | 'barrel' | 'wreck' | 'building' | 'crag' | 'ruin_house' | 'silo' | 'water_tower' | 'gas_station' | 'bridge_broken' | 'power_pole' | 'billboard' | 'tank_hulk' | 'shack' | 'fence' | 'junk' | 'hull_chunk' | 'crates' | 'reactor' | 'dead_tree' | 'bunker' | 'sandbags' | 'farmhouse' | 'barn' | 'quonset' | 'guard_post' | 'army_truck' | 'barrier' | 'drums' | 'woodpile' | 'ship_wing' | 'ship_bow' | 'ship_cage' | 'ship_hub' | 'hull_shell' | 'hull_drum' | 'hull_shard' | 'hull_tower' | 'hull_gantry' | 'rim_rock' | 'escape_pod' | 'habitat_cylinder' | 'wing_shard' | 'power_cell' | 'tank_trap' | 'nose_rise' | 'nose_crag' | 'engine_nozzle' | 'engine_frame' | 'watchtower' | 'ruin_compound' | 'glass_spire' | 'scrap_wall' | 'hull_bay' | 'cargo_pod' | 'engine_section' | 'fort_outpost_shut' | FortModel;
+type PropModel = RockModel | 'road_sign' | 'route_sign' | 'barrel' | 'wreck' | 'building' | 'crag' | 'ruin_house' | 'silo' | 'water_tower' | 'gas_station' | 'bridge_broken' | 'power_pole' | 'billboard' | 'tank_hulk' | 'shack' | 'fence' | 'junk' | 'hull_chunk' | 'crates' | 'reactor' | 'dead_tree' | 'bunker' | 'sandbags' | 'farmhouse' | 'barn' | 'quonset' | 'guard_post' | 'army_truck' | 'barrier' | 'drums' | 'woodpile' | 'ship_wing' | 'ship_bow' | 'ship_cage' | 'ship_hub' | 'hull_shell' | 'hull_drum' | 'hull_shard' | 'hull_tower' | 'hull_gantry' | 'rim_rock' | 'escape_pod' | 'habitat_cylinder' | 'wing_shard' | 'power_cell' | 'tank_trap' | 'nose_rise' | 'nose_crag' | 'engine_nozzle' | 'engine_frame' | 'watchtower' | 'ruin_compound' | 'glass_spire' | 'scrap_wall' | 'hull_bay' | 'cargo_pod' | 'engine_section' | 'fort_outpost_shut' | 'boat_fishing' | 'boat_barge' | 'boat_skiff' | FortModel;
 
 const M = PHYSICS.metersPerTile;
 const TURN = Math.PI * 2;
@@ -187,6 +187,9 @@ const LANDMARK_MODELS: Record<Exclude<LandmarkLook, FortLook>, PropModel> = {
   roadSign: 'road_sign',
   routeSign: 'route_sign',
   barrel: 'barrel',
+  fishingBoat: 'boat_fishing',
+  riverBarge: 'boat_barge',
+  skiff: 'boat_skiff',
 };
 const MODEL_RADIUS: Partial<Record<PropModel, number>> = {
   crag: 1,
@@ -238,6 +241,9 @@ const MODEL_RADIUS: Partial<Record<PropModel, number>> = {
   road_sign: 1,
   route_sign: 2.2,
   barrel: 0.6,
+  boat_fishing: 5.6,
+  boat_barge: 7.6,
+  boat_skiff: 2.8,
 };
 const WRECK_RADIUS = 0.7;
 const BUILDING_FILL = 0.78;
