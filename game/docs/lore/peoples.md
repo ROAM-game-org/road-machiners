@@ -74,6 +74,24 @@ The Salvage Yard was the Pierce yard until year 123, when its repair crews stopp
 
 The cost is that the Yard lives by selling guns to everyone, and everyone wants to own it.
 
+## The Marshalls
+
+Way: control.
+
+The Marshalls keep the road book at the Roadhouse, a fenced Old World yard around a Guild relay mast on the open plain north of the Nose. They are few: a handful of drivers in fast plated cars, most of them old Lincolns. Their first two cars were Commander Lind's staff cars from the Old Orchard motor pool.
+
+A lawful driver who was attacked or robbed on the open road, or whose kin was killed there, brings the wrong to the Roadhouse, or a driver who saw it does. The book writes the claim, the answer, the witnesses and the price. A Marshall rides out, asks the drivers on the road where they last saw the culprit, and asks him to pay. Only a driver who refuses gets a fight. The Roadhouse takes a cut of every closed case. It answers to no town, and it can buy a driver off a town's post by paying the town its price.
+
+The name comes from a western guard's tin badge stamped with an old word nobody here could read. Jonah Feld brought it home from the west, and drivers on the plain started calling the people at the mast the marshals.
+
+They take no claim against a raider and no claim from one. Raiders have no town to buy anyone off, nothing a hearing can hold them to, and lawmen already answer for them. The book writes such a wrong as unanswered.
+
+Every town lets them. The Roadhouse costs no town anything, pays the towns' price when it buys a driver off a post, and stands on Guild ground that both towns hold in trust.
+
+The cost is that the Roadhouse puts a price on every wrong. A driver with money buys his way out, a wrong with nobody to pay for it goes unanswered, and a claim waits until a car is free to ride for it.
+
+In the game, the Marshalls ride out from the Roadhouse after drivers a witness has reported.
+
 ## Raiders
 
 Way: oppose.
