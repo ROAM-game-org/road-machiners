@@ -149,7 +149,7 @@ describe('impact geometry', () => {
 });
 
 const HILL_GRADE = 0.2;
-const CRAWL_GRADE = 0.53;
+const CRAWL_GRADE = 0.5;
 
 describe('physics turns', () => {
   const staleHandle = (d: Drive) => {
