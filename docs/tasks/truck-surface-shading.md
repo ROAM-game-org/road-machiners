@@ -1,6 +1,6 @@
 # Truck surface shading in the game
 
-**Status:** executing
+**Status:** reviewing
 **Branch:** truck-shading
 **Worktree:** .worktrees/truck-shading
 **Goal:** Every truck in the game shows the look the user approved on the armored scout preview. That look is baked crease shadow and edge wear, light paint chips, edge-only metal shine, grey metal, paint grain at 0.05, a warm daytime sky light over the whole scene, a contact shadow under each truck, and body paint at 80% saturation. Players get it without a slower game: the perf budgets and the GPU playtest pass, and the truck models download about as fast as today. The user confirms the look in the running game, on the player truck and on NPC trucks of other chassis. Useless if: the look ships only on the scout or only in the preview page; frame rate holds because the effect silently turns off; models ship at many times their face count; a rebuilt model quietly loses its bake; faction colors get muted along with body paint.
@@ -158,7 +158,39 @@ Approach: prove the mask path on one model first, then build the bake tool, the 
 
 ## Verify
 
+- Touched and model-loading tests: 20 files, 448 of 449 pass. The one failure, `graffiti.test.ts` "stays rare and never above the map rate", fails the same way on dev at cb32383b5.
+- IV1: the bake throws when the face count changes, and all 104 truck models baked with no failure.
+- IV2: `loadModels` throws on a truck model without a current bake, and a test feeds it an unbaked file.
+- IV3: one shared atlas of 1024 px, painted once at boot.
+- IV4: `packMasks` tests check aligned, non-overlapping slots.
+- IV5: a test checks that body paint is muted and the faction cab color is not.
+- IV6: `npm run perf` misses every budget on this host on dev too. Interleaved runs show no clear difference: frame p95 33 to 100 ms on both, and boot about 0.3 s slower on the branch inside the noise. The new boot work is 50 ms of edge and UV setup plus 16 ms of atlas paint on an M3 Pro. `npm run playtest` gives 60.5 FPS, every night program links, and ground shows. It reports FAIL on both branch and dev, from the same 80 refused requests on this host.
+- Download: truck models grow from 3.08 MB to 3.58 MB, about 0.4 s more at the 10 Mbit/s 4G setting.
+- Renders through the game code: scout, van and hauler by day, and the scout at hours 6, 8, 17 and 19. They are in `game/tmp/truck-shading/out/`.
+- Icons: rebuilt. The chassis icons keep their framing once the contact shadow is dropped from icon renders.
+
 ## Conclusion
+
+### Deviations from plan
+
+- Edge wear is not in the mask. It is computed at load from each triangle's distance to the model's convex folds, in `edgeDistances()`. At 3 cm per pixel the 104 truck models needed far more than a 2048 px atlas, because they hold 3,227 m² of surface. Exact edges cost no texture and stay sharp at any distance.
+- The mask holds crease shadow only, at 10 cm per pixel with a 256 px cap. The approved preview had about 12 cm between shading points, so the shadow keeps its detail.
+- Chip noise stays in the shader. It runs only on pixels near a worn edge, because the shader skips it where wear is zero. Baked noise made the mask files about 40% bigger.
+- Mask bytes are never decoded in Node. A GLTFLoader plugin keeps the raw PNG bytes, and `paintSurfaceMasks()` decodes them in the browser at boot. A truck material throws at compile time if the atlas was never painted.
+- No face-count table. The bake itself refuses to change the face count.
+- The atlas and edge code share one file, `truckSurface.ts`, because the quality gate limits files per 1,000 lines.
+- The warm sky change landed in the same commit as the surfaces.
+
+### Unknowns
+
+- UK1: 10 cm per pixel, 256 px cap, 1024 px atlas.
+- UK2: +0.49 MB of truck models. `boot:time` was not run, because dev already misses the boot budget on this host.
+- UK3: dawn and dusk blend smoothly into the warm day sky. Twilight keys stay as they are.
+
+### Assumptions
+
+- AS1 held: Blender exports the mask as the occlusion texture with a UV map.
+- AS2 held in spirit: all load-time surface work is 66 ms, of which packing is a small part.
 
 ### Hands-off decisions
 
