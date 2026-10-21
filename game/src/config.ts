@@ -28,7 +28,7 @@ export const CONFIG = {
   combatReadMs: 1100,
   playEaseMs: 350,
   turnCreepMs: 600,
-  maxPixelRatio: 1.5,
+  maxCanvasPixels: 2_250_000,
   fxFillScreens: 8,
   saveTurns: 20,
   saveSlots: 3,
