@@ -219,6 +219,7 @@ export class Game {
 
     subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, CONFIG.maxPixelRatio));
     enableSunShadows(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
@@ -400,7 +401,6 @@ export class Game {
     const height = this.view.clientHeight;
     if (!Number.isFinite(width) || !Number.isFinite(height)) throw new Error(`View size must be finite, got ${width}x${height}`);
     if (!(width > 0 && height > 0)) return;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, Math.max(1, Math.sqrt(CONFIG.maxCanvasPixels / (width * height)))));
     this.renderer.setSize(width, height);
     this.rig.resize();
     this.path.setDrawSize(width, height);
