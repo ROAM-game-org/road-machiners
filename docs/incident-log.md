@@ -1,145 +1,81 @@
 # Incident log
 
-An entry is a class of mistake that cost the committee a round, cost players, saves or data, or cost a lot of work. Its sources are committee patches, redesigns and denies, proposal vetoes, and bugs found after a feature shipped. A new case of a known class updates that class's entry. A one-off gets no entry. A repeat of a logged class is a serious finding, and the stage that finds it fixes it.
-
-Each entry has six lines: `ID`, `repo`, `catch`, `rule`, `check` and `seen`. The repo is `game` or `factory`. The catch line names the earliest stage that must stop the class: `groom`, `design`, `test` or `playtest`. Each stage applies the entries of its own stage and of the stages before it. The rule says what the work must do. The check says how a reviewer or a player finds a break from a diff, a screenshot or a short run. The seen line gives the count, the last date and at most three examples with their cost. Ids run R1, R2 and so on, and a removed id is never reused. A blank line separates entries.
-
 ID: R1
-repo: game
-catch: test
-rule: Code that runs per point, per segment, per turn or per frame finds things through a spatial index or a cached result, never a full pass over a world list. Data that does not change is built once. Turn work runs off the main thread, with its preview and warm-up.
-check: For each loop in turn, frame or map setup code, ask what it walks. A pass over all obstacles, props, road segments or chassis inside another loop is a repeat. So is derived data rebuilt on every call, and turn work left on the main thread.
-seen: 6 times, last 2026-10-13. Route planning took most of a turn until ObstacleBuckets in commit 3a977fde. Sight checks took 32% of headless turn time on 2026-10-02. Hotfix #494 moved the path preview off the main thread after turn seams froze for 115 to 265 ms, a repeat of issue #40.
+what: Code that runs per point, per segment, per turn or per frame walked whole world lists instead of a spatial index or a cached result. Terrain and scatter scanned every road segment per point, route planning scanned every obstacle, and armor and NPC loadouts were rebuilt on every call. The path preview ran on the main thread.
+cost: Route planning took most of a turn until ObstacleBuckets. Sight checks took 32% of headless turn time. Turn seams froze for 115 to 265 ms until hotfix #494, a repeat of issue #40.
 
 ID: R2
-repo: game
-catch: design
-rule: A price, wage, fee, reward or pay comes from a measured run of the economy harness or from a formula on a measured number, never from a guess or a run that crashed. A job pays for the hassle it costs, and no activity has a negative expected reward.
-check: For each new or changed number in game/src/data or a new contract, find the run or formula it comes from. A number with no source, a source run that crashed, or a reward that a player would refuse for its effort is a repeat.
-seen: 8 times, last 2026-10-19. Wages came from a calibration that crashed on 2026-09-28, and the contracts bot lost money. #500 paid 37 m for a person hunt, and #766 offered 13 m, both "too little, run the econ sim". #370 priced panniers at 4k and showed cents instead of M.
+what: Prices, wages, fees and rewards were guessed instead of measured with the economy harness. Wages came from a calibration that crashed. Tow fees came from a guessed trade profit. The #500 person hunt paid 37 m, a #766 contract paid 13 m, and #370 priced panniers at 4k and showed cents instead of M.
+cost: The contracts bot lost money and stranded players got tows they could not pay. The committee sent #500 back with "run the econ sim to understand what's fair pay", and asked the same about #766.
 
 ID: R3
-repo: game
-catch: playtest
-rule: A player is never stuck for good, as DESIGN.md says. Every rescue finishes for a player with no money, every claim on a rescue has a timer, and every story path that takes a part leaves a way to get one back.
-check: Play a stranded player with money 0 or less, a responder whose path is blocked, and a player who reaches each town by every route the story allows, with a stripped engine too. The player must be able to drive on.
-seen: 5 times, last 2026-10-19. Issues #93, #94 and #97 shipped tows a broke player could not pay, and a tower that held its claim for good, until release 2026-10-07. Hotfix #789 fixed a Bowl softlock after the engine was stripped, with no engine for sale.
+what: A player could get stuck for good. Tows were offered to broke players, a blocked tower held its rescue claim forever, and a player who reached Bowl with a stripped engine found no engine for sale.
+cost: Issues #93, #94 and #97 shipped until release 2026-10-07. Hotfix #789 fixed the Bowl softlock.
 
 ID: R4
-repo: game
-catch: test
-rule: The boot, saves and sound survive any one failed asset, fetch or browser feature. A failed fetch retries, a failed asset gets a stand-in, a refused or closed IndexedDB reopens or falls back to local storage, a zero-size view keeps its last good state, and every error names its real cause.
-check: Boot with one sound, model or map fetch dropped, with a sound that never decodes, with IndexedDB refused and closed mid-session, with the view at zero width, and with mouse clicks only. The game must reach the menu, keep saving and play sound.
-seen: 14 times, last 2026-10-17. Hotfixes #481 to #496, #519, #524, #537 and #750 fixed boot, save and sound failures on Safari, Firefox and Android players on releases 2.61.x. The owner asked on 2026-10-15 why the same sound bug needed "like a thousand fixes".
+what: The boot, saves and sound broke when one browser feature or fetch failed: a sound that did not decode, a dropped fetch, IndexedDB refused or closed, a strict write that Safari aborted, a zero-size view that made a NaN sound pan, and an audio unlock on the first input only. Each fix patched one symptom, and errors blamed the wrong cause.
+cost: About 14 hotfixes on releases 2.61.x, from #481 to #750. Safari, Firefox and Android players could not start the game or lost saves. The owner asked why the same sound bug took "like a thousand fixes" before anyone found the cause.
+
+ID: R5
+what: Views asked the sim about states the sim does not hold. The inventory asked repairPlan() about a part mounted only in the pending refit, and a buggy with caltrops on its nose cell had no surface lookup.
+cost: Crashes on releases 2.61.0 to 2.61.43 until hotfixes #515 and #502. 35 placements on 7 chassis could do the same.
 
 ID: R6
-repo: game
-catch: test
-rule: A view asks the sim only about state the sim holds. A planned or pending state is answered from the plan. A sim lookup for a placement the rules allow never throws.
-check: For each view call into game/src/sim, list the states the rules allow for its input, such as a planned refit or a part on a bare nose or tail cell. Each must return a value.
-seen: 2 times, last 2026-10-14. Hotfix #515 fixed the inventory crash on a part mounted only in the pending refit. Hotfix #502 fixed a buggy with caltrops on its nose cell, which crashed every frame it was in view.
+what: restoreDrive() shared records with the playback snapshot instead of copying them, so the worker got a missing Rapier handle.
+cost: A player could not pass turn T58 from release 2026-10-01 until issue #96.
 
 ID: R7
-repo: game
-catch: test
-rule: A restore or copy of a snapshot deep-copies every record it may change. A physics handle is checked with a named error.
-check: For each copy of a snapshot, world or drive, find the records it later changes, and confirm the source does not share them.
-seen: 1 time, last 2026-10-07. restoreDrive() shared records with the playback snapshot, so a player could not pass turn T58 until issue #96.
+what: The factory wrote to GitHub too often. Hermes thumbs-upped issues to pass the vote gate, every job posted a "finished after N min" comment, and intake re-added cards with a comment on every tick.
+cost: GitHub suspended the bot account on 2026-10-14. About 355 issues and PRs were hidden, and the factory moved to a new org.
+
+ID: R8
+what: Designs used markers and tips instead of the world. #506 survey sites had map markers and selection rings, #507 had a floating Claim label, #500 finished a person hunt with "radio them", #660 taught selling with a floating tip, and NPCs gave distances in meters.
+cost: Four redesigns in one day on 2026-10-14, then #660 and #814. The owner still asked "what is a hulk and how am I supposed to find it" after the second round of #814.
 
 ID: R9
-repo: factory
-catch: design
-rule: The factory writes to GitHub as an App, and as little as it can. It never reacts or votes, never comments progress, and never repeats a write on each tick.
-check: For each new GitHub write, count how often it runs per card and per tick. A write that can repeat before the board catches up, a comment that only reports progress, and any reaction are repeats.
-seen: 1 time, last 2026-10-14. GitHub suspended the bot account after 866 of 1,780 bot comments were progress notes and Hermes thumbs-upped 27 issues. About 355 issues and PRs were hidden.
+what: Agents fixed a nearby, easier problem instead of the reported one. #593 brightened the night when the terrain had vanished. #744 removed Nose's pad instead of the dark circle under it. #815 hid places in the 3D world when the issue meant the map.
+cost: A redesign each, after the committee played a build that did not touch the report. About 22 critiques of this kind since 2026-10-01.
 
 ID: R10
-repo: game
-catch: design
-rule: The player learns the world from the world. A target is found from in-world clues, talk, landmarks and what the player has charted, never from a map marker, a ring on the ground, a floating label, an exact bearing or distance, or a tutorial tip. Money moves only where a deal is made. An NPC knows and says only what a person there would.
-check: In the screenshots and the plan, look for markers, rings, hover labels, tips, meter distances, compass bearings and remote payments. Each one is a repeat unless DESIGN.md names it.
-seen: 11 times, last 2026-10-20. #506 survey markers and rings, #507 a floating Claim label, #500 "radio them" and #660 a floating tip were redesigned on 2026-10-14 and 2026-10-16. #814 left the owner asking what a hulk is and how to find it.
+what: New models ignored the reference and the scale of the game. The #442 hauler was tiny next to the scout. The #795 Scout did not look like the reference pickup. The #760 Sorokonoga ignored its concept and then copied it with too much detail. #770 wheels were huge on the Bukhanka and clipped through the bus doors.
+cost: #795 took three rounds, #760 three, #442 three and #770 a redesign. The owner had to say "send Opus" each time.
 
 ID: R11
-repo: game
-catch: test
-rule: The build fixes the thing the issue names, at the place it names. Before the fix, the agent reproduces the reported symptom in the game. A screenshot or reference image of a different thing is never the target.
-check: Compare the reported symptom and place with the first screenshot of the fix. A fix of a nearby or easier symptom, like darkness for missing terrain, the world for the map, or the pad for the dark circle around it, is a repeat.
-seen: 22 times, last 2026-10-20. #593 fixed night darkness when the terrain vanished. #744 removed Nose's pad instead of the dark circle under it. #815 hid places in the 3D world when the issue meant the map.
+what: Changes were shown and fixed on one case when they applied to many. #691 drew the condition diagram for the scout only. #770 sized wheels per truck instead of by one rule. #764 opened I, C and J in text scenes but not the menu, save, load or language.
+cost: #691 took four patches. The owner asked for "an atlas of all chassis, don't bandaid just the scout".
 
 ID: R12
-repo: game
-catch: test
-rule: A model is sized and shaped against a real reference: the reference image or concept, the scout, a pickup, the wheels and the grid cell, per axis. It follows the concept's silhouette and keeps the detail level of the other chassis. Parts sit on or inside the body, never floating or half outside it, except weapons and armor.
-check: Render the new model beside the scout and the reference at one scale, from the side, the front and the top. Measure length, width, height and wheel size against them. Look for floating, clipping and parts hanging past the body.
-seen: 12 times, last 2026-10-20. #795 took three rounds on the Scout's proportions, #760 two on the Sorokonoga against its concept, and #442's hauler was "comically small" next to the scout. #770 wheels clipped through bus doors.
+what: Screens ignored the UI design system. #594 had an oversized Continue button and a stray tiny caption. #571 added a rotated minimap with no zoom or pan. #765 wasted vertical space and had a huge centered Back button. #769 offered a toxic palette. #488 hid the speedometer and health on phones.
+cost: About 29 critiques, with redesigns of #571, #765 and #769. Mobile play stayed unusable through #784 to #790.
 
 ID: R13
-repo: game
-catch: test
-rule: A change that applies to a set applies to every member, and the evidence shows every member: every chassis, every location of the kind, both languages, desktop and phone, every entry path into a scene.
-check: List the members the change touches. An atlas or contact sheet must show each one. A fix shown on one member, like the scout alone, is a repeat.
-seen: 8 times, last 2026-10-19. #691 "show atlas of how it looks on all chassis, don't bandaid just the scout". #770 wheel size had to become a rule for every chassis. #764 opened I, C and J in text scenes but not the menu, save, load or language.
+what: Features did not work when played, though the post said they did. At #607 the owner waited at the Hollow until dusk and nothing happened. #703 had a blank portrait. #580 intro talk fired only after a knockout. #758's follower drove away from an overheated truck. Chaos Highway crashed new games in #714 and let enemies block the outpost in #808.
+cost: About 54 critiques, the largest group. Players reported Chaos Highway and the mobile controls broken after they shipped.
 
 ID: R14
-repo: game
-catch: test
-rule: Every screen and overlay follows docs/ui.md: its shared pieces, its grid and spacing, the world kept clear, and the fewest words that stay clear. A control is small and placed by its zone, never full width or centered by default. On a phone, every action is an on-screen button and the HUD essentials stay visible.
-check: Hold the screenshots against the ui.md tests for P12, P13, P14 and P18. Look for empty blocks larger than the facts beside them, oversized controls, new styles outside the tokens, and text a drawing already shows.
-seen: 29 times, last 2026-10-20. #594 "ugly UI, remake via ui system", #571 a rotated minimap outside the UI system, #765 wasted space and a huge Back button. #488 and #786 left mobile play unusable.
+what: Player text read like a machine wrote it. Quests had semicolons and riddles, #814 had "ai slop" contract text, the intro said north for east, NPCs repeated the same lamp story, and the #792 Russian twin kept the old law. Russian lines were not natural.
+cost: About 32 critiques. #788 had to remove slop from every text quest.
 
 ID: R15
-repo: game
-catch: test
-rule: A feature works when a player plays it from a fresh game, through every path that reaches it, to its end, on the build the committee gets. A quest chain is played to its last step in both languages, and a scripted event fires when the player arrives the way the plan says.
-check: Follow the post's how-to-try steps from a fresh game, then from a save made before the feature, then by the other routes the world allows. Each step must do what the plan says, with no dead wait, blank panel or missing trigger.
-seen: 54 times, last 2026-10-21. #607 "I waited till dusk, nothing happened", #703 a blank portrait panel, #580 intro talk only after a knockout. #758 left a follower driving away from an overheated truck.
+what: Effects did not look physical. Oil spills and city grounds drew as circles, dust plumes popped up instead of forming from trails, part breaks and shots happened at turn end, and light passed through walls. #804's reactor first showed no light, then a glow on the sand with no source.
+cost: About 15 critiques. #804 took two patches and the owner wrote "God please fix".
 
 ID: R16
-repo: game
-catch: test
-rule: Player text is plain, short and true. No semicolons, no writerly riddles, no machine-sounding phrases, no system words in character voices. Directions, names and facts match the map and the lore. The Russian twin is natural Russian in context and changes with the English.
-check: Read every new or changed line aloud in both languages. Check each direction, place and name against the map and lore files. A semicolon, a riddle, a stale twin or a fact the player cannot know yet is a repeat.
-seen: 32 times, last 2026-10-20. #814 "remove ai slop text", #788 semicolons and unreadable dialogue, #781 an intro that said north for east. #792 left the Russian twin stale.
+what: Bug fixes treated the symptom. Sound decode failures were fixed one file at a time. A crippled raider was stopped from hunting without asking why it hunted. #490 was fixed again and again.
+cost: About 10 critiques and many duplicate hotfix cards, which the owner had to approve one by one.
 
 ID: R17
-repo: game
-catch: test
-rule: Effects look physical and run on the turn clock. A spill, dust or a crater is shaped like the thing, not a circle. Plumes form gradually from trails. Shots, hits and casings happen when the shot lands. Light has a visible source and never passes through walls.
-check: Play the effect at normal and fast playback, at night and by day, and look at it from the player's camera. A disc, an instant pop, an effect at turn end, a glow with no source or light through a wall is a repeat.
-seen: 15 times, last 2026-10-20. #804 took two rounds: first no visible reactor light, then light on the sand with no source. Oil spills and city grounds drew as circles on 2026-10-04 and 2026-10-06. #582 dust plumes rose too fast.
+what: Builds dropped points of the request or added things nobody asked for. #758 shipped without the follower fixes. #163 added a "Pinned" label and a huge aim button. #111 lacked the perimeter and barriers the issue named.
+cost: About 15 critiques, and a follow-up card for each dropped point.
 
 ID: R18
-repo: game
-catch: design
-rule: A bug fix names the cause, not only the symptom. The task file says why the bad state happened, and the fix removes that cause or says why it cannot.
-check: Read the fix's explanation. A guard, a retry or a clamp with no answer to "why did this happen" is a repeat. So is a new issue for a bug an earlier fix claimed.
-seen: 10 times, last 2026-10-19. #482 and #490 fixed sound decode failures several times before the cause was found. #177 stopped a crippled raider hunting without asking why it hunted.
+what: Merges brought back old versions or dropped other cards' work. An old version of the power explanation was merged, the M icon and the active contract panel vanished, and #771 broke the tutorial.
+cost: About 7 critiques and urgent fixes on main.
 
 ID: R19
-repo: game
-catch: design
-rule: The plan delivers every point of the request and of each committee reply, and nothing the request did not ask for. Each point maps to a plan step or a stated reason.
-check: List each point of the issue and each feedback reply. Find it in the plan and in the build. A dropped point, a half-done point or added chrome nobody asked for is a repeat.
-seen: 15 times, last 2026-10-21. #758 shipped without the follower fixes the owner had asked for. #163 added an unasked "Pinned" label and a huge aim button. #111 lacked the perimeter the issue named.
+what: Post screenshots and text did not show what they claimed. #804's screenshots hid the reactor behind a tutorial popup. #815's post claimed the map already behaved right.
+cost: The committee played builds to learn what the screenshots should have shown.
 
 ID: R20
-repo: game
-catch: test
-rule: A merge keeps what the committee already approved. A change never brings back an older version of a feature or drops a piece another card added.
-check: Diff the merged result against the base for each file both sides touched. A removed panel, icon or behavior that an earlier card added is a repeat.
-seen: 7 times, last 2026-10-20. An old version of the power explanation got merged on 2026-10-07. The M icon and the active contract panel disappeared after unrelated changes. #771 broke the tutorial.
-
-ID: R21
-repo: game
-catch: test
-rule: The evidence shows the change itself, unobstructed and from the player's view, and the post claims only what the screenshots show.
-check: For each claim in the post, find the screenshot that proves it. A claim with no screenshot, a popup over the subject, or a view from where no player stands is a repeat.
-seen: 5 times, last 2026-10-20. #804 "I don't see any reactor light on those screenshots", with a tutorial popup over the breach. #815's post claimed the map already behaved right.
-
-ID: R22
-repo: game
-catch: groom
-rule: A proposal that goes against DESIGN.md's pillars is refused at grooming, not put to a vote. ROAM is turn-based, explored by driving and charting, and its activities are about trucks and the road.
-check: Ask whether the request adds real-time control, an omniscient map tool such as coordinates, waypoints or a compass, or an activity outside trucks and the road. Each one goes to wont-do with the reason.
-seen: 6 times, last 2026-10-21. Members vetoed #346 WASD driving, #658 real-time combat movement, #858 map coordinates and waypoints and #859 a compass. #727 fishing was built and denied on 2026-10-18.
+what: Proposals against the game's pillars reached a vote or a build: WASD driving #346, real-time combat movement #658, map coordinates and waypoints #858, a compass #859, and fishing #727.
+cost: Members vetoed five proposals. #727 fishing was built and then denied on 2026-10-18.

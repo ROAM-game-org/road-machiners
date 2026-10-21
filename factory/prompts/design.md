@@ -56,9 +56,8 @@ For each project principle the change touches, answer its plan check in the task
 A design that deviates from a project principle names it and says why.
 
 Read ../docs/incident-log.md.
-Each entry is a class of mistake that already cost the committee a round, players or work.
-Apply every entry with `catch: groom` or `catch: design`, and every other entry the change touches.
-For each, the plan says how it keeps the class's rule.
+Each entry is an incident: what went wrong and what it cost.
+For each incident the change could repeat, the plan says how it avoids the repeat.
 
 A change a player sees in the HTML UI or an overlay also follows docs/ui.md, the UI design system.
 Plan it with that document's "How to build a screen" steps.

@@ -20,7 +20,7 @@ Each line is JSON with a `k` field:
 Read the whole release log, start to end. It is long, so read it in chunks with jq, grep or a short script, and keep going until you covered every turn.
 `.factory/release-features.md` lists every feature the release brings, with its issue, title, merge commit and issue text. The seed run does not play them, so you play each one yourself, to its end:
 - Use the progression harness or a Playwright script on the dev server, whichever reaches the feature. A quest chain is played to its last step. Every new chassis is driven on the road. Every new screen is opened in both languages.
-- Read the entries of `docs/incident-log.md` that have `catch: playtest`. Play the check of each entry whose class this release touches.
+- Read `../docs/incident-log.md`. Each entry is an incident: what went wrong and what it cost. For each incident this release could repeat, play the release the way that incident would show.
 - Never claim you played a feature you only read. When you cannot play one, say so in its `coverage` result and in `limitations`.
 A feature that comes back with no `coverage` line goes back to you once, and a feature still missing on the last play is named in the release post.
 A replay re-checks only the features you fixed and the features you skipped.
