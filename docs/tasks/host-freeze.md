@@ -58,7 +58,7 @@ On 2026-10-21 the server froze at about 17:49 local and stayed frozen until a ma
 - Targeted tests pass: `cleanup.test.ts`, `dashboard/server.test.ts`, `config.test.ts`, `hermes/test_incidents.py` and all 36 infra tests, including 12 new tests for the reboot and boot check scripts.
 - The desktop session belongs to `boris`, uid 1000, so the cap and the drain's slice check touch only the factory user's sessions.
 - The server matches the assumptions: cgroup v2, `user-1001.slice` is inactive with no factory session, the tick unit reports `Result` and `ExecMainExitTimestampMonotonic`, `grub-editenv` exists with no `next_entry`, and `systemd-analyze` accepts the calendar. The next reboot would be Mon 2026-10-26 05:00.
-- `pyinfra --dry` loads `deploy.py` with the new settings against the server.
+- `pyinfra --dry` imports `deploy.py` and parses the new settings against the server. It skipped change detection, so it did not render or diff the new templates.
 - Not run: provision or deploy, and a real reboot. Both change production, so the user runs them.
 
 ## Conclusion
@@ -69,14 +69,21 @@ The review found 4 problems, and all are fixed with tests:
 - An unreadable state file now stops the reboot with a log line, and never counts as drained.
 - The GRUB guard reads its output first, so `pipefail` cannot turn it off by chance.
 
+A reboot that fails after it pauses now lifts its own pause, so the factory never stays paused under a note that tells Hermes to leave it.
+
 AS1 and AS2 held on the server. The Goal still waits on a deploy and one watched reboot.
 
 ### Hands-off decisions
 
 - make: size Medium, full flow.
 - make: branch `factory/host-freeze` from `origin/main` in `.worktrees/host-freeze`.
-- udesign: the four design questions got no answer in 10 minutes, so the choices below are mine and each is one settings line.
-- udesign: reboot weekly, Monday 05:00 server time, as "every now and then".
-- udesign: drain at most 50 minutes, then reboot anyway. 50 stays under Hermes's one-hour rule for removing pauses. Skipping when busy could skip forever on a busy factory.
-- udesign: Hermes slice cap 4 GB RAM and no swap. It fits a claude-run job and targeted tests.
-- udesign: keep the GNOME desktop. Text mode is the user's call, since they use the screen.
+- ureview: applied all 4 review findings and the self-lifting pause, each with a test.
+
+### Deferred (needs user input)
+
+The four design questions got no answer in 10 minutes. Each value below is a placeholder I picked. Changing one takes one `settings.env` line and a deploy run.
+- Reboot schedule: weekly, Monday 05:00 server time.
+- Busy jobs: drain at most 50 minutes, then reboot anyway. 50 stays under Hermes's one-hour rule for lifting pauses.
+- Hermes host cap: 4 GB of RAM and no swap. The factory's own CLI tests start one worker per CPU, and a `claude-run` job that runs them may hit the cap.
+- Desktop: GNOME stays. Text mode would need a provision change.
+- Deploy and a watched reboot: merge into `main`, run `deploy.py` from a checkout with the merge before Mon 2026-10-26 05:00, then run `sudo systemctl start roam-factory-reboot.service` at a quiet time. Read `logs/reboot.log` and `logs/boot-check.log`, and check that `paused` and `boot-failed` are absent and `/factory/` returns 200. Check that `systemctl show user-1001.slice -p MemoryMax -p MemorySwapMax` shows 4 GiB and 0.

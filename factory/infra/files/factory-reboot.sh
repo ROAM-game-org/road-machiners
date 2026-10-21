@@ -27,7 +27,13 @@ user_busy() {
   systemctl is-active --quiet "user-$(id -u "$user").slice"
 }
 
-trap 'log "failed at line $LINENO with no reboot. Any planned reboot pause stays for Hermes to lift."' ERR
+paused_here=""
+abort() {
+  log "failed at line $1 with no reboot"
+  if [ -n "$paused_here" ]; then factory resume && log "lifted the planned reboot pause"; fi
+  exit 1
+}
+trap 'abort $LINENO' ERR
 
 if [ -f "$home/paused" ]; then
   log "skipped: the factory is already paused: $(cat "$home/paused")"
@@ -40,6 +46,7 @@ if grep -q '^next_entry=' <<< "$grub_env"; then
 fi
 
 factory pause "$NOTE"
+paused_here=1
 log "paused, draining for at most $drain_minutes minutes"
 for _ in $(seq "$drain_minutes"); do
   cut=$(running_jobs)

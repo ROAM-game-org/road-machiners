@@ -210,13 +210,24 @@ def test_boot_check_reports_a_pause_it_could_not_lift(tmp_path):
     assert "could not lift the planned reboot pause: state file is broken" in (host.home / "boot-failed").read_text()
 
 
-def test_reboot_does_not_reboot_when_it_cannot_read_the_jobs(tmp_path):
+def test_reboot_does_not_reboot_when_it_cannot_read_the_jobs_and_lifts_its_pause(tmp_path):
     host = Host(tmp_path)
     (host.home / "state" / "state.json").write_text("{broken")
     result = host.run(REBOOT, "50")
     assert result.returncode != 0
     assert "systemctl reboot" not in host.calls()
     assert "failed at line" in result.stdout
+    assert "factory resume" in host.calls()
+    assert not (host.home / "paused").exists()
+
+
+def test_reboot_lifts_its_pause_when_the_reboot_call_fails(tmp_path):
+    host = Host(tmp_path)
+    host.answer("systemctl", '#!/bin/bash\necho "systemctl $*" >> "$SHIM_LOG"\n[ "$1" != reboot ] || exit 1\n[ "$1" != is-active ]\n')
+    (host.shims / "systemctl").chmod(0o755)
+    result = host.run(REBOOT, "50")
+    assert result.returncode != 0
+    assert not (host.home / "paused").exists()
 
 
 def test_boot_check_skips_a_unit_that_is_not_installed(tmp_path):
