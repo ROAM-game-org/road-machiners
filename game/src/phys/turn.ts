@@ -14,14 +14,14 @@ import { tearLine } from '../sim/harpoon';
 import { breakProp } from '../sim/salvage';
 import { isOnRope } from '../sim/tow';
 import { burnFuel } from '../sim/resources';
-import { setDownSpot } from '../sim/steering';
+import { setDown } from '../sim/steering';
 import { clearanceFor } from '../sim/clearance';
 import type { MoveOrder, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp } from '../sim/vec';
 import { exploreFrom } from '../sim/vision';
 import { bodyState, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
 import { frameBend, headingOf, toMap, type VehicleFrame, type WheelFrame } from './frames';
-import { bendField, checkBend, heldBend, poseOf, straighten } from '../sim/rig';
+import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
 import { planTurns, type PlanFrames } from './plan';
 
 export type TurnState = Omit<World, 'terrain'>;
@@ -179,12 +179,6 @@ function applyLandings(w: World, r: TurnResult): void {
 
 function applyBreaks(w: World, r: TurnResult): void {
   for (const b of r.breaks) breakProp(w, b.prop, b.vehicle);
-}
-
-function setDown(w: World, v: Vehicle): void {
-  v.pos = setDownSpot(w, v);
-  straighten(v);
-  v.speed = 0;
 }
 
 function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['frames'][string]): void {
