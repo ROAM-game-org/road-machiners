@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { describe, expect, it } from 'vitest';
 import { TRUCK_LOOK } from '../../render/partLooks';
-import { cutSpec, lampIslands, withCut } from './armorCut';
+import { CUT_SLOTS, cutSpec, lampIslands, withCut } from './armorCut';
 import { CloudShadows } from './cloudShadows';
 
 const HALF = { x: 2, y: 0.5, z: 1 };
@@ -85,17 +85,29 @@ describe('withCut', () => {
 
   it('adds the discard after the clipping planes and the position varying to both shaders', () => {
     const shader = shaderOf(withCut(new THREE.MeshLambertMaterial(), spec));
-    expect(shader.fragmentShader).toMatch(/#include <clipping_planes_fragment>\n#if CUT_WHEELS > 0/);
+    expect(shader.fragmentShader).toMatch(/#include <clipping_planes_fragment>\nfor \(int i = 0; i < CUT_WHEELS/);
     expect(shader.fragmentShader).toContain('discard');
     expect(shader.vertexShader).toContain('vCutPos = transformed;');
     expect(Object.keys(shader.uniforms).sort()).toEqual(['cutLampMax', 'cutLampMin', 'cutWheelAt', 'cutWheelHalfWidth']);
   });
 
-  it('sets the wheel and lamp counts as defines and in the program key', () => {
+  it('compiles one program for every truck, with unused slots that cut nothing', () => {
     const cut = withCut(new THREE.MeshLambertMaterial(), spec);
-    expect(cut.defines).toMatchObject({ CUT_WHEELS: 1, CUT_LAMPS: 1 });
+    expect(cut.defines).toMatchObject({ CUT_WHEELS: CUT_SLOTS.wheels, CUT_LAMPS: CUT_SLOTS.lamps });
     const other = withCut(new THREE.MeshLambertMaterial(), cutSpec([], [], HALF, TRUCK_LOOK));
-    expect(cut.customProgramCacheKey()).not.toBe(other.customProgramCacheKey());
+    expect(cut.customProgramCacheKey()).toBe(other.customProgramCacheKey());
+    const uniforms = shaderOf(cut).uniforms;
+    const wheels = uniforms.cutWheelAt.value as THREE.Vector4[];
+    expect(wheels).toHaveLength(CUT_SLOTS.wheels);
+    expect(wheels.slice(1).every((w) => w.w === 0)).toBe(true);
+    const mins = uniforms.cutLampMin.value as THREE.Vector3[];
+    const maxes = uniforms.cutLampMax.value as THREE.Vector3[];
+    expect(mins.slice(1).every((min, i) => min.x > maxes[i + 1].x)).toBe(true);
+  });
+
+  it('refuses more wheels than the shader has slots', () => {
+    const many = cutSpec(Array.from({ length: CUT_SLOTS.wheels + 1 }, () => box([1, -1, 1], [3, 1, 1.6])), [], HALF, TRUCK_LOOK);
+    expect(() => shaderOf(withCut(new THREE.MeshLambertMaterial(), many))).toThrow(/shader slots/);
   });
 
   it('keeps the cloud shadow patch of a shaded material', () => {
@@ -131,12 +143,6 @@ describe('withCut', () => {
     expect(first.color.getHex()).toBe(0x336699);
     expect(source.defines?.CUT_WHEELS).toBeUndefined();
     expect(shaderOf(first).uniforms.cutWheelAt).toBe(shaderOf(second).uniforms.cutWheelAt);
-  });
-
-  it('declares no lamp arrays when the spec has no lamp window', () => {
-    const wheelsOnly = cutSpec([box([1, -1, 1], [3, 1, 1.6])], [], HALF, TRUCK_LOOK);
-    const shader = shaderOf(withCut(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), wheelsOnly));
-    expect(Object.keys(shader.uniforms)).toEqual(['cutWheelAt', 'cutWheelHalfWidth']);
   });
 
   it('refuses a shader that has nowhere to cut', () => {

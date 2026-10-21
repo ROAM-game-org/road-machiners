@@ -290,7 +290,7 @@ export class VehicleView {
     this.buildLooseParts(v, onBody.length === v.items.length);
     const armorIds = armorIdsOf(v);
     const merged = this.units.map((unit) => {
-      const group = mergeParts(unit.still, armorIds, this.scene === 'portrait' ? 'all' : armorIds);
+      const group = mergeParts(unit.still, armorIds, this.scene === 'portrait' ? 'parts' : 'armor');
       unit.body.add(group);
       return group;
     });

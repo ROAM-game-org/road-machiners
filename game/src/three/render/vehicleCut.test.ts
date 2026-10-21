@@ -44,9 +44,12 @@ function materialOf(m: THREE.Mesh): THREE.Material {
 }
 
 function cutCounts(material: THREE.Material): { wheels: number; lamps: number } | null {
-  const defines = material.defines;
-  if (!defines || defines.CUT_WHEELS === undefined) return null;
-  return { wheels: Number(defines.CUT_WHEELS), lamps: Number(defines.CUT_LAMPS) };
+  if (material.defines?.CUT_WHEELS === undefined) return null;
+  const uniforms = uniformsOf(material);
+  const wheels = (uniforms.cutWheelAt.value as THREE.Vector4[]).filter((w) => w.w > 0).length;
+  const maxes = uniforms.cutLampMax.value as THREE.Vector3[];
+  const lamps = (uniforms.cutLampMin.value as THREE.Vector3[]).filter((min, i) => min.x < maxes[i].x).length;
+  return { wheels, lamps };
 }
 
 function uniformsOf(material: THREE.Material): Record<string, { value: unknown }> {
@@ -109,7 +112,7 @@ describe.each(Object.keys(CHASSIS).filter((id) => !isRig(id)))('armor cut on %s'
     const windows = mins.map((min, i) => new THREE.Box3(min, maxes[i]));
     for (const island of lamps) expect(windows.some((w) => w.containsBox(island)), 'window around the island').toBe(true);
     for (const w of windows) expect(w.min.x).toBeGreaterThan(0);
-    const wheelAt = uniforms.cutWheelAt.value as THREE.Vector4[];
+    const wheelAt = (uniforms.cutWheelAt.value as THREE.Vector4[]).filter((w) => w.w > 0);
     const expected = drawnWheelPoints(bodyOf(id), 0).map((p) => [p.x, p.y - PHYSICS.truck.suspensionRest, p.z]);
     expect(wheelAt).toHaveLength(expected.length);
     wheelAt.forEach((w, i) => {
@@ -152,12 +155,12 @@ describe.each(Object.keys(CHASSIS).filter((id) => !isRig(id)))('armor cut on %s'
     for (const m of lit) expect(m.matrixWorld.equals(new THREE.Matrix4()), `${m.userData.partId}`).toBe(true);
   });
 
-  it('tags a mesh for every armor part, so the cut and its outline find it', () => {
-    const tagged = new Set(meshes.map((m) => m.userData.partId));
-    for (const item of v.items) {
-      if (item.kind !== 'part' || hidesInside(v, item) || partDef(item.part.defId).kind !== 'armor') continue;
-      expect(tagged.has(item.part.id), item.part.defId).toBe(true);
-    }
+  it('draws all armor of one color as one mesh, so plates cost no extra draw calls', () => {
+    const plates = v.items.filter((item) => item.kind === 'part' && !hidesInside(v, item) && partDef(item.part.defId).kind === 'armor');
+    const colors = lit.map((m) => `${(materialOf(m) as THREE.MeshLambertMaterial).color.getHex()}|${materialOf(m).name}`);
+    expect(new Set(colors).size).toBe(colors.length);
+    expect(lit.length).toBeLessThan(plates.length);
+    expect(lit.every((m) => m.userData.partId === undefined)).toBe(true);
   });
 });
 

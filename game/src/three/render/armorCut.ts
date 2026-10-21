@@ -7,6 +7,8 @@ export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[] };
 
 const CORNER_DIGITS = 3;
 
+export const CUT_SLOTS = { wheels: 6, lamps: 8 };
+
 type Positions = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 
 export function cutSpec(wheels: readonly THREE.Box3[], lamps: readonly THREE.Box3[], half: Body['half'], look: typeof TRUCK_LOOK): CutSpec {
@@ -88,41 +90,37 @@ export function lampIslands(geo: THREE.BufferGeometry): THREE.Box3[] {
 const VERTEX_DECLARE = 'varying vec3 vCutPos;';
 const VERTEX_SET = 'vCutPos = transformed;';
 const FRAGMENT_DECLARE = `varying vec3 vCutPos;
-#if CUT_WHEELS > 0
 uniform vec4 cutWheelAt[CUT_WHEELS];
 uniform float cutWheelHalfWidth[CUT_WHEELS];
-#endif
-#if CUT_LAMPS > 0
 uniform vec3 cutLampMin[CUT_LAMPS];
-uniform vec3 cutLampMax[CUT_LAMPS];
-#endif`;
-const FRAGMENT_DISCARD = `#if CUT_WHEELS > 0
-for (int i = 0; i < CUT_WHEELS; i++) {
+uniform vec3 cutLampMax[CUT_LAMPS];`;
+const FRAGMENT_DISCARD = `for (int i = 0; i < CUT_WHEELS; i++) {
   if (length(vCutPos.xy - cutWheelAt[i].xy) < cutWheelAt[i].w && sign(cutWheelAt[i].z) * (vCutPos.z - cutWheelAt[i].z) > -cutWheelHalfWidth[i]) discard;
 }
-#endif
-#if CUT_LAMPS > 0
 for (int i = 0; i < CUT_LAMPS; i++) {
   if (all(greaterThan(vCutPos, cutLampMin[i])) && all(lessThan(vCutPos, cutLampMax[i]))) discard;
-}
-#endif`;
+}`;
 
 type CutUniforms = Record<string, THREE.IUniform>;
 
 const uniformsOfSpec = new WeakMap<CutSpec, CutUniforms>();
 
+function padded<T>(values: T[], slots: number, empty: () => T, what: string): T[] {
+  if (values.length > slots) throw new Error(`Armor cut has ${values.length} ${what}, more than its ${slots} shader slots`);
+  return [...values, ...Array.from({ length: slots - values.length }, empty)];
+}
+
 function uniformsOf(spec: CutSpec): CutUniforms {
   const known = uniformsOfSpec.get(spec);
   if (known) return known;
-  const uniforms: CutUniforms = {};
-  if (spec.wheels.length > 0) {
-    uniforms.cutWheelAt = { value: spec.wheels.map((w) => new THREE.Vector4(w.center.x, w.center.y, w.center.z, w.radius)) };
-    uniforms.cutWheelHalfWidth = { value: spec.wheels.map((w) => w.halfWidth) };
-  }
-  if (spec.lamps.length > 0) {
-    uniforms.cutLampMin = { value: spec.lamps.map((b) => b.min.clone()) };
-    uniforms.cutLampMax = { value: spec.lamps.map((b) => b.max.clone()) };
-  }
+  const wheels = padded(spec.wheels, CUT_SLOTS.wheels, () => ({ center: new THREE.Vector3(), radius: 0, halfWidth: 0 }), 'wheels');
+  const lamps = padded(spec.lamps, CUT_SLOTS.lamps, () => new THREE.Box3(), 'lamp windows');
+  const uniforms: CutUniforms = {
+    cutWheelAt: { value: wheels.map((w) => new THREE.Vector4(w.center.x, w.center.y, w.center.z, w.radius)) },
+    cutWheelHalfWidth: { value: wheels.map((w) => w.halfWidth) },
+    cutLampMin: { value: lamps.map((b) => b.min.clone()) },
+    cutLampMax: { value: lamps.map((b) => b.max.clone()) },
+  };
   uniformsOfSpec.set(spec, uniforms);
   return uniforms;
 }
@@ -137,13 +135,13 @@ export function withCut<M extends THREE.Material>(source: M, spec: CutSpec): M {
   const before = source.onBeforeCompile;
   const sourceKey = source.customProgramCacheKey;
   const uniforms = uniformsOf(spec);
-  own.defines = { ...source.defines, CUT_WHEELS: spec.wheels.length, CUT_LAMPS: spec.lamps.length };
+  own.defines = { ...source.defines, CUT_WHEELS: CUT_SLOTS.wheels, CUT_LAMPS: CUT_SLOTS.lamps };
   own.onBeforeCompile = (shader, renderer) => {
     before.call(own, shader, renderer);
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = insertAfter(insertAfter(shader.vertexShader, '#include <common>', VERTEX_DECLARE), '#include <project_vertex>', VERTEX_SET);
     shader.fragmentShader = insertAfter(insertAfter(shader.fragmentShader, '#include <common>', FRAGMENT_DECLARE), '#include <clipping_planes_fragment>', FRAGMENT_DISCARD);
   };
-  own.customProgramCacheKey = () => `${sourceKey.call(source)}|armor-cut|${spec.wheels.length}|${spec.lamps.length}`;
+  own.customProgramCacheKey = () => `${sourceKey.call(source)}|armor-cut`;
   return own;
 }
