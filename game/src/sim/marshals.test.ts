@@ -12,6 +12,7 @@ import { getKnownSite } from './npc-decisions';
 import { nearestPad } from './sites';
 import { stateOf } from './states';
 import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive } from './testkit';
+import { startEscort } from './tow';
 import type { Faction, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { endTurn } from './world';
@@ -198,15 +199,20 @@ describe('pay or fight', () => {
 });
 
 describe('the idle Marshall', () => {
-  it('waits at the post with no case and raises no stall', () => {
+  it('waits at the post with its partner and no case, without dropping the wait each turn, and raises no stall', () => {
     const post = getKnownSite('marshal-post');
     let w = emptyWorld({ x: 100, y: 700 });
     const marshal = marshalAt(w, nearestPad(post, post.pos));
+    const partner = marshalAt(w, { x: marshal.pos.x + 3, y: marshal.pos.y });
+    startEscort(w, partner, marshal, null, 0);
     const stalls: unknown[] = [];
+    let pushed = 0;
     for (let i = 0; i < 150; i++) {
       w = endTurn(w, testDrive);
-      stalls.push(...w.events.filter((e) => e.t === 'stall' && e.vehicle === marshal.id));
+      stalls.push(...w.events.filter((e) => e.t === 'stall' && (e.vehicle === marshal.id || e.vehicle === partner.id)));
+      pushed += w.events.filter((e) => e.t === 'activity' && e.vehicle === marshal.id && e.reason === 'atPost').length;
     }
+    expect(pushed).toBeLessThanOrEqual(150 / BOUNTY.postTurns + 1);
     const me = w.vehicles.find((v) => v.id === marshal.id)!;
     expect(topGoal(me)).toMatchObject({ kind: 'wait', reason: 'atPost' });
     expect(stalls).toEqual([]);

@@ -388,7 +388,7 @@ export function meetGoal(world: World, npc: Vehicle, other: Vehicle, reason: Goa
 const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   fight: fightInvalid,
   rearm: rearmInvalid,
-  wait: (world, vehicle) => (escortsOf(world, vehicle.id).length > 0 ? 'escortHired' : null),
+  wait: (world, vehicle, goal) => (goal.reason !== 'atPost' && escortsOf(world, vehicle.id).length > 0 ? 'escortHired' : null),
   flee: fleeInvalid,
   investigate: investigateInvalid,
   sizeUp: sizeUpInvalid,
