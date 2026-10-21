@@ -57,6 +57,11 @@ The five tests.
 - Few moving parts. It adds no new system, resource or screen where an existing one can carry it.
 - Simple loop. It does not make the game loop harder for the player.
 
+Read `../docs/incident-log.md`.
+Each entry is a class of mistake the committee already rejected.
+Apply every entry with `catch: groom`, and the rule of every other entry the version touches.
+A version that repeats a `catch: groom` class fails the tests.
+
 An example of the reasoning, not a spec to copy.
 A player asked to mine stones on the road, like asteroids in Space Rangers.
 The need is a reliable early way to earn money.

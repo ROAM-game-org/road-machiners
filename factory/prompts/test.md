@@ -25,10 +25,21 @@ Fix every problem you find yourself, in this session: a bug, a blocker, or a loo
 Commit each fix on the current branch.
 {{fixDocs}}
 
-Read `../docs/incident-log.md`. Each entry is a class of bug that already cost players or work.
+Read `../docs/incident-log.md`. Each entry is a class of mistake that already cost the committee a round, players or work.
 For each class the change touches, play its check, like a boot with a dropped download, a refused IndexedDB or a phone rotation.
 Fix a repeat like any other problem.
 Do not review the code, fix nitpicks or optimize here. That runs after the committee approves, if they do.
+
+## Attack before the post
+
+When the build and the screenshots are ready, and before you write `.factory/approval.json`, start one fresh subagent with the Agent tool.
+Give it only the paths it needs: `.factory/issue.md`, {{taskFile}}, the screenshots, `../docs/incident-log.md`, and the `git diff` command that prints this branch's change against the base it merged.
+Do not give it your reasoning or your verdict.
+Tell it this:
+"You are the committee. Your stance is that this build repeats a logged mistake. For each entry of the incident log, decide whether this build repeats it, as the committee would see it when playing. Report only proven repeats, each with the entry id and the evidence: a screenshot, a diff line or the output of a probe. Run at most 3 short probes, each under a minute, never the full suite. Report nothing that is not a logged class."
+Fix each repeat it proves, then recapture the screenshots that changed.
+Ignore any finding that is not a logged class. Hardening reviews the rest after approval.
+Run the attack once per round. A repeat is never a reason for `.factory/needs-redesign.md`.
 
 Only one problem leaves this stage early: the plan itself contradicts the issue or the game docs, so no fix of the build can satisfy both.
 Then write why in a few sentences to `.factory/needs-redesign.md`, commit nothing more and stop. The card goes back to design.
