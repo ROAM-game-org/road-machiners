@@ -584,7 +584,7 @@ describe('breakable props', () => {
 
   it('refuses a prop that does not break, or one not standing', () => {
     const w = worldWithFence({ x: 30.6, y: 30 });
-    w.obstacles.push({ id: 'rock3', pos: { x: 32, y: 30 }, r: 0.5, kind: 'rock' });
+    w.obstacles = [...w.obstacles, { id: 'rock3', pos: { x: 32, y: 30 }, r: 0.5, kind: 'rock' }];
     const before = structuredClone(w.obstacles);
 
     expect(() => breakProp(w, 'rock3', w.vehicles[0].id)).toThrow(/rock3/);

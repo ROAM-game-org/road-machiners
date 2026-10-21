@@ -3,7 +3,7 @@ import { START_KITS } from '../data/start';
 import { TIME } from '../data/time';
 import { TEST_MAP } from '../test/map';
 import { isBreakable, isDriveObstacle, obstacleReach, propReach } from './mapgen';
-import { propsAlong, propsAround, propSlotsAlong, shadeCastersAround } from './prop-index';
+import { propsAlong, propsAround, propsAroundInOrder, propSlotsAlong, shadeCastersAround } from './prop-index';
 import type { Obstacle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 import { newWorld } from './world';
@@ -33,7 +33,7 @@ describe('prop index', () => {
     const { w, points } = worldAndSamples();
     for (const c of points) {
       const scanned = w.obstacles.filter((o) => isDriveObstacle(o) && dist(c, o.pos) <= 30 + obstacleReach(o));
-      expect(propsAround(w, 'drive', c, 30)).toEqual(scanned);
+      expect(propsAroundInOrder(w, 'drive', c, 30)).toEqual(scanned);
     }
   });
 
@@ -99,7 +99,7 @@ describe('prop index', () => {
     w.obstacles = w.obstacles.filter((o) => o !== rock);
     expect(propsAround(w, 'sight', rock.pos, 1).map((o) => o.id)).not.toContain(rock.id);
 
-    w.obstacles.push(rock);
+    w.obstacles = [...w.obstacles, rock];
     expect(propsAround(w, 'sight', rock.pos, 1).map((o) => o.id)).toContain(rock.id);
   });
 
@@ -114,7 +114,7 @@ describe('prop index', () => {
     const shadeBefore = shadeCastersAround(w, at, 1).length;
     const breakBefore = propsAround(w, 'breakable', at, 1).length;
 
-    w.obstacles.push({ ...tree, id: 'pushed-shade', pos: at }, { ...fence, id: 'pushed-fence', pos: at }, pushed('rock'));
+    w.obstacles = [...w.obstacles, { ...tree, id: 'pushed-shade', pos: at }, { ...fence, id: 'pushed-fence', pos: at }, pushed('rock')];
 
     expect(propsAround(w, 'sight', at, 1).length).toBeGreaterThan(sightBefore);
     expect(shadeCastersAround(w, at, 1).length).toBeGreaterThan(shadeBefore);

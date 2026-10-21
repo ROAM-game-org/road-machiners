@@ -451,8 +451,8 @@ describe('physics turns', () => {
 
   it('a fast truck brakes before a sharp route corner instead of running into the wall past it', () => {
     let w = ordered({ kind: 'stopAt', dest: { x: 45, y: 48 } }, 7.8);
-    for (let x = 26; x <= 43; x += 1.2) w.obstacles.push({ id: `s${x}`, pos: { x, y: 32 }, r: 0.7, kind: 'rock' });
-    for (let y = 20; y <= 55; y += 1.2) w.obstacles.push({ id: `e${y}`, pos: { x: 48, y }, r: 0.7, kind: 'rock' });
+    for (let x = 26; x <= 43; x += 1.2) w.obstacles = [...w.obstacles, { id: `s${x}`, pos: { x, y: 32 }, r: 0.7, kind: 'rock' }];
+    for (let y = 20; y <= 55; y += 1.2) w.obstacles = [...w.obstacles, { id: `e${y}`, pos: { x: 48, y }, r: 0.7, kind: 'rock' }];
     let d = buildDrive(w);
     let crashes = 0;
     for (let i = 0; i < 10 && me(w).order; i++) {
@@ -476,7 +476,7 @@ describe('physics turns', () => {
   it('a stop order at a point no truck can reach arrives at the closest point the route reaches', () => {
     const dest = { x: 40, y: 31 };
     const start = ordered({ kind: 'stopAt', dest });
-    start.obstacles.push({ id: 'boulder', kind: 'rock', pos: dest, r: 3 });
+    start.obstacles = [...start.obstacles, { id: 'boulder', kind: 'rock', pos: dest, r: 3 }];
     const { w, d } = play(start, 12);
     expect(me(w).order).toBeNull();
     expect(dist(me(w).pos, dest)).toBeLessThan(6);
@@ -523,7 +523,7 @@ describe('physics turns', () => {
     function rockLine(w: World, from: Vec, to: Vec, count: number): void {
       for (let i = 0; i < count; i++) {
         const t = count === 1 ? 0 : i / (count - 1);
-        w.obstacles.push({ id: `k${w.obstacles.length}`, pos: { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }, r: 0.7, kind: 'rock' });
+        w.obstacles = [...w.obstacles, { id: `k${w.obstacles.length}`, pos: { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }, r: 0.7, kind: 'rock' }];
       }
     }
 
@@ -929,7 +929,7 @@ describe('physics turns', () => {
     const w = emptyWorld();
     const d = buildDrive(w);
     addVehicle(w, 'scrapjaw', 'buggy', [], { x: 40, y: 40 });
-    w.obstacles.push({ id: 'wreck1', pos: { x: 20, y: 20 }, r: 0.6, kind: 'wreck' });
+    w.obstacles = [...w.obstacles, { id: 'wreck1', pos: { x: 20, y: 20 }, r: 0.6, kind: 'wreck' }];
     syncDrive(d, w);
     expect(Object.keys(d.bodies)).toHaveLength(2);
     expect(d.obstacles.wreck1).toBeDefined();

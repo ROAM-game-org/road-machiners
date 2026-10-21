@@ -52,6 +52,11 @@ export function propSlotsAlong(world: World, kind: PropIndexKind, a: Vec, b: Vec
 
 export function propsAround(world: World, kind: PropIndexKind, center: Vec, radius: number): Obstacle[] {
   const slots = entryFor(world).buckets(kind, world.obstacles).alongSegment(center, center, radius);
+  return slots.filter((s) => dist(center, s.pos) <= s.r + radius).map((s) => world.obstacles[s.at]);
+}
+
+export function propsAroundInOrder(world: World, kind: PropIndexKind, center: Vec, radius: number): Obstacle[] {
+  const slots = entryFor(world).buckets(kind, world.obstacles).alongSegment(center, center, radius);
   const near = slots.filter((s) => dist(center, s.pos) <= s.r + radius).map((s) => s.at);
   return near.sort((a, b) => a - b).map((at) => world.obstacles[at]);
 }

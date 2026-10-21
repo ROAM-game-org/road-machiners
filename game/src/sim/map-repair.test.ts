@@ -239,8 +239,9 @@ describe('repairMap obstacles', () => {
   it('moves a road wreck that lands on a prop to clear ground and takes its stock along', () => {
     const w = base();
     const rock = mapObstacles(TEST_MAP).find((o) => o.kind === 'rock')!;
-    const wreck = w.obstacles.find(isRoadWreck)!;
-    wreck.pos = { ...rock.pos };
+    const found = w.obstacles.find(isRoadWreck)!;
+    const wreck = { ...found, pos: { ...rock.pos } };
+    w.obstacles = w.obstacles.map((o) => (o === found ? wreck : o));
     w.salvage.find((s) => s.id === wreck.id)!.pos = { ...rock.pos };
     const world = repairMap(savedOf(w), TEST_MAP);
     const placed = world.obstacles.find((o) => o.id === wreck.id)!;
@@ -253,7 +254,7 @@ describe('repairMap obstacles', () => {
     const w = base();
     const story = w.obstacles.find((o) => o.id.startsWith('story-'))!;
     const original = { ...story.pos };
-    story.pos = { x: 1, y: 1 };
+    w.obstacles = w.obstacles.map((o) => (o === story ? { ...o, pos: { x: 1, y: 1 } } : o));
     w.salvage.find((s) => s.id === story.id)!.pos = { x: 1, y: 1 };
     const out = repairMap(savedOf(w), TEST_MAP);
     expect(out.obstacles.find((o) => o.id === story.id)!.pos).toEqual(original);

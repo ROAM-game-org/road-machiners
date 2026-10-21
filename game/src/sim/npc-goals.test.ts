@@ -69,7 +69,7 @@ describe('goal stack', () => {
     corePart(npc, 'cab').hp = 1;
     thinkNpc(w, npc);
     expect(npc.brain!.goals.map((g) => g.kind)).toEqual(['scavenge', 'resupply', 'flee']);
-    w.obstacles.push({ id: 'cover', kind: 'rock', pos: { x: 12, y: 10 }, r: 1 });
+    w.obstacles = [...w.obstacles, { id: 'cover', kind: 'rock', pos: { x: 12, y: 10 }, r: 1 }];
     w.turn += NPC_BEHAVIOR.fleeCalmTurns + 1;
     expect(thinkNpc(w, npc).kind).toBe('resupply');
     const stop = [...REGION.towns, ...REGION.locations].find((s) => s.id === topGoal(npc)!.targetId)!;

@@ -276,7 +276,7 @@ describe('instantMoveItem', () => {
 describe('noclipMove', () => {
   it('puts the truck on an obstacle, stops it and refreshes vision', () => {
     const w = emptyWorld();
-    w.obstacles.push({ id: 'rock-x', pos: { x: 80, y: 90 }, r: 2, kind: 'rock' });
+    w.obstacles = [...w.obstacles, { id: 'rock-x', pos: { x: 80, y: 90 }, r: 2, kind: 'rock' }];
     const me = playerVehicle(w);
     me.speed = 3;
     me.order = { kind: 'through', dest: { x: 50, y: 50 } };
@@ -311,7 +311,7 @@ describe('teleport', () => {
   it('finds the nearest free spot next to an obstacle', () => {
     const w = emptyWorld();
     const rock = { x: 300, y: 300 };
-    w.obstacles.push({ id: 'rock-x', pos: rock, r: 2, kind: 'rock' });
+    w.obstacles = [...w.obstacles, { id: 'rock-x', pos: rock, r: 2, kind: 'rock' }];
     const moved = playerVehicle(teleport(w, rock));
     const d = dist(moved.pos, rock);
     expect(d).toBeGreaterThan(2);

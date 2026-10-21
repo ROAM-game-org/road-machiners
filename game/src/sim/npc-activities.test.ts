@@ -872,7 +872,7 @@ describe('NPC activities', () => {
     forceOption('hostileSeen', 'flee');
     planNpcOrders(w);
     expect(topGoal(npc)?.kind).toBe('flee');
-    w.obstacles.push({ id: 'cover', kind: 'rock', pos: { x: 12, y: 10 }, r: 1 });
+    w.obstacles = [...w.obstacles, { id: 'cover', kind: 'rock', pos: { x: 12, y: 10 }, r: 1 }];
     planNpcOrders(w);
     expect(topGoal(npc)?.kind).toBe('flee');
     w.turn += NPC_BEHAVIOR.fleeCalmTurns + 1;
@@ -1018,7 +1018,7 @@ describe('NPC activities', () => {
     it('keeps investigating behind cover', () => {
       const { w, player, raider } = investigating();
       closeIn(w, player, raider);
-      w.obstacles.push({ id: 'cover', kind: 'rock', pos: { x: raider.pos.x - 2, y: raider.pos.y }, r: 1.5 });
+      w.obstacles = [...w.obstacles, { id: 'cover', kind: 'rock', pos: { x: raider.pos.x - 2, y: raider.pos.y }, r: 1.5 }];
       forceOption('hostileSeen', 'fight');
       thinkNpc(w, raider);
       expect(topGoal(raider)).toMatchObject({ kind: 'investigate', destination: { x: 30, y: 30 } });

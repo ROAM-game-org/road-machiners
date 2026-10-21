@@ -10,7 +10,7 @@ import { PHYSICS } from '../data/physics';
 import { BREAKABLE, CRATER, RULES } from '../data/rules';
 import { fuelLimited, isNear } from '../sim/far';
 import { blockingBoxes, isBreakable } from '../sim/mapgen';
-import { propsAround } from '../sim/prop-index';
+import { propsAroundInOrder } from '../sim/prop-index';
 import { playerVehicle } from '../sim/damage';
 import { groundSpeed, vehicleStats, type VehicleStats } from '../sim/stats';
 import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
@@ -140,7 +140,7 @@ function checkColliders(d: Drive, id: string, handles: number[]): void {
 }
 
 function syncObstacles(d: Drive, w: World): void {
-  const live = propsAround(w, 'drive', playerVehicle(w).pos, LIVE_RANGE);
+  const live = propsAroundInOrder(w, 'drive', playerVehicle(w).pos, LIVE_RANGE);
   dropColliders(d, d.obstacles, new Set(live.map((o) => o.id)));
   for (const o of live) {
     if (d.obstacles[o.id] === undefined) d.obstacles[o.id] = addColliders(d, obstacleColliders(w.terrain, o));
