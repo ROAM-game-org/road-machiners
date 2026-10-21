@@ -30,7 +30,7 @@ import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
 import { engineOverheating } from "../sim/engine-heat";
-import { Refused, hostileToPlayer, playerCanAct, setMoveOrder, threatToPlayer } from "../sim/world";
+import { Refused, hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
 import { refusalText } from "../text/names";
 import { TruckContext, TruckControls } from "./truck-controls";
 import { PAL } from "../render/palette";
@@ -100,7 +100,7 @@ import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { HostileSighting } from "./hostile-sighting";
-import { nextSightSample, Travel, type Playback, type LiveVision } from "./travel";
+import { nextSightSample, threatsIn, Travel, type Playback, type LiveVision } from "./travel";
 import { PlayClock } from "./play-clock";
 
 
@@ -814,7 +814,7 @@ export class Game {
   }
 
   private updateTravel(): void {
-    const threats = this.world.vehicles.filter((v) => threatToPlayer(this.world, v) && this.isVehicleVisible(v)).map((v) => v.id);
+    const threats = threatsIn(this.world).filter((v) => this.isVehicleVisible(v)).map((v) => v.id);
     const { sighted } = this.hostileSighting.observe(this.world.turn, threats);
     this.sightingToSound ||= sighted;
     this.follow.noteDanger(threats.length > 0);

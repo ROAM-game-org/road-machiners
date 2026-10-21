@@ -3,14 +3,14 @@ import { RULES } from "../data/rules";
 import { buildDrive, captureDrive, freeDrive, initPhysics, restFrame, TURN_STEPS, type Drive, type DriveSnapshot } from "../phys/drive";
 import { PHYSICS } from "../data/physics";
 import { physicsMove } from "../phys/turn";
-import { emptyWorld } from "../sim/testkit";
+import { addVehicle, emptyWorld, npcBrain } from "../sim/testkit";
 import { dist } from "../sim/vec";
 import { startKit } from "../data/start";
 import { playerVehicle } from "../sim/damage";
 import type { GameEvent } from "../sim/types";
 import { endTurn, newWorld, setMoveOrder } from "../sim/world";
-import { addRopeFrames, canTravel, nextSightSample, overshoots, Travel } from "./travel";
-import { addState } from "../sim/states";
+import { addRopeFrames, canTravel, nextSightSample, overshoots, threatsIn, Travel } from "./travel";
+import { addState, declareFeud } from "../sim/states";
 import { TEST_MAP } from "../test/map";
 import { reusedWorld } from "../test/world-cache";
 import { defaultSetup } from "../sim/settings";
@@ -268,6 +268,18 @@ describe("automatic travel safety", () => {
     enemy.faction = "scrapjaw";
     world.vehicles.push(enemy);
     expect(canTravel(world)).toBe(true);
+  });
+
+  it("finds the threats of a world once and finds them again for the next world", () => {
+    const world = makeSafeWorld();
+    const me = playerVehicle(world);
+    const raider = addVehicle(world, "scrapjaw", "buggy", [], { x: me.pos.x + 5, y: me.pos.y });
+    const calm = addVehicle(world, "scrapjaw", "buggy", [], { x: me.pos.x - 5, y: me.pos.y });
+    for (const v of [raider, calm]) v.brain = npcBrain("raider", v.pos, []);
+    declareFeud(world, raider, me.id);
+    expect(threatsIn(world)).toEqual([raider]);
+    expect(threatsIn(world)).toBe(threatsIn(world));
+    expect(threatsIn({ ...world, vehicles: [me] })).toEqual([]);
   });
 
   it("stops while the player is in combat, seen hostile or not", () => {

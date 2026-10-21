@@ -18,7 +18,7 @@ import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
-import { autoRuns, playerCanAct } from "../sim/world";
+import { autoRuns, playerCanAct, threatToPlayer } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
 export type LiveVision = {
@@ -95,6 +95,16 @@ export function overshoots(world: World, next: Pick<World, "events" | "vehicles"
   const after = next.vehicles.find((v) => v.id === me.id);
   if (!passed || !after) return false;
   return dist(after.pos, me.order.dest) > dist(me.pos, me.order.dest);
+}
+
+const threats = new WeakMap<World, Vehicle[]>();
+
+export function threatsIn(world: World): Vehicle[] {
+  const known = threats.get(world);
+  if (known) return known;
+  const found = world.vehicles.filter((v) => threatToPlayer(world, v));
+  threats.set(world, found);
+  return found;
 }
 
 export function addRopeFrames(before: World, after: World, frames: TurnResult["frames"], shown: Record<string, VehicleFrame>): void {
