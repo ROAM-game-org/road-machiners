@@ -1,6 +1,6 @@
 # Rendered truck condition view
 
-**Status:** reviewing
+**Status:** validating
 **Branch:** condition-view
 **Worktree:** .worktrees/cond-armor
 **Goal:** In the game, every truck of every chassis shows the settled look: wheels pushed out, armor snug against the body, armor cut around wheels and headlights. The player's condition panel and the other-truck card both show the settled rendered top-down drawing from `game/tmp/condition-mockups/SETTLED.md`, with part name and condition on hover and part aiming on enemy trucks. The player reads their own damage and aims at enemy parts with it. Confirming needs the user to look at in-game screenshots for several chassis. Useless if: the panel matches the mockup only on the scout; the cut or the hug is a per-chassis table someone must fill for a new chassis; the drawing re-renders on every frame or every turn without a part change; hover hits only the larger parts, so small armor tiles cannot be aimed at; the game truck and the panel truck disagree on wheel or armor position; holes in the armor show outlines, the see-through copy or shadows of the cut part.
@@ -166,6 +166,13 @@ Approach: two implementers in parallel. Implementer A changes the truck look in 
 - `game/src/text/en/screens.ts:211` and `game/src/text/en/log.ts:29` — two keys for "broken" (one name per concept).
 
 ## Conclusion
+
+Outcome: merged into dev in 64c8afdf7. The goal waits on the user's play test.
+
+- Review found three defects, all fixed in 6e1bdad12. Red armor lost its cut in the panel, world trucks drew one mesh per part, and every glow was a full-size image.
+- The merge with dev's truck shading and rigs ported the look onto `truckMesh.ts` and two-unit trucks. Each unit gets its own cut. The panel takes the player's paint, and on the player panel it keeps dev's 12-row cap.
+- After the merge, the browser check passes on all 18 chassis, including sorokonoga. Two stress runs built 537 random kits each with no part lacking pixels. The playtest passes at 60 fps.
+- A part hidden behind another part gets a wider area on a second pass, for rear corner plates on tall trucks. The badge and tip center now always sit on the part's own pixels.
 
 ### Hands-off decisions
 
