@@ -41,6 +41,8 @@ export class ObstacleViews {
   private readonly flying: DebrisSim;
   readonly parts: PartDebris;
   private obstacles: readonly Obstacle[] = [];
+  private salvage: readonly SalvageStock[] | null = null;
+  private broken: readonly BrokenProp[] | null = null;
   private readonly glows = new Map<string, Glow>();
   private readonly swatches = new Map<string, LootSwatch[]>();
   private lit = new Set<string>();
@@ -57,12 +59,23 @@ export class ObstacleViews {
   }
 
   sync(obstacles: Obstacle[], salvage: SalvageStock[], broken: readonly BrokenProp[]): void {
-    this.obstacles = obstacles;
+    if (this.unchanged(obstacles, salvage, broken)) return;
     this.syncDebris(broken);
     this.syncPiles(salvage);
     const fixed = this.fixed ?? this.addFixed(obstacles, broken);
     syncRocks(fixed.rocks, obstacles);
     syncTrees(fixed, obstacles);
+    this.syncViews(obstacles);
+    this.syncLoot(salvage);
+  }
+
+  private unchanged(obstacles: Obstacle[], salvage: SalvageStock[], broken: readonly BrokenProp[]): boolean {
+    const same = obstacles === this.obstacles && salvage === this.salvage && broken === this.broken;
+    [this.obstacles, this.salvage, this.broken] = [obstacles, salvage, broken];
+    return same;
+  }
+
+  private syncViews(obstacles: Obstacle[]): void {
     const views = obstacles.filter((o) => o.kind !== 'rock' && !isTree(o));
     for (const o of views) if (!this.byId.has(o.id)) this.addView(o);
     const seen = new Set(views.map((o) => o.id));
@@ -76,7 +89,6 @@ export class ObstacleViews {
       this.swatches.delete(id);
       this.lit.delete(id);
     }
-    this.syncLoot(salvage);
   }
 
   private syncLoot(salvage: SalvageStock[]): void {
