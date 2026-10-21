@@ -95,7 +95,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - `pendingApprovals`: approvals the approve job runs. It moves the card to Hardening, or ships a hotfix. Fed by an Approve press on the card's current post, by a hotfix's Testing job whose checks passed under its kept approval, and by the tick for an Approval card whose kept approval waits with no job, failure, hold or stuck label. Drop with `drop approval <issue>`, which also drops the kept approval.
 - `pendingRemovals`: features to take out of the release. Fed by `remove N`. Drop with `drop removal <issue>`.
 - `pendingShip`: a Ship press the ship job runs. Fed by `ship`. Drop with `drop ship`.
-- `pendingIncidents`: shipped bug issues the incident job runs. Drop with `drop incident <issue>`.
+- `pendingIncidents`: issues the next incident job takes in one batch: committee patches, redesigns and denies, proposal vetoes, and shipped bug fixes and hotfixes. Drop with `drop incident <issue>`.
 - `pendingAnswers`: public store comment ids of player questions the answer job answers, oldest first. Fed by the tick's chat replies, at most `FACTORY_ANSWERS_PER_DAY` a day. The answer job takes the first one off as it starts, so it never retries or answers twice. Remove one with `set-state`.
 - `retried`: approve, remove, ship and incident orders whose job died or timed out once, as `stage:issue`. The order stays queued and runs once more. The job's end, or its second death, clears the entry.
 
