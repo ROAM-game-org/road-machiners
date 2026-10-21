@@ -194,7 +194,7 @@ export type GoalReason =
   | 'salvageGone' | 'searchSite' | 'searchSpot' | 'sellCargo' | 'soldCargo' | 'spottedHeard' | 'strandedRobbery'
   | 'takeClaimedLoot' | 'takeHandedCargo' | 'towNotNeeded' | 'towOff' | 'towOfferLeft' | 'towPlayer' | 'towStranded'
   | 'towUnanswered' | 'towedPlayer' | 'towedStranded' | 'tripToSite' | 'truckGotAway' | 'unfitToHunt' | 'waitPatch'
-  | 'waitTow' | 'waitTowAnswer' | 'warnedOff'
+  | 'waitTow' | 'waitTowAnswer' | 'warnedOff' | 'answeredCall'
   | 'avoidRanFrom' | 'breakOffFight' | 'cannotWearDown' | 'holdFull' | 'leftPost' | 'lootWontFit' | 'ranFromIt' | 'salvageOutOfReach'
   | 'takeSpilledCargo' | 'watchedRoad' | 'cornered' | 'defeated'
   | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey'
@@ -385,7 +385,7 @@ export type Obstacle =
 
 export type BrokenProp = { obstacle: Obstacle; turn: number };
 
-export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire' | 'cavalcade' | 'offering' | 'drag' | 'lookOver' | 'sizedUp';
+export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'helpRefused' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire' | 'cavalcade' | 'offering' | 'drag' | 'lookOver' | 'sizedUp';
 export type StateEnding = 'expired' | 'fulfilled' | 'broken';
 export type Plea = 'truce' | 'mercy';
 export type StateData =

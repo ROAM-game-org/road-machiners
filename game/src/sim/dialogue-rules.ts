@@ -1,4 +1,5 @@
 
+import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall } from './help-call';
 import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
 import { COLD_LINES, TOPIC_GATES, type ConditionId, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
 import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
@@ -299,6 +300,10 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   lastVigilCall: (world, npc) => vigilCallDue(world, npc, 3),
   knowsTheCrater: (world, npc) => knowsTheCrater(world, npc),
   canPayTalk: (world, _npc, vars) => world.player.money >= namedPrice({ vars }),
+  helpAskable: (world, npc) => canAskHelp(world, npc),
+  helpComes: (_world, _npc, vars) => answerOf(vars) === 'help',
+  helpRefuses: (_world, _npc, vars) => answerOf(vars) === 'refuse',
+  helpOutgunned: (_world, _npc, vars) => answerOf(vars) === 'outgunned',
   mercForHire: (world, npc) => world.player.talked[npc.id]?.hireGuard !== 'refused' && canHireGuard(world, npc),
   takesGuard: (_world, _npc, vars) => answerOf(vars) === 'take',
   refusesGuard: (_world, _npc, vars) => answerOf(vars) === 'decline',
@@ -553,6 +558,8 @@ export const EFFECTS: Record<EffectId, Effect> = {
     if (rumor.site) discoverSite(world, rumor.site);
     else world.player.rumored.push(rumor.id);
   },
+  joinFight: (world, npc) => joinPlayerFight(world, npc),
+  turnDownCall: (world, npc) => turnDownCall(world, npc),
   hireGuard: (world, npc, call) => hireGuard(world, npc, namedPrice(call)),
   dismissGuard: (world, npc) => {
     if (!isPlayerGuard(world, npc)) throw new Error(`${npc.id} guards no one the player can dismiss`);
@@ -730,6 +737,7 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   },
   tradeTip: (_world, npc) => ({ tip: { kind: 'tip', tip: tradeTip(npc) } }),
   trucePrice: (_world, npc) => ({ price: { kind: 'money', amount: trucePrice(npc) } }),
+  helpAnswer: (world, npc) => ({ answer: { kind: 'answer', option: helpAnswer(world, npc) } }),
   guardOffer: (world, npc) => ({
     answer: { kind: 'answer', option: guardTaken(world, npc) ? 'take' : 'decline' },
     price: { kind: 'money', amount: guardFee(world, npc) },

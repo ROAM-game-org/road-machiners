@@ -812,6 +812,10 @@ export function combatFoesOf(world: World, v: Vehicle): string[] {
   return combatStatesOf(world, v.id).map((s) => (s.holder === v.id ? s.other : s.holder));
 }
 
+export function awakeFoesOf(world: World, v: Vehicle): Vehicle[] {
+  return combatFoesOf(world, v).map((id) => world.vehicles.find((x) => x.id === id)).filter((x): x is Vehicle => x !== undefined && !isDefeated(x));
+}
+
 export function combatTurnsLeft(world: World, v: Vehicle): number | null {
   const left = combatStatesOf(world, v.id).map((s) => s.turnsLeft ?? 0);
   return left.length > 0 ? Math.max(...left) : null;

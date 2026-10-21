@@ -907,6 +907,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withTractorPivot_93_94,
   withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97,
   withStrandedAnchors_97_98,
+  (world) => world,
 ];
 
 function withStrandedAnchors_97_98(world: SavedJson): SavedJson {
