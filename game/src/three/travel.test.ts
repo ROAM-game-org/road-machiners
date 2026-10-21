@@ -9,7 +9,8 @@ import { startKit } from "../data/start";
 import { playerVehicle } from "../sim/damage";
 import type { GameEvent } from "../sim/types";
 import { endTurn, newWorld, setMoveOrder } from "../sim/world";
-import { addRopeFrames, canTravel, nextSightSample, overshoots, threatsIn, Travel } from "./travel";
+import { addRopeFrames, canTravel, creepMs, nextSightSample, overshoots, threatsIn, Travel } from "./travel";
+import { CONFIG } from "../config";
 import { addState, declareFeud } from "../sim/states";
 import { TEST_MAP } from "../test/map";
 import { reusedWorld } from "../test/world-cache";
@@ -461,22 +462,77 @@ describe("turns on a tow rope", () => {
 
   it("prepare the next turn during playback with no key held", () => {
     const { travel, prepare } = travelWithPrepared();
-    travel.prepareNext(towedWorld(), playback, 0);
+    travel.prepareNext(towedWorld(), playback);
     expect(prepare).toHaveBeenCalledTimes(1);
   });
 
-  it("wait for the player once Space stops them", () => {
+  it("prepare the next turn even while the player decides it, so the stop can creep through it", () => {
     const { travel, prepare } = travelWithPrepared();
     const world = towedWorld();
     travel.stopAuto(world);
-    travel.prepareNext(world, playback, 0);
-    expect(prepare).not.toHaveBeenCalled();
+    travel.prepareNext(world, playback);
+    travel.prepareNext(makeSafeWorld(), playback);
+    expect(prepare).toHaveBeenCalledTimes(2);
   });
 
-  it("do not prepare ahead for a truck that is not towed", () => {
+  it("prepare nothing once the player is dead", () => {
     const { travel, prepare } = travelWithPrepared();
-    travel.prepareNext(makeSafeWorld(), playback, 0);
+    const world = makeSafeWorld();
+    world.player.state = "dead";
+    travel.prepareNext(world, playback);
     expect(prepare).not.toHaveBeenCalled();
+  });
+});
+
+describe("the creep after a turn", () => {
+  it("leaves at full speed, slows fast and never passes its budget", () => {
+    expect(creepMs(1) / 1).toBeCloseTo(1, 1);
+    expect(creepMs(CONFIG.turnCreepMs)).toBeCloseTo(CONFIG.turnCreepMs / 2);
+    expect(creepMs(1000 * 60 * 3)).toBeLessThan(CONFIG.turnCreepMs);
+    expect(creepMs(1000 * 60 * 3) - creepMs(1000 * 60 * 2)).toBeLessThan(2);
+  });
+
+  it("creeps only through a turn already prepared for the shown world", () => {
+    const world = makeSafeWorld();
+    const ready = { world: {}, result: { frames: {}, next: {} } };
+    const travel = new Travel(250);
+    Object.assign(travel, { turns: { peek: (w: unknown) => (w === world ? ready : null) } });
+    expect(travel.creepFrom(makeSafeWorld(), {})).toBeNull();
+    expect(travel.creepFrom(world, {})?.result).toBe(ready.result);
+  });
+
+  it("starts the next turn where the creep is, so nothing steps back", () => {
+    const world = makeSafeWorld();
+    const live = buildDrive(world);
+    const next = captureDrive(live);
+    freeDrive(live);
+    const prepared = { world, result: { frames: {}, next } } as never;
+    const travel = new Travel(250);
+    const creep = { result: { frames: {} }, starts: {}, startAt: -1, world, since: 1000, lead: 0, frozen: null } as never;
+    const { playback } = travel.beginPlayback(world, prepared, 1000 + CONFIG.turnCreepMs, 0, {}, creep);
+    expect(playback.elapsed).toBeCloseTo(CONFIG.turnCreepMs / 2);
+    expect(playback.startAt).toBeCloseTo((CONFIG.turnCreepMs / 2 / 1000) * PHYSICS.stepsPerSecond - 1);
+  });
+
+  it("keeps playing the very turn it crept through, from the same start pose and with speed rising from the creep", () => {
+    const world = makeSafeWorld();
+    const live = buildDrive(world);
+    const next = captureDrive(live);
+    freeDrive(live);
+    const result = { frames: {}, next };
+    const start = restFrame(world, playerVehicle(world));
+    const creep = { result, starts: { me: start }, startAt: -1, world, since: 1000, lead: 0, frozen: null } as never;
+    const travel = new Travel(250);
+    const { playback } = travel.beginPlayback(world, { world, result } as never, 1000 + CONFIG.turnCreepMs, 0, {}, creep);
+    expect(playback.startAt).toBe(-1);
+    expect(playback.starts.me).toBe(start);
+    expect(playback.elapsed).toBeCloseTo(CONFIG.turnCreepMs / 2);
+    const before = playback.elapsed;
+    const begun = 1000 + CONFIG.turnCreepMs;
+    travel.advanceClock(playback, begun + 10, 1, 50);
+    travel.advanceClock(playback, begun + 20, 1, 50);
+    expect(playback.elapsed - before).toBeGreaterThan(0);
+    expect(playback.elapsed - before).toBeLessThan(10);
   });
 });
 
@@ -508,7 +564,7 @@ describe("every turn that runs on its own", () => {
 
   it.each(kinds)("prepares the next turn during playback while %s", (kind) => {
     const { travel, prepare } = travelWithTurns();
-    travel.prepareNext(stranded(kind), playback, 0);
+    travel.prepareNext(stranded(kind), playback);
     expect(prepare).toHaveBeenCalledTimes(1);
   });
 
@@ -518,11 +574,9 @@ describe("every turn that runs on its own", () => {
   });
 
   it.each(kinds)("waits once stopped while %s", (kind) => {
-    const { travel, prepare } = travelWithTurns(() => ready);
+    const { travel } = travelWithTurns(() => ready);
     const world = stranded(kind);
     travel.stopAuto(world);
-    travel.prepareNext(world, playback, 0);
-    expect(prepare).not.toHaveBeenCalled();
     expect(travel.takeReady(world, drive, 0)).toBeNull();
   });
 
@@ -597,7 +651,7 @@ describe("every turn that runs on its own", () => {
     });
 
     it.each(["wake", "call", "dead"])("lets a held press end with the run on %s", (end) => {
-      const { travel, prepare } = travelWithTurns(() => ready);
+      const { travel } = travelWithTurns(() => ready);
       const world = stranded("knockedOut");
       at(1000);
       travel.pressTurn(true, world);
@@ -608,8 +662,6 @@ describe("every turn that runs on its own", () => {
       expect(travel.isFast(2000)).toBe(false);
       expect(travel.shouldAdvance(2000)).toBe(false);
       expect(travel.takeReady(world, drive, 2000)).toBeNull();
-      travel.prepareNext(world, playback, 2000);
-      expect(prepare).not.toHaveBeenCalled();
     });
 
     it("keeps a held press through turns while still knocked out, but drops it at the knockout", () => {

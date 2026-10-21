@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blendFrames, frameAt, headingOf, headingQuat, type VehicleFrame } from "./frames";
+import { blendFrames, frameAt, headingOf, headingQuat, playedFrame, type VehicleFrame } from "./frames";
 
 const frame = (x: number, heading: number, spin: number, ground = true): VehicleFrame => ({
   pos: { x, y: 0, z: 0 },
@@ -30,6 +30,13 @@ describe("frameAt", () => {
     expect(frameAt(frames, -1, start)!.pos).toEqual(start.pos);
     expect(frameAt(frames, -0.5, start)!.pos.x).toBeCloseTo(-0.5);
     expect(frameAt(frames, -0.5)).toBe(frames[0]);
+  });
+
+  it("joins a turn from the pose shown at a later start, blending over as many steps as it joined late, never stepping back to the turn start", () => {
+    const shown = frame(0.4, 0, 0);
+    expect(playedFrame(frames, 0.5, shown, 0.5)!.pos.x).toBeCloseTo(0.4);
+    expect(playedFrame(frames, 1, shown, 0.5)!.pos.x).toBeCloseTo(0.4 + (1 - 0.4) / 3);
+    expect(playedFrame(frames, 2, shown, 0.5)).toEqual(frameAt(frames, 2));
   });
 
   it("holds the last pose past the end of the turn", () => {

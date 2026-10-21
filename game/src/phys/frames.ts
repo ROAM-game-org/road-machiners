@@ -81,6 +81,14 @@ export function frameAt(frames: readonly VehicleFrame[] | undefined, at: number,
   return blendFrames(a, b, at - i);
 }
 
+export function playedFrame(frames: readonly VehicleFrame[] | undefined, at: number, start: VehicleFrame | undefined, startAt: number): VehicleFrame | undefined {
+  if (startAt < 0 && at < 0) return frameAt(frames, at, start);
+  const target = frameAt(frames, at);
+  const span = Math.max(1, startAt + 1);
+  if (!start || !target || at >= startAt + span) return target;
+  return blendFrames(start, target, Math.max(0, at - startAt) / span);
+}
+
 function startBlend(first: VehicleFrame | undefined, t: number, start: VehicleFrame | undefined): VehicleFrame | undefined {
   return start && first ? blendFrames(start, first, t) : first;
 }

@@ -138,10 +138,17 @@ export function backCap(c: Car, limit: number): number {
   return coupling ? Math.min(limit, coupling.backCap) : limit;
 }
 
-function wheelFrames(ctl: RAPIER.DynamicRayCastVehicleController): WheelFrame[] {
+export function carrySpins(c: Car, last: VehicleFrame | undefined): Car {
+  if (!last) return c;
+  c.mem.spins = last.wheels.map((w) => w.spin);
+  c.mem.rearSpins = last.rear ? last.rear.wheels.map((w) => w.spin) : [];
+  return c;
+}
+
+function wheelFrames(ctl: RAPIER.DynamicRayCastVehicleController, carried: readonly number[]): WheelFrame[] {
   const wheels: WheelFrame[] = [];
   for (let i = 0; i < ctl.numWheels(); i++) {
-    wheels.push({ steer: ctl.wheelSteering(i) ?? 0, spin: ctl.wheelRotation(i) ?? 0, suspension: ctl.wheelSuspensionLength(i) ?? T.suspensionRest, ground: ctl.wheelIsInContact(i) });
+    wheels.push({ steer: ctl.wheelSteering(i) ?? 0, spin: (carried[i] ?? 0) + (ctl.wheelRotation(i) ?? 0), suspension: ctl.wheelSuspensionLength(i) ?? T.suspensionRest, ground: ctl.wheelIsInContact(i) });
   }
   return wheels;
 }
@@ -151,11 +158,11 @@ export function frameOf(c: Car, velocityBefore: V3): VehicleFrame {
   const r = c.body.rotation();
   const v = c.body.linvel();
   const acc = { x: (v.x - velocityBefore.x) / STEP, y: (v.y - velocityBefore.y) / STEP, z: (v.z - velocityBefore.z) / STEP };
-  const frame: VehicleFrame = { pos: { x: t.x, y: t.y, z: t.z }, rot: { x: r.x, y: r.y, z: r.z, w: r.w }, acc, wheels: wheelFrames(c.ctl) };
+  const frame: VehicleFrame = { pos: { x: t.x, y: t.y, z: t.z }, rot: { x: r.x, y: r.y, z: r.z, w: r.w }, acc, wheels: wheelFrames(c.ctl, c.mem.spins) };
   if (c.rear) {
     const rt = c.rear.body.translation();
     const rr = c.rear.body.rotation();
-    frame.rear = { pos: { x: rt.x, y: rt.y, z: rt.z }, rot: { x: rr.x, y: rr.y, z: rr.z, w: rr.w }, wheels: wheelFrames(c.rear.ctl) };
+    frame.rear = { pos: { x: rt.x, y: rt.y, z: rt.z }, rot: { x: rr.x, y: rr.y, z: rr.z, w: rr.w }, wheels: wheelFrames(c.rear.ctl, c.mem.rearSpins) };
   }
   return frame;
 }
