@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BOUNTY, CRIME } from '../data/market';
 import type { TraitId } from '../data/npcs';
 import { fileReports, noteKnockout, openCasesOn } from './crime';
+import { chooseOption, currentOptions, radioSpeakers, raiseCalls } from './dialogue';
 import { playerVehicle } from './damage';
 import { knockOutNpc } from './defeat';
 import { remember, rememberSightings, sightingOf } from './memory';
@@ -63,6 +64,7 @@ describe('the Marshall hunt', () => {
     expect(topGoal(marshal)!.destination).toEqual(at);
     expect(w.crimes[0].lead).toMatchObject({ at, turn: w.turn });
     expect(w.events.filter((e) => e.t === 'asked')).toEqual([{ t: 'asked', by: marshal.id, of: driver.id, target: target.id, told: true }]);
+    expect(radioSpeakers(w.events, w.player.vehicleId).sort()).toEqual([marshal.id, driver.id].sort());
     hunt(w, marshal, [driver]);
     expect(w.events.filter((e) => e.t === 'asked')).toHaveLength(1);
   });
@@ -197,5 +199,28 @@ describe('the idle Marshall', () => {
     expect(topGoal(me)).toMatchObject({ kind: 'wait', reason: 'atPost' });
     expect(stalls).toEqual([]);
     expect(dist(me.pos, post.pos)).toBeLessThan(post.radius + 30);
+  });
+});
+
+describe('a broke target', () => {
+  it('sees Pay offered but off with the shortfall, and a knockout by the hunter closes the debt with nothing taken (R3)', () => {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const me = playerVehicle(w);
+    fileAgainst(w, me, { x: 300, y: 300 });
+    w.player.money = 1000;
+    const marshal = marshalAt(w, { x: 306, y: 300 });
+    planMarshal(w, marshal, [me]);
+    raiseCalls(w);
+    expect(w.player.call?.topic).toBe('bountyDemand');
+    const pay = currentOptions(w).find((o) => o.line === 'payTheBook')!;
+    expect(pay.short).toBe(CRIME.fine.robbed - 1000);
+    const next = chooseOption(w, currentOptions(w).findIndex((o) => o.line === 'notPaying'));
+    expect(stateOf(next, 'feud', marshal.id, me.id)).not.toBeNull();
+    const after = structuredClone(next);
+    const hit = after.vehicles.find((v) => v.id === me.id)!;
+    hit.lastHitBy = marshal.id;
+    noteKnockout(after, hit);
+    expect(after.crimes[0].status).toBe('collected');
+    expect(after.player.money).toBe(1000);
   });
 });

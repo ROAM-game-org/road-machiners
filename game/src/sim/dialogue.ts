@@ -218,6 +218,7 @@ const RADIO_TALK: Talk = {
   escortRefused: pair,
   towHitched: pair,
   towOffer: (e) => [e.by],
+  asked: (e) => [e.by, e.of],
 };
 
 export function radioSpeakers(events: readonly GameEvent[], playerId: string): string[] {
