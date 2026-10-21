@@ -1,6 +1,6 @@
 # Rendered truck condition view
 
-**Status:** executing
+**Status:** reviewing
 **Branch:** condition-view
 **Worktree:** .worktrees/cond-armor
 **Goal:** In the game, every truck of every chassis shows the settled look: wheels pushed out, armor snug against the body, armor cut around wheels and headlights. The player's condition panel and the other-truck card both show the settled rendered top-down drawing from `game/tmp/condition-mockups/SETTLED.md`, with part name and condition on hover and part aiming on enemy trucks. The player reads their own damage and aims at enemy parts with it. Confirming needs the user to look at in-game screenshots for several chassis. Useless if: the panel matches the mockup only on the scout; the cut or the hug is a per-chassis table someone must fill for a new chassis; the drawing re-renders on every frame or every turn without a part change; hover hits only the larger parts, so small armor tiles cannot be aimed at; the game truck and the panel truck disagree on wheel or armor position; holes in the armor show outlines, the see-through copy or shadows of the cut part.
@@ -147,10 +147,22 @@ Approach: two implementers in parallel. Implementer A changes the truck look in 
 
 ## Verify
 
+- Types, the quality gate and 19 touched test files with 408 tests pass. `npm run playtest` passes: 12 turns at 60 fps, every night program links.
+- `game/tmp/condition-check.mjs` runs every chassis on the real GPU, with the player panel and an enemy card on a damaged kit. All 17 render. Hover shows the part tip, and a click aims the guns at a small armor part. On the semi there is no gun to aim, as expected. Sheets are in `game/tmp/condition-check/`.
+- `game/tmp/portrait-stress.mjs` built 508 random kits across all chassis with no part lacking pixels. The slowest build took 546 ms.
+- The first render of a new truck, the build plus its glow layers, takes 110 to 250 ms. A repeat render takes 0 ms (`game/tmp/hover-cost.mjs`).
+- The world look in `game/tmp/front-check/` and `game/tmp/world-check/` covers 8 chassis by day, by night with lamps, and in dark outline mode. It shows no black patches in the arches or windows. The user confirms small details.
+- The check found four breaks, all fixed:
+  - Rear armor on tall trucks showed no pixels and threw.
+  - Hidden parts stretched into long slabs.
+  - Flat patches took the darkest tint.
+  - The card drawing never zoomed, because `--cond-pad` is a `var()`.
+- `npm run mobile` fails in steps this branch does not touch, listed under Deferred. Its own steps pass: the tap pins the card, the first tap on a part shows the tip, and the second aims.
+
 ## Code smells
 
-- `game/src/three/render/vehicle.ts:851` — color and part id packed into one string key and split on `|`.
-- `game/src/ui/hud-readout.ts:169` — unnamed 0.25 threshold.
+- `game/src/three/icons/page.ts` — still writes `top-<id>` symbols and `src/ui/tint.svg`, which nothing draws now.
+- `game/src/three/render/models.ts:159` — still lists `bumper_front` and `bumper_rear`, which nothing places now.
 - `game/src/text/en/screens.ts:211` and `game/src/text/en/log.ts:29` — two keys for "broken" (one name per concept).
 
 ## Conclusion
@@ -168,3 +180,18 @@ Approach: two implementers in parallel. Implementer A changes the truck look in 
 - uexecute: PH1 and PH2 go to one implementer and PH3 and PH4 to another, both on Sonnet — PH1 and PH2 share `vehicle.ts`, so they cannot run as separate concurrent phases.
 - udesign: hidden parts glow on the body over their cells — the mockup only tried the scout, where cores show, and the old view showed every part.
 - udesign: healthy parts keep their own color on both drawings, breaking P8's green for healthy — the settled look shows color only for damage.
+- uexecute: lamp end share is 0.5, not the settled 0.8. At 0.8 the buggy, jeep and loader got no headlight window, because their lights sit at 0.70 to 0.76 of the half length.
+- uexecute: a part that is drawn but hidden from the camera, such as rear armor on a van, gets the hidden-part area at its own height. Otherwise the panel threw on random kits.
+- uexecute: a flat patch takes the full tint, with a minimum level span of 64. Otherwise hidden parts showed dark brown.
+- uexecute: one combined commit for PH1 to PH4. The phases share `vehicle.ts`, `hud.ts` and `game.ts`, so a split commit would not typecheck.
+- uexecute: `Hud` takes the renderer and owns `TruckPortraits`, so `game.ts`, which is over its line cap, does not grow.
+- uexecute: the worktree's `node_modules` link was replaced with a local install. The dev server refused the linked fonts, and the playtest failed on those errors.
+- uexecute: items in the outer deck column overlap snug armor by the 10 cm inset. The parts-never-float rule exempts armor, and the user chose 10 cm knowing it clips.
+- uexecute: dark faction paint reads close to black on the enemy card under the settled 15% dimming. The paint is the truck's own, so it stays.
+- uexecute: healthy rear armor on tall trucks shows as a steel patch on the roof's rear edge, which is its hidden-part area.
+- uexecute: `lampEndShare` and `TRUCK_LOOK` live in `src/render/partLooks.ts`, and `portraitPixels.ts` in `src/three/render/`. New files in `src/data` and `src/render` broke the fragmentation gate.
+
+### Deferred (needs user input)
+
+- `npm run mobile` — fails on dev's own layout. Instrument switch labels escape their clip on a phone, the town split overflows sideways, and in landscape a town story page after End turn blocks every later step. This branch touches none of these. Say if they should be fixed here.
+- Look check — the small details in `game/tmp/condition-check/` and `game/tmp/front-check/` need your eye: the arch gaps, the headlight windows, and the hidden-part rectangles.
