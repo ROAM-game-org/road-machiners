@@ -32,6 +32,7 @@ import { itemCells } from '../../sim/grid';
 import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
 import { signatureOf, VehicleView } from './vehicle';
+import { withCut, type CutSpec } from './armorCut';
 
 const LOOK = {
   pxPerMeter: PX_PER_METER,
@@ -265,26 +266,14 @@ function idColor(id: number): THREE.Color {
   return new THREE.Color().setRGB((id & BYTE) / BYTE, (id >> 8) / BYTE, 0, THREE.LinearSRGBColorSpace);
 }
 
-function paintAsId(mesh: Drawn, id: number, shared: ReadonlySet<THREE.Material>, trash: Disposable[]): void {
-  let material = mesh.material;
-  if (shared.has(material)) {
-    material = material.clone();
-    trash.push(material);
-    mesh.material = material;
-  }
-  if (material instanceof THREE.MeshLambertMaterial) {
-    material.color.setRGB(0, 0, 0);
-    material.emissive.copy(idColor(id));
-    material.emissiveIntensity = 1;
-  } else if (material instanceof THREE.MeshBasicMaterial) material.color.copy(idColor(id));
-  else throw new Error(`Truck mesh ${mesh.name} has material ${material.type}, expected Lambert or Basic`);
+function paintAsId(mesh: Drawn, id: number): void {
+  const flat = new THREE.MeshBasicMaterial({ color: idColor(id), side: mesh.material.side });
+  const cut: CutSpec | undefined = mesh.userData.cut;
+  mesh.material = cut ? withCut(flat, cut) : flat;
 }
 
-function paintIds(meshes: Drawn[], idOfMesh: (mesh: Drawn) => number, trash: Disposable[]): void {
-  const wanted = new Map<THREE.Material, Set<number>>();
-  for (const mesh of meshes) wanted.set(mesh.material, (wanted.get(mesh.material) ?? new Set<number>()).add(idOfMesh(mesh)));
-  const shared = new Set([...wanted].filter(([, ids]) => ids.size > 1).map(([material]) => material));
-  for (const mesh of meshes) paintAsId(mesh, idOfMesh(mesh), shared, trash);
+function paintIds(meshes: Drawn[], idOfMesh: (mesh: Drawn) => number): void {
+  for (const mesh of meshes) paintAsId(mesh, idOfMesh(mesh));
 }
 
 type Heights = { min: number; max: number };
@@ -440,7 +429,7 @@ function renderParts(pass: Pass, view: VehicleView, meshes: Drawn[], isPart: (me
 }
 
 function renderPartIds(pass: Pass, view: VehicleView, v: Vehicle, solid: Drawn[], isPart: (mesh: Drawn) => boolean, numberOf: Numbering, trash: Disposable[]): Uint16Array {
-  paintIds(solid, (m) => (isPart(m) ? numberOf(m.userData.partId) : BODY_ID), trash);
+  paintIds(solid, (m) => (isPart(m) ? numberOf(m.userData.partId) : BODY_ID));
   const scene = new THREE.Scene();
   scene.add(view.root);
   let ids = renderIds(pass.renderer, pass.flat, scene, pass.camera);

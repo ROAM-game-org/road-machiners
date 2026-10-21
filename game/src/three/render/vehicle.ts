@@ -662,6 +662,7 @@ function cutMesh(mesh: THREE.Mesh, cut: ArmorCut): void {
     return;
   }
   mesh.material = withCut(plain, cut.spec);
+  mesh.userData.cut = cut.spec;
   mesh.userData.darkMat = cut.dark;
   if (mesh.userData.outline) return;
   plain.dispose();
