@@ -73,7 +73,7 @@ One owner per concept. Use these and do not decide the same thing elsewhere:
 - `src/sim/wear.ts` is the only writer of part HP.
 - `workOf()` in `src/sim/states.ts` gives timed work, so new work gets a progress bar.
 - `practice()` in `src/sim/progress.ts` is the only way to gain XP.
-- `src/text/` owns all player text. The sim keeps ids, and new text ships its English and Russian entries in the same change. agy writes all Russian text, never Claude, except that Codex and then Claude Sonnet write it when agy is unavailable, as the Russian copy doc says. Read [Russian copy](docs/russian-style.md) before any change that needs Russian.
+- `src/text/` owns all player text. The sim keeps ids, and new text ships its English and Russian entries in the same change. agy writes all Russian text, never Claude. When agy is unavailable (not installed, error 402 or 429, missing key or login, service down, or `AGY_MAX_RUNS` spent), Codex writes it with `timeout 900 codex exec -o tmp/ru-reply.md - < tmp/ru-request.md`, and when Codex is unavailable too, Claude Sonnet writes it with `timeout 900 claude -p --model sonnet --tools Read,Grep,Glob --no-session-persistence < tmp/ru-request.md`. A writer that fails on the request itself is not unavailable: fix the request. Read [Russian copy](docs/russian-style.md) before any change that needs Russian.
 - `talkOf()` in `src/sim/dialogue.ts` is the one place talk reads traits and personality.
 - `propPose()` in `src/sim/mapgen.ts` gives each prop's turn and scale.
 - `src/sim/body.ts` is the only conversion between grid cells and meters.

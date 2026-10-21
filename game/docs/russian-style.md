@@ -12,11 +12,24 @@ agy writes all Russian text, since it writes better Russian than Claude. That co
 
 ## When agy is unavailable
 
-Try agy first, every time. It is unavailable when it is not installed, its Gemini credits are depleted (error 402) or its quota is spent (429), its login or `AGY_MODEL` is missing, the service is down, or the job has used its `AGY_MAX_RUNS`. Do not raise the limit to get around it. Then Codex writes the Russian, and when Codex is unavailable too, Claude Sonnet writes it (`claude -p --model sonnet`). Only an unavailable writer passes the request on. A writer that fails on the request itself stops the chain, and you fix the request.
+Try agy first, every time. Write the request into `tmp/ru-request.md`, the same text you would give agy: this file, the English of each line, its key and where it shows. A fallback writer reads this file and the glossary the same way, so it needs nothing more.
 
-`npm run text:write -- <request-file>` does this. It sends the same request to each writer in turn, prints the first reply and the writers it tried on stderr, and writes no file. Put in the request file what you would give agy: this file, the English of each line, its key and where it shows. A fallback writer reads this file and the glossary the same way, so it needs nothing more. You then put its lines in the catalog yourself.
+agy is unavailable when its run exits with one of these:
 
-A fallback writer's lines face every check agy's do: the rules and glossary below, the catalog test, the scan for untranslated text and `npm run text:review`. Run them all, and send a line that breaks a rule back to the same writer with the rule. Say in the pull request which writer wrote the Russian and why agy was out. If all three are unavailable, stop and report that. Do not ship English in the Russian catalog.
+- `command not found`, since it is not installed.
+- Error 402 or `payment required`, since its Gemini credits are depleted.
+- Error 429 or `RESOURCE_EXHAUSTED`, since its quota is spent.
+- `GEMINI_API_KEY environment variable is not set`, `AGY_MODEL is not set` or a rejected login.
+- A 502, 503 or 504, or a network error, since the service is down.
+- `run N exceeds AGY_MAX_RUNS`, since the job used its runs. Do not raise the limit, and do not work around the run counter.
+
+Then Codex writes the Russian: `timeout 900 codex exec -o tmp/ru-reply.md - < tmp/ru-request.md`. The reply is the file after `-o`. Codex is unavailable when `codex` is missing, `CODEX_MODEL and CODEX_EFFORT must be set`, its ChatGPT login is missing or refused, its usage limit is spent, or it cannot reach its service. With no network, Codex retries until `timeout` stops it with exit 124. Count that as unavailable only when its output shows the connection failing.
+
+When Codex is unavailable too, Claude Sonnet writes it: `timeout 900 claude -p --model sonnet --tools Read,Grep,Glob --no-session-persistence < tmp/ru-request.md`. The reply is on stdout. It can read the files the request names and nothing else.
+
+Only an unavailable writer passes the request on. A writer that fails for any other reason, or answers with no Russian, failed on the request: read its error, fix the request and ask the same writer again. Do not move on to the next writer to get past it.
+
+You put the fallback writer's lines in the catalog yourself, as you would agy's. They face every check agy's do: the rules and glossary below, the catalog test, the scan for untranslated text and `npm run text:review`. Run them all, and send a line that breaks a rule back to the same writer with the rule. Never write a Russian word yourself, never copy the English in as a placeholder, and never relax a check. Say in the pull request which writer wrote the Russian and why the earlier ones were out. If all three are unavailable, stop and report that. Do not ship English in the Russian catalog.
 
 Translate what the line means where the player sees it, not its words. The key tells you where it shows:
 
