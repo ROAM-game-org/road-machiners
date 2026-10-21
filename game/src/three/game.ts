@@ -162,6 +162,7 @@ export class Game {
   private sightingToSound = false;
   private readonly engineStrain = new EngineStrain();
   private readonly views = new Map<string, VehicleView>();
+  private readonly building = new Map<string, VehicleView>();
   private readonly radioLights = new RadioLights();
   private frames: Record<string, VehicleFrame> = {};
   private anim: Playback | null = null;
@@ -209,17 +210,7 @@ export class Game {
   private readonly death: DeathScreen;
   private readonly saves: GameSaves;
 
-  constructor(
-    world: World,
-    run: Run,
-    container: HTMLElement,
-    overlay: HTMLElement,
-    player: SoundPlayer,
-    readonly music: CombatMusic,
-    private readonly soundSettings: SoundSettings,
-    radio: RadioPanel,
-    surface: WebGLSurface,
-  ) {
+  constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
@@ -259,22 +250,8 @@ export class Game {
     this.shade = new ShadeView(this.world, groundChunks, this.play);
     this.weather = new WeatherView(this.world);
     this.hoverArcs = new HoverArcsView(overlay, this.rig);
-    this.scene.add(
-      this.ground,
-      this.props,
-      this.shade.mesh,
-      this.weather.root,
-      this.zones.root,
-      this.path.root,
-      this.rescueAreas.root,
-      this.weaponRange.root,
-      this.hoverArcs.root,
-      this.contacts.root,
-      this.clouds.root,
-      this.utilityAim.root,
-      this.soundRing.root,
-      this.beaconPulse.root,
-    );
+    this.scene.add(this.ground, this.props, this.shade.mesh, this.weather.root, this.zones.root, this.path.root, this.rescueAreas.root, this.weaponRange.root);
+    this.scene.add(this.hoverArcs.root, this.contacts.root, this.clouds.root, this.utilityAim.root, this.soundRing.root, this.beaconPulse.root);
     this.overlay = overlay;
     this.markers = new VehicleMarkers(overlay, this.rig);
     overlay.append(this.vignette, this.stormTint);
@@ -1158,9 +1135,7 @@ export class Game {
     const ids = new Set<string>();
     for (const [i, v] of shown.entries()) {
       this.pin.note(v, i < this.world.vehicles.length);
-      const kept = this.frames[v.id];
-      const stale = staleFrame(kept, v, this.anim !== null);
-      const f = (frames && playedFrame(frames[v.id], at!, play!.starts[v.id], play!.startAt)) ?? (kept && !stale ? kept : restFrame(this.world, v));
+      const f = this.shownFrame(v, frames && play && playedFrame(frames[v.id], at!, play.starts[v.id], play.startAt));
       this.frames[v.id] = f;
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);
       if (seen) this.lastSeen.set(v.id, this.world.turn);
@@ -1169,13 +1144,8 @@ export class Game {
       const before = !landed && this.anim!.before.vehicles.find((x) => x.id === v.id);
       const display = before ? { ...v, items: shownItems(before.items, v.items, this.breakCues.shown(v.id)) } : v;
       ids.add(v.id);
-      let view = this.views.get(v.id);
-      if (!view) {
-        view = new VehicleView(v, seen, this.world.player.paint, "world");
-        this.views.set(v.id, view);
-        this.scene.add(view.root);
-      }
-      view.update(display, seen, this.world.player.paint, this.rebuilds);
+      const view = this.viewOf(v.id, display, seen);
+      if (!view) continue;
       view.lamps(vehicleLampsOn(this.world, v, this.lightTurn()));
       view.radio(this.radioLights.lit(v.id, now));
       view.outline(look === "dark");
@@ -1191,6 +1161,31 @@ export class Game {
       view.dispose();
       this.views.delete(id);
     }
+    for (const [id, view] of this.building) {
+      if (ids.has(id)) continue;
+      view.dispose();
+      this.building.delete(id);
+    }
+  }
+
+  private shownFrame(v: Vehicle, played: VehicleFrame | null | undefined): VehicleFrame {
+    const kept = this.frames[v.id];
+    return played ?? (kept && !staleFrame(kept, v, this.anim !== null) ? kept : restFrame(this.world, v));
+  }
+
+  private viewOf(id: string, display: Vehicle, seen: boolean): VehicleView | null {
+    const view = this.views.get(id) ?? this.building.get(id) ?? new VehicleView(null, seen, this.world.player.paint, "world");
+    view.update(display, seen, this.world.player.paint, this.rebuilds);
+    if (!view.built) {
+      this.building.set(id, view);
+      return null;
+    }
+    this.building.delete(id);
+    if (!this.views.has(id)) {
+      this.views.set(id, view);
+      this.scene.add(view.root);
+    }
+    return view;
   }
 
   private lookOf(v: Vehicle, f: VehicleFrame, seen: boolean): "full" | "dark" | null {

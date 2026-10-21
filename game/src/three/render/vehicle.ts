@@ -296,16 +296,16 @@ export class VehicleView {
 
   private rebuildToward(v: Vehicle, playerPaint: TruckPaint, sig: string, budget: RebuildBudget): void {
     const pending = this.pending?.sig === sig ? this.pending : this.startRebuild(v, playerPaint, sig);
-    if (advanceBuild(pending, budget) && this.twinReady(pending.twin, budget)) this.finishRebuild(pending.twin, sig);
+    if (advanceBuild(pending, budget) && budget.ready(pending.twin.root)) this.finishRebuild(pending.twin, sig);
   }
 
-  private twinReady(twin: VehicleView, budget: RebuildBudget): boolean {
-    return twin === this || budget.ready(twin.root);
+  get built(): boolean {
+    return this.sig !== '';
   }
 
   private startRebuild(v: Vehicle, playerPaint: TruckPaint, sig: string): NonNullable<VehicleView['pending']> {
     this.dropPending();
-    const twin = this.sig === '' ? this : new VehicleView(null, false, playerPaint, this.scene);
+    const twin = new VehicleView(null, false, playerPaint, this.scene);
     this.pending = { sig, twin, steps: twin.build(v, paintOf(v, playerPaint)), built: false };
     return this.pending;
   }
