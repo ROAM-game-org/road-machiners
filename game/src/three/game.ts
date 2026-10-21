@@ -1037,8 +1037,8 @@ export class Game {
     if (plan) this.path.set(plan.turns, firstTurnColor(playerVehicle(this.world)), plan.course, plan.waypoint);
   }
 
-  private flushUi(): void {
-    if (this.uiStale) this.refreshUi();
+  private flushUi(turnBegan: boolean): void {
+    if (this.uiStale && !turnBegan) this.refreshUi();
   }
 
   private advanceTurn(now: number): { at: number | null; speed: number } {
@@ -1056,7 +1056,7 @@ export class Game {
       this.updateTravel();
     }
     this.travel.prepareNext(this.world, this.anim, now);
-    this.flushUi();
+    this.flushUi(began === "began");
     return { at, speed };
   }
 
