@@ -17,7 +17,10 @@ import {
   syncDrive,
   type Drive,
 } from "./drive";
-import { computeTurn, physicsMove } from "./turn";
+import { computeTurn, liveSightOf, physicsMove } from "./turn";
+import { toMap, type VehicleFrame } from "./frames";
+import { PHYSICS } from "../data/physics";
+import { visibleTiles } from "../sim/vision";
 
 beforeAll(initPhysics);
 
@@ -156,4 +159,15 @@ it("restores the quest language when the run throws", () => {
   setQuestLanguage("en");
   expect(() => inQuestLanguage("ru", () => { throw new Error("boom"); })).toThrow("boom");
   expect(currentQuestLanguage()).toBe("en");
+});
+
+it("samples live sight along the player's frames every sight step, with the tiles vision gives there", () => {
+  const world = newWorld(7, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+  const me = playerVehicle(world);
+  const S = PHYSICS.metersPerTile;
+  const frames = Array.from({ length: 12 }, (_, i) => ({ pos: { x: (me.pos.x + i * 0.1) * S, y: 0, z: me.pos.y * S } }) as VehicleFrame);
+  const sight = liveSightOf(world, frames);
+  expect(sight.steps).toEqual([0, 4, 8]);
+  sight.steps.forEach((step, k) => expect(sight.tiles[k]).toEqual([...visibleTiles(world, toMap(frames[step].pos))].sort((a, b) => a - b)));
+  expect(liveSightOf(world, undefined)).toEqual({ steps: [], tiles: [] });
 });

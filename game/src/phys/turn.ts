@@ -17,8 +17,8 @@ import { burnFuel } from '../sim/resources';
 import { setDown } from '../sim/steering';
 import { clearanceFor } from '../sim/clearance';
 import type { MoveOrder, Pose, Vehicle, World } from '../sim/types';
-import { angleDiff, dist, lerp } from '../sim/vec';
-import { exploreFrom } from '../sim/vision';
+import { angleDiff, dist, lerp, type Vec } from '../sim/vec';
+import { exploreFrom, visibleTiles } from '../sim/vision';
 import { bodyState, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
 import { frameBend, headingOf, toMap, type VehicleFrame, type WheelFrame } from './frames';
 import { bendField, checkBend, heldBend, poseOf } from '../sim/rig';
@@ -27,10 +27,27 @@ import { planTurns, type PlanFrames } from './plan';
 export type TurnState = Omit<World, 'terrain'>;
 export type WorldTask = { world: TurnState; drive: DriveSnapshot };
 export type TurnTask = WorldTask & { questLanguage: QuestLanguage };
+export type LiveSight = { steps: number[]; tiles: number[][] };
 export type PreparedTurn = {
   world: TurnState;
   result: Omit<TurnResult, 'next'> & { next: DriveSnapshot };
+  sight: LiveSight;
 };
+
+export const LIVE_SIGHT_STEP = 0.35;
+
+export function liveSightOf(world: World, frames: readonly VehicleFrame[] | undefined): LiveSight {
+  const sight: LiveSight = { steps: [], tiles: [] };
+  let from: Vec | null = null;
+  (frames ?? []).forEach((f, step) => {
+    const at = toMap(f.pos);
+    if (from && dist(from, at) < LIVE_SIGHT_STEP) return;
+    from = at;
+    sight.steps.push(step);
+    sight.tiles.push([...visibleTiles(world, at)].sort((a, b) => a - b));
+  });
+  return sight;
+}
 export type PreviewTask = TurnTask & { meId: string };
 export type TurnRequest = TurnTask & { kind: 'turn'; id: number; terrain: World['terrain'] | null };
 export type PreviewRequest = PreviewTask & { kind: 'preview'; id: number; terrain: World['terrain'] | null };
@@ -83,7 +100,8 @@ function computeTurnIn(task: TurnTask, terrain: World['terrain']): PreparedTurn 
     if (!result) throw new Error('Turn ran without physics');
     const { terrain: _terrain, ...state } = world;
     const { next, ...motion } = result as TurnResult;
-    return { world: state, result: { ...motion, next: captureDrive(next) } };
+    const sight = timed('live-sight', () => liveSightOf(world, motion.frames[world.player.vehicleId]));
+    return { world: state, result: { ...motion, next: captureDrive(next) }, sight };
   } finally {
     freeDrive(drive);
     if (result) freeDrive((result as TurnResult).next);

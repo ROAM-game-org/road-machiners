@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { START_KITS } from '../data/start';
 import { TIME } from '../data/time';
 import { TEST_MAP } from '../test/map';
-import { isBreakable, propReach } from './mapgen';
+import { isBreakable, isDriveObstacle, obstacleReach, propReach } from './mapgen';
 import { propsAlong, propsAround, propSlotsAlong, shadeCastersAround } from './prop-index';
 import type { Obstacle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
@@ -29,6 +29,14 @@ function worldAndSamples(): { w: World; points: Vec[] } {
 }
 
 describe('prop index', () => {
+  it('gives the same drive obstacles as a full scan, in world order', () => {
+    const { w, points } = worldAndSamples();
+    for (const c of points) {
+      const scanned = w.obstacles.filter((o) => isDriveObstacle(o) && dist(c, o.pos) <= 30 + obstacleReach(o));
+      expect(propsAround(w, 'drive', c, 30)).toEqual(scanned);
+    }
+  });
+
   it('leaves out only props a sight line cannot touch', () => {
     const { w, points } = worldAndSamples();
     for (let i = 1; i < points.length; i++) {

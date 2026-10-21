@@ -9,7 +9,7 @@ import { startKit } from "../data/start";
 import { playerVehicle } from "../sim/damage";
 import type { GameEvent } from "../sim/types";
 import { endTurn, newWorld, setMoveOrder } from "../sim/world";
-import { addRopeFrames, canTravel, overshoots, Travel } from "./travel";
+import { addRopeFrames, canTravel, nextSightSample, overshoots, Travel } from "./travel";
 import { addState } from "../sim/states";
 import { TEST_MAP } from "../test/map";
 import { reusedWorld } from "../test/world-cache";
@@ -620,5 +620,16 @@ describe("every turn that runs on its own", () => {
       drop.beginPlayback(awake, prepared(out), 1000, 0, {});
       expect(drop.isFast(1300)).toBe(false);
     });
+  });
+});
+
+describe("nextSightSample", () => {
+  it("shows the latest sight sample the playback reached and explores every sample it passed", () => {
+    const live = { visible: new Set<number>(), explored: new Uint8Array(10), sight: { steps: [0, 3, 6], tiles: [[1], [2, 3], [4]] }, shown: -1 };
+    expect(nextSightSample(live, 0.5)).toBe(0);
+    expect(nextSightSample(live, 2)).toBeNull();
+    expect(nextSightSample(live, 7)).toBe(2);
+    expect([...live.visible]).toEqual([4]);
+    expect([...live.explored]).toEqual([0, 1, 1, 1, 1, 0, 0, 0, 0, 0]);
   });
 });

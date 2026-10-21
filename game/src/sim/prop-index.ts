@@ -1,15 +1,11 @@
-// Spatial indexes over world.obstacles for hot queries: sight lines, shade rays and breakable props on a walk. Each
-// query reads the buckets near its segment instead of filtering every obstacle.
-// update() clones the world every turn, so an index is keyed by each obstacle's id and place in order, never by array
-
 import { TIME } from '../data/time';
 import { ObstacleBuckets, type Blocker } from './nav/buckets';
 import { ObstacleCache } from './nav/obstacle-cache';
-import { isBreakable, propReach } from './mapgen';
+import { isBreakable, isDriveObstacle, obstacleReach, propReach } from './mapgen';
 import type { Obstacle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 
-export type PropIndexKind = 'sight' | 'shade' | 'breakable';
+export type PropIndexKind = 'sight' | 'shade' | 'breakable' | 'drive';
 
 type Slot = Blocker & { at: number };
 
@@ -19,6 +15,7 @@ const MEMBERS: Record<PropIndexKind, { has: (o: Obstacle) => boolean; radius: (o
   sight: { has: (o) => SIGHT_BLOCKING.includes(o.kind), radius: propReach },
   shade: { has: (o) => TIME.obstacleShade[o.kind] !== undefined, radius: (o) => o.r },
   breakable: { has: isBreakable, radius: propReach },
+  drive: { has: isDriveObstacle, radius: obstacleReach },
 };
 
 class Entry {
@@ -55,7 +52,8 @@ export function propSlotsAlong(world: World, kind: PropIndexKind, a: Vec, b: Vec
 
 export function propsAround(world: World, kind: PropIndexKind, center: Vec, radius: number): Obstacle[] {
   const slots = entryFor(world).buckets(kind, world.obstacles).alongSegment(center, center, radius);
-  return slots.filter((s) => dist(center, s.pos) <= s.r + radius).map((s) => world.obstacles[s.at]);
+  const near = slots.filter((s) => dist(center, s.pos) <= s.r + radius).map((s) => s.at);
+  return near.sort((a, b) => a - b).map((at) => world.obstacles[at]);
 }
 
 export function shadeCastersAround(world: World, center: Vec, radius: number): Obstacle[] {

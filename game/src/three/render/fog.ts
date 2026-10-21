@@ -42,7 +42,9 @@ export class FogView {
   update(world: World): void {
     const n = world.size;
     this.show(world.player.visible);
-    for (let t = 0; t < n * n; t++) this.restate(t, n, world.player.explored);
+    const { visible, state } = this;
+    const explored = world.player.explored;
+    for (let t = 0; t < n * n; t++) if ((visible[t] ? VISIBLE : explored[t] ? EXPLORED : DARK) !== state[t]) this.restate(t, n, explored);
     this.writeDirty(n);
   }
 

@@ -27,8 +27,8 @@ import { playerTrucks, playerVehicle, vehicleById } from "../sim/damage";
 import { inOverdrive, isStranded, maxTurn, vehicleStats } from "../sim/stats";
 import { clickOrder } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
-import { grayRadius, playerSees, tileOf, visibleTiles } from "../sim/vision";
-import { dist, type Vec } from "../sim/vec";
+import { grayRadius, playerSees, tileOf } from "../sim/vision";
+import type { Vec } from "../sim/vec";
 import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
@@ -103,13 +103,12 @@ import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { HostileSighting } from "./hostile-sighting";
-import { Travel, type Playback, type LiveVision } from "./travel";
+import { nextSightSample, Travel, type Playback, type LiveVision } from "./travel";
 import { PlayClock } from "./play-clock";
 
 
 const PICK_PX = 30;
 const MIN_ZONE_HALF_ANGLE = Math.PI / 12;
-const LIVE_VISION_STEP = 0.35;
 
 type TurnPhase = ReturnType<UiHost["getTurnPhase"]>;
 
@@ -859,11 +858,7 @@ export class Game {
     this.anim = playback;
     this.turnStart = playback.before;
     this.saves.beginTurn();
-    this.live = {
-      visible: new Set(this.world.player.visible),
-      explored: playback.before.player.explored.slice(),
-      from: null,
-    };
+    this.live = { visible: new Set(this.world.player.visible), explored: playback.before.player.explored.slice(), sight: prepared.sight, shown: -1 };
     const seen = (id: string) => this.eventPoint(id) !== null;
     playback.combat = gunfireSeen(this.world.events, seen);
     playback.volley = volleySeen(this.world.events, seen);
@@ -1052,7 +1047,7 @@ export class Game {
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
     const wasPlaying = this.anim !== null;
     let at = this.animStep(now, speed);
-    this.updateLiveVision();
+    this.updateLiveVision(at);
     this.updateTravel();
     const began = this.tryBeginTurn(now, wasPlaying, held);
     if (began === "failed") return { at, speed };
@@ -1127,16 +1122,14 @@ export class Game {
     this.screens.openCharacter("map");
   }
 
-  private updateLiveVision(): void {
+  private updateLiveVision(step: number | null): void {
     const live = this.live;
     const f = this.frames[playerVehicle(this.world).id];
-    if (!live || !this.anim || !f) return;
+    if (!live || step === null || !f) return;
+    const k = nextSightSample(live, step);
+    if (k === null) return;
     const at = toMap(f.pos);
-    if (live.from && dist(live.from, at) < LIVE_VISION_STEP) return;
-    live.from = at;
-    live.visible = visibleTiles(this.world, at);
-    for (const t of live.visible) live.explored[t] = 1;
-    const player = { ...this.world.player, visible: [...live.visible].sort((a, b) => a - b), explored: live.explored };
+    const player = { ...this.world.player, visible: live.sight.tiles[k], explored: live.explored };
     timed("fog", () => this.fog.updateSight({ ...this.world, player }));
     timed("minimap", () => this.minimap?.update({ ...this.world, player }, { pos: at, heading: playerVehicle(this.world).heading }));
   }

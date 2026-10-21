@@ -11,7 +11,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import type { VehicleFrame } from "../phys/frames";
-import type { PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
+import type { LiveSight, PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
@@ -19,7 +19,7 @@ import { inCombat } from "../sim/combat";
 import { playerVehicle } from "../sim/damage";
 import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
-import { dist, type Vec } from "../sim/vec";
+import { dist } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
 import { autoRuns, playerCanAct } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
@@ -27,8 +27,19 @@ import { WorkerLoad, workerFailure } from "./worker-load";
 export type LiveVision = {
   visible: Set<number>;
   explored: Uint8Array;
-  from: Vec | null;
+  sight: LiveSight;
+  shown: number;
 };
+
+export function nextSightSample(live: LiveVision, step: number): number | null {
+  let k = live.shown;
+  while (k + 1 < live.sight.steps.length && live.sight.steps[k + 1] <= step) k++;
+  if (k === live.shown) return null;
+  for (let i = live.shown + 1; i <= k; i++) for (const t of live.sight.tiles[i]) live.explored[t] = 1;
+  live.shown = k;
+  live.visible = new Set(live.sight.tiles[k]);
+  return k;
+}
 
 export type Playback = {
   result: TurnResult;
