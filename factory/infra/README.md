@@ -13,7 +13,7 @@ Run every command from `factory/infra`, in the main checkout. Git ignores `prod.
 ## Commands
 
 - `uv run pyinfra -y inventory.py deploy/provision.py` sets up the host. Run it once and after host changes.
-- `uv run pyinfra -y inventory.py deploy/deploy.py` sets up the factory. Run it to roll out a secret, an infra change or a new `FACTORY_TICK_MINUTES`.
+- `uv run pyinfra -y inventory.py deploy/deploy.py` sets up the factory. Run it to roll out a secret, an infra change, or a new `FACTORY_TICK_MINUTES`, reboot, boot check or memory cap setting.
 - `uv run pyinfra -y inventory.py deploy/dashboard.py` installs the public dashboard and its Caddy route. Run it after deploy.
 - `uv run pyinfra -y inventory.py deploy/errors.py` installs the error service and its `/errors` and `/feedback` Caddy routes. Run it after deploy. Its log is `logs/errors.log`.
 - `uv run pyinfra -y inventory.py deploy/status.py` reads the host state and changes nothing.
@@ -28,6 +28,9 @@ Factory code and other settings roll out by a merge into `main`. The server depl
 - Deploy pushes the server-only env to `/opt/factory/factory.env` with mode 600. `FACTORY_ENV_FILE` in `prod.env` names its source on your machine. Each release links `factory/.env` to it.
 - Deploy builds the agent image and the egress proxy image, and installs the tick timer, the `factory-update` timer and the dashboard restart hook.
 - Deploy starts Hermes, Caddy and the Cloudflare Tunnel with Docker Compose. Caddy serves `/opt/factory/www` over plain HTTP to the tunnel, and Cloudflare serves HTTPS.
+- Deploy caps the memory of the factory user's login sessions at `FACTORY_HOST_SHELL_MEMORY_GB`, with no swap. Hermes's `factory-host` commands and `claude-run` jobs run there. On 2026-10-21 a test suite Hermes ran on the host filled memory and swap, and the server froze for good. Inside the cap the kernel kills the runaway alone.
+- Deploy installs the planned reboot and the boot check. `roam-factory-reboot.timer` runs `factory-reboot.sh` on `FACTORY_REBOOT_CALENDAR`. It pauses the factory, waits up to `FACTORY_REBOOT_DRAIN_MINUTES` for running jobs and Hermes's commands, and reboots. It skips the week when a pause already exists or GRUB holds a one-time boot entry. Its log is `logs/reboot.log`.
+- `roam-factory-boot-check.service` runs `factory-boot-check.sh` after every boot. It lifts the `planned reboot` pause, then waits up to `FACTORY_BOOT_CHECK_MINUTES` for the dashboard and errors services, the tick and update timers, the Hermes, Caddy and tunnel containers, a 200 from `/factory/` and one passed tick. What still fails goes to `/opt/factory/home/boot-failed`, which Hermes's incident watch reports. Its log is `logs/boot-check.log`.
 - Deploy stops early when the factory `.env` has the wrong `FACTORY_HOME` or `FACTORY_WEB_ROOT`, or when a key is in both `.env` and `settings.env`.
 - Deploy ends with `check-ports.sh`, which fails on any published Docker port. Docker skips UFW for published ports, so none may exist.
 

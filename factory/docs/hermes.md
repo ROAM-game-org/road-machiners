@@ -57,7 +57,7 @@ Four commands need `--by <member>` from that member's order: `merge` or `move N 
 
 ## Incidents
 
-An incident is an open issue with the label `factory-stuck`, a failed job in `failures`, a tick crash in `lastTickError`, a failed `/dev/` build in `devFailed`, a failed factory update in `/factory/home/update-failed`, a `drift: <line>` from `factory audit`, a server health line, a finished daily review or a due release post. The watch wakes you when the list changes. Each failed job shows its stage, issue, first error line and log. The first error line is often a warning, so read the log for the real error.
+An incident is an open issue with the label `factory-stuck`, a failed job in `failures`, a tick crash in `lastTickError`, a failed `/dev/` build in `devFailed`, a failed factory update in `/factory/home/update-failed`, a failed boot check in `/factory/home/boot-failed`, a `drift: <line>` from `factory audit`, a server health line, a finished daily review or a due release post. The watch wakes you when the list changes. Each failed job shows its stage, issue, first error line and log. The first error line is often a warning, so read the log for the real error.
 
 1. Find out what happened. Start with `factory card N`, `factory failures` and `factory log N`. Then read the state file and the recent chat. Search the chat for what members said and pressed about the issue.
 2. Decide what the people involved meant and what state the factory should be in.
@@ -98,15 +98,17 @@ Every tick writes `/factory/home/health` with its time, the free disk space and 
   5. Remove the pause. When space stays low, clean the work clones of cards in Approval, which the next stage clones again.
 - `memory low`: jobs swap or the kernel may kill a container. No job is blocked, and the line closes once memory frees.
   1. Read what uses it with `factory-host 'free -m; docker stats --no-stream --format "{{.Name}} {{.MemUsage}} {{.Label}}"; swapon --show'`.
-  2. Wait one tick. A checks peak near 2.6 GB passes in minutes.
-  3. When it stays low for 10 minutes, find the container with the most memory and its job in `jobs`. Stop the youngest job with `factory-host 'kill <pid>'`. It resumes once by itself later. When it happens again, file a `factory` issue that proposes lower worker counts in `settings.env`, with the numbers.
-  4. A kernel kill shows in `factory-host 'journalctl -k --since "1 hour ago" | grep -i "out of memory"'`.
+  2. Read the host processes too, with `factory-host 'ps -eo pid,user,rss,etime,args --sort=-rss | head -15'`. Processes of the factory user outside a container come from your own `factory-host` commands and `claude-run` jobs. Kill any left over from a command that already ended.
+  3. Wait one tick. A checks peak near 2.6 GB passes in minutes.
+  4. When it stays low for 10 minutes, find the container with the most memory and its job in `jobs`. Stop the youngest job with `factory-host 'kill <pid>'`. It resumes once by itself later. When it happens again, file a `factory` issue that proposes lower worker counts in `settings.env`, with the numbers.
+  5. A kernel kill shows in `factory-host 'journalctl -k --since "1 hour ago" | grep -i "out of memory"'`.
 - `tick stalled`: no tick ran for 20 minutes. Ticks run one at a time, so a hung tick blocks all of them.
   1. Find the tick process with `factory-host 'systemctl status roam-factory-tick.service'` and its log tail in `logs/tick.log`.
   2. Look at the locks in `/factory/home/locks` and `state/state.lock`. Each holds an `owner` file with a pid.
   3. Remove a lock only when its owner pid is dead, or alive past its timeout: 15 minutes for the repo lock and 30 seconds for the state lock. Stop a hung tick with `factory-host "pkill -f 'src/cli.ts -- tick'"` before you remove its lock. Jobs run as `src/cli.ts -- run`, so this leaves them alone.
   4. Check that the next tick runs. A missing health file after a deploy means no tick ran on the new code. Read the timer status and the update log.
 - `stuck list failed since <time>` or `audit failed since <time>`: the watch got no answer from GitHub or from `factory audit` for 10 minutes. Run `gh issue list --label factory-stuck --limit 1000` or `factory audit` yourself and read the error. Fix what you can, like an expired `gh` login. A GitHub outage passes by itself. Post only when it stayed down for an hour.
+- `boot check failed`: after a boot, a factory service did not come back within `FACTORY_BOOT_CHECK_MINUTES`. The line lists each failed check, and `logs/boot-check.log` has the history. Fix each one: read the unit with `systemctl status` and its log in `logs/`, and a container with `docker logs`. Once every check passes, delete `/factory/home/boot-failed`.
 - `paused over an hour`: finish your own pause and remove it. A pause a member wrote goes too, once its reason is gone. Delete the pause file, since `factory resume` refuses a member pause. When the pause kind is `usage-limit`, run `factory resume` once the reset time in its note has passed, and not before.
 
 ## Changing factory state
@@ -115,7 +117,9 @@ Every tick writes `/factory/home/health` with its time, the free disk space and 
 - Change one value of the state file with `factory set-state`. Never write the state file with another tool.
 - Pause the whole factory only for trouble on the whole host, like a full disk or the usage limit. Run `factory pause <reason> --by hermes`, and delete the pause file when it is over.
 - When you start a long step in the background with `nohup`, run `factory pause <reason> --by hermes --pid <N>`, with `$!` from the same `factory-host` command. The tick lifts the pause once that process ends.
+- Run the game tests on the host only as named test files, with `TEST_WORKERS=1`. Never run the whole suite there: `npm test` starts 6 workers of up to 3 GB each. Your `factory-host` commands and `claude-run` jobs share a memory cap of `FACTORY_HOST_SHELL_MEMORY_GB` with no swap, and the kernel kills the biggest process inside it.
 - A factory update never pauses the factory or stops jobs.
+- The server reboots on `FACTORY_REBOOT_CALENDAR`, in server time. It writes the pause `planned reboot` and waits up to `FACTORY_REBOOT_DRAIN_MINUTES` for jobs and your `factory-host` commands to end. Leave that pause alone while `roam-factory-reboot.service` is active. The boot check lifts it after the boot, and a reboot that fails lifts it itself. A pause that already exists skips that week's reboot.
 - A card job whose process died, or that ran past its time limit, resumes once by itself. That is no incident.
 - A game change goes through an issue, so the factory tracks it to its release. Put an issue you open on the board with `gh project item-add` and its column.
 - When the committee asks to skip the stages for a game change, open the issue, then run `factory merge N` with the member as `--by`.
