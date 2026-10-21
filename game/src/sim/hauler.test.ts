@@ -4,10 +4,16 @@ import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from './damage';
 import { betweenLevels } from './fury-road';
 import { yardSpots } from './outpost-gates';
-import { chosenLane, haulerLane, haulerPace, laneClear, noteHaulerHits, planHaulerOrder, resetHaulerWatch, sideThreat, watchHaulerStall } from './hauler';
+import { chosenLane, haulerLane, haulerPace, laneClear, noteHaulerHits, planHaulerOrder, resetHaulerWatch, sideThreat, waitsForGunTruck, watchHaulerStall } from './hauler';
 import { acrossOf, alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
 import { addVehicle, furyRoadWorld } from './testkit';
-import { plainMaxSpeed } from './stats';
+import { fuelCap, plainMaxSpeed } from './stats';
+import { heldHeatSpeed } from './engine-heat';
+import { plainFuelSpeed } from './far';
+import { TIME } from '../data/time';
+import { ENGINE_HEAT } from '../data/wear';
+import { endTurn } from './world';
+import { addState } from './states';
 import { coreParts, mountedParts } from './grid';
 import { getResources } from './resources';
 import type { Vehicle, WaveGroup, World } from './types';
@@ -375,5 +381,204 @@ describe('the hauler pace behind a slow gun truck', () => {
     expect(laneClear(w, hauler, 1)).toBe(true);
     gun.speed = cap - 0.5;
     expect(laneClear(w, hauler, 1)).toBe(false);
+  });
+});
+
+describe('the hauler pace behind a hot or thirsty gun truck', () => {
+  const noMove = (): void => {};
+  const NOON = 1 + (((TIME.sunrise + TIME.sunset) / 2 - TIME.startHour) * TIME.turnsPerDay) / 24;
+  const NIGHT = 1 + ((23 - TIME.startHour) * TIME.turnsPerDay) / 24;
+  const crawl = FURY_ROAD.hauler.crawl;
+  const cruise = FURY_ROAD.hauler.cruise;
+
+  function hotRoad(turn = NOON): { w: World; hauler: Vehicle; gun: Vehicle } {
+    const { w, hauler } = openRoad();
+    w.turn = turn;
+    w.player.engineHeat = 1;
+    return { w, hauler, gun: playerVehicle(w) };
+  }
+
+  it('crawls while a hot gun truck stands to cool, then goes back to cruise', () => {
+    let { w, gun } = hotRoad();
+    gun.speed = 0;
+    expect(haulerPace(w)).toBe(crawl);
+    let turns = 0;
+    let paced = 0;
+    while (w.player.engineHeat >= ENGINE_HEAT.warnAt) {
+      paced += haulerPace(w);
+      w = endTurn(w, noMove);
+      gun = playerVehicle(w);
+      gun.speed = 0;
+      turns++;
+      expect(turns).toBeLessThanOrEqual(6);
+    }
+    expect(paced).toBeLessThan((cruise * turns * 2) / 3);
+    expect(w.events.some((e) => e.t === 'stall')).toBe(false);
+    expect(haulerPace(w)).toBe(cruise);
+  });
+
+  it('keeps to the held-heat speed while a hot gun truck drives', () => {
+    const { w, gun } = hotRoad();
+    gun.speed = 3;
+    expect(haulerPace(w)).toBe(Math.max(crawl, heldHeatSpeed(w, gun)));
+    expect(haulerPace(w)).toBeLessThan(cruise);
+  });
+
+  it('keeps its pace at night, with a cool engine, and for overdrive', () => {
+    const night = hotRoad(NIGHT);
+    night.gun.speed = 3;
+    expect(haulerPace(night.w)).toBe(Math.min(cruise, plainMaxSpeed(night.w, night.gun)));
+    const cool = hotRoad();
+    cool.w.player.engineHeat = ENGINE_HEAT.warnAt - 0.05;
+    cool.gun.speed = 0;
+    expect(haulerPace(cool.w)).toBe(Math.min(cruise, plainMaxSpeed(cool.w, cool.gun)));
+    const hot = hotRoad();
+    hot.gun.speed = 3;
+    const pace = haulerPace(hot.w);
+    hot.w.player.overdrive = true;
+    expect(haulerPace(hot.w)).toBe(pace);
+  });
+
+  it('keeps to the low-fuel top speed', () => {
+    const { w, gun } = hotRoad(NIGHT);
+    w.player.engineHeat = 0;
+    getResources(w, gun).fuel = fuelCap(gun) * 0.1;
+    gun.speed = 3;
+    expect(plainFuelSpeed(w, gun)).toBeLessThan(cruise);
+    expect(haulerPace(w)).toBe(Math.min(cruise, Math.max(crawl, plainFuelSpeed(w, gun))));
+  });
+
+  it('sets no cap for a stranded, stalled or shut-down gun truck, hot and thirsty', () => {
+    const cases: Record<string, (w: World, gun: Vehicle) => void> = {
+      'an empty tank': (w, gun) => { getResources(w, gun).fuel = 0; },
+      'a stall': (w, gun) => { gun.stalledUntil = w.turn; },
+      'a shutdown': (w, gun) => { gun.shutDown = { from: w.turn, until: w.turn + 2 }; },
+    };
+    for (const [name, apply] of Object.entries(cases)) {
+      const { w, gun } = hotRoad();
+      gun.speed = 0;
+      apply(w, gun);
+      expect(haulerPace(w), name).toBe(cruise);
+    }
+  });
+
+  it('gives the same pace and order after a save and load', () => {
+    const { w, hauler } = hotRoad();
+    planHaulerOrder(w);
+    const copy = JSON.parse(JSON.stringify(w)) as World;
+    planHaulerOrder(copy);
+    expect(haulerPace(copy)).toBe(haulerPace(w));
+    expect(haulerOf(copy).order).toEqual(hauler.order);
+  });
+});
+
+const NOON_TURN = 1 + (((TIME.sunrise + TIME.sunset) / 2 - TIME.startHour) * TIME.turnsPerDay) / 24;
+
+describe('the hauler waits for a gun truck that trails it', () => {
+  const noMove = (): void => {};
+  const WAIT = FURY_ROAD.hauler.waitGap;
+  const RESUME = FURY_ROAD.hauler.resumeGap;
+
+  function trailing(lag: number, seed = 3): { w: World; hauler: Vehicle; gun: Vehicle } {
+    const { w, hauler } = openRoad(seed);
+    const gun = playerVehicle(w);
+    gun.pos = roadPoint(seed, 0, N + frontAhead(hauler.chassisId) - lag, LANES[2]);
+    gun.heading = roadHeading(seed, N);
+    gun.speed = 0;
+    return { w, hauler, gun };
+  }
+
+  function stallEvents(w: World): number {
+    return w.events.filter((e) => e.t === 'stall').length;
+  }
+
+  it('holds braked at a lag past the reach for 45 turns with no stall', () => {
+    let { w } = trailing(WAIT + 3);
+    let stalls = 0;
+    for (let i = 0; i < 45; i++) {
+      w = endTurn(w, noMove);
+      stalls += stallEvents(w);
+      expect(haulerOf(w).order).toEqual({ kind: 'brake' });
+    }
+    expect(stalls).toBe(0);
+  });
+
+  it('waits at any distance for a gun truck that cannot drive or is busy', () => {
+    const cases: Record<string, (w: World, gun: Vehicle) => void> = {
+      'an empty tank': (w, gun) => { getResources(w, gun).fuel = 0; },
+      'a stall': (w, gun) => { gun.stalledUntil = w.turn + 50; },
+      'a shutdown': (w, gun) => { gun.shutDown = { from: w.turn, until: w.turn + 50 }; },
+      'a fight': (w, gun) => {
+        const foe = groupTruck(w, LANES[3], N - 70, 0);
+        addState(w, 'combat', foe.id, gun.id, { kind: 'none' });
+      },
+      'a patch': (w, gun) => {
+        const other = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: gun.pos.x + 3, y: gun.pos.y });
+        addState(w, 'patch', other.id, gun.id, { kind: 'patch', deal: 'free', parts: 0, partIds: [], price: 0, work: 3, workLeft: 3 });
+      },
+    };
+    for (const [name, apply] of Object.entries(cases)) {
+      const { w, hauler, gun } = trailing(60);
+      apply(w, gun);
+      planHaulerOrder(w);
+      expect(waitsForGunTruck(w, hauler), name).toBe(true);
+      expect(hauler.order, name).toEqual({ kind: 'brake' });
+    }
+  });
+
+  it('brakes for a hot gun truck that stands to cool once it is past gun reach', () => {
+    const { w, hauler } = trailing(WAIT + 3);
+    w.turn = Math.round(NOON_TURN);
+    planHaulerOrder(w);
+    expect(hauler.order).toEqual({ kind: 'brake' });
+  });
+
+  it('has a hysteresis: a moving hauler waits past the reach, a parked one resumes at the resume gap', () => {
+    const cases: [number, number, boolean][] = [[15, 4, false], [WAIT + 3, 4, true], [15, 0, true], [RESUME - 1, 0, false]];
+    for (const [lag, speed, waits] of cases) {
+      const { w, hauler } = trailing(lag);
+      hauler.speed = speed;
+      planHaulerOrder(w);
+      expect(waitsForGunTruck(w, hauler), `lag ${lag} speed ${speed}`).toBe(waits);
+      expect(hauler.order?.kind).toBe(waits ? 'brake' : 'through');
+    }
+  });
+
+  it('drives on from a gun truck ahead of it, and from a free one that left it far behind', () => {
+    const ahead = trailing(-50);
+    planHaulerOrder(ahead.w);
+    expect(ahead.hauler.order?.kind).toBe('through');
+    const far = trailing(60);
+    planHaulerOrder(far.w);
+    expect(far.hauler.order?.kind).toBe('through');
+  });
+
+  it('leaves the yard approach and the stop between levels alone', () => {
+    const { w, hauler } = trailing(60);
+    const gun = playerVehicle(w);
+    gun.pos = { x: gun.pos.x, y: gun.pos.y };
+    hauler.pos = { ...yardSpots(w, w.furyRoad!.window + 1).hauler };
+    hauler.speed = 4;
+    planHaulerOrder(w);
+    expect(hauler.order?.kind).toBe('stopAt');
+  });
+
+  it('gives the same order after a save and load while waiting', () => {
+    const { w, hauler } = trailing(WAIT + 2);
+    hauler.speed = 0;
+    planHaulerOrder(w);
+    const copy = JSON.parse(JSON.stringify(w)) as World;
+    planHaulerOrder(copy);
+    expect(haulerOf(copy).order).toEqual(hauler.order);
+  });
+
+  it('still raises a stall for a hauler held still that does not wait', () => {
+    const { w, hauler } = trailing(-50);
+    hauler.pos = roadPoint(w.seed, 0, N + 5, LANES[1]);
+    resetHaulerWatch();
+    watchHaulerStall(w);
+    w.turn += FURY_ROAD.hauler.stallTurns;
+    watchHaulerStall(w);
+    expect(stallEvents(w)).toBe(1);
   });
 });

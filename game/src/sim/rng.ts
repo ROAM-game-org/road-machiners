@@ -38,6 +38,10 @@ export function hashRandom(seed: number, ...keys: number[]): number {
   return (h >>> 0) / 4294967296;
 }
 
+export function charCodes(text: string): number[] {
+  return Array.from(text, (ch) => ch.charCodeAt(0));
+}
+
 export function hashId(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);

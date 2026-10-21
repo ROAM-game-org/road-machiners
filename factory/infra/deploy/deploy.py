@@ -1,4 +1,4 @@
-"""Set up the game factory: clone main once, push the server-only env file, build the agent and proxy images, install the tick and update timers, start Hermes and Caddy.
+"""Set up the game factory: clone main once, push the server-only env file, build the agent and proxy images, install the tick, update and planned reboot timers, the boot check and the login slice cap, start Hermes and Caddy.
 
 Run after provision.py. Re-run for a new secret or an infra change. It never sends code: factory-update deploys each new main from GitHub.
 """
@@ -242,6 +242,74 @@ systemd.service(
     name="update timer enabled",
     service="roam-factory-update.timer",
     running=True,
+    enabled=True,
+    daemon_reload=True,
+    _sudo=True,
+)
+
+# Hermes's factory-host commands and claude-run jobs run in the factory user's login slice. With no swap, a runaway there is killed inside its slice instead of thrashing the host.
+files.template(
+    name="memory cap for the factory user's login sessions",
+    src=str(FILES / "user-slice-memory.conf.j2"),
+    dest=f"/etc/systemd/system/user-{FACTORY_UID}.slice.d/factory-memory.conf",
+    mode="644",
+    create_remote_dir=True,
+    memory_gb=int(factory_env["FACTORY_HOST_SHELL_MEMORY_GB"]),
+    _sudo=True,
+)
+server.shell(name="load the login slice cap", commands=["systemctl daemon-reload"], _sudo=True)
+
+REBOOT_SCRIPT = f"{FACTORY_ROOT}/factory-reboot.sh"
+BOOT_CHECK_SCRIPT = f"{FACTORY_ROOT}/factory-boot-check.sh"
+files.put(name="Push the planned reboot script", src=str(FILES / "factory-reboot.sh"), dest=REBOOT_SCRIPT, mode="755", _sudo=True)
+files.put(name="Push the boot check script", src=str(FILES / "factory-boot-check.sh"), dest=BOOT_CHECK_SCRIPT, mode="755", _sudo=True)
+files.template(
+    name="planned reboot service unit",
+    src=str(FILES / "roam-factory-reboot.service.j2"),
+    dest="/etc/systemd/system/roam-factory-reboot.service",
+    mode="644",
+    script=REBOOT_SCRIPT,
+    factory_root=FACTORY_ROOT,
+    service_user=FACTORY_USER,
+    drain_minutes=int(factory_env["FACTORY_REBOOT_DRAIN_MINUTES"]),
+    home_dir=HOME_DIR,
+    _sudo=True,
+)
+files.template(
+    name="planned reboot timer unit",
+    src=str(FILES / "roam-factory-reboot.timer.j2"),
+    dest="/etc/systemd/system/roam-factory-reboot.timer",
+    mode="644",
+    calendar=factory_env["FACTORY_REBOOT_CALENDAR"],
+    _sudo=True,
+)
+server.shell(name="Check the reboot calendar", commands=[f"systemd-analyze calendar {shlex.quote(factory_env['FACTORY_REBOOT_CALENDAR'])}"], _sudo=True)
+systemd.service(
+    name="planned reboot timer enabled",
+    service="roam-factory-reboot.timer",
+    running=True,
+    enabled=True,
+    daemon_reload=True,
+    _sudo=True,
+)
+files.template(
+    name="boot check service unit",
+    src=str(FILES / "roam-factory-boot-check.service.j2"),
+    dest="/etc/systemd/system/roam-factory-boot-check.service",
+    mode="644",
+    script=BOOT_CHECK_SCRIPT,
+    factory_root=FACTORY_ROOT,
+    service_user=FACTORY_USER,
+    check_minutes=int(factory_env["FACTORY_BOOT_CHECK_MINUTES"]),
+    public_url=factory_env["FACTORY_PUBLIC_URL"],
+    home_dir=HOME_DIR,
+    _sudo=True,
+)
+# It runs at each boot. Deploy only enables it.
+systemd.service(
+    name="boot check enabled at boot",
+    service="roam-factory-boot-check.service",
+    running=False,
     enabled=True,
     daemon_reload=True,
     _sudo=True,

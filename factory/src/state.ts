@@ -73,7 +73,7 @@ export function updateState(path: string, change: (state: FactoryState) => Facto
 export function clearQueued(state: FactoryState, stage: JobStage, issue: number | null): FactoryState {
   const pendingApprovals = { ...state.pendingApprovals };
   if (stage === 'approve') delete pendingApprovals[String(issue)];
-  const pendingIncidents = stage === 'incident' ? state.pendingIncidents.filter((n) => n !== issue) : state.pendingIncidents;
+  const pendingIncidents = stage === 'incident' && issue !== null ? withoutFirst(state.pendingIncidents, [issue]) : state.pendingIncidents;
   const pendingShip = stage === 'ship' ? null : state.pendingShip;
   const first = stage === 'remove' ? state.pendingRemovals.findIndex((item) => item.issue === issue) : -1;
   const pendingRemovals = state.pendingRemovals.filter((_, index) => index !== first);
@@ -85,6 +85,15 @@ export function clearQueued(state: FactoryState, stage: JobStage, issue: number 
     pendingRemovals,
     retried: state.retried.filter((key) => key !== orderKey(stage, issue)),
   };
+}
+
+export function withoutFirst(list: number[], items: number[]): number[] {
+  const rest = [...list];
+  for (const item of items) {
+    const index = rest.indexOf(item);
+    if (index !== -1) rest.splice(index, 1);
+  }
+  return rest;
 }
 
 export function isQueued(state: FactoryState, stage: JobStage, issue: number | null): boolean {

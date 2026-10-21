@@ -61,6 +61,11 @@ describe('chooseJobs with no daily cap', () => {
     expect(chooseJobs(busy, [card(6, 'Implementation', ['adhoc'])], NOW, CFG)).toEqual([{ stage: 'release', issue: null }, { stage: 'adhoc', issue: 6 }]);
   });
 
+  it('queues one incident job for the whole batch, led by the oldest pending issue', () => {
+    const decisions = evaluateSchedule({ ...busy, lastRelease: FRESH.lastRelease, pendingIncidents: [7, 8, 9] }, [], NOW, CFG).decisions;
+    expect(decisions.filter((decision) => decision.stage === 'incident')).toEqual([{ stage: 'incident', issue: 7, reasons: [] }]);
+  });
+
   it('runs one incident job at a time, since each appends to the same incident log, beside a queued ship', () => {
     const capped = { ...busy, lastRelease: FRESH.lastRelease };
     const queuedIncident = { ...capped, pendingIncidents: [7, 8] };

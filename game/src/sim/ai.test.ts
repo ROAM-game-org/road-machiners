@@ -172,7 +172,7 @@ describe('crossing traffic', () => {
     const other = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100 + 6 * Math.cos(1.22), y: 100 + 6 * Math.sin(1.22) }, heading);
     other.brain = npcBrain('trader', other.pos, ['trader']);
     other.speed = 4;
-    expect(routeBlockers(w, subject).filter((b) => b.pos !== w.vehicles[0].pos).length > 0).toBe(avoids);
+    expect(routeBlockers(w, subject).filter((b) => dist(b.pos, w.vehicles[0].pos) > 0).length > 0).toBe(avoids);
   });
 });
 

@@ -9,11 +9,16 @@ FACTORY_COMMITTEE_BOOTSTRAP=1
 FACTORY_COMMITTEE_BOOTSTRAP_GITHUB=boss
 FACTORY_COMMITTEE_CHAT=-100
 TELEGRAM_BOT_TOKEN=dummy
+FACTORY_PUBLIC_URL=https://example.org
 """
 
 SETTINGS = """\
 FACTORY_TICK_MINUTES=5
 FACTORY_IMAGE=roam-agent
+FACTORY_REBOOT_CALENDAR=Mon *-*-* 05:00:00
+FACTORY_REBOOT_DRAIN_MINUTES=50
+FACTORY_BOOT_CHECK_MINUTES=15
+FACTORY_HOST_SHELL_MEMORY_GB=4
 """
 
 
@@ -58,3 +63,13 @@ def test_rejects_missing_bootstrap(tmp_path):
 def test_rejects_bad_tick(tmp_path):
     with pytest.raises(ValueError, match="FACTORY_TICK_MINUTES"):
         read(tmp_path, settings=SETTINGS.replace("=5\n", "=0\n"))
+
+
+def test_rejects_bad_memory_cap(tmp_path):
+    with pytest.raises(ValueError, match="FACTORY_HOST_SHELL_MEMORY_GB must be a positive whole number"):
+        read(tmp_path, settings=SETTINGS.replace("FACTORY_HOST_SHELL_MEMORY_GB=4", "FACTORY_HOST_SHELL_MEMORY_GB=4.5"))
+
+
+def test_rejects_missing_reboot_calendar(tmp_path):
+    with pytest.raises(ValueError, match="FACTORY_REBOOT_CALENDAR is missing"):
+        read(tmp_path, settings=SETTINGS.replace("FACTORY_REBOOT_CALENDAR=Mon *-*-* 05:00:00\n", ""))

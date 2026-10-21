@@ -25,6 +25,7 @@ import FORMAT_2_95 from './save-fixtures/format-2-95.json';
 import FORMAT_2_96 from './save-fixtures/format-2-96.json';
 import FORMAT_2_97 from './save-fixtures/format-2-97.json';
 import FORMAT_2_98 from './save-fixtures/format-2-98.json';
+import FORMAT_2_99 from './save-fixtures/format-2-99.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -850,5 +851,38 @@ describe('save migration 97 to 98', () => {
 describe('TINY_STEPS[98]', () => {
   it('leaves a world with a refused call for help and an answered call as it is', () => {
     expect(TINY_STEPS[98](structuredClone(FORMAT_2_98))).toEqual(FORMAT_2_98);
+  });
+});
+
+describe('TINY_STEPS[99]', () => {
+  it('leaves a world with a running first aid job as it is', () => {
+    expect(TINY_STEPS[99](structuredClone(FORMAT_2_99))).toEqual(FORMAT_2_99);
+  });
+});
+
+describe('TINY_STEPS[100]', () => {
+  type Saved = { player: { call: unknown } };
+  const base = () => structuredClone(FORMAT_2_99) as unknown as Saved;
+  const haul = { kind: 'haul', goods: { scrap: 2 }, parts: [] };
+  const withCall = (topic: string, vars: Record<string, unknown>): Saved => {
+    const world = base();
+    world.player.call = { with: 'npc-1', topic, node: 'start', vars, line: { line: 'demand', vars } };
+    return world;
+  };
+  const step = (world: Saved) => TINY_STEPS[100](world as never) as unknown as Saved;
+
+  it.each(['demand', 'truce', 'mercy'])('drops an open %s call that names cargo and a price', (topic) => {
+    expect(step(withCall(topic, { haul, price: { kind: 'money', amount: 1266 } })).player.call).toBeNull();
+  });
+
+  it('keeps a cash-only demand call', () => {
+    const world = withCall('demand', { price: { kind: 'money', amount: 500 } });
+    expect(step(structuredClone(world))).toEqual(world);
+  });
+
+  it('keeps a world with no call', () => {
+    const world = base();
+    world.player.call = null;
+    expect(step(structuredClone(world))).toEqual(world);
   });
 });

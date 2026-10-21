@@ -10,7 +10,8 @@ import { ENGINE_HEAT } from '../../data/wear';
 import { TOPICS, type LineId, type TopicId } from '../../data/dialogue';
 import { isJunk, maxHp, partValue } from '../wear';
 import { inCombat, isHostile } from '../combat';
-import { startStrip, stripYield } from '../jobs';
+import { canFirstAid, startFirstAid, startStrip, stripYield } from '../jobs';
+import { maxHealthOf } from '../health';
 import { aimGuns, isSoftTarget } from './aim';
 import { hostileToPlayer, playerCanAct, setAutoFire, setAutoRepair, setMoveOrder, setWeaponOrder } from '../world';
 import { playerVehicle, vehicleById } from '../damage';
@@ -35,7 +36,7 @@ import { claimCandidates, claimClue, claimPartHeld } from '../claims';
 import { canLootTruck, canReachSalvage, hasSalvage, salvageInRange, lootBlocker, takeError, takeFromTruck } from '../salvage';
 import { startSearch } from '../search';
 import { territoryEntries } from '../territory';
-import { canUseSite, isTerritory, nearestPad, reachedSite, nearestTown, siteGates, sitePads, townAt, type Site } from '../sites';
+import { canUseSite, isTerritory, townNear, nearestPad, reachedSite, nearestTown, siteGates, sitePads, townAt, type Site } from '../sites';
 import { drivable } from '../path';
 import { fuelCap, hasWorkingEngine, isStranded, isWorking, suppliesCap, vehicleStats } from '../stats';
 import { escortsOf, inTowReach, playerTow, setBeacon } from '../tow';
@@ -119,10 +120,21 @@ function policyOrders(world: World, archetype: Exclude<Policy, RoadPolicy>, opti
 }
 
 function act(o: Orders, goal: Goal, archetype: Policy): void {
-  if (holds(o) || collectNearbyKnockout(o, goal, archetype)) return;
+  if (dressWounds(o) || holds(o) || collectNearbyKnockout(o, goal, archetype)) return;
   if (goal === 'searcher') takeSearch(o);
   if (serviceTrip(o, gearStyle(o, goal, archetype)) || defend(o, goal)) return;
   followGoal(o, goal, archetype);
+}
+
+const FIRST_AID_BELOW = 0.75;
+
+function dressWounds(o: Orders): boolean {
+  if (o.me.job?.kind === 'firstAid') return true;
+  const parked = o.me.speed <= RULES.parkedSpeed && !townNear(o.world);
+  const hurt = o.world.player.health < maxHealthOf(o.world) * FIRST_AID_BELOW;
+  if (!parked || !hurt || !canFirstAid(o.world)) return false;
+  o.run(startFirstAid);
+  return true;
 }
 
 function collectNearbyKnockout(o: Orders, goal: Goal, archetype: Policy): boolean {

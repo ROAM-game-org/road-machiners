@@ -1,0 +1,10 @@
+[Unit]
+Description=Planned reboot of the ROAM game factory server
+
+[Timer]
+OnCalendar={{ calendar }}
+# A missed reboot is skipped. Catching it up at boot would reboot the server again right away.
+Persistent=false
+
+[Install]
+WantedBy=timers.target

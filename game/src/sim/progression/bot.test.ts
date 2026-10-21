@@ -1501,3 +1501,28 @@ describe('the searcher bot', () => {
     expect(playerVehicle(w).items.some((it) => it.kind === 'parcel')).toBe(false);
   });
 });
+
+describe('the bot dressing wounds', () => {
+  function hurtBot(health: number, at: Vec = { x: 30, y: 30 }): World {
+    const w = emptyWorld(at);
+    w.player.ranks.toughness = 1;
+    Object.assign(w.player, { health, supplies: 10 });
+    playerVehicle(w).speed = 0;
+    return w;
+  }
+
+  it('starts first aid when parked and hurt below three quarters away from town', () => {
+    const next = botOrders(hurtBot(30), 'trader').world;
+    expect(playerVehicle(next).job?.kind).toBe('firstAid');
+  });
+
+  it('does not start it when only lightly hurt', () => {
+    const next = botOrders(hurtBot(90), 'trader').world;
+    expect(playerVehicle(next).job?.kind).not.toBe('firstAid');
+  });
+
+  it('does not start it at a town gate, where healing is already fast', () => {
+    const next = botOrders(hurtBot(30, sitePads(town('nose'))[0]), 'trader').world;
+    expect(playerVehicle(next).job?.kind).not.toBe('firstAid');
+  });
+});

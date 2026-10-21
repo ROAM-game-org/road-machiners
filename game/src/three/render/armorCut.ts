@@ -114,7 +114,7 @@ function uniformsOf(spec: CutSpec): CutUniforms {
   const known = uniformsOfSpec.get(spec);
   if (known) return known;
   const wheels = padded(spec.wheels, CUT_SLOTS.wheels, () => ({ center: new THREE.Vector3(), radius: 0, halfWidth: 0 }), 'wheels');
-  const lamps = padded(spec.lamps, CUT_SLOTS.lamps, () => new THREE.Box3(), 'lamp windows');
+  const lamps = padded(spec.lamps, CUT_SLOTS.lamps, () => new THREE.Box3(), 'lamps');
   const uniforms: CutUniforms = {
     cutWheelAt: { value: wheels.map((w) => new THREE.Vector4(w.center.x, w.center.y, w.center.z, w.radius)) },
     cutWheelHalfWidth: { value: wheels.map((w) => w.halfWidth) },

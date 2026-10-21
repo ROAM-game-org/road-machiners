@@ -46,6 +46,8 @@ import { playerGuard } from "../sim/hire";
 import { affordableRanks, basicSkill, hasBasic, pendingPerkPairs } from "../sim/progress";
 import { canLookOver } from "../sim/look-over";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
+import { firstAidBlock, type FirstAidBlock } from "../sim/jobs";
+import { firstAidTurns, firstAidTurnSupplies } from "../sim/health";
 import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
@@ -84,9 +86,18 @@ function actionTitle(action: ContextAction): Msg | undefined {
 
 function douseMsg(w: World, block: DouseBlock | null): Msg | null {
   if (block === null) return null;
-  if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("douse") });
-  if (block === "noSupplies") return t("hud.douseBlock.noSupplies", { n: ENGINE_HEAT.douseSupplies });
+  if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("overdrive") });
+  if (block === "noSupplies") return t("hud.needSupplies", { n: ENGINE_HEAT.douseSupplies });
   return t("hud.douseBlock.engineCool");
+}
+
+export function firstAidMsg(w: World, block: FirstAidBlock | null): Msg | null {
+  if (block === null) return null;
+  if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("firstAid") });
+  if (block === "noSupplies") return t("hud.needSupplies", { n: Math.ceil(firstAidTurnSupplies(w)) });
+  const job = playerVehicle(w).job;
+  if (block === "busy" && job) return refusalText(w, { id: "busy", job: job.kind });
+  return refusalText(w, { id: block === "busy" ? "stopFirst" : block });
 }
 
 export const combatBlocked = (turns: number): Msg => t("hud.combatBlocked", { n: turns });
@@ -102,6 +113,7 @@ type HudActions = {
   toggleHeadlights: () => void;
   headlightsOn: () => boolean;
   douseEngine: () => void;
+  firstAid: () => void;
   unhitch: () => void;
   setBeacon: (on: boolean) => void;
   endRun: () => void;
@@ -515,7 +527,7 @@ export class Hud {
       onclick: () => this.actions.toggleOverdrive(),
     });
     const douse = this.douseButton(w, lock);
-    return [headlights, overdrive, douse];
+    return [headlights, overdrive, douse, this.firstAidButton(w, lock)];
   }
 
   private douseButton(w: World, lock: Msg | null): HTMLElement {
@@ -527,11 +539,29 @@ export class Hud {
         class: "instrument-button",
         "aria-disabled": reason === null ? undefined : "true",
         onclick: () => reason === null && this.actions.douseEngine(),
-        title: reason ?? keyLabel(t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }), "G"),
+        title: reason ?? keyLabel(t("hud.costsSupplies", { n: ENGINE_HEAT.douseSupplies }), "G"),
       },
       block === "noBasic" ? createIcon("lock") : null,
       t("hud.douse"),
       keyCorner("G"),
+    );
+  }
+
+  private firstAidButton(w: World, lock: Msg | null): HTMLElement {
+    const block = firstAidBlock(w);
+    const reason = lock ?? firstAidMsg(w, block);
+    const cost = Math.ceil(firstAidTurns(w) * firstAidTurnSupplies(w));
+    return el(
+      "button",
+      {
+        class: "instrument-button",
+        "aria-disabled": reason === null ? undefined : "true",
+        onclick: () => reason === null && this.actions.firstAid(),
+        title: reason ?? keyLabel(t("hud.costsSupplies", { n: cost }), "U"),
+      },
+      block === "noBasic" ? createIcon("lock") : null,
+      t("hud.firstAid"),
+      keyCorner("U"),
     );
   }
 

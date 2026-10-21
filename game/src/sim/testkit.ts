@@ -15,8 +15,8 @@ import { addState } from './states';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities } from './npc-activities';
 import type { Faction, GameEvent, NpcBrain, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
-import { highwayMap, milestoneAt, roadHeading, roadPoint } from './highway';
-import { HIGHWAY } from '../data/modes';
+import { alongOf, highwayMap, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
+import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { dist, type Vec } from './vec';
 import { REGION } from '../data/region';
 import { propReach } from './mapgen';
@@ -55,6 +55,17 @@ export function furyRoadWorld(seed = 3): World {
   refreshVision(w);
   w.events = [];
   return w;
+}
+
+export function sendGunTruckAway(w: World): void {
+  const hauler = haulerOf(w);
+  const window = w.furyRoad!.window;
+  const along = alongOf(w.seed, toRoad(w.seed, window, hauler.pos)) - FURY_ROAD.hauler.apartGap - 5;
+  const me = playerVehicle(w);
+  me.pos = roadPoint(w.seed, window, along, HIGHWAY.road.lanes[1]);
+  me.heading = roadHeading(w.seed, along);
+  me.speed = 0;
+  me.order = null;
 }
 
 export function parkInYard(w: World, milestone: number): void {
