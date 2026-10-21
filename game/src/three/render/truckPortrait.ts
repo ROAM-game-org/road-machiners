@@ -18,6 +18,8 @@ import {
   idsOf,
   linearToSrgb,
   partMaskOf,
+  hullRegion,
+  paddedBox,
   regionOf,
   ringed,
   solidMaskOf,
@@ -419,11 +421,20 @@ function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, numberOf: Numbe
       const mask = partMaskOf(lit, ids, id);
       const tint = tintOf(partKind(known(partId)), tier);
       const tinted = tint ? tintMask(mask, TINTS[tint]) : mask;
-      const glow = cropped(tier === 'ok' ? tinted : ringed(tinted, regionOf(mask, cells, id), size, LOOK.ringPx * LOOK.supersample, TINTS[tier].rgb));
+      const glow = tier === 'ok' ? cropped(tinted) : ringGlow(tinted, size, TINTS[tier].rgb, partDef(known(partId).part.defId).kind === 'weapon');
       glows.set(partId, { tier, glow });
       return glow;
     },
   };
+}
+
+function ringGlow(tinted: Uint8ClampedArray, size: PixelSize, rgb: readonly [number, number, number], aroundPieces: boolean): Glow {
+  const k = LOOK.supersample;
+  const box = paddedBox(boundsOf(tinted, size), LOOK.ringPx * k, size);
+  const own = cropOf(tinted, size, box);
+  const region = regionOf(own);
+  const outline = ringed(own, aroundPieces ? hullRegion(region, box) : region, box, LOOK.ringPx * k, rgb);
+  return { canvas: canvasOf(outline, box), x: box.x / k, y: box.y / k, width: box.width / k, height: box.height / k };
 }
 
 type Pass = { renderer: THREE.WebGLRenderer; smooth: THREE.WebGLRenderTarget; flat: THREE.WebGLRenderTarget; camera: THREE.Camera };

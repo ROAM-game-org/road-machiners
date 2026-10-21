@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BODY_ID, EMPTY_ID, TINTS, boundsOf, centerOf, cropOf, flipRows, hiddenOver, idsOf, linearToSrgb, partMaskOf, regionOf, ringed, solidMaskOf, tintMask, unpremultiply } from "./portraitPixels";
+import { BODY_ID, EMPTY_ID, TINTS, boundsOf, centerOf, cropOf, flipRows, hiddenOver, idsOf, linearToSrgb, hullRegion, partMaskOf, regionOf, ringed, solidMaskOf, tintMask, unpremultiply } from "./portraitPixels";
 
 const size = (width: number, height: number) => ({ width, height });
 
@@ -65,10 +65,15 @@ describe("ringed", () => {
     expect(Array.from(out.subarray(6 * 4, 6 * 4 + 4))).toEqual([200, 100, 0, 255]);
   });
 
-  it("rings the cells of a part even where the part has no pixels", () => {
+  it("joins pieces of one part far apart into one shape, so one ring goes around both", () => {
+    const region = new Uint8Array([0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]);
+    expect(Array.from(hullRegion(region, size(5, 4)))).toEqual([0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0]);
+  });
+
+  it("follows the part's own pixels only", () => {
     const mask = new Uint8ClampedArray(3 * 4);
-    const region = regionOf(mask, ids(3, [[0, 4, 0]]), 4);
-    expect(Array.from(region)).toEqual([0, 1, 0]);
+    mask[4 + 3] = 255;
+    expect(Array.from(regionOf(mask))).toEqual([0, 1, 0]);
   });
 });
 

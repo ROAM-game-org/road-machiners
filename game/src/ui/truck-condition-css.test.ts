@@ -36,7 +36,8 @@ describe("truck condition css", () => {
   });
 
   it("takes the pointer even inside a HUD zone that passes clicks through", () => {
-    expect(rule(".condition-hit")).toContain("pointer-events: auto");
+    const own = css.match(/\}\n\.condition-hit \{([^}]*)\}/);
+    expect(own?.[1]).toContain("pointer-events: auto");
   });
 
   it("draws the body darker than the parts", () => {

@@ -83,10 +83,9 @@ export function partMaskOf(lit: Uint8ClampedArray, ids: Uint16Array, idOf: numbe
   return mask;
 }
 
-export function regionOf(mask: Uint8ClampedArray, cells: Uint16Array, idOf: number): Uint8Array {
-  if (mask.length !== cells.length * 4) throw new Error(`Mask holds ${mask.length} values for ${cells.length} cell pixels`);
-  const region = new Uint8Array(cells.length);
-  for (let p = 0; p < cells.length; p++) region[p] = mask[p * 4 + 3] > OPAQUE_ALPHA || cells[p] === idOf ? 1 : 0;
+export function regionOf(mask: Uint8ClampedArray): Uint8Array {
+  const region = new Uint8Array(mask.length / 4);
+  for (let p = 0; p < region.length; p++) region[p] = mask[p * 4 + 3] > OPAQUE_ALPHA ? 1 : 0;
   return region;
 }
 
@@ -106,6 +105,58 @@ function dilated(bits: Uint8Array, size: PixelSize, radius: number): Uint8Array 
   for (let y = 0; y < size.height; y++) grownAlong(bits, across, { start: y * size.width, count: size.width, stride: 1 }, radius);
   for (let x = 0; x < size.width; x++) grownAlong(across, out, { start: x, count: size.height, stride: size.width }, radius);
   return out;
+}
+
+type Point = { x: number; y: number };
+
+function rowEnds(region: Uint8Array, size: PixelSize): Point[] {
+  const points: Point[] = [];
+  for (let y = 0; y < size.height; y++) {
+    const row = region.subarray(y * size.width, (y + 1) * size.width);
+    const first = row.indexOf(1);
+    if (first < 0) continue;
+    const last = row.lastIndexOf(1);
+    points.push({ x: first, y }, { x: first, y: y + 1 }, { x: last + 1, y }, { x: last + 1, y: y + 1 });
+  }
+  return points;
+}
+
+function cross(o: Point, a: Point, b: Point): number {
+  return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+}
+
+function halfHull(points: Point[]): Point[] {
+  const hull: Point[] = [];
+  for (const p of points) {
+    while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], p) <= 0) hull.pop();
+    hull.push(p);
+  }
+  hull.pop();
+  return hull;
+}
+
+function convexHull(points: Point[]): Point[] {
+  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  return [...halfHull(sorted), ...halfHull(sorted.reverse())];
+}
+
+function insideHull(hull: Point[], p: Point): boolean {
+  return hull.every((a, i) => cross(a, hull[(i + 1) % hull.length], p) > 0);
+}
+
+export function hullRegion(region: Uint8Array, size: PixelSize): Uint8Array {
+  expectSize(region.length, size, 1);
+  const hull = convexHull(rowEnds(region, size));
+  if (hull.length < 3) throw new Error("A part ring needs at least one lit pixel");
+  const out = new Uint8Array(region.length);
+  for (let p = 0; p < out.length; p++) out[p] = insideHull(hull, { x: (p % size.width) + 0.5, y: Math.floor(p / size.width) + 0.5 }) ? 1 : 0;
+  return out;
+}
+
+export function paddedBox(box: PixelBox, pad: number, size: PixelSize): PixelBox {
+  const x = Math.max(0, box.x - pad);
+  const y = Math.max(0, box.y - pad);
+  return { x, y, width: Math.min(size.width, box.x + box.width + pad) - x, height: Math.min(size.height, box.y + box.height + pad) - y };
 }
 
 export function ringed(px: Uint8ClampedArray, region: Uint8Array, size: PixelSize, radius: number, rgb: readonly [number, number, number]): Uint8ClampedArray {
