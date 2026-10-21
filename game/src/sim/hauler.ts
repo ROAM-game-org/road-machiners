@@ -13,6 +13,8 @@ import { engineHot, heldHeatSpeed } from './engine-heat';
 import { plainFuelSpeed } from './far';
 import { isStalled, isStranded, plainMaxSpeed } from './stats';
 import { isShutDown } from './utility';
+import { inCombat } from './combat';
+import { workOf } from './states';
 import type { MoveOrder, Vehicle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 
@@ -74,6 +76,18 @@ function slowdown(world: World, gunTruck: Vehicle): number {
 
 function setsPace(world: World, truck: Vehicle): boolean {
   return !isStranded(world, truck) && !isStalled(world, truck) && !isShutDown(world, truck);
+}
+
+function gunTruckFree(world: World, gunTruck: Vehicle): boolean {
+  return setsPace(world, gunTruck) && !inCombat(world, gunTruck) && workOf(world, gunTruck) === null;
+}
+
+export function waitsForGunTruck(world: World, hauler: Vehicle): boolean {
+  if (betweenLevels(world) || dist(hauler.pos, parkSpot(world)) <= HAULER.approach) return false;
+  const gunTruck = playerVehicle(world);
+  const lag = alongNow(world, hauler) - alongNow(world, gunTruck);
+  if (lag <= (isParked(hauler) ? HAULER.resumeGap : HAULER.waitGap)) return false;
+  return dist(gunTruck.pos, hauler.pos) <= HAULER.apartGap || !gunTruckFree(world, gunTruck);
 }
 
 function groupTrucks(world: World): Vehicle[] {
@@ -197,6 +211,7 @@ function haulerOrder(world: World, hauler: Vehicle): MoveOrder | null {
   const spot = parkSpot(world);
   if (betweenLevels(world)) return isParked(hauler) && dist(hauler.pos, spot) <= RULES.arriveRadius ? null : { kind: 'stopAt', dest: spot };
   if (dist(hauler.pos, spot) <= HAULER.approach) return { kind: 'stopAt', dest: spot };
+  if (waitsForGunTruck(world, hauler)) return { kind: 'brake' };
   const lane = chosenLane(world, hauler);
   const dest = lanePoint(world, aimAlong(world, hauler, lane), lane);
   return { kind: 'through', dest, pace: haulerPace(world) };
@@ -271,7 +286,7 @@ function parkedAtOutpost(world: World, hauler: Vehicle): boolean {
 }
 
 function stallExcused(world: World, hauler: Vehicle): boolean {
-  return isStranded(world, hauler) || parkedAtOutpost(world, hauler) || pinnedByFoe(world, hauler);
+  return isStranded(world, hauler) || parkedAtOutpost(world, hauler) || waitsForGunTruck(world, hauler) || pinnedByFoe(world, hauler);
 }
 
 function pinnedByFoe(world: World, hauler: Vehicle): boolean {
