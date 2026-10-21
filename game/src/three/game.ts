@@ -64,7 +64,7 @@ import { SiteLights } from "./render/siteLights";
 import { addShipDecks } from "./render/ship-decks";
 import { terrainMesh } from "./render/terrain";
 import { type WebGLSurface } from "./webgl";
-import { FRAME_REBUILDS, VehicleView } from "./render/vehicle";
+import { FRAME_REBUILDS, VehicleView, type RebuildBudget } from "./render/vehicle";
 import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponRange";
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
@@ -132,6 +132,7 @@ export class Game {
   });
   readonly rig: CameraRig;
   private readonly shaders: ShaderWarmup;
+  private readonly rebuilds: RebuildBudget = { take: () => FRAME_REBUILDS.take(), ready: (root) => this.shaders.ready(root) };
   private readonly ground = new THREE.Group();
   private readonly props = new THREE.Group();
   private readonly scopes: RenderScope[];
@@ -1174,7 +1175,7 @@ export class Game {
         this.views.set(v.id, view);
         this.scene.add(view.root);
       }
-      view.update(display, seen, this.world.player.paint, FRAME_REBUILDS);
+      view.update(display, seen, this.world.player.paint, this.rebuilds);
       view.lamps(vehicleLampsOn(this.world, v, this.lightTurn()));
       view.radio(this.radioLights.lit(v.id, now));
       view.outline(look === "dark");
@@ -1230,14 +1231,7 @@ export class Game {
     const sel = s.weapons.filter((m) => m.part.id === this.selected);
     this.weaponRange.set(this.world.terrain, vehicleOrigins(me), sel);
     if (!me.direct) this.zones.hideBands();
-    else
-      this.zones.update(
-        this.world.terrain,
-        me.pos,
-        me.heading,
-        me.speed,
-        Math.max(MIN_ZONE_HALF_ANGLE, maxTurn(s, me.speed) / 2),
-      );
+    else this.zones.update(this.world.terrain, me.pos, me.heading, me.speed, Math.max(MIN_ZONE_HALF_ANGLE, maxTurn(s, me.speed) / 2));
     const hover = this.hoverGround;
     const color = hover ? throttleColor(me, hover) : PAL.plan;
     this.zones.hover(this.world.terrain, hover, color);

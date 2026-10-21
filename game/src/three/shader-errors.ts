@@ -77,6 +77,8 @@ class Variants {
   }
 }
 
+const READY_BUDGET_MS = 2;
+
 export class ShaderWarmup {
   private readonly compiled = new Variants();
   private readonly compiling = new Variants();
@@ -99,6 +101,19 @@ export class ShaderWarmup {
       for (const o of this.held) o.visible = true;
       this.held = [];
     }
+  }
+
+  ready(root: THREE.Object3D): boolean {
+    let ready = true;
+    const start = performance.now();
+    root.traverseVisible((o) => {
+      if (!isDrawn(o)) return;
+      const variant = variantOf(o);
+      if (materialsOf(o).every((m) => this.isCompiled(m, variant))) return;
+      ready = false;
+      if (performance.now() - start < READY_BUDGET_MS) this.compile(o, variant);
+    });
+    return ready;
   }
 
   private holdUncompiled(): void {

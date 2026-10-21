@@ -92,15 +92,19 @@ export function signatureOf(v: Vehicle, playerPaint: TruckPaint): string {
   return `${v.chassisId}|${paint.body}|${paint.cab}|${paint.gear}|${items}`;
 }
 
-export type RebuildBudget = { take(): boolean };
+export type RebuildBudget = { take(): boolean; ready(root: THREE.Object3D): boolean };
 
-const UNLIMITED: RebuildBudget = { take: () => true };
+const UNLIMITED: RebuildBudget = { take: () => true, ready: () => true };
 
 class PerAnimationFrame implements RebuildBudget {
   private frame: CSSNumberish | null | undefined = undefined;
   private left = 0;
 
   constructor(private readonly perFrame: number) {}
+
+  ready(): boolean {
+    return true;
+  }
 
   take(): boolean {
     const frame = document.timeline.currentTime;
@@ -116,12 +120,17 @@ class PerAnimationFrame implements RebuildBudget {
 
 export const FRAME_REBUILDS: RebuildBudget = new PerAnimationFrame(1);
 
+function advanceBuild(pending: { steps: Generator<void, void>; built: boolean }, budget: RebuildBudget): boolean {
+  while (!pending.built && budget.take()) pending.built = Boolean(pending.steps.next().done);
+  return pending.built;
+}
+
 export class VehicleView {
   readonly root = new THREE.Group();
   private body = new THREE.Group();
 
   private sig = '';
-  private pending: { sig: string; twin: VehicleView; steps: Generator<void, void> } | null = null;
+  private pending: { sig: string; twin: VehicleView; steps: Generator<void, void>; built: boolean } | null = null;
   private units: UnitView[] = [];
   private running = false;
   private turrets = new Map<string, Turret>();
@@ -287,15 +296,17 @@ export class VehicleView {
 
   private rebuildToward(v: Vehicle, playerPaint: TruckPaint, sig: string, budget: RebuildBudget): void {
     const pending = this.pending?.sig === sig ? this.pending : this.startRebuild(v, playerPaint, sig);
-    while (budget.take()) {
-      if (pending.steps.next().done) return this.finishRebuild(pending.twin, sig);
-    }
+    if (advanceBuild(pending, budget) && this.twinReady(pending.twin, budget)) this.finishRebuild(pending.twin, sig);
+  }
+
+  private twinReady(twin: VehicleView, budget: RebuildBudget): boolean {
+    return twin === this || budget.ready(twin.root);
   }
 
   private startRebuild(v: Vehicle, playerPaint: TruckPaint, sig: string): NonNullable<VehicleView['pending']> {
     this.dropPending();
     const twin = this.sig === '' ? this : new VehicleView(null, false, playerPaint, this.scene);
-    this.pending = { sig, twin, steps: twin.build(v, paintOf(v, playerPaint)) };
+    this.pending = { sig, twin, steps: twin.build(v, paintOf(v, playerPaint)), built: false };
     return this.pending;
   }
 

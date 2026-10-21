@@ -79,7 +79,7 @@ describe('part wear look', () => {
     const root = view.root;
     const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
     part.hp = 1;
-    const oneStep = { take: () => ((oneStep.left -= 1) >= 0), left: 0 };
+    const oneStep = { take: () => ((oneStep.left -= 1) >= 0), ready: () => true, left: 0 };
     let calls = 0;
     while (colors(view) === clean) {
       oneStep.left = 1;
@@ -95,6 +95,20 @@ describe('part wear look', () => {
     view.update(v, true, PAINT.standard, oneStep);
     expect(oneStep.left).toBe(1);
     expect(view.root.children.length).toBe(meshes);
+  });
+
+  it('keeps the old look after the new one is built until its shaders are ready', () => {
+    const v = truck();
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
+    const clean = colors(view);
+    mountedParts(v).find((p) => maxHp(p) > 1)!.hp = 1;
+    const budget = { take: () => true, ready: () => budget.compiled, compiled: false };
+    view.update(v, true, PAINT.standard, budget);
+    view.update(v, true, PAINT.standard, budget);
+    expect(colors(view)).toBe(clean);
+    budget.compiled = true;
+    view.update(v, true, PAINT.standard, budget);
+    expect(colors(view)).not.toBe(clean);
   });
 
   it('draws the new-game truck with a nearly broken engine and a worn body', () => {
