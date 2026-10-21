@@ -118,7 +118,7 @@ function onRiverFloor(p: BakedProp, rules: Rules, river: River): boolean {
 function groundFits(d: MapDraft, p: BakedProp, rules: Rules): boolean {
   const allowed = new Set(rules.groundTypes.map((id) => TYPE_IDS.indexOf(id)));
   const tiles = [tileOf(d.size, p.pos), ...tilesWithin(d.size, p.pos, p.r)];
-  const open = tiles.every((k) => OPEN_BUILT.includes(d.built[k]) && allowed.has(d.types[k]));
+  const open = tiles.every((k) => OPEN_BUILT.includes(d.built[k]) && rules.groundTypes.includes(TYPE_IDS[d.types[k]]));
   return open && tileSteepness(d.heights, d.size, tiles[0]) <= SLOPE_LIMIT && footprintRelief(d.heights, d.size, p, false) <= rules.relief;
 }
 

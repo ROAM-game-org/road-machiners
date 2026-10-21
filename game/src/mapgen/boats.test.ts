@@ -63,7 +63,6 @@ describe('boat layer', () => {
     expect(boatsOf(boatLayer(3, draft(), RULES, RIVER))).toEqual(boats);
   });
 
-
   it('skips boats on built ground', () => {
     const d = draft();
     d.built.fill(1);
