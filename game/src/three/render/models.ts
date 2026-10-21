@@ -567,7 +567,7 @@ const SURFACE_OF_MATERIAL: Record<string, SurfaceName | null> = {
 };
 
 const CHIP = { color: new THREE.Color(0x5b5a57), scale: 7, at: 1.05, share: 0.5 };
-const CHROME = { reflect: 0.55, grazing: 0.35, horizon: 1.6, gain: 0.25 };
+const CHROME = { reflect: 0.55, grazing: 0.35, horizon: 1.6, gain: 0.1 };
 
 export const SURFACE_LOOK = { chips: { value: CHIP.share }, chipAt: { value: CHIP.at }, chrome: { value: CHROME.gain } };
 
@@ -650,7 +650,8 @@ const SURFACE_CHROME = `
       : mix(chromeHorizon, hemisphereLights[0].groundColor, pow(-chromeUp, 0.4));
     float chromeFresnel = pow(1.0 - max(dot(normal, chromeView), 0.0), 5.0);
     float chromeShare = clamp(surfaceShine * (${f(CHROME.reflect)} + ${f(CHROME.grazing)} * chromeFresnel), 0.0, 1.0);
-    outgoingLight = mix(outgoingLight, chromeEnv * surfaceChrome * surfaceAo, chromeShare);
+    vec3 chromeTint = diffuseColor.rgb / max(max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)), 0.001);
+    outgoingLight = mix(outgoingLight, chromeEnv * chromeTint * surfaceChrome * surfaceAo, chromeShare);
   }
 #endif
 `;
