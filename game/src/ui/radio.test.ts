@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DIRECTIONS, RADIO, RADIO_VARIANTS, type RadioTopic } from '../data/radio';
 import { REGION } from '../data/region';
 import { GOODS } from '../data/goods';
-import { NPCS } from '../data/npcs';
+import { FIRST_NAMES, SURNAMES } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { TIME } from '../data/time';
 import type { Contract } from '../sim/market';
@@ -12,11 +12,11 @@ import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
 import type { GameEvent, World } from '../sim/types';
 import { cloneWorld } from '../sim/world';
 import { LOCALES, t, type Locale, type Msg } from '../text/msg';
-import { goodLower, partName, siteName, templateName } from '../text/names';
+import { fullName, goodLower, partName, siteName, templateName } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
 import { radioLine, RadioStation, revealed, type Broadcast } from './radio';
 import { claimLookText } from './format';
-import type { ClaimLook } from '../data/market';
+import { CONTRACTS, type ClaimLook } from '../data/market';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -308,7 +308,7 @@ describe('radio lines', () => {
     to: longestOf(locale, sites.map(siteName)),
     good: longestOf(locale, Object.keys(GOODS).map(goodLower)),
     part: longestOf(locale, Object.keys(PARTS).map(partName)),
-    target: longestOf(locale, Object.keys(NPCS).map(templateName)),
+    target: longestOf(locale, [...Object.keys(CONTRACTS.bounty.rewardTurns).map(templateName), ...FIRST_NAMES.flatMap((first) => SURNAMES.map((last) => fullName(`${first} ${last}`)))]),
     wreck: longestOf(locale, CLAIM_LOOK_IDS.map(claimLookText)),
   });
   const lines = LOCALES.flatMap((locale) => {
