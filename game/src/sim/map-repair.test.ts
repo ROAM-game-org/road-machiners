@@ -282,6 +282,7 @@ describe('repairMap stocks', () => {
     w.salvage.push({ ...stockOf(w, heldOld), id: 'old-hamlet-house-999999' }, { ...stockOf(w, heldSpot.id), id: 'deadTruck-999999' });
 
     const world = repairMap(savedOf(w), TEST_MAP);
+    stockOldSpots(world, TEST_MAP);
     expect(stockOf(world, heldOld).goods).toEqual({ scrap: 777 });
     expect(stockOf(world, heldSpot.id).goods).toEqual({ scrap: 777 });
     for (const id of [movedOld, movedSpot.id, missingOld, missingSpot.id]) expect(stockOf(world, id).goods).toEqual({});
@@ -289,7 +290,6 @@ describe('repairMap stocks', () => {
     expect(world.salvage.filter((s) => oldSpotOf(s)).map((s) => s.id).sort()).toEqual(picks.map(oldStockId).sort());
     for (const o of world.obstacles.filter(isLootSpot)) expect(stockOf(world, o.id).pos).toEqual(o.pos);
     expect(new Set(world.salvage.map((s) => s.id)).size).toBe(world.salvage.length);
-    expect(() => stockOldSpots(world, TEST_MAP)).not.toThrow();
     world.turn = TIME.turnsPerDay * 3;
     expect(() => renewSalvage(world)).not.toThrow();
   });
@@ -343,6 +343,8 @@ describe('repairMap references to dropped stocks and sites', () => {
     const out = repairMap(savedOf(w), TEST_MAP);
     expect(out.player.contracts.map((c) => c.id)).toEqual(['ct-held']);
     expect(out.events.filter((e) => e.t === 'contract')).toEqual([]);
+    fitBake(out, TEST_MAP);
+    expect(out.player.contracts.map((c) => c.id)).toEqual(['ct-held']);
   });
 
   it('on the same map, drops old spot stocks the picks no longer hold, lapses their claims, rolls the missing ones and fits surveys', () => {

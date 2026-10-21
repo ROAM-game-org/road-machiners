@@ -63,7 +63,6 @@ export const SCREENS: Translation<typeof EN> = {
   'save.error.newer': 'Формат сохранения {major}.{minor} от более новой версии игры',  'save.error.notMigrated': 'Сохранение формата {major}.{minor} не удалось перенести',
   'save.error.noFormat': 'У сохранения нет версии формата',
   'save.error.badExplored': 'Повреждена разведанная часть карты',
-  'save.error.badOldSpots': 'В сохранении сломан набор старых мест с добычей',
   'save.error.badQuests': 'В сохранении состояние заданий, которого эта версия не знает',
   'save.error.badSetup': 'В сохранении неверные настройки мира',
   'save.error.newerQuests': 'В сохранении история из более новой версии игры',

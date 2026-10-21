@@ -66,7 +66,7 @@ export const SAVE_KEY = saveKey(__SAVE_SCOPE__);
 
 export type SaveErrorCode =
   | 'unreadable' | 'otherMap' | 'bakedProps' | 'invalidWorld' | 'invalidSave' | 'badSetup'
-  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badOldSpots' | 'badQuests' | 'newerQuests' | 'outOfReach' | 'mapChanged';
+  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badQuests' | 'newerQuests' | 'outOfReach' | 'mapChanged';
 
 export class SaveError extends Error {
   constructor(readonly code: SaveErrorCode, readonly format: { major: number; minor: number } | null = null, detail = '') {
@@ -160,7 +160,7 @@ function loadedSave(envelope: unknown, icarus: BakedMap): LoadedSave {
   const content = repairContent(loaded);
   if (rebaked) settleTrucks(loaded);
   const quests = restoredQuests(loaded, world, revisions, repaired);
-  stockedOldSpots(loaded, map);
+  stockOldSpots(loaded, map);
   checkCompanies(loaded);
   refreshVision(loaded);
   settleAims(loaded);
@@ -230,13 +230,6 @@ function isQuestSession(value: unknown): boolean {
   return isJsonObject(value) && typeof value.quest === 'string' && typeof value.checkpoint === 'string' && Number.isInteger(value.seed);
 }
 
-function stockedOldSpots(world: World, map: BakedMap): void {
-  try {
-    stockOldSpots(world, map);
-  } catch (error) {
-    throw new SaveError('badOldSpots', null, (error as Error).message);
-  }
-}
 
 function brokenProps(baked: readonly Obstacle[], broken: readonly SavedBroken[]): BrokenProp[] {
   const byId = new Map(baked.map((o) => [o.id, o]));

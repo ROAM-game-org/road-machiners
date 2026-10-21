@@ -12,9 +12,8 @@ import { SKILL_IDS } from '../data/skills';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { CONDITION } from '../data/wear';
 import { settleAims } from './combat';
-import { newId, chargeFor, gunFor, makePart, addCoreParts } from './factory';
+import { newId, chargeFor, gunFor, makePart } from './factory';
 import { findSpot, gridOf, mountedItems, onDeadRow, placementError, type Grid } from './grid';
-import { addGoods } from './inventory';
 import { settleEscortJob } from './escort-job';
 import { addShop, bountyLapsed, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
 import { reviseMemories } from './memory';
@@ -27,7 +26,6 @@ import { carryHp, maxHp } from './wear';
 import { wornReload } from './utility';
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
-type ParcelItem = Extract<GridItem, { kind: 'parcel' }>;
 type ShopDefinition = (typeof SHOPS)[string];
 
 export type GoodsSold = { good: string; units: number; money: number };
@@ -274,11 +272,16 @@ function isTemplate(id: string): boolean {
   return Object.hasOwn(NPCS, id);
 }
 
+function clearContractWork(truck: Vehicle, ids: ReadonlySet<string>): void {
+  for (const id of ids) if (parcelOf(truck, id)) removeParcel(truck, id);
+  if (truck.job?.kind === 'survey' && ids.has(truck.job.contractId)) truck.job = null;
+}
+
 function dropOwnContracts(world: World, lost: string[]): void {
   const doomed = world.player.contracts.filter((c) => contractGone(c) !== null);
   if (doomed.length === 0) return;
   const truck = world.vehicles.find((v) => v.id === world.player.vehicleId);
-  for (const c of doomed) if (c.kind === 'search' && truck && parcelOf(truck, c.id)) removeParcel(truck, c.id);
+  if (truck) clearContractWork(truck, new Set(doomed.map((c) => c.id)));
   lost.push(...doomed.map((c) => contractGone(c)!));
   world.player.contracts = world.player.contracts.filter((c) => !doomed.includes(c));
 }
@@ -300,10 +303,12 @@ function repairTrucks(world: World, doomed: Set<string>, repair: ContentRepair):
 }
 
 function repairOwnTruck(world: World, v: Vehicle, repair: ContentRepair): void {
-  if (!isChassis(v.chassisId)) {
+  const gone = !isChassis(v.chassisId);
+  if (gone) {
     repair.lost.push(v.chassisId);
-    swapChassis(world, v, repair);
-  } else if (!coresSeated(v)) reseatCores(world, v, repair.lost);
+    v.chassisId = startChassis(world, v);
+  }
+  if (gone || !coresSeated(v)) reseatCores(world, v, repair.lost);
   for (const item of fitItems(v)) displaced(world, item, repair);
 }
 
@@ -333,34 +338,6 @@ function startChassis(world: World, v: Vehicle): string {
   return v.id === world.player.vehicleId ? START_KITS.standard.chassis : HAULER_KIT.chassis;
 }
 
-function swapChassis(world: World, v: Vehicle, repair: ContentRepair): void {
-  const spares = v.items.filter(isPartItem).filter((it) => !isCoreItem(it));
-  const parcels = v.items.filter((it): it is ParcelItem => it.kind === 'parcel');
-  const goods = Object.entries(goodsHeld(v));
-  world.player.storage.push(...spares.map((it) => it.part));
-  v.chassisId = startChassis(world, v);
-  v.items = [];
-  v.weaponOrders = {};
-  v.utilityOrders = {};
-  v.job = null;
-  addCoreParts(world, v);
-  for (const parcel of parcels) if (!placeParcel(v, parcel)) repair.lost.push(...dropParcelContract(world, parcel.contract));
-  for (const [good, units] of goods) sell(world, good, units - addGoods(world, v, good, units), repair.sold);
-}
-
-function goodsHeld(v: Vehicle): Record<string, number> {
-  const held: Record<string, number> = {};
-  for (const it of v.items) if (it.kind === 'good') held[it.good] = (held[it.good] ?? 0) + 1;
-  return held;
-}
-
-function placeParcel(v: Vehicle, parcel: GridItem): boolean {
-  const spot = findSpot(gridOf(v), v.items, parcel, null, null);
-  if (!spot) return false;
-  v.items.push({ ...parcel, ...spot });
-  return true;
-}
-
 function roleCounts(defIds: string[]): string {
   const counts: Record<string, number> = {};
   for (const id of defIds) {
@@ -379,6 +356,7 @@ function reseatCores(world: World, v: Vehicle, lost: string[]): void {
   const pool = v.items.filter(isPartItem).filter(isCoreItem) as PartItem[];
   const seated = chassisDef(v.chassisId).core.map((spec) => seatedCore(world, spec, takeCore(pool, spec)));
   lost.push(...pool.map((it) => it.part.defId));
+  forget(v, idsOf(pool));
   v.items = [...v.items.filter((it) => !isCoreItem(it)), ...seated];
 }
 

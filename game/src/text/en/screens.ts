@@ -61,7 +61,6 @@ export const SCREENS = {
   'save.error.newer': m('Game save format {major}.{minor} is from a newer game version', { major: 'int', minor: 'int' }),  'save.error.notMigrated': m('Game save format {major}.{minor} could not be migrated', { major: 'int', minor: 'int' }),
   'save.error.noFormat': 'Game save has no valid format version',
   'save.error.badExplored': 'Invalid saved explored tiles',
-  'save.error.badOldSpots': 'Game save holds a broken set of old-world loot spots',
   'save.error.badQuests': 'Game save holds quest state this version does not know',
   'save.error.badSetup': 'Game save holds invalid world settings',
   'save.error.newerQuests': 'Game save holds story from a newer game version',

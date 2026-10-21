@@ -1,6 +1,6 @@
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
-import { OLD_TABLES, STORY_WRECKS } from '../data/salvage';
+import { STORY_WRECKS } from '../data/salvage';
 import { atlasOf, type Atlas } from './atlas';
 import { claimPartHeld } from './claims';
 import { freeSpotNear, spotNear } from './free-spot';
@@ -457,9 +457,7 @@ function rebuiltSalvage(world: World, saved: SalvageStock[], fate: Fate, map: Ba
 }
 
 function rolledMissing(world: World, props: Props, held: Set<string>): SalvageStock[] {
-  const spots = [...props.spots.values()].filter((o) => !held.has(o.id)).map((o) => rollStock(world, spotTable(o), o.id, o.pos, propReach(o)));
-  const olds = [...props.picks].filter(([id]) => !held.has(id)).map(([id, p]) => rollStock(world, OLD_TABLES[p.type], id, p.pos, p.reach));
-  return [...spots, ...olds];
+  return [...props.spots.values()].filter((o) => !held.has(o.id)).map((o) => rollStock(world, spotTable(o), o.id, o.pos, propReach(o)));
 }
 
 function keptStock(stock: SalvageStock, props: Props, fate: Fate, ctx: Ctx): SalvageStock | null {
@@ -530,7 +528,10 @@ function pickupLapses(pickup: RefitPickup | null, dropped: Set<string>): boolean
 function purgeDropped(world: World, dropped: Set<string>, map: BakedMap): void {
   const sites = new Set(surveySites(map).map((s) => s.id));
   const cancelled = cancelContracts(world, dropped, sites);
-  for (const claim of liveClaims(world).filter((c) => !dropped.has(c.stockId))) claim.at = { ...stockNamed(world, claim.stockId).pos };
+  for (const claim of liveClaims(world)) {
+    const stock = world.salvage.find((s) => s.id === claim.stockId);
+    if (stock) claim.at = { ...stock.pos };
+  }
   world.player.scavenged = world.player.scavenged.filter((id) => !dropped.has(id));
   world.player.rumored = world.player.rumored.filter((id) => !dropped.has(id));
   world.states = world.states.filter((s) => s.data.kind !== 'lootWarning' || !dropped.has(s.data.targetId));
@@ -542,11 +543,6 @@ function purgeDropped(world: World, dropped: Set<string>, map: BakedMap): void {
   }
 }
 
-function stockNamed(world: World, id: string): SalvageStock {
-  const stock = world.salvage.find((s) => s.id === id);
-  if (!stock) throw new Error(`Claim names stock ${id}, which the repaired map holds no longer`);
-  return stock;
-}
 
 function snapSunwardHomes(world: World): void {
   const bays = hollowBays();

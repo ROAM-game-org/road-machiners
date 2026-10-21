@@ -116,7 +116,9 @@ describe('repairContent', () => {
 
     expect(lost).toEqual(['ghostChassis']);
     expect(me.chassisId).toBe(START_KITS.standard.chassis);
-    expect(w.player.storage).toHaveLength(storedBefore + spares.length);
+    const mounted = me.items.filter((it) => spares.includes(it));
+    expect(mounted.length).toBeGreaterThan(0);
+    expect(mounted.length + w.player.storage.length - storedBefore).toBe(spares.length);
     expect(me.items.filter((it) => it.kind === 'good')).toHaveLength(crates);
     expect(() => corePart(me, 'transmission')).not.toThrow();
     expect(() => vehicleMass(me)).not.toThrow();
@@ -421,6 +423,16 @@ describe('repairContent', () => {
     expect(sorted(lostOf(w))).toEqual(['ghostShop', 'ghostTown']);
     expect(w.player.contracts.some((c) => c.id === 'c-haul' || c.id === 'c-fetch')).toBe(false);
     expect(() => advanceContracts(w)).not.toThrow();
+  });
+
+  it('ends the survey job of a survey contract whose shop left the data', () => {
+    const w = fresh();
+    const survey = { id: 'c-survey', shop: 'ghostShop', kind: 'survey', points: [{ site: 'x', found: false, done: false }], reward: 10, deadline: w.turn + 20, window: 20, tier: 'low' } as const;
+    w.player.contracts.push(survey as never);
+    playerVehicle(w).job = { kind: 'survey', contractId: 'c-survey', site: 'x', turnsLeft: 2, total: 3 };
+
+    lostOf(w);
+    expect(playerVehicle(w).job).toBeNull();
   });
 
   it('clears a site event whose definition left the data', () => {
