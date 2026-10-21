@@ -531,14 +531,14 @@ function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry):
   return outline;
 }
 
-type Surface = { dirt: [number, number, number]; edge: number; chips: number; shine: number; grain: number };
+type Surface = { dirt: [number, number, number]; edge: number; chips: number; shine: number; grain: number; neutral: number };
 
 const SURFACES = {
-  paint: { dirt: [0.22, 0.18, 0.14], edge: 0.25, chips: 1, shine: 0, grain: 1 },
-  metal: { dirt: [0.35, 0.2, 0.12], edge: 0.6, chips: 0, shine: 1, grain: 0 },
-  rust: { dirt: [0.25, 0.17, 0.12], edge: 0.2, chips: 0, shine: 0, grain: 0 },
-  grime: { dirt: [0.2, 0.19, 0.17], edge: 0.35, chips: 0, shine: 0, grain: 0 },
-  plain: { dirt: [0.25, 0.24, 0.22], edge: 0.15, chips: 0, shine: 0, grain: 0 },
+  paint: { dirt: [0.22, 0.18, 0.14], edge: 0.25, chips: 1, shine: 0, grain: 1, neutral: 0 },
+  metal: { dirt: [0.28, 0.27, 0.26], edge: 0.6, chips: 0, shine: 1, grain: 0, neutral: 0.6 },
+  rust: { dirt: [0.25, 0.17, 0.12], edge: 0.2, chips: 0, shine: 0, grain: 0, neutral: 0 },
+  grime: { dirt: [0.2, 0.19, 0.17], edge: 0.35, chips: 0, shine: 0, grain: 0, neutral: 0 },
+  plain: { dirt: [0.25, 0.24, 0.22], edge: 0.15, chips: 0, shine: 0, grain: 0, neutral: 0 },
 } satisfies Record<string, Surface>;
 
 export type SurfaceName = keyof typeof SURFACES;
@@ -593,6 +593,7 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
     surfaceChromeBody: SURFACE_LOOK.chromeBody,
     surfaceGrain: { value: own.grain },
     surfaceGrainShare: SURFACE_LOOK.grain,
+    surfaceNeutral: { value: own.neutral },
   };
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -602,7 +603,7 @@ export function surfacedMaterial(color: number, surface: SurfaceName | null): TH
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${SURFACE_UNIFORMS}`)
       .replace('#include <color_fragment>', SURFACE_COLOR)
-      .replace('#include <opaque_fragment>', `${SURFACE_CHROME}\n#include <opaque_fragment>`);
+      .replace('#include <opaque_fragment>', `${SURFACE_CHROME}\n${SURFACE_NEUTRAL}\n#include <opaque_fragment>`);
   };
   material.customProgramCacheKey = () => 'surface';
   return material;
@@ -621,6 +622,7 @@ uniform float surfaceChrome;
 uniform float surfaceChromeBody;
 uniform float surfaceGrain;
 uniform float surfaceGrainShare;
+uniform float surfaceNeutral;
 float surfaceHash(vec3 p) {
   return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
 }
@@ -647,6 +649,10 @@ const SURFACE_COLOR = `
   float chipWidth = fwidth(chipField);
   float chip = smoothstep(surfaceChipAt - chipWidth, surfaceChipAt + chipWidth, chipField) * surfaceChips * surfaceChipShare;
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${f(CHIP.color.r)}, ${f(CHIP.color.g)}, ${f(CHIP.color.b)}) * mix(0.6, 1.0, surfaceAo), chip);
+`;
+
+const SURFACE_NEUTRAL = `
+  outgoingLight = mix(outgoingLight, vec3(dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722))), surfaceNeutral);
 `;
 
 const SURFACE_CHROME = `
