@@ -7,7 +7,12 @@ import { yardSpots } from './outpost-gates';
 import { chosenLane, haulerLane, haulerPace, laneClear, noteHaulerHits, planHaulerOrder, resetHaulerWatch, sideThreat, watchHaulerStall } from './hauler';
 import { acrossOf, alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
 import { addVehicle, furyRoadWorld } from './testkit';
-import { plainMaxSpeed } from './stats';
+import { fuelCap, plainMaxSpeed } from './stats';
+import { heldHeatSpeed } from './engine-heat';
+import { plainFuelSpeed } from './far';
+import { TIME } from '../data/time';
+import { ENGINE_HEAT } from '../data/wear';
+import { endTurn } from './world';
 import { coreParts, mountedParts } from './grid';
 import { getResources } from './resources';
 import type { Vehicle, WaveGroup, World } from './types';
@@ -375,5 +380,93 @@ describe('the hauler pace behind a slow gun truck', () => {
     expect(laneClear(w, hauler, 1)).toBe(true);
     gun.speed = cap - 0.5;
     expect(laneClear(w, hauler, 1)).toBe(false);
+  });
+});
+
+describe('the hauler pace behind a hot or thirsty gun truck', () => {
+  const noMove = (): void => {};
+  const NOON = 1 + (((TIME.sunrise + TIME.sunset) / 2 - TIME.startHour) * TIME.turnsPerDay) / 24;
+  const NIGHT = 1 + ((23 - TIME.startHour) * TIME.turnsPerDay) / 24;
+  const crawl = FURY_ROAD.hauler.crawl;
+  const cruise = FURY_ROAD.hauler.cruise;
+
+  function hotRoad(turn = NOON): { w: World; hauler: Vehicle; gun: Vehicle } {
+    const { w, hauler } = openRoad();
+    w.turn = turn;
+    w.player.engineHeat = 1;
+    return { w, hauler, gun: playerVehicle(w) };
+  }
+
+  it('crawls while a hot gun truck stands to cool, then goes back to cruise', () => {
+    let { w, gun } = hotRoad();
+    gun.speed = 0;
+    expect(haulerPace(w)).toBe(crawl);
+    let turns = 0;
+    let paced = 0;
+    while (w.player.engineHeat >= ENGINE_HEAT.warnAt) {
+      paced += haulerPace(w);
+      w = endTurn(w, noMove);
+      gun = playerVehicle(w);
+      gun.speed = 0;
+      turns++;
+      expect(turns).toBeLessThanOrEqual(6);
+    }
+    expect(paced).toBeLessThan((cruise * turns * 2) / 3);
+    expect(w.events.some((e) => e.t === 'stall')).toBe(false);
+    expect(haulerPace(w)).toBe(cruise);
+  });
+
+  it('keeps to the held-heat speed while a hot gun truck drives', () => {
+    const { w, gun } = hotRoad();
+    gun.speed = 3;
+    expect(haulerPace(w)).toBe(Math.max(crawl, heldHeatSpeed(w, gun)));
+    expect(haulerPace(w)).toBeLessThan(cruise);
+  });
+
+  it('keeps its pace at night, with a cool engine, and for overdrive', () => {
+    const night = hotRoad(NIGHT);
+    night.gun.speed = 3;
+    expect(haulerPace(night.w)).toBe(Math.min(cruise, plainMaxSpeed(night.w, night.gun)));
+    const cool = hotRoad();
+    cool.w.player.engineHeat = ENGINE_HEAT.warnAt - 0.05;
+    cool.gun.speed = 0;
+    expect(haulerPace(cool.w)).toBe(Math.min(cruise, plainMaxSpeed(cool.w, cool.gun)));
+    const hot = hotRoad();
+    hot.gun.speed = 3;
+    const pace = haulerPace(hot.w);
+    hot.w.player.overdrive = true;
+    expect(haulerPace(hot.w)).toBe(pace);
+  });
+
+  it('keeps to the low-fuel top speed', () => {
+    const { w, gun } = hotRoad(NIGHT);
+    w.player.engineHeat = 0;
+    getResources(w, gun).fuel = fuelCap(gun) * 0.1;
+    gun.speed = 3;
+    expect(plainFuelSpeed(w, gun)).toBeLessThan(cruise);
+    expect(haulerPace(w)).toBe(Math.min(cruise, Math.max(crawl, plainFuelSpeed(w, gun))));
+  });
+
+  it('sets no cap for a stranded, stalled or shut-down gun truck, hot and thirsty', () => {
+    const cases: Record<string, (w: World, gun: Vehicle) => void> = {
+      'an empty tank': (w, gun) => { getResources(w, gun).fuel = 0; },
+      'a stall': (w, gun) => { gun.stalledUntil = w.turn; },
+      'a shutdown': (w, gun) => { gun.shutDown = { from: w.turn, until: w.turn + 2 }; },
+    };
+    for (const [name, apply] of Object.entries(cases)) {
+      const { w, gun } = hotRoad();
+      gun.speed = 0;
+      apply(w, gun);
+      expect(haulerPace(w), name).toBe(cruise);
+    }
+  });
+
+  it('gives the same pace and order after a save and load', () => {
+    const { w, hauler } = hotRoad();
+    planHaulerOrder(w);
+    const copy = JSON.parse(JSON.stringify(w)) as World;
+    planHaulerOrder(copy);
+    expect(haulerPace(copy)).toBe(haulerPace(w));
+    expect(haulerOf(copy).order).toEqual(hauler.order);
   });
 });

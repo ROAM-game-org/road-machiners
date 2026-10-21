@@ -9,6 +9,8 @@ import { betweenLevels, inYard, yardSpots } from './outpost-gates';
 import { acrossOf, alongOf, roadAt, roadPoint, toRoad, windowSpan } from './highway';
 import { craterDip, windowCraters } from './road-hazards';
 import { CLEARANCE, dynamicBlockers, staticSet } from './nav/layer';
+import { engineHot, heldHeatSpeed } from './engine-heat';
+import { plainFuelSpeed } from './far';
 import { isStalled, isStranded, plainMaxSpeed } from './stats';
 import { isShutDown } from './utility';
 import type { MoveOrder, Vehicle, World } from './types';
@@ -58,9 +60,16 @@ export function haulerPace(world: World): number {
   const alarm = runOf(world).hauler.alarmUntil;
   const own = alarm !== null && world.turn <= alarm ? HAULER.hurry : HAULER.cruise;
   const gunTruck = playerVehicle(world);
-  const pace = setsPace(world, gunTruck) ? Math.min(own, plainMaxSpeed(world, gunTruck)) : own;
+  const pace = setsPace(world, gunTruck) ? Math.min(own, plainMaxSpeed(world, gunTruck), Math.max(HAULER.crawl, slowdown(world, gunTruck))) : own;
   if (pace <= RULES.parkedSpeed) throw new Error(`Hauler pace ${pace} is at or below parked speed`);
   return pace;
+}
+
+function slowdown(world: World, gunTruck: Vehicle): number {
+  const fuelSpeed = plainFuelSpeed(world, gunTruck);
+  if (!engineHot(world)) return fuelSpeed;
+  const heatSpeed = gunTruck.speed <= RULES.parkedSpeed ? HAULER.crawl : heldHeatSpeed(world, gunTruck);
+  return Math.min(fuelSpeed, heatSpeed);
 }
 
 function setsPace(world: World, truck: Vehicle): boolean {

@@ -8,7 +8,7 @@ import { damagePart, wornDef } from './wear';
 import { playerVehicle } from './damage';
 import { mountedParts } from './grid';
 import { hasBasic, practice, regionOf, skillEffect, vehicleHasPerk } from './progress';
-import { inOverdrive, vehicleStats } from './stats';
+import { inOverdrive, plainMaxSpeed, vehicleStats } from './stats';
 import { cappedHeatAt, heatAt } from './sun';
 import type { PartInstance, Vehicle, World } from './types';
 import { isShutDown } from './utility';
@@ -40,6 +40,22 @@ export function advanceEngineHeat(world: World): void {
   if (!engineOverheating(world)) return;
   for (const e of heatedEngines(me)) damagePart(e, ENGINE_HEAT.overheatDamage, 0);
   world.events.push({ t: 'info', note: { id: 'engineOverheat', hp: ENGINE_HEAT.overheatDamage } });
+}
+
+export function engineHot(world: World): boolean {
+  return world.player.engineHeat >= ENGINE_HEAT.warnAt;
+}
+
+export function heldHeatSpeed(world: World, v: Vehicle): number {
+  const top = plainMaxSpeed(world, v);
+  if (top <= 0) throw new Error(`Held heat speed needs a top speed above zero, got ${top}`);
+  return top * heldHeatShare(world, v);
+}
+
+function heldHeatShare(world: World, v: Vehicle): number {
+  const surplus = engineSunHeat(world, v, heatAt(world, v.pos)) - 1;
+  if (surplus <= 0 || engineHeatMult(v) <= 0) return 1;
+  return Math.min(1, ENGINE_HEAT.coolDriving / (ENGINE_HEAT.gain * surplus));
 }
 
 export function engineOverheating(world: World): boolean {
