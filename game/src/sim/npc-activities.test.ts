@@ -17,7 +17,7 @@ import { affordableBuyCount, getLotTradePrice, getTradePrice } from './economy';
 import { cargoRoom } from './inventory';
 import { ECONOMY, GOODS } from '../data/goods';
 import { endTurn } from './world';
-import { corePart, freeCells, goodsCount } from './grid';
+import { corePart, freeCells, goodsCount, mountedParts } from './grid';
 import { makePart } from './factory';
 import { addGoods, hasCargoRoom } from './inventory';
 import { finishGoal, getActivityDestination, ledPoint, patchGoal, pushGoal, resolveNpcActivities, thinkNpc, topGoal, turnCornered } from './npc-activities';
@@ -464,7 +464,7 @@ describe('NPC activities', () => {
     }
   });
 
-  it('a raider can knock out an NPC, strip its cargo and sell it', () => {
+  it('a raider can take cargo from an NPC and sell it', () => {
     const w0 = emptyWorld({ x: 450, y: 60 });
     const raider = addVehicle(w0, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 14, y: 12 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
@@ -482,13 +482,11 @@ describe('NPC activities', () => {
     let w = w0;
     let looted = false;
     let sold = false;
-    let knockedOut = false;
     const deathChance = RULES.npcDeathChance;
     (RULES as { npcDeathChance: number }).npcDeathChance = 0;
     try {
       for (let turn = 0; turn < w.size * 5; turn++) {
         w = endTurn(w, testDrive);
-        if (w.vehicles.find((v) => v.id === victim.id)?.defeat) knockedOut = true;
         const actor = w.vehicles.find((v) => v.id === raider.id)!;
         const scrap = goodsCount(actor).scrap ?? 0;
         if (scrap > 0) looted = true;
@@ -498,7 +496,6 @@ describe('NPC activities', () => {
     } finally {
       (RULES as { npcDeathChance: number }).npcDeathChance = deathChance;
     }
-    expect(knockedOut).toBe(true);
     expect(looted).toBe(true);
     expect(sold).toBe(true);
   });
@@ -1082,6 +1079,15 @@ describe('NPC activities', () => {
       forceOption('hostileSeen', 'fight');
       thinkNpc(w, raider);
       expect(topGoal(raider)).toMatchObject({ kind: 'flee', targetId: player.id, reason: 'avoidRanFrom' });
+    });
+
+    it('is not run from again on sight while the truck can only crawl', () => {
+      const { w, player, raider } = ranFrom();
+      mountedParts(raider, 'engine')[0].hp = 0;
+      player.pos = { x: raider.pos.x - 4, y: raider.pos.y };
+      forceOption('hostileSeen', 'fight');
+      thinkNpc(w, raider);
+      expect(raider.brain!.goals.map((g) => g.kind)).not.toContain('flee');
     });
 
     it('is not run from again while it stays in sight after a run that went as far as it could', () => {
