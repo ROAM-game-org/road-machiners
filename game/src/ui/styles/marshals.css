@@ -1,0 +1,53 @@
+/* The Marshalls: the wanted well in the right dock and the desk at the Roadhouse. */
+#ui .right-dock > .wanted {
+  order: 2;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  background: var(--surface-sunk);
+  border-left: var(--space-1) solid var(--danger);
+}
+.wanted-owed {
+  position: relative;
+  color: var(--danger-ink);
+  text-decoration: underline dotted;
+  cursor: help;
+}
+.wanted-tip {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-2));
+  z-index: var(--z-popup);
+  width: max-content;
+  cursor: default;
+}
+.wanted-owed:hover > .wanted-tip,
+.wanted-owed:focus > .wanted-tip,
+.wanted-owed:focus-visible > .wanted-tip {
+  display: block;
+}
+.desk-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding-top: var(--space-5);
+}
+.desk-group {
+  display: flex;
+  flex-direction: column;
+}
+.desk-case,
+.desk-settle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-3) 0;
+}
+.desk-all {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-3);
+}

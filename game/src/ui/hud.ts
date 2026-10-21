@@ -7,7 +7,8 @@ import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
 import { hasExplorationMap, modeRules } from "../sim/settings";
 import { playerCanAct } from "../sim/world";
-import type { Vehicle, World } from "../sim/types";
+import type { CrimeCase, Vehicle, World } from "../sim/types";
+import { openCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
 import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
@@ -58,7 +59,7 @@ import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
 import { isMet, type Contract } from "../sim/market";
-import { driverName, factionName, refusalText, setupText, templateName, vehicleTitle } from "../text/names";
+import { driverName, factionName, offenseName, refusalText, setupText, siteName, templateName, vehicleTitle } from "../text/names";
 import { stanceToward } from "../sim/relations";
 
 export type ContextTarget =
@@ -189,6 +190,7 @@ export class Hud {
   private inspectedAimable = false;
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel", rightDock());
+  private wanted = panel("wanted dock-panel", rightDock());
   private log = new LogPanel();
   private info = panel("info");
   private infoBody = el("div", { class: "info-content" });
@@ -491,6 +493,18 @@ export class Hud {
     );
   }
 
+  private renderWanted(w: World): void {
+    const cases = openCasesOn(w, w.player.vehicleId);
+    this.wanted.style.display = cases.length > 0 ? "" : "none";
+    if (cases.length === 0) return this.wanted.replaceChildren();
+    const owed = cases.reduce((sum, c) => sum + c.owed, 0);
+    const tip = el("span", { class: "tooltip wanted-tip", role: "tooltip" }, ...cases.map((c) => wantedRow(w, c)));
+    this.wanted.replaceChildren(
+      el("span", { class: "panel-title" }, t("hud.wanted")),
+      el("span", { class: "num wanted-owed", tabindex: 0 }, moneyEl(owed), tip),
+    );
+  }
+
   private renderContracts(w: World): void {
     const guard = playerGuard(w);
     if (w.player.contracts.length === 0 && guard === null) {
@@ -601,6 +615,7 @@ export class Hud {
     this.condition.render(playerVehicle(w), w.player.paint, undefined, repairingPart(w, playerVehicle(w)));
     this.haulerGauge.render(w);
     this.renderContracts(w);
+    this.renderWanted(w);
     this.tips.update(w, this.actions.autoTravel());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
     this.renderClock(readout.clock);
@@ -832,4 +847,10 @@ function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
 function escortLine(w: World, c: EscortContract): HTMLElement | null {
   const status = escortStatusText(w, c);
   return status ? el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, status) : null;
+}
+
+function wantedRow(w: World, c: CrimeCase): HTMLElement {
+  const victim = w.vehicles.find((v) => v.id === c.victim);
+  const label = t("desk.case", { offense: offenseName(c.offense), victim: victim ? vehicleTitle(w, victim) : t("log.someDriver") });
+  return el("div", { class: "tooltip-row" }, el("span", {}, label), el("span", { class: "num" }, t("hud.wantedFiled", { site: siteName(c.site), when: clock(c.turn).full })));
 }
