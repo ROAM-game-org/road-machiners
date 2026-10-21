@@ -86,6 +86,8 @@ import { SoundRingView } from "./render/soundRing";
 import { reportError } from "./crash";
 import { GameSaves, TURN_FAILED_NOTE, type Run } from "./save";
 import { GameMenu } from "../ui/game-menu";
+import { unstuckReason } from "../ui/unstuck-reason";
+import { getUnstuck } from "../sim/unstuck";
 import { confirmedEndRun, DeathScreen, deathShows } from "../ui/death";
 import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
@@ -338,7 +340,7 @@ export class Game {
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
     const saves = this.saves.menuActions(() => this.world);
-    this.menu = new GameMenu(saves, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), {
+    this.menu = new GameMenu({ ...saves, unstuck: { reason: () => unstuckReason(this.world, this.anim !== null, this.screens.quest.isOpen()), run: () => this.getUnstuck() } }, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), {
       cameraLabel: () => this.hud.cameraModeLabel(),
       toggleCamera: () => this.hud.toggleCameraMode(),
       report: () => this.hud.openFeedback(),
@@ -925,6 +927,12 @@ export class Game {
     this.hud.flushHorn();
     this.shade.update(this.world);
     this.uiStale = true;
+  }
+
+  private getUnstuck(): void {
+    this.screens.closeAll(null);
+    this.runRescue(getUnstuck);
+    this.endTurn();
   }
 
   private rescueCommand(fn: (w: World) => World | null): void {

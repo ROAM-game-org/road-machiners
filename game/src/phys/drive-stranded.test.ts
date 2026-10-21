@@ -15,6 +15,7 @@ import { headingOf, upOf } from './frames';
 import { dropClearance, spillOil, type OilSpill } from '../sim/hazards';
 import { OIL, oilSlickLength } from '../data/utilities';
 import { physicsMove } from './turn';
+import { getUnstuck } from '../sim/unstuck';
 import { KICK_SEEN, me, ordered, play } from '../test/drive-kit';
 
 beforeAll(async () => {
@@ -44,6 +45,29 @@ describe('stranded trucks', () => {
     expect(strandedRun(w, d, RULES.stranded.turns + 1).counts).toEqual(expected);
   });
 
+  it('sets a flipped truck in a closed ring of rocks upright outside the ring', () => {
+    const w = emptyWorld({ x: 60, y: 60 });
+    w.obstacles = Array.from({ length: 16 }, (_, i): Obstacle => {
+      const a = (2 * Math.PI * i) / 16;
+      return { id: `ring${i}`, kind: 'rock', pos: { x: 60 + Math.cos(a) * 3.5, y: 60 + Math.sin(a) * 3.5 }, r: 1.2 };
+    });
+    const d = buildDrive(w);
+    d.world.getRigidBody(d.bodies[w.vehicles[0].id]).setRotation({ x: 1, y: 0, z: 0, w: 0 }, true);
+    const { w: after, counts } = strandedRun(w, d, RULES.stranded.turns + 1);
+    expect(counts).toEqual(expected);
+    expect(dist(after.vehicles[0].pos, { x: 60, y: 60 })).toBeGreaterThan(4.7);
+  });
+
+  it('stands a flipped truck upright at the spot after one turn of Get unstuck', () => {
+    const w = emptyWorld({ x: 60, y: 60 });
+    const d = buildDrive(w);
+    d.world.getRigidBody(d.bodies[w.vehicles[0].id]).setRotation({ x: 1, y: 0, z: 0, w: 0 }, true);
+    const unstuck = getUnstuck(w);
+    const { w: after, counts } = strandedRun(unstuck, d, 1);
+    expect(counts).toEqual([0]);
+    expect(dist(after.vehicles[0].pos, w.vehicles[0].pos)).toBeLessThan(1);
+  });
+
   it('sets a truck lying on top of another truck down on free ground beside it', () => {
     const w = emptyWorld();
     const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 30, y: 30 });
@@ -67,14 +91,14 @@ describe('stranded trucks', () => {
     w.states = [];
     w.obstacles = [hungRock];
     const truck = w.vehicles[0];
-    truck.pos = besideRock(0.6, 0.4948);
-    truck.heading = -1.5101;
+    truck.pos = besideRock(1.4, 0);
+    truck.heading = Math.PI;
     truck.order = order;
     return w;
   }
 
   it('sets down a truck hung on a rock that tries to drive and does not move', () => {
-    const order: MoveOrder = { kind: 'stopAt', dest: besideRock(5.3665, 3.0398) };
+    const order: MoveOrder = { kind: 'stopAt', dest: besideRock(-6, 0) };
     const w = hungOnRock(order);
     const { w: after, counts } = strandedRun(w, buildDrive(w), RULES.stranded.turns + 1);
     expect(counts).toEqual(expected);
