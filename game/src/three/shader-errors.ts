@@ -38,17 +38,28 @@ function materialsOf(o: Drawn): THREE.Material[] {
   return Array.isArray(o.material) ? o.material : [o.material];
 }
 
+const ATTRIBUTES = ['position', 'normal', 'uv', 'uv1', 'color', 'tangent'];
+
+type Keyed = { geometry: THREE.BufferGeometry; position: unknown; color: boolean; shadow: boolean; variant: string };
+
+const keyed = new WeakMap<Drawn, Keyed>();
+
 function variantOf(o: Drawn): string {
   const mesh = o as Partial<THREE.InstancedMesh & THREE.SkinnedMesh & THREE.BatchedMesh>;
-  const morphs = Object.keys(o.geometry.morphAttributes).join('+');
-  return [mesh.isInstancedMesh, Boolean(mesh.instanceColor), mesh.isSkinnedMesh, mesh.isBatchedMesh, o.receiveShadow, morphs, 'tangent' in o.geometry.attributes].join('|');
+  const color = Boolean(mesh.instanceColor);
+  const known = keyed.get(o);
+  if (known && known.geometry === o.geometry && known.position === o.geometry.attributes.position && known.color === color && known.shadow === o.receiveShadow) return known.variant;
+  const attributes = ATTRIBUTES.map((name) => name in o.geometry.attributes);
+  const variant = [mesh.isInstancedMesh, color, mesh.isSkinnedMesh, mesh.isBatchedMesh, o.receiveShadow, Object.keys(o.geometry.morphAttributes).join('+'), ...attributes].join('|');
+  keyed.set(o, { geometry: o.geometry, position: o.geometry.attributes.position, color, shadow: o.receiveShadow, variant });
+  return variant;
 }
 
 class Variants {
-  private readonly byMaterial = new WeakMap<THREE.Material, Set<string>>();
+  private readonly byMaterial = new WeakMap<THREE.Material, Map<string, number>>();
 
   has(material: THREE.Material, variant: string): boolean {
-    return this.byMaterial.get(material)?.has(variant) ?? false;
+    return this.byMaterial.get(material)?.get(variant) === material.version;
   }
 
   known(material: THREE.Material): boolean {
@@ -56,9 +67,9 @@ class Variants {
   }
 
   add(material: THREE.Material, variant: string): void {
-    const set = this.byMaterial.get(material) ?? new Set<string>();
-    set.add(variant);
-    this.byMaterial.set(material, set);
+    const versions = this.byMaterial.get(material) ?? new Map<string, number>();
+    versions.set(variant, material.version);
+    this.byMaterial.set(material, versions);
   }
 
   delete(material: THREE.Material, variant: string): void {

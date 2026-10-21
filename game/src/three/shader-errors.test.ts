@@ -99,6 +99,20 @@ describe('ShaderWarmup', () => {
     expect(drawn.at(-1)).toBe(true);
   });
 
+  it('holds a mesh again once its material changed after it compiled, since the change needs a new program', async () => {
+    const { renderer, drawn, finish } = warmupRenderer();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+    const warmup = new ShaderWarmup(renderer, sceneWith(mesh), new THREE.PerspectiveCamera(), (e) => { throw e; });
+    warmup.render();
+    finish();
+    await Promise.resolve();
+    warmup.render();
+    expect(drawn.at(-1)).toBe(true);
+    mesh.material.needsUpdate = true;
+    warmup.render();
+    expect(drawn.at(-1)).toBe(false);
+  });
+
   it('leaves a mesh the game hid hidden', () => {
     const { renderer } = warmupRenderer();
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
