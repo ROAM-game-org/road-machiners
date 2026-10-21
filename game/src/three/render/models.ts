@@ -531,79 +531,100 @@ function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry):
   return outline;
 }
 
-export const GRIME = {
-  dust: new THREE.Color(PAL.dustTrail),
-  dustReach: 1.1,
-  dustBottom: 0.6,
-  dustTop: 0.25,
-  faceJitter: 0.12,
-  faceWarmth: 0.05,
+type Surface = { dirt: [number, number, number]; edge: number; chips: number };
+
+const SURFACES = {
+  paint: { dirt: [0.22, 0.18, 0.14], edge: 0.25, chips: 1 },
+  metal: { dirt: [0.35, 0.2, 0.12], edge: 0.6, chips: 0 },
+  rust: { dirt: [0.25, 0.17, 0.12], edge: 0.2, chips: 0 },
+  grime: { dirt: [0.2, 0.19, 0.17], edge: 0.35, chips: 0 },
+  plain: { dirt: [0.25, 0.24, 0.22], edge: 0.15, chips: 0 },
+} satisfies Record<string, Surface>;
+
+export type SurfaceName = keyof typeof SURFACES;
+
+const SURFACE_OF_MATERIAL: Record<string, SurfaceName | null> = {
+  paint: 'paint',
+  trim: 'paint',
+  red: 'paint',
+  mustard: 'paint',
+  stripe: 'paint',
+  white: 'paint',
+  metal: 'metal',
+  metal_light: 'metal',
+  metal_dark: 'metal',
+  steel: 'metal',
+  rust: 'rust',
+  rust_side: 'rust',
+  rust_dark: 'rust',
+  dark: 'grime',
+  under: 'grime',
+  wheel: 'grime',
+  soot: 'grime',
+  glass: null,
+  light: null,
+  glow: null,
 };
 
-type GrimeUniforms = {
-  grimeRoot: { value: THREE.Matrix4 };
-  grimeFloor: { value: number };
-  grimeSeed: { value: number };
-};
+const CHIP = { color: new THREE.Color(0x5b5a57), scale: 7, at: 0.75 };
 
-export function grimeTruck(root: THREE.Object3D, clean: ReadonlySet<THREE.Material>): void {
-  root.updateMatrixWorld(true);
-  const inverse = root.matrixWorld.clone().invert();
-  const box = new THREE.Box3();
-  root.traverse((o) => {
-    if (o instanceof THREE.Mesh && !o.userData.outline) box.union(new THREE.Box3().setFromObject(o).applyMatrix4(inverse));
-  });
-  const shared = { grimeRoot: { value: new THREE.Matrix4() }, grimeFloor: { value: box.min.y } };
-  let seed = 0;
-  root.traverse((o) => {
-    if (!(o instanceof THREE.Mesh) || o.userData.outline) return;
-    const mats = Array.isArray(o.material) ? o.material : [o.material];
-    const grimed = mats.map((m) => (!clean.has(m) && m instanceof THREE.MeshLambertMaterial && m.emissive.getHex() === 0 ? grimeMaterial(m, { ...shared, grimeSeed: { value: ++seed } }) : m));
-    o.material = Array.isArray(o.material) ? grimed : grimed[0];
-    const before = o.onBeforeRender.bind(o);
-    o.onBeforeRender = (...args) => {
-      before(...args);
-      shared.grimeRoot.value.copy(root.matrixWorld).invert();
-    };
-  });
+export const SURFACE_LOOK = { chips: { value: 1 } };
+
+export function surfaceOf(materialName: string): SurfaceName | null {
+  const named = SURFACE_OF_MATERIAL[materialName];
+  return named === undefined ? 'plain' : named;
 }
 
-function grimeMaterial(material: THREE.MeshLambertMaterial, uniforms: GrimeUniforms): THREE.MeshLambertMaterial {
-  const own = material.clone();
-  const before = material.onBeforeCompile.bind(material);
-  const key = material.customProgramCacheKey.bind(material);
-  own.onBeforeCompile = (shader, renderer) => {
-    before(shader, renderer);
+export function surfacedMaterial(color: number, surface: SurfaceName | null): THREE.MeshLambertMaterial {
+  const material = new THREE.MeshLambertMaterial({ color, flatShading: true, vertexColors: surface !== null });
+  if (surface === null) return material;
+  const own = SURFACES[surface];
+  const uniforms = {
+    surfaceDirt: { value: new THREE.Vector3(...own.dirt) },
+    surfaceEdge: { value: own.edge },
+    surfaceChips: { value: own.chips },
+    surfaceChipShare: SURFACE_LOOK.chips,
+  };
+  material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform mat4 grimeRoot;\nvarying vec3 vGrimePos;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\nvGrimePos = (grimeRoot * modelMatrix * vec4(transformed, 1.0)).xyz;');
+      .replace('#include <common>', '#include <common>\nvarying vec3 vSurfacePos;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSurfacePos = position;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\n${GRIME_UNIFORMS}`)
-      .replace('#include <color_fragment>', `#include <color_fragment>\n${GRIME_COLOR}`);
+      .replace('#include <common>', `#include <common>\n${SURFACE_UNIFORMS}`)
+      .replace('#include <color_fragment>', SURFACE_COLOR);
   };
-  own.customProgramCacheKey = () => `${key()}|grime`;
-  return own;
+  material.customProgramCacheKey = () => 'surface';
+  return material;
 }
 
 const f = (n: number) => n.toFixed(4);
 
-const GRIME_UNIFORMS = `varying vec3 vGrimePos;
-uniform float grimeFloor;
-uniform float grimeSeed;`;
-
-const GRIME_COLOR = `
-  vec3 grimeNormal = normalize(cross(dFdx(vGrimePos), dFdy(vGrimePos)));
-  float grimeHash = fract(sin(dot(floor(grimeNormal * 8.0 + 0.5) + grimeSeed * 1.37, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-  float grimeShift = (grimeHash - 0.5) * 2.0;
-  diffuseColor.rgb *= 1.0 + grimeShift * ${f(GRIME.faceJitter)};
-  diffuseColor.rgb += vec3(1.0, 0.0, -1.0) * grimeShift * ${f(GRIME.faceWarmth)} * dot(diffuseColor.rgb, vec3(0.333));
-  float grimeLow = 1.0 - smoothstep(0.0, ${f(GRIME.dustReach)}, vGrimePos.y - grimeFloor);
-  float grimeUp = max(grimeNormal.y, 0.0);
-  float grimeDust = clamp(grimeLow * ${f(GRIME.dustBottom)} + grimeUp * ${f(GRIME.dustTop)}, 0.0, 1.0);
-  diffuseColor.rgb = mix(diffuseColor.rgb, ${glslColor(GRIME.dust)} * 0.8, grimeDust);
-`;
-
-function glslColor(c: THREE.Color): string {
-  return `vec3(${f(c.r)}, ${f(c.g)}, ${f(c.b)})`;
+const SURFACE_UNIFORMS = `varying vec3 vSurfacePos;
+uniform vec3 surfaceDirt;
+uniform float surfaceEdge;
+uniform float surfaceChips;
+uniform float surfaceChipShare;
+float surfaceHash(vec3 p) {
+  return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
 }
+float surfaceNoise(vec3 p) {
+  vec3 i = floor(p);
+  vec3 t = fract(p);
+  t = t * t * (3.0 - 2.0 * t);
+  return mix(
+    mix(mix(surfaceHash(i), surfaceHash(i + vec3(1, 0, 0)), t.x), mix(surfaceHash(i + vec3(0, 1, 0)), surfaceHash(i + vec3(1, 1, 0)), t.x), t.y),
+    mix(mix(surfaceHash(i + vec3(0, 0, 1)), surfaceHash(i + vec3(1, 0, 1)), t.x), mix(surfaceHash(i + vec3(0, 1, 1)), surfaceHash(i + vec3(1, 1, 1)), t.x), t.y),
+    t.z);
+}`;
+
+const SURFACE_COLOR = `
+  float surfaceAo = vColor.r;
+  float surfaceWorn = vColor.g;
+  diffuseColor.rgb *= mix(surfaceDirt, vec3(1.0), surfaceAo);
+  diffuseColor.rgb *= 1.0 + surfaceEdge * surfaceWorn;
+  float chipField = surfaceWorn * (0.55 + 0.9 * surfaceNoise(vSurfacePos * ${f(CHIP.scale)}));
+  float chipWidth = fwidth(chipField);
+  float chip = smoothstep(${f(CHIP.at)} - chipWidth, ${f(CHIP.at)} + chipWidth, chipField) * surfaceChips * surfaceChipShare;
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${f(CHIP.color.r)}, ${f(CHIP.color.g)}, ${f(CHIP.color.b)}) * mix(0.6, 1.0, surfaceAo), chip);
+`;

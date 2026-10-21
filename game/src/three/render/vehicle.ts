@@ -15,7 +15,7 @@ import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type Sid
 import type { GridItem, Vehicle, World } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, sweepOf, type Obstacle } from './gunClearance';
-import { model, outlineOf, socket, TRUCK_BIT, type ModelName } from './models';
+import { model, outlineOf, socket, surfacedMaterial, surfaceOf, TRUCK_BIT, type ModelName, type SurfaceName } from './models';
 import { hashStr } from '../../render/noise';
 import { callTrucks, radioSpeakers } from '../../sim/dialogue';
 import { TruckMotion, WHIPS } from './truckMotion';
@@ -823,10 +823,44 @@ function flipWinding(geo: THREE.BufferGeometry): void {
   }
 }
 
+function shadeOf(geo: THREE.BufferGeometry): THREE.BufferAttribute {
+  const count = geo.getAttribute('position').count;
+  const baked = geo.getAttribute('color');
+  const shade = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) shade.set(baked ? [baked.getX(i), baked.getY(i), baked.getZ(i)] : [1, 0, 0], i * 3);
+  return new THREE.BufferAttribute(shade, 3);
+}
+
+const KEPT_ATTRIBUTES = new Set(['position', 'normal', 'color']);
+
+function staticGeometry(mesh: THREE.Mesh, toGroup: THREE.Matrix4): THREE.BufferGeometry {
+  const toHere = toGroup.clone().multiply(mesh.matrixWorld);
+  let geo = mesh.geometry.clone().applyMatrix4(toHere);
+  if (geo.index) geo = geo.toNonIndexed();
+  if (toHere.determinant() < 0) flipWinding(geo);
+  if (!geo.getAttribute('normal')) geo.computeVertexNormals();
+  geo.setAttribute('color', shadeOf(geo));
+  for (const name of Object.keys(geo.attributes)) if (!KEPT_ATTRIBUTES.has(name)) geo.deleteAttribute(name);
+  geo.morphAttributes = {};
+  geo.clearGroups();
+  return geo;
+}
+
+function surfacedMesh(key: string, geos: THREE.BufferGeometry[]): THREE.Mesh {
+  const [hex, surface] = key.split('|');
+  const merged = mergeGeometries(geos);
+  if (!merged) throw new Error(`Could not merge ${geos.length} truck meshes of color ${Number(hex).toString(16)}`);
+  for (const g of geos) g.dispose();
+  const mesh = new THREE.Mesh(merged, surfacedMaterial(Number(hex), surface === 'null' ? null : (surface as SurfaceName)));
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
 function mergeStatic(group: THREE.Group): THREE.Group {
   group.updateMatrixWorld(true);
   const toGroup = group.matrixWorld.clone().invert();
-  const byColor = new Map<number, THREE.BufferGeometry[]>();
+  const byColor = new Map<string, THREE.BufferGeometry[]>();
   const used: THREE.Mesh[] = [];
   const lamps: THREE.Mesh[] = [];
   group.traverse((o) => {
@@ -836,31 +870,15 @@ function mergeStatic(group: THREE.Group): THREE.Group {
       return;
     }
     const mat = o.material as THREE.MeshLambertMaterial;
-    const toHere = toGroup.clone().multiply(o.matrixWorld);
-    let geo = o.geometry.clone().applyMatrix4(toHere);
-    if (geo.index) geo = geo.toNonIndexed();
-    if (toHere.determinant() < 0) flipWinding(geo);
-    if (!geo.getAttribute('normal')) geo.computeVertexNormals();
-    for (const name of Object.keys(geo.attributes)) if (name !== 'position' && name !== 'normal') geo.deleteAttribute(name);
-    geo.morphAttributes = {};
-    geo.clearGroups();
-    const hex = mat.color.getHex();
-    const list = byColor.get(hex) ?? [];
-    list.push(geo);
-    byColor.set(hex, list);
+    const key = `${mat.color.getHex()}|${surfaceOf(mat.name)}`;
+    const list = byColor.get(key) ?? [];
+    list.push(staticGeometry(o, toGroup));
+    byColor.set(key, list);
     used.push(o);
   });
   const out = new THREE.Group();
   out.add(...outlineOf([...byColor.values()].flat()));
-  for (const [hex, geos] of byColor) {
-    const merged = mergeGeometries(geos);
-    if (!merged) throw new Error(`Could not merge ${geos.length} truck meshes of color ${hex.toString(16)}`);
-    for (const g of geos) g.dispose();
-    const mesh = new THREE.Mesh(merged, new THREE.MeshLambertMaterial({ color: hex, flatShading: true }));
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    out.add(mesh);
-  }
+  for (const [key, geos] of byColor) out.add(surfacedMesh(key, geos));
   for (const lamp of lamps) {
     const toHere = toGroup.clone().multiply(lamp.matrixWorld);
     const geo = lamp.geometry.clone().applyMatrix4(toHere);
