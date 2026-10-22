@@ -1041,7 +1041,6 @@ export class Game {
       this.shade.advance();
       return turn;
     });
-    const moving = this.play.isMoving();
     const playDt = playMs / 1000;
     const step = at === null ? null : Math.floor(at);
     this.syncVehicles(at, Math.max(0, dt) / 1000, playDt);
@@ -1052,7 +1051,7 @@ export class Game {
     const sightRadius = grayRadius(this.world) * PHYSICS.metersPerTile;
     this.sightLimit.set(truck, sightRadius);
     this.rig.leash(truck, sightRadius);
-    this.follow.update(truck, this.hud.cameraMode === "auto" ? this.orderPoint() : null, moving, dt);
+    this.follow.update(truck, this.hud.cameraMode === "auto" ? this.orderPoint() : null, dt, playMs);
     this.hud.showRecenter(!this.follow.isFollowing());
     lightScene(this.sun, this.sky, truck, daylightAt(lightTurnOf(this.world, this.anim)));
     this.fx.light({ sun: this.sun, sky: this.sky });

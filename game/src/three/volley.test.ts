@@ -434,7 +434,8 @@ describe("playShotFx before a shooter's view exists", () => {
       lineHooked: () => {},
     } as unknown as CombatHost;
     playShotFx(host, new BreakCues(world.events));
-    expect(launched.map((p) => p.delayMs + p.flightMs)).toEqual([MOVE_MS]);
+    expect(launched).toHaveLength(1);
+    expect(launched[0].delayMs + launched[0].flightMs).toBeCloseTo(MOVE_MS, 6);
   });
 });
 
