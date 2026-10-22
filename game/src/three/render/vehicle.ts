@@ -14,7 +14,7 @@ import { baseGrid, facingOf, isMounted, itemCells, itemSize } from '../../sim/gr
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
-import { highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, type ItemSpot } from './gunStand';
+import { bottomOf, bottomRect, highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
@@ -449,6 +449,8 @@ export class VehicleView {
   private drawModel(v: Vehicle, unit: UnitView, item: PartItem, def: PartDef, paint: number): void {
     const obj = this.placedPart(v, unit.b, item, def, paint);
     obj.name = item.id;
+    const spot = this.spots.get(item);
+    if (spot?.legs) for (const leg of plateLegs(unit.base, bottomRect(obj, unit.index), spot.y, (role) => this.legModel(item, paint, role))) unit.still.add(leg);
     unit.still.add(obj);
     this.anchors.set(item.part.id, { local: new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3()), parent: unit.body });
     if (blocksGuns(v, item, def)) unit.obstacles.push(obstacleOf(obj));
@@ -545,8 +547,7 @@ export class VehicleView {
 
   private standsUp(v: Vehicle, item: GridItem): boolean {
     if (!standsFlat(v, item)) return true;
-    const rest = restOf(v, item);
-    const spot = itemSpot(this.unitOf(v, item).base, rest.rect, rest, rectOf(v, item));
+    const spot = itemSpotOf(v, item, this.unitOf(v, item).base);
     if (spot) this.spots.set(item, spot);
     return spot !== null;
   }
@@ -899,7 +900,12 @@ function rectOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem): CellRect {
 }
 
 export function wouldFloat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
-  return !alwaysDrawn(v, item) && restOf(v, item).perched;
+  return !alwaysDrawn(v, item) && !standsFlat(v, item) && restOf(v, item).perched;
+}
+
+export function itemSpotOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem, base: THREE.Object3D): ItemSpot | null {
+  const rest = restOf(v, item);
+  return itemSpot(base, bottomOf(itemModel(item), rest.rect.unit, footprint(v, item, rest.y)), rest, rectOf(v, item), item.kind === 'part');
 }
 
 function standsFlat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {

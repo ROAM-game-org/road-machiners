@@ -4,15 +4,14 @@ import * as THREE from 'three';
 import { partDef } from '../data/parts';
 import { BODY_PARTS, baseModel, itemLookId, partModel, weaponLook } from '../render/partLooks';
 import { aimWithin, gunSpans } from '../sim/armor';
-import { cellRect, highestUnder, restOn, surfaceSamples, unitOfCells } from '../sim/body';
+import { cellRect, highestUnder, surfaceSamples, unitOfCells } from '../sim/body';
 import { makeVehicle, newId } from '../sim/factory';
 import { baseGrid, isMounted, itemCells } from '../sim/grid';
 import { emptyWorld } from '../sim/testkit';
 import type { GridItem, Vehicle, World } from '../sim/types';
 import { loadModels, model, socket } from '../three/render/models';
 import { armorPlacement } from '../three/render/armorCut';
-import { itemSpot } from '../three/render/gunStand';
-import { footprint, VehicleView, wouldFloat } from '../three/render/vehicle';
+import { footprint, itemSpotOf, VehicleView, wouldFloat } from '../three/render/vehicle';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 await loadModels(async (name) => {
@@ -65,9 +64,7 @@ function obstacles(v: Vehicle, skip: GridItem): Box[] {
       what = d.id;
     }
     if (wouldFloat(v, it)) continue;
-    const cells = cellRect(v.chassisId, itemCells(it));
-    const rest = restOn(v.chassisId, cells);
-    const spot = itemSpot(model(baseModel(v.chassisId, cells.unit)), rest.rect, rest, cells);
+    const spot = itemSpotOf(v, it, model(baseModel(v.chassisId, unitOfCells(v.chassisId, itemCells(it)).index)));
     if (!spot) continue;
     const at = footprint(v, it, spot.y);
     at.pos.x += spot.dx;
