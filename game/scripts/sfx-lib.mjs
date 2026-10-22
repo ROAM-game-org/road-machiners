@@ -1,6 +1,6 @@
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, unlinkSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, renameSync, unlinkSync, mkdirSync, writeFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { BANK, beatLoopSeconds, MIX, SOUNDS } from '../src/data/sounds.ts';
 
@@ -67,8 +67,19 @@ function toneChain(src, source, id, cue) {
 }
 
 function playable(source, name, cue) {
-  const freeMusic = cue.bus === 'music' && cue.loop && !cue.beat;
-  return freeMusic ? musicLoop(source, name) : source;
+  if (!cue.loop || cue.beat) return source;
+  return cue.bus === 'music' ? musicLoop(source, name) : steadyLoop(source, `tmp/sfx-raw/${name.replace('.ogg', '')}.loop.wav`);
+}
+
+export function reloopShipped(file) {
+  const path = `${SFX_DIR}/${file}`;
+  const tag = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream_tags=comment', '-of', 'default=nw=1:nk=1', path], { encoding: 'utf8' }).trim();
+  mkdirSync('tmp/sfx-raw', { recursive: true });
+  const looped = steadyLoop(path, `tmp/sfx-raw/${file.replace('.ogg', '')}.reloop.wav`);
+  const gain = integratedLoudness(path) - integratedLoudness(looped);
+  const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', looped, '-af', `volume=${gain.toFixed(2)}dB,${limiter}`, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', ...(tag ? ['-metadata', `comment=${tag}`] : []), `${path}.new.ogg`]);
+  renameSync(`${path}.new.ogg`, path);
 }
 
 function shapeFilters(src, cue) {
@@ -186,15 +197,58 @@ function musicLoop(src, name) {
   const x = MUSIC_XFADE_S;
   if (len < 4 * x) throw new Error(`${src} has only ${len.toFixed(1)} s of music`);
   const out = `tmp/sfx-raw/${name.replace('.ogg', '')}.loop.wav`;
+  crossfadeLoop(src, { start, end, seconds: x, curve: 'tri' }, out);
+  console.log(`${src}: music kept ${start.toFixed(1)}-${end.toFixed(1)} s, looped with a ${x} s crossfade`);
+  return out;
+}
+
+function crossfadeLoop(src, span, out) {
+  const { start, end, seconds: x, curve } = span;
+  const len = end - start;
   const graph = [
     `[0]atrim=start=${start}:end=${end},asetpts=N/SR/TB,asplit=2[a][b]`,
-    `[a]atrim=0:${x},afade=t=in:d=${x},adelay=${Math.round((len - 2 * x) * 1000)}:all=1[head]`,
-    `[b]atrim=start=${x},asetpts=N/SR/TB,afade=t=out:st=${len - 2 * x}:d=${x}[body]`,
+    `[a]atrim=0:${x},afade=t=in:d=${x}:curve=${curve},adelay=${Math.round((len - 2 * x) * 1000)}:all=1[head]`,
+    `[b]atrim=start=${x},asetpts=N/SR/TB,afade=t=out:st=${len - 2 * x}:d=${x}:curve=${curve}[body]`,
     `[body][head]amix=inputs=2:normalize=0:duration=first`,
   ].join(';');
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', src, '-filter_complex', graph, out]);
-  console.log(`${src}: music kept ${start.toFixed(1)}-${end.toFixed(1)} s, looped with a ${x} s crossfade`);
+}
+
+const STEADY = { flatten: 'dynaudnorm=f=100:g=9:p=0.5:m=8', bright: 'highpass=f=2000', minSeconds: 1.5, slackDb: 1, crossfadeSeconds: 0.25 };
+
+export function steadyLoop(src, out) {
+  const flat = out.replace(/\.wav$/, '.flat.wav');
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', src, '-af', STEADY.flatten, flat]);
+  const level = momentaryTrack(flat, 'anull');
+  const bright = momentaryTrack(flat, STEADY.bright);
+  const span = steadiestSpan(level, bright);
+  crossfadeLoop(flat, { ...span, seconds: STEADY.crossfadeSeconds, curve: 'qsin' }, out);
+  console.log(`${src}: kept the steadiest ${span.start.toFixed(1)}-${span.end.toFixed(1)} s, level spread ${span.spread.toFixed(1)} dB, looped with a ${STEADY.crossfadeSeconds} s crossfade`);
   return out;
+}
+
+function integratedLoudness(src) {
+  const log = ffmpegLog(src, 'ebur128');
+  return statValue(log.slice(log.lastIndexOf('Summary:')), 'I');
+}
+
+function momentaryTrack(src, filters) {
+  const log = ffmpegLog(src, `${filters},ebur128`);
+  return [...log.matchAll(/t: *([\d.]+).*? M: *(-?[\d.]+|-inf)/g)].map((m) => ({ t: Number(m[1]), m: m[2] === '-inf' ? -120 : Number(m[2]) }));
+}
+
+function steadiestSpan(level, bright) {
+  const usable = level.filter((p) => p.t >= 0.4);
+  const spreadOf = (from, to) => {
+    const inSpan = (p) => p.t >= from && p.t <= to;
+    const l = usable.filter(inSpan).map((p) => p.m);
+    const b = bright.filter(inSpan).map((p, i) => p.m - l[i]);
+    return Math.max(...l) - Math.min(...l) + Math.max(...b) - Math.min(...b);
+  };
+  const spans = usable.flatMap((a) => usable.filter((b) => b.t - a.t >= STEADY.minSeconds).map((b) => ({ start: a.t - 0.4, end: b.t, spread: spreadOf(a.t, b.t) })));
+  if (spans.length === 0) throw new Error(`No ${STEADY.minSeconds} s span to loop`);
+  const best = Math.min(...spans.map((s) => s.spread));
+  return spans.filter((s) => s.spread <= best + STEADY.slackDb).sort((x, y) => y.end - y.start - (x.end - x.start))[0];
 }
 
 function loudSpan(src) {

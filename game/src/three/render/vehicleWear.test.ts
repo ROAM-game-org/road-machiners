@@ -4,6 +4,7 @@ import { GANG_PAINT, paintOf, TEMPLATE_PAINT } from '../../render/palette';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { startKit } from '../../data/start';
+import { partDef } from '../../data/parts';
 import { wheelMounts } from '../../phys/body';
 import { BODY_PARTS, WEAR_LOOK_STEPS, wearLookStep } from '../../render/partLooks';
 import { bodyOf } from '../../sim/body';
@@ -204,6 +205,37 @@ describe('paint job look', () => {
 
   it('throws on a paint the build does not know', () => {
     expect(() => paintOf(truck(), { ...PAINT.standard, body: 'gold' } as unknown as TruckPaint)).toThrow(/gold/);
+  });
+});
+
+describe('worn wheel look', () => {
+  function wheelParts(v: Vehicle) {
+    return mountedParts(v, 'core').filter((p) => {
+      const def = partDef(p.defId);
+      return def.kind === 'core' && def.role === 'wheel';
+    });
+  }
+
+  function wheelDepths(v: Vehicle): number[] {
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
+    const wheels = new Set(wheelParts(v).map((p) => p.id));
+    const depths: number[] = [];
+    view.root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || !wheels.has(o.userData.partId)) return;
+      const z = o.geometry.getAttribute('position');
+      let deepest = 0;
+      for (let i = 0; i < z.count; i++) deepest = Math.max(deepest, Math.abs(z.getZ(i)));
+      depths.push(deepest);
+    });
+    return depths;
+  }
+
+  it('keeps the tire inside the rim face on a worn wheel, so no black bar crosses the hub', () => {
+    const v = truck();
+    const fresh = wheelDepths(v);
+    for (const part of wheelParts(v)) part.hp = 1;
+    expect(fresh.length).toBeGreaterThan(0);
+    expect(wheelDepths(v)).toEqual(fresh);
   });
 });
 

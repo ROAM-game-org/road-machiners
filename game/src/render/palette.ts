@@ -99,6 +99,7 @@ export const TEMPLATE_PAINT: Record<string, Paint> = {
   merc: { top: 0x2a2a2c, side: 0x1a1a1c, cab: 0x5a6068, cabSide: 0x3e4248 },
   cavalcade: { top: 0xcac0a6, side: 0x8f8774, cab: 0x2c2824, cabSide: 0x1d1b18 },
   hunter: { top: 0xb2a284, side: 0x7a6e58, cab: 0x2c2824, cabSide: 0x1d1b18 },
+  marshal: { top: 0x4a3a5a, side: 0x32283e, cab: 0xd2c6a6, cabSide: 0xa2967a },
 };
 
 export type TruckColors = { body: number; cab: number; gear: number };

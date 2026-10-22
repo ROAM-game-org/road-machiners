@@ -133,7 +133,7 @@ export const HIRE = {
 };
 
 export const MEMORY = {
-  turns: { prices: TIME.turnsPerDay, stripped: TIME.turnsPerDay, wronged: ENCOUNTERS.wrongedTurns, helped: 2 * TIME.turnsPerDay, sighting: TIME.turnsPerDay } satisfies Record<MemoryFact['kind'], number>,
+  turns: { prices: TIME.turnsPerDay, stripped: TIME.turnsPerDay, wronged: ENCOUNTERS.wrongedTurns, helped: 2 * TIME.turnsPerDay, sighting: TIME.turnsPerDay, witnessed: 3 * TIME.turnsPerDay } satisfies Record<MemoryFact['kind'], number>,
 };
 
 export const TRADE_TIP = { share: 0.2 };
@@ -168,6 +168,7 @@ export const FACTIONS: Record<NpcFactionId, FactionDef> = {
   scrapjaw: { organized: true, outlaw: true },
   kiln: { organized: true, outlaw: true },
   sunward: { organized: true, outlaw: true },
+  marshals: { organized: true, outlaw: false },
   independent: { organized: false, outlaw: false },
 };
 
@@ -177,14 +178,15 @@ export const STANDING_FACTION_IDS = NPC_FACTION_IDS.filter((id): id is StandingF
 export const NEUTRAL = 0;
 
 export const ATTITUDE: Record<NpcFactionId, Record<NpcFactionId, number>> = {
-  bowl: { bowl: 60, nose: -25, guidestar: 20, administrators: NEUTRAL, scrapjaw: -40, kiln: -30, sunward: -30, independent: 5 },
-  nose: { bowl: -5, nose: 60, guidestar: 20, administrators: -20, scrapjaw: -40, kiln: -40, sunward: -30, independent: 5 },
-  guidestar: { bowl: 20, nose: 20, guidestar: 60, administrators: 5, scrapjaw: -30, kiln: -30, sunward: -20, independent: 10 },
-  administrators: { bowl: NEUTRAL, nose: -35, guidestar: 5, administrators: 60, scrapjaw: -5, kiln: -5, sunward: -10, independent: 10 },
-  scrapjaw: { bowl: -30, nose: -40, guidestar: -25, administrators: -5, scrapjaw: 60, kiln: -10, sunward: -20, independent: -30 },
-  kiln: { bowl: -10, nose: -40, guidestar: -20, administrators: -5, scrapjaw: -10, kiln: 60, sunward: -20, independent: -30 },
-  sunward: { bowl: -20, nose: -20, guidestar: -20, administrators: -20, scrapjaw: -20, kiln: -20, sunward: 60, independent: -20 },
-  independent: { bowl: 5, nose: 5, guidestar: 10, administrators: 5, scrapjaw: -30, kiln: -30, sunward: -20, independent: NEUTRAL },
+  bowl: { bowl: 60, nose: -25, guidestar: 20, administrators: NEUTRAL, scrapjaw: -40, kiln: -30, sunward: -30, marshals: NEUTRAL, independent: 5 },
+  nose: { bowl: -5, nose: 60, guidestar: 20, administrators: -20, scrapjaw: -40, kiln: -40, sunward: -30, marshals: NEUTRAL, independent: 5 },
+  guidestar: { bowl: 20, nose: 20, guidestar: 60, administrators: 5, scrapjaw: -30, kiln: -30, sunward: -20, marshals: NEUTRAL, independent: 10 },
+  administrators: { bowl: NEUTRAL, nose: -35, guidestar: 5, administrators: 60, scrapjaw: -5, kiln: -5, sunward: -10, marshals: NEUTRAL, independent: 10 },
+  scrapjaw: { bowl: -30, nose: -40, guidestar: -25, administrators: -5, scrapjaw: 60, kiln: -10, sunward: -20, marshals: NEUTRAL, independent: -30 },
+  kiln: { bowl: -10, nose: -40, guidestar: -20, administrators: -5, scrapjaw: -10, kiln: 60, sunward: -20, marshals: NEUTRAL, independent: -30 },
+  sunward: { bowl: -20, nose: -20, guidestar: -20, administrators: -20, scrapjaw: -20, kiln: -20, sunward: 60, marshals: -20, independent: -20 },
+  marshals: { bowl: NEUTRAL, nose: NEUTRAL, guidestar: NEUTRAL, administrators: NEUTRAL, scrapjaw: NEUTRAL, kiln: NEUTRAL, sunward: NEUTRAL, marshals: 60, independent: NEUTRAL },
+  independent: { bowl: 5, nose: 5, guidestar: 10, administrators: 5, scrapjaw: -30, kiln: -30, sunward: -20, marshals: NEUTRAL, independent: NEUTRAL },
 };
 
 export type Band = 'hostile' | 'unfriendly' | 'neutral' | 'friendly' | 'allied';
@@ -219,6 +221,7 @@ export const SITE_FACTIONS: Partial<Record<string, NpcFactionId>> = {
   nose: 'nose',
   scrapjaw: 'scrapjaw',
   kiln: 'kiln',
+  'marshal-post': 'marshals',
 };
 
 export const TOWN_TRADER_SHARE = 1 / 3;

@@ -3,7 +3,7 @@ import type { LineId } from '../data/dialogue';
 import type { LocalId, NoteId, TermId } from '../data/locals';
 import { FEMALE_NAMES, FIRST_NAMES, SURNAMES, type TraitId } from '../data/npcs';
 import { BASIC_RANK, type BasicId, type PerkId } from '../data/skills';
-import type { Faction, GameModeId, GoalReason, MoneyReason, Refusal, SimNote, SkillId, UnitId, Vehicle, World, WorldSetup, WorldSettings } from '../sim/types';
+import type { CrimeOffense, Faction, GameModeId, GoalReason, MoneyReason, Refusal, SimNote, SkillId, UnitId, Vehicle, World, WorldSetup, WorldSettings } from '../sim/types';
 import { byId, list, t, type Msg } from './msg';
 
 export const partName = (defId: string): Msg => byId(`part.${defId}`);
@@ -28,6 +28,7 @@ export const templateName = (id: string): Msg => byId(`npc.${id}`);
 export const professionName = (id: string): Msg => byId(`npc.${id}.profession`);
 export const traitName = (id: TraitId): Msg => t(`trait.${id}`);
 export const factionName = (id: Faction): Msg => t(`faction.${id}`);
+export const offenseName = (id: CrimeOffense): Msg => t(`offense.${id}`);
 export const skillName = (id: SkillId): Msg => t(`skill.${id}`);
 export const skillGrows = (id: SkillId): Msg => t(`skill.${id}.grows`);
 export const basicName = (id: BasicId): Msg => t(`basic.${id}`);
@@ -122,6 +123,7 @@ const REFUSALS: RefusalWords = {
   utilityBlocked: (_, r) => t('refusal.utilityBlocked', { part: partName(r.part), reason: t(`block.${r.block}`) }),
   busy: (_, r) => t(`refusal.busy.${r.job}`),
   needsXp: (_, r) => t('refusal.needsXp', { cost: r.cost, have: r.have }),
+  payBountiesFirst: (_, r) => t('refusal.payBountiesFirst', { faction: factionName(r.faction) }),
 };
 
 export function refusalText(world: World, r: Refusal): Msg {

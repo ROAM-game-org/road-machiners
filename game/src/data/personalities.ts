@@ -1,7 +1,8 @@
 import { DETECT } from './detect';
 import { SUNWARD_TRAIT_TALK } from './sunward';
-import type { LineId, TopicId } from './dialogue';
+import type { LineId, Topic, TopicId } from './dialogue';
 import type { TraitId } from './npcs';
+import type { CrimeOffense } from '../sim/types';
 
 export const PERSONALITY_IDS = ['talkative', 'tightLipped', 'gossip', 'braggart', 'suspicious', 'kind', 'grim', 'pious'] as const;
 export type PersonalityId = (typeof PERSONALITY_IDS)[number];
@@ -53,6 +54,7 @@ const COURIER_STORY: TopicId[] = ['courierShort', 'courierThanks', 'courierSquar
 const PARLEY: TopicId[] = ['spillClaim', 'surrender', 'giveUp', 'claim', 'truce', 'mercy', 'yieldDemand', 'buyTruce', 'rob', 'robCut', 'lootWarning', 'lookWarning', 'warnOff', 'truceOffer', 'mercyPlea', 'offerTow', 'releaseTow', 'offerPatch', 'offerPatchWorn', 'offerAid'];
 
 export const TRAIT_TALK: Record<TraitId, TraitTalk> = { ...SUNWARD_TRAIT_TALK,
+  marshal: { voice: { greeting: 'marshalGreeting', repeatLine: 'marshalRepeat', refusal: 'marshalRefusal', warnOff: 'marshalWarnOff', honksBack: true }, topics: ['bountyDemand', 'payBounty', 'directions', 'lastSeen', 'roadLesson', 'tow', 'towFree', ...PARLEY] },
   trader: { voice: { greeting: 'goAhead', repeatLine: 'weAlreadyTalkedAbout', refusal: 'nothingToSayTo', warnOff: 'thisOneIsSpokenFor', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'marketNews', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', 'escortHold', 'escortGo', ...TALES, ...CHALLENGE, ...PARLEY] },
   scavenger: { voice: { greeting: 'yeahMakeItQuick', repeatLine: 'iToldYouAlready', refusal: 'getOffMyChannel', warnOff: 'thatsMyPick', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'rumor', 'sunwardTalk', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...TALES, 'salvageTip', ...CHALLENGE, ...PARLEY] },
   raider: { voice: { greeting: 'getLost', repeatLine: 'getLost', refusal: 'hehNo', warnOff: 'offMyLootNow', honksBack: false }, topics: [...HELP, 'roadLesson', 'demand', 'demandCut', ...CHALLENGE, ...PARLEY] },
@@ -66,4 +68,62 @@ export const TRAIT_TALK: Record<TraitId, TraitTalk> = { ...SUNWARD_TRAIT_TALK,
   supplier: { voice: { greeting: 'listening', repeatLine: 'weCoveredThat', refusal: 'keepOffThisChannel', warnOff: 'weAreTakingThisOne', honksBack: true }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', 'marketNews', 'rumor', 'sunwardTalk', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...TALES, ...PARLEY] },
   guard: { voice: { greeting: 'stateYourBusiness', repeatLine: 'heardYou', refusal: 'moveAlong', warnOff: 'backAwayFromThat', honksBack: false }, topics: [...HELP, 'directions', 'lastSeen', 'parcel', 'roadLesson', ...PARLEY] },
   merc: { voice: { greeting: 'talk', repeatLine: 'youSaidThat', refusal: 'notInterested', warnOff: 'thatsMineWalkAway', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', 'roadLesson', 'hireGuard', 'dismissGuard', ...CHALLENGE, ...PARLEY] },
+};
+
+export const MARSHAL_LINES = [
+  'marshalGreeting', 'marshalRepeat', 'marshalRefusal', 'marshalWarnOff',
+  'bountyDemand', 'offenseAttacked', 'offenseRobbed', 'offenseKilled', 'payTheBook', 'notPaying', 'bookClosed', 'thenICollect',
+  'whatDoIOwe', 'bountyTerms',
+] as const;
+export type MarshalLineId = (typeof MARSHAL_LINES)[number];
+export type MarshalTopicId = 'bountyDemand' | 'payBounty';
+export type MarshalConditionId = 'bountyDemandOpen' | 'huntsPlayer';
+export type MarshalEffectId = 'payBounty' | 'refuseBounty' | 'payBountyHail';
+export type MarshalPrepareId = 'bountyOwed';
+
+export const OFFENSE_LINES: Record<CrimeOffense, MarshalLineId> = { attacked: 'offenseAttacked', robbed: 'offenseRobbed', killed: 'offenseKilled' };
+
+const MARSHAL_END = 'end';
+const MARSHAL_HUB = 'hub';
+
+export const MARSHAL_TOPICS: Record<MarshalTopicId, Topic> = {
+  bountyDemand: {
+    id: 'bountyDemand',
+    once: false,
+    ask: null,
+    raise: { when: ['bountyDemandOpen'], priority: 8, duringFeud: false, duringCombat: true },
+    prepare: 'bountyOwed',
+    hangUp: ['refuseBounty'],
+    start: 'demand',
+    nodes: {
+      demand: {
+        line: 'bountyDemand',
+        options: [
+          { say: 'payTheBook', when: [], effects: ['payBounty'], go: 'paid' },
+          { say: 'notPaying', when: [], effects: ['refuseBounty'], go: 'refused' },
+        ],
+      },
+      paid: { line: 'bookClosed', options: [{ say: 'overAndOut', when: [], effects: [], go: MARSHAL_END }] },
+      refused: { line: 'thenICollect', options: [] },
+    },
+  },
+  payBounty: {
+    id: 'payBounty',
+    once: false,
+    ask: { say: 'whatDoIOwe', when: ['huntsPlayer'], duringFeud: true },
+    raise: null,
+    prepare: 'bountyOwed',
+    hangUp: [],
+    start: 'terms',
+    nodes: {
+      terms: {
+        line: 'bountyTerms',
+        options: [
+          { say: 'payTheBook', when: [], effects: ['payBountyHail'], go: 'paid' },
+          { say: 'tooMuch', when: [], effects: [], go: MARSHAL_HUB },
+        ],
+      },
+      paid: { line: 'bookClosed', options: [{ say: 'overAndOut', when: [], effects: [], go: MARSHAL_END }] },
+    },
+  },
 };

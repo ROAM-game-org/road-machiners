@@ -11,8 +11,8 @@ import type { TerrainTypeId } from './terrain';
 
 export type GameMode = { rules: ModeRules; kit: string | null; map: MapKind; opening: string | null };
 
-const OPEN_WORLD: ModeRules = { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true };
-const RUN: ModeRules = { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false };
+const OPEN_WORLD: ModeRules = { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true, bounties: true };
+const RUN: ModeRules = { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false, bounties: false };
 
 export const GAME_MODES: Record<GameModeId, GameMode> = {
   roaming: { rules: OPEN_WORLD, kit: null, map: 'icarus', opening: null },
