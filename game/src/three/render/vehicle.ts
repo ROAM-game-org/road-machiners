@@ -920,7 +920,7 @@ function armorSide(v: Pick<Vehicle, 'chassisId'>, item: PartItem): SideLetter {
   return side;
 }
 
-export function armorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, box: THREE.Box3): Placement {
+export function armorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, box: THREE.Box3): Placement {
   const def = partDef(item.part.defId);
   if (!isShield(def)) throw new Error(`Part ${def.id} is not armor or an accessory`);
   const side = armorSide(v, item);
@@ -941,7 +941,7 @@ function spareArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, side
   return { pos, yaw, scale };
 }
 
-function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, def: ShieldDef, side: SideLetter, box: THREE.Box3): Placement {
+function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef, side: SideLetter, box: THREE.Box3): Placement {
   const thickness = thinDepthOf(def, box);
   const { axis, outward } = SIDE_FACE[side];
   const across = axis === 'x';
@@ -951,9 +951,14 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, de
   const span = across ? rect.z1 - rect.z0 : rect.x1 - rect.x0;
   const y = { plates: half.y - box.max.y, ram: -half.y, cage: half.y - box.max.y, spikes: half.y - box.max.y }[def.look] + TRUCK_LOOK.armorRise;
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
-  const overArmor = def.kind === 'accessory' ? TRUCK_LOOK.armorDepth : 0;
+  const overArmor = def.kind === 'accessory' && armorUnder(v, item) ? TRUCK_LOOK.armorDepth : 0;
   pos[axis] = outward * (half[axis] - TRUCK_LOOK.armorInset + overArmor - depthScale * box.min.x);
   return { pos, yaw: SIDE_YAW[side], scale: new THREE.Vector3(depthScale, 1, span / (Math.max(def.w, def.h) * CELL.across)) };
+}
+
+function armorUnder(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem): boolean {
+  const cells = new Set(itemCells(item).map((c) => `${c.x},${c.y}`));
+  return v.items.some((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'armor' && isMounted(v.chassisId, it) && itemCells(it).some((c) => cells.has(`${c.x},${c.y}`)));
 }
 
 function thinDepthOf(def: ShieldDef, box: THREE.Box3): number {

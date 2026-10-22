@@ -39,9 +39,14 @@ function mountedArmor(chassisId: string): PartItem[] {
   return out;
 }
 
-function placedBox(chassisId: string, item: PartItem): THREE.Box3 {
+function plateUnder(item: PartItem): PartItem {
+  const [cell] = itemCells(item);
+  return { ...item, id: 'under', x: cell.x, y: cell.y, rot: 0, part: { id: 'under', defId: 'steelPlate', hp: 1, wear: 0 } };
+}
+
+function placedBox(chassisId: string, item: PartItem, items: GridItem[] = []): THREE.Box3 {
   const obj = model(partModel(item.part.defId));
-  const placement = armorPlacement({ chassisId }, item, new THREE.Box3().setFromObject(obj));
+  const placement = armorPlacement({ chassisId, items }, item, new THREE.Box3().setFromObject(obj));
   obj.position.copy(placement.pos);
   obj.rotation.set(0, placement.yaw, 0);
   obj.scale.copy(placement.scale);
@@ -54,17 +59,18 @@ function overhangOf(box: THREE.Box3, half: { x: number; z: number }): number {
 }
 
 describe('mounted armor', () => {
-  it.each(Object.keys(CHASSIS))('%s: every armor part sits with its inner face at the body face minus the inset, and every accessory one armor depth further out', (id) => {
+  it.each(Object.keys(CHASSIS))('%s: every armor part sits with its inner face at the body face minus the inset, and every accessory one armor depth further out only over armor', (id) => {
     const problems: string[] = [];
     const items = mountedArmor(id);
     expect(items.length).toBeGreaterThan(0);
-    for (const item of items) {
+    const cases = items.flatMap((item) => (PARTS[item.part.defId].kind === 'accessory' ? [{ item, under: [plateUnder(item)] }, { item, under: [] }] : [{ item, under: [] }]));
+    for (const { item, under } of cases) {
       const body = unitBody(id, cellRect(id, itemCells(item)).unit);
       const side = plateSide(id, item);
-      const box = placedBox(id, item);
-      const label = `${item.part.defId} rot ${item.rot} at ${item.x},${item.y} side ${side}`;
+      const box = placedBox(id, item, under);
+      const label = `${item.part.defId} rot ${item.rot} at ${item.x},${item.y} side ${side} over ${under.length} plates`;
       const faces = { F: [box.min.x, body.half.x], B: [-box.max.x, body.half.x], R: [box.min.z, body.half.z], L: [-box.max.z, body.half.z] }[side];
-      const over = PARTS[item.part.defId].kind === 'accessory' ? TRUCK_LOOK.armorDepth : 0;
+      const over = under.length ? TRUCK_LOOK.armorDepth : 0;
       const inner = faces[1] - TRUCK_LOOK.armorInset + over;
       if (Math.abs(faces[0] - inner) > EPS) problems.push(`${label}: inner face ${faces[0].toFixed(3)}, expected ${inner.toFixed(3)}`);
       const depth = side === 'F' || side === 'B' ? box.max.x - box.min.x : box.max.z - box.min.z;
