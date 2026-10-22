@@ -9,7 +9,7 @@ import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { CLIP_TOLERANCE, cellCenter, cellRect, engineAnchor, highestUnder, restOn, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
-import { BODY_PARTS, TRUCK_LOOK, baseModel, drawnWheelPoints, grayShare, grayed, jagOffset, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
+import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
@@ -71,9 +71,8 @@ const CHAIN_SIDE = 0.4;
 
 type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: FireSpan[]; facing: number; unit: number };
 
-type Look = { tone: number; step: number; partId: string | null };
-const THINNEST_FLOOR = 0.01;
-const PRISTINE: Look = { tone: 1, step: 0, partId: null };
+type Look = { tone: number; step: number; partId: string | null; dents: boolean };
+const PRISTINE: Look = { tone: 1, step: 0, partId: null, dents: false };
 
 export type ViewScene = 'world' | 'portrait';
 
@@ -336,7 +335,7 @@ export class VehicleView {
     const paint = colors.gear;
     this.freshMaterials();
     const onBody = v.items.filter((item) => onChassis(v, item));
-    this.buildBases(v, colors.body, colors.cab, cabLook(v));
+    const bases = this.buildBases(v, colors.body, colors.cab, cabLook(v));
     yield;
     const { wheelItems, guns } = yield* this.drawItems(v, onBody, paint);
     for (const gun of guns) {
@@ -349,6 +348,7 @@ export class VehicleView {
     this.anchorUndrawn(v);
     for (const unit of this.units) this.buildSuspension(unit, paint);
     this.buildLooseParts(v, onBody.length === v.items.length);
+    this.dentBases(bases, cabLook(v));
     yield;
     const merged: THREE.Group[] = [];
     yield* this.mergeUnits(v, merged);
@@ -520,16 +520,34 @@ export class VehicleView {
     });
   }
 
-  private buildBases(v: Vehicle, paint: number, trim: number, look: Look): void {
-    for (const unit of this.units) {
+  private buildBases(v: Vehicle, paint: number, trim: number, look: Look): THREE.Object3D[] {
+    return this.units.map((unit) => {
       const obj = model(baseModel(v.chassisId, unit.index));
       obj.traverse((o) => {
         if (o instanceof THREE.Mesh && o.material.name === TRIM) o.material.color.setHex(trim);
       });
-      tint(obj, paint, look);
+      tint(obj, paint, { ...look, dents: false });
       this.useLamp(obj);
       unit.still.add(obj);
-    }
+      return obj;
+    });
+  }
+
+  private dentBases(bases: THREE.Object3D[], look: Look): void {
+    if (!look.partId || look.step === 0) return;
+    this.units.forEach((unit, i) => {
+      const base = bases[i];
+      const keepOut = [...unit.still.children, ...unit.body.children].filter((o) => o !== base && o !== unit.still && this.standsOnBody(o)).map((o) => unitBox(o, unit.body));
+      dent(base, look.partId as string, look.step, { top: true, keepOut });
+    });
+  }
+
+  private standsOnBody(o: THREE.Object3D): boolean {
+    let drawn = false;
+    o.traverse((m) => {
+      if (m instanceof THREE.Mesh && !this.isContactShadow(m) && !m.userData.outline) drawn = true;
+    });
+    return drawn;
   }
 
   private placeItem(v: Vehicle, item: GridItem, paint: number, y: number): THREE.Object3D {
@@ -685,7 +703,7 @@ export class VehicleView {
 
   private wheelModel(body: Body, paint: number, look: Look): THREE.Object3D {
     const raw = model('wheel');
-    tint(raw, paint, look);
+    tint(raw, paint, { ...look, dents: false });
     const wrap = new THREE.Group();
     wrap.add(raw);
     const wheel = mergeStatic(wrap);
@@ -961,7 +979,8 @@ function cabLook(v: Vehicle): Look {
 function lookOf(item: GridItem): Look {
   if (item.kind !== 'part') return PRISTINE;
   const step = wearLookStep(item.part);
-  return { tone: item.part.hp > 0 ? 1 : BROKEN_TONE[partDef(item.part.defId).kind], step, partId: item.part.id };
+  const kind = partDef(item.part.defId).kind;
+  return { tone: item.part.hp > 0 ? 1 : BROKEN_TONE[kind], step, partId: item.part.id, dents: kind !== 'weapon' };
 }
 
 export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: number): Placement {
@@ -1011,32 +1030,60 @@ function tint(obj: THREE.Object3D, paint: number, look: Look): void {
     mat.color.multiplyScalar(look.tone);
     if (look.partId) o.userData.partId = look.partId;
   });
-  if (look.partId && look.step > 0) jag(obj, look.partId, look.step);
+  if (look.partId && look.dents && look.step > 0) dent(obj, look.partId, look.step);
 }
 
-export function jag(obj: THREE.Object3D, partId: string, step: number): void {
-  obj.updateMatrixWorld(true);
-  const toModel = obj.matrixWorld.clone().invert();
-  const box = new THREE.Box3();
+const WELD_MM = 1000;
+
+function weldKey(p: THREE.Vector3): string {
+  return `${Math.round(p.x * WELD_MM)},${Math.round(p.y * WELD_MM)},${Math.round(p.z * WELD_MM)}`;
+}
+
+function modelPoints(obj: THREE.Object3D, toModel: THREE.Matrix4): THREE.Vector3[] {
+  const points = new Map<string, THREE.Vector3>();
   obj.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
-    const geo = o.geometry as THREE.BufferGeometry;
-    if (!geo.boundingBox) geo.computeBoundingBox();
-    box.union((geo.boundingBox as THREE.Box3).clone().applyMatrix4(o.matrixWorld).applyMatrix4(toModel));
+    const pos = (o.geometry as THREE.BufferGeometry).getAttribute('position');
+    for (let i = 0; i < pos.count; i++) {
+      const p = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).applyMatrix4(toModel);
+      points.set(weldKey(p), p);
+    }
   });
-  const size = box.getSize(new THREE.Vector3());
-  const thinnest = Math.max(THINNEST_FLOOR, Math.min(size.x, size.y, size.z));
+  return [...points.values()];
+}
+
+type DentCover = { top: boolean; keepOut: PartBox[] };
+
+function unitBox(o: THREE.Object3D, body: THREE.Object3D): PartBox {
+  const box = new THREE.Box3().setFromObject(o);
+  if (o.parent === body) box.applyMatrix4(body.matrixWorld.clone().invert());
+  return box;
+}
+
+export function dent(obj: THREE.Object3D, partId: string, step: number, cover: DentCover = { top: false, keepOut: [] }): void {
+  obj.updateMatrixWorld(true);
+  const toModel = obj.matrixWorld.clone().invert();
+  const points = modelPoints(obj, toModel);
+  const surface = { box: new THREE.Box3().setFromPoints(points), points, tops: cover.top ? columnTops(points) : null, keepOut: cover.keepOut };
+  const dents = dentsOf(partId, step, surface);
+  const offsets = new Map<string, THREE.Vector3Like>();
+  const offsetAt = (p: THREE.Vector3): THREE.Vector3Like => {
+    const key = weldKey(p);
+    const known = offsets.get(key);
+    if (known) return known;
+    const found = dentOffset(dents, surface, p);
+    offsets.set(key, found);
+    return found;
+  };
   obj.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     const geo = o.geometry as THREE.BufferGeometry;
     const pos = geo.getAttribute('position') as THREE.BufferAttribute;
     const toMesh = toModel.clone().multiply(o.matrixWorld).invert();
     const p = new THREE.Vector3();
-    const offset = new THREE.Vector3();
     for (let i = 0; i < pos.count; i++) {
       p.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).applyMatrix4(toModel);
-      const d = jagOffset(partId, p.x, p.y, p.z, step, thinnest);
-      p.add(offset.set(d.x, d.y, d.z)).applyMatrix4(toMesh);
+      p.add(offsetAt(p)).applyMatrix4(toMesh);
       pos.setXYZ(i, p.x, p.y, p.z);
     }
     pos.needsUpdate = true;

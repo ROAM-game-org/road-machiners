@@ -82,19 +82,21 @@ const PAGE = '#1b1c1d';
 const NOON = 12;
 const NOSE = new THREE.Vector3(1, 0, 0);
 
-type View = { label: string; dir: THREE.Vector3; up: THREE.Vector3; ground: boolean };
+const FILL = 1.6;
+
+type View = { label: string; dir: THREE.Vector3; up: THREE.Vector3; ground: boolean; fill: boolean };
 
 const UP = new THREE.Vector3(0, 1, 0);
-const QUARTER: View = { label: '3/4', dir: new THREE.Vector3(1, 0.816, 1).normalize(), up: UP, ground: true };
+const QUARTER: View = { label: '3/4', dir: new THREE.Vector3(1, 0.816, 1).normalize(), up: UP, ground: true, fill: false };
 const VIEWS = {
   quarter: QUARTER,
   game: { ...QUARTER, label: 'game' },
-  front: { label: 'front', dir: new THREE.Vector3(1, 0, 0), up: UP, ground: true },
-  back: { label: 'back', dir: new THREE.Vector3(-1, 0, 0), up: UP, ground: true },
-  top: { label: 'top down', dir: new THREE.Vector3(0, 1, 0), up: NOSE, ground: true },
-  left: { label: 'left side', dir: new THREE.Vector3(0, 0, -1), up: UP, ground: true },
-  right: { label: 'right side', dir: new THREE.Vector3(0, 0, 1), up: UP, ground: true },
-  bottom: { label: 'bottom', dir: new THREE.Vector3(0, -1, 0), up: NOSE, ground: false },
+  front: { label: 'front', dir: new THREE.Vector3(1, 0, 0), up: UP, ground: true, fill: true },
+  back: { label: 'back', dir: new THREE.Vector3(-1, 0, 0), up: UP, ground: true, fill: true },
+  top: { label: 'top down', dir: new THREE.Vector3(0, 1, 0), up: NOSE, ground: true, fill: true },
+  left: { label: 'left side', dir: new THREE.Vector3(0, 0, -1), up: UP, ground: true, fill: true },
+  right: { label: 'right side', dir: new THREE.Vector3(0, 0, 1), up: UP, ground: true, fill: true },
+  bottom: { label: 'bottom', dir: new THREE.Vector3(0, -1, 0), up: NOSE, ground: false, fill: true },
 } satisfies Record<string, View>;
 
 type ViewName = keyof typeof VIEWS;
@@ -236,8 +238,18 @@ function render(renderer: THREE.WebGLRenderer, cell: Cell, frame: Frame, hour: n
   }
   const center = viewBox(cell.root, cell.view).getCenter(new THREE.Vector3()).applyMatrix4(lens(cell.view, new THREE.Vector3(), 1).matrixWorld);
   lightScene(sun, sky, center, daylightAt(turnAtHour(hour)));
-  renderer.render(scene, lens(cell.view, center, frame.half));
+  const camera = lens(cell.view, center, frame.half);
+  if (cell.view.fill) scene.add(fillLight(camera));
+  renderer.render(scene, camera);
   scene.remove(cell.root);
+}
+
+function fillLight(camera: THREE.OrthographicCamera): THREE.DirectionalLight {
+  const fill = new THREE.DirectionalLight(0xffffff, FILL);
+  fill.position.copy(camera.position);
+  fill.target.position.copy(camera.position).add(camera.getWorldDirection(new THREE.Vector3()));
+  fill.target.updateMatrixWorld();
+  return fill;
 }
 
 function sheet(rows: GridRow[], frame: Frame, hour: number): HTMLCanvasElement {
