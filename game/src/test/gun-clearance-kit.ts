@@ -11,6 +11,7 @@ import { emptyWorld } from '../sim/testkit';
 import type { GridItem, Vehicle, World } from '../sim/types';
 import { loadModels, model, socket } from '../three/render/models';
 import { armorPlacement } from '../three/render/armorCut';
+import { itemSpot } from '../three/render/gunStand';
 import { footprint, VehicleView, wouldFloat } from '../three/render/vehicle';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -64,8 +65,13 @@ function obstacles(v: Vehicle, skip: GridItem): Box[] {
       what = d.id;
     }
     if (wouldFloat(v, it)) continue;
-    const rest = restOn(v.chassisId, cellRect(v.chassisId, itemCells(it)));
-    const at = footprint(v, it, rest.y);
+    const cells = cellRect(v.chassisId, itemCells(it));
+    const rest = restOn(v.chassisId, cells);
+    const spot = itemSpot(model(baseModel(v.chassisId, cells.unit)), rest.rect, rest, cells);
+    if (!spot) continue;
+    const at = footprint(v, it, spot.y);
+    at.pos.x += spot.dx;
+    at.pos.z += spot.dz;
     const box = new THREE.Box3().setFromObject(model(partModel(what))).applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
     out.push({ x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z, top: box.max.y, what });
   }

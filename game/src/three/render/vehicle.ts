@@ -14,7 +14,7 @@ import { baseGrid, facingOf, isMounted, itemCells, itemSize } from '../../sim/gr
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
-import { highestAhead, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang } from './gunStand';
+import { highestAhead, itemSpot, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang, type ItemSpot } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
@@ -122,6 +122,7 @@ export class VehicleView {
   private running = false;
   private turrets = new Map<string, Turret>();
   private anchors = new Map<string, Anchor>();
+  private spots = new Map<GridItem, ItemSpot>();
   private headings: number[] = [0];
   private lastFrame: VehicleFrame | null = null;
   private rearFrame: VehicleFrame | null = null;
@@ -359,7 +360,8 @@ export class VehicleView {
   private *drawItems(v: Vehicle, onBody: GridItem[], paint: number): Generator<void, { wheelItems: PartItem[]; guns: PartItem[] }> {
     const wheelItems: PartItem[] = [];
     const guns: PartItem[] = [];
-    for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it))) {
+    this.spots.clear();
+    for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it) && this.standsUp(v, it))) {
       this.drawItem(v, item, paint, wheelItems, guns);
       yield;
     }
@@ -429,7 +431,7 @@ export class VehicleView {
   private drawItem(v: Vehicle, item: GridItem, paint: number, wheelItems: PartItem[], guns: PartItem[]): void {
     const unit = this.unitOf(v, item);
     if (item.kind === 'part') return this.drawPart(v, unit, item, paint, wheelItems, guns);
-    const good = this.placeItem(v, item, paint, standingY(v, item));
+    const good = this.placeItem(v, item, paint);
     good.name = item.id;
     unit.still.add(good);
     unit.obstacles.push(obstacleOf(good));
@@ -457,7 +459,7 @@ export class VehicleView {
     if (isWheel(def)) return this.spareWheel(v, body, item, paint, standingY(v, item));
     if (def.kind === 'armor') return this.placeArmor(v, item, paint);
     if (def.kind === 'engine' && mounted) return this.placeEngine(v, item, paint);
-    return this.placeItem(v, item, paint, standingY(v, item));
+    return this.placeItem(v, item, paint);
   }
 
   private anchorUndrawn(v: Vehicle): void {
@@ -541,10 +543,23 @@ export class VehicleView {
     return drawn;
   }
 
-  private placeItem(v: Vehicle, item: GridItem, paint: number, y: number): THREE.Object3D {
+  private standsUp(v: Vehicle, item: GridItem): boolean {
+    if (!standsFlat(v, item)) return true;
+    const rest = restOf(v, item);
+    const spot = itemSpot(this.unitOf(v, item).base, rest.rect, rest, rectOf(v, item));
+    if (spot) this.spots.set(item, spot);
+    return spot !== null;
+  }
+
+  private placeItem(v: Vehicle, item: GridItem, paint: number): THREE.Object3D {
     const obj = model(itemModel(item));
-    place(obj, footprint(v, item, y));
-    lean(obj, restOf(v, item).slope);
+    const spot = this.spots.get(item);
+    if (!spot) throw new Error(`Item ${item.id} on ${v.chassisId} has no standing spot`);
+    const at = footprint(v, item, spot.y);
+    at.pos.x += spot.dx;
+    at.pos.z += spot.dz;
+    place(obj, at);
+    lean(obj, spot.slope);
     tint(obj, paint, lookOf(item));
     return obj;
   }
@@ -887,6 +902,13 @@ export function wouldFloat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boole
   return !alwaysDrawn(v, item) && restOf(v, item).perched;
 }
 
+function standsFlat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+  if (item.kind !== 'part') return true;
+  const def = partDef(item.part.defId);
+  if (BODY_PARTS.has(def.id) || isWheel(def)) return false;
+  return !['weapon', 'armor'].includes(def.kind) && !(def.kind === 'engine' && isMounted(v.chassisId, item));
+}
+
 function alwaysDrawn(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
@@ -1005,12 +1027,13 @@ export function dent(obj: THREE.Object3D, partId: string, step: number, cover: D
   const points = modelPoints(obj, toModel);
   const surface = { box: new THREE.Box3().setFromPoints(points), points, tops: cover.top ? columnTops(points) : null, keepOut: cover.keepOut };
   const dents = dentsOf(partId, step, surface);
+  const pinned = pinnedUnder(obj, toModel, cover.keepOut);
   const offsets = new Map<string, THREE.Vector3Like>();
   const offsetAt = (p: THREE.Vector3): THREE.Vector3Like => {
     const key = weldKey(p);
     const known = offsets.get(key);
     if (known) return known;
-    const found = dentOffset(dents, surface, p);
+    const found = pinned.has(key) ? { x: 0, y: 0, z: 0 } : dentOffset(dents, surface, p);
     offsets.set(key, found);
     return found;
   };
@@ -1030,6 +1053,28 @@ export function dent(obj: THREE.Object3D, partId: string, step: number, cover: D
     geo.computeBoundingSphere();
     geo.computeBoundingBox();
   });
+}
+
+function pinnedUnder(obj: THREE.Object3D, toModel: THREE.Matrix4, keepOut: readonly PartBox[]): Set<string> {
+  const pinned = new Set<string>();
+  if (keepOut.length === 0) return pinned;
+  obj.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    const pos = o.geometry.getAttribute('position');
+    const index = o.geometry.getIndex();
+    const at = (k: number) => new THREE.Vector3().fromBufferAttribute(pos, index ? index.getX(k) : k).applyMatrix4(o.matrixWorld).applyMatrix4(toModel);
+    for (let k = 0; k < (index ? index.count : pos.count); k += 3) {
+      const tri = [at(k), at(k + 1), at(k + 2)];
+      if (keepOut.some((b) => overlapsXZ(tri, b))) for (const p of tri) pinned.add(weldKey(p));
+    }
+  });
+  return pinned;
+}
+
+function overlapsXZ(tri: THREE.Vector3[], box: PartBox): boolean {
+  const xs = tri.map((p) => p.x);
+  const zs = tri.map((p) => p.z);
+  return Math.max(...xs) >= box.min.x && Math.min(...xs) <= box.max.x && Math.max(...zs) >= box.min.z && Math.min(...zs) <= box.max.z;
 }
 
 function radioColor(lit: boolean): number {

@@ -6,7 +6,6 @@ export type PlateSpot = { dx: number; dz: number; shrink: number };
 
 const RISER_TOP_SIDE = 0.3;
 const UP = new THREE.Vector3(0, 1, 0);
-const DOWN = new THREE.Vector3(0, -1, 0);
 const BRACE_ANGLES = [15, 30, 45, 60, 75];
 const SEE_THROUGH = new Set([GLASS, LAMP, RADIO]);
 const IDENTITY = new THREE.Matrix4();
@@ -67,88 +66,165 @@ function spotAt(plate: CellRect, shifts: [number, number][], shrink: number, fee
   return standing;
 }
 
-type TopFace = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; up: number; seeThrough: boolean };
-type Footings = { above: number; columns: Map<string, TopFace[]>; seen: Map<string, THREE.Vector3 | null> };
+export type ItemSpot = { dx: number; dz: number; y: number; slope: { x: number; z: number } };
 
+const ITEM_SPOTS = new Map<string, ItemSpot | null>();
+
+export function itemSpot(body: THREE.Object3D, rect: CellRect, rest: { y: number; slope: { x: number; z: number } }, cells: CellRect): ItemSpot | null {
+  const key = `${body.userData.model}:${[rect.x0, rect.x1, rect.z0, rect.z1, rest.y, rest.slope.x, rest.slope.z, cells.x0, cells.x1, cells.z0, cells.z1].map((n) => n.toFixed(3)).join(',')}`;
+  const shared = sharedModel(body);
+  if (shared && ITEM_SPOTS.has(key)) return ITEM_SPOTS.get(key) as ItemSpot | null;
+  const found = searchItemSpot(body, rect, rest, cells);
+  if (shared) ITEM_SPOTS.set(key, found);
+  return found;
+}
+
+function sharedModel(body: THREE.Object3D): boolean {
+  body.updateWorldMatrix(true, true);
+  return typeof body.userData.model === 'string' && body.matrixWorld.equals(IDENTITY);
+}
+
+function searchItemSpot(body: THREE.Object3D, rect: CellRect, rest: { y: number; slope: { x: number; z: number } }, cells: CellRect): ItemSpot | null {
+  const feet = footings(body);
+  const cx = (rect.x0 + rect.x1) / 2;
+  const cz = (rect.z0 + rect.z1) / 2;
+  const plane = (x: number, z: number) => rest.y + rest.slope.x * (x - cx) + rest.slope.z * (z - cz);
+  const spots = standSpots(rect);
+  const under = spots.map(([x, z]) => feet(x, z));
+  if (under.every((foot, i) => foot !== null && Math.abs(plane(spots[i][0], spots[i][1]) - foot.y) <= CLIP_TOLERANCE)) return { dx: 0, dz: 0, ...planeOf(under as THREE.Vector3[]) };
+  const size = { x: rect.x1 - rect.x0, z: rect.z1 - rect.z0 };
+  const step = FACE_COLUMN;
+  for (const [dx, dz] of shiftsWithin({ x0: cells.x0 - size.x / 2 - cx, x1: cells.x1 + size.x / 2 - cx, z0: cells.z0 - size.z / 2 - cz, z1: cells.z1 + size.z / 2 - cz }, step)) {
+    const at = standSpots(movedPlate(rect, { dx, dz, shrink: 1 })).map(([x, z]) => feet(x, z));
+    if (!at.every((p) => p !== null)) continue;
+    const ys = at.map((p) => (p as THREE.Vector3).y);
+    if (spread(ys) <= CLIP_TOLERANCE) return { dx, dz, y: Math.max(...ys), slope: { x: 0, z: 0 } };
+  }
+  return null;
+}
+
+function standSpots(rect: CellRect): [number, number][] {
+  const [a, , , d] = legSpots(rect);
+  const mid = (lo: number, hi: number) => [lo, (lo + hi) / 2, hi];
+  const inner: [number, number][] = mid(a[0], d[0]).flatMap((x) => mid(a[1], d[1]).map((z): [number, number] => [x, z]));
+  return [...legSpots(rect), ...inner.filter(([x, z]) => !legSpots(rect).some(([lx, lz]) => lx === x && lz === z))];
+}
+
+function planeOf(corners: THREE.Vector3[]): { y: number; slope: { x: number; z: number } } {
+  const [a, b, c, d] = corners;
+  const dx = c.x - a.x;
+  const dz = b.z - a.z;
+  return { y: (a.y + b.y + c.y + d.y) / 4, slope: { x: (c.y + d.y - a.y - b.y) / 2 / dx, z: (b.y + d.y - a.y - c.y) / 2 / dz } };
+}
+
+type Face = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; facing: number; seeThrough: boolean };
+type Look = { normal: THREE.Vector3; u: 'x' | 'y' | 'z'; v: 'x' | 'y' | 'z' };
+type FaceIndex = { look: Look; start: number; columns: Map<string, Face[]> };
+type Footings = { index: FaceIndex; seen: Map<string, THREE.Vector3 | null> };
+
+const LOOKS = {
+  down: { normal: new THREE.Vector3(0, 1, 0), u: 'x', v: 'z' },
+  '+x': { normal: new THREE.Vector3(1, 0, 0), u: 'z', v: 'y' },
+  '-x': { normal: new THREE.Vector3(-1, 0, 0), u: 'z', v: 'y' },
+  '+z': { normal: new THREE.Vector3(0, 0, 1), u: 'x', v: 'y' },
+  '-z': { normal: new THREE.Vector3(0, 0, -1), u: 'x', v: 'y' },
+} satisfies Record<string, Look>;
+
+const INDEXES = new Map<string, FaceIndex>();
 const FOOTINGS = new Map<string, Footings>();
 
+function faceIndex(body: THREE.Object3D, name: keyof typeof LOOKS): FaceIndex {
+  const key = `${body.userData.model}:${name}`;
+  const shared = sharedModel(body);
+  const cached = shared ? INDEXES.get(key) : undefined;
+  if (cached) return cached;
+  const index = indexFaces(body, LOOKS[name]);
+  if (shared) INDEXES.set(key, index);
+  return index;
+}
+
 function footings(body: THREE.Object3D): (x: number, z: number) => THREE.Vector3 | null {
-  body.updateWorldMatrix(true, true);
-  const shared = typeof body.userData.model === 'string' && body.matrixWorld.equals(IDENTITY) ? body.userData.model : null;
-  const cache = (shared && FOOTINGS.get(shared)) || indexFaces(body);
+  const shared = sharedModel(body) ? body.userData.model : null;
+  const cache = (shared && FOOTINGS.get(shared)) || { index: faceIndex(body, 'down'), seen: new Map() };
   if (shared) FOOTINGS.set(shared, cache);
   const pad = legPad();
   return (x, z) => {
     const i = Math.round(x / FOOTING_GRID);
     const j = Math.round(z / FOOTING_GRID);
     const key = `${i},${j}`;
-    if (!cache.seen.has(key)) cache.seen.set(key, padFooting(cache, i * FOOTING_GRID, j * FOOTING_GRID, pad));
+    if (!cache.seen.has(key)) cache.seen.set(key, padFooting(cache.index, i * FOOTING_GRID, j * FOOTING_GRID, pad));
     return cache.seen.get(key) ?? null;
   };
 }
 
-function padFooting(cache: Footings, x: number, z: number, pad: number): THREE.Vector3 | null {
-  const center = topFooting(cache, x, z);
+function padFooting(index: FaceIndex, x: number, z: number, pad: number): THREE.Vector3 | null {
+  const center = topFooting(index, x, z);
   if (!center) return null;
-  const rim = [[-pad, -pad], [-pad, pad], [pad, -pad], [pad, pad]].map(([dx, dz]) => topFooting(cache, x + dx, z + dz));
+  const rim = [[-pad, -pad], [-pad, pad], [pad, -pad], [pad, pad]].map(([dx, dz]) => topFooting(index, x + dx, z + dz));
   return rim.every((p) => p !== null && Math.abs(p.y - center.y) <= CLIP_TOLERANCE) ? center : null;
 }
 
-function indexFaces(body: THREE.Object3D): Footings {
-  const columns = new Map<string, TopFace[]>();
+function indexFaces(body: THREE.Object3D, look: Look): FaceIndex {
+  const columns = new Map<string, Face[]>();
   body.traverse((o) => {
-    if (o instanceof THREE.Mesh) for (const face of upFaces(o)) addFace(columns, face);
+    if (o instanceof THREE.Mesh) for (const face of facingFaces(o, look.normal)) addFace(columns, face, look);
   });
-  return { above: new THREE.Box3().setFromObject(body).max.y + CLIP_TOLERANCE, columns, seen: new Map() };
+  const box = new THREE.Box3().setFromObject(body);
+  const far = Math.max(box.max.dot(look.normal), box.min.dot(look.normal)) + CLIP_TOLERANCE;
+  return { look, start: far, columns };
 }
 
-function upFaces(mesh: THREE.Mesh): TopFace[] {
+function facingFaces(mesh: THREE.Mesh, normal: THREE.Vector3): Face[] {
   const pos = mesh.geometry.getAttribute('position');
   const index = mesh.geometry.getIndex();
   const corner = (k: number) => new THREE.Vector3().fromBufferAttribute(pos, index ? index.getX(k) : k).applyMatrix4(mesh.matrixWorld);
-  const faces: TopFace[] = [];
+  const faces: Face[] = [];
   for (let k = 0; k < (index ? index.count : pos.count); k += 3) {
-    const face = { a: corner(k), b: corner(k + 1), c: corner(k + 2), up: 0, seeThrough: seeThrough(mesh) };
-    face.up = new THREE.Triangle(face.a, face.b, face.c).getNormal(new THREE.Vector3()).y;
-    if (face.up > 0) faces.push(face);
+    const face = { a: corner(k), b: corner(k + 1), c: corner(k + 2), facing: 0, seeThrough: seeThrough(mesh) };
+    face.facing = new THREE.Triangle(face.a, face.b, face.c).getNormal(new THREE.Vector3()).dot(normal);
+    if (face.facing > 0) faces.push(face);
   }
   return faces;
 }
 
-function addFace(columns: Map<string, TopFace[]>, face: TopFace): void {
-  for (const key of columnsUnder(face)) {
+function addFace(columns: Map<string, Face[]>, face: Face, look: Look): void {
+  for (const key of columnsUnder(face, look)) {
     const column = columns.get(key);
     if (column) column.push(face);
     else columns.set(key, [face]);
   }
 }
 
-function columnsUnder(face: TopFace): string[] {
-  const xs = [face.a.x, face.b.x, face.c.x].map((v) => Math.floor(v / FACE_COLUMN));
-  const zs = [face.a.z, face.b.z, face.c.z].map((v) => Math.floor(v / FACE_COLUMN));
+function columnsUnder(face: Face, look: Look): string[] {
+  const us = [face.a, face.b, face.c].map((p) => Math.floor(p[look.u] / FACE_COLUMN));
+  const vs = [face.a, face.b, face.c].map((p) => Math.floor(p[look.v] / FACE_COLUMN));
   const keys: string[] = [];
-  for (let i = Math.min(...xs); i <= Math.max(...xs); i++) for (let j = Math.min(...zs); j <= Math.max(...zs); j++) keys.push(`${i},${j}`);
+  for (let i = Math.min(...us); i <= Math.max(...us); i++) for (let j = Math.min(...vs); j <= Math.max(...vs); j++) keys.push(`${i},${j}`);
   return keys;
 }
 
-function topFooting(cache: Footings, x: number, z: number): THREE.Vector3 | null {
-  const best = topFace(cache, x, z);
+function topFooting(index: FaceIndex, x: number, z: number): THREE.Vector3 | null {
+  const best = nearestFace(index, x, z);
   if (!best || best.face.seeThrough || slopeOf(best.face) > MAX_SLOPE) return null;
   return best.point;
 }
 
-function topFace(cache: Footings, x: number, z: number): { point: THREE.Vector3; face: TopFace } | null {
-  const ray = new THREE.Ray(new THREE.Vector3(x, cache.above, z), DOWN);
-  let best: { point: THREE.Vector3; face: TopFace } | null = null;
-  for (const face of cache.columns.get(`${Math.floor(x / FACE_COLUMN)},${Math.floor(z / FACE_COLUMN)}`) ?? []) {
+function nearestFace(index: FaceIndex, u: number, v: number): { point: THREE.Vector3; face: Face } | null {
+  const { look } = index;
+  const origin = look.normal.clone().multiplyScalar(index.start);
+  origin[look.u] = u;
+  origin[look.v] = v;
+  const ray = new THREE.Ray(origin, look.normal.clone().negate());
+  let best: { point: THREE.Vector3; face: Face } | null = null;
+  for (const face of index.columns.get(`${Math.floor(u / FACE_COLUMN)},${Math.floor(v / FACE_COLUMN)}`) ?? []) {
     const point = ray.intersectTriangle(face.a, face.b, face.c, false, new THREE.Vector3());
-    if (point && (!best || point.y > best.point.y)) best = { point, face };
+    if (point && (!best || point.dot(look.normal) > best.point.dot(look.normal))) best = { point, face };
   }
   return best;
 }
 
-function slopeOf(face: TopFace): number {
-  return Math.sqrt(1 - face.up * face.up) / face.up;
+function slopeOf(face: Face): number {
+  return Math.sqrt(1 - face.facing * face.facing) / face.facing;
 }
 
 function legSpots(plate: CellRect): [number, number][] {
@@ -217,13 +293,8 @@ export function bodyFace(body: THREE.Object3D, axis: 'x' | 'z', outward: number,
 }
 
 function outermost(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number], height: [number, number]): number | null {
-  const box = new THREE.Box3().setFromObject(body);
-  const dir = new THREE.Vector3().setComponent(axisIndex(axis), -outward);
-  const start = outward > 0 ? box.max[axis] + CLIP_TOLERANCE : box.min[axis] - CLIP_TOLERANCE;
-  const hits = facePoints(lateral, height).map(([u, y]) => {
-    const from = new THREE.Vector3(0, y, 0).setComponent(axisIndex(axis), start).setComponent(axisIndex(axis === 'x' ? 'z' : 'x'), u);
-    return new THREE.Raycaster(from, dir).intersectObject(body, true)[0]?.point[axis];
-  });
+  const index = faceIndex(body, `${outward > 0 ? '+' : '-'}${axis}` as keyof typeof LOOKS);
+  const hits = facePoints(lateral, height).map(([u, y]) => nearestFace(index, u, y)?.point[axis]);
   const found = hits.filter((h): h is number => h !== undefined).map((h) => outward * h);
   return found.length === 0 ? null : outward * Math.max(...found);
 }
@@ -234,10 +305,6 @@ function facePoints(lateral: [number, number], height: [number, number]): [numbe
     for (let y = height[0] + FACE_COLUMN / 2; y < height[1]; y += FACE_COLUMN) out.push([u, y]);
   }
   return out;
-}
-
-function axisIndex(axis: 'x' | 'z'): number {
-  return axis === 'x' ? 0 : 2;
 }
 
 export function rearHang(body: THREE.Object3D, z: number): THREE.Vector3 {
