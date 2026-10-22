@@ -224,6 +224,7 @@ for name in ("inbox", "committee", "public-inbox"):
     files.directory(name=f"dir {HOME_DIR}/{name}", path=f"{HOME_DIR}/{name}", user=FACTORY_USER, group=FACTORY_USER, mode="750", present=True, _sudo=True)
 files.directory(name=f"dir {HERMES_DIR}", path=HERMES_DIR, user=FACTORY_USER, group=FACTORY_USER, mode="700", present=True, _sudo=True)
 files.directory(name=f"dir {HOME_DIR}/codex", path=f"{HOME_DIR}/codex", user=FACTORY_USER, group=FACTORY_USER, mode="700", present=True, _sudo=True)
+files.directory(name=f"dir {HOME_DIR}/agy", path=f"{HOME_DIR}/agy", user=FACTORY_USER, group=FACTORY_USER, mode="700", present=True, _sudo=True)
 for path in [f"{FACTORY_ROOT}/caddy/data", f"{FACTORY_ROOT}/caddy/config"]:
     files.directory(name=f"dir {path}", path=path, present=True, _sudo=True)
 

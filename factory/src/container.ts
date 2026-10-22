@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { GUARD_ROUND } from './agent-check';
 import { must, withActivity } from './exec';
-import { requireCodexLogin } from './health';
+import { requireAgyLogin, requireCodexLogin } from './health';
 import { MEDIA_MOUNT } from './media';
 import { jobLabel } from './jobs';
 import { closePart, closeRun, closeRunFromTranscript, findResult, openPart, openRun, parseLine, recordPeak, runProjectsDir, usageFromOutput, type PartKind } from './ledger';
@@ -60,8 +60,14 @@ const NPM_CACHE = '/home/pwuser/.npm';
 const SESSIONS_MOUNT = '/home/pwuser/.claude/projects';
 const CODEX_HOME = '/home/pwuser/.codex';
 
+const AGY_LOGIN = '/home/pwuser/.gemini/antigravity-cli/antigravity-oauth-token';
+
 export function codexMount(home: string): string[] {
   return ['-v', `${requireCodexLogin(home)}:${CODEX_HOME}`];
+}
+
+export function agyMount(home: string): string[] {
+  return ['-v', `${requireAgyLogin(home)}:${AGY_LOGIN}:ro`];
 }
 
 function mountArgs(cfg: FactoryConfig, clone: string, dir: string, mediaDir?: string): string[] {
@@ -204,7 +210,7 @@ export function agentEnv(cfg: FactoryConfig, publicOutput: boolean): Record<stri
   if (publicOutput) return own;
   return {
     ...own, ELEVENLABS_API_KEY: cfg.elevenlabsKey, SFX_MAX_GENERATIONS: String(cfg.sfxMaxGenerations),
-    GEMINI_API_KEY: cfg.geminiKey, AGY_MAX_RUNS: String(cfg.agyMaxRuns), AGY_MODEL: cfg.agyModel,
+    AGY_MAX_RUNS: String(cfg.agyMaxRuns), AGY_MODEL: cfg.agyModel,
     CODEX_MODEL: cfg.codexModel, CODEX_EFFORT: cfg.codexEffort,
   };
 }
@@ -215,10 +221,10 @@ export function dockerContainer(run: Run, cfg: FactoryConfig, jobId: string | nu
       if (!openNetwork) await ensureProxy(run, cfg);
       const session = recordedSession(cfg, jobId, issueSession);
       const env = agentEnv(cfg, publicOutput === true);
-      const codex = publicOutput === true ? [] : codexMount(cfg.home);
+      const logins = publicOutput === true ? [] : [...codexMount(cfg.home), ...agyMount(cfg.home)];
       const readOnlyArgs = await readOnlyMounts(cfg.home, readOnly);
       const argsFor = (peakDir: string) => [
-        ...baseArgs(jobId, cpus, testWorkers, cfg.gpu, peakDir), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...codex, ...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
+        ...baseArgs(jobId, cpus, testWorkers, cfg.gpu, peakDir), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...logins,...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
         'bash', '-c', `${PEAK_TRAP}; factory-agent "$@"`, 'factory-agent', '-p', '--model', model, ...effortArgs(effort), ...advisorArgs(advisor), ...disallowedArgs(disallowedTools), '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose', ...sessionArgs(session),
       ];
       const input = [skill, outputsNote(dir, cfg.agentJobMaxMinutes), prompt].filter((part) => part !== undefined).join('\n\n');

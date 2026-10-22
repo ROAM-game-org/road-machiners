@@ -21,9 +21,8 @@ RUN npm install -g @anthropic-ai/claude-code
 RUN npm install -g @openai/codex && test -f /usr/lib/node_modules/@openai/codex/bin/codex.js
 COPY --chmod=755 codex /usr/local/bin/codex
 
-# agy writes and reviews the game's Russian text, through the Gemini API key. API key mode needs agy 1.1.13 or newer. The wrapper caps its runs.
-RUN curl -fsSL https://antigravity.google/cli/install.sh | bash -s -- --dir /opt/agy \
- && /opt/agy/agy --version | awk '{ split($NF, v, "."); if (v[1] < 1 || (v[1] == 1 && (v[2] < 1 || (v[2] == 1 && v[3] < 13)))) { print "agy " $NF " is older than 1.1.13"; exit 1 } }'
+# agy writes and reviews the game's Russian text, through the Google login mounted at ~/.gemini/antigravity-cli/antigravity-oauth-token. The wrapper caps its runs.
+RUN curl -fsSL https://antigravity.google/cli/install.sh | bash -s -- --dir /opt/agy && /opt/agy/agy --version
 COPY --chmod=755 agy /usr/local/bin/agy
 
 COPY --chmod=755 factory-agent /usr/local/bin/factory-agent
@@ -48,9 +47,8 @@ RUN claude plugin marketplace add https://github.com/btseytlin/ultrapack.git \
  && claude plugin install up@ultrapack \
  && ls /home/pwuser/.claude/plugins/cache/ultrapack/up/*/skills/expand/SKILL.md /home/pwuser/.claude/plugins/cache/ultrapack/up/*/skills/udocument/SKILL.md
 
-# agy uses the Gemini API key only when its settings name the gemini provider. Without that it asks for a Google sign-in.
-RUN mkdir -p /home/pwuser/.gemini/antigravity-cli \
- && echo '{"modelProvider":"gemini"}' > /home/pwuser/.gemini/antigravity-cli/settings.json
+# agy's own folder belongs to pwuser, so the login mount inside it leaves agy free to write its logs and history.
+RUN mkdir -p /home/pwuser/.gemini/antigravity-cli
 
 # Factory commits carry no Claude co-author trailer.
 RUN node -e 'const f=require("os").homedir()+"/.claude/settings.json";const fs=require("fs");const s=fs.existsSync(f)?JSON.parse(fs.readFileSync(f,"utf8")):{};s.attribution={commit:"",pr:""};s.includeCoAuthoredBy=false;fs.writeFileSync(f,JSON.stringify(s,null,2))'
