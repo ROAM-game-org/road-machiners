@@ -1,6 +1,3 @@
-// Traveling dust. Small clouds are decoration, driven by wind alone. Storm banks sit on the sim's
-// own storms in world.weather, so what the player sees matches the sight, speed and wear penalty.
-// A bank's haze follows its storm's stormStrength, eased per frame, and fades out after the storm ends.
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
 import { WEATHER } from '../../data/weather';

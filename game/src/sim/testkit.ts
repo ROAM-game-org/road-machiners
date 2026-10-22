@@ -134,7 +134,7 @@ export function addLootSpot(w: World): { spot: Obstacle; stock: SalvageStock } {
   const orchard = REGION.locations.find((site) => site.id === 'orchard')!;
   const spot: Obstacle = { id: 'farmhouse-1', kind: 'landmark', look: 'farmhouse', pos: { ...orchard.pos }, r: 1.5, yaw: 0 };
   const stock = rollStock(w, spotTable(spot), spot.id, spot.pos, propReach(spot));
-  w.obstacles.push(spot);
+  w.obstacles = [...w.obstacles, spot];
   w.salvage.push(stock);
   return { spot, stock };
 }

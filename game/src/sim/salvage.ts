@@ -562,7 +562,7 @@ function replaceRoadWreck(world: World, old: SalvageStock): void {
   const spot = findRoadWreckSpot(world, world.obstacles, (pos, r) => !inPlayerView(world, pos) && clearOfVehicles(world, pos, r));
   const id = newId(world, 'wreck');
   if (world.obstacles.some((o) => o.id === id)) throw new Error(`Duplicate road wreck ${id}`);
-  world.obstacles.push({ id, ...spot, kind: 'wreck' });
+  world.obstacles = [...world.obstacles, { id, ...spot, kind: 'wreck' }];
   world.salvage.push(rollStock(world, SALVAGE.roadWreck, id, spot.pos, spot.r * RULES.wreckRadiusScale));
 }
 
@@ -584,7 +584,7 @@ function regrowBroken(world: World): void {
   const back = due.filter(({ obstacle }) => canRegrow(world, obstacle));
   if (back.length === 0) return;
   world.broken = world.broken.filter((b) => !back.includes(b));
-  world.obstacles.push(...back.map((b) => b.obstacle));
+  world.obstacles = [...world.obstacles, ...back.map((b) => b.obstacle)];
 }
 
 function canRegrow(world: World, o: Obstacle): boolean {

@@ -62,7 +62,7 @@ describe('heat haze', () => {
     const me = w.vehicles[0].pos;
     const corner = { x: Math.round(me.x + sun.dir.x * 19), y: Math.round(me.y + sun.dir.y * 19) };
     const rock = { x: corner.x + sun.dir.x * 1.5, y: corner.y + sun.dir.y * 1.5 };
-    w.obstacles.push({ id: 'rock-edge', kind: 'rock', pos: rock, r: 1 });
+    w.obstacles = [...w.obstacles, { id: 'rock-edge', kind: 'rock', pos: rock, r: 1 }];
     const casters = shadeCasters(w, me, 20);
     expect(casters.map((o) => o.id)).toContain('rock-edge');
     expect(cornerLook(w, corner.x, corner.y, sun, casters).haze).toBe(0);

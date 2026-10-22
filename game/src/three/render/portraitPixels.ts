@@ -119,10 +119,10 @@ function nearestOwnPixel(ids: Uint16Array, size: PixelSize, idOf: number, cx: nu
   return { x: best.x + 0.5, y: best.y + 0.5 };
 }
 
-export function hiddenOver(ids: Uint16Array, hidden: Uint16Array): Uint16Array {
+export function hiddenOver(ids: Uint16Array, hidden: Uint16Array, coverable: ReadonlySet<number> = new Set([BODY_ID])): Uint16Array {
   if (ids.length !== hidden.length) throw new Error(`Hidden id map holds ${hidden.length} pixels, expected ${ids.length}`);
   const out = ids.slice();
-  for (let p = 0; p < ids.length; p++) if (ids[p] === BODY_ID && hidden[p] !== EMPTY_ID) out[p] = hidden[p];
+  for (let p = 0; p < ids.length; p++) if (coverable.has(ids[p]) && hidden[p] !== EMPTY_ID) out[p] = hidden[p];
   return out;
 }
 

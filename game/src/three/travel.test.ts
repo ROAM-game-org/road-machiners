@@ -1,16 +1,16 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { RULES } from "../data/rules";
-import { buildDrive, captureDrive, freeDrive, initPhysics, restFrame, TURN_STEPS, type Drive } from "../phys/drive";
+import { buildDrive, captureDrive, freeDrive, initPhysics, restFrame, TURN_STEPS, type Drive, type DriveSnapshot } from "../phys/drive";
 import { PHYSICS } from "../data/physics";
 import { physicsMove } from "../phys/turn";
-import { emptyWorld } from "../sim/testkit";
+import { addVehicle, emptyWorld, npcBrain } from "../sim/testkit";
 import { dist } from "../sim/vec";
 import { startKit } from "../data/start";
 import { playerVehicle } from "../sim/damage";
 import type { GameEvent } from "../sim/types";
 import { endTurn, newWorld, setMoveOrder } from "../sim/world";
-import { addRopeFrames, canTravel, overshoots, Travel } from "./travel";
-import { addState } from "../sim/states";
+import { addRopeFrames, canTravel, nextSightSample, overshoots, threatsIn, Travel } from "./travel";
+import { addState, declareFeud } from "../sim/states";
 import { TEST_MAP } from "../test/map";
 import { reusedWorld } from "../test/world-cache";
 import { defaultSetup } from "../sim/settings";
@@ -270,6 +270,18 @@ describe("automatic travel safety", () => {
     expect(canTravel(world)).toBe(true);
   });
 
+  it("finds the threats of a world once and finds them again for the next world", () => {
+    const world = makeSafeWorld();
+    const me = playerVehicle(world);
+    const raider = addVehicle(world, "scrapjaw", "buggy", [], { x: me.pos.x + 5, y: me.pos.y });
+    const calm = addVehicle(world, "scrapjaw", "buggy", [], { x: me.pos.x - 5, y: me.pos.y });
+    for (const v of [raider, calm]) v.brain = npcBrain("raider", v.pos, []);
+    declareFeud(world, raider, me.id);
+    expect(threatsIn(world)).toEqual([raider]);
+    expect(threatsIn(world)).toBe(threatsIn(world));
+    expect(threatsIn({ ...world, vehicles: [me] })).toEqual([]);
+  });
+
   it("stops while the player is in combat, seen hostile or not", () => {
     const world = makeSafeWorld();
     addState(world, "combat", "enemy", world.player.vehicleId, { kind: "none" });
@@ -441,11 +453,11 @@ describe("turns on a tow rope", () => {
   function travelWithPrepared() {
     const prepare = vi.fn();
     const travel = new Travel(250);
-    Object.assign(travel, { turns: { prepareFrom: prepare, take: () => null } });
+    Object.assign(travel, { turns: { prepare, take: () => null } });
     return { travel, prepare };
   }
 
-  const playback = { result: { next: {} }, nextSnapshot: {} } as unknown as Parameters<Travel["prepareNext"]>[1];
+  const playback = { result: { next: {} } } as unknown as Parameters<Travel["prepareNext"]>[1];
 
   it("prepare the next turn during playback with no key held", () => {
     const { travel, prepare } = travelWithPrepared();
@@ -485,20 +497,19 @@ describe("every turn that runs on its own", () => {
 
   function travelWithTurns(take: () => unknown = () => null) {
     const prepare = vi.fn();
-    const prepareFrom = vi.fn();
     const travel = new Travel(250);
-    Object.assign(travel, { turns: { prepare, prepareFrom, take } });
-    return { travel, prepare, prepareFrom };
+    Object.assign(travel, { turns: { prepare, take } });
+    return { travel, prepare };
   }
 
-  const playback = { result: { next: {} }, nextSnapshot: {} } as unknown as Parameters<Travel["prepareNext"]>[1];
-  const drive = {} as Drive;
+  const playback = { result: { next: {} } } as unknown as Parameters<Travel["prepareNext"]>[1];
+  const drive = {} as DriveSnapshot;
   const kinds = ["knockedOut", "towed", "beacon"] as const;
 
   it.each(kinds)("prepares the next turn during playback while %s", (kind) => {
-    const { travel, prepareFrom } = travelWithTurns();
+    const { travel, prepare } = travelWithTurns();
     travel.prepareNext(stranded(kind), playback, 0);
-    expect(prepareFrom).toHaveBeenCalledTimes(1);
+    expect(prepare).toHaveBeenCalledTimes(1);
   });
 
   it.each(kinds)("begins the prepared turn with no key held while %s", (kind) => {
@@ -507,11 +518,11 @@ describe("every turn that runs on its own", () => {
   });
 
   it.each(kinds)("waits once stopped while %s", (kind) => {
-    const { travel, prepareFrom } = travelWithTurns(() => ready);
+    const { travel, prepare } = travelWithTurns(() => ready);
     const world = stranded(kind);
     travel.stopAuto(world);
     travel.prepareNext(world, playback, 0);
-    expect(prepareFrom).not.toHaveBeenCalled();
+    expect(prepare).not.toHaveBeenCalled();
     expect(travel.takeReady(world, drive, 0)).toBeNull();
   });
 
@@ -586,7 +597,7 @@ describe("every turn that runs on its own", () => {
     });
 
     it.each(["wake", "call", "dead"])("lets a held press end with the run on %s", (end) => {
-      const { travel, prepareFrom } = travelWithTurns(() => ready);
+      const { travel, prepare } = travelWithTurns(() => ready);
       const world = stranded("knockedOut");
       at(1000);
       travel.pressTurn(true, world);
@@ -598,7 +609,7 @@ describe("every turn that runs on its own", () => {
       expect(travel.shouldAdvance(2000)).toBe(false);
       expect(travel.takeReady(world, drive, 2000)).toBeNull();
       travel.prepareNext(world, playback, 2000);
-      expect(prepareFrom).not.toHaveBeenCalled();
+      expect(prepare).not.toHaveBeenCalled();
     });
 
     it("keeps a held press through turns while still knocked out, but drops it at the knockout", () => {
@@ -620,5 +631,16 @@ describe("every turn that runs on its own", () => {
       drop.beginPlayback(awake, prepared(out), 1000, 0, {});
       expect(drop.isFast(1300)).toBe(false);
     });
+  });
+});
+
+describe("nextSightSample", () => {
+  it("shows the latest sight sample the playback reached and explores every sample it passed", () => {
+    const live = { visible: new Set<number>(), explored: new Uint8Array(10), sight: { steps: [0, 3, 6], tiles: [[1], [2, 3], [4]] }, shown: -1 };
+    expect(nextSightSample(live, 0.5)).toBe(0);
+    expect(nextSightSample(live, 2)).toBeNull();
+    expect(nextSightSample(live, 7)).toBe(2);
+    expect([...live.visible]).toEqual([4]);
+    expect([...live.explored]).toEqual([0, 1, 1, 1, 1, 0, 0, 0, 0, 0]);
   });
 });

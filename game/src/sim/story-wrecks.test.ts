@@ -69,7 +69,7 @@ describe('story wrecks', () => {
     stock.parts = [];
     stock.fuel = 0;
     stock.supplies = 0;
-    w.obstacles.push({ id: WAGON.id, pos: WAGON.pos, r: WAGON.r, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: WAGON.yaw } });
+    w.obstacles = [...w.obstacles, { id: WAGON.id, pos: WAGON.pos, r: WAGON.r, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: WAGON.yaw } }];
 
     for (let day = 1; day <= 10; day++) {
       w.turn = day * TIME.turnsPerDay;
@@ -82,7 +82,7 @@ describe('story wrecks', () => {
 
   it('is never cleared by many kill wrecks', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    w.obstacles.push({ id: WAGON.id, pos: WAGON.pos, r: WAGON.r, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: WAGON.yaw } });
+    w.obstacles = [...w.obstacles, { id: WAGON.id, pos: WAGON.pos, r: WAGON.r, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: WAGON.yaw } }];
     for (let k = 0; k < RULES.maxKillWrecks + 3; k++) wreckVehicle(w, addVehicle(w, 'scrapjaw', 'scout', [], { x: 60 + k * 3, y: 60 }));
 
     resolveDestroyed(w);

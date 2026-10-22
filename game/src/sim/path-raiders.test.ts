@@ -463,7 +463,7 @@ describe('nav layers match the old grid rules', () => {
   const w = startWorld(1);
   const rand = mulberry(8);
   const at = (lo: number, hi: number) => lo + (hi - lo) * rand();
-  for (let i = 0; i < 4; i++) w.obstacles.push({ id: `wreck-t${i}`, pos: { x: at(40, w.size - 40), y: at(40, w.size - 40) }, r: 1, kind: 'wreck' });
+  for (let i = 0; i < 4; i++) w.obstacles = [...w.obstacles, { id: `wreck-t${i}`, pos: { x: at(40, w.size - 40), y: at(40, w.size - 40) }, r: 1, kind: 'wreck' }];
   const pairs = Array.from({ length: 10 }, (_, i) => {
     const from = { x: at(5, w.size - 5), y: at(5, w.size - 5) };
     const reach = i % 2 === 0 ? 30 : w.size;
@@ -588,7 +588,7 @@ describe('long routes search a coarse corridor', () => {
     const center = { x: 100, y: 100 };
     for (let i = 0; i < 64; i++) {
       const a = (i / 64) * 2 * Math.PI;
-      w.obstacles.push({ id: `ring-${i}`, pos: { x: center.x + 10 * Math.cos(a), y: center.y + 10 * Math.sin(a) }, r: 1, kind: 'rock' });
+      w.obstacles = [...w.obstacles, { id: `ring-${i}`, pos: { x: center.x + 10 * Math.cos(a), y: center.y + 10 * Math.sin(a) }, r: 1, kind: 'rock' }];
     }
     const layer = navLayer(w.terrain, w.obstacles, 0.6);
     const n = layer.n;
@@ -635,7 +635,7 @@ describe('long routes search a coarse corridor', () => {
 
   it('a corridor cut by a kill wreck wall falls back to the full search', () => {
     const w = emptyWorld();
-    for (let y = 16; y < w.size; y += 1.5) w.obstacles.push({ id: `wreck-w${y}`, pos: { x: 80, y }, r: 1, kind: 'wreck' });
+    for (let y = 16; y < w.size; y += 1.5) w.obstacles = [...w.obstacles, { id: `wreck-w${y}`, pos: { x: 80, y }, r: 1, kind: 'wreck' }];
     const radius = 0.6;
     const layer = navLayer(w.terrain, w.obstacles, radius);
     const overlay = stampOverlay(layer, dynamicBlockers(w.obstacles, w.terrain, []), radius);

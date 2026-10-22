@@ -505,7 +505,7 @@ class GroundFieldsView {
   constructor() {
     const primers = new THREE.Group();
     primers.visible = false;
-    primers.add(new THREE.Mesh(new THREE.BufferGeometry(), this.oilMaterial), new THREE.Mesh(new THREE.BufferGeometry(), this.sheenMaterial(OIL_LOOK.sheen.opacity)));
+    primers.add(new THREE.Mesh(slickPrimer(), this.oilMaterial), new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.sheenMaterial(OIL_LOOK.sheen.opacity)));
     this.root.add(primers);
   }
 
@@ -631,6 +631,13 @@ function onLine(f: GroundField, dir: Vec, k: number): Vec {
   const across = ((hash2(k, 5) + hash2(k, 17) + hash2(k, 19) - 1.5) / 1.5) * f.r * FIELD_LOOK.across * 2;
   const shrink = Math.min(1, f.r / Math.max(1e-6, Math.hypot(along, across)));
   return { x: f.pos.x + (dir.x * along - dir.y * across) * shrink, y: f.pos.y + (dir.y * along + dir.x * across) * shrink };
+}
+
+function slickPrimer(): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(9), 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
+  geometry.setIndex([0, 1, 2]);
+  return geometry;
 }
 
 function blobGeometry(terrain: Terrain, f: GroundField, seed: number, spread: number): THREE.BufferGeometry {

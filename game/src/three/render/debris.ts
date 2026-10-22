@@ -42,7 +42,7 @@ export function disposeTree(obj: THREE.Object3D): void {
     if (o instanceof THREE.Mesh) {
       o.geometry.dispose();
       const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of mats) m.dispose();
+      for (const m of mats) if (!m.userData.shared) m.dispose();
     }
   });
 }

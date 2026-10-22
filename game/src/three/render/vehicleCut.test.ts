@@ -157,10 +157,9 @@ describe.each(Object.keys(CHASSIS).filter((id) => !isRig(id)))('armor cut on %s'
     for (const m of lit) expect(m.matrixWorld.equals(new THREE.Matrix4()), `${m.userData.partId}`).toBe(true);
   });
 
-  it('draws all armor of one color as one mesh, so plates cost no extra draw calls', () => {
+  it('draws armor of every color as one mesh per surface, colored per vertex, so plates cost no extra draw calls', () => {
     const plates = v.items.filter((item) => item.kind === 'part' && !hidesInside(v, item) && partDef(item.part.defId).kind === 'armor');
-    const colors = lit.map((m) => `${(materialOf(m) as THREE.MeshLambertMaterial).color.getHex()}|${materialOf(m).name}`);
-    expect(new Set(colors).size).toBe(colors.length);
+    expect(lit.every((m) => (materialOf(m) as THREE.MeshLambertMaterial).vertexColors && m.geometry.getAttribute('color'))).toBe(true);
     expect(lit.length).toBeLessThan(plates.length);
     expect(lit.every((m) => m.userData.partId === undefined)).toBe(true);
   });

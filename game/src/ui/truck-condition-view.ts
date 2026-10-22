@@ -23,14 +23,16 @@ type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type PartWork = { partId: string; done: number };
 export type ConditionAim = { marks: ReadonlyMap<string, number[]>; pick: (partId: string) => void };
 
-const urls = new WeakMap<HTMLCanvasElement, string>();
+const urls = new WeakMap<HTMLCanvasElement, Promise<string>>();
 
-function urlOf(canvas: HTMLCanvasElement): string {
-  const known = urls.get(canvas);
-  if (known) return known;
-  const url = canvas.toDataURL("image/png");
-  urls.set(canvas, url);
-  return url;
+function encoded(canvas: HTMLCanvasElement): Promise<string> {
+  return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(URL.createObjectURL(blob)) : reject(new Error("A truck portrait layer could not be encoded")))));
+}
+
+function withUrl(canvas: HTMLCanvasElement, use: (url: string) => void): void {
+  const pending = urls.get(canvas) ?? encoded(canvas);
+  urls.set(canvas, pending);
+  void pending.then(use);
 }
 
 function wholeOf(portrait: Portrait, canvas: HTMLCanvasElement): Glow {
@@ -47,14 +49,16 @@ function placeGlow(node: HTMLElement, portrait: Portrait, glow: Glow): HTMLEleme
 
 function layerImage(className: string, portrait: Portrait, glow: Glow, tier: string): HTMLElement {
   const img = el("img", { class: className, "data-tier": tier, "aria-hidden": "true" });
-  (img as HTMLImageElement).src = urlOf(glow.canvas);
+  withUrl(glow.canvas, (url) => ((img as HTMLImageElement).src = url));
   return placeGlow(img, portrait, glow);
 }
 
 function maskedLayer(className: string, portrait: Portrait, glow: Glow): HTMLElement {
   const layer = el("div", { class: className });
-  layer.style.setProperty("-webkit-mask-image", `url("${urlOf(glow.canvas)}")`);
-  layer.style.setProperty("mask-image", `url("${urlOf(glow.canvas)}")`);
+  withUrl(glow.canvas, (url) => {
+    layer.style.setProperty("-webkit-mask-image", `url("${url}")`);
+    layer.style.setProperty("mask-image", `url("${url}")`);
+  });
   return placeGlow(layer, portrait, glow);
 }
 

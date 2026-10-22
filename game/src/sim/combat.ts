@@ -954,13 +954,13 @@ export function wreckVehicle(world: World, v: Vehicle): void {
   if (modeRules(world).looting) createWreckSalvage(world, v);
   world.vehicles = world.vehicles.filter((x) => x.id !== v.id);
   world.removed.push(v);
-  world.obstacles.push({
+  world.obstacles = [...world.obstacles, {
     id: `wreck-${v.id}`,
     pos: { ...v.pos },
     r: vehicleStats(world, v).radius * RULES.wreckRadiusScale,
     kind: "wreck",
     hulk: { chassisId: v.chassisId, yaw: v.heading, ...(v.bend === undefined ? {} : { bend: v.bend }) },
-  });
+  }];
   world.events.push({
     t: "destroyed",
     vehicle: v.id,

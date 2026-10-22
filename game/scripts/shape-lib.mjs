@@ -1,6 +1,3 @@
-// Turns a model's triangles into collision boxes. The prop and truck shape scripts share it.
-// Each model's triangles are rasterized on a grid of cfg.cell meters in model space. Every cell keeps the height
-// slabs its geometry fills. Cells merge into boxes by height band, and then the boxes merge down to cfg.maxBoxes.
 
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { LoadingManager, Texture, Vector3 } from 'three';

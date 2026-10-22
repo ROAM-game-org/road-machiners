@@ -34,7 +34,10 @@ function truck(): Vehicle {
 function colors(view: VehicleView): string {
   const hexes = new Set<number>();
   view.root.traverse((o) => {
-    if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial) hexes.add(o.material.color.getHex());
+    if (!(o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial)) return;
+    const tint = o.geometry.getAttribute('color');
+    if (!o.material.vertexColors || !tint) return void hexes.add(o.material.color.getHex());
+    for (let i = 0; i < tint.count; i++) hexes.add(new THREE.Color(tint.getX(i), tint.getY(i), tint.getZ(i)).getHex());
   });
   return [...hexes].sort().join(',');
 }
@@ -70,6 +73,45 @@ describe('part wear look', () => {
     part.hp = max;
     view.update(v, true, PAINT.standard);
     expect(colors(view)).toBe(clean);
+  });
+
+  it('keeps the old look while a budgeted rebuild runs in steps, then shows the new look in the same root', () => {
+    const v = truck();
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
+    const clean = colors(view);
+    const root = view.root;
+    const part = mountedParts(v).find((p) => maxHp(p) > 1)!;
+    part.hp = 1;
+    const oneStep = { take: () => ((oneStep.left -= 1) >= 0), ready: () => true, left: 0 };
+    let calls = 0;
+    while (colors(view) === clean) {
+      oneStep.left = 1;
+      view.update(v, true, PAINT.standard, oneStep);
+      calls++;
+      expect(calls).toBeLessThan(20);
+    }
+    expect(calls).toBeGreaterThan(3);
+    expect(view.root).toBe(root);
+    expect(colors(view)).toBe(colors(new VehicleView(v, true, PAINT.standard, 'world')));
+    const meshes = (view.root.children.length);
+    oneStep.left = 1;
+    view.update(v, true, PAINT.standard, oneStep);
+    expect(oneStep.left).toBe(1);
+    expect(view.root.children.length).toBe(meshes);
+  });
+
+  it('keeps the old look after the new one is built until its shaders are ready', () => {
+    const v = truck();
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
+    const clean = colors(view);
+    mountedParts(v).find((p) => maxHp(p) > 1)!.hp = 1;
+    const budget = { take: () => true, ready: () => budget.compiled, compiled: false };
+    view.update(v, true, PAINT.standard, budget);
+    view.update(v, true, PAINT.standard, budget);
+    expect(colors(view)).toBe(clean);
+    budget.compiled = true;
+    view.update(v, true, PAINT.standard, budget);
+    expect(colors(view)).not.toBe(clean);
   });
 
   it('draws the new-game truck with a nearly broken engine and a worn body', () => {

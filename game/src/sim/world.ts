@@ -47,7 +47,7 @@ import { endCallIfOut, raiseCalls } from './dialogue';
 import { advancePatches } from './patch';
 import { advanceAid, readyAid } from './aid';
 import { readyHandover } from './parcel';
-import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSetup, XpSource } from './types';
+import type { GridItem, MoveOrder, Obstacle, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSetup, XpSource } from './types';
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
 import { QUESTS, openRoadScene, type CarriedQuestVars } from './quests';
 import { repairQuests, type SavedRevisions } from './quest-repair';
@@ -241,9 +241,18 @@ export function townStart(): { pos: Vec; heading: number } {
 }
 
 export function cloneWorld(world: World): World {
-  if (!Object.isFrozen(world.terrain)) return structuredClone(world);
-  const { terrain, ...state } = world;
-  return { ...structuredClone(state), terrain };
+  const { terrain, obstacles, ...state } = world;
+  return { ...structuredClone(state), obstacles: frozenObstacles(obstacles), terrain: Object.isFrozen(terrain) ? terrain : structuredClone(terrain) };
+}
+
+function frozenObstacles(obstacles: Obstacle[]): Obstacle[] {
+  if (Object.isFrozen(obstacles)) return obstacles;
+  for (const o of obstacles) {
+    Object.freeze(o.pos);
+    if ('hulk' in o && o.hulk) Object.freeze(o.hulk);
+    Object.freeze(o);
+  }
+  return Object.freeze(obstacles) as Obstacle[];
 }
 
 export function update(world: World, fn: (draft: World) => void): World {

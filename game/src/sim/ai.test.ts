@@ -90,8 +90,7 @@ const DEST = { x: 130, y: 100 };
 
 function corridor(w: World): void {
   for (let x = 90; x <= 140; x++) {
-    w.obstacles.push({ id: `n${x}`, kind: 'rock', pos: { x, y: 97 }, r: 1 });
-    w.obstacles.push({ id: `s${x}`, kind: 'rock', pos: { x, y: 103 }, r: 1 });
+    w.obstacles = [...w.obstacles, { id: `n${x}`, kind: 'rock', pos: { x, y: 97 }, r: 1 }, { id: `s${x}`, kind: 'rock', pos: { x, y: 103 }, r: 1 }];
   }
 }
 

@@ -364,7 +364,7 @@ describe('sight from the wing', () => {
     expect(deckAt(ICARUS_DECKS, onGround.pos.x, onGround.pos.y)).toBeNull();
     expect(canVehicleSee(w, onGround, target)).toBe(true);
 
-    w.obstacles.push({ id: 'plate', pos: at(mid, 0, 11), r: 1.3, kind: 'landmark', look: 'hullChunk', yaw: 0 });
+    w.obstacles = [...w.obstacles, { id: 'plate', pos: at(mid, 0, 11), r: 1.3, kind: 'landmark', look: 'hullChunk', yaw: 0 }];
 
     expect(canVehicleSee(w, onGround, target)).toBe(false);
     expect(canVehicleSee(w, onSpan, target)).toBe(true);

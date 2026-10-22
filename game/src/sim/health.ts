@@ -1,5 +1,3 @@
-// The player's driver heals while parked with supplies, faster in a town. Toughness raises max health and the
-// healing rate. The Long haul perk heals while driving too.
 
 import { ECONOMY } from '../data/goods';
 import { EFFORT } from '../data/market';

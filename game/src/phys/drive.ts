@@ -9,7 +9,8 @@ import { PERF } from '../data/perf';
 import { PHYSICS } from '../data/physics';
 import { BREAKABLE, CRATER, RULES } from '../data/rules';
 import { fuelLimited, isNear } from '../sim/far';
-import { blockingBoxes, isBreakable, isDriveObstacle, obstacleReach } from '../sim/mapgen';
+import { blockingBoxes, isBreakable } from '../sim/mapgen';
+import { propsAroundInOrder } from '../sim/prop-index';
 import { playerVehicle } from '../sim/damage';
 import { groundSpeed, vehicleStats, type VehicleStats } from '../sim/stats';
 import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
@@ -30,7 +31,7 @@ import { bendField, followPose, reachMeters, unitPoses } from '../sim/rig';
 import { wheelMounts } from './body';
 import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius, type Stance } from './turnaround';
 import { headingOf, headingQuat, noseRise, rideHeightAt, rotateBy, toPhys, toPhysCircle, TURN_STEPS, upOf, type Circle, type Quat, type TurnFrames, type V3, type VehicleFrame } from './frames';
-import { addVehicle, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, makeTrailer, placeBodies, rearIndex, rollUnits, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
+import { addVehicle, carrySpins, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, makeTrailer, placeBodies, rearIndex, rollUnits, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
 
 export { frameWheels, restFrame, restFrames, restWheels, trailFrames, TURN_STEPS, type UnitWheels } from './frames';
 import { oilPatches } from '../sim/hazards';
@@ -50,7 +51,7 @@ export const RAIL = 'rail';
 export const toMps = (tilesPerTurn: number) => (tilesPerTurn * S) / PHYSICS.turnSeconds;
 export const toTilesPerTurn = (mps: number) => (mps * PHYSICS.turnSeconds) / S;
 
-type Memory = { steer: number; reverse: boolean; route: (KeptRoute & { radius: number }) | null; ahead: Vec | null; stall: number; backFrom: Vec | null; swing: number; airborne: boolean; clearAhead: number; clearMoving: number; clearBehind: number; clearAt: number; roomAt: number; roomBack: boolean | null; roomTurn: { side: 1 | -1; clear: boolean } | null; anchor: V3 | null; rearAnchor: V3 | null };
+type Memory = { steer: number; reverse: boolean; route: (KeptRoute & { radius: number }) | null; ahead: Vec | null; stall: number; backFrom: Vec | null; swing: number; airborne: boolean; clearAhead: number; clearMoving: number; clearBehind: number; clearAt: number; roomAt: number; roomBack: boolean | null; roomTurn: { side: 1 | -1; clear: boolean } | null; anchor: V3 | null; rearAnchor: V3 | null; spins: number[]; rearSpins: number[] };
 
 export type Drive = {
   world: RAPIER.World;
@@ -139,17 +140,15 @@ function checkColliders(d: Drive, id: string, handles: number[]): void {
 }
 
 function syncObstacles(d: Drive, w: World): void {
-  const live = w.obstacles.filter((o) => isDriveObstacle(o) && inLiveRange(w, o.pos, obstacleReach(o)));
+  const live = propsAroundInOrder(w, 'drive', playerVehicle(w).pos, LIVE_RANGE);
   dropColliders(d, d.obstacles, new Set(live.map((o) => o.id)));
   for (const o of live) {
     if (d.obstacles[o.id] === undefined) d.obstacles[o.id] = addColliders(d, obstacleColliders(w.terrain, o));
   }
 }
 
-function inLiveRange(w: World, pos: Vec, reach: number): boolean {
-  const range = TERRAIN.vision.radius + PERF.liveMargin + PHYSICS.propLiveMargin;
-  return dist(pos, playerVehicle(w).pos) <= range + reach;
-}
+const LIVE_RANGE = TERRAIN.vision.radius + PERF.liveMargin + PHYSICS.propLiveMargin;
+const inLiveRange = (w: World, pos: Vec, reach: number) => dist(pos, playerVehicle(w).pos) <= LIVE_RANGE + reach;
 
 function dropColliders(d: Drive, record: Record<string, number[]>, keep: Set<string>): void {
   for (const [id, handles] of Object.entries(record)) {
@@ -225,7 +224,7 @@ function syncVehicle(d: Drive, w: World, v: Vehicle): void {
   dropSwapped(d, v);
   if (d.bodies[v.id] === undefined) {
     addVehicle(d, w, v);
-    d.memory[v.id] ??= { steer: 0, reverse: false, route: null, ahead: null, stall: 0, backFrom: null, swing: 0, airborne: false, clearAhead: Infinity, clearMoving: Infinity, clearBehind: Infinity, clearAt: 0, roomAt: 0, roomBack: null, roomTurn: null, anchor: null, rearAnchor: null };
+    d.memory[v.id] ??= { steer: 0, reverse: false, route: null, ahead: null, stall: 0, backFrom: null, swing: 0, airborne: false, clearAhead: Infinity, clearMoving: Infinity, clearBehind: Infinity, clearAt: 0, roomAt: 0, roomBack: null, roomTurn: null, anchor: null, rearAnchor: null, spins: [], rearSpins: [] };
     return;
   }
   const bodies = unitBodies(d, v);
@@ -288,7 +287,7 @@ function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAP
     throws.apply(contacts.takeNewCrashes());
     for (const c of cars) frames[c.v.id].push(frameOf(c, before.get(c.v.id)!.velocity));
   }
-  for (const c of cars) dropControllers(world, c);
+  for (const c of cars) dropControllers(world, carrySpins(c, frames[c.v.id].at(-1)));
   const results = Object.fromEntries(cars.map((c) => [c.v.id, c.result]));
   const obstacles = Object.fromEntries(Object.entries(d.obstacles).filter(([id]) => !contacts.isBroken(id)));
   return { next: { world, bodies: { ...d.bodies }, rears: { ...d.rears }, couplings: { ...d.couplings }, shapes: { ...d.shapes }, obstacles, craters: { ...d.craters }, memory, terrain: d.terrain, decks: d.decks }, frames, crashes: contacts.crashes, breaks: contacts.breaks, landings: landings.all(), tears: lines.tears, results };

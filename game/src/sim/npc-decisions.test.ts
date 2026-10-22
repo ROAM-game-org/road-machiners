@@ -438,7 +438,7 @@ describe('decision points', () => {
     thinkNpc(w, npc);
     thinkNpc(w, npc);
     expect(w.rngState).toBe(rng);
-    w.obstacles.push({ id: 'cover', kind: 'rock', pos: { x: 12, y: 10 }, r: 1 });
+    w.obstacles = [...w.obstacles, { id: 'cover', kind: 'rock', pos: { x: 12, y: 10 }, r: 1 }];
     w.turn += NPC_BEHAVIOR.noticeMemory;
     thinkNpc(w, npc);
     expect(chosen()).toBe('keep');

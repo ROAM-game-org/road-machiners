@@ -65,6 +65,12 @@ describe("hiddenOver", () => {
     const hidden = ids(4, [[8, 8, 8, EMPTY_ID]]);
     expect(Array.from(hiddenOver(map, hidden))).toEqual([EMPTY_ID, 8, 3, BODY_ID]);
   });
+
+  it("also claims the pixels of the ids it is told may be covered", () => {
+    const map = ids(4, [[EMPTY_ID, BODY_ID, 3, 4]]);
+    const hidden = ids(4, [[8, 8, 8, 8]]);
+    expect(Array.from(hiddenOver(map, hidden, new Set([BODY_ID, 3])))).toEqual([EMPTY_ID, 8, 8, 4]);
+  });
 });
 
 describe("idsOf", () => {

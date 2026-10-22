@@ -5,12 +5,9 @@ import { QUESTS, relanguageQuest } from "../sim/quests";
 import { getSearchAction } from "../ui/hud-readout";
 import { PHYSICS } from "../data/physics";
 import {
-  buildDrive,
-  freeDrive,
   restFrame,
-  syncDrive,
   TURN_STEPS,
-  type Drive,
+  type DriveSnapshot,
   type TurnResult,
 } from "../phys/drive";
 import {
@@ -21,19 +18,19 @@ import {
   type V3,
   type VehicleFrame,
 } from "../phys/frames";
-import { type PreparedTurn } from "../phys/turn";
+import { driveSnapshotOf, type PreparedTurn } from "../phys/turn";
 import { playerTrucks, playerVehicle, vehicleById } from "../sim/damage";
 
 import { inOverdrive, isStranded, maxTurn, vehicleStats } from "../sim/stats";
 import { clickOrder } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
-import { grayRadius, playerSees, tileOf, visibleTiles } from "../sim/vision";
-import { dist, type Vec } from "../sim/vec";
+import { grayRadius, playerSees, tileOf } from "../sim/vision";
+import type { Vec } from "../sim/vec";
 import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
 import { engineOverheating } from "../sim/engine-heat";
-import { Refused, hostileToPlayer, playerCanAct, setMoveOrder, threatToPlayer } from "../sim/world";
+import { Refused, hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
 import { refusalText } from "../text/names";
 import { TruckContext, TruckControls } from "./truck-controls";
 import { PAL } from "../render/palette";
@@ -42,7 +39,7 @@ import { timed } from "../perf";
 import { HitCard } from "../ui/hitCard";
 import type { UiHost } from "../ui/host";
 import { ModalScreens } from "./screens";
-import { failLoudOnShaderError } from "./shader-errors";
+import { ShaderWarmup } from "./shader-errors";
 import { Hud } from "../ui/hud";
 import { hasExplorationMap } from "../sim/settings";
 import { Minimap } from "../ui/minimap";
@@ -67,14 +64,14 @@ import { SiteLights } from "./render/siteLights";
 import { addShipDecks } from "./render/ship-decks";
 import { terrainMesh } from "./render/terrain";
 import { type WebGLSurface } from "./webgl";
-import { RadioLights, VehicleView } from "./render/vehicle";
+import { FRAME_REBUILDS, VehicleView, type RebuildBudget } from "./render/vehicle";
 import { HoverArcsView, vehicleOrigins, WeaponRangeView } from "./render/weaponRange";
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
 import type { SoundSettings } from "../ui/sound";
 import { CLOUD_SHADOWS } from "./render/cloudShadows";
-import { daylightAt, enableSunShadows, lightScene, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
+import { daylightAt, enableSunShadows, lightScene, RadioLights, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { ContactsView } from "./render/contacts";
 import { CloudViews } from "./render/clouds";
@@ -103,13 +100,12 @@ import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { HostileSighting } from "./hostile-sighting";
-import { Travel, type Playback, type LiveVision } from "./travel";
+import { nextSightSample, threatsIn, Travel, type Playback, type LiveVision } from "./travel";
 import { PlayClock } from "./play-clock";
 
 
 const PICK_PX = 30;
 const MIN_ZONE_HALF_ANGLE = Math.PI / 12;
-const LIVE_VISION_STEP = 0.35;
 
 type TurnPhase = ReturnType<UiHost["getTurnPhase"]>;
 
@@ -120,7 +116,7 @@ const GUN_HEIGHT = 1.6;
 
 export class Game {
   private world: World;
-  private drive: Drive;
+  private drive: DriveSnapshot;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly sun = sunLight();
@@ -135,6 +131,8 @@ export class Game {
     className: "storm-tint",
   });
   readonly rig: CameraRig;
+  private readonly shaders: ShaderWarmup;
+  private readonly rebuilds: RebuildBudget = { take: () => FRAME_REBUILDS.take(), ready: (root) => this.shaders.ready(root) };
   private readonly ground = new THREE.Group();
   private readonly props = new THREE.Group();
   private readonly scopes: RenderScope[];
@@ -164,6 +162,7 @@ export class Game {
   private sightingToSound = false;
   private readonly engineStrain = new EngineStrain();
   private readonly views = new Map<string, VehicleView>();
+  private readonly building = new Map<string, VehicleView>();
   private readonly radioLights = new RadioLights();
   private frames: Record<string, VehicleFrame> = {};
   private anim: Playback | null = null;
@@ -210,40 +209,28 @@ export class Game {
   private readonly death: DeathScreen;
   private readonly saves: GameSaves;
 
-  constructor(
-    world: World,
-    run: Run,
-    container: HTMLElement,
-    overlay: HTMLElement,
-    player: SoundPlayer,
-    readonly music: CombatMusic,
-    private readonly soundSettings: SoundSettings,
-    radio: RadioPanel,
-    surface: WebGLSurface,
-  ) {
+  constructor(world: World, run: Run, container: HTMLElement, overlay: HTMLElement, player: SoundPlayer, readonly music: CombatMusic, private readonly soundSettings: SoundSettings, radio: RadioPanel, surface: WebGLSurface) {
     this.renderer = new THREE.WebGLRenderer({ canvas: surface.canvas, context: surface.context, antialias: true, stencil: true });
     this.world = world;
     this.saves = new GameSaves(run, (text) => this.hud.note(this.world, text, "bad"), (text) => this.hud.note(this.world, text, "dim"));
-    this.drive = buildDrive(this.world);
-    setTimeout(() => this.travel.warm(this.world, this.drive));
+    this.drive = driveSnapshotOf(this.world);
+    setTimeout(() => (this.travel.warm(this.world, this.drive), this.plans.warm(this.world.terrain)));
 
     subscribeInputMode(() => this.refreshUi());
     installTouchTips(uiRoot(), touchMode);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     enableSunShadows(this.renderer);
-    failLoudOnShaderError(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);
     this.view = container;
     this.rig = new CameraRig(this.renderer.domElement);
+    this.shaders = new ShaderWarmup(this.renderer, this.scene, this.rig.camera, reportError);
     this.follow = new TruckFollow(this.rig, new KeyPan(this.ignoresKey), this.renderer.domElement);
 
     this.scene.background = new THREE.Color(PAL.bg);
     this.renderer.domElement.classList.add("view");
-    this.scene.add(this.sky);
-    this.scene.add(this.sun, this.sun.target);
-    this.scene.add(this.pickRing.mesh);
+    this.scene.add(this.sky, this.sun, this.sun.target, this.pickRing.mesh);
 
     this.sightLimit = new SightLimit(this.world.size);
     const groundScope = new RenderScope(this.ground, this.world.size, this.sightLimit, false, false);
@@ -262,22 +249,8 @@ export class Game {
     this.shade = new ShadeView(this.world, groundChunks, this.play);
     this.weather = new WeatherView(this.world);
     this.hoverArcs = new HoverArcsView(overlay, this.rig);
-    this.scene.add(
-      this.ground,
-      this.props,
-      this.shade.mesh,
-      this.weather.root,
-      this.zones.root,
-      this.path.root,
-      this.rescueAreas.root,
-      this.weaponRange.root,
-      this.hoverArcs.root,
-      this.contacts.root,
-      this.clouds.root,
-      this.utilityAim.root,
-      this.soundRing.root,
-      this.beaconPulse.root,
-    );
+    this.scene.add(this.ground, this.props, this.shade.mesh, this.weather.root, this.zones.root, this.path.root, this.rescueAreas.root, this.weaponRange.root);
+    this.scene.add(this.hoverArcs.root, this.contacts.root, this.clouds.root, this.utilityAim.root, this.soundRing.root, this.beaconPulse.root);
     this.overlay = overlay;
     this.markers = new VehicleMarkers(overlay, this.rig);
     overlay.append(this.vignette, this.stormTint);
@@ -420,7 +393,6 @@ export class Game {
     this.travel.pause();
     this.world = next;
     this.saves.logWorld(next);
-    syncDrive(this.drive, this.world);
     this.refreshUi();
   }
 
@@ -452,13 +424,7 @@ export class Game {
     this.uiStale = false;
     this.menu.refresh();
     const me = playerVehicle(this.world);
-    if (
-      this.selected &&
-      !vehicleStats(this.world, me).weapons.some(
-        (mw) => mw.part.id === this.selected,
-      )
-    )
-      this.selected = null;
+    if (this.selected && !vehicleStats(this.world, me).weapons.some((mw) => mw.part.id === this.selected)) this.selected = null;
     if (!this.anim) {
       timed("fog", () => this.fog.update(this.world));
       this.shade.update(this.world);
@@ -475,14 +441,7 @@ export class Game {
     this.weapons.render();
     this.screens.render();
     const { action, count, index } = this.context.shown();
-    this.hud.renderAction(
-      action,
-      count,
-      index,
-      this.displayWorld(),
-      () => this.runKey("KeyE"),
-      (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"),
-    );
+    this.hud.renderAction(action, count, index, this.displayWorld(), () => this.runKey("KeyE"), (step) => this.runKey(step === 1 ? "ArrowRight" : "ArrowLeft"));
     this.refreshInfo();
     this.refreshTargetMarkers();
   }
@@ -756,22 +715,12 @@ export class Game {
   }
 
   private canShowCombatVehicle(v: Vehicle): boolean {
-    return (
-      this.isVehicleVisible(v) ||
-      this.world.events.some(
-        (e) =>
-          e.t === "shot" &&
-          e.shooter === this.world.player.vehicleId &&
-          e.target === v.id,
-      )
-    );
+    return this.isVehicleVisible(v) || this.world.events.some((e) => e.t === "shot" && e.shooter === this.world.player.vehicleId && e.target === v.id);
   }
 
   private lingers(v: Vehicle): boolean {
     const seen = this.lastSeen.get(v.id);
-    return (
-      seen !== undefined && this.world.turn - seen <= TERRAIN.vision.lingerTurns
-    );
+    return seen !== undefined && this.world.turn - seen <= TERRAIN.vision.lingerTurns;
   }
 
   private isVehicleVisible(v: Vehicle): boolean {
@@ -822,7 +771,7 @@ export class Game {
   }
 
   private updateTravel(): void {
-    const threats = this.world.vehicles.filter((v) => threatToPlayer(this.world, v) && this.isVehicleVisible(v)).map((v) => v.id);
+    const threats = threatsIn(this.world).filter((v) => this.isVehicleVisible(v)).map((v) => v.id);
     const { sighted } = this.hostileSighting.observe(this.world.turn, threats);
     this.sightingToSound ||= sighted;
     this.follow.noteDanger(threats.length > 0);
@@ -862,11 +811,7 @@ export class Game {
     this.anim = playback;
     this.turnStart = playback.before;
     this.saves.beginTurn();
-    this.live = {
-      visible: new Set(this.world.player.visible),
-      explored: playback.before.player.explored.slice(),
-      from: null,
-    };
+    this.live = { visible: new Set(this.world.player.visible), explored: playback.before.player.explored.slice(), sight: prepared.sight, shown: -1 };
     const seen = (id: string) => this.eventPoint(id) !== null;
     playback.combat = gunfireSeen(this.world.events, seen);
     playback.volley = volleySeen(this.world.events, seen);
@@ -885,9 +830,7 @@ export class Game {
 
   private finishMovement(a: Playback): void {
     a.moved = true;
-    freeDrive(this.drive);
     this.drive = a.result.next;
-    syncDrive(this.drive, this.world);
     for (const [id, fs] of Object.entries(a.result.frames))
       this.frames[id] = fs[fs.length - 1];
     this.live = null;
@@ -967,7 +910,7 @@ export class Game {
     if (sting) this.sound.ui(sting);
   }
 
-  private playDriveSound(result: TurnResult): void {
+  private playDriveSound(result: Pick<TurnResult, "frames">): void {
     const me = playerVehicle(this.world);
     const frames = result.frames[me.id];
     const g = computeEngineGlide(frames, MOVE_MS / 1000, MIX, inOverdrive(this.world, me));
@@ -1045,8 +988,8 @@ export class Game {
     if (plan) this.path.set(plan.turns, firstTurnColor(playerVehicle(this.world)), plan.course, plan.waypoint);
   }
 
-  private flushUi(): void {
-    if (this.uiStale) this.refreshUi();
+  private flushUi(began: string, phase: TurnPhase): void {
+    if (this.uiStale && began !== "began" && this.phase === phase) this.refreshUi();
   }
 
   private advanceTurn(now: number): { at: number | null; speed: number } {
@@ -1054,8 +997,9 @@ export class Game {
     if (held) this.travel.pause();
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
     const wasPlaying = this.anim !== null;
+    const phase = this.phase;
     let at = this.animStep(now, speed);
-    this.updateLiveVision();
+    this.updateLiveVision(at);
     this.updateTravel();
     const began = this.tryBeginTurn(now, wasPlaying, held);
     if (began === "failed") return { at, speed };
@@ -1064,7 +1008,7 @@ export class Game {
       this.updateTravel();
     }
     this.travel.prepareNext(this.world, this.anim, now);
-    this.flushUi();
+    this.flushUi(began, phase);
     return { at, speed };
   }
 
@@ -1095,7 +1039,7 @@ export class Game {
     const sightRadius = grayRadius(this.world) * PHYSICS.metersPerTile;
     this.sightLimit.set(truck, sightRadius);
     this.rig.leash(truck, sightRadius);
-    this.follow.update(truck, this.hud.cameraMode === "auto" ? this.orderPoint() : null, this.anim !== null, dt);
+    this.follow.update(truck, this.hud.cameraMode === "auto" ? this.orderPoint() : null, this.travel.isAdvancing(this.anim, now), dt);
     this.hud.showRecenter(!this.follow.isFollowing());
     lightScene(this.sun, this.sky, truck, daylightAt(this.lightTurn()));
     this.fx.light({ sun: this.sun, sky: this.sky });
@@ -1110,7 +1054,7 @@ export class Game {
     this.weather.advance(this.play.frameMs());
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);
-    this.renderer.render(this.scene, this.rig.camera);
+    this.shaders.render();
     this.refreshPlan();
     this.showPlan();
   }
@@ -1130,17 +1074,15 @@ export class Game {
     this.screens.openCharacter("map");
   }
 
-  private updateLiveVision(): void {
+  private updateLiveVision(step: number | null): void {
     const live = this.live;
     const f = this.frames[playerVehicle(this.world).id];
-    if (!live || !this.anim || !f) return;
+    if (!live || step === null || !f) return;
+    const k = nextSightSample(live, step);
+    if (k === null) return;
     const at = toMap(f.pos);
-    if (live.from && dist(live.from, at) < LIVE_VISION_STEP) return;
-    live.from = at;
-    live.visible = visibleTiles(this.world, at);
-    for (const t of live.visible) live.explored[t] = 1;
-    const player = { ...this.world.player, visible: [...live.visible].sort((a, b) => a - b), explored: live.explored };
-    timed("fog", () => this.fog.update({ ...this.world, player }));
+    const player = { ...this.world.player, visible: live.sight.tiles[k], explored: live.explored };
+    timed("fog", () => this.fog.updateSight({ ...this.world, player }));
     timed("minimap", () => this.minimap?.update({ ...this.world, player }, { pos: at, heading: playerVehicle(this.world).heading }));
   }
 
@@ -1163,7 +1105,7 @@ export class Game {
     this.play.advance(elapsed - from);
     this.sound.playDueScoreEvents(elapsed, speed);
     if (elapsed < MOVE_MS)
-      return (elapsed / 1000) * PHYSICS.stepsPerSecond;
+      return (elapsed / 1000) * PHYSICS.stepsPerSecond - 1;
     if (!a.moved) this.finishMovement(a);
     const impactAt = a.impactAtMs;
     if (elapsed >= impactAt && !a.impacts) this.landImpacts(a);
@@ -1185,9 +1127,7 @@ export class Game {
     const ids = new Set<string>();
     for (const [i, v] of shown.entries()) {
       this.pin.note(v, i < this.world.vehicles.length);
-      const kept = this.frames[v.id];
-      const stale = staleFrame(kept, v, this.anim !== null);
-      const f = (frames && frameAt(frames[v.id], at!)) ?? (kept && !stale ? kept : restFrame(this.world, v));
+      const f = this.shownFrame(v, frames && frameAt(frames[v.id], at!, this.anim!.starts[v.id]));
       this.frames[v.id] = f;
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);
       if (seen) this.lastSeen.set(v.id, this.world.turn);
@@ -1196,13 +1136,8 @@ export class Game {
       const before = !landed && this.anim!.before.vehicles.find((x) => x.id === v.id);
       const display = before ? { ...v, items: shownItems(before.items, v.items, this.breakCues.shown(v.id)) } : v;
       ids.add(v.id);
-      let view = this.views.get(v.id);
-      if (!view) {
-        view = new VehicleView(v, seen, this.world.player.paint, "world");
-        this.views.set(v.id, view);
-        this.scene.add(view.root);
-      }
-      view.update(display, seen, this.world.player.paint);
+      const view = this.viewOf(v.id, display, seen);
+      if (!view) continue;
       view.lamps(vehicleLampsOn(this.world, v, this.lightTurn()));
       view.radio(this.radioLights.lit(v.id, now));
       view.outline(look === "dark");
@@ -1218,6 +1153,31 @@ export class Game {
       view.dispose();
       this.views.delete(id);
     }
+    for (const [id, view] of this.building) {
+      if (ids.has(id)) continue;
+      view.dispose();
+      this.building.delete(id);
+    }
+  }
+
+  private shownFrame(v: Vehicle, played: VehicleFrame | null | undefined): VehicleFrame {
+    const kept = this.frames[v.id];
+    return played ?? (kept && !staleFrame(kept, v, this.anim !== null) ? kept : restFrame(this.world, v));
+  }
+
+  private viewOf(id: string, display: Vehicle, seen: boolean): VehicleView | null {
+    const view = this.views.get(id) ?? this.building.get(id) ?? new VehicleView(null, seen, this.world.player.paint, "world");
+    view.update(display, seen, this.world.player.paint, this.rebuilds);
+    if (!view.built) {
+      this.building.set(id, view);
+      return null;
+    }
+    this.building.delete(id);
+    if (!this.views.has(id)) {
+      this.views.set(id, view);
+      this.scene.add(view.root);
+    }
+    return view;
   }
 
   private lookOf(v: Vehicle, f: VehicleFrame, seen: boolean): "full" | "dark" | null {
@@ -1258,14 +1218,7 @@ export class Game {
     const sel = s.weapons.filter((m) => m.part.id === this.selected);
     this.weaponRange.set(this.world.terrain, vehicleOrigins(me), sel);
     if (!me.direct) this.zones.hideBands();
-    else
-      this.zones.update(
-        this.world.terrain,
-        me.pos,
-        me.heading,
-        me.speed,
-        Math.max(MIN_ZONE_HALF_ANGLE, maxTurn(s, me.speed) / 2),
-      );
+    else this.zones.update(this.world.terrain, me.pos, me.heading, me.speed, Math.max(MIN_ZONE_HALF_ANGLE, maxTurn(s, me.speed) / 2));
     const hover = this.hoverGround;
     const color = hover ? throttleColor(me, hover) : PAL.plan;
     this.zones.hover(this.world.terrain, hover, color);

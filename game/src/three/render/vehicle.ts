@@ -9,16 +9,15 @@ import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { CLIP_TOLERANCE, cellCenter, cellRect, engineAnchor, highestUnder, restOn, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
-import { BODY_PARTS, TRUCK_LOOK, baseModel, drawnWheelPoints, grayShare, grayed, jagOffset, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
+import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
-import type { GridItem, Vehicle, World } from '../../sim/types';
+import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, sweepOf, type Obstacle } from './gunClearance';
 import { model, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
 import { hashStr } from '../../render/noise';
-import { callTrucks, radioSpeakers } from '../../sim/dialogue';
 import { TruckMotion, WHIPS } from './truckMotion';
 import { weaponHead } from './weaponHead';
 
@@ -72,9 +71,8 @@ const CHAIN_SIDE = 0.4;
 
 type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: FireSpan[]; facing: number; unit: number };
 
-type Look = { tone: number; step: number; partId: string | null };
-const THINNEST_FLOOR = 0.01;
-const PRISTINE: Look = { tone: 1, step: 0, partId: null };
+type Look = { tone: number; step: number; partId: string | null; dents: boolean };
+const PRISTINE: Look = { tone: 1, step: 0, partId: null, dents: false };
 
 export type ViewScene = 'world' | 'portrait';
 
@@ -93,11 +91,45 @@ export function signatureOf(v: Vehicle, playerPaint: TruckPaint): string {
   return `${v.chassisId}|${paint.body}|${paint.cab}|${paint.gear}|${items}`;
 }
 
+export type RebuildBudget = { take(): boolean; ready(root: THREE.Object3D): boolean };
+
+const UNLIMITED: RebuildBudget = { take: () => true, ready: () => true };
+
+class PerAnimationFrame implements RebuildBudget {
+  private frame: CSSNumberish | null | undefined = undefined;
+  private left = 0;
+
+  constructor(private readonly perFrame: number) {}
+
+  ready(): boolean {
+    return true;
+  }
+
+  take(): boolean {
+    const frame = document.timeline.currentTime;
+    if (frame !== this.frame) {
+      this.frame = frame;
+      this.left = this.perFrame;
+    }
+    if (this.left <= 0) return false;
+    this.left--;
+    return true;
+  }
+}
+
+export const FRAME_REBUILDS: RebuildBudget = new PerAnimationFrame(1);
+
+function advanceBuild(pending: { steps: Generator<void, void>; built: boolean }, budget: RebuildBudget): boolean {
+  while (!pending.built && budget.take()) pending.built = Boolean(pending.steps.next().done);
+  return pending.built;
+}
+
 export class VehicleView {
   readonly root = new THREE.Group();
-  private readonly body = new THREE.Group();
+  private body = new THREE.Group();
 
   private sig = '';
+  private pending: { sig: string; twin: VehicleView; steps: Generator<void, void>; built: boolean } | null = null;
   private units: UnitView[] = [];
   private running = false;
   private turrets = new Map<string, Turret>();
@@ -116,15 +148,14 @@ export class VehicleView {
   private darkMat!: THREE.MeshBasicMaterial;
   private dark = false;
 
-  constructor(v: Vehicle, seen: boolean, playerPaint: TruckPaint, private readonly scene: ViewScene) {
+  constructor(v: Vehicle | null, seen: boolean, playerPaint: TruckPaint, private readonly scene: ViewScene) {
     this.root.add(this.body);
-    this.update(v, seen, playerPaint);
+    if (v) this.update(v, seen, playerPaint);
   }
 
-  update(v: Vehicle, seen: boolean, playerPaint: TruckPaint): void {
+  update(v: Vehicle, seen: boolean, playerPaint: TruckPaint, budget: RebuildBudget = UNLIMITED): void {
     const sig = signatureOf(v, playerPaint);
-    if (sig !== this.sig) this.rebuild(v, paintOf(v, playerPaint));
-    this.sig = sig;
+    if (sig !== this.sig) this.rebuildToward(v, playerPaint, sig, budget);
     for (const silhouette of this.silhouettes) silhouette.visible = seen;
     this.running = engineRuns(v);
   }
@@ -258,47 +289,103 @@ export class VehicleView {
   }
 
   dispose(): void {
+    this.dropPending();
     disposeChildren(this.root);
   }
 
-  private rebuild(v: Vehicle, colors: TruckColors): void {
-    disposeChildren(this.body);
+  private rebuildToward(v: Vehicle, playerPaint: TruckPaint, sig: string, budget: RebuildBudget): void {
+    const pending = this.pending?.sig === sig ? this.pending : this.startRebuild(v, playerPaint, sig);
+    if (advanceBuild(pending, budget) && budget.ready(pending.twin.root)) this.finishRebuild(pending.twin, sig);
+  }
+
+  get built(): boolean {
+    return this.sig !== '';
+  }
+
+  private startRebuild(v: Vehicle, playerPaint: TruckPaint, sig: string): NonNullable<VehicleView['pending']> {
+    this.dropPending();
+    const twin = new VehicleView(null, false, playerPaint, this.scene);
+    this.pending = { sig, twin, steps: twin.build(v, paintOf(v, playerPaint)), built: false };
+    return this.pending;
+  }
+
+  private finishRebuild(twin: VehicleView, sig: string): void {
+    if (twin !== this) this.adopt(twin);
+    this.sig = sig;
+    this.pending = null;
+  }
+
+  private dropPending(): void {
+    if (this.pending && this.pending.twin !== this) this.pending.twin.dispose();
+    this.pending = null;
+  }
+
+  private adopt(twin: VehicleView): void {
     disposeChildren(this.root);
-    this.root.add(this.body);
-    this.turrets.clear();
-    this.anchors.clear();
+    this.root.add(...twin.root.children);
+    twin.units[0].root = this.root;
+    ({ body: this.body, units: this.units, turrets: this.turrets, anchors: this.anchors, lampMat: this.lampMat, radioMat: this.radioMat, halo: this.halo } = twin);
+    ({ glassMat: this.glassMat, silhouettes: this.silhouettes, contactShadows: this.contactShadows, darkMat: this.darkMat, dark: this.dark } = twin);
     this.lastFrame = null;
     this.rearFrame = null;
+  }
+
+  private *build(v: Vehicle, colors: TruckColors): Generator<void, void> {
     this.units = unitsOf(v.chassisId).map((u) => this.unitView(v, u.index, u.body));
     const paint = colors.gear;
+    this.freshMaterials();
+    const onBody = v.items.filter((item) => onChassis(v, item));
+    const bases = this.buildBases(v, colors.body, colors.cab, cabLook(v));
+    yield;
+    const { wheelItems, guns } = yield* this.drawItems(v, onBody, paint);
+    for (const gun of guns) {
+      this.buildWeapon(v, gun, isMounted(v.chassisId, gun), paint);
+      yield;
+    }
+    this.buildWheels(v, wheelItems, paint);
+    this.buildContactShadows();
+    yield;
+    this.anchorUndrawn(v);
+    for (const unit of this.units) this.buildSuspension(unit, paint);
+    this.buildLooseParts(v, onBody.length === v.items.length);
+    this.dentBases(bases, cabLook(v));
+    yield;
+    const merged: THREE.Group[] = [];
+    yield* this.mergeUnits(v, merged);
+    this.buildSilhouette(colors.body);
+    yield;
+    this.darkMat = new THREE.MeshBasicMaterial({ color: PAL.outline });
+    markStencil(this.darkMat);
+    this.dark = false;
+    this.finishLook(merged);
+  }
+
+  private freshMaterials(): void {
     const on = this.lampMat.color.getHex() === PAL.lamp.on;
     this.lampMat = new THREE.MeshBasicMaterial({ color: on ? PAL.lamp.on : PAL.lamp.off });
     this.radioMat = new THREE.MeshBasicMaterial({ color: radioColor(this.radioOn) });
     this.halo = null;
     this.glassMat = new THREE.MeshLambertMaterial({ flatShading: true, emissive: this.glassGlow });
+  }
 
-    const onBody = v.items.filter((item) => onChassis(v, item));
-    this.buildBases(v, colors.body, colors.cab, cabLook(v));
+  private *drawItems(v: Vehicle, onBody: GridItem[], paint: number): Generator<void, { wheelItems: PartItem[]; guns: PartItem[] }> {
     const wheelItems: PartItem[] = [];
     const guns: PartItem[] = [];
-    for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it))) this.drawItem(v, item, paint, wheelItems, guns);
-    for (const gun of guns) this.buildWeapon(v, gun, isMounted(v.chassisId, gun), paint);
-    this.buildWheels(v, wheelItems, paint);
-    this.buildContactShadows();
-    this.anchorUndrawn(v);
-    for (const unit of this.units) this.buildSuspension(unit, paint);
-    this.buildLooseParts(v, onBody.length === v.items.length);
+    for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it))) {
+      this.drawItem(v, item, paint, wheelItems, guns);
+      yield;
+    }
+    return { wheelItems, guns };
+  }
+
+  private *mergeUnits(v: Vehicle, merged: THREE.Group[]): Generator<void, void> {
     const armorIds = armorIdsOf(v);
-    const merged = this.units.map((unit) => {
+    for (const unit of this.units) {
       const group = mergeParts(unit.still, armorIds, this.scene === 'portrait' ? 'parts' : 'armor');
       unit.body.add(group);
-      return group;
-    });
-    this.buildSilhouette(colors.body);
-    this.darkMat = new THREE.MeshBasicMaterial({ color: PAL.outline });
-    markStencil(this.darkMat);
-    this.dark = false;
-    this.finishLook(merged);
+      merged.push(group);
+      yield;
+    }
   }
 
   private finishLook(merged: THREE.Group[]): void {
@@ -433,16 +520,34 @@ export class VehicleView {
     });
   }
 
-  private buildBases(v: Vehicle, paint: number, trim: number, look: Look): void {
-    for (const unit of this.units) {
+  private buildBases(v: Vehicle, paint: number, trim: number, look: Look): THREE.Object3D[] {
+    return this.units.map((unit) => {
       const obj = model(baseModel(v.chassisId, unit.index));
       obj.traverse((o) => {
         if (o instanceof THREE.Mesh && o.material.name === TRIM) o.material.color.setHex(trim);
       });
-      tint(obj, paint, look);
+      tint(obj, paint, { ...look, dents: false });
       this.useLamp(obj);
       unit.still.add(obj);
-    }
+      return obj;
+    });
+  }
+
+  private dentBases(bases: THREE.Object3D[], look: Look): void {
+    if (!look.partId || look.step === 0) return;
+    this.units.forEach((unit, i) => {
+      const base = bases[i];
+      const keepOut = [...unit.still.children, ...unit.body.children].filter((o) => o !== base && o !== unit.still && this.standsOnBody(o)).map((o) => unitBox(o, unit.body));
+      dent(base, look.partId as string, look.step, { top: true, keepOut });
+    });
+  }
+
+  private standsOnBody(o: THREE.Object3D): boolean {
+    let drawn = false;
+    o.traverse((m) => {
+      if (m instanceof THREE.Mesh && !this.isContactShadow(m) && !m.userData.outline) drawn = true;
+    });
+    return drawn;
   }
 
   private placeItem(v: Vehicle, item: GridItem, paint: number, y: number): THREE.Object3D {
@@ -560,6 +665,7 @@ export class VehicleView {
     inner.add(raw);
     const merged = mergeStatic(inner);
     merged.scale.copy(thick);
+    merged.traverse((o) => (o.castShadow = false));
     const outer = new THREE.Group();
     outer.add(merged);
     unit.root.add(outer);
@@ -597,7 +703,7 @@ export class VehicleView {
 
   private wheelModel(body: Body, paint: number, look: Look): THREE.Object3D {
     const raw = model('wheel');
-    tint(raw, paint, look);
+    tint(raw, paint, { ...look, dents: false });
     const wrap = new THREE.Group();
     wrap.add(raw);
     const wheel = mergeStatic(wrap);
@@ -873,7 +979,8 @@ function cabLook(v: Vehicle): Look {
 function lookOf(item: GridItem): Look {
   if (item.kind !== 'part') return PRISTINE;
   const step = wearLookStep(item.part);
-  return { tone: item.part.hp > 0 ? 1 : BROKEN_TONE[partDef(item.part.defId).kind], step, partId: item.part.id };
+  const kind = partDef(item.part.defId).kind;
+  return { tone: item.part.hp > 0 ? 1 : BROKEN_TONE[kind], step, partId: item.part.id, dents: kind !== 'weapon' };
 }
 
 export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: number): Placement {
@@ -923,32 +1030,60 @@ function tint(obj: THREE.Object3D, paint: number, look: Look): void {
     mat.color.multiplyScalar(look.tone);
     if (look.partId) o.userData.partId = look.partId;
   });
-  if (look.partId && look.step > 0) jag(obj, look.partId, look.step);
+  if (look.partId && look.dents && look.step > 0) dent(obj, look.partId, look.step);
 }
 
-export function jag(obj: THREE.Object3D, partId: string, step: number): void {
-  obj.updateMatrixWorld(true);
-  const toModel = obj.matrixWorld.clone().invert();
-  const box = new THREE.Box3();
+const WELD_MM = 1000;
+
+function weldKey(p: THREE.Vector3): string {
+  return `${Math.round(p.x * WELD_MM)},${Math.round(p.y * WELD_MM)},${Math.round(p.z * WELD_MM)}`;
+}
+
+function modelPoints(obj: THREE.Object3D, toModel: THREE.Matrix4): THREE.Vector3[] {
+  const points = new Map<string, THREE.Vector3>();
   obj.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
-    const geo = o.geometry as THREE.BufferGeometry;
-    if (!geo.boundingBox) geo.computeBoundingBox();
-    box.union((geo.boundingBox as THREE.Box3).clone().applyMatrix4(o.matrixWorld).applyMatrix4(toModel));
+    const pos = (o.geometry as THREE.BufferGeometry).getAttribute('position');
+    for (let i = 0; i < pos.count; i++) {
+      const p = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).applyMatrix4(toModel);
+      points.set(weldKey(p), p);
+    }
   });
-  const size = box.getSize(new THREE.Vector3());
-  const thinnest = Math.max(THINNEST_FLOOR, Math.min(size.x, size.y, size.z));
+  return [...points.values()];
+}
+
+type DentCover = { top: boolean; keepOut: PartBox[] };
+
+function unitBox(o: THREE.Object3D, body: THREE.Object3D): PartBox {
+  const box = new THREE.Box3().setFromObject(o);
+  if (o.parent === body) box.applyMatrix4(body.matrixWorld.clone().invert());
+  return box;
+}
+
+export function dent(obj: THREE.Object3D, partId: string, step: number, cover: DentCover = { top: false, keepOut: [] }): void {
+  obj.updateMatrixWorld(true);
+  const toModel = obj.matrixWorld.clone().invert();
+  const points = modelPoints(obj, toModel);
+  const surface = { box: new THREE.Box3().setFromPoints(points), points, tops: cover.top ? columnTops(points) : null, keepOut: cover.keepOut };
+  const dents = dentsOf(partId, step, surface);
+  const offsets = new Map<string, THREE.Vector3Like>();
+  const offsetAt = (p: THREE.Vector3): THREE.Vector3Like => {
+    const key = weldKey(p);
+    const known = offsets.get(key);
+    if (known) return known;
+    const found = dentOffset(dents, surface, p);
+    offsets.set(key, found);
+    return found;
+  };
   obj.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     const geo = o.geometry as THREE.BufferGeometry;
     const pos = geo.getAttribute('position') as THREE.BufferAttribute;
     const toMesh = toModel.clone().multiply(o.matrixWorld).invert();
     const p = new THREE.Vector3();
-    const offset = new THREE.Vector3();
     for (let i = 0; i < pos.count; i++) {
       p.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).applyMatrix4(toModel);
-      const d = jagOffset(partId, p.x, p.y, p.z, step, thinnest);
-      p.add(offset.set(d.x, d.y, d.z)).applyMatrix4(toMesh);
+      p.add(offsetAt(p)).applyMatrix4(toMesh);
       pos.setXYZ(i, p.x, p.y, p.z);
     }
     pos.needsUpdate = true;
@@ -1002,110 +1137,4 @@ function disposeChildren(group: THREE.Group): void {
 
 function isWheel(def: PartDef): boolean {
   return def.kind === 'core' && def.role === 'wheel';
-}
-
-export const RADIO_LIGHT = {
-  flashMs: 200,
-  talkMs: 1200,
-};
-
-export type RadioCue = { start: number; end: number | null };
-
-function closeStart(cue: RadioCue): number {
-  return cue.end === null ? Infinity : Math.max(cue.end, cue.start + 4 * RADIO_LIGHT.flashMs);
-}
-
-function cueEnd(cue: RadioCue): number {
-  return closeStart(cue) + 2 * RADIO_LIGHT.flashMs;
-}
-
-export function radioLit(cue: RadioCue, now: number): boolean {
-  const f = RADIO_LIGHT.flashMs;
-  if (now < cue.start) return false;
-  const open = now - cue.start;
-  if (open < 4 * f) return Math.floor(open / f) % 2 === 0;
-  const close = now - closeStart(cue);
-  if (close < 0) return true;
-  return close >= f && close < 2 * f;
-}
-
-export class RadioLights {
-  private readonly cues = new Map<string, RadioCue[]>();
-  private noted: World | null = null;
-  private calling = new Set<string>();
-  private beacon = false;
-
-  note(world: World, now: number): void {
-    this.prune(now);
-    if (world === this.noted) return;
-    const first = this.noted === null;
-    this.noted = world;
-    const call = new Set(callTrucks(world));
-    this.noteCall(call, now);
-    if (!first) this.noteTalk(world, call, now);
-    this.calling = call;
-    this.beacon = world.player.beacon;
-  }
-
-  private noteCall(call: Set<string>, now: number): void {
-    for (const id of call) if (!this.calling.has(id)) this.open(id, now);
-    for (const id of this.calling) if (!call.has(id)) this.close(id, now);
-  }
-
-  private noteTalk(world: World, call: Set<string>, now: number): void {
-    for (const id of radioSpeakers(world.events, world.player.vehicleId)) {
-      if (!this.calling.has(id) && !call.has(id)) this.talk(id, now);
-    }
-    this.noteBeacon(world, call, now);
-  }
-
-  private noteBeacon(world: World, call: Set<string>, now: number): void {
-    const switchedOn = world.player.beacon && !this.beacon;
-    if (switchedOn && call.size === 0) this.talk(world.player.vehicleId, now);
-  }
-
-  lit(id: string, now: number): boolean {
-    const list = this.cues.get(id);
-    if (!list) return false;
-    for (const cue of list) if (radioLit(cue, now)) return true;
-    return false;
-  }
-
-  private open(id: string, now: number): void {
-    const joined = this.joinable(id, now);
-    if (joined) joined.end = null;
-    else this.push(id, now, null);
-  }
-
-  private close(id: string, now: number): void {
-    const last = this.cues.get(id)?.at(-1);
-    if (last && last.end === null) last.end = now;
-  }
-
-  private talk(id: string, now: number): void {
-    const joined = this.joinable(id, now);
-    if (joined) {
-      if (joined.end !== null) joined.end = Math.max(joined.end, now + RADIO_LIGHT.talkMs);
-    } else this.push(id, now, now + RADIO_LIGHT.talkMs);
-  }
-
-  private joinable(id: string, now: number): RadioCue | null {
-    const last = this.cues.get(id)?.at(-1);
-    return last && now < closeStart(last) ? last : null;
-  }
-
-  private push(id: string, now: number, end: number | null): void {
-    const list = this.cues.get(id) ?? [];
-    const last = list.at(-1);
-    const start = last ? Math.max(now, cueEnd(last) + RADIO_LIGHT.flashMs) : now;
-    list.push({ start, end: end === null ? null : start + (end - now) });
-    this.cues.set(id, list);
-  }
-
-  private prune(now: number): void {
-    for (const [id, list] of this.cues) {
-      while (list.length > 0 && cueEnd(list[0]) <= now) list.shift();
-      if (list.length === 0) this.cues.delete(id);
-    }
-  }
 }

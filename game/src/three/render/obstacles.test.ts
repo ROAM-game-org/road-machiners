@@ -7,7 +7,7 @@ import { emptyHidden } from '../../sim/salvage';
 import { emptyWorld, flatTerrain } from '../../sim/testkit';
 import { TERRITORIES } from '../../data/territory';
 import type { Obstacle, SalvageStock } from '../../sim/types';
-import { BOW_BREACH, buildProp, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
+import { aimedBreach, BOW_BREACH, buildProp, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
 import { initPhysics } from '../../phys/drive';
 import { loadModels } from './models';
 import { RenderScope, SightLimit } from './scope';
@@ -298,7 +298,7 @@ describe('reactor light', () => {
 
   function leaks(): { found: THREE.Vector3[]; reached: number } {
     const { bowGroup, reactorGroup, root } = built();
-    const lights = [...lightsOf(bowGroup), ...lightsOf(reactorGroup)];
+    const lights = [aimedBreach(bowGroup), ...lightsOf(reactorGroup)];
     const hull = hullMeshes(bowGroup);
     const ground = bowGroup.getWorldPosition(new THREE.Vector3()).y;
     const raycaster = new THREE.Raycaster();
@@ -331,8 +331,7 @@ describe('reactor light', () => {
 
   it('puts the light in the breach mouth, aimed out of it (IV2)', () => {
     const { bowGroup } = built();
-    const [spot] = lightsOf(bowGroup);
-    if (!(spot instanceof THREE.SpotLight)) throw new Error('The bow holds no spot light');
+    const spot = aimedBreach(bowGroup);
     const inverse = bowGroup.matrixWorld.clone().invert();
     const apex = spot.getWorldPosition(new THREE.Vector3()).applyMatrix4(inverse);
     const centre = new THREE.Vector3(BOW_BREACH.along, BOW_BREACH.height, BOW_BREACH.out);
@@ -350,20 +349,30 @@ describe('reactor light', () => {
     expect(Math.abs(inBow.x - BOW_BREACH.along)).toBeLessThan(BOW_BREACH.radius);
   });
 
-  it('casts no shadow, gives the reactor no light and the bow one spot (IV4, IV6)', () => {
+  it('casts no shadow, gives the reactor no light and lights the bow from one shared spot outside it (IV4, IV6)', () => {
     const { bowGroup, reactorGroup } = built();
     expect(lightsOf(reactorGroup)).toEqual([]);
-    const lights = lightsOf(bowGroup);
-    expect(lights).toHaveLength(1);
-    expect(lights[0]).toBeInstanceOf(THREE.SpotLight);
-    expect(lights[0].castShadow).toBe(false);
+    expect(lightsOf(bowGroup)).toEqual([]);
+    expect(aimedBreach(bowGroup).castShadow).toBe(false);
+  });
+
+  it('keeps one breach light in the scene whether a bow is near or not, so the light count never changes', () => {
+    const root = new THREE.Group();
+    const views = new ObstacleViews(new RenderScope(root, SIZE, new SightLimit(SIZE), true, true), flatTerrain(SIZE));
+    const spots = () => { let n = 0; root.traverse((o) => { if (o instanceof THREE.SpotLight) n++; }); return n; };
+    expect(spots()).toBe(1);
+    views.sync([bow, reactor], [], []);
+    views.play(null, null, emptyWorld(), {}, 0.1);
+    expect(spots()).toBe(1);
   });
 
   it('pulses the rod and the light together (IV5)', () => {
     const root = new THREE.Group();
     const views = new ObstacleViews(new RenderScope(root, SIZE, new SightLimit(SIZE), true, true), flatTerrain(SIZE));
     views.sync([bow, reactor], [], []);
-    views.play(null, null, emptyWorld(), {}, 1.3);
+    const world = emptyWorld();
+    const near = { pos: { x: BOW_SITE.x * S, y: 0, z: BOW_SITE.y * S }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: [] };
+    views.play(null, null, world, { [world.player.vehicleId]: near }, 1.3);
     let rod = 0;
     let light = 0;
     root.traverse((o) => {
