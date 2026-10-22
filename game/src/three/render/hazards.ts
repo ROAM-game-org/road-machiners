@@ -6,7 +6,6 @@ import { groundPoint, type V3 } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import { hash2, valueNoise } from '../../render/noise';
 import { playerVehicle } from '../../sim/damage';
-import { dropClearance } from '../../sim/hazards';
 import { heightAt, markHeightAt, type Terrain } from '../../sim/terrain';
 import type { Flare, GameEvent, GroundField, SmokeCloud, Vehicle, World } from '../../sim/types';
 import { shutDownTurnsLeft } from '../../sim/utility';
@@ -66,17 +65,6 @@ type HazardList = 'smoke' | 'fields' | 'flares' | 'lines';
 
 function madeThisTurn(clock: TurnClock | null, list: HazardList, id: string): boolean {
   return clock !== null && clock.before !== null && !clock.before[list].some((h) => h.id === id);
-}
-
-export function volleyShown(clock: TurnClock | null, list: HazardList, id: string): boolean {
-  return clock === null || clock.moved || !madeThisTurn(clock, list, id);
-}
-
-export function fieldShown(world: World, f: GroundField, clock: TurnClock | null): boolean {
-  if (clock === null || clock.moved || !madeThisTurn(clock, 'fields', f.id)) return true;
-  const dropper = world.vehicles.find((v) => v.id === f.source);
-  if (!dropper) return false;
-  return trailPassed(dropper, f.pos, dropClearance(dropper, f.r), clock.progress);
 }
 
 export function trailPassed(v: Vehicle, pos: Vec, clearance: number, progress: number): boolean {
@@ -298,7 +286,7 @@ class SmokeCloudsView {
   }
 
   update(world: World, terrain: Terrain, views: ReadonlyMap<string, VehicleView>, nowMs: number, clock: TurnClock | null, cutaway: Cutaway | null): void {
-    const shown = new Map(world.smoke.filter((c) => volleyShown(clock, 'smoke', c.id) && isShown(world, c)).map((c) => [c.id, c]));
+    const shown = new Map(world.smoke.filter((c) => isShown(world, c)).map((c) => [c.id, c]));
     ageOut(this.views, shown, nowMs, SMOKE_LOOK.dissolve.ms);
     for (const c of shown.values()) (this.views.get(c.id) ?? this.makeView(world, views, c, madeThisTurn(clock, 'smoke', c.id), nowMs)).cloud = c;
     const { movers, dt } = this.views.size > 0 ? this.wake.update(positionsOf(views), nowMs) : { movers: [], dt: 0 };
@@ -516,7 +504,7 @@ class GroundFieldsView {
   }
 
   update(world: World, terrain: Terrain, clock: TurnClock | null, nowMs: number): void {
-    const shown = new Map(world.fields.filter((f) => fieldShown(world, f, clock) && isShown(world, f)).map((f) => [f.id, f]));
+    const shown = new Map(world.fields.filter((f) => isShown(world, f)).map((f) => [f.id, f]));
     for (const [id, view] of this.views) markGone(view, shown.has(id), nowMs);
     for (const f of shown.values()) if (!this.views.has(f.id)) this.views.set(f.id, this.makeView(world, terrain, f, clock, nowMs));
     for (const [id, view] of this.views) if (!this.pose(terrain, view, nowMs)) this.drop(id, view);
@@ -757,7 +745,7 @@ class FlaresView {
     this.seenIn = world;
     this.sparks.tick(dt);
     this.smoke.tick(dt);
-    const shown = new Map(world.flares.filter((f) => volleyShown(clock, 'flares', f.id) && flareShown(world, f)).map((f) => [f.id, f]));
+    const shown = new Map(world.flares.filter((f) => flareShown(world, f)).map((f) => [f.id, f]));
     ageOut(this.views, shown, nowMs, FLARE_LOOK.burnOutMs);
     for (const f of shown.values()) (this.views.get(f.id) ?? this.makeView(world, views, f, madeThisTurn(clock, 'flares', f.id), nowMs)).flare = f;
     while (this.lights.length < this.views.size) this.addLight();

@@ -161,8 +161,9 @@ export type UtilitySoundHost = Pick<VolleyHost, "eventPoint"> & { world: Pick<Wo
 
 type UtilitySound = { cue: CueId; seenBy: string; at: Vec | null; delayMs: number };
 
-export function playUtilitySounds(host: UtilitySoundHost): void {
-  for (const s of host.world.events.flatMap(utilitySoundsOf)) {
+export function playUtilitySounds(host: UtilitySoundHost, at: "start" | "end"): void {
+  const events = host.world.events.filter((e) => (e.t === "utility" || e.t === "pulse") === (at === "start"));
+  for (const s of events.flatMap(utilitySoundsOf)) {
     const seen = host.eventPoint(s.seenBy);
     if (!seen) continue;
     const at = s.at ? groundPoint(host.world.terrain, s.at) : seen;

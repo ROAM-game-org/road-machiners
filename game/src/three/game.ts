@@ -818,6 +818,7 @@ export class Game {
     playback.shotAims = shotAimsOf(world.events);
     this.breakCues = new BreakCues(world.events);
     playback.impactAtMs = Math.max(MOVE_MS, playShotFx(this.combatHost(playback.elapsed), this.breakCues));
+    playUtilitySounds(this.combatHost(), "start");
     this.sound.timeScoreEvents(world.events, world.player.vehicleId, (e) => scoreEventMs(e, timed, TURN_STEPS, playback.impactAtMs));
     if (!towed) this.playDriveSound(playback.result);
     this.phase = "moving";
@@ -837,9 +838,8 @@ export class Game {
     this.live = null;
     this.phase = a.combat ? "firing" : "results";
     timed("fog", () => this.fog.update(this.combatFogWorld()));
-    const host = this.combatHost();
-    playCrashes(host, this.crashCues, null);
-    playUtilitySounds(host);
+    playCrashes(this.combatHost(), this.crashCues, null);
+    playUtilitySounds(this.combatHost(), "end");
     this.weapons.render();
   }
 

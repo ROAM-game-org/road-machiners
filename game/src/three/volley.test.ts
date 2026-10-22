@@ -129,14 +129,14 @@ describe("playUtilitySounds", () => {
   const seen: Record<string, V3> = { a: { x: 1, y: 2, z: 3 }, b: { x: 4, y: 5, z: 6 } };
   const terrain = emptyWorld().terrain;
 
-  function played(events: GameEvent[]): { cue: string; p: V3; delayMs: number }[] {
+  function played(events: GameEvent[], at: "start" | "end" = "start"): { cue: string; p: V3; delayMs: number }[] {
     const out: { cue: string; p: V3; delayMs: number }[] = [];
     let waited = 0;
     const later = (ms: number, run: () => void) => {
       waited = ms;
       run();
     };
-    playUtilitySounds({ world: { events, terrain }, eventPoint: (id) => seen[id] ?? null, fx: { later }, sound: { at: (cue, p, delayMs) => out.push({ cue, p, delayMs: waited + delayMs }) } });
+    playUtilitySounds({ world: { events, terrain }, eventPoint: (id) => seen[id] ?? null, fx: { later }, sound: { at: (cue, p, delayMs) => out.push({ cue, p, delayMs: waited + delayMs }) } }, at);
     return out;
   }
 
@@ -160,8 +160,14 @@ describe("playUtilitySounds", () => {
     ]);
   });
 
-  it("bursts a tire on a truck that drives into caltrops", () => {
-    expect(played([{ t: "caltrops", vehicle: "b", field: "g1", source: "a", hits: [] }])).toEqual([{ cue: "caltrops-hit", p: seen.b, delayMs: 0 }]);
+  it("bursts a tire on a truck that drives into caltrops as the move ends, not at turn start", () => {
+    const hit: GameEvent = { t: "caltrops", vehicle: "b", field: "g1", source: "a", hits: [] };
+    expect(played([hit], "end")).toEqual([{ cue: "caltrops-hit", p: seen.b, delayMs: 0 }]);
+    expect(played([hit], "start")).toEqual([]);
+  });
+
+  it("plays no use or pulse again as the move ends", () => {
+    expect(played([use("a", "sprout"), pulse("b")], "end")).toEqual([]);
   });
 
   it("stays silent for unseen users and for a claymore, whose blast plays with its crash", () => {
@@ -170,7 +176,7 @@ describe("playUtilitySounds", () => {
 
   it("snaps a torn harpoon line at the truck it held, and stays silent when that truck is unseen", () => {
     const torn = (vehicle: string): GameEvent => ({ t: "lineTorn", line: "l1", vehicle, part: `${vehicle}-p`, damage: 12 });
-    expect(played([torn("a"), torn("hidden")])).toEqual([{ cue: "line-tear", p: seen.a, delayMs: 0 }]);
+    expect(played([torn("a"), torn("hidden")], "end")).toEqual([{ cue: "line-tear", p: seen.a, delayMs: 0 }]);
   });
 });
 
