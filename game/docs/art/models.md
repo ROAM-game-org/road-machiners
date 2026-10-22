@@ -15,7 +15,7 @@ A truck model, any name in `SURFACE_MODELS` in `src/render/partLooks.ts`, also n
 5. Take colors from `src/render/palette.ts` and name the palette key in a comment. Blender cannot read the palette, so keep both in sync.
 6. Keep the low-poly style: few vertices per cylinder, flat shading, and small seeded `dent_by` values for worn metal.
 7. Fix the seed, so a rebuild gives the same file.
-8. Render the preview and look at it before wiring the model into the game.
+8. Render the preview and look at it before wiring the model into the game. Once the model is in `NAMES`, look at it with `npm run shot -- --model <name>`, and with `--camera game` at the size a player sees it. [Tools](../tools.md) has the flags and scene files.
 9. Add the name to `NAMES` in `src/three/render/models.ts`. Use `model('<name>')` in a view, or `instancedModel()` for many copies. Boot fails if the file is missing.
 10. Take an in-game screenshot with a Playwright script in `tmp/`, and run `npm run playtest`. The user confirms small visual details.
 

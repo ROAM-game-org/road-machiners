@@ -16,7 +16,7 @@ import { dist } from '../../sim/vec';
 import type { V3, VehicleFrame } from '../../phys/frames';
 import type { TurnResult } from '../../phys/drive';
 import { DebrisSim, disposeTree, FLY_REACH, truckBoxes } from './debris';
-import { jag } from './vehicle';
+import { dent } from './vehicle';
 import { instancedModel, model, socket } from './models';
 import { NIGHT_POOLS } from './lightPools';
 import { FORT_MODELS } from '../../sim/fortress';
@@ -314,7 +314,7 @@ export function buildHulk(t: Terrain, o: Obstacle, pose: HulkPose): THREE.Group 
     const obj = model(baseModel(pose.chassisId, u.index));
     const swatch = char(obj);
     const key = u.index === 0 ? o.id : `${o.id}:${u.index}`;
-    jag(obj, key, WEAR_LOOK_STEPS);
+    dent(obj, key, WEAR_LOOK_STEPS);
     const unit = new THREE.Group();
     unit.position.y = u.body.half.y;
     const bend = pose.bend ?? 0;
