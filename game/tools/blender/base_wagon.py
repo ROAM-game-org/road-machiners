@@ -33,7 +33,9 @@ from mathutils import Vector
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, Grid, check_base, cut_boxes, flare_profile, level_sockets, round_arch  # noqa: E402
+from parts_common_core import ROUND_SIDES  # noqa: E402
 from shapes import prism  # noqa: E402
+from wheel_common import wheel_disc  # noqa: E402
 
 SEED = 304
 LENGTH = 6.1
@@ -125,7 +127,7 @@ def underbody(kit: Kit) -> None:
         kit.box(f"axle{i}", (0.16, 2 * WELL_Y, 0.4), (wx, 0, HUB_Z + 0.08), "under")
         kit.box(f"diff{i}", (0.4, 0.4, 0.4), (wx, 0.12, HUB_Z + 0.08), "under")
     for s, y in (("l", 0.68), ("r", -0.68)):
-        kit.cylinder(f"tank_{s}", 0.2, 0.9, (0.5, y, -0.33), "metal", rot=(0, math.pi / 2, 0), vertices=8)
+        kit.cylinder(f"tank_{s}", 0.2, 0.9, (0.5, y, -0.33), "metal", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
     kit.box("front_bumper", (0.14, 2 * CAB_SIDE, 0.18), (HALF_X - 0.07, 0, -0.54), "under")
     kit.box("rear_bumper", (0.12, 2 * CAB_SIDE - 0.2, 0.15), (-HALF_X + 0.06, 0, -0.47), "under")
     kit.box("rear_beam", (0.1, 2 * CAB_SIDE, FLOOR_BOTTOM + 0.4), (-HALF_X + 0.15, 0, FLOOR_BOTTOM - 0.16), "under")
@@ -150,7 +152,7 @@ def front_end(kit: Kit) -> None:
     prism(kit, "fender_l", piece, WELL_Y, HALF_Y - 0.02, "paint")
     prism(kit, "fender_r", piece, -HALF_Y + 0.02, -WELL_Y, "paint")
     for s, y in (("l", 1.1), ("r", -1.1)):
-        kit.cylinder(f"lamp_{s}", 0.13, 0.05, (FENDER_FRONT + 0.02, y, -0.08), "light", rot=(0, math.pi / 2, 0), vertices=8)
+        kit.cylinder(f"lamp_{s}", 0.13, 0.05, (FENDER_FRONT + 0.02, y, -0.08), "light", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
     face = (CAB_FRONT + FENDER_FRONT) / 2
     kit.box("grille", (0.06, 2 * WELL_Y, BELT + 0.45), (face, 0, (BELT - 0.45) / 2), "under")
     slats = 9
@@ -207,12 +209,11 @@ def bed(kit: Kit) -> None:
 
 
 def spare(kit: Kit) -> None:
-    """A spare wheel standing upright behind the cab on the left, with a hub."""
+    """A spare wheel standing upright behind the cab on the left, in the look of the wheel model."""
     x = CAB_BACK - SPARE_T / 2 - 0.01
     y = HALF_Y - SPARE_R - 0.02
     z = FLOOR + SPARE_R
-    kit.cylinder("spare", SPARE_R, SPARE_T, (x, y, z), "wheel", rot=(0, math.pi / 2, 0), vertices=10)
-    kit.cylinder("spare_hub", SPARE_R * 0.45, SPARE_T + 0.02, (x, y, z), "metal", rot=(0, math.pi / 2, 0), vertices=8)
+    wheel_disc(kit, "spare", (x, y, z), SPARE_R, SPARE_T, (0, math.pi / 2, 0))
 
 
 def bounds(kit: Kit) -> tuple[Vector, Vector]:

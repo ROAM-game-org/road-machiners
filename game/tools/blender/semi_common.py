@@ -25,6 +25,7 @@ from kit import Kit  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, cut_boxes, hull_mesh  # noqa: E402
 from rig_units import check_unit as check_rig_unit, export_unit, unit_wheels as count_wheels  # noqa: E402
 from shapes import prism  # noqa: E402
+from wheel_common import TIRE_SHARE, wheel_disc  # noqa: E402
 
 SEED = 321
 LENGTH = 20.5
@@ -43,7 +44,7 @@ WHEEL_Z = 1.24  # PHYSICS.bodies.semi.wheelZ: the steer wheels and the outer dua
 WHEEL_HALF_W = 0.21  # PHYSICS.bodies.semi.wheelHalfWidth
 ENGINE = (8.35, -0.15, 0.0)  # PHYSICS.bodies.semi.engine plus the tractor's center, as Blender x, z and -y
 HUB_Z = WHEEL_Y - SUSPENSION_REST
-TIRE_R = WHEEL_R * 0.935  # the wheel model's tire body; its lugs reach the ground
+TIRE_R = WHEEL_R * TIRE_SHARE  # the wheel model's tire body; its lugs reach the ground
 DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
 DRIVE_AXLES = (DRIVE_MID + TANDEM / 2, REAR_DRIVE_X)
 TRAILER_AXLES = (LAST_TRAILER_X + TANDEM, LAST_TRAILER_X)
@@ -113,12 +114,8 @@ def box_points(x0: float, x1: float, half_y: float, z0: float, z1: float) -> lis
 
 
 def wheel(kit: Kit, name: str, x: float, y: float) -> None:
-    """One wheel in the look of the game's wheel model: a 24-sided tire, an 8-sided light rim and a 6-sided hub."""
-    width = 2 * WHEEL_HALF_W
-    axle = (math.pi / 2, 0, 0)
-    kit.cylinder(f"{name}_tire", TIRE_R, width * 0.94, (x, y, HUB_Z), "wheel", rot=axle, vertices=24)
-    kit.cylinder(f"{name}_rim", WHEEL_R * 0.55, width * 0.98, (x, y, HUB_Z), "metal_light", rot=axle, vertices=8)
-    kit.cylinder(f"{name}_hub", WHEEL_R * 0.22, width, (x, y, HUB_Z), "rust", rot=axle, vertices=6)
+    """One wheel in the look of the game's wheel model, from the shared wheel builder."""
+    wheel_disc(kit, name, (x, y, HUB_Z), WHEEL_R, 2 * WHEEL_HALF_W, (math.pi / 2, 0, 0))
 
 
 def duals(kit: Kit, x: float, sides: tuple[int, ...] = (0, 1)) -> int:

@@ -18,11 +18,12 @@ from mathutils import Euler, Matrix
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
 from parts_common_core import COLORS  # noqa: E402
+from wheel_common import TIRE_SHARE, TIRE_SIDES, wheel_disc  # noqa: E402
 
 SEED = 102
 AXLE = (math.radians(90), 0, 0)
 LUGS = 12
-TIRE_R = 0.935  # tire body radius. Lug tips reach 1 m.
+TIRE_R = TIRE_SHARE
 LUG_H = 0.065
 SWEEP = math.radians(28)  # each half-bar leans back from the centre line
 BAR = (0.16, 0.3)  # half-bar size, tangential then axial
@@ -58,9 +59,7 @@ def check_mirrored(layout: list[Lug]) -> None:
 
 
 def build(kit: Kit) -> None:
-    kit.cylinder("tire", TIRE_R, 0.94, (0, 0, 0), "wheel", rot=AXLE, vertices=LUGS * 2)
-    kit.cylinder("rim", 0.55, 0.98, (0, 0, 0), "metal_light", rot=AXLE, vertices=8)
-    kit.cylinder("hub", 0.22, 1.0, (0, 0, 0), "rust", rot=AXLE, vertices=6)
+    wheel_disc(kit, "", (0, 0, 0), 1.0, 1.0, AXLE)
     layout = lug_layout()
     check_mirrored(layout)
     for name, loc, rot in layout:

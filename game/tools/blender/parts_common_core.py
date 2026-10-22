@@ -12,6 +12,7 @@ from mathutils import Vector
 from kit import CELL_ACROSS, CELL_ALONG, Kit
 
 FIT_SLACK = 1e-4  # float noise allowed at the footprint edge
+ROUND_SIDES = 32  # sides of any piece that must read as a circle: its outline strays at most 0.5% of the radius
 
 # Colors from src/render/palette.ts. The paint color is a stand-in: the game swaps it for the faction color.
 COLORS = {
