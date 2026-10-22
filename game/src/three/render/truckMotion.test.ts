@@ -88,6 +88,29 @@ describe('truck motion', () => {
     expect(body.rotation.z).toBe(lean);
   });
 
+  it('freezes the engine shake where it is when world time stops, and runs it on with world time', () => {
+    const { body, motion } = setup();
+    const moving = Array.from({ length: 30 }, (_, i) => ({ ...frame({ x: 0, y: 0, z: 0 }), pos: { x: i, y: 0, z: 0 } }));
+    for (const f of moving) motion.step(f, 1 / 60, true);
+    const last = moving.at(-1)!;
+    const lift = body.position.y;
+    for (let i = 0; i < 30; i++) motion.step(last, 0, true);
+    expect(body.position.y).toBe(lift);
+    motion.step(last, 1 / 60, true);
+    expect(body.position.y).not.toBe(lift);
+  });
+
+  it('lets a rebuilt body take over the lean and shake of the old one, so a rebuild does not snap it', () => {
+    const old = setup();
+    const moving = Array.from({ length: 30 }, (_, i) => ({ ...frame({ x: 8, y: 0, z: 3 }), pos: { x: i, y: 0, z: 0 } }));
+    for (const f of moving) old.motion.step(f, 1 / 60, true);
+    const rebuilt = setup();
+    rebuilt.motion.carryFrom(old.motion);
+    rebuilt.motion.step(moving.at(-1)!, 0, true);
+    expect(rebuilt.body.position.toArray()).toEqual(old.body.position.toArray());
+    expect(rebuilt.body.quaternion.toArray()).toEqual(old.body.quaternion.toArray());
+  });
+
   it('rejects a negative time step', () => {
     const { motion } = setup();
     expect(() => motion.step(frame({ x: 0, y: 0, z: 0 }), -0.01, false)).toThrow(/Truck motion step/);

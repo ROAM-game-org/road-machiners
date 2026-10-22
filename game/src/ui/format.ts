@@ -39,7 +39,7 @@ import type { GameEvent, GridItem, Job, NpcActivity, NpcState, PartInstance, Ref
 import { concat, list, MINUS_SIGN, num, PLUS, SPACE, t, verbatim, type Msg } from '../text/msg';
 import { siteRecipes } from '../data/market';
 import { keyLabel } from './input-mode';
-import { driverName, factionName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
+import { driverName, factionName, offenseName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
 import { playerCanAct, Refused } from '../sim/world';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
@@ -255,6 +255,7 @@ const STATE_LABELS: Record<StateKindId, (s: NpcState) => Msg> = {
   combat: () => t('state.combat'),
   lootWarning: (s) => (lootWarningData(s).answer === 'comply' ? t('state.lootAgreed') : t('state.lootWarning')),
   lookOver: () => t('state.lookOver'),
+  bountyStop: () => t('state.bountyStop'),
   sizedUp: () => t('state.sizedUp'),
   strayFire: (s) => t('state.strayFire', { forgiven: Math.round(strayData(s).damage), of: RULES.stray.feudDamage }),
 };
@@ -615,7 +616,7 @@ function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, rewar
   throw new Error(`An escort is never ${outcome}`);
 }
 
-const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded']);
+const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded', 'bountyFiled']);
 
 export function isNotable(e: GameEvent): boolean {
   if (e.t === 'contract') return e.outcome === 'found' || e.outcome === 'fulfilled' || e.cause === 'rival';
@@ -929,6 +930,18 @@ function claymoreText(world: World, e: Extract<GameEvent, { t: 'claymore' }>): L
 
 const quiet = (): null => null;
 
+function bountyFiledText(world: World, e: Extract<GameEvent, { t: 'bountyFiled' }>): LogLine | null {
+  if (e.target !== world.player.vehicleId) return null;
+  const victim = world.vehicles.some((v) => v.id === e.victim) ? vehicleName(world, e.victim) : t('log.someDriver');
+  return line(t('log.bountyFiled', { site: siteName(e.site), offense: offenseName(e.offense), victim, price: moneyMsg(e.owed) }), 'bad');
+}
+
+function bountyClosedText(world: World, e: Extract<GameEvent, { t: 'bountyClosed' }>): LogLine | null {
+  if (e.target !== world.player.vehicleId) return null;
+  if (e.status === 'paid') return line(t('log.bountyPaid', { price: moneyMsg(e.amount) }), 'dim');
+  return line(e.status === 'collected' ? t('log.bountyCollected') : t('log.bountyLapsed'), 'dim');
+}
+
 const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent, { t: K }>) => LogLine | null } = {
   activity: activityText,
   stall: stallText,
@@ -998,6 +1011,10 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   outpostReached: outpostReachedText,
   roadOpened: quiet,
   runLost: runLostText,
+  bountyFiled: bountyFiledText,
+  bountyClosed: bountyClosedText,
+  settlement: (_, e) => line(t('log.settlement', { price: moneyMsg(e.price), faction: factionName(e.faction) }), ''),
+  asked: quiet,
   discover: (_, e) => discoverText(e),
   encounter: quiet,
   supply: (_, e) => line(noteText(e.note), 'bad'),

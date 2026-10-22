@@ -20,7 +20,7 @@ import { buildCamp } from './interiors/camp';
 import { buildDustwell } from './interiors/dustwell';
 import { buildGranary } from './interiors/granary';
 import { buildOasis, buildPump } from './interiors/masonry';
-import { buildOutpost } from './interiors/outpost';
+import { buildOutpost, buildRoadhouse } from './interiors/outpost';
 import { buildNose } from './interiors/nose';
 import { buildSalvageYard } from './interiors/salvage';
 import { NIGHT_POOLS, type PoolLamp } from './lightPools';
@@ -462,6 +462,7 @@ const SITE_DECOR: Record<string, SiteDecor> = {
   bowl: (b, site) => buildBowl(b, site),
   'salvage-yard': (b) => buildSalvageYard(b),
   outpost: (b) => buildOutpost(b),
+  'marshal-post': (b) => buildRoadhouse(b),
   scrapjaw: camp,
   kiln: camp,
 };

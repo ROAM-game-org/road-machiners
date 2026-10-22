@@ -1,8 +1,9 @@
 {
- "format": "2.102",
+ "format": "2.103",
  "shape": {
   "broken": [],
   "craters": [],
+  "crimes": [],
   "dustClouds": [],
   "fields": [],
   "flares": [],
@@ -102,6 +103,7 @@
     "bowl": "number",
     "guidestar": "number",
     "kiln": "number",
+    "marshals": "number",
     "nose": "number",
     "scrapjaw": "number",
     "sunward": "number"
@@ -2086,6 +2088,95 @@
   },
   "turn": "number",
   "vehicles": [
+   {
+    "bend": "number",
+    "brain": {
+     "attackers": {},
+     "driver": "string",
+     "goal": "null",
+     "goals": [],
+     "home": {
+      "x": "number",
+      "y": "number"
+     },
+     "hurt": "number",
+     "memories": [],
+     "noticed": {},
+     "personality": "string",
+     "stepIndex": "number",
+     "templateId": "string",
+     "tracks": {},
+     "traits": [
+      "string"
+     ]
+    },
+    "chassisId": "string",
+    "direct": "boolean",
+    "faction": "string",
+    "heading": "number",
+    "id": "string",
+    "items": [
+     {
+      "good": "string",
+      "id": "string",
+      "kind": "string",
+      "rot": "number",
+      "x": "number",
+      "y": "number"
+     },
+     {
+      "id": "string",
+      "kind": "string",
+      "part": {
+       "charge": {
+        "reload": "number"
+       },
+       "defId": "string",
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      },
+      "rot": "number",
+      "x": "number",
+      "y": "number"
+     },
+     {
+      "id": "string",
+      "kind": "string",
+      "part": {
+       "defId": "string",
+       "gun": {
+        "ammo": "number",
+        "cooldown": "number",
+        "reloadWork": "number"
+       },
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      },
+      "rot": "number",
+      "x": "number",
+      "y": "number"
+     }
+    ],
+    "job": "null",
+    "lastHitBy": "null",
+    "order": "null",
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "resources": {
+     "fuel": "number",
+     "health": "number",
+     "money": "number",
+     "supplies": "number"
+    },
+    "speed": "number",
+    "stormExposure": {},
+    "utilityOrders": {},
+    "weaponOrders": {}
+   },
    {
     "brain": "null",
     "chassisId": "string",

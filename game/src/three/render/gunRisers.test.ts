@@ -6,9 +6,11 @@ import { CLIP_TOLERANCE, cellRect, highestUnder, restOn } from '../../sim/body';
 import { baseGrid, isMounted, itemCells } from '../../sim/grid';
 import type { GridItem } from '../../sim/types';
 import { loadModels, model } from './models';
-import { partModel } from '../../render/partLooks';
+import { baseModel, partModel } from '../../render/partLooks';
 import * as THREE from 'three';
-import { armorPlacement, footprint, postColumn, standingY, weaponStand, wouldFloat } from './vehicle';
+import { postColumn } from './gunStand';
+import { armorPlacement } from './armorCut';
+import { footprint, standingY, weaponStand, wouldFloat } from './vehicle';
 import { budget } from '../../test/budget';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -20,6 +22,15 @@ await loadModels(async (name) => {
 
 const GUNS = Object.values(PARTS).filter((def) => def.kind === 'weapon');
 
+const BASES = new Map<string, THREE.Object3D>();
+
+function baseUnder(id: string, item: GridItem): THREE.Object3D {
+  const unit = cellRect(id, itemCells(item)).unit;
+  const key = `${id}:${unit}`;
+  if (!BASES.has(key)) BASES.set(key, model(baseModel(id, unit)));
+  return BASES.get(key) as THREE.Object3D;
+}
+
 describe('gun risers', () => {
   it.each(Object.keys(CHASSIS))('%s: a gun on any deck spot stands on the model or on a post that does', (id) => {
     const cells = baseGrid(id).cells;
@@ -30,7 +41,7 @@ describe('gun risers', () => {
           for (let x = 0; x < cells[y].length; x++) {
             const item = { id: 'g', kind: 'part', x, y, rot, part: { id: 'p', defId: def.id, hp: 1, wear: 0 } } as unknown as GridItem;
             if (!itemCells(item).every((c) => cells[c.y]?.[c.x] === 'D')) continue;
-            const { at: { pos }, bottom, top } = weaponStand({ chassisId: id }, item);
+            const { at: { pos }, bottom, top, plate } = weaponStand({ chassisId: id }, item, baseUnder(id, item));
             const rect = cellRect(id, itemCells(item));
             const label = `${def.id} rot ${rot} at ${x},${y}`;
             const surface = highestUnder(id, postColumn(pos, rect.unit));
@@ -38,8 +49,10 @@ describe('gun risers', () => {
             else if (bottom - surface > CLIP_TOLERANCE) problems.push(`${label}: base ${bottom.toFixed(2)} over surface ${surface.toFixed(2)}`);
             else if (bottom < top && Math.abs(bottom - surface) > 1e-9) problems.push(`${label}: post starts at ${bottom.toFixed(2)} over surface ${surface.toFixed(2)}`);
             if (bottom > top) problems.push(`${label}: post starts at ${bottom.toFixed(2)} above its mount at ${top.toFixed(2)}`);
-            if (top < restOn(id, rect).y - 1e-9) problems.push(`${label}: mount at ${top.toFixed(2)} below its rest`);
-            if (pos.x < rect.x0 || pos.x > rect.x1 || pos.z < rect.z0 || pos.z > rect.z1) problems.push(`${label}: post at ${pos.x.toFixed(2)},${pos.z.toFixed(2)} is outside its rect`);
+            const under = highestUnder(id, plate);
+            if (Number.isFinite(under) && top < under - 1e-9) problems.push(`${label}: mount at ${top.toFixed(2)} below the surface ${under.toFixed(2)} under its plate`);
+            const reach = { x: (plate.x1 - plate.x0) / 2, z: (plate.z1 - plate.z0) / 2 };
+            if (pos.x < rect.x0 - reach.x || pos.x > rect.x1 + reach.x || pos.z < rect.z0 - reach.z || pos.z > rect.z1 + reach.z) problems.push(`${label}: post at ${pos.x.toFixed(2)},${pos.z.toFixed(2)} is more than half a plate outside its rect`);
           }
         }
       }
@@ -103,7 +116,7 @@ describe('spare armor', () => {
       let placement;
       try {
         const obj = model(partModel(def.id));
-        placement = armorPlacement({ chassisId: id, items: [] }, item, new THREE.Box3().setFromObject(obj));
+        placement = armorPlacement({ chassisId: id, items: [] }, item, new THREE.Box3().setFromObject(obj), baseUnder(id, item));
         obj.position.copy(placement.pos);
         obj.rotation.set(0, placement.yaw, 0);
         obj.scale.copy(placement.scale);
@@ -144,7 +157,7 @@ describe('placing any item on any cell', () => {
                 const at = footprint({ chassisId: id }, it, y0);
                 if (![y0, at.pos.x, at.pos.z, at.scale.x, at.scale.z].every(Number.isFinite)) problems.push(`${where}: not finite`);
                 if (label !== 'good' && PARTS[label].kind === 'weapon') {
-                  const { bottom, top } = weaponStand({ chassisId: id }, it);
+                  const { bottom, top } = weaponStand({ chassisId: id }, it, baseUnder(id, it));
                   if (![bottom, top].every(Number.isFinite)) problems.push(`${where}: stand not finite`);
                 }
               } catch (e) {

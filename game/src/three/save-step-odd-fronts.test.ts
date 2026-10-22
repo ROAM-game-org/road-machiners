@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import FORMAT_2_101 from './save-fixtures/format-2-101.json';
+import FORMAT_2_102 from './save-fixtures/format-2-102.json';
 import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
 
 type Part = { id: string; defId: string; hp: number; wear: number };
 type Item = { id: string; x: number; y: number; rot: number; kind: string; part?: Part };
 type Saved = { player: { vehicleId: string; storage: Part[] }; salvage: { parts: Part[] }[]; vehicles: { id: string; chassisId: string; items: Item[] }[] };
 
-const step = (world: Saved): Saved => TINY_STEPS[101 - TINY_FROM](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
-const fixture = () => structuredClone(FORMAT_2_101) as Saved;
+const step = (world: Saved): Saved => TINY_STEPS[102 - TINY_FROM](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+const fixture = () => structuredClone(FORMAT_2_102) as Saved;
 const vehicle = (world: Saved, id: string) => world.vehicles.find((v) => v.id === id)!;
 const item = (world: Saved, vehicleId: string, itemId: string) => vehicle(world, vehicleId).items.find((it) => it.id === itemId)!;
 const spot = (it: Item) => ({ x: it.x, y: it.y, rot: it.rot });
 
-describe('save migration 101 to 102, odd fronts', () => {
+describe('save migration 102 to 103, odd fronts', () => {
   it('shifts every item right of the inserted column of a widened truck by one cell, and moves a built-in part into that column', () => {
     const next = step(fixture());
     expect(spot(item(next, 'p1', 'i3'))).toEqual({ x: 4, y: 3, rot: 0 });

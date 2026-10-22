@@ -8,8 +8,8 @@ import type { Rot } from '../../sim/types';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import { angleDiff, DEG } from '../../sim/vec';
 import { loadModels } from './models';
-import { sweepOf } from './gunClearance';
-import { signedDegrees, VehicleView } from './vehicle';
+import { signedDegrees, sweepOf } from './gunClearance';
+import { VehicleView } from './vehicle';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 await loadModels(async (name) => {

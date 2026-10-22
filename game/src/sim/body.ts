@@ -272,13 +272,40 @@ export function surfaceSamples(chassisId: string, unit: number, center: { x: num
 
 export const CLIP_TOLERANCE = 0.05;
 const MIN_KEEP = 0.3;
-const MIN_SUPPORT = 0.9;
+export const MIN_SUPPORT = 0.9;
 
 export type Rest = { y: number; rect: CellRect; perched: boolean; slope: { x: number; z: number } };
 
 const FLAT = { x: 0, z: 0 };
-const MAX_SLOPE = 0.7;
+export const MAX_SLOPE = 0.7;
 const MIN_SLOPE = 0.1;
+
+export function roofSpot(chassisId: string, rect: CellRect, inset: number): { x: number; z: number; y: number } {
+  const center = { x: (rect.x0 + rect.x1) / 2, z: (rect.z0 + rect.z1) / 2 };
+  const radius = Math.hypot(rect.x1 - rect.x0, rect.z1 - rect.z0) / 2;
+  const near = surfaceSamples(chassisId, rect.unit, center, radius + inset * 2);
+  const within = near.filter((s) => s.x >= rect.x0 && s.x <= rect.x1 && s.z >= rect.z0 && s.z <= rect.z1);
+  if (within.length === 0) throw new Error(`The ${chassisId} model has no surface in x ${rect.x0}..${rect.x1}, z ${rect.z0}..${rect.z1}`);
+  const cells = new Map(near.map((s) => [`${s.x.toFixed(3)},${s.z.toFixed(3)}`, s]));
+  const step = within[0].half * 2;
+  const margin = inset + step;
+  const reach = Math.ceil(margin / step);
+  const flatAround = (s: { x: number; z: number; y: number }) => {
+    for (let i = -reach; i <= reach; i++) {
+      for (let j = -reach; j <= reach; j++) {
+        if (Math.hypot(i, j) * step > margin) continue;
+        const n = cells.get(`${(s.x + i * step).toFixed(3)},${(s.z + j * step).toFixed(3)}`);
+        if (!n || Math.abs(n.y - s.y) > CLIP_TOLERANCE) return false;
+      }
+    }
+    return true;
+  };
+  const flat = within.filter(flatAround);
+  if (flat.length === 0) throw new Error(`The ${chassisId} model has no flat spot ${inset} m from its edges in x ${rect.x0}..${rect.x1}, z ${rect.z0}..${rect.z1}`);
+  const top = Math.max(...flat.map((s) => s.y));
+  const best = flat.filter((s) => s.y >= top - CLIP_TOLERANCE).reduce((a, b) => (b.x + b.z < a.x + a.z ? b : a));
+  return { x: best.x, z: best.z, y: best.y };
+}
 
 export function restOn(chassisId: string, rect: CellRect): Rest {
   const map = unitShape(chassisId, rect.unit).heights;

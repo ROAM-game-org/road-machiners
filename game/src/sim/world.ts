@@ -1,4 +1,5 @@
 
+import { advanceCrimes } from './crime';
 import { settleCrews } from './crews';
 import { CHASSIS, isPaletteId, PAINT, PAINT_SLOTS } from '../data/chassis';
 import { GOODS } from '../data/goods';
@@ -65,7 +66,7 @@ import { applyWear, carryHp } from './wear';
 import { advanceDust } from './detect';
 import { searchStream } from './search';
 import { cookOffClaymores, settleClaymores } from './claymore';
-import { activateUtilities, advanceUtilityEffects, settleShutdowns, tickCharges, utilityOrderError } from './utility';
+import { activateUtilities, advanceLines, advanceUtilityEffects, settleShutdowns, tickCharges, utilityOrderError } from './utility';
 import { caltropHits } from './hazards';
 import { advanceJobs, startAutoRepair } from './jobs';
 import { advanceEngineHeat } from './engine-heat';
@@ -166,6 +167,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     lines: [],
     furyRoad: null,
     sunward: modeMap(setup.mode) === 'icarus' ? freshSunward() : null,
+    crimes: [],
   };
   world.obstacles = generateObstacles(world, map, [...hollowObstaclesFor(world), ...openingObstacles(kit, start)]);
   const truck = makeVehicle(world, {
@@ -349,6 +351,9 @@ export function endTurn(
     planNpcOrders(w);
     planHaulerOrder(w);
     freezeDriving(w);
+    advanceUtilityEffects(w);
+    assignUtilityOrders(w);
+    activateUtilities(w);
     move(w);
     if (!shopNear(w)) w.player.townPatched = false;
     followTower(w);
@@ -357,7 +362,7 @@ export function endTurn(
     spillDeadRows(w);
     advanceEngineHeat(w);
     advanceDust(w);
-    advanceUtilityEffects(w);
+    advanceLines(w);
     clearPiles(w);
     renewSalvage(w);
     fadeCraters(w);
@@ -367,10 +372,8 @@ export function endTurn(
     findSurveySites(w);
     raiseCalls(w);
     assignAutoOrders(w);
-    assignUtilityOrders(w);
     freezeFire(w);
     settleAims(w);
-    activateUtilities(w);
     tickCharges(w);
     fireWeapons(w);
     cookOffClaymores(w);
@@ -390,6 +393,7 @@ export function endTurn(
     advancePatches(w);
     advanceAid(w);
     advanceStates(w);
+    advanceCrimes(w);
     advanceRescues(w);
     checkBeacon(w);
     forgetOld(w);

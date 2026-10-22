@@ -49,6 +49,9 @@ Nobody agrees, and each guess has its believers.
 - The glass on the Glass Flats all points the same way, toward the Fallen Sun.
 - The number the Sunward chant at the rim is the year the radio count stops.
 - Kiln riders let you go if you fight hard enough. They strip you if you don't.
+- The marshals can reach any stranded truck on the plain before nightfall.
+- The marshals know every truck's route before it leaves.
+- Once the clerk at the Roadhouse writes your name down, nobody gets out of paying.
 - The Sunward take strangers into the crater, and the strangers do not come back.
 - At dusk a line of lamps crosses open ground to the crater, and before dawn it goes back. Call those cars on the radio and nobody answers.
 - Cars that stop near the crater at night get dragged into the dark on a chain. Families find the furrows by the road in the morning.

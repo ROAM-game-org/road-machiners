@@ -47,14 +47,14 @@ import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
 import { acceptContract, deliverContract, fitsFetch, goodStock, haulShort, isMet, knowsMarket, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
-import type { PartInstance, RoadNews, Vehicle, World } from "../sim/types";
+import type { CrimeCase, PartInstance, RoadNews, Vehicle, World } from "../sim/types";
 import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
 import { el, panel } from "./dom";
-import { escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
+import { clock, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { contractRow } from "./contract-row";
 import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
@@ -68,10 +68,12 @@ import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum } from "./units";
 import { fuelCap, suppliesCap } from "../sim/stats";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
 import { ESCAPE, keyLabel } from "./input-mode";
-import { goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
+import { factionName, goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
 import { seesAll } from "./see-all";
 import { vehicleHasPerk } from "../sim/progress";
+import { deskAt, deskRows, payAtDesk, settleAtDesk, type SettlementQuote } from "../sim/crime";
+import { vehicleById } from "../sim/damage";
 
 export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "paint" | "contracts" | "charts";
 
@@ -152,7 +154,10 @@ export class TownScreen {
   private draw(): void {
     const w = this.host.world();
     const shopId = shopAt(w);
-    if (!shopId) return this.close();
+    if (!shopId) {
+      const desk = deskAt(w);
+      return desk ? this.drawDesk(w, desk) : this.close();
+    }
     const def = shopDef(shopId);
     this.normalizeTab(shopId, def);
     const shop = [el("div", { class: "tabs" }, ...this.tabButtons(shopId, def))];
@@ -170,6 +175,56 @@ export class TownScreen {
       el("div", { class: "town-split" }, truck, el("div", { class: "town-shop" }, ...shop)),
     );
     this.inventory.fitTo(truck);
+  }
+
+  private drawDesk(w: World, desk: string): void {
+    const body: HTMLElement[] = [el("div", { class: "tabs" }, el("button", { class: "on", "data-tab": "marshals" }, createIcon("journal"), t("trade.tab.marshals")))];
+    if (this.error) body.push(el("div", { class: "bad" }, this.error));
+    body.push(this.deskBody(w));
+    this.root.replaceChildren(
+      el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("trade.leave"), ESCAPE.key)),
+      el("h3", {}, siteName(desk), truckChips(w, { freeCells: true })),
+      el("div", { class: "desk" }, ...body),
+    );
+  }
+
+  private deskBody(w: World): HTMLElement {
+    const rows = deskRows(w);
+    const cases = rows.cases.map((c) => this.caseRow(w, c));
+    const ids = rows.cases.map((c) => c.id);
+    const payAll = rows.cases.length > 1 ? el("div", { class: "desk-all" }, this.priceButton(w, t("desk.payAll"), rows.owed, (x) => payAtDesk(x, ids))) : null;
+    const settles = rows.settlements.map((q) => this.settleRow(w, q));
+    return el(
+      "div",
+      { class: "desk-body" },
+      cases.length > 0 ? el("div", { class: "desk-group" }, ...cases, payAll) : null,
+      settles.length > 0 ? el("div", { class: "desk-group" }, ...settles) : null,
+      cases.length === 0 && settles.length === 0 ? el("p", { class: "dim" }, t("desk.empty")) : null,
+    );
+  }
+
+  private caseRow(w: World, c: CrimeCase): HTMLElement {
+    const victim = w.vehicles.some((v) => v.id === c.victim) ? vehicleTitle(w, vehicleById(w, c.victim)) : t("log.someDriver");
+    return el(
+      "div",
+      { class: "row desk-case" },
+      el("span", {}, t(`desk.case.${c.offense}`, { victim })),
+      el("span", { class: "dim" }, t("desk.filed", { issuer: issuerName(w, c), site: siteName(c.site), when: clock(c.turn).full })),
+      this.priceButton(w, t("desk.pay"), c.owed, (x) => payAtDesk(x, [c.id])),
+    );
+  }
+
+  private settleRow(w: World, q: SettlementQuote): HTMLElement {
+    const short = shortBy(w.player.money, q.price);
+    const reason = q.refusal && q.refusal.id !== "noMoney" ? refusalText(w, q.refusal) : short;
+    const label = [t("desk.settle"), SPACE, priceSpan(q.price, short === null)];
+    return el(
+      "div",
+      { class: "row desk-settle" },
+      el("span", {}, factionName(q.faction)),
+      el("span", { class: "tag bad" }, t("band.hostile")),
+      reasonButton(label, () => this.run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) })),
+    );
   }
 
   private normalizeTab(shopId: string, def: ShopDef): void {
@@ -945,4 +1000,10 @@ function peopleList(town: string, run: (cmd: (w: World) => World) => void): HTML
       ),
     ),
   );
+}
+
+function issuerName(w: World, c: CrimeCase): Msg {
+  if (c.issuer.kind === "faction") return factionName(c.issuer.faction);
+  const id = c.issuer.id;
+  return w.vehicles.some((v) => v.id === id) ? vehicleTitle(w, vehicleById(w, id)) : t("log.someDriver");
 }

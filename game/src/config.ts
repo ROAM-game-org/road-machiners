@@ -24,9 +24,10 @@ export const DOWNLOAD = { tries: 3, waitMs: [1000, 3000], stallMs: 20000 };
 export const CONFIG = {
   startKit: 'arrival',
   seed: null as number | null,
-  utilityBandMs: 1000,
   combatReadMs: 1100,
   playEaseMs: 350,
+  turnStopMs: 1000,
+  turnStopFolds: 3,
   fxFillScreens: 8,
   saveTurns: 20,
   saveSlots: 3,
@@ -38,5 +39,7 @@ export const CONFIG = {
   questLineMs: 300,
   questPauseMs: 700,
 };
+
+export const PLAY_EASE = { stopMs: CONFIG.turnStopMs, startMs: CONFIG.playEaseMs, stopFolds: CONFIG.turnStopFolds };
 
 export const OUTPOST_GATE = { slideSeconds: 2.5 };

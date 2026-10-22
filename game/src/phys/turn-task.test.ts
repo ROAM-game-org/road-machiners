@@ -14,13 +14,16 @@ import {
   initPhysics,
   restoreDrive,
   type Drive,
+  type TurnResult,
 } from "./drive";
-import { computeTurn, liveSightOf, physicsMove, SentObstacles } from "./turn";
+import { computeTurn, isCleanTail, liveSightOf, physicsMove, SentObstacles, withTail } from "./turn";
 import { toMap, type VehicleFrame } from "./frames";
 import { PHYSICS } from "../data/physics";
 import { visibleTiles } from "../sim/vision";
 
 beforeAll(initPhysics);
+
+const TAIL = 11;
 
 it("restores frozen terrain after worker transfer so turn clones retain the route cache", () => {
   const world = emptyWorld();
@@ -28,7 +31,7 @@ it("restores frozen terrain after worker transfer so turn clones retain the rout
   const { terrain, ...state } = structuredClone(world);
   expect(Object.isFrozen(terrain)).toBe(false);
   try {
-    computeTurn({ world: state, drive: captureDrive(drive), questLanguage: 'en' }, terrain);
+    computeTurn({ world: state, drive: captureDrive(drive), questLanguage: 'en', tailSteps: TAIL }, terrain);
     expect(Object.isFrozen(terrain)).toBe(true);
     expect(Object.isFrozen(terrain.heights)).toBe(true);
     expect(Object.isFrozen(terrain.types)).toBe(true);
@@ -49,7 +52,7 @@ it("computes the same world and physics as a foreground turn without advancing t
   try {
     const { terrain, ...state } = world;
     const prepared = computeTurn(
-      { world: state, drive: captureDrive(drive), questLanguage: 'en' },
+      { world: state, drive: captureDrive(drive), questLanguage: 'en', tailSteps: TAIL },
       terrain,
     );
     const expected = endTurn(
@@ -62,7 +65,7 @@ it("computes the same world and physics as a foreground turn without advancing t
     expect(world).toEqual(original);
     restored = restoreDrive(prepared.result.next);
     const nextPrepared = computeTurn(
-      { world: prepared.world, drive: captureDrive(restored), questLanguage: 'en' },
+      { world: prepared.world, drive: captureDrive(restored), questLanguage: 'en', tailSteps: TAIL },
       terrain,
     );
     const nextExpected = endTurn(
@@ -76,6 +79,41 @@ it("computes the same world and physics as a foreground turn without advancing t
     if (restored) freeDrive(restored);
   }
 }, 90_000);
+
+it("continues a driving truck past the turn end in a clean tail, and the next turn starts where the tail ends", () => {
+  const world = setMoveOrder(emptyWorld(), { kind: "stopAt", dest: { x: 60, y: 31 } });
+  const drive = buildDrive(world);
+  const { terrain, ...state } = world;
+  try {
+    const turn = computeTurn({ world: state, drive: captureDrive(drive), questLanguage: 'en', tailSteps: TAIL }, terrain);
+    const id = turn.world.player.vehicleId;
+    const tail = turn.tail!;
+    expect(tail.frames[id]).toHaveLength(TAIL);
+    const end = turn.result.frames[id].at(-1)!;
+    const last = tail.frames[id].at(-1)!;
+    expect(last.pos.x).toBeGreaterThan(end.pos.x);
+    expect(tail.poses[id].pos.x * PHYSICS.metersPerTile).toBeCloseTo(last.pos.x, 3);
+    const after = withTail(turn.world, tail.poses);
+    expect(after.vehicles.find((v) => v.id === id)!.pos).toEqual(tail.poses[id].pos);
+    expect(after.events).toBe(turn.world.events);
+    const next = computeTurn({ world: after, drive: tail.next, questLanguage: 'en', tailSteps: TAIL }, terrain);
+    const first = next.result.frames[id][0];
+    const step = last.pos.x - tail.frames[id].at(-2)!.pos.x;
+    expect(first.pos.x - last.pos.x).toBeGreaterThan(0);
+    expect(first.pos.x - last.pos.x).toBeLessThan(step * 1.5);
+  } finally {
+    freeDrive(drive);
+  }
+}, 90_000);
+
+it("rejects a tail with a crash, a passed order point or a rope", () => {
+  const world = emptyWorld();
+  const id = playerVehicle(world).id;
+  const clean = { next: null, frames: {}, crashes: [], breaks: [], landings: [], tears: [], results: { [id]: { passed: false, arrived: true, pushedSteps: 0 } } } as unknown as TurnResult;
+  expect(isCleanTail(world, clean)).toBe(true);
+  expect(isCleanTail(world, { ...clean, crashes: [{ a: id, b: "ground", impact: 1, step: 2 }] } as unknown as TurnResult)).toBe(false);
+  expect(isCleanTail(world, { ...clean, results: { [id]: { passed: true, arrived: false, pushedSteps: 0 } } })).toBe(false);
+});
 
 function fallingWorld() {
   const world = newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
@@ -91,7 +129,7 @@ function openedIn(questLanguage: "en" | "ru") {
   const drive = buildDrive({ ...state, terrain });
   try {
     setQuestLanguage(questLanguage === "ru" ? "en" : "ru");
-    const prepared = computeTurn({ world: state, drive: captureDrive(drive), questLanguage }, terrain);
+    const prepared = computeTurn({ world: state, drive: captureDrive(drive), questLanguage, tailSteps: TAIL }, terrain);
     return prepared.world.player.quests.live;
   } finally {
     freeDrive(drive);
@@ -112,7 +150,7 @@ it("refuses a task with an unknown quest language", () => {
   const { terrain, ...state } = fallingWorld();
   const drive = buildDrive({ ...state, terrain });
   try {
-    expect(() => computeTurn({ world: state, drive: captureDrive(drive), questLanguage: "de" as "en" }, terrain)).toThrow("Turn task has no quest language de");
+    expect(() => computeTurn({ world: state, drive: captureDrive(drive), questLanguage: "de" as "en", tailSteps: TAIL }, terrain)).toThrow("Turn task has no quest language de");
   } finally {
     freeDrive(drive);
   }

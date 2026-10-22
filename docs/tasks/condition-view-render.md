@@ -33,7 +33,7 @@ The look is computed once per truck build inside `VehicleView.rebuild()`, from t
 - Every material that draws an armor mesh gets the same discard: color, shadow depth, the see-through copy and the dark outline swap. Shared materials such as the see-through and dark materials are cloned per truck for armor meshes only. The cut patch chains with the cloud shadow patch, so armor keeps its cloud shadow.
 - Outlines: armor gets its own outline object, built from armor geometry only and cut. The rest of the truck keeps one uncut outline, so tire and wheel well lines stay inside the arch.
 
-Tuning numbers live in `src/data/`: push 0.24 m, skin depth 0.24 m, rise 0.1 m, inset 0.1 m, cut scale 1.2, lamp end share 0.8, reach 0.6 m.
+Tuning numbers live in `TRUCK_LOOK` in `src/render/partLooks.ts`: push 0.12 m, skin depth 0.24 m, rise 0.1 m, inset 0.1 m, cut scale 1.2, lamp end share 0.5, reach 0.6 m.
 
 ### Rendered condition view
 
@@ -85,14 +85,14 @@ TDD: yes for the pure parts: cut spec, lamp island split, tiers, id map lookup a
 Approach: two implementers in parallel. Implementer A changes the truck look in `vehicle.ts` and its helpers. Implementer B builds the portrait renderer and the new view against the `VehicleView` contract in IF2. The mockup code in `game/tmp/condition-mockups/topdown.ts` and `variants/r47y0.*` is the reference for every look number and step (PC1). All paths are under `game/`.
 
 ### PH1 — Drawn wheels, armor skin, no generic bumpers (A)
-- 1.1 `src/data/truckLook.ts` (create) — `TRUCK_LOOK = { wheelPush: 0.24, armorDepth: 0.24, armorRise: 0.1, armorInset: 0.1, cutScale: 1.2, lampEndShare: 0.8, lampReach: 0.6 }`, the one home of these numbers.
+- 1.1 `src/render/partLooks.ts` — `TRUCK_LOOK = { wheelPush: 0.12, armorDepth: 0.24, armorRise: 0.1, armorInset: 0.1, cutScale: 1.2, lampEndShare: 0.5, lampReach: 0.6 }`, the one home of these numbers.
 - 1.2 `src/three/render/drawnWheels.ts` (create) — `drawnWheelPoints(b: Body): { x: number; y: number; z: number }[]`, `wheelMounts(b)` with z pushed outward by `wheelPush`. Respects IV5, IV6.
 - 1.3 `src/three/render/vehicle.ts:439-470` — `buildWheels()` and `buildSuspension()` read `drawnWheelPoints`. Shock tops keep the body side at the old mount, so the shock leans out to the wheel.
 - 1.4 `src/three/render/ruts.ts:140-147` — `tirePoints()` reads `drawnWheelPoints`. `fx.ts:455` reads only the side sign and stays.
 - 1.5 `src/three/render/vehicle.ts:671-705` — `armorPlacement()` for mounted armor: thin-axis depth `armorDepth`, raise `armorRise`, inner face at body face minus `armorInset` on F, B, L and R. Drop `SIDE_SKIN` use there and the `skin ? -depth : depth` patch. `seatArmor()` follows. Unmounted armor stays. Respects AS2, UK1.
 - 1.6 `src/three/render/vehicle.ts:337-358, 574-598, 706-710` — delete generic bumper drawing, `bumperPlacement`, `replacesBumper`, `bumperlessCells`, `BUMPER_LOOKS` and the `bumperless` argument. `drawsOwnBumpers` in `src/render/partLooks.ts:43-47` and its test use go if nothing else reads them. Check `SKIRT` and `EDGE_H` users before removing.
 - 1.7 Tests: `vehicleCargo.test.ts` and `gunRisers.test.ts` updated for the new placement. New `src/three/render/drawnWheels.test.ts`. A test per chassis in `CHASSIS` that every mounted armor part's inner face sits at the body face minus the inset.
-- Commit: Wheels drawn 0.24 m out, armor snug against the body on all sides, generic bumpers gone
+- Commit: Wheels drawn 0.12 m out, armor snug against the body on all sides, generic bumpers gone
 
 ### PH2 — Armor cuts (A)
 - 2.1 `src/three/render/armorCut.ts` (create) — pure: `cutSpec(wheels: Box3[], lamps: Box3[], half: Body['half'], look: typeof TRUCK_LOOK): CutSpec`, `lampIslands(geo: BufferGeometry): Box3[]` (connected pieces by shared corners), `withCut(mat: Material, spec: CutSpec): Material` that clones, adds the discard at `clipping_planes_fragment`, chains any existing `onBeforeCompile`, and sets defines for wheel and lamp counts with a matching `customProgramCacheKey`. Positions go in uniforms in body space. Respects UK1 resolved by defines.

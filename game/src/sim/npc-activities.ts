@@ -6,6 +6,8 @@ import { RULES } from '../data/rules';
 import { inCombat, inCombatWith, isHostile, turnPartHits } from './combat';
 import { abandonLostSizing, lookOverPrey, onHoldUp, onPreySeen, onSizingUp, reactToLookOvers, sizesUpFirst, sizeUpGoal, sizeUpInvalid, steerSizeUp } from './look-over';
 import { reportIncident } from './relations';
+import { fileReports } from './crime';
+import { huntedCases, isMarshal, planMarshal } from './marshals';
 import { cargoSaleValue } from './economy';
 import { corePart } from './grid';
 import { cancelJob } from './jobs';
@@ -386,7 +388,7 @@ export function meetGoal(world: World, npc: Vehicle, other: Vehicle, reason: Goa
 const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   fight: fightInvalid,
   rearm: rearmInvalid,
-  wait: (world, vehicle) => (escortsOf(world, vehicle.id).length > 0 ? 'escortHired' : null),
+  wait: (world, vehicle, goal) => (goal.reason !== 'atPost' && escortsOf(world, vehicle.id).length > 0 ? 'escortHired' : null),
   flee: fleeInvalid,
   investigate: investigateInvalid,
   sizeUp: sizeUpInvalid,
@@ -397,6 +399,7 @@ const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   meet: (world, vehicle, goal) => (goal.reason === 'meetStranger' ? meetingLapsed(world, vehicle, goal) : dealMeetInvalid(world, vehicle, goal)),
   follow: (world, vehicle, goal) => (follows(world, vehicle, goal.targetId!) ? null : 'leftLeader'),
   claim: claimInvalid,
+  pursue: (world, vehicle, goal) => (huntedCases(world, vehicle, goal.targetId!).length > 0 ? null : 'caseClosed'),
 };
 
 function dealMeetInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
@@ -813,6 +816,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   forget(world, vehicle, contacts);
   senseTracks(world, vehicle, seen, contacts);
   rememberSightings(world, vehicle, seen);
+  fileReports(world, vehicle);
   pruneAttackers(world, vehicle);
   forgetFullHold(world, vehicle);
   breakOffDeals(world, vehicle);
@@ -843,6 +847,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   onFightWhim(world, vehicle);
   judgeStrandedFoe(world, vehicle);
   dropInvalidGoals(world, vehicle, contacts);
+  if (isMarshal(vehicle)) planMarshal(world, vehicle, seen);
   steer(world, vehicle, profile, contacts);
   return currentActivity(world, vehicle, profile);
 }
@@ -945,7 +950,15 @@ export function awaitsTower(world: World, vehicle: Vehicle): boolean {
 }
 
 function nextGoal(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity {
+  return fixedNext(world, vehicle) ?? roadNext(world, vehicle, profile);
+}
+
+function fixedNext(world: World, vehicle: Vehicle): NpcActivity | null {
   if (isSunwardMember(vehicle)) return sunwardNext(world, vehicle);
+  return isMarshal(vehicle) ? createActivity('wait', null, null, 'atPost') : null;
+}
+
+function roadNext(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity {
   const next = nightSafe(world, vehicle, hasSaleCargo(vehicle) ? saleGoal(world, vehicle, profile) : idleGoal(world, vehicle));
   if (next.kind === 'wait' || topGoal(vehicle) === next) return next;
   pushGoal(world, vehicle, next);

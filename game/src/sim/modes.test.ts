@@ -40,13 +40,13 @@ describe('game mode rules', () => {
 
   it('names each mode difference in its row', () => {
     expect(GAME_MODES.roaming).toEqual({
-      rules: { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true },
+      rules: { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true, bounties: true },
       kit: null,
       map: 'icarus',
       opening: null,
     });
     expect(GAME_MODES.furyRoad).toEqual({
-      rules: { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false },
+      rules: { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false, bounties: false },
       kit: 'furyRoad',
       map: 'highway',
       opening: 'chaos_highway_intro',
@@ -80,11 +80,11 @@ describe('a new world by mode', () => {
 
     expect(world.furyRoad).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [1524198942, 1071139261, 836395902, 1936023925],
-      nextId: 1432,
-      counts: [23, 6108, 129, 7],
-      npcs: [['trader', 116.79, 581.49], ['trader', 122.34, 576.27], ['buggy', 417.12, 503.29]],
-      bowlStock: ['cage', 'oilSpiller', 'oilSpiller', 'rocketRack', 'rack', 'scrapSheet', 'ceramicPlates', 'battleRifle', 'stockEngine'],
+      streams: [1259943148, 1262962852, 836395902, 1936023925],
+      nextId: 1403,
+      counts: [23, 6174, 129, 7],
+      npcs: [['trader', 118.13, 581.83], ['trader', 116.3, 583.98], ['buggy', 421.84, 500.53]],
+      bowlStock: ['cannon', 'supplyLocker', 'turbine', 'lightFrame', 'smokeMortar', 'cage', 'oilSpiller', 'oilSpiller', 'rocketRack', 'rack', 'stockEngine'],
     });
   });
 

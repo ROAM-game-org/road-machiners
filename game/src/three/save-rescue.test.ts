@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { hangUp } from '../sim/dialogue';
 import { describe, expect, it } from 'vitest';
 import { START_KITS, startKit } from '../data/start';
 import { chassisDef } from '../data/chassis';
@@ -395,7 +396,7 @@ describe('a shipped save on an older bake of the map', () => {
     let w = loadWorld(slots, 'auto', TEST_MAP)!;
     const start = w.turn;
     for (let i = 0; i < 20; i++) {
-      w = endTurn(w, (d) => d.vehicles.forEach((v) => v.brain && advanceFar(d, v)));
+      w = endTurn(w.player.call ? hangUp(w) : w, (d) => d.vehicles.forEach((v) => v.brain && advanceFar(d, v)));
       expect(w.events.filter((e) => e.t === 'stall')).toEqual([]);
     }
     expect(w.turn).toBe(start + 20);

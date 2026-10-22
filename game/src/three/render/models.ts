@@ -30,6 +30,7 @@ export const NAMES = [
   'base_sorokonoga',
   'base_sorokonoga_rear',
   'wmount_riser',
+  'wmount_leg',
   'wreck',
   'rock',
   'rock_slab',
@@ -268,6 +269,10 @@ export const NAMES = [
 ] as const;
 export type ModelName = (typeof NAMES)[number];
 
+export const RADIO = 'radio_light';
+export const LAMP = 'light';
+export const GLASS = 'glass';
+
 const SOCKET_PREFIX = 'socket_';
 
 const loaded = new Map<ModelName, THREE.Object3D>();
@@ -379,6 +384,7 @@ function source(name: ModelName): THREE.Object3D {
 
 export function model(name: ModelName): THREE.Object3D {
   const copy = source(name).clone(true);
+  copy.userData.model = name;
   copy.traverse((o) => {
     if (o instanceof THREE.Mesh) {
       o.geometry = o.geometry.clone();
