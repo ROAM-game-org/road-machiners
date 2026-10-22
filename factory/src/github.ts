@@ -15,10 +15,17 @@ type BoardData = {
 
 const PROJECT_FIELDS = 'id field(name: "Status") { ... on ProjectV2SingleSelectField { id options { id name } } }';
 
+const ITEM_FIELDS = `id fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name } }
+    content { ... on Issue { number title repository { nameWithOwner } labels(first: 50) { nodes { name } } } }`;
+
 const ITEMS_QUERY = `query($project: ID!, $cursor: String) { node(id: $project) { ... on ProjectV2 {
-  items(first: 100, after: $cursor) { pageInfo { hasNextPage endCursor } nodes { id
-    fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name } }
-    content { ... on Issue { number title repository { nameWithOwner } labels(first: 50) { nodes { name } } } } } } } } }`;
+  items(first: 100, after: $cursor) { totalCount pageInfo { hasNextPage endCursor } nodes { ${ITEM_FIELDS} } } } } }`;
+
+const ITEMS_PROBE = `query($project: ID!) { node(id: $project) { ... on ProjectV2 {
+  items(first: 1, orderBy: {field: POSITION, direction: DESC}) { totalCount nodes { id } } } } }`;
+
+const ISSUE_ITEMS_QUERY = `query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { issue(number: $number) {
+  projectItems(first: 20, includeArchived: false) { nodes { project { id } ${ITEM_FIELDS} } } } } }`;
 
 const CANDIDATES_QUERY = `query($search: String!, $cursor: String) { search(type: ISSUE, query: $search, first: 100, after: $cursor) {
   pageInfo { hasNextPage endCursor } nodes { ... on Issue { number title body createdAt state author { login } labels(first: 50) { nodes { name } }
@@ -48,8 +55,16 @@ type ItemNode = {
 };
 
 type ItemsPage = {
-  data: { node: { items: { pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ItemNode[] } } };
+  data: { node: { items: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: (ItemNode | null)[] } | null } | null };
 };
+
+type ProbePage = { data: { node: { items: { totalCount: number; nodes: unknown[] } | null } | null } };
+
+type IssueItemsPage = {
+  data: { repository: { issue: { projectItems: { nodes: ((ItemNode & { project: { id: string } | null }) | null)[] } } | null } | null };
+};
+
+const PAGE_SIZE = 100;
 
 const NOT_THIS_KIND = /Could not resolve to an? (User|Organization)/;
 
@@ -57,6 +72,10 @@ const RATE_LIMITED = /rate limit|HTTP 429|submitted too quickly/i;
 const TAG_EXISTS = /a release with the same tag name already exists/;
 
 export class GithubError extends Error {}
+
+export class BoardReadError extends GithubError {}
+
+class IncompleteBoard extends Error {}
 
 type Wait = (ms: number) => Promise<void>;
 const sleep: Wait = (ms) => new Promise((done) => setTimeout(done, ms));
@@ -162,21 +181,67 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     await graphql(SET_STATUS, { project: b.projectId, item: itemId, field: b.fieldId, option: b.options[column] });
   }
 
-  async function cards(): Promise<Card[]> {
-    const b = await loadBoard();
+  async function readBoardOnce(projectId: string): Promise<{ cards: Card[]; total: number }> {
     const found: Card[] = [];
+    const seen = new Set<string>();
+    let total: number | null = null;
     let cursor = '';
-    for (;;) {
-      const vars: Vars = cursor ? { project: b.projectId, cursor } : { project: b.projectId };
-      const page = JSON.parse(await graphql(ITEMS_QUERY, vars)) as ItemsPage;
-      const items = page.data.node.items;
+    for (let pages = 1; ; pages++) {
+      const vars: Vars = cursor ? { project: projectId, cursor } : { project: projectId };
+      const items = (JSON.parse(await graphql(ITEMS_QUERY, vars)) as ItemsPage).data.node?.items;
+      if (!items) throw new IncompleteBoard(`page ${pages} has no items list`);
+      if (total !== null && items.totalCount !== total) throw new IncompleteBoard(`page ${pages} counts ${items.totalCount} items, page 1 counted ${total}`);
+      total = items.totalCount;
       for (const node of items.nodes) {
+        if (node === null) throw new IncompleteBoard(`page ${pages} has a null item`);
+        if (seen.has(node.id)) throw new IncompleteBoard(`page ${pages} repeats item ${node.id}`);
+        seen.add(node.id);
         const card = toCard(node, repo);
         if (card) found.push(card);
       }
-      if (!items.pageInfo.hasNextPage) return found;
+      if (seen.size > total) throw new IncompleteBoard(`the pages hold ${seen.size} items, more than the ${total} they count`);
+      if (!items.pageInfo.hasNextPage) break;
+      if (items.nodes.length === 0 || !items.pageInfo.endCursor) throw new IncompleteBoard(`page ${pages} is empty but says more pages follow`);
+      if (pages * PAGE_SIZE >= total + PAGE_SIZE) throw new IncompleteBoard(`page ${pages} still says more pages follow after all ${total} items`);
       cursor = items.pageInfo.endCursor;
     }
+    if (seen.size !== total) throw new IncompleteBoard(`the pages hold ${seen.size} of the ${total} items they count`);
+    if (total === 0) await confirmEmpty(projectId);
+    return { cards: found, total };
+  }
+
+  async function confirmEmpty(projectId: string): Promise<void> {
+    const items = (JSON.parse(await graphql(ITEMS_PROBE, { project: projectId })) as ProbePage).data.node?.items;
+    if (!items) throw new IncompleteBoard('the second read of an empty board has no items list');
+    if (items.totalCount !== 0 || items.nodes.length !== 0) throw new IncompleteBoard(`the items list is empty, but a second read counts ${items.totalCount} items`);
+  }
+
+  async function cards(): Promise<Card[]> {
+    const b = await loadBoard();
+    let reason = '';
+    for (let retry = 0; ; retry++) {
+      try {
+        const read = await readBoardOnce(b.projectId);
+        if (read.total > 0 || retry === cfg.githubRetries) return read.cards;
+        reason = 'the board read came back empty';
+      } catch (error) {
+        if (!(error instanceof IncompleteBoard)) throw error;
+        reason = error.message;
+        if (retry === cfg.githubRetries) break;
+      }
+      await wait(cfg.githubRetryBaseSeconds * 1000 * 2 ** retry);
+    }
+    throw new BoardReadError(`The project board read stayed incomplete after ${cfg.githubRetries + 1} reads, last: ${reason}. The factory acts on no partial board.`);
+  }
+
+  async function card(number: number): Promise<Card | null> {
+    const b = await loadBoard();
+    const [owner, name] = repo.split('/');
+    const page = JSON.parse(await graphql(ISSUE_ITEMS_QUERY, { owner, name, number })) as IssueItemsPage;
+    const item = page.data.repository?.issue?.projectItems.nodes.find((node) => node?.project?.id === b.projectId);
+    const direct = item ? toCard(item, repo) : null;
+    if (direct) return direct;
+    return (await cards()).find((row) => row.issue === number) ?? null;
   }
 
   async function allIssues(): Promise<Issue[]> {
@@ -236,6 +301,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
       await gh(['issue', 'edit', String(number), '-R', repo, '--title', title, '--body', body]);
     },
     cards,
+    card,
     async addCard(number, column) {
       const b = await loadBoard();
       const view = JSON.parse(await gh(['issue', 'view', String(number), '-R', repo, '--json', 'id'])) as { id: string };
@@ -245,9 +311,9 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
       await setStatus(added.data.addProjectV2ItemById.item.id, column);
     },
     async move(number, column) {
-      const card = (await cards()).find((c) => c.issue === number);
-      if (!card) throw new Error(`Issue ${number} is not on the board`);
-      await setStatus(card.itemId, column);
+      const found = await card(number);
+      if (!found) throw new Error(`Issue ${number} is not on the board`);
+      await setStatus(found.itemId, column);
     },
     async createRelease(tag, target, title, notes) {
       const result = await call(['release', 'create', tag, '-R', repo, '--target', target, '--title', title, '--notes', notes]);

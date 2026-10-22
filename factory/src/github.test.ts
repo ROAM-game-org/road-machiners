@@ -29,8 +29,12 @@ function fake(calls: string[][], projectJson: string): Run {
     if (text.includes('search(type: ISSUE')) return ok(text.includes('cursor=') ? searchPage([NODE(3)]) : searchPage([NODE(1), NODE(2)], 'C1'));
     if (text.includes('repos/o/r/issues/1/comments')) return ok('{"login":"a","body":"hi\\nthere","createdAt":"t1","appId":null}\n{"login":"bot[bot]","body":"mine","createdAt":"t2","appId":42}\n{"login":"other[bot]","body":"theirs","createdAt":"t3","appId":7}\n');
     if (text.includes('projectV2(number')) return ok(projectJson);
+    if (text.includes('projectItems(first')) {
+      const item = { id: 'I7', project: { id: 'P1' }, fieldValueByName: { name: 'Design' }, content: { number: 7, title: 'Winch', repository: { nameWithOwner: 'o/r' }, labels: { nodes: [{ name: 'bug' }] } } };
+      return ok(JSON.stringify({ data: { repository: { issue: { projectItems: { nodes: text.includes('number=7') ? [item] : [] } } } } }));
+    }
     if (text.includes('items(first')) {
-      const items = { pageInfo: { hasNextPage: false, endCursor: '' }, nodes: [
+      const items = { totalCount: 3, pageInfo: { hasNextPage: false, endCursor: '' }, nodes: [
         { id: 'I7', fieldValueByName: { name: 'Design' }, content: { number: 7, title: 'Winch', repository: { nameWithOwner: 'o/r' }, labels: { nodes: [{ name: 'bug' }] } } },
         { id: 'I8', fieldValueByName: { name: 'Done' }, content: { number: 8, repository: { nameWithOwner: 'x/y' }, labels: { nodes: [] } } },
         { id: 'I9', fieldValueByName: null, content: { number: 9, repository: { nameWithOwner: 'o/r' }, labels: { nodes: [] } } },
@@ -189,9 +193,9 @@ describe('ghClient', () => {
       const text = args.join(' ');
       if (text.includes('user(login')) return { code: 1, stdout: '', stderr: "Could not resolve to a User with the login of 'o'." };
       if (text.includes('organization(login')) return ok(orgProject);
-      return ok(JSON.stringify({ data: { node: { items: { pageInfo: { hasNextPage: false, endCursor: '' }, nodes: [] } } } }));
+      return ok(JSON.stringify({ data: { node: { items: { totalCount: 0, pageInfo: { hasNextPage: false, endCursor: '' }, nodes: [] } } } }));
     };
-    await expect(ghClient(run, CFG).cards()).resolves.toEqual([]);
+    await expect(ghClient(run, CFG, async () => {}).cards()).resolves.toEqual([]);
   });
 
   it('reopens an issue', async () => {

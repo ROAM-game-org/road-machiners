@@ -202,7 +202,7 @@ function requirePost(command: InboxCommand): number {
 }
 
 async function queueApproval(ctx: Ctx, command: InboxCommand, issue: number, by: string): Promise<string> {
-  const card = (await ctx.github.cards()).find((item) => item.issue === issue);
+  const card = await ctx.github.card(issue);
   if (card?.column !== 'Approval') throw new Error(`Issue #${issue} is not waiting for approval.`);
   requireCurrentPost(ctx, command, issue);
   updateState(ctx.statePath, (state) => ({ ...state, pendingApprovals: { ...state.pendingApprovals, [String(issue)]: by } }));
