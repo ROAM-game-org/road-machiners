@@ -1,7 +1,7 @@
 import { ECONOMY, GOODS } from '../../data/goods';
 import { SHOPS } from '../../data/market';
 import { partDef, type PartKind } from '../../data/parts';
-import { freeCells, mountedItems, mountedParts, type Spot } from '../grid';
+import { freeCells, mountedItems, mountedParts, shieldParts, type Spot } from '../grid';
 import { getLayoutError, installSpot } from '../inventory';
 import { firepower, getUpkeepReserve } from '../npc-decisions';
 import { getResources } from '../resources';
@@ -24,7 +24,7 @@ export function goodsRoom(v: Vehicle): number {
 }
 
 function toughnessOf(v: Vehicle): number {
-  return [...mountedParts(v, 'core'), ...mountedParts(v, 'armor')].reduce((sum, part) => sum + part.hp, 0);
+  return [...mountedParts(v, 'core'), ...shieldParts(v)].reduce((sum, part) => sum + part.hp, 0);
 }
 
 function fighterStrength(world: World, v: Vehicle): number {

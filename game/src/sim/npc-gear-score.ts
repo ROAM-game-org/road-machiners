@@ -3,7 +3,7 @@ import { GEAR_SCORE, PRIORITY_TOP, type LoadoutPriorities } from '../data/npcs';
 import { PARTS, partDef, type EngineDef, type WeaponDef } from '../data/parts';
 import { makePart } from './factory';
 import { gunsBySide, killRate, targetOf, THREATS } from './fight-odds';
-import { baseGrid, freeCells, itemCells, mountedItems, plateSide, type SideLetter } from './grid';
+import { baseGrid, cellKey, freeCells, itemCells, mountedItems, plateSide, type SideLetter } from './grid';
 import { vehicleStats } from './stats';
 import type { Vehicle, World } from './types';
 import { wornDef } from './wear';
@@ -19,7 +19,7 @@ export function armorQuality(world: World, defId: string, wear: number): number 
   if (quality === undefined) {
     const worn = wornDef(makePart(world, defId, Math.min(wear, CONDITION.maxWear)));
     const def = partDef(defId);
-    const selfHarm = def.kind === 'armor' && def.claymore ? def.claymore.selfBlast.damage : 0;
+    const selfHarm = def.kind === 'accessory' && def.claymore ? def.claymore.selfBlast.damage : 0;
     const shield = THREATS.reduce((sum, round) => sum + (worn.hp * worn.armor) / (round.pen * round.armorShare), 0) / THREATS.length - selfHarm;
     quality = 1 - Math.exp(-shield / (def.w * def.h) / GEAR_SCORE.armorQualityScale);
     qualityCache.set(key, quality);
@@ -44,7 +44,7 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, pa
 
   const armorValue = (v: Vehicle) => {
     const sum = { F: 0, L: 0, R: 0, B: 0 };
-    for (const item of mountedItems(v, 'armor')) sum[plateSide(v.chassisId, item)] += armorQuality(world, item.part.defId, item.part.wear) * itemCells(item).length;
+    for (const cell of shieldedCells(world, v).values()) sum[cell.side] += 1 - cell.miss;
     const sides = SIDE_LETTERS.map((letter) => {
       const protection = edge[letter] > 0 ? Math.min(1, sum[letter] / edge[letter]) : 1;
       return 1 - (1 - protection) ** GEAR_SCORE.armorCurvePower;
@@ -68,6 +68,19 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, pa
     (p.firepower / PRIORITY_TOP) * fireValue(v) +
     GEAR_SCORE.speedWeight * (p.speed / PRIORITY_TOP) * speedValue(v) +
     (p.cargo / PRIORITY_TOP) * (1 - (1 - Math.min(1, freeCells(v) / bareCells)) ** GEAR_SCORE.cargoCurvePower);
+}
+
+function shieldedCells(world: World, v: Vehicle): Map<number, { side: SideLetter; miss: number }> {
+  const cells = new Map<number, { side: SideLetter; miss: number }>();
+  for (const item of [...mountedItems(v, 'armor'), ...mountedItems(v, 'accessory')]) {
+    const quality = armorQuality(world, item.part.defId, item.part.wear);
+    const side = plateSide(v.chassisId, item);
+    for (const c of itemCells(item)) {
+      const key = cellKey(c.x, c.y);
+      cells.set(key, { side, miss: (cells.get(key)?.miss ?? 1) * (1 - quality) });
+    }
+  }
+  return cells;
 }
 
 function engineFuelUse(v: Vehicle): number {

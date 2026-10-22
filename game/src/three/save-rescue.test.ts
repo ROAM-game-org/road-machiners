@@ -17,7 +17,7 @@ import { townAt } from '../sim/sites';
 import { carriedWorld, endTurn, newWorld } from '../sim/world';
 import { carriesOnLoad, loadWorld, namedSteps, SaveError, savedMisfit, saveOf, savedRunId, stepsFrom } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
-import { TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
+import { RELEASE_STEPS, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
 import FORMAT_2_0 from './save-fixtures/format-2-0.json';
 import FORMAT_2_1 from './save-fixtures/format-2-1.json';
@@ -430,6 +430,12 @@ describe('namedSteps', () => {
     expect(ran(namedSteps([], 63, tiny, { from: 63, names: ['a', 'crimes', 'oddFronts'] }))).toEqual([]);
   });
 
+  it('gives a save of the accessory-layer history only the crimes step it skipped', () => {
+    const names = TINY_STEPS.map((named) => named.name).filter((name) => name !== 'withCrimes');
+    const crimes = TINY_STEPS.find((named) => named.name === 'withCrimes')!.step;
+    expect(namedSteps(RELEASE_STEPS, TINY_FROM, TINY_STEPS, { from: TINY_FROM, names })).toEqual([crimes]);
+  });
+
   it('refuses a name the build does not know and runs nothing', () => {
     const tiny = [mark('a'), mark('crimes')];
     const refused = () => namedSteps([], 63, tiny, { from: 63, names: ['a', 'oddFronts'] });
@@ -483,7 +489,7 @@ describe('namedSteps', () => {
       slots.put('auto', { ...JSON.parse(JSON.stringify(saveOf(world))), steps, savedAt: 1, runId: 'run-1' });
       return () => loadWorld(slots, 'auto', TEST_MAP);
     };
-    expect(stored({ from: TINY_FROM, names: ['withOddFronts'] })).toThrow(/unknownStep/);
+    expect(stored({ from: TINY_FROM, names: ['withStepNoBuildHas'] })).toThrow(/unknownStep/);
     expect(stored({ from: TINY_FROM, names: 'withCrimes' })).toThrow(/noFormat/);
     expect(stored({ from: 1.5, names: [] })).toThrow(/noFormat/);
     expect(stored([])).toThrow(/noFormat/);

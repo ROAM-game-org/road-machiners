@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { PAINT } from '../../data/chassis';
-import { partDef } from '../../data/parts';
+import { isShield, partDef } from '../../data/parts';
 import { BODY_PARTS } from '../../render/partLooks';
 import { unitsOf } from '../../sim/body';
 import { isMounted } from '../../sim/grid';
@@ -63,7 +63,7 @@ function itemOf(v: Vehicle, name: string): GridItem | undefined {
 }
 
 function sideArmor(v: Vehicle, item: GridItem | undefined): boolean {
-  return item?.kind === 'part' && partDef(item.part.defId).kind === 'armor' && isMounted(v.chassisId, item);
+  return item?.kind === 'part' && isShield(partDef(item.part.defId)) && isMounted(v.chassisId, item);
 }
 
 function label(v: Vehicle, name: string): string {

@@ -205,8 +205,8 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
     repair(o, truck);
     for (const kind of SUPPLIES) topUp(o, kind, truck);
   }
-  if (!inCombat(o.world, o.me)) restockGear(o, post, style, haulerShare);
   buyPatchGoods(o);
+  if (!inCombat(o.world, o.me)) restockGear(o, post, style, haulerShare);
 }
 
 function restockGear(o: Orders, post: Outpost, style: RoadStyle, haulerShare: number): void {

@@ -1,10 +1,23 @@
-"""The wagon base: a stylized Dodge WC-51 weapons carrier, rebuilt as a raider gunwagon.
+"""The wagon base: a stylized GAZ-66 gun truck, the Soviet cab-over 4x4 army truck ("Shishiga") with an open flatbed.
 
-Grid: 5 columns by 7 rows, 2.42 m across by 4.55 m along. Half height 0.7 m, from PHYSICS.bodies.wagon.
-Rows 0 and 1 are a raised gun deck over a welded grille, rows 2 and 3 a narrow hood with a cutout over the engine cells,
-rows 4 and 5 open seats behind a flat windshield, and row 6 a short open box.
-Big separate front fenders flow into running boards. The rear body covers the rear wheels.
-Wheels sit on rows 1 and 5 in the outer columns, radius 0.6 m, half width 0.25 m, mount 0.45 m below the center.
+Scaled per axis against the scout, which is the real HiLux times 1.077: the real GAZ-66 is 5.66 m long, 2.32 m wide and 2.44 m tall,
+and here it is 6.1 m long, 2.8 m wide across the bed sides and fenders and 2.6 m tall on its tires. The extra width gives the deck
+seven columns, and the tires follow the tire rule at the stock 0.6 m.
+Grid: 7 columns by 9 rows, stretched over the model by the projection: a row is 0.678 m along and a column 0.4 m across.
+Half height 0.55 m, from PHYSICS.bodies.wagon. The ground is 1.4 m below the center.
+Cab: columns 3 to 5, rows 1 and 2, drawn the full width of the truck as on the real cab-over. A flat front stands over the front
+axle, 1.6 m long, a quarter of the truck. Levels: roof 1.2, beltline 0.42, cab bottom -0.1, with a tall upright windshield in two panes,
+a vertical-slat grille between the front fenders, round headlights on the fenders and a low bumper.
+Front fenders are round-arched blocks at the cab's lower corners, ringed by a dark flare.
+Bed: a long flat flatbed behind the cab, 4.25 m, its floor at 0.05 is the gun deck. Low ribbed drop sides stand 0.4 m above it.
+The rear axle sits at 0.78 of the length, with a short overhang behind it. Fuel tanks hang under the bed front and tail lights sit at the rear corners.
+A spare wheel stands upright behind the cab on the left, in the gap between the doghouse and the left side.
+The doghouse is a low box at the front of the bed, behind the cab, over the engine cells (columns 3 and 4, rows 3 and 4).
+Its hole shows the engine on the bed floor, centered on PHYSICS.bodies.wagon.engine.
+Transmission (columns 4 and 5, rows 5 and 6) and fuel tank (column 2, rows 3 and 4) stand on the bed floor.
+Wheels sit on rows 1 and 7 in the outer columns, radius 0.6 m, half width 0.25 m, mount 0.4 m below the center, 1.12 m off the center line.
+Deviations from the real truck: the wheels stay symmetric, and the cab and bed run wider than the 2.32 m of the original.
+The gun on the original is left to the gun parts on the deck cells.
 Run: blender --background --python tools/blender/base_wagon.py -- public/models/base_wagon.glb [tmp/base_wagon.png]
 """
 
@@ -15,177 +28,227 @@ import sys
 from pathlib import Path
 
 import bpy
+from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, ARCH_SEGMENTS, BASE_COLORS, INSET, SUSPENSION_REST, Grid, arch_cut, check_base, flare, level_sockets  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, Grid, check_base, cut_boxes, flare_profile, level_sockets, round_arch  # noqa: E402
 from shapes import prism  # noqa: E402
 
-SEED = 302
-G = Grid(rows=7, cols=5, half_height=0.7)
+SEED = 304
+LENGTH = 6.1
+WIDTH = 2.8
+ROWS = 9
+COLS = 7
+
+
+class Frame(Grid):
+    """The chassis grid stretched over the model, the way singleCellRect() in body.ts projects it."""
+
+    def __init__(self, half_height: float) -> None:
+        super().__init__(ROWS, COLS, half_height)
+        self.half_x = LENGTH / 2
+        self.half_y = WIDTH / 2
+        self.row_step = LENGTH / ROWS
+        self.col_step = WIDTH / COLS
+
+    def row_x(self, y: float) -> float:
+        return self.half_x - self.row_step * (y + 0.5)
+
+    def col_y(self, x: float) -> float:
+        return self.half_y - self.col_step * (x + 0.5)
+
+
+G = Frame(half_height=0.55)
 WHEEL_R = 0.6
 WHEEL_HALF_W = 0.25
-HUB_Z = -0.45 - SUSPENSION_REST
-FRONT_WX = G.row_x(1)
-REAR_WX = G.row_x(5)
-WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
+WHEEL_Z = 1.12
+HUB_Z = -0.4 - SUSPENSION_REST
+WHEEL_X = 1.8
+WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03
+ARCH_R = WHEEL_R + ARCH_CLEARANCE
 
-SIDE = G.half_y - INSET  # rear body side outer face
-FRONT = G.half_x - INSET  # grille face
-BACK = -G.half_x + INSET  # tail face
-FRAME_TOP = -0.3  # top of the dark chassis block between the wells
+HALF_X = G.half_x
+HALF_Y = G.half_y
+SIDE = HALF_Y - 0.02
+FRAME_BOTTOM = -0.62
+FLOOR = 0.05
+FLOOR_BOTTOM = -0.07
+SIDE_TOP = 0.45
+WALL = 0.08
 
-HOOD_TOP = G.top - 0.1  # level with the rear body rim, like the WC-51 body line
-HOOD_Y = G.col_y(0.5) + 0.1  # the hood's side face, one wall outside the gun and engine columns
-DECK = G.top + 0.2  # the gun deck top, the highest row surface, so the gun stands clear without a riser
-DECK_BACK = G.row_x(1.5)
-DECK_SLOPE = 0.34  # the sloped glacis from the grille top up to the deck
-BAY_FLOOR = HOOD_TOP - 0.3  # a 0.45 m engine pokes 0.15 m out of the cutout
-BAY_LEFT = G.col_y(0.5)
-BAY_RIGHT = G.col_y(2.5)
+CAB_FRONT = 2.85
+CAB_BACK = 1.25
+CAB_BOTTOM = -0.1
+BELT = 0.42
+ROOF = 1.2
+ROOF_T = 0.1
+CAB_SIDE = 1.3
+FENDER_FRONT = 2.9
+FENDER_TOP = 0.1
 
-COWL_FRONT = -0.39  # the rear body starts here, in front of the rear wheel arch
-COWL_BACK = G.row_x(3.5)
-WS_X = (COWL_FRONT + COWL_BACK) / 2  # the windshield stands on the cowl
-WS_TOP = HOOD_TOP + 0.5
-TUB_FLOOR = 0.15  # seat and box floor
-RIM = HOOD_TOP  # the rear body's top edge
-WALL = 0.1
-DOOR = (COWL_BACK, G.row_x(4.3))  # the open door gap in the seat walls
-BOX_FRONT = G.row_x(5.5)
+DOG_TOP = 0.4
+DOG_WALL = 0.05
+HOLE_MARGIN = 0.02
+HOLE = ((G.row_x(4.5) - HOLE_MARGIN, G.col_y(3.5) - HOLE_MARGIN), (G.row_x(2.5) + HOLE_MARGIN, G.col_y(1.5) + HOLE_MARGIN))
+DOG_FRONT = HOLE[1][0] + DOG_WALL
+BAY_FLOOR = FLOOR
 
-FENDER_TOP = 0.2
-FENDER_BOTTOM = -0.5
-BOARD = (-0.5, -0.38)  # running board bottom and top
+SPARE_R = 0.45
+SPARE_T = 0.2
 
 
 def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
-    """A box on the left side at +y and its twin on the right side."""
     kit.box(f"{name}_l", size, (x, y, z), mat)
     kit.box(f"{name}_r", size, (x, -y, z), mat)
 
 
-def mirrored_prism(kit: Kit, name: str, profile: list[tuple[float, float]], y0: float, y1: float, mat: str) -> None:
-    """A prism from y0 to y1 on the left side and its twin on the right side."""
-    prism(kit, f"{name}_l", profile, y0, y1, mat)
-    prism(kit, f"{name}_r", profile, -y1, -y0, mat)
+def clip_x(profile: list[tuple[float, float]], x0: float, x1: float) -> list[tuple[float, float]]:
+    """The part of a closed XZ profile between x0 and x1, cut straight across at both ends."""
+    out = profile
+    for keep, edge in ((lambda x: x >= x0, x0), (lambda x: x <= x1, x1)):
+        pts, out = out, []
+        for i, p in enumerate(pts):
+            q = pts[(i + 1) % len(pts)]
+            if keep(p[0]):
+                out.append(p)
+            if keep(p[0]) != keep(q[0]):
+                t = (edge - p[0]) / (q[0] - p[0])
+                out.append((edge, p[1] + t * (q[1] - p[1])))
+    return out
 
 
-def arch(wx: float, r: float, z_min: float, reverse: bool = False) -> list[tuple[float, float]]:
-    """Low-poly arch points around a wheel from its rear foot to its front foot, clipped below at z_min."""
-    pts = []
-    for k in range(ARCH_SEGMENTS + 1):
-        a = math.pi * (1 - k / ARCH_SEGMENTS)
-        pts.append((wx + r * math.cos(a), max(z_min, HUB_Z + r * math.sin(a))))
-    return list(reversed(pts)) if reverse else pts
+def underbody(kit: Kit) -> None:
+    """The dark frame between the wells, both axles with their differentials, the fuel tanks and the bumpers."""
+    kit.box("core", (2 * HALF_X - 0.2, 0.9, FLOOR_BOTTOM - FRAME_BOTTOM), (0, 0, (FLOOR_BOTTOM + FRAME_BOTTOM) / 2), "under")
+    for i, wx in enumerate((WHEEL_X, -WHEEL_X)):
+        kit.box(f"axle{i}", (0.16, 2 * WELL_Y, 0.4), (wx, 0, HUB_Z + 0.08), "under")
+        kit.box(f"diff{i}", (0.4, 0.4, 0.4), (wx, 0.12, HUB_Z + 0.08), "under")
+    for s, y in (("l", 0.68), ("r", -0.68)):
+        kit.cylinder(f"tank_{s}", 0.2, 0.9, (0.5, y, -0.33), "metal", rot=(0, math.pi / 2, 0), vertices=8)
+    kit.box("front_bumper", (0.14, 2 * CAB_SIDE, 0.18), (HALF_X - 0.07, 0, -0.54), "under")
+    kit.box("rear_bumper", (0.12, 2 * CAB_SIDE - 0.2, 0.15), (-HALF_X + 0.06, 0, -0.47), "under")
+    kit.box("rear_beam", (0.1, 2 * CAB_SIDE, FLOOR_BOTTOM + 0.4), (-HALF_X + 0.15, 0, FLOOR_BOTTOM - 0.16), "under")
+    mirrored(kit, "mud_flap", (0.04, 0.5, 0.45), -WHEEL_X - ARCH_R - 0.06, WHEEL_Z, -0.32, "under")
 
 
-def front_arch(obj: bpy.types.Object) -> None:
-    """Cuts the front wheel arch out of a part that reaches over the front tires, keeping its one material."""
-    material = obj.data.materials[0]
-    arch_cut(obj, [FRONT_WX], HUB_Z, WHEEL_R, WELL_Y, G.bottom)
-    obj.data.materials.clear()
-    obj.data.materials.append(material)
-    for face in obj.data.polygons:
-        face.material_index = 0
+def flares(kit: Kit) -> None:
+    """A dark ring on the outer face over each tire, cut off at the cab back for the front pair."""
+    for i, wx in enumerate((WHEEL_X, -WHEEL_X)):
+        x_min, x_max = (CAB_BACK, FENDER_FRONT) if wx > 0 else (-HALF_X, HALF_X)
+        ring = flare_profile(wx, HUB_Z, WHEEL_R, FRAME_BOTTOM, x_min, x_max)
+        prism(kit, f"flare{i}_l", ring, HALF_Y - 0.02, HALF_Y, "under")
+        prism(kit, f"flare{i}_r", ring, -HALF_Y, -HALF_Y + 0.02, "under")
 
 
-def chassis(kit: Kit) -> None:
-    """A dark block between the wheel wells, from the nose to the tail."""
-    kit.box("frame", (FRONT - BACK - 0.08, 2 * WELL_Y, FRAME_TOP - G.bottom), (0, 0, (FRAME_TOP + G.bottom) / 2), "under")
+def front_end(kit: Kit) -> None:
+    """Round-arched fenders at the cab's lower corners with round headlights, a vertical-slat grille and a plain cab underside."""
+    far_back = WHEEL_X - ARCH_R - 0.4
+    arch = round_arch(WHEEL_X, HUB_Z, ARCH_R, FRAME_BOTTOM)
+    outline = [(far_back, FRAME_BOTTOM), *arch, (FENDER_FRONT, FRAME_BOTTOM), (FENDER_FRONT, FENDER_TOP - 0.12), (FENDER_FRONT - 0.12, FENDER_TOP), (far_back, FENDER_TOP)]
+    piece = clip_x(outline, CAB_BACK, FENDER_FRONT)
+    prism(kit, "fender_l", piece, WELL_Y, HALF_Y - 0.02, "paint")
+    prism(kit, "fender_r", piece, -HALF_Y + 0.02, -WELL_Y, "paint")
+    for s, y in (("l", 1.1), ("r", -1.1)):
+        kit.cylinder(f"lamp_{s}", 0.13, 0.05, (FENDER_FRONT + 0.02, y, -0.08), "light", rot=(0, math.pi / 2, 0), vertices=8)
+    face = (CAB_FRONT + FENDER_FRONT) / 2
+    kit.box("grille", (0.06, 2 * WELL_Y, BELT + 0.45), (face, 0, (BELT - 0.45) / 2), "under")
+    slats = 9
+    for i in range(slats):
+        y = (i - (slats - 1) / 2) * (2 * WELL_Y - 0.16) / (slats - 1)
+        kit.box(f"slat{i}", (0.03, 0.04, BELT + 0.35), (FENDER_FRONT + 0.005, y, (BELT - 0.35) / 2), "metal")
 
 
-def front_fenders(kit: Kit) -> None:
-    """Big flat-topped fenders over the front wheels, sloping down into running boards."""
-    r = WHEEL_R + ARCH_CLEARANCE
-    rear = FRONT_WX - r - 0.2
-    outline = [(FRONT, FENDER_BOTTOM), (FRONT, FENDER_TOP - 0.2), (FRONT - 0.2, FENDER_TOP), (FRONT_WX - 0.35, FENDER_TOP), (rear, BOARD[1])]
-    mirrored_prism(kit, "fender", outline + arch(FRONT_WX, r, FENDER_BOTTOM), WELL_Y, G.half_y, "trim")
-    mirrored_prism(kit, "board", [(COWL_FRONT, BOARD[0]), (rear + 0.1, BOARD[0]), (rear + 0.1, BOARD[1]), (COWL_FRONT, BOARD[1])], WELL_Y, G.half_y - 0.02, "under")
+def cab(kit: Kit) -> None:
+    """A flat-fronted cab-over: painted doors to the beltline, tall glass in two upright panes under a trim roof, and mirror posts."""
+    length = CAB_FRONT - CAB_BACK
+    mid = (CAB_FRONT + CAB_BACK) / 2
+    kit.box("doors", (length, 2 * CAB_SIDE, BELT - CAB_BOTTOM), (mid, 0, (BELT + CAB_BOTTOM) / 2), "paint")
+    glass_h = ROOF - ROOF_T - BELT
+    kit.box("glass", (length - 0.1, 2 * CAB_SIDE - 0.1, glass_h), (mid - 0.05, 0, BELT + glass_h / 2), "glass")
+    post = 0.09
+    for sx, x in ((1, CAB_FRONT - post / 2 + 0.01), (-1, CAB_BACK + post / 2)):
+        mirrored(kit, f"post{sx}", (post, post, glass_h), x, CAB_SIDE - post / 2, BELT + glass_h / 2, "paint")
+    kit.box("mullion", (0.1, 0.1, glass_h), (CAB_FRONT + 0.01, 0, BELT + glass_h / 2), "paint")
+    mirrored(kit, "door_post", (post, post, glass_h), mid, CAB_SIDE - post / 2, BELT + glass_h / 2, "paint")
+    kit.box("back_wall", (0.08, 2 * CAB_SIDE, glass_h), (CAB_BACK + 0.04, 0, BELT + glass_h / 2), "paint")
+    kit.box("roof", (length + 0.08, 2 * CAB_SIDE + 0.06, ROOF_T), (mid + 0.04, 0, ROOF - ROOF_T / 2), "trim")
+    mirrored(kit, "mirror", (0.05, 0.08, 0.34), CAB_FRONT - 0.15, HALF_Y - 0.04, BELT + 0.3, "metal")
 
 
-def gun_deck(kit: Kit) -> None:
-    """A raised deck over the front wheels with a sloped glacis, a dark grille, welded plates and headlights."""
-    nose = [(DECK_BACK, FRAME_TOP), (FRONT, FRAME_TOP), (FRONT, DECK - DECK_SLOPE), (FRONT - DECK_SLOPE, DECK - 0.08), (DECK_BACK, DECK - 0.08)]
-    front_arch(prism(kit, "nose", nose, -HOOD_Y, HOOD_Y, "paint"))
-    kit.box("deck", (FRONT - DECK_SLOPE - DECK_BACK, 2 * HOOD_Y, 0.08), ((FRONT - DECK_SLOPE + DECK_BACK) / 2, 0, DECK - 0.04), "trim")
-    kit.box("grille", (INSET / 2, 0.9, DECK - DECK_SLOPE - FRAME_TOP - 0.12), (FRONT + INSET / 4, 0, (DECK - DECK_SLOPE + FRAME_TOP) / 2), "under")
-    # Two welded plates across the grille, tilted like scrap tacked on in a hurry.
-    kit.box("plate_a", (INSET / 2, 0.5, 0.36), (FRONT + INSET * 0.75, 0.2, -0.05), "metal_light", rot=(0.12, 0, 0))
-    kit.box("plate_b", (INSET / 2, 0.44, 0.3), (FRONT + INSET * 0.75, -0.24, 0.24), "rust", rot=(-0.09, 0, 0))
-    mirrored(kit, "lamp", (INSET / 2, 0.2, 0.2), FRONT + INSET / 4, HOOD_Y - 0.15, DECK - DECK_SLOPE - 0.2, "light")
-    kit.box("valance", (INSET, 2 * WELL_Y, FRAME_TOP - G.bottom), (FRONT - INSET / 2, 0, (FRAME_TOP + G.bottom) / 2), "under")
+def doghouse(kit: Kit) -> None:
+    """A low box over the engine cells at the front of the bed, with a hole down to the bed floor."""
+    (x0, y0), (x1, y1) = HOLE
+    front, back = DOG_FRONT, x0 - DOG_WALL
+    box = kit.box("doghouse", (front - back, y1 - y0 + 2 * DOG_WALL, DOG_TOP - FLOOR), ((front + back) / 2, (y0 + y1) / 2, (DOG_TOP + FLOOR) / 2), "paint")
+    cut_boxes(box, [((x0, y0, FLOOR - 0.01), (x1, y1, DOG_TOP + 0.1))])
+    box.data.materials.clear()
+    box.data.materials.append(kit._materials["paint"])
+    for i in range(3):
+        kit.box(f"louver{i}", (0.5, 0.02, 0.05), ((front + back) / 2, y1 + DOG_WALL + 0.01, FLOOR + 0.1 + 0.08 * i), "under")
 
 
-def hood(kit: Kit) -> None:
-    """A narrow hood between the fenders, open over the engine cells down to the bay floor."""
-    length = DECK_BACK - COWL_FRONT
-    mid = (DECK_BACK + COWL_FRONT) / 2
-    h = HOOD_TOP - FRAME_TOP
-    sides = [
-        kit.box("hood_l", (length, HOOD_Y - BAY_LEFT, h), (mid, (HOOD_Y + BAY_LEFT) / 2, FRAME_TOP + h / 2), "paint"),
-        kit.box("hood_r", (length, BAY_RIGHT + HOOD_Y, h), (mid, (BAY_RIGHT - HOOD_Y) / 2, FRAME_TOP + h / 2), "paint"),
-        kit.box("bay", (length, BAY_LEFT - BAY_RIGHT, BAY_FLOOR - FRAME_TOP), (mid, (BAY_LEFT + BAY_RIGHT) / 2, (BAY_FLOOR + FRAME_TOP) / 2), "metal"),
-    ]
-    for side in sides:
-        front_arch(side)
+def bed(kit: Kit) -> None:
+    """A long flat bed: a plank floor, low drop sides with horizontal ribs and posts, a tailgate and red tail lights."""
+    back = -HALF_X + 0.05
+    length = CAB_BACK - back
+    mid = (CAB_BACK + back) / 2
+    kit.box("floor", (length, 2 * SIDE, FLOOR - FLOOR_BOTTOM), (mid, 0, (FLOOR + FLOOR_BOTTOM) / 2), "metal_dark")
+    h = SIDE_TOP - FLOOR
+    mirrored(kit, "side", (length, WALL, h), mid, SIDE - WALL / 2, FLOOR + h / 2, "paint")
+    for i, z in enumerate((0.14, 0.26, 0.38)):
+        mirrored(kit, f"rib{i}", (length - 0.1, 0.02, 0.05), mid, HALF_Y - 0.01, z, "trim")
+    for i, x in enumerate((-2.4, -1.0, 0.4)):
+        mirrored(kit, f"stake{i}", (0.1, 0.03, h), x, HALF_Y - 0.015, FLOOR + h / 2, "under")
+    kit.box("tailgate", (WALL, 2 * (SIDE - WALL), h), (back + WALL / 2, 0, FLOOR + h / 2), "paint")
+    for i, z in enumerate((0.14, 0.26, 0.38)):
+        kit.box(f"gate_rib{i}", (0.02, 2 * (SIDE - WALL) - 0.1, 0.05), (back - 0.01, 0, z), "trim")
+    mirrored(kit, "taillight", (0.05, 0.14, 0.2), -HALF_X + 0.025, SIDE - 0.14, 0.2, "red")
 
 
-def rear_body(kit: Kit) -> None:
-    """The full-width rear body: arched side skins, the cowl with the windshield, open seats and a short box."""
-    r = WHEEL_R + ARCH_CLEARANCE
-    skin = [(BACK, G.bottom)] + arch(REAR_WX, r, G.bottom) + [(COWL_FRONT, G.bottom), (COWL_FRONT, TUB_FLOOR), (BACK, TUB_FLOOR)]
-    mirrored_prism(kit, "skin", skin, WELL_Y, SIDE, "paint")
-    flare(kit, "flare_l", G, REAR_WX, HUB_Z, WHEEL_R, SIDE, G.half_y)
-    flare(kit, "flare_r", G, REAR_WX, HUB_Z, WHEEL_R, -G.half_y, -SIDE)
-    kit.box("tub", (COWL_FRONT - BACK, 2 * WELL_Y, TUB_FLOOR - FRAME_TOP), ((COWL_FRONT + BACK) / 2, 0, (TUB_FLOOR + FRAME_TOP) / 2), "metal")
-    kit.box("cowl", (COWL_FRONT - COWL_BACK, 2 * SIDE, HOOD_TOP - TUB_FLOOR), (WS_X, 0, (HOOD_TOP + TUB_FLOOR) / 2), "paint")
-    h = RIM - TUB_FLOOR
-    wall = DOOR[1] - BACK
-    mirrored(kit, "wall", (wall, WALL, h), (DOOR[1] + BACK) / 2, SIDE - WALL / 2, TUB_FLOOR + h / 2, "paint")
-    kit.box("box_front", (WALL, 2 * (SIDE - WALL), h), (BOX_FRONT, 0, TUB_FLOOR + h / 2), "paint")
-    kit.box("tailgate", (WALL, 2 * (SIDE - WALL), h), (BACK + WALL / 2, 0, TUB_FLOOR + h / 2), "paint")
-    kit.box("rear_panel", (INSET, 2 * WELL_Y, TUB_FLOOR - G.bottom), (BACK + INSET / 2, 0, (TUB_FLOOR + G.bottom) / 2), "paint")
-    mirrored(kit, "taillight", (INSET / 2, 0.18, 0.18), BACK - INSET / 4, SIDE - 0.14, RIM - 0.16, "red")
+def spare(kit: Kit) -> None:
+    """A spare wheel standing upright behind the cab on the left, with a hub."""
+    x = CAB_BACK - SPARE_T / 2 - 0.01
+    y = HALF_Y - SPARE_R - 0.02
+    z = FLOOR + SPARE_R
+    kit.cylinder("spare", SPARE_R, SPARE_T, (x, y, z), "wheel", rot=(0, math.pi / 2, 0), vertices=10)
+    kit.cylinder("spare_hub", SPARE_R * 0.45, SPARE_T + 0.02, (x, y, z), "metal", rot=(0, math.pi / 2, 0), vertices=8)
 
 
-def windshield(kit: Kit) -> None:
-    """A flat upright split windshield in a trim frame, on the cowl."""
-    post = 0.08
-    h = WS_TOP - HOOD_TOP
-    mirrored(kit, "ws_post", (post, post, h), WS_X, SIDE - post / 2, HOOD_TOP + h / 2, "trim")
-    kit.box("ws_mid", (post, post, h), (WS_X, 0, HOOD_TOP + h / 2), "trim")
-    kit.box("ws_top", (post, 2 * SIDE, post), (WS_X, 0, WS_TOP - post / 2), "trim")
-    kit.box("ws_glass", (0.04, 2 * (SIDE - post), h - post), (WS_X, 0, HOOD_TOP + (h - post) / 2), "glass")
+def bounds(kit: Kit) -> tuple[Vector, Vector]:
+    bpy.context.view_layer.update()
+    lo = Vector((1e9, 1e9, 1e9))
+    hi = Vector((-1e9, -1e9, -1e9))
+    for obj in kit._parts:
+        for v in obj.data.vertices:
+            p = obj.matrix_world @ v.co
+            lo = Vector((min(lo.x, p.x), min(lo.y, p.y), min(lo.z, p.z)))
+            hi = Vector((max(hi.x, p.x), max(hi.y, p.y), max(hi.z, p.z)))
+    return lo, hi
 
 
-def seats(kit: Kit) -> None:
-    """Two front buckets beside the gear tunnel on row 4, and troop benches along the walls behind them."""
-    x = G.row_x(4)
-    for s, y in (("l", G.col_y(1)), ("r", G.col_y(3))):
-        kit.box(f"cushion_{s}", (0.44, 0.42, 0.18), (x + 0.02, y, TUB_FLOOR + 0.09), "leather")
-        kit.box(f"back_{s}", (0.12, 0.42, 0.5), (x - 0.22, y, TUB_FLOOR + 0.25), "leather", rot=(0, -0.15, 0))
-    front, back = DOOR[1] - 0.02, BOX_FRONT + WALL / 2
-    mirrored(kit, "bench", (front - back, 0.26, 0.22), (front + back) / 2, SIDE - WALL - 0.13, TUB_FLOOR + 0.11, "leather")
+def check_size(kit: Kit) -> None:
+    lo, hi = bounds(kit)
+    if abs(hi.x - lo.x - LENGTH) > 0.01 or abs(hi.y - lo.y - WIDTH) > 0.01:
+        raise RuntimeError(f"base_wagon is {hi.x - lo.x:.3f} x {hi.y - lo.y:.3f} m, not {LENGTH} x {WIDTH} m")
 
 
 def main() -> None:
     args = parse_args()
     kit = Kit(BASE_COLORS, SEED)
-    chassis(kit)
-    front_fenders(kit)
-    gun_deck(kit)
-    hood(kit)
-    rear_body(kit)
-    windshield(kit)
-    seats(kit)
-    # The outer columns beside the deck and hood are the front fenders, then the running boards. The engine cells are the bay.
-    low = {(x, y): FENDER_TOP for x in (0, 4) for y in (0, 1, 2)} | {(x, 3): BOARD[1] for x in (0, 4)}
-    bay = {(x, y): BAY_FLOOR for x in (1, 2) for y in (2, 3)}
-    level_sockets(kit, G, "row", [DECK] * 2 + [HOOD_TOP] * 2 + [TUB_FLOOR] * 3, cells=low | bay)
-    level_sockets(kit, G, "floor", [DECK] * 2 + [BAY_FLOOR] * 2 + [TUB_FLOOR] * 3)
+    underbody(kit)
+    flares(kit)
+    front_end(kit)
+    cab(kit)
+    doghouse(kit)
+    bed(kit)
+    spare(kit)
+    fenders = {(x, y): FENDER_TOP for x in (0, 6) for y in (1, 2)}
+    level_sockets(kit, G, "row", [ROOF] * 3 + [FLOOR] * 6, cells=fenders)
+    level_sockets(kit, G, "floor", [BELT] * 3 + [BAY_FLOOR] * 6)
+    check_size(kit)
     check_base(kit, "base_wagon", G)
-    kit.export("base_wagon", args, view_size=6.0)
+    kit.export("base_wagon", args, view_size=8.0)
 
 
 if __name__ == "__main__":

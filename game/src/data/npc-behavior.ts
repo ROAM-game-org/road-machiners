@@ -51,7 +51,7 @@ export const NPC_BEHAVIOR = {
   crippledInvestigate: 0.01,
   lootedResume: 0.01,
   ram: {
-    partWeight: { cab: 4, wheel: 2, transmission: 2, tank: 1, engine: 3, weapon: 3, armor: 0.25, scanner: 1, store: 1, cargo: 1, utility: 1 },
+    partWeight: { cab: 4, wheel: 2, transmission: 2, tank: 1, engine: 3, weapon: 3, armor: 0.25, accessory: 0.25, scanner: 1, store: 1, cargo: 1, utility: 1 },
     gunWeight: 1,
     valueScale: 0.3,
     riskyRam: 0.001,

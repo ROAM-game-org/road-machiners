@@ -1372,7 +1372,7 @@ describe('salvage on the way', () => {
 
   it('a driver that a sale would not make room for passes up only that loot', () => {
     const { w, npc } = passingWreck();
-    w.salvage.push({ id: 'wreck901', pos: { x: 10.5, y: 10 }, radius: 0.6, goods: {}, parts: [makePart(w, 'plates', 0)], hidden: emptyHidden() });
+    w.salvage.push({ id: 'wreck901', pos: { x: 10.5, y: 10 }, radius: 0.6, goods: {}, parts: [makePart(w, 'ram', 0)], hidden: emptyHidden() });
     addGoods(w, npc, 'scrap', 2);
     npc.speed = 0;
     expect(canTakeAny(w, npc, w.salvage.find((s) => s.id === 'wreck901')!)).toBe(false);

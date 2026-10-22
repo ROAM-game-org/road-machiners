@@ -1,6 +1,6 @@
 
 import { CONTRACTS } from '../data/market';
-import { partDef } from '../data/parts';
+import { isShield, partDef } from '../data/parts';
 import { isMet, siteOf, type Contract } from '../sim/market';
 import { surveyClue, surveyPlaceType, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { claimClue, rivalRunning } from '../sim/claims';
@@ -328,7 +328,7 @@ function partDamage(hits: PartHit[]): Map<string, number> {
 }
 
 const PART_SHORT = {
-  weapon: 'gun', engine: 'eng', armor: 'arm', cargo: 'cargo', scanner: 'scan', store: 'store', utility: 'util',
+  weapon: 'gun', engine: 'eng', armor: 'arm', accessory: 'arm', cargo: 'cargo', scanner: 'scan', store: 'store', utility: 'util',
   cab: 'cab', transmission: 'trans', wheel: 'whl', tank: 'tank',
 } as const;
 
@@ -418,7 +418,7 @@ function damageSpans(world: World, vehicleId: string, hits: PartHit[]): LogSpan[
   const parts = [...partDamage(hits)].map(([id, d]) => {
     const part = carriedPart(world, vehicleId, id);
     if (!part) throw new Error(`Round hit part ${id}, which ${vehicleId} does not carry`);
-    return { part, armor: partDef(part.defId).kind === 'armor', d };
+    return { part, armor: isShield(partDef(part.defId)), d };
   });
   const spans = [...parts.filter((p) => !p.armor), ...parts.filter((p) => p.armor)].map(({ part, armor, d }): LogSpan => {
     const broken = part.hp <= 0;

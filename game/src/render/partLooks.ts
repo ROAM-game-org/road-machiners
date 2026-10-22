@@ -75,6 +75,7 @@ export type ItemTone = 'weapon' | 'armor' | 'cargo' | 'other';
 const KIND_TONES: Record<PartKind, ItemTone> = {
   weapon: 'weapon',
   armor: 'armor',
+  accessory: 'armor',
   cargo: 'cargo',
   engine: 'other',
   core: 'other',
@@ -122,6 +123,11 @@ export const PART_MODELS: Record<string, ModelName> = {
   scrapSheet: 'arm_scrap_sheet',
   ceramicTile: 'arm_ceramic_tile',
   claymoreRam: 'arm_claymore_ram',
+  spacedTile: 'arm_spaced_tile',
+  cageSection: 'arm_cage_section',
+  reinforcedSection: 'arm_reinforced_section',
+  spikeCluster: 'arm_spike_cluster',
+  spikeStrip: 'arm_spike_strip',
 
   rack: 'cargo_rack',
   trailerBox: 'cargo_trailer_box',
@@ -535,6 +541,7 @@ const PART_SECTION: Record<PartDef['kind'], IconSection> = {
   weapon: 'weapon',
   engine: 'engine',
   armor: 'armor',
+  accessory: 'armor',
   cargo: 'cargo',
   store: 'store',
   scanner: 'store',

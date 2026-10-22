@@ -741,7 +741,7 @@ describe('the hunter', () => {
     const me = playerVehicle(w);
     const ahead = { x: me.pos.x + 12, y: me.pos.y };
     me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
-    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['autocannon', 'heavyDiesel'], ahead);
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['autocannon', 'mg', 'mg', 'heavyDiesel'], ahead);
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect([hostileToPlayer(w, raider), playerSees(w, raider.pos)]).toEqual([true, true]);
 
@@ -774,7 +774,7 @@ describe('the hunter', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'shotgun', 'heavyDiesel'], { x: me.pos.x + 14, y: me.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'mg', 'shotgun', 'heavyDiesel'], { x: me.pos.x + 14, y: me.pos.y });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect(Math.abs(judgeDanger(w, me, raider) - 1)).toBeLessThan(NPC_BEHAVIOR.dangerSpread / 2);
     const orders = Array.from({ length: 12 }, (_, i) => {
@@ -790,7 +790,7 @@ describe('the hunter', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     addGoods(w, me, 'electronics', 2);
-    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'mg', 'shotgun', 'heavyDiesel'], { x: me.pos.x + 40, y: me.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['autocannon', 'mg', 'mg', 'heavyDiesel'], { x: me.pos.x + 40, y: me.pos.y });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect(judgeDanger(w, me, raider) * (1 - NPC_BEHAVIOR.dangerSpread)).toBeGreaterThan(1);
     w.player.contacts = [{ vehicleId: raider.id, center: { ...raider.pos }, radius: 5, sources: ['sound'], loudness: 1 }];

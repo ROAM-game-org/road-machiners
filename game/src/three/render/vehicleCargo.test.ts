@@ -82,14 +82,14 @@ const REPORTED_BUGGY: Placed[] = [
   { defId: 'plowRam', x: 1, y: 7, rot: 0 },
   { defId: 'plowRam', x: 1, y: 0, rot: 0 },
   { defId: 'ceramicPlates', x: 0, y: 4, rot: 0 },
-  { defId: 'ceramicPlates', x: 5, y: 4, rot: 0 },
+  { defId: 'ceramicPlates', x: 6, y: 4, rot: 0 },
   { defId: 'ceramicPlates', x: 0, y: 1, rot: 0 },
-  { defId: 'ceramicPlates', x: 5, y: 1, rot: 0 },
+  { defId: 'ceramicPlates', x: 6, y: 1, rot: 0 },
   { defId: 'workhorseDiesel', x: 2, y: 1, rot: 0 },
   { defId: 'ceramicTile', x: 0, y: 6, rot: 0 },
-  { defId: 'ceramicTile', x: 5, y: 6, rot: 0 },
+  { defId: 'ceramicTile', x: 6, y: 6, rot: 0 },
   { defId: 'ceramicTile', x: 0, y: 3, rot: 0 },
-  { defId: 'ceramicTile', x: 5, y: 3, rot: 0 },
+  { defId: 'ceramicTile', x: 6, y: 3, rot: 0 },
   { defId: 'panniers', x: 4, y: 7, rot: 0 },
 ];
 

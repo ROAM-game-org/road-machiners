@@ -16,7 +16,7 @@ import { ROAD_INDEX } from './road-index';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { grayRadius } from './vision';
-import { findSpot, goodsCount, gridOf, isMounted, mountedParts, MOUNT_CELLS, type Spot } from './grid';
+import { findSpot, goodsCount, gridOf, isMounted, mountedParts, mountCellsOf, type Spot } from './grid';
 import { addGoods, cargoMassRoom, getLayoutError, lootRefitTurns, requireIdleRefit, stowPart } from './inventory';
 import { chance, hashRandom, randInt } from './rng';
 import { sampleWeighted } from './npc-loadout';
@@ -237,7 +237,7 @@ function canTakeRevealed(world: World, vehicle: Vehicle, stock: SalvageStock, pa
 
 export function canStowPart(vehicle: Vehicle, part: PartInstance): boolean {
   const item: GridItem = { id: 'fit-check', x: 0, y: 0, rot: 0, kind: 'part', part };
-  return itemMass(item) <= cargoMassRoom(vehicle) && findSpot(gridOf(vehicle), vehicle.items, item, null, MOUNT_CELLS[partDef(part.defId).kind]) !== null;
+  return itemMass(item) <= cargoMassRoom(vehicle) && findSpot(gridOf(vehicle), vehicle.items, item, null, mountCellsOf(part.defId)) !== null;
 }
 
 export function hasStores(stock: SalvageStock): boolean {
@@ -782,7 +782,7 @@ function nextInstalled(looter: Vehicle, target: Vehicle): { item: GridItem; spot
 
 function spareSpot(looter: Vehicle, item: GridItem): Spot | null {
   if (itemMass(item) > cargoMassRoom(looter)) return null;
-  const avoid = item.kind === 'part' ? MOUNT_CELLS[partDef(item.part.defId).kind] : null;
+  const avoid = item.kind === 'part' ? mountCellsOf(item.part.defId) : null;
   return findSpot(gridOf(looter), looter.items, { ...item, id: 'probe' }, null, avoid);
 }
 

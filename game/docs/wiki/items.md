@@ -11,18 +11,18 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | scout | Scout pickup | 1 | 815 | 7.8 | 2 | 3 | 680 | 3840 | 0.6 | 40 | 0.25 | 7 x 8 | cabPickup, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose |
 | hauler | Hauler | 2 | 1,226 | 5.2 | 1 | 2 | 2730 | 7590 | 0.8 | 80 | 0.4 | 9 x 9 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl |
-| buggy | Buggy | 1 | 643 | 9.1 | 3 | 3 | 230 | 3080 | 0.5 | 30 | 0.2 | 6 x 8 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose |
-| wagon | Gunwagon | 2 | 1,008 | 3.9 | 1 | 2 | 2130 | 5510 | 0.8 | 60 | 0.4 | 8 x 7 | cab, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | nose |
-| courier | Courier | 1 | 774 | 9.75 | 3 | 3 | 280 | 3550 | 0.5 | 24 | 0.18 | 6 x 9 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose |
+| buggy | Buggy | 1 | 643 | 9.1 | 3 | 3 | 230 | 3280 | 0.5 | 30 | 0.2 | 7 x 8 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose |
+| wagon | Gunwagon | 2 | 1,008 | 3.9 | 1 | 2 | 2130 | 6990 | 0.8 | 60 | 0.4 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | nose |
+| courier | Courier | 1 | 774 | 9.75 | 3 | 3 | 280 | 3750 | 0.5 | 24 | 0.18 | 7 x 9 | cab, transmission, tank, wheel, wheel, wheel, wheel | bowl, nose |
 | van | Utility van | 2 | 1,027 | 6.5 | 1.5 | 3 | 1100 | 4790 | 0.7 | 55 | 0.24 | 7 x 9 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl |
 | longbed | Longbed truck | 3 | 1,795 | 4.55 | 0.8 | 1.8 | 2900 | 8930 | 0.95 | 100 | 0.48 | 9 x 11 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl |
-| carrier | Armored carrier | 3 | 1,626 | 5.2 | 1 | 2.5 | 3200 | 7420 | 0.85 | 70 | 0.5 | 8 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | nose |
+| carrier | Armored carrier | 3 | 1,626 | 5.2 | 1 | 2.5 | 3200 | 7620 | 0.85 | 70 | 0.5 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | nose |
 | tractor | Heavy tractor | 3 | 1,461 | 3.9 | 1.8 | 2 | 3600 | 8460 | 0.9 | 120 | 0.6 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl |
-| jeep | Jeep | 1 | 729 | 8.2 | 2.5 | 3 | 450 | 3720 | 0.55 | 35 | 0.2 | 6 x 9 | cab, transmission, tank, wheel, wheel, wheel, wheel | nose |
+| jeep | Jeep | 1 | 729 | 8.2 | 2.5 | 3 | 450 | 3920 | 0.55 | 35 | 0.2 | 7 x 9 | cab, transmission, tank, wheel, wheel, wheel, wheel | nose |
 | convertible | Convertible | 2 | 998 | 9.4 | 2.5 | 3 | 750 | 4440 | 0.6 | 45 | 0.26 | 7 x 9 | cabHardtop, transmission, tankLong, wheel, wheel, wheel, wheel | bowl |
-| bus | Bus | 2 | 1,267 | 5.5 | 0.9 | 2 | 3000 | 8810 | 0.9 | 110 | 0.45 | 8 x 12 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl |
+| bus | Bus | 2 | 1,267 | 5.5 | 0.9 | 2 | 3000 | 9010 | 0.9 | 110 | 0.45 | 9 x 12 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | bowl |
 | loader | Wheel loader | 3 | 1,696 | 3.6 | 1.6 | 2.5 | 4200 | 9060 | 0.9 | 130 | 0.65 | 9 x 9 | cabPickup, transmissionHeavy, tankHeavy, wheelHeavy, wheelHeavy, wheelHeavy, wheelHeavy | bowl |
-| niva | Niva | 2 | 1,050 | 7.6 | 2.2 | 3 | 520 | 4210 | 0.55 | 42 | 0.21 | 6 x 10 | cab, transmissionMid, tank, wheelMid, wheelMid, wheelMid, wheelMid | nose |
+| niva | Niva | 2 | 1,050 | 7.6 | 2.2 | 3 | 520 | 4410 | 0.55 | 42 | 0.21 | 7 x 10 | cab, transmissionMid, tank, wheelMid, wheelMid, wheelMid, wheelMid | nose |
 | bukhanka | Bukhanka | 2 | 1,150 | 6 | 1.4 | 2.5 | 1250 | 5360 | 0.65 | 78 | 0.3 | 7 x 10 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid | nose |
 | lincoln | Lincoln | 3 | 1,430 | 8.6 | 2 | 2.2 | 900 | 5540 | 0.85 | 85 | 0.36 | 7 x 11 | cabHardtop, transmission, tankLong, wheel, wheel, wheel, wheel | nose |
 | semi | Semi | 3 | 1,400 | 6 | 0.8 | 1.5 | 9000 | 16430 | 1.2 | 160 | 0.5 | 9 x 29 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid |  |
@@ -99,24 +99,38 @@ Each weapon's round:
 
 ## Armor
 
-`armor` stops kinetic rounds and `blast armor` stops blast rounds and splash. Field repair says how far a repair on the road restores the part. A claymore ram holds a charge that the driver arms. It blasts on the next hard truck crash on its side.
+`armor` stops kinetic rounds and `blast armor` stops blast rounds and splash. Field repair says how far a repair on the road restores the part.
 
 <!-- wiki:armor -->
-| id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | blast armor | field repair | ram mult | claymore |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| plates | Steel plates | 2 | 102 | 1 x 3 | 42 | 80 | 12 | false | 12 | capped | 1 |  |
-| cage | Rebar cage | 1 | 73 | 1 x 2 | 20.625 | 60 | 2 | false | 20 | capped | 1 |  |
-| ram | Ram bar | 2 | 86 | 3 x 1 | 50.625 | 100 | 8 | false | 8 | capped | 2 |  |
-| scrapPanels | Scrap panels | 1 | 50 | 1 x 2 | 30 | 44 | 5 | false | 5 | full | 1 |  |
-| ceramicPlates | Ceramic plates | 2 | 150 | 1 x 2 | 18.75 | 36 | 22 | false | 8 | none | 1 |  |
-| spacedArmor | Spaced armor | 2 | 142 | 1 x 4 | 48.75 | 110 | 10 | false | 28 | capped | 1 |  |
-| reinforcedCage | Reinforced cage | 2 | 117 | 1 x 3 | 33.75 | 130 | 4 | false | 26 | capped | 1.2 |  |
-| plowRam | Plow ram | 3 | 167 | 3 x 1 | 47.25 | 170 | 10 | false | 10 | none | 2.8 |  |
-| claymoreRam | Claymore ram | 2 | 140 | 3 x 1 | 142.5 | 80 | 14 | false | 6 | capped | 1.5 | {"minImpact":3,"blast":{"damage":60,"pen":12,"radius":2},"selfBlast":{"damage":25,"pen":6},"throw":{"impulse":40000,"lift":0.35},"reload":20} |
-| steelPlate | Steel plate | 2 | 66 | 1 x 1 | 15 | 28 | 12 | false | 12 | capped | 1 |  |
-| scrapSheet | Scrap sheet | 1 | 34 | 1 x 1 | 15 | 22 | 5 | false | 5 | full | 1 |  |
-| ceramicTile | Ceramic tile | 2 | 87 | 1 x 1 | 9.375 | 18 | 22 | false | 8 | none | 1 |  |
+| id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | blast armor | field repair | ram mult |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| plates | Steel plates | 2 | 68 | 1 x 2 | 28.125 | 53 | 12 | false | 12 | capped | 1 |
+| cage | Rebar cage | 1 | 73 | 1 x 2 | 20.625 | 60 | 2 | false | 20 | capped | 1 |
+| scrapPanels | Scrap panels | 1 | 50 | 1 x 2 | 30 | 44 | 5 | false | 5 | full | 1 |
+| ceramicPlates | Ceramic plates | 2 | 150 | 1 x 2 | 18.75 | 36 | 22 | false | 8 | none | 1 |
+| spacedArmor | Spaced armor | 2 | 71 | 1 x 2 | 24.375 | 55 | 10 | false | 28 | capped | 1 |
+| reinforcedCage | Reinforced cage | 2 | 78 | 1 x 2 | 22.5 | 86 | 4 | false | 26 | capped | 1.2 |
+| steelPlate | Steel plate | 2 | 66 | 1 x 1 | 15 | 28 | 12 | false | 12 | capped | 1 |
+| scrapSheet | Scrap sheet | 1 | 34 | 1 x 1 | 15 | 22 | 5 | false | 5 | full | 1 |
+| ceramicTile | Ceramic tile | 2 | 87 | 1 x 1 | 9.375 | 18 | 22 | false | 8 | none | 1 |
+| spacedTile | Spaced armor tile | 2 | 76 | 1 x 1 | 12.375 | 28 | 10 | false | 28 | capped | 1 |
+| cageSection | Rebar cage section | 1 | 42 | 1 x 1 | 10.3125 | 30 | 2 | false | 20 | capped | 1 |
+| reinforcedSection | Reinforced cage section | 2 | 70 | 1 x 1 | 11.25 | 43 | 4 | false | 26 | capped | 1.2 |
 <!-- /wiki:armor -->
+
+## Accessories
+
+Accessories bolt on over the armor edge and take no cargo room. Rams mount on the front and back, and spikes on any edge. `ram mult` raises the damage a crash deals on the lanes the part covers. A claymore ram holds a charge that the driver arms. It blasts on the next hard truck crash on its side.
+
+<!-- wiki:accessories -->
+| id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | blast armor | field repair | ram mult | mounts | claymore |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ram | Ram bar | 2 | 86 | 3 x 1 | 50.625 | 100 | 8 | false | 8 | capped | 2 | FB |  |
+| plowRam | Plow ram | 3 | 167 | 3 x 1 | 47.25 | 170 | 10 | false | 10 | none | 2.8 | FB |  |
+| claymoreRam | Claymore ram | 2 | 140 | 3 x 1 | 142.5 | 80 | 14 | false | 6 | capped | 1.5 | FB | {"minImpact":3,"blast":{"damage":60,"pen":12,"radius":2},"selfBlast":{"damage":25,"pen":6},"throw":{"impulse":40000,"lift":0.35},"reload":20} |
+| spikeCluster | Spike cluster | 1 | 34 | 1 x 1 | 11.25 | 20 | 3 | false | 3 | full | 1.5 | FBLR |  |
+| spikeStrip | Spike strip | 1 | 53 | 1 x 2 | 22.5 | 40 | 3 | false | 3 | full | 1.5 | FBLR |  |
+<!-- /wiki:accessories -->
 
 ## Cargo
 

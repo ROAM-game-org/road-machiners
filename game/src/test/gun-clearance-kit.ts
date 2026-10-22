@@ -1,7 +1,7 @@
 
 import { PAINT } from '../data/chassis';
 import * as THREE from 'three';
-import { partDef } from '../data/parts';
+import { isShield, partDef } from '../data/parts';
 import { BODY_PARTS, baseModel, itemLookId, partModel, weaponLook } from '../render/partLooks';
 import { aimWithin, gunSpans } from '../sim/armor';
 import { cellRect, highestUnder, surfaceSamples, unitOfCells } from '../sim/body';
@@ -51,14 +51,14 @@ function obstacles(v: Vehicle, skip: GridItem): Box[] {
     let what: string = itemLookId(it);
     if (it.kind === 'part') {
       const d = partDef(it.part.defId);
-      if (d.kind === 'armor' && isMounted(v.chassisId, it)) {
+      if (isShield(d) && isMounted(v.chassisId, it)) {
         const raw = new THREE.Box3().setFromObject(model(partModel(d.id)));
         const at = armorPlacement(v, it, raw, model(baseModel(v.chassisId, unitOfCells(v.chassisId, itemCells(it)).index)));
         const box = raw.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
         out.push({ x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z, top: box.max.y, what: d.id });
         continue;
       }
-      if (BODY_PARTS.has(d.id) || d.kind === 'weapon' || d.kind === 'armor' || d.kind === 'engine') continue;
+      if (BODY_PARTS.has(d.id) || d.kind === 'weapon' || isShield(d) || d.kind === 'engine') continue;
       if (d.kind === 'core' && (isMounted(v.chassisId, it) || d.role !== 'tank')) continue;
       if (/wheel/i.test(d.id) && isMounted(v.chassisId, it)) continue;
       what = d.id;

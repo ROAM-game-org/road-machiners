@@ -116,7 +116,7 @@ describe('spare armor', () => {
       let placement;
       try {
         const obj = model(partModel(def.id));
-        placement = armorPlacement({ chassisId: id }, item, new THREE.Box3().setFromObject(obj), baseUnder(id, item));
+        placement = armorPlacement({ chassisId: id, items: [] }, item, new THREE.Box3().setFromObject(obj), baseUnder(id, item));
         obj.position.copy(placement.pos);
         obj.rotation.set(0, placement.yaw, 0);
         obj.scale.copy(placement.scale);

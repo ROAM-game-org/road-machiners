@@ -20,7 +20,7 @@ import { callVehicle, chooseOption, currentOptions, hangUp } from '../dialogue';
 import { offeredSurrenderBy, type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
 import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getLotTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
-import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountedItems, mountedParts, type Spot } from '../grid';
+import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
 import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
 import { itemMass } from '../mass';
 import { acceptContract, deliverContract, estimateTurns, shopAt, shopState, siteOf, type Contract } from '../market';
@@ -1169,7 +1169,7 @@ function takeFromTarget(o: Orders, target: Vehicle): void {
 
 function looseSpot(me: Vehicle, item: GridItem): Spot | null {
   if (itemMass(item) > cargoMassRoom(me)) return null;
-  const avoid = item.kind === 'part' ? MOUNT_CELLS[partDef(item.part.defId).kind] : null;
+  const avoid = item.kind === 'part' ? mountCellsOf(item.part.defId) : null;
   return findSpot(gridOf(me), me.items, { ...item, id: 'loot-probe' }, null, avoid);
 }
 

@@ -66,8 +66,10 @@ function toneChain(src, source, id, cue) {
   return [...matched, ...(field ? fieldTone(src, matched.join(','), source) : [])].join(',');
 }
 
+const isSeamless = (source) => source.includes('.seamless.');
+
 function playable(source, name, cue) {
-  if (!cue.loop || cue.beat) return source;
+  if (!cue.loop || cue.beat || isSeamless(source)) return source;
   return cue.bus === 'music' ? musicLoop(source, name) : steadyLoop(source, `tmp/sfx-raw/${name.replace('.ogg', '')}.loop.wav`);
 }
 

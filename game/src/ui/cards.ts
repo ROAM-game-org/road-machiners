@@ -1,7 +1,7 @@
 
 import { oilSlickLength } from "../data/utilities";
 import { CHASSIS, chassisDef, isTruckPaint, PAINT, samePaint, type TruckPaint } from "../data/chassis";
-import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ArmorDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
+import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
 import { baseGrid, cargoCellsGained, cellCount, mountedParts, type Cell } from "../sim/grid";
 import { maxHp, partValue, wornDef } from "../sim/wear";
@@ -539,6 +539,7 @@ const KIND_STATS: Record<PartKind, (world: World, part: PartInstance) => Stat[]>
   weapon: weaponStats,
   engine: (_, part) => engineStats(part),
   armor: (_, part) => armorStats(part),
+  accessory: (_, part) => armorStats(part),
   cargo: cargoStats,
   scanner: (_, part) => [stat("scanner", t("stat.detection"), meters(wornDef<ScannerDef>(part).range), "m", "more")],
   store: (_, part) => storeStats(part),
@@ -620,7 +621,7 @@ function engineStats(part: PartInstance): Stat[] {
 }
 
 function armorStats(part: PartInstance): Stat[] {
-  const d = wornDef<ArmorDef>(part);
+  const d = wornDef<ShieldDef>(part);
   const armor = stat("armor", t("stat.armor"), Math.round(d.armor), null, "more");
   const blast = stat("blast", t("stat.blastArmor"), Math.round(d.blastArmor), null, "more");
   const stats = [armor, blast, fieldRepairStat(d.fieldRepair)];

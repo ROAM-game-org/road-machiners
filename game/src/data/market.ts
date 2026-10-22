@@ -12,7 +12,7 @@ import type { CrimeOffense } from '../sim/types';
 
 export type Tier = 1 | 2 | 3;
 
-export type ItemKind = 'weapon' | 'engine' | 'armor' | 'cargo' | 'scanner' | 'store' | 'utility' | 'chassis' | 'good';
+export type ItemKind = 'weapon' | 'engine' | 'armor' | 'accessory' | 'cargo' | 'scanner' | 'store' | 'utility' | 'chassis' | 'good';
 
 export const EFFORT = {
   wage: {
@@ -26,6 +26,7 @@ export const EFFORT = {
       weapon: [250, 700],
       engine: [250, 700],
       armor: [250, 700],
+      accessory: [250, 700],
       cargo: [250, 700],
       scanner: [250, 700],
       store: [250, 700],
@@ -37,6 +38,7 @@ export const EFFORT = {
       weapon: [180, 480],
       engine: [180, 480],
       armor: [180, 480],
+      accessory: [180, 480],
       cargo: [180, 480],
       scanner: [180, 480],
       store: [180, 480],
@@ -48,6 +50,7 @@ export const EFFORT = {
       weapon: [180, 380],
       engine: [180, 380],
       armor: [180, 380],
+      accessory: [180, 380],
       cargo: [180, 380],
       scanner: [180, 380],
       store: [180, 380],
@@ -262,7 +265,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     partStock: {
       parts: ([
         'plates', 'steelPlate', 'cage', 'scrapPanels', 'scrapSheet', 'ram', 'plowRam', 'mg', 'shotgun', 'rack', 'panniers',
-        'caltrops', 'oilSpiller', 'scrapersKnife', 'patcherCrane', 'claymoreRam',
+        'caltrops', 'oilSpiller', 'scrapersKnife', 'patcherCrane', 'claymoreRam', 'spikeCluster', 'spikeStrip', 'cageSection',
       ] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },

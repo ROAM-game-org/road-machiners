@@ -208,6 +208,11 @@ export const NAMES = [
   'arm_scrap_sheet',
   'arm_ceramic_tile',
   'arm_claymore_ram',
+  'arm_spaced_tile',
+  'arm_cage_section',
+  'arm_reinforced_section',
+  'arm_spike_cluster',
+  'arm_spike_strip',
 
   'cargo_rack',
   'cargo_trailer_box',

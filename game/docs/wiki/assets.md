@@ -56,6 +56,11 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | scrapSheet | arm_scrap_sheet |
 | part | ceramicTile | arm_ceramic_tile |
 | part | claymoreRam | arm_claymore_ram |
+| part | spacedTile | arm_spaced_tile |
+| part | cageSection | arm_cage_section |
+| part | reinforcedSection | arm_reinforced_section |
+| part | spikeCluster | arm_spike_cluster |
+| part | spikeStrip | arm_spike_strip |
 | part | rack | cargo_rack |
 | part | trailerBox | cargo_trailer_box |
 | part | panniers | cargo_panniers |

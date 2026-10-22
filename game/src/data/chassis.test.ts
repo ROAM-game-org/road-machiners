@@ -41,12 +41,23 @@ function armorTouched(c: ChassisDef, cells: Cell[]): Set<string> {
 const FRONT_ENGINE: readonly string[] = ['longbed', 'tractor'];
 
 const TANK_BESIDE_WHEELS: Record<string, string> = {
-  buggy: 'With the cab and transmission off the wheel columns and the 2x2 deck block kept, a wheel column is the only place left for the tank.',
   courier: 'With the cab and transmission off the wheel columns and the 2x2 deck block kept, a wheel column is the only place left for the tank.',
 };
 
+const SMALL_CAR = 'A small car whose 5 inner columns were 4 before odd fronts. A 3x2 cab would fill its middle and leave no deck block.';
+
+const WIDENED = ['buggy', 'courier', 'jeep', 'niva', 'bus', 'carrier', 'wagon'];
+
+const OPEN_NEW_COLUMN: Record<string, string> = {
+  jeep: 'Its tank shields the engine from the rear. Moving it into the new column would open the engine to rear fire.',
+  carrier: 'Its tank shields the cab from the rear. Moving it into the new column would open the cab to rear fire.',
+};
+
 const SEAT_CAB: Record<string, string> = {
-  wagon: 'An open gun platform. On its 6x5 grid a six-cell cab leaves no deck block, which tier 2 requires, and cuts the deck from 11 cells to 6.',
+  buggy: SMALL_CAR,
+  courier: SMALL_CAR,
+  jeep: SMALL_CAR,
+  niva: SMALL_CAR,
 };
 
 const VALUES = {
@@ -90,13 +101,28 @@ describe('chassis grids', () => {
     }
   });
 
-  it('gives four-column chassis and the listed ones the open seat and every other chassis a 3x2 cab', () => {
+  it('gives the listed small cars the open seat and every other chassis a 3x2 cab', () => {
     for (const [id, c] of Object.entries(CHASSIS)) {
-      const seat = c.layout[0].length === 6 || id in SEAT_CAB;
       const cabs = c.core.filter((part) => { const def = partDef(part.defId); return def.kind === 'core' && def.role === 'cab'; });
-      expect(cabs.map((part) => part.defId === 'cab'), id).toEqual([seat]);
+      expect(cabs.map((part) => part.defId === 'cab'), id).toEqual([id in SEAT_CAB]);
     }
-    for (const id of Object.keys(SEAT_CAB)) expect(CHASSIS[id].layout[0].length, id).not.toBe(6);
+  });
+
+  it('gives every front and back edge an odd number of cells, so a 3-cell ram sits centered', () => {
+    for (const [id, c] of Object.entries(CHASSIS)) {
+      const edges = [c.layout[0], c.layout[c.layout.length - 1]].map((row) => [...row].filter((ch) => ch === 'F' || ch === 'B').length);
+      for (const cells of edges.filter((n) => n > 0)) expect(cells % 2, id).toBe(1);
+    }
+  });
+
+  it('puts a built-in part or the engine bay in every column of a widened truck but those listed, so its new column does not let front shots through', () => {
+    const open = WIDENED.filter((id) => {
+      const c = CHASSIS[id];
+      const roles = c.core.map((core) => partDef(core.defId)).flatMap((def) => (def.kind === 'core' ? [def.role] : []));
+      const filled = columns([...new Set(roles)].flatMap((role) => coreCells(c, role)).concat(engineCells(c)));
+      return Array.from({ length: c.layout[0].length - 2 }, (_, i) => i + 1).some((x) => !filled.has(x));
+    });
+    expect(open).toEqual(Object.keys(OPEN_NEW_COLUMN));
   });
 
   it('keeps every chassis value at its value before the layout rules', () => {

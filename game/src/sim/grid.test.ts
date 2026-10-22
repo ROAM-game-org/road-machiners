@@ -222,7 +222,7 @@ describe('side armor mounts', () => {
 
   it('the ram multiplies ram damage, plates and cage do not', () => {
     const ram = PARTS.ram;
-    if (ram.kind !== 'armor') throw new Error('ram must be armor');
+    if (ram.kind !== 'accessory') throw new Error('ram must be an accessory');
     expect(ram.ramMult).toBeGreaterThan(1);
     for (const id of ['plates', 'cage']) {
       const d = PARTS[id];

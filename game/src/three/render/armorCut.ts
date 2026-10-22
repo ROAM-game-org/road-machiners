@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { partDef, type PartDef } from '../../data/parts';
+import { isShield, partDef, type ShieldDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import { cellRect, CLIP_TOLERANCE, restOn, unitBody, type Body } from '../../sim/body';
@@ -152,7 +152,6 @@ export function withCut<M extends THREE.Material>(source: M, spec: CutSpec): M {
 }
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
-type ArmorDef = Extract<PartDef, { kind: 'armor' }>;
 export type Placement = { pos: THREE.Vector3; yaw: number; scale: THREE.Vector3 };
 
 const CELL = PHYSICS.cell;
@@ -166,9 +165,9 @@ const SIDE_FACE: Record<SideLetter, { axis: 'x' | 'z'; outward: 1 | -1 }> = {
   L: { axis: 'z', outward: -1 },
 };
 
-export function armorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, box: THREE.Box3, body: THREE.Object3D): Placement {
+export function armorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, box: THREE.Box3, body: THREE.Object3D): Placement {
   const def = partDef(item.part.defId);
-  if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
+  if (!isShield(def)) throw new Error(`Part ${def.id} is not armor or an accessory`);
   const side = armorSide(v, item);
   return isMounted(v.chassisId, item) ? mountedArmorPlacement(v, item, def, side, box, body) : spareArmorPlacement(v, item, side, box);
 }
@@ -195,7 +194,7 @@ function spareArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, side
   return { pos, yaw, scale };
 }
 
-function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, def: ArmorDef, side: SideLetter, box: THREE.Box3, body: THREE.Object3D): Placement {
+function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef, side: SideLetter, box: THREE.Box3, body: THREE.Object3D): Placement {
   const { axis, outward } = SIDE_FACE[side];
   const across = axis === 'x';
   const depthScale = Math.max(across && def.look !== 'plates' ? 1 : 0, TRUCK_LOOK.armorDepth / thinDepthOf(def, box));
@@ -209,8 +208,17 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, de
   const at = { pos, yaw: SIDE_YAW[side], scale };
   const touch = nearestTouch(at, box, body, side, 2 * half.y);
   if (touch === null) throw new Error(`Armor ${def.id} on side ${side} of ${v.chassisId} has no body behind it`);
-  pos[axis] += outward * Math.min(0, outward * touch - snug);
+  pos[axis] += outward * (Math.min(0, outward * touch - snug) + overArmor(v, item, def));
   return at;
+}
+
+function overArmor(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem, def: ShieldDef): number {
+  return def.kind === 'accessory' && armorUnder(v, item) ? TRUCK_LOOK.armorDepth : 0;
+}
+
+function armorUnder(v: Pick<Vehicle, 'chassisId' | 'items'>, item: PartItem): boolean {
+  const cells = new Set(itemCells(item).map((c) => `${c.x},${c.y}`));
+  return v.items.some((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'armor' && isMounted(v.chassisId, it) && itemCells(it).some((c) => cells.has(`${c.x},${c.y}`)));
 }
 
 function nearestTouch(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, reach: number): number | null {
@@ -233,7 +241,7 @@ function touchBehind(at: Placement, box: THREE.Box3, body: THREE.Object3D, side:
   return bodyFace(body, axis, outward, lateral, [placed.min.y, placed.max.y]);
 }
 
-function thinDepthOf(def: ArmorDef, box: THREE.Box3): number {
+function thinDepthOf(def: ShieldDef, box: THREE.Box3): number {
   const depth = box.max.x - box.min.x;
   const width = box.max.z - box.min.z;
   if (!(depth < width)) throw new Error(`Armor model of ${def.id} is ${depth.toFixed(2)} m deep and ${width.toFixed(2)} m wide, expected its thin axis along x`);

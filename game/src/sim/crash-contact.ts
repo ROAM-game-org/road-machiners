@@ -97,8 +97,8 @@ function playerRam(world: World, a: Vehicle, b: Vehicle, hitsA: PartHit[], hitsB
 function damageVehicleCrash(world: World, a: Vehicle, b: Vehicle, impact: number, contact: CrashGeometry): { hitsA: PartHit[]; hitsB: PartHit[] } {
   if (!contact.b) throw new Error('Vehicle crash has no target contact');
   const share = vehicleMass(b) / (vehicleMass(a) + vehicleMass(b));
-  const multA = ramMult(a, contact.a.side);
-  const multB = ramMult(b, contact.b.side);
+  const multA = ramMult(a, contact.a);
+  const multB = ramMult(b, contact.b);
   if (towsClient(world, a, b) || towsClient(world, b, a)) return { hitsA: [], hitsB: [] };
   const hitsA = applyContactDamage(world, a, contact.a, impact, share, multB);
   const hitsB = applyContactDamage(world, b, contact.b, impact, 1 - share, multA);

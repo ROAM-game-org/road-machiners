@@ -42,7 +42,7 @@ import {
   truckSupplyPrice,
   type Supply,
 } from "../sim/economy";
-import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
+import { freeCells, goodsCount, mountCellsOf, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
 import { acceptContract, deliverContract, fitsFetch, goodStock, haulShort, isMet, knowsMarket, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
@@ -77,7 +77,12 @@ import { vehicleById } from "../sim/damage";
 
 export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "paint" | "contracts" | "charts";
 
-export type StockFilter = "all" | Exclude<PartKind, "core">;
+export type StockFilter = "all" | Exclude<PartKind, "core" | "accessory">;
+
+export function kindFilter(kind: PartKind): Exclude<StockFilter, "all"> {
+  if (kind === "core") throw new Error("Built-in parts are never in stock");
+  return kind === "accessory" ? "armor" : kind;
+}
 
 export const STOCK_FILTERS: StockFilter[] = ["all", "weapon", "engine", "armor", "cargo", "scanner", "store", "utility"];
 
@@ -293,8 +298,8 @@ export class TownScreen {
     return reasonButton([verb, SPACE, priceSpan(price, short === null)], () => this.run(cmd), reason ?? short, key);
   }
 
-  private hintMounts(kind: PartKind): (on: boolean) => void {
-    return (on) => this.inventory.hintMounts(on ? MOUNT_CELLS[kind] : null);
+  private hintMounts(defId: string): (on: boolean) => void {
+    return (on) => this.inventory.hintMounts(on ? mountCellsOf(defId) : null);
   }
 
   private market(w: World, shopId: string, def: ShopDef): HTMLElement {
@@ -366,7 +371,7 @@ export class TownScreen {
   private buyParts(w: World, shopId: string): HTMLElement {
     const me = playerVehicle(w);
     const stock = shopState(w, shopId).stock;
-    const shown = stock.filter((p) => this.stockFilter === "all" || partDef(p.defId).kind === this.stockFilter);
+    const shown = stock.filter((p) => this.stockFilter === "all" || kindFilter(partDef(p.defId).kind) === this.stockFilter);
     const rows = shown.map((p) => {
       const price = partTradePrice(w, me, p, "buy");
       const short = shortBy(w.player.money, price);
@@ -388,7 +393,7 @@ export class TownScreen {
       price,
       payable,
       action,
-      onHover: this.hintMounts(partDef(p.defId).kind),
+      onHover: this.hintMounts(p.defId),
     };
   }
 
@@ -619,7 +624,7 @@ function theyLack(npc: Vehicle, price: number): Msg | null {
 }
 
 function stockCount(stock: PartInstance[], f: StockFilter): number {
-  return f === "all" ? stock.length : stock.filter((p) => partDef(p.defId).kind === f).length;
+  return f === "all" ? stock.length : stock.filter((p) => kindFilter(partDef(p.defId).kind) === f).length;
 }
 
 const PROFIT_TONE = { gain: "better", loss: "worse", even: "same" } as const;
@@ -870,8 +875,8 @@ export class TruckTradeScreen {
     return reasonButton([label], () => this.run(cmd), reason, key);
   }
 
-  private hintMounts(kind: PartKind): (on: boolean) => void {
-    return (on) => this.inventory.hintMounts(on ? MOUNT_CELLS[kind] : null);
+  private hintMounts(defId: string): (on: boolean) => void {
+    return (on) => this.inventory.hintMounts(on ? mountCellsOf(defId) : null);
   }
 
   private goods(w: World, npc: Vehicle): HTMLElement {
@@ -933,7 +938,7 @@ export class TruckTradeScreen {
       world: w,
       payable: reason === null,
       action: this.button(verb, cmd, reason),
-      onHover: this.hintMounts(partDef(p.defId).kind),
+      onHover: this.hintMounts(p.defId),
     });
     const theirs = spareParts(npc).map((p) => {
       const price = truckPartPrice(w, p, "buy");

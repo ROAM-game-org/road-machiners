@@ -1,6 +1,6 @@
 
 import { chassisDef } from "../data/chassis";
-import { partDef } from "../data/parts";
+import { isShield, partDef } from "../data/parts";
 import { STRIP } from "../data/salvage";
 import { isJunk, maxHp } from "../sim/wear";
 import { playerVehicle, truckFor } from "../sim/damage";
@@ -1218,7 +1218,7 @@ const ROTATE_KEYCAP = "R";
 
 function fieldPatchable(part: PartInstance): boolean {
   const def = partDef(part.defId);
-  return def.kind !== "armor" || def.fieldRepair !== "none";
+  return !isShield(def) || def.fieldRepair !== "none";
 }
 
 function shopOnlyPatch(part: PartInstance): HTMLElement | null {

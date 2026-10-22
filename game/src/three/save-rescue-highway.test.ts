@@ -8,6 +8,7 @@ import { isDriveObstacle, touchesObstacle } from '../sim/mapgen';
 import { defaultSetup } from '../sim/settings';
 import type { Vehicle, World } from '../sim/types';
 import { carriedWorld, endTurn, type Carried } from '../sim/world';
+import { maxHp } from '../sim/wear';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, SaveError } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
@@ -33,7 +34,7 @@ function savedTruck(save: Fixture, id: string): SavedTruck {
 }
 
 function partsOf(items: readonly { kind: string; part?: { defId: string; hp: number; wear: number } }[]) {
-  return items.flatMap((it) => (it.part ? [{ defId: it.part.defId, hp: it.part.hp, wear: it.part.wear }] : [])).sort((a, b) => a.defId.localeCompare(b.defId));
+  return items.flatMap((it) => (it.part ? [{ defId: it.part.defId, hp: Math.min(it.part.hp, maxHp({ id: 'held', ...it.part })), wear: it.part.wear }] : [])).sort((a, b) => a.defId.localeCompare(b.defId));
 }
 
 function goodsOf(items: readonly { kind: string; good?: string }[]): string[] {

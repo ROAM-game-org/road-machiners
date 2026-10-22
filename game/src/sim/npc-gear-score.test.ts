@@ -52,6 +52,12 @@ describe('gear score', () => {
     expect(score(vanWith([{ id: 'plates', side: 'F', count: 1 }]))).toBeGreaterThan(score(vanWith([])));
   });
 
+  it('scores a ram over a full row of plates higher than the plates alone', () => {
+    const { score } = scorer(priorities({ armor: 3 }));
+    const plated = [{ id: 'steelPlate', side: 'F' as Cell, count: 5 }];
+    expect(score(vanWith([...plated, { id: 'ram', side: 'F', count: 1 }]))).toBeGreaterThan(score(vanWith(plated)));
+  });
+
   it('scores armor of a better quality higher on the same side', () => {
     const { score } = scorer(priorities({ armor: 3 }));
     expect(score(vanWith([{ id: 'plates', side: 'F', count: 1 }]))).toBeGreaterThan(score(vanWith([{ id: 'cage', side: 'F', count: 1 }])));

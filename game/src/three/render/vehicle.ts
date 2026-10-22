@@ -2,7 +2,7 @@
 import { CLOUD_SHADOWS } from './cloudShadows';
 import * as THREE from 'three';
 import { chassisDef, type TruckPaint } from '../../data/chassis';
-import { partDef, type PartDef, type PartKind } from '../../data/parts';
+import { isShield, partDef, type PartDef, type PartKind } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
@@ -31,7 +31,7 @@ type PartItem = Extract<GridItem, { kind: 'part' }>;
 const PAINT = 'paint';
 const TRIM = 'trim';
 
-const BROKEN_TONE: Record<PartKind, number> = { weapon: 0.5, armor: 0.6, engine: 0.6, cargo: 0.6, core: 0.6, scanner: 0.6, store: 0.6, utility: 0.6 };
+const BROKEN_TONE: Record<PartKind, number> = { weapon: 0.5, armor: 0.6, accessory: 0.6, engine: 0.6, cargo: 0.6, core: 0.6, scanner: 0.6, store: 0.6, utility: 0.6 };
 
 const ROT_YAW = Math.PI / 2;
 
@@ -460,7 +460,7 @@ export class VehicleView {
   private placedPart(v: Vehicle, body: Body, item: PartItem, def: PartDef, paint: number): THREE.Object3D {
     const mounted = isMounted(v.chassisId, item);
     if (isWheel(def)) return this.spareWheel(v, body, item, paint, standingY(v, item));
-    if (def.kind === 'armor') return this.placeArmor(v, item, paint);
+    if (isShield(def)) return this.placeArmor(v, item, paint);
     if (def.kind === 'engine' && mounted) return this.placeEngine(v, item, paint);
     return this.placeItem(v, item, paint);
   }
@@ -577,7 +577,7 @@ export class VehicleView {
 
   private placeArmor(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
     const def = partDef(item.part.defId);
-    if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
+    if (!isShield(def)) throw new Error(`Part ${def.id} is not armor or an accessory`);
     const obj = model(partModel(def.id));
     place(obj, armorPlacement(v, item, new THREE.Box3().setFromObject(obj), this.unitOf(v, item).base));
     tint(obj, paint, lookOf(item));
@@ -795,7 +795,7 @@ function dropShadows(root: THREE.Object3D): void {
 }
 
 function armorIdsOf(v: Vehicle): Set<string> {
-  return new Set(v.items.flatMap((it) => (it.kind === 'part' && partDef(it.part.defId).kind === 'armor' ? [it.part.id] : [])));
+  return new Set(v.items.flatMap((it) => (it.kind === 'part' && isShield(partDef(it.part.defId)) ? [it.part.id] : [])));
 }
 
 function restingWheelBoxes(unit: UnitView): THREE.Box3[] {
@@ -913,14 +913,18 @@ function standsFlat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   if (item.kind !== 'part') return true;
   const def = partDef(item.part.defId);
   if (BODY_PARTS.has(def.id) || isWheel(def)) return false;
-  return !['weapon', 'armor'].includes(def.kind) && !(def.kind === 'engine' && isMounted(v.chassisId, item));
+  return !hangsOnTruck(def) && !(def.kind === 'engine' && isMounted(v.chassisId, item));
+}
+
+function hangsOnTruck(def: PartDef): boolean {
+  return def.kind === 'weapon' || isShield(def);
 }
 
 function alwaysDrawn(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
   if (def.kind === 'weapon') return true;
-  return (def.kind === 'armor' || def.kind === 'engine' || isWheel(def)) && isMounted(v.chassisId, item);
+  return (isShield(def) || def.kind === 'engine' || isWheel(def)) && isMounted(v.chassisId, item);
 }
 
 function restOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem): Rest {
@@ -963,7 +967,7 @@ export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: numb
 }
 
 function blocksGuns(v: Vehicle, item: PartItem, def: PartDef): boolean {
-  return !(isMounted(v.chassisId, item) && (def.kind === 'armor' || def.kind === 'engine'));
+  return !(isMounted(v.chassisId, item) && (isShield(def) || def.kind === 'engine'));
 }
 
 function obstacleOf(obj: THREE.Object3D): Obstacle {

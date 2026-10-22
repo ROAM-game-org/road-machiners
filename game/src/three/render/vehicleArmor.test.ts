@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../../data/chassis';
-import { PARTS } from '../../data/parts';
+import { isShield, PARTS } from '../../data/parts';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import { baseModel, itemLookId, partModel } from '../../render/partLooks';
 import { bodyOf, cellRect, CLIP_TOLERANCE, restOn, unitBody } from '../../sim/body';
@@ -18,7 +18,7 @@ await loadModels(async (name) => {
   return Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0)).buffer;
 });
 
-const ARMOR = Object.values(PARTS).filter((def) => def.kind === 'armor');
+const ARMOR = Object.values(PARTS).filter(isShield);
 const EPS = 1e-6;
 const LOOSE_PARTS = ['panniers', 'rack', 'trailerBox'];
 const PROBE = 0.1;
@@ -42,9 +42,14 @@ function mountedArmor(chassisId: string): PartItem[] {
   return out;
 }
 
-function placedBox(chassisId: string, item: PartItem): THREE.Box3 {
+function plateUnder(item: PartItem): PartItem {
+  const [cell] = itemCells(item);
+  return { ...item, id: 'under', x: cell.x, y: cell.y, rot: 0, part: { id: 'under', defId: 'steelPlate', hp: 1, wear: 0 } };
+}
+
+function placedBox(chassisId: string, item: PartItem, items: GridItem[] = []): THREE.Box3 {
   const obj = model(partModel(item.part.defId));
-  const placement = armorPlacement({ chassisId }, item, new THREE.Box3().setFromObject(obj), model(baseModel(chassisId, cellRect(chassisId, itemCells(item)).unit)));
+  const placement = armorPlacement({ chassisId, items }, item, new THREE.Box3().setFromObject(obj), model(baseModel(chassisId, cellRect(chassisId, itemCells(item)).unit)));
   obj.position.copy(placement.pos);
   obj.rotation.set(0, placement.yaw, 0);
   obj.scale.copy(placement.scale);
@@ -83,16 +88,18 @@ function overhangOf(box: THREE.Box3, half: { x: number; z: number }): number {
 }
 
 describe('mounted armor', () => {
-  it.each(Object.keys(CHASSIS))('%s: every armor part sits with its inner face no deeper than the body face minus the inset, touching the real body', (id) => {
+  it.each(Object.keys(CHASSIS))('%s: every armor part sits with its inner face no deeper than the body face minus the inset, touching the real body, and every accessory one armor depth further out only over armor', (id) => {
     const problems: string[] = [];
     const items = mountedArmor(id);
     expect(items.length).toBeGreaterThan(0);
-    for (const item of items) {
+    const cases = items.flatMap((item) => (PARTS[item.part.defId].kind === 'accessory' ? [{ item, under: [plateUnder(item)] }, { item, under: [] }] : [{ item, under: [] }]));
+    for (const { item, under } of cases) {
       const body = unitBody(id, cellRect(id, itemCells(item)).unit);
       const side = plateSide(id, item);
-      const box = placedBox(id, item);
-      const label = `${item.part.defId} rot ${item.rot} at ${item.x},${item.y} side ${side}`;
-      const inner = innerFace(box, side);
+      const box = placedBox(id, item, under);
+      const label = `${item.part.defId} rot ${item.rot} at ${item.x},${item.y} side ${side} over ${under.length} plates`;
+      const over = under.length ? TRUCK_LOOK.armorDepth : 0;
+      const inner = innerFace(box, side) - over;
       const snug = bodyHalf(body.half, side) - TRUCK_LOOK.armorInset;
       if (inner > snug + EPS) problems.push(`${label}: inner face ${inner.toFixed(3)} past ${snug.toFixed(3)}`);
       const gap = inner - outermostBody(id, item, box, side);
@@ -108,7 +115,7 @@ describe('mounted armor', () => {
     const half = bodyOf(id).half.y;
     for (const item of mountedArmor(id)) {
       const def = PARTS[item.part.defId];
-      if (def.kind !== 'armor') continue;
+      if (!isShield(def)) continue;
       const box = placedBox(id, item);
       const raw = new THREE.Box3().setFromObject(model(partModel(def.id)));
       if (def.look === 'ram') expect(box.min.y, def.id).toBeCloseTo(-half + TRUCK_LOOK.armorRise + raw.min.y, 5);

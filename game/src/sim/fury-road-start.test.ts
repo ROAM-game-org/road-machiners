@@ -134,8 +134,8 @@ describe('Slug cannon name', () => {
 describe('Fury Road outpost stock', () => {
   const kinds = [...new Set(GARAGE_STOCK.parts.map((p) => PARTS[p.value].kind))];
 
-  it('holds five guns, six armor parts, three of most other types and every store and scanner part, never two of the same part', () => {
-    const wanted: Record<string, number> = { weapon: 5, armor: 6, engine: 3, cargo: 3, utility: 3, store: 2, scanner: 1 };
+  it('holds five guns, six armor parts, two accessories, three of most other types and every store and scanner part, never two of the same part', () => {
+    const wanted: Record<string, number> = { weapon: 5, armor: 6, accessory: 2, engine: 3, cargo: 3, utility: 3, store: 2, scanner: 1 };
     expect(kinds.sort()).toEqual(Object.keys(wanted).sort());
     for (const seed of [1, 3, 99]) {
       const stock = outpostFactsAt(furyRoadWorld(seed), 1).stock;
