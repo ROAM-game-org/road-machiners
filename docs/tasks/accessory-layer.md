@@ -193,11 +193,13 @@ Approach: land each concern green as its own run of commits. Two Sonnet implemen
 ## Verify
 
 - The user checked shots of the GAZ-66 wagon from every camera, and the courier with its moved transmission. Both look right.
+- After merging dev's float fix, the user checked a courier with spikes from every camera and confirmed it looks right.
 
 ## Code smells
 
 - `game/src/three/shot.ts:96-98` — the view labels "top down", "left side" and "right side" are prose literals outside the text catalog, so `src/text/scan.test.ts` fails on `dev` already.
 - `game/src/data/chassis.ts` — hauler, longbed, tractor, loader and semi each have a column with no built-in part or engine bay, so front shots there hit nothing on an empty truck.
+- `game/src/three/render/gunStand.ts` `heldOn` and `game/src/test/truck-support-kit.ts` judge support differently. The view draws a small part on an outer deck cell that the support test then calls half in the air. On `dev` it hits caltrops on scout cells 1,4 and 5,4, and on courier and carrier cells. Narrower cells on this branch add buggy 1,3 and six jeep cells.
 - On `dev` already: `npc-loadout-traffic.test.ts` cultist variants, four `npc-restraint.test.ts` repair tests, `story-wrecks.test.ts` and `intro.test.ts` fail.
 
 ## Conclusion
