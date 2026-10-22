@@ -196,11 +196,12 @@ Approach: land each concern green as its own run of commits. Two Sonnet implemen
 - After merging dev's float fix, the user checked a courier with spikes from every camera and confirmed it looks right.
 - `npm run playtest` passes: 12 turns at 60.5 fps, no errors.
 - The NPC roll script over 225 rolled trucks puts a big piece beside a lone 1-cell piece on 0% of armored sides, down from 68%. 52% of sides carry an accessory.
-- The `combat` harness cannot take an outfit with a ram, since `+` also joins trucks in a lineup. The `combat` kit hauler charging a buggy crashed 4 times in 8 fights on dev and 2 times on the branch, too few to judge ram lanes.
+- The `combat` kit hauler charging a buggy crashed 4 times in 8 fights on dev and 2 times on the branch, too few to judge ram lanes.
+- After the `combat` harness learned to read `mg/plates+ram`, a charging hauler with plates crashed 8 times in 8 fights with a ram and 8 without. The harness reports no lane per crash, so AS1 stays open.
 
 ## Code smells
 
-- `game/src/test/combat-harness.ts:93` `parseLineup` splits on `+` before `parseOutfit` can read `gun/armor+ram`, so the outfit form `docs/tools.md` shows always fails.
+- `game/src/test/combat-harness.ts` reports crash counts only, with no lane or ram damage per crash.
 - `game/src/sim/armor.ts` `cabShieldWith` throws on an accessory, and armor and accessories rank mount spots by different rules.
 
 - `game/src/data/chassis.ts` — hauler, longbed, tractor, loader and semi each have a column with no built-in part or engine bay, so front shots there hit nothing on an empty truck.

@@ -17,6 +17,12 @@ describe('truck specs', () => {
     expect(parseTruck('merc:mg/bare').gear).toEqual({ kind: 'outfit', outfit: { gun: 'mg', armor: null } });
   });
 
+  it('reads a ram after an outfit as part of that truck, and any other + as a new truck', () => {
+    expect(parseLineup('kite:mg/plates+ram').map((t) => t.gear)).toEqual([{ kind: 'outfit', outfit: { gun: 'mg', armor: 'plates', ram: 'ram' } }]);
+    expect(parseLineup('kite:mg/plates+ram+buggy').map((t) => t.driver)).toEqual(['kite', 'buggy']);
+    expect(parseLineup('buggy+buggy').map((t) => t.driver)).toEqual(['buggy', 'buggy']);
+  });
+
   it('refuses an unknown driver, gear or level', () => {
     expect(() => parseTruck('nobody')).toThrow('Unknown driver');
     expect(() => parseTruck('merc:nothing')).toThrow('Unknown gear');
