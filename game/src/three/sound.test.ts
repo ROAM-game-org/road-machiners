@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { GameEvent, ShotRound } from "../sim/types";
 import { CHASSIS } from "../data/chassis";
 import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUNDS } from "../data/sounds";
-import type { Glide, SoundPlayer } from "../audio/player";
+import type { SoundPlayer } from "../audio/player";
 import { REGION } from "../data/region";
 import { OUTPOSTS, siteGates } from "../sim/sites";
-import { engineGlide, EngineStrain, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides } from "./sound";
+import { engineGlide, EngineStrain, glideAt, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides } from "./sound";
 import type { BlockEvent } from "./block-session";
 import type { CameraRig } from "./render/camera";
 import { TEST_MAP } from '../test/map';
@@ -145,13 +145,13 @@ describe("engine sound assignment", () => {
   it("changes the healthy and strained engine loops together, and only when the chassis changes", () => {
     const started: string[] = [];
     const stopped: string[] = [];
-    const glides: Record<string, Glide[]> = {};
+    const gains: Record<string, number[]> = {};
     const player = {
       loop: (id: string, _at: unknown, file?: string) => {
         const name = file ?? id;
         if (id === "engine" || id === "engine-strain") started.push(name);
         return {
-          glide: (g: Glide) => (glides[name] ??= []).push(g),
+          set: (_rate: number, gain: number) => (gains[name] ??= []).push(gain),
           once: () => {},
           setGain: () => {},
           stop: () => stopped.push(name),
@@ -159,12 +159,16 @@ describe("engine sound assignment", () => {
       },
     } as unknown as SoundPlayer;
     const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} });
-    const glide = engineGlide(0, 10, 1, MIX, false)!;
+    const glide = { ...engineGlide(0, 10, 1, MIX, false)!, starts: false };
+    const drive = (chassis: string, strain: { from: number; to: number }) => {
+      loops.drive(glide, chassis, strain);
+      loops.engineAt(0);
+    };
 
-    loops.drive(glide, "scout", { from: 0, to: 0 });
-    loops.drive(glide, "scout", { from: 1, to: 1 });
-    loops.drive(glide, "scout", { from: 1, to: 0.5 });
-    loops.drive(glide, "hauler", { from: 0, to: 0 });
+    drive("scout", { from: 0, to: 0 });
+    drive("scout", { from: 1, to: 1 });
+    drive("scout", { from: 1, to: 0.5 });
+    drive("hauler", { from: 0, to: 0 });
 
     expect(started).toEqual([
       engineFileFor("scout"),
@@ -173,8 +177,35 @@ describe("engine sound assignment", () => {
       engineStrainFileFor("hauler"),
     ]);
     expect(stopped).toEqual([engineFileFor("scout"), engineStrainFileFor("scout")]);
-    expect(glides[engineFileFor("scout")].map((g) => g.gainFrom)).toEqual([glide.gainFrom, 0, 0]);
-    expect(glides[engineStrainFileFor("scout")].map((g) => g.gainFrom)).toEqual([0, glide.gainFrom, glide.gainFrom]);
+    expect(gains[engineFileFor("scout")]).toEqual([glide.gainFrom, 0, 0]);
+    expect(gains[engineStrainFileFor("scout")]).toEqual([0, glide.gainFrom, glide.gainFrom]);
+  });
+
+  it("moves the engine by the turn's world time, holds it while the world rests, and fades it only for a real stop or a parked turn", () => {
+    const sets: { rate: number; gain: number }[] = [];
+    const player = { loop: () => ({ set: (rate: number, gain: number) => sets.push({ rate, gain }), once: () => {}, setGain: () => {}, stop: () => {} }) } as unknown as SoundPlayer;
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} });
+    const cruise = engineGlide(10, 12, 1, MIX, false)!;
+    const last = () => sets[sets.length - 2];
+
+    loops.drive(cruise, "scout", { from: 0, to: 0 });
+    loops.engineAt(0.5);
+    const half = last();
+    loops.engineAt(0.5);
+    expect(last()).toEqual(half);
+    loops.engineAt(1);
+    expect(last()).toEqual(glideAt(cruise, 1));
+    expect(last().gain).toBeGreaterThan(0);
+
+    loops.drive(null, "scout", { from: 0, to: 0 });
+    loops.engineAt(0);
+    expect(last().gain).toBeCloseTo(glideAt(cruise, 1).gain);
+    loops.engineAt(1);
+    expect(last().gain).toBe(0);
+
+    loops.drive(engineGlide(10, 0, 1, MIX, false)!, "scout", { from: 0, to: 0 });
+    loops.engineAt(1);
+    expect(last().gain).toBe(0);
   });
 
   it("plays the strained engine on the same bus and level as the engine, so mute and volume match", () => {
@@ -262,7 +293,7 @@ describe("next track", () => {
         if (id === "music-calm") calm.push(handle);
         if (id === "music-quest") quest.push(handle);
         if (id === "music-abandoned") abandoned.push(handle);
-        return { glide: () => {}, once: () => {}, setGain: (g: number) => handle.gains.push(g), stop: (ms: number) => handle.stops.push(ms) };
+        return { set: () => {}, once: () => {}, setGain: (g: number) => handle.gains.push(g), stop: (ms: number) => handle.stops.push(ms) };
       },
     } as unknown as SoundPlayer;
     const songs: string[] = [];

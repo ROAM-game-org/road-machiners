@@ -915,19 +915,18 @@ export class Game {
     const me = playerVehicle(this.world);
     const frames = result.frames[me.id];
     const g = computeEngineGlide(frames, MOVE_MS / 1000, MIX, inOverdrive(this.world, me));
-    if (!g) return;
     const strain = this.engineStrain.next(this.world.turn, engineOverheating(this.world));
-    if (!isStranded(this.world, me)) {
-      this.loops.drive(g, me.chassisId, strain);
-      this.sound.engineStrain(strain);
-    }
-    if (g.brake) this.sound.at("air-brake", frames[0].pos, 0);
+    const running = g && !isStranded(this.world, me) ? g : null;
+    this.loops.drive(running, me.chassisId, strain);
+    if (running) this.sound.engineStrain(strain);
+    if (g?.brake) this.sound.at("air-brake", frames[0].pos, 0);
   }
 
   private updateLoops(): void {
     const me = playerVehicle(this.world);
     const at = this.frames[me.id] ? toMap(this.frames[me.id].pos) : me.pos;
     this.loops.update({ stormShare: stormShare(me), inCombat: inCombat(this.world, me), inQuest: this.screens.quest.isOpen(), place: musicPlaceAt(this.world.terrain, at) });
+    this.loops.engineAt(turnClockOf(this.anim)?.progress ?? 1);
     if (this.sightingToSound) this.sound.scoreEvent("sighted", 0);
     this.sightingToSound = false;
   }
