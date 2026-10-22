@@ -685,7 +685,7 @@ export class VehicleView {
 
   private wheelModel(body: Body, paint: number, look: Look): THREE.Object3D {
     const raw = model('wheel');
-    tint(raw, paint, look);
+    tint(raw, paint, look, true);
     const wrap = new THREE.Group();
     wrap.add(raw);
     const wheel = mergeStatic(wrap);
@@ -1000,7 +1000,7 @@ function place(obj: THREE.Object3D, at: Placement): void {
   obj.scale.copy(at.scale);
 }
 
-function tint(obj: THREE.Object3D, paint: number, look: Look): void {
+function tint(obj: THREE.Object3D, paint: number, look: Look, flatZ = false): void {
   const share = grayShare(look.step);
   obj.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
@@ -1011,10 +1011,10 @@ function tint(obj: THREE.Object3D, paint: number, look: Look): void {
     mat.color.multiplyScalar(look.tone);
     if (look.partId) o.userData.partId = look.partId;
   });
-  if (look.partId && look.step > 0) jag(obj, look.partId, look.step);
+  if (look.partId && look.step > 0) jag(obj, look.partId, look.step, flatZ);
 }
 
-export function jag(obj: THREE.Object3D, partId: string, step: number): void {
+export function jag(obj: THREE.Object3D, partId: string, step: number, flatZ = false): void {
   obj.updateMatrixWorld(true);
   const toModel = obj.matrixWorld.clone().invert();
   const box = new THREE.Box3();
@@ -1036,7 +1036,7 @@ export function jag(obj: THREE.Object3D, partId: string, step: number): void {
     for (let i = 0; i < pos.count; i++) {
       p.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).applyMatrix4(toModel);
       const d = jagOffset(partId, p.x, p.y, p.z, step, thinnest);
-      p.add(offset.set(d.x, d.y, d.z)).applyMatrix4(toMesh);
+      p.add(offset.set(d.x, d.y, flatZ ? 0 : d.z)).applyMatrix4(toMesh);
       pos.setXYZ(i, p.x, p.y, p.z);
     }
     pos.needsUpdate = true;
