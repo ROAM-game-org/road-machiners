@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CLIP_TOLERANCE, MIN_SUPPORT } from '../sim/body';
+import { bottomSamples } from '../three/render/gunStand';
 
 export type Stand = 'underside' | 'corners' | 'tip' | 'brace';
 
@@ -16,7 +17,7 @@ export function supportFaults(pieces: Piece[], ground: THREE.Object3D[]): Suppor
   for (const piece of pieces) {
     const others = solids([...ground, ...pieces.filter((p) => p !== piece).map((p) => p.obj)]);
     const own = solids([piece.obj]);
-    const under = bottomPoints(piece.obj).filter((p) => new THREE.Raycaster(p.clone().setY(p.y - CLIP_TOLERANCE / 2), DOWN).intersectObjects(own, false).length === 0);
+    const under = (piece.stand === 'underside' || piece.stand === 'corners' ? bottomSamples(piece.obj) : bottomPoints(piece.obj)).filter((p) => new THREE.Raycaster(p.clone().setY(p.y - CLIP_TOLERANCE / 2), DOWN).intersectObjects(own, false).length === 0);
     if (under.length === 0) throw new Error(`Piece ${piece.name} has no mesh`);
     const groups = { underside: under.map((p) => [p]), corners: cornersOf(under), tip: [[centerOf(under)]], brace: [[centerOf(under)]] }[piece.stand];
     const down = piece.stand === 'brace' ? DOWN.clone().applyQuaternion(piece.obj.getWorldQuaternion(new THREE.Quaternion())) : DOWN;

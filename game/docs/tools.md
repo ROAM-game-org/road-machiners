@@ -81,6 +81,7 @@ An A/B test checks a balance change before it goes into `src/data/`.
 - `--guard` makes the merc that rides beside a scripted player on side a, as `stand+merc`, the player's hired guard. It starts with no feud.
 - `--late b:20` holds side b's last truck out until turn 20, then brings it in. `--bystander trader` parks a neutral truck of that template at the edge.
 - The report adds, per side, the trucks still in the fight, knocked out and fled at the end, and what became of the bystander: calm, fought or out.
+- Rams landed shows, per side, how many damaging crashes on a side with a ram or spikes put the hit on them.
 - `--gap <tiles>` sets the starting distance and `--orbit <tiles>` the scripted orbit radius. The defaults are 8 and 6.
 - `--set RULES.leadError=3` changes one balance number for the run, so a tuning idea is measured before any code changes. It may repeat.
 - `--trace` prints every turn. `--out <dir>` sets the output, `tmp/combat/` by default. It writes `fights.json` and `report.md` with outcomes, hit rates and damage per pair of lineups, and names the side that fled.

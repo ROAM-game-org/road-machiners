@@ -35,6 +35,16 @@ describe('truck specs', () => {
   });
 });
 
+describe('rams landed', () => {
+  it('counts the damaging crashes of a truck with a ram and the ones its ram took, and none for a truck without one', () => {
+    const r = runFight({ ...FIGHT, a: parseLineup('charge:mg/plates+ram'), b: parseLineup('buggy:mg/bare'), seed: 1, maxTurns: 40 });
+    expect(r.a.ramCrashes).toBeGreaterThan(0);
+    expect(r.a.ramCrashes).toBeLessThanOrEqual(r.crashes);
+    expect(r.a.ramsLanded).toBeLessThanOrEqual(r.a.ramCrashes);
+    expect(r.b.ramCrashes).toBe(0);
+  }, 90_000);
+});
+
 describe('side b hp left', () => {
   it('reports a share between 0 and 1 for a won fight', () => {
     const r = runFight({ ...FIGHT, a: parseLineup('charge:autocannon/plates'), b: parseLineup('buggy:mg/bare'), seed: 1, maxTurns: 60 });
