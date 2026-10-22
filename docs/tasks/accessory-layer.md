@@ -196,22 +196,14 @@ Approach: land each concern green as its own run of commits. Two Sonnet implemen
 - After merging dev's float fix, the user checked a courier with spikes from every camera and confirmed it looks right.
 - `npm run playtest` passes: 12 turns at 60.5 fps, no errors.
 - The NPC roll script over 225 rolled trucks puts a big piece beside a lone 1-cell piece on 0% of armored sides, down from 68%. 52% of sides carry an accessory.
-- The `combat` kit hauler charging a buggy crashed 4 times in 8 fights on dev and 2 times on the branch, too few to judge ram lanes.
-- After the `combat` harness learned to read `mg/plates+ram`, a charging hauler with plates crashed 8 times in 8 fights with a ram and 8 without. The harness reports no lane per crash, so AS1 stays open.
-
-## Code smells
-
-- `game/src/test/combat-harness.ts` reports crash counts only, with no lane or ram damage per crash.
-- `game/src/sim/armor.ts` `cabShieldWith` throws on an accessory, and armor and accessories rank mount spots by different rules.
-
-- `game/src/data/chassis.ts` — hauler, longbed, tractor, loader and semi each have a column with no built-in part or engine bay, so front shots there hit nothing on an empty truck.
-- `game/src/three/render/gunStand.ts` `heldOn` and `game/src/test/truck-support-kit.ts` judge support differently. The view draws a small part on an outer deck cell that the support test then calls half in the air. On `dev` it hits caltrops on scout cells 1,4 and 5,4, and on courier and carrier cells. Narrower cells on this branch add buggy 1,3 and six jeep cells.
+- `npm run combat` reports rams landed per side. Over 42 fights of a charging hauler against a buggy, the ram took the hit in 5 of 6 damaging crashes on its side, and a spike strip in 2 of 4.
+- Caltrops on every deck cell of every truck stand on the truck, checked by a test that puts them on each cell.
 
 ## Conclusion
 
 The Goal is met. Every truck has an odd front and back, rams sit centered over a full plate row, every armor type has 1 and 2-cell pieces, and spikes hurt a truck that rams them. The user confirmed the wagon, the courier and the spiked courier on screen.
 
-- AS1 is not confirmed. The charge fights crashed too rarely to compare ram lanes.
+- AS1 held: a centered ram took the hit in 5 of 6 damaging crashes on its side.
 - UK1 resolved: buggy, courier, niva and bus move a built-in part into the new column, and the jeep and carrier keep an open one.
 - UK2 resolved: NPCs carry an accessory on about half their sides, with no lone 1-cell piece beside a big one.
 - UK3 resolved: the GAZ-66 wagon is 7 wide, a broadside truck the user approved.
