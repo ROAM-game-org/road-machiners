@@ -318,7 +318,9 @@ export class SoundLoops {
   drive(g: Glide | null, chassisId: string, strain: Strain): void {
     if (!g) return this.parkEngine();
     this.useEngine(chassisId);
-    this.engineGlides = strainGlides(g, strain);
+    const layers = strainGlides(g, strain);
+    const level = this.engineLevel;
+    this.engineGlides = level ? { healthy: { ...layers.healthy, rateFrom: level.rate, gainFrom: level.healthy }, strained: { ...layers.strained, rateFrom: level.rate, gainFrom: level.strained } } : layers;
   }
 
   private useEngine(chassisId: string): void {
@@ -331,6 +333,7 @@ export class SoundLoops {
       strained: this.player.loop("engine-strain", silent, engineStrainFileFor(chassisId)),
     };
     this.engineChassis = chassisId;
+    this.engineLevel = null;
   }
 
   private parkEngine(): void {

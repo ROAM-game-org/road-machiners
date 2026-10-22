@@ -162,7 +162,7 @@ describe("engine sound assignment", () => {
     const glide = { ...engineGlide(0, 10, 1, MIX, false)!, starts: false };
     const drive = (chassis: string, strain: { from: number; to: number }) => {
       loops.drive(glide, chassis, strain);
-      loops.engineAt(0);
+      loops.engineAt(1);
     };
 
     drive("scout", { from: 0, to: 0 });
@@ -177,8 +177,27 @@ describe("engine sound assignment", () => {
       engineStrainFileFor("hauler"),
     ]);
     expect(stopped).toEqual([engineFileFor("scout"), engineStrainFileFor("scout")]);
-    expect(gains[engineFileFor("scout")]).toEqual([glide.gainFrom, 0, 0]);
-    expect(gains[engineStrainFileFor("scout")]).toEqual([0, glide.gainFrom, glide.gainFrom]);
+    expect(gains[engineFileFor("scout")].map((g) => g / glide.gainTo)).toEqual([1, 0, 0.5]);
+    expect(gains[engineStrainFileFor("scout")].map((g) => g / glide.gainTo)).toEqual([0, 1, 0.5]);
+    expect(gains[engineFileFor("hauler")].map((g) => g / glide.gainTo)).toEqual([1]);
+  });
+
+  it("carries pitch and level from one turn into the next while the truck keeps accelerating, so no turn restarts the rev", () => {
+    const sets: { rate: number; gain: number }[] = [];
+    const player = { loop: () => ({ set: (rate: number, gain: number) => sets.push({ rate, gain }), once: () => {}, setGain: () => {}, stop: () => {} }) } as unknown as SoundPlayer;
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} });
+    const last = () => sets[sets.length - 2];
+    const calm = { from: 0, to: 0 };
+
+    loops.drive(engineGlide(5, 8, 1, MIX, false)!, "scout", calm);
+    loops.engineAt(1);
+    const end = last();
+    loops.drive(engineGlide(8, 11, 1, MIX, false)!, "scout", calm);
+    loops.engineAt(0);
+    expect(last().rate).toBeCloseTo(end.rate, 9);
+    expect(last().gain).toBeCloseTo(end.gain, 9);
+    loops.engineAt(1);
+    expect(last()).toEqual(glideAt(engineGlide(8, 11, 1, MIX, false)!, 1));
   });
 
   it("moves the engine by the turn's world time, holds it while the world rests, and fades it only for a real stop or a parked turn", () => {
