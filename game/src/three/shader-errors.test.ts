@@ -35,8 +35,10 @@ function warmupRenderer() {
       return new Promise<void>((resolve) => (finish = resolve));
     },
     render: (scene: THREE.Scene) => drawn.push(scene.children[0].visible),
+    getSize: (target: THREE.Vector2) => target.copy(size),
   };
-  return { renderer: renderer as unknown as THREE.WebGLRenderer, drawn, finish: () => finish() };
+  const size = new THREE.Vector2(800, 600);
+  return { renderer: renderer as unknown as THREE.WebGLRenderer, drawn, size, finish: () => finish() };
 }
 
 function sceneWith(mesh: THREE.Mesh): THREE.Scene {
@@ -50,13 +52,13 @@ describe('ShaderWarmup', () => {
     const { renderer, drawn, finish } = warmupRenderer();
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
     const warmup = new ShaderWarmup(renderer, sceneWith(mesh), new THREE.PerspectiveCamera(), (e) => { throw e; });
-    warmup.render();
-    warmup.render();
+    warmup.render(false);
+    warmup.render(false);
     expect(drawn).toEqual([false, false]);
     expect(mesh.visible).toBe(true);
     finish();
     await Promise.resolve();
-    warmup.render();
+    warmup.render(false);
     expect(drawn).toEqual([false, false, true]);
   });
 
@@ -70,12 +72,13 @@ describe('ShaderWarmup', () => {
         return Promise.resolve();
       },
       render: () => {},
+      getSize: (target: THREE.Vector2) => target.set(800, 600),
     } as unknown as THREE.WebGLRenderer;
     const warmup = new ShaderWarmup(renderer, sceneWith(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial())), new THREE.PerspectiveCamera(), (e) => { throw e; });
-    warmup.render();
+    warmup.render(false);
     await Promise.resolve();
-    warmup.render();
-    warmup.render();
+    warmup.render(false);
+    warmup.render(false);
     expect(compiles).toBe(1);
   });
 
@@ -85,17 +88,17 @@ describe('ShaderWarmup', () => {
     const plain = new THREE.Mesh(new THREE.BoxGeometry(), material);
     const scene = sceneWith(plain);
     const warmup = new ShaderWarmup(renderer, scene, new THREE.PerspectiveCamera(), (e) => { throw e; });
-    warmup.render();
+    warmup.render(false);
     finish();
     await Promise.resolve();
     const instanced = new THREE.InstancedMesh(new THREE.BoxGeometry(), material, 2);
     scene.children.unshift(instanced);
-    warmup.render();
+    warmup.render(false);
     expect(drawn.at(-1)).toBe(false);
     expect(instanced.visible).toBe(true);
     finish();
     await Promise.resolve();
-    warmup.render();
+    warmup.render(false);
     expect(drawn.at(-1)).toBe(true);
   });
 
@@ -103,16 +106,16 @@ describe('ShaderWarmup', () => {
     const { renderer, drawn, finish } = warmupRenderer();
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
     const warmup = new ShaderWarmup(renderer, sceneWith(mesh), new THREE.PerspectiveCamera(), (e) => { throw e; });
-    warmup.render();
+    warmup.render(false);
     finish();
     await Promise.resolve();
-    warmup.render();
+    warmup.render(false);
     expect(drawn.at(-1)).toBe(true);
     mesh.material.needsUpdate = true;
-    warmup.render();
+    warmup.render(false);
     expect(drawn.at(-1)).toBe(true);
     mesh.material.customProgramCacheKey = () => 'patched';
-    warmup.render();
+    warmup.render(false);
     expect(drawn.at(-1)).toBe(false);
   });
 
@@ -120,20 +123,42 @@ describe('ShaderWarmup', () => {
     const { renderer, drawn } = warmupRenderer();
     const material = new THREE.MeshBasicMaterial();
     (renderer.properties.get(material) as { currentProgram?: object }).currentProgram = { cacheKey: `basic,${material.customProgramCacheKey()}` };
-    new ShaderWarmup(renderer, sceneWith(new THREE.Mesh(new THREE.BoxGeometry(), material)), new THREE.PerspectiveCamera(), (e) => { throw e; }).render();
+    new ShaderWarmup(renderer, sceneWith(new THREE.Mesh(new THREE.BoxGeometry(), material)), new THREE.PerspectiveCamera(), (e) => { throw e; }).render(false);
     expect(drawn.at(-1)).toBe(true);
     const patched = new THREE.MeshBasicMaterial();
     (renderer.properties.get(patched) as { currentProgram?: object }).currentProgram = { cacheKey: `basic,${patched.customProgramCacheKey()}` };
     patched.customProgramCacheKey = () => 'sight-grey';
-    new ShaderWarmup(renderer, sceneWith(new THREE.Mesh(new THREE.BoxGeometry(), patched)), new THREE.PerspectiveCamera(), (e) => { throw e; }).render();
+    new ShaderWarmup(renderer, sceneWith(new THREE.Mesh(new THREE.BoxGeometry(), patched)), new THREE.PerspectiveCamera(), (e) => { throw e; }).render(false);
     expect(drawn.at(-1)).toBe(false);
+  });
+
+  it('redraws a frozen world only when the camera or the view size changed', () => {
+    const { renderer, drawn, size } = warmupRenderer();
+    const camera = new THREE.PerspectiveCamera();
+    const warmup = new ShaderWarmup(renderer, sceneWith(new THREE.Mesh()), camera, (e) => { throw e; });
+    warmup.render(false);
+    warmup.render(true);
+    expect(drawn).toHaveLength(1);
+    camera.position.x += 1;
+    warmup.render(true);
+    warmup.render(true);
+    expect(drawn).toHaveLength(2);
+    camera.zoom = 2;
+    camera.updateProjectionMatrix();
+    warmup.render(true);
+    expect(drawn).toHaveLength(3);
+    size.set(640, 480);
+    warmup.render(true);
+    expect(drawn).toHaveLength(4);
+    warmup.render(false);
+    expect(drawn).toHaveLength(5);
   });
 
   it('leaves a mesh the game hid hidden', () => {
     const { renderer } = warmupRenderer();
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
     mesh.visible = false;
-    new ShaderWarmup(renderer, sceneWith(mesh), new THREE.PerspectiveCamera(), (e) => { throw e; }).render();
+    new ShaderWarmup(renderer, sceneWith(mesh), new THREE.PerspectiveCamera(), (e) => { throw e; }).render(false);
     expect(mesh.visible).toBe(false);
   });
 

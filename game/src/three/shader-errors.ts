@@ -83,6 +83,7 @@ export class ShaderWarmup {
   private readonly compiled = new Variants();
   private readonly compiling = new Variants();
   private held: THREE.Object3D[] = [];
+  private drawnView = '';
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -93,7 +94,10 @@ export class ShaderWarmup {
     failLoudOnShaderError(renderer);
   }
 
-  render(): void {
+  render(worldFrozen: boolean): void {
+    const view = this.viewKey();
+    if (worldFrozen && view === this.drawnView) return;
+    this.drawnView = view;
     this.holdUncompiled();
     try {
       this.renderer.render(this.scene, this.camera);
@@ -101,6 +105,11 @@ export class ShaderWarmup {
       for (const o of this.held) o.visible = true;
       this.held = [];
     }
+  }
+
+  private viewKey(): string {
+    const size = this.renderer.getSize(new THREE.Vector2());
+    return `${this.camera.position.toArray()}|${this.camera.quaternion.toArray()}|${this.camera.projectionMatrix.elements}|${size.x}x${size.y}`;
   }
 
   ready(root: THREE.Object3D): boolean {
