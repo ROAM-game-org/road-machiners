@@ -26,7 +26,7 @@ export const CONFIG = {
   seed: null as number | null,
   combatReadMs: 1100,
   playEaseMs: 350,
-  turnStopMs: 2000,
+  turnStopMs: 1000,
   turnStopFolds: 3,
   fxFillScreens: 8,
   saveTurns: 20,
