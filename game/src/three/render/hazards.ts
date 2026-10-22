@@ -1,5 +1,6 @@
 
 import * as THREE from 'three';
+import { CONFIG, PLAY_EASE } from '../../config';
 import { PHYSICS } from '../../data/physics';
 import { FLARE } from '../../data/utilities';
 import { groundPoint, type V3 } from '../../phys/frames';
@@ -12,6 +13,7 @@ import type { Flare, GameEvent, GroundField, SmokeCloud, Vehicle, World } from '
 import { shutDownTurnsLeft } from '../../sim/utility';
 import { dist, type Vec } from '../../sim/vec';
 import { playerSees } from '../../sim/vision';
+import { easedStopMs } from '../play-clock';
 import { HarpoonLinesView } from './lines';
 import { CARD_SHAPES, ROUND_SHAPE, type Card, type FxCards } from './particles/cards';
 import { liveNear, Particles, type ParticleLook } from './particles/particles';
@@ -272,7 +274,8 @@ const SMOKE_LOOK = {
   wobbleSeconds: 5,
   cutaway: { inner: 0.9, clear: 0.6, floor: 0.04 },
 };
-export const SHELL = { flightMs: 900, apex: 3 };
+export const LOB_MS = easedStopMs(PLAY_EASE) - CONFIG.playbackFrameMs;
+export const SHELL = { flightMs: LOB_MS, apex: 3 };
 const SHELL_LOOK: FlightLook = { casing: PAL.shell.casing, length: 0.05, radius: 0.015, trail: PAL.shell.trail, trailPuffs: 6, trailLag: 0.05, trailSize: 0.5, trailOpacity: 0.55 };
 const RIM_SAMPLES = 8;
 
@@ -690,8 +693,8 @@ const FLARE_ORDER = 906;
 export const FLARE_LOOK = {
   height: 6,
   sink: 1,
-  flightMs: 1600,
-  igniteMs: 300,
+  flightMs: LOB_MS * 0.7,
+  igniteMs: LOB_MS * 0.3,
   core: 0.5,
   halo: { size: 3, opacity: 0.75 },
   burst: { size: 4, ms: 300 },
