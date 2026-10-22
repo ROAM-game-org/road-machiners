@@ -277,7 +277,7 @@ export const MIN_SUPPORT = 0.9;
 export type Rest = { y: number; rect: CellRect; perched: boolean; slope: { x: number; z: number } };
 
 const FLAT = { x: 0, z: 0 };
-const MAX_SLOPE = 0.7;
+export const MAX_SLOPE = 0.7;
 const MIN_SLOPE = 0.1;
 
 export function roofSpot(chassisId: string, rect: CellRect, inset: number): { x: number; z: number; y: number } {

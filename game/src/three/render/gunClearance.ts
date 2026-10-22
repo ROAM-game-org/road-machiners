@@ -1,8 +1,6 @@
 
 import * as THREE from 'three';
 import type { FireSpan } from '../../sim/armor';
-import { CLIP_TOLERANCE, highestUnder, unitBody, type CellRect } from '../../sim/body';
-import { socket } from './models';
 
 export type HeadShape = { core: number; reach: number; halfWidth: number; bottom: number };
 
@@ -85,18 +83,7 @@ function touches(o: Obstacle, pivot: Flat, shape: HeadShape, sweep: readonly Fir
   return false;
 }
 
-export function postBottom(foot: number, top: number): number {
-  return foot !== -Infinity && top - foot > CLIP_TOLERANCE ? foot : top;
-}
-
-export function postColumn(at: THREE.Vector3, unit: number): CellRect {
-  const corner = socket('wmount_riser', 'column');
-  const half = { x: Math.abs(corner.x), z: Math.abs(corner.z) };
-  return { unit, x0: at.x - half.x, x1: at.x + half.x, z0: at.z - half.z, z1: at.z + half.z };
-}
-
-export function highestAhead(chassisId: string, rect: CellRect): number {
-  const nose = unitBody(chassisId, rect.unit).half.x;
-  if (rect.x1 >= nose) return -Infinity;
-  return highestUnder(chassisId, { ...rect, x0: rect.x1, x1: nose });
+export function signedDegrees(deg: number): number {
+  const turn = ((deg % 360) + 360) % 360;
+  return turn > 180 ? turn - 360 : turn;
 }

@@ -13,8 +13,9 @@ import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOf
 import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
-import { clearTop, headShape, highestAhead, postBottom, postColumn, sweepOf, type Obstacle } from './gunClearance';
-import { model, socket, TRUCK_BIT, type ModelName } from './models';
+import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
+import { highestAhead, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands } from './gunStand';
+import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
 import { hashStr } from '../../render/noise';
@@ -28,9 +29,6 @@ const CELL = PHYSICS.cell;
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 
 const PAINT = 'paint';
-const RADIO = 'radio_light';
-const LAMP = 'light';
-const GLASS = 'glass';
 const TRIM = 'trim';
 
 const BROKEN_TONE: Record<PartKind, number> = { weapon: 0.5, armor: 0.6, engine: 0.6, cargo: 0.6, core: 0.6, scanner: 0.6, store: 0.6, utility: 0.6 };
@@ -60,7 +58,7 @@ type Wheel = { mount: THREE.Group; spin: THREE.Object3D; restY: number };
 type Shock = { obj: THREE.Object3D; top: THREE.Vector3; wheel: number; z: number };
 type Axle = { obj: THREE.Object3D; a: number; b: number; inset: number };
 type ContactShadow = { unit: UnitView; mesh: THREE.Mesh };
-type UnitView = { index: number; root: THREE.Object3D; body: THREE.Group; b: Body; wheels: Wheel[]; shocks: Shock[]; axles: Axle[]; motion: TruckMotion; still: THREE.Group; obstacles: Obstacle[] };
+type UnitView = { index: number; root: THREE.Object3D; body: THREE.Group; b: Body; wheels: Wheel[]; shocks: Shock[]; axles: Axle[]; motion: TruckMotion; still: THREE.Group; obstacles: Obstacle[]; base: THREE.Object3D };
 
 const SHOCK_R = 0.2;
 const UP = new THREE.Vector3(0, 1, 0);
@@ -429,7 +427,7 @@ export class VehicleView {
       this.root.add(root);
     }
     const motion = new TruckMotion(body, new THREE.Vector3(0, b.wheelY, 0), spanOf(v.chassisId).half.x, hashStr(`${v.id}:${index}`));
-    return { index, root, body, b, wheels: [], shocks: [], axles: [], motion, still: new THREE.Group(), obstacles: [] };
+    return { index, root, body, b, wheels: [], shocks: [], axles: [], motion, still: new THREE.Group(), obstacles: [], base: new THREE.Group() };
   }
 
   private unitOf(v: Vehicle, item: GridItem): UnitView {
@@ -531,6 +529,7 @@ export class VehicleView {
       tint(obj, paint, { ...look, dents: false });
       this.useLamp(obj);
       unit.still.add(obj);
+      unit.base = obj;
       return obj;
     });
   }
@@ -582,13 +581,20 @@ export class VehicleView {
     const { at, foot } = stand;
     const bottom = postBottom(foot, top);
     const mount = { ...at, pos: at.pos.clone().setY(top) };
-    if (bottom >= top) return mount;
+    if (bottom >= top || !postStands(this.units[stand.plate.unit].base, at.pos, bottom)) return mount;
     const post = model('wmount_riser');
     place(post, { pos: at.pos.clone().setY(bottom), yaw: 0, scale: new THREE.Vector3(1, (top - bottom) / socket('wmount_riser', 'top').y, 1) });
     tint(post, paint, lookOf(item));
     post.name = `${item.id} post`;
     into.add(post);
     return mount;
+  }
+
+  private legModel(item: PartItem, paint: number, role: 'leg' | 'brace'): THREE.Object3D {
+    const leg = model('wmount_leg');
+    tint(leg, paint, lookOf(item));
+    leg.name = `${item.id} ${role}`;
+    return leg;
   }
 
   private buildWeapon(v: Vehicle, item: PartItem, active: boolean, paint: number): void {
@@ -599,7 +605,7 @@ export class VehicleView {
     for (const p of parts.children) tint(p, paint, wear);
     const head = mergeStatic(parts);
 
-    const stand = weaponStand(v, item);
+    const stand = weaponStand(v, item, unit.base);
     const headAt = socket(look.mount, 'head');
     const facing = signedDegrees(facingOf(item));
     const spans = gunSpans(v, item);
@@ -622,6 +628,7 @@ export class VehicleView {
     mount.name = `${item.id} mount`;
     head.name = `${item.id} head`;
     unit.still.add(mount);
+    for (const leg of plateLegs(unit.base, plateOf(look.mount, unit.index, at), top, (role) => this.legModel(item, paint, role))) unit.still.add(leg);
     mount.updateMatrix();
     head.position.copy(headAt.applyMatrix4(mount.matrix));
     this.anchors.set(item.part.id, { local: head.position.clone(), parent: unit.body });
@@ -855,22 +862,24 @@ function inCargoBay(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   return itemCells(item).every((c) => grid.cells[c.y]?.[c.x] === 'C');
 }
 
-export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem): { at: Placement; bottom: number; top: number; foot: number } {
-  const rest = standingY(v, item);
-  const at = footprint(v, item, rest);
-  const rect = rectOf(v, item);
-  const top = Math.max(rest, highestAhead(v.chassisId, rect));
-  const foot = highestUnder(v.chassisId, postColumn(at.pos, rect.unit));
+export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem, body: THREE.Object3D): { at: Placement; bottom: number; top: number; foot: number; plate: CellRect } {
+  if (item.kind !== 'part') throw new Error(`Item ${item.id} is not a gun`);
+  const mount = weaponLook(item.part.id, item.part.defId).mount;
+  const at = footprint(v, item, standingY(v, item));
+  const cells = rectOf(v, item);
+  moveBySpot(at, plateSpot(body, v.chassisId, plateOf(mount, cells.unit, at), cells));
+  const unit = cells.unit;
+  const plate = plateOf(mount, unit, at);
+  const under = highestUnder(v.chassisId, plate);
+  const rest = under === -Infinity ? at.pos.y : under;
+  at.pos.y = rest;
+  const top = Math.max(rest, highestAhead(v.chassisId, plate));
+  const foot = highestUnder(v.chassisId, postColumn(at.pos, plate.unit));
   if (foot === -Infinity && isMounted(v.chassisId, item)) {
     const cells = itemCells(item).map((c) => `${c.x},${c.y}`).join(' ');
-    throw new Error(`The ${v.chassisId} model has no surface under the post of gun ${item.kind === 'part' ? item.part.defId : item.id} mounted on ${cells}`);
+    throw new Error(`The ${v.chassisId} model has no surface under the post of gun ${item.part.defId} mounted on ${cells}`);
   }
-  return { at, bottom: postBottom(foot, top), top, foot };
-}
-
-export function signedDegrees(deg: number): number {
-  const turn = ((deg % 360) + 360) % 360;
-  return turn > 180 ? turn - 360 : turn;
+  return { at, bottom: postBottom(foot, top), top, foot, plate };
 }
 
 function anchorPoint(v: Pick<Vehicle, 'chassisId'>, item: GridItem): THREE.Vector3 {
