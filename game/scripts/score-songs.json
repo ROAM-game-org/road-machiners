@@ -17,6 +17,40 @@
   ],
   "end": 76
  },
+ "clash-a": {
+  "title": "Dustline Clash A",
+  "source": "Dustline_Clash_2026-10-22T134449.wav",
+  "guitarStem": "other.wav",
+  "bpm": 110,
+  "bars": 76,
+  "sections": [
+   { "role": "intro", "from": 1, "bars": 4 },
+   { "role": "verse", "from": 5, "bars": 8 },
+   { "role": "wall", "from": 13, "bars": 16 },
+   { "role": "stop", "from": 29, "bars": 2 },
+   { "role": "verse", "from": 33, "bars": 8 },
+   { "role": "wall", "from": 41, "bars": 16 },
+   { "role": "stop", "from": 57, "bars": 2 },
+   { "role": "wall", "from": 61, "bars": 14 }
+  ],
+  "end": 75
+ },
+ "clash-b": {
+  "title": "Dustline Clash B",
+  "source": "Dustline_Clash_2026-10-22T134558.wav",
+  "guitarStem": "other.wav",
+  "bpm": 110,
+  "bars": 75,
+  "sections": [
+   { "role": "intro", "from": 1, "bars": 4 },
+   { "role": "verse", "from": 5, "bars": 8 },
+   { "role": "wall", "from": 13, "bars": 16 },
+   { "role": "stop", "from": 29, "bars": 2 },
+   { "role": "verse", "from": 33, "bars": 8 },
+   { "role": "wall", "from": 41, "bars": 16 }
+  ],
+  "end": 74
+ },
  "dusk": {
   "title": "Convoy At Dusk",
   "source": "Convoy_At_Dusk_2026-10-15T225738.wav",
