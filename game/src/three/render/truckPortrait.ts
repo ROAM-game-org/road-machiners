@@ -34,10 +34,12 @@ import { maxHp } from '../../sim/wear';
 import { signatureOf, VehicleView } from './vehicle';
 import { withCut, type CutSpec } from './armorCut';
 
+export const PORTRAIT_TILT_DEG = 25;
+
 const LOOK = {
   pxPerMeter: PX_PER_METER,
   supersample: SUPERSAMPLE,
-  tiltDeg: 25,
+  tiltDeg: PORTRAIT_TILT_DEG,
   cameraDistance: 40,
   depthMargin: 1,
   samples: 4,

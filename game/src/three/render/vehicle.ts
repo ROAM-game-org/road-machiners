@@ -313,6 +313,7 @@ export class VehicleView {
     disposeChildren(this.root);
     this.root.add(...twin.root.children);
     twin.units[0].root = this.root;
+    twin.units.forEach((unit, i) => this.units[i] && unit.motion.carryFrom(this.units[i].motion));
     ({ body: this.body, units: this.units, turrets: this.turrets, anchors: this.anchors, lampMat: this.lampMat, radioMat: this.radioMat, halo: this.halo } = twin);
     ({ glassMat: this.glassMat, silhouettes: this.silhouettes, contactShadows: this.contactShadows, darkMat: this.darkMat, dark: this.dark } = twin);
     this.lastFrame = null;

@@ -31,7 +31,9 @@ class Song:
         return librosa.feature.melspectrogram(y=y, sr=ANALYSIS_RATE, n_mels=MELS, n_fft=FFT, hop_length=HOP, center=False)
 
     def slice(self, start, end):
-        return self.audio[max(0, int(start * ANALYSIS_RATE)):int(end * ANALYSIS_RATE)]
+        first, last = int(start * ANALYSIS_RATE), int(end * ANALYSIS_RATE)
+        y = self.audio[max(0, first):last]
+        return np.concatenate([np.zeros(-first, dtype=y.dtype), y]) if first < 0 else y
 
     def beat_at(self, t):
         key = round(t, 4)

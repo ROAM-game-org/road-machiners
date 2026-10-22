@@ -256,7 +256,7 @@ function npcFaction(v: Vehicle): NpcFactionId {
 }
 
 function townFaction(world: World, site: Site | null): NpcFactionId {
-  const town = siteFaction(site);
+  const town = site && atlasOf(world.terrain).towns.some((t) => t.id === site.id) ? siteFaction(site) : undefined;
   if (!town || isOutlaw(town)) return 'independent';
   return chance(world, TOWN_TRADER_SHARE) ? town : 'independent';
 }

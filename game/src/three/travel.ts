@@ -4,11 +4,14 @@ import {
   frameWheels,
   restWheels,
   trailFrames,
+  TURN_STEPS,
   type UnitWheels,
   type TurnResult,
 } from "../phys/drive";
-import type { VehicleFrame } from "../phys/frames";
-import { joinTurn, SentObstacles, type LiveSight, type PreparedTurn, type TurnRequest, type TurnResponse } from "../phys/turn";
+import type { TurnClock } from "./render/hazards";
+import { frameAt, type VehicleFrame } from "../phys/frames";
+import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TurnRequest, type TurnResponse } from "../phys/turn";
+import { PHYSICS } from "../data/physics";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
@@ -38,11 +41,84 @@ export function nextSightSample(live: LiveVision, step: number): number | null {
   return k;
 }
 
+const STEP_MS = 1000 / PHYSICS.stepsPerSecond;
+const END_SLACK_MS = 1e-6;
+export const MOVE_MS = TURN_STEPS * STEP_MS;
+
+export function lightTurnOf(world: World, a: Playback | null): number {
+  return a ? world.turn - 1 + Math.min(1, a.elapsed / MOVE_MS) : world.turn;
+}
+
+export function turnClockOf(a: Playback | null): TurnClock | null {
+  return a ? { before: a.before, progress: Math.min(1, a.elapsed / MOVE_MS), moved: a.moved, hookedLines: a.hookedLines } : null;
+}
+
+export class Creep {
+  private readonly endMs: number;
+  private ms: number;
+  private readonly shown = new Map<string, { ms: number; frame: VehicleFrame }>();
+
+  constructor(private readonly tail: Tail, private readonly starts: Record<string, VehicleFrame>, overshootMs: number) {
+    if (!(overshootMs >= 0)) throw new Error(`A slowdown starts at or after the turn end, got ${overshootMs} ms`);
+    this.ms = overshootMs;
+    this.endMs = Math.max(0, ...Object.values(tail.frames).map((fs) => fs.length)) * STEP_MS;
+  }
+
+  commit(world: World): { world: World; drive: DriveSnapshot } {
+    return { world: withTail(world, this.tail.poses), drive: this.tail.next };
+  }
+
+  endDrive(): DriveSnapshot {
+    return this.tail.next;
+  }
+
+  tick(ms: number): void {
+    if (!(ms >= 0)) throw new Error(`A slowdown only moves forward, got ${ms} ms`);
+    this.ms += ms;
+  }
+
+  frameOf(v: Vehicle): VehicleFrame | undefined {
+    const end = this.tail.poses[v.id];
+    if (!end || end.pos.x !== v.pos.x || end.pos.y !== v.pos.y || end.heading !== v.heading) return undefined;
+    return this.frameAtMs(v.id, this.shownMs());
+  }
+
+  private frameAtMs(id: string, ms: number): VehicleFrame | undefined {
+    const kept = this.shown.get(id);
+    if (kept?.ms === ms) return kept.frame;
+    const frame = frameAt(this.tail.frames[id], ms / STEP_MS - 1, this.starts[id]);
+    if (frame) this.shown.set(id, { ms, frame });
+    return frame;
+  }
+
+  isMoving(): boolean {
+    return !this.reachedEnd();
+  }
+
+  joinOf(world: World, shown: Record<string, VehicleFrame>): { starts: Record<string, VehicleFrame>; elapsed: number } {
+    if (!this.reachedEnd()) return { starts: { ...shown }, elapsed: 0 };
+    const ends = world.vehicles.flatMap((v) => (this.frameOf(v) ? [[v.id, this.tail.frames[v.id].at(-1)!] as const] : []));
+    return { starts: { ...shown, ...Object.fromEntries(ends) }, elapsed: Math.max(0, this.ms - this.endMs) };
+  }
+
+  leftMs(): number {
+    return Math.max(0, this.endMs - this.ms);
+  }
+
+  private reachedEnd(): boolean {
+    return this.ms >= this.endMs - END_SLACK_MS;
+  }
+
+  private shownMs(): number {
+    return Math.min(this.ms, this.endMs);
+  }
+}
+
 export type Playback = {
   result: PreparedTurn["result"];
+  tail: Tail | null;
   starts: Record<string, VehicleFrame>;
   before: World;
-  lastTick: number | null;
   elapsed: number;
   moved: boolean;
   impacts: boolean;
@@ -135,9 +211,12 @@ export class Travel {
   private autoPress = false;
   private tapHalts = false;
   private remainder = 0;
-  private readonly turns = new TurnPreparation();
+  private readonly turns: TurnPreparation;
+  private creep: Creep | null = null;
 
-  constructor(private readonly holdMs: number) {}
+  constructor(private readonly holdMs: number, tailSteps: number) {
+    this.turns = new TurnPreparation(tailSteps);
+  }
 
   pause(): void {
     this.automatic = false;
@@ -255,6 +334,10 @@ export class Travel {
     }
     if (held || this.deciding(now) || !this.wantsTurn(world, now)) return null;
     this.turns.prepare(world, drive);
+    return this.creep?.isMoving() ? null : this.takePrepared(world);
+  }
+
+  private takePrepared(world: World): PreparedTurn | null {
     const prepared = this.turns.take(world);
     if (!prepared) return null;
     if (this.requested) {
@@ -266,20 +349,47 @@ export class Travel {
     return null;
   }
 
+  continues(world: World, now: number): boolean {
+    return this.shouldAdvance(now) || this.runsOnItsOwn(world, now);
+  }
+
+  stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, overshootMs: number): { world: World; drive: DriveSnapshot; leftMs: number } | null {
+    const stops = playback.tail !== null && !this.continues(world, now);
+    this.creep = stops ? new Creep(playback.tail!, { ...shown }, overshootMs) : null;
+    return this.creep ? { ...this.creep.commit(world), leftMs: this.creep.leftMs() } : null;
+  }
+
+  tickCreep(ms: number): void {
+    this.creep?.tick(ms);
+  }
+
+  timeWanted(world: World, now: number): boolean {
+    return this.isAdvancing(null, now) && this.turns.isReady(world) && world.player.call === null;
+  }
+
+  playedFrame(v: Vehicle, a: Playback | null, at: number | null): VehicleFrame | undefined {
+    if (a && at !== null) return frameAt(a.result.frames[v.id], at, a.starts[v.id]);
+    return this.creep?.frameOf(v);
+  }
+
+  isCreeping(): boolean {
+    return this.creep?.isMoving() ?? false;
+  }
+
   prepareNext(world: World, playback: Playback | null, now: number): void {
-    if (playback && (this.shouldAdvance(now) || this.runsOnItsOwn(world, now)))
-      this.turns.prepare(world, playback.result.next);
+    if (playback && this.continues(world, now))
+      this.turns.prepare(world, this.creep?.endDrive() ?? playback.result.next);
   }
 
   beginPlayback(
     before: World,
     prepared: PreparedTurn,
-    now: number,
     elapsed: number,
     shown: Record<string, VehicleFrame>,
   ): { world: World; playback: Playback; towed: boolean } {
     const world = { ...prepared.world, terrain: before.terrain };
-    addRopeFrames(before, world, prepared.result.frames, shown);
+    const join = this.endCreep(before, shown, elapsed);
+    addRopeFrames(before, world, prepared.result.frames, join.starts);
     if (playerCanAct(before) && !playerCanAct(world)) this.pause();
     else if (!playerCanAct(world)) {
       this.automatic = false;
@@ -288,10 +398,10 @@ export class Travel {
     const towed = isTowed(before) || isTowed(world);
     const playback: Playback = {
       result: prepared.result,
-      starts: { ...shown },
+      tail: prepared.tail,
+      starts: join.starts,
       before,
-      lastTick: now,
-      elapsed,
+      elapsed: join.elapsed,
       moved: false,
       impacts: false,
       combat: false,
@@ -303,15 +413,14 @@ export class Travel {
     return { world, playback, towed };
   }
 
-  getSpeed(now: number, fastSpeed: number): number {
-    return this.isFast(now) ? fastSpeed : 1;
+  private endCreep(before: World, shown: Record<string, VehicleFrame>, elapsed: number): { starts: Record<string, VehicleFrame>; elapsed: number } {
+    const join = this.creep?.joinOf(before, shown) ?? { starts: { ...shown }, elapsed };
+    this.creep = null;
+    return join;
   }
 
-  advanceClock(playback: Playback, now: number, speed: number, maxFrameMs: number): number {
-    if (playback.lastTick !== null)
-      playback.elapsed += Math.min(now - playback.lastTick, maxFrameMs) * speed;
-    playback.lastTick = now;
-    return playback.elapsed;
+  getSpeed(now: number, fastSpeed: number): number {
+    return this.isFast(now) ? fastSpeed : 1;
   }
 
   finishClock(elapsed: number, finishAt: number): void {
@@ -360,6 +469,8 @@ export class TurnPreparation {
     ready: PreparedTurn | null;
     failure: string | null;
   } | null = null;
+
+  constructor(private readonly tailSteps: number) {}
 
   private createWorker(): Worker {
     const worker = new Worker(new URL("../phys/turn-worker.ts", import.meta.url), {
@@ -425,6 +536,7 @@ export class TurnPreparation {
         kind: "turn",
         id,
         questLanguage: currentQuestLanguage(),
+        tailSteps: this.tailSteps,
         ...this.obstacles.split(state),
         drive: { ...saved, snapshot },
         terrain: this.terrain === terrain ? null : terrain,
@@ -433,6 +545,10 @@ export class TurnPreparation {
     );
     this.terrain = terrain;
     return id;
+  }
+
+  isReady(world: World): boolean {
+    return this.isFresh(world) && !!this.pending?.ready;
   }
 
   take(world: World): PreparedTurn | null {

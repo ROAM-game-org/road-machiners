@@ -17,6 +17,8 @@ import { workerFailure } from "./worker-load";
 
 vi.mock("./crash", () => ({ reportError: vi.fn() }));
 
+const TAIL = 11;
+
 class TestWorker {
   static latest: TestWorker;
   static created = 0;
@@ -53,6 +55,7 @@ beforeEach(() => {
     world: state,
     result: { next: drive, frames: {}, crashes: [], breaks: [], landings: [], tears: [], results: {} },
     sight: { steps: [], tiles: [] },
+    tail: null,
   };
 });
 afterEach(() => {
@@ -62,12 +65,13 @@ afterEach(() => {
 });
 
 it("prepares once and exposes a result only when ready for the same world", () => {
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive);
   turns.prepare(world, drive);
   expect(turns.take(world)).toBeNull();
   const worker = TestWorker.latest;
   expect(worker?.requests).toHaveLength(1);
+  expect(worker.requests[0].tailSteps).toBe(TAIL);
   worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });
   expect(turns.take(world)).toEqual(reply);
   expect(turns.take(world)).toBeNull();
@@ -75,14 +79,14 @@ it("prepares once and exposes a result only when ready for the same world", () =
 
 it("posts every turn request in the current quest language", () => {
   setQuestLanguage("ru");
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive);
   expect(TestWorker.latest.requests[0].questLanguage).toBe(currentQuestLanguage());
   expect(TestWorker.latest.requests[0].questLanguage).toBe("ru");
 });
 
 it("computes a prepared turn again after a language switch", () => {
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive);
   const worker = TestWorker.latest;
   setQuestLanguage("ru");
@@ -96,7 +100,7 @@ it("computes a prepared turn again after a language switch", () => {
 });
 
 it("discards a stale result after replanning and sends stable terrain only once", () => {
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive);
   const changed = setMoveOrder(world, {
     kind: "stopAt",
@@ -115,7 +119,7 @@ it("discards a stale result after replanning and sends stable terrain only once"
 });
 
 it("throws a calculation failure once, then prepares again", () => {
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive);
   const worker = TestWorker.latest;
   worker.respond({ id: worker.requests[0].id, error: "physics failed" });
@@ -126,7 +130,7 @@ it("throws a calculation failure once, then prepares again", () => {
 });
 
 it("fails the pending turn on a worker error event", () => {
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive);
   TestWorker.latest.onerror?.({ message: "boom", preventDefault() {} } as ErrorEvent);
   expect(() => turns.take(world)).toThrow("Turn worker failed: boom");
@@ -137,7 +141,7 @@ const noScript = { preventDefault() {} } as ErrorEvent;
 
 it("restarts a worker whose script did not load and sends the pending turn again", () => {
   vi.useFakeTimers();
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive);
   const first = TestWorker.latest;
   first.onerror?.(noScript);
@@ -155,7 +159,7 @@ it("restarts a worker whose script did not load and sends the pending turn again
 
 it("does not report a warm-up that did not load and reaches a new worker on the next turn", () => {
   vi.useFakeTimers();
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.warm(world, drive);
   TestWorker.latest.onerror?.(noScript);
   turns.prepare(world, drive);
@@ -168,7 +172,7 @@ it("does not report a warm-up that did not load and reaches a new worker on the 
 
 it("gives up after the download tries with one download failure and posts nothing more", () => {
   vi.useFakeTimers();
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive);
   for (let i = 0; i < 6; i++) {
     TestWorker.latest.onerror?.(noScript);
@@ -186,7 +190,7 @@ it("gives up after the download tries with one download failure and posts nothin
 
 it("waits the download back-off between restarts and resets the count on an answer", () => {
   vi.useFakeTimers();
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive);
   TestWorker.latest.onerror?.(noScript);
   vi.advanceTimersByTime(499);
@@ -213,7 +217,7 @@ it("adds the script location to a worker load failure", () => {
 });
 
 it("does not fail the pending turn when the warm-up fails", () => {
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.warm(world, drive);
   const worker = TestWorker.latest;
   turns.prepare(world, drive);
@@ -223,7 +227,7 @@ it("does not fail the pending turn when the warm-up fails", () => {
 });
 
 it("posts a copy of the snapshot in hand, so moving the posted bytes leaves it whole", () => {
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   const bytes = drive.snapshot.slice();
   turns.prepare(world, drive);
   const posted = TestWorker.latest.requests[0].drive;
@@ -232,7 +236,7 @@ it("posts a copy of the snapshot in hand, so moving the posted bytes leaves it w
 }, 90_000);
 
 it("prepares from a snapshot once per world", () => {
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive);
   turns.prepare(world, drive);
   expect(TestWorker.latest.requests).toHaveLength(1);
@@ -244,8 +248,8 @@ it("steps a turn the same from the worker's bytes as from a restored and re-capt
   const first = drive;
   const restored = restoreDrive(first);
   const again = captureDrive(restored);
-  const a = computeTurn({ world: state, drive: first, questLanguage: 'en' }, terrain);
-  const b = computeTurn({ world: state, drive: again, questLanguage: 'en' }, terrain);
+  const a = computeTurn({ world: state, drive: first, questLanguage: 'en', tailSteps: TAIL }, terrain);
+  const b = computeTurn({ world: state, drive: again, questLanguage: 'en', tailSteps: TAIL }, terrain);
   restored.world.free();
   const last = (t: typeof a) => t.world.vehicles.find((v) => v.id === world.player.vehicleId)!;
   expect(last(b).pos).toEqual(last(a).pos);
@@ -255,7 +259,7 @@ it("steps a turn the same from the worker's bytes as from a restored and re-capt
 it("tells the worker the language quests play in", () => {
   setQuestLanguage("ru");
   try {
-    new TurnPreparation().prepare(world, drive);
+    new TurnPreparation(TAIL).prepare(world, drive);
     expect(TestWorker.latest.requests[0].questLanguage).toBe("ru");
   } finally {
     setQuestLanguage("en");
@@ -263,7 +267,7 @@ it("tells the worker the language quests play in", () => {
 });
 
 it("keeps the posted world's obstacle list when the worker reports no change, and takes a changed list", () => {
-  const turns = new TurnPreparation();
+  const turns = new TurnPreparation(TAIL);
   turns.prepare(world, drive);
   const worker = TestWorker.latest;
   worker.respond({ id: worker.requests[0].id, turn: reply, obstacles: null, perf: {} });

@@ -239,7 +239,7 @@ function syncVehicle(d: Drive, w: World, v: Vehicle): void {
 }
 
 export function simulateTurn(d: Drive, w: World): TurnResult {
-  return runFreed(d, w, TURN_STEPS);
+  return simulateSteps(d, w, TURN_STEPS);
 }
 
 function noteOwner(owners: Owners, body: RAPIER.RigidBody, vehicleId: string, unit: number): void {
@@ -254,7 +254,7 @@ export type Car = { v: Vehicle; s: VehicleStats; b: Body; body: RAPIER.RigidBody
 
 export const rearKey = (id: string) => `${id}/rear`;
 
-function runFreed(d: Drive, w: World, steps: number): TurnResult {
+export function simulateSteps(d: Drive, w: World, steps: number): TurnResult {
   const world = restoreWorld(d.world.takeSnapshot());
   const events = new RAPIER.EventQueue(true);
   return freeOnThrow(world, events, () => run(d, w, steps, world, events));

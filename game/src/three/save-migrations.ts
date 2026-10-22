@@ -798,7 +798,15 @@ export const TINY_STEPS: readonly Step[] = [
   (world) => world,
   (world) => world,
   withoutPricedHaulCalls_100_101,
+  withCrimes_101_102,
 ];
+
+const MARSHALS_STANDING_101_102 = 0;
+
+function withCrimes_101_102(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  return { ...world, crimes: [], player: { ...player, standing: { ...(player.standing as SavedJson), marshals: MARSHALS_STANDING_101_102 } } };
+}
 
 function withStrandedAnchors_97_98(world: SavedJson): SavedJson {
   const anchored = (v: SavedJson): SavedJson => {

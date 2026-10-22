@@ -217,13 +217,15 @@ export class Fx3D {
     this.emissions.missile(p);
   }
 
+  later(delayMs: number, run: () => void): void {
+    if (!(delayMs >= 0)) throw new Error(`A world effect waits a non-negative time, got ${delayMs} ms`);
+    this.pending.push({ left: delayMs / 1000, run });
+  }
+
   label(anchor: () => V3 | null, text: Msg, color: string, row: number, delayMs: number, readMs: number): void {
-    this.pending.push({
-      left: delayMs / 1000,
-      run: () => {
-        const p = anchor();
-        if (p) this.floatText(p, text, color, readMs, row * LABEL_ROW_PX, anchor);
-      },
+    this.later(delayMs, () => {
+      const p = anchor();
+      if (p) this.floatText(p, text, color, readMs, row * LABEL_ROW_PX, anchor);
     });
   }
 

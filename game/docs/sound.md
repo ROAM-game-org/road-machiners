@@ -17,7 +17,7 @@ Four buses feed the master: `ui`, `sfx`, `ambient` and `music`. Each has a playe
 
 - World sounds, like guns, hits and crashes, play where they happen. Pan follows the screen position, and level halves at `MIX.halfGainMeters` from the camera focus. They use the same points as the visual effects, so fog of war silences what the player cannot see.
 - Each turn plays at most one result sting, the most important one: heatwave warning, level-up, discovery or money. A knockout is an attention alert and has no sting.
-- The engine is one recorded loop per chassis. Its pitch and level follow speed over the turn, so speeding up revs and braking drops. Continuous sounds are always bent loops like this, never short clips per state. While heat damages the engine, the loop crossfades to a strained loop, one for light trucks and one for heavy ones, started with it and bent the same way, and falls back to the healthy note over two turns once the damage stops.
+- The engine is one recorded loop per chassis. Its pitch and level follow speed over the turn, so speeding up revs and braking drops. `SoundLoops.engineAt()` sets them every frame from the turn's progress on the world clock, so they hold while the world is stopped or paused. The loop fades out only over a turn that ends at a stop or a turn the truck stays parked, never at a pause. Continuous sounds are always bent loops like this, never short clips per state. While heat damages the engine, the loop crossfades to a strained loop, one for light trucks and one for heavy ones, started with it and bent the same way, and falls back to the healthy note over two turns once the damage stops.
 - A hard slowdown adds the air brake where the truck is. Passing or reaching an order point makes no sound of its own.
 - Wind rises near dust storms.
 - A heatwave starting plays one soft low swell on the `ui` bus, the only weather cue besides the wind. It outranks the other result stings, since it is rare. A storm stays wind.
@@ -58,7 +58,7 @@ To test the score without ears, run `npm run blocks:sim -- --song dusk hit@8 den
 
 ### Combat songs
 
-The songs are generated whole in the ElevenLabs music UI and split locally with Demucs. `scripts/score-songs.json` holds each song's map: its source file, tempo, bar count, the guitar stem that feeds the guitar lane, its sections by bar and its last hit. Map every bar the band plays between the intro and the last hit, since unmapped bars cut the roads between sections. To add or change a song, put the source wav in `tmp/score-songs/`, edit the map and run:
+The songs are generated whole in the ElevenLabs music UI and split locally with Demucs. `scripts/score-songs.json` holds each song's map: its source file, tempo, bar count, the guitar stem that feeds the guitar lane, its sections by bar and its last hit. Map every bar the band plays between the intro and the last hit, since unmapped bars cut the roads between sections. When prep's beat tracking misreads a take, with many beats off the grid, set `firstBeat` in the map to the first beat's time in seconds, and prep uses that grid at the map's tempo. To add or change a song, put the source wav in `tmp/score-songs/`, edit the map and run:
 
 ```bash
 uv run --with librosa --with soundfile --with demucs --with torchcodec python -I scripts/score-blocks-prep.py scripts/score-songs.json tmp/score-songs public/sfx src/data/combat-songs.json
@@ -75,7 +75,7 @@ The heat lines, weights, wanted sections and clean-jump lines are in `SCORE_BLOC
 ## Adding a sound
 
 1. Add a cue to `DEFS` in `src/data/sounds.ts`: its bus, volume, voices and loop flag, and for generation a `setup` and prompts.
-2. Import files with `npm run sfx:import -- <cue> <file...>`, or generate them. Import makes every file one format and loudness per bus. It trims one-shots, keeps loops seamless, and matches each variant's tone to the cue's first file.
+2. Import files with `npm run sfx:import -- <cue> <file...>`, or generate them. Import makes every file one format and loudness per bus. It trims one-shots, keeps loops seamless, and matches each variant's tone to the cue's first file. A free music loop keeps its loud span with a 2 s crossfade. Every other free loop, like the engines, must just repeat with no audible change of state. Import evens out its slow level swings, keeps its steadiest stretch of at least 1.5 s in level and brightness, so no rev-up or quiet hole is left in it, and joins the ends with a 0.25 s equal-power crossfade.
 3. Play it from `src/three/sound.ts`. A world sound goes through `SoundDirector.at()` with its position.
 4. Listen with `npm run sfx:board`, which plays every cue through the game's mixer, beside a reference cue for buses that have one in `MIX.anchors`.
 

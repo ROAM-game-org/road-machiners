@@ -69,7 +69,7 @@ Run these from `game/`. The repo-wide quality gate and pre-commit hook run from 
 - `npm run text:review` writes the Russian review sheet to `tmp/text-review/`: every entry in context with sample params.
 - `npm run models:shapes`, `npm run wiki`, `npm run save:shape`, `npm run quests:build` and `npm run old-spots` regenerate checked files. A test fails when they are stale.
 - `npm run quest -- <quest>` plays an ink quest in the terminal, and `npm run quests:check` checks every quest for errors, dead ends and loops with no way out.
-- `npm run sfx:board`, `sfx:import`, `sfx:reimport`, `sfx:report` and `sfx:gen` manage sounds. `sfx:gen` costs credits, so ask before running it.
+- `npm run sfx:board`, `sfx:import`, `sfx:reimport`, `sfx:reloop`, `sfx:report` and `sfx:gen` manage sounds. `sfx:gen` costs credits, so ask before running it.
 - `npm run itch` publishes to itch.io.
 
 Game settings live in `src/config.ts`. Copy `.env.example` to `.env` for sound generation and publishing keys.

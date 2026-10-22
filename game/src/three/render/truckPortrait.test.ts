@@ -2,14 +2,17 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { CHASSIS, PAINT } from '../../data/chassis';
 import { conditionItems } from './portraitPixels';
-import { cellRect } from '../../sim/body';
+import { cellRect, unitsOf } from '../../sim/body';
+import { partDef } from '../../data/parts';
 import { coreParts, itemCells, mountedItems, mountedParts } from '../../sim/grid';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
 import { bare, lineWithArmor } from '../../test/gun-clearance-kit';
-import { TruckPortraits, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait } from './truckPortrait';
+import { PORTRAIT_TILT_DEG, TruckPortraits, glassMeshes, neutralizeReds, pristineOf, type BuildPortrait, type Portrait } from './truckPortrait';
 import { VehicleView } from './vehicle';
+
+const isCabDef = (def: ReturnType<typeof partDef>): boolean => def.kind === 'core' && def.role === 'cab';
 
 const RENDERER = {} as THREE.WebGLRenderer;
 
@@ -111,6 +114,35 @@ describe('truck portrait scene on every chassis', () => {
       if (drawn.has(item.part.id)) continue;
       const rect = cellRect(id, itemCells(item));
       expect(rect.x1 - rect.x0 + (rect.z1 - rect.z0), `${item.part.defId} footprint`).toBeGreaterThan(0);
+    }
+    view.dispose();
+  });
+
+  it.each(Object.keys(CHASSIS))('%s: a part with no mesh of its own is seen from the portrait camera through the body or the cab', (id) => {
+    const { v } = bare(id);
+    const view = new VehicleView(pristineOf(v), false, PAINT.standard, 'portrait');
+    view.root.updateMatrixWorld(true);
+    const solid: THREE.Mesh[] = [];
+    view.root.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.visible && !o.userData.outline) solid.push(o);
+    });
+    const own = new Set(solid.map((m) => m.userData.partId).filter(Boolean));
+    const cabIds = new Set(conditionItems(v).filter((it) => isCabDef(partDef(it.part.defId))).map((it) => it.part.id));
+    const tilt = THREE.MathUtils.degToRad(PORTRAIT_TILT_DEG);
+    const toward = new THREE.Vector3(-Math.sin(tilt), -Math.cos(tilt), 0);
+    const caster = new THREE.Raycaster();
+    for (const item of conditionItems(v)) {
+      if (own.has(item.part.id)) continue;
+      const rect = cellRect(id, itemCells(item));
+      const offset = unitsOf(id)[rect.unit].offset;
+      const seen = [0.25, 0.5, 0.75].some((fx) => [0.25, 0.5, 0.75].some((fz) => {
+        const at = new THREE.Vector3(rect.x0 + offset + (rect.x1 - rect.x0) * fx, 0, rect.z0 + (rect.z1 - rect.z0) * fz);
+        caster.set(at.clone().addScaledVector(toward, -20), toward);
+        const hit = caster.intersectObjects(solid, false)[0];
+        const owner = hit?.object.userData.partId;
+        return Boolean(hit) && (!owner || cabIds.has(owner));
+      }));
+      expect(seen, `${item.part.defId} on ${id}`).toBe(true);
     }
     view.dispose();
   });

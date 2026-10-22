@@ -637,8 +637,8 @@ describe('site work lights (#402)', () => {
   const of = (id: string) => flat.filter((l) => l.siteId === id);
   const tiles = (p: { x: number; z: number }) => ({ x: p.x / S, y: p.z / S });
 
-  it('gives each of the nine inhabited sites an interior light and one gate light per gate (IV1)', () => {
-    expect(FORTS).toHaveLength(9);
+  it('gives each of the ten inhabited sites an interior light and one gate light per gate (IV1)', () => {
+    expect(FORTS).toHaveLength(10);
     for (const site of FORTS) {
       const lights = of(site.id);
       expect(lights.filter((l) => l.kind === 'gate'), site.id).toHaveLength(fortressGates(site).length);
