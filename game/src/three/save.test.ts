@@ -1019,7 +1019,7 @@ describe('saved world settings', () => {
 
   it('sends a save at a format no build shipped to the carry route, and keeps the stored save', () => {
     const slots = makeSlots();
-    const save = JSON.parse(JSON.stringify(saveOf(newWorld(1337, startKit('standard'), TEST_MAP, tuned(2, 2)))));
+    const { steps: _steps, ...save } = JSON.parse(JSON.stringify(saveOf(newWorld(1337, startKit('standard'), TEST_MAP, tuned(2, 2)))));
     const stored = { ...save, format: { major: SAVE_MAJOR, minor: 13 } };
     slots.put('auto', stored);
 

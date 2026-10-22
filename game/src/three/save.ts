@@ -27,15 +27,19 @@ import { reportError } from './crash';
 import { CONFIG, GAME_VERSION } from '../config';
 import { download } from '../ui/dom';
 import type { RunLog } from './run-log';
-import { RELEASE_STEPS, SAVE_MAJOR, TINY_FROM, TINY_STEPS, type ReleaseStep, type SavedJson } from './save-migrations';
+import { RELEASE_STEPS, SAVE_MAJOR, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 
 declare const __SAVE_SCOPE__: string;
 
 type Step = ReleaseStep['step'];
 
+type ChainStep = Pick<ReleaseStep, 'from' | 'to' | 'step'>;
+
+export type SavedSteps = { from: number; names: readonly string[] };
+
 export const SAVE_FORMAT = { major: SAVE_MAJOR, minor: TINY_FROM + TINY_STEPS.length } as const;
 
-function checkedChain(releases: readonly ReleaseStep[], tinyFrom: number): void {
+function checkedChain(releases: readonly ChainStep[], tinyFrom: number): void {
   releases.forEach((release, i) => {
     if (release.to <= release.from) throw new Error(`Release step ${release.from} does not move forward`);
     const next = i + 1 < releases.length ? releases[i + 1].from : tinyFrom;
@@ -43,7 +47,7 @@ function checkedChain(releases: readonly ReleaseStep[], tinyFrom: number): void 
   });
 }
 
-export function stepsOf(releases: readonly ReleaseStep[], tinyFrom: number, tiny: readonly Step[], minor: number): readonly Step[] | null {
+export function stepsOf(releases: readonly ChainStep[], tinyFrom: number, tiny: readonly Step[], minor: number): readonly Step[] | null {
   checkedChain(releases, tinyFrom);
   if (minor >= tinyFrom && minor <= tinyFrom + tiny.length) return tiny.slice(minor - tinyFrom);
   const anchor = releases.findIndex((release) => release.from === minor);
@@ -52,7 +56,33 @@ export function stepsOf(releases: readonly ReleaseStep[], tinyFrom: number, tiny
 }
 
 export function stepsFrom(minor: number): readonly Step[] | null {
-  return stepsOf(RELEASE_STEPS, TINY_FROM, TINY_STEPS, minor);
+  return stepsOf(RELEASE_STEPS, TINY_FROM, TINY_STEPS.map((named) => named.step), minor);
+}
+
+function unknownStepError(steps: SavedSteps, why: string): SaveError {
+  return new SaveError('unknownStep', null, `${why}, in a save listing ${JSON.stringify(steps)}`);
+}
+
+function lackedTiny(tiny: readonly NamedStep[], steps: SavedSteps): readonly Step[] {
+  const known = new Set(tiny.map((named) => named.name));
+  const lost = steps.names.find((name) => !known.has(name));
+  if (lost !== undefined) throw unknownStepError(steps, `This build has no step ${lost}`);
+  const held = new Set(steps.names);
+  return tiny.filter((named) => !held.has(named.name)).map((named) => named.step);
+}
+
+function startsWithNames(steps: SavedSteps, names: readonly string[]): boolean {
+  return names.every((name, i) => steps.names[i] === name);
+}
+
+export function namedSteps(releases: readonly ReleaseStep[], tinyFrom: number, tiny: readonly NamedStep[], steps: SavedSteps): readonly Step[] {
+  checkedChain(releases, tinyFrom);
+  if (steps.from === tinyFrom) return lackedTiny(tiny, steps);
+  const release = releases.find((r) => r.from === steps.from);
+  if (!release?.names) throw unknownStepError(steps, `No release step with names starts at ${steps.from}`);
+  if (steps.names.length === 0) return stepsOf(releases, tinyFrom, tiny.map((named) => named.step), steps.from)!;
+  if (!startsWithNames(steps, release.names)) throw unknownStepError(steps, `The names do not begin with those of release step ${release.from} to ${release.to}`);
+  return namedSteps(releases, tinyFrom, tiny, { from: release.to, names: steps.names.slice(release.names.length) });
 }
 
 export function anchorMinors(): number[] {
@@ -67,7 +97,7 @@ export const SAVE_KEY = saveKey(__SAVE_SCOPE__);
 
 export type SaveErrorCode =
   | 'unreadable' | 'otherMap' | 'bakedProps' | 'invalidWorld' | 'invalidSave' | 'badSetup'
-  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badQuests' | 'newerQuests' | 'outOfReach' | 'mapChanged';
+  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badQuests' | 'newerQuests' | 'outOfReach' | 'mapChanged' | 'unknownStep';
 
 export class SaveError extends Error {
   constructor(readonly code: SaveErrorCode, readonly format: { major: number; minor: number } | null = null, detail = '') {
@@ -76,10 +106,10 @@ export class SaveError extends Error {
 }
 
 export function carriesOnLoad(error: SaveError): boolean {
-  return error.code === 'outOfReach' || error.code === 'mapChanged';
+  return error.code === 'outOfReach' || error.code === 'mapChanged' || error.code === 'unknownStep';
 }
 
-export type SaveEnvelope = { format: typeof SAVE_FORMAT; quests: SavedRevisions; savedAt: number; runId: string; world: object };
+export type SaveEnvelope = { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; savedAt: number; runId: string; world: object };
 
 export function clearSlot(slots: SaveSlots, slot: SlotId): void {
   slots.remove(slot);
@@ -249,15 +279,26 @@ function migratedWorld(stored: unknown): unknown {
   const save = envelopeOf(stored);
   const { major, minor } = formatOf(save);
   if (major !== SAVE_MAJOR) throw new SaveError('incompatible', { major, minor });
-  if (minor > SAVE_FORMAT.minor) throw new SaveError('newer', { major, minor });
-  const steps = stepsFrom(minor);
-  if (!steps) throw new SaveError('outOfReach', { major, minor });
+  const steps = stepsToRun(save, { major, minor });
   if (!isJsonObject(save.world)) throw new SaveError('invalidWorld');
   try {
     return steps.reduce((world, step) => step(world), save.world);
   } catch (err) {
     throw new SaveError('notMigrated', { major, minor }, String(err));
   }
+}
+
+function stepsToRun(save: SavedJson, format: { major: number; minor: number }): readonly Step[] {
+  if (save.steps !== undefined) return namedSteps(RELEASE_STEPS, TINY_FROM, TINY_STEPS, savedStepsOf(save.steps));
+  if (format.minor > SAVE_FORMAT.minor) throw new SaveError('newer', format);
+  const steps = stepsFrom(format.minor);
+  if (!steps) throw new SaveError('outOfReach', format);
+  return steps;
+}
+
+function savedStepsOf(value: unknown): SavedSteps {
+  if (!isJsonObject(value) || !isCount(value.from) || !Array.isArray(value.names) || !value.names.every((name) => typeof name === 'string')) throw new SaveError('noFormat');
+  return { from: value.from, names: value.names };
 }
 
 function envelopeOf(stored: unknown): SavedJson {
@@ -321,13 +362,13 @@ export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: s
   slots.put(slot, envelope);
 }
 
-export function saveOf(world: World): { format: typeof SAVE_FORMAT; quests: SavedRevisions; world: object } {
+export function saveOf(world: World): { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; world: object } {
   const { terrain: _terrain, events: _events, removed: _removed, ...saved } = world;
   const { visible: _visible, contacts: _contacts, clouds: _clouds, quests: { live: _live, ...quests }, ...player } = saved.player;
   const vehicles = saved.vehicles.map(({ trail: _trail, ...vehicle }) => vehicle);
   const obstacles = saved.obstacles.filter((o) => !isBakedObstacle(o) && !isHollowObstacle(o));
   const broken = saved.broken.map(({ obstacle, turn }) => ({ id: obstacle.id, turn }));
-  return { format: SAVE_FORMAT, quests: questRevisions(QUESTS), world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, obstacles, broken } };
+  return { format: SAVE_FORMAT, steps: { from: TINY_FROM, names: TINY_STEPS.map((named) => named.name) }, quests: questRevisions(QUESTS), world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, obstacles, broken } };
 }
 
 export function packExplored(explored: Uint8Array): string {
