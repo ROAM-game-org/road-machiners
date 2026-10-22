@@ -234,7 +234,8 @@ describe('NPC field repairs', () => {
     const answered = shareOfSeeds(world, npc.id, (x, me) => {
       planNpcOrders(x);
       resolveNpcActivities(x);
-      const answers = topGoal(me)!.kind === 'flee' || topGoal(me)!.kind === 'fight';      if (answers) expect(me.job).toBeNull();
+      const answers = topGoal(me)!.kind === 'flee' || topGoal(me)!.kind === 'fight';
+      if (answers) expect(me.job).toBeNull();
       return answers;
     });
     expect(answered).toBeGreaterThan(0.9);
