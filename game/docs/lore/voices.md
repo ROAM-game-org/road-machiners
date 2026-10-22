@@ -261,6 +261,26 @@ Sample: "The bend was fine. The rod wasn't. Write that down, somebody."
 
 ## Roadside radio
 
+### A Marshall on the radio
+
+A Marshall from the Roadhouse calling a driver named in the road book. Rook Halloran's drivers, Sabra Kell, Garrett Ainsley and the cars they ride with all talk this way on a case.
+
+Vocabulary: the book, the claim, what is owed, the road, who saw it. He names the wrong plainly, like a robbery on the Nose road, and never names a town as his master.
+
+Rhythm: level and short. He states the wrong, then the price, then asks. He asks once and waits.
+
+Habits: he says where the claim came from before he says what it costs. He keeps his voice the same whether the driver pays or refuses. On a refusal he says one flat line and stops talking.
+
+Cares about: closing the page. A paid case is a good day, and a fight is the price of a man who will not pay.
+
+Strangers: a name in the book, or nobody. A driver with no claim against him gets a short greeting and nothing else.
+
+What he avoids: threats before a refusal, and any talk of who pays the Roadhouse.
+
+Sample: "The book is worth what we're willing to answer for."
+
+Sample: "He had his say at the mast. Now he has to pay."
+
 ### The road storyteller
 
 Vocabulary: stretches, hollows, dust, mile markers, what he passed. He tells a place by what stood next to it.

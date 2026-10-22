@@ -4,6 +4,7 @@ import { CREW, HIRE } from './npc-behavior';
 import { RULES } from './rules';
 import { START_KITS } from './start';
 import { SUNWARD } from './sunward';
+import { BOUNTY } from './market';
 
 export const NPC_RESOURCES = {
   money: START_KITS.standard.money,
@@ -11,7 +12,7 @@ export const NPC_RESOURCES = {
   supplies: START_KITS.standard.supplies,
 };
 
-export type TraitId = 'trader' | 'scavenger' | 'raider' | 'scumbag' | 'coward' | 'lawman' | 'courier' | 'roamer' | 'vulture' | 'supplier' | 'guard' | 'merc' | 'brave' | 'cultist';
+export type TraitId = 'trader' | 'scavenger' | 'raider' | 'scumbag' | 'coward' | 'lawman' | 'courier' | 'roamer' | 'vulture' | 'supplier' | 'guard' | 'merc' | 'brave' | 'cultist' | 'marshal';
 
 export type Weighted<T> = { value: T; weight: number };
 export type Load = { kg: number; cells: number };
@@ -219,6 +220,18 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     ],
     priorities: { speed: 0.1, firepower: 3, armor: 3, cargo: 0 },
     cargoPart: MOSTLY_NO_CARGO_PART,
+    goods: NO_GOODS,
+    haul: { kg: 0, cells: 0 },
+    spares: null,
+  },
+  marshal: {
+    levels: [{ value: "loaded", weight: 1 }],
+    chassis: [
+      { value: "lincoln", weight: 3 },
+      { value: "jeep", weight: 1 },
+    ],
+    priorities: { speed: 3, firepower: 2, armor: 3, cargo: 0 },
+    cargoPart: [{ value: null, weight: 1 }],
     goods: NO_GOODS,
     haul: { kg: 0, cells: 0 },
     spares: null,
@@ -450,6 +463,17 @@ export const NPCS: Record<string, NpcTemplate> = {
     interval: 70,
     spawn: { kind: "sites", ids: ["nose"] },
   },
+  marshal: {
+    id: 'marshal', allegiance: { kind: 'fixed', faction: 'marshals' }, traits: ['marshal', 'brave'], extraTraits: [],
+    loadout: LOADOUTS.marshal,
+    aggroRange: 0,
+    fightStyle: 'circle',
+    money: NPC_RESOURCES.money,
+    cap: 2,
+    pairs: true,
+    interval: 90,
+    spawn: { kind: "sites", ids: ["marshal-post"] },
+  },
   courier: {
     id: 'courier', allegiance: { kind: 'fixed', faction: 'guidestar' }, traits: ['courier'],
     extraTraits: NEUTRAL_EXTRAS,
@@ -598,6 +622,7 @@ export type DecisionOptions = {
   warnRefused: 'leave' | 'fight';
   mugging: 'demand' | 'attack';
   resume: 'resume' | 'new';
+  bountyDemanded: 'pay' | 'fight' | 'flee';
   idle: 'trade' | 'scavenge' | 'raid' | 'prowl' | 'wait' | 'patrol' | 'travel' | 'explore' | 'haul' | 'escort' | 'muster';
   crewAsked: 'join' | 'decline';
   crewCalled: 'fight' | 'flee' | 'keep';
@@ -640,6 +665,7 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   warnRefused: { leave: 3, fight: 1 },
   mugging: { demand: 3, attack: 2 },
   resume: { resume: 9, new: 1 },
+  bountyDemanded: { pay: 3, fight: 1, flee: 1 },
   idle: { trade: 0, scavenge: 1, raid: 0, prowl: 0, wait: 0.1, patrol: 0, travel: 0, explore: 0, haul: 0, escort: 0, muster: 0 },
   crewAsked: { join: 2, decline: 1 },
   crewCalled: { fight: 3, flee: 0.5, keep: 1 },
@@ -671,7 +697,7 @@ export const STATE_WEIGHTS: Record<StateKindId, TraitWeights> = {
   escort: { strandedSeen: { tow: { add: 99 } } },
   crew: { strandedSeen: { tow: { add: 99 } } },
   hire: { strandedSeen: { tow: { add: 99 } } },
-  cavalcade: {}, offering: {}, drag: {},
+  cavalcade: {}, offering: {}, drag: {}, bountyStop: {},
   revenge: {
     hostileSeen: { fight: { add: 4 } },
     contactHeard: { investigate: { add: 2 } },
@@ -714,6 +740,7 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   cavalcade: null,
   offering: null,
   drag: SUNWARD.dragTurns,
+  bountyStop: BOUNTY.stopTurns,
 };
 
 

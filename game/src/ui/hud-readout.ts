@@ -1,3 +1,4 @@
+import { deskAt, deskNear } from '../sim/crime';
 import { GAME_VERSION } from "../config";
 import { playerAid, readyAid } from "../sim/aid";
 import { playerHandover, readyHandover } from "../sim/parcel";
@@ -115,6 +116,8 @@ function getPlaceActions(world: World): ContextAction[] {
   const actions: ContextAction[] = [];
   const shop = shopNear(world);
   if (shop) actions.push({ label: t("action.enter", { site: siteName(shop) }), ready: shopAt(world) === shop, target: { kind: 'shop' } });
+  const desk = deskNear(world);
+  if (desk) actions.push({ label: t("action.enter", { site: siteName(desk) }), ready: deskAt(world) === desk, target: { kind: 'shop' } });
   const post = outpostNear(world);
   if (post) actions.push({ label: t("action.enterOutpost", { site: siteName(post.id) }), ready: reachedOutpostAt(world) !== null, target: { kind: 'outpost' } });
   for (const downed of downedListNear(world)) {

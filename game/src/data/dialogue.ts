@@ -1,9 +1,10 @@
 
 import { LESSON_LINE_IDS } from './lessons';
+import { MARSHAL_LINES, MARSHAL_TOPICS, type MarshalConditionId, type MarshalEffectId, type MarshalPrepareId, type MarshalTopicId } from './personalities';
 import { SUNWARD_LINES, SUNWARD_TOPICS, type SunwardConditionId, type SunwardEffectId, type SunwardPrepareId, type SunwardTopicId } from './sunward';
 
 export type TopicId = 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'demandCut' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'robCut' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'roadLesson' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'escortHold' | 'escortGo' | 'lookWarning'
-  | 'tale' | 'salvageTip' | 'challenge' | 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor' | 'lastSeen' | 'parcel' | 'claimWreck' | 'hireGuard' | 'dismissGuard' | 'askHelp' | SunwardTopicId;
+  | 'tale' | 'salvageTip' | 'challenge' | 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor' | 'lastSeen' | 'parcel' | 'claimWreck' | 'hireGuard' | 'dismissGuard' | 'askHelp' | SunwardTopicId | MarshalTopicId;
 export type ConditionId =
   | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'playerPatches' | 'lookWarned' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsCut' | 'namesPrice' | 'noPrice' | 'canPayPrice' | 'noCargoRob' | 'noCutRob' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
   | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
@@ -13,7 +14,7 @@ export type ConditionId =
   | 'escortFollowed' | 'escortHeld' | 'warnsPlayerOff' | 'yieldsLoot' | 'fightsForLoot' | 'hasHaul' | 'noHaul' | 'canPayTalk'
   | 'offersTale' | 'offersTip' | 'callsOut' | 'newsOfSite' | 'newsOfWreck' | 'newsOfTip' | 'seeksSomeone' | 'sawSought' | 'missedSought' | 'hasParcelFor' | 'noHandover'
   | 'helpAskable' | 'helpComes' | 'helpRefuses' | 'helpOutgunned' | 'mercForHire' | 'takesGuard' | 'refusesGuard' | 'canPayGuard' | 'guardOfMine'
-  | 'asksCourierAid' | 'courierThanksDue' | 'courierSquareDue' | 'courierColdDue' | 'courierGrudgeDue' | 'courierFavorDue' | SunwardConditionId;
+  | 'asksCourierAid' | 'courierThanksDue' | 'courierSquareDue' | 'courierColdDue' | 'courierGrudgeDue' | 'courierFavorDue' | SunwardConditionId | MarshalConditionId;
 export type EffectId =
   | 'revealTown' | 'settleDone' | 'settleRefused' | 'acceptTow' | 'refuseTow' | 'askTow' | 'agreePatch' | 'handOver' | 'surrender' | 'giveUp' | 'backOffClaim' | 'defyClaim'
   | 'endLookWarning' | 'answerLoadThreat'
@@ -21,9 +22,9 @@ export type EffectId =
   | 'revealRumor' | 'payTruce' | 'giveAidPaid' | 'giveAidFree' | 'takeAid' | 'acceptAidOffer' | 'refuseAidOffer' | 'yieldToPlayer' | 'askStandDown' | 'standDownPlea' | 'abandonSpill' | 'noteWagonRoad' | 'noteClaimLead'
   | 'leaveLootWarning' | 'refuseLootWarning' | 'fightLootWarning' | 'hangUpLootWarning' | 'payTalk' | 'holdEscort' | 'releaseHold'
   | 'tellTale' | 'buyTip' | 'declineEncounter' | 'endEncounter' | 'backDown' | 'answerChallenge' | 'acceptChallenge'
-  | 'courierFree' | 'courierPaid' | 'courierRefuse' | 'courierThank' | 'courierSquareUp' | 'courierColdShoulder' | 'courierCallEven' | 'courierFight' | 'courierEnd' | 'courierPayFavor' | 'noteLead' | 'startHandover' | 'noteClaimLead' | 'hireGuard' | 'dismissGuard' | 'joinFight' | 'turnDownCall' | SunwardEffectId;
+  | 'courierFree' | 'courierPaid' | 'courierRefuse' | 'courierThank' | 'courierSquareUp' | 'courierColdShoulder' | 'courierCallEven' | 'courierFight' | 'courierEnd' | 'courierPayFavor' | 'noteLead' | 'startHandover' | 'noteClaimLead' | 'hireGuard' | 'dismissGuard' | 'joinFight' | 'turnDownCall' | SunwardEffectId | MarshalEffectId;
 export type PrepareId = 'nearestTown' | 'towOffer' | 'patchTerms' | 'truceAnswer' | 'mercyAnswer' | 'threatAnswer' | 'warnAnswer' | 'npcTowTerms' | 'lastTownPrices' | 'nearestRumor' | 'tradeTip' | 'trucePrice' | 'aidWanted' | 'aidAnswer' | 'aidOffered' | 'yieldAnswer' | 'lootWarningTerms' | 'demandHaul' | 'demandCut' | 'robCutAnswer' | 'surrenderHaul'
-  | 'taleNews' | 'tipTerms' | 'courierNeed' | 'courierNews' | 'courierFavorTerms' | 'lastSighting' | 'guardOffer' | 'helpAnswer' | 'claimWreckBearing' | 'roadLesson' | SunwardPrepareId;
+  | 'taleNews' | 'tipTerms' | 'courierNeed' | 'courierNews' | 'courierFavorTerms' | 'lastSighting' | 'guardOffer' | 'helpAnswer' | 'claimWreckBearing' | 'roadLesson' | SunwardPrepareId | MarshalPrepareId;
 
 export type DialogueOption = { say: LineId; when: ConditionId[]; effects: EffectId[]; go: string };
 export type DialogueNode = { line: LineId; options: DialogueOption[] };
@@ -72,7 +73,7 @@ export const LINE_IDS = [
   'anyTipsForTheRoad', 'lessonTold', ...LESSON_LINE_IDS,
   'demandCargoOrPay', 'demandCutLine', 'noFreeRidePay', 'noFreeRideCut', 'leaveItOrPay', 'payAndGo', 'hereIsYourMoney', 'yourMoneyOr', 'youHeardMeMoney', 'allRightPaid', 'pocketsEmpty',
   'needAHandHere', 'whosOnYou', 'thatOneOnMyTail', 'onMyWay', 'notMyFight', 'tooHotForMe',
-  'silent', ...SUNWARD_LINES,
+  'silent', ...SUNWARD_LINES, ...MARSHAL_LINES,
 ] as const;
 export type LineId = (typeof LINE_IDS)[number];
 
@@ -84,6 +85,11 @@ export const TOLL = 'toll';
 function ackTopic(id: TopicId, ask: { say: LineId; when: ConditionId[] }, ack: { line: LineId; say: LineId; effect: EffectId }): Topic {
   const options = [{ say: ack.say, when: [], effects: [ack.effect], go: END }];
   return { id, once: false, ask: { ...ask, duringFeud: false }, raise: null, prepare: null, hangUp: [], start: 'ack', nodes: { ack: { line: ack.line, options } } };
+}
+
+function strandedOffer(id: TopicId, when: ConditionId, line: LineId, accept: LineId, effect: EffectId): Topic {
+  const options: DialogueOption[] = [{ say: accept, when: [], effects: [effect], go: END }, { say: 'comeAndGetIt', when: [], effects: ['settleRefused'], go: END }];
+  return { id, once: true, ask: null, raise: { when: [when], priority: 5, duringFeud: true, duringCombat: true }, prepare: 'surrenderHaul', hangUp: ['settleRefused'], start: 'offer', nodes: { offer: { line, options } } };
 }
 
 function tollNode(go: string): DialogueNode {
@@ -108,7 +114,7 @@ export function handoffQuest(go: string): string | null {
   return go.startsWith(QUEST_GO) ? go.slice(QUEST_GO.length) : null;
 }
 
-export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS,
+export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS, ...MARSHAL_TOPICS,
   directions: {
     id: 'directions',
     once: false,
@@ -340,42 +346,8 @@ export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS,
       },
     },
   },
-  surrender: {
-    id: 'surrender',
-    once: true,
-    ask: null,
-    raise: { when: ['demandsSurrender'], priority: 5, duringFeud: true, duringCombat: true },
-    prepare: 'surrenderHaul',
-    hangUp: ['settleRefused'],
-    start: 'offer',
-    nodes: {
-      offer: {
-        line: 'surrenderOffer',
-        options: [
-          { say: 'fineTakeIt', when: [], effects: ['surrender'], go: END },
-          { say: 'comeAndGetIt', when: [], effects: ['settleRefused'], go: END },
-        ],
-      },
-    },
-  },
-  giveUp: {
-    id: 'giveUp',
-    once: true,
-    ask: null,
-    raise: { when: ['demandsGiveUp'], priority: 5, duringFeud: true, duringCombat: true },
-    prepare: 'surrenderHaul',
-    hangUp: ['settleRefused'],
-    start: 'offer',
-    nodes: {
-      offer: {
-        line: 'giveUpOffer',
-        options: [
-          { say: 'standingDown', when: [], effects: ['giveUp'], go: END },
-          { say: 'comeAndGetIt', when: [], effects: ['settleRefused'], go: END },
-        ],
-      },
-    },
-  },
+  surrender: strandedOffer('surrender', 'demandsSurrender', 'surrenderOffer', 'fineTakeIt', 'surrender'),
+  giveUp: strandedOffer('giveUp', 'demandsGiveUp', 'giveUpOffer', 'standingDown', 'giveUp'),
   claim: {
     id: 'claim',
     once: false,

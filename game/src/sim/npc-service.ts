@@ -107,10 +107,15 @@ function tryLieUpSpot(world: World, vehicle: Vehicle, site: Site): Vec | null {
   return dist(end, spot) <= RULES.arriveRadius ? spot : null;
 }
 
+const LIE_UP_WAITS: readonly GoalReason[] = ['restHollow', 'atPost'];
+
+function liesUpWith(goal: NpcActivity): boolean {
+  return goal.kind === 'rearm' || (goal.kind === 'wait' && LIE_UP_WAITS.includes(goal.reason));
+}
+
 export function liesUp(vehicle: Vehicle): boolean {
   const top = topGoal(vehicle);
-  const lying = top?.kind === 'rearm' || (top?.kind === 'wait' && top.reason === 'restHollow');
-  return lying && dist(vehicle.pos, top.destination!) <= NPC_BEHAVIOR.lieUp.reach;
+  return top !== null && liesUpWith(top) && dist(vehicle.pos, top.destination!) <= NPC_BEHAVIOR.lieUp.reach;
 }
 
 export function rearmInvalid(world: World, vehicle: Vehicle): GoalReason | null {
