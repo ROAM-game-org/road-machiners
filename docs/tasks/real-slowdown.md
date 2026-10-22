@@ -231,4 +231,4 @@ Approach: the worker adds a tail to every prepared turn, `travel.ts` owns a `Cre
 
 ### Deferred (needs user input)
 - Issue #882 tracks this work for the factory. It carries no `bug` or `feature-request` label, so intake does not build it again. To reach the release feature list, the branch is pushed and merged through `factory merge 882 --by <member>`.
-- The user listens to the engine through a stop, a pause and a panel opened mid-turn, and confirms it never sounds like the truck stopped while it still moves.
+- Done: the user listened to the engine after the glide carry fix and the remade steady engine loops, and confirmed it.
