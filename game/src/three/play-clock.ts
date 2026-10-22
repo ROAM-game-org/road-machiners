@@ -52,6 +52,10 @@ function easedShare(rate: number): number {
   return rate ** 3 - rate ** 4 / 2;
 }
 
+export function heldPlayMs(realMs: number, held: boolean, maxFrameMs: number): number {
+  return held ? 0 : Math.min(Math.max(0, realMs), maxFrameMs);
+}
+
 export function easedStopMs(easeMs: number): number {
   return easeMs * easedShare(1);
 }

@@ -4,9 +4,11 @@ import {
   frameWheels,
   restWheels,
   trailFrames,
+  TURN_STEPS,
   type UnitWheels,
   type TurnResult,
 } from "../phys/drive";
+import type { TurnClock } from "./render/hazards";
 import { frameAt, type VehicleFrame } from "../phys/frames";
 import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TurnRequest, type TurnResponse } from "../phys/turn";
 import { PHYSICS } from "../data/physics";
@@ -41,10 +43,20 @@ export function nextSightSample(live: LiveVision, step: number): number | null {
 }
 
 const STEP_MS = 1000 / PHYSICS.stepsPerSecond;
+export const MOVE_MS = TURN_STEPS * STEP_MS;
+
+export function lightTurnOf(world: World, a: Playback | null): number {
+  return a ? world.turn - 1 + Math.min(1, a.elapsed / MOVE_MS) : world.turn;
+}
+
+export function turnClockOf(a: Playback | null): TurnClock | null {
+  return a ? { before: a.before, progress: Math.min(1, a.elapsed / MOVE_MS), moved: a.moved, hookedLines: a.hookedLines } : null;
+}
 
 export class Creep {
   private readonly clock: PlayClock;
   private readonly endMs: number;
+  private rested = false;
 
   constructor(private readonly tail: Tail, private readonly starts: Record<string, VehicleFrame>, easeMs: number, overshootMs: number) {
     this.clock = new PlayClock(easeMs);
@@ -57,8 +69,10 @@ export class Creep {
   }
 
   tick(ms: number, wanted: boolean): void {
+    if (this.rested) return;
     this.clock.coast(ms, wanted, 1);
     this.clock.beginFrame();
+    this.rested = !this.clock.isMoving();
   }
 
   frameOf(v: Vehicle): VehicleFrame | undefined {
@@ -67,12 +81,18 @@ export class Creep {
     return frameAt(this.tail.frames[v.id], this.shownMs() / STEP_MS - 1, this.starts[v.id]);
   }
 
-  holdsTurn(): boolean {
-    return this.endMs - this.shownMs() > STEP_MS;
+  isMoving(): boolean {
+    return !this.rested && !this.reachedEnd();
   }
 
-  isMoving(): boolean {
-    return this.clock.isMoving() && this.shownMs() < this.endMs;
+  joinOf(world: World, shown: Record<string, VehicleFrame>): { starts: Record<string, VehicleFrame>; elapsed: number } {
+    if (!this.reachedEnd()) return { starts: { ...shown }, elapsed: 0 };
+    const ends = world.vehicles.flatMap((v) => (this.frameOf(v) ? [[v.id, this.tail.frames[v.id].at(-1)!] as const] : []));
+    return { starts: { ...shown, ...Object.fromEntries(ends) }, elapsed: this.clock.nowMs() - this.endMs };
+  }
+
+  private reachedEnd(): boolean {
+    return this.clock.nowMs() >= this.endMs;
   }
 
   private shownMs(): number {
@@ -179,6 +199,7 @@ export class Travel {
   private tapHalts = false;
   private remainder = 0;
   private readonly turns: TurnPreparation;
+  private creep: Creep | null = null;
 
   constructor(private readonly holdMs: number, tailSteps: number) {
     this.turns = new TurnPreparation(tailSteps);
@@ -293,14 +314,14 @@ export class Travel {
     return this.isAdvancing(null, now) || this.runsOnItsOwn(world, now);
   }
 
-  takeReady(world: World, drive: DriveSnapshot, now: number, held = false, slowing = false): PreparedTurn | null {
+  takeReady(world: World, drive: DriveSnapshot, now: number, held = false): PreparedTurn | null {
     if (world.player.state === "dead") {
       this.pause();
       return null;
     }
     if (held || this.deciding(now) || !this.wantsTurn(world, now)) return null;
     this.turns.prepare(world, drive);
-    return slowing ? null : this.takePrepared(world);
+    return this.creep?.isMoving() ? null : this.takePrepared(world);
   }
 
   private takePrepared(world: World): PreparedTurn | null {
@@ -319,9 +340,23 @@ export class Travel {
     return this.shouldAdvance(now) || this.runsOnItsOwn(world, now);
   }
 
-  creepAfter(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, easeMs: number, overshootMs: number): Creep | null {
-    if (!playback.tail || this.continues(world, now)) return null;
-    return new Creep(playback.tail, { ...shown }, easeMs, overshootMs);
+  stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, easeMs: number, overshootMs: number): { world: World; drive: DriveSnapshot } | null {
+    const stops = playback.tail !== null && !this.continues(world, now);
+    this.creep = stops ? new Creep(playback.tail!, { ...shown }, easeMs, overshootMs) : null;
+    return this.creep?.commit(world) ?? null;
+  }
+
+  tickCreep(ms: number, world: World, now: number): void {
+    this.creep?.tick(ms, this.isAdvancing(null, now) && this.turns.isReady(world));
+  }
+
+  playedFrame(v: Vehicle, a: Playback | null, at: number | null): VehicleFrame | undefined {
+    if (a && at !== null) return frameAt(a.result.frames[v.id], at, a.starts[v.id]);
+    return this.creep?.frameOf(v);
+  }
+
+  isCreeping(): boolean {
+    return this.creep?.isMoving() ?? false;
   }
 
   prepareNext(world: World, playback: Playback | null, now: number): void {
@@ -337,7 +372,8 @@ export class Travel {
     shown: Record<string, VehicleFrame>,
   ): { world: World; playback: Playback; towed: boolean } {
     const world = { ...prepared.world, terrain: before.terrain };
-    addRopeFrames(before, world, prepared.result.frames, shown);
+    const join = this.endCreep(before, shown, elapsed);
+    addRopeFrames(before, world, prepared.result.frames, join.starts);
     if (playerCanAct(before) && !playerCanAct(world)) this.pause();
     else if (!playerCanAct(world)) {
       this.automatic = false;
@@ -347,10 +383,10 @@ export class Travel {
     const playback: Playback = {
       result: prepared.result,
       tail: prepared.tail,
-      starts: { ...shown },
+      starts: join.starts,
       before,
       lastTick: now,
-      elapsed,
+      elapsed: join.elapsed,
       moved: false,
       impacts: false,
       combat: false,
@@ -360,6 +396,12 @@ export class Travel {
       hookedLines: new Set(),
     };
     return { world, playback, towed };
+  }
+
+  private endCreep(before: World, shown: Record<string, VehicleFrame>, elapsed: number): { starts: Record<string, VehicleFrame>; elapsed: number } {
+    const join = this.creep?.joinOf(before, shown) ?? { starts: { ...shown }, elapsed };
+    this.creep = null;
+    return join;
   }
 
   getSpeed(now: number, fastSpeed: number): number {
@@ -495,6 +537,10 @@ export class TurnPreparation {
     );
     this.terrain = terrain;
     return id;
+  }
+
+  isReady(world: World): boolean {
+    return this.isFresh(world) && !!this.pending?.ready;
   }
 
   take(world: World): PreparedTurn | null {
