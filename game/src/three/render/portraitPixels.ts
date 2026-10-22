@@ -119,10 +119,43 @@ function nearestOwnPixel(ids: Uint16Array, size: PixelSize, idOf: number, cx: nu
   return { x: best.x + 0.5, y: best.y + 0.5 };
 }
 
-export function hiddenOver(ids: Uint16Array, hidden: Uint16Array, coverable: ReadonlySet<number> = new Set([BODY_ID])): Uint16Array {
+function bump(counts: Map<number, number>, id: number): void {
+  counts.set(id, (counts.get(id) ?? 0) + 1);
+}
+
+function countPixels(ids: Uint16Array, hidden: Uint16Array): { total: Map<number, number>; under: Map<number, Map<number, number>> } {
+  const total = new Map<number, number>();
+  const under = new Map<number, Map<number, number>>();
+  for (let p = 0; p < ids.length; p++) {
+    bump(total, ids[p]);
+    if (hidden[p] === EMPTY_ID || ids[p] === EMPTY_ID) continue;
+    const counts = under.get(hidden[p]) ?? new Map<number, number>();
+    bump(counts, ids[p]);
+    under.set(hidden[p], counts);
+  }
+  return { total, under };
+}
+
+function mostCovering(counts: Map<number, number>, total: Map<number, number>): number | undefined {
+  const survivors = [...counts].filter(([id, count]) => id === BODY_ID || (total.get(id) ?? 0) > count);
+  return survivors.sort((a, b) => b[1] - a[1])[0]?.[0];
+}
+
+function coverOf(ids: Uint16Array, hidden: Uint16Array): Map<number, number> {
+  const { total, under } = countPixels(ids, hidden);
+  const cover = new Map<number, number>();
+  for (const [part, counts] of under) {
+    const id = mostCovering(counts, total);
+    if (id !== undefined) cover.set(part, id);
+  }
+  return cover;
+}
+
+export function hiddenOver(ids: Uint16Array, hidden: Uint16Array): Uint16Array {
   if (ids.length !== hidden.length) throw new Error(`Hidden id map holds ${hidden.length} pixels, expected ${ids.length}`);
+  const cover = coverOf(ids, hidden);
   const out = ids.slice();
-  for (let p = 0; p < ids.length; p++) if (coverable.has(ids[p]) && hidden[p] !== EMPTY_ID) out[p] = hidden[p];
+  for (let p = 0; p < ids.length; p++) if (hidden[p] !== EMPTY_ID && cover.get(hidden[p]) === ids[p]) out[p] = hidden[p];
   return out;
 }
 

@@ -60,16 +60,22 @@ describe("solidMaskOf", () => {
 });
 
 describe("hiddenOver", () => {
-  it("claims only body pixels", () => {
-    const map = ids(4, [[EMPTY_ID, BODY_ID, 3, BODY_ID]]);
-    const hidden = ids(4, [[8, 8, 8, EMPTY_ID]]);
-    expect(Array.from(hiddenOver(map, hidden))).toEqual([EMPTY_ID, 8, 3, BODY_ID]);
+  it("claims the pixels of the id that covers most of its footprint", () => {
+    const map = ids(5, [[EMPTY_ID, BODY_ID, BODY_ID, 3, BODY_ID]]);
+    const hidden = ids(5, [[8, 8, 8, 8, EMPTY_ID]]);
+    expect(Array.from(hiddenOver(map, hidden))).toEqual([EMPTY_ID, 8, 8, 3, BODY_ID]);
   });
 
-  it("also claims the pixels of the ids it is told may be covered", () => {
-    const map = ids(4, [[EMPTY_ID, BODY_ID, 3, 4]]);
-    const hidden = ids(4, [[8, 8, 8, 8]]);
-    expect(Array.from(hiddenOver(map, hidden, new Set([BODY_ID, 3])))).toEqual([EMPTY_ID, 8, 8, 4]);
+  it("takes from a part that covers it, so a part hidden under another part still shows", () => {
+    const map = ids(5, [[EMPTY_ID, 3, 3, 3, 3]]);
+    const hidden = ids(5, [[8, 8, 8, EMPTY_ID, EMPTY_ID]]);
+    expect(Array.from(hiddenOver(map, hidden))).toEqual([EMPTY_ID, 8, 8, 3, 3]);
+  });
+
+  it("never takes the last pixels of a part", () => {
+    const map = ids(3, [[EMPTY_ID, 3, 3]]);
+    const hidden = ids(3, [[8, 8, 8]]);
+    expect(Array.from(hiddenOver(map, hidden))).toEqual([EMPTY_ID, 3, 3]);
   });
 });
 
