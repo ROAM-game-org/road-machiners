@@ -14,7 +14,7 @@ import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type Sid
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
-import { highestAhead, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands } from './gunStand';
+import { highestAhead, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
@@ -48,7 +48,6 @@ type ArmorDef = Extract<PartDef, { kind: 'armor' }>;
 
 const GUN_GAP = 0.03;
 const SAMPLE_REACH = 0.1;
-const SKIRT = 0.22;
 
 const SILHOUETTE_OPACITY = 0.5;
 const SILHOUETTE_ORDER = 810;
@@ -702,7 +701,7 @@ export class VehicleView {
     if (!bareRear) return;
     const last = this.units[this.units.length - 1];
     const chain = mergeStatic(wrapped(model('tow_chain')));
-    chain.position.set(-last.b.half.x, -last.b.half.y - SKIRT, last.b.half.z * CHAIN_SIDE);
+    chain.position.copy(rearHang(last.base, last.b.half.z * CHAIN_SIDE));
     last.body.add(chain);
     last.motion.addWhip(chain, WHIPS.chain);
   }

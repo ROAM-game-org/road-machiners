@@ -204,6 +204,16 @@ function braceFoot(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Ve
   return hit;
 }
 
+export function rearHang(body: THREE.Object3D, z: number): THREE.Vector3 {
+  body.updateWorldMatrix(true, true);
+  const box = new THREE.Box3().setFromObject(body);
+  for (let x = box.min.x + FOOTING_GRID; x < box.min.x + (box.max.x - box.min.x) / 4; x += FOOTING_GRID) {
+    const hit = new THREE.Raycaster(new THREE.Vector3(x, box.min.y - CLIP_TOLERANCE, z), UP).intersectObject(body, true)[0];
+    if (hit && !seeThrough(hit.object)) return hit.point;
+  }
+  throw new Error(`The base has no underside in its rear quarter at z ${z.toFixed(2)} to hang a chain from`);
+}
+
 function wallHit(body: THREE.Object3D, from: THREE.Vector3, dir: THREE.Vector3): THREE.Vector3 | null {
   const start = from.clone().addScaledVector(dir, -CLIP_TOLERANCE);
   const hit = new THREE.Raycaster(start, dir).intersectObject(body, true)[0];
