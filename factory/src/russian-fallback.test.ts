@@ -72,14 +72,16 @@ describe('how the instruction reaches an agent', () => {
 
 describe('the agent container', () => {
   const HOME = resolve('tmp/factory-russian-fallback-container');
-  const cfg = { image: 'img:1', oauthToken: 'claude-login', elevenlabsKey: 'k', sfxMaxGenerations: 6, geminiKey: 'g', agyMaxRuns: 100, agyModel: 'flash', codexModel: 'sol', codexEffort: 'medium', agentJobMaxMinutes: 30, home: HOME, tokenPrices: {} } as unknown as FactoryConfig;
+  const cfg = { image: 'img:1', oauthToken: 'claude-login', elevenlabsKey: 'k', sfxMaxGenerations: 6, agyMaxRuns: 100, agyModel: 'flash', codexModel: 'sol', codexEffort: 'medium', agentJobMaxMinutes: 30, home: HOME, tokenPrices: {} } as unknown as FactoryConfig;
 
   beforeEach(() => {
     mkdirSync(`${HOME}/codex`, { recursive: true });
     writeFileSync(`${HOME}/codex/auth.json`, '{}');
+    mkdirSync(`${HOME}/agy`, { recursive: true });
+    writeFileSync(`${HOME}/agy/antigravity-oauth-token`, '{}');
   });
 
-  it('starts in /work/game and carries the three writers: agy key and cap, the Codex login and model, and the Claude login', async () => {
+  it('starts in /work/game and carries the three writers: agy login and cap, the Codex login and model, and the Claude login', async () => {
     const calls: { args: string[]; env?: Record<string, string> }[] = [];
     const run: Run = async (_cmd, args, opts) => {
       calls.push({ args, env: opts?.env });
@@ -90,7 +92,8 @@ describe('the agent container', () => {
     expect(call.args.slice(call.args.indexOf('-w'), call.args.indexOf('-w') + 2)).toEqual(['-w', '/work/game']);
     expect(call.args).toContain('/w/c:/work');
     expect(call.args).toContain(`${HOME}/codex:/home/pwuser/.codex`);
-    expect(call.env).toMatchObject({ CLAUDE_CODE_OAUTH_TOKEN: 'claude-login', GEMINI_API_KEY: 'g', AGY_MAX_RUNS: '100', AGY_MODEL: 'flash', CODEX_MODEL: 'sol', CODEX_EFFORT: 'medium' });
+    expect(call.args).toContain(`${HOME}/agy/antigravity-oauth-token:/home/pwuser/.gemini/antigravity-cli/antigravity-oauth-token:ro`);
+    expect(call.env).toMatchObject({ CLAUDE_CODE_OAUTH_TOKEN: 'claude-login', AGY_MAX_RUNS: '100', AGY_MODEL: 'flash', CODEX_MODEL: 'sol', CODEX_EFFORT: 'medium' });
   });
 
   it('installs all three CLIs in the agent image', () => {
@@ -100,8 +103,8 @@ describe('the agent container', () => {
     expect(dockerfile).toContain('/opt/agy');
   });
 
-  it('lets the proxy reach the Anthropic, Codex and Gemini hosts', () => {
+  it('lets the proxy reach the Anthropic, Codex and agy hosts', () => {
     const allowlist = read('factory/docker/proxy/allowlist');
-    for (const host of ['api\\.anthropic\\.com', 'chatgpt\\.com', 'auth\\.openai\\.com', 'generativelanguage\\.googleapis\\.com']) expect(allowlist).toContain(`^${host}$`);
+    for (const host of ['api\\.anthropic\\.com', 'chatgpt\\.com', 'auth\\.openai\\.com', 'oauth2\\.googleapis\\.com', 'www\\.googleapis\\.com', 'lh3\\.googleusercontent\\.com', 'daily-cloudcode-pa\\.googleapis\\.com']) expect(allowlist).toContain(`^${host}$`);
   });
 });

@@ -285,6 +285,8 @@ function harness(job: Job | null, alive: boolean, cards: Card[] = [], comments: 
   const dir = mkdtempSync(join(tmpdir(), 'tick-'));
   mkdirSync(join(dir, 'codex'));
   writeFileSync(join(dir, 'codex/auth.json'), '{}');
+  mkdirSync(join(dir, 'agy'));
+  writeFileSync(join(dir, 'agy/antigravity-oauth-token'), '{}');
   const statePath = join(dir, 'state.json');
   writeState(statePath, state({ jobs: job ? [job] : [] }));
   const sent: string[] = [];
@@ -444,6 +446,13 @@ describe('tick', () => {
     const h = harness(null, true, [card(8, 'Design')]);
     rmSync(join(h.ctx.cfg.home, 'codex'), { recursive: true });
     await expect(tick(h.ctx, '/code', h.deps)).rejects.toThrow('codex/auth.json is missing');
+    expect(h.spawned).toEqual([]);
+  });
+
+  it('stops the tick before it starts a job when agy has no login', async () => {
+    const h = harness(null, true, [card(8, 'Design')]);
+    rmSync(join(h.ctx.cfg.home, 'agy'), { recursive: true });
+    await expect(tick(h.ctx, '/code', h.deps)).rejects.toThrow('agy/antigravity-oauth-token is missing');
     expect(h.spawned).toEqual([]);
   });
 
