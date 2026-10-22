@@ -1,6 +1,6 @@
 # Real turn-end slowdown
 
-**Status:** validating
+**Status:** done
 **Branch:** real-slowdown
 **Worktree:** .worktrees/real-slowdown
 **Goal:** One world clock moves everything in the world: trucks, rounds, casings, particles, smoke, weather, world sounds, the engine sound and the camera follow. Information for the player, like the HUD, damage number fades and music, runs on real time. A turn ends once, for everything, at the end of its 1 s of movement. At that end the clock eases to a stop over 1 s on an exponential curve, the trucks coast on real physics, and rounds and shells in the air drift and then hang. Utilities act at turn start. A pause holds the clock at zero, and resuming lets everything continue from where it stopped. Damage shows when the round lands. The next turn starts from the pose the trucks reached and never pulls them back. Confirming it needs the user to play a session, since the feel is a visual judgment. The user plays ROAM and uses this so turn ends feel continuous and readable. Useless if: anything in the world keeps moving while the trucks are stopped; the camera stops with a jolt; damage shows before its round lands; the slowdown draws motion the world does not keep; a panel, the menu or a hidden tab leaves anything moving; a turn waits out a fixed read or band time after its movement.
