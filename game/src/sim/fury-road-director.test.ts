@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FURY_ROAD, HAZARDS } from '../data/modes';
 import { cardsOf, directStretch, eliteCap, expectedGear, payOf, planWaves, stretchBudget } from './fury-road-director';
 import { NPCS } from '../data/npcs';
-import { PARTS } from '../data/parts';
+import { isShield, PARTS } from '../data/parts';
 import { HAULER_KIT, startKit } from '../data/start';
 import { waveGear, waveOf } from './fury-road';
 import { milestoneAt } from './highway';
@@ -128,7 +128,7 @@ describe('Chaos Highway director', () => {
     const money = Math.max(FURY_ROAD.cards.merc.floor, stretchBudget(w, j).base) * DIRECTOR.elite.money;
     const platesOf = (armorFirst: boolean) => SEEDS.map((seed) => {
       const loadout = generateNpcLoadout({ ...w, rngState: seed }, NPCS.merc, null, waveOf(j).level, { ...waveGear('merc', j, money, true), armorFirst });
-      return loadout.parts.filter((p) => PARTS[p.defId].kind === 'armor').length;
+      return loadout.parts.filter((p) => isShield(PARTS[p.defId])).length;
     });
     const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
     expect(sum(platesOf(true))).toBeGreaterThan(sum(platesOf(false)));

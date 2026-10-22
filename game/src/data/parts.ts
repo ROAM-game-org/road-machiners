@@ -7,6 +7,7 @@ export type PartKind =
   | "weapon"
   | "engine"
   | "armor"
+  | "accessory"
   | "cargo"
   | "core"
   | "scanner"
@@ -83,9 +84,26 @@ export type ArmorDef = PartBase & {
   blastArmor: number;
   fieldRepair: FieldRepair;
   ramMult: number;
-  look: "plates" | "cage" | "ram";
+  look: "plates" | "cage";
+};
+
+export type EdgeLetter = "F" | "B" | "L" | "R";
+
+export type AccessoryDef = PartBase & {
+  kind: "accessory";
+  blastArmor: number;
+  fieldRepair: FieldRepair;
+  ramMult: number;
+  look: "ram" | "spikes";
+  mounts: EdgeLetter[];
   claymore?: ClaymoreDef;
 };
+
+export type ShieldDef = ArmorDef | AccessoryDef;
+
+export function isShield(def: PartDef): def is ShieldDef {
+  return def.kind === "armor" || def.kind === "accessory";
+}
 
 export type CargoDef = PartBase & {
   kind: "cargo";
@@ -130,6 +148,7 @@ export type PartDef =
   | WeaponDef
   | EngineDef
   | ArmorDef
+  | AccessoryDef
   | CargoDef
   | CoreDef
   | ScannerDef
@@ -153,6 +172,7 @@ type UnpricedByKind = {
   weapon: Omit<WeaponDef, 'value'>;
   engine: Omit<EngineDef, 'value'>;
   armor: Omit<ArmorDef, 'value'>;
+  accessory: Omit<AccessoryDef, 'value'>;
   cargo: Omit<CargoDef, 'value'>;
   store: Omit<StoreDef, 'value'>;
   scanner: Omit<ScannerDef, 'value'>;
@@ -163,13 +183,18 @@ const m = PART_PRICE_MODIFIERS;
 const MODIFIERS: { [K in PartKind]: (def: UnpricedByKind[K]) => number } = {
   weapon: (d) => m.weapon.perDamagePerTurn * sustainedDamage(d) + m.weapon.perRange * d.range,
   engine: (d) => m.engine.perSpeedBonus * d.speedBonus + m.engine.perAccelBonus * d.accelBonus,
-  armor: (d) => m.armor.perArmorCell * (d.armor + d.blastArmor) * d.w * d.h,
+  armor: shieldModifier,
+  accessory: shieldModifier,
   cargo: (d) => m.cargo.perExtraRow * d.extraRows,
   store: (d) => m.store.perAmount * d.amount,
   scanner: (d) => m.scanner.perRange * d.range,
   core: (d) => m.core.perHp * d.hp,
   utility: (d) => m.utility.perEffectTurn * effectTurns(d.effect) + m.utility.perReachTile * utilityReach(d),
 };
+
+function shieldModifier(d: Unpriced<ShieldDef>): number {
+  return m.armor.perArmorCell * (d.armor + d.blastArmor) * d.w * d.h;
+}
 
 function effectTurns(e: UtilityEffect): number {
   return 'turns' in e ? e.turns : 0;
@@ -199,6 +224,8 @@ function pricePart(def: Unpriced<PartDef>): PartDef {
   if (value <= 0) throw new Error(`Part ${def.id} prices at ${value}. Raise its base.`);
   return { ...def, value };
 }
+
+const RAM_MOUNTS: EdgeLetter[] = ["F", "B"];
 
 const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
   ...UNPRICED_WEAPONS,
@@ -363,7 +390,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
   },
   ram: {
     id: "ram",
-    kind: "armor",
+    kind: "accessory",
     hp: 100,
     base: 5333,
     tier: 2,
@@ -376,6 +403,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     fieldRepair: "capped",
     ramMult: 2,
     look: "ram",
+    mounts: RAM_MOUNTS,
   },
   scrapPanels: {
     id: "scrapPanels",
@@ -443,7 +471,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
   },
   plowRam: {
     id: "plowRam",
-    kind: "armor",
+    kind: "accessory",
     hp: 170,
     base: 12667,
     tier: 3,
@@ -456,10 +484,11 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     fieldRepair: "none",
     ramMult: 2.8,
     look: "ram",
+    mounts: RAM_MOUNTS,
   },
   claymoreRam: {
     id: "claymoreRam",
-    kind: "armor",
+    kind: "accessory",
     hp: 80,
     base: 10000,
     tier: 2,
@@ -472,6 +501,7 @@ const UNPRICED_PARTS: Record<string, Unpriced<PartDef>> = {
     fieldRepair: "capped",
     ramMult: 1.5,
     look: "ram",
+    mounts: RAM_MOUNTS,
     claymore: CLAYMORE,
   },
   steelPlate: {
@@ -707,7 +737,7 @@ export const PARTS: Record<string, PartDef> = Object.fromEntries(
 );
 
 function scaleMass(def: Unpriced<PartDef>): Unpriced<PartDef> {
-  if (def.kind === "armor") return { ...def, mass: def.mass * MASS_SCALE.armor };
+  if (def.kind === "armor" || def.kind === "accessory") return { ...def, mass: def.mass * MASS_SCALE.armor };
   if (def.kind === "weapon") return { ...def, mass: def.mass * MASS_SCALE.weapon };
   return def;
 }

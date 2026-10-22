@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { partDef, type PartDef } from '../../data/parts';
+import { isShield, partDef, type PartDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import {
@@ -317,7 +317,7 @@ function isCab(def: PartDef): boolean {
 
 function partKind(item: PartItem): 'wheel' | 'armor' | 'other' {
   const def = partDef(item.part.defId);
-  if (def.kind === 'armor') return 'armor';
+  if (isShield(def)) return 'armor';
   return def.kind === 'core' && def.role === 'wheel' ? 'wheel' : 'other';
 }
 

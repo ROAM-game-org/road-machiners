@@ -37,6 +37,7 @@ const PRICED_STATS: Record<PartDef['kind'], string[]> = {
   weapon: ['damage', 'range'],
   engine: ['speedBonus', 'accelBonus'],
   armor: ['armor', 'blastArmor'],
+  accessory: ['armor', 'blastArmor'],
   cargo: ['extraRows'],
   store: ['amount'],
   scanner: ['range'],

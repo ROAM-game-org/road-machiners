@@ -47,12 +47,11 @@ const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
     "ceramicPlates",
     "spacedArmor",
     "reinforcedCage",
-    "plowRam",
     "steelPlate",
     "scrapSheet",
     "ceramicTile",
-    "claymoreRam",
   ],
+  accessory: ["plowRam", "claymoreRam"],
   cargo: ["panniers", "flatbed", "lightFrame", "enclosedFrame", "heavyFrame"],
   utility: [
     "sprout", "caltrops", "oilSpiller", "patcherCrane",
@@ -107,7 +106,8 @@ describe("equipment variety", () => {
       const originalCounts: Record<string, number> = {
         weapon: 2,
         engine: 2,
-        armor: 3,
+        armor: 2,
+        accessory: 1,
         cargo: 2,
         store: 0,
         utility: 0,
@@ -289,9 +289,9 @@ describe("utilities", () => {
     expect(holders.sort()).toEqual(["hullCache", "hullScrap"]);
   });
 
-  it("keeps the claymore ram an armor ram with a claymore", () => {
+  it("keeps the claymore ram a ram accessory with a claymore", () => {
     const def = PARTS.claymoreRam;
-    expect(def.kind === "armor" && def.look === "ram" && def.claymore !== undefined).toBe(true);
+    expect(def.kind === "accessory" && def.look === "ram" && def.claymore !== undefined).toBe(true);
   });
 });
 
@@ -339,7 +339,7 @@ describe("part weight by tier", () => {
   const perUnit = (def: PartDef): number => (def.kind === "cargo" ? def.mass / def.extraRows : def.mass / (def.w * def.h));
   const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
 
-  const isRam = (p: PartDef): boolean => p.kind === "armor" && p.look === "ram";
+  const isRam = (p: PartDef): boolean => p.kind === "accessory" && p.look === "ram";
   const meanAt = (defs: PartDef[], tier: number): number => mean(defs.filter((p) => p.tier === tier).map(perUnit));
 
   it.each(["weapon", "engine", "cargo"])("%s parts weigh less on average at each higher tier", (kind) => {
@@ -348,19 +348,29 @@ describe("part weight by tier", () => {
     expect(byTier[2]).toBeLessThan(byTier[1]);
   });
 
-  it("armor parts weigh less on average at each higher tier within their job", () => {
-    const armor = Object.values(PARTS).filter((p) => p.kind === "armor");
-    const plates = armor.filter((p) => !isRam(p));
-    const rams = armor.filter(isRam);
+  it("armor parts and rams weigh less on average at each higher tier", () => {
+    const plates = Object.values(PARTS).filter((p) => p.kind === "armor");
+    const rams = Object.values(PARTS).filter(isRam);
     expect(meanAt(plates, 2)).toBeLessThan(meanAt(plates, 1));
     expect(meanAt(rams, 3)).toBeLessThan(meanAt(rams, 2));
   });
 
-  it("every ram outweighs every other armor part per cell", () => {
-    const armor = Object.values(PARTS).filter((p) => p.kind === "armor");
-    const lightestRam = Math.min(...armor.filter(isRam).map(perUnit));
-    const heaviestOther = Math.max(...armor.filter((p) => !isRam(p)).map(perUnit));
+  it("every ram outweighs every armor part and every other accessory per cell", () => {
+    const shields = Object.values(PARTS).filter((p) => p.kind === "armor" || p.kind === "accessory");
+    const lightestRam = Math.min(...shields.filter(isRam).map(perUnit));
+    const heaviestOther = Math.max(...shields.filter((p) => !isRam(p)).map(perUnit));
     expect(lightestRam).toBeGreaterThan(heaviestOther);
+  });
+
+  it("keeps every ram's stats from when rams were armor", () => {
+    const stats = (id: string) => {
+      const d = PARTS[id];
+      if (d.kind !== "accessory") throw new Error(`${id} is not an accessory`);
+      return { hp: d.hp, mass: d.mass, value: d.value, armor: d.armor, blastArmor: d.blastArmor, ramMult: d.ramMult, mounts: d.mounts };
+    };
+    expect(stats("ram")).toEqual({ hp: 100, mass: 50.625, value: 8533, armor: 8, blastArmor: 8, ramMult: 2, mounts: ["F", "B"] });
+    expect(stats("plowRam")).toEqual({ hp: 170, mass: 47.25, value: 16667, armor: 10, blastArmor: 10, ramMult: 2.8, mounts: ["F", "B"] });
+    expect(stats("claymoreRam")).toEqual({ hp: 80, mass: 142.5, value: 14000, armor: 14, blastArmor: 6, ramMult: 1.5, mounts: ["F", "B"] });
   });
 });
 

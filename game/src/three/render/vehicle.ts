@@ -2,7 +2,7 @@
 import { CLOUD_SHADOWS } from './cloudShadows';
 import * as THREE from 'three';
 import { chassisDef, type TruckPaint } from '../../data/chassis';
-import { partDef, type PartDef, type PartKind } from '../../data/parts';
+import { isShield, partDef, type PartDef, type PartKind, type ShieldDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
@@ -33,7 +33,7 @@ const LAMP = 'light';
 const GLASS = 'glass';
 const TRIM = 'trim';
 
-const BROKEN_TONE: Record<PartKind, number> = { weapon: 0.5, armor: 0.6, engine: 0.6, cargo: 0.6, core: 0.6, scanner: 0.6, store: 0.6, utility: 0.6 };
+const BROKEN_TONE: Record<PartKind, number> = { weapon: 0.5, armor: 0.6, accessory: 0.6, engine: 0.6, cargo: 0.6, core: 0.6, scanner: 0.6, store: 0.6, utility: 0.6 };
 
 const ROT_YAW = Math.PI / 2;
 
@@ -46,7 +46,6 @@ const SIDE_FACE: Record<SideLetter, { axis: 'x' | 'z'; outward: 1 | -1 }> = {
   L: { axis: 'z', outward: -1 },
 };
 
-type ArmorDef = Extract<PartDef, { kind: 'armor' }>;
 
 const GUN_GAP = 0.03;
 const SAMPLE_REACH = 0.1;
@@ -465,7 +464,7 @@ export class VehicleView {
   private placedPart(v: Vehicle, body: Body, item: PartItem, def: PartDef, paint: number): THREE.Object3D {
     const mounted = isMounted(v.chassisId, item);
     if (isWheel(def)) return this.spareWheel(v, body, item, paint, standingY(v, item));
-    if (def.kind === 'armor') return this.placeArmor(v, item, paint);
+    if (isShield(def)) return this.placeArmor(v, item, paint);
     if (def.kind === 'engine' && mounted) return this.placeEngine(v, item, paint);
     return this.placeItem(v, item, paint, standingY(v, item));
   }
@@ -569,7 +568,7 @@ export class VehicleView {
 
   private placeArmor(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
     const def = partDef(item.part.defId);
-    if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
+    if (!isShield(def)) throw new Error(`Part ${def.id} is not armor or an accessory`);
     const obj = model(partModel(def.id));
     place(obj, armorPlacement(v, item, new THREE.Box3().setFromObject(obj)));
     tint(obj, paint, lookOf(item));
@@ -775,7 +774,7 @@ function dropShadows(root: THREE.Object3D): void {
 }
 
 function armorIdsOf(v: Vehicle): Set<string> {
-  return new Set(v.items.flatMap((it) => (it.kind === 'part' && partDef(it.part.defId).kind === 'armor' ? [it.part.id] : [])));
+  return new Set(v.items.flatMap((it) => (it.kind === 'part' && isShield(partDef(it.part.defId)) ? [it.part.id] : [])));
 }
 
 function restingWheelBoxes(unit: UnitView): THREE.Box3[] {
@@ -902,7 +901,7 @@ function alwaysDrawn(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
   if (def.kind === 'weapon') return true;
-  return (def.kind === 'armor' || def.kind === 'engine' || isWheel(def)) && isMounted(v.chassisId, item);
+  return (isShield(def) || def.kind === 'engine' || isWheel(def)) && isMounted(v.chassisId, item);
 }
 
 function restOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem): Rest {
@@ -923,7 +922,7 @@ function armorSide(v: Pick<Vehicle, 'chassisId'>, item: PartItem): SideLetter {
 
 export function armorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, box: THREE.Box3): Placement {
   const def = partDef(item.part.defId);
-  if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
+  if (!isShield(def)) throw new Error(`Part ${def.id} is not armor or an accessory`);
   const side = armorSide(v, item);
   return isMounted(v.chassisId, item) ? mountedArmorPlacement(v, item, def, side, box) : spareArmorPlacement(v, item, side, box);
 }
@@ -942,7 +941,7 @@ function spareArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, side
   return { pos, yaw, scale };
 }
 
-function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, def: ArmorDef, side: SideLetter, box: THREE.Box3): Placement {
+function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, def: ShieldDef, side: SideLetter, box: THREE.Box3): Placement {
   const thickness = thinDepthOf(def, box);
   const { axis, outward } = SIDE_FACE[side];
   const across = axis === 'x';
@@ -950,13 +949,14 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, de
   const rect = rectOf(v, item);
   const half = unitBody(v.chassisId, rect.unit).half;
   const span = across ? rect.z1 - rect.z0 : rect.x1 - rect.x0;
-  const y = { plates: half.y - box.max.y, ram: -half.y, cage: half.y - box.max.y }[def.look] + TRUCK_LOOK.armorRise;
+  const y = { plates: half.y - box.max.y, ram: -half.y, cage: half.y - box.max.y, spikes: half.y - box.max.y }[def.look] + TRUCK_LOOK.armorRise;
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
-  pos[axis] = outward * (half[axis] - TRUCK_LOOK.armorInset - depthScale * box.min.x);
+  const overArmor = def.kind === 'accessory' ? TRUCK_LOOK.armorDepth : 0;
+  pos[axis] = outward * (half[axis] - TRUCK_LOOK.armorInset + overArmor - depthScale * box.min.x);
   return { pos, yaw: SIDE_YAW[side], scale: new THREE.Vector3(depthScale, 1, span / (Math.max(def.w, def.h) * CELL.across)) };
 }
 
-function thinDepthOf(def: ArmorDef, box: THREE.Box3): number {
+function thinDepthOf(def: ShieldDef, box: THREE.Box3): number {
   const depth = box.max.x - box.min.x;
   const width = box.max.z - box.min.z;
   if (!(depth < width)) throw new Error(`Armor model of ${def.id} is ${depth.toFixed(2)} m deep and ${width.toFixed(2)} m wide, expected its thin axis along x`);
@@ -995,7 +995,7 @@ export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: numb
 }
 
 function blocksGuns(v: Vehicle, item: PartItem, def: PartDef): boolean {
-  return !(isMounted(v.chassisId, item) && (def.kind === 'armor' || def.kind === 'engine'));
+  return !(isMounted(v.chassisId, item) && (isShield(def) || def.kind === 'engine'));
 }
 
 function obstacleOf(obj: THREE.Object3D): Obstacle {

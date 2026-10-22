@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../../data/chassis';
-import { PARTS } from '../../data/parts';
+import { isShield, PARTS } from '../../data/parts';
 import { TRUCK_LOOK } from '../../render/partLooks';
 import { itemLookId, partModel } from '../../render/partLooks';
 import { bodyOf, cellRect, restOn, unitBody } from '../../sim/body';
@@ -17,7 +17,7 @@ await loadModels(async (name) => {
   return Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0)).buffer;
 });
 
-const ARMOR = Object.values(PARTS).filter((def) => def.kind === 'armor');
+const ARMOR = Object.values(PARTS).filter(isShield);
 const EPS = 1e-6;
 const LOOSE_PARTS = ['panniers', 'rack', 'trailerBox'];
 
@@ -54,7 +54,7 @@ function overhangOf(box: THREE.Box3, half: { x: number; z: number }): number {
 }
 
 describe('mounted armor', () => {
-  it.each(Object.keys(CHASSIS))('%s: every armor part sits with its inner face at the body face minus the inset', (id) => {
+  it.each(Object.keys(CHASSIS))('%s: every armor part sits with its inner face at the body face minus the inset, and every accessory one armor depth further out', (id) => {
     const problems: string[] = [];
     const items = mountedArmor(id);
     expect(items.length).toBeGreaterThan(0);
@@ -64,7 +64,9 @@ describe('mounted armor', () => {
       const box = placedBox(id, item);
       const label = `${item.part.defId} rot ${item.rot} at ${item.x},${item.y} side ${side}`;
       const faces = { F: [box.min.x, body.half.x], B: [-box.max.x, body.half.x], R: [box.min.z, body.half.z], L: [-box.max.z, body.half.z] }[side];
-      if (Math.abs(faces[0] - (faces[1] - TRUCK_LOOK.armorInset)) > EPS) problems.push(`${label}: inner face ${faces[0].toFixed(3)}, expected ${(faces[1] - TRUCK_LOOK.armorInset).toFixed(3)}`);
+      const over = PARTS[item.part.defId].kind === 'accessory' ? TRUCK_LOOK.armorDepth : 0;
+      const inner = faces[1] - TRUCK_LOOK.armorInset + over;
+      if (Math.abs(faces[0] - inner) > EPS) problems.push(`${label}: inner face ${faces[0].toFixed(3)}, expected ${inner.toFixed(3)}`);
       const depth = side === 'F' || side === 'B' ? box.max.x - box.min.x : box.max.z - box.min.z;
       if (depth < TRUCK_LOOK.armorDepth - EPS) problems.push(`${label}: ${depth.toFixed(3)} m deep, under ${TRUCK_LOOK.armorDepth}`);
     }
@@ -76,7 +78,7 @@ describe('mounted armor', () => {
     const half = bodyOf(id).half.y;
     for (const item of mountedArmor(id)) {
       const def = PARTS[item.part.defId];
-      if (def.kind !== 'armor') continue;
+      if (!isShield(def)) continue;
       const box = placedBox(id, item);
       const raw = new THREE.Box3().setFromObject(model(partModel(def.id)));
       if (def.look === 'ram') expect(box.min.y, def.id).toBeCloseTo(-half + TRUCK_LOOK.armorRise + raw.min.y, 5);

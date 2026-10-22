@@ -75,6 +75,7 @@ export type ItemTone = 'weapon' | 'armor' | 'cargo' | 'other';
 const KIND_TONES: Record<PartKind, ItemTone> = {
   weapon: 'weapon',
   armor: 'armor',
+  accessory: 'armor',
   cargo: 'cargo',
   engine: 'other',
   core: 'other',
@@ -535,6 +536,7 @@ const PART_SECTION: Record<PartDef['kind'], IconSection> = {
   weapon: 'weapon',
   engine: 'engine',
   armor: 'armor',
+  accessory: 'armor',
   cargo: 'cargo',
   store: 'store',
   scanner: 'store',

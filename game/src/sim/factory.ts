@@ -49,7 +49,7 @@ export function gunFor(defId: string): Pick<PartInstance, 'gun'> {
 
 export function chargeFor(defId: string): Pick<PartInstance, 'charge'> {
   const def = partDef(defId);
-  const active = (def.kind === 'utility' && def.reload !== null) || (def.kind === 'armor' && def.claymore !== undefined);
+  const active = (def.kind === 'utility' && def.reload !== null) || (def.kind === 'accessory' && def.claymore !== undefined);
   return active ? { charge: { reload: 0 } } : {};
 }
 

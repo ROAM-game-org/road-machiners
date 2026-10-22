@@ -2,10 +2,10 @@ import { chassisDef } from '../data/chassis';
 import { CRATE_MASS, GOODS } from '../data/goods';
 import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, MIN_NPC_SPEED, NPC_UPKEEP, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
-import { PARTS, partDef, type PartKind } from '../data/parts';
+import { isShield, PARTS, partDef, type PartKind } from '../data/parts';
 import { openArcShares } from './armor';
 import { makePart, makeVehicle, newId, type PartSpec } from './factory';
-import { freeCells, gridOf, mountedItems, MOUNT_CELLS, mountSpots, plateSide, type SideLetter } from './grid';
+import { freeCells, gridOf, mountCellsOf, mountedItems, MOUNT_CELLS, mountSpots, plateSide, type SideLetter } from './grid';
 import { addGoods, mountPart, stowPart } from './inventory';
 import { vehicleMass } from './mass';
 import { armorQuality, gearScorer } from './npc-gear-score';
@@ -179,7 +179,7 @@ function withinTier(rules: GearRules, defId: string): boolean {
   const def = partDef(defId);
   return def.kind !== 'weapon' || def.tier <= rules.gunTier;
 }
-const ARMOR = Object.values(PARTS).filter((d) => d.kind === 'armor').map((d) => d.id);
+const ARMOR = Object.values(PARTS).filter(isShield).map((d) => d.id);
 const SIDE_GROUPS: SideLetter[][] = [['F'], ['L', 'R'], ['B']];
 
 function withEngine(b: Build, v: Vehicle, defId: string): Vehicle | null {
@@ -226,7 +226,7 @@ function withBetterArmor(b: Build, v: Vehicle, defId: string, sides: SideLetter[
   const quality = (item: PartItem) => armorQuality(b.world, item.part.defId, item.part.wear);
   let next = v;
   for (const side of sides) {
-    const onSide = mountedItems(next, 'armor').filter((item) => plateSide(next.chassisId, item) === side);
+    const onSide = mountedItems(next, partDef(defId).kind).filter((item) => plateSide(next.chassisId, item) === side);
     if (!onSide.length) return null;
     const worst = onSide.reduce((a, c) => (quality(c) < quality(a) ? c : a));
     if (armorQuality(b.world, defId, 0) <= quality(worst)) return null;
@@ -246,7 +246,8 @@ function gearMoves(b: Build, score: (v: Vehicle) => number): GearMove[] {
 }
 
 function armorMoves(b: Build): GearMove[] {
-  return ARMOR.flatMap((id) => SIDE_GROUPS.flatMap((sides): GearMove[] => [(v) => withArmor(b, v, id, sides), (v) => withBetterArmor(b, v, id, sides)]));
+  const mountsOn = (id: string, sides: SideLetter[]) => sides.every((side) => mountCellsOf(id).includes(side));
+  return ARMOR.flatMap((id) => SIDE_GROUPS.filter((sides) => mountsOn(id, sides)).flatMap((sides): GearMove[] => [(v) => withArmor(b, v, id, sides), (v) => withBetterArmor(b, v, id, sides)]));
 }
 
 function takeStep(b: Build, rng: Rng, v: Vehicle, moves: GearMove[], score: (v: Vehicle) => number, now: number, mustAct = false): Vehicle | null {
@@ -399,7 +400,7 @@ type Left = { mass: () => number; cells: () => number };
 function spareAllowed(defId: string | null, left: Left, rules: GearRules): defId is string {
   if (defId === null) return false;
   const def = partDef(defId);
-  if (!rules.armored && def.kind === 'armor') return false;
+  if (!rules.armored && isShield(def)) return false;
   if (!withinTier(rules, defId)) return false;
   return def.mass <= left.mass() && def.w * def.h <= left.cells();
 }

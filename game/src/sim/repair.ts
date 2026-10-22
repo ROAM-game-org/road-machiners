@@ -1,5 +1,5 @@
 
-import { partDef } from '../data/parts';
+import { isShield, partDef } from '../data/parts';
 import { GOODS } from '../data/goods';
 import { skillEffect } from './progress';
 import { REPAIR } from '../data/wear';
@@ -32,7 +32,7 @@ export function engineNeedsPatch(world: World, v: Vehicle): boolean {
 
 function partFieldCap(world: World, v: Vehicle, part: PartInstance): number {
   const def = partDef(part.defId);
-  if (def.kind !== 'armor' || def.fieldRepair === 'capped') return fieldCapShare(world, v);
+  if (!isShield(def) || def.fieldRepair === 'capped') return fieldCapShare(world, v);
   return def.fieldRepair === 'full' ? 1 : 0;
 }
 

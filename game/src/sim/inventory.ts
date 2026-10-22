@@ -5,7 +5,7 @@ import { skillEffect, vehicleHasPerk } from './progress';
 import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
 import { cabShieldWith, gunLayoutScore } from './armor';
-import { findSpot, freeCells, gridOf, isMounted, itemCells, MOUNT_CELLS, mountSpots, placementError, type Cell, type Spot } from './grid';
+import { findSpot, freeCells, gridOf, isMounted, itemCells, itemSize, layerOf, mountCellsOf, mountSpots, placementError, type Cell, type Grid, type Spot } from './grid';
 import { atGarage, requireGarage } from './garage';
 import { disarm } from './claymore';
 import { workTimeMult } from './utility';
@@ -20,7 +20,7 @@ import { npcMassRoom, vehicleStats } from './stats';
 import type { GridItem, PartInstance, RefitJob, RefitMove, RefitPickup, Refusal, Vehicle, World } from './types';
 import { playerCommand, Refused } from './world';
 
-export function mountPart(world: World, v: Vehicle, part: PartInstance, mount: Cell[] = MOUNT_CELLS[partDef(part.defId).kind]): boolean {
+export function mountPart(world: World, v: Vehicle, part: PartInstance, mount: Cell[] = mountCellsOf(part.defId)): boolean {
   const item: PartItem = { id: newId(world, 'i'), x: 0, y: 0, rot: 0, kind: 'part', part };
   const spot = installSpot(v, item, mount);
   if (!spot) return false;
@@ -30,16 +30,17 @@ export function mountPart(world: World, v: Vehicle, part: PartInstance, mount: C
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 
-export function installSpot(v: Vehicle, item: PartItem, mount: Cell[] = MOUNT_CELLS[partDef(item.part.defId).kind]): Spot | null {
+export function installSpot(v: Vehicle, item: PartItem, mount: Cell[] = mountCellsOf(item.part.defId)): Spot | null {
   const others = { ...v, items: v.items.filter((it) => it.id !== item.id) };
   const def = partDef(item.part.defId);
   if (def.kind === 'weapon' || def.tall) return bestArcSpot(others, item, mount);
   if (def.kind === 'armor') return bestShieldSpot(others, item, mount);
+  if (def.kind === 'accessory') return middleSpot(others, item, mount);
   return findSpot(gridOf(others), others.items, item, mount, null);
 }
 
 export function stowSpot(v: Vehicle, item: GridItem): Spot | null {
-  const avoid = item.kind === 'part' ? MOUNT_CELLS[partDef(item.part.defId).kind] : null;
+  const avoid = item.kind === 'part' ? mountCellsOf(item.part.defId) : null;
   return findSpot(gridOf(v), v.items, item, null, avoid);
 }
 
@@ -62,6 +63,21 @@ function bestShieldSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null 
     if (score > bestScore) [best, bestScore] = [spot, score];
   }
   return best;
+}
+
+function middleSpot(v: Vehicle, item: PartItem, mount: Cell[]): Spot | null {
+  const g = gridOf(v);
+  for (const letter of mount) {
+    const spots = mountSpots(g, v.items, item, [letter]);
+    const off = (spot: Spot) => offMiddle(g, { ...item, ...spot }, letter);
+    if (spots.length) return spots.reduce((best, spot) => (off(spot) < off(best) ? spot : best));
+  }
+  return null;
+}
+
+function offMiddle(g: Grid, item: PartItem, letter: Cell): number {
+  const { w, h } = itemSize(item);
+  return letter === 'L' || letter === 'R' ? Math.abs(item.y + h / 2 - g.chassisH / 2) : Math.abs(item.x + w / 2 - g.w / 2);
 }
 
 export function cargoMassRoom(v: Vehicle): number {
@@ -268,8 +284,10 @@ export function planItemMove(v: Vehicle, itemId: string, to: Spot): PlanResult {
   if (!item) return { plan: null, error: { id: 'itemGone' } };
   if (v.job?.kind === 'refit') return { plan: null, error: { id: 'refitRunning' } };
   const moved = { ...item, ...getSpot(to) };
+  const g = gridOf(v);
+  const layer = layerOf(g, moved);
   const cells = new Set(itemCells(moved).map((cell) => `${cell.x},${cell.y}`));
-  const targets = v.items.filter((other) => other.id !== itemId && itemCells(other).some((cell) => cells.has(`${cell.x},${cell.y}`)));
+  const targets = v.items.filter((other) => other.id !== itemId && layerOf(g, other) === layer && itemCells(other).some((cell) => cells.has(`${cell.x},${cell.y}`)));
   if (targets.length > 1) return { plan: null, error: { id: 'twoInTheWay' } };
   const moves: RefitMove[] = [{ itemId, from: getSpot(item), to: getSpot(to) }];
   const target = targets[0];

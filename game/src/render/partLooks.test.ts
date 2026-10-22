@@ -196,6 +196,7 @@ describe('breakSignature', () => {
 const KIND_TONES: Record<PartKind, ItemTone> = {
   weapon: 'weapon',
   armor: 'armor',
+  accessory: 'armor',
   cargo: 'cargo',
   engine: 'other',
   core: 'other',

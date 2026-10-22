@@ -3,7 +3,7 @@ import { PHYSICS } from '../data/physics';
 import { cellCenter, cellRect, spanOf, unitOfRow, unitsOf, type CellRect } from './body';
 import { footprint, nearestUnit, poseToWorld, sideReach, unitPose, worldToPose, type UnitPose } from './rig';
 
-import { partDef, type PartDef, type WeaponDef } from '../data/parts';
+import { isShield, partDef, type PartDef, type WeaponDef } from '../data/parts';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
 import { baseGrid, cellKey, facingOf, gridOf, itemCells, isMounted, itemSize, mountedItems, mountedParts, sideOf, type Grid, type SideLetter } from './grid';
@@ -26,14 +26,18 @@ export function sideToward(v: Vehicle, p: Vec): Side {
 
 const LETTER: Record<Side, SideLetter> = { front: 'F', rear: 'B', left: 'L', right: 'R' };
 
-export function ramMult(v: Vehicle, side: Side): number {
+export function ramMult(v: Vehicle, contact: { side: Side; lanes: readonly number[] }): number {
   let mult = 1;
-  for (const p of mountedParts(v, 'armor')) {
-    const def = partDef(p.defId);
-    if (def.kind !== 'armor') throw new Error(`${p.id} is mounted as armor but is ${def.kind}`);
-    if (p.hp > 0 && coversSide(v, p, side)) mult = Math.max(mult, def.ramMult);
+  for (const item of mountedItems(v)) {
+    const def = partDef(item.part.defId);
+    if (!isShield(def) || item.part.hp <= 0 || !coversSide(v, item.part, contact.side)) continue;
+    if (itemLanes(item, contact.side).some((lane) => contact.lanes.includes(lane))) mult = Math.max(mult, def.ramMult);
   }
   return mult;
+}
+
+function itemLanes(item: GridItem, side: Side): number[] {
+  return itemCells(item).map((c) => (side === 'front' || side === 'rear' ? c.x : c.y));
 }
 
 export function coversSide(v: Vehicle, part: PartInstance, side: Side): boolean {
@@ -239,10 +243,12 @@ export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: P
   };
 }
 
-type LaneCell = { part: PartInstance | undefined } | null;
+type LaneCell = { parts: readonly PartInstance[] } | null;
 
-function laneOwners(g: Grid, owner: Map<number, PartInstance>, side: Side, lane: number): LaneCell[] {
-  return laneCells(g, side, lane).map((c) => (g.cells[c.y][c.x] === null && c.y < g.deadFrom ? null : { part: owner.get(cellKey(c.x, c.y)) }));
+const NO_PARTS: readonly PartInstance[] = [];
+
+function laneOwners(g: Grid, owner: Map<number, PartInstance[]>, side: Side, lane: number): LaneCell[] {
+  return laneCells(g, side, lane).map((c) => (g.cells[c.y][c.x] === null && c.y < g.deadFrom ? null : { parts: owner.get(cellKey(c.x, c.y)) ?? NO_PARTS }));
 }
 
 type Spend = (part: PartInstance, left: { pen: number; damage: number }, round: Round) => { part: PartInstance; amount: number };
@@ -257,12 +263,19 @@ function walkCells(cells: LaneCell[], round: Round, falloff: number, spend: Spen
     if (cell === null) continue;
     if (hits.length > 0) left.damage *= falloff;
     left.pen -= RULES.cellPen;
-    const part = cell.part;
-    if (!takesHit(part, left.pen, struck)) continue;
-    struck.add(part.id);
-    hits.push(spend(part, left, round));
+    strikeCell(cell.parts, { left, round, struck, hits, spend });
   }
   return hits;
+}
+
+type Strike = { left: { pen: number; damage: number }; round: Round; struck: Set<string>; hits: { part: PartInstance; amount: number }[]; spend: Spend };
+
+function strikeCell(parts: readonly PartInstance[], s: Strike): void {
+  for (const part of parts) {
+    if (!takesHit(part, s.left.pen, s.struck)) continue;
+    s.struck.add(part.id);
+    s.hits.push(s.spend(part, s.left, s.round));
+  }
 }
 
 function spendRound(part: PartInstance, left: { pen: number; damage: number }, round: Round): { part: PartInstance; amount: number } {
@@ -278,7 +291,7 @@ function spendRound(part: PartInstance, left: { pen: number; damage: number }, r
 export function heldPart(v: Vehicle, side: Side, lane: number): PartInstance | null {
   const owner = cellOwners(v);
   const g = gridOf(v);
-  const working = (at: number) => laneCells(g, side, at).map((c) => owner.get(cellKey(c.x, c.y))).find((p) => p !== undefined && p.hp > 0);
+  const working = (at: number) => laneCells(g, side, at).flatMap((c) => owner.get(cellKey(c.x, c.y)) ?? []).find((p) => p.hp > 0);
   for (const at of lanesOutFrom(lane, laneCount(v, side))) {
     const part = working(at);
     if (part) return part;
@@ -291,14 +304,24 @@ function lanesOutFrom(lane: number, lanes: number): number[] {
   return all.sort((a, b) => Math.abs(a - lane) - Math.abs(b - lane) || a - b);
 }
 
-function cellOwners(v: Vehicle): Map<number, PartInstance> {
-  const owner = new Map<number, PartInstance>();
-  for (const it of mountedItems(v)) for (const c of itemCells(it)) owner.set(cellKey(c.x, c.y), it.part);
+function cellOwners(v: Vehicle): Map<number, PartInstance[]> {
+  const owner = new Map<number, PartInstance[]>();
+  for (const it of outerFirst(mountedItems(v))) {
+    for (const c of itemCells(it)) {
+      const key = cellKey(c.x, c.y);
+      owner.set(key, [...(owner.get(key) ?? []), it.part]);
+    }
+  }
   return owner;
 }
 
-function takesHit(part: PartInstance | undefined, pen: number, struck: Set<string>): part is PartInstance {
-  return pen > 0 && part !== undefined && part.hp > 0 && !struck.has(part.id);
+function outerFirst<T extends GridItem & { kind: 'part' }>(items: T[]): T[] {
+  const outer = (it: T) => (partDef(it.part.defId).kind === 'accessory' ? 0 : 1);
+  return [...items].sort((a, b) => outer(a) - outer(b));
+}
+
+function takesHit(part: PartInstance, pen: number, struck: Set<string>): boolean {
+  return pen > 0 && part.hp > 0 && !struck.has(part.id);
 }
 
 function hitPart(part: PartInstance, left: { pen: number; damage: number }, round: Round): { part: PartInstance; amount: number } {
@@ -315,32 +338,31 @@ function checkRound(round: Round): void {
 }
 
 function shareOf(def: PartDef, round: Round): number {
-  return def.kind === 'armor' ? round.armorShare : 1;
+  return isShield(def) ? round.armorShare : 1;
 }
 
 export function passShare(v: Vehicle, side: Side, round: { pen: number; blast: boolean }): number {
   const g = gridOf(v);
-  const owner = new Map<string, PartInstance>();
-  for (const it of mountedItems(v)) for (const c of itemCells(it)) owner.set(`${c.x},${c.y}`, it.part);
-  const lanes = Array.from({ length: laneCount(v, side) }, (_, lane) => firstPart(g, owner, side, lane));
-  const pass = (part: PartInstance | null) => {
-    const def = part && wornDef(part);
-    if (!def || def.kind !== 'armor') return 1;
+  const owner = cellOwners(v);
+  const lanes = Array.from({ length: laneCount(v, side) }, (_, lane) => firstParts(g, owner, side, lane));
+  const pass = (part: PartInstance) => {
+    const def = wornDef(part);
+    if (!isShield(def)) return 1;
     return round.pen <= 0 ? 0 : Math.max(0, round.pen - armorAgainst(def, round.blast)) / round.pen;
   };
-  return lanes.reduce((sum, part) => sum + pass(part), 0) / lanes.length;
+  return lanes.reduce((sum, parts) => sum + parts.reduce((share, part) => share * pass(part), 1), 0) / lanes.length;
 }
 
-function firstPart(g: Grid, owner: Map<string, PartInstance>, side: Side, lane: number): PartInstance | null {
+function firstParts(g: Grid, owner: Map<number, PartInstance[]>, side: Side, lane: number): PartInstance[] {
   for (const c of laneCells(g, side, lane)) {
-    const part = owner.get(`${c.x},${c.y}`);
-    if (part && part.hp > 0) return part;
+    const parts = (owner.get(cellKey(c.x, c.y)) ?? []).filter((part) => part.hp > 0);
+    if (parts.length) return parts;
   }
-  return null;
+  return [];
 }
 
 function armorAgainst(def: PartDef, blast: boolean): number {
-  return blast && def.kind === 'armor' ? def.blastArmor : def.armor;
+  return blast && isShield(def) ? def.blastArmor : def.armor;
 }
 
 export const SIDES: readonly Side[] = ['front', 'rear', 'left', 'right'];
