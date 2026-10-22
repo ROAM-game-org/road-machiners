@@ -3,7 +3,7 @@ import { CRATE_MASS, PARCEL } from "../data/goods";
 import { itemLookId } from "../render/partLooks";
 import { partDef, type WeaponDef } from "../data/parts";
 import { gunBlockers, gunSpans, type FireSpan } from "../sim/armor";
-import { facingOf, itemCells, itemSize, type Cell, type Grid } from "../sim/grid";
+import { baseGrid, facingOf, itemCells, itemSize, layerOf, plateSide, type Cell, type Grid, type SideLetter } from "../sim/grid";
 import type { GridItem, PartInstance, RefitJob, RefitMove, Rot, Vehicle, World } from "../sim/types";
 import { playerVehicle } from "../sim/damage";
 import { workOf } from "../sim/states";
@@ -75,9 +75,11 @@ export function itemBox(it: GridItem, chassisId: string, mounted: boolean, cell:
   const size = itemSize(it);
   const id = itemLookId(it);
   const icon = turnedIcon(it, cell);
+  const outer = mounted && layerOf(baseGrid(chassisId), it) === "accessory";
+  const box = outer ? outerHalf(x, y, size, plateSide(chassisId, it), cell) : pos(x, y, size.w, size.h, cell);
   const node = el(
     "div",
-    { class: itemClass(it, mounted), "data-hold": "", "data-item-id": it.id, style: `${pos(x, y, size.w, size.h, cell)};${toneStyle(id)}`, title: itemTip(id), tabindex: 0, role: "button", "aria-label": itemName(it) },
+    { class: `${itemClass(it, mounted)}${outer ? " outer" : ""}`, "data-hold": "", "data-item-id": it.id, style: `${box};${toneStyle(id)}`, title: itemTip(id), tabindex: 0, role: "button", "aria-label": itemName(it) },
     icon,
     el("span", { class: "inv-item-name" }, itemLabel(it).short),
   );
@@ -100,6 +102,14 @@ export function removalIds(w: World, target: Vehicle): Set<string> {
 
 function pos(x: number, y: number, w: number, h: number, cell: number): string {
   return `left:${x * cell}px;top:${y * cell}px;width:${w * cell}px;height:${h * cell}px`;
+}
+
+function outerHalf(x: number, y: number, size: { w: number; h: number }, side: SideLetter, cell: number): string {
+  const half = cell / 2;
+  const left = x * cell + (side === "R" ? half : 0);
+  const top = y * cell + (side === "B" ? half : 0);
+  const across = side === "F" || side === "B";
+  return `left:${left}px;top:${top}px;width:${across ? size.w * cell : half}px;height:${across ? half : size.h * cell}px`;
 }
 
 export function refitItems(w: World, v: Vehicle): GridItem[] {
