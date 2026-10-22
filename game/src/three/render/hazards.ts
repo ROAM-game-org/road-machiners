@@ -265,7 +265,7 @@ const SMOKE_LOOK = {
   ragged: 0.6,
   low: { share: 0.6, from: 0.35, to: 0.9 },
   high: { from: 1.3, to: 2.3, spread: 0.8 },
-  billowMs: 1500,
+  billowMs: 500,
   lastTurn: 0.55,
   dissolve: { ms: 1000, grow: 0.4, rise: 0.8 },
   wobble: 0.35,
