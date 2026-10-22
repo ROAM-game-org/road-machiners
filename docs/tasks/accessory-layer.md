@@ -197,10 +197,8 @@ Approach: land each concern green as its own run of commits. Two Sonnet implemen
 
 ## Code smells
 
-- `game/src/three/shot.ts:96-98` — the view labels "top down", "left side" and "right side" are prose literals outside the text catalog, so `src/text/scan.test.ts` fails on `dev` already.
 - `game/src/data/chassis.ts` — hauler, longbed, tractor, loader and semi each have a column with no built-in part or engine bay, so front shots there hit nothing on an empty truck.
 - `game/src/three/render/gunStand.ts` `heldOn` and `game/src/test/truck-support-kit.ts` judge support differently. The view draws a small part on an outer deck cell that the support test then calls half in the air. On `dev` it hits caltrops on scout cells 1,4 and 5,4, and on courier and carrier cells. Narrower cells on this branch add buggy 1,3 and six jeep cells.
-- On `dev` already: `npc-loadout-traffic.test.ts` cultist variants, four `npc-restraint.test.ts` repair tests, `story-wrecks.test.ts` and `intro.test.ts` fail.
 
 ## Conclusion
 
@@ -236,7 +234,6 @@ Both answered: the user keeps the tougher fronts, and wants the wagon as a broad
 - Small trucks got harder to kill from the front. The cab now takes one shot lane in five, not four, so widened trucks need 12 to 17 percent more front hits. A scout scavenger now picks a fight with a buggy raider in 13.5% of seeds, down from over 40%. A scout's win odds against a buggy fell from 0.23 to 0.16. About a quarter of front shots at an empty jeep hit nothing. Keep this, or lower their cab and transmission HP to undo it?
 - The new wagon fights worse. Its cab-over cab blocks the front arc, so its 2x2 cannon now auto-faces right instead of front. A gunwagon raider's danger to the hunter bot fell to 0.70, and the test wants above 1. Should guns fire over the wagon's cab, as the reference picture shows, or is side fire fine?
 
-### Red tests waiting on those answers
+### Red tests
 
-- Small trucks tougher: `npc-recovery.test.ts` three fight tests, `combat-harness.test.ts` courier flees, `raider-ambush.test.ts` flees prey that outguns it, `bot.test.ts` judge the same foe, `npc-restraint.test.ts` mostly flees or fights.
-- Wagon weaker: `bot.test.ts` keep running from a stronger raider, and turn away from a stronger raider in sight.
+All pass. The tests that met widened trucks or the broadside wagon were re-staged with foes of the old strength. The claims tests broke on the new world roll and were re-staged. The tests that failed on `dev` were fixed here too: `scan`, `story-wrecks`, `intro`, `npc-loadout-traffic` and the `npc-restraint` repair tests.
