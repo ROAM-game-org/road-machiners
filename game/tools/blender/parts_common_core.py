@@ -9,7 +9,7 @@ from __future__ import annotations
 import bpy
 from mathutils import Vector
 
-from kit import CELL_ACROSS, CELL_ALONG, Kit
+from kit import CELL_ACROSS, CELL_ALONG, Kit, Vec3
 
 FIT_SLACK = 1e-4  # float noise allowed at the footprint edge
 
@@ -48,6 +48,25 @@ def check_footprint(kit: Kit, name: str, w: int, h: int, min_z: float = 0.0, max
         raise RuntimeError(f"{name} dips to z {lo.z:.3f}, below {min_z}")
     if max_z is not None and hi.z > max_z + FIT_SLACK:
         raise RuntimeError(f"{name} rises to z {hi.z:.3f}, above {max_z}")
+
+
+TIRE_SIDES = 48  # four sides a tread lug, so the tire strays 0.2% from its circle
+ROUND_SIDES = 32  # rims and other pieces a player reads as a circle, 0.5% off
+SMALL_ROUND_SIDES = 16  # hubs, lamps and other small round pieces, 1.9% off
+WHEEL_AXLE = (1.5707963267948966, 0, 0)  # turns a Kit cylinder's axis to the axle, Blender Y
+
+
+def check_round(name: str, sides: int, least: int) -> None:
+    """Raises when a round piece has fewer sides than its shared count, so it would read as a polygon."""
+    if sides < least:
+        raise ValueError(f"{name} has {sides} sides, under the shared round count {least}")
+
+
+def round_wheel(kit: Kit, prefix: str, loc: Vec3, tire_r: float, rim_r: float, hub_r: float, width: float) -> None:
+    """The look of every drawn wheel: a dark tire body, a light rim and a rust hub on one axle along Blender Y at loc."""
+    pieces = (("tire", tire_r, 0.94, "wheel", TIRE_SIDES), ("rim", rim_r, 0.98, "metal_light", ROUND_SIDES), ("hub", hub_r, 1.0, "rust", SMALL_ROUND_SIDES))
+    for piece, radius, share, mat, sides in pieces:
+        kit.cylinder(f"{prefix}{piece}", radius, width * share, loc, mat, rot=WHEEL_AXLE, vertices=sides)
 
 
 ALONG_X = (0, 1.5707963267948966, 0)  # turns a Kit cylinder's axis to +X

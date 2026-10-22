@@ -34,6 +34,7 @@ SKIRT = 0.22  # the body hangs this far below the collider bottom, so the wheels
 INSET = 0.04  # body sides stand this far inside the footprint, so mounted plates and flares cover them
 ARCH_CLEARANCE = 0.06  # between a wheel and its arch
 ARCH_SEGMENTS = 8  # straight edges around each arch, for the low-poly look
+ROUND_ARCH_SEGMENTS = 16  # straight edges around each arch of a remade base, so it reads as a circle
 FLARE = 0.09  # radial width of the dark fender flare around an arch
 DOOR_GAP = 0.25
 SUSPENSION_REST = 0.4  # PHYSICS.truck.suspensionRest: the wheel hub hangs this far below the wheel mount
@@ -69,9 +70,9 @@ def squared_arch(wx: float, hub_z: float, r: float, crown: float, chamfer: float
     return [(wx - r, low), (wx - r, top - chamfer), (wx - r + chamfer, top), (wx + r - chamfer, top), (wx + r, top - chamfer), (wx + r, low)]
 
 
-def round_arch(wx: float, hub_z: float, r: float, low: float) -> list[tuple[float, float]]:
-    """A low-poly half circle of radius r round the hub, from back to front, held at or above low."""
-    return [(wx + r * math.cos(math.pi * (1 - k / ARCH_SEGMENTS)), max(low, hub_z + r * math.sin(math.pi * (1 - k / ARCH_SEGMENTS)))) for k in range(ARCH_SEGMENTS + 1)]
+def round_arch(wx: float, hub_z: float, r: float, low: float, segments: int = ARCH_SEGMENTS) -> list[tuple[float, float]]:
+    """A half circle of radius r and segments edges round the hub, from back to front, held at or above low."""
+    return [(wx + r * math.cos(math.pi * (1 - k / segments)), max(low, hub_z + r * math.sin(math.pi * (1 - k / segments)))) for k in range(segments + 1)]
 
 
 def arch_profile(
@@ -85,6 +86,7 @@ def arch_profile(
     cowl_x: float | None = None,
     crown: float | None = None,
     chamfer: float = 0.0,
+    segments: int = ARCH_SEGMENTS,
 ) -> list[tuple[float, float]]:
     """A side panel's XZ outline from the body bottom (or bottom) to top, with a low-poly arch cut up around each wheel.
 
@@ -95,7 +97,7 @@ def arch_profile(
     r = radius + ARCH_CLEARANCE
     pts = [(-g.half_x + INSET, low)]
     for wx in sorted(wheels_x):
-        pts += round_arch(wx, hub_z, r, low) if crown is None else squared_arch(wx, hub_z, r, crown, chamfer, low)
+        pts += round_arch(wx, hub_z, r, low, segments) if crown is None else squared_arch(wx, hub_z, r, crown, chamfer, low)
     nose = [(g.half_x - INSET, top)] if nose_top is None or cowl_x is None else [(g.half_x - INSET, nose_top), (cowl_x, top)]
     pts += [(g.half_x - INSET, low), *nose, (-g.half_x + INSET, top)]
     return pts
@@ -114,7 +116,18 @@ def flare_profile(wx: float, hub_z: float, radius: float, low: float, x_min: flo
 
 
 def flare(
-    kit: Kit, name: str, g: Grid, wx: float, hub_z: float, radius: float, y0: float, y1: float, bottom: float | None = None, crown: float | None = None, chamfer: float = 0.0
+    kit: Kit,
+    name: str,
+    g: Grid,
+    wx: float,
+    hub_z: float,
+    radius: float,
+    y0: float,
+    y1: float,
+    bottom: float | None = None,
+    crown: float | None = None,
+    chamfer: float = 0.0,
+    segments: int = ARCH_SEGMENTS,
 ) -> None:
     """A dark low-poly band over the top of one arch, from the body bottom (or bottom) on both sides, cut off at the footprint ends.
 
@@ -124,7 +137,7 @@ def flare(
     r0 = radius + ARCH_CLEARANCE
     r1 = r0 + FLARE
     if crown is None:
-        inner, outer = round_arch(wx, hub_z, r0, low), round_arch(wx, hub_z, r1, low)
+        inner, outer = round_arch(wx, hub_z, r0, low, segments), round_arch(wx, hub_z, r1, low, segments)
     else:
         inner = squared_arch(wx, hub_z, r0, crown, chamfer, low)
         outer = squared_arch(wx, hub_z, r1, crown + FLARE, chamfer + FLARE * (2 - math.sqrt(2)), low)
@@ -233,13 +246,13 @@ def hull_layers(name: str, layers: list[tuple[float, float, float, float, float]
     return hull_mesh(name, pts)
 
 
-def arch_cut(obj: bpy.types.Object, wheels_x: list[float], hub_z: float, radius: float, wall_y: float, bottom: float) -> None:
-    """Cuts a low-poly arch around each wheel through both side walls, outside wall_y, from the body bottom up."""
+def arch_cut(obj: bpy.types.Object, wheels_x: list[float], hub_z: float, radius: float, wall_y: float, bottom: float, segments: int = ARCH_SEGMENTS) -> None:
+    """Cuts an arch of segments edges around each wheel through both side walls, outside wall_y, from the body bottom up."""
     r = radius + ARCH_CLEARANCE
     cutters = []
     for wx in wheels_x:
         for sign in (1, -1):
-            ring = [(wx + r * math.cos(math.pi * k / ARCH_SEGMENTS), hub_z + r * math.sin(math.pi * k / ARCH_SEGMENTS)) for k in range(ARCH_SEGMENTS + 1)]
+            ring = [(wx + r * math.cos(math.pi * k / segments), hub_z + r * math.sin(math.pi * k / segments)) for k in range(segments + 1)]
             ring += [(wx + r, bottom - 0.1), (wx - r, bottom - 0.1)]
             ys = (sign * wall_y, sign * (wall_y + 2.0))
             cutters.append([(x, y, z) for x, z in ring for y in ys])
