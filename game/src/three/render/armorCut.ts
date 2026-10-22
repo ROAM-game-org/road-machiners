@@ -1,6 +1,11 @@
 import * as THREE from 'three';
-import type { TRUCK_LOOK } from '../../render/partLooks';
-import type { Body } from '../../sim/body';
+import { partDef, type PartDef } from '../../data/parts';
+import { PHYSICS } from '../../data/physics';
+import { TRUCK_LOOK } from '../../render/partLooks';
+import { cellRect, CLIP_TOLERANCE, restOn, unitBody, type Body } from '../../sim/body';
+import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
+import type { GridItem, Vehicle } from '../../sim/types';
+import { bodyFace } from './gunStand';
 
 export type WheelCut = { center: THREE.Vector3; radius: number; halfWidth: number };
 export type CutSpec = { wheels: WheelCut[]; lamps: THREE.Box3[] };
@@ -144,4 +149,93 @@ export function withCut<M extends THREE.Material>(source: M, spec: CutSpec): M {
   };
   own.customProgramCacheKey = () => `${sourceKey.call(source)}|armor-cut`;
   return own;
+}
+
+type PartItem = Extract<GridItem, { kind: 'part' }>;
+type ArmorDef = Extract<PartDef, { kind: 'armor' }>;
+export type Placement = { pos: THREE.Vector3; yaw: number; scale: THREE.Vector3 };
+
+const CELL = PHYSICS.cell;
+
+const SIDE_YAW: Record<SideLetter, number> = { F: 0, B: Math.PI, R: -Math.PI / 2, L: Math.PI / 2 };
+
+const SIDE_FACE: Record<SideLetter, { axis: 'x' | 'z'; outward: 1 | -1 }> = {
+  F: { axis: 'x', outward: 1 },
+  B: { axis: 'x', outward: -1 },
+  R: { axis: 'z', outward: 1 },
+  L: { axis: 'z', outward: -1 },
+};
+
+export function armorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, box: THREE.Box3, body: THREE.Object3D): Placement {
+  const def = partDef(item.part.defId);
+  if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
+  const side = armorSide(v, item);
+  return isMounted(v.chassisId, item) ? mountedArmorPlacement(v, item, def, side, box, body) : spareArmorPlacement(v, item, side, box);
+}
+
+function armorSide(v: Pick<Vehicle, 'chassisId'>, item: PartItem): SideLetter {
+  const size = itemSize(item);
+  const side = plateSide(v.chassisId, item);
+  const depthCells = ['F', 'B'].includes(side) ? size.h : size.w;
+  if (depthCells !== 1) throw new Error(`Armor ${item.part.id} is ${depthCells} cells deep on side ${side}, expected 1`);
+  return side;
+}
+
+function spareArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, side: SideLetter, box: THREE.Box3): Placement {
+  const { rect, y } = restOn(v.chassisId, cellRect(v.chassisId, itemCells(item)));
+  const dx = rect.x1 - rect.x0;
+  const dz = rect.z1 - rect.z0;
+  const size = box.getSize(new THREE.Vector3());
+  const middle = box.getCenter(new THREE.Vector3());
+  const scale = SIDE_FACE[side].axis === 'x' ? new THREE.Vector3(dx / size.x, 1, dz / size.z) : new THREE.Vector3(dz / size.x, 1, dx / size.z);
+  const yaw = SIDE_YAW[side];
+  const shiftX = middle.x * scale.x;
+  const shiftZ = middle.z * scale.z;
+  const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2 - (shiftX * Math.cos(yaw) + shiftZ * Math.sin(yaw)), y, (rect.z0 + rect.z1) / 2 - (shiftZ * Math.cos(yaw) - shiftX * Math.sin(yaw)));
+  return { pos, yaw, scale };
+}
+
+function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, def: ArmorDef, side: SideLetter, box: THREE.Box3, body: THREE.Object3D): Placement {
+  const { axis, outward } = SIDE_FACE[side];
+  const across = axis === 'x';
+  const depthScale = Math.max(across && def.look !== 'plates' ? 1 : 0, TRUCK_LOOK.armorDepth / thinDepthOf(def, box));
+  const rect = cellRect(v.chassisId, itemCells(item));
+  const half = unitBody(v.chassisId, rect.unit).half;
+  const span = across ? rect.z1 - rect.z0 : rect.x1 - rect.x0;
+  const scale = new THREE.Vector3(depthScale, 1, span / (Math.max(def.w, def.h) * CELL.across));
+  const snug = half[axis] - TRUCK_LOOK.armorInset;
+  const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, (def.look === 'ram' ? -half.y : half.y - box.max.y) + TRUCK_LOOK.armorRise, (rect.z0 + rect.z1) / 2);
+  pos[axis] = outward * (snug - depthScale * box.min.x);
+  const at = { pos, yaw: SIDE_YAW[side], scale };
+  const touch = nearestTouch(at, box, body, side, 2 * half.y);
+  if (touch === null) throw new Error(`Armor ${def.id} on side ${side} of ${v.chassisId} has no body behind it`);
+  pos[axis] += outward * Math.min(0, outward * touch - snug);
+  return at;
+}
+
+function nearestTouch(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, reach: number): number | null {
+  const start = at.pos.y;
+  for (let step = 0; step * CLIP_TOLERANCE <= reach; step++) {
+    for (const dy of step === 0 ? [0] : [step * CLIP_TOLERANCE, -step * CLIP_TOLERANCE]) {
+      at.pos.y = start + dy;
+      const touch = touchBehind(at, box, body, side);
+      if (touch !== null) return touch;
+    }
+  }
+  at.pos.y = start;
+  return null;
+}
+
+function touchBehind(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter): number | null {
+  const { axis, outward } = SIDE_FACE[side];
+  const placed = box.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
+  const lateral: [number, number] = axis === 'x' ? [placed.min.z, placed.max.z] : [placed.min.x, placed.max.x];
+  return bodyFace(body, axis, outward, lateral, [placed.min.y, placed.max.y]);
+}
+
+function thinDepthOf(def: ArmorDef, box: THREE.Box3): number {
+  const depth = box.max.x - box.min.x;
+  const width = box.max.z - box.min.z;
+  if (!(depth < width)) throw new Error(`Armor model of ${def.id} is ${depth.toFixed(2)} m deep and ${width.toFixed(2)} m wide, expected its thin axis along x`);
+  return depth;
 }
