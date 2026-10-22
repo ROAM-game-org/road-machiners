@@ -56,16 +56,21 @@ function bestArcSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null {
 
 function bestShieldSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null {
   let best: Spot | null = null;
-  let bestScore: [number, number] = [-1, -1];
+  let bestScore = [-1, -1, -1];
   const g = gridOf(v);
   const shield = cabShieldWith(v);
   const taken = new Set(v.items.filter((it) => layerOf(g, it) === 'base').flatMap(itemCells).map((c) => `${c.x},${c.y}`));
   for (const spot of mountSpots(g, v.items, item, mount)) {
     const placed = { ...item, ...spot };
-    const score: [number, number] = [shield(placed), closedEnds(g, taken, placed)];
-    if (score[0] > bestScore[0] || (score[0] === bestScore[0] && score[1] > bestScore[1])) [best, bestScore] = [spot, score];
+    const score = [shield(placed), Number(g.cells[spot.y][spot.x] === 'F'), closedEnds(g, taken, placed)];
+    if (ranksAbove(score, bestScore)) [best, bestScore] = [spot, score];
   }
   return best;
+}
+
+function ranksAbove(a: number[], b: number[]): boolean {
+  const at = a.findIndex((n, i) => n !== b[i]);
+  return at >= 0 && a[at] > b[at];
 }
 
 function closedEnds(g: Grid, taken: Set<string>, item: GridItem): number {

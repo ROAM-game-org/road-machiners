@@ -52,8 +52,8 @@ Three layers on a truck: car parts inside, armor on the edge cells, and accessor
 ### Odd fronts
 
 - Buggy, courier, jeep and niva go from 4 to 5 inner columns. Bus and carrier go from 6 to 7.
-- Each gets one inserted column of deck cells, with F and B at its ends, at an index that splits no built-in part and keeps the transmission over the middle column.
-- Each widened chassis lowers its base by the added cells' price, so its value stays at the pinned number. Rated mass grows with the formula.
+- Each gets one inserted column of plain cells, with F and B at its ends, at an index that splits no built-in part and keeps the transmission over the middle column. Plain cells hold cargo and spares but no guns, so the widened trucks gain room without gun slots.
+- Each widened chassis lowers its base by the two added armor cells' price, so its value stays at the pinned number. Rated mass grows with the formula.
 - The open seat rule lists its chassis by id, since no 4-column chassis remains.
 - 3D models stay as they are. `body.ts` spreads the extra column over the same model.
 
@@ -193,6 +193,8 @@ Approach: land each concern green as its own run of commits. Two Sonnet implemen
 ## Code smells
 
 - `game/src/three/shot.ts:96-98` — the view labels "top down", "left side" and "right side" are prose literals outside the text catalog, so `src/text/scan.test.ts` fails on `dev` already.
+- `game/src/data/chassis.ts` — hauler, longbed, tractor, loader and semi each have a column with no built-in part or engine bay, so front shots there hit nothing on an empty truck.
+- On `dev` already: `npc-loadout-traffic.test.ts` cultist variants, four `npc-restraint.test.ts` repair tests, `story-wrecks.test.ts` and `intro.test.ts` fail.
 
 ## Conclusion
 
@@ -207,9 +209,26 @@ Approach: land each concern green as its own run of commits. Two Sonnet implemen
 - udesign: the ram multiplier becomes lane based for every part, so spikes cannot cover a whole side with one cell.
 - udesign: `reinforcedCage` keeps its 1.2 ram multiplier, now lane based.
 - udesign: new 1-cell armor ids `spacedTile`, `cageSection`, `reinforcedSection`, and spike ids `spikeCluster`, `spikeStrip`.
-- udesign: inserted columns are deck cells, with chassis base lowered to keep values pinned.
+- uexecute: inserted columns are plain cells, not deck cells. Deck cells would have pushed four bases below zero to keep values pinned, and added gun slots to small cars.
+- uexecute: the new wagon keeps the old wagon's speed, mass and handling numbers. Its bigger grid raises its rated mass to 6990 kg by the formula.
+- uexecute: auto-mounting armor now packs pieces against an edge end or a neighbor when the cab cover ties, since 2-cell plates otherwise left single-cell gaps.
+- uexecute: the escort bot buys patch parts before refitting, as `docs/architecture/bots.md` already says, since rams over full plates left it no cargo room.
 - udesign: player rams on side edges go to storage on load through the existing repair, with no extra step.
 - udesign: NPC scoring stacks layer protection per cell and does not value the ram multiplier.
 - udesign: highway outposts stock 2 accessories. The hauler takes none.
 - uplan: plan auto-approved (hands-off).
 - uplan: model work runs in two side worktrees, `.worktrees/acc-models` and `.worktrees/acc-wagon`, merged back, so their commits do not run the hook against half-done sim edits.
+- uexecute: buggy, courier, niva and bus move one built-in part into the new column: the tank, or the transmission on the courier. A plain column with nothing built in let about one front shot in five pass through an empty truck. The jeep and the carrier keep an open column, since moving their tank would open the engine or the cab to rear fire. The new wagon's engine bay moves left and its tank right for the same reason. A chassis test lists the open ones.
+- uexecute: auto-mounted armor takes the front edge when the cab cover ties, so the cab-over wagon still plates its front first.
+- uexecute: the aim tests turn the shooting wagon to face its gun, since its gun no longer faces front.
+- uexecute: the save step lives in `save-steps-late.ts`, since a file of its own broke the quality gate's file count.
+
+### Deferred (needs user input)
+
+- Small trucks got harder to kill from the front. The cab now takes one shot lane in five, not four, so widened trucks need 12 to 17 percent more front hits. A scout scavenger now picks a fight with a buggy raider in 13.5% of seeds, down from over 40%. A scout's win odds against a buggy fell from 0.23 to 0.16. About a quarter of front shots at an empty jeep hit nothing. Keep this, or lower their cab and transmission HP to undo it?
+- The new wagon fights worse. Its cab-over cab blocks the front arc, so its 2x2 cannon now auto-faces right instead of front. A gunwagon raider's danger to the hunter bot fell to 0.70, and the test wants above 1. Should guns fire over the wagon's cab, as the reference picture shows, or is side fire fine?
+
+### Red tests waiting on those answers
+
+- Small trucks tougher: `npc-recovery.test.ts` three fight tests, `combat-harness.test.ts` courier flees, `raider-ambush.test.ts` flees prey that outguns it, `bot.test.ts` judge the same foe, `npc-restraint.test.ts` mostly flees or fights.
+- Wagon weaker: `bot.test.ts` keep running from a stronger raider, and turn away from a stronger raider in sight.

@@ -172,8 +172,9 @@ describe('grid and model correspondence', () => {
     for (const id of ids) {
       const anchor = engineAnchor(id);
       for (const c of cellsOf(id, 'E')) {
-        const at = cellCenter(id, c.x, c.y);
-        expect(Math.sign(at.x) * Math.sign(anchor.x) >= 0, `${id} engine cell ${c.x},${c.y} is in the wrong half along the truck`).toBe(true);
+        const along = cellCenter(id, c.x, c.y).x;
+        const onMiddle = Math.abs(along) < 1e-9;
+        expect(onMiddle || Math.sign(along) * Math.sign(anchor.x) >= 0, `${id} engine cell ${c.x},${c.y} is in the wrong half along the truck`).toBe(true);
       }
     }
   });

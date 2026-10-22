@@ -318,3 +318,132 @@ export function withChaosHighwayIntro_91_92(world: SavedJson): SavedJson {
   const player = withoutVars.player as { quests: SavedJson };
   return { ...withoutVars, player: { ...player, quests: { ...player.quests, session: { ...quests.session, quest: 'chaos_highway_intro', checkpoint: 'start' } } } };
 }
+
+type Item_101_102 = SavedJson & { x: number; y: number; rot: number; kind: string };
+type Spot_101_102 = { x: number; y: number; rot: number };
+
+const INSERTED_COLUMN_101_102: Record<string, number> = { buggy: 4, courier: 4, jeep: 2, niva: 2, bus: 6, carrier: 6 };
+
+const MOVED_CORE_101_102: Record<string, { defId: string; spot: Spot_101_102 }> = {
+  buggy: { defId: 'tank', spot: { x: 4, y: 3, rot: 0 } },
+  courier: { defId: 'transmission', spot: { x: 3, y: 1, rot: 0 } },
+  niva: { defId: 'tank', spot: { x: 2, y: 5, rot: 0 } },
+  bus: { defId: 'tankMid', spot: { x: 5, y: 6, rot: 1 } },
+};
+
+const RESIZED_HP_101_102: Record<string, number> = { plates: 53 / 80, spacedArmor: 55 / 110, reinforcedCage: 86 / 130 };
+
+const OLD_WAGON_101_102 = [' FFFFFF ', 'LXXXDDXR', 'LXEEDDXR', 'LDEEDDDR', 'LXXXXDXR', 'LXXXXDXR', ' BBBBBB '];
+const NEW_WAGON_101_102 = [' FFFFFFF ', 'LXDXXXDXR', 'LXDXXXDXR', 'LDEEDDXDR', 'LDEEDDXDR', 'LDDDXXDDR', 'LXDDXXDXR', 'LXDDDDDXR', ' BBBBBBB '];
+const NEW_WAGON_CORES_101_102: Record<string, Spot_101_102[]> = {
+  cab: [{ x: 3, y: 1, rot: 0 }],
+  transmissionHeavy: [{ x: 4, y: 5, rot: 0 }],
+  tankHeavy: [{ x: 6, y: 3, rot: 0 }],
+  wheelHeavy: [{ x: 1, y: 1, rot: 0 }, { x: 7, y: 1, rot: 0 }, { x: 1, y: 6, rot: 0 }, { x: 7, y: 6, rot: 0 }],
+};
+const NEW_CAB_101_102 = 'cabPickup';
+const RAMS_101_102 = new Set(['ram', 'plowRam', 'claymoreRam']);
+const CARGO_LETTERS_101_102 = ['D', 'E', 'F', 'B', 'C', '.'];
+
+const PART_SIZES_101_102: Record<string, [number, number]> = {
+  mg: [1, 2], shotgun: [1, 2], longRifle: [1, 2], flamer: [1, 2], pneumobolter: [2, 2], slugCannon: [1, 2], heavyMg: [1, 2], cannon: [2, 2], amRifle: [1, 3], autocannon: [2, 2],
+  recoilless: [1, 3], battleRifle: [1, 3], gatling: [2, 2], rocketRack: [2, 2], sniperCannon: [2, 3], grenadeLauncher: [2, 2], tankGun: [2, 3], flechette: [2, 2], harpoon: [1, 2],
+  sprout: [1, 1], caltrops: [1, 1], oilSpiller: [1, 1], patcherCrane: [1, 2], smokeMortar: [1, 2], flareCannon: [1, 1], scrapersKnife: [1, 2], emitter: [2, 2], stockEngine: [2, 2],
+  tunedEngine: [2, 2], flatFour: [2, 2], workhorseDiesel: [2, 2], racingV6: [2, 2], heavyDiesel: [2, 2], turbine: [2, 2], plates: [1, 2], cage: [1, 2], ram: [3, 1], scrapPanels: [1, 2],
+  ceramicPlates: [1, 2], spacedArmor: [1, 2], reinforcedCage: [1, 2], plowRam: [3, 1], claymoreRam: [3, 1], steelPlate: [1, 1], scrapSheet: [1, 1], ceramicTile: [1, 1],
+  rack: [2, 1], trailerBox: [2, 2], panniers: [1, 1], flatbed: [2, 1], lightFrame: [2, 2], enclosedFrame: [2, 2], heavyFrame: [2, 2], jerrycans: [1, 1], supplyLocker: [1, 1], scanner: [1, 1],
+};
+
+export function withOddFronts_101_102(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson & { vehicleId: string; storage: SavedJson[] };
+  const storage = [...player.storage];
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => {
+    if (v.chassisId === 'wagon') return relaidWagon_101_102(v, v.id === player.vehicleId ? storage : null);
+    const column = INSERTED_COLUMN_101_102[v.chassisId as string];
+    return column === undefined ? v : { ...v, items: (v.items as Item_101_102[]).map((it) => widenedItem_101_102(v.chassisId as string, column, it)) };
+  });
+  return resizedHp_101_102({ ...world, vehicles, player: { ...player, storage } }) as SavedJson;
+}
+
+function widenedItem_101_102(chassisId: string, column: number, it: Item_101_102): Item_101_102 {
+  const core: { defId: string; spot: Spot_101_102 } | undefined = MOVED_CORE_101_102[chassisId];
+  if (core !== undefined && defIdOf_101_102(it) === core.defId) return { ...it, ...core.spot };
+  return it.x >= column ? { ...it, x: it.x + 1 } : it;
+}
+
+function resizedHp_101_102(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(resizedHp_101_102);
+  return node !== null && typeof node === 'object' ? resizedRecord_101_102(node as SavedJson) : node;
+}
+
+function resizedRecord_101_102(node: SavedJson): SavedJson {
+  const out = Object.fromEntries(Object.entries(node).map(([key, value]) => [key, resizedHp_101_102(value)] as const)) as SavedJson;
+  const share = typeof out.defId === 'string' ? RESIZED_HP_101_102[out.defId] : undefined;
+  return share !== undefined && typeof out.hp === 'number' ? { ...out, hp: Math.round(out.hp * share) } : out;
+}
+
+function defIdOf_101_102(it: Item_101_102): string | null {
+  return it.kind === 'part' ? ((it.part as SavedJson).defId as string) : null;
+}
+
+function relaidWagon_101_102(v: SavedJson, storage: SavedJson[] | null): SavedJson {
+  const items = v.items as Item_101_102[];
+  const cargoShift = NEW_WAGON_101_102.length - OLD_WAGON_101_102.length;
+  const cores = items.filter((it) => coreSpots_101_102(it) !== null);
+  const rest = items.filter((it) => coreSpots_101_102(it) === null);
+  const placed: Item_101_102[] = seatedCores_101_102(cores);
+  for (const it of rest) {
+    if (it.y >= OLD_WAGON_101_102.length) placed.push({ ...it, y: it.y + cargoShift });
+    else {
+      const spot = freeSpot_101_102(it, placed);
+      if (spot) placed.push({ ...it, ...spot });
+      else if (it.kind !== 'part') placed.push(it);
+      else if (storage) storage.push(it.part as SavedJson);
+    }
+  }
+  return { ...v, items: placed };
+}
+
+function coreSpots_101_102(it: Item_101_102): Spot_101_102[] | null {
+  const defId = defIdOf_101_102(it);
+  return defId === null ? null : NEW_WAGON_CORES_101_102[defId] ?? null;
+}
+
+function seatedCores_101_102(cores: Item_101_102[]): Item_101_102[] {
+  const used: Record<string, number> = {};
+  return [...cores].sort((a, b) => a.y - b.y || a.x - b.x).map((it) => {
+    const defId = defIdOf_101_102(it)!;
+    const spot = NEW_WAGON_CORES_101_102[defId][used[defId] ?? 0];
+    used[defId] = (used[defId] ?? 0) + 1;
+    const part = defId === 'cab' ? { ...(it.part as SavedJson), defId: NEW_CAB_101_102 } : it.part;
+    return { ...it, ...spot, part };
+  });
+}
+
+function cellsOf_101_102(it: Item_101_102, spot: Spot_101_102): { x: number; y: number }[] {
+  const defId = defIdOf_101_102(it);
+  const [w, h] = defId === null ? [1, 1] : PART_SIZES_101_102[defId] ?? [1, 1];
+  const [cw, ch] = spot.rot % 2 === 1 ? [h, w] : [w, h];
+  const cells: { x: number; y: number }[] = [];
+  for (let dy = 0; dy < ch; dy++) for (let dx = 0; dx < cw; dx++) cells.push({ x: spot.x + dx, y: spot.y + dy });
+  return cells;
+}
+
+function layer_101_102(it: Item_101_102, letter: string): string {
+  const defId = defIdOf_101_102(it);
+  return defId !== null && RAMS_101_102.has(defId) && (letter === 'F' || letter === 'B') ? 'outer' : 'base';
+}
+
+function freeSpot_101_102(it: Item_101_102, placed: Item_101_102[]): Spot_101_102 | null {
+  const oldLetter = OLD_WAGON_101_102[it.y]?.[it.x] ?? ' ';
+  const letters = it.kind === 'part' ? [oldLetter] : CARGO_LETTERS_101_102;
+  const layer = layer_101_102(it, oldLetter);
+  const taken = new Set(placed.flatMap((p) => cellsOf_101_102(p, p).filter((c) => layer_101_102(p, NEW_WAGON_101_102[c.y]?.[c.x] ?? ' ') === layer).map((c) => `${c.x},${c.y}`)));
+  const spots = [it.rot, (it.rot + 1) % 4].flatMap((rot) => NEW_WAGON_101_102.flatMap((row, y) => [...row].map((_, x) => ({ x, y, rot }))));
+  return spots.find((spot) => fitsSpot_101_102(it, spot, letters, taken)) ?? null;
+}
+
+function fitsSpot_101_102(it: Item_101_102, spot: Spot_101_102, letters: string[], taken: Set<string>): boolean {
+  const first = NEW_WAGON_101_102[spot.y][spot.x];
+  return letters.includes(first) && cellsOf_101_102(it, spot).every((c) => NEW_WAGON_101_102[c.y]?.[c.x] === first && !taken.has(`${c.x},${c.y}`));
+}

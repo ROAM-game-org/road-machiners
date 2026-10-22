@@ -223,6 +223,7 @@ function aimTest(gunId: string, chassisId: string, heading: number, d = 1.2) {
   const old = w.vehicles[0];
   const me = addVehicle(w, 'player', 'wagon', [gunId, 'stockEngine'], old.pos, 0);
   me.id = old.id;
+  me.heading = -mountedItems(me, 'weapon')[0].rot * Math.PI / 2;
   const target = addVehicle(w, 'independent', chassisId, ['stockEngine'], { x: old.pos.x + d, y: old.pos.y }, heading);
   w.vehicles = [me, target];
   for (const p of mountedParts(target)) p.hp = 1e9;
