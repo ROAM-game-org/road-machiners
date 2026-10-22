@@ -135,9 +135,11 @@ export class Travel {
   private autoPress = false;
   private tapHalts = false;
   private remainder = 0;
-  private readonly turns = new TurnPreparation();
+  private readonly turns: TurnPreparation;
 
-  constructor(private readonly holdMs: number) {}
+  constructor(private readonly holdMs: number, tailSteps: number) {
+    this.turns = new TurnPreparation(tailSteps);
+  }
 
   pause(): void {
     this.automatic = false;
@@ -361,6 +363,8 @@ export class TurnPreparation {
     failure: string | null;
   } | null = null;
 
+  constructor(private readonly tailSteps: number) {}
+
   private createWorker(): Worker {
     const worker = new Worker(new URL("../phys/turn-worker.ts", import.meta.url), {
       type: "module",
@@ -425,6 +429,7 @@ export class TurnPreparation {
         kind: "turn",
         id,
         questLanguage: currentQuestLanguage(),
+        tailSteps: this.tailSteps,
         ...this.obstacles.split(state),
         drive: { ...saved, snapshot },
         terrain: this.terrain === terrain ? null : terrain,

@@ -15,6 +15,8 @@ import { TEST_MAP } from "../test/map";
 import { reusedWorld } from "../test/world-cache";
 import { defaultSetup } from "../sim/settings";
 
+const TAIL = 11;
+
 function makeSafeWorld() {
   const world = reusedWorld("travel", () => newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup('roaming')));
   world.vehicles = [playerVehicle(world)];
@@ -24,7 +26,7 @@ function makeSafeWorld() {
 
 describe("turn advancement", () => {
   it("keeps planning paused until Space starts waypoint travel", () => {
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     travel.update(true, true);
     expect(travel.shouldAdvance(0)).toBe(false);
     expect(travel.press(0, false, true)).toBe(true);
@@ -34,7 +36,7 @@ describe("turn advancement", () => {
 
   it("the turn button stops waypoint travel and reports it", () => {
     const world = makeSafeWorld();
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     expect(travel.stopAuto(world)).toBe(false);
     travel.press(0, false, true);
     travel.release();
@@ -44,7 +46,7 @@ describe("turn advancement", () => {
   });
 
   it("Space pauses travel without scheduling an extra turn", () => {
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     travel.press(0, false, true);
     travel.release();
     expect(travel.press(100, true, true)).toBe(false);
@@ -53,7 +55,7 @@ describe("turn advancement", () => {
   });
 
   it("a tap without safe waypoint travel advances exactly one turn", () => {
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     expect(travel.press(0, false, false)).toBe(true);
     expect(travel.press(10, false, false)).toBe(false);
     travel.release();
@@ -61,7 +63,7 @@ describe("turn advancement", () => {
   });
 
   it("holding Space advances faster, even in combat, until release", () => {
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     travel.press(0, false, false);
     expect(travel.isFast(249)).toBe(false);
     expect(travel.isFast(250)).toBe(true);
@@ -75,7 +77,7 @@ describe("turn advancement", () => {
   it.each(["danger", "arrival"])(
     "%s cancels automatic travel until Space is pressed again",
     (reason) => {
-      const travel = new Travel(250);
+      const travel = new Travel(250, TAIL);
       travel.press(0, false, true);
       travel.release();
       travel.update(reason !== "danger", reason !== "arrival");
@@ -88,7 +90,7 @@ describe("turn advancement", () => {
   );
 
   it("focus loss or a panel clears held input and automatic travel", () => {
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     travel.press(0, false, true);
     travel.pause();
     expect(travel.isFast(1000)).toBe(false);
@@ -100,7 +102,7 @@ describe("playback clock", () => {
   const playback = (elapsed = 0) => ({ elapsed, lastTick: null as number | null }) as Parameters<Travel["advanceClock"]>[0];
 
   it("adds a normal frame in full, times the speed", () => {
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     const a = playback();
     travel.advanceClock(a, 1000, 1, 50);
     expect(travel.advanceClock(a, 1016, 1, 50)).toBe(16);
@@ -108,7 +110,7 @@ describe("playback clock", () => {
   });
 
   it("stretches the turn on a slow frame instead of skipping ahead", () => {
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     const a = playback();
     travel.advanceClock(a, 1000, 1, 50);
     expect(travel.advanceClock(a, 1400, 1, 50)).toBe(50);
@@ -116,7 +118,7 @@ describe("playback clock", () => {
   });
 
   it("keeps the carried elapsed time on the first call", () => {
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     const a = playback(120);
     expect(travel.advanceClock(a, 5000, 1, 50)).toBe(120);
   });
@@ -126,7 +128,7 @@ describe("turns that run on their own", () => {
   it("a turn press stops them, and the next press restarts them", () => {
     const world = makeSafeWorld();
     world.player.state = "knockedOut";
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     expect(travel.autoAllowed(world)).toBe(true);
     travel.pressTurn(false, world);
     travel.release();
@@ -139,7 +141,7 @@ describe("turns that run on their own", () => {
 
   it("a press with a drive-through order starts travel, and a press while playing stops it", () => {
     const world = setMoveOrder(makeSafeWorld(), { kind: "through", dest: { x: 40, y: 30 } });
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     expect(travel.pressTurn(false, world)).toBe(true);
     expect(travel.isAuto(world)).toBe(true);
     travel.release();
@@ -149,7 +151,7 @@ describe("turns that run on their own", () => {
 
   it("holding a press fast-forwards until release", () => {
     const world = setMoveOrder(makeSafeWorld(), { kind: "through", dest: { x: 40, y: 30 } });
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     travel.pressTurn(false, world);
     expect(travel.isFast(performance.now() + 250)).toBe(true);
     travel.release();
@@ -159,7 +161,7 @@ describe("turns that run on their own", () => {
   it("stopAuto ends them for abandon", () => {
     const world = makeSafeWorld();
     world.player.state = "knockedOut";
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     expect(travel.isAuto(world)).toBe(true);
     expect(travel.stopAuto(world)).toBe(true);
     expect(travel.isAuto(world)).toBe(false);
@@ -170,7 +172,7 @@ describe("turns that run on their own", () => {
     const world = makeSafeWorld();
     world.player.state = "knockedOut";
     world.events = [{ t: "info", note: { id: "hazard" } }];
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
 
     travel.updateWorld(world, false);
 
@@ -180,7 +182,7 @@ describe("turns that run on their own", () => {
   it("a stop ends with the stranded spell", () => {
     const world = makeSafeWorld();
     world.player.state = "knockedOut";
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     travel.pressTurn(false, world);
     travel.release();
     world.player.state = "active";
@@ -197,7 +199,7 @@ describe("waypoint travel with physics", () => {
     const dest = { x: 38, y: 31 };
     let world = setMoveOrder(emptyWorld(), { kind: "stopAt", dest });
     let drive = buildDrive(world);
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     travel.press(0, false, true);
     travel.release();
     let turns = 0;
@@ -291,7 +293,7 @@ describe("automatic travel safety", () => {
   it("cancels automatic travel once when a hostile comes into sight, and Space starts it again", () => {
     const start = makeSafeWorld();
     const world = setMoveOrder(start, { kind: "stopAt", dest: { x: playerVehicle(start).pos.x + 20, y: playerVehicle(start).pos.y } });
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     travel.press(0, false, true);
     travel.release();
     expect(travel.isAuto(world)).toBe(true);
@@ -329,7 +331,7 @@ describe("automatic travel safety", () => {
 
   it("lets go of a held Space at the drain's edge, so the next turn needs a fresh press", () => {
     const world = makeSafeWorld();
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     travel.press(0, false, true);
     expect(travel.isFast(1000)).toBe(true);
     world.events = [{ t: "info", note: { id: "hazard" } }];
@@ -452,7 +454,7 @@ describe("turns on a tow rope", () => {
 
   function travelWithPrepared() {
     const prepare = vi.fn();
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     Object.assign(travel, { turns: { prepare, take: () => null } });
     return { travel, prepare };
   }
@@ -497,7 +499,7 @@ describe("every turn that runs on its own", () => {
 
   function travelWithTurns(take: () => unknown = () => null) {
     const prepare = vi.fn();
-    const travel = new Travel(250);
+    const travel = new Travel(250, TAIL);
     Object.assign(travel, { turns: { prepare, take } });
     return { travel, prepare };
   }

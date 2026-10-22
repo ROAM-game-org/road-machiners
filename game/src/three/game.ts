@@ -101,7 +101,7 @@ import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { HostileSighting } from "./hostile-sighting";
 import { nextSightSample, threatsIn, Travel, type Playback, type LiveVision } from "./travel";
-import { PlayClock } from "./play-clock";
+import { easedStopSteps, PlayClock } from "./play-clock";
 
 
 const PICK_PX = 30;
@@ -169,7 +169,7 @@ export class Game {
   private turnStart: World | null = null;
   private crashCues: CollisionCues | null = null;
   private breakCues = new BreakCues([]);
-  private readonly travel = new Travel(CONFIG.travelHoldMs);
+  private readonly travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(CONFIG.playEaseMs, PHYSICS.stepsPerSecond));
   private phase: TurnPhase = null;
   private readonly weaponRange = new WeaponRangeView(PAL.select, READY_ARC_BIT);
   private readonly hoverArcs: HoverArcsView;

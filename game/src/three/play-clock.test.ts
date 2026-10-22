@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PlayClock } from './play-clock';
+import { easedStopMs, easedStopSteps, PlayClock } from './play-clock';
 
 const EASE = 100;
 
@@ -38,6 +38,22 @@ describe('PlayClock', () => {
     expect(lead[0]).toBeGreaterThan(0);
     expect(lead[1]).toBeGreaterThan(lead[0]);
     expect(lead[2]).toBeLessThanOrEqual(20);
+  });
+
+  it('adds no more than the eased stop length while stopping from full speed, at any frame rate', () => {
+    for (const dt of [4, 8.3, 16.7, 33]) {
+      const clock = new PlayClock(EASE);
+      frame(clock, (c) => c.advance(0));
+      for (let i = 0; i < 100; i++) frame(clock, (c) => c.coast(dt, false, 1));
+      expect(clock.nowMs()).toBeLessThanOrEqual(easedStopMs(EASE));
+      expect(clock.nowMs()).toBeGreaterThan(easedStopMs(EASE) - dt);
+      expect(clock.isMoving()).toBe(false);
+    }
+  });
+
+  it('counts the eased stop in whole physics steps, rounded up', () => {
+    expect(easedStopSteps(350, 60)).toBe(11);
+    expect(easedStopSteps(100, 60)).toBe(3);
   });
 
   it('refuses time running backward', () => {

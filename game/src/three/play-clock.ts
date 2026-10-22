@@ -39,4 +39,16 @@ export class PlayClock {
   frameMs(): number {
     return this.thisFrameMs;
   }
+
+  isMoving(): boolean {
+    return this.rate > 0;
+  }
+}
+
+export function easedStopMs(easeMs: number): number {
+  return easeMs / 2;
+}
+
+export function easedStopSteps(easeMs: number, stepsPerSecond: number): number {
+  return Math.ceil((easedStopMs(easeMs) / 1000) * stepsPerSecond);
 }
