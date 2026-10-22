@@ -1,4 +1,5 @@
 
+import { deskAt } from '../sim/crime';
 import type { Msg } from '../text/msg';
 import { refusalText } from '../text/names';
 import { readyAid, startAid } from "../sim/aid";
@@ -137,7 +138,7 @@ export class TruckContext {
       aid: () => 'id' in target && this.startAid(target.id),
       trade: () => 'id' in target && h.openTrade(target.id),
       parcel: () => 'id' in target && this.handParcel(target.id),
-      shop: () => shopAt(h.world()) && h.openTown(),
+      shop: () => (shopAt(h.world()) || deskAt(h.world())) && h.openTown(),
       outpost: () => reachedOutpostAt(h.world()) && h.openOutpost(),
       downed: () => 'id' in target && h.openDowned(target.id),
       stock: () => 'id' in target && this.searchStock(target.id, action.combat),

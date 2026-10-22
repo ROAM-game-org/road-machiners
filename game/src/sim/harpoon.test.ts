@@ -10,7 +10,7 @@ import { deploySmoke } from './hazards';
 import { endLines, lineAnchors, tearLine } from './harpoon';
 import { addVehicle, emptyWorld } from './testkit';
 import type { GameEvent, PartInstance, Vehicle, World } from './types';
-import { advanceUtilityEffects } from './utility';
+import { advanceLines } from './utility';
 import { cutPlayerLine } from './world';
 
 function duel(gap = 5): { w: World; me: Vehicle; part: PartInstance; trader: Vehicle } {
@@ -147,7 +147,7 @@ describe('the harpoon line', () => {
     const fired: number[] = [];
     for (let turn = 1; turn <= 11; turn++) {
       s.w.events = [];
-      advanceUtilityEffects(s.w);
+      advanceLines(s.w);
       fireWeapons(s.w);
       if (s.w.events.some((e) => e.t === 'shot')) fired.push(turn);
     }
@@ -159,10 +159,10 @@ describe('the harpoon line', () => {
   it('lasts 10 turns', () => {
     const { w } = hit();
 
-    for (let turn = 1; turn <= 9; turn++) advanceUtilityEffects(w);
+    for (let turn = 1; turn <= 9; turn++) advanceLines(w);
     expect(w.lines).toHaveLength(1);
 
-    advanceUtilityEffects(w);
+    advanceLines(w);
     expect(w.lines).toEqual([]);
   });
 

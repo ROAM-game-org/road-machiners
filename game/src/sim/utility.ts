@@ -219,6 +219,9 @@ export function advanceUtilityEffects(world: World): void {
   world.smoke = aged(world.smoke);
   world.fields = aged(world.fields);
   world.flares = aged(world.flares);
+}
+
+export function advanceLines(world: World): void {
   world.lines = aged(world.lines);
   endLines(world);
 }

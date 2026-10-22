@@ -412,6 +412,7 @@ export const WINDOW_MOVE = {
   obstacles: 'rebuild',
   furyRoad: 'rebuild',
   sunward: 'keep',
+  crimes: 'keep',
   broken: 'drop',
   craters: 'drop',
   dustClouds: 'drop',

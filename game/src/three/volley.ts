@@ -143,7 +143,7 @@ export function utilitySeen(events: readonly GameEvent[], seen: (vehicleId: stri
 function playDryGuns(host: CombatHost, played: Set<string>): void {
   for (const e of host.world.events) {
     const p = e.t === "empty" && !played.has(gunKey(e.vehicle, e.weapon)) ? host.eventPoint(e.vehicle) : null;
-    if (p) host.sound.at("gun-empty", p, Math.max(0, host.poses.moveMs - host.startMs));
+    if (p) host.fx.later(Math.max(0, host.poses.moveMs - host.startMs), () => host.sound.at("gun-empty", p, 0));
   }
 }
 
@@ -157,14 +157,17 @@ const USE_CUES: Partial<Record<UtilityEffectType | "claymore", CueId>> = {
   oil: "oil-spill",
 };
 
-export type UtilitySoundHost = Pick<VolleyHost, "eventPoint"> & { world: Pick<World, "events" | "terrain">; sound: Pick<SoundDirector, "at"> };
+export type UtilitySoundHost = Pick<VolleyHost, "eventPoint"> & { world: Pick<World, "events" | "terrain">; sound: Pick<SoundDirector, "at">; fx: Pick<Fx3D, "later"> };
 
 type UtilitySound = { cue: CueId; seenBy: string; at: Vec | null; delayMs: number };
 
-export function playUtilitySounds(host: UtilitySoundHost): void {
-  for (const s of host.world.events.flatMap(utilitySoundsOf)) {
+export function playUtilitySounds(host: UtilitySoundHost, at: "start" | "end"): void {
+  const events = host.world.events.filter((e) => (e.t === "utility" || e.t === "pulse") === (at === "start"));
+  for (const s of events.flatMap(utilitySoundsOf)) {
     const seen = host.eventPoint(s.seenBy);
-    if (seen) host.sound.at(s.cue, s.at ? groundPoint(host.world.terrain, s.at) : seen, s.delayMs);
+    if (!seen) continue;
+    const at = s.at ? groundPoint(host.world.terrain, s.at) : seen;
+    host.fx.later(s.delayMs, () => host.sound.at(s.cue, at, 0));
   }
 }
 
@@ -433,10 +436,10 @@ export function planShot(poses: TurnPoses, shot: Shot, gun: Gun, ground: Ground,
   const valid = fireSteps(poses, shot, gun);
   const free = shot.rounds.map((_, k) => valid.length > 0 && !shot.late(k));
   const steps = gun.spec.pellets ? pelletSteps(valid, free, random) : roundSteps(valid, free, random);
-  let late = 0;
+  let lateAfter = steps.filter((s) => s === null).length;
   return shot.rounds.map((r, k) => {
     const step = steps[k];
-    if (step === null) return lateRound(poses, shot, gun, r, late++, valid, ground, random);
+    if (step === null) return lateRound(poses, shot, gun, r, --lateAfter, valid, ground, random);
     return movingRound(poses, shot, gun, r, step, gun.spec.pellets ? k : 0, ground, random);
   });
 }
@@ -477,15 +480,23 @@ function strayPose(poses: TurnPoses, struck: string | null, landStep: number): V
   return struck === null ? null : (poses.at(struck, landStep) ?? poses.end(struck));
 }
 
-function lateRound(poses: TurnPoses, shot: Shot, gun: Gun, r: ShotRound, k: number, valid: number[], ground: Ground, random: () => number): PlannedRound {
+function lateRound(poses: TurnPoses, shot: Shot, gun: Gun, r: ShotRound, after: number, valid: number[], ground: Ground, random: () => number): PlannedRound {
   const end = poses.end(shot.shooter);
   const target = poses.end(shot.target);
   if (!end || !target) throw new Error(`Shot from ${shot.shooter} at ${shot.target} is planned with a truck not shown`);
-  const fireMs = latestFire(poses, valid, poses.moveMs - flightMsOf(gun.spec, end, target));
-  const a = poses.at(shot.shooter, Math.round(fireMs / poses.stepMs)) ?? end;
+  const landByMs = poses.moveMs - after * gun.spec.gapMs;
+  const fitMs = latestFire(poses, valid, landByMs - flightMsOf(gun.spec, end, target));
+  const a = fitMs === null ? end : (poses.at(shot.shooter, Math.round(fitMs / poses.stepMs)) ?? end);
   const struckAt = struckPoint(poses, shot, r, target);
-  const land = struckAt ? hitPoint(a, struckAt, r.struck === shot.target ? r.offset : 0, random) : missLand(a, shot.missAt(r.offset), gun, ground, random);
-  return { land, impact: impactOf(r, struckAt), delayMs: fireMs + k * gun.spec.gapMs, flightMs: flightMsOf(gun.spec, a, land), struckAt };
+  const land = lateLand(shot, gun, r, a, struckAt, ground, random);
+  const flightMs = flightMsOf(gun.spec, a, land);
+  const fireMs = fitMs ?? Math.max(0, landByMs - flightMs);
+  return { land, impact: impactOf(r, struckAt), delayMs: fireMs, flightMs, struckAt };
+}
+
+function lateLand(shot: Shot, gun: Gun, r: ShotRound, a: V3, struckAt: V3 | null, ground: Ground, random: () => number): V3 {
+  if (!struckAt) return missLand(a, shot.missAt(r.offset), gun, ground, random);
+  return hitPoint(a, struckAt, r.struck === shot.target ? r.offset : 0, random);
 }
 
 function struckPoint(poses: TurnPoses, shot: Shot, r: ShotRound, target: V3): V3 | null {
@@ -498,9 +509,9 @@ function impactOf(r: ShotRound, struckAt: V3 | null): Impact {
   return r.struck === null ? "ground" : "none";
 }
 
-function latestFire(poses: TurnPoses, valid: number[], wantMs: number): number {
+function latestFire(poses: TurnPoses, valid: number[], wantMs: number): number | null {
   const fits = valid.filter((s) => s * poses.stepMs <= wantMs && s * poses.stepMs >= wantMs - LATE_SLACK_STEPS * poses.stepMs);
-  return fits.length > 0 ? fits[fits.length - 1] * poses.stepMs : poses.moveMs;
+  return fits.length > 0 ? fits[fits.length - 1] * poses.stepMs : null;
 }
 
 function seenHalf(from: V3, to: V3, heading: number, half: Shot["targetHalf"]): number {

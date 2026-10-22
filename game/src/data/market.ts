@@ -3,10 +3,11 @@ import { PARTS, type PartDef } from './parts';
 import type { TraitId, Weighted } from './npcs';
 import type { PropKind } from '../sim/terrain';
 import type { OldPlaceType } from './salvage';
-import { NPC_BEHAVIOR } from './npc-behavior';
+import { MEMORY, NPC_BEHAVIOR } from './npc-behavior';
 import { MAP_SCALE } from './region';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
+import type { CrimeOffense } from '../sim/types';
 
 
 export type Tier = 1 | 2 | 3;
@@ -518,3 +519,31 @@ export function shopDef(id: string): ShopDef {
 
 export const TOWN_MARKETS = Object.keys(SHOPS);
 export const STALL_MARKETS = Object.values(SHOPS).filter((s) => s.kind === 'stall').map((s) => s.id);
+
+const BOUNTY_WAGE = EFFORT.wage[1];
+const wageOf = (turns: number): number => Math.round(turns * BOUNTY_WAGE);
+const FINE_TURNS: Record<CrimeOffense, number> = { attacked: 450, robbed: 900, killed: 2700 };
+
+export const CRIME = {
+  fine: Object.fromEntries(Object.entries(FINE_TURNS).map(([offense, turns]) => [offense, wageOf(turns)])) as Record<CrimeOffense, number>,
+  purseShare: 0.5,
+  minStake: wageOf(60),
+  maxOwed: wageOf(4 * FINE_TURNS.robbed),
+  feeShare: 0.2,
+  reportSites: ['bowl', 'nose', 'dustwell', 'granary', 'pump-station', 'green-pit', 'salvage-yard', 'marshal-post'] as readonly string[],
+  post: 'marshal-post',
+  keepClosedTurns: MEMORY.turns.witnessed,
+  settleWage: 1,
+  wage: BOUNTY_WAGE,
+};
+
+export const BOUNTY = {
+  lapseTurns: 5 * TIME.turnsPerDay,
+  huntTurns: TIME.turnsPerDay / 2,
+  retryTurns: TIME.turnsPerDay / 2,
+  offerGapTurns: TIME.turnsPerDay,
+  stopTurns: 10,
+  searchReach: 60,
+  leadReach: 6,
+  postTurns: 60,
+};

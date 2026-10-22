@@ -1,4 +1,3 @@
-// Where a driver parks beside a salvage stock or another truck it tows, patches, trades with or loots.
 
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
@@ -14,7 +13,7 @@ function stockRadius(world: World, activity: NpcActivity): number | undefined {
 }
 
 function towedRadius(world: World, activity: NpcActivity): number | undefined {
-  if (!['tow', 'patch', 'meet', 'loot'].includes(activity.kind)) return undefined;
+  if (!['tow', 'patch', 'meet', 'loot', 'pursue'].includes(activity.kind)) return undefined;
   const towed = world.vehicles.find((entry) => entry.id === activity.targetId);
   return towed && chassisDef(towed.chassisId).radius;
 }

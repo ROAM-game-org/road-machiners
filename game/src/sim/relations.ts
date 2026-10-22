@@ -16,6 +16,7 @@ import type { DeedId, Faction, HelpDeed, MemoryFact, NpcFactionId, StandingFacti
 import { dist } from './vec';
 import { canVehicleSee } from './vision';
 import { noteSunwardDefeat } from './sunward';
+import { noteCrime, noteKilling } from './crime';
 
 export function isOutlaw(faction: Faction): boolean {
   return faction !== 'player' && factionDef(faction).outlaw;
@@ -180,6 +181,7 @@ export function reportIncident(world: World, i: Incident): Vehicle[] {
   ];
   for (const w of willing) joinAgainst(world, w, i);
   noteDeed(world, i.aggressor, i.victim, i.deed, isAttributed(world, i, seen));
+  noteCrime(world, i, seen);
   return willing;
 }
 
@@ -203,7 +205,7 @@ export function isRestrained(world: World, w: Vehicle, aggressor: Vehicle): bool
 }
 
 export function favors(world: World, w: Vehicle, aggressor: Vehicle, victim: Vehicle): boolean {
-  return !isLawman(w) && attitude(world, w, aggressor) >= attitude(world, w, victim);
+  return !isLawman(w) && w.brain?.traits.includes('marshal') !== true && attitude(world, w, aggressor) >= attitude(world, w, victim);
 }
 
 export function sideAgainst(world: World, w: Vehicle, aggressorId: string): boolean {
@@ -285,6 +287,11 @@ function setStanding(world: World, faction: StandingFactionId, score: number): v
   if (band !== before) world.events.push({ t: 'standing', faction, band });
 }
 
+export function settleStanding(world: World, faction: StandingFactionId): void {
+  if (bandOf(world.player.standing[faction]) !== 'hostile') throw new Error(`${faction} does not hold the player hostile, so there is nothing to settle`);
+  setStanding(world, faction, BANDS.hostile + 1);
+}
+
 export function driftStanding(world: World): void {
   if (clockOf(world.turn).day === clockOf(world.turn - 1).day) return;
   const start = startStanding();
@@ -302,7 +309,12 @@ export function noteDefeat(world: World, beaten: Vehicle, wrecked: boolean): voi
   if (!actor || actor.id === beaten.id) return;
   noteSunwardDefeat(world, beaten, actor);
   for (const subject of defendedBy(world, beaten, actor)) noteDeed(world, actor, subject, 'defended', canVehicleSee(world, subject, actor.pos));
-  if (wrecked && wrongedBefore(world, actor, beaten)) noteDeed(world, actor, beaten, 'killed', true);
+  if (wrecked) noteWreck(world, actor, beaten);
+}
+
+function noteWreck(world: World, actor: Vehicle, beaten: Vehicle): void {
+  if (wrongedBefore(world, actor, beaten)) noteDeed(world, actor, beaten, 'killed', true);
+  noteKilling(world, actor, beaten);
 }
 
 function defendedBy(world: World, beaten: Vehicle, actor: Vehicle): Vehicle[] {

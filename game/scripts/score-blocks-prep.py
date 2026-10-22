@@ -20,8 +20,11 @@ OPUS_KBPS = 96
 SAMPLE_RATE = 48000
 
 
-def beat_grid(path, bpm):
+def beat_grid(path, bpm, first_beat=None):
     y, sr = librosa.load(path, sr=22050, mono=True)
+    if first_beat is not None:
+        print(f"grid pinned by the map at {bpm} BPM, first beat {first_beat:.3f} s")
+        return first_beat, 60 / bpm, len(y) / sr
     _, frames = librosa.beat.beat_track(y=y, sr=sr, start_bpm=bpm, units="frames")
     beats = librosa.frames_to_time(frames, sr=sr)
     index = np.round((beats - beats[0]) * bpm / 60)
@@ -35,7 +38,7 @@ def beat_grid(path, bpm):
 
 
 def bar_times(song_path, bars):
-    first, beat, length = beat_grid(song_path, bars["bpm"])
+    first, beat, length = beat_grid(song_path, bars["bpm"], bars.get("firstBeat"))
     start = first - round(first / beat) * beat
     if start - beat * BEATS_PER_BAR >= -beat / 2:
         start -= beat * BEATS_PER_BAR

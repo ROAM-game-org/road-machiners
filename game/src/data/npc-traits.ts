@@ -62,7 +62,7 @@ export const TRAITS: Record<TraitId, Trait> = {
     },
   },
   courier: {
-    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: ['bowl', 'nose', 'orchard', 'dustwell', 'granary', 'glass-flats', 'green-pit', 'pump-station', 'fallen-sun', 'salvage-yard'],
+    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: ['bowl', 'nose', 'orchard', 'dustwell', 'granary', 'glass-flats', 'green-pit', 'pump-station', 'fallen-sun', 'salvage-yard', 'marshal-post'],
     contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE,
     weights: {
       idle: { travel: { add: 20 }, escort: { add: 180 }, scavenge: { mul: 0.001 } }, strandedSeen: { tow: { add: 2 } },
@@ -106,6 +106,14 @@ export const TRAITS: Record<TraitId, Trait> = {
       hostileSeen: { fight: { add: 4 } }, attacked: { fightBack: { mul: 2 } }, strandedSeen: { tow: { mul: 0.001 } }, salvageSeen: { loot: { mul: 0.2 } },
       parley: { truce: { mul: 0.3 }, beg: { mul: 0.3 } }, truceOffered: { refuse: { add: 2 } }, threatened: { comply: { mul: 0.3 }, fightBack: { add: 2 } }, warnedOff: { comply: { mul: 0.5 } },
       aidAsked: { give: { mul: 0.001 } }, needySeen: { aid: { mul: 0.001 } }, escortSeen: { hire: { mul: 0.001 } },
+    },
+  },
+  marshal: {
+    towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: [], contactReactRadius: 14, boldness: 1.2, fuelMargin: 1, robs: 'never', tradeStake: BASE_TRADE_STAKE,
+    weights: {
+      hostileSeen: { fight: { add: 4 } }, attacked: { fightBack: { mul: 2 } }, strandedSeen: { tow: { add: 2 } }, salvageSeen: { loot: { mul: 0.001 } },
+      parley: { truce: { mul: 0.3 }, beg: { mul: 0.3 } }, threatened: { comply: { mul: 0.2 }, fightBack: { add: 2 } }, warnedOff: { comply: { mul: 0.2 }, fightBack: { add: 2 } },
+      escortSeen: { hire: { mul: 0.001 } }, lootContested: { leave: { mul: 3 } },
     },
   },
   brave: {

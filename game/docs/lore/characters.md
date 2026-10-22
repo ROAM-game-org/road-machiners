@@ -652,3 +652,99 @@ His line is "A line stays open till somebody closes it. I close them."
 - Secret: He drove one of the cars on a night a stranger was walked into the light, and he has told nobody.
 
 Joss Ardo deserted the Sunward in year 119 with the singers' help and told the Senate what he saw, which stopped the Bowl's grain to the order. His friend Cobb Navarre tried to follow him in year 128 and was caught. Locals name Joss as the one who got out.
+
+## Rook Halloran
+
+- Way: control.
+- High concept: An Old Army driver who would not go home when Commander Lind died, and who leads the Marshalls of the Roadhouse.
+- Trouble: The Roadhouse runs on debt, and every claim he cannot ride for goes unanswered.
+- Aspects: A copy of Lind's book of unpaid promises; Lind's two staff cars, which the Bowl called stolen; Pulled Sabra Kell out of a burning cab.
+- Skills: best driving, worst social.
+- Wants: His drivers fed without turning raider.
+- Fears: That his drivers become the robbers they used to chase.
+- Habit: He reads one page of Lind's book aloud every night.
+- Secret: Ilya Moreno left the motor pool chain open for him. Rook has never told the Bowl who did.
+
+Rook drove for the Old Army until it ended. He kept a copy of the book Lind nailed to the Orchard gate, escorted Granary grain in Lind's staff cars while the Bowl lent them, and drove them out for good in year 122. The Bowl posted him as a car thief until the Roadhouse paid it the cars' worth. He puts his own name first on every page that is about him.
+
+His line is "The book is worth what we're willing to answer for."
+
+## Wim Satterly
+
+- Way: fear.
+- High concept: A former Pierce filing clerk who keeps the road book at the Roadhouse.
+- Trouble: He wrote his name under the case that sent Karl Vosk west, and any man in the book could find it.
+- Aspects: Copies every page twice; Saw Dell Marr's hand on the filings; Owes Rook Halloran for his brother's body.
+- Skills: best perception, worst toughness.
+- Wants: A book that says only what is certain.
+- Fears: Being sent west and told not to come back.
+- Habit: He strikes through hearsay and starts the page again, so a reader can tell which words are certain.
+- Secret: He found Dell Marr's hand on the filings and was seen finding it. He never told Inspector Kessel that Dell saw him.
+
+Wim kept the filings of insured runs at the Pierce office in the Nose until Pierce let him go in year 121. He took his copies of the robbed runs to Petra Quell's mast, and they became the road book. He writes every claim, answer, price and cut, and he marks a claim the Roadhouse cannot ride for as unanswered, never closed.
+
+His line is "I'll write what you say happened. Then I'll ask him."
+
+## Petra Quell
+
+- Way: embrace.
+- High concept: Keeper of the Guild relay mast inside the Roadhouse fence.
+- Trouble: She sells every message she hears to whoever pays.
+- Aspects: Logs every truck that crosses the plain; Old friend of Tamsin Roe; A bell on the compound gate.
+- Skills: best machining, worst toughness.
+- Wants: The mast to pay its own way, without the Guild's cut.
+- Fears: The Guild selling the mast and her with it.
+- Habit: She writes down every truck she sees on the plain, with the hour.
+- Secret: She bought the Lincoln on credit while Wim was still counting the debts.
+
+Petra kept the north plain's only roof, a Guild mast in a fenced Old World yard, long before anyone heard a case there. She mended the fence, hung a bell on the gate and charged drivers to park inside. Her crossing times and her radio put the Marshalls' cars where they need to be, and the Roadhouse takes its cut in her yard.
+
+Her line is "I'll hear a man out before I write what he owes."
+
+## Jonah Feld
+
+- Way: escape.
+- High concept: Dario Feld's nephew, who came home from the west with a guard's tin badge and gave the Marshalls their name.
+- Trouble: He will drive anywhere for the Roadhouse and will not carry a gun.
+- Aspects: A western guard's tin badge; Lusa Fenwick's friend on the road; A Kiln ladle scratched into his door.
+- Skills: best driving, worst toughness.
+- Wants: A guard here paid by every town, like the one he saw in the west.
+- Fears: Having to carry a gun himself.
+- Habit: He rubs the badge with his sleeve when he lies.
+- Secret: He once told drivers the western guard never lost a truck. He never asked.
+
+Jonah rode west with Lusa Fenwick's convoy and came home with a badge stamped with an old word nobody here could read. He talked drivers into pledging for a guard, drove the supply truck behind Rook's staff cars, and posted the crossing hours on the Roadhouse gate. Ladle Ruiz's riders scratched a ladle into his door when he asked Kiln to answer a claim.
+
+His line is "He had his say at the mast. Now he has to pay."
+
+## Sabra Kell
+
+- Way: oppose.
+- High concept: A former Kiln toll rider who drives a fast, thin-skinned car for the Roadhouse.
+- Trouble: She left Kiln, and Kiln does not forget who leaves.
+- Aspects: Counts the guns on a truck out loud before she talks; Rook Halloran pulled her out of a burning cab; Stopped Karl Vosk at a bend.
+- Skills: best driving, worst machining.
+- Wants: To be paid without having to shoot.
+- Fears: Kiln turning to killing.
+- Habit: She counts the guns on a truck out loud before she says a word.
+- Secret: She still keeps the receipt book of "Sabra's paper" and honors her old receipts on her own.
+
+Sabra took tolls on the south road for Kiln and gave drivers a dated receipt that was honored once a year. When Ladle Ruiz took the south road she left her tin by Ladle's scraper and drove away. She blocked Karl Vosk's road at the pump shed and cut him off at a bend north of the mast. She rides for unanswered Kiln claims on her own fee, since no Roadhouse car does.
+
+Her line is "Pay once, keep the paper. That's what a toll means."
+
+## Garrett Ainsley
+
+- Way: fear.
+- High concept: A Bowl citizen with a vote and a bad knee, who left the Bowl patrol to drive a morning run for the Roadhouse.
+- Trouble: The Bowl thinks he works for the Nose plain now.
+- Aspects: Held the Orchard gate in year 113; Checks every truck's papers, even a friend's; Took Karl Vosk alive.
+- Skills: best toughness, worst machining.
+- Wants: A road his grandchildren can drive.
+- Fears: Another Grain War.
+- Habit: He checks every truck's papers, even a friend's.
+- Secret: He knew Moreno counted the staff cars out and said nothing at the hearing.
+
+Garrett held the Orchard gate in year 113 and rode guard for the first paid season on the Pump Station road. He took Karl Vosk alive and matched the goods in Karl's shed to their owners from the road book. He stood alone before his own captain's six trucks at the mast. His finding of paint on both bumpers cleared a Granary driver of a ramming.
+
+His line is "A Bowl name doesn't make a missing load come back."
