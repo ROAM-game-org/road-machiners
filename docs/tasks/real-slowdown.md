@@ -230,4 +230,5 @@ Approach: the worker adds a tail to every prepared turn, `travel.ts` owns a `Cre
 - uexecute round 3: the full shop mounts a taken part on a free mount spot when the plain cells are full; stowing still keeps parts off mount cells in play.
 
 ### Deferred (needs user input)
+- Issue #882 tracks this work for the factory. It carries no `bug` or `feature-request` label, so intake does not build it again. To reach the release feature list, the branch is pushed and merged through `factory merge 882 --by <member>`.
 - The user listens to the engine through a stop, a pause and a panel opened mid-turn, and confirms it never sounds like the truck stopped while it still moves.
