@@ -435,10 +435,10 @@ export function planShot(poses: TurnPoses, shot: Shot, gun: Gun, ground: Ground,
   const valid = fireSteps(poses, shot, gun);
   const free = shot.rounds.map((_, k) => valid.length > 0 && !shot.late(k));
   const steps = gun.spec.pellets ? pelletSteps(valid, free, random) : roundSteps(valid, free, random);
-  let late = 0;
+  let lateAfter = steps.filter((s) => s === null).length;
   return shot.rounds.map((r, k) => {
     const step = steps[k];
-    if (step === null) return lateRound(poses, shot, gun, r, late++, valid, ground, random);
+    if (step === null) return lateRound(poses, shot, gun, r, --lateAfter, valid, ground, random);
     return movingRound(poses, shot, gun, r, step, gun.spec.pellets ? k : 0, ground, random);
   });
 }
@@ -479,17 +479,18 @@ function strayPose(poses: TurnPoses, struck: string | null, landStep: number): V
   return struck === null ? null : (poses.at(struck, landStep) ?? poses.end(struck));
 }
 
-function lateRound(poses: TurnPoses, shot: Shot, gun: Gun, r: ShotRound, k: number, valid: number[], ground: Ground, random: () => number): PlannedRound {
+function lateRound(poses: TurnPoses, shot: Shot, gun: Gun, r: ShotRound, after: number, valid: number[], ground: Ground, random: () => number): PlannedRound {
   const end = poses.end(shot.shooter);
   const target = poses.end(shot.target);
   if (!end || !target) throw new Error(`Shot from ${shot.shooter} at ${shot.target} is planned with a truck not shown`);
-  const fitMs = latestFire(poses, valid, poses.moveMs - flightMsOf(gun.spec, end, target));
+  const landByMs = poses.moveMs - after * gun.spec.gapMs;
+  const fitMs = latestFire(poses, valid, landByMs - flightMsOf(gun.spec, end, target));
   const a = fitMs === null ? end : (poses.at(shot.shooter, Math.round(fitMs / poses.stepMs)) ?? end);
   const struckAt = struckPoint(poses, shot, r, target);
   const land = lateLand(shot, gun, r, a, struckAt, ground, random);
   const flightMs = flightMsOf(gun.spec, a, land);
-  const fireMs = fitMs ?? Math.max(0, poses.moveMs - flightMs);
-  return { land, impact: impactOf(r, struckAt), delayMs: fireMs + k * gun.spec.gapMs, flightMs, struckAt };
+  const fireMs = fitMs ?? Math.max(0, landByMs - flightMs);
+  return { land, impact: impactOf(r, struckAt), delayMs: fireMs, flightMs, struckAt };
 }
 
 function lateLand(shot: Shot, gun: Gun, r: ShotRound, a: V3, struckAt: V3 | null, ground: Ground, random: () => number): V3 {

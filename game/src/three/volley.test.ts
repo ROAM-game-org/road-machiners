@@ -368,12 +368,19 @@ describe("planShot", () => {
     expect(p.struckAt!.z).toBeLessThan(third(STEPS - 1).z);
   });
 
-  it("fires so the first round lands as the move ends when the gun covers the target on no step", () => {
-    const plans = planShot(poses, shot([round("t"), round("t")]), gun("mg", () => false), flatGround, half);
-    expect(plans[0].delayMs).toBeLessThan(MOVE_MS);
-    expect(plans[0].delayMs + plans[0].flightMs).toBeCloseTo(MOVE_MS, -1);
-    expect(plans[1].delayMs - plans[0].delayMs).toBe(projectileOf("mg").gapMs);
+  it("fires a late burst so its last round lands as the move ends when the gun covers the target on no step", () => {
+    const plans = planShot(poses, shot([round("t"), round("t"), round("t"), round("t")]), gun("mg", () => false), flatGround, half);
+    const gap = projectileOf("mg").gapMs;
+    plans.slice(1).forEach((p, i) => expect(p.delayMs - plans[i].delayMs).toBeCloseTo(gap, 6));
+    for (const p of plans) expect(p.delayMs + p.flightMs).toBeLessThanOrEqual(MOVE_MS + 1e-6);
+    expect(plans[3].delayMs + plans[3].flightMs).toBeCloseTo(MOVE_MS, -1);
     expect(plans[0].struckAt).toEqual(targetAt(STEPS - 1));
+  });
+
+  it("lands every late round of a heavy gun's burst by the end of the move", () => {
+    const plans = planShot(poses, shot([round("t"), round(null, 2), round("t")], () => true), gun("autocannon"), flatGround, half);
+    for (const p of plans) expect(p.delayMs + p.flightMs).toBeLessThanOrEqual(MOVE_MS + STEP_MS);
+    expect(plans.map((p) => p.delayMs)).toEqual(plans.map((p) => p.delayMs).sort((a, b) => a - b));
   });
 
   it("fires all shotgun pellets in one blast", () => {
