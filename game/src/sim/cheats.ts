@@ -13,7 +13,7 @@ import { playerVehicle } from './damage';
 import { makePart, makeVehicle } from './factory';
 import { maxHealthOf } from './health';
 import { corePart, mountedParts, type Spot } from './grid';
-import { addGoods, applyRefitLayout, planItemMove, stowPart } from './inventory';
+import { addGoods, applyRefitLayout, mountPart, planItemMove, stowPart } from './inventory';
 import { disarm } from './claymore';
 import { generateNpcLoadout } from './npc-loadout';
 import { grantXp, isPerkId, pickedFromPair } from './progress';
@@ -134,7 +134,8 @@ export function give(world: World, id: string, count: number): World {
 function givePart(w: World, defId: string, count: number): void {
   const me = playerVehicle(w);
   for (let i = 0; i < count; i++) {
-    if (!stowPart(w, me, makePart(w, defId, 0))) throw new CheatError(`No room for ${count} ${defId}`);
+    const part = makePart(w, defId, 0);
+    if (!stowPart(w, me, part) && !mountPart(w, me, part)) throw new CheatError(`No room for ${count} ${defId}`);
   }
 }
 
