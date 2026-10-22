@@ -676,12 +676,13 @@ describe("the slowdown after a stopped turn", () => {
     expect(creep.joinOf({ vehicles: [truck] } as World, { a: at(xs.at(-1)!) })).toEqual({ starts: { a: at(xs.at(-1)!) }, elapsed: 0 });
   });
 
-  it("adds no time while held", () => {
+  it("adds no time while held, and shows the very same frame while it stands still", () => {
     const creep = creepOf();
     creep.tick(16, false);
-    const x = shownX(creep);
+    creep.tick(16, false);
+    const held = creep.frameOf(truck);
     for (let i = 0; i < 10; i++) creep.tick(0, false);
-    expect(shownX(creep)).toBe(x);
+    expect(creep.frameOf(truck)).toBe(held);
   });
 
   it("speeds up to the tail end once a turn is wanted, and hands the next turn the end pose and the time past it", () => {

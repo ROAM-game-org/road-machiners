@@ -57,6 +57,7 @@ export class Creep {
   private readonly clock: PlayClock;
   private readonly endMs: number;
   private rested = false;
+  private readonly shown = new Map<string, { ms: number; frame: VehicleFrame }>();
 
   constructor(private readonly tail: Tail, private readonly starts: Record<string, VehicleFrame>, ease: Ease, overshootMs: number) {
     this.clock = new PlayClock(ease);
@@ -82,7 +83,15 @@ export class Creep {
   frameOf(v: Vehicle): VehicleFrame | undefined {
     const end = this.tail.poses[v.id];
     if (!end || end.pos.x !== v.pos.x || end.pos.y !== v.pos.y || end.heading !== v.heading) return undefined;
-    return frameAt(this.tail.frames[v.id], this.shownMs() / STEP_MS - 1, this.starts[v.id]);
+    return this.frameAtMs(v.id, this.shownMs());
+  }
+
+  private frameAtMs(id: string, ms: number): VehicleFrame | undefined {
+    const kept = this.shown.get(id);
+    if (kept?.ms === ms) return kept.frame;
+    const frame = frameAt(this.tail.frames[id], ms / STEP_MS - 1, this.starts[id]);
+    if (frame) this.shown.set(id, { ms, frame });
+    return frame;
   }
 
   isMoving(): boolean {

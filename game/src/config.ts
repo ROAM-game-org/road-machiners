@@ -27,7 +27,7 @@ export const CONFIG = {
   utilityBandMs: 1000,
   combatReadMs: 1100,
   playEaseMs: 350,
-  turnStopMs: 2000,
+  turnStopMs: 300,
   fxFillScreens: 8,
   saveTurns: 20,
   saveSlots: 3,
