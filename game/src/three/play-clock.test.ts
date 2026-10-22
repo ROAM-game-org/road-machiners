@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { easedStopMs, easedStopSteps, PlayClock } from './play-clock';
 
 const EASE = 100;
+const CLOCK = { stopMs: EASE, startMs: EASE, stopFolds: 3 };
 
 function frame(clock: PlayClock, run: (c: PlayClock) => void): number {
   clock.beginFrame();
@@ -10,7 +11,7 @@ function frame(clock: PlayClock, run: (c: PlayClock) => void): number {
 }
 
 function running(): PlayClock {
-  const clock = new PlayClock({ stopMs: EASE, startMs: EASE });
+  const clock = new PlayClock(CLOCK);
   frame(clock, (c) => c.coast(EASE, true, 1));
   return clock;
 }
@@ -25,7 +26,7 @@ describe('PlayClock', () => {
   });
 
   it('eases in from rest instead of jumping to full speed', () => {
-    const clock = new PlayClock({ stopMs: EASE, startMs: EASE });
+    const clock = new PlayClock(CLOCK);
     const ms = [1, 2, 3, 4].map(() => frame(clock, (c) => c.coast(20, true, 1)));
     expect(ms[0]).toBeLessThan(ms[1]);
     expect(ms[0]).toBeCloseTo(2, 9);
@@ -50,11 +51,11 @@ describe('PlayClock', () => {
     for (let i = 0; i < 100; i++) frame(clock, (c) => c.coast(16.7, true, 1));
     const from = clock.nowMs();
     for (let i = 0; i < 100; i++) frame(clock, (c) => c.coast(16.7, false, 1));
-    expect(clock.nowMs() - from).toBeCloseTo(easedStopMs(EASE), 9);
+    expect(clock.nowMs() - from).toBeCloseTo(easedStopMs(CLOCK), 9);
   });
 
   it('stands still when no turn plays or is wanted', () => {
-    const clock = new PlayClock({ stopMs: EASE, startMs: EASE });
+    const clock = new PlayClock(CLOCK);
     expect(frame(clock, (c) => c.coast(16, false, 1))).toBe(0);
     expect(clock.nowMs()).toBe(0);
   });
@@ -68,7 +69,7 @@ describe('PlayClock', () => {
   });
 
   it('speeds up while the next turn is wanted, before it plays', () => {
-    const clock = new PlayClock({ stopMs: EASE, startMs: EASE });
+    const clock = new PlayClock(CLOCK);
     const lead = [1, 2, 3].map(() => frame(clock, (c) => c.coast(20, true, 1)));
     expect(lead[0]).toBeGreaterThan(0);
     expect(lead[1]).toBeGreaterThan(lead[0]);
@@ -80,13 +81,13 @@ describe('PlayClock', () => {
       const clock = running();
       const from = clock.nowMs();
       for (let i = 0; i < 100; i++) frame(clock, (c) => c.coast(dt, false, 1));
-      expect(clock.nowMs() - from).toBeCloseTo(easedStopMs(EASE), 9);
+      expect(clock.nowMs() - from).toBeCloseTo(easedStopMs(CLOCK), 9);
       expect(clock.isMoving()).toBe(false);
     }
   });
 
   it('stops over its stop time and speeds up over its start time', () => {
-    const clock = new PlayClock({ stopMs: 10 * EASE, startMs: EASE });
+    const clock = new PlayClock({ ...CLOCK, stopMs: 10 * EASE });
     frame(clock, (c) => c.coast(EASE, true, 1));
     for (let i = 0; i < 25; i++) frame(clock, (c) => c.coast(20, false, 1));
     expect(clock.isMoving()).toBe(true);
@@ -94,12 +95,27 @@ describe('PlayClock', () => {
     expect(frame(clock, (c) => c.coast(20, true, 1))).toBeCloseTo(20, 9);
   });
 
+  it('falls fast at first and fades out slowly, reaching rest exactly at the stop time', () => {
+    const clock = new PlayClock({ ...CLOCK, stopMs: 2000 });
+    frame(clock, (c) => c.coast(EASE, true, 1));
+    const ms = Array.from({ length: 130 }, () => frame(clock, (c) => c.coast(16, false, 1)));
+    const drops = ms.slice(1, 124).map((m, i) => ms[i] - m);
+    drops.slice(1).forEach((d, i) => expect(d).toBeLessThan(drops[i]));
+    const rest = ms.indexOf(0);
+    expect(rest).toBeGreaterThanOrEqual(125);
+    expect(rest).toBeLessThanOrEqual(126);
+    ms.slice(rest).forEach((m) => expect(m).toBe(0));
+    expect(clock.isMoving()).toBe(false);
+  });
+
   it('counts the eased stop in whole physics steps, rounded up', () => {
-    expect(easedStopSteps(350, 60)).toBe(11);
-    expect(easedStopSteps(100, 60)).toBe(3);
+    const played = (1 - Math.exp(-3)) / 3 - Math.exp(-3);
+    expect(easedStopMs({ stopMs: 2000, stopFolds: 3 })).toBeCloseTo((2000 * played) / (1 - Math.exp(-3)), 9);
+    expect(easedStopSteps({ stopMs: 2000, stopFolds: 3 }, 60)).toBe(Math.ceil((easedStopMs({ stopMs: 2000, stopFolds: 3 }) / 1000) * 60));
+    expect(() => easedStopMs({ stopMs: 2000, stopFolds: 0 })).toThrow();
   });
 
   it('refuses time running backward', () => {
-    expect(() => new PlayClock({ stopMs: EASE, startMs: EASE }).coast(-EASE * 10, true, 1)).toThrow();
+    expect(() => new PlayClock(CLOCK).coast(-EASE * 10, true, 1)).toThrow();
   });
 });

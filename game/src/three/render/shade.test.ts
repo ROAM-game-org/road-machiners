@@ -79,7 +79,7 @@ describe('shade patch over frames', () => {
   };
   const build = (w: ReturnType<typeof emptyWorld>) => {
     const ground = [{ mesh: new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial()) }] as unknown as TerrainChunk[];
-    return new ShadeView(w, ground, new PlayClock({ stopMs: 1, startMs: 1 }));
+    return new ShadeView(w, ground, new PlayClock({ stopMs: 1, startMs: 1, stopFolds: 1 }));
   };
   const dump = (v: ShadeView) => ({
     pos: Array.from(v.mesh.geometry.getAttribute('position').array),

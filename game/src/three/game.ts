@@ -167,7 +167,7 @@ export class Game {
   private turnStart: World | null = null;
   private crashCues: CollisionCues | null = null;
   private breakCues = new BreakCues([]);
-  private readonly travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE.stopMs, PHYSICS.stepsPerSecond));
+  private readonly travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond));
   private phase: TurnPhase = null;
   private readonly weaponRange = new WeaponRangeView(PAL.select, READY_ARC_BIT);
   private readonly hoverArcs: HoverArcsView;

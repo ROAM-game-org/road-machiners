@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { buildDrive, captureDrive, freeDrive, initPhysics } from '../src/phys/drive.ts';
 import { computeTurn } from '../src/phys/turn.ts';
-import { CONFIG, GAME_VERSION } from '../src/config.ts';
+import { GAME_VERSION, PLAY_EASE } from '../src/config.ts';
 import { PHYSICS } from '../src/data/physics.ts';
 import { easedStopSteps } from '../src/three/play-clock.ts';
 import { loadWorld } from '../src/three/save.ts';
@@ -29,7 +29,7 @@ console.log(`Loaded the ${from} at turn ${world.turn}`);
 await initPhysics();
 const drive = from === 'world' && report.drive ? decodeDrive(report.drive) : freshDrive(world);
 const { terrain, ...state } = world;
-const tailSteps = easedStopSteps(CONFIG.turnStopMs, PHYSICS.stepsPerSecond);
+const tailSteps = easedStopSteps(PLAY_EASE, PHYSICS.stepsPerSecond);
 const turn = computeTurn({ world: state, drive, questLanguage: report.language === 'ru' ? 'ru' : 'en', tailSteps }, terrain);
 console.log(`The turn ran with no error and reached turn ${turn.world.turn}.`);
 
