@@ -1,6 +1,6 @@
 # Saves fit or fail
 
-**Status:** executing
+**Status:** validating
 **Branch:** saves-fit-or-fail
 **Worktree:** .worktrees/saves-fit-or-fail
 **Goal:** A save from any branch, build or format ends in one of four ways: it loads, it loads with the silent drift repair, it migrates through the steps or the carry, or it stops on the save screen, which says in plain words that it does not fit this version and offers a new game. No stored save reaches the crash screen, and none reaches a running game with a world this build cannot hold. Players and the user switching branches on one dev server rely on it. Useless if: the check looks at a few top-level keys only, a shipped save that loads today goes to the save screen, the check refuses drift that the repair would fix, a new content id makes the game refuse its own new saves, the save screen still shows only a raw error code, or a branch save passes the shape check with a step applied twice or skipped.
@@ -132,7 +132,28 @@ Approach: two implementers build the two independent parts in parallel, the sche
 - RK1 — A shipped save fails the check. Verify loads every anchor, and a failure gets a repair rule or a tiny step, never a looser check.
 - RK2 — The generator meets a type kind it cannot read. It throws, and the implementer extends it rather than skipping the type.
 
+## Verify
+
+- After the review fixes, `boot:check` passes all 116 checks and the five browser scenarios below give the same results.
+- 391 tests in the save, step, intro, text and error-report files pass on the tree merged with dev at be0c756a2. Every shipped anchor save loads through the check, and still passes it after 20 played turns, so AS1 held and UK2 found nothing.
+- Browser, against this worktree's dev server, with a real autosave edited in IndexedDB. A save with no `crimes` list, with and without a `steps` list, shows "Your save needs migrating" with code `invalidWorld`, and Migrate boots the game. A save naming a step no build has carries and boots straight. A save with an extra world key boots straight. A save the rescue cannot carry shows "This save doesn't fit this version" with only New game and Download save. No case showed the crash screen or a page error. The script is `game/tmp/misfit-boot.mjs`.
+- IV8 runs on the real step list: the `accessory-layer` history, every name but `withCrimes`, gets exactly the crimes step.
+- UK3: the schema is 23 KB, and the check takes 2 to 3 ms on a new Roaming world.
+- UK4: `withCrimes` and `withOddFronts`, the one pair that meets out of order today, touch separate fields. The other steps were not audited for order.
+- `boot:check` failed on dev too, in two places. Its dropped-map case waited for a `#hud` element the game never had, and now waits for boot to clear like the other cases. Its worker cases blocked `**/phys/turn*`, which since caught the static `phys/turnaround.ts` module and broke boot, and now block `phys/turn-worker.ts` only.
+
+### Review
+- The review found that the key cleanup could trim a storm with a missing field into a heatwave and pass it, since obstacles and weather had no tag. Tags now allow a set of literals per member when the sets are separate, so both unions check `kind`. The cleanup drops only keys no member of an untagged union knows.
+- A refused manual save showed "Saved to" after the failure note. `writeSave()` now returns whether it stored, the saved line needs it, and a refused write on a road reboot throws instead of losing the turn.
+- An empty step list at an anchor whose release step has no names now takes the minor number path, as the design says.
+
 ## Conclusion
+
+### Deviations from plan
+- `isWorld()` stays — it also checks values the schema cannot express, like a turn above 0 and a size above 0.
+- The generator runs on TypeScript 6.0 bundled in `@ts-morph/common`, not on a `typescript5` alias — the alias installed its own `tsc` command over the game's TypeScript 7 one, which broke `npm run typecheck`.
+- The save screen hides Migrate when it cannot run instead of showing it turned off, so `save.unreadable` left both catalogs.
+- The schema was rewritten once under format 2.103 by a one-off script, since `save:shape` refuses any schema change under one format. The saved type did not change, only the generator's tag rule, and `save-shape.json` stayed the same.
 
 ### Hands-off decisions
 - make: size medium, full flow — the change spans load, write, boot, steps and docs.
@@ -140,3 +161,9 @@ Approach: two implementers build the two independent parts in parallel, the sche
 - uplan: plan auto-approved (hands-off).
 - uplan: tags of object unions found from the types instead of a hand list — no list to forget.
 - uplan: an unknown step carries on load instead of showing the save screen — matches how `outOfReach` saves already behave.
+- uexecute: merged dev at be0c756a2 into the branch — dev gained `withOddFronts` as step 102 to 103, which needed a name.
+- ureview: applied all four review findings, since each had a concrete failure case.
+- uverify: fixed the two stale `boot:check` cases that failed on dev too — the check is needed to verify boot.
+
+### Deferred (needs user input)
+- Loading the real save from the 2026-10-22 crash — it sits in Arc's IndexedDB for localhost:5173, which runs the main checkout — the user loads it once this branch is served there and confirms it reaches the save screen and migrates.
