@@ -136,7 +136,7 @@ describe('NPC field repairs', () => {
     cab.hp = partDef(cab.defId).hp * 0.2;
     const before = cab.hp;
     const sun = sunAt(world.turn)!;
-    world.obstacles.push({ id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 });
+    world.obstacles = [...world.obstacles, { id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 }];
     expect(inShade(world, npc.pos, sun)).toBe(false);
     planNpcOrders(world);
     const activity = topGoal(npc)!;
@@ -167,7 +167,7 @@ describe('NPC field repairs', () => {
     const engine = mountedParts(npc, 'engine')[0];
     engine.hp = partDef(engine.defId).hp * 0.45;
     const before = { cab: cab.hp, engine: engine.hp };
-    world.obstacles.push({ id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 });
+    world.obstacles = [...world.obstacles, { id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 }];
     planNpcOrders(world);
     const spot = { ...topGoal(npc)!.destination! };
     npc.pos = { ...spot };
@@ -216,7 +216,7 @@ describe('NPC field repairs', () => {
     const { world, npc } = createNpc();
     addGoods(world, npc, 'parts', 2);
     corePart(npc, 'cab').hp = 1;
-    world.obstacles.push({ id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 });
+    world.obstacles = [...world.obstacles, { id: 'shade-rock', kind: 'rock', pos: { x: 34, y: 33 }, r: 1 }];
     if (started) planNpcOrders(world);
     npc.resources!.fuel = 0;
     planNpcOrders(world);
@@ -230,7 +230,7 @@ describe('NPC field repairs', () => {
     const { world, npc } = createNpc();
     addGoods(world, npc, 'parts', 2);
     corePart(npc, 'cab').hp = 1;
-    addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 33, y: 30 });
+    addVehicle(world, 'scrapjaw', 'scout', ['mg'], { x: 33, y: 30 });
     const answered = shareOfSeeds(world, npc.id, (x, me) => {
       planNpcOrders(x);
       resolveNpcActivities(x);

@@ -270,7 +270,7 @@ function nearestClaim(w: World): { shop: string; stock: SalvageStock; part: Part
 
 function keepNearestDrivers(w: World, count: number, also: string[] = [], shopId = 'bowl'): void {
   const shop = siteOf(shopId).pos;
-  const npcs = w.vehicles.filter((v) => v.id !== w.player.vehicleId && v.brain);
+  const npcs = w.vehicles.filter((v) => v.id !== w.player.vehicleId && v.brain && !v.brain.goals.some((g) => g.kind === 'follow'));
   const near = new Set(npcs.sort((a, b) => dist(a.pos, shop) - dist(b.pos, shop)).slice(0, count).map((v) => v.id));
   w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || near.has(v.id) || also.includes(v.id));
 }
@@ -299,7 +299,7 @@ describe('claim days', () => {
     w = update(w, (d) => {
       const npc = d.vehicles.find((v) => v.id === scavenger.id)!;
       npc.pos = { x: stock.pos.x + stock.radius + 4, y: stock.pos.y };
-      pushGoal(d, npc, { kind: 'scavenge', targetId: stock.id, destination: { ...stock.pos }, phase: 'travel', reason: 'searchSite' });
+      pushGoal(d, npc, { kind: 'scavenge', targetId: stock.id, destination: { ...stock.pos }, phase: 'act', reason: 'searchSite' });
     });
     const visited = new Set<string>();
     for (let turn = 0; turn < CLAIM_DAY_TURNS; turn++) {
