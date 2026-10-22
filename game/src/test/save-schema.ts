@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript5';
+import { getLibFiles, libFolderInMemoryPath, ts } from '@ts-morph/common';
 import type { Schema, SchemaNode } from '../three/save-fit';
 
 type Ctx = {
@@ -205,7 +205,19 @@ function projectProgram(file: string): ts.Program {
   const config = ts.readConfigFile(configPath, ts.sys.readFile);
   if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'));
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, fileURLToPath(new URL('../..', import.meta.url)));
-  return ts.createProgram([file], parsed.options);
+  return ts.createProgram([file], parsed.options, hostWithLibFiles(parsed.options));
+}
+
+function hostWithLibFiles(options: ts.CompilerOptions): ts.CompilerHost {
+  const host = ts.createCompilerHost(options);
+  const libs = new Map(getLibFiles().map((lib) => [`${libFolderInMemoryPath}/${lib.fileName}`, lib.text]));
+  const readFile = host.readFile.bind(host);
+  const fileExists = host.fileExists.bind(host);
+  host.getDefaultLibLocation = () => libFolderInMemoryPath;
+  host.getDefaultLibFileName = (opts) => `${libFolderInMemoryPath}/${ts.getDefaultLibFileName(opts)}`;
+  host.readFile = (name) => libs.get(name) ?? readFile(name);
+  host.fileExists = (name) => libs.has(name) || fileExists(name);
+  return host;
 }
 
 function sortedDefs(defs: Record<string, SchemaNode>): Record<string, SchemaNode> {

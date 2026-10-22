@@ -15,7 +15,7 @@ import { dist, type Vec } from '../sim/vec';
 import { TEST_MAP } from '../test/map';
 import { townAt } from '../sim/sites';
 import { carriedWorld, endTurn, newWorld } from '../sim/world';
-import { carriesOnLoad, loadWorld, namedSteps, SaveError, saveOf, savedRunId, stepsFrom } from './save';
+import { carriesOnLoad, loadWorld, namedSteps, SaveError, savedMisfit, saveOf, savedRunId, stepsFrom } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 import { carriedSave, readCarried, rescueSave } from './save-rescue';
@@ -400,6 +400,7 @@ describe('a shipped save on an older bake of the map', () => {
       expect(w.events.filter((e) => e.t === 'stall')).toEqual([]);
     }
     expect(w.turn).toBe(start + 20);
+    expect(savedMisfit(saveOf(w).world)).toBeNull();
   }, 120_000);
 
   it('loads a shipped save after a rebake and a removed chassis together', () => {

@@ -8,7 +8,7 @@ import { highwayMap } from '../sim/highway';
 import { fitBake, repairMap, settleTrucks, type SavedBroken, type SavedMapWorld } from '../sim/map-repair';
 import { repairContent } from '../sim/save-repair';
 export { newMapFor } from '../sim/highway';
-import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
+import type { BrokenProp, Obstacle, QuestState, World, WorldSetup } from '../sim/types';
 import { QUESTS, restoreQuest } from '../sim/quests';
 import { newerQuests, questRevisions, repairQuests, type QuestRepair, type SavedRevisions } from '../sim/quest-repair';
 import { refreshVision } from '../sim/vision';
@@ -27,6 +27,7 @@ import { reportError } from './crash';
 import { CONFIG, GAME_VERSION } from '../config';
 import { download } from '../ui/dom';
 import type { RunLog } from './run-log';
+import { checkSavedWorld, dropUnknownKeys, type SavedWorld } from './save-fit';
 import { RELEASE_STEPS, SAVE_MAJOR, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 
 declare const __SAVE_SCOPE__: string;
@@ -109,7 +110,7 @@ export function carriesOnLoad(error: SaveError): boolean {
   return error.code === 'outOfReach' || error.code === 'mapChanged' || error.code === 'unknownStep';
 }
 
-export type SaveEnvelope = { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; savedAt: number; runId: string; world: object };
+export type SaveEnvelope = { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; savedAt: number; runId: string; world: SavedWorld };
 
 export function clearSlot(slots: SaveSlots, slot: SlotId): void {
   slots.remove(slot);
@@ -135,14 +136,6 @@ export function savedRunId(envelope: unknown): string | null {
   if (typeof save?.world?.seed === 'number') return `legacy-${save.world.seed}`;
   return null;
 }
-
-type SavedWorld = Omit<World, 'terrain' | 'events' | 'removed' | 'broken' | 'vehicles' | 'player'> & {
-  broken: SavedBroken[];
-  vehicles: Omit<Vehicle, 'trail'>[];
-  player: Omit<Player, ViewField>;
-};
-
-type ViewField = 'visible' | 'contacts' | 'clouds';
 
 export function mapFor(saved: Pick<World, 'mapHash' | 'seed' | 'setup' | 'furyRoad'>, icarus: BakedMap): BakedMap {
   const highway = saved.mapHash.startsWith('highway:');
@@ -185,7 +178,19 @@ function loadedWorld(envelope: unknown, icarus: BakedMap): World {
   checkSavedRigs(loaded);
   refreshVision(loaded);
   settleAims(loaded);
-  return { ...loaded, events: [] };
+  const result = { ...loaded, events: [] };
+  const misfit = savedMisfit(saveOf(result).world);
+  if (misfit) throw misfit;
+  return result;
+}
+
+export function savedMisfit(saved: SavedWorld): SaveError | null {
+  try {
+    checkSavedWorld(saved);
+    return null;
+  } catch (error) {
+    return new SaveError('invalidWorld', null, (error as Error).message);
+  }
 }
 
 function stagedWorld(world: SavedWorld, quests: QuestRepair): SavedMapWorld {
@@ -266,6 +271,7 @@ function brokenProps(baked: readonly Obstacle[], broken: readonly SavedBroken[])
 
 function savedWorld(save: unknown): SavedWorld {
   const world = migratedWorld(save);
+  dropUnknownKeys(world);
   if (!isWorld(world)) throw new SaveError('invalidWorld');
   return { ...world, setup: savedSetup(world.setup) };
 }
@@ -359,10 +365,12 @@ export function saveOnArrival(slots: SaveSlots, world: World, runId: string, sav
 export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: string, savedAt: number): void {
   if (world.player.state === 'dead') throw new Error('Cannot save a world whose player is dead');
   const envelope: SaveEnvelope = { ...saveOf(world), savedAt, runId };
+  const misfit = savedMisfit(envelope.world);
+  if (misfit) return slots.onError(misfit);
   slots.put(slot, envelope);
 }
 
-export function saveOf(world: World): { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; world: object } {
+export function saveOf(world: World): { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; world: SavedWorld } {
   const { terrain: _terrain, events: _events, removed: _removed, ...saved } = world;
   const { visible: _visible, contacts: _contacts, clouds: _clouds, quests: { live: _live, ...quests }, ...player } = saved.player;
   const vehicles = saved.vehicles.map(({ trail: _trail, ...vehicle }) => vehicle);

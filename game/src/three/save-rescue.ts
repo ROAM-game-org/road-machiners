@@ -5,7 +5,7 @@ import { carriedWorld, type Carried, type CarriedItem, type CarriedPaint, type C
 import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
-import { savedRevisionsOf, savedRunId, storedSave, writeSave } from './save';
+import { savedMisfit, savedRevisionsOf, savedRunId, saveOf, storedSave, writeSave } from './save';
 import { mutedColor_96_97, paintOfPreset_95_96 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
@@ -296,6 +296,8 @@ export function carriedSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap, ki
   const parsed = storedSave(slots, slot);
   if (objectOf(parsed) === null) return null;
   const world = carriedWorld(readCarried(parsed), kit, (setup, seed, window) => mapAt(setup, seed, window, icarus), freshSeed);
+  const misfit = savedMisfit(saveOf(world).world);
+  if (misfit) throw misfit;
   return { world, runId: savedRunId(parsed) ?? freshRunId() };
 }
 

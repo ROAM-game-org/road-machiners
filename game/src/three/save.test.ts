@@ -532,12 +532,32 @@ describe('game save', () => {
     expect(loadWorld(makeSlots(), 'auto', TEST_MAP)).toBeNull();
   });
 
-  it('restores the complete world including fields added later', () => {
+  it('refuses to write a world with a field the saved world type lacks, and keeps the old save', () => {
     const slots = makeSlots();
+    const errors: unknown[] = [];
+    slots.onError = (err) => errors.push(err);
     const world = standardWorld();
-    const expanded = { ...world, futureFeature: { progress: 7 } };
-    saveWorld(slots, { ...expanded, turn: 21 }, RUN, 20, 1000);
-    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual({ ...expanded, turn: 21 });
+    writeSave(slots, 'auto', world, RUN, 1000);
+    writeSave(slots, 'auto', { ...world, turn: 21, futureFeature: { progress: 7 } } as World, RUN, 2000);
+    expect(String(errors[0])).toMatch(/world\.futureFeature: unknown key/);
+    expect((slots.get('auto') as { savedAt: number }).savedAt).toBe(1000);
+  });
+
+  it('loads a stored save with a field this build lacks and drops the field', () => {
+    const slots = makeSlots();
+    const world = { ...standardWorld(), turn: 21 };
+    const envelope = saveOf(world);
+    slots.put('auto', { ...envelope, world: { ...envelope.world, futureFeature: { progress: 7 } }, savedAt: 1000, runId: RUN });
+    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(world);
+  });
+
+  it('sends a save at the current format with a missing list to the save screen', () => {
+    const slots = makeSlots();
+    const { crimes: _crimes, ...withoutCrimes } = saveOf(standardWorld()).world;
+    slots.put('auto', { format: SAVE_FORMAT, world: withoutCrimes, savedAt: 1000, runId: RUN });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/invalidWorld: world\.crimes: missing/);
+    slots.put('auto', { ...saveOf(standardWorld()), world: withoutCrimes, savedAt: 1000, runId: RUN });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/invalidWorld: world\.crimes: missing/);
   });
 
   it('rejects a save that did not parse in local storage as unreadable, without replacing it', () => {
