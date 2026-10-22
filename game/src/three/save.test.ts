@@ -537,8 +537,8 @@ describe('game save', () => {
     const errors: unknown[] = [];
     slots.onError = (err) => errors.push(err);
     const world = standardWorld();
-    writeSave(slots, 'auto', world, RUN, 1000);
-    writeSave(slots, 'auto', { ...world, turn: 21, futureFeature: { progress: 7 } } as World, RUN, 2000);
+    expect(writeSave(slots, 'auto', world, RUN, 1000)).toBe(true);
+    expect(writeSave(slots, 'auto', { ...world, turn: 21, futureFeature: { progress: 7 } } as World, RUN, 2000)).toBe(false);
     expect(String(errors[0])).toMatch(/world\.futureFeature: unknown key/);
     expect((slots.get('auto') as { savedAt: number }).savedAt).toBe(1000);
   });

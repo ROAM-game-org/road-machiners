@@ -457,8 +457,9 @@ describe('namedSteps', () => {
       expect(ran(named(63, ['a', 'b']))).toEqual(['c']);
     });
 
-    it('runs the release step for a save at its anchor', () => {
+    it('runs the release step for a save at its anchor, with or without folded names', () => {
       expect(ran(named(63, []))).toEqual(['release', 'c']);
+      expect(ran(namedSteps([release(null)], 65, tiny, { from: 63, names: [] }))).toEqual(['release', 'c']);
     });
 
     it('refuses a list that holds only part of the release step', () => {

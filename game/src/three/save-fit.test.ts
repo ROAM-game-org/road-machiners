@@ -87,6 +87,13 @@ describe('checkAgainstSchema', () => {
     expect(fits(union, { kind: 'bite' })).toBe('world.kind: no union member has this tag');
   });
 
+  it('picks a member whose tag is one of several literals', () => {
+    const union: SchemaNode = { union: [{ object: { kind: { union: [{ lit: 'rock' }, { lit: 'tree' }] } } }, { object: { kind: { lit: 'landmark' }, yaw: 'number' } }], tag: 'kind' };
+    expect(fits(union, { kind: 'tree' })).toBeNull();
+    expect(fits(union, { kind: 'landmark', yaw: 1 })).toBeNull();
+    expect(fits(union, { kind: 'rock', yaw: 1 })).toBe('world.yaw: unknown key');
+  });
+
   it('takes the first fitting member of an untagged union', () => {
     expect(fits({ union: ['number', 'string'] }, 'a')).toBeNull();
     expect(fits({ union: ['number', 'string'] }, true)).toBe('world: fits no union member');
@@ -136,6 +143,20 @@ describe('dropUnknownKeysAgainst', () => {
     const world = { a: { s: 'x', junk: 1 } };
     dropUnknownKeysAgainst(world, { root: { object: { a: union } }, defs: {} });
     expect(world).toEqual({ a: { s: 'x' } });
+  });
+
+  it('leaves an untagged union value alone when no member fits it, cleaned or not', () => {
+    const union: SchemaNode = { union: [{ object: { id: 'string', pos: 'number', born: 'number' } }, { object: { id: 'string' } }] };
+    const world = { a: { id: 's', pos: 3 } };
+    dropUnknownKeysAgainst(world, { root: { object: { a: union } }, defs: {} });
+    expect(world).toEqual({ a: { id: 's', pos: 3 } });
+  });
+
+  it('leaves an untagged union value alone when it already fits a member', () => {
+    const union: SchemaNode = { union: [{ object: { id: 'string' } }, { object: { id: 'string', pos: 'number' } }] };
+    const world = { a: { id: 's', pos: 3 } };
+    dropUnknownKeysAgainst(world, { root: { object: { a: union } }, defs: {} });
+    expect(world).toEqual({ a: { id: 's', pos: 3 } });
   });
 });
 
@@ -201,6 +222,18 @@ describe('checkSavedWorld on game worlds', () => {
     dropUnknownKeys(saved);
     expect(saved.vehicles[0].oddFront).toBeUndefined();
     expect(() => checkSavedWorld(saved)).not.toThrow();
+  });
+
+  it('keeps a storm with a missing field whole and names the field, instead of trimming it to a heatwave', () => {
+    const saved = { ...savedJson(), weather: [{ id: 'w1', kind: 'storm', pos: { x: 1, y: 2 }, radius: 3, vel: { x: 0, y: 0 }, turnsLeft: 4 }] };
+    dropUnknownKeys(saved);
+    expect(saved.weather[0].pos).toEqual({ x: 1, y: 2 });
+    expect(() => checkSavedWorld(saved)).toThrow('world.weather[0].born: missing');
+  });
+
+  it('refuses a heatwave that carries storm fields', () => {
+    const saved = { ...savedJson(), weather: [{ id: 'w1', kind: 'heatwave', pos: { x: 1, y: 2 }, turnsLeft: 4 }] };
+    expect(() => checkSavedWorld(saved)).toThrow('world.weather[0].pos: unknown key');
   });
 
   it('refuses NaN', () => {

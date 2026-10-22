@@ -80,10 +80,14 @@ export function namedSteps(releases: readonly ReleaseStep[], tinyFrom: number, t
   checkedChain(releases, tinyFrom);
   if (steps.from === tinyFrom) return lackedTiny(tiny, steps);
   const release = releases.find((r) => r.from === steps.from);
+  if (release && steps.names.length === 0) return stepsOf(releases, tinyFrom, tiny.map((named) => named.step), steps.from)!;
+  return namedSteps(releases, tinyFrom, tiny, afterRelease(release, steps));
+}
+
+function afterRelease(release: ReleaseStep | undefined, steps: SavedSteps): SavedSteps {
   if (!release?.names) throw unknownStepError(steps, `No release step with names starts at ${steps.from}`);
-  if (steps.names.length === 0) return stepsOf(releases, tinyFrom, tiny.map((named) => named.step), steps.from)!;
   if (!startsWithNames(steps, release.names)) throw unknownStepError(steps, `The names do not begin with those of release step ${release.from} to ${release.to}`);
-  return namedSteps(releases, tinyFrom, tiny, { from: release.to, names: steps.names.slice(release.names.length) });
+  return { from: release.to, names: steps.names.slice(release.names.length) };
 }
 
 export function anchorMinors(): number[] {
@@ -362,12 +366,16 @@ export function saveOnArrival(slots: SaveSlots, world: World, runId: string, sav
   if (world.player.state === 'active' && world.events.some((e) => e.t === 'outpostReached')) writeSave(slots, 'auto', world, runId, savedAt);
 }
 
-export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: string, savedAt: number): void {
+export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: string, savedAt: number): boolean {
   if (world.player.state === 'dead') throw new Error('Cannot save a world whose player is dead');
   const envelope: SaveEnvelope = { ...saveOf(world), savedAt, runId };
   const misfit = savedMisfit(envelope.world);
-  if (misfit) return slots.onError(misfit);
+  if (misfit) {
+    slots.onError(misfit);
+    return false;
+  }
   slots.put(slot, envelope);
+  return true;
 }
 
 export function saveOf(world: World): { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; world: SavedWorld } {
@@ -458,7 +466,7 @@ export function changeMapIfMoved(run: Run, world: World, hold: SaveHold, session
   if (hold.held) throw new Error(`The map moved to ${world.mapHash} while saves are held, so a reboot would lose the turn`);
   if (!world.events.some((e) => e.t === 'roadOpened')) throw new Error(`The map moved to ${world.mapHash} with no road opened`);
   run.log.note(world);
-  writeSave(run.slots, 'auto', world, run.runId, Date.now());
+  if (!writeSave(run.slots, 'auto', world, run.runId, Date.now())) throw new Error(`The map moved to ${world.mapHash} but the world failed the save check, so a reboot would lose the turn`);
   run.mapHash = world.mapHash;
   requestBoot(session, SAVE_KEY, { slot: 'auto', reason: 'road' });
   Promise.all([run.slots.flush(), run.log.flush()]).then(reload, reportError);
@@ -483,10 +491,9 @@ export class GameSaves {
     };
   }
 
-  private saveManual(slot: SlotId, save: (slot: SlotId) => void): void {
+  private saveManual(slot: SlotId, save: (slot: SlotId) => boolean): void {
     if (this.hold.held) return this.note(SAVE_HELD_NOTE);
-    save(slot);
-    this.record(t('save.savedTo', { slot: slotLabel(slot) }));
+    if (save(slot)) this.record(t('save.savedTo', { slot: slotLabel(slot) }));
   }
 
   logWorld(world: World): void {

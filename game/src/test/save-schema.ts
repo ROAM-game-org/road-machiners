@@ -51,20 +51,30 @@ function propertyNames(type: ts.Type, ctx: Ctx): string[] {
   return ctx.checker.getPropertiesOfType(type).map((symbol) => symbol.name);
 }
 
-function literalOf(type: ts.Type, name: string, ctx: Ctx): string | null {
+function literalsOf(type: ts.Type, name: string, ctx: Ctx): string[] | null {
   const symbol = ctx.checker.getPropertyOfType(type, name);
-  if (!symbol) return null;
+  if (!symbol || (symbol.flags & ts.SymbolFlags.Optional) !== 0) return null;
   const propType = ctx.checker.getTypeOfSymbol(symbol);
-  return has(propType, FLAGS.StringLiteral) ? (propType as ts.StringLiteralType).value : null;
+  const parts = has(propType, FLAGS.Union) ? (propType as ts.UnionType).types : [propType];
+  if (!parts.every((part) => has(part, FLAGS.StringLiteral))) return null;
+  return parts.map((part) => (part as ts.StringLiteralType).value);
+}
+
+function isTag(members: ts.Type[], name: string, ctx: Ctx): boolean {
+  const sets = members.map((member) => literalsOf(member, name, ctx));
+  if (sets.some((set) => set === null)) return false;
+  const all = sets.flatMap((set) => set ?? []);
+  return new Set(all).size === all.length;
 }
 
 function tagOf(members: ts.Type[], ctx: Ctx): string | null {
   const candidates = propertyNames(members[0], ctx).sort();
-  const tag = candidates.find((name) => {
-    const values = members.map((member) => literalOf(member, name, ctx));
-    return values.every((value) => value !== null) && new Set(values).size === members.length;
-  });
-  return tag ?? null;
+  return candidates.find((name) => isTag(members, name, ctx)) ?? null;
+}
+
+function tagNode(members: ts.Type[]): SchemaNode {
+  const literals = distinct(members.map((member) => ({ lit: (member as ts.StringLiteralType).value })));
+  return literals.length === 1 ? literals[0] : { union: literals };
 }
 
 function isObjectLike(type: ts.Type): boolean {
@@ -173,8 +183,8 @@ function convertProperty(owner: ts.Type, symbol: ts.Symbol, path: string, ctx: C
   const { members, optional } = membersWithoutUndefined(type);
   const here = `${path}.${symbol.name}`;
   const tags = ctx.tags.get(owner);
-  const tagged = tags?.has(symbol.name) && members.length === 1 && has(members[0], FLAGS.StringLiteral);
-  const node: SchemaNode = tagged ? { lit: (members[0] as ts.StringLiteralType).value } : convertMembers(members, here, ctx);
+  const tagged = tags?.has(symbol.name) && members.every((member) => has(member, FLAGS.StringLiteral));
+  const node: SchemaNode = tagged ? tagNode(members) : convertMembers(members, here, ctx);
   return { name: symbol.name, node, optional: optional || (symbol.flags & ts.SymbolFlags.Optional) !== 0 };
 }
 

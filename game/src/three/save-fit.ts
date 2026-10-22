@@ -108,16 +108,21 @@ function objectOf(node: SchemaNode, defs: Defs): SchemaNode {
   return node;
 }
 
-function tagOf(member: SchemaNode, tag: string, defs: Defs): unknown {
+function literalsIn(node: SchemaNode | undefined): unknown[] {
+  if (typeof node !== 'object') return [];
+  if ('lit' in node) return [node.lit];
+  return 'union' in node ? node.union.flatMap(literalsIn) : [];
+}
+
+function tagsOf(member: SchemaNode, tag: string, defs: Defs): unknown[] {
   const shape = objectOf(member, defs);
-  if (typeof shape !== 'object' || !('object' in shape)) return undefined;
-  const literal = shape.object[tag];
-  return typeof literal === 'object' && 'lit' in literal ? literal.lit : undefined;
+  if (typeof shape !== 'object' || !('object' in shape)) return [];
+  return literalsIn(shape.object[tag]);
 }
 
 function memberByTag(value: unknown, node: { union: SchemaNode[]; tag: string }, defs: Defs): SchemaNode | undefined {
   if (!isBag(value)) return undefined;
-  return node.union.find((member) => tagOf(member, node.tag, defs) === value[node.tag]);
+  return node.union.find((member) => tagsOf(member, node.tag, defs).includes(value[node.tag]));
 }
 
 function checkTagged(value: unknown, node: { union: SchemaNode[]; tag: string }, path: string, defs: Defs): void {
@@ -179,13 +184,29 @@ function dropObject(value: Bag, node: { object: Defs; optional?: Defs }, defs: D
   }
 }
 
+function fitsAfterDrop(value: Bag, member: SchemaNode, defs: Defs): boolean {
+  const trial = structuredClone(value);
+  dropNode(trial, member, defs);
+  return fitsNode(trial, member, 'world', defs);
+}
+
+function keysOf(member: SchemaNode, defs: Defs): string[] {
+  const shape = objectOf(member, defs);
+  if (typeof shape !== 'object' || !('object' in shape)) return [];
+  return [...Object.keys(shape.object), ...Object.keys(shape.optional ?? {})];
+}
+
+function holdsEveryKey(value: Bag, member: SchemaNode, defs: Defs): boolean {
+  const keys = new Set(keysOf(member, defs));
+  return Object.keys(value).every((key) => keys.has(key));
+}
+
 function dropUntagged(value: Bag, members: SchemaNode[], defs: Defs): void {
-  const member = members.find((candidate) => {
-    const trial = structuredClone(value);
-    dropNode(trial, candidate, defs);
-    return fitsNode(trial, candidate, 'world', defs);
-  });
-  if (member !== undefined) dropNode(value, member, defs);
+  if (members.some((member) => fitsNode(value, member, 'world', defs))) return;
+  const known = new Set(members.flatMap((member) => keysOf(member, defs)));
+  for (const key of Object.keys(value)) if (!known.has(key)) delete value[key];
+  const fitting = members.filter((member) => holdsEveryKey(value, member, defs) && fitsAfterDrop(value, member, defs));
+  if (fitting.length === 1) dropNode(value, fitting[0], defs);
 }
 
 function dropUnion(value: unknown, node: { union: SchemaNode[]; tag?: string }, defs: Defs): void {
