@@ -7,9 +7,11 @@ import { addVehicle, emptyWorld, npcBrain } from "../sim/testkit";
 import { dist } from "../sim/vec";
 import { startKit } from "../data/start";
 import { playerVehicle } from "../sim/damage";
-import type { GameEvent } from "../sim/types";
+import type { GameEvent, Vehicle } from "../sim/types";
 import { endTurn, newWorld, setMoveOrder } from "../sim/world";
-import { addRopeFrames, canTravel, nextSightSample, overshoots, threatsIn, Travel } from "./travel";
+import { addRopeFrames, canTravel, Creep, nextSightSample, overshoots, threatsIn, Travel, type Playback } from "./travel";
+import { headingQuat, type VehicleFrame } from "../phys/frames";
+import type { Tail } from "../phys/turn";
 import { addState, declareFeud } from "../sim/states";
 import { TEST_MAP } from "../test/map";
 import { reusedWorld } from "../test/world-cache";
@@ -644,5 +646,84 @@ describe("nextSightSample", () => {
     expect(nextSightSample(live, 7)).toBe(2);
     expect([...live.visible]).toEqual([4]);
     expect([...live.explored]).toEqual([0, 1, 1, 1, 1, 0, 0, 0, 0, 0]);
+  });
+});
+
+describe("the slowdown after a stopped turn", () => {
+  const EASE = 350;
+  const at = (x: number): VehicleFrame => ({ pos: { x, y: 0, z: 0 }, rot: headingQuat(0), acc: { x: 0, y: 0, z: 0 }, wheels: [{ steer: 0, spin: x, suspension: 0, ground: true }] });
+  const pose = { pos: { x: TAIL / PHYSICS.metersPerTile, y: 0 }, heading: 0, speed: 1 };
+  const tail: Tail = { frames: { a: Array.from({ length: TAIL }, (_, i) => at(i + 1)) }, next: { snapshot: new Uint8Array() } as DriveSnapshot, poses: { a: pose } };
+  const truck = { id: "a", pos: { ...pose.pos }, heading: 0 } as Vehicle;
+  const shownX = (creep: Creep, v = truck) => creep.frameOf(v)!.pos.x;
+  const creepOf = (overshootMs = 0) => new Creep(tail, { a: at(0) }, EASE, overshootMs);
+
+  it("starts at the pose the turn ended on, or one overshoot later", () => {
+    expect(shownX(creepOf())).toBe(0);
+    expect(shownX(creepOf(1000 / PHYSICS.stepsPerSecond))).toBeCloseTo(1);
+  });
+
+  it("eases forward along the tail from the next frame on, and comes to rest within one step of its end", () => {
+    const creep = creepOf();
+    const xs = Array.from({ length: 40 }, () => (creep.tick(16, false), shownX(creep)));
+    xs.slice(1).forEach((x, i) => expect(x).toBeGreaterThanOrEqual(xs[i]));
+    expect(xs[0]).toBe(0);
+    expect(xs[1]).toBeGreaterThan(0.9);
+    expect(xs.at(-1)).toBeGreaterThan(TAIL - 1);
+    expect(xs.at(-1)).toBeLessThanOrEqual(TAIL);
+    expect(creep.isMoving()).toBe(false);
+    expect(creep.holdsTurn()).toBe(false);
+  });
+
+  it("adds no time while held", () => {
+    const creep = creepOf();
+    creep.tick(16, false);
+    const x = shownX(creep);
+    for (let i = 0; i < 10; i++) creep.tick(0, false);
+    expect(shownX(creep)).toBe(x);
+  });
+
+  it("holds the next turn back until the tail plays out, and speeds up to its end once a turn is wanted", () => {
+    const creep = creepOf();
+    creep.tick(16, false);
+    expect(creep.holdsTurn()).toBe(true);
+    for (let i = 0; i < 40; i++) creep.tick(16, true);
+    expect(shownX(creep)).toBe(TAIL);
+    expect(creep.holdsTurn()).toBe(false);
+    expect(creep.isMoving()).toBe(false);
+  });
+
+  it("stops showing a truck that a rule moved off its tail end", () => {
+    expect(creepOf().frameOf({ ...truck, pos: { x: 0, y: 0 } })).toBeUndefined();
+    expect(creepOf().frameOf({ ...truck, id: "b" })).toBeUndefined();
+  });
+
+  it("commits the tail end into the world and the drive", () => {
+    const world = makeSafeWorld();
+    const id = playerVehicle(world).id;
+    const playerTail = { ...tail, poses: { [id]: pose } };
+    const committed = new Creep(playerTail, {}, EASE, 0).commit(world);
+    expect(playerVehicle(committed.world).pos).toEqual(pose.pos);
+    expect(committed.drive).toBe(tail.next);
+  });
+
+  it("starts only when the turn stopped with a tail", () => {
+    const playback = { tail } as Playback;
+    const travel = new Travel(250, TAIL);
+    expect(travel.creepAfter(playback, makeSafeWorld(), {}, 0, EASE, 0)).toBeInstanceOf(Creep);
+    expect(travel.creepAfter({ tail: null } as Playback, makeSafeWorld(), {}, 0, EASE, 0)).toBeNull();
+    travel.press(0, false, true);
+    expect(travel.creepAfter(playback, makeSafeWorld(), {}, 0, EASE, 0)).toBeNull();
+  });
+
+  it("prepares the next turn while the slowdown holds it back", () => {
+    const prepare = vi.fn();
+    const travel = new Travel(250, TAIL);
+    Object.assign(travel, { turns: { prepare, take: () => ({}) } });
+    const world = makeSafeWorld();
+    travel.request(world, {} as DriveSnapshot);
+    expect(travel.takeReady(world, {} as DriveSnapshot, 0, false, true)).toBeNull();
+    expect(prepare).toHaveBeenCalledTimes(2);
+    expect(travel.takeReady(world, {} as DriveSnapshot, 0, false, false)).not.toBeNull();
   });
 });

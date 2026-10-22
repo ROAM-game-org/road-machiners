@@ -7,8 +7,10 @@ import {
   type UnitWheels,
   type TurnResult,
 } from "../phys/drive";
-import type { VehicleFrame } from "../phys/frames";
-import { joinTurn, SentObstacles, type LiveSight, type PreparedTurn, type TurnRequest, type TurnResponse } from "../phys/turn";
+import { frameAt, type VehicleFrame } from "../phys/frames";
+import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TurnRequest, type TurnResponse } from "../phys/turn";
+import { PHYSICS } from "../data/physics";
+import { PlayClock } from "./play-clock";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
@@ -38,8 +40,49 @@ export function nextSightSample(live: LiveVision, step: number): number | null {
   return k;
 }
 
+const STEP_MS = 1000 / PHYSICS.stepsPerSecond;
+
+export class Creep {
+  private readonly clock: PlayClock;
+  private readonly endMs: number;
+
+  constructor(private readonly tail: Tail, private readonly starts: Record<string, VehicleFrame>, easeMs: number, overshootMs: number) {
+    this.clock = new PlayClock(easeMs);
+    this.clock.advance(overshootMs);
+    this.endMs = Math.max(0, ...Object.values(tail.frames).map((fs) => fs.length)) * STEP_MS;
+  }
+
+  commit(world: World): { world: World; drive: DriveSnapshot } {
+    return { world: withTail(world, this.tail.poses), drive: this.tail.next };
+  }
+
+  tick(ms: number, wanted: boolean): void {
+    this.clock.coast(ms, wanted, 1);
+    this.clock.beginFrame();
+  }
+
+  frameOf(v: Vehicle): VehicleFrame | undefined {
+    const end = this.tail.poses[v.id];
+    if (!end || end.pos.x !== v.pos.x || end.pos.y !== v.pos.y || end.heading !== v.heading) return undefined;
+    return frameAt(this.tail.frames[v.id], this.shownMs() / STEP_MS - 1, this.starts[v.id]);
+  }
+
+  holdsTurn(): boolean {
+    return this.endMs - this.shownMs() > STEP_MS;
+  }
+
+  isMoving(): boolean {
+    return this.clock.isMoving() && this.shownMs() < this.endMs;
+  }
+
+  private shownMs(): number {
+    return Math.min(this.clock.nowMs(), this.endMs);
+  }
+}
+
 export type Playback = {
   result: PreparedTurn["result"];
+  tail: Tail | null;
   starts: Record<string, VehicleFrame>;
   before: World;
   lastTick: number | null;
@@ -250,13 +293,17 @@ export class Travel {
     return this.isAdvancing(null, now) || this.runsOnItsOwn(world, now);
   }
 
-  takeReady(world: World, drive: DriveSnapshot, now: number, held = false): PreparedTurn | null {
+  takeReady(world: World, drive: DriveSnapshot, now: number, held = false, slowing = false): PreparedTurn | null {
     if (world.player.state === "dead") {
       this.pause();
       return null;
     }
     if (held || this.deciding(now) || !this.wantsTurn(world, now)) return null;
     this.turns.prepare(world, drive);
+    return slowing ? null : this.takePrepared(world);
+  }
+
+  private takePrepared(world: World): PreparedTurn | null {
     const prepared = this.turns.take(world);
     if (!prepared) return null;
     if (this.requested) {
@@ -268,8 +315,17 @@ export class Travel {
     return null;
   }
 
+  continues(world: World, now: number): boolean {
+    return this.shouldAdvance(now) || this.runsOnItsOwn(world, now);
+  }
+
+  creepAfter(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, easeMs: number, overshootMs: number): Creep | null {
+    if (!playback.tail || this.continues(world, now)) return null;
+    return new Creep(playback.tail, { ...shown }, easeMs, overshootMs);
+  }
+
   prepareNext(world: World, playback: Playback | null, now: number): void {
-    if (playback && (this.shouldAdvance(now) || this.runsOnItsOwn(world, now)))
+    if (playback && this.continues(world, now))
       this.turns.prepare(world, playback.result.next);
   }
 
@@ -290,6 +346,7 @@ export class Travel {
     const towed = isTowed(before) || isTowed(world);
     const playback: Playback = {
       result: prepared.result,
+      tail: prepared.tail,
       starts: { ...shown },
       before,
       lastTick: now,

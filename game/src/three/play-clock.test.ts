@@ -29,7 +29,7 @@ describe('PlayClock', () => {
     const tail = [1, 2, 3, 4, 5, 6, 7].map(() => frame(clock, (c) => c.coast(20, false, 1)));
     expect(tail[0]).toBeGreaterThan(tail[2]);
     expect(tail[2]).toBeGreaterThan(0);
-    expect(tail.slice(5)).toEqual([0, 0]);
+    tail.slice(5).forEach((ms) => expect(ms).toBeCloseTo(0, 12));
   });
 
   it('speeds up while the next turn is wanted, before it plays', () => {
@@ -40,13 +40,12 @@ describe('PlayClock', () => {
     expect(lead[2]).toBeLessThanOrEqual(20);
   });
 
-  it('adds no more than the eased stop length while stopping from full speed, at any frame rate', () => {
+  it('adds the same eased stop length while stopping from full speed, at any frame rate', () => {
     for (const dt of [4, 8.3, 16.7, 33]) {
       const clock = new PlayClock(EASE);
       frame(clock, (c) => c.advance(0));
       for (let i = 0; i < 100; i++) frame(clock, (c) => c.coast(dt, false, 1));
-      expect(clock.nowMs()).toBeLessThanOrEqual(easedStopMs(EASE));
-      expect(clock.nowMs()).toBeGreaterThan(easedStopMs(EASE) - dt);
+      expect(clock.nowMs()).toBeCloseTo(easedStopMs(EASE), 9);
       expect(clock.isMoving()).toBe(false);
     }
   });
