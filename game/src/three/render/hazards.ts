@@ -260,7 +260,7 @@ const SMOKE_LOOK = {
   wobbleSeconds: 5,
   cutaway: { inner: 0.9, clear: 0.6, floor: 0.04 },
 };
-export const SHELL = { flightMs: 900, apex: 3 };
+export const SHELL = { flightMs: 1200, apex: 3 };
 const SHELL_LOOK: FlightLook = { casing: PAL.shell.casing, length: 0.05, radius: 0.015, trail: PAL.shell.trail, trailPuffs: 6, trailLag: 0.05, trailSize: 0.5, trailOpacity: 0.55 };
 const RIM_SAMPLES = 8;
 
