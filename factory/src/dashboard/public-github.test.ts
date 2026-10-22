@@ -4,9 +4,9 @@ import { EMPTY_STATE } from '../state';
 import type { DashboardConfig } from './config';
 import { COLUMNS, type FactoryState, type Run } from '../types';
 
-const config = { repo: 'owner/game', projectOwner: 'owner', projectNumber: 1 } as DashboardConfig;
+const config = { repo: 'owner/game', projectOwner: 'owner', projectNumber: 1, githubRetries: 0, githubRetryBaseSeconds: 0 } as DashboardConfig;
 type BoardCard = { number: number; title: string; column: string; labels?: string[] };
-type Fixture = { board?: BoardCard[] };
+type Fixture = { board?: BoardCard[]; hidden?: number };
 
 const DEFAULT_BOARD: BoardCard[] = [{ number: 7, title: 'Public feature', column: 'Testing' }, { number: 8, title: 'PRIVATE ad hoc request', column: 'Testing', labels: ['adhoc'] }];
 
@@ -22,7 +22,7 @@ function createRun(fixture: Fixture, calls: string[][]): Run {
     if (endpoint === 'graphql') {
       const query = args.find((arg) => arg.startsWith('query='))!;
       expect(query).not.toContain('mutation');
-      data = query.includes('items(first:') ? { data: { node: { items: { pageInfo: { hasNextPage: false }, nodes: board.map((card) => ({ id: String(card.number), fieldValueByName: { name: card.column }, content: { number: card.number, repository: { nameWithOwner: 'owner/game' }, labels: { nodes: (card.labels ?? []).map((name) => ({ name })) } } })) } } } } : { data: { user: { projectV2: { id: 'P', field: { id: 'S', options: columns.map((name) => ({ id: name, name })) } } } } };
+      data = query.includes('items(first:') ? { data: { node: { items: { totalCount: board.length + (fixture.hidden ?? 0), pageInfo: { hasNextPage: false, endCursor: null }, nodes: board.map((card) => ({ id: String(card.number), fieldValueByName: { name: card.column }, content: { number: card.number, repository: { nameWithOwner: 'owner/game' }, labels: { nodes: (card.labels ?? []).map((name) => ({ name })) } } })) } } } } : { data: { user: { projectV2: { id: 'P', field: { id: 'S', options: columns.map((name) => ({ id: name, name })) } } } } };
     }
     if (data === undefined) throw new Error(`Unexpected read: ${args.join(' ')}`);
     return { code: 0, stdout: JSON.stringify(data), stderr: '' };
@@ -38,6 +38,12 @@ it('fetches only public issue data through read calls', async () => {
   expect(result.cards.value?.map((card) => card.issue)).toEqual([7]);
   expect(JSON.stringify(result)).not.toContain('PRIVATE');
   expect(calls.every((args) => args[0] === 'api')).toBe(true);
+});
+
+it('shows the board as unavailable, not as a shorter board, when the items pages hold fewer items than they count', async () => {
+  const result = await read({ hidden: 2 });
+  expect(result.cards).toEqual({ value: null, error: 'GitHub board unavailable' });
+  expect(result.mergeQueue).toEqual({ value: null, error: 'GitHub board unavailable' });
 });
 
 it('orders the merge queue by state and hides private cards', async () => {

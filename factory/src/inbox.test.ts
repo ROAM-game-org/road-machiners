@@ -16,6 +16,7 @@ function fakeCtx(cards: Card[], sent: string[], calls: string[]): Ctx {
     cfg, statePath, now: () => new Date(5000), log: () => undefined,
     github: {
       cards: async () => cards,
+      card: async (n: number) => cards.find((row) => row.issue === n) ?? null,
       createIssue: async (title: string, body: string, labels: string[]) => { calls.push(`create ${title}|${body}|${labels}`); return 9; },
       addCard: async (n: number, column: string) => { calls.push(`addCard ${n} ${column}`); },
       comment: async (n: number, body: string) => { calls.push(`comment ${n} ${body}`); },

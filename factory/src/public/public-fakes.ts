@@ -41,6 +41,7 @@ export function publicFake(overrides: Partial<FactoryConfig> = {}): PublicFake {
     github: {
       issue: async (number: number) => { note(`issue ${number}`); return { number, title: `T${number}`, body: '', labels: f.issueLabels[number] ?? [VOTING_LABEL], createdAt: '', state: f.issueState[number] ?? 'OPEN' }; },
       cards: async () => f.cards,
+      card: async (n: number) => f.cards.find((row) => row.issue === n) ?? null,
       comment: async (issue: number, body: string) => { note(`comment ${issue}`); f.comments.push({ issue, body }); },
       createIssue: async (title: string, body: string, labels: string[]) => { note('createIssue'); f.created.push({ title, body, labels }); return 600 + f.created.length; },
       removeLabel: async (issue: number, label: string) => note(`removeLabel ${issue} ${label}`),

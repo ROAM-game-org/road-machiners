@@ -142,8 +142,8 @@ async function cards(ctx: Ctx): Promise<void> {
 
 async function findCard(ctx: Ctx, value: string | undefined): Promise<Card> {
   const issue = number(value);
-  const card = (await ctx.github.cards()).find((row) => row.issue === issue);
-  if (card === undefined) throw new Error(`No card for #${issue} on the board.`);
+  const card = await ctx.github.card(issue);
+  if (card === null) throw new Error(`No card for #${issue} on the board.`);
   return card;
 }
 

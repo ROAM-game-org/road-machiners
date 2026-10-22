@@ -137,8 +137,8 @@ function isApproved(state: FactoryState, card: Card): boolean {
 }
 
 async function requireCard(ctx: Ctx, issue: number): Promise<Card> {
-  const found = (await ctx.github.cards()).find((card) => card.issue === issue);
-  if (found === undefined) throw new Error(`Issue #${issue} is not on the board.`);
+  const found = await ctx.github.card(issue);
+  if (found === null) throw new Error(`Issue #${issue} is not on the board.`);
   return found;
 }
 

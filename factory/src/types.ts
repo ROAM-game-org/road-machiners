@@ -250,6 +250,7 @@ export interface GitHub {
   createIssue(title: string, body: string, labels: string[]): Promise<number>;
   editIssue(number: number, title: string, body: string): Promise<void>;
   cards(): Promise<Card[]>;
+  card(issue: number): Promise<Card | null>;
   addCard(issue: number, column: Column): Promise<void>;
   move(issue: number, column: Column): Promise<void>;
   openPullRequest(branch: string, base: string, title: string, body: string): Promise<string>;

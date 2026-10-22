@@ -35,6 +35,7 @@ function fakeCtx(): Ctx {
     cfg, statePath, now: () => NOW, log: () => undefined, run: async () => ({ code: 0, stdout: '', stderr: '' }),
     github: {
       cards: async () => cards,
+      card: async (n: number) => cards.find((row) => row.issue === n) ?? null,
       comment: async (n: number, body: string) => { calls.push(`comment ${n} ${body}`); },
       move: async (n: number, column: string) => {
         if (moveFails) throw new Error('board down');
