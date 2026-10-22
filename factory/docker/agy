@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs the real agy on AGY_MODEL at most AGY_MAX_RUNS times per container, since its Gemini API key is billed per use.
+# Runs the real agy on AGY_MODEL at most AGY_MAX_RUNS times per container, since its Google login shares one subscription quota with the owner's own agy.
 set -euo pipefail
 
 if ! [[ "${AGY_MAX_RUNS:-}" =~ ^[1-9][0-9]*$ ]]; then
