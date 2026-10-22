@@ -4,32 +4,31 @@ export class PlayClock {
   private totalMs = 0;
   private thisFrameMs = 0;
   private rate = 0;
-  private played = false;
+  private stopEaseMs: number;
 
   constructor(private readonly ease: Ease) {
     if (!(ease.stopMs > 0 && ease.startMs > 0)) throw new Error(`The play clock needs positive ease times, got ${ease.stopMs} and ${ease.startMs} ms`);
+    this.stopEaseMs = ease.stopMs;
   }
 
   beginFrame(): void {
     this.thisFrameMs = 0;
-    this.played = false;
   }
 
-  advance(ms: number): void {
-    this.add(ms);
-    this.played = true;
-    this.rate = 1;
+  stopWithin(playMs: number): void {
+    if (!(playMs >= 0)) throw new Error(`A stop needs a non-negative play time, got ${playMs} ms`);
+    this.stopEaseMs = this.rate > 0 ? (2 * playMs) / this.rate ** 2 : this.ease.stopMs;
   }
 
   coast(realMs: number, wanted: boolean, speed: number): void {
-    if (this.played) return;
+    if (!(realMs >= 0)) throw new Error(`Real time only moves forward, got ${realMs} ms`);
     const from = this.rate;
-    const easeMs = wanted ? this.ease.startMs : this.ease.stopMs;
-    const step = realMs / easeMs;
-    this.rate = wanted ? Math.min(1, from + step) : Math.max(0, from - step);
+    const easeMs = wanted ? this.ease.startMs : this.stopEaseMs;
+    this.rate = easedRate(from, realMs, easeMs, wanted);
     const easingMs = Math.abs(this.rate - from) * easeMs;
     const steadyMs = Math.max(0, realMs - easingMs) * this.rate;
     this.add(speed * (easeMs * Math.abs(easedShare(this.rate) - easedShare(from)) + steadyMs));
+    if (wanted || this.rate === 0) this.stopEaseMs = this.ease.stopMs;
   }
 
   private add(ms: number): void {
@@ -49,6 +48,11 @@ export class PlayClock {
   isMoving(): boolean {
     return this.rate > 0;
   }
+}
+
+function easedRate(from: number, realMs: number, easeMs: number, wanted: boolean): number {
+  if (easeMs === 0) return wanted ? 1 : 0;
+  return wanted ? Math.min(1, from + realMs / easeMs) : Math.max(0, from - realMs / easeMs);
 }
 
 function easedShare(rate: number): number {

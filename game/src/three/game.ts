@@ -833,6 +833,7 @@ export class Game {
     const stopped = this.travel.stopAt(a, this.world, this.frames, now, a.elapsed - MOVE_MS);
     if (stopped) [this.world, this.drive] = [stopped.world, stopped.drive];
     if (stopped) this.saves.logWorld(stopped.world);
+    if (stopped) this.play.stopWithin(stopped.leftMs);
     this.live = null;
     this.phase = a.combat ? "firing" : "results";
     timed("fog", () => this.fog.update(this.combatFogWorld()));
@@ -993,11 +994,10 @@ export class Game {
   }
 
   private advanceTurn(now: number, dt: number): { at: number | null; playMs: number } {
-    const timeHeld = this.timeHeld();
-    const held = timeHeld || this.world.player.call !== null;
+    const held = this.timeHeld() || this.world.player.call !== null;
     if (held) this.travel.pause();
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
-    const playMs = this.tickWorldClock(heldPlayMs(dt, timeHeld, CONFIG.playbackFrameMs), speed, now);
+    const playMs = this.tickWorldClock(heldPlayMs(dt, this.timeHeld(), CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
     this.travel.tickCreep(playMs);
@@ -1020,8 +1020,8 @@ export class Game {
   }
 
   private tickWorldClock(realMs: number, speed: number, now: number): number {
-    if (this.anim && !this.anim.moved) this.play.advance(realMs * speed);
-    else this.play.coast(realMs, this.travel.timeWanted(this.world, now), speed);
+    const wanted = (this.anim !== null && !this.anim.moved) || this.travel.timeWanted(this.world, now);
+    this.play.coast(realMs, wanted, wanted ? speed : 1);
     return this.play.frameMs();
   }
 
@@ -1043,7 +1043,7 @@ export class Game {
     });
     const playDt = playMs / 1000;
     const step = at === null ? null : Math.floor(at);
-    this.syncVehicles(at, Math.max(0, dt) / 1000, playDt);
+    this.syncVehicles(at, playDt);
     this.obstacles.play(this.anim, step, this.world, this.frames, playDt);
     if (step !== null) playCrashes(this.combatHost(), this.crashCues, step);
     this.drawOverlays();
@@ -1113,7 +1113,7 @@ export class Game {
     return null;
   }
 
-  private syncVehicles(at: number | null, dt: number, playDt: number): void {
+  private syncVehicles(at: number | null, playDt: number): void {
     const frames: TurnFrames | null = at === null || !this.anim ? null : this.anim.result.frames;
     const landed = !this.anim || this.anim.impacts;
     const glass = daylightAt(lightTurnOf(this.world, this.anim)).glass;
@@ -1138,7 +1138,7 @@ export class Game {
       view.radio(this.radioLights.lit(v.id, now));
       view.outline(look === "dark");
       view.windows(glass);
-      view.pose(f, dt);
+      view.pose(f, playDt);
       view.aim((partId) => this.turretAim(v.id, (before || v).weaponOrders, f, partId));
       this.truckFx.emit(this.world, display, f, frames !== null, playDt, seen);
     }

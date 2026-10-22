@@ -42,6 +42,7 @@ export function nextSightSample(live: LiveVision, step: number): number | null {
 }
 
 const STEP_MS = 1000 / PHYSICS.stepsPerSecond;
+const END_SLACK_MS = 1e-6;
 export const MOVE_MS = TURN_STEPS * STEP_MS;
 
 export function lightTurnOf(world: World, a: Playback | null): number {
@@ -97,11 +98,15 @@ export class Creep {
   joinOf(world: World, shown: Record<string, VehicleFrame>): { starts: Record<string, VehicleFrame>; elapsed: number } {
     if (!this.reachedEnd()) return { starts: { ...shown }, elapsed: 0 };
     const ends = world.vehicles.flatMap((v) => (this.frameOf(v) ? [[v.id, this.tail.frames[v.id].at(-1)!] as const] : []));
-    return { starts: { ...shown, ...Object.fromEntries(ends) }, elapsed: this.ms - this.endMs };
+    return { starts: { ...shown, ...Object.fromEntries(ends) }, elapsed: Math.max(0, this.ms - this.endMs) };
+  }
+
+  leftMs(): number {
+    return Math.max(0, this.endMs - this.ms);
   }
 
   private reachedEnd(): boolean {
-    return this.ms >= this.endMs;
+    return this.ms >= this.endMs - END_SLACK_MS;
   }
 
   private shownMs(): number {
@@ -348,10 +353,10 @@ export class Travel {
     return this.shouldAdvance(now) || this.runsOnItsOwn(world, now);
   }
 
-  stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, overshootMs: number): { world: World; drive: DriveSnapshot } | null {
+  stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, overshootMs: number): { world: World; drive: DriveSnapshot; leftMs: number } | null {
     const stops = playback.tail !== null && !this.continues(world, now);
     this.creep = stops ? new Creep(playback.tail!, { ...shown }, overshootMs) : null;
-    return this.creep?.commit(world) ?? null;
+    return this.creep ? { ...this.creep.commit(world), leftMs: this.creep.leftMs() } : null;
   }
 
   tickCreep(ms: number): void {
