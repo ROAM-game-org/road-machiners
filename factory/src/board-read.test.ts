@@ -99,6 +99,37 @@ describe('board read', () => {
   });
 });
 
+describe('a project list that omits open items but counts only what it lists', () => {
+  const OMITTED = [...CHASSIS, 905];
+
+  it('adds every open issue card the list omits, with its own status', async () => {
+    const fake = boardFake([...bigBoard(), boardItem(905, 'Triage')], { omittedFromList: OMITTED });
+    const cards = await ghClient(fake.run, BOARD_CFG, recordWait).cards();
+    expect(cards).toHaveLength(187);
+    expect(cards.filter((card) => OMITTED.includes(card.issue)).map((card) => [card.issue, card.column])).toEqual([...CHASSIS.map((issue) => [issue, 'Design']), [905, 'Triage']]);
+    expect(fake.reads()).toBe(1);
+    expect(fake.openReads()).toBe(1);
+    expect(waits).toEqual([]);
+  });
+
+  it('the scheduler starts design on every omitted chassis card', async () => {
+    const cards = await ctxFor(boardFake(bigBoard(), { omittedFromList: CHASSIS })).github.cards();
+    const picks = evaluateSchedule({ ...structuredClone(EMPTY_STATE), lastRelease: NOW.toISOString(), devBuild: 'dev0001' }, cards, NOW, SCHEDULE).picks;
+    expect(picks.filter((pick) => pick.stage === 'design').map((pick) => pick.issue)).toEqual(CHASSIS);
+  });
+
+  it('factory cards lists the omitted cards', async () => {
+    await runCtl(ctxFor(boardFake(bigBoard(), { omittedFromList: CHASSIS })), ['cards']);
+    for (const issue of CHASSIS) expect(out.some((line) => line.startsWith(`#${issue} `) && line.includes('Design'))).toBe(true);
+  });
+
+  it('fails rather than return a board when the open issue read stays incomplete', async () => {
+    const fake = boardFake(bigBoard(), { openIssuesShort: true });
+    await expect(ghClient(fake.run, BOARD_CFG, recordWait).cards()).rejects.toBeInstanceOf(BoardReadError);
+    expect(fake.openReads()).toBe(4);
+  });
+});
+
 describe('one card', () => {
   it('reads one card from its issue, with no board read', async () => {
     const fake = boardFake(bigBoard(), { faults: ['zero-first', 'zero-first', 'zero-first', 'zero-first'] });

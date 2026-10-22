@@ -1,3 +1,4 @@
+import { withActiveRun } from './active-run';
 import { rebuildDev } from './deploy';
 import { failureIssue, reportFailure, summarizeError } from './fail';
 import { UsageLimitError } from './pause';
@@ -66,7 +67,11 @@ function ownJob(ctx: Ctx, stage: JobStage, issue: number | null): Job | null {
   return readState(ctx.statePath).jobs.find((job) => job.stage === stage && job.issue === issue) ?? null;
 }
 
-export async function runJob(ctx: Ctx, stage: JobStage, issue: number | null): Promise<void> {
+export function runJob(ctx: Ctx, stage: JobStage, issue: number | null): Promise<void> {
+  return withActiveRun(ctx, stage, issue, () => runLockedJob(ctx, stage, issue));
+}
+
+async function runLockedJob(ctx: Ctx, stage: JobStage, issue: number | null): Promise<void> {
   const job = ownJob(ctx, stage, issue);
   const entry = ledgerEntry(ctx, job, stage, issue);
   let outcome: JobOutcome = 'failed';
