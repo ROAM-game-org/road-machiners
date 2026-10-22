@@ -12,7 +12,7 @@ import type { TurnClock } from "./render/hazards";
 import { frameAt, type VehicleFrame } from "../phys/frames";
 import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TurnRequest, type TurnResponse } from "../phys/turn";
 import { PHYSICS } from "../data/physics";
-import { PlayClock } from "./play-clock";
+import { PlayClock, type Ease } from "./play-clock";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
@@ -58,14 +58,18 @@ export class Creep {
   private readonly endMs: number;
   private rested = false;
 
-  constructor(private readonly tail: Tail, private readonly starts: Record<string, VehicleFrame>, easeMs: number, overshootMs: number) {
-    this.clock = new PlayClock(easeMs);
+  constructor(private readonly tail: Tail, private readonly starts: Record<string, VehicleFrame>, ease: Ease, overshootMs: number) {
+    this.clock = new PlayClock(ease);
     this.clock.advance(overshootMs);
     this.endMs = Math.max(0, ...Object.values(tail.frames).map((fs) => fs.length)) * STEP_MS;
   }
 
   commit(world: World): { world: World; drive: DriveSnapshot } {
     return { world: withTail(world, this.tail.poses), drive: this.tail.next };
+  }
+
+  endDrive(): DriveSnapshot {
+    return this.tail.next;
   }
 
   tick(ms: number, wanted: boolean): void {
@@ -340,9 +344,9 @@ export class Travel {
     return this.shouldAdvance(now) || this.runsOnItsOwn(world, now);
   }
 
-  stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, easeMs: number, overshootMs: number): { world: World; drive: DriveSnapshot } | null {
+  stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, ease: Ease, overshootMs: number): { world: World; drive: DriveSnapshot } | null {
     const stops = playback.tail !== null && !this.continues(world, now);
-    this.creep = stops ? new Creep(playback.tail!, { ...shown }, easeMs, overshootMs) : null;
+    this.creep = stops ? new Creep(playback.tail!, { ...shown }, ease, overshootMs) : null;
     return this.creep?.commit(world) ?? null;
   }
 
@@ -361,7 +365,7 @@ export class Travel {
 
   prepareNext(world: World, playback: Playback | null, now: number): void {
     if (playback && this.continues(world, now))
-      this.turns.prepare(world, playback.result.next);
+      this.turns.prepare(world, this.creep?.endDrive() ?? playback.result.next);
   }
 
   beginPlayback(

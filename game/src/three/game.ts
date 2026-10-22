@@ -1,6 +1,6 @@
 
 import * as THREE from "three";
-import { CONFIG } from "../config";
+import { CONFIG, PLAY_EASE } from "../config";
 import { QUESTS, relanguageQuest } from "../sim/quests";
 import { getSearchAction } from "../ui/hud-readout";
 import { PHYSICS } from "../data/physics";
@@ -119,7 +119,7 @@ export class Game {
   private readonly scene = new THREE.Scene();
   private readonly sun = sunLight();
   private readonly sky = new THREE.HemisphereLight();
-  private readonly play = new PlayClock(CONFIG.playEaseMs);
+  private readonly play = new PlayClock(PLAY_EASE);
   private readonly vehicleLights = new VehicleLights(this.scene);
   private readonly siteLights: SiteLights;
   private readonly vignette = Object.assign(document.createElement("div"), {
@@ -167,7 +167,7 @@ export class Game {
   private turnStart: World | null = null;
   private crashCues: CollisionCues | null = null;
   private breakCues = new BreakCues([]);
-  private readonly travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(CONFIG.playEaseMs, PHYSICS.stepsPerSecond));
+  private readonly travel = new Travel(CONFIG.travelHoldMs, easedStopSteps(PLAY_EASE.stopMs, PHYSICS.stepsPerSecond));
   private phase: TurnPhase = null;
   private readonly weaponRange = new WeaponRangeView(PAL.select, READY_ARC_BIT);
   private readonly hoverArcs: HoverArcsView;
@@ -831,7 +831,7 @@ export class Game {
     this.drive = a.result.next;
     for (const [id, fs] of Object.entries(a.result.frames))
       this.frames[id] = fs[fs.length - 1];
-    const stopped = this.travel.stopAt(a, this.world, this.frames, now, CONFIG.playEaseMs, a.elapsed - MOVE_MS);
+    const stopped = this.travel.stopAt(a, this.world, this.frames, now, PLAY_EASE, a.elapsed - MOVE_MS);
     if (stopped) [this.world, this.drive] = [stopped.world, stopped.drive];
     if (stopped) this.saves.logWorld(stopped.world);
     this.live = null;

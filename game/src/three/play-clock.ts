@@ -1,11 +1,13 @@
+export type Ease = { stopMs: number; startMs: number };
+
 export class PlayClock {
   private totalMs = 0;
   private thisFrameMs = 0;
   private rate = 0;
   private played = false;
 
-  constructor(private readonly easeMs: number) {
-    if (!(easeMs > 0)) throw new Error(`The play clock needs a positive ease time, got ${easeMs} ms`);
+  constructor(private readonly ease: Ease) {
+    if (!(ease.stopMs > 0 && ease.startMs > 0)) throw new Error(`The play clock needs positive ease times, got ${ease.stopMs} and ${ease.startMs} ms`);
   }
 
   beginFrame(): void {
@@ -22,11 +24,12 @@ export class PlayClock {
   coast(realMs: number, wanted: boolean, speed: number): void {
     if (this.played) return;
     const from = this.rate;
-    const step = realMs / this.easeMs;
+    const easeMs = wanted ? this.ease.startMs : this.ease.stopMs;
+    const step = realMs / easeMs;
     this.rate = wanted ? Math.min(1, from + step) : Math.max(0, from - step);
-    const easingMs = Math.abs(this.rate - from) * this.easeMs;
+    const easingMs = Math.abs(this.rate - from) * easeMs;
     const steadyMs = Math.max(0, realMs - easingMs) * this.rate;
-    this.add(speed * (this.easeMs * Math.abs(easedShare(this.rate) - easedShare(from)) + steadyMs));
+    this.add(speed * (easeMs * Math.abs(easedShare(this.rate) - easedShare(from)) + steadyMs));
   }
 
   private add(ms: number): void {
@@ -49,7 +52,7 @@ export class PlayClock {
 }
 
 function easedShare(rate: number): number {
-  return rate ** 3 - rate ** 4 / 2;
+  return rate ** 2 / 2;
 }
 
 export function heldPlayMs(realMs: number, held: boolean, maxFrameMs: number): number {

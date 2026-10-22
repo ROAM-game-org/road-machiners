@@ -29,7 +29,7 @@ console.log(`Loaded the ${from} at turn ${world.turn}`);
 await initPhysics();
 const drive = from === 'world' && report.drive ? decodeDrive(report.drive) : freshDrive(world);
 const { terrain, ...state } = world;
-const tailSteps = easedStopSteps(CONFIG.playEaseMs, PHYSICS.stepsPerSecond);
+const tailSteps = easedStopSteps(CONFIG.turnStopMs, PHYSICS.stepsPerSecond);
 const turn = computeTurn({ world: state, drive, questLanguage: report.language === 'ru' ? 'ru' : 'en', tailSteps }, terrain);
 console.log(`The turn ran with no error and reached turn ${turn.world.turn}.`);
 

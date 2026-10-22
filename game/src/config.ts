@@ -27,6 +27,7 @@ export const CONFIG = {
   utilityBandMs: 1000,
   combatReadMs: 1100,
   playEaseMs: 350,
+  turnStopMs: 2000,
   fxFillScreens: 8,
   saveTurns: 20,
   saveSlots: 3,
@@ -38,5 +39,7 @@ export const CONFIG = {
   questLineMs: 300,
   questPauseMs: 700,
 };
+
+export const PLAY_EASE = { stopMs: CONFIG.turnStopMs, startMs: CONFIG.playEaseMs };
 
 export const OUTPOST_GATE = { slideSeconds: 2.5 };

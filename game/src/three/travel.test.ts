@@ -649,7 +649,7 @@ describe("nextSightSample", () => {
 });
 
 describe("the slowdown after a stopped turn", () => {
-  const EASE = 350;
+  const EASE = { stopMs: 350, startMs: 350 };
   const at = (x: number): VehicleFrame => ({ pos: { x, y: 0, z: 0 }, rot: headingQuat(0), acc: { x: 0, y: 0, z: 0 }, wheels: [{ steer: 0, spin: x, suspension: 0, ground: true }] });
   const pose = { pos: { x: TAIL / PHYSICS.metersPerTile, y: 0 }, heading: 0, speed: 1 };
   const tail: Tail = { frames: { a: Array.from({ length: TAIL }, (_, i) => at(i + 1)) }, next: { snapshot: new Uint8Array() } as DriveSnapshot, poses: { a: pose } };
@@ -753,5 +753,16 @@ describe("the slowdown after a stopped turn", () => {
     expect(next.starts[id]).toEqual(at(TAIL));
     expect(next.elapsed).toBeGreaterThanOrEqual(0);
     expect(travel.isCreeping()).toBe(false);
+  });
+
+  it("prepares a turn asked for during a hold after movement from the tail end, not the turn end", () => {
+    const { world, playback } = playerStop();
+    const prepare = vi.fn();
+    const travel = new Travel(250, TAIL);
+    Object.assign(travel, { turns: { prepare } });
+    const stopped = travel.stopAt({ ...playback, result: { next: {} } } as Playback, world, {}, 0, EASE, 0)!.world;
+    travel.press(0, false, true);
+    travel.prepareNext(stopped, { ...playback, result: { next: {} } } as Playback, 0);
+    expect(prepare).toHaveBeenCalledWith(stopped, tail.next);
   });
 });
