@@ -1,22 +1,4 @@
 {
- "run": {
-  "title": "Dust Run",
-  "source": "Dust_Run_2026-10-22T133658.wav",
-  "guitarStem": "other.wav",
-  "bpm": 110,
-  "bars": 76,
-  "sections": [
-   { "role": "intro", "from": 1, "bars": 4 },
-   { "role": "verse", "from": 5, "bars": 8 },
-   { "role": "wall", "from": 13, "bars": 16 },
-   { "role": "stop", "from": 29, "bars": 4 },
-   { "role": "verse", "from": 33, "bars": 8 },
-   { "role": "wall", "from": 41, "bars": 16 },
-   { "role": "stop", "from": 57, "bars": 4 },
-   { "role": "wall", "from": 61, "bars": 14 }
-  ],
-  "end": 76
- },
  "clash-a": {
   "title": "Dustline Clash A",
   "source": "Dustline_Clash_2026-10-22T134449.wav",
