@@ -9,7 +9,8 @@ import { loadModels, model } from './models';
 import { baseModel, partModel } from '../../render/partLooks';
 import * as THREE from 'three';
 import { postColumn } from './gunStand';
-import { armorPlacement, footprint, standingY, weaponStand, wouldFloat } from './vehicle';
+import { armorPlacement } from './armorCut';
+import { footprint, standingY, weaponStand, wouldFloat } from './vehicle';
 import { budget } from '../../test/budget';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -115,7 +116,7 @@ describe('spare armor', () => {
       let placement;
       try {
         const obj = model(partModel(def.id));
-        placement = armorPlacement({ chassisId: id }, item, new THREE.Box3().setFromObject(obj));
+        placement = armorPlacement({ chassisId: id }, item, new THREE.Box3().setFromObject(obj), baseUnder(id, item));
         obj.position.copy(placement.pos);
         obj.rotation.set(0, placement.yaw, 0);
         obj.scale.copy(placement.scale);

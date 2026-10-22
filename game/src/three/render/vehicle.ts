@@ -6,18 +6,18 @@ import { partDef, type PartDef, type PartKind } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
-import { cellCenter, cellRect, engineAnchor, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitBody, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
+import { cellCenter, cellRect, engineAnchor, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
-import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
+import { baseGrid, facingOf, isMounted, itemCells, itemSize } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, signedDegrees, sweepOf, type Obstacle } from './gunClearance';
 import { highestAhead, moveBySpot, plateLegs, plateOf, plateSpot, postBottom, postColumn, postStands, rearHang } from './gunStand';
 import { GLASS, LAMP, model, RADIO, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
-import { cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
+import { armorPlacement, cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
 import { hashStr } from '../../render/noise';
 import { TruckMotion, WHIPS } from './truckMotion';
 import { weaponHead } from './weaponHead';
@@ -35,16 +35,7 @@ const BROKEN_TONE: Record<PartKind, number> = { weapon: 0.5, armor: 0.6, engine:
 
 const ROT_YAW = Math.PI / 2;
 
-const SIDE_YAW: Record<SideLetter, number> = { F: 0, B: Math.PI, R: -Math.PI / 2, L: Math.PI / 2 };
 
-const SIDE_FACE: Record<SideLetter, { axis: 'x' | 'z'; outward: 1 | -1 }> = {
-  F: { axis: 'x', outward: 1 },
-  B: { axis: 'x', outward: -1 },
-  R: { axis: 'z', outward: 1 },
-  L: { axis: 'z', outward: -1 },
-};
-
-type ArmorDef = Extract<PartDef, { kind: 'armor' }>;
 
 const GUN_GAP = 0.03;
 const SAMPLE_REACH = 0.1;
@@ -571,7 +562,7 @@ export class VehicleView {
     const def = partDef(item.part.defId);
     if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
     const obj = model(partModel(def.id));
-    place(obj, armorPlacement(v, item, new THREE.Box3().setFromObject(obj)));
+    place(obj, armorPlacement(v, item, new THREE.Box3().setFromObject(obj), this.unitOf(v, item).base));
     tint(obj, paint, lookOf(item));
     return obj;
   }
@@ -909,56 +900,6 @@ function restOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem): Rest {
 
 export function standingY(v: Pick<Vehicle, 'chassisId'>, item: GridItem): number {
   return restOf(v, item).y;
-}
-
-function armorSide(v: Pick<Vehicle, 'chassisId'>, item: PartItem): SideLetter {
-  const size = itemSize(item);
-  const side = plateSide(v.chassisId, item);
-  const depthCells = ['F', 'B'].includes(side) ? size.h : size.w;
-  if (depthCells !== 1) throw new Error(`Armor ${item.part.id} is ${depthCells} cells deep on side ${side}, expected 1`);
-  return side;
-}
-
-export function armorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, box: THREE.Box3): Placement {
-  const def = partDef(item.part.defId);
-  if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
-  const side = armorSide(v, item);
-  return isMounted(v.chassisId, item) ? mountedArmorPlacement(v, item, def, side, box) : spareArmorPlacement(v, item, side, box);
-}
-
-function spareArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, side: SideLetter, box: THREE.Box3): Placement {
-  const { rect, y } = restOf(v, item);
-  const dx = rect.x1 - rect.x0;
-  const dz = rect.z1 - rect.z0;
-  const size = box.getSize(new THREE.Vector3());
-  const middle = box.getCenter(new THREE.Vector3());
-  const scale = SIDE_FACE[side].axis === 'x' ? new THREE.Vector3(dx / size.x, 1, dz / size.z) : new THREE.Vector3(dz / size.x, 1, dx / size.z);
-  const yaw = SIDE_YAW[side];
-  const shiftX = middle.x * scale.x;
-  const shiftZ = middle.z * scale.z;
-  const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2 - (shiftX * Math.cos(yaw) + shiftZ * Math.sin(yaw)), y, (rect.z0 + rect.z1) / 2 - (shiftZ * Math.cos(yaw) - shiftX * Math.sin(yaw)));
-  return { pos, yaw, scale };
-}
-
-function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, def: ArmorDef, side: SideLetter, box: THREE.Box3): Placement {
-  const thickness = thinDepthOf(def, box);
-  const { axis, outward } = SIDE_FACE[side];
-  const across = axis === 'x';
-  const depthScale = Math.max(across && def.look !== 'plates' ? 1 : 0, TRUCK_LOOK.armorDepth / thickness);
-  const rect = rectOf(v, item);
-  const half = unitBody(v.chassisId, rect.unit).half;
-  const span = across ? rect.z1 - rect.z0 : rect.x1 - rect.x0;
-  const y = { plates: half.y - box.max.y, ram: -half.y, cage: half.y - box.max.y }[def.look] + TRUCK_LOOK.armorRise;
-  const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
-  pos[axis] = outward * (half[axis] - TRUCK_LOOK.armorInset - depthScale * box.min.x);
-  return { pos, yaw: SIDE_YAW[side], scale: new THREE.Vector3(depthScale, 1, span / (Math.max(def.w, def.h) * CELL.across)) };
-}
-
-function thinDepthOf(def: ArmorDef, box: THREE.Box3): number {
-  const depth = box.max.x - box.min.x;
-  const width = box.max.z - box.min.z;
-  if (!(depth < width)) throw new Error(`Armor model of ${def.id} is ${depth.toFixed(2)} m deep and ${width.toFixed(2)} m wide, expected its thin axis along x`);
-  return depth;
 }
 
 function itemModel(item: GridItem) {

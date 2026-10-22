@@ -1,7 +1,7 @@
 """Plow ram for the 'plowRam' armor.
 
 A front-edge row of 3 cells: 1.45 m across, 0.65 m deep, outer face at +X. A big curved blade, built from three
-angled strips, rises from a cutting edge at X = 0.98 m and curls forward at the top. Ribs and push arms tie it to the row. The middle strip
+angled strips, rises from a cutting edge at X = 0.61 m and curls forward at the top. Ribs and push arms tie it to the row. The middle strip
 takes the faction paint.
 Run: blender --background --python tools/blender/arm_plow_ram.py -- public/models/arm_plow_ram.glb [tmp/arm_plow_ram.png]
 """
@@ -19,7 +19,7 @@ from shapes import strut  # noqa: E402
 
 N = 3
 SEED = 38
-EDGE_X = 0.92
+EDGE_X = 0.55
 THICK = 0.05
 # Blade strips from the ground up as (height, lean back in degrees, material). The top strip leans forward, so the
 # blade face curves like a dozer blade.
@@ -50,4 +50,4 @@ def build(kit: Kit) -> None:
 
 
 if __name__ == "__main__":
-    run("arm_plow_ram", build, SEED, N, reach=1.0)
+    run("arm_plow_ram", build, SEED, N, reach=0.65)

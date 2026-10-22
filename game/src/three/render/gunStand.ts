@@ -204,6 +204,42 @@ function braceFoot(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Ve
   return hit;
 }
 
+const FACES = new Map<string, number | null>();
+
+export function bodyFace(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number], height: [number, number]): number | null {
+  body.updateWorldMatrix(true, true);
+  const shared = typeof body.userData.model === 'string' && body.matrixWorld.equals(IDENTITY);
+  const key = `${body.userData.model}:${axis}:${outward}:${lateral.map((n) => n.toFixed(3)).join(',')}:${height.map((n) => n.toFixed(3)).join(',')}`;
+  if (shared && FACES.has(key)) return FACES.get(key) as number | null;
+  const found = outermost(body, axis, outward, lateral, height);
+  if (shared) FACES.set(key, found);
+  return found;
+}
+
+function outermost(body: THREE.Object3D, axis: 'x' | 'z', outward: number, lateral: [number, number], height: [number, number]): number | null {
+  const box = new THREE.Box3().setFromObject(body);
+  const dir = new THREE.Vector3().setComponent(axisIndex(axis), -outward);
+  const start = outward > 0 ? box.max[axis] + CLIP_TOLERANCE : box.min[axis] - CLIP_TOLERANCE;
+  const hits = facePoints(lateral, height).map(([u, y]) => {
+    const from = new THREE.Vector3(0, y, 0).setComponent(axisIndex(axis), start).setComponent(axisIndex(axis === 'x' ? 'z' : 'x'), u);
+    return new THREE.Raycaster(from, dir).intersectObject(body, true)[0]?.point[axis];
+  });
+  const found = hits.filter((h): h is number => h !== undefined).map((h) => outward * h);
+  return found.length === 0 ? null : outward * Math.max(...found);
+}
+
+function facePoints(lateral: [number, number], height: [number, number]): [number, number][] {
+  const out: [number, number][] = [];
+  for (let u = lateral[0] + FACE_COLUMN / 2; u < lateral[1]; u += FACE_COLUMN) {
+    for (let y = height[0] + FACE_COLUMN / 2; y < height[1]; y += FACE_COLUMN) out.push([u, y]);
+  }
+  return out;
+}
+
+function axisIndex(axis: 'x' | 'z'): number {
+  return axis === 'x' ? 0 : 2;
+}
+
 export function rearHang(body: THREE.Object3D, z: number): THREE.Vector3 {
   body.updateWorldMatrix(true, true);
   const box = new THREE.Box3().setFromObject(body);
