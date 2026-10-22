@@ -1,20 +1,21 @@
 {
- "dust": {
-  "title": "Dust and Iron",
-  "source": "Dust_and_Iron_2026-10-15T223016.wav",
+ "run": {
+  "title": "Dust Run",
+  "source": "Dust_Run_2026-10-22T133658.wav",
   "guitarStem": "other.wav",
-  "bpm": 100,
-  "bars": 87,
+  "bpm": 110,
+  "bars": 76,
   "sections": [
-   { "role": "intro", "from": 7, "bars": 2 },
-   { "role": "verse", "from": 9, "bars": 8 },
-   { "role": "wall", "from": 17, "bars": 16 },
+   { "role": "intro", "from": 1, "bars": 4 },
+   { "role": "verse", "from": 5, "bars": 8 },
+   { "role": "wall", "from": 13, "bars": 16 },
+   { "role": "stop", "from": 29, "bars": 4 },
    { "role": "verse", "from": 33, "bars": 8 },
-   { "role": "wall", "from": 41, "bars": 24 },
-   { "role": "stop", "from": 65, "bars": 2 },
-   { "role": "wall", "from": 69, "bars": 16 }
+   { "role": "wall", "from": 41, "bars": 16 },
+   { "role": "stop", "from": 57, "bars": 4 },
+   { "role": "wall", "from": 61, "bars": 14 }
   ],
-  "end": 86
+  "end": 76
  },
  "dusk": {
   "title": "Convoy At Dusk",
