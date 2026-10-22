@@ -282,6 +282,7 @@
 
   /* Layers, bottom to top */
   --z-outline: 1;
+  --z-accessory: 1;
   --z-badge: 2;
   --z-hud: 3;
   --z-popup: 5;

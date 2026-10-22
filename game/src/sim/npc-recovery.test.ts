@@ -57,7 +57,7 @@ const byId = (world: World, id: string) => world.vehicles.find((v) => v.id === i
 describe('NPC gameplay recovery', () => {
   it('lets an idle healthy scavenger attack a manageable hostile', () => {
     const { world, npc } = createScenario();
-    const raider = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
+    const raider = addVehicle(world, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 33, y: 30 });
     expect(shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'fight')).toBeGreaterThan(0.4);
     corePart(raider, 'cab').hp = 1;
     expect(shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'fight')).toBeGreaterThan(0.8);
@@ -94,7 +94,7 @@ describe('NPC gameplay recovery', () => {
     const { world, npc } = createScenario();
     npc.brain!.goals = [workGoal('scavenger')];
     const work = structuredClone(npc.brain!.goals[0]);
-    const enemy = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
+    const enemy = addVehicle(world, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 33, y: 30 });
     fireAt(world, enemy, npc);
     const reactions = (kind: string) => shareOfSeeds(world, npc.id, (x, me) => {
       planNpcOrders(x);
@@ -169,7 +169,7 @@ describe('NPC gameplay recovery', () => {
     const { world, npc } = createScenario();
     const gate = siteGates(REGION.towns[0])[0];
     npc.pos = { ...gate };
-    const enemy = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: gate.x + 3, y: gate.y });
+    const enemy = addVehicle(world, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: gate.x + 3, y: gate.y });
     fireAt(world, enemy, npc);
     const fought = shareOfSeeds(world, npc.id, (x, me) => {
       planNpcOrders(x);

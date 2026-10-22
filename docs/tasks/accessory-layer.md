@@ -229,6 +229,8 @@ Approach: land each concern green as its own run of commits. Two Sonnet implemen
 
 ### Deferred (needs user input)
 
+Both answered: the user keeps the tougher fronts, and wants the wagon as a broadside truck whose cannon fires to the sides and back, with a machine gun forward.
+
 - Small trucks got harder to kill from the front. The cab now takes one shot lane in five, not four, so widened trucks need 12 to 17 percent more front hits. A scout scavenger now picks a fight with a buggy raider in 13.5% of seeds, down from over 40%. A scout's win odds against a buggy fell from 0.23 to 0.16. About a quarter of front shots at an empty jeep hit nothing. Keep this, or lower their cab and transmission HP to undo it?
 - The new wagon fights worse. Its cab-over cab blocks the front arc, so its 2x2 cannon now auto-faces right instead of front. A gunwagon raider's danger to the hunter bot fell to 0.70, and the test wants above 1. Should guns fire over the wagon's cab, as the reference picture shows, or is side fire fine?
 

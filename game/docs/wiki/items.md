@@ -99,7 +99,7 @@ Each weapon's round:
 
 ## Armor
 
-`armor` stops kinetic rounds and `blast armor` stops blast rounds and splash. Field repair says how far a repair on the road restores the part. A claymore ram holds a charge that the driver arms. It blasts on the next hard truck crash on its side.
+`armor` stops kinetic rounds and `blast armor` stops blast rounds and splash. Field repair says how far a repair on the road restores the part.
 
 <!-- wiki:armor -->
 | id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | blast armor | field repair | ram mult |
@@ -117,6 +117,20 @@ Each weapon's round:
 | cageSection | Rebar cage section | 1 | 42 | 1 x 1 | 10.3125 | 30 | 2 | false | 20 | capped | 1 |
 | reinforcedSection | Reinforced cage section | 2 | 70 | 1 x 1 | 11.25 | 43 | 4 | false | 26 | capped | 1.2 |
 <!-- /wiki:armor -->
+
+## Accessories
+
+Accessories bolt on over the armor edge and take no cargo room. Rams mount on the front and back, and spikes on any edge. `ram mult` raises the damage a crash deals on the lanes the part covers. A claymore ram holds a charge that the driver arms. It blasts on the next hard truck crash on its side.
+
+<!-- wiki:accessories -->
+| id | name | tier | value (M) | cells (w x h) | mass (kg) | hp | armor | tall | blast armor | field repair | ram mult | mounts | claymore |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ram | Ram bar | 2 | 86 | 3 x 1 | 50.625 | 100 | 8 | false | 8 | capped | 2 | FB |  |
+| plowRam | Plow ram | 3 | 167 | 3 x 1 | 47.25 | 170 | 10 | false | 10 | none | 2.8 | FB |  |
+| claymoreRam | Claymore ram | 2 | 140 | 3 x 1 | 142.5 | 80 | 14 | false | 6 | capped | 1.5 | FB | {"minImpact":3,"blast":{"damage":60,"pen":12,"radius":2},"selfBlast":{"damage":25,"pen":6},"throw":{"impulse":40000,"lift":0.35},"reload":20} |
+| spikeCluster | Spike cluster | 1 | 34 | 1 x 1 | 11.25 | 20 | 3 | false | 3 | full | 1.5 | FBLR |  |
+| spikeStrip | Spike strip | 1 | 53 | 1 x 2 | 22.5 | 40 | 3 | false | 3 | full | 1.5 | FBLR |  |
+<!-- /wiki:accessories -->
 
 ## Cargo
 
