@@ -50,8 +50,11 @@ const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
     "steelPlate",
     "scrapSheet",
     "ceramicTile",
+    "spacedTile",
+    "cageSection",
+    "reinforcedSection",
   ],
-  accessory: ["plowRam", "claymoreRam"],
+  accessory: ["plowRam", "claymoreRam", "spikeCluster", "spikeStrip"],
   cargo: ["panniers", "flatbed", "lightFrame", "enclosedFrame", "heavyFrame"],
   utility: [
     "sprout", "caltrops", "oilSpiller", "patcherCrane",
@@ -295,11 +298,30 @@ describe("utilities", () => {
   });
 });
 
-describe("one-cell armor plates", () => {
-  it.each(["steelPlate", "scrapSheet", "ceramicTile"])("%s fills one cell with its plate line's armor", (id) => {
-    const line = { steelPlate: "plates", scrapSheet: "scrapPanels", ceramicTile: "ceramicPlates" }[id]!;
-    expect([PARTS[id].w, PARTS[id].h]).toEqual([1, 1]);
-    expect(PARTS[id].armor).toBe(PARTS[line].armor);
+const ARMOR_LINES: Record<string, string> = {
+  steelPlate: "plates",
+  scrapSheet: "scrapPanels",
+  ceramicTile: "ceramicPlates",
+  spacedTile: "spacedArmor",
+  cageSection: "cage",
+  reinforcedSection: "reinforcedCage",
+};
+
+describe("armor in 1 and 2 cells", () => {
+  it.each(Object.keys(ARMOR_LINES))("%s fills one cell with the armor of its 2-cell line", (id) => {
+    const one = PARTS[id];
+    const two = PARTS[ARMOR_LINES[id]];
+    if (one.kind !== "armor" || two.kind !== "armor") throw new Error(`${id} and its line must be armor`);
+    expect([one.w, one.h]).toEqual([1, 1]);
+    expect([two.w, two.h]).toEqual([1, 2]);
+    expect([one.armor, one.look]).toEqual([two.armor, two.look]);
+  });
+
+  it("makes every armor part 1 or 2 cells and gives every armor line both sizes", () => {
+    const armor = Object.values(PARTS).filter((p) => p.kind === "armor");
+    expect(armor.filter((p) => p.w * p.h > 2).map((p) => p.id)).toEqual([]);
+    const lines = new Set([...Object.keys(ARMOR_LINES), ...Object.values(ARMOR_LINES)]);
+    expect(armor.map((p) => p.id).filter((id) => !lines.has(id))).toEqual([]);
   });
 });
 

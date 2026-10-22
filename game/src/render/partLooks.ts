@@ -123,6 +123,11 @@ export const PART_MODELS: Record<string, ModelName> = {
   scrapSheet: 'arm_scrap_sheet',
   ceramicTile: 'arm_ceramic_tile',
   claymoreRam: 'arm_claymore_ram',
+  spacedTile: 'arm_spaced_tile',
+  cageSection: 'arm_cage_section',
+  reinforcedSection: 'arm_reinforced_section',
+  spikeCluster: 'arm_spike_cluster',
+  spikeStrip: 'arm_spike_strip',
 
   rack: 'cargo_rack',
   trailerBox: 'cargo_trailer_box',

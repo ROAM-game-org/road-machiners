@@ -1054,8 +1054,8 @@ describe('lootable props', () => {
   it('names a standing prop for every stock that holds loot, and no pile', async () => {
     const w = await realWorld();
     const road = w.salvage.find((s) => isRoadWreck(s));
-    const old = w.salvage.find((s) => oldSpotOf(s));
-    if (!road || !old) throw new Error('No road wreck or old spot');
+    const old = w.salvage.find((s) => oldSpotOf(s) && hasSalvage(s));
+    if (!road || !old) throw new Error('No road wreck or old spot with loot');
     const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
     addGoods(w, npc, 'scrap', 3);
     const pile = dropHaul(w, npc, looseCargo(npc));

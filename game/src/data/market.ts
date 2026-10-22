@@ -264,7 +264,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     partStock: {
       parts: ([
         'plates', 'steelPlate', 'cage', 'scrapPanels', 'scrapSheet', 'ram', 'plowRam', 'mg', 'shotgun', 'rack', 'panniers',
-        'caltrops', 'oilSpiller', 'scrapersKnife', 'patcherCrane', 'claymoreRam',
+        'caltrops', 'oilSpiller', 'scrapersKnife', 'patcherCrane', 'claymoreRam', 'spikeCluster', 'spikeStrip', 'cageSection',
       ] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },

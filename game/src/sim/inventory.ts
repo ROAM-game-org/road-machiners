@@ -56,13 +56,26 @@ function bestArcSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null {
 
 function bestShieldSpot(v: Vehicle, item: GridItem, mount: Cell[]): Spot | null {
   let best: Spot | null = null;
-  let bestScore = -1;
+  let bestScore: [number, number] = [-1, -1];
+  const g = gridOf(v);
   const shield = cabShieldWith(v);
-  for (const spot of mountSpots(gridOf(v), v.items, item, mount)) {
-    const score = shield({ ...item, ...spot });
-    if (score > bestScore) [best, bestScore] = [spot, score];
+  const taken = new Set(v.items.filter((it) => layerOf(g, it) === 'base').flatMap(itemCells).map((c) => `${c.x},${c.y}`));
+  for (const spot of mountSpots(g, v.items, item, mount)) {
+    const placed = { ...item, ...spot };
+    const score: [number, number] = [shield(placed), closedEnds(g, taken, placed)];
+    if (score[0] > bestScore[0] || (score[0] === bestScore[0] && score[1] > bestScore[1])) [best, bestScore] = [spot, score];
   }
   return best;
+}
+
+function closedEnds(g: Grid, taken: Set<string>, item: GridItem): number {
+  const cells = itemCells(item);
+  const edge = g.cells[cells[0].y][cells[0].x];
+  const along = edge === 'F' || edge === 'B' ? { dx: 1, dy: 0 } : { dx: 0, dy: 1 };
+  const xs = cells.map((c) => c.x * along.dx + c.y * along.dy);
+  const at = (n: number) => (along.dx ? { x: n, y: cells[0].y } : { x: cells[0].x, y: n });
+  const closed = (c: { x: number; y: number }) => g.cells[c.y]?.[c.x] !== edge || taken.has(`${c.x},${c.y}`);
+  return Number(closed(at(Math.min(...xs) - 1))) + Number(closed(at(Math.max(...xs) + 1)));
 }
 
 function middleSpot(v: Vehicle, item: PartItem, mount: Cell[]): Spot | null {
