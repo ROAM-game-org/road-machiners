@@ -375,6 +375,8 @@ export const TASK_DIR = '.factory-tasks';
 export const TASK_FILE = (issue: number): string => `${TASK_DIR}/issue-${issue}.md`;
 export const WORK_DIR = (home: string, issue: number): string => `${home}/work/issue-${issue}`;
 export const WORK_LOCK = (home: string, name: string): string => `${home}/locks/${name}`;
+export const RUN_LOCK_NAME = (key: string): string => `run-${key}`;
+export const RUN_KEY = { issue: (issue: number): string => `issue-${issue}`, stage: (stage: string): string => `stage-${stage}` };
 export const CLONE_LOCK_MS = 15 * 60_000;
 export const OUT_DIR = '.factory';
 export const MEDIA_DIR = '.factory-media';

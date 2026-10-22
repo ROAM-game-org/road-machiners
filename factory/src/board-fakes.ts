@@ -12,6 +12,7 @@ export type BoardFake = {
   reads: () => number;
   probes: () => number;
   issueReads: () => number;
+  openReads: () => number;
   moves: () => string[][];
 };
 
@@ -19,6 +20,8 @@ type Options = {
   faults?: Fault[];
   probeLies?: boolean;
   hiddenFromIssue?: number[];
+  omittedFromList?: number[];
+  openIssuesShort?: boolean;
 };
 
 const ok = (data: unknown): RunResult => ({ code: 0, stdout: JSON.stringify(data), stderr: '' });
@@ -35,13 +38,15 @@ function node(item: BoardItem) {
 export function boardFake(items: BoardItem[], options: Options = {}): BoardFake {
   const calls: string[][] = [];
   const faults = options.faults ?? [];
-  const total = items.length;
+  const listed = items.filter((item) => !(options.omittedFromList ?? []).includes(item.issue));
+  const total = listed.length;
+  let openReads = 0;
   let reads = 0;
   let probes = 0;
   let issueReads = 0;
   const fault = (): Fault => faults[reads - 1] ?? 'none';
   const page = (offset: number) => {
-    const nodes: unknown[] = items.slice(offset, offset + 100).map(node);
+    const nodes: unknown[] = listed.slice(offset, offset + 100).map(node);
     const next = offset + 100 < total;
     const pageInfo = { hasNextPage: next, endCursor: next ? `C${offset + 100}` : null };
     const kind = fault();
@@ -54,7 +59,7 @@ export function boardFake(items: BoardItem[], options: Options = {}): BoardFake 
     if (offset > 0 && kind === 'short-later') return { totalCount: total, pageInfo: { hasNextPage: false, endCursor: null }, nodes: nodes.slice(0, Math.floor(nodes.length / 2)) };
     return { totalCount: total, pageInfo, nodes };
   };
-  const run: Run = async (_cmd, args) => {
+  const listRun: Run = async (_cmd, args) => {
     calls.push(args);
     const text = args.join(' ');
     if (text.includes('projectV2(number')) {
@@ -79,6 +84,18 @@ export function boardFake(items: BoardItem[], options: Options = {}): BoardFake 
     }
     return { code: 0, stdout: '', stderr: '' };
   };
+  const openReply = (): RunResult => {
+    openReads++;
+    const open = items.filter((item) => item.column !== 'Done' && (item.repo ?? 'o/r') === 'o/r');
+    const shown = options.openIssuesShort ? open.slice(0, open.length - 1) : open;
+    const nodes = shown.map((item) => ({ number: item.issue, title: `t${item.issue}`, labels: { nodes: (item.labels ?? []).map((name) => ({ name })) }, projectItems: { nodes: [{ id: `I${item.issue}`, project: { id: 'P1' }, fieldValueByName: { name: item.column } }] } }));
+    return ok({ data: { repository: { issues: { totalCount: open.length, pageInfo: { hasNextPage: false, endCursor: null }, nodes } } } });
+  };
+  const run: Run = async (cmd, args, opts) => {
+    if (!args.join(' ').includes('issues(states: OPEN')) return listRun(cmd, args, opts);
+    calls.push(args);
+    return openReply();
+  };
   const moves = () => calls.filter((args) => args.join(' ').includes('updateProjectV2ItemFieldValue'));
-  return { run, calls, reads: () => reads, probes: () => probes, issueReads: () => issueReads, moves };
+  return { run, calls, reads: () => reads, probes: () => probes, issueReads: () => issueReads, openReads: () => openReads, moves };
 }

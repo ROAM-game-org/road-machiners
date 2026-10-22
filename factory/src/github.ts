@@ -27,6 +27,10 @@ const ITEMS_PROBE = `query($project: ID!) { node(id: $project) { ... on ProjectV
 const ISSUE_ITEMS_QUERY = `query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { issue(number: $number) {
   projectItems(first: 20, includeArchived: false) { nodes { project { id } ${ITEM_FIELDS} } } } } }`;
 
+const OPEN_ISSUES_QUERY = `query($owner: String!, $name: String!, $cursor: String) { repository(owner: $owner, name: $name) {
+  issues(states: OPEN, first: 100, after: $cursor, orderBy: {field: CREATED_AT, direction: ASC}) { totalCount pageInfo { hasNextPage endCursor }
+    nodes { number title labels(first: 50) { nodes { name } } projectItems(first: 20, includeArchived: false) { nodes { id project { id } fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name } } } } } } } }`;
+
 const CANDIDATES_QUERY = `query($search: String!, $cursor: String) { search(type: ISSUE, query: $search, first: 100, after: $cursor) {
   pageInfo { hasNextPage endCursor } nodes { ... on Issue { number title body createdAt state author { login } labels(first: 50) { nodes { name } }
     projectItems(first: 20) { nodes { project { id } } } } } } }`;
@@ -56,6 +60,15 @@ type ItemNode = {
 
 type ItemsPage = {
   data: { node: { items: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: (ItemNode | null)[] } | null } | null };
+};
+
+type OpenIssueNode = {
+  number: number; title: string; labels: { nodes: { name: string }[] };
+  projectItems: { nodes: ({ id: string; project: { id: string } | null; fieldValueByName: { name?: string } | null } | null)[] };
+};
+
+type OpenIssuesPage = {
+  data: { repository: { issues: { totalCount: number; pageInfo: { hasNextPage: boolean; endCursor: string | null }; nodes: (OpenIssueNode | null)[] } } | null };
 };
 
 type ProbePage = { data: { node: { items: { totalCount: number; nodes: unknown[] } | null } | null } };
@@ -207,7 +220,24 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     }
     if (seen.size !== total) throw new IncompleteBoard(`the pages hold ${seen.size} of the ${total} items they count`);
     if (total === 0) await confirmEmpty(projectId);
-    return { cards: found, total };
+    return { cards: withOpenCards(found, await readOpenCards(projectId)), total };
+  }
+
+  async function readOpenCards(projectId: string): Promise<Card[]> {
+    const [owner, name] = repo.split('/');
+    const found: Card[] = [];
+    const seen = new Set<number>();
+    let total = -1;
+    let cursor: string | null = '';
+    for (let page = 1; cursor !== null; page++) {
+      const vars: Vars = cursor ? { owner, name, cursor } : { owner, name };
+      const issues = openIssuesOf(JSON.parse(await graphql(OPEN_ISSUES_QUERY, vars)) as OpenIssuesPage, page, total);
+      total = issues.totalCount;
+      for (const node of issues.nodes) found.push(...openCardOf(node, projectId, seen, page));
+      cursor = nextOpenCursor(issues, seen.size, page);
+    }
+    if (seen.size !== total) throw new IncompleteBoard(`the open issue pages hold ${seen.size} of the ${total} issues they count`);
+    return found;
   }
 
   async function confirmEmpty(projectId: string): Promise<void> {
@@ -369,6 +399,41 @@ function graphqlArgs(query: string, vars: Vars): string[] {
     args.push(typeof value === 'number' ? '-F' : '-f', `${name}=${value}`);
   }
   return args;
+}
+
+type OpenIssues = NonNullable<OpenIssuesPage['data']['repository']>['issues'];
+
+function openIssuesOf(page: OpenIssuesPage, number: number, total: number): OpenIssues {
+  const issues = page.data.repository?.issues;
+  if (!issues) throw new IncompleteBoard(`open issues page ${number} has no issues list`);
+  if (total >= 0 && issues.totalCount !== total) throw new IncompleteBoard(`open issues page ${number} counts ${issues.totalCount} issues, page 1 counted ${total}`);
+  return issues;
+}
+
+function openCardOf(node: OpenIssueNode | null, projectId: string, seen: Set<number>, page: number): Card[] {
+  if (node === null) throw new IncompleteBoard(`open issues page ${page} has a null issue`);
+  if (seen.has(node.number)) throw new IncompleteBoard(`open issues page ${page} repeats issue ${node.number}`);
+  seen.add(node.number);
+  const item = node.projectItems.nodes.find((row) => row?.project?.id === projectId);
+  return item?.fieldValueByName?.name ? [openCard(node, item)] : [];
+}
+
+function openCard(node: OpenIssueNode, item: NonNullable<OpenIssueNode['projectItems']['nodes'][number]>): Card {
+  return { itemId: item.id, issue: node.number, column: item.fieldValueByName?.name as Column, labels: node.labels.nodes.map((label) => label.name), title: node.title };
+}
+
+function nextOpenCursor(issues: OpenIssues, seen: number, page: number): string | null {
+  if (seen > issues.totalCount) throw new IncompleteBoard(`the open issue pages hold ${seen} issues, more than the ${issues.totalCount} they count`);
+  if (!issues.pageInfo.hasNextPage) return null;
+  if (issues.nodes.length === 0 || !issues.pageInfo.endCursor) throw new IncompleteBoard(`open issues page ${page} is empty but says more pages follow`);
+  if (seen >= issues.totalCount) throw new IncompleteBoard(`open issues page ${page} still says more pages follow after all ${issues.totalCount} issues`);
+  return issues.pageInfo.endCursor;
+}
+
+function withOpenCards(listed: Card[], open: Card[]): Card[] {
+  const fresh = new Map(open.map((card) => [card.issue, card]));
+  const known = new Set(listed.map((card) => card.issue));
+  return [...listed.map((card) => fresh.get(card.issue) ?? card), ...open.filter((card) => !known.has(card.issue))];
 }
 
 function toIssue(node: CandidateNode): Issue {

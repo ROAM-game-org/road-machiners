@@ -293,7 +293,7 @@ function harness(job: Job | null, alive: boolean, cards: Card[] = [], comments: 
   const killed: string[] = [];
   const spawned: string[][] = [];
   const pinned: string[] = [];
-  const github = { cards: async () => cards, candidates: async () => [], addLabel: async (n: number, l: string) => { labels.push(`${n}:${l}`); }, comments: async () => comments, removeLabel: async (n: number, l: string) => { removed.push(`${n}:${l}`); } };
+  const github = { cards: async () => cards, card: async (n: number) => cards.find((row) => row.issue === n) ?? null, candidates: async () => [], addLabel: async (n: number, l: string) => { labels.push(`${n}:${l}`); }, comments: async () => comments, removeLabel: async (n: number, l: string) => { removed.push(`${n}:${l}`); } };
   const telegram = { sendMessage: async (_chat: string, text: string) => { sent.push(text); return 1; } };
   const cfg = { home: dir, webRoot: join(dir, 'web'), repo: 'o/r', committeeChat: 'c', triageTimeoutMinutes: 30, designTimeoutMinutes: 30, implementTimeoutMinutes: 120, verifyTimeoutMinutes: 30, testTimeoutMinutes: 30, branchTimeoutMinutes: 30, mergeTimeoutMinutes: 30, replyRouteMinutes: 15, needsInfoHours: 24, minFreeGb: 0.001, minAvailableGb: 1, logDays: 14, transcriptDays: 10,cpuLight: 0.25, cpuImplement: 0.25, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4, ...CFG };
   const repo = { fetch: async () => {},headHash: async (branch: string) => { if (branch === RELEASE.branch) return 'rel0001'; if (branch === 'main') return 'main0001'; if (branch !== 'dev') throw new Error(`unexpected branch ${branch}`); return devHead; } };
@@ -422,6 +422,22 @@ describe('tick', () => {
     await tick(h.ctx, '/code', h.deps);
     expect(h.spawned).toEqual([]);
     expect(existsSync(join(h.ctx.cfg.home, 'work', 'issue-9'))).toBe(false);
+  });
+
+  it('keeps the clone of a card the board list omits, since its own issue shows it open', async () => {
+    const h = harness(null, true, [card(8, 'Design')]);
+    mkdirSync(join(h.ctx.cfg.home, 'work', 'issue-9'), { recursive: true });
+    h.ctx.github.card = async (n: number) => (n === 9 ? card(9, 'Design') : null);
+    await tick(h.ctx, '/code', h.deps);
+    expect(existsSync(join(h.ctx.cfg.home, 'work', 'issue-9'))).toBe(true);
+  });
+
+  it('keeps the clone of a card whose own issue cannot be read', async () => {
+    const h = harness(null, true, [card(8, 'Design'), card(5, 'Done')]);
+    mkdirSync(join(h.ctx.cfg.home, 'work', 'issue-9'), { recursive: true });
+    h.ctx.github.card = async () => { throw new Error('HTTP 502'); };
+    await tick(h.ctx, '/code', h.deps);
+    expect(existsSync(join(h.ctx.cfg.home, 'work', 'issue-9'))).toBe(true);
   });
 
   it('stops the tick before it starts a job when Codex has no login', async () => {

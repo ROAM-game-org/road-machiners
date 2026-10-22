@@ -22,7 +22,8 @@ function createRun(fixture: Fixture, calls: string[][]): Run {
     if (endpoint === 'graphql') {
       const query = args.find((arg) => arg.startsWith('query='))!;
       expect(query).not.toContain('mutation');
-      data = query.includes('items(first:') ? { data: { node: { items: { totalCount: board.length + (fixture.hidden ?? 0), pageInfo: { hasNextPage: false, endCursor: null }, nodes: board.map((card) => ({ id: String(card.number), fieldValueByName: { name: card.column }, content: { number: card.number, repository: { nameWithOwner: 'owner/game' }, labels: { nodes: (card.labels ?? []).map((name) => ({ name })) } } })) } } } } : { data: { user: { projectV2: { id: 'P', field: { id: 'S', options: columns.map((name) => ({ id: name, name })) } } } } };
+      const open = { data: { repository: { issues: { totalCount: 0, pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } } } };
+      data = query.includes('issues(states: OPEN') ? open : query.includes('items(first:') ? { data: { node: { items: { totalCount: board.length + (fixture.hidden ?? 0), pageInfo: { hasNextPage: false, endCursor: null }, nodes: board.map((card) => ({ id: String(card.number), fieldValueByName: { name: card.column }, content: { number: card.number, repository: { nameWithOwner: 'owner/game' }, labels: { nodes: (card.labels ?? []).map((name) => ({ name })) } } })) } } } } : { data: { user: { projectV2: { id: 'P', field: { id: 'S', options: columns.map((name) => ({ id: name, name })) } } } } };
     }
     if (data === undefined) throw new Error(`Unexpected read: ${args.join(' ')}`);
     return { code: 0, stdout: JSON.stringify(data), stderr: '' };
