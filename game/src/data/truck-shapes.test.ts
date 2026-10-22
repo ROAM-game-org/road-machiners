@@ -97,12 +97,13 @@ function stationsOf(profile: Profile, ground: number) {
 type Band = [number, number];
 type Reference = { height: Band; hood?: Band; roof: Band; deck?: Band; roofStart?: Band; noseDrop?: Band; tailDrop?: Band };
 
-const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout', Reference> = {
+const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'buggy', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
   niva: { height: [1.89, 2.19], hood: [0.22, 0.28], roof: [0.55, 1], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
+  buggy: { height: [1.56, 1.72], roof: [0, 0.1], noseDrop: [0.8, 1.08], tailDrop: [0.6, 0.9] },
 };
 
 type ShapeName = keyof typeof SHAPES;
@@ -126,7 +127,7 @@ function straightProfile(id: string): Profile {
 }
 
 describe('trucks built from a reference photo keep its proportions', () => {
-  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout'] as const)('%s', (id) => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'buggy'] as const)('%s', (id) => {
     const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
     const got = stationsOf(straightProfile(id), ground);
@@ -171,6 +172,42 @@ describe('the scout pickup', () => {
     const inHole = (c: { x: number; y: number }) => Math.abs(c.x - anchor.x) <= half.x && Math.abs(-c.y - anchor.z) <= half.y;
     const open = columns.filter((c) => c.x >= 0.9 && c.x <= 2.3 && Math.abs(c.y) <= 1.0 && !inHole(c) && c.top < 0.15);
     expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
+  });
+});
+
+describe('the Manx buggy', () => {
+  const buggy = PHYSICS.bodies.buggy;
+  const ground = buggy.wheelY - PHYSICS.truck.suspensionRest - buggy.wheelRadius;
+  const { heights, boxes } = SHAPES.base_buggy;
+  const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
+  const highest = (keep: (c: { x: number; y: number }) => boolean) => Math.max(...columns.filter(keep).map((c) => c.top)) - ground;
+  const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
+
+  it('keeps the 3.9 m body on the Manx wheelbase of 0.652 of its length', () => {
+    expect(Math.abs(along - 3.9)).toBeLessThanOrEqual(0.05);
+    expect((2 * buggy.wheelX) / along).toBeGreaterThanOrEqual(0.652 * 0.95);
+    expect((2 * buggy.wheelX) / along).toBeLessThanOrEqual(0.652 * 1.05);
+  });
+
+  it('dips its open tub side to 0.86 to 0.96 m between the wheels', () => {
+    const sill = Math.min(...[-0.45, -0.2, 0.05, 0.25].map((x) => highest((c) => Math.abs(c.x - x) <= 0.05 && Math.abs(c.y) >= 0.75 && Math.abs(c.y) <= 0.9)));
+    expect(sill).toBeGreaterThanOrEqual(0.86);
+    expect(sill).toBeLessThanOrEqual(0.96);
+  });
+
+  it('crowns its front fenders 1.08 to 1.22 tire diameters over the ground', () => {
+    const crown = highest((c) => Math.abs(c.x - buggy.wheelX) <= 0.15 && Math.abs(Math.abs(c.y) - buggy.wheelZ) <= 0.1);
+    const tire = 2 * buggy.wheelRadius;
+    expect(crown / tire).toBeGreaterThanOrEqual(1.08);
+    expect(crown / tire).toBeLessThanOrEqual(1.22);
+  });
+
+  it('stands its windshield frame 1.44 to 1.58 m tall, under the roll hoop', () => {
+    const screen = highest((c) => c.x >= 0.3 && c.x <= 0.65 && Math.abs(c.y) <= 0.6);
+    const hoop = highest((c) => c.x >= -1 && c.x <= -0.5 && Math.abs(c.y) <= 0.6);
+    expect(screen).toBeGreaterThanOrEqual(1.44);
+    expect(screen).toBeLessThanOrEqual(1.58);
+    expect(hoop).toBeGreaterThan(screen);
   });
 });
 
