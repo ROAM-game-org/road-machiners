@@ -100,7 +100,7 @@ function cornersOf(points: THREE.Vector3[]): THREE.Vector3[][] {
   const box = new THREE.Box3().setFromPoints(points);
   const reach = CORNER_SIDE;
   const near = (x: number, z: number) => points.filter((p) => Math.abs(p.x - x) <= reach && Math.abs(p.z - z) <= reach);
-  return [[box.min.x, box.min.z], [box.min.x, box.max.z], [box.max.x, box.min.z], [box.max.x, box.max.z]].map(([x, z]) => near(x, z));
+  return [[box.min.x, box.min.z], [box.min.x, box.max.z], [box.max.x, box.min.z], [box.max.x, box.max.z]].map(([x, z]) => near(x, z)).filter((group) => group.length > 0);
 }
 
 function centerOf(points: THREE.Vector3[]): THREE.Vector3 {

@@ -40,24 +40,36 @@ export function plateOf(name: ModelName, unit: number, at: { pos: THREE.Vector3;
   return { unit, x0: placed.min.x, x1: placed.max.x, z0: placed.min.z, z1: placed.max.z };
 }
 
-const BOTTOMS = new Map<ModelName, THREE.Box3>();
+export type Footprint = { rect: CellRect; points: [number, number][] };
 
-export function bottomOf(name: ModelName, unit: number, at: { pos: THREE.Vector3; yaw: number; scale: THREE.Vector3 }): CellRect {
+const BOTTOMS = new Map<ModelName, THREE.Vector3[][]>();
+
+export function bottomOf(name: ModelName, unit: number, at: { pos: THREE.Vector3; yaw: number; scale: THREE.Vector3 }): Footprint {
   let local = BOTTOMS.get(name);
   if (!local) {
-    local = bottomBox(model(name));
+    local = bottomFaces(model(name));
     BOTTOMS.set(name, local);
   }
-  const placed = local.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromAxisAngle(UP, at.yaw), at.scale));
-  return { unit, x0: placed.min.x, x1: placed.max.x, z0: placed.min.z, z1: placed.max.z };
+  const placement = new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromAxisAngle(UP, at.yaw), at.scale);
+  const faces = local.map((face) => face.map((p) => p.clone().applyMatrix4(placement)));
+  const box = new THREE.Box3().setFromPoints(faces.flat());
+  const rect = { unit, x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z };
+  const points = gridIn(rect).filter(([x, z]) => faces.some((face) => coversXZ(face, x, z)));
+  return { rect, points: points.length > 0 ? points : faces.map(([a, b, c]): [number, number] => [(a.x + b.x + c.x) / 3, (a.z + b.z + c.z) / 3]) };
 }
 
 export function bottomRect(obj: THREE.Object3D, unit: number): CellRect {
-  const box = bottomBox(obj);
+  const box = new THREE.Box3().setFromPoints(bottomFaces(obj).flat());
   return { unit, x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z };
 }
 
-function bottomBox(obj: THREE.Object3D): THREE.Box3 {
+function coversXZ([a, b, c]: THREE.Vector3[], x: number, z: number): boolean {
+  const side = (p: THREE.Vector3, q: THREE.Vector3) => (q.x - p.x) * (z - p.z) - (q.z - p.z) * (x - p.x);
+  const s = [side(a, b), side(b, c), side(c, a)];
+  return s.every((n) => n >= 0) || s.every((n) => n <= 0);
+}
+
+function bottomFaces(obj: THREE.Object3D): THREE.Vector3[][] {
   obj.updateWorldMatrix(true, true);
   const faces: THREE.Vector3[][] = [];
   obj.traverse((o) => {
@@ -70,7 +82,7 @@ function bottomBox(obj: THREE.Object3D): THREE.Box3 {
   const floor = Math.min(...faces.flat().map((p) => p.y));
   const low = faces.filter((f) => f.every((p) => p.y <= floor + CLIP_TOLERANCE) && new THREE.Triangle(f[0], f[1], f[2]).getNormal(new THREE.Vector3()).y < 0);
   if (low.length === 0) throw new Error(`Model ${obj.name} has no bottom face to stand on`);
-  return new THREE.Box3().setFromPoints(low.flat());
+  return low;
 }
 
 export function plateSpot(body: THREE.Object3D, chassisId: string, plate: CellRect, cells: CellRect): PlateSpot {
@@ -108,11 +120,12 @@ const SUPPORT_STEP = CLIP_TOLERANCE;
 
 const ITEM_SPOTS = new Map<string, ItemSpot | null>();
 
-export function itemSpot(body: THREE.Object3D, rect: CellRect, rest: { y: number; slope: { x: number; z: number } }, cells: CellRect, stilts: boolean): ItemSpot | null {
-  const key = `${body.userData.model}:${stilts}:${[rect.x0, rect.x1, rect.z0, rect.z1, rest.y, rest.slope.x, rest.slope.z, cells.x0, cells.x1, cells.z0, cells.z1].map((n) => n.toFixed(3)).join(',')}`;
+export function itemSpot(body: THREE.Object3D, foot: Footprint, rest: { y: number; slope: { x: number; z: number } }, cells: CellRect, stilts: boolean): ItemSpot | null {
+  const { rect } = foot;
+  const key = `${body.userData.model}:${stilts}:${foot.points.length}:${[rect.x0, rect.x1, rect.z0, rect.z1, rest.y, rest.slope.x, rest.slope.z, cells.x0, cells.x1, cells.z0, cells.z1].map((n) => n.toFixed(3)).join(',')}`;
   const shared = sharedModel(body);
   if (shared && ITEM_SPOTS.has(key)) return ITEM_SPOTS.get(key) as ItemSpot | null;
-  const found = searchItemSpot(body, rect, rest, cells, stilts);
+  const found = searchItemSpot(body, foot, rest, cells, stilts);
   if (shared) ITEM_SPOTS.set(key, found);
   return found;
 }
@@ -122,7 +135,7 @@ function sharedModel(body: THREE.Object3D): boolean {
   return typeof body.userData.model === 'string' && body.matrixWorld.equals(IDENTITY);
 }
 
-function searchItemSpot(body: THREE.Object3D, rect: CellRect, rest: { y: number; slope: { x: number; z: number } }, cells: CellRect, stilts: boolean): ItemSpot | null {
+function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest: { y: number; slope: { x: number; z: number } }, cells: CellRect, stilts: boolean): ItemSpot | null {
   const feet = footings(body);
   const tops = surfaceTops(body);
   const cx = (rect.x0 + rect.x1) / 2;
@@ -131,25 +144,29 @@ function searchItemSpot(body: THREE.Object3D, rect: CellRect, rest: { y: number;
   const spots = standSpots(rect);
   const under = spots.map(([x, z]) => feet(x, z));
   if (under.every((foot, i) => foot !== null && Math.abs(plane(spots[i][0], spots[i][1]) - foot.y) <= CLIP_TOLERANCE)) return { dx: 0, dz: 0, ...planeOf(under as THREE.Vector3[]), legs: false };
-  if (heldOn(rect, plane, feet, tops)) return { dx: 0, dz: 0, y: rest.y, slope: rest.slope, legs: false };
+  if (heldOn(points, plane, feet, tops)) return { dx: 0, dz: 0, y: rest.y, slope: rest.slope, legs: false };
   const shifts = shiftsWithin(shiftRange(rect, cells), FACE_COLUMN);
   for (const [dx, dz] of shifts) {
-    const moved = movedPlate(rect, { dx, dz, shrink: 1 });
+    const moved = shifted(points, dx, dz);
     const y = highestTop(moved, tops);
     if (heldOn(moved, () => y, feet, tops)) return { dx, dz, y, slope: FLAT, legs: false };
   }
-  return stilts ? stiltSpot(rect, shifts, feet, tops) : null;
+  return stilts ? stiltSpot(body, { rect, points }, shifts, feet, tops) : null;
 }
 
-function stiltSpot(rect: CellRect, shifts: [number, number][], feet: Footing, tops: Footing): ItemSpot | null {
+function stiltSpot(body: THREE.Object3D, { rect, points }: Footprint, shifts: [number, number][], feet: Footing, tops: Footing): ItemSpot | null {
   let best: ItemSpot | null = null;
   for (const [dx, dz] of shifts) {
     const moved = movedPlate(rect, { dx, dz, shrink: 1 });
     if (!feet((moved.x0 + moved.x1) / 2, (moved.z0 + moved.z1) / 2)) continue;
-    const y = highestTop(moved, tops);
-    if (!best || y < best.y - CLIP_TOLERANCE) best = { dx, dz, y, slope: FLAT, legs: true };
+    const y = highestTop(shifted(points, dx, dz), tops);
+    if ((!best || y < best.y - CLIP_TOLERANCE) && legsReach(body, moved, y, feet)) best = { dx, dz, y, slope: FLAT, legs: true };
   }
   return best;
+}
+
+function shifted(points: [number, number][], dx: number, dz: number): [number, number][] {
+  return points.map(([x, z]) => [x + dx, z + dz]);
 }
 
 function shiftRange(rect: CellRect, cells: CellRect): { x0: number; x1: number; z0: number; z1: number } {
@@ -159,8 +176,7 @@ function shiftRange(rect: CellRect, cells: CellRect): { x0: number; x1: number; 
   return { x0: cells.x0 - half.x - cx, x1: cells.x1 + half.x - cx, z0: cells.z0 - half.z - cz, z1: cells.z1 + half.z - cz };
 }
 
-function heldOn(rect: CellRect, plane: (x: number, z: number) => number, feet: Footing, tops: Footing): boolean {
-  const points = gridIn(rect);
+function heldOn(points: [number, number][], plane: (x: number, z: number) => number, feet: Footing, tops: Footing): boolean {
   let held = 0;
   for (const [x, z] of points) {
     const top = tops(x, z);
@@ -171,8 +187,8 @@ function heldOn(rect: CellRect, plane: (x: number, z: number) => number, feet: F
   return held / points.length >= MIN_SUPPORT;
 }
 
-function highestTop(rect: CellRect, tops: Footing): number {
-  return Math.max(...gridIn(rect).map(([x, z]) => tops(x, z)?.y ?? -Infinity));
+function highestTop(points: [number, number][], tops: Footing): number {
+  return Math.max(...points.map(([x, z]) => tops(x, z)?.y ?? -Infinity));
 }
 
 function gridIn(rect: CellRect): [number, number][] {
@@ -368,12 +384,21 @@ export function postStands(body: THREE.Object3D, at: THREE.Vector3, bottom: numb
 }
 
 function braceFoot(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 {
-  const inward = center.clone().sub(corner).setY(0).normalize();
-  const hit = BRACE_ANGLES.map((deg) => wallHit(body, corner, inward.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD))))
-    .filter((p): p is THREE.Vector3 => p !== null)
-    .sort((a, b) => a.distanceTo(corner) - b.distanceTo(corner))[0];
+  const hit = braceHit(body, corner, center);
   if (!hit) throw new Error(`No body wall below the gun plate corner at ${corner.x.toFixed(2)},${corner.z.toFixed(2)} to brace it to`);
   return hit;
+}
+
+function braceHit(body: THREE.Object3D, corner: THREE.Vector3, center: THREE.Vector3): THREE.Vector3 | undefined {
+  const inward = center.clone().sub(corner).setY(0).normalize();
+  return BRACE_ANGLES.map((deg) => wallHit(body, corner, inward.clone().multiplyScalar(Math.cos(deg * THREE.MathUtils.DEG2RAD)).setY(-Math.sin(deg * THREE.MathUtils.DEG2RAD))))
+    .filter((p): p is THREE.Vector3 => p !== null)
+    .sort((a, b) => a.distanceTo(corner) - b.distanceTo(corner))[0];
+}
+
+function legsReach(body: THREE.Object3D, plate: CellRect, top: number, feet: Footing): boolean {
+  const center = new THREE.Vector3((plate.x0 + plate.x1) / 2, top, (plate.z0 + plate.z1) / 2);
+  return legSpots(plate).every(([x, z]) => feet(x, z) !== null || braceHit(body, new THREE.Vector3(x, top, z), center) !== undefined);
 }
 
 const FACES = new Map<string, number | null>();
