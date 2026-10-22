@@ -1,4 +1,3 @@
-/* The Marshalls: the wanted well in the right dock and the desk at the Roadhouse. */
 #ui .right-dock > .wanted {
   order: 2;
   background: var(--surface-sunk);

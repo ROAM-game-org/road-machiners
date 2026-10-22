@@ -376,7 +376,7 @@ const WORLD_HANDLERS: Handlers<World, typeof REBAKE_MOVE> = {
     applyMoves(sunward, SUNWARD_MOVE, SUNWARD_HANDLERS, ctx);
     return sunward;
   },
-  crimes: (crimes, ctx) => crimes.map((c) => ({ ...c, at: at(ctx, c.at), lead: c.lead && { ...c.lead, at: at(ctx, c.lead.at) } })),
+  crimes: (crimes, ctx) => crimes.map((c) => ({ ...c, at: at(ctx, c.at), lead: { ...c.lead, at: at(ctx, c.lead.at) } })),
   events: () => [],
   removed: () => [],
   weather: () => [],

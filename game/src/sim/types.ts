@@ -699,7 +699,7 @@ export type CrimeCase = {
   hunter: string | null;
   retryAt: number | null;
   offered: number | null;
-  lead: CaseLead | null;
+  lead: CaseLead;
 };
 
 export type World = {

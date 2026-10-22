@@ -74,7 +74,7 @@ function shields(world: World, w: Vehicle, culprit: Vehicle, victim: Vehicle): b
   return boundTo(world, w.id, culprit.id) || inTruce(world, w, culprit) || favors(world, w, culprit, victim);
 }
 
-export function forgetCrimesBy(world: World, witness: Vehicle, culpritId: string): void {
+export function forgetCrimesBy(witness: Vehicle, culpritId: string): void {
   if (!witness.brain || !witness.brain.memories.some((m) => m.fact.kind === 'witnessed' && m.fact.by === culpritId)) return;
   reviseMemories(witness, (m) => (m.fact.kind === 'witnessed' && m.fact.by === culpritId ? null : m));
 }
@@ -203,7 +203,7 @@ export function closeCase(world: World, c: CrimeCase, how: ClosedStatus): void {
 export function noteKnockout(world: World, beaten: Vehicle): void {
   const by = world.vehicles.find((v) => v.id === beaten.lastHitBy);
   if (!by || by.id === beaten.id) return;
-  forgetCrimesBy(world, beaten, by.id);
+  forgetCrimesBy(beaten, by.id);
   if (huntsAs(world, by, beaten.id)) collectBounty(world, by, beaten);
 }
 
@@ -239,22 +239,25 @@ export function huntedBy(world: World, targetId: string): string | null {
 
 export function advanceCrimes(world: World): void {
   if (world.crimes.length === 0) return;
-  const alive = new Set(world.vehicles.map((v) => v.id));
-  for (const c of world.crimes.filter((x) => x.status === 'open')) ageCase(world, c, alive);
+  const open = world.crimes.filter((x) => x.status === 'open');
+  if (open.length > 0) {
+    const alive = new Set(world.vehicles.map((v) => v.id));
+    for (const c of open) ageCase(world, c, alive);
+  }
   const kept = world.crimes.filter((c) => c.closed === null || world.turn - c.closed < CRIME.keepClosedTurns);
   if (kept.length !== world.crimes.length) world.crimes = kept;
 }
 
 function ageCase(world: World, c: CrimeCase, alive: ReadonlySet<string>): void {
-  if (c.hunter !== null && !huntsOn(world, c.hunter)) c.hunter = null;
+  if (c.hunter !== null && !huntsOn(world, c.hunter, c.target)) c.hunter = null;
   if (world.turn - c.filed < BOUNTY.lapseTurns && alive.has(c.target)) return;
   returnEscrow(world, c);
   closeCase(world, c, 'lapsed');
 }
 
-function huntsOn(world: World, hunterId: string): boolean {
+function huntsOn(world: World, hunterId: string, targetId: string): boolean {
   const hunter = world.vehicles.find((v) => v.id === hunterId);
-  return hunter !== undefined && !isDefeated(hunter);
+  return hunter !== undefined && !isDefeated(hunter) && hunter.brain !== null && hunter.brain.goals.some((g) => g.kind === 'pursue' && g.targetId === targetId);
 }
 
 export function deskNear(world: World): string | null {
@@ -313,7 +316,7 @@ export function settle(world: World, faction: StandingFactionId): void {
 export function payCasesAtDesk(world: World, ids: string[]): void {
   if (!deskAt(world)) throw new Error('The Marshalls desk is not here');
   const mine = openCasesOn(world, world.player.vehicleId);
-  const cases = ids.map((id) => {
+  const cases = [...new Set(ids)].map((id) => {
     const c = mine.find((x) => x.id === id);
     if (!c) throw new Error(`No open case ${id} on the player`);
     return c;

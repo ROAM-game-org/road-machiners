@@ -80,10 +80,10 @@ describe('the Marshall hunt', () => {
   it('searches a stale lead toward the reporting pad along its heading', () => {
     const nose = getKnownSite('nose');
     const from = { x: nose.pos.x - 40, y: nose.pos.y };
-    const pad = searchLead(emptyWorld(), { at: from, turn: 1, heading: 0 });
+    const pad = searchLead({ at: from, turn: 1, heading: 0 });
     expect(pad).not.toBeNull();
     expect(dist(pad!, nose.pos)).toBeLessThan(nose.radius + 8);
-    expect(searchLead(emptyWorld(), { at: from, turn: 1, heading: null })).toBeNull();
+    expect(searchLead({ at: from, turn: 1, heading: null })).toBeNull();
   });
 
   it('rides on from a cold lead with no heading to the nearest other reporting pad, asking on the way', () => {

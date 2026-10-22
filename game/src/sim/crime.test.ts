@@ -243,6 +243,29 @@ describe('the Marshalls desk', () => {
     expect(deskAt(atDesk())).toBe('marshal-post');
   });
 
+  it('frees a case whose hunter no longer pursues its target (R3)', () => {
+    const { w, robber } = scene();
+    const poor = trader(w, 'independent', { x: 300, y: 300 });
+    remember(w, poor, { kind: 'witnessed', crime: `1:${robber.id}:${poor.id}:attacked`, by: robber.id, victim: poor.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0 });
+    toPad(poor, 'granary');
+    fileReports(w, poor);
+    w.crimes[0].hunter = poor.id;
+    advanceCrimes(w);
+    expect(w.crimes[0].hunter).toBeNull();
+  });
+
+  it('pays a case once when its id is listed twice', () => {
+    const w = atDesk();
+    const bowl = trader(w, 'bowl', { x: 300, y: 300 });
+    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:robbed`, by: w.player.vehicleId, victim: bowl.id, offense: 'robbed', at: { x: 300, y: 300 }, heading: 0 });
+    toPad(bowl, 'bowl');
+    fileReports(w, bowl);
+    w.player.money = 1_000_000;
+    const id = w.crimes[0].id;
+    payCasesAtDesk(w, [id, id]);
+    expect(w.crimes[0].status).toBe('paid');
+  });
+
   it('gives rows with no case, with a closed case and with a lost hunter (R5)', () => {
     const w = atDesk();
     expect(deskRows(w)).toEqual({ cases: [], owed: 0, settlements: [] });

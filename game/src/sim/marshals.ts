@@ -47,12 +47,7 @@ function postGoal(world: World, marshal: Vehicle): NpcActivity {
 }
 
 function pursueGoal(world: World, c: CrimeCase): NpcActivity {
-  return { ...createActivity('pursue', c.target, { ...leadOf(c).at }, 'bountyHunt'), until: world.turn + BOUNTY.huntTurns, asked: [] };
-}
-
-function leadOf(c: CrimeCase): CaseLead {
-  if (!c.lead) throw new Error(`Case ${c.id} has no lead`);
-  return c.lead;
+  return { ...createActivity('pursue', c.target, { ...c.lead.at }, 'bountyHunt'), until: world.turn + BOUNTY.huntTurns, asked: [] };
 }
 
 export function takeCase(world: World, marshal: Vehicle): CrimeCase | null {
@@ -92,7 +87,7 @@ export function hunt(world: World, marshal: Vehicle, seen: Vehicle[]): void {
   const goal = pursuitOf(marshal);
   const cases = huntedCases(world, marshal, goal.targetId);
   if (cases.length === 0) return;
-  const lead = newLead(world, marshal, goal, seen, leadOf(cases[0]));
+  const lead = newLead(world, marshal, goal, seen, cases[0].lead);
   if (lead) follow(world, goal, cases, lead);
   else trackLead(world, marshal, goal, cases);
 }
@@ -105,7 +100,7 @@ function newLead(world: World, marshal: Vehicle, goal: NpcActivity & { targetId:
 }
 
 function trackLead(world: World, marshal: Vehicle, goal: NpcActivity, cases: CrimeCase[]): void {
-  const lead = leadOf(cases[0]);
+  const lead = cases[0].lead;
   if (world.turn >= (goal.until ?? Infinity)) return giveUp(world, marshal, cases);
   if (dist(marshal.pos, lead.at) <= BOUNTY.leadReach) searchOn(world, goal, cases, lead);
 }
@@ -117,7 +112,7 @@ function pursuitOf(marshal: Vehicle): NpcActivity & { targetId: string } {
 }
 
 function searchOn(world: World, goal: NpcActivity, cases: CrimeCase[], lead: CaseLead): void {
-  const searched = searchLead(world, lead) ?? nextPad(lead.at);
+  const searched = searchLead(lead) ?? nextPad(lead.at);
   follow(world, goal, cases, { at: searched, turn: lead.turn, heading: null });
 }
 
@@ -129,7 +124,7 @@ function nextPad(from: Vec): Vec {
 }
 
 function follow(world: World, goal: NpcActivity, cases: CrimeCase[], lead: CaseLead): void {
-  if (lead.turn > leadOf(cases[0]).turn) goal.until = world.turn + BOUNTY.huntTurns;
+  if (lead.turn > cases[0].lead.turn) goal.until = world.turn + BOUNTY.huntTurns;
   leadCases(cases, lead);
   goal.destination = { ...lead.at };
 }
@@ -157,7 +152,7 @@ function askDriver(world: World, marshal: Vehicle, targetId: string, driver: Veh
   return sighting !== null && newer ? { at: { ...sighting.fact.at }, turn: sighting.turn, heading: sighting.fact.heading } : best;
 }
 
-export function searchLead(_world: World, lead: CaseLead): Vec | null {
+export function searchLead(lead: CaseLead): Vec | null {
   if (lead.heading === null) return null;
   const dir = { x: Math.cos(lead.heading), y: Math.sin(lead.heading) };
   const ahead = CRIME.reportSites.map((id) => rayTo(lead.at, dir, getKnownSite(id))).filter((r) => r.along > 0 && r.along <= BOUNTY.searchReach);

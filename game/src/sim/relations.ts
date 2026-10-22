@@ -205,7 +205,7 @@ export function isRestrained(world: World, w: Vehicle, aggressor: Vehicle): bool
 }
 
 export function favors(world: World, w: Vehicle, aggressor: Vehicle, victim: Vehicle): boolean {
-  return !isLawman(w) && attitude(world, w, aggressor) >= attitude(world, w, victim);
+  return !isLawman(w) && w.brain?.traits.includes('marshal') !== true && attitude(world, w, aggressor) >= attitude(world, w, victim);
 }
 
 export function sideAgainst(world: World, w: Vehicle, aggressorId: string): boolean {

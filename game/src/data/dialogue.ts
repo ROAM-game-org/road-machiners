@@ -88,7 +88,7 @@ function ackTopic(id: TopicId, ask: { say: LineId; when: ConditionId[] }, ack: {
 }
 
 function strandedOffer(id: TopicId, when: ConditionId, line: LineId, accept: LineId, effect: EffectId): Topic {
-  const options = [{ say: accept, when: [], effects: [effect], go: END }, { say: 'comeAndGetIt' as LineId, when: [], effects: ['settleRefused' as EffectId], go: END }];
+  const options: DialogueOption[] = [{ say: accept, when: [], effects: [effect], go: END }, { say: 'comeAndGetIt', when: [], effects: ['settleRefused'], go: END }];
   return { id, once: true, ask: null, raise: { when: [when], priority: 5, duringFeud: true, duringCombat: true }, prepare: 'surrenderHaul', hangUp: ['settleRefused'], start: 'offer', nodes: { offer: { line, options } } };
 }
 

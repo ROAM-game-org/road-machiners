@@ -3,7 +3,7 @@ import { PARTS, type PartDef } from './parts';
 import type { TraitId, Weighted } from './npcs';
 import type { PropKind } from '../sim/terrain';
 import type { OldPlaceType } from './salvage';
-import { NPC_BEHAVIOR } from './npc-behavior';
+import { MEMORY, NPC_BEHAVIOR } from './npc-behavior';
 import { MAP_SCALE } from './region';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
@@ -532,7 +532,7 @@ export const CRIME = {
   feeShare: 0.2,
   reportSites: ['bowl', 'nose', 'dustwell', 'granary', 'pump-station', 'green-pit', 'salvage-yard', 'marshal-post'] as readonly string[],
   post: 'marshal-post',
-  keepClosedTurns: TIME.turnsPerDay,
+  keepClosedTurns: MEMORY.turns.witnessed,
   settleWage: 1,
   wage: BOUNTY_WAGE,
 };
