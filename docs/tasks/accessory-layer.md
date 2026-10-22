@@ -190,6 +190,10 @@ Approach: land each concern green as its own run of commits. Two Sonnet implemen
 - RK2 — Sonnet models miss the look. The user reviews shots, and each model is its own commit.
 - RK3 — The wagon step loses NPC gear on re-laid wagons. Mitigated by re-placing on the first free spot with the old letter.
 
+## Verify
+
+- The user checked shots of the GAZ-66 wagon from every camera, and the courier with its moved transmission. Both look right.
+
 ## Code smells
 
 - `game/src/three/shot.ts:96-98` — the view labels "top down", "left side" and "right side" are prose literals outside the text catalog, so `src/text/scan.test.ts` fails on `dev` already.
