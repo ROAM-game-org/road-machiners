@@ -91,8 +91,20 @@ function wearStep(text: string): number {
 }
 
 export function parseLineup(text: string): Truck[] {
-  return text.split('+').map(parseTruck);
+  return truckSpecs(text).map(parseTruck);
 }
+
+function truckSpecs(text: string): string[] {
+  const specs: string[] = [];
+  for (const piece of text.split('+')) {
+    const last = specs.length - 1;
+    if (last >= 0 && takesRam(specs[last]) && PARTS[piece]) specs[last] += `+${piece}`;
+    else specs.push(piece);
+  }
+  return specs;
+}
+
+const takesRam = (spec: string): boolean => spec.includes('/') && !spec.includes('+');
 
 function defaultGear(driver: string, scripted: boolean): Gear {
   return scripted ? { kind: 'kit', id: 'standard' } : { kind: 'npc', template: driver, level: null };
