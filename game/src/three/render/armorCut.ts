@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { partDef, type PartDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { TRUCK_LOOK } from '../../render/partLooks';
-import { cellRect, highestUnder, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
+import { cellRect, CLIP_TOLERANCE, restOn, unitBody, type Body } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { bodyFace } from './gunStand';
@@ -207,17 +207,23 @@ function mountedArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, de
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, (def.look === 'ram' ? -half.y : half.y - box.max.y) + TRUCK_LOOK.armorRise, (rect.z0 + rect.z1) / 2);
   pos[axis] = outward * (snug - depthScale * box.min.x);
   const at = { pos, yaw: SIDE_YAW[side], scale };
-  const touch = touchOrLift(at, box, body, side, () => sideTop(v.chassisId, rect, side, half) - box.max.y + TRUCK_LOOK.armorRise);
+  const touch = nearestTouch(at, box, body, side, 2 * half.y);
   if (touch === null) throw new Error(`Armor ${def.id} on side ${side} of ${v.chassisId} has no body behind it`);
   pos[axis] += outward * Math.min(0, outward * touch - snug);
   return at;
 }
 
-function touchOrLift(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, lifted: () => number): number | null {
-  const touch = touchBehind(at, box, body, side);
-  if (touch !== null) return touch;
-  at.pos.y = lifted();
-  return touchBehind(at, box, body, side);
+function nearestTouch(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter, reach: number): number | null {
+  const start = at.pos.y;
+  for (let step = 0; step * CLIP_TOLERANCE <= reach; step++) {
+    for (const dy of step === 0 ? [0] : [step * CLIP_TOLERANCE, -step * CLIP_TOLERANCE]) {
+      at.pos.y = start + dy;
+      const touch = touchBehind(at, box, body, side);
+      if (touch !== null) return touch;
+    }
+  }
+  at.pos.y = start;
+  return null;
 }
 
 function touchBehind(at: Placement, box: THREE.Box3, body: THREE.Object3D, side: SideLetter): number | null {
@@ -225,20 +231,6 @@ function touchBehind(at: Placement, box: THREE.Box3, body: THREE.Object3D, side:
   const placed = box.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
   const lateral: [number, number] = axis === 'x' ? [placed.min.z, placed.max.z] : [placed.min.x, placed.max.x];
   return bodyFace(body, axis, outward, lateral, [placed.min.y, placed.max.y]);
-}
-
-function sideTop(chassisId: string, rect: CellRect, side: SideLetter, half: { x: number; y: number; z: number }): number {
-  const top = highestUnder(chassisId, beside(rect, side, half));
-  if (top === -Infinity) throw new Error(`The ${chassisId} model has no surface beside side ${side} at x ${rect.x0.toFixed(2)}..${rect.x1.toFixed(2)}`);
-  return top;
-}
-
-function beside(rect: CellRect, side: SideLetter, half: { x: number; z: number }): CellRect {
-  const { axis, outward } = SIDE_FACE[side];
-  const edge = outward * half[axis];
-  const inner = outward * (half[axis] - (axis === 'x' ? CELL.along : CELL.across));
-  const [lo, hi] = [Math.min(edge, inner), Math.max(edge, inner)];
-  return axis === 'x' ? { ...rect, x0: lo, x1: hi } : { ...rect, z0: lo, z1: hi };
 }
 
 function thinDepthOf(def: ArmorDef, box: THREE.Box3): number {
