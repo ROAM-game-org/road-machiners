@@ -1,9 +1,9 @@
 # Real turn-end slowdown
 
-**Status:** executing
+**Status:** validating
 **Branch:** real-slowdown
 **Worktree:** .worktrees/real-slowdown
-**Goal:** One play clock moves everything in the world: trucks, rounds, casings, particles, smoke, weather, damage numbers, world sounds and the camera follow. A turn ends once, for everything, at the end of its 1 s of movement. At that end the clock eases to a stop, the trucks coast on real physics, and rounds in the air drift and then hang. A pause holds the clock at zero, and resuming lets everything continue from where it stopped. Damage shows when the round lands. The next turn starts from the pose the trucks reached and never pulls them back. Confirming it needs the user to play a session, since the feel is a visual judgment. The user plays ROAM and uses this so turn ends feel continuous and readable. Useless if: anything in the world keeps moving while the trucks are stopped; the camera stops with a jolt; damage shows before its round lands; the slowdown draws motion the world does not keep; a panel, the menu or a hidden tab leaves anything moving; a turn waits out a fixed read or band time after its movement.
+**Goal:** One world clock moves everything in the world: trucks, rounds, casings, particles, smoke, weather, world sounds, the engine sound and the camera follow. Information for the player, like the HUD, damage number fades and music, runs on real time. A turn ends once, for everything, at the end of its 1 s of movement. At that end the clock eases to a stop over 1 s on an exponential curve, the trucks coast on real physics, and rounds and shells in the air drift and then hang. Utilities act at turn start. A pause holds the clock at zero, and resuming lets everything continue from where it stopped. Damage shows when the round lands. The next turn starts from the pose the trucks reached and never pulls them back. Confirming it needs the user to play a session, since the feel is a visual judgment. The user plays ROAM and uses this so turn ends feel continuous and readable. Useless if: anything in the world keeps moving while the trucks are stopped; the camera stops with a jolt; damage shows before its round lands; the slowdown draws motion the world does not keep; a panel, the menu or a hidden tab leaves anything moving; a turn waits out a fixed read or band time after its movement.
 **Mode:** hands-off
 
 ## Context
@@ -68,7 +68,7 @@ Context, from the user's play of round 1:
 Design:
 - There are two clocks. The world clock runs everything that happens in the game world: trucks, rounds, casings, particles, smoke, weather, world sounds, the engine sound and the camera's follow of the truck. The real clock runs everything shown to the player as information: the HUD, panels, damage numbers, notices, map overlays, music, UI sounds and the camera controls.
 - The game's `PlayClock` is the world clock. Each frame it takes the real frame time, capped at `playbackFrameMs`, or 0 while held. Its rate eases to 1 while time is wanted and to 0 otherwise, with `PLAY_EASE`, and fast travel multiplies it. It ticks once at the start of the frame, and every world user reads that one frame time.
-- Time is wanted while a turn is moving, or while travel advances, the next turn is ready and no radio call is open. A turn starts at full rate, as today.
+- Time is wanted while a turn is moving, or while travel advances, the next turn is ready and no radio call is open. A turn from rest eases time in over `playEaseMs`.
 - The turn playback advances by the clock's frame time. `Travel.advanceClock` and the playback's own frame timing go away.
 - A turn ends once, when its last round lands, and every round lands by `MOVE_MS` of play time. Moving rounds already do. The late-round fallback that fires at `MOVE_MS` fires instead at the latest moment that still lands by it. The overshoot past `MOVE_MS` carries into the creep or into a chained turn.
 - The creep keeps the committed tail but no clock of its own. It advances by the same frame time and stops at the tail end.
@@ -97,6 +97,19 @@ Rejected: letting rounds land in the next turn's time. A result pending on a sto
 
 #### Unknowns
 - UK4 — Whether any screen opened during a turn waits for the playback to end, which would deadlock now that panels hold the turn.
+
+### Round 3: tuning from play
+
+The user played round 2 and asked for these changes:
+- The stop after a turn lasts `turnStopMs`, 1 s, on an exponential curve. It falls fast at first and fades out slowly, set by `turnStopFolds`. The user tried 2 s first, then settled on 1 s. The trucks' slowdown tail is sized to the stop's world time, so the clock still comes to rest exactly at the tail end.
+- Utilities act at turn start in the sim, before the trucks move. A Sprout smokes the spot its truck drives off from, and oil and caltrops drop behind the truck before it moves. NPCs pick utilities at turn start too. Smoke, flares and drops age just before the new uses, so a new effect keeps all its turns. Harpoon lines still age after the move, since they belong to a gun.
+- Smoke, flares, mortar shells and ground drops show from the first frame of the move, and their use sounds play at turn start. Caltrop hits and torn lines still sound as the move ends.
+- Mortar shells fly 1.2 s and flares 1.6 s on the world clock. A shell still in the air when the world stops hangs there and lands when time runs again. Tying the flight to the stop length was tried and rejected: it made the shell near instant.
+- Smoke clouds grow to full size over 0.5 s.
+- The engine sound reads the turn's world time each frame. Its pitch and level hold while the world rests, and it fades out only when the truck comes to a stop or stays parked.
+
+Review findings fixed in this round:
+- A late burst's rounds after the first landed past the move end. Each late round now fires early enough that the last one lands as the move ends.
 
 ## Plan
 
@@ -191,6 +204,14 @@ Approach: the worker adds a tail to every prepared turn, `travel.ts` owns a `Cre
 - `game/tmp/enemy-probe.mjs`, six battle turns: no truck moves backward. The first run showed two breaks, both fixed. A turn started from rest jumped to full speed with a 17 ms skip, since the world clock's stop ran one frame past the tail end. The clock now stops exactly at the tail end and eases back in. A truck body snapped when the engine shake switched off at a stop, and when a rebuilt model started its sway from rest. Body sway now runs on world time, and a rebuild carries it over. After the fixes the max body change while stopped is 0.
 - The user played a combat turn and found the enemy truck snapping a little after the stop. That matches the body snap above.
 
+### Round 3
+- Touched tests pass: play-clock, travel, shade, volley, hazards, hazards-smoke, sound, utility, smoke, flare, ground-fields, claymore, npc-utility, harpoon, cheats, modes and the world and drive turn tests. tsc and the quality gate pass. `npm run playtest` passes at 60.5 fps with no errors.
+- `game/tmp/enemy-probe.mjs` with the 2 s stop: both trucks' per-frame step falls smoothly to rest and the next turn starts with no skip.
+- `game/tmp/call-probe.mjs` opens a radio call on a moving turn's result. The turn plays to its end under the call screen, the world eases to rest over 57 frames, the truck step falls smoothly to 0, and pressing end turn while the call is open starts no turn. No page errors.
+- The engine sound on the world clock is covered by unit tests only. The user listens to it in play.
+- The user confirmed the smoke now acts at turn start.
+- The Roaming world fingerprint test failed on dev before this branch. Dev's merge of #777, boat props in dried rivers, added 13 obstacles and a salvage spot. The fingerprint is re-pinned.
+
 ## Conclusion
 
 ### Hands-off decisions
@@ -205,6 +226,8 @@ Approach: the worker adds a tail to every prepared turn, `travel.ts` owns a `Cre
 - uexecute round 2: a turn from rest eases time in over `playEaseMs`; the instant start read as a thump in the probe.
 - uexecute round 2: the stop after a move uses the world rate at speed 1, so fast travel cannot run the world past the tail.
 
+- uexecute round 3: `EngineStrain.next` runs every turn, also parked ones, so strain decays while the truck stands; it only records a log line and a level.
+- uexecute round 3: the full shop mounts a taken part on a free mount spot when the plain cells are full; stowing still keeps parts off mount cells in play.
+
 ### Deferred (needs user input)
-- The engine sound glides over each turn on audio time. A panel opened mid-turn freezes the world, but the engine pitch still finishes its glide. The user decides whether that is worth driving the engine pitch from the world clock each frame.
-- The radio call path was not probed in the browser. A turn that opens a call should play to its end and ease to rest.
+- The user listens to the engine through a stop, a pause and a panel opened mid-turn, and confirms it never sounds like the truck stopped while it still moves.
