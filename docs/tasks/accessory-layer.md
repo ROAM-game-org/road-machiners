@@ -1,6 +1,6 @@
 # Accessory layer, odd fronts and small armor
 
-**Status:** executing
+**Status:** done
 **Branch:** accessory-layer
 **Worktree:** .worktrees/accessory-layer
 **Goal:** On every truck, a player can bolt a ram onto the front or back over a full row of armor plates, and the ram sits centered because every front and back edge is an odd number of cells. Every armor type comes in 1 and 2-cell pieces, so one type can fill any edge. Spikes are a weak ram of 1 or 2 cells that hurts a truck which rams the cells they cover. Rolled NPC trucks no longer show a ram beside a lone 1-cell plate. The player uses this to build a truck that looks deliberate and to choose where it rams and where it bites back. Confirming the look needs the user to view in-game screenshots and rolled NPC sheets. Useless if: a ram on the new layer does not hit harder or does not soak hits before the plate under it; an accessory hides the plate under it or cannot be clicked, dragged or sold in the inventory; a 1-cell spike turns a whole side into a ram; loading an old save drops a player part or deletes an NPC; NPCs stop carrying rams and spikes; a widened truck draws its parts squashed or off the model.
@@ -194,13 +194,27 @@ Approach: land each concern green as its own run of commits. Two Sonnet implemen
 
 - The user checked shots of the GAZ-66 wagon from every camera, and the courier with its moved transmission. Both look right.
 - After merging dev's float fix, the user checked a courier with spikes from every camera and confirmed it looks right.
+- `npm run playtest` passes: 12 turns at 60.5 fps, no errors.
+- The NPC roll script over 225 rolled trucks puts a big piece beside a lone 1-cell piece on 0% of armored sides, down from 68%. 52% of sides carry an accessory.
+- The `combat` harness cannot take an outfit with a ram, since `+` also joins trucks in a lineup. The `combat` kit hauler charging a buggy crashed 4 times in 8 fights on dev and 2 times on the branch, too few to judge ram lanes.
 
 ## Code smells
+
+- `game/src/test/combat-harness.ts:93` `parseLineup` splits on `+` before `parseOutfit` can read `gun/armor+ram`, so the outfit form `docs/tools.md` shows always fails.
+- `game/src/sim/armor.ts` `cabShieldWith` throws on an accessory, and armor and accessories rank mount spots by different rules.
 
 - `game/src/data/chassis.ts` — hauler, longbed, tractor, loader and semi each have a column with no built-in part or engine bay, so front shots there hit nothing on an empty truck.
 - `game/src/three/render/gunStand.ts` `heldOn` and `game/src/test/truck-support-kit.ts` judge support differently. The view draws a small part on an outer deck cell that the support test then calls half in the air. On `dev` it hits caltrops on scout cells 1,4 and 5,4, and on courier and carrier cells. Narrower cells on this branch add buggy 1,3 and six jeep cells.
 
 ## Conclusion
+
+The Goal is met. Every truck has an odd front and back, rams sit centered over a full plate row, every armor type has 1 and 2-cell pieces, and spikes hurt a truck that rams them. The user confirmed the wagon, the courier and the spiked courier on screen.
+
+- AS1 is not confirmed. The charge fights crashed too rarely to compare ram lanes.
+- UK1 resolved: buggy, courier, niva and bus move a built-in part into the new column, and the jeep and carrier keep an open one.
+- UK2 resolved: NPCs carry an accessory on about half their sides, with no lone 1-cell piece beside a big one.
+- UK3 resolved: the GAZ-66 wagon is 7 wide, a broadside truck the user approved.
+- Review: rams and spikes now count as shields in the field patch button, the condition view and the bare side lesson.
 
 ### Hands-off decisions
 
