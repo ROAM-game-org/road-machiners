@@ -50,7 +50,7 @@ import { CameraRig, KeyPan, TruckFollow } from "./render/camera";
 import { addScatter } from "./render/scatter";
 import { FogView } from "./render/fog";
 import { Fx3D, TruckFx } from "./render/fx";
-import { aimedTarget, CollisionCues, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, utilitySeen, volleySeen, type CombatHost } from "./volley";
+import { aimedTarget, CollisionCues, collisionSteps, scoreEventMs, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, volleySeen, type CombatHost } from "./volley";
 import { Labels, VehicleMarkers } from "./render/labels";
 import { ObstacleViews } from "./render/obstacles";
 import { CraterViews } from "./render/craters";
@@ -800,7 +800,7 @@ export class Game {
   }
 
   private beginTurn(prepared: PreparedTurn, now: number, elapsed: number): void {
-    const { world: played, playback, towed } = this.travel.beginPlayback(this.world, prepared, now, elapsed, this.frames);
+    const { world: played, playback, towed } = this.travel.beginPlayback(this.world, prepared, elapsed, this.frames);
     const world = relanguageQuest(played, QUESTS);
     if (this.saves.changeMapIfMoved(world)) return;
     this.world = world;
@@ -817,8 +817,7 @@ export class Game {
     this.crashCues = new CollisionCues(timed);
     playback.shotAims = shotAimsOf(world.events);
     this.breakCues = new BreakCues(world.events);
-    const band = utilitySeen(world.events, seen) ? CONFIG.utilityBandMs : 0;
-    playback.impactAtMs = Math.max(MOVE_MS + band, playShotFx(this.combatHost(playback.elapsed), this.breakCues));
+    playback.impactAtMs = Math.max(MOVE_MS, playShotFx(this.combatHost(playback.elapsed), this.breakCues));
     this.sound.timeScoreEvents(world.events, world.player.vehicleId, (e) => scoreEventMs(e, timed, TURN_STEPS, playback.impactAtMs));
     if (!towed) this.playDriveSound(playback.result);
     this.phase = "moving";
@@ -831,7 +830,7 @@ export class Game {
     this.drive = a.result.next;
     for (const [id, fs] of Object.entries(a.result.frames))
       this.frames[id] = fs[fs.length - 1];
-    const stopped = this.travel.stopAt(a, this.world, this.frames, now, PLAY_EASE, a.elapsed - MOVE_MS);
+    const stopped = this.travel.stopAt(a, this.world, this.frames, now, a.elapsed - MOVE_MS);
     if (stopped) [this.world, this.drive] = [stopped.world, stopped.drive];
     if (stopped) this.saves.logWorld(stopped.world);
     this.live = null;
@@ -993,26 +992,37 @@ export class Game {
     if (this.uiStale && began !== "began" && this.phase === phase) this.refreshUi();
   }
 
-  private advanceTurn(now: number, dt: number): { at: number | null; speed: number; playMs: number } {
-    const held = this.modalOpen() || this.isEditingControl() || document.hidden;
+  private advanceTurn(now: number, dt: number): { at: number | null; playMs: number } {
+    const timeHeld = this.timeHeld();
+    const held = timeHeld || this.world.player.call !== null;
     if (held) this.travel.pause();
-    const playMs = heldPlayMs(dt, held, CONFIG.playbackFrameMs);
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
+    const playMs = this.tickWorldClock(heldPlayMs(dt, timeHeld, CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
-    let at = this.animStep(now, speed);
-    this.travel.tickCreep(playMs, this.world, now);
+    this.travel.tickCreep(playMs);
+    let at = this.animStep(now, speed, playMs);
     this.updateLiveVision(at);
     this.updateTravel();
     const began = this.tryBeginTurn(now, wasPlaying, held);
-    if (began === "failed") return { at, speed, playMs };
+    if (began === "failed") return { at, playMs };
     if (began === "began") {
-      at = this.animStep(now, speed);
+      at = this.animStep(now, speed, 0);
       this.updateTravel();
     }
     this.travel.prepareNext(this.world, this.anim, now);
     this.flushUi(began, phase);
-    return { at, speed, playMs };
+    return { at, playMs };
+  }
+
+  private timeHeld(): boolean {
+    return this.screens.inventory.isOpen() || this.screens.blockingOpen() || this.menu.isOpen() || this.isEditingControl() || document.hidden;
+  }
+
+  private tickWorldClock(realMs: number, speed: number, now: number): number {
+    if (this.anim && !this.anim.moved) this.play.advance(realMs * speed);
+    else this.play.coast(realMs, this.travel.timeWanted(this.world, now), speed);
+    return this.play.frameMs();
   }
 
   private tick(now: number): void {
@@ -1026,13 +1036,13 @@ export class Game {
     this.last = now;
     this.touchIntent(this.touch.tick(now));
     this.play.beginFrame();
-    const { at, speed, playMs } = timed("turn-frame", () => {
+    const { at, playMs } = timed("turn-frame", () => {
       const turn = this.advanceTurn(now, dt);
       this.shade.advance();
       return turn;
     });
-    const moving = this.advanceClocks(playMs, speed, now);
-    const playDt = this.play.frameMs() / 1000;
+    const moving = this.play.isMoving();
+    const playDt = playMs / 1000;
     const step = at === null ? null : Math.floor(at);
     this.syncVehicles(at, Math.max(0, dt) / 1000, playDt);
     this.obstacles.play(this.anim, step, this.world, this.frames, playDt);
@@ -1089,28 +1099,18 @@ export class Game {
     timed("minimap", () => this.minimap?.update({ ...this.world, player }, { pos: at, heading: playerVehicle(this.world).heading }));
   }
 
-  private advanceClocks(playMs: number, speed: number, now: number): boolean {
-    this.play.coast(playMs, this.travel.isAdvancing(null, now), speed);
-    return this.travel.isAdvancing(this.anim, now) || this.travel.isCreeping();
-  }
-
-  private animStep(now: number, speed: number): number | null {
+  private animStep(now: number, speed: number, ms: number): number | null {
     const a = this.anim;
     if (!a) return null;
-    const from = a.elapsed;
-    const elapsed = this.travel.advanceClock(a, now, speed, CONFIG.playbackFrameMs);
-    this.play.advance(elapsed - from);
+    const elapsed = (a.elapsed += ms);
     this.sound.playDueScoreEvents(elapsed, speed);
     if (elapsed < MOVE_MS)
       return (elapsed / 1000) * PHYSICS.stepsPerSecond - 1;
     if (!a.moved) this.finishMovement(a, now);
-    const impactAt = a.impactAtMs;
-    if (elapsed >= impactAt && !a.impacts) this.landImpacts(a);
-    const finishAt = impactAt + (a.volley ? CONFIG.combatReadMs : 0);
-    if (elapsed >= finishAt) {
-      this.travel.finishClock(elapsed, finishAt);
-      this.finishPlayback();
-    }
+    if (elapsed < a.impactAtMs && this.play.isMoving()) return null;
+    if (!a.impacts) this.landImpacts(a);
+    this.travel.finishClock(elapsed, Math.min(elapsed, a.impactAtMs));
+    this.finishPlayback();
     return null;
   }
 

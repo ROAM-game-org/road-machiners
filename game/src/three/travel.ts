@@ -12,7 +12,6 @@ import type { TurnClock } from "./render/hazards";
 import { frameAt, type VehicleFrame } from "../phys/frames";
 import { joinTurn, SentObstacles, withTail, type LiveSight, type PreparedTurn, type Tail, type TurnRequest, type TurnResponse } from "../phys/turn";
 import { PHYSICS } from "../data/physics";
-import { PlayClock, type Ease } from "./play-clock";
 import type { QuestLanguage } from "../data/quests";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
@@ -54,14 +53,13 @@ export function turnClockOf(a: Playback | null): TurnClock | null {
 }
 
 export class Creep {
-  private readonly clock: PlayClock;
   private readonly endMs: number;
-  private rested = false;
+  private ms: number;
   private readonly shown = new Map<string, { ms: number; frame: VehicleFrame }>();
 
-  constructor(private readonly tail: Tail, private readonly starts: Record<string, VehicleFrame>, ease: Ease, overshootMs: number) {
-    this.clock = new PlayClock(ease);
-    this.clock.advance(overshootMs);
+  constructor(private readonly tail: Tail, private readonly starts: Record<string, VehicleFrame>, overshootMs: number) {
+    if (!(overshootMs >= 0)) throw new Error(`A slowdown starts at or after the turn end, got ${overshootMs} ms`);
+    this.ms = overshootMs;
     this.endMs = Math.max(0, ...Object.values(tail.frames).map((fs) => fs.length)) * STEP_MS;
   }
 
@@ -73,11 +71,9 @@ export class Creep {
     return this.tail.next;
   }
 
-  tick(ms: number, wanted: boolean): void {
-    if (this.rested) return;
-    this.clock.coast(ms, wanted, 1);
-    this.clock.beginFrame();
-    this.rested = !this.clock.isMoving();
+  tick(ms: number): void {
+    if (!(ms >= 0)) throw new Error(`A slowdown only moves forward, got ${ms} ms`);
+    this.ms += ms;
   }
 
   frameOf(v: Vehicle): VehicleFrame | undefined {
@@ -95,21 +91,21 @@ export class Creep {
   }
 
   isMoving(): boolean {
-    return !this.rested && !this.reachedEnd();
+    return !this.reachedEnd();
   }
 
   joinOf(world: World, shown: Record<string, VehicleFrame>): { starts: Record<string, VehicleFrame>; elapsed: number } {
     if (!this.reachedEnd()) return { starts: { ...shown }, elapsed: 0 };
     const ends = world.vehicles.flatMap((v) => (this.frameOf(v) ? [[v.id, this.tail.frames[v.id].at(-1)!] as const] : []));
-    return { starts: { ...shown, ...Object.fromEntries(ends) }, elapsed: this.clock.nowMs() - this.endMs };
+    return { starts: { ...shown, ...Object.fromEntries(ends) }, elapsed: this.ms - this.endMs };
   }
 
   private reachedEnd(): boolean {
-    return this.clock.nowMs() >= this.endMs;
+    return this.ms >= this.endMs;
   }
 
   private shownMs(): number {
-    return Math.min(this.clock.nowMs(), this.endMs);
+    return Math.min(this.ms, this.endMs);
   }
 }
 
@@ -118,7 +114,6 @@ export type Playback = {
   tail: Tail | null;
   starts: Record<string, VehicleFrame>;
   before: World;
-  lastTick: number | null;
   elapsed: number;
   moved: boolean;
   impacts: boolean;
@@ -353,14 +348,18 @@ export class Travel {
     return this.shouldAdvance(now) || this.runsOnItsOwn(world, now);
   }
 
-  stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, ease: Ease, overshootMs: number): { world: World; drive: DriveSnapshot } | null {
+  stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, overshootMs: number): { world: World; drive: DriveSnapshot } | null {
     const stops = playback.tail !== null && !this.continues(world, now);
-    this.creep = stops ? new Creep(playback.tail!, { ...shown }, ease, overshootMs) : null;
+    this.creep = stops ? new Creep(playback.tail!, { ...shown }, overshootMs) : null;
     return this.creep?.commit(world) ?? null;
   }
 
-  tickCreep(ms: number, world: World, now: number): void {
-    this.creep?.tick(ms, this.isAdvancing(null, now) && this.turns.isReady(world));
+  tickCreep(ms: number): void {
+    this.creep?.tick(ms);
+  }
+
+  timeWanted(world: World, now: number): boolean {
+    return this.isAdvancing(null, now) && this.turns.isReady(world) && world.player.call === null;
   }
 
   playedFrame(v: Vehicle, a: Playback | null, at: number | null): VehicleFrame | undefined {
@@ -380,7 +379,6 @@ export class Travel {
   beginPlayback(
     before: World,
     prepared: PreparedTurn,
-    now: number,
     elapsed: number,
     shown: Record<string, VehicleFrame>,
   ): { world: World; playback: Playback; towed: boolean } {
@@ -398,7 +396,6 @@ export class Travel {
       tail: prepared.tail,
       starts: join.starts,
       before,
-      lastTick: now,
       elapsed: join.elapsed,
       moved: false,
       impacts: false,
@@ -419,13 +416,6 @@ export class Travel {
 
   getSpeed(now: number, fastSpeed: number): number {
     return this.isFast(now) ? fastSpeed : 1;
-  }
-
-  advanceClock(playback: Playback, now: number, speed: number, maxFrameMs: number): number {
-    if (playback.lastTick !== null)
-      playback.elapsed += Math.min(now - playback.lastTick, maxFrameMs) * speed;
-    playback.lastTick = now;
-    return playback.elapsed;
   }
 
   finishClock(elapsed: number, finishAt: number): void {

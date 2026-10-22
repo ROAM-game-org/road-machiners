@@ -3,7 +3,7 @@
 **Status:** executing
 **Branch:** real-slowdown
 **Worktree:** .worktrees/real-slowdown
-**Goal:** When travel pauses at a turn end, the trucks ease to a stop instead of freezing, and every pose drawn during the slowdown is real simulation: the next turn starts from the pose the trucks actually reached and never pulls them back. A pause between turns stops time, and resuming continues from the same pose. Confirming it needs the user to play a session, since the feel of the slowdown is a visual judgment. The user plays ROAM and uses this so turn ends feel continuous. Useless if: the slowdown draws motion the world does not keep, so a new order or a reload moves the truck back; the slowdown hides a jump by blending fast toward a pose it did not show; it plays only on some kinds of pause; it keeps moving while a panel is open or the tab is hidden; it adds a visible hitch or delay when the next turn starts.
+**Goal:** One play clock moves everything in the world: trucks, rounds, casings, particles, smoke, weather, damage numbers, world sounds and the camera follow. A turn ends once, for everything, at the end of its 1 s of movement. At that end the clock eases to a stop, the trucks coast on real physics, and rounds in the air drift and then hang. A pause holds the clock at zero, and resuming lets everything continue from where it stopped. Damage shows when the round lands. The next turn starts from the pose the trucks reached and never pulls them back. Confirming it needs the user to play a session, since the feel is a visual judgment. The user plays ROAM and uses this so turn ends feel continuous and readable. Useless if: anything in the world keeps moving while the trucks are stopped; the camera stops with a jolt; damage shows before its round lands; the slowdown draws motion the world does not keep; a panel, the menu or a hidden tab leaves anything moving; a turn waits out a fixed read or band time after its movement.
 **Mode:** hands-off
 
 ## Context
@@ -55,6 +55,48 @@ TDD: yes. The tail rules, the commit and the truck clock gating are deterministi
 - UK1 — How much the 11 tail steps add to the worker's turn time.
 - UK2 — Whether a clean tail is common in combat, where trucks often touch.
 - UK3 — Whether drive memory carried through the tail, such as route progress and stall counters, changes the next turn's driving in a visible way.
+
+### Round 2: one play clock
+
+Context, from the user's play of round 1:
+- In combat, casings kept falling while the trucks stood still.
+- The camera stops with a jolt at a turn end.
+- Four clocks keep time. The playback clock moves trucks by real time. The creep clock eases the tail. The world `PlayClock` moves rounds, casings and particles, and `animStep` forces it to full rate after the movement through `impactAtMs`, the 1000 ms utility band and the 1100 ms combat read. The camera chase runs on real time and drops its target in one frame when the turn stops.
+- Rounds, damage labels, landing sounds and per-round part breaks already run on play time through `Fx3D` pending jobs. Utility sounds and the dry gun click are delayed on audio time. Damage text fades on real time. Utility shells and flares fly on `play.nowMs()`.
+- The rest of the turn result is revealed at once in `landImpacts`: HUD events, the after-world in the HUD, explosions, crater reveal, loot and the remaining breaks.
+
+Design:
+- There are two clocks. The world clock runs everything that happens in the game world: trucks, rounds, casings, particles, smoke, weather, world sounds, the engine sound and the camera's follow of the truck. The real clock runs everything shown to the player as information: the HUD, panels, damage numbers, notices, map overlays, music, UI sounds and the camera controls.
+- The game's `PlayClock` is the world clock. Each frame it takes the real frame time, capped at `playbackFrameMs`, or 0 while held. Its rate eases to 1 while time is wanted and to 0 otherwise, with `PLAY_EASE`, and fast travel multiplies it. It ticks once at the start of the frame, and every world user reads that one frame time.
+- Time is wanted while a turn is moving, or while travel advances, the next turn is ready and no radio call is open. A turn starts at full rate, as today.
+- The turn playback advances by the clock's frame time. `Travel.advanceClock` and the playback's own frame timing go away.
+- A turn ends once, when its last round lands, and every round lands by `MOVE_MS` of play time. Moving rounds already do. The late-round fallback that fires at `MOVE_MS` fires instead at the latest moment that still lands by it. The overshoot past `MOVE_MS` carries into the creep or into a chained turn.
+- The creep keeps the committed tail but no clock of its own. It advances by the same frame time and stops at the tail end.
+- Delayed world effects go through the `Fx3D` pending list, opened as `later(ms, run)`. Damage labels already use it to appear at landing.
+- Each round's landing already plays its sound, label and part breaks at landing time. The rest of the turn result, `landImpacts`, runs at the last landing, and the playback ends in the same frame. The playback stays the one owner of the shown result until then, as today.
+- A round whose flight is longer than the whole turn can still land after `MOVE_MS`. If the world clock comes to rest with the result still pending, the result shows at once, so nothing waits on a stopped clock.
+- The utility band and the combat read hold are removed. Utility and dry gun sounds go through the world-time pending list. Utility shells and flares keep flying on world time, so they hang while the world is stopped.
+- Damage numbers appear on the world clock, at landing. They float and fade on the real clock, as today.
+- A panel, the menu, a focused text control or a hidden tab holds the world clock, also during a turn. The radio call is not a hold. It makes time not wanted, so a turn still plays to its end and the world eases to rest.
+- The engine sound follows the world clock. While the world is stopped, the engine keeps the pitch and level it had and continues from there. A pause never sounds like the truck stopped.
+- The camera follows the drawn truck whenever it follows, and its chase runs on world time, so it slows and stops with the world. User panning and recentering run on real time.
+- Music runs on the real clock. Its combat cues come from world events, so they are keyed to absolute world time and outlive the turn that queued them.
+
+Rejected: letting rounds land in the next turn's time. A result pending on a stopped clock deadlocks every wait on the playback: the death screen, rescue commands and the radio call. Unlocking those early shows the HUD or applies world changes before the result.
+
+#### Invariants
+- IV8 — Nothing in the game world advances by any time but the world clock's frame time. That covers truck poses, rounds, casings, particles, smoke, weather, world sounds, the engine sound and the camera chase. Only information for the player runs on the real clock.
+- IV9 — While held, the play clock adds no time, also during a turn.
+- IV10 — A turn's playback ends at its last landing, by `MOVE_MS` of play time unless a flight is longer than the turn. Nothing waits after it.
+- IV11 — The HUD shows a turn's result at its last landing, and never waits on a stopped world clock.
+- IV1 to IV7 still hold.
+
+#### Assumptions
+- AS3 — Firing a late round earlier so it lands by `MOVE_MS` does not change how combat reads.
+- AS4 — Holding the engine loop at its last pitch through a long pause does not grate. The user judges it.
+
+#### Unknowns
+- UK4 — Whether any screen opened during a turn waits for the playback to end, which would deadlock now that panels hold the turn.
 
 ## Plan
 
@@ -109,6 +151,31 @@ Approach: the worker adds a tail to every prepared turn, `travel.ts` owns a `Cre
 - RK1 — The tail adds worker time per turn; measure the turn perf before and after, and report it under UK1.
 - RK2 — Tail frames make worker messages larger; the snapshot buffer is transferred, not copied.
 - Rollback: revert the three commits.
+
+### Round 2 plan: one play clock
+
+#### PH4 — World clock drives the turn and the creep
+- `game/src/three/travel.ts`: `Creep` loses its `PlayClock`. `tick(ms)` adds world frame time and stops at the tail end. `joinOf` reads its own ms. `Travel.advanceClock` and `Playback.lastTick` go. `Travel.timeWanted(world, now)` is `isAdvancing(null, now) && turns.isReady(world)`. `tickCreep(ms)` takes only the frame time.
+- `game/src/three/game.ts`: `frame()` ticks the world clock first. While a turn moves it runs at full rate, else it coasts toward `timeWanted` with the radio call counted as not wanted. Held for the clock is panels, menu, focused text and a hidden tab, without the call. `animStep` advances the playback by the clock's frame time, and the call after a turn begins reads the step without adding time. The finish time is the last landing, with no read hold or utility band. When the clock rests with the result pending, the result shows at once.
+- `game/src/config.ts`: drop `utilityBandMs`. `combatReadMs` stays as the damage text life.
+- Tests: `travel.test.ts` and `play-clock.test.ts` for the creep on world time, the join overshoot spent once, and `timeWanted`.
+- Commit: One world clock runs the turn, the slowdown and the world effects, and a turn ends at its last landing
+
+#### PH5 — Rounds and world sounds on world time
+- `game/src/three/render/fx.ts`: `later(ms, run)` on the pending list. `label` uses it.
+- `game/src/three/volley.ts`: utility and dry gun sounds go through `fx.later`. The `latestFire` fallback fires at the latest moment that still lands by the movement end.
+- Tests: `volley.test.ts` for the fallback landing by `moveMs`.
+- Commit: Late rounds land by the end of the move, and utility and empty gun sounds wait on world time
+
+#### PH6 — Camera follow on world time
+- `game/src/three/render/camera.ts`: `TruckFollow.update` takes the world frame time too. While following it always aims at the drawn truck. Its chase ticks on world time, and on real time while recentering. Key panning stays on real time.
+- `game/src/three/game.ts`: passes the world frame time and `play.isMoving()`.
+- Tests: `camera.test.ts` for a chase that holds still at zero world time and does not stop in one frame when play stops.
+- Commit: The camera follow slows and stops with the world instead of halting in one frame
+
+#### Verify
+- Touched tests, tsc, the quality gate and `npm run playtest`.
+- A browser probe of one combat turn that stops: casing and round positions stay constant while stopped, the camera's step per frame falls smoothly to zero, and a menu opened mid-turn freezes the trucks and the rounds.
 
 ## Verify
 - Touched tests pass: turn-task, turn-language, turn-preparation, travel and play-clock, 103 tests. tsc and the quality gate pass. `game.ts` shrank by 2 lines.

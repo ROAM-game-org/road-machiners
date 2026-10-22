@@ -24,7 +24,6 @@ export const DOWNLOAD = { tries: 3, waitMs: [1000, 3000], stallMs: 20000 };
 export const CONFIG = {
   startKit: 'arrival',
   seed: null as number | null,
-  utilityBandMs: 1000,
   combatReadMs: 1100,
   playEaseMs: 350,
   turnStopMs: 300,

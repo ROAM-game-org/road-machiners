@@ -99,32 +99,6 @@ describe("turn advancement", () => {
   });
 });
 
-describe("playback clock", () => {
-  const playback = (elapsed = 0) => ({ elapsed, lastTick: null as number | null }) as Parameters<Travel["advanceClock"]>[0];
-
-  it("adds a normal frame in full, times the speed", () => {
-    const travel = new Travel(250, TAIL);
-    const a = playback();
-    travel.advanceClock(a, 1000, 1, 50);
-    expect(travel.advanceClock(a, 1016, 1, 50)).toBe(16);
-    expect(travel.advanceClock(a, 1032, 4, 50)).toBe(16 + 64);
-  });
-
-  it("stretches the turn on a slow frame instead of skipping ahead", () => {
-    const travel = new Travel(250, TAIL);
-    const a = playback();
-    travel.advanceClock(a, 1000, 1, 50);
-    expect(travel.advanceClock(a, 1400, 1, 50)).toBe(50);
-    expect(travel.advanceClock(a, 1800, 4, 50)).toBe(250);
-  });
-
-  it("keeps the carried elapsed time on the first call", () => {
-    const travel = new Travel(250, TAIL);
-    const a = playback(120);
-    expect(travel.advanceClock(a, 5000, 1, 50)).toBe(120);
-  });
-});
-
 describe("turns that run on their own", () => {
   it("a turn press stops them, and the next press restarts them", () => {
     const world = makeSafeWorld();
@@ -538,10 +512,7 @@ describe("every turn that runs on its own", () => {
   it("carries the overshoot of a finished turn into the next one", () => {
     const { travel } = travelWithTurns(() => ready);
     const world = stranded("knockedOut");
-    const a = { elapsed: 0, lastTick: null as number | null } as Parameters<Travel["advanceClock"]>[0];
-    travel.advanceClock(a, 1000, 1, 50);
-    const elapsed = travel.advanceClock(a, 1040, 1, 50);
-    travel.finishClock(elapsed, 30);
+    travel.finishClock(40, 30);
     expect(travel.takeReady(world, drive, 1040)).toBe(ready);
     expect(travel.getRemainder(true)).toBe(10);
   });
@@ -627,11 +598,11 @@ describe("every turn that runs on its own", () => {
       const keep = travelWithTurns().travel;
       at(1000);
       keep.pressTurn(true, out);
-      keep.beginPlayback(out, prepared(out), 1000, 0, {});
+      keep.beginPlayback(out, prepared(out), 0, {});
       expect(keep.isFast(1300)).toBe(true);
       const drop = travelWithTurns().travel;
       drop.pressTurn(true, out);
-      drop.beginPlayback(awake, prepared(out), 1000, 0, {});
+      drop.beginPlayback(awake, prepared(out), 0, {});
       expect(drop.isFast(1300)).toBe(false);
     });
   });
@@ -649,53 +620,46 @@ describe("nextSightSample", () => {
 });
 
 describe("the slowdown after a stopped turn", () => {
-  const EASE = { stopMs: 350, startMs: 350 };
+  const STEP = 1000 / PHYSICS.stepsPerSecond;
   const at = (x: number): VehicleFrame => ({ pos: { x, y: 0, z: 0 }, rot: headingQuat(0), acc: { x: 0, y: 0, z: 0 }, wheels: [{ steer: 0, spin: x, suspension: 0, ground: true }] });
   const pose = { pos: { x: TAIL / PHYSICS.metersPerTile, y: 0 }, heading: 0, speed: 1 };
   const tail: Tail = { frames: { a: Array.from({ length: TAIL }, (_, i) => at(i + 1)) }, next: { snapshot: new Uint8Array() } as DriveSnapshot, poses: { a: pose } };
   const truck = { id: "a", pos: { ...pose.pos }, heading: 0 } as Vehicle;
   const shownX = (creep: Creep, v = truck) => creep.frameOf(v)!.pos.x;
-  const creepOf = (overshootMs = 0) => new Creep(tail, { a: at(0) }, EASE, overshootMs);
+  const creepOf = (overshootMs = 0) => new Creep(tail, { a: at(0) }, overshootMs);
 
   it("starts at the pose the turn ended on, or one overshoot later", () => {
     expect(shownX(creepOf())).toBe(0);
-    expect(shownX(creepOf(1000 / PHYSICS.stepsPerSecond))).toBeCloseTo(1);
+    expect(shownX(creepOf(STEP))).toBeCloseTo(1);
+    expect(() => creepOf(-1)).toThrow();
   });
 
-  it("eases forward along the tail from the next frame on, and comes to rest within one step of its end", () => {
+  it("moves along the tail by exactly the world time it is given, and stops at its end", () => {
     const creep = creepOf();
-    const xs = Array.from({ length: 40 }, () => (creep.tick(16, false), shownX(creep)));
-    xs.slice(1).forEach((x, i) => expect(x).toBeGreaterThanOrEqual(xs[i]));
-    expect(xs[0]).toBe(0);
-    expect(xs[1]).toBeGreaterThan(0.9);
-    expect(xs.at(-1)).toBeGreaterThan(TAIL - 1);
-    expect(xs.at(-1)).toBeLessThanOrEqual(TAIL);
-    expect(creep.isMoving()).toBe(false);
-    creep.tick(16, true);
-    expect(shownX(creep)).toBe(xs.at(-1));
-    expect(creep.joinOf({ vehicles: [truck] } as World, { a: at(xs.at(-1)!) })).toEqual({ starts: { a: at(xs.at(-1)!) }, elapsed: 0 });
-  });
-
-  it("adds no time while held, and shows the very same frame while it stands still", () => {
-    const creep = creepOf();
-    creep.tick(16, false);
-    creep.tick(16, false);
-    const held = creep.frameOf(truck);
-    for (let i = 0; i < 10; i++) creep.tick(0, false);
-    expect(creep.frameOf(truck)).toBe(held);
-  });
-
-  it("speeds up to the tail end once a turn is wanted, and hands the next turn the end pose and the time past it", () => {
-    const creep = creepOf();
-    creep.tick(16, false);
+    const xs = Array.from({ length: TAIL + 3 }, () => (creep.tick(STEP / 2), shownX(creep)));
+    xs.forEach((x, i) => expect(x).toBeCloseTo(Math.min(TAIL, (i + 1) / 2)));
     expect(creep.isMoving()).toBe(true);
-    let ticks = 0;
-    while (creep.isMoving() && ticks++ < 100) creep.tick(16, true);
+    for (let i = 0; i < TAIL; i++) creep.tick(STEP / 2);
     expect(shownX(creep)).toBe(TAIL);
+    expect(creep.isMoving()).toBe(false);
+  });
+
+  it("adds no time while the world clock stands, and shows the very same frame", () => {
+    const creep = creepOf();
+    creep.tick(16);
+    const held = creep.frameOf(truck);
+    for (let i = 0; i < 10; i++) creep.tick(0);
+    expect(creep.frameOf(truck)).toBe(held);
+    expect(() => creep.tick(-1)).toThrow();
+  });
+
+  it("hands the next turn the end pose and the world time past it, once", () => {
+    const creep = creepOf();
+    expect(creep.joinOf({ vehicles: [truck] } as World, { a: at(0) })).toEqual({ starts: { a: at(0) }, elapsed: 0 });
+    creep.tick(TAIL * STEP + 5);
     const join = creep.joinOf({ vehicles: [truck] } as World, { a: at(TAIL - 1) });
     expect(join.starts.a).toEqual(at(TAIL));
-    expect(join.elapsed).toBeGreaterThanOrEqual(0);
-    expect(join.elapsed).toBeLessThan(16);
+    expect(join.elapsed).toBeCloseTo(5);
   });
 
   it("stops showing a truck that a rule moved off its tail end", () => {
@@ -707,7 +671,7 @@ describe("the slowdown after a stopped turn", () => {
     const world = makeSafeWorld();
     const id = playerVehicle(world).id;
     const playerTail = { ...tail, poses: { [id]: pose } };
-    const committed = new Creep(playerTail, {}, EASE, 0).commit(world);
+    const committed = new Creep(playerTail, {}, 0).commit(world);
     expect(playerVehicle(committed.world).pos).toEqual(pose.pos);
     expect(committed.drive).toBe(tail.next);
   });
@@ -722,37 +686,46 @@ describe("the slowdown after a stopped turn", () => {
   it("commits the tail when the turn stops, and not when travel goes on or the turn has no tail", () => {
     const { world, me, playback } = playerStop();
     const travel = new Travel(250, TAIL);
-    const stopped = travel.stopAt(playback, world, {}, 0, EASE, 0)!;
+    const stopped = travel.stopAt(playback, world, {}, 0, 0)!;
     expect(playerVehicle(stopped.world).pos).toEqual({ x: me.pos.x + 1, y: me.pos.y });
     expect(stopped.drive).toBe(tail.next);
     expect(travel.isCreeping()).toBe(true);
-    expect(travel.stopAt({ tail: null } as Playback, world, {}, 0, EASE, 0)).toBeNull();
+    expect(travel.stopAt({ tail: null } as Playback, world, {}, 0, 0)).toBeNull();
     expect(travel.isCreeping()).toBe(false);
     travel.press(0, false, true);
-    expect(travel.stopAt(playback, world, {}, 0, EASE, 0)).toBeNull();
+    expect(travel.stopAt(playback, world, {}, 0, 0)).toBeNull();
   });
 
-  it("prepares the next turn during the slowdown, speeds up once it is ready, and starts it at the tail end", () => {
-    const { world, playback } = playerStop();
-    const prepare = vi.fn();
+  it("wants world time only while travel advances, the next turn is ready and no radio call is open", () => {
+    const { world } = playerStop();
     let isReady = false;
     const travel = new Travel(250, TAIL);
-    const stopped = travel.stopAt(playback, world, {}, 0, EASE, 0)!.world;
+    Object.assign(travel, { turns: { prepare: vi.fn(), isReady: () => isReady } });
+    expect(travel.timeWanted(world, 0)).toBe(false);
+    travel.request(world, {} as DriveSnapshot);
+    expect(travel.timeWanted(world, 0)).toBe(false);
+    isReady = true;
+    expect(travel.timeWanted(world, 0)).toBe(true);
+    expect(travel.timeWanted({ ...world, player: { ...world.player, call: { kind: "radio" } as never } }, 0)).toBe(false);
+  });
+
+  it("prepares the next turn during the slowdown and starts it at the tail end", () => {
+    const { world, playback } = playerStop();
+    const prepare = vi.fn();
+    const travel = new Travel(250, TAIL);
+    const stopped = travel.stopAt(playback, world, {}, 0, 0)!.world;
     const ready = { world: stopped, result: { frames: {}, next: {} }, tail: null } as unknown as PreparedTurn;
-    Object.assign(travel, { turns: { prepare, take: () => ready, isReady: () => isReady } });
+    Object.assign(travel, { turns: { prepare, take: () => ready, isReady: () => true } });
     travel.request(stopped, {} as DriveSnapshot);
-    travel.tickCreep(16, stopped, 0);
-    for (let i = 0; i < 3; i++) travel.tickCreep(16, stopped, 0);
+    travel.tickCreep(16);
     expect(travel.takeReady(stopped, {} as DriveSnapshot, 0)).toBeNull();
     expect(prepare).toHaveBeenCalled();
-    isReady = true;
-    let ticks = 0;
-    while (travel.isCreeping() && ticks++ < 100) travel.tickCreep(16, stopped, 0);
+    travel.tickCreep(TAIL * STEP);
     expect(travel.takeReady(stopped, {} as DriveSnapshot, 0)).toBe(ready);
-    const { playback: next } = travel.beginPlayback(stopped, ready, 0, 0, {});
+    const { playback: next } = travel.beginPlayback(stopped, ready, 0, {});
     const id = playerVehicle(stopped).id;
     expect(next.starts[id]).toEqual(at(TAIL));
-    expect(next.elapsed).toBeGreaterThanOrEqual(0);
+    expect(next.elapsed).toBeCloseTo(16);
     expect(travel.isCreeping()).toBe(false);
   });
 
@@ -761,7 +734,7 @@ describe("the slowdown after a stopped turn", () => {
     const prepare = vi.fn();
     const travel = new Travel(250, TAIL);
     Object.assign(travel, { turns: { prepare } });
-    const stopped = travel.stopAt({ ...playback, result: { next: {} } } as Playback, world, {}, 0, EASE, 0)!.world;
+    const stopped = travel.stopAt({ ...playback, result: { next: {} } } as Playback, world, {}, 0, 0)!.world;
     travel.press(0, false, true);
     travel.prepareNext(stopped, { ...playback, result: { next: {} } } as Playback, 0);
     expect(prepare).toHaveBeenCalledWith(stopped, tail.next);
