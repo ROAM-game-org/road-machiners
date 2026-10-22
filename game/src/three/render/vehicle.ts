@@ -6,14 +6,14 @@ import { partDef, type PartDef, type PartKind } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
 import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
-import { CLIP_TOLERANCE, cellCenter, cellRect, engineAnchor, highestUnder, restOn, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
+import { cellCenter, cellRect, engineAnchor, highestUnder, restOn, roofSpot, spanOf, surfaceSamples, unitBody, unitOfCells, unitsOf, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { PAL, paintOf, type TruckColors } from '../../render/palette';
 import { BODY_PARTS, TRUCK_LOOK, baseModel, columnTops, drawnWheelPoints, dentOffset, dentsOf, type PartBox, grayShare, grayed, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
-import { clearTop, headShape, sweepOf, type Obstacle } from './gunClearance';
+import { clearTop, headShape, highestAhead, postBottom, postColumn, sweepOf, type Obstacle } from './gunClearance';
 import { model, socket, TRUCK_BIT, type ModelName } from './models';
 import { addTwins, bodyPaint, CONTACT_SHADOW, contactShadowFor, mergeParts, mergeStatic } from './truckMesh';
 import { cutSpec, lampIslands, withCut, type CutSpec } from './armorCut';
@@ -442,6 +442,7 @@ export class VehicleView {
     const unit = this.unitOf(v, item);
     if (item.kind === 'part') return this.drawPart(v, unit, item, paint, wheelItems, guns);
     const good = this.placeItem(v, item, paint, standingY(v, item));
+    good.name = item.id;
     unit.still.add(good);
     unit.obstacles.push(obstacleOf(good));
   }
@@ -457,6 +458,7 @@ export class VehicleView {
 
   private drawModel(v: Vehicle, unit: UnitView, item: PartItem, def: PartDef, paint: number): void {
     const obj = this.placedPart(v, unit.b, item, def, paint);
+    obj.name = item.id;
     unit.still.add(obj);
     this.anchors.set(item.part.id, { local: new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3()), parent: unit.body });
     if (blocksGuns(v, item, def)) unit.obstacles.push(obstacleOf(obj));
@@ -584,6 +586,7 @@ export class VehicleView {
     const post = model('wmount_riser');
     place(post, { pos: at.pos.clone().setY(bottom), yaw: 0, scale: new THREE.Vector3(1, (top - bottom) / socket('wmount_riser', 'top').y, 1) });
     tint(post, paint, lookOf(item));
+    post.name = `${item.id} post`;
     into.add(post);
     return mount;
   }
@@ -616,6 +619,8 @@ export class VehicleView {
     const at = this.riser(stand, item, paint, unit.still, top);
     place(mount, at);
     tint(mount, paint, wear);
+    mount.name = `${item.id} mount`;
+    head.name = `${item.id} head`;
     unit.still.add(mount);
     mount.updateMatrix();
     head.position.copy(headAt.applyMatrix4(mount.matrix));
@@ -675,15 +680,16 @@ export class VehicleView {
   private buildLooseParts(v: Vehicle, bareRear: boolean): void {
     const cab = cabOf(v);
     if (!cab) throw new Error(`${v.id} has no cab`);
-    const row = Math.max(...itemCells(cab).map((c) => c.y));
-    const rear = cellRect(v.chassisId, itemCells(cab).filter((c) => c.y === row));
-    const cabUnit = this.units[rear.unit];
+    const rect = cellRect(v.chassisId, itemCells(cab));
+    const spot = roofSpot(v.chassisId, rect, ANTENNA_INSET);
+    const cabUnit = this.units[rect.unit];
     const tip = wrapped(model('antenna'));
     this.useLamp(tip);
     const antenna = mergeStatic(tip);
+    antenna.name = 'antenna';
     this.halo = radioHalo(this.radioOn);
     antenna.add(this.halo);
-    antenna.position.set(rear.x0 + ANTENNA_INSET, surfaceAt(v.chassisId, rear), -spanOf(v.chassisId).half.z + ANTENNA_INSET);
+    antenna.position.set(spot.x, spot.y, spot.z);
     cabUnit.body.add(antenna);
     cabUnit.motion.addWhip(antenna, WHIPS.antenna);
     if (!bareRear) return;
@@ -865,22 +871,6 @@ export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem): { at
 export function signedDegrees(deg: number): number {
   const turn = ((deg % 360) + 360) % 360;
   return turn > 180 ? turn - 360 : turn;
-}
-
-export function postBottom(foot: number, top: number): number {
-  return foot !== -Infinity && top - foot > CLIP_TOLERANCE ? foot : top;
-}
-
-export function postColumn(at: THREE.Vector3, unit: number): CellRect {
-  const corner = socket('wmount_riser', 'column');
-  const half = { x: Math.abs(corner.x), z: Math.abs(corner.z) };
-  return { unit, x0: at.x - half.x, x1: at.x + half.x, z0: at.z - half.z, z1: at.z + half.z };
-}
-
-function highestAhead(chassisId: string, rect: CellRect): number {
-  const nose = unitBody(chassisId, rect.unit).half.x;
-  if (rect.x1 >= nose) return -Infinity;
-  return highestUnder(chassisId, { ...rect, x0: rect.x1, x1: nose });
 }
 
 function anchorPoint(v: Pick<Vehicle, 'chassisId'>, item: GridItem): THREE.Vector3 {

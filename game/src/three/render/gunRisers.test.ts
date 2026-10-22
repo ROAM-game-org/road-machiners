@@ -8,7 +8,8 @@ import type { GridItem } from '../../sim/types';
 import { loadModels, model } from './models';
 import { partModel } from '../../render/partLooks';
 import * as THREE from 'three';
-import { armorPlacement, footprint, postColumn, standingY, weaponStand, wouldFloat } from './vehicle';
+import { postColumn } from './gunClearance';
+import { armorPlacement, footprint, standingY, weaponStand, wouldFloat } from './vehicle';
 import { budget } from '../../test/budget';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
