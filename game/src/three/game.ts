@@ -1065,7 +1065,7 @@ export class Game {
     this.weather.advance(this.play.frameMs());
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);
-    if (!this.screens.inventory.isOpen()) this.shaders.render();
+    this.shaders.render(this.modalOpen());
     this.refreshPlan();
     this.showPlan();
   }
