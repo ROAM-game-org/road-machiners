@@ -24,6 +24,7 @@ Mechanics pages hold the detailed rules of each system in prose, one page per se
 - [npcs.md](mechanics/npcs.md): NPC activities, traits, states and escorts.
 - [social.md](mechanics/social.md): radio topics and the horn.
 - [economy.md](mechanics/economy.md): prices, shops, contracts, hidden salvage, fuel and supplies.
+- [crime.md](mechanics/crime.md): witnessed crimes, reports, bounties, the Marshalls' hunt and the desk at the Roadhouse.
 - [content.md](mechanics/content.md): what the prototype contains.
 
 ## Generated blocks

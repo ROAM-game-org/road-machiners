@@ -21,7 +21,7 @@ export const LESSON_TRADES: Partial<Record<TraitId, LessonTrade>> = {
   trader: 'hauler', supplier: 'hauler',
   scavenger: 'salvager', vulture: 'salvager', roamer: 'salvager',
   raider: 'raider',
-  lawman: 'law', guard: 'law',
+  lawman: 'law', guard: 'law', marshal: 'law',
   merc: 'gunHand', courier: 'gunHand',
 };
 

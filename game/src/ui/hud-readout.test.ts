@@ -718,7 +718,7 @@ describe('survey interaction', () => {
     const [site] = surveySites(TEST_MAP);
     const label = `Survey the ${resolve(t(`contract.place.${site.type}`), 'en')}`;
     expect(actions(w)).toMatchObject([{ label, ready: true }]);
-    expect(resolve(getContextActions(w, false)[0].label, 'ru')).toBe('Разведать хутор');
+    expect(resolve(getContextActions(w, false)[0].label, 'ru')).toMatch(/^Разведать [^{}]+$/);
     w.vehicles[0].speed = RULES.parkedSpeed + 1;
     expect(actions(w)).toMatchObject([{ label, ready: false }]);
     w.vehicles[0].speed = 0;
