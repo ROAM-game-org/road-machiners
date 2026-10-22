@@ -99,6 +99,16 @@ describe('truck weaknesses', () => {
     expect(bareSides(v).length).toBeGreaterThan(0);
   });
 
+  it('counts a spike on a side as cover, like a plate', () => {
+    const w = emptyWorld();
+    const v = playerVehicle(w);
+    const spike = makePart(w, 'spikeCluster', 0);
+    const before = bareSides(v);
+    const spot = mountSpots(gridOf(v), v.items, { id: 'i-spike', x: 0, y: 0, rot: 0, kind: 'part', part: spike }, MOUNT_CELLS.accessory).find((at) => bareSides(withPlate(v, spike, at)).length < before.length)!;
+    v.items.push({ id: 'i-spike', kind: 'part', part: spike, ...spot });
+    expect(bareSides(v)).toHaveLength(before.length - 1);
+  });
+
   it('finds a badly worn engine, gearbox or tank on a truck that still drives', () => {
     for (const pick of [(v: Vehicle) => mountedParts(v, 'engine')[0], (v: Vehicle) => corePart(v, 'transmission'), (v: Vehicle) => corePart(v, 'tank')]) {
       const w = emptyWorld();

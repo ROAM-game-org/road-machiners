@@ -1,5 +1,5 @@
 import type { TruckPaint } from "../data/chassis";
-import { partDef } from "../data/parts";
+import { isShield, partDef } from "../data/parts";
 import { PX_PER_METER } from "../three/render/portraitPixels";
 import { spanOf } from "../sim/body";
 import { baseGrid } from "../sim/grid";
@@ -64,7 +64,7 @@ function maskedLayer(className: string, portrait: Portrait, glow: Glow): HTMLEle
 
 function keepsOwnColor(part: ConditionPart): boolean {
   const def = partDef(part.defId);
-  return def.kind !== "armor" && !(def.kind === "core" && def.role === "wheel");
+  return !isShield(def) && !(def.kind === "core" && def.role === "wheel");
 }
 
 function glowLayers(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
