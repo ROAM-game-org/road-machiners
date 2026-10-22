@@ -122,22 +122,22 @@ export function soundsWith(files: string[]): Record<string, Cue> {
 }
 
 const ENGINE_FILES: Record<string, string> = {
-  scout: "engine-2.ogg",
+  scout: "engine-1.ogg",
   hauler: "engine-3.ogg",
   buggy: "engine-1.ogg",
-  wagon: "engine-2.ogg",
+  wagon: "engine-1.ogg",
   courier: "engine-1.ogg",
-  van: "engine-2.ogg",
+  van: "engine-1.ogg",
   longbed: "engine-3.ogg",
   carrier: "engine-3.ogg",
   tractor: "engine-3.ogg",
   jeep: "engine-1.ogg",
-  convertible: "engine-2.ogg",
+  convertible: "engine-1.ogg",
   bus: "engine-3.ogg",
   loader: "engine-3.ogg",
-  lincoln: "engine-2.ogg",
+  lincoln: "engine-1.ogg",
   niva: "engine-1.ogg",
-  bukhanka: "engine-2.ogg",
+  bukhanka: "engine-1.ogg",
   semi: "engine-3.ogg",
   sorokonoga: "engine-3.ogg",
 };
@@ -177,7 +177,6 @@ export function engineFileFor(chassisId: string): string {
 
 const STRAIN_FILES: Record<string, string> = {
   "engine-1.ogg": "engine-strain-2.ogg",
-  "engine-2.ogg": "engine-strain-2.ogg",
   "engine-3.ogg": "engine-strain-1.ogg",
 };
 
