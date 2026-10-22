@@ -66,7 +66,7 @@ import { applyWear, carryHp } from './wear';
 import { advanceDust } from './detect';
 import { searchStream } from './search';
 import { cookOffClaymores, settleClaymores } from './claymore';
-import { activateUtilities, advanceUtilityEffects, settleShutdowns, tickCharges, utilityOrderError } from './utility';
+import { activateUtilities, advanceLines, advanceUtilityEffects, settleShutdowns, tickCharges, utilityOrderError } from './utility';
 import { caltropHits } from './hazards';
 import { advanceJobs, startAutoRepair } from './jobs';
 import { advanceEngineHeat } from './engine-heat';
@@ -351,6 +351,9 @@ export function endTurn(
     planNpcOrders(w);
     planHaulerOrder(w);
     freezeDriving(w);
+    advanceUtilityEffects(w);
+    assignUtilityOrders(w);
+    activateUtilities(w);
     move(w);
     if (!shopNear(w)) w.player.townPatched = false;
     followTower(w);
@@ -359,7 +362,7 @@ export function endTurn(
     spillDeadRows(w);
     advanceEngineHeat(w);
     advanceDust(w);
-    advanceUtilityEffects(w);
+    advanceLines(w);
     clearPiles(w);
     renewSalvage(w);
     fadeCraters(w);
@@ -369,10 +372,8 @@ export function endTurn(
     findSurveySites(w);
     raiseCalls(w);
     assignAutoOrders(w);
-    assignUtilityOrders(w);
     freezeFire(w);
     settleAims(w);
-    activateUtilities(w);
     tickCharges(w);
     fireWeapons(w);
     cookOffClaymores(w);

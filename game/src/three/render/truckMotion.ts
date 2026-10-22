@@ -42,6 +42,11 @@ class Spring {
     this.x = 0;
     this.v = 0;
   }
+
+  copy(from: Spring): void {
+    this.x = from.x;
+    this.v = from.v;
+  }
 }
 
 class Whip {
@@ -68,6 +73,12 @@ class Whip {
   reset(): void {
     this.pitch.reset();
     this.roll.reset();
+  }
+
+  carryFrom(from: Whip): void {
+    if (from.kind !== this.kind) return;
+    this.pitch.copy(from.pitch);
+    this.roll.copy(from.roll);
   }
 }
 
@@ -105,12 +116,21 @@ export class TruckMotion {
     this.whips.length = 0;
   }
 
+  carryFrom(from: TruckMotion): void {
+    this.pitch.copy(from.pitch);
+    this.roll.copy(from.roll);
+    this.lift.copy(from.lift);
+    this.time = from.time;
+    this.last = from.last;
+    this.whips.forEach((whip, i) => from.whips[i] && whip.carryFrom(from.whips[i]));
+  }
+
   step(f: VehicleFrame, dt: number, running: boolean): void {
     if (!(dt >= 0)) throw new Error(`Truck motion step of ${dt} s`);
     this.time += dt;
     const paused = f === this.last;
     this.last = f;
-    if (paused) return this.apply(false);
+    if (paused) return this.apply(running);
     if (dt > MAX_GAP) this.reset();
     this.inverse.set(f.rot.x, f.rot.y, f.rot.z, f.rot.w).invert();
     this.local.set(f.acc.x, f.acc.y, f.acc.z).applyQuaternion(this.inverse);

@@ -17,7 +17,8 @@ import {
 import { playerVehicle } from './damage';
 import { maxHealthOf } from './health';
 import { corePart, goodsCount, gridOf, mountedParts } from './grid';
-import { installSpot, removeAllGoods, spareParts, stowSpot } from './inventory';
+import { installSpot, removeAllGoods, spareParts, stowPart, stowSpot } from './inventory';
+import { makePart } from './factory';
 import { clockOf } from './sun';
 import { maxHp } from './wear';
 import { addState, stateOf } from './states';
@@ -136,6 +137,14 @@ describe('part cheats', () => {
     const me = playerVehicle(w);
     expect(spareParts(me).map((p) => p.defId)).toContain('plates');
     expect(goodsCount(me).salt).toBe(2);
+  });
+
+  it('gives a part onto free mount cells once the plain cells are full', () => {
+    const w = emptyWorld();
+    const me = playerVehicle(w);
+    while (stowPart(w, me, makePart(w, 'cage', 0)));
+    const cages = (v: typeof me) => v.items.filter((it) => it.kind === 'part' && it.part.defId === 'cage').length;
+    expect(cages(playerVehicle(give(w, 'cage', 1)))).toBe(cages(me) + 1);
   });
 
   it('rejects a give without room and keeps the world unchanged', () => {
