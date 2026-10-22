@@ -110,6 +110,14 @@ Approach: the worker adds a tail to every prepared turn, `travel.ts` owns a `Cre
 - RK2 — Tail frames make worker messages larger; the snapshot buffer is transferred, not copied.
 - Rollback: revert the three commits.
 
+## Verify
+- Touched tests pass: turn-task, turn-language, turn-preparation, travel and play-clock, 103 tests. tsc and the quality gate pass. `game.ts` shrank by 2 lines.
+- `npm run playtest` on the worktree server passes at 60.5 fps with no errors.
+- Browser probe `game/tmp/slowdown-probe.mjs` at 120 Hz, 829 frames over three turns. The turn end flows into the slowdown at the same per-frame step, the trucks rest 0 mm from the committed world pose, and a panel opened mid-slowdown holds the pose for 20 frames, then it resumes. The only backward frames are 2 of 0.2 mm inside a normal turn's physics, not at a join.
+- First probe run broke the goal: a press mid-slowdown finished the tail before the worker had the next turn, so the truck halted 3 frames at full speed and the turn's first frame repeated the pose. Fixed: the tail clock speeds up only once the next turn is ready, and the turn starts at the tail end with the time past it. Rerun: no standstill frame at the join.
+- Remaining feel point: at that join the per-frame step goes from 0.039 m to 0.080 m in one frame, since the ramp has not reached full speed when the tail ends. Before this change the same press started from a full stop.
+- UK1: worker turn time is unchanged against the dev server, 55 to 113 ms per turn in both. The press-to-start wait grew by about 17 ms on turns pressed during the slowdown.
+
 ## Conclusion
 
 ### Hands-off decisions
