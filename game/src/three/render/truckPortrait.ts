@@ -34,10 +34,12 @@ import { maxHp } from '../../sim/wear';
 import { signatureOf, VehicleView } from './vehicle';
 import { withCut, type CutSpec } from './armorCut';
 
+export const PORTRAIT_TILT_DEG = 25;
+
 const LOOK = {
   pxPerMeter: PX_PER_METER,
   supersample: SUPERSAMPLE,
-  tiltDeg: 25,
+  tiltDeg: PORTRAIT_TILT_DEG,
   cameraDistance: 40,
   depthMargin: 1,
   samples: 4,
@@ -434,13 +436,17 @@ function renderPartIds(pass: Pass, view: VehicleView, v: Vehicle, solid: Drawn[]
   const scene = new THREE.Scene();
   scene.add(view.root);
   let ids = renderIds(pass.renderer, pass.flat, scene, pass.camera);
-  for (const span of LOOK.hiddenSpansM) {
-    const seen = new Set(ids);
-    const hidden = conditionItems(v).filter((item) => !seen.has(numberOf(item.part.id)));
-    if (hidden.length === 0) return ids;
-    const heightOf = heightsOf(v, solid);
-    const column = { boxOf: (item: PartItem) => cellBox(v, item, span, heightOf(item)), depthTest: false };
-    ids = hiddenOver(ids, renderIds(pass.renderer, pass.flat, footprintScene(hidden, numberOf, column, trash), pass.camera));
+  const underBody = new Set([BODY_ID]);
+  const underCab = new Set([BODY_ID, ...cabs.map((cab) => numberOf(cab.partId))]);
+  for (const coverable of [underBody, underCab]) {
+    for (const span of LOOK.hiddenSpansM) {
+      const seen = new Set(ids);
+      const hidden = conditionItems(v).filter((item) => !seen.has(numberOf(item.part.id)));
+      if (hidden.length === 0) return ids;
+      const heightOf = heightsOf(v, solid);
+      const column = { boxOf: (item: PartItem) => cellBox(v, item, span, heightOf(item)), depthTest: false };
+      ids = hiddenOver(ids, renderIds(pass.renderer, pass.flat, footprintScene(hidden, numberOf, column, trash), pass.camera), coverable);
+    }
   }
   return ids;
 }
