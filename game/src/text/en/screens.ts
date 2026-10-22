@@ -41,7 +41,7 @@ export const SCREENS = {
   'save.confirmNew': 'Start a new game? The autosaves are deleted. Your save slots stay.',
   'save.needsMigrating': 'Your save needs migrating',
   'save.migrate': 'Migrate save',
-  'save.unreadable': 'The save is unreadable',
+  'save.doesNotFit': "This save doesn't fit this version",
   'save.held': 'Not saved: an error happened since the last good turn.',
   'save.turnFailed': 'The turn failed and did not play. The game was not saved.',
   'save.failed': 'The game could not save.',
