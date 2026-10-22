@@ -58,7 +58,7 @@ To test the score without ears, run `npm run blocks:sim -- --song dusk hit@8 den
 
 ### Combat songs
 
-The songs are generated whole in the ElevenLabs music UI and split locally with Demucs. `scripts/score-songs.json` holds each song's map: its source file, tempo, bar count, the guitar stem that feeds the guitar lane, its sections by bar and its last hit. Map every bar the band plays between the intro and the last hit, since unmapped bars cut the roads between sections. To add or change a song, put the source wav in `tmp/score-songs/`, edit the map and run:
+The songs are generated whole in the ElevenLabs music UI and split locally with Demucs. `scripts/score-songs.json` holds each song's map: its source file, tempo, bar count, the guitar stem that feeds the guitar lane, its sections by bar and its last hit. Map every bar the band plays between the intro and the last hit, since unmapped bars cut the roads between sections. When prep's beat tracking misreads a take, with many beats off the grid, set `firstBeat` in the map to the first beat's time in seconds, and prep uses that grid at the map's tempo. To add or change a song, put the source wav in `tmp/score-songs/`, edit the map and run:
 
 ```bash
 uv run --with librosa --with soundfile --with demucs --with torchcodec python -I scripts/score-blocks-prep.py scripts/score-songs.json tmp/score-songs public/sfx src/data/combat-songs.json

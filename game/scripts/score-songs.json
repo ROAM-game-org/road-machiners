@@ -51,6 +51,23 @@
   ],
   "end": 74
  },
+ "pursuit": {
+  "title": "Dustline Pursuit",
+  "source": "Dustline_Pursuit_2026-10-22T135907.wav",
+  "guitarStem": "other.wav",
+  "bpm": 110,
+  "firstBeat": 0.015,
+  "bars": 76,
+  "sections": [
+   { "role": "intro", "from": 9, "bars": 2 },
+   { "role": "verse", "from": 11, "bars": 10 },
+   { "role": "wall", "from": 21, "bars": 8 },
+   { "role": "stop", "from": 29, "bars": 4 },
+   { "role": "verse", "from": 33, "bars": 12 },
+   { "role": "wall", "from": 45, "bars": 12 }
+  ],
+  "end": 76
+ },
  "dusk": {
   "title": "Convoy At Dusk",
   "source": "Convoy_At_Dusk_2026-10-15T225738.wav",

@@ -172,6 +172,9 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | song-clash-b | music | false | 1 | 1 | 1 |
 | song-clash-b-guitars | music | false | 1 | 1 | 1 |
 | song-clash-b-cymbals | music | false | 1 | 1 | 1 |
+| song-pursuit | music | false | 1 | 1 | 1 |
+| song-pursuit-guitars | music | false | 1 | 1 | 1 |
+| song-pursuit-cymbals | music | false | 1 | 1 | 1 |
 | song-dusk | music | false | 1 | 1 | 1 |
 | song-dusk-guitars | music | false | 1 | 1 | 1 |
 | song-dusk-cymbals | music | false | 1 | 1 | 1 |
