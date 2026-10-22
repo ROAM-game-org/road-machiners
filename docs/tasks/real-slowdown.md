@@ -185,6 +185,12 @@ Approach: the worker adds a tail to every prepared turn, `travel.ts` owns a `Cre
 - Remaining feel point: at that join the per-frame step goes from 0.039 m to 0.080 m in one frame, since the ramp has not reached full speed when the tail ends. Before this change the same press started from a full stop.
 - UK1: worker turn time is unchanged against the dev server, 55 to 113 ms per turn in both. The press-to-start wait grew by about 17 ms on turns pressed during the slowdown.
 
+### Round 2: one play clock
+- Touched tests pass: travel, play-clock, volley, camera, truckMotion and vehicleWear. tsc and the quality gate pass. `npm run playtest` passes at 60.5 fps.
+- `game/tmp/clock-probe.mjs`, one combat turn that stops: 24 casings, the camera and the trucks hold still over 72 frames of stopped time. The camera step falls from 0.25 to 0 over 16 frames. A menu opened 400 ms into a turn holds the trucks, casings and 8 rounds in flight for 40 frames. The playback ends at 1 s with no hold after it.
+- `game/tmp/enemy-probe.mjs`, six battle turns: no truck moves backward. The first run showed two breaks, both fixed. A turn started from rest jumped to full speed with a 17 ms skip, since the world clock's stop ran one frame past the tail end. The clock now stops exactly at the tail end and eases back in. A truck body snapped when the engine shake switched off at a stop, and when a rebuilt model started its sway from rest. Body sway now runs on world time, and a rebuild carries it over. After the fixes the max body change while stopped is 0.
+- The user played a combat turn and found the enemy truck snapping a little after the stop. That matches the body snap above.
+
 ## Conclusion
 
 ### Hands-off decisions
@@ -194,4 +200,11 @@ Approach: the worker adds a tail to every prepared turn, `travel.ts` owns a `Cre
 - udesign: slowdown length reuses `playEaseMs` instead of a new setting; one ease for trucks and world visuals, and no invented number.
 - udesign: a turn with contacts or arrivals in its tail stops as today; those need world rules the tail does not run.
 - uplan: plan auto-approved (hands-off).
-- udesign: the turn playback keeps running under panels; holding it could deadlock against a radio call screen that waits for the playback.
+- udesign: the turn playback keeps running under panels; holding it could deadlock against a radio call screen that waits for the playback. Replaced in round 2: panels hold the turn, and the radio call only makes time not wanted.
+- udesign round 2: every round lands by the end of the move, and a result still pending when the clock rests shows at once; letting rounds land in the next turn deadlocks every wait on the playback.
+- uexecute round 2: a turn from rest eases time in over `playEaseMs`; the instant start read as a thump in the probe.
+- uexecute round 2: the stop after a move uses the world rate at speed 1, so fast travel cannot run the world past the tail.
+
+### Deferred (needs user input)
+- The engine sound glides over each turn on audio time. A panel opened mid-turn freezes the world, but the engine pitch still finishes its glide. The user decides whether that is worth driving the engine pitch from the world clock each frame.
+- The radio call path was not probed in the browser. A turn that opens a call should play to its end and ease to rest.
