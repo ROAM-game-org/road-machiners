@@ -14,17 +14,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_core import COLORS, ROUND_SIDES  # noqa: E402
+from parts_common_core import COLORS  # noqa: E402
 
 SEED = 104
 ALONG_X = (0, math.radians(90), 0)
 
 
 def build(kit: Kit) -> None:
-    kit.cylinder("tube", 0.12, 1.0, (0, 0, 0), "metal_dark", vertices=ROUND_SIDES, dent_by=0.01)
-    kit.cylinder("diff", 0.3, 0.36, (0, 0, 0), "rust_dark", vertices=ROUND_SIDES, dent_by=0.02)
-    kit.cylinder("diff_cover", 0.22, 0.16, (0.12, 0, 0), "metal", rot=ALONG_X, vertices=ROUND_SIDES)
-    kit.cylinder("pinion", 0.1, 0.3, (0.3, 0, 0), "metal_dark", rot=ALONG_X, vertices=ROUND_SIDES)
+    kit.cylinder("tube", 0.12, 1.0, (0, 0, 0), "metal_dark", vertices=6, dent_by=0.01)
+    kit.cylinder("diff", 0.3, 0.36, (0, 0, 0), "rust_dark", vertices=8, dent_by=0.02)
+    kit.cylinder("diff_cover", 0.22, 0.16, (0.12, 0, 0), "metal", rot=ALONG_X, vertices=8)
+    kit.cylinder("pinion", 0.1, 0.3, (0.3, 0, 0), "metal_dark", rot=ALONG_X, vertices=6)
 
 
 def main() -> None:

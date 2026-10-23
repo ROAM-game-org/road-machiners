@@ -19,11 +19,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
-from parts_common_core import ROUND_SIDES  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, FLARE, SUSPENSION_REST, arch_cut, cut_boxes, flare_profile, hull_mesh  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, FLARE, ROUND_ARCH_SEGMENTS, SUSPENSION_REST, arch_cut, cut_boxes, flare_profile, hull_mesh  # noqa: E402
+from parts_common_core import ROUND_SIDES, TIRE_SHARE, drawn_wheel  # noqa: E402
 from rig_units import check_unit as check_rig_unit, unit_wheels as count_wheels  # noqa: E402
 from shapes import prism  # noqa: E402
-from wheel_common import TIRE_SHARE, wheel_disc  # noqa: E402
 
 SEED = 640
 FRONT = 8.4
@@ -90,7 +89,6 @@ MODULE_HALF = 1.25
 MODULE_ROOF = up(2.35)
 MODULE_CHAMFER = 0.25  # the module's top front edge, along and down
 SKIN = 0.04  # the depth of grilles and lamps on a face
-FLARE_SEGMENTS = 4  # half the arch cut's edges, to keep eight flares inside the triangle budget of one longbed
 GRILLE_REACH = SKIN / 2 + 0.01  # a grille's bars stand this far out of its center
 
 
@@ -112,7 +110,7 @@ def hull(kit: Kit, name: str, points: list[tuple[float, float, float]], mat: str
 
 def rig_flare(kit: Kit, name: str, wx: float, x_min: float, x_max: float, y0: float, y1: float, low: float) -> None:
     """The dark low-poly flare over one arch of the rig on both sides, from y0 out to y1, clamped to the unit's x stretch."""
-    profile = flare_profile(wx, HUB_Z, WHEEL_R, low, x_min, x_max, FLARE_SEGMENTS)
+    profile = flare_profile(wx, HUB_Z, WHEEL_R, low, x_min, x_max, ROUND_ARCH_SEGMENTS)
     prism(kit, f"{name}_l", profile, y0, y1, "under")
     prism(kit, f"{name}_r", profile, -y1, -y0, "under")
 
@@ -123,19 +121,19 @@ def tandem_flare(kit: Kit, name: str, front: float, rear: float, y0: float, y1: 
     r1 = r0 + FLARE
 
     def arc(wx: float, r: float, start: int, end: int) -> list[tuple[float, float]]:
-        return [(wx + r * math.cos(math.pi * k / FLARE_SEGMENTS), max(low, HUB_Z + r * math.sin(math.pi * k / FLARE_SEGMENTS))) for k in range(start, end + 1)]
+        return [(wx + r * math.cos(math.pi * k / ROUND_ARCH_SEGMENTS), max(low, HUB_Z + r * math.sin(math.pi * k / ROUND_ARCH_SEGMENTS))) for k in range(start, end + 1)]
 
-    half = FLARE_SEGMENTS // 2
-    outer = arc(front, r1, 0, half) + arc(rear, r1, half, FLARE_SEGMENTS)
-    inner = arc(front, r0, 0, FLARE_SEGMENTS) + arc(rear, r0, 0, FLARE_SEGMENTS)
+    half = ROUND_ARCH_SEGMENTS // 2
+    outer = arc(front, r1, 0, half) + arc(rear, r1, half, ROUND_ARCH_SEGMENTS)
+    inner = arc(front, r0, 0, ROUND_ARCH_SEGMENTS) + arc(rear, r0, 0, ROUND_ARCH_SEGMENTS)
     profile = outer + list(reversed(inner))
     prism(kit, f"{name}_l", profile, y0, y1, "under")
     prism(kit, f"{name}_r", profile, -y1, -y0, "under")
 
 
 def wheel(kit: Kit, name: str, x: float, y: float) -> None:
-    """One wheel in the look of the game's wheel model, from the shared wheel builder."""
-    wheel_disc(kit, name, (x, y, HUB_Z), WHEEL_R, 2 * WHEEL_HALF_W, (math.pi / 2, 0, 0))
+    """One wheel in the look of the game's wheel model, from drawn_wheel()."""
+    drawn_wheel(kit, name, (x, y, HUB_Z), WHEEL_R, 2 * WHEEL_HALF_W)
 
 
 def model_wheels(kit: Kit, x: float, y: float) -> int:

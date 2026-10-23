@@ -492,6 +492,7 @@ describe('botOrders', () => {
 
   it('has a broke bot keep its gear when selling it cannot pay the repair', () => {
     const w = parkedAt('bowl');
+    addGoods(w, playerVehicle(w), 'salt', freeCells(playerVehicle(w)));
     for (const p of mountedParts(playerVehicle(w), 'core')) p.hp = 0;
     w.player.money = 0;
 

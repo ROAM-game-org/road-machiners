@@ -32,10 +32,9 @@ from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, Grid, check_base, cut_boxes, flare_profile, level_sockets, round_arch  # noqa: E402
-from parts_common_core import ROUND_SIDES  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, ROUND_ARCH_SEGMENTS, SUSPENSION_REST, Grid, check_base, cut_boxes, flare_profile, level_sockets, round_arch  # noqa: E402
+from parts_common_core import ALONG_X, ROUND_SIDES, TIRE_SHARE, drawn_wheel  # noqa: E402
 from shapes import prism  # noqa: E402
-from wheel_common import wheel_disc  # noqa: E402
 
 SEED = 304
 LENGTH = 6.1
@@ -138,7 +137,7 @@ def flares(kit: Kit) -> None:
     """A dark ring on the outer face over each tire, cut off at the cab back for the front pair."""
     for i, wx in enumerate((WHEEL_X, -WHEEL_X)):
         x_min, x_max = (CAB_BACK, FENDER_FRONT) if wx > 0 else (-HALF_X, HALF_X)
-        ring = flare_profile(wx, HUB_Z, WHEEL_R, FRAME_BOTTOM, x_min, x_max)
+        ring = flare_profile(wx, HUB_Z, WHEEL_R, FRAME_BOTTOM, x_min, x_max, ROUND_ARCH_SEGMENTS)
         prism(kit, f"flare{i}_l", ring, HALF_Y - 0.02, HALF_Y, "under")
         prism(kit, f"flare{i}_r", ring, -HALF_Y, -HALF_Y + 0.02, "under")
 
@@ -146,7 +145,7 @@ def flares(kit: Kit) -> None:
 def front_end(kit: Kit) -> None:
     """Round-arched fenders at the cab's lower corners with round headlights, a vertical-slat grille and a plain cab underside."""
     far_back = WHEEL_X - ARCH_R - 0.4
-    arch = round_arch(WHEEL_X, HUB_Z, ARCH_R, FRAME_BOTTOM)
+    arch = round_arch(WHEEL_X, HUB_Z, ARCH_R, FRAME_BOTTOM, ROUND_ARCH_SEGMENTS)
     outline = [(far_back, FRAME_BOTTOM), *arch, (FENDER_FRONT, FRAME_BOTTOM), (FENDER_FRONT, FENDER_TOP - 0.12), (FENDER_FRONT - 0.12, FENDER_TOP), (far_back, FENDER_TOP)]
     piece = clip_x(outline, CAB_BACK, FENDER_FRONT)
     prism(kit, "fender_l", piece, WELL_Y, HALF_Y - 0.02, "paint")
@@ -209,11 +208,11 @@ def bed(kit: Kit) -> None:
 
 
 def spare(kit: Kit) -> None:
-    """A spare wheel standing upright behind the cab on the left, in the look of the wheel model."""
+    """A spare wheel standing upright behind the cab on the left, in the round look of the game's wheel."""
     x = CAB_BACK - SPARE_T / 2 - 0.01
     y = HALF_Y - SPARE_R - 0.02
     z = FLOOR + SPARE_R
-    wheel_disc(kit, "spare", (x, y, z), SPARE_R, SPARE_T, (0, math.pi / 2, 0))
+    drawn_wheel(kit, "spare", (x, y, z), SPARE_R / TIRE_SHARE, SPARE_T / 0.94, ALONG_X)
 
 
 def bounds(kit: Kit) -> tuple[Vector, Vector]:
