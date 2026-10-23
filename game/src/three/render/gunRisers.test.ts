@@ -177,7 +177,7 @@ const UNRESTABLE: Record<string, string[]> = {
 };
 
 describe('guns on the issue 149 chassis', () => {
-  it.each(['lincoln', 'niva', 'bukhanka'])('%s: every gun spot on deck cells rests on the model', (id) => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'buggy'])('%s: every gun spot on deck cells rests on the model', (id) => {
     const cells = baseGrid(id).cells;
     const perched: string[] = [];
     for (const def of GUNS) {

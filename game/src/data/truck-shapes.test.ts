@@ -103,7 +103,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'bu
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
-  buggy: { height: [1.56, 1.72], roof: [0, 0.1], noseDrop: [0.8, 1.08], tailDrop: [0.6, 0.9] },
+  buggy: { height: [1.56, 1.72], roof: [0.24, 0.36], noseDrop: [0.8, 1.08], tailDrop: [0.6, 0.9] },
 };
 
 type ShapeName = keyof typeof SHAPES;
@@ -189,12 +189,6 @@ describe('the Manx buggy', () => {
     expect((2 * buggy.wheelX) / along).toBeLessThanOrEqual(0.652 * 1.05);
   });
 
-  it('dips its open tub side to 0.86 to 0.96 m between the wheels', () => {
-    const sill = Math.min(...[-0.45, -0.2, 0.05, 0.25].map((x) => highest((c) => Math.abs(c.x - x) <= 0.05 && Math.abs(c.y) >= 0.75 && Math.abs(c.y) <= 0.9)));
-    expect(sill).toBeGreaterThanOrEqual(0.86);
-    expect(sill).toBeLessThanOrEqual(0.96);
-  });
-
   it('crowns its front fenders 1.08 to 1.22 tire diameters over the ground', () => {
     const crown = highest((c) => Math.abs(c.x - buggy.wheelX) <= 0.15 && Math.abs(Math.abs(c.y) - buggy.wheelZ) <= 0.1);
     const tire = 2 * buggy.wheelRadius;
@@ -202,12 +196,12 @@ describe('the Manx buggy', () => {
     expect(crown / tire).toBeLessThanOrEqual(1.22);
   });
 
-  it('stands its windshield frame 1.44 to 1.58 m tall, under the roll hoop', () => {
-    const screen = highest((c) => c.x >= 0.3 && c.x <= 0.65 && Math.abs(c.y) <= 0.6);
-    const hoop = highest((c) => c.x >= -1 && c.x <= -0.5 && Math.abs(c.y) <= 0.6);
-    expect(screen).toBeGreaterThanOrEqual(1.44);
-    expect(screen).toBeLessThanOrEqual(1.58);
-    expect(hoop).toBeGreaterThan(screen);
+  it('closes its cockpit under a hardtop 1.56 to 1.68 m over the ground', () => {
+    const cab = columns.filter((c) => c.x >= -0.64 && c.x <= 0.31 && Math.abs(c.y) <= 0.8);
+    const roof = Math.max(...cab.map((c) => c.top)) - ground;
+    expect(roof).toBeGreaterThanOrEqual(1.56);
+    expect(roof).toBeLessThanOrEqual(1.68);
+    expect(cab.filter((c) => roof - (c.top - ground) > 0.05).map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}`)).toEqual([]);
   });
 });
 
