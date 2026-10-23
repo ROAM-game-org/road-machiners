@@ -2,14 +2,15 @@
 
 Built through the blender-image-to-3d brief and gates from two photographs by Dimitǎr Boevski on Wikimedia Commons
 (CC BY-SA 4.0), "GAZ-66 truck in Vrachesh, Botevgrad municipality, Bulgaria" 01 (front three-quarter from the left, about
-20 degrees off the nose, at eye height) and 04 (left side, a little behind the side's normal, at eye height). Neither photo
+20 degrees off the nose, at eye height) and 04 (left rear three-quarter, about 40 degrees behind the side's normal, at eye height, where the headboard faces the camera). Neither photo
 is kept in the repo. Every constant names the photo it was read in, or says inferred.
 Size keeps the GAZ-66's published dimensions: along and up at the scout's 1.077, across at the scout's widening of 1.17, so
 6.09 m long, 2.92 m across the cab face and the bed and 2.64 m to the hatch rim on its tires, on a 3.55 m wheelbase and a
 2.26 m track. The ground is 1.4 m below the center, so a height h over the ground is Blender Z up(h).
 Levels over the ground, read in photo 01 as shares of the 2.64 m height: bumper 0.74 to 1.0, headlight centers 1.23,
 amber lamps 1.47, grille 1.17 to 1.69, the ledge at the windshield foot 1.85, glass 1.92 to 2.46, roof cap 2.48 to 2.60.
-In photo 04 the cab bottom is 1.0 and the deck 1.4, 0.53 of the cab height.
+In photo 04 the cab bottom is 1.0 and the deck 1.4, 0.53 of the cab height. Lengths read in photo 04 are divided by the
+cosine of its angle.
 From the front: a deep black bumper with two tow hooks, one flat lower face from side to side with a framed grille of
 painted slats, round headlights in chrome rings set inboard of the corners with amber lamps over them, louvres on the
 sides behind the corners, a rounded top front corner and a round arch cut into each side over the front wheel. Over the
@@ -17,9 +18,10 @@ ledge the upper cab stands 0.28 m back (photo 04) and leans in from 0.9 to 0.82 
 two-pane windshield split by a thick post, one tall door window a side and a blank rear quarter behind the door seam.
 A pale rounded roof cap with two small amber beacons frames the engine hatch. Behind the cab a tall headboard of planks
 under open slats stands on a flatbed with no walls: a pale edge beam on brackets over a high dark frame, a long round tank
-between the axles, mudflaps behind the wheels, and taillights and a plate under the rear edge.
+between the axles, pale flap plates behind the rear wheels, dark mudflaps under the rear end, and taillights and a plate
+under the rear edge.
 Deviations from the photos: the wheels stay symmetric and keep the tire rule's 0.6 m radius, the width follows the
-widening rule, the cab is 1.94 m deep from the face where photo 04 shows about one tire diameter, 1.2 m, since the roof
+widening rule, the cab is 1.94 m deep from the face where photo 04 shows about 1.4 tire diameters, 1.65 m, once its angle is taken out, since the roof
 hatch must cover the engine cells on rows 1 and 2, there are no side mirrors, no rear corner post, the bed's edge beam
 rises only 0.04 m over the deck, and the headboard stops under the cab roof.
 Grid: 7 columns by 9 rows, stretched over the 6.09 by 2.92 m model. Half height 0.6 m, from PHYSICS.bodies.hauler.
@@ -96,7 +98,7 @@ HATCH_LEFT = G.col_y(1.5)
 HATCH_RIGHT = G.col_y(3.5)
 CAB_BACK = HATCH_BACK - 0.11
 
-SETBACK = 0.28  # photo 04: the upper cab stands this far behind the lower face
+SETBACK = 0.28  # photo 04 gives 0.36 m once its angle is taken out; 0.28 keeps the roof cap ahead of the hatch
 RAKE = 0.06  # photo 04: the windshield leans back this far over its height
 UPPER_FRONT = FACE - SETBACK
 UPPER_HALF_LOW = 1.30  # photo 01: 0.9 of the face's width at the ledge
@@ -108,8 +110,9 @@ GLASS_BOTTOM = up(1.92)  # photo 01
 GLASS_TOP = up(2.46)  # photo 01: the glass reaches up to the roof cap
 POST_HALF = 0.05  # photo 01: the thick center post
 PILLAR = 0.09  # photo 01: the frame round the windshield
-DOOR_BACK = 1.80  # photo 04: the door's rear seam; a blank quarter panel stands behind it
-DOOR_WINDOW = (1.94, 2.36)  # photo 04: one tall door window, narrow against its height  # widths inferred from the stretched cab
+DOOR_BACK = 1.74  # photo 04: the door's rear seam; a blank quarter panel stands behind it
+DOOR_WINDOW = (1.82, 2.38)  # photo 04: one tall door window, 0.45 tire diameters wide once the view's angle is taken out
+DOOR_FRONT = 2.40  # photo 04: the door's front edge under the A pillar
 
 GRILLE_HALF = 0.46  # photo 01: 0.32 of the face's width
 GRILLE_BOTTOM = up(1.17)  # photo 01
@@ -138,7 +141,7 @@ BEAM_T = 0.06  # inferred
 HEAD_TOP = up(2.55)  # photo 04: up to the cab roof, here kept under the roof cap
 PLANK_TOP = BED_FLOOR + 0.6 * (HEAD_TOP - BED_FLOOR)  # photo 04: planks in the lower 60 percent, open slats above
 HEAD_T = 0.08  # inferred
-BRACKET_DROP = 0.24  # photo 04: the triangular brackets under the edge beam
+BRACKET_DROP = 0.3  # photo 04: the triangular brackets under the edge beam
 BRACKET_STEP = 0.7  # photo 04: one bracket about every 0.7 m
 FRAME_BOTTOM = up(0.78)  # inferred
 FRAME_TOP = up(1.02)  # photo 04: the frame rails high and open
@@ -148,7 +151,7 @@ TANK_R = 0.2  # photo 04: one long round tank between the axles
 TANK_Y = 1.0
 TANK_X = (0.2, -0.8)  # photo 04: from 0.4 to 0.85 of the way from the front tire to the rear one
 TANK_Z = up(0.82)  # photo 04
-FLAP_DROP = up(0.35)  # photo 04: the mudflaps hang below the hubs
+FLAP_DROP = up(0.25)  # photo 04: a pale plate hangs below the hub behind each rear wheel, a dark rubber flap under the rear end
 
 
 def hull(kit: Kit, name: str, mat: str, points: list[tuple[float, float, float]]) -> bpy.types.Object:
@@ -207,14 +210,14 @@ def face(kit: Kit) -> None:
     for i in range(SLATS):
         y = -GRILLE_HALF + 2 * GRILLE_HALF * (i + 0.5) / SLATS
         kit.box(f"slat{i}", (0.02, 0.045, tall - 0.04), (FACE + 0.01, y, mid), "paint")
-    frame = 0.05
+    frame = 0.035
     kit.box("grille_top", (0.03, 2 * GRILLE_HALF + 2 * frame, frame), (FACE + 0.015, 0, GRILLE_TOP + frame / 2), "paint")
     kit.box("grille_bottom", (0.03, 2 * GRILLE_HALF + 2 * frame, frame), (FACE + 0.015, 0, GRILLE_BOTTOM - frame / 2), "paint")
     mirrored(kit, "grille_side", (0.03, frame, tall), FACE + 0.015, GRILLE_HALF + frame / 2, mid, "paint")
     for s, sign in (("l", 1), ("r", -1)):
         kit.cylinder(f"lamp_ring_{s}", RING_R, 0.03, (FACE + 0.005, sign * LAMP_Y, LAMP_Z), "metal_light", rot=ALONG_X, vertices=ROUND_SIDES)
         kit.cylinder(f"lamp_{s}", LAMP_R, 0.03, (FACE + 0.012, sign * LAMP_Y, LAMP_Z), "light", rot=ALONG_X, vertices=ROUND_SIDES)
-        kit.cylinder(f"amber_{s}", AMBER_R, 0.04, (FACE + 0.01, sign * AMBER_Y, AMBER_Z), "amber", rot=ALONG_X, vertices=ROUND_SIDES)
+        kit.cylinder(f"amber_{s}", AMBER_R, 0.025, (FACE + 0.005, sign * AMBER_Y, AMBER_Z), "amber", rot=ALONG_X, vertices=ROUND_SIDES)
     bumper_mid = (BUMPER_TOP + BUMPER_BOTTOM) / 2
     kit.box("bumper", (FRONT - FACE, 2 * BUMPER_HALF, BUMPER_TOP - BUMPER_BOTTOM), ((FRONT + FACE) / 2, 0, bumper_mid), "under")
     for s, sign in (("l", 1), ("r", -1)):
@@ -244,8 +247,8 @@ def cab_upper(kit: Kit) -> None:
         hull(kit, f"windshield_{s}", "glass", pane)
     w0, w1 = DOOR_WINDOW
     check_door_gap("door window", w0, w1, GLASS_BOTTOM, WHEELS_X, HUB_Z, ARCH_R)
-    sill = door_sill(DOOR_BACK - 0.01, DOOR_BACK + 0.01, CAB_BOTTOM, WHEELS_X, HUB_Z, ARCH_R)
-    check_door_gap("door seam", DOOR_BACK - 0.01, DOOR_BACK + 0.01, sill, WHEELS_X, HUB_Z, ARCH_R)
+    sill = door_sill(DOOR_BACK, DOOR_FRONT, CAB_BOTTOM, WHEELS_X, HUB_Z, ARCH_R)
+    check_door_gap("door", DOOR_BACK, DOOR_FRONT, sill, WHEELS_X, HUB_Z, ARCH_R)
     for s, sign in (("l", 1), ("r", -1)):
         window = []
         for z in (GLASS_BOTTOM, GLASS_TOP):
@@ -261,6 +264,8 @@ def cab_upper(kit: Kit) -> None:
                     seam.append((x, sign * (upper_half(z) + dy), z))
         hull(kit, f"door_seam_{s}", "under", seam)
         kit.box(f"door_seam_low_{s}", (0.024, 0.016, LEDGE - sill), (DOOR_BACK, sign * SIDE, (LEDGE + sill) / 2), "under")
+        kit.box(f"door_seam_front_{s}", (0.024, 0.016, LEDGE - sill), (DOOR_FRONT, sign * SIDE, (LEDGE + sill) / 2), "under")
+        kit.box(f"door_seam_bottom_{s}", (DOOR_FRONT - DOOR_BACK, 0.016, 0.024), ((DOOR_FRONT + DOOR_BACK) / 2, sign * SIDE, sill), "under")
         kit.box(f"handle_{s}", (0.14, 0.02, 0.035), (DOOR_BACK + 0.12, sign * (SIDE + 0.008), up(1.7)), "metal_light")
 
 
@@ -295,7 +300,7 @@ def roof(kit: Kit) -> None:
 
 
 def chassis(kit: Kit) -> None:
-    """The dark ladder frame, both axles high off the ground, the step box behind each front wheel, the long tanks, the exhaust stub and the rear mudflaps."""
+    """The dark ladder frame, both axles high off the ground, the step box behind each front wheel, the long tanks, the exhaust stub, the flap plates and the rear mudflaps."""
     rail_front = FACE - 0.05
     mirrored(kit, "rail", (rail_front - BED_BACK - 0.1, 0.14, FRAME_TOP - FRAME_BOTTOM), (rail_front + BED_BACK + 0.1) / 2, RAIL_Y, (FRAME_TOP + FRAME_BOTTOM) / 2, "under")
     for i, wx in enumerate(WHEELS_X):
@@ -308,13 +313,14 @@ def chassis(kit: Kit) -> None:
     tank_len = TANK_X[0] - TANK_X[1]
     tank_mid = sum(TANK_X) / 2
     for s, y in (("l", TANK_Y), ("r", -TANK_Y)):
-        kit.cylinder(f"tank_{s}", TANK_R, tank_len, (tank_mid, y, TANK_Z), "metal", rot=ALONG_X, vertices=ROUND_SIDES)
+        kit.cylinder(f"tank_{s}", TANK_R, tank_len, (tank_mid, y, TANK_Z), "metal_dark", rot=ALONG_X, vertices=ROUND_SIDES)
         for k, dx in enumerate((-0.3, 0.3)):
             kit.cylinder(f"tank_strap{k}_{s}", TANK_R + 0.012, 0.05, (tank_mid + dx, y, TANK_Z), "under", rot=ALONG_X, vertices=ROUND_SIDES)
         kit.box(f"tank_bracket_{s}", (tank_len - 0.3, abs(y) - RAIL_Y, 0.06), (tank_mid, math.copysign((abs(y) + RAIL_Y) / 2, y), TANK_Z + TANK_R - 0.03), "under")
     kit.cylinder("exhaust", 0.05, 0.3, (TANK_X[1] - 0.18, 0.95, up(0.72)), "rust", rot=ALONG_Y, vertices=ROUND_SIDES)
     top = BED_FLOOR - DECK_T
-    mirrored(kit, "mudflap", (0.02, 0.46, top - FLAP_DROP), -WHEEL_X - WHEEL_R - 0.1, WHEEL_Z, (top + FLAP_DROP) / 2, "under")
+    mirrored(kit, "flap_plate", (0.03, 0.56, top - FLAP_DROP), -WHEEL_X - WHEEL_R - 0.1, WHEEL_Z, (top + FLAP_DROP) / 2, "trim")
+    mirrored(kit, "mudflap", (0.02, 0.5, top - FLAP_DROP - 0.25), BED_BACK + 0.35, WHEEL_Z, (top + FLAP_DROP + 0.25) / 2, "under")
 
 
 def bed(kit: Kit) -> None:
