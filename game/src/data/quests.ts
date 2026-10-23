@@ -27,7 +27,6 @@ export const GAME_OPENED_QUESTS = {
   wagonSeven: 'wagon_seven',
   scale: 'bowl_scale',
   counter: 'nose_counter',
-  roadHire: 'road_hire',
   coreDeath: 'fallen_light',
   chaosHighwayIntro: 'chaos_highway_intro',
   roadStretch1: 'road_stretch_1',
