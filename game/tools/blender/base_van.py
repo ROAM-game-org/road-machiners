@@ -1,9 +1,24 @@
-"""The van base: a stylized 1980s Chevy G20 full-size van.
+"""The van base: a 1983-91 Chevrolet G20 Chevy Van, 125 in wheelbase, regular body, in a Starcraft style conversion.
 
-Grid: 5 columns by 9 rows, 2.42 m across by 5.85 m along. Half height 0.5 m, from PHYSICS.bodies.van.
-Rows 0 to 2 are a short sloped hood with a cutout over the engine cells, rows 3 to 8 one tall closed box.
-The flat box roof is the row surface for rows 3 to 8, so weapons and cargo stand on it like on a roof rack.
-Wheels sit on rows 1 and 7 in the outer columns, radius 0.58 m, half width 0.22 m, mount 0.35 m below the center.
+Sized from the published G20 dimensions at the scout's 1.077 scale, so the van compares with the scout as the real vans do:
+length 202.2 in (5.14 m) gives 5.53 m with the bumpers, body width 79.5 in (2.02 m) gives 2.17 m across the flares,
+the 125 in (3.18 m) wheelbase gives 3.42 m, and the 79 in (2.01 m) roof gives 2.17 m. The trim cap of the conversion's raised top and the tire rule's lifted tires take it to 2.3 m.
+Levels over the ground, 1.25 m below the center: rocker 0.53, bumpers 0.53 to 0.75, nose top 1.23, hood break 1.45, cowl and windshield base 1.5,
+window bottoms 1.51, window tops 2.03, body top 2.09, cap top 2.3. Along X from the nose: bumper 0.1, a short hood that rolls up steeply from the
+squared nose to a break 0.57 m back and rises gently to the cowl 1.33 m back (0.24 of the length), a windshield raked back to the body top 1.8 m back (0.32) under a cap whose top starts 1.92 m back (0.35),
+front doors to x 0.32, then the long flat-roofed box to the tail. The hood, roof front and window levels are inferred from the
+G20's side view, since the reference photos could not be fetched when the van was built.
+What the model shows: a wide dark grille in a bright bezel between rectangular headlamps over a bright bumper, front doors with
+glass that follows the rake, two conversion windows behind them on each side, a trim stripe along the box side, the trim roof cap
+for the conversion's raised top, rear barn doors with a center seam and two windows, tall taillights at the rear corners over a
+bright bumper, and round arches with slim dark flares.
+Deviations from the G20: the wheels stay symmetric, 1.71 m from the center, so the rear overhang is shorter; the tires follow the
+tire rule, 0.5 m radius and 0.195 m half width, 0.9 m off the center line so they stand about flush with the flares; the body is symmetric left
+to right, and only seams mark the right side cargo door.
+The engine shows through a hole in the hood over the engine cells, on the dark core top at FLOOR, centered on PHYSICS.bodies.van.engine.
+Grid: 5 columns by 9 rows, stretched over the model by the projection. Half height 0.5 m, from PHYSICS.bodies.van.
+The flat roof is the row surface for the box rows, so weapons and cargo stand on it like on a roof rack.
+Sockets arch_front, arch_rear and arch_front_top mark the arches for wheelArches.test.ts.
 Run: blender --background --python tools/blender/base_van.py -- public/models/base_van.glb [tmp/base_van.png]
 """
 
@@ -12,151 +27,240 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import bmesh
 import bpy
+from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, INSET, SUSPENSION_REST, Grid, arch_profile, check_base, check_door_gap, flare, level_sockets  # noqa: E402
+from parts_common_base import (  # noqa: E402
+    ARCH_CLEARANCE,
+    BASE_COLORS,
+    ROUND_ARCH_SEGMENTS,
+    SUSPENSION_REST,
+    Grid,
+    check_base,
+    check_door_gap,
+    cut_boxes,
+    door_sill,
+    flare,
+    hull_layers,
+    level_sockets,
+    round_arch,
+)
+from parts_common_core import ROUND_SIDES, check_round  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 302
+LENGTH = 5.53
+WIDTH = 2.17
 G = Grid(rows=9, cols=5, half_height=0.5)
-WHEEL_R = 0.58
-WHEEL_HALF_W = 0.22
-HUB_Z = -0.35 - SUSPENSION_REST
-WHEELS_X = [G.row_x(1), G.row_x(7)]
-WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
+WHEEL_R = 0.5  # PHYSICS.bodies.van.wheelRadius
+WHEEL_HALF_W = 0.195  # PHYSICS.bodies.van.wheelHalfWidth
+WHEEL_Z = 0.9  # PHYSICS.bodies.van.wheelZ
+WHEEL_X = 1.71  # PHYSICS.bodies.van.wheelX
+HUB_Z = -0.35 - SUSPENSION_REST  # PHYSICS.bodies.van.wheelY
+WHEELS_X = [WHEEL_X, -WHEEL_X]
+WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03
+ARCH_R = WHEEL_R + ARCH_CLEARANCE
+ARCH_SEGMENTS = ROUND_ARCH_SEGMENTS  # edges per half circle; a whole arch circle keeps the shared ROUND_SIDES
 
-FLOOR = 0.05  # the underbody top
-SIDE = G.half_y - INSET  # body side outer face
-FRONT = G.half_x - INSET  # nose face
-BACK = -G.half_x + INSET  # tail face
-NOSE_TOP = G.top - 0.02  # the hood's front edge, above the chamfer
-NOSE_CHAMFER = 0.14
-CAB_FRONT = G.row_x(2.5)  # the windshield base, where the box starts
-COWL = G.top + 0.34  # the hood's back edge at the windshield base
-ROOF = G.top + 1.0
-ROOF_T = 0.1
+FLARE_OUT = 0.025
+SIDE = WIDTH / 2 - FLARE_OUT
+BUMPER = 0.1
+NOSE = LENGTH / 2 - BUMPER
+TAIL = -NOSE
+BOTTOM = G.bottom
+FLOOR = -0.25
+NOSE_TOP = -0.02
+HOOD_BREAK_X = 2.2  # the hood rises gently from the cowl to here, then rolls down steeply to the nose
+HOOD_BREAK = 0.2
+NOSE_CHAMFER = 0.08
+COWL_X = 1.435
+COWL = 0.25
+ROOF_FRONT = 0.97
+ROOF = 1.05
+ROOF_T = 0.21
 UNDER_ROOF = ROOF - ROOF_T
-RAKE_TOP = CAB_FRONT - 0.42  # the windshield top
-ROOF_CHAMFER = 0.1
-BAY_FRONT = G.row_x(0.5)  # the engine cutout covers rows 1 and 2, columns 1 and 2
-BAY_LEFT = G.col_y(0.5)
-BAY_RIGHT = G.col_y(2.5)
-BAY_FLOOR = 0.36  # a 0.5 m engine block tops out 0.02 m above the cowl and well above the hood on row 1
-LAMP_Y = (0.66, 1.08)  # headlight span across, from the center line
-WINDOW_BACK = G.row_x(3.55)  # the front door windows end here, the box behind is closed
-STRIPE_Z = 0.12  # the side stripe's bottom edge
-STRIPE_H = 0.24
-STRIPE_KICK = G.row_x(6.3)  # the stripe turns up toward the roof here
+ROOF_CHAMFER = 0.06
+CAP_SLOPE = 0.12  # the cap's front leans back this far from its foot to its top
+CAP_INSET = 0.07
+BELT = 0.26
+WINDOW_TOP = 0.78
+B_PILLAR = 0.32
+CARGO_DOOR_BACK = -0.95
+CONVERSION_WINDOWS = ((0.18, -0.85), (-1.05, -2.3))
+WINDOW_LOW = 0.3
+WINDOW_HIGH = 0.76
+STRIPE = (-0.04, 0.07)
+SEAM = 0.035
+PROUD = 0.012
+
+ENGINE_X = 1.827  # PHYSICS.bodies.van.engine.x
+ENGINE_Y = 0.218  # -PHYSICS.bodies.van.engine.z
+ENGINE_HALF = (0.327, 0.436)  # the drawn engine: restOn() of the engine cells, on the core top
+HOLE_MARGIN = 0.02
+HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, ENGINE_Y - ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_Y + ENGINE_HALF[1] + HOLE_MARGIN))
 
 
 def hood_z(x: float) -> float:
-    """The hood top at X, a straight slope from the nose chamfer up to the cowl."""
-    x0 = FRONT - NOSE_CHAMFER
-    return NOSE_TOP + (COWL - NOSE_TOP) * (x0 - x) / (x0 - CAB_FRONT)
+    """The hood top at X: a steep roll from the nose chamfer up to the break, then a gentle rise to the cowl."""
+    x0 = NOSE - NOSE_CHAMFER
+    if x >= HOOD_BREAK_X:
+        return NOSE_TOP + (HOOD_BREAK - NOSE_TOP) * (x0 - x) / (x0 - HOOD_BREAK_X)
+    return HOOD_BREAK + (COWL - HOOD_BREAK) * (HOOD_BREAK_X - x) / (HOOD_BREAK_X - COWL_X)
 
 
 def rake_x(z: float) -> float:
     """The windshield's X at height z."""
-    return CAB_FRONT + (RAKE_TOP - CAB_FRONT) * (z - COWL) / (UNDER_ROOF - COWL)
-
-
-def prism_x(kit: Kit, name: str, profile: list[tuple[float, float]], x0: float, x1: float, mat: str) -> None:
-    """Extrudes a closed YZ profile from Blender X x0 to x1 as one mesh."""
-    mesh = bpy.data.meshes.new(name)
-    bm = bmesh.new()
-    near = [bm.verts.new((x0, y, z)) for y, z in profile]
-    far = [bm.verts.new((x1, y, z)) for y, z in profile]
-    bm.faces.new(near)
-    bm.faces.new(list(reversed(far)))
-    n = len(profile)
-    for i in range(n):
-        j = (i + 1) % n
-        bm.faces.new((near[i], near[j], far[j], far[i]))
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    bm.to_mesh(mesh)
-    bm.free()
-    obj = bpy.data.objects.new(name, mesh)
-    bpy.context.scene.collection.objects.link(obj)
-    kit._add(obj, name, mat, 0.0)
+    return COWL_X + (ROOF_FRONT - COWL_X) * (z - COWL) / (UNDER_ROOF - COWL)
 
 
 def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
-    """A box on the left side at +y and its twin on the right side."""
     kit.box(f"{name}_l", size, (x, y, z), mat)
     kit.box(f"{name}_r", size, (x, -y, z), mat)
 
 
-def mirrored_prism(kit: Kit, name: str, profile: list[tuple[float, float]], y0: float, y1: float, mat: str) -> None:
-    """An XZ prism from y0 to y1 on the left side and its twin on the right side."""
-    prism(kit, f"{name}_l", profile, y0, y1, mat)
-    prism(kit, f"{name}_r", profile, -y1, -y0, mat)
+def side_panel(kit: Kit, name: str, profile: list[tuple[float, float]], mat: str, sides: tuple[int, ...] = (1, -1)) -> None:
+    """A flat XZ shape laid PROUD on the body side, on the left side for 1 and the right side for -1."""
+    for s in sides:
+        y0, y1 = (SIDE, SIDE + PROUD) if s > 0 else (-SIDE - PROUD, -SIDE)
+        prism(kit, f"{name}_{'l' if s > 0 else 'r'}", profile, y0, y1, mat)
 
 
-def lower_body(kit: Kit) -> None:
-    """Painted side panels with wheel arches, a dark core between the wells, and the flares."""
-    profile = arch_profile(G, WHEELS_X, HUB_Z, WHEEL_R, FLOOR)
-    prism(kit, "skin_l", profile, WELL_Y, SIDE, "paint")
-    prism(kit, "skin_r", profile, -SIDE, -WELL_Y, "paint")
-    kit.box("core", (FRONT - BACK - 0.08, 2 * WELL_Y, FLOOR - G.bottom), (0, 0, (FLOOR + G.bottom) / 2), "metal")
+def rect(x0: float, x1: float, z0: float, z1: float) -> list[tuple[float, float]]:
+    return [(x0, z0), (x1, z0), (x1, z1), (x0, z1)]
+
+
+def nose_line() -> list[tuple[float, float]]:
+    """The top line from the nose up the hood, the raked windshield and back along the roof, from front to back."""
+    return [(NOSE, NOSE_TOP - NOSE_CHAMFER), (NOSE - NOSE_CHAMFER, NOSE_TOP), (HOOD_BREAK_X, HOOD_BREAK), (COWL_X, COWL), (ROOF_FRONT, UNDER_ROOF), (TAIL, UNDER_ROOF)]
+
+
+def body(kit: Kit) -> None:
+    """Painted side walls with round arches, a center slab over the dark core with the engine hole cut in its hood, and the flares."""
+    check_round("van arches", 2 * ARCH_SEGMENTS, ROUND_SIDES)
+    wall = [(TAIL, BOTTOM)]
+    for wx in sorted(WHEELS_X):
+        wall += round_arch(wx, HUB_Z, ARCH_R, BOTTOM, ARCH_SEGMENTS)
+    wall += [(NOSE, BOTTOM), *nose_line()]
+    prism(kit, "wall_l", wall, WELL_Y, SIDE, "paint")
+    prism(kit, "wall_r", wall, -SIDE, -WELL_Y, "paint")
+    slab = prism(kit, "slab", [(TAIL, FLOOR), (NOSE, FLOOR), *nose_line()], -WELL_Y, WELL_Y, "paint")
+    (x0, y0), (x1, y1) = HOLE
+    cut_boxes(slab, [((x0, y0, FLOOR - 0.01), (x1, y1, COWL + 0.1))])
+    slab.data.materials.clear()
+    slab.data.materials.append(kit._materials["paint"])
+    kit.box("core", (NOSE - TAIL - 0.08, 2 * WELL_Y, FLOOR - BOTTOM), (0, 0, (FLOOR + BOTTOM) / 2), "under")
+    for x, name in ((NOSE - 0.02, "valance"), (TAIL + 0.02, "rear_panel")):
+        kit.box(name, (0.04, 2 * WELL_Y, FLOOR - BOTTOM), (x, 0, (FLOOR + BOTTOM) / 2), "paint")
     for i, wx in enumerate(WHEELS_X):
-        flare(kit, f"flare{i}_l", G, wx, HUB_Z, WHEEL_R, SIDE, G.half_y)
-        flare(kit, f"flare{i}_r", G, wx, HUB_Z, WHEEL_R, -G.half_y, -SIDE)
+        flare(kit, f"flare{i}_l", G, wx, HUB_Z, WHEEL_R, SIDE, SIDE + FLARE_OUT, segments=ARCH_SEGMENTS)
+        flare(kit, f"flare{i}_r", G, wx, HUB_Z, WHEEL_R, -SIDE - FLARE_OUT, -SIDE, segments=ARCH_SEGMENTS)
 
 
-def hood(kit: Kit) -> None:
-    """A short hood sloping up to the windshield, open over the engine cells, with a chamfered nose."""
-    nose = [(BAY_FRONT, FLOOR), (FRONT, FLOOR), (FRONT, NOSE_TOP - NOSE_CHAMFER), (FRONT - NOSE_CHAMFER, NOSE_TOP), (BAY_FRONT, hood_z(BAY_FRONT))]
-    prism(kit, "hood_nose", nose, -SIDE, SIDE, "paint")
-    wing = [(CAB_FRONT, FLOOR), (BAY_FRONT, FLOOR), (BAY_FRONT, hood_z(BAY_FRONT)), (CAB_FRONT, COWL)]
-    prism(kit, "hood_l", wing, BAY_LEFT, SIDE, "paint")
-    prism(kit, "hood_r", wing, -SIDE, BAY_RIGHT, "paint")
-    kit.box("bay_floor", (BAY_FRONT - CAB_FRONT, BAY_LEFT - BAY_RIGHT, BAY_FLOOR - FLOOR), ((BAY_FRONT + CAB_FRONT) / 2, (BAY_LEFT + BAY_RIGHT) / 2, (BAY_FLOOR + FLOOR) / 2), "under")
-    # The nose: a wide dark grille between stacked rectangular headlights, and a painted valance below.
-    kit.box("grille", (INSET, 2 * (LAMP_Y[0] - 0.04), 0.2), (FRONT + INSET / 2, 0, 0.21), "under")
-    mirrored(kit, "lamp", (INSET, LAMP_Y[1] - LAMP_Y[0], 0.2), FRONT + INSET / 2, sum(LAMP_Y) / 2, 0.21, "light")
-    kit.box("valance", (0.04, 2 * WELL_Y, FLOOR - G.bottom), (FRONT - 0.02, 0, (FLOOR + G.bottom) / 2), "paint")
+def nose(kit: Kit) -> None:
+    """A bright bezel across the face holding a wide dark grille between rectangular headlamps, over a bright bumper."""
+    face = NOSE + PROUD / 2
+    kit.box("bezel", (PROUD, 2 * (SIDE - 0.06), 0.42), (face, 0, -0.27), "metal_light")
+    kit.box("grille", (PROUD + 0.01, 1.16, 0.34), (face, 0, -0.27), "under")
+    for i, z in enumerate((-0.33, -0.21)):
+        kit.box(f"grille_bar{i}", (PROUD + 0.02, 1.08, 0.04), (face, 0, z), "metal_light")
+    mirrored(kit, "lamp", (PROUD + 0.01, 0.34, 0.2), face, 0.8, -0.27, "light")
+    kit.box("bumper", (BUMPER, 2 * (SIDE - 0.02), 0.22), (NOSE + BUMPER / 2, 0, BOTTOM + 0.11), "metal_light")
 
 
-def box(kit: Kit) -> None:
-    """One tall closed box from the windshield to the tail, with glass only up front and a stripe that kicks up at the back."""
-    body = [(BACK, FLOOR), (CAB_FRONT, FLOOR), (CAB_FRONT, COWL), (RAKE_TOP, UNDER_ROOF), (BACK, UNDER_ROOF)]
-    prism(kit, "box", body, -SIDE, SIDE, "paint")
-    # The roof cap with chamfered long edges. Its square front is a visor over the windshield.
-    cap = [(-SIDE, UNDER_ROOF), (SIDE, UNDER_ROOF), (SIDE, ROOF - ROOF_CHAMFER), (SIDE - ROOF_CHAMFER, ROOF), (-SIDE + ROOF_CHAMFER, ROOF), (-SIDE, ROOF - ROOF_CHAMFER)]
-    prism_x(kit, "roof", cap, BACK, RAKE_TOP, "trim")
-    # The windshield lies 0.02 m proud of the raked face, with painted pillars at its sides.
+def glass(kit: Kit) -> None:
+    """The raked windshield with painted pillars at its sides, the front door glass following the rake, and the conversion windows."""
     lo, hi = COWL + 0.04, UNDER_ROOF - 0.04
     shield = [(rake_x(lo), lo), (rake_x(lo) + 0.02, lo), (rake_x(hi) + 0.02, hi), (rake_x(hi), hi)]
-    prism(kit, "windshield", shield, -SIDE + 0.12, SIDE - 0.12, "glass")
-    # Front door windows follow the rake. The rest of the box side stays one closed panel.
-    lo, hi = G.top + 0.12, UNDER_ROOF - 0.1
-    window = [(WINDOW_BACK, lo), (rake_x(lo) - 0.12, lo), (rake_x(hi) - 0.12, hi), (WINDOW_BACK, hi)]
-    check_door_gap("side_window", WINDOW_BACK, rake_x(lo) - 0.12, lo, WHEELS_X, HUB_Z, WHEEL_R + ARCH_CLEARANCE)
-    mirrored_prism(kit, "side_window", window, SIDE, SIDE + 0.015, "glass")
-    top = STRIPE_Z + STRIPE_H
-    rise = UNDER_ROOF - 0.12 - top
-    stripe = [(FRONT - 0.08, STRIPE_Z), (STRIPE_KICK, STRIPE_Z), (BACK + 0.02, STRIPE_Z + rise), (BACK + 0.02, top + rise), (STRIPE_KICK + 0.12, top), (FRONT - 0.08, top)]
-    mirrored_prism(kit, "stripe", stripe, SIDE, SIDE + 0.02, "trim")
-    kit.box("rear_panel", (0.04, 2 * WELL_Y, FLOOR - G.bottom), (BACK + 0.02, 0, (FLOOR + G.bottom) / 2), "paint")
-    mirrored(kit, "taillight", (INSET, 0.18, 0.44), BACK - INSET / 2, SIDE - 0.12, G.top + 0.02, "red")
+    prism(kit, "windshield", shield, -SIDE + 0.1, SIDE - 0.1, "glass")
+    door = [(B_PILLAR + 0.06, BELT), (rake_x(BELT) - 0.1, BELT), (rake_x(WINDOW_TOP) - 0.1, WINDOW_TOP), (B_PILLAR + 0.06, WINDOW_TOP)]
+    check_door_gap("door_window", B_PILLAR + 0.06, rake_x(BELT) - 0.1, BELT, WHEELS_X, HUB_Z, ARCH_R)
+    side_panel(kit, "door_window", door, "glass")
+    for i, (x0, x1) in enumerate(CONVERSION_WINDOWS):
+        side_panel(kit, f"window{i}", rect(x1, x0, WINDOW_LOW, WINDOW_HIGH), "glass")
+
+
+def sides(kit: Kit) -> None:
+    """The trim stripe along the box side, the front door seams on both sides and the cargo door seam on the right side."""
+    side_panel(kit, "stripe", rect(TAIL + 0.02, COWL_X - 0.02, *STRIPE), "trim")
+    top = UNDER_ROOF - 0.05
+    sill = max(STRIPE[1], door_sill(B_PILLAR, COWL_X, STRIPE[1], WHEELS_X, HUB_Z, ARCH_R))
+    check_door_gap("front_door", B_PILLAR, COWL_X, sill, WHEELS_X, HUB_Z, ARCH_R)
+    side_panel(kit, "door_back", rect(B_PILLAR - SEAM / 2, B_PILLAR + SEAM / 2, sill, top), "under")
+    side_panel(kit, "door_front", rect(COWL_X - 0.08 - SEAM, COWL_X - 0.08, sill, COWL), "under")
+    cargo_sill = door_sill(CARGO_DOOR_BACK, B_PILLAR, BOTTOM + 0.1, WHEELS_X, HUB_Z, ARCH_R)
+    check_door_gap("cargo_door", CARGO_DOOR_BACK, B_PILLAR, cargo_sill, WHEELS_X, HUB_Z, ARCH_R)
+    for name, x in (("cargo_door_back", CARGO_DOOR_BACK), ("cargo_door_front", B_PILLAR)):
+        side_panel(kit, name, rect(x - SEAM / 2, x + SEAM / 2, cargo_sill, top), "under", sides=(-1,))
+    side_panel(kit, "cargo_door_sill", rect(CARGO_DOOR_BACK, B_PILLAR, cargo_sill, cargo_sill + SEAM), "under", sides=(-1,))
+
+
+def roof(kit: Kit) -> None:
+    """The trim roof cap, standing in for the conversion's raised fiberglass top: inset from the sides, with upright side faces, a front that leans back over the windshield and chamfered top edges."""
+    half = SIDE - CAP_INSET
+    layers = [
+        (UNDER_ROOF, ROOF_FRONT, TAIL, half, 0.02),
+        (ROOF - ROOF_CHAMFER, ROOF_FRONT - CAP_SLOPE * (1 - ROOF_CHAMFER / ROOF_T), TAIL, half, 0.02),
+        (ROOF, ROOF_FRONT - CAP_SLOPE, TAIL + ROOF_CHAMFER, half - ROOF_CHAMFER, 0.02),
+    ]
+    kit._add(hull_layers("roof", layers), "roof", "trim", 0.0)
+
+
+def tail(kit: Kit) -> None:
+    """Rear barn doors with a center seam and two windows, tall taillights at the corners and a bright bumper."""
+    face = TAIL - PROUD / 2
+    kit.box("barn_seam", (PROUD, SEAM, UNDER_ROOF - 0.05 - (BOTTOM + 0.24)), (face, 0, (UNDER_ROOF - 0.05 + BOTTOM + 0.24) / 2), "under")
+    mirrored(kit, "rear_window", (PROUD, 0.62, WINDOW_HIGH - WINDOW_LOW), face, 0.4, (WINDOW_LOW + WINDOW_HIGH) / 2, "glass")
+    mirrored(kit, "taillight", (PROUD + 0.01, 0.12, 0.72), face, SIDE - 0.08, -0.15, "red")
+    kit.box("rear_bumper", (BUMPER, 2 * (SIDE - 0.04), 0.22), (TAIL - BUMPER / 2, 0, BOTTOM + 0.11), "metal_light")
+
+
+def bounds(kit: Kit) -> tuple[Vector, Vector]:
+    bpy.context.view_layer.update()
+    lo = Vector((1e9, 1e9, 1e9))
+    hi = Vector((-1e9, -1e9, -1e9))
+    for obj in kit._parts:
+        for v in obj.data.vertices:
+            p = obj.matrix_world @ v.co
+            lo = Vector((min(lo.x, p.x), min(lo.y, p.y), min(lo.z, p.z)))
+            hi = Vector((max(hi.x, p.x), max(hi.y, p.y), max(hi.z, p.z)))
+    return lo, hi
+
+
+def check_size(kit: Kit) -> None:
+    lo, hi = bounds(kit)
+    if abs(hi.x - lo.x - LENGTH) > 0.01 or abs(hi.y - lo.y - WIDTH) > 0.01:
+        raise RuntimeError(f"base_van is {hi.x - lo.x:.3f} x {hi.y - lo.y:.3f} m, not {LENGTH} x {WIDTH} m")
+
+
+def check_hood() -> None:
+    """Raises when the hood hole leaves the hood between the cowl and the nose chamfer, or the center slab."""
+    (x0, y0), (x1, y1) = HOLE
+    if x0 <= COWL_X or x1 >= NOSE - NOSE_CHAMFER or y0 <= -WELL_Y or y1 >= WELL_Y:
+        raise RuntimeError(f"hood hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} leaves the hood")
 
 
 def main() -> None:
     args = parse_args()
+    check_hood()
     kit = Kit(BASE_COLORS, SEED)
-    lower_body(kit)
-    hood(kit)
-    box(kit)
-    hood_rows = [round(hood_z(G.row_x(y)), 3) for y in range(3)]
-    # Items on the engine cells stand on the bay floor under the cutout.
-    bay = {(x, y): BAY_FLOOR for x in (1, 2) for y in (1, 2)}
-    level_sockets(kit, G, "row", hood_rows + [ROOF] * 6, fronts={3: RAKE_TOP}, cells=bay)
-    level_sockets(kit, G, "floor", [FLOOR] + [BAY_FLOOR] * 2 + [G.top] * 6)
+    body(kit)
+    nose(kit)
+    glass(kit)
+    sides(kit)
+    roof(kit)
+    tail(kit)
+    kit.socket("arch_front", (WHEELS_X[0], WHEEL_Z, HUB_Z))
+    kit.socket("arch_rear", (WHEELS_X[1], WHEEL_Z, HUB_Z))
+    kit.socket("arch_front_top", (WHEELS_X[0], WHEEL_Z, HUB_Z + ARCH_R))
+    hood_rows = [round(hood_z(max(COWL_X, min(NOSE, G.row_x(y)))), 3) for y in range(3)]
+    bay = {(x, y): FLOOR for x in (1, 2) for y in (1, 2)}
+    level_sockets(kit, G, "row", hood_rows + [ROOF] * 6, fronts={3: ROOF_FRONT - CAP_SLOPE}, cells=bay)
+    level_sockets(kit, G, "floor", [FLOOR] * 9)
+    check_size(kit)
     check_base(kit, "base_van", G)
-    kit.export("base_van", args, view_size=7.2)
+    kit.export("base_van", args, view_size=6.5)
 
 
 if __name__ == "__main__":
