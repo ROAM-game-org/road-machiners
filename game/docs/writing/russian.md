@@ -17,9 +17,9 @@ Try agy first, every time. Write the request into `tmp/ru-request.md`, the same 
 agy is unavailable when its run exits with one of these:
 
 - `command not found`, since it is not installed.
-- Error 402 or `payment required`, since its Gemini credits are depleted.
+- Error 402 or `payment required`, since its account has no plan for the model.
 - Error 429 or `RESOURCE_EXHAUSTED`, since its quota is spent.
-- `GEMINI_API_KEY environment variable is not set`, `AGY_MODEL is not set` or a rejected login.
+- `authentication failed or timed out`, `AGY_MODEL is not set` or a rejected login.
 - A 502, 503 or 504, or a network error, since the service is down.
 - `run N exceeds AGY_MAX_RUNS`, since the job used its runs. Do not raise the limit, and do not work around the run counter.
 

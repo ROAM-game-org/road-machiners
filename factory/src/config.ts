@@ -28,7 +28,6 @@ const KEYS = {
   oauthToken: 'CLAUDE_CODE_OAUTH_TOKEN',
   elevenlabsKey: 'ELEVENLABS_API_KEY',
   sfxMaxGenerations: 'SFX_MAX_GENERATIONS',
-  geminiKey: 'GEMINI_API_KEY',
   agyMaxRuns: 'AGY_MAX_RUNS',
   agyModel: 'AGY_MODEL',
   codexModel: 'CODEX_MODEL',

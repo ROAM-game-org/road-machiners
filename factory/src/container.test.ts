@@ -10,12 +10,16 @@ type Call = { cmd: string; args: string[]; opts?: RunOptions };
 
 const HOME = resolve('tmp/factory-container-test');
 const tokenPrices: FactoryConfig['tokenPrices'] = { opus: { input: 4, output: 20, cacheRead: 0.2, cacheWrite5m: 5, cacheWrite1h: 8 } };
-const cfg = { image: 'img:1', oauthToken: 'secret-token', elevenlabsKey: 'sound-key', sfxMaxGenerations: 6, geminiKey: 'gemini-key', agyMaxRuns: 20, agyModel: 'flash', codexModel: 'sol', codexEffort: 'medium', agentJobMaxMinutes: 30, home: HOME, tokenPrices } as FactoryConfig;
+const cfg = { image: 'img:1', oauthToken: 'secret-token', elevenlabsKey: 'sound-key', sfxMaxGenerations: 6, agyMaxRuns: 20, agyModel: 'flash', codexModel: 'sol', codexEffort: 'medium', agentJobMaxMinutes: 30, home: HOME, tokenPrices } as FactoryConfig;
 
-beforeEach(() => {
+function writeLogins(): void {
   mkdirSync(`${HOME}/codex`, { recursive: true });
   writeFileSync(`${HOME}/codex/auth.json`, '{}');
-});
+  mkdirSync(`${HOME}/agy`, { recursive: true });
+  writeFileSync(`${HOME}/agy/antigravity-oauth-token`, '{}');
+}
+
+beforeEach(writeLogins);
 
 const AGENT_RESULT = JSON.stringify({ type: 'result', duration_ms: 60_000, total_cost_usd: 1 });
 
@@ -50,46 +54,47 @@ describe('dockerContainer', () => {
     expect(runCall(free.calls).args).not.toContain('--cpuset-cpus');
   });
 
-  it('passes the secrets by env only and mounts only the clone, the npm cache, the Codex login and the check command', async () => {
+  it('passes the secrets by env only and mounts only the clone, the npm cache, the Codex login, the agy login and the check command', async () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'do it', log: '/l.log' });
     const call = runCall(calls);
     expect(call.args.join(' ')).not.toContain('secret-token');
     expect(call.args.join(' ')).not.toContain('sound-key');
-    expect(call.args.join(' ')).not.toContain('gemini-key');
     expect(call.opts?.env).toEqual({
-      CLAUDE_CODE_OAUTH_TOKEN: 'secret-token', ELEVENLABS_API_KEY: 'sound-key', SFX_MAX_GENERATIONS: '6', GEMINI_API_KEY: 'gemini-key', AGY_MAX_RUNS: '20', AGY_MODEL: 'flash',
+      CLAUDE_CODE_OAUTH_TOKEN: 'secret-token', ELEVENLABS_API_KEY: 'sound-key', SFX_MAX_GENERATIONS: '6', AGY_MAX_RUNS: '20', AGY_MODEL: 'flash',
       CODEX_MODEL: 'sol', CODEX_EFFORT: 'medium',
       CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: '30',
     });
     expect(call.args).toContain(`${HOME}/codex:/home/pwuser/.codex`);
+    expect(call.args).toContain(`${HOME}/agy/antigravity-oauth-token:/home/pwuser/.gemini/antigravity-cli/antigravity-oauth-token:ro`);
     expect(call.opts?.input).toContain('The limit is at most 30 minutes.');
     expect(call.opts?.input).toMatch(/^Your folder is \/work\/game\./);
     expect(call.opts?.input).toContain('When your activity changes, run factory-status');
     expect(call.opts?.input).toContain('factory-status milestone');
     expect(call.opts?.input).toMatch(/\n\ndo it$/);
     expect(call.opts?.logPath).toBe('/l.log');
-    expect(call.args.filter((a) => a === '-v')).toHaveLength(5);
+    expect(call.args.filter((a) => a === '-v')).toHaveLength(6);
     expect(call.args).toContain('/w/c:/work');
     expect(call.args).toContain(`${HOME}/npm-cache:/home/pwuser/.npm`);
     expect(call.args.slice(call.args.indexOf('-w'), call.args.indexOf('-w') + 2)).toEqual(['-w', '/work/game']);
-    expect(call.args.filter((a) => a === '-e')).toHaveLength(17);
+    expect(call.args.filter((a) => a === '-e')).toHaveLength(16);
     expect(call.args.slice(call.args.indexOf('img:1'))).toEqual(['img:1', 'bash', '-c', expect.stringMatching(/memory\.peak.*; factory-agent "\$@"$/), 'factory-agent', '-p', '--model', 'opus', '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose']);
   });
 
-  it('gives an agent with public output only its Claude login: no tool keys and no Codex login', async () => {
+  it('gives an agent with public output only its Claude login: no tool keys, no Codex login and no agy login', async () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'sonnet', prompt: 'p', log: '/l', publicOutput: true });
     const call = runCall(calls);
     expect(call.opts?.env).toEqual({ CLAUDE_CODE_OAUTH_TOKEN: 'secret-token', CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: '30' });
     expect(call.args.join(' ')).not.toContain('/home/pwuser/.codex');
+    expect(call.args.join(' ')).not.toContain('antigravity-oauth-token');
   });
 
   it('mounts the folders the stage names read only', async () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', readOnly: { '/h/state': '/factory/state' } });
     const args = runCall(calls).args;
-    expect(args.filter((a) => a === '-v')).toHaveLength(6);
+    expect(args.filter((a) => a === '-v')).toHaveLength(7);
     expect(args).toContain('/h/state:/factory/state:ro');
   });
 
@@ -100,11 +105,18 @@ describe('dockerContainer', () => {
     expect(runCall(calls)).toBeUndefined();
   });
 
-  it('gives shell containers no Codex login and no Gemini key', async () => {
+  it('stops before the agent starts when agy has no login', async () => {
+    rmSync(`${HOME}/agy`, { recursive: true, force: true });
+    const { run, calls } = fakeRun();
+    await expect(dockerContainer(run, cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l' })).rejects.toThrow(`${HOME}/agy/antigravity-oauth-token is missing`);
+    expect(runCall(calls)).toBeUndefined();
+  });
+
+  it('gives shell containers no Codex login and no agy login', async () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).shell('checks', '/c','x', '/l');
     expect(runCall(calls).args.join(' ')).not.toContain('/home/pwuser/.codex');
-    expect(runCall(calls).args.join(' ')).not.toContain('GEMINI_API_KEY');
+    expect(runCall(calls).args.join(' ')).not.toContain('antigravity-oauth-token');
   });
 
   it('mounts the bundled check command read only for every agent, since the commit hook runs it', async () => {
@@ -122,7 +134,7 @@ describe('dockerContainer', () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', mediaDir: '/h/media/issue-7' });
     expect(runCall(calls).args).toContain('/h/media/issue-7:/work/.factory-media:ro');
-    expect(runCall(calls).args.filter((a) => a === '-v')).toHaveLength(6);
+    expect(runCall(calls).args.filter((a) => a === '-v')).toHaveLength(7);
   });
 
   it('mounts the session folder under the agent projects folder and starts the session by id', async () => {
@@ -130,7 +142,7 @@ describe('dockerContainer', () => {
     await dockerContainer(run, cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', session: { dir: '/h/sessions/issue-7', id: 'abc', resume: false } });
     const { args } = runCall(calls);
     expect(args).toContain('/h/sessions/issue-7:/home/pwuser/.claude/projects');
-    expect(args.filter((a) => a === '-v')).toHaveLength(6);
+    expect(args.filter((a) => a === '-v')).toHaveLength(7);
     expect(args.slice(args.indexOf('--verbose'))).toEqual(['--verbose', '--session-id', 'abc']);
     expect(args).not.toContain('--resume');
   });
@@ -246,8 +258,7 @@ describe('dockerContainer', () => {
     await expect(dockerContainer(fakeRun(1, {}, 'boom', peak(3)).run, cfg, 'checks-8-x').shell('checks', '/c','x', '/l')).rejects.toThrow('exit 1');
     await dockerContainer(fakeRun(0, {}, 'boom', peak(1)).run, cfg, 'checks-8-x').shell('checks', '/c','x', '/l');
     await dockerContainer(fakeRun(0, {}, 'FACTORY_MEMORY_PEAK 99999999999999').run, cfg, 'checks-8-x').shell('checks', '/c','x', '/l');
-    mkdirSync(`${HOME}/codex`, { recursive: true });
-    writeFileSync(`${HOME}/codex/auth.json`, '{}');
+    writeLogins();
     await dockerContainer(fakeRun(0, {}, 'boom', peak(2)).run, cfg, 'checks-8-x').agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'p', log: '/l' });
     recordJob(HOME, tokenPrices, new Date('2026-10-06T12:00:00Z'), { id: 'checks-8-x', stage: 'checks', issue: 8, startedAt: '2026-10-06T11:50:00Z' }, 'done');
     const lines = readFileSync(`${HOME}/ledger.jsonl`, 'utf8').trim().split('\n').map((text) => JSON.parse(text) as { kind: string; peakGb?: number });
@@ -256,8 +267,7 @@ describe('dockerContainer', () => {
 
   it('records each container run of a job as a part of its kind on the job line, a failed run included', async () => {
     rmSync(HOME, { recursive: true, force: true });
-    mkdirSync(`${HOME}/codex`, { recursive: true });
-    writeFileSync(`${HOME}/codex/auth.json`, '{}');
+    writeLogins();
     await dockerContainer(fakeRun(0, {}, 'boom').run, cfg, 'verify-8-x').agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'p', log: '/l' });
     await expect(dockerContainer(fakeRun(1).run, cfg, 'verify-8-x').shell('checks', '/c', 'x', '/l')).rejects.toThrow('exit 1');
     await dockerContainer(fakeRun().run, cfg, 'verify-8-x').shell('build', '/c', 'x', '/l');
@@ -439,8 +449,7 @@ describe('usage limit', () => {
 
   it('closes a failed run from its result record, and from the transcript when only a subagent result came out', async () => {
     rmSync(HOME, { recursive: true, force: true });
-    mkdirSync(`${HOME}/codex`, { recursive: true });
-    writeFileSync(`${HOME}/codex/auth.json`, '{}');
+    writeLogins();
     const stdoutOf = (event: object): string => `${JSON.stringify(event)}\n`;
     const failing = (stdout: string): Run => async (_cmd, args) => (args[0] === 'run' && args[1] === '--rm'
       ? { code: 1, stdout, stderr: 'boom' }
