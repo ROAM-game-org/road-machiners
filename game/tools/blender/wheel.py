@@ -4,6 +4,8 @@ Authored at 1 m radius and 1 m wide, with the axle along Blender Y and the origi
 The view scales it by the chassis wheel radius and half-width. Chevron tread lugs show the wheel turning.
 Each chevron is two half-bars mirrored across the mid-plane, so the top-down and front silhouettes
 have matching halves and the wheel reads as one tire from every side (#201).
+The tire, rim and hub take their sides from round_sides() at MAX_DRAWN_R, the largest wheelRadius in PHYSICS.bodies (the semi),
+so they read as circles on the biggest tire at the closest zoom.
 Run: blender --background --python tools/blender/wheel.py -- public/models/wheel.glb [tmp/wheel.png]
 """
 
@@ -13,12 +15,11 @@ import math
 import sys
 from pathlib import Path
 
-import bpy
 from mathutils import Euler, Matrix
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit, parse_args  # noqa: E402
-from parts_common_core import COLORS, ROUND_SEGMENTS, SMALL_ROUND_SEGMENTS  # noqa: E402
+from kit import Kit, parse_args, round_sides  # noqa: E402
+from parts_common_core import COLORS  # noqa: E402
 
 SEED = 102
 AXLE = (math.radians(90), 0, 0)
@@ -28,6 +29,9 @@ LUG_H = 0.065
 SWEEP = math.radians(28)  # each half-bar leans back from the centre line
 BAR = (0.16, 0.3)  # half-bar size, tangential then axial
 BAR_Y = 0.17  # half-bar center off the mid-plane
+RIM_R = 0.55
+HUB_R = 0.22
+MAX_DRAWN_R = 0.8
 
 Lug = tuple[str, tuple[float, float, float], tuple[float, float, float]]
 
@@ -58,16 +62,15 @@ def check_mirrored(layout: list[Lug]) -> None:
             raise ValueError(f"{name} is not the mirror of {mirrored[0]}")
 
 
-def check_round(obj: bpy.types.Object, least: int) -> None:
-    sides = len(obj.data.vertices) // 2
-    if sides < least:
-        raise ValueError(f"{obj.name} has {sides} sides, under the {least} that read round")
+def sides_of(radius: float) -> int:
+    """Sides for a wheel circle of this authored radius, judged at the largest drawn tire."""
+    return round_sides(radius * MAX_DRAWN_R)
 
 
 def build(kit: Kit) -> None:
-    kit.cylinder("tire", TIRE_R, 0.94, (0, 0, 0), "wheel", rot=AXLE, vertices=LUGS * 4)
-    check_round(kit.cylinder("rim", 0.55, 0.98, (0, 0, 0), "metal_light", rot=AXLE, vertices=ROUND_SEGMENTS), ROUND_SEGMENTS)
-    check_round(kit.cylinder("hub", 0.22, 1.0, (0, 0, 0), "rust", rot=AXLE, vertices=SMALL_ROUND_SEGMENTS), SMALL_ROUND_SEGMENTS)
+    kit.cylinder("tire", TIRE_R, 0.94, (0, 0, 0), "wheel", rot=AXLE, vertices=sides_of(TIRE_R))
+    kit.cylinder("rim", RIM_R, 0.98, (0, 0, 0), "metal_light", rot=AXLE, vertices=sides_of(RIM_R))
+    kit.cylinder("hub", HUB_R, 1.0, (0, 0, 0), "rust", rot=AXLE, vertices=sides_of(HUB_R))
     layout = lug_layout()
     check_mirrored(layout)
     for name, loc, rot in layout:

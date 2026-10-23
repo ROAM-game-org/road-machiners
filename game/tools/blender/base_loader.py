@@ -7,9 +7,8 @@ from pathlib import Path
 import bpy
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit, Vec3, parse_args  # noqa: E402
+from kit import Kit, Vec3, parse_args, round_sides  # noqa: E402
 from parts_common_base import cut_boxes, hull_mesh, ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, Grid, check_base, level_sockets, surface_z  # noqa: E402
-from parts_common_core import ROUND_SEGMENTS, SMALL_ROUND_SEGMENTS  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 307
@@ -108,7 +107,7 @@ def beam(kit: Kit, name: str, p0: tuple[float, float], p1: tuple[float, float], 
 
 def rod(kit: Kit, name: str, p0: tuple[float, float], p1: tuple[float, float], y: float, radius: float, mat: str) -> None:
     dx, dz = p1[0] - p0[0], p1[1] - p0[1]
-    kit.cylinder(name, radius, math.hypot(dx, dz), ((p0[0] + p1[0]) / 2, y, (p0[1] + p1[1]) / 2), mat, rot=(0, math.atan2(dx, dz), 0), vertices=SMALL_ROUND_SEGMENTS)
+    kit.cylinder(name, radius, math.hypot(dx, dz), ((p0[0] + p1[0]) / 2, y, (p0[1] + p1[1]) / 2), mat, rot=(0, math.atan2(dx, dz), 0), vertices=round_sides(radius))
 
 
 def ram(kit: Kit, name: str, p0: tuple[float, float], p1: tuple[float, float], y: float, radius: float) -> None:
@@ -118,7 +117,7 @@ def ram(kit: Kit, name: str, p0: tuple[float, float], p1: tuple[float, float], y
 
 
 def pin(kit: Kit, name: str, at: tuple[float, float], y: float, width: float, radius: float = 0.06) -> None:
-    kit.cylinder(name, radius, width, (at[0], y, at[1]), "metal_light", rot=(math.pi / 2, 0, 0), vertices=SMALL_ROUND_SEGMENTS)
+    kit.cylinder(name, radius, width, (at[0], y, at[1]), "metal_light", rot=(math.pi / 2, 0, 0), vertices=round_sides(radius))
 
 
 def lerp(p0: tuple[float, float], p1: tuple[float, float], t: float) -> tuple[float, float]:
@@ -148,10 +147,15 @@ def band(points: list[tuple[float, float]], halves: list[float]) -> list[tuple[f
     return top + list(reversed(low))
 
 
+def arc_steps(sweep: float, radius: float = FENDER_R) -> int:
+    return max(4, round(round_sides(radius) * abs(sweep) / math.tau))
+
+
 def fender(kit: Kit, name: str, wx: float, a0: float, a1: float, y0: float, y1: float) -> None:
     inner, outer = [], []
-    for k in range(ROUND_SEGMENTS + 1):
-        a = a0 + (a1 - a0) * k / ROUND_SEGMENTS
+    steps = arc_steps(a1 - a0)
+    for k in range(steps + 1):
+        a = a0 + (a1 - a0) * k / steps
         inner.append((wx + FENDER_R * math.cos(a), HUB_Z + FENDER_R * math.sin(a)))
         outer.append((wx + (FENDER_R + FENDER_T) * math.cos(a), HUB_Z + (FENDER_R + FENDER_T) * math.sin(a)))
     prism(kit, name, outer + list(reversed(inner)), y0, y1, "paint")
@@ -159,13 +163,15 @@ def fender(kit: Kit, name: str, wx: float, a0: float, a1: float, y0: float, y1: 
 
 def front_fender(kit: Kit, name: str, y0: float, y1: float) -> None:
     inner, outer = [], []
-    for k in range(ROUND_SEGMENTS // 2 + 1):
-        a = math.radians(165) - math.radians(75) * k / (ROUND_SEGMENTS // 2)
+    steps = arc_steps(math.radians(75))
+    for k in range(steps + 1):
+        a = math.radians(165) - math.radians(75) * k / steps
         inner.append((WHEEL_X + FENDER_R * math.cos(a), HUB_Z + FENDER_R * math.sin(a)))
         outer.append((WHEEL_X + (FENDER_R + FENDER_T) * math.cos(a), HUB_Z + (FENDER_R + FENDER_T) * math.sin(a)))
     top_in, top_out = HUB_Z + FENDER_R, HUB_Z + FENDER_R + FENDER_T
-    for k in range(1, SMALL_ROUND_SEGMENTS // 2 + 1):
-        a = math.pi / 2 * k / (SMALL_ROUND_SEGMENTS // 2)
+    lip_steps = arc_steps(math.pi / 2, FENDER_LIP)
+    for k in range(1, lip_steps + 1):
+        a = math.pi / 2 * k / lip_steps
         inner.append((FENDER_NOSE - FENDER_LIP + (FENDER_LIP - FENDER_T) * math.sin(a), top_in - FENDER_LIP + FENDER_T + (FENDER_LIP - FENDER_T) * math.cos(a)))
         outer.append((FENDER_NOSE - FENDER_LIP + FENDER_LIP * math.sin(a), top_out - FENDER_LIP + FENDER_LIP * math.cos(a)))
     inner.append((FENDER_NOSE - FENDER_T, FENDER_DROP))
@@ -207,9 +213,9 @@ def lift_arms(kit: Kit) -> None:
         ram(kit, f"lift_{s}", (0.42, FRAME_TOP - 0.35), lerp(A_PIN, ELBOW, 0.62), y * 0.87, 0.08)
         tower = [(0.2, FRAME_TOP), (1.2, FRAME_TOP), (0.9, 0.4), (0.68, 0.57), (0.48, 0.45), (0.4, 0.15)]
         prism(kit, f"tower_{s}", tower, y * TOWER_Y / ARM_Y - TOWER_T / 2, y * TOWER_Y / ARM_Y + TOWER_T / 2, "paint")
-        kit.cylinder(f"lamp_{s}", 0.08, 0.06, (1.03, y * TOWER_Y / ARM_Y, -0.05), "light", rot=(0, math.pi / 2, 0), vertices=SMALL_ROUND_SEGMENTS)
+        kit.cylinder(f"lamp_{s}", 0.08, 0.06, (1.03, y * TOWER_Y / ARM_Y, -0.05), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(0.08))
     kit.box("tilt_mount", (0.2, 0.3, TILT_BASE[1] - FRAME_TOP), (TILT_BASE[0], 0, (TILT_BASE[1] + FRAME_TOP) / 2), "paint")
-    kit.cylinder("cross_tube", 0.08, 2 * ARM_Y, (CROSS[0], 0, CROSS[1]), "paint", rot=(math.pi / 2, 0, 0), vertices=SMALL_ROUND_SEGMENTS)
+    kit.cylinder("cross_tube", 0.08, 2 * ARM_Y, (CROSS[0], 0, CROSS[1]), "paint", rot=(math.pi / 2, 0, 0), vertices=round_sides(0.08))
     for s, y in (("l", 0.13), ("r", -0.13)):
         beam(kit, f"bellcrank_{s}", CRANK_LOW, CRANK_TOP, y, 0.1, 0.2, "paint")
     pin(kit, "crank_pin", CROSS, 0, 0.3, 0.07)
@@ -227,7 +233,7 @@ def frames(kit: Kit) -> None:
     kit.box("hinge_block", (0.34, 0.5, 0.5), (0, 0, -0.9), "metal")
     for i, z in enumerate((-0.6, -1.12)):
         kit.box(f"hinge_plate{i}", (0.7, 0.56, 0.08), (0, 0, z), "under")
-        kit.cylinder(f"hinge_pin{i}", 0.14, 0.18, (0, 0, z), "metal_light", vertices=SMALL_ROUND_SEGMENTS)
+        kit.cylinder(f"hinge_pin{i}", 0.14, 0.18, (0, 0, z), "metal_light", vertices=round_sides(0.14))
     for s, (y0, y1) in (("l", (TIRE_IN, TIRE_OUT)), ("r", (-TIRE_OUT, -TIRE_IN))):
         front_fender(kit, f"front_fender_{s}", y0, y1)
         fender(kit, f"rear_fender_{s}", -WHEEL_X, math.radians(20), math.radians(172), y0, y1)
@@ -262,7 +268,7 @@ def cab(kit: Kit) -> None:
     kit.box("roof_band", (length + 2 * ROOF_OVER + 0.02, 2 * (CAB_HALF + ROOF_OVER) + 0.02, 0.05), (mid, 0, UNDER_ROOF + 0.025), "trim")
     for x, face in ((CAB_FRONT + ROOF_OVER + 0.01, 1), (CAB_BACK - ROOF_OVER - 0.01, -1)):
         for s, y in (("l", CAB_HALF - 0.05), ("r", -CAB_HALF + 0.05)):
-            kit.cylinder(f"work_lamp_{s}{face}", 0.05, 0.05, (x, y, UNDER_ROOF - 0.03), "light", rot=(0, math.pi / 2, 0), vertices=SMALL_ROUND_SEGMENTS)
+            kit.cylinder(f"work_lamp_{s}{face}", 0.05, 0.05, (x, y, UNDER_ROOF - 0.03), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(0.05))
 
 
 def hood(kit: Kit) -> None:
@@ -282,10 +288,10 @@ def hood(kit: Kit) -> None:
     for i in range(5):
         kit.box(f"grille_bar{i}", (0.02, 2 * (HOOD_Y - 0.12), 0.035), (HOOD_BACK - 0.02, 0, -0.02 + 0.13 * i), "metal")
     stack_low = HOOD_TOP - 0.1
-    kit.cylinder("exhaust", 0.09, EXHAUST_TOP - stack_low, (STACK_X, -STACK_Y, (EXHAUST_TOP + stack_low) / 2), "under", vertices=SMALL_ROUND_SEGMENTS)
-    kit.cylinder("exhaust_band", 0.105, 0.05, (STACK_X, -STACK_Y, stack_low + 0.12), "metal_light", vertices=SMALL_ROUND_SEGMENTS)
-    kit.cylinder("precleaner", 0.15, 0.46, (STACK_X, STACK_Y, stack_low + 0.23), "under", vertices=SMALL_ROUND_SEGMENTS)
-    kit.cylinder("precleaner_cap", 0.17, 0.07, (STACK_X, STACK_Y, stack_low + 0.49), "metal_light", vertices=SMALL_ROUND_SEGMENTS)
+    kit.cylinder("exhaust", 0.09, EXHAUST_TOP - stack_low, (STACK_X, -STACK_Y, (EXHAUST_TOP + stack_low) / 2), "under", vertices=round_sides(0.09))
+    kit.cylinder("exhaust_band", 0.105, 0.05, (STACK_X, -STACK_Y, stack_low + 0.12), "metal_light", vertices=round_sides(0.105))
+    kit.cylinder("precleaner", 0.15, 0.46, (STACK_X, STACK_Y, stack_low + 0.23), "under", vertices=round_sides(0.15))
+    kit.cylinder("precleaner_cap", 0.17, 0.07, (STACK_X, STACK_Y, stack_low + 0.49), "metal_light", vertices=round_sides(0.17))
 
 
 def counterweight(kit: Kit) -> None:
@@ -298,7 +304,7 @@ def counterweight(kit: Kit) -> None:
     obj.data.materials.clear()
     kit._add(obj, "counterweight", "paint", 0.0)
     for s, y in (("l", COUNTER_HALF - COUNTER_CORNER - 0.15), ("r", -COUNTER_HALF + COUNTER_CORNER + 0.15)):
-        kit.cylinder(f"taillight_{s}", 0.07, 0.04, (BACK + 0.02, y, COUNTER_TOP - 0.2), "red", rot=(0, math.pi / 2, 0), vertices=SMALL_ROUND_SEGMENTS)
+        kit.cylinder(f"taillight_{s}", 0.07, 0.04, (BACK + 0.02, y, COUNTER_TOP - 0.2), "red", rot=(0, math.pi / 2, 0), vertices=round_sides(0.07))
     kit.box("hitch", (0.1, 0.36, 0.22), (BACK + 0.05, 0, COUNTER_BOTTOM + 0.2), "under")
 
 

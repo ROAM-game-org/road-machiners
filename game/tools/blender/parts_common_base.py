@@ -70,9 +70,9 @@ def squared_arch(wx: float, hub_z: float, r: float, crown: float, chamfer: float
     return [(wx - r, low), (wx - r, top - chamfer), (wx - r + chamfer, top), (wx + r - chamfer, top), (wx + r, top - chamfer), (wx + r, low)]
 
 
-def round_arch(wx: float, hub_z: float, r: float, low: float, segments: int = ARCH_SEGMENTS) -> list[tuple[float, float]]:
+def round_arch(wx: float, hub_z: float, r: float, low: float) -> list[tuple[float, float]]:
     """A low-poly half circle of radius r round the hub, from back to front, held at or above low."""
-    return [(wx + r * math.cos(math.pi * (1 - k / segments)), max(low, hub_z + r * math.sin(math.pi * (1 - k / segments)))) for k in range(segments + 1)]
+    return [(wx + r * math.cos(math.pi * (1 - k / ARCH_SEGMENTS)), max(low, hub_z + r * math.sin(math.pi * (1 - k / ARCH_SEGMENTS)))) for k in range(ARCH_SEGMENTS + 1)]
 
 
 def arch_profile(
@@ -234,13 +234,13 @@ def hull_layers(name: str, layers: list[tuple[float, float, float, float, float]
     return hull_mesh(name, pts)
 
 
-def arch_cut(obj: bpy.types.Object, wheels_x: list[float], hub_z: float, radius: float, wall_y: float, bottom: float, segments: int = ARCH_SEGMENTS) -> None:
+def arch_cut(obj: bpy.types.Object, wheels_x: list[float], hub_z: float, radius: float, wall_y: float, bottom: float) -> None:
     """Cuts a low-poly arch around each wheel through both side walls, outside wall_y, from the body bottom up."""
     r = radius + ARCH_CLEARANCE
     cutters = []
     for wx in wheels_x:
         for sign in (1, -1):
-            ring = [(wx + r * math.cos(math.pi * k / segments), hub_z + r * math.sin(math.pi * k / segments)) for k in range(segments + 1)]
+            ring = [(wx + r * math.cos(math.pi * k / ARCH_SEGMENTS), hub_z + r * math.sin(math.pi * k / ARCH_SEGMENTS)) for k in range(ARCH_SEGMENTS + 1)]
             ring += [(wx + r, bottom - 0.1), (wx - r, bottom - 0.1)]
             ys = (sign * wall_y, sign * (wall_y + 2.0))
             cutters.append([(x, y, z) for x, z in ring for y in ys])

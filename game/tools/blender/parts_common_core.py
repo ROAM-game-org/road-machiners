@@ -11,8 +11,6 @@ from mathutils import Vector
 
 from kit import CELL_ACROSS, CELL_ALONG, Kit
 
-ROUND_SEGMENTS = 32
-SMALL_ROUND_SEGMENTS = 16
 FIT_SLACK = 1e-4  # float noise allowed at the footprint edge
 
 # Colors from src/render/palette.ts. The paint color is a stand-in: the game swaps it for the faction color.
