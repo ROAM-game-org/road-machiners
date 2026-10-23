@@ -11,7 +11,7 @@ Tall front fenders sweep down ahead of the front wheels to the nose and back to 
 No wasteland driver rides with the seats open, so the cab is closed as the jeep's Kubelwagen is: a raked windshield from the
 cowl to a flat trim roof welded on the roll hoop, cab sides from the sill to the roof with one small dark window each and no
 door seam, and a rear wall in the hoop plane with a small dark window. The hoop stays as the trim rear pillars, braced back to
-the rear deck. Items on the D cells stand on the roof behind the windshield. The rear wheels stand bare under small dark guards
+the rear deck. The cab sides lean in 0.1 m from the sill to the roof and the rear wall leans forward 0.12 m, under a roof plate with a small lip and softened edges, so the greenhouse tapers into the swept fenders. Items on the D cells stand on the roof behind the windshield. The rear wheels stand bare under small dark guards
 beside a narrow tail, which ends in a dark rear panel with round taillights. A trim racing band runs along each side at the waist.
 Deviations from the Manx: the wheels stay symmetric, the tires follow the tire rule's stock 0.5 m, and the engine sits at the front,
 where the grid's engine cells are. It shows through a hole in the front deck over the bay floor, centered on PHYSICS.bodies.buggy.engine.
@@ -79,7 +79,10 @@ SIDE_BACK = WHEELS_X[1] + ARCH_R + 0.01  # the tub side ends just ahead of the b
 HOOP_X = SIDE_BACK + 0.05
 HOOP_Y = SIDE - WALL / 2
 CAB_BACK = HOOP_X - TUBE / 2  # the hoop's back face: the roof's back edge and the rear wall
-INNER = SIDE - WALL  # the cab walls' inner face
+INNER = SIDE - WALL  # the cowl's and dash's inner face
+TUMBLE = 0.1  # how far the cab sides lean in from the sill to the roof, so the cab narrows like a Manx greenhouse
+BACK_LEAN = 0.12  # how far the rear wall leans forward from the sill to the roof
+LIP = 0.08  # the roof plate's overhang past the leaning sides
 LAMP_X = 1.62
 LAMP_R = 0.11
 
@@ -170,9 +173,11 @@ def sides(kit: Kit) -> None:
             prism(kit, f"fender_edge{i}_{s}", shoulder, lo, hi, "paint")
     prism(kit, "wall_l", wall, SIDE - WALL, SIDE, "paint")
     prism(kit, "wall_r", wall, -SIDE, -SIDE + WALL, "paint")
-    cab = [(CAB_BACK, SILL), (COWL_X, SILL), (COWL_X, COWL_TOP), (SCREEN_BASE_X, COWL_TOP), (SCREEN_TOP_X, ROOF_BOTTOM), (CAB_BACK, ROOF_BOTTOM)]
-    prism(kit, "cab_side_l", cab, INNER, SIDE, "paint")
-    prism(kit, "cab_side_r", cab, -SIDE, -INNER, "paint")
+    front = SCREEN_BASE_X - 0.02
+    shell = [(x, s * cab_half(z), z) for z, xs in ((SILL, (cab_back(SILL), front)), (ROOF_BOTTOM, (cab_back(ROOF_BOTTOM), SCREEN_TOP_X - 0.02))) for x in xs for s in (1, -1)]
+    kit._add(hull_mesh("cab_shell", shell), "cab_shell", "paint", 0.0)
+    cowl = [(x, s * cab_half(z), z) for z, xs in ((SILL, (front, COWL_X)), (COWL_TOP, (front, COWL_X))) for x in xs for s in (1, -1)]
+    kit._add(hull_mesh("cowl_sides", cowl), "cowl_sides", "paint", 0.0)
     kit.box("cockpit_floor", (COWL_X - SIDE_BACK, 2 * SIDE - 0.02, FLOOR - PAN), ((COWL_X + SIDE_BACK) / 2, 0, (FLOOR + PAN) / 2), "paint")
     band = [(SIDE_BACK + 0.03, -0.37), (WHEELS_X[0] - ARCH_R - 0.08, -0.37), (WHEELS_X[0] - ARCH_R - 0.02, -0.29), (SIDE_BACK + 0.03, -0.29)]
     prism(kit, "band_l", band, SIDE, SIDE + 0.015, "trim")
@@ -189,6 +194,16 @@ def lamps(kit: Kit) -> None:
         kit.cylinder(f"lamp_{s}", LAMP_R - 0.02, 0.03, (LAMP_X + 0.075, y * 0.71, z), "light", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
 
 
+def cab_half(z: float) -> float:
+    """Half the cab's width at height z: the sides lean in from the sill to the roof."""
+    return SIDE - TUMBLE * (z - SILL) / (ROOF_BOTTOM - SILL)
+
+
+def cab_back(z: float) -> float:
+    """The cab's rear face X at height z: it leans forward from the sill to the roof."""
+    return CAB_BACK + BACK_LEAN * (z - SILL) / (ROOF_BOTTOM - SILL)
+
+
 def screen_x(z: float) -> float:
     """The windshield rake: its X at height z, from the cowl to the roof."""
     return SCREEN_BASE_X + (SCREEN_TOP_X - SCREEN_BASE_X) * (z - COWL_TOP) / (SCREEN_TOP - COWL_TOP)
@@ -197,37 +212,43 @@ def screen_x(z: float) -> float:
 def windshield(kit: Kit) -> None:
     """The dash on the cowl and a raked windshield in a dark frame, from the cowl to the roof, across the cab."""
     kit.box("dash", (COWL_X - SCREEN_BASE_X + 0.08, 2 * INNER, COWL_TOP - FLOOR), (COWL_X - (COWL_X - SCREEN_BASE_X + 0.08) / 2, 0, (COWL_TOP + FLOOR) / 2), "under")
-    post_y = INNER - 0.03
-    for s, y in (("l", post_y), ("r", -post_y)):
-        strut(kit, f"screen_post_{s}", (SCREEN_BASE_X, y, COWL_TOP), (SCREEN_TOP_X, y, SCREEN_TOP), 0.06, "under")
-    glass = [(x + dx, s * (post_y - 0.03), z) for x, z in ((SCREEN_BASE_X, COWL_TOP), (SCREEN_TOP_X, SCREEN_TOP)) for s in (1, -1) for dx in (0, -0.02)]
+    for s, sy in (("l", 1), ("r", -1)):
+        strut(kit, f"screen_post_{s}", (SCREEN_BASE_X, sy * (cab_half(COWL_TOP) - 0.04), COWL_TOP), (SCREEN_TOP_X, sy * (cab_half(SCREEN_TOP) - 0.04), SCREEN_TOP), 0.06, "under")
+    glass = [(x + dx, s * (cab_half(z) - 0.07), z) for x, z in ((SCREEN_BASE_X, COWL_TOP), (SCREEN_TOP_X, SCREEN_TOP)) for s in (1, -1) for dx in (0, -0.02)]
     kit._add(hull_mesh("windshield", glass), "windshield", "glass", 0.0)
 
 
 def hardtop(kit: Kit) -> None:
     """A flat trim roof welded on the roll cage over both seats, with a short brim over the windshield."""
-    roof = [(ROOF_FRONT, ROOF_BOTTOM), (CAB_BACK, ROOF_BOTTOM), (CAB_BACK, ROOF_TOP), (ROOF_FRONT - 0.06, ROOF_TOP), (ROOF_FRONT, ROOF_TOP - 0.04)]
-    prism(kit, "roof", roof, -SIDE, SIDE, "trim")
+    wide = cab_half(ROOF_BOTTOM) + LIP
+    back = cab_back(ROOF_BOTTOM) - LIP
+    rim = 0.03
+    points = [(x, s * y, z) for x, y, z in (
+        (ROOF_FRONT, wide, ROOF_BOTTOM), (back, wide, ROOF_BOTTOM),
+        (ROOF_FRONT, wide - rim, ROOF_TOP - 0.04), (ROOF_FRONT - 0.06, wide - 2 * rim, ROOF_TOP),
+        (back + rim, wide - rim, ROOF_TOP - 0.02), (back + 2 * rim, wide - 2 * rim, ROOF_TOP),
+    ) for s in (1, -1)]
+    kit._add(hull_mesh("roof", points), "roof", "trim", 0.0)
 
 
 def windows(kit: Kit) -> None:
     """One small dark window in each cab side, its front edge on the windshield rake, and the rear wall with its window."""
     z0, z1 = SIDE_GLASS
-    back = CAB_BACK + 0.14
-    check_door_gap("side_window", back, screen_x(z0) - 0.08, z0, WHEELS_X, HUB_Z, ARCH_R)
-    window = [(back, z0), (screen_x(z0) - 0.08, z0), (screen_x(z1) - 0.08, z1), (back, z1)]
-    prism(kit, "side_glass_l", window, SIDE - 0.01, SIDE + 0.01, "glass")
-    prism(kit, "side_glass_r", window, -SIDE - 0.01, -SIDE + 0.01, "glass")
-    kit.box("rear_wall", (0.05, 2 * INNER, ROOF_BOTTOM - FLOOR), (CAB_BACK + 0.025, 0, (ROOF_BOTTOM + FLOOR) / 2), "paint")
+    check_door_gap("side_window", cab_back(z0) + 0.14, screen_x(z0) - 0.08, z0, WHEELS_X, HUB_Z, ARCH_R)
+    corners = [(cab_back(z) + 0.14, z) for z in (z0, z1)] + [(screen_x(z) - 0.08, z) for z in (z0, z1)]
+    for s in (1, -1):
+        pane = [(x, s * (cab_half(z) + d), z) for x, z in corners for d in (-0.02, 0.01)]
+        kit._add(hull_mesh("side_glass_l" if s > 0 else "side_glass_r", pane), "side_glass", "glass", 0.0)
     r0, r1 = REAR_GLASS
-    kit.box("rear_glass", (0.02, 2 * INNER - 0.5, r1 - r0), (CAB_BACK - 0.005, 0, (r0 + r1) / 2), "glass")
+    pane = [(cab_back(z) + d, s * (cab_half(z) - 0.25), z) for z in (r0, r1) for s in (1, -1) for d in (-0.01, 0.02)]
+    kit._add(hull_mesh("rear_glass", pane), "rear_glass", "glass", 0.0)
 
 
 def hoop(kit: Kit) -> None:
     """The roll hoop in the trim color as the cab's rear pillars under the roof's back edge, braced back to the rear deck."""
     for s, sy in (("l", 1), ("r", -1)):
-        strut(kit, f"hoop_leg_{s}", (HOOP_X, sy * HOOP_Y, SILL), (HOOP_X, sy * HOOP_Y, ROOF_BOTTOM), TUBE, "trim")
-        strut(kit, f"brace_{s}", (HOOP_X, sy * 0.4, ROOF_BOTTOM), (BACK + 0.45, sy * 0.3, REAR_DECK), TUBE * 0.8, "trim")
+        strut(kit, f"hoop_leg_{s}", (cab_back(SILL), sy * (cab_half(SILL) - TUBE / 2), SILL), (cab_back(ROOF_BOTTOM), sy * (cab_half(ROOF_BOTTOM) - TUBE / 2), ROOF_BOTTOM), TUBE, "trim")
+        strut(kit, f"brace_{s}", (cab_back(SILL + 0.15), sy * 0.4, SILL + 0.15), (BACK + 0.45, sy * 0.3, REAR_DECK), TUBE * 0.8, "trim")
 
 
 def rear(kit: Kit) -> None:
