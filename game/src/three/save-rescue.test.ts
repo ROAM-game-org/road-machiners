@@ -483,11 +483,26 @@ describe('namedSteps', () => {
     expect(JSON.stringify(saveOf(loaded).world)).toBe(JSON.stringify(saveOf(world).world));
   });
 
+  it('refuses a named save whose minor format is not its list start plus its names', () => {
+    const world = newWorld(1337, KIT, TEST_MAP, defaultSetup('roaming'));
+    const minor = TINY_FROM + TINY_STEPS.length;
+    const stored = (value: number) => {
+      const slots = makeSlots();
+      const envelope = JSON.parse(JSON.stringify(saveOf(world)));
+      slots.put('auto', { ...envelope, format: { ...envelope.format, minor: value }, savedAt: 1, runId: 'run-1' });
+      return () => loadWorld(slots, 'auto', TEST_MAP);
+    };
+    expect(stored(minor - 1)).toThrow(/noFormat/);
+    expect(stored(minor + 1)).toThrow(/noFormat/);
+    expect(stored(minor)).not.toThrow();
+  });
+
   it('puts an unknown step of a stored save on the carry path, and a malformed list on noFormat', () => {
     const world = newWorld(1337, KIT, TEST_MAP, defaultSetup('roaming'));
-    const stored = (steps: unknown) => {
+    const stored = (steps: unknown, minor = TINY_FROM + 1) => {
       const slots = makeSlots();
-      slots.put('auto', { ...JSON.parse(JSON.stringify(saveOf(world))), steps, savedAt: 1, runId: 'run-1' });
+      const envelope = JSON.parse(JSON.stringify(saveOf(world)));
+      slots.put('auto', { ...envelope, format: { ...envelope.format, minor }, steps, savedAt: 1, runId: 'run-1' });
       return () => loadWorld(slots, 'auto', TEST_MAP);
     };
     expect(stored({ from: TINY_FROM, names: ['withStepNoBuildHas'] })).toThrow(/unknownStep/);

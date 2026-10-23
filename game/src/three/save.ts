@@ -299,15 +299,16 @@ function migratedWorld(stored: unknown): unknown {
 }
 
 function stepsToRun(save: SavedJson, format: { major: number; minor: number }): readonly Step[] {
-  if (save.steps !== undefined) return namedSteps(RELEASE_STEPS, TINY_FROM, TINY_STEPS, savedStepsOf(save.steps));
+  if (save.steps !== undefined) return namedSteps(RELEASE_STEPS, TINY_FROM, TINY_STEPS, savedStepsOf(save.steps, format));
   if (format.minor > SAVE_FORMAT.minor) throw new SaveError('newer', format);
   const steps = stepsFrom(format.minor);
   if (!steps) throw new SaveError('outOfReach', format);
   return steps;
 }
 
-function savedStepsOf(value: unknown): SavedSteps {
+function savedStepsOf(value: unknown, format: { major: number; minor: number }): SavedSteps {
   if (!isJsonObject(value) || !isCount(value.from) || !Array.isArray(value.names) || !value.names.every((name) => typeof name === 'string')) throw new SaveError('noFormat');
+  if (format.minor !== value.from + value.names.length) throw new SaveError('noFormat', format, `The steps list from ${value.from} with ${value.names.length} names does not match minor ${format.minor}`);
   return { from: value.from, names: value.names };
 }
 
