@@ -33,7 +33,7 @@ The sim never imports `src/text/` and never makes English. `src/sim/types.ts` de
 - `UnitId`: the unit of a counted call value.
 - `LineId` in `src/data/dialogue.ts`: every radio line, by id. A call keeps the id of the line said last.
 
-A truck has no saved name. Its title comes from the player's own truck or from its template's profession and its driver. A bounty names its target by template. Save step 19 to 20 maps old saves to the ids, as [Saves](saves.md) describes.
+A truck has no saved name. Its title comes from the player's own truck or from its template's profession and its driver. Save step 19 to 20 maps old saves to the ids, as [Saves](saves.md) describes.
 
 ## The active language and live text
 

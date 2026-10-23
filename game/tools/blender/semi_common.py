@@ -22,8 +22,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
-from parts_common_core import round_wheel  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, cut_boxes, hull_mesh  # noqa: E402
+from parts_common_core import TIRE_SHARE, drawn_wheel  # noqa: E402
 from rig_units import check_unit as check_rig_unit, export_unit, unit_wheels as count_wheels  # noqa: E402
 from shapes import prism  # noqa: E402
 
@@ -44,7 +44,7 @@ WHEEL_Z = 1.24  # PHYSICS.bodies.semi.wheelZ: the steer wheels and the outer dua
 WHEEL_HALF_W = 0.21  # PHYSICS.bodies.semi.wheelHalfWidth
 ENGINE = (8.35, -0.15, 0.0)  # PHYSICS.bodies.semi.engine plus the tractor's center, as Blender x, z and -y
 HUB_Z = WHEEL_Y - SUSPENSION_REST
-TIRE_R = WHEEL_R * 0.935  # the wheel model's tire body; its lugs reach the ground
+TIRE_R = WHEEL_R * TIRE_SHARE  # the wheel model's tire body; its lugs reach the ground
 DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
 DRIVE_AXLES = (DRIVE_MID + TANDEM / 2, REAR_DRIVE_X)
 TRAILER_AXLES = (LAST_TRAILER_X + TANDEM, LAST_TRAILER_X)
@@ -114,8 +114,8 @@ def box_points(x0: float, x1: float, half_y: float, z0: float, z1: float) -> lis
 
 
 def wheel(kit: Kit, name: str, x: float, y: float) -> None:
-    """One wheel in the look of the game's wheel model, from the shared round_wheel()."""
-    round_wheel(kit, f"{name}_", (x, y, HUB_Z), TIRE_R, WHEEL_R * 0.55, WHEEL_R * 0.22, 2 * WHEEL_HALF_W)
+    """One wheel in the look of the game's wheel model, from drawn_wheel()."""
+    drawn_wheel(kit, name, (x, y, HUB_Z), WHEEL_R, 2 * WHEEL_HALF_W)
 
 
 def duals(kit: Kit, x: float, sides: tuple[int, ...] = (0, 1)) -> int:
@@ -236,7 +236,7 @@ def cab(kit: Kit) -> None:
 def tanks_and_steps(kit: Kit) -> None:
     """Chrome fuel tanks and dark steps under the doors, the frame between them hidden."""
     for s, name in ((1, "l"), (-1, "r")):
-        kit.cylinder(f"tank_{name}", 0.3, 1.1, (CAB_BACK + 0.6, s * (CAB_HALF - 0.3), up(0.62)), "chrome", rot=(0, math.pi / 2, 0), vertices=10)
+        kit.cylinder(f"tank_{name}", 0.3, 1.1, (CAB_BACK + 0.6, s * (CAB_HALF - 0.3), up(0.62)), "chrome", rot=(0, math.pi / 2, 0), vertices=round_sides(0.3))
         kit.box(f"step_{name}", (0.45, 0.32, 0.08), (CAB_FRONT - 0.15, s * (CAB_HALF - 0.16), up(0.62)), "under")
         kit.box(f"step_box_{name}", (0.5, 0.3, 0.45), (CAB_FRONT - 0.15, s * (CAB_HALF - 0.17), up(0.82)), "metal_dark")
 
@@ -245,8 +245,8 @@ def stacks(kit: Kit) -> None:
     """Twin tall chrome stacks behind the cab doors, with a wider heat shield on their lower half."""
     for s, name in ((1, "l"), (-1, "r")):
         y = s * (CAB_HALF - 0.12)
-        kit.cylinder(f"stack_{name}", 0.08, STACK_TOP - CAB_BOTTOM, (CAB_BACK - 0.12, y, (STACK_TOP + CAB_BOTTOM) / 2), "chrome", vertices=8)
-        kit.cylinder(f"stack_shield_{name}", 0.12, 1.1, (CAB_BACK - 0.12, y, CAB_ROOF - 0.7), "chrome", vertices=8)
+        kit.cylinder(f"stack_{name}", 0.08, STACK_TOP - CAB_BOTTOM, (CAB_BACK - 0.12, y, (STACK_TOP + CAB_BOTTOM) / 2), "chrome", vertices=round_sides(0.08))
+        kit.cylinder(f"stack_shield_{name}", 0.12, 1.1, (CAB_BACK - 0.12, y, CAB_ROOF - 0.7), "chrome", vertices=round_sides(0.12))
 
 
 def coupling(kit: Kit) -> None:
@@ -288,7 +288,7 @@ def trailer(kit: Kit) -> None:
     kit.box("underride", (0.12, WIDTH - 0.4, 0.16), (BACK + 0.25, 0, up(0.5)), "metal_dark")
     kit.box("bogie", (TANDEM_COVER, 1.2, TRAILER_FLOOR - HUB_Z - 0.2), ((TRAILER_AXLES[0] + TRAILER_AXLES[1]) / 2, 0, (TRAILER_FLOOR + HUB_Z + 0.2) / 2), "under")
     kit.box("trailer_frame", (length - 0.4, 1.0, 0.16), ((TRAILER_FRONT + BACK) / 2, 0, TRAILER_FLOOR - 0.08), "under")
-    kit.cylinder("king_pin", 0.08, 0.2, (PIVOT_X, 0, TRAILER_FLOOR - 0.16), "metal_dark", vertices=8)
+    kit.cylinder("king_pin", 0.08, 0.2, (PIVOT_X, 0, TRAILER_FLOOR - 0.16), "metal_dark", vertices=round_sides(0.08))
 
 
 def build_tractor(kit: Kit) -> int:

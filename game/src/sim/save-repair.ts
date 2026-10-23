@@ -2,7 +2,7 @@ import { CHASSIS, chassisDef } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { HUB, LINE_IDS, REFUSED, TOPICS } from '../data/dialogue';
 import { isNoteId } from '../data/locals';
-import { SHOPS, SITE_EVENTS } from '../data/market';
+import { SHOPS, SITE_EVENTS, shopDef } from '../data/market';
 import { FURY_ROAD } from '../data/modes';
 import { FACTIONS } from '../data/npc-behavior';
 import { FIRST_NAMES, NPCS, SURNAMES, TRAITS } from '../data/npcs';
@@ -16,7 +16,7 @@ import { settleAims } from './combat';
 import { newId, chargeFor, gunFor, makePart } from './factory';
 import { findSpot, gridOf, mountedItems, onDeadRow, placementError, type Grid } from './grid';
 import { settleEscortJob } from './escort-job';
-import { addShop, bountyLapsed, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
+import { addShop, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
 import { reviseMemories } from './memory';
 import { isPerkId } from './progress';
 import { modeRules } from './settings';
@@ -236,9 +236,8 @@ function contractFits(c: Contract): boolean {
 const CONTRACT_CONTENT: { [K in Contract['kind']]: (c: Extract<Contract, { kind: K }>) => boolean } = {
   haul: (c) => isGood(c.good) && isShop(c.to),
   escort: (c) => isSite(c.to),
-  fetch: (c) => isPart(c.defId),
   claim: (c) => isPart(c.defId),
-  bounty: (c) => isTemplate(c.template),
+  procure: (c) => isGood(c.good) && shopDef(c.shop).goods.includes(c.good),
   search: (c) => isTemplate(c.template),
   rescue: () => true,
   survey: () => true,
@@ -392,18 +391,16 @@ function dropParcelContract(world: World, id: string): void {
 
 function removeNpcs(world: World, doomed: ReadonlySet<string>): void {
   if (doomed.size === 0) return;
-  const templates = new Set(world.vehicles.flatMap((v) => (doomed.has(v.id) && v.brain ? [v.brain.templateId] : [])));
   world.vehicles = world.vehicles.filter((v) => !doomed.has(v.id));
   if (world.player.call && doomed.has(world.player.call.with)) world.player.call = null;
   settleStates(world);
   settleAims(world);
-  for (const c of world.player.contracts.filter((x) => !isMet(x) && namesGone(world, x, doomed, templates))) settleLost(world, c);
+  for (const c of world.player.contracts.filter((x) => !isMet(x) && namesGone(x, doomed))) settleLost(world, c);
 }
 
-function namesGone(world: World, c: Contract, doomed: ReadonlySet<string>, templates: ReadonlySet<string>): boolean {
+function namesGone(c: Contract, doomed: ReadonlySet<string>): boolean {
   if (c.kind === 'escort' || c.kind === 'rescue') return doomed.has(c.client);
-  if (c.kind === 'search') return doomed.has(c.target);
-  return c.kind === 'bounty' && templates.has(c.template) && bountyLapsed(world, c);
+  return c.kind === 'search' && doomed.has(c.target);
 }
 
 function settleLost(world: World, c: Contract): void {

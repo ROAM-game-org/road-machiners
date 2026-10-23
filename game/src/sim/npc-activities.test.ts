@@ -623,7 +623,7 @@ describe('NPC activities', () => {
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
       const furrow = TERRAIN.features.furrow;
       const start = territoryEntries(sun as never)[0];
-      const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], start);
+      const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine', 'panniers'], start);
       npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
       const inFurrow = territorySpots(w, 'fallen-sun').filter((s) => polylineDist(s.pos, furrow.path) < furrow.width);
       expect(inFurrow.length).toBeGreaterThan(0);

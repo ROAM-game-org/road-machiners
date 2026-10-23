@@ -12,6 +12,17 @@ from mathutils import Vector
 from kit import CELL_ACROSS, CELL_ALONG, Kit, Vec3
 
 FIT_SLACK = 1e-4  # float noise allowed at the footprint edge
+ROUND_SEGMENTS = 32  # sides of a big round part: a tire, a rim, an arch, a tank or a fifth wheel
+SMALL_ROUND_SEGMENTS = 16  # sides of a small round part: a hub, a lamp, a stack, an air cleaner or a pin
+
+# One round look for every wheel: the game's wheel model and every wheel a base draws itself.
+TIRE_SIDES = 48  # four sides under each of the wheel model's 12 tread lugs
+RIM_SIDES = 32
+HUB_SIDES = 16
+ROUND_SIDES = 24  # small round body pieces: lamps, tank ends, pipes, stacks and drawn spares
+TIRE_SHARE = 0.935  # tire body radius as a share of the wheel radius; the wheel model's lugs reach the rest
+RIM_SHARE = 0.55
+HUB_SHARE = 0.22
 
 # Colors from src/render/palette.ts. The paint color is a stand-in: the game swaps it for the faction color.
 COLORS = {
@@ -50,27 +61,26 @@ def check_footprint(kit: Kit, name: str, w: int, h: int, min_z: float = 0.0, max
         raise RuntimeError(f"{name} rises to z {hi.z:.3f}, above {max_z}")
 
 
-TIRE_SIDES = 48  # four sides a tread lug, so the tire strays 0.2% from its circle
-ROUND_SIDES = 32  # rims and other pieces a player reads as a circle, 0.5% off
-SMALL_ROUND_SIDES = 16  # hubs, lamps and other small round pieces, 1.9% off
-WHEEL_AXLE = (1.5707963267948966, 0, 0)  # turns a Kit cylinder's axis to the axle, Blender Y
-
-
-def check_round(name: str, sides: int, least: int) -> None:
-    """Raises when a round piece has fewer sides than its shared count, so it would read as a polygon."""
-    if sides < least:
-        raise ValueError(f"{name} has {sides} sides, under the shared round count {least}")
-
-
-def round_wheel(kit: Kit, prefix: str, loc: Vec3, tire_r: float, rim_r: float, hub_r: float, width: float) -> None:
-    """The look of every drawn wheel: a dark tire body, a light rim and a rust hub on one axle along Blender Y at loc."""
-    pieces = (("tire", tire_r, 0.94, "wheel", TIRE_SIDES), ("rim", rim_r, 0.98, "metal_light", ROUND_SIDES), ("hub", hub_r, 1.0, "rust", SMALL_ROUND_SIDES))
-    for piece, radius, share, mat, sides in pieces:
-        kit.cylinder(f"{prefix}{piece}", radius, width * share, loc, mat, rot=WHEEL_AXLE, vertices=sides)
+def check_round(name: str, sides: int, minimum: int) -> None:
+    """Raises when a part meant to read round has fewer sides than its shared count."""
+    if sides < minimum:
+        raise RuntimeError(f"{name} has {sides} sides, under the {minimum} a round part needs")
 
 
 ALONG_X = (0, 1.5707963267948966, 0)  # turns a Kit cylinder's axis to +X
 ALONG_Y = (1.5707963267948966, 0, 0)  # turns a Kit cylinder's axis to -Y
+
+
+def drawn_wheel(kit: Kit, name: str, loc: Vec3, radius: float, width: float, rot: Vec3 = ALONG_Y) -> bpy.types.Object:
+    """A round wheel in the look of the game's wheel model: a dark tire, a light rim and a rust hub, radius and width overall.
+
+    Draws <name>_tire, <name>_rim and <name>_hub, or tire, rim and hub for an empty name. Returns the tire, for a prop to dent.
+    """
+    prefix = f"{name}_" if name else ""
+    tire = kit.cylinder(f"{prefix}tire", radius * TIRE_SHARE, width * 0.94, loc, "wheel", rot=rot, vertices=TIRE_SIDES)
+    kit.cylinder(f"{prefix}rim", radius * RIM_SHARE, width * 0.98, loc, "metal_light", rot=rot, vertices=RIM_SIDES)
+    kit.cylinder(f"{prefix}hub", radius * HUB_SHARE, width, loc, "rust", rot=rot, vertices=HUB_SIDES)
+    return tire
 
 
 def skid(kit: Kit, w: int, h: int) -> None:

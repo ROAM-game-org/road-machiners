@@ -47,7 +47,7 @@ from parts_common_base import (  # noqa: E402
     level_sockets,
     round_arch,
 )
-from parts_common_core import ROUND_SIDES, check_round  # noqa: E402
+from parts_common_core import ROUND_SEGMENTS, check_round  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 302
@@ -62,7 +62,7 @@ HUB_Z = -0.35 - SUSPENSION_REST  # PHYSICS.bodies.van.wheelY
 WHEELS_X = [WHEEL_X, -WHEEL_X]
 WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03
 ARCH_R = WHEEL_R + ARCH_CLEARANCE
-ARCH_SEGMENTS = ROUND_ARCH_SEGMENTS  # edges per half circle; a whole arch circle keeps the shared ROUND_SIDES
+ARCH_SEGMENTS = ROUND_ARCH_SEGMENTS  # edges per half circle; a whole arch circle keeps the shared ROUND_SEGMENTS
 
 FLARE_OUT = 0.025
 SIDE = WIDTH / 2 - FLARE_OUT
@@ -138,7 +138,7 @@ def nose_line() -> list[tuple[float, float]]:
 
 def body(kit: Kit) -> None:
     """Painted side walls with round arches, a center slab over the dark core with the engine hole cut in its hood, and the flares."""
-    check_round("van arches", 2 * ARCH_SEGMENTS, ROUND_SIDES)
+    check_round("van arches", 2 * ARCH_SEGMENTS, ROUND_SEGMENTS)
     wall = [(TAIL, BOTTOM)]
     for wx in sorted(WHEELS_X):
         wall += round_arch(wx, HUB_Z, ARCH_R, BOTTOM, ARCH_SEGMENTS)
