@@ -30,7 +30,7 @@ from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, cut_boxes, hull_mesh, level_sockets  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, check_door_gap, cut_boxes, hull_mesh, level_sockets  # noqa: E402
 from parts_common_core import ROUND_SIDES  # noqa: E402
 from shapes import prism, strut  # noqa: E402
 
@@ -60,20 +60,24 @@ NOSE_TOP = -0.47
 SILL = -0.2
 REAR_DECK = -0.21
 CROWN = 0.05
-SCREEN_TOP = 0.41
+ROOF_TOP = 0.54  # the hardtop's flat top, where items on the D cells stand
+ROOF_BOTTOM = ROOF_TOP - 0.07
+SCREEN_TOP = ROOF_BOTTOM
 COWL_TOP = -0.05
-HOOP_TOP = 0.5
 TUBE = 0.09
+SIDE_GLASS = (0.1, ROOF_BOTTOM - 0.05)  # the side windows' bottom and top
+REAR_GLASS = (0.12, ROOF_BOTTOM - 0.07)
 
 COWL_X = 0.46  # the dash's front face, just behind the engine hole
 SCREEN_BASE_X = 0.42
 SCREEN_TOP_X = 0.3
-SCREEN_Y = 0.62
+ROOF_FRONT = SCREEN_TOP_X + 0.06  # a short brim over the windshield top
 SILL_FRONT = 0.35  # where the fender's back slope meets the cockpit sill
 SIDE_BACK = WHEELS_X[1] + ARCH_R + 0.01  # the tub side ends just ahead of the bare rear wheel
 HOOP_X = SIDE_BACK + 0.05
 HOOP_Y = SIDE - WALL / 2
-SEAT_Y = -0.36
+CAB_BACK = HOOP_X - TUBE / 2  # the hoop's back face: the roof's back edge and the rear wall
+INNER = SIDE - WALL  # the cab walls' inner face
 LAMP_X = 1.62
 LAMP_R = 0.11
 
@@ -164,6 +168,9 @@ def sides(kit: Kit) -> None:
             prism(kit, f"fender_edge{i}_{s}", shoulder, lo, hi, "paint")
     prism(kit, "wall_l", wall, SIDE - WALL, SIDE, "paint")
     prism(kit, "wall_r", wall, -SIDE, -SIDE + WALL, "paint")
+    cab = [(CAB_BACK, SILL), (COWL_X, SILL), (COWL_X, COWL_TOP), (SCREEN_BASE_X, COWL_TOP), (SCREEN_TOP_X, ROOF_BOTTOM), (CAB_BACK, ROOF_BOTTOM)]
+    prism(kit, "cab_side_l", cab, INNER, SIDE, "paint")
+    prism(kit, "cab_side_r", cab, -SIDE, -INNER, "paint")
     kit.box("cockpit_floor", (COWL_X - SIDE_BACK, 2 * SIDE - 0.02, FLOOR - PAN), ((COWL_X + SIDE_BACK) / 2, 0, (FLOOR + PAN) / 2), "paint")
     band = [(SIDE_BACK + 0.03, -0.37), (WHEELS_X[0] - ARCH_R - 0.08, -0.37), (WHEELS_X[0] - ARCH_R - 0.02, -0.29), (SIDE_BACK + 0.03, -0.29)]
     prism(kit, "band_l", band, SIDE, SIDE + 0.015, "trim")
@@ -180,29 +187,45 @@ def lamps(kit: Kit) -> None:
         kit.cylinder(f"lamp_{s}", LAMP_R - 0.02, 0.03, (LAMP_X + 0.075, y * 0.71, z), "light", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
 
 
-def cockpit(kit: Kit) -> None:
-    """The dash on the cowl, a raked windshield in a dark frame, the driver's bucket seat and steering wheel."""
-    kit.box("dash", (COWL_X - SCREEN_BASE_X + 0.08, 2 * (SIDE - WALL), COWL_TOP - FLOOR), (COWL_X - (COWL_X - SCREEN_BASE_X + 0.08) / 2, 0, (COWL_TOP + FLOOR) / 2), "under")
-    base_z = COWL_TOP
-    for s, y in (("l", SCREEN_Y), ("r", -SCREEN_Y)):
-        strut(kit, f"screen_post_{s}", (SCREEN_BASE_X, y, base_z), (SCREEN_TOP_X, y, SCREEN_TOP), 0.06, "under")
-    strut(kit, "screen_top", (SCREEN_TOP_X, SCREEN_Y + 0.03, SCREEN_TOP), (SCREEN_TOP_X, -SCREEN_Y - 0.03, SCREEN_TOP), 0.06, "under")
-    glass = [(x + dx, s * (SCREEN_Y - 0.03), z) for x, z in ((SCREEN_BASE_X, base_z), (SCREEN_TOP_X, SCREEN_TOP - 0.03)) for s in (1, -1) for dx in (0, -0.02)]
+def screen_x(z: float) -> float:
+    """The windshield rake: its X at height z, from the cowl to the roof."""
+    return SCREEN_BASE_X + (SCREEN_TOP_X - SCREEN_BASE_X) * (z - COWL_TOP) / (SCREEN_TOP - COWL_TOP)
+
+
+def windshield(kit: Kit) -> None:
+    """The dash on the cowl and a raked windshield in a dark frame, from the cowl to the roof, across the cab."""
+    kit.box("dash", (COWL_X - SCREEN_BASE_X + 0.08, 2 * INNER, COWL_TOP - FLOOR), (COWL_X - (COWL_X - SCREEN_BASE_X + 0.08) / 2, 0, (COWL_TOP + FLOOR) / 2), "under")
+    post_y = INNER - 0.03
+    for s, y in (("l", post_y), ("r", -post_y)):
+        strut(kit, f"screen_post_{s}", (SCREEN_BASE_X, y, COWL_TOP), (SCREEN_TOP_X, y, SCREEN_TOP), 0.06, "under")
+    glass = [(x + dx, s * (post_y - 0.03), z) for x, z in ((SCREEN_BASE_X, COWL_TOP), (SCREEN_TOP_X, SCREEN_TOP)) for s in (1, -1) for dx in (0, -0.02)]
     kit._add(hull_mesh("windshield", glass), "windshield", "glass", 0.0)
-    kit.box("cushion", (0.45, 0.42, 0.12), (-0.05, SEAT_Y, FLOOR + 0.06), "under")
-    kit.box("seatback", (0.12, 0.42, 0.55), (SIDE_BACK + 0.2, SEAT_Y, FLOOR + 0.36), "under", rot=(0, -0.2, 0))
-    kit.cylinder("steering_column", 0.03, 0.4, (COWL_X - 0.2, SEAT_Y, COWL_TOP - 0.1), "under", rot=(0, -1.0, 0), vertices=ROUND_SIDES)
-    kit.cylinder("steering_wheel", 0.17, 0.03, (COWL_X - 0.33, SEAT_Y, COWL_TOP - 0.02), "under", rot=(0, -1.0, 0), vertices=ROUND_SIDES)
+
+
+def hardtop(kit: Kit) -> None:
+    """A flat trim roof welded on the roll cage over both seats, with a short brim over the windshield."""
+    roof = [(ROOF_FRONT, ROOF_BOTTOM), (CAB_BACK, ROOF_BOTTOM), (CAB_BACK, ROOF_TOP), (ROOF_FRONT - 0.06, ROOF_TOP), (ROOF_FRONT, ROOF_TOP - 0.04)]
+    prism(kit, "roof", roof, -SIDE, SIDE, "trim")
+
+
+def windows(kit: Kit) -> None:
+    """One small dark window in each cab side, its front edge on the windshield rake, and the rear wall with its window."""
+    z0, z1 = SIDE_GLASS
+    back = CAB_BACK + 0.14
+    check_door_gap("side_window", back, screen_x(z0) - 0.08, z0, WHEELS_X, HUB_Z, ARCH_R)
+    window = [(back, z0), (screen_x(z0) - 0.08, z0), (screen_x(z1) - 0.08, z1), (back, z1)]
+    prism(kit, "side_glass_l", window, SIDE - 0.01, SIDE + 0.01, "glass")
+    prism(kit, "side_glass_r", window, -SIDE - 0.01, -SIDE + 0.01, "glass")
+    kit.box("rear_wall", (0.05, 2 * INNER, ROOF_BOTTOM - FLOOR), (CAB_BACK + 0.025, 0, (ROOF_BOTTOM + FLOOR) / 2), "paint")
+    r0, r1 = REAR_GLASS
+    kit.box("rear_glass", (0.02, 2 * INNER - 0.5, r1 - r0), (CAB_BACK - 0.005, 0, (r0 + r1) / 2), "glass")
 
 
 def hoop(kit: Kit) -> None:
-    """A roll hoop in the trim color over the cockpit walls behind the seats, braced back to the rear deck."""
-    corner = 0.12
+    """The roll hoop in the trim color as the cab's rear pillars under the roof's back edge, braced back to the rear deck."""
     for s, sy in (("l", 1), ("r", -1)):
-        strut(kit, f"hoop_leg_{s}", (HOOP_X, sy * HOOP_Y, SILL), (HOOP_X, sy * HOOP_Y, HOOP_TOP - corner), TUBE, "trim")
-        strut(kit, f"hoop_corner_{s}", (HOOP_X, sy * HOOP_Y, HOOP_TOP - corner), (HOOP_X, sy * (HOOP_Y - corner), HOOP_TOP), TUBE, "trim")
-        strut(kit, f"brace_{s}", (HOOP_X, sy * 0.4, HOOP_TOP), (BACK + 0.45, sy * 0.3, REAR_DECK), TUBE * 0.8, "trim")
-    strut(kit, "hoop_top", (HOOP_X, HOOP_Y - corner, HOOP_TOP), (HOOP_X, -HOOP_Y + corner, HOOP_TOP), TUBE, "trim")
+        strut(kit, f"hoop_leg_{s}", (HOOP_X, sy * HOOP_Y, SILL), (HOOP_X, sy * HOOP_Y, ROOF_BOTTOM), TUBE, "trim")
+        strut(kit, f"brace_{s}", (HOOP_X, sy * 0.4, ROOF_BOTTOM), (BACK + 0.45, sy * 0.3, REAR_DECK), TUBE * 0.8, "trim")
 
 
 def rear(kit: Kit) -> None:
@@ -248,14 +271,16 @@ def main() -> None:
     body(kit)
     sides(kit)
     lamps(kit)
-    cockpit(kit)
+    windshield(kit)
+    hardtop(kit)
+    windows(kit)
     hoop(kit)
     rear(kit)
     kit.socket("arch_front", (WHEELS_X[0], WHEEL_Z, HUB_Z))
     kit.socket("arch_rear", (WHEELS_X[1], WHEEL_Z, HUB_Z))
     kit.socket("arch_front_top", (WHEELS_X[0], WHEEL_Z, HUB_Z + ARCH_R))
     bay = {(x, y): FLOOR for x in (1, 2) for y in (0, 1)}
-    level_sockets(kit, G, "row", [NOSE_TOP, DECK, FLOOR, FLOOR, REAR_DECK, REAR_DECK], cells=bay)
+    level_sockets(kit, G, "row", [NOSE_TOP, DECK, ROOF_TOP, ROOF_TOP, REAR_DECK, REAR_DECK], fronts={2: ROOF_FRONT - 0.06}, cells=bay)
     level_sockets(kit, G, "floor", [FLOOR] * 4 + [REAR_DECK] * 2)
     check_size(kit)
     check_base(kit, "base_buggy", G)
