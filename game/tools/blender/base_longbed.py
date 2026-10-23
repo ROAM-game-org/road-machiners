@@ -1,72 +1,140 @@
-"""The longbed base: a stylized ZIL-130 flatbed, the Soviet hooded medium truck.
+"""The longbed base: a ZIL-130 flatbed, the Soviet hooded medium truck, in the stylized style of the scout.
 
-Grid: 7 columns by 11 rows, 3.39 m across by 7.15 m along. Half height 0.55 m, from PHYSICS.bodies.longbed.
-Rows 0 to 2 are a faceted round hood between two low fenders, with the wide grille and a cutout over the engine cells.
-Rows 3 and 4 are the cab with a flat roof. Rows 5 to 10 are a flat wooden deck with low stake-side rails, open on top.
-Wheels sit on rows 1 and 9 in the outer columns, radius 0.64 m, half width 0.265 m, mount 0.35 m below the center.
+Built from the published ZIL-130 flatbed figures: 6.675 m long, 2.5 m wide, 2.4 m to the cab roof, a 3.8 m wheelbase, 9.00-20 tires,
+a 3.75 m bed with 0.575 m drop sides. Lengths scale by 1.071 to the 7.15 m grid, widths and heights by the scout's 1.077, and every
+height is measured from the hub, so the rule tire lifts the body as on the scout. That makes it 7.15 m long, 2.69 m wide and 2.65 m
+tall on its tires. Levels: roof 1.29, beltline 0.53, crested hood 0.42 at the cowl falling to 0.26 at the nose, wing crown 0.07,
+deck 0.26, drop sides to 0.88, bumper -0.76 to -0.55. Rounded front wings sweep over round arches, a wide barred grille stands
+between round lamps over a heavy bumper, and the cab has rounded roof edges, a split windshield, doors and a small rear window.
+The long flat bed has plank drop sides on posts, a trim headboard and round taillights, and hangs out behind the rear duals.
+Deviations from the figures: the wheels stay symmetric at 2.05 m off the center, the cowl sits 0.3 m back so the front wheel stays
+under the rear of the hood, the bed is 3.95 m outside, and the tires are the tire rule's 0.61 m. The base draws the inner rear duals.
+The engine shows through a hole in the hood over a dark bay floor at 0, centered on PHYSICS.bodies.longbed.engine.
+Grid: 7 columns by 11 rows, stretched over the model by the projection. Half height 0.55 m, from PHYSICS.bodies.longbed.
+Wheels sit on rows 1 and 9, radius 0.61 m, half width 0.255 m, mount 0.35 m below the center, 1.08 m off the center line.
+Sockets arch_front, arch_rear and arch_front_top mark the arches for wheelArches.test.ts.
 Run: blender --background --python tools/blender/base_longbed.py -- public/models/base_longbed.glb [tmp/base_longbed.png]
 """
 
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
 import bmesh
 import bpy
+from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import BASE_COLORS, INSET, SUSPENSION_REST, Grid, arch_profile, check_base, flare, level_sockets  # noqa: E402
+from parts_common_base import (  # noqa: E402
+    ARCH_CLEARANCE,
+    BASE_COLORS,
+    SUSPENSION_REST,
+    Grid,
+    check_base,
+    check_door_gap,
+    cut_boxes,
+    door_sill,
+    flare,
+    hull_layers,
+    hull_mesh,
+    level_sockets,
+    round_arch,
+)
+from round_parts import round_sides, wheel_disc  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 303
+LENGTH = 7.15
+WIDTH = 2.69
+HALF_W = WIDTH / 2
+HEIGHT_SCALE = 1.077
+REAL_HUB = 0.51
 G = Grid(rows=11, cols=7, half_height=0.55)
-WHEEL_R = 0.64
-WHEEL_HALF_W = 0.265
-HUB_Z = -0.35 - SUSPENSION_REST
-WHEELS_X = [G.row_x(1), G.row_x(9)]
-WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
-
-FLOOR = 0.05  # the underbody top
-SIDE = G.half_y - INSET  # body side outer face
-FRONT = G.half_x - INSET  # grille face
-BACK = -G.half_x + INSET  # tail face
-CAB_FRONT = G.row_x(2.5)
-CAB_BACK = G.row_x(4.5)
-
-HOOD_Y = G.col_y(0.5)  # the hood fills columns 1 to 5, the fenders columns 0 and 6
-HOOD_TOP = G.top + 0.22
-HOOD_SHOULDER = 0.22  # the hood's chamfered top edges, across and down
-NOSE_X = FRONT - 0.28  # the hood rounds down from here to the grille
-NOSE_DROP = 0.1
-FENDER_TOP = G.top + 0.02
-FENDER_ROUND = 0.14  # the fender's chamfered outer top edge
-FENDER_DROP = 0.2  # the fender rounds down this far toward its front
-BAY_FRONT = G.row_x(0.5)  # the engine cutout covers rows 1 and 2, columns 2 and 3
-BAY_LEFT = G.col_y(1.5)
-BAY_RIGHT = G.col_y(3.5)
-BAY_FLOOR = 0.35  # a 0.5 m engine block tops out 0.08 m above the hood
-
-TUMBLE = 0.14  # the cab's upper half stands this far inside the doors
-CAB_SIDE = SIDE - TUMBLE
-ROOF = G.top + 0.92
-ROOF_T = 0.1
-UNDER_ROOF = ROOF - ROOF_T
-ROOF_CHAMFER = 0.1
-RAKE_TOP = CAB_FRONT - 0.24  # the windshield top, a gentle rake
-
-DECK = G.top  # the deck top, flush with the beltline
-DECK_T = 0.14  # the wooden deck edge
-DROP_BOTTOM = DECK - DECK_T - 0.2  # the painted drop side board hangs down to here
-FRAME_Y = SIDE - 0.14  # the dark frame under the deck stands this far in
-RAIL_H = 0.42  # stake rail height above the deck
-RAIL_T = 0.1  # stake and rail thickness
-BOARD_H = 0.12  # the low board along the deck under the stakes
-HEADBOARD_H = 0.62  # the front board behind the cab, taller than the rails
+WHEEL_R = 0.61  # PHYSICS.bodies.longbed.wheelRadius
+WHEEL_HALF_W = 0.255  # PHYSICS.bodies.longbed.wheelHalfWidth
+WHEEL_Z = 1.08  # PHYSICS.bodies.longbed.wheelZ
+HUB_Z = -0.35 - SUSPENSION_REST  # PHYSICS.bodies.longbed.wheelY
+WHEELS_X = [2.05, -2.05]
+DUAL_GAP = 0.05
+DUAL_Z = WHEEL_Z - 2 * WHEEL_HALF_W - DUAL_GAP
+ARCH_R = WHEEL_R + ARCH_CLEARANCE
+ARCH_SIDES = round_sides(ARCH_R)
 
 
-def loft_x(kit: Kit, name: str, sections: list[tuple[float, list[tuple[float, float]]]], mat: str) -> None:
+def up(real: float) -> float:
+    """Base Z of a real ZIL-130 height over the ground, measured from the hub."""
+    return HUB_Z + (real - REAL_HUB) * HEIGHT_SCALE
+
+
+ROOF = up(2.40)
+ROOF_CAP = 0.05
+BELT = up(1.70)
+CAB_BOTTOM = up(0.92)
+DECK = up(1.45)
+DECK_BOTTOM = DECK - 0.12
+SILL_H = 0.14
+SIDE_TOP = DECK + 0.62
+HEADBOARD_TOP = SIDE_TOP + 0.04
+HOOD_CREST = up(1.60)
+HOOD_NOSE = up(1.45)
+WING_CROWN = up(1.27)
+WING_LOW = -0.5
+LAMP_Z = up(1.0)
+BUMPER = (up(0.5), up(0.7))
+FLOOR = 0.0
+FRAME = (up(0.75), up(0.95))
+
+FRONT = LENGTH / 2
+BACK = -LENGTH / 2
+BUMPER_BACK = FRONT - 0.16
+WING_FRONT = FRONT - 0.105
+GRILLE_X = WING_FRONT - 0.03
+COWL_X = 1.85
+CAB_BACK = 0.55
+BED_FRONT = 0.45
+WALL = 0.06
+POST = 0.02
+
+HOOD_HALF = 0.66
+WING_IN = 0.64
+WING_OUT = HALF_W - 0.015
+WING_EDGE = 0.08
+WING_X0 = 0.95
+WING_XC = 2.25
+WING_A = WING_FRONT - WING_XC + 0.1
+WING_POWER = 5
+CAB_HALF = 1.2
+LAMP_Y = 0.99
+GRILLE_HALF = 0.84
+GRILLE_WING_TOP = -0.08
+GRILLE_TOP = HOOD_NOSE - 0.1
+LAMP_R = 0.12
+TAIL_R = 0.075
+
+HOLE_MARGIN = 0.02
+ENGINE_X = 2.515  # PHYSICS.bodies.longbed.engine.x
+ENGINE_Y = 0.193  # -PHYSICS.bodies.longbed.engine.z
+ENGINE_HALF = (0.415, 0.386)
+HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, ENGINE_Y - ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_Y + ENGINE_HALF[1] + HOLE_MARGIN))
+
+
+def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
+    kit.box(f"{name}_l", size, (x, y, z), mat)
+    kit.box(f"{name}_r", size, (x, -y, z), mat)
+
+
+def hull(kit: Kit, name: str, mat: str, points: list[tuple[float, float, float]]) -> bpy.types.Object:
+    return kit._add(hull_mesh(name, points), name, mat, 0.0)
+
+
+def layers(kit: Kit, name: str, mat: str, stack: list[tuple[float, float, float, float, float]]) -> bpy.types.Object:
+    return kit._add(hull_layers(name, stack), name, mat, 0.0)
+
+
+def loft_x(kit: Kit, name: str, sections: list[tuple[float, list[tuple[float, float]]]], mat: str) -> bpy.types.Object:
     """Joins YZ profiles of equal length at increasing X into one closed mesh, capped at both ends."""
     mesh = bpy.data.meshes.new(name)
     bm = bmesh.new()
@@ -85,130 +153,188 @@ def loft_x(kit: Kit, name: str, sections: list[tuple[float, list[tuple[float, fl
     bm.free()
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(obj)
-    kit._add(obj, name, mat, 0.0)
+    return kit._add(obj, name, mat, 0.0)
 
 
-def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
-    """A box on the left side at +y and its twin on the right side."""
-    kit.box(f"{name}_l", size, (x, y, z), mat)
-    kit.box(f"{name}_r", size, (x, -y, z), mat)
+def round_x(kit: Kit, name: str, radius: float, depth: float, x: float, y: float, z: float, mat: str) -> None:
+    """A round piece facing along X, like a lamp lens, with round_sides() of its radius."""
+    kit.cylinder(name, radius, depth, (x, y, z), mat, rot=(0, math.pi / 2, 0), vertices=round_sides(radius))
 
 
-def hood_profile(y0: float, y1: float, drop: float = 0.0) -> list[tuple[float, float]]:
-    """The hood's YZ outline between y0 and y1, cut from the full width with its chamfered shoulders, lowered by drop."""
-    top, shoulder = HOOD_TOP - drop, HOOD_TOP - HOOD_SHOULDER - drop
-    full = [(HOOD_Y, FLOOR), (HOOD_Y, shoulder), (HOOD_Y - HOOD_SHOULDER, top), (-HOOD_Y + HOOD_SHOULDER, top), (-HOOD_Y, shoulder), (-HOOD_Y, FLOOR)]
-    if (y0, y1) == (-HOOD_Y, HOOD_Y):
-        return full
-    if y0 == -HOOD_Y:  # the right strip, from the right edge to the bay
-        return [(y1, FLOOR), (y1, top), (-HOOD_Y + HOOD_SHOULDER, top), (-HOOD_Y, shoulder), (-HOOD_Y, FLOOR)]
-    return [(HOOD_Y, FLOOR), (HOOD_Y, shoulder), (HOOD_Y - HOOD_SHOULDER, top), (y0, top), (y0, FLOOR)]
+def hood_profile(top: float) -> list[tuple[float, float]]:
+    """The hood's YZ outline: flat sides down to the wings, rounded shoulders and a low crest along the middle."""
+    low = -0.05
+    side = [(HOOD_HALF, low), (HOOD_HALF, top - 0.13), (HOOD_HALF - 0.07, top - 0.05), (HOOD_HALF - 0.25, top - 0.05)]
+    return side + [(0.0, top)] + [(-y, z) for y, z in reversed(side)]
 
 
-def fender_profile(sign: int, drop: float = 0.0) -> list[tuple[float, float]]:
-    """One fender's YZ outline over column 0 or 6, with a chamfered outer top edge, lowered by drop."""
-    top = FENDER_TOP - drop
-    pts = [(HOOD_Y, FLOOR), (SIDE, FLOOR), (SIDE, top - FENDER_ROUND), (SIDE - FENDER_ROUND, top), (HOOD_Y, top)]
-    return [(sign * y, z) for y, z in pts]
+def wing_top(x: float) -> float:
+    """The front wing's top line: a squared ellipse over the front wheel, falling to the grille ahead and the step behind."""
+    u = min(1.0, abs(x - WING_XC) / WING_A)
+    return HUB_Z + (WING_CROWN - HUB_Z) * (1 - u**WING_POWER) ** (1 / WING_POWER)
 
 
-def lower_body(kit: Kit) -> None:
-    """Painted side panels with wheel arches, a dark core between the wells, and the flares."""
-    # The painted skin runs under the hood and cab. Under the deck a dark frame stands back from the sides.
-    front = [(max(x, CAB_BACK), z) for x, z in arch_profile(G, WHEELS_X[:1], HUB_Z, WHEEL_R, FLOOR)]
-    rear = [(min(x, CAB_BACK), z) for x, z in arch_profile(G, WHEELS_X[1:], HUB_Z, WHEEL_R, DROP_BOTTOM)]
-    prism(kit, "skin_l", front, WELL_Y, SIDE, "paint")
-    prism(kit, "skin_r", front, -SIDE, -WELL_Y, "paint")
-    prism(kit, "frame_l", rear, WELL_Y, FRAME_Y, "under")
-    prism(kit, "frame_r", rear, -FRAME_Y, -WELL_Y, "under")
-    kit.box("core", (FRONT - BACK - 0.08, 2 * WELL_Y, FLOOR - G.bottom), (0, 0, (FLOOR + G.bottom) / 2), "metal")
-    # The rear flare reaches in to the frame, so it reads as a mudguard hung from the deck.
-    for i, (wx, inner) in enumerate(zip(WHEELS_X, (SIDE, FRAME_Y))):
-        flare(kit, f"flare{i}_l", G, wx, HUB_Z, WHEEL_R, inner, G.half_y)
-        flare(kit, f"flare{i}_r", G, wx, HUB_Z, WHEEL_R, -G.half_y, -inner)
-    kit.box("valance", (0.04, 2 * WELL_Y, FLOOR - G.bottom), (FRONT - 0.02, 0, (FLOOR + G.bottom) / 2), "paint")
-    kit.box("rear_panel", (0.04, 2 * WELL_Y, FLOOR - G.bottom), (BACK + 0.02, 0, (FLOOR + G.bottom) / 2), "paint")
+def wing_profile(drop: float) -> list[tuple[float, float]]:
+    """The front wing's XZ outline round its arch, lowered by drop for the rounded outer edge."""
+    steps = 24
+    top = [(WING_FRONT - (WING_FRONT - WING_X0) * k / steps, 0.0) for k in range(steps + 1)]
+    top = [(x, wing_top(x) - drop) for x, _ in top]
+    arch = round_arch(WHEELS_X[0], HUB_Z, ARCH_R, WING_LOW, ARCH_SIDES)
+    return [(WING_FRONT, WING_LOW), *top, (WING_X0, WING_LOW), *arch]
+
+
+def wings(kit: Kit) -> None:
+    """Rounded front wings over round arches: a full wing and a lower outer strip that rounds its edge."""
+    for sign, s in ((1, "l"), (-1, "r")):
+        ys = sorted((sign * WING_IN, sign * (WING_OUT - WING_EDGE)))
+        prism(kit, f"wing_{s}", wing_profile(0.0), ys[0], ys[1], "paint")
+        ys = sorted((sign * (WING_OUT - WING_EDGE), sign * WING_OUT))
+        prism(kit, f"wing_edge_{s}", wing_profile(0.05), ys[0], ys[1], "paint")
+    mirrored(kit, "step", (0.38, 0.22, 0.06), (WING_X0 + CAB_BACK) / 2 + 0.03, CAB_HALF - 0.08, WING_LOW + 0.03, "under")
 
 
 def hood(kit: Kit) -> None:
-    """A high faceted hood between low fenders, open over the engine cells, rounding down to the wide grille."""
-    loft_x(kit, "hood_nose", [(BAY_FRONT, hood_profile(-HOOD_Y, HOOD_Y)), (NOSE_X, hood_profile(-HOOD_Y, HOOD_Y)), (FRONT, hood_profile(-HOOD_Y, HOOD_Y, NOSE_DROP))], "paint")
-    loft_x(kit, "hood_l", [(CAB_FRONT, hood_profile(BAY_LEFT, HOOD_Y)), (BAY_FRONT, hood_profile(BAY_LEFT, HOOD_Y))], "paint")
-    loft_x(kit, "hood_r", [(CAB_FRONT, hood_profile(-HOOD_Y, BAY_RIGHT)), (BAY_FRONT, hood_profile(-HOOD_Y, BAY_RIGHT))], "paint")
-    kit.box("bay_floor", (BAY_FRONT - CAB_FRONT, BAY_LEFT - BAY_RIGHT, BAY_FLOOR - FLOOR), ((BAY_FRONT + CAB_FRONT) / 2, (BAY_LEFT + BAY_RIGHT) / 2, (BAY_FLOOR + FLOOR) / 2), "under")
-    for s, sign in (("l", 1), ("r", -1)):
-        fx = FRONT - 0.3
-        loft_x(kit, f"fender_{s}", [(CAB_FRONT, fender_profile(sign)), (fx, fender_profile(sign)), (FRONT, fender_profile(sign, FENDER_DROP))], "paint")
-    # The ZIL's wide grille: a dark backing that follows the nose outline, crossed by three bright horizontal bars.
-    g = HOOD_Y - 0.08
-    side, top = HOOD_TOP - HOOD_SHOULDER - NOSE_DROP - 0.06, HOOD_TOP - NOSE_DROP - 0.06
-    backing = [(g, 0.1), (g, side), (g - HOOD_SHOULDER, top), (-g + HOOD_SHOULDER, top), (-g, side), (-g, 0.1)]
-    loft_x(kit, "grille", [(FRONT, backing), (FRONT + INSET / 2, backing)], "under")
-    for i in range(3):
-        z = 0.17 + 0.16 * i
-        half = min(g, g - (z + 0.05 - side)) - 0.04  # the bar stays inside the chamfered corners
-        kit.box(f"grille_bar{i}", (INSET, 2 * half, 0.1), (FRONT + INSET / 2, 0, z), "metal_light")
-    mirrored(kit, "lamp", (INSET, 0.26, 0.2), FRONT + INSET / 2, G.col_y(0), FENDER_TOP - FENDER_DROP - 0.16, "light")
+    """A crested hood from the cowl, rounding down to the grille, open over the engine cells above a dark bay floor."""
+    sections = [(COWL_X, HOOD_CREST), (3.0, HOOD_CREST - 0.1), (GRILLE_X - 0.12, HOOD_NOSE), (GRILLE_X, HOOD_NOSE - 0.08)]
+    lid = loft_x(kit, "hood", [(x, hood_profile(top)) for x, top in sections], "paint")
+    (x0, y0), (x1, y1) = HOLE
+    cut_boxes(lid, [((x0, y0, -0.2), (x1, y1, HOOD_CREST + 0.2))])
+    lid.data.materials.clear()
+    lid.data.materials.append(kit._materials["paint"])
+    kit.box("engine_bay", (GRILLE_X - 0.04 - 1.0, 2 * (HOOD_HALF - 0.04), FLOOR + 0.6), ((GRILLE_X - 0.04 + 1.0) / 2, 0, (FLOOR - 0.6) / 2), "under")
+
+
+def nose(kit: Kit) -> None:
+    """The wide grille of horizontal bars between the wings, a round lamp in each wing front and the heavy bumper."""
+    outline = [(GRILLE_HALF, WING_LOW), (GRILLE_HALF, GRILLE_WING_TOP), (WING_IN, GRILLE_WING_TOP), (WING_IN, GRILLE_TOP)]
+    outline += [(-y, z) for y, z in reversed(outline)]
+    loft_x(kit, "grille", [(WING_FRONT - 0.01, outline), (WING_FRONT + 0.01, outline)], "under")
+    for i, z in enumerate((-0.4, -0.27, -0.14)):
+        kit.box(f"grille_bar{i}", (0.03, 2 * (GRILLE_HALF - 0.04), 0.07), (WING_FRONT + 0.02, 0, z), "metal_light")
+    for i, z in enumerate((-0.01, 0.12)):
+        kit.box(f"grille_top_bar{i}", (0.03, 2 * (WING_IN - 0.05), 0.07), (WING_FRONT + 0.02, 0, z), "metal_light")
+    for sign, s in ((1, "l"), (-1, "r")):
+        round_x(kit, f"lamp_rim_{s}", LAMP_R + 0.035, 0.03, WING_FRONT + 0.02, sign * LAMP_Y, LAMP_Z, "metal_light")
+        round_x(kit, f"lamp_{s}", LAMP_R, 0.03, WING_FRONT + 0.035, sign * LAMP_Y, LAMP_Z, "light")
+    kit.box("bumper", (FRONT - BUMPER_BACK, 2 * (HALF_W - 0.1), BUMPER[1] - BUMPER[0]), ((FRONT + BUMPER_BACK) / 2, 0, (BUMPER[0] + BUMPER[1]) / 2), "under")
+
+
+def underbody(kit: Kit) -> None:
+    """The frame rails from bumper to tail, the bed's sills on spacers over them and the mudguards over the rear duals."""
+    mirrored(kit, "rail", (BUMPER_BACK - BACK - 0.1, 0.12, FRAME[1] - FRAME[0]), (BUMPER_BACK + BACK) / 2, 0.18, (FRAME[0] + FRAME[1]) / 2, "under")
+    sill = DECK_BOTTOM - SILL_H
+    mirrored(kit, "sill", (BED_FRONT - BACK - 0.1, 0.16, SILL_H), (BED_FRONT + BACK) / 2, 0.18, (DECK_BOTTOM + sill) / 2, "under")
+    for i, x in enumerate((BED_FRONT - 0.2, -1.0, -3.2)):
+        mirrored(kit, f"spacer{i}", (0.2, 0.12, sill - FRAME[1]), x, 0.18, (sill + FRAME[1]) / 2, "under")
+    kit.box("cab_floor", (COWL_X - CAB_BACK, 2 * (CAB_HALF - 0.1), CAB_BOTTOM - FRAME[0]), ((COWL_X + CAB_BACK) / 2, 0, (CAB_BOTTOM + FRAME[0]) / 2), "under")
+    for sign, s in ((1, "l"), (-1, "r")):
+        ys = sorted((sign * (DUAL_Z - WHEEL_HALF_W - 0.02), sign * (HALF_W - 0.02)))
+        flare(kit, f"mudguard_{s}", G, WHEELS_X[1], HUB_Z, WHEEL_R, ys[0], ys[1], bottom=-0.45, segments=ARCH_SIDES)
+    kit.box("tail_beam", (0.1, 2 * (HALF_W - 0.2), 0.2), (BACK + 0.09, 0, -0.15), "under")
+    for sign, s in ((1, "l"), (-1, "r")):
+        round_x(kit, f"taillight_{s}", TAIL_R, 0.04, BACK + 0.02, sign * (HALF_W - 0.3), -0.15, "red")
+
+
+def rear_duals(kit: Kit) -> None:
+    """The inner tires of the rear duals, beside the outer tire the game draws at the physics mount."""
+    for sign, s in ((1, "l"), (-1, "r")):
+        wheel_disc(kit, f"dual_{s}_", WHEEL_R, WHEEL_HALF_W, (WHEELS_X[1], sign * DUAL_Z, HUB_Z))
 
 
 def cab(kit: Kit) -> None:
-    """A ZIL cab: full-width doors to the beltline, a narrower glass house above, a split windshield and a trim roof."""
-    kit.box("doors", (CAB_FRONT - CAB_BACK, 2 * SIDE, G.top - FLOOR), ((CAB_FRONT + CAB_BACK) / 2, 0, (G.top + FLOOR) / 2), "paint")
-    cowl = HOOD_TOP
-    house = [(CAB_BACK, G.top), (CAB_FRONT, G.top), (CAB_FRONT, cowl), (RAKE_TOP, UNDER_ROOF), (CAB_BACK, UNDER_ROOF)]
-    prism(kit, "house", house, -CAB_SIDE, CAB_SIDE, "paint")
+    """The ZIL cab: doors to the beltline, a glasshouse with rounded roof edges, a split windshield, side and rear windows."""
+    layers(kit, "cab_lower", "paint", [(CAB_BOTTOM, COWL_X, CAB_BACK, CAB_HALF, 0.12), (BELT, COWL_X, CAB_BACK, CAB_HALF, 0.12)])
+    house = [(BELT, COWL_X, CAB_BACK, CAB_HALF - 0.04, 0.2), (ROOF - 0.17, 1.62, CAB_BACK + 0.03, CAB_HALF - 0.1, 0.24), (ROOF - ROOF_CAP, 1.57, CAB_BACK + 0.05, CAB_HALF - 0.17, 0.26)]
+    layers(kit, "cab_house", "paint", house)
+    layers(kit, "cab_roof", "trim", [house[-1], (ROOF, 1.5, CAB_BACK + 0.1, CAB_HALF - 0.3, 0.26)])
 
-    def rake_x(z: float) -> float:
-        return CAB_FRONT + (RAKE_TOP - CAB_FRONT) * (z - cowl) / (UNDER_ROOF - cowl)
+    def front_x(z: float) -> float:
+        return COWL_X + (1.62 - COWL_X) * (z - BELT) / (ROOF - 0.17 - BELT)
 
-    lo, hi = cowl + 0.04, UNDER_ROOF - 0.05
-    pane = [(rake_x(lo), lo), (rake_x(lo) + 0.02, lo), (rake_x(hi) + 0.02, hi), (rake_x(hi), hi)]
-    # Two flat panes with a painted post between them, the ZIL's split windshield.
-    prism(kit, "windshield_l", pane, 0.06, CAB_SIDE - 0.1, "glass")
-    prism(kit, "windshield_r", pane, -CAB_SIDE + 0.1, -0.06, "glass")
-    lo, hi = G.top + 0.1, UNDER_ROOF - 0.08
-    window = [(CAB_BACK + 0.22, lo), (rake_x(lo) - 0.1, lo), (rake_x(hi) - 0.1, hi), (CAB_BACK + 0.22, hi)]
-    prism(kit, "window_l", window, CAB_SIDE, CAB_SIDE + 0.015, "glass")
-    prism(kit, "window_r", window, -CAB_SIDE - 0.015, -CAB_SIDE, "glass")
-    roof = [(CAB_SIDE, ROOF - ROOF_CHAMFER), (CAB_SIDE - ROOF_CHAMFER, ROOF), (-CAB_SIDE + ROOF_CHAMFER, ROOF), (-CAB_SIDE, ROOF - ROOF_CHAMFER), (-CAB_SIDE, UNDER_ROOF), (CAB_SIDE, UNDER_ROOF)]
-    loft_x(kit, "roof", [(CAB_BACK, roof), (RAKE_TOP, roof)], "trim")
+    def side_y(z: float) -> float:
+        return CAB_HALF - 0.04 - 0.06 * (z - BELT) / (ROOF - 0.17 - BELT)
+
+    lo, hi = BELT + 0.05, ROOF - 0.21
+    for sign, s in ((1, "l"), (-1, "r")):
+        pane = [(front_x(z) + d, sign * y, z) for z in (lo, hi) for y in (0.06, 0.9) for d in (0.0, 0.02)]
+        hull(kit, f"windshield_{s}", "glass", pane)
+        window = [(x, sign * (side_y(z) + d), z) for z in (lo, hi) for x in (CAB_BACK + 0.2, front_x(z) - 0.12) for d in (0.0, 0.015)]
+        hull(kit, f"window_{s}", "glass", window)
+    kit.box("rear_window", (0.02, 0.9, 0.2), (CAB_BACK + 0.015, 0, HEADBOARD_TOP + 0.16), "glass")
+    for name, x in (("seam_front", COWL_X - 0.12), ("seam_back", CAB_BACK + 0.12)):
+        sill = door_sill(x - 0.01, x + 0.01, CAB_BOTTOM + 0.05, WHEELS_X, HUB_Z, ARCH_R)
+        check_door_gap(name, x - 0.01, x + 0.01, sill, WHEELS_X, HUB_Z, ARCH_R)
+        mirrored(kit, name, (0.025, 0.01, BELT - sill), x, CAB_HALF + 0.005, (BELT + sill) / 2, "under")
 
 
-def deck(kit: Kit) -> None:
-    """A flat wooden deck on a painted drop-side band, with low stake rails and a tall headboard behind the cab."""
-    length = CAB_BACK - BACK
-    mid = (CAB_BACK + BACK) / 2
-    kit.box("drop_side", (length, 2 * SIDE, DECK - DECK_T - DROP_BOTTOM), (mid, 0, (DECK - DECK_T + DROP_BOTTOM) / 2), "paint")
-    kit.box("deck", (length, 2 * SIDE, DECK_T), (mid, 0, DECK - DECK_T / 2), "leather")
-    kit.box("headboard", (RAIL_T, 2 * SIDE, HEADBOARD_H), (CAB_BACK - RAIL_T / 2, 0, DECK + HEADBOARD_H / 2), "trim")
-    rail_y = SIDE - RAIL_T / 2
-    rail_len = length - RAIL_T
-    rail_mid = mid - RAIL_T / 2
-    mirrored(kit, "board", (rail_len, RAIL_T, BOARD_H), rail_mid, rail_y, DECK + BOARD_H / 2, "leather")
-    mirrored(kit, "rail", (rail_len, RAIL_T, RAIL_T), rail_mid, rail_y, DECK + RAIL_H - RAIL_T / 2, "leather")
-    kit.box("tail_board", (RAIL_T, 2 * SIDE, BOARD_H), (BACK + RAIL_T / 2, 0, DECK + BOARD_H / 2), "leather")
-    kit.box("tail_rail", (RAIL_T, 2 * SIDE, RAIL_T), (BACK + RAIL_T / 2, 0, DECK + RAIL_H - RAIL_T / 2), "leather")
-    # One stake per row edge along each side and at the tail corners and center.
-    for k in range(5, G.rows):
-        x = G.row_x(k + 0.5) + RAIL_T / 2 if k == G.rows - 1 else G.row_x(k + 0.5)
-        mirrored(kit, f"stake{k}", (RAIL_T, RAIL_T, RAIL_H), x, rail_y, DECK + RAIL_H / 2, "metal")
-    for i, y in enumerate((G.col_y(1.5), G.col_y(4.5))):
-        kit.box(f"tail_stake{i}", (RAIL_T, RAIL_T, RAIL_H), (BACK + RAIL_T / 2, y, DECK + RAIL_H / 2), "metal")
-    mirrored(kit, "taillight", (INSET, 0.22, 0.14), BACK - INSET / 2, SIDE - 0.2, DROP_BOTTOM + 0.1, "red")
+def bed(kit: Kit) -> None:
+    """The long flat bed: a wooden deck, plank drop sides and tailgate on metal posts, and a trim headboard behind the cab."""
+    side_h = SIDE_TOP - DECK_BOTTOM
+    side_y = HALF_W - POST - WALL / 2
+    kit.box("deck", (BED_FRONT - BACK - 2 * WALL, 2 * (side_y - WALL / 2), DECK - DECK_BOTTOM), ((BED_FRONT + BACK) / 2, 0, (DECK + DECK_BOTTOM) / 2), "leather")
+    mirrored(kit, "drop_side", (BED_FRONT - BACK, WALL, side_h), (BED_FRONT + BACK) / 2, side_y, (SIDE_TOP + DECK_BOTTOM) / 2, "leather")
+    kit.box("tailgate", (WALL, 2 * side_y - WALL, side_h), (BACK + WALL / 2, 0, (SIDE_TOP + DECK_BOTTOM) / 2), "leather")
+    kit.box("headboard", (WALL, 2 * side_y + WALL, HEADBOARD_TOP - DECK_BOTTOM), (BED_FRONT - WALL / 2, 0, (HEADBOARD_TOP + DECK_BOTTOM) / 2), "trim")
+    for i, z in enumerate((DECK + 0.2, DECK + 0.4)):
+        mirrored(kit, f"plank{i}", (BED_FRONT - BACK - 0.02, 0.012, 0.035), (BED_FRONT + BACK) / 2, side_y + WALL / 2 + 0.006, z, "under")
+        kit.box(f"tail_plank{i}", (0.012, 2 * side_y - WALL, 0.035), (BACK - 0.006 + 0.012, 0, z), "under")
+    for i, x in enumerate((BED_FRONT - 0.1, -0.95, -2.25, BACK + 0.1)):
+        mirrored(kit, f"post{i}", (0.1, POST, side_h), x, HALF_W - POST / 2, (SIDE_TOP + DECK_BOTTOM) / 2, "metal")
+
+
+def bounds(kit: Kit) -> tuple[Vector, Vector]:
+    bpy.context.view_layer.update()
+    lo = Vector((1e9, 1e9, 1e9))
+    hi = Vector((-1e9, -1e9, -1e9))
+    for obj in kit._parts:
+        for v in obj.data.vertices:
+            p = obj.matrix_world @ v.co
+            lo = Vector((min(lo.x, p.x), min(lo.y, p.y), min(lo.z, p.z)))
+            hi = Vector((max(hi.x, p.x), max(hi.y, p.y), max(hi.z, p.z)))
+    return lo, hi
+
+
+def check_size(kit: Kit) -> None:
+    lo, hi = bounds(kit)
+    if abs(hi.x - lo.x - LENGTH) > 0.01 or abs(hi.y - lo.y - WIDTH) > 0.01:
+        raise RuntimeError(f"base_longbed is {hi.x - lo.x:.3f} x {hi.y - lo.y:.3f} m, not {LENGTH} x {WIDTH} m")
+
+
+def check_wheels() -> None:
+    """Raises when a tire leaves the body width or the inner dual comes closer than DUAL_GAP to the outer one."""
+    if WHEEL_Z + WHEEL_HALF_W > HALF_W:
+        raise RuntimeError(f"the outer tire reaches {WHEEL_Z + WHEEL_HALF_W:.3f} m, past the body side at {HALF_W:.3f}")
+    gap = WHEEL_Z - DUAL_Z - 2 * WHEEL_HALF_W
+    if gap < DUAL_GAP - 1e-6:
+        raise RuntimeError(f"the rear duals stand {gap:.3f} m apart, under {DUAL_GAP}")
+
+
+def check_hood() -> None:
+    """Raises when the hood hole leaves the hood."""
+    (x0, y0), (x1, y1) = HOLE
+    if x0 <= COWL_X or x1 >= GRILLE_X - 0.1 or abs(y0) >= HOOD_HALF or abs(y1) >= HOOD_HALF:
+        raise RuntimeError(f"hood hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} leaves the hood")
 
 
 def main() -> None:
     args = parse_args()
+    check_wheels()
+    check_hood()
     kit = Kit(BASE_COLORS, SEED)
-    lower_body(kit)
+    wings(kit)
     hood(kit)
+    nose(kit)
+    underbody(kit)
+    rear_duals(kit)
     cab(kit)
-    deck(kit)
-    # The outer hood columns are the low fenders. The engine cells are the bay under the cutout.
-    fenders = {(x, y): FENDER_TOP for x in (0, 6) for y in (0, 1, 2)}
-    bay = {(x, y): BAY_FLOOR for x in (2, 3) for y in (1, 2)}
-    level_sockets(kit, G, "row", [HOOD_TOP] * 3 + [ROOF] * 2 + [DECK] * 6, fronts={3: RAKE_TOP, 5: CAB_BACK - RAIL_T}, cells=fenders | bay)
-    level_sockets(kit, G, "floor", [FLOOR] + [BAY_FLOOR] * 2 + [G.top] * 2 + [DECK] * 6)
+    bed(kit)
+    kit.socket("arch_front", (WHEELS_X[0], WHEEL_Z, HUB_Z))
+    kit.socket("arch_rear", (WHEELS_X[1], WHEEL_Z, HUB_Z))
+    kit.socket("arch_front_top", (WHEELS_X[0], WHEEL_Z, HUB_Z + ARCH_R))
+    bay = {(x, y): FLOOR for x in (2, 3) for y in (1, 2)}
+    level_sockets(kit, G, "row", [HOOD_NOSE, HOOD_CREST - 0.1, HOOD_CREST] + [ROOF] * 2 + [DECK] * 6, fronts={3: 1.62, 5: BED_FRONT - WALL}, cells=bay)
+    level_sockets(kit, G, "floor", [FLOOR] * 3 + [BELT] * 2 + [DECK] * 6)
+    check_size(kit)
     check_base(kit, "base_longbed", G)
     kit.export("base_longbed", args, view_size=9.0)
 
