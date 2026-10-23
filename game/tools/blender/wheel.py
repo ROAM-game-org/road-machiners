@@ -67,19 +67,10 @@ def sides_of(radius: float) -> int:
     return round_sides(radius * MAX_DRAWN_R)
 
 
-def check_round(counts: dict[str, tuple[float, int]]) -> None:
-    """Fails when a tire, rim or hub has fewer sides than the round rule asks at the largest drawn tire."""
-    for name, (radius, sides) in counts.items():
-        if sides < sides_of(radius):
-            raise ValueError(f"wheel {name} has {sides} sides, the round rule asks for {sides_of(radius)}")
-
-
 def build(kit: Kit) -> None:
-    circles = {"tire": (TIRE_R, sides_of(TIRE_R)), "rim": (RIM_R, sides_of(RIM_R)), "hub": (HUB_R, sides_of(HUB_R))}
-    check_round(circles)
-    kit.cylinder("tire", TIRE_R, 0.94, (0, 0, 0), "wheel", rot=AXLE, vertices=circles["tire"][1])
-    kit.cylinder("rim", RIM_R, 0.98, (0, 0, 0), "metal_light", rot=AXLE, vertices=circles["rim"][1])
-    kit.cylinder("hub", HUB_R, 1.0, (0, 0, 0), "rust", rot=AXLE, vertices=circles["hub"][1])
+    kit.cylinder("tire", TIRE_R, 0.94, (0, 0, 0), "wheel", rot=AXLE, vertices=sides_of(TIRE_R))
+    kit.cylinder("rim", RIM_R, 0.98, (0, 0, 0), "metal_light", rot=AXLE, vertices=sides_of(RIM_R))
+    kit.cylinder("hub", HUB_R, 1.0, (0, 0, 0), "rust", rot=AXLE, vertices=sides_of(HUB_R))
     layout = lug_layout()
     check_mirrored(layout)
     for name, loc, rot in layout:

@@ -9,7 +9,7 @@ boards join them along the narrow painted tub, whose top edges are rolled. Uprig
 fender tops. The short front lid frames the engine hole, x 0.62 to 1.86, over a bay floor at 0.0, centered on
 PHYSICS.bodies.courier.engine. Behind the body the tail is open, Baja style: a dark engine block under a tube cage, a
 grille between upright taillights, and tube bumpers front and back. Round lamps and tubes take their sides from round_sides().
-Deviations from the car: 1.86 m wide instead of 1.66, since the track and tires set it; the body bottom stays 0.6 m over
+Deviations from the car: 1.86 m wide instead of 1.66, since the track and tires set it; the skid stays 0.5 m over
 the ground for the courier's clearance; the engine shows in the front bay, where the grid's engine cells lie, instead of
 the tail; the crest runs long and the back rounds down tighter than a Beetle's, so the cab cells hold the antenna's flat
 spot and the deck cells rest flat; and the engine deck is flat for cargo, with the cage rails outside the deck cells.
