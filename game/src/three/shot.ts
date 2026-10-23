@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PAINT, type TruckPaint } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
+import { NPCS } from '../data/npcs';
 import { START_KITS } from '../data/start';
 import { TIME } from '../data/time';
 import { wheelMounts } from '../phys/body';
@@ -8,6 +9,8 @@ import type { VehicleFrame } from '../phys/frames';
 import { PAL } from '../render/palette';
 import { unitBody, unitsOf } from '../sim/body';
 import { mountedParts } from '../sim/grid';
+import { generateNpcLoadout } from '../sim/npc-loadout';
+import { fallbackFaction, spawnAt } from '../sim/spawn';
 import { defaultSetup } from '../sim/settings';
 import type { Vehicle, World } from '../sim/types';
 import { maxHp } from '../sim/wear';
@@ -41,11 +44,18 @@ export function vehicleOn(chassisId: string): Vehicle {
   const w = world();
   const player = w.vehicles.find((v) => v.id === w.player.vehicleId);
   const found = player?.chassisId === chassisId ? player : w.vehicles.find((v) => v.chassisId === chassisId);
-  if (!found) {
+  return structuredClone(found ?? rolledTruck(w, chassisId));
+}
+
+function rolledTruck(w: World, chassisId: string): Vehicle {
+  const driver = Object.values(NPCS).find((tpl) => tpl.loadout.chassis.some((c) => c.value === chassisId));
+  if (!driver) {
     const seen = [...new Set(w.vehicles.map((v) => v.chassisId))].sort().join(', ');
-    throw new Error(`No truck on chassis ${chassisId} in a new world. Chassis there: ${seen}. Build the vehicle in a scene file instead.`);
+    throw new Error(`No truck on chassis ${chassisId} in a new world and no driver rolls one. Chassis there: ${seen}. Build the vehicle in a scene file instead.`);
   }
-  return structuredClone(found);
+  const draft = structuredClone(w);
+  const loadout = generateNpcLoadout(draft, driver, chassisId);
+  return spawnAt(draft, driver, { ...loadout, spares: [], cargo: {} }, { x: 0, y: 0 }, fallbackFaction(driver));
 }
 
 export function withHp(v: Vehicle, share: number): Vehicle {
