@@ -97,12 +97,13 @@ function stationsOf(profile: Profile, ground: number) {
 type Band = [number, number];
 type Reference = { height: Band; hood?: Band; roof: Band; deck?: Band; roofStart?: Band; noseDrop?: Band; tailDrop?: Band };
 
-const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout', Reference> = {
+const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'carrier', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
   niva: { height: [1.89, 2.19], hood: [0.22, 0.28], roof: [0.55, 1], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
+  carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.65, 0.85], tailDrop: [0.35, 0.6] },
 };
 
 type ShapeName = keyof typeof SHAPES;
@@ -126,7 +127,7 @@ function straightProfile(id: string): Profile {
 }
 
 describe('trucks built from a reference photo keep its proportions', () => {
-  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout'] as const)('%s', (id) => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'carrier'] as const)('%s', (id) => {
     const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
     const got = stationsOf(straightProfile(id), ground);
@@ -135,6 +136,24 @@ describe('trucks built from a reference photo keep its proportions', () => {
       if (got[key] < band[0] || got[key] > band[1]) misses.push(`${key} ${got[key].toFixed(3)} outside ${band[0]}..${band[1]}`);
     }
     expect(misses).toEqual([]);
+  });
+});
+
+describe('the carrier armored car', () => {
+  const boxes = SHAPES.base_carrier.boxes;
+  const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
+  const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
+  const { wheelX } = PHYSICS.bodies.carrier;
+  const near = (got: number, want: number) => Math.abs(got - want) / want;
+
+  it('keeps the V-100 Commando: 5.85 m long, 1.028 times the real car, and widened like the scout to 0.496 of its length', () => {
+    expect(Math.abs(along - 5.85)).toBeLessThanOrEqual(0.05);
+    expect(near(across / along, 0.496)).toBeLessThanOrEqual(0.05);
+  });
+
+  it('bunches its wheels near the middle like the V-100: a wheelbase of 0.469 of the length and an overhang of 0.265 at each end', () => {
+    expect(near((2 * wheelX) / along, 0.469)).toBeLessThanOrEqual(0.05);
+    expect(near((along / 2 - wheelX) / along, 0.265)).toBeLessThanOrEqual(0.05);
   });
 });
 
