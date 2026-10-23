@@ -8,6 +8,7 @@ import { wheelMounts } from '../phys/body';
 import type { VehicleFrame } from '../phys/frames';
 import { PAL } from '../render/palette';
 import { unitBody, unitsOf } from '../sim/body';
+import { bareVehicle } from '../sim/factory';
 import { mountedParts } from '../sim/grid';
 import { generateNpcLoadout } from '../sim/npc-loadout';
 import { fallbackFaction, spawnAt } from '../sim/spawn';
@@ -48,14 +49,13 @@ export function vehicleOn(chassisId: string): Vehicle {
 }
 
 function rolledTruck(w: World, chassisId: string): Vehicle {
-  const driver = Object.values(NPCS).find((tpl) => tpl.loadout.chassis.some((c) => c.value === chassisId));
-  if (!driver) {
-    const seen = [...new Set(w.vehicles.map((v) => v.chassisId))].sort().join(', ');
-    throw new Error(`No truck on chassis ${chassisId} in a new world and no driver rolls one. Chassis there: ${seen}. Build the vehicle in a scene file instead.`);
-  }
   const draft = structuredClone(w);
-  const loadout = generateNpcLoadout(draft, driver, chassisId);
-  return spawnAt(draft, driver, { ...loadout, spares: [], cargo: {} }, { x: 0, y: 0 }, fallbackFaction(driver));
+  const driver = Object.values(NPCS).find((tpl) => tpl.loadout.chassis.some((c) => c.value === chassisId));
+  if (driver) {
+    const loadout = generateNpcLoadout(draft, driver, chassisId);
+    return spawnAt(draft, driver, { ...loadout, spares: [], cargo: {} }, { x: 0, y: 0 }, fallbackFaction(driver));
+  }
+  return bareVehicle(draft, { faction: 'player', chassisId, pos: { x: 0, y: 0 }, heading: 0, brain: null });
 }
 
 export function withHp(v: Vehicle, share: number): Vehicle {
