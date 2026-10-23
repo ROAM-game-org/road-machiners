@@ -83,7 +83,8 @@ BAY_RIGHT = HALF_W - 3 * COL
 DOOR_FRONT = 0.85
 DOOR_BACK = -0.55
 LAMP_Z = DECK - 0.25
-HEADLAMP_Y = 0.74
+HEADLAMP_Y = 0.56
+HEADLAMP_R = 0.115
 TAIL_Y = (0.82, 0.58)
 
 
@@ -142,13 +143,15 @@ def lids(kit: Kit) -> None:
 
 
 def front(kit: Kit) -> None:
-    """One round headlamp in each nose corner under the crease, with a thin trim bar between them."""
+    """One round headlamp a side, set into the flat nose face inside the corner curve, tilted with the face and framed by a chrome band that runs across the nose."""
     face = end_x(LAMP_Z)
+    tilt = math.atan2(END_TUCK, CREASE_LOW - BOTTOM)
+    band = 2 * (HEADLAMP_Y + HEADLAMP_R + 0.03)
+    kit.box("nose_band", (0.02, band, 0.07), (face + 0.005, 0, LAMP_Z), "metal_light", rot=(0, tilt, 0))
     for s, sy in (("l", 1), ("r", -1)):
-        kit.cylinder(f"lamp_bezel_{s}", 0.14, 0.03, (face + 0.01, sy * HEADLAMP_Y, LAMP_Z), "metal_light", rot=(0, math.pi / 2, 0), vertices=SMALL_ROUND_SEGMENTS)
-        kit.cylinder(f"lamp_{s}", 0.11, 0.03, (face + 0.025, sy * HEADLAMP_Y, LAMP_Z), "light", rot=(0, math.pi / 2, 0), vertices=SMALL_ROUND_SEGMENTS)
-    bar = 2 * (HEADLAMP_Y - 0.16)
-    kit.box("nose_bar", (0.03, bar, 0.05), (face + 0.01, 0, LAMP_Z), "metal_light")
+        spot = (face + 0.012, sy * HEADLAMP_Y, LAMP_Z)
+        kit.cylinder(f"lamp_bezel_{s}", HEADLAMP_R + 0.03, 0.02, spot, "metal_light", rot=(0, math.pi / 2 + tilt, 0), vertices=ROUND_SEGMENTS)
+        kit.cylinder(f"lamp_{s}", HEADLAMP_R, 0.02, (spot[0] + 0.008, spot[1], spot[2]), "light", rot=(0, math.pi / 2 + tilt, 0), vertices=ROUND_SEGMENTS)
 
 
 def rear(kit: Kit) -> None:
