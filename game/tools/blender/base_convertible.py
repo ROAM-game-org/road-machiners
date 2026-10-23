@@ -40,7 +40,7 @@ from parts_common_base import (  # noqa: E402
     hull_mesh,
     level_sockets,
 )
-from parts_common_core import ROUND_LARGE, ROUND_SMALL  # noqa: E402
+from parts_common_core import ROUND_SEGMENTS, SMALL_ROUND_SEGMENTS  # noqa: E402
 from shapes import strut  # noqa: E402
 
 SEED = 305
@@ -52,7 +52,7 @@ WHEEL_Z = 0.9  # PHYSICS.bodies.convertible.wheelZ: half the 1.42 m mean track t
 HUB_Z = -0.2 - SUSPENSION_REST  # PHYSICS.bodies.convertible.wheelY
 WHEELS_X = [WHEEL_X, -WHEEL_X]
 ARCH_R = WHEEL_R + ARCH_CLEARANCE
-ARCH_EDGES = ROUND_LARGE // 2
+ARCH_EDGES = ROUND_SEGMENTS // 2
 WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03
 
 HALF_W = 1.085  # half the 1.70 m width times 1.278, at the crease ridge
@@ -145,8 +145,8 @@ def front(kit: Kit) -> None:
     """One round headlamp in each nose corner under the crease, with a thin trim bar between them."""
     face = end_x(LAMP_Z)
     for s, sy in (("l", 1), ("r", -1)):
-        kit.cylinder(f"lamp_bezel_{s}", 0.14, 0.03, (face + 0.01, sy * HEADLAMP_Y, LAMP_Z), "metal_light", rot=(0, math.pi / 2, 0), vertices=ROUND_SMALL)
-        kit.cylinder(f"lamp_{s}", 0.11, 0.03, (face + 0.025, sy * HEADLAMP_Y, LAMP_Z), "light", rot=(0, math.pi / 2, 0), vertices=ROUND_SMALL)
+        kit.cylinder(f"lamp_bezel_{s}", 0.14, 0.03, (face + 0.01, sy * HEADLAMP_Y, LAMP_Z), "metal_light", rot=(0, math.pi / 2, 0), vertices=SMALL_ROUND_SEGMENTS)
+        kit.cylinder(f"lamp_{s}", 0.11, 0.03, (face + 0.025, sy * HEADLAMP_Y, LAMP_Z), "light", rot=(0, math.pi / 2, 0), vertices=SMALL_ROUND_SEGMENTS)
     bar = 2 * (HEADLAMP_Y - 0.16)
     kit.box("nose_bar", (0.03, bar, 0.05), (face + 0.01, 0, LAMP_Z), "metal_light")
 
@@ -156,8 +156,8 @@ def rear(kit: Kit) -> None:
     face = -end_x(LAMP_Z)
     for s, sy in (("l", 1), ("r", -1)):
         for i, y in enumerate(TAIL_Y):
-            kit.cylinder(f"tail_bezel{i}_{s}", 0.1, 0.03, (face - 0.01, sy * y, LAMP_Z), "metal_light", rot=(0, math.pi / 2, 0), vertices=ROUND_SMALL)
-            kit.cylinder(f"taillight{i}_{s}", 0.08, 0.03, (face - 0.025, sy * y, LAMP_Z), "red", rot=(0, math.pi / 2, 0), vertices=ROUND_SMALL)
+            kit.cylinder(f"tail_bezel{i}_{s}", 0.1, 0.03, (face - 0.01, sy * y, LAMP_Z), "metal_light", rot=(0, math.pi / 2, 0), vertices=SMALL_ROUND_SEGMENTS)
+            kit.cylinder(f"taillight{i}_{s}", 0.08, 0.03, (face - 0.025, sy * y, LAMP_Z), "red", rot=(0, math.pi / 2, 0), vertices=SMALL_ROUND_SEGMENTS)
     bar = 2 * (TAIL_Y[1] - 0.12)
     kit.box("tail_bar", (0.03, bar, 0.05), (face - 0.01, 0, LAMP_Z), "metal_light")
 
