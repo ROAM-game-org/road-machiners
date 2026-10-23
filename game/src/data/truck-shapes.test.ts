@@ -110,7 +110,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'co
   carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.65, 0.85], tailDrop: [0.35, 0.6] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
   bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1] },
-  buggy: { height: [1.67, 1.85], roof: [0.4, 0.44], noseDrop: [0.76, 0.84], tailDrop: [0.8, 0.9] },
+  buggy: { height: [1.67, 1.85], roof: [0.37, 0.4], noseDrop: [0.76, 0.84], tailDrop: [0.8, 0.9] },
 };
 
 type ShapeName = keyof typeof SHAPES;
@@ -178,11 +178,13 @@ describe('the Manx buggy', () => {
     expect(Math.abs((2 * buggy.wheelX) / along / 0.651 - 1)).toBeLessThanOrEqual(0.05);
   });
 
-  it('crowns its front and rear fenders 1.12 to 1.24 tire diameters over the ground, over the tires', () => {
-    for (const x of [buggy.wheelX, -buggy.wheelX]) {
-      expect(crownOver(x) / tire).toBeGreaterThanOrEqual(1.12);
-      expect(crownOver(x) / tire).toBeLessThanOrEqual(1.24);
-    }
+  it('crowns its front fenders 1.12 to 1.24 tire diameters over the ground, over the tires', () => {
+    expect(crownOver(buggy.wheelX) / tire).toBeGreaterThanOrEqual(1.12);
+    expect(crownOver(buggy.wheelX) / tire).toBeLessThanOrEqual(1.24);
+  });
+
+  it('covers its rear tires under its own rear fenders, at least 1.12 tire diameters over the ground, where the top slopes down onto them', () => {
+    expect(crownOver(-buggy.wheelX) / tire).toBeGreaterThanOrEqual(1.12);
   });
 });
 

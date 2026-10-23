@@ -72,9 +72,11 @@ FLOOR = -0.35  # PHYSICS.bodies.buggy.engine.y: the bay floor
 COWL = 0.5  # the windshield's foot, photo 2
 SCREEN_TOP_X = 0.44  # the windshield leans back about 6 degrees, photo 2
 TOP_FRONT = 0.545  # the top overhangs the frame a little, photo 1
-TOP_BACK = -1.08
+FLAT_BACK = -0.85  # the flat top ends over the seat backs, photo 2
+TOP_BACK = -1.4  # its back slopes down onto the rear fenders, photos 1 and 2
+DRAPE_HALF = 0.79
 TOP_HALF = 0.85  # the top is about as wide as the body at the waist, photo 2
-POST_X = -1.0  # the chrome rear posts, photo 1
+POST_X = -0.85  # the chrome posts where the top's slope starts, photo 1
 GLASS_Y = 0.8  # the glass at the waist, inside the shell's side
 LEAN = 0.18  # the glass leans in 0.13 m up to the top, inferred from the frame posts in photo 2
 
@@ -86,23 +88,28 @@ def up(h: float) -> float:
 
 TOP_LOW = up(1.64)
 TOP_HIGH = up(1.76)
+DRAPE_TOP = up(1.27)  # the slope ends on the rear fender humps
 EDGE = 0.05  # the round of the top's thick edge
+LIP = 0.07  # the edge hangs this far below the slab, so it reads about 0.2 m thick, photo 2
 
 # Shell stations, nose to tail, as heights over the ground and half widths: photos 1 and 2 in tire diameters, inferred behind.
 # x, deck center, side crown, half width, bottom
 STATIONS = [
-    (FRONT, 0.76, 0.76, 0.52, 0.47),
-    (1.93, 0.84, 0.86, 0.64, 0.45),
-    (1.86, 0.86, 0.95, 0.76, 0.44),
-    (1.62, 0.93, 1.11, 0.9, 0.44),
-    (1.27, 0.99, 1.18, 0.93, 0.44),
-    (0.95, 1.03, 1.15, 0.93, 0.44),
-    (0.7, 1.05, 1.07, 0.91, 0.5),
-    (COWL, 1.04, 1.0, 0.89, 0.6),
-    (0.25, 0.92, 0.93, 0.87, 0.62),
-    (-0.3, 0.92, 0.92, 0.87, 0.62),
-    (-0.62, 0.93, 0.99, 0.89, 0.55),
-    (-0.88, 0.93, 1.09, 0.92, 0.44),
+    (FRONT, 0.6, 0.6, 0.44, 0.47),
+    (1.94, 0.72, 0.74, 0.58, 0.45),
+    (1.9, 0.8, 0.85, 0.7, 0.44),
+    (1.84, 0.85, 0.96, 0.8, 0.44),
+    (1.62, 0.9, 1.14, 0.9, 0.44),
+    (1.27, 0.95, 1.21, 0.93, 0.44),
+    (0.95, 1.0, 1.17, 0.93, 0.44),
+    (0.7, 1.03, 1.08, 0.91, 0.5),
+    (COWL, 1.03, 1.01, 0.89, 0.58),
+    (0.35, 0.95, 0.94, 0.88, 0.6),
+    (0.1, 0.89, 0.89, 0.87, 0.6),
+    (-0.25, 0.88, 0.88, 0.87, 0.6),
+    (-0.5, 0.91, 0.93, 0.88, 0.57),
+    (-0.7, 0.93, 1.01, 0.9, 0.5),
+    (-0.9, 0.93, 1.09, 0.92, 0.44),
     (-1.27, 0.93, 1.16, 0.93, 0.44),
     (-1.55, 0.93, 1.12, 0.92, 0.44),
     (-1.76, 0.91, 1.0, 0.88, 0.46),
@@ -112,17 +119,27 @@ STATIONS = [
 ]
 
 
-def crown_at(x: float) -> float:
-    """Model z of the shell's side crown at x, between stations."""
-    for (x0, _, c0, _, _), (x1, _, c1, _, _) in zip(STATIONS, STATIONS[1:]):
-        if x1 <= x <= x0:
-            return up(c0 + (c1 - c0) * (x0 - x) / (x0 - x1))
+def station_at(x: float, column: int) -> float:
+    """Model z of one station height column (1 deck center, 2 side crown) at x, between stations."""
+    for s0, s1 in zip(STATIONS, STATIONS[1:]):
+        if s1[0] <= x <= s0[0]:
+            return up(s0[column] + (s1[column] - s0[column]) * (s0[0] - x) / (s0[0] - s1[0]))
     raise ValueError(f"x {x} is off the shell")
+
+
+def crown_at(x: float) -> float:
+    """Model z of the shell's side crown at x."""
+    return station_at(x, 2)
+
+
+def deck_at(x: float) -> float:
+    """Model z of the shell's deck center at x."""
+    return station_at(x, 1)
 
 
 def ring(x: float, center: float, crown: float, half: float, bottom: float) -> list[tuple[float, float, float]]:
     """One shell cross-section: a rounded bottom, upright sides, a rolled crown, the fender hump falling to the deck and a soft center ridge."""
-    roll = min(0.07, (crown - bottom) / 3)
+    roll = min(0.1, (crown - bottom) / 3)
     hump_in = min(half - roll, 0.62)
     deck_side = center + 0.35 * (crown - center)
     right = [
@@ -168,16 +185,19 @@ def lamps(kit: Kit) -> None:
     lamp_r = 0.165  # a face 0.33 of a tire diameter across, photo 2
     x = 1.5  # a third of the way back from the nose to the cowl
     y = 0.64
-    z = crown_at(x) + 0.09
+    z = crown_at(x) + 0.17
     along = (0, math.pi / 2, 0)
     for s, sy in (("l", 1), ("r", -1)):
-        bowl = round_part(kit, f"lamp_bowl_{s}", lamp_r, 0.18, (x, sy * y, z), "chrome", along)
+        bowl = round_part(kit, f"lamp_bowl_{s}", lamp_r, 0.14, (x + 0.02, sy * y, z), "chrome", along)
         for v in bowl.data.vertices:
             if v.co.z < 0:
-                v.co.x *= 0.7
-                v.co.y *= 0.7
-        round_part(kit, f"lamp_{s}", lamp_r - 0.02, 0.02, (x + 0.09, sy * y, z), "light", along)
-        kit.box(f"lamp_stalk_{s}", (0.06, 0.06, 0.1), (x - 0.03, sy * y, z - lamp_r - 0.02), "chrome")
+                v.co.x *= 0.5
+                v.co.y *= 0.5
+        round_part(kit, f"lamp_rim_{s}", lamp_r + 0.012, 0.03, (x + 0.085, sy * y, z), "chrome", along)
+        round_part(kit, f"lamp_{s}", lamp_r - 0.03, 0.02, (x + 0.105, sy * y, z), "light", along)
+        stalk = z - lamp_r * 0.7 - crown_at(x) + 0.03
+        kit.box(f"lamp_stalk_{s}", (0.06, 0.06, stalk), (x - 0.03, sy * y, z - lamp_r * 0.7 - stalk / 2 + 0.03), "chrome")
+        kit.box(f"lamp_foot_{s}", (0.12, 0.1, 0.03), (x - 0.03, sy * y, crown_at(x) - 0.01), "chrome")
         round_part(kit, f"indicator_{s}", 0.045, 0.06, (FRONT - 0.035, sy * 0.48, up(0.74)), "amber", along)
         round_part(kit, f"taillight_{s}", 0.07, 0.06, (BACK + 0.035, sy * 0.48, up(0.72)), "red", along)
 
@@ -225,34 +245,57 @@ def windshield(kit: Kit) -> None:
 
 
 def top(kit: Kit) -> None:
-    """The Manx's own top: a flat trim slab, round at the corners, whose thick rounded edge hangs over the frame, on two chrome rear posts, photo 1."""
+    """The Manx's own top: a flat trim slab, round at the front corners, whose thick rounded edge hangs over the frame, and whose back slopes down onto the rear fenders, photos 1 and 2."""
 
-    def section(x: float, w: float, drop: float) -> list[tuple[float, float, float]]:
-        lo, hi = TOP_LOW + drop, TOP_HIGH - drop
-        right = [(w - 0.1, lo + 0.03), (w - 0.02, lo), (w, lo + 0.04), (w, hi - 0.05), (w - 0.04, hi - 0.01), (w - 0.12, hi)]
+    def section(x: float, w: float, drop: float, sink: float) -> list[tuple[float, float, float]]:
+        lo, hi = TOP_LOW + drop - sink, TOP_HIGH - drop - sink
+        right = [(w - 0.1, lo + 0.03), (w - 0.03, lo - LIP), (w, lo - LIP + 0.05), (w, hi - 0.06), (w - 0.05, hi - 0.01), (w - 0.14, hi)]
         left = [(-y, z) for y, z in reversed(right)]
         return [(x, y, z) for y, z in right + left]
 
     corner = 0.3
     steps = [math.pi / 2 * k / 5 for k in range(6)]
-    front = [(TOP_FRONT - corner + corner * math.sin(a), TOP_HALF - corner + corner * math.cos(a), 0.05 * math.sin(a) ** 3) for a in reversed(steps)]
-    back = [(TOP_BACK + corner - corner * math.sin(a), TOP_HALF - corner + corner * math.cos(a), 0.07 * math.sin(a) ** 3) for a in steps]
-    loft(kit, "top", [section(x, w, drop) for x, w, drop in front + back], "trim")
+    front = [(TOP_FRONT - corner + corner * math.sin(a), TOP_HALF - corner + corner * math.cos(a), 0.05 * math.sin(a) ** 3, 0.0) for a in reversed(steps)]
+    slope = [(FLAT_BACK + (TOP_BACK - FLAT_BACK) * k / 5, TOP_HALF + (DRAPE_HALF - TOP_HALF) * k / 5, 0.0, (TOP_HIGH - DRAPE_TOP) * (k / 5) ** 1.3) for k in range(6)]
+    sink = TOP_HIGH - DRAPE_TOP
+    end = [(TOP_BACK - 0.025, DRAPE_HALF - 0.05, 0.02, sink + 0.01), (TOP_BACK - 0.04, DRAPE_HALF - 0.14, 0.04, sink + 0.02)]
+    loft(kit, "top", [section(*f) for f in front + slope + end], "trim")
     for s, sy in (("l", 1), ("r", -1)):
         foot = crown_at(POST_X) - 0.05
         tube(kit, f"rear_post_{s}", (POST_X, sy * glass_y(foot), foot), (POST_X, sy * glass_y(TOP_LOW), TOP_LOW + 0.01), 0.05)
 
 
+def top_low_at(x: float) -> float:
+    """Model z of the top's underside at x behind the flat part, along its slope."""
+    k = min(1.0, max(0.0, (FLAT_BACK - x) / (FLAT_BACK - TOP_BACK)))
+    return TOP_LOW - (TOP_HIGH - DRAPE_TOP) * k**1.3
+
+
 def glass(kit: Kit) -> None:
     """Dark glass in the photo's open sides and rear, from the waist up to the top, so the cockpit is closed."""
-    xs = [COWL, 0.25, -0.3, -0.62, -0.88, POST_X]
-    side = [(SCREEN_TOP_X - 0.02, TOP_LOW), *[(x, crown_at(x) - 0.04) for x in xs], (POST_X, TOP_LOW)]
+    back = TOP_BACK + 0.06
+    xs = [COWL, 0.35, 0.1, -0.25, -0.5, -0.7, -0.9, -1.1, back]
+    under = [(x, top_low_at(x) + 0.02) for x in (back, -1.2, -1.05, FLAT_BACK)]
+    side = [(SCREEN_TOP_X - 0.02, TOP_LOW), *[(x, crown_at(x) - 0.04) for x in xs], *under]
     at_zero = glass_y(0.0)
     prism(kit, "side_glass_l", side, at_zero - 0.015, at_zero + 0.015, "glass", lean=LEAN)
     prism(kit, "side_glass_r", side, -at_zero - 0.015, -at_zero + 0.015, "glass", lean=-LEAN)
-    sill = crown_at(POST_X) - 0.2
-    rear = [(POST_X + dx, sy * glass_y(z), z) for dx in (-0.015, 0.015) for z in (sill, TOP_LOW) for sy in (1, -1)]
+    sill = deck_at(back) - 0.04
+    rear = [(back + dx, sy * glass_y(z), z) for dx in (-0.015, 0.015) for z in (sill, top_low_at(back) + 0.02) for sy in (1, -1)]
     kit._add(hull_mesh("rear_glass", rear), "rear_glass", "glass", 0.0)
+
+
+def hood_lip(kit: Kit) -> None:
+    """A raised lip of deck round the engine hole, so the hole reads as a framed opening, as on the courier's lid."""
+    back, front, half = HOLE
+    lip, rise = 0.05, 0.035
+    xs = [back - lip, (back + front) / 2, front + lip]
+    edge = [(x, deck_at(x) + rise) for x in xs] + [(x, deck_at(x) - 0.08) for x in reversed(xs)]
+    prism(kit, "hood_lip_l", edge, half, half + lip, "paint")
+    prism(kit, "hood_lip_r", edge, -half - lip, -half, "paint")
+    for name, x in (("hood_lip_f", front + lip / 2), ("hood_lip_b", back - lip / 2)):
+        z = deck_at(x)
+        kit.box(name, (lip, 2 * half, rise + 0.08), (x, 0, z + (rise - 0.08) / 2), "paint")
 
 
 def deck_x() -> tuple[float, float]:
@@ -267,8 +310,8 @@ def check_buggy(body: bpy.types.Object) -> None:
     if back <= COWL + 0.03 or front >= FRONT - 0.3 or half >= 0.62 - 0.1:
         raise RuntimeError(f"engine hole x {back:.2f}..{front:.2f} half {half:.2f} is not framed by the deck")
     x0, x1 = deck_x()
-    if TOP_BACK + EDGE > x0 or TOP_FRONT - EDGE < x1:
-        raise RuntimeError(f"the top's flat face {TOP_BACK + EDGE:.2f}..{TOP_FRONT - EDGE:.2f} does not cover the deck rows {x0:.2f}..{x1:.2f}")
+    if FLAT_BACK > x0 or TOP_FRONT - EDGE < x1:
+        raise RuntimeError(f"the top's flat face {FLAT_BACK:.2f}..{TOP_FRONT - EDGE:.2f} does not cover the deck rows {x0:.2f}..{x1:.2f}")
     bpy.context.view_layer.update()
     tree = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
     near = []
@@ -297,6 +340,7 @@ def main() -> None:
     body = shell(kit)
     check_buggy(body)
     lower_tub(kit)
+    hood_lip(kit)
     lamps(kit)
     nose(kit)
     tail(kit)
