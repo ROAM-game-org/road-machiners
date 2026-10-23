@@ -12,9 +12,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit, parse_args  # noqa: E402
+from kit import Kit, parse_args, round_sides  # noqa: E402
 from parts_common_core import COLORS  # noqa: E402
-from round_parts import round_sides  # noqa: E402
 
 SEED = 103
 COILS = 6

@@ -26,7 +26,7 @@ import bpy
 from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit, parse_args  # noqa: E402
+from kit import Kit, parse_args, round_sides  # noqa: E402
 from parts_common_base import (  # noqa: E402
     ARCH_CLEARANCE,
     BASE_COLORS,
@@ -41,7 +41,7 @@ from parts_common_base import (  # noqa: E402
     level_sockets,
     round_arch,
 )
-from round_parts import round_sides, wheel_disc  # noqa: E402
+from parts_common_core import drawn_wheel  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 303
@@ -226,7 +226,7 @@ def underbody(kit: Kit) -> None:
 def rear_duals(kit: Kit) -> None:
     """The inner tires of the rear duals, beside the outer tire the game draws at the physics mount."""
     for sign, s in ((1, "l"), (-1, "r")):
-        wheel_disc(kit, f"dual_{s}_", WHEEL_R, WHEEL_HALF_W, (WHEELS_X[1], sign * DUAL_Z, HUB_Z))
+        drawn_wheel(kit, f"dual_{s}", (WHEELS_X[1], sign * DUAL_Z, HUB_Z), WHEEL_R, 2 * WHEEL_HALF_W)
 
 
 def cab(kit: Kit) -> None:

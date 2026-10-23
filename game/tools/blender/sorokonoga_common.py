@@ -20,9 +20,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, FLARE, ROUND_ARCH_SEGMENTS, SUSPENSION_REST, arch_cut, cut_boxes, flare_profile, hull_mesh  # noqa: E402
-from parts_common_core import ROUND_SIDES  # noqa: E402
+from parts_common_core import ROUND_SIDES, TIRE_SHARE, drawn_wheel  # noqa: E402
 from rig_units import check_unit as check_rig_unit, unit_wheels as count_wheels  # noqa: E402
-from round_parts import TIRE_SHARE, wheel_disc  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 640
@@ -38,7 +37,7 @@ WHEEL_Z = 1.15  # PHYSICS.bodies.sorokonoga.wheelZ: the steer wheels and the out
 WHEEL_R = 0.55  # PHYSICS.bodies.sorokonoga.wheelRadius
 WHEEL_HALF_W = 0.2  # PHYSICS.bodies.sorokonoga.wheelHalfWidth
 HUB_Z = WHEEL_Y - SUSPENSION_REST
-TIRE_R = WHEEL_R * TIRE_SHARE
+TIRE_R = WHEEL_R * TIRE_SHARE  # the wheel model's tire body; its lugs reach the ground
 DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
 WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
 DUAL_WELL_Y = WHEEL_Z - DUAL_STEP - WHEEL_HALF_W - 0.03  # inside the drive axle's inner duals
@@ -133,8 +132,8 @@ def tandem_flare(kit: Kit, name: str, front: float, rear: float, y0: float, y1: 
 
 
 def wheel(kit: Kit, name: str, x: float, y: float) -> None:
-    """One wheel in the look of the game's wheel model."""
-    wheel_disc(kit, f"{name}_", WHEEL_R, WHEEL_HALF_W, (x, y, HUB_Z))
+    """One wheel in the look of the game's wheel model, from drawn_wheel()."""
+    drawn_wheel(kit, name, (x, y, HUB_Z), WHEEL_R, 2 * WHEEL_HALF_W)
 
 
 def model_wheels(kit: Kit, x: float, y: float) -> int:

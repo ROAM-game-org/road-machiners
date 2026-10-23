@@ -1,8 +1,8 @@
 """Chunky off-road wheel for every truck.
 
 Authored at 1 m radius and 1 m wide, with the axle along Blender Y and the origin at the hub center.
-The view scales it by the chassis wheel radius and half-width. Its tire, rim and hub come from wheel_disc(), with 48, 32 and 16 sides.
-Chevron tread lugs show the wheel turning.
+The view scales it by the chassis wheel radius and half-width. The round tire, rim and hub come from drawn_wheel() in
+parts_common_core.py, the one wheel look every base that draws its own wheels shares. Chevron tread lugs show the wheel turning.
 Each chevron is two half-bars mirrored across the mid-plane, so the top-down and front silhouettes
 have matching halves and the wheel reads as one tire from every side (#201).
 Run: blender --background --python tools/blender/wheel.py -- public/models/wheel.glb [tmp/wheel.png]
@@ -18,13 +18,11 @@ from mathutils import Euler, Matrix
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_core import COLORS  # noqa: E402
-from round_parts import TIRE_SHARE, wheel_disc  # noqa: E402
+from parts_common_core import COLORS, TIRE_SHARE, drawn_wheel  # noqa: E402
 
 SEED = 102
-AXLE = (math.radians(90), 0, 0)
 LUGS = 12
-TIRE_R = TIRE_SHARE
+TIRE_R = TIRE_SHARE  # tire body radius. Lug tips reach 1 m.
 LUG_H = 0.065
 SWEEP = math.radians(28)  # each half-bar leans back from the centre line
 BAR = (0.16, 0.3)  # half-bar size, tangential then axial
@@ -60,7 +58,7 @@ def check_mirrored(layout: list[Lug]) -> None:
 
 
 def build(kit: Kit) -> None:
-    wheel_disc(kit, "", 1.0, 0.5, (0, 0, 0))
+    drawn_wheel(kit, "", (0, 0, 0), 1.0, 1.0, AXLE)
     layout = lug_layout()
     check_mirrored(layout)
     for name, loc, rot in layout:
