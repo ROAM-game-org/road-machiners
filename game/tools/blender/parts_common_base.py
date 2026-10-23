@@ -91,6 +91,7 @@ def arch_profile(
     cowl_x: float | None = None,
     crown: float | None = None,
     chamfer: float = 0.0,
+    segments: int = ARCH_SEGMENTS,
 ) -> list[tuple[float, float]]:
     """A side panel's XZ outline from the body bottom (or bottom) to top, with a low-poly arch cut up around each wheel.
 
@@ -101,7 +102,7 @@ def arch_profile(
     r = radius + ARCH_CLEARANCE
     pts = [(-g.half_x + INSET, low)]
     for wx in sorted(wheels_x):
-        pts += round_arch(wx, hub_z, r, low) if crown is None else squared_arch(wx, hub_z, r, crown, chamfer, low)
+        pts += round_arch(wx, hub_z, r, low, segments) if crown is None else squared_arch(wx, hub_z, r, crown, chamfer, low)
     nose = [(g.half_x - INSET, top)] if nose_top is None or cowl_x is None else [(g.half_x - INSET, nose_top), (cowl_x, top)]
     pts += [(g.half_x - INSET, low), *nose, (-g.half_x + INSET, top)]
     return pts
