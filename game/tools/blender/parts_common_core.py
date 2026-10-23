@@ -9,9 +9,13 @@ from __future__ import annotations
 import bpy
 from mathutils import Vector
 
-from kit import CELL_ACROSS, CELL_ALONG, Kit
+from kit import CELL_ACROSS, CELL_ALONG, Kit, Vec3
 
 FIT_SLACK = 1e-4  # float noise allowed at the footprint edge
+ROUND_SEGMENTS = 32  # sides of a big round part: a tire, a rim, an arch, a tank or a fifth wheel
+SMALL_ROUND_SEGMENTS = 16  # sides of a small round part: a hub, a lamp, a stack, an air cleaner or a pin
+TIRE_SEGMENTS = 48  # the tire body, a multiple of the wheel model's 12 tread lugs
+AXLE_Y = (1.5707963267948966, 0, 0)  # turns a Kit cylinder's axis to Blender Y, the axle
 
 # Colors from src/render/palette.ts. The paint color is a stand-in: the game swaps it for the faction color.
 COLORS = {
@@ -48,6 +52,26 @@ def check_footprint(kit: Kit, name: str, w: int, h: int, min_z: float = 0.0, max
         raise RuntimeError(f"{name} dips to z {lo.z:.3f}, below {min_z}")
     if max_z is not None and hi.z > max_z + FIT_SLACK:
         raise RuntimeError(f"{name} rises to z {hi.z:.3f}, above {max_z}")
+
+
+def check_round(name: str, sides: int, minimum: int) -> None:
+    """Raises when a part meant to read round has fewer sides than its shared count."""
+    if sides < minimum:
+        raise RuntimeError(f"{name} has {sides} sides, under the {minimum} a round part needs")
+
+
+def wheel_disc(kit: Kit, name: str, radius: float, half_width: float, loc: Vec3, tire_r: float) -> None:
+    """A tire body, a light rim and a rust hub on an axle along Blender Y, in the wheel model's proportions.
+
+    radius is the wheel's outer radius, with the lugs, and tire_r the tire body's. The wheel model and the duals
+    the rig bases draw share it, so every drawn wheel matches the physics wheels.
+    """
+    width = 2 * half_width
+    for part, sides, minimum in (("tire", TIRE_SEGMENTS, ROUND_SEGMENTS), ("rim", ROUND_SEGMENTS, ROUND_SEGMENTS), ("hub", SMALL_ROUND_SEGMENTS, SMALL_ROUND_SEGMENTS)):
+        check_round(f"{name}_{part}", sides, minimum)
+    kit.cylinder(f"{name}_tire", tire_r, width * 0.94, loc, "wheel", rot=AXLE_Y, vertices=TIRE_SEGMENTS)
+    kit.cylinder(f"{name}_rim", radius * 0.55, width * 0.98, loc, "metal_light", rot=AXLE_Y, vertices=ROUND_SEGMENTS)
+    kit.cylinder(f"{name}_hub", radius * 0.22, width, loc, "rust", rot=AXLE_Y, vertices=SMALL_ROUND_SEGMENTS)
 
 
 ALONG_X = (0, 1.5707963267948966, 0)  # turns a Kit cylinder's axis to +X

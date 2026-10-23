@@ -23,6 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, cut_boxes, hull_mesh  # noqa: E402
+from parts_common_core import wheel_disc  # noqa: E402
 from rig_units import check_unit as check_rig_unit, export_unit, unit_wheels as count_wheels  # noqa: E402
 from shapes import prism  # noqa: E402
 
@@ -113,12 +114,8 @@ def box_points(x0: float, x1: float, half_y: float, z0: float, z1: float) -> lis
 
 
 def wheel(kit: Kit, name: str, x: float, y: float) -> None:
-    """One wheel in the look of the game's wheel model: a 24-sided tire, an 8-sided light rim and a 6-sided hub."""
-    width = 2 * WHEEL_HALF_W
-    axle = (math.pi / 2, 0, 0)
-    kit.cylinder(f"{name}_tire", TIRE_R, width * 0.94, (x, y, HUB_Z), "wheel", rot=axle, vertices=24)
-    kit.cylinder(f"{name}_rim", WHEEL_R * 0.55, width * 0.98, (x, y, HUB_Z), "metal_light", rot=axle, vertices=8)
-    kit.cylinder(f"{name}_hub", WHEEL_R * 0.22, width, (x, y, HUB_Z), "rust", rot=axle, vertices=6)
+    """One wheel drawn by the game's wheel model's own disc, so it matches the physics wheels beside it."""
+    wheel_disc(kit, name, WHEEL_R, WHEEL_HALF_W, (x, y, HUB_Z), TIRE_R)
 
 
 def duals(kit: Kit, x: float, sides: tuple[int, ...] = (0, 1)) -> int:
