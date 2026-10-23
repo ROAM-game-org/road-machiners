@@ -1,11 +1,21 @@
-"""The convertible base: a stylized 1964 Chevrolet Corvair Monza convertible.
+"""The convertible base: a stylized 1964 Chevrolet Corvair Monza convertible with its soft top up.
 
-Grid: 5 columns by 9 rows, 2.42 m across by 5.85 m along. Half height 0.35 m, from PHYSICS.bodies.convertible.
-One long low slab body with a crease band wrapping around it at the beltline. Rows 0 to 2 are a flat front trunk lid
-with no grille, the fuel tank hidden under it. Rows 3 and 4 are the closed hardtop cabin: a raked windshield, a flat
-roof, pillarless side windows and a sloped rear window, over two bucket seats and a rear bench. Rows 5 to 8 are a flat
-rear deck lid over the transmission, with a cutout over the engine cells and a louvered grille behind it. Round quad lamps front and back.
-Wheels sit on rows 1 and 7 in the outer columns, radius 0.46 m, half width 0.18 m, mount 0.2 m below the center.
+Built from the published specs scaled by 1.278, so it keeps its 5.84 m game length: 2.17 m wide across the crease,
+a 3.5 m wheelbase, a 1.8 m track and 1.73 m to the top of the soft top on its tires. The ground is 1.06 m below the center.
+Levels: top crown 0.67, flat lids 0.10, the crease ridge 0.02, body bottom -0.76, 0.30 m over the ground.
+One long low slab: a sharp crease wraps the nose, both sides and the tail at the lid edge, and the body tucks in under it.
+The flat front lid has no grille and falls a little to the nose, where one round headlamp sits in each corner under the
+crease, with a thin trim bar between them. The raked windshield runs from the cowl at x 1.05 up to the header at x 0.62.
+The soft top in the faction's second color has a flat crown from x 0.6 to -0.6, where items on the cab cells stand, side
+windows, and a steep rear drop with a small rear window to the flat rear lid at x -1.0. The rear lid has the engine
+cutout over rows 6 and 7, columns 1 and 2, a dark louvered grille behind it and two round taillights a side.
+Slab doors from x 0.85 to -0.55 keep DOOR_GAP from the flares, and a chrome rocker runs between the arches.
+Round arches of 32 edges sit close over the tires, whose outer faces stand flush with the sides.
+Deviations from the car: the wheels stay symmetric, the body rides 0.30 m up instead of 0.24, the tires follow the tire
+rule, and the top spans the grid's cab rows 3 to 5, so its crown starts a little ahead of the car's and the rear lid is longer.
+Grid: 5 columns by 9 rows, stretched over the model by the projection. Half height 0.35 m, from PHYSICS.bodies.convertible.
+Wheels sit at x -+1.75 and y -+0.9, radius 0.46 m, half width 0.18 m, mount 0.2 m below the center.
+Sockets arch_front, arch_rear and arch_front_top mark the arches for wheelArches.test.ts.
 Run: blender --background --python tools/blender/base_convertible.py -- public/models/base_convertible.glb [tmp/base_convertible.png]
 """
 
@@ -16,153 +26,213 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, INSET, SUSPENSION_REST, Grid, arch_profile, check_base, level_sockets  # noqa: E402
-from shapes import prism, strut  # noqa: E402
+from kit import Kit, Vec3, parse_args  # noqa: E402
+from parts_common_base import (  # noqa: E402
+    ARCH_CLEARANCE,
+    BASE_COLORS,
+    INSET,
+    SUSPENSION_REST,
+    Grid,
+    arch_cut,
+    check_base,
+    check_door_gap,
+    cut_boxes,
+    hull_mesh,
+    level_sockets,
+)
+from parts_common_core import ROUND_LARGE, ROUND_SMALL  # noqa: E402
+from shapes import strut  # noqa: E402
 
 SEED = 305
 G = Grid(rows=9, cols=5, half_height=0.35)
-WHEEL_R = 0.46
-WHEEL_HALF_W = 0.18
-HUB_Z = -0.2 - SUSPENSION_REST
-WHEELS_X = [G.row_x(1), G.row_x(7)]
+WHEEL_R = 0.46  # PHYSICS.bodies.convertible.wheelRadius
+WHEEL_HALF_W = 0.18  # PHYSICS.bodies.convertible.wheelHalfWidth
+WHEEL_X = 1.75  # PHYSICS.bodies.convertible.wheelX: half the 2.74 m wheelbase times 1.278
+WHEEL_Z = 0.9  # PHYSICS.bodies.convertible.wheelZ: half the 1.42 m mean track times 1.278
+HUB_Z = -0.2 - SUSPENSION_REST  # PHYSICS.bodies.convertible.wheelY
+WHEELS_X = [WHEEL_X, -WHEEL_X]
 ARCH_R = WHEEL_R + ARCH_CLEARANCE
-WELL_Y = G.col_y(0) - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
+ARCH_EDGES = ROUND_LARGE // 2
+WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03
 
-SIDE = G.half_y - INSET  # body side outer face
-FRONT = G.half_x - INSET  # nose face
-BACK = -G.half_x + INSET  # tail face
-DECK = G.top  # the flat trunk lid and rear deck lid
-FLOOR = G.top - 0.38  # the cabin floor and the engine bay floor: a 0.5 m engine block pokes 0.12 m out of the cutout
-DOOR_IN = SIDE - 0.14  # the doors' inner face
-COWL = G.row_x(2.5)  # the windshield base, where the cabin begins
-CAB_BACK = G.row_x(4.5)  # the rear bench back, where the rear deck begins
-SCREEN_X = COWL - 0.4  # the windshield top leans back this far
-SCREEN_Z = DECK + 0.42
-ROOF_TOP = SCREEN_Z + 0.05  # the roof's flat top, where items on the cab cells stand
-ROOF_BOTTOM = ROOF_TOP - 0.07
-ROOF_FRONT = SCREEN_X + 0.03  # the roof's front edge, over the windshield header
-BOOT_BACK = CAB_BACK - 0.32  # the rear window meets the deck here
-BAY_FRONT = G.row_x(5.5)  # the engine cutout covers rows 6 and 7, columns 1 and 2
+HALF_W = 1.085  # half the 1.70 m width times 1.278, at the crease ridge
+SIDE = HALF_W - 0.055  # the body side under the ridge
+TUCK = 0.1  # the body bottom stands this far inside the sides
+END_TUCK = 0.12  # and this far inside the nose and the tail
+NOSE = G.half_x - INSET
+RIDGE_END = G.half_x - 0.005
+CORNER = 0.28  # the rounded corners of the plan, cut at the crease
+DECK = 0.10  # the flat lids, 1.16 m over the ground
+RIDGE = DECK - 0.08
+CREASE_LOW = DECK - 0.14
+BOTTOM = -0.76  # 0.30 m over the ground
+FLOOR = DECK - 0.38  # the engine bay floor: a 0.5 m engine block pokes 0.12 m out of the cutout
+COWL = 1.05
+HEADER_X = 0.62
+SCREEN_Z = 0.61
+ROOF_TOP = 0.67  # 1.73 m over the ground: 1.30 m times 1.278 plus the raised ride
+CROWN_FRONT = 0.6
+CROWN_BACK = -0.6
+TOP_FOOT = -1.0
+TOP_HALF = 0.95
+COL = 2 * HALF_W / G.cols
+BAY_FRONT = TOP_FOOT
 BAY_BACK = G.row_x(7.5)
-BAY_LEFT = G.col_y(0.5)
-BAY_RIGHT = G.col_y(2.5)
-CREASE_Z = DECK - 0.09  # the crease band wrapping around the body
-CREASE_H = 0.07
-TUCK = 0.2  # the lower body sides lean inward this much per meter below the cabin floor
-LAMP_Y = (0.94, 0.7)  # the quad lamps across, from the center line
-LAMP_Z = DECK - 0.22
-TRUNK_FLOOR = DECK - 0.5  # the fuel tank hides under the trunk lid
-TRANSMISSION_FLOOR = DECK - 0.64  # the transmission and its lever hide under the rear deck lid
+BAY_LEFT = HALF_W - COL
+BAY_RIGHT = HALF_W - 3 * COL
+DOOR_FRONT = 0.85
+DOOR_BACK = -0.55
+LAMP_Z = DECK - 0.25
+HEADLAMP_Y = 0.74
+TAIL_Y = (0.82, 0.58)
 
 
-def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
-    """A box on the left side at +y and its twin on the right side."""
-    kit.box(f"{name}_l", size, (x, y, z), mat)
-    kit.box(f"{name}_r", size, (x, -y, z), mat)
+def add_hull(kit: Kit, name: str, points: list[Vec3], mat: str) -> object:
+    obj = hull_mesh(name, points)
+    kit._add(obj, name, mat, 0.0)
+    return obj
+
+
+def mirror(points: list[tuple[float, float, float]]) -> list[Vec3]:
+    return [p for x, y, z in points for p in ((x, y, z), (x, -y, z))]
+
+
+def side_y(z: float) -> float:
+    """The body side at height z: SIDE at the crease, tucked TUCK in at the bottom."""
+    return SIDE - TUCK * (CREASE_LOW - z) / (CREASE_LOW - BOTTOM)
+
+
+def end_x(z: float) -> float:
+    """The nose face at height z: NOSE at the crease, tucked END_TUCK back at the bottom. The tail mirrors it."""
+    return NOSE - END_TUCK * (CREASE_LOW - z) / (CREASE_LOW - BOTTOM)
+
+
+def bay_box() -> tuple[Vec3, Vec3]:
+    return ((BAY_BACK, BAY_RIGHT, FLOOR), (BAY_FRONT, BAY_LEFT, DECK + 0.1))
 
 
 def lower_body(kit: Kit) -> None:
-    """Painted side panels with wheel arches up to the cabin floor, tucked in toward the bottom, a painted core between the wells, and a chrome rocker."""
-    profile = arch_profile(G, WHEELS_X, HUB_Z, WHEEL_R, FLOOR)
-    prism(kit, "skin_l", profile, WELL_Y, SIDE, "paint", lean=-TUCK)
-    prism(kit, "skin_r", profile, -SIDE, -WELL_Y, "paint", lean=TUCK)
-    core = [(BACK + 0.14, G.bottom), (FRONT - 0.14, G.bottom), (FRONT, G.bottom + 0.14), (FRONT, FLOOR), (BACK, FLOOR), (BACK, G.bottom + 0.14)]
-    prism(kit, "core", core, -WELL_Y, WELL_Y, "paint")
-    rocker_front = WHEELS_X[0] - ARCH_R - 0.06
-    rocker_back = WHEELS_X[1] + ARCH_R + 0.06
-    rocker_z = G.bottom + 0.06
-    mirrored(kit, "rocker", (rocker_front - rocker_back, 0.03, 0.06), (rocker_front + rocker_back) / 2, SIDE + TUCK * rocker_z + 0.005, rocker_z, "metal_light")
+    """The slab under the crease, tucked in toward the bottom, with round arches over the wheels and the engine bay cut out."""
+    layers = [(BOTTOM, NOSE - END_TUCK, SIDE - TUCK, CORNER - 0.06), (CREASE_LOW, NOSE, SIDE, CORNER - 0.03)]
+    points: list[tuple[float, float, float]] = []
+    for z, end, half, corner in layers:
+        for sx in (1, -1):
+            points += [(sx * end, half - corner, z), (sx * (end - corner), half, z)]
+    body = add_hull(kit, "body", mirror(points), "paint")
+    arch_cut(body, WHEELS_X, HUB_Z, WHEEL_R, WELL_Y, BOTTOM, ARCH_EDGES)
+    cut_boxes(body, [bay_box()])
+
+
+def crease_station(x: float, inset: float, top: float) -> list[tuple[float, float, float]]:
+    return [(x, SIDE - inset, CREASE_LOW), (x, HALF_W - inset, RIDGE), (x, SIDE - 0.03 - inset, top)]
+
+
+def lids(kit: Kit) -> None:
+    """The crease band and the flat lids over it: the front lid falling a little to the nose, the long rear lid with the engine cutout."""
+    front = crease_station(COWL, 0, DECK) + crease_station(RIDGE_END - CORNER, 0, DECK - 0.03) + crease_station(RIDGE_END, CORNER, DECK - 0.05)
+    add_hull(kit, "front_lid", mirror(front), "paint")
+    rear = crease_station(COWL, 0, DECK) + crease_station(-RIDGE_END + CORNER, 0, DECK) + crease_station(-RIDGE_END, CORNER, DECK - 0.04)
+    cut_boxes(add_hull(kit, "rear_lid", mirror(rear), "paint"), [bay_box()])
+    kit.box("bay_floor", (BAY_FRONT - BAY_BACK, BAY_LEFT - BAY_RIGHT, 0.02), ((BAY_FRONT + BAY_BACK) / 2, (BAY_LEFT + BAY_RIGHT) / 2, FLOOR + 0.01), "under")
+    grille_front, grille_back = BAY_BACK - 0.08, -RIDGE_END + CORNER
+    count = 5
+    pitch = (grille_front - grille_back) / count
+    for i in range(count):
+        kit.box(f"louver{i}", (pitch * 0.55, 2 * (SIDE - CORNER), 0.02), (grille_front - pitch * (i + 0.5), 0, DECK + 0.005), "under")
 
 
 def front(kit: Kit) -> None:
-    """The flat front trunk lid over the whole width with a rounded nose edge, and quad headlights under the crease."""
-    nose = [(COWL, FLOOR), (FRONT, FLOOR), (FRONT, DECK - 0.08), (FRONT - 0.08, DECK), (COWL, DECK)]
-    prism(kit, "trunk", nose, -SIDE, SIDE, "paint")
-    for i, y in enumerate(LAMP_Y):
-        for s, sy in (("l", 1), ("r", -1)):
-            kit.cylinder(f"lamp{i}_{s}", 0.1, 0.03, (FRONT + 0.015, sy * y, LAMP_Z), "light", rot=(0, math.pi / 2, 0), vertices=8)
-    mirrored(kit, "lamp_bezel", (0.02, LAMP_Y[0] - LAMP_Y[1] + 0.24, 0.24), FRONT + 0.005, sum(LAMP_Y) / 2, LAMP_Z, "under")
+    """One round headlamp in each nose corner under the crease, with a thin trim bar between them."""
+    face = end_x(LAMP_Z)
+    for s, sy in (("l", 1), ("r", -1)):
+        kit.cylinder(f"lamp_bezel_{s}", 0.14, 0.03, (face + 0.01, sy * HEADLAMP_Y, LAMP_Z), "metal_light", rot=(0, math.pi / 2, 0), vertices=ROUND_SMALL)
+        kit.cylinder(f"lamp_{s}", 0.11, 0.03, (face + 0.025, sy * HEADLAMP_Y, LAMP_Z), "light", rot=(0, math.pi / 2, 0), vertices=ROUND_SMALL)
+    bar = 2 * (HEADLAMP_Y - 0.16)
+    kit.box("nose_bar", (0.03, bar, 0.05), (face + 0.01, 0, LAMP_Z), "metal_light")
 
 
 def rear(kit: Kit) -> None:
-    """The flat rear deck lid with the engine cutout, a dark louvered grille behind it, and quad round taillights."""
-    h = DECK - FLOOR
-    kit.box("deck_fore", (CAB_BACK - BAY_FRONT, 2 * SIDE, h), ((CAB_BACK + BAY_FRONT) / 2, 0, FLOOR + h / 2), "paint")
-    tail = [(BACK, FLOOR), (BAY_BACK, FLOOR), (BAY_BACK, DECK), (BACK + 0.08, DECK), (BACK, DECK - 0.08)]
-    prism(kit, "deck_aft", tail, -SIDE, SIDE, "paint")
-    kit.box("deck_l", (BAY_FRONT - BAY_BACK, SIDE - BAY_LEFT, h), ((BAY_FRONT + BAY_BACK) / 2, (SIDE + BAY_LEFT) / 2, FLOOR + h / 2), "paint")
-    kit.box("deck_r", (BAY_FRONT - BAY_BACK, BAY_RIGHT + SIDE, h), ((BAY_FRONT + BAY_BACK) / 2, (BAY_RIGHT - SIDE) / 2, FLOOR + h / 2), "paint")
-    kit.box("bay_floor", (BAY_FRONT - BAY_BACK, BAY_LEFT - BAY_RIGHT, 0.02), ((BAY_FRONT + BAY_BACK) / 2, (BAY_LEFT + BAY_RIGHT) / 2, FLOOR + 0.01), "under")
-    # The louvered grille on the deck lid behind the engine: dark slats across the car.
-    grille_front, grille_back = BAY_BACK - 0.06, BACK + 0.12
-    count = 4
-    pitch = (grille_front - grille_back) / count
-    for i in range(count):
-        kit.box(f"louver{i}", (pitch * 0.55, 2 * SIDE - 0.4, 0.02), (grille_front - pitch * (i + 0.5), 0, DECK + 0.01), "under")
-    for i, y in enumerate(LAMP_Y):
-        for s, sy in (("l", 1), ("r", -1)):
-            kit.cylinder(f"taillight{i}_{s}", 0.1, 0.03, (BACK - 0.015, sy * y, LAMP_Z), "red", rot=(0, math.pi / 2, 0), vertices=8)
-
-
-def crease(kit: Kit) -> None:
-    """The crisp beltline crease as a trim band wrapping around the sides, the nose and the tail."""
-    mirrored(kit, "crease", (FRONT - BACK, 0.03, CREASE_H), 0, SIDE + 0.015, CREASE_Z, "trim")
-    kit.box("crease_front", (0.03, 2 * SIDE + 0.06, CREASE_H), (FRONT + 0.015, 0, CREASE_Z), "trim")
-    kit.box("crease_back", (0.03, 2 * SIDE + 0.06, CREASE_H), (BACK - 0.015, 0, CREASE_Z), "trim")
-
-
-def cabin(kit: Kit) -> None:
-    """Thin doors, a dark dash, a raked windshield in a chrome frame, the seats and the folded top boot."""
-    h = DECK - FLOOR
-    mirrored(kit, "door", (COWL - CAB_BACK, SIDE - DOOR_IN, h), (COWL + CAB_BACK) / 2, (SIDE + DOOR_IN) / 2, FLOOR + h / 2, "paint")
-    kit.box("carpet", (COWL - CAB_BACK, 2 * DOOR_IN, 0.02), ((COWL + CAB_BACK) / 2, 0, FLOOR + 0.01), "under")
-    kit.box("dash", (0.2, 2 * DOOR_IN, DECK + 0.06 - FLOOR), (COWL - 0.1, 0, (DECK + 0.06 + FLOOR) / 2), "under")
-    kit.cylinder("steering", 0.18, 0.04, (COWL - 0.32, G.col_y(1), DECK + 0.1), "wheel", rot=(0, -1.0, 0), vertices=8)
-    screen = [(COWL, DECK + 0.04), (COWL - 0.05, DECK + 0.04), (SCREEN_X - 0.05, SCREEN_Z), (SCREEN_X, SCREEN_Z)]
-    prism(kit, "windshield", screen, -DOOR_IN, DOOR_IN, "glass")
+    """Two round taillights a side on the tail under the crease, with a trim bar between them."""
+    face = -end_x(LAMP_Z)
     for s, sy in (("l", 1), ("r", -1)):
-        strut(kit, f"a_pillar_{s}", (COWL - 0.02, sy * DOOR_IN, DECK), (SCREEN_X - 0.02, sy * DOOR_IN, SCREEN_Z + 0.02), 0.06, "metal_light")
-    strut(kit, "header", (SCREEN_X - 0.02, DOOR_IN + 0.03, SCREEN_Z + 0.02), (SCREEN_X - 0.02, -DOOR_IN - 0.03, SCREEN_Z + 0.02), 0.06, "metal_light")
-    # Two bucket seats on row 3, a bench on row 4.
-    for s, y in (("l", G.col_y(1)), ("r", G.col_y(3))):
-        kit.box(f"cushion_{s}", (0.46, 0.56, 0.16), (G.row_x(3) - 0.02, y, FLOOR + 0.08), "leather")
-        kit.box(f"seatback_{s}", (0.12, 0.56, 0.5), (G.row_x(3) - 0.28, y, FLOOR + 0.3), "leather", rot=(0, -0.2, 0))
-    kit.box("bench", (0.4, 2 * DOOR_IN - 0.08, 0.16), (G.row_x(4) + 0.06, 0, FLOOR + 0.08), "leather")
-    kit.box("bench_back", (0.12, 2 * DOOR_IN - 0.08, 0.46), (CAB_BACK + 0.1, 0, FLOOR + 0.28), "leather", rot=(0, -0.2, 0))
-    hardtop(kit)
+        for i, y in enumerate(TAIL_Y):
+            kit.cylinder(f"tail_bezel{i}_{s}", 0.1, 0.03, (face - 0.01, sy * y, LAMP_Z), "metal_light", rot=(0, math.pi / 2, 0), vertices=ROUND_SMALL)
+            kit.cylinder(f"taillight{i}_{s}", 0.08, 0.03, (face - 0.025, sy * y, LAMP_Z), "red", rot=(0, math.pi / 2, 0), vertices=ROUND_SMALL)
+    bar = 2 * (TAIL_Y[1] - 0.12)
+    kit.box("tail_bar", (0.03, bar, 0.05), (face - 0.01, 0, LAMP_Z), "metal_light")
 
 
-def hardtop(kit: Kit) -> None:
-    """A flat roof on painted A and C pillars, dark pillarless side windows and a sloped rear window."""
-    ya, yb = DOOR_IN, SIDE - 0.02
-    roof = [(ROOF_FRONT, ROOF_BOTTOM), (CAB_BACK, ROOF_BOTTOM), (CAB_BACK, ROOF_TOP), (ROOF_FRONT - 0.06, ROOF_TOP), (ROOF_FRONT, ROOF_TOP - 0.04)]
-    prism(kit, "roof", roof, -yb, yb, "trim")
-    a_pillar = [(COWL + 0.02, DECK), (COWL - 0.1, DECK), (SCREEN_X - 0.08, ROOF_BOTTOM), (SCREEN_X + 0.04, ROOF_BOTTOM)]
-    c_pillar = [(BOOT_BACK + 0.12, DECK), (BOOT_BACK, DECK), (CAB_BACK, ROOF_BOTTOM), (CAB_BACK + 0.12, ROOF_BOTTOM)]
-    window = [(COWL - 0.1, DECK), (BOOT_BACK + 0.12, DECK), (CAB_BACK + 0.12, ROOF_BOTTOM), (SCREEN_X - 0.08, ROOF_BOTTOM)]
-    rear = [(CAB_BACK, ROOF_BOTTOM), (BOOT_BACK, DECK), (BOOT_BACK + 0.03, DECK), (CAB_BACK + 0.03, ROOF_BOTTOM)]
-    for s, (y0, y1) in (("l", (ya, yb)), ("r", (-yb, -ya))):
-        prism(kit, f"a_pillar_paint_{s}", a_pillar, y0, y1, "paint")
-        prism(kit, f"c_pillar_{s}", c_pillar, y0, y1, "paint")
-        mid = (y0 + y1) / 2
-        prism(kit, f"side_glass_{s}", window, mid - 0.015, mid + 0.015, "glass")
-    prism(kit, "rear_glass", rear, -ya, ya, "glass")
+def sides(kit: Kit) -> None:
+    """Door seams on the slab sides, clear of the flares, and a chrome rocker between the arches."""
+    low = BOTTOM + 0.1
+    check_door_gap("door", DOOR_FRONT, DOOR_BACK, low, WHEELS_X, HUB_Z, ARCH_R)
+    top = CREASE_LOW - 0.03
+    for s, sy in (("l", 1), ("r", -1)):
+        for i, x in enumerate((DOOR_FRONT, DOOR_BACK)):
+            strut(kit, f"door_seam{i}_{s}", (x, sy * (side_y(low) + 0.004), low), (x, sy * (side_y(top) + 0.004), top), 0.025, "under")
+        rocker_z = BOTTOM + 0.06
+        length = 2 * (WHEEL_X - ARCH_R - 0.06)
+        kit.box(f"rocker_{s}", (length, 0.03, 0.06), (0, sy * side_y(rocker_z), rocker_z), "metal_light")
+
+
+def windshield(kit: Kit) -> None:
+    """The raked windshield, a little wrapped at the A-pillars, in a chrome frame, with a quarter glass behind each pillar."""
+    glass = [(COWL, TOP_HALF, DECK), (COWL - 0.04, TOP_HALF, DECK), (HEADER_X, TOP_HALF - 0.05, SCREEN_Z), (HEADER_X - 0.04, TOP_HALF - 0.05, SCREEN_Z)]
+    add_hull(kit, "windshield", mirror(glass), "glass")
+    for s, sy in (("l", 1), ("r", -1)):
+        strut(kit, f"a_pillar_{s}", (COWL - 0.02, sy * TOP_HALF, DECK), (HEADER_X - 0.02, sy * (TOP_HALF - 0.05), SCREEN_Z), 0.05, "metal_light")
+        quarter = [(COWL - 0.04, sy * (TOP_HALF - 0.01), DECK), (HEADER_X, sy * (TOP_HALF - 0.05), SCREEN_Z), (HEADER_X, sy * (TOP_HALF - 0.01), DECK)]
+        add_hull(kit, f"quarter_glass_{s}", quarter + [(x, y - sy * 0.03, z) for x, y, z in quarter], "glass")
+    strut(kit, "header", (HEADER_X - 0.02, TOP_HALF - 0.03, SCREEN_Z), (HEADER_X - 0.02, -TOP_HALF + 0.03, SCREEN_Z), 0.05, "metal_light")
+
+
+def soft_top(kit: Kit) -> None:
+    """The soft top up: upright sides with windows, a flat crown where cab items stand, and a steep rear drop with a small window."""
+    shoulder = ROOF_TOP - 0.05
+    points = [
+        (HEADER_X + 0.01, TOP_HALF, DECK),
+        (TOP_FOOT, TOP_HALF, DECK),
+        (HEADER_X + 0.01, TOP_HALF, shoulder),
+        (CROWN_BACK - 0.04, TOP_HALF, shoulder),
+        (CROWN_FRONT, TOP_HALF - 0.06, ROOF_TOP),
+        (CROWN_BACK, TOP_HALF - 0.06, ROOF_TOP),
+    ]
+    add_hull(kit, "soft_top", mirror(points), "trim")
+    for s, sy in (("l", 1), ("r", -1)):
+        for i, (x0, x1) in enumerate(((0.56, 0.04), (-0.02, -0.42))):
+            back_top = x1 - (0.1 if i == 1 else 0)
+            pane = [(x0, DECK + 0.08), (x1, DECK + 0.08), (back_top, shoulder - 0.06), (x0, shoulder - 0.06)]
+            add_hull(kit, f"side_glass{i}_{s}", [(x, sy * y, z) for x, z in pane for y in (TOP_HALF - 0.01, TOP_HALF + 0.012)], "glass")
+    run, rise = TOP_FOOT - (CROWN_BACK - 0.04), DECK - shoulder
+    norm = math.hypot(run, rise)
+    nx, nz = -rise / norm, run / norm
+    if nx > 0:
+        nx, nz = -nx, -nz
+    window: list[tuple[float, float, float]] = []
+    for t, half in ((0.15, 0.48), (0.7, 0.42)):
+        x = CROWN_BACK - 0.04 + run * t
+        z = shoulder + rise * t
+        for out in (-0.01, 0.012):
+            window += [(x + nx * out, half, z + nz * out)]
+    add_hull(kit, "rear_glass", mirror(window), "glass")
 
 
 def main() -> None:
     args = parse_args()
     kit = Kit(BASE_COLORS, SEED)
     lower_body(kit)
+    lids(kit)
     front(kit)
     rear(kit)
-    crease(kit)
-    cabin(kit)
-    # Items on the engine cells stand on the bay floor under the cutout.
+    sides(kit)
+    windshield(kit)
+    soft_top(kit)
     bay = {(x, y): FLOOR for x in (1, 2) for y in (6, 7)}
-    # Items on the cab cells stand on the roof.
-    level_sockets(kit, G, "row", [DECK] * 3 + [ROOF_TOP] * 2 + [DECK] * 4, fronts={3: ROOF_FRONT - 0.06, 5: BOOT_BACK}, cells=bay)
-    level_sockets(kit, G, "floor", [TRUNK_FLOOR] * 3 + [FLOOR] * 2 + [TRANSMISSION_FLOOR] + [FLOOR] * 2 + [DECK])
+    level_sockets(kit, G, "row", [DECK] * 3 + [ROOF_TOP] * 3 + [DECK] * 3, fronts={3: CROWN_FRONT}, cells=bay)
+    level_sockets(kit, G, "floor", [DECK - 0.5] * 3 + [FLOOR] * 5 + [DECK])
+    kit.socket("arch_front", (WHEEL_X, WHEEL_Z, HUB_Z))
+    kit.socket("arch_rear", (-WHEEL_X, WHEEL_Z, HUB_Z))
+    kit.socket("arch_front_top", (WHEEL_X, WHEEL_Z, HUB_Z + ARCH_R))
     check_base(kit, "base_convertible", G)
     kit.export("base_convertible", args, view_size=7.0)
 

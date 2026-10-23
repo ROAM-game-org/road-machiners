@@ -233,13 +233,13 @@ def hull_layers(name: str, layers: list[tuple[float, float, float, float, float]
     return hull_mesh(name, pts)
 
 
-def arch_cut(obj: bpy.types.Object, wheels_x: list[float], hub_z: float, radius: float, wall_y: float, bottom: float) -> None:
-    """Cuts a low-poly arch around each wheel through both side walls, outside wall_y, from the body bottom up."""
+def arch_cut(obj: bpy.types.Object, wheels_x: list[float], hub_z: float, radius: float, wall_y: float, bottom: float, segments: int = ARCH_SEGMENTS) -> None:
+    """Cuts an arch of segments edges around each wheel through both side walls, outside wall_y, from the body bottom up."""
     r = radius + ARCH_CLEARANCE
     cutters = []
     for wx in wheels_x:
         for sign in (1, -1):
-            ring = [(wx + r * math.cos(math.pi * k / ARCH_SEGMENTS), hub_z + r * math.sin(math.pi * k / ARCH_SEGMENTS)) for k in range(ARCH_SEGMENTS + 1)]
+            ring = [(wx + r * math.cos(math.pi * k / segments), hub_z + r * math.sin(math.pi * k / segments)) for k in range(segments + 1)]
             ring += [(wx + r, bottom - 0.1), (wx - r, bottom - 0.1)]
             ys = (sign * wall_y, sign * (wall_y + 2.0))
             cutters.append([(x, y, z) for x, z in ring for y in ys])
