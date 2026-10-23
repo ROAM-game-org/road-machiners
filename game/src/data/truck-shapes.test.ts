@@ -97,12 +97,13 @@ function stationsOf(profile: Profile, ground: number) {
 type Band = [number, number];
 type Reference = { height: Band; hood?: Band; roof: Band; deck?: Band; roofStart?: Band; noseDrop?: Band; tailDrop?: Band };
 
-const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout', Reference> = {
+const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'bus', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
   niva: { height: [1.89, 2.19], hood: [0.22, 0.28], roof: [0.55, 1], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
+  bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1] },
 };
 
 type ShapeName = keyof typeof SHAPES;
@@ -126,7 +127,7 @@ function straightProfile(id: string): Profile {
 }
 
 describe('trucks built from a reference photo keep its proportions', () => {
-  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout'] as const)('%s', (id) => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'bus'] as const)('%s', (id) => {
     const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
     const got = stationsOf(straightProfile(id), ground);
@@ -186,5 +187,36 @@ describe('the hauler semi', () => {
     expect(Math.abs(semi.across - 3.1)).toBeLessThanOrEqual(0.05);
     expect(semi.along / scout.along).toBeGreaterThan(3.7);
     expect(semi.across / scout.across).toBeGreaterThan(1.25);
+  });
+});
+
+describe('the LAZ bus', () => {
+  const boxes = SHAPES.base_bus.boxes;
+  const nose = Math.max(...boxes.map((b) => b.x1));
+  const tail = Math.min(...boxes.map((b) => b.x0));
+  const bus = PHYSICS.bodies.bus;
+  const ground = bus.wheelY - PHYSICS.truck.suspensionRest - bus.wheelRadius;
+
+  it('is the LAZ-695 cut to the grid: 8.5 m along and 2.6 m across', () => {
+    const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
+    expect(nose - tail).toBeGreaterThanOrEqual(8.45);
+    expect(nose - tail).toBeLessThanOrEqual(8.55);
+    expect(across).toBeGreaterThanOrEqual(2.55);
+    expect(across).toBeLessThanOrEqual(2.65);
+  });
+
+  it('sets its wheels in from long overhangs on the LAZ wheelbase share of 46%', () => {
+    const wheelbase = 2 * bus.wheelX;
+    expect(wheelbase).toBeGreaterThanOrEqual(3.8);
+    expect(wheelbase).toBeLessThanOrEqual(4.0);
+    expect(Math.abs(nose - bus.wheelX - (-bus.wheelX - tail))).toBeLessThanOrEqual(0.1);
+  });
+
+  it('keeps a flat roof 2.92 to 2.98 m up over every deck row clear of the engine hatch', () => {
+    const profile = profileOf('base_bus');
+    const at = (x: number) => profile.reduce((best, p) => (Math.abs(p.x - x) < Math.abs(best.x - x) ? p : best)).top;
+    const step = (nose - tail) / CHASSIS.bus.layout.length;
+    const rows = [1, 2, 3, 4, 5, 6, 7, 10].map((y) => ({ y, roof: at(nose - (y + 0.5) * step) - ground }));
+    expect(rows.filter((r) => r.roof < 2.92 || r.roof > 2.98).map((r) => `row ${r.y}: ${r.roof.toFixed(3)}`)).toEqual([]);
   });
 });
