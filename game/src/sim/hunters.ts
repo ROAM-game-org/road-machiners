@@ -17,16 +17,20 @@ export function rollingOrder(world: World, v: Vehicle): MoveOrder | null {
   const prey = groupPrey(world, v);
   if (prey.speed <= RULES.parkedSpeed) return null;
   const gap = alongNow(world, v) - alongNow(world, prey);
-  if (gap > FURY_ROAD.rolling.near) return rollAhead(world, v, prey, gap);
+  if (gap > Math.max(FURY_ROAD.rolling.near, reachOf(world, v)) && !hitBy(v, prey)) return rollAhead(world, v, prey, gap);
   if (-gap > reachOf(world, v)) return catchUp(world, v, prey);
   return null;
 }
 
 function rollAhead(world: World, v: Vehicle, prey: Vehicle, gap: number): MoveOrder {
-  const { near, ramp, lead } = FURY_ROAD.rolling;
-  const pace = prey.speed * Math.max(0, 1 - (gap - near) / ramp);
+  const { near, ramp, close, lead } = FURY_ROAD.rolling;
+  const pace = prey.speed * Math.min(Math.max(0, 1 - (gap - near) / ramp), 1 - close);
   if (pace <= RULES.parkedSpeed) return { kind: 'brake' };
   return { kind: 'through', dest: onRoad(world, alongNow(world, v) + lead, acrossNow(world, prey)), pace };
+}
+
+function hitBy(v: Vehicle, prey: Vehicle): boolean {
+  return v.brain?.attackers[prey.id] === true;
 }
 
 function catchUp(world: World, v: Vehicle, prey: Vehicle): MoveOrder {
