@@ -1,16 +1,18 @@
-"""The buggy base: a stylized Meyers Manx dune buggy, the open fibreglass tub on a shortened Beetle pan.
+"""The buggy base: a stylized Meyers Manx dune buggy, the fibreglass tub on a shortened Beetle pan, closed up with a hardtop.
 
 Measured from the Manx's published dimensions (tmp/models/base_buggy/asset-brief.md; the Commons photos could not be fetched):
 an 80 in wheelbase on a body about 122.7 in long, 50 to 53 in tall. Kept at the 3.9 m grid length, about 1.25 times a real Manx,
-1.94 m across with the tires as the widest point, and 1.64 m tall to the roll hoop. The wheelbase is 0.652 of the length,
+1.94 m across with the tires as the widest point, and 1.64 m tall to the roof. The wheelbase is 0.652 of the length,
 2.54 m, so the wheels sit near the corners on short equal overhangs. The ground is 1.1 m below the center.
-Levels: front fender crown 0.05 (1.15 tire diameters over the ground), cockpit sill -0.2, windshield frame top 0.44, hoop top 0.545,
-front deck -0.25 falling to the rounded nose at -0.47, rear deck -0.21, cockpit and engine bay floor -0.5, pan -0.62.
-Tall front fenders sweep down ahead of the front wheels to the nose and back to the cockpit sill, with round bug-eye lamps on them.
-The cockpit is open: no doors, roof or side glass, a raked windshield frame on the cowl, a driver's seat in the middle and a flat
-passenger floor on the left over the D cells, where goods rest and a gun stands on its riser post. A roll hoop in the trim color
-stands behind the seats, braced back to the rear deck. The rear wheels stand bare under small dark guards beside a narrow tail,
-which ends in a dark rear panel with round taillights. A trim racing band runs along each side.
+Levels: front fender crown 0.05 (1.15 tire diameters over the ground), waist sill -0.2 (0.9 m), roof top 0.54 and bottom 0.47,
+side windows 0.1 to 0.42, front deck -0.25 falling to the rounded nose at -0.47, rear deck -0.21, cockpit and engine bay floor -0.5,
+pan -0.62. The roof runs from a short brim over the windshield top back to the hoop, 0.27 of the length.
+Tall front fenders sweep down ahead of the front wheels to the nose and back to the sill, with round bug-eye lamps on them.
+No wasteland driver rides with the seats open, so the cab is closed as the jeep's Kubelwagen is: a raked windshield from the
+cowl to a flat trim roof welded on the roll hoop, cab sides from the sill to the roof with one small dark window each and no
+door seam, and a rear wall in the hoop plane with a small dark window. The hoop stays as the trim rear pillars, braced back to
+the rear deck. Items on the D cells stand on the roof behind the windshield. The rear wheels stand bare under small dark guards
+beside a narrow tail, which ends in a dark rear panel with round taillights. A trim racing band runs along each side at the waist.
 Deviations from the Manx: the wheels stay symmetric, the tires follow the tire rule's stock 0.5 m, and the engine sits at the front,
 where the grid's engine cells are. It shows through a hole in the front deck over the bay floor, centered on PHYSICS.bodies.buggy.engine.
 Grid: 4 columns by 6 rows, stretched over the model by the projection. Half height 0.35 m, from PHYSICS.bodies.buggy.
