@@ -152,6 +152,40 @@ describe('the convertible', () => {
     expect(across / along).toBeGreaterThanOrEqual(0.35);
     expect(across / along).toBeLessThanOrEqual(0.39);
   });
+
+  it('sets its soft top inboard, with the lid and shoulders showing beside it', () => {
+    const { heights } = SHAPES.base_convertible;
+    const profile = profileOf('base_convertible');
+    const nose = profile[0].x;
+    const length = nose - profile[profile.length - 1].x;
+    const roof = Math.max(...profile.map((p) => p.top));
+    const lid = profile.reduce((best, p) => (Math.abs(p.x - (nose - 0.15 * length)) < Math.abs(best.x - (nose - 0.15 * length)) ? p : best)).top;
+    const crownRow = heights.top[-heights.i0];
+    const misses: string[] = [];
+    crownRow.forEach((cm, j) => {
+      const y = Math.abs((heights.j0 + j + 0.5) * heights.cell);
+      if (cm === null) return;
+      if (y <= 0.6 && Math.abs(cm / 100 - roof) > 0.05) misses.push(`top at y ${y.toFixed(2)} is ${(cm / 100).toFixed(2)}, not the roof ${roof.toFixed(2)}`);
+      if (y >= 0.92 && Math.abs(cm / 100 - lid) > 0.06) misses.push(`shoulder at y ${y.toFixed(2)} is ${(cm / 100).toFixed(2)}, not the lid ${lid.toFixed(2)}`);
+    });
+    expect(misses).toEqual([]);
+  });
+
+  it('rounds its ends in plan', () => {
+    const { heights } = SHAPES.base_convertible;
+    const spans = heights.top.map((row, i) => {
+      const filled = row.flatMap((cm, j) => (cm === null ? [] : [j]));
+      return { x: (heights.i0 + i + 0.5) * heights.cell, span: filled.length === 0 ? 0 : (Math.max(...filled) - Math.min(...filled) + 1) * heights.cell };
+    }).filter((r) => r.span > 0);
+    const width = Math.max(...spans.map((r) => r.span));
+    const spanAt = (x: number) => spans.reduce((best, r) => (Math.abs(r.x - x) < Math.abs(best.x - x) ? r : best)).span / width;
+    const nose = Math.max(...SHAPES.base_convertible.boxes.map((b) => b.x1));
+    const tail = Math.min(...SHAPES.base_convertible.boxes.map((b) => b.x0));
+    expect(spanAt(nose - 0.1)).toBeLessThanOrEqual(0.8);
+    expect(spanAt(tail + 0.1)).toBeLessThanOrEqual(0.8);
+    expect(spanAt(nose - 0.6)).toBeGreaterThanOrEqual(0.9);
+    expect(spanAt(tail + 0.6)).toBeGreaterThanOrEqual(0.9);
+  });
 });
 
 describe('the scout pickup', () => {
