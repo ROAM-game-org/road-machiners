@@ -11,7 +11,7 @@ import { addState } from '../sim/states';
 import { canStowPart, moveItem, storePart, stowPart, stowSpot, takeFromStorage } from '../sim/inventory';
 import { buyStockPart } from '../sim/economy';
 import { buyChart } from '../sim/charts';
-import { makePart } from '../sim/factory';
+import { bareVehicle, makePart } from '../sim/factory';
 import type { Faction, GridItem, World } from '../sim/types';
 import { advanceContracts, siteOf, type Contract } from '../sim/market';
 import { advanceJobs } from '../sim/jobs';
@@ -538,6 +538,22 @@ describe('game save', () => {
     const expanded = { ...world, futureFeature: { progress: 7 } };
     saveWorld(slots, { ...expanded, turn: 21 }, RUN, 20, 1000);
     expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual({ ...expanded, turn: 21 });
+  });
+
+  it('loads back a player driving the remade tractor unchanged, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = standardWorld();
+    const old = playerVehicle(world);
+    const tractor = bareVehicle(world, { faction: 'player', chassisId: 'tractor', pos: old.pos, heading: old.heading, brain: null });
+    tractor.id = old.id;
+    world.vehicles = world.vehicles.map((v) => (v.id === old.id ? tractor : v));
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(playerVehicle(loaded).chassisId).toBe('tractor');
+    expect(loaded).toEqual(world);
+    expect(loaded.events).toEqual([]);
   });
 
   it('rejects a save that did not parse in local storage as unreadable, without replacing it', () => {
