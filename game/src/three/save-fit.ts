@@ -164,9 +164,11 @@ const CHECKS: Record<string, Check> = {
   ref: checkRef,
 };
 
+const CHECK_KINDS = Object.keys(CHECKS);
+
 function checkNode(value: unknown, node: SchemaNode, path: string, defs: Defs): void {
   if (typeof node === 'string') return checkPrimitive(value, node, path);
-  const kind = Object.keys(CHECKS).find((name) => typeof node === 'object' && node !== null && name in node);
+  const kind = CHECK_KINDS.find((name) => typeof node === 'object' && node !== null && name in node);
   if (kind === undefined) throwMisfitError(path, 'unknown schema node');
   CHECKS[kind](value, node as never, path, defs);
 }
