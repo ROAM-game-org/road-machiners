@@ -11,10 +11,10 @@ await loadModels(async (name) => {
 });
 
 const TOLERANCE = 0.02;
-const ARCH_CLEARANCE: Record<string, number> = { lincoln: 0.06, niva: 0.06, bukhanka: 0.06, semi: 0.06, scout: 0.32, courier: 0.06, hauler: 0.06, tractor: 0.06, jeep: 0.06, carrier: 0.06, loader: 0.06, bus: 0.06 };
+const ARCH_CLEARANCE: Record<string, number> = { lincoln: 0.06, niva: 0.06, bukhanka: 0.06, semi: 0.06, scout: 0.32, longbed: 0.06, courier: 0.06, hauler: 0.06, tractor: 0.06, jeep: 0.06, carrier: 0.06, loader: 0.06, bus: 0.06 };
 
 describe('wheel arches of the reference photo bases', () => {
-  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'courier', 'hauler', 'tractor', 'jeep', 'carrier', 'loader', 'bus'] as const)('%s: arches sit on the physics wheels', (id) => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'longbed', 'courier', 'hauler', 'tractor', 'jeep', 'carrier', 'loader', 'bus'] as const)('%s: arches sit on the physics wheels', (id) => {
     const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const name = `base_${id}` as ModelName;
     const hub = body.wheelY - PHYSICS.truck.suspensionRest;
