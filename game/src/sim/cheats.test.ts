@@ -90,15 +90,15 @@ describe('resource cheats', () => {
   });
 
   it('grants a perk below its skill rank', () => {
-    const w = grantPerk(emptyWorld(), 'bountyTalk');
-    expect(w.player.perks).toEqual(['bountyTalk']);
+    const w = grantPerk(emptyWorld(), 'bountyHunter');
+    expect(w.player.perks).toEqual(['bountyHunter']);
   });
 
   it('refuses an unknown perk and a second perk from one pair', () => {
     expect(() => grantPerk(emptyWorld(), 'flying')).toThrow(CheatError);
-    const w = grantPerk(emptyWorld(), 'bountyTalk');
+    const w = grantPerk(emptyWorld(), 'bountyHunter');
     expect(() => grantPerk(w, 'paidTruce')).toThrow(CheatError);
-    expect(() => grantPerk(w, 'bountyTalk')).toThrow(CheatError);
+    expect(() => grantPerk(w, 'bountyHunter')).toThrow(CheatError);
   });
 });
 

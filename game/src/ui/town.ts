@@ -45,7 +45,7 @@ import {
 import { freeCells, goodsCount, mountCellsOf, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
-import { acceptContract, deliverContract, fitsFetch, goodStock, haulShort, isMet, knowsMarket, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, goodStock, haulShort, isMet, knowsMarket, onOrder, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { CrimeCase, PartInstance, RoadNews, Vehicle, World } from "../sim/types";
 import { onRelief, recipeRunning } from "../sim/production";
@@ -71,7 +71,6 @@ import { ESCAPE, keyLabel } from "./input-mode";
 import { factionName, goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
 import { seesAll } from "./see-all";
-import { vehicleHasPerk } from "../sim/progress";
 import { deskAt, deskRows, payAtDesk, settleAtDesk, type SettlementQuote } from "../sim/crime";
 import { vehicleById } from "../sim/damage";
 
@@ -327,12 +326,13 @@ export class TownScreen {
 
   private stockedBuyCell(w: World, shopId: string, g: string, hint: PriceHint | null, stock: number): HTMLElement {
     const buy = buyPrice(w, shopId, g);
-    const buyReason = (n: number) => (stock < n ? stockReason(stock) : this.lotReason(w, shopId, g, n));
+    const held = onOrder(w, shopId, g);
+    const buyReason = (n: number) => (held ? t("trade.onOrder") : stock < n ? stockReason(stock) : this.lotReason(w, shopId, g, n));
     return el(
       "div",
       { class: "trade buy" },
       caption(GOODS_COLUMNS.buy, true),
-      stock > 0 ? priceEl(buy, shortBy(w.player.money, buy) === null, hint) : el("span", { class: "price" }),
+      stock > 0 && !held ? priceEl(buy, shortBy(w.player.money, buy) === null, hint) : el("span", { class: "price" }),
       this.button(t("trade.plus", { n: 1 }), (x) => buyGood(x, g, 1), buyReason(1), `${g}:buy1`),
       this.button(t("trade.plus", { n: 5 }), (x) => buyGood(x, g, 5), buyReason(5), `${g}:buy5`, stock >= 5 ? lotTitle("buy", 5, getLotTradePrice(w, playerVehicle(w), shopId, g, 5, "buy")) : null),
     );
@@ -558,8 +558,7 @@ function searchRefusalText(w: World, refusal: SearchRefusal | null): Msg | null 
 
 const DELIVER_VERBS = {
   haul: { now: "contract.deliver", at: "contract.deliverAt" },
-  fetch: { now: "contract.deliver", at: "contract.deliverAt" },
-  bounty: { now: "contract.claim", at: "contract.claimAt" },
+  procure: { now: "contract.deliver", at: "contract.deliverAt" },
   rescue: { now: "contract.claim", at: "contract.claimAt" },
   search: { now: "contract.claim", at: "contract.claimAt" },
   survey: { now: "contract.report", at: "contract.reportAt" },
@@ -577,16 +576,11 @@ function escortRefusal(w: World, c: Contract): Msg | null {
 
 function notReady(w: World, c: Contract): Msg {
   if (c.kind === "survey") return surveyPlacesLeft(c);
-  if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
-  if (c.kind === "fetch") return t("contract.needsPart");
+  if (c.kind === "haul" || c.kind === "procure") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
   if (c.kind === "search") return t("contract.handOverFirst");
   if (c.kind === "claim") return playerVehicle(w).items.some((it) => it.kind === "part" && it.part.id === c.partId) ? t("contract.unmountFirst") : t("contract.needsPart");
   if (c.kind === "rescue") return t("contract.notMet");
-  return bountyPays(w);
-}
-
-function bountyPays(w: World): Msg {
-  return vehicleHasPerk(w, playerVehicle(w), "bountyTalk") ? t("contract.paysGiveUp") : t("contract.pays");
+  throw new Error(`An ${c.kind} contract is never handed in at a counter`);
 }
 
 const FILTER_ICON: Record<Exclude<StockFilter, "all" | "weapon">, IconName> = {
@@ -761,9 +755,7 @@ export function pressureHint(def: ShopDef, state: ShopState, good: string): Pric
 
 function canDeliver(w: World, c: Contract): boolean {
   const me = playerVehicle(w);
-  if (c.kind === "haul") return (goodsCount(me)[c.good] ?? 0) >= c.units;
-  if (c.kind === "fetch")
-    return spareParts(me).some((p) => fitsFetch(c, p)) || w.player.storage.some((p) => fitsFetch(c, p));
+  if (c.kind === "haul" || c.kind === "procure") return (goodsCount(me)[c.good] ?? 0) >= c.units;
   if (c.kind === "claim") return spareParts(me).some((p) => fitsClaim(c, p)) || w.player.storage.some((p) => fitsClaim(c, p));
   return isMet(c);
 }

@@ -124,7 +124,5 @@ describe('XP per money in cents', () => {
 
   it('pays contract XP as before', () => {
     expect(CONTRACTS.haul.xpPerEffort).toBeCloseTo(0.1 * OLD_PER_CENT, 10);
-    expect(CONTRACTS.fetch.xpPerEffort).toBeCloseTo(0.15 * OLD_PER_CENT, 10);
-    expect(CONTRACTS.bounty.xpPerEffort).toBeCloseTo(0.25 * OLD_PER_CENT, 10);
   });
 });

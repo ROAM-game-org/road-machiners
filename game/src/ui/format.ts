@@ -1,5 +1,3 @@
-
-import { CONTRACTS } from '../data/market';
 import { isShield, partDef } from '../data/parts';
 import { isMet, siteOf, type Contract } from '../sim/market';
 import { surveyClue, surveyPlaceType, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
@@ -26,6 +24,7 @@ import { huntsOffRoad } from '../sim/hunt-style';
 import { isHostile } from '../sim/combat';
 import { trackOf } from '../sim/tracks';
 import { hasBasic, hasPerk } from '../sim/progress';
+import { owedBy } from '../sim/crime';
 import { canLookOver, knowsCargo } from '../sim/look-over';
 import { aidData, lootWarningData, pleaData, statesHeld, strayData, towData } from '../sim/states';
 import { REGION } from '../data/region';
@@ -39,7 +38,7 @@ import type { GameEvent, GridItem, Job, NpcActivity, NpcState, PartInstance, Ref
 import { concat, list, MINUS_SIGN, num, PLUS, SPACE, t, verbatim, type Msg } from '../text/msg';
 import { siteRecipes } from '../data/market';
 import { keyLabel } from './input-mode';
-import { driverName, factionName, offenseName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
+import { driverName, factionName, offenseName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
 import { playerCanAct, Refused } from '../sim/world';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
@@ -198,6 +197,12 @@ export function formatNpcPass(world: World, vehicle: Vehicle): Msg | null {
 
 function revealedBy(world: World, perk: 'readDriver'): boolean {
   return hasPerk(world, perk) || seesAll();
+}
+
+export function wantedBounty(world: World, vehicle: Vehicle): number | null {
+  if (vehicle.id === world.player.vehicleId || !hasPerk(world, 'bountyHunter')) return null;
+  const owed = owedBy(world, vehicle.id);
+  return owed > 0 ? owed : null;
 }
 
 export function formatNpcTraits(world: World, vehicle: Vehicle): Msg | null {
@@ -650,8 +655,7 @@ function fulfilledText(c: Contract): Msg {
   if (c.kind === 'survey') return t('log.contract.surveyMet', { reward: moneyMsg(c.reward), site: siteName(c.shop) });
   if (c.kind === 'search') return t('log.contract.parcelHanded', { who: searchTarget(c), reward: moneyMsg(c.reward), site: siteName(c.shop) });
   if (c.kind === 'rescue') return t('log.contract.rescueFulfilled', { driver: verbatim(c.driver), reward: moneyMsg(c.reward), site: siteName(c.shop) });
-  if (c.kind !== 'bounty') throw new Error(`Only a bounty, a rescue, a search or a survey is fulfilled, not a ${c.kind} contract`);
-  return t('log.contract.fulfilled', { target: templateName(c.template), reward: moneyMsg(c.reward), site: siteName(c.shop) });
+  throw new Error(`Only a rescue, a search or a survey is fulfilled, not a ${c.kind} contract`);
 }
 
 export function parcelTitle(world: World, parcel: Extract<GridItem, { kind: 'parcel' }>): Msg {
@@ -676,7 +680,6 @@ export function contractSummary(c: Contract): Msg {
   if (c.kind === 'survey') return t('contract.surveyMet', { site: siteName(c.shop) });
   if (c.kind === 'rescue') return t('contract.rescueMet', { driver: verbatim(c.driver), site: siteName(c.shop) });
   if (c.kind === 'search') return t('contract.searchMet', { who: searchTarget(c), site: siteName(c.shop) });
-  if (c.kind === 'bounty') return t('contract.bountyMet', { target: templateName(c.template), site: siteName(c.shop) });
   throw new Error(`A ${c.kind} contract has no met wording`);
 }
 
@@ -684,13 +687,12 @@ type PostedWords = { [K in Contract['kind']]: (c: Extract<Contract, { kind: K }>
 
 const POSTED_WORDS: PostedWords = {
   haul: (c) => t(c.rush ? 'contract.rushHaul' : 'contract.haul', { n: c.units, good: goodName(c.good), site: siteName(c.to) }),
-  fetch: (c) => t('contract.fetch', { part: partNameOf(c.defId), site: siteName(c.shop), n: CONTRACTS.fetch.maxWear }),
+  procure: (c) => t('contract.procure', { n: c.units, good: goodName(c.good), site: siteName(c.shop) }),
   survey: (c) => t('contract.survey', { places: surveyPlaces(c) }),
   claim: (c) => claimSummary(c),
   escort: (c) => t('contract.escort', { site: siteName(c.to) }),
   rescue: (c) => t('contract.rescue', { driver: verbatim(c.driver) }),
   search: (c) => t('contract.search', { who: searchTarget(c), site: siteName(c.shop) }),
-  bounty: (c) => t('contract.bountyAt', { target: templateName(c.template), site: siteName(c.shop) }),
 };
 
 export function postedSummary(c: Contract): Msg {
@@ -930,6 +932,10 @@ function claymoreText(world: World, e: Extract<GameEvent, { t: 'claymore' }>): L
 
 const quiet = (): null => null;
 
+function knownTruckName(world: World, id: string): Msg {
+  return world.vehicles.some((v) => v.id === id) ? vehicleName(world, id) : t('log.someDriver');
+}
+
 function bountyFiledText(world: World, e: Extract<GameEvent, { t: 'bountyFiled' }>): LogLine | null {
   if (e.target !== world.player.vehicleId) return null;
   const victim = world.vehicles.some((v) => v.id === e.victim) ? vehicleName(world, e.victim) : t('log.someDriver');
@@ -937,6 +943,7 @@ function bountyFiledText(world: World, e: Extract<GameEvent, { t: 'bountyFiled' 
 }
 
 function bountyClosedText(world: World, e: Extract<GameEvent, { t: 'bountyClosed' }>): LogLine | null {
+  if (e.collector !== null && e.collector === world.player.vehicleId) return line(t('log.bountyHunted', { who: knownTruckName(world, e.target), price: moneyMsg(e.amount) }), 'good');
   if (e.target !== world.player.vehicleId) return null;
   if (e.status === 'paid') return line(t('log.bountyPaid', { price: moneyMsg(e.amount) }), 'dim');
   return line(e.status === 'collected' ? t('log.bountyCollected') : t('log.bountyLapsed'), 'dim');
