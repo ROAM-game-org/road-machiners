@@ -159,6 +159,82 @@ def rail(kit: Kit) -> None:
     mirrored(kit, "rail", (x1 - x0, G.half_y - SIDE + 0.02, 0.1), (x0 + x1) / 2, (SIDE + G.half_y) / 2 - 0.01, WAIST - 0.04 + 0.05, "trim")
 
 
+def plate(kit: Kit, name: str, mat: str, outline: list[tuple[float, float]], surface, thick: float = 0.025) -> None:
+    """A thin plate lying on a hull face: outline holds (along, z) points, and surface(along, z) gives the face point and its outward offset."""
+    pts: list[Vec3] = []
+    for a, z in outline:
+        (x, y, zz), (ox, oy, oz) = surface(a, z)
+        pts += [(x - ox * 0.005, y - oy * 0.005, zz - oz * 0.005), (x + ox * thick, y + oy * thick, zz + oz * thick)]
+    hull(kit, name, mat, pts)
+
+
+def on_side(sign: int):
+    """The side face between the arches: along is X, the face leans in above and below the waist."""
+
+    def at(x: float, z: float) -> tuple[Vec3, Vec3]:
+        if z <= WAIST:
+            n = Vector((0, WAIST - KEEL, -(SIDE - KEEL_HALF))).normalized()
+        else:
+            n = Vector((0, ROOF - WAIST, SIDE - ROOF_HALF)).normalized()
+        return (x, sign * side_y(z), z), (0, sign * n.y, n.z)
+
+    return at
+
+
+def on_stern(y: float, z: float) -> tuple[Vec3, Vec3]:
+    n = Vector((-(ROOF - TAIL), 0, -(ROOF_BACK - BACK))).normalized()
+    return (stern_x(z), y, z), (n.x, 0, n.z)
+
+
+def on_glacis(y: float, z: float) -> tuple[Vec3, Vec3]:
+    n = Vector((ROOF - NOSE, 0, FRONT - ROOF_FRONT)).normalized()
+    return (glacis_x(z), y, z), (n.x, 0, n.z)
+
+
+def doors(kit: Kit) -> None:
+    """One door per side between the arches, split at the rub rail like the real two-leaf door, with a vision block in its upper leaf."""
+    x0, x1 = DOOR_X
+    for sign, tag in ((1, "l"), (-1, "r")):
+        face = on_side(sign)
+        plate(kit, f"door_low_{tag}", "trim", [(x0, DOOR_LOW), (x1, DOOR_LOW), (x0, WAIST - 0.05), (x1, WAIST - 0.05)], face)
+        plate(kit, f"door_high_{tag}", "trim", [(x0, WAIST + 0.06), (x1, WAIST + 0.06), (x0, DOOR_HIGH), (x1, DOOR_HIGH)], face)
+        plate(kit, f"door_block_{tag}", "glass", [(-0.14, 0.2), (0.14, 0.2), (-0.14, 0.3), (0.14, 0.3)], face, thick=0.04)
+
+
+def bow(kit: Kit) -> None:
+    """Headlights with round lenses in guard boxes on the front corners, vision slits on the upper glacis and the winch housing over the nose."""
+    for sign, tag in ((1, "l"), (-1, "r")):
+        kit.box(f"lamp_guard_{tag}", (0.34, 0.3, 0.26), (2.5, sign * 1.1, 0.02), "trim")
+        kit.cylinder(f"lamp_{tag}", 0.085, 0.04, (2.68, sign * 1.1, 0.03), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(0.085))
+        plate(kit, f"slit_front_{tag}", "glass", [(sign * 0.2, 0.2), (sign * 0.6, 0.2), (sign * 0.2, 0.3), (sign * 0.6, 0.3)], on_glacis, thick=0.03)
+        plate(kit, f"slit_side_{tag}", "glass", [(1.0, 0.25), (1.45, 0.25), (1.0, 0.33), (1.45, 0.33)], on_side(sign), thick=0.03)
+    plate(kit, "winch", "under", [(-0.35, NOSE + 0.1), (0.35, NOSE + 0.1), (-0.35, NOSE + 0.28), (0.35, NOSE + 0.28)], on_glacis, thick=0.1)
+
+
+def stern(kit: Kit) -> None:
+    """Round taillights in guards on the stern corners, the rear door on the right and the exhaust silencer lying across the left."""
+    for sign, tag in ((1, "l"), (-1, "r")):
+        kit.box(f"tail_guard_{tag}", (0.26, 0.24, 0.2), (-2.55, sign * 1.12, 0.0), "trim")
+        kit.cylinder(f"taillight_{tag}", 0.06, 0.04, (-2.69, sign * 1.12, 0.0), "red", rot=(0, math.pi / 2, 0), vertices=round_sides(0.06))
+    plate(kit, "rear_door", "trim", [(-0.9, TAIL + 0.12), (-0.25, TAIL + 0.12), (-0.9, ROOF - 0.12), (-0.25, ROOF - 0.12)], on_stern)
+    mid_z = (TAIL + ROOF) / 2
+    (x, _, z), (ox, _, oz) = on_stern(0, mid_z)
+    r = 0.13
+    kit.cylinder("silencer", r, 0.75, (x + ox * (r + 0.02), 0.65, z + oz * (r + 0.02)), "under", rot=(math.pi / 2, 0, 0), vertices=round_sides(r))
+    for i, y in enumerate((0.38, 0.92)):
+        plate(kit, f"silencer_strap{i}", "trim", [(y - 0.03, mid_z - 0.2), (y + 0.03, mid_z - 0.2), (y - 0.03, mid_z + 0.2), (y + 0.03, mid_z + 0.2)], on_stern, thick=0.04)
+
+
+def roof(kit: Kit) -> None:
+    """The round hatch over the rear rows and dark louvers on the engine deck beside the cutout."""
+    kit.cylinder("hatch", 0.32, 0.03, (G.row_x(6), 0, ROOF + 0.015), "trim", vertices=round_sides(0.32))
+    (x0, _), (x1, _) = ENGINE
+    count = 5
+    pitch = (x1 - x0) / count
+    for i in range(count):
+        kit.box(f"louver{i}", (0.12, 0.8, 0.03), (x0 + pitch * (i + 0.5), -0.5, ROOF + 0.015), "under")
+
+
 def check_size(kit: Kit) -> None:
     lo, hi = bounds(kit)
     if abs(hi.x - lo.x - LENGTH) > 0.01 or abs(hi.y - lo.y - WIDTH) > 0.01:
@@ -211,6 +287,10 @@ def main() -> None:
     body(kit)
     wells(kit)
     rail(kit)
+    doors(kit)
+    bow(kit)
+    stern(kit)
+    roof(kit)
     kit.socket("arch_front", (WHEEL_X, WHEEL_Z, HUB_Z))
     kit.socket("arch_rear", (-WHEEL_X, WHEEL_Z, HUB_Z))
     kit.socket("arch_front_top", (WHEEL_X, WHEEL_Z, HUB_Z + ARCH_R))
