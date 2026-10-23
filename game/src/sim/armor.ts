@@ -286,9 +286,9 @@ const hitterOf = (v: Vehicle): Spend => (part, left, round) => hitPart(v, part, 
 
 function spendRound(v: Vehicle, part: PartInstance, left: { pen: number; damage: number }, round: Round): { part: PartInstance; amount: number } {
   const def = wornDef(part);
-  const armor = armorOn(v, part, round.blast);
+  const armor = armorAgainst(def, round.blast);
   const absorbed = Math.min(1, (armor + RULES.cellPen) / (left.pen + RULES.cellPen));
-  const amount = left.damage * shareOf(def, round) * absorbed * Math.min(1, left.pen / armor);
+  const amount = left.damage * shareOf(def, round) * absorbed * Math.min(1, left.pen / armorOn(v, part, round.blast));
   left.damage *= 1 - absorbed;
   left.pen -= armor;
   return { part, amount };
@@ -332,8 +332,8 @@ function takesHit(part: PartInstance, pen: number, struck: Set<string>): boolean
 
 function hitPart(v: Vehicle, part: PartInstance, left: { pen: number; damage: number }, round: Round): { part: PartInstance; amount: number } {
   const def = wornDef(part);
-  const armor = armorOn(v, part, round.blast);
-  const amount = left.damage * shareOf(def, round) * Math.min(1, left.pen / armor);
+  const armor = armorAgainst(def, round.blast);
+  const amount = left.damage * shareOf(def, round) * Math.min(1, left.pen / armorOn(v, part, round.blast));
   left.damage *= Math.max(0, left.pen - armor) / left.pen;
   left.pen -= armor;
   return { part, amount };

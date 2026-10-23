@@ -171,6 +171,14 @@ describe('armor bonus', () => {
     }
   });
 
+  const ROUNDS: Round[] = [MG_ROUND, { damage: 12, pen: 9, blast: false, armorShare: 1 }, { damage: 40, pen: 15, blast: false, armorShare: 1 }];
+
+  it.each(['van', 'bukhanka', 'carrier', 'tractor'])('never makes a %s take more damage from any round than without the bonus', (chassisId) => {
+    for (const v of npcAndPlayer(chassisId, ['stockEngine', 'mg', 'plates']).vehicles) {
+      for (const round of ROUNDS) expect(armorSum(v, round)).toBeLessThanOrEqual(off(chassisId, () => armorSum(v, round)) + 1e-9);
+    }
+  });
+
   it('lets a carrier take less damage from an MG round than the same truck without the bonus', () => {
     for (const v of npcAndPlayer('carrier', ['stockEngine', 'mg', 'plates']).vehicles) {
       expect(armorSum(v, MG_ROUND)).toBeLessThan(off('carrier', () => armorSum(v, MG_ROUND)));
