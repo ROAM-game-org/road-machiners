@@ -3,7 +3,7 @@ import { oilSlickLength } from "../data/utilities";
 import { CHASSIS, chassisDef, isTruckPaint, PAINT, samePaint, type TruckPaint } from "../data/chassis";
 import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
-import { bareGrid, cargoCellsGained, cellCount, mountedParts, type Cell } from "../sim/grid";
+import { baseGrid, cargoCellsGained, cellCount, mountedParts, type Cell } from "../sim/grid";
 import { maxHp, partValue, wornDef } from "../sim/wear";
 import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
 import { workOf } from "../sim/states";
@@ -456,7 +456,7 @@ function compareLine(base: PartInstance): HTMLElement {
 }
 
 export function chassisMap(chassisId: string): HTMLElement {
-  const g = bareGrid(chassisId);
+  const g = baseGrid(chassisId);
   return el(
     "div",
     { class: "chassis-map", title: t("stat.layout", { chassis: chassisName(chassisDef(chassisId).id) }), style: `grid-template-columns:repeat(${g.w},1fr)` },
@@ -641,7 +641,7 @@ export function chassisStats(chassisId: string): Stat[] {
     stat("speed", t("stat.baseSpeed"), kph(c.maxSpeed), "kph", "more"),
     stat("accel", t("stat.accel"), mps2(c.accel), "mps2", "more", 1),
     { ...turning, text: t("stat.span", { a: c.turnFast, b: c.turnSlow }) },
-    stat("cells", t("stat.cells"), cellCount(bareGrid(chassisId)), null, "more"),
+    stat("cells", t("stat.cells"), cellCount(baseGrid(chassisId)), null, "more"),
     stat("load", t("stat.ratedLoad"), c.ratedMass, "kg", "more"),
     stat("mass", t("stat.emptyMass"), c.mass, "kg", "less"),
     stat("fuel", t("stat.fuelTank"), fuelLiters(c.fuelCap), "liters", "more"),
