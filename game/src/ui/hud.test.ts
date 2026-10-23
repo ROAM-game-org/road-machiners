@@ -46,11 +46,11 @@ describe('held contract line', () => {
       createElement: () => new FakeNode(),
       createTextNode: (value: string) => Object.assign(new FakeNode(), { children: [value] }),
     });
-    const bounty: Contract = { id: 'c1', kind: 'bounty', shop: 'bowl', template: 'buggy', reward: 100, deadline: 100, window: 100, tier: 1, fulfilled: false };
+    const order: Contract = { id: 'c1', kind: 'procure', shop: 'bowl', good: 'salt', units: 5, cratePay: 10, reward: 100, deadline: 100, window: 100, tier: 1 };
 
-    const line = heldContractLine(emptyWorld(), bounty) as unknown as FakeNode;
+    const line = heldContractLine(emptyWorld(), order) as unknown as FakeNode;
 
-    expect(line.text()).toContain('Knock out or wreck any Raider outrider');
+    expect(line.text()).toContain('Bring 5 crates of Salt to Bowl');
     expect(line.text()).toContain('by Day');
   });
 

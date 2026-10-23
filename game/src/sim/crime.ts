@@ -13,6 +13,7 @@ import { boundTo } from './states';
 import type { CaseIssuer, CaseLead, CrimeCase, CrimeOffense, Memory, Refusal, StandingFactionId, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { playerVehicle } from './damage';
+import { vehicleHasPerk } from './progress';
 import { newId } from './factory';
 import { playerCommand, Refused } from './world';
 
@@ -27,7 +28,8 @@ export function crimeOf(world: World, culprit: Vehicle, victim: Vehicle, offense
 }
 
 function huntsAs(world: World, hunter: Vehicle, targetId: string): boolean {
-  return world.crimes.some((c) => c.status === 'open' && c.target === targetId && c.hunter === hunter.id);
+  const hunts = vehicleHasPerk(world, hunter, 'bountyHunter') && hunter.id !== targetId;
+  return world.crimes.some((c) => c.status === 'open' && c.target === targetId && (hunts || c.hunter === hunter.id));
 }
 
 function foughtAnother(world: World, victim: Vehicle, culprit: Vehicle): boolean {
@@ -187,17 +189,18 @@ function issuerVehicle(world: World, c: CrimeCase): Vehicle | null {
 
 export function collectBounty(world: World, hunter: Vehicle, target: Vehicle): void {
   for (const c of openCasesOn(world, target.id)) {
-    shopMoney(world, hunter, c.issuer.kind === 'driver' ? c.escrow : c.owed, c.issuer.kind === 'driver' ? 'bountyEscrow' : 'bountyFund');
-    closeCase(world, c, 'collected');
+    const paid = c.issuer.kind === 'driver' ? c.escrow : c.owed;
+    shopMoney(world, hunter, paid, c.issuer.kind === 'driver' ? 'bountyEscrow' : 'bountyFund');
+    closeCase(world, c, 'collected', { collector: hunter.id, amount: paid });
   }
 }
 
-export function closeCase(world: World, c: CrimeCase, how: ClosedStatus): void {
+export function closeCase(world: World, c: CrimeCase, how: ClosedStatus, closing: { collector: string | null; amount: number } = { collector: null, amount: c.owed }): void {
   if (c.status !== 'open') throw new Error(`Case ${c.id} is already ${c.status}`);
   c.status = how;
   c.closed = world.turn;
   c.hunter = null;
-  world.events.push({ t: 'bountyClosed', case: c.id, target: c.target, status: how, amount: c.owed });
+  world.events.push({ t: 'bountyClosed', case: c.id, target: c.target, status: how, amount: closing.amount, collector: closing.collector });
 }
 
 export function noteKnockout(world: World, beaten: Vehicle): void {

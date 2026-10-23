@@ -29,6 +29,7 @@ function pooledSkills_9_10(skills: Record<string, number>): { xp: number; ranks:
 export const RETIRED_PRICES_RESCUE: Readonly<Record<string, number>> = {};
 
 const RENAMED_PARTS_RESCUE: Readonly<Record<string, string>> = { cabOver: 'cabPickup', cabRow: 'cabPickup', cabWide: 'cabPickup', cabNarrow: 'cabPickup' };
+const RENAMED_PERKS_RESCUE: Readonly<Record<string, string>> = { bountyTalk: 'bountyHunter' };
 const RENAMED_NOTES_RESCUE: Readonly<Record<string, string>> = { wagonPin: 'wagonRod', talkOnePin: 'talkBrakeRod' };
 
 type VarRename = { before: number; quest: string | null; from: string; to: string };
@@ -198,7 +199,7 @@ function readFormatted(raw: unknown, world: Json, player: Json): Carried {
     money: centsOf(player.money, scale),
     ...pooledOf(player),
     xpBySource: countsOf(player.xpBySource),
-    perks: listOf(player.perks).flatMap((id) => idOf(id) ?? []),
+    perks: listOf(player.perks).flatMap((id) => idOf(id) ?? []).map((id) => renamedIn(RENAMED_PERKS_RESCUE, id)),
     paint: paintOf(player.paint),
     discovered: listOf(player.discovered).flatMap((id) => idOf(id) ?? []),
     knockouts: countOf(player.knockouts),

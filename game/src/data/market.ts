@@ -91,13 +91,6 @@ export const CONTRACTS = {
     },
   },
 
-  fetch: {
-    durationTurns: [300, 800] as [number, number],
-    searchFeeTurns: 240,
-    maxWear: 1,
-    xpPerEffort: 0.0045,
-  },
-
   claim: {
     minTownGap: 15,
     minRoadGap: 5,
@@ -114,10 +107,11 @@ export const CONTRACTS = {
     xpPerEffort: 0.003,
   },
 
-  bounty: {
-    durationTurns: [400, 1000] as [number, number],
-    rewardTurns: { buggy: 900, gunwagon: 1350 } as Record<string, number>,
-    xpPerEffort: 0.0075,
+  procure: {
+    units: [3, 12] as [number, number],
+    travelFactor: 0.5,
+    slackTurns: EFFORT.handlingTurns * 2,
+    xpPerEffort: 0.003,
   },
 
   search: {

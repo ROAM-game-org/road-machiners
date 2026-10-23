@@ -447,3 +447,32 @@ function fitsSpot_102_103(it: Item_102_103, spot: Spot_102_103, letters: string[
   const first = NEW_WAGON_102_103[spot.y][spot.x];
   return letters.includes(first) && cellsOf_102_103(it, spot).every((c) => NEW_WAGON_102_103[c.y]?.[c.x] === first && !taken.has(`${c.x},${c.y}`));
 }
+
+const DROPPED_KINDS_103_104: ReadonlySet<string> = new Set(['fetch', 'bounty']);
+const BOUNTY_KIND_103_104 = 'bounty';
+const RENAMED_PERKS_103_104: Readonly<Record<string, string>> = { bountyTalk: 'bountyHunter' };
+
+export function withoutFetchAndBounty_103_104(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const held = player.contracts as SavedJson[];
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: keptContracts_103_104(shop.contracts as SavedJson[]) }]));
+  return {
+    ...world,
+    shops,
+    player: {
+      ...player,
+      money: (player.money as number) + metBountyPay_103_104(held),
+      contracts: keptContracts_103_104(held),
+      pastContracts: (player.pastContracts as SavedJson[]).filter((past) => !DROPPED_KINDS_103_104.has((past.contract as SavedJson).kind as string)),
+      perks: (player.perks as string[]).map((perk) => RENAMED_PERKS_103_104[perk] ?? perk),
+    },
+  };
+}
+
+function keptContracts_103_104(contracts: SavedJson[]): SavedJson[] {
+  return contracts.filter((c) => !DROPPED_KINDS_103_104.has(c.kind as string));
+}
+
+function metBountyPay_103_104(held: SavedJson[]): number {
+  return held.filter((c) => c.kind === BOUNTY_KIND_103_104 && c.fulfilled === true).reduce((sum, c) => sum + (c.reward as number), 0);
+}

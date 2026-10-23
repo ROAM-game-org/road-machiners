@@ -48,7 +48,7 @@ const none: ReadonlySet<string> = new Set();
 
 function posted(w: World): Rescue {
   const clients = rescueClients(w, SHOP);
-  const c = rollContract(w, SHOP, [], [], [], [], clients);
+  const c = rollContract(w, SHOP, { clients });
   if (c?.kind !== 'rescue') throw new Error('No rescue was posted');
   w.shops.bowl.contracts = [c];
   return c;

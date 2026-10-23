@@ -87,6 +87,11 @@ describe('readCarried', () => {
     expect(rescued.player.ranks.toughness).toBe(5);
   });
 
+  it('carries Bounty talk over as Bounty hunter and no other perk change (IV8)', () => {
+    const world = { ...FORMAT_2_9, player: { ...FORMAT_2_9.player, perks: ['welder', 'bountyTalk'] } };
+    expect(readCarried({ world }).perks).toEqual(['welder', 'bountyHunter']);
+  });
+
   it('reads old formats and a fake major format', () => {
     for (const world of [FORMAT_2_0, FORMAT_2_1]) {
       const carried = readCarried({ format: { major: 2, minor: 0 }, world });
@@ -386,7 +391,8 @@ describe('a shipped save on an older bake of the map', () => {
       if (c.kind === 'survey') expect(c.points.every((p) => sites.has(p.site)), c.id).toBe(true);
     }
     const kept = new Set(world.player.contracts.map((c) => c.id));
-    expect(saved.player.contracts.filter((c) => !kept.has(c.id) && c.kind !== 'claim')).toEqual([]);
+    const droppedByStep103 = new Set(['claim', 'fetch', 'bounty']);
+    expect(saved.player.contracts.filter((c) => !kept.has(c.id) && !droppedByStep103.has(c.kind))).toEqual([]);
     for (const id of [...world.player.scavenged, ...world.player.rumored].filter((x) => /^(wreck|old-|story-)/.test(x))) expect(stocks.has(id), id).toBe(true);
   }, 60_000);
 
