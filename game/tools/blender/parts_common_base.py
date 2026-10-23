@@ -63,6 +63,26 @@ class Grid:
         return self.half_y - CELL_ACROSS * (x + 0.5)
 
 
+class Frame(Grid):
+    """A chassis grid stretched over a model of length by width, the way singleCellRect() in body.ts projects it.
+
+    rows counts every row, the armor rows at both ends included, and cols only the inner columns.
+    """
+
+    def __init__(self, rows: int, cols: int, length: float, width: float, half_height: float) -> None:
+        super().__init__(rows, cols, half_height)
+        self.half_x = length / 2
+        self.half_y = width / 2
+        self.row_step = length / rows
+        self.col_step = width / cols
+
+    def row_x(self, y: float) -> float:
+        return self.half_x - self.row_step * (y + 0.5)
+
+    def col_y(self, x: float) -> float:
+        return self.half_y - self.col_step * (x + 0.5)
+
+
 def squared_arch(wx: float, hub_z: float, r: float, crown: float, chamfer: float, low: float) -> list[tuple[float, float]]:
     """An arch outline from back to front: straight sides at wx -+ r up to a flat top crown over the hub, its corners cut by chamfer."""
     top = hub_z + crown

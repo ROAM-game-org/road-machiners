@@ -32,7 +32,7 @@ from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args, round_sides  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, Grid, check_base, cut_boxes, flare_profile, level_sockets, round_arch  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, Frame, check_base, cut_boxes, flare_profile, level_sockets, round_arch  # noqa: E402
 from shapes import prism  # noqa: E402
 from wheel_look import TIRE_R, TIRE_W, drawn_wheel  # noqa: E402
 
@@ -41,26 +41,7 @@ LENGTH = 6.1
 WIDTH = 2.8
 ROWS = 9
 COLS = 7
-
-
-class Frame(Grid):
-    """The chassis grid stretched over the model, the way singleCellRect() in body.ts projects it."""
-
-    def __init__(self, half_height: float) -> None:
-        super().__init__(ROWS, COLS, half_height)
-        self.half_x = LENGTH / 2
-        self.half_y = WIDTH / 2
-        self.row_step = LENGTH / ROWS
-        self.col_step = WIDTH / COLS
-
-    def row_x(self, y: float) -> float:
-        return self.half_x - self.row_step * (y + 0.5)
-
-    def col_y(self, x: float) -> float:
-        return self.half_y - self.col_step * (x + 0.5)
-
-
-G = Frame(half_height=0.55)
+G = Frame(ROWS, COLS, LENGTH, WIDTH, half_height=0.55)
 WHEEL_R = 0.6
 WHEEL_HALF_W = 0.25
 WHEEL_Z = 1.12
