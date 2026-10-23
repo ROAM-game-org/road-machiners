@@ -97,7 +97,7 @@ function stationsOf(profile: Profile, ground: number) {
 type Band = [number, number];
 type Reference = { height: Band; hood?: Band; roof: Band; deck?: Band; roofStart?: Band; noseDrop?: Band; tailDrop?: Band };
 
-const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'courier' | 'hauler' | 'tractor' | 'jeep' | 'carrier' | 'loader' | 'bus', Reference> = {
+const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'courier' | 'hauler' | 'tractor' | 'jeep' | 'carrier' | 'loader' | 'bus' | 'buggy', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
   niva: { height: [1.89, 2.19], hood: [0.22, 0.28], roof: [0.55, 1], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
@@ -110,6 +110,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'co
   carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.65, 0.85], tailDrop: [0.35, 0.6] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
   bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1] },
+  buggy: { height: [1.67, 1.85], roof: [0.4, 0.44], noseDrop: [0.85, 0.95], tailDrop: [0.8, 0.9] },
 };
 
 type ShapeName = keyof typeof SHAPES;
@@ -133,7 +134,7 @@ function straightProfile(id: string): Profile {
 }
 
 describe('trucks built from a reference photo keep its proportions', () => {
-  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'courier', 'hauler', 'tractor', 'jeep', 'carrier', 'loader', 'bus'] as const)('%s', (id) => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'courier', 'hauler', 'tractor', 'jeep', 'carrier', 'loader', 'bus', 'buggy'] as const)('%s', (id) => {
     const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
     const got = stationsOf(straightProfile(id), ground);
@@ -160,6 +161,28 @@ describe('the carrier armored car', () => {
   it('bunches its wheels near the middle like the V-100: a wheelbase of 0.469 of the length and an overhang of 0.265 at each end', () => {
     expect(near((2 * wheelX) / along, 0.469)).toBeLessThanOrEqual(0.05);
     expect(near((along / 2 - wheelX) / along, 0.265)).toBeLessThanOrEqual(0.05);
+  });
+});
+
+describe('the Manx buggy', () => {
+  const buggy = PHYSICS.bodies.buggy;
+  const ground = buggy.wheelY - PHYSICS.truck.suspensionRest - buggy.wheelRadius;
+  const tire = 2 * buggy.wheelRadius;
+  const { heights, boxes } = SHAPES.base_buggy;
+  const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
+  const crownOver = (wheelX: number) => Math.max(...columns.filter((c) => Math.abs(c.x - wheelX) <= 0.15 && Math.abs(Math.abs(c.y) - buggy.wheelZ) <= 0.1).map((c) => c.top)) - ground;
+  const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
+
+  it('keeps its 3.9 m body on the Manx wheelbase of 0.651 of its length', () => {
+    expect(Math.abs(along - 3.9)).toBeLessThanOrEqual(0.05);
+    expect(Math.abs((2 * buggy.wheelX) / along / 0.651 - 1)).toBeLessThanOrEqual(0.05);
+  });
+
+  it('crowns its front and rear fenders 1.12 to 1.24 tire diameters over the ground, over the tires', () => {
+    for (const x of [buggy.wheelX, -buggy.wheelX]) {
+      expect(crownOver(x) / tire).toBeGreaterThanOrEqual(1.12);
+      expect(crownOver(x) / tire).toBeLessThanOrEqual(1.24);
+    }
   });
 });
 
