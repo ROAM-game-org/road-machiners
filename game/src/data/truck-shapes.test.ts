@@ -103,7 +103,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'co
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
-  convertible: { height: [1.66, 1.8], hood: [0.3, 0.38], roof: [0.18, 0.26], deck: [0.25, 0.35], roofStart: [0.38, 0.47], noseDrop: [0.55, 0.75], tailDrop: [0.55, 0.75] },
+  convertible: { height: [1.55, 1.66], hood: [0.31, 0.36], roof: [0, 0.05], deck: [0.25, 0.35], roofStart: [0.39, 0.44], noseDrop: [0.45, 0.62], tailDrop: [0.45, 0.62] },
   courier: { height: [1.7, 1.8], roofStart: [0.42, 0.5], roof: [0.11, 0.2], noseDrop: [0.65, 0.9], tailDrop: [0.38, 0.62] },
   hauler: { height: [2.55, 2.71], roofStart: [0.02, 0.07], roof: [0.29, 0.34], deck: [0.58, 0.66] },
   tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.161, 0.179], deck: [0.443, 0.489] },
@@ -146,6 +146,9 @@ describe('trucks built from a reference photo keep its proportions', () => {
   });
 });
 
+const COCKPIT = { front: 0.25, back: -0.45, lid: 1.12, ceiling: 1.36 };
+const CORNER_SPAN = 0.9;
+
 describe('the convertible', () => {
   it('keeps the Corvair: 5.84 m long, with a width to length of 0.372 across its crease', () => {
     const boxes = SHAPES.base_convertible.boxes;
@@ -156,25 +159,27 @@ describe('the convertible', () => {
     expect(across / along).toBeLessThanOrEqual(0.39);
   });
 
-  it('sets its soft top inboard, with the lid and shoulders showing beside it', () => {
+  it('opens its cockpit behind the windshield, between door tops at lid level', () => {
     const { heights } = SHAPES.base_convertible;
-    const profile = profileOf('base_convertible');
-    const nose = profile[0].x;
-    const length = nose - profile[profile.length - 1].x;
-    const roof = Math.max(...profile.map((p) => p.top));
-    const lid = profile.reduce((best, p) => (Math.abs(p.x - (nose - 0.15 * length)) < Math.abs(best.x - (nose - 0.15 * length)) ? p : best)).top;
-    const crownRow = heights.top[-heights.i0];
+    const body = PHYSICS.bodies.convertible;
+    const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
+    const lid = ground + COCKPIT.lid;
     const misses: string[] = [];
-    crownRow.forEach((cm, j) => {
-      const y = Math.abs((heights.j0 + j + 0.5) * heights.cell);
-      if (cm === null) return;
-      if (y <= 0.6 && Math.abs(cm / 100 - roof) > 0.05) misses.push(`top at y ${y.toFixed(2)} is ${(cm / 100).toFixed(2)}, not the roof ${roof.toFixed(2)}`);
-      if (y >= 0.92 && Math.abs(cm / 100 - lid) > 0.06) misses.push(`shoulder at y ${y.toFixed(2)} is ${(cm / 100).toFixed(2)}, not the lid ${lid.toFixed(2)}`);
+    heights.top.forEach((row, i) => {
+      const x = (heights.i0 + i + 0.5) * heights.cell;
+      if (x > COCKPIT.front || x < COCKPIT.back) return;
+      row.forEach((cm, j) => {
+        const y = Math.abs((heights.j0 + j + 0.5) * heights.cell);
+        if (cm === null) return;
+        const z = cm / 100;
+        if (y <= 0.6 && z >= ground + COCKPIT.ceiling) misses.push(`cockpit at x ${x.toFixed(2)} y ${y.toFixed(2)} stands ${(z - ground).toFixed(2)} m up`);
+        if (y >= 0.8 && y <= 0.98 && Math.abs(z - lid) > 0.06) misses.push(`door top at x ${x.toFixed(2)} y ${y.toFixed(2)} is ${(z - ground).toFixed(2)} m up, not the lid`);
+      });
     });
     expect(misses).toEqual([]);
   });
 
-  it('rounds its ends in plan', () => {
+  it('keeps the photo\'s squared plan ends with their modest round corners', () => {
     const { heights } = SHAPES.base_convertible;
     const spans = heights.top.map((row, i) => {
       const filled = row.flatMap((cm, j) => (cm === null ? [] : [j]));
@@ -184,10 +189,9 @@ describe('the convertible', () => {
     const spanAt = (x: number) => spans.reduce((best, r) => (Math.abs(r.x - x) < Math.abs(best.x - x) ? r : best)).span / width;
     const nose = Math.max(...SHAPES.base_convertible.boxes.map((b) => b.x1));
     const tail = Math.min(...SHAPES.base_convertible.boxes.map((b) => b.x0));
-    expect(spanAt(nose - 0.1)).toBeLessThanOrEqual(0.8);
-    expect(spanAt(tail + 0.1)).toBeLessThanOrEqual(0.8);
-    expect(spanAt(nose - 0.6)).toBeGreaterThanOrEqual(0.9);
-    expect(spanAt(tail + 0.6)).toBeGreaterThanOrEqual(0.9);
+    for (const end of [nose - 0.1, tail + 0.1]) expect(Math.abs(spanAt(end) - CORNER_SPAN)).toBeLessThanOrEqual(0.05);
+    expect(spanAt(nose - 0.6)).toBeGreaterThanOrEqual(0.97);
+    expect(spanAt(tail + 0.6)).toBeGreaterThanOrEqual(0.97);
   });
 });
 
