@@ -86,7 +86,7 @@ export const FURY_ROAD = {
   playerMargin: 8,
   sides: { ahead: 45, flank: { along: 36, across: 22, step: 3 } },
   pacing: { near: 30 },
-  rolling: { near: 6, ramp: 80, lead: 12 },
+  rolling: { near: 6, ramp: 40, close: 0.4, lead: 12 },
   sightMargin: 6,
   spawnStagger: 3,
   spawnClear: 3,

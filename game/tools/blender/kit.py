@@ -8,6 +8,7 @@ glTF +X/-Z/+Y, so the front stays +X in Three.js.
 from __future__ import annotations
 
 import argparse
+import math
 import random
 import sys
 from collections.abc import Mapping
@@ -24,14 +25,13 @@ Vec3 = tuple[float, float, float]
 GAME_VIEW = Vector((1.0, -1.0, 0.816)).normalized()
 PREVIEW_PX = (900, 700)
 
-# Sides of a piece meant to be round: ROUND when it is 0.2 m or more across in the game, ROUND_SMALL below.
-# An arch cut uses ROUND // 2 segments over its half circle.
-ROUND = 36
-ROUND_SMALL = 18
-
 # One truck deck cell in meters, matching PHYSICS.cell in src/data/physics.ts.
 CELL_ACROSS = 0.484  # Blender Y
 CELL_ALONG = 0.65  # Blender X
+
+# A round part's polygon strays at most this far, in meters, from its true circle.
+ROUND_SAG = 0.004
+ROUND_MIN_SIDES = 12
 
 
 @dataclass(frozen=True)
@@ -48,6 +48,16 @@ def parse_args() -> Args:
     parser.add_argument("preview", type=Path, nargs="?", help="optional preview .png from the game camera angle")
     ns = parser.parse_args(argv)
     return Args(out=ns.out, preview=ns.preview)
+
+
+def round_sides(radius: float) -> int:
+    """The fewest sides, a multiple of 4 and at least 12, whose polygon strays at most ROUND_SAG from a circle of this drawn radius."""
+    if radius <= 0:
+        raise ValueError(f"a round part needs a positive radius, got {radius}")
+    sides = ROUND_MIN_SIDES
+    while radius * (1 - math.cos(math.pi / sides)) > ROUND_SAG:
+        sides += 4
+    return sides
 
 
 def linear(hex_color: int) -> tuple[float, float, float, float]:

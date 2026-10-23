@@ -26,7 +26,7 @@ from pathlib import Path
 import bpy
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import ROUND, ROUND_SMALL, Kit, parse_args  # noqa: E402
+from kit import Kit, parse_args, round_sides  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, check_door_gap, door_sill, cut_hulls, hull_mesh, level_sockets, surface_z  # noqa: E402
 from shapes import prism, strut  # noqa: E402
 
@@ -39,7 +39,7 @@ WHEEL_Z = 0.726
 HUB_Z = WHEEL_Y - SUSPENSION_REST
 WHEELS_X = [-1.46, 1.46]  # PHYSICS.bodies.jeep.wheelX
 ARCH_R = WHEEL_R + ARCH_CLEARANCE
-ARCH_SEGMENTS = ROUND // 2
+ARCH_SEGMENTS = round_sides(ARCH_R) // 2
 WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
 
 SIDE = G.half_y - INSET  # the slab sides' outer face
@@ -148,14 +148,14 @@ def ribs(kit: Kit) -> None:
 def hood(kit: Kit) -> None:
     """The spare wheel lying in the hood, and round lamps on the front wing tops."""
     rot = (0, HOOD_SLOPE, 0)
-    for name, r, depth, mat, sides in (("spare", SPARE_R, 0.16, "wheel", ROUND), ("spare_rim", 0.2, 0.18, "metal", ROUND), ("spare_hub", 0.07, 0.2, "rust", ROUND_SMALL)):
+    for name, r, depth, mat in (("spare", SPARE_R, 0.16, "wheel"), ("spare_rim", 0.2, 0.18, "metal"), ("spare_hub", 0.07, 0.2, "rust")):
         lift = (depth / 2 - 0.08) / math.cos(HOOD_SLOPE)
-        kit.cylinder(name, r, depth, (SPARE_X, 0, hood_z(SPARE_X) + lift), mat, rot=rot, vertices=sides)
+        kit.cylinder(name, r, depth, (SPARE_X, 0, hood_z(SPARE_X) + lift), mat, rot=rot, vertices=round_sides(r))
     for s, sy in (("l", 1), ("r", -1)):
         z = hood_z(LAMP_X) + 0.1
-        kit.cylinder(f"lamp_pod_{s}", 0.11, 0.2, (LAMP_X, sy * LAMP_Y, z), "paint", rot=(0, math.pi / 2, 0), vertices=ROUND)
-        kit.cylinder(f"lamp_rim_{s}", 0.105, 0.03, (LAMP_X + 0.1, sy * LAMP_Y, z), "metal", rot=(0, math.pi / 2, 0), vertices=ROUND)
-        kit.cylinder(f"lamp_{s}", 0.085, 0.03, (LAMP_X + 0.115, sy * LAMP_Y, z), "light", rot=(0, math.pi / 2, 0), vertices=ROUND_SMALL)
+        kit.cylinder(f"lamp_pod_{s}", 0.11, 0.2, (LAMP_X, sy * LAMP_Y, z), "paint", rot=(0, math.pi / 2, 0), vertices=round_sides(0.11))
+        kit.cylinder(f"lamp_rim_{s}", 0.105, 0.03, (LAMP_X + 0.1, sy * LAMP_Y, z), "metal", rot=(0, math.pi / 2, 0), vertices=round_sides(0.105))
+        kit.cylinder(f"lamp_{s}", 0.085, 0.03, (LAMP_X + 0.115, sy * LAMP_Y, z), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(0.085))
 
 
 def windshield(kit: Kit) -> None:
@@ -204,11 +204,11 @@ def tail(kit: Kit) -> None:
         z = BELT - drop * t + math.cos(TAIL_SLOPE) * 0.012
         kit.box(f"louver{i}", (0.07, 2 * WELL_Y - 0.2, 0.025), (x, 0, z), "under", rot=(0, -TAIL_SLOPE, 0))
     for s, sy in (("l", 1), ("r", -1)):
-        kit.cylinder(f"taillight_{s}", 0.06, INSET, (BACK - INSET / 2, sy * (SIDE - 0.16), TAIL_Z - 0.1), "red", rot=(0, math.pi / 2, 0), vertices=ROUND_SMALL)
+        kit.cylinder(f"taillight_{s}", 0.06, INSET, (BACK - INSET / 2, sy * (SIDE - 0.16), TAIL_Z - 0.1), "red", rot=(0, math.pi / 2, 0), vertices=round_sides(0.06))
     silencer_x = BACK + 0.2
     silencer_z = G.bottom - 0.04
-    kit.cylinder("silencer", 0.09, 0.9, (silencer_x, 0, silencer_z), "metal", rot=(math.pi / 2, 0, 0), vertices=ROUND_SMALL)
-    strut(kit, "tailpipe", (silencer_x, -0.3, silencer_z), (BACK - INSET + 0.02, -0.3, silencer_z - 0.02), 0.06, "metal", sides=ROUND_SMALL)
+    kit.cylinder("silencer", 0.09, 0.9, (silencer_x, 0, silencer_z), "metal", rot=(math.pi / 2, 0, 0), vertices=round_sides(0.09))
+    strut(kit, "tailpipe", (silencer_x, -0.3, silencer_z), (BACK - INSET + 0.02, -0.3, silencer_z - 0.02), 0.06, "metal", sides=round_sides(0.03))
 
 
 def main() -> None:
