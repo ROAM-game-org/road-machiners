@@ -26,7 +26,6 @@ import { itemMass } from '../mass';
 import { acceptContract, deliverContract, estimateTurns, shopAt, shopState, siteOf, type Contract } from '../market';
 import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
 import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
-import { heatAt } from '../sun';
 import { canLoot, downedHere, downedNear, needsSearch, salvageHere, takeAllLoot } from '../locations';
 import { topGoal } from '../npc-activities';
 import { firepower, getUpkeepReserve, isWeak, judgeDanger, getKnownSite, strengthRatio, tripFuelCost } from '../npc-decisions';
@@ -47,13 +46,15 @@ import { canVehicleSee, playerExplored, playerSees } from '../vision';
 import { reachedOutpostAt } from '../fury-road';
 import { inYard } from '../outpost-gates';
 import { runnerOrders } from './runner';
+import { procurerGoal } from './procurer';
+import { fuelForWay, fuelReaches, reachable, SHOP_SITES } from './reach';
 import { searcherGoal, takeSearch } from './searcher';
 import { surveyorGoal as surveyGoal, type SurveyorMoves } from './surveyor';
 import { BIGGEST_PART_CELLS, driveTo, driveToSite, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
 import { isAlly, isOutlaw } from '../relations';
 
-export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'searcher' | 'surveyor' | 'climber' | 'markov' | 'escort' | 'sprinter';
-export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'searcher', 'surveyor', 'climber', 'markov', 'escort', 'sprinter'];
+export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'procurer' | 'searcher' | 'surveyor' | 'climber' | 'markov' | 'escort' | 'sprinter';
+export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'procurer', 'searcher', 'surveyor', 'climber', 'markov', 'escort', 'sprinter'];
 export type Policy = Archetype | 'robber' | 'convoyRobber';
 export const POLICIES: readonly Policy[] = [...ARCHETYPES, 'robber', 'convoyRobber'];
 type RoadPolicy = 'escort' | 'sprinter';
@@ -69,6 +70,7 @@ const GEAR_STYLES: Record<Goal, UpgradeStyle> = {
   hunter: { skip: [], chassis: 'keep', job: 'fighter' },
   fastTrader: { skip: ['armor'], chassis: 'speed', job: 'courier' },
   hauler: CARGO_GEAR,
+  procurer: CARGO_GEAR,
   searcher: CARGO_GEAR,
   surveyor: CARGO_GEAR,
   robber: CARGO_GEAR,
@@ -412,8 +414,6 @@ function engineSpot(v: Vehicle, defId: string): Spot | null {
   return findSpot(gridOf(v), v.items, probe, MOUNT_CELLS.engine, null);
 }
 
-const SHOP_SITES: readonly Site[] = Object.keys(SHOPS).map(siteOf);
-
 function nearestShop(world: World): Site {
   const pos = playerVehicle(world).pos;
   return [...SHOP_SITES].sort((a, b) => dist(pos, a.pos) - dist(pos, b.pos))[0];
@@ -421,28 +421,6 @@ function nearestShop(world: World): Site {
 
 function fuelForWayToShop(world: World): number {
   return fuelForWay(world, dist(playerVehicle(world).pos, nearestShop(world).pos));
-}
-
-function fuelForWay(world: World, tiles: number): number {
-  const me = playerVehicle(world);
-  return tiles * vehicleStats(world, me).fuelPerTile * heatAt(world, me.pos) * NPC_UPKEEP.fuelReserve;
-}
-
-export function fuelReaches(world: World, site: Pick<Site, 'pos'>, from?: { pos: Vec; fuel: number }): boolean {
-  const full = fuelCap(playerVehicle(world));
-  let at = from ?? { pos: playerVehicle(world).pos, fuel: world.player.fuel };
-  for (let step = 0; step <= SHOP_SITES.length; step++) {
-    if (fuelForWay(world, dist(at.pos, site.pos)) <= at.fuel) return true;
-    const stops = SHOP_SITES.filter((s) => fuelForWay(world, dist(at.pos, s.pos)) <= at.fuel && dist(s.pos, site.pos) < dist(at.pos, site.pos));
-    const next = stops.reduce<Site | null>((best, s) => (!best || dist(s.pos, site.pos) < dist(best.pos, site.pos) ? s : best), null);
-    if (!next) return false;
-    at = { pos: next.pos, fuel: full };
-  }
-  return false;
-}
-
-function reachable<T extends Site>(world: World, sites: readonly T[]): T[] {
-  return sites.filter((s) => fuelReaches(world, s));
 }
 
 function needsService(o: Orders): boolean {
@@ -498,7 +476,7 @@ function repairAtGarage(o: Orders): void {
   for (const part of garageFixes(o)) if (affordsRepair(o, part)) o.run((w) => repairPart(w, part.id), 'repairs');
 }
 
-const GOALS: Record<Goal, (o: Orders) => void> = { trader: traderGoal, scavenger: scavengerGoal, hunter: hunterGoal, fastTrader: traderGoal, hauler: haulerGoal, searcher: (o) => searcherGoal(o, checkNextBoard), surveyor: surveyorGoal, robber: (o) => robberGoal(o, false), convoyRobber: (o) => robberGoal(o, true) };
+const GOALS: Record<Goal, (o: Orders) => void> = { trader: traderGoal, scavenger: scavengerGoal, hunter: hunterGoal, fastTrader: traderGoal, hauler: haulerGoal, procurer: (o) => procurerGoal(o) || traderGoal(o), searcher: (o) => searcherGoal(o, checkNextBoard), surveyor: surveyorGoal, robber: (o) => robberGoal(o, false), convoyRobber: (o) => robberGoal(o, true) };
 
 function traderGoal(o: Orders): void {
   const held = heldHaul(o.world);

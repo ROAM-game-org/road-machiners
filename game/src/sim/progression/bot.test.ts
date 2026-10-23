@@ -33,7 +33,8 @@ import { getKnownSite, getUpkeepReserve, judgeDanger, tripFuelCost } from '../np
 import { maxHp } from '../wear';
 import { emptyHidden } from '../salvage';
 import { cargoHaul, haulVar, surrenderHaul } from '../haul';
-import { botOrders, CONVOY_ROB_PATROL, fuelReaches, haulMarginAt, robTarget, wouldRob } from './bot';
+import { botOrders, CONVOY_ROB_PATROL, haulMarginAt, robTarget, wouldRob } from './bot';
+import { fuelReaches } from './reach';
 
 function town(id: string) {
   const found = REGION.towns.find((t) => t.id === id);
@@ -1454,6 +1455,28 @@ describe('the searcher bot', () => {
     expect([...new Set(outcomes)]).toEqual(['accepted', 'fulfilled', 'done']);
     expect(seen).toContainEqual({ t: 'money', amount: searchReward(), reason: { kind: 'contract' } });
     expect(playerVehicle(w).items.some((it) => it.kind === 'parcel')).toBe(false);
+  });
+});
+
+describe('the procurer bot', () => {
+  it('takes a supply order, buys the crates where the good is made and delivers them for the pay', () => {
+    const granary = siteOf('granary');
+    let w = emptyWorld(sitePads(granary)[0]);
+    const me = playerVehicle(w);
+    removeAllGoods(me);
+    me.speed = 0;
+    w.player.discovered = ['granary', 'dustwell'];
+    w.shops.granary.contracts = [{ id: 'ct-p', shop: 'granary', kind: 'procure', good: 'water', units: 4, cratePay: 900, reward: 9000, deadline: 900, window: 600, tier: 1 }];
+    const seen: GameEvent[] = [];
+    for (let i = 0; i < 160 && !seen.some((e) => e.t === 'contract' && e.outcome === 'done'); i++) {
+      const turn = botOrders(w, 'procurer', { noGear: true });
+      seen.push(...turn.events);
+      w = endTurn(turn.world, testDrive);
+      seen.push(...w.events);
+    }
+    const outcomes = seen.flatMap((e) => (e.t === 'contract' && e.contract.id === 'ct-p' ? [e.outcome] : []));
+    expect([...new Set(outcomes)]).toEqual(['accepted', 'done']);
+    expect(seen).toContainEqual({ t: 'money', amount: 9000, reason: { kind: 'contract' } });
   });
 });
 
