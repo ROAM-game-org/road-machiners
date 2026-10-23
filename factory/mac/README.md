@@ -6,13 +6,14 @@ Run the factory on your Mac to test it before the server. The server setup is in
 
 1. Copy `factory/.env.example` to `factory/.env` and fill it in. Set `FACTORY_HOME` and `FACTORY_WEB_ROOT` to folders under your home, `FACTORY_PUBLIC_URL=http://localhost:8080` and `FACTORY_GPU=off`, since Docker on a Mac has no GPU.
 2. Run `export FACTORY_UID=$(id -u)` in the shell you use for the compose commands. The Hermes compose file runs Hermes as that user.
-3. Make the folders: `mkdir -p "$FACTORY_HOME"/{inbox,committee,state,logs,hermes,codex} "$FACTORY_WEB_ROOT"`.
+3. Make the folders: `mkdir -p "$FACTORY_HOME"/{inbox,committee,state,logs,hermes,codex,agy} "$FACTORY_WEB_ROOT"`.
 4. Build the images: `docker build -t "$FACTORY_IMAGE" factory/docker` and `docker build -t "$FACTORY_IMAGE-proxy" factory/docker/proxy`.
 5. Start Hermes: `docker compose -f factory/hermes/compose.yaml --env-file factory/settings.env --env-file factory/.env up -d --build`.
 6. Sign Hermes in to ChatGPT: `docker compose -f factory/hermes/compose.yaml --env-file factory/settings.env --env-file factory/.env run --rm --no-deps hermes hermes auth add openai-codex`. The login stays in `$FACTORY_HOME/hermes`.
 7. Sign the agents' Codex in to ChatGPT: `docker run --rm -it -v "$FACTORY_HOME/codex:/home/pwuser/.codex" "$FACTORY_IMAGE" codex login --device-auth`. Turn on device code login in ChatGPT first, under Settings, then Security. Agent jobs stop until `$FACTORY_HOME/codex/auth.json` exists.
-8. Start the tick loop: `tmux new -s factory 'factory/mac/tick-loop.sh'`.
-8. Serve the web root: `python3 -m http.server 8080 --directory "$FACTORY_WEB_ROOT"`.
+8. Give the agents your agy Google login: `(umask 077; security find-generic-password -s gemini -a antigravity -w | sed 's/^go-keyring-base64://' | base64 -d > "$FACTORY_HOME/agy/antigravity-oauth-token")`. Sign agy in first. Agent jobs stop until that file exists. Run this again after an agy logout or sign-in.
+9. Start the tick loop: `tmux new -s factory 'factory/mac/tick-loop.sh'`.
+10. Serve the web root: `python3 -m http.server 8080 --directory "$FACTORY_WEB_ROOT"`.
 
 ## Watch and stop
 

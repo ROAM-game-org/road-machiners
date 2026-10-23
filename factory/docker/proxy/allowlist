@@ -7,8 +7,11 @@
 ^chatgpt\.com$
 ^auth\.openai\.com$
 
-# agy through the Gemini API key.
-^generativelanguage\.googleapis\.com$
+# agy through the Google login: the token refresh, the account and avatar check it makes before each run, and the model calls.
+^oauth2\.googleapis\.com$
+^www\.googleapis\.com$
+^lh3\.googleusercontent\.com$
+^daily-cloudcode-pa\.googleapis\.com$
 
 # ElevenLabs sound generation for the game's sfx:gen.
 ^api\.elevenlabs\.io$
