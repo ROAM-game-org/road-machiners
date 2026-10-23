@@ -12,6 +12,8 @@ from mathutils import Vector
 from kit import CELL_ACROSS, CELL_ALONG, Kit, Vec3
 
 FIT_SLACK = 1e-4  # float noise allowed at the footprint edge
+ROUND_SEGMENTS = 32  # sides of a big round part: a tire, a rim, an arch, a tank or a fifth wheel
+SMALL_ROUND_SEGMENTS = 16  # sides of a small round part: a hub, a lamp, a stack, an air cleaner or a pin
 
 # One round look for every wheel: the game's wheel model and every wheel a base draws itself.
 TIRE_SIDES = 48  # four sides under each of the wheel model's 12 tread lugs
@@ -57,6 +59,12 @@ def check_footprint(kit: Kit, name: str, w: int, h: int, min_z: float = 0.0, max
         raise RuntimeError(f"{name} dips to z {lo.z:.3f}, below {min_z}")
     if max_z is not None and hi.z > max_z + FIT_SLACK:
         raise RuntimeError(f"{name} rises to z {hi.z:.3f}, above {max_z}")
+
+
+def check_round(name: str, sides: int, minimum: int) -> None:
+    """Raises when a part meant to read round has fewer sides than its shared count."""
+    if sides < minimum:
+        raise RuntimeError(f"{name} has {sides} sides, under the {minimum} a round part needs")
 
 
 ALONG_X = (0, 1.5707963267948966, 0)  # turns a Kit cylinder's axis to +X
