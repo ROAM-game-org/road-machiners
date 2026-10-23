@@ -8,6 +8,7 @@ glTF +X/-Z/+Y, so the front stays +X in Three.js.
 from __future__ import annotations
 
 import argparse
+import math
 import random
 import sys
 from collections.abc import Mapping
@@ -27,6 +28,21 @@ PREVIEW_PX = (900, 700)
 # One truck deck cell in meters, matching PHYSICS.cell in src/data/physics.ts.
 CELL_ACROSS = 0.484  # Blender Y
 CELL_ALONG = 0.65  # Blender X
+
+ROUND_EDGE = 0.1  # the longest edge a round piece may have, in meters
+ROUND_MIN = 16
+ROUND_MAX = 48
+
+
+def round_vertices(radius: float) -> int:
+    """The vertex count of a circle of this drawn radius that reads round: edges up to ROUND_EDGE, a multiple of 4 in 16..48.
+
+    A multiple of 4 keeps the left to right and top to bottom mirrors.
+    """
+    if radius <= 0:
+        raise ValueError(f"round_vertices needs a positive radius, got {radius}")
+    count = 4 * math.ceil(math.tau * radius / ROUND_EDGE / 4)
+    return min(ROUND_MAX, max(ROUND_MIN, count))
 
 
 @dataclass(frozen=True)

@@ -18,10 +18,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit  # noqa: E402
+from kit import Kit, round_vertices  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, FLARE, SUSPENSION_REST, arch_cut, cut_boxes, flare_profile, hull_mesh  # noqa: E402
 from rig_units import check_unit as check_rig_unit, unit_wheels as count_wheels  # noqa: E402
 from shapes import prism  # noqa: E402
+from wheel_look import TIRE_SHARE, wheel_parts  # noqa: E402
 
 SEED = 640
 FRONT = 8.4
@@ -36,7 +37,7 @@ WHEEL_Z = 1.15  # PHYSICS.bodies.sorokonoga.wheelZ: the steer wheels and the out
 WHEEL_R = 0.55  # PHYSICS.bodies.sorokonoga.wheelRadius
 WHEEL_HALF_W = 0.2  # PHYSICS.bodies.sorokonoga.wheelHalfWidth
 HUB_Z = WHEEL_Y - SUSPENSION_REST
-TIRE_R = WHEEL_R * 0.935  # the wheel model's tire body; its lugs reach the ground
+TIRE_R = WHEEL_R * TIRE_SHARE  # the wheel model's tire body; its lugs reach the ground
 DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
 WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
 DUAL_WELL_Y = WHEEL_Z - DUAL_STEP - WHEEL_HALF_W - 0.03  # inside the drive axle's inner duals
@@ -132,12 +133,8 @@ def tandem_flare(kit: Kit, name: str, front: float, rear: float, y0: float, y1: 
 
 
 def wheel(kit: Kit, name: str, x: float, y: float) -> None:
-    """One wheel in the look of the game's wheel model: a 24-sided tire, an 8-sided light rim and a 6-sided hub."""
-    width = 2 * WHEEL_HALF_W
-    axle = (math.pi / 2, 0, 0)
-    kit.cylinder(f"{name}_tire", TIRE_R, width * 0.94, (x, y, HUB_Z), "wheel", rot=axle, vertices=24)
-    kit.cylinder(f"{name}_rim", WHEEL_R * 0.55, width * 0.98, (x, y, HUB_Z), "metal_light", rot=axle, vertices=8)
-    kit.cylinder(f"{name}_hub", WHEEL_R * 0.22, width, (x, y, HUB_Z), "rust", rot=axle, vertices=6)
+    """One wheel in the shared look of wheel_look.py, the one the game's wheel model draws."""
+    wheel_parts(kit, name, (x, y, HUB_Z), WHEEL_R, 2 * WHEEL_HALF_W)
 
 
 def model_wheels(kit: Kit, x: float, y: float) -> int:
@@ -167,7 +164,7 @@ def grille(kit: Kit, name: str, center: tuple[float, float, float], size: tuple[
 
 
 def round_lamp(kit: Kit, name: str, x: float, y: float, z: float, radius: float) -> None:
-    kit.cylinder(name, radius, SKIN, (x, y, z), "light", rot=(0, math.pi / 2, 0), vertices=6)
+    kit.cylinder(name, radius, SKIN, (x, y, z), "light", rot=(0, math.pi / 2, 0), vertices=round_vertices(radius))
 
 
 def cab(kit: Kit) -> None:
@@ -212,7 +209,7 @@ def tractor_frame(kit: Kit) -> int:
     rig_flare(kit, "flare_steer", STEER_X, TRACTOR_REAR, FRONT, CAB_HALF - 0.05, HALF_W, CAB_BOTTOM)
     rig_flare(kit, "flare_drive", DRIVE_X, TRACTOR_REAR, FRONT, DUAL_WELL_Y, HALF_W, FRAME_TOP)
     kit.box("fifth_wheel", (0.6, 1.1, 0.12), (PIVOT_X, 0, up(1.11)), "metal_light")
-    kit.cylinder("coupling_disc", 0.3, 0.14, (PIVOT_X, 0, up(1.24)), "rust", vertices=8)
+    kit.cylinder("coupling_disc", 0.3, 0.14, (PIVOT_X, 0, up(1.24)), "rust", vertices=round_vertices(0.3))
     return wheels
 
 

@@ -4,6 +4,7 @@ Authored at 1 m radius and 1 m wide, with the axle along Blender Y and the origi
 The view scales it by the chassis wheel radius and half-width. Chevron tread lugs show the wheel turning.
 Each chevron is two half-bars mirrored across the mid-plane, so the top-down and front silhouettes
 have matching halves and the wheel reads as one tire from every side (#201).
+The tire, rim and hub come from wheel_look.py, round at the largest drawn wheel, and the lugs sit on every fourth tire vertex.
 Run: blender --background --python tools/blender/wheel.py -- public/models/wheel.glb [tmp/wheel.png]
 """
 
@@ -18,11 +19,11 @@ from mathutils import Euler, Matrix
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
 from parts_common_core import COLORS  # noqa: E402
+from wheel_look import TIRE_SHARE, wheel_counts, wheel_parts  # noqa: E402
 
 SEED = 102
-AXLE = (math.radians(90), 0, 0)
 LUGS = 12
-TIRE_R = 0.935  # tire body radius. Lug tips reach 1 m.
+TIRE_R = TIRE_SHARE  # tire body radius. Lug tips reach 1 m.
 LUG_H = 0.065
 SWEEP = math.radians(28)  # each half-bar leans back from the centre line
 BAR = (0.16, 0.3)  # half-bar size, tangential then axial
@@ -58,9 +59,10 @@ def check_mirrored(layout: list[Lug]) -> None:
 
 
 def build(kit: Kit) -> None:
-    kit.cylinder("tire", TIRE_R, 0.94, (0, 0, 0), "wheel", rot=AXLE, vertices=LUGS * 2)
-    kit.cylinder("rim", 0.55, 0.98, (0, 0, 0), "metal_light", rot=AXLE, vertices=8)
-    kit.cylinder("hub", 0.22, 1.0, (0, 0, 0), "rust", rot=AXLE, vertices=6)
+    tire_sides = wheel_counts()[0]
+    if tire_sides % LUGS:
+        raise ValueError(f"the {tire_sides}-sided tire puts its {LUGS} lugs off its vertices")
+    wheel_parts(kit, "wheel", (0, 0, 0), 1.0, 1.0)
     layout = lug_layout()
     check_mirrored(layout)
     for name, loc, rot in layout:
