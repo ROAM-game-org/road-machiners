@@ -41,7 +41,7 @@ export const PHYSICS = {
     longbed: { halfHeight: 0.55, wheelY: -0.35, wheelX: 2.6, wheelZ: 1.452, engine: { x: 2.275, y: 0.35, z: -0.242 }, wheelRadius: 0.64, wheelHalfWidth: 0.265, comHeight: 0.65 },
     carrier: { halfHeight: 0.6, wheelY: -0.4, wheelX: 1.95, wheelZ: 1.21, engine: { x: 0.325, y: 0.4, z: -0.484 }, wheelRadius: 0.65, wheelHalfWidth: 0.28, comHeight: 0.75 },
     tractor: { halfHeight: 0.65, wheelY: -0.45, wheelX: 2.1, wheelZ: 0.97, engine: { x: 1.783, y: 0.08, z: -0.189 }, wheelRadius: 0.77, wheelHalfWidth: 0.325, comHeight: 0.85 },
-    jeep: { halfHeight: 0.4, wheelY: -0.25, wheelX: 1.3, wheelZ: 0.726, engine: { x: -0.975, y: 0, z: 0 }, wheelRadius: 0.45, wheelHalfWidth: 0.18, comHeight: 0.4 },
+    jeep: { halfHeight: 0.4, wheelY: -0.25, wheelX: 1.46, wheelZ: 0.726, engine: { x: -0.975, y: 0, z: 0 }, wheelRadius: 0.45, wheelHalfWidth: 0.18, comHeight: 0.4 },
     convertible: { halfHeight: 0.35, wheelY: -0.2, wheelX: 1.95, wheelZ: 0.968, engine: { x: -1.625, y: -0.03, z: -0.242 }, wheelRadius: 0.46, wheelHalfWidth: 0.18, comHeight: 0.32 },
     bus: { halfHeight: 0.8, wheelY: -0.55, wheelX: 2.925, wheelZ: 1.21, engine: { x: -1.95, y: 1.05, z: 0 }, wheelRadius: 0.69, wheelHalfWidth: 0.26, comHeight: 0.8 },
     niva: { halfHeight: 0.4, wheelY: -0.25, wheelX: 1.3, wheelZ: 0.726, engine: { x: 1.485, y: -0.3, z: 0 }, wheelRadius: 0.45, wheelHalfWidth: 0.18, comHeight: 0.4 },
