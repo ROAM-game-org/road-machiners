@@ -120,6 +120,8 @@ For a feature or a fix, describe what the player will see and do, and every mean
 No code, file names or implementation details.
 It is a plan, so say what the change will do, never that it was built or tested.
 
+{{writing}}
+
 Git ignores the task file. Never commit it and never force-add it.
 The next stages read it from this clone.
 Commit nothing in this stage.
