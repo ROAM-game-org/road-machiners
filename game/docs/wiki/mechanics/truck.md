@@ -16,7 +16,7 @@ Any part can turn in quarter turns, clockwise, from 0 to 3. A turn of 1 or 3 swa
 
 Stores raise how much fuel and supplies a truck carries. A jerrycan rack adds 60 L of fuel. A supply locker adds half the base supplies. Each mounts on one deck cell, so it competes with a gun. A store counts only while mounted, and a broken one still holds. Removing a store spills whatever no longer fits. Bowl and Nose sell both. The Pump Station sells jerrycan racks, and the Granary sells supply lockers.
 
-Cargo parts add full-width rows to the grid while mounted and working. Rows per deck cell rise with tier. On a cargo bed chassis each 2 by 2 cargo part adds one more row. Small carriers give one row per deck cell and fit single cells and strips: panniers add one row, a roof rack or flatbed two. Tier 2 frames take a 2 by 2 block for five rows, and the heavy frame takes one for six, so a frame beats any stack of small carriers on the same four cells. The light frame is light and fragile, the enclosed frame armored and heavy, and tall boxes block fire across them. A break spills only that part's rows, so many small carriers lose less at once. The shop card shows the cells a part gains on your truck, which is its rows times the truck's width, less the deck cells it sits on. A broken cargo part's rows go dead, at the bottom of the cargo rows, and whatever lay on them falls onto a pile beside the truck. Dead rows still slow rounds like empty cells. Repairing the part brings the rows back empty.
+Cargo parts add full-width rows to the grid while mounted and working. Rows per deck cell rise with tier. The scout, hauler and longbed carry 1, 2 and 3 built-in plain rows under the chassis grid, before the cargo part rows. They hold goods and spare parts, never go dead and never spill. On the Sorokonoga each cargo part gives half again as many rows, rounded down. Small carriers give one row per deck cell and fit single cells and strips: panniers add one row, a roof rack or flatbed two. Tier 2 frames take a 2 by 2 block for five rows, and the heavy frame takes one for six, so a frame beats any stack of small carriers on the same four cells. The light frame is light and fragile, the enclosed frame armored and heavy, and tall boxes block fire across them. A break spills only that part's rows, so many small carriers lose less at once. The shop card shows the cells a part gains on your truck, which is its rows times the truck's width, less the deck cells it sits on. A broken cargo part's rows go dead, at the bottom of the cargo rows, and whatever lay on them falls onto a pile beside the truck. Dead rows still slow rounds like empty cells. Repairing the part brings the rows back empty.
 
 Goods come in crates. One crate fills one cell and weighs 50 kg, whatever the good, and inspecting a goods cell says so. Crates can be moved or dumped anywhere. Dragging an item onto another swaps them if both fit. Spare parts ride in the grid or wait in garage storage.
 
@@ -50,20 +50,27 @@ Parts wear. Each part has a wear level, from pristine to the last step. A part g
 
 Every turn the truck moves, each mounted part may lose HP. The chance grows with the tiles driven, the truck's speed, how rough the ground is and the weather. Roads wear parts least. Rarely, a part breaks down and loses a large share of its HP at once, logged in the event feed. More rarely, the engine or the transmission fails outright and drops to 0 HP, so the truck is stranded. A scout driven hard off road fails about once in two hours of play. A driver with parts patches it in the field, and one without needs a tow or a roadside patch. Wear and breakdowns never take the cab below 1 HP. The same rule wears NPC trucks, so stranded NPCs turn up on the roads in normal play.
 
-Every player chassis has one built-in feature that bends one rule for every truck of that chassis, player and NPC alike. The numbers are in `CHASSIS_FEATURES` in `src/data/chassis.ts`:
+Every player chassis has one ability that bends one rule for every truck of that chassis, player and NPC alike. The numbers are in `CHASSIS_FEATURES` in `src/data/chassis.ts`, and the shop card and inventory header name each one:
 
-- Junk-built (scout, gunwagon): field repair patches the wheels, transmission and tank to full. The cab keeps the field cap.
-- Light frame (buggy, convertible): the wear of terrain above road wear is halved, so wear, breakdowns and drive failures off road drop. Road wear is unchanged.
-- Quiet engine (courier, lincoln): engine sound reaches two thirds as far.
-- Off-road drive (jeep, niva, bukhanka): rough ground costs half as much grip and half as much of the unpaved top speed, on top of the driving skill's cut.
-- Cargo bed (van, hauler, longbed, bus): each 2 by 2 cargo box or frame adds one more row, a row of the truck's full width. Small carriers are unchanged, so a frame still beats any stack of them on the same cells.
-- Heavy hitch (tractor, loader, carrier): towing does not slow the tower.
+- Built-in bed (scout 1 row, hauler 2, longbed 3): plain rows that never spill.
+- Nimble (buggy): 25% more acceleration, and shots at it scatter 4.5 degrees wider while it moves. The hit card lists the cause as Nimble.
+- Racing gear (courier): 25% more top speed.
+- Off-road drive (jeep, niva): no top speed lost on rough ground, and terrain wear above road wear is halved.
+- Gun mounts (gunwagon 25%, wheel loader 50%): more gun power, so the guns slow the truck less.
+- Armored frame (van +1, bukhanka +2, armored carrier +4): armor on every part but shields. A part with armor below a round's penetration soaks more of it, so the bonus helps against low penetration rounds and does not against high ones.
+- Battle frame (heavy tractor): +2 armor and 25% more gun power.
+- Heavy springs (bus): mounted parts count half their mass toward the load penalty.
+- Open top (convertible): sight and every gun's range 20% longer.
+- Grand tourer (Lincoln): sight 25%, gun range 15% and top speed 15% more.
+- Versatile trailer (Sorokonoga): guns 30 degrees wider in arc and one turn faster to reload, cargo parts give half again as many rows, and parts on deck cells get +1 armor.
+
+A gun's range, reload and arc on a truck include its chassis ability. A part's own card keeps the part's numbers.
 
 Parts is a trade good, bought and sold like scrap or salt. It is the resource field repair spends. The standard start kit carries a few. Stripping a spare part is a parked job that turns it into units of parts. Its value sets the yield, so a broken or junk gun still pays.
 
 A job is work that needs the truck parked for a number of turns: a refit, field repair or scavenging. The player has at most one job at a time. Driving before it ends cancels it and the turns already spent are lost. The HUD shows the current job and its turns left. A seen NPC shows its job and progress above its truck.
 
-Field repair fixes one damaged mounted part. It spends parts and restores HP up to a field cap below full, only when the job finishes. The parts it spends are worth about the value it restores, so an expensive part costs more parts to fix. Machining shortens the job and raises the cap. A full repair to 100% still needs a shop. Scrap armor is the exception and patches to full on the road, and so do the wheels, transmission and tank of a junk-built chassis. Ceramic armor cannot be patched at all, only repaired at a shop. The inventory panel shows a Patch button on a damaged part, with its turns and parts cost.
+Field repair fixes one damaged mounted part. It spends parts and restores HP up to a field cap below full, only when the job finishes. The parts it spends are worth about the value it restores, so an expensive part costs more parts to fix. Machining shortens the job and raises the cap. A full repair to 100% still needs a shop. Scrap armor is the exception and patches to full on the road. Ceramic armor cannot be patched at all, only repaired at a shop. The inventory panel shows a Patch button on a damaged part, with its turns and parts cost.
 
 Auto patch is on by default and toggles with P. A new game starts with it off, so the player patches the nearly dead engine by hand once. Whenever the player truck is parked and idle, it patches the most damaged part with one unit of parts at a time. It leaves alone parts promised to a roadside patch and parts carried for a haul contract.
 
