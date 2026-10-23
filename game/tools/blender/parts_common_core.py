@@ -9,9 +9,18 @@ from __future__ import annotations
 import bpy
 from mathutils import Vector
 
-from kit import CELL_ACROSS, CELL_ALONG, Kit
+from kit import CELL_ACROSS, CELL_ALONG, Kit, Vec3
 
 FIT_SLACK = 1e-4  # float noise allowed at the footprint edge
+
+# One round look for every wheel: the game's wheel model and every wheel a base draws itself.
+TIRE_SIDES = 48  # four sides under each of the wheel model's 12 tread lugs
+RIM_SIDES = 32
+HUB_SIDES = 16
+ROUND_SIDES = 24  # small round body pieces: lamps, tank ends, pipes, stacks and drawn spares
+TIRE_SHARE = 0.935  # tire body radius as a share of the wheel radius; the wheel model's lugs reach the rest
+RIM_SHARE = 0.55
+HUB_SHARE = 0.22
 
 # Colors from src/render/palette.ts. The paint color is a stand-in: the game swaps it for the faction color.
 COLORS = {
@@ -52,6 +61,18 @@ def check_footprint(kit: Kit, name: str, w: int, h: int, min_z: float = 0.0, max
 
 ALONG_X = (0, 1.5707963267948966, 0)  # turns a Kit cylinder's axis to +X
 ALONG_Y = (1.5707963267948966, 0, 0)  # turns a Kit cylinder's axis to -Y
+
+
+def drawn_wheel(kit: Kit, name: str, loc: Vec3, radius: float, width: float, rot: Vec3 = ALONG_Y) -> bpy.types.Object:
+    """A round wheel in the look of the game's wheel model: a dark tire, a light rim and a rust hub, radius and width overall.
+
+    Draws <name>_tire, <name>_rim and <name>_hub, or tire, rim and hub for an empty name. Returns the tire, for a prop to dent.
+    """
+    prefix = f"{name}_" if name else ""
+    tire = kit.cylinder(f"{prefix}tire", radius * TIRE_SHARE, width * 0.94, loc, "wheel", rot=rot, vertices=TIRE_SIDES)
+    kit.cylinder(f"{prefix}rim", radius * RIM_SHARE, width * 0.98, loc, "metal_light", rot=rot, vertices=RIM_SIDES)
+    kit.cylinder(f"{prefix}hub", radius * HUB_SHARE, width, loc, "rust", rot=rot, vertices=HUB_SIDES)
+    return tire
 
 
 def skid(kit: Kit, w: int, h: int) -> None:
