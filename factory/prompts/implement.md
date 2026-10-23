@@ -82,6 +82,8 @@ That file is only for a game design fork or a major save bump.
 When the plan is unclear, pick the most sensible reading and write the assumption into the task file.
 Do not commit a change to `SAVE_MAJOR`.
 
+{{writing}}
+
 ## Last step: the game docs
 
 After every phase is built, the visual self-review is written and the typecheck passed, run the skill up:udocument on the game docs that this change made stale.

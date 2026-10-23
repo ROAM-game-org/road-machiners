@@ -157,3 +157,5 @@ It has no emoji and no markdown.
 - `cons` lists two to four costs, risks or tradeoffs, one sentence each. Never hide a real cost.
 
 The whole pitch stays under 2500 characters, so it fits one Telegram message with the heading, the links and the vote line.
+
+{{writing}}
