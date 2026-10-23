@@ -16,7 +16,7 @@ painted slats, round headlights in chrome rings set inboard of the corners with 
 sides behind the corners, a rounded top front corner and a round arch cut into each side over the front wheel. Over the
 ledge the upper cab stands 0.28 m back (photo 04) and leans in from 0.9 to 0.82 of the face's width (photo 01), with a
 two-pane windshield split by a thick post, one tall door window a side and a blank rear quarter behind the door seam.
-A pale rounded roof cap with two small amber beacons frames the engine hatch. Behind the cab a tall headboard of planks
+A pale rounded roof cap with two small amber beacons frames the engine hatch. Behind the cab a tall headboard of weathered grey planks
 under open slats stands on a flatbed with no walls: a pale edge beam on brackets over a high dark frame, a long round tank
 between the axles, pale flap plates behind the rear wheels, dark mudflaps under the rear end, and taillights and a plate
 under the rear edge.
@@ -99,7 +99,7 @@ HATCH_RIGHT = G.col_y(3.5)
 CAB_BACK = HATCH_BACK - 0.11
 
 SETBACK = 0.28  # photo 04 gives 0.36 m once its angle is taken out; 0.28 keeps the roof cap ahead of the hatch
-RAKE = 0.06  # photo 04: the windshield leans back this far over its height
+RAKE = 0.03  # photo 04: the windshield stands nearly upright
 UPPER_FRONT = FACE - SETBACK
 UPPER_HALF_LOW = 1.30  # photo 01: 0.9 of the face's width at the ledge
 UPPER_HALF_TOP = 1.18  # photo 01: 0.82 of the face's width under the roof cap
@@ -117,7 +117,7 @@ DOOR_FRONT = 2.40  # photo 04: the door's front edge under the A pillar
 GRILLE_HALF = 0.46  # photo 01: 0.32 of the face's width
 GRILLE_BOTTOM = up(1.17)  # photo 01
 GRILLE_TOP = up(1.69)  # photo 01
-SLATS = 10  # photo 01
+SLATS = 12  # photo 01
 LAMP_Y = 1.08  # photo 01: the headlight centers 0.74 of the face's width apart
 LAMP_Z = up(1.23)  # photo 01
 LAMP_R = 0.115  # photo 01: the glass inside a chrome ring
@@ -141,7 +141,7 @@ BEAM_T = 0.06  # inferred
 HEAD_TOP = up(2.55)  # photo 04: up to the cab roof, here kept under the roof cap
 PLANK_TOP = BED_FLOOR + 0.6 * (HEAD_TOP - BED_FLOOR)  # photo 04: planks in the lower 60 percent, open slats above
 HEAD_T = 0.08  # inferred
-BRACKET_DROP = 0.3  # photo 04: the triangular brackets under the edge beam
+BRACKET_DROP = 0.3  # photo 04: the brackets hang deepest at the edge beam and taper in to the frame
 BRACKET_STEP = 0.7  # photo 04: one bracket about every 0.7 m
 FRAME_BOTTOM = up(0.78)  # inferred
 FRAME_TOP = up(1.02)  # photo 04: the frame rails high and open
@@ -209,11 +209,11 @@ def face(kit: Kit) -> None:
     kit.box("grille", (0.01, 2 * GRILLE_HALF, tall), (FACE + 0.005, 0, mid), "under")
     for i in range(SLATS):
         y = -GRILLE_HALF + 2 * GRILLE_HALF * (i + 0.5) / SLATS
-        kit.box(f"slat{i}", (0.02, 0.045, tall - 0.04), (FACE + 0.01, y, mid), "paint")
+        kit.box(f"slat{i}", (0.02, 0.035, tall - 0.04), (FACE + 0.01, y, mid), "paint")
     frame = 0.035
-    kit.box("grille_top", (0.03, 2 * GRILLE_HALF + 2 * frame, frame), (FACE + 0.015, 0, GRILLE_TOP + frame / 2), "paint")
-    kit.box("grille_bottom", (0.03, 2 * GRILLE_HALF + 2 * frame, frame), (FACE + 0.015, 0, GRILLE_BOTTOM - frame / 2), "paint")
-    mirrored(kit, "grille_side", (0.03, frame, tall), FACE + 0.015, GRILLE_HALF + frame / 2, mid, "paint")
+    kit.box("grille_top", (0.024, 2 * GRILLE_HALF + 2 * frame, frame), (FACE + 0.012, 0, GRILLE_TOP + frame / 2), "paint")
+    kit.box("grille_bottom", (0.024, 2 * GRILLE_HALF + 2 * frame, frame), (FACE + 0.012, 0, GRILLE_BOTTOM - frame / 2), "paint")
+    mirrored(kit, "grille_side", (0.024, frame, tall), FACE + 0.012, GRILLE_HALF + frame / 2, mid, "paint")
     for s, sign in (("l", 1), ("r", -1)):
         kit.cylinder(f"lamp_ring_{s}", RING_R, 0.03, (FACE + 0.005, sign * LAMP_Y, LAMP_Z), "metal_light", rot=ALONG_X, vertices=ROUND_SIDES)
         kit.cylinder(f"lamp_{s}", LAMP_R, 0.03, (FACE + 0.012, sign * LAMP_Y, LAMP_Z), "light", rot=ALONG_X, vertices=ROUND_SIDES)
@@ -345,8 +345,8 @@ def bed(kit: Kit) -> None:
                 pts += [
                     (x + dx, sign * (RAIL_Y + 0.07), deck_bottom),
                     (x + dx, sign * (HALF - BEAM_T), deck_bottom),
-                    (x + dx, sign * (HALF - BEAM_T), BEAM_BOTTOM),
-                    (x + dx, sign * (RAIL_Y + 0.07), deck_bottom - BRACKET_DROP),
+                    (x + dx, sign * (HALF - BEAM_T), deck_bottom - BRACKET_DROP),
+                    (x + dx, sign * (RAIL_Y + 0.07), deck_bottom - 0.08),
                 ]
             hull(kit, f"bracket{i}_{s}", "trim", pts)
     headboard(kit)
@@ -360,10 +360,10 @@ def headboard(kit: Kit) -> None:
     x = BED_FRONT - HEAD_T / 2
     inner = HALF - BEAM_T
     plank_h = PLANK_TOP - BED_FLOOR
-    kit.box("head_planks", (HEAD_T - 0.02, 2 * inner, plank_h), (x, 0, BED_FLOOR + plank_h / 2), "leather")
+    kit.box("head_planks", (HEAD_T - 0.02, 2 * inner, plank_h), (x, 0, BED_FLOOR + plank_h / 2), "metal_light")
     for i in range(1, 4):
         z = BED_FLOOR + plank_h * i / 4
-        kit.box(f"plank_seam{i}", (0.01, 2 * inner, 0.015), (x - HEAD_T / 2 + 0.005, 0, z), "under")
+        kit.box(f"plank_seam{i}", (0.01, 2 * inner, 0.015), (x - HEAD_T / 2 + 0.005, 0, z), "metal")
     post = 0.08
     for k, y in enumerate((-inner + post / 2, -0.47, 0.47, inner - post / 2)):
         kit.box(f"head_post{k}", (HEAD_T, post, HEAD_TOP - BED_FLOOR), (x, y, (HEAD_TOP + BED_FLOOR) / 2), "trim")
