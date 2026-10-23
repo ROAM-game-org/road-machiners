@@ -3,12 +3,11 @@ import { ECONOMY, GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { DISTANCE_PREMIUM, EFFORT, PRICE_FACTOR, PRESSURE_MAX, SHOPS, SHORT_PRESSURE } from '../data/market';
 import { dist } from './vec';
-import { emptyWorld, addVehicle, npcBrain } from './testkit';
+import { emptyWorld, addVehicle } from './testkit';
 import type { Vehicle, World } from './types';
 import { bareGrid, baseGrid, freeCells } from './grid';
 import {
   addStockPart,
-  creditBounty,
   advanceShop,
   estimateTurns,
   goodBasePrice,
@@ -24,7 +23,6 @@ import {
   shortHere,
   siteOf,
   takeStockPart,
-  type Contract,
   type ShopState,
 } from './market';
 
@@ -252,42 +250,6 @@ describe('market', () => {
     expect(long.turns).toBeGreaterThan(short.turns);
     expect(long.profit).toBeGreaterThan(short.profit);
     expect(long.profit / long.turns).toBeGreaterThanOrEqual(short.profit / short.turns);
-  });
-});
-
-describe('creditBounty', () => {
-  const bounty = (id: string, template: string): Contract => ({ id, shop: 'bowl', kind: 'bounty', template, reward: 10000, deadline: 900, window: 900, tier: 2, fulfilled: false });
-
-  function withTarget(): { w: World; npc: Vehicle } {
-    const w = emptyWorld();
-    const npc = addVehicle(w, 'scrapjaw', 'scout', [], { x: 36, y: 30 });
-    npc.brain = npcBrain('buggy', npc.pos, ['raider']);
-    w.player.money = 0;
-    return { w, npc };
-  }
-
-  const fulfilled = (w: World) => w.player.contracts.map((c) => c.kind === 'bounty' && c.fulfilled);
-
-  it('fulfils one held bounty on the template, as a knockout does, and pays nothing', () => {
-    const { w, npc } = withTarget();
-    w.player.contracts = [bounty('a', 'buggy'), bounty('b', 'buggy'), bounty('c', 'truck')];
-    creditBounty(w, npc);
-    expect(w.player.contracts.map((c) => c.id)).toEqual(['a', 'b', 'c']);
-    expect(fulfilled(w)).toEqual([true, false, false]);
-    expect(w.player.money).toBe(0);
-    creditBounty(w, npc);
-    expect(fulfilled(w)).toEqual([true, true, false]);
-    creditBounty(w, npc);
-    expect(fulfilled(w)).toEqual([true, true, false]);
-    expect(w.events.filter((e) => e.t === 'contract' && e.outcome === 'fulfilled')).toHaveLength(2);
-  });
-
-  it('does nothing without a bounty on the template', () => {
-    const { w, npc } = withTarget();
-    w.player.contracts = [bounty('c', 'truck')];
-    creditBounty(w, npc);
-    expect(w.player.contracts.map((c) => c.id)).toEqual(['c']);
-    expect(w.player.money).toBe(0);
   });
 });
 

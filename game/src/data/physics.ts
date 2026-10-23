@@ -39,7 +39,7 @@ export const PHYSICS = {
     courier: { halfHeight: 0.3, wheelY: -0.2, wheelX: 1.3, wheelZ: 0.726, engine: { x: 1.24, y: 0, z: 0 }, wheelRadius: 0.4, wheelHalfWidth: 0.16, comHeight: 0.3 },
     van: { halfHeight: 0.5, wheelY: -0.35, wheelX: 1.95, wheelZ: 0.968, engine: { x: 1.625, y: 0.36, z: -0.242 }, wheelRadius: 0.58, wheelHalfWidth: 0.22, comHeight: 0.5 },
     longbed: { halfHeight: 0.55, wheelY: -0.35, wheelX: 2.05, wheelZ: 1.08, engine: { x: 2.515, y: 0, z: -0.193 }, wheelRadius: 0.61, wheelHalfWidth: 0.255, comHeight: 0.65 },
-    carrier: { halfHeight: 0.6, wheelY: -0.4, wheelX: 1.95, wheelZ: 1.21, engine: { x: 0.325, y: 0.4, z: -0.484 }, wheelRadius: 0.65, wheelHalfWidth: 0.28, comHeight: 0.75 },
+    carrier: { halfHeight: 0.6, wheelY: -0.4, wheelX: 1.37, wheelZ: 1.21, engine: { x: 0.325, y: 0.3, z: -0.622 }, wheelRadius: 0.65, wheelHalfWidth: 0.28, comHeight: 0.75 },
     tractor: { halfHeight: 0.65, wheelY: -0.45, wheelX: 2.1, wheelZ: 0.97, engine: { x: 1.783, y: 0.08, z: -0.189 }, wheelRadius: 0.77, wheelHalfWidth: 0.325, comHeight: 0.85 },
     jeep: { halfHeight: 0.4, wheelY: -0.25, wheelX: 1.46, wheelZ: 0.726, engine: { x: -0.975, y: 0, z: 0 }, wheelRadius: 0.45, wheelHalfWidth: 0.18, comHeight: 0.4 },
     convertible: { halfHeight: 0.35, wheelY: -0.2, wheelX: 1.95, wheelZ: 0.968, engine: { x: -1.625, y: -0.03, z: -0.242 }, wheelRadius: 0.46, wheelHalfWidth: 0.18, comHeight: 0.32 },
@@ -49,7 +49,7 @@ export const PHYSICS = {
     lincoln: { halfHeight: 0.35, wheelY: -0.2, wheelX: 1.95, wheelZ: 0.968, engine: { x: 1.625, y: -0.25, z: -0.242 }, wheelRadius: 0.48, wheelHalfWidth: 0.19, comHeight: 0.32 },
     semi: { halfHeight: 1.12, wheelY: -0.75, wheelX: 3.2125, wheelZ: 1.24, engine: { x: 2.6125, y: -0.15, z: 0 }, wheelRadius: 0.8, wheelHalfWidth: 0.21, comHeight: 1.1 },
     sorokonoga: { halfHeight: 0.6, wheelY: -0.4, wheelX: 1.9, wheelZ: 1.15, engine: { x: -1.05, y: -0.4, z: -0.6214 }, wheelRadius: 0.55, wheelHalfWidth: 0.2, comHeight: 0.65 },
-    loader: { halfHeight: 0.65, wheelY: -0.45, wheelX: 1.95, wheelZ: 1.452, engine: { x: -0.975, y: 0.5, z: -0.242 }, wheelRadius: 0.8, wheelHalfWidth: 0.32, comHeight: 0.95 },
+    loader: { halfHeight: 0.65, wheelY: -0.45, wheelX: 1.475, wheelZ: 1.06, engine: { x: -2.27, y: 0.5, z: 0 }, wheelRadius: 0.8, wheelHalfWidth: 0.32, comHeight: 0.95 },
   },
   couplings: {
     semi: {

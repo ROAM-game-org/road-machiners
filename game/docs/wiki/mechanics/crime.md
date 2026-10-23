@@ -23,8 +23,8 @@ open case
 
 - A crime is an attack or a robbery that the witness rule of [Factions and relations](factions.md#witnesses) calls an incident, or a killing. A robbery includes a demand given in to or refused.
 - A killing is the wreck of a driver whose own memory says the killer wronged it. Player and NPC killers are judged alike.
-- Nothing is a crime when the culprit or the victim is a raider of Scrapjaw or Kiln or one of the Sunward. Lawmen and the shop bounty board answer for raiders.
-- Nothing is a crime when the culprit is the Marshall hunting the victim, or when the victim was the aggressor of a fight with a third truck.
+- Nothing is a crime when the culprit or the victim is a raider of Scrapjaw or Kiln or one of the Sunward. Lawmen answer for raiders.
+- Nothing is a crime when the culprit is the Marshall hunting the victim, or a player with Bounty hunter and the victim has an open case, or when the victim was the aggressor of a fight with a third truck.
 - Shots back at an attacker are no incident, so self-defense needs no rule. A theft of a claimed pile stays a matter of standing only.
 
 ## Witnesses
@@ -46,7 +46,7 @@ open case
 ## Money
 
 - Paid: the target pays the whole bounty. A fifth goes to the Marshall who asked, or to the Marshall office when paid at the desk. The rest goes to the issuing driver, or to the faction coffers. An independent's escrow returns to it.
-- Collected: the hunter is paid the escrow of an independent's case, or the bounty from the faction fund. The target loses no money or cargo.
+- Collected: the hunter is paid the escrow of an independent's case, or the bounty from the faction fund. The target loses no money or cargo. A player with Bounty hunter who knocks out a truck with open cases collects them all the same way, and the log says how much.
 - Lapsed: the escrow returns to a living issuer.
 - Each move raises a `transfer` or a `shopMoney` event of kind `bountyFund`, `bountyCoffers`, `bountyOffice` or `bountyEscrow`, so the recorder's NPC ledger explains it.
 

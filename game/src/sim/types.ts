@@ -259,6 +259,7 @@ export type Refusal =
   | { id: 'unhurt' }
   | { id: 'noSupplies' }
   | { id: 'noStock' }
+  | { id: 'onOrder' }
   | { id: 'theyHaveNoRoom' }
   | { id: 'noSupplyRoom' }
   | { id: 'inCombat' }
@@ -638,7 +639,7 @@ export type GameEvent =
   | { t: 'roadOpened'; stretch: number }
   | { t: 'runLost'; stretch: number; cause: RunLossCause }
   | { t: 'bountyFiled'; case: string; target: string; reporter: string; offense: CrimeOffense; victim: string; site: string; owed: number }
-  | { t: 'bountyClosed'; case: string; target: string; status: Exclude<CaseStatus, 'open'>; amount: number }
+  | { t: 'bountyClosed'; case: string; target: string; status: Exclude<CaseStatus, 'open'>; amount: number; collector: string | null }
   | { t: 'settlement'; faction: StandingFactionId; price: number }
   | { t: 'asked'; by: string; of: string; target: string; told: boolean };
 
