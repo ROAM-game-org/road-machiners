@@ -1,5 +1,5 @@
 import { ECONOMY } from "../data/goods";
-import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
+import { chassisFeature, PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
 import { playerVehicle } from "../sim/damage";
 import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
 import { mountedParts } from "../sim/grid";
@@ -7,7 +7,7 @@ import { fuelCap, suppliesCap } from "../sim/stats";
 import { getResources } from "../sim/resources";
 import type { Vehicle, World } from "../sim/types";
 import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
-import { chassisName } from "../text/names";
+import { chassisFeatureLine, chassisFeatureName, chassisName } from "../text/names";
 import { chassisMap, chassisPortrait, chassisStats, createIcon, diffStats, statGrid } from "./cards";
 import { el, type Child } from "./dom";
 import { GOODS_COLUMNS } from "./format";
@@ -227,11 +227,18 @@ export function truckCards(w: World, ids: readonly string[], offer: (id: string)
           el("div", { class: "card-name" }, el("b", {}, chassisName(id))),
           own ? el("span", { class: "dim" }, t("vehicle.yours")) : swapButton(w, id, offer),
         ),
+        chassisFeatureRow(id),
         statGrid(diffStats(chassisStats(id), own ? null : chassisStats(mine))),
       ),
     );
   });
   return el("div", { class: "cards trucks" }, ...cards);
+}
+
+function chassisFeatureRow(id: string): HTMLElement | null {
+  const feature = chassisFeature(id);
+  if (!feature) return null;
+  return el("div", { class: "dim chassis-feature" }, el("b", {}, chassisFeatureName(feature)), SPACE, chassisFeatureLine(feature));
 }
 
 function swapButton(w: World, id: string, makeOffer: (id: string) => SwapOffer): HTMLElement {

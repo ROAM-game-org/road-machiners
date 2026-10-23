@@ -10,6 +10,8 @@ export const partName = (defId: string): Msg => byId(`part.${defId}`);
 export const partLore = (defId: string): Msg => byId(`lore.part.${defId}`);
 export const goodLore = (id: string): Msg => byId(`lore.good.${id}`);
 export const chassisName = (id: string): Msg => byId(`chassis.${id}`);
+export const chassisFeatureName = (id: string): Msg => byId(`chassis.feature.${id}`);
+export const chassisFeatureLine = (id: string): Msg => byId(`chassis.feature.${id}.line`);
 export const goodName = (id: string): Msg => byId(`good.${id}`);
 export const goodLower = (id: string): Msg => byId(`good.${id}.lower`);
 export const questTitle = (id: string): Msg => byId(`quest.${id}.title`);

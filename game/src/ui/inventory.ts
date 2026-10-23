@@ -1,5 +1,5 @@
 
-import { chassisDef } from "../data/chassis";
+import { chassisDef, chassisFeature } from "../data/chassis";
 import { isShield, partDef } from "../data/parts";
 import { STRIP } from "../data/salvage";
 import { isJunk, maxHp } from "../sim/wear";
@@ -98,7 +98,7 @@ import {
 import type { Refusal } from "../sim/types";
 import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
-import { chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
+import { chassisFeatureLine, chassisFeatureName, chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { Refused } from "../sim/world";
 import { commandFailure, parcelTitle } from "./format";
 
@@ -1189,6 +1189,12 @@ export class InventoryScreen {
   }
 }
 
+function featureChip(chassisId: string): HTMLElement | null {
+  const feature = chassisFeature(chassisId);
+  if (!feature) return null;
+  return el("span", { class: "chip", title: chassisFeatureLine(feature) }, chassisFeatureName(feature));
+}
+
 export function truckChips(w: World, opts: { freeCells: boolean } = { freeCells: true }, truckId?: string): HTMLElement {
   const me = truckFor(w, truckId);
   const mass = vehicleMass(me);
@@ -1197,6 +1203,7 @@ export function truckChips(w: World, opts: { freeCells: boolean } = { freeCells:
     "span",
     { class: "chips" },
     el("span", { class: "chip" }, createIcon("truck"), chassisName(chassisDef(me.chassisId).id)),
+    featureChip(me.chassisId),
     el("span", { class: "chip" }, moneyEl(w.player.money)),
     opts.freeCells ? el("span", { class: "chip", title: t("inv.freeCellsTitle") }, createIcon("cells"), t("inv.freeCells", { n: freeCells(me) })) : null,
     el(
