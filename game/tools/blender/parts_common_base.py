@@ -69,9 +69,9 @@ def squared_arch(wx: float, hub_z: float, r: float, crown: float, chamfer: float
     return [(wx - r, low), (wx - r, top - chamfer), (wx - r + chamfer, top), (wx + r - chamfer, top), (wx + r, top - chamfer), (wx + r, low)]
 
 
-def round_arch(wx: float, hub_z: float, r: float, low: float) -> list[tuple[float, float]]:
-    """A low-poly half circle of radius r round the hub, from back to front, held at or above low."""
-    return [(wx + r * math.cos(math.pi * (1 - k / ARCH_SEGMENTS)), max(low, hub_z + r * math.sin(math.pi * (1 - k / ARCH_SEGMENTS)))) for k in range(ARCH_SEGMENTS + 1)]
+def round_arch(wx: float, hub_z: float, r: float, low: float, segments: int = ARCH_SEGMENTS) -> list[tuple[float, float]]:
+    """A half circle of radius r and segments edges round the hub, from back to front, held at or above low."""
+    return [(wx + r * math.cos(math.pi * (1 - k / segments)), max(low, hub_z + r * math.sin(math.pi * (1 - k / segments)))) for k in range(segments + 1)]
 
 
 def arch_profile(
@@ -85,17 +85,19 @@ def arch_profile(
     cowl_x: float | None = None,
     crown: float | None = None,
     chamfer: float = 0.0,
+    segments: int = ARCH_SEGMENTS,
 ) -> list[tuple[float, float]]:
     """A side panel's XZ outline from the body bottom (or bottom) to top, with a low-poly arch cut up around each wheel.
 
     nose_top and cowl_x make the top fall from top at cowl_x to nose_top at the nose, like a sloped hood.
     crown squares the arches: straight sides up to a flat top crown above the hub, with chamfered corners.
+    segments is the edge count of a round arch.
     """
     low = g.bottom if bottom is None else bottom
     r = radius + ARCH_CLEARANCE
     pts = [(-g.half_x + INSET, low)]
     for wx in sorted(wheels_x):
-        pts += round_arch(wx, hub_z, r, low) if crown is None else squared_arch(wx, hub_z, r, crown, chamfer, low)
+        pts += round_arch(wx, hub_z, r, low, segments) if crown is None else squared_arch(wx, hub_z, r, crown, chamfer, low)
     nose = [(g.half_x - INSET, top)] if nose_top is None or cowl_x is None else [(g.half_x - INSET, nose_top), (cowl_x, top)]
     pts += [(g.half_x - INSET, low), *nose, (-g.half_x + INSET, top)]
     return pts
@@ -114,17 +116,29 @@ def flare_profile(wx: float, hub_z: float, radius: float, low: float, x_min: flo
 
 
 def flare(
-    kit: Kit, name: str, g: Grid, wx: float, hub_z: float, radius: float, y0: float, y1: float, bottom: float | None = None, crown: float | None = None, chamfer: float = 0.0
+    kit: Kit,
+    name: str,
+    g: Grid,
+    wx: float,
+    hub_z: float,
+    radius: float,
+    y0: float,
+    y1: float,
+    bottom: float | None = None,
+    crown: float | None = None,
+    chamfer: float = 0.0,
+    segments: int = ARCH_SEGMENTS,
 ) -> None:
     """A dark low-poly band over the top of one arch, from the body bottom (or bottom) on both sides, cut off at the footprint ends.
 
     crown squares it to match a squared arch_profile: the band keeps FLARE across its sides, top and chamfers.
+    segments is the edge count of a round band.
     """
     low = g.bottom if bottom is None else bottom
     r0 = radius + ARCH_CLEARANCE
     r1 = r0 + FLARE
     if crown is None:
-        inner, outer = round_arch(wx, hub_z, r0, low), round_arch(wx, hub_z, r1, low)
+        inner, outer = round_arch(wx, hub_z, r0, low, segments), round_arch(wx, hub_z, r1, low, segments)
     else:
         inner = squared_arch(wx, hub_z, r0, crown, chamfer, low)
         outer = squared_arch(wx, hub_z, r1, crown + FLARE, chamfer + FLARE * (2 - math.sqrt(2)), low)
