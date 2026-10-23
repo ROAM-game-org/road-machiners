@@ -7,6 +7,7 @@ import { wheelMounts } from '../phys/body';
 import type { VehicleFrame } from '../phys/frames';
 import { PAL } from '../render/palette';
 import { unitBody, unitsOf } from '../sim/body';
+import { bareVehicle } from '../sim/factory';
 import { mountedParts } from '../sim/grid';
 import { defaultSetup } from '../sim/settings';
 import type { Vehicle, World } from '../sim/types';
@@ -41,11 +42,7 @@ export function vehicleOn(chassisId: string): Vehicle {
   const w = world();
   const player = w.vehicles.find((v) => v.id === w.player.vehicleId);
   const found = player?.chassisId === chassisId ? player : w.vehicles.find((v) => v.chassisId === chassisId);
-  if (!found) {
-    const seen = [...new Set(w.vehicles.map((v) => v.chassisId))].sort().join(', ');
-    throw new Error(`No truck on chassis ${chassisId} in a new world. Chassis there: ${seen}. Build the vehicle in a scene file instead.`);
-  }
-  return structuredClone(found);
+  return found ? structuredClone(found) : bareVehicle(structuredClone(w), { faction: 'player', chassisId, pos: { x: 0, y: 0 }, heading: 0, brain: null });
 }
 
 export function withHp(v: Vehicle, share: number): Vehicle {
