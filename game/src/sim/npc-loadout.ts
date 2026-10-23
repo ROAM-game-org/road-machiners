@@ -390,10 +390,11 @@ function chooseCargo(world: World, rng: Rng, wearRng: Rng, table: NpcLoadoutTabl
     const added = addGoods(world, load, good, n);
     if (added > 0) carried[good] = (carried[good] ?? 0) + added;
   };
-  addGood('parts', Math.min(NPC_UPKEEP.repairParts, Math.floor(massLeft() / CRATE_MASS), cellsLeft()));
+  const stockMassLeft = () => Math.max(0, massLeft() - CRATE_MASS);
+  addGood('parts', Math.min(NPC_UPKEEP.repairParts, Math.floor(stockMassLeft() / CRATE_MASS), cellsLeft()));
   const cargo = chooseGoods(rng, table, level, { cells: cellsLeft(), mass: massLeft() });
   if (cargo) addGood(cargo.good, cargo.count);
-  return { spares: addSpareParts(world, wearRng, table, level, load, { mass: massLeft, cells: cellsLeft }, rules), carried };
+  return { spares: addSpareParts(world, wearRng, table, level, load, { mass: stockMassLeft, cells: cellsLeft }, rules), carried };
 }
 
 type Left = { mass: () => number; cells: () => number };

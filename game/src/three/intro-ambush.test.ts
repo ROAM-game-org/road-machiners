@@ -14,7 +14,7 @@ import { checkKnockout, knockOutNpc } from '../sim/defeat';
 import { fightOdds } from '../sim/fight-odds';
 import { corePart, gridOf, mountedParts } from '../sim/grid';
 import { answersPlea, offersGiveUp } from '../sim/parley';
-import { addGoods } from '../sim/inventory';
+import { addGoods, removeAllGoods } from '../sim/inventory';
 import { chooseQuestOption, introStep, openWellScene, QUESTS, questView, setIntroStep } from '../sim/quests';
 import { OPENING_WRECK_ID } from '../sim/opening';
 import { emptyHidden } from '../sim/salvage';
@@ -52,6 +52,7 @@ function patchedWorld(): World {
   const w = emptyWorld(roadSpot());
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const me = playerVehicle(w);
+  removeAllGoods(me);
   addGoods(w, me, 'scrap', 2);
   me.speed = 2;
   me.order = { kind: 'through', dest: { x: me.pos.x + Math.cos(me.heading) * 200, y: me.pos.y + Math.sin(me.heading) * 200 } };
