@@ -28,6 +28,17 @@ PREVIEW_PX = (900, 700)
 CELL_ACROSS = 0.484  # Blender Y
 CELL_ALONG = 0.65  # Blender X
 
+# Side count of every round piece of a truck: wheels, rims, lamps, tanks, stacks, hatches and arches (half per half arch).
+# A 24-gon departs from its circle by under 1%, so it reads round at any game zoom.
+ROUND_SIDES = 24
+SMALL_ROUND_SIDES = 16
+SMALL_ROUND = 0.15  # radius in meters under which a round piece takes SMALL_ROUND_SIDES
+
+
+def round_sides(radius: float) -> int:
+    """The side count for a round piece of this radius: ROUND_SIDES, or SMALL_ROUND_SIDES for small pieces."""
+    return SMALL_ROUND_SIDES if radius < SMALL_ROUND else ROUND_SIDES
+
 
 @dataclass(frozen=True)
 class Args:
