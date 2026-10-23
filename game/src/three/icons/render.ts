@@ -11,12 +11,13 @@ import { spanOf, unitBody, unitsOf } from '../../sim/body';
 import type { VehicleFrame } from '../../phys/frames';
 import { baseGrid } from '../../sim/grid';
 import { PLAN_PAD } from '../../render/partLooks';
+import { bodyPaint } from '../render/truckMesh';
 import { VehicleView } from '../render/vehicle';
 import { weaponHead } from '../render/weaponHead';
 import { blueprintOf, blueprintSvg, calmed, GLASS_MATERIAL, paintBlueprint, type BlueprintColors, type Calm } from './blueprint';
 import { boundsOf, edgeBand, solidMask, stripes, type Mask, type Pixels, type Rgba } from './lines';
 
-export const ICON_STYLE_VERSION = 11;
+export const ICON_STYLE_VERSION = 12;
 
 export type IconView = 'top' | 'diagonal';
 export const DIAGONAL_YAW_DEG = 35;
@@ -59,7 +60,8 @@ const COLOR_LIGHT = 0.15;
 const INK = PAL.outline;
 const GLASS_COLOR = 0x6a7a80;
 const MASK_PAINT: TruckPaint = { body: 'oxblood', cab: 'chalk', gear: 'petrol' };
-const MASK_COLORS = new Map(Object.entries(playerColors(MASK_PAINT)).map(([slot, color]) => [color, { body: 0xff0000, cab: 0x00ff00, gear: 0x0000ff }[slot] ?? 0]));
+const MASK_SLOTS: Record<string, number> = { body: 0xff0000, cab: 0x00ff00, gear: 0x0000ff };
+const MASK_COLORS = new Map(Object.entries(playerColors(MASK_PAINT)).flatMap(([slot, color]) => [[color, MASK_SLOTS[slot]], [bodyPaint(color), MASK_SLOTS[slot]]]));
 const OPAQUE = 255;
 
 export type IconPaint = TruckPaint | 'mask';
@@ -233,13 +235,38 @@ function bareTruck(chassisId: string, paint: TruckPaint): THREE.Object3D {
 function toon(root: THREE.Object3D, style: IconStyle): void {
   const { ramp } = renderer();
   swapMaterials(root, (old) => {
-    const color = old.name === GLASS_MATERIAL ? GLASS_COLOR : old.color.getHex();
-    return style === 'toon' ? new THREE.MeshToonMaterial({ color, gradientMap: ramp }) : new THREE.MeshBasicMaterial({ color });
+    const glass = old.name === GLASS_MATERIAL;
+    const color = glass ? GLASS_COLOR : old.color.getHex();
+    const vertexColors = old.vertexColors && !glass;
+    return style === 'toon' ? new THREE.MeshToonMaterial({ color, gradientMap: ramp, vertexColors }) : new THREE.MeshBasicMaterial({ color, vertexColors });
   });
 }
 
+export function maskedTruck(chassisId: string): THREE.Object3D {
+  const truck = bareTruck(chassisId, MASK_PAINT);
+  maskMaterials(truck);
+  return truck;
+}
+
+function maskOf(hex: number): number {
+  return MASK_COLORS.get(hex) ?? 0;
+}
+
 function maskMaterials(root: THREE.Object3D): void {
-  swapMaterials(root, (old) => new THREE.MeshBasicMaterial({ color: MASK_COLORS.get(old.color.getHex()) ?? 0 }));
+  root.traverse((o) => {
+    if (o instanceof THREE.Mesh && (o.material as THREE.Material).vertexColors) maskVertexColors(o.geometry);
+  });
+  swapMaterials(root, (old) => new THREE.MeshBasicMaterial({ color: old.vertexColors ? 0xffffff : maskOf(old.color.getHex()), vertexColors: old.vertexColors }));
+}
+
+function maskVertexColors(geo: THREE.BufferGeometry): void {
+  const colors = geo.getAttribute('color') as THREE.BufferAttribute;
+  const color = new THREE.Color();
+  for (let i = 0; i < colors.count; i++) {
+    color.fromBufferAttribute(colors, i).setHex(maskOf(color.getHex()));
+    colors.setXYZ(i, color.r, color.g, color.b);
+  }
+  colors.needsUpdate = true;
 }
 
 function swapMaterials(root: THREE.Object3D, swap: (old: THREE.MeshLambertMaterial) => THREE.Material): void {
