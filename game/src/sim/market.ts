@@ -380,7 +380,10 @@ function rollProcure(world: World, input: RollInput, id: string): Contract {
 
 export function onOrder(world: World, shopId: string, good: string): boolean {
   const ordered = (c: Contract): boolean => c.kind === 'procure' && c.shop === shopId && c.good === good;
-  return shopState(world, shopId).contracts.some(ordered) || world.player.contracts.some(ordered);
+  const justFilled = world.player.pastContracts.some(
+    (p) => p.outcome === 'done' && ordered(p.contract) && world.turn < p.turn + p.contract.window,
+  );
+  return shopState(world, shopId).contracts.some(ordered) || world.player.contracts.some(ordered) || justFilled;
 }
 
 export function stockForSale(world: World, shopId: string, good: string): number {

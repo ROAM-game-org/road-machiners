@@ -242,6 +242,18 @@ describe('taking and handing in a supply order', () => {
     expect(w.player.pastContracts.at(-1)).toMatchObject({ outcome: 'done', amount: 5000 });
   });
 
+  it('keeps the handed-in crates off the counter for the order window, so they cannot be bought back for the next order', () => {
+    let w = atShop('bowl');
+    w.player.contracts = [order({ units: 4, window: 100 })];
+    addGoods(w, playerVehicle(w), 'salt', 4);
+    w = deliverContract(w, 'ct-procure');
+    expect(stockForSale(w, 'bowl', 'salt')).toBe(0);
+    expect(() => buyGood(w, 'salt', 1)).toThrow(Refused);
+    expect(procureCandidates(w, 'bowl', w.shops.bowl)).not.toContain('salt');
+    w.turn += 100;
+    expect(stockForSale(w, 'bowl', 'salt')).toBe(w.shops.bowl.goods.salt);
+  });
+
   it('refuses a hand-in short of crates and leaves the world alone', () => {
     const w = atShop('bowl');
     w.player.contracts = [order({ units: 4 })];
