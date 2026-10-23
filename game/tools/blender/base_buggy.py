@@ -77,7 +77,6 @@ ROOF_FRONT = SCREEN_TOP_X + 0.06  # a short brim over the windshield top
 SILL_FRONT = 0.35  # where the fender's back slope meets the cockpit sill
 SIDE_BACK = WHEELS_X[1] + ARCH_R + 0.01  # the tub side ends just ahead of the bare rear wheel
 HOOP_X = SIDE_BACK + 0.05
-HOOP_Y = SIDE - WALL / 2
 CAB_BACK = HOOP_X - TUBE / 2  # the hoop's back face: the roof's back edge and the rear wall
 INNER = SIDE - WALL  # the cowl's and dash's inner face
 TUMBLE = 0.1  # how far the cab sides lean in from the sill to the roof, so the cab narrows like a Manx greenhouse
@@ -90,11 +89,6 @@ ENGINE_X = 0.975  # PHYSICS.bodies.buggy.engine.x
 ENGINE_HALF = (0.4875, 0.38)  # the drawn engine: restOn() of the engine cells, over the bay floor
 HOLE_MARGIN = 0.02
 HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, -ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_HALF[1] + HOLE_MARGIN))
-
-
-def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
-    kit.box(f"{name}_l", size, (x, y, z), mat)
-    kit.box(f"{name}_r", size, (x, -y, z), mat)
 
 
 def clip_x(profile: list[tuple[float, float]], x0: float, x1: float) -> list[tuple[float, float]]:
