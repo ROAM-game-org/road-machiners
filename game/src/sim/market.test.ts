@@ -5,7 +5,7 @@ import { DISTANCE_PREMIUM, EFFORT, PRICE_FACTOR, PRESSURE_MAX, SHOPS, SHORT_PRES
 import { dist } from './vec';
 import { emptyWorld, addVehicle, npcBrain } from './testkit';
 import type { Vehicle, World } from './types';
-import { freeCells } from './grid';
+import { bareGrid, baseGrid, freeCells } from './grid';
 import {
   addStockPart,
   creditBounty,
@@ -27,6 +27,8 @@ import {
   type Contract,
   type ShopState,
 } from './market';
+
+const layoutLoad = (v: Vehicle) => freeCells(v) - (bareGrid(v.chassisId).h - baseGrid(v.chassisId).h) * bareGrid(v.chassisId).w;
 
 describe('market', () => {
   it('lowers stock on buying and raises it on selling', () => {
@@ -53,7 +55,7 @@ describe('market', () => {
 
   it('absorbs a full hauler load at a garage before the price moves halfway to its floor or ceiling', () => {
     const w = emptyWorld();
-    const load = freeCells(addVehicle(w, 'scrapjaw', 'hauler', [], { x: 0, y: 0 }));
+    const load = layoutLoad(addVehicle(w, 'scrapjaw', 'hauler', [], { x: 0, y: 0 }));
     const state = initShop(w, 'bowl');
     const before = goodPrice('bowl', state, 'scrap', 'sell', ECONOMY.spread);
     recordTrade('bowl', state, 'scrap', load, 'sell');
@@ -227,7 +229,7 @@ describe('market', () => {
 
   it('pays a full truck load of a haul about haulWages tier wages times the trip turns, lot pressure included', () => {
     const w = emptyWorld();
-    const units = freeCells(addVehicle(w, 'scrapjaw', 'scout', [], { x: 0, y: 0 }));
+    const units = layoutLoad(addVehicle(w, 'scrapjaw', 'scout', [], { x: 0, y: 0 }));
     const buy = lotPrice('nose', initShop(w, 'nose'), 'salt', 'buy', ECONOMY.spread, units);
     const sell = lotPrice('bowl', initShop(w, 'bowl'), 'salt', 'sell', ECONOMY.spread, units);
     const turns = estimateTurns(siteOf('nose').pos, siteOf('bowl').pos);
