@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { QUEST_ART } from './quest-art';
+import { SHOPS } from './market';
+import { QUEST_ART, TOWN_ART } from './quest-art';
 
 describe('quest art', () => {
   it('has a file in public/quest-art/ for every picture', () => {
@@ -38,5 +39,12 @@ describe('quest art', () => {
     expect(ratio(pyValue('BAND_RATIO'))).toBeCloseTo(ratio(cssValue('--quest-frame-band')));
     expect(parseFloat(pyValue('ZOOM'))).toBe(parseFloat(cssValue('--quest-art-zoom')));
     expect(parseFloat(pyValue('TALK_WIDTH'))).toBe(parseFloat(cssValue('--panel-s')));
+  });
+
+  it('names a real picture and a shop for every town band', () => {
+    for (const [place, art] of Object.entries(TOWN_ART)) {
+      expect(Object.keys(SHOPS)).toContain(place);
+      for (const key of [art.band, ...Object.values(art.sections)]) expect(QUEST_ART[key]).toBeDefined();
+    }
   });
 });

@@ -4,8 +4,7 @@ import { RULES } from '../data/rules';
 import { startKit } from '../data/start';
 import { playerVehicle } from '../sim/damage';
 import { siteOf } from '../sim/market';
-import { chooseQuestOption, QUESTS, questView, startQuest } from '../sim/quests';
-import { greetAtScale } from '../sim/intro';
+import { chooseQuestOption, pickTownSection, QUESTS, questView, startQuest } from '../sim/quests';
 import { defaultSetup } from '../sim/settings';
 import { nearestPad } from '../sim/sites';
 import { addState } from '../sim/states';
@@ -39,6 +38,10 @@ function wait(w: World): World {
   return endTurn(w, () => {});
 }
 
+function enterMarket(w: World): World {
+  return pickTownSection(w, null, 'market');
+}
+
 function driveOff(w: World): World {
   const me = playerVehicle(w);
   me.pos = { x: me.pos.x + 60, y: me.pos.y };
@@ -52,26 +55,32 @@ function talkThrough(world: World): World {
 }
 
 describe('the weigher at the Bowl gate yard', () => {
-  it('opens the scene once the truck parks on a Bowl pad with salvage in the bed', () => {
-    const w = wait(parkAt(quietWorld(), 'bowl'));
+  it('opens the scene when the player enters Market at Bowl with salvage in the bed', () => {
+    const w = enterMarket(parkAt(quietWorld(), 'bowl'));
     expect(w.player.quests.session).toEqual(expect.objectContaining({ quest: SCALE, checkpoint: 'start' }));
     expect(w.player.quests.world.scale_seen).toBe(true);
     expect(questView(w, QUESTS).choices.length).toBeGreaterThan(0);
   });
 
-  it('opens nothing while the truck still rolls across the pad', () => {
+  it('opens nothing from a turn parked at Bowl', () => {
+    const w = wait(parkAt(quietWorld(), 'bowl'));
+    expect(w.player.quests.session).toBeNull();
+    expect(w.player.quests.world.scale_seen).toBeUndefined();
+  });
+
+  it('opens nothing on entering another section at Bowl', () => {
+    const w = pickTownSection(parkAt(quietWorld(), 'bowl'), null, 'board');
+    expect(w.player.quests.session).toBeNull();
+  });
+
+  it('refuses the pick while the truck rolls across the pad', () => {
     const w = parkAt(quietWorld(), 'bowl');
-    const moving = endTurn(w, (d) => {
-      const me = playerVehicle(d);
-      me.speed = RULES.parkedSpeed + 1;
-      me.trail = [{ ...me.pos, heading: me.heading }, { ...me.pos, heading: me.heading }];
-    });
-    expect(playerVehicle(moving).speed).toBeGreaterThan(RULES.parkedSpeed);
-    expect(moving.player.quests.session).toBeNull();
+    playerVehicle(w).speed = RULES.parkedSpeed + 1;
+    expect(() => enterMarket(w)).toThrow('Not parked at a shop');
   });
 
   it('opens nothing on a pad of another town', () => {
-    const w = wait(parkAt(quietWorld(), 'nose'));
+    const w = enterMarket(parkAt(quietWorld(), 'nose'));
     expect(w.player.quests.session).toBeNull();
     expect(w.player.quests.world.scale_seen).toBeUndefined();
   });
@@ -79,13 +88,13 @@ describe('the weigher at the Bowl gate yard', () => {
   it('opens nothing for a bed with no scrap or parts in it', () => {
     const w = parkAt(quietWorld(), 'bowl');
     for (const item of playerVehicle(w).items) if (item.kind === 'good') item.good = 'grain';
-    expect(wait(w).player.quests.session).toBeNull();
+    expect(enterMarket(w).player.quests.session).toBeNull();
   });
 
   it('opens nothing for a driver who has sold at a profit before', () => {
     const w = parkAt(quietWorld(), 'bowl');
     w.player.xpBySource.profit = 1;
-    expect(wait(w).player.quests.session).toBeNull();
+    expect(enterMarket(w).player.quests.session).toBeNull();
   });
 
   it('opens nothing while the truck is in a fight', () => {
@@ -93,35 +102,35 @@ describe('the weigher at the Bowl gate yard', () => {
     const me = playerVehicle(w);
     const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: me.pos.x + 6, y: me.pos.y });
     addState(w, 'combat', raider.id, me.id, { kind: 'none' });
-    expect(wait(w).player.quests.session).toBeNull();
+    expect(enterMarket(w).player.quests.session).toBeNull();
   });
 
-  it('waits behind another open quest and opens on the turn after it ends', () => {
-    const talking = wait(startQuest(parkAt(quietWorld(), 'bowl'), QUESTS, 'bowl_hattie', 'start'));
+  it('opens nothing behind another open quest, and opens on the next entry after it ends', () => {
+    const talking = enterMarket(startQuest(parkAt(quietWorld(), 'bowl'), QUESTS, 'bowl_hattie', 'start'));
     expect(talking.player.quests.session?.quest).toBe('bowl_hattie');
     expect(talking.player.quests.world.scale_seen).toBeUndefined();
-    const after = wait(finishQuest(talking));
+    const after = enterMarket(finishQuest(talking));
     expect(after.player.quests.session?.quest).toBe(SCALE);
   });
 
   it('opens nothing while a radio call is open', () => {
     const w = parkAt(quietWorld(), 'bowl');
     w.player.call = { with: 'x', topic: 'tale', node: 'offer', vars: {}, line: { line: 'gotAStoryFrom', vars: {} } };
-    greetAtScale(w);
-    expect(w.player.quests.session).toBeNull();
-    expect(w.player.quests.world.scale_seen).toBeUndefined();
+    const next = enterMarket(w);
+    expect(next.player.quests.session).toBeNull();
+    expect(next.player.quests.world.scale_seen).toBeUndefined();
   });
 
-  it('opens once a game: leaving and parking again opens nothing', () => {
-    const seen = finishQuest(wait(parkAt(quietWorld(), 'bowl')));
+  it('opens once a game: leaving and entering Market again opens nothing', () => {
+    const seen = finishQuest(enterMarket(parkAt(quietWorld(), 'bowl')));
     const away = wait(driveOff(seen));
-    const back = wait(parkAt(away, 'bowl'));
+    const back = enterMarket(parkAt(away, 'bowl'));
     expect(back.player.quests.session).toBeNull();
     expect(back.player.quests.world.scale_seen).toBe(true);
   });
 
   it('moves no money, cargo or shop stock, and only writes the Old Orchard note', () => {
-    const opened = wait(parkAt(quietWorld(), 'bowl'));
+    const opened = enterMarket(parkAt(quietWorld(), 'bowl'));
     const done = talkThrough(opened);
     expect(done.player.money).toBe(opened.player.money);
     expect(playerVehicle(done).items).toEqual(playerVehicle(opened).items);
@@ -135,7 +144,7 @@ describe('the weigher at the Bowl gate yard', () => {
     ['ended', (w: World) => talkThrough(w)],
   ])('saves and loads with the scene %s, awards nothing and does not open it again', (_label, settle) => {
     const slots = new SaveSlots(memoryBackend(), new Map());
-    const w = settle(wait(parkAt(quietWorld(), 'bowl')));
+    const w = settle(enterMarket(parkAt(quietWorld(), 'bowl')));
     w.events = [];
     writeSave(slots, 'auto', w, 'run', 1);
     const loaded = loadWorld(slots, 'auto', TEST_MAP);
@@ -147,7 +156,29 @@ describe('the weigher at the Bowl gate yard', () => {
     expect(loaded.player.xpBySource).toEqual(w.player.xpBySource);
     expect(loaded.player.notes).toEqual(w.player.notes);
     expect(loaded.events).toEqual([]);
-    const next = wait(finishQuest(loaded));
+    const next = enterMarket(finishQuest(loaded));
     expect(next.player.quests.session).toBeNull();
+  });
+});
+
+describe('Back from the Nose garage', () => {
+  const backFromGarage = (w: World): World => pickTownSection(pickTownSection(w, null, 'garage'), 'garage', null);
+
+  it('opens the counter scene', () => {
+    expect(backFromGarage(parkAt(quietWorld(), 'nose')).player.quests.session?.quest).toBe('nose_counter');
+  });
+
+  it('reopens nothing after a save and load', () => {
+    const slots = new SaveSlots(memoryBackend(), new Map());
+    const w = talkThrough(backFromGarage(parkAt(quietWorld(), 'nose')));
+    w.events = [];
+    writeSave(slots, 'auto', w, 'run', 1);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP);
+    if (!loaded) throw new Error('The save did not load');
+    expect(loaded.player.quests.world).toEqual(w.player.quests.world);
+    expect(loaded.player.money).toBe(w.player.money);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.events).toEqual([]);
+    expect(backFromGarage(finishQuest(loaded)).player.quests.session).toBeNull();
   });
 });
