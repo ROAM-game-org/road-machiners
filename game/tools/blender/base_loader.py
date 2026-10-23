@@ -35,7 +35,7 @@ FRONT_DECK_BACK = 1.02
 FRONT = LENGTH / 2 - 0.02
 BACK = -LENGTH / 2
 BUCKET_HALF = WIDTH / 2
-BUCKET = [(FRONT, GROUND + 0.47), (2.72, GROUND + 0.34), (2.5, GROUND + 0.37), (2.38, GROUND + 0.51), (2.36, GROUND + 0.77), (2.38, GROUND + 1.05), (2.44, GROUND + 1.33), (2.54, GROUND + 1.55)]
+BUCKET = [(FRONT, GROUND + 0.34), (2.72, GROUND + 0.3), (2.5, GROUND + 0.34), (2.38, GROUND + 0.5), (2.36, GROUND + 0.77), (2.38, GROUND + 1.05), (2.44, GROUND + 1.36), (2.56, GROUND + 1.64)]
 BUCKET_T = 0.06
 B_PIN = (2.3, GROUND + 0.6)
 TILT_PIN = (2.33, GROUND + 1.2)
@@ -66,7 +66,7 @@ POD_BACK = -0.62
 CAB_FRONT = 0.38
 CAB_BACK = -1.07
 CAB_HALF = 0.78
-BELT = PLATFORM_TOP + 0.32
+BELT = PLATFORM_TOP + 0.16
 ROOF = GROUND + 3.46
 ROOF_T = 0.15
 UNDER_ROOF = ROOF - ROOF_T
@@ -226,8 +226,8 @@ def frames(kit: Kit) -> None:
     kit.box("rear_frame", (-HINGE_GAP - COUNTER_FRONT, 2 * FRAME_Y, FRAME_TOP - FRAME_BOTTOM), ((COUNTER_FRONT - HINGE_GAP) / 2, 0, (FRAME_TOP + FRAME_BOTTOM) / 2), "under")
     kit.box("hinge_block", (0.34, 0.5, 0.5), (0, 0, -0.9), "metal")
     for i, z in enumerate((-0.6, -1.12)):
-        kit.box(f"hinge_plate{i}", (0.6, 0.46, 0.06), (0, 0, z), "under")
-        kit.cylinder(f"hinge_pin{i}", 0.09, 0.14, (0, 0, z), "metal_light", vertices=SMALL_ROUND_SEGMENTS)
+        kit.box(f"hinge_plate{i}", (0.7, 0.56, 0.08), (0, 0, z), "under")
+        kit.cylinder(f"hinge_pin{i}", 0.14, 0.18, (0, 0, z), "metal_light", vertices=SMALL_ROUND_SEGMENTS)
     for s, (y0, y1) in (("l", (TIRE_IN, TIRE_OUT)), ("r", (-TIRE_OUT, -TIRE_IN))):
         front_fender(kit, f"front_fender_{s}", y0, y1)
         fender(kit, f"rear_fender_{s}", -WHEEL_X, math.radians(20), math.radians(172), y0, y1)
