@@ -13,11 +13,12 @@ import math
 import sys
 from pathlib import Path
 
+import bpy
 from mathutils import Euler, Matrix
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_core import COLORS  # noqa: E402
+from parts_common_core import COLORS, ROUND_SEGMENTS, SMALL_ROUND_SEGMENTS  # noqa: E402
 
 SEED = 102
 AXLE = (math.radians(90), 0, 0)
@@ -57,10 +58,16 @@ def check_mirrored(layout: list[Lug]) -> None:
             raise ValueError(f"{name} is not the mirror of {mirrored[0]}")
 
 
+def check_round(obj: bpy.types.Object, least: int) -> None:
+    sides = len(obj.data.vertices) // 2
+    if sides < least:
+        raise ValueError(f"{obj.name} has {sides} sides, under the {least} that read round")
+
+
 def build(kit: Kit) -> None:
-    kit.cylinder("tire", TIRE_R, 0.94, (0, 0, 0), "wheel", rot=AXLE, vertices=LUGS * 2)
-    kit.cylinder("rim", 0.55, 0.98, (0, 0, 0), "metal_light", rot=AXLE, vertices=8)
-    kit.cylinder("hub", 0.22, 1.0, (0, 0, 0), "rust", rot=AXLE, vertices=6)
+    kit.cylinder("tire", TIRE_R, 0.94, (0, 0, 0), "wheel", rot=AXLE, vertices=LUGS * 4)
+    check_round(kit.cylinder("rim", 0.55, 0.98, (0, 0, 0), "metal_light", rot=AXLE, vertices=ROUND_SEGMENTS), ROUND_SEGMENTS)
+    check_round(kit.cylinder("hub", 0.22, 1.0, (0, 0, 0), "rust", rot=AXLE, vertices=SMALL_ROUND_SEGMENTS), SMALL_ROUND_SEGMENTS)
     layout = lug_layout()
     check_mirrored(layout)
     for name, loc, rot in layout:
