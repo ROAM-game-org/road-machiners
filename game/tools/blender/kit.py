@@ -29,20 +29,9 @@ PREVIEW_PX = (900, 700)
 CELL_ACROSS = 0.484  # Blender Y
 CELL_ALONG = 0.65  # Blender X
 
-ROUND_EDGE = 0.1  # the longest edge a round piece may have, in meters
-ROUND_MIN = 16
-ROUND_MAX = 48
-
-
-def round_vertices(radius: float) -> int:
-    """The vertex count of a circle of this drawn radius that reads round: edges up to ROUND_EDGE, a multiple of 4 in 16..48.
-
-    A multiple of 4 keeps the left to right and top to bottom mirrors.
-    """
-    if radius <= 0:
-        raise ValueError(f"round_vertices needs a positive radius, got {radius}")
-    count = 4 * math.ceil(math.tau * radius / ROUND_EDGE / 4)
-    return min(ROUND_MAX, max(ROUND_MIN, count))
+# A round part's polygon strays at most this far, in meters, from its true circle.
+ROUND_SAG = 0.004
+ROUND_MIN_SIDES = 12
 
 
 @dataclass(frozen=True)
@@ -59,6 +48,16 @@ def parse_args() -> Args:
     parser.add_argument("preview", type=Path, nargs="?", help="optional preview .png from the game camera angle")
     ns = parser.parse_args(argv)
     return Args(out=ns.out, preview=ns.preview)
+
+
+def round_sides(radius: float) -> int:
+    """The fewest sides, a multiple of 4 and at least 12, whose polygon strays at most ROUND_SAG from a circle of this drawn radius."""
+    if radius <= 0:
+        raise ValueError(f"a round part needs a positive radius, got {radius}")
+    sides = ROUND_MIN_SIDES
+    while radius * (1 - math.cos(math.pi / sides)) > ROUND_SAG:
+        sides += 4
+    return sides
 
 
 def linear(hex_color: int) -> tuple[float, float, float, float]:

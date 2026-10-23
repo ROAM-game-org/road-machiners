@@ -13,7 +13,7 @@ rear window over a louvered engine lid, tall taillights and side intakes behind 
 The flat roof is the row surface of every deck row. The rear roof intake stands behind the last deck row, over the back ring.
 The engine hatch is a cutout over the engine cells, rows 8 and 9 of columns 3 and 4, round PHYSICS.bodies.bus.engine, over a bay floor at 1.02.
 Wheels sit 1.95 m ahead of and behind the center, 1.0 m off the center line, radius 0.72 m, half width 0.27 m,
-mount 0.55 m below the center. Round arches, flares and lamps take their sides from round_vertices().
+mount 0.55 m below the center. Round arches, flares and lamps take their sides from round_sides().
 Sockets arch_front, arch_rear and arch_front_top (the arch crown) mark the arches for wheelArches.test.ts.
 Deviations from the real bus: 7.5% short for the grid's cell cap, even overhangs since a body has one wheelX, tire rule tires
 with the window sill raised to clear their arches, single rear tires and no mirrors on stalks, which would leave the width.
@@ -30,7 +30,7 @@ import bpy
 from mathutils import Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit, Vec3, parse_args, round_vertices  # noqa: E402
+from kit import Kit, Vec3, parse_args, round_sides  # noqa: E402
 from parts_common_base import (  # noqa: E402
     ARCH_CLEARANCE,
     BASE_COLORS,
@@ -82,7 +82,7 @@ HUB_Z = -0.55 - SUSPENSION_REST  # PHYSICS.bodies.bus.wheelY
 GROUND = HUB_Z - WHEEL_R
 WHEELS_X = [WHEEL_X, -WHEEL_X]
 ARCH_R = WHEEL_R + ARCH_CLEARANCE
-ARCH_SIDES = round_vertices(ARCH_R) // 2
+ARCH_SIDES = round_sides(ARCH_R) // 2
 WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03
 
 HALF_Y = WIDTH / 2
@@ -237,8 +237,8 @@ def front(kit: Kit) -> None:
     kit.box("sill_band", (0.03, 2 * (SIDE - CORNER), 0.09), (FRONT + 0.01, 0, SILL - 0.015), "trim")
     face = (0, math.pi / 2, 0)
     for s in (1, -1):
-        kit.cylinder(f"lamp_{s}", LAMP_R, 0.04, (FRONT + 0.015, s * LAMP_Y, LAMP_Z), "light", rot=face, vertices=round_vertices(LAMP_R))
-        kit.cylinder(f"indicator_{s}", 0.05, 0.04, (FRONT + 0.02, s * (LAMP_Y - 0.24), LAMP_Z), "light", rot=face, vertices=round_vertices(0.05))
+        kit.cylinder(f"lamp_{s}", LAMP_R, 0.04, (FRONT + 0.015, s * LAMP_Y, LAMP_Z), "light", rot=face, vertices=round_sides(LAMP_R))
+        kit.cylinder(f"indicator_{s}", 0.05, 0.04, (FRONT + 0.02, s * (LAMP_Y - 0.24), LAMP_Z), "light", rot=face, vertices=round_sides(0.05))
     kit.box("grille", (0.03, 2 * (LAMP_Y - 0.36), 0.16), (FRONT + 0.015, 0, LAMP_Z), "under")
     kit.box("bumper", (0.12, 2 * (SIDE - 0.1), 0.2), (LENGTH / 2 - 0.06, 0, BODY_BOTTOM + 0.14), "under")
 

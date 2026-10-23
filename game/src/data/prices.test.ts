@@ -70,11 +70,11 @@ describe('item prices', () => {
   const FINER_GRID = ['buggy', 'courier', 'jeep', 'wagon'];
   const KEPT_PRICE = ['carrier'];
 
-  it('never prices a chassis with more deck cells below one of the same tier with fewer', () => {
+  it('never prices a chassis with more deck cells below one of the same tier and bed rows with fewer', () => {
     const deck = (id: string) => [...CHASSIS[id].layout.join('')].filter((c) => c === 'D').length;
     for (const a of Object.values(CHASSIS).filter((c) => !FINER_GRID.includes(c.id) && !KEPT_PRICE.includes(c.id))) {
       for (const b of Object.values(CHASSIS).filter((c) => !FINER_GRID.includes(c.id) && !KEPT_PRICE.includes(c.id))) {
-        if (a.tier === b.tier && deck(a.id) > deck(b.id)) expect(a.value, `${a.id} over ${b.id}`).toBeGreaterThan(b.value);
+        if (a.tier === b.tier && a.bedRows === b.bedRows && deck(a.id) > deck(b.id)) expect(a.value, `${a.id} over ${b.id}`).toBeGreaterThan(b.value);
       }
     }
   });

@@ -20,7 +20,7 @@ import { advanceJobs } from './jobs';
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
 const item = (w: World, defId: string) => w.vehicles[0].items.find((it) => it.kind === 'part' && it.part.defId === defId)!;
 const good = (w: World) => w.vehicles[0].items.find((it) => it.kind === 'good')!;
-const rackRow = CHASSIS.scout.layout.length;
+const rackRow = CHASSIS.scout.layout.length + CHASSIS.scout.bedRows;
 
 describe('inventory grid', () => {
   it('the standard kit starts with a scout, 333 M, two cargo parts, and full resources', () => {

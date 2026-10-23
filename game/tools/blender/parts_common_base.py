@@ -130,7 +130,7 @@ def flare(
     """A dark low-poly band over the top of one arch, from the body bottom (or bottom) on both sides, cut off at the footprint ends.
 
     crown squares it to match a squared arch_profile: the band keeps FLARE across its sides, top and chamfers.
-    segments sets the edges of a round band; a remade base passes round_vertices() of its arch.
+    segments sets the edges of a round band; a remade base passes round_sides() of its arch.
     """
     low = g.bottom if bottom is None else bottom
     r0 = radius + ARCH_CLEARANCE

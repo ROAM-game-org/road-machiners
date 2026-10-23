@@ -36,7 +36,7 @@ export const PHYSICS = {
     hauler: { halfHeight: 0.6, wheelY: -0.4, wheelX: 1.95, wheelZ: 1.452, engine: { x: 1.625, y: 1.21, z: -0.242 }, wheelRadius: 0.6, wheelHalfWidth: 0.25, comHeight: 0.7 },
     buggy: { halfHeight: 0.35, wheelY: -0.2, wheelX: 0.975, wheelZ: 0.726, engine: { x: 0.65, y: 0.05, z: 0 }, wheelRadius: 0.5, wheelHalfWidth: 0.22, comHeight: 0.4 },
     wagon: { halfHeight: 0.55, wheelY: -0.4, wheelX: 1.8, wheelZ: 1.12, engine: { x: 0.339, y: 0.05, z: -0.2 }, wheelRadius: 0.6, wheelHalfWidth: 0.25, comHeight: 0.75 },
-    courier: { halfHeight: 0.3, wheelY: -0.2, wheelX: 1.3, wheelZ: 0.726, engine: { x: 0.975, y: 0, z: 0 }, wheelRadius: 0.4, wheelHalfWidth: 0.16, comHeight: 0.3 },
+    courier: { halfHeight: 0.3, wheelY: -0.2, wheelX: 1.3, wheelZ: 0.726, engine: { x: 1.24, y: 0, z: 0 }, wheelRadius: 0.4, wheelHalfWidth: 0.16, comHeight: 0.3 },
     van: { halfHeight: 0.5, wheelY: -0.35, wheelX: 1.95, wheelZ: 0.968, engine: { x: 1.625, y: 0.36, z: -0.242 }, wheelRadius: 0.58, wheelHalfWidth: 0.22, comHeight: 0.5 },
     longbed: { halfHeight: 0.55, wheelY: -0.35, wheelX: 2.6, wheelZ: 1.452, engine: { x: 2.275, y: 0.35, z: -0.242 }, wheelRadius: 0.64, wheelHalfWidth: 0.265, comHeight: 0.65 },
     carrier: { halfHeight: 0.6, wheelY: -0.4, wheelX: 1.95, wheelZ: 1.21, engine: { x: 0.325, y: 0.4, z: -0.484 }, wheelRadius: 0.65, wheelHalfWidth: 0.28, comHeight: 0.75 },
