@@ -8,8 +8,7 @@ deck 0.26, drop sides to 0.88, bumper -0.76 to -0.55. Rounded front wings sweep 
 between round lamps over a heavy bumper, and the cab has rounded roof edges, a split windshield, doors and a small rear window.
 The long flat bed has plank drop sides on posts, a trim headboard and round taillights, and hangs out behind the rear duals.
 Deviations from the figures: the wheels stay symmetric at 2.05 m off the center, the cowl sits 0.3 m back so the front wheel stays
-under the rear of the hood, the bed is 3.95 m outside, and the tires are the tire rule's 0.61 m. The base draws the inner rear duals.
-The engine shows through a hole in the hood over a dark bay floor at 0, centered on PHYSICS.bodies.longbed.engine.
+under the rear of the hood, the bed is 3.95 m outside, and the tires are the tire rule's 0.61 m. The base draws the inner rear duals under a closed hood.
 Grid: 7 columns by 11 rows, stretched over the model by the projection. Half height 0.55 m, from PHYSICS.bodies.longbed.
 Wheels sit on rows 1 and 9, radius 0.61 m, half width 0.255 m, mount 0.35 m below the center, 1.08 m off the center line.
 Sockets arch_front, arch_rear and arch_front_top mark the arches for wheelArches.test.ts.
@@ -35,7 +34,6 @@ from parts_common_base import (  # noqa: E402
     Grid,
     check_base,
     check_door_gap,
-    cut_boxes,
     door_sill,
     flare,
     hull_layers,
@@ -114,12 +112,6 @@ GRILLE_TOP = HOOD_NOSE - 0.1
 LAMP_R = 0.12
 TAIL_R = 0.075
 
-HOLE_MARGIN = 0.02
-ENGINE_X = 2.515  # PHYSICS.bodies.longbed.engine.x
-ENGINE_Y = 0.193  # -PHYSICS.bodies.longbed.engine.z
-ENGINE_HALF = (0.415, 0.386)
-HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, ENGINE_Y - ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_Y + ENGINE_HALF[1] + HOLE_MARGIN))
-
 
 def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
     kit.box(f"{name}_l", size, (x, y, z), mat)
@@ -194,13 +186,9 @@ def wings(kit: Kit) -> None:
 
 
 def hood(kit: Kit) -> None:
-    """A crested hood from the cowl, rounding down to the grille, open over the engine cells above a dark bay floor."""
+    """A crested hood from the cowl, rounding down to the grille, closed over the engine cells, with the dark bay block under it."""
     sections = [(COWL_X, HOOD_CREST), (3.0, HOOD_CREST - 0.1), (GRILLE_X - 0.12, HOOD_NOSE), (GRILLE_X, HOOD_NOSE - 0.08)]
-    lid = loft_x(kit, "hood", [(x, hood_profile(top)) for x, top in sections], "paint")
-    (x0, y0), (x1, y1) = HOLE
-    cut_boxes(lid, [((x0, y0, -0.2), (x1, y1, HOOD_CREST + 0.2))])
-    lid.data.materials.clear()
-    lid.data.materials.append(kit._materials["paint"])
+    loft_x(kit, "hood", [(x, hood_profile(top)) for x, top in sections], "paint")
     kit.box("engine_bay", (GRILLE_X - 0.04 - 1.0, 2 * (HOOD_HALF - 0.04), FLOOR + 0.6), ((GRILLE_X - 0.04 + 1.0) / 2, 0, (FLOOR - 0.6) / 2), "under")
 
 
@@ -309,17 +297,9 @@ def check_wheels() -> None:
         raise RuntimeError(f"the rear duals stand {gap:.3f} m apart, under {DUAL_GAP}")
 
 
-def check_hood() -> None:
-    """Raises when the hood hole leaves the hood."""
-    (x0, y0), (x1, y1) = HOLE
-    if x0 <= COWL_X or x1 >= GRILLE_X - 0.1 or abs(y0) >= HOOD_HALF or abs(y1) >= HOOD_HALF:
-        raise RuntimeError(f"hood hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} leaves the hood")
-
-
 def main() -> None:
     args = parse_args()
     check_wheels()
-    check_hood()
     kit = Kit(BASE_COLORS, SEED)
     wings(kit)
     hood(kit)
