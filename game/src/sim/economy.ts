@@ -18,7 +18,7 @@ import { addState, endState, stateOf } from "./states";
 import { inTowReach } from "./tow";
 import { addCoreParts } from "./factory";
 import { practice, skillEffect, vehicleHasPerk } from "./progress";
-import { addStockPart, goodPrice, goodStock, lotPrice, moveStock, recordTrade, requireShop, shopAt, shopState, siteOf, takeStockPart } from "./market";
+import { addStockPart, goodPrice, goodStock, lotPrice, moveStock, onOrder, recordTrade, requireShop, shopAt, shopState, siteOf, stockForSale, takeStockPart } from "./market";
 import { canUseSite, requireTown, townAt, townNear } from "./sites";
 import { corePart, coreParts, freeCells, goodsCount, mountedParts } from "./grid";
 import { addGoods, cargoRoom, mountPart, removeGoods, spareParts, stowParcel, stowPart, type ParcelItem } from "./inventory";
@@ -98,6 +98,7 @@ export function tradeGoods(
 }
 
 function requireStock(world: World, shopId: string, good: string, count: number): void {
+  if (onOrder(world, shopId, good)) throw new Refused({ id: "onOrder" });
   if (count > goodStock(shopState(world, shopId), good)) throw new Refused({ id: "noStock" });
 }
 
@@ -132,7 +133,7 @@ export function affordableBuyCount(
   cap: number,
   budget: number,
 ): number {
-  const stock = goodStock(shopState(world, shopId), good);
+  const stock = stockForSale(world, shopId, good);
   if (stock === 0) return 0;
   const unitPrice = getTradePrice(world, vehicle, shopId, good, "buy");
   let count = Math.max(0, Math.min(cap, stock, Math.floor(budget / unitPrice)));

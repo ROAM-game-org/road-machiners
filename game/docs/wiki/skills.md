@@ -76,7 +76,7 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | marketEars | Market ears | social | 2 | A trader you call tells you the prices of the last town it left, as they were then. |
 | rumorMill | Rumor mill | social | 2 | A driver you call marks a wreck or site it passed. |
 | paidTruce | Paid truce | social | 4 | You can pay a hostile driver to end its feud with you. |
-| bountyTalk | Bounty talk | social | 4 | A raider that gives up to you counts for bounty contracts. |
+| bountyHunter | Bounty hunter | social | 4 | You see the bounty on a wanted truck and collect it when you knock the truck out. Fighting it is no crime for you. |
 <!-- /wiki:perks -->
 
 ## Numbers

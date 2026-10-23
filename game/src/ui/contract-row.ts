@@ -10,9 +10,8 @@ import { kph, moneyEl } from "./units";
 
 const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
   haul: () => createIcon("cargo"),
-  fetch: () => createIcon("parts"),
+  procure: () => createIcon("cargo"),
   claim: () => createIcon("parts"),
-  bounty: () => createBareItemIcon("cannon"),
   search: () => createBareItemIcon(PARCEL.id),
   survey: () => createIcon("scanner"),
   escort: () => createIcon("truck"),

@@ -1,5 +1,5 @@
 {
- "format": "2.103",
+ "format": "2.104",
  "shape": {
   "broken": [],
   "craters": [],
@@ -1311,13 +1311,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1336,17 +1338,6 @@
       "reward": "number",
       "shop": "string",
       "target": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
       "template": "string",
       "tier": "number",
       "window": "number"
@@ -1426,13 +1417,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1451,17 +1444,6 @@
       "reward": "number",
       "shop": "string",
       "target": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
       "template": "string",
       "tier": "number",
       "window": "number"
@@ -1534,13 +1516,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1559,17 +1543,6 @@
       "reward": "number",
       "shop": "string",
       "target": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
       "template": "string",
       "tier": "number",
       "window": "number"
@@ -1643,13 +1616,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1668,17 +1643,6 @@
       "reward": "number",
       "shop": "string",
       "target": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
       "template": "string",
       "tier": "number",
       "window": "number"
@@ -1751,13 +1715,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1776,17 +1742,6 @@
       "reward": "number",
       "shop": "string",
       "target": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
       "template": "string",
       "tier": "number",
       "window": "number"
@@ -1866,13 +1821,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1891,17 +1848,6 @@
       "reward": "number",
       "shop": "string",
       "target": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
       "template": "string",
       "tier": "number",
       "window": "number"
@@ -1973,13 +1919,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1998,17 +1946,6 @@
       "reward": "number",
       "shop": "string",
       "target": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
       "template": "string",
       "tier": "number",
       "window": "number"

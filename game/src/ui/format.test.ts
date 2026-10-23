@@ -13,7 +13,7 @@ import { startAid } from "../sim/aid";
 import { isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress } from "./format";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, heldContractDue, workLabel, contractSummary, postedSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
+import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
@@ -126,33 +126,22 @@ describe("conditionStatus", () => {
 });
 
 describe("contract text", () => {
-  const bounty: Contract = { id: "c1", shop: "bowl", kind: "bounty", template: "buggy", reward: 100, deadline: 100, window: 100, tier: 1, fulfilled: false };
-  const fetch: Contract = { id: "c2", shop: "bowl", kind: "fetch", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1 };
+  const order: Contract = { id: "c1", shop: "bowl", kind: "procure", good: "salt", units: 5, cratePay: 900, reward: 100, deadline: 100, window: 100, tier: 1 };
 
   it("shows the deadline as the game time the contract fails", () => {
-    expect(en(contractDue(bounty))).toBe("by Day 1 12:19");
+    expect(en(contractDue(order))).toBe("by Day 1 12:19");
   });
 
-  it("names any truck of the bounty's type and the shop that pays it", () => {
-    expect(en(contractSummary(bounty))).toBe("Knock out or wreck any Raider outrider, claim at Bowl");
+  it("names the good, the crate count and the shop that ordered it, and no source", () => {
+    expect(en(contractSummary(order))).toBe("Bring 5 crates of Salt to Bowl");
+    expect(en(heldContractDue(order))).toBe(en(contractDue(order)));
   });
 
-  it("reads a met bounty as beaten and ready to claim", () => {
-    const met: Contract = { ...bounty, fulfilled: true };
-    expect(en(contractSummary(met))).toBe("Raider outrider beaten, claim at Bowl");
-    expect(en(heldContractDue(met))).toBe("Ready");
-    expect(en(heldContractDue(bounty))).toBe(en(contractDue(bounty)));
-    expect(en(heldContractDue(fetch))).toBe(en(contractDue(fetch)));
-  });
-
-  it("keeps the posted wording of a met contract for its history", () => {
-    const met: Contract = { ...bounty, fulfilled: true };
-    expect(en(postedSummary(met))).toBe(en(contractSummary(bounty)));
-  });
-
-  it("logs a met bounty with its reward and where to claim it", () => {
-    const line = eventText(emptyWorld(), { t: "contract", contract: { ...bounty, fulfilled: true }, outcome: "fulfilled" })!;
-    expect([en(line.text), line.cls]).toEqual(["Bounty met: Raider outrider beaten, claim 1 M at Bowl", "good"]);
+  it("logs a collected bounty when the player's truck collected it", () => {
+    const w = emptyWorld();
+    const line = eventText(w, { t: "bountyClosed", case: "k1", target: "gone", status: "collected", amount: 5500, collector: w.player.vehicleId })!;
+    expect([en(line.text), line.cls]).toEqual(["You collect the bounty on a driver: 55 M's", "good"]);
+    expect(eventText(w, { t: "bountyClosed", case: "k1", target: "gone", status: "collected", amount: 5500, collector: "marshal-1" })).toBeNull();
   });
 
   describe("search", () => {
@@ -212,10 +201,6 @@ describe("contract text", () => {
     });
   });
 
-  it("says the hand-in part must still work and be rebuilt at most once", () => {
-    expect(en(contractSummary(fetch))).toBe("Bring MG turret to Bowl: working, rebuilt at most once");
-  });
-
   it("says where a claimed part lies from the posting shop, and in which territory", () => {
     const orchard = REGION.locations.find((l) => l.id === "orchard")!;
     const shop = REGION.towns.find((l) => l.id === "bowl")!;
@@ -261,8 +246,8 @@ describe("contract text", () => {
   });
 
   it("shows the window in whole game hours, at least one", () => {
-    expect(en(contractWindow({ ...bounty, window: 525 }))).toBe("28 h");
-    expect(en(contractWindow({ ...bounty, window: 1 }))).toBe("1 h");
+    expect(en(contractWindow({ ...order, window: 525 }))).toBe("28 h");
+    expect(en(contractWindow({ ...order, window: 1 }))).toBe("1 h");
   });
 });
 

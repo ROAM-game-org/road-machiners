@@ -12,16 +12,15 @@ import type { Contract } from '../sim/market';
 
 const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 20000, deadline: 5000, window: 600, rush: false, tier: 2 };
 const claim = (leads: Extract<Contract, { kind: 'claim' }>['leads'] = []): Extract<Contract, { kind: 'claim' }> => ({ id: 'ct-1', shop: 'bowl', kind: 'claim', stockId: 'armyTruck-1', at: { x: 100, y: 50 }, partId: 'p1', defId: 'mg', reward: 900, deadline: 9000, window: 9000, tier: 1, rivalAt: 9000, rival: null, leads });
-const bounty: Extract<Contract, { kind: 'bounty' }> = { id: 'ct-b', shop: 'nose', kind: 'bounty', template: 'buggy', reward: 11100, deadline: 900, window: 900, tier: 1, fulfilled: true };
+const order: Extract<Contract, { kind: 'procure' }> = { id: 'ct-b', shop: 'nose', kind: 'procure', good: 'water', units: 6, cratePay: 900, reward: 11100, deadline: 900, window: 900, tier: 1 };
 const escort: Contract = { id: 'ct-e', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 8000, deadline: 2000, window: 2000, tier: 1, threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null };
 
 function everyKind(): Contract[] {
   const [site] = surveySites(TEST_MAP);
   return [
     haul,
-    { id: 'ct-f', shop: 'bowl', kind: 'fetch', defId: 'mg', reward: 5000, deadline: 900, window: 900, tier: 1 },
+    order,
     claim(),
-    { ...bounty, fulfilled: false },
     { id: 'ct-s', shop: 'nose', kind: 'search', target: 'v-x', driver: 'Jed Cobb', template: 'trader', lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 9000, deadline: 900, window: 600, tier: 1, delivered: false },
     { id: 'ct-r', shop: 'bowl', kind: 'rescue', client: 'v-y', driver: 'Ada Cobb', need: 'fuel', area: { x: 40, y: 40 }, reward: 3000, deadline: 900, window: 600, tier: 1, fulfilled: false },
     escort,
@@ -48,14 +47,14 @@ describe('journal entries', () => {
     const w = emptyWorld();
     w.player.contracts = everyKind();
 
-    expect(journalEntries(w).work.map((c) => c.kind)).toEqual(['haul', 'fetch', 'claim', 'bounty', 'search', 'rescue', 'escort', 'survey']);
+    expect(journalEntries(w).work.map((c) => c.kind)).toEqual(['haul', 'procure', 'claim', 'search', 'rescue', 'escort', 'survey']);
   });
 
   it('lists past contracts newest first, with the day each ended', () => {
     const w = emptyWorld();
     w.player.pastContracts = [
       { contract: haul, outcome: 'failed', turn: 10, amount: -1800 },
-      { contract: bounty, outcome: 'done', turn: TIME.turnsPerDay + 10, amount: 11100 },
+      { contract: order, outcome: 'done', turn: TIME.turnsPerDay + 10, amount: 11100 },
     ];
 
     const { past } = journalEntries(w);
@@ -137,7 +136,7 @@ describe('journal screen', () => {
 
     const root = openJournal(w);
 
-    expect(groups(root)[0].all((n) => n.className === 'job')).toHaveLength(8);
+    expect(groups(root)[0].all((n) => n.className === 'job')).toHaveLength(7);
   });
 
   it('heads the notes only beside another group', () => {
@@ -151,10 +150,10 @@ describe('journal screen', () => {
     expect(heads(openJournal(w))).toEqual([['Work'], ['Notes']]);
   });
 
-  it('shows a past bounty in its posted wording, with its outcome and the money it moved', () => {
+  it('shows a past supply order in its posted wording, with its outcome and the money it moved', () => {
     const w = emptyWorld();
     w.player.pastContracts = [
-      { contract: bounty, outcome: 'done', turn: 10, amount: 11100 },
+      { contract: order, outcome: 'done', turn: 10, amount: 11100 },
       { contract: haul, outcome: 'failed', turn: 20, amount: -1800 },
       { contract: escort, outcome: 'lapsed', turn: 30, amount: 0 },
     ];
@@ -162,7 +161,7 @@ describe('journal screen', () => {
     const rows = groups(openJournal(w))[0].all((n) => n.className === 'job');
 
     expect(rows.map(tagsOf)).toEqual([['tag dim lapsed'], ['tag bad failed'], ['tag good done']]);
-    expect(rows[2].text()).toContain('Knock out or wreck any Raider outrider, claim at Nose');
+    expect(rows[2].text()).toContain('Bring 6 crates of Water to Nose');
     expect(rows[2].text()).toContain('Day 1, Nose');
     expect(rows[2].text()).toContain('+111');
     expect(rows[1].all((n) => n.className === 'amount bad')).toHaveLength(1);
