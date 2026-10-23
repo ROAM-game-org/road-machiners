@@ -1,5 +1,5 @@
 
-import { chassisDef, chassisFeature } from "../data/chassis";
+import { chassisDef } from "../data/chassis";
 import { isShield, partDef } from "../data/parts";
 import { STRIP } from "../data/salvage";
 import { isJunk, maxHp } from "../sim/wear";
@@ -52,7 +52,7 @@ import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
 import { baselinePart, conditionMeter, jobDone, conditionRow, conditionTag, createIcon, createItemIcon, diffStats, footprint as footprintEl, itemIconEl, itemLore, partIconEl, partStats, statGrid, toneStyle } from "./cards";
-import { vehicleMass } from "../sim/mass";
+import { loadMass } from "../sim/mass";
 import {
   blockerIds,
   clearFan,
@@ -98,7 +98,7 @@ import {
 import type { Refusal } from "../sim/types";
 import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
-import { chassisFeatureLine, chassisFeatureName, chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
+import { chassisAbilityLine, chassisAbilityName, chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { Refused } from "../sim/world";
 import { commandFailure, parcelTitle } from "./format";
 
@@ -1190,14 +1190,13 @@ export class InventoryScreen {
 }
 
 function featureChip(chassisId: string): HTMLElement | null {
-  const feature = chassisFeature(chassisId);
-  if (!feature) return null;
-  return el("span", { class: "chip", title: chassisFeatureLine(feature) }, chassisFeatureName(feature));
+  const name = chassisAbilityName(chassisId);
+  return name ? el("span", { class: "chip", title: chassisAbilityLine(chassisId) ?? name }, name) : null;
 }
 
 export function truckChips(w: World, opts: { freeCells: boolean } = { freeCells: true }, truckId?: string): HTMLElement {
   const me = truckFor(w, truckId);
-  const mass = vehicleMass(me);
+  const mass = loadMass(me);
   const rated = chassisDef(me.chassisId).ratedMass;
   return el(
     "span",

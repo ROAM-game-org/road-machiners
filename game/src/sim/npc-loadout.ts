@@ -4,6 +4,7 @@ import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, MIN_NPC
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { isShield, PARTS, partDef, type PartKind } from '../data/parts';
 import { openArcShares } from './armor';
+import { chassisTopSpeed } from './chassis-features';
 import { makePart, makeVehicle, newId, type PartSpec } from './factory';
 import { freeCells, gridOf, mountCellsOf, mountedItems, MOUNT_CELLS, mountSpots, plateSide, type SideLetter } from './grid';
 import { addGoods, mountPart, stowPart } from './inventory';
@@ -318,7 +319,7 @@ function withFirstPicks(b: Build, rng: Rng, template: NpcTemplate, powered: Vehi
 const SPEED_HEADROOM = 1.15;
 
 function fastEnough(template: NpcTemplate, minSpeed: number): Weighted<string>[] {
-  const fast = template.loadout.chassis.filter((entry) => chassisDef(entry.value).maxSpeed >= minSpeed * SPEED_HEADROOM);
+  const fast = template.loadout.chassis.filter((entry) => chassisTopSpeed(entry.value) >= minSpeed * SPEED_HEADROOM);
   if (!fast.length) throw new Error(`${template.id} has no chassis as fast as ${minSpeed}`);
   return fast;
 }

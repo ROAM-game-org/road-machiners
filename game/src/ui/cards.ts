@@ -3,7 +3,8 @@ import { oilSlickLength } from "../data/utilities";
 import { CHASSIS, chassisDef, isTruckPaint, PAINT, samePaint, type TruckPaint } from "../data/chassis";
 import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
-import { baseGrid, cargoCellsGained, cargoRowsOn, cellCount, mountedParts, type Cell } from "../sim/grid";
+import { accelFactor, chassisTopSpeed } from "../sim/chassis-features";
+import { bareGrid, cargoCellsGained, cargoRowsOn, cellCount, mountedParts, type Cell } from "../sim/grid";
 import { maxHp, partValue, wornDef } from "../sim/wear";
 import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
 import { workOf } from "../sim/states";
@@ -99,7 +100,7 @@ export function dialShare(speed: number, maxSpeed: number): number {
 }
 
 const DIAL_STEP = 20;
-const DIAL_TOP = Math.ceil(Math.max(...Object.values(CHASSIS).map((c) => kph(c.maxSpeed))) / DIAL_STEP) * DIAL_STEP;
+const DIAL_TOP = Math.ceil(Math.max(...Object.values(CHASSIS).map((c) => kph(chassisTopSpeed(c.id)))) / DIAL_STEP) * DIAL_STEP;
 const DIAL_X = 60;
 const DIAL_Y = 50;
 const DIAL_R = 40;
@@ -456,7 +457,7 @@ function compareLine(base: PartInstance): HTMLElement {
 }
 
 export function chassisMap(chassisId: string): HTMLElement {
-  const g = baseGrid(chassisId);
+  const g = bareGrid(chassisId);
   return el(
     "div",
     { class: "chassis-map", title: t("stat.layout", { chassis: chassisName(chassisDef(chassisId).id) }), style: `grid-template-columns:repeat(${g.w},1fr)` },
@@ -640,10 +641,10 @@ export function chassisStats(chassisId: string): Stat[] {
   const c = chassisDef(chassisId);
   const turning = stat("turning", t("stat.turning"), (c.turnFast + c.turnSlow) / 2, "deg", "more");
   return [
-    stat("speed", t("stat.baseSpeed"), kph(c.maxSpeed), "kph", "more"),
-    stat("accel", t("stat.accel"), mps2(c.accel), "mps2", "more", 1),
+    stat("speed", t("stat.baseSpeed"), kph(chassisTopSpeed(chassisId)), "kph", "more"),
+    stat("accel", t("stat.accel"), mps2(c.accel * accelFactor(chassisId)), "mps2", "more", 1),
     { ...turning, text: t("stat.span", { a: c.turnFast, b: c.turnSlow }) },
-    stat("cells", t("stat.cells"), cellCount(baseGrid(chassisId)), null, "more"),
+    stat("cells", t("stat.cells"), cellCount(bareGrid(chassisId)), null, "more"),
     stat("load", t("stat.ratedLoad"), c.ratedMass, "kg", "more"),
     stat("mass", t("stat.emptyMass"), c.mass, "kg", "less"),
     stat("fuel", t("stat.fuelTank"), fuelLiters(c.fuelCap), "liters", "more"),

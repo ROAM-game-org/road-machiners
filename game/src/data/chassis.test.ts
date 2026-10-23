@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { CHASSIS, CHASSIS_FEATURES, chassisFeature, HAULER_CHASSIS, isTruckPaint, PAINT, PAINT_SCHEMES, PALETTE, PALETTE_IDS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef, type PaletteId } from './chassis';
+import { readdirSync, readFileSync } from 'node:fs';
+import { chassisAbility, accelFactor, bedRows, rangeFactor, sightFactor, topSpeedFactor } from '../sim/chassis-features';
+import { CHASSIS, CHASSIS_FEATURES, HAULER_CHASSIS, isTruckPaint, PAINT, PAINT_SCHEMES, PALETTE, PALETTE_IDS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef, type PaletteId } from './chassis';
 import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
 import { FURY_ROAD } from './modes';
 import { NPCS } from './npcs';
@@ -260,12 +262,12 @@ describe('chassis tradeoffs', () => {
   const count = (c: ChassisDef, letter: string): number => c.layout.reduce((n, row) => n + [...row].filter((ch) => ch === letter).length, 0);
   const armorCells = (c: ChassisDef): number => [...ARMOR].reduce((n, letter) => n + count(c, letter), 0);
   const coreHp = (c: ChassisDef): number => c.core.reduce((n, core) => n + partDef(core.defId).hp, 0);
-  const axes = (c: ChassisDef): number[] => [c.maxSpeed, c.accel, c.brake, c.turnSlow, c.turnFast, count(c, 'D'), armorCells(c), c.ratedMass, coreHp(c), c.fuelCap / c.fuelPerTile];
+  const axes = (c: ChassisDef): number[] => [c.maxSpeed * topSpeedFactor(c.id), c.accel * accelFactor(c.id), bedRows(c.id) * Math.max(...c.layout.map((r) => r.length)), c.brake, c.turnSlow, c.turnFast, count(c, 'D'), armorCells(c), c.ratedMass, coreHp(c), c.fuelCap / c.fuelPerTile];
 
   function chassisDominates(a: ChassisDef, b: ChassisDef): boolean {
     const x = axes(a);
     const y = axes(b);
-    return a.feature === b.feature && x.every((v, i) => v >= y[i]) && x.some((v, i) => v > y[i]);
+    return chassisAbility(a.id)?.id === chassisAbility(b.id)?.id && x.every((v, i) => v >= y[i]) && x.some((v, i) => v > y[i]);
   }
 
   it('flags a strictly better copy of a chassis', () => {
@@ -285,12 +287,47 @@ describe('chassis tradeoffs', () => {
   });
 });
 
-describe('chassis features', () => {
-  it('gives every player chassis one feature, the semi none, and uses every feature', () => {
-    for (const id of PLAYER_CHASSIS) expect(chassisFeature(id), id).not.toBeNull();
-    expect(chassisFeature('semi')).toBeNull();
-    const used = new Set(PLAYER_CHASSIS.map((id) => chassisFeature(id)));
-    expect([...used].sort()).toEqual(Object.keys(CHASSIS_FEATURES).sort());
+describe('chassis abilities', () => {
+  it('gives every player chassis one ability and the semi none', () => {
+    for (const id of PLAYER_CHASSIS) expect(chassisAbility(id), id).not.toBeNull();
+    expect(chassisAbility('semi')).toBeNull();
+    expect(Object.keys(CHASSIS_FEATURES).sort()).toEqual([...PLAYER_CHASSIS].sort());
+  });
+
+  it('keeps the first build features out of the source', () => {
+    const banned = ['junkBuilt', 'quietEngine', 'cargoBed', 'heavyHitch', 'FEATURE_OF', 'towSpeedShare', 'fullPatchRoles'];
+    const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+      const path = `${dir}/${e.name}`;
+      if (e.isDirectory()) return e.name === 'save-fixtures' ? [] : files(path);
+      return /\.(ts|json)$/.test(e.name) && e.name !== 'chassis.test.ts' ? [path] : [];
+    });
+    for (const file of files('src')) {
+      const text = readFileSync(file, 'utf8');
+      for (const word of banned) expect(text.includes(word), `${word} in ${file}`).toBe(false);
+    }
+  });
+
+  it('pins the numbers the committee fixed', () => {
+    const a = (id: string) => CHASSIS_FEATURES[id];
+    expect([a('scout').bedRows, a('hauler').bedRows, a('longbed').bedRows]).toEqual([1, 2, 3]);
+    expect(a('buggy').accel).toBe(1.25);
+    expect(a('courier').topSpeed).toBe(1.25);
+    expect([a('jeep').offRoadCut, a('niva').offRoadCut]).toEqual([1, 1]);
+    expect([a('van').partArmor, a('bukhanka').partArmor, a('carrier').partArmor, a('tractor').partArmor]).toEqual([1, 2, 4, 2]);
+    expect([a('wagon').gunPower, a('tractor').gunPower, a('loader').gunPower]).toEqual([1.25, 1.25, 1.5]);
+    expect(a('sorokonoga').deckArmor).toBe(1);
+  });
+
+  it('puts bed rows on the scout, hauler and longbed only', () => {
+    for (const id of PLAYER_CHASSIS) expect(bedRows(id) > 0, id).toBe(['scout', 'hauler', 'longbed'].includes(id));
+  });
+
+  it('keeps every gun inside its driver sight, every arc at most 360 and every factor above 0', () => {
+    for (const [id, ability] of Object.entries(CHASSIS_FEATURES)) {
+      expect(rangeFactor(id), id).toBeLessThanOrEqual(sightFactor(id));
+      expect(ability.arc ?? 0).toBeLessThanOrEqual(360);
+      for (const f of [ability.accel, ability.topSpeed, ability.gunPower, ability.mountedMass, ability.sight, ability.range, ability.cargoRows]) expect(f ?? 1).toBeGreaterThan(0);
+    }
   });
 });
 

@@ -3,7 +3,6 @@ import { DETECT } from '../data/detect';
 import { RULES } from '../data/rules';
 import { TERRAIN, TERRAIN_TYPES } from '../data/terrain';
 import type { EngineDef, ScannerDef } from '../data/parts';
-import { CHASSIS_FEATURES, chassisDef } from '../data/chassis';
 import { partDef } from '../data/parts';
 import { wornDef } from './wear';
 import { mountedParts } from './grid';
@@ -27,8 +26,7 @@ import { playerCanAct, Refused, update } from './world';
 export function soundRange(world: World, v: Vehicle): number {
   if (v.speed <= RULES.parkedSpeed || !engineRuns(world, v) || isStranded(world, v)) return 0;
   const noise = (partDef(mountedParts(v, 'engine')[0].defId) as EngineDef).noise;
-  const share = chassisDef(v.chassisId).feature === 'quietEngine' ? CHASSIS_FEATURES.quietEngine.soundShare : 1;
-  return (DETECT.sound.limp + DETECT.sound.perSpeed * Math.max(0, v.speed - RULES.limpSpeed)) * noise * share;
+  return (DETECT.sound.limp + DETECT.sound.perSpeed * Math.max(0, v.speed - RULES.limpSpeed)) * noise;
 }
 
 function engineRuns(world: World, v: Vehicle): boolean {

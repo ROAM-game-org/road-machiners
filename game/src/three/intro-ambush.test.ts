@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { bedRows } from '../sim/chassis-features';
 import { AMBUSH, GREEN_PIT, WAKE_TOWN } from '../data/intro';
 import { HATTIE_MET, TOWED_TO_BOWL } from '../data/quests';
 import { NPCS } from '../data/npcs';
@@ -11,7 +12,7 @@ import { playerVehicle } from '../sim/damage';
 import { hangUp } from '../sim/dialogue';
 import { checkKnockout, knockOutNpc } from '../sim/defeat';
 import { fightOdds } from '../sim/fight-odds';
-import { corePart, mountedParts } from '../sim/grid';
+import { corePart, gridOf, mountedParts } from '../sim/grid';
 import { answersPlea, offersGiveUp } from '../sim/parley';
 import { addGoods } from '../sim/inventory';
 import { chooseQuestOption, introStep, openWellScene, QUESTS, questView, setIntroStep } from '../sim/quests';
@@ -408,7 +409,11 @@ describe('the fall and the wake in Bowl', () => {
       if (w.player.quests.session) w = closeScene(w);
       const raider = raidersIn(w)[0];
       if (!broken && dist(raider.pos, playerVehicle(w).pos) < 12) {
-        for (const part of mountedParts(playerVehicle(w), 'cargo')) part.hp = 0;
+        const me = playerVehicle(w);
+        const row = gridOf(me).chassisH + bedRows(me.chassisId);
+        me.items = me.items.filter((it) => !(it.kind === 'good' && it.y >= row));
+        me.items.push({ id: 'i-spill', kind: 'good', good: 'scrap', x: 0, y: row, rot: 0 });
+        for (const part of mountedParts(me, 'cargo')) part.hp = 0;
         broken = true;
       }
       w = endTurn(w, testDrive);

@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CHASSIS } from '../data/chassis';
+import { CHASSIS, PLAYER_CHASSIS } from '../data/chassis';
 import { NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { REGION } from '../data/region';
+import { bedRows } from './chassis-features';
 import { buyChassis } from './economy';
 import { partDef } from '../data/parts';
 import { makePart, makeVehicle } from './factory';
-import { MOUNT_CELLS, baseGrid, cargoCellsGained, cargoRowsOn, cellCount, freeCells, gridOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, plateSide, sideOf, type Cell } from './grid';
+import { MOUNT_CELLS, baseGrid, bareGrid, cargoCellsGained, cargoRowsOn, cellCount, freeCells, gridOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, plateSide, sideOf, type Cell } from './grid';
 import { moveItem, mountPart, storePart } from './inventory';
 import { generateNpcLoadout } from './npc-loadout';
 import { addVehicle, emptyWorld } from './testkit';
@@ -124,8 +125,8 @@ describe('broken cargo rows', () => {
     const { v, box } = boxTruck(['rack', 'trailerBox']);
     box.hp = 0;
     const g = gridOf(v);
-    expect(g.deadFrom).toBe(g.chassisH + rackRows);
-    expect(g.cells[g.chassisH].every((c) => c === '.')).toBe(true);
+    expect(g.deadFrom).toBe(g.chassisH + bedRows('hauler') + rackRows);
+    expect(g.cells[g.chassisH + bedRows('hauler')].every((c) => c === '.')).toBe(true);
     expect(g.h - g.deadFrom).toBe(boxRows);
   });
 
@@ -299,5 +300,54 @@ describe('the cargo bay cell', () => {
   it('mounts cargo parts and refuses a gun, so a gun on a bay cell is only stowed', () => {
     expect(MOUNT_CELLS.cargo).toContain('C');
     for (const kind of ['weapon', 'scanner', 'utility', 'store'] as const) expect(MOUNT_CELLS[kind]).not.toContain('C');
+  });
+});
+
+describe('built-in bed rows', () => {
+  const rowsOf: Record<string, number> = { scout: 1, hauler: 2, longbed: 3 };
+
+  it('add full-width plain rows right under the layout of the scout, hauler and longbed only', () => {
+    for (const id of PLAYER_CHASSIS) {
+      const rows = rowsOf[id] ?? 0;
+      const g = bareGrid(id);
+      const layout = baseGrid(id);
+      expect(g.h, id).toBe(layout.h + rows);
+      expect(g.chassisH, id).toBe(layout.h);
+      expect(g.deadFrom, id).toBe(g.h);
+      expect(g.cells.slice(layout.h).every((row) => row.length === g.w && row.every((c) => c === '.')), id).toBe(true);
+    }
+  });
+
+  it('are the whole grid of a truck with no cargo part', () => {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'scrapjaw', 'hauler', [], { x: 40, y: 40 });
+    expect(gridOf(v)).toBe(bareGrid('hauler'));
+  });
+
+  it('keep the layout grid alone', () => {
+    expect(baseGrid('scout').h).toBe(8);
+  });
+
+  it('keep their cargo when every cargo part breaks', () => {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'scrapjaw', 'longbed', ['rack'], { x: 40, y: 40 });
+    for (const p of mountedParts(v, 'cargo')) p.hp = 0;
+    const g = gridOf(v);
+    expect(g.deadFrom).toBe(g.chassisH + rowsOf.longbed);
+    const crate: GridItem = { id: 'i-crate', x: 0, y: g.chassisH, rot: 0, kind: 'good', good: 'salt' };
+    expect(onDeadRow(g, crate)).toBe(false);
+    expect(placementError(g, v.items, crate, null)).toBeNull();
+  });
+});
+
+describe('sorokonoga trailer cargo', () => {
+  const cargoIds = Object.values(PARTS).filter((p) => p.kind === 'cargo').map((p) => p.id);
+
+  it('gives half again as many rows from every cargo part, rounded down', () => {
+    for (const id of cargoIds) {
+      const own = (partDef(id) as { extraRows: number }).extraRows;
+      expect(cargoRowsOn('sorokonoga', id), id).toBe(Math.floor(own * 1.5));
+      expect(cargoRowsOn('hauler', id), id).toBe(own);
+    }
   });
 });

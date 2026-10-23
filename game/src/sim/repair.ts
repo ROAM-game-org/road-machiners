@@ -1,5 +1,4 @@
 
-import { CHASSIS_FEATURES, chassisDef } from '../data/chassis';
 import { isShield, partDef } from '../data/parts';
 import { GOODS } from '../data/goods';
 import { skillEffect } from './progress';
@@ -33,13 +32,8 @@ export function engineNeedsPatch(world: World, v: Vehicle): boolean {
 
 function partFieldCap(world: World, v: Vehicle, part: PartInstance): number {
   const def = partDef(part.defId);
-  if (def.kind === 'core' && isFullPatchRole(v, def.role)) return 1;
   if (!isShield(def) || def.fieldRepair === 'capped') return fieldCapShare(world, v);
   return def.fieldRepair === 'full' ? 1 : 0;
-}
-
-function isFullPatchRole(v: Vehicle, role: string): boolean {
-  return chassisDef(v.chassisId).feature === 'junkBuilt' && CHASSIS_FEATURES.junkBuilt.fullPatchRoles.includes(role);
 }
 
 function fieldCapShare(world: World, v: Vehicle): number {

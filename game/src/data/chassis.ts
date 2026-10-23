@@ -2,39 +2,48 @@
 import type { Tier } from './market';
 import { PARTS } from './parts';
 
-export type ChassisFeatureId = 'junkBuilt' | 'lightFrame' | 'quietEngine' | 'offRoad' | 'cargoBed' | 'heavyHitch';
+export type AbilityId = 'bed' | 'nimble' | 'racing' | 'offRoad' | 'armored' | 'gunMounts' | 'battle' | 'springs' | 'openTop' | 'tourer' | 'trailer';
 
-export const CHASSIS_FEATURES = {
-  junkBuilt: { fullPatchRoles: ['wheel', 'transmission', 'tank'] as readonly string[] },
-  lightFrame: { roughWearShare: 0.5 },
-  quietEngine: { soundShare: 2 / 3 },
-  offRoad: { roughCut: 0.5 },
-  cargoBed: { extraRows: 1, minCells: 4 },
-  heavyHitch: { towSpeedShare: 1 },
+export type ChassisAbility = {
+  id: AbilityId;
+  bedRows?: number;
+  accel?: number;
+  topSpeed?: number;
+  nimble?: number;
+  offRoadCut?: number;
+  offRoadWear?: number;
+  partArmor?: number;
+  deckArmor?: number;
+  gunPower?: number;
+  mountedMass?: number;
+  sight?: number;
+  range?: number;
+  arc?: number;
+  reloadCut?: number;
+  cargoRows?: number;
 };
 
-const FEATURE_OF: Record<string, ChassisFeatureId> = {
-  scout: 'junkBuilt',
-  wagon: 'junkBuilt',
-  buggy: 'lightFrame',
-  convertible: 'lightFrame',
-  courier: 'quietEngine',
-  lincoln: 'quietEngine',
-  jeep: 'offRoad',
-  niva: 'offRoad',
-  bukhanka: 'offRoad',
-  van: 'cargoBed',
-  hauler: 'cargoBed',
-  longbed: 'cargoBed',
-  bus: 'cargoBed',
-  tractor: 'heavyHitch',
-  loader: 'heavyHitch',
-  carrier: 'heavyHitch',
-  sorokonoga: 'heavyHitch',
+export const CHASSIS_FEATURES: Record<string, ChassisAbility> = {
+  scout: { id: 'bed', bedRows: 1 },
+  buggy: { id: 'nimble', accel: 1.25, nimble: 0.05 },
+  courier: { id: 'racing', topSpeed: 1.25 },
+  jeep: { id: 'offRoad', offRoadCut: 1, offRoadWear: 0.5 },
+  hauler: { id: 'bed', bedRows: 2 },
+  wagon: { id: 'gunMounts', gunPower: 1.25 },
+  van: { id: 'armored', partArmor: 1 },
+  convertible: { id: 'openTop', sight: 1.2, range: 1.2 },
+  bus: { id: 'springs', mountedMass: 0.5 },
+  niva: { id: 'offRoad', offRoadCut: 1, offRoadWear: 0.5 },
+  bukhanka: { id: 'armored', partArmor: 2 },
+  longbed: { id: 'bed', bedRows: 3 },
+  carrier: { id: 'armored', partArmor: 4 },
+  tractor: { id: 'battle', partArmor: 2, gunPower: 1.25 },
+  loader: { id: 'gunMounts', gunPower: 1.5 },
+  lincoln: { id: 'tourer', sight: 1.25, range: 1.15, topSpeed: 1.15 },
+  sorokonoga: { id: 'trailer', arc: 30, reloadCut: 1, cargoRows: 1.5, deckArmor: 1 },
 };
 
 export type ChassisDef = {
-  feature: ChassisFeatureId | null;
   id: string;
   maxSpeed: number;
   accel: number;
@@ -60,7 +69,7 @@ export type ChassisDef = {
 
 export const CHASSIS_PRICE_MODIFIERS = { perDeckCell: 2000, perArmorCell: 1000, perTopSpeed: 2666.67 };
 
-export type ChassisInput = Omit<ChassisDef, 'value' | 'ratedMass' | 'feature'>;
+export type ChassisInput = Omit<ChassisDef, 'value' | 'ratedMass'>;
 
 export function chassisModifier(def: ChassisInput): number {
   const cells = def.layout.join('');
@@ -82,7 +91,7 @@ export function ratedMassOf(def: ChassisInput): number {
 function finishChassis(def: ChassisInput): ChassisDef {
   const value = Math.round(def.base + chassisModifier(def));
   if (value <= 0) throw new Error(`Chassis ${def.id} prices at ${value}. Raise its base.`);
-  return { ...def, value, ratedMass: ratedMassOf(def), feature: FEATURE_OF[def.id] ?? null };
+  return { ...def, value, ratedMass: ratedMassOf(def) };
 }
 
 const CHASSIS_INPUTS: Record<string, ChassisInput> = {
@@ -468,9 +477,23 @@ export function chassisDef(id: string): ChassisDef {
   return def;
 }
 
-export function chassisFeature(chassisId: string): ChassisFeatureId | null {
-  return chassisDef(chassisId).feature;
+const ABILITY_FACTORS = ['accel', 'topSpeed', 'gunPower', 'mountedMass', 'sight', 'range', 'cargoRows'] as const;
+
+const valueOr = (value: number | undefined, fallback: number): number => value ?? fallback;
+
+function checkAbility(chassisId: string, ability: ChassisAbility): void {
+  if (!CHASSIS[chassisId]) throw new Error(`Ability row ${chassisId} is not a chassis`);
+  if (ABILITY_FACTORS.some((key) => valueOr(ability[key], 1) <= 0)) throw new Error(`${chassisId} has a factor of 0 or less`);
+  if (valueOr(ability.range, 1) > valueOr(ability.sight, 1)) throw new Error(`${chassisId} outreaches its sight`);
+  if (valueOr(ability.arc, 0) > 360) throw new Error(`${chassisId} has an arc bonus above 360`);
+  if (valueOr(ability.reloadCut, 0) < 0) throw new Error(`${chassisId} lengthens the reload`);
 }
+
+function checkAbilities(): void {
+  for (const [chassisId, ability] of Object.entries(CHASSIS_FEATURES)) checkAbility(chassisId, ability);
+}
+
+checkAbilities();
 
 export type Paint = { top: number; side: number; cab: number; cabSide: number };
 

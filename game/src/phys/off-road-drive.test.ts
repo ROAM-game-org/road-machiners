@@ -1,5 +1,5 @@
 import { beforeAll, expect, it } from 'vitest';
-import { CHASSIS } from '../data/chassis';
+import { CHASSIS_FEATURES } from '../data/chassis';
 import { playerVehicle } from '../sim/damage';
 import { alongOf, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { furyRoadWorld } from '../sim/testkit';
@@ -17,10 +17,10 @@ const START = 120;
 const VERGE = 11;
 const TURNS = 5;
 
-function groundCovered(feature: 'offRoad' | null): number {
-  const def = CHASSIS[playerVehicle(furyRoadWorld(SEED)).chassisId];
-  const original = def.feature;
-  def.feature = feature;
+function groundCovered(offRoadCut: number): number {
+  const chassisId = playerVehicle(furyRoadWorld(SEED)).chassisId;
+  const original = CHASSIS_FEATURES[chassisId];
+  CHASSIS_FEATURES[chassisId] = { id: 'offRoad', offRoadCut };
   try {
     let w = furyRoadWorld(SEED);
     w.furyRoad!.groups = [];
@@ -43,12 +43,12 @@ function groundCovered(feature: 'offRoad' | null): number {
     freeDrive(drive);
     return alongOf(SEED, toRoad(SEED, 0, playerVehicle(w).pos)) - from;
   } finally {
-    def.feature = original;
+    CHASSIS_FEATURES[chassisId] = original;
   }
 }
 
 it('an off-road drive truck covers more of the verge in five turns than the same truck without it', () => {
-  const plain = groundCovered(null);
-  const offRoad = groundCovered('offRoad');
+  const plain = groundCovered(0);
+  const offRoad = groundCovered(1);
   expect(offRoad).toBeGreaterThan(plain * 1.05);
 }, budget(120_000));

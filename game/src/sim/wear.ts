@@ -1,5 +1,5 @@
 
-import { CHASSIS_FEATURES, chassisDef } from '../data/chassis';
+import { offRoadWear } from './chassis-features';
 import { ECONOMY } from '../data/goods';
 import { partDef, type EngineDef, type PartDef, type PartKind, type ScannerDef, type ShieldDef, type UtilityDef, type WeaponDef } from '../data/parts';
 import { TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
@@ -37,8 +37,7 @@ function wearVehicle(world: World, v: Vehicle): void {
 }
 
 function terrainWearOf(v: Vehicle, terrainWear: number): number {
-  if (chassisDef(v.chassisId).feature !== 'lightFrame') return terrainWear;
-  return SMOOTHEST + Math.max(0, terrainWear - SMOOTHEST) * CHASSIS_FEATURES.lightFrame.roughWearShare;
+  return SMOOTHEST + Math.max(0, terrainWear - SMOOTHEST) * offRoadWear(v.chassisId);
 }
 
 function breakDown(world: World, v: Vehicle, oddsScale: number, floor: (id: string) => number): void {
