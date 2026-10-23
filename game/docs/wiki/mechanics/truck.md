@@ -57,7 +57,7 @@ Every player chassis has one ability that bends one rule for every truck of that
 - Racing gear (courier): 25% more top speed.
 - Off-road drive (jeep, niva): no top speed lost on rough ground, and terrain wear above road wear is halved.
 - Gun mounts (gunwagon 25%, wheel loader 50%): more gun power, so the guns slow the truck less.
-- Armored frame (van +1, bukhanka +2, armored carrier +4): armor on every part but shields. A part with armor below a round's penetration soaks more of it, so the bonus helps against low penetration rounds and does not against high ones.
+- Armored frame (van +1, bukhanka +2, armored carrier +4): armor on every part but shields. It cuts the share of a round that part itself takes, by the round's penetration over its armor, so it helps most against low penetration rounds. It never raises the damage a part takes.
 - Battle frame (heavy tractor): +2 armor and 25% more gun power.
 - Heavy springs (bus): mounted parts count half their mass toward the load penalty.
 - Open top (convertible): sight and every gun's range 20% longer.
