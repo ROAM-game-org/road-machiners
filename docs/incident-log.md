@@ -37,8 +37,8 @@ what: Agents fixed a nearby, easier problem instead of the one reported, like br
 cost: The committee played builds that did not touch the report, and each one went back for a redesign.
 
 ID: R10
-what: New truck models misread the reference image: they ignored it and the game's scale, with trucks too small next to others, wrong proportions, too much detail and wheels clipping through doors, or they copied it too literally, like open seats from a beach buggy that no wasteland driver would ride in.
-cost: Each model took three rounds of committee feedback, the owner had to ask for a stronger model by hand, and a remade chassis went back to design after its build.
+what: New truck models misread the reference image: they ignored it and the game's scale, with trucks too small next to others, wrong proportions, too much detail and wheels clipping through doors, or they copied it too literally, like open seats from a beach buggy that no wasteland driver would ride in. A remake also left the engine's hood hole as a bare dark box with stacked shapes over the grille, so the hood read as broken instead of a closed hood around the engine like the scout's.
+cost: Each model took three rounds of committee feedback, the owner had to ask for a stronger model by hand, one remade chassis went back to design after its build, and another went back for a patch to its hood.
 
 ID: R11
 what: A change that applied to many things was built and shown on one, like a diagram drawn for one chassis only, a size picked per truck instead of by one rule, or a few keys opened in a scene but not the menu.
