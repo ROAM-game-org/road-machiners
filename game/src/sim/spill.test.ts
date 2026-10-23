@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { chassisDef } from '../data/chassis';
 import { partDef } from '../data/parts';
 import { gridOf, itemCells, mountedParts } from './grid';
 import { moveItem } from './inventory';
@@ -66,11 +65,10 @@ describe('cargo spills', () => {
     const g = gridOf(npc);
     const box = mountedParts(npc, 'cargo').find((p) => p.defId === 'trailerBox')!;
     const rackRows = (partDef('rack') as { extraRows: number }).extraRows;
-    const bedRows = chassisDef('hauler').bedRows;
-    const tall: GridItem = { id: 'i-tall', x: 0, y: g.chassisH + bedRows + rackRows - 1, rot: 1, kind: 'part', part: makePart(w, 'rack', 0) };
+    const tall: GridItem = { id: 'i-tall', x: 0, y: g.chassisH + rackRows - 1, rot: 1, kind: 'part', part: makePart(w, 'rack', 0) };
     npc.items.push(tall);
     box.hp = 0;
-    expect(gridOf(npc).deadFrom).toBe(g.chassisH + bedRows + rackRows);
+    expect(gridOf(npc).deadFrom).toBe(g.chassisH + rackRows);
     spillDeadRows(w);
     expect(npc.items.some((it) => it.id === 'i-tall')).toBe(false);
     const pile = w.salvage.find((s) => s.pile)!;
@@ -123,7 +121,6 @@ describe('cargo spills', () => {
 
   it('an open refit that moved a spilled item cancels', () => {
     const { w, me } = loadedPlayer();
-    w.player.autoRepair = false;
     const gun = me.items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
     const target = onRow(me, lastRow(me))[0];
     me.items = me.items.filter((it) => it === target || it.kind !== 'good' || it.y !== target.y);

@@ -977,6 +977,7 @@ export function noteHurt(world: World): void {
 
 export function getActivityDestination(world: World, vehicle: Vehicle, activity: NpcActivity): Vec | null {
   if (!activity.destination) return null;
+  if (vehicle.job?.kind === 'search' && searchBelongs(vehicle.job, activity)) return null;
   if (activity.kind === 'repair' || activity.kind === 'rearm' || activity.kind === 'wait') return parksHere(vehicle, activity) ? null : activity.destination;
   if (['fight', 'flee', 'raid', 'prowl', 'investigate', 'patrol', 'explore', 'follow', 'muster', 'sizeUp'].includes(activity.kind)) return activity.destination;
   return siteStop(world, vehicle, activity, activity.destination);

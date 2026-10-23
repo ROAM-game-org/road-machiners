@@ -157,11 +157,10 @@ const stateKindRows = (): Cell[][] => entries(STATE_KINDS).map(([kind, def]) => 
 const TABLES: WikiTable[] = [
   {
     id: 'chassis',
-    headers: ['id', 'name', 'tier', 'value (M)', 'max speed (tiles/turn)', 'accel', 'brake', 'mass (kg)', 'rated mass (kg)', 'radius (tiles)', 'fuel cap', 'fuel per tile', 'grid (w x h)', 'bed rows', 'core parts', 'garages'],
+    headers: ['id', 'name', 'tier', 'value (M)', 'max speed (tiles/turn)', 'accel', 'brake', 'mass (kg)', 'rated mass (kg)', 'radius (tiles)', 'fuel cap', 'fuel per tile', 'grid (w x h)', 'core parts', 'garages'],
     rows: () => Object.values(CHASSIS).map((c) => [
       c.id, en(chassisName(c.id)), c.tier, moneyAmount(c.value), c.maxSpeed, c.accel, c.brake, c.mass, c.ratedMass, c.radius, c.fuelCap, c.fuelPerTile,
       `${Math.max(...c.layout.map((r) => r.length))} x ${c.layout.length}`,
-      c.bedRows,
       c.core.map((k) => k.defId),
       Object.keys(TOWN_CHASSIS).filter((town) => TOWN_CHASSIS[town].includes(c.id)),
     ]),
