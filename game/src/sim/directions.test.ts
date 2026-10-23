@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { DIRECTIONS } from '../data/directions';
 import { REGION } from '../data/region';
-import { cueAt, octantOf, spanOf } from './direction-cues';
+import { cueAt, headingAlong, octantOf, spanOf } from './direction-cues';
 import { directionsTo } from './directions';
-import { followSteps } from './directions-follower.test-helper';
+import { ambiguousStarts, followSteps } from './directions-follower.test-helper';
 import { nearestRoadPoints, roadNetworkOf } from './road-network';
 import { emptyWorld, furyRoadWorld } from './testkit';
 import type { DirectionStep, DirectionTarget, Obstacle, World } from './types';
@@ -152,6 +152,57 @@ describe('directionsTo', () => {
   });
 });
 
+describe('headingAlong', () => {
+  it('gives the way along a straight road from either end', () => {
+    const line = [{ x: 0, y: 0 }, { x: 100, y: 0 }];
+    expect(headingAlong([line], DIRECTIONS.headingReach)).toBe('east');
+    expect(headingAlong([[...line].reverse()], DIRECTIONS.headingReach)).toBe('west');
+  });
+
+  it('reads the stretch, not a kink right at the start', () => {
+    const line = [{ x: 0, y: 0 }, { x: 0, y: 3 }, { x: 40, y: 3 }];
+    expect(headingAlong([line], DIRECTIONS.headingReach)).toBe('east');
+  });
+
+  it('stops at the reach on a road that bends later', () => {
+    const line = [{ x: 0, y: 0 }, { x: 0, y: -30 }, { x: 200, y: -30 }];
+    expect(headingAlong([line], DIRECTIONS.headingReach)).toBe('north');
+  });
+
+  it('walks on through the next line of the leg and stops at its end', () => {
+    expect(headingAlong([[{ x: 0, y: 0 }, { x: 5, y: 0 }], [{ x: 5, y: 0 }, { x: 5, y: 10 }]], DIRECTIONS.headingReach)).toBe('southEast');
+  });
+
+  it('throws on a leg with no points or no length', () => {
+    expect(() => headingAlong([], DIRECTIONS.headingReach)).toThrow();
+    expect(() => headingAlong([[{ x: 1, y: 1 }, { x: 1, y: 1 }]], DIRECTIONS.headingReach)).toThrow();
+  });
+});
+
+describe('the heading of the first road', () => {
+  const w = emptyWorld();
+  const follows = (steps: DirectionStep[]) => steps.filter((s): s is Extract<DirectionStep, { do: 'follow' }> => s.do === 'follow');
+
+  it('carries the heading from the join point after a join', () => {
+    const steps = directionsTo(w, OFF_ROAD, to('nose'));
+    expect(steps[1]).toMatchObject({ do: 'follow', heading: expect.any(String) });
+  });
+
+  it('says the reported start on the road heads west for Bowl', () => {
+    const [point] = nearestRoadPoints(roadNetworkOf(w), { x: 283, y: 572 }, DIRECTIONS.joinReach, 1);
+    const [first] = directionsTo(w, point.pos, to('bowl'));
+    expect(first).toMatchObject({ do: 'follow', heading: 'west' });
+  });
+
+  it('gives every follow step of every answer a heading', () => {
+    for (const from of [OFF_ROAD, site('bowl'), site('nose'), site('scrapjaw'), { x: 300, y: 300 }]) {
+      for (const s of SITES) {
+        for (const step of follows(directionsTo(w, from, to(s.id)))) expect(typeof step.heading).toBe('string');
+      }
+    }
+  });
+});
+
 describe('cues', () => {
   const quiet: Vec = { x: 10, y: 10 };
   const leg = [[{ x: 10, y: 10 }, { x: 70, y: 10 }]];
@@ -234,6 +285,13 @@ describe('following the steps', () => {
     }
     console.log('cue coverage', JSON.stringify(cues));
     expect(misses).toEqual([]);
+  });
+
+  it('never gives a first road whose name and heading fit two exits', () => {
+    const answers = grid.flatMap((from) => SITES.map((s) => ({ from, steps: directionsTo(w, from, to(s.id)) })));
+    const ambiguous = ambiguousStarts(w, answers);
+    console.log('ambiguous first roads', ambiguous.length, 'of', answers.length);
+    expect(ambiguous).toEqual([]);
   });
 
   it('gets near each wreck spot off the road', () => {

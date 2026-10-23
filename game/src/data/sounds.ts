@@ -42,6 +42,7 @@ const DEFS = {
   "money": { bus: "ui", setup: "cab", volume: 0.8, pitchJitter: 0.03, maxVoices: 1, loop: false, prompts: ["A few smooth heavy metal discs clink together and drop into a tin box."], seconds: 1 },
   "level-up": { bus: "ui", setup: "cab", volume: 1, pitchJitter: 0, maxVoices: 1, loop: false, prompts: ["Heavy steel lever slams and locks into place with a deep satisfying clunk, then a short bright ring of struck metal."], seconds: 2 },
   "discover": { bus: "ui", setup: "cab", volume: 0.9, pitchJitter: 0, maxVoices: 1, loop: false, prompts: ["Short low mysterious metallic swell with distant wind, a place revealed."], seconds: 2 },
+  "heatwave-warning": { bus: "ui", setup: "cab", volume: 0.84, pitchJitter: 0, maxVoices: 1, loop: false, prompts: ["Soft low slow swell with a faint rising bowed-metal tone and a little dry wind, a heatwave arriving, gentle and not an alarm."], seconds: 2.5 },
   "air-brake": { bus: "sfx", setup: "field", volume: 0.5, pitchJitter: 0.03, maxVoices: 1, loop: false, prompts: ["Heavy truck air brakes hiss as it stops on gravel."], seconds: 1.5 },
   "defeat": { bus: "ui", setup: "cab", volume: 1, pitchJitter: 0, maxVoices: 1, loop: false, prompts: ["Low ominous boom fading into a dying engine and silence."], seconds: 3 },
 
@@ -77,9 +78,15 @@ const DEFS = {
   "music-outpost": { bus: "music", volume: 1, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Dark, menacing wasteland outpost groove with a steady pulse, 92 bpm, instrumental. Brooding minor key, like a spaghetti western standoff: baritone sax and trumpet play a grim Ethiopian jazz melody up front, over a tight dry drum kit and quiet junk percussion of clanking scrap metal and steel pipes. A deep driving bass riff, and a gritty overdriven guitar kept low in the mix, playing short muted stabs, never blasting. Hard and watchful, still moving, never happy or bright. Raw 1970s band playing live in a dry room, tape, no synths, no organ, seamless loop."], seconds: 90 },
   "music-abandoned": { bus: "music", volume: 0.7, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Quiet, vast background music for exploring the ruins of a dead city, 50 bpm, D minor, instrumental. A cello and a bowed double bass play long, slow, low minor notes that overlap and change slowly. Far away, a felt-muffled piano plays one low note now and then. A bowed sheet of rusted steel gives a faint, cold shimmer. Dry desert wind runs under everything. Eerie and ancient, a feeling of awe at something huge and long dead. Not sad and not cheerful. No melody, no riff, no beat, even level from start to end. Acoustic live recording, natural. No synths, no organ, no choir, seamless loop.", "Quiet, haunted background music for walking through dead ruins, 54 bpm, A minor, instrumental. A clean baritone guitar plays single low notes that ring out long, with wide gaps of space. A bowed double bass holds a low note under it and slowly moves. Soft knocks of hand-struck metal pipes echo far away. A deep Mongolian throat-singing hum rises and falls very quietly in the distance. Watchful and ancient, not sad and not cheerful. No melody, no repeating riff, no beat, even level from start to end. Raw live recording outdoors at night, tape. No synths, no organ, no trumpet, no static, seamless loop.", "Very still, quiet background music for exploring a fallen spaceship wreck in the desert, 46 bpm, D minor, instrumental. A bowed cymbal and a bowed steel rod hold long, soft, glassy tones that fade in and out very slowly. Under them, a bowed double bass holds one low note for a long time, then moves one step. Nothing else happens. Calm, cold and mysterious, something strange sleeps here. Not sad and not cheerful. Very few events, slow changes only, no swells, no rolls, no hits, no drums, no melody, flat even level from start to end. Acoustic live recording in a huge empty metal hall, natural. No synths, no electronic sounds, no choir, seamless loop."], seconds: 90 },
   "music-quest": { bus: "music", volume: 0.8, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Quiet, slow wasteland background for reading, 70 bpm, instrumental. Soft junk-metal percussion played with felt mallets and brushes: muted knocks on steel pipes, a soft oil drum pulse, a brushed sheet of rusted tin, a faint chain rattle. A deep upright bass plays a slow, steady minor-key line. A muffled baritone guitar plucks a low note now and then. Calm, steady, even level, never loud. Raw live recording in a dry room, tape. No melody lead, no cymbals, no synths, no organ, seamless loop.", "Quiet, slow desert background for reading, 72 bpm, instrumental. Soft tribal hand drums: frame drum, tende and a low felt-mallet floor tom in a steady, hypnotic pattern, played gently. A bowed double bass holds long low minor notes. Far behind, a soft Mongolian throat-singing hum rises and falls. Dark and patient, not sad and not cheerful, even level. Raw live recording outdoors at night, dry, tape. No congas, no claps, no synths, no lead melody, seamless loop.", "Quiet, slow wasteland background for reading, 60 bpm, instrumental. A clean baritone guitar with slow tremolo plays sparse low minor chords that ring out, like a dark spaghetti western standoff heard from far away. A bowed double bass holds long low notes under it. A harmon-muted trumpet plays a short grim phrase rarely, distant, then long rests. Calm and watchful, not sad, even level. Raw 1970s live recording in a dry room, tape. No drums, no synths, no organ, no reverb wash, seamless loop."], seconds: 90 },
-  "song-dust": SONG_PART,
-  "song-dust-guitars": SONG_PART,
-  "song-dust-cymbals": SONG_PART,
+  "song-clash-a": SONG_PART,
+  "song-clash-a-guitars": SONG_PART,
+  "song-clash-a-cymbals": SONG_PART,
+  "song-clash-b": SONG_PART,
+  "song-clash-b-guitars": SONG_PART,
+  "song-clash-b-cymbals": SONG_PART,
+  "song-cello": SONG_PART,
+  "song-cello-guitars": SONG_PART,
+  "song-cello-cymbals": SONG_PART,
   "song-dusk": SONG_PART,
   "song-dusk-guitars": SONG_PART,
   "song-dusk-cymbals": SONG_PART,
@@ -115,23 +122,24 @@ export function soundsWith(files: string[]): Record<string, Cue> {
 }
 
 const ENGINE_FILES: Record<string, string> = {
-  scout: "engine-2.ogg",
+  scout: "engine-1.ogg",
   hauler: "engine-3.ogg",
   buggy: "engine-1.ogg",
-  wagon: "engine-2.ogg",
+  wagon: "engine-1.ogg",
   courier: "engine-1.ogg",
-  van: "engine-2.ogg",
+  van: "engine-1.ogg",
   longbed: "engine-3.ogg",
   carrier: "engine-3.ogg",
   tractor: "engine-3.ogg",
   jeep: "engine-1.ogg",
-  convertible: "engine-2.ogg",
+  convertible: "engine-1.ogg",
   bus: "engine-3.ogg",
   loader: "engine-3.ogg",
-  lincoln: "engine-2.ogg",
+  lincoln: "engine-1.ogg",
   niva: "engine-1.ogg",
-  bukhanka: "engine-2.ogg",
+  bukhanka: "engine-1.ogg",
   semi: "engine-3.ogg",
+  sorokonoga: "engine-3.ogg",
 };
 
 const HORN_SOUNDS: Record<string, { file: string; rate: number }> = {
@@ -152,6 +160,7 @@ const HORN_SOUNDS: Record<string, { file: string; rate: number }> = {
   niva: { file: "horn-1.ogg", rate: 1.28 },
   bukhanka: { file: "horn-1.ogg", rate: 0.88 },
   semi: { file: "horn-2.ogg", rate: 0.66 },
+  sorokonoga: { file: "horn-1.ogg", rate: 0.66 },
 };
 
 export function hornSoundFor(chassisId: string): { file: string; rate: number } {
@@ -168,7 +177,6 @@ export function engineFileFor(chassisId: string): string {
 
 const STRAIN_FILES: Record<string, string> = {
   "engine-1.ogg": "engine-strain-2.ogg",
-  "engine-2.ogg": "engine-strain-2.ogg",
   "engine-3.ogg": "engine-strain-1.ogg",
 };
 
@@ -209,7 +217,7 @@ export const MIX = {
     { at: 1.5, rate: 0.9, gain: 0 },
   ],
   wind: { baseGain: 0.4, stormGain: 1, fadeSeconds: 1 },
-  music: { fadeSeconds: 3, pauseDelayMs: 300, pauseCutoffHz: 4000, openCutoffHz: 20000, toneSeconds: 0.6, musicReachTiles: 12 },
+  music: { fadeSeconds: 3, musicReachTiles: 12 },
   anchors: { sfx: "cannon-fire" } as Partial<Record<Bus, CueId>>,
   tone: { low: 8, high: -17, spread: 10 },
 } as const;
@@ -219,30 +227,11 @@ export const SCORE_BLOCKS = {
     blockBars: 2,
     hotHeat: 2.5,
     coolHeat: 1,
-    memoryHalfLifeBars: 16,
-    memoryWeight: 0.08,
-    stay: 6,
     phraseBars: 8,
-    next: {
-      intro: { verse: 3, wall: 1 },
-      verse: { verse: 4, wall: 3, stop: 1 },
-      wall: { wall: 4, verse: 2, stop: 1, solo: 1 },
-      stop: { verse: 2, wall: 2 },
-      solo: { wall: 3, verse: 1 },
-    },
-    after: {
-      "intro>verse": { stop: 0 },
-      "intro>wall": { stop: 0 },
-      "verse>wall": { wall: 1.5, verse: 0.5 },
-      "wall>verse": { wall: 2, stop: 0.5 },
-      "wall>stop": { wall: 3 },
-      "verse>stop": { verse: 3 },
-      "stop>verse": { stop: 0 },
-      "stop>wall": { stop: 0 },
-      "solo>wall": { solo: 0 },
-    },
-    hot: { intro: 1, verse: 0.4, wall: 3, stop: 0.7, solo: 1.5 },
-    calm: { intro: 1, verse: 2, wall: 0.15, stop: 0.15, solo: 0.15 },
+    jumpDb: 3.5,
+    jumpChords: 0.97,
+    hot: ["wall", "solo"] as const,
+    cool: ["verse"] as const,
   },
   songGain: 0.6,
   guitarPush: 0.8,

@@ -175,6 +175,9 @@
   background: var(--lcd-ink);
   color: var(--lcd);
 }
+.resource.danger {
+  border-color: var(--danger);
+}
 .resource.alert .icon svg {
   fill: var(--lcd);
   stroke: var(--lcd);
@@ -203,6 +206,10 @@
   gap: var(--space-2);
   padding-top: var(--space-2);
   border-top: 1px solid var(--bevel-light);
+}
+#ui .instrument-actions button.instrument-button > .icon-lock {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
 }
 #ui .instrument-actions button.instrument-button {
   position: relative;

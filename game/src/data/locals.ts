@@ -8,6 +8,8 @@ export const NOTE_IDS = [
   'talkPierceGuns',
   'talkGlassLean',
   'talkSunwardTake',
+  'sunwardLamps',
+  'sunwardDragged',
   'talkKilnFight',
   'talkBrakeRod',
   'talkArmyStarved',
@@ -24,7 +26,7 @@ export function isNoteId(id: string): id is NoteId {
 
 export const GAME_NOTES = { wagonRoad: 'wagonRoad' } as const satisfies Record<string, NoteId>;
 
-export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'edda' | 'jory' | 'sefa' | 'agnes';
+export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'edda' | 'jory' | 'sefa' | 'agnes' | 'odile' | 'hadiza' | 'hollis';
 
 export type LocalDef = { id: LocalId; town: string; quest: string };
 
@@ -39,12 +41,15 @@ export const LOCALS: Record<LocalId, LocalDef> = {
   jory: { id: 'jory', town: 'bowl', quest: 'bowl_jory' },
   sefa: { id: 'sefa', town: 'salvage-yard', quest: 'yard_sefa' },
   agnes: { id: 'agnes', town: 'dustwell', quest: 'pump_agnes' },
+  odile: { id: 'odile', town: 'granary', quest: 'granary_odile' },
+  hadiza: { id: 'hadiza', town: 'green-pit', quest: 'pit_hadiza' },
+  hollis: { id: 'hollis', town: 'pump-station', quest: 'station_still' },
 };
 
 export const TERM_IDS = [
   'bowl', 'nose', 'pierce', 'granary', 'glass_flats', 'fallen_sun', 'sunward', 'senate', 'farmers',
   'pump_station', 'dustwell', 'committee', 'salvage_yard', 'kiln', 'scrapjaw', 'old_army', 'guild', 'old_world', 'chaos',
-  'keepers', 'blackwell', 'northgate', 'burnt_drivers', 'covenant', 'the_yards', 'black_water',
+  'keepers', 'machiner', 'link',
 ] as const;
 
 export type TermId = (typeof TERM_IDS)[number];

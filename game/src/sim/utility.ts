@@ -75,7 +75,7 @@ function pointOf(order: UtilityOrder): Vec {
 
 export function useKindOf(def: PartDef): UseKind {
   if (def.kind === 'utility') return def.effect.type;
-  if (def.kind === 'armor' && def.claymore) return 'claymore';
+  if (def.kind === 'accessory' && def.claymore) return 'claymore';
   throw new Error(`${def.id} is not a utility`);
 }
 
@@ -94,7 +94,7 @@ export function chargeOf(part: PartInstance): ChargeState {
 
 export function wornReload(part: PartInstance): number {
   const def = partDef(part.defId);
-  if (def.kind === 'armor' && def.claymore) return wornTurns(def.claymore.reload, part.wear);
+  if (def.kind === 'accessory' && def.claymore) return wornTurns(def.claymore.reload, part.wear);
   const reload = def.kind === 'utility' ? wornDef<UtilityDef>(part).reload : null;
   if (reload === null) throw new Error(`${def.id} has no reload`);
   return reload;
@@ -219,6 +219,9 @@ export function advanceUtilityEffects(world: World): void {
   world.smoke = aged(world.smoke);
   world.fields = aged(world.fields);
   world.flares = aged(world.flares);
+}
+
+export function advanceLines(world: World): void {
   world.lines = aged(world.lines);
   endLines(world);
 }

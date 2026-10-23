@@ -2,6 +2,8 @@ import { CHASSIS, TOWN_CHASSIS } from '../data/chassis';
 import { DETECT } from '../data/detect';
 import { GOODS, ECONOMY } from '../data/goods';
 import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, PRICE_FACTOR, SHOPS } from '../data/market';
+import { PRODUCTION, RELIEF, ROAD_NEWS, SITE_ECONOMY, SITE_EVENTS } from '../data/market';
+import { fullStock, stockTarget } from '../sim/market';
 import { DECISIONS, GEAR_LEVELS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, STATE_TURNS, TRAITS } from '../data/npcs';
 import type { Allegiance, WeightChange } from '../data/npcs';
 import { CHASSIS_PRICE_MODIFIERS } from '../data/chassis';
@@ -18,7 +20,7 @@ import { TOW } from '../data/tow';
 import { UNITS } from '../data/units';
 import { oilSlickLength } from '../data/utilities';
 import { CONDITION, PATCH, REPAIR, WEAR } from '../data/wear';
-import { baseModel, PART_MODELS, WEAPON_POOLS } from '../render/partLooks';
+import { baseModels, PART_MODELS, WEAPON_POOLS } from '../render/partLooks';
 import { STATE_KINDS } from '../sim/states';
 import { chassisName, goodName, partName, perkName, perkRule, professionName, skillGrows, skillName, templateName } from '../text/names';
 import type { Msg } from '../text/msg';
@@ -39,7 +41,7 @@ function allegianceText(rule: Allegiance): string {
 export type Cell = string | number | boolean | null | readonly unknown[] | object;
 export type WikiTable = { id: string; headers: string[]; rows: () => Cell[][] };
 
-const MECHANICS = ['character', 'truck', 'turns', 'defeat', 'detection', 'world', 'npcs', 'factions', 'social', 'economy', 'content', 'world-settings', 'fury-road'];
+const MECHANICS = ['character', 'truck', 'turns', 'defeat', 'detection', 'world', 'npcs', 'factions', 'crime', 'social', 'economy', 'content', 'world-settings', 'fury-road'];
 
 export const PAGES: readonly string[] = [
   'README.md', 'items.md', 'combat.md', 'economy.md', 'npcs.md', 'skills.md', 'assets.md',
@@ -127,6 +129,7 @@ export function fillPage(name: string, text: string, tables: Record<string, Wiki
 }
 
 const entries = <T>(record: Record<string, T>): [string, T][] => Object.entries(record);
+const crates = (goods: Record<string, number>): string => Object.entries(goods).map(([good, n]) => `${n} ${good}`).join(', ') || '-';
 
 const partsOf = <K extends PartKind>(kind: K): Extract<PartDef, { kind: K }>[] =>
   Object.values(PARTS).filter((p): p is Extract<PartDef, { kind: K }> => p.kind === kind);
@@ -169,7 +172,8 @@ const TABLES: WikiTable[] = [
     rows: () => partsOf('weapon').map((p) => [p.id, p.round.damage, p.round.pen, p.round.blast, p.round.speed, p.round.splashRadius, p.round.splashDamage, p.round.splashPen]),
   },
   partTable('engines', 'engine', ['speed bonus', 'accel bonus', 'fuel mult', 'noise', 'heat'], (p) => [p.speedBonus, p.accelBonus, p.fuelMult, p.noise, p.heat]),
-  partTable('armor', 'armor', ['blast armor', 'field repair', 'ram mult', 'claymore'], (p) => [p.blastArmor, p.fieldRepair, p.ramMult, p.claymore ?? null]),
+  partTable('armor', 'armor', ['blast armor', 'field repair', 'ram mult'], (p) => [p.blastArmor, p.fieldRepair, p.ramMult]),
+  partTable('accessories', 'accessory', ['blast armor', 'field repair', 'ram mult', 'mounts', 'claymore'], (p) => [p.blastArmor, p.fieldRepair, p.ramMult, p.mounts.join(''), p.claymore ?? null]),
   partTable('cargo', 'cargo', ['extra rows'], (p) => [p.extraRows]),
   partTable('scanners', 'scanner', ['range (tiles)'], (p) => [p.range]),
   partTable('stores', 'store', ['holds', 'amount (units)'], (p) => [p.holds, p.amount]),
@@ -186,8 +190,23 @@ const TABLES: WikiTable[] = [
   },
   {
     id: 'shops',
-    headers: ['id', 'kind', 'makes', 'needs', 'goods', 'supplies', 'stock size (parts)', 'restock (turns)', 'pressure per unit', 'drift per turn', 'contract slots'],
-    rows: () => Object.values(SHOPS).map((s) => [s.id, s.kind, s.makes, s.needs, s.goods, s.supplies, s.stockSize.join(' to '), s.restockTurns, s.pressurePerUnit, s.driftPerTurn, s.contractSlots]),
+    headers: ['id', 'kind', 'makes', 'needs', 'goods', 'supplies', 'stock size (parts)', 'staple parts', 'restock (turns)', 'contract slots'],
+    rows: () => Object.values(SHOPS).map((s) => [s.id, s.kind, s.makes, s.needs, s.goods, s.supplies, s.stockSize.join(' to '), s.staples, s.restockTurns, s.contractSlots]),
+  },
+  {
+    id: 'recipes',
+    headers: ['site', 'recipe', 'inputs', 'outputs', 'every (production cycles)', 'without inputs', 'upkeep', 'upkeep crate per batches', 'worn every (cycles)'],
+    rows: () => entries(SITE_ECONOMY).flatMap(([site, eco]) => eco.recipes.map((r) => [site, r.id, crates(r.inputs), crates(r.outputs), r.everyCycles, r.fallback ? crates(r.fallback) : '-', r.upkeep, r.upkeepBatches, r.wornEvery])),
+  },
+  {
+    id: 'site-stock',
+    headers: ['site', 'good', 'target stock (crates)', 'production stops at', 'demand (one crate every N cycles)', 'service draw (crates per day)'],
+    rows: () => entries(SITE_ECONOMY).flatMap(([site, eco]) => SHOPS[site].goods.map((good) => [site, good, stockTarget(site, good), SHOPS[site].makes.includes(good) ? fullStock(site, good) : '-', eco.demand[good] ?? '-', eco.serviceDaily[good] ?? '-'])),
+  },
+  {
+    id: 'site-events',
+    headers: ['site', 'kind', 'recipe', 'cadence scale', 'days', 'daily chance', 'repair with tools (turns)'],
+    rows: () => SITE_EVENTS.map((e) => [e.site, e.kind, e.recipe, e.cadenceScale, e.days, e.dailyChance, e.repairTurns || '-']),
   },
   {
     id: 'npc-templates',
@@ -235,7 +254,7 @@ const TABLES: WikiTable[] = [
     id: 'models',
     headers: ['kind', 'id', 'model'],
     rows: () => [
-      ...Object.keys(CHASSIS).map((id): Cell[] => ['chassis', id, baseModel(id)]),
+      ...Object.keys(CHASSIS).map((id): Cell[] => ['chassis', id, baseModels(id).join(' + ')]),
       ...entries(PART_MODELS).map(([id, model]): Cell[] => [id in PARTS ? 'part' : 'good', id, model]),
     ],
   },
@@ -254,7 +273,7 @@ const TABLES: WikiTable[] = [
 export const WIKI_TABLES: Record<string, WikiTable> = Object.fromEntries(TABLES.map((t) => [t.id, t]));
 
 export const WIKI_ROOTS: Record<string, unknown> = {
-  RULES, ECONOMY, EFFORT, CONTRACTS, PRICE_FACTOR, DISTANCE_PREMIUM, PRESSURE_MAX,
+  RULES, ECONOMY, EFFORT, CONTRACTS, PRICE_FACTOR, DISTANCE_PREMIUM, PRESSURE_MAX, PRODUCTION, RELIEF, ROAD_NEWS,
   PART_PRICE_MODIFIERS, CHASSIS_PRICE_MODIFIERS, CONDITION, WEAR, REPAIR, PATCH, SALVAGE, STRIP,
   NPC_BEHAVIOR, NPC_UPKEEP, HUNT, SPAWN, MIN_CHANCE, DETECT, TOW, XP_RULES, PERK_NUMBERS,
   UNITS, TIME, PHYSICS, BREAKABLE, FURY_ROAD,

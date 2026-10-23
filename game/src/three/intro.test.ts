@@ -247,8 +247,8 @@ describe('a skipped intro', () => {
     const played = newGame(SEED, 'arrival', true, TEST_MAP, setup);
     expect(skipped.player.quests.session).toBeNull();
     expect(played.player.quests.session?.quest).toBe('intro_arrival');
-    const withoutQuests = (w: World) => JSON.stringify({ ...saveOf(w).world, player: { ...(saveOf(w).world as World).player, quests: null } });
-    expect(withoutQuests(skipped)).toBe(withoutQuests(played));
+    const withoutQuests = (w: World) => ({ ...saveOf(w).world, player: { ...(saveOf(w).world as World).player, quests: null } });
+    expect(withoutQuests(skipped)).toEqual(withoutQuests(played));
   });
 
   it('runs the rest of the intro the same way when the scene is skipped', () => {

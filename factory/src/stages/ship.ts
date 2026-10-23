@@ -8,7 +8,7 @@ import { must } from '../exec';
 import { releasePostDir } from '../release-post';
 import { reportEnv, takeMaps } from '../sourcemaps';
 import { updateState } from '../state';
-import { BUG_LABEL, GAME_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type ReleasePost, type ReleaseState } from '../types';
+import { BUG_LABEL, GAME_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type ReleasePost, type ReleaseState, type RunResult } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeBundle } from './bundle';
 import { agentLog, fillPrompt, resetOutputs } from './common';
@@ -67,7 +67,12 @@ async function buildAndPush(ctx: Ctx, keys: ItchKeys, logName: string): Promise<
   await takeMaps(ctx, dir, 'release');
   const version = await ctx.repo.headHash('main');
   const args = ['push', join(dir, GAME_DIR, 'dist'), `${keys.itchTarget}:html5`, '--userversion', version];
-  must(await ctx.run('butler', args, { activity: 'publish', env: { BUTLER_API_KEY: keys.butlerKey }, logPath: log }), 'butler push');
+  const pushed = await ctx.run('butler', args, { activity: 'publish', env: { BUTLER_API_KEY: keys.butlerKey }, logPath: log });
+  if (!alreadyOnItch(pushed, version)) must(pushed, 'butler push');
+}
+
+function alreadyOnItch(result: RunResult, version: string): boolean {
+  return result.code !== 0 && `${result.stdout}${result.stderr}`.includes(`already exist with version ${version}`);
 }
 
 export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<void> {

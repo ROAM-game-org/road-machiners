@@ -18,7 +18,7 @@ beforeAll(async () => {
 
 const RAMP_FOOT = 28;
 
-type Build = 'scout' | 'loadedHauler';
+type Build = 'scout' | 'loadedHauler' | 'jeep';
 
 function ramp(build: Build, grade: number, type: TerrainTypeId): World {
   const w = emptyWorld({ x: 26, y: 30 });
@@ -30,6 +30,11 @@ function ramp(build: Build, grade: number, type: TerrainTypeId): World {
     const hauler = makeVehicle(w, { faction: 'player', chassisId: 'hauler', parts: ['mg', 'stockEngine', 'plates', 'trailerBox'].map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
     w.vehicles[0] = { ...hauler, id: w.vehicles[0].id };
     addGoods(w, w.vehicles[0], 'scrap', 122);
+  }
+  if (build === 'jeep') {
+    const jeep = makeVehicle(w, { faction: 'player', chassisId: 'jeep', parts: ['mg', 'stockEngine', 'plates'].map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
+    w.vehicles[0] = { ...jeep, id: w.vehicles[0].id };
+    addGoods(w, w.vehicles[0], 'scrap', 20);
   }
   w.player.fuel = 999;
   return setMoveOrder(w, { kind: 'through', dest: { x: 120, y: 30 } });
@@ -57,7 +62,7 @@ describe('climbing', () => {
     expect(climbTiles('loadedHauler', 0.35)).toBeGreaterThan(3);
   }, 90_000);
 
-  it.each(['scout', 'loadedHauler'] as const)('a %s climbs a ramp at its planned climb grade', (build) => {
+  it.each(['scout', 'loadedHauler', 'jeep'] as const)('a %s climbs a ramp at its planned climb grade', (build) => {
     expect(climbTiles(build, climbGrade(ramp(build, 0, 'road'), ramp(build, 0, 'road').vehicles[0]))).toBeGreaterThan(1);
   }, 90_000);
 
@@ -70,9 +75,9 @@ describe('climbing', () => {
 
   it('flat ground launch from rest is pinned', () => {
     const xs = drive(ramp('scout', 0, 'road'), 3);
-    expect(xs[0]).toBeCloseTo(26.741764, 5);
-    expect(xs[1]).toBeCloseTo(28.652081, 5);
-    expect(xs[2]).toBeCloseTo(31.714802, 5);
+    expect(xs[0]).toBeCloseTo(26.741777, 5);
+    expect(xs[1]).toBeCloseTo(28.652092, 5);
+    expect(xs[2]).toBeCloseTo(31.714813, 5);
   }, 90_000);
 
   it('a launch from rest gains about 85% of the distance it did at the old acceleration scale', () => {

@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { SAVE_FORMAT } from '../src/three/save-migrations.ts';
+import { SAVE_FORMAT } from '../src/three/save.ts';
 import { brokenLinks, lostQuestNames, newGameShape, questLinks, questNames, raisedQuests, revisionReach } from '../src/test/save-shape.ts';
 import { QUESTS } from '../src/sim/quests.ts';
 

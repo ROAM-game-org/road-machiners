@@ -8,7 +8,28 @@ The Russian must read as if a Russian game writer wrote it first. Think of Ex Ma
 
 Read an entry where it shows before you change it. `npm run text:review` writes `tmp/text-review/<area>.md`, every entry in English and in Russian with sample params: a name of each gender, counts 1, 3, 5 and 1.5, and a place. Agreement and plural errors show there as wrong words in a sentence.
 
-agy writes all Russian text, since it writes better Russian than Claude. That covers new lines, changed lines, quest twins and fixes. Never write or edit a Russian word yourself. Give agy many lines in one run: `agy --dangerously-skip-permissions -p "<request>"`. The request names this file, the English of each line, its key and where it shows, and agy reads the files it names. Then check its lines against the rules and the glossary below. When a line breaks them, run agy again with the line and the rule it breaks. agy runs on Gemini 3.8 Flash at medium effort. The factory sets it with `AGY_MODEL`. On a laptop, add `--model gemini-3.8-flash-medium`. A factory job may run agy at most `AGY_MAX_RUNS` times.
+agy writes all Russian text, since it writes better Russian than Claude. That covers new lines, changed lines, quest twins and fixes. Never write or edit a Russian word yourself, and never copy the English in as a placeholder. Give agy many lines in one run: `agy --dangerously-skip-permissions -p "<request>"`. The request names this file, the English of each line, its key and where it shows, and agy reads the files it names. Then check its lines against the rules and the glossary below. When a line breaks them, run agy again with the line and the rule it breaks. agy runs on Gemini 3.8 Flash at medium effort. The factory sets it with `AGY_MODEL`. On a laptop, add `--model gemini-3.8-flash-medium`. A factory job may run agy at most `AGY_MAX_RUNS` times.
+
+## When agy is unavailable
+
+Try agy first, every time. Write the request into `tmp/ru-request.md`, the same text you would give agy: this file, the English of each line, its key and where it shows. A fallback writer reads this file and the glossary the same way, so it needs nothing more.
+
+agy is unavailable when its run exits with one of these:
+
+- `command not found`, since it is not installed.
+- Error 402 or `payment required`, since its account has no plan for the model.
+- Error 429 or `RESOURCE_EXHAUSTED`, since its quota is spent.
+- `authentication failed or timed out`, `AGY_MODEL is not set` or a rejected login.
+- A 502, 503 or 504, or a network error, since the service is down.
+- `run N exceeds AGY_MAX_RUNS`, since the job used its runs. Do not raise the limit, and do not work around the run counter.
+
+Then Codex writes the Russian: `timeout 900 codex exec -o tmp/ru-reply.md - < tmp/ru-request.md`. The reply is the file after `-o`. Codex is unavailable when `codex` is missing, `CODEX_MODEL and CODEX_EFFORT must be set`, its ChatGPT login is missing or refused, its usage limit is spent, or it cannot reach its service. With no network, Codex retries until `timeout` stops it with exit 124. Count that as unavailable only when its output shows the connection failing.
+
+When Codex is unavailable too, Claude Sonnet writes it: `timeout 900 claude -p --model sonnet --tools Read,Grep,Glob --no-session-persistence < tmp/ru-request.md`. The reply is on stdout. It can read the files the request names and nothing else.
+
+Only an unavailable writer passes the request on. A writer that fails for any other reason, or answers with no Russian, failed on the request: read its error, fix the request and ask the same writer again. Do not move on to the next writer to get past it.
+
+You put the fallback writer's lines in the catalog yourself, as you would agy's. They face every check agy's do: the rules and glossary below, the catalog test, the scan for untranslated text and `npm run text:review`. Run them all, and send a line that breaks a rule back to the same writer with the rule. Never write a Russian word yourself, never copy the English in as a placeholder, and never relax a check. Say in the pull request which writer wrote the Russian and why the earlier ones were out. If all three are unavailable, stop and report that. Do not ship English in the Russian catalog.
 
 Translate what the line means where the player sees it, not its words. The key tells you where it shows:
 
@@ -138,12 +159,13 @@ How it reads:
 - The player has no gender in the game. Never write a past-tense verb or a short adjective that agrees with the player. Write «Ты это видел?» as «Видно было?» or «Ты это видишь?», and «ты прав» as «тут не поспоришь».
 - Ink has no plurals. A number from a variable sits before a word whose form does not change, like «М», or the sentence is rewritten around it.
 - Table rows use the Russian number format: a decimal comma and a no-break space between thousands.
+- Quest text holds no semicolon. Split it into two sentences. The voice test fails on one. The dialogue dash «—» stays.
 - A dialogue dash is «—». A hyphen at the start of a line is an ink gather, so never start a line of text with «-».
 - Each speaker keeps their voice from [the voice sheets](../lore/voices.md): their words, rhythm and habits.
 
 Names:
 
-- People: Agnes Ondra is Агнес Ондра. Mirela is Мирела. Sergeant Kovac is сержант Ковач. Lena is Лена. Old Ibo is Старый Ибо. Ruben is Рубен. Hattie is Хэтти. Dag is Даг. Jory Baptiste is Джори Батист. Sefa Krol is Сефа Кроль. Corporal Bram Teller is капрал Брэм Теллер. Private Ilan Duvall is рядовой Илан Дюваль. Vance is Вэнс. Pell is Пелл. Sabine is Сабина. Bo Lindqvist is Бо Линдквист. Ines Abend is Инес Абенд. Mirela Duarte is Мирела Дуарте. Aurel Brede is Аурел Бреде. Pim Arslan is Пим Арслан. Commander Lind is командир Линд. Otto Brann is Отто Бранн. Tamsin Roe is Тэмсин Роу. The Steward is управляющий.
+- People: Agnes Ondra is Агнес Ондра. Mirela is Мирела. Sergeant Kovac is сержант Ковач. Lena is Лена. Old Ibo is Старый Ибо. Ruben is Рубен. Hattie is Хэтти. Dag is Даг. Jory Baptiste is Джори Батист. Sefa Krol is Сефа Кроль. Corporal Bram Teller is капрал Брэм Теллер. Private Ilan Duvall is рядовой Илан Дюваль. Vance is Вэнс. Pell is Пелл. Sabine is Сабина. Bo Lindqvist is Бо Линдквист. Ines Abend is Инес Абенд. Mirela Duarte is Мирела Дуарте. Aurel Brede is Аурел Бреде. Pim Arslan is Пим Арслан. Commander Lind is командир Линд. Otto Brann is Отто Бранн. Tamsin Roe is Тэмсин Роу. The Steward is управляющий. Odile Marsh is Одиль Марш. Hadiza Okon is Хадиза Окон. Hollis Brennan is Холлис Бреннан.
 - Places take their names from `site.*` in `src/text/ru/names.ts`: Bowl is Чаша, Nose is Нос, Pump Station is Насосная станция, Salvage Yard is Свалка, Granary is Элеватор, Burnt Convoy is Сгоревший конвой, Kiln is Обжиг, Scrapjaw is Ржавая Челюсть, Glass Flats is Стеклянная равнина and Fallen Sun is Павшее солнце.
 - Groups and things: the Senate is Сенат. The Central Committee is Центральный комитет. The Farmers patrol is патруль Чаши, and a Farmer is фермер. Pierce is «Пирс». The Guidestar Guild is Гильдия Путеводной звезды. The Old Army is Старая армия. The Sunward are Обращенные к Солнцу. The old world is старый мир. Wagon Seven is фургон «Седьмой». Old Orchard is Старый сад. The pump book is насосная книга.
 - Water: the dial is счетчик, a hose meter is водомер, the tanker is цистерна, a trough is желоб, the lock house is шлюзовой дом and the well house is колодезная. The household is двор, and its steward is управляющий.

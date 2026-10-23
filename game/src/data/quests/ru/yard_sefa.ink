@@ -42,6 +42,16 @@ VAR sefa_priced = false
   ~ heard_water = true
   ~ heard_kiln = true
   -> hub
++ [Что дает Свалка?]
+  Лом и запчасти. Бригады режут завалы под краном: два ящика лома на каждый ящик годных запчастей.
+  Резка пожирает станки. Станки идут с Носа, а Нос требует наш лом, чтобы их делать. Вот и всё, что мы есть: круг, а посреди него кран.
+  { works_down():
+    Кран встал. Ничего из завалов не вытащить, пока стрела снова не закачается, а бригады сидят на моих бобах.
+  }
+  { short_of("tools"):
+    У бригад кончились станки. Режут тем, что осталось — выходит медленно, а мать говорит, что ещё и громко.
+  }
+  -> hub
 + [Кто тут командует?]
   Ремонтные бригады, с тех пор как перестали слушаться «Пирса». Порядок среди них держит Администратор. После этого Нос поставил у самых ворот, с внутренней стороны, армейский пост. Мы держимся северной стороны, где солдатам не нравится ветер.
   ~ heard_post = true
@@ -74,6 +84,13 @@ VAR sefa_priced = false
 + {heard_rider and not asked_rider} [Рейдер хоть раз приходил к вам ни с чем?]
   Один раз. У него на дороге погиб брат. Он долго ел наши бобы и мало говорил. Потом ушел на юг. Имени не назову. Кто ел наши бобы, того не выдают.
   ~ asked_rider = true
+  -> hub
++ [Do the families find much on the crater road?]
+  { cult_broken():
+    Wreck metal and beans, same as anywhere, and no more furrows. The lamps stopped going out to the crater. Who stopped them? Somebody who'll never get thanked for it. That is all we are, people who sleep at night again.
+  - else:
+    Furrows. Two wheel lines in the dust and a third between them where something was pulled, all going toward the crater and none coming back. A truck goes off that road at night and the families find the marks in the morning. Who drags off a whole truck instead of stripping it where it stands? Somebody who wants all of it. Keep off that road after dark.
+  }
   -> hub
 + {heard_post and not asked_post} [Что скажешь про армейский пост?]
   Не доверяю. Караульная у ворот записывает каждого, кто входит и выходит, и записывает дважды. Кто всё пишет по два раза, тот чего-то боится.

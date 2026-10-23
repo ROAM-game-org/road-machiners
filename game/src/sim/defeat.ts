@@ -1,4 +1,5 @@
 
+import { reportLostTruck } from './road-news';
 import { NPC_BEHAVIOR, NPCS } from "../data/npcs";
 import { chassisDef } from "../data/chassis";
 import { RULES } from "../data/rules";
@@ -6,7 +7,7 @@ import { isJunk, maxHp, restorePart } from "./wear";
 import { haulerOf, playerVehicle } from "./damage";
 import { beatenBy, isHostile } from "./combat";
 import { rollCabKnock } from "./cab-knock";
-import { openFirstFall } from "./quests";
+import { openCoreDeath, openFirstFall } from "./quests";
 import { corePart, mountedParts } from "./grid";
 import { cancelJob } from "./jobs";
 import { practice, vehicleHasPerk } from "./progress";
@@ -30,12 +31,16 @@ import { wreckStockId } from "./salvage";
 import { dist, type Vec } from "./vec";
 import { canVehicleSee, grayRadius } from "./vision";
 import { isRaider, noteDefeat } from "./relations";
+import { isSunwardMember } from "./sunward";
+import { noteKnockout } from "./crime";
 
 export function checkDeath(world: World): void {
   const p = world.player;
   if (p.health > 0 || p.state === "dead") return;
   p.state = "dead";
-  world.events.push({ t: "death" });
+  const cause = world.events.some((e) => e.t === "coreBurn" && e.vehicle === p.vehicleId) ? "core" : "injury";
+  world.events.push({ t: "death", cause });
+  if (cause === "core") openCoreDeath(world);
 }
 
 export function checkKnockout(world: World): void {
@@ -54,6 +59,7 @@ function knockOutPlayer(world: World, me: Vehicle): void {
   const watchers = world.vehicles.filter((v) => isHostile(world, v, me) && canVehicleSee(world, v, me.pos));
   if (watchers.length > 0) practice(world, "knockout", 1, null, "driver");
   me.defeat = { phase: "out", turns: 0, unseen: 0, foes: withLastHitter(world, me, watchers.map((v) => v.id)), gaveUp: false };
+  noteKnockout(world, me);
   p.state = "knockedOut";
   p.knockoutTurns = 0;
   p.knockouts++;
@@ -131,6 +137,8 @@ export function standDown(world: World, v: Vehicle, winnerId: string): void {
 
 export function knockOutNpc(world: World, v: Vehicle): void {
   noteDefeat(world, v, false);
+  noteKnockout(world, v);
+  reportLostTruck(world, v, "knockedOut");
   layDown(world, v, foesOf(world, v), false);
   const by = beatenBy(world, v);
   world.events.push({ t: "npcKnockout", vehicle: v.id, by });
@@ -213,7 +221,7 @@ function advanceRetreat(world: World, v: Vehicle): void {
 }
 
 function staysPut(world: World, v: Vehicle): boolean {
-  return holdsRearm(v) || towOf(world, v.id) !== null || answered(world, v);
+  return holdsRearm(v) || towOf(world, v.id) !== null || answered(world, v) || isSunwardMember(v);
 }
 
 function answered(world: World, v: Vehicle): boolean {

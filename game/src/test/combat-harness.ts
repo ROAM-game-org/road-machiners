@@ -1,7 +1,8 @@
 
 import { CHASSIS } from '../data/chassis';
 import { DECISIONS, GEAR_LEVEL_IDS, NPC_BEHAVIOR, NPCS, TRAITS, type GearLevel } from '../data/npcs';
-import { PARTS } from '../data/parts';
+import { PARTS, type PartDef } from '../data/parts';
+import { coversSide, sideToward, type PartHit } from '../sim/armor';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { SKILL_EFFECTS } from '../data/skills';
@@ -59,7 +60,7 @@ export type Fight = {
   bystander?: string | null;
 };
 
-export type Side = { rounds: number; hits: number; odds: number; damage: number; speed: number };
+export type Side = { rounds: number; hits: number; odds: number; damage: number; speed: number; ramCrashes: number; ramsLanded: number };
 export type Outcome = 'won' | 'lost' | 'a fled' | 'b fled' | 'truce' | 'timeout';
 const OUTCOMES: Outcome[] = ['won', 'lost', 'a fled', 'b fled', 'truce', 'timeout'];
 export type Tally = { left: number; out: number; fled: number };
@@ -91,8 +92,20 @@ function wearStep(text: string): number {
 }
 
 export function parseLineup(text: string): Truck[] {
-  return text.split('+').map(parseTruck);
+  return truckSpecs(text).map(parseTruck);
 }
+
+function truckSpecs(text: string): string[] {
+  const specs: string[] = [];
+  for (const piece of text.split('+')) {
+    const last = specs.length - 1;
+    if (last >= 0 && takesRam(specs[last]) && PARTS[piece]) specs[last] += `+${piece}`;
+    else specs.push(piece);
+  }
+  return specs;
+}
+
+const takesRam = (spec: string): boolean => spec.includes('/') && !spec.includes('+');
 
 function defaultGear(driver: string, scripted: boolean): Gear {
   return scripted ? { kind: 'kit', id: 'standard' } : { kind: 'npc', template: driver, level: null };
@@ -399,7 +412,7 @@ export function turnLine(w: World, turn: number): string {
 }
 
 const partHp = (v: Vehicle) => mountedParts(v).reduce((sum, p) => sum + p.hp, 0);
-const side = (): Side => ({ rounds: 0, hits: 0, odds: 0, damage: 0, speed: 0 });
+const side = (): Side => ({ rounds: 0, hits: 0, odds: 0, damage: 0, speed: 0, ramCrashes: 0, ramsLanded: 0 });
 
 type Count = { ids: Ids; a: Side; b: Side; crashes: number; leaver: 'a' | 'b' | null; center: Vec; spread: number };
 
@@ -436,6 +449,27 @@ function countMoves(w: World, c: Count): void {
   const across = (x: string, y: string) => (c.ids.a.includes(x) && c.ids.b.includes(y)) || (c.ids.b.includes(x) && c.ids.a.includes(y));
   c.crashes += w.events.filter((e) => e.t === 'collision' && across(e.a, e.b)).length;
 }
+
+function countRams(w: World, c: Count): void {
+  for (const ev of w.events) {
+    if (ev.t !== 'collision' || !sideOf(c, ev.a) || !sideOf(c, ev.b) || sideOf(c, ev.a) === sideOf(c, ev.b)) continue;
+    noteRam(w, sideOf(c, ev.a)!, ev.a, ev.b, ev.hitsA);
+    noteRam(w, sideOf(c, ev.b)!, ev.b, ev.a, ev.hitsB);
+  }
+}
+
+function noteRam(w: World, s: Side, id: string, otherId: string, hits: PartHit[]): void {
+  const v = w.vehicles.find((x) => x.id === id);
+  const other = w.vehicles.find((x) => x.id === otherId);
+  if (!v || !other || hits.length === 0) return;
+  const struck = sideToward(v, other.pos);
+  const rams = new Set(mountedParts(v).filter((p) => ramPart(PARTS[p.defId]) && coversSide(v, p, struck)).map((p) => p.id));
+  if (rams.size === 0) return;
+  s.ramCrashes++;
+  if (hits.some((h) => rams.has(h.part))) s.ramsLanded++;
+}
+
+const ramPart = (def: PartDef): boolean => (def.kind === 'armor' || def.kind === 'accessory') && def.ramMult > 1;
 
 function countDamage(w: World, c: Count, before: Map<string, number>): void {
   for (const v of w.vehicles) {
@@ -480,6 +514,7 @@ function playTurn(w: World, d: Drive, c: Count, arena: boolean): { w: World; d: 
   countShots(w, c);
   countDamage(w, c, before);
   countMoves(w, c);
+  countRams(w, c);
   noteLeaver(w, c);
   countSpread(w, c);
   return { w, d: next! };
@@ -603,10 +638,10 @@ export function formatReport(reports: FightReport[], sets: string[]): string {
     `# Combat harness`,
     '',
     `${reports.length} fights. Changed numbers: ${sets.length ? sets.join(', ') : 'none'}.`,
-    'A truck is driver:gear. On a road map, across is the largest distance any fighting truck reached from the centerline, in tiles. Won means every side b truck is out, lost every side a truck. A fled and b fled name the side that left the fight. Truce means no truck is hostile to the other side any more. Speed is tiles per turn. Hit is rounds that hit. Odds is the mean hit chance shown for those rounds. Damage is part HP the side takes off the other per turn. Crashes are per fight. B hp left is the mean share of max part HP the side b trucks keep in won fights.',
+    'A truck is driver:gear. On a road map, across is the largest distance any fighting truck reached from the centerline, in tiles. Won means every side b truck is out, lost every side a truck. A fled and b fled name the side that left the fight. Truce means no truck is hostile to the other side any more. Speed is tiles per turn. Hit is rounds that hit. Odds is the mean hit chance shown for those rounds. Damage is part HP the side takes off the other per turn. Crashes are per fight. Rams landed counts the damaging crashes on a side that carries a ram or spikes in which they took the hit, out of all damaging crashes on that side. The side is the one facing the other truck at the end of the turn. B hp left is the mean share of max part HP the side b trucks keep in won fights.',
     '',
-    '| a | b | won | lost | a fled | b fled | truce | timeout | turns | crashes | a speed | a hit | a odds | a dmg/turn | b speed | b hit | b odds | b dmg/turn | b hp left | across | a left/out/fled | b left/out/fled | bystander |',
-    '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+    '| a | b | won | lost | a fled | b fled | truce | timeout | turns | crashes | a speed | a hit | a odds | a dmg/turn | a rams landed | b speed | b hit | b odds | b dmg/turn | b rams landed | b hp left | across | a left/out/fled | b left/out/fled | bystander |',
+    '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
   ];
   for (const g of groups(reports)) lines.push(groupRow(g));
   return lines.join('\n') + '\n';
@@ -619,7 +654,9 @@ function groupRow(g: Group): string {
   const turns = sum((r) => r.turns);
   const sideCells = (pick: (r: FightReport) => Side) => {
     const rounds = sum((r) => pick(r).rounds);
-    return [(sum((r) => pick(r).speed) / turns).toFixed(1), pct(sum((r) => pick(r).hits), rounds), pct(sum((r) => pick(r).odds), rounds), (sum((r) => pick(r).damage) / turns).toFixed(1)];
+    const ramCrashes = sum((r) => pick(r).ramCrashes);
+    const landed = ramCrashes > 0 ? `${sum((r) => pick(r).ramsLanded)}/${ramCrashes}` : '-';
+    return [(sum((r) => pick(r).speed) / turns).toFixed(1), pct(sum((r) => pick(r).hits), rounds), pct(sum((r) => pick(r).odds), rounds), (sum((r) => pick(r).damage) / turns).toFixed(1), landed];
   };
   const tallied = (pick: (r: FightReport) => Tally) => `${sum((r) => pick(r).left)}/${sum((r) => pick(r).out)}/${sum((r) => pick(r).fled)}`;
   const cells = [g.a, g.b, ...OUTCOMES.map(count), (turns / rs.length).toFixed(1), (sum((r) => r.crashes) / rs.length).toFixed(1), ...sideCells((r) => r.a), ...sideCells((r) => r.b), hpLeftCell(rs), spreadCell(rs), tallied((r) => r.tally.a), tallied((r) => r.tally.b), bystanderCell(rs)];

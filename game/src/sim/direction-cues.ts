@@ -14,6 +14,28 @@ export function octantOf(v: Vec): Octant {
   return OCTANTS[((i % OCTANTS.length) + OCTANTS.length) % OCTANTS.length];
 }
 
+export function headingAlong(lines: readonly (readonly Vec[])[], reach: number): Octant {
+  const points = lines.flat();
+  if (points.length === 0) throw new Error('A heading needs a line to read');
+  const start = points[0];
+  const end = pointAlong(points, reach);
+  if (dist(start, end) === 0) throw new Error('A heading needs a line with length');
+  return octantOf({ x: end.x - start.x, y: end.y - start.y });
+}
+
+function pointAlong(points: readonly Vec[], reach: number): Vec {
+  let left = reach;
+  for (let i = 1; i < points.length; i++) {
+    const step = dist(points[i - 1], points[i]);
+    if (step >= left) {
+      const t = left / step;
+      return { x: points[i - 1].x + (points[i].x - points[i - 1].x) * t, y: points[i - 1].y + (points[i].y - points[i - 1].y) * t };
+    }
+    left -= step;
+  }
+  return points[points.length - 1];
+}
+
 export function spanOf(tiles: number): Span {
   if (tiles < DIRECTIONS.spans.near) return 'near';
   return tiles < DIRECTIONS.spans.fair ? 'fair' : 'far';

@@ -1,3 +1,4 @@
+import { PAINT } from '../../data/chassis';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { startKit } from '../../data/start';
@@ -10,7 +11,8 @@ import type { World } from '../../sim/types';
 import { newWorld } from '../../sim/world';
 import { TEST_MAP } from '../../test/map';
 import { loadModels } from './models';
-import { RADIO_LIGHT, RadioLights, radioLit, VehicleView, type RadioCue } from './vehicle';
+import { VehicleView } from './vehicle';
+import { RADIO_LIGHT, RadioLights, radioLit, type RadioCue } from './daylight';
 import { defaultSetup } from '../../sim/settings';
 
 
@@ -234,7 +236,7 @@ function halos(view: VehicleView): THREE.Sprite[] {
 
 describe('antenna radio light', () => {
   it('has one bulb and one halo, and radio() switches both', () => {
-    const view = new VehicleView(playerVehicle(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'))), true);
+    const view = new VehicleView(playerVehicle(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'))), true, PAINT.standard, 'world');
     expect(bulbs(view)).toHaveLength(1);
     expect(halos(view)).toHaveLength(1);
     const color = () => (bulbs(view)[0].material as THREE.MeshBasicMaterial).color.getHex();

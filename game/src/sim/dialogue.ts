@@ -1,4 +1,5 @@
 
+import { optionShort } from './dialogue-rules';
 import { BUSY_LINE, END, handoffQuest, HANG_UP_LINE, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, TRAIT_TALK, type DialogueOption, type LineId, type Topic, type TopicId, type Voice } from '../data/dialogue';
 import { PERSONALITIES, TALK_PRICE, type Gate, type Personality } from '../data/personalities';
 import { inCombat, inCombatWithOther, inFeud, isHostile } from './combat';
@@ -15,10 +16,11 @@ import { openQuest, QUESTS } from './quests';
 import { canVehicleSee } from './vision';
 import { playerCommand, requireActivePlayer, update } from './world';
 
-export type OfferedOption = { line: LineId; topic: TopicId | null; option: DialogueOption | null };
+export type OfferedOption = { line: LineId; topic: TopicId | null; option: DialogueOption | null; short?: number };
 
 export function talkOf(npc: Vehicle): Voice & { topics: TopicId[]; personality: Personality } {
-  const talks = npcTraits(npc).map((id) => TRAIT_TALK[id]);
+  const all = npcTraits(npc).map((id) => TRAIT_TALK[id]);
+  const talks = all.some((t) => t.only) ? all.filter((t) => t.only) : all;
   const voice = talks.find((t) => t.voice)?.voice;
   if (!voice) throw new Error(`${npc.id} has no trait with a voice`);
   return { ...voice, topics: [...new Set(talks.flatMap((t) => t.topics))], personality: personalityOf(npc) };
@@ -69,7 +71,7 @@ export function currentOptions(world: World): OfferedOption[] {
   if (isRefused(call)) return [hangUp];
   if (!call.topic) return [...askable(world, npc).map((t) => ({ line: t.ask!.say, topic: t.id, option: null })), hangUp];
   const node = TOPICS[call.topic].nodes[call.node];
-  const options = node.options.filter((o) => holds(world, npc, o.when, call.vars)).map((o) => ({ line: o.say, topic: call.topic, option: o }));
+  const options = node.options.filter((o) => holds(world, npc, o.when, call.vars)).map((o) => ({ line: o.say, topic: call.topic, option: o, short: optionShort(world, o) }));
   return [...options, hangUp];
 }
 
@@ -216,6 +218,7 @@ const RADIO_TALK: Talk = {
   escortRefused: pair,
   towHitched: pair,
   towOffer: (e) => [e.by],
+  asked: (e) => [e.by, e.of],
 };
 
 export function radioSpeakers(events: readonly GameEvent[], playerId: string): string[] {

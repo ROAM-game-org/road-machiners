@@ -4,13 +4,13 @@ import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
 import { HAULER_KIT } from '../data/start';
-import { footprint } from './body';
-import { FORTRESS } from '../data/fortress';
+import { footprint } from './rig';
 import { makeVehicle } from './factory';
 import { groupPrey } from './combat';
+import { holdAlong, stretchSpan } from './hunters';
 import { isDefeated, knockOutNpc } from './defeat';
 import { haulerOf, playerTrucks, playerVehicle } from './damage';
-import { acrossOf, alongOf, highwayMap, milestoneAt, outpostId, outpostSite, outpostYardHalf, roadHeading, roadPoint, stretchStream, toRoad, windowShift } from './highway';
+import { acrossOf, alongOf, highwayMap, milestoneAt, outpostId, outpostSite, roadHeading, roadPoint, stretchStream, toRoad, windowShift } from './highway';
 import { betweenLevels, gatesShut, inYard, yardSpots, yardSpotsAt, type YardSpots } from './outpost-gates';
 import { isDriveObstacle, mapObstacles } from './mapgen';
 import { rollPartStockPerKind } from './market';
@@ -230,7 +230,7 @@ export function interceptPoint(world: World, run: FuryRoadRun, hunter: Vehicle, 
   if (me.speed === 0 || hunterSpeed === 0) return me.pos;
   const lead = Math.min((me.speed * dist(hunter.pos, me.pos)) / hunterSpeed, FURY_ROAD.pacing.near);
   const ahead = toRoad(world.seed, run.window, { x: me.pos.x + Math.cos(me.heading) * lead, y: me.pos.y + Math.sin(me.heading) * lead });
-  return roadPoint(world.seed, run.window, alongOf(world.seed, ahead), withinFlanks(acrossOf(world.seed, ahead)));
+  return roadPoint(world.seed, run.window, holdAlong(world, vehicleStats(world, hunter).radius, alongOf(world.seed, ahead)), withinFlanks(acrossOf(world.seed, ahead)));
 }
 
 function huntsTarget(v: Vehicle, target: Vehicle): boolean {
@@ -326,17 +326,8 @@ function lineCandidate(progress: number, line: number): (step: number) => Candid
   };
 }
 
-function fortReach(radius: number): number {
-  return outpostYardHalf() + FORTRESS.wallDepth / 2 + radius + FURY_ROAD.spawnClear;
-}
-
-function spawnRange(world: World, run: FuryRoadRun, radius: number): { from: number; to: number } {
-  const reach = fortReach(radius);
-  return { from: milestoneAt(world.seed, run.window) + reach, to: milestoneAt(world.seed, run.window + 1) - reach };
-}
-
 function freeSpot(world: World, run: FuryRoadRun, candidates: Candidate[], radius: number, taken: Vec[], hidden: (pos: Vec) => boolean): Vec | null {
-  const { from, to } = spawnRange(world, run, radius);
+  const { from, to } = stretchSpan(world, radius);
   for (const c of candidates) {
     const pos = roadPoint(world.seed, run.window, Math.min(Math.max(c.along, from), to), c.across);
     if (!insideWindow(world, pos, radius) || !hidden(pos)) continue;
@@ -411,6 +402,7 @@ export const WINDOW_MOVE = {
   removed: 'keep',
   spawnTimer: 'keep',
   shops: 'keep',
+  roadNews: 'keep',
   salvage: 'keep',
   player: 'shift',
   vehicles: 'shift',
@@ -419,6 +411,8 @@ export const WINDOW_MOVE = {
   mapHash: 'rebuild',
   obstacles: 'rebuild',
   furyRoad: 'rebuild',
+  sunward: 'keep',
+  crimes: 'keep',
   broken: 'drop',
   craters: 'drop',
   dustClouds: 'drop',

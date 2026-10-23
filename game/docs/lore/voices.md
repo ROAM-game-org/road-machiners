@@ -90,6 +90,19 @@ He treats a stranger as a driver who should check the tires before anything else
 
 Sample: "A sack is cheaper than a truck, so nobody argues about it."
 
+### Odile Marsh, Granary steward
+
+Odile talks of sacks, counts, winters and the gate. She measures everything in sacks and weeks of bread.
+
+Her sentences are short and exact, with a number in most of them. She gives the count first and her fear after it.
+
+She says "It's on the gate", meaning the count she posts there. She checks a stranger's load before their face.
+
+She cares about a full Granary and an honest count. She avoids the word turncoat and anything about her years as a tenant.
+
+She treats a stranger as a load that may or may not be on her count.
+
+Sample: "Forty sacks in, thirty-one out. The nine are on the gate, and so is the truck that didn't come."
 ### Mags Corrin, weigher at the gate yard
 
 Mags talks of weight, crates, chalk and what iron turns into: hinges, ploughshares, gate plates. She sees every crate as the thing it will become.
@@ -248,6 +261,26 @@ Sample: "The bend was fine. The rod wasn't. Write that down, somebody."
 
 ## Roadside radio
 
+### A Marshall on the radio
+
+A Marshall from the Roadhouse calling a driver named in the road book. Rook Halloran's drivers, Sabra Kell, Garrett Ainsley and the cars they ride with all talk this way on a case.
+
+Vocabulary: the book, the claim, what is owed, the road, who saw it. He names the wrong plainly, like a robbery on the Nose road, and never names a town as his master.
+
+Rhythm: level and short. He states the wrong, then the price, then asks. He asks once and waits.
+
+Habits: he says where the claim came from before he says what it costs. He keeps his voice the same whether the driver pays or refuses. On a refusal he says one flat line and stops talking.
+
+Cares about: closing the page. A paid case is a good day, and a fight is the price of a man who will not pay.
+
+Strangers: a name in the book, or nobody. A driver with no claim against him gets a short greeting and nothing else.
+
+What he avoids: threats before a refusal, and any talk of who pays the Roadhouse.
+
+Sample: "The book is worth what we're willing to answer for."
+
+Sample: "He had his say at the mast. Now he has to pay."
+
 ### The road storyteller
 
 Vocabulary: stretches, hollows, dust, mile markers, what he passed. He tells a place by what stood next to it.
@@ -304,62 +337,122 @@ Strangers: the player is a stranger until the first fuel, then someone he owes o
 
 Sample: "Courier here. I have a run to finish and I will not make it on what is left."
 
-## Chaos Highway
+### The hauler giving road tips
 
-The highway has its own speakers. Geezer is the player, so his sheet is the voice of the narration in the head of a man who has stopped talking about himself. See [Chaos Highway](chaos-highway.md) for the world.
+Vocabulary: the run, the load, the fields, the shade, a night by the road.
 
-### Ala, hauler driver
+Rhythm: even, whole sentences. He tells a thing by the trip it happened on.
 
-Ala talks of money, stretches, fuel and the next fort. She compares things to loads and to what a day on the road costs.
+Habits: he says what he does on the next trip. He names no town and no price.
 
-Her sentences are short and level. She counts out loud, and she says a sum before she says anything else.
+Cares about: the load arriving.
 
-She wants a driver who asks no questions and does the job. She steers around Maya until the first stretch, around her father until he asks or the eighth stretch, and around what is in the trailer until the fourth.
+Strangers: another truck on the same road, maybe a partner on the next one.
 
-She notices the truck first, then the scars. A man's gear tells her what he costs.
+Sample: "Check your load straps whenever you stop. On my last run, one had worked loose before I was halfway home."
 
-Strangers: a hire, until one saves her life. Then she asks once, and only once.
+### The salvager giving road tips
 
-Sample: "Eighty for the stretch. Count it. I don't pay twice."
+Vocabulary: scrap, strip, wreck, junk, a part that was good once.
 
-### Geezer, as narration
+Rhythm: short and clipped. He grumbles first and gives the point after.
 
-The narration runs through the head of a man who checks tires and avoids the past. It is dry and tired, and it sizes up every truck by what it can take from him.
+Habits: he curses the weather, the fools and the dust. He never names a place.
 
-Its sentences run short. It answers a question with the smallest true thing and goes back to the road.
+Cares about: what is left on the bones of a wreck.
 
-It checks every tire before it speaks. It avoids the Burnt Drivers, the tank line, the pass, his age, and why he took the job. When the past comes up, the narration looks at something else.
+Strangers: a rival for the scrap, put up with.
 
-He wants a ride that ends it. By the end of the road, he wants the people behind her to arrive, and one girl to drink.
+Sample: "Check the dirt round a wreck before you get out. Fresh tracks mean somebody's still stripping it."
 
-Sample: "All four tires are even. Somebody keeps this truck alive. Nobody does that for free."
+### The raider giving road tips
 
-### Tibor, barman
+Vocabulary: friend, the seat, the chase, an easy day's work.
 
-Tibor talks of what people cost, what they carry and who owes what. He sells men like parts.
+Rhythm: lazy and amused. He speaks of what raiders do, never of what he did to the listener.
 
-His sentences are smooth and quick, like a trader's. He names a price and a warranty in one breath.
+Habits: he calls the stranger "friend" now and then. He is never in a hurry.
 
-He wants the sale made before the rival at the next table hears of it. He avoids saying who pays him, and he never names the Keepers' office.
+Cares about: not wasting a fight.
 
-He notices the truck outside the window and the money in the room.
+Strangers: a load, or not a load.
 
-Sample: "Rode with Magnus, they say. Scars to prove it. I don't sell lies, only men whose lies are cheap."
+Sample: "If a raider hails you, friend, answer before he has to get out of his seat."
 
-### Vale, hunter
+### The lawman giving road tips
 
-A minor speaker, a hunter for hire who leads a small crew. She names the price and the threat in one breath, and she never says a thing twice.
+Vocabulary: the gate, the patrol, the road, a lawful driver, the record.
 
-Sample: "That scout's got one driver. One."
+Rhythm: formal and short. He states the rule of the road.
 
-### Bram, old gatekeeper
+Habits: he says "for the record" now and then. He gives no reasons beyond the rule.
 
-A minor speaker with one job: a Keeper at a gate who has counted trucks for thirty years and remembers a burn. He says one thing and no more, and he has no quirk.
+Cares about: a quiet gate.
 
-Sample: "I knew a man with a burn like that."
+Strangers: a witness, or a suspect.
 
-### Sara, Ala's mother
+Sample: "For the record, slow before a blind rise. A wreck gives no warning."
 
-A minor speaker, heard only in relay slips that Ala reads aloud. Her slips are short, hard and kind. She never asks for anything for herself.
+### The gun hand giving road tips
 
-Sample: "Don't come back. Keep going north. Maya asks for you every hour."
+Vocabulary: rounds, range, cover, what he saw.
+
+Rhythm: terse and dry, professional. He talks about what he saw and never what he felt.
+
+Habits: he never brags. He compares a fight to another fight.
+
+Cares about: getting home from a job.
+
+Strangers: a possible client.
+
+Sample: "Stop where you can drive out without reversing. I've seen good guns lost while their drivers backed out of a bad spot."
+
+### The Sunward rider at the vigil
+
+Vocabulary: the light, the Keeper, a place kept, given by the sky, watching. He never names the reactor, the breach, death or the order's rules.
+
+Rhythm: slow and soft, short sentences with pauses between them. Each call is a little closer and a little stranger than the last, and only the third is plainly a demand.
+
+Habits: he calls a stranger "stranger" and the order "we". On the road he says nothing at all, and a call to him gets an open channel and breathing. Once a stranger agrees, he tells them where to drive and promises to stay behind them.
+
+Cares about: getting the stranger into the light without a fight, because a fight is work and a given truck arrives whole.
+
+Strangers: something the sky gave. He is gentle with it the way a man is gentle with a goat he means to sell.
+
+Sample: "Stranger. You came out to the crater at night. Stay a while and watch the light with us."
+
+### The road driver who knows about the lamps
+
+A trader, scavenger, courier, roamer, vulture or supplier who lives near the crater, or saw a car of the order, answers a question about the crater at night with one thing they saw or heard themselves, in short plain sentences, and tells it once. Each tells a different thing: lamps crossing at dusk, a radio that answered with breathing, drag furrows on the rim, the beacon keepers' dark lamps, trading there only by day, the shout "Given by the sky" as hearsay, wrecks left alone after dark, or a cousin who stopped by the rim and was never found. Only one of them counts eight lamps, and only one lost kin. After the order falls they speak of the quiet, the lamps that stopped crossing, the empty fort and drivers back at the crater at night, and still say to keep off the glow.
+
+Sample: "Passed the rim one morning. Two deep furrows ran through the sand from open ground into the crater. I didn't see a truck."
+
+## Green Pit and the Pump Station
+
+### Hadiza Okon, Green Pit pump and canteen
+
+Hadiza talks of cups, plates, hooks, the pump and who ate at her table. She compares people to guests and to what they leave behind.
+
+Her sentences are warm and even. She says what a thing costs, then what she gives for free.
+
+She points to the rifle hooks before she pours. She calls everyone by what they drive.
+
+She cares about one table where nobody draws. She avoids taking sides between the people who drink there.
+
+She treats a stranger as a guest who eats once and pays after that.
+
+Sample: "Hang it on the hook. You eat once for nothing. After that the cup costs, like everyone's."
+
+### Hollis Brennan, the still boss at the Pump Station
+
+Hollis talks of crude, stills, drums, valves and batteries. He counts in drums a day.
+
+His sentences are flat and practical. He names the job, then the part it needs.
+
+He is a minor speaker with a clear job and no quirk. He wants drums bought and tools and batteries brought for the pump.
+
+He cares about keeping the stills hot and the pump turning. He avoids talk about who owns the well.
+
+He treats a stranger as a buyer or a pair of hands.
+
+Sample: "Pump brings the crude up, the stills cook it, and the drums go out on the convoys. Bring me tools and I'll fill yours."

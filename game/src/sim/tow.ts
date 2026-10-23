@@ -5,8 +5,9 @@ import { ECONOMY } from '../data/goods';
 import { EFFORT } from '../data/market';
 import { NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { BEACON, TOW } from '../data/tow';
-import { inCombat, inCombatWithOther, isHostile } from './combat';
-import { bodyOf } from './body';
+import { inCombat, inCombatWith, inCombatWithOther, isHostile } from './combat';
+import { frontBody, isRig } from './body';
+import { bendField, followPose, hitchAxle, hitchOverhang, hitchPoint, noseOverhang, poseOf, tractrix } from './rig';
 import { playerVehicle, vehicleById } from './damage';
 import { isDefeated, isKnockedOut } from './defeat';
 import { contactsOf, hearsBeacon } from './detect';
@@ -15,6 +16,7 @@ import { estimateTurns } from './market';
 import { route, routeLength } from './path';
 import { decide, getKnownSite, getUpkeepReserve, isWeak, npcProfile } from './npc-decisions';
 import { placeBase, popGoal } from './npc-activities';
+import { fuelForWay, knowsPump } from './npc-service';
 import { skillEffect } from './progress';
 import { canUseSite, nearestPad, parkedOn, reachedSite, type Site } from './sites';
 import { addState, endState, stateOf, towData, towPromiseData } from './states';
@@ -27,7 +29,7 @@ import { canVehicleSee } from './vision';
 import { playerCommand, update } from './world';
 import { atlasOf } from './atlas';
 import { followersOf, followingOf, joinCompany } from './companies';
-import { bandAtLeast, bandToward, isAlly, isRaider } from './relations';
+import { bandAtLeast, bandToward, isAlly, isRaider, reportIncident } from './relations';
 
 export function inTowReach(tower: Vehicle, towed: Vehicle): boolean {
   const radii = chassisDef(tower.chassisId).radius + chassisDef(towed.chassisId).radius;
@@ -64,20 +66,83 @@ function hitchedTows(world: World): NpcState[] {
   return world.states.filter((s) => s.kind === 'tow' && towData(s).hitched);
 }
 
+function ropes(world: World): NpcState[] {
+  return world.states.filter((s) => s.kind === 'drag' || (s.kind === 'tow' && towData(s).hitched));
+}
+
 export function getHitchedTowIds(world: World): Set<string> {
-  return new Set(hitchedTows(world).map((s) => s.other));
+  return new Set(ropes(world).map((s) => s.other));
 }
 
 export function isOnRope(world: World, id: string): boolean {
-  return hitchedTows(world).some((s) => s.other === id);
+  return ropes(world).some((s) => s.other === id);
 }
 
 export function ropeClientOf(world: World, towerId: string): string | null {
-  return hitchedTows(world).find((s) => s.holder === towerId)?.other ?? null;
+  return ropes(world).find((s) => s.holder === towerId)?.other ?? null;
 }
 
 export function isTowing(world: World, id: string): boolean {
-  return hitchedTows(world).some((s) => s.holder === id);
+  return ropes(world).some((s) => s.holder === id);
+}
+
+export function dragOf(world: World, victimId: string): NpcState | null {
+  return world.states.find((s) => s.kind === 'drag' && s.other === victimId) ?? null;
+}
+
+export function dragHeldBy(world: World, draggerId: string): NpcState | null {
+  return world.states.find((s) => s.kind === 'drag' && s.holder === draggerId) ?? null;
+}
+
+export function dragData(s: NpcState): Extract<StateData, { kind: 'drag' }> {
+  if (s.data.kind !== 'drag') throw new Error(`State ${s.id} holds no drag`);
+  return s.data;
+}
+
+function downed(world: World, v: Vehicle): boolean {
+  return isPlayer(world, v) ? world.player.state === 'knockedOut' : isKnockedOut(v);
+}
+
+function beatenBySide(world: World, victim: Vehicle, side: (v: Vehicle) => boolean): boolean {
+  const foes = victim.defeat?.foes ?? [];
+  return world.vehicles.some((v) => foes.includes(v.id) && side(v));
+}
+
+function foughtBySide(world: World, victim: Vehicle, side: (v: Vehicle) => boolean): boolean {
+  return world.vehicles.some((v) => side(v) && inCombatWith(world, v, victim));
+}
+
+export function canDrag(world: World, dragger: Vehicle, victim: Vehicle, side: (v: Vehicle) => boolean): boolean {
+  if (!dragFree(world, dragger, victim, side)) return false;
+  if (downed(world, victim)) return beatenBySide(world, victim, side);
+  return isStranded(world, victim) && foughtBySide(world, victim, side);
+}
+
+function dragFree(world: World, dragger: Vehicle, victim: Vehicle, side: (v: Vehicle) => boolean): boolean {
+  return dragger.id !== victim.id && !side(victim) && !isDefeated(dragger) && !isOnRope(world, victim.id) && !towOf(world, victim.id);
+}
+
+export function startDrag(world: World, dragger: Vehicle, victim: Vehicle, drop: Vec, side: (v: Vehicle) => boolean): NpcState {
+  if (!canDrag(world, dragger, victim, side)) throw new Error(`${dragger.id} cannot drag ${victim.id}: a drag takes only a knocked-out or stranded truck its side fought`);
+  const s = addState(world, 'drag', dragger.id, victim.id, { kind: 'drag', drop: { ...drop } });
+  victim.order = null;
+  victim.speed = 0;
+  reportIncident(world, { aggressor: dragger, victim, deed: 'robbed', victimFights: false });
+  return s;
+}
+
+export function checkDrag(world: World, s: NpcState): StateEnding | null {
+  const dragger = world.vehicles.find((v) => v.id === s.holder);
+  const victim = world.vehicles.find((v) => v.id === s.other);
+  if (!dragger || !victim) return null;
+  if (isDefeated(dragger) || isStranded(world, dragger) || inCombatWithOther(world, dragger, victim.id)) return 'broken';
+  if (!isPlayer(world, victim) && !isKnockedOut(victim) && !isStranded(world, victim)) return 'broken';
+  return null;
+}
+
+export function releaseDragged(world: World, s: NpcState): void {
+  const victim = world.vehicles.find((v) => v.id === s.other);
+  if (victim) victim.order = { kind: 'brake' };
 }
 
 export function towsClient(world: World, tower: Vehicle, client: Vehicle): boolean {
@@ -97,7 +162,15 @@ function towAllowed(world: World, tower: Vehicle, client: Vehicle): boolean {
 
 function canTow(world: World, tower: Vehicle, client: Vehicle): boolean {
   return canPull(world, tower, client) && ropesFree(world, tower, client) && unclaimed(world, tower, client)
-    && awake(world, client) && towDestination(world, tower, client) !== null;
+    && awake(world, client) && towerHasFuel(world, tower, client);
+}
+
+function towerHasFuel(world: World, tower: Vehicle, client: Vehicle): boolean {
+  const site = towDestination(world, tower, client);
+  if (!site) return false;
+  if (isPlayer(world, tower)) return true;
+  const profile = npcProfile(tower);
+  return knowsPump(profile) && getResources(world, tower).fuel > fuelForWay(world, tower, profile, [client.pos, site.pos]);
 }
 
 function canPull(world: World, tower: Vehicle, client: Vehicle): boolean {
@@ -360,35 +433,34 @@ export function dropStrandedTowers(world: World): void {
 }
 
 export function followTower(world: World): void {
-  for (const tow of hitchedTows(world)) follow(vehicleById(world, tow.holder), vehicleById(world, tow.other));
+  for (const tow of ropes(world)) follow(vehicleById(world, tow.holder), vehicleById(world, tow.other));
 }
 
 function follow(tower: Vehicle, towed: Vehicle): void {
   if (tower.trail.length === 0) throw new Error(`Tower ${tower.id} has no trail to follow`);
-  const towerAxle = axleTiles(tower.chassisId);
-  const towedAxle = axleTiles(towed.chassisId);
-  const bar = TOW.gap - towerAxle - towedAxle;
+  const towedAxle = frontBody(towed.chassisId).wheelX / PHYSICS.metersPerTile;
+  const bar = towBar(tower.chassisId, towed.chassisId);
   if (bar <= 0) throw new Error(`Tow bar of ${tower.chassisId} and ${towed.chassisId} is ${bar} tiles, not above 0`);
-  const start: Pose = { x: towed.pos.x, y: towed.pos.y, heading: towed.heading };
+  const start = poseOf(towed);
   let front = axlePoint(start, towedAxle);
   let rear = axlePoint(start, -towedAxle);
-  let prevHitch = axlePoint(tower.trail[0], -towerAxle);
+  let prevHitch = hitchPoint(tower.chassisId, tower.trail[0]);
+  let last = start;
   const trail: Pose[] = [start];
   for (let i = 1; i < tower.trail.length; i++) {
-    const hitch = axlePoint(tower.trail[i], -towerAxle);
+    const hitch = hitchPoint(tower.chassisId, tower.trail[i]);
     ({ front, rear } = trailerStep(front, rear, hitch, bar, TOW.takeUp * dist(hitch, prevHitch), towedAxle));
     prevHitch = hitch;
-    trail.push({ x: (front.x + rear.x) / 2, y: (front.y + rear.y) / 2, heading: bearing(rear, front) });
+    last = followPose(towed.chassisId, last, { x: (front.x + rear.x) / 2, y: (front.y + rear.y) / 2, heading: bearing(rear, front) });
+    trail.push(last);
   }
   towed.trail = trail;
-  const end = trail[trail.length - 1];
-  towed.pos = { x: end.x, y: end.y };
-  towed.heading = end.heading;
-  towed.speed = tower.speed;
+  Object.assign(towed, { pos: { x: last.x, y: last.y }, heading: last.heading, speed: tower.speed }, bendField(last.bend));
 }
 
-function axleTiles(chassisId: string): number {
-  return bodyOf(chassisId).wheelX / PHYSICS.metersPerTile;
+export function towBar(tower: string, towed: string): number {
+  const plain = TOW.gap - hitchAxle(tower) - frontBody(towed).wheelX / PHYSICS.metersPerTile;
+  return isRig(tower) ? Math.max(plain, hitchOverhang(tower) + noseOverhang(towed)) : plain;
 }
 
 function axlePoint(p: Pose, offset: number): Vec {
@@ -404,10 +476,7 @@ function trailerStep(front: Vec, rear: Vec, hitch: Vec, bar: number, maxMove: nu
     const t = want === 0 ? 0 : Math.min(1, maxMove / want);
     nextFront = { x: front.x + (target.x - front.x) * t, y: front.y + (target.y - front.y) * t };
   }
-  const span = dist(rear, nextFront);
-  const wheelbase = 2 * towedAxle;
-  if (span === 0) return { front: nextFront, rear };
-  return { front: nextFront, rear: { x: nextFront.x + ((rear.x - nextFront.x) / span) * wheelbase, y: nextFront.y + ((rear.y - nextFront.y) / span) * wheelbase } };
+  return { front: nextFront, rear: tractrix(nextFront, rear, 2 * towedAxle) };
 }
 
 export function acceptOffer(world: World): void {
@@ -432,6 +501,8 @@ function openOffer(world: World): NpcState {
 export function unhitch(world: World): World {
   return update(world, (w) => {
     if (w.player.state !== 'active') throw new Error(`Player is ${w.player.state}`);
+    const drag = dragOf(w, w.player.vehicleId);
+    if (drag) return endState(w, drag, 'broken');
     const tow = playerTow(w);
     if (!tow || !towData(tow).hitched) throw new Error('Player is not towed');
     addState(w, 'turnedDown', tow.holder, tow.other, { kind: 'none' });

@@ -1,8 +1,9 @@
 {
- "format": "2.82",
+ "format": "2.104",
  "shape": {
   "broken": [],
   "craters": [],
+  "crimes": [],
   "dustClouds": [],
   "fields": [],
   "flares": [],
@@ -71,6 +72,12 @@
    "money": "number",
    "notes": [],
    "overdrive": "boolean",
+   "paint": {
+    "body": "string",
+    "cab": "string",
+    "gear": "string"
+   },
+   "pastContracts": [],
    "perks": [],
    "quests": {
     "local": {},
@@ -96,8 +103,10 @@
     "bowl": "number",
     "guidestar": "number",
     "kiln": "number",
+    "marshals": "number",
     "nose": "number",
-    "scrapjaw": "number"
+    "scrapjaw": "number",
+    "sunward": "number"
    },
    "state": "string",
    "storage": [],
@@ -137,6 +146,7 @@
    }
   },
   "rngState": "number",
+  "roadNews": [],
   "salvage": [
    {
     "fuel": "number",
@@ -1301,13 +1311,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1332,17 +1344,6 @@
      },
      {
       "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
       "good": "string",
       "id": "string",
       "kind": "string",
@@ -1355,20 +1356,24 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
      "batteries": "number",
      "electronics": "number",
      "fuelDrums": "number",
      "grain": "number",
      "meds": "number",
      "parts": "number",
+     "rations": "number",
      "salt": "number",
      "scrap": "number",
      "textiles": "number",
      "tools": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1412,13 +1417,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1443,17 +1450,6 @@
      },
      {
       "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
       "good": "string",
       "id": "string",
       "kind": "string",
@@ -1466,13 +1462,17 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
      "meds": "number",
-     "scrap": "number",
+     "rations": "number",
      "tools": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1516,13 +1516,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1547,17 +1549,6 @@
      },
      {
       "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
       "good": "string",
       "id": "string",
       "kind": "string",
@@ -1570,12 +1561,18 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
      "grain": "number",
+     "rations": "number",
      "salt": "number",
-     "textiles": "number"
+     "tools": "number",
+     "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1619,13 +1616,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1650,17 +1649,6 @@
      },
      {
       "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
       "good": "string",
       "id": "string",
       "kind": "string",
@@ -1673,13 +1661,17 @@
       "window": "number"
      }
     ],
-    "pressure": {
-     "grain": "number",
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
+     "rations": "number",
      "salt": "number",
      "textiles": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1723,13 +1715,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1754,17 +1748,6 @@
      },
      {
       "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
       "good": "string",
       "id": "string",
       "kind": "string",
@@ -1777,13 +1760,14 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
      "batteries": "number",
      "electronics": "number",
      "fuelDrums": "number",
-     "grain": "number",
      "meds": "number",
      "parts": "number",
+     "rations": "number",
      "relics": "number",
      "salt": "number",
      "scrap": "number",
@@ -1791,7 +1775,9 @@
      "tools": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1835,13 +1821,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1866,17 +1854,6 @@
      },
      {
       "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
       "good": "string",
       "id": "string",
       "kind": "string",
@@ -1889,12 +1866,16 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
      "batteries": "number",
-     "parts": "number",
-     "scrap": "number"
+     "fuelDrums": "number",
+     "rations": "number",
+     "tools": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1938,13 +1919,15 @@
       "window": "number"
      },
      {
+      "cratePay": "number",
       "deadline": "number",
-      "defId": "string",
+      "good": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
       "tier": "number",
+      "units": "number",
       "window": "number"
      },
      {
@@ -1969,17 +1952,6 @@
      },
      {
       "deadline": "number",
-      "fulfilled": "boolean",
-      "id": "string",
-      "kind": "string",
-      "reward": "number",
-      "shop": "string",
-      "template": "string",
-      "tier": "number",
-      "window": "number"
-     },
-     {
-      "deadline": "number",
       "good": "string",
       "id": "string",
       "kind": "string",
@@ -1992,13 +1964,18 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
      "parts": "number",
+     "rations": "number",
      "relics": "number",
      "scrap": "number",
      "tools": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -2041,8 +2018,102 @@
     "turnsLeft": "null"
    }
   ],
+  "sunward": {
+   "collapsed": "null",
+   "lastHunt": "null",
+   "night": "null"
+  },
   "turn": "number",
   "vehicles": [
+   {
+    "bend": "number",
+    "brain": {
+     "attackers": {},
+     "driver": "string",
+     "goal": "null",
+     "goals": [],
+     "home": {
+      "x": "number",
+      "y": "number"
+     },
+     "hurt": "number",
+     "memories": [],
+     "noticed": {},
+     "personality": "string",
+     "stepIndex": "number",
+     "templateId": "string",
+     "tracks": {},
+     "traits": [
+      "string"
+     ]
+    },
+    "chassisId": "string",
+    "direct": "boolean",
+    "faction": "string",
+    "heading": "number",
+    "id": "string",
+    "items": [
+     {
+      "good": "string",
+      "id": "string",
+      "kind": "string",
+      "rot": "number",
+      "x": "number",
+      "y": "number"
+     },
+     {
+      "id": "string",
+      "kind": "string",
+      "part": {
+       "charge": {
+        "reload": "number"
+       },
+       "defId": "string",
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      },
+      "rot": "number",
+      "x": "number",
+      "y": "number"
+     },
+     {
+      "id": "string",
+      "kind": "string",
+      "part": {
+       "defId": "string",
+       "gun": {
+        "ammo": "number",
+        "cooldown": "number",
+        "reloadWork": "number"
+       },
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      },
+      "rot": "number",
+      "x": "number",
+      "y": "number"
+     }
+    ],
+    "job": "null",
+    "lastHitBy": "null",
+    "order": "null",
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "resources": {
+     "fuel": "number",
+     "health": "number",
+     "money": "number",
+     "supplies": "number"
+    },
+    "speed": "number",
+    "stormExposure": {},
+    "utilityOrders": {},
+    "weaponOrders": {}
+   },
    {
     "brain": "null",
     "chassisId": "string",
@@ -2305,25 +2376,15 @@
  "quests": {
   "world": {
    "ala_hired": "boolean",
-   "ala_knows": "string",
    "ambush_raider": "string",
    "counter_seen": "boolean",
-   "death_answer": "string",
    "depot_thief": "string",
-   "father_told": "boolean",
    "first_knockout_seen": "boolean",
-   "geezer_pitch": "string",
-   "hand_shook": "boolean",
    "hattie_met": "boolean",
    "intro_step": "string",
    "marr_regard": "string",
    "pipe_fate": "string",
-   "promised": "boolean",
-   "ring_told": "string",
    "road_seen_1": "boolean",
-   "road_seen_12": "boolean",
-   "road_seen_4": "boolean",
-   "road_seen_8": "boolean",
    "scale_seen": "boolean",
    "towed_to_bowl": "boolean",
    "wagon_fate": "string",
@@ -2331,8 +2392,7 @@
    "wagon_rod": "string",
    "wagon_saw": "boolean",
    "wagon_seen": "boolean",
-   "wagon_watched": "boolean",
-   "why_answer": "string"
+   "wagon_watched": "boolean"
   },
   "local": {
    "bowl_dag": {
@@ -2372,7 +2432,13 @@
     "asked_pay": "boolean",
     "asked_where": "boolean"
    },
+   "chaos_highway_intro": {},
+   "fallen_light": {},
    "first_fall": {},
+   "granary_odile": {
+    "asked_gate": "boolean",
+    "asked_need": "boolean"
+   },
    "intro_arrival": {
     "arrival_rope": "boolean"
    },
@@ -2437,11 +2503,11 @@
    },
    "nose_kovac": {
     "asked_courier": "boolean",
-    "asked_gate_law": "boolean",
+    "asked_mounts": "boolean",
     "asked_paper": "boolean",
     "asked_workshop": "boolean",
     "heard_courier": "boolean",
-    "heard_gate_law": "boolean",
+    "heard_mounts": "boolean",
     "heard_paper": "boolean",
     "heard_workshop": "boolean"
    },
@@ -2456,6 +2522,10 @@
     "heard_kiln": "boolean",
     "heard_sun": "boolean",
     "heard_swivel": "boolean"
+   },
+   "pit_hadiza": {
+    "asked_hooks": "boolean",
+    "asked_want": "boolean"
    },
    "pump_agnes": {
     "asked_leak": "boolean",
@@ -2495,27 +2565,9 @@
     "walked_out": "boolean"
    },
    "radio_wagon_driver": {},
-   "road_hire": {
-    "asked_north": "boolean",
-    "asked_pay": "boolean",
-    "asked_trailer": "boolean",
-    "asked_who": "boolean",
-    "walked_out": "boolean"
-   },
    "road_stretch_1": {},
-   "road_stretch_12": {
-    "pass_said": "boolean",
-    "stay_said": "string"
-   },
-   "road_stretch_4": {
-    "asked_hunters": "boolean",
-    "asked_north": "boolean",
-    "asked_trailer": "boolean"
-   },
-   "road_stretch_8": {
-    "asked_hunters": "boolean",
-    "asked_run": "boolean",
-    "grief_said": "string"
+   "station_still": {
+    "asked_buyers": "boolean"
    },
    "wagon_bench": {
     "fee": "number",
@@ -2568,8 +2620,18 @@
    "bowl_scale": [
     "start"
    ],
+   "chaos_highway_intro": [
+    "start"
+   ],
+   "fallen_light": [
+    "start"
+   ],
    "first_fall": [
     "start"
+   ],
+   "granary_odile": [
+    "start",
+    "start.hub"
    ],
    "intro_arrival": [
     "start",
@@ -2612,6 +2674,10 @@
     "start",
     "start.hub"
    ],
+   "pit_hadiza": [
+    "start",
+    "start.hub"
+   ],
    "pump_agnes": [
     "start",
     "start.hub",
@@ -2627,35 +2693,12 @@
     "start",
     "start.ask"
    ],
-   "road_hire": [
-    "start",
-    "start.both",
-    "start.hub"
-   ],
    "road_stretch_1": [
-    "start",
-    "start.tougher",
-    "start.close"
+    "start"
    ],
-   "road_stretch_12": [
+   "station_still": [
     "start",
-    "start.fire",
-    "start.ask",
-    "start.stay",
-    "start.close"
-   ],
-   "road_stretch_4": [
-    "start",
-    "start.death_machine",
-    "start.hub",
-    "start.maya"
-   ],
-   "road_stretch_8": [
-    "start",
-    "start.news",
-    "start.loss",
-    "start.hub",
-    "start.close"
+    "start.hub"
    ],
    "wagon_bench": [
     "start",
@@ -2689,6 +2732,7 @@
      ]
     },
     "notes": [
+     "sunwardDragged",
      "talkKilnFight",
      "wagonDag"
     ],
@@ -2747,12 +2791,46 @@
     "begins": []
    }
   },
+  "chaos_highway_intro": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {
+     "ala_hired": [
+      true
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "fallen_light": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
   "first_fall": {
    "revision": 1,
    "links": {
     "reads": [
      "intro_step"
     ],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "granary_odile": {
+   "revision": 1,
+   "links": {
+    "reads": [],
     "readsNotes": [],
     "writes": {},
     "notes": [],
@@ -2847,6 +2925,7 @@
     "writes": {},
     "notes": [
      "burntConvoy",
+     "sunwardLamps",
      "talkArmyStarved",
      "talkCommitteeRent"
     ],
@@ -2891,6 +2970,16 @@
     "begins": [
      "wagon_bench"
     ]
+   }
+  },
+  "pit_hadiza": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
    }
   },
   "pump_agnes": {
@@ -2955,114 +3044,22 @@
     "begins": []
    }
   },
-  "road_hire": {
-   "revision": 1,
-   "links": {
-    "reads": [
-     "geezer_pitch"
-    ],
-    "readsNotes": [],
-    "writes": {
-     "ala_hired": [
-      true
-     ],
-     "geezer_pitch": [
-      "bullets",
-      "link"
-     ]
-    },
-    "notes": [],
-    "begins": []
-   }
-  },
   "road_stretch_1": {
    "revision": 1,
    "links": {
-    "reads": [
-     "father_told",
-     "geezer_pitch"
-    ],
+    "reads": [],
     "readsNotes": [],
-    "writes": {
-     "father_told": [
-      true
-     ],
-     "ring_told": [
-      "dodged",
-      "silent",
-      "told"
-     ]
-    },
+    "writes": {},
     "notes": [],
     "begins": []
    }
   },
-  "road_stretch_12": {
+  "station_still": {
    "revision": 1,
    "links": {
-    "reads": [
-     "ala_knows",
-     "father_told",
-     "hand_shook",
-     "promised",
-     "ring_told"
-    ],
+    "reads": [],
     "readsNotes": [],
-    "writes": {
-     "ala_knows": [
-      "burnt",
-      "dead",
-      "magnus"
-     ]
-    },
-    "notes": [],
-    "begins": []
-   }
-  },
-  "road_stretch_4": {
-   "revision": 1,
-   "links": {
-    "reads": [
-     "father_told",
-     "ring_told"
-    ],
-    "readsNotes": [],
-    "writes": {
-     "death_answer": [
-      "hard_men",
-      "magnus",
-      "road",
-      "silent"
-     ],
-     "promised": [
-      true
-     ]
-    },
-    "notes": [],
-    "begins": []
-   }
-  },
-  "road_stretch_8": {
-   "revision": 1,
-   "links": {
-    "reads": [
-     "father_told",
-     "hand_shook",
-     "promised"
-    ],
-    "readsNotes": [],
-    "writes": {
-     "hand_shook": [
-      false,
-      true
-     ],
-     "why_answer": [
-      "finish",
-      "pay",
-      "promised",
-      "silent"
-     ]
-    },
+    "writes": {},
     "notes": [],
     "begins": []
    }

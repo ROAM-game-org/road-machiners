@@ -23,7 +23,7 @@ function knockoutTurn(questLanguage: QuestLanguage) {
   const drive = buildDrive(world);
   try {
     const { terrain, ...state } = world;
-    const request = { kind: 'turn' as const, id: 1, questLanguage, world: state, drive: captureDrive(drive), terrain };
+    const request = { kind: 'turn' as const, id: 1, questLanguage, tailSteps: 11, world: state, drive: captureDrive(drive), terrain };
     return computeRequestedTurn(request, terrain).world;
   } finally {
     freeDrive(drive);

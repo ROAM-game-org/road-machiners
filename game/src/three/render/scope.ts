@@ -1,6 +1,3 @@
-// Distance culling for static objects. Objects are bucketed into terrain chunks. Each frame the chunks
-// whose bounds meet both the camera view and gray vision stay attached to the root. The rest are
-// detached, so scene traversal, matrix updates and the renderer skip them. Every object is also clipped
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
@@ -31,6 +28,10 @@ export class RenderScope {
     this.prepare = outlined ? outlineProps : () => {};
     this.perSide = Math.ceil(mapSize / TERRAIN_CHUNK);
     this.chunks = new Array<Chunk | null>(this.perSide * this.perSide).fill(null);
+  }
+
+  pin(...objs: THREE.Object3D[]): void {
+    this.root.add(...objs);
   }
 
   add(obj: THREE.Object3D, pos: Vec, radius: number): void {

@@ -33,10 +33,20 @@ function haulAfter(span: Span, previous: Span | null): Msg[] {
   return span === 'far' && previous !== 'far' ? [t('way.longHaul')] : [];
 }
 
+type Follow = Extract<DirectionStep, { do: 'follow' }>;
+
+function followText(step: Follow, next: DirectionStep | undefined, target: string | null): Msg {
+  const there = leadsTo(step.road, target, next);
+  if (step.heading === null) return there ? t('way.followThere') : t('way.follow', { road: roadText(step.road) });
+  if (there) return t('way.followThereHeading', { octant: compassName(step.heading) });
+  if (step.road.kind === 'heading') return t('way.follow', { road: roadText(step.road) });
+  return t('way.followHeading', { road: roadText(step.road), octant: compassName(step.heading) });
+}
+
 function stepText(step: DirectionStep, next: DirectionStep | undefined, target: string | null, previous: Span | null): Msg[] {
   switch (step.do) {
     case 'join': return [t('way.join', { octant: compassName(step.octant), span: spanText(step.span) })];
-    case 'follow': return [leadsTo(step.road, target, next) ? t('way.followThere') : t('way.follow', { road: roadText(step.road) }), ...haulAfter(step.span, previous)];
+    case 'follow': return [followText(step, next, target), ...haulAfter(step.span, previous)];
     case 'turn': {
       const at = cueText(step.at, 'turn');
       const sentence = leadsTo(step.road, target, next) ? t(`way.turnThere.${step.side}`, { at }) : t(`way.turn.${step.side}`, { at, road: roadText(step.road) });

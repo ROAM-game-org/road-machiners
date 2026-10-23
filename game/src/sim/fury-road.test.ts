@@ -101,8 +101,9 @@ describe('the Fury Road enemy cards', () => {
   it('names every NPC template, and draws each one over twenty runs', () => {
     const drawn = new Set(SEEDS.flatMap((seed) => STRETCHES.flatMap((j) => wavesOf(seed, j).map((wave) => wave.template))));
 
-    expect(Object.keys(FURY_ROAD.cards).sort()).toEqual(Object.keys(NPCS).sort());
-    expect([...drawn].sort()).toEqual(Object.keys(NPCS).sort());
+    const roadTemplates = Object.keys(NPCS).filter((id) => id !== 'cavalcade' && id !== 'hunter' && id !== 'marshal').sort();
+    expect(Object.keys(FURY_ROAD.cards).sort()).toEqual(roadTemplates);
+    expect([...drawn].sort()).toEqual(roadTemplates);
   });
 
   it('draws each wave from the cards open at its stretch, at the wave gear level, within the wave size limits', () => {

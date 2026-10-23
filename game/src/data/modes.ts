@@ -1,6 +1,8 @@
 
 import type { GameModeId, MapKind, ModeRules, WorldSettings } from '../sim/types';
 import { GAME_OPENED_QUESTS } from './quests';
+import { NPC_BEHAVIOR } from './npc-behavior';
+import { UNPRICED_WEAPONS } from './weapons';
 import type { GearRules } from '../sim/npc-loadout';
 import type { GearLevel } from './npcs';
 import type { PartKind } from './parts';
@@ -9,12 +11,12 @@ import type { TerrainTypeId } from './terrain';
 
 export type GameMode = { rules: ModeRules; kit: string | null; map: MapKind; opening: string | null };
 
-const OPEN_WORLD: ModeRules = { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true };
-const RUN: ModeRules = { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false };
+const OPEN_WORLD: ModeRules = { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true, bounties: true };
+const RUN: ModeRules = { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false, bounties: false };
 
 export const GAME_MODES: Record<GameModeId, GameMode> = {
   roaming: { rules: OPEN_WORLD, kit: null, map: 'icarus', opening: null },
-  furyRoad: { rules: RUN, kit: 'furyRoad', map: 'highway', opening: GAME_OPENED_QUESTS.roadHire },
+  furyRoad: { rules: RUN, kit: 'furyRoad', map: 'highway', opening: GAME_OPENED_QUESTS.chaosHighwayIntro },
 };
 
 export type WorldSettingDef = { default: number; min: number; max: number; step: number; modes: readonly GameModeId[] };
@@ -84,16 +86,16 @@ export const FURY_ROAD = {
   playerMargin: 8,
   sides: { ahead: 45, flank: { along: 36, across: 22, step: 3 } },
   pacing: { near: 30 },
-  rolling: { near: 6, ramp: 80, lead: 12 },
+  rolling: { near: 6, ramp: 40, close: 0.4, lead: 12 },
   sightMargin: 6,
   spawnStagger: 3,
   spawnClear: 3,
   maxAlive: 8,
   spawnRetryTurns: 20,
   pay: { base: { first: 25000, step: 10000 } as Line },
-  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32 },
-  stockPerKind: { weapon: 5, engine: 3, armor: 6, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
-  trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'] },
+  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, crawl: 1.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32, waitGap: Math.max(...Object.values(UNPRICED_WEAPONS).map((w) => w.range)), resumeGap: NPC_BEHAVIOR.escortWaitGap, apartGap: NPC_BEHAVIOR.escortCatchUpGap },
+  stockPerKind: { weapon: 5, engine: 3, armor: 6, accessory: 2, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
+  trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon', 'sorokonoga'] },
   goodsMarkup: 1.5,
   maxTries: 400,
 };

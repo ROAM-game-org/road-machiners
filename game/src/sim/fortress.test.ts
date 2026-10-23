@@ -1,4 +1,5 @@
 
+import { HOLLOW } from '../data/sunward';
 import { describe, expect, it } from 'vitest';
 import { FORTRESS, FORTRESS_SITES, FORTRESS_STYLES } from '../data/fortress';
 import { REGION } from '../data/region';
@@ -68,9 +69,9 @@ describe('fort prop kinds', () => {
 });
 
 describe('fortress obstacles', () => {
-  it('has the nine inhabited sites as fortresses', () => {
-    expect(FORT_SITES.map((s) => s.id).sort()).toEqual(Object.keys(FORTRESS_SITES).filter((id) => id !== 'outpost').sort());
-    expect(FORT_SITES).toHaveLength(9);
+  it('has the ten inhabited sites as fortresses', () => {
+    expect(FORT_SITES.map((s) => s.id).sort()).toEqual(Object.keys(FORTRESS_SITES).filter((id) => id !== 'outpost' && id !== HOLLOW.id).sort());
+    expect(FORT_SITES).toHaveLength(10);
   });
 
   it('keeps no site circle and no town building ring for a fortress site (IV2)', () => {

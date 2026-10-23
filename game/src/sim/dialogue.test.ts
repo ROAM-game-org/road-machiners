@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PERK_NUMBERS, XP_SOURCES } from '../data/skills';
 import { CONTRACTS, SHOPS } from '../data/market';
 import { buyPrice, sellPrice } from './economy';
-import { goodBasePrice, goodValue, vehicleValue, type Contract } from './market';
+import { goodBasePrice, goodValue, standingPressures, vehicleValue, type Contract } from './market';
 import { makePart } from './factory';
 import type { PersonalityId } from '../data/personalities';
 import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, type LineId, type Topic } from '../data/dialogue';
@@ -25,7 +25,7 @@ import { hasCargo, emptyHidden } from './salvage';
 import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { CONDITIONS, EFFECTS, PREPARES } from './dialogue-rules';
 import { addState, aidData, endState, stateOf } from './states';
-import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, startCombat, testDrive } from './testkit';
+import { addVehicle, emptyWorld, furyRoadWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, setShopPressure, sizedUp, startCombat, testDrive } from './testkit';
 import type { TraitId } from '../data/npcs';
 import type { SalvageStock, Vehicle, World } from './types';
 import { directionsTo } from './directions';
@@ -36,6 +36,8 @@ import { beginSearch } from './search';
 import { knockOutNpc } from './defeat';
 import { forgetOld, remember } from './memory';
 import { chassisDef } from '../data/chassis';
+import { partDef } from '../data/parts';
+import { LESSON_TRADES } from '../data/lessons';
 
 const TRAITS_OF: Record<string, TraitId[]> = { trader: ['trader'], scavenger: ['scavenger'], buggy: ['raider'] };
 
@@ -267,7 +269,7 @@ describe('NPC calls', () => {
 
   it('only the fight topics call during combat', () => {
     const fight = Object.values(TOPICS).filter((t) => t.raise?.duringCombat).map((t) => t.id);
-    expect(fight.sort()).toEqual(['demand', 'demandCut', 'giveUp', 'mercyPlea', 'spillClaim', 'surrender', 'truceOffer']);
+    expect(fight.sort()).toEqual(['bountyDemand', 'demand', 'demandCut', 'giveUp', 'mercyPlea', 'spillClaim', 'surrender', 'truceOffer']);
   });
 
   it('an NPC that does not see the player stays quiet', () => {
@@ -387,6 +389,7 @@ describe('demand', () => {
     addGoods(w, playerVehicle(w), 'scrap', 2);
     const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    sizedUp(w, raider, playerVehicle(w));
     forceOption('hostileSeen', 'fight');
     forceOption('mugging', mugging);
     return { w, raider };
@@ -642,7 +645,7 @@ describe('market ears', () => {
   const askText = en(TOPICS.marketNews.ask!.say);
 
   function backFromNose(w: World, npc: Vehicle): void {
-    remember(w, npc, { kind: 'prices', shop: 'nose', pressure: { ...w.shops.nose.pressure } });
+    remember(w, npc, { kind: 'prices', shop: 'nose', pressure: standingPressures(w, 'nose') });
   }
 
   it('a trader back from a town tells its buy and sell prices', () => {
@@ -660,7 +663,7 @@ describe('market ears', () => {
     w.player.perks = ['marketEars'];
     backFromNose(w, npc);
     const goods = SHOPS.nose.goods.map((good) => ({ good, buy: buyPrice(w, 'nose', good), sell: sellPrice(w, 'nose', good) }));
-    for (const good of SHOPS.nose.goods) w.shops.nose.pressure[good] = 0.5;
+    for (const good of SHOPS.nose.goods) setShopPressure(w, 'nose', good, 0.5);
     const open = callVehicle(w, npc.id);
     const asked = chooseOption(open, optionIndex(open, askText));
     expect(asked.player.call?.vars.prices).toEqual({ kind: 'prices', town: 'nose', goods });
@@ -684,7 +687,7 @@ describe('market ears', () => {
   it('is not offered by a driver that has not been to a town', () => {
     const { w, npc } = withNpc('trader', 'independent');
     w.player.perks = ['marketEars'];
-    remember(w, npc, { kind: 'prices', shop: 'granary', pressure: { ...w.shops.granary.pressure } });
+    remember(w, npc, { kind: 'prices', shop: 'granary', pressure: standingPressures(w, 'granary') });
     expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
   });
 });
@@ -693,7 +696,7 @@ describe('trading tips', () => {
   const askText = en(TOPICS.tips.ask!.say);
 
   function visit(w: World, npc: Vehicle, shop: string): void {
-    remember(w, npc, { kind: 'prices', shop, pressure: { ...w.shops[shop].pressure } });
+    remember(w, npc, { kind: 'prices', shop, pressure: standingPressures(w, shop) });
   }
 
   function tipOf(w: World, npc: Vehicle): unknown {
@@ -707,12 +710,13 @@ describe('trading tips', () => {
   it('tells of a good it saw far over its value', () => {
     const { w, npc } = withNpc('trader', 'independent');
     visit(w, npc, 'bowl');
-    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'salt', dear: true } });
+    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'batteries', dear: true } });
   });
 
   it('tells of a good it saw far under its value', () => {
     const { w, npc } = withNpc('trader', 'independent');
-    visit(w, npc, 'salvage-yard');
+    const pressure = Object.fromEntries(SHOPS['salvage-yard'].goods.map((good) => [good, pressureFor('salvage-yard', good, good === 'parts' ? 0.6 : 1)]));
+    remember(w, npc, { kind: 'prices', shop: 'salvage-yard', pressure });
     expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'salvage-yard', good: 'parts', dear: false } });
   });
 
@@ -738,7 +742,7 @@ describe('trading tips', () => {
     expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'nose', good: 'electronics', dear: true } });
     w.turn += 1;
     visit(w, npc, 'bowl');
-    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'salt', dear: true } });
+    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'batteries', dear: true } });
   });
 
   it('tells nothing once the memory has faded', () => {
@@ -752,10 +756,10 @@ describe('trading tips', () => {
   it('tells what it saw, whatever the live prices did since, and rolls nothing', () => {
     const { w, npc } = withNpc('trader', 'independent');
     visit(w, npc, 'bowl');
-    for (const good of SHOPS.bowl.goods) w.shops.bowl.pressure[good] = 0;
-    w.shops.bowl.pressure.salt = -0.5;
+    for (const good of SHOPS.bowl.goods) setShopPressure(w, 'bowl', good, 0);
+    setShopPressure(w, 'bowl', 'salt', -0.5);
     const rng = w.rngState;
-    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'salt', dear: true } });
+    expect(tipOf(w, npc)).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'batteries', dear: true } });
     expect(w.rngState).toBe(rng);
   });
 
@@ -764,7 +768,7 @@ describe('trading tips', () => {
     visit(w, npc, 'bowl');
     const open = callVehicle(w, npc.id);
     const asked = chooseOption(open, optionIndex(open, askText));
-    expect(asked.player.call?.vars.tip).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'salt', dear: true } });
+    expect(asked.player.call?.vars.tip).toEqual({ kind: 'tip', tip: { shop: 'bowl', good: 'batteries', dear: true } });
     expect(currentOptions(asked).map((o) => en(o.line))).toEqual(expect.arrayContaining(['Thanks. Something else.', 'Over and out.']));
   });
 
@@ -1084,7 +1088,8 @@ describe('fuel and supply aid', () => {
     const offerers = (Object.keys(TRAIT_TALK) as TraitId[]).filter((id) => TRAIT_TALK[id].topics.includes('aidOffer'));
     expect(helpers.sort()).toEqual(['courier', 'lawman', 'roamer', 'scavenger', 'supplier', 'trader']);
     expect(offerers.sort()).toEqual(helpers);
-    expect(Object.values(TRAIT_TALK).every((t) => t.topics.includes('offerAid'))).toBe(true);
+    expect(Object.entries(TRAIT_TALK).filter(([id]) => id !== 'cultist').every(([, t]) => t.topics.includes('offerAid'))).toBe(true);
+    expect(TRAIT_TALK.cultist.topics.filter((id) => TOPICS[id].ask !== null)).toEqual([]);
   });
 
   it('a player who is not low cannot ask for aid, and a low one can', () => {
@@ -1281,6 +1286,7 @@ describe('robber truce', () => {
     for (const y of [28, 32]) addVehicle(w, 'independent', 'buggy', ['stockEngine', 'mg'], { x: 40, y }, Math.PI).brain = npcBrain('scavenger', { x: 40, y }, ['scavenger']);
     addState(w, 'feud', robber.id, w.player.vehicleId, { kind: 'feud', robbery });
     addState(w, 'feud', w.player.vehicleId, robber.id, { kind: 'feud', robbery: false });
+    sizedUp(w, robber, playerVehicle(w));
     refreshVision(w);
     return { w, robber };
   }
@@ -1468,5 +1474,95 @@ describe('asking after someone', () => {
     me.items = me.items.filter((it) => it.kind !== 'parcel');
     expect(CONDITIONS.hasParcelFor(w, target, {})).toBe(false);
     expect(() => askHandover(w, target)).toThrow('no parcel');
+  });
+});
+
+describe('road lessons', () => {
+  const askText = en(TOPICS.roadLesson.ask!.say);
+  const VOICED: Record<string, { template: string; faction: Vehicle['faction'] }> = {
+    trader: { template: 'trader', faction: 'independent' },
+    scavenger: { template: 'scavenger', faction: 'independent' },
+  };
+
+  function asked(w: World, npc: Vehicle): World {
+    const open = callVehicle(w, npc.id);
+    return chooseOption(open, optionIndex(open, askText));
+  }
+
+  function offers(w: World, npc: Vehicle): boolean {
+    return currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line)).includes(askText);
+  }
+
+  it('is offered at peace by every voiced trait', () => {
+    for (const trait of Object.keys(LESSON_TRADES) as TraitId[]) {
+      const w = emptyWorld({ x: 30, y: 30 });
+      const npc = addVehicle(w, 'independent', 'scout', [], { x: 36, y: 30 });
+      npc.brain = npcBrain('trader', npc.pos, [trait]);
+      refreshVision(w);
+      const hostile = isHostile(w, npc, playerVehicle(w));
+      expect(hostile).toBe(false);
+      expect(offers(w, npc)).toBe(true);
+    }
+    expect(Object.keys(VOICED)).toHaveLength(2);
+  });
+
+  it('is not offered by a raider hostile over cargo, and is by the same raider once the player carries nothing', () => {
+    const { w, npc } = withNpc('buggy', 'scrapjaw');
+    expect(isHostile(w, npc, playerVehicle(w))).toBe(true);
+    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+    const empty = emptyWorld({ x: 30, y: 30 });
+    const raider = addVehicle(empty, 'scrapjaw', 'scout', ['stockEngine'], { x: 36, y: 30 });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
+    const player = playerVehicle(empty);
+    player.items = player.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'core');
+    refreshVision(empty);
+    expect(isHostile(empty, raider, player)).toBe(false);
+    expect(offers(empty, raider)).toBe(true);
+  });
+
+  it('is hidden by a feud', () => {
+    const { w, npc } = withNpc('trader', 'independent');
+    addState(w, 'feud', npc.id, w.player.vehicleId, { kind: 'feud', robbery: false });
+    expect(currentOptions(callVehicle(w, npc.id)).map((o) => en(o.line))).not.toContain(askText);
+  });
+
+  it('is answered by tight-lipped and grim drivers too', () => {
+    for (const personality of ['tightLipped', 'grim', 'suspicious', 'pious'] as const) {
+      const { w, npc } = withNpc('trader', 'independent');
+      npc.brain!.personality = personality;
+      expect(offers(w, npc)).toBe(true);
+    }
+  });
+
+  it('tells the prepared story, then the repeat line, and changes nothing else', () => {
+    const { w, npc } = withNpc('trader', 'independent');
+    const money = w.player.money;
+    const notes = structuredClone(w.player.notes);
+    const explored = structuredClone(w.player.discovered);
+    const told = asked(w, npc);
+    const lesson = told.player.call!.vars.lesson;
+    expect(lesson).toEqual({ kind: 'line', line: expect.stringMatching(/^lessonHauler/) });
+    expect(told.player.call?.line.line).toBe('lessonTold');
+    expect(told.events).toContainEqual({ t: 'say', speaker: npc.id, line: 'lessonTold', vars: { lesson } });
+    expect(told.player.money).toBe(money);
+    expect(told.player.notes).toEqual(notes);
+    expect(told.player.discovered).toEqual(explored);
+    expect(told.rngState).toBe(w.rngState);
+    const done = chooseOption(told, 0);
+    expect(done.player.talked[npc.id]).toEqual({ roadLesson: 'done' });
+    const again = chooseOption(done, optionIndex(done, askText));
+    expect(again.player.call?.topic).toBeNull();
+    expect(again.player.call?.line).toEqual({ line: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
+  });
+
+  it('settles the lesson when the player hangs up mid-story', () => {
+    const { w, npc } = withNpc('trader', 'independent');
+    const closed = hangUp(asked(w, npc));
+    expect(closed.player.call).toBeNull();
+    expect(closed.player.talked[npc.id]).toEqual({ roadLesson: 'done' });
+  });
+
+  it('cannot be called on Chaos Highway, which has no radio', () => {
+    expect(() => callVehicle(furyRoadWorld(), 'nobody')).toThrow();
   });
 });

@@ -5,6 +5,7 @@ import { playerVehicle } from "../sim/damage";
 import { addVehicle } from "../sim/testkit";
 import { newWorld } from "../sim/world";
 import type { PartInstance } from "../sim/types";
+import { PAINT, type TruckPaint } from "../data/chassis";
 import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
 import { addGoods } from "../sim/inventory";
 import { startRepair } from "../sim/jobs";
@@ -79,8 +80,8 @@ describe("cargo cards", () => {
   const head = (defId: string) => headlineStat(courierWorld, part(defId), null).stat;
 
   it("headline the net cargo cells on the player's chassis", () => {
-    expect(head("panniers")).toMatchObject({ icon: "cells", value: 5 });
-    expect(head("heavyFrame")).toMatchObject({ icon: "cells", value: 32 });
+    expect(head("panniers")).toMatchObject({ icon: "cells", value: 6 });
+    expect(head("heavyFrame")).toMatchObject({ icon: "cells", value: 38 });
   });
 
   it("marks a heavy frame better than panniers", () => {
@@ -169,7 +170,7 @@ describe("item icons", () => {
   });
 
   it.each(Object.keys(CHASSIS))("names the %s portrait after its chassis", (id) => {
-    expect(en(chassisPortraitCell(id).label)).toBe(en(chassisName(id)));
+    expect(en(chassisPortraitCell(id, PAINT.standard).label)).toBe(en(chassisName(id)));
   });
 });
 
@@ -201,8 +202,20 @@ describe("item tones", () => {
 });
 
 describe("chassis portraits", () => {
+  const OXBLOOD: TruckPaint = { body: "oxblood", cab: "slate", gear: "chalk" };
+
   it.each(Object.keys(CHASSIS))("crop the %s portrait to its drawing", (id) => {
-    expect(chassisPortraitCell(id).box).toEqual(boxOf(ICONS.chassis[id as keyof typeof ICONS.chassis].box));
+    expect(chassisPortraitCell(id, PAINT.standard).box).toEqual(boxOf(ICONS.chassis[id as keyof typeof ICONS.chassis].box));
+  });
+
+  it("start from the standard sheet in the same cell for any paint", () => {
+    expect(chassisPortraitCell("scout", PAINT.standard).file).toBe("chassis.png");
+    expect(chassisPortraitCell("scout", OXBLOOD).file).toBe("chassis.png");
+    expect(chassisPortraitCell("scout", OXBLOOD).box).toEqual(chassisPortraitCell("scout", PAINT.standard).box);
+  });
+
+  it("fail on a paint the build does not know", () => {
+    expect(() => chassisPortraitCell("scout", { ...OXBLOOD, cab: "gold" } as unknown as TruckPaint)).toThrow(/gold/);
   });
 });
 

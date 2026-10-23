@@ -220,6 +220,10 @@
 .inv-item.spare {
   border-color: var(--ink-label);
 }
+.inv-item.outer {
+  z-index: var(--z-accessory);
+  padding: 0;
+}
 .inv-item:hover {
   border-color: var(--line-hover);
 }
@@ -383,4 +387,7 @@
 .inv-ghost.no {
   border-color: var(--danger-ink);
   background: var(--danger-wash);
+}
+.inv-ghost.placed {
+  position: absolute;
 }

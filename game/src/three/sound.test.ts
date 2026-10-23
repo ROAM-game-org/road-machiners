@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { GameEvent, ShotRound } from "../sim/types";
 import { CHASSIS } from "../data/chassis";
 import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUNDS } from "../data/sounds";
-import type { Glide, SoundPlayer } from "../audio/player";
+import type { SoundPlayer } from "../audio/player";
 import { REGION } from "../data/region";
 import { OUTPOSTS, siteGates } from "../sim/sites";
-import { engineGlide, EngineStrain, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides } from "./sound";
+import { engineGlide, EngineStrain, glideAt, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides } from "./sound";
 import type { BlockEvent } from "./block-session";
 import type { CameraRig } from "./render/camera";
 import { TEST_MAP } from '../test/map';
@@ -27,20 +27,32 @@ describe("stingOf", () => {
     expect(stingOf(events, "p")).toBeNull();
     expect(stingOf([{ t: "arrived", vehicle: "p" }], "p")).toBeNull();
   });
+  it("warns softly when a heatwave starts, ahead of money", () => {
+    const heatwave = { id: "h1", kind: "heatwave" as const, turnsLeft: 10 };
+    const started: GameEvent = { t: "weather", event: heatwave, outcome: "started" };
+    expect(stingOf([started], "p")).toBe("heatwave-warning");
+    expect(stingOf([{ t: "money", amount: 20, reason: { kind: "contract" } }, started], "p")).toBe("heatwave-warning");
+    expect(stingOf([{ t: "weather", event: heatwave, outcome: "ended" }], "p")).toBeNull();
+  });
+  it("gives no sting for a storm or overcast starting", () => {
+    const storm = { id: "s1", kind: "storm" as const, pos: { x: 1, y: 1 }, radius: 5, vel: { x: 1, y: 0 }, turnsLeft: 5, born: 0 };
+    const overcast = { id: "o1", kind: "overcast" as const, turnsLeft: 5 };
+    expect(stingOf([{ t: "weather", event: storm, outcome: "started" }], "p")).toBeNull();
+    expect(stingOf([{ t: "weather", event: overcast, outcome: "started" }], "p")).toBeNull();
+  });
   it("plays no sting on a knockout, which is only a log line and a mark", () => {
     expect(stingOf([{ t: "knockout" }], "p")).toBeNull();
   });
 });
 
 describe("loopLevels", () => {
-  const calm = { stormShare: 0, inCombat: false, inQuest: false, place: null, paused: false } as const;
+  const calm = { stormShare: 0, inCombat: false, inQuest: false, place: null } as const;
   const gains = (l: ReturnType<typeof loopLevels>) => [l.calmGain, l.townGain, l.outpostGain, l.abandonedGain, l.combatGain];
-  it("plays quest music over every other music while a quest is open, unmuffled", () => {
+  it("plays quest music over every other music while a quest is open", () => {
     for (const place of [null, "town", "outpost", "abandoned"] as const)
       for (const inCombat of [true, false]) {
-        const l = loopLevels({ ...calm, place, inCombat, inQuest: true, paused: true }, MIX);
+        const l = loopLevels({ ...calm, place, inCombat, inQuest: true }, MIX);
         expect([l.questGain, ...gains(l)]).toEqual([1, 0, 0, 0, 0, 0]);
-        expect(l.musicCutoffHz).toBe(MIX.music.openCutoffHz);
       }
     expect(loopLevels(calm, MIX).questGain).toBe(0);
   });
@@ -68,14 +80,10 @@ describe("loopLevels", () => {
     for (const place of ["town", "outpost", "abandoned"] as const)
       expect(gains(loopLevels({ ...calm, place, inCombat: true }, MIX))).toEqual([0, 0, 0, 0, 1]);
   });
-  it("muffles music during a pause between turns", () => {
-    expect(loopLevels(calm, MIX).musicCutoffHz).toBe(MIX.music.openCutoffHz);
-    expect(loopLevels({ ...calm, paused: true }, MIX).musicCutoffHz).toBe(MIX.music.pauseCutoffHz);
-  });
-  it("keeps the music choice when paused or near storms", () => {
+  it("keeps the music choice near storms", () => {
     for (const inCombat of [true, false]) {
       const base = loopLevels({ ...calm, inCombat }, MIX);
-      const other = loopLevels({ ...calm, inCombat, paused: true, stormShare: 1 }, MIX);
+      const other = loopLevels({ ...calm, inCombat, stormShare: 1 }, MIX);
       expect([other.calmGain, other.combatGain]).toEqual([base.calmGain, base.combatGain]);
     }
   });
@@ -137,13 +145,13 @@ describe("engine sound assignment", () => {
   it("changes the healthy and strained engine loops together, and only when the chassis changes", () => {
     const started: string[] = [];
     const stopped: string[] = [];
-    const glides: Record<string, Glide[]> = {};
+    const gains: Record<string, number[]> = {};
     const player = {
       loop: (id: string, _at: unknown, file?: string) => {
         const name = file ?? id;
         if (id === "engine" || id === "engine-strain") started.push(name);
         return {
-          glide: (g: Glide) => (glides[name] ??= []).push(g),
+          set: (_rate: number, gain: number) => (gains[name] ??= []).push(gain),
           once: () => {},
           setGain: () => {},
           stop: () => stopped.push(name),
@@ -151,12 +159,16 @@ describe("engine sound assignment", () => {
       },
     } as unknown as SoundPlayer;
     const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} });
-    const glide = engineGlide(0, 10, 1, MIX, false)!;
+    const glide = { ...engineGlide(0, 10, 1, MIX, false)!, starts: false };
+    const drive = (chassis: string, strain: { from: number; to: number }) => {
+      loops.drive(glide, chassis, strain);
+      loops.engineAt(1);
+    };
 
-    loops.drive(glide, "scout", { from: 0, to: 0 });
-    loops.drive(glide, "scout", { from: 1, to: 1 });
-    loops.drive(glide, "scout", { from: 1, to: 0.5 });
-    loops.drive(glide, "hauler", { from: 0, to: 0 });
+    drive("scout", { from: 0, to: 0 });
+    drive("scout", { from: 1, to: 1 });
+    drive("scout", { from: 1, to: 0.5 });
+    drive("hauler", { from: 0, to: 0 });
 
     expect(started).toEqual([
       engineFileFor("scout"),
@@ -165,8 +177,54 @@ describe("engine sound assignment", () => {
       engineStrainFileFor("hauler"),
     ]);
     expect(stopped).toEqual([engineFileFor("scout"), engineStrainFileFor("scout")]);
-    expect(glides[engineFileFor("scout")].map((g) => g.gainFrom)).toEqual([glide.gainFrom, 0, 0]);
-    expect(glides[engineStrainFileFor("scout")].map((g) => g.gainFrom)).toEqual([0, glide.gainFrom, glide.gainFrom]);
+    expect(gains[engineFileFor("scout")].map((g) => g / glide.gainTo)).toEqual([1, 0, 0.5]);
+    expect(gains[engineStrainFileFor("scout")].map((g) => g / glide.gainTo)).toEqual([0, 1, 0.5]);
+    expect(gains[engineFileFor("hauler")].map((g) => g / glide.gainTo)).toEqual([1]);
+  });
+
+  it("carries pitch and level from one turn into the next while the truck keeps accelerating, so no turn restarts the rev", () => {
+    const sets: { rate: number; gain: number }[] = [];
+    const player = { loop: () => ({ set: (rate: number, gain: number) => sets.push({ rate, gain }), once: () => {}, setGain: () => {}, stop: () => {} }) } as unknown as SoundPlayer;
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} });
+    const last = () => sets[sets.length - 2];
+    const calm = { from: 0, to: 0 };
+
+    loops.drive(engineGlide(5, 8, 1, MIX, false)!, "scout", calm);
+    loops.engineAt(1);
+    const end = last();
+    loops.drive(engineGlide(8, 11, 1, MIX, false)!, "scout", calm);
+    loops.engineAt(0);
+    expect(last().rate).toBeCloseTo(end.rate, 9);
+    expect(last().gain).toBeCloseTo(end.gain, 9);
+    loops.engineAt(1);
+    expect(last()).toEqual(glideAt(engineGlide(8, 11, 1, MIX, false)!, 1));
+  });
+
+  it("moves the engine by the turn's world time, holds it while the world rests, and fades it only for a real stop or a parked turn", () => {
+    const sets: { rate: number; gain: number }[] = [];
+    const player = { loop: () => ({ set: (rate: number, gain: number) => sets.push({ rate, gain }), once: () => {}, setGain: () => {}, stop: () => {} }) } as unknown as SoundPlayer;
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} });
+    const cruise = engineGlide(10, 12, 1, MIX, false)!;
+    const last = () => sets[sets.length - 2];
+
+    loops.drive(cruise, "scout", { from: 0, to: 0 });
+    loops.engineAt(0.5);
+    const half = last();
+    loops.engineAt(0.5);
+    expect(last()).toEqual(half);
+    loops.engineAt(1);
+    expect(last()).toEqual(glideAt(cruise, 1));
+    expect(last().gain).toBeGreaterThan(0);
+
+    loops.drive(null, "scout", { from: 0, to: 0 });
+    loops.engineAt(0);
+    expect(last().gain).toBeCloseTo(glideAt(cruise, 1).gain);
+    loops.engineAt(1);
+    expect(last().gain).toBe(0);
+
+    loops.drive(engineGlide(10, 0, 1, MIX, false)!, "scout", { from: 0, to: 0 });
+    loops.engineAt(1);
+    expect(last().gain).toBe(0);
   });
 
   it("plays the strained engine on the same bus and level as the engine, so mute and volume match", () => {
@@ -249,19 +307,18 @@ describe("next track", () => {
     const quest: { file?: string; gains: number[]; stops: number[] }[] = [];
     const abandoned: { file?: string; gains: number[]; stops: number[] }[] = [];
     const player = {
-      setBusTone: () => {},
       loop: (id: string, _at: unknown, file?: string) => {
         const handle = { file, gains: [] as number[], stops: [] as number[] };
         if (id === "music-calm") calm.push(handle);
         if (id === "music-quest") quest.push(handle);
         if (id === "music-abandoned") abandoned.push(handle);
-        return { glide: () => {}, once: () => {}, setGain: (g: number) => handle.gains.push(g), stop: (ms: number) => handle.stops.push(ms) };
+        return { set: () => {}, once: () => {}, setGain: (g: number) => handle.gains.push(g), stop: (ms: number) => handle.stops.push(ms) };
       },
     } as unknown as SoundPlayer;
     const songs: string[] = [];
     return { calm, quest, abandoned, songs, loops: new SoundLoops(player, { setCombat: () => {}, nextSong: () => songs.push("next") }) };
   };
-  const road = { stormShare: 1, inCombat: false, inQuest: false, place: null, paused: false } as const;
+  const road = { stormShare: 1, inCombat: false, inQuest: false, place: null } as const;
 
   it("starts the next quest track on each quest and fades the calm music under it", () => {
     const { calm, quest, loops } = fake();

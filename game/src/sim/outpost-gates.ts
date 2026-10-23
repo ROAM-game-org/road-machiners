@@ -1,4 +1,6 @@
-import { chassisDef } from '../data/chassis';
+import { chassisDef, HAULER_CHASSIS } from '../data/chassis';
+import { isRig } from './body';
+import { boxCorners, frontAhead, rigBoxes } from './rig';
 import { FORTRESS } from '../data/fortress';
 import { FURY_ROAD } from '../data/modes';
 import { RULES } from '../data/rules';
@@ -44,9 +46,14 @@ export function inYard(world: World, pos: Vec, j: number): boolean {
 }
 
 export function wholeInYard(world: World, truck: Vehicle, j: number): boolean {
+  if (isRig(truck.chassisId)) return rigBoxes(truck).flatMap(boxCorners).every((corner) => cornerInYard(yardFrame(world, j, corner)));
   const f = yardFrame(world, j, truck.pos);
   const r = chassisDef(truck.chassisId).radius;
   return Math.abs(f.across) <= innerHalf() - r && Math.abs(f.along) <= outpostYardHalf() - GATES.leafInset - GATES.gateMargin - r;
+}
+
+function cornerInYard(f: YardFrame): boolean {
+  return Math.abs(f.across) <= innerHalf() && Math.abs(f.along) <= outpostYardHalf() - GATES.leafInset - GATES.gateMargin;
 }
 
 export function yardSpots(world: World, j: number): YardSpots {
@@ -57,8 +64,9 @@ export function yardSpotsAt(seed: number, window: number, j: number): YardSpots 
   const center = outpostFort(seed, window, j).pos;
   const { heading } = outpostSite(seed, j);
   const across = { x: -Math.sin(heading), y: Math.cos(heading) };
-  const at = (offset: number): Vec => ({ x: center.x + across.x * offset, y: center.y + across.y * offset });
-  return { hauler: at(SPOTS.hauler), truck: at(SPOTS.truck) };
+  const ahead = { x: Math.cos(heading), y: Math.sin(heading) };
+  const at = (offset: number, along: number): Vec => ({ x: center.x + across.x * offset + ahead.x * along, y: center.y + across.y * offset + ahead.y * along });
+  return { hauler: at(SPOTS.hauler, frontAhead(HAULER_CHASSIS)), truck: at(SPOTS.truck, 0) };
 }
 
 export function gatesShut(world: World): boolean {

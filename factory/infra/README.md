@@ -13,7 +13,7 @@ Run every command from `factory/infra`, in the main checkout. Git ignores `prod.
 ## Commands
 
 - `uv run pyinfra -y inventory.py deploy/provision.py` sets up the host. Run it once and after host changes.
-- `uv run pyinfra -y inventory.py deploy/deploy.py` sets up the factory. Run it to roll out a secret, an infra change or a new `FACTORY_TICK_MINUTES`.
+- `uv run pyinfra -y inventory.py deploy/deploy.py` sets up the factory. Run it to roll out a secret, an infra change, or a new `FACTORY_TICK_MINUTES`, reboot, boot check or memory cap setting.
 - `uv run pyinfra -y inventory.py deploy/dashboard.py` installs the public dashboard and its Caddy route. Run it after deploy.
 - `uv run pyinfra -y inventory.py deploy/errors.py` installs the error service and its `/errors` and `/feedback` Caddy routes. Run it after deploy. Its log is `logs/errors.log`.
 - `uv run pyinfra -y inventory.py deploy/status.py` reads the host state and changes nothing.
@@ -28,6 +28,9 @@ Factory code and other settings roll out by a merge into `main`. The server depl
 - Deploy pushes the server-only env to `/opt/factory/factory.env` with mode 600. `FACTORY_ENV_FILE` in `prod.env` names its source on your machine. Each release links `factory/.env` to it.
 - Deploy builds the agent image and the egress proxy image, and installs the tick timer, the `factory-update` timer and the dashboard restart hook.
 - Deploy starts Hermes, Caddy and the Cloudflare Tunnel with Docker Compose. Caddy serves `/opt/factory/www` over plain HTTP to the tunnel, and Cloudflare serves HTTPS.
+- Deploy caps the memory of the factory user's login sessions at `FACTORY_HOST_SHELL_MEMORY_GB`, with no swap. Hermes's `factory-host` commands and `claude-run` jobs run there. On 2026-10-21 a test suite Hermes ran on the host filled memory and swap, and the server froze for good. Inside the cap the kernel kills the runaway alone.
+- Deploy installs the planned reboot and the boot check. `roam-factory-reboot.timer` runs `factory-reboot.sh` on `FACTORY_REBOOT_CALENDAR`. It pauses the factory, waits up to `FACTORY_REBOOT_DRAIN_MINUTES` for running jobs and Hermes's commands, and reboots. It skips the week when a pause already exists or GRUB holds a one-time boot entry. Its log is `logs/reboot.log`.
+- `roam-factory-boot-check.service` runs `factory-boot-check.sh` after every boot. It lifts the `planned reboot` pause, then waits up to `FACTORY_BOOT_CHECK_MINUTES` for the dashboard and errors services, the tick and update timers, the Hermes, Caddy and tunnel containers, a 200 from `/factory/` and one passed tick. What still fails goes to `/opt/factory/home/boot-failed`, which Hermes's incident watch reports. Its log is `logs/boot-check.log`.
 - Deploy stops early when the factory `.env` has the wrong `FACTORY_HOME` or `FACTORY_WEB_ROOT`, or when a key is in both `.env` and `settings.env`.
 - Deploy ends with `check-ports.sh`, which fails on any published Docker port. Docker skips UFW for published ports, so none may exist.
 
@@ -59,13 +62,14 @@ Factory code and other settings roll out by a merge into `main`. The server depl
 2. Add the domain to Cloudflare. In Zero Trust, make a tunnel and copy its token. Add the public hostnames `<domain>` and `www.<domain>`, both to `http://caddy:80`. Turn on Always Use HTTPS.
 3. Copy `prod.env.example` to `prod.env` and fill it in.
 4. The factory acts on GitHub as a GitHub App, never as a bot account. GitHub suspends machine accounts that post in bulk. The repo and the Project belong to an organization, since an App cannot reach a Project owned by a person. In the organization's developer settings, make an App with no webhook. Give it Contents, Issues and Pull requests read and write on the repo, and Projects read and write on the organization. Install it on the repo alone. Put its App ID and installation ID in `settings.env`, generate a private key, and put the key's path in `FACTORY_GH_APP_KEY_FILE`. Add the App to the bypass list of any branch rule on `main` or `dev`.
-5. Put the output of `claude setup-token` in `CLAUDE_CODE_OAUTH_TOKEN` in the factory `.env`. Make a Gemini API key in Google AI Studio and put it in `GEMINI_API_KEY`. Set a budget on its Google Cloud project, since Google bills it per use.
+5. Put the output of `claude setup-token` in `CLAUDE_CODE_OAUTH_TOKEN` in the factory `.env`.
 6. Make a Telegram bot with BotFather. In the factory `.env`, set `TELEGRAM_BOT_TOKEN`, `FACTORY_COMMITTEE_BOOTSTRAP` to your Telegram id, `FACTORY_COMMITTEE_BOOTSTRAP_GITHUB` to your GitHub login and `FACTORY_COMMITTEE_CHAT`. Make the bot an admin of the committee group, or Telegram withholds mentions from it.
 7. In the factory `.env`, set `FACTORY_HOME=/opt/factory/home`, `FACTORY_WEB_ROOT=/opt/factory/www`, `FACTORY_PUBLIC_URL=https://<domain>`, `FACTORY_GPU=on` and `BUTLER_API_KEY`.
 8. Set `FACTORY_ENV_FILE` in `prod.env` to that file. Run provision, reboot when it asks, and run it again until it passes. Then run deploy.
 9. Sign Hermes in to ChatGPT on the server: `cd /opt/factory/code && FACTORY_HERMES_DIR=/opt/factory/hermes FACTORY_UID=1001 docker compose -f factory/hermes/compose.yaml --env-file factory/settings.env --env-file factory/.env run --rm --no-deps hermes hermes auth add openai-codex`. Then run `docker restart factory-hermes`.
 10. Sign the agents' Codex in to ChatGPT on the server. First turn on device code login in ChatGPT, under Settings, then Security. Then run `docker run --rm -it -v /opt/factory/home/codex:/home/pwuser/.codex roam-factory:dev codex login --device-auth`, open the link it prints and enter the code. Every agent job stops until `/opt/factory/home/codex/auth.json` exists. Agents spend the limits of that ChatGPT plan. Sign in here, not by a copy of a laptop's `auth.json`, or the two copies fight over one refresh token.
-11. Run status, then open `https://<domain>/dev/`.
+11. Copy the agy Google login from your Mac to the server. Sign agy in on the Mac first. Then run `security find-generic-password -s gemini -a antigravity -w | sed 's/^go-keyring-base64://' | base64 -d | ssh ssh.roam-game.online 'sudo -n -u factory sh -c "umask 077; mkdir -p /opt/factory/home/agy && cat > /opt/factory/home/agy/antigravity-oauth-token"'`. Every agent job stops until that file exists. Agents spend the quota of that Google account, shared with your own agy. A copy works here, unlike the Codex login, since Google keeps one refresh token for every copy. A logout or a new sign-in of agy on the Mac ends that token, so run this step again after one.
+12. Run status, then open `https://<domain>/dev/`.
 
 ## Moving to another server
 

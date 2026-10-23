@@ -15,7 +15,7 @@ import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
 import { directionsText } from './directions-text';
 import { renderLine } from './quest-text';
-import { agoText, compassText, distanceText, fuelLiters, moneyM } from './units';
+import { agoText, compassText, distanceText, fuelLiters, moneyM, moneyMsg } from './units';
 
 const money = (amount: number): Msg => t('call.money', { amount: moneyM(amount) });
 
@@ -178,11 +178,12 @@ export class DialoguePanel {
     if (key === this.drawn) return;
     this.drawn = key;
     const npc = vehicleById(w, call.with);
-    this.root.style.borderLeftColor = `#${paintOf(npc).top.toString(16).padStart(6, '0')}`;
+    this.root.style.borderLeftColor = `#${paintOf(npc, w.player.paint).body.toString(16).padStart(6, '0')}`;
     this.root.classList.remove('qt-done');
-    const options = offered.map((o, i) =>
-      el('button', { class: 'dialogue-option', onclick: () => this.choose(i) }, t('call.option', { n: i + 1, line: lineText(o.line, call.vars) })),
-    );
+    const options = offered.map((o, i) => {
+      const short = o.short ? t('trade.needMore', { price: moneyMsg(o.short) }) : null;
+      return el('button', { class: 'dialogue-option', 'aria-disabled': short ? 'true' : undefined, title: short ?? undefined, onclick: () => short || this.choose(i) }, t('call.option', { n: i + 1, line: lineText(o.line, call.vars) }));
+    });
     const line = renderLine(`“${say(lineText(call.line.line, call.line.vars))}”`, ['reveal:word'], 0).el;
     line.classList.add('dialogue-line');
     this.root.replaceChildren(el('div', { class: 'dialogue-speaker' }, t('call.speaker', { who: vehicleTitle(w, npc) })), line, el('div', { class: 'dialogue-options' }, ...options));
@@ -220,7 +221,8 @@ export class DialoguePanel {
       return true;
     }
     const index = KEY_DIGITS.indexOf(code);
-    if (index >= 0 && index < currentOptions(this.host.world()).length) this.choose(index);
+    const offered = currentOptions(this.host.world());
+    if (index >= 0 && index < offered.length && !offered[index].short) this.choose(index);
     return index >= 0;
   }
 

@@ -16,24 +16,24 @@ Sound tells the player what happens without making them read the log: where a sh
 Four buses feed the master: `ui`, `sfx`, `ambient` and `music`. Each has a player-set volume and a low-pass filter. The `sfx` bus also runs through a compressor and a short open-air reverb, so sounds from different sources sit in one place.
 
 - World sounds, like guns, hits and crashes, play where they happen. Pan follows the screen position, and level halves at `MIX.halfGainMeters` from the camera focus. They use the same points as the visual effects, so fog of war silences what the player cannot see.
-- Each turn plays at most one result sting, the most important one: level-up, discovery or money. A knockout is an attention alert and has no sting.
-- The engine is one recorded loop per chassis. Its pitch and level follow speed over the turn, so speeding up revs and braking drops. Continuous sounds are always bent loops like this, never short clips per state. While heat damages the engine, the loop crossfades to a strained loop, one for light trucks and one for heavy ones, started with it and bent the same way, and falls back to the healthy note over two turns once the damage stops.
+- Each turn plays at most one result sting, the most important one: heatwave warning, level-up, discovery or money. A knockout is an attention alert and has no sting.
+- The engine is one recorded loop per chassis. Its pitch and level follow speed over the turn, so speeding up revs and braking drops. `SoundLoops.engineAt()` sets them every frame from the turn's progress on the world clock, so they hold while the world is stopped or paused. The loop fades out only over a turn that ends at a stop or a turn the truck stays parked, never at a pause. Continuous sounds are always bent loops like this, never short clips per state. While heat damages the engine, the loop crossfades to a strained loop, one for light trucks and one for heavy ones, started with it and bent the same way, and falls back to the healthy note over two turns once the damage stops.
 - A hard slowdown adds the air brake where the truck is. Passing or reaching an order point makes no sound of its own.
 - Wind rises near dust storms.
+- A heatwave starting plays one soft low swell on the `ui` bus, the only weather cue besides the wind. It outranks the other result stings, since it is rare. A storm stays wind.
 - Calm music plays out of combat, from a playlist shuffled once per session. After each fight it comes back as the next track, so every track plays before any repeats.
 - Town music replaces calm music while the player is within guard range of a town gate. Outpost music does the same near the gates of outposts, the trading stalls that are not towns. Abandoned music plays inside territories, the abandoned places like Fallen Sun and Old Orchard. Each entry starts the next track of a playlist shuffled once per session. Combat music plays over all of them.
-- Quest music plays over all music, combat included, while the quest screen is open. Each quest starts the next track of a playlist shuffled once per session. It is never muffled in a pause, since the player reads while no turn plays.
-- Between turns, once no turn has played for `MIX.music.pauseDelayMs`, the music bus is muffled a little. The delay keeps the gaps between automatic turns clear.
-
+- Quest music plays over all music, combat included, while the quest screen is open. Each quest starts the next track of a playlist shuffled once per session.
 The volume knobs are in Options, in a Sound section after Language and UI size, on the start menu, the boot save screens, the in-game Menu and the phone Menu alike. The Sound section also holds a mute switch. The radio panel keeps a second mute switch, since muting is a fast action in the field (key M). Both are views of the one `SoundSettings` in `src/ui/sound.ts`, built before the start menu, so the M key, the radio switch and the Options switch always show the same state. The whole column under a knob is its handle. Drag it up or right to raise the volume and down or left to lower it, 160px for the whole range. The label shows the level while you use the knob. The wheel and the focused arrow keys turn it in 5% steps. The radio's next key above its screen changes the music that plays. It crossfades the calm, quest or ruin playlist to its next track. In a fight it ends the song on the next beat and starts the next combat song's intro on that beat. Town and outpost music have one track each, so the key moves the calm playlist on for later. The knob and mute settings are stored in local storage. A knob the player never turned follows `MIX.busVolume`, so a new default reaches everyone who kept the old one.
 
 ## Combat score
 
-Each fight plays one whole generated song, cut into 2 bar blocks. The fight moves the song between its sections, and two overlay lanes answer surprises at once. A song is a kit: the full mix, its guitar stem and its cymbals.
+Each fight plays one whole generated song, cut into 2 bar blocks. The fight steers the song between its sections, and two overlay lanes answer surprises at once. A song is a kit: the full mix, its guitar stem and its cymbals.
 
 Rules the design keeps:
 
-- A block always plays to its end. Sections change only where a phrase ends, every 8 bars, or at the end of an intro, stop or solo.
+- A block always plays to its end. The fight's pull changes only where a phrase ends, every 8 bars, or at the end of a section.
+- The score jumps only where the cut cannot be heard: the beat before the cut sounds like the beat before the target, and the 4 bars before both share their chords. Between jumps the recording plays on, so every change of section is one the band played.
 - One tempo and one key per fight, since every block comes from one recording.
 - No per-event sound in the music. Guns and crashes have their own world sounds.
 - Events matter by how new they are, not by a fixed list of heavy and light events.
@@ -41,37 +41,41 @@ Rules the design keeps:
 How it plays:
 
 1. The player entering combat, as the HUD combat readout shows it, starts the song. A hostile that only sits or drives by in sight does not. The song was picked at random when the last fight ended, and it stays for the whole fight. Its intro hits at once, since it is the combat cue.
-2. Score events are your hits, misses and crits, hits on you, your crashes, your knockouts and an enemy coming into sight. Each adds its weight to heat, a fading sum. At each phrase end the next section is drawn from a table that weighs the section before and the one before that, how hot the fight was since the last choice, and how long each section has played. Hot fights lean to walls and solos, calm fights to verses.
-3. Each event also adds surprise, its weight divided by how often that kind came lately. When surprise crosses its line, the guitar lane leans on the song's guitar stem from the next bar, and the cymbal lane opens from the next beat. Both hold to the phrase end. A verse whose own guitars sit more than `guitarAbsentDb` under it takes them from the map's guitar wall instead, at the same bar of the phrase, so the lane is heard in quiet verses too. Stops keep their own silence.
-4. Crashes and sightings nudge the next choice toward a wall, and knockouts toward a stop.
-5. Combat ending plays the song's last hit on the next beat.
-6. A jump between sections fades over 30 ms. When the target bar starts with a rest, the old block rings on until the new one sounds, so no jump drops into silence.
+2. Score events are your hits, misses and crits, hits on you, your crashes, your knockouts and an enemy coming into sight. Each adds its weight to heat, a fading sum. At each phrase end the hottest heat since the last one sets where the song should go: walls and solos when hot, verses when calm, anywhere in between.
+3. At each block end the score either plays the next bar of the recording or takes a clean jump. It picks whichever reaches a wanted section in the fewest bars, and plays on whenever that is as close. Among equally close jumps it takes the copy of the riff heard longest ago, so repeats move between the song's copies. A cut in near silence, at the end of a stop, may land on any section's start, since the band comes back in there.
+4. Each event also adds surprise, its weight divided by how often that kind came lately. When surprise crosses its line, the guitar lane leans on the section's own guitars from the next bar, and the cymbal lane opens from the next beat. Both fade out over the last bar of the phrase, or over the beat before a jump, since after a jump they would play another bar's part. A lane plays only what its section already has: no guitars where the section's own sit more than `guitarAbsentDb` under it or in a solo, and cymbals only in walls.
+5. Crashes and sightings pull the next phrase toward a wall, and knockouts toward a stop.
+6. Combat ending plays the song's last hit on the next beat.
+7. A jump fades over 10 ms like any block join. When the target bar starts with a rest, the old block rings on until the new one sounds.
 
 Score events wait on the turn's play clock and go to the music just before their event, at the current playback speed, so hold-to-fast and slow frames keep them on their shots. A volley's event sits on the round that earns it: the first crit, the first round that strikes, or the first round for a miss. Crash events sit on the physics step of the crash. Knockouts land when the turn's shots land.
 
 To hear a fight without looking for one, open the console with the backquote key and type `battle`. It spawns a random hostile raider near the truck. The score starts once the raider closes in or fires. `__ROAM__.sound.log` in dev lists recent cues and each score event with its heat and surprise, like `score hit heat1.2 surprise0.4`.
 
-To try the score without a game, open `/blocks.html` on the dev server. It runs the game's combat music on one continuous clock. Event buttons fire one event now, Dense turn fires a full turn of them in one second, and Auto fight plays dense turns with or without pauses. The page shows the song in play, the blocks with their joins, both lanes, the events and the heat, and a ledger lists every block with the odds behind it.
+To try the score without a game, open `/music-lab.html` on the dev server. It runs the game's combat music on one continuous clock. Event buttons fire one event now, Dense turn fires a full turn of them in one second, and Auto fight plays dense turns with or without pauses. The page shows the song in play, the blocks with their joins, both lanes, the events and the heat, and a ledger lists every block with the ways it could have gone.
 
 To test the score without ears, run `npm run blocks:sim -- --song dusk hit@8 dense@12`. It drives the same session on a simulated clock and prints the blocks, lanes, answers and a summary. `--help` lists the options.
 
 ### Combat songs
 
-The songs are generated whole in the ElevenLabs music UI and split locally with Demucs. `scripts/score-songs.json` holds each song's map: its source file, tempo, bar count, the guitar stem that feeds the guitar lane, the wall that lends verses its guitars, its sections by bar and its last hit. Pick the guitar wall by ear: lay its guitars over a verse and check the chords agree. To add or change a song, put the source wav in `tmp/score-songs/`, edit the map and run:
+The songs are generated whole in the ElevenLabs music UI and split locally with Demucs. `scripts/score-songs.json` holds each song's map: its source file, tempo, bar count, the guitar stem that feeds the guitar lane, its sections by bar and its last hit. Map every bar the band plays between the intro and the last hit, since unmapped bars cut the roads between sections. When prep's beat tracking misreads a take, with many beats off the grid, set `firstBeat` in the map to the first beat's time in seconds, and prep uses that grid at the map's tempo. To add or change a song, put the source wav in `tmp/score-songs/`, edit the map and run:
 
 ```bash
 uv run --with librosa --with soundfile --with demucs --with torchcodec python -I scripts/score-blocks-prep.py scripts/score-songs.json tmp/score-songs public/sfx src/data/combat-songs.json
+uv run --with librosa --with soundfile python -I scripts/score-seams.py src/data/combat-songs.json public/sfx
 npm run sfx:twins
 ```
 
+`score-seams.py` scores every jump from a block end to a block start from the shipped song file and marks the block ends that fall in near silence. It works without the source wav, so a map change alone needs only this step. A test fails when a song cannot reach a verse and a wall from anywhere.
+
 Prep splits a song only when its stems are missing. It writes `song-<name>-1.ogg`, its guitars and its cymbals as `song-*` cues, and `src/data/combat-songs.json` with the bar times, bar levels, cymbal level and where each bar's sound starts. Each song also needs its three cues in `DEFS`. It refuses a map whose intro bars or last hit start quiet, and a section with more than 8 silent beats in a row. Song cues load one kit per fight, not at boot with the other sounds.
 
-The heat lines, weights and section table are in `SCORE_BLOCKS` in `src/data/sounds.ts`. The lines come from real fights: in `npm run combat` arena fights the player sees 1 to 3 score events per turn.
+The heat lines, weights, wanted sections and clean-jump lines are in `SCORE_BLOCKS` in `src/data/sounds.ts`. The lines come from real fights: in `npm run combat` arena fights the player sees 1 to 3 score events per turn.
 
 ## Adding a sound
 
 1. Add a cue to `DEFS` in `src/data/sounds.ts`: its bus, volume, voices and loop flag, and for generation a `setup` and prompts.
-2. Import files with `npm run sfx:import -- <cue> <file...>`, or generate them. Import makes every file one format and loudness per bus. It trims one-shots, keeps loops seamless, and matches each variant's tone to the cue's first file.
+2. Import files with `npm run sfx:import -- <cue> <file...>`, or generate them. Import makes every file one format and loudness per bus. It trims one-shots, keeps loops seamless, and matches each variant's tone to the cue's first file. A free music loop keeps its loud span with a 2 s crossfade. Every other free loop, like the engines, must just repeat with no audible change of state. Import evens out its slow level swings, keeps its steadiest stretch of at least 1.5 s in level and brightness, so no rev-up or quiet hole is left in it, and joins the ends with a 0.25 s equal-power crossfade. A source whose name has `.seamless.` in it is already a clean loop and is kept whole. Generated free loops get that name, since the sound API makes them in its loop mode, and so does a loop cut by hand.
 3. Play it from `src/three/sound.ts`. A world sound goes through `SoundDirector.at()` with its position.
 4. Listen with `npm run sfx:board`, which plays every cue through the game's mixer, beside a reference cue for buses that have one in `MIX.anchors`.
 

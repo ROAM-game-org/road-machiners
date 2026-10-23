@@ -10,6 +10,8 @@ const SEED = 4242;
 const LOCALES = process.env.LAYOUT_LOCALES?.split(',').filter(Boolean) ?? ['en', 'ru', 'pseudo'];
 const VIEWPORTS = [[1280, 720], [700, 800]];
 const TALL = [1440, 900];
+const PHONE = [390, 844];
+const PHONE_LANDSCAPE = [640, 360];
 const KEY_CAPS = ['WASD', 'Shift', 'Esc'];
 const OUT = 'tmp/layout';
 const GLYPHS = { font: 'Fira Sans Condensed', letter: 'Ж' };
@@ -28,7 +30,7 @@ function fillLog(page) {
       t('log.jobCancelled', { what: t('job.remove', { part: n.partName('tankHeavy'), truck: t('vehicle.npc', { profession: n.professionName('convoyGuard'), driver: n.fullName('Dmitri Tulloch') }) }) }),
       t('log.jobStarted', { what: t('job.repair', { part: n.partName('enclosedFrame') }), n: 12 }),
       t('log.escortHired', { client: t('vehicle.npc', { profession: n.professionName('convoy'), driver: n.fullName('Lorna Morozov') }), who: t('vehicle.npc', { profession: n.professionName('merc'), driver: n.fullName('Elias Drummond') }), site: n.siteName('canyon-bridge'), fee: moneyMsg(12345) }),
-      t('log.contract.accepted', { what: t('contract.fetch', { part: n.partName('reinforcedCage'), site: n.siteName('salvage-yard'), n: 2 }), reward: moneyMsg(4200) }),
+      t('log.contract.accepted', { what: t('contract.procure', { n: 12, good: n.goodName('electronics'), site: n.siteName('salvage-yard') }), reward: moneyMsg(4200) }),
       t('note.hazard'),
       t('log.towDroppedYou.blocked', { who: t('vehicle.npc', { profession: n.professionName('bowlFarmer'), driver: n.fullName('Hester Kessler') }) }),
       t('log.scrapPatchFuel', { liters: 40 }),
@@ -61,6 +63,25 @@ async function openTown(page, tab) {
 }
 
 const closeTown = (page) => page.evaluate(() => window.__ROAM__.screens.town.close());
+
+async function openShortMarket(page) {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const c = await import('/src/sim/cheats.ts');
+    const w = structuredClone(c.teleport(g.state, c.placeSpot(g.state, 'granary')));
+    w.shops.granary.goods.grain = 0;
+    w.shops.granary.shortSince = { grain: w.turn - 800 };
+    w.shops.granary.goods.fuelDrums = 0;
+    w.shops.granary.opened = {};
+    w.roadNews = [
+      { turn: w.turn - 40, kind: 'robbed', good: 'grain', units: 14, from: 'bowl', to: 'granary' },
+      { turn: w.turn - 160, kind: 'knockedOut', good: 'fuelDrums', units: 12, from: 'pump-station', to: 'salvage-yard' },
+    ];
+    g.apply(w);
+    g.screens.town.open();
+  });
+  await page.evaluate(() => document.querySelector('.town-screen [data-tab="market"]').click());
+}
 
 async function openCall(page, node) {
   await page.evaluate(async (node) => {
@@ -127,7 +148,7 @@ const setMinimap = async (page, on) => {
 function faultsIn(page, locale) {
   return page.evaluate(async ({ locale, names, glyphs }) => {
     const { findLayoutFaults } = await import('/src/ui/dom.ts');
-    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English'];
+    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English', 'kg'];
     return findLayoutFaults(document.getElementById('ui'), { locale, allow, glyphs });
   }, { locale, names: KEY_CAPS, glyphs: GLYPHS });
 }
@@ -252,13 +273,14 @@ const closeQuestPage = (page) => page.evaluate(() => {
 });
 
 const STATES = {
-  menu: { setup: () => undefined },
+  menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   log: { setup: fillLog },
   inventory: { setup: openInventory, teardown: escape },
   'quest-page': { setup: openQuestPage, teardown: closeQuestPage },
   'quest-inventory': { setup: openQuestInventory, teardown: async (page) => { await escape(page); await closeQuestPage(page); } },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
+  'trade-shortage': { setup: openShortMarket, teardown: closeTown },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
   'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
@@ -266,6 +288,7 @@ const STATES = {
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown },
   'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
   'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
+  paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },

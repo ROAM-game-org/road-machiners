@@ -15,8 +15,8 @@ import { addState } from './states';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities } from './npc-activities';
 import type { Faction, GameEvent, NpcBrain, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
-import { highwayMap, milestoneAt, roadHeading, roadPoint } from './highway';
-import { HIGHWAY } from '../data/modes';
+import { alongOf, highwayMap, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
+import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { dist, type Vec } from './vec';
 import { REGION } from '../data/region';
 import { propReach } from './mapgen';
@@ -30,6 +30,8 @@ import { cloneWorld, endTurn, newWorld } from './world';
 import { driveOn } from './fury-road';
 import { yardSpots } from './outpost-gates';
 import { addGoods } from './inventory';
+import { stockTarget } from './market';
+import { PRODUCTION } from '../data/market';
 import { partDef, type PartKind } from '../data/parts';
 import { defaultSetup } from './settings';
 import { chooseQuestOption, leaveQuest, QUESTS, questView } from './quests';
@@ -53,6 +55,17 @@ export function furyRoadWorld(seed = 3): World {
   refreshVision(w);
   w.events = [];
   return w;
+}
+
+export function sendGunTruckAway(w: World): void {
+  const hauler = haulerOf(w);
+  const window = w.furyRoad!.window;
+  const along = alongOf(w.seed, toRoad(w.seed, window, hauler.pos)) - FURY_ROAD.hauler.apartGap - 5;
+  const me = playerVehicle(w);
+  me.pos = roadPoint(w.seed, window, along, HIGHWAY.road.lanes[1]);
+  me.heading = roadHeading(w.seed, along);
+  me.speed = 0;
+  me.order = null;
 }
 
 export function parkInYard(w: World, milestone: number): void {
@@ -121,7 +134,7 @@ export function addLootSpot(w: World): { spot: Obstacle; stock: SalvageStock } {
   const orchard = REGION.locations.find((site) => site.id === 'orchard')!;
   const spot: Obstacle = { id: 'farmhouse-1', kind: 'landmark', look: 'farmhouse', pos: { ...orchard.pos }, r: 1.5, yaw: 0 };
   const stock = rollStock(w, spotTable(spot), spot.id, spot.pos, propReach(spot));
-  w.obstacles.push(spot);
+  w.obstacles = [...w.obstacles, spot];
   w.salvage.push(stock);
   return { spot, stock };
 }
@@ -253,6 +266,10 @@ function driveOne(world: World, v: Vehicle): void {
   burnFuel(world, v, speed);
 }
 
+export function sizedUp(w: World, looker: Vehicle, target: Vehicle): void {
+  addState(w, 'sizedUp', looker.id, target.id, { kind: 'none' });
+}
+
 export function startCombat(w: World, aggressor: Vehicle, target: Vehicle): void {
   addState(w, 'combat', aggressor.id, target.id, { kind: 'none' });
 }
@@ -274,4 +291,8 @@ export function openingStopPoint(w: World): Vec {
   const from = playerVehicle(w).pos;
   const d = dist(from, stock.pos);
   return { x: stock.pos.x + ((from.x - stock.pos.x) / d) * 2.2, y: stock.pos.y + ((from.y - stock.pos.y) / d) * 2.2 };
+}
+
+export function setShopPressure(w: World, shopId: string, good: string, pressure: number): void {
+  w.shops[shopId].goods[good] = Math.max(0, Math.round(stockTarget(shopId, good) * (1 - pressure / PRODUCTION.elasticity)));
 }

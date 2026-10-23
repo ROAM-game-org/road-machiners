@@ -40,16 +40,16 @@ describe('game mode rules', () => {
 
   it('names each mode difference in its row', () => {
     expect(GAME_MODES.roaming).toEqual({
-      rules: { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true },
+      rules: { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true, bounties: true },
       kit: null,
       map: 'icarus',
       opening: null,
     });
     expect(GAME_MODES.furyRoad).toEqual({
-      rules: { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false },
+      rules: { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false, bounties: false },
       kit: 'furyRoad',
       map: 'highway',
-      opening: 'road_hire',
+      opening: 'chaos_highway_intro',
     });
   });
 
@@ -80,11 +80,11 @@ describe('a new world by mode', () => {
 
     expect(world.furyRoad).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [-563718338, 454456191, 836395902, 1936023925],
-      nextId: 1225,
-      counts: [23, 6035, 128, 7],
-      npcs: [['buggy', 153.25, 100.42], ['buggy', 414.29, 505.59], ['buggy', 417.32, 502.55]],
-      bowlStock: ['ceramicTile', 'pneumobolter', 'sniperCannon', 'patcherCrane', 'patcherCrane', 'caltrops', 'autocannon', 'turbine', 'turbine'],
+      streams: [1259943148, 1262962852, 836395902, 1936023925],
+      nextId: 1403,
+      counts: [23, 6174, 129, 7],
+      npcs: [['trader', 118.13, 581.83], ['trader', 116.3, 583.98], ['buggy', 421.84, 500.53]],
+      bowlStock: ['cannon', 'supplyLocker', 'turbine', 'lightFrame', 'smokeMortar', 'cage', 'oilSpiller', 'oilSpiller', 'rocketRack', 'rack', 'stockEngine'],
     });
   });
 

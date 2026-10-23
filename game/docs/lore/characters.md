@@ -128,32 +128,48 @@ Fane is an old trinket trader in the Nose market. He buys relics from the ship a
 ## The Preacher
 
 - Way: fear.
-- High concept: The leader of the Sunward inner circle, who wrote their teachings about the thing in the crater.
+- High concept: Absalom Reyne, the voice of the Sunward, who wrote their teachings about the thing in the crater.
 - Trouble: He is certain about a thing he cannot see, so he cannot take back a word he has taught.
-- Aspects: Teaches the Apprentice's number as the glow's word; Never as close to the glow as he says; Bars Ines Abend and the Lunar Society from the rim.
+- Aspects: Teaches the Apprentice's number as the glow's word; Never as close to the glow as he says; Bars Ines Abend and the Lunar Society from the rim; Speaks for Mattias Kade's coat.
 - Skills: best social, worst toughness.
 - Wants: The glow calm and his followers loyal.
 - Fears: The glow, and that his followers learn how far he has stood from it.
-- Habit: He chants the number at the rim at dawn.
+- Habit: He chants the number at the rim at dawn, before the cars go home.
 - Secret: He bought the number from the Apprentice and has never been near the glow. He hides both from his followers.
 
-The Preacher leads the inner circle of the Sunward. He wrote their teachings about the thing in the crater, and he believes every word. He has never been as close to the green glow as he tells his followers.
+Absalom Reyne began to preach at the Sunward's fire around year 118, and people call him the Preacher. Mattias Kade made him the order's voice. He wrote their teachings about the thing in the crater, and he talks himself into every word a little more each dawn. He has never been as close to the green glow as he tells his followers.
+
+## Mattias Kade
+
+- Way: control.
+- High concept: The head of the Sunward, a Nose-born Given sworn in year 85, who wears the dead Keeper's coat.
+- Trouble: The order is his only while it keeps riding, so he can never stop the vigil he does not believe in.
+- Aspects: The Keeper's coat, never taken off; Knows what the Apprentice told him; Moved the camp to the Hollow; Made Absalom Reyne the Preacher.
+- Skills: best driving, worst perception.
+- Wants: The order fed and himself on top.
+- Fears: The glow itself, and the fever that comes from sleeping near it.
+- Habit: He touches the coat's lining, where an unreadable page is sewn.
+- Secret: The Apprentice told him in year 128 that nothing in the crater feeds or calls. He believes it, and keeps the vigil anyway.
+
+Kade put on Oren Vey's coat the night Oren walked into the light, and he has led the order since. He is practical and cold, and he talks like a man counting cars. He moved the order's sleeping camp to a hollow deep in the wastes because the fever was killing his men, and kept the night vigil because the vigil keeps them together.
 
 ## The Apprentice
 
 - Way: control.
 - High concept: Teo, once the head of the Lunar Society, cast out in year 121, who carries a blue eye and every implant he could find.
 - Trouble: Each implant lets him see more and makes him harder for anyone to trust.
-- Aspects: A blue eye from the cradle room; Cast out by Ines Abend and the Lunar Society; Sold the last number to the Preacher.
+- Aspects: A blue eye from the cradle room; Cast out by Ines Abend and the Lunar Society; Sold the last number to the Preacher; Cast out Oren Vey, who founded the Sunward.
 - Skills: best perception, worst social.
 - Wants: A new start for humanity before the basin dies out.
 - Fears: The basin dies before the new start begins.
 - Habit: He speaks in sermons to anyone who stands still near him.
-- Secret: He read the last marks in the central hull's shadow and knows where the seed vault lies. He hides it from everyone.
+- Secret: He read the last marks in the central hull's shadow and knows where the seed vault lies. He hides it from everyone. He told Mattias Kade alone that the glow is a burning engine.
 
 The Apprentice was a member of the Lunar Society until it cast him out. He found implants in the ship's wreck and put a blue eye in his own head. Through it he sees marks on the wreck that nobody else can see. He has filled his body with every implant he could find, and he is over 150 years old.
 
 He believes the people of the basin are slowly dying out and that only a new start can save humanity. He has not told anyone what that new start would be.
+
+His most devoted student, Oren Vey, copied the count around year 58. Teo burned the pages and sent him away, and Oren went to the crater dreamers and founded the Sunward. In year 128 the Apprentice bargained with Mattias Kade: one night in the central hull's shadow, under the order's escort, for the count's last number. He walked away after it and has no part in what the order does.
 
 He speaks in sermons. One of them goes like this:
 
@@ -399,6 +415,22 @@ Hadiza runs the pump and the canteen at Green Pit, a walled pump outpost that se
 
 Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well."
 
+## Hollis Brennan
+
+- Way: embrace.
+- High concept: The still boss at the Pump Station, who keeps the stills cooking crude into diesel.
+- Trouble: The pump and the stills eat tools and batteries faster than the convoys bring them.
+- Aspects: Drums stacked by the stills; A pumpjack that nods over an Old World well; Hands black to the wrist.
+- Skills: best machining, worst social.
+- Wants: The stills hot, the drums sold and spares for the pump.
+- Fears: A cold still and a stopped pump.
+- Habit: He taps each drum as it is filled and chalks the count on the still.
+- Secret: None.
+
+Hollis runs the crew at the Pump Station. The pumpjack lifts crude from an Old World oil well, his stills cook it into diesel, and the fuel convoys load the drums. The pump wears through tools, and its motor needs batteries from Nose. When it stops, drums run short all over the basin.
+
+His line is "No tools, no pump. No pump, no drums."
+
 ## Mara Kessel
 
 - Way: control.
@@ -606,3 +638,113 @@ Her line is "Paid is paid. For whoever paid it."
 Amos collected for the Pierce yard on the south road. He took the key of every truck he seized and hung it on his belt, and he closed every line in his ledger. Since the crews took the yard he tows for whoever pays. In year 130 he found a stranger knocked out in an old pickup, and its key carried the yard's brass tag. The owner is unknown. He towed the truck to Bowl, then drove off before anyone could ask, and left his chain behind.
 
 His line is "A line stays open till somebody closes it. I close them."
+
+## Joss Ardo
+
+- Way: escape.
+- High concept: A deserter from the Sunward's sworn men, who sings with the Children of Noah at the beacons.
+- Trouble: He got out and his friend did not, and he cannot stop counting what that cost.
+- Aspects: Nephew of the dreamer Pell Ardo; Told the Senate what he saw; Cobb went in because of me.
+- Skills: best perception, worst toughness.
+- Wants: The sworn men who still have doubts out of the order.
+- Fears: Being taken back to the light.
+- Habit: He counts the lamps on the horizon every night.
+- Secret: He drove one of the cars on a night a stranger was walked into the light, and he has told nobody.
+
+Joss Ardo deserted the Sunward in year 119 with the singers' help and told the Senate what he saw, which stopped the Bowl's grain to the order. His friend Cobb Navarre tried to follow him in year 128 and was caught. Locals name Joss as the one who got out.
+
+## Rook Halloran
+
+- Way: control.
+- High concept: An Old Army driver who would not go home when Commander Lind died, and who leads the Marshalls of the Roadhouse.
+- Trouble: The Roadhouse runs on debt, and every claim he cannot ride for goes unanswered.
+- Aspects: A copy of Lind's book of unpaid promises; Lind's two staff cars, which the Bowl called stolen; Pulled Sabra Kell out of a burning cab.
+- Skills: best driving, worst social.
+- Wants: His drivers fed without turning raider.
+- Fears: That his drivers become the robbers they used to chase.
+- Habit: He reads one page of Lind's book aloud every night.
+- Secret: Ilya Moreno left the motor pool chain open for him. Rook has never told the Bowl who did.
+
+Rook drove for the Old Army until it ended. He kept a copy of the book Lind nailed to the Orchard gate, escorted Granary grain in Lind's staff cars while the Bowl lent them, and drove them out for good in year 122. The Bowl posted him as a car thief until the Roadhouse paid it the cars' worth. He puts his own name first on every page that is about him.
+
+His line is "The book is worth what we're willing to answer for."
+
+## Wim Satterly
+
+- Way: fear.
+- High concept: A former Pierce filing clerk who keeps the road book at the Roadhouse.
+- Trouble: He wrote his name under the case that sent Karl Vosk west, and any man in the book could find it.
+- Aspects: Copies every page twice; Saw Dell Marr's hand on the filings; Owes Rook Halloran for his brother's body.
+- Skills: best perception, worst toughness.
+- Wants: A book that says only what is certain.
+- Fears: Being sent west and told not to come back.
+- Habit: He strikes through hearsay and starts the page again, so a reader can tell which words are certain.
+- Secret: He found Dell Marr's hand on the filings and was seen finding it. He never told Inspector Kessel that Dell saw him.
+
+Wim kept the filings of insured runs at the Pierce office in the Nose until Pierce let him go in year 121. He took his copies of the robbed runs to Petra Quell's mast, and they became the road book. He writes every claim, answer, price and cut, and he marks a claim the Roadhouse cannot ride for as unanswered, never closed.
+
+His line is "I'll write what you say happened. Then I'll ask him."
+
+## Petra Quell
+
+- Way: embrace.
+- High concept: Keeper of the Guild relay mast inside the Roadhouse fence.
+- Trouble: She sells every message she hears to whoever pays.
+- Aspects: Logs every truck that crosses the plain; Old friend of Tamsin Roe; A bell on the compound gate.
+- Skills: best machining, worst toughness.
+- Wants: The mast to pay its own way, without the Guild's cut.
+- Fears: The Guild selling the mast and her with it.
+- Habit: She writes down every truck she sees on the plain, with the hour.
+- Secret: She bought the Lincoln on credit while Wim was still counting the debts.
+
+Petra kept the north plain's only roof, a Guild mast in a fenced Old World yard, long before anyone heard a case there. She mended the fence, hung a bell on the gate and charged drivers to park inside. Her crossing times and her radio put the Marshalls' cars where they need to be, and the Roadhouse takes its cut in her yard.
+
+Her line is "I'll hear a man out before I write what he owes."
+
+## Jonah Feld
+
+- Way: escape.
+- High concept: Dario Feld's nephew, who came home from the west with a guard's tin badge and gave the Marshalls their name.
+- Trouble: He will drive anywhere for the Roadhouse and will not carry a gun.
+- Aspects: A western guard's tin badge; Lusa Fenwick's friend on the road; A Kiln ladle scratched into his door.
+- Skills: best driving, worst toughness.
+- Wants: A guard here paid by every town, like the one he saw in the west.
+- Fears: Having to carry a gun himself.
+- Habit: He rubs the badge with his sleeve when he lies.
+- Secret: He once told drivers the western guard never lost a truck. He never asked.
+
+Jonah rode west with Lusa Fenwick's convoy and came home with a badge stamped with an old word nobody here could read. He talked drivers into pledging for a guard, drove the supply truck behind Rook's staff cars, and posted the crossing hours on the Roadhouse gate. Ladle Ruiz's riders scratched a ladle into his door when he asked Kiln to answer a claim.
+
+His line is "He had his say at the mast. Now he has to pay."
+
+## Sabra Kell
+
+- Way: oppose.
+- High concept: A former Kiln toll rider who drives a fast, thin-skinned car for the Roadhouse.
+- Trouble: She left Kiln, and Kiln does not forget who leaves.
+- Aspects: Counts the guns on a truck out loud before she talks; Rook Halloran pulled her out of a burning cab; Stopped Karl Vosk at a bend.
+- Skills: best driving, worst machining.
+- Wants: To be paid without having to shoot.
+- Fears: Kiln turning to killing.
+- Habit: She counts the guns on a truck out loud before she says a word.
+- Secret: She still keeps the receipt book of "Sabra's paper" and honors her old receipts on her own.
+
+Sabra took tolls on the south road for Kiln and gave drivers a dated receipt that was honored once a year. When Ladle Ruiz took the south road she left her tin by Ladle's scraper and drove away. She blocked Karl Vosk's road at the pump shed and cut him off at a bend north of the mast. She rides for unanswered Kiln claims on her own fee, since no Roadhouse car does.
+
+Her line is "Pay once, keep the paper. That's what a toll means."
+
+## Garrett Ainsley
+
+- Way: fear.
+- High concept: A Bowl citizen with a vote and a bad knee, who left the Bowl patrol to drive a morning run for the Roadhouse.
+- Trouble: The Bowl thinks he works for the Nose plain now.
+- Aspects: Held the Orchard gate in year 113; Checks every truck's papers, even a friend's; Took Karl Vosk alive.
+- Skills: best toughness, worst machining.
+- Wants: A road his grandchildren can drive.
+- Fears: Another Grain War.
+- Habit: He checks every truck's papers, even a friend's.
+- Secret: He knew Moreno counted the staff cars out and said nothing at the hearing.
+
+Garrett held the Orchard gate in year 113 and rode guard for the first paid season on the Pump Station road. He took Karl Vosk alive and matched the goods in Karl's shed to their owners from the road book. He stood alone before his own captain's six trucks at the mast. His finding of paint on both bumpers cleared a Granary driver of a ramming.
+
+His line is "A Bowl name doesn't make a missing load come back."

@@ -1,5 +1,5 @@
 import { FURY_ROAD } from '../../data/modes';
-import { partDef } from '../../data/parts';
+import { isShield, partDef } from '../../data/parts';
 import { haulerOf, playerVehicle } from '../damage';
 import { outpostPartPrice, haulerTakes } from '../outposts';
 import { dist } from '../vec';
@@ -39,7 +39,7 @@ export function kitOf(v: Vehicle): KitLine {
   return {
     chassis: v.chassisId,
     guns: parts.filter((p) => partDef(p.defId).kind === 'weapon').map((p) => p.defId),
-    armor: parts.filter((p) => partDef(p.defId).kind === 'armor').length,
+    armor: parts.filter((p) => isShield(partDef(p.defId))).length,
     gear: Math.round(parts.reduce((sum, p) => sum + partDef(p.defId).value, 0) / 100),
   };
 }

@@ -22,7 +22,7 @@ const FAULT_OPTIONS = {
   primary: ['.end-turn', '.game-menu .menu-button', '.drawer-tabs .selected', '.modal .close', '.help .close'],
   minTarget: 32,
   sidewaysOk: ['.inv-body', '.inv-grid', '.truck-shell', '.log-lines'],
-  smallOk: ['a[href]', '.inv-item', '.condition-part', '[role=slider]', 'input[type=range]', '.knob'],
+  smallOk: ['a[href]', '.inv-item', '[role=slider]', 'input[type=range]', '.knob'],
 };
 const GLYPHS = { font: 'Fira Sans Condensed', letter: 'Ж' };
 
@@ -109,9 +109,10 @@ class Touch {
 const faultsIn = (page, scope = '#ui') =>
   page.evaluate(
     async ({ options, glyphs, scope }) => {
-      const { findLayoutFaults, findMobileFaults } = await import('/src/ui/dom.ts');
+      const { findLayoutFaults, findMobileFaults, keyCapFaults } = await import('/src/ui/dom.ts');
       const root = document.querySelector(scope);
-      return [...findLayoutFaults(root, { locale: 'en', allow: ['WOT RADIO', 'FM', 'DAY', 'English'], glyphs }), ...findMobileFaults(root, { ...options, viewportWidth: window.screen.width })];
+      const overlay = document.querySelector('#overlay');
+      return [...findLayoutFaults(root, { locale: 'en', allow: ['WOT RADIO', 'FM', 'DAY', 'English'], glyphs }), ...findMobileFaults(root, { ...options, viewportWidth: window.screen.width }), ...(overlay ? keyCapFaults(overlay) : [])];
     },
     { options: FAULT_OPTIONS, glyphs: GLYPHS, scope },
   );
@@ -127,9 +128,13 @@ async function wideElementCheck(ctx) {
       const wide = Object.assign(document.createElement('div'), { textContent: 'planted wide element' });
       wide.style.cssText = 'position:fixed;left:0;top:200px;width:600px;height:24px;z-index:99998';
       root.append(wide);
+      const keyed = Object.assign(document.createElement('div'), { textContent: 'Planted label [Q]' });
+      keyed.style.cssText = 'position:fixed;left:0;top:260px;z-index:99998';
+      root.append(keyed);
       return findMobileFaults(root, { ...options, viewportWidth: window.screen.width });
     }, FAULT_OPTIONS);
     if (!faults.some((f) => f.kind === 'sideways-overflow')) throw new Error('The mobile check did not report the planted wide element');
+    if (!faults.some((f) => f.kind === 'key-cap')) throw new Error('The mobile check did not report the planted key cap');
   } finally {
     await page.close();
   }
@@ -151,7 +156,7 @@ async function selfCheck(session, orientation) {
   if (!covered) throw new Error('The mobile check did not report the planted cover over End turn');
   if (before !== after) throw new Error('A tap through the planted cover still gave an order, so the input check is blind');
   await wideElementCheck(ctx);
-  report(orientation, 'self-check catches a planted cover, a blocked tap and a planted wide element', true);
+  report(orientation, 'self-check catches a planted cover, a blocked tap, a planted wide element and a planted key cap', true);
 }
 
 async function context(browser, orientation, storageState, uiSize = uiSizeArg) {
@@ -333,8 +338,9 @@ async function freeCanvasPoint(page, size, vx, vy) {
 async function bringIntoView(page, touch, id, size) {
   for (let attempt = 0; attempt < 3; attempt++) {
     const at = await screenOfVehicle(page, id);
-    if (at.x > 25 && at.x < size.width * 0.28 && at.y > size.height * 0.25 && at.y < size.height * 0.75) return at;
-    const vx = size.width * 0.14 - at.x;
+    const edge = size.width < size.height ? 0.13 : 0.28;
+    if (at.x > 25 && at.x < size.width * edge && at.y > size.height * 0.25 && at.y < size.height * 0.75) return at;
+    const vx = size.width * edge * 0.6 - at.x;
     const vy = size.height * 0.5 - at.y;
     const start = await freeCanvasPoint(page, size, vx, vy);
     if (!start) throw new Error(`No free map point to drag the truck from ${JSON.stringify(at)}`);
@@ -371,8 +377,22 @@ async function inspectAndAim(session, step, orientation) {
     if (aimed > 0) return true;
     return `no aim after the second tap: ${JSON.stringify(await game(page, ({ x, y }) => ({ pin: window.__ROAM__.pin.id, selected: window.__ROAM__.selected, anim: !!window.__ROAM__.anim, hit: document.elementFromPoint(x, y)?.tagName, log: window.__ROAM__.hud.logTexts().slice(-2), orders: JSON.stringify(window.__me().weaponOrders), auto: window.__ROAM__.state.player.autoFire }), at))}`;
   });
+  await step('tap-part-aims', async () => {
+    const spot = await game(page, () => {
+      const view = window.__ROAM__.hud.inspected;
+      const part = view.parts[view.parts.length - 1];
+      const c = view.portrait.centerOf(part.id);
+      const r = view.hit.getBoundingClientRect();
+      return { x: r.left + (c.x / view.portrait.width) * r.width, y: r.top + (c.y / view.portrait.height) * r.height };
+    });
+    await touch.tap(spot.x, spot.y);
+    await sleep(300);
+    await touch.tap(spot.x, spot.y);
+  }, async () => {
+    const aims = await game(page, () => Object.values(window.__me().weaponOrders).map((o) => o.aim));
+    return aims.some((aim) => aim !== 'body') ? true : `no gun aims at a part: ${JSON.stringify(aims)}`;
+  });
   await step('card-unpin', () => touch.tapOn('.info .info-touch button[aria-label]'), async () => ((await game(page, () => window.__ROAM__.pin.id)) === null ? true : 'still pinned'));
-  void orientation;
 }
 
 async function townAndShop(session, step) {
@@ -434,7 +454,7 @@ async function inventoryByTouch(session, step) {
   }, () => game(page, () => window.__ROAM__.screens.inventory.isOpen() || 'the inventory did not open'));
   const geometry = async () => {
     const storage = await touch.box('[data-drop=storage]');
-    const rotateBox = await touch.box('#ui .modal h3 button.touch-only');
+    const rotateBox = await touch.box('#ui .modal button[data-action=rotate]');
     const gun = await game(page, async () => {
       const { vehicleStats } = await import('/src/sim/stats.ts');
       const { playerVehicle } = await import('/src/sim/damage.ts');
@@ -482,7 +502,97 @@ async function inventoryByTouch(session, step) {
     if (rotatedFrom === null || rotatedTo === rotatedFrom) return `Rotate did not turn the held item: ${rotatedFrom} -> ${rotatedTo}; from ${JSON.stringify(from)}; ${JSON.stringify(await game(page, ({ x, y }) => { const v = window.__ROAM__.screens.inventory.view; const e = document.elementFromPoint(x, y); return { drag: !!v.drag, press: !!v.press, holdId: v.holdId, hit: e?.tagName + '.' + e?.className }; }, from))}`;
     return stored > storedBefore ? true : `storage ${storedBefore} -> ${stored}, rotation ${rotatedFrom} -> ${rotatedTo}, item at ${JSON.stringify(from)} hit ${await game(page, ({ x, y }) => { const e = document.elementFromPoint(x, y); return e?.tagName + '.' + e?.className; }, from)}`;
   });
+  await placeByOneFinger(session, step);
   await step('close-inventory', () => touch.tapOn('.modal .close'), () => game(page, () => !window.__ROAM__.screens.inventory.isOpen() || 'still open'));
+}
+
+const gridCellAt = async (page, touch, cell) => {
+  await touch.box('.inv-grid');
+  return game(page, (c) => {
+    const grid = document.querySelector('.inv-grid').getBoundingClientRect();
+    const px = document.querySelector('.inv-grid .inv-cell').getBoundingClientRect().width;
+    return { x: grid.x + (c.x + 0.5) * px, y: grid.y + (c.y + 0.5) * px };
+  }, cell);
+};
+
+const previewOf = (page) => game(page, () => {
+  const d = window.__ROAM__.screens.inventory.view.preview;
+  return d ? { x: d.item.x, y: d.item.y, rot: d.item.rot ?? 0 } : null;
+});
+
+async function plannedPlacement(page) {
+  return game(page, async () => {
+    const view = window.__ROAM__.screens.inventory.view;
+    const { gridOf, placementError } = await import('/src/sim/grid.ts');
+    const { playerVehicle } = await import('/src/sim/damage.ts');
+    const { footprint, nextRot } = await import('/src/ui/inventory-draw.ts');
+    const world = window.__ROAM__.state;
+    const me = playerVehicle(world);
+    const item = view.otherItems(world).find((it) => it.id === view.selectedItem);
+    if (!item) return null;
+    const turned = { ...item, rot: nextRot(item) };
+    const grid = gridOf(me);
+    for (let y = 0; y < grid.h; y++) {
+      for (let x = 0; x < grid.w; x++) {
+        const spot = { ...turned, x, y };
+        if (placementError(gridOf({ ...me, items: [...me.items, spot] }), me.items, spot, null) === null) {
+          const before = footprint(item);
+          const after = footprint(turned);
+          return { id: item.part.id, spot: { x, y, rot: turned.rot }, tapFirst: { x: x + Math.floor((before.w - 1) / 2), y: y + Math.floor((before.h - 1) / 2) }, tapPlace: { x: x + Math.floor((after.w - 1) / 2), y: y + Math.floor((after.h - 1) / 2) } };
+        }
+      }
+    }
+    return null;
+  });
+}
+
+async function placeByOneFinger(session, step) {
+  const { page, touch } = session;
+  let plan = null;
+  const storedBefore = await game(page, () => window.__ROAM__.state.player.storage.length);
+  await game(page, () => {
+    window.__maxTouches = 0;
+    window.addEventListener('touchstart', (e) => { window.__maxTouches = Math.max(window.__maxTouches, e.touches.length); }, true);
+  });
+  await step('tap-select-storage', () => touch.tapOn('.inv-storage .inv-chip', -1), async () => {
+    plan = await plannedPlacement(page);
+    return plan ? true : 'no storage item selected or no free spot for it';
+  });
+  await step('tap-grid-preview', async () => touch.tap(...Object.values(await gridCellAt(page, touch, plan.tapFirst))), async () => {
+    const at = await previewOf(page);
+    return at && at.x === plan.spot.x && at.y === plan.spot.y ? true : `preview ${JSON.stringify(at)}, wanted ${JSON.stringify(plan.spot)}`;
+  });
+  await step('rotate-preview', () => touch.tapOn('#ui .modal button[data-action=rotate]'), async () => {
+    const at = await previewOf(page);
+    return at && at.rot === plan.spot.rot ? true : `preview ${JSON.stringify(at)}, wanted rot ${plan.spot.rot}`;
+  });
+  await step('tap-place', async () => touch.tap(...Object.values(await gridCellAt(page, touch, plan.tapPlace))), async () => {
+    const placed = await game(page, (id) => { const it = window.__me().items.find((entry) => entry.kind === 'part' && entry.part.id === id); return it ? { x: it.x, y: it.y, rot: it.rot ?? 0 } : null; }, plan.id);
+    const stored = await game(page, () => window.__ROAM__.state.player.storage.length);
+    const touches = await game(page, () => window.__maxTouches);
+    if (touches > 1) return `${touches} fingers were down at once`;
+    const why = await game(page, () => { const v = window.__ROAM__.screens.inventory.view; return { preview: v.preview ? [v.preview.item.x, v.preview.item.y, v.preview.item.rot] : null, error: v.error?.key ?? null, selected: v.selectedItem }; });
+    return placed && placed.x === plan.spot.x && placed.y === plan.spot.y && placed.rot === plan.spot.rot && stored < storedBefore + 1 ? true : `placed ${JSON.stringify(placed)}, wanted ${JSON.stringify(plan.spot)}, storage ${storedBefore} -> ${stored}, ${JSON.stringify(why)}`;
+  });
+}
+
+async function characterByTouch(session, step) {
+  const { page, touch } = session;
+  await closeDrawer(page, touch);
+  await step('open-character', () => touch.tapOn('#ui .instrument-actions button[data-action=character]'), () => game(page, () => !!document.querySelector('#ui .character-screen') && getComputedStyle(document.querySelector('#ui .character-screen')).display !== 'none' || 'the character screen did not open'));
+  await step('character-reach', async () => {
+    await touch.box('.character-screen .skill-buy');
+  }, async () => game(page, () => {
+    const screen = document.querySelector('#ui .character-screen').getBoundingClientRect();
+    const table = document.querySelector('#ui .character-screen .skill-table');
+    if (table.scrollWidth > table.clientWidth) return `skill table scrolls sideways: ${table.scrollWidth} > ${table.clientWidth}`;
+    const outside = [...document.querySelectorAll('#ui .character-screen :is(.skill-buy, .perk-cell, .skill-level, .skill-today)')].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.left < screen.left - 1 || r.right > screen.right + 1;
+    });
+    return outside.length === 0 ? true : `${outside.length} controls lie outside the screen`;
+  }));
+  await step('close-character', () => touch.tapOn('.character-screen .close'), () => game(page, () => getComputedStyle(document.querySelector('#ui .character-screen')).display === 'none' || 'still open'));
 }
 
 async function drawersAndMenus(session, step) {
@@ -553,6 +663,80 @@ async function saveAndContinue(session, step, orientation) {
   void orientation;
 }
 
+const TOOLBAR_PX = 56;
+
+async function drawnTapTarget(page, fx, fy) {
+  return game(page, ({ fx, fy }) => {
+    const g = window.__ROAM__;
+    const at = (g.rig.view ?? g.rig.container).getBoundingClientRect();
+    g.rig.aimRay(at.left + at.width * fx, at.top + at.height * fy);
+    const hit = g.rig.ray.intersectObject(g.ground, true)[0];
+    if (!hit) return null;
+    const canvas = g.renderer.domElement.getBoundingClientRect();
+    const ndc = hit.point.clone().project(g.rig.camera);
+    return {
+      screen: { x: canvas.left + (ndc.x * 0.5 + 0.5) * canvas.width, y: canvas.top + (1 - (ndc.y * 0.5 + 0.5)) * canvas.height },
+      tile: { x: hit.point.x / 4, y: hit.point.z / 4 },
+    };
+  }, { fx, fy });
+}
+
+async function tapPrecise(session, step, name, options = {}) {
+  const { page, touch } = session;
+  let target = null;
+  await step(name, async () => {
+    target = await drawnTapTarget(page, 0.5, 0.7);
+    if (target) await touch.tap(target.screen.x, target.screen.y);
+  }, async () => {
+    if (!target) return 'no ground under the lower view';
+    const order = await game(page, () => window.__me().order);
+    if (!order?.dest) return `no order after the tap: ${JSON.stringify(order)}`;
+    const miss = Math.hypot(order.dest.x - target.tile.x, order.dest.y - target.tile.y);
+    return miss <= 0.3 ? true : `order ${miss.toFixed(2)} tiles from the ground under the finger`;
+  }, options);
+}
+
+async function tapPreciseSuite(session, step, label) {
+  const { page } = session;
+  await tapPrecise(session, step, `tap-precise-${label}`);
+  await game(page, (px) => {
+    document.getElementById('game').style.height = `${window.innerHeight - px}px`;
+    window.dispatchEvent(new Event('resize'));
+  }, TOOLBAR_PX);
+  await sleep(300);
+  await tapPrecise(session, step, `tap-precise-short-page-${label}`, { skipFaults: true });
+  await game(page, () => {
+    document.getElementById('game').style.height = '';
+    window.dispatchEvent(new Event('resize'));
+  });
+  await sleep(300);
+}
+
+async function hiddenViewKeepsDrawing(session, step, label) {
+  const { page } = session;
+  await step(`hidden-view-${label}`, async () => {
+    await game(page, () => {
+      document.getElementById('game').style.display = 'none';
+      window.dispatchEvent(new Event('resize'));
+    });
+    await sleep(200);
+    await game(page, () => {
+      document.getElementById('game').style.display = '';
+      window.dispatchEvent(new Event('resize'));
+    });
+    await sleep(300);
+  }, async () => {
+    const [canvas, view] = await game(page, () => {
+      const g = window.__ROAM__;
+      const c = g.renderer.domElement;
+      const v = document.getElementById('game');
+      return [[c.clientWidth, c.clientHeight], [v.clientWidth, v.clientHeight]];
+    });
+    return canvas[0] === view[0] && canvas[1] === view[1] && view[0] > 0 ? true : `canvas ${canvas} view ${view}`;
+  });
+  await tapPrecise(session, step, `tap-precise-after-hidden-${label}`);
+}
+
 async function portraitJourney(browser) {
   const orientation = 'portrait';
   const session = await context(browser, orientation);
@@ -576,6 +760,7 @@ async function portraitJourney(browser) {
     return zoom > zoomBefore ? true : `zoom ${zoomBefore} -> ${zoom}`;
   });
   await step('tap-ground', () => touch.tap(size.width * 0.7, size.height * 0.4), async () => ((await orderKind(page)) === 'through' ? true : `order ${await orderKind(page)}`));
+  await tapPreciseSuite(session, step, 'portrait');
   await step('hold-ground', () => touch.hold(size.width * 0.3, size.height * 0.4, 800), async () => ((await orderKind(page)) === 'stopAt' ? true : `order ${await orderKind(page)}`));
   const turn = await game(page, () => window.__ROAM__.state.turn);
   await step('end-turn', async () => {
@@ -586,6 +771,7 @@ async function portraitJourney(browser) {
   await inspectAndAim(session, step, orientation);
   await townAndShop(session, step);
   await inventoryByTouch(session, step);
+  await characterByTouch(session, step);
   await drawersAndMenus(session, step);
   await longPressReason(session, step);
   await saveAndContinue(session, step, orientation);
@@ -593,6 +779,17 @@ async function portraitJourney(browser) {
   const state = await session.ctx.storageState({ indexedDB: true });
   await session.ctx.close();
   return state;
+}
+
+async function tapJourney(browser) {
+  const orientation = 'portrait';
+  const session = await context(browser, orientation);
+  await session.page.addInitScript(INIT);
+  const step = stepper(session, orientation);
+  await freshStart(session, orientation, step);
+  await tapPreciseSuite(session, step, 'portrait');
+  await hiddenViewKeepsDrawing(session, step, 'portrait');
+  await session.ctx.close();
 }
 
 async function continueSaved(session, step) {
@@ -640,11 +837,15 @@ async function landscapeJourney(browser, storage, orientation = 'landscape', uiS
     await page.waitForFunction((t) => window.__ROAM__.state.turn > t, turn, { timeout: STEP_LIMIT_MS * 4 });
     await page.waitForFunction(() => !window.__ROAM__.anim, null, { timeout: STEP_LIMIT_MS * 4 });
   }, async () => ((await game(page, () => window.__ROAM__.state.turn)) > turn ? true : 'turn did not grow'));
-  await step('open-inventory', async () => {
-    await openDrawer(page, touch, 'truck');
-    await touch.tapOn('.truck-instrument');
-  }, () => game(page, () => window.__ROAM__.screens.inventory.isOpen() || 'the inventory did not open'));
-  await step('close-inventory', () => touch.tapOn('.modal .close'), () => game(page, () => !window.__ROAM__.screens.inventory.isOpen() || 'still open'));
+  await game(page, async () => {
+    const g = window.__ROAM__;
+    const c = await import('/src/sim/cheats.ts');
+    g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
+    g.follow.recenter();
+  });
+  await page.waitForTimeout(800);
+  await inventoryByTouch(session, step);
+  await characterByTouch(session, step);
   await drawersAndMenus(session, step);
   await openDrawer(page, touch, 'truck');
   await step('rotate-to-portrait', async () => {
@@ -653,6 +854,8 @@ async function landscapeJourney(browser, storage, orientation = 'landscape', uiS
   }, async () => ((await game(page, () => window.innerHeight > window.innerWidth)) ? true : 'the window did not turn'));
   await step('drawer-after-turn', () => openDrawer(page, touch, 'guns'), async () => (((await game(page, () => document.getElementById('ui').dataset.drawer)) === 'guns') ? true : 'the drawer did not open after the turn'));
   await closeDrawer(page, touch);
+  await tapPreciseSuite(session, step, 'after-rotation');
+  await hiddenViewKeepsDrawing(session, step, 'landscape');
   await step('end-turn-after-turn', async () => {
     const before = await game(page, () => window.__ROAM__.state.turn);
     await touch.tapOn('.end-turn');
@@ -712,6 +915,7 @@ async function main() {
   const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
   try {
     const orientations = only ? [only] : ['portrait', 'landscape', 'phone', 'size'];
+    if (orientations.includes('tap')) await tapJourney(browser);
     let storage;
     if (orientations.includes('portrait')) storage = await portraitJourney(browser);
     if (orientations.includes('landscape')) await landscapeJourney(browser, storage ?? (await seedSave(browser)));

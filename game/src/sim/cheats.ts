@@ -13,17 +13,18 @@ import { playerVehicle } from './damage';
 import { makePart, makeVehicle } from './factory';
 import { maxHealthOf } from './health';
 import { corePart, mountedParts, type Spot } from './grid';
-import { addGoods, applyRefitLayout, planItemMove, stowPart } from './inventory';
+import { addGoods, applyRefitLayout, mountPart, planItemMove, stowPart } from './inventory';
 import { disarm } from './claymore';
 import { generateNpcLoadout } from './npc-loadout';
 import { grantXp, isPerkId, pickedFromPair } from './progress';
 import { isTerritory, nearestPad, type Site } from './sites';
 import { territoryEntries } from './territory';
-import { allegianceFor, isFree, spawnAt } from './spawn';
+import { allegianceFor, spawnAt } from './spawn';
+import { firstFree, freeSpotNear } from './free-spot';
 import { declareFeud, settleStates } from './states';
 import { isTowed } from './tow';
 import { clockOf } from './sun';
-import type { Faction, Vehicle, World } from './types';
+import type { Faction, SunwardHunt, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { randInt } from './rng';
 import { refreshVision } from './vision';
@@ -33,6 +34,9 @@ import { WEATHER } from '../data/weather';
 import { makeWeather } from './weather';
 import { hostileToPlayer, playerCanAct, update } from './world';
 import { fuelCap, suppliesCap } from './stats';
+import { advanceSunward, nextDusk, nightWindow, orderStands, startHuntTonight, sunwardPhase } from './sunward';
+import { fillHollow } from './spawn';
+import { SUNWARD } from '../data/sunward';
 import { spillDeadRows } from './spill';
 
 export class CheatError extends Error {}
@@ -130,7 +134,8 @@ export function give(world: World, id: string, count: number): World {
 function givePart(w: World, defId: string, count: number): void {
   const me = playerVehicle(w);
   for (let i = 0; i < count; i++) {
-    if (!stowPart(w, me, makePart(w, defId, 0))) throw new CheatError(`No room for ${count} ${defId}`);
+    const part = makePart(w, defId, 0);
+    if (!stowPart(w, me, part) && !mountPart(w, me, part)) throw new CheatError(`No room for ${count} ${defId}`);
   }
 }
 
@@ -187,34 +192,12 @@ export function applyGodMode(world: World): void {
   world.player.supplies = suppliesCap(me);
 }
 
-function freeSpotNear(w: World, center: Vec, radius: number, ignoreId: string | null): Vec | null {
-  if (isFree(w, center, radius, ignoreId)) return { ...center };
-  for (let ring = 1; ring <= CHEATS.searchRings; ring++) {
-    const r = ring * CHEATS.searchStep;
-    const points = Math.ceil((2 * Math.PI * r) / CHEATS.searchStep);
-    const spot = firstFree(w, circlePoints(center, r, points), radius, ignoreId);
-    if (spot) return spot;
-  }
-  return null;
-}
-
-function circlePoints(center: Vec, r: number, count: number): Vec[] {
-  return Array.from({ length: count }, (_, i) => {
-    const a = (2 * Math.PI * i) / count;
-    return { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r };
-  });
-}
-
 function frontFirst(center: Vec, heading: number, r: number, count: number): Vec[] {
   const step = (2 * Math.PI) / count;
   return Array.from({ length: count }, (_, i) => {
     const a = heading + Math.ceil(i / 2) * step * (i % 2 === 0 ? -1 : 1);
     return { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r };
   });
-}
-
-function firstFree(w: World, points: Vec[], radius: number, ignoreId: string | null): Vec | null {
-  return points.find((p) => isFree(w, p, radius, ignoreId)) ?? null;
 }
 
 export function teleport(world: World, target: Vec): World {
@@ -270,6 +253,34 @@ export function skipToHour(world: World, hour: number): World {
     });
   }
   throw new Error(`No turn within a day of ${world.turn} starts hour ${hour}`);
+}
+
+export function sunwardDusk(world: World): World {
+  if (!orderStands(world)) throw new CheatError('No Sunward order stands in this world');
+  return update(world, (w) => {
+    fillHollow(w);
+    w.turn = nextDusk(w.turn);
+    advanceSunward(w);
+    refreshVision(w);
+  });
+}
+
+export function sunwardHunt(world: World): World {
+  if (!nightWindow(world)) throw new CheatError('The hunters ride only on a night of the vigil. Try sunward dusk first');
+  return update(world, (w) => startHuntTonight(w));
+}
+
+export function sunwardLedger(world: World): string[] {
+  if (!world.sunward) throw new CheatError('No Sunward order in this world');
+  const { collapsed, night } = world.sunward;
+  if (collapsed !== null) return [`The order fell on turn ${collapsed}.`];
+  if (!night) return ['No night has opened yet.'];
+  return [`Night from turn ${night.dusk}, phase ${sunwardPhase(world)}`, `Roster: ${night.roster.join(', ')}`, `Beaten: ${night.beaten.length} of ${SUNWARD.collapseAt}: ${night.beaten.join(', ')}`, huntLine(night.hunt)];
+}
+
+function huntLine(hunt: SunwardHunt | null): string {
+  if (!hunt) return 'Hunt: none';
+  return `Hunt: ${hunt.party.join(', ')}${hunt.over ? ' (over)' : ''}`;
 }
 
 export function startWeather(world: World, kind: string, turns: number | null, offsetTiles: number): World {

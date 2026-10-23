@@ -1,37 +1,52 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY, GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
-import { DISTANCE_PREMIUM, EFFORT, GOOD_SOURCES, PRICE_FACTOR, PRESSURE_MAX, SHOPS } from '../data/market';
+import { DISTANCE_PREMIUM, EFFORT, PRICE_FACTOR, PRESSURE_MAX, SHOPS, SHORT_PRESSURE } from '../data/market';
 import { dist } from './vec';
-import { emptyWorld, addVehicle, npcBrain } from './testkit';
+import { emptyWorld, addVehicle } from './testkit';
 import type { Vehicle, World } from './types';
 import { freeCells } from './grid';
 import {
   addStockPart,
-  creditBounty,
   advanceShop,
   estimateTurns,
   goodBasePrice,
   goodPrice,
+  goodStock,
   initShop,
+  moveStock,
+  pressureOf,
+  priceAtPressure,
+  stockTarget,
   lotPrice,
   recordTrade,
+  shortHere,
   siteOf,
   takeStockPart,
-  type Contract,
   type ShopState,
 } from './market';
 
 describe('market', () => {
-  it('raises pressure on buying and lowers it on selling', () => {
+  it('lowers stock on buying and raises it on selling', () => {
     const w = emptyWorld();
     const state = initShop(w, 'bowl');
-    expect(state.pressure.scrap).toBe(0);
+    expect(state.goods.scrap).toBe(stockTarget('bowl', 'scrap'));
     recordTrade('bowl', state, 'scrap', 10, 'buy');
-    expect(state.pressure.scrap).toBeGreaterThan(0);
-    const afterBuy = state.pressure.scrap;
-    recordTrade('bowl', state, 'scrap', 10, 'sell');
-    expect(state.pressure.scrap).toBeLessThan(afterBuy);
+    expect(state.goods.scrap).toBe(stockTarget('bowl', 'scrap') - 10);
+    recordTrade('bowl', state, 'scrap', 4, 'sell');
+    expect(state.goods.scrap).toBe(stockTarget('bowl', 'scrap') - 6);
+  });
+
+  it('prices a good dearer as its stock falls and cheaper as it grows', () => {
+    const w = emptyWorld();
+    const state = initShop(w, 'granary');
+    const atTarget = goodPrice('granary', state, 'grain', 'buy', ECONOMY.spread);
+    recordTrade('granary', state, 'grain', 10, 'buy');
+    const short = goodPrice('granary', state, 'grain', 'buy', ECONOMY.spread);
+    recordTrade('granary', state, 'grain', 30, 'sell');
+    const flooded = goodPrice('granary', state, 'grain', 'buy', ECONOMY.spread);
+    expect(short).toBeGreaterThan(atTarget);
+    expect(flooded).toBeLessThan(atTarget);
   });
 
   it('absorbs a full hauler load at a garage before the price moves halfway to its floor or ceiling', () => {
@@ -48,36 +63,68 @@ describe('market', () => {
     const w = emptyWorld();
     const units = 6;
     const stall = initShop(w, 'salvage-yard');
-    const garage = initShop(w, 'bowl');
+    const garage = initShop(w, 'nose');
     recordTrade('salvage-yard', stall, 'scrap', units, 'sell');
-    recordTrade('bowl', garage, 'scrap', units, 'sell');
-    expect(Math.abs(stall.pressure.scrap)).toBeGreaterThan(Math.abs(garage.pressure.scrap));
+    recordTrade('nose', garage, 'scrap', units, 'sell');
+    expect(Math.abs(pressureOf('salvage-yard', 'scrap', stall.goods.scrap))).toBeGreaterThan(Math.abs(pressureOf('nose', 'scrap', garage.goods.scrap)));
   });
 
-  it('clamps pressure to PRESSURE_MAX', () => {
-    const w = emptyWorld();
-    const state = initShop(w, 'bowl');
-    recordTrade('bowl', state, 'scrap', 100000, 'buy');
-    expect(state.pressure.scrap).toBe(PRESSURE_MAX);
-    recordTrade('bowl', state, 'scrap', 100000, 'sell');
-    expect(state.pressure.scrap).toBe(-PRESSURE_MAX);
+  it('clamps the pressure a stock gives to PRESSURE_MAX on both sides', () => {
+    expect(pressureOf('bowl', 'scrap', 0)).toBe(PRESSURE_MAX);
+    expect(pressureOf('bowl', 'scrap', 100000)).toBe(-PRESSURE_MAX);
+    expect(pressureOf('bowl', 'scrap', stockTarget('bowl', 'scrap'))).toBe(0);
   });
 
-  it('drifts pressure back toward 0 over turns without crossing it', () => {
-    const w = emptyWorld();
-    const state = initShop(w, 'bowl');
-    recordTrade('bowl', state, 'scrap', 10, 'buy');
-    let last = state.pressure.scrap;
-    expect(last).toBeGreaterThan(0);
-    for (let i = 0; i < 500; i++) {
-      w.turn++;
-      state.restockAt = w.turn + SHOPS.bowl.restockTurns;
-      advanceShop(w, 'bowl', state);
-      expect(state.pressure.scrap).toBeLessThanOrEqual(last);
-      expect(state.pressure.scrap).toBeGreaterThanOrEqual(0);
-      last = state.pressure.scrap;
+  it('keeps every price within the distance gradient times one plus or minus PRESSURE_MAX', () => {
+    for (const shop of Object.values(SHOPS)) {
+      for (const good of shop.goods) {
+        for (const stock of [0, 1, stockTarget(shop.id, good), 10 * stockTarget(shop.id, good)]) {
+          const price = priceAtPressure(shop.id, good, pressureOf(shop.id, good, stock), 'buy', 0);
+          expect(price).toBeGreaterThanOrEqual(Math.floor(goodBasePrice(shop.id, good) * (1 - PRESSURE_MAX)));
+          expect(price).toBeLessThanOrEqual(Math.ceil(goodBasePrice(shop.id, good) * (1 + PRESSURE_MAX)));
+        }
+      }
     }
-    expect(state.pressure.scrap).toBeLessThan(0.05);
+  });
+
+  it('keeps every staple on a garage shelf after each roll and adds none to a stall', () => {
+    const w = emptyWorld();
+    for (const id of ['bowl', 'nose']) {
+      const state = initShop(w, id);
+      for (let roll = 0; roll < 60; roll++) {
+        expect(state.stock.some((p) => p.defId === 'stockEngine')).toBe(true);
+        w.turn = state.restockAt;
+        advanceShop(w, id, state);
+      }
+    }
+    expect(SHOPS['salvage-yard'].staples).toEqual([]);
+    expect(initShop(w, 'salvage-yard').stock.length).toBeLessThanOrEqual(SHOPS['salvage-yard'].stockSize[1]);
+  });
+
+  it('walks a lot through stock one crate at a time', () => {
+    const w = emptyWorld();
+    const state = initShop(w, 'granary');
+    const lot = lotPrice('granary', state, 'grain', 'buy', ECONOMY.spread, 5);
+    let summed = 0;
+    for (let i = 0; i < 5; i++) {
+      summed += goodPrice('granary', state, 'grain', 'buy', ECONOMY.spread);
+      recordTrade('granary', state, 'grain', 1, 'buy');
+    }
+    expect(lot).toBe(summed);
+  });
+
+  it('throws pricing a buy of more crates than the stock holds', () => {
+    const w = emptyWorld();
+    const state = initShop(w, 'granary');
+    expect(() => lotPrice('granary', state, 'grain', 'buy', ECONOMY.spread, state.goods.grain + 1)).toThrow();
+  });
+
+  it('throws on a stock change that would go below zero or is not a whole crate', () => {
+    const w = emptyWorld();
+    const state = initShop(w, 'granary');
+    expect(() => moveStock(state, 'granary', 'grain', -state.goods.grain - 1, 'trade')).toThrow();
+    expect(() => moveStock(state, 'granary', 'grain', 0.5, 'trade')).toThrow();
+    expect(() => goodStock(state, 'electronics')).toThrow();
   });
 
   it('rolls a finite stock that restocking replaces deterministically for a given rng state', () => {
@@ -152,7 +199,7 @@ describe('market', () => {
   });
 
   it('prices a good made locally below the same good sold farther from any maker', () => {
-    expect(goodBasePrice('bowl', 'scrap')).toBeLessThan(goodBasePrice('nose', 'scrap'));
+    expect(goodBasePrice('bowl', 'grain')).toBeLessThan(goodBasePrice('granary', 'grain'));
     expect(goodBasePrice('nose', 'salt')).toBeLessThan(goodBasePrice('bowl', 'salt'));
   });
 
@@ -164,26 +211,16 @@ describe('market', () => {
     expect(granary).toBeLessThan(bowl);
   });
 
-  it('prices a good no shop makes by the distance to its nearest source site', () => {
+  it('prices fuel drums by the distance to the Pump Station that makes them', () => {
     const toPump = dist(siteOf('bowl').pos, siteOf('pump-station').pos);
     const expected = GOODS.fuelDrums.value * (PRICE_FACTOR.make + DISTANCE_PREMIUM.perTile * toPump);
     expect(goodBasePrice('bowl', 'fuelDrums')).toBeCloseTo(expected, 9);
   });
 
-  it('prices water by the nearer of its two outposts', () => {
-    const toOasis = Math.min(...['dustwell', 'green-pit'].map((id) => dist(siteOf('nose').pos, siteOf(id).pos)));
-    const expected = GOODS.water.value * (PRICE_FACTOR.make + DISTANCE_PREMIUM.perTile * toOasis);
+  it('prices water by the nearer of its two wells', () => {
+    const toWell = Math.min(...['dustwell', 'green-pit'].map((id) => dist(siteOf('nose').pos, siteOf(id).pos)));
+    const expected = GOODS.water.value * (PRICE_FACTOR.make + DISTANCE_PREMIUM.perTile * toWell);
     expect(goodBasePrice('nose', 'water')).toBeCloseTo(expected, 9);
-  });
-
-  it('throws pricing a good with neither a maker nor a source site', () => {
-    const sources = GOOD_SOURCES.fuelDrums;
-    delete GOOD_SOURCES.fuelDrums;
-    try {
-      expect(() => goodBasePrice('bowl', 'fuelDrums')).toThrow('No shop or source site makes fuelDrums');
-    } finally {
-      GOOD_SOURCES.fuelDrums = sources;
-    }
   });
 
   it('pays a full truck load of a haul about haulWages tier wages times the trip turns, lot pressure included', () => {
@@ -214,38 +251,20 @@ describe('market', () => {
   });
 });
 
-describe('creditBounty', () => {
-  const bounty = (id: string, template: string): Contract => ({ id, shop: 'bowl', kind: 'bounty', template, reward: 10000, deadline: 900, window: 900, tier: 2, fulfilled: false });
-
-  function withTarget(): { w: World; npc: Vehicle } {
+describe('a short good', () => {
+  it('is short once its pressure reaches the short level, not at its target', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scrapjaw', 'scout', [], { x: 36, y: 30 });
-    npc.brain = npcBrain('buggy', npc.pos, ['raider']);
-    w.player.money = 0;
-    return { w, npc };
-  }
-
-  const fulfilled = (w: World) => w.player.contracts.map((c) => c.kind === 'bounty' && c.fulfilled);
-
-  it('fulfils one held bounty on the template, as a knockout does, and pays nothing', () => {
-    const { w, npc } = withTarget();
-    w.player.contracts = [bounty('a', 'buggy'), bounty('b', 'buggy'), bounty('c', 'truck')];
-    creditBounty(w, npc);
-    expect(w.player.contracts.map((c) => c.id)).toEqual(['a', 'b', 'c']);
-    expect(fulfilled(w)).toEqual([true, false, false]);
-    expect(w.player.money).toBe(0);
-    creditBounty(w, npc);
-    expect(fulfilled(w)).toEqual([true, true, false]);
-    creditBounty(w, npc);
-    expect(fulfilled(w)).toEqual([true, true, false]);
-    expect(w.events.filter((e) => e.t === 'contract' && e.outcome === 'fulfilled')).toHaveLength(2);
+    const target = stockTarget('granary', 'grain');
+    w.shops.granary.goods.grain = target;
+    expect(shortHere(w, 'granary', 'grain')).toBe(false);
+    w.shops.granary.goods.grain = 0;
+    expect(shortHere(w, 'granary', 'grain')).toBe(true);
+    w.shops.granary.goods.grain = Math.floor(target * (1 - SHORT_PRESSURE / 0.6));
+    expect(pressureOf('granary', 'grain', w.shops.granary.goods.grain)).toBeGreaterThanOrEqual(SHORT_PRESSURE);
+    expect(shortHere(w, 'granary', 'grain')).toBe(true);
   });
 
-  it('does nothing without a bounty on the template', () => {
-    const { w, npc } = withTarget();
-    w.player.contracts = [bounty('c', 'truck')];
-    creditBounty(w, npc);
-    expect(w.player.contracts.map((c) => c.id)).toEqual(['c']);
-    expect(w.player.money).toBe(0);
+  it('throws for a good the shop does not trade', () => {
+    expect(() => shortHere(emptyWorld(), 'granary', 'electronics')).toThrow();
   });
 });

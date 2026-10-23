@@ -166,7 +166,7 @@ type Collision = Extract<GameEvent, { t: 'collision' }>;
 type Damage = Record<string, number>;
 
 const CLUTTER = new Set<GameEvent['t']>(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather', 'say', 'call', 'note', 'honk']);
-const PLAYER_LEVEL = new Set<GameEvent['t']>(['death', 'knockout', 'wake', 'money', 'contract', 'discover', 'skillUp', 'supply', 'scrapPatch', 'townPatch', 'searched', 'outpostReached', 'roadOpened', 'runLost']);
+const PLAYER_LEVEL = new Set<GameEvent['t']>(['death', 'knockout', 'wake', 'money', 'contract', 'discover', 'skillUp', 'supply', 'scrapPatch', 'engineCredit', 'townPatch', 'searched', 'outpostReached', 'roadOpened', 'runLost']);
 
 function collectIds(value: unknown, known: ReadonlySet<string>, out: Set<string>): void {
   if (typeof value === 'string' && known.has(value)) out.add(value);

@@ -2,14 +2,17 @@
 import { MEMORY } from '../data/npcs';
 import type { Memory, MemoryFact, NpcBrain, SightingFact, Vehicle, World } from './types';
 
+const SUBJECTS: { [K in MemoryFact['kind']]: (fact: Extract<MemoryFact, { kind: K }>) => string } = {
+  prices: (fact) => `prices:${fact.shop}`,
+  stripped: (fact) => `stripped:${fact.stock}`,
+  sighting: (fact) => `sighting:${fact.vehicle}`,
+  witnessed: (fact) => `witnessed:${fact.crime}`,
+  wronged: (fact) => `wronged:${fact.by}:${fact.deed}`,
+  helped: (fact) => `helped:${fact.by}:${fact.deed}`,
+};
+
 export function subjectOf(fact: MemoryFact): string {
-  switch (fact.kind) {
-    case 'prices': return `prices:${fact.shop}`;
-    case 'stripped': return `stripped:${fact.stock}`;
-    case 'sighting': return `sighting:${fact.vehicle}`;
-    case 'wronged':
-    case 'helped': return `${fact.kind}:${fact.by}:${fact.deed}`;
-  }
+  return (SUBJECTS[fact.kind] as (fact: MemoryFact) => string)(fact);
 }
 
 function brainOf(vehicle: Vehicle): NpcBrain {
@@ -33,12 +36,17 @@ export function recall<K extends MemoryFact['kind']>(vehicle: Vehicle, kind: K):
 
 export function rememberSightings(world: World, vehicle: Vehicle, seen: Vehicle[]): void {
   for (const other of seen) {
-    if (other.brain) remember(world, vehicle, { kind: 'sighting', vehicle: other.id, at: { ...other.pos }, heading: other.heading });
+    if (other.brain || other.id === world.player.vehicleId) remember(world, vehicle, { kind: 'sighting', vehicle: other.id, at: { ...other.pos }, heading: other.heading });
   }
 }
 
 export function sightingOf(vehicle: Vehicle, targetId: string): (Memory & { fact: SightingFact }) | null {
   return recall(vehicle, 'sighting').find((m) => m.fact.vehicle === targetId) ?? null;
+}
+
+export function reviseMemories(vehicle: Vehicle, revise: (memory: Memory) => Memory | null): void {
+  const brain = brainOf(vehicle);
+  brain.memories = brain.memories.flatMap((m) => revise(m) ?? []);
 }
 
 export function forgetOld(world: World): void {

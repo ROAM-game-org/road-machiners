@@ -2,11 +2,19 @@
 import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUNDS, type CueId } from "../data/sounds";
 import { shuffled, spatial } from "../audio/pick";
 import type {
-  Glide,
   LoopHandle,
   Placement,
   SoundPlayer,
 } from "../audio/player";
+
+export type Glide = { rateFrom: number; rateTo: number; gainFrom: number; gainTo: number; seconds: number; fadeSeconds: number; starts: boolean; stops: boolean };
+
+export function glideAt(g: Glide, share: number): { rate: number; gain: number } {
+  const s = Math.min(1, Math.max(0, share));
+  const fadeIn = g.starts ? Math.min(1, (s * g.seconds) / g.fadeSeconds) : 1;
+  const fadeOut = g.stops ? Math.min(1, ((1 - s) * g.seconds) / g.fadeSeconds) : 1;
+  return { rate: g.rateFrom + (g.rateTo - g.rateFrom) * s, gain: (g.gainFrom + (g.gainTo - g.gainFrom) * s) * fadeIn * fadeOut };
+}
 import type { V3, VehicleFrame } from "../phys/frames";
 import { PHYSICS } from "../data/physics";
 import type { GameEvent, ShotRound } from "../sim/types";
@@ -25,6 +33,7 @@ const STINGS: {
   cue: CueId;
   match: (e: GameEvent, playerId: string) => boolean;
 }[] = [
+  { cue: "heatwave-warning", match: (e) => e.t === "weather" && e.outcome === "started" && e.event.kind === "heatwave" },
   { cue: "level-up", match: (e) => e.t === "skillUp" },
   { cue: "discover", match: (e) => e.t === "discover" },
   { cue: "money", match: (e) => e.t === "money" && e.amount > 0 },
@@ -155,7 +164,7 @@ export function musicPlaceAt(t: Terrain, pos: Vec): MusicPlace {
   return isInTerritory(atlas, pos) ? "abandoned" : null;
 }
 
-export type LoopState = { stormShare: number; inCombat: boolean; inQuest: boolean; place: MusicPlace; paused: boolean };
+export type LoopState = { stormShare: number; inCombat: boolean; inQuest: boolean; place: MusicPlace };
 
 export type LoopLevels = {
   windGain: number;
@@ -165,7 +174,6 @@ export type LoopLevels = {
   outpostGain: number;
   abandonedGain: number;
   combatGain: number;
-  musicCutoffHz: number;
 };
 
 function musicOf(s: LoopState): "calm" | "quest" | "combat" | NonNullable<MusicPlace> {
@@ -185,9 +193,7 @@ export function loopLevels(s: LoopState, mix: typeof MIX): LoopLevels {
     townGain: Number(music === "town"),
     outpostGain: Number(music === "outpost"),
     abandonedGain: Number(music === "abandoned"),
-    combatGain: Number(music === "combat"),
-    musicCutoffHz: s.paused && music !== "quest" ? mix.music.pauseCutoffHz : mix.music.openCutoffHz,
-  };
+    combatGain: Number(music === "combat"),  };
 }
 
 export function computeEngineGlide(
@@ -236,6 +242,8 @@ export function engineGlide(
     gainTo: (gain(to) + load * e.loadGain) * loud,
     seconds,
     fadeSeconds: e.fadeSeconds,
+    starts: from < e.movingMs,
+    stops: to < e.movingMs,
     brake: from - to >= e.brakeMs,
   };
 }
@@ -284,7 +292,9 @@ class Playlist {
 export class SoundLoops {
   private engine: { healthy: LoopHandle; strained: LoopHandle } | null = null;
   private engineChassis: string | null = null;
-  private player: Pick<SoundPlayer, "loop" | "setBusTone">;
+  private engineGlides: { healthy: Glide; strained: Glide } | null = null;
+  private engineLevel: { rate: number; healthy: number; strained: number } | null = null;
+  private player: Pick<SoundPlayer, "loop">;
   private wind: LoopHandle;
   private calm: Playlist;
   private quest: Playlist;
@@ -292,7 +302,7 @@ export class SoundLoops {
   private places: [LoopHandle, "townGain" | "outpostGain"][];
   private last: LoopLevels | null = null;
 
-  constructor(player: Pick<SoundPlayer, "loop" | "setBusTone">, private music: Pick<CombatMusic, "setCombat" | "nextSong">) {
+  constructor(player: Pick<SoundPlayer, "loop">, private music: Pick<CombatMusic, "setCombat" | "nextSong">) {
     this.player = player;
     const silent = { pan: 0, gain: 0 };
     this.wind = player.loop("wind", silent);
@@ -305,22 +315,41 @@ export class SoundLoops {
     ];
   }
 
-  drive(g: Glide, chassisId: string, strain: Strain): void {
-    let engine = this.engine;
-    if (this.engineChassis !== chassisId || !engine) {
-      engine?.healthy.stop(0);
-      engine?.strained.stop(0);
-      const silent = { pan: 0, gain: 0 };
-      engine = {
-        healthy: this.player.loop("engine", silent, engineFileFor(chassisId)),
-        strained: this.player.loop("engine-strain", silent, engineStrainFileFor(chassisId)),
-      };
-      this.engine = engine;
-      this.engineChassis = chassisId;
-    }
+  drive(g: Glide | null, chassisId: string, strain: Strain): void {
+    if (!g) return this.parkEngine();
+    this.useEngine(chassisId);
     const layers = strainGlides(g, strain);
-    engine.healthy.glide(layers.healthy);
-    engine.strained.glide(layers.strained);
+    const level = this.engineLevel;
+    this.engineGlides = level ? { healthy: { ...layers.healthy, rateFrom: level.rate, gainFrom: level.healthy }, strained: { ...layers.strained, rateFrom: level.rate, gainFrom: level.strained } } : layers;
+  }
+
+  private useEngine(chassisId: string): void {
+    if (this.engineChassis === chassisId && this.engine) return;
+    this.engine?.healthy.stop(0);
+    this.engine?.strained.stop(0);
+    const silent = { pan: 0, gain: 0 };
+    this.engine = {
+      healthy: this.player.loop("engine", silent, engineFileFor(chassisId)),
+      strained: this.player.loop("engine-strain", silent, engineStrainFileFor(chassisId)),
+    };
+    this.engineChassis = chassisId;
+    this.engineLevel = null;
+  }
+
+  private parkEngine(): void {
+    const level = this.engineLevel;
+    if (!level) return;
+    const fade = (gain: number): Glide => ({ rateFrom: level.rate, rateTo: level.rate, gainFrom: gain, gainTo: 0, seconds: 1, fadeSeconds: 1, starts: false, stops: false });
+    this.engineGlides = { healthy: fade(level.healthy), strained: fade(level.strained) };
+  }
+
+  engineAt(share: number): void {
+    if (!this.engine || !this.engineGlides) return;
+    const healthy = glideAt(this.engineGlides.healthy, share);
+    const strained = glideAt(this.engineGlides.strained, share);
+    this.engine.healthy.set(healthy.rate, healthy.gain);
+    this.engine.strained.set(strained.rate, strained.gain);
+    this.engineLevel = { rate: healthy.rate, healthy: healthy.gain, strained: strained.gain };
   }
 
   rev(chassisId: string): void {
@@ -339,7 +368,6 @@ export class SoundLoops {
   private updateMusic(l: LoopLevels, was: LoopLevels | null): void {
     this.updatePlaylists(l, was);
     this.updatePlaces(l, was);
-    if (was?.musicCutoffHz !== l.musicCutoffHz) this.player.setBusTone("music", l.musicCutoffHz, MIX.music.toneSeconds);
     if (was?.combatGain !== l.combatGain) this.music.setCombat(l.combatGain > 0);
   }
 

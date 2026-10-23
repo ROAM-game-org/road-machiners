@@ -22,7 +22,8 @@ export type ChassisDef = {
   value: number;
   showsCores: boolean;
   tier: Tier;
-  look: 'pickup' | 'hauler' | 'buggy' | 'wagon' | 'courier' | 'van' | 'longbed' | 'carrier' | 'tractor' | 'jeep' | 'convertible' | 'bus' | 'loader' | 'niva' | 'bukhanka' | 'lincoln' | 'semi';
+  coupling?: { row: number };
+  look: 'pickup' | 'hauler' | 'buggy' | 'wagon' | 'courier' | 'van' | 'longbed' | 'carrier' | 'tractor' | 'jeep' | 'convertible' | 'bus' | 'loader' | 'niva' | 'bukhanka' | 'lincoln' | 'semi' | 'sorokonoga';
 };
 
 export const CHASSIS_PRICE_MODIFIERS = { perDeckCell: 2000, perArmorCell: 1000, perTopSpeed: 2666.67 };
@@ -116,19 +117,19 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     mass: 230,
     handlingMass: 900,
     radius: 0.5,
-    layout: [' FFFF ', 'LXEEXR', 'LXEEXR', 'LDDXXR', 'LDDXXR', 'LXXXXR', 'LXXXXR', ' BBBB '],
+    layout: [' FFFFF ', 'LXEE.XR', 'LXEE.XR', 'LDDXX.R', 'LDDXX.R', 'LXXX.XR', 'LXXX.XR', ' BBBBB '],
     core: [
       { defId: 'cab', x: 3, y: 3 },
       { defId: 'transmission', x: 2, y: 5 },
       { defId: 'tank', x: 4, y: 3 },
       { defId: 'wheel', x: 1, y: 1 },
-      { defId: 'wheel', x: 4, y: 1 },
+      { defId: 'wheel', x: 5, y: 1 },
       { defId: 'wheel', x: 1, y: 5 },
-      { defId: 'wheel', x: 4, y: 5 },
+      { defId: 'wheel', x: 5, y: 5 },
     ],
     fuelCap: 30,
     fuelPerTile: 0.2,
-    base: 12000, showsCores: false, tier: 1,
+    base: 10000, showsCores: false, tier: 1,
     look: 'buggy',
   },
   wagon: {
@@ -142,35 +143,35 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     mass: 2130,
     handlingMass: 3700,
     radius: 0.8,
-    layout: [' FFFFFF ', 'LXXXDDXR', 'LXEEDDXR', 'LDEEDDDR', 'LXXXXDXR', 'LXXXXDXR', ' BBBBBB '],
+    layout: [' FFFFFFF ', 'LXDXXXDXR', 'LXDXXXDXR', 'LDEEDDXDR', 'LDEEDDXDR', 'LDDDXXDDR', 'LXDDXXDXR', 'LXDDDDDXR', ' BBBBBBB '],
     core: [
-      { defId: 'cab', x: 2, y: 1, rot: 1 },
-      { defId: 'transmissionHeavy', x: 3, y: 4 },
-      { defId: 'tankHeavy', x: 2, y: 4 },
+      { defId: 'cabPickup', x: 3, y: 1 },
+      { defId: 'transmissionHeavy', x: 4, y: 5 },
+      { defId: 'tankHeavy', x: 6, y: 3 },
       { defId: 'wheelHeavy', x: 1, y: 1 },
-      { defId: 'wheelHeavy', x: 6, y: 1 },
-      { defId: 'wheelHeavy', x: 1, y: 4 },
-      { defId: 'wheelHeavy', x: 6, y: 4 },
+      { defId: 'wheelHeavy', x: 7, y: 1 },
+      { defId: 'wheelHeavy', x: 1, y: 6 },
+      { defId: 'wheelHeavy', x: 7, y: 6 },
     ],
     fuelCap: 60,
     fuelPerTile: 0.4,
-    base: 48333, showsCores: true, tier: 2,
+    base: 12333, showsCores: true, tier: 2,
     look: 'wagon',
   },
   courier: {
     id: 'courier', maxSpeed: 9.75, accel: 3, brake: 3, turnSlow: 125, turnFast: 42, reverseTurn: 80,
     mass: 280, handlingMass: 1100, radius: 0.5,
-    layout: [' FFFF ', 'LXXXXR', 'LXXXXR', 'LDEEXR', 'LDEEXR', 'LDXXDR', 'LXDDXR', 'LXDDXR', ' BBBB '],
+    layout: [' FFFFF ', 'LX.XXXR', 'LX.XXXR', 'LDEE.XR', 'LDEE.XR', 'LDXX.DR', 'LXDD.XR', 'LXDD.XR', ' BBBBB '],
     core: [
       { defId: 'cab', x: 2, y: 5, rot: 1 },
-      { defId: 'transmission', x: 2, y: 1 },
-      { defId: 'tank', x: 4, y: 3 },
+      { defId: 'transmission', x: 3, y: 1 },
+      { defId: 'tank', x: 5, y: 3 },
       { defId: 'wheel', x: 1, y: 1 },
-      { defId: 'wheel', x: 4, y: 1 },
+      { defId: 'wheel', x: 5, y: 1 },
       { defId: 'wheel', x: 1, y: 6 },
-      { defId: 'wheel', x: 4, y: 6 },
+      { defId: 'wheel', x: 5, y: 6 },
     ],
-    fuelCap: 24, fuelPerTile: 0.18, base: 13333, showsCores: true, tier: 1, look: 'courier',
+    fuelCap: 24, fuelPerTile: 0.18, base: 11333, showsCores: true, tier: 1, look: 'courier',
   },
   van: {
     id: 'van', maxSpeed: 6.5, accel: 1.5, brake: 3, turnSlow: 100, turnFast: 35, reverseTurn: 65,
@@ -205,17 +206,17 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   carrier: {
     id: 'carrier', maxSpeed: 5.2, accel: 1, brake: 2.5, turnSlow: 75, turnFast: 28, reverseTurn: 50,
     mass: 3200, handlingMass: 5200, radius: 0.85,
-    layout: [' FFFFFF ', 'LXDXXDXR', 'LXDXXDXR', 'LDEEXXDR', 'LDEEXXDR', 'LDDDXXDR', 'LXDDXXXR', 'LXDDDDXR', ' BBBBBB '],
+    layout: [' FFFFFFF ', 'LXDXXD.XR', 'LXDXXD.XR', 'LDEEXX.DR', 'LDEEXX.DR', 'LDDDXX.DR', 'LXDDXX.XR', 'LXDDDD.XR', ' BBBBBBB '],
     core: [
       { defId: 'cabPickup', x: 4, y: 3, rot: 1 },
       { defId: 'transmissionHeavy', x: 3, y: 1 },
       { defId: 'tankHeavy', x: 4, y: 6, rot: 1 },
       { defId: 'wheelHeavy', x: 1, y: 1 },
-      { defId: 'wheelHeavy', x: 6, y: 1 },
+      { defId: 'wheelHeavy', x: 7, y: 1 },
       { defId: 'wheelHeavy', x: 1, y: 6 },
-      { defId: 'wheelHeavy', x: 6, y: 6 },
+      { defId: 'wheelHeavy', x: 7, y: 6 },
     ],
-    fuelCap: 70, fuelPerTile: 0.5, base: 86667, showsCores: false, tier: 3, look: 'carrier',
+    fuelCap: 70, fuelPerTile: 0.5, base: 84667, showsCores: false, tier: 3, look: 'carrier',
   },
   tractor: {
     id: 'tractor', maxSpeed: 3.9, accel: 1.8, brake: 2, turnSlow: 65, turnFast: 22, reverseTurn: 55,
@@ -235,17 +236,17 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   jeep: {
     id: 'jeep', maxSpeed: 8.2, accel: 2.5, brake: 3, turnSlow: 115, turnFast: 42, reverseTurn: 80,
     mass: 450, handlingMass: 1400, radius: 0.55,
-    layout: [' FFFF ', 'LXXXXR', 'LXXXXR', 'LDXDDR', 'LDXDDR', 'LXEEXR', 'LXEEXR', 'LDXXDR', ' BBBB '],
+    layout: [' FFFFF ', 'LX.XXXR', 'LX.XXXR', 'LD.XDDR', 'LD.XDDR', 'LX.EEXR', 'LX.EEXR', 'LD.XXDR', ' BBBBB '],
     core: [
-      { defId: 'cab', x: 2, y: 3 },
-      { defId: 'transmission', x: 2, y: 1 },
-      { defId: 'tank', x: 2, y: 7, rot: 1 },
+      { defId: 'cab', x: 3, y: 3 },
+      { defId: 'transmission', x: 3, y: 1 },
+      { defId: 'tank', x: 3, y: 7, rot: 1 },
       { defId: 'wheel', x: 1, y: 1 },
-      { defId: 'wheel', x: 4, y: 1 },
+      { defId: 'wheel', x: 5, y: 1 },
       { defId: 'wheel', x: 1, y: 5 },
-      { defId: 'wheel', x: 4, y: 5 },
+      { defId: 'wheel', x: 5, y: 5 },
     ],
-    fuelCap: 35, fuelPerTile: 0.2, base: 13000, showsCores: false, tier: 1, look: 'jeep',
+    fuelCap: 35, fuelPerTile: 0.2, base: 11000, showsCores: false, tier: 1, look: 'jeep',
   },
   convertible: {
     id: 'convertible', maxSpeed: 9.4, accel: 2.5, brake: 3, turnSlow: 110, turnFast: 40, reverseTurn: 70,
@@ -265,17 +266,17 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   bus: {
     id: 'bus', maxSpeed: 5.5, accel: 0.9, brake: 2, turnSlow: 65, turnFast: 22, reverseTurn: 40,
     mass: 3000, handlingMass: 6800, radius: 0.9,
-    layout: [' FFFFFF ', 'LXXXXDXR', 'LXXXXDXR', 'LDDDDDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDXXXDR', 'LDDXXXDR', 'LDDEEDDR', 'LXDEEDXR', 'LXDDDDXR', ' BBBBBB '],
+    layout: [' FFFFFFF ', 'LXXXXD.XR', 'LXXXXD.XR', 'LDDDDD.DR', 'LDDDDD.DR', 'LDDDDD.DR', 'LDDXXXXDR', 'LDDXX..DR', 'LDDEED.DR', 'LXDEED.XR', 'LXDDDD.XR', ' BBBBBBB '],
     core: [
       { defId: 'cabPickup', x: 2, y: 1 },
       { defId: 'transmissionMid', x: 3, y: 6 },
-      { defId: 'tankMid', x: 5, y: 6 },
+      { defId: 'tankMid', x: 5, y: 6, rot: 1 },
       { defId: 'wheelMid', x: 1, y: 1 },
-      { defId: 'wheelMid', x: 6, y: 1 },
+      { defId: 'wheelMid', x: 7, y: 1 },
       { defId: 'wheelMid', x: 1, y: 9 },
-      { defId: 'wheelMid', x: 6, y: 9 },
+      { defId: 'wheelMid', x: 7, y: 9 },
     ],
-    fuelCap: 110, fuelPerTile: 0.45, base: 8000, showsCores: false, tier: 2, look: 'bus',
+    fuelCap: 110, fuelPerTile: 0.45, base: 6000, showsCores: false, tier: 2, look: 'bus',
   },
   loader: {
     id: 'loader', maxSpeed: 3.6, accel: 1.6, brake: 2.5, turnSlow: 85, turnFast: 30, reverseTurn: 60,
@@ -295,17 +296,17 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   niva: {
     id: 'niva', maxSpeed: 7.6, accel: 2.2, brake: 3, turnSlow: 115, turnFast: 40, reverseTurn: 80,
     mass: 520, handlingMass: 1700, radius: 0.55,
-    layout: [' FFFF ', 'LXEEXR', 'LXEEXR', 'LDXDDR', 'LDXDDR', 'LDXDDR', 'LDXDDR', 'LXXXXR', 'LXXXXR', ' BBBB '],
+    layout: [' FFFFF ', 'LX.EEXR', 'LX.EEXR', 'LD.XDDR', 'LD.XDDR', 'LDX.DDR', 'LDX.DDR', 'LX.XXXR', 'LX.XXXR', ' BBBBB '],
     core: [
-      { defId: 'cab', x: 2, y: 3 },
-      { defId: 'transmissionMid', x: 2, y: 7 },
+      { defId: 'cab', x: 3, y: 3 },
+      { defId: 'transmissionMid', x: 3, y: 7 },
       { defId: 'tank', x: 2, y: 5 },
       { defId: 'wheelMid', x: 1, y: 1 },
-      { defId: 'wheelMid', x: 4, y: 1 },
+      { defId: 'wheelMid', x: 5, y: 1 },
       { defId: 'wheelMid', x: 1, y: 7 },
-      { defId: 'wheelMid', x: 4, y: 7 },
+      { defId: 'wheelMid', x: 5, y: 7 },
     ],
-    fuelCap: 42, fuelPerTile: 0.21, base: 36667, showsCores: false, tier: 2, look: 'niva',
+    fuelCap: 42, fuelPerTile: 0.21, base: 34667, showsCores: false, tier: 2, look: 'niva',
   },
   bukhanka: {
     id: 'bukhanka', maxSpeed: 6.0, accel: 1.4, brake: 2.5, turnSlow: 95, turnFast: 30, reverseTurn: 60,
@@ -380,7 +381,39 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 26 },
       { defId: 'wheelMid', x: 7, y: 26 },
     ],
-    fuelCap: 160, fuelPerTile: 0.5, base: 56000, showsCores: false, tier: 3, look: 'semi',
+    fuelCap: 160, fuelPerTile: 0.5, base: 56000, showsCores: false, tier: 3, coupling: { row: 11 }, look: 'semi',
+  },
+  sorokonoga: {
+    id: 'sorokonoga', maxSpeed: 3.4, accel: 0.7, brake: 1.6, turnSlow: 75, turnFast: 24, reverseTurn: 25,
+    mass: 4100, handlingMass: 8400, radius: 1.0,
+    layout: [
+      ' FFFFFFF ',
+      'LX.....XR',
+      'LX.XXX.XR',
+      'L..XXX..R',
+      'L.EEXXX.R',
+      'L.EEXXX.R',
+      'L.......R',
+      'LDDDDDDDR',
+      'LDDDDDDDR',
+      'LDDDDDDDR',
+      'L.......R',
+      'L.......R',
+      'LDDDDDDDR',
+      'LX.DDD.XR',
+      'LX.DDD.XR',
+      ' BBBBBBB ',
+    ],
+    core: [
+      { defId: 'cabPickup', x: 3, y: 2 },
+      { defId: 'transmissionHeavy', x: 4, y: 4 },
+      { defId: 'tankHeavy', x: 6, y: 4 },
+      { defId: 'wheelHeavy', x: 1, y: 1 },
+      { defId: 'wheelHeavy', x: 7, y: 1 },
+      { defId: 'wheelHeavy', x: 1, y: 13 },
+      { defId: 'wheelHeavy', x: 7, y: 13 },
+    ],
+    fuelCap: 140, fuelPerTile: 0.55, base: 57500, showsCores: false, tier: 3, coupling: { row: 7 }, look: 'sorokonoga',
   },
 };
 
@@ -388,10 +421,10 @@ export const CHASSIS: Record<string, ChassisDef> = Object.fromEntries(
   Object.entries(CHASSIS_INPUTS).map(([id, def]) => [id, finishChassis(def)]),
 );
 
-export const PLAYER_CHASSIS = ['scout', 'hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'];
+export const PLAYER_CHASSIS = ['scout', 'hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon', 'sorokonoga'];
 
 export const TOWN_CHASSIS: Record<string, readonly string[]> = {
-  bowl: ['scout', 'buggy', 'courier', 'van', 'hauler', 'bus', 'convertible', 'longbed', 'tractor', 'loader'],
+  bowl: ['scout', 'buggy', 'courier', 'van', 'hauler', 'bus', 'convertible', 'longbed', 'tractor', 'loader', 'sorokonoga'],
   nose: ['scout', 'buggy', 'courier', 'jeep', 'niva', 'bukhanka', 'wagon', 'carrier', 'lincoln'],
 };
 
@@ -401,4 +434,64 @@ export function chassisDef(id: string): ChassisDef {
   const def = CHASSIS[id];
   if (!def) throw new Error(`Unknown chassis ${id}`);
   return def;
+}
+
+export type Paint = { top: number; side: number; cab: number; cabSide: number };
+
+export const PALETTE_IDS = ['tan', 'olive', 'sand', 'chalk', 'umber', 'oxblood', 'bottle', 'slate', 'petrol'] as const;
+
+export type PaletteId = (typeof PALETTE_IDS)[number];
+
+export const PALETTE: Record<PaletteId, number> = {
+  tan: 0x9c7a3e,
+  olive: 0x7e8a5a,
+  sand: 0xc8a46c,
+  chalk: 0xf0ece2,
+  umber: 0x6a4430,
+  oxblood: 0x5a2026,
+  bottle: 0x2c4636,
+  slate: 0x4a5060,
+  petrol: 0x1e5258,
+};
+
+export type TruckPaint = { body: PaletteId; cab: PaletteId; gear: PaletteId };
+
+export const PAINT_SLOTS = ['body', 'cab', 'gear'] as const satisfies readonly (keyof TruckPaint)[];
+
+export const PAINT = {
+  share: 0.05,
+  standard: { body: 'tan', cab: 'olive', gear: 'tan' } as const satisfies TruckPaint,
+  minApart: 15,
+  minBetween: 15,
+  earthHue: [15, 120] as const,
+  earthChroma: 40,
+  coolChroma: 20,
+  paleLight: 60,
+  paleMinHue: 60,
+  minLight: 20,
+  maxLight: 95,
+  schemeContrast: 20,
+};
+
+export const PAINT_SCHEMES: readonly TruckPaint[] = [
+  PAINT.standard,
+  { body: 'sand', cab: 'umber', gear: 'umber' },
+  { body: 'bottle', cab: 'sand', gear: 'bottle' },
+  { body: 'slate', cab: 'chalk', gear: 'slate' },
+  { body: 'oxblood', cab: 'sand', gear: 'umber' },
+  { body: 'petrol', cab: 'chalk', gear: 'petrol' },
+];
+
+export function isPaletteId(id: unknown): id is PaletteId {
+  return typeof id === 'string' && (PALETTE_IDS as readonly string[]).includes(id);
+}
+
+export function isTruckPaint(x: unknown): x is TruckPaint {
+  if (typeof x !== 'object' || x === null) return false;
+  const paint = x as Record<string, unknown>;
+  return PAINT_SLOTS.every((slot) => isPaletteId(paint[slot]));
+}
+
+export function samePaint(a: TruckPaint, b: TruckPaint): boolean {
+  return PAINT_SLOTS.every((slot) => a[slot] === b[slot]);
 }

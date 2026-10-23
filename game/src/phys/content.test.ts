@@ -3,8 +3,10 @@ import { CHASSIS } from '../data/chassis';
 import { makeVehicle } from '../sim/factory';
 import { emptyWorld } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
-import { buildDrive, freeDrive, initPhysics, simulateTurn } from './drive';
+import { endTurn } from '../sim/world';
+import { buildDrive, freeDrive, initPhysics, simulateTurn, type TurnResult } from './drive';
 import type { VehicleFrame } from './frames';
+import { physicsMove } from './turn';
 
 const UPRIGHT = Math.cos(Math.PI / 6);
 
@@ -46,6 +48,29 @@ it.each(Object.keys(CHASSIS))('%s drives upright with repeatable physics', (chas
       freeDrive(a.next);
       freeDrive(b.next);
     }
+  } finally {
+    freeDrive(drive);
+  }
+});
+
+it('loader stays upright turning at full lock from top speed', () => {
+  const solo = soloWorld('loader');
+  let world = solo.world;
+  let drive = buildDrive(world);
+  const turn = (): TurnResult => {
+    const results: TurnResult[] = [];
+    world = endTurn(world, physicsMove(drive, (r) => results.push(r)));
+    freeDrive(drive);
+    drive = results[0].next;
+    return results[0];
+  };
+  const loader = () => world.vehicles.find((v) => v.id === solo.vehicle.id)!;
+  loader().order = { kind: 'through', dest: { x: 200, y: 30 } };
+  try {
+    for (let i = 0; i < 3; i++) turn();
+    expect(loader().speed).toBeGreaterThan(2);
+    loader().order = { kind: 'through', dest: { x: loader().pos.x + 2, y: loader().pos.y + 12 } };
+    for (let i = 0; i < 2; i++) for (const frame of turn().frames[solo.vehicle.id]) expectUpright(frame);
   } finally {
     freeDrive(drive);
   }

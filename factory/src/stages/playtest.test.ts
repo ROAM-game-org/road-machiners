@@ -10,7 +10,7 @@ import { SUITE_BRANCH, auditDir, playtest } from './playtest';
 import { SUITE_DOWN_MARK } from './remote-suite';
 import { logText } from './playtest-fixtures';
 import type { Finding, Review } from './playtest-review';
-import { ROOT, fake, reset, type Fake } from './test-fakes';
+import { ROOT, fake, issueMerge, reset, type Fake } from './test-fakes';
 
 vi.mock('node:os', async (original) => ({ ...(await original<typeof Os>()), availableParallelism: () => 8 }));
 
@@ -49,6 +49,7 @@ function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
     f, shells: [], prompts: [], sessions: [], releaseHead: start, cloneHead: start, turns: [], checkFailures: 0, dirty: '', pushFails: false, mainMerged: true, passedAncestor: true,
     changed: ['game/src/sim/raid.ts'], suites: [], failingSuites: [], replaced: [],
   };
+  f.ctx.github.comments = async () => [];
   f.ctx.github.dispatchSuite = async (sha: string) => run.suites.push(sha);
   f.ctx.github.suiteRun = async (id: number) => {
     const failed = run.failingSuites.includes(run.suites[id - 1]!);
@@ -132,6 +133,15 @@ describe('playtest', () => {
     expect(release(run.f).playtest).toMatchObject({ runs: 1, passed: 'abc1234', blocked: null });
     expect(comments(run.f)).toEqual([expect.stringContaining('Release playtest: clean after 1 plays. Seed 20261007, 100 turns, from commit abc1234 to abc1234.\nThe candidate builds from abc1234.')]);
     expect(comments(run.f)[0]).toContain('All good.');
+  });
+
+  it('writes the features of the release with their issue text for the agent', async () => {
+    const run = setup({ merges: [issueMerge(5, 'Salvage chain'), issueMerge(6, 'Hauler chassis')] });
+    run.turns = [{ review: review() }];
+    await playtest(run.f.ctx, 11);
+    const text = readFileSync(join(HOME, 'release-features.md'), 'utf8');
+    expect(text).toContain('#5 Salvage chain');
+    expect(text).toContain('#6 Hauler chassis');
   });
 
   it('runs the full suite of the release head on GitHub Actions and none on the laptop', async () => {

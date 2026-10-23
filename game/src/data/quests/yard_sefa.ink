@@ -42,6 +42,16 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_water = true
   ~ heard_kiln = true
   -> hub
++ [What does the Yard turn out?]
+  Scrap and parts. The crews cut down the stacks under the crane, two crates of scrap for every crate of parts worth keeping.
+  The cutting eats tools. The tools come from Nose, and Nose wants our scrap to make them. That's all we are, a circle with a crane in it.
+  { works_down():
+    The crane's down. Nothing comes off the stacks until it swings again, and the crews sit on my beans.
+  }
+  { short_of("tools"):
+    The crews are out of tools. They cut with what's left, which is slow, and my mother says loud.
+  }
+  -> hub
 + [Who runs this yard?]
   The repair crews, since they stopped answering to Pierce. The Administrator keeps them in line. Nose put an Army post inside the gate afterward. We keep to the north side of the yard, where soldiers don't like the wind.
   ~ heard_post = true
@@ -74,6 +84,13 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
 + {heard_rider and not asked_rider} [Has a rider ever come to you with nothing?]
   Once. His brother died in the road. He ate our beans for a long time and said little, and then he went south. I won't say his name. It would be rude to the beans.
   ~ asked_rider = true
+  -> hub
++ [Do the families find much on the crater road?]
+  { cult_broken():
+    Wreck metal and beans, same as anywhere, and no more furrows. The lamps stopped going out to the crater. Who stopped them? Somebody who'll never get thanked for it. That is all we are, people who sleep at night again.
+  - else:
+    Furrows. Two wheel lines in the dust and a third between them where something was pulled, all going toward the crater and none coming back. A truck goes off that road at night and the families find the marks in the morning. Who drags off a whole truck instead of stripping it where it stands? Somebody who wants all of it. Keep off that road after dark.
+  }
   -> hub
 + {heard_post and not asked_post} [What do you make of the Army post?]
   I don't trust it. The soldier at the gate writes down who comes and goes through the gate, and she writes it twice. A soldier who writes twice is afraid of something.

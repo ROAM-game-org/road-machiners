@@ -291,6 +291,7 @@ No jokes that need knowledge from outside the basin. No jokes about the game its
 - Terse is a voice, not a license to be cryptic. A short-spoken Nose sergeant still says complete things a stranger understands.
 - Do not chain clauses with "and" and "which" to fit in explanation. Split the run-on and cut what the answer does not need.
 - Keep a reply under about forty words. A longer answer splits into two lines, each with one idea.
+- No semicolons in any quest text, in English or Russian. Say it as two sentences. English quest text also holds no em dash, en dash or spaced hyphen used as a dash, and none of the stock phrases of `src/test/prose-tells.ts`, like "a testament to" or "a sense of". Russian keeps «—». The voice test fails on any of them.
 - Never bold speech. A person stresses a word through how the sentence is built.
 - Stay in character. People never talk about game systems: turns, quests, XP, levels, HP, the map or the player. The words keep their everyday meaning, so "the road turns" and "water level" are fine. Ordinary numbers are fine too, like "two soldiers". The voice test in `src/test/out-of-character.ts` checks the game phrases.
 

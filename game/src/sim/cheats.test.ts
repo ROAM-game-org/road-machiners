@@ -17,11 +17,12 @@ import {
 import { playerVehicle } from './damage';
 import { maxHealthOf } from './health';
 import { corePart, goodsCount, gridOf, mountedParts } from './grid';
-import { installSpot, removeAllGoods, spareParts, stowSpot } from './inventory';
+import { installSpot, removeAllGoods, spareParts, stowPart, stowSpot } from './inventory';
+import { makePart } from './factory';
 import { clockOf } from './sun';
 import { maxHp } from './wear';
 import { addState, stateOf } from './states';
-import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, startCombat, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, sizedUp, startCombat, testDrive } from './testkit';
 import type { World } from './types';
 import { dist } from './vec';
 import { stormStrength } from './weather';
@@ -89,15 +90,15 @@ describe('resource cheats', () => {
   });
 
   it('grants a perk below its skill rank', () => {
-    const w = grantPerk(emptyWorld(), 'bountyTalk');
-    expect(w.player.perks).toEqual(['bountyTalk']);
+    const w = grantPerk(emptyWorld(), 'bountyHunter');
+    expect(w.player.perks).toEqual(['bountyHunter']);
   });
 
   it('refuses an unknown perk and a second perk from one pair', () => {
     expect(() => grantPerk(emptyWorld(), 'flying')).toThrow(CheatError);
-    const w = grantPerk(emptyWorld(), 'bountyTalk');
+    const w = grantPerk(emptyWorld(), 'bountyHunter');
     expect(() => grantPerk(w, 'paidTruce')).toThrow(CheatError);
-    expect(() => grantPerk(w, 'bountyTalk')).toThrow(CheatError);
+    expect(() => grantPerk(w, 'bountyHunter')).toThrow(CheatError);
   });
 });
 
@@ -136,6 +137,14 @@ describe('part cheats', () => {
     const me = playerVehicle(w);
     expect(spareParts(me).map((p) => p.defId)).toContain('plates');
     expect(goodsCount(me).salt).toBe(2);
+  });
+
+  it('gives a part onto free mount cells once the plain cells are full', () => {
+    const w = emptyWorld();
+    const me = playerVehicle(w);
+    while (stowPart(w, me, makePart(w, 'cage', 0)));
+    const cages = (v: typeof me) => v.items.filter((it) => it.kind === 'part' && it.part.defId === 'cage').length;
+    expect(cages(playerVehicle(give(w, 'cage', 1)))).toBe(cages(me) + 1);
   });
 
   it('rejects a give without room and keeps the world unchanged', () => {
@@ -221,7 +230,8 @@ describe('frozen NPCs', () => {
     forceOption('mugging', 'demand');
     const called = (frozen: boolean): boolean => {
       const start = frozen ? toggleFrozen(emptyWorld()) : emptyWorld();
-      const { w } = withSpawned(start, 'gunwagon', true);
+      const { w, id } = withSpawned(start, 'gunwagon', true);
+      sizedUp(w, w.vehicles.find((v) => v.id === id)!, w.vehicles.find((v) => v.id === w.player.vehicleId)!);
       w.rngState = rngStateForForcedRolls(1);
       return endTurn(w, testDrive).player.call !== null;
     };
@@ -275,7 +285,7 @@ describe('instantMoveItem', () => {
 describe('noclipMove', () => {
   it('puts the truck on an obstacle, stops it and refreshes vision', () => {
     const w = emptyWorld();
-    w.obstacles.push({ id: 'rock-x', pos: { x: 80, y: 90 }, r: 2, kind: 'rock' });
+    w.obstacles = [...w.obstacles, { id: 'rock-x', pos: { x: 80, y: 90 }, r: 2, kind: 'rock' }];
     const me = playerVehicle(w);
     me.speed = 3;
     me.order = { kind: 'through', dest: { x: 50, y: 50 } };
@@ -310,7 +320,7 @@ describe('teleport', () => {
   it('finds the nearest free spot next to an obstacle', () => {
     const w = emptyWorld();
     const rock = { x: 300, y: 300 };
-    w.obstacles.push({ id: 'rock-x', pos: rock, r: 2, kind: 'rock' });
+    w.obstacles = [...w.obstacles, { id: 'rock-x', pos: rock, r: 2, kind: 'rock' }];
     const moved = playerVehicle(teleport(w, rock));
     const d = dist(moved.pos, rock);
     expect(d).toBeGreaterThan(2);

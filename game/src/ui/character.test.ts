@@ -151,7 +151,7 @@ describe("inventory header money", () => {
     world.player.standing.bowl = -30;
     const rows = openCharacter(world).all((n) => n.className.split(" ").includes("standing-row"));
     const cell = (r: FakeNode, i: number): FakeNode => r.children[i] as FakeNode;
-    expect(rows.map((r) => cell(r, 0).text())).toEqual(["Bowl", "Nose", "Guidestar Guild", "Scrapjaw", "Kiln"]);
+    expect(rows.map((r) => cell(r, 0).text())).toEqual(["Bowl", "Nose", "Guidestar Guild", "Scrapjaw", "Kiln", "Sunward", "Marshalls"]);
     const score = cell(rows[0], 1);
     expect(score.className).toContain("standing-score");
     expect(score.text()).toContain("−30");

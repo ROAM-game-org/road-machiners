@@ -44,6 +44,14 @@ describe('sweepWork', () => {
     expect([has(root, 'issue-5/node_modules'), has(root, 'check-issue-5/node_modules'), has(root, 'issue-7/node_modules'), has(root, 'release-candidate/node_modules')]).toEqual([true, true, true, true]);
   });
 
+  it('keeps the clone of a held card with its packages, since Hermes works in it', () => {
+    const root = work('issue-8');
+    const hold = { by: 'hermes', reason: 'fix the text', at: '2026-10-21T16:05:00.000Z', stage: null };
+    const swept = sweepWork(root, `${root}-locks`, state({ held: { 8: hold } }), [card(8, 'Merging')]);
+    expect(swept).toEqual({ removed: [], stripped: [], unknown: [] });
+    expect(has(root, 'issue-8/game/node_modules')).toBe(true);
+  });
+
   it('keeps queued incidents and the candidate of an open release, and removes clones of the retired change job', () => {
     const root = work('change-12', 'incident-6', 'release-candidate');
     const release = { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };

@@ -20,8 +20,11 @@ OPUS_KBPS = 96
 SAMPLE_RATE = 48000
 
 
-def beat_grid(path, bpm):
+def beat_grid(path, bpm, first_beat=None):
     y, sr = librosa.load(path, sr=22050, mono=True)
+    if first_beat is not None:
+        print(f"grid pinned by the map at {bpm} BPM, first beat {first_beat:.3f} s")
+        return first_beat, 60 / bpm, len(y) / sr
     _, frames = librosa.beat.beat_track(y=y, sr=sr, start_bpm=bpm, units="frames")
     beats = librosa.frames_to_time(frames, sr=sr)
     index = np.round((beats - beats[0]) * bpm / 60)
@@ -35,7 +38,7 @@ def beat_grid(path, bpm):
 
 
 def bar_times(song_path, bars):
-    first, beat, length = beat_grid(song_path, bars["bpm"])
+    first, beat, length = beat_grid(song_path, bars["bpm"], bars.get("firstBeat"))
     start = first - round(first / beat) * beat
     if start - beat * BEATS_PER_BAR >= -beat / 2:
         start -= beat * BEATS_PER_BAR
@@ -95,12 +98,6 @@ def check_hits(song_path, bars, plan):
         check_silence(s, [loud(bars[s["from"] - 1] + k * beat) for k in range(s["bars"] * BEATS_PER_BAR)], level)
 
 
-def guitar_wall(plan):
-    bar = plan["guitarWall"]
-    if not any(s["role"] == "wall" and s["from"] == bar and s["bars"] >= PHRASE_BARS for s in plan["sections"]):
-        raise ValueError(f"guitarWall {bar} must start a wall of at least {PHRASE_BARS} bars")
-    return bar
-
 
 def bar_entries(song_path, bars):
     y, sr = librosa.load(song_path, sr=22050, mono=True)
@@ -143,7 +140,7 @@ def map_song(name, plan, song_path, stems_dir, sfx_dir):
     for s in plan["sections"]:
         print(f"{s['role']} {s['from']}: sound enters {entries[s['from'] - 1]:.2f} s after the bar line")
     print(f"wrote {name} with {len(plan['sections'])} sections, guitar lane from {plan['guitarStem']}")
-    return {"title": plan["title"], "file": files["song"].name, "guitars": files["guitars"].name, "cymbals": cymbal, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": power, "barEntry": entries, "guitarWall": guitar_wall(plan), "sections": plan["sections"], "end": plan["end"]}
+    return {"title": plan["title"], "file": files["song"].name, "guitars": files["guitars"].name, "cymbals": cymbal, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": power, "barEntry": entries, "sections": plan["sections"], "end": plan["end"]}
 
 
 def split_once(source, work):

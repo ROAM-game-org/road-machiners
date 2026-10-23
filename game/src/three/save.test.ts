@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { startKit } from '../data/start';
 import { newWorld, update } from '../sim/world';
 import { playerVehicle } from '../sim/damage';
-import { mountedParts } from '../sim/grid';
+import { gridOf, mountedParts, placementError } from '../sim/grid';
 import { inOverdrive } from '../sim/stats';
 import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
 import { noteAttack } from '../sim/combat';
@@ -11,7 +11,8 @@ import { addState } from '../sim/states';
 import { canStowPart, moveItem, storePart, stowPart, stowSpot, takeFromStorage } from '../sim/inventory';
 import { buyStockPart } from '../sim/economy';
 import { buyChart } from '../sim/charts';
-import { makePart } from '../sim/factory';
+import { bareVehicle, makePart } from '../sim/factory';
+import { PARTS } from '../data/parts';
 import type { Faction, GridItem, World } from '../sim/types';
 import { advanceContracts, siteOf, type Contract } from '../sim/market';
 import { advanceJobs } from '../sim/jobs';
@@ -22,12 +23,14 @@ import { goodsCount } from '../sim/grid';
 import { dropHaul, looseCargo, lootableProps } from '../sim/salvage';
 import { wreckVehicle } from '../sim/combat';
 import { itemMass, vehicleMass } from '../sim/mass';
-import { clearGame, clearSlot, hasSave, loadSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave } from './save';
+import { clearGame, clearSlot, hasSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave, SAVE_FORMAT } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
 import { TEST_MAP } from '../test/map';
+import { hollowBays, hollowObstacles, membersOf } from '../sim/sunward';
+import { fillHollow } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { breakProp, oldSpotOf, oldSpotPicks, oldStockId } from '../sim/salvage';
@@ -35,7 +38,7 @@ import { sunAt } from '../sim/sun';
 import { playerSees, practiceContacts, refreshVision } from '../sim/vision';
 import { surveySites } from '../sim/survey';
 import { TIME } from '../data/time';
-import { MIGRATIONS, SAVE_FORMAT, SAVE_MAJOR } from './save-migrations';
+import { SAVE_MAJOR } from './save-migrations';
 import SAVED_SHAPE from './save-shape.json';
 import { allSlots, type SlotId } from './save-slots';
 import { lostQuestNames, newGameShape, questLinks, questNames } from '../test/save-shape';
@@ -55,6 +58,12 @@ const RUN = 'run-1';
 
 function makeSlots(): SaveSlots {
   return new SaveSlots(memoryBackend(), new Map());
+}
+
+function putOnMap(slots: SaveSlots, world: World, mapHash: string): void {
+  const save = JSON.parse(JSON.stringify(saveOf(world))) as { world: { mapHash: string } };
+  save.world.mapHash = mapHash;
+  slots.put('auto', { ...save, savedAt: 1000, runId: RUN });
 }
 
 function makeStorage(): Storage {
@@ -156,6 +165,20 @@ describe('game save', () => {
     expect(loaded.events).toEqual([]);
   });
 
+  it('keeps the paint job through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    world.player.paint = { body: 'petrol', cab: 'slate', gear: 'chalk' };
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.player.paint).toEqual({ body: 'petrol', cab: 'slate', gear: 'chalk' });
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.player.xp).toBe(world.player.xp);
+    expect(loaded.events).toEqual([]);
+  });
+
   it('keeps a duty leg in flight through a reload, and load pays nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld();
@@ -172,6 +195,30 @@ describe('game save', () => {
     expect(back.resources).toEqual(lawman.resources);
     expect(loaded.player.money).toBe(world.player.money);
     expect(loaded.events.filter((e) => ['shopMoney', 'transfer', 'guardPaid', 'money'].includes(e.t))).toEqual([]);
+  });
+
+  it('keeps shop stocks, a site event, a shortage, an opened crate and road news through a reload, and load moves no stock', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    world.turn = 905;
+    world.shops.granary.goods.grain = 0;
+    world.shops.granary.shortSince = { grain: 700 };
+    world.shops['pump-station'].event = { kind: 'breakdown', recipe: 'pump', until: 1400 };
+    world.shops.bowl.opened = { fuel: 4 };
+    world.roadNews = [{ turn: 880, kind: 'robbed', good: 'grain', units: 12, from: 'bowl', to: 'granary' }];
+    const convoy = addVehicle(world, 'bowl', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    convoy.brain = npcBrain('convoy', convoy.pos, ['supplier']);
+    convoy.brain.goals = [{ kind: 'sell', targetId: 'granary', destination: { x: 60, y: 60 }, phase: 'travel', reason: 'deliverCargo', shipment: { good: 'grain', from: 'bowl', to: 'granary' } }];
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.shops).toEqual(world.shops);
+    expect(loaded.roadNews).toEqual(world.roadNews);
+    expect(loaded.vehicles.find((v) => v.id === convoy.id)!.brain!.goals).toEqual(convoy.brain.goals);
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.player.xp).toBe(world.player.xp);
+    expect(loaded.events).toEqual([]);
   });
 
   it('keeps a led investigation with the centre it heard through a reload, and load awards nothing', () => {
@@ -204,6 +251,8 @@ describe('game save', () => {
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
 
     expect(loaded.player.call).toEqual(opened.player.call);
+    const way = loaded.player.call!.vars.way;
+    expect(way.kind === 'directions' && way.steps.find((s) => s.do === 'follow')).toMatchObject({ heading: expect.any(String) });
     const said = (w: World, locale: 'en' | 'ru') => resolve(lineText(w.player.call!.line.line, w.player.call!.line.vars.way ? w.player.call!.line.vars : w.player.call!.vars), locale);
     expect(said(loaded, 'en')).toBe(said(opened, 'en'));
     expect(said(loaded, 'ru')).toBe(said(opened, 'ru'));
@@ -211,6 +260,28 @@ describe('game save', () => {
     expect(loaded.player.xp).toBe(opened.player.xp);
     expect(loaded.player.money).toBe(opened.player.money);
     expect(loaded.events.filter((e) => e.t === 'discover' || e.t === 'money')).toEqual([]);
+  });
+
+  it('keeps an open road lesson and a settled one through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld({ x: 100, y: 450 });
+    const npc = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 106, y: 450 });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    world.player.talked['someone-else'] = { roadLesson: 'done' };
+    refreshVision(world);
+    let opened = callVehicle(world, npc.id);
+    opened = chooseOption(opened, currentOptions(opened).findIndex((o) => o.line === TOPICS.roadLesson.ask!.say));
+    expect(opened.player.call?.line.line).toBe('lessonTold');
+    writeSave(slots, 'auto', opened, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.player.call).toEqual(opened.player.call);
+    expect(loaded.player.talked).toEqual(opened.player.talked);
+    expect(resolve(lineText('lessonTold', loaded.player.call!.vars), 'en')).toBe(resolve(lineText('lessonTold', opened.player.call!.vars), 'en'));
+    expect(loaded.player.xp).toBe(opened.player.xp);
+    expect(loaded.player.money).toBe(opened.player.money);
+    expect(loaded.events).toEqual([]);
   });
 
   it('loads a save with overdrive on and a worn engine as not overdriving, and clears the flag on the next update', () => {
@@ -260,25 +331,18 @@ describe('game save', () => {
     expect(loaded.events.filter((e) => ['money', 'contract', 'escortEnded', 'practice'].includes(e.t))).toEqual([]);
   });
 
-  it('keeps a held bounty across a reload, and a knockout after it fulfils the bounty once', () => {
+  it('keeps the past contracts across a reload, and awards nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld();
-    const raider = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
-    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-    const bounty: Contract = { id: 'ct-b', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 100, deadline: 900, window: 900, tier: 1, fulfilled: false };
-    world.player.contracts = [bounty];
+    const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'nose', reward: 10000, deadline: 500, window: 500, rush: false, tier: 1 };
+    const claim: Contract = { id: 'ct-c', shop: 'nose', kind: 'claim', stockId: 's-1', at: { x: 50, y: 50 }, partId: 'p-1', defId: 'mg', reward: 12000, deadline: 900, window: 600, tier: 1, rivalAt: 700, rival: null, leads: [{ turn: 40, from: { x: 3, y: 4 }, driver: 'd-1' }] };
+    world.player.pastContracts = [{ contract: haul, outcome: 'failed', turn: 501, amount: -1800 }, { contract: claim, outcome: 'done', turn: 640, amount: 12000 }];
     writeSave(slots, 'auto', world, RUN, 1000);
-    const loaded = loadWorld(slots, 'auto', TEST_MAP);
-    if (!loaded) throw new Error('Expected saved bounty');
-    expect(loaded.player.contracts).toEqual([bounty]);
-    const after = update(loaded, (d) => {
-      d.events = [{ t: 'npcKnockout', vehicle: raider.id, by: d.player.vehicleId }];
-      advanceContracts(d);
-    });
-    expect(after.events.filter((e) => e.t === 'contract')).toEqual([{ t: 'contract', contract: { ...bounty, fulfilled: true }, outcome: 'fulfilled' }]);
-    expect(after.player.money).toBe(loaded.player.money);
-    writeSave(slots, 'auto', after, RUN, 1000);
-    expect(loadWorld(slots, 'auto', TEST_MAP)?.player.contracts).toEqual([{ ...bounty, fulfilled: true }]);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.player.pastContracts).toEqual(world.player.pastContracts);
+    expect({ money: loaded.player.money, xp: loaded.player.xp, events: loaded.events }).toEqual({ money: world.player.money, xp: world.player.xp, events: [] });
   });
 
   it('keeps a part-done survey with its found places, a survey job in progress and a survey offer on a board across a reload, and awards nothing', () => {
@@ -444,6 +508,24 @@ describe('game save', () => {
     expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
   });
 
+  it('keeps a longbed fitted on every free cell, each part on its cell, through a reload', () => {
+    const slots = makeSlots();
+    const world = structuredClone(standardWorld());
+    const truck = addVehicle(world, 'scrapjaw', 'longbed', [], { x: 12, y: 12 });
+    const grid = gridOf(truck);
+    for (let y = 0; y < grid.h; y++) {
+      for (let x = 0; x < grid.w; x++) {
+        const fits = Object.keys(PARTS).map((defId): GridItem => ({ id: `fit-${x}-${y}`, x, y, rot: 0, kind: 'part', part: makePart(world, defId, 0) })).find((item) => placementError(grid, truck.items, item, null) === null);
+        if (fits) truck.items.push(fits);
+      }
+    }
+    expect(truck.items.filter((i) => i.id.startsWith('fit-')).length).toBeGreaterThan(20);
+    saveWorld(slots, { ...world, turn: 9 }, RUN, 8, 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(loaded.vehicles.find((v) => v.id === truck.id)!.items).toEqual(truck.items);
+    expect(loaded).toEqual({ ...world, turn: 9 });
+  });
+
   it('returns null when there is no saved game', () => {
     expect(loadWorld(makeSlots(), 'auto', TEST_MAP)).toBeNull();
   });
@@ -454,6 +536,22 @@ describe('game save', () => {
     const expanded = { ...world, futureFeature: { progress: 7 } };
     saveWorld(slots, { ...expanded, turn: 21 }, RUN, 20, 1000);
     expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual({ ...expanded, turn: 21 });
+  });
+
+  it('loads back a player driving the remade tractor unchanged, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = standardWorld();
+    const old = playerVehicle(world);
+    const tractor = bareVehicle(world, { faction: 'player', chassisId: 'tractor', pos: old.pos, heading: old.heading, brain: null });
+    tractor.id = old.id;
+    world.vehicles = world.vehicles.map((v) => (v.id === old.id ? tractor : v));
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(playerVehicle(loaded).chassisId).toBe('tractor');
+    expect(loaded).toEqual(world);
+    expect(loaded.events).toEqual([]);
   });
 
   it('rejects a save that did not parse in local storage as unreadable, without replacing it', () => {
@@ -470,7 +568,7 @@ describe('game save', () => {
     const cases = [
       [{ major: SAVE_MAJOR - 1, minor: 0 }, saved, /incompatible/],
       [{ major: SAVE_MAJOR + 1, minor: 0 }, saved, /incompatible/],
-      [{ major: SAVE_MAJOR, minor: MIGRATIONS.length + 1 }, saved, /newer/],
+      [{ major: SAVE_MAJOR, minor: SAVE_FORMAT.minor + 1 }, saved, /newer/],
       [{ major: SAVE_MAJOR, minor: -1 }, saved, /noFormat/],
       [SAVE_FORMAT, { turn: 21 }, /invalidWorld/],
     ] as const;
@@ -487,7 +585,7 @@ describe('game save', () => {
     const ids = oldSpotPicks(TEST_MAP).map(oldStockId);
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     saved.salvage = saved.salvage.filter((stock: { id: string }) => !oldSpotOf(stock));
-    slots.put('auto', { format: { major: SAVE_MAJOR, minor: MIGRATIONS.length - 1 }, world: saved, savedAt: 1000, runId: RUN });
+    slots.put('auto', { format: { major: SAVE_MAJOR, minor: SAVE_FORMAT.minor - 1 }, world: saved, savedAt: 1000, runId: RUN });
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
     const oldIds = (w: World): string[] => w.salvage.filter((stock) => oldSpotOf(stock)).map((stock) => stock.id);
     expect(oldIds(loaded)).toEqual(ids);
@@ -496,15 +594,14 @@ describe('game save', () => {
     expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(loaded);
   });
 
-  it('refuses a save holding only some old-world loot spots', () => {
+  it('rolls the old-world loot spots a save lacks', () => {
     const slots = makeSlots();
     const world = standardWorld();
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     const first = oldStockId(oldSpotPicks(TEST_MAP)[0]);
     saved.salvage = saved.salvage.filter((stock: { id: string }) => stock.id !== first);
     slots.put('auto', { format: SAVE_FORMAT, world: saved, savedAt: 1000, runId: RUN });
-    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
-    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/partial/);
+    expect(loadWorld(slots, 'auto', TEST_MAP)!.salvage.some((stock) => stock.id === first)).toBe(true);
   });
 
   it('records the saved shape of the current format', () => {
@@ -566,17 +663,16 @@ describe('game save', () => {
     const slots = makeSlots();
     const world = standardWorld();
     const cases = [
-      [{ world: { gone: true }, local: {}, session: null }, { questsReset: [], lost: ['gone'] }],
-      [{ world: {}, local: { retired_quest: { n: 1 } }, session: null }, { questsReset: [], lost: ['retired_quest'] }],
-      [{ world: {}, local: {}, session: { quest: 'bowl_hattie', checkpoint: 'nowhere', seed: 1 } }, { questsReset: ['bowl_hattie'], lost: [] }],
-    ] as const;
-    for (const [quests, repair] of cases) {
+      { world: { gone: true }, local: {}, session: null },
+      { world: {}, local: { retired_quest: { n: 1 } }, session: null },
+      { world: {}, local: {}, session: { quest: 'bowl_hattie', checkpoint: 'nowhere', seed: 1 } },
+    ];
+    for (const quests of cases) {
       const saved = saveOf(world).world as { player: Record<string, unknown> };
       slots.put('auto', { format: SAVE_FORMAT, world: { ...saved, player: { ...saved.player, quests } } });
-      const loaded = loadSave(slots, 'auto', TEST_MAP);
-      expect(loaded?.repair).toEqual({ ...repair, settingsReset: [] });
-      expect(loaded && questProblems(loaded.world.player.quests, QUESTS)).toEqual([]);
-      expect(loaded?.world.player.quests).toEqual({ world: {}, local: {}, session: null, live: null });
+      const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+      expect(questProblems(loaded.player.quests, QUESTS)).toEqual([]);
+      expect(loaded.player.quests).toEqual({ world: {}, local: {}, session: null, live: null });
     }
   });
 
@@ -615,31 +711,27 @@ describe('game save', () => {
 
     it('loads a save with no revisions as revision 1 everywhere, with nothing to repair', () => {
       const mid = hattieMid();
-      const loaded = loadSave(savedAt(mid, undefined), 'auto', TEST_MAP);
-      expect(loaded?.repair).toEqual({ questsReset: [], lost: [], settingsReset: [] });
-      expect(loaded?.world.player.quests.session).toEqual(mid.player.quests.session);
+      const loaded = loadWorld(savedAt(mid, undefined), 'auto', TEST_MAP)!;
+      expect(loaded.player.quests.session).toEqual(mid.player.quests.session);
     });
 
-    it('resets a quest the game raised past the save, reports it and awards nothing', () => {
+    it('resets a quest the game raised past the save and awards nothing', () => {
       const mid = hattieMid();
-      const loaded = loadSave(savedAt(mid, { bowl_hattie: 0 }), 'auto', TEST_MAP)!;
-      expect(loaded.repair.questsReset).toEqual(['bowl_hattie']);
-      expect(loaded.world.player.quests.session).toBeNull();
-      expect(loaded.world.player.quests.local.bowl_hattie).toBeUndefined();
-      expect(loaded.world.player.money).toBe(mid.player.money);
-      expect(loaded.world.player.xp).toBe(mid.player.xp);
-      expect(loaded.world.events).toEqual([]);
-      expect(questProblems(loaded.world.player.quests, QUESTS)).toEqual([]);
+      const loaded = loadWorld(savedAt(mid, { bowl_hattie: 0 }), 'auto', TEST_MAP)!;
+      expect(loaded.player.quests.session).toBeNull();
+      expect(loaded.player.quests.local.bowl_hattie).toBeUndefined();
+      expect(loaded.player.money).toBe(mid.player.money);
+      expect(loaded.player.xp).toBe(mid.player.xp);
+      expect(loaded.events).toEqual([]);
+      expect(questProblems(loaded.player.quests, QUESTS)).toEqual([]);
     });
 
-    it('repeats the same repair on every load until the next save, which then loads clean', () => {
+    it('repeats the same repair on every load until the next save, which then loads the same world', () => {
       const slots = savedAt(hattieMid(), { bowl_hattie: 0 });
-      const first = loadSave(slots, 'auto', TEST_MAP)!;
-      expect(loadSave(slots, 'auto', TEST_MAP)!.repair).toEqual(first.repair);
-      writeSave(slots, 'auto', first.world, RUN, 2);
-      const next = loadSave(slots, 'auto', TEST_MAP)!;
-      expect(next.repair).toEqual({ questsReset: [], lost: [], settingsReset: [] });
-      expect(next.world.player.quests).toEqual(first.world.player.quests);
+      const first = loadWorld(slots, 'auto', TEST_MAP)!;
+      expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(first);
+      writeSave(slots, 'auto', first, RUN, 2);
+      expect(loadWorld(slots, 'auto', TEST_MAP)!.player.quests).toEqual(first.player.quests);
     });
 
     it('rejects a save made by a build with a newer revision of a quest', () => {
@@ -669,7 +761,7 @@ describe('game save', () => {
 
     expect(baked.size).toBeGreaterThan(0);
     expect(saved.filter((o) => baked.has(o.id))).toEqual([]);
-    expect(saved.length).toBe(world.obstacles.length - baked.size);
+    expect(saved.length).toBe(world.obstacles.length - baked.size - hollowObstacles().length);
     expect(loadWorld(slots, 'auto', TEST_MAP)!.obstacles).toEqual(world.obstacles);
   });
 
@@ -768,7 +860,21 @@ describe('game save', () => {
     expect([loaded.player.money, loaded.player.xp, loaded.player.repeats, loaded.events]).toEqual([world.player.money, world.player.xp, world.player.repeats, []]);
   });
 
-  it('rejects a save whose broken props do not match the map', () => {
+  it('keeps the stranded count and anchor of a held truck through a reload, and awards nothing on load', () => {
+    const slots = makeSlots();
+    const world = standardWorld();
+    const held = world.vehicles.find((v) => v.brain)!;
+    held.strandedTurns = 2;
+    held.strandedAt = { x: held.pos.x + 0.25, y: held.pos.y };
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    const back = loaded.vehicles.find((v) => v.id === held.id)!;
+    expect([back.strandedTurns, back.strandedAt]).toEqual([2, held.strandedAt]);
+    expect([loaded.player.money, loaded.player.xp, loaded.player.repeats, loaded.events]).toEqual([world.player.money, world.player.xp, world.player.repeats, []]);
+  });
+
+  it('stands a broken prop up again when the map no longer has it as a breakable prop', () => {
     const slots = makeSlots();
     const world = standardWorld();
     const rock = mapObstacles(TEST_MAP).find((o) => o.kind === 'rock')!;
@@ -776,20 +882,32 @@ describe('game save', () => {
     const stranger = { ...fence, id: 'fence-999999' };
 
     for (const obstacle of [rock, stranger]) {
-      writeSave(slots, 'auto', { ...world, broken: [{ obstacle, turn: 1 }] }, RUN, 1000);
-      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
-      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/broken/);
+      writeSave(slots, 'auto', { ...world, broken: [{ obstacle, turn: 1 }], obstacles: world.obstacles.filter((o) => o.id !== obstacle.id) }, RUN, 1000);
+      const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+      expect(loaded.broken).toEqual([]);
+      expect(loaded.obstacles.filter((o) => o.id === obstacle.id)).toHaveLength(obstacle === rock ? 1 : 0);
     }
   });
 
-  it('rejects a save made on another map', () => {
+  it('repairs a save made on an older bake of the map instead of rejecting it', () => {
     const slots = makeSlots();
     const world = standardWorld();
-    writeSave(slots, 'auto', world, RUN, 1000);
-    const otherMap = { ...TEST_MAP, hash: 'ffffffff' };
-    expect(() => loadWorld(slots, 'auto', otherMap)).toThrow(SaveError);
-    expect(() => loadWorld(slots, 'auto', otherMap)).toThrow(/map/);
-    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(world);
+    const broken = world.obstacles.find(isBreakable)!;
+    putOnMap(slots, { ...world, broken: [{ obstacle: broken, turn: 1 }], obstacles: world.obstacles.filter((o) => o !== broken) }, 'older-bake');
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(loaded.mapHash).toBe(TEST_MAP.hash);
+    expect(loaded.size).toBe(TEST_MAP.terrain.size);
+    expect(loaded.broken).toEqual([]);
+    expect(loaded.obstacles.some((o) => o.id === broken.id)).toBe(true);
+    expect(loaded.player.storage).toEqual(world.player.storage);
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('still rejects a Roaming save that names a highway map', () => {
+    const slots = makeSlots();
+    putOnMap(slots, standardWorld(), 'highway:0:21:0');
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/otherMap/);
   });
 
   it('saves only after each twentieth completed turn', () => {
@@ -913,28 +1031,22 @@ describe('saved world settings', () => {
     expect(loadWorld(slots, 'slot2', TEST_MAP)?.setup).toEqual(tuned(0.5, 1));
   });
 
-  it('gives a save from format 2.13 the default Roaming setup, once', () => {
+  it('sends a save at a format no build shipped to the carry route, and keeps the stored save', () => {
     const slots = makeSlots();
     const save = JSON.parse(JSON.stringify(saveOf(newWorld(1337, startKit('standard'), TEST_MAP, tuned(2, 2)))));
-    delete save.world.setup;
-    save.world.events = [];
-    save.world.removed = [];
-    for (const vehicle of save.world.vehicles) vehicle.trail = [];
-    slots.put('auto', { ...save, format: { major: SAVE_MAJOR, minor: 13 } });
-    writeSave(slots, 'slot1', newWorld(1337, startKit('standard'), TEST_MAP, tuned(2, 2)), RUN, 1000);
+    const stored = { ...save, format: { major: SAVE_MAJOR, minor: 13 } };
+    slots.put('auto', stored);
 
-    expect(loadWorld(slots, 'auto', TEST_MAP)?.setup).toEqual(defaultSetup('roaming'));
-    expect(loadWorld(slots, 'slot1', TEST_MAP)?.setup).toEqual(tuned(2, 2));
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/outOfReach/);
+    expect(slots.get('auto')).toEqual(stored);
   });
 
   it.each([
-    ['NaN, which JSON stores as null', { mode: 'roaming', settings: { damage: NaN, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, ['damage']],
-    ['zero', { mode: 'roaming', settings: { damage: 1, fuelUse: 0, supplyUse: 1, enemyGearGrowth: 1 } }, ['fuelUse']],
-    ['a runaway value', { mode: 'roaming', settings: { damage: 10, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, ['damage']],
-  ])('loads a save with %s, resetting that setting and reporting it', (_, setup, reset) => {
-    const loaded = loadSave(storedWith(setup), 'auto', TEST_MAP)!;
-    expect(loaded.repair.settingsReset).toEqual(reset);
-    expect(loaded.world.setup).toEqual(defaultSetup('roaming'));
+    ['NaN, which JSON stores as null', { mode: 'roaming', settings: { damage: NaN, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }],
+    ['zero', { mode: 'roaming', settings: { damage: 1, fuelUse: 0, supplyUse: 1, enemyGearGrowth: 1 } }],
+    ['a runaway value', { mode: 'roaming', settings: { damage: 10, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }],
+  ])('loads a save with %s, resetting that setting', (_, setup) => {
+    expect(loadWorld(storedWith(setup), 'auto', TEST_MAP)!.setup).toEqual(defaultSetup('roaming'));
   });
 
   it.each([
@@ -957,8 +1069,8 @@ describe('saveKey', () => {
 
   it('throws a SaveError when a migration step cannot read an old save', () => {
     const slots = makeSlots();
-    slots.put('auto', { format: { major: SAVE_MAJOR, minor: 0 }, world: { vehicles: 5, player: 7 } });
-    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
+    slots.put('auto', { format: { major: SAVE_MAJOR, minor: 1 }, world: { vehicles: 5, player: 7 } });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/notMigrated/);
   });
 });
 
@@ -1069,5 +1181,50 @@ describe('relations in a save', () => {
     expect(loaded.events).toEqual([]);
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.player.money).toBe(w.player.money);
+  });
+
+  it('gives back the Sunward record and the order\'s night ledger after a save and load', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    w.sunward = { collapsed: 330, night: { dusk: 245, roster: ['v9', 'v10'], beaten: ['v9'], calls: { v1: { count: 2, turn: 300 } }, hunt: { party: ['v11'], grounds: [{ x: 1, y: 2 }, { x: 3, y: 4 }], prey: null, over: true, breaks: 1 }, shouted: ['v1'], offered: ['v1'] }, lastHunt: 1 };
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.sunward).toEqual(w.sunward);
+    expect(loaded.player.standing.sunward).toBe(-20);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('gives back the order parked in the fort bays, awarding nothing at load', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    fillHollow(w);
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    const members = (x: typeof w) => membersOf(x).map((v) => ({ id: v.id, pos: v.pos, home: v.brain!.home }));
+    expect(members(loaded)).toEqual(members(w));
+    expect(members(loaded).every((m) => hollowBays().some((b) => b.x === m.home.x && b.y === m.home.y))).toBe(true);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.player.money).toBe(w.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('keeps the Hollow out of the save and builds it again at load, also for a save that never held it', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const saved = savedWorldOf(slots, 'auto');
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(saved.obstacles.some((o) => o.id.startsWith('hollow-'))).toBe(false);
+    expect(loaded.obstacles.filter((o) => o.id.startsWith('hollow-'))).toEqual(w.obstacles.filter((o) => o.id.startsWith('hollow-')));
+    expect(loaded.obstacles).toEqual(w.obstacles);
   });
 });

@@ -26,7 +26,6 @@ export type FactoryConfig = {
   oauthToken: string;
   elevenlabsKey: string;
   sfxMaxGenerations: number;
-  geminiKey: string;
   agyMaxRuns: number;
   agyModel: string;
   codexModel: string;

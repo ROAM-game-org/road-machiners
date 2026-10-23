@@ -1,6 +1,3 @@
-// Broken props as physical pieces. A prop model splits into its separate parts, each part flies as a rigid body in
-// a small render-only physics world, and a piece freezes where it comes to rest. Nothing here changes game rules:
-// the sim already removed the prop, and the pieces block nothing.
 
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
@@ -8,7 +5,7 @@ import { PHYSICS } from '../../data/physics';
 import { obstacleColliders } from '../../phys/drive';
 import type { Quat, V3, VehicleFrame } from '../../phys/frames';
 import { hashStr } from '../../render/noise';
-import { bodyOf } from '../../sim/body';
+import { unitBody } from '../../sim/body';
 import { propPose } from '../../sim/mapgen';
 import { propBase } from '../../sim/bridge';
 import type { Terrain } from '../../sim/terrain';
@@ -38,20 +35,24 @@ const WELD = 1000;
 export type PieceSource = { parts: { geometry: THREE.BufferGeometry; material: THREE.Material }[]; center: THREE.Vector3; box: THREE.Box3 };
 type Flying = { body: RAPIER.RigidBody; mesh: THREE.Object3D; still: number; age: number };
 type Burst = { group: THREE.Group; pieces: Flying[]; fixed: RAPIER.Collider[] };
-export type TruckBox = { id: string; chassisId: string; pos: V3; rot: Quat };
+export type TruckBox = { id: string; chassisId: string; unit: number; pos: V3; rot: Quat };
 
 export function disposeTree(obj: THREE.Object3D): void {
   obj.traverse((o) => {
     if (o instanceof THREE.Mesh) {
       o.geometry.dispose();
       const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of mats) m.dispose();
+      for (const m of mats) if (!m.userData.shared) m.dispose();
     }
   });
 }
 
 export function truckBoxes(vehicles: readonly Pick<Vehicle, 'id' | 'chassisId'>[], frames: Record<string, VehicleFrame>): TruckBox[] {
-  return vehicles.filter((v) => frames[v.id]).map((v) => ({ id: v.id, chassisId: v.chassisId, ...frames[v.id] }));
+  return vehicles.filter((v) => frames[v.id]).flatMap((v) => {
+    const f = frames[v.id];
+    const front = { id: v.id, chassisId: v.chassisId, unit: 0, pos: f.pos, rot: f.rot };
+    return f.rear ? [front, { id: `${v.id}/rear`, chassisId: v.chassisId, unit: 1, pos: f.rear.pos, rot: f.rear.rot }] : [front];
+  });
 }
 
 const sources = new Map<ModelName, PieceSource[]>();
@@ -165,7 +166,7 @@ export class DebrisSim {
   }
 
   private addTruck(t: TruckBox): RAPIER.RigidBody {
-    const half = bodyOf(t.chassisId).half;
+    const half = unitBody(t.chassisId, t.unit).half;
     const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(t.pos.x, t.pos.y, t.pos.z).setRotation(t.rot));
     this.world.createCollider(RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z), body);
     this.trucks.set(t.id, body);

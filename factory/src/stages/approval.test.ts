@@ -230,6 +230,20 @@ describe('routeFeedback', () => {
     expect(readState(`${home}/state.json`).pendingFeedback[7]).toEqual({ source: 'player', body: '## Player report\n\nFrom public, routed as redesign:\n\nIt breaks' });
   });
 
+  it('queues the issue for the incident job on a committee patch or redesign', async () => {
+    await routeFeedback(fakeCtx(), 7, 'bob', 'Louder horn', 'patch', 100);
+    expect(readState(`${home}/state.json`).pendingIncidents).toEqual([7]);
+    await routeFeedback(fakeCtx(), 7, 'bob', 'Make it louder', 'redesign', 100);
+    expect(readState(`${home}/state.json`).pendingIncidents).toEqual([7, 7]);
+  });
+
+  it('queues nothing for a player route or an answer', async () => {
+    await routeFeedback(fakeCtx(), 7, 'public', 'It breaks', 'patch', 100, 'player');
+    await routeFeedback(fakeCtx(), 7, 'public', 'It breaks', 'redesign', 100, 'player');
+    await routeFeedback(fakeCtx(), 7, 'bob', 'q', 'answer', 100);
+    expect(readState(`${home}/state.json`).pendingIncidents).toEqual([]);
+  });
+
   it('answer only comments, and keeps the card, its posts and its queued approval', async () => {
     expect(await routeFeedback(fakeCtx(), 7, 'bob', 'Is there a top-down atlas?', 'answer', 100)).toBe(false);
     expect(calls).toEqual(['comment 7 ## Committee question\n\nFrom bob, routed as answer:\n\nIs there a top-down atlas?']);
@@ -296,6 +310,16 @@ describe('deny', () => {
     expect(state.approvalPosts).toEqual({ 200: 8 });
     expect(state.pendingApprovals).toEqual({});
     expect(state.builds).toEqual({ 8: 'bbb2222' });
+  });
+
+  it('queues the denied issue for the incident job', async () => {
+    await deny(fakeCtx(), 7, 'bob');
+    expect(readState(`${home}/state.json`).pendingIncidents).toEqual([7]);
+  });
+
+  it('queues nothing when a card is dropped', async () => {
+    await closeCard(fakeCtx(), 7, 'Dropped.', 'dropped');
+    expect(readState(`${home}/state.json`).pendingIncidents).toEqual([]);
   });
 
   it('drops a kept approval with the card', async () => {

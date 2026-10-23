@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TOPICS, type LineId } from '../data/dialogue';
 import { EFFORT } from '../data/market';
-import { HIRE, NPCS } from '../data/npcs';
+import { HIRE, NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { inFeud, noteAttack } from './combat';
 import { followingOf } from './companies';
 import { playerVehicle } from './damage';
@@ -11,7 +11,10 @@ import { checkHire, dismissGuard, guardFee, hireGuard, playerGuard, canHireGuard
 import { goalHolds, placeBase, topGoal } from './npc-activities';
 import { judgeDanger } from './npc-decisions';
 import { addState, advanceStates, endState } from './states';
-import { addVehicle, emptyWorld, forceOption, furyRoadWorld, npcBrain } from './testkit';
+import { addVehicle, emptyWorld, forceOption, furyRoadWorld, npcBrain, testDrive } from './testkit';
+import { getResources } from './resources';
+import { endTurn } from './world';
+import { dist } from './vec';
 import type { GameEvent, Vehicle, World } from './types';
 import { refreshVision } from './vision';
 import { lineKey } from '../text/names';
@@ -196,6 +199,21 @@ describe('a guard on duty', () => {
     w.player.money = guardFee(w, merc);
     hireGuard(w, merc, guardFee(w, merc));
     expect(judgeDanger(w, raider, playerVehicle(w))).toBeGreaterThan(alone);
+  });
+
+  it('stays beside a parked or stranded player and catches up after a long drive', () => {
+    let { w, merc } = hired();
+    const gap = (): number => dist(w.vehicles.find((v) => v.id === merc.id)!.pos, playerVehicle(w).pos);
+    for (let i = 0; i < 20; i++) w = endTurn(w, testDrive);
+    expect(gap()).toBeLessThan(NPC_BEHAVIOR.escortWaitGap);
+    getResources(w, playerVehicle(w)).fuel = 0;
+    for (let i = 0; i < 20; i++) w = endTurn(w, testDrive);
+    expect(gap()).toBeLessThan(NPC_BEHAVIOR.escortWaitGap);
+    getResources(w, playerVehicle(w)).fuel = 100;
+    const me = playerVehicle(w);
+    me.pos = { x: me.pos.x + 60, y: me.pos.y };
+    for (let i = 0; i < 20; i++) w = endTurn(w, testDrive);
+    expect(gap()).toBeLessThan(NPC_BEHAVIOR.escortCatchUpGap);
   });
 
   it('flees when hurt and stays hired, then follows again', () => {

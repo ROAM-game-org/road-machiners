@@ -80,6 +80,6 @@
 }
 .ink-page .charts-map {
   flex: 0 0 auto;
-  width: min(240px, 100%);
+  width: min(var(--panel-s), 100%);
   margin: 0;
 }

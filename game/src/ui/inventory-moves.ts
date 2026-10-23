@@ -15,6 +15,12 @@ import { takeLoot } from "../sim/locations";
 import { atGarage } from "../sim/garage";
 import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
 
+const ROTATE_KEY_CODE = "KeyR";
+
+export function isRotateKey(e: Pick<KeyboardEvent, "code" | "repeat" | "ctrlKey" | "metaKey" | "altKey">): boolean {
+  return e.code === ROTATE_KEY_CODE && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey;
+}
+
 export const HOLD_TO_DRAG_MS = 300;
 
 export const DOUBLE_CLICK_MS = 350;
@@ -42,6 +48,15 @@ export function isDoubleClick(last: LastClick, id: string, now: number): boolean
 
 export function selectionAfterClick(selected: string | null, clicked: string): string | null {
   return selected === clicked ? null : clicked;
+}
+
+export type GridPoint = { x: number; y: number };
+
+export type GridTap = { kind: "preview"; at: GridPoint } | { kind: "place" };
+
+export function touchGridTap(preview: GridPoint | null, cell: GridPoint, size: { w: number; h: number }): GridTap {
+  if (preview && cell.x >= preview.x && cell.x < preview.x + size.w && cell.y >= preview.y && cell.y < preview.y + size.h) return { kind: "place" };
+  return { kind: "preview", at: { x: cell.x - Math.floor((size.w - 1) / 2), y: cell.y - Math.floor((size.h - 1) / 2) } };
 }
 
 export function needsHold(chassisId: string, item: GridItem): boolean {

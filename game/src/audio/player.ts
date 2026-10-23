@@ -1,4 +1,4 @@
-import type { Bus, Cue } from "../data/sounds";
+import type { Cue } from "../data/sounds";
 import type { Bank } from "./bank";
 import type { Mixer } from "./mixer";
 import { pickVariant, VoiceLimiter } from "./pick";
@@ -8,13 +8,14 @@ export type SoundSelection = { file: string; rate: number };
 
 export type LoopHandle = {
   setGain(gain: number, rampSeconds: number): void;
-  glide(g: Glide): void;
+  set(rate: number, gain: number): void;
   once(points: readonly EnvelopePoint[]): void;
   stop(fadeMs: number): void;
 };
 
 export type EnvelopePoint = { at: number; rate: number; gain: number };
-export type Glide = { rateFrom: number; rateTo: number; gainFrom: number; gainTo: number; seconds: number; fadeSeconds: number };
+
+const FRAME_SMOOTH_SECONDS = 0.02;
 
 export class SoundPlayer {
   private last = new Map<string, number>();
@@ -35,10 +36,6 @@ export class SoundPlayer {
     src.playbackRate.value = rate;
     this.chain(src, cue, at);
     src.start(start);
-  }
-
-  setBusTone(bus: Bus, cutoffHz: number, rampSeconds: number): void {
-    this.mixer.setBusTone(bus, cutoffHz, rampSeconds);
   }
 
   now(): number {
@@ -70,18 +67,9 @@ export class SoundPlayer {
     const ctx = this.mixer.ctx;
     return {
       setGain: (g, ramp) => gain.gain.setTargetAtTime(cue.volume * g, ctx.currentTime, ramp / 3),
-      glide: (g) => {
-        const t = ctx.currentTime;
-        const rate = src.playbackRate;
-        rate.cancelScheduledValues(t);
-        rate.setValueAtTime(g.rateFrom, t);
-        rate.linearRampToValueAtTime(g.rateTo, t + g.seconds);
-        const level = gain.gain;
-        level.cancelScheduledValues(t);
-        level.setValueAtTime(level.value, t);
-        level.linearRampToValueAtTime(cue.volume * g.gainFrom, t + g.fadeSeconds);
-        level.linearRampToValueAtTime(cue.volume * g.gainTo, t + g.seconds - g.fadeSeconds);
-        level.linearRampToValueAtTime(0, t + g.seconds);
+      set: (rate, level) => {
+        src.playbackRate.setTargetAtTime(rate, ctx.currentTime, FRAME_SMOOTH_SECONDS);
+        gain.gain.setTargetAtTime(cue.volume * level, ctx.currentTime, FRAME_SMOOTH_SECONDS);
       },
       once: (points) => {
         const t = ctx.currentTime;

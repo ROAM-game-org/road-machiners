@@ -1,4 +1,5 @@
 import { ECONOMY } from "../data/goods";
+import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
 import { playerVehicle } from "../sim/damage";
 import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
 import { mountedParts } from "../sim/grid";
@@ -33,8 +34,16 @@ export function repairBar(w: World, buttons: ShopButtons, repair: { basics: Shop
   );
 }
 
-export function supplyRow(w: World, k: Supply, buttons: ShopButtons, buy: (w: World, k: Supply, n: number) => World, truck: Vehicle = playerVehicle(w)): HTMLElement {
-  const room = supplyRoom(w, k, truck);
+export type SupplyLimit = { room: number; tag: HTMLElement | null };
+
+type SupplyBuy = (w: World, k: Supply, n: number) => World;
+
+export function supplyRow(w: World, k: Supply, buttons: ShopButtons, buy: SupplyBuy, truck: Vehicle = playerVehicle(w)): HTMLElement {
+  return limitedSupplyRow(w, k, buttons, buy, truck, { room: supplyRoom(w, k, truck), tag: null });
+}
+
+export function limitedSupplyRow(w: World, k: Supply, buttons: ShopButtons, buy: SupplyBuy, truck: Vehicle, limit: SupplyLimit): HTMLElement {
+  const room = limit.room;
   const price = ECONOMY.supplyPrice[k];
   const afford = Math.min(room, Math.floor(w.player.money / price));
   const amount = (n: number) => supplyAmount(k, n);
@@ -42,7 +51,7 @@ export function supplyRow(w: World, k: Supply, buttons: ShopButtons, buy: (w: Wo
   return supplyLine(k, getResources(w, truck)[k], supplyCap(w, k, truck), null, price, shortBy(w.player.money, price) === null, [
     buttons.button(t("trade.plusAmount", { amount: amount(1) }), (x) => buy(x, k, 1), reason),
     buttons.button(afford > 0 ? t("trade.fill", { amount: amount(afford) }) : t("trade.fillBare"), (x) => buy(x, k, afford), reason),
-  ]);
+  ], limit.tag);
 }
 
 export type PriceHint = { tone: "good" | "bad" | ""; title: Msg };
@@ -63,7 +72,7 @@ export function supplyUnit(k: Supply): Msg {
   return k === "fuel" ? t("trade.perUnit", { unit: supplyAmount(k, 1) }) : t("trade.eachUnit");
 }
 
-export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLElement | null, price: number, payable: boolean, buttons: HTMLElement[]): HTMLElement {
+export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLElement | null, price: number, payable: boolean, buttons: HTMLElement[], tag: HTMLElement | null = null): HTMLElement {
   const amount = (n: number) => supplyAmount(k, n);
   return el(
     "div",
@@ -73,6 +82,7 @@ export function supplyLine(k: Supply, have: number, cap: number, theirs: HTMLEle
       { class: "good-name supply" },
       createIcon(k),
       el("div", { class: "service-meter" }, el("span", {}, t("trade.ofCap", { have: amount(have), cap: amount(cap) })), bar(have / cap)),
+      tag,
     ),
     theirs,
     el("div", { class: "trade buy wide" }, caption(GOODS_COLUMNS.buy, true), priceEl(price, payable, { tone: "", title: supplyUnit(k) }), ...buttons),
@@ -118,6 +128,86 @@ export function bar(share: number): HTMLElement {
   return el("div", { class: "meter" }, el("div", { style: `width:${Math.max(0, Math.min(1, share)) * 100}%` }));
 }
 
+function paletteHex(id: PaletteId): string {
+  return `#${PALETTE[id].toString(16).padStart(6, "0")}`;
+}
+
+export function paletteStyle(id: PaletteId): string {
+  return `--paint:${paletteHex(id)}`;
+}
+
+export function schemeStyle(scheme: TruckPaint): string {
+  return PAINT_SLOTS.map((slot) => `--paint-${slot}:${paletteHex(scheme[slot])}`).join(";");
+}
+
+export function planWithSlot(current: TruckPaint, plan: TruckPaint | null, slot: PaintSlot, id: PaletteId): TruckPaint {
+  return { ...(plan ?? current), [slot]: id };
+}
+
+export function livePaintPlan(current: TruckPaint, plan: TruckPaint | null): TruckPaint | null {
+  return plan && !samePaint(plan, current) ? plan : null;
+}
+
+export type PaintSlot = (typeof PAINT_SLOTS)[number];
+
+export type PaintChoice = {
+  current: TruckPaint;
+  plan: TruckPaint | null;
+  chassisId: string;
+  pick: (slot: PaintSlot, id: PaletteId) => void;
+  pickScheme: (scheme: TruckPaint) => void;
+  buy: HTMLElement | null;
+};
+
+export function paintTab(choice: PaintChoice): HTMLElement {
+  const shown = choice.plan ?? choice.current;
+  return el(
+    "div",
+    { class: "paint-tab" },
+    el("div", { class: "paint-preview" }, chassisPortrait(choice.chassisId, shown)),
+    el("div", { class: "paint-slots" }, schemeRow(choice), ...PAINT_SLOTS.map((slot) => paintSlot(choice, slot)), el("div", { class: "paint-buy" }, choice.buy)),
+  );
+}
+
+function schemeRow(choice: PaintChoice): HTMLElement {
+  const chips = PAINT_SCHEMES.map((scheme, i) => {
+    const current = samePaint(scheme, choice.current);
+    return el(
+      "button",
+      {
+        class: `btn-s${!current && choice.plan && samePaint(scheme, choice.plan) ? " planned" : ""}`,
+        "data-scheme": String(i),
+        "aria-pressed": String(current),
+        "aria-label": num(i + 1, "int"),
+        onclick: () => choice.pickScheme(scheme),
+      },
+      el("span", { class: "paint-scheme", style: schemeStyle(scheme) }, el("span", { class: "paint-scheme-body" }), el("span", { class: "paint-scheme-cab" }), el("span", { class: "paint-scheme-gear" })),
+    );
+  });
+  return el("div", { class: "paint-slot", "data-slot": "scheme" }, el("span"), el("div", { class: "option-switch paint-switch", role: "group" }, ...chips));
+}
+
+function paintSlot(choice: PaintChoice, slot: PaintSlot): HTMLElement {
+  const planned = choice.plan?.[slot];
+  const swatches = PALETTE_IDS.map((id, i) =>
+    el(
+      "button",
+      {
+        class: `btn-s${planned === id && id !== choice.current[slot] ? " planned" : ""}`,
+        "data-paint": id,
+        "aria-pressed": String(choice.current[slot] === id),
+        "aria-label": num(i + 1, "int"),
+        onclick: () => choice.pick(slot, id),
+      },
+      el("span", { class: "paint-swatch", style: paletteStyle(id) }),
+    ),
+  );
+  const name = SLOT_NAMES[slot]();
+  return el("div", { class: "paint-slot", "data-slot": slot }, el("span", { class: "paint-slot-name" }, name), el("div", { class: "option-switch paint-switch", role: "group", "aria-label": name }, ...swatches));
+}
+
+const SLOT_NAMES: Record<PaintSlot, () => Msg> = { body: () => t("paint.body"), cab: () => t("paint.cab"), gear: () => t("paint.gear") };
+
 export type SwapOffer = { reason: Msg | null; swap: () => void };
 
 export function truckCards(w: World, ids: readonly string[], offer: (id: string) => SwapOffer): HTMLElement {
@@ -127,7 +217,7 @@ export function truckCards(w: World, ids: readonly string[], offer: (id: string)
     return el(
       "div",
       { class: `card tile truck-card${own ? " own" : ""}` },
-      el("div", { class: "truck-pics" }, chassisPortrait(id), chassisMap(id)),
+      el("div", { class: "truck-pics" }, chassisPortrait(id, w.player.paint), chassisMap(id)),
       el(
         "div",
         { class: "truck-body" },

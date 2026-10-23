@@ -1,4 +1,6 @@
 
+import { reportRobbedHaul, reportShipmentLoss, shipmentOf } from './road-news';
+import { SPAWN } from '../data/npcs';
 import { isHostile } from './combat';
 import { isKnockedOut, standDown } from './defeat';
 import { RULES } from '../data/rules';
@@ -7,12 +9,10 @@ import { getUpkeepReserve, partSellPrice, transfer } from './economy';
 import { getResources } from './resources';
 import { corePart, isMounted } from './grid';
 import { applyRefitLayout } from './inventory';
-import { creditBounty } from './market';
 import { defyThreat, finishGoal, pushGoal, topGoal } from './npc-activities';
 import { canArgue, fightOver, warnTruck } from './loot-warning';
 import { decide, holdsUp, perceiveDanger, robbedFor, visibleHostiles, wantsLoot } from './npc-decisions';
 import { SPARE_LINE } from '../data/dialogue';
-import { vehicleHasPerk } from './progress';
 import { modeRules } from './settings';
 import { cargoHaul, cashCut, ransomOf, removableParts, surrenderHaul, haulValue, type Ransom } from './haul';
 import { backedOff, canReachSalvage, claimantOf, claimPile, dropHaul, dumpOnPile, hasCargo, lootClaimedBy, looseCargo, salvageInRange, takeError } from './salvage';
@@ -59,6 +59,7 @@ export function handedOver(world: World, loser: Vehicle, winner: Vehicle): GridI
 
 export function yieldTo(world: World, loser: Vehicle, winner: Vehicle, haul: GridItem[] = handedOver(world, loser, winner)): void {
   requireLooting(world, loser);
+  reportRobbedHaul(world, loser, haul);
   const stock = haul.length > 0 ? dropHaul(world, loser, haul) : null;
   settleHoldUp(world, loser, winner, stock, 'cargo', haulValue(haul));
 }
@@ -84,11 +85,12 @@ function requireLooting(world: World, loser: Vehicle): void {
 function settleHoldUp(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock | null, paid: 'cargo' | 'money', value: number): void {
   cede(world, loser, winner, stock, 'takeHandedCargo');
   if (loser.brain) remember(world, loser, { kind: 'wronged', by: winner.id, deed: 'robbed' });
-  creditYield(world, loser, winner);
   world.events.push({ t: 'holdUp', robber: winner.id, victim: loser.id, paid, value });
 }
 
 export function abandonSpill(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock): void {
+  const shipment = shipmentOf(loser);
+  if (shipment) reportShipmentLoss(world, loser, 'robbed', stock.goods[shipment.good] ?? 0);
   cede(world, loser, winner, stock, 'takeSpilledCargo');
 }
 
@@ -123,7 +125,6 @@ export function standDownTo(world: World, loser: Vehicle, winner: Vehicle): void
   makePeace(world, loser, winner);
   const grudge = stateOf(world, 'revenge', winner.id, loser.id);
   if (grudge) endState(world, grudge, 'fulfilled');
-  creditYield(world, loser, winner);
 }
 
 function endFight(world: World, a: Vehicle, b: Vehicle): void {
@@ -131,10 +132,6 @@ function endFight(world: World, a: Vehicle, b: Vehicle): void {
     const fight = stateOf(world, 'combat', p.id, q.id);
     if (fight) endState(world, fight, 'broken');
   }
-}
-
-function creditYield(world: World, loser: Vehicle, winner: Vehicle): void {
-  if (loser.brain && vehicleHasPerk(world, winner, 'bountyTalk')) creditBounty(world, loser);
 }
 
 export type PleaAnswer = 'yes' | 'no' | 'demand';

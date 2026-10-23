@@ -45,7 +45,7 @@ describe('town sections', () => {
     const w = quietWorld();
     const bowl = townSections(parkAt(w, 'bowl'), 'bowl');
     expect(bowl).toMatchObject({ garage: { open: true }, market: { open: true }, board: { open: true }, people: { open: true } });
-    expect(townSections(w, 'granary').people).toEqual({ open: false, reason: 'noLocals' });
+    expect(townSections(w, 'nowhere').people).toEqual({ open: false, reason: 'noLocals' });
   });
 
   it('keeps the Bar off while no driver is in sight', () => {
@@ -98,7 +98,6 @@ describe('picking a section', () => {
     const w = quietWorld();
     playerVehicle(w).pos = { x: 1, y: 1 };
     expect(() => pickTownSection(w, null, 'market')).toThrow('Not parked at a shop');
-    expect(() => pickTownSection(parkAt(quietWorld(), 'granary'), null, 'people')).toThrow('off');
     expect(() => pickTownSection(parkAt(quietWorld(), 'bowl'), null, 'bar')).toThrow('off');
   });
 

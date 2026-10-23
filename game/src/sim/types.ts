@@ -8,7 +8,8 @@ import type { Vec } from "./vec";
 import type { LineId, TopicId } from "../data/dialogue";
 import type { PersonalityId } from "../data/personalities";
 import type { DecisionOptions } from "../data/npcs";
-import type { Contract, ShopState } from "./market";
+import type { Contract, PastContract, ShopState } from "./market";
+import type { TruckPaint } from "../data/chassis";
 import type { Rng } from "./rng";
 import type { PerkId } from "../data/skills";
 import type { NoteId } from "../data/locals";
@@ -17,7 +18,7 @@ import type { QuestLanguage, QuestValue } from "../data/quests";
 
 export type PatchDeal = DecisionOptions["patchDeal"];
 
-export type NpcFactionId = "bowl" | "nose" | "guidestar" | "administrators" | "scrapjaw" | "kiln" | "independent";
+export type NpcFactionId = "bowl" | "nose" | "guidestar" | "administrators" | "scrapjaw" | "kiln" | "sunward" | "marshals" | "independent";
 export type StandingFactionId = Exclude<NpcFactionId, "independent">;
 export type Faction = "player" | NpcFactionId;
 export type WrongDeed = "attacked" | "robbed" | "stole";
@@ -81,7 +82,7 @@ export type UtilityOrder =
   | { kind: 'point'; pos: Vec }
   | { kind: 'disarm' };
 
-export type Pose = { x: number; y: number; heading: number };
+export type Pose = { x: number; y: number; heading: number; bend?: number };
 
 export type MoveOrder =
   | { kind: "through"; dest: Vec; pace?: number }
@@ -136,11 +137,12 @@ export type Job =
   | { kind: "search"; stockId: string; turnsLeft: number; total: number }
   | { kind: "strip"; partId: string; turnsLeft: number; total: number }
   | { kind: "weld"; turnsLeft: number; total: number }
+  | { kind: "firstAid"; turnsLeft: number; total: number }
   | { kind: "survey"; contractId: string; site: string; turnsLeft: number; total: number }
   | { kind: "business"; siteId: string; deal: BusinessDeal; turnsLeft: number; total: number }
   | RefitJob;
 
-export type BusinessDeal = "resupply" | "sell" | "trade" | "haul";
+export type BusinessDeal = "resupply" | "sell" | "trade";
 
 export type Contact = {
   vehicleId: string;
@@ -193,11 +195,14 @@ export type GoalReason =
   | 'salvageGone' | 'searchSite' | 'searchSpot' | 'sellCargo' | 'soldCargo' | 'spottedHeard' | 'strandedRobbery'
   | 'takeClaimedLoot' | 'takeHandedCargo' | 'towNotNeeded' | 'towOff' | 'towOfferLeft' | 'towPlayer' | 'towStranded'
   | 'towUnanswered' | 'towedPlayer' | 'towedStranded' | 'tripToSite' | 'truckGotAway' | 'unfitToHunt' | 'waitPatch'
-  | 'waitTow' | 'waitTowAnswer' | 'warnedOff'
+  | 'waitTow' | 'waitTowAnswer' | 'warnedOff' | 'answeredCall'
   | 'avoidRanFrom' | 'breakOffFight' | 'cannotWearDown' | 'holdFull' | 'leftPost' | 'lootWontFit' | 'ranFromIt' | 'salvageOutOfReach'
   | 'takeSpilledCargo' | 'watchedRoad' | 'cornered' | 'defeated'
-  | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey'
-  | 'musterCrew' | 'crewLeader' | 'hiredGuard';
+  | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldBoats' | 'searchOldRuin' | 'springOnPrey'
+  | 'musterCrew' | 'crewLeader' | 'hiredGuard'
+  | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger'
+  | 'sizingUp' | 'poorLoad' | 'sizedUpBy'
+  | 'bountyHunt' | 'atPost' | 'caseClosed' | 'huntGaveUp';
 
 export type SimNote =
   | { id: 'engineHot' }
@@ -210,6 +215,7 @@ export type SimNote =
   | { id: 'tankLeak'; fuel: number }
   | { id: 'filledSupplies'; site: string }
   | { id: 'hazard' }
+  | { id: 'core' }
   | { id: 'spawnBlocked'; template: string };
 
 export type MoneyReason = { kind: 'contract' } | { kind: 'failedHaul' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' } | { kind: 'holdUp'; vehicle: string };
@@ -234,6 +240,12 @@ export type Refusal =
   | { id: 'truckPartGone' }
   | { id: 'looting'; by: string; place: 'here' | 'wreck' | 'truck' }
   | { id: 'needsSpotter' }
+  | { id: 'needsBasic'; skill: SkillId }
+  | { id: 'lookOverFar' }
+  | { id: 'lookOverUnseen' }
+  | { id: 'lookOverKnown' }
+  | { id: 'lookOverRunning' }
+  | { id: 'lookOverDown' }
   | { id: 'cannotAct' }
   | { id: 'noTruck' }
   | { id: 'unseen' }
@@ -241,7 +253,13 @@ export type Refusal =
   | { id: 'topRank'; skill: SkillId }
   | { id: 'needsXp'; cost: number; have: number }
   | { id: 'noMoney' }
+  | { id: 'notAtDesk' }
+  | { id: 'payBountiesFirst'; faction: StandingFactionId }
   | { id: 'noCargoRoom' }
+  | { id: 'unhurt' }
+  | { id: 'noSupplies' }
+  | { id: 'noStock' }
+  | { id: 'onOrder' }
   | { id: 'theyHaveNoRoom' }
   | { id: 'noSupplyRoom' }
   | { id: 'inCombat' }
@@ -267,13 +285,13 @@ export type DriverResources = {
 export type NpcActivity = {
   kind:
     | 'scavenge' | 'prowl' | 'sell' | 'trade' | 'resupply' | 'raid' | 'fight' | 'flee' | 'wait' | 'investigate' | 'tow' | 'loot' | 'repair' | 'patch'
-    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'haul' | 'follow' | 'claim' | 'muster';
+    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'follow' | 'claim' | 'muster' | 'sizeUp' | 'pursue';
   targetId: string | null;
   destination: Vec | null;
   phase: "travel" | "act";
   reason: GoalReason;
   purchase?: { good: string; sellShop: string };
-  load?: { good: string };
+  shipment?: Shipment;
   perceived?: number;
   worn?: { turn: number; condition: number };
   demands?: boolean;
@@ -286,6 +304,12 @@ export type NpcActivity = {
   asked?: string[];
   heard?: Vec;
 };
+
+export type Shipment = { good: string; from: string; to: string };
+
+export type RoadNewsKind = 'robbed' | 'destroyed' | 'knockedOut';
+
+export type RoadNews = { turn: number; kind: RoadNewsKind; good: string; units: number; from: string; to: string };
 
 export type NpcBrain = {
     templateId: string;
@@ -313,7 +337,7 @@ export type NpcBrain = {
     fightTurn?: 1 | -1;
     targetSeen?: { id: string; turn: number; pos: Vec; heading: number; speed: number };
     whim?: { kind: 'keep' | 'rush' | 'halt' | 'veer'; until: number; angle: number };
-    farRoute?: { dest: Vec; points: Vec[]; offRoad: boolean };
+    farRoute?: { dest: Vec; points: Vec[]; offRoad: boolean; night?: true };
     musteredAt?: number;
     memories: Memory[];
 };
@@ -326,7 +350,8 @@ export type MemoryFact =
   | { kind: 'stripped'; stock: string }
   | { kind: 'wronged'; by: string; deed: WrongDeed }
   | { kind: 'helped'; by: string; deed: HelpDeed }
-  | { kind: 'sighting'; vehicle: string; at: Vec; heading: number };
+  | { kind: 'sighting'; vehicle: string; at: Vec; heading: number }
+  | { kind: 'witnessed'; crime: string; by: string; victim: string; offense: CrimeOffense; at: Vec; heading: number };
 export type SightingFact = Extract<MemoryFact, { kind: 'sighting' }>;
 export type Memory = { turn: number; fact: MemoryFact };
 
@@ -337,9 +362,11 @@ export type Vehicle = {
   items: GridItem[];
   pos: Vec;
   heading: number;
+  bend?: number;
   speed: number;
   stormExposure: Record<string, number>;
   strandedTurns?: number;
+  strandedAt?: Vec;
   stalledUntil?: number;
   order: MoveOrder | null;
   direct: boolean;
@@ -358,7 +385,7 @@ export type Defeat = { phase: 'out' | 'retreat'; turns: number; unseen: number; 
 
 export type LandmarkLook = Exclude<PropKind, "rock">;
 
-export type Hulk = { chassisId: string; yaw: number };
+export type Hulk = { chassisId: string; yaw: number; bend?: number };
 
 export type Obstacle =
   | { id: string; pos: Vec; r: number; kind: "rock" | "wreck" | "building" | "water" | "site"; hulk?: Hulk }
@@ -366,7 +393,7 @@ export type Obstacle =
 
 export type BrokenProp = { obstacle: Obstacle; turn: number };
 
-export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire';
+export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'helpRefused' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire' | 'cavalcade' | 'offering' | 'drag' | 'lookOver' | 'sizedUp' | 'bountyStop';
 export type StateEnding = 'expired' | 'fulfilled' | 'broken';
 export type Plea = 'truce' | 'mercy';
 export type StateData =
@@ -381,6 +408,9 @@ export type StateData =
   | { kind: 'strayFire'; damage: number }
   | { kind: 'aid'; giver: 'player' | 'npc'; fuel: number; supplies: number; price: number; free: boolean; agreed: boolean; started: boolean; work: number; workLeft: number }
   | { kind: 'lootWarning'; targetId: string; answer: LootWarnAnswer | null }
+  | { kind: 'offering'; core: Vec; closest: number }
+  | { kind: 'drag'; drop: Vec }
+  | { kind: 'bountyStop'; owed: number; answered: boolean }
   | { kind: 'none' };
 export type LootWarnAnswer = 'comply' | 'refuse' | 'fightBack';
 export type NpcState = {
@@ -406,7 +436,7 @@ export type TurnSide = 'left' | 'right' | 'keepLeft' | 'keepRight';
 export type DirectionTarget = { kind: 'site'; id: string } | { kind: 'spot'; pos: Vec; clue: 'wreck' };
 export type DirectionStep =
   | { do: 'join'; octant: Octant; span: Span }
-  | { do: 'follow'; road: RoadName; span: Span }
+  | { do: 'follow'; road: RoadName; heading: Octant | null; span: Span }
   | { do: 'turn'; side: TurnSide; at: Cue; road: RoadName; span: Span }
   | { do: 'arrive'; site: string; area: boolean }
   | { do: 'leave'; at: Cue; octant: Octant; span: Span }
@@ -465,6 +495,7 @@ export type Player = {
   repeats: Record<string, Repeat>;
   xpBySource: Record<XpSource, number>;
   perks: PerkId[];
+  paint: TruckPaint;
   health: number;
   fuel: number;
   supplies: number;
@@ -478,6 +509,7 @@ export type Player = {
   scavenged: string[];
   storage: PartInstance[];
   contracts: Contract[];
+  pastContracts: PastContract[];
   costBasis: Record<string, number>;
   knockouts: number;
   state: "active" | "knockedOut" | "dead";
@@ -513,7 +545,8 @@ export type VehicleHits = { vehicle: string; hits: PartHit[] };
 
 export type PassReason = 'nothing' | 'busy' | 'outgunned' | 'poorLoad' | 'chance';
 
-export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'campSale' | 'patrolPay' | 'dispatchPay' | 'claimReward';
+export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'partCredit' | 'campSale' | 'patrolPay' | 'dispatchPay' | 'claimReward' | BountyMoneyKind;
+export type BountyMoneyKind = 'bountyFund' | 'bountyCoffers' | 'bountyOffice' | 'bountyEscrow';
 
 export type CrewAskCause = 'joined' | 'grudge' | 'weak' | 'busy' | 'declined';
 export type CrewLeftCause = 'fled' | 'knockedOut' | 'hostile';
@@ -542,19 +575,23 @@ export type GameEvent =
   | { t: 'practice'; source: XpSource; amount: number; difficulty: number | null; target: string; xp: number }
   | { t: 'skillUp'; skill: SkillId; level: number }
   | { t: 'money'; amount: number; reason: MoneyReason }
-  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'surveyed' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
-  | { t: 'contract'; contract: Contract; outcome: 'found'; site: string; cause?: undefined }
+  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
+  | { t: 'contract'; contract: Contract; outcome: 'found' | 'surveyed'; site: string; cause?: undefined }
   | { t: 'claimRival'; contract: string; vehicle: string }
   | { t: 'claimLead'; contract: string; driver: string }
   | { t: 'discover'; location: string }
   | { t: 'encounter'; vehicle: string; encounter: EncounterId | CourierTopic }
   | { t: 'note'; id: NoteId }
   | { t: 'supply'; what: string; note: SimNote }
-  | { t: 'death' }
+  | { t: 'death'; cause: DeathCause }
+  | { t: 'coreBurn'; vehicle: string }
+  | { t: 'sunwardFallen' }
   | { t: 'knockout' }
   | { t: 'wake' }
   | { t: 'scrapPatch'; fuel: number }
+  | { t: 'engineCredit'; part: string }
   | { t: 'townPatch' }
+  | { t: 'siteEvent'; shop: string; kind: 'surge' | 'breakdown'; recipe: string }
   | { t: 'towOffer'; by: string; town: string; fee: number }
   | { t: 'towHitched'; by: string; client: string; site: string }
   | { t: 'towDone'; by: string; client: string; fee: number }
@@ -576,6 +613,7 @@ export type GameEvent =
   | { t: 'guardEnded'; merc: string; end: GuardEnd }
   | { t: 'towDropped'; by: string; client: string; reason: 'refused' | 'unhitched' | 'danger' | 'stranded' | 'gone' | 'blocked' }
   | { t: 'stateEnded'; state: NpcState; ending: StateEnding }
+  | { t: 'lookedOver'; by: string; target: string }
   | { t: 'job'; vehicle: string; job: Job; outcome: 'started' | 'done' | 'cancelled' }
   | { t: 'breakdown'; vehicle: string; part: string }
   | { t: 'searched'; stock: string }
@@ -599,10 +637,14 @@ export type GameEvent =
   | { t: 'found'; vehicle: string; stock: string; goods: Record<string, number>; parts: string[]; fuel: number; supplies: number }
   | { t: 'outpostReached'; milestone: number; pay: number; wrecks: number }
   | { t: 'roadOpened'; stretch: number }
-  | { t: 'runLost'; stretch: number; cause: RunLossCause };
+  | { t: 'runLost'; stretch: number; cause: RunLossCause }
+  | { t: 'bountyFiled'; case: string; target: string; reporter: string; offense: CrimeOffense; victim: string; site: string; owed: number }
+  | { t: 'bountyClosed'; case: string; target: string; status: Exclude<CaseStatus, 'open'>; amount: number; collector: string | null }
+  | { t: 'settlement'; faction: StandingFactionId; price: number }
+  | { t: 'asked'; by: string; of: string; target: string; told: boolean };
 
 export type GameModeId = 'roaming' | 'furyRoad';
-export type ModeRules = { traffic: boolean; looting: boolean; npcKnockouts: boolean; playerKnockouts: boolean; yielding: boolean; radio: boolean; rescue: boolean; roadWrecks: boolean; run: boolean; standing: boolean };
+export type ModeRules = { traffic: boolean; looting: boolean; npcKnockouts: boolean; playerKnockouts: boolean; yielding: boolean; radio: boolean; rescue: boolean; roadWrecks: boolean; run: boolean; standing: boolean; bounties: boolean };
 export type MapKind = 'icarus' | 'highway';
 export type RunLossCause = 'wrecked' | 'abandoned' | 'haulerLost';
 export type HaulerFacts = { id: string; alarmUntil: number | null };
@@ -627,7 +669,39 @@ export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: Wa
 export type WorldSettings = { damage: number; fuelUse: number; supplyUse: number; enemyGearGrowth: number };
 export type WorldSetup = { mode: GameModeId; settings: WorldSettings };
 
+export type DeathCause = 'core' | 'injury';
+export type VigilCalls = { count: number; turn: number };
+export type SunwardHunt = { party: string[]; grounds: Vec[]; prey: string | null; over: boolean; breaks: number };
+export type SunwardNight = { dusk: number; roster: string[]; beaten: string[]; calls: Record<string, VigilCalls>; hunt: SunwardHunt | null; shouted: string[]; offered: string[] };
+export type SunwardFacts = { collapsed: number | null; night: SunwardNight | null; lastHunt: number | null };
+
 export type Crater = { id: string; pos: Vec; radius: number; turn: number };
+
+export type CrimeOffense = 'attacked' | 'robbed' | 'killed';
+export type CaseStatus = 'open' | 'paid' | 'collected' | 'lapsed';
+export type CaseIssuer = { kind: 'faction'; faction: StandingFactionId } | { kind: 'driver'; id: string };
+export type CaseLead = { at: Vec; turn: number; heading: number | null };
+export type CrimeCase = {
+  id: string;
+  crime: string;
+  offense: CrimeOffense;
+  target: string;
+  victim: string;
+  issuer: CaseIssuer;
+  reporters: string[];
+  site: string;
+  at: Vec;
+  turn: number;
+  filed: number;
+  owed: number;
+  escrow: number;
+  status: CaseStatus;
+  closed: number | null;
+  hunter: string | null;
+  retryAt: number | null;
+  offered: number | null;
+  lead: CaseLead;
+};
 
 export type World = {
   seed: number;
@@ -643,6 +717,7 @@ export type World = {
   craters: Crater[];
   salvage: SalvageStock[];
   shops: Record<string, ShopState>;
+  roadNews: RoadNews[];
   terrain: Terrain;
   mapHash: string;
   setup: WorldSetup;
@@ -659,4 +734,6 @@ export type World = {
   lines: HarpoonLine[];
   searchRng: Rng;
   furyRoad: FuryRoadRun | null;
+  sunward: SunwardFacts | null;
+  crimes: CrimeCase[];
 };
