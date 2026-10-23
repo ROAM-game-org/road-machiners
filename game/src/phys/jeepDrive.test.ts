@@ -32,7 +32,7 @@ function distancesToGoal(start: World, turns: number): number[] {
     d = next!;
     const p = w.vehicles[0].pos;
     out.push(Math.hypot(p.x - BEHIND.x, p.y - BEHIND.y));
-    if (w.events.some((e) => e.kind === 'stall')) throw new Error(`the jeep stalled on turn ${i + 1}`);
+    if (w.events.some((e) => e.t === 'stall')) throw new Error(`the jeep stalled on turn ${i + 1}`);
   }
   freeDrive(d);
   return out;
