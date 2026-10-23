@@ -7,7 +7,6 @@ import { readEnvFiles } from './config';
 import { countAgyRun, decodeToolCall, HERMES_TOOL_LABEL, HERMES_TOOLS_SHARED, runHermesTool, toolDockerArgs, toolWorkdir, type ToolDeps } from './hermes-tools';
 import { AGENT_NETWORK, type FactoryConfig } from './types';
 
-const SECRET = 'gemini-secret-value';
 
 function encode(...parts: string[]): string {
   return Buffer.from(parts.map((part) => `${part}\0`).join(''), 'utf8').toString('base64');
@@ -19,12 +18,14 @@ beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'hermes-tools-'));
   mkdirSync(join(home, 'codex'));
   writeFileSync(join(home, 'codex/auth.json'), '{}');
+  mkdirSync(join(home, 'agy'));
+  writeFileSync(join(home, 'agy/antigravity-oauth-token'), '{}');
 });
 
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
 function config(): FactoryConfig {
-  return { home, image: 'roam-factory:dev', geminiKey: SECRET, agyMaxRuns: 2, agyModel: 'gemini-3.8-flash-medium', codexModel: 'gpt-6-sol', codexEffort: 'medium', agentJobMaxMinutes: 30 } as FactoryConfig;
+  return { home, image: 'roam-factory:dev', agyMaxRuns: 2, agyModel: 'gemini-3.8-flash-medium', codexModel: 'gpt-6-sol', codexEffort: 'medium', agentJobMaxMinutes: 30 } as FactoryConfig;
 }
 
 describe('decodeToolCall', () => {
@@ -72,26 +73,30 @@ describe('countAgyRun', () => {
 });
 
 describe('toolDockerArgs', () => {
-  it('runs agy in the agent image behind the proxy with the Gemini key by name only and no Codex login', () => {
+  it('runs agy in the agent image behind the proxy with the agy login read only and no Codex login', () => {
     const { args, env } = toolDockerArgs(config(), { tool: 'agy', cwd: '/factory/home/hermes-tools/post', args: ['-p', 'hi'] }, 'hermes-tool-1');
-    expect(args.join(' ')).not.toContain(SECRET);
-    expect(env).toEqual({ GEMINI_API_KEY: SECRET, AGY_MODEL: 'gemini-3.8-flash-medium', AGY_MAX_RUNS: '2' });
-    expect(args).toEqual(expect.arrayContaining(['-e', 'GEMINI_API_KEY', '--network', AGENT_NETWORK, `${home}/hermes-tools:/work`, '/work/post', HERMES_TOOL_LABEL, 'hermes-tool-1']));
+    expect(env).toEqual({ AGY_MODEL: 'gemini-3.8-flash-medium', AGY_MAX_RUNS: '2' });
+    expect(args).toEqual(expect.arrayContaining(['--network', AGENT_NETWORK, `${home}/hermes-tools:/work`, `${home}/agy/antigravity-oauth-token:/home/pwuser/.gemini/antigravity-cli/antigravity-oauth-token:ro`, '/work/post', HERMES_TOOL_LABEL, 'hermes-tool-1']));
     expect(args.join(' ')).not.toContain('.codex');
     expect(args.slice(-4)).toEqual(['roam-factory:dev', 'agy', '-p', 'hi']);
   });
 
-  it('runs codex with the Codex login, model and effort and no Gemini key', () => {
+  it('runs codex with the Codex login, model and effort and no agy login', () => {
     const { args, env } = toolDockerArgs(config(), { tool: 'codex', cwd: '/', args: ['exec', 'hi'] }, 'hermes-tool-2');
     expect(env).toEqual({ CODEX_MODEL: 'gpt-6-sol', CODEX_EFFORT: 'medium' });
     expect(args).toContain(`${home}/codex:/home/pwuser/.codex`);
-    expect(args).not.toContain('GEMINI_API_KEY');
+    expect(args.join(' ')).not.toContain('antigravity-oauth-token');
     expect(args.slice(-3)).toEqual(['codex', 'exec', 'hi']);
   });
 
   it('refuses codex when the host has no Codex login', () => {
     rmSync(join(home, 'codex/auth.json'));
     expect(() => toolDockerArgs(config(), { tool: 'codex', cwd: '/', args: [] }, 'n')).toThrow('auth.json is missing');
+  });
+
+  it('refuses agy when the host has no agy login', () => {
+    rmSync(join(home, 'agy/antigravity-oauth-token'));
+    expect(() => toolDockerArgs(config(), { tool: 'agy', cwd: '/', args: [] }, 'n')).toThrow('antigravity-oauth-token is missing');
   });
 });
 
@@ -223,13 +228,13 @@ describe('the agy and codex commands of the Hermes image', () => {
 
 const hermes = process.env.FACTORY_SMOKE_HERMES;
 
-function hostSecrets(): { gemini: boolean; codex: boolean } {
+function hostSecrets(): { agy: boolean; codex: boolean } {
   const env = readEnvFiles('settings.env', '.env');
   if (!env.FACTORY_HOME) throw new Error('FACTORY_SMOKE_HERMES needs the factory env: run it from the deployed factory/ folder.');
-  return { gemini: (env.GEMINI_API_KEY ?? '') !== '', codex: existsSync(join(env.FACTORY_HOME, 'codex/auth.json')) };
+  return { agy: existsSync(join(env.FACTORY_HOME, 'agy/antigravity-oauth-token')), codex: existsSync(join(env.FACTORY_HOME, 'codex/auth.json')) };
 }
 
-const secrets = hermes === undefined ? { gemini: false, codex: false } : hostSecrets();
+const secrets = hermes === undefined ? { agy: false, codex: false } : hostSecrets();
 
 function inHermes(...command: string[]): { code: number | null; out: string } {
   const result = spawnSync('docker', ['exec', '-u', String(process.getuid?.()), '-w', HERMES_TOOLS_SHARED, hermes as string, ...command], { encoding: 'utf8', timeout: 600_000 });
@@ -245,7 +250,7 @@ describe.skipIf(hermes === undefined)('agy and codex in the deployed Hermes cont
     expect(agy.code, agy.out).toBe(0);
   }, 300_000);
 
-  it.skipIf(!secrets.gemini)('gets an answer from agy with the factory Gemini key', () => {
+  it.skipIf(!secrets.agy)('gets an answer from agy with the factory agy login', () => {
     const agy = inHermes('agy', '--dangerously-skip-permissions', '-p', 'Reply with the single word ok.');
     expect(agy.code, agy.out).toBe(0);
     expect(agy.out.toLowerCase()).toContain('ok');
