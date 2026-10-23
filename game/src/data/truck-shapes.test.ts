@@ -97,12 +97,13 @@ function stationsOf(profile: Profile, ground: number) {
 type Band = [number, number];
 type Reference = { height: Band; hood?: Band; roof: Band; deck?: Band; roofStart?: Band; noseDrop?: Band; tailDrop?: Band };
 
-const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout', Reference> = {
+const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'jeep', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
   niva: { height: [1.89, 2.19], hood: [0.22, 0.28], roof: [0.55, 1], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
+  jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [1.0, 1.15] },
 };
 
 type ShapeName = keyof typeof SHAPES;
@@ -126,7 +127,7 @@ function straightProfile(id: string): Profile {
 }
 
 describe('trucks built from a reference photo keep its proportions', () => {
-  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout'] as const)('%s', (id) => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'jeep'] as const)('%s', (id) => {
     const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
     const got = stationsOf(straightProfile(id), ground);
@@ -171,6 +172,36 @@ describe('the scout pickup', () => {
     const inHole = (c: { x: number; y: number }) => Math.abs(c.x - anchor.x) <= half.x && Math.abs(-c.y - anchor.z) <= half.y;
     const open = columns.filter((c) => c.x >= 0.9 && c.x <= 2.3 && Math.abs(c.y) <= 1.0 && !inHole(c) && c.top < 0.15);
     expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
+  });
+});
+
+describe('the jeep field car', () => {
+  const boxes = SHAPES.base_jeep.boxes;
+  const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
+  const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
+
+  it('keeps the Type 82 footprint at 1.217 scale: 4.55 m long, with a width to length of 0.43', () => {
+    expect(Math.abs(along - 4.55)).toBeLessThanOrEqual(0.05);
+    expect(across / along).toBeGreaterThanOrEqual(0.41);
+    expect(across / along).toBeLessThanOrEqual(0.44);
+  });
+
+  it('keeps the Type 82 wheelbase share of 0.64 of its length', () => {
+    expect((2 * PHYSICS.bodies.jeep.wheelX) / along).toBeGreaterThanOrEqual(0.62);
+    expect((2 * PHYSICS.bodies.jeep.wheelX) / along).toBeLessThanOrEqual(0.66);
+  });
+
+  it('keeps the Type 82 beltline: the door tops 1.2 to 1.3 m over the ground', () => {
+    const { heights } = SHAPES.base_jeep;
+    const jeep = PHYSICS.bodies.jeep;
+    const ground = jeep.wheelY - PHYSICS.truck.suspensionRest - jeep.wheelRadius;
+    const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
+    const tail = Math.min(...columns.map((c) => c.x));
+    const nose = Math.max(...columns.map((c) => c.x));
+    const station = tail + 0.2 * (nose - tail);
+    const belt = Math.max(...columns.filter((c) => Math.abs(c.x - station) <= 0.2 && Math.abs(c.y) >= 0.8 && Math.abs(c.y) <= 0.95).map((c) => c.top));
+    expect(belt - ground).toBeGreaterThanOrEqual(1.2);
+    expect(belt - ground).toBeLessThanOrEqual(1.3);
   });
 });
 
