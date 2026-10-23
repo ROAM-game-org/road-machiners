@@ -381,6 +381,7 @@ export const TALK: Translation<typeof EN> = {
   'way.sign.salvage-yard': 'темным ржавым стенам и крану, поднимающему машину',
   'way.sign.scrapjaw': 'лагерю рейдеров за стенами из лома',
   'way.sign.kiln': 'лагерю рейдеров в конце грунтовки',
+  'way.sign.marshal-post': 'огороженному двору вокруг высокой ретрансляционной мачты',
   'call.km': '{km} км',
   'call.m': '{m} м',
   'compass.east': 'к востоку',

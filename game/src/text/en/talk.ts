@@ -380,6 +380,7 @@ export const TALK = {
   'way.sign.salvage-yard': 'dark rusted walls and a crane hoisting a car',
   'way.sign.scrapjaw': 'a raider camp behind scrap walls',
   'way.sign.kiln': 'a raider camp at the end of a dirt track',
+  'way.sign.marshal-post': 'a fenced yard round a tall relay mast',
   'call.km': m('{km} km', { km: 'dec1' }),
   'call.m': m('{m} m', { m: 'int' }),
   'compass.east': 'east',
