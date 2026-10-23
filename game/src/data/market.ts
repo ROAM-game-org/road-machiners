@@ -109,7 +109,7 @@ export const CONTRACTS = {
 
   procure: {
     units: [3, 12] as [number, number],
-    travelFactor: 1,
+    travelFactor: 0.5,
     slackTurns: EFFORT.handlingTurns * 2,
     xpPerEffort: 0.003,
   },

@@ -356,7 +356,7 @@ function ordersFromElsewhere(shopId: string, good: string): boolean {
 }
 
 function procureShortfall(world: World, shopId: string, state: ShopState, good: string): number {
-  if (!ordersFromElsewhere(shopId, good) || !stockShort(shopId, state, good) || onOrder(world, shopId, good)) return 0;
+  if (!ordersFromElsewhere(shopId, good) || onOrder(world, shopId, good)) return 0;
   const shortfall = stockTarget(shopId, good) - goodStock(state, good);
   return shortfall >= CONTRACTS.procure.units[0] ? shortfall : 0;
 }

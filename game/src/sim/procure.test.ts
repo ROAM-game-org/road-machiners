@@ -27,6 +27,7 @@ import {
   siteOf,
   standingPrice,
   stockForSale,
+  stockShort,
   stockTarget,
   watchStock,
   type Contract,
@@ -60,10 +61,17 @@ describe('procureCandidates', () => {
     expect(procureCandidates(w, 'bowl', w.shops.bowl)).toContain('salt');
   });
 
-  it('leaves out a good that is not short', () => {
+  it('leaves out a good at its target stock', () => {
     const w = emptyWorld();
     setShopPressure(w, 'bowl', 'salt', 0);
     expect(procureCandidates(w, 'bowl', w.shops.bowl)).not.toContain('salt');
+  });
+
+  it('names a good below its target by at least the smallest order, though not short enough to tint the market', () => {
+    const w = emptyWorld();
+    w.shops['green-pit'].goods.salt = stockTarget('green-pit', 'salt') - CONTRACTS.procure.units[0];
+    expect(stockShort('green-pit', w.shops['green-pit'], 'salt')).toBe(false);
+    expect(procureCandidates(w, 'green-pit', w.shops['green-pit'])).toContain('salt');
   });
 
   it('leaves out a good the shop makes itself, however short', () => {
