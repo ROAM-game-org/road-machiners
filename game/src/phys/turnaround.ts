@@ -5,11 +5,6 @@ import { bendField } from '../sim/rig';
 import type { Pose } from '../sim/types';
 import type { Vec } from '../sim/vec';
 
-export function steerLockOf(body: Body, steer: number): number {
-  if (body.turnWheelX === undefined) return steer;
-  return Math.atan((Math.tan(steer) * body.wheelX) / body.turnWheelX);
-}
-
 export function turnRadius(body: Body, maxSteer: number): number {
   return (2 * body.wheelX) / Math.tan(maxSteer);
 }

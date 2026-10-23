@@ -29,7 +29,7 @@ import { angleDiff, bearing, clamp, DEG, dist, type Vec } from '../sim/vec';
 import { unitBody, type Body } from '../sim/body';
 import { bendField, followPose, reachMeters, unitPoses } from '../sim/rig';
 import { wheelMounts } from './body';
-import { backUpClear, forwardTurnClear, steerLockOf, turnaroundSpeed, turnRadius, type Stance } from './turnaround';
+import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius, type Stance } from './turnaround';
 import { headingOf, headingQuat, noseRise, rideHeightAt, rotateBy, toPhys, toPhysCircle, TURN_STEPS, upOf, type Circle, type Quat, type TurnFrames, type V3, type VehicleFrame } from './frames';
 import { addVehicle, carrySpins, frameOf, againstBend, backCap, checkRigHandles, liveBend, makeCar, makeTrailer, placeBodies, rearIndex, rollUnits, removeVehicle, setMasses, sideStiffness, unitBodies, wheelLoads, type UnitLoad } from './units';
 
@@ -600,7 +600,7 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
   const engine = s.maxSpeed > 0;
   const base = {
     engine,
-    maxSteer: steerLockOf(unitBody(v.chassisId, 0), T.maxSteer * (s.turnSlow / (ch.turnSlow * DEG))),
+    maxSteer: T.maxSteer * (s.turnSlow / (ch.turnSlow * DEG)),
     engineForce: (full.mass * T.engineAccel * (s.accel / ch.accel)) / 2,
     brakeForce: T.brakeForce * (ch.handlingMass / 1000),
     stopDecel: D.stopDecel * (ch.handlingMass / full.mass),

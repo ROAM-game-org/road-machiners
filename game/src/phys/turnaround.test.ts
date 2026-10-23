@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { backUpClear, forwardTurnClear, steerLockOf, turnaroundSpeed, turnRadius } from './turnaround';
-import { bodyOf, unitsOf } from '../sim/body';
+import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius } from './turnaround';
+import { bodyOf } from '../sim/body';
 import { CHASSIS } from '../data/chassis';
 import { addVehicle } from '../sim/testkit';
 import { endTurn, setDirect, setMoveOrder } from '../sim/world';
@@ -81,7 +81,6 @@ describe('turn speed', () => {
   });
 });
 
-const BUS_TURN_CIRCLE = 8.55;
 const BUS_RAPIER_CIRCLE = 6.09;
 
 type Point = { x: number; z: number };
@@ -119,27 +118,38 @@ function fullLockCircleFromRest(chassisId: string): number {
   return fittedRadius(frames.filter((f) => f.steer > lock - 0.01));
 }
 
-describe('steering lock', () => {
+describe('the bus turning circle', () => {
   beforeAll(async () => {
     await initPhysics();
   });
 
-  it('gears the bus lock to keep its 8.55 m circle on the shorter LAZ wheelbase', () => {
-    const b = bodyOf('bus');
-    expect(Math.abs(turnRadius(b, steerLockOf(b, PHYSICS.truck.maxSteer)) / BUS_TURN_CIRCLE - 1)).toBeLessThanOrEqual(0.02);
-  });
-
-  it('keeps the bus circle at every lock its stats give, not only the shared one', () => {
-    const b = bodyOf('bus');
-    for (const steer of [0.4, 0.6, 0.82]) expect(turnRadius(b, steerLockOf(b, steer))).toBeCloseTo((2 * 2.925) / Math.tan(steer), 6);
-  });
-
-  it('keeps the shared lock on every other body', () => {
-    const others = Object.keys(CHASSIS).filter((id) => CHASSIS[id].look !== 'bus');
-    for (const id of others) for (const { body } of unitsOf(id)) expect(steerLockOf(body, PHYSICS.truck.maxSteer), id).toBe(PHYSICS.truck.maxSteer);
-  });
-
-  it('turns the bus at full lock from rest in Rapier on the circle the old 5.85 m wheelbase gave, within 5%', () => {
+  it('turns the bus at full lock from rest in Rapier on the circle its old 5.85 m wheelbase gave, within 5%', () => {
     expect(Math.abs(fullLockCircleFromRest('bus') / BUS_RAPIER_CIRCLE - 1)).toBeLessThanOrEqual(0.05);
+  });
+
+  it('keeps the bus upright at top speed at full lock on flat ground', () => {
+    let w = emptyWorld({ x: 60, y: 60 });
+    const v = addVehicle(w, 'player', 'bus', ['stockEngine'], { x: 60, y: 60 });
+    w.vehicles = [v];
+    w.player.vehicleId = v.id;
+    v.speed = CHASSIS.bus.maxSpeed;
+    w = setMoveOrder(setDirect(w, true), { kind: 'through', dest: { x: 60, y: 40 } });
+    let d = buildDrive(w);
+    const tilts: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      let r: TurnResult | null = null;
+      w = endTurn(w, physicsMove(d, (x) => (r = x)));
+      for (const f of r!.frames[v.id]) tilts.push(Math.acos(Math.min(1, 1 - 2 * (f.rot.x * f.rot.x + f.rot.z * f.rot.z))) * (180 / Math.PI));
+      freeDrive(d);
+      d = r!.next;
+      const bus = w.vehicles[0];
+      const turn = i % 2 ? Math.PI / 2 : -Math.PI / 2;
+      w = setMoveOrder(w, { kind: 'through', dest: { x: bus.pos.x + 20 * Math.cos(bus.heading + turn), y: bus.pos.y + 20 * Math.sin(bus.heading + turn) } });
+    }
+    expect(Math.max(...tilts)).toBeLessThan(PHYSICS.truck.flipTilt);
+  });
+
+  it('turns the bus wider than the van, whose wheelbase it now shares', () => {
+    expect(fullLockCircleFromRest('bus')).toBeGreaterThan(fullLockCircleFromRest('van'));
   });
 });
