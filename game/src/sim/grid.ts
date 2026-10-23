@@ -120,27 +120,8 @@ export function sideOf(v: Vehicle, part: PartInstance): SideLetter | null {
 
 const gridCache = new Map<string, Grid>();
 
-const bareGridCache = new Map<string, Grid>();
-
-export function bareGrid(chassisId: string): Grid {
-  const cached = bareGridCache.get(chassisId);
-  if (cached) return cached;
-  const base = baseGrid(chassisId);
-  const bedRows = chassisDef(chassisId).bedRows;
-  const bed = Array.from({ length: bedRows }, () => Object.freeze(Array.from({ length: base.w }, () => '.' as Cell | null)));
-  const grid = Object.freeze({
-    w: base.w,
-    h: base.h + bedRows,
-    chassisH: base.h,
-    deadFrom: base.h + bedRows,
-    cells: Object.freeze([...base.cells, ...bed]) as (Cell | null)[][],
-  });
-  bareGridCache.set(chassisId, grid);
-  return grid;
-}
-
 export function gridOf(v: Vehicle): Grid {
-  const bare = bareGrid(v.chassisId);
+  const base = baseGrid(v.chassisId);
   let working = 0;
   let dead = 0;
   for (const it of mountedItems(v, 'cargo')) {
@@ -148,18 +129,17 @@ export function gridOf(v: Vehicle): Grid {
     if (it.part.hp > 0) working += rows;
     else dead += rows;
   }
-  if (working === 0 && dead === 0) return bare;
   const key = `${v.chassisId}|${working}|${dead}`;
   const cached = gridCache.get(key);
   if (cached) return cached;
-  const row = (cell: Cell | null) => Object.freeze(Array.from({ length: bare.w }, () => cell));
+  const row = (cell: Cell | null) => Object.freeze(Array.from({ length: base.w }, () => cell));
   const rows = [...Array.from({ length: working }, () => row('.')), ...Array.from({ length: dead }, () => row(null))];
   const grid = Object.freeze({
-    w: bare.w,
-    h: bare.h + working + dead,
-    chassisH: bare.chassisH,
-    deadFrom: bare.h + working,
-    cells: Object.freeze([...bare.cells, ...rows]) as (Cell | null)[][],
+    w: base.w,
+    h: base.h + working + dead,
+    chassisH: base.h,
+    deadFrom: base.h + working,
+    cells: Object.freeze([...base.cells, ...rows]) as (Cell | null)[][],
   });
   gridCache.set(key, grid);
   return grid;

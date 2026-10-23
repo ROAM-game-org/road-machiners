@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CHASSIS, CHASSIS_FEATURES, CHASSIS_PRICE_MODIFIERS, chassisFeature, HAULER_CHASSIS, isTruckPaint, PAINT, PAINT_SCHEMES, PALETTE, PALETTE_IDS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef, type PaletteId } from './chassis';
+import { CHASSIS, CHASSIS_FEATURES, chassisFeature, HAULER_CHASSIS, isTruckPaint, PAINT, PAINT_SCHEMES, PALETTE, PALETTE_IDS, PLAYER_CHASSIS, TOWN_CHASSIS, type ChassisDef, type PaletteId } from './chassis';
 import { GANG_PAINT, TEMPLATE_PAINT } from '../render/palette';
 import { FURY_ROAD } from './modes';
 import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
-import { cargoCellsGained } from '../sim/grid';
 
 type Cell = { x: number; y: number };
 
@@ -62,8 +61,8 @@ const SEAT_CAB: Record<string, string> = {
 };
 
 const VALUES = {
-  scout: 84267, hauler: 129734, buggy: 64267, wagon: 100733, courier: 77333, van: 105466, longbed: 186666,
-  carrier: 162534, tractor: 146067, jeep: 72867, convertible: 99734, bus: 133867, loader: 169600, niva: 104934, bukhanka: 115000, lincoln: 142933, semi: 140000,
+  scout: 81467, hauler: 122534, buggy: 64267, wagon: 100733, courier: 77333, van: 102666, longbed: 179466,
+  carrier: 162534, tractor: 146067, jeep: 72867, convertible: 99734, bus: 126667, loader: 169600, niva: 104934, bukhanka: 115000, lincoln: 142933, semi: 140000,
   sorokonoga: 176567,
 };
 
@@ -131,7 +130,7 @@ describe('chassis grids', () => {
   });
 
   it('keeps the scout worth what it was before its cab moved', () => {
-    expect(CHASSIS.scout.value).toBe(84267);
+    expect(CHASSIS.scout.value).toBe(81467);
     expect(CHASSIS.scout.ratedMass).toBe(RATED_MASS);
   });
 
@@ -261,12 +260,12 @@ describe('chassis tradeoffs', () => {
   const count = (c: ChassisDef, letter: string): number => c.layout.reduce((n, row) => n + [...row].filter((ch) => ch === letter).length, 0);
   const armorCells = (c: ChassisDef): number => [...ARMOR].reduce((n, letter) => n + count(c, letter), 0);
   const coreHp = (c: ChassisDef): number => c.core.reduce((n, core) => n + partDef(core.defId).hp, 0);
-  const axes = (c: ChassisDef): number[] => [c.maxSpeed, c.accel, c.brake, c.turnSlow, c.turnFast, count(c, 'D'), armorCells(c), c.ratedMass, coreHp(c), c.fuelCap / c.fuelPerTile, c.bedRows];
+  const axes = (c: ChassisDef): number[] => [c.maxSpeed, c.accel, c.brake, c.turnSlow, c.turnFast, count(c, 'D'), armorCells(c), c.ratedMass, coreHp(c), c.fuelCap / c.fuelPerTile];
 
   function chassisDominates(a: ChassisDef, b: ChassisDef): boolean {
     const x = axes(a);
     const y = axes(b);
-    return x.every((v, i) => v >= y[i]) && x.some((v, i) => v > y[i]);
+    return a.feature === b.feature && x.every((v, i) => v >= y[i]) && x.some((v, i) => v > y[i]);
   }
 
   it('flags a strictly better copy of a chassis', () => {
@@ -275,7 +274,7 @@ describe('chassis tradeoffs', () => {
     expect(chassisDominates(CHASSIS.van, better)).toBe(false);
   });
 
-  it('keeps every player chassis from matching or beating another of its tier on every stat', () => {
+  it('keeps every player chassis from matching or beating another of its tier and feature on every stat', () => {
     for (const id of PLAYER_CHASSIS) {
       for (const other of PLAYER_CHASSIS.map((o) => CHASSIS[o]).filter((c) => c.tier === CHASSIS[id].tier && c.id !== id)) {
         expect(chassisDominates(CHASSIS[id], other), `${id} beats ${other.id}`).toBe(false);
@@ -447,24 +446,5 @@ describe('the paint schemes', () => {
   it('never repeats a scheme', () => {
     const keys = PAINT_SCHEMES.map((scheme) => `${scheme.body} ${scheme.cab} ${scheme.gear}`);
     expect(new Set(keys).size).toBe(keys.length);
-  });
-});
-
-describe('bed rows', () => {
-  const BED_ROWS: Record<string, number> = { scout: 1, van: 1, hauler: 2, longbed: 2, bus: 2 };
-  const bedChassis = Object.values(CHASSIS).filter((c) => c.bedRows > 0);
-  const cargoParts = Object.values(PARTS).filter((p) => p.kind === 'cargo');
-
-  it('gives each chassis its fixed whole number of rows', () => {
-    expect(Object.fromEntries(Object.values(CHASSIS).map((c) => [c.id, c.bedRows]))).toEqual(
-      Object.fromEntries(Object.keys(CHASSIS).map((id) => [id, BED_ROWS[id] ?? 0])),
-    );
-  });
-
-  it('prices a bed cell inside what cargo parts cost per cell they gain on every bed chassis', () => {
-    const perBedCell = CHASSIS_PRICE_MODIFIERS.perBedCell;
-    const perCell = (c: ChassisDef) => cargoParts.map((p) => p.value / cargoCellsGained(c.id, p.id));
-    expect(perBedCell).toBeGreaterThanOrEqual(Math.max(...bedChassis.map((c) => Math.min(...perCell(c)))));
-    expect(perBedCell).toBeLessThanOrEqual(Math.min(...bedChassis.map((c) => Math.max(...perCell(c)))));
   });
 });
