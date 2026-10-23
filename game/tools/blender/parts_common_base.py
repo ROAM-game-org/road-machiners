@@ -97,6 +97,7 @@ def arch_profile(
 
     nose_top and cowl_x make the top fall from top at cowl_x to nose_top at the nose, like a sloped hood.
     crown squares the arches: straight sides up to a flat top crown above the hub, with chamfered corners.
+    segments is the edge count of a round arch.
     """
     low = g.bottom if bottom is None else bottom
     r = radius + ARCH_CLEARANCE
