@@ -236,7 +236,7 @@ def cab(kit: Kit) -> None:
 def tanks_and_steps(kit: Kit) -> None:
     """Chrome fuel tanks and dark steps under the doors, the frame between them hidden."""
     for s, name in ((1, "l"), (-1, "r")):
-        kit.cylinder(f"tank_{name}", 0.3, 1.1, (CAB_BACK + 0.6, s * (CAB_HALF - 0.3), up(0.62)), "chrome", rot=(0, math.pi / 2, 0), vertices=10)
+        kit.cylinder(f"tank_{name}", 0.3, 1.1, (CAB_BACK + 0.6, s * (CAB_HALF - 0.3), up(0.62)), "chrome", rot=(0, math.pi / 2, 0), vertices=round_sides(0.3))
         kit.box(f"step_{name}", (0.45, 0.32, 0.08), (CAB_FRONT - 0.15, s * (CAB_HALF - 0.16), up(0.62)), "under")
         kit.box(f"step_box_{name}", (0.5, 0.3, 0.45), (CAB_FRONT - 0.15, s * (CAB_HALF - 0.17), up(0.82)), "metal_dark")
 
@@ -245,8 +245,8 @@ def stacks(kit: Kit) -> None:
     """Twin tall chrome stacks behind the cab doors, with a wider heat shield on their lower half."""
     for s, name in ((1, "l"), (-1, "r")):
         y = s * (CAB_HALF - 0.12)
-        kit.cylinder(f"stack_{name}", 0.08, STACK_TOP - CAB_BOTTOM, (CAB_BACK - 0.12, y, (STACK_TOP + CAB_BOTTOM) / 2), "chrome", vertices=8)
-        kit.cylinder(f"stack_shield_{name}", 0.12, 1.1, (CAB_BACK - 0.12, y, CAB_ROOF - 0.7), "chrome", vertices=8)
+        kit.cylinder(f"stack_{name}", 0.08, STACK_TOP - CAB_BOTTOM, (CAB_BACK - 0.12, y, (STACK_TOP + CAB_BOTTOM) / 2), "chrome", vertices=round_sides(0.08))
+        kit.cylinder(f"stack_shield_{name}", 0.12, 1.1, (CAB_BACK - 0.12, y, CAB_ROOF - 0.7), "chrome", vertices=round_sides(0.12))
 
 
 def coupling(kit: Kit) -> None:
@@ -288,7 +288,7 @@ def trailer(kit: Kit) -> None:
     kit.box("underride", (0.12, WIDTH - 0.4, 0.16), (BACK + 0.25, 0, up(0.5)), "metal_dark")
     kit.box("bogie", (TANDEM_COVER, 1.2, TRAILER_FLOOR - HUB_Z - 0.2), ((TRAILER_AXLES[0] + TRAILER_AXLES[1]) / 2, 0, (TRAILER_FLOOR + HUB_Z + 0.2) / 2), "under")
     kit.box("trailer_frame", (length - 0.4, 1.0, 0.16), ((TRAILER_FRONT + BACK) / 2, 0, TRAILER_FLOOR - 0.08), "under")
-    kit.cylinder("king_pin", 0.08, 0.2, (PIVOT_X, 0, TRAILER_FLOOR - 0.16), "metal_dark", vertices=8)
+    kit.cylinder("king_pin", 0.08, 0.2, (PIVOT_X, 0, TRAILER_FLOOR - 0.16), "metal_dark", vertices=round_sides(0.08))
 
 
 def build_tractor(kit: Kit) -> int:
