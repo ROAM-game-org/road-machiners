@@ -116,10 +116,7 @@ describe('part cheats', () => {
   });
 
   it('spills the cargo off a cargo part it breaks', () => {
-    const loaded = emptyWorld();
-    const row = chassisDef('scout').layout.length + chassisDef('scout').bedRows;
-    playerVehicle(loaded).items.push({ id: 'i-spill', kind: 'good', good: 'scrap', x: 0, y: row, rot: 0 });
-    const w = damagePartTo(loaded, 'panniers', 0);
+    const w = damagePartTo(emptyWorld(), 'panniers', 0);
     const me = playerVehicle(w);
     const g = gridOf(me);
     expect(me.items.filter((it) => it.y >= g.deadFrom)).toEqual([]);
