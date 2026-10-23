@@ -78,7 +78,11 @@ function faceSamples(faces: THREE.Vector3[][]): THREE.Vector3[] {
     return ys.length > 0 ? [new THREE.Vector3(x, Math.min(...ys), z)] : [];
   });
   const outline = faces.flatMap(([a, b, c]) => [new THREE.Vector3().add(a).add(b).add(c).divideScalar(3), a.clone(), b.clone(), c.clone()]);
-  return [...inside, ...outline];
+  return [...inside, ...outline].filter((p) => !overOwnFace(faces, p));
+}
+
+function overOwnFace(faces: THREE.Vector3[][], p: THREE.Vector3): boolean {
+  return faces.some((face) => coversXZ(face, p.x, p.z) && heightOn(face, p.x, p.z) < p.y - CLIP_TOLERANCE / 2);
 }
 
 function heightOn([a, b, c]: THREE.Vector3[], x: number, z: number): number {
