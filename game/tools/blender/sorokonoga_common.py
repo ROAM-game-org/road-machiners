@@ -18,8 +18,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit, round_sides  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, FLARE, SUSPENSION_REST, arch_cut, cut_boxes, flare_profile, hull_mesh  # noqa: E402
+from kit import Kit  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, FLARE, ROUND_ARCH_SEGMENTS, SUSPENSION_REST, arch_cut, cut_boxes, flare_profile, hull_mesh  # noqa: E402
+from parts_common_core import ROUND_SIDES, TIRE_SHARE, drawn_wheel  # noqa: E402
 from rig_units import check_unit as check_rig_unit, unit_wheels as count_wheels  # noqa: E402
 from shapes import prism  # noqa: E402
 
@@ -36,7 +37,7 @@ WHEEL_Z = 1.15  # PHYSICS.bodies.sorokonoga.wheelZ: the steer wheels and the out
 WHEEL_R = 0.55  # PHYSICS.bodies.sorokonoga.wheelRadius
 WHEEL_HALF_W = 0.2  # PHYSICS.bodies.sorokonoga.wheelHalfWidth
 HUB_Z = WHEEL_Y - SUSPENSION_REST
-TIRE_R = WHEEL_R * 0.935  # the wheel model's tire body; its lugs reach the ground
+TIRE_R = WHEEL_R * TIRE_SHARE  # the wheel model's tire body; its lugs reach the ground
 DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
 WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
 DUAL_WELL_Y = WHEEL_Z - DUAL_STEP - WHEEL_HALF_W - 0.03  # inside the drive axle's inner duals
@@ -88,7 +89,6 @@ MODULE_HALF = 1.25
 MODULE_ROOF = up(2.35)
 MODULE_CHAMFER = 0.25  # the module's top front edge, along and down
 SKIN = 0.04  # the depth of grilles and lamps on a face
-FLARE_SEGMENTS = 4  # half the arch cut's edges, to keep eight flares inside the triangle budget of one longbed
 GRILLE_REACH = SKIN / 2 + 0.01  # a grille's bars stand this far out of its center
 
 
@@ -110,7 +110,7 @@ def hull(kit: Kit, name: str, points: list[tuple[float, float, float]], mat: str
 
 def rig_flare(kit: Kit, name: str, wx: float, x_min: float, x_max: float, y0: float, y1: float, low: float) -> None:
     """The dark low-poly flare over one arch of the rig on both sides, from y0 out to y1, clamped to the unit's x stretch."""
-    profile = flare_profile(wx, HUB_Z, WHEEL_R, low, x_min, x_max, FLARE_SEGMENTS)
+    profile = flare_profile(wx, HUB_Z, WHEEL_R, low, x_min, x_max, ROUND_ARCH_SEGMENTS)
     prism(kit, f"{name}_l", profile, y0, y1, "under")
     prism(kit, f"{name}_r", profile, -y1, -y0, "under")
 
@@ -121,23 +121,19 @@ def tandem_flare(kit: Kit, name: str, front: float, rear: float, y0: float, y1: 
     r1 = r0 + FLARE
 
     def arc(wx: float, r: float, start: int, end: int) -> list[tuple[float, float]]:
-        return [(wx + r * math.cos(math.pi * k / FLARE_SEGMENTS), max(low, HUB_Z + r * math.sin(math.pi * k / FLARE_SEGMENTS))) for k in range(start, end + 1)]
+        return [(wx + r * math.cos(math.pi * k / ROUND_ARCH_SEGMENTS), max(low, HUB_Z + r * math.sin(math.pi * k / ROUND_ARCH_SEGMENTS))) for k in range(start, end + 1)]
 
-    half = FLARE_SEGMENTS // 2
-    outer = arc(front, r1, 0, half) + arc(rear, r1, half, FLARE_SEGMENTS)
-    inner = arc(front, r0, 0, FLARE_SEGMENTS) + arc(rear, r0, 0, FLARE_SEGMENTS)
+    half = ROUND_ARCH_SEGMENTS // 2
+    outer = arc(front, r1, 0, half) + arc(rear, r1, half, ROUND_ARCH_SEGMENTS)
+    inner = arc(front, r0, 0, ROUND_ARCH_SEGMENTS) + arc(rear, r0, 0, ROUND_ARCH_SEGMENTS)
     profile = outer + list(reversed(inner))
     prism(kit, f"{name}_l", profile, y0, y1, "under")
     prism(kit, f"{name}_r", profile, -y1, -y0, "under")
 
 
 def wheel(kit: Kit, name: str, x: float, y: float) -> None:
-    """One wheel in the look of the game's wheel model: a tire, a light rim and a hub, each as round as round_sides() asks."""
-    width = 2 * WHEEL_HALF_W
-    axle = (math.pi / 2, 0, 0)
-    kit.cylinder(f"{name}_tire", TIRE_R, width * 0.94, (x, y, HUB_Z), "wheel", rot=axle, vertices=round_sides(TIRE_R))
-    kit.cylinder(f"{name}_rim", WHEEL_R * 0.55, width * 0.98, (x, y, HUB_Z), "metal_light", rot=axle, vertices=round_sides(WHEEL_R * 0.55))
-    kit.cylinder(f"{name}_hub", WHEEL_R * 0.22, width, (x, y, HUB_Z), "rust", rot=axle, vertices=round_sides(WHEEL_R * 0.22))
+    """One wheel in the look of the game's wheel model, from drawn_wheel()."""
+    drawn_wheel(kit, name, (x, y, HUB_Z), WHEEL_R, 2 * WHEEL_HALF_W)
 
 
 def model_wheels(kit: Kit, x: float, y: float) -> int:
@@ -167,7 +163,7 @@ def grille(kit: Kit, name: str, center: tuple[float, float, float], size: tuple[
 
 
 def round_lamp(kit: Kit, name: str, x: float, y: float, z: float, radius: float) -> None:
-    kit.cylinder(name, radius, SKIN, (x, y, z), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(radius))
+    kit.cylinder(name, radius, SKIN, (x, y, z), "light", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
 
 
 def cab(kit: Kit) -> None:
@@ -212,7 +208,7 @@ def tractor_frame(kit: Kit) -> int:
     rig_flare(kit, "flare_steer", STEER_X, TRACTOR_REAR, FRONT, CAB_HALF - 0.05, HALF_W, CAB_BOTTOM)
     rig_flare(kit, "flare_drive", DRIVE_X, TRACTOR_REAR, FRONT, DUAL_WELL_Y, HALF_W, FRAME_TOP)
     kit.box("fifth_wheel", (0.6, 1.1, 0.12), (PIVOT_X, 0, up(1.11)), "metal_light")
-    kit.cylinder("coupling_disc", 0.3, 0.14, (PIVOT_X, 0, up(1.24)), "rust", vertices=round_sides(0.3))
+    kit.cylinder("coupling_disc", 0.3, 0.14, (PIVOT_X, 0, up(1.24)), "rust", vertices=ROUND_SIDES)
     return wheels
 
 
