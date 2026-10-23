@@ -25,7 +25,7 @@ export type ChassisAbility = {
 
 export const CHASSIS_FEATURES: Record<string, ChassisAbility> = {
   scout: { id: 'bed', bedRows: 1 },
-  buggy: { id: 'nimble', accel: 1.25, nimble: 0.05 },
+  buggy: { id: 'nimble', accel: 1.25, nimble: 0.0785 },
   courier: { id: 'racing', topSpeed: 1.25 },
   jeep: { id: 'offRoad', offRoadCut: 1, offRoadWear: 0.5 },
   hauler: { id: 'bed', bedRows: 2 },

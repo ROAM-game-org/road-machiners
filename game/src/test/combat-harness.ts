@@ -386,6 +386,7 @@ function rechassis(w: World, v: Vehicle, chassisId: string): void {
   const fresh = makeVehicle(w, { faction: v.faction, chassisId, parts: [], spares: [], cargo: {}, pos: v.pos, heading: v.heading, brain: null });
   v.chassisId = chassisId;
   v.items = fresh.items;
+  v.bend = fresh.bend;
 }
 
 const bareLoadout = (chassisId: string): NpcLoadout => ({ chassisId, level: 'standard', parts: [], spares: [], cargo: {} });

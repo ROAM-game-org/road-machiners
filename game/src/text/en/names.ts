@@ -97,7 +97,7 @@ export const NAMES = {
   'chassis.ability.bed': 'Built-in bed',
   'chassis.ability.bed.line': m('{n, plural, one {# built-in cargo row that never spills.} other {# built-in cargo rows that never spill.}}', { n: 'count' }),
   'chassis.ability.nimble': 'Nimble',
-  'chassis.ability.nimble.line': m('{a}% quicker off the line. Shots at it scatter {b}° wider while it moves.', { a: 'int', b: 'int' }),
+  'chassis.ability.nimble.line': m('{a}% quicker off the line. Shots at it scatter {b}° wider while it moves.', { a: 'int', b: 'dec1' }),
   'chassis.ability.racing': 'Racing gear',
   'chassis.ability.racing.line': m('{n}% higher top speed.', { n: 'int' }),
   'chassis.ability.offRoad': 'Off-road drive',

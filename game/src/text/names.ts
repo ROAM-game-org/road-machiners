@@ -29,7 +29,7 @@ type LineOf = (a: ChassisAbility) => Msg;
 
 const ABILITY_LINES: Record<AbilityId, LineOf> = {
   bed: (a) => t('chassis.ability.bed.line', { n: have(a.bedRows) }),
-  nimble: (a) => t('chassis.ability.nimble.line', { a: pct(a.accel), b: Math.round((have(a.nimble) * 180) / Math.PI) }),
+  nimble: (a) => t('chassis.ability.nimble.line', { a: pct(a.accel), b: Number(((have(a.nimble) * 180) / Math.PI).toFixed(1)) }),
   racing: (a) => t('chassis.ability.racing.line', { n: pct(a.topSpeed) }),
   offRoad: (a) => t('chassis.ability.offRoad.line', { n: 100 - share(a.offRoadWear) }),
   armored: (a) => t('chassis.ability.armored.line', { n: have(a.partArmor) }),
