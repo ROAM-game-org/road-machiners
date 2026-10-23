@@ -153,7 +153,7 @@ function conditionSpeed(world: World, v: Vehicle, from: number, steps: SpeedStep
     speed *= weather;
     steps?.push({ kind: 'weather', factor: weather, speed });
   }
-  if (isTowing(world, v.id) && TOW.speedShare < 1) {
+  if (isTowing(world, v.id)) {
     speed *= TOW.speedShare;
     steps?.push({ kind: 'towing', factor: TOW.speedShare, speed });
   }
@@ -229,6 +229,8 @@ export function plainMaxSpeed(world: World, v: Vehicle): number {
 
 export function weaponOn(v: Vehicle, part: PartInstance): WeaponDef {
   const def = wornDef<WeaponDef>(part);
+  const ability = chassisAbility(v.chassisId);
+  if (!ability?.range && !ability?.reloadCut && !ability?.arc) return def;
   return {
     ...def,
     range: def.range * rangeFactor(v.chassisId),
