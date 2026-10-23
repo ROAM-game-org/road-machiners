@@ -18,7 +18,7 @@ import type { VehicleView } from "./render/vehicle";
 import { scoreEventOf, type SoundDirector } from "./sound";
 import { PARTS } from "../data/parts";
 import { PHYSICS } from "../data/physics";
-import { bodyOf } from "../sim/body";
+import { spanOf } from "../sim/body";
 
 export type VolleyHost = {
   world: World;
@@ -143,7 +143,7 @@ export function utilitySeen(events: readonly GameEvent[], seen: (vehicleId: stri
 function playDryGuns(host: CombatHost, played: Set<string>): void {
   for (const e of host.world.events) {
     const p = e.t === "empty" && !played.has(gunKey(e.vehicle, e.weapon)) ? host.eventPoint(e.vehicle) : null;
-    if (p) host.sound.at("gun-empty", p, Math.max(0, host.poses.moveMs - host.startMs));
+    if (p) host.fx.later(Math.max(0, host.poses.moveMs - host.startMs), () => host.sound.at("gun-empty", p, 0));
   }
 }
 
@@ -157,14 +157,17 @@ const USE_CUES: Partial<Record<UtilityEffectType | "claymore", CueId>> = {
   oil: "oil-spill",
 };
 
-export type UtilitySoundHost = Pick<VolleyHost, "eventPoint"> & { world: Pick<World, "events" | "terrain">; sound: Pick<SoundDirector, "at"> };
+export type UtilitySoundHost = Pick<VolleyHost, "eventPoint"> & { world: Pick<World, "events" | "terrain">; sound: Pick<SoundDirector, "at">; fx: Pick<Fx3D, "later"> };
 
 type UtilitySound = { cue: CueId; seenBy: string; at: Vec | null; delayMs: number };
 
-export function playUtilitySounds(host: UtilitySoundHost): void {
-  for (const s of host.world.events.flatMap(utilitySoundsOf)) {
+export function playUtilitySounds(host: UtilitySoundHost, at: "start" | "end"): void {
+  const events = host.world.events.filter((e) => (e.t === "utility" || e.t === "pulse") === (at === "start"));
+  for (const s of events.flatMap(utilitySoundsOf)) {
     const seen = host.eventPoint(s.seenBy);
-    if (seen) host.sound.at(s.cue, s.at ? groundPoint(host.world.terrain, s.at) : seen, s.delayMs);
+    if (!seen) continue;
+    const at = s.at ? groundPoint(host.world.terrain, s.at) : seen;
+    host.fx.later(s.delayMs, () => host.sound.at(s.cue, at, 0));
   }
 }
 
@@ -219,6 +222,12 @@ function missAt(w: World, from: Vec, target: Vec): (offset: number) => V3 {
   return (offset) => groundPoint(w.terrain, missPoint(from, target, offset));
 }
 
+function gunOf(view: VehicleView | undefined, weapon: string, defId: string, spec: ProjectileSpec): Gun {
+  const rangeM = weaponRange(defId) * PHYSICS.metersPerTile;
+  if (!view) return { spec, rangeM, blastRadius: blastRadiusOf(defId), unit: 0, covers: () => false };
+  return { spec, rangeM, blastRadius: blastRadiusOf(defId), unit: view.turretUnit(weapon), covers: (heading, yaw) => view.covers(weapon, heading, yaw) };
+}
+
 function playTruckShot(host: CombatHost, e: ShotLike, rows: Map<string, number>, breaks: BreakCues): VolleyLands | null {
   if (!host.eventPoint(e.shooter) || !host.eventPoint(e.target)) return null;
   const w = host.world;
@@ -226,10 +235,9 @@ function playTruckShot(host: CombatHost, e: ShotLike, rows: Map<string, number>,
   const target = vehicleOf(w, e.target);
   const part = carriedPart(w, e.shooter, e.weapon);
   if (!part) throw new Error(`Shot from ${e.shooter} names no mounted weapon ${e.weapon}`);
-  const view = host.views.get(e.shooter);
   const spec = projectileOf(part.defId);
-  const gun: Gun = { spec, rangeM: weaponRange(part.defId) * PHYSICS.metersPerTile, blastRadius: blastRadiusOf(part.defId), covers: (heading, yaw) => view?.covers(e.weapon, heading, yaw) ?? false };
-  const half = bodyOf(target.chassisId).half;
+  const gun = gunOf(host.views.get(e.shooter), e.weapon, part.defId, spec);
+  const half = spanOf(target.chassisId).half;
   const shot: Shot = { shooter: e.shooter, target: e.target, rounds: e.rounds, late: killingRounds(w, e), missAt: missAt(w, shooter.pos, target.pos), targetHalf: { length: half.x, width: half.z } };
   const ground = (p: V3) => groundPoint(w.terrain, toMap(p)).y;
   const plans = planShot(host.poses, shot, gun, ground, Math.random);
@@ -353,7 +361,7 @@ export type TurnPoses = {
   moveMs: number;
   stepMs: number;
   at: (vehicleId: string, step: number) => V3 | null;
-  headingAt: (vehicleId: string, step: number) => number | null;
+  headingAt: (vehicleId: string, step: number, unit?: number) => number | null;
   end: (vehicleId: string) => V3 | null;
   endHeading: (vehicleId: string) => number | null;
 };
@@ -373,9 +381,10 @@ export function posesOf(world: World, frames: TurnFrames, clock: PoseClock, show
       const f = frames[id]?.[step];
       return f ? lift(f) : null;
     },
-    headingAt: (id, step) => {
+    headingAt: (id, step, unit = 0) => {
       const f = frames[id]?.[step];
-      return f ? headingOf(f.rot) : null;
+      if (!f) return null;
+      return unit > 0 && f.rear ? headingOf(f.rear.rot) : headingOf(f.rot);
     },
     end: (id) => {
       const f = endFrame(id);
@@ -388,7 +397,7 @@ export function posesOf(world: World, frames: TurnFrames, clock: PoseClock, show
   };
 }
 
-export type Gun = { spec: ProjectileSpec; rangeM: number; blastRadius: number; covers: (heading: number, yaw: number) => boolean };
+export type Gun = { spec: ProjectileSpec; rangeM: number; blastRadius: number; unit: number; covers: (heading: number, yaw: number) => boolean };
 
 export type Shot = { shooter: string; target: string; rounds: ShotRound[]; late: (k: number) => boolean; missAt: (offset: number) => V3; targetHalf: { length: number; width: number } };
 
@@ -413,7 +422,7 @@ export function fireSteps(poses: TurnPoses, shot: Pick<Shot, "shooter" | "target
 function firesAt(poses: TurnPoses, shot: Pick<Shot, "shooter" | "target">, gun: Gun, s: number): boolean {
   const a = poses.at(shot.shooter, s);
   const b = poses.at(shot.target, s);
-  const heading = poses.headingAt(shot.shooter, s);
+  const heading = poses.headingAt(shot.shooter, s, gun.unit);
   if (!a || !b || heading === null || flat(a, b) > gun.rangeM) return false;
   return gun.covers(heading, Math.atan2(b.z - a.z, b.x - a.x)) && s * poses.stepMs + flightMsOf(gun.spec, a, b) <= poses.moveMs;
 }
@@ -427,10 +436,10 @@ export function planShot(poses: TurnPoses, shot: Shot, gun: Gun, ground: Ground,
   const valid = fireSteps(poses, shot, gun);
   const free = shot.rounds.map((_, k) => valid.length > 0 && !shot.late(k));
   const steps = gun.spec.pellets ? pelletSteps(valid, free, random) : roundSteps(valid, free, random);
-  let late = 0;
+  let lateAfter = steps.filter((s) => s === null).length;
   return shot.rounds.map((r, k) => {
     const step = steps[k];
-    if (step === null) return lateRound(poses, shot, gun, r, late++, valid, ground, random);
+    if (step === null) return lateRound(poses, shot, gun, r, --lateAfter, valid, ground, random);
     return movingRound(poses, shot, gun, r, step, gun.spec.pellets ? k : 0, ground, random);
   });
 }
@@ -471,15 +480,23 @@ function strayPose(poses: TurnPoses, struck: string | null, landStep: number): V
   return struck === null ? null : (poses.at(struck, landStep) ?? poses.end(struck));
 }
 
-function lateRound(poses: TurnPoses, shot: Shot, gun: Gun, r: ShotRound, k: number, valid: number[], ground: Ground, random: () => number): PlannedRound {
+function lateRound(poses: TurnPoses, shot: Shot, gun: Gun, r: ShotRound, after: number, valid: number[], ground: Ground, random: () => number): PlannedRound {
   const end = poses.end(shot.shooter);
   const target = poses.end(shot.target);
   if (!end || !target) throw new Error(`Shot from ${shot.shooter} at ${shot.target} is planned with a truck not shown`);
-  const fireMs = latestFire(poses, valid, poses.moveMs - flightMsOf(gun.spec, end, target));
-  const a = poses.at(shot.shooter, Math.round(fireMs / poses.stepMs)) ?? end;
+  const landByMs = poses.moveMs - after * gun.spec.gapMs;
+  const fitMs = latestFire(poses, valid, landByMs - flightMsOf(gun.spec, end, target));
+  const a = fitMs === null ? end : (poses.at(shot.shooter, Math.round(fitMs / poses.stepMs)) ?? end);
   const struckAt = struckPoint(poses, shot, r, target);
-  const land = struckAt ? hitPoint(a, struckAt, r.struck === shot.target ? r.offset : 0, random) : missLand(a, shot.missAt(r.offset), gun, ground, random);
-  return { land, impact: impactOf(r, struckAt), delayMs: fireMs + k * gun.spec.gapMs, flightMs: flightMsOf(gun.spec, a, land), struckAt };
+  const land = lateLand(shot, gun, r, a, struckAt, ground, random);
+  const flightMs = flightMsOf(gun.spec, a, land);
+  const fireMs = fitMs ?? Math.max(0, landByMs - flightMs);
+  return { land, impact: impactOf(r, struckAt), delayMs: fireMs, flightMs, struckAt };
+}
+
+function lateLand(shot: Shot, gun: Gun, r: ShotRound, a: V3, struckAt: V3 | null, ground: Ground, random: () => number): V3 {
+  if (!struckAt) return missLand(a, shot.missAt(r.offset), gun, ground, random);
+  return hitPoint(a, struckAt, r.struck === shot.target ? r.offset : 0, random);
 }
 
 function struckPoint(poses: TurnPoses, shot: Shot, r: ShotRound, target: V3): V3 | null {
@@ -492,9 +509,9 @@ function impactOf(r: ShotRound, struckAt: V3 | null): Impact {
   return r.struck === null ? "ground" : "none";
 }
 
-function latestFire(poses: TurnPoses, valid: number[], wantMs: number): number {
+function latestFire(poses: TurnPoses, valid: number[], wantMs: number): number | null {
   const fits = valid.filter((s) => s * poses.stepMs <= wantMs && s * poses.stepMs >= wantMs - LATE_SLACK_STEPS * poses.stepMs);
-  return fits.length > 0 ? fits[fits.length - 1] * poses.stepMs : poses.moveMs;
+  return fits.length > 0 ? fits[fits.length - 1] * poses.stepMs : null;
 }
 
 function seenHalf(from: V3, to: V3, heading: number, half: Shot["targetHalf"]): number {

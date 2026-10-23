@@ -2,7 +2,6 @@
 import { baseGrid } from "../sim/grid";
 import { PLAN_PAD } from "../render/partLooks";
 import PLANS from "./plans.svg?raw";
-import TINTS from "./tint.svg?raw";
 import { el } from "./dom";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -11,15 +10,11 @@ let sheetsLoaded = false;
 function loadSheets(): void {
   if (sheetsLoaded) return;
   sheetsLoaded = true;
-  document.body.insertAdjacentHTML("beforeend", PLANS + TINTS);
+  document.body.insertAdjacentHTML("beforeend", PLANS);
 }
 
 export function truckOutline(chassisId: string, cell: number): HTMLElement {
   return planBox(chassisId, cell, `plan-${chassisId}`);
-}
-
-export function chassisTop(chassisId: string, cell: number): HTMLElement {
-  return planBox(chassisId, cell, `top-${chassisId}`);
 }
 
 function planBox(chassisId: string, cell: number, symbolId: string): HTMLElement {
@@ -28,10 +23,6 @@ function planBox(chassisId: string, cell: number, symbolId: string): HTMLElement
   const [x, y, w, h] = [1 - PLAN_PAD, -PLAN_PAD, grid.w - 2 + 2 * PLAN_PAD, grid.h + 2 * PLAN_PAD].map((v) => v * cell);
   box.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
   return box;
-}
-
-export function tintedIcon(defId: string): SVGSVGElement {
-  return useSvg(`tint-${defId}`, false);
 }
 
 function useSvg(id: string, stretch: boolean): SVGSVGElement {

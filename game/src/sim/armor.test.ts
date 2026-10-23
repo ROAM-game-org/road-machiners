@@ -49,7 +49,7 @@ describe('walkLane', () => {
 
   it('enters each side from its own edge', () => {
     const { w, v } = plated();
-    const last = gridOf(v).h - 1;
+    const last = gridOf(v).chassisH - 1;
     const round = { damage: 1, pen: 2, blast: false, armorShare: 1 };
     expect(walkLane(w, v, 'front', 2, round)[0].part).toBe(partAt(v, 2, 0).id);
     expect(walkLane(w, v, 'left', 1, round)[0].part).toBe(partAt(v, 1, 1).id);
@@ -190,6 +190,12 @@ describe('planBlast', () => {
     const top = [...close].sort((a, b) => b.amount - a.amount)[0];
     expect(far.find((h) => h.part.id === top.part.id)?.amount ?? 0).toBeLessThan(top.amount);
     expect(planBlast(v, { x: face.x, y: face.y - 20 }, 2, round, null)).toEqual([]);
+  });
+
+  it('reads the radius in meters, so a small blast a tile off the hull touches nothing', () => {
+    const { v } = scout();
+    const face = lanePoint(v, 'left', Math.floor(laneCount(v, 'left') / 2));
+    expect(planBlast(v, { x: face.x, y: face.y - 1 }, 1.5, round, null)).toEqual([]);
   });
 
   it('shields a part behind another, so it takes more once the part in front is broken', () => {

@@ -20,7 +20,7 @@ import { TOW } from '../data/tow';
 import { UNITS } from '../data/units';
 import { oilSlickLength } from '../data/utilities';
 import { CONDITION, PATCH, REPAIR, WEAR } from '../data/wear';
-import { baseModel, PART_MODELS, WEAPON_POOLS } from '../render/partLooks';
+import { baseModels, PART_MODELS, WEAPON_POOLS } from '../render/partLooks';
 import { STATE_KINDS } from '../sim/states';
 import { chassisName, goodName, partName, perkName, perkRule, professionName, skillGrows, skillName, templateName } from '../text/names';
 import type { Msg } from '../text/msg';
@@ -41,7 +41,7 @@ function allegianceText(rule: Allegiance): string {
 export type Cell = string | number | boolean | null | readonly unknown[] | object;
 export type WikiTable = { id: string; headers: string[]; rows: () => Cell[][] };
 
-const MECHANICS = ['character', 'truck', 'turns', 'defeat', 'detection', 'world', 'npcs', 'factions', 'social', 'economy', 'content', 'world-settings', 'fury-road'];
+const MECHANICS = ['character', 'truck', 'turns', 'defeat', 'detection', 'world', 'npcs', 'factions', 'crime', 'social', 'economy', 'content', 'world-settings', 'fury-road'];
 
 export const PAGES: readonly string[] = [
   'README.md', 'items.md', 'combat.md', 'economy.md', 'npcs.md', 'skills.md', 'assets.md',
@@ -157,10 +157,11 @@ const stateKindRows = (): Cell[][] => entries(STATE_KINDS).map(([kind, def]) => 
 const TABLES: WikiTable[] = [
   {
     id: 'chassis',
-    headers: ['id', 'name', 'tier', 'value (M)', 'max speed (tiles/turn)', 'accel', 'brake', 'mass (kg)', 'rated mass (kg)', 'radius (tiles)', 'fuel cap', 'fuel per tile', 'grid (w x h)', 'core parts', 'garages', 'feature'],
+    headers: ['id', 'name', 'tier', 'value (M)', 'max speed (tiles/turn)', 'accel', 'brake', 'mass (kg)', 'rated mass (kg)', 'radius (tiles)', 'fuel cap', 'fuel per tile', 'grid (w x h)', 'bed rows', 'core parts', 'garages', 'feature'],
     rows: () => Object.values(CHASSIS).map((c) => [
       c.id, en(chassisName(c.id)), c.tier, moneyAmount(c.value), c.maxSpeed, c.accel, c.brake, c.mass, c.ratedMass, c.radius, c.fuelCap, c.fuelPerTile,
       `${Math.max(...c.layout.map((r) => r.length))} x ${c.layout.length}`,
+      c.bedRows,
       c.core.map((k) => k.defId),
       Object.keys(TOWN_CHASSIS).filter((town) => TOWN_CHASSIS[town].includes(c.id)),
       c.feature,
@@ -173,7 +174,8 @@ const TABLES: WikiTable[] = [
     rows: () => partsOf('weapon').map((p) => [p.id, p.round.damage, p.round.pen, p.round.blast, p.round.speed, p.round.splashRadius, p.round.splashDamage, p.round.splashPen]),
   },
   partTable('engines', 'engine', ['speed bonus', 'accel bonus', 'fuel mult', 'noise', 'heat'], (p) => [p.speedBonus, p.accelBonus, p.fuelMult, p.noise, p.heat]),
-  partTable('armor', 'armor', ['blast armor', 'field repair', 'ram mult', 'claymore'], (p) => [p.blastArmor, p.fieldRepair, p.ramMult, p.claymore ?? null]),
+  partTable('armor', 'armor', ['blast armor', 'field repair', 'ram mult'], (p) => [p.blastArmor, p.fieldRepair, p.ramMult]),
+  partTable('accessories', 'accessory', ['blast armor', 'field repair', 'ram mult', 'mounts', 'claymore'], (p) => [p.blastArmor, p.fieldRepair, p.ramMult, p.mounts.join(''), p.claymore ?? null]),
   partTable('cargo', 'cargo', ['extra rows'], (p) => [p.extraRows]),
   partTable('scanners', 'scanner', ['range (tiles)'], (p) => [p.range]),
   partTable('stores', 'store', ['holds', 'amount (units)'], (p) => [p.holds, p.amount]),
@@ -254,7 +256,7 @@ const TABLES: WikiTable[] = [
     id: 'models',
     headers: ['kind', 'id', 'model'],
     rows: () => [
-      ...Object.keys(CHASSIS).map((id): Cell[] => ['chassis', id, baseModel(id)]),
+      ...Object.keys(CHASSIS).map((id): Cell[] => ['chassis', id, baseModels(id).join(' + ')]),
       ...entries(PART_MODELS).map(([id, model]): Cell[] => [id in PARTS ? 'part' : 'good', id, model]),
     ],
   },

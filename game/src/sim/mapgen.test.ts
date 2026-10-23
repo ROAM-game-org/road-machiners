@@ -233,7 +233,7 @@ describe('prop poses', () => {
     const turned = propBoxes(hulk('bus', Math.PI / 2));
 
     expect(propPose(hulk('bus', 0.4))).toEqual({ model: 'hulk', chassisId: 'bus', pos: { x: 12, y: 34 }, yaw: 0.4, scale: even(1) });
-    expect(flat.map((b) => b.z0)).toEqual(hulkBoxes('bus').map((b) => b.z0));
+    expect(flat.map((b) => b.z0)).toEqual(hulkBoxes('bus', undefined).map((b) => b.box.z0));
     flat.forEach((b, i) => {
       expect(turned[i].center.x - 12).toBeCloseTo(-(b.center.y - 34), 9);
       expect(turned[i].center.y - 34).toBeCloseTo(b.center.x - 12, 9);

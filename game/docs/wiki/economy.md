@@ -123,7 +123,7 @@ Repair costs `ECONOMY.repairShare` of a part's value per share of HP restored. A
 
 ## Contracts
 
-The player holds at most `CONTRACTS.maxActive` contracts. A contract's window counts from the turn the player accepts it. A haul has a window of `CONTRACTS.haul.durationFactor` times its estimated travel, and pays `CONTRACTS.haul.rewardFactor` tier wages. A share `CONTRACTS.haul.rush.chance` of hauls are rush jobs: their window is `CONTRACTS.haul.rush.durationFactor` times the estimated travel, and they pay `CONTRACTS.haul.rush.premium` times the standard reward. A fetch pays the part's price plus a search fee of `CONTRACTS.fetch.searchFeeTurns` turns of wage. A bounty pays `CONTRACTS.bounty.rewardTurns` turns of tier 1 wage for its raider type, whatever the target carries. The player claims it at the shop that posted it, after a knockout or wreck of any truck of its type. A survey pays the estimated turns of the loop from the shop through its places nearest first and back, plus `CONTRACTS.survey.surveyTurns` per place and `CONTRACTS.survey.searchTurns` per place for the search around its clue, at `CONTRACTS.survey.rewardFactor` tier 1 wages, with the haul's standard window. A shop offers one when a free survey site lies within `CONTRACTS.survey.range` tiles, and no site is named by two live contracts. A clue states its distance rounded to `CONTRACTS.survey.clue.roundTiles` tiles from a named place within `CONTRACTS.survey.clue.range` tiles, and the bake keeps it only when no other old place of the same kind more than `CONTRACTS.survey.clue.nearby` tiles from the site lies in its compass eighth within `CONTRACTS.survey.clue.band` tiles of that distance.
+The player holds at most `CONTRACTS.maxActive` contracts. A contract's window counts from the turn the player accepts it. A haul has a window of `CONTRACTS.haul.durationFactor` times its estimated travel, and pays `CONTRACTS.haul.rewardFactor` tier wages. A share `CONTRACTS.haul.rush.chance` of hauls are rush jobs: their window is `CONTRACTS.haul.rush.durationFactor` times the estimated travel, and they pay `CONTRACTS.haul.rush.premium` times the standard reward. A supply order asks for `CONTRACTS.procure.units` crates, pays each at the shop's standing price at posting, plus `CONTRACTS.procure.travelFactor` times the rush pay of the round trip to the nearest shop that makes the good, and gives the rush window of that trip plus `CONTRACTS.procure.slackTurns` turns. A survey pays the estimated turns of the loop from the shop through its places nearest first and back, plus `CONTRACTS.survey.surveyTurns` per place and `CONTRACTS.survey.searchTurns` per place for the search around its clue, at `CONTRACTS.survey.rewardFactor` tier 1 wages, with the haul's standard window. A shop offers one when a free survey site lies within `CONTRACTS.survey.range` tiles, and no site is named by two live contracts. A clue states its distance rounded to `CONTRACTS.survey.clue.roundTiles` tiles from a named place within `CONTRACTS.survey.clue.range` tiles, and the bake keeps it only when no other old place of the same kind more than `CONTRACTS.survey.clue.nearby` tiles from the site lies in its compass eighth within `CONTRACTS.survey.clue.band` tiles of that distance.
 
 ## Upkeep
 
@@ -141,7 +141,7 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `CONDITION.valueFactor` | 1, 0.7, 0.55, 0.45, 0.35 |
 | `ECONOMY.scrapPerKg` | 6.33 |
 | `EFFORT.wage` | {"1":12.33,"2":33.33,"3":73.33} |
-| `EFFORT.bands` | {"1":{"weapon":[250,700],"engine":[250,700],"armor":[250,700],"cargo":[250,700],"scanner":[250,700],"store":[250,700],"utility":[250,700],"chassis":[5000,7500],"good":[40,100]},"2":{"weapon":[180,480],"engine":[180,480],"armor":[180,480],"cargo":[180,480],"scanner":[180,480],"store":[180,480],"utility":[180,480],"chassis":[2800,4200],"good":[50,100]},"3":{"weapon":[180,380],"engine":[180,380],"armor":[180,380],"cargo":[180,380],"scanner":[180,380],"store":[180,380],"utility":[180,380],"chassis":[1900,2800],"good":[40,80]}} |
+| `EFFORT.bands` | {"1":{"weapon":[250,700],"engine":[250,700],"armor":[250,700],"accessory":[250,700],"cargo":[250,700],"scanner":[250,700],"store":[250,700],"utility":[250,700],"chassis":[5000,7500],"good":[40,100]},"2":{"weapon":[180,480],"engine":[180,480],"armor":[180,480],"accessory":[180,480],"cargo":[180,480],"scanner":[180,480],"store":[180,480],"utility":[180,480],"chassis":[2800,4200],"good":[50,100]},"3":{"weapon":[180,380],"engine":[180,380],"armor":[180,380],"accessory":[180,380],"cargo":[180,380],"scanner":[180,380],"store":[180,380],"utility":[180,380],"chassis":[1900,2800],"good":[40,80]}} |
 | `PRODUCTION.elasticity` | 0.6 |
 | `ECONOMY.supplyPrice.fuel` | 100 |
 | `ECONOMY.supplyPrice.supplies` | 167 |
@@ -161,8 +161,9 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `CONTRACTS.haul.rush.chance` | 0.25 |
 | `CONTRACTS.haul.rush.durationFactor` | 1.5 |
 | `CONTRACTS.haul.rush.premium` | 1.75 |
-| `CONTRACTS.fetch.searchFeeTurns` | 240 |
-| `CONTRACTS.bounty.rewardTurns` | {"buggy":900,"gunwagon":1350} |
+| `CONTRACTS.procure.units` | 3, 12 |
+| `CONTRACTS.procure.travelFactor` | 0.5 |
+| `CONTRACTS.procure.slackTurns` | 6 |
 | `CONTRACTS.survey.surveyTurns` | 10 |
 | `CONTRACTS.survey.searchTurns` | 20 |
 | `CONTRACTS.survey.rewardFactor` | 15 |

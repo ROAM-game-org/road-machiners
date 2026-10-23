@@ -1,5 +1,5 @@
+import { PAINT } from '../../data/chassis';
 import { describe, expect, it } from 'vitest';
-import { drawsOwnBumpers } from '../../render/partLooks';
 import { CHASSIS } from '../../data/chassis';
 import { PARTS } from '../../data/parts';
 import { wheelMounts } from '../../phys/body';
@@ -48,7 +48,7 @@ describe('cargo inside the hauler trailer', () => {
 
   it('keeps an anchor for a hidden cargo part, so hits on it still land on the truck', () => {
     const { v, rack } = semiWithCargo();
-    const view = new VehicleView(v, true);
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
     expect(view.hasPart(rack.part.id)).toBe(true);
   });
 
@@ -56,13 +56,6 @@ describe('cargo inside the hauler trailer', () => {
     const { v } = semiWithCargo();
     expect(hidesInside(v, partOf(v, 'workhorseDiesel'))).toBe(false);
     expect(hidesInside(v, partOf(v, 'plates'))).toBe(false);
-  });
-});
-
-describe('the hauler nose and tail', () => {
-  it('shows the semi model\'s own chrome bumper and trailer doors, with no game bumper over them', () => {
-    expect(drawsOwnBumpers('semi')).toBe(true);
-    expect(drawsOwnBumpers('scout')).toBe(false);
   });
 });
 
@@ -89,14 +82,14 @@ const REPORTED_BUGGY: Placed[] = [
   { defId: 'plowRam', x: 1, y: 7, rot: 0 },
   { defId: 'plowRam', x: 1, y: 0, rot: 0 },
   { defId: 'ceramicPlates', x: 0, y: 4, rot: 0 },
-  { defId: 'ceramicPlates', x: 5, y: 4, rot: 0 },
+  { defId: 'ceramicPlates', x: 6, y: 4, rot: 0 },
   { defId: 'ceramicPlates', x: 0, y: 1, rot: 0 },
-  { defId: 'ceramicPlates', x: 5, y: 1, rot: 0 },
+  { defId: 'ceramicPlates', x: 6, y: 1, rot: 0 },
   { defId: 'workhorseDiesel', x: 2, y: 1, rot: 0 },
   { defId: 'ceramicTile', x: 0, y: 6, rot: 0 },
-  { defId: 'ceramicTile', x: 5, y: 6, rot: 0 },
+  { defId: 'ceramicTile', x: 6, y: 6, rot: 0 },
   { defId: 'ceramicTile', x: 0, y: 3, rot: 0 },
-  { defId: 'ceramicTile', x: 5, y: 3, rot: 0 },
+  { defId: 'ceramicTile', x: 6, y: 3, rot: 0 },
   { defId: 'panniers', x: 4, y: 7, rot: 0 },
 ];
 
@@ -119,7 +112,7 @@ describe('parts on bare nose and tail cells', () => {
     expect(baseGrid('buggy').cells[0][4]).toBe('F');
     expect(placementError(baseGrid('buggy'), v.items, caltrops, null)).toBeNull();
     v.items.push(caltrops);
-    const view = new VehicleView(v, true);
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
     expect(view.hasPart(caltrops.part.id)).toBe(true);
   });
 
@@ -129,7 +122,7 @@ describe('parts on bare nose and tail cells', () => {
         const { v, caltrops } = withCaltropsAt(chassisId, cell.x, cell.y);
         if (placementError(baseGrid(chassisId), v.items, caltrops, null)) continue;
         v.items.push(caltrops);
-        expect(() => new VehicleView(v, true), `${chassisId} ${cell.x},${cell.y}`).not.toThrow();
+        expect(() => new VehicleView(v, true, PAINT.standard, 'world'), `${chassisId} ${cell.x},${cell.y}`).not.toThrow();
       }
     }
   });
@@ -144,7 +137,7 @@ describe('parts on bare nose and tail cells', () => {
     const tailPanniers = items[items.length - 1];
     expect(grid.cells[tailPanniers.y][tailPanniers.x]).toBe('B');
     let view: VehicleView | undefined;
-    expect(() => { view = new VehicleView(v, true); }).not.toThrow();
+    expect(() => { view = new VehicleView(v, true, PAINT.standard, 'world'); }).not.toThrow();
     expect(view!.hasPart(tailPanniers.part.id)).toBe(true);
   });
 
@@ -157,7 +150,7 @@ describe('parts on bare nose and tail cells', () => {
         if (placementError(baseGrid('buggy'), v.items, item, null)) continue;
         v.items.push(item);
         let view: VehicleView | undefined;
-        expect(() => { view = new VehicleView(v, true); }, `${defId} ${cell.x},${cell.y}`).not.toThrow();
+        expect(() => { view = new VehicleView(v, true, PAINT.standard, 'world'); }, `${defId} ${cell.x},${cell.y}`).not.toThrow();
         expect(view!.hasPart(item.part.id), `${defId} ${cell.x},${cell.y}`).toBe(true);
       }
     }
@@ -167,8 +160,8 @@ describe('parts on bare nose and tail cells', () => {
     const w = emptyWorld();
     const v = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 30, y: 30 });
     const cab = partOf(v, 'cab');
-    const view = new VehicleView(v, true);
-    view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: wheelMounts(bodyOf(v.chassisId)).map(() => ({ suspension: 0, steer: 0, spin: 0, ground: true })) }, 0.016);
+    const view = new VehicleView(v, true, PAINT.standard, 'world');
+    view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: wheelMounts(bodyOf(v.chassisId), 0).map(() => ({ suspension: 0, steer: 0, spin: 0, ground: true })) }, 0.016);
     const rect = cellRect('buggy', itemCells(cab));
     const at = view.partPoint(cab.part.id);
     expect(at.x).toBeCloseTo((rect.x0 + rect.x1) / 2);

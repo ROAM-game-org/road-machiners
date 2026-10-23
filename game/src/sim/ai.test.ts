@@ -90,8 +90,7 @@ const DEST = { x: 130, y: 100 };
 
 function corridor(w: World): void {
   for (let x = 90; x <= 140; x++) {
-    w.obstacles.push({ id: `n${x}`, kind: 'rock', pos: { x, y: 97 }, r: 1 });
-    w.obstacles.push({ id: `s${x}`, kind: 'rock', pos: { x, y: 103 }, r: 1 });
+    w.obstacles = [...w.obstacles, { id: `n${x}`, kind: 'rock', pos: { x, y: 97 }, r: 1 }, { id: `s${x}`, kind: 'rock', pos: { x, y: 103 }, r: 1 }];
   }
 }
 
@@ -173,7 +172,7 @@ describe('crossing traffic', () => {
     const other = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 100 + 6 * Math.cos(1.22), y: 100 + 6 * Math.sin(1.22) }, heading);
     other.brain = npcBrain('trader', other.pos, ['trader']);
     other.speed = 4;
-    expect(routeBlockers(w, subject).filter((b) => b.pos !== w.vehicles[0].pos).length > 0).toBe(avoids);
+    expect(routeBlockers(w, subject).filter((b) => dist(b.pos, w.vehicles[0].pos) > 0).length > 0).toBe(avoids);
   });
 });
 

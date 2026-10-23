@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { SAVE_FORMAT } from './three/save-migrations';
+import { SAVE_FORMAT } from './three/save';
 import { gameVersion } from './version';
 
 const SHAPE = 'src/three/save-shape.json';

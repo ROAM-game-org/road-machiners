@@ -1,5 +1,6 @@
 
 import { describe, expect, it } from 'vitest';
+import { PAINT } from '../../data/chassis';
 import { restFrame } from '../../phys/drive';
 import { aimWithin, gunSpans } from '../../sim/armor';
 import { facingOf, mountedItems } from '../../sim/grid';
@@ -7,8 +8,8 @@ import type { Rot } from '../../sim/types';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import { angleDiff, DEG } from '../../sim/vec';
 import { loadModels } from './models';
-import { sweepOf } from './gunClearance';
-import { signedDegrees, VehicleView } from './vehicle';
+import { signedDegrees, sweepOf } from './gunClearance';
+import { VehicleView } from './vehicle';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 await loadModels(async (name) => {
@@ -24,7 +25,7 @@ function drawn(gun: string, headingDeg: number, aimDeg: number | null, rot: Rot 
   item.rot = rot;
   if (spot) Object.assign(item, { x: spot.x, y: spot.y });
   const id = item.part.id;
-  const view = new VehicleView(v, true);
+  const view = new VehicleView(v, true, PAINT.standard, 'world');
   view.pose(restFrame(w, v), 0.016);
   view.aim(() => (aimDeg === null ? null : aimDeg * DEG));
   const { dir } = view.muzzle(id);

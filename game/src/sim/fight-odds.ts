@@ -1,6 +1,6 @@
 import { PARTS, type WeaponDef } from '../data/parts';
 import { gunSpans, sidePlanner, spanSides, SIDES, type Round, type Side } from './armor';
-import { corePart, mountedItems, mountedParts, sideOf } from './grid';
+import { corePart, mountedItems, mountedParts, shieldParts, sideOf } from './grid';
 import { vehicleStats } from './stats';
 import type { PartInstance, Vehicle, World } from './types';
 import { dist } from './vec';
@@ -39,7 +39,7 @@ function vitalParts(v: Vehicle): PartInstance[] {
 }
 
 function sideTarget(v: Vehicle, side: Side, armored: Planner, vital: PartInstance[]): SideTarget {
-  const armor = mountedParts(v, 'armor').filter((part) => part.hp > 0 && LETTER_SIDE[sideOf(v, part) ?? ''] === side);
+  const armor = shieldParts(v).filter((part) => part.hp > 0 && LETTER_SIDE[sideOf(v, part) ?? ''] === side);
   return { armored, bare: armor.length ? sidePlanner(withoutParts(v, armor)) : armored, armor, vital };
 }
 

@@ -584,7 +584,7 @@ describe('breakable props', () => {
 
   it('refuses a prop that does not break, or one not standing', () => {
     const w = worldWithFence({ x: 30.6, y: 30 });
-    w.obstacles.push({ id: 'rock3', pos: { x: 32, y: 30 }, r: 0.5, kind: 'rock' });
+    w.obstacles = [...w.obstacles, { id: 'rock3', pos: { x: 32, y: 30 }, r: 0.5, kind: 'rock' }];
     const before = structuredClone(w.obstacles);
 
     expect(() => breakProp(w, 'rock3', w.vehicles[0].id)).toThrow(/rock3/);
@@ -1006,7 +1006,7 @@ describe('old-world loot spots', () => {
     expect(oldStocks(w)).toHaveLength(picks.length);
   });
 
-  it('stocks a world with none once, and refuses a partial or stray set', () => {
+  it('stocks a world with none once, rolls the missing ones of a partial set, and refuses a stray', () => {
     const w = emptyWorld();
     const held = oldStocks(w).map((stock) => structuredClone(stock));
     stockOldSpots(w, TEST_MAP);
@@ -1015,7 +1015,8 @@ describe('old-world loot spots', () => {
     stockOldSpots(w, TEST_MAP);
     expect(oldStocks(w).map((stock) => stock.id)).toEqual(picks.map(oldStockId));
     w.salvage = w.salvage.filter((stock) => stock.id !== oldStockId(picks[0]));
-    expect(() => stockOldSpots(w, TEST_MAP)).toThrow(/partial/);
+    stockOldSpots(w, TEST_MAP);
+    expect(oldStocks(w).map((stock) => stock.id).sort()).toEqual(picks.map(oldStockId).sort());
     const stray = emptyWorld();
     stray.salvage.push({ id: 'old-hamlet-ruin-999999', pos: { x: 0, y: 0 }, radius: 1, goods: {}, parts: [], hidden: emptyHidden() });
     expect(() => stockOldSpots(stray, TEST_MAP)).toThrow(/no old spot/);
@@ -1053,8 +1054,8 @@ describe('lootable props', () => {
   it('names a standing prop for every stock that holds loot, and no pile', async () => {
     const w = await realWorld();
     const road = w.salvage.find((s) => isRoadWreck(s));
-    const old = w.salvage.find((s) => oldSpotOf(s));
-    if (!road || !old) throw new Error('No road wreck or old spot');
+    const old = w.salvage.find((s) => oldSpotOf(s) && hasSalvage(s));
+    if (!road || !old) throw new Error('No road wreck or old spot with loot');
     const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
     addGoods(w, npc, 'scrap', 3);
     const pile = dropHaul(w, npc, looseCargo(npc));

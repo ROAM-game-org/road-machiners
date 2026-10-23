@@ -1,15 +1,17 @@
 
+import { PAINT } from '../data/chassis';
 import * as THREE from 'three';
-import { partDef } from '../data/parts';
-import { BODY_PARTS, itemLookId, partModel, weaponLook } from '../render/partLooks';
+import { isShield, partDef } from '../data/parts';
+import { BODY_PARTS, baseModel, itemLookId, partModel, weaponLook } from '../render/partLooks';
 import { aimWithin, gunSpans } from '../sim/armor';
-import { cellRect, highestUnder, restOn, surfaceSamples } from '../sim/body';
+import { cellRect, highestUnder, surfaceSamples, unitOfCells } from '../sim/body';
 import { makeVehicle, newId } from '../sim/factory';
 import { baseGrid, isMounted, itemCells } from '../sim/grid';
 import { emptyWorld } from '../sim/testkit';
 import type { GridItem, Vehicle, World } from '../sim/types';
 import { loadModels, model, socket } from '../three/render/models';
-import { footprint, VehicleView, wouldFloat } from '../three/render/vehicle';
+import { armorPlacement } from '../three/render/armorCut';
+import { footprint, itemSpotOf, VehicleView, wouldFloat } from '../three/render/vehicle';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 await loadModels(async (name) => {
@@ -45,17 +47,28 @@ function obstacles(v: Vehicle, skip: GridItem): Box[] {
   const out: Box[] = [];
   for (const it of v.items) {
     if (it === skip || itemCells(it).some((c) => c.y >= g.h)) continue;
+    if (unitOfCells(v.chassisId, itemCells(it)).index !== unitOfCells(v.chassisId, itemCells(skip)).index) continue;
     let what: string = itemLookId(it);
     if (it.kind === 'part') {
       const d = partDef(it.part.defId);
-      if (BODY_PARTS.has(d.id) || d.kind === 'weapon' || d.kind === 'armor' || d.kind === 'engine') continue;
+      if (isShield(d) && isMounted(v.chassisId, it)) {
+        const raw = new THREE.Box3().setFromObject(model(partModel(d.id)));
+        const at = armorPlacement(v, it, raw, model(baseModel(v.chassisId, unitOfCells(v.chassisId, itemCells(it)).index)));
+        const box = raw.clone().applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
+        out.push({ x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z, top: box.max.y, what: d.id });
+        continue;
+      }
+      if (BODY_PARTS.has(d.id) || d.kind === 'weapon' || isShield(d) || d.kind === 'engine') continue;
       if (d.kind === 'core' && (isMounted(v.chassisId, it) || d.role !== 'tank')) continue;
       if (/wheel/i.test(d.id) && isMounted(v.chassisId, it)) continue;
       what = d.id;
     }
     if (wouldFloat(v, it)) continue;
-    const rest = restOn(v.chassisId, cellRect(v.chassisId, itemCells(it)));
-    const at = footprint(v, it, rest.y);
+    const spot = itemSpotOf(v, it, model(baseModel(v.chassisId, unitOfCells(v.chassisId, itemCells(it)).index)));
+    if (!spot) continue;
+    const at = footprint(v, it, spot.y);
+    at.pos.x += spot.dx;
+    at.pos.z += spot.dz;
     const box = new THREE.Box3().setFromObject(model(partModel(what))).applyMatrix4(new THREE.Matrix4().compose(at.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, at.yaw, 0)), at.scale));
     out.push({ x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z, top: box.max.y, what });
   }
@@ -63,7 +76,7 @@ function obstacles(v: Vehicle, skip: GridItem): Box[] {
 }
 
 export function clips(world: World, v: Vehicle): string[] {
-  const view = new VehicleView(v, true);
+  const view = new VehicleView(v, true, PAINT.standard, 'world');
   const problems: string[] = [];
   for (const gun of v.items.filter((it): it is Extract<GridItem, { kind: 'part' }> => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon')) {
     if (itemCells(gun).some((c) => c.y >= baseGrid(v.chassisId).h)) continue;
@@ -88,9 +101,9 @@ export function clips(world: World, v: Vehicle): string[] {
         for (const b of boxes) {
           if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 && b.top - y > worst) { worst = b.top - y; where = `${b.what} at yaw ${a}`; }
         }
-        const cell = surfaceSamples(v.chassisId, { x, z }, 0.08).find((c) => Math.abs(c.x - x) <= c.half && Math.abs(c.z - z) <= c.half);
+        const cell = surfaceSamples(v.chassisId, own.unit, { x, z }, 0.08).find((c) => Math.abs(c.x - x) <= c.half && Math.abs(c.z - z) <= c.half);
         if (cell && cell.x >= own.x0 && cell.x <= own.x1 && cell.z >= own.z0 && cell.z <= own.z1) continue;
-        const surface = highestUnder(v.chassisId, { x0: x - 0.02, x1: x + 0.02, z0: z - 0.02, z1: z + 0.02 });
+        const surface = highestUnder(v.chassisId, { unit: own.unit, x0: x - 0.02, x1: x + 0.02, z0: z - 0.02, z1: z + 0.02 });
         if (surface - y > worst) { worst = surface - y; where = `body at yaw ${a}`; }
       }
     }
@@ -116,6 +129,19 @@ export function bare(chassisId: string): { world: World; v: Vehicle } {
   const world = emptyWorld();
   const v = makeVehicle(world, { faction: 'player', chassisId, parts: [], spares: [], cargo: {}, pos: { x: 50, y: 50 }, heading: 0, brain: null });
   return { world, v };
+}
+
+export function lineWithArmor(world: World, v: Vehicle, defId: string): void {
+  const g = baseGrid(v.chassisId);
+  let mounted = 0;
+  for (let y = 0; y < g.chassisH; y++) {
+    for (let x = 0; x < g.w; x++) {
+      if (!place(world, v, defId, null, x, y, 0)) continue;
+      if (isMounted(v.chassisId, v.items[v.items.length - 1])) mounted++;
+      else v.items.pop();
+    }
+  }
+  if (mounted === 0) throw new Error(`${defId} mounts nowhere on ${v.chassisId}`);
 }
 
 export function fill(world: World, v: Vehicle): void {

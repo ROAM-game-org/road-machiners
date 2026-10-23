@@ -1,0 +1,114 @@
+{
+  "turn": 182,
+  "player": {
+    "money": 1200,
+    "call": {
+      "with": "npc-1",
+      "topic": "directions",
+      "node": "answer",
+      "vars": {
+        "town": {
+          "kind": "town",
+          "id": "bowl"
+        },
+        "way": {
+          "kind": "directions",
+          "steps": [
+            {
+              "do": "join",
+              "octant": "northWest",
+              "span": "near"
+            },
+            {
+              "do": "follow",
+              "road": {
+                "kind": "to",
+                "site": "bowl"
+              },
+              "span": "near"
+            },
+            {
+              "do": "turn",
+              "side": "left",
+              "at": {
+                "kind": "fork",
+                "nth": 2
+              },
+              "road": {
+                "kind": "to",
+                "site": "bowl"
+              },
+              "span": "near"
+            },
+            {
+              "do": "arrive",
+              "site": "bowl",
+              "area": false
+            },
+            {
+              "do": "search",
+              "clue": {
+                "kind": "site",
+                "id": "bowl"
+              },
+              "rough": false
+            }
+          ]
+        }
+      },
+      "line": {
+        "line": "townWay",
+        "vars": {
+          "town": {
+            "kind": "town",
+            "id": "bowl"
+          },
+          "way": {
+            "kind": "directions",
+            "steps": [
+              {
+                "do": "join",
+                "octant": "northWest",
+                "span": "near"
+              },
+              {
+                "do": "follow",
+                "road": {
+                  "kind": "to",
+                  "site": "bowl"
+                },
+                "span": "near"
+              },
+              {
+                "do": "turn",
+                "side": "left",
+                "at": {
+                  "kind": "fork",
+                  "nth": 2
+                },
+                "road": {
+                  "kind": "to",
+                  "site": "bowl"
+                },
+                "span": "near"
+              },
+              {
+                "do": "arrive",
+                "site": "bowl",
+                "area": false
+              },
+              {
+                "do": "search",
+                "clue": {
+                  "kind": "site",
+                  "id": "bowl"
+                },
+                "rough": false
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

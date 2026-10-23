@@ -33,7 +33,8 @@ import { getKnownSite, getUpkeepReserve, judgeDanger, tripFuelCost } from '../np
 import { maxHp } from '../wear';
 import { emptyHidden } from '../salvage';
 import { cargoHaul, haulVar, surrenderHaul } from '../haul';
-import { botOrders, CONVOY_ROB_PATROL, fuelReaches, haulMarginAt, robTarget, wouldRob } from './bot';
+import { botOrders, CONVOY_ROB_PATROL, haulMarginAt, robTarget, wouldRob } from './bot';
+import { fuelReaches } from './reach';
 
 function town(id: string) {
   const found = REGION.towns.find((t) => t.id === id);
@@ -492,6 +493,7 @@ describe('botOrders', () => {
 
   it('has a broke bot keep its gear when selling it cannot pay the repair', () => {
     const w = parkedAt('bowl');
+    addGoods(w, playerVehicle(w), 'salt', freeCells(playerVehicle(w)));
     for (const p of mountedParts(playerVehicle(w), 'core')) p.hp = 0;
     w.player.money = 0;
 
@@ -741,7 +743,7 @@ describe('the hunter', () => {
     const me = playerVehicle(w);
     const ahead = { x: me.pos.x + 12, y: me.pos.y };
     me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
-    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['autocannon', 'heavyDiesel'], ahead);
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['autocannon', 'mg', 'mg', 'heavyDiesel'], ahead);
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect([hostileToPlayer(w, raider), playerSees(w, raider.pos)]).toEqual([true, true]);
 
@@ -774,7 +776,7 @@ describe('the hunter', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'shotgun', 'heavyDiesel'], { x: me.pos.x + 14, y: me.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'mg', 'shotgun', 'heavyDiesel'], { x: me.pos.x + 14, y: me.pos.y });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect(Math.abs(judgeDanger(w, me, raider) - 1)).toBeLessThan(NPC_BEHAVIOR.dangerSpread / 2);
     const orders = Array.from({ length: 12 }, (_, i) => {
@@ -790,7 +792,7 @@ describe('the hunter', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     addGoods(w, me, 'electronics', 2);
-    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'mg', 'shotgun', 'heavyDiesel'], { x: me.pos.x + 40, y: me.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['autocannon', 'mg', 'mg', 'heavyDiesel'], { x: me.pos.x + 40, y: me.pos.y });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect(judgeDanger(w, me, raider) * (1 - NPC_BEHAVIOR.dangerSpread)).toBeGreaterThan(1);
     w.player.contacts = [{ vehicleId: raider.id, center: { ...raider.pos }, radius: 5, sources: ['sound'], loudness: 1 }];
@@ -842,39 +844,6 @@ describe('the hunter', () => {
     const turn = botOrders(w, 'trader');
 
     expect(playerVehicle(turn.world).weaponOrders).toEqual({});
-  });
-
-  it('has a hunter take the bounty on the board it is parked at, and a trader leave it', () => {
-    const heldAfter = (archetype: 'hunter' | 'trader') => {
-      const w = parkedAt('bowl');
-      const target = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 300, y: 300 });
-      target.brain = npcBrain('buggy', target.pos, ['raider']);
-      w.shops.bowl.contracts = [{ id: 'ct-bounty', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 23333, deadline: 5000, window: 600, tier: 1, fulfilled: false }];
-      return botOrders(w, archetype).world.player.contracts.map((c) => c.id);
-    };
-
-    expect(heldAfter('hunter')).toEqual(['ct-bounty']);
-    expect(heldAfter('trader')).toEqual([]);
-  });
-
-  it('has a hunter take a bounty only on a raider type it would fight', () => {
-    const heldWith = (template: string, chassis: string, parts: string[]) => {
-      const w = parkedAt('bowl');
-      const target = addVehicle(w, 'scrapjaw', chassis, parts, { x: 300, y: 300 });
-      target.brain = npcBrain(template, target.pos, ['raider']);
-      w.shops.bowl.contracts = [{ id: 'ct-bounty', shop: 'bowl', kind: 'bounty', template, reward: 700, deadline: 5000, window: 600, tier: 1, fulfilled: false }];
-      return botOrders(w, 'hunter', { noGear: true }).world.player.contracts.length;
-    };
-
-    expect(heldWith('buggy', 'buggy', ['stockEngine'])).toBe(1);
-    expect(heldWith('gunwagon', 'wagon', ['cannon', 'heavyDiesel'])).toBe(0);
-  });
-
-  it('has a hunter take no bounty when no truck of the type is left', () => {
-    const w = parkedAt('bowl');
-    w.shops.bowl.contracts = [{ id: 'ct-bounty', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 700, deadline: 5000, window: 600, tier: 1, fulfilled: false }];
-
-    expect(botOrders(w, 'hunter').world.player.contracts).toEqual([]);
   });
 
   it('has a hunter hold its chase of a heard raider it would refuse on sight', () => {
@@ -1068,18 +1037,6 @@ describe('the hunter', () => {
     const turn = botOrders(w, 'climber');
 
     expect(playerVehicle(turn.world).job?.kind).toBe('refit');
-  });
-
-  it('has a climber with fewer than three guns work instead of taking a bounty', () => {
-    const w = parkedAt('bowl');
-    w.shops.bowl.contracts = [
-      { id: 'ct-bounty', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 23333, deadline: 5000, window: 600, tier: 1, fulfilled: false },
-      { id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 20000, deadline: 5000, window: 600, rush: false, tier: 2 },
-    ];
-
-    const turn = botOrders(w, 'climber');
-    expect(turn.world.player.contracts.map((c) => c.id)).not.toContain('ct-bounty');
-    expect(turn.ledger.goodsBought < 0 || playerVehicle(turn.world).order?.kind === 'stopAt').toBe(true);
   });
 
   it('has a bot with a hot engine stop to cool, but keep driving while a raider fights it', () => {
@@ -1499,5 +1456,52 @@ describe('the searcher bot', () => {
     expect([...new Set(outcomes)]).toEqual(['accepted', 'fulfilled', 'done']);
     expect(seen).toContainEqual({ t: 'money', amount: searchReward(), reason: { kind: 'contract' } });
     expect(playerVehicle(w).items.some((it) => it.kind === 'parcel')).toBe(false);
+  });
+});
+
+describe('the procurer bot', () => {
+  it('takes a supply order, buys the crates where the good is made and delivers them for the pay', () => {
+    const granary = siteOf('granary');
+    let w = emptyWorld(sitePads(granary)[0]);
+    const me = playerVehicle(w);
+    removeAllGoods(me);
+    me.speed = 0;
+    w.player.discovered = ['granary', 'dustwell'];
+    w.shops.granary.contracts = [{ id: 'ct-p', shop: 'granary', kind: 'procure', good: 'water', units: 4, cratePay: 900, reward: 9000, deadline: 900, window: 600, tier: 1 }];
+    const seen: GameEvent[] = [];
+    for (let i = 0; i < 160 && !seen.some((e) => e.t === 'contract' && e.outcome === 'done'); i++) {
+      const turn = botOrders(w, 'procurer', { noGear: true });
+      seen.push(...turn.events);
+      w = endTurn(turn.world, testDrive);
+      seen.push(...w.events);
+    }
+    const outcomes = seen.flatMap((e) => (e.t === 'contract' && e.contract.id === 'ct-p' ? [e.outcome] : []));
+    expect([...new Set(outcomes)]).toEqual(['accepted', 'done']);
+    expect(seen).toContainEqual({ t: 'money', amount: 9000, reason: { kind: 'contract' } });
+  });
+});
+
+describe('the bot dressing wounds', () => {
+  function hurtBot(health: number, at: Vec = { x: 30, y: 30 }): World {
+    const w = emptyWorld(at);
+    w.player.ranks.toughness = 1;
+    Object.assign(w.player, { health, supplies: 10 });
+    playerVehicle(w).speed = 0;
+    return w;
+  }
+
+  it('starts first aid when parked and hurt below three quarters away from town', () => {
+    const next = botOrders(hurtBot(30), 'trader').world;
+    expect(playerVehicle(next).job?.kind).toBe('firstAid');
+  });
+
+  it('does not start it when only lightly hurt', () => {
+    const next = botOrders(hurtBot(90), 'trader').world;
+    expect(playerVehicle(next).job?.kind).not.toBe('firstAid');
+  });
+
+  it('does not start it at a town gate, where healing is already fast', () => {
+    const next = botOrders(hurtBot(30, sitePads(town('nose'))[0]), 'trader').world;
+    expect(playerVehicle(next).job?.kind).not.toBe('firstAid');
   });
 });

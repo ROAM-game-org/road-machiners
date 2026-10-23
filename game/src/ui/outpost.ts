@@ -1,8 +1,7 @@
-import { partDef, type PartKind } from "../data/parts";
 import { haulerOf, playerVehicle, truckFor } from "../sim/damage";
 import { chassisPrice, chassisSwapRefusal, type Supply } from "../sim/economy";
 import { canDriveOn, driveOn, outpostTrucks, reachedOutpostAt, type Outpost } from "../sim/fury-road";
-import { goodsCount, MOUNT_CELLS } from "../sim/grid";
+import { goodsCount, mountCellsOf } from "../sim/grid";
 import { gatesShut } from "../sim/outpost-gates";
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
 import type { PartInstance, World } from "../sim/types";
@@ -140,7 +139,7 @@ export class OutpostScreen {
             this.render();
           },
         },
-        chassisPortrait(chassisId),
+        chassisPortrait(chassisId, w.player.paint),
         t(`outpost.${which}`),
       );
     return el("div", { class: "tabs truck-switch" }, choice("truck", playerVehicle(w).chassisId, null), choice("hauler", haulerOf(w).chassisId, away ? t("outpost.haulerAway") : null));
@@ -250,11 +249,11 @@ export class OutpostScreen {
       price,
       payable: short === null,
       action: this.button(t("goods.buy"), (x) => outpostBuyPart(x, p.id, id), refused ?? short),
-      onHover: this.hintMounts(partDef(p.defId).kind),
+      onHover: this.hintMounts(p.defId),
     };
   }
 
-  private hintMounts(kind: PartKind): (on: boolean) => void {
-    return (on) => this.inventory.hintMounts(on ? MOUNT_CELLS[kind] : null);
+  private hintMounts(defId: string): (on: boolean) => void {
+    return (on) => this.inventory.hintMounts(on ? mountCellsOf(defId) : null);
   }
 }

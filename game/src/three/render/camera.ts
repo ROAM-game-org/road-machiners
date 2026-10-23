@@ -221,17 +221,18 @@ export class TruckFollow {
     this.dangerSeen = danger;
   }
 
-  update(truck: V3, dest: V3 | null, playing: boolean, dtMs: number): void {
+  update(truck: V3, dest: V3 | null, dtMs: number, worldMs: number): void {
+    const playing = worldMs > 0;
     if (this.keyPan.pan(this.rig, dtMs)) this.following = false;
     if (playing) this.recentering = false;
     if (this.following) this.aim(truck, dest, playing);
-    this.rig.tick(dtMs);
+    this.rig.tick(this.recentering ? dtMs : worldMs);
     if (this.rig.pointLeftView(truck)) this.resume();
   }
 
   private aim(truck: V3, dest: V3 | null, playing: boolean): void {
     const heading = dest ? Math.atan2(dest.z - truck.z, dest.x - truck.x) : null;
-    this.rig.follow(playing || this.recentering ? truck : null, heading, playing);
+    this.rig.follow(truck, heading, playing);
   }
 }
 

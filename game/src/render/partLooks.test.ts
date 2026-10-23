@@ -5,8 +5,8 @@ import { PARTS, type PartKind } from '../data/parts';
 import type { PartInstance } from '../sim/types';
 import { maxHp } from '../sim/wear';
 import {
-  BODY_PARTS, itemTone, JAG_MAX, JAG_THIN, PART_MODELS, WEAPON_POOLS, WEAR_LOOK_STEPS, WORN_GRAY, baseModel, breakSignature, grayShare, grayed, jagOffset, partModel,
-  weaponLook, wearLookStep, type ItemTone,
+  BODY_PARTS, DENT_MAX, itemTone, PART_MODELS, WEAPON_POOLS, WEAR_LOOK_STEPS, WORN_GRAY, baseModel, breakSignature, columnTops, dentOffset, dentsOf, grayShare, grayed, partModel,
+  wearShare, weaponLook, wearLookStep, type DentSurface, type ItemTone, type Point,
 } from './partLooks';
 
 const weaponIds = Object.values(PARTS).filter((d) => d.kind === 'weapon').map((d) => d.id);
@@ -29,8 +29,10 @@ describe('part looks', () => {
   });
 
   it('gives every chassis a base model', () => {
-    for (const id of Object.keys(CHASSIS)) expect(baseModel(id), id).toBe(`base_${id}`);
-    expect(() => baseModel('nope')).toThrow();
+    for (const id of Object.keys(CHASSIS)) expect(baseModel(id, 0), id).toBe(`base_${id}`);
+    expect(baseModel('semi', 1)).toBe('base_semi_rear');
+    expect(() => baseModel('nope', 0)).toThrow();
+    expect(() => baseModel('scout', 1)).toThrow();
   });
 
   it('throws on an unknown id', () => {
@@ -123,35 +125,57 @@ describe('grayed', () => {
   });
 });
 
-describe('jagOffset', () => {
-  const thick = 1;
-  it('is zero at step 0 and deterministic', () => {
-    expect(jagOffset('a', 1, 2, 3, 0, thick)).toEqual({ x: 0, y: 0, z: 0 });
-    expect(jagOffset('a', 1, 2, 3, 2, thick)).toEqual(jagOffset('a', 1, 2, 3, 2, thick));
+describe('dents', () => {
+  const grid = (): Point[] => {
+    const points: Point[] = [];
+    for (let x = -2; x <= 2; x += 0.5) for (let y = 0; y <= 1.5; y += 0.5) for (let z = -1; z <= 1; z += 0.5) points.push({ x, y, z });
+    return points;
+  };
+  const points = grid();
+  const box = { min: { x: -2, y: 0, z: -1 }, max: { x: 2, y: 1.5, z: 1 } };
+  const surface = (keepOut: DentSurface['keepOut'] = []): DentSurface => ({ box, points, tops: columnTops(points), keepOut });
+
+  it('grows faster early, so half HP shows most of the damage', () => {
+    expect(wearShare(0)).toBe(0);
+    expect(wearShare(WEAR_LOOK_STEPS)).toBe(1);
+    expect(wearShare(2)).toBeGreaterThan(0.5);
+    expect(grayShare(2) / grayShare(WEAR_LOOK_STEPS)).toBeGreaterThan(0.5);
   });
-  it('is equal for points within the weld distance', () => {
-    expect(jagOffset('a', 1, 2, 3, 2, thick)).toEqual(jagOffset('a', 1.0001, 2.0001, 3.0001, 2, thick));
+
+  it('has no dents at step 0 and the same dents on every rebuild', () => {
+    expect(dentsOf('a', 0, surface())).toEqual([]);
+    expect(dentsOf('a', 2, surface())).toEqual(dentsOf('a', 2, surface()));
+    expect(dentsOf('b', 2, surface())).not.toEqual(dentsOf('a', 2, surface()));
   });
-  it('grows with the step and stays within the max', () => {
-    const lo = jagOffset('a', 1, 2, 3, 1, thick);
-    const hi = jagOffset('a', 1, 2, 3, WEAR_LOOK_STEPS, thick);
-    expect(Math.abs(hi.x)).toBeCloseTo(Math.abs(lo.x) * WEAR_LOOK_STEPS, 6);
-    expect(Math.abs(hi.x)).toBeLessThanOrEqual(JAG_MAX);
-    expect(jagOffset('b', 1, 2, 3, 2, thick)).not.toEqual(jagOffset('a', 1, 2, 3, 2, thick));
-  });
-  it('gives a thin model a smaller offset that still grows with the step', () => {
-    const thin = 0.02;
-    const bound = (step: number): number => (Math.min(JAG_MAX, JAG_THIN * thin) * step) / WEAR_LOOK_STEPS;
-    for (let step = 1; step <= WEAR_LOOK_STEPS; step++) {
-      const d = jagOffset('a', 1, 2, 3, step, thin);
-      for (const v of [d.x, d.y, d.z]) expect(Math.abs(v)).toBeLessThanOrEqual(bound(step) + 1e-12);
+
+  it('keeps every lower step dent at a higher step', () => {
+    for (let step = 1; step < WEAR_LOOK_STEPS; step++) {
+      const lo = dentsOf('a', step, surface());
+      const hi = dentsOf('a', step + 1, surface());
+      expect(hi.length).toBeGreaterThan(lo.length);
+      expect(hi.slice(0, lo.length)).toEqual(lo);
     }
-    const thinHi = jagOffset('a', 1, 2, 3, WEAR_LOOK_STEPS, thin);
-    const thickHi = jagOffset('a', 1, 2, 3, WEAR_LOOK_STEPS, thick);
-    expect(Math.abs(thinHi.x)).toBeLessThan(Math.abs(thickHi.x));
-    expect(Math.abs(jagOffset('a', 1, 2, 3, WEAR_LOOK_STEPS, thin).x)).toBeGreaterThan(
-      Math.abs(jagOffset('a', 1, 2, 3, 1, thin).x),
-    );
+  });
+
+  it('only pushes inward and down, never past the depth cap', () => {
+    for (const id of ['a', 'b', 'c', 'd']) {
+      const dents = dentsOf(id, WEAR_LOOK_STEPS, surface());
+      expect(dents.some((d) => d.axis === 'y')).toBe(true);
+      for (const p of points) {
+        const d = dentOffset(dents, surface(), p);
+        expect(d.y).toBeLessThanOrEqual(0);
+        expect(d.x * p.x).toBeLessThanOrEqual(0);
+        expect(d.z * p.z).toBeLessThanOrEqual(0);
+        for (const v of [d.x, d.y, d.z]) expect(Math.abs(v)).toBeLessThanOrEqual(DENT_MAX);
+      }
+    }
+  });
+
+  it('never moves a point under something that stands on the part', () => {
+    const keepOut = [{ min: { x: -2, y: 1.5, z: -1 }, max: { x: 0, y: 2, z: 1 } }];
+    const dents = dentsOf('a', WEAR_LOOK_STEPS, surface(keepOut));
+    for (const p of points.filter((q) => q.x <= 0)) expect(dentOffset(dents, surface(keepOut), p)).toEqual({ x: 0, y: 0, z: 0 });
+    expect(points.some((p) => dentOffset(dents, surface(keepOut), p).y < 0)).toBe(true);
   });
 });
 
@@ -172,6 +196,7 @@ describe('breakSignature', () => {
 const KIND_TONES: Record<PartKind, ItemTone> = {
   weapon: 'weapon',
   armor: 'armor',
+  accessory: 'armor',
   cargo: 'cargo',
   engine: 'other',
   core: 'other',

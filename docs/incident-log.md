@@ -1,73 +1,85 @@
 # Incident log
 
-An entry is a class of bug that cost players, saves, data or a lot of work. A new bug of a known class updates that class's entry. A one-off bug that fits no class gets no entry. Design plans around these classes, testing plays their checks, and hardening reviews the change against them. A repeat of a class is a serious finding.
-
-Each entry has five lines: `ID`, `repo`, `rule`, `check` and `seen`. The repo is `game` or `factory`. The rule says what the code must do. The check says how a reviewer or a playtest finds a break. The seen line lists the bugs of the class and what they cost. Ids run R1, R2 and so on. A blank line separates entries.
-
 ID: R1
-repo: game
-rule: Code that runs per point, per segment, per turn or per frame finds things through a spatial index or a cached result, never a full pass over a world list. Data that does not change is built once. Turn work runs off the main thread, with its preview and warm-up.
-check: For each loop in turn, frame or map setup code, ask what it walks. A pass over all obstacles, props, road segments or chassis inside another loop is a repeat. So is derived data rebuilt on every call, and turn work left on the main thread.
-seen: Terrain and scatter scanned every road segment per point until RoadIndex in commits 03c81e69 and 962f671b, after the scan was written twice. Route planning took most of a turn until ObstacleBuckets in commit 3a977fde. propsNear() still filters all 2148 obstacles, and sight checks took 32% of headless turn time on 2026-10-02. Commits 99230d56 and 9241e607 fixed rebuilds on every call in armor.ts and NPC loadouts. Hotfix #494 moved the path preview off the main thread after turn seams froze for 115 to 265 ms, a repeat of issue #40.
+what: Code that runs every point, turn or frame walked whole world lists, like every road segment or every obstacle, instead of using a spatial index or a cached result. Derived data was rebuilt on every call, and turn work ran on the main thread.
+cost: Turns took seconds and froze between moves, and the same slowness was fixed several times over.
 
 ID: R2
-repo: game
-rule: A price, wage or fee comes from a measured run of the economy harness or from a formula on a measured number, never from a guess or a run that crashed.
-check: For each new or changed number in game/src/data, find the run or formula it comes from. A number with no source, or with a source run that crashed, is a repeat.
-seen: EFFORT.wage tier 1 in market.ts came from a 30-day calibration that crashed on 2026-09-28, and every item price followed it in commit 4c78d169. The contracts bot lost money. TOW fees in tow.ts came from a guessed trade-run profit, so stranded players got offers of 300 to 400 until issue #97 derived the fee from the wage.
+what: Prices, wages, fees and contract rewards were guessed instead of measured with the economy harness, or taken from a run that had crashed.
+cost: Jobs paid too little to bother with, items cost absurd amounts, broke players got tows they could not pay, and the committee had to send features back to run the economy sim.
 
 ID: R3
-repo: game
-rule: A stranded truck is never stuck for good, as DESIGN.md says. Every rescue finishes for a player with no money, and every claim on a rescue has a timer. Every place a rescue ends gets a truck moving again even when a part a looter can take is missing, such as the engine, whatever the random shop roll.
-check: Play a stranded player with money 0 or less, and a responder whose path is blocked. The rescue must arrive, must not cost more than the player can pay, and must free its claim when it cannot get through. Then play a broke player whose engine was taken, at each tow destination, across many shop restocks. The truck must get an engine and drive away.
-seen: Issue #97 fixed tow offers of 2.4 days of earnings. Issue #94 fixed a blocked tower that held its claim for good, and a responder that rammed a patrol. Issue #93 fixed an offer that put a broke player into debt. All three shipped until release 2026-10-07. Issue #581 fixed a pickup hung on a rock with two wheels in the air on release 2.62.121, which the flipped-truck set-down missed, so its player could only load an older save. Hotfix #789 came from a player who reached Bowl with the engine stripped and found no engine for sale. Bowl and Nose, the only tow destinations, rolled their shelves at random, about one roll in three had no engine, and the scrap patch skipped a truck with no engine, so the player was softlocked until the fix made both garages always stock an engine and fit it on credit for a broke player.
+what: A player could end up stuck for good: a rescue that cost more than a broke player had, a rescuer that held its claim forever, a town that rolled no engine for sale for a player whose engine was stripped, and a truck hung on a rock or rocking on a tank trap that the flipped-truck set-down never freed.
+cost: Real players got stuck and could only load an older save, and the softlock needed a hotfix on main.
 
 ID: R4
-repo: game
-rule: The boot survives the failure of any one asset, fetch or browser feature. It retries a dropped fetch for about 10 seconds, gives a failed asset a stand-in, reports it and goes on. A 404 for a file the build ships counts as a dropped fetch, since a new release can be incomplete on the host for a moment. A retry bypasses the HTTP cache, and a stand-in is replaced once a later try gets the real asset. A file that fails all its tries shows Try again on the boot screen, not a crash. Each error names its real cause, with the evidence that tells a bad download from a decoder fault, such as bytes received against the file size. This covers every script the game loads after boot too, such as the turn and preview workers. Each asset kind that a browser decoder may refuse, such as a sound codec, ships a fallback format, and the decoder's own result picks the format, never canPlayType or the user agent. A build fetches only its own copy of every file it depends on: each runtime URL into public/ carries the file's content hash from one owner, so a browser or CDN copy from an earlier build is never used. A fetch, an IndexedDB open or a decode that never answers ends in a retry, a fallback or a named failure, never a page stuck on loading.
-check: Boot with one sound, model or map fetch dropped, and with one model fetch that answers 404, with one sound that never decodes, with a truncated sound in the HTTP cache, and with IndexedDB refused. The real sound must play after boot when a later try works. Play a turn with the worker script fetch dropped, then with it lost for good. The turn must run once a later try loads the worker, and a worker that never loads must show the download notice, not a turn that waits for good. The game must reach the menu each time. Run the worker cases in Firefox as well as Chromium, since boot reports come from both. A network failure must not be reported as a decode failure. Before planning a fix for a boot report, check whether main already has it, since a dev build can lag main. A boot report from a build older than main's last R4 hotfix gets that check at triage, before any design. Boot with a decoder that refuses every file of the default format. Every sound must play from the fallback, and no failure report may be sent. Boot a build in a browser profile with caching on, rebake the map or change a model, build again and boot in the same profile. Every changed file must come from a new URL, and the game must reach the menu. Boot with a fetch, an IndexedDB open and a decode that never answer, and with game code that throws. The game must reach the menu or a named failure each time.
-seen: Hotfixes #483, #482, #493 and #496 fixed sound and asset failures on release 2.61.0, after Safari, Firefox on Android and Android Chrome players could not start the game. Hotfix #519 fixed an iPhone Safari player whose browser refused IndexedDB. A wrong "failed to decode" message sent triage toward a corrupt file. Hotfix #485 fixed an Android Chrome player on 2.61.0 whose sound fetch failed and was reported as a decode failure, so the game did not boot. It also made a model or map download that fails every retry throw DownloadFailed and show a connection screen instead of a crash report. Hotfix #509 came from two players on 2.61.0 and 2.61.30, on Windows Chrome and Android Yandex Browser, whose boot stopped on one dropped model fetch out of 222. It rebuilt the retry and the connection screen that #485 had shipped, so the work was done twice, and its testing ran 140 minutes before it shipped without factory checks. Hotfix #538 came from a dev build at 2.61.59 that lacked #485 and #509, so the design planned the same retry and screen a third time, conflicted with main twice, and spent 137 minutes in testing before an approval build with no factory checks. It widened the retry window from 4 to about 11.5 seconds, added a Reload button, and added boot checks that drop and lose a model fetch. Hotfix #556 came from a Mac Chrome player on 2.62.34 whose turn worker failed on turn 1 with the report "Turn worker failed: undefined", since a worker that fails to load gives no message. The fix only names the load failure and its script in the turn and preview worker reports. The turn still fails with no retry. Hotfix #539 came from a dev build at 2.61.59 whose map download failed after 3 tries. Its design planned the retry and connection screen a fourth time, it was held, conflicted with main twice, and shipped with no change of its own, since #538 had already fixed it. Issue #486 replaced the download helper and its connection screen with fetchAsset, which retries three times and then shows Try again on the boot screen. Hotfix #490 came back to the Firefox Android decode failure that #482 had only contained: the failed sound stayed a silent stand-in for good, its retry could reuse a bad cached copy, and the report named only the error, so the cause could not be found and is still unproven. It was approved five times as main moved and conflicted, its testing failed after 136 minutes twice and ran out of its $10 budget once, and the committee asked why it kept approving fixes for the same bug. Hotfix #637 came from a Windows Chrome player on 2.62.199 whose turn worker script did not load on turn 1, the same failure as #556, which had only renamed it. The dead worker kept every later turn, so the player could not play, until the fix restarted the worker with the download back-off and showed the download notice when it never loads. Hotfix #575 came from an iPhone player on 2.62.121 whose Safari beta refused to decode all 104 Ogg Opus sounds while canPlayType answered "probably", and the game shipped no other format. The stand-ins kept the boot alive, but the player had no sound and downloaded the sounds twice at each boot, until the fix added an AAC twin of every sound and a fallback chosen by the decoder. Hotfix #733 came from a Windows Chrome player on dev builds 2.77.46 and 2.77.52, whose browser kept the map from before the #723 rebake under the same URL while the new code arrived under a new name. The game crashed at the first new game both times, and the error told developers to run npm run old-spots on data files that were already right. The fix versioned every public file URL by content hash and made the boot check the map's hash, retry once past the cache and then name both hashes. Hotfix #733 versioned every public file URL by content hash after a cached map from the last dev build crashed the boot with an error that blamed `old-spots.json`. Hotfix #730 came from a player in the public chat on 2026-10-16 whose game page would not open, with no detail and no error report, so the cause is still unproven. Its design found a stalled fetch and a silent IndexedDB open that left the page on a loading screen for good, and a game script that threw, which the page blamed on the connection, and none of them sent a report. Hotfix #750 came from a Windows Edge player on itch.io release 2.61.43 whose boot stopped on a 404 for hull_chunk.glb, a file the build had, since the download treated a 404 as final and one failed model ended the whole boot. The player could not start the game until the fix retried a 404, gave a map prop model a grey box stand-in and made the publish step refuse a build that lacks a model file. Hotfix #648 came from a Windows Firefox player on release 2.62.223, one commit before the #637 fix, whose preview worker script did not load on turn 1 and crashed the game. Triage called it a repeat despite #637, so a hotfix cycle ran and shipped no game change, only a boot check that now runs the worker cases in Firefox.
+what: The boot, saves and sound broke when one browser feature or download failed: a dropped fetch or a 404 that was never retried, a sound format the browser refused, a worker script that did not load, a stale copy of a file from an earlier build in the browser cache, IndexedDB refused or closed, or a zero-size view. Each fix patched one symptom, the errors blamed the wrong cause, and the same retry was designed several times because a dev build lacked the fix already on main.
+cost: Players on Safari, Firefox and Android could not start the game or lost saves, and it took a long string of hotfixes before anyone fixed the cause.
 
 ID: R5
-repo: game
-rule: Save code survives a browser that refuses, closes or aborts IndexedDB. It reopens a dropped connection, falls back to local storage, uses default transaction options, and sends every backend error to the save note instead of out of the turn.
-check: Run a save with the connection closed mid-session, and with a transaction that aborts with no error. The turn must finish, and later saves must land.
-seen: Hotfix #519 fixed a refused open on iPhone Safari. Hotfix #524 fixed a connection Safari closed, after which no save in the session could land. Hotfix #481 dropped `durability: 'strict'`, which made every Safari write abort from turn 1. All three were on release 2.61.x and put a player's progress at risk.
+what: The UI asked the sim about a state the sim does not hold, like a part mounted only in a planned refit, or a part on a cell the lookup did not expect, and the lookup threw.
+cost: The game crashed for players until hotfixes on main.
 
 ID: R6
-repo: game
-rule: A view asks the sim only about state the sim holds. A planned or pending state is answered from the plan. A sim lookup for a placement the rules allow never throws. A view cache built once, at boot or load, covers every state its items can reach later, such as a prop broken at load that grows back.
-check: For each view call into game/src/sim, list the states the rules allow for its input, such as a planned refit or a part on a bare nose or tail cell. Each must return a value. For each view cache built at the first sync, list the states its items can move into later, and test each across two syncs.
-seen: Hotfix #515 fixed the inventory, which asked repairPlan() about a part mounted only in the pending refit and crashed on releases 2.61.0 to 2.61.43. Hotfix #502 fixed a buggy with caltrops on its nose cell, which crashed every frame it was in view. 35 placements on 7 chassis could do the same. Hotfix #563 came from a player on release 2.61.43 whose game crashed on turn 129 drawing a raider buggy with panniers on its bare tail cell. Main had already fixed it with #502, so the hotfix shipped only regression tests for that loadout and every hidden part kind on the buggy rim, after a hold and a committee review. Hotfix #604 came from a player on release 2.62.121 whose game crashed on turn 2708, when a dead tree broken at load grew back, since the tree instances were built at the first sync from standing trees only. The crash shipped from 2026-10-02, came again in releases 2.62.199 and 2.62.229 while the approved fix waited, and its full checks ran seven more times as main moved before it shipped.
+what: Restoring a snapshot shared records with the original instead of copying them, so later changes corrupted both.
+cost: A player could not get past one turn of their game until a fix shipped.
 
 ID: R7
-repo: game
-rule: A restore or copy of a snapshot deep-copies every record it may change. A physics handle is checked with a named error.
-check: For each copy of a snapshot, world or drive, find the records it later changes, and confirm the source does not share them.
-seen: restoreDrive() shared records with the playback snapshot, so the worker got a missing Rapier handle, and a player could not pass turn T58. It shipped from release 2026-10-01 until issue #96 in release 2026-10-07.
+what: The factory wrote to GitHub too often: reactions to pass the vote gate, progress comments on every job, and the same write repeated on every tick.
+cost: GitHub suspended the bot account, hundreds of issues were hidden, and the factory had to move to a new organization.
 
 ID: R8
-repo: game
-rule: Code that reads a browser size or event handles the zero, missing and refused cases. A zero-size view keeps its last good state. A browser unlock retries until it works. A non-finite number fails loud where it is made.
-check: Play with the view at zero width, the page hidden and the phone rotated, and start a game with mouse clicks only. Turns must play, and sound must start.
-seen: Hotfix #537 fixed a zero-size view on Android Chrome that made a NaN sound pan, so turn 8 failed. Hotfix #492 fixed an audio unlock that fired only on the first input, so a player who clicked heard nothing.
+what: Designs pointed the player at targets with map markers, rings on the ground, floating labels, exact distances and tutorial tips, or finished a task by radio, instead of letting the player find things in the world.
+cost: The committee redesigned four contract features in one day, and still could not tell what a survey target was or how to find it.
 
 ID: R9
-repo: game
-what: offer() in game/src/sim/tow.ts gave a stranded player the full route fee whatever the player's money was, and payTow() in game/src/sim/states.ts took it on arrival even into debt. An NPC client already paid only what it could, so a broke NPC was towed free while a broke player was not. Issue #93 fixed it by making an NPC's offer to a player with money 0 or less free, decided at the offer, with its own "No charge" radio line.
-cost: A stranded player with no money got a rescue offer that could not be paid, and accepting it put the player into debt, where nothing can be bought. It shipped until release 2026-10-07. It repeats the class of R6 and R8: a rescue for a stranded player that ends in a dead end.
+what: Agents fixed a nearby, easier problem instead of the one reported, like brightening the night when terrain had vanished, or changing the 3D world when the issue meant the map.
+cost: The committee played builds that did not touch the report, and each one went back for a redesign.
 
 ID: R10
-repo: game
-what: The boot downloaded about 120 assets at once, the 104 sounds, every model and the map, and none of them retried a network failure. One dropped download rejected the whole boot. decodeFile() in game/src/audio/bank.ts read the body inside the same check as the decode, so a broken download was reported as "Sound music-calm-3.ogg failed to decode: TypeError: Load failed". Hotfix #483 added fetchBytes(), later replaced by fetchAsset() in game/src/fetch-asset.ts, which retries a dropped connection or a 5xx up to 3 times for sounds, models and the map.
-cost: A Safari player on the itch.io release 2.61.0 could not start the game, and the boot screen stayed on the failed step. Issue #485 reported the same file failing on another browser. The wrong "decode" message sent triage toward a corrupt file or a format bug instead of the network.
-repo: factory
-rule: The factory writes to GitHub as an App, and as little as it can. It never reacts or votes, never comments progress, and never repeats a write on each tick.
-check: For each new GitHub write, count how often it runs per card and per tick. A write that can repeat before the board catches up, a comment that only reports progress, and any reaction are repeats.
-seen: GitHub suspended the bot account on 2026-10-14. Hermes thumbs-upped at least 27 issues to pass the vote gate. 866 of 1,780 bot comments from Oct 3 to Oct 8 were "finished after N min" notes. Intake re-added cards with a comment on each tick, 19 extra times in one day. About 355 issues and PRs were hidden, and the factory moved to a new org. Commits e6b21614, 04708b06 and e66c407b moved the factory to a GitHub App, stopped the re-adds and made the gh wrapper refuse reactions.
+what: New truck models misread the reference image: they ignored it and the game's scale, with trucks too small next to others, wrong proportions, too much detail and wheels clipping through doors, or they copied it too literally, like open seats from a beach buggy that no wasteland driver would ride in. Remakes kept the old chassis's silhouette under new details, like a convertible that still read as a boxy closed-roof truck with an open bed, or bolted on a part copied from another chassis, like a square hardtop on a rounded fendered body. They also left front details unfinished: the hood's engine hole as a bare dark box with stacked shapes over the grille instead of a closed hood like the scout's, and round headlights as pale dots stuck out on the front corners instead of lamps set into the front.
+cost: Each model took three rounds of committee feedback, the owner had to ask for a stronger model by hand, two remade chassis went back to design after their builds, one later patched again for its cab and one after a patch to its headlights had not fixed its look, and another went back for a patch to its hood.
 
 ID: R11
-repo: game
-rule: Every WebGL program and GPU resource fits the WebGL 2 floors in its worst case on every map, with every light pool full: 16 fragment texture units, 221 fragment uniform vectors, the D3D11 limit, 15 varyings and a 2048 texel texture side. A texture sized from the map caps its side at 2048 and derives its density from that side.
-check: The playtest's night phase emulates a 16-unit GPU and fails when a program does not link or the ground is missing at night in Roaming or Chaos Highway. A new ground texture, shadowed light or light pool counts the ground's texture units and uniform vectors at the night peak. For each texture whose size comes from the map, work out its side on the largest map and confirm it is at most 2048. Boot with MAX_TEXTURE_SIZE forced to 2048, and the game must reach the menu.
-seen: Issue #593. From 2026-10-11 the Chaos Highway ground needed 17 texture units at night, 8 of its own, the highway wear, the sun's shadow, 3 site shadows and 4 beam shadows. On 16-unit GPUs, such as Chrome and Edge on Windows, Macs and most phones, its program failed to link when another lit truck came into reach, and the ground vanished while trucks and props still drew. A first fix brightened the moon, which was not the cause. Hotfix #712 came from a Windows Firefox 158 player on release 2.62.291 whose renderer allowed 2048 texels, the WebGL 2 floor. The night pool texture, shipped on 2026-10-09 at 4 texels per tile, needed 2400 on the 600-tile Icarus map, so the boot threw and the player could not start the game at all.
+what: A change that applied to many things was built and shown on one, like a diagram drawn for one chassis only, a size picked per truck instead of by one rule, or a few keys opened in a scene but not the menu.
+cost: Four rounds of patches on one card, and the owner had to ask for an atlas of every case.
+
+ID: R12
+what: Screens ignored the UI design system: oversized buttons, wasted space, stray captions, a rotated map with no zoom, garish colors, and a phone layout that hid the speedometer and health.
+cost: Many redesigns of screens, and mobile play stayed unusable across several releases.
+
+ID: R13
+what: Features did not work when played, though the post said they did: a scripted event that never fired, a blank portrait, story talk reachable from only one path, a follower that drove off, and a new mode that crashed new games.
+cost: This was the most common critique, and players reported new modes broken after they shipped.
+
+ID: R14
+what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural.
+cost: Every text quest had to be cleaned up, and the committee rejected the copy again and again.
+
+ID: R15
+what: Effects did not look physical: spills and grounds drawn as circles, dust that popped up instead of forming, hits shown at turn end, light through walls, and a glow with no visible source.
+cost: Repeated patches on the same light and effects, and an exasperated committee.
+
+ID: R16
+what: Bug fixes treated the symptom with a guard or a retry and never asked why the bad state happened.
+cost: The same bugs came back, and the owner approved many duplicate fixes one by one.
+
+ID: R17
+what: Builds dropped points of the request, or added things nobody asked for, like labels and big buttons.
+cost: A follow-up card for every dropped point, and redesigns to remove the extras.
+
+ID: R18
+what: Merges brought back an old version of a feature, or dropped a piece another card had added, like an icon or a panel.
+cost: Approved work vanished from the game, and urgent fixes went to main.
+
+ID: R19
+what: The post's screenshots and text did not show what they claimed: a popup over the subject, or a claim with no screenshot behind it.
+cost: The committee had to play builds just to learn what the screenshots should have shown.
+
+ID: R20
+what: Proposals against the game's pillars reached a vote or a build: real-time driving and combat, map coordinates, waypoints and a compass, and activities that are not about trucks and the road.
+cost: Members vetoed them in the player chat, and one was built and then denied.
+
+ID: R21
+what: Rendering went past the minimum WebGL 2 limits that many GPUs have: a ground shader that needed 17 texture units at night where 16 is the floor, and a texture sized from the map that needed more than 2048 texels on the largest map.
+cost: On most phones, Macs and Windows Chrome the ground vanished at night, a first fix brightened the moon instead, and one player could not start the game at all until a hotfix.

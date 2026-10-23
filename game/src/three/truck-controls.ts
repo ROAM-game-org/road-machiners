@@ -1,19 +1,23 @@
 
+import { deskAt } from '../sim/crime';
 import type { Msg } from '../text/msg';
 import { refusalText } from '../text/names';
 import { readyAid, startAid } from "../sim/aid";
 import { handOverParcel, readyHandover } from "../sim/parcel";
 import { playerVehicle } from "../sim/damage";
 import { canDouse, douseEngine } from "../sim/engine-heat";
-import { isBusy } from "../sim/jobs";
-import { canOverdrive, inOverdrive } from "../sim/stats";
+import { isBusy, startFirstAid } from "../sim/jobs";
+import { inOverdrive, overdriveBlock } from "../sim/stats";
 import { canLoot, canScavenge, scavenge } from "../sim/locations";
 import { startSurvey } from "../sim/survey";
 import { shopAt } from "../sim/market";
 import { reachedOutpostAt } from "../sim/fury-road";
 import type { World } from "../sim/types";
-import { playerCanAct, setAutoRepair, setDirect, setHeadlights, setOverdrive } from "../sim/world";
-import { type ContextAction, type ContextTarget } from "../ui/hud";
+import { playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setOverdrive } from "../sim/world";
+import { markError, markVehicle } from "../sim/detect";
+import { lookOver } from "../sim/look-over";
+import { hasBasic } from "../sim/progress";
+import { type CardAction, type ContextAction, type ContextTarget } from "../ui/hud";
 import { ContextPicker, getContextActions } from "../ui/hud-readout";
 
 export type ControlsHost = {
@@ -22,6 +26,7 @@ export type ControlsHost = {
   commit: (next: World) => void;
   refreshPlan: () => void;
   doused: () => void;
+  note: (text: Msg) => void;
   revved: () => void;
 };
 
@@ -45,7 +50,7 @@ export class TruckControls {
     if (!playerCanAct(w)) return;
     const me = playerVehicle(w);
     const on = !inOverdrive(w, me);
-    if (on && !canOverdrive(me)) return;
+    if (on && overdriveBlock(w, me) !== null) return;
     this.host.apply(setOverdrive(w, on));
     this.host.refreshPlan();
     if (on) this.host.revved();
@@ -61,6 +66,17 @@ export class TruckControls {
     if (!playerCanAct(w) || !canDouse(w)) return;
     this.host.apply(douseEngine(w));
     this.host.doused();
+  }
+
+  firstAid(): void {
+    const w = this.host.world();
+    if (!playerCanAct(w) || !hasBasic(w, 'firstAid')) return;
+    try {
+      this.host.apply(startFirstAid(w));
+    } catch (err) {
+      if (!(err instanceof Refused)) throw err;
+      this.host.note(refusalText(w, err.refusal));
+    }
   }
 }
 
@@ -92,6 +108,22 @@ export class TruckContext {
     this.picker.cycle(getContextActions(this.host.world(), this.host.playing()), step);
   }
 
+  onCard(action: CardAction, id: string | null): void {
+    const w = this.host.world();
+    if (!id) return;
+    if (action === 'mark' && !markError(w, id)) this.host.apply(markVehicle(w, id));
+    if (action === 'lookOver' && hasBasic(w, 'lookOver')) this.refusable(() => lookOver(w, id));
+  }
+
+  private refusable(next: () => World): void {
+    try {
+      this.host.apply(next());
+    } catch (err) {
+      if (!(err instanceof Refused)) throw err;
+      this.host.note(refusalText(this.host.world(), err.refusal));
+    }
+  }
+
   use(): void {
     const w = this.host.world();
     if (this.host.playing() || !playerCanAct(w)) return;
@@ -106,7 +138,7 @@ export class TruckContext {
       aid: () => 'id' in target && this.startAid(target.id),
       trade: () => 'id' in target && h.openTrade(target.id),
       parcel: () => 'id' in target && this.handParcel(target.id),
-      shop: () => shopAt(h.world()) && h.openTown(),
+      shop: () => (shopAt(h.world()) || deskAt(h.world())) && h.openTown(),
       outpost: () => reachedOutpostAt(h.world()) && h.openOutpost(),
       downed: () => 'id' in target && h.openDowned(target.id),
       stock: () => 'id' in target && this.searchStock(target.id, action.combat),

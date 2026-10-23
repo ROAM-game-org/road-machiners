@@ -12,7 +12,7 @@ import type { GameEvent, Vehicle, WeatherEvent, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { say } from '../text/language';
 import { byId, t, type Msg } from '../text/msg';
-import { fullName, goodLower, partName, siteName, templateName } from '../text/names';
+import { fullName, goodLower, partName, siteName } from '../text/names';
 import { el, panel, rightDock } from './dom';
 import { muteSwitch, nextTrackKey, type SoundSettings } from './sound';
 import { isRaider } from '../sim/relations';
@@ -209,9 +209,8 @@ function contractVars(world: World, c: BoardContract): Slots {
   if (c.kind === 'rescue') return { shop, place: t(`radio.basin.${basinOf(world, c.area)}`) };
   if (c.kind === 'haul') return { shop, good: goodLower(c.good), to: siteName(siteOf(c.to).id) };
   if (c.kind === 'claim') return { shop, part: partName(c.defId), wreck: claimLookText(claimClue(c).look) };
-  if (c.kind === 'fetch') return { shop, part: partName(c.defId) };
+  if (c.kind === 'procure') return { shop, good: goodLower(c.good) };
   if (c.kind === 'search') return { shop, target: fullName(c.driver) };
-  if (c.kind === 'bounty') return { shop, target: templateName(c.template) };
   return { shop };
 }
 

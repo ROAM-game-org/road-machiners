@@ -10,7 +10,7 @@ The world of ROAM. Everything here answers to [Theme](../theme.md).
 - [Rumors](rumors.md): what people say.
 - [Stories](stories.md): seeds for events and jobs.
 - [Story game](story-game.md): a turn-based game that generates history and stories with agents.
-- [Chaos Highway](chaos-highway.md): the highway region, its people and the hidden truths of the Geezer and Ala story, with [the story game log](chaos-highway-story-game.md).
+- [Chaos Highway](chaos-highway.md): the skeleton of the Geezer and Ala story on the highway.
 
 ## Icarus
 
@@ -105,7 +105,7 @@ Bowl and Nose have locals the player talks to in town. `src/data/locals.ts` hold
 - The patrol driver talks like a working Bowl hand: the Granary count, the road no one guards and the western tale. The Bureau clerk talks short and low, afraid of the corridor, and says only what the corridor says.
 - Sefa is blunt and dry. She speaks for the families off the Burnt Convoy, who live at the Salvage Yard now. She takes what the road is done with and leaves the water.
 - Ines is level and open. She reads the count aloud to anyone who stops and says plainly what she does not know.
-- The six older locals also talk about the gun law, the swivel, brake rods, Pierce paper, the Kiln fee, the tenants, Green Pit and the Glass Flats, each in their own voice. Ruben, Hattie and Dag disagree with Kovac, Lena and Ibo on who is to blame.
+- The six older locals also talk about Pierce's gun rule, the swivel, brake rods, Pierce paper, the Kiln fee, the tenants, Green Pit and the Glass Flats, each in their own voice. Ruben, Hattie and Dag disagree with Kovac, Lena and Ibo on who is to blame.
 - A rumor from [Rumors](rumors.md) reaches the journal as a note that records what the speaker said, never the truth. A biased speaker says so in character, and two locals may contradict each other, as Sefa and Ibo do on the old Burnt Convoy stretch.
 - Locals point to the people of other jobs by name and place only: Agnes Ondra at Dustwell, Odile Marsh at the Granary, Mara Kessel at the Salvage Yard, Constance Pierce at the Pierce office in Nose, Tamsin Roe the courier, Lusa Fenwick and Pim Arslan the lens cutter. They never speak for them.
 - Locals may be wrong, biased or out of date. Two of them may contradict each other. No line settles the crash date, the basin's old name or what the Fallen Sun was.

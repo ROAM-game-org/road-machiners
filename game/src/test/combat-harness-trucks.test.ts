@@ -17,6 +17,12 @@ describe('truck specs', () => {
     expect(parseTruck('merc:mg/bare').gear).toEqual({ kind: 'outfit', outfit: { gun: 'mg', armor: null } });
   });
 
+  it('reads a ram after an outfit as part of that truck, and any other + as a new truck', () => {
+    expect(parseLineup('kite:mg/plates+ram').map((t) => t.gear)).toEqual([{ kind: 'outfit', outfit: { gun: 'mg', armor: 'plates', ram: 'ram' } }]);
+    expect(parseLineup('kite:mg/plates+ram+buggy').map((t) => t.driver)).toEqual(['kite', 'buggy']);
+    expect(parseLineup('buggy+buggy').map((t) => t.driver)).toEqual(['buggy', 'buggy']);
+  });
+
   it('refuses an unknown driver, gear or level', () => {
     expect(() => parseTruck('nobody')).toThrow('Unknown driver');
     expect(() => parseTruck('merc:nothing')).toThrow('Unknown gear');
@@ -27,6 +33,16 @@ describe('truck specs', () => {
     expect(() => runFight({ ...FIGHT, b: parseLineup('stand') })).toThrow('alone on side a');
     expect(() => runFight({ ...FIGHT, a: parseLineup('stand+merc') })).toThrow('alone on side a');
   });
+});
+
+describe('rams landed', () => {
+  it('counts the damaging crashes of a truck with a ram and the ones its ram took, and none for a truck without one', () => {
+    const r = runFight({ ...FIGHT, a: parseLineup('charge:mg/plates+ram'), b: parseLineup('buggy:mg/bare'), seed: 1, maxTurns: 40 });
+    expect(r.a.ramCrashes).toBeGreaterThan(0);
+    expect(r.a.ramCrashes).toBeLessThanOrEqual(r.crashes);
+    expect(r.a.ramsLanded).toBeLessThanOrEqual(r.a.ramCrashes);
+    expect(r.b.ramCrashes).toBe(0);
+  }, 90_000);
 });
 
 describe('side b hp left', () => {

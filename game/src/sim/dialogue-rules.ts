@@ -1,6 +1,10 @@
 
+import { owedBy } from './crime';
+import { answerDemand, demandOpen, huntedCases, isMarshal, payHailedBounty, bountyTerms } from './marshals';
+import { pickLesson } from './lessons';
+import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall } from './help-call';
 import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
-import { COLD_LINES, TOPIC_GATES, type ConditionId, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
+import { COLD_LINES, TOPIC_GATES, type ConditionId, type DialogueOption, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
 import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
 import { bandAtLeast, personalTerm, stanceToward } from './relations';
 import { CONTRACTS } from '../data/market';
@@ -19,7 +23,8 @@ import { recall, sightingOf } from './memory';
 import { askHandover, handoverWith, parcelFor } from './parcel';
 import { heardRumor, siteRumor, tradeTip, type Rumor } from './rumors';
 import { closeEncounter, encounterOfTopic, favorAmount, moveStory, pendingFor, requirePending, storyBeatDue, tipPrice, tipTarget } from './encounters';
-import { hasPerk, practice } from './progress';
+import { hasBasic, hasPerk, practice } from './progress';
+import { forgetLookWarning, knowsCargo, warnsOffLooker } from './look-over';
 import { abandonSpill, answerPlea, standDownBeggar, backOffClaims, defyClaims, guardsClaim, answersPlea, answersSurrender, offeredSurrenderBy, answersThreat, giveUpTo, handedOver, hasStrandedPrey, hasStrippable, judgedWorthOffer, makePeace, offersGiveUp, pendingPlea, playerPleaded, settlePlayerPlea, settleThreat, settleCashThreat, payOff, spillClaimOn, standDownTo, surrenderTo, yieldTo, type ThreatAnswer } from './parley';
 import { answerLootWarning, answerWarning, lootsBesidePlayer, pendingWarningTo, playerWarns, warnRefusalOf, type WarnAnswer } from './loot-warning';
 import { talkOf } from './dialogue';
@@ -38,10 +43,14 @@ import { bearing, dist, type Vec } from './vec';
 import { craterNews, giveWord, knowsTheCrater, prepareVigilCall, refuseVigil, vigilCallDue } from './sunward-crater';
 import { directionsTo } from './directions';
 
+function mayDemand(world: World, npc: Vehicle): boolean {
+  return world.player.talked[npc.id]?.demand === undefined && knowsCargo(world, npc, playerVehicle(world));
+}
+
 function demandsOnTop(world: World, npc: Vehicle, cargo: boolean): boolean {
   const top = topGoal(npc);
   if (top?.kind !== 'fight' || top.targetId !== world.player.vehicleId || top.demands !== true) return false;
-  if (world.player.talked[npc.id]?.demand !== undefined) return false;
+  if (!mayDemand(world, npc)) return false;
   const ransom = ransomOf(world, npc, playerVehicle(world));
   return cargo ? ransom.haul.length > 0 : ransom.haul.length === 0 && ransom.money > 0;
 }
@@ -289,11 +298,17 @@ export function coldLine(world: World, npc: Vehicle, topics: readonly TopicId[])
 }
 
 export const CONDITIONS: Record<ConditionId, Condition> = {
+  bountyDemandOpen: (world, npc) => isMarshal(npc) && demandOpen(world, npc, playerVehicle(world)) !== null,
+  huntsPlayer: (world, npc) => isMarshal(npc) && huntedCases(world, npc, world.player.vehicleId).length > 0,
   firstVigilCall: (world, npc) => vigilCallDue(world, npc, 1),
   secondVigilCall: (world, npc) => vigilCallDue(world, npc, 2),
   lastVigilCall: (world, npc) => vigilCallDue(world, npc, 3),
   knowsTheCrater: (world, npc) => knowsTheCrater(world, npc),
   canPayTalk: (world, _npc, vars) => world.player.money >= namedPrice({ vars }),
+  helpAskable: (world, npc) => canAskHelp(world, npc),
+  helpComes: (_world, _npc, vars) => answerOf(vars) === 'help',
+  helpRefuses: (_world, _npc, vars) => answerOf(vars) === 'refuse',
+  helpOutgunned: (_world, _npc, vars) => answerOf(vars) === 'outgunned',
   mercForHire: (world, npc) => world.player.talked[npc.id]?.hireGuard !== 'refused' && canHireGuard(world, npc),
   takesGuard: (_world, _npc, vars) => answerOf(vars) === 'take',
   refusesGuard: (_world, _npc, vars) => answerOf(vars) === 'decline',
@@ -313,6 +328,8 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   npcNeedsPatch: (world, npc) => needsPatch(world, npc) && !canFixItself(world, npc) && !inPatch(world, npc.id),
   npcWorn: (world, npc) => canTakeWornPatch(world, npc) && !canFixItself(world, npc) && !inPatch(world, npc.id) && !isTowing(world, npc.id) && !isStranded(world, playerVehicle(world)),
   npcOffRope: (world, npc) => !isOnRope(world, npc.id),
+  playerPatches: (world) => hasBasic(world, 'patching'),
+  lookWarned: (world, npc) => warnsOffLooker(world, npc),
   escortFollowed: (world, npc) => {
     const job = heldEscort(world);
     return job !== null && job.client === npc.id && job.holdUntil === null;
@@ -398,6 +415,9 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
 };
 
 export const EFFECTS: Record<EffectId, Effect> = {
+  payBounty: (world, npc) => answerDemand(world, npc, playerVehicle(world), 'pay'),
+  refuseBounty: (world, npc) => { if (demandOpen(world, npc, playerVehicle(world))) answerDemand(world, npc, playerVehicle(world), 'refuse'); },
+  payBountyHail: (world, npc) => payHailedBounty(world, npc, playerVehicle(world)),
   acceptOffering: (world, npc) => { giveWord(world, playerVehicle(world), npc); },
   refuseVigil: (world, npc) => refuseVigil(world, npc),
   payTalk: (world, npc, call) => transfer(world, playerVehicle(world), npc, namedPrice(call)),
@@ -507,6 +527,13 @@ export const EFFECTS: Record<EffectId, Effect> = {
   hitchNpc: (world, npc) => hitchNpc(world, npc, false),
   hitchNpcFree: (world, npc) => hitchNpc(world, npc, true),
   releaseNpc: (world, npc) => releaseNpc(world, npc),
+  endLookWarning: (world, npc) => forgetLookWarning(world, npc),
+  answerLoadThreat: (world, npc, call) => {
+    const answer = threatAnswer(call);
+    settleThreat(world, npc, answer);
+    world.player.talked[npc.id] = { ...world.player.talked[npc.id], rob: answer === 'comply' ? 'agreed' : 'refused' };
+    if (answer === 'comply') practice(world, 'deal', 1, null, npc.id);
+  },
   settleThreat: (world, npc, call) => {
     const answer = threatAnswer(call);
     settleThreat(world, npc, answer);
@@ -539,6 +566,8 @@ export const EFFECTS: Record<EffectId, Effect> = {
     if (rumor.site) discoverSite(world, rumor.site);
     else world.player.rumored.push(rumor.id);
   },
+  joinFight: (world, npc) => joinPlayerFight(world, npc),
+  turnDownCall: (world, npc) => turnDownCall(world, npc),
   hireGuard: (world, npc, call) => hireGuard(world, npc, namedPrice(call)),
   dismissGuard: (world, npc) => {
     if (!isPlayerGuard(world, npc)) throw new Error(`${npc.id} guards no one the player can dismiss`);
@@ -653,6 +682,8 @@ export const EFFECTS: Record<EffectId, Effect> = {
 };
 
 export const PREPARES: Record<PrepareId, Prepare> = {
+  bountyOwed: (world) => bountyTerms(world),
+  roadLesson: (world, npc) => ({ lesson: { kind: 'line', line: pickLesson(world, npc, playerVehicle(world)) } }),
   vigilCall: (world) => prepareVigilCall(world),
   craterNews: (world, npc) => craterNews(world, npc),
   truceAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'truce') }, ...ransomVars(world, npc) }),
@@ -716,6 +747,7 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   },
   tradeTip: (_world, npc) => ({ tip: { kind: 'tip', tip: tradeTip(npc) } }),
   trucePrice: (_world, npc) => ({ price: { kind: 'money', amount: trucePrice(npc) } }),
+  helpAnswer: (world, npc) => ({ answer: { kind: 'answer', option: helpAnswer(world, npc) } }),
   guardOffer: (world, npc) => ({
     answer: { kind: 'answer', option: guardTaken(world, npc) ? 'take' : 'decline' },
     price: { kind: 'money', amount: guardFee(world, npc) },
@@ -819,4 +851,11 @@ function requireEscort(world: World): EscortContract {
   const job = heldEscort(world);
   if (!job) throw new Error('The player holds no escort job');
   return job;
+}
+
+const PRICED_BY_BOUNTY: readonly EffectId[] = ['payBounty', 'payBountyHail'];
+
+export function optionShort(world: World, option: DialogueOption): number {
+  if (!option.effects.some((e) => PRICED_BY_BOUNTY.includes(e))) return 0;
+  return Math.max(0, owedBy(world, world.player.vehicleId) - world.player.money);
 }

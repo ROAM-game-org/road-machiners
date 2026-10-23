@@ -2,21 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { REFUSED } from '../data/dialogue';
 import { SALVAGE } from '../data/salvage';
 import { NPC_BEHAVIOR, NPCS, type TraitId } from '../data/npcs';
-import { isHostile, noteCollision, wreckVehicle } from './combat';
-import { advanceContracts } from './market';
-import { update } from './world';
+import { isHostile, noteCollision } from './combat';
 import { playerVehicle } from './damage';
 import { callVehicle, chooseOption, currentLine, currentOptions, endCallIfOut, hangUp, raiseCalls } from './dialogue';
 import { addGoods } from './inventory';
 import { takeAllLoot } from './locations';
 import { pushGoal, resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { visibleSalvage } from './npc-decisions';
-import { makePeace, plead, standDownTo, surrenderTo, yieldTo } from './parley';
+import { makePeace, plead, surrenderTo, yieldTo } from './parley';
 import { claimantOf, emptyHidden, hasCargo, lootBlocker, looterOf } from './salvage';
 import { beginSearch } from './search';
 import { addState, endState, stateOf } from './states';
-import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf } from './testkit';
-import type { Contract } from './market';
+import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, sizedUp } from './testkit';
 import type { Faction, Vehicle, World } from './types';
 import { refreshVision } from './vision';
 import { lineKey } from '../text/names';
@@ -154,6 +151,7 @@ describe('NPC pleas to NPCs', () => {
     npcAt(w, 'independent', ['scavenger'], 40, 32);
     addState(w, 'feud', b.id, a.id, { kind: 'feud', robbery: true });
     addState(w, 'feud', a.id, b.id, { kind: 'feud', robbery: false });
+    sizedUp(w, b, a);
     return { w, a, b };
   }
 
@@ -480,78 +478,6 @@ describe('warning a looter off', () => {
     const w = hangUp(pick(callVehicle(start, npc.id), WARN));
     expect(w.player.talked[npc.id]).toEqual({ warnOff: 'refused' });
     expect(looterOf(w, wreckId)?.id).toBe(npc.id);
-  });
-});
-
-describe('bounty talk', () => {
-  const bounty: Contract = { id: 'ct-b', shop: 'bowl', kind: 'bounty', template: 'trader', reward: 13333, deadline: 900, window: 900, tier: 2, fulfilled: false };
-
-  function beggar(perks: World['player']['perks']): { w: World; npc: Vehicle } {
-    const w = quietWorld();
-    const npc = npcAt(w, 'scrapjaw', ['raider'], 36);
-    feud(w, npc, playerVehicle(w));
-    w.player.perks = perks;
-    w.player.contracts = [{ ...bounty }];
-    w.player.money = 0;
-    plead(w, npc, playerVehicle(w), 'mercy');
-    raiseCalls(w);
-    return { w, npc };
-  }
-
-  it('a driver of the bounty template that gives up to the player fulfils the bounty, which pays on claim', () => {
-    const { w: start } = beggar(['bountyTalk']);
-    const w = pick(start, 'Dump your cargo and drive off.');
-    expect(w.player.contracts).toEqual([{ ...bounty, fulfilled: true }]);
-    expect(w.player.money).toBe(0);
-    expect(w.events).toContainEqual({ t: 'contract', contract: { ...bounty, fulfilled: true }, outcome: 'fulfilled' });
-  });
-
-  it('pays nothing without the perk', () => {
-    const { w: start } = beggar([]);
-    const w = pick(start, 'Dump your cargo and drive off.');
-    expect(w.player.contracts).toEqual([bounty]);
-    expect(w.player.money).toBe(0);
-  });
-
-  function standsDown(start: World, npcId: string): World {
-    return update(start, (d) => standDownTo(d, d.vehicles.find((x) => x.id === npcId)!, playerVehicle(d)));
-  }
-
-  function wreckGivenUp(start: World, npcId: string): World {
-    return update(start, (d) => {
-      const v = d.vehicles.find((x) => x.id === npcId)!;
-      d.events = [];
-      v.lastHitBy = d.player.vehicleId;
-      wreckVehicle(d, v);
-      advanceContracts(d);
-    });
-  }
-
-  it('a driver that gave up without the perk pays nothing when the player then wrecks it', () => {
-    const { w: start, npc } = beggar([]);
-    const w = wreckGivenUp(standsDown(start, npc.id), npc.id);
-    expect(w.events).toContainEqual({ t: 'destroyed', vehicle: npc.id, by: w.player.vehicleId });
-    expect(w.events.filter((e) => e.t === 'contract' && e.outcome === 'done')).toEqual([]);
-    expect(w.player.money).toBe(0);
-  });
-
-  it('a driver that gave up with the perk fulfils the bounty once, though the player then wrecks it', () => {
-    const { w: start, npc } = beggar(['bountyTalk']);
-    const gaveUp = standsDown(start, npc.id);
-    expect(gaveUp.player.contracts).toEqual([{ ...bounty, fulfilled: true }]);
-    const w = wreckGivenUp(gaveUp, npc.id);
-    expect(w.events.filter((e) => e.t === 'contract')).toEqual([]);
-    expect(w.player.contracts).toEqual([{ ...bounty, fulfilled: true }]);
-    expect(w.player.money).toBe(0);
-  });
-
-  it('pays nothing when the player gives up', () => {
-    const w = quietWorld();
-    const npc = npcAt(w, 'scrapjaw', ['raider'], 36);
-    w.player.perks = ['bountyTalk'];
-    w.player.contracts = [{ ...bounty }];
-    yieldTo(w, playerVehicle(w), npc);
-    expect(w.player.contracts).toEqual([bounty]);
   });
 });
 

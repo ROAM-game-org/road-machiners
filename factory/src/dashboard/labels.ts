@@ -22,7 +22,7 @@ const activities: Record<Activity, string> = {
 };
 const reasons: Record<WaitReason, string> = {
   'queue-full': 'Queue occupied', 'issue-running': 'Already running', 'card-budget': 'Card job limit',
-  'needs-info': 'Needs author reply', voting: 'Waits for player votes', failed: 'Failed job needs attention', approval: 'Needs committee approval', held: 'Held until resumed',
+  'needs-info': 'Needs author reply', voting: 'Waits for player votes', failed: 'Failed job needs attention', approval: 'Needs committee approval', held: 'Held until resumed', 'hotfix-verify': 'Another hotfix is in Verify',
 };
 const dwell: Record<DeliveryStage, string> = {
   triage: columns.Triage, design: columns.Design, implementation: columns.Implementation, preview: columns.Testing, approval: columns.Approval, harden: columns.Hardening, merge: columns.Merging,

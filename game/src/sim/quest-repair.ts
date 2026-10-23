@@ -6,22 +6,19 @@ import type { Player, QuestSession, QuestState, QuestVars } from './types';
 export type SavedRevisions = Record<string, number>;
 export type SavedQuests = Omit<QuestState, 'live'>;
 export type RawQuests = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>>; session: QuestSession | null };
-export type QuestRepair = { quests: SavedQuests; notes: Player['notes']; reset: string[]; lost: string[] };
+export type QuestRepair = { quests: SavedQuests; notes: Player['notes'] };
 
 type Saved = { quests: RawQuests; notes: Player['notes'] };
 type Doomed = { quests: Set<string>; vars: Set<string>; notes: Set<NoteId> };
 
 const GAME_NOTE_IDS: readonly NoteId[] = Object.values(GAME_NOTES);
 
-export function repairQuests(quests: RawQuests, notes: Player['notes'], revisions: SavedRevisions, bundle: QuestBundle): QuestRepair {
+export function repairQuests(quests: RawQuests, notes: Player['notes'], revisions: SavedRevisions, bundle: QuestBundle, unrestorable: readonly string[] = []): QuestRepair {
   checkQuestLinks(bundle);
-  const kept = keptOf(quests, bundle);
-  const saved = { quests: kept.quests, notes };
+  const saved = { quests: keptOf(quests, bundle), notes };
   const progressed = new Set(questIds(bundle).filter((id) => hasProgress(id, saved, bundle)));
-  const roots = brokenQuests(kept.quests, revisions, bundle).filter((id) => progressed.has(id));
-  const doomed = closeOver(saved, roots, progressed, bundle);
-  const reset = questIds(bundle).filter((id) => doomed.quests.has(id) && losesState(id, saved, doomed, bundle));
-  return { ...applied(saved, doomed, bundle), reset, lost: kept.lost };
+  const roots = [...brokenQuests(saved.quests, revisions, bundle), ...unrestorable].filter((id) => progressed.has(id));
+  return applied(saved, closeOver(saved, roots, progressed, bundle), bundle);
 }
 
 export function newerQuests(revisions: SavedRevisions, bundle: QuestBundle): string[] {
@@ -36,12 +33,11 @@ function questIds(bundle: QuestBundle): string[] {
   return Object.keys(bundle.quests);
 }
 
-function keptOf(saved: RawQuests, bundle: QuestBundle): { quests: RawQuests; lost: string[] } {
+function keptOf(saved: RawQuests, bundle: QuestBundle): RawQuests {
   const lostVars = Object.entries(saved.world).filter(([name, value]) => !fits(value, bundle.world[name])).map(([name]) => name);
-  const named = [...Object.keys(saved.local), ...(saved.session ? [saved.session.quest] : [])];
-  const lostQuests = [...new Set(named)].filter((id) => !bundle.quests[id]);
+  const lostQuests = Object.keys(saved.local).filter((id) => !bundle.quests[id]);
   const session = saved.session && bundle.quests[saved.session.quest] ? saved.session : null;
-  return { quests: { world: without(saved.world, lostVars), local: without(saved.local, lostQuests), session }, lost: [...lostVars, ...lostQuests] };
+  return { world: without(saved.world, lostVars), local: without(saved.local, lostQuests), session };
 }
 
 function fits(value: unknown, decl: QuestVarDecl | undefined): boolean {
@@ -120,13 +116,6 @@ function doomedNotes(notes: Player['notes'], quests: ReadonlySet<string>, bundle
 
 function readsDoomed(quest: CompiledQuest, doomed: Doomed): boolean {
   return quest.links.reads.some((name) => doomed.vars.has(name)) || quest.links.readsNotes.some((id) => doomed.notes.has(id as NoteId));
-}
-
-function losesState(id: string, saved: Saved, doomed: Doomed, bundle: QuestBundle): boolean {
-  const quest = bundle.quests[id];
-  if (holdsState(id, saved)) return true;
-  const lostValue = Object.entries(quest.links.writes).some(([name, values]) => doomed.vars.has(name) && holds(saved.quests.world, name, values));
-  return lostValue || quest.links.notes.some((note) => doomed.notes.has(note as NoteId));
 }
 
 function applied(saved: Saved, doomed: Doomed, bundle: QuestBundle): { quests: SavedQuests; notes: Player['notes'] } {

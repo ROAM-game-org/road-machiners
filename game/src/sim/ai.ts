@@ -22,7 +22,7 @@ import { canVehicleSee } from "./vision";
 import { bodyHitChance, inArc, inCombat } from "./combat";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
-import { rollingOrder, runsDown } from "./hunters";
+import { heldGoal, holdOnStretch, rollingOrder, runsDown } from "./hunters";
 import { dragsStraight } from "./sunward";
 
 function planners(world: World): Vehicle[] {
@@ -46,9 +46,10 @@ function thinkOrderPoint(world: World, v: Vehicle): Plan {
 }
 
 function setOrder(world: World, { v, activity, goal }: Plan): void {
-  noteStuck(world, v, goal);
+  const held = heldGoal(world, v, goal);
+  noteStuck(world, v, held);
   const stops = goal !== null && !(activity.kind === "fight" && runsDown(world, v)) && trafficStops(world, v, goal);
-  noteStall(world, v, stops && activity.kind !== "fight" && activity.kind !== "flee");
+  noteStall(world, v, (stops && activity.kind !== "fight" && activity.kind !== "flee") || waitsOnHold(v, goal, held));
   v.order = nextOrder(world, v, activity, goal, stops);
   v.direct = dragsStraight(world, v);
 }
@@ -66,6 +67,10 @@ function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {
   b.recovery = RULES.unstick.driveTurns;
   b.recoveryGoal = spot;
   b.stuck = 0;
+}
+
+function waitsOnHold(v: Vehicle, goal: Vec | null, held: Vec | null): boolean {
+  return held !== goal && dist(v.pos, held!) <= RULES.arriveRadius * 2;
 }
 
 function heldAway(v: Vehicle, goal: Vec | null): boolean {
@@ -109,9 +114,9 @@ function startRecovery(v: Vehicle): void {
 
 function nextOrder(world: World, v: Vehicle, activity: NpcActivity, goal: Vec | null, stops: boolean): MoveOrder {
   if (!goal) return { kind: "brake" };
-  if (v.brain!.recovery) return { kind: "stopAt", dest: v.brain!.recoveryGoal! };
+  if (v.brain!.recovery) return holdOnStretch(world, v, { kind: "stopAt", dest: v.brain!.recoveryGoal! });
   if (stops || waitsForEscort(world, v, activity)) return { kind: "brake" };
-  return driveOrder(world, v, activity, goal);
+  return holdOnStretch(world, v, driveOrder(world, v, activity, goal));
 }
 
 function orderPoint(world: World, v: Vehicle, activity: NpcActivity): Vec | null {
@@ -406,7 +411,7 @@ function facesParked(world: World, v: Vehicle): boolean {
   });
 }
 
-function givesWayTo(world: World, giver: Vehicle, holder: Vehicle): boolean {
+export function givesWayTo(world: World, giver: Vehicle, holder: Vehicle): boolean {
   return giver.id < holder.id && givesWay(world, giver) && givesWay(world, holder) && closesOn(world, giver, holder, 0) && closesOn(world, holder, giver, 0);
 }
 

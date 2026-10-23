@@ -13,6 +13,7 @@ Every driver belongs to one faction, does one job and may ride in a group for a 
 | Scrapjaw | yes | yes | raiders from Scrapjaw Camp |
 | Kiln | yes | yes | raiders from Kiln Camp |
 | Sunward | yes | yes | the eight Cavalcade cars and the three hunters of the Sunward Hollow |
+| Marshalls | yes | no | the pair of Marshalls of the Roadhouse |
 | Independent | no | no | the other traders, scavengers, roamers, vultures and mercs |
 
 An organized faction keeps a standing with the player, and its members defend each other. Independent is no organization. It is the label for drivers with no town to speak for them, so independents share no loyalty and judge each other only by what they remember. Lawmen fight outlaws on sight, and stalls refuse them.
@@ -35,20 +36,22 @@ Every attitude is a whole number from −100 to 100, read in five bands.
 
 How a faction judges another. The row judges the column.
 
-| | Bowl | Nose | Guidestar | Administrators | Scrapjaw | Kiln | Sunward | Independent |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Bowl | 60 | −25 | 20 | 0 | −40 | −30 | −30 | 5 |
-| Nose | −5 | 60 | 20 | −20 | −40 | −40 | −30 | 5 |
-| Guidestar | 20 | 20 | 60 | 5 | −30 | −30 | −20 | 10 |
-| Administrators | 0 | −35 | 5 | 60 | −5 | −5 | −10 | 10 |
-| Scrapjaw | −30 | −40 | −25 | −5 | 60 | −10 | −20 | −30 |
-| Kiln | −10 | −40 | −20 | −5 | −10 | 60 | −20 | −30 |
-| Sunward | −20 | −20 | −20 | −20 | −20 | −20 | 60 | −20 |
-| Independent | 5 | 5 | 10 | 5 | −30 | −30 | −20 | 0 |
+| | Bowl | Nose | Guidestar | Administrators | Scrapjaw | Kiln | Sunward | Marshalls | Independent |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Bowl | 60 | −25 | 20 | 0 | −40 | −30 | −30 | 0 | 5 |
+| Nose | −5 | 60 | 20 | −20 | −40 | −40 | −30 | 0 | 5 |
+| Guidestar | 20 | 20 | 60 | 5 | −30 | −30 | −20 | 0 | 10 |
+| Administrators | 0 | −35 | 5 | 60 | −5 | −5 | −10 | 0 | 10 |
+| Scrapjaw | −30 | −40 | −25 | −5 | 60 | −10 | −20 | 0 | −30 |
+| Kiln | −10 | −40 | −20 | −5 | −10 | 60 | −20 | 0 | −30 |
+| Sunward | −20 | −20 | −20 | −20 | −20 | −20 | 60 | −20 | −20 |
+| Marshalls | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 60 | 0 |
+| Independent | 5 | 5 | 10 | 5 | −30 | −30 | −20 | 0 | 0 |
 
 - Bowl would destroy Nose and calls that defense. Nose thinks Bowl slow but needs its grain.
 - The Bowl Granary pays Kiln a sack for every armed truck that crosses, so Kiln lets Bowl trucks pass. Bowl still does not trust Kiln, and Bowl lawmen still fight Kiln riders on sight.
 - Scrapjaw and Kiln are rival camps that neither rob nor help each other.
+- The Marshalls take no side and no side takes against them for their work. Only the Sunward, wary of everyone, are wary of them.
 - The Sunward are wary of everyone, and everyone of them. Bowl and Nose are warier, since the Senate stopped the order's grain and Nose families lost children to it.
 - Nobody in the table is hostile. War on sight comes only from the law, a feud or a personal grudge.
 
@@ -89,11 +92,17 @@ known if the victim saw the attacker, or a lawman or an ally of the victim saw i
    -> one deed for the whole incident
 ```
 
+A witness that would not shield the attacker also remembers the crime and reports it at its next town or outpost, which [Crime and the Marshalls](crime.md) follows.
+
 A driver that steps in starts a feud with the attacker. It still fights by its own sight, danger and guns, so it never shoots through a hill or at a truck it cannot reach.
+
+## Called for help
+
+The player can radio a driver in sight to join a fight, which [Social](social.md) describes. The driver holds back by the same two tests as a witness, applied to each foe of the player: bound to or in a truce with the foe, or (unless a lawman) liking the foe at least as much as the player. It also refuses when it is knocked out or stranded. A lawman agrees as an allied driver does unless the player attacked or robbed a lawful foe, and the answer is a weighted roll by standing: allied about 98 in 100, friendly about 3 in 4, neutral about 1 in 10. An agreeing driver starts a feud with every foe the same way a witness does.
 
 ## Standing
 
-The player starts at each organized faction's view of an outside driver: Bowl 5, Nose 5, Guidestar 10, Administrators 10, Scrapjaw −30, Kiln −30, Sunward −20. A deed changes standing with the faction of the driver it touched, and the victim's memory, when the deed is known.
+The player starts at each organized faction's view of an outside driver: Bowl 5, Nose 5, Guidestar 10, Administrators 10, Scrapjaw −30, Kiln −30, Sunward −20, Marshalls 0. A deed changes standing with the faction of the driver it touched, and the victim's memory, when the deed is known.
 
 | Deed | When | Standing | Memory |
 | --- | --- | --- | --- |
@@ -109,7 +118,7 @@ The player starts at each organized faction's view of an outside driver: Bowl 5,
 
 - The same deed on the same driver counts once a day, so ten hits are one attack, and a driver who refits after a knockout gives no fresh help.
 - Help raises standing with one faction by 15 a day at most. Losses have no cap.
-- Each day standing drifts 10 back toward its start, so a player at −100 is out of the hostile band in 6 days.
+- Each day standing drifts 10 back toward its start, so a player at −100 is out of the hostile band in 6 days. The Marshalls' desk sells the drift at once: settling lifts a hostile standing to −49, as [Crime and the Marshalls](crime.md#the-desk-at-the-roadhouse) describes.
 - A band change shows in the log and as a toast, like "Bowl now treats you as wary."
 - On Chaos Highway standing never moves, so the gangs there hold fire on the gun truck until it shoots them. Memories still form.
 

@@ -3,7 +3,8 @@ import { FIRST_NAMES, NPCS, OPPOSED_TRAITS, SPAWN, SURNAMES, type NpcTemplate, t
 import { SITE_FACTIONS, TOWN_TRADER_SHARE } from "../data/npc-behavior";
 import { isOutlaw } from "./relations";
 import { chassisDef } from "../data/chassis";
-import { footprint } from "./body";
+import { isRig } from "./body";
+import { footprint, rigDiscs } from "./rig";
 import { PERSONALITY_IDS, type PersonalityId } from "../data/personalities";
 import { REGION } from "../data/region";
 import { playerVehicle } from "./damage";
@@ -27,13 +28,13 @@ export function spawnNpcs(world: World): void {
 }
 
 function tickSpawn(world: World, tpl: NpcTemplate): void {
-  const left = (world.spawnTimer[tpl.id] ?? tpl.interval) - 1;
+  const left = (world.spawnTimer[tpl.id] ?? firstTimer(tpl)) - 1;
   world.spawnTimer[tpl.id] = left;
   if (left > 0) return;
   world.spawnTimer[tpl.id] = tpl.interval;
   if (tpl.pairs) tickPairs(world, tpl);
   else if (tpl.spawn.kind === 'hollow') refillHollow(world, tpl);
-  else if (aliveOf(world, tpl) < tpl.cap) spawnWithEscorts(world, tpl, () => siteFor(world, tpl), true);
+  else if (aliveOf(world, tpl) < tpl.cap) spawnWithEscorts(world, tpl, () => siteFor(world, tpl));
 }
 
 export function fillHollow(world: World): void {
@@ -63,13 +64,28 @@ function spawnInBay(world: World, tpl: NpcTemplate): Vehicle | null {
 function tickPairs(world: World, tpl: NpcTemplate): void {
   const lone = world.vehicles.find((v) => v.brain?.templateId === tpl.id && isLone(world, v));
   if (!lone) {
-    if (aliveOf(world, tpl) + 2 <= tpl.cap) spawnWithEscorts(world, tpl, () => siteFor(world, tpl), true);
+    if (aliveOf(world, tpl) + 2 <= tpl.cap) spawnWithEscorts(world, tpl, () => siteFor(world, tpl));
     return;
   }
   if (aliveOf(world, tpl) >= tpl.cap) return;
   const site = nearestSite(tpl, lone.pos);
-  const partner = spawnOne(world, tpl, () => site, true, null);
+  const partner = spawnOne(world, tpl, () => site, null);
   if (partner) startEscort(world, partner, lone, null, 0);
+}
+
+const PHASES = phasesOf(Object.values(NPCS).filter((tpl) => tpl.spawn.kind !== "escort"));
+
+function phasesOf(templates: readonly NpcTemplate[]): Record<string, number> {
+  const phases: Record<string, number> = {};
+  for (const tpl of templates) {
+    const same = templates.filter((other) => other.interval === tpl.interval);
+    phases[tpl.id] = Math.floor((same.indexOf(tpl) * tpl.interval) / same.length);
+  }
+  return phases;
+}
+
+function firstTimer(tpl: NpcTemplate): number {
+  return tpl.interval + (PHASES[tpl.id] ?? 0);
 }
 
 function nearestSite(tpl: NpcTemplate, pos: Vec): Site {
@@ -77,14 +93,25 @@ function nearestSite(tpl: NpcTemplate, pos: Vec): Site {
 }
 
 export function spawnInitial(world: World): void {
-  const decks = new Map<string, Site[]>();
-  for (const id of SPAWN.initial) {
-    spawnRequired(world, NPCS[id], dealSite(world, decks, sitesFor(NPCS[id])), null);
-  }
   const town = REGION.towns.find((t) => t.id === SPAWN.startTraffic.town);
   if (!town) throw new Error(`Unknown start traffic town ${SPAWN.startTraffic.town}`);
   const gate = nearestGate(town, playerVehicle(world).pos);
-  for (const id of SPAWN.startTraffic.templates) spawnRequired(world, NPCS[id], town, gate);
+  const places: SpawnPlace[] = [{ site: town, gate }, { site: town, gate: null }];
+  for (const id of SPAWN.startTraffic.templates) spawnRequired(world, NPCS[id], places);
+  const decks = new Map<string, Site[]>();
+  for (const id of SPAWN.initial) {
+    const tpl = NPCS[id];
+    spawnRequired(world, tpl, rosterPlaces(tpl, dealSite(world, decks, sitesFor(tpl))));
+  }
+}
+
+type SpawnPlace = { site: Site; gate: Vec | null };
+
+function rosterPlaces(tpl: NpcTemplate, dealt: Site): SpawnPlace[] {
+  const others = sitesFor(tpl)
+    .filter((site) => site !== dealt)
+    .sort((a, b) => dist(a.pos, dealt.pos) - dist(b.pos, dealt.pos));
+  return [dealt, ...others].map((site) => ({ site, gate: null }));
 }
 
 function nearestGate(site: Site, from: Vec): Vec {
@@ -110,14 +137,18 @@ function aliveOf(world: World, tpl: NpcTemplate): number {
   return world.vehicles.filter((v) => v.brain?.templateId === tpl.id).length;
 }
 
-function spawnWithEscorts(world: World, tpl: NpcTemplate, pick: () => Site, respawn: boolean): void {
-  const leader = spawnOne(world, tpl, pick, respawn, null);
+function spawnWithEscorts(world: World, tpl: NpcTemplate, pick: () => Site): void {
+  const leader = spawnOne(world, tpl, pick, null);
   if (leader) spawnEscorts(world, tpl, leader);
 }
 
-function spawnRequired(world: World, tpl: NpcTemplate, site: Site, gate: Vec | null): void {
-  const leader = spawnOne(world, tpl, () => site, false, gate);
-  if (!leader) throw new Error(`No free spot to spawn ${tpl.id} at ${site.id} in the new world`);
+function spawnRequired(world: World, tpl: NpcTemplate, places: readonly SpawnPlace[]): void {
+  const loadout = generateNpcLoadout(world, tpl);
+  const leader = places.reduce<Vehicle | null>(
+    (placed, place) => placed ?? placeLeader(world, tpl, loadout, () => place.site, place.gate),
+    null,
+  );
+  if (!leader) throw new Error(`No room to spawn ${tpl.id} at ${places.map((p) => p.site.id).join()} in the new world`);
   const missed = spawnEscorts(world, tpl, leader);
   if (missed.length > 0) throw new Error(`No free spot to spawn ${missed[0].id} beside ${tpl.id} in the new world`);
 }
@@ -148,7 +179,7 @@ function spawnBeside(world: World, tpl: NpcTemplate, leader: Vehicle): Vehicle |
   for (let i = 0; i < SPAWN.tries; i++) {
     const a = randRange(world, -Math.PI, Math.PI);
     const pos = { x: leader.pos.x + Math.cos(a) * d, y: leader.pos.y + Math.sin(a) * d };
-    if (!isFree(world, pos, radius, null)) continue;
+    if (!isFree(world, pos, radius, null) || nearPlayer(world, pos)) continue;
     return spawnAt(world, tpl, loadout, pos, allegianceFor(world, tpl, null, leader));
   }
   world.events.push({ t: 'info', note: { id: 'spawnBlocked', template: tpl.id }, debug: true });
@@ -168,18 +199,33 @@ function opposesAny(trait: TraitId, held: TraitId[]): boolean {
   return OPPOSED_TRAITS.some(([a, b]) => (a === trait && held.includes(b)) || (b === trait && held.includes(a)));
 }
 
-function spawnOne(world: World, tpl: NpcTemplate, pick: () => Site, respawn: boolean, gate: Vec | null): Vehicle | null {
-  const loadout = generateNpcLoadout(world, tpl);
+function spawnOne(world: World, tpl: NpcTemplate, pick: () => Site, gate: Vec | null): Vehicle | null {
+  const leader = placeLeader(world, tpl, generateNpcLoadout(world, tpl), pick, gate);
+  if (!leader) world.events.push({ t: 'info', note: { id: 'spawnBlocked', template: tpl.id }, debug: true });
+  return leader;
+}
+
+function placeLeader(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pick: () => Site, gate: Vec | null): Vehicle | null {
   const radius = chassisDef(loadout.chassisId).radius;
   for (let i = 0; i < SPAWN.tries; i++) {
     const site = pick();
     const pos = gateSpot(world, site, gate, radius);
-    if (respawn && dist(pos, playerVehicle(world).pos) < SPAWN.minPlayerDist) continue;
-    if (!isFree(world, pos, radius, null)) continue;
+    if (!spawnRoom(world, pos, radius)) continue;
     return spawnAt(world, tpl, loadout, pos, allegianceFor(world, tpl, site, null));
   }
-  world.events.push({ t: 'info', note: { id: 'spawnBlocked', template: tpl.id }, debug: true });
   return null;
+}
+
+function nearPlayer(world: World, pos: Vec): boolean {
+  return dist(pos, playerVehicle(world).pos) < SPAWN.minPlayerDist;
+}
+
+function crowdAt(world: World, pos: Vec): number {
+  return world.vehicles.filter((v) => dist(v.pos, pos) < SPAWN.crowd.reach).length;
+}
+
+export function spawnRoom(world: World, pos: Vec, radius: number): boolean {
+  return isFree(world, pos, radius, null) && !nearPlayer(world, pos) && crowdAt(world, pos) < SPAWN.crowd.most;
 }
 
 export function allegianceFor(world: World, tpl: NpcTemplate, site: Site | null, leader: Vehicle | null): NpcFactionId {
@@ -210,7 +256,7 @@ function npcFaction(v: Vehicle): NpcFactionId {
 }
 
 function townFaction(world: World, site: Site | null): NpcFactionId {
-  const town = siteFaction(site);
+  const town = site && atlasOf(world.terrain).towns.some((t) => t.id === site.id) ? siteFaction(site) : undefined;
   if (!town || isOutlaw(town)) return 'independent';
   return chance(world, TOWN_TRADER_SHARE) ? town : 'independent';
 }
@@ -304,6 +350,10 @@ export function isFree(world: World, pos: Vec, radius: number, ignoreId: string 
   const margin = 0.3;
   if (world.obstacles.filter(isDriveObstacle).some((o) => touchesObstacle(o, world.terrain, pos, radius, margin))) return false;
   return world.vehicles.every(
-    (v) => v.id === ignoreId || dist(v.pos, pos) >= footprint(v.chassisId) + radius + margin,
+    (v) => v.id === ignoreId || spawnDiscs(v).every((d) => dist(d.pos, pos) >= d.r + radius + margin),
   );
+}
+
+function spawnDiscs(v: Vehicle): { pos: Vec; r: number }[] {
+  return isRig(v.chassisId) ? rigDiscs(v) : [{ pos: v.pos, r: footprint(v.chassisId) }];
 }

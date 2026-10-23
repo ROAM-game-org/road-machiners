@@ -61,6 +61,11 @@ describe('chooseJobs with no daily cap', () => {
     expect(chooseJobs(busy, [card(6, 'Implementation', ['adhoc'])], NOW, CFG)).toEqual([{ stage: 'release', issue: null }, { stage: 'adhoc', issue: 6 }]);
   });
 
+  it('queues one incident job for the whole batch, led by the oldest pending issue', () => {
+    const decisions = evaluateSchedule({ ...busy, lastRelease: FRESH.lastRelease, pendingIncidents: [7, 8, 9] }, [], NOW, CFG).decisions;
+    expect(decisions.filter((decision) => decision.stage === 'incident')).toEqual([{ stage: 'incident', issue: 7, reasons: [] }]);
+  });
+
   it('runs one incident job at a time, since each appends to the same incident log, beside a queued ship', () => {
     const capped = { ...busy, lastRelease: FRESH.lastRelease };
     const queuedIncident = { ...capped, pendingIncidents: [7, 8] };
@@ -280,6 +285,8 @@ function harness(job: Job | null, alive: boolean, cards: Card[] = [], comments: 
   const dir = mkdtempSync(join(tmpdir(), 'tick-'));
   mkdirSync(join(dir, 'codex'));
   writeFileSync(join(dir, 'codex/auth.json'), '{}');
+  mkdirSync(join(dir, 'agy'));
+  writeFileSync(join(dir, 'agy/antigravity-oauth-token'), '{}');
   const statePath = join(dir, 'state.json');
   writeState(statePath, state({ jobs: job ? [job] : [] }));
   const sent: string[] = [];
@@ -426,6 +433,13 @@ describe('tick', () => {
     expect(h.spawned).toEqual([]);
   });
 
+  it('stops the tick before it starts a job when agy has no login', async () => {
+    const h = harness(null, true, [card(8, 'Design')]);
+    rmSync(join(h.ctx.cfg.home, 'agy'), { recursive: true });
+    await expect(tick(h.ctx, '/code', h.deps)).rejects.toThrow('agy/antigravity-oauth-token is missing');
+    expect(h.spawned).toEqual([]);
+  });
+
   it('keeps the clone of a running job and removes the clone of a Done card', async () => {
     const h = harness(job('2026-01-10T11:50:00Z', 'checks', 5), true, [card(5, 'Done'), card(9, 'Done')]);
     for (const name of ['issue-5', 'check-issue-5', 'issue-9']) mkdirSync(join(h.ctx.cfg.home, 'work', name), { recursive: true });
@@ -471,6 +485,19 @@ describe('tick', () => {
     const cards = [card(1, 'Testing'), card(2, 'Testing')];
     const picks = chooseJobs(state({ postOnly: [2] }), cards, NOW, { ...CFG, verifyWorkers: 2, testWorkers: 2 });
     expect(picks).toEqual([{ stage: 'verify', issue: 1 }, { stage: 'checks', issue: 2 }]);
+  });
+
+  it('gives a second verify worker to a normal card when two hotfixes wait for verify', () => {
+    const cards = [card(4, 'Testing', [HOTFIX_LABEL]), card(5, 'Testing', [HOTFIX_LABEL]), card(6, 'Testing')];
+    expect(chooseJobs(state(), cards, NOW, { ...CFG, verifyWorkers: 2 })).toEqual([{ stage: 'verify', issue: 4 }, { stage: 'verify', issue: 6 }]);
+  });
+
+  it('holds a second hotfix while one hotfix runs in verify, and lets a normal card start', () => {
+    const s = state({ jobs: [running('verify', 4)] });
+    const cards = [card(4, 'Testing', [HOTFIX_LABEL]), card(5, 'Testing', [HOTFIX_LABEL]), card(6, 'Testing'), card(7, 'Design', [HOTFIX_LABEL])];
+    const report = evaluateSchedule(s, cards, NOW, { ...CFG, verifyWorkers: 2 });
+    expect(report.picks).toEqual([{ stage: 'design', issue: 7 }, { stage: 'verify', issue: 6 }]);
+    expect(report.decisions.find((item) => item.issue === 5)?.reasons).toEqual(['hotfix-verify']);
   });
 
   it('picks harden for a Hardening card, ahead of Testing', () => {

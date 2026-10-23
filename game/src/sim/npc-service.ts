@@ -4,13 +4,14 @@ import { SHOPS, shopDef } from '../data/market';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { isDefeated, refitAtHome } from './defeat';
-import { scrapFuel, serviceAtCamp, serviceAtStall, serviceVehicle } from './economy';
-import { charCodes, chooseNearestSite, createSiteActivity, dropGoal, finishGoal, noteShop, popGoal, pushGoal, reachSite, saleGoal, topGoal } from './npc-activities';
+import { fuelRoomAt, scrapFuel, serviceAtCamp, serviceAtStall, serviceVehicle } from './economy';
+import { chooseNearestSite, createSiteActivity, dropGoal, finishGoal, noteShop, popGoal, pushGoal, reachSite, saleGoal, topGoal } from './npc-activities';
 import { dealDue } from './npc-business';
+import { vehicleById } from './damage';
 import { fitToHunt, getKnownSite, hasSaleCargo, huntsPrey, npcProfile, yields, type NpcProfile } from './npc-decisions';
 import { isDamaged, isStrandedForGood } from './npc-repair';
 import { getResources } from './resources';
-import { hashRandom } from './rng';
+import { charCodes, hashRandom } from './rng';
 import { heatAt } from './sun';
 import { ECONOMY } from '../data/goods';
 import { route } from './path';
@@ -106,10 +107,15 @@ function tryLieUpSpot(world: World, vehicle: Vehicle, site: Site): Vec | null {
   return dist(end, spot) <= RULES.arriveRadius ? spot : null;
 }
 
+const LIE_UP_WAITS: readonly GoalReason[] = ['restHollow', 'atPost'];
+
+function liesUpWith(goal: NpcActivity): boolean {
+  return goal.kind === 'rearm' || (goal.kind === 'wait' && LIE_UP_WAITS.includes(goal.reason));
+}
+
 export function liesUp(vehicle: Vehicle): boolean {
   const top = topGoal(vehicle);
-  const lying = top?.kind === 'rearm' || (top?.kind === 'wait' && top.reason === 'restHollow');
-  return lying && dist(vehicle.pos, top.destination!) <= NPC_BEHAVIOR.lieUp.reach;
+  return top !== null && liesUpWith(top) && dist(vehicle.pos, top.destination!) <= NPC_BEHAVIOR.lieUp.reach;
 }
 
 export function rearmInvalid(world: World, vehicle: Vehicle): GoalReason | null {
@@ -131,6 +137,10 @@ function unfitHunter(world: World, vehicle: Vehicle): boolean {
   return huntsPrey(vehicle) && !fitToHunt(world, vehicle);
 }
 
+export function knowsPump(profile: NpcProfile): boolean {
+  return profile.bases.length > 0 || profile.towns.length > 0;
+}
+
 export function pumpsOf(vehicle: Vehicle, profile: NpcProfile, broke: boolean): string[] {
   if (broke) return servingSiteIds(profile);
   if (profile.bases.length > 0) return profile.bases;
@@ -140,21 +150,53 @@ export function pumpsOf(vehicle: Vehicle, profile: NpcProfile, broke: boolean): 
 
 const SERVICE_STALLS: readonly string[] = Object.values(SHOPS).filter((s) => s.kind === 'stall').map((s) => s.id);
 
-function fuelToPump(world: World, vehicle: Vehicle, profile: NpcProfile): number {
-  const pump = chooseNearestSite(vehicle, pumpsOf(vehicle, profile, isBroke(world, vehicle)));
-  return dist(vehicle.pos, pump.pos) * vehicleStats(world, vehicle).fuelPerTile * heatAt(world, vehicle.pos);
-}
-
 function fuelSense(world: World, vehicle: Vehicle): number {
   const roll = hashRandom(world.seed, ...charCodes(vehicle.id), ...charCodes('fuel'));
   return 1 + NPC_UPKEEP.fuelSense * (2 * roll - 1);
 }
 
-export function fuelReserveFor(world: World, vehicle: Vehicle, profile: NpcProfile = npcProfile(vehicle)): number {
-  return fuelToPump(world, vehicle, profile) * NPC_UPKEEP.fuelReserve * profile.fuelMargin * fuelSense(world, vehicle);
+export function fuelForWay(world: World, vehicle: Vehicle, profile: NpcProfile, via: readonly Vec[]): number {
+  const stops = [vehicle.pos, ...via];
+  const last = stops[stops.length - 1];
+  const pump = chooseNearestSite({ pos: last }, pumpsOf(vehicle, profile, isBroke(world, vehicle)));
+  const tiles = stops.reduce((sum, stop, i) => sum + (i === 0 ? 0 : dist(stops[i - 1], stop)), 0) + dist(last, pump.pos);
+  const need = tiles * vehicleStats(world, vehicle).fuelPerTile * heatAt(world, vehicle.pos) * NPC_UPKEEP.fuelReserve * profile.fuelMargin * fuelSense(world, vehicle);
+  if (!Number.isFinite(need)) throw new Error(`${vehicle.id} has no finite fuel need`);
+  return need;
 }
 
-export const isLowOnFuel = (world: World, vehicle: Vehicle, profile: NpcProfile): boolean => getResources(world, vehicle).fuel <= fuelReserveFor(world, vehicle, profile);
+export function fuelReserveFor(world: World, vehicle: Vehicle, profile: NpcProfile = npcProfile(vehicle)): number {
+  return fuelForWay(world, vehicle, profile, []);
+}
+
+export function legEnd(world: World, vehicle: Vehicle): Vec | null {
+  const goal = topGoal(vehicle);
+  if (!goal) return null;
+  if (goal.kind !== 'follow') return goal.destination;
+  const leader = goal.targetId ? vehicleById(world, goal.targetId) : undefined;
+  if (!leader?.brain) return null;
+  const leaderGoal = topGoal(leader);
+  return leaderGoal && leaderGoal.kind !== 'follow' && leaderGoal.destination ? leaderGoal.destination : leader.pos;
+}
+
+function pumpHere(vehicle: Vehicle, profile: NpcProfile): Site | null {
+  return pumpsOf(vehicle, profile, false).map(getKnownSite).find((site) => canUseSite(vehicle.pos, site)) ?? null;
+}
+
+function canBuyFuelAt(world: World, vehicle: Vehicle, pump: Site): boolean {
+  return getResources(world, vehicle).money >= ECONOMY.supplyPrice.fuel && fuelRoomAt(world, vehicle, pump.id) > 0;
+}
+
+function shortForLeg(world: World, vehicle: Vehicle, profile: NpcProfile): boolean {
+  if (isBroke(world, vehicle)) return false;
+  const pump = pumpHere(vehicle, profile);
+  const end = pump && legEnd(world, vehicle);
+  if (!pump || !end) return false;
+  return getResources(world, vehicle).fuel <= fuelForWay(world, vehicle, profile, [end]) && canBuyFuelAt(world, vehicle, pump);
+}
+
+export const isLowOnFuel = (world: World, vehicle: Vehicle, profile: NpcProfile): boolean =>
+  getResources(world, vehicle).fuel <= fuelReserveFor(world, vehicle, profile) || shortForLeg(world, vehicle, profile);
 
 function serviceNeed(world: World, vehicle: Vehicle, profile: NpcProfile): ServiceNeed | null {
   if (holdsRearm(vehicle) || !yields(world)) return null;

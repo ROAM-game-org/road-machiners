@@ -10,7 +10,8 @@ import { ENGINE_HEAT } from '../../data/wear';
 import { TOPICS, type LineId, type TopicId } from '../../data/dialogue';
 import { isJunk, maxHp, partValue } from '../wear';
 import { inCombat, isHostile } from '../combat';
-import { startStrip, stripYield } from '../jobs';
+import { canFirstAid, startFirstAid, startStrip, stripYield } from '../jobs';
+import { maxHealthOf } from '../health';
 import { aimGuns, isSoftTarget } from './aim';
 import { hostileToPlayer, playerCanAct, setAutoFire, setAutoRepair, setMoveOrder, setWeaponOrder } from '../world';
 import { playerVehicle, vehicleById } from '../damage';
@@ -19,13 +20,12 @@ import { callVehicle, chooseOption, currentOptions, hangUp } from '../dialogue';
 import { offeredSurrenderBy, type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
 import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getLotTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, serviceRoom, supplyRoom } from '../economy';
-import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountedItems, mountedParts, type Spot } from '../grid';
+import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
 import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
 import { itemMass } from '../mass';
 import { acceptContract, deliverContract, estimateTurns, shopAt, shopState, siteOf, type Contract } from '../market';
 import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
 import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
-import { heatAt } from '../sun';
 import { canLoot, downedHere, downedNear, needsSearch, salvageHere, takeAllLoot } from '../locations';
 import { topGoal } from '../npc-activities';
 import { firepower, getUpkeepReserve, isWeak, judgeDanger, getKnownSite, strengthRatio, tripFuelCost } from '../npc-decisions';
@@ -35,7 +35,7 @@ import { claimCandidates, claimClue, claimPartHeld } from '../claims';
 import { canLootTruck, canReachSalvage, hasSalvage, salvageInRange, lootBlocker, takeError, takeFromTruck } from '../salvage';
 import { startSearch } from '../search';
 import { territoryEntries } from '../territory';
-import { canUseSite, isTerritory, nearestPad, reachedSite, nearestTown, siteGates, sitePads, townAt, type Site } from '../sites';
+import { canUseSite, isTerritory, townNear, nearestPad, reachedSite, nearestTown, siteGates, sitePads, townAt, type Site } from '../sites';
 import { drivable } from '../path';
 import { fuelCap, hasWorkingEngine, isStranded, isWorking, suppliesCap, vehicleStats } from '../stats';
 import { escortsOf, inTowReach, playerTow, setBeacon } from '../tow';
@@ -46,13 +46,15 @@ import { canVehicleSee, playerExplored, playerSees } from '../vision';
 import { reachedOutpostAt } from '../fury-road';
 import { inYard } from '../outpost-gates';
 import { runnerOrders } from './runner';
+import { procurerGoal } from './procurer';
+import { fuelForWay, fuelReaches, reachable, SHOP_SITES } from './reach';
 import { searcherGoal, takeSearch } from './searcher';
 import { surveyorGoal as surveyGoal, type SurveyorMoves } from './surveyor';
 import { BIGGEST_PART_CELLS, driveTo, driveToSite, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
 import { isAlly, isOutlaw } from '../relations';
 
-export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'searcher' | 'surveyor' | 'climber' | 'markov' | 'escort' | 'sprinter';
-export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'searcher', 'surveyor', 'climber', 'markov', 'escort', 'sprinter'];
+export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'procurer' | 'searcher' | 'surveyor' | 'climber' | 'markov' | 'escort' | 'sprinter';
+export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'procurer', 'searcher', 'surveyor', 'climber', 'markov', 'escort', 'sprinter'];
 export type Policy = Archetype | 'robber' | 'convoyRobber';
 export const POLICIES: readonly Policy[] = [...ARCHETYPES, 'robber', 'convoyRobber'];
 type RoadPolicy = 'escort' | 'sprinter';
@@ -68,6 +70,7 @@ const GEAR_STYLES: Record<Goal, UpgradeStyle> = {
   hunter: { skip: [], chassis: 'keep', job: 'fighter' },
   fastTrader: { skip: ['armor'], chassis: 'speed', job: 'courier' },
   hauler: CARGO_GEAR,
+  procurer: CARGO_GEAR,
   searcher: CARGO_GEAR,
   surveyor: CARGO_GEAR,
   robber: CARGO_GEAR,
@@ -119,10 +122,21 @@ function policyOrders(world: World, archetype: Exclude<Policy, RoadPolicy>, opti
 }
 
 function act(o: Orders, goal: Goal, archetype: Policy): void {
-  if (holds(o) || collectNearbyKnockout(o, goal, archetype)) return;
+  if (dressWounds(o) || holds(o) || collectNearbyKnockout(o, goal, archetype)) return;
   if (goal === 'searcher') takeSearch(o);
   if (serviceTrip(o, gearStyle(o, goal, archetype)) || defend(o, goal)) return;
   followGoal(o, goal, archetype);
+}
+
+const FIRST_AID_BELOW = 0.75;
+
+function dressWounds(o: Orders): boolean {
+  if (o.me.job?.kind === 'firstAid') return true;
+  const parked = o.me.speed <= RULES.parkedSpeed && !townNear(o.world);
+  const hurt = o.world.player.health < maxHealthOf(o.world) * FIRST_AID_BELOW;
+  if (!parked || !hurt || !canFirstAid(o.world)) return false;
+  o.run(startFirstAid);
+  return true;
 }
 
 function collectNearbyKnockout(o: Orders, goal: Goal, archetype: Policy): boolean {
@@ -400,8 +414,6 @@ function engineSpot(v: Vehicle, defId: string): Spot | null {
   return findSpot(gridOf(v), v.items, probe, MOUNT_CELLS.engine, null);
 }
 
-const SHOP_SITES: readonly Site[] = Object.keys(SHOPS).map(siteOf);
-
 function nearestShop(world: World): Site {
   const pos = playerVehicle(world).pos;
   return [...SHOP_SITES].sort((a, b) => dist(pos, a.pos) - dist(pos, b.pos))[0];
@@ -409,28 +421,6 @@ function nearestShop(world: World): Site {
 
 function fuelForWayToShop(world: World): number {
   return fuelForWay(world, dist(playerVehicle(world).pos, nearestShop(world).pos));
-}
-
-function fuelForWay(world: World, tiles: number): number {
-  const me = playerVehicle(world);
-  return tiles * vehicleStats(world, me).fuelPerTile * heatAt(world, me.pos) * NPC_UPKEEP.fuelReserve;
-}
-
-export function fuelReaches(world: World, site: Pick<Site, 'pos'>, from?: { pos: Vec; fuel: number }): boolean {
-  const full = fuelCap(playerVehicle(world));
-  let at = from ?? { pos: playerVehicle(world).pos, fuel: world.player.fuel };
-  for (let step = 0; step <= SHOP_SITES.length; step++) {
-    if (fuelForWay(world, dist(at.pos, site.pos)) <= at.fuel) return true;
-    const stops = SHOP_SITES.filter((s) => fuelForWay(world, dist(at.pos, s.pos)) <= at.fuel && dist(s.pos, site.pos) < dist(at.pos, site.pos));
-    const next = stops.reduce<Site | null>((best, s) => (!best || dist(s.pos, site.pos) < dist(best.pos, site.pos) ? s : best), null);
-    if (!next) return false;
-    at = { pos: next.pos, fuel: full };
-  }
-  return false;
-}
-
-function reachable<T extends Site>(world: World, sites: readonly T[]): T[] {
-  return sites.filter((s) => fuelReaches(world, s));
 }
 
 function needsService(o: Orders): boolean {
@@ -486,7 +476,7 @@ function repairAtGarage(o: Orders): void {
   for (const part of garageFixes(o)) if (affordsRepair(o, part)) o.run((w) => repairPart(w, part.id), 'repairs');
 }
 
-const GOALS: Record<Goal, (o: Orders) => void> = { trader: traderGoal, scavenger: scavengerGoal, hunter: hunterGoal, fastTrader: traderGoal, hauler: haulerGoal, searcher: (o) => searcherGoal(o, checkNextBoard), surveyor: surveyorGoal, robber: (o) => robberGoal(o, false), convoyRobber: (o) => robberGoal(o, true) };
+const GOALS: Record<Goal, (o: Orders) => void> = { trader: traderGoal, scavenger: scavengerGoal, hunter: hunterGoal, fastTrader: traderGoal, hauler: haulerGoal, procurer: (o) => procurerGoal(o) || traderGoal(o), searcher: (o) => searcherGoal(o, checkNextBoard), surveyor: surveyorGoal, robber: (o) => robberGoal(o, false), convoyRobber: (o) => robberGoal(o, true) };
 
 function traderGoal(o: Orders): void {
   const held = heldHaul(o.world);
@@ -729,7 +719,6 @@ function findSalvageSite(o: Orders): boolean {
 function hunterGoal(o: Orders, tradeWhenIdle = false): void {
   if (firepower(o.world, o.me) === 0) return scavengerGoal(o);
   if (sellsFirst(o, tradeWhenIdle)) return;
-  takeBounties(o);
   if (stripDowned(o) || engageFoe(o)) return;
   lootHere(o);
   earnAfterHunt(o, tradeWhenIdle);
@@ -747,24 +736,6 @@ function earnAfterHunt(o: Orders, tradeWhenIdle: boolean): void {
 function scavengeOrHunt(o: Orders): void {
   if (huntedSpeed(o.world) === undefined && scavenge(o, true)) return;
   collectOrHunt(o);
-}
-
-function takeBounties(o: Orders): void {
-  const shop = shopAt(o.world);
-  if (!shop) return;
-  claimBounties(o, shop);
-  for (const c of shopState(o.world, shop).contracts) if (wantsBounty(o.world, c)) o.run((w) => acceptContract(w, c.id));
-}
-
-function claimBounties(o: Orders, shop: string): void {
-  for (const c of o.world.player.contracts) if (c.kind === 'bounty' && c.fulfilled && c.shop === shop) o.run((w) => deliverContract(w, c.id), 'contracts');
-}
-
-function wantsBounty(world: World, c: Contract): boolean {
-  const held = world.player.contracts;
-  if (c.kind !== 'bounty' || c.deadline <= world.turn || held.length >= CONTRACTS.maxActive) return false;
-  if (held.some((h) => h.kind === 'bounty' && h.template === c.template)) return false;
-  return world.vehicles.some((v) => v.brain?.templateId === c.template && !isKnockedOut(v) && huntable(world, v));
 }
 
 function engageFoe(o: Orders): boolean {
@@ -1157,7 +1128,7 @@ function takeFromTarget(o: Orders, target: Vehicle): void {
 
 function looseSpot(me: Vehicle, item: GridItem): Spot | null {
   if (itemMass(item) > cargoMassRoom(me)) return null;
-  const avoid = item.kind === 'part' ? MOUNT_CELLS[partDef(item.part.defId).kind] : null;
+  const avoid = item.kind === 'part' ? mountCellsOf(item.part.defId) : null;
   return findSpot(gridOf(me), me.items, { ...item, id: 'loot-probe' }, null, avoid);
 }
 

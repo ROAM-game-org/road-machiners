@@ -1,11 +1,14 @@
 
-import { ECONOMY, GOOD_IDS, PARCEL } from "../data/goods";
+import { ECONOMY, GOOD_IDS } from "../data/goods";
 import { CONTRACTS, SHOPS, SHORT_PRESSURE, shopDef, siteRecipes, type Recipe, type ShopDef } from "../data/market";
 import { RULES } from "../data/rules";
+import type { TruckPaint } from "../data/chassis";
 import { partDef, type PartKind } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
 import {
   buyChassis,
+  paintPrice,
+  repaint,
   buyGood,
   buyPrice,
   buyStockPart,
@@ -39,20 +42,21 @@ import {
   truckSupplyPrice,
   type Supply,
 } from "../sim/economy";
-import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
+import { freeCells, goodsCount, mountCellsOf, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
-import { acceptContract, deliverContract, fitsFetch, goodStock, haulShort, isMet, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, goodStock, haulShort, isMet, knowsMarket, onOrder, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
-import type { PartInstance, RoadNews, Vehicle, World } from "../sim/types";
+import type { CrimeCase, PartInstance, RoadNews, Vehicle, World } from "../sim/types";
 import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
-import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
-import { el, panel, type Child } from "./dom";
-import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
+import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
+import { el, panel } from "./dom";
+import { clock, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
+import { contractRow } from "./contract-row";
 import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
 import { MapView, observeBox } from "./map-view";
 import { toPx, type Viewport } from "./map-geometry";
@@ -60,22 +64,28 @@ import { token } from "./tokens";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
 import type { UiHost } from "./host";
-import { coinEl, fuelLiters, kph, moneyEl, moneyMsg, moneyNum } from "./units";
-import { fuelCap, suppliesCap, vehicleStats } from "../sim/stats";
-import { list, num, PLUS, SPACE, t, type Msg } from "../text/msg";
+import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum } from "./units";
+import { fuelCap, suppliesCap } from "../sim/stats";
+import { list, num, SPACE, t, type Msg } from "../text/msg";
 import { ESCAPE, keyLabel } from "./input-mode";
-import { goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
+import { factionName, goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
 import { seesAll } from "./see-all";
-import { vehicleHasPerk } from "../sim/progress";
+import { deskAt, deskRows, payAtDesk, settleAtDesk, type SettlementQuote } from "../sim/crime";
+import { vehicleById } from "../sim/damage";
 
-export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "contracts" | "charts";
+export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "paint" | "contracts" | "charts";
 
-export type StockFilter = "all" | Exclude<PartKind, "core">;
+export type StockFilter = "all" | Exclude<PartKind, "core" | "accessory">;
+
+export function kindFilter(kind: PartKind): Exclude<StockFilter, "all"> {
+  if (kind === "core") throw new Error("Built-in parts are never in stock");
+  return kind === "accessory" ? "armor" : kind;
+}
 
 export const STOCK_FILTERS: StockFilter[] = ["all", "weapon", "engine", "armor", "cargo", "scanner", "store", "utility"];
 
-const GARAGE_ONLY: Tab[] = ["trucks"];
+export const GARAGE_ONLY: Tab[] = ["trucks", "paint"];
 
 const CHARTS_SIZE = 640;
 
@@ -84,6 +94,7 @@ export class TownScreen {
   private tab: Tab = "market";
   private stockFilter: StockFilter = "all";
   private error: Msg | null = null;
+  private paintPlan: TruckPaint | null = null;
   private rows = new PartRows(() => this.render());
   private sheet: Sheet | null = null;
   private hoverSheet: Sheet | null = null;
@@ -123,6 +134,7 @@ export class TownScreen {
     if (shopAt(this.host.world())) this.host.apply(enterTown(this.host.world()));
     this.root.style.display = "";
     this.error = null;
+    this.paintPlan = null;
     this.rows.collapse();
     this.render();
   }
@@ -141,7 +153,10 @@ export class TownScreen {
   private draw(): void {
     const w = this.host.world();
     const shopId = shopAt(w);
-    if (!shopId) return this.close();
+    if (!shopId) {
+      const desk = deskAt(w);
+      return desk ? this.drawDesk(w, desk) : this.close();
+    }
     const def = shopDef(shopId);
     this.normalizeTab(shopId, def);
     const shop = [el("div", { class: "tabs" }, ...this.tabButtons(shopId, def))];
@@ -161,6 +176,56 @@ export class TownScreen {
     this.inventory.fitTo(truck);
   }
 
+  private drawDesk(w: World, desk: string): void {
+    const body: HTMLElement[] = [el("div", { class: "tabs" }, el("button", { class: "on", "data-tab": "marshals" }, createIcon("journal"), t("trade.tab.marshals")))];
+    if (this.error) body.push(el("div", { class: "bad" }, this.error));
+    body.push(this.deskBody(w));
+    this.root.replaceChildren(
+      el("button", { class: "close", onclick: () => this.close() }, keyLabel(t("trade.leave"), ESCAPE.key)),
+      el("h3", {}, siteName(desk), truckChips(w, { freeCells: true })),
+      el("div", { class: "desk" }, ...body),
+    );
+  }
+
+  private deskBody(w: World): HTMLElement {
+    const rows = deskRows(w);
+    const cases = rows.cases.map((c) => this.caseRow(w, c));
+    const ids = rows.cases.map((c) => c.id);
+    const payAll = rows.cases.length > 1 ? el("div", { class: "desk-all" }, this.priceButton(w, t("desk.payAll"), rows.owed, (x) => payAtDesk(x, ids))) : null;
+    const settles = rows.settlements.map((q) => this.settleRow(w, q));
+    return el(
+      "div",
+      { class: "desk-body" },
+      cases.length > 0 ? el("div", { class: "desk-group" }, ...cases, payAll) : null,
+      settles.length > 0 ? el("div", { class: "desk-group" }, ...settles) : null,
+      cases.length === 0 && settles.length === 0 ? el("p", { class: "dim" }, t("desk.empty")) : null,
+    );
+  }
+
+  private caseRow(w: World, c: CrimeCase): HTMLElement {
+    const victim = w.vehicles.some((v) => v.id === c.victim) ? vehicleTitle(w, vehicleById(w, c.victim)) : t("log.someDriver");
+    return el(
+      "div",
+      { class: "row desk-case" },
+      el("span", {}, t(`desk.case.${c.offense}`, { victim })),
+      el("span", { class: "dim" }, t("desk.filed", { issuer: issuerName(w, c), site: siteName(c.site), when: clock(c.turn).full })),
+      this.priceButton(w, t("desk.pay"), c.owed, (x) => payAtDesk(x, [c.id])),
+    );
+  }
+
+  private settleRow(w: World, q: SettlementQuote): HTMLElement {
+    const short = shortBy(w.player.money, q.price);
+    const reason = q.refusal && q.refusal.id !== "noMoney" ? refusalText(w, q.refusal) : short;
+    const label = [t("desk.settle"), SPACE, priceSpan(q.price, short === null)];
+    return el(
+      "div",
+      { class: "row desk-settle" },
+      el("span", {}, factionName(q.faction)),
+      el("span", { class: "tag bad" }, t("band.hostile")),
+      reasonButton(label, () => this.run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) })),
+    );
+  }
+
   private normalizeTab(shopId: string, def: ShopDef): void {
     if (def.kind !== "garage" && GARAGE_ONLY.includes(this.tab)) this.tab = "market";
     if (this.tab === "people" && localsAt(shopId).length === 0) this.tab = "market";
@@ -178,6 +243,7 @@ export class TownScreen {
           "data-tab": tab,
           onclick: () => {
             this.tab = tab;
+            this.paintPlan = null;
             this.showList();
           },
         },
@@ -194,6 +260,7 @@ export class TownScreen {
       buyParts: () => this.buyParts(w, shopId),
       sellParts: () => this.sellParts(w),
       trucks: () => this.trucks(w, shopId),
+      paint: () => this.paint(w),
       contracts: () => this.contracts(w, shopId),
       charts: () => this.charts(w, shopId),
     };
@@ -230,8 +297,8 @@ export class TownScreen {
     return reasonButton([verb, SPACE, priceSpan(price, short === null)], () => this.run(cmd), reason ?? short, key);
   }
 
-  private hintMounts(kind: PartKind): (on: boolean) => void {
-    return (on) => this.inventory.hintMounts(on ? MOUNT_CELLS[kind] : null);
+  private hintMounts(defId: string): (on: boolean) => void {
+    return (on) => this.inventory.hintMounts(on ? mountCellsOf(defId) : null);
   }
 
   private market(w: World, shopId: string, def: ShopDef): HTMLElement {
@@ -259,12 +326,13 @@ export class TownScreen {
 
   private stockedBuyCell(w: World, shopId: string, g: string, hint: PriceHint | null, stock: number): HTMLElement {
     const buy = buyPrice(w, shopId, g);
-    const buyReason = (n: number) => (stock < n ? stockReason(stock) : this.lotReason(w, shopId, g, n));
+    const held = onOrder(w, shopId, g);
+    const buyReason = (n: number) => (held ? t("trade.onOrder") : stock < n ? stockReason(stock) : this.lotReason(w, shopId, g, n));
     return el(
       "div",
       { class: "trade buy" },
       caption(GOODS_COLUMNS.buy, true),
-      stock > 0 ? priceEl(buy, shortBy(w.player.money, buy) === null, hint) : el("span", { class: "price" }),
+      stock > 0 && !held ? priceEl(buy, shortBy(w.player.money, buy) === null, hint) : el("span", { class: "price" }),
       this.button(t("trade.plus", { n: 1 }), (x) => buyGood(x, g, 1), buyReason(1), `${g}:buy1`),
       this.button(t("trade.plus", { n: 5 }), (x) => buyGood(x, g, 5), buyReason(5), `${g}:buy5`, stock >= 5 ? lotTitle("buy", 5, getLotTradePrice(w, playerVehicle(w), shopId, g, 5, "buy")) : null),
     );
@@ -285,7 +353,7 @@ export class TownScreen {
       "div",
       { class: "good-row row" },
       stockedGoodName(w, shopId, g),
-      this.stockedBuyCell(w, shopId, g, pressureHint(def, state, g), stock),
+      this.stockedBuyCell(w, shopId, g, marketHint(w, def, state, g), stock),
       el(
         "div",
         { class: "trade sell" },
@@ -296,14 +364,14 @@ export class TownScreen {
       ),
       countCell("stock", stock),
       countCell("held", held),
-      profitCell(saleEstimate(held, sell, w.player.costBasis[g])),
+      profitCell(tradeEstimate(w, held, sell, g)),
     );
   }
 
   private buyParts(w: World, shopId: string): HTMLElement {
     const me = playerVehicle(w);
     const stock = shopState(w, shopId).stock;
-    const shown = stock.filter((p) => this.stockFilter === "all" || partDef(p.defId).kind === this.stockFilter);
+    const shown = stock.filter((p) => this.stockFilter === "all" || kindFilter(partDef(p.defId).kind) === this.stockFilter);
     const rows = shown.map((p) => {
       const price = partTradePrice(w, me, p, "buy");
       const short = shortBy(w.player.money, price);
@@ -325,7 +393,7 @@ export class TownScreen {
       price,
       payable,
       action,
-      onHover: this.hintMounts(partDef(p.defId).kind),
+      onHover: this.hintMounts(p.defId),
     };
   }
 
@@ -374,6 +442,26 @@ export class TownScreen {
       reason: chassisPrice(w, id) < 0 ? null : shortBy(w.player.money, chassisPrice(w, id)),
       swap: () => this.run((x) => buyChassis(x, id)),
     }));
+  }
+
+  private paint(w: World): HTMLElement {
+    const current = w.player.paint;
+    const plan = livePaintPlan(current, this.paintPlan);
+    const buy = plan ? this.priceButton(w, t("goods.buy"), paintPrice(w), (x) => repaint(x, plan), null, "repaint") : null;
+    return paintTab({
+      current,
+      plan,
+      chassisId: playerVehicle(w).chassisId,
+      pick: (slot, id) => {
+        this.paintPlan = planWithSlot(current, this.paintPlan, slot, id);
+        this.render();
+      },
+      pickScheme: (scheme) => {
+        this.paintPlan = { ...scheme };
+        this.render();
+      },
+      buy,
+    });
   }
 
   private charts(w: World, shopId: string): HTMLElement {
@@ -470,8 +558,7 @@ function searchRefusalText(w: World, refusal: SearchRefusal | null): Msg | null 
 
 const DELIVER_VERBS = {
   haul: { now: "contract.deliver", at: "contract.deliverAt" },
-  fetch: { now: "contract.deliver", at: "contract.deliverAt" },
-  bounty: { now: "contract.claim", at: "contract.claimAt" },
+  procure: { now: "contract.deliver", at: "contract.deliverAt" },
   rescue: { now: "contract.claim", at: "contract.claimAt" },
   search: { now: "contract.claim", at: "contract.claimAt" },
   survey: { now: "contract.report", at: "contract.reportAt" },
@@ -487,28 +574,13 @@ function escortRefusal(w: World, c: Contract): Msg | null {
   return t("contract.needsStronger", { win: Math.round(fit.win * 100), need: Math.round(fit.need * 100) });
 }
 
-function threatPips(threat: number): HTMLElement {
-  return el("div", { class: "skill-level threat", title: t("contract.threat", { n: threat }) }, ...Array.from({ length: 3 }, (_, i) => el("i", { class: i < threat ? "on" : "" })));
-}
-
-function escortDetail(w: World, c: Extract<Contract, { kind: "escort" }>): Child[] {
-  const trader = w.vehicles.find((v) => v.id === c.client);
-  if (!trader) return [];
-  return [el("span", {}, t("contract.trader", { who: vehicleName(w, c.client), n: kph(vehicleStats(w, trader).maxSpeed) })), threatPips(c.threat)];
-}
-
 function notReady(w: World, c: Contract): Msg {
-  if (c.kind === "survey") return t("contract.notSurveyed");
-  if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
-  if (c.kind === "fetch") return t("contract.needsPart");
+  if (c.kind === "survey") return surveyPlacesLeft(c);
+  if (c.kind === "haul" || c.kind === "procure") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
   if (c.kind === "search") return t("contract.handOverFirst");
   if (c.kind === "claim") return playerVehicle(w).items.some((it) => it.kind === "part" && it.part.id === c.partId) ? t("contract.unmountFirst") : t("contract.needsPart");
   if (c.kind === "rescue") return t("contract.notMet");
-  return bountyPays(w);
-}
-
-function bountyPays(w: World): Msg {
-  return vehicleHasPerk(w, playerVehicle(w), "bountyTalk") ? t("contract.paysGiveUp") : t("contract.pays");
+  throw new Error(`An ${c.kind} contract is never handed in at a counter`);
 }
 
 const FILTER_ICON: Record<Exclude<StockFilter, "all" | "weapon">, IconName> = {
@@ -530,6 +602,7 @@ export const TAB_ICON: Record<Tab, IconName> = {
   buyParts: "parts",
   sellParts: "trade",
   trucks: "truck",
+  paint: "paint",
   contracts: "clock",
   charts: "journal",
 };
@@ -545,19 +618,8 @@ function theyLack(npc: Vehicle, price: number): Msg | null {
 }
 
 function stockCount(stock: PartInstance[], f: StockFilter): number {
-  return f === "all" ? stock.length : stock.filter((p) => partDef(p.defId).kind === f).length;
+  return f === "all" ? stock.length : stock.filter((p) => kindFilter(partDef(p.defId).kind) === f).length;
 }
-
-const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
-  haul: () => createIcon("cargo"),
-  fetch: () => createIcon("parts"),
-  claim: () => createIcon("parts"),
-  bounty: () => createBareItemIcon("cannon"),
-  search: () => createBareItemIcon(PARCEL.id),
-  survey: () => createIcon("scanner"),
-  escort: () => createIcon("truck"),
-  rescue: () => createIcon("truck"),
-};
 
 const PROFIT_TONE = { gain: "better", loss: "worse", even: "same" } as const;
 
@@ -588,39 +650,18 @@ function countCell(cls: "theirs" | "held" | "stock", n: number, text: Msg = num(
   return el("div", { class: `count ${cls}` }, caption(GOODS_COLUMNS[cls]), el("span", { class: n === 0 ? "num dim" : "num" }, text));
 }
 
+export function marketHint(w: World, def: ShopDef, state: ShopState, good: string): PriceHint | null {
+  return knowsMarket(w) ? pressureHint(def, state, good) : null;
+}
+
+export function tradeEstimate(w: World, held: number, sell: number, good: string): SaleEstimate {
+  return knowsMarket(w) ? saleEstimate(held, sell, w.player.costBasis[good]) : { kind: "none" };
+}
+
 function profitCell(e: SaleEstimate): HTMLElement {
   if (e.kind === "none") return el("div", { class: "profit" });
   const tone = e.kind === "unrecorded" ? "dim" : `delta ${PROFIT_TONE[e.kind]}`;
   return el("div", { class: "profit", title: estimateTitle(e) }, caption(GOODS_COLUMNS.profit, true), el("span", { class: `num ${tone}` }, estimateText(e)));
-}
-
-function surveyLine(c: Contract): HTMLElement | null {
-  const clue = c.kind === "survey" ? nextSurveyClue(c) : null;
-  return clue ? el("span", { class: "dim contract-clue" }, clue) : null;
-}
-
-function escortClock(w: World, c: Extract<Contract, { kind: "escort" }>, posted: boolean): HTMLElement {
-  if (posted) return el("span", { class: "price", title: t("contract.leavesTitle", { n: Math.max(0, c.deadline - w.turn) }) }, createIcon("clock"), escortLeaves(c));
-  const status = escortStatusText(w, c);
-  return status ? el("span", { class: "price dim", title: heldContractDue(c) }, createIcon("clock"), status) : el("span", {});
-}
-
-function contractRow(w: World, c: Contract, action: HTMLElement, posted = false): HTMLElement {
-  const met = isMet(c);
-  const clock = c.kind === "escort" ? escortClock(w, c, posted) : posted
-    ? el("span", { class: "price", title: t("contract.windowTitle", { n: c.window }) }, createIcon("clock"), contractWindow(c))
-    : el("span", { class: "price", title: met ? undefined : t("contract.dueTitle", { n: c.deadline - w.turn }) }, createIcon("clock"), heldContractDue(c));
-  return el(
-    "div",
-    { class: "job" },
-    CONTRACT_ICON[c.kind](),
-    c.kind === "escort" && posted
-      ? el("div", { class: "job-what" }, el("span", {}, contractSummary(c)), el("div", { class: "job-detail dim" }, ...escortDetail(w, c)))
-      : contractSummaryCell(w, c),
-    el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
-    clock,
-    action,
-  );
 }
 
 function haulStockReason(w: World, c: Contract): Msg | null {
@@ -703,12 +744,6 @@ function newsRow(w: World, n: RoadNews): HTMLElement {
   );
 }
 
-function contractSummaryCell(w: World, c: Contract): HTMLElement {
-  if (c.kind !== "rescue") return el("span", {}, contractSummary(c), surveyLine(c), claimRivalMark(w, c));
-  const need = el("span", { class: "tag", title: t("contract.rescueAlt") }, t(`contract.need.${c.need}`));
-  return el("span", {}, need, SPACE, contractSummary(c), c.fulfilled ? null : el("div", { class: "dim" }, rescueWhere(c)));
-}
-
 export function pressureHint(def: ShopDef, state: ShopState, good: string): PriceHint | null {
   if (stockShort(def.id, state, good)) return { tone: "bad", title: t("trade.hint.short") };
   if (pressureOf(def.id, good, goodStock(state, good)) <= -SHORT_PRESSURE) return { tone: "good", title: t("trade.hint.flooded") };
@@ -720,9 +755,7 @@ export function pressureHint(def: ShopDef, state: ShopState, good: string): Pric
 
 function canDeliver(w: World, c: Contract): boolean {
   const me = playerVehicle(w);
-  if (c.kind === "haul") return (goodsCount(me)[c.good] ?? 0) >= c.units;
-  if (c.kind === "fetch")
-    return spareParts(me).some((p) => fitsFetch(c, p)) || w.player.storage.some((p) => fitsFetch(c, p));
+  if (c.kind === "haul" || c.kind === "procure") return (goodsCount(me)[c.good] ?? 0) >= c.units;
   if (c.kind === "claim") return spareParts(me).some((p) => fitsClaim(c, p)) || w.player.storage.some((p) => fitsClaim(c, p));
   return isMet(c);
 }
@@ -834,8 +867,8 @@ export class TruckTradeScreen {
     return reasonButton([label], () => this.run(cmd), reason, key);
   }
 
-  private hintMounts(kind: PartKind): (on: boolean) => void {
-    return (on) => this.inventory.hintMounts(on ? MOUNT_CELLS[kind] : null);
+  private hintMounts(defId: string): (on: boolean) => void {
+    return (on) => this.inventory.hintMounts(on ? mountCellsOf(defId) : null);
   }
 
   private goods(w: World, npc: Vehicle): HTMLElement {
@@ -884,7 +917,7 @@ export class TruckTradeScreen {
         this.button(t("trade.all"), (x) => sellTruckGood(x, npc.id, g, held), sellReason(held), `${g}:sellAll`),
       ),
       countCell("held", held),
-      profitCell(saleEstimate(held, sell, w.player.costBasis[g])),
+      profitCell(tradeEstimate(w, held, sell, g)),
     );
   }
 
@@ -897,7 +930,7 @@ export class TruckTradeScreen {
       world: w,
       payable: reason === null,
       action: this.button(verb, cmd, reason),
-      onHover: this.hintMounts(partDef(p.defId).kind),
+      onHover: this.hintMounts(p.defId),
     });
     const theirs = spareParts(npc).map((p) => {
       const price = truckPartPrice(w, p, "buy");
@@ -959,4 +992,10 @@ function peopleList(town: string, run: (cmd: (w: World) => World) => void): HTML
       ),
     ),
   );
+}
+
+function issuerName(w: World, c: CrimeCase): Msg {
+  if (c.issuer.kind === "faction") return factionName(c.issuer.faction);
+  const id = c.issuer.id;
+  return w.vehicles.some((v) => v.id === id) ? vehicleTitle(w, vehicleById(w, id)) : t("log.someDriver");
 }

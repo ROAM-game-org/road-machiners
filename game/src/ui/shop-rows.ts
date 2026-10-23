@@ -1,4 +1,5 @@
 import { ECONOMY } from "../data/goods";
+import { PAINT_SCHEMES, PAINT_SLOTS, PALETTE, PALETTE_IDS, samePaint, type PaletteId, type TruckPaint } from "../data/chassis";
 import { playerVehicle } from "../sim/damage";
 import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
 import { mountedParts } from "../sim/grid";
@@ -127,6 +128,86 @@ export function bar(share: number): HTMLElement {
   return el("div", { class: "meter" }, el("div", { style: `width:${Math.max(0, Math.min(1, share)) * 100}%` }));
 }
 
+function paletteHex(id: PaletteId): string {
+  return `#${PALETTE[id].toString(16).padStart(6, "0")}`;
+}
+
+export function paletteStyle(id: PaletteId): string {
+  return `--paint:${paletteHex(id)}`;
+}
+
+export function schemeStyle(scheme: TruckPaint): string {
+  return PAINT_SLOTS.map((slot) => `--paint-${slot}:${paletteHex(scheme[slot])}`).join(";");
+}
+
+export function planWithSlot(current: TruckPaint, plan: TruckPaint | null, slot: PaintSlot, id: PaletteId): TruckPaint {
+  return { ...(plan ?? current), [slot]: id };
+}
+
+export function livePaintPlan(current: TruckPaint, plan: TruckPaint | null): TruckPaint | null {
+  return plan && !samePaint(plan, current) ? plan : null;
+}
+
+export type PaintSlot = (typeof PAINT_SLOTS)[number];
+
+export type PaintChoice = {
+  current: TruckPaint;
+  plan: TruckPaint | null;
+  chassisId: string;
+  pick: (slot: PaintSlot, id: PaletteId) => void;
+  pickScheme: (scheme: TruckPaint) => void;
+  buy: HTMLElement | null;
+};
+
+export function paintTab(choice: PaintChoice): HTMLElement {
+  const shown = choice.plan ?? choice.current;
+  return el(
+    "div",
+    { class: "paint-tab" },
+    el("div", { class: "paint-preview" }, chassisPortrait(choice.chassisId, shown)),
+    el("div", { class: "paint-slots" }, schemeRow(choice), ...PAINT_SLOTS.map((slot) => paintSlot(choice, slot)), el("div", { class: "paint-buy" }, choice.buy)),
+  );
+}
+
+function schemeRow(choice: PaintChoice): HTMLElement {
+  const chips = PAINT_SCHEMES.map((scheme, i) => {
+    const current = samePaint(scheme, choice.current);
+    return el(
+      "button",
+      {
+        class: `btn-s${!current && choice.plan && samePaint(scheme, choice.plan) ? " planned" : ""}`,
+        "data-scheme": String(i),
+        "aria-pressed": String(current),
+        "aria-label": num(i + 1, "int"),
+        onclick: () => choice.pickScheme(scheme),
+      },
+      el("span", { class: "paint-scheme", style: schemeStyle(scheme) }, el("span", { class: "paint-scheme-body" }), el("span", { class: "paint-scheme-cab" }), el("span", { class: "paint-scheme-gear" })),
+    );
+  });
+  return el("div", { class: "paint-slot", "data-slot": "scheme" }, el("span"), el("div", { class: "option-switch paint-switch", role: "group" }, ...chips));
+}
+
+function paintSlot(choice: PaintChoice, slot: PaintSlot): HTMLElement {
+  const planned = choice.plan?.[slot];
+  const swatches = PALETTE_IDS.map((id, i) =>
+    el(
+      "button",
+      {
+        class: `btn-s${planned === id && id !== choice.current[slot] ? " planned" : ""}`,
+        "data-paint": id,
+        "aria-pressed": String(choice.current[slot] === id),
+        "aria-label": num(i + 1, "int"),
+        onclick: () => choice.pick(slot, id),
+      },
+      el("span", { class: "paint-swatch", style: paletteStyle(id) }),
+    ),
+  );
+  const name = SLOT_NAMES[slot]();
+  return el("div", { class: "paint-slot", "data-slot": slot }, el("span", { class: "paint-slot-name" }, name), el("div", { class: "option-switch paint-switch", role: "group", "aria-label": name }, ...swatches));
+}
+
+const SLOT_NAMES: Record<PaintSlot, () => Msg> = { body: () => t("paint.body"), cab: () => t("paint.cab"), gear: () => t("paint.gear") };
+
 export type SwapOffer = { reason: Msg | null; swap: () => void };
 
 export function truckCards(w: World, ids: readonly string[], offer: (id: string) => SwapOffer): HTMLElement {
@@ -136,7 +217,7 @@ export function truckCards(w: World, ids: readonly string[], offer: (id: string)
     return el(
       "div",
       { class: `card tile truck-card${own ? " own" : ""}` },
-      el("div", { class: "truck-pics" }, chassisPortrait(id), chassisMap(id)),
+      el("div", { class: "truck-pics" }, chassisPortrait(id, w.player.paint), chassisMap(id)),
       el(
         "div",
         { class: "truck-body" },

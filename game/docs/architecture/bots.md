@@ -8,6 +8,7 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 - A bot keeps auto repair on.
 - A bot answers radio calls with fixed replies. A demand or a surrender is answered with a refusal, or with the cargo when the foe outmatches the bot and the bot cannot outrun it.
 - A bot parks and cools its engine at the heat warning. It drives again when the engine is at half of the warning, unless it is in combat or sees a hostile.
+- A bot parked away from a town below three quarters of its max health starts first aid when it can, and holds still until the job ends.
 - A bot with a broken drive and no money calls a tow when a shop it can afford is on the map. It leaves the beacon off in combat.
 - A bot judges whether it outruns a foe by its truck speed as it stands. A stranded or crippled truck outruns nothing.
 - In town a bot repairs, stocks fuel, supplies and repair parts, re-arms and then buys gear by the style of its archetype.
@@ -18,6 +19,7 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 - A bot buys chassis only from the lineup of the town it stands in, and sells or prices a good only at a shop that trades it, so relics go to Nose.
 - `fastTrader` trades like the trader, buys no armor and picks the fastest chassis.
 - `hauler` takes the best haul contract on every board it reads, by pay per estimated turn. It trades only when no contract fits, so it measures contract pay against open trade.
+- `procurer` takes the supply order with the best pay per estimated round trip, on a board it is parked at or on a known shop's board the radio announced. It counts its cargo toward the price, sells that cargo where it buys the crates, buys them at the cheapest known shop that sells the good, by that shop's current price, and delivers them. With no order that fits it plays the trader. `src/sim/progression/procurer.ts` holds it, and `src/sim/progression/reach.ts` the fuel reach every bot shares.
 - `scavenger` scavenges first, then trades, then takes hauls.
 - `hunter` seeks fights. It starts from the snowball kit unless `--kit` names another.
 - `climber` plays the trader until it mounts three guns, then plays a hunter.
@@ -29,7 +31,7 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 ## Hunter
 
 - A hunter with no guns plays the scavenger.
-- It picks a fight only with a foe whose worst-case danger times 4 is within its own strength. It also accepts a bounty and chases a foe it only hears under that rule.
+- It picks a fight only with a foe whose worst-case danger times 4 is within its own strength. It also chases a foe it only hears under that rule.
 - It refuses truces and mercy pleas, and it asks weak foes to yield.
 - It buys gear while it keeps free the cells of the biggest part and the top speed of the fastest raider it would fight.
 - While no raider in the world is weak enough, it scavenges instead.
@@ -68,7 +70,7 @@ At each outpost the escort does this in order.
 - It spends a share of the money left on hauler armor. The share is the hauler's part of the two trucks' repair bills on arrival, so it armors the truck that took the fire.
 - It buys the most valuable truck on offer that it can afford and that keeps its parts count. Money it cannot spend on gear builds up toward that truck.
 
-The sprinter turns auto fire off, drives ahead to the next yard and never fires. At an outpost it repairs, refits for any speed and buys a truck. It measures whether the run can be sprinted. The hauler must lose it.
+The sprinter turns auto fire off, drives ahead to the next yard and never fires. At an outpost it repairs, refits for any speed and buys a truck. It measures whether the run can be sprinted. The hauler must lose it, since it waits only for a gun truck behind it.
 
 ## Reading a run
 

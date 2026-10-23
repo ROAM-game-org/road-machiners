@@ -33,7 +33,7 @@ The sim never imports `src/text/` and never makes English. `src/sim/types.ts` de
 - `UnitId`: the unit of a counted call value.
 - `LineId` in `src/data/dialogue.ts`: every radio line, by id. A call keeps the id of the line said last.
 
-A truck has no saved name. Its title comes from the player's own truck or from its template's profession and its driver. A bounty names its target by template. Save step 19 to 20 maps old saves to the ids, as [Saves](saves.md) describes.
+A truck has no saved name. Its title comes from the player's own truck or from its template's profession and its driver. Save step 19 to 20 maps old saves to the ids, as [Saves](saves.md) describes.
 
 ## The active language and live text
 
@@ -55,7 +55,7 @@ A truck has no saved name. Its title comes from the player's own truck or from i
 All of them run in `npm test` and `npm run typecheck`. Together the text tests take about 5 seconds.
 
 - tsc: a missing key in a language, a wrong param, or a string passed to `el()` as text fails to compile. So does an id of a closed union, like a goal reason, without its words.
-- `src/text/catalog.test.ts`: no Russian entry holds a form the committee rejected, like «чинено» or «удлинённая платформа». Every entry parses in every language, uses exactly its schema's params, and has exactly the language's plural forms (`one, other` in English and `one, few, many, other` in Russian). No Russian entry may copy its English, apart from a short list of brands and language names. Radio talk and broadcasts hold none of the game phrases in `src/test/out-of-character.ts`, like "your turn", "level up" or «твой ход». Everyday words like "turn", "level", «ход» and «уровень» pass.
+- `src/text/catalog.test.ts`: no Russian entry holds a form the committee rejected, like «чинено» or «удлинённая платформа». Every entry parses in every language, uses exactly its schema's params, and has exactly the language's plural forms (`one, other` in English and `one, few, many, other` in Russian). No entry in any language holds a semicolon. No Russian entry may copy its English, apart from a short list of brands and language names. Radio talk and broadcasts hold none of the game phrases in `src/test/out-of-character.ts`, like "your turn", "level up" or «твой ход». Everyday words like "turn", "level", «ход» and «уровень» pass.
 - `src/text/coverage.test.ts`: every data id the game can show, like each part, chassis, good, template, site, terrain, trait, skill, perk, radio line and broadcast, has its words in every language.
 - `src/text/scan.test.ts`: it parses every production file of `src/ui`, `src/three`, `src/sim`, `src/data`, `src/render` and `src/text` with `oxc-parser`. It fails on a prose literal, on a text sink like `.textContent =`, `.title =`, `setAttribute` of a text attribute or `confirm()` without `say()`, on `.innerHTML =`, on Cyrillic outside `src/text/ru/`, and on `as Msg`, `new Msg` or `verbatim` of a literal outside `src/text/`. Each failure prints `file:line`, the rule and the literal.
 - `src/text/fixtures.test.ts`: an old save migrates, and every goal, call, contract and truck title it holds reads in both languages.
@@ -95,4 +95,4 @@ Each of these stays as it is, with a follow-up where one makes sense.
 
 ## Russian copy
 
-[Russian copy](../writing/russian.md) holds the style rules, bad and good examples and the glossary. agy writes all Russian text by it.
+[Russian copy](../writing/russian.md) holds the style rules, bad and good examples and the glossary. agy writes all Russian text by it, with Codex and then Claude Sonnet as the fallback when agy is unavailable.

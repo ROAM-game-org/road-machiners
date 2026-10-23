@@ -9,6 +9,12 @@ export function requireCodexLogin(home: string): string {
   return dir;
 }
 
+export function requireAgyLogin(home: string): string {
+  const file = join(home, 'agy', 'antigravity-oauth-token');
+  if (!existsSync(file)) throw new Error(`${file} is missing. Copy the agy Google login to the server as the factory README says.`);
+  return file;
+}
+
 export type Health = { at: string; freeGb: number; minFreeGb: number; availableGb: number | null; minAvailableGb: number };
 
 export function freeGb(path: string): number {

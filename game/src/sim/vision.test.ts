@@ -85,7 +85,7 @@ describe('vision', () => {
       w.obstacles = [{ id: 'wreck-npc7', pos: { x: 33, y: 30 }, r: 0.9, kind: 'wreck', hulk: { chassisId, yaw: Math.PI / 2 } }];
       return hasLineOfFire(w, { x: 30, y: 30 }, { x: 36.5, y: 30 });
     };
-    const reachesEye = (chassisId: string) => hulkBoxes(chassisId).some((b) => b.z0 <= eye && b.z1 >= eye && b.x0 <= 0 && b.x1 >= 0);
+    const reachesEye = (chassisId: string) => hulkBoxes(chassisId, undefined).some(({ box: b }) => b.z0 <= eye && b.z1 >= eye && b.x0 <= 0 && b.x1 >= 0);
 
     expect(reachesEye('tractor')).toBe(true);
     expect(reachesEye('buggy')).toBe(false);
@@ -364,7 +364,7 @@ describe('sight from the wing', () => {
     expect(deckAt(ICARUS_DECKS, onGround.pos.x, onGround.pos.y)).toBeNull();
     expect(canVehicleSee(w, onGround, target)).toBe(true);
 
-    w.obstacles.push({ id: 'plate', pos: at(mid, 0, 11), r: 1.3, kind: 'landmark', look: 'hullChunk', yaw: 0 });
+    w.obstacles = [...w.obstacles, { id: 'plate', pos: at(mid, 0, 11), r: 1.3, kind: 'landmark', look: 'hullChunk', yaw: 0 }];
 
     expect(canVehicleSee(w, onGround, target)).toBe(false);
     expect(canVehicleSee(w, onSpan, target)).toBe(true);

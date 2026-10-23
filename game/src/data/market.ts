@@ -3,15 +3,16 @@ import { PARTS, type PartDef } from './parts';
 import type { TraitId, Weighted } from './npcs';
 import type { PropKind } from '../sim/terrain';
 import type { OldPlaceType } from './salvage';
-import { NPC_BEHAVIOR } from './npc-behavior';
+import { MEMORY, NPC_BEHAVIOR } from './npc-behavior';
 import { MAP_SCALE } from './region';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
+import type { CrimeOffense } from '../sim/types';
 
 
 export type Tier = 1 | 2 | 3;
 
-export type ItemKind = 'weapon' | 'engine' | 'armor' | 'cargo' | 'scanner' | 'store' | 'utility' | 'chassis' | 'good';
+export type ItemKind = 'weapon' | 'engine' | 'armor' | 'accessory' | 'cargo' | 'scanner' | 'store' | 'utility' | 'chassis' | 'good';
 
 export const EFFORT = {
   wage: {
@@ -25,6 +26,7 @@ export const EFFORT = {
       weapon: [250, 700],
       engine: [250, 700],
       armor: [250, 700],
+      accessory: [250, 700],
       cargo: [250, 700],
       scanner: [250, 700],
       store: [250, 700],
@@ -36,6 +38,7 @@ export const EFFORT = {
       weapon: [180, 480],
       engine: [180, 480],
       armor: [180, 480],
+      accessory: [180, 480],
       cargo: [180, 480],
       scanner: [180, 480],
       store: [180, 480],
@@ -47,6 +50,7 @@ export const EFFORT = {
       weapon: [180, 380],
       engine: [180, 380],
       armor: [180, 380],
+      accessory: [180, 380],
       cargo: [180, 380],
       scanner: [180, 380],
       store: [180, 380],
@@ -68,6 +72,8 @@ export const EFFORT = {
 export const CONTRACTS = {
   maxActive: 3,
 
+  pastKept: 30,
+
   warnTurns: Math.round(TIME.turnsPerDay / 12),
 
   haul: {
@@ -83,13 +89,6 @@ export const CONTRACTS = {
       durationFactor: 1.5,
       premium: 1.75,
     },
-  },
-
-  fetch: {
-    durationTurns: [300, 800] as [number, number],
-    searchFeeTurns: 240,
-    maxWear: 1,
-    xpPerEffort: 0.0045,
   },
 
   claim: {
@@ -108,10 +107,11 @@ export const CONTRACTS = {
     xpPerEffort: 0.003,
   },
 
-  bounty: {
-    durationTurns: [400, 1000] as [number, number],
-    rewardTurns: { buggy: 900, gunwagon: 1350 } as Record<string, number>,
-    xpPerEffort: 0.0075,
+  procure: {
+    units: [3, 12] as [number, number],
+    travelFactor: 0.5,
+    slackTurns: EFFORT.handlingTurns * 2,
+    xpPerEffort: 0.003,
   },
 
   search: {
@@ -259,7 +259,7 @@ const SHOP_DATA: Record<string, ShopData> = {
     partStock: {
       parts: ([
         'plates', 'steelPlate', 'cage', 'scrapPanels', 'scrapSheet', 'ram', 'plowRam', 'mg', 'shotgun', 'rack', 'panniers',
-        'caltrops', 'oilSpiller', 'scrapersKnife', 'patcherCrane', 'claymoreRam',
+        'caltrops', 'oilSpiller', 'scrapersKnife', 'patcherCrane', 'claymoreRam', 'spikeCluster', 'spikeStrip', 'cageSection',
       ] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
@@ -516,3 +516,31 @@ export function shopDef(id: string): ShopDef {
 
 export const TOWN_MARKETS = Object.keys(SHOPS);
 export const STALL_MARKETS = Object.values(SHOPS).filter((s) => s.kind === 'stall').map((s) => s.id);
+
+const BOUNTY_WAGE = EFFORT.wage[1];
+const wageOf = (turns: number): number => Math.round(turns * BOUNTY_WAGE);
+const FINE_TURNS: Record<CrimeOffense, number> = { attacked: 450, robbed: 900, killed: 2700 };
+
+export const CRIME = {
+  fine: Object.fromEntries(Object.entries(FINE_TURNS).map(([offense, turns]) => [offense, wageOf(turns)])) as Record<CrimeOffense, number>,
+  purseShare: 0.5,
+  minStake: wageOf(60),
+  maxOwed: wageOf(4 * FINE_TURNS.robbed),
+  feeShare: 0.2,
+  reportSites: ['bowl', 'nose', 'dustwell', 'granary', 'pump-station', 'green-pit', 'salvage-yard', 'marshal-post'] as readonly string[],
+  post: 'marshal-post',
+  keepClosedTurns: MEMORY.turns.witnessed,
+  settleWage: 1,
+  wage: BOUNTY_WAGE,
+};
+
+export const BOUNTY = {
+  lapseTurns: 5 * TIME.turnsPerDay,
+  huntTurns: TIME.turnsPerDay / 2,
+  retryTurns: TIME.turnsPerDay / 2,
+  offerGapTurns: TIME.turnsPerDay,
+  stopTurns: 10,
+  searchReach: 60,
+  leadReach: 6,
+  postTurns: 60,
+};

@@ -3,12 +3,11 @@ import { ECONOMY, GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { DISTANCE_PREMIUM, EFFORT, PRICE_FACTOR, PRESSURE_MAX, SHOPS, SHORT_PRESSURE } from '../data/market';
 import { dist } from './vec';
-import { emptyWorld, addVehicle, npcBrain } from './testkit';
+import { emptyWorld, addVehicle } from './testkit';
 import type { Vehicle, World } from './types';
-import { freeCells } from './grid';
+import { bareGrid, baseGrid, freeCells } from './grid';
 import {
   addStockPart,
-  creditBounty,
   advanceShop,
   estimateTurns,
   goodBasePrice,
@@ -24,9 +23,10 @@ import {
   shortHere,
   siteOf,
   takeStockPart,
-  type Contract,
   type ShopState,
 } from './market';
+
+const layoutLoad = (v: Vehicle) => freeCells(v) - (bareGrid(v.chassisId).h - baseGrid(v.chassisId).h) * bareGrid(v.chassisId).w;
 
 describe('market', () => {
   it('lowers stock on buying and raises it on selling', () => {
@@ -53,7 +53,7 @@ describe('market', () => {
 
   it('absorbs a full hauler load at a garage before the price moves halfway to its floor or ceiling', () => {
     const w = emptyWorld();
-    const load = freeCells(addVehicle(w, 'scrapjaw', 'hauler', [], { x: 0, y: 0 }));
+    const load = layoutLoad(addVehicle(w, 'scrapjaw', 'hauler', [], { x: 0, y: 0 }));
     const state = initShop(w, 'bowl');
     const before = goodPrice('bowl', state, 'scrap', 'sell', ECONOMY.spread);
     recordTrade('bowl', state, 'scrap', load, 'sell');
@@ -227,7 +227,7 @@ describe('market', () => {
 
   it('pays a full truck load of a haul about haulWages tier wages times the trip turns, lot pressure included', () => {
     const w = emptyWorld();
-    const units = freeCells(addVehicle(w, 'scrapjaw', 'scout', [], { x: 0, y: 0 }));
+    const units = layoutLoad(addVehicle(w, 'scrapjaw', 'scout', [], { x: 0, y: 0 }));
     const buy = lotPrice('nose', initShop(w, 'nose'), 'salt', 'buy', ECONOMY.spread, units);
     const sell = lotPrice('bowl', initShop(w, 'bowl'), 'salt', 'sell', ECONOMY.spread, units);
     const turns = estimateTurns(siteOf('nose').pos, siteOf('bowl').pos);
@@ -250,42 +250,6 @@ describe('market', () => {
     expect(long.turns).toBeGreaterThan(short.turns);
     expect(long.profit).toBeGreaterThan(short.profit);
     expect(long.profit / long.turns).toBeGreaterThanOrEqual(short.profit / short.turns);
-  });
-});
-
-describe('creditBounty', () => {
-  const bounty = (id: string, template: string): Contract => ({ id, shop: 'bowl', kind: 'bounty', template, reward: 10000, deadline: 900, window: 900, tier: 2, fulfilled: false });
-
-  function withTarget(): { w: World; npc: Vehicle } {
-    const w = emptyWorld();
-    const npc = addVehicle(w, 'scrapjaw', 'scout', [], { x: 36, y: 30 });
-    npc.brain = npcBrain('buggy', npc.pos, ['raider']);
-    w.player.money = 0;
-    return { w, npc };
-  }
-
-  const fulfilled = (w: World) => w.player.contracts.map((c) => c.kind === 'bounty' && c.fulfilled);
-
-  it('fulfils one held bounty on the template, as a knockout does, and pays nothing', () => {
-    const { w, npc } = withTarget();
-    w.player.contracts = [bounty('a', 'buggy'), bounty('b', 'buggy'), bounty('c', 'truck')];
-    creditBounty(w, npc);
-    expect(w.player.contracts.map((c) => c.id)).toEqual(['a', 'b', 'c']);
-    expect(fulfilled(w)).toEqual([true, false, false]);
-    expect(w.player.money).toBe(0);
-    creditBounty(w, npc);
-    expect(fulfilled(w)).toEqual([true, true, false]);
-    creditBounty(w, npc);
-    expect(fulfilled(w)).toEqual([true, true, false]);
-    expect(w.events.filter((e) => e.t === 'contract' && e.outcome === 'fulfilled')).toHaveLength(2);
-  });
-
-  it('does nothing without a bounty on the template', () => {
-    const { w, npc } = withTarget();
-    w.player.contracts = [bounty('c', 'truck')];
-    creditBounty(w, npc);
-    expect(w.player.contracts.map((c) => c.id)).toEqual(['c']);
-    expect(w.player.money).toBe(0);
   });
 });
 

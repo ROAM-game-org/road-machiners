@@ -1,5 +1,5 @@
 
-import { chassisDef, TOWN_CHASSIS } from "../data/chassis";
+import { chassisDef, isTruckPaint, PAINT, samePaint, TOWN_CHASSIS, type TruckPaint } from "../data/chassis";
 import { ECONOMY, GOODS } from "../data/goods";
 import { SHOPS, shopDef } from "../data/market";
 import { SERVICE_GOOD } from "../data/market";
@@ -18,7 +18,7 @@ import { addState, endState, stateOf } from "./states";
 import { inTowReach } from "./tow";
 import { addCoreParts } from "./factory";
 import { practice, skillEffect, vehicleHasPerk } from "./progress";
-import { addStockPart, goodPrice, goodStock, lotPrice, moveStock, recordTrade, requireShop, shopAt, shopState, siteOf, takeStockPart } from "./market";
+import { addStockPart, goodPrice, goodStock, lotPrice, moveStock, onOrder, recordTrade, requireShop, shopAt, shopState, siteOf, stockForSale, takeStockPart } from "./market";
 import { canUseSite, requireTown, townAt, townNear } from "./sites";
 import { corePart, coreParts, freeCells, goodsCount, mountedParts } from "./grid";
 import { addGoods, cargoRoom, mountPart, removeGoods, spareParts, stowParcel, stowPart, type ParcelItem } from "./inventory";
@@ -28,6 +28,7 @@ import { tankLeaks } from "./supplies";
 import { fuelCap, isStranded, isWorking, suppliesCap } from "./stats";
 import { modeRules } from './settings';
 import { isOutlaw } from "./relations";
+import { straighten } from './rig';
 
 export type Supply = "fuel" | "supplies";
 
@@ -97,6 +98,7 @@ export function tradeGoods(
 }
 
 function requireStock(world: World, shopId: string, good: string, count: number): void {
+  if (onOrder(world, shopId, good)) throw new Refused({ id: "onOrder" });
   if (count > goodStock(shopState(world, shopId), good)) throw new Refused({ id: "noStock" });
 }
 
@@ -131,7 +133,7 @@ export function affordableBuyCount(
   cap: number,
   budget: number,
 ): number {
-  const stock = goodStock(shopState(world, shopId), good);
+  const stock = stockForSale(world, shopId, good);
   if (stock === 0) return 0;
   const unitPrice = getTradePrice(world, vehicle, shopId, good, "buy");
   let count = Math.max(0, Math.min(cap, stock, Math.floor(budget / unitPrice)));
@@ -175,14 +177,22 @@ export function serviceVehicle(
   refuelAndRepair(world, vehicle, townId);
 }
 
-const CAMP_MARGIN = ECONOMY.spread + ECONOMY.roadSpread;
+const BASE_ROAD_MARGIN = ECONOMY.spread + ECONOMY.roadSpread;
 
 export function campGoodPrice(good: string): number {
-  return roadGoodPrice(good, CAMP_MARGIN, "sell");
+  return roadGoodPrice(good, BASE_ROAD_MARGIN, "sell");
 }
 
 export function campPartPrice(part: PartInstance): number {
-  return partPriceAt(part, CAMP_MARGIN, "sell");
+  return partPriceAt(part, BASE_ROAD_MARGIN, "sell");
+}
+
+export function roadGoodAsk(good: string): number {
+  return roadGoodPrice(good, BASE_ROAD_MARGIN, "buy");
+}
+
+export function roadPartAsk(part: PartInstance): number {
+  return partPriceAt(part, BASE_ROAD_MARGIN, "buy");
 }
 
 function requireCampService(vehicle: Vehicle, campId: string): void {
@@ -269,6 +279,10 @@ export function getUpkeepReserve(vehicle: Vehicle): number {
 
 export function buyFuel(world: World, vehicle: Vehicle, siteId: string): void {
   topUp(world, vehicle, ['fuel'], siteId in SHOPS ? siteId : null);
+}
+
+export function fuelRoomAt(world: World, vehicle: Vehicle, siteId: string): number {
+  return siteId in SHOPS ? serviceRoom(world, siteId, 'fuel', vehicle) : supplyRoom(world, 'fuel', vehicle);
 }
 
 function topUp(world: World, vehicle: Vehicle, kinds: readonly Supply[], shopId: string | null): void {
@@ -648,6 +662,20 @@ export function buyChassis(world: World, chassisId: string): World {
   });
 }
 
+export function paintPrice(world: World): number {
+  return Math.round(PAINT.share * chassisDef(playerVehicle(world).chassisId).value);
+}
+
+export function repaint(world: World, paint: TruckPaint): World {
+  return playerCommand(world, (w) => {
+    requireTown(w);
+    if (!isTruckPaint(paint)) throw new Error(`No paint ${JSON.stringify(paint)}`);
+    if (samePaint(w.player.paint, paint)) throw new Error(`The truck is already in ${JSON.stringify(paint)}`);
+    pay(w, paintPrice(w));
+    w.player.paint = { body: paint.body, cab: paint.cab, gear: paint.gear };
+  });
+}
+
 export function swapChassis(world: World, chassisId: string): void {
   const me = playerVehicle(world);
   if (me.chassisId === chassisId)
@@ -658,6 +686,8 @@ export function swapChassis(world: World, chassisId: string): void {
   const parts = movableParts(me);
   const parcels = me.items.filter((it): it is ParcelItem => it.kind === "parcel");
   me.chassisId = chassisId;
+  straighten(me);
+  me.trail = [];
   me.items = [];
   addCoreParts(world, me);
   for (const part of parts) placeSwappedPart(world, me, part, mounted.has(part.id));

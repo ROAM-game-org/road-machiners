@@ -1,5 +1,6 @@
 import { PHYSICS } from '../data/physics';
-import { lanesAt } from './body';
+import { frontBody, lanesAt, unitsOf } from './body';
+import { nearestUnit } from './rig';
 import { corePart, coreParts, mountedParts } from './grid';
 import { NPC_BEHAVIOR } from '../data/npcs';
 import { isHostile, noteCollision } from './combat';
@@ -13,7 +14,6 @@ import { RULES } from '../data/rules';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { PERK_NUMBERS } from '../data/skills';
 import { vehicleMass } from './mass';
-import { bodyOf } from './body';
 import { towsClient } from './tow';
 import { claymoresSetOff, detonateOnCrash, detonateOnObstacle } from './claymore';
 import type { Vehicle, World } from './types';
@@ -97,8 +97,8 @@ function playerRam(world: World, a: Vehicle, b: Vehicle, hitsA: PartHit[], hitsB
 function damageVehicleCrash(world: World, a: Vehicle, b: Vehicle, impact: number, contact: CrashGeometry): { hitsA: PartHit[]; hitsB: PartHit[] } {
   if (!contact.b) throw new Error('Vehicle crash has no target contact');
   const share = vehicleMass(b) / (vehicleMass(a) + vehicleMass(b));
-  const multA = ramMult(a, contact.a.side);
-  const multB = ramMult(b, contact.b.side);
+  const multA = ramMult(a, contact.a);
+  const multB = ramMult(b, contact.b);
   if (towsClient(world, a, b) || towsClient(world, b, a)) return { hitsA: [], hitsB: [] };
   const hitsA = applyContactDamage(world, a, contact.a, impact, share, multB);
   const hitsB = applyContactDamage(world, b, contact.b, impact, 1 - share, multA);
@@ -238,21 +238,22 @@ export function estimateCrashGeometry(a: Vehicle, b: Vehicle | null, from: Vec):
 }
 
 function estimateBodyContact(vehicle: Vehicle, other: Vehicle | null, from: Vec): CrashContact {
-  const angle = bearing(vehicle.pos, from) - vehicle.heading;
+  const unit = nearestUnit(vehicle, from);
+  const angle = bearing(unit.pos, from) - unit.heading;
   const normal = { x: Math.cos(angle), y: Math.sin(angle) };
   const side = selectContactSide(normal);
   const front = side === 'front' || side === 'rear';
-  const extent = other ? computeProjectedExtent(other, vehicle.heading, front) : 0;
-  const distance = Math.hypot(from.x - vehicle.pos.x, from.y - vehicle.pos.y) * PHYSICS.metersPerTile;
+  const extent = other ? computeProjectedExtent(other, unit.heading, front) : 0;
+  const distance = Math.hypot(from.x - unit.pos.x, from.y - unit.pos.y) * PHYSICS.metersPerTile;
   const across = front ? Math.sin(angle) * distance : Math.cos(angle) * distance;
   const points = front
     ? [{ x: 0, y: across - extent }, { x: 0, y: across + extent }]
     : [{ x: across - extent, y: 0 }, { x: across + extent, y: 0 }];
-  return locateCrashContact(vehicle.chassisId, points, normal);
+  return locateCrashContact(vehicle.chassisId, unit.unit, points, normal);
 }
 
 function computeProjectedExtent(vehicle: Vehicle, heading: number, front: boolean): number {
-  const body = bodyOf(vehicle.chassisId);
+  const body = frontBody(vehicle.chassisId);
   const relative = vehicle.heading - heading;
   const c = Math.abs(Math.cos(relative));
   const s = Math.abs(Math.sin(relative));
@@ -264,12 +265,19 @@ function selectContactSide(normal: Vec): Side {
   return normal.y >= 0 ? 'right' : 'left';
 }
 
-export function locateCrashContact(chassisId: string, points: Vec[], normal: Vec): CrashContact {
+export function locateCrashContact(chassisId: string, unit: number, points: Vec[], normal: Vec): CrashContact {
   if (points.length === 0) throw new Error('Crash has no contact points');
-  const side = selectContactSide(normal);
+  const side = unitSide(chassisId, unit, normal);
   const front = side === 'front' || side === 'rear';
   const values = points.map((point) => (front ? point.y : point.x));
-  return { side, lanes: lanesAt(chassisId, front ? 'column' : 'row', Math.min(...values), Math.max(...values)) };
+  return { side, lanes: lanesAt(chassisId, front ? 'column' : 'row', Math.min(...values), Math.max(...values), unit) };
+}
+
+function unitSide(chassisId: string, unit: number, normal: Vec): Side {
+  const side = selectContactSide(normal);
+  const inner = (side === 'rear' && unit < unitsOf(chassisId).length - 1) || (side === 'front' && unit > 0);
+  if (!inner) return side;
+  return normal.y >= 0 ? 'right' : 'left';
 }
 
 export function computeClosingSpeed(relative: Vec, normal: Vec): number {

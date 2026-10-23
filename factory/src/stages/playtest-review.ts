@@ -1,5 +1,3 @@
-// The rules of the release playtest that need no agent: what the run log proves and whether a review may pass it.
-// The factory computes the facts, so a review cannot pass a run that crashed, ended early with no word on it or did nothing.
 
 export type Ending = 'complete' | 'death' | 'error';
 export type LogSummary = { turns: number; shots: number; destroyed: number; knockouts: number; deaths: number; stalls: number; moneyIn: number; moneyOut: number; npcGoals: Record<string, number>; playerTiles: number };

@@ -13,13 +13,14 @@ import { playerVehicle } from './damage';
 import { makePart, makeVehicle } from './factory';
 import { maxHealthOf } from './health';
 import { corePart, mountedParts, type Spot } from './grid';
-import { addGoods, applyRefitLayout, planItemMove, stowPart } from './inventory';
+import { addGoods, applyRefitLayout, mountPart, planItemMove, stowPart } from './inventory';
 import { disarm } from './claymore';
 import { generateNpcLoadout } from './npc-loadout';
 import { grantXp, isPerkId, pickedFromPair } from './progress';
 import { isTerritory, nearestPad, type Site } from './sites';
 import { territoryEntries } from './territory';
-import { allegianceFor, isFree, spawnAt } from './spawn';
+import { allegianceFor, spawnAt } from './spawn';
+import { firstFree, freeSpotNear } from './free-spot';
 import { declareFeud, settleStates } from './states';
 import { isTowed } from './tow';
 import { clockOf } from './sun';
@@ -133,7 +134,8 @@ export function give(world: World, id: string, count: number): World {
 function givePart(w: World, defId: string, count: number): void {
   const me = playerVehicle(w);
   for (let i = 0; i < count; i++) {
-    if (!stowPart(w, me, makePart(w, defId, 0))) throw new CheatError(`No room for ${count} ${defId}`);
+    const part = makePart(w, defId, 0);
+    if (!stowPart(w, me, part) && !mountPart(w, me, part)) throw new CheatError(`No room for ${count} ${defId}`);
   }
 }
 
@@ -190,34 +192,12 @@ export function applyGodMode(world: World): void {
   world.player.supplies = suppliesCap(me);
 }
 
-function freeSpotNear(w: World, center: Vec, radius: number, ignoreId: string | null): Vec | null {
-  if (isFree(w, center, radius, ignoreId)) return { ...center };
-  for (let ring = 1; ring <= CHEATS.searchRings; ring++) {
-    const r = ring * CHEATS.searchStep;
-    const points = Math.ceil((2 * Math.PI * r) / CHEATS.searchStep);
-    const spot = firstFree(w, circlePoints(center, r, points), radius, ignoreId);
-    if (spot) return spot;
-  }
-  return null;
-}
-
-function circlePoints(center: Vec, r: number, count: number): Vec[] {
-  return Array.from({ length: count }, (_, i) => {
-    const a = (2 * Math.PI * i) / count;
-    return { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r };
-  });
-}
-
 function frontFirst(center: Vec, heading: number, r: number, count: number): Vec[] {
   const step = (2 * Math.PI) / count;
   return Array.from({ length: count }, (_, i) => {
     const a = heading + Math.ceil(i / 2) * step * (i % 2 === 0 ? -1 : 1);
     return { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r };
   });
-}
-
-function firstFree(w: World, points: Vec[], radius: number, ignoreId: string | null): Vec | null {
-  return points.find((p) => isFree(w, p, radius, ignoreId)) ?? null;
 }
 
 export function teleport(world: World, target: Vec): World {

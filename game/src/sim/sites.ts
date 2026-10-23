@@ -3,7 +3,7 @@ import { FORTRESS_SITES } from '../data/fortress';
 import { STALL_MARKETS } from '../data/market';
 import { REGION, type LocationDef, type TerritoryDef, type TownDef } from '../data/region';
 import { RULES } from '../data/rules';
-import { atlasOf, type Atlas } from './atlas';
+import { atlasOf, atlasSites, type Atlas } from './atlas';
 import { playerVehicle } from './damage';
 import type { Vehicle, World } from './types';
 import { dist, pointInPolygon, polygonEdgeDist, type Vec } from './vec';
@@ -76,9 +76,30 @@ function padsOf(site: Site): Vec[] {
   });
 }
 
+export function hasPads(site: Site): boolean {
+  return sitePads(site).length > 0;
+}
+
 export function nearestPad(site: Site, from: Vec): Vec {
   if (isTerritory(site)) throw new Error(`Territory ${site.id} has no pads; use territoryEntries`);
-  return sitePads(site).reduce((a, b) => (dist(from, a) <= dist(from, b) ? a : b));
+  const pads = sitePads(site);
+  if (pads.length === 0) throw new Error(`Site ${site.id} has no pads`);
+  return pads.reduce((a, b) => (dist(from, a) <= dist(from, b) ? a : b));
+}
+
+function outsideGate(site: Site, gate: Vec): Vec {
+  const away = Math.atan2(gate.y - site.pos.y, gate.x - site.pos.x);
+  return { x: gate.x + Math.cos(away) * RULES.stranded.fortAnchorOut, y: gate.y + Math.sin(away) * RULES.stranded.fortAnchorOut };
+}
+
+export function setDownAnchors(site: Site): Vec[] {
+  return isRoadFort(site) ? siteGates(site).map((gate) => outsideGate(site, gate)) : sitePads(site);
+}
+
+export function nearestSitePad(atlas: Atlas, pos: Vec): { site: Site; pad: Vec } {
+  const options = atlasSites(atlas).flatMap((site) => setDownAnchors(site).map((pad) => ({ site, pad })));
+  if (options.length === 0) throw new Error('The atlas has no site with pads');
+  return options.reduce((a, b) => (dist(pos, a.pad) <= dist(pos, b.pad) ? a : b));
 }
 
 export function canUseSite(pos: Vec, site: Site): boolean {

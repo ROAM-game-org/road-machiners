@@ -47,7 +47,7 @@ Every other problem is fixed inside the stage that found it: a bug, a wrong look
 The early ends:
 
 - wont-do: triage or design refuses the request, and the issue closes.
-- bundled: triage folds the issue into a lead, and it closes when the lead ships.
+- bundled: triage folds the issue into a lead, and it closes when the lead ships. A duplicate of a card already in work joins that card the same way, a hotfix too.
 - Deny: the committee rejects the build, and the issue closes.
 
 A branch that changes only Markdown docs cannot change the game, so it runs no testing or hardening session, and its post checkpoint only builds it. The merge checkpoint still checks it. A wiki page in `game/docs/wiki/` does not count as docs, since the game tests check its tables. [stages.md](stages.md#docs-changes) has the rules.
@@ -175,7 +175,7 @@ Members, other jobs and releases push all the time, so any branch may move while
 
 ![Release](diagrams/release.svg)
 
-The playtest is one job, after every release task merged and before the candidate. It runs the full game suite on the release head on GitHub Actions while the first play runs, and a failure goes to the playtest agent to fix. It plays one seed of the progression harness on the release head and on a baseline: the last commit the release passed, or `main` where the release branched off it. An Opus agent reviews the logs and sorts each finding as caused by the release or old. It fixes the release's important findings in its clone, and the factory replays the seed on the fixes in the same agent session. A clean play passes its commit, after the factory checks any fixes with the full suite on GitHub Actions and the playtest and build on the laptop, and the fixes then land on the release. An important old finding opens a bug issue for `dev` and does not block. A blocked verdict or the play limit blocks the release until Hermes retries it with a decision. [stages.md](stages.md#release-playtest) has the rules.
+The playtest is one job, after every release task merged and before the candidate. It runs the full game suite on the release head on GitHub Actions while the first play runs, and a failure goes to the playtest agent to fix. It plays one seed of the progression harness on the release head and on a baseline: the last commit the release passed, or `main` where the release branched off it. The agent also plays each feature the release brings to its end, since the random seed never reaches them. An Opus agent reviews the logs and sorts each finding as caused by the release or old. It fixes the release's important findings in its clone, and the factory replays the seed on the fixes in the same agent session. A clean play passes its commit, after the factory checks any fixes with the full suite on GitHub Actions and the playtest and build on the laptop, and the fixes then land on the release. An important old finding opens a bug issue for `dev` and does not block. A blocked verdict or the play limit blocks the release until Hermes retries it with a decision. [stages.md](stages.md#release-playtest) has the rules.
 
 The public Telegram channel gets only the release post that a member publishes. After Ship, Hermes drafts the post into the committee chat, and it stays a draft until a member presses Publish. Nothing else goes to the channel: no hotfix, candidate, approval, card, job, incident or status message. Only `publishPost` in `src/release-post.ts` sends to the channel, and a test checks this.
 
@@ -188,7 +188,7 @@ The release stays put after its cut. Only its release tasks, the playtest fixes 
 These jobs run beside the cards.
 
 - adhoc: one-off work a member asks Hermes for. The agent runs in a clone of `dev`, pushes nothing and replies with a report and files.
-- incident: after a shipped fix of a `bug` issue or a hotfix. The agent judges the bug against the bar in `docs/incident-log.md`, and on `dev` it may update the entry of the class the bug repeats or add a new class.
+- incident: after a committee patch, redesign or deny, a proposal veto, or a shipped bug fix or hotfix. One job takes every queued issue and updates `docs/incident-log.md` on `dev`, the list of what went wrong that every stage checks a change against. [stages.md](stages.md#incident) has the rules.
 - waste: every `FACTORY_WASTE_REVIEW_DAYS`. The agent reads the ledger numbers beside the period before and names one bottleneck. Hermes gets it and tells the committee only what matters. A failed review keeps its period for the next one.
 - answer: a player's chat question. The agent finds the answer in the game's code and data, and runs the game when it needs to. The factory checks the text and replies once. [stages.md](stages.md#player-answer) has the rules.
 - dev: rebuilds `/dev/` when `dev` moved past its build.
@@ -207,6 +207,8 @@ Jobs pick in this order. A job starts when its queue has a free worker and no ot
 
 A held card gets no job of any kind, and its queued approval waits while the next one runs.
 
+At most one hotfix job runs in the verify queue. A second hotfix card waits for it, and the free verify worker goes to the next normal card. Hotfix jobs in other queues are not limited.
+
 Queues:
 
 - triage: triage and the waste review.
@@ -214,4 +216,4 @@ Queues:
 - implement: implementation and ad hoc.
 - verify: testing, hardening and the release playtest.
 - test: the post with no checks.
-- branch: approve, merge, catch-up, remove, ship, incident, player answer, release cut, candidate and dev, side by side. A job never runs twice at once, and Ship and Remove never run together, since both change the release. Incident jobs run one at a time, since each changes the same incident log. Answer jobs run one at a time too, so the model spend stays bounded. Catch-up jobs run one at a time, only while a merge job runs. While a Ship runs, the merge leaves release task cards for the next batch.
+- branch: approve, merge, catch-up, remove, ship, incident, player answer, release cut, candidate and dev, side by side. A job never runs twice at once, and Ship and Remove never run together, since both change the release. One incident job runs at a time and takes every queued issue, since each changes the same incident log. Answer jobs run one at a time too, so the model spend stays bounded. Catch-up jobs run one at a time, only while a merge job runs. While a Ship runs, the merge leaves release task cards for the next batch.

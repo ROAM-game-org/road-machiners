@@ -1,0 +1,11 @@
+[Unit]
+Description=Drain the ROAM game factory and reboot the server
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={{ script }} {{ factory_root }} {{ service_user }} {{ drain_minutes }}
+StandardOutput=append:{{ home_dir }}/logs/reboot.log
+StandardError=append:{{ home_dir }}/logs/reboot.log
+# The drain waits at most drain_minutes. The pause and the reboot call take seconds.
+TimeoutStartSec={{ drain_minutes + 10 }}min

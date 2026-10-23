@@ -11,7 +11,7 @@ import { playerVehicle } from '../sim/damage';
 import { hangUp } from '../sim/dialogue';
 import { checkKnockout, knockOutNpc } from '../sim/defeat';
 import { fightOdds } from '../sim/fight-odds';
-import { corePart, mountedParts } from '../sim/grid';
+import { corePart, gridOf, mountedParts } from '../sim/grid';
 import { answersPlea, offersGiveUp } from '../sim/parley';
 import { addGoods } from '../sim/inventory';
 import { chooseQuestOption, introStep, openWellScene, QUESTS, questView, setIntroStep } from '../sim/quests';
@@ -325,7 +325,7 @@ describe('the fall and the wake in Bowl', () => {
     const w = ambushed();
     knockedOutBy(w);
     const next = runUntilAwake(closeScene(w));
-    expect(spokenIn(next)).toContain('A tow man left you on my bench');
+    expect(spokenIn(next)).toContain('left you on my bench at first light');
     expect(next.player.quests.world[HATTIE_MET]).toBe(true);
   });
 
@@ -338,7 +338,7 @@ describe('the fall and the wake in Bowl', () => {
     knockedOutBy(met);
     const next = runUntilAwake(closeScene(met));
     expect(next.player.quests.live?.quest).toBe('intro_bowl');
-    expect(spokenIn(next)).toContain('Back on my bench');
+    expect(spokenIn(next)).toContain('Back on my bench again');
     expect(next.player.quests.world[HATTIE_MET]).toBe(true);
     const choices = questView(next, QUESTS).choices;
     expect(choices).toContain('What happened to me?');
@@ -408,7 +408,11 @@ describe('the fall and the wake in Bowl', () => {
       if (w.player.quests.session) w = closeScene(w);
       const raider = raidersIn(w)[0];
       if (!broken && dist(raider.pos, playerVehicle(w).pos) < 12) {
-        for (const part of mountedParts(playerVehicle(w), 'cargo')) part.hp = 0;
+        const me = playerVehicle(w);
+        const row = gridOf(me).chassisH + chassisDef(me.chassisId).bedRows;
+        me.items = me.items.filter((it) => !(it.kind === 'good' && it.y >= row));
+        me.items.push({ id: 'i-spill', kind: 'good', good: 'scrap', x: 0, y: row, rot: 0 });
+        for (const part of mountedParts(me, 'cargo')) part.hp = 0;
         broken = true;
       }
       w = endTurn(w, testDrive);

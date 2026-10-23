@@ -22,7 +22,7 @@ import { endTurn, newWorld } from './world';
 const picks = oldSpotPicks(TEST_MAP);
 const roadGap = (p: OldSpotPick): number => dist(p.pos, nearestRoadPoint(p.pos));
 const nearest = (list: OldSpotPick[]): OldSpotPick => list.reduce((a, b) => (roadGap(b) < roadGap(a) ? b : a));
-const building = nearest(picks.filter((p) => p.type !== 'hulks'));
+const building = nearest(picks.filter((p) => p.type !== 'hulks' && p.type !== 'boats'));
 const hulks = nearest(picks.filter((p) => p.type === 'hulks'));
 const DRIVE_TURNS = 60;
 
@@ -103,6 +103,24 @@ describe('scavengers pick old-world loot spots', () => {
     expect(pick).toBeDefined();
     expect(goal.destination).toEqual(pick.pos);
     expect(dist(pick.pos, npc.pos)).toBeLessThanOrEqual(OLD_PLACES.npcRange);
+  });
+
+  it('names its goal for boat wrecks, hulks and ruins after what it heads for', () => {
+    setShare(1);
+    const boats = picks.find((p) => p.type === 'boats')!;
+    const reasons = new Set<string>();
+    for (let k = 0; k < 40 && !reasons.has('searchOldBoats'); k++) {
+      const { w, npc } = scavengerAt({ x: boats.pos.x + 60, y: boats.pos.y });
+      w.rngState = k + 1;
+      planNpcOrders(w);
+      const goal = topGoal(npc)!;
+      const picked = picks.find((p) => oldStockId(p) === goal.targetId);
+      const said = w.events.find((e) => e.t === 'activity' && e.vehicle === npc.id);
+      if (!picked || !said || said.t !== 'activity' || said.reason === 'collectSalvage') continue;
+      expect(said.reason).toBe({ boats: 'searchOldBoats', hulks: 'searchOldHulks', homestead: 'searchOldRuin', hamlet: 'searchOldRuin', lookout: 'searchOldRuin' }[picked.type]);
+      reasons.add(said.reason);
+    }
+    expect(reasons.has('searchOldBoats')).toBe(true);
   });
 
   it('keeps to its salvage sites when the share does not land', () => {

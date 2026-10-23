@@ -31,8 +31,15 @@ describe('faction table', () => {
     expect(FACTIONS.sunward).toEqual({ organized: true, outlaw: true });
   });
 
+  it('keeps the Marshalls neutral to every faction and every faction neutral to them, but the Sunward (IV9)', () => {
+    for (const id of NPC_FACTION_IDS.filter((f) => f !== 'marshals')) expect(ATTITUDE.marshals[id], id).toBe(0);
+    for (const id of NPC_FACTION_IDS.filter((f) => f !== 'marshals' && f !== 'sunward')) expect(ATTITUDE[id].marshals, id).toBe(0);
+    expect(ATTITUDE.sunward.marshals).toBe(-20);
+    expect(FACTIONS.marshals).toEqual({ organized: true, outlaw: false });
+  });
+
   it('starts the player at each organized faction view of an outside driver and gives independents no standing', () => {
-    expect(startStanding()).toEqual({ bowl: 5, nose: 5, guidestar: 10, administrators: 10, scrapjaw: -30, kiln: -30, sunward: -20 });
+    expect(startStanding()).toEqual({ bowl: 5, nose: 5, guidestar: 10, administrators: 10, scrapjaw: -30, kiln: -30, sunward: -20, marshals: 0 });
     expect('independent' in startStanding()).toBe(false);
   });
 });

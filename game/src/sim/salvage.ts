@@ -16,7 +16,7 @@ import { ROAD_INDEX } from './road-index';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { grayRadius } from './vision';
-import { findSpot, goodsCount, gridOf, isMounted, mountedParts, MOUNT_CELLS, type Spot } from './grid';
+import { findSpot, goodsCount, gridOf, isMounted, mountedParts, mountCellsOf, type Spot } from './grid';
 import { addGoods, cargoMassRoom, getLayoutError, lootRefitTurns, requireIdleRefit, stowPart } from './inventory';
 import { chance, hashRandom, randInt } from './rng';
 import { sampleWeighted } from './npc-loadout';
@@ -107,10 +107,8 @@ export function stockOldSpots(world: World, map: BakedMap): void {
   const ids = new Set(picks.map(oldStockId));
   const stray = world.salvage.find((stock) => oldSpotOf(stock) && !ids.has(stock.id));
   if (stray) throw new Error(`Old spot stock ${stray.id} is no old spot of map ${map.hash}`);
-  const held = world.salvage.filter((stock) => ids.has(stock.id)).length;
-  if (held === picks.length) return;
-  if (held > 0) throw new Error(`Old spot stocks are partial: ${held} of ${picks.length}`);
-  for (const p of picks) world.salvage.push(rollStock(world, OLD_TABLES[p.type], oldStockId(p), p.pos, p.reach));
+  const held = new Set(world.salvage.filter((stock) => ids.has(stock.id)).map((stock) => stock.id));
+  for (const p of picks.filter((pick) => !held.has(oldStockId(pick)))) world.salvage.push(rollStock(world, OLD_TABLES[p.type], oldStockId(p), p.pos, p.reach));
 }
 
 export function emptyHidden(): HiddenLoot {
@@ -239,7 +237,7 @@ function canTakeRevealed(world: World, vehicle: Vehicle, stock: SalvageStock, pa
 
 export function canStowPart(vehicle: Vehicle, part: PartInstance): boolean {
   const item: GridItem = { id: 'fit-check', x: 0, y: 0, rot: 0, kind: 'part', part };
-  return itemMass(item) <= cargoMassRoom(vehicle) && findSpot(gridOf(vehicle), vehicle.items, item, null, MOUNT_CELLS[partDef(part.defId).kind]) !== null;
+  return itemMass(item) <= cargoMassRoom(vehicle) && findSpot(gridOf(vehicle), vehicle.items, item, null, mountCellsOf(part.defId)) !== null;
 }
 
 export function hasStores(stock: SalvageStock): boolean {
@@ -564,7 +562,7 @@ function replaceRoadWreck(world: World, old: SalvageStock): void {
   const spot = findRoadWreckSpot(world, world.obstacles, (pos, r) => !inPlayerView(world, pos) && clearOfVehicles(world, pos, r));
   const id = newId(world, 'wreck');
   if (world.obstacles.some((o) => o.id === id)) throw new Error(`Duplicate road wreck ${id}`);
-  world.obstacles.push({ id, ...spot, kind: 'wreck' });
+  world.obstacles = [...world.obstacles, { id, ...spot, kind: 'wreck' }];
   world.salvage.push(rollStock(world, SALVAGE.roadWreck, id, spot.pos, spot.r * RULES.wreckRadiusScale));
 }
 
@@ -586,7 +584,7 @@ function regrowBroken(world: World): void {
   const back = due.filter(({ obstacle }) => canRegrow(world, obstacle));
   if (back.length === 0) return;
   world.broken = world.broken.filter((b) => !back.includes(b));
-  world.obstacles.push(...back.map((b) => b.obstacle));
+  world.obstacles = [...world.obstacles, ...back.map((b) => b.obstacle)];
 }
 
 function canRegrow(world: World, o: Obstacle): boolean {
@@ -784,7 +782,7 @@ function nextInstalled(looter: Vehicle, target: Vehicle): { item: GridItem; spot
 
 function spareSpot(looter: Vehicle, item: GridItem): Spot | null {
   if (itemMass(item) > cargoMassRoom(looter)) return null;
-  const avoid = item.kind === 'part' ? MOUNT_CELLS[partDef(item.part.defId).kind] : null;
+  const avoid = item.kind === 'part' ? mountCellsOf(item.part.defId) : null;
   return findSpot(gridOf(looter), looter.items, { ...item, id: 'probe' }, null, avoid);
 }
 
@@ -793,6 +791,7 @@ export type OldSpotPick = { propId: string; type: OldPlaceType; pos: Vec; reach:
 
 const BUILDINGS: readonly PropKind[] = ['house', 'ruin', 'silo', 'waterTower', 'gasStation'];
 const TOWERS: readonly PropKind[] = ['silo', 'waterTower'];
+const BOAT_LOOKS: readonly PropKind[] = ['fishingBoat', 'riverBarge', 'skiff'];
 const RING_DIRECTIONS = 24;
 const RING_PAST = 2;
 
@@ -803,7 +802,8 @@ export function oldPlaces(baked: readonly Obstacle[]): OldPlace[] {
   const candidates = baked.filter((o) => o.kind === 'landmark' && territoryAt(o.pos) === null && clearOfSites(icarusAtlas(), o.pos, o.r));
   const buildings = linked(candidates.filter((o) => o.kind === 'landmark' && BUILDINGS.includes(o.look)), OLD_PLACES.buildingGap);
   const tanks = linked(candidates.filter((o) => o.kind === 'landmark' && o.look === 'tank'), OLD_PLACES.tankGap);
-  return [...buildings.map((props) => place(buildingType(props), props)), ...tanks.map((props) => place('hulks', props))];
+  const boats = linked(candidates.filter((o) => o.kind === 'landmark' && BOAT_LOOKS.includes(o.look)), OLD_PLACES.boatGap);
+  return [...buildings.map((props) => place(buildingType(props), props)), ...tanks.map((props) => place('hulks', props)), ...boats.map((props) => place('boats', props))];
 }
 
 function buildingType(props: Obstacle[]): OldPlaceType {

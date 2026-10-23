@@ -22,7 +22,6 @@ afterEach(() => {
   fakes = [];
 });
 
-// Reads the way the agent does in its container: over the job's unix socket, while the job runs.
 function reader(run: AgentRun): (path: string, method?: string) => Promise<{ code: number; text: string }> {
   const [host] = Object.keys(run.readOnly ?? {});
   return (path, method = 'GET') => new Promise((resolve, reject) => {
@@ -152,7 +151,7 @@ describe('answer job', () => {
     expect(Object.keys(run.readOnly ?? {})[0]).not.toBe(run.clone);
     expect(run.prompt).toContain('/factory-tools/sock');
     expect(run.prompt).not.toContain(PLAYER_TEXT);
-    const env = agentEnv({ ...CONFIG, elevenlabsKey: 'e', geminiKey: 'g', codexModel: 'c' } as FactoryConfig, true);
+    const env = agentEnv({ ...CONFIG, elevenlabsKey: 'e', codexModel: 'c' } as FactoryConfig, true);
     expect(Object.keys(env).sort()).toEqual(['CLAUDE_CODE_DISABLE_BACKGROUND_TASKS', 'CLAUDE_CODE_OAUTH_TOKEN', 'FACTORY_JOB_MAX_MINUTES']);
   });
 

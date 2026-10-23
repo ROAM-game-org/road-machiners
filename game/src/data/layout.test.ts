@@ -23,6 +23,7 @@ const TODAY: Record<string, { at: [number, number]; radius: number }> = {
   'salvage-yard': { at: [82, 52.2], radius: 6 },
   scrapjaw: { at: [22, 14], radius: 6 },
   kiln: { at: [66, 76], radius: 6 },
+  'marshal-post': { at: [105.5, 14], radius: 6 },
 };
 
 const sites = [...REGION.towns, ...REGION.locations];

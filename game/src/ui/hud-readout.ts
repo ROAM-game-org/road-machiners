@@ -1,3 +1,4 @@
+import { deskAt, deskNear } from '../sim/crime';
 import { GAME_VERSION } from "../config";
 import { playerAid, readyAid } from "../sim/aid";
 import { playerHandover, readyHandover } from "../sim/parcel";
@@ -9,9 +10,11 @@ import { RULES } from "../data/rules";
 import { maxHp } from "../sim/wear";
 import { playerVehicle, vehicleById } from "../sim/damage";
 import { maxHealthOf } from "../sim/health";
-import { corePart, mountedItems, mountedParts, itemSize } from "../sim/grid";
+import { corePart, itemSize } from "../sim/grid";
+import { conditionItems, type Tier } from "../three/render/portraitPixels";
 import { keyLabel } from "./input-mode";
-import { canOverdrive, fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, workingEngineCapacity, type SpeedStep } from "../sim/stats";
+import { fuelCap, gunDraw, hasWorkingEngine, inOverdrive, isStranded, isWorking, maxSpeedSteps, overdriveBlock, workingEngineCapacity, type OverdriveBlock, type SpeedStep } from "../sim/stats";
+import { basicSkill } from "../sim/progress";
 import { fuelLimit, lowFuelSpeed } from "../sim/far";
 import { towData } from "../sim/states";
 import { dragOf, playerTow } from "../sim/tow";
@@ -30,25 +33,29 @@ import { canUseSite } from '../sim/sites';
 import { shopAt } from '../sim/market';
 import { downedListNear, emptySalvageNear, hasLootFor, lootBlockerHere, needsSearch, salvageListNear } from '../sim/locations';
 import { canLootTruck, canReachSalvage, salvagePlace } from '../sim/salvage';
-import { surveyActions, type SurveyAction } from '../sim/survey';
+import { surveyActions, surveyPlaceType, type SurveyAction } from '../sim/survey';
 import { playerCanAct } from '../sim/world';
 import { combatTurnsLeft } from '../sim/combat';
 import { isBusy } from '../sim/jobs';
 import { list, num, t, type Msg } from '../text/msg';
-import { partName, siteName, vehicleTitle } from '../text/names';
+import { partName, refusalText, siteName, vehicleTitle } from '../text/names';
 
-export function overdriveSwitch(w: World): { checked: boolean; reason: Msg | null; title: Msg } {
+export function overdriveSwitch(w: World): { checked: boolean; locked: boolean; reason: Msg | null; title: Msg } {
   const me = playerVehicle(w);
-  const reason = canOverdrive(me)
-    ? null
-    : mountedParts(me, "engine").length === 0
-      ? t("hud.overdriveNoEngine")
-      : keyLabel(t("hud.overdriveWorn", { pct: Math.round(RULES.overdriveMinEngineShare * 100) }), "O");
+  const block = overdriveBlock(w, me);
+  const reason = block === null ? null : overdriveReason(w, block);
   return {
     checked: inOverdrive(w, me),
+    locked: block === "noBasic",
     reason,
     title: reason ?? t("hud.overdriveTitle"),
   };
+}
+
+function overdriveReason(w: World, block: OverdriveBlock): Msg {
+  if (block === "noBasic") return refusalText(w, { id: "needsBasic", skill: basicSkill("overdrive") });
+  if (block === "noEngine") return t("hud.overdriveNoEngine");
+  return keyLabel(t("hud.overdriveWorn", { pct: Math.round(RULES.overdriveMinEngineShare * 100) }), "O");
 }
 
 function shopNear(world: World): string | null {
@@ -109,6 +116,8 @@ function getPlaceActions(world: World): ContextAction[] {
   const actions: ContextAction[] = [];
   const shop = shopNear(world);
   if (shop) actions.push({ label: t("action.enter", { site: siteName(shop) }), ready: shopAt(world) === shop, target: { kind: 'shop' } });
+  const desk = deskNear(world);
+  if (desk) actions.push({ label: t("action.enter", { site: siteName(desk) }), ready: deskAt(world) === desk, target: { kind: 'shop' } });
   const post = outpostNear(world);
   if (post) actions.push({ label: t("action.enterOutpost", { site: siteName(post.id) }), ready: reachedOutpostAt(world) !== null, target: { kind: 'outpost' } });
   for (const downed of downedListNear(world)) {
@@ -139,7 +148,7 @@ function getStockActions(world: World, stock: SalvageStock): ContextAction[] {
 
 function surveyAction(world: World, a: SurveyAction): ContextAction {
   const combat = combatTurnsLeft(world, playerVehicle(world)) ?? undefined;
-  return { label: t("action.survey"), ready: a.ready && combat === undefined, combat, target: { kind: 'survey', id: a.site, contractId: a.contractId } };
+  return { label: t("action.survey", { place: t(`contract.place.${surveyPlaceType(a.site)}`) }), ready: a.ready && combat === undefined, combat, target: { kind: 'survey', id: a.site, contractId: a.contractId } };
 }
 
 export function getSearchAction(world: World, stock: SalvageStock): ContextAction {
@@ -160,11 +169,14 @@ function stockLabel(verb: 'search' | 'loot' | 'empty', stock: SalvageStock): Msg
 }
 
 
-function getConditionState(ratio: number): string {
-  if (ratio <= 0.25) return "critical";
-  return ratio < 1 ? "damaged" : "healthy";
-}
+export const HURT_BELOW = 70;
+export const CRITICAL_BELOW = 40;
 
+export function tierOf(percent: number): Tier {
+  if (percent === 0) return "broken";
+  if (percent < CRITICAL_BELOW) return "crit";
+  return percent < HURT_BELOW ? "hurt" : "ok";
+}
 
 export function conditionLabel(part: { name: Msg; percent: number }): Msg {
   return part.percent === 0 ? t("condition.broken", { part: part.name }) : t("condition.percent", { part: part.name, pct: part.percent });
@@ -179,29 +191,25 @@ export class TruckConditionReadout {
     this.vehicleId = vehicle.id;
     const previous = this.health;
     this.health = new Map();
-    return mountedItems(vehicle)
-      .filter((item) =>
-        ["core", "engine", "weapon", "armor"].includes(partDef(item.part.defId).kind),
-      )
-      .map((item) => {
-        const def = partDef(item.part.defId);
-        const hp = item.part.hp;
-        this.health.set(item.part.id, hp);
-        const before = previous.get(item.part.id);
-        const ratio = hp / maxHp(item.part);
-        return {
-          id: item.part.id,
-          name: partName(def.id),
-          defId: def.id,
-          x: item.x,
-          y: item.y,
-          ...itemSize(item),
-          percent: hp > 0 ? Math.max(1, Math.floor(ratio * 100)) : 0,
-          state: getConditionState(ratio),
-          broken: hp <= 0,
-          hit: before !== undefined && hp < before,
-        };
-      });
+    return conditionItems(vehicle).map((item) => {
+      const def = partDef(item.part.defId);
+      const hp = item.part.hp;
+      this.health.set(item.part.id, hp);
+      const before = previous.get(item.part.id);
+      const percent = hp > 0 ? Math.max(1, Math.floor((hp / maxHp(item.part)) * 100)) : 0;
+      return {
+        id: item.part.id,
+        name: partName(def.id),
+        defId: def.id,
+        x: item.x,
+        y: item.y,
+        ...itemSize(item),
+        percent,
+        tier: tierOf(percent),
+        broken: hp <= 0,
+        hit: before !== undefined && hp < before,
+      };
+    });
   }
 }
 

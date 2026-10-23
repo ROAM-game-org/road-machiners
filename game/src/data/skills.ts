@@ -80,12 +80,26 @@ export const XP_RULES = {
 };
 
 
+export type BasicId = 'overdrive' | 'lookOver' | 'patching' | 'firstAid' | 'acumen';
+
+export const BASIC_RANK = 1;
+
+export const BASICS: Record<SkillId, BasicId> = {
+  driving: 'overdrive',
+  perception: 'lookOver',
+  machining: 'patching',
+  toughness: 'firstAid',
+  social: 'acumen',
+};
+
+export const BASIC_IDS = Object.values(BASICS);
+
 export type PerkId =
   | 'rammer' | 'coldRunning' | 'steadyAim' | 'dustScreen'
   | 'readDriver' | 'spotter' | 'cargoEye' | 'nightEyes'
   | 'welder' | 'cannibal' | 'rebuild' | 'roadMechanic'
   | 'desertRat' | 'stormRider' | 'fightThrough' | 'longHaul'
-  | 'marketEars' | 'rumorMill' | 'paidTruce' | 'bountyTalk';
+  | 'marketEars' | 'rumorMill' | 'paidTruce' | 'bountyHunter';
 
 export const PERK_LEVELS = [2, 4] as const;
 export type PerkLevel = (typeof PERK_LEVELS)[number];
@@ -112,7 +126,7 @@ export const PERKS: Record<PerkId, PerkDef> = {
   marketEars: { skill: 'social', level: 2, },
   rumorMill: { skill: 'social', level: 2, },
   paidTruce: { skill: 'social', level: 4, },
-  bountyTalk: { skill: 'social', level: 4, },
+  bountyHunter: { skill: 'social', level: 4, },
 };
 
 export const PERK_IDS = Object.keys(PERKS) as PerkId[];
@@ -144,6 +158,7 @@ export const MAIN_SKILL: Record<Archetype, SkillId | null> = {
   hunter: 'perception',
   fastTrader: 'driving',
   hauler: 'social',
+  procurer: 'social',
   searcher: 'social',
   surveyor: 'social',
   climber: 'social',

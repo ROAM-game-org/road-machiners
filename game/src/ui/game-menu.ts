@@ -18,9 +18,10 @@ import type { TipSwitch } from "./tips";
 export type GameMenuActions = SavePanelActions & {
   hasSave: () => boolean;
   newGame: NewGameActions;
+  unstuck: { reason: () => Msg | null; run: () => void };
 };
 
-export type MenuEntry = "new" | "save" | "load" | "options" | "tips" | "help" | "camera" | "report";
+export type MenuEntry = "new" | "save" | "load" | "unstuck" | "options" | "tips" | "help" | "camera" | "report";
 
 export type PhoneMenuLinks = { cameraLabel: () => Msg; toggleCamera: () => void; report: () => void };
 
@@ -28,6 +29,7 @@ const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "new", label: t("menu.newGame") },
   { entry: "save", label: t("menu.save") },
   { entry: "load", label: t("menu.load") },
+  { entry: "unstuck", label: t("menu.unstuck") },
   { entry: "options", label: t("menu.options") },
   { entry: "tips", label: t("menu.showTips") },
   { entry: "help", label: t("menu.help") },
@@ -387,7 +389,7 @@ export class GameMenu {
   refresh(): void {
     const busy = this.isBusy();
     const saved = this.actions.hasSave();
-    for (const { entry } of ENTRIES) this.setReason(this.items[entry], entryReason(entry, busy, saved));
+    for (const { entry } of ENTRIES) this.setReason(this.items[entry], entry === "unstuck" ? this.actions.unstuck.reason() : entryReason(entry, busy, saved));
     const on = this.tips.isOn();
     this.items.tips.setAttribute("aria-checked", String(on));
     setText(this.items.tips, t(on ? "menu.showTipsOn" : "menu.showTips"));
@@ -450,6 +452,7 @@ export class GameMenu {
     this.closeList(false);
     if (entry === "save") this.savePanel.openSave();
     else if (entry === "load") this.savePanel.openLoad();
+    else if (entry === "unstuck") this.actions.unstuck.run();
     else if (entry === "options") this.options.open();
     else if (entry === "tips") {
       this.tips.setOn(!this.tips.isOn());

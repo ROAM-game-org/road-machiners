@@ -28,6 +28,7 @@ WWW_DIR = f"{FACTORY_ROOT}/www"
 HERMES_DIR = f"{FACTORY_ROOT}/hermes"
 # Git tracks the factory settings. The server-only .env holds secrets, committee ids and host paths.
 SETTINGS_FILE = REPO_ROOT / "factory" / "settings.env"
+WHOLE_NUMBERS = ("FACTORY_TICK_MINUTES", "FACTORY_REBOOT_DRAIN_MINUTES", "FACTORY_BOOT_CHECK_MINUTES", "FACTORY_HOST_SHELL_MEMORY_GB")
 
 
 class Settings(BaseSettings):
@@ -53,12 +54,13 @@ def read_factory_env(path: str | Path, settings_path: str | Path = SETTINGS_FILE
     expected = {"FACTORY_HOME": HOME_DIR, "FACTORY_WEB_ROOT": WWW_DIR}
     wrong = [f"{key} must be {want}, got {values.get(key)!r}" for key, want in expected.items() if values.get(key) != want]
     wrong += [f"{key} is in both {path} and {settings_path}" for key in sorted(local.keys() & tracked.keys())]
-    for key in ("FACTORY_TICK_MINUTES", "FACTORY_COMMITTEE_BOOTSTRAP", "FACTORY_COMMITTEE_BOOTSTRAP_GITHUB", "FACTORY_COMMITTEE_CHAT", "TELEGRAM_BOT_TOKEN", "FACTORY_IMAGE"):
+    for key in ("FACTORY_COMMITTEE_BOOTSTRAP", "FACTORY_COMMITTEE_BOOTSTRAP_GITHUB", "FACTORY_COMMITTEE_CHAT", "TELEGRAM_BOT_TOKEN", "FACTORY_IMAGE", "FACTORY_REBOOT_CALENDAR", "FACTORY_PUBLIC_URL", *WHOLE_NUMBERS):
         if not values.get(key, "").strip():
             wrong.append(f"{key} is missing")
-    tick = values.get("FACTORY_TICK_MINUTES", "")
-    if tick and not (tick.isdigit() and int(tick) > 0):
-        wrong.append(f"FACTORY_TICK_MINUTES must be a positive whole number, got {tick!r}")
+    for key in WHOLE_NUMBERS:
+        number = values.get(key, "")
+        if number and not (number.isdigit() and int(number) > 0):
+            wrong.append(f"{key} must be a positive whole number, got {number!r}")
     if wrong:
         raise ValueError(f"{path}: " + "; ".join(wrong))
     return values

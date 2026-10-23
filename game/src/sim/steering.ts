@@ -1,10 +1,10 @@
 
 import { RULES } from "../data/rules";
-import { chassisDef } from "../data/chassis";
-import type { VehicleStats } from "./stats";
+import { restBend, rigDiscs, straighten } from "./rig";
+import { vehicleStats, type VehicleStats } from "./stats";
 import type { Blocker } from "./path";
-import { nearestPad, siteUnder } from "./sites";
-import { straightClear } from "./path";
+import { hasPads, nearestPad, nearestSitePad, siteUnder } from "./sites";
+import { reachesFrom, straightClear } from "./path";
 import type { MoveOrder, Vehicle, World } from "./types";
 import { clamp, DEG, dist, type Vec } from "./vec";
 import { atlasOf } from "./atlas";
@@ -83,7 +83,7 @@ export function zoneSpeed(s: VehicleStats, speed: number, d: number): number {
 
 export function clickOrder(t: Terrain, dest: Vec, shift: boolean, me: Pick<Vehicle, "pos" | "order">): MoveOrder {
   const site = siteUnder(atlasOf(t), dest);
-  return site ? { kind: "stopAt", dest: nearestPad(site, me.pos) } : groundOrder(dest, shift, me.order);
+  return site && hasPads(site) ? { kind: "stopAt", dest: nearestPad(site, me.pos) } : groundOrder(dest, shift, me.order);
 }
 
 function groundOrder(dest: Vec, shift: boolean, current: MoveOrder | null): MoveOrder {
@@ -97,21 +97,32 @@ export function parkedVehicles(world: World, selfId: string, onRope: ReadonlySet
   const target = world.vehicles.find((v) => v.id === selfId)?.brain?.ramTarget;
   return world.vehicles
     .filter((x) => x.id !== selfId && x.id !== target && !onRope.has(x.id) && x.speed < RULES.parkedSpeed)
-    .map((x) => ({ pos: x.pos, r: chassisDef(x.chassisId).radius }));
+    .flatMap(rigDiscs);
 }
 
 export function setDownSpot(world: World, v: Vehicle): Vec {
   const { step } = RULES.stranded;
   const reach = world.terrain.size;
-  const radius = chassisDef(v.chassisId).radius;
-  const others = world.vehicles.filter((o) => o.id !== v.id).map((o) => ({ pos: o.pos, r: chassisDef(o.chassisId).radius }));
+  const others = world.vehicles.filter((o) => o.id !== v.id).flatMap(rigDiscs);
+  const straight = restBend(v.chassisId);
+  const anchor = nearestSitePad(atlasOf(world.terrain), v.pos).pad;
+  const reaches = reachesFrom(world, anchor, vehicleStats(world, v).radius);
   for (let ring = 0; ring * step <= reach; ring++) {
     const spots = Math.max(1, Math.ceil(2 * Math.PI * ring));
     for (let i = 0; i < spots; i++) {
       const a = (2 * Math.PI * i) / spots;
       const p = { x: v.pos.x + Math.cos(a) * ring * step, y: v.pos.y + Math.sin(a) * ring * step };
-      if (straightClear(world, p, p, radius, others)) return p;
+      const discs = rigDiscs({ chassisId: v.chassisId, pos: p, heading: v.heading, bend: straight });
+      if (!reaches(discs[0].pos)) continue;
+      if (discs.every((d) => straightClear(world, d.pos, d.pos, d.r, others))) return p;
     }
   }
   throw new Error(`No free spot on the map to set down vehicle ${v.id}`);
+}
+
+export function setDown(world: World, v: Vehicle): void {
+  v.pos = setDownSpot(world, v);
+  straighten(v);
+  v.speed = 0;
+  v.strandedTurns = RULES.stranded.turns;
 }

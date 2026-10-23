@@ -178,8 +178,7 @@ export function traderWaits(world: World, leader: Vehicle, escort: Vehicle): boo
   const c = heldEscort(world);
   if (!c || c.client !== leader.id) return false;
   if (holdActive(world, c)) return true;
-  const gap = dist(escort.pos, leader.pos);
-  if (playerHelpless(world)) return gap <= ESCORT_JOB.apartGap;
+  if (playerHelpless(world)) return true;
   return remaining(escort, c.to) - remaining(leader, c.to) > NPC_BEHAVIOR.escortWaitGap;
 }
 

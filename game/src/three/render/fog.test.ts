@@ -15,7 +15,7 @@ function random(seed: number): () => number {
   };
 }
 
-function fogWorld(visible: number[], explored: boolean[]): World {
+function fogWorld(visible: number[], explored: Uint8Array): World {
   const heights = Array.from({ length: (SIZE + 1) ** 2 }, (_, i) => (i % 7) * 0.1);
   return { size: SIZE, terrain: { size: SIZE, heights, types: [] }, player: { visible, explored } } as unknown as World;
 }
@@ -55,21 +55,32 @@ function disk(cx: number, cy: number, r: number): number[] {
 describe('fog diff update', () => {
   it('matches a full recompute after random vision changes', () => {
     const rnd = random(3);
-    const explored = new Array<boolean>(SIZE * SIZE).fill(false);
+    const explored = new Uint8Array(SIZE * SIZE);
     const ground = groundChunks();
-    const view = new FogView(fogWorld([], explored), ground, new SightLimit(SIZE));
+    const view = new FogView(fogWorld([], explored.slice()), ground, new SightLimit(SIZE));
     for (let step = 0; step < 40; step++) {
       const visible = disk(rnd() * SIZE, rnd() * SIZE, 1 + rnd() * 12);
-      for (const t of visible) explored[t] = true;
-      if (step % 5 === 4) for (let i = 0; i < 50; i++) explored[Math.floor(rnd() * SIZE * SIZE)] = false;
-      const world = fogWorld(visible, [...explored]);
+      for (const t of visible) explored[t] = 1;
+      if (step % 5 === 4) for (let i = 0; i < 50; i++) explored[Math.floor(rnd() * SIZE * SIZE)] = 0;
+      if (step % 7 === 6) explored.fill(1, rnd() * SIZE * SIZE, rnd() * SIZE * SIZE);
+      const world = fogWorld(visible, explored.slice());
       view.update(world);
       expect(looks(ground)).toEqual(fresh(world));
     }
   });
 
+  it('greys tiles a chart reveals out of sight', () => {
+    const explored = new Uint8Array(SIZE * SIZE);
+    const ground = groundChunks();
+    const view = new FogView(fogWorld(disk(5, 5, 3), explored.slice()), ground, new SightLimit(SIZE));
+    for (let y = 40; y < 50; y++) explored.fill(1, y * SIZE + 41, y * SIZE + 53);
+    const world = fogWorld(disk(5, 5, 3), explored.slice());
+    view.update(world);
+    expect(looks(ground)).toEqual(fresh(world));
+  });
+
   it('dirties neighbouring chunks when a tile on a chunk border changes', () => {
-    const explored = new Array<boolean>(SIZE * SIZE).fill(false);
+    const explored = new Uint8Array(SIZE * SIZE);
     const ground = groundChunks();
     const view = new FogView(fogWorld([], explored), ground, new SightLimit(SIZE));
     for (const [x, y] of [[31, 31], [32, 32], [31, 32], [63, 0], [64, 69], [0, 31]]) {
@@ -80,7 +91,7 @@ describe('fog diff update', () => {
   });
 
   it('leaves chunks without changed tiles untouched', () => {
-    const explored = new Array<boolean>(SIZE * SIZE).fill(false);
+    const explored = new Uint8Array(SIZE * SIZE);
     const ground = groundChunks();
     const view = new FogView(fogWorld([], explored), ground, new SightLimit(SIZE));
     const before = lookAttributes(ground).map((a) => a.version);

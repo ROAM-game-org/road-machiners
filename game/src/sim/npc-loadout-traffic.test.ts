@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NPCS } from '../data/npcs';
+import { NPCS, SPAWN } from '../data/npcs';
 import { cloneWorld } from './world';
 import { gunSpans } from './armor';
 import { mountedItems } from './grid';
@@ -13,13 +13,13 @@ useLoadoutFixture();
 
 describe('NPC equipment generation', () => {
   it('spawns at least five equipment combinations for each base trait', () => {
-    const seen: Record<string, Set<string>> = Object.fromEntries(Object.values(NPCS).map((t) => [t.traits[0], new Set<string>()]));
+    const seen: Record<string, Set<string>> = Object.fromEntries(SPAWN.initial.map((id) => [NPCS[id].traits[0], new Set<string>()]));
     for (let seed = 1; seed <= 6; seed++) {
       const world = cloneWorld(fixture);
       world.rngState = seed;
       spawnInitial(world);
       for (const v of world.vehicles) {
-        if (v.brain) seen[NPCS[v.brain.templateId].traits[0]].add(describeLoadout(v));
+        if (v.brain) (seen[NPCS[v.brain.templateId].traits[0]] ??= new Set<string>()).add(describeLoadout(v));
       }
     }
     for (const [role, variants] of Object.entries(seen)) expect(variants.size, role).toBeGreaterThanOrEqual(5);

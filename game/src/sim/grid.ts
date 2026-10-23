@@ -1,6 +1,6 @@
 
 import { CHASSIS_FEATURES, chassisDef } from '../data/chassis';
-import { partDef, type CoreDef, type PartKind } from '../data/parts';
+import { isShield, partDef, type CoreDef, type PartKind } from '../data/parts';
 import type { GridItem, PartInstance, PlacementRefusal, Rot, Vehicle } from './types';
 
 export type SideLetter = 'F' | 'B' | 'L' | 'R';
@@ -12,6 +12,7 @@ export const MOUNT_CELLS: Record<PartKind, Cell[]> = {
   weapon: ['D'],
   engine: ['E'],
   armor: ['F', 'B', 'L', 'R'],
+  accessory: ['F', 'B', 'L', 'R'],
   cargo: ['D', 'C'],
   core: ['X'],
   scanner: ['D'],
@@ -19,6 +20,27 @@ export const MOUNT_CELLS: Record<PartKind, Cell[]> = {
   utility: ['D'],
 };
 const SIDES: readonly Cell[] = ['F', 'B', 'L', 'R'];
+
+export type Layer = 'base' | 'accessory';
+
+export function mountCellsOf(defId: string): Cell[] {
+  const def = partDef(defId);
+  return def.kind === 'accessory' ? def.mounts : MOUNT_CELLS[def.kind];
+}
+
+function isAccessoryItem(item: GridItem): item is Extract<GridItem, { kind: 'part' }> {
+  return item.kind === 'part' && partDef(item.part.defId).kind === 'accessory';
+}
+
+export function layerOf(g: Grid, item: GridItem): Layer {
+  return isAccessoryItem(item) && onOwnMounts(g, item) ? 'accessory' : 'base';
+}
+
+function onOwnMounts(g: Grid, item: Extract<GridItem, { kind: 'part' }>): boolean {
+  const cells = itemCells(item);
+  const first = letterAt(g, cells[0].x, cells[0].y);
+  return first !== null && mountCellsOf(item.part.defId).includes(first) && cells.every((c) => letterAt(g, c.x, c.y) === first);
+}
 const CELL_CHARS: readonly string[] = ['D', 'C', 'E', 'F', 'B', 'L', 'R', 'X', '.'];
 
 const baseGridCache = new Map<string, Grid>();
@@ -72,7 +94,7 @@ function mountLetter(chassisId: string, item: GridItem): Cell | null {
   if (item.kind !== 'part') return null;
   const base = baseGrid(chassisId);
   const first = letterAt(base, item.x, item.y);
-  if (first === null || !MOUNT_CELLS[partDef(item.part.defId).kind].includes(first)) return null;
+  if (first === null || !mountCellsOf(item.part.defId).includes(first)) return null;
   return coversOnly(base, item, first) ? first : null;
 }
 
@@ -98,8 +120,27 @@ export function sideOf(v: Vehicle, part: PartInstance): SideLetter | null {
 
 const gridCache = new Map<string, Grid>();
 
+const bareGridCache = new Map<string, Grid>();
+
+export function bareGrid(chassisId: string): Grid {
+  const cached = bareGridCache.get(chassisId);
+  if (cached) return cached;
+  const base = baseGrid(chassisId);
+  const bedRows = chassisDef(chassisId).bedRows;
+  const bed = Array.from({ length: bedRows }, () => Object.freeze(Array.from({ length: base.w }, () => '.' as Cell | null)));
+  const grid = Object.freeze({
+    w: base.w,
+    h: base.h + bedRows,
+    chassisH: base.h,
+    deadFrom: base.h + bedRows,
+    cells: Object.freeze([...base.cells, ...bed]) as (Cell | null)[][],
+  });
+  bareGridCache.set(chassisId, grid);
+  return grid;
+}
+
 export function gridOf(v: Vehicle): Grid {
-  const base = baseGrid(v.chassisId);
+  const bare = bareGrid(v.chassisId);
   let working = 0;
   let dead = 0;
   for (const it of mountedItems(v, 'cargo')) {
@@ -107,17 +148,18 @@ export function gridOf(v: Vehicle): Grid {
     if (it.part.hp > 0) working += rows;
     else dead += rows;
   }
+  if (working === 0 && dead === 0) return bare;
   const key = `${v.chassisId}|${working}|${dead}`;
   const cached = gridCache.get(key);
   if (cached) return cached;
-  const row = (cell: Cell | null) => Object.freeze(Array.from({ length: base.w }, () => cell));
+  const row = (cell: Cell | null) => Object.freeze(Array.from({ length: bare.w }, () => cell));
   const rows = [...Array.from({ length: working }, () => row('.')), ...Array.from({ length: dead }, () => row(null))];
   const grid = Object.freeze({
-    w: base.w,
-    h: base.h + working + dead,
-    chassisH: base.h,
-    deadFrom: base.h + working,
-    cells: Object.freeze([...base.cells, ...rows]) as (Cell | null)[][],
+    w: bare.w,
+    h: bare.h + working + dead,
+    chassisH: bare.chassisH,
+    deadFrom: bare.h + working,
+    cells: Object.freeze([...bare.cells, ...rows]) as (Cell | null)[][],
   });
   gridCache.set(key, grid);
   return grid;
@@ -151,6 +193,10 @@ export function mountedItems(v: Vehicle, kind?: PartKind): PartItem[] {
 
 export function mountedParts(v: Vehicle, kind?: PartKind): PartInstance[] {
   return mountedItems(v, kind).map((it) => it.part);
+}
+
+export function shieldParts(v: Vehicle): PartInstance[] {
+  return mountedParts(v).filter((part) => isShield(partDef(part.defId)));
 }
 
 export function coreParts(v: Vehicle, role: CoreDef['role']): PartInstance[] {
@@ -188,21 +234,22 @@ export function cellCount(g: Grid): number {
 
 export function freeCells(v: Vehicle): number {
   const g = gridOf(v);
-  const used = v.items.reduce((a, it) => a + itemCells(it).filter((c) => !isSkin(g.cells[c.y]?.[c.x] ?? null)).length, 0);
+  const used = v.items.filter((it) => layerOf(g, it) === 'base').reduce((a, it) => a + itemCells(it).filter((c) => !isSkin(g.cells[c.y]?.[c.x] ?? null)).length, 0);
   return cellCount(g) - used;
 }
 
 export function placementError(g: Grid, items: GridItem[], item: GridItem, ignoreId: string | null): PlacementRefusal | null {
-  const taken = takenCells(items, ignoreId);
   const cells = itemCells(item);
   if (crossesChassisEnd(g, cells) || !cells.every((c) => onGrid(g, c))) return { id: 'noFit' };
+  const taken = takenCells(g, items, ignoreId, layerOf(g, item));
   if (cells.some((c) => taken.has(cellKey(c.x, c.y)))) return { id: 'inTheWay' };
-  if (!isArmorItem(item) && cells.some((c) => isSkin(g.cells[c.y][c.x]))) return { id: 'armorOnly' };
+  if (!sitsOnSkin(g, item) && cells.some((c) => isSkin(g.cells[c.y][c.x]))) return { id: 'armorOnly' };
   return null;
 }
 
-function isArmorItem(item: GridItem): boolean {
-  return item.kind === 'part' && partDef(item.part.defId).kind === 'armor';
+function sitsOnSkin(g: Grid, item: GridItem): boolean {
+  if (item.kind !== 'part') return false;
+  return partDef(item.part.defId).kind === 'armor' || layerOf(g, item) === 'accessory';
 }
 
 function onGrid(g: Grid, c: { x: number; y: number }): boolean {
@@ -228,7 +275,7 @@ function isWeapon(item: GridItem): boolean {
 }
 
 export function mountSpots(g: Grid, items: GridItem[], item: GridItem, mount: Cell[]): Spot[] {
-  const taken = takenCells(items, item.id);
+  const taken = takenCells(g, items, item.id, isAccessoryItem(item) ? 'accessory' : 'base');
   const tries = allSpots(g, isWeapon(item) ? 4 : 2);
   const sizes = [0, 1, 2, 3].map((rot) => itemSize({ ...item, rot: rot as Rot }));
   const free = (s: Spot, letter: Cell) => {
@@ -248,10 +295,10 @@ export function cellKey(x: number, y: number): number {
   return y * KEY_ROW + x;
 }
 
-function takenCells(items: GridItem[], ignoreId: string | null): Set<number> {
+function takenCells(g: Grid, items: GridItem[], ignoreId: string | null, layer: Layer): Set<number> {
   const taken = new Set<number>();
   for (const it of items) {
-    if (it.id === ignoreId) continue;
+    if (it.id === ignoreId || layerOf(g, it) !== layer) continue;
     const { w, h } = itemSize(it);
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) taken.add(cellKey(it.x + dx, it.y + dy));
   }

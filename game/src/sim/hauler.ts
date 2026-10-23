@@ -3,14 +3,18 @@ import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from './damage';
 import { backOutSpot } from './back-out';
-import { footprint, halfLength, halfWidth } from './body';
+import { footprint, noseReach, rigMiddle, sideReach } from './rig';
 import { isDefeated } from './defeat';
 import { betweenLevels, inYard, yardSpots } from './outpost-gates';
 import { acrossOf, alongOf, roadAt, roadPoint, toRoad, windowSpan } from './highway';
 import { craterDip, windowCraters } from './road-hazards';
 import { CLEARANCE, dynamicBlockers, staticSet } from './nav/layer';
+import { engineHot, heldHeatSpeed } from './engine-heat';
+import { plainFuelSpeed } from './far';
 import { isStalled, isStranded, plainMaxSpeed } from './stats';
 import { isShutDown } from './utility';
+import { inCombat } from './combat';
+import { workOf } from './states';
 import type { MoveOrder, Vehicle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 
@@ -32,7 +36,7 @@ function roadPos(world: World, pos: Vec) {
 }
 
 function alongNow(world: World, v: Vehicle): number {
-  return alongOf(world.seed, roadPos(world, v.pos));
+  return alongOf(world.seed, roadPos(world, rigMiddle(v)));
 }
 
 function acrossNow(world: World, pos: Vec): number {
@@ -46,7 +50,7 @@ function lanePoint(world: World, along: number, lane: number): Vec {
 }
 
 export function haulerLane(world: World, hauler: Vehicle): number {
-  const across = acrossNow(world, hauler.pos);
+  const across = acrossNow(world, rigMiddle(hauler));
   let best = 0;
   LANES.forEach((center, i) => {
     if (Math.abs(center - across) < Math.abs(LANES[best] - across)) best = i;
@@ -58,13 +62,32 @@ export function haulerPace(world: World): number {
   const alarm = runOf(world).hauler.alarmUntil;
   const own = alarm !== null && world.turn <= alarm ? HAULER.hurry : HAULER.cruise;
   const gunTruck = playerVehicle(world);
-  const pace = setsPace(world, gunTruck) ? Math.min(own, plainMaxSpeed(world, gunTruck)) : own;
+  const pace = setsPace(world, gunTruck) ? Math.min(own, plainMaxSpeed(world, gunTruck), Math.max(HAULER.crawl, slowdown(world, gunTruck))) : own;
   if (pace <= RULES.parkedSpeed) throw new Error(`Hauler pace ${pace} is at or below parked speed`);
   return pace;
 }
 
+function slowdown(world: World, gunTruck: Vehicle): number {
+  const fuelSpeed = plainFuelSpeed(world, gunTruck);
+  if (!engineHot(world)) return fuelSpeed;
+  const heatSpeed = gunTruck.speed <= RULES.parkedSpeed ? HAULER.crawl : heldHeatSpeed(world, gunTruck);
+  return Math.min(fuelSpeed, heatSpeed);
+}
+
 function setsPace(world: World, truck: Vehicle): boolean {
   return !isStranded(world, truck) && !isStalled(world, truck) && !isShutDown(world, truck);
+}
+
+function gunTruckFree(world: World, gunTruck: Vehicle): boolean {
+  return setsPace(world, gunTruck) && !inCombat(world, gunTruck) && workOf(world, gunTruck) === null;
+}
+
+export function waitsForGunTruck(world: World, hauler: Vehicle): boolean {
+  if (betweenLevels(world) || dist(hauler.pos, parkSpot(world)) <= HAULER.approach) return false;
+  const gunTruck = playerVehicle(world);
+  const lag = alongNow(world, hauler) - alongNow(world, gunTruck);
+  if (lag <= (isParked(hauler) ? HAULER.resumeGap : HAULER.waitGap)) return false;
+  return dist(gunTruck.pos, hauler.pos) <= HAULER.apartGap || !gunTruckFree(world, gunTruck);
 }
 
 function groupTrucks(world: World): Vehicle[] {
@@ -128,13 +151,13 @@ function nearestClearLane(world: World, hauler: Vehicle, from: number): number |
 
 function closesAcross(world: World, hauler: Vehicle, t: Vehicle, across: number): boolean {
   const next = { x: t.pos.x + Math.cos(t.heading) * t.speed, y: t.pos.y + Math.sin(t.heading) * t.speed };
-  const gap = across - acrossNow(world, hauler.pos);
+  const gap = across - acrossNow(world, rigMiddle(hauler));
   return (acrossNow(world, next) - across) * gap < 0;
 }
 
 export function sideThreat(world: World, hauler: Vehicle): SideThreat {
   const along = alongNow(world, hauler);
-  const mine = acrossNow(world, hauler.pos);
+  const mine = acrossNow(world, rigMiddle(hauler));
   let left = false;
   let right = false;
   for (const t of groupTrucks(world)) {
@@ -188,6 +211,7 @@ function haulerOrder(world: World, hauler: Vehicle): MoveOrder | null {
   const spot = parkSpot(world);
   if (betweenLevels(world)) return isParked(hauler) && dist(hauler.pos, spot) <= RULES.arriveRadius ? null : { kind: 'stopAt', dest: spot };
   if (dist(hauler.pos, spot) <= HAULER.approach) return { kind: 'stopAt', dest: spot };
+  if (waitsForGunTruck(world, hauler)) return { kind: 'brake' };
   const lane = chosenLane(world, hauler);
   const dest = lanePoint(world, aimAlong(world, hauler, lane), lane);
   return { kind: 'through', dest, pace: haulerPace(world) };
@@ -262,7 +286,7 @@ function parkedAtOutpost(world: World, hauler: Vehicle): boolean {
 }
 
 function stallExcused(world: World, hauler: Vehicle): boolean {
-  return isStranded(world, hauler) || parkedAtOutpost(world, hauler) || pinnedByFoe(world, hauler);
+  return isStranded(world, hauler) || parkedAtOutpost(world, hauler) || waitsForGunTruck(world, hauler) || pinnedByFoe(world, hauler);
 }
 
 function pinnedByFoe(world: World, hauler: Vehicle): boolean {
@@ -276,7 +300,7 @@ function blocksNose(hauler: Vehicle, foe: Vehicle): boolean {
   const ahead = dx * Math.cos(hauler.heading) + dy * Math.sin(hauler.heading);
   const side = Math.abs(-dx * Math.sin(hauler.heading) + dy * Math.cos(hauler.heading));
   const reach = footprint(foe.chassisId) + RULES.yieldDistance;
-  return ahead > 0 && ahead <= halfLength(hauler.chassisId) + reach && side <= halfWidth(hauler.chassisId) + reach;
+  return ahead > 0 && ahead <= noseReach(hauler.chassisId) + reach && side <= sideReach(hauler.chassisId) + reach;
 }
 
 export function watchHaulerStall(world: World): void {

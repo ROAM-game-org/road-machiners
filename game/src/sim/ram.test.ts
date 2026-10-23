@@ -215,7 +215,7 @@ describe('ram value', () => {
   it('is not vetoed by a broken ram bar on a ram that hurts the target far more', () => {
     const { w, rammer, target } = duel(['cannon', 'stockEngine', 'plowRam'], ['cannon', 'stockEngine']);
     plowToNose(rammer);
-    const bar = mountedParts(rammer, 'armor')[0];
+    const bar = mountedParts(rammer, 'accessory')[0];
     bar.hp = 1;
     expect(ramValue(w, rammer, target)).toBeGreaterThan(0);
   });

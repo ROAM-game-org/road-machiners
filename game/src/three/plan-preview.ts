@@ -1,6 +1,6 @@
-import { captureDrive, type Drive, type DriveSnapshot } from "../phys/drive";
+import type { DriveSnapshot } from "../phys/drive";
 import type { PlanFrames } from "../phys/plan";
-import type { PreviewRequest, PreviewResponse } from "../phys/turn";
+import { SentObstacles, type PreviewRequest, type PreviewResponse, type TerrainRequest } from "../phys/turn";
 import { mergePerf } from "../perf";
 import { PAL } from "../render/palette";
 import { driveMode, throttleFor } from "../sim/steering";
@@ -27,15 +27,23 @@ export class PlanPreparation {
   private answered = false;
   private worker: Worker | null = null;
   private terrain: World["terrain"] | null = null;
+  private readonly obstacles = new SentObstacles();
   private serial = 0;
   private running: number | null = null;
   private queued: Wanted | null = null;
   private latest: { id: number | null; world: World; ready: PlanFrames | null } | null = null;
 
-  request(world: World, drive: Drive, meId: string): void {
-    this.queued = { world, drive: captureDrive(drive), meId };
+  request(world: World, drive: DriveSnapshot, meId: string): void {
+    this.queued = { world, drive, meId };
     this.latest = { id: null, world, ready: null };
     if (this.running === null) this.postQueued();
+  }
+
+  warm(terrain: World["terrain"]): void {
+    if (this.load.gaveUp || this.load.waiting || this.terrain === terrain) return;
+    this.worker ??= this.createWorker();
+    this.worker.postMessage({ kind: "terrain", terrain } satisfies TerrainRequest);
+    this.terrain = terrain;
   }
 
   take(world: World): PlanFrames | null {
@@ -49,21 +57,22 @@ export class PlanPreparation {
     const wanted = this.queued;
     if (!wanted || this.load.gaveUp || this.load.waiting) return;
     this.queued = null;
-    this.sent = this.answered ? null : { ...wanted, drive: { ...wanted.drive, snapshot: wanted.drive.snapshot.slice() } };
+    this.sent = this.answered ? null : wanted;
     const { terrain, ...state } = wanted.world;
+    const snapshot = wanted.drive.snapshot.slice();
     const id = ++this.serial;
     this.worker ??= this.createWorker();
     this.worker.postMessage(
       {
         kind: "preview",
         id,
-        world: state,
-        drive: wanted.drive,
+        ...this.obstacles.split(state),
+        drive: { ...wanted.drive, snapshot },
         meId: wanted.meId,
         questLanguage: currentQuestLanguage(),
         terrain: this.terrain === terrain ? null : terrain,
       } satisfies PreviewRequest,
-      [wanted.drive.snapshot.buffer as ArrayBuffer],
+      [snapshot.buffer],
     );
     this.terrain = terrain;
     this.running = id;
@@ -89,6 +98,7 @@ export class PlanPreparation {
     this.worker?.terminate();
     this.worker = null;
     this.terrain = null;
+    this.obstacles.forget();
     this.running = null;
     this.answered = false;
     this.queued ??= this.sent;

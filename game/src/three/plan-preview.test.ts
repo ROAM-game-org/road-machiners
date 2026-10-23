@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { buildDrive, freeDrive, initPhysics, type Drive } from "../phys/drive";
+import { initPhysics, type DriveSnapshot } from "../phys/drive";
+import { driveSnapshotOf } from "../phys/turn";
 import type { PlanFrames } from "../phys/plan";
 import type { PreviewRequest, PreviewResponse } from "../phys/turn";
 import { perfSnapshot, resetPerf } from "../perf";
@@ -40,7 +41,7 @@ class TestWorker {
 const plan = (waypoint: boolean): PlanFrames => ({ turns: [[]], course: null, waypoint });
 
 let world: World;
-let drive: Drive;
+let drive: DriveSnapshot;
 beforeAll(initPhysics);
 beforeEach(() => {
   vi.stubGlobal("Worker", TestWorker);
@@ -48,10 +49,9 @@ beforeEach(() => {
   resetPerf();
   TestWorker.created = 0;
   world = emptyWorld();
-  drive = buildDrive(world);
+  drive = driveSnapshotOf(world);
 });
 afterEach(() => {
-  freeDrive(drive);
   vi.unstubAllGlobals();
 });
 
@@ -139,13 +139,14 @@ it("reports a worker error event and still posts the next request", () => {
   expect(worker.requests).toHaveLength(2);
 });
 
-it("transfers a snapshot of the drive and leaves the main drive in place", () => {
+it("transfers a copy of the drive snapshot and leaves the main snapshot in place", () => {
   const plans = new PlanPreparation();
-  const before = drive.world.takeSnapshot();
+  const before = drive.snapshot.slice();
   plans.request(world, drive, world.player.vehicleId);
   const worker = TestWorker.latest;
   expect(worker.transfers[0]).toEqual([worker.requests[0].drive.snapshot.buffer]);
-  expect(drive.world.takeSnapshot()).toEqual(before);
+  expect(worker.requests[0].drive.snapshot.buffer).not.toBe(drive.snapshot.buffer);
+  expect(drive.snapshot).toEqual(before);
 });
 
 it("restarts a preview worker whose script did not load and posts the lost request again", () => {
