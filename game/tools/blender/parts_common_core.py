@@ -6,12 +6,18 @@ Its origin is the footprint center on the deck top, at Z = 0.
 
 from __future__ import annotations
 
+import math
+
 import bpy
 from mathutils import Vector
 
-from kit import CELL_ACROSS, CELL_ALONG, Kit
+from kit import CELL_ACROSS, CELL_ALONG, Kit, Vec3
 
 FIT_SLACK = 1e-4  # float noise allowed at the footprint edge
+TIRE_SIDES = 48  # four edges per lug of the wheel model's 12-lug tread
+ROUND_LARGE = 32  # rims and other round parts a wheel across or larger
+ROUND_SMALL = 16  # hubs, lamps, tubes and other small round parts
+TIRE_SHARE = 0.935  # the tire body's share of the wheel radius; the wheel model's lugs reach the rest
 
 # Colors from src/render/palette.ts. The paint color is a stand-in: the game swaps it for the faction color.
 COLORS = {
@@ -48,6 +54,14 @@ def check_footprint(kit: Kit, name: str, w: int, h: int, min_z: float = 0.0, max
         raise RuntimeError(f"{name} dips to z {lo.z:.3f}, below {min_z}")
     if max_z is not None and hi.z > max_z + FIT_SLACK:
         raise RuntimeError(f"{name} rises to z {hi.z:.3f}, above {max_z}")
+
+
+def wheel_disc(kit: Kit, name: str, center: Vec3, radius: float, width: float) -> None:
+    """The round tire, rim and hub every wheel shares, on an axle along Blender Y: the wheel model and the rigs' model-drawn duals."""
+    axle = (math.pi / 2, 0, 0)
+    kit.cylinder(f"{name}_tire", radius * TIRE_SHARE, width * 0.94, center, "wheel", rot=axle, vertices=TIRE_SIDES)
+    kit.cylinder(f"{name}_rim", radius * 0.55, width * 0.98, center, "metal_light", rot=axle, vertices=ROUND_LARGE)
+    kit.cylinder(f"{name}_hub", radius * 0.22, width, center, "rust", rot=axle, vertices=ROUND_SMALL)
 
 
 ALONG_X = (0, 1.5707963267948966, 0)  # turns a Kit cylinder's axis to +X
