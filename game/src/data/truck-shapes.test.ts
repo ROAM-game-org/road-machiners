@@ -103,7 +103,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'je
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
-  jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [1.0, 1.15] },
+  jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
 };
 
 type ShapeName = keyof typeof SHAPES;
