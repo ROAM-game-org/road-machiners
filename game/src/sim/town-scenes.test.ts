@@ -45,7 +45,7 @@ describe('town sections', () => {
     const w = quietWorld();
     const bowl = townSections(parkAt(w, 'bowl'), 'bowl');
     expect(bowl).toMatchObject({ garage: { open: true }, market: { open: true }, board: { open: true }, people: { open: true } });
-    expect(townSections(w, 'nowhere').people).toEqual({ open: false, reason: 'noLocals' });
+    expect(townSections(w, 'orchard').people).toEqual({ open: false, reason: 'noLocals' });
   });
 
   it('keeps the Bar off while no driver is in sight', () => {
