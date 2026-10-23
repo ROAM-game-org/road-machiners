@@ -2,13 +2,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { backUpClear, forwardTurnClear, turnaroundSpeed, turnRadius } from './turnaround';
 import { bodyOf } from '../sim/body';
 import { CHASSIS } from '../data/chassis';
-import { addVehicle } from '../sim/testkit';
+import { addVehicle, emptyWorld } from '../sim/testkit';
 import { endTurn, setDirect, setMoveOrder } from '../sim/world';
 import { buildDrive, freeDrive, initPhysics, type TurnResult } from './drive';
 import { physicsMove } from './turn';
 import { PHYSICS } from '../data/physics';
 import { clearanceFor } from '../sim/clearance';
-import { emptyWorld } from '../sim/testkit';
 
 const stance = { at: { x: 20, y: 20 }, heading: 0 };
 
