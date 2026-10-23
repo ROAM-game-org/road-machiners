@@ -42,17 +42,18 @@ SUSPENSION_REST = 0.4  # PHYSICS.truck.suspensionRest: the wheel hub hangs this 
 class Grid:
     """A chassis grid in base space. Rows run from the nose, columns from the left side."""
 
-    def __init__(self, rows: int, cols: int, half_height: float) -> None:
+    def __init__(self, rows: int, cols: int, half_height: float, along: float = CELL_ALONG) -> None:
         self.rows = rows
         self.cols = cols
-        self.half_x = rows * CELL_ALONG / 2
+        self.along = along
+        self.half_x = rows * along / 2
         self.half_y = cols * CELL_ACROSS / 2
         self.top = half_height
         self.bottom = -half_height - SKIRT
 
     def row_x(self, y: float) -> float:
         """Blender X of row y's center. Fractions give row edges: row_x(y - 0.5) is its front edge."""
-        return self.half_x - CELL_ALONG * (y + 0.5)
+        return self.half_x - self.along * (y + 0.5)
 
     def clamp_x(self, x: float) -> float:
         """x held inside the footprint's ends."""
