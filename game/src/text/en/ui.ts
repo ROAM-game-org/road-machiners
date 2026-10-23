@@ -221,6 +221,7 @@ export const UI = {
   'hitTip.skill': 'Driver perception',
   'hitTip.weather': 'Bad weather',
   'hitTip.smoke': 'Smoke',
+  'hitTip.nimble': 'Nimble',
   'hitTip.mine.crossing': 'Target crossing fast',
   'hitTip.mine.own': 'You are moving',
   'hitTip.mine.still': 'Target is parked',

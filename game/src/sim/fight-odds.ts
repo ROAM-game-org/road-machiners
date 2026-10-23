@@ -1,10 +1,9 @@
 import { PARTS, type WeaponDef } from '../data/parts';
 import { gunSpans, sidePlanner, spanSides, SIDES, type Round, type Side } from './armor';
 import { corePart, mountedItems, mountedParts, shieldParts, sideOf } from './grid';
-import { vehicleStats } from './stats';
+import { vehicleStats, weaponOn } from './stats';
 import type { PartInstance, Vehicle, World } from './types';
 import { dist } from './vec';
-import { wornDef } from './wear';
 
 const LETTER_SIDE: Record<string, Side> = { F: 'front', B: 'rear', L: 'left', R: 'right' };
 
@@ -90,7 +89,7 @@ export function gunsBySide(v: Vehicle): Record<Side, WeaponDef[]> {
   const out: Record<Side, WeaponDef[]> = { front: [], rear: [], left: [], right: [] };
   for (const item of mountedItems(v, 'weapon')) {
     if (item.part.hp <= 0) continue;
-    const def = wornDef<WeaponDef>(item.part);
+    const def = weaponOn(v, item.part);
     for (const side of spanSides(gunSpans(v, item))) out[side].push(def);
   }
   return out;
