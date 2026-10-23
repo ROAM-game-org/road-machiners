@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { startKit } from '../data/start';
 import { newWorld, update } from '../sim/world';
 import { playerVehicle } from '../sim/damage';
-import { mountedParts } from '../sim/grid';
+import { gridOf, mountedParts, placementError } from '../sim/grid';
 import { inOverdrive } from '../sim/stats';
 import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
 import { noteAttack } from '../sim/combat';
@@ -12,6 +12,7 @@ import { canStowPart, moveItem, storePart, stowPart, stowSpot, takeFromStorage }
 import { buyStockPart } from '../sim/economy';
 import { buyChart } from '../sim/charts';
 import { makePart } from '../sim/factory';
+import { PARTS } from '../data/parts';
 import type { Faction, GridItem, World } from '../sim/types';
 import { advanceContracts, siteOf, type Contract } from '../sim/market';
 import { advanceJobs } from '../sim/jobs';
@@ -526,6 +527,24 @@ describe('game save', () => {
     save.world.player.explored = 'AAAA';
     slots.put('auto', save);
     expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
+  });
+
+  it('keeps a longbed fitted on every free cell, each part on its cell, through a reload', () => {
+    const slots = makeSlots();
+    const world = structuredClone(standardWorld());
+    const truck = addVehicle(world, 'scrapjaw', 'longbed', [], { x: 12, y: 12 });
+    const grid = gridOf(truck);
+    for (let y = 0; y < grid.h; y++) {
+      for (let x = 0; x < grid.w; x++) {
+        const fits = Object.keys(PARTS).map((defId): GridItem => ({ id: `fit-${x}-${y}`, x, y, rot: 0, kind: 'part', part: makePart(world, defId, 0) })).find((item) => placementError(grid, truck.items, item, null) === null);
+        if (fits) truck.items.push(fits);
+      }
+    }
+    expect(truck.items.filter((i) => i.id.startsWith('fit-')).length).toBeGreaterThan(20);
+    saveWorld(slots, { ...world, turn: 9 }, RUN, 8, 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(loaded.vehicles.find((v) => v.id === truck.id)!.items).toEqual(truck.items);
+    expect(loaded).toEqual({ ...world, turn: 9 });
   });
 
   it('returns null when there is no saved game', () => {
