@@ -3,7 +3,7 @@ import { FURY_ROAD } from '../data/modes';
 import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { TERRAIN } from '../data/terrain';
 import { autoOrders, groupPrey, isHostile, targetBlock } from './combat';
-import { dist } from './vec';
+import { type Vec, dist } from './vec';
 import { refreshVision } from './vision';
 import { topGoal } from './npc-activities';
 import { haulerOf, playerVehicle } from './damage';
@@ -111,27 +111,55 @@ describe('Chaos Highway fire', () => {
 });
 
 describe('Chaos Highway rolling start', () => {
-  it('waits far ahead of its moving prey, rolls north faster as the prey closes, and leaves the fight AI in charge once the prey is near', () => {
+  it('waits far ahead of its moving prey, rolls north faster as the prey closes but slower than the prey, and leaves the fight AI in charge in gun reach', () => {
+    const w = furyRoadWorld(2);
+    const [truck] = spawned(w, ['buggy'], 1);
+    const prey = groupPrey(w, truck);
+    const window = w.furyRoad!.window;
+    const reach = Math.max(...vehicleStats(w, truck).weapons.map((mw) => mw.def.range));
+    const at = (gap: number) => {
+      truck.pos = roadPoint(w.seed, window, alongOf(w.seed, toRoad(w.seed, window, prey.pos)) + gap, 0);
+      return rollingOrder(w, truck);
+    };
+    const paceAt = (gap: number) => {
+      const order = at(gap);
+      if (order?.kind === 'brake') return 0;
+      if (order?.kind !== 'through') throw new Error('expected rolling orders');
+      return order.pace!;
+    };
+    const { near, ramp, close } = FURY_ROAD.rolling;
+    const release = Math.max(near, reach);
+    for (const speed of [2, 4.5, 8.9]) {
+      prey.speed = speed;
+      expect(at(near + ramp + 5)).toEqual({ kind: 'brake' });
+      let last = 0;
+      for (let gap = near + ramp; gap > release + 0.5; gap -= 2) {
+        const pace = paceAt(gap);
+        expect(pace).toBeLessThanOrEqual((1 - close) * speed + 1e-9);
+        expect(pace).toBeGreaterThanOrEqual(last);
+        last = pace;
+      }
+      expect(last).toBeGreaterThan(0);
+      expect(at(reach - 1)).toBeNull();
+      expect(at(near - 1)).toBeNull();
+    }
+    const dest = (at(release + 5) as { dest: Vec }).dest;
+    expect(alongOf(w.seed, toRoad(w.seed, window, dest))).toBeGreaterThan(alongOf(w.seed, toRoad(w.seed, window, truck.pos)));
+    prey.speed = 0;
+    expect(at(near + ramp * 0.5)).toBeNull();
+  });
+
+  it('hands a hunter that its prey has hit to the fight drive at any gap', () => {
     const w = furyRoadWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
     const prey = groupPrey(w, truck);
     prey.speed = 4;
     const window = w.furyRoad!.window;
-    const at = (gap: number) => {
-      truck.pos = roadPoint(w.seed, window, alongOf(w.seed, toRoad(w.seed, window,prey.pos)) + gap, 0);
-      return rollingOrder(w, truck);
-    };
     const { near, ramp } = FURY_ROAD.rolling;
-    expect(at(near + ramp + 5)).toEqual({ kind: 'brake' });
-    const far = at(near + ramp * 0.75);
-    const close = at(near + ramp * 0.25);
-    if (far?.kind !== 'through' || close?.kind !== 'through') throw new Error('expected rolling orders');
-    expect(far.pace!).toBeLessThan(close.pace!);
-    expect(close.pace!).toBeLessThan(prey.speed);
-    expect(alongOf(w.seed, toRoad(w.seed, window,close.dest))).toBeGreaterThan(alongOf(w.seed, toRoad(w.seed, window,truck.pos)));
-    expect(at(near - 1)).toBeNull();
-    prey.speed = 0;
-    expect(at(near + ramp * 0.5)).toBeNull();
+    truck.pos = roadPoint(w.seed, window, alongOf(w.seed, toRoad(w.seed, window, prey.pos)) + near + ramp * 0.5, 0);
+    expect(rollingOrder(w, truck)).not.toBeNull();
+    truck.brain!.attackers[prey.id] = true;
+    expect(rollingOrder(w, truck)).toBeNull();
   });
 
   it('runs at full speed for a point ahead of a prey that is out of its gun reach ahead, and leaves a prey in reach to the fight AI', () => {
