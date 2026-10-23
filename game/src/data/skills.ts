@@ -99,7 +99,7 @@ export type PerkId =
   | 'readDriver' | 'spotter' | 'cargoEye' | 'nightEyes'
   | 'welder' | 'cannibal' | 'rebuild' | 'roadMechanic'
   | 'desertRat' | 'stormRider' | 'fightThrough' | 'longHaul'
-  | 'marketEars' | 'rumorMill' | 'paidTruce' | 'bountyTalk';
+  | 'marketEars' | 'rumorMill' | 'paidTruce' | 'bountyHunter';
 
 export const PERK_LEVELS = [2, 4] as const;
 export type PerkLevel = (typeof PERK_LEVELS)[number];
@@ -126,7 +126,7 @@ export const PERKS: Record<PerkId, PerkDef> = {
   marketEars: { skill: 'social', level: 2, },
   rumorMill: { skill: 'social', level: 2, },
   paidTruce: { skill: 'social', level: 4, },
-  bountyTalk: { skill: 'social', level: 4, },
+  bountyHunter: { skill: 'social', level: 4, },
 };
 
 export const PERK_IDS = Object.keys(PERKS) as PerkId[];

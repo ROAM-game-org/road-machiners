@@ -844,39 +844,6 @@ describe('the hunter', () => {
     expect(playerVehicle(turn.world).weaponOrders).toEqual({});
   });
 
-  it('has a hunter take the bounty on the board it is parked at, and a trader leave it', () => {
-    const heldAfter = (archetype: 'hunter' | 'trader') => {
-      const w = parkedAt('bowl');
-      const target = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 300, y: 300 });
-      target.brain = npcBrain('buggy', target.pos, ['raider']);
-      w.shops.bowl.contracts = [{ id: 'ct-bounty', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 23333, deadline: 5000, window: 600, tier: 1, fulfilled: false }];
-      return botOrders(w, archetype).world.player.contracts.map((c) => c.id);
-    };
-
-    expect(heldAfter('hunter')).toEqual(['ct-bounty']);
-    expect(heldAfter('trader')).toEqual([]);
-  });
-
-  it('has a hunter take a bounty only on a raider type it would fight', () => {
-    const heldWith = (template: string, chassis: string, parts: string[]) => {
-      const w = parkedAt('bowl');
-      const target = addVehicle(w, 'scrapjaw', chassis, parts, { x: 300, y: 300 });
-      target.brain = npcBrain(template, target.pos, ['raider']);
-      w.shops.bowl.contracts = [{ id: 'ct-bounty', shop: 'bowl', kind: 'bounty', template, reward: 700, deadline: 5000, window: 600, tier: 1, fulfilled: false }];
-      return botOrders(w, 'hunter', { noGear: true }).world.player.contracts.length;
-    };
-
-    expect(heldWith('buggy', 'buggy', ['stockEngine'])).toBe(1);
-    expect(heldWith('gunwagon', 'wagon', ['cannon', 'heavyDiesel'])).toBe(0);
-  });
-
-  it('has a hunter take no bounty when no truck of the type is left', () => {
-    const w = parkedAt('bowl');
-    w.shops.bowl.contracts = [{ id: 'ct-bounty', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 700, deadline: 5000, window: 600, tier: 1, fulfilled: false }];
-
-    expect(botOrders(w, 'hunter').world.player.contracts).toEqual([]);
-  });
-
   it('has a hunter hold its chase of a heard raider it would refuse on sight', () => {
     const orderFacing = (parts: string[]) => {
       const w = emptyWorld({ x: 30, y: 30 });
@@ -1068,18 +1035,6 @@ describe('the hunter', () => {
     const turn = botOrders(w, 'climber');
 
     expect(playerVehicle(turn.world).job?.kind).toBe('refit');
-  });
-
-  it('has a climber with fewer than three guns work instead of taking a bounty', () => {
-    const w = parkedAt('bowl');
-    w.shops.bowl.contracts = [
-      { id: 'ct-bounty', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 23333, deadline: 5000, window: 600, tier: 1, fulfilled: false },
-      { id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 20000, deadline: 5000, window: 600, rush: false, tier: 2 },
-    ];
-
-    const turn = botOrders(w, 'climber');
-    expect(turn.world.player.contracts.map((c) => c.id)).not.toContain('ct-bounty');
-    expect(turn.ledger.goodsBought < 0 || playerVehicle(turn.world).order?.kind === 'stopAt').toBe(true);
   });
 
   it('has a bot with a hot engine stop to cool, but keep driving while a raider fights it', () => {

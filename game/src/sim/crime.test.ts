@@ -319,3 +319,88 @@ describe('the Marshalls desk', () => {
     expect(w.events.filter((e) => e.t === 'settlement')).toHaveLength(1);
   });
 });
+
+describe('the Bounty hunter perk', () => {
+  function wanted(perk: boolean): { w: World; robber: Vehicle; me: Vehicle; c: CrimeCase } {
+    const { w, robber, victim, witness } = scene();
+    rob(w, robber, victim);
+    toPad(witness, 'nose');
+    fileReports(w, witness);
+    if (perk) w.player.perks = ['bountyHunter'];
+    const me = playerVehicle(w);
+    me.pos = { x: 396, y: 400 };
+    return { w, robber, me, c: w.crimes[0] };
+  }
+
+  it('collects every open case on a truck the player knocks out, from the fund, with the events a Marshall raises (IV9)', () => {
+    const { w, robber, me, c } = wanted(true);
+    const owed = owedBy(w, robber.id);
+    const before = cloneWorld(w);
+    w.events = [];
+    robber.lastHitBy = me.id;
+    knockOutNpc(w, robber);
+    expect(c.status).toBe('collected');
+    expect(w.player.money - before.player.money).toBe(owed);
+    expect(w.events).toContainEqual(expect.objectContaining({ t: 'shopMoney', kind: 'bountyFund' }));
+    expect(w.events).toContainEqual(expect.objectContaining({ t: 'bountyClosed', status: 'collected', collector: me.id, amount: owed }));
+    expect(() => npcLedger(before, w, w.events)).not.toThrow();
+  });
+
+  it('pays the escrow of an independent case to the player, and only that', () => {
+    const { w, robber } = scene();
+    const poor = trader(w, 'independent', { x: 300, y: 300 });
+    remember(w, poor, { kind: 'witnessed', crime: `1:${robber.id}:${poor.id}:attacked`, by: robber.id, victim: poor.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0 });
+    toPad(poor, 'granary');
+    fileReports(w, poor);
+    w.player.perks = ['bountyHunter'];
+    const escrow = w.crimes[0].escrow;
+    const money = w.player.money;
+    robber.lastHitBy = w.player.vehicleId;
+    knockOutNpc(w, robber);
+    expect(w.crimes[0].status).toBe('collected');
+    expect(w.player.money - money).toBe(escrow);
+  });
+
+  it('collects nothing without the perk', () => {
+    const { w, robber, me, c } = wanted(false);
+    const money = w.player.money;
+    robber.lastHitBy = me.id;
+    knockOutNpc(w, robber);
+    expect(c.status).toBe('open');
+    expect(w.player.money).toBe(money);
+  });
+
+  it('collects nothing on a knockout another truck dealt', () => {
+    const { w, robber, c } = wanted(true);
+    const other = trader(w, 'independent', { x: 410, y: 400 });
+    const money = w.player.money;
+    robber.lastHitBy = other.id;
+    knockOutNpc(w, robber);
+    expect(c.status).toBe('open');
+    expect(w.player.money).toBe(money);
+  });
+
+  it('makes an attack on a wanted truck no crime with the perk, and still a crime without it', () => {
+    const hunter = wanted(true);
+    expect(crimeOf(hunter.w, hunter.me, hunter.robber, 'attacked')).toBe(false);
+    const plain = wanted(false);
+    expect(crimeOf(plain.w, plain.me, plain.robber, 'attacked')).toBe(true);
+  });
+
+  it('keeps an attack on a truck with no open case a crime', () => {
+    const { w, me } = wanted(true);
+    const clean = trader(w, 'independent', { x: 398, y: 404 });
+    expect(crimeOf(w, me, clean, 'attacked')).toBe(true);
+  });
+
+  it('never makes a raider collectable, since a raid on a raider files no case', () => {
+    const { w, me } = wanted(true);
+    const r = raider(w, { x: 398, y: 398 });
+    rob(w, me, r);
+    expect(openCasesOn(w, r.id)).toEqual([]);
+    const money = w.player.money;
+    r.lastHitBy = me.id;
+    knockOutNpc(w, r);
+    expect(w.player.money).toBe(money);
+  });
+});

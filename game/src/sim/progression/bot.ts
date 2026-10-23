@@ -741,7 +741,6 @@ function findSalvageSite(o: Orders): boolean {
 function hunterGoal(o: Orders, tradeWhenIdle = false): void {
   if (firepower(o.world, o.me) === 0) return scavengerGoal(o);
   if (sellsFirst(o, tradeWhenIdle)) return;
-  takeBounties(o);
   if (stripDowned(o) || engageFoe(o)) return;
   lootHere(o);
   earnAfterHunt(o, tradeWhenIdle);
@@ -759,24 +758,6 @@ function earnAfterHunt(o: Orders, tradeWhenIdle: boolean): void {
 function scavengeOrHunt(o: Orders): void {
   if (huntedSpeed(o.world) === undefined && scavenge(o, true)) return;
   collectOrHunt(o);
-}
-
-function takeBounties(o: Orders): void {
-  const shop = shopAt(o.world);
-  if (!shop) return;
-  claimBounties(o, shop);
-  for (const c of shopState(o.world, shop).contracts) if (wantsBounty(o.world, c)) o.run((w) => acceptContract(w, c.id));
-}
-
-function claimBounties(o: Orders, shop: string): void {
-  for (const c of o.world.player.contracts) if (c.kind === 'bounty' && c.fulfilled && c.shop === shop) o.run((w) => deliverContract(w, c.id), 'contracts');
-}
-
-function wantsBounty(world: World, c: Contract): boolean {
-  const held = world.player.contracts;
-  if (c.kind !== 'bounty' || c.deadline <= world.turn || held.length >= CONTRACTS.maxActive) return false;
-  if (held.some((h) => h.kind === 'bounty' && h.template === c.template)) return false;
-  return world.vehicles.some((v) => v.brain?.templateId === c.template && !isKnockedOut(v) && huntable(world, v));
 }
 
 function engageFoe(o: Orders): boolean {
