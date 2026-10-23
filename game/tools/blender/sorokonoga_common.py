@@ -167,7 +167,7 @@ def grille(kit: Kit, name: str, center: tuple[float, float, float], size: tuple[
 
 
 def round_lamp(kit: Kit, name: str, x: float, y: float, z: float, radius: float) -> None:
-    kit.cylinder(name, radius, SKIN, (x, y, z), "light", rot=(0, math.pi / 2, 0), vertices=6)
+    kit.cylinder(name, radius, SKIN, (x, y, z), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(radius))
 
 
 def cab(kit: Kit) -> None:
@@ -212,7 +212,7 @@ def tractor_frame(kit: Kit) -> int:
     rig_flare(kit, "flare_steer", STEER_X, TRACTOR_REAR, FRONT, CAB_HALF - 0.05, HALF_W, CAB_BOTTOM)
     rig_flare(kit, "flare_drive", DRIVE_X, TRACTOR_REAR, FRONT, DUAL_WELL_Y, HALF_W, FRAME_TOP)
     kit.box("fifth_wheel", (0.6, 1.1, 0.12), (PIVOT_X, 0, up(1.11)), "metal_light")
-    kit.cylinder("coupling_disc", 0.3, 0.14, (PIVOT_X, 0, up(1.24)), "rust", vertices=8)
+    kit.cylinder("coupling_disc", 0.3, 0.14, (PIVOT_X, 0, up(1.24)), "rust", vertices=round_sides(0.3))
     return wheels
 
 
