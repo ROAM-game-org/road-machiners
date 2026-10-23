@@ -89,7 +89,7 @@ describe('claim spots', () => {
   it('rolls a claim that names a present part, and never two claims on one stock', () => {
     const w = cloneWorld(real);
     const shop = { id: 'bowl', pos: siteOf('bowl').pos };
-    const first = rollContract(w, shop, [], [], [], claimTargets(w).slice(0, 1));
+    const first = rollContract(w, shop, { claims: claimTargets(w).slice(0, 1) });
     expect(first).toMatchObject({ kind: 'claim' });
     shopState(w, 'bowl').contracts = [first!];
     expect(claimTargets(w).some((t) => t.stock.id === (first as ClaimContract).stockId)).toBe(false);
@@ -97,7 +97,7 @@ describe('claim spots', () => {
 
   it('refuses a claim roll with no part', () => {
     const shop = { id: 'bowl', pos: siteOf('bowl').pos };
-    expect(rollContract(cloneWorld(real), shop, [], [], [], [], [])).toBeNull();
+    expect(rollContract(cloneWorld(real), shop, {})).toBeNull();
   });
 
   it('pays more than any shop would for the part, at its value plus the travel pay of the trip', () => {
@@ -291,7 +291,7 @@ describe('claim days', () => {
   it('keeps the claimed part in its wreck while the nearest NPCs play and the player waits in town', () => {
     let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
     const { stock, part } = claimTargets(w)[0];
-    const claim = rollContract(w, { id: 'bowl', pos: siteOf('bowl').pos }, [], [], [], [{ stock, part }]) as ClaimContract;
+    const claim = rollContract(w, { id: 'bowl', pos: siteOf('bowl').pos }, { claims: [{ stock, part }] }) as ClaimContract;
     shopState(w, 'bowl').contracts.push(claim);
     holdRivals(w);
     const scavenger = w.vehicles.find((v) => v.brain?.templateId === 'scavenger') ?? w.vehicles.find((v) => v.faction === 'independent')!;
@@ -662,7 +662,7 @@ describe('a rival on the real map', () => {
   it('runs a rival from the shop to the end of its claim with the nearest NPCs alive, and never stalls', () => {
     let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
     const { shop, stock, part } = nearestClaim(w);
-    const claim = rollContract(w, { id: shop, pos: siteOf(shop).pos }, [], [], [], [{ stock, part }]) as ClaimContract;
+    const claim = rollContract(w, { id: shop, pos: siteOf(shop).pos }, { claims: [{ stock, part }] }) as ClaimContract;
     claim.rivalAt = w.turn + 1;
     shopState(w, shop).contracts.push(claim);
     keepNearestDrivers(w, 4, [], shop);

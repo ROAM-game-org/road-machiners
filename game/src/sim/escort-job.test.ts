@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ESCORT_JOB, SHOPS } from '../data/market';
-import { NPC_BEHAVIOR } from '../data/npcs';
+import { NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { playerVehicle } from './damage';
 import { awaitsEscort, escortBlocked, escortFit, escortReward, escortShare, escortStatus, heldEscort, holdEscort, postEscortOffer, routeThreat, traderWaits, type EscortContract } from './escort-job';
@@ -413,6 +413,7 @@ describe('on the turn pipeline', () => {
 
   it('lets a trader that finds no taker leave alone once its wait is over', () => {
     const { w, trader, offer } = setup();
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     let next = w;
     for (let i = 0; i < ESCORT_JOB.postTurns + 3; i++) {
       if (next.player.call) next = hangUp(next);

@@ -274,8 +274,7 @@ function shiftActivity(goal: NpcActivity, ctx: Ctx): NpcActivity {
 
 const CONTRACT_SHIFT: { [K in Contract['kind']]: (c: Extract<Contract, { kind: K }>, ctx: Ctx) => Contract } = {
   haul: (c) => c,
-  fetch: (c) => c,
-  bounty: (c) => c,
+  procure: (c) => c,
   survey: (c) => c,
   claim: (c, ctx) => ({ ...c, at: at(ctx, c.at), leads: c.leads.map((lead) => ({ ...lead, from: at(ctx, lead.from) })) }),
   escort: (c, ctx) => ({ ...c, seen: c.seen && { ...at(ctx, c.seen), turn: c.seen.turn } }),

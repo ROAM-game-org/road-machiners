@@ -30,6 +30,7 @@ import {
   formatNpcLookOver,
   formatNpcMark,
   formatNpcTraits,
+  wantedBounty,
   formatVehicleState,
   type LogLine,
   clock,
@@ -783,7 +784,7 @@ export class Hud {
     this.info.style.display = "";
     this.infoBody.replaceChildren(
       infoHead(w, v, hostile, this.cardButtons(w, v)),
-      el("div", { class: "info-state" }, formatVehicleState(w, v)),
+      el("div", { class: "info-state" }, wantedMark(w, v), formatVehicleState(w, v)),
       ...quietLines(w, v).map((line) => el("div", { class: "info-state info-quiet" }, line)),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
     );
@@ -806,6 +807,11 @@ function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement):
     ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
     buttons,
   );
+}
+
+function wantedMark(w: World, v: Vehicle): HTMLElement | null {
+  const owed = wantedBounty(w, v);
+  return owed === null ? null : el("span", { class: "info-wanted" }, el("span", { class: "tag dim" }, t("hud.wanted")), el("span", { class: "num" }, moneyEl(owed)));
 }
 
 function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {

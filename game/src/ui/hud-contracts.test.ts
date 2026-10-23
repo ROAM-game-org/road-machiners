@@ -28,9 +28,7 @@ const en = (msg: Parameters<typeof resolve>[0]): string => resolve(msg, "en");
 
 const contracts: Contract[] = [
   { ...base, id: "h", kind: "haul", good: "parts", units: 3, to: "nose", rush: false },
-  { ...base, id: "f", kind: "fetch", defId: "mg" },
-  { ...base, id: "b", kind: "bounty", template: "buggy", fulfilled: false },
-  { ...base, id: "bm", kind: "bounty", template: "buggy", fulfilled: true },
+  { ...base, id: "p", kind: "procure", good: "water", units: 4, cratePay: 10 },
   { ...base, id: "e", kind: "escort", client: "gone", to: "nose", threat: "low" as never, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null },
 ];
 

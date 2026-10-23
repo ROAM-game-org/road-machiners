@@ -330,27 +330,6 @@ describe('game save', () => {
     expect(loaded.events.filter((e) => ['money', 'contract', 'escortEnded', 'practice'].includes(e.t))).toEqual([]);
   });
 
-  it('keeps a held bounty across a reload, and a knockout after it fulfils the bounty once', () => {
-    const slots = makeSlots();
-    const world = emptyWorld();
-    const raider = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
-    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-    const bounty: Contract = { id: 'ct-b', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 100, deadline: 900, window: 900, tier: 1, fulfilled: false };
-    world.player.contracts = [bounty];
-    writeSave(slots, 'auto', world, RUN, 1000);
-    const loaded = loadWorld(slots, 'auto', TEST_MAP);
-    if (!loaded) throw new Error('Expected saved bounty');
-    expect(loaded.player.contracts).toEqual([bounty]);
-    const after = update(loaded, (d) => {
-      d.events = [{ t: 'npcKnockout', vehicle: raider.id, by: d.player.vehicleId }];
-      advanceContracts(d);
-    });
-    expect(after.events.filter((e) => e.t === 'contract')).toEqual([{ t: 'contract', contract: { ...bounty, fulfilled: true }, outcome: 'fulfilled' }]);
-    expect(after.player.money).toBe(loaded.player.money);
-    writeSave(slots, 'auto', after, RUN, 1000);
-    expect(loadWorld(slots, 'auto', TEST_MAP)?.player.contracts).toEqual([{ ...bounty, fulfilled: true }]);
-  });
-
   it('keeps the past contracts across a reload, and awards nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld();

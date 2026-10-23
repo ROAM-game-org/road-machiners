@@ -302,6 +302,6 @@ export const NAMES = {
   'perk.rumorMill.rule': 'A driver you call marks a wreck or site it passed.',
   'perk.paidTruce': 'Paid truce',
   'perk.paidTruce.rule': 'You can pay a hostile driver to end its feud with you.',
-  'perk.bountyTalk': 'Bounty talk',
-  'perk.bountyTalk.rule': 'A raider that gives up to you counts for bounty contracts.',
+  'perk.bountyHunter': 'Bounty hunter',
+  'perk.bountyHunter.rule': 'You see the bounty on a wanted truck and collect it when you knock the truck out. Fighting it is no crime for you.',
 };

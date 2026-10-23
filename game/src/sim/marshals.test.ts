@@ -247,15 +247,17 @@ describe('a hunt in the turn pipeline', () => {
   it('rides out after its target through the turns, parks beside it and raises no stall', () => {
     let w = emptyWorld({ x: 100, y: 100 });
     const target = traderAt(w, 'independent', { x: 420, y: 420 });
-    target.brain = null;
+    target.brain!.goals = [{ kind: 'wait', targetId: null, destination: null, phase: 'act', reason: 'idle', until: 10_000 }];
     fileAgainst(w, target, { x: 420, y: 420 });
     const marshal = marshalAt(w, { x: 400, y: 400 });
     const stalls: unknown[] = [];
+    let demanded = false;
     for (let i = 0; i < 40; i++) {
       w = endTurn(w, testDrive);
       stalls.push(...w.events.filter((e) => e.t === 'stall' && e.vehicle === marshal.id));
+      demanded ||= w.events.some((e) => e.t === 'stateEnded' && e.state.kind === 'bountyStop' && e.state.holder === marshal.id && e.state.other === target.id);
     }
     expect(stalls).toEqual([]);
-    expect(w.states.some((s) => s.kind === 'bountyStop' && s.holder === marshal.id) || w.crimes[0].status !== 'open' || w.states.some((s) => s.kind === 'feud' && s.holder === marshal.id)).toBe(true);
+    expect(demanded).toBe(true);
   });
 });
