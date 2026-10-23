@@ -21,7 +21,6 @@ from kit import Kit, parse_args  # noqa: E402
 from parts_common_core import COLORS, TIRE_SHARE, drawn_wheel  # noqa: E402
 
 SEED = 102
-AXLE = (math.radians(90), 0, 0)
 LUGS = 12
 TIRE_R = TIRE_SHARE  # tire body radius. Lug tips reach 1 m.
 LUG_H = 0.065
