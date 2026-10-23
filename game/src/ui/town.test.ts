@@ -1,15 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { GARAGE_ONLY, goodRoutesTitle, marketHint, pressureHint, showsRelief, tradeEstimate } from "./town";
+import { GARAGE_ONLY, goodRoutesTitle, marketHint, pressureHint, showsRelief, townPageOnOpen, tradeEstimate } from "./town";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
-import { RELIEF } from "../data/market";
-import { shortHere } from "../sim/market";
+import { RELIEF, SHOPS } from "../data/market";
+import { shortHere, stockTarget, type ShopState } from "../sim/market";
 import { livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
 import { PAINT, PAINT_SCHEMES } from "../data/chassis";
-import { SHOPS } from "../data/market";
-import { stockTarget, type ShopState } from "../sim/market";
+import { placeProse } from "../text/names";
 
 const en = (msg: Msg | null): string | null => (msg === null ? null : resolve(msg, "en"));
 const hint = (...args: Parameters<typeof pressureHint>) => {
@@ -133,5 +132,35 @@ describe("the paint tab", () => {
 
   it("shows only at a garage, right after the trucks", () => {
     expect(GARAGE_ONLY).toEqual(["trucks", "paint"]);
+  });
+});
+
+describe("the town page on open", () => {
+  const open = { open: true } as const;
+  const access = { garage: open, market: open, board: open, people: open, bar: { open: false, reason: "noDrivers" } } as const;
+  const closedAt = { shopId: "nose", turn: 40 };
+
+  it("keeps the page the player left when the place and the turn are the same", () => {
+    expect(townPageOnOpen("garage", closedAt, "nose", 40, access)).toBe("garage");
+  });
+
+  it("opens on the front page after a turn, at another place or into a section now off", () => {
+    expect(townPageOnOpen("garage", closedAt, "nose", 41, access)).toBeNull();
+    expect(townPageOnOpen("garage", closedAt, "bowl", 40, access)).toBeNull();
+    expect(townPageOnOpen("bar", closedAt, "nose", 40, access)).toBeNull();
+  });
+
+  it("opens on the front page on a first visit", () => {
+    expect(townPageOnOpen("garage", null, "nose", 40, access)).toBeNull();
+    expect(townPageOnOpen(null, closedAt, "nose", 40, access)).toBeNull();
+  });
+});
+
+describe("the front page prose", () => {
+  it("has a paragraph for every place with a shop, in English and Russian", () => {
+    for (const id of Object.keys(SHOPS)) {
+      expect(resolve(placeProse(id), "en").length, id).toBeGreaterThan(40);
+      expect(resolve(placeProse(id), "ru").length, id).toBeGreaterThan(40);
+    }
   });
 });

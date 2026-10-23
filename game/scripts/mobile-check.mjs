@@ -437,13 +437,13 @@ async function townAndShop(session, step) {
   }, () => game(page, () => window.__ROAM__.screens.town.isOpen() || 'the town did not open'));
   const money = await game(page, () => window.__ROAM__.state.player.money);
   await step('buy-one', async () => {
-    await touch.tapOn('.town-screen [data-tab=market]');
+    await touch.tapOn('.town-page [data-town-go=market]');
     await touch.tapOn('.town-screen .trade.buy button:not([aria-disabled=true]):not([disabled])');
   }, async () => {
     const now = await game(page, () => window.__ROAM__.state.player.money);
     return now < money ? true : `money ${money} -> ${now}`;
   });
-  await step('leave-town', () => touch.tapOn('.town-screen .close'), () => game(page, () => !window.__ROAM__.screens.town.isOpen() || 'the town is still open'));
+  await step('leave-town', async () => { await touch.tapOn('.town-page [data-town-go=back]'); await touch.tapOn('.town-page [data-town-go=leave]'); }, () => game(page, () => !window.__ROAM__.screens.town.isOpen() || 'the town is still open'));
 }
 
 async function inventoryByTouch(session, step) {
