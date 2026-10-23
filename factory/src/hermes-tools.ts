@@ -3,7 +3,7 @@ import { constants } from 'node:os';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { codexMount, ensureProxy, FACTORY_LABEL, networkArgs } from './container';
+import { agyMount, codexMount, ensureProxy, FACTORY_LABEL, networkArgs } from './container';
 import { must } from './exec';
 import { withLockSync } from './lock';
 import type { FactoryConfig, Run } from './types';
@@ -64,12 +64,12 @@ export function countAgyRun(home: string, maxRuns: number, now: Date): number {
 }
 
 function toolEnv(cfg: FactoryConfig, tool: HermesTool): Record<string, string> {
-  if (tool === 'agy') return { GEMINI_API_KEY: cfg.geminiKey, AGY_MODEL: cfg.agyModel, AGY_MAX_RUNS: String(cfg.agyMaxRuns) };
+  if (tool === 'agy') return { AGY_MODEL: cfg.agyModel, AGY_MAX_RUNS: String(cfg.agyMaxRuns) };
   return { CODEX_MODEL: cfg.codexModel, CODEX_EFFORT: cfg.codexEffort };
 }
 
 function toolMounts(cfg: FactoryConfig, tool: HermesTool): string[] {
-  return tool === 'codex' ? codexMount(cfg.home) : [];
+  return tool === 'codex' ? codexMount(cfg.home) : agyMount(cfg.home);
 }
 
 export function toolDockerArgs(cfg: FactoryConfig, call: ToolCall, name: string): { args: string[]; env: Record<string, string> } {
