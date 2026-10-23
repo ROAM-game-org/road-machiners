@@ -16,7 +16,7 @@ from pathlib import Path
 from mathutils import Euler, Matrix
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit, parse_args  # noqa: E402
+from kit import ROUND, ROUND_SMALL, Kit, parse_args  # noqa: E402
 from parts_common_core import COLORS  # noqa: E402
 
 SEED = 102
@@ -58,9 +58,9 @@ def check_mirrored(layout: list[Lug]) -> None:
 
 
 def build(kit: Kit) -> None:
-    kit.cylinder("tire", TIRE_R, 0.94, (0, 0, 0), "wheel", rot=AXLE, vertices=LUGS * 2)
-    kit.cylinder("rim", 0.55, 0.98, (0, 0, 0), "metal_light", rot=AXLE, vertices=8)
-    kit.cylinder("hub", 0.22, 1.0, (0, 0, 0), "rust", rot=AXLE, vertices=6)
+    kit.cylinder("tire", TIRE_R, 0.94, (0, 0, 0), "wheel", rot=AXLE, vertices=LUGS * 3)
+    kit.cylinder("rim", 0.55, 0.98, (0, 0, 0), "metal_light", rot=AXLE, vertices=ROUND)
+    kit.cylinder("hub", 0.22, 1.0, (0, 0, 0), "rust", rot=AXLE, vertices=ROUND_SMALL)
     layout = lug_layout()
     check_mirrored(layout)
     for name, loc, rot in layout:

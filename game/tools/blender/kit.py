@@ -24,6 +24,11 @@ Vec3 = tuple[float, float, float]
 GAME_VIEW = Vector((1.0, -1.0, 0.816)).normalized()
 PREVIEW_PX = (900, 700)
 
+# Sides of a piece meant to be round: ROUND when it is 0.2 m or more across in the game, ROUND_SMALL below.
+# An arch cut uses ROUND // 2 segments over its half circle.
+ROUND = 36
+ROUND_SMALL = 18
+
 # One truck deck cell in meters, matching PHYSICS.cell in src/data/physics.ts.
 CELL_ACROSS = 0.484  # Blender Y
 CELL_ALONG = 0.65  # Blender X
