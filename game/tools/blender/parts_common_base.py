@@ -97,6 +97,7 @@ def arch_profile(
 
     nose_top and cowl_x make the top fall from top at cowl_x to nose_top at the nose, like a sloped hood.
     crown squares the arches: straight sides up to a flat top crown above the hub, with chamfered corners.
+    segments is the edge count of a round arch.
     """
     low = g.bottom if bottom is None else bottom
     r = radius + ARCH_CLEARANCE
@@ -137,7 +138,7 @@ def flare(
     """A dark low-poly band over the top of one arch, from the body bottom (or bottom) on both sides, cut off at the footprint ends.
 
     crown squares it to match a squared arch_profile: the band keeps FLARE across its sides, top and chamfers.
-    segments sets the edges of a round band; ROUND_ARCH_SEGMENTS makes it read round.
+    segments sets the edges of a round band; ROUND_ARCH_SEGMENTS makes it read round, and a remade base may pass half of round_sides() of its arch.
     """
     low = g.bottom if bottom is None else bottom
     r0 = radius + ARCH_CLEARANCE
