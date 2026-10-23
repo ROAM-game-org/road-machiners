@@ -110,7 +110,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'co
   carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.65, 0.85], tailDrop: [0.35, 0.6] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
   bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1] },
-  buggy: { height: [1.67, 1.85], roof: [0.4, 0.44], noseDrop: [0.85, 0.95], tailDrop: [0.8, 0.9] },
+  buggy: { height: [1.67, 1.85], roof: [0.4, 0.44], noseDrop: [0.76, 0.84], tailDrop: [0.8, 0.9] },
 };
 
 type ShapeName = keyof typeof SHAPES;
