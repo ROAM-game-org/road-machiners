@@ -49,8 +49,6 @@ export const LOG: Translation<typeof EN> = {
   'npc.spares': 'Запчасти: {spares, case, nom}',
   'npc.cargoAndSpares': 'Груз: {goods, case, nom}. Запчасти: {spares, case, nom}',
   'npc.marked': 'Помечен: {n, plural, one {остался # ход} few {осталось # хода} many {осталось # ходов} other {осталось # хода}}',
-  'npc.markKey': 'Пометить',
-  'npc.lookOverKey': 'Осмотреть',
   'state.feud': 'Враждует с вами',
   'state.backedOff': 'Отступает от вас',
   'state.towing': 'Тащит вас',
