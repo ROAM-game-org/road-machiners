@@ -108,7 +108,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.21, 0.27], deck: [0.58, 0.66] },
   tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.161, 0.179], deck: [0.443, 0.489] },
   jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
-  buggy: { height: [1.92, 2.04], roof: [0.29, 0.34], noseDrop: [0.75, 0.9], tailDrop: [0.12, 0.35] },
+  buggy: { height: [1.7, 1.82], roof: [0.27, 0.33], noseDrop: [0.65, 0.8], tailDrop: [0.08, 0.2] },
   carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.65, 0.85], tailDrop: [0.35, 0.6] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
   bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1] },
