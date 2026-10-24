@@ -21,7 +21,7 @@ import type { DirectionStep, Job, Vehicle, World } from './types';
 import { gridSquareOf, type GridSquare } from './map-grid';
 import { bearing, dist, type Vec } from './vec';
 
-export type SurveyProp = { pos: Vec; reach: number };
+export type SurveyProp = { id: string; pos: Vec; reach: number };
 export type SurveyLay = 'rise' | 'hollow' | 'flat';
 export type SurveyClueSource = { landmark: string; tiles: number };
 export type SurveySite = { id: string; type: OldPlaceType; pos: Vec; props: SurveyProp[]; lay: SurveyLay; clues: SurveyClueSource[] };
@@ -103,7 +103,7 @@ export function makeSurveySites(map: BakedMap): SurveySite[] {
     const clues = fairClues({ type: place.type, pos: spot.pos }, places);
     if (clues.length === 0) return [];
     const others = order.filter((o) => o !== spot && remote(o.pos) && offRoad(o));
-    const props = [spot, ...others].map((o) => ({ pos: { ...o.pos }, reach: propReach(o) }));
+    const props = [spot, ...others].map((o) => ({ id: o.id, pos: { ...o.pos }, reach: propReach(o) }));
     return [{ id: `survey-${spot.id}`, type: place.type, pos: { ...spot.pos }, props, lay: layOf(map.terrain, spot.pos), clues }];
   });
 }

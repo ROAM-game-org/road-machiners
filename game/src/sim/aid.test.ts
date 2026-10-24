@@ -12,7 +12,8 @@ import { stowPart } from './inventory';
 import { vehicleValue } from './market';
 import { thinkNpc, topGoal } from './npc-activities';
 import { fuelReserveFor } from './npc-service';
-import { bodyCondition, optionWeights } from './npc-decisions';
+import { bodyCondition, optionWeights, usefulContacts } from './npc-decisions';
+import { canVehicleSee, refreshVision } from './vision';
 import { addState, aidData, stateOf, workOf } from './states';
 import { fuelCap, suppliesCap } from './stats';
 import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, testDrive , startCombat } from './testkit';
@@ -23,6 +24,7 @@ import { autoRuns, endTurn, update } from './world';
 
 type Terms = Parameters<typeof agreeAid>[2];
 
+const SEED = 1;
 const HANDOVER = { started: false, work: 1, workLeft: 1 };
 
 function withDriver(x: number, traits: TraitId[] = ['trader']): { w: World; npc: Vehicle } {
@@ -236,6 +238,27 @@ describe('meeting for aid', () => {
     const run = runUntil(w, 40, (x) => !aidOpen(x, npc.id));
     expect(find(run.w, npc.id).pos.x).toBeLessThan(45);
     expect(run.w.player.fuel).toBe(4);
+  });
+
+  it('a driver on its way to an aid deal keeps on when it hears a raider beyond sight', () => {
+    const { w: start, npc } = withDriver(60);
+    find(start, npc.id).resources!.fuel = 2;
+    const w = agreed(start, npc.id, playerGift(5));
+    const courier = find(w, npc.id);
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: courier.pos.x, y: courier.pos.y });
+    raider.brain = npcBrain('raider', raider.pos, ['raider']);
+    raider.speed = 8;
+    for (let d = 20; d <= 120; d += 2) {
+      raider.pos = { x: courier.pos.x + d, y: courier.pos.y };
+      refreshVision(w);
+      if (usefulContacts(w, courier).length > 0 && !canVehicleSee(w, courier, raider.pos)) break;
+    }
+    expect(usefulContacts(w, courier).map((c) => c.vehicleId)).toEqual([raider.id]);
+    expect(canVehicleSee(w, courier, raider.pos)).toBe(false);
+    w.rngState = SEED;
+    thinkNpc(w, courier);
+    expect(topGoal(courier)?.kind).toBe('meet');
+    expect(courier.brain!.goals.some((g) => g.kind === 'flee')).toBe(false);
   });
 
   it('the meet goal ends with the deal', () => {
