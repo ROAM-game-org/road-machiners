@@ -386,6 +386,13 @@ export function onOrder(world: World, shopId: string, good: string): boolean {
   return shopState(world, shopId).contracts.some(ordered) || world.player.contracts.some(ordered) || justFilled;
 }
 
+export function boardClosedUntil(world: World, shopId: string): number | null {
+  const failures = world.player.pastContracts.filter((p) => p.outcome === 'failed' && p.contract.shop === shopId);
+  if (failures.length === 0) return null;
+  const opens = Math.max(...failures.map((p) => p.turn)) + CONTRACTS.failedRestTurns;
+  return world.turn < opens ? opens : null;
+}
+
 export function stockForSale(world: World, shopId: string, good: string): number {
   const stock = goodStock(shopState(world, shopId), good);
   return onOrder(world, shopId, good) ? 0 : stock;
@@ -652,6 +659,7 @@ export function takeContract(w: World, contractId: string): void {
   const board = shopState(w, shopId).contracts;
   const contract = board.find((c) => c.id === contractId);
   if (!contract) throw new Error(`No contract ${contractId} at ${shopId}`);
+  if (boardClosedUntil(w, shopId) !== null) throw new Refused({ id: 'boardClosed' });
   if (isExpired(w, contract)) throw new Error(`Offer ${contractId} has expired`);
   if (w.player.contracts.length >= CONTRACTS.maxActive) throw new Error(`You already hold ${CONTRACTS.maxActive} contracts`);
   requireSearchTakeable(w, contract);
@@ -750,6 +758,12 @@ export function finishContract(world: World, c: Contract, outcome: ContractEnd, 
   if (outcome !== 'done') voidParcel(world, c);
   if (amount < 0) chargeHaulPenalty(world, -amount);
   recordPast(world, c, outcome, amount);
+  if (outcome === 'failed') noteBrokenWord(world, c);
+}
+
+function noteBrokenWord(world: World, c: Contract): void {
+  const faction = SITE_FACTIONS[c.shop];
+  if (faction) noteContractDeed(world, c.id, faction, 'failedContract');
 }
 
 function endingAmount(c: Contract, outcome: ContractEnd): number {
@@ -778,7 +792,7 @@ function payContract(world: World, c: Contract, amount: number): void {
   world.events.push({ t: 'money', amount, reason: { kind: 'contract' } });
   practice(world, 'contract', contractXp({ ...c, reward: amount }), null, c.shop);
   const faction = SITE_FACTIONS[c.shop];
-  if (faction) noteContractDeed(world, c.id, faction);
+  if (faction) noteContractDeed(world, c.id, faction, 'contract');
 }
 
 function chargeHaulPenalty(world: World, penalty: number): void {

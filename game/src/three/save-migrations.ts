@@ -801,6 +801,7 @@ export const TINY_STEPS: readonly Step[] = [
   withCrimes_101_102,
   withOddFronts_102_103,
   withoutFetchAndBounty_103_104,
+  (world) => world,
 ];
 
 const MARSHALS_STANDING_101_102 = 0;

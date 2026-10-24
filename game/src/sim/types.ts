@@ -23,7 +23,7 @@ export type StandingFactionId = Exclude<NpcFactionId, "independent">;
 export type Faction = "player" | NpcFactionId;
 export type WrongDeed = "attacked" | "robbed" | "stole";
 export type HelpDeed = "aided" | "towed" | "patched" | "defended";
-export type DeedId = WrongDeed | HelpDeed | "killed" | "contract";
+export type DeedId = WrongDeed | HelpDeed | "killed" | "contract" | "failedContract";
 export type Deed = { subject: string; faction: StandingFactionId; deed: DeedId; delta: number; turn: number };
 export type SkillId = "driving" | "perception" | "machining" | "toughness" | "social";
 export type XpSource =
@@ -228,6 +228,7 @@ export type Refusal =
   | { id: 'itemGone' }
   | { id: 'refitRunning' }
   | { id: 'gatesShut' }
+  | { id: 'boardClosed' }
   | { id: 'twoInTheWay' }
   | { id: 'refitItemMoved' }
   | { id: 'builtInFixed' }
