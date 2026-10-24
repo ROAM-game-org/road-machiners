@@ -94,6 +94,7 @@ FENDER_CROWN = up(1.70)  # photo 1 and 2: the hood stands over the fenders; the 
 SILL = up(1.15)
 BELT = up(2.04)  # photo 1 and 2: the windshield starts just over the hood
 UNDER_ROOF = up(2.95)
+SINK = 0.03  # how far the glass runs into the belt and the roof, so no glass face shares a plane with a pillar
 ROOF = up(3.05)
 RAKE = 0.14
 ROOF_FRONT = COWL_X - RAKE - 0.04
@@ -289,7 +290,7 @@ def cab(kit: Kit) -> None:
     kit.box("doors", (COWL_X - CAB_BACK, 2 * CAB_HALF, BELT - SILL), ((COWL_X + CAB_BACK) / 2, 0, (BELT + SILL) / 2), "paint")
     rake_top = COWL_X - RAKE
     inner = CAB_HALF - 0.04
-    prism(kit, "glass", [(CAB_BACK + 0.04, BELT), (COWL_X - 0.02, BELT), (rake_top, UNDER_ROOF), (CAB_BACK + 0.04, UNDER_ROOF)], -inner, inner, "glass")
+    prism(kit, "glass", [(CAB_BACK + 0.04, BELT - SINK), (COWL_X - 0.02, BELT - SINK), (rake_top, UNDER_ROOF + SINK), (CAB_BACK + 0.04, UNDER_ROOF + SINK)], -inner, inner, "glass")
     for s, (y0, y1) in (("l", (CAB_HALF - 0.06, CAB_HALF)), ("r", (-CAB_HALF, -CAB_HALF + 0.06))):
         prism(kit, f"a_pillar_{s}", [(COWL_X - 0.12, BELT), (COWL_X, BELT), (rake_top, UNDER_ROOF), (rake_top - 0.12, UNDER_ROOF)], y0, y1, "paint")
         kit.box(f"door_post_{s}", (0.14, y1 - y0, UNDER_ROOF - BELT), (CAB_BACK + 0.62, (y0 + y1) / 2, (BELT + UNDER_ROOF) / 2), "paint")
@@ -324,7 +325,7 @@ def sleeper(kit: Kit) -> None:
     door_lo, door_hi = SILL + 0.12, UNDER_ROOF - 0.36
     mirrored(kit, "sleeper_door_seam", (0.5, 0.01, door_hi - door_lo), door_x, CAB_HALF + 0.004, (door_lo + door_hi) / 2, "under")
     mirrored(kit, "sleeper_door", (0.44, 0.014, door_hi - door_lo - 0.06), door_x, CAB_HALF + 0.006, (door_lo + door_hi) / 2, "paint")
-    mirrored(kit, "sleeper_window", (0.28, 0.018, 0.42), door_x, CAB_HALF + 0.007, door_hi - 0.32, "glass")
+    mirrored(kit, "sleeper_window", (0.28, 0.028, 0.42), door_x, CAB_HALF + 0.002, door_hi - 0.32, "glass")
     mirrored(kit, "sleeper_top_window", (0.7, 0.012, 0.18), mid, CAB_HALF + 0.004, UNDER_ROOF - 0.19, "glass")
 
 
