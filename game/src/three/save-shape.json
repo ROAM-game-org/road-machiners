@@ -2570,6 +2570,7 @@
     "petra_book": "boolean",
     "petra_buyoff": "boolean",
     "petra_cost": "boolean",
+    "petra_how": "boolean",
     "petra_raiders": "boolean",
     "petra_riders": "boolean"
    },

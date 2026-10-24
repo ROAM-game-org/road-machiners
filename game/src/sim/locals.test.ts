@@ -740,8 +740,8 @@ describe('Petra Quell at the Roadhouse', () => {
 
   it('gives the three notes as the player asks on', () => {
     const next = talk(parkedAt(CRIME.post), 'roadhouse_petra', [
-      'How does a wrong get into the book?', 'What does a case cost?', "Can I get back into a town's good graces?",
-      'Who rides for the book?', 'Why take nothing against a raider?',
+      'What is the road book?', 'How do I put a wrong in the book?', 'Who pays the price?', 'What if a town is after me?',
+      'Who goes after the wrongdoers?', 'Why no claims against raiders?',
     ]);
     expect(next.player.notes.map((n) => n.id).sort()).toEqual(['roadhouseBook', 'roadhouseBuyOff', 'roadhouseRaiders']);
   });
@@ -775,7 +775,7 @@ describe('Petra Quell at the Roadhouse', () => {
   });
 
   it('keeps the world through a save and load in the middle of the talk, awarding nothing', () => {
-    const open = talk(searching(true), 'roadhouse_petra', ['How does a wrong get into the book?', SEARCH]);
+    const open = talk(searching(true), 'roadhouse_petra', ['What is the road book?', SEARCH]);
     const before = { money: open.player.money, events: open.events.length, xp: open.player.xp };
     const loaded = structuredClone(open);
     loaded.player.quests.live = null;

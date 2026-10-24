@@ -1,6 +1,7 @@
 INCLUDE world.ink
 
 VAR petra_book = false
+VAR petra_how = false
 VAR petra_cost = false
 VAR petra_buyoff = false
 VAR petra_riders = false
@@ -8,47 +9,53 @@ VAR petra_raiders = false
 
 === start ===
 # checkpoint: start
-Welcome inside the fence, driver. I'm Petra Quell, keeper of the mast.
-The hour your truck came over the rise is in my log. What the mast hears is for sale.
+Welcome to the Roadhouse, driver. I'm Petra Quell, keeper of the mast.
+I wrote your truck down, with the hour, when it came over the rise. What the mast hears is for sale.
+Wim Satterly keeps the <term=road_book>road book</term> in the other hut.
 -> hub
 
 = hub
 # checkpoint: start.hub
-+ {not petra_book} [How does a wrong get into the book?]
-  The day you see a wrong, park here or at a town pad and say what you saw while it's fresh.
-  Wim Satterly writes down the claim, the witnesses and the price.
++ {not petra_book} [What is the road book?]
+  Every wrong done on the road goes in Wim's book.
+  Each page has the claim, the witnesses and the price, all in Wim's hand.
   ~ petra_book = true
+  -> hub
++ {petra_book and not petra_how} [How do I put a wrong in the book?]
+  Park here or at a town pad and tell what you saw while it's fresh.
+  ~ petra_how = true
   ~ note("roadhouseBook")
   -> hub
-+ {petra_book and not petra_cost} [What does a case cost?]
-  Wim sets the price by the wrong, and the man who did it pays.
++ {petra_how and not petra_cost} [Who pays the price?]
+  Whoever did the wrong pays what Wim sets.
   The Roadhouse takes a cut of every case that closes.
   ~ petra_cost = true
   -> hub
-+ {petra_cost and not petra_buyoff} [Can I get back into a town's good graces?]
-  Yes, the Roadhouse can pay a town's price to take your name off its post.
-  You pay it at Wim's counter, and he handles the rest.
++ {petra_cost and not petra_buyoff} [What if a town is after me?]
+  A town's grudge has a price, and the Roadhouse can pay the town to settle it.
+  You pay the Roadhouse at Wim's counter.
   ~ petra_buyoff = true
   ~ note("roadhouseBuyOff")
   -> hub
-+ {not petra_riders} [Who rides for the book?]
-  Rook Halloran and the Lincolns ride for the <term=road_book>book</term>, two cars at a time.
-  Sabra Kell rides the Kiln claims on her own fee, since no Roadhouse car does.
++ {not petra_riders} [Who goes after the wrongdoers?]
+  Rook Halloran's <term=marshals>Marshalls</term> ride after them, two Lincolns at a time.
+  Out on the road, they ask drivers where they last saw the one named in the book.
+  Sabra Kell rides out after Kiln claims on her own fee, since no Roadhouse car will.
   ~ petra_riders = true
   -> hub
-+ {petra_riders and not petra_raiders} [Why take nothing against a raider?]
-  A raider has no town to buy him off and nothing a hearing can hold him to.
-  I write that wrong down as unanswered. I never close it.
++ {petra_riders and not petra_raiders} [Why no claims against raiders?]
+  A raider has no town behind them, so there's nothing a claim can make them pay.
+  The book marks a raider's wrong unanswered and leaves it open.
   ~ petra_raiders = true
   ~ note("roadhouseRaiders")
   -> hub
 + [What does the plain say?]
-  Bowl and Nose keep their patrols by their own gates. Nobody watches the stretch between, so the Roadhouse posts two daylight crossings.
-  Kiln riders work the south road and take a fee from haulers who pay. Scrapjaw riders work the north.
+  <term=bowl>Bowl</term> and <term=nose>Nose</term> keep their patrols by their own gates, so Roadhouse cars cross the unwatched plain between them twice a day while it's light.
+  <term=kiln>Kiln</term> riders work the south road and take a fee from haulers who pay. <term=scrapjaw>Scrapjaw</term> riders work the north.
   { cult_broken():
-    At dusk the Sunward lamps stopped crossing. I haven't written one down since.
+    At dusk the <term=sunward>Sunward</term> lamps stopped crossing. I haven't written one down since.
   - else:
-    At dusk the Sunward lamps still cross the open ground, and I write each one down.
+    At dusk the <term=sunward>Sunward</term> lamps still cross the open ground, and I write each one down.
   }
   -> hub
 + {holds_search()} [I'm looking for a driver.]
