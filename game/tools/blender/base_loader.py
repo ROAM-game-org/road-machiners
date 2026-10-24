@@ -85,7 +85,7 @@ BAY_FLOOR = 0.5
 BAY_T = 0.05
 HOOD_BACK = BAY_BACK - 0.02
 HOUSING_FRONT = HOOD_BACK + 0.24
-LOUVERS = 7
+LOUVERS = 6
 LOUVER_HALF = HOOD_Y - 0.12
 VENT_FRONT = HOUSING_FRONT + 0.8
 VENT_BACK = HOUSING_FRONT + 0.25
@@ -97,16 +97,17 @@ STACK_R = 0.12
 EXHAUST_TOP = ROOF - 0.06
 ELBOW_LEN = 0.26
 ELBOW_TILT = math.radians(50)
-DOME_R = 0.21
+DOME_R = 0.23
 BEACON_X = CAB_BACK + 0.3
-BEACON_Y = 0.68
-BEACON_R = 0.06
+BEACON_Y = 0.7
+BEACON_R = 0.08
 
 COUNTER_FRONT = -2.55
 COUNTER_TOP = FRAME_TOP
 COUNTER_BOTTOM = GROUND + 0.55
 COUNTER_HALF = 1.1
 COUNTER_CORNER = 0.25
+COUNTER_CHAMFER = 0.18
 LAMP_Y = 0.9
 
 
@@ -285,7 +286,7 @@ def cab(kit: Kit) -> None:
         for s, y in (("l", CAB_HALF - 0.05), ("r", -CAB_HALF + 0.05)):
             kit.cylinder(f"work_lamp_{s}{face}", 0.05, 0.05, (x, y, UNDER_ROOF - 0.03), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(0.05))
     kit.cylinder("beacon_base", BEACON_R + 0.02, 0.04, (BEACON_X, BEACON_Y, ROOF + 0.02), "under", vertices=round_sides(BEACON_R + 0.02))
-    kit.cylinder("beacon", BEACON_R, 0.12, (BEACON_X, BEACON_Y, ROOF + 0.1), "light", vertices=round_sides(BEACON_R))
+    kit.cylinder("beacon", BEACON_R, 0.16, (BEACON_X, BEACON_Y, ROOF + 0.12), "red", vertices=round_sides(BEACON_R))
 
 
 def hood_top(x: float) -> float:
@@ -320,7 +321,7 @@ def grille(kit: Kit) -> None:
     low, high = FRAME_TOP + 0.12, HOOD_TAIL - SHOULDER_R - 0.08
     for i in range(LOUVERS):
         z = low + (high - low) * i / (LOUVERS - 1)
-        kit.box(f"louver{i}", (0.04, 2 * LOUVER_HALF, 0.06), (HOOD_BACK - 0.02, 0, z), "metal_dark")
+        kit.box(f"louver{i}", (0.04, 2 * LOUVER_HALF, 0.08), (HOOD_BACK - 0.02, 0, z), "metal")
     for s, y in (("l", LOUVER_HALF + 0.03), ("r", -LOUVER_HALF - 0.03)):
         kit.box(f"louver_post_{s}", (0.05, 0.04, high - low + 0.12), (HOOD_BACK - 0.02, y, (low + high) / 2), "metal_dark")
 
@@ -349,9 +350,9 @@ def exhaust(kit: Kit) -> None:
 
 def precleaner(kit: Kit) -> None:
     low = hood_top(STACK_X) - 0.02
-    kit.cylinder("precleaner_neck", 0.07, 0.1, (STACK_X, STACK_Y, low + 0.05), "soot", vertices=round_sides(0.07))
-    kit.cylinder("precleaner", DOME_R, 0.07, (STACK_X, STACK_Y, low + 0.135), "soot", vertices=round_sides(DOME_R))
-    kit.cylinder("precleaner_top", DOME_R * 0.7, 0.05, (STACK_X, STACK_Y, low + 0.195), "soot", vertices=round_sides(DOME_R * 0.7))
+    kit.cylinder("precleaner_neck", 0.07, 0.12, (STACK_X, STACK_Y, low + 0.06), "soot", vertices=round_sides(0.07))
+    kit.cylinder("precleaner", DOME_R, 0.07, (STACK_X, STACK_Y, low + 0.155), "soot", vertices=round_sides(DOME_R))
+    kit.cylinder("precleaner_top", DOME_R * 0.7, 0.05, (STACK_X, STACK_Y, low + 0.215), "soot", vertices=round_sides(DOME_R * 0.7))
 
 
 def hood(kit: Kit) -> None:
@@ -368,15 +369,15 @@ def hood(kit: Kit) -> None:
 def counterweight(kit: Kit) -> None:
     pts: list[Vec3] = []
     for s in (1, -1):
-        pts += [(COUNTER_FRONT, s * COUNTER_HALF, COUNTER_BOTTOM), (COUNTER_FRONT, s * COUNTER_HALF, COUNTER_TOP)]
-        pts += [(BACK + COUNTER_CORNER, s * COUNTER_HALF, COUNTER_BOTTOM), (BACK + COUNTER_CORNER, s * COUNTER_HALF, COUNTER_TOP)]
+        pts += [(COUNTER_FRONT, s * (COUNTER_HALF - COUNTER_CHAMFER), COUNTER_BOTTOM), (COUNTER_FRONT, s * COUNTER_HALF, COUNTER_BOTTOM + COUNTER_CHAMFER), (COUNTER_FRONT, s * COUNTER_HALF, COUNTER_TOP)]
+        pts += [(BACK + COUNTER_CORNER, s * (COUNTER_HALF - COUNTER_CHAMFER), COUNTER_BOTTOM), (BACK + COUNTER_CORNER, s * COUNTER_HALF, COUNTER_BOTTOM + COUNTER_CHAMFER), (BACK + COUNTER_CORNER, s * COUNTER_HALF, COUNTER_TOP)]
         pts += [(BACK + 0.03, s * (COUNTER_HALF - COUNTER_CORNER), COUNTER_BOTTOM + 0.1), (BACK + 0.03, s * (COUNTER_HALF - COUNTER_CORNER), COUNTER_TOP)]
     obj = hull_mesh("counterweight", pts)
     obj.data.materials.clear()
     kit._add(obj, "counterweight", "paint", 0.0)
     for s, y in (("l", LAMP_Y), ("r", -LAMP_Y)):
-        kit.box(f"lamp_box_{s}", (0.14, 0.2, 0.16), (BACK + 0.12, y, COUNTER_TOP + 0.08), "paint")
-        kit.cylinder(f"taillight_{s}", 0.055, 0.03, (BACK + 0.04, y, COUNTER_TOP + 0.08), "red", rot=(0, math.pi / 2, 0), vertices=round_sides(0.055))
+        kit.box(f"lamp_box_{s}", (0.14, 0.22, 0.2), (BACK + 0.12, y, COUNTER_TOP + 0.1), "paint")
+        kit.box(f"taillight_{s}", (0.03, 0.16, 0.14), (BACK + 0.045, y, COUNTER_TOP + 0.1), "red")
     kit.box("hitch", (0.1, 0.36, 0.22), (BACK + 0.05, 0, (COUNTER_BOTTOM + COUNTER_TOP) / 2), "under")
 
 
