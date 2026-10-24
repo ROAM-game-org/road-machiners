@@ -389,7 +389,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   aidRefused: (_world, _npc, vars) => answerOf(vars) === 'refuse',
   offersAid: (world, npc) => pendingAid(world, npc) !== null,
   offersTale: (world, npc) => pendingFor(world, npc, 'tale'),
-  offersTip: (world, npc) => pendingFor(world, npc, 'tip'),
+  offersTip: (world, npc) => pendingFor(world, npc, 'tip') && tipTarget(world, npc) !== null,
   callsOut: (world, npc) => pendingFor(world, npc, 'challenge'),
   asksCourierAid: (world, npc) => pendingFor(world, npc, 'courier'),
   newsOfSite: (_world, _npc, vars) => vars.site !== undefined,
