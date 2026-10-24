@@ -168,6 +168,22 @@ describe('journal screen', () => {
     expect(rows[0].all((n) => n.className.startsWith('amount'))).toHaveLength(0);
   });
 
+  it('explains the negative amount of a failed haul as the price of the kept cargo, and nothing else', () => {
+    const w = emptyWorld();
+    w.player.pastContracts = [
+      { contract: order, outcome: 'done', turn: 10, amount: 11100 },
+      { contract: haul, outcome: 'failed', turn: 20, amount: -1800 },
+      { contract: escort, outcome: 'lapsed', turn: 30, amount: 0 },
+    ];
+
+    const rows = groups(openJournal(w))[0].all((n) => n.className === 'job');
+    const titled = (row: FakeNode) => row.all((n) => n.className.startsWith('price')).map((n) => n.attrs.get('title'));
+
+    expect(titled(rows[1])).toEqual(['Price of the cargo you kept']);
+    expect(titled(rows[0])).toEqual([]);
+    expect(titled(rows[2])).toEqual([undefined]);
+  });
+
   it('draws a past claim and escort whose trucks are gone from the world', () => {
     const w = emptyWorld();
     w.player.pastContracts = [

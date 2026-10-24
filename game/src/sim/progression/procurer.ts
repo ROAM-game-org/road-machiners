@@ -2,7 +2,7 @@ import { CONTRACTS, shopDef } from '../../data/market';
 import { playerVehicle } from '../damage';
 import { affordableBuyCount, buyGood, getTradePrice, sellGood } from '../economy';
 import { freeCells, goodsCount } from '../grid';
-import { acceptContract, deliverContract, estimateTurns, goodValue, shopAt, shopState, siteOf, stockForSale, type Contract } from '../market';
+import { boardClosedUntil, acceptContract, deliverContract, estimateTurns, goodValue, shopAt, shopState, siteOf, stockForSale, type Contract } from '../market';
 import type { Site } from '../sites';
 import type { World } from '../types';
 import { driveToSite, type Orders } from './orders';
@@ -83,7 +83,7 @@ function cheapestSource(world: World, c: Procure): Source | null {
 
 function takeOrder(o: Orders): boolean {
   const shop = shopAt(o.world);
-  if (!shop || o.world.player.contracts.length >= CONTRACTS.maxActive) return false;
+  if (!shop || boardClosedUntil(o.world, shop) !== null || o.world.player.contracts.length >= CONTRACTS.maxActive) return false;
   const offers = shopState(o.world, shop).contracts.filter((c): c is Procure => c.kind === 'procure' && c.deadline > o.world.turn && c.units <= freeCells(o.me) + cargoCount(o.world, c.good));
   const rated = offers.flatMap((c) => rateOrder(o.world, c));
   const best = rated.reduce<{ c: Procure; perTurn: number } | null>((top, r) => (!top || r.perTurn > top.perTurn ? r : top), null);

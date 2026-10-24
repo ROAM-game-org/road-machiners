@@ -43,7 +43,7 @@ import {
 import { freeCells, goodsCount, mountCellsOf } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
-import { acceptContract, deliverContract, goodStock, haulShort, isMet, knowsMarket, onOrder, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
+import { acceptContract, boardClosedUntil, deliverContract, goodStock, haulShort, isMet, knowsMarket, onOrder, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { CrimeCase, PartInstance, RoadNews, Vehicle, World } from "../sim/types";
 import { onRelief, recipeRunning } from "../sim/production";
@@ -59,7 +59,7 @@ import { TOWN_SECTIONS, type TownSection } from "../data/quests";
 import { barDrivers, pickTownSection, townSections, type SectionAccess } from "../sim/quests";
 import { callVehicle } from "../sim/dialogue";
 import { hostileToPlayer } from "../sim/world";
-import { clock, escortStatusText, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
+import { boardOpens, clock, escortStatusText, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { contractRow } from "./contract-row";
 import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
@@ -717,7 +717,9 @@ export class TownScreen {
   private contracts(w: World, shopId: string): HTMLElement {
     const board = shopState(w, shopId).contracts;
     const full = w.player.contracts.length >= CONTRACTS.maxActive;
+    const closedUntil = boardClosedUntil(w, shopId);
     const refusal = (c: Contract): Msg | null => {
+      if (closedUntil !== null) return refusalText(w, { id: "boardClosed" });
       if (full) return t("contract.full", { n: CONTRACTS.maxActive });
       return haulStockReason(w, c) ?? escortRefusal(w, c) ?? searchRefusalText(w, searchRefusal(w, c));
     };
@@ -726,6 +728,7 @@ export class TownScreen {
       "div",
       {},
       el("h3", {}, t("contract.offers")),
+      closedUntil === null ? null : el("div", {}, boardOpens(closedUntil)),
       board.length
         ? el("div", { class: "jobs" }, ...board.map((c) => contractRow(w, c, accept(c), true)))
         : el("div", { class: "dim" }, t("contract.noOffers")),

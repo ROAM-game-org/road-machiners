@@ -2,7 +2,7 @@ import { CONTRACTS } from '../../data/market';
 import { RULES } from '../../data/rules';
 import { TERRAIN } from '../../data/terrain';
 import type { OldPlaceType } from '../../data/salvage';
-import { acceptContract, deliverContract, shopAt, shopState, siteOf } from '../market';
+import { boardClosedUntil, acceptContract, deliverContract, shopAt, shopState, siteOf } from '../market';
 import { compassSector, openSurveyPoint, startSurvey, surveyActions, surveyClue, isSurveyMet, surveySite, type SurveyClue, type SurveyContract, type SurveyPoint } from '../survey';
 import type { Site } from '../sites';
 import type { LandmarkLook, Obstacle, World } from '../types';
@@ -124,7 +124,7 @@ function idle(o: Orders): boolean {
 
 function takeSurvey(o: Orders, moves: SurveyorMoves): boolean {
   const shop = shopAt(o.world);
-  if (!shop || o.world.player.money < 0) return false;
+  if (!shop || boardClosedUntil(o.world, shop) !== null || o.world.player.money < 0) return false;
   const reaches = (c: SurveyContract) => c.points.every((p) => moves.fuelReaches(o, cluePoint(o.world, surveyClue(c, p))));
   const offers = shopState(o.world, shop).contracts.filter((c): c is SurveyContract => c.kind === 'survey' && c.deadline > o.world.turn && reaches(c));
   const pay = (c: SurveyContract) => c.reward / c.window;

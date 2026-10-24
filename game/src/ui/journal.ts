@@ -142,11 +142,11 @@ function pastEntry({ record, day }: PastEntry): HTMLElement {
     contractIcon(c.kind),
     el('div', { class: 'job-what' }, el('span', {}, postedSummary(c)), el('span', { class: 'dim' }, t('journal.entryHead', { day, from: siteName(c.shop) }))),
     el('span', { class: `tag ${OUTCOME_TONE[record.outcome]}` }, t(`journal.past.${record.outcome}`)),
-    pastMoney(record.amount),
+    pastMoney(record),
   );
 }
 
-function pastMoney(amount: number): HTMLElement {
+function pastMoney({ amount }: PastContract): HTMLElement {
   if (amount > 0) return el('span', { class: 'price good' }, PLUS, moneyEl(amount));
-  return amount < 0 ? el('span', { class: 'price' }, moneyEl(amount)) : el('span', {});
+  return amount < 0 ? el('span', { class: 'price', title: t('journal.past.keptCargo') }, moneyEl(amount)) : el('span', {});
 }

@@ -787,6 +787,10 @@ export function escortLeaves(c: Contract): Msg {
   return t('contract.leaves', { when: clock(c.deadline + 1).full });
 }
 
+export function boardOpens(until: number): Msg {
+  return t('contract.boardClosed', { when: clock(until).full });
+}
+
 export function escortStatusText(world: World, c: Contract): Msg | null {
   if (c.kind !== 'escort') return null;
   const status = escortStatus(world, c);
