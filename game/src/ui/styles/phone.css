@@ -396,10 +396,6 @@
   transform: none;
   font-size: var(--text-dense);
 }
-
-#ui.phone .instruments .instrument-actions .key-corner {
-  display: none;
-}
 #ui.phone .modal.character-screen {
   display: block;
   overflow: auto;

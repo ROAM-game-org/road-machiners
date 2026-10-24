@@ -43,6 +43,13 @@ function followText(step: Follow, next: DirectionStep | undefined, target: strin
   return t('way.followHeading', { road: roadText(step.road), octant: compassName(step.heading) });
 }
 
+type Leave = Extract<DirectionStep, { do: 'leave' }>;
+
+function leaveText(step: Leave): Msg {
+  const words = { at: cueText(step.at, 'leave'), octant: compassName(step.octant), span: spanText(step.span) };
+  return step.lean === null ? t('way.leave', words) : t('way.leaveLean', { ...words, lean: t(`way.lean.${step.lean}`) });
+}
+
 function stepText(step: DirectionStep, next: DirectionStep | undefined, target: string | null, previous: Span | null): Msg[] {
   switch (step.do) {
     case 'join': return [t('way.join', { octant: compassName(step.octant), span: spanText(step.span) })];
@@ -53,7 +60,8 @@ function stepText(step: DirectionStep, next: DirectionStep | undefined, target: 
       return [sentence, ...haulAfter(step.span, previous)];
     }
     case 'arrive': return [t(step.area ? 'way.arriveArea' : 'way.arrive')];
-    case 'leave': return [t('way.leave', { at: cueText(step.at, 'leave'), octant: compassName(step.octant), span: spanText(step.span) })];
+    case 'gate': return [t(`way.gate.${step.side}`)];
+    case 'leave': return [leaveText(step)];
     case 'straight': return [t('way.straight', { octant: compassName(step.octant), span: spanText(step.span) })];
     case 'search': return [step.clue.kind === 'site' ? t('way.search.site', { sign: siteSign(step.clue.id) }) : t('way.search.rough')];
     case 'askAgain': return [t('way.askAgain')];
