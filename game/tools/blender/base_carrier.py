@@ -6,17 +6,17 @@ top and 2.26 m wide. Here it is 5.85 m long on a 2.74 m wheelbase and 2.05 m to 
 the game's widening of trucks past the real ratio. The ground is 1.45 m below the center.
 The welded boat hull is three convex pieces, so the flat front deck can lie ahead of the steeper driver's plate.
 Levels: keel -0.78, bow and stern plate feet -0.58, chine -0.05 (1.40 m up, 0.69 of the height as measured on the Tuy Hoa photo),
-deck 0.15, roof 0.60. The sharp chine is the widest line and the forwardmost and rearmost edge, running nearly straight across
-the bow and stern with its corners cut 0.15 m. Under it the bow plate rakes back to its foot 0.2 m behind the tip, then the lower
+deck 0.10, roof 0.60. The sharp chine is the widest line and the forwardmost and rearmost edge, running nearly straight across
+the bow and stern with its corners cut 0.15 m. Under it the bow plate rakes back to its foot 0.35 m behind the tip, then the lower
 glacis runs to the keel ahead of the front arch; the stern mirrors it. Above the chine the front deck rises gently to x 2.2,
 where the driver's plate climbs steeply between angled cheeks to the roof front at x 2.0. The upper sides lean in straight from
-the chine to the 1.8 m roof (tumblehome), and the stern plate falls from the roof back at x -2.15 to the chine at the tail.
+the chine to the 1.7 m roof (tumblehome), and the stern plate falls from the roof back at x -2.15 to the chine at the tail.
 The four big tires sit under the chine, bunched near the middle under round arches cut into the lower sides, with dark liners.
 Details from the photos: a headlight in an open cage of thin bars on each side of the front deck, a round mirror on a stalk at
 each front corner, two vision blocks on the driver's plate and one on each cheek, a split side door at the chine with a vision
-block, a vision block and a round firing port ahead of and behind each door, a tow box with its shackle on the bow plate and a
+block, a vision block and a round firing port ahead of and behind each door, a tow box standing out of the bow plate with its shackle and a
 thin trim strip along the chine. Inferred, since neither photo shows the stern: taillights set into open guards, a rear door on
-the right of the stern plate and a round exhaust silencer across its left. A round hatch sits on the rear roof.
+the right of the stern plate and a round exhaust silencer across its left. A round hatch sits on the rear roof, and two welded seams cross it.
 Every round piece takes its side count from round_sides().
 Approach and departure: every hull point ahead of the front tire and behind the rear tire lies above the line tangent to that
 tire at the steepest drivable grade, TERRAIN.drive.maxSlope 0.6 (31 degrees), plus 5 degrees. check_overhangs() throws otherwise,
@@ -81,14 +81,14 @@ KEEL_END = WHEEL_X + 0.85
 CHINE = -0.05
 CHINE_CUT = 0.15
 BOW_FOOT = -0.58
-BOW_FOOT_X = FRONT - 0.2
+BOW_FOOT_X = FRONT - 0.35
 BOW_FOOT_HALF = 0.8 * SIDE
 DECK_X = 2.2
-DECK_Z = 0.15
+DECK_Z = 0.1
 DRIVER_HALF = 0.75
 CHEEK_BACK = 0.45
 ROOF = 0.6
-ROOF_HALF = 0.9
+ROOF_HALF = 0.85
 ROOF_FRONT = 2.0
 ROOF_BACK = -2.15
 ROOF_CHEEK = 0.2
@@ -103,7 +103,7 @@ BAY_T = 0.05
 
 DOOR_X = (-0.36, 0.36)
 DOOR_LOW = -0.46
-DOOR_HIGH = 0.42
+DOOR_HIGH = 0.5
 LAMP_Y = 0.8
 LAMP_X = 2.56
 MIRROR_X = 2.8
@@ -209,7 +209,7 @@ def wells(kit: Kit) -> None:
 def chine_strip(kit: Kit) -> None:
     """A thin trim strip along the sharp chine, standing out to the footprint's sides."""
     x0, x1 = BACK + CHINE_CUT, FRONT - CHINE_CUT
-    mirrored(kit, "chine", (x1 - x0, G.half_y - SIDE + 0.02, 0.04), (x0 + x1) / 2, (SIDE + G.half_y) / 2 - 0.01, CHINE, "trim")
+    mirrored(kit, "chine", (x1 - x0, G.half_y - SIDE + 0.02, 0.04), (x0 + x1) / 2, (SIDE + G.half_y) / 2 - 0.01, CHINE, "paint")
 
 
 def plate(kit: Kit, name: str, mat: str, outline: list[tuple[float, float]], surface, thick: float = 0.025) -> None:
@@ -279,30 +279,33 @@ def doors(kit: Kit) -> None:
     x0, x1 = DOOR_X
     for sign, tag in ((1, "l"), (-1, "r")):
         face = on_side(sign)
-        plate(kit, f"door_low_{tag}", "trim", rect(x0, x1, DOOR_LOW, CHINE - 0.04), face)
-        plate(kit, f"door_high_{tag}", "trim", rect(x0, x1, CHINE + 0.04, DOOR_HIGH), face)
-        plate(kit, f"door_block_{tag}", "glass", rect(-0.14, 0.14, 0.22, 0.3), face, thick=0.04)
+        plate(kit, f"door_low_{tag}", "paint", rect(x0, x1, DOOR_LOW, CHINE - 0.04), face, thick=0.015)
+        plate(kit, f"door_high_{tag}", "paint", rect(x0, x1, CHINE + 0.04, DOOR_HIGH), face, thick=0.015)
+        for i, (z0, z1) in enumerate(((DOOR_LOW, CHINE - 0.04), (CHINE + 0.04, DOOR_HIGH))):
+            for edge, ex in (("front", x1), ("back", x0)):
+                plate(kit, f"door_seam_{edge}{i}_{tag}", "under", rect(ex - 0.015, ex + 0.015, z0, z1), face, thick=0.02)
+        plate(kit, f"door_block_{tag}", "glass", rect(-0.16, 0.16, 0.24, 0.35), face, thick=0.04)
         for end, ex in (("front", 1), ("back", -1)):
-            plate(kit, f"block_{end}_{tag}", "glass", rect(ex * 1.0, ex * 1.32, 0.28, 0.36), face, thick=0.04)
-            port(kit, f"port_{end}_{tag}", face, ex * 0.66, 0.2)
+            plate(kit, f"block_{end}_{tag}", "glass", rect(ex * 1.0, ex * 1.36, 0.26, 0.37), face, thick=0.04)
+            port(kit, f"port_{end}_{tag}", face, ex * 0.72, 0.2)
 
 
 def port(kit: Kit, name: str, face, x: float, z: float) -> None:
     """A round firing port plug standing out of a side face, with its dark center."""
     (px, py, pz), (ox, oy, oz) = face(x, z)
     tilt = -math.atan2(oy, oz)
-    r = 0.075
+    r = 0.09
     kit.cylinder(name, r, 0.05, (px + ox * 0.01, py + oy * 0.01, pz + oz * 0.01), "trim", rot=(tilt, 0, 0), vertices=round_sides(r))
-    kit.cylinder(f"{name}_hole", 0.035, 0.02, (px + ox * 0.04, py + oy * 0.04, pz + oz * 0.04), "under", rot=(tilt, 0, 0), vertices=round_sides(0.035))
+    kit.cylinder(f"{name}_hole", 0.045, 0.02, (px + ox * 0.04, py + oy * 0.04, pz + oz * 0.04), "under", rot=(tilt, 0, 0), vertices=round_sides(0.045))
 
 
 def headlight(kit: Kit, tag: str, y: float) -> None:
     """A round headlight on a stand inside an open cage of thin trim bars on the front deck, looking forward."""
-    r = 0.085
-    z = deck_z(LAMP_X) + 0.15
+    r = 0.1
+    z = deck_z(LAMP_X) + 0.16
     kit.box(f"lamp_stand_{tag}", (0.06, 0.06, 0.15), (LAMP_X - 0.02, y, deck_z(LAMP_X) + 0.06), "under")
-    kit.cylinder(f"lamp_bucket_{tag}", r + 0.015, 0.12, (LAMP_X, y, z), "trim", rot=(0, math.pi / 2, 0), vertices=round_sides(r + 0.015))
-    kit.cylinder(f"lamp_{tag}", r, 0.02, (LAMP_X + 0.065, y, z), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(r))
+    kit.cylinder(f"lamp_bucket_{tag}", r + 0.015, 0.12, (LAMP_X, y, z), "under", rot=(0, math.pi / 2, 0), vertices=round_sides(r + 0.015))
+    kit.cylinder(f"lamp_{tag}", r - 0.035, 0.02, (LAMP_X + 0.065, y, z), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(r - 0.035))
     cage_x = (LAMP_X - 0.12, LAMP_X + 0.15)
     half = 0.16
     top = deck_z(cage_x[0]) + 0.33
@@ -320,10 +323,9 @@ def headlight(kit: Kit, tag: str, y: float) -> None:
         kit.box(f"cage_top_cross_{tag}_{cx:.2f}", (bar, 2 * half, bar), (cx, y, top), "trim")
     front = cage_x[1]
     low = deck_z(front) - 0.02
-    for i in range(1, 4):
-        kit.box(f"cage_mesh_{tag}_{i}", (0.012, 0.012, top - low), (front, y - half + i * half / 2, (top + low) / 2), "trim")
-    for i, mz in enumerate((low + (top - low) / 3, low + 2 * (top - low) / 3)):
-        kit.box(f"cage_band_{tag}_{i}", (0.012, 2 * half, 0.012), (front, y, mz), "trim")
+    for i, my in enumerate((y - half / 2, y + half / 2)):
+        kit.box(f"cage_mesh_{tag}_{i}", (0.012, 0.012, top - low), (front, my, (top + low) / 2), "trim")
+    kit.box(f"cage_band_{tag}", (0.012, 2 * half, 0.012), (front, y, z), "trim")
 
 
 def mirror(kit: Kit, tag: str, y: float) -> None:
@@ -332,7 +334,7 @@ def mirror(kit: Kit, tag: str, y: float) -> None:
     top = low + 0.42
     kit.box(f"mirror_stalk_{tag}", (0.025, 0.025, top - low), (MIRROR_X, y, (top + low) / 2), "trim")
     r = 0.09
-    kit.cylinder(f"mirror_{tag}", r, 0.03, (MIRROR_X, y, top + r - 0.02), "trim", rot=(0, math.pi / 2, 0), vertices=round_sides(r))
+    kit.cylinder(f"mirror_{tag}", r, 0.03, (MIRROR_X, y, top + r - 0.02), "under", rot=(0, math.pi / 2, 0), vertices=round_sides(r))
 
 
 def bow(kit: Kit) -> None:
@@ -342,7 +344,8 @@ def bow(kit: Kit) -> None:
         mirror(kit, tag, sign * MIRROR_Y)
         plate(kit, f"block_driver_{tag}", "glass", rect(sign * 0.14, sign * 0.46, 0.36, 0.46), on_driver, thick=0.04)
         plate(kit, f"block_cheek_{tag}", "glass", rect(0.3, 0.7, 0.36, 0.45), on_cheek(sign), thick=0.05)
-    plate(kit, "tow_box", "under", rect(-0.32, 0.32, -0.38, -0.14), on_bow, thick=0.02)
+    plate(kit, "tow_box", "paint", rect(-0.24, 0.24, -0.36, -0.18), on_bow, thick=0.07)
+    plate(kit, "tow_box_mouth", "under", rect(-0.16, 0.16, -0.32, -0.22), on_bow, thick=0.075)
     (x, _, z), (ox, _, oz) = on_bow(0, -0.47)
     for i, sy in enumerate((-0.06, 0.06)):
         kit.box(f"shackle_side{i}", (0.06, 0.025, 0.12), (x + ox * 0.03, sy, z + oz * 0.03 + 0.02), "trim")
@@ -369,7 +372,9 @@ def stern(kit: Kit) -> None:
 
 
 def roof(kit: Kit) -> None:
-    """The round hatch over the rear rows and dark louvers on the engine deck beside the cutout."""
+    """The round hatch over the rear rows, dark louvers on the engine deck beside the cutout and the welded seams between the roof plates."""
+    for i, x in enumerate((ROOF_FRONT - ROOF_CHEEK - 0.3, G.row_x(5))):
+        kit.box(f"roof_seam{i}", (0.03, 2 * ROOF_HALF - 0.1, 0.01), (x, 0, ROOF + 0.004), "under")
     kit.cylinder("hatch", 0.32, 0.03, (G.row_x(6), 0, ROOF + 0.015), "trim", vertices=round_sides(0.32))
     (x0, _), (x1, _) = ENGINE
     count = 5
