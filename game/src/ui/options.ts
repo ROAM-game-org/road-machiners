@@ -4,6 +4,7 @@ import { t } from "../text/msg";
 import { el, panel } from "./dom";
 import { LanguageSwitch } from "./language-switch";
 import { OptionSwitch } from "./option-switch";
+import { cameraSetting, type CameraMode } from "./camera-setting";
 import { minimapSetting } from "./minimap-setting";
 import { soundSection, type SoundSettings, type SoundView } from "./sound";
 import { UI_SIZES, uiSize } from "./ui-size";
@@ -18,6 +19,7 @@ export class OptionsPanel {
   private languageSwitch: LanguageSwitch | null = null;
   private sizeSwitch: OptionSwitch<number> | null = null;
   private minimapSwitch: OptionSwitch<boolean> | null = null;
+  private cameraSwitch: OptionSwitch<CameraMode> | null = null;
   private soundView: SoundView | null = null;
 
   constructor(private readonly sound: SoundSettings, private readonly onClose?: () => void) {}
@@ -38,9 +40,11 @@ export class OptionsPanel {
     this.sizeSwitch = this.sizes(sizeSection);
     const minimapSection = el("section", { class: "options-minimap" }, el("h4", {}, t("options.minimap")));
     this.minimapSwitch = this.minimap(minimapSection);
+    const cameraSection = el("section", { class: "options-camera" }, el("h4", {}, t("options.camera")));
+    this.cameraSwitch = this.camera(cameraSection);
     this.soundView = soundSection(this.sound);
     const soundBlock = el("section", { class: "options-sound" }, el("h4", {}, t("options.sound")), this.soundView.root);
-    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, soundBlock, el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close")));
+    root.append(el("h3", {}, t("options.title")), section, sizeSection, minimapSection, cameraSection, soundBlock, el("button", { class: "close", onclick: () => this.dismiss() }, t("menu.close")));
     this.root = root;
     window.addEventListener("keydown", this.onKey, true);
     root.querySelector<HTMLElement>('.option-switch > [aria-pressed="true"]')?.focus();
@@ -73,6 +77,19 @@ export class OptionsPanel {
     });
   }
 
+  private camera(parent: HTMLElement): OptionSwitch<CameraMode> {
+    const setting = cameraSetting();
+    return new OptionSwitch(parent, {
+      label: t("options.camera"),
+      choices: [{ value: "auto", label: t("setting.cameraAuto") }, { value: "centered", label: t("setting.cameraCentered") }],
+      current: () => setting.mode(),
+      pick: (mode) => setting.set(mode),
+      off: () => null,
+      subscribe: (fn) => setting.subscribe(fn),
+      rootClass: "camera-switch",
+    });
+  }
+
   close(): void {
     if (!this.root) return;
     this.root.remove();
@@ -83,6 +100,8 @@ export class OptionsPanel {
     this.sizeSwitch = null;
     this.minimapSwitch?.dispose();
     this.minimapSwitch = null;
+    this.cameraSwitch?.dispose();
+    this.cameraSwitch = null;
     this.soundView?.dispose();
     this.soundView = null;
     window.removeEventListener("keydown", this.onKey, true);
