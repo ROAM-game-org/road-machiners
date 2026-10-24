@@ -5,7 +5,6 @@ from pathlib import Path
 
 import bmesh
 import bpy
-from bpy_extras.bmesh_utils import bmesh_linked_uv_islands
 
 DENSE_EDGE = 0.12
 DENSE_PASSES = 14
@@ -188,9 +187,30 @@ def overlapping_faces(twin: bpy.types.Object, skip: set[int]) -> set[int]:
 def islands_of(twin: bpy.types.Object) -> list[list[int]]:
     bm = bmesh.new()
     bm.from_mesh(twin.data)
-    found = [sorted(f.index for f in faces) for faces in bmesh_linked_uv_islands(bm, bm.loops.layers.uv.active)]
+    uv = bm.loops.layers.uv.active
+    parent = list(range(len(bm.faces)))
+
+    def root(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for f in bm.faces:
+        for l in f.loops:
+            for other in l.edge.link_loops:
+                if other.face is not f and shares_uv_edge(l, other, uv):
+                    parent[root(other.face.index)] = root(f.index)
+    groups: dict[int, list[int]] = {}
+    for f in bm.faces:
+        groups.setdefault(root(f.index), []).append(f.index)
     bm.free()
-    return sorted(found)
+    return sorted(groups.values())
+
+
+def shares_uv_edge(l: bmesh.types.BMLoop, other: bmesh.types.BMLoop, uv: bmesh.types.BMLayerItem) -> bool:
+    ends = {l.vert: l[uv].uv, l.link_loop_next.vert: l.link_loop_next[uv].uv}
+    return all((ends[o.vert] - o[uv].uv).length < 1e-9 for o in (other, other.link_loop_next))
 
 
 def edit_uvs(twin: bpy.types.Object, change) -> None:

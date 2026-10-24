@@ -63,9 +63,10 @@ function islands(all: Triangle[]): Island[] {
     parent.set(k, root);
     return root;
   };
-  for (const t of all) for (const k of t.keys.slice(1)) parent.set(find(k), find(t.keys[0]));
+  const edgeKeys = (t: Triangle) => [0, 1, 2].map((k) => [t.keys[k], t.keys[(k + 1) % 3]].sort().join('|'));
+  for (const t of all) for (const k of edgeKeys(t).slice(1)) parent.set(find(k), find(edgeKeys(t)[0]));
   const groups = new Map<string, Triangle[]>();
-  for (const t of all) groups.set(find(t.keys[0]), [...(groups.get(find(t.keys[0])) ?? []), t]);
+  for (const t of all) groups.set(find(edgeKeys(t)[0]), [...(groups.get(find(edgeKeys(t)[0])) ?? []), t]);
   return [...groups.values()].map((triangles) => ({ triangles }));
 }
 
