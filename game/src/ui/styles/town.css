@@ -1,0 +1,62 @@
+.town-page.under-quest {
+  visibility: hidden;
+}
+.town-page .ink-panel.wide > .town-split {
+  flex: 1;
+  margin-top: 0;
+}
+.town-page .ink-panel h3 {
+  margin: var(--space-5) 0 var(--space-3);
+}
+.town-page .bar-list {
+  display: flex;
+  flex-direction: column;
+}
+.town-page .bar-row {
+  padding: var(--space-3) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+.town-page .bar-row .bar-name {
+  flex: none;
+  font-weight: 700;
+}
+.town-page .bar-row .bar-quiet {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-muted);
+}
+.town-page .ink-body:not(:has(.ink-panel)) {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  align-content: start;
+}
+.town-page .ink-body:not(:has(.ink-panel)) .ink-status {
+  grid-row: 4;
+}
+.town-page.on-section .ink-band > .art-band {
+  height: min(var(--art-band-height), calc(0.14 * var(--layer-h)));
+}
+.town-page.on-section .ink-body {
+  padding-top: var(--space-5);
+  padding-bottom: var(--space-5);
+}
+.town-page.on-section .ink-head .qt-line {
+  margin-bottom: var(--space-3);
+}
+.town-page .ink-choices {
+  padding-top: var(--space-3);
+}
+#ui .town-page .quest-choice.compact {
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-6);
+}
+.town-page .ink-body:has(.ink-panel.wide) :is(.ink-head, .ink-choices, .ink-status) {
+  grid-column: 1 / -1;
+}
+.town-page .ink-body:has(.ink-panel.wide) .ink-head .quest-place {
+  margin-bottom: var(--space-2);
+}
