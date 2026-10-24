@@ -1,7 +1,8 @@
 import { CONFIG } from "../config";
 import type { Msg } from '../text/msg';
 import type { UtilityEffectType } from "../data/parts";
-import type { CueId } from "../data/sounds";
+import { MIX, type CueId } from "../data/sounds";
+import { crashLevel } from "../audio/pick";
 import { PAL } from "../render/palette";
 import { GROUND, restFrame, type TurnResult } from "../phys/drive";
 import { missPoint } from "../sim/combat";
@@ -101,7 +102,7 @@ function playCrash(host: CombatHost, e: CollisionEvent): void {
   const p = host.eventPoint(e.a);
   if (!p) return;
   host.fx.crash(p);
-  host.sound.at("crash", p, 0);
+  host.sound.atLevel("crash", p, 0, crashLevel(e.impact, MIX.crash));
 }
 
 function playBlast(host: CombatHost, e: ClaymoreEvent): void {

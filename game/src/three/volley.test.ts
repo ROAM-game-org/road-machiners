@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Break, Crash, Landing } from "../phys/drive";
+import { MIX } from "../data/sounds";
+import { RULES } from "../data/rules";
 import { addVehicle, emptyWorld } from "../sim/testkit";
 import type { GameEvent, ShotRound } from "../sim/types";
 import { groundPoint, type V3 } from "../phys/frames";
@@ -84,7 +86,7 @@ describe("playCrashes with claymore blasts", () => {
       world,
       views,
       fx: { claymoreBlast: (p: V3) => out.push(p), crash: () => out.push("crash") },
-      sound: { at: (cue: string) => out.push(cue) },
+      sound: { at: (cue: string) => out.push(cue), atLevel: (cue: string) => out.push(cue) },
       eventPoint: (id: string) => (seen.includes(id) ? { x: 0, y: 0, z: 0 } : null),
     } as unknown as CombatHost;
     playCrashes(host, new CollisionCues([{ event: e as never, step: null }]), null);
@@ -103,6 +105,36 @@ describe("playCrashes with claymore blasts", () => {
 
   it("shows no blast when neither truck in it is seen", () => {
     expect(played(blast("b"), [])).toEqual([]);
+  });
+});
+
+describe("playCrashes levels", () => {
+  function levels(impacts: number[]): number[] {
+    const out: number[] = [];
+    const host = {
+      world: emptyWorld(),
+      views: new Map(),
+      fx: { crash: () => {} },
+      sound: { atLevel: (_cue: string, _p: V3, _delay: number, level: number) => out.push(level) },
+      eventPoint: () => ({ x: 0, y: 0, z: 0 }),
+    } as unknown as CombatHost;
+    const events: GameEvent[] = impacts.map((impact) => ({ ...(hit("a", "b") as object), impact }) as GameEvent);
+    const timed = collisionSteps(events, { ...none, crashes: [] });
+    playCrashes(host, new CollisionCues(timed), null);
+    return out;
+  }
+
+  it("hands a soft bump a quiet level and a hard ram the full level", () => {
+    const [soft, hard, over] = levels([RULES.collisionMinImpact, RULES.hardCrashSpeed, RULES.hardCrashSpeed * 2]);
+    expect(soft).toBe(MIX.crash.quietGain);
+    expect(hard).toBe(1);
+    expect(over).toBe(1);
+  });
+
+  it("plays a middle hit between the quiet and the full level", () => {
+    const [middle] = levels([(RULES.collisionMinImpact + RULES.hardCrashSpeed) / 2]);
+    expect(middle).toBeGreaterThan(MIX.crash.quietGain);
+    expect(middle).toBeLessThan(1);
   });
 });
 
