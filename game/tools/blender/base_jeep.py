@@ -52,7 +52,7 @@ WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
 
 SLAB = 0.73  # the flat body sides, 0.76 of the wing span, so the wings stand proud of them
 WING_OUT = G.half_y  # the wings' outer face on the footprint edge, the widest part of the jeep
-WING_IN = 0.5  # the wings' inner wall, hidden in the body or flanking the narrow nose
+WING_IN = 0.4  # the wings' inner wall, buried in the hood and the apron so no edge shows beside the nose
 WING_R = ARCH_R + 0.14  # the front wings' crown radius round the hub
 REAR_WING_R = ARCH_R + 0.07  # the rear wings sit lower and thinner
 WING_BULGE = 0.12  # the front wing swells forward ahead of the tire, as in the side photo
