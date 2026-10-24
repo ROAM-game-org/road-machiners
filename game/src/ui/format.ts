@@ -744,10 +744,6 @@ export function surveyWayLines(world: World, c: SurveyContract): HTMLElement[] {
   return c.points.filter((p) => !p.done).map((p) => surveyWayLine(world, c, p));
 }
 
-export function surveyHowTo(c: SurveyContract): HTMLElement | null {
-  return c.points.some((p) => !p.done && !p.found) ? el('span', { class: 'contract-hint' }, t('contract.surveyHowTo')) : null;
-}
-
 export function surveyClueLines(c: SurveyContract): HTMLElement[] {
   return c.points.filter((p) => !p.done).map((p) => surveyPlaceLine(c, p));
 }

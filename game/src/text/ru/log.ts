@@ -277,7 +277,6 @@ export const LOG: Translation<typeof EN> = {
   'contract.lookFor.lookout': 'Одинокое здание.',
   'contract.lookFor.hulks': 'Ржавые танки кучей.',
   'contract.lookFor.boats': 'Ржавые лодки, наполовину в песке.',
-  'contract.surveyHowTo': 'Езжайте туда, встаньте рядом и начните разведку.',
   'contract.lay.rise': 'на возвышенности',
   'contract.lay.hollow': 'в лощине',
   'contract.lay.flat': 'на равнине',
