@@ -1,18 +1,46 @@
 # Humanizer
 
-A checklist of the habits that make English prose read as machine-written. A writer runs it over their own draft when they add or change player text, in English and, for the tells that exist there, in Russian.
+A writing prompt for turning machine-made copy into plain, specific prose. ROAM's writers and agents read their own player text against it when they add or change a line, in English and, for the faults that exist there, in Russian. It was written for AI chat and marketing copy, so ROAM follows it closely in plain copy and in spirit in fiction, as the next section says.
 
 The prompt below is "Writing Humanizer" from <https://www.jayceelydian.com/prompts/humanizer/>, released under CC0 1.0. It was fetched on 2026-10-23 and is copied word for word. Do not paraphrase it or replace it with another version.
 
 ## How ROAM uses it
 
-The prompt is a checklist under the repo's rules. It never overrides them.
+The prompt works under the repo's rules and never overrides them. [DESIGN.md](../DESIGN.md) principle 9, the house style in [Writing dialogue](dialogue.md), each speaker's sheet in [Voices](../lore/voices.md), [Russian copy](russian.md) and the [UI design system](../ui.md) win wherever they disagree with it.
 
-- [DESIGN.md](../DESIGN.md) principle 9, the house style in [Writing dialogue](dialogue.md), each speaker's voice sheet in [voices](../lore/voices.md), [Russian copy](russian.md) and [UI design system](../ui.md) win wherever they disagree with it.
-- A sentence shape or tic that a voice sheet gives a speaker is voice, not a tell. Keep it.
-- Russian keeps the dialogue dash «—». English quest text has no dashes, as [Sentences](dialogue.md#sentences) says.
-- A UI label is a noun and a button is a verb, as [Words and numbers](../ui.md) says. Do not turn a label into a sentence to make it sound natural.
-- The prompt's advice on perspective and personality applies to narration only as far as [A voice, not a camera](dialogue.md#a-voice-not-a-camera) allows.
+### Plain copy
+
+UI labels and buttons, help, tips, refusals, reasons, log lines, NPC statuses, and job and contract text. Follow the prompt closely here.
+
+- A label stays a noun and a button a verb, as [Words and numbers](../ui.md#8-words-and-numbers) says. Do not turn a label into a sentence to make it sound natural.
+- A tip says one thing to do, and a reason is a short fact.
+
+### Fiction
+
+Quest narration and talk, radio calls, J.J.'s broadcasts, item lore, term tips and journal notes. Follow the prompt's aim, not its letter. The aim is a line someone in the basin would choose to say, which tells the reader something they can picture or use. The house style and the speaker's sheet come first.
+
+Fiction may keep what the prompt lists as a tell when the voice or the scene needs it. A writer who keeps such a line can name the voice or story reason for it.
+
+- A rhetorical question in the character's head, as [A voice, not a camera](dialogue.md#a-voice-not-a-camera) asks.
+- A fragment in narration, like a list of gear when a person comes in.
+- A list of three spoken by a boaster, or any sentence shape a sheet gives a speaker.
+- An aphorism or a joke that a sheet gives a speaker. Jory ends every answer on a short joke: "The sack leaves the store once and the Senate counts it twice."
+- J.J.'s crop-report formality.
+- One refrain per scene, and a simile at a turn in the scene.
+- The Russian dialogue dash «—». English quest text still has no dashes, as [Sentences](dialogue.md#sentences) says.
+
+Fiction still never does these. They are the faults that sent the game's copy back.
+
+- An image that means nothing when read twice. The rebar cage's lore read "Rebar bent around the cab the way farmers fenced seed. It wins no arguments, but it keeps the doors on." Farmers never fenced seed, and "wins no arguments" says nothing. It now reads "Rebar bent into a frame around the cab. It stops little in a firefight, but the doors stay on their hinges."
+- A dry closer on every entry, so a set of entries shares one shape. One wry last line is voice. The same wry last line on every item card is a template.
+- One sentence template across many entries, like personifying the weather in every broadcast.
+- A narrator who tells the reader something is important instead of showing what follows from it.
+- "Some say" or "they say" where the speaker could name who.
+- A riddle with no plain fact in it.
+- Filler that repeats the line before.
+
+### Both
+
 - Keep every fact, name, number, param, tag and choice. Change words only.
 - Never paste the prompt into a character-line prompt. [Character lines](character-lines.md) explains why: style words there reach every character and make them sound alike. Use it at the edit step.
 

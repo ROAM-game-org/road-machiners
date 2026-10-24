@@ -39,7 +39,7 @@ Writing, in `docs/writing/`:
 - [Writing dialogue](docs/writing/dialogue.md): how people talk, how the player talks back, and the voice sheets every speaker needs.
 - [Character lines](docs/writing/character-lines.md): every line a named person speaks comes from one codex or agy call made in that person's voice, then gets edited.
 - [Russian copy](docs/writing/russian.md): how Russian text must read, with examples and the glossary.
-- [Humanizer](docs/writing/humanizer.md): the checklist of machine-writing tells every writer runs over new or changed player text.
+- [Humanizer](docs/writing/humanizer.md): the prompt every writer reads new or changed player text against, closely in plain copy and in spirit in fiction.
 
 Art and sound, in `docs/art/`:
 
