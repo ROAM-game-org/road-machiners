@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { bedRows } from './chassis-features';
 import { atlasOf, atlasSites } from './atlas';
 import { chassisDef, PLAYER_CHASSIS } from '../data/chassis';
 import { gunSpans } from './armor';
@@ -116,7 +117,10 @@ describe('part cheats', () => {
   });
 
   it('spills the cargo off a cargo part it breaks', () => {
-    const w = damagePartTo(emptyWorld(), 'panniers', 0);
+    const loaded = emptyWorld();
+    const row = chassisDef('scout').layout.length + bedRows('scout');
+    playerVehicle(loaded).items.push({ id: 'i-spill', kind: 'good', good: 'scrap', x: 0, y: row, rot: 0 });
+    const w = damagePartTo(loaded, 'panniers', 0);
     const me = playerVehicle(w);
     const g = gridOf(me);
     expect(me.items.filter((it) => it.y >= g.deadFrom)).toEqual([]);
