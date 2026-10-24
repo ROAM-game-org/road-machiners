@@ -20,6 +20,13 @@ import { budget } from '../test/budget';
 import { defaultSetup } from '../sim/settings';
 import { reusedWorld } from '../test/world-cache';
 
+const HEAD_ON_SHIFT = { x: 50, y: -14 };
+const HEAD_ON_CLEAR = 45;
+
+function at(x: number, y: number): { x: number; y: number } {
+  return { x: x + HEAD_ON_SHIFT.x, y: y + HEAD_ON_SHIFT.y };
+}
+
 function dropClaimRuns(w: World): void {
   for (const shop of Object.values(w.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
 }
@@ -222,17 +229,18 @@ describe('NPC driving', () => {
       let w = standardWorld();
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
       for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-      w.vehicles[0].pos = { x: 300, y: 200 };
-      const a = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 264.24, y: 165.07 }, (-48 * Math.PI) / 180);
-      const b = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 283.01, y: 143.29 }, (129 * Math.PI) / 180);
+      w.vehicles[0].pos = at(300, 200);
+      w.obstacles = w.obstacles.filter((o) => dist(o.pos, at(290, 134)) > HEAD_ON_CLEAR);
+      const a = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], at(264.24, 165.07), (-48 * Math.PI) / 180);
+      const b = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], at(283.01, 143.29), (129 * Math.PI) / 180);
       a.id = 'v1062';
       b.id = 'v1081';
       a.speed = 6.46;
       b.speed = 4.08;
       a.brain = npcBrain('scavenger', a.pos, ['scavenger']);
       b.brain = npcBrain('roamer', b.pos, ['roamer']);
-      a.brain.goals = [{ kind: 'explore', targetId: null, destination: { x: 317, y: 102.75 }, phase: 'travel', reason: 'tripToSite' }];
-      b.brain.goals = [{ kind: 'explore', targetId: null, destination: { x: 276.07 + dx, y: 157.15 + dy }, phase: 'travel', reason: 'tripToSite' }];
+      a.brain.goals = [{ kind: 'explore', targetId: null, destination: at(317, 102.75), phase: 'travel', reason: 'tripToSite' }];
+      b.brain.goals = [{ kind: 'explore', targetId: null, destination: at(276.07 + dx, 157.15 + dy), phase: 'travel', reason: 'tripToSite' }];
       a.brain.noticed[`preySeen:${b.id}`] = w.turn;
       b.brain.noticed[`preySeen:${a.id}`] = w.turn;
       let d = buildDrive(w);

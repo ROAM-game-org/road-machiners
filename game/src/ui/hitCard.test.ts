@@ -87,7 +87,7 @@ describe('hover card rows', () => {
     me.speed = 3;
     them.speed = 3;
     const card = hitCardRows(world, them.id)!;
-    expect(card.mine[0].tip!.rows.map((x) => en(x.name))).toEqual(expect.arrayContaining(['You are moving', 'Gun kick']));
+    expect(card.mine[0].tip!.rows.map((x) => en(x.name))).toEqual(expect.arrayContaining(['You are moving', 'Nimble']));
     expect(card.theirs[0].tip!.rows.map((x) => en(x.name))).toContain('It is moving');
   });
 

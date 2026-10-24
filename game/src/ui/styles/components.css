@@ -291,3 +291,142 @@
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent-dim);
 }
+
+.art-band {
+  position: relative;
+  height: var(--art-band-height);
+  overflow: hidden;
+  border: 1px solid var(--surface-raised);
+  background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
+}
+.art-band img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  animation: quest-art-zoom 40s ease-out forwards;
+}
+
+#ui .panel.modal.ink-page {
+  z-index: var(--z-log-open);
+  top: 40px;
+  width: min(var(--quest-page-width), calc(var(--layer-w) - var(--space-10) * 2));
+  height: min(var(--quest-page-height), calc(var(--layer-h) - var(--quest-page-clearance)));
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 2px solid var(--line-bright);
+}
+.ink-page .ink-band {
+  position: relative;
+  flex: none;
+}
+.ink-page .ink-band > .art-band {
+  height: min(var(--art-band-height), calc(0.26 * var(--layer-h)));
+  border-width: 0 0 1px;
+}
+.ink-page .ink-chips {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--space-8) var(--space-7) var(--space-4);
+  background: linear-gradient(to top, var(--scrim) 40%, transparent);
+}
+.ink-page .quest-frame.inset {
+  position: absolute;
+  inset: 0;
+  margin: 0 auto;
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  aspect-ratio: var(--quest-frame-band);
+  border-width: 0 1px;
+}
+.ink-page .ink-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) min(var(--quest-text-width), 100%) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  padding: var(--space-8) var(--space-7) var(--space-7);
+}
+.ink-page .ink-head {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: var(--text-lead);
+  line-height: 1.55;
+}
+.ink-page .ink-head .quest-place {
+  margin: 0 0 var(--space-4);
+}
+.ink-page .ink-head .qt-line {
+  margin-bottom: var(--space-5);
+}
+.ink-page .ink-panel {
+  grid-column: 2;
+  grid-row: 2;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.ink-page .ink-panel.wide {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+}
+.ink-page .ink-choices {
+  grid-column: 2;
+  grid-row: 3;
+  padding-top: var(--space-5);
+}
+.ink-page .ink-status {
+  grid-column: 2;
+  grid-row: 4;
+}
+.ink-page .ink-side {
+  grid-column: 3;
+  grid-row: 1 / -1;
+  justify-self: end;
+  width: min(var(--quest-side-width), 100%);
+  min-height: 0;
+  padding: 0 0 0 var(--space-7);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+#ui.phone .panel.modal.ink-page {
+  top: var(--safe-top);
+  width: auto;
+  height: auto;
+}
+:where(#ui.phone, #ui.narrow) .ink-page .ink-band > .art-band {
+  height: var(--art-band-phone-height);
+}
+:where(#ui.phone, #ui.narrow) .ink-page .ink-chips {
+  position: static;
+  padding: var(--space-3) var(--space-5);
+  background: none;
+}
+:where(#ui.phone, #ui.narrow) .ink-page .ink-body {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  padding: var(--space-5) var(--space-6);
+}
+:where(#ui.phone, #ui.narrow) .ink-page :is(.ink-head, .ink-panel, .ink-panel.wide, .ink-choices, .ink-status) {
+  grid-column: 1;
+}
+:where(#ui.phone, #ui.narrow) .ink-page .ink-side {
+  grid-column: 1;
+  grid-row: 5;
+  justify-self: stretch;
+  width: auto;
+  max-height: calc(0.24 * var(--layer-h));
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--surface-raised);
+}
+.ink-page .ink-head .talk-head {
+  margin-bottom: var(--space-5);
+}
