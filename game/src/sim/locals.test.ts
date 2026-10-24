@@ -110,7 +110,7 @@ describe('settlement locals', () => {
   it('names the subject of every follow-up that outlives its setup reply', () => {
     const rows: { town: string; quest: string; setup: string[]; option: string }[] = [
       { town: 'salvage-yard', quest: 'yard_sefa', setup: ['What is the road like out here?', 'Why do the Kiln riders leave you alone?'], option: 'Did a Kiln rider ever come for shelter?' },
-      { town: 'bowl', quest: 'bowl_dag', setup: ['What is the road like?', 'Who are the raiders?', 'Any work?'], option: 'How does Bowl pay the raiders?' },
+      { town: 'bowl', quest: 'bowl_dag', setup: ['What is the road like?', 'Who are the raiders?', 'What do you make of Nose?'], option: 'How does Bowl pay the raiders?' },
       { town: 'bowl', quest: 'bowl_hattie', setup: ['Any local legends?', 'What about the glass at the Glass Flats?', 'What do the Sunward do with strangers?', 'Heard any rumors?'], option: 'Have you seen anyone come out of the crater?' },
       { town: 'nose', quest: 'nose_kovac', setup: ['What is the road like?', 'What is this place?'], option: 'Why let unarmed trucks out the gate?' },
       { town: 'nose', quest: 'nose_edda', setup: ['Yes. I drive linked.', 'What do you know about links?', 'Who made the first link?', 'What happened to your grandfather?'], option: 'Could I lose myself in my truck?' },

@@ -85,11 +85,11 @@ VAR sefa_priced = false
   Один раз. У него на дороге погиб брат. Он долго ел наши бобы и мало говорил. Потом ушел на юг. Имени не назову. Кто ел наши бобы, того не выдают.
   ~ asked_rider = true
   -> hub
-+ [Do the families find much on the crater road?]
++ [Семьи много находят на дороге к кратеру?]
   { cult_broken():
-    Wreck metal and beans, same as anywhere, and no more furrows. The lamps stopped going out to the crater. Who stopped them? Somebody who'll never get thanked for it. That is all we are, people who sleep at night again.
+    Лом и бобы, как и везде, и никаких больше борозд. Огни перестали ходить к кратеру. Кто их остановил? Тот, кому за это никто спасибо не скажет. Вот и всё, что мы есть: люди, которые снова спят по ночам.
   - else:
-    Furrows. Two wheel lines in the dust and a third between them where something was pulled, all going toward the crater and none coming back. A truck goes off that road at night and the families find the marks in the morning. Who drags off a whole truck instead of stripping it where it stands? Somebody who wants all of it. Keep off that road after dark.
+    Борозды. Две колеи в пыли и третья между ними, где что-то волокли. Все ведут к кратеру, и ни одна не возвращается. Ночью грузовик сходит с той дороги, а утром семьи находят следы. Кто утаскивает целый грузовик, вместо того чтобы разобрать на месте? Тот, кому нужно всё. После темноты на ту дорогу не суйся.
   }
   -> hub
 + {heard_post and not asked_post} [Что скажешь про армейский пост?]
