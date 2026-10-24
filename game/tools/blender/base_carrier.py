@@ -110,10 +110,10 @@ MIRROR_X = 2.8
 MIRROR_Y = 1.2
 
 
-def mirrored(kit: Kit, name: str, size: Vec3, x: float, y: float, z: float, mat: str, rot: Vec3 = (0, 0, 0)) -> None:
-    """A box on the left side at +y and its twin on the right side, with the roll mirrored."""
-    kit.box(f"{name}_l", size, (x, y, z), mat, rot=rot)
-    kit.box(f"{name}_r", size, (x, -y, z), mat, rot=(-rot[0], rot[1], -rot[2]))
+def mirrored(kit: Kit, name: str, size: Vec3, x: float, y: float, z: float, mat: str) -> None:
+    """A box on the left side at +y and its twin on the right side."""
+    kit.box(f"{name}_l", size, (x, y, z), mat)
+    kit.box(f"{name}_r", size, (x, -y, z), mat)
 
 
 def hull(kit: Kit, name: str, mat: str, points: list[Vec3]) -> bpy.types.Object:
