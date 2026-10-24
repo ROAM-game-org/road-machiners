@@ -12,7 +12,6 @@ import { endTurn, newWorld, setMoveOrder } from "../sim/world";
 import { addRopeFrames, canTravel, Creep, nextSightSample, overshoots, threatsIn, Travel, type Playback } from "./travel";
 import { headingQuat, type VehicleFrame } from "../phys/frames";
 import { addState, declareFeud } from "../sim/states";
-import { QUESTS, startQuest } from "../sim/quests";
 import { TEST_MAP } from "../test/map";
 import { reusedWorld } from "../test/world-cache";
 import { defaultSetup } from "../sim/settings";
