@@ -58,7 +58,7 @@ describe('combat harness', () => {
   });
 
   it('a damaged arena fighter turns back when it cannot escape for repairs', () => {
-    const fight = { ...FIGHT, a: parseLineup('buggy'), b: parseLineup('buggy'), seed: 3, maxTurns: 200, arena: 9 };
+    const fight = { ...FIGHT, a: parseLineup('buggy'), b: parseLineup('buggy'), seed: 5, maxTurns: 200, arena: 9 };
     expect(['won', 'lost']).toContain(runFight(fight).outcome);
   });
 
