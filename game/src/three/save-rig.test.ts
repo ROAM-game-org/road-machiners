@@ -14,7 +14,7 @@ function slotsOf(world: World): SaveSlots {
   return slots;
 }
 
-type Envelope = { format: { major: number; minor: number }; world: { vehicles: { id: string; pos: { x: number; y: number }; heading: number; bend?: number }[] } };
+type Envelope = { steps?: unknown; format: { major: number; minor: number }; world: { vehicles: { id: string; pos: { x: number; y: number }; heading: number; bend?: number }[] } };
 
 describe('a saved rig', () => {
   it('gives back the bend of a folded hauler and awards nothing on load', () => {
@@ -40,6 +40,7 @@ describe('a saved rig', () => {
     old.pos = middle;
     delete old.bend;
     envelope.format = { ...envelope.format, minor: 80 };
+    delete envelope.steps;
     slots.put('auto', envelope as never);
 
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
