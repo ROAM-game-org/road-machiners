@@ -804,7 +804,7 @@ describe('game save', () => {
     const world = standardWorld();
     const fence = world.obstacles.find(isBreakable);
     if (!fence || !isBakedObstacle(fence)) throw new Error('The map needs a baked fence or junk pile');
-    breakProp(world, fence.id, world.player.vehicleId);
+    breakProp(world, fence.id, world.player.vehicleId, 3);
     writeSave(slots, 'auto', world, RUN, 1000);
 
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
@@ -818,7 +818,7 @@ describe('game save', () => {
     const slots = makeSlots();
     const world = standardWorld();
     const fence = world.obstacles.find(isBreakable)!;
-    breakProp(world, fence.id, world.player.vehicleId);
+    breakProp(world, fence.id, world.player.vehicleId, 3);
     world.vehicles[0].trail = [{ x: 1, y: 2, heading: 0 }];
     world.events = [{ t: 'wake' }];
     world.removed = [world.vehicles[1]];

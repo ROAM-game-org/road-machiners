@@ -559,7 +559,7 @@ export type EscortEnd = 'arrived' | 'strayed' | 'hostile' | 'knockedOut' | 'stuc
 export type GameEvent =
   | { t: 'activity'; vehicle: string; previous: NpcActivity['kind'] | null; activity: NpcActivity['kind'] | null; reason: GoalReason }
   | { t: 'stall'; vehicle: string; goal: NpcActivity['kind'] | null; reason: GoalReason }
-  | { t: 'collision'; a: string; b: string; hitsA: PartHit[]; hitsB: PartHit[] }
+  | { t: 'collision'; a: string; b: string; impact: number; hitsA: PartHit[]; hitsB: PartHit[] }
   | { t: 'empty'; vehicle: string; weapon: string }
   | { t: 'shot'; shooter: string; weapon: string; target: string; aim: Aim; chance: number; damageChance: number; side: Side; rounds: ShotRound[] }
   | { t: 'partDisabled'; vehicle: string; part: string }

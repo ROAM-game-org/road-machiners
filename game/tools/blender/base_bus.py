@@ -294,7 +294,7 @@ def windows(kit: Kit) -> None:
         for i, x in enumerate(edges):
             lo, hi = (x - PILLAR_W, x) if x >= NOSE_END - 1e-6 else (x - PILLAR_W / 2, x + PILLAR_W / 2)
             lo, hi = (lo, hi) if x > TAIL_END + 1e-6 else (x, x + PILLAR_W)
-            skin(kit, f"pillar{i}_{tag}", lo, hi, SILL, WIN_TOP, s, "paint")
+            skin(kit, f"pillar{i}_{tag}", lo, hi, SILL - 0.02, WIN_TOP + 0.02, s, "paint")
         for i, (a, b) in enumerate(bays(s)):
             skin(kit, f"transom{i}_{tag}", b, a, TRANSOM, TRANSOM + 0.045, s, "paint", out=0.012)
             if a <= FRONT_DOOR[1] + 1e-6:
@@ -306,7 +306,7 @@ def front_door(kit: Kit) -> None:
     x1, x0 = FRONT_DOOR
     check_door_gap("front_door", x0, x1, DOOR_BOTTOM, WHEELS_X, HUB_Z, ARCH_R)
     mid = (x0 + x1) / 2
-    skin(kit, "door_split", mid - 0.025, mid + 0.025, SILL, WIN_TOP, -1, "paint")
+    skin(kit, "door_split", mid - 0.025, mid + 0.025, SILL - 0.02, WIN_TOP + 0.02, -1, "paint")
     for name, x in (("door_seam_front", x1 - 0.14), ("door_seam_mid", mid), ("door_seam_back", x0 + 0.01)):
         skin(kit, name, x - 0.012, x + 0.012, DOOR_BOTTOM, BELT, -1, "under", out=0.02)
 
@@ -325,7 +325,7 @@ def sides(kit: Kit) -> None:
 def front(kit: Kit) -> None:
     """The windshield's center pillar, the visor's route sign and roof lamp, faired headlamps, parking lamps, the moulding bar and the split bumper."""
     foot, top = FRONT - 0.02, FRONT - WINDSHIELD_RAKE - 0.02
-    rake = [(foot - 0.03, SILL), (foot + 0.012, SILL), (top + 0.012, WIN_TOP), (top - 0.03, WIN_TOP)]
+    rake = [(foot - 0.03, SILL - 0.02), (foot + 0.012, SILL - 0.02), (top + 0.012, WIN_TOP + 0.02), (top - 0.03, WIN_TOP + 0.02)]
     prism(kit, "pillar_mid", rake, -0.035, 0.035, "paint")
     lip = CANT[1][1]
     dome = CANT[3][1]
@@ -361,7 +361,7 @@ def front(kit: Kit) -> None:
 
 def rear(kit: Kit) -> None:
     """The rear window's pillar over the closed engine end, the louvered engine lid, tall taillights and the split bumper."""
-    prism(kit, "rear_pillar", [(BACK - 0.03, SILL), (BACK + 0.04, SILL), (BACK + 0.06, WIN_TOP), (BACK + 0.0, WIN_TOP)], -0.04, 0.04, "paint")
+    prism(kit, "rear_pillar", [(BACK - 0.03, SILL - 0.02), (BACK + 0.04, SILL - 0.02), (BACK + 0.06, WIN_TOP + 0.02), (BACK + 0.0, WIN_TOP + 0.02)], -0.04, 0.04, "paint")
     end_band(kit, "engine_lid", -0.66, -0.06, 0.012, 0.66, "paint", -1)
     for i in range(4):
         z = -0.56 + 0.12 * i

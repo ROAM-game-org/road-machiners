@@ -470,8 +470,8 @@ describe("collision log", () => {
     const me = w.player.vehicleId;
     const fence = { id: "fence-3", pos: { x: 33, y: 30 }, r: 0.5, kind: "landmark" as const, look: "fence" as const, yaw: 0 };
     w.broken = [{ obstacle: fence, turn: w.turn }];
-    expect(logEn(w, { t: "collision", a: me, b: "fence-3", hitsA: [], hitsB: [] })).toBeNull();
-    expect(logEn(w, { t: "collision", a: me, b: "rock7", hitsA: [{ part: "x", damage: 4 }], hitsB: [] })).toBeNull();
+    expect(logEn(w, { t: "collision", a: me, b: "fence-3", impact: 3, hitsA: [], hitsB: [] })).toBeNull();
+    expect(logEn(w, { t: "collision", a: me, b: "rock7", impact: 3, hitsA: [{ part: "x", damage: 4 }], hitsB: [] })).toBeNull();
   });
 });
 
