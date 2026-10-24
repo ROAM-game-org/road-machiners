@@ -14,13 +14,11 @@ import { advanceFar } from '../sim/far';
 import { mountedParts, coreParts } from '../sim/grid';
 import { loadFactor } from '../sim/mass';
 import { getResources } from '../sim/resources';
-import { fuelCap, getMobilityCondition, gunDrag, isStranded, vehicleStats } from '../sim/stats';
+import { fuelCap, getMobilityCondition, gunCapacity, gunDrag, isStranded, vehicleStats } from '../sim/stats';
 import { tileAt } from '../sim/terrain';
 import { isOnRope, isTowing } from '../sim/tow';
-import type { EngineDef } from '../data/parts';
 import type { Pose, Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
-import { wornDef } from '../sim/wear';
 import { weatherAt } from '../sim/weather';
 import { endTurn, newWorld } from '../sim/world';
 import { RULES } from '../data/rules';
@@ -265,7 +263,7 @@ function startOf(w: World, v: Vehicle, seed: number, layer: TrafficLayer): Traff
     startKph: v.speed * KPH, endKph: 0, drivenKph: 0, maxKph: vehicleStats(w, v).maxSpeed * KPH,
     fuelShare: cap > 0 ? fuel / cap : 0, lowFuel: fuel > 0 && fuel < cap * RULES.lowFuelThreshold,
     mobility: getMobilityCondition(v), brokenWheels: coreParts(v, 'wheel').filter((p) => p.hp <= 0).length,
-    gunDrag: engine ? gunDrag(v, wornDef<EngineDef>(engine).capacity) : 1, loadFactor: loadFactor(v),
+    gunDrag: engine ? gunDrag(v, gunCapacity(v)!) : 1, loadFactor: loadFactor(v),
     weatherSpeed: weatherAt(w, v.pos).speed, onRoad: isRoad(w, v.pos), stranded: isStranded(w, v),
     towing: isTowing(w, v.id), towed: isOnRope(w, v.id), inCombat: inCombat(w, v), goal: v.brain!.goals.at(-1)?.kind ?? null,
   };
