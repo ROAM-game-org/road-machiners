@@ -19,7 +19,7 @@ cabin is riveted steel in the faction's second color: two seam ribs cross the cr
 lie level across the side glass and upright over the rear window, a bare patch plate is riveted to the left rear
 quarter, and a chrome strip runs along the cabin's foot. A round lookout hatch stands on the crown over the driver's
 cab cells, its lid lying open on the crown behind it, clear of the antenna's spot. The door tops are flat shoulders at
-lid level. The flat rear lid carries two louver banks either side of a faint spine: the left one is the engine hole, fitted to the drawn engine plus HOLE_MARGIN over a shallow slatted floor
+lid level. The flat rear lid carries two louver banks: the left one is the engine hole, fitted to the drawn engine plus HOLE_MARGIN over a shallow slatted floor
 0.06 m under the lid, and the right one is slats on the lid.
 The tail holds two round taillights a side in chrome rings, a dark plate panel in a chrome frame, a chrome wrap bumper
 and a dark mesh outlet in two halves under it. One long door a side keeps DOOR_GAP from the arches. Round arches
@@ -188,8 +188,7 @@ HOLE_MARGIN = 0.02
 HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, ENGINE_Y - ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_Y + ENGINE_HALF[1] + HOLE_MARGIN))
 FLOOR = LID - 0.06  # PHYSICS.bodies.convertible.engine.y: the slat tops of the shallow bay
 MAX_BAY_DEPTH = 0.2
-SLAT_PITCH = 0.055
-SPINE_Y = -0.16  # the rear lid's spine between the banks, right of the engine hole
+SLAT_PITCH = 0.11
 RIGHT_BANK = (-0.20, -0.84)
 
 
@@ -328,13 +327,6 @@ def arch_lips(kit: Kit) -> None:
                 pts.append((wx + r * math.cos(a), sy * (side_y(z - GROUND) + 0.004), z))
             for k, (a, b) in enumerate(zip(pts, pts[1:])):
                 strut(kit, f"arch_lip{i}_{k}_{s}", a, b, 0.024, "metal_light")
-
-
-def lids(kit: Kit) -> None:
-    """The faint spine down the rear lid between the louver banks. The front lid's spine is left off: at game zoom
-    the crease shading drew it as a dark stripe."""
-    (x0, _), (x1, _) = HOLE
-    kit.box("rear_spine", (x1 - x0, 0.04, 0.012), ((x0 + x1) / 2, SPINE_Y, LID + 0.004), "paint")
 
 
 def rocker(kit: Kit) -> None:
@@ -764,8 +756,7 @@ def louvers(kit: Kit) -> None:
     for i in range(count):
         x = x1 - 0.01 - SLAT_PITCH * (i + 0.5)
         kit.box(f"bay_slat{i}", (SLAT_PITCH * 0.55, y1 - y0 - 0.004, 0.02), (x, (y0 + y1) / 2, FLOOR - 0.01), "paint")
-        kit.box(f"lid_slat{i}", (SLAT_PITCH * 0.5, RIGHT_BANK[0] - RIGHT_BANK[1], 0.006), (x, sum(RIGHT_BANK) / 2, LID + 0.003), "paint")
-        kit.box(f"lid_gap{i}", (SLAT_PITCH * 0.3, RIGHT_BANK[0] - RIGHT_BANK[1] - 0.02, 0.002), (x - SLAT_PITCH * 0.45, sum(RIGHT_BANK) / 2, LID + 0.001), "under")
+        kit.box(f"lid_slat{i}", (SLAT_PITCH * 0.5, RIGHT_BANK[0] - RIGHT_BANK[1], 0.014), (x, sum(RIGHT_BANK) / 2, LID + 0.007), "paint")
 
 
 def main() -> None:
@@ -774,7 +765,6 @@ def main() -> None:
     check_tires()
     body(kit)
     arch_lips(kit)
-    lids(kit)
     rocker(kit)
     doors(kit)
     headlamps = nose(kit)
