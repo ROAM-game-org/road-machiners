@@ -219,7 +219,7 @@ export const MIX = {
   wind: { baseGain: 0.4, stormGain: 1, fadeSeconds: 1 },
   music: { fadeSeconds: 3, musicReachTiles: 12 },
   anchors: { sfx: "cannon-fire" } as Partial<Record<Bus, CueId>>,
-  tone: { low: 8, high: -17, spread: 10 },
+  tone: { low: 8, high: -17, presence: -7, spread: 10 },
 } as const;
 
 export const SCORE_BLOCKS = {
