@@ -788,8 +788,9 @@ export class Game {
     this.refreshUi();
   }
 
-  private tryBeginTurn(now: number, wasPlaying: boolean, held: boolean): "began" | "none" | "failed" {
+  private tryBeginTurn(now: number, wasPlaying: boolean): "began" | "none" | "failed" {
     try {
+      const held = this.timeHeld() || this.world.player.call !== null;
       const prepared = this.anim ? null : this.travel.takeReady(this.world, this.drive, now, held);
       if (prepared) this.beginTurn(prepared, now, this.travel.getRemainder(wasPlaying));
       return prepared ? "began" : "none";
@@ -800,6 +801,7 @@ export class Game {
   }
 
   private beginTurn(prepared: PreparedTurn, now: number, elapsed: number): void {
+    if (this.world.player.quests.live) throw new Error("A turn began under an open scene");
     const { world: played, playback, towed } = this.travel.beginPlayback(this.world, prepared, elapsed, this.frames);
     const world = relanguageQuest(played, QUESTS);
     if (this.saves.changeMapIfMoved(world)) return;
@@ -1003,7 +1005,7 @@ export class Game {
     let at = this.animStep(now, speed, playMs);
     this.updateLiveVision(at);
     this.updateTravel();
-    const began = this.tryBeginTurn(now, wasPlaying, held);
+    const began = this.tryBeginTurn(now, wasPlaying);
     if (began === "failed") return { at, playMs };
     if (began === "began") {
       at = this.animStep(now, speed, 0);

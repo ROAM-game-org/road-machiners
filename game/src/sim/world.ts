@@ -290,9 +290,13 @@ export function requireActivePlayer(world: World): void {
   if (world.player.call) throw new Error('A radio call is open');
 }
 
+export function waitsOnPlayer(world: World): boolean {
+  return world.player.call !== null || world.player.quests.live !== null;
+}
+
 export function autoRuns(world: World): boolean {
   const p = world.player;
-  if (p.call || p.quests.live) return false;
+  if (waitsOnPlayer(world)) return false;
   if (p.state === 'knockedOut' || isTowed(world)) return true;
   if (readyDeal(world)) return false;
   return waitsOnBeacon(world);
