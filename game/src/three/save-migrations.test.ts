@@ -897,3 +897,51 @@ describe('TINY_STEPS[101]', () => {
     expect({ ...next, crimes: undefined, player: { ...(next.player as SavedJson), standing: FORMAT_2_101.player.standing } }).toEqual({ ...FORMAT_2_101, crimes: undefined });
   });
 });
+
+describe('save migration 104 to 105, the smaller Hollow', () => {
+  type Saved = { vehicles: { id: string; pos: { x: number; y: number }; heading: number; speed: number; order: unknown; trail: unknown[]; brain: { home: { x: number; y: number }; goals: { destination: { x: number; y: number } | null }[] } | null }[] };
+  const oldYard = () => TINY_STEPS[85](structuredClone(FORMAT_2_85)) as unknown as Saved;
+  const car = (w: Saved, id: string) => w.vehicles.find((v) => v.id === id)!;
+  const NEW_FIRST_BAY = { x: 281.279, y: 243.765 };
+
+  it('moves each Sunward car home to the bay of the same index in the smaller yard', () => {
+    const next = TINY_STEPS[104](oldYard() as unknown as SavedJson) as unknown as Saved;
+
+    expect(car(next, 'v31').brain!.home).toEqual(NEW_FIRST_BAY);
+    expect(car(next, 'v32').brain!.home).toEqual({ x: 271.007, y: 241.464 });
+  });
+
+  it('seats a car parked at its old bay at the new one, stopped and without a plan', () => {
+    const before = oldYard();
+    const parked = car(before, 'v31');
+    parked.pos = { ...parked.brain!.home };
+    parked.speed = 3;
+
+    const moved = car(TINY_STEPS[104](before as unknown as SavedJson) as unknown as Saved, 'v31');
+
+    expect(moved.pos).toEqual(NEW_FIRST_BAY);
+    expect(moved.speed).toBe(0);
+    expect(moved.order).toBeNull();
+    expect(moved.trail).toEqual([]);
+    expect(moved.heading).toBeCloseTo(1.255398, 6);
+  });
+
+  it('leaves a car that is out on the road where it stands and re-aims a goal that named its old home', () => {
+    const before = oldYard();
+    const away = car(before, 'v31');
+    away.pos = { x: 300, y: 300 };
+    away.brain!.goals = [{ destination: { ...away.brain!.home } } as never];
+
+    const moved = car(TINY_STEPS[104](before as unknown as SavedJson) as unknown as Saved, 'v31');
+
+    expect(moved.pos).toEqual({ x: 300, y: 300 });
+    expect(moved.brain!.goals[0].destination).toEqual(NEW_FIRST_BAY);
+  });
+
+  it('throws on a Sunward car whose home is no bay of the old Hollow', () => {
+    const lost = oldYard();
+    car(lost, 'v31').brain!.home = { x: 10, y: 10 };
+
+    expect(() => TINY_STEPS[104](lost as unknown as SavedJson)).toThrow(/no bay of the old Hollow/);
+  });
+});

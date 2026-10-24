@@ -560,10 +560,18 @@ function snapSunwardHomes(world: World): void {
 }
 
 export function settleTrucks(world: World): void {
+  settleWhere(world, () => true);
+}
+
+export function settleOffHollow(world: World): void {
+  settleWhere(world, (v) => world.obstacles.some((o) => isHollowObstacle(o) && dist(o.pos, v.pos) < o.r + chassisDef(v.chassisId).radius));
+}
+
+function settleWhere(world: World, needsMove: (v: Vehicle) => boolean): void {
   const player = world.player.vehicleId;
   for (const v of [...world.vehicles.filter((x) => x.id !== player), ...world.vehicles.filter((x) => x.id === player)]) {
     const radius = chassisDef(v.chassisId).radius;
-    if (isFree(world, v.pos, radius, v.id)) continue;
+    if (!needsMove(v) || isFree(world, v.pos, radius, v.id)) continue;
     const spot = freeSpotNear(world, v.pos, radius, v.id);
     if (!spot) throw new Error(`No free spot near ${v.pos.x.toFixed(1)}, ${v.pos.y.toFixed(1)} for ${v.id} on map ${world.mapHash}`);
     v.pos = spot;

@@ -5,7 +5,7 @@ import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { townAt } from '../sim/sites';
 import { reachedOutpostAt } from '../sim/fury-road';
 import { highwayMap } from '../sim/highway';
-import { fitBake, repairMap, settleTrucks, type SavedBroken, type SavedMapWorld } from '../sim/map-repair';
+import { fitBake, repairMap, settleOffHollow, settleTrucks, type SavedBroken, type SavedMapWorld } from '../sim/map-repair';
 import { repairContent } from '../sim/save-repair';
 export { newMapFor } from '../sim/highway';
 import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
@@ -148,6 +148,7 @@ function loadedWorld(envelope: unknown, icarus: BakedMap): World {
   const loaded = rebaked ? repairMap(staged, map) : onSameMap(staged, map);
   if (!rebaked) fitBake(loaded, map);
   repairContent(loaded);
+  settleOffHollow(loaded);
   if (rebaked) settleTrucks(loaded);
   restoredQuests(loaded, world, revisions, repaired);
   stockOldSpots(loaded, map);
