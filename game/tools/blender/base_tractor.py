@@ -7,12 +7,12 @@ sleeper roofs 3.05 m and the stacks 4.10 m over the ground.
 The ground is 1.62 m below the center. Heights below are given over the ground and turned into Z by up().
 A tall chrome grille, 1.00 m wide and 1.12 m tall with nine vertical bars over a dark core and a red badge on its crown,
 stands on a deep full-width chrome bumper from 0.48 to 0.90 m. The long hood tapers in plan from 1.48 m wide at the cowl to
-1.20 m at the grille, with rounded shoulders, its top at 1.95 m. Swept painted fenders rise from the bumper over the steer
+1.20 m at the grille, with rounded shoulders, its top at 1.95 m. Swept painted fenders with rounded outer shoulders rise from the bumper over the steer
 wheels and fall behind them to the cowl, with a chrome pod of two rectangular lamps on each fender front, centered 1.07 m up.
 Tall round chrome air cleaners stand at the cowl. The upright cab, 2.08 m wide, stands from the cowl to 3.42 m behind the bumper:
-painted doors to the 2.15 m beltline, a split windshield under a chrome visor with amber markers, tall mirrors on struts and
+painted doors to the 2.04 m beltline, a split windshield under a chrome visor with amber markers, tall mirrors on struts and
 a trim roof with rounded edges. A painted sleeper box as wide as the cab stands behind it to the back edge of grid row 5,
-level with the cab roof under its own trim roof, with a dark seam at the cab joint and a door panel on each side. Two
+level with the cab roof under its own trim roof, with a dark seam at the cab joint, a door with a window and a high window on each side. Two
 straight round chrome stacks stand at the cab-sleeper seam, outboard of the cab sides. Under the door, tread steps follow
 the fender tail, then long round chrome tanks run back under the sleeper. The narrow deck behind the sleeper carries a
 round fifth-wheel plate over the drive wheels, between dark round quarter fenders and mud flaps.
@@ -89,9 +89,10 @@ BUMPER = (up(0.48), up(0.90))  # photo 2: a deep chrome bumper, about 0.2 to 0.7
 HOOD_TOP = up(1.95)
 GRILLE_CROWN = up(2.02)  # photo 1 and 2: the grille's crowned top stands just over the hood
 HOOD_FOOT = up(1.62)
+FENDER_SHOULDER = (0.025, 0.07)  # photo 1 and 2: the fenders round over toward the body side
 FENDER_CROWN = up(1.70)  # photo 1 and 2: the hood stands over the fenders; the tire rule holds the arch top at 1.60 m
 SILL = up(1.15)
-BELT = up(2.15)
+BELT = up(2.04)  # photo 1 and 2: the windshield starts just over the hood
 UNDER_ROOF = up(2.95)
 ROOF = up(3.05)
 RAKE = 0.14
@@ -202,7 +203,7 @@ def grille(kit: Kit) -> None:
     bottom = BUMPER[1]
     face = GRILLE_X + 0.02
     prism_across(kit, "grille_frame", hood_section(GRILLE_HALF, bottom, GRILLE_CROWN, 0.12), GRILLE_X - 0.04, face + 0.04, "metal_light")
-    core_half = GRILLE_HALF - 0.08
+    core_half = GRILLE_HALF - 0.10
     core = (bottom + 0.07, HOOD_TOP - 0.10)
     kit.box("grille_core", (0.02, 2 * core_half, core[1] - core[0]), (face + 0.045, 0, (core[0] + core[1]) / 2), "under")
     bars = 9
@@ -213,8 +214,11 @@ def grille(kit: Kit) -> None:
     kit.box("bumper", (FRONT - BUMPER_BACK, 2 * (SIDE - 0.02), BUMPER[1] - BUMPER[0]), ((FRONT + BUMPER_BACK) / 2, 0, (BUMPER[0] + BUMPER[1]) / 2), "metal_light")
 
 
-def fender_outline() -> list[tuple[float, float]]:
-    """The XZ outline of a front fender: rising from over the bumper to a crown over the wheel and sweeping down to the cowl."""
+def fender_outline(drop: float = 0.0) -> list[tuple[float, float]]:
+    """The XZ outline of a front fender: rising from over the bumper to a crown over the wheel and sweeping down to the cowl.
+
+    drop lowers the crown, fading to nothing at the tail height, for the rounded outer shoulder.
+    """
     front = GRILLE_X - 0.02
     face_top = LAMP_POD[2] + 0.02
     crown_x = WHEEL_X - 0.2
@@ -222,17 +226,23 @@ def fender_outline() -> list[tuple[float, float]]:
     crown_back = crown_x - 0.3
     tail_x, tail_z = COWL_X + 0.12, up(1.15)
     sweep = [(crown_back - (crown_back - tail_x) * (1 - math.cos(math.pi * k / 10)) / 2, FENDER_CROWN - (FENDER_CROWN - tail_z) * (1 - math.cos(math.pi * k / 10)) / 2) for k in range(1, 11)]
-    top = [(front, BUMPER[1])] + rise + sweep
+    def lowered(p: tuple[float, float]) -> tuple[float, float]:
+        share = min(1.0, max(0.0, (p[1] - tail_z) / (FENDER_CROWN - tail_z)))
+        return (p[0], p[1] - drop * share)
+
+    top = [(front, BUMPER[1])] + [lowered(p) for p in rise + sweep]
     arch = [p for p in wheel_arch(WHEEL_X, ARCH_R, tail_x, front) if p[0] > tail_x and p[0] < front]
     return top + [(tail_x, HUB_Z)] + arch + [(front, HUB_Z)]
 
 
 def fenders(kit: Kit) -> None:
-    """Painted swept fenders from beside the grille out to the body side, with a lamp pod on each front."""
-    outline = fender_outline()
+    """Painted swept fenders from beside the grille out to the body side, their outer shoulder rounded down in steps, with a lamp pod on each front."""
     inner = HOOD_HALF_GRILLE - 0.04
-    prism(kit, "fender_l", outline, inner, SIDE, "paint")
-    prism(kit, "fender_r", outline, -SIDE, -inner, "paint")
+    bands = [(inner, SIDE - 0.24, 0.0), (SIDE - 0.24, SIDE - 0.12, FENDER_SHOULDER[0]), (SIDE - 0.12, SIDE, FENDER_SHOULDER[1])]
+    for i, (y0, y1, drop) in enumerate(bands):
+        outline = fender_outline(drop)
+        prism(kit, f"fender_l{i}", outline, y0, y1, "paint")
+        prism(kit, f"fender_r{i}", outline, -y1, -y0, "paint")
     lamp_pods(kit, GRILLE_X - 0.02)
 
 
@@ -307,10 +317,11 @@ def sleeper(kit: Kit) -> None:
     trim_roof(kit, "sleeper_roof", CAB_BACK, SLEEPER_BACK)
     mirrored(kit, "sleeper_seam", (0.04, 0.012, UNDER_ROOF - SILL), CAB_BACK, CAB_HALF + 0.004, (SILL + UNDER_ROOF) / 2, "under")
     door_x = mid + 0.02
-    door_lo, door_hi = SILL + 0.12, UNDER_ROOF - 0.18
+    door_lo, door_hi = SILL + 0.12, UNDER_ROOF - 0.36
     mirrored(kit, "sleeper_door_seam", (0.5, 0.01, door_hi - door_lo), door_x, CAB_HALF + 0.004, (door_lo + door_hi) / 2, "under")
     mirrored(kit, "sleeper_door", (0.44, 0.014, door_hi - door_lo - 0.06), door_x, CAB_HALF + 0.006, (door_lo + door_hi) / 2, "paint")
-    mirrored(kit, "sleeper_window", (0.24, 0.018, 0.34), door_x, CAB_HALF + 0.007, door_hi - 0.3, "glass")
+    mirrored(kit, "sleeper_window", (0.22, 0.018, 0.4), door_x, CAB_HALF + 0.007, door_hi - 0.32, "glass")
+    mirrored(kit, "sleeper_top_window", (0.6, 0.012, 0.16), mid, CAB_HALF + 0.004, UNDER_ROOF - 0.19, "glass")
 
 
 def tanks(kit: Kit) -> None:
@@ -343,7 +354,7 @@ def deck(kit: Kit) -> None:
     """The narrow flat deck from the sleeper to the tail over the drive wheels, with a round fifth-wheel plate."""
     length = SLEEPER_BACK - BACK
     mid = (SLEEPER_BACK + BACK) / 2
-    kit.box("deck", (length, 2 * DECK_HALF, DECK_T), (mid, 0, DECK - DECK_T / 2), "metal_light")
+    kit.box("deck", (length, 2 * DECK_HALF, DECK_T), (mid, 0, DECK - DECK_T / 2), "metal_dark")
     mirrored(kit, "deck_rail", (length, 0.02, DECK_T), mid, DECK_HALF - 0.01, DECK - DECK_T / 2, "paint")
     kit.box("deck_core", (length - 0.06, 0.7, DECK - DECK_T - RAIL_TOP), (mid - 0.03, 0, (DECK - DECK_T + RAIL_TOP) / 2), "metal_dark")
     plate_x = -WHEEL_X + 0.2
