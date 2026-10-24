@@ -2,10 +2,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { budget } from '../test/budget';
 import { along } from '../test/territory-kit';
 import { ECONOMY } from '../data/goods';
+import { CHASSIS } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { REGION } from '../data/region';
 import { MAPGEN, TERRAIN } from '../data/terrain';
 import { FALLEN_SUN_DECKS, TERRITORIES } from '../data/territory';
+import { isRig } from '../sim/body';
 import { deckAt, deckById } from '../sim/bridge';
 import { boxDistance, onDeck, propBoxes, propReach, type PosedBox } from '../sim/mapgen';
 import { CELL, navLayer } from '../sim/nav/layer';
@@ -365,3 +367,54 @@ function stripBox(s: LandingStrip): PosedBox {
   return { center: { x: (s.a.x + s.b.x) / 2, y: (s.a.y + s.b.y) / 2 }, axis, half: { x: length / 2, y: s.width / 2 }, z0: 0, z1: 1 };
 }
 
+
+describe('every territory road on the baked map', () => {
+  const terrain = TEST_MAP.terrain;
+  const territories = REGION.locations.filter((l) => l.kind === 'territory');
+
+  function tilesUnder(road: { points: Vec[]; width: number }, def: (typeof territories)[number], inside: boolean): number[] {
+    const out = new Set<number>();
+    for (let k = 1; k < road.points.length; k++) {
+      const [a, b] = [road.points[k - 1], road.points[k]];
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      for (const tile of tilesWithin(terrain.size, mid, dist(a, b) / 2 + road.width)) {
+        const c = { x: (tile % terrain.size) + 0.5, y: Math.floor(tile / terrain.size) + 0.5 };
+        if (segmentDist(c, a, b) <= road.width / 2 && (!inside || siteGap(def, c) < 0)) out.add(tile);
+      }
+    }
+    return [...out];
+  }
+
+  it('lays no web road or spur tile of any territory on a cliff (IV1)', () => {
+    for (const def of territories) {
+      const { roads, spurs } = territoryRoads(def as never);
+      for (const road of [...roads, ...spurs]) {
+        for (const tile of tilesUnder(road, def, true)) expect(isCliff(terrain, tile), `${def.id} cliff at ${tile % terrain.size},${Math.floor(tile / terrain.size)}`).toBe(false);
+      }
+    }
+  });
+
+  const glassFlats = REGION.locations.find((l) => l.id === 'glass-flats')!;
+  const lane = territoryRoads(glassFlats as never).roads[5];
+
+  it('climbs at most the road grade per tile along the centre line of every Glass Flats road (IV6)', () => {
+    const limit = TERRAIN.roadGrade + 0.02;
+    for (const road of territoryRoads(glassFlats as never).roads) {
+      const points = along(road.points, 1);
+      for (let k = 1; k < points.length; k++) {
+        const [a, b] = [points[k - 1], points[k]];
+        const grade = Math.abs(groundAt(terrain, b.x, b.y) - groundAt(terrain, a.x, a.y)) / dist(a, b);
+        expect(grade, `grade at ${a.x.toFixed(1)},${a.y.toFixed(1)}`).toBeLessThanOrEqual(limit);
+      }
+    }
+  });
+
+  it('routes the largest chassis along the lane from the ring corner to the engine end (IV3)', () => {
+    const w = standardWorld(1337);
+    const widest = Object.values(CHASSIS).filter((c) => !isRig(c.id)).reduce((a, b) => (b.radius > a.radius ? b : a));
+    const [from, goal] = [lane.points[0], lane.points.at(-1)!];
+    const path = route(w, from, goal, widest.radius, []);
+    expect(dist(path.at(-1)!, goal)).toBeLessThanOrEqual(1);
+    for (const p of path) expect(Math.min(...lane.points.slice(1).map((b, k) => segmentDist(p, lane.points[k], b)))).toBeLessThanOrEqual(3);
+  }, 120_000);
+});

@@ -1,5 +1,5 @@
 {
- "mapHash": "1777c1b6",
+ "mapHash": "ef229551",
  "sites": [
   {
    "id": "survey-ruin-34",
@@ -812,7 +812,7 @@
    ]
   },
   {
-   "id": "survey-skiff-6059",
+   "id": "survey-skiff-6028",
    "type": "boats",
    "pos": {
     "x": 57.711612701416016,
@@ -836,7 +836,7 @@
    ]
   },
   {
-   "id": "survey-fishingBoat-6062",
+   "id": "survey-fishingBoat-6031",
    "type": "boats",
    "pos": {
     "x": 188.26832580566406,
@@ -874,7 +874,7 @@
    ]
   },
   {
-   "id": "survey-skiff-6067",
+   "id": "survey-skiff-6036",
    "type": "boats",
    "pos": {
     "x": 490.53607177734375,
@@ -906,7 +906,7 @@
    ]
   },
   {
-   "id": "survey-fishingBoat-6070",
+   "id": "survey-fishingBoat-6039",
    "type": "boats",
    "pos": {
     "x": 286.5826110839844,
