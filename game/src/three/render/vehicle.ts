@@ -864,7 +864,9 @@ export function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): bool
   if (inCargoBay(v, item)) return true;
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
-  return def.kind === 'core' && (def.role === 'transmission' || def.role === 'tank') && !chassisDef(v.chassisId).showsCores;
+  const chassis = chassisDef(v.chassisId);
+  if (def.kind === 'engine' && isMounted(v.chassisId, item)) return !chassis.showsEngine;
+  return def.kind === 'core' && (def.role === 'transmission' || def.role === 'tank') && !chassis.showsCores;
 }
 
 function inCargoBay(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
