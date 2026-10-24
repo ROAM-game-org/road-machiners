@@ -206,14 +206,14 @@ def check_bucket_clear() -> None:
 
 def bucket(kit: Kit) -> None:
     check_bucket_clear()
-    prism(kit, "scoop", shell(BUCKET, BUCKET_T), -BUCKET_HALF + 0.05, BUCKET_HALF - 0.05, "metal")
+    prism(kit, "scoop", shell(BUCKET, BUCKET_T), -BUCKET_HALF + 0.05, BUCKET_HALF - 0.05, "metal_light")
     top = BUCKET[-1]
     plate = [*BUCKET, (top[0] + 0.3, top[1] - 0.1), (FRONT - 0.08, BUCKET[0][1] + 0.62), (FRONT, BUCKET[0][1] + 0.4)]
-    prism(kit, "side_plate_l", plate, BUCKET_HALF - 0.05, BUCKET_HALF, "metal")
-    prism(kit, "side_plate_r", plate, -BUCKET_HALF, -BUCKET_HALF + 0.05, "metal")
+    prism(kit, "side_plate_l", plate, BUCKET_HALF - 0.05, BUCKET_HALF, "metal_light")
+    prism(kit, "side_plate_r", plate, -BUCKET_HALF, -BUCKET_HALF + 0.05, "metal_light")
     guard = [(top[0], top[1] - 0.02), (top[0] - 0.1, top[1] + 0.22), (top[0] - 0.05, top[1] + 0.22), (top[0] + 0.05, top[1])]
-    prism(kit, "spill_guard", guard, -BUCKET_HALF + 0.05, BUCKET_HALF - 0.05, "metal")
-    beam(kit, "cutting_edge", BUCKET[0], lerp(BUCKET[0], BUCKET[1], 0.35), 0, 2 * BUCKET_HALF - 0.1, 0.05, "metal_light")
+    prism(kit, "spill_guard", guard, -BUCKET_HALF + 0.05, BUCKET_HALF - 0.05, "metal_light")
+    beam(kit, "cutting_edge", BUCKET[0], lerp(BUCKET[0], BUCKET[1], 0.35), 0, 2 * BUCKET_HALF - 0.1, 0.05, "metal")
     for s, y in (("l", ARM_Y), ("r", -ARM_Y)):
         kit.box(f"bucket_ear_{s}", (0.16, 0.18, 0.34), (B_PIN[0] + 0.04, y, B_PIN[1] + 0.06), "under")
     kit.box("tilt_ear", (0.14, 0.2, 0.3), (TILT_PIN[0] + 0.04, 0, TILT_PIN[1]), "under")
