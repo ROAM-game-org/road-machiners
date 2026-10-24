@@ -12,6 +12,7 @@ import { endTurn, newWorld, setMoveOrder } from "../sim/world";
 import { addRopeFrames, canTravel, Creep, nextSightSample, overshoots, threatsIn, Travel, type Playback } from "./travel";
 import { headingQuat, type VehicleFrame } from "../phys/frames";
 import { addState, declareFeud } from "../sim/states";
+import { QUESTS, startQuest } from "../sim/quests";
 import { TEST_MAP } from "../test/map";
 import { reusedWorld } from "../test/world-cache";
 import { defaultSetup } from "../sim/settings";
@@ -605,6 +606,78 @@ describe("every turn that runs on its own", () => {
       drop.beginPlayback(awake, prepared(out), 0, {});
       expect(drop.isFast(1300)).toBe(false);
     });
+  });
+});
+
+describe("a scene or call on view", () => {
+  const ready = { world: {}, result: { frames: {}, next: {} } } as never;
+  const playback = { result: { next: {} } } as unknown as Parameters<Travel["prepareNext"]>[1];
+  const drive = {} as DriveSnapshot;
+
+  function travelWithTurns() {
+    const prepare = vi.fn();
+    const travel = new Travel(250, TAIL);
+    Object.assign(travel, { turns: { prepare, take: () => ready, isReady: () => true } });
+    return { travel, prepare };
+  }
+
+  function heldSpace(travel: Travel) {
+    travel.press(0, false, false);
+    return 300;
+  }
+
+  function autoTravel(travel: Travel) {
+    travel.update(true, true);
+    travel.press(0, false, true);
+    travel.release();
+    return 1000;
+  }
+
+  function withScene(): World {
+    return startQuest(makeSafeWorld(), QUESTS, "wagon_seven", "start");
+  }
+
+  function withCall(): World {
+    const world = makeSafeWorld();
+    world.player.call = { kind: "radio" } as never;
+    return world;
+  }
+
+  const presses = { "held Space": heldSpace, "waypoint travel": autoTravel };
+  const screens = { "a live scene": withScene, "an open call": withCall };
+
+  describe.each(Object.entries(presses))("with %s", (_name, press) => {
+    it.each(Object.entries(screens))("gives no turn under %s", (_screen, open) => {
+      const { travel, prepare } = travelWithTurns();
+      const world = open();
+      const now = press(travel);
+      expect(travel.continues(world, now)).toBe(false);
+      travel.prepareNext(world, playback, now);
+      expect(prepare).not.toHaveBeenCalled();
+      expect(travel.takeReady(world, drive, now, false)).toBeNull();
+      expect(travel.timeWanted(world, now)).toBe(false);
+    });
+
+    it("still chains turns once the scene is gone", () => {
+      const { travel, prepare } = travelWithTurns();
+      const world = withScene();
+      world.player.quests.live = null;
+      const now = press(travel);
+      expect(travel.continues(world, now)).toBe(true);
+      travel.prepareNext(world, playback, now);
+      expect(prepare).toHaveBeenCalledTimes(1);
+      expect(travel.takeReady(world, drive, now, false)).toBe(ready);
+      expect(travel.timeWanted(world, now)).toBe(true);
+    });
+  });
+
+  it("holds a knocked-out run under a scene until the scene closes", () => {
+    const { travel } = travelWithTurns();
+    const world = withScene();
+    world.player.state = "knockedOut";
+    expect(travel.takeReady(world, drive, 0)).toBeNull();
+    world.player.quests.live = null;
+    expect(travel.takeReady(world, drive, 0)).toBe(ready);
   });
 });
 
