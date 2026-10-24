@@ -15,6 +15,8 @@ import { addState, declareFeud } from "../sim/states";
 import { TEST_MAP } from "../test/map";
 import { reusedWorld } from "../test/world-cache";
 import { defaultSetup } from "../sim/settings";
+import { leaveQuest, QUESTS, startQuest } from "../sim/quests";
+import { GAME_OPENED_QUESTS } from "../data/quests";
 
 const TAIL = 11;
 
@@ -738,5 +740,92 @@ describe("the slowdown after a stopped turn", () => {
     travel.press(0, false, true);
     travel.prepareNext(stopped, { ...playback, result: { next: {} } } as Playback, 0);
     expect(prepare).toHaveBeenCalledWith(stopped, tail.next);
+  });
+});
+
+describe("a world that waits on the player", () => {
+  beforeAll(initPhysics);
+  const ready = { world: {}, result: { frames: {}, next: {} } } as never;
+  const playback = { result: { next: {} } } as unknown as Parameters<Travel["prepareNext"]>[1];
+  const drive = {} as DriveSnapshot;
+  const at = (t: number) => vi.spyOn(performance, "now").mockReturnValue(t);
+  const scenes = [
+    GAME_OPENED_QUESTS.introRoad,
+    GAME_OPENED_QUESTS.introWake,
+    GAME_OPENED_QUESTS.firstFall,
+    GAME_OPENED_QUESTS.wagonSeven,
+    GAME_OPENED_QUESTS.roadStretch1,
+  ];
+
+  function underScene(quest: string): World {
+    return startQuest(makeSafeWorld(), QUESTS, quest, "start");
+  }
+
+  function underCall(): World {
+    const world = makeSafeWorld();
+    world.player.call = { kind: "radio" } as never;
+    return world;
+  }
+
+  function travelWithTurns() {
+    const prepare = vi.fn();
+    const travel = new Travel(250, TAIL);
+    Object.assign(travel, { turns: { prepare, take: () => ready, isReady: () => true } });
+    return { travel, prepare };
+  }
+
+  function preparedFrom(world: World): PreparedTurn {
+    const live = buildDrive(world);
+    const next = captureDrive(live);
+    freeDrive(live);
+    return { world, result: { frames: {}, next } } as never;
+  }
+
+  const waiting: [string, () => World][] = [...scenes.map((quest): [string, () => World] => [`the scene ${quest}`, () => underScene(quest)]), ["a radio call", underCall]];
+
+  it.each(waiting)("takes, chains and prepares no turn in auto travel under %s", (_, make) => {
+    const world = make();
+    const { travel, prepare } = travelWithTurns();
+    travel.press(0, false, true);
+    travel.release();
+    expect(travel.continues(world, 1000)).toBe(false);
+    expect(travel.timeWanted(world, 1000)).toBe(false);
+    travel.prepareNext(world, playback, 1000);
+    expect(prepare).not.toHaveBeenCalled();
+    expect(travel.takeReady(world, drive, 1000)).toBeNull();
+    expect(travel.shouldAdvance(1000)).toBe(false);
+  });
+
+  it.each(waiting)("takes, chains and prepares no turn with Space held under %s", (_, make) => {
+    const world = make();
+    const { travel, prepare } = travelWithTurns();
+    at(1000);
+    travel.press(1000, false, true);
+    expect(travel.isFast(1500)).toBe(true);
+    expect(travel.continues(world, 1500)).toBe(false);
+    travel.prepareNext(world, playback, 1500);
+    expect(prepare).not.toHaveBeenCalled();
+    expect(travel.takeReady(world, drive, 1500)).toBeNull();
+    expect(travel.isFast(1600)).toBe(false);
+  });
+
+  it("takes the next turn again in auto travel once the scene is left", () => {
+    const world = leaveQuest(underScene(GAME_OPENED_QUESTS.introRoad));
+    const { travel } = travelWithTurns();
+    travel.press(0, false, true);
+    travel.release();
+    expect(travel.takeReady(world, drive, 1000)).toBe(ready);
+  });
+
+  it.each(waiting)("refuses to begin a turn from a world under %s", (_, make) => {
+    const world = make();
+    const { travel } = travelWithTurns();
+    expect(() => travel.beginPlayback(world, preparedFrom(world), 0, {})).toThrow(/waits on the player/);
+  });
+
+  it("begins the same turn once the scene is left", () => {
+    const world = leaveQuest(underScene(GAME_OPENED_QUESTS.introRoad));
+    const { travel } = travelWithTurns();
+    expect(() => travel.beginPlayback(world, preparedFrom(world), 0, {})).not.toThrow();
   });
 });
