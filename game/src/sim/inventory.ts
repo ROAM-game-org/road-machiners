@@ -19,6 +19,7 @@ import { itemMass } from './mass';
 import { npcMassRoom, vehicleStats } from './stats';
 import type { GridItem, PartInstance, RefitJob, RefitMove, RefitPickup, Refusal, Vehicle, World } from './types';
 import { playerCommand, Refused } from './world';
+import { requireSpareGoods } from './market';
 
 export function mountPart(world: World, v: Vehicle, part: PartInstance, mount: Cell[] = mountCellsOf(part.defId)): boolean {
   const item: PartItem = { id: newId(world, 'i'), x: 0, y: 0, rot: 0, kind: 'part', part };
@@ -259,6 +260,7 @@ export function dumpItem(world: World, itemId: string, truckId?: string): World 
     requireIdleRefit(me);
     const item = findItem(me, itemId);
     if (item.kind === 'parcel') throw new Refused({ id: 'parcelKept' });
+    if (item.kind === 'good') requireSpareGoods(w, me, item.good, 1);
     if (isMounted(me.chassisId, item)) throw new Error('Remove an installed part before dumping it');
     if (modeRules(w).looting) dumpOnPile(w, me, item);
     else me.items = me.items.filter((it) => it.id !== item.id);

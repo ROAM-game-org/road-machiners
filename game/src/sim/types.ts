@@ -218,7 +218,7 @@ export type SimNote =
   | { id: 'core' }
   | { id: 'spawnBlocked'; template: string };
 
-export type MoneyReason = { kind: 'contract' } | { kind: 'failedHaul' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' } | { kind: 'holdUp'; vehicle: string };
+export type MoneyReason = { kind: 'contract' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' } | { kind: 'holdUp'; vehicle: string };
 
 export type PlacementRefusal = { id: 'noFit' } | { id: 'inTheWay' } | { id: 'armorOnly' };
 
@@ -226,6 +226,7 @@ export type Refusal =
   | PlacementRefusal
   | { id: 'badLayout'; cause: PlacementRefusal }
   | { id: 'itemGone' }
+  | { id: 'cargoOwed' }
   | { id: 'refitRunning' }
   | { id: 'gatesShut' }
   | { id: 'boardClosed' }
@@ -352,7 +353,7 @@ export type MemoryFact =
   | { kind: 'wronged'; by: string; deed: WrongDeed }
   | { kind: 'helped'; by: string; deed: HelpDeed }
   | { kind: 'sighting'; vehicle: string; at: Vec; heading: number }
-  | { kind: 'witnessed'; crime: string; by: string; victim: string; offense: CrimeOffense; at: Vec; heading: number };
+  | { kind: 'witnessed'; crime: string; by: string; victim: string; offense: WitnessedOffense; at: Vec; heading: number };
 export type SightingFact = Extract<MemoryFact, { kind: 'sighting' }>;
 export type Memory = { turn: number; fact: MemoryFact };
 
@@ -576,7 +577,7 @@ export type GameEvent =
   | { t: 'practice'; source: XpSource; amount: number; difficulty: number | null; target: string; xp: number }
   | { t: 'skillUp'; skill: SkillId; level: number }
   | { t: 'money'; amount: number; reason: MoneyReason }
-  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
+  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'late' | 'overdue' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
   | { t: 'contract'; contract: Contract; outcome: 'found' | 'surveyed'; site: string; cause?: undefined }
   | { t: 'claimRival'; contract: string; vehicle: string }
   | { t: 'claimLead'; contract: string; driver: string }
@@ -639,7 +640,7 @@ export type GameEvent =
   | { t: 'outpostReached'; milestone: number; pay: number; wrecks: number }
   | { t: 'roadOpened'; stretch: number }
   | { t: 'runLost'; stretch: number; cause: RunLossCause }
-  | { t: 'bountyFiled'; case: string; target: string; reporter: string; offense: CrimeOffense; victim: string; site: string; owed: number }
+  | { t: 'bountyFiled'; case: string; target: string; reporter: string; offense: CrimeOffense; victim: string; site: string; owed: number; kept?: { good: string; crates: number } }
   | { t: 'bountyClosed'; case: string; target: string; status: Exclude<CaseStatus, 'open'>; amount: number; collector: string | null }
   | { t: 'settlement'; faction: StandingFactionId; price: number }
   | { t: 'asked'; by: string; of: string; target: string; told: boolean };
@@ -678,9 +679,10 @@ export type SunwardFacts = { collapsed: number | null; night: SunwardNight | nul
 
 export type Crater = { id: string; pos: Vec; radius: number; turn: number };
 
-export type CrimeOffense = 'attacked' | 'robbed' | 'killed';
+export type WitnessedOffense = 'attacked' | 'robbed' | 'killed';
+export type CrimeOffense = WitnessedOffense | 'embezzled';
 export type CaseStatus = 'open' | 'paid' | 'collected' | 'lapsed';
-export type CaseIssuer = { kind: 'faction'; faction: StandingFactionId } | { kind: 'driver'; id: string };
+export type CaseIssuer = { kind: 'faction'; faction: StandingFactionId } | { kind: 'driver'; id: string } | { kind: 'shop'; shop: string };
 export type CaseLead = { at: Vec; turn: number; heading: number | null };
 export type CrimeCase = {
   id: string;

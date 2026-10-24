@@ -21,7 +21,7 @@ describe("stingOf", () => {
   });
   it("ignores spending and arrivals", () => {
     const events: GameEvent[] = [
-      { t: "money", amount: -5, reason: { kind: "failedHaul" } },
+      { t: "money", amount: -5, reason: { kind: "towing", vehicle: "npc1" } },
       { t: "arrived", vehicle: "npc1" },
     ];
     expect(stingOf(events, "p")).toBeNull();

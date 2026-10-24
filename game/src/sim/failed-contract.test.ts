@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CONTRACTS } from '../data/market';
 import { REGION } from '../data/region';
 import { townWork } from './dialogue-rules';
-import { acceptContract, advanceContracts, boardClosedUntil, finishContract, goodValue, haulPenalty, type Contract } from './market';
+import { acceptContract, advanceContracts, boardClosedUntil, finishContract, type Contract } from './market';
 import { sitePads } from './sites';
 import { emptyWorld } from './testkit';
 import type { GameEvent, World } from './types';
@@ -27,14 +27,13 @@ const ended = (w: World, c: Contract, outcome: 'done' | 'failed' | 'lapsed' | 'r
 const moneyMoved = (events: GameEvent[]) => events.reduce((sum, e) => (e.t === 'money' ? sum + e.amount : sum), 0);
 
 describe('a failed contract', () => {
-  it('costs 5 standing with the posting shop faction and charges only the haul penalty', () => {
+  it('costs 5 standing with the posting shop faction and no money', () => {
     const before = atBowlHolding(haul());
     const w = missed(before);
 
     expect(w.player.standing.bowl).toBe(before.player.standing.bowl - 5);
     expect(w.player.deeds.map((d) => [d.deed, d.faction, d.delta, d.subject])).toEqual([['failedContract', 'bowl', -5, 'ct-haul']]);
-    expect(moneyMoved(w.events)).toBe(-haulPenalty(haul(), goodValue('salt')));
-    expect(w.events.filter((e) => e.t === 'money').map((e) => e.t === 'money' && e.reason.kind)).toEqual(['failedHaul']);
+    expect(w.events.filter((e) => e.t === 'money')).toEqual([]);
   });
 
   it('closes that shop board until one day after the failure and then opens it', () => {

@@ -7,7 +7,7 @@ import { REGION } from '../data/region';
 import { playerVehicle } from './damage';
 import { makePart } from './factory';
 import { goodsCount } from './grid';
-import { addGoods, stowParcel, stowPart } from './inventory';
+import { addGoods, removeGoods, stowParcel, stowPart } from './inventory';
 import { sitePads } from './sites';
 import { addVehicle, emptyWorld, npcBrain, practiceOf } from './testkit';
 import type { Vehicle, World } from './types';
@@ -26,7 +26,6 @@ import {
   contractXp,
   noteSearchLead,
   searchReward,
-  haulPenalty,
   haulWindow,
   initializeShops,
   isExpired,
@@ -259,13 +258,6 @@ describe('isExpired', () => {
   });
 });
 
-describe('haulPenalty', () => {
-  it('owes the full value of the hauled units', () => {
-    const c = { kind: 'haul', units: 5 } as Extract<Contract, { kind: 'haul' }>;
-    expect(haulPenalty(c, 20)).toBe(100);
-  });
-});
-
 describe('contract boards and delivery', () => {
   const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
   const nose = REGION.towns.find((t) => t.id === 'nose')!;
@@ -377,12 +369,13 @@ describe('contract boards and delivery', () => {
     expect(() => acceptContract(w, 'ct-procure')).toThrow(/already hold/);
   });
 
-  it('charges the goods value when a haul expires', () => {
+  it('charges nothing when a haul whose cargo is gone expires', () => {
     let w = acceptContract(atBowlWithOffer(haul('nose', 3)), 'ct-haul');
+    w = update(w, (d) => { removeGoods(playerVehicle(d), 'salt', 3); });
     const money = w.player.money;
     w = update(w, (d) => { d.turn += 501; advanceContracts(d); });
     expect(w.player.contracts).toHaveLength(0);
-    expect(w.player.money).toBe(money - haulPenalty(haul('nose', 3) as Extract<Contract, { kind: 'haul' }>, goodValue('salt')));
+    expect(w.player.money).toBe(money);
   });
 
   it('warns once when a held contract is two game hours from its deadline', () => {
