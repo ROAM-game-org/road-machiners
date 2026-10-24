@@ -11,10 +11,9 @@ the tire at about 0.7 of the tire height, and the windshield raked about 12 degr
 A flat narrow slab, 0.76 of the span, carries separate round wings that stand proud of it and form the widest part.
 The front wings swell forward ahead of the tires and fall behind them to a dark step plate under the front door,
 with round domed lamps under slit covers set into their crowns. Rows 0 and 1 are the hood, a trapezoid narrowing from the slab at the
-cowl to the nose, with the spare lying in it and a steep apron with four vertical ribs under its front edge.
+cowl to the nose, with the spare lying in it and a plain steep apron under its front edge.
 Rows 2 and 3 are the cab behind an upright framed windshield, under a soft top in trim with a flat crown, rounded edges,
-side curtain windows and a rear window. The four flat doors carry four pressed ribs, hinges on their front edges and a
-handle, over a sill band with two long ribs. Rows 4 and 5 are the open rear deck with a cutout over the engine cells,
+side curtain windows and a rear window. The four flat doors carry dark seams and a handle, over a plain sill band. Rows 4 and 5 are the open rear deck with a cutout over the engine cells,
 and row 6 a louvered lid sloping to a short rear face with round taillights and a round silencer under it.
 Inferred, since neither photo shows them: the rear wings, long and flat-crowned over the rear wheels, the rear corners
 that carry the lid slope out over them to the tail, the lid, taillights and silencer, the plan view, the left side
@@ -84,13 +83,10 @@ TOP_BACK = G.row_x(3.5)  # the soft top ends at the rear deck
 FIREWALL = 0.03  # half the wall between the cab and the engine bay
 BAY_BACK = G.row_x(5.5)  # the engine cells run from row 4 to row 5, and the lid slope starts here
 DOOR_LOW = -0.33  # the doors end on the sill band, which runs down to the body bottom
-DOOR_RIBS = (0.07, -0.04, -0.15, -0.26)  # four pressed ribs on each door, from the side photo
-SILL_RIBS = (-0.43, -0.53)  # two long ribs along the sill band
-RIB_OUT = 0.015  # ribs, seams, hinges and handles stand this far proud of the slab, well inside the wings
+RIB_OUT = 0.015  # seams and handles stand this far proud of the slab, well inside the wings
 STEP_BACK = 0.76  # the step plate runs from under the front wing's tail back to here, ahead of the front door
 STEP_Z = -0.66  # just under the wing's tail, so the step and the wing share one collision box
 STEP_OUT = WING_OUT - 0.06  # the step plate stands out nearly as far as the wing, as in the side photo
-APRON_RIBS = (-0.27, -0.09, 0.09, 0.27)  # the nose apron's four vertical ribs, from the front photo
 SEAMS = (0.72, 0.06, -0.62)  # the front door's front edge, the split between the doors, the rear door's back edge
 RAKE = 0.12  # the windshield leans back about 12 degrees, from the side photo
 SCREEN_TOP = 0.7
@@ -226,34 +222,17 @@ def check_wings(objs: list[bpy.types.Object]) -> None:
 
 
 def ribs(kit: Kit) -> None:
-    """Four flat doors with dark seams, four pressed ribs, hinges on the front edge and a handle, over a sill band with two long ribs and a step plate behind each front wing."""
+    """Four flat doors with dark seams and a handle, over a plain sill band and a step plate behind each front wing."""
     face = SLAB + RIB_OUT / 2
     for i, x in enumerate(SEAMS):
         low = door_sill(x, x, DOOR_LOW, WHEELS_X, HUB_Z, ARCH_R)
         check_door_gap(f"seam{i}", x, x, low, WHEELS_X, HUB_Z, ARCH_R)
         mirrored(kit, f"seam{i}", (0.035, RIB_OUT, BELT - low), x, face, (BELT + low) / 2, "under")
     for d, (front, back) in enumerate(zip(SEAMS, SEAMS[1:])):
-        for k, z in enumerate(DOOR_RIBS):
-            mirrored(kit, f"door{d}_rib{k}", (front - back - 0.16, RIB_OUT, 0.035), (front + back) / 2, face, z, "paint")
-        for k, z in enumerate((BELT - 0.12, DOOR_LOW + 0.14)):
-            mirrored(kit, f"door{d}_hinge{k}", (0.08, RIB_OUT, 0.05), front - 0.03, face, z, "metal")
         mirrored(kit, f"handle{d}", (0.12, RIB_OUT, 0.03), back + 0.12, face, BELT - 0.04, "metal")
-    sill_front, sill_back = STEP_BACK, WHEELS_X[0] + ARCH_R + 0.06
     mirrored(kit, "sill_line", (SEAMS[0] - SEAMS[-1], RIB_OUT, 0.025), (SEAMS[0] + SEAMS[-1]) / 2, face, DOOR_LOW, "under")
-    for k, z in enumerate(SILL_RIBS):
-        mirrored(kit, f"sill_rib{k}", (sill_front - sill_back, RIB_OUT, 0.035), (sill_front + sill_back) / 2, face, z, "paint")
     step_front = WHEELS_X[1] - ARCH_R - 0.02
     mirrored(kit, "step", (step_front - STEP_BACK, STEP_OUT - SLAB, 0.03), (step_front + STEP_BACK) / 2, (STEP_OUT + SLAB) / 2, STEP_Z, "under")
-
-
-def apron(kit: Kit) -> None:
-    """Four vertical pressed ribs down the steep nose apron under the hood's front edge."""
-    height = NOSE_LIP - NOSE_LOW - 0.06
-    lean = math.atan2(NOSE_SET, NOSE_LIP - NOSE_LOW)
-    mid_z = (NOSE_LIP + NOSE_LOW) / 2
-    x = FRONT - NOSE_SET / 2 + 0.01
-    for k, y in enumerate(APRON_RIBS):
-        kit.box(f"apron_rib{k}", (0.03, 0.035, height), (x, y * (1 + APRON_LOW_HALF / HOOD_NOSE_HALF) / 2, mid_z), "paint", rot=(0, lean, 0))
 
 
 def hood(kit: Kit) -> None:
@@ -341,7 +320,6 @@ def main() -> None:
     body(kit)
     check_wings(wings(kit))
     ribs(kit)
-    apron(kit)
     hood(kit)
     windshield(kit)
     soft_top(kit)
