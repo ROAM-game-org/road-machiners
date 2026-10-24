@@ -3,6 +3,7 @@ import { chassisDef } from '../../data/chassis';
 import { startKit } from '../../data/start';
 import { partDef, PARTS, type PartKind } from '../../data/parts';
 import { playerVehicle, truckFor } from '../damage';
+import { chassisTopSpeed } from '../chassis-features';
 import { buyChassis, buyStockPart, chassisTradeIn, garageChassis, partTradePrice, sellPart } from '../economy';
 import { type Spot, goodsCount, mountedItems } from '../grid';
 import { installSpot, moveItem, spareParts, storePart, takeFromStorage } from '../inventory';
@@ -108,7 +109,7 @@ function chassisOptions(o: Orders, style: UpgradeStyle): Option[] {
   const current = chassisDef(o.me.chassisId);
   return garageChassis(town.id).filter((id) => id !== current.id).flatMap((id) => {
     const def = chassisDef(id);
-    const gain = style.chassis === 'speed' ? def.maxSpeed - current.maxSpeed : def.value - current.value;
+    const gain = style.chassis === 'speed' ? chassisTopSpeed(id) - chassisTopSpeed(current.id) : def.value - current.value;
     return gain > 0 ? [{ gain, cost: def.value - chassisTradeIn(o.world), take: (orders: Orders) => orders.run((w) => buyChassis(w, id), 'gear') }] : [];
   });
 }
