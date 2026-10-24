@@ -111,7 +111,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   buggy: { height: [1.56, 1.72], roof: [0.24, 0.36], noseDrop: [0.8, 1.08], tailDrop: [0.6, 0.9] },
   carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.55, 0.75], tailDrop: [0.25, 0.45] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
-  bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1] },
+  bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1], noseDrop: [0.06, 0.16] },
   van: { height: [2.18, 2.36], roofStart: [0.18, 0.25], roof: [0.68, 0.8], noseDrop: [0.75, 1.0], tailDrop: [0, 0.12] },
 };
 
