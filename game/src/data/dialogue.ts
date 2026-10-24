@@ -114,7 +114,13 @@ export function handoffQuest(go: string): string | null {
   return go.startsWith(QUEST_GO) ? go.slice(QUEST_GO.length) : null;
 }
 
-export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS, ...MARSHAL_TOPICS,
+function withTolls(topics: Record<TopicId, Topic>): Record<TopicId, Topic> {
+  const own = Object.values(topics).find((topic) => topic.ask && TOLL in topic.nodes);
+  if (own) throw new Error(`Topic ${own.id} writes its own toll, which withTolls builds`);
+  return Object.fromEntries(Object.entries(topics).map(([id, topic]) => [id, topic.ask ? { ...topic, nodes: { [TOLL]: tollNode(topic.start), ...topic.nodes } } : topic])) as Record<TopicId, Topic>;
+}
+
+export const TOPICS: Record<TopicId, Topic> = withTolls({ ...SUNWARD_TOPICS, ...MARSHAL_TOPICS,
   directions: {
     id: 'directions',
     once: false,
@@ -124,7 +130,6 @@ export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS, ...MARSHAL_TO
     hangUp: [],
     start: 'answer',
     nodes: {
-      [TOLL]: tollNode('answer'),
       answer: {
         line: 'townWay',
         options: [
@@ -739,7 +744,6 @@ export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS, ...MARSHAL_TO
     hangUp: [],
     start: 'prices',
     nodes: {
-      [TOLL]: tollNode('prices'),
       prices: {
         line: 'lastIWasIn',
         options: [
@@ -758,7 +762,6 @@ export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS, ...MARSHAL_TO
     hangUp: [],
     start: 'tell',
     nodes: {
-      [TOLL]: tollNode('tell'),
       tell: {
         line: 'maybeIPassedSomething',
         options: [
@@ -810,7 +813,6 @@ export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS, ...MARSHAL_TO
     hangUp: [],
     start: 'tell',
     nodes: {
-      [TOLL]: tollNode('tell'),
       tell: {
         line: 'sightingTold',
         options: [
@@ -849,7 +851,6 @@ export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS, ...MARSHAL_TO
     hangUp: [],
     start: 'tell',
     nodes: {
-      [TOLL]: tollNode('tell'),
       tell: {
         line: 'claimWreckTold',
         options: [
@@ -884,7 +885,6 @@ export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS, ...MARSHAL_TO
     hangUp: [],
     start: 'tell',
     nodes: {
-      [TOLL]: tollNode('tell'),
       tell: {
         line: 'tipTold',
         options: [
@@ -1154,6 +1154,6 @@ export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS, ...MARSHAL_TO
       favor: { line: 'toldYouIOweYou', options: [{ say: 'thanksOverAndOut', when: [], effects: ['courierPayFavor'], go: END }] },
     },
   },
-};
+});
 
 export { COLD_LINES, HONK_RANGE, TOPIC_GATES, TRAIT_TALK, type TalkGate, type TraitTalk, type Voice } from './personalities';

@@ -202,7 +202,7 @@ async function boot() {
 }
 
 async function inspectNpc(page, armed) {
-  await page.evaluate(async (armed) => {
+  const npcId = await page.evaluate(async (armed) => {
     const g = window.__ROAM__;
     const { runCommand } = await import('/src/ui/console.ts');
     const { partDef } = await import('/src/data/parts.ts');
@@ -213,7 +213,9 @@ async function inspectNpc(page, armed) {
     g.hovered = npc.id;
     g.refreshInfo();
     g.hitCard.show();
+    return npc.id;
   }, armed);
+  await page.waitForFunction((id) => window.__ROAM__.hud.portraitSettled(id), npcId, { timeout: 60000 });
 }
 
 const clearInspect = (page) => page.evaluate(() => {
@@ -277,6 +279,32 @@ const closeQuestPage = (page) => page.evaluate(() => {
   g.apply(world);
 });
 
+const SURVEY_CONTRACT_ID = 'layout-survey';
+
+const openSurveyJournal = async (page) => {
+  await page.evaluate(async (id) => {
+    const g = window.__ROAM__;
+    const { surveySites } = await import('/src/sim/survey.ts');
+    const world = structuredClone(g.state);
+    const sites = surveySites({ hash: world.mapHash, terrain: world.terrain }).filter((s) => s.type !== 'boats').slice(0, 3);
+    const points = sites.map((s, i) => ({ site: s.id, found: i > 0, done: i > 1 }));
+    world.player.contracts.push({ id, shop: 'bowl', kind: 'survey', points, reward: 3000, deadline: 9000, window: 600, tier: 1 });
+    g.apply(world);
+  }, SURVEY_CONTRACT_ID);
+  await key(page, 'KeyJ');
+  await page.waitForFunction(() => [...document.querySelectorAll('#ui .survey-picture img')].every((img) => img.complete && img.naturalWidth > 0));
+};
+
+const closeSurveyJournal = async (page) => {
+  await escape(page);
+  await page.evaluate((id) => {
+    const g = window.__ROAM__;
+    const world = structuredClone(g.state);
+    world.player.contracts = world.player.contracts.filter((c) => c.id !== id);
+    g.apply(world);
+  }, SURVEY_CONTRACT_ID);
+};
+
 const STATES = {
   menu: { setup: () => undefined, viewports: [...VIEWPORTS, PHONE, PHONE_LANDSCAPE] },
   log: { setup: fillLog },
@@ -287,6 +315,7 @@ const STATES = {
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
   'trade-shortage': { setup: openShortMarket, teardown: closeTown },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
+  'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...VIEWPORTS, PHONE] },
   'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },

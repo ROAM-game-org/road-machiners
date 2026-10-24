@@ -262,10 +262,11 @@ const SHOP_DATA: Record<string, ShopData> = {
       parts: ([
         'plates', 'steelPlate', 'cage', 'scrapPanels', 'scrapSheet', 'ram', 'plowRam', 'mg', 'shotgun', 'rack', 'panniers',
         'caltrops', 'oilSpiller', 'scrapersKnife', 'patcherCrane', 'claymoreRam', 'spikeCluster', 'spikeStrip', 'cageSection',
+        'longRifle', 'heavyMg', 'stockEngine', 'flatFour',
       ] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
-    stockSize: [2, 4],
+    stockSize: [8, 12],
     restockTurns: 300,
     contractSlots: 1,
     supplies: ['fuel', 'supplies'],
