@@ -16,22 +16,25 @@ import {
   flipRows,
   hiddenOver,
   idsOf,
+  indexIds,
   linearToSrgb,
   partMaskOf,
   solidMaskOf,
   tintMask,
   unpremultiply,
+  type IdIndex,
+  type PixelBox,
   type PixelSize,
   type Tier,
   type TintName,
 } from './portraitPixels';
-import { cellRect, highestUnder, unitBody, unitsOf } from '../../sim/body';
+import { cellRect, highestUnder, spanOf, unitBody, unitsOf } from '../../sim/body';
 import type { TruckPaint } from '../../data/chassis';
 import type { VehicleFrame } from '../../phys/frames';
 import { itemCells } from '../../sim/grid';
 import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
-import { signatureOf, VehicleView } from './vehicle';
+import { signatureOf, VehicleView, type RebuildBudget } from './vehicle';
 import { withCut, type CutSpec } from './armorCut';
 
 export const PORTRAIT_TILT_DEG = 25;
@@ -75,13 +78,22 @@ export type Portrait = {
   height: number;
   body: HTMLCanvasElement;
   parts: HTMLCanvasElement;
+  masks: Map<HTMLCanvasElement, Promise<string>>;
+  has(partId: string): boolean;
   partAt(x: number, y: number): string | null;
   centerOf(partId: string): { x: number; y: number };
   glow(partId: string, tier: Tier): Glow;
   footprint(partId: string): Glow;
+  release(): void;
 };
 
-export type BuildPortrait = (renderer: THREE.WebGLRenderer, pristine: Vehicle, playerPaint: TruckPaint) => Portrait;
+export type PortraitWait = Promise<unknown> | void;
+export type PortraitBuild = { steps: Generator<PortraitWait, Portrait, void>; dispose(): void };
+export type BuildPortrait = (renderer: THREE.WebGLRenderer, pristine: Vehicle, playerPaint: TruckPaint) => PortraitBuild;
+
+export const PORTRAIT_STEP_MS = 4;
+export const PORTRAIT_KEEP = 8;
+const PORTRAIT_JOBS = 2;
 
 export function pristineOf(v: Vehicle): Vehicle {
   const items = conditionItems(v).map((item) => {
@@ -91,28 +103,173 @@ export function pristineOf(v: Vehicle): Vehicle {
   return { ...v, items };
 }
 
+export function chassisSize(chassisId: string): PixelSize {
+  const tilt = THREE.MathUtils.degToRad(LOOK.tiltDeg);
+  const height = 2 * Math.max(...unitsOf(chassisId).map((u) => u.body.half.y));
+  const { half } = spanOf(chassisId);
+  return {
+    width: 2 * half.z * LOOK.pxPerMeter,
+    height: (2 * half.x * Math.cos(tilt) + height * Math.sin(tilt)) * LOOK.pxPerMeter,
+  };
+}
+
+type Wanted = { vehicleId: string; key: string; pristine: Vehicle; paint: TruckPaint; ahead: boolean };
+type Ready = { vehicleId: string; portrait: Portrait; seen: number };
+type Job = { wanted: Wanted; build: PortraitBuild; waiting: boolean; failure: { error: unknown } | null };
+
 export class TruckPortraits {
-  private readonly built = new Map<string, { vehicleId: string; portrait: Portrait }>();
+  private readonly ready = new Map<string, Ready>();
+  private readonly latest = new Map<string, string>();
+  private readonly jobs = new Map<string, Job>();
+  private readonly failed = new Set<string>();
+  private readonly listeners: ((vehicleId: string) => void)[] = [];
+  private order: Wanted[] = [];
+  private wantedKeys = new Map<string, string>();
+  private tick = 0;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
-    private readonly build: BuildPortrait = buildPortrait,
+    private readonly build: BuildPortrait = startPortrait,
+    private readonly now: () => number = () => performance.now(),
   ) {}
 
-  portraitOf(v: Vehicle, playerPaint: TruckPaint): Portrait {
-    const pristine = pristineOf(v);
-    const key = `${v.id}|${signatureOf(pristine, playerPaint)}`;
-    const known = this.built.get(key);
-    if (known) return known.portrait;
-    for (const [other, entry] of this.built) if (entry.vehicleId === v.id) this.built.delete(other);
-    const portrait = this.build(this.renderer, pristine, playerPaint);
-    this.built.set(key, { vehicleId: v.id, portrait });
-    return portrait;
+  shown(v: Vehicle, playerPaint: TruckPaint): Portrait | null {
+    const current = this.ready.get(keyOf(pristineOf(v), playerPaint));
+    if (current) return current.portrait;
+    const last = this.latest.get(v.id);
+    return (last && this.ready.get(last)?.portrait) || null;
   }
 
-  forget(keep: ReadonlySet<string>): void {
-    for (const [key, entry] of this.built) if (!keep.has(entry.vehicleId)) this.built.delete(key);
+  settled(vehicleId: string): boolean {
+    const key = this.wantedKeys.get(vehicleId);
+    return key !== undefined && this.ready.has(key);
   }
+
+  onReady(listener: (vehicleId: string) => void): void {
+    this.listeners.push(listener);
+  }
+
+  want(own: readonly Vehicle[], seen: readonly Vehicle[], focusId: string | null, playerPaint: TruckPaint): void {
+    const focus = [...own, ...seen].filter((v) => v.id === focusId);
+    const ordered = [...own, ...focus, ...seen];
+    const taken = new Set<string>();
+    this.order = [];
+    for (const v of ordered) {
+      if (taken.has(v.id)) continue;
+      taken.add(v.id);
+      const pristine = pristineOf(v);
+      const ahead = own.includes(v) || v.id === focusId;
+      this.order.push({ vehicleId: v.id, key: keyOf(pristine, playerPaint), pristine, paint: playerPaint, ahead });
+    }
+    this.wantedKeys = new Map(this.order.map((w) => [w.vehicleId, w.key]));
+    this.tick++;
+    for (const w of this.order) {
+      const known = this.ready.get(w.key);
+      if (known) known.seen = this.tick;
+    }
+    this.dropUnwantedJobs();
+    this.dropForgotten();
+  }
+
+  step(budgetMs: number, aheadOnly: boolean): void {
+    const start = this.now();
+    let ran = 0;
+    for (;;) {
+      if (ran > 0 && this.now() - start >= budgetMs) return;
+      const job = this.nextJob(aheadOnly);
+      if (!job) return;
+      this.advance(job);
+      ran++;
+    }
+  }
+
+  private dropUnwantedJobs(): void {
+    for (const [vehicleId, job] of this.jobs) {
+      if (this.wantedKeys.get(vehicleId) === job.wanted.key) continue;
+      job.build.dispose();
+      this.jobs.delete(vehicleId);
+    }
+  }
+
+  private dropForgotten(): void {
+    const away = [...this.ready].filter(([, entry]) => !this.wantedKeys.has(entry.vehicleId));
+    const newest = away.sort((a, b) => b[1].seen - a[1].seen);
+    for (const [key] of newest.slice(PORTRAIT_KEEP)) this.drop(key);
+  }
+
+  private drop(key: string): void {
+    const entry = this.ready.get(key);
+    if (!entry) return;
+    entry.portrait.release();
+    this.ready.delete(key);
+    if (this.latest.get(entry.vehicleId) === key) this.latest.delete(entry.vehicleId);
+  }
+
+  private nextJob(aheadOnly: boolean): Job | null {
+    for (const wanted of this.order) {
+      if (aheadOnly && !wanted.ahead) continue;
+      if (this.ready.has(wanted.key) || this.failed.has(wanted.key)) continue;
+      const job = this.jobs.get(wanted.vehicleId);
+      if (job) {
+        if (!job.waiting) return job;
+        continue;
+      }
+      if (this.jobs.size < PORTRAIT_JOBS) return this.start(wanted);
+    }
+    return null;
+  }
+
+  private start(wanted: Wanted): Job {
+    const job: Job = { wanted, build: this.build(this.renderer, wanted.pristine, wanted.paint), waiting: false, failure: null };
+    this.jobs.set(wanted.vehicleId, job);
+    return job;
+  }
+
+  private advance(job: Job): void {
+    if (job.failure) return this.fail(job, job.failure.error);
+    let result: IteratorResult<PortraitWait, Portrait>;
+    try {
+      result = job.build.steps.next();
+    } catch (error) {
+      return this.fail(job, error);
+    }
+    if (result.done) return this.finish(job, result.value);
+    if (result.value) this.wait(job, result.value);
+  }
+
+  private wait(job: Job, pending: Promise<unknown>): void {
+    job.waiting = true;
+    pending.then(
+      () => {
+        job.waiting = false;
+      },
+      (error: unknown) => {
+        job.failure = { error };
+        job.waiting = false;
+      },
+    );
+  }
+
+  private fail(job: Job, error: unknown): never {
+    this.failed.add(job.wanted.key);
+    this.jobs.delete(job.wanted.vehicleId);
+    job.build.dispose();
+    throw error;
+  }
+
+  private finish(job: Job, portrait: Portrait): void {
+    const { vehicleId, key } = job.wanted;
+    this.jobs.delete(vehicleId);
+    job.build.dispose();
+    for (const [other, entry] of this.ready) if (entry.vehicleId === vehicleId) this.drop(other);
+    this.ready.set(key, { vehicleId, portrait, seen: this.tick });
+    this.latest.set(vehicleId, key);
+    for (const listener of this.listeners) listener(vehicleId);
+  }
+}
+
+function keyOf(pristine: Vehicle, playerPaint: TruckPaint): string {
+  return `${pristine.id}|${signatureOf(pristine, playerPaint)}`;
 }
 
 function drawnMeshes(root: THREE.Object3D): Drawn[] {
@@ -230,26 +387,28 @@ function targetFor(size: PixelSize, samples: number): THREE.WebGLRenderTarget {
   return new THREE.WebGLRenderTarget(size.width, size.height, { samples, depthBuffer: true, stencilBuffer: false });
 }
 
-function renderRaw(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Uint8ClampedArray {
-  renderer.setRenderTarget(target);
-  renderer.setClearColor(0x000000, 0);
-  renderer.autoClear = true;
-  renderer.render(scene, camera);
+function* captureRaw(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Generator<PortraitWait, Uint8ClampedArray, void> {
   const bytes = new Uint8Array(target.width * target.height * 4);
-  renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, bytes);
+  yield withRendererState(renderer, () => {
+    renderer.setRenderTarget(target);
+    renderer.setClearColor(0x000000, 0);
+    renderer.autoClear = true;
+    renderer.render(scene, camera);
+    return renderer.readRenderTargetPixelsAsync(target, 0, 0, target.width, target.height, bytes);
+  });
   return new Uint8ClampedArray(bytes.buffer);
 }
 
-function renderColor(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Uint8ClampedArray {
-  const px = renderRaw(renderer, target, scene, camera);
+function* captureColor(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Generator<PortraitWait, Uint8ClampedArray, void> {
+  const px = yield* captureRaw(renderer, target, scene, camera);
   unpremultiply(px);
   linearToSrgb(px);
   flipRows(px, target.width, target.height);
   return px;
 }
 
-function renderIds(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Uint16Array {
-  const ids = idsOf(renderRaw(renderer, target, scene, camera));
+function* captureIds(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Generator<PortraitWait, Uint16Array, void> {
+  const ids = idsOf(yield* captureRaw(renderer, target, scene, camera));
   flipRows(ids, target.width, target.height);
   return ids;
 }
@@ -343,11 +502,9 @@ function partOnly(v: Vehicle): (mesh: Drawn) => boolean {
   return (mesh) => Boolean(mesh.userData.partId) && !cabs.has(mesh.userData.partId);
 }
 
-function checkCovered(v: Vehicle, items: PartItem[], maps: Maps, numberOf: Numbering): void {
-  const lit = new Map<number, number>();
-  for (let p = 0; p < maps.ids.length; p++) if (maps.lit[p * 4 + 3] > OPAQUE_ALPHA) lit.set(maps.ids[p], (lit.get(maps.ids[p]) ?? 0) + 1);
+function checkCovered(v: Vehicle, items: PartItem[], index: IdIndex, numberOf: Numbering): void {
   for (const item of items) {
-    if (!lit.get(numberOf(item.part.id))) throw new Error(`Part ${item.part.id} (${item.part.defId}) on ${v.chassisId} has no pixels in the truck portrait`);
+    if (!index.get(numberOf(item.part.id))?.lit) throw new Error(`Part ${item.part.id} (${item.part.defId}) on ${v.chassisId} has no pixels in the truck portrait`);
   }
 }
 
@@ -358,27 +515,43 @@ function pixelIndex(size: PixelSize, x: number, y: number): number | null {
   return outside ? null : py * size.width + px;
 }
 
-function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, numberOf: Numbering, canvases: Canvases): Portrait {
+function glowOf(mask: Uint8ClampedArray, from: PixelBox): Glow {
+  const box = boundsOf(mask, from);
+  const k = LOOK.supersample;
+  return { canvas: canvasOf(cropOf(mask, from, box), box), x: (from.x + box.x) / k, y: (from.y + box.y) / k, width: box.width / k, height: box.height / k };
+}
+
+type Indexes = { ids: IdIndex; cells: IdIndex };
+
+function revoked(masks: Map<HTMLCanvasElement, Promise<string>>): void {
+  for (const url of masks.values()) void url.then((href) => URL.revokeObjectURL(href));
+  masks.clear();
+}
+
+function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, index: Indexes, numberOf: Numbering, canvases: Canvases): Portrait {
   const { size, lit, ids, cells } = maps;
   const itemOf = new Map(items.map((item) => [item.part.id, item]));
   const partOfNumber = new Map(items.map((item) => [numberOf(item.part.id), item.part.id]));
   const glows = new Map<string, { tier: Tier; glow: Glow }>();
   const footprints = new Map<string, Glow>();
   const centers = new Map<string, { x: number; y: number }>();
+  const masks = new Map<HTMLCanvasElement, Promise<string>>();
   const known = (partId: string): PartItem => {
     const item = itemOf.get(partId);
     if (!item) throw new Error(`Portrait of ${v.id} has no readout part ${partId}`);
     return item;
   };
-  const cropped = (mask: Uint8ClampedArray): Glow => {
-    const box = boundsOf(mask, size);
-    const k = LOOK.supersample;
-    return { canvas: canvasOf(cropOf(mask, size, box), box), x: box.x / k, y: box.y / k, width: box.width / k, height: box.height / k };
+  const entryOf = (found: IdIndex, id: number) => {
+    const entry = found.get(id);
+    if (!entry) throw new Error('No lit pixels to bound');
+    return entry;
   };
   return {
     width: size.width / LOOK.supersample,
     height: size.height / LOOK.supersample,
     ...canvases,
+    masks,
+    has: (partId) => itemOf.has(partId),
     partAt(x, y) {
       const at = pixelIndex(size, x, y);
       if (at === null) return null;
@@ -388,14 +561,17 @@ function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, numberOf: Numbe
       const cached = footprints.get(partId);
       if (cached) return cached;
       const id = numberOf(known(partId).part.id);
-      const footprint = cropped(cells.includes(id) ? solidMaskOf(cells, id) : partMaskOf(lit, ids, id));
+      const solid = index.cells.get(id);
+      const own = entryOf(index.ids, id).box;
+      const footprint = solid ? glowOf(solidMaskOf(cells, size, id, solid.box), solid.box) : glowOf(partMaskOf(lit, ids, size, id, own), own);
       footprints.set(partId, footprint);
       return footprint;
     },
     centerOf(partId) {
       const cached = centers.get(partId);
       if (cached) return cached;
-      const c = centerOf(ids, size, numberOf(known(partId).part.id));
+      const id = numberOf(known(partId).part.id);
+      const c = centerOf(ids, size, id, index.ids.get(id));
       const center = { x: c.x / LOOK.supersample, y: c.y / LOOK.supersample };
       centers.set(partId, center);
       return center;
@@ -404,19 +580,20 @@ function portraitOver(v: Vehicle, items: PartItem[], maps: Maps, numberOf: Numbe
       const cached = glows.get(partId);
       if (cached?.tier === tier) return cached.glow;
       const id = numberOf(known(partId).part.id);
-      const mask = partMaskOf(lit, ids, id);
+      const box = entryOf(index.ids, id).box;
+      const mask = partMaskOf(lit, ids, size, id, box);
       const tint = tintOf(partKind(known(partId)), tier);
-      const tinted = tint ? tintMask(mask, TINTS[tint]) : mask;
-      const glow = cropped(tinted);
+      const glow = glowOf(tint ? tintMask(mask, TINTS[tint]) : mask, box);
       glows.set(partId, { tier, glow });
       return glow;
     },
+    release: () => revoked(masks),
   };
 }
 
 type Pass = { renderer: THREE.WebGLRenderer; smooth: THREE.WebGLRenderTarget; flat: THREE.WebGLRenderTarget; camera: THREE.Camera };
 
-function renderParts(pass: Pass, view: VehicleView, meshes: Drawn[], isPart: (mesh: Drawn) => boolean, trash: Disposable[]): Uint8ClampedArray {
+function* captureParts(pass: Pass, view: VehicleView, meshes: Drawn[], isPart: (mesh: Drawn) => boolean, trash: Disposable[]): Generator<PortraitWait, Uint8ClampedArray, void> {
   const occluder = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0, blending: THREE.NoBlending });
   trash.push(occluder);
   const originals = new Map(meshes.map((m) => [m, m.material]));
@@ -425,31 +602,33 @@ function renderParts(pass: Pass, view: VehicleView, meshes: Drawn[], isPart: (me
     if (mesh.material.transparent) mesh.visible = false;
     else mesh.material = occluder;
   }
-  const parts = renderColor(pass.renderer, pass.smooth, litScene(view.root), pass.camera);
+  const parts = yield* captureColor(pass.renderer, pass.smooth, litScene(view.root), pass.camera);
   for (const [mesh, material] of originals) mesh.material = material;
   return parts;
 }
 
-function renderPartIds(pass: Pass, view: VehicleView, v: Vehicle, solid: Drawn[], isPart: (mesh: Drawn) => boolean, numberOf: Numbering, trash: Disposable[], cabs: CabSpan[]): Uint16Array {
+function* capturePartIds(pass: Pass, view: VehicleView, v: Vehicle, solid: Drawn[], isPart: (mesh: Drawn) => boolean, numberOf: Numbering, trash: Disposable[], cabs: CabSpan[]): Generator<PortraitWait, Uint16Array, void> {
   paintIds(solid, (m) => (isPart(m) ? numberOf(m.userData.partId) : BODY_ID));
   paintCabs(solid, cabs, numberOf);
   const scene = new THREE.Scene();
   scene.add(view.root);
-  let ids = renderIds(pass.renderer, pass.flat, scene, pass.camera);
+  let ids = yield* captureIds(pass.renderer, pass.flat, scene, pass.camera);
+  yield;
   for (const span of LOOK.hiddenSpansM) {
     const seen = new Set(ids);
     const hidden = conditionItems(v).filter((item) => !seen.has(numberOf(item.part.id)));
     if (hidden.length === 0) return ids;
     const heightOf = heightsOf(v, solid);
     const column = { boxOf: (item: PartItem) => cellBox(v, item, span, heightOf(item)), depthTest: false };
-    ids = hiddenOver(ids, renderIds(pass.renderer, pass.flat, footprintScene(hidden, numberOf, column, trash), pass.camera));
+    ids = hiddenOver(ids, yield* captureIds(pass.renderer, pass.flat, footprintScene(hidden, numberOf, column, trash), pass.camera));
+    yield;
   }
   return ids;
 }
 
-function renderCellIds(pass: Pass, v: Vehicle, solid: Drawn[], numberOf: Numbering, trash: Disposable[]): Uint16Array {
+function* captureCellIds(pass: Pass, v: Vehicle, solid: Drawn[], numberOf: Numbering, trash: Disposable[]): Generator<PortraitWait, Uint16Array, void> {
   const column = { boxOf: deckBoxesOf(v, solid), depthTest: true };
-  return renderIds(pass.renderer, pass.flat, footprintScene(conditionItems(v), numberOf, column, trash), pass.camera);
+  return yield* captureIds(pass.renderer, pass.flat, footprintScene(conditionItems(v), numberOf, column, trash), pass.camera);
 }
 
 const CAB_SPAN_VERTEX = 'vCabX = (modelMatrix * vec4(transformed, 1.0)).x;';
@@ -512,7 +691,7 @@ function heightsOf(v: Vehicle, solid: Drawn[]): (item: PartItem) => Heights {
   };
 }
 
-function composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: Vehicle, trash: Disposable[]): Portrait {
+function* composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: Vehicle, trash: Disposable[]): Generator<PortraitWait, Portrait, void> {
   poseAtRest(view, v);
   const meshes = drawnMeshes(view.root);
   const cabs = cabSpans(v, glassMeshes(meshes));
@@ -521,26 +700,45 @@ function composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: Ve
   const { camera, size } = settledCamera(meshes);
   const pass = { renderer, camera, smooth: targetFor(size, LOOK.samples), flat: targetFor(size, 0) };
   trash.push(pass.smooth, pass.flat);
-  const lit = renderColor(renderer, pass.smooth, litScene(view.root), camera);
+  yield;
+  const lit = yield* captureColor(renderer, pass.smooth, litScene(view.root), camera);
+  yield;
   const isPart = partOnly(v);
-  const parts = renderParts(pass, view, meshes, isPart, trash);
+  const parts = yield* captureParts(pass, view, meshes, isPart, trash);
+  yield;
   const numberOf = numbering();
   const items = conditionItems(v);
   for (const item of items) numberOf(item.part.id);
   const solid = meshes.filter((m) => m.visible);
-  const ids = renderPartIds(pass, view, v, solid, isPart, numberOf, trash, cabs);
-  const maps = { size, lit, ids, cells: renderCellIds(pass, v, solid, numberOf, trash) };
-  checkCovered(v, items, maps, numberOf);
-  return portraitOver(v, items, maps, numberOf, { body: canvasOf(lit, size), parts: canvasOf(parts, size) });
+  const ids = yield* capturePartIds(pass, view, v, solid, isPart, numberOf, trash, cabs);
+  const cells = yield* captureCellIds(pass, v, solid, numberOf, trash);
+  yield;
+  const index = { ids: indexIds(ids, size, lit), cells: indexIds(cells, size) };
+  checkCovered(v, items, index.ids, numberOf);
+  return portraitOver(v, items, { size, lit, ids, cells }, index, numberOf, { body: canvasOf(lit, size), parts: canvasOf(parts, size) });
 }
 
-export function buildPortrait(renderer: THREE.WebGLRenderer, pristine: Vehicle, playerPaint: TruckPaint): Portrait {
-  const view = new VehicleView(pristine, false, playerPaint, 'portrait');
-  const trash: Disposable[] = [];
-  try {
-    return withRendererState(renderer, () => composePortrait(renderer, view, pristine, trash));
-  } finally {
-    view.dispose();
-    for (const item of trash) if (!(item instanceof THREE.Material)) item.dispose();
+function oneStep(): RebuildBudget {
+  let spent = false;
+  return { take: () => !spent && (spent = true), ready: () => true };
+}
+
+function* portraitSteps(renderer: THREE.WebGLRenderer, view: VehicleView, pristine: Vehicle, playerPaint: TruckPaint, trash: Disposable[]): Generator<PortraitWait, Portrait, void> {
+  while (!view.built) {
+    view.update(pristine, false, playerPaint, oneStep());
+    yield;
   }
+  return yield* composePortrait(renderer, view, pristine, trash);
+}
+
+export function startPortrait(renderer: THREE.WebGLRenderer, pristine: Vehicle, playerPaint: TruckPaint): PortraitBuild {
+  const view = new VehicleView(null, false, playerPaint, 'portrait');
+  const trash: Disposable[] = [];
+  return {
+    steps: portraitSteps(renderer, view, pristine, playerPaint, trash),
+    dispose() {
+      view.dispose();
+      for (const item of trash) if (!(item instanceof THREE.Material)) item.dispose();
+    },
+  };
 }

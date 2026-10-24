@@ -55,7 +55,8 @@ import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import type * as THREE from "three";
-import { TruckPortraits } from "../three/render/truckPortrait";
+import { dist } from "../sim/vec";
+import { PORTRAIT_STEP_MS, TruckPortraits } from "../three/render/truckPortrait";
 import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
@@ -189,6 +190,7 @@ export class Hud {
   private readonly inspected: TruckConditionView;
   private readonly inspectedDraw: HTMLElement;
   private inspectedAimable = false;
+  private inspectedId: string | null = null;
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel", rightDock());
   private wanted = panel("wanted dock-panel", rightDock());
@@ -284,6 +286,9 @@ export class Hud {
     this.portraits = new TruckPortraits(renderer);
     this.condition = new TruckConditionView(this.portraits, CONDITION_ROWS);
     this.inspected = new TruckConditionView(this.portraits, null);
+    this.portraits.onReady((vehicleId) => {
+      if (vehicleId === this.inspectedId) this.placeInfo();
+    });
     this.inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
     const openLog = () => this.drawers.toggle("log");
     this.log.strip.root.addEventListener("click", openLog);
@@ -771,8 +776,24 @@ export class Hud {
     return { marks: aimMarks(w, v.id), pick: (partId) => this.actions.aimPart(v.id, partId) };
   }
 
+  private wantPortraits(w: World, focus: Vehicle | null): void {
+    const me = playerVehicle(w);
+    const nearest = (a: Vehicle, b: Vehicle) => dist(a.pos, me.pos) - dist(b.pos, me.pos);
+    const seen = w.vehicles.filter((x) => x.id !== me.id && playerSees(w, x.pos)).sort(nearest);
+    this.portraits.want([me], seen, focus?.id ?? null, w.player.paint);
+  }
+
+  stepPortraits(playing: boolean): void {
+    this.portraits.step(PORTRAIT_STEP_MS, playing);
+  }
+
+  portraitSettled(vehicleId: string): boolean {
+    return this.portraits.settled(vehicleId);
+  }
+
   showInfo(w: World, v: Vehicle | null, hostile: boolean): void {
-    this.portraits.forget(new Set([playerVehicle(w).id, ...w.vehicles.filter((x) => playerSees(w, x.pos)).map((x) => x.id)]));
+    this.inspectedId = v?.id ?? null;
+    this.wantPortraits(w, v);
     if (!v) {
       this.info.style.display = "none";
       this.coverUnder(null);
