@@ -736,15 +736,14 @@ export function surveyClueText(clue: SurveyClue): Msg {
   return t('contract.surveyClue', { square: gridSquareText(clue.square), dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
 }
 
-function surveyPlaceText(c: SurveyContract, point: SurveyPoint): Msg {
-  if (point.done) throw new Error(`Survey place ${point.site} is already done`);
-  const clue = surveyClue(c, point);
+function surveyPlaceText(clue: SurveyClue): Msg {
   return t('contract.placeClue', { place: t(`contract.placeName.${clue.type}`), square: gridSquareText(clue.square), dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
 }
 
 export function surveyPlaceLine(c: SurveyContract, point: SurveyPoint): HTMLElement {
+  if (point.done) throw new Error(`Survey place ${point.site} is already done`);
   const clue = surveyClue(c, point);
-  return el('span', { class: 'contract-clue' }, surveyPlaceText(c, point), point.found ? SPACE : null, point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null, SPACE, t(`contract.lookFor.${clue.type}`));
+  return el('span', { class: 'contract-clue' }, surveyPlaceText(clue), point.found ? SPACE : null, point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null, SPACE, t(`contract.lookFor.${clue.type}`));
 }
 
 export function surveyWayText(world: World, c: SurveyContract, point: SurveyPoint): Msg {
