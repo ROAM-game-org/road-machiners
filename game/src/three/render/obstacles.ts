@@ -20,7 +20,9 @@ import { dent } from './vehicle';
 import { instancedModel, model, socket } from './models';
 import { NIGHT_POOLS } from './lightPools';
 import { FORT_MODELS } from '../../sim/fortress';
+import { HollowGateView } from './hollowGate';
 import { OutpostGateViews } from './outpostGates';
+import { isHollowGate } from '../../sim/hollow-gate';
 import { PartDebris } from './partDebris';
 import type { RenderScope } from './scope';
 import { TERRAIN_CHUNK } from './terrain';
@@ -51,6 +53,7 @@ export class ObstacleViews {
   private readonly breach = breachSpot();
 
   private gates: OutpostGateViews | null = null;
+  private hollowGate: HollowGateView | null = null;
 
   constructor(private readonly scope: RenderScope, private readonly terrain: Terrain, private readonly onGatesShut: () => void = () => {}) {
     this.flying = new DebrisSim(terrain);
@@ -76,7 +79,7 @@ export class ObstacleViews {
   }
 
   private syncViews(obstacles: Obstacle[]): void {
-    const views = obstacles.filter((o) => o.kind !== 'rock' && !isTree(o));
+    const views = obstacles.filter((o) => o.kind !== 'rock' && !isTree(o) && !isHollowGate(o));
     for (const o of views) if (!this.byId.has(o.id)) this.addView(o);
     const seen = new Set(views.map((o) => o.id));
     for (const [id, obj] of this.byId) {
@@ -139,6 +142,13 @@ export class ObstacleViews {
     this.parts.play(trucks, dt);
     this.pulse(dt, nearestBow(this.bows.values(), frames[world.player.vehicleId]?.pos));
     this.slideGates(anim !== null, world, dt);
+    this.slideHollowGate(world, dt);
+  }
+
+  private slideHollowGate(world: World, dt: number): void {
+    if (!world.sunward) return;
+    this.hollowGate ??= new HollowGateView(this.scope, this.terrain, world);
+    this.hollowGate.frame(world, dt);
   }
 
   private slideGates(playing: boolean, world: World, dt: number): void {
@@ -298,7 +308,7 @@ export function buildProp(t: Terrain, o: Obstacle): THREE.Object3D {
   return g;
 }
 
-const FORT_PIECE_MODELS: ReadonlySet<string> = new Set([...[...FORT_MODELS.values()].map((f) => f.model), 'fort_outpost_shut']);
+const FORT_PIECE_MODELS: ReadonlySet<string> = new Set([...[...FORT_MODELS.values()].map((f) => f.model), 'fort_outpost_shut', 'fort_scrap_shut']);
 
 function lightFortPiece(obj: THREE.Object3D): void {
   obj.traverse((o) => {

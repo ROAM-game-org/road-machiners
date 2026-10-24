@@ -43,3 +43,5 @@ export const CONFIG = {
 export const PLAY_EASE = { stopMs: CONFIG.turnStopMs, startMs: CONFIG.playEaseMs, stopFolds: CONFIG.turnStopFolds };
 
 export const OUTPOST_GATE = { slideSeconds: 2.5 };
+
+export const HOLLOW_GATE = { slideSeconds: 0.8 };

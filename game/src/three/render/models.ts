@@ -136,6 +136,8 @@ export const NAMES = [
   'fort_outpost_gate',
   'fort_outpost_leaf',
   'fort_outpost_shut',
+  'fort_scrap_leaf',
+  'fort_scrap_shut',
   'bowl_house_rust',
   'bowl_house_red',
   'bowl_house_grey',
