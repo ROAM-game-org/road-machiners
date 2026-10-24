@@ -7,7 +7,7 @@ import { fuelCap, suppliesCap } from "../sim/stats";
 import { getResources } from "../sim/resources";
 import type { Vehicle, World } from "../sim/types";
 import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
-import { chassisName } from "../text/names";
+import { chassisAbilityLine, chassisAbilityName, chassisName } from "../text/names";
 import { chassisMap, chassisPortrait, chassisStats, createIcon, diffStats, statGrid } from "./cards";
 import { el, type Child } from "./dom";
 import { GOODS_COLUMNS } from "./format";
@@ -227,11 +227,19 @@ export function truckCards(w: World, ids: readonly string[], offer: (id: string)
           el("div", { class: "card-name" }, el("b", {}, chassisName(id))),
           own ? el("span", { class: "dim" }, t("vehicle.yours")) : swapButton(w, id, offer),
         ),
+        chassisFeatureRow(id),
         statGrid(diffStats(chassisStats(id), own ? null : chassisStats(mine))),
       ),
     );
   });
   return el("div", { class: "cards trucks" }, ...cards);
+}
+
+function chassisFeatureRow(id: string): HTMLElement | null {
+  const name = chassisAbilityName(id);
+  const line = chassisAbilityLine(id);
+  if (!name || !line) return null;
+  return el("div", { class: "dim chassis-feature" }, el("b", {}, name), SPACE, line);
 }
 
 function swapButton(w: World, id: string, makeOffer: (id: string) => SwapOffer): HTMLElement {
