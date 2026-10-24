@@ -1060,7 +1060,7 @@ export class InventoryView {
     if (this.instant) return instantMoveItem(w, itemId, to);
     if (atGarage(w, this.gridTruck ?? undefined)) return moveItem(w, itemId, to, this.gridTruck ?? undefined);
     if (fieldMoveIsInstant(this.mine(w), this.plan, itemId, to)) {
-      this.host.apply(moveItem(w, itemId, to));
+      this.host.apply(moveItem(w, itemId, to, this.gridTruck ?? undefined));
       return w;
     }
     this.planMove(w, itemId, to);
