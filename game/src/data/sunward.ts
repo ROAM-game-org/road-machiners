@@ -16,8 +16,9 @@ export const SUNWARD = {
   huntReach: 70,
   huntBreaks: 2,
   huntSalt: 0x68756e74,
-  driveTurns: 90,
-  returnMarginTurns: 45,
+  rideLeadTurns: 111,
+  driveTurns: 150,
+  returnMarginTurns: 19,
   avoidMargin: 12,
   avoidCost: 6,
   dropGap: 1.5,
@@ -40,9 +41,9 @@ export type HollowPiece = { look: 'shack' | 'hullChunk' | 'drums' | 'woodpile'; 
 export type HollowBay = { x: number; y: number; heading: number };
 export type HollowSpot = { x: number; y: number };
 
-const HOLLOW_POS = { x: 276, y: 244 };
+const HOLLOW_POS = { x: 304, y: 516 };
 const HOLLOW_RADIUS = 14;
-const GATE_BEARING = 0.47;
+const GATE_BEARING = -0.97;
 const BAY_ROW = 4;
 const BAY_STEP = 3.2;
 const BAY_FRONT = 7;

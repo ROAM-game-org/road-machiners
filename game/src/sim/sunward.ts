@@ -74,10 +74,25 @@ export function lastDusk(turn: number): number {
   return turn >= dusk ? dusk : duskTurn(day - 1);
 }
 
+export function rideOutTurn(dusk: number): number {
+  return dusk - SUNWARD.rideLeadTurns;
+}
+
+export function orderDusk(turn: number): number {
+  if (turn < 0) throw new Error(`Turn ${turn} lies before the game began`);
+  const day = clockOf(turn).day;
+  return turn >= rideOutTurn(duskTurn(day)) ? duskTurn(day) : duskTurn(day - 1);
+}
+
+export function nextRideOut(turn: number): number {
+  const day = clockOf(turn).day;
+  return turn < rideOutTurn(duskTurn(day)) ? rideOutTurn(duskTurn(day)) : rideOutTurn(duskTurn(day + 1));
+}
+
 export function phaseAt(turn: number): NightPhase {
-  const dusk = lastDusk(turn);
+  const dusk = orderDusk(turn);
   if (turn >= dawnAfter(dusk)) return 'rest';
-  if (turn < dusk + SUNWARD.driveTurns) return 'ride';
+  if (turn < rideOutTurn(dusk) + SUNWARD.driveTurns) return 'ride';
   return turn < returnTurn(dusk) ? 'vigil' : 'home';
 }
 
@@ -85,8 +100,16 @@ export function sunwardPhase(world: World): SunwardPhase {
   return sunwardFacts(world).collapsed !== null ? 'fallen' : phaseAt(world.turn);
 }
 
-export function nightWindow(world: World): boolean {
+export function orderRides(world: World): boolean {
   return orderStands(world) && phaseAt(world.turn) !== 'rest';
+}
+
+export function inNightWindow(turn: number): boolean {
+  return turn < dawnAfter(lastDusk(turn));
+}
+
+export function nightWindow(world: World): boolean {
+  return orderStands(world) && inNightWindow(world.turn);
 }
 
 export function isSunwardMember(v: Vehicle): boolean {
@@ -133,7 +156,7 @@ export function bayHeading(index: number): number {
 }
 
 export function hollowLampsLit(world: World, turn: number = world.turn): boolean {
-  return orderStands(world) && phaseAt(turn) !== 'rest';
+  return orderStands(world) && inNightWindow(turn);
 }
 
 export function hollowHidden(world: World): boolean {
@@ -159,7 +182,7 @@ export function advanceSunward(world: World): void {
 
 function openTonight(world: World): void {
   const facts = sunwardFacts(world);
-  const dusk = lastDusk(world.turn);
+  const dusk = orderDusk(world.turn);
   if (facts.night?.dusk !== dusk) facts.night = openNight(world, dusk);
   callStrangers(world);
   watchHunt(world);
@@ -179,7 +202,7 @@ function openNight(world: World, dusk: number): SunwardNight {
 
 export function startHuntTonight(world: World): void {
   const night = sunwardFacts(world).night;
-  if (!night || !nightWindow(world)) throw new Error('A hunt rides out only on a night of the vigil');
+  if (!night || !orderRides(world)) throw new Error('A hunt rides out only on a night of the vigil');
   night.hunt = openHunt(world, clockOf(night.dusk).day);
 }
 
@@ -210,7 +233,7 @@ function huntGrounds(world: World, day: number): Vec[] {
 }
 
 export function huntOf(world: World): SunwardHunt | null {
-  if (!nightWindow(world)) return null;
+  if (!orderRides(world)) return null;
   const hunt = sunwardFacts(world).night?.hunt ?? null;
   return hunt?.over === false ? hunt : null;
 }
@@ -229,7 +252,7 @@ function huntGoal(world: World, v: Vehicle, hunt: SunwardHunt): NpcActivity {
 
 function seizeLonePrey(world: World, v: Vehicle): void {
   const hunt = hunting(world, v);
-  if (!hunt || hunt.prey !== null || hunt.party[0] !== v.id) return;
+  if (!hunt || !nightWindow(world) || hunt.prey !== null || hunt.party[0] !== v.id) return;
   const prey = world.vehicles.find((x) => lonePrey(world, v, x));
   if (!prey) return;
   hunt.prey = prey.id;
@@ -254,7 +277,7 @@ function huntDragEndings(world: World, hunt: SunwardHunt): string[] {
 
 function huntSpent(world: World, hunt: SunwardHunt): boolean {
   const fallen = hunt.party.some((id) => world.vehicles.some((v) => v.id === id && isDefeated(v)));
-  return fallen || hunt.breaks >= SUNWARD.huntBreaks || world.turn >= returnTurn(lastDusk(world.turn));
+  return fallen || hunt.breaks >= SUNWARD.huntBreaks || world.turn >= returnTurn(orderDusk(world.turn));
 }
 
 function noteHuntDrag(hunt: SunwardHunt, ending: string): void {
@@ -372,7 +395,7 @@ function atStation(world: World, v: Vehicle, phase: NightPhase): boolean {
 
 function holdStation(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
   const until = returnTurn(sunwardFacts(world).night!.dusk);
-  return { ...goal('wait', stationOf(world, v, phase), phase === 'ride' ? 'restHollow' : 'keepVigil'), until: phase === 'ride' ? until : dawnAfter(lastDusk(world.turn)) };
+  return { ...goal('wait', stationOf(world, v, phase), phase === 'ride' ? 'restHollow' : 'keepVigil'), until: phase === 'ride' ? until : dawnAfter(sunwardFacts(world).night!.dusk) };
 }
 
 function carAhead(world: World, v: Vehicle, phase: NightPhase): Vehicle | null {
@@ -403,13 +426,8 @@ function atCrater(v: Vehicle, phase: NightPhase): boolean {
 }
 
 function homeGoal(world: World, v: Vehicle): NpcActivity {
-  if (atBay(v)) return { ...goal('wait', v.brain!.home, 'restHollow'), until: nextDusk(world.turn) };
+  if (atBay(v)) return { ...goal('wait', v.brain!.home, 'restHollow'), until: nextRideOut(world.turn) };
   return goal('explore', v.brain!.home, 'rideHome');
-}
-
-export function nextDusk(turn: number): number {
-  const day = clockOf(turn).day;
-  return turn < duskTurn(day) ? duskTurn(day) : duskTurn(day + 1);
 }
 
 function leadGoal(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
