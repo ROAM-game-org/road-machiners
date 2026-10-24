@@ -107,12 +107,12 @@ Each weapon's round:
 | plates | Steel plates | 2 | 68 | 1 x 2 | 28.125 | 53 | 12 | false | 12 | capped | 1 |
 | cage | Rebar cage | 1 | 73 | 1 x 2 | 20.625 | 60 | 2 | false | 20 | capped | 1 |
 | scrapPanels | Scrap panels | 1 | 50 | 1 x 2 | 30 | 44 | 5 | false | 5 | full | 1 |
-| ceramicPlates | Ceramic plates | 2 | 150 | 1 x 2 | 18.75 | 36 | 22 | false | 8 | none | 1 |
+| ceramicPlates | Ceramic plates | 2 | 140 | 1 x 2 | 18.75 | 44 | 14 | false | 8 | none | 1 |
 | spacedArmor | Spaced armor | 2 | 71 | 1 x 2 | 24.375 | 55 | 10 | false | 28 | capped | 1 |
 | reinforcedCage | Reinforced cage | 2 | 78 | 1 x 2 | 22.5 | 86 | 4 | false | 26 | capped | 1.2 |
 | steelPlate | Steel plate | 2 | 66 | 1 x 1 | 15 | 28 | 12 | false | 12 | capped | 1 |
 | scrapSheet | Scrap sheet | 1 | 34 | 1 x 1 | 15 | 22 | 5 | false | 5 | full | 1 |
-| ceramicTile | Ceramic tile | 2 | 87 | 1 x 1 | 9.375 | 18 | 22 | false | 8 | none | 1 |
+| ceramicTile | Ceramic tile | 2 | 82 | 1 x 1 | 9.375 | 22 | 14 | false | 8 | none | 1 |
 | spacedTile | Spaced armor tile | 2 | 76 | 1 x 1 | 12.375 | 28 | 10 | false | 28 | capped | 1 |
 | cageSection | Rebar cage section | 1 | 42 | 1 x 1 | 10.3125 | 30 | 2 | false | 20 | capped | 1 |
 | reinforcedSection | Reinforced cage section | 2 | 70 | 1 x 1 | 11.25 | 43 | 4 | false | 26 | capped | 1.2 |
