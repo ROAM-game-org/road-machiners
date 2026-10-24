@@ -31,9 +31,9 @@ import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
 import FORMAT_2_84 from './save-fixtures/format-2-84.json';
-import { TINY_FROM, TINY_STEPS as STEPS, type SavedJson } from './save-migrations';
+import { RELEASE_STEPS, TINY_FROM, TINY_STEPS as STEPS, type SavedJson } from './save-migrations';
 
-const TINY_STEPS: Record<number, (world: SavedJson) => SavedJson> = Object.fromEntries(STEPS.map((step, i) => [TINY_FROM + i, step]));
+const TINY_STEPS: Record<number, (world: SavedJson) => SavedJson> = Object.fromEntries(STEPS.map((named, i) => [TINY_FROM + i, named.step]));
 
 describe('save migration 63 to 64', () => {
   it('keeps every contract as it is, since old saves hold no rescue and the new kind adds no field to the others', () => {
@@ -943,5 +943,13 @@ describe('save migration 104 to 105, the smaller Hollow', () => {
     car(lost, 'v31').brain!.home = { x: 10, y: 10 };
 
     expect(() => TINY_STEPS[104](lost as unknown as SavedJson)).toThrow(/no bay of the old Hollow/);
+  });
+});
+
+describe('step names', () => {
+  it('are unique camelCase words without digits across tiny steps and release steps', () => {
+    const names = [...STEPS.map((named) => named.name), ...RELEASE_STEPS.flatMap((release) => release.names ?? [])];
+    expect(new Set(names).size).toBe(names.length);
+    for (const name of names) expect(name, name).toMatch(/^[a-z][A-Za-z]*$/);
   });
 });

@@ -8,7 +8,7 @@ import { highwayMap } from '../sim/highway';
 import { fitBake, repairMap, settleOffHollow, settleTrucks, type SavedBroken, type SavedMapWorld } from '../sim/map-repair';
 import { repairContent } from '../sim/save-repair';
 export { newMapFor } from '../sim/highway';
-import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
+import type { BrokenProp, Obstacle, QuestState, World, WorldSetup } from '../sim/types';
 import { QUESTS, restoreQuest } from '../sim/quests';
 import { newerQuests, questRevisions, repairQuests, type QuestRepair, type SavedRevisions } from '../sim/quest-repair';
 import { refreshVision } from '../sim/vision';
@@ -28,15 +28,20 @@ import { reportError } from './crash';
 import { CONFIG, GAME_VERSION } from '../config';
 import { download } from '../ui/dom';
 import type { RunLog } from './run-log';
-import { RELEASE_STEPS, SAVE_MAJOR, TINY_FROM, TINY_STEPS, type ReleaseStep, type SavedJson } from './save-migrations';
+import { checkSavedWorld, dropUnknownKeys, type SavedWorld } from './save-fit';
+import { RELEASE_STEPS, SAVE_MAJOR, TINY_FROM, TINY_STEPS, type NamedStep, type ReleaseStep, type SavedJson } from './save-migrations';
 
 declare const __SAVE_SCOPE__: string;
 
 type Step = ReleaseStep['step'];
 
+type ChainStep = Pick<ReleaseStep, 'from' | 'to' | 'step'>;
+
+export type SavedSteps = { from: number; names: readonly string[] };
+
 export const SAVE_FORMAT = { major: SAVE_MAJOR, minor: TINY_FROM + TINY_STEPS.length } as const;
 
-function checkedChain(releases: readonly ReleaseStep[], tinyFrom: number): void {
+function checkedChain(releases: readonly ChainStep[], tinyFrom: number): void {
   releases.forEach((release, i) => {
     if (release.to <= release.from) throw new Error(`Release step ${release.from} does not move forward`);
     const next = i + 1 < releases.length ? releases[i + 1].from : tinyFrom;
@@ -44,7 +49,7 @@ function checkedChain(releases: readonly ReleaseStep[], tinyFrom: number): void 
   });
 }
 
-export function stepsOf(releases: readonly ReleaseStep[], tinyFrom: number, tiny: readonly Step[], minor: number): readonly Step[] | null {
+export function stepsOf(releases: readonly ChainStep[], tinyFrom: number, tiny: readonly Step[], minor: number): readonly Step[] | null {
   checkedChain(releases, tinyFrom);
   if (minor >= tinyFrom && minor <= tinyFrom + tiny.length) return tiny.slice(minor - tinyFrom);
   const anchor = releases.findIndex((release) => release.from === minor);
@@ -53,7 +58,37 @@ export function stepsOf(releases: readonly ReleaseStep[], tinyFrom: number, tiny
 }
 
 export function stepsFrom(minor: number): readonly Step[] | null {
-  return stepsOf(RELEASE_STEPS, TINY_FROM, TINY_STEPS, minor);
+  return stepsOf(RELEASE_STEPS, TINY_FROM, TINY_STEPS.map((named) => named.step), minor);
+}
+
+function unknownStepError(steps: SavedSteps, why: string): SaveError {
+  return new SaveError('unknownStep', null, `${why}, in a save listing ${JSON.stringify(steps)}`);
+}
+
+function lackedTiny(tiny: readonly NamedStep[], steps: SavedSteps): readonly Step[] {
+  const known = new Set(tiny.map((named) => named.name));
+  const lost = steps.names.find((name) => !known.has(name));
+  if (lost !== undefined) throw unknownStepError(steps, `This build has no step ${lost}`);
+  const held = new Set(steps.names);
+  return tiny.filter((named) => !held.has(named.name)).map((named) => named.step);
+}
+
+function startsWithNames(steps: SavedSteps, names: readonly string[]): boolean {
+  return names.every((name, i) => steps.names[i] === name);
+}
+
+export function namedSteps(releases: readonly ReleaseStep[], tinyFrom: number, tiny: readonly NamedStep[], steps: SavedSteps): readonly Step[] {
+  checkedChain(releases, tinyFrom);
+  if (steps.from === tinyFrom) return lackedTiny(tiny, steps);
+  const release = releases.find((r) => r.from === steps.from);
+  if (release && steps.names.length === 0) return stepsOf(releases, tinyFrom, tiny.map((named) => named.step), steps.from)!;
+  return namedSteps(releases, tinyFrom, tiny, afterRelease(release, steps));
+}
+
+function afterRelease(release: ReleaseStep | undefined, steps: SavedSteps): SavedSteps {
+  if (!release?.names) throw unknownStepError(steps, `No release step with names starts at ${steps.from}`);
+  if (!startsWithNames(steps, release.names)) throw unknownStepError(steps, `The names do not begin with those of release step ${release.from} to ${release.to}`);
+  return { from: release.to, names: steps.names.slice(release.names.length) };
 }
 
 export function anchorMinors(): number[] {
@@ -68,7 +103,7 @@ export const SAVE_KEY = saveKey(__SAVE_SCOPE__);
 
 export type SaveErrorCode =
   | 'unreadable' | 'otherMap' | 'bakedProps' | 'invalidWorld' | 'invalidSave' | 'badSetup'
-  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badQuests' | 'newerQuests' | 'outOfReach' | 'mapChanged';
+  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badQuests' | 'newerQuests' | 'outOfReach' | 'mapChanged' | 'unknownStep';
 
 export class SaveError extends Error {
   constructor(readonly code: SaveErrorCode, readonly format: { major: number; minor: number } | null = null, detail = '') {
@@ -77,10 +112,10 @@ export class SaveError extends Error {
 }
 
 export function carriesOnLoad(error: SaveError): boolean {
-  return error.code === 'outOfReach' || error.code === 'mapChanged';
+  return error.code === 'outOfReach' || error.code === 'mapChanged' || error.code === 'unknownStep';
 }
 
-export type SaveEnvelope = { format: typeof SAVE_FORMAT; quests: SavedRevisions; savedAt: number; runId: string; world: object };
+export type SaveEnvelope = { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; savedAt: number; runId: string; world: SavedWorld };
 
 export function clearSlot(slots: SaveSlots, slot: SlotId): void {
   slots.remove(slot);
@@ -106,14 +141,6 @@ export function savedRunId(envelope: unknown): string | null {
   if (typeof save?.world?.seed === 'number') return `legacy-${save.world.seed}`;
   return null;
 }
-
-type SavedWorld = Omit<World, 'terrain' | 'events' | 'removed' | 'broken' | 'vehicles' | 'player'> & {
-  broken: SavedBroken[];
-  vehicles: Omit<Vehicle, 'trail'>[];
-  player: Omit<Player, ViewField>;
-};
-
-type ViewField = 'visible' | 'contacts' | 'clouds';
 
 export function mapFor(saved: Pick<World, 'mapHash' | 'seed' | 'setup' | 'furyRoad'>, icarus: BakedMap): BakedMap {
   const highway = saved.mapHash.startsWith('highway:');
@@ -158,7 +185,19 @@ function loadedWorld(envelope: unknown, icarus: BakedMap): World {
   checkSavedRigs(loaded);
   refreshVision(loaded);
   settleAims(loaded);
-  return { ...loaded, events: [] };
+  const result = { ...loaded, events: [] };
+  const misfit = savedMisfit(saveOf(result).world);
+  if (misfit) throw misfit;
+  return result;
+}
+
+export function savedMisfit(saved: SavedWorld): SaveError | null {
+  try {
+    checkSavedWorld(saved);
+    return null;
+  } catch (error) {
+    return new SaveError('invalidWorld', null, (error as Error).message);
+  }
 }
 
 function stagedWorld(world: SavedWorld, quests: QuestRepair): SavedMapWorld {
@@ -239,6 +278,7 @@ function brokenProps(baked: readonly Obstacle[], broken: readonly SavedBroken[])
 
 function savedWorld(save: unknown): SavedWorld {
   const world = migratedWorld(save);
+  dropUnknownKeys(world);
   if (!isWorld(world)) throw new SaveError('invalidWorld');
   return { ...world, setup: savedSetup(world.setup) };
 }
@@ -252,15 +292,27 @@ function migratedWorld(stored: unknown): unknown {
   const save = envelopeOf(stored);
   const { major, minor } = formatOf(save);
   if (major !== SAVE_MAJOR) throw new SaveError('incompatible', { major, minor });
-  if (minor > SAVE_FORMAT.minor) throw new SaveError('newer', { major, minor });
-  const steps = stepsFrom(minor);
-  if (!steps) throw new SaveError('outOfReach', { major, minor });
+  const steps = stepsToRun(save, { major, minor });
   if (!isJsonObject(save.world)) throw new SaveError('invalidWorld');
   try {
     return steps.reduce((world, step) => step(world), save.world);
   } catch (err) {
     throw new SaveError('notMigrated', { major, minor }, String(err));
   }
+}
+
+function stepsToRun(save: SavedJson, format: { major: number; minor: number }): readonly Step[] {
+  if (save.steps !== undefined) return namedSteps(RELEASE_STEPS, TINY_FROM, TINY_STEPS, savedStepsOf(save.steps, format));
+  if (format.minor > SAVE_FORMAT.minor) throw new SaveError('newer', format);
+  const steps = stepsFrom(format.minor);
+  if (!steps) throw new SaveError('outOfReach', format);
+  return steps;
+}
+
+function savedStepsOf(value: unknown, format: { major: number; minor: number }): SavedSteps {
+  if (!isJsonObject(value) || !isCount(value.from) || !Array.isArray(value.names) || !value.names.every((name) => typeof name === 'string')) throw new SaveError('noFormat');
+  if (format.minor !== value.from + value.names.length) throw new SaveError('noFormat', format, `The steps list from ${value.from} with ${value.names.length} names does not match minor ${format.minor}`);
+  return { from: value.from, names: value.names };
 }
 
 function envelopeOf(stored: unknown): SavedJson {
@@ -318,19 +370,25 @@ export function saveOnArrival(slots: SaveSlots, world: World, runId: string, sav
   if (world.player.state === 'active' && world.events.some((e) => e.t === 'outpostReached')) writeSave(slots, 'auto', world, runId, savedAt);
 }
 
-export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: string, savedAt: number): void {
+export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: string, savedAt: number): boolean {
   if (world.player.state === 'dead') throw new Error('Cannot save a world whose player is dead');
   const envelope: SaveEnvelope = { ...saveOf(world), savedAt, runId };
+  const misfit = savedMisfit(envelope.world);
+  if (misfit) {
+    slots.onError(misfit);
+    return false;
+  }
   slots.put(slot, envelope);
+  return true;
 }
 
-export function saveOf(world: World): { format: typeof SAVE_FORMAT; quests: SavedRevisions; world: object } {
+export function saveOf(world: World): { format: typeof SAVE_FORMAT; steps: SavedSteps; quests: SavedRevisions; world: SavedWorld } {
   const { terrain: _terrain, events: _events, removed: _removed, ...saved } = world;
   const { visible: _visible, contacts: _contacts, clouds: _clouds, quests: { live: _live, ...quests }, ...player } = saved.player;
   const vehicles = saved.vehicles.map(({ trail: _trail, ...vehicle }) => vehicle);
   const obstacles = saved.obstacles.filter((o) => !isBakedObstacle(o) && !isHollowObstacle(o));
   const broken = saved.broken.map(({ obstacle, turn }) => ({ id: obstacle.id, turn }));
-  return { format: SAVE_FORMAT, quests: questRevisions(QUESTS), world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, obstacles, broken } };
+  return { format: SAVE_FORMAT, steps: { from: TINY_FROM, names: TINY_STEPS.map((named) => named.name) }, quests: questRevisions(QUESTS), world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, obstacles, broken } };
 }
 
 export function packExplored(explored: Uint8Array): string {
@@ -412,7 +470,7 @@ export function changeMapIfMoved(run: Run, world: World, hold: SaveHold, session
   if (hold.held) throw new Error(`The map moved to ${world.mapHash} while saves are held, so a reboot would lose the turn`);
   if (!world.events.some((e) => e.t === 'roadOpened')) throw new Error(`The map moved to ${world.mapHash} with no road opened`);
   run.log.note(world);
-  writeSave(run.slots, 'auto', world, run.runId, Date.now());
+  if (!writeSave(run.slots, 'auto', world, run.runId, Date.now())) throw new Error(`The map moved to ${world.mapHash} but the world failed the save check, so a reboot would lose the turn`);
   run.mapHash = world.mapHash;
   requestBoot(session, SAVE_KEY, { slot: 'auto', reason: 'road' });
   Promise.all([run.slots.flush(), run.log.flush()]).then(reload, reportError);
@@ -437,10 +495,9 @@ export class GameSaves {
     };
   }
 
-  private saveManual(slot: SlotId, save: (slot: SlotId) => void): void {
+  private saveManual(slot: SlotId, save: (slot: SlotId) => boolean): void {
     if (this.hold.held) return this.note(SAVE_HELD_NOTE);
-    save(slot);
-    this.record(t('save.savedTo', { slot: slotLabel(slot) }));
+    if (save(slot)) this.record(t('save.savedTo', { slot: slotLabel(slot) }));
   }
 
   logWorld(world: World): void {
