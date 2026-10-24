@@ -17,5 +17,4 @@ export const AMBUSH = {
 
 export const GREEN_PIT = 'green-pit';
 export const WAKE_TOWN = 'bowl';
-export const SCALE_TOWN = 'bowl';
 export const SALVAGE_GOODS: readonly string[] = ['scrap', 'parts'];

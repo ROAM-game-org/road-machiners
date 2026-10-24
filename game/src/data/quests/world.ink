@@ -14,6 +14,7 @@ VAR wagon_fate = "none"
 VAR ala_hired = false
 VAR road_seen_1 = false
 VAR scale_seen = false
+VAR counter_seen = false
 VAR hattie_met = false
 
 EXTERNAL money()
