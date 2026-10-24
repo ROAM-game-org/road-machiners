@@ -29,7 +29,7 @@ import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
 import { TEST_MAP } from '../test/map';
-import { hollowBays, hollowObstacles, membersOf } from '../sim/sunward';
+import { advanceSunward, duskTurn, hollowBays, hollowObstacles, membersOf, rideOutTurn, sunwardFacts } from '../sim/sunward';
 import { fillHollow } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
@@ -1229,6 +1229,24 @@ describe('relations in a save', () => {
     const members = (x: typeof w) => membersOf(x).map((v) => ({ id: v.id, pos: v.pos, home: v.brain!.home }));
     expect(members(loaded)).toEqual(members(w));
     expect(members(loaded).every((m) => hollowBays().some((b) => b.x === m.home.x && b.y === m.home.y))).toBe(true);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.player.money).toBe(w.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('gives back a night opened between the ride-out and dusk, awarding nothing at load', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    fillHollow(w);
+    w.turn = rideOutTurn(duskTurn(2)) + 3;
+    advanceSunward(w);
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(sunwardFacts(w).night?.dusk).toBe(duskTurn(2));
+    expect(sunwardFacts(loaded)).toEqual(sunwardFacts(w));
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.events).toEqual([]);

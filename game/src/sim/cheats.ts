@@ -34,7 +34,7 @@ import { WEATHER } from '../data/weather';
 import { makeWeather } from './weather';
 import { hostileToPlayer, playerCanAct, update } from './world';
 import { fuelCap, suppliesCap } from './stats';
-import { advanceSunward, nextDusk, nightWindow, orderStands, startHuntTonight, sunwardPhase } from './sunward';
+import { advanceSunward, nextRideOut, orderRides, orderStands, startHuntTonight, sunwardPhase } from './sunward';
 import { fillHollow } from './spawn';
 import { SUNWARD } from '../data/sunward';
 import { spillDeadRows } from './spill';
@@ -259,14 +259,14 @@ export function sunwardDusk(world: World): World {
   if (!orderStands(world)) throw new CheatError('No Sunward order stands in this world');
   return update(world, (w) => {
     fillHollow(w);
-    w.turn = nextDusk(w.turn);
+    w.turn = nextRideOut(w.turn);
     advanceSunward(w);
     refreshVision(w);
   });
 }
 
 export function sunwardHunt(world: World): World {
-  if (!nightWindow(world)) throw new CheatError('The hunters ride only on a night of the vigil. Try sunward dusk first');
+  if (!orderRides(world)) throw new CheatError('The hunters ride only on a night of the vigil. Try sunward dusk first');
   return update(world, (w) => startHuntTonight(w));
 }
 
