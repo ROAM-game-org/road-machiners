@@ -29,6 +29,15 @@ describe('survey sites', () => {
     expect(sites).toEqual(JSON.parse(JSON.stringify(makeSurveySites(TEST_MAP))));
   });
 
+  it('name each prop by the landmark obstacle that stands there', () => {
+    for (const s of sites)
+      for (const prop of s.props) {
+        const obstacle = baked.find((o) => o.id === prop.id);
+        expect(obstacle, prop.id).toBeDefined();
+        expect(obstacle!.pos).toEqual(prop.pos);
+      }
+  });
+
   it('are refused for another map', () => {
     expect(() => surveySites({ hash: 'another-map', terrain: TEST_MAP.terrain })).toThrow(/npm run old-spots/);
   });
