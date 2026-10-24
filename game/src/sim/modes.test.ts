@@ -75,16 +75,16 @@ describe('game mode rules', () => {
 });
 
 describe('a new world by mode', () => {
-  it('builds a Roaming world exactly as before the Fury Road mode', () => {
+  it('builds a Roaming world as before the Fury Road mode, with the Hollow filled at the start', () => {
     const world = newWorld(7, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
 
     expect(world.furyRoad).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [1259943148, 1262962852, 836395902, 1936023925],
-      nextId: 1403,
-      counts: [23, 6174, 129, 7],
-      npcs: [['trader', 118.13, 581.83], ['trader', 116.3, 583.98], ['buggy', 421.84, 500.53]],
-      bowlStock: ['cannon', 'supplyLocker', 'turbine', 'lightFrame', 'smokeMortar', 'cage', 'oilSpiller', 'oilSpiller', 'rocketRack', 'rack', 'stockEngine'],
+      streams: [1894781588, 1240233952, -1818829172, 1936023925],
+      nextId: 1996,
+      counts: [34, 6133, 128, 7],
+      npcs: [['trader', 117.25, 580.66], ['trader', 119.62, 577.45], ['buggy', 153.4, 99.99]],
+      bowlStock: ['lightFrame', 'reinforcedSection', 'smokeMortar', 'lightFrame', 'flatFour', 'cannon', 'sprout', 'flatbed', 'claymoreRam', 'enclosedFrame', 'patcherCrane', 'stockEngine'],
     });
   });
 

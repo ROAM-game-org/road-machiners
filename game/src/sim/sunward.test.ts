@@ -23,14 +23,15 @@ import { clockOf } from './sun';
 import { refreshVision } from './vision';
 import { discoverSites } from './locations';
 import { isFree, spawnAt, spawnNpcs } from './spawn';
-import { fortressProps, insideCurtain } from './fortress';
+import { fortressPieces, fortressProps, insideCurtain } from './fortress';
 import { sunwardDusk, sunwardHunt, sunwardLedger } from './cheats';
 import { generateNpcLoadout } from './npc-loadout';
 import { callVehicle, currentLine, currentOptions } from './dialogue';
+import { bayHeading, hollowBays, hollowDiscs, hollowObstacles, hollowReach, isHollowObstacle } from './hollow-layout';
 import {
-  advanceSunward, avoidsCrater, fallenSun, gateOrder, vigilPosts, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, planSunward, spawnsAtHollow, duskTurn, hollowBays, hollowObstacles, orderDusk, nextRideOut, nightWindow, rideOutTurn, isHollowObstacle, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
+  advanceSunward, isCavalcadeCar, isHunterCar, avoidsCrater, fallenSun, gateOrder, vigilPosts, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, planSunward, spawnsAtHollow, duskTurn, orderDusk, nextRideOut, nightWindow, rideOutTurn, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
 } from './sunward';
-import type { Vehicle, World } from './types';
+import type { Obstacle, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 
 function segmentGap(p: Vec, a: Vec, b: Vec): number {
@@ -129,43 +130,69 @@ describe('the Hollow', () => {
     expect(props).toEqual(hollowObstacles());
   });
 
-  it('lies out of sight of every road segment and every town and site, even for a maxed driver by day', () => {
-    const maxedSight = TERRAIN.vision.radius * (1 + SKILL_EFFECTS.perception.sight * MAX_RANK);
-    const roadGap = Math.min(...REGION.roads.flatMap((road) => road.slice(1).map((b, i) => segmentGap(HOLLOW.pos, road[i], b))));
-    expect(roadGap).toBeGreaterThan(maxedSight + HOLLOW.sightReach);
-    const sights = [...REGION.towns, ...REGION.locations].filter((s) => s.id !== 'fallen-sun');
-    const siteGaps = sights.map((s) => siteGap(s, HOLLOW.pos));
-    expect(Math.min(...siteGaps)).toBeGreaterThan(TERRAIN.vision.radius * TERRAIN.vision.grayFactor + HOLLOW.radius);
+  it('starts full: a new Roaming world holds eight Cavalcade cars and three hunters, each at its own bay and heading', () => {
+    const w = standardWorld(5);
+    const members = membersOf(w);
+    expect(members.filter(isCavalcadeCar)).toHaveLength(SUNWARD.cavalcade);
+    expect(members.filter(isHunterCar)).toHaveLength(SUNWARD.hunters);
+    const bays = hollowBays();
+    const taken = members.map((v) => bays.findIndex((b) => dist(b, v.pos) < 0.01));
+    expect(new Set(taken).size).toBe(members.length);
+    expect(taken.every((bay) => bay >= 0)).toBe(true);
+    members.forEach((v, k) => {
+      expect(v.heading).toBeCloseTo(bayHeading(taken[k]), 6);
+      expect(dist(v.brain!.home, v.pos)).toBeLessThan(0.01);
+    });
   });
 
-  it('is a walled scrap fort with one gate toward the crater, laid by the fortress rule and never by the bake', () => {
+  it('gives Chaos Highway no Sunward car', () => {
+    expect(membersOf(furyRoadWorld())).toEqual([]);
+  });
+
+  it('lies out of sight of every road segment and every town and site, even for a maxed driver by day', () => {
+    const maxedSight = TERRAIN.vision.radius * (1 + SKILL_EFFECTS.perception.sight * MAX_RANK);
+    const discs = hollowDiscs();
+    const roadGap = Math.min(...discs.flatMap((d) => REGION.roads.flatMap((road) => road.slice(1).map((b, i) => segmentGap(d.at, road[i], b) - d.r))));
+    expect(roadGap).toBeGreaterThan(maxedSight + SUNWARD.sightMargin);
+    const sights = [...REGION.towns, ...REGION.locations].filter((s) => s.id !== 'fallen-sun');
+    const siteGaps = discs.flatMap((d) => sights.map((s) => siteGap(s, d.at) - d.r));
+    expect(Math.min(...siteGaps)).toBeGreaterThan(TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
+  });
+
+  it('is a walled scrap fort, smaller than every small site, with a shut gatehouse toward the crater', () => {
     const fort = hollowObstacles().flatMap((o) => (o.kind === 'landmark' && o.look.startsWith('fortScrap') ? [o] : []));
     expect(fort.map(({ look, pos, r, yaw }) => ({ look, pos, r, yaw }))).toEqual(fortressProps(HOLLOW.site).map((p) => ({ look: p.kind, pos: p.pos, r: p.r, yaw: p.yaw })));
-    const gate = HOLLOW.site.gates[0];
-    const inward = { x: (HOLLOW.pos.x - gate.x) / HOLLOW.radius, y: (HOLLOW.pos.y - gate.y) / HOLLOW.radius };
-    const gateway = { x: gate.x + inward.x * 1.25, y: gate.y + inward.y * 1.25 };
-    expect(fort.filter((o) => dist(o.pos, gateway) < 1.5)).toEqual([]);
-    expect(fort.filter((o) => o.look === 'fortScrapTower' && dist(o.pos, gateway) < 4)).toHaveLength(2);
-    expect(fort.filter((o) => o.look === 'fortScrapTower').length).toBeGreaterThan(4);
+    expect(HOLLOW.radius).toBeLessThan(Math.min(...REGION.locations.filter((l) => l.id !== 'fallen-sun' && l.radius > 0).map((l) => l.radius)));
+    expect(fort.filter((o) => o.look === 'fortScrapGate')).toHaveLength(1);
+    expect(fortressPieces(HOLLOW.site).filter((p) => p.kind === 'gate')).toHaveLength(1);
     expect(REGION.locations.some((l) => l.id === HOLLOW.id)).toBe(false);
+    const gate = HOLLOW.site.gates[0];
     const toGate = Math.atan2(gate.y - HOLLOW.pos.y, gate.x - HOLLOW.pos.x);
     const toCrater = Math.atan2(fallenSun().pos.y - HOLLOW.pos.y, fallenSun().pos.x - HOLLOW.pos.x);
     expect(Math.abs(toGate - toCrater)).toBeLessThan(0.25);
   });
 
-  it('parks every bay inside the curtain and hangs every lamp by a fort piece or a shed', () => {
-    for (const bay of hollowBays()) expect(insideCurtain(HOLLOW.site, bay, 2)).toBe(true);
+  it('parks every car outside the curtain in a laager that stays within the reach bound, with the lamps by a piece', () => {
+    for (const bay of hollowBays()) expect(insideCurtain(HOLLOW.site, bay, 0)).toBe(false);
+    expect(hollowBays()).toHaveLength(SUNWARD.cavalcade + SUNWARD.hunters);
+    expect(hollowReach()).toBeLessThanOrEqual(HOLLOW.maxReach);
     const pieces = hollowObstacles();
+    const looks = (o: Obstacle): string => (o.kind === 'landmark' ? o.look : '');
+    for (const o of pieces.filter((x) => ['hullChunk', 'shack'].includes(looks(x)))) expect(insideCurtain(HOLLOW.site, o.pos, 0.5)).toBe(true);
+    for (const o of pieces.filter((x) => ['drums', 'woodpile'].includes(looks(x)))) expect(insideCurtain(HOLLOW.site, o.pos, 0)).toBe(false);
     const lamps = [...HOLLOW.lanterns, HOLLOW.fire].map((l) => ({ x: HOLLOW.pos.x + l.x, y: HOLLOW.pos.y + l.y }));
-    for (const lamp of lamps) expect(Math.min(...pieces.map((o) => dist(o.pos, lamp) - o.r))).toBeLessThan(3);
+    for (const lamp of lamps) {
+      expect(insideCurtain(HOLLOW.site, lamp, 0.5)).toBe(true);
+      expect(Math.min(...pieces.map((o) => dist(o.pos, lamp) - o.r))).toBeLessThan(3);
+    }
   });
 
   it('stands out in the wastes, clear of the Fallen Sun', () => {
-    expect(siteGap(fallenSun(), HOLLOW.pos)).toBeGreaterThanOrEqual(HOLLOW.radius * 4);
+    expect(siteGap(fallenSun(), HOLLOW.pos)).toBeGreaterThanOrEqual(hollowReach() * 2);
   });
 
   it('keeps its walls solid, so no truck spawns or parks in them', () => {
-    const w = standardWorld(5);
+    const w = quietWorld();
     for (const wall of hollowObstacles().filter((o) => o.kind === 'landmark' && o.look === 'fortScrapWall').slice(0, 5)) expect(isFree(w, wall.pos, 0.9, null)).toBe(false);
     for (const bay of hollowBays()) expect(isFree(w, bay, 0.9, null)).toBe(true);
   });
@@ -267,6 +294,8 @@ function watchedFromTheGate(w: World): World {
   return w;
 }
 
+const BAY_LEFT = 3;
+
 function riderAt(w: World, id: string): Vehicle {
   const v = w.vehicles.find((x) => x.id === id);
   if (!v) throw new Error(`No rider ${id}`);
@@ -274,7 +303,7 @@ function riderAt(w: World, id: string): Vehicle {
 }
 
 describe('the night schedule', () => {
-  it('files out of the gate one car at a time while the player watches, rides to the light without turning back and holds a post until the return', () => {
+  it('pulls out of its bay one car at a time while the player watches, rides to the light without turning back and holds a post until the return', () => {
     let w = watchedFromTheGate(orderWorld());
     const dusk = duskTurn(1);
     const out = rideOutTurn(dusk);
@@ -289,7 +318,7 @@ describe('the night schedule', () => {
       w = runTo(w, w.turn + 1);
       order.forEach((id, seat) => {
         const v = riderAt(w, id);
-        if (!left.has(id) && dist(v.pos, HOLLOW.pos) > HOLLOW.radius + 1) left.set(id, w.turn - out);
+        if (!left.has(id) && dist(v.pos, v.brain!.home) > BAY_LEFT) left.set(id, w.turn - out);
         if (!arrived.has(id) && dist(v.pos, posts[seat]) <= RULES.arriveRadius * 2) arrived.set(id, w.turn - out);
         if (arrived.has(id) || !left.has(id)) return;
         const gap = dist(v.pos, posts[seat]);

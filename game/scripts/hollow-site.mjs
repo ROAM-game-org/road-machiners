@@ -1,5 +1,5 @@
 import { REGION } from '../src/data/region.ts';
-import { HOLLOW, hollowTurn } from '../src/data/sunward.ts';
+import { HOLLOW, SUNWARD, hollowTurn } from '../src/data/sunward.ts';
 import { TERRAIN } from '../src/data/terrain.ts';
 import { SKILL_EFFECTS, MAX_RANK } from '../src/data/skills.ts';
 import { PHYSICS } from '../src/data/physics.ts';
@@ -13,19 +13,18 @@ import { siteGap } from '../src/sim/sites.ts';
 import { atlasOf } from '../src/sim/atlas.ts';
 import { fortressProps } from '../src/sim/fortress.ts';
 import { clearOfDecks, clearOfSites, isDriveObstacle, overlapsAny } from '../src/sim/mapgen.ts';
-import { isHollowObstacle } from '../src/sim/sunward.ts';
+import { hollowReach, isHollowObstacle } from '../src/sim/hollow-layout.ts';
 import { lightZone } from '../src/sim/sunward-crater.ts';
 
 const SIGHT_MARGIN = 10;
 const MAXED_DAY_SIGHT = TERRAIN.vision.radius * (1 + SKILL_EFFECTS.perception.sight * MAX_RANK);
-const MIN_ROAD_GAP = Number(process.env.MIN_ROAD_GAP ?? MAXED_DAY_SIGHT + HOLLOW.sightReach + SIGHT_MARGIN);
-const MIN_SITE_GAP = Number(process.env.MIN_SITE_GAP ?? TERRAIN.vision.radius * TERRAIN.vision.grayFactor + HOLLOW.radius);
+const MIN_ROAD_GAP = Number(process.env.MIN_ROAD_GAP ?? MAXED_DAY_SIGHT + SUNWARD.sightMargin + SIGHT_MARGIN);
+const MIN_SITE_GAP = Number(process.env.MIN_SITE_GAP ?? TERRAIN.vision.radius * TERRAIN.vision.grayFactor);
 const MIN_CRATER_GAP = Number(process.env.MIN_CRATER_GAP ?? 30);
 const DRIVE_BAND = [Number(process.env.DRIVE_MIN ?? 0), Number(process.env.DRIVE_MAX ?? 280)];
 const PICK = Number(process.env.PICK ?? 25);
 const POST_RING = Number(process.env.POST_RING ?? 11);
 const MAX_RELIEF = Number(process.env.MAX_RELIEF ?? 1.2);
-const FOOTPRINT = HOLLOW.radius + 2;
 const STEP = 4;
 const CHASSIS_RADIUS = 0.9;
 const CAMERA_REACH = 30;
@@ -58,25 +57,28 @@ function segmentGap(p, a, b) {
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
 }
 
-function roadGap(p) {
-  return Math.min(...REGION.roads.flatMap((road) => road.slice(1).map((b, i) => segmentGap(p, road[i], b))));
+function roadGap(discs) {
+  return Math.min(...discs.flatMap((d) => REGION.roads.flatMap((road) => road.slice(1).map((b, i) => segmentGap(d.pos, road[i], b) - d.r))));
 }
 
-function siteGapOf(p) {
-  return Math.min(...sites.filter((s) => s.id !== 'fallen-sun').map((s) => siteGap(s, p)));
+function siteGapOf(discs) {
+  return Math.min(...discs.flatMap((d) => sites.filter((s) => s.id !== 'fallen-sun').map((s) => siteGap(s, d.pos) - d.r)));
 }
 
-function footprintRelief(p) {
+function footprintRelief(discs) {
   let lo = Infinity;
   let hi = -Infinity;
-  for (let dy = -FOOTPRINT; dy <= FOOTPRINT; dy++) {
-    for (let dx = -FOOTPRINT; dx <= FOOTPRINT; dx++) {
-      if (dx * dx + dy * dy > FOOTPRINT * FOOTPRINT) continue;
-      const q = { x: p.x + dx, y: p.y + dy };
-      if (isCliff(terrain, tileAt(terrain, q))) return Infinity;
-      const h = heightAt(terrain, q.x, q.y);
-      lo = Math.min(lo, h);
-      hi = Math.max(hi, h);
+  for (const d of discs) {
+    const reach = Math.ceil(d.r) + 1;
+    for (let dy = -reach; dy <= reach; dy++) {
+      for (let dx = -reach; dx <= reach; dx++) {
+        if (dx * dx + dy * dy > reach * reach) continue;
+        const q = { x: d.pos.x + dx, y: d.pos.y + dy };
+        if (isCliff(terrain, tileAt(terrain, q))) return Infinity;
+        const h = heightAt(terrain, q.x, q.y);
+        lo = Math.min(lo, h);
+        hi = Math.max(hi, h);
+      }
     }
   }
   return hi - lo;
@@ -95,7 +97,8 @@ function layout(p, bearing) {
   const site = { ...HOLLOW.site, pos: p, turn: hollowTurn(bearing), gates: [{ x: p.x + Math.cos(bearing) * HOLLOW.radius, y: p.y + Math.sin(bearing) * HOLLOW.radius }] };
   const fort = fortressProps(site).map((o) => ({ pos: o.pos, r: o.r }));
   const inside = HOLLOW.pieces.map((o) => ({ pos: at(o.at), r: o.r }));
-  return { site, pieces: [...fort, ...inside], bays: HOLLOW.bays.map(at) };
+  const bays = HOLLOW.bays.map(at);
+  return { site, pieces: [...fort, ...inside], bays, discs: [...fort, ...inside, ...bays.map((pos) => ({ pos, r: SUNWARD.memberRadius }))] };
 }
 
 function hiddenFromCamera(spot) {
@@ -119,14 +122,14 @@ for (let y = 20; y < terrain.size - 20; y += STEP) {
     const p = { x, y };
     const craterGap = siteGap(fallenSun, p);
     if (craterGap < MIN_CRATER_GAP || craterGap > DRIVE_BAND[1]) { rejected.crater++; continue; }
-    const road = roadGap(p);
-    if (road < MIN_ROAD_GAP) { rejected.road++; continue; }
-    const site = siteGapOf(p);
-    if (site < MIN_SITE_GAP) { rejected.site++; continue; }
-    const relief = footprintRelief(p);
-    if (relief > MAX_RELIEF) { rejected.relief++; continue; }
     const bearing = Math.atan2(light.pos.y - p.y, light.pos.x - p.x);
     const fort = layout(p, bearing);
+    const road = roadGap(fort.discs);
+    if (road < MIN_ROAD_GAP) { rejected.road++; continue; }
+    const site = siteGapOf(fort.discs);
+    if (site < MIN_SITE_GAP) { rejected.site++; continue; }
+    const relief = footprintRelief(fort.discs);
+    if (relief > MAX_RELIEF) { rejected.relief++; continue; }
     if (fort.pieces.some((o) => overlapsAny(drive, o.pos, o.r) || !clearOfSites(atlas, o.pos, o.r) || !clearOfDecks(atlas, o.pos, o.r))) { rejected.props++; continue; }
     if (fort.bays.some((b) => overlapsAny(drive, b, 1.5))) { rejected.bays++; continue; }
     const hidden = [...fort.bays, fort.site.gates[0]].filter(hiddenFromCamera).length;
