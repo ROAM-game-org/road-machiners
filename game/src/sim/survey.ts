@@ -17,7 +17,6 @@ import { siteGap, type Site } from './sites';
 import { tileOf } from './vision';
 import { heightAt, type BakedMap, type Terrain } from './terrain';
 import type { Job, Vehicle, World } from './types';
-import type { ClueArea } from './clue-areas';
 import { bearing, dist, type Vec } from './vec';
 
 export type SurveyProp = { pos: Vec; reach: number };
@@ -183,15 +182,6 @@ export function surveyClue(c: SurveyContract, point: SurveyPoint): SurveyClue {
   return { type: site.type, landmark: told.landmark, rad, tiles: told.tiles, lay: site.lay };
 }
 
-export function surveyArea(clue: SurveyClue): ClueArea {
-  const from = siteOf(clue.landmark).pos;
-  const rules = CONTRACTS.survey.clue;
-  return {
-    center: { x: from.x + Math.cos(clue.rad) * clue.tiles, y: from.y + Math.sin(clue.rad) * clue.tiles },
-    radius: rules.areaShare * clue.tiles + rules.roundTiles / 2,
-  };
-}
-
 export function openSurveyPoint(c: SurveyContract): SurveyPoint | null {
   return c.points.find((p) => !p.done) ?? null;
 }
@@ -227,7 +217,7 @@ function inSurveyReach(v: Vehicle, site: SurveySite): boolean {
   return site.props.some((p) => dist(v.pos, p.pos) <= (p.reach + ECONOMY.useRange) * ECONOMY.interactionScale);
 }
 
-export function heldSurveys(world: World): SurveyContract[] {
+function heldSurveys(world: World): SurveyContract[] {
   return world.player.contracts.filter((c): c is SurveyContract => c.kind === 'survey');
 }
 

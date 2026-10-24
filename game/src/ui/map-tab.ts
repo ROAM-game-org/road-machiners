@@ -18,9 +18,7 @@ export class MapTab {
     this.zoomOut = zoomButton(t('map.zoomOut'), t('map.zoomOutMark'), () => this.zoom(1 / WORLD_MAP.buttonStep));
     this.zoomIn = zoomButton(t('map.zoomIn'), t('map.zoomInMark'), () => this.zoom(WORLD_MAP.buttonStep));
     this.controls = el('span', { class: 'map-zoom' }, this.zoomOut, this.zoomIn);
-    const tip = el('div', { class: 'map-tip tooltip', role: 'tooltip' });
-    this.view.bindTip(tip);
-    this.body = el('div', { class: 'map-tab', 'aria-label': t('map.full') }, this.view.canvas, tip);
+    this.body = el('div', { class: 'map-tab', 'aria-label': t('map.full') }, this.view.canvas);
     this.listen();
     observeBox(this.body, this.view, () => this.mark());
   }

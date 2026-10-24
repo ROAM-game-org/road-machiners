@@ -1,7 +1,6 @@
 import { MINIMAP, WORLD_MAP } from '../data/minimap';
 import { paintBase, newFogImage, paintFog } from '../render/minimap-paint';
 import { atlasKeyString, atlasOf, atlasSites } from '../sim/atlas';
-import { clueAreas, type HeldClueArea } from '../sim/clue-areas';
 import { mappedSites } from '../sim/locations';
 import type { Terrain } from '../sim/terrain';
 import { playerVehicle } from '../sim/damage';
@@ -9,11 +8,10 @@ import type { World } from '../sim/types';
 import type { Vec } from '../sim/vec';
 import { say } from '../text/language';
 import { el } from './dom';
-import { areaText } from './format';
 import { distanceText } from './units';
 import { siteName } from '../text/names';
 import { t, type Msg } from '../text/msg';
-import { areaHolding, canvasTransform, fitTileSize, scaleBarTiles, fitted, pinToEdge, toPx, toTile, viewport, zoomAround, panBy, clampPan, type MapPoint, type Viewport } from './map-geometry';
+import { canvasTransform, fitTileSize, scaleBarTiles, fitted, pinToEdge, toPx, toTile, viewport, zoomAround, panBy, clampPan, type MapPoint, type Viewport } from './map-geometry';
 import { token } from './tokens';
 import { uiSize } from './ui-size';
 
@@ -27,7 +25,6 @@ const TIP_GAP = 12;
 const ZOOM_SLACK = 1.001;
 const MARK = { town: 5, site: 4, wreck: 5, truck: 8, hit: 8, pinned: 0.6 };
 const NAME = { gap: 6, padX: 4, padY: 2 };
-const AREA = { width: 2, dash: [9, 6], halo: 4 };
 const PLATE = { inset: 8, pad: 5, arrowWidth: 10, arrowHeight: 12, tick: 5, gap: 3 };
 const bases = new Map<string, HTMLCanvasElement>();
 
@@ -115,7 +112,6 @@ export class MapView {
   private view: Viewport | null = null;
   private sites: MapSite[] = [];
   private world: World | null = null;
-  private areas: HeldClueArea[] = [];
   private truck: MapTruck | null = null;
   private ratio: number;
   private drawRequest = 0;
@@ -150,7 +146,6 @@ export class MapView {
     this.world = world;
     this.truck = truck;
     this.sites = mapSites(world);
-    this.areas = clueAreas(world);
     this.syncFog(world.player.explored, world.terrain.size);
     this.draw();
   }
@@ -194,11 +189,11 @@ export class MapView {
     hide();
     this.canvas.addEventListener('pointerleave', hide);
     this.canvas.addEventListener('pointermove', (e) => {
-      const target = e.buttons === 0 ? this.tipTarget(e.clientX, e.clientY) : null;
-      if (!target) return hide();
-      if (shown !== target.key) {
-        shown = target.key;
-        tip.replaceChildren(target.content());
+      const site = this.siteAt(e.clientX, e.clientY);
+      if (!site || site.kind === 'wreck') return hide();
+      if (shown !== site.id) {
+        shown = site.id;
+        tip.replaceChildren(el('span', {}, markName(site)));
       }
       const box = this.canvas.getBoundingClientRect();
       tip.style.display = '';
@@ -207,22 +202,9 @@ export class MapView {
     });
   }
 
-  private tipTarget(clientX: number, clientY: number): { key: string; content: () => HTMLElement } | null {
-    const found = this.siteAt(clientX, clientY);
-    const site = found?.kind === 'wreck' ? null : found;
-    if (site) return { key: `site:${site.id}`, content: () => el('span', {}, markName(site)) };
-    const area = this.areaAt(clientX, clientY);
-    return area && { key: `area:${area.contractId}:${area.site}`, content: () => areaText(this.requireWorld(), area) };
-  }
-
   private requireWorld(): World {
     if (!this.world) throw new Error('The map has no world yet');
     return this.world;
-  }
-
-  areaAt(clientX: number, clientY: number): HeldClueArea | null {
-    const at = this.pick(clientX, clientY);
-    return at ? areaHolding(this.areas, at) : null;
   }
 
   pick(clientX: number, clientY: number): Vec | null {
@@ -279,7 +261,6 @@ export class MapView {
     if (this.fogCanvas) ctx.drawImage(this.fogCanvas, 0, 0);
     ctx.setTransform(r, 0, 0, r, 0, 0);
     this.overlay?.(ctx, view);
-    this.drawAreas(ctx, view);
     const plates = this.platesFor(ctx, view);
     if (this.rule.kind === 'free') this.drawNames(ctx, view, plates);
     this.drawMarks(ctx, view);
@@ -332,23 +313,6 @@ export class MapView {
       ctx.fillStyle = token('--ink-bright');
       ctx.fillText(text, plate.x0 + NAME.padX, (plate.y0 + plate.y1) / 2);
     }
-  }
-
-  private drawAreas(ctx: CanvasRenderingContext2D, view: Viewport): void {
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.setLineDash(AREA.dash);
-    for (const [color, width] of [[token('--surface-sunk'), AREA.width + AREA.halo], [token('--ink-bright'), AREA.width]] as const) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      for (const area of this.areas) {
-        const at = toPx(view, area.center);
-        ctx.beginPath();
-        ctx.arc(at.x, at.y, area.radius * view.tileSize, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-    }
-    ctx.restore();
   }
 
   private shownBox(view: Viewport): Box {

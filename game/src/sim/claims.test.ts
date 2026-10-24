@@ -7,7 +7,7 @@ import { makePart } from './factory';
 import { spareParts, stowPart } from './inventory';
 import { acceptContract, advanceContracts, advanceShops, contractReward, deliverContract, estimateTurns, rollContract, shopState, siteOf, type Contract } from './market';
 import { sellPart, partTradePrice } from './economy';
-import { claimArea, claimCandidates, claimClue, claimLook, claimPartHeld, claimReward, claimRivalAt, claimSpots, claimTargets, claimWindow, clueRadius, isFreeRival, sendRival } from './claims';
+import { claimCandidates, claimClue, claimLook, claimPartHeld, claimReward, claimRivalAt, claimSpots, claimTargets, claimWindow, clueRadius, isFreeRival, sendRival } from './claims';
 import { leaveLoot } from './loot-warning';
 import { getResources } from './resources';
 import type { TraitId } from '../data/npcs';
@@ -352,18 +352,6 @@ describe('the clue', () => {
         for (const id of candidates) expect(dist(real.salvage.find((s) => s.id === id)!.pos, clue.point)).toBeLessThanOrEqual(clueRadius(clue.distance));
       }
     }
-  });
-
-  it('draws its area around the clue point with the rival search radius, holding the wreck', () => {
-    for (const stock of claimSpots(real))
-      for (const shop of Object.keys(SHOPS)) {
-        const c = { ...claimAt(stock.pos, stock.id), shop };
-        const clue = claimClue(c);
-        const area = claimArea(c);
-        expect(area.center).toEqual(clue.point);
-        expect(area.radius).toBe(clueRadius(clue.distance));
-        expect(dist(stock.pos, area.center), `${stock.id} from ${shop}`).toBeLessThanOrEqual(area.radius);
-      }
   });
 
   it('orders the candidates nearest the clue point first, all of one look', () => {

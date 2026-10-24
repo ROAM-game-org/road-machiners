@@ -10,7 +10,6 @@ import { ROAD_INDEX } from './road-index';
 import { spotLookOf, territoryAt, territoryOfStock } from './territory';
 import type { PartInstance, SalvageStock, StateKindId, Vehicle, World } from './types';
 import { isJunk, partValue } from './wear';
-import type { ClueArea } from './clue-areas';
 import { dist, type Vec } from './vec';
 
 export type ClaimTarget = { stock: SalvageStock; part: PartInstance };
@@ -195,11 +194,6 @@ export function claimClue(c: ClaimContract): ClaimClue {
 
 export function clueRadius(distance: number): number {
   return CONTRACTS.claim.clueRadiusShare * distance + CONTRACTS.claim.clueStepTiles;
-}
-
-export function claimArea(c: ClaimContract): ClueArea {
-  const clue = claimClue(c);
-  return { center: clue.point, radius: clueRadius(clue.distance) };
 }
 
 export function claimCandidates(world: World, c: ClaimContract): string[] {

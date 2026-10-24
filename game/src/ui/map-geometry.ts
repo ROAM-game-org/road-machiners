@@ -1,7 +1,6 @@
 import { MAP_SCALE_BAR } from '../data/minimap';
 import { PHYSICS } from '../data/physics';
-import type { HeldClueArea } from '../sim/clue-areas';
-import { dist, type Vec } from '../sim/vec';
+import type { Vec } from '../sim/vec';
 
 export type Viewport = { center: Vec; tileSize: number; width: number; height: number };
 export type MapPoint = { x: number; y: number; pinned: boolean };
@@ -79,9 +78,3 @@ export function scaleBarTiles(tileSize: number, width: number): number {
   return fitting.length > 0 ? fitting[fitting.length - 1] : steps[0];
 }
 
-export function areaHolding(areas: readonly HeldClueArea[], at: Vec): HeldClueArea | null {
-  let best: HeldClueArea | null = null;
-  for (const area of areas)
-    if (dist(area.center, at) <= area.radius && (!best || area.radius < best.radius)) best = area;
-  return best;
-}

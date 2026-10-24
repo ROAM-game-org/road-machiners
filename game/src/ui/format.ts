@@ -2,7 +2,6 @@ import { isShield, partDef } from '../data/parts';
 import { isMet, siteOf, type Contract } from '../sim/market';
 import { surveyClue, surveyPlaceType, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { claimClue, rivalRunning } from '../sim/claims';
-import type { HeldClueArea } from '../sim/clue-areas';
 import type { ClaimLook } from '../data/market';
 import { createIcon } from './cards';
 import { el } from './dom';
@@ -746,17 +745,6 @@ function claimSummary(c: Extract<Contract, { kind: 'claim' }>): Msg {
   const clue = claimClue(c);
   const words = { part: partNameOf(c.defId), wreck: claimLookText(clue.look), bearing: compassText(clue.angle), shop: siteName(c.shop), distance: distanceText(clue.distance) };
   return clue.territory ? t('contract.salvageIn', { ...words, place: siteName(clue.territory) }) : t('contract.salvage', words);
-}
-
-export function areaText(world: World, area: HeldClueArea): HTMLElement {
-  const c = world.player.contracts.find((x) => x.id === area.contractId);
-  if (c?.kind === 'survey') {
-    const point = c.points.find((p) => p.site === area.site);
-    if (!point) throw new Error(`Area names survey place ${area.site}, which ${c.id} does not hold`);
-    return el('span', {}, surveyPlaceText(c, point));
-  }
-  if (c?.kind === 'claim') return el('span', {}, claimSummary(c));
-  throw new Error(`Area names contract ${area.contractId}, which the player does not hold as a survey or a claim`);
 }
 
 export function claimLookText(look: ClaimLook): Msg {
