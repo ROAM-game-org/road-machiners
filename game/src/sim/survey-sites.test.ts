@@ -7,7 +7,7 @@ import { mapObstacles } from './mapgen';
 import { navLayer } from './nav/layer';
 import { MAX_RADIUS, nearestRoadPoint, oldPlaces, reachable } from './salvage';
 import { siteGap } from './sites';
-import { makeSurveySites, surveySites } from './survey';
+import { makeSurveySites, surveyArea, surveyClue, surveySites } from './survey';
 import { siteOf } from './market';
 import { dist, type Vec } from './vec';
 
@@ -94,5 +94,26 @@ describe('survey sites', () => {
 
   it('give every shop at least one site in range', () => {
     for (const shop of Object.keys(SHOPS)) expect(sites.some((s) => dist(s.pos, siteOf(shop).pos) <= rules.range)).toBe(true);
+  });
+});
+
+describe('survey clue areas', () => {
+  const contractFor = (landmark: string, site: string) => ({ id: 'ct', shop: landmark, kind: 'survey' as const, points: [{ site, found: false, done: false }], reward: 0, deadline: 0, window: 0, tier: 1 });
+
+  it('hold the site of every fair clue, around the stated point and not the site', () => {
+    for (const s of sites)
+      for (const told of s.clues) {
+        const clue = surveyClue(contractFor(told.landmark, s.id), { site: s.id, found: false, done: false });
+        const area = surveyArea(clue);
+        expect(dist(area.center, s.pos), `${s.id} from ${told.landmark}`).toBeLessThanOrEqual(area.radius);
+        const from = siteOf(told.landmark).pos;
+        expect(dist(from, area.center)).toBeCloseTo(told.tiles, 6);
+      }
+  });
+
+  it('have a radius that reads only the told clue', () => {
+    const [s] = sites;
+    const clue = surveyClue(contractFor(s.clues[0].landmark, s.id), { site: s.id, found: false, done: false });
+    expect(surveyArea(clue).radius).toBeCloseTo(rules.clue.areaShare * clue.tiles + rules.clue.roundTiles / 2, 9);
   });
 });

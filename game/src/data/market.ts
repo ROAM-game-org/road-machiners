@@ -130,7 +130,7 @@ export const CONTRACTS = {
     count: [1, 3] as [number, number],
     surveyTurns: 10,
     searchTurns: 20,
-    clue: { range: 36 * MAP_SCALE, roundTiles: 25, band: 40, nearby: 40, layRing: 30, rise: 2, hollow: -1.3 },
+    clue: { range: 36 * MAP_SCALE, roundTiles: 25, areaShare: 0.4, band: 40, nearby: 40, layRing: 30, rise: 2, hollow: -1.3 },
     rewardFactor: 15,
     knowledgeRange: 12,
     xpPerEffort: 0.003,
