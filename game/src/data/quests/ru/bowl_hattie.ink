@@ -38,8 +38,8 @@ VAR hattie_unarmed = false
   ~ hattie_rumor = true
   -> hub
 + {not hattie_flats} [Местные легенды есть?]
-  Говорят, по <term=glass_flats>Стеклянной равнине</term> до сих пор ездит танк старого мира. По ночам выезжает, без огней.
-  Один водила клялся, что видел его. Только я этого водилу видела всегда с выпивкой.
+  Один водила клянется, что по <term=glass_flats>Стеклянной равнине</term> до сих пор ездит танк старого мира. По ночам выезжает, без огней.
+  А я только и видела, как он пьет.
   ~ note("glassTank")
   ~ hattie_flats = true
   -> hub
@@ -65,7 +65,7 @@ VAR hattie_unarmed = false
   -> hub
 + {hattie_roads and not hattie_unarmed} [А если приехать на Нос без пушки?]
   Впустить-то тебя впустят.
-  На Носе тебя и впустят, и выпустят — с пушкой или без. Им все равно. Только слыхала, что «Пирс» грузовик без пушки не страхует.
+  И выпустят тоже, с пушкой или без. Только слыхала, что «Пирс» грузовик без пушки не страхует.
   ~ hattie_unarmed = true
   -> hub
 + {hattie_flats and not hattie_glass} [Что со стеклом на Стеклянной равнине?]
@@ -75,13 +75,13 @@ VAR hattie_unarmed = false
   ~ hattie_glass = true
   -> hub
 + {hattie_glass and not hattie_sunward} [Что Обращенные к Солнцу делают с чужаками?]
-  Водят в кратер, выводят зеленых по краям и тихих. Говорят, чужаки оттуда не возвращаются, а я говорю: возвращаются, только уже не те.
-  Я в тот кратер не ходила и не пойду. Водой торгую, а ум свой при себе держу.
+  Водят в кратер, выводят зеленых по краям и тихих.
+  Я в тот кратер не ходила и не пойду.
   ~ note("talkSunwardTake")
   ~ hattie_sunward = true
   -> hub
-+ {hattie_sunward and cult_broken()} [Have the Sunward gone quiet?]
-  Quiet as a dry well. Bo's cousin says the lamps stopped crossing to the crater at dusk, and a man with a green shine on his hands came to my well asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
++ {hattie_sunward and cult_broken()} [Обращенные к Солнцу затихли?]
+  Тихо, как в высохшем колодце. Двоюродный брат Бо говорит, в сумерках огни перестали ходить к кратеру. И к моему колодцу приходил человек с зеленым свечением на руках, спрашивал, где тут переночевать. Ну так двоюродный брат Бо много чего болтает. По тебе видно, что знаешь об этом побольше него.
   -> hub
 + {hattie_sunward and not hattie_came_out} [А кто-нибудь выходил из кратера на твоих глазах?]
   Одну видела, в сумерках. Руки у нее в темноте зеленым светились, а воду пила молча, ведро за ведром.
