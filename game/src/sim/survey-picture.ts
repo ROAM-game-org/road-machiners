@@ -1,3 +1,4 @@
+import { SURVEY_PICTURE } from '../data/survey-pictures';
 import { hashId } from './rng';
 import type { SurveySite } from './survey';
 import type { Vec } from './vec';
@@ -10,7 +11,7 @@ function rounded(n: number): number {
 
 export function surveyPictureKey(site: SurveySite): string {
   const props = site.props.map((p) => `${p.id}@${rounded(p.pos.x)},${rounded(p.pos.y)}r${rounded(p.reach)}`);
-  return hashId([site.id, ...props].join('|')).toString(16);
+  return hashId([JSON.stringify(SURVEY_PICTURE), site.id, ...props].join('|')).toString(16);
 }
 
 export function surveyPictureCenter(site: SurveySite): Vec {
