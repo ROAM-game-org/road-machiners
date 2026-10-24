@@ -74,13 +74,51 @@ async function drawAll(): Promise<SurveyPictures> {
     const copy = document.createElement('canvas');
     copy.width = WIDTH;
     copy.height = HEIGHT;
-    copy.getContext('2d')?.drawImage(renderer.domElement, 0, 0);
+    const ctx = copy.getContext('2d');
+    if (!ctx) throw new Error('No 2D canvas context');
+    ctx.drawImage(renderer.domElement, 0, 0);
+    developPhoto(ctx);
     files[site.id] = copy.toDataURL('image/webp', SURVEY_PICTURE.quality);
     manifest.sites[site.id] = surveyPictureKey(site);
     canvases.push({ id: site.id, canvas: copy });
   }
   renderer.dispose();
   return { files, manifest, sheet: contactSheet(canvases) };
+}
+
+function developPhoto(ctx: CanvasRenderingContext2D): void {
+  const { soften } = SURVEY_PICTURE.photo;
+  ctx.filter = `blur(${soften}px)`;
+  ctx.drawImage(ctx.canvas, 0, 0);
+  ctx.filter = 'none';
+  const image = ctx.getImageData(0, 0, WIDTH, HEIGHT);
+  gradePixels(image.data);
+  ctx.putImageData(image, 0, 0);
+}
+
+function gradePixels(data: Uint8ClampedArray): void {
+  const { saturation, contrast, warmth, fade, vignette, grain } = SURVEY_PICTURE.photo;
+  for (let i = 0; i < data.length; i += 4) {
+    const px = (i / 4) % WIDTH;
+    const py = Math.floor(i / 4 / WIDTH);
+    const dx = (px / WIDTH - 0.5) * 2;
+    const dy = (py / HEIGHT - 0.5) * 2;
+    const edge = 1 - vignette * Math.min(1, (dx * dx + dy * dy) / 2);
+    const noise = (grainAt(px, py) - 0.5) * 2 * grain;
+    const luma = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    for (let c = 0; c < 3; c++) {
+      let v = luma + (data[i + c] - luma) * saturation;
+      v = (v - 128) * contrast + 128;
+      v = v * warmth[c] * edge + noise;
+      data[i + c] = fade * 255 + v * (1 - fade);
+    }
+  }
+}
+
+function grainAt(x: number, y: number): number {
+  const h = Math.imul(x + 1, 374761393) ^ Math.imul(y + 1, 668265263);
+  const m = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((m ^ (m >>> 16)) >>> 0) / 4294967296;
 }
 
 function propsOf(site: SurveySite, baked: Map<string, Obstacle>): THREE.Object3D[] {
