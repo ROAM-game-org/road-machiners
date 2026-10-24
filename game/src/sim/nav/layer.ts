@@ -183,8 +183,8 @@ function buildStaticSet(obstacles: Obstacle[], terrain: Terrain): StaticSet {
   };
 }
 
-export function dynamicBlockers(obstacles: Obstacle[], terrain: Terrain, extra: Blocker[], passesGate: boolean = false): Blocker[] {
-  return [...obstacles.filter((o) => isDriveObstacle(o) && isDynamicBlocker(o) && !(passesGate && o.id === HOLLOW_GATE_ID)).map((o) => driveBlocker(o, terrain)), ...extra];
+export function dynamicBlockers(obstacles: Obstacle[], terrain: Terrain, extra: Blocker[], passesGate: () => boolean = () => false): Blocker[] {
+  return [...obstacles.filter((o) => isDriveObstacle(o) && isDynamicBlocker(o) && !(o.id === HOLLOW_GATE_ID && passesGate())).map((o) => driveBlocker(o, terrain)), ...extra];
 }
 
 function driveBlocker(o: Obstacle, terrain: Terrain): Blocker {

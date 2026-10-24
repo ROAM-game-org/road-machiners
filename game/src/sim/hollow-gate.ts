@@ -16,6 +16,7 @@ type GatePose = { pos: Vec; yaw: number };
 
 let pose: GatePose | null = null;
 let leaf: Obstacle | null = null;
+let footprint: readonly PosedBox[] | null = null;
 
 export function hollowGatePose(): GatePose {
   if (pose === null) {
@@ -74,7 +75,7 @@ function inReach(world: World, v: Vehicle, gate: Vec): boolean {
 
 export function hollowGateWanted(world: World): boolean {
   const gate = hollowGatePose().pos;
-  return world.vehicles.some((v) => !isDefeated(v) && crossesCurtain(v) && inReach(world, v, gate) && passesHollowGate(world, v));
+  return world.vehicles.some((v) => !isDefeated(v) && inReach(world, v, gate) && crossesCurtain(v) && passesHollowGate(world, v));
 }
 
 function separated(a: RigBox | PosedBox, b: RigBox | PosedBox, axis: Vec): boolean {
@@ -90,8 +91,8 @@ function boxesTouch(a: RigBox | PosedBox, b: RigBox | PosedBox): boolean {
 
 export function hollowGateOccupied(world: World): boolean {
   const { pos } = hollowGatePose();
-  const footprint = propBoxes(hollowGateLeaf());
-  return world.vehicles.some((v) => dist(v.pos, pos) < SUNWARD.gate.nearby && rigBoxes(v).some((body) => footprint.some((leafBox) => boxesTouch(body, leafBox))));
+  const leafBoxes = (footprint ??= propBoxes(hollowGateLeaf()));
+  return world.vehicles.some((v) => dist(v.pos, pos) < SUNWARD.gate.nearby && rigBoxes(v).some((body) => leafBoxes.some((leafBox) => boxesTouch(body, leafBox))));
 }
 
 export function swingHollowGate(world: World): void {
@@ -101,6 +102,6 @@ export function swingHollowGate(world: World): void {
   world.obstacles = shut ? [...world.obstacles, hollowGateLeaf()] : world.obstacles.filter((o) => !isHollowGate(o));
 }
 
-export function gatePassFor(world: World, driver: Vehicle | undefined): boolean {
-  return driver !== undefined && hollowGateShut(world) && passesHollowGate(world, driver);
+export function gatePassing(world: World, driver: Vehicle | undefined): () => boolean {
+  return () => driver !== undefined && passesHollowGate(world, driver);
 }
