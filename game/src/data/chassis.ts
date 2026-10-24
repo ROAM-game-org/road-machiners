@@ -2,6 +2,47 @@
 import type { Tier } from './market';
 import { PARTS } from './parts';
 
+export type AbilityId = 'bed' | 'nimble' | 'racing' | 'offRoad' | 'armored' | 'gunMounts' | 'battle' | 'springs' | 'openTop' | 'tourer' | 'trailer';
+
+export type ChassisAbility = {
+  id: AbilityId;
+  bedRows?: number;
+  accel?: number;
+  topSpeed?: number;
+  nimble?: number;
+  offRoadCut?: number;
+  offRoadWear?: number;
+  partArmor?: number;
+  deckArmor?: number;
+  gunPower?: number;
+  mountedMass?: number;
+  sight?: number;
+  range?: number;
+  arc?: number;
+  reloadCut?: number;
+  cargoRows?: number;
+};
+
+export const CHASSIS_FEATURES: Record<string, ChassisAbility> = {
+  scout: { id: 'bed', bedRows: 1 },
+  buggy: { id: 'nimble', accel: 1.25, nimble: 0.0785 },
+  courier: { id: 'racing', topSpeed: 1.25 },
+  jeep: { id: 'offRoad', offRoadCut: 1, offRoadWear: 0.5 },
+  hauler: { id: 'bed', bedRows: 2 },
+  wagon: { id: 'gunMounts', gunPower: 1.25 },
+  van: { id: 'armored', partArmor: 1 },
+  convertible: { id: 'openTop', sight: 1.2, range: 1.2 },
+  bus: { id: 'springs', mountedMass: 0.5 },
+  niva: { id: 'offRoad', offRoadCut: 1, offRoadWear: 0.5 },
+  bukhanka: { id: 'armored', partArmor: 2 },
+  longbed: { id: 'bed', bedRows: 3 },
+  carrier: { id: 'armored', partArmor: 4 },
+  tractor: { id: 'battle', partArmor: 2, gunPower: 1.25 },
+  loader: { id: 'gunMounts', gunPower: 1.5 },
+  lincoln: { id: 'tourer', sight: 1.25, range: 1.15, topSpeed: 1.15 },
+  sorokonoga: { id: 'trailer', arc: 30, reloadCut: 1, cargoRows: 1.5, deckArmor: 1 },
+};
+
 export type ChassisDef = {
   id: string;
   maxSpeed: number;
@@ -435,6 +476,24 @@ export function chassisDef(id: string): ChassisDef {
   if (!def) throw new Error(`Unknown chassis ${id}`);
   return def;
 }
+
+const ABILITY_FACTORS = ['accel', 'topSpeed', 'gunPower', 'mountedMass', 'sight', 'range', 'cargoRows'] as const;
+
+const valueOr = (value: number | undefined, fallback: number): number => value ?? fallback;
+
+function checkAbility(chassisId: string, ability: ChassisAbility): void {
+  if (!CHASSIS[chassisId]) throw new Error(`Ability row ${chassisId} is not a chassis`);
+  if (ABILITY_FACTORS.some((key) => valueOr(ability[key], 1) <= 0)) throw new Error(`${chassisId} has a factor of 0 or less`);
+  if (valueOr(ability.range, 1) > valueOr(ability.sight, 1)) throw new Error(`${chassisId} outreaches its sight`);
+  if (valueOr(ability.arc, 0) > 360) throw new Error(`${chassisId} has an arc bonus above 360`);
+  if (valueOr(ability.reloadCut, 0) < 0) throw new Error(`${chassisId} lengthens the reload`);
+}
+
+function checkAbilities(): void {
+  for (const [chassisId, ability] of Object.entries(CHASSIS_FEATURES)) checkAbility(chassisId, ability);
+}
+
+checkAbilities();
 
 export type Paint = { top: number; side: number; cab: number; cabSide: number };
 

@@ -53,7 +53,7 @@ function press(code: string): { stopped: boolean } {
 function screenWith(world: World, lookOver: boolean): void {
   stubDom();
   handlers.length = 0;
-  new QuestScreen({ world: () => world, apply: () => {}, announce: () => {}, runKey: () => {} } as never, () => lookOver);
+  new QuestScreen({ world: () => world, apply: () => {}, announce: () => {}, runKey: () => {} } as never, () => lookOver, () => null);
 }
 
 const SCENE: QuestLive = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };

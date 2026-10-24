@@ -1,3 +1,4 @@
+import type { TownSection } from './quests';
 import { publicUrl } from '../public-url';
 import ENTRIES from './quest-art.json';
 
@@ -14,3 +15,14 @@ export function questArt(key: string): QuestArt {
 export function questArtUrl(key: string): string {
   return publicUrl(`quest-art/${questArt(key).file}`);
 }
+
+export type TownArt = { band: string; sections: Partial<Record<TownSection, string>> };
+export const TOWN_ART: Record<string, TownArt> = {
+  bowl: { band: 'town_bowl', sections: { market: 'bowl_scale', people: 'bowl_yard' } },
+  nose: { band: 'town_nose', sections: {} },
+  'salvage-yard': { band: 'town_salvage_yard', sections: {} },
+  granary: { band: 'town_granary', sections: {} },
+  'pump-station': { band: 'town_pump_station', sections: {} },
+  dustwell: { band: 'town_dustwell', sections: {} },
+  'green-pit': { band: 'town_green_pit', sections: {} },
+};

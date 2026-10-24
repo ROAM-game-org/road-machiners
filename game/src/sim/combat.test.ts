@@ -334,7 +334,7 @@ describe('hit odds', () => {
     expect(moving.causes.still).toBe(0);
     buggy.speed = 0;
     const still = hitOdds(w, me, mg, buggy, 'body');
-    expect(still.spread).toBeCloseTo(moving.spread * RULES.stillSpread, 12);
+    expect(still.spread).toBeCloseTo((moving.spread - moving.causes.nimble) * RULES.stillSpread, 12);
     expect(still.chance).toBeGreaterThan(moving.chance);
   });
 
@@ -359,7 +359,7 @@ describe('hit odds', () => {
     const { w, me, buggy, mg } = range(4, broadside, 3);
     me.speed = 2;
     const o = hitOdds(w, me, mg, buggy, 'body');
-    expect(o.spread).toBeCloseTo(o.causes.weapon + o.causes.range + o.causes.skill + o.causes.crossing + o.causes.own + o.causes.recoil + o.causes.weather + o.causes.still, 12);
+    expect(o.spread).toBeCloseTo(o.causes.weapon + o.causes.range + o.causes.skill + o.causes.crossing + o.causes.own + o.causes.recoil + o.causes.weather + o.causes.smoke + o.causes.nimble + o.causes.still, 12);
     expect(o.halfAngle).toBeCloseTo(o.width / (2 * o.distance), 12);
   });
 });
