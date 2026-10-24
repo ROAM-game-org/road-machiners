@@ -7,11 +7,11 @@ window top and visor lip 2.70, roof edge 2.93. Lengths come from the grid and th
 The model is cut to the grid: 8.5 m long, 2.6 m wide across its rub strips and flares and 2.94 m to the flat roof on its tires,
 3.04 m over the rear roof air intake, on a 3.9 m wheelbase with even 2.3 m overhangs.
 The ground is 1.67 m below the center. Levels over the center: intake top 1.37, flat roof 1.27, window top 1.01, sill 0.24,
-belt stripe 0.06 to 0.24, side stripe -0.38 to -0.22, headlamps -0.62, skirt top -0.78, body bottom -1.03.
-The body is stacked hulls on one rounded plan: the nose and tail bow 0.09 m ahead of their corners, which round off at 0.39 m.
+belt stripe 0.10 to 0.24, side stripe -0.40 to -0.20, headlamps -0.54, skirt top -0.72, body bottom -1.03.
+The body is stacked hulls on one rounded plan: the nose and tail bow 0.16 m ahead of their corners, which round off at 0.32 m.
 A trim skirt and front apron, a paint lower body and front face, a trim belt stripe that crosses the front under the windshield,
-a glass window band whose sides lean in 0.06 m and whose front rakes back 0.22 m into a two-pane windshield that wraps round
-the corners, and a paint cant and roof whose domed front cap ends in a visor lip 0.2 m ahead of the windshield top.
+a glass window band whose sides lean in 0.06 m and whose front rakes back 0.26 m into a two-pane windshield that wraps round
+the corners, and a paint cant and roof whose domed front cap ends in a visor lip 0.26 m ahead of the windshield top, hanging to 2.59 m.
 Round headlamps sit in bulges faired into the front face, over parking lamps in the apron, a moulding bar and a split bumper.
 The right side has one front door of two leaves behind the nose rounding, then six window bays with transom bars; the left side
 has seven bays. A strip of roof-curve glass runs over the bays in the cant. A two-line trim side stripe and a dark rub strip
@@ -26,8 +26,9 @@ Inferred, since neither photo shows them: the left side, the closed engine end w
 taillights and bumper, the flat roof center and the rear roof intake.
 Deviations from the photos: 7.5% short for the grid's cell cap; even overhangs, since a body has one wheelX; tire rule tires,
 whose arches break the side stripe and rub strip; the body bottom stays 0.64 m up so the collision height keeps the tire rule's
-0.72 m, which lifts the skirt top to 0.89 m and the headlamps to 1.05 m; the nose corners round at 0.39 m, not 0.5 m, so the
-front door keeps 0.65 m clear of the flare; faction paint and trim in place of white and red; no lettering, curtains, plate,
+0.72 m, which lifts the skirt top to 0.95 m and the headlamps to 1.13 m, and thins the bumper; the nose corners round at 0.32 m, not
+0.5 m, so the front door keeps 0.65 m clear of the flare; the side stripe is 0.2 m deep, against the photo's 0.14 m, to read
+at the game camera; the roof-curve glass is narrower, since the flat roof the deck rows stand on takes the photo's curved roof; faction paint and trim in place of white and red; no lettering, curtains, plate,
 badge, horn or mirrors on stalks, which would leave the width; no second door, which the photos do not show.
 Run: blender --background --python tools/blender/base_bus.py -- public/models/base_bus.glb [tmp/base_bus.png]
 """
@@ -103,20 +104,20 @@ HALF_Y = WIDTH / 2
 SIDE = HALF_Y - 0.03  # body side face; the rub strips and flares stand out to the full width
 FRONT = LENGTH / 2 - 0.04  # nose face; the bumper reaches the full length
 BACK = -FRONT
-BULGE = 0.09  # photo 1: the nose bows this far ahead of its corners
-CORNER = 0.39  # photo 1: the nose corner radius in plan, cut so the front door keeps its width
+BULGE = 0.16  # photo 1: the nose bows this far ahead of its corners
+CORNER = 0.32  # photo 1: the nose corner radius in plan, cut so the front door keeps its width
 NOSE_END = FRONT - BULGE - CORNER  # where the nose rounding meets the flat side
 TAIL_END = -NOSE_END
 
 BODY_BOTTOM = -1.03
-SKIRT_TOP = -0.78  # photo 2: 0.80 m, lifted with the body bottom
-RUB = (-0.8, -0.75)
-BELT = 0.06  # photo 2: 1.76 m
+SKIRT_TOP = -0.72  # photo 2: 0.80 m, lifted with the body bottom
+RUB = (-0.74, -0.69)
+BELT = 0.1  # photo 2: 1.76 m, so the belt stripe is 0.14 m deep
 SILL = 0.24  # photo 2: 1.91 m, 0.65 of the roof edge
 WIN_TOP = 1.01  # photo 2: 2.70 m
 TUMBLE = 0.06  # photo 1: the window band leans in this far at its top
-SIDE_STRIPE = (-0.38, -0.28)  # photo 2: 1.32 to 1.42 m
-SIDE_LINE = (-0.25, -0.22)  # photo 2: the thin upper line, to 1.46 m
+SIDE_STRIPE = (-0.4, -0.27)  # photo 2: 1.32 to 1.42 m, widened to read at the game camera
+SIDE_LINE = (-0.24, -0.2)  # photo 2: the thin upper line, to 1.46 m
 ROOF = 1.27
 ROOF_FLAT = MIN_ROOF_FLAT
 ROOF_FRONT = FRONT - 0.46  # where the visor dome reaches the roof, ahead of deck row 1
@@ -126,16 +127,17 @@ INTAKE_TOP = 1.37
 INTAKE_HALF = 0.95
 FLOOR = 0.0
 
-SIDE_PROFILE = [(BODY_BOTTOM, SIDE), (SILL, SIDE), (WIN_TOP, SIDE - TUMBLE), (1.07, 1.205), (1.15, 1.18), (1.22, 1.14), (ROOF, ROOF_FLAT)]
-WINDSHIELD_RAKE = 0.22  # photo 1: the windshield top stands this far behind its foot
-VISOR_LIP = 0.22  # photo 1: the visor lip overhangs the windshield top by this much
-VISOR_FOOT = 0.95  # photo 1: the visor lip hangs a little under the side window tops
+SIDE_PROFILE = [(BODY_BOTTOM, SIDE), (SILL, SIDE), (WIN_TOP, SIDE - TUMBLE), (1.07, 1.205), (1.15, 1.18), (1.22, 1.14), (1.255, 1.115), (ROOF, ROOF_FLAT)]
+WINDSHIELD_RAKE = 0.26  # photo 1: the windshield top stands this far behind its foot
+VISOR_LIP = 0.26  # photo 1: the visor lip overhangs the windshield top by this much
+VISOR_FOOT = 0.92  # photo 1: the visor lip hangs a little under the side window tops
 # (z, nose, tail, half, bulge, corner) of the cant and roof hull, from the visor lip up the dome to the flat roof
 CANT = [
     (WIN_TOP, FRONT - WINDSHIELD_RAKE - 0.02 + VISOR_LIP, BACK + 0.04, SIDE - TUMBLE, 0.07, 0.37),
-    (1.07, FRONT - 0.06, BACK + 0.06, 1.205, 0.07, 0.37),
-    (1.15, FRONT - 0.17, BACK + 0.17, 1.18, 0.05, 0.35),
-    (1.22, FRONT - 0.31, BACK + 0.3, 1.14, 0.03, 0.3),
+    (1.07, FRONT - 0.03, BACK + 0.06, 1.205, 0.07, 0.37),
+    (1.15, FRONT - 0.09, BACK + 0.17, 1.18, 0.06, 0.36),
+    (1.22, FRONT - 0.2, BACK + 0.3, 1.14, 0.04, 0.33),
+    (1.255, FRONT - 0.33, BACK + 0.36, 1.115, 0.02, 0.29),
     (ROOF, ROOF_FRONT, ROOF_BACK, ROOF_FLAT, 0.0, 0.25),
 ]
 
@@ -148,14 +150,14 @@ HATCH = ((ENGINE_X - ENGINE_HALF[0] - 0.01, ENGINE_Y - ENGINE_HALF[1] - 0.02), (
 FLARE_REACH = ARCH_R + FLARE + DOOR_GAP + 0.01
 FRONT_DOOR = (NOSE_END, WHEEL_X + FLARE_REACH)  # x front, x back
 DOOR_BOTTOM = RUB[1]
-PILLAR_W = 0.12
+PILLAR_W = 0.15
 BAYS = 6  # photo 1: window bays behind the door
 TRANSOM = 0.82  # photo 1: the transom bar sits at 0.77 of the window height
-ROOF_GLASS = (1.095, 1.22)
+ROOF_GLASS = (1.085, 1.25)
 LAMP_Y = 0.8  # photo 1: the headlamps sit just inside the nose corners
-LAMP_Z = -0.62  # photo 2: 0.95 m, lifted with the skirt
+LAMP_Z = -0.54  # photo 2: 0.95 m, lifted with the skirt
 LAMP_R = 0.13
-BUMPER_TOP = -0.9
+BUMPER_TOP = -0.94
 LAMP_BULGE = 0.27  # photo 1: the faired bulge round each headlamp
 
 
@@ -261,7 +263,7 @@ def body(kit: Kit) -> None:
         flare(kit, f"flare{i}_l", G, wx, HUB_Z, WHEEL_R, SIDE - 0.02, HALF_Y, bottom=BODY_BOTTOM, segments=ARCH_SIDES)
         flare(kit, f"flare{i}_r", G, wx, HUB_Z, WHEEL_R, -HALF_Y, -SIDE + 0.02, bottom=BODY_BOTTOM, segments=ARCH_SIDES)
     top_tip = FRONT - WINDSHIELD_RAKE - 0.02
-    band = plan_ring(SILL, FRONT - 0.02, BACK + 0.02, SIDE, BULGE, CORNER) + plan_ring(WIN_TOP, top_tip, BACK + 0.04, SIDE - TUMBLE, 0.06, top_tip - 0.06 - NOSE_END)
+    band = plan_ring(SILL, FRONT - 0.02, BACK + 0.02, SIDE, BULGE, CORNER) + plan_ring(WIN_TOP, top_tip, BACK + 0.04, SIDE - TUMBLE, 0.08, top_tip - 0.08 - NOSE_END)
     add_hull(kit, "band", band, "glass")
     lip = [p for z in (VISOR_FOOT, WIN_TOP + 0.04) for p in plan_ring(z, CANT[0][1], BACK, SIDE - TUMBLE, CANT[0][4], CANT[0][5]) if p[0] > NOSE_END - 0.05]
     add_hull(kit, "visor_lip", lip, "paint")
@@ -331,7 +333,7 @@ def front(kit: Kit) -> None:
     norm = math.hypot(nx, nz)
     nx, nz = nx / norm, nz / norm
     a, b = (lip - 0.03, CANT[1][0] + 0.03), (dome + 0.03, CANT[3][0] - 0.02)
-    sign = [(a[0] - 0.02 * nx, a[1] - 0.02 * nz), (b[0] - 0.02 * nx, b[1] - 0.02 * nz), (b[0] + 0.03 * nx, b[1] + 0.03 * nz), (a[0] + 0.03 * nx, a[1] + 0.03 * nz)]
+    sign = [(a[0] - 0.02 * nx, a[1] - 0.02 * nz), (b[0] - 0.02 * nx, b[1] - 0.02 * nz), (b[0] + 0.05 * nx, b[1] + 0.05 * nz), (a[0] + 0.05 * nx, a[1] + 0.05 * nz)]
     prism(kit, "route_sign", sign, 0.28, 0.86, "under")
     prism(kit, "route_plate", sign, -0.72, -0.2, "under")
     face = (0, math.pi / 2, 0)
