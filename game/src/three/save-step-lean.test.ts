@@ -7,7 +7,7 @@ import type { DirectionStep } from '../sim/types';
 
 type Saved = typeof FORMAT_2_104;
 
-const step = (world: Saved): Saved => TINY_STEPS[104 - TINY_FROM](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+const step = (world: Saved): Saved => TINY_STEPS[104 - TINY_FROM].step(structuredClone(world) as unknown as SavedJson) as unknown as Saved;
 const speak = (steps: unknown) => resolve(directionsText(steps as DirectionStep[]), 'en');
 
 describe('save migration 104 to 105, leave steps take a lean', () => {
