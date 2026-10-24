@@ -53,7 +53,7 @@ what: Features did not work when played, though the post said they did: a script
 cost: This was the most common critique, and players reported new modes broken after they shipped.
 
 ID: R14
-what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural.
+what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, item lore with empty rhetoric and no plain fact, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural.
 cost: Every text quest had to be cleaned up, and the committee rejected the copy again and again.
 
 ID: R15
@@ -65,8 +65,8 @@ what: Bug fixes treated the symptom with a guard or a retry and never asked why 
 cost: The same bugs came back, and the owner approved many duplicate fixes one by one.
 
 ID: R17
-what: Builds dropped points of the request, or added things nobody asked for, like labels and big buttons.
-cost: A follow-up card for every dropped point, and redesigns to remove the extras.
+what: Builds dropped points of the request, or added or changed things nobody asked for, like labels and big buttons, or a game-wide copy sweep that also rewrote the intro quests the owner had written by hand, without asking which text was off limits.
+cost: A follow-up card for every dropped point, redesigns to remove the extras, and a patch round to restore the owner's own lines byte for byte.
 
 ID: R18
 what: Merges brought back an old version of a feature, or dropped a piece another card had added, like an icon or a panel.
