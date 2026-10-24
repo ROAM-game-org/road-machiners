@@ -103,7 +103,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
-  convertible: { height: [1.55, 1.66], hood: [0.31, 0.36], roof: [0, 0.05], deck: [0.25, 0.35], roofStart: [0.39, 0.44], noseDrop: [0.45, 0.62], tailDrop: [0.45, 0.62] },
+  convertible: { height: [1.62, 1.7], hood: [0.31, 0.36], roof: [0.15, 0.2], deck: [0.26, 0.32], roofStart: [0.4, 0.45], noseDrop: [0.52, 0.68], tailDrop: [0.52, 0.68] },
   longbed: { height: [2.55, 2.75], hood: [0.19, 0.25], roof: [0.1, 0.16], roofStart: [0.25, 0.31], deck: [0.53, 0.6] },
   courier: { height: [1.7, 1.8], roofStart: [0.42, 0.5], roof: [0.11, 0.2], noseDrop: [0.65, 0.9], tailDrop: [0.38, 0.62] },
   hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.21, 0.27], deck: [0.58, 0.66] },
@@ -149,7 +149,7 @@ describe('trucks built from a reference photo keep its proportions', () => {
   });
 });
 
-const COCKPIT = { front: 0.25, back: -0.45, lid: 1.12, ceiling: 1.36 };
+const CABIN = { front: 0.3, back: -0.5, crown: 1.66, near: 0.05, ceiling: 1.7, crownHalf: 0.72, lid: 1.12, shoulderFront: 0.4, foot: -1.36, cabFront: 0.98 };
 const CORNER_SPAN = 0.9;
 
 describe('the convertible', () => {
@@ -162,22 +162,25 @@ describe('the convertible', () => {
     expect(across / along).toBeLessThanOrEqual(0.39);
   });
 
-  it('opens its cockpit behind the windshield, between door tops at lid level', () => {
+  it('closes its cabin under a low roof, inboard of the door tops', () => {
     const { heights } = SHAPES.base_convertible;
     const body = PHYSICS.bodies.convertible;
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
-    const lid = ground + COCKPIT.lid;
     const misses: string[] = [];
     heights.top.forEach((row, i) => {
       const x = (heights.i0 + i + 0.5) * heights.cell;
-      if (x > COCKPIT.front || x < COCKPIT.back) return;
+      let crownHalf = 0;
       row.forEach((cm, j) => {
-        const y = Math.abs((heights.j0 + j + 0.5) * heights.cell);
         if (cm === null) return;
-        const z = cm / 100;
-        if (y <= 0.6 && z >= ground + COCKPIT.ceiling) misses.push(`cockpit at x ${x.toFixed(2)} y ${y.toFixed(2)} stands ${(z - ground).toFixed(2)} m up`);
-        if (y >= 0.8 && y <= 0.98 && Math.abs(z - lid) > 0.06) misses.push(`door top at x ${x.toFixed(2)} y ${y.toFixed(2)} is ${(z - ground).toFixed(2)} m up, not the lid`);
+        const y = Math.abs((heights.j0 + j + 0.5) * heights.cell);
+        const up = cm / 100 - ground;
+        const onCrown = x <= CABIN.front && x >= CABIN.back;
+        if (onCrown && y <= 0.6 && Math.abs(up - CABIN.crown) > CABIN.near) misses.push(`roof at x ${x.toFixed(2)} y ${y.toFixed(2)} is ${up.toFixed(2)} m up, not the crown`);
+        if (onCrown && up >= CABIN.crown - CABIN.near) crownHalf = Math.max(crownHalf, y + heights.cell / 2);
+        if (x <= CABIN.cabFront && x >= CABIN.foot && up > CABIN.ceiling + 0.005) misses.push(`cabin at x ${x.toFixed(2)} y ${y.toFixed(2)} stands ${up.toFixed(2)} m up`);
+        if (x <= CABIN.shoulderFront && x >= CABIN.foot + 0.05 && y >= 0.85 && y <= 0.98 && Math.abs(up - CABIN.lid) > 0.06) misses.push(`door top at x ${x.toFixed(2)} y ${y.toFixed(2)} is ${up.toFixed(2)} m up, not the lid`);
       });
+      if (crownHalf > CABIN.crownHalf + 1e-6) misses.push(`roof at x ${x.toFixed(2)} is ${crownHalf.toFixed(2)} m off the center line at crown height`);
     });
     expect(misses).toEqual([]);
   });

@@ -167,16 +167,18 @@ describe('model surface', () => {
   });
 });
 
-const FOLDED_TOP = { front: -0.29, back: -0.97, crown: 1.23 };
+const CABIN = { header: 0.45, back: -0.62, crown: 1.66 };
+const HATCH = { x: -0.15, z: -0.36, reach: 0.3 };
 
 describe('the convertible antenna', () => {
-  it('stands on the folded top, the highest flat spot over the cab cells', () => {
+  it("stands on the cabin's crown, the highest flat spot over the cab cells, clear of the hatch", () => {
     const body = PHYSICS.bodies.convertible;
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
     const spot = roofSpot('convertible', cellRect('convertible', coreCellsOf('convertible', 'cab')), 0.12);
-    expect(spot.x).toBeLessThanOrEqual(FOLDED_TOP.front);
-    expect(spot.x).toBeGreaterThanOrEqual(FOLDED_TOP.back);
-    expect(Math.abs(spot.y - (ground + FOLDED_TOP.crown))).toBeLessThanOrEqual(CLIP_TOLERANCE);
+    expect(spot.x).toBeLessThanOrEqual(CABIN.header);
+    expect(spot.x).toBeGreaterThanOrEqual(CABIN.back);
+    expect(Math.abs(spot.y - (ground + CABIN.crown))).toBeLessThanOrEqual(CLIP_TOLERANCE);
+    expect(Math.hypot(spot.x - HATCH.x, spot.z - HATCH.z)).toBeGreaterThan(HATCH.reach);
   });
 });
 

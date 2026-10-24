@@ -1,35 +1,41 @@
-"""The convertible base: a stylized 1964 Chevrolet Corvair Monza convertible with its top folded down.
+"""The convertible base: a stylized 1964 Chevrolet Corvair Monza convertible with its top up, rebuilt as a steel hardtop.
 
 Measured from two photographs of a red 1964 Monza convertible (front left and rear left, MercurySable99, CC BY-SA 4.0,
 Wikimedia Commons) and sized from the published specs at 1.278 scale, so it keeps its 5.84 m game length: 2.17 m
-across the lid lip, a 3.5 m wheelbase and 1.60 m to the windshield header on its tires. The ground is 1.04 m below
-the center. The body is one loft of plan rings from the rocker to the lids, squared off at the ends with 0.32 m plan
-corners. One lid lip wraps the nose, the sides and the tail 1.06-1.10 m over the ground, with a shadow line under it,
-and the flat lids lie 1.12 m up, rolling down 8 cm at the nose and the tail. Under the lip the side stands nearly
-upright and rolls under to the rocker.
+across the lid lip, a 3.5 m wheelbase, 1.60 m to the windshield header and 1.66 m to the crown on its tires. The ground
+is 1.05 m below the center. The body is one loft of plan rings from the rocker to the lids, squared off at the ends
+with 0.32 m plan corners. One lid lip wraps the nose, the sides and the tail 1.06-1.10 m over the ground, with a
+shadow line under it, and the flat lids lie 1.12 m up, rolling down 8 cm at the nose and the tail. Under the lip the
+side stands nearly upright and rolls under to the rocker.
 The nose face holds two round headlamps a side in a horizontal chrome bezel sunk into the face, a full-width chrome
 strip with a winged badge between the bezels, an amber parking lamp under each bezel and a chrome wrap bumper.
 The raked windshield in a thin chrome frame runs from the cowl at x 0.95 to the header at x 0.45, with a vent window
-frame at the front of each door. The cockpit is open from the cowl back to x -0.29, 0.76 m off the center line a side,
-so the door tops make flat shoulders at lid level. Inside: a dark floor, dash and thin round steering wheel, a leather
-seat on the left, and on the right the dash runs back flush over the seat as one leather shelf level with its seat back.
-The folded top lies on its boot over the rear seat, a low padded roll in the faction's second color 1.23 m up at its
-crown from x -0.29 to -0.97, the highest flat spot over the cab cells, where the antenna stands. The flat rear lid
-carries two louver banks either side of a faint spine: the left one is the engine hole, fitted to the drawn engine
-plus HOLE_MARGIN over a shallow slatted floor 0.06 m under the lid, and the right one is slats on the lid.
+frame at the front of each door. Behind it the closed cabin keeps the photo's raised top: one loft from the windshield
+over a low crown 1.66 m up, flat back to x -0.55, with sides that lean in from a foot 0.79 m off the center line on the
+belt to a rain rail 0.73 m off it and round over in two facets, then a long fall that flares onto the rear lid at
+x -1.36. A dark side opening a side runs from the vent post to x -0.62 with a thin seam between the door and quarter
+glass and no B-pillar, a wide blind quarter runs down into the fall, and a small dark rear window sits in the fall. The
+cabin is riveted steel in the faction's second color: two seam ribs cross the crown, one crosses the fall, welded bars
+lie level across the side glass and upright over the rear window, a bare patch plate is riveted to the left rear
+quarter, and a chrome strip runs along the cabin's foot. A round lookout hatch stands on the crown over the driver's
+cab cells, its lid lying open on the crown behind it, clear of the antenna's spot. The door tops are flat shoulders at
+lid level. The flat rear lid carries two louver banks either side of a faint spine: the left one is the engine hole, fitted to the drawn engine plus HOLE_MARGIN over a shallow slatted floor
+0.06 m under the lid, and the right one is slats on the lid.
 The tail holds two round taillights a side in chrome rings, a dark plate panel in a chrome frame, a chrome wrap bumper
 and a dark mesh outlet in two halves under it. One long door a side keeps DOOR_GAP from the arches. Round arches
 of 32 edges with chrome lips are cut under the lip, and a chrome strip runs along the rocker.
-Deviations from the photos: the top is down; the wheels stay symmetric on the tire rule's tire at the game's ride;
-the door tops are thick so the outer deck columns rest flat; the left louver bank is the engine hole over the grid's
-engine cells, so a fitted engine stands out of the lid; no mirror, script badges or plate numbers; the passenger's
-seat is a flat shelf level with its seat back and the boot covers the rear seat, so the deck cells beside the cab
-and behind it have one level to rest on; the boot ends at the cab rows' back edge, ahead of the rear axle.
+Deviations from the photos: the top is riveted steel in the faction's second color with seam ribs, a patch plate,
+window bars and a lookout hatch, not black fabric; the wheels stay symmetric on the tire rule's tire at the game's
+ride; the door tops are thick so the outer deck columns rest flat; the left louver bank is the engine hole over the
+grid's engine cells, so a fitted engine stands out of the lid; no mirror, script badges or plate numbers; the fall's
+foot is at x -1.36, about 0.15 m ahead of the photo's, so the engine hole keeps the lid behind it; the lid's two small
+vents are left off; the
+windshield header narrows to 0.74 m a side to meet the cabin's rain rail.
 Grid: 5 columns by 9 rows, stretched over the model by the projection. Rows 0 to 2 and 6 to 8 rest on the lids,
-the engine cells on the bay floor, columns 0 and 4 of rows 3 to 5 on the door tops, and column 3 of rows 3 to 5 on
-the passenger's shelf and the boot.
+the engine cells on the bay floor, columns 0 and 4 of rows 3 to 5 on the door tops, and columns 1 to 3 of rows 3 to 5
+on the crown.
 Half height 0.35 m, from PHYSICS.bodies.convertible.
-Wheels sit at x -+1.75 and y -+0.84, radius 0.44 m, half width 0.175 m, mount 0.2 m below the center.
+Wheels sit at x -+1.75 and y -+0.84, radius 0.45 m, half width 0.18 m, mount 0.2 m below the center.
 Sockets arch_front, arch_rear and arch_front_top mark the arches for wheelArches.test.ts.
 Run: blender --background --python tools/blender/base_convertible.py -- public/models/base_convertible.glb [tmp/base_convertible.png]
 """
@@ -65,8 +71,8 @@ from shapes import loft, prism, strut  # noqa: E402
 SEED = 305
 COLORS = {**BASE_COLORS, "amber": 0xFFB45A}  # PAL.lamp.amber
 G = Grid(rows=9, cols=5, half_height=0.35)
-WHEEL_R = 0.44  # PHYSICS.bodies.convertible.wheelRadius
-WHEEL_HALF_W = 0.175  # PHYSICS.bodies.convertible.wheelHalfWidth
+WHEEL_R = 0.45  # PHYSICS.bodies.convertible.wheelRadius
+WHEEL_HALF_W = 0.18  # PHYSICS.bodies.convertible.wheelHalfWidth
 WHEEL_X = 1.75  # PHYSICS.bodies.convertible.wheelX: half the 2.74 m wheelbase times 1.278
 WHEEL_Z = 0.84  # PHYSICS.bodies.convertible.wheelZ: the tire's outer face flush with the side at hub height
 HUB_Z = -0.2 - SUSPENSION_REST  # PHYSICS.bodies.convertible.wheelY
@@ -109,26 +115,52 @@ ROLL_FROM = up(0.85)
 COWL_X = 0.95  # brief 10: the windshield foot over the door's front seam
 HEADER_X = 0.45  # brief 11; at 0.38 no deck item beside the cab fits behind the glass on the view's 0.1 m shift steps
 HEADER_Z = up(1.58)  # brief 11: the header strut's center, its top at 1.60 m
-SHIELD_HALF = (0.93, 0.80)  # the photo's windshield reaches nearly to the sides at its foot and wraps in to the header  # the windshield's half width at the foot and at the header
+SHIELD_HALF = (0.93, 0.74)  # the windshield's half width at the foot and at the header: it reaches nearly to the sides at
+# its foot, as in the photo, and wraps in to meet the cabin's rain rail at the header (brief C4)
 VENT_POST_X = 0.50
 VENT_TOP = up(1.40)
 
-OPEN_HALF = 0.76  # DV3: the cockpit opening's half width, leaving 0.3 m door tops
-OPEN_FRONT = 0.93
-OPEN_BACK = -0.29
-OPEN_CORNER = (0.06, 0.16)  # the opening's plan corner radius at the front and at the back
-COCKPIT_FLOOR = up(0.40)
-DASH = (0.70, up(0.78), up(1.09))  # back x, bottom and top of the dash under the windshield
-SHELF = (-0.12, -0.12, up(1.13))  # DV6: the passenger side's dash runs back flush over the seat as one shelf, to the seat back,
-# from y -0.12 out, level with the passenger's seat back, so the deck cells beside the cab have one level to rest on
-WHEEL_CENTER = (0.55, 0.40, up(1.17))  # the steering wheel in front of the driver, on the left
-STEER_R = 0.19
-STEER_TILT = math.radians(55)  # the wheel's plane from level
-FRONT_SEATS = ((0.32, -0.12), 0.38, 0.26, up(0.70), up(1.17))  # cushion x span, seat y, half width, cushion top, back top
-SEAT_BACK = 0.12
-
-BOOT = (-0.29, -0.97, up(1.23), 0.80)  # inferred: the folded top's boot, front x, back x, top and half width; it ends
-# at the cab rows' back edge so the deck cells behind it rest flat on the lid, and covers the rear seat from row 5's front
+CABIN_FLOOR = up(0.40)
+CROWN = 1.66  # brief C2: the published 1.30 m top-up height times 1.278
+FOOT_HALF = 0.79  # brief C4, DV3: the cabin's foot off the center line on the belt, leaving 0.27 m door tops
+RAIL = (0.73, 1.56)  # brief C4: the rain rail's half width and height, the sides leaning in 9 deg from the belt
+EDGE = (0.67, 0.03)  # brief C4: the first facet of the rounded edge, its half width and drop under the crown
+CROWN_HALF = 0.60  # brief C4: the flat crown's half width, the second facet's top
+DOME = 0.012  # brief C2: the crown falls this far from the center line to its edge
+FULL_FROM = 1.62  # a station whose crown stands this high keeps the full section; lower ones squash toward the lid
+CABIN_STATIONS = [  # (x, crown over the ground) from the header back down the fall onto the rear lid
+    (None, 1.625),  # brief C1: the front station lies on the windshield plane, its crown just behind the header
+    (0.36, 1.645),
+    (0.25, 1.655),
+    (0.0, 1.66),
+    (-0.30, 1.66),
+    (-0.55, 1.655),  # brief C3: the flat crown's back end
+    (-0.62, 1.635),  # brief C3, C7: the crown's rear corner over the side opening's back end
+    (-0.70, 1.60),
+    (-0.80, 1.55),  # brief C7: the fall, steep at first
+    (-0.89, 1.48),
+    (-0.98, 1.40),
+    (-1.06, 1.32),
+    (-1.14, 1.24),  # brief C7: flaring toward its foot
+    (-1.22, 1.18),
+    (-1.29, 1.145),
+    (-1.36, 1.125),  # brief C7, DV6: the foot on the rear lid, just ahead of the engine hole
+]
+FOOT_X = CABIN_STATIONS[-1][0]
+SIDE_OPENING = [(0.49, 0.04), (0.49, 1.52), (-0.40, 1.52), (-0.50, 1.48), (-0.58, 1.38), (-0.62, 0.04)]  # brief C5:
+# the side opening's outline as (x, height over the ground, or over the lid when under 0.1), from the vent post back
+GLASS_SEAM_X = -0.30  # brief C5: the thin seam between the door glass and the quarter glass, no B-pillar
+REAR_WINDOW = (0.42, 1.52, 1.34)  # brief C8, inferred: half width, top and bottom crown height of the rear window
+DRIP_RAIL = (0.36, -0.66)  # brief C4: the chrome drip rail along each rain rail, from behind the header to the quarter,
+# so the roof's edge reads from above
+FALL_SEAM = 1.24  # inferred: the crown height of the seam across the fall
+SIDE_BARS = (1.28, 1.40)  # DV1: the heights of the welded bars across each side opening, level so they read as
+# bars and never as a B-pillar
+REAR_BARS_Y = (0.14, -0.14)  # DV1: the welded bars over the rear window
+PATCH = (-0.66, -0.90, 0.06, 1.42)  # DV1: the bare patch plate on the left rear quarter, x front, x back, bottom over
+# the lid, top over the ground
+HATCH = (0.25, 0.28, 0.21, 0.165)  # DV1: the lookout hatch over the driver's cab cells, x, y, ring and opening radius
+HATCH_LID_BACK = 0.43  # the open lid lies on the crown this far behind the hatch, clear of the antenna's spot
 
 DOOR_FRONT = 0.90
 DOOR_BACK = -0.55
@@ -262,32 +294,17 @@ def body_loft(kit: Kit, rings: list[list[Vec3]]) -> bpy.types.Object:
     return kit._add(obj, "body", "paint", 0.0)
 
 
-def rounded_rect(x0: float, x1: float, half: float, front_r: float, back_r: float, steps: int = 6) -> list[tuple[float, float]]:
-    """A plan outline from x0 (back) to x1 (front), half wide, with round corners of front_r and back_r."""
-    pts: list[tuple[float, float]] = []
-    for cx, r, a0 in ((x1 - front_r, front_r, 0.0), (x0 + back_r, back_r, math.pi / 2)):
-        for k in range(steps + 1):
-            a = a0 + math.pi / 2 * k / steps
-            pts.append((cx + r * math.cos(a), half - r + r * math.sin(a)))
-    return pts + [(x, -y) for x, y in reversed(pts)]
-
-
-def opening_cutter() -> list[Vec3]:
-    outline = rounded_rect(OPEN_BACK, OPEN_FRONT, OPEN_HALF, *OPEN_CORNER)
-    return [(x, y, z) for x, y in outline for z in (COCKPIT_FLOOR, LID + 1.0)]
-
-
 def bay_box() -> tuple[Vec3, Vec3]:
     (x0, y0), (x1, y1) = HOLE
     return ((x0, y0, FLOOR - 0.03), (x1, y1, LID + 0.2))
 
 
 def body(kit: Kit) -> None:
-    """The lofted body from the rocker to the lids, with the arches, the cockpit and the engine hole cut in."""
+    """The lofted body from the rocker to the lids, with the arches, the lamp bezels and the engine hole cut in."""
     obj = body_loft(kit, [plan_ring(side, end, up(height)) for height, side, end in SECTION])
     check_round("arch", ROUND_SEGMENTS, ROUND_SEGMENTS)
     arch_cut(obj, WHEELS_X, HUB_Z, WHEEL_R, WELL_Y, BOTTOM, ROUND_SEGMENTS)
-    cut_hulls(obj, [opening_cutter()] + bezel_cutters())
+    cut_hulls(obj, bezel_cutters())
     cut_boxes(obj, [bay_box()])
     for i, wx in enumerate(WHEELS_X):
         r0 = ARCH_R
@@ -502,73 +519,192 @@ def windshield(kit: Kit) -> None:
     strut(kit, "cowl", (COWL_X + 0.02, SHIELD_HALF[0], LID + 0.012), (COWL_X + 0.02, -SHIELD_HALF[0], LID + 0.012), 0.03, "metal_light")
 
 
-def tilted_box(kit: Kit, name: str, x_front: float, x_back: float, half: float, y: float, bottom: float, top: float, lean: float, mat: str) -> None:
-    """A seat back: a slab from bottom to top whose top leans lean back in x."""
-    pts = []
-    for z, shift in ((bottom, 0.0), (top, lean)):
-        for x in (x_front - shift, x_back - shift):
-            for side in (-1, 1):
-                pts.append((x, y + side * half, z))
-    add_hull(kit, name, pts, mat)
+def windshield_x(z: float) -> float:
+    """The x of the windshield plane at height z, 1.5 cm behind the glass."""
+    return COWL_X + (HEADER_X - COWL_X) * (z - LID) / (HEADER_Z - LID) - 0.015
 
 
-def cockpit(kit: Kit) -> None:
-    """The open cockpit: liners, floor, dash and steering wheel in the dark under color, and in leather the driver's seat,
-    the passenger's shelf run flush with the dash over the seat and both seat backs, so the seats read in the dark."""
-    length = OPEN_FRONT - OPEN_BACK
-    kit.box("cockpit_floor", (length - 0.02, 2 * OPEN_HALF - 0.02, 0.02), ((OPEN_FRONT + OPEN_BACK) / 2, 0, COCKPIT_FLOOR + 0.01), "under")
+def cabin_section(crown: float) -> list[tuple[float, float]]:
+    """The left half of the cabin's section as (y, z) from the foot on the belt over to the center line. A station
+    lower than FULL_FROM is the full section squashed toward the lid, so the fall flares onto it."""
+    base = LID - 0.01
+    full = [(FOOT_HALF, base), (RAIL[0], up(RAIL[1])), (EDGE[0], up(CROWN - EDGE[1])), (CROWN_HALF, up(CROWN - DOME)), (0.0, up(CROWN))]
+    if crown >= FULL_FROM:
+        lift = up(crown) - up(CROWN)
+        return [full[0], full[1]] + [(y, z + lift) for y, z in full[2:]]
+    share = (up(crown) - base) / (up(CROWN) - base)
+    return [(y, base + (z - base) * share) for y, z in full]
+
+
+def shield_half(z: float) -> float:
+    """The windshield's half width at height z."""
+    t = min(1.0, max(0.0, (z - LID) / (HEADER_Z - LID)))
+    return SHIELD_HALF[0] + (SHIELD_HALF[1] - SHIELD_HALF[0]) * t
+
+
+def cabin_ring(x: float | None, crown: float) -> list[Vec3]:
+    """One closed ring of the cabin at station x, left foot over the crown to the right foot. The front station has
+    no x: each point lies on the windshield plane and reaches out to its edge, so the cabin backs the whole glass."""
+    half = cabin_section(crown)
+    if x is None:
+        half = [(max(y, shield_half(z) - 0.02) if y > 0 else y, z) for y, z in half]
+    points = half + [(-y, z) for y, z in reversed(half[:-1])]
+    return [(windshield_x(z) if x is None else x, y, z) for y, z in points]
+
+
+def rail_z(x: float) -> float:
+    """The rain rail's height at x along the cabin."""
+    for (x0, c0), (x1, c1) in zip(CABIN_STATIONS[1:], CABIN_STATIONS[2:]):
+        if x1 <= x <= x0:
+            t = (x0 - x) / (x0 - x1)
+            return cabin_section(c0 + (c1 - c0) * t)[1][1]
+    return cabin_section(CABIN_STATIONS[1][1])[1][1]
+
+
+def crown_at(x: float) -> float:
+    """The crown's height over the ground at x along the cabin."""
+    for (x0, c0), (x1, c1) in zip(CABIN_STATIONS[1:], CABIN_STATIONS[2:]):
+        if x1 <= x <= x0:
+            return c0 + (c1 - c0) * (x0 - x) / (x0 - x1)
+    return CABIN_STATIONS[1][1]
+
+
+def side_point(x: float, z: float, out: float) -> Vec3:
+    """A point on the cabin's left side at x and height z, standing out from it by out."""
+    base = LID - 0.01
+    top = rail_z(x)
+    t = (z - base) / (top - base)
+    y = FOOT_HALF + (RAIL[0] - FOOT_HALF) * t
+    lean = math.atan2(FOOT_HALF - RAIL[0], top - base)
+    return (x, y + out * math.cos(lean), z + out * math.sin(lean))
+
+
+def mirrored(points: list[Vec3], sy: float) -> list[Vec3]:
+    return [(x, sy * y, z) for x, y, z in points]
+
+
+def cabin(kit: Kit) -> None:
+    """The closed cabin: one loft from the windshield back over the low crown and down the long fall onto the rear lid,
+    in the trim color, as the riveted steel hardtop that stands in for the soft top."""
+    loft(kit, "cabin", [cabin_ring(x, crown) for x, crown in CABIN_STATIONS], "trim")
+
+
+def opening_height(h: float) -> float:
+    return LID + h if h < 0.1 else up(h)
+
+
+def opening_back(z: float) -> float:
+    """The x of the side opening's back edge at height z."""
+    back = [(x, opening_height(h)) for x, h in SIDE_OPENING[1:]]
+    for (x0, z0), (x1, z1) in zip(back, back[1:]):
+        if z1 <= z <= z0:
+            return x0 + (x1 - x0) * (z0 - z) / (z0 - z1)
+    raise ValueError(f"height {z} lies off the side opening")
+
+
+def cabin_glass(kit: Kit) -> list[str]:
+    """The dark side glass a side, from the vent post back to the blind quarter in one opening with a thin seam and no
+    B-pillar, and the small rear window in the fall.
+
+    Returns the side glass names, for check_features().
+    """
+    names: list[str] = []
+    outline = [(x, opening_height(h)) for x, h in SIDE_OPENING]
     for s, sy in (("l", 1), ("r", -1)):
-        kit.box(f"liner_{s}", (length - 0.2, 0.012, LID - COCKPIT_FLOOR - 0.012), ((OPEN_FRONT + OPEN_BACK) / 2, sy * (OPEN_HALF - 0.007), (LID + COCKPIT_FLOOR) / 2 - 0.006), "under")
-        kit.box(f"belt_{s}", (length - 0.25, 0.022, 0.008), ((OPEN_FRONT + OPEN_BACK) / 2 - 0.02, sy * (OPEN_HALF + 0.012), LID + 0.003), "metal_light")
-    kit.box("liner_back", (0.012, 2 * OPEN_HALF - 0.3, LID - COCKPIT_FLOOR - 0.012), (OPEN_BACK + 0.007, 0, (LID + COCKPIT_FLOOR) / 2 - 0.006), "under")
-    dash_x, dash_low, dash_top = DASH
-    kit.box("dash", (OPEN_FRONT - dash_x, 2 * OPEN_HALF - 0.02, dash_top - dash_low), ((OPEN_FRONT + dash_x) / 2, 0, (dash_top + dash_low) / 2), "under")
-    shelf_x, shelf_y, shelf_top = SHELF
-    shelf_w = OPEN_HALF - 0.01 + shelf_y
-    kit.box("dash_shelf", (OPEN_FRONT - shelf_x, shelf_w, shelf_top - COCKPIT_FLOOR), ((OPEN_FRONT + shelf_x) / 2, shelf_y - shelf_w / 2, (shelf_top + COCKPIT_FLOOR) / 2), "leather")
-    steering_wheel(kit)
-    (cx0, cx1), seat_y, half, cushion, back_top = FRONT_SEATS
+        pane = [side_point(x, z, out) for x, z in outline for out in (0.003, 0.009)]
+        add_hull(kit, f"side_glass_{s}", mirrored(pane, sy), "glass")
+        names.append(f"side_glass_{s}")
+        lo, hi = outline[0][1], outline[1][1]
+        strut(kit, f"glass_seam_{s}", mirrored([side_point(GLASS_SEAM_X, lo, 0.008)], sy)[0], mirrored([side_point(GLASS_SEAM_X, hi, 0.008)], sy)[0], 0.014, "trim")
+    half, top, bottom = REAR_WINDOW
+    corners = [fall_point(y, crown, out) for crown in (top, bottom) for y in (half, -half) for out in (0.004, 0.012)]
+    add_hull(kit, "rear_window", corners, "glass")
+    return names
+
+
+def fall_x(crown: float) -> float:
+    """The x on the fall where the crown stands at a height."""
+    for (x0, c0), (x1, c1) in zip(CABIN_STATIONS[1:], CABIN_STATIONS[2:]):
+        if c1 <= crown <= c0 and c1 < c0 and x0 < -0.5:
+            return x0 + (x1 - x0) * (c0 - crown) / (c0 - c1)
+    raise ValueError(f"crown height {crown} lies off the fall")
+
+
+def fall_point(y: float, crown: float, out: float) -> Vec3:
+    """A point on the fall at y and the crown height of its station, standing out from it by out."""
+    x = fall_x(crown)
+    dx = fall_x(crown - 0.02) - fall_x(crown + 0.02)
+    normal = Vector((-0.04, 0, -dx)).normalized()
+    if normal.z < 0:
+        normal = -normal
+    z = cabin_z(x, y)
+    return (x + normal.x * out, y, z + normal.z * out)
+
+
+def cabin_z(x: float, y: float) -> float:
+    """The cabin's top at x and y, inside the crown's facets."""
+    pts = sorted(cabin_section(crown_at(x)), key=lambda p: p[0])
+    a = abs(y)
+    for (y0, z0), (y1, z1) in zip(pts, pts[1:]):
+        if y0 <= a <= y1:
+            return z0 + (z1 - z0) * (a - y0) / (y1 - y0)
+    raise ValueError(f"y {y} lies off the cabin")
+
+
+def over_cabin(x: float, out: float) -> list[Vec3]:
+    """The points across the cabin's crown at x from edge to edge, standing out from it by out."""
+    section = cabin_section(crown_at(x))[2:]
+    half = section + [(-y, z) for y, z in reversed(section[:-1])]
+    return [(x, y * (1 + out), z + out) for y, z in half]
+
+
+def cabin_finish(kit: Kit) -> None:
+    """The wasteland finish on the hardtop: a chrome drip rail along each roof edge, a seam across the fall, welded bars
+    over the side and rear glass, a bare patch plate on the left rear quarter, and the chrome strip along the cabin's
+    foot."""
+    front, back = DRIP_RAIL
     for s, sy in (("l", 1), ("r", -1)):
-        if sy > 0:
-            kit.box(f"seat_{s}", (cx0 - cx1, 2 * half, cushion - COCKPIT_FLOOR), ((cx0 + cx1) / 2, sy * seat_y, (cushion + COCKPIT_FLOOR) / 2), "leather")
-        top = back_top if sy > 0 else SHELF[2]
-        tilted_box(kit, f"seat_back_{s}", cx1, cx1 - SEAT_BACK, half, sy * seat_y, cushion - 0.05, top, 0.0, "leather")
-
-
-def steering_wheel(kit: Kit) -> None:
-    """A large thin round steering wheel on a column from the dash, its plane tilted toward the driver."""
-    check_round("steering_wheel", ROUND_SEGMENTS, ROUND_SEGMENTS)
-    cx, cy, cz = WHEEL_CENTER
-    center = Vector((cx, cy, cz))
-    u = Vector((0, 1, 0))
-    v = Vector((math.cos(STEER_TILT), 0, math.sin(STEER_TILT)))
-    rim = [center + STEER_R * (math.cos(2 * math.pi * k / ROUND_SEGMENTS) * u + math.sin(2 * math.pi * k / ROUND_SEGMENTS) * v) for k in range(ROUND_SEGMENTS)]
-    for k in range(ROUND_SEGMENTS):
-        strut(kit, f"steer_rim{k}", tuple(rim[k]), tuple(rim[(k + 1) % ROUND_SEGMENTS]), 0.022, "under")
-    for k, a in enumerate((0.0, math.pi)):
-        strut(kit, f"steer_spoke{k}", tuple(center), tuple(center + STEER_R * (math.cos(a) * u + math.sin(a) * v)), 0.02, "under")
-    axis = u.cross(v).normalized()
-    if axis.x < 0:
-        axis = -axis
-    strut(kit, "steer_column", tuple(center), tuple(center + axis * 0.25), 0.04, "under")
-
-
-def folded_top(kit: Kit) -> None:
-    """The folded top on its boot over the rear seat: a low padded roll in the trim color, rounded at its ends."""
-    front, back, top, half = BOOT
-    profile = [(front, LID - 0.01), (front - 0.005, top - 0.045), (front - 0.02, top - 0.016), (front - 0.045, top - 0.004), (front - 0.08, top)]
-    profile += [(front + back - x, z) for x, z in reversed(profile)]
-    mid_x = (front + back) / 2
-
-    def ring(y: float, shrink: float) -> list[Vec3]:
-        crown = 1 - 0.25 * (y / half) ** 2
-        return [(mid_x + (x - mid_x) * shrink, y, LID - 0.01 + (z - LID + 0.01) * shrink * crown) for x, z in profile]
-
-    stations = [(-half, 0.45), (-half + 0.04, 0.8), (-half + 0.1, 1.0), (-half / 2, 1.0), (0.0, 1.0), (half / 2, 1.0), (half - 0.1, 1.0), (half - 0.04, 0.8), (half, 0.45)]
-    loft(kit, "folded_top", [ring(y, k) for y, k in stations], "trim")
+        pts = [(x, sy * (RAIL[0] + 0.006), rail_z(x) + 0.006) for x in (front, 0.0, -0.40, back)]
+        for k, (a, b) in enumerate(zip(pts, pts[1:])):
+            strut(kit, f"drip_rail{k}_{s}", a, b, 0.02, "metal_light")
+    pts = over_cabin(fall_x(FALL_SEAM), 0.008)
+    for k, (a, b) in enumerate(zip(pts, pts[1:])):
+        strut(kit, f"fall_seam_{k}", a, b, 0.02, "trim")
     for s, sy in (("l", 1), ("r", -1)):
-        kit.box(f"vent_{s}", (0.04, 0.22, 0.03), (back - 0.035, sy * 0.36, LID + 0.012), "metal_light")
-    kit.box("top_belt", (0.025, 2 * half, 0.01), (back - 0.005, 0, LID + 0.004), "metal_light")
+        for i, h in enumerate(SIDE_BARS):
+            a, b = mirrored([side_point(SIDE_OPENING[0][0] - 0.02, up(h), 0.010), side_point(opening_back(up(h)) + 0.03, up(h), 0.010)], sy)
+            strut(kit, f"side_bar{i}_{s}", a, b, 0.024, "metal_light")
+    half, top, bottom = REAR_WINDOW
+    for i, y in enumerate(REAR_BARS_Y):
+        strut(kit, f"rear_bar{i}", fall_point(y, top + 0.02, 0.02), fall_point(y, bottom - 0.02, 0.02), 0.026, "metal_light")
+    front, back, bottom_h, top_h = PATCH
+    plate = [side_point(x, z, out) for x in (front, back) for z in (LID + bottom_h, min(up(top_h), rail_z(x) - 0.03)) for out in (0.003, 0.010)]
+    add_hull(kit, "patch_plate", plate, "metal")
+    for i, (x, z) in enumerate((x, z) for x in (front + 0.03, back - 0.03) for z in (LID + bottom_h + 0.03, min(up(top_h), rail_z(x) - 0.03) - 0.03)):
+        kit.box(f"patch_rivet{i}", (0.016, 0.016, 0.016), side_point(x, z, 0.012), "metal_light")
+    for s, sy in (("l", 1), ("r", -1)):
+        strut(kit, f"belt_strip_{s}", (VENT_POST_X, sy * (FOOT_HALF + 0.008), LID + 0.008), (FOOT_X, sy * (FOOT_HALF + 0.008), LID + 0.008), 0.016, "metal_light")
+    strut(kit, "belt_strip_back", (FOOT_X - 0.008, FOOT_HALF, LID + 0.008), (FOOT_X - 0.008, -FOOT_HALF, LID + 0.008), 0.016, "metal_light")
+
+
+def hatch(kit: Kit) -> list[str]:
+    """The round lookout hatch on the crown over the driver's cab cells: a steel ring round a dark opening, its lid
+    lying open on the crown behind it. It shows the chassis's open-top ability on a closed car.
+
+    Returns the hatch's round part names, for check_features().
+    """
+    x, y, ring_r, open_r = HATCH
+    z = cabin_z(x, y)
+    check_round("hatch_ring", ROUND_SEGMENTS, ROUND_SEGMENTS)
+    kit.cylinder("hatch_ring", ring_r, 0.05, (x, y, z), "metal", vertices=ROUND_SEGMENTS)
+    check_round("hatch_opening", ROUND_SEGMENTS, ROUND_SEGMENTS)
+    kit.cylinder("hatch_opening", open_r, 0.01, (x, y, z + 0.022), "under", vertices=ROUND_SEGMENTS)
+    lid_x = x - HATCH_LID_BACK
+    lid_z = cabin_z(lid_x, y)
+    check_round("hatch_lid", ROUND_SEGMENTS, ROUND_SEGMENTS)
+    kit.cylinder("hatch_lid", ring_r - 0.01, 0.03, (lid_x, y, lid_z + 0.005), "metal", vertices=ROUND_SEGMENTS)
+    kit.box("hatch_hinge", (0.05, 0.16, 0.025), (x - ring_r - 0.015, y, max(z, lid_z) + 0.012), "metal_light")
+    return ["hatch_ring", "hatch_opening", "hatch_lid"]
 
 
 def check_hole() -> None:
@@ -578,7 +714,7 @@ def check_hole() -> None:
     ey0, ey1 = ENGINE_Y - ENGINE_HALF[1], ENGINE_Y + ENGINE_HALF[1]
     if min(ex0 - x0, x1 - ex1, ey0 - y0, y1 - ey1) < HOLE_MARGIN - 1e-6 or max(ex0 - x0, x1 - ex1, ey0 - y0, y1 - ey1) > HOLE_MARGIN + 1e-6:
         raise RuntimeError(f"engine hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} is not the engine x {ex0:.3f}..{ex1:.3f} y {ey0:.3f}..{ey1:.3f} plus {HOLE_MARGIN}")
-    if x1 >= BOOT[1] - 0.04 or x0 <= -END_ROLL[0] or max(abs(y0), abs(y1)) >= side_y(1.12) - 0.2:
+    if x1 >= FOOT_X - 0.01 or x0 <= -END_ROLL[0] or max(abs(y0), abs(y1)) >= side_y(1.12) - 0.2:
         raise RuntimeError(f"engine hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} leaves the rear lid")
     if LID - FLOOR > MAX_BAY_DEPTH + 1e-6:
         raise RuntimeError(f"engine bay floor {LID - FLOOR:.3f} m under the lid, deeper than {MAX_BAY_DEPTH}")
@@ -593,16 +729,30 @@ def check_tires() -> None:
         raise RuntimeError(f"tire inner face at y {WHEEL_Z - WHEEL_HALF_W:.3f} reaches the well wall at {WELL_Y:.3f}")
 
 
-def check_features(headlamps: list[str], taillights: list[str]) -> None:
-    """Raises when the photo's features drift: two headlamps and two taillights a side, and door tops at least 0.25 m wide."""
-    for name, lamps in (("headlamps", headlamps), ("taillights", taillights)):
+def check_features(headlamps: list[str], taillights: list[str], side_glass: list[str], hatch_parts: list[str]) -> None:
+    """Raises when the photo's features drift: two headlamps and two taillights a side, door tops at least 0.25 m wide,
+    one side opening a side with no B-pillar, and a closed cabin no taller or wider than the photo's top, over the
+    whole cab rows from the header to the fall, with no opening into the body but the hatch."""
+    for name, lamps in (("headlamps", headlamps), ("taillights", taillights), ("side glass", side_glass)):
         for s in ("l", "r"):
             count = sum(1 for lamp in lamps if lamp.endswith(f"_{s}"))
-            if count != 2:
-                raise RuntimeError(f"{count} {name} on side {s}, the photos show 2")
-    shoulder = side_y(1.12) - OPEN_HALF
+            want = 1 if name == "side glass" else 2
+            if count != want:
+                raise RuntimeError(f"{count} {name} on side {s}, the photos show {want}")
+    shoulder = side_y(1.12) - FOOT_HALF
     if shoulder < 0.25 - 1e-6:
         raise RuntimeError(f"door tops {shoulder:.3f} m wide, under 0.25")
+    xs = [x for x, _ in CABIN_STATIONS[1:]]
+    if xs != sorted(xs, reverse=True) or windshield_x(up(CABIN_STATIONS[0][1])) < HEADER_X - 0.08 or FOOT_X > G.row_x(5.5):
+        raise RuntimeError(f"the cabin does not cover the cab rows from the header at {HEADER_X} to row 5's back edge at {G.row_x(5.5):.2f}")
+    if max(c for _, c in CABIN_STATIONS) > 1.70 or CROWN > 1.70:
+        raise RuntimeError("the cabin's crown stands over 1.70 m, taller than the photo's top")
+    if EDGE[0] > 0.72 or FOOT_HALF > 0.82:
+        raise RuntimeError(f"the cabin is {EDGE[0]} m off the center line at the crown and {FOOT_HALF} at the foot, wider than the photo's top")
+    if not SIDE_OPENING[0][0] > GLASS_SEAM_X > SIDE_OPENING[-1][0]:
+        raise RuntimeError("the side opening needs one thin seam inside it and no B-pillar")
+    if hatch_parts != ["hatch_ring", "hatch_opening", "hatch_lid"] or HATCH[1] - HATCH[2] < G.col_y(3) + G.across / 2:
+        raise RuntimeError("the hatch must stand over the driver's cab cells, off column 3")
 
 
 def louvers(kit: Kit) -> None:
@@ -633,15 +783,16 @@ def main() -> None:
     bumper(kit, "rear_bumper", *REAR_BUMPER, -1)
     mesh_outlet(kit)
     windshield(kit)
-    cockpit(kit)
-    folded_top(kit)
+    cabin(kit)
+    side_glass = cabin_glass(kit)
+    cabin_finish(kit)
+    hatch_parts = hatch(kit)
     louvers(kit)
-    check_features(headlamps, taillights)
+    check_features(headlamps, taillights, side_glass, hatch_parts)
     bay = {(x, y): FLOOR for x in (1, 2) for y in (6, 7)}
     shoulders = {(x, y): LID for x in (0, 4) for y in (3, 4, 5)}
-    seats = {(3, y): FRONT_SEATS[3] for y in (3, 4, 5)}
-    level_sockets(kit, G, "row", [LID] * 3 + [BOOT[2]] * 3 + [LID] * 3, fronts={3: COWL_X}, cells={**bay, **shoulders, **seats})
-    level_sockets(kit, G, "floor", [LID - 0.5] * 3 + [COCKPIT_FLOOR] * 3 + [FLOOR] * 2 + [LID])
+    level_sockets(kit, G, "row", [LID] * 3 + [up(CROWN)] * 3 + [LID] * 3, fronts={3: COWL_X}, cells={**bay, **shoulders})
+    level_sockets(kit, G, "floor", [LID - 0.5] * 3 + [CABIN_FLOOR] * 3 + [FLOOR] * 2 + [LID])
     kit.socket("arch_front", (WHEEL_X, WHEEL_Z, HUB_Z))
     kit.socket("arch_rear", (-WHEEL_X, WHEEL_Z, HUB_Z))
     kit.socket("arch_front_top", (WHEEL_X, WHEEL_Z, HUB_Z + ARCH_R))
