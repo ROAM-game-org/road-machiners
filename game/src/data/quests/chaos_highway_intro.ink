@@ -28,7 +28,7 @@ She has a point. # img: road_geezer
 
 She sees a man past fifty, stuck in a shithole fort on the outskirts, driving a barely armed light pick-up truck. She can't know that just two weeks ago you drove one beautiful monster of a truck. Now it is nothing but a black patch beside a crater. All it takes is one unlucky landmine. As if there is such a thing as a lucky landmine.
 
-Having barely survived the explosion, you were brutally ripped off on this scout truck. Not the worst outcome, all things considered. But you need a job and you need to get out of this place. 
+Having barely survived the explosion, you were ripped off on this scout truck. Not the worst outcome. But you need a job and you need to get out of this place. 
 
 "You need protection up North and I can offer it. Since we are talking at all, something tells me you are out of options. There is no one else reliable in this bar. But I get it done." # page # speaker: You
 

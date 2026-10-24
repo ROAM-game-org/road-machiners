@@ -470,7 +470,7 @@ export const LOG = {
   'goal.breakOffFight': 'Break off a losing fight',
   'note.engineHot': 'Engine running hot.',
   'note.engineOverheat': m('Engine overheated: engine -{hp} HP', { hp: 'int' }),
-  'opening.stranded': 'You find yourself stranded in an unfamiliar land. Not your finest moment.',
+  'opening.stranded': 'You are stranded in a land you do not know. Not your finest moment.',
   'note.overdriveCutOut': 'Overdrive cut out: the engine is too worn.',
   'note.engineDoused': m('Doused the engine: supplies -{supplies}', { supplies: 'int' }),
   'note.outOfSupplies': m('Out of supplies: health -{health}', { health: 'int' }),
