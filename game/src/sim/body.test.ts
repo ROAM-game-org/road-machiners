@@ -3,7 +3,7 @@ import { CHASSIS } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { partDef, type CoreDef } from '../data/parts';
 import BASELINE from './body-baseline.json';
-import { CLIP_TOLERANCE, bodyOf, rideOf, cellCenter, cellRect, engineAnchor, frontBody, highestUnder, hulkBoxes, isRig, lanesAt, restOn, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfRow, unitsOf } from './body';
+import { CLIP_TOLERANCE, bodyOf, rideOf, cellCenter, cellRect, engineAnchor, frontBody, highestUnder, hulkBoxes, isRig, lanesAt, restOn, roofSpot, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfRow, unitsOf } from './body';
 import { restBend } from './rig';
 import TRUCK_SHAPES from '../data/truck-shapes.json';
 import { baseGrid } from './grid';
@@ -164,6 +164,19 @@ describe('model surface', () => {
       expect(Math.abs(a.x), id).toBeLessThan(half.x);
       expect(Math.abs(a.z), id).toBeLessThan(half.z);
     }
+  });
+});
+
+const FOLDED_TOP = { front: -0.29, back: -0.97, crown: 1.23 };
+
+describe('the convertible antenna', () => {
+  it('stands on the folded top, the highest flat spot over the cab cells', () => {
+    const body = PHYSICS.bodies.convertible;
+    const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
+    const spot = roofSpot('convertible', cellRect('convertible', coreCellsOf('convertible', 'cab')), 0.12);
+    expect(spot.x).toBeLessThanOrEqual(FOLDED_TOP.front);
+    expect(spot.x).toBeGreaterThanOrEqual(FOLDED_TOP.back);
+    expect(Math.abs(spot.y - (ground + FOLDED_TOP.crown))).toBeLessThanOrEqual(CLIP_TOLERANCE);
   });
 });
 
