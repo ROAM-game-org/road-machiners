@@ -607,6 +607,7 @@ describe('game save', () => {
     const ids = oldSpotPicks(TEST_MAP).map(oldStockId);
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     saved.salvage = saved.salvage.filter((stock: { id: string }) => !oldSpotOf(stock));
+    saved.vehicles = saved.vehicles.filter((v: { faction: string }) => v.faction !== 'sunward');
     slots.put('auto', { format: { major: SAVE_MAJOR, minor: SAVE_FORMAT.minor - 1 }, world: saved, savedAt: 1000, runId: RUN });
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
     const oldIds = (w: World): string[] => w.salvage.filter((stock) => oldSpotOf(stock)).map((stock) => stock.id);
