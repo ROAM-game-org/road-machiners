@@ -2,12 +2,15 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { SAVE_FORMAT } from '../src/three/save.ts';
 import { brokenLinks, lostQuestNames, newGameShape, questLinks, questNames, raisedQuests, revisionReach } from '../src/test/save-shape.ts';
 import { QUESTS } from '../src/sim/quests.ts';
+import { savedWorldSchema } from '../src/test/save-schema.ts';
 
 const FILE = 'src/three/save-shape.json';
+const SCHEMA_FILE = 'src/three/save-schema.json';
 const format = `${SAVE_FORMAT.major}.${SAVE_FORMAT.minor}`;
 const shape = newGameShape();
 const quests = questNames(QUESTS);
 const links = questLinks(QUESTS);
+const schema = savedWorldSchema();
 const compatible = process.argv.flatMap((arg, i) => (process.argv[i - 1] === '--compatible' ? [arg] : []));
 
 const unknown = compatible.filter((id) => !QUESTS.quests[id]);
@@ -18,6 +21,9 @@ if (existsSync(FILE)) {
   const sameFormat = recorded.format === format;
   if (sameFormat && JSON.stringify(recorded.shape) !== JSON.stringify(shape)) {
     throw new Error(`The saved shape changed under save format ${format}. Add a migration step or bump SAVE_MAJOR in src/three/save-migrations.ts first.`);
+  }
+  if (sameFormat && existsSync(SCHEMA_FILE) && JSON.stringify(JSON.parse(readFileSync(SCHEMA_FILE, 'utf8'))) !== JSON.stringify(schema)) {
+    throw new Error(`The saved schema changed under save format ${format}. Add a migration step or bump SAVE_MAJOR in src/three/save-migrations.ts first.`);
   }
   const recordedLinks = sameFormat && recorded.questLinks ? recorded.questLinks : {};
   const lost = sameFormat && recorded.quests ? lostQuestNames(recorded.quests, quests, raisedQuests(recordedLinks, links)) : [];
@@ -37,4 +43,7 @@ if (existsSync(FILE)) {
   }
 }
 writeFileSync(FILE, `${JSON.stringify({ format, shape, quests, questLinks: links }, null, 1)}\n`);
+const defLines = Object.entries(schema.defs).map(([name, node]) => `${JSON.stringify(name)}:${JSON.stringify(node)}`);
+writeFileSync(SCHEMA_FILE, `{"root":${JSON.stringify(schema.root)},"defs":{\n${defLines.join(',\n')}\n}}\n`);
+console.log(`Wrote the save schema to ${SCHEMA_FILE}`);
 console.log(`Wrote the save format ${format} shape to ${FILE}`);

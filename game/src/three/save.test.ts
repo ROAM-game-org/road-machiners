@@ -530,12 +530,32 @@ describe('game save', () => {
     expect(loadWorld(makeSlots(), 'auto', TEST_MAP)).toBeNull();
   });
 
-  it('restores the complete world including fields added later', () => {
+  it('refuses to write a world with a field the saved world type lacks, and keeps the old save', () => {
     const slots = makeSlots();
+    const errors: unknown[] = [];
+    slots.onError = (err) => errors.push(err);
     const world = standardWorld();
-    const expanded = { ...world, futureFeature: { progress: 7 } };
-    saveWorld(slots, { ...expanded, turn: 21 }, RUN, 20, 1000);
-    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual({ ...expanded, turn: 21 });
+    expect(writeSave(slots, 'auto', world, RUN, 1000)).toBe(true);
+    expect(writeSave(slots, 'auto', { ...world, turn: 21, futureFeature: { progress: 7 } } as World, RUN, 2000)).toBe(false);
+    expect(String(errors[0])).toMatch(/world\.futureFeature: unknown key/);
+    expect((slots.get('auto') as { savedAt: number }).savedAt).toBe(1000);
+  });
+
+  it('loads a stored save with a field this build lacks and drops the field', () => {
+    const slots = makeSlots();
+    const world = { ...standardWorld(), turn: 21 };
+    const envelope = saveOf(world);
+    slots.put('auto', { ...envelope, world: { ...envelope.world, futureFeature: { progress: 7 } }, savedAt: 1000, runId: RUN });
+    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual(world);
+  });
+
+  it('sends a save at the current format with a missing list to the save screen', () => {
+    const slots = makeSlots();
+    const { crimes: _crimes, ...withoutCrimes } = saveOf(standardWorld()).world;
+    slots.put('auto', { format: SAVE_FORMAT, world: withoutCrimes, savedAt: 1000, runId: RUN });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/invalidWorld: world\.crimes: missing/);
+    slots.put('auto', { ...saveOf(standardWorld()), world: withoutCrimes, savedAt: 1000, runId: RUN });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/invalidWorld: world\.crimes: missing/);
   });
 
   it('loads back a player driving the remade tractor unchanged, and load awards nothing', () => {
@@ -1033,7 +1053,7 @@ describe('saved world settings', () => {
 
   it('sends a save at a format no build shipped to the carry route, and keeps the stored save', () => {
     const slots = makeSlots();
-    const save = JSON.parse(JSON.stringify(saveOf(newWorld(1337, startKit('standard'), TEST_MAP, tuned(2, 2)))));
+    const { steps: _steps, ...save } = JSON.parse(JSON.stringify(saveOf(newWorld(1337, startKit('standard'), TEST_MAP, tuned(2, 2)))));
     const stored = { ...save, format: { major: SAVE_MAJOR, minor: 13 } };
     slots.put('auto', stored);
 
