@@ -71,13 +71,24 @@
 
 /* Metal toggle switch: a riveted plate, the current mode above the lever. */
 #ui :is(.instrument-actions, .weapon-head) button.switch {
-  height: auto;
-  gap: 0;
-  padding: 2px 10px;
+  flex-direction: row;
+  height: var(--btn-h-s);
+  gap: var(--space-1);
+  padding: 0 var(--space-4);
+}
+:is(.instrument-actions, .weapon-head) .switch::before {
+  left: var(--space-1);
+}
+:is(.instrument-actions, .weapon-head) .switch::after {
+  right: var(--space-1);
 }/* A smaller lever keeps the switch row short. The margin takes back the space the scale frees. */
 :is(.instrument-actions, .weapon-head) .switch-lever {
+  order: -1;
   transform: scale(0.5);
-  margin: -7px 0 -5px;
+  margin: -7px -6px;
+}
+:is(.instrument-actions, .weapon-head) .key-corner {
+  display: none;
 }
 #ui button.switch {
   position: relative;
@@ -146,7 +157,8 @@
 :is(.instrument-actions, .weapon-head) .switch > .icon-lock {
   width: var(--icon-xs);
   height: var(--icon-xs);
-  margin: var(--space-1) 0 0;
+  margin: 0;
+  order: -1;
 }
 .switch-lever {
   position: relative;
