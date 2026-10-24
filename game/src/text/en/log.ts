@@ -262,6 +262,8 @@ export const LOG = {
   'contract.surveyed': m('{done} of {n} surveyed', { done: 'int', n: 'int' }),
   'contract.surveyClue': m('Lies {dir} of {site}, about {distance} out, {lay}', { dir: 'text', site: 'text', distance: 'text', lay: 'text' }),
   'contract.placeClue': m('{place}: {dir} of {site}, about {distance} out, {lay}', { place: 'text', dir: 'text', site: 'text', distance: 'text', lay: 'text' }),
+  'contract.placeWay': m('{place}, from {site}: {way} {look} {lay}.', { place: 'text', site: 'text', way: 'text', look: 'text', lay: 'text' }),
+  'contract.surveyWay': m('From {site}: {way} It lies {lay}.', { site: 'text', way: 'text', lay: 'text' }),
   'contract.placesLeft': m('{n, plural, one {# place left} other {# places left}}: {places}', { n: 'count', places: 'text' }),
   'contract.lookFor.homestead': 'A farmhouse with a tall tower.',
   'contract.lookFor.hamlet': 'A cluster of ruined houses.',
