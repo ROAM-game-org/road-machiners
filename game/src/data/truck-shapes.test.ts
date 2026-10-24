@@ -97,12 +97,13 @@ function stationsOf(profile: Profile, ground: number) {
 type Band = [number, number];
 type Reference = { height: Band; hood?: Band; roof: Band; deck?: Band; roofStart?: Band; noseDrop?: Band; tailDrop?: Band };
 
-const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'longbed' | 'courier' | 'hauler' | 'tractor' | 'jeep' | 'carrier' | 'loader' | 'bus' | 'buggy' | 'van', Reference> = {
+const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'longbed' | 'courier' | 'hauler' | 'tractor' | 'jeep' | 'carrier' | 'loader' | 'bus' | 'buggy' | 'convertible' | 'van', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
   niva: { height: [1.89, 2.19], hood: [0.22, 0.28], roof: [0.55, 1], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
+  convertible: { height: [1.55, 1.66], hood: [0.31, 0.36], roof: [0, 0.05], deck: [0.25, 0.35], roofStart: [0.39, 0.44], noseDrop: [0.45, 0.62], tailDrop: [0.45, 0.62] },
   longbed: { height: [2.55, 2.75], hood: [0.19, 0.25], roof: [0.1, 0.16], roofStart: [0.25, 0.31], deck: [0.53, 0.6] },
   courier: { height: [1.7, 1.8], roofStart: [0.42, 0.5], roof: [0.11, 0.2], noseDrop: [0.65, 0.9], tailDrop: [0.38, 0.62] },
   hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.21, 0.27], deck: [0.58, 0.66] },
@@ -136,7 +137,7 @@ function straightProfile(id: string): Profile {
 }
 
 describe('trucks built from a reference photo keep its proportions', () => {
-  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'longbed', 'courier', 'hauler', 'tractor', 'jeep', 'carrier', 'loader', 'bus', 'buggy', 'van'] as const)('%s', (id) => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi', 'scout', 'longbed', 'courier', 'hauler', 'tractor', 'jeep', 'carrier', 'loader', 'bus', 'buggy', 'convertible', 'van'] as const)('%s', (id) => {
     const body = PHYSICS.bodies[id === 'scout' ? 'pickup' : id];
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
     const got = stationsOf(straightProfile(id), ground);
@@ -145,6 +146,55 @@ describe('trucks built from a reference photo keep its proportions', () => {
       if (got[key] < band[0] || got[key] > band[1]) misses.push(`${key} ${got[key].toFixed(3)} outside ${band[0]}..${band[1]}`);
     }
     expect(misses).toEqual([]);
+  });
+});
+
+const COCKPIT = { front: 0.25, back: -0.45, lid: 1.12, ceiling: 1.36 };
+const CORNER_SPAN = 0.9;
+
+describe('the convertible', () => {
+  it('keeps the Corvair: 5.84 m long, with a width to length of 0.372 across its crease', () => {
+    const boxes = SHAPES.base_convertible.boxes;
+    const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
+    const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
+    expect(Math.abs(along - 5.84)).toBeLessThanOrEqual(0.05);
+    expect(across / along).toBeGreaterThanOrEqual(0.35);
+    expect(across / along).toBeLessThanOrEqual(0.39);
+  });
+
+  it('opens its cockpit behind the windshield, between door tops at lid level', () => {
+    const { heights } = SHAPES.base_convertible;
+    const body = PHYSICS.bodies.convertible;
+    const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
+    const lid = ground + COCKPIT.lid;
+    const misses: string[] = [];
+    heights.top.forEach((row, i) => {
+      const x = (heights.i0 + i + 0.5) * heights.cell;
+      if (x > COCKPIT.front || x < COCKPIT.back) return;
+      row.forEach((cm, j) => {
+        const y = Math.abs((heights.j0 + j + 0.5) * heights.cell);
+        if (cm === null) return;
+        const z = cm / 100;
+        if (y <= 0.6 && z >= ground + COCKPIT.ceiling) misses.push(`cockpit at x ${x.toFixed(2)} y ${y.toFixed(2)} stands ${(z - ground).toFixed(2)} m up`);
+        if (y >= 0.8 && y <= 0.98 && Math.abs(z - lid) > 0.06) misses.push(`door top at x ${x.toFixed(2)} y ${y.toFixed(2)} is ${(z - ground).toFixed(2)} m up, not the lid`);
+      });
+    });
+    expect(misses).toEqual([]);
+  });
+
+  it('keeps the photo\'s squared plan ends with their modest round corners', () => {
+    const { heights } = SHAPES.base_convertible;
+    const spans = heights.top.map((row, i) => {
+      const filled = row.flatMap((cm, j) => (cm === null ? [] : [j]));
+      return { x: (heights.i0 + i + 0.5) * heights.cell, span: filled.length === 0 ? 0 : (Math.max(...filled) - Math.min(...filled) + 1) * heights.cell };
+    }).filter((r) => r.span > 0);
+    const width = Math.max(...spans.map((r) => r.span));
+    const spanAt = (x: number) => spans.reduce((best, r) => (Math.abs(r.x - x) < Math.abs(best.x - x) ? r : best)).span / width;
+    const nose = Math.max(...SHAPES.base_convertible.boxes.map((b) => b.x1));
+    const tail = Math.min(...SHAPES.base_convertible.boxes.map((b) => b.x0));
+    for (const end of [nose - 0.1, tail + 0.1]) expect(Math.abs(spanAt(end) - CORNER_SPAN)).toBeLessThanOrEqual(0.05);
+    expect(spanAt(nose - 0.6)).toBeGreaterThanOrEqual(0.97);
+    expect(spanAt(tail + 0.6)).toBeGreaterThanOrEqual(0.97);
   });
 });
 
