@@ -13,14 +13,24 @@ describe('truck specs', () => {
     expect(parseTruck('stand').gear).toEqual({ kind: 'kit', id: 'standard' });
     expect(parseTruck('merc:snowball').gear).toEqual({ kind: 'kit', id: 'snowball' });
     expect(parseTruck('merc:buggy@heavy').gear).toEqual({ kind: 'npc', template: 'buggy', level: 'heavy' });
-    expect(parseTruck('kite:mg/plates+ram').gear).toEqual({ kind: 'outfit', outfit: { gun: 'mg', armor: 'plates', ram: 'ram' } });
-    expect(parseTruck('merc:mg/bare').gear).toEqual({ kind: 'outfit', outfit: { gun: 'mg', armor: null } });
+    expect(parseTruck('kite:mg/plates+ram').gear).toEqual({ kind: 'outfit', outfit: { gun: 'mg', guns: 1, armor: 'plates', ram: 'ram', chassis: 'hauler' } });
+    expect(parseTruck('merc:mg/bare').gear).toEqual({ kind: 'outfit', outfit: { gun: 'mg', guns: 1, armor: null, chassis: 'hauler' } });
   });
 
   it('reads a ram after an outfit as part of that truck, and any other + as a new truck', () => {
-    expect(parseLineup('kite:mg/plates+ram').map((t) => t.gear)).toEqual([{ kind: 'outfit', outfit: { gun: 'mg', armor: 'plates', ram: 'ram' } }]);
+    expect(parseLineup('kite:mg/plates+ram').map((t) => t.gear)).toEqual([{ kind: 'outfit', outfit: { gun: 'mg', guns: 1, armor: 'plates', ram: 'ram', chassis: 'hauler' } }]);
     expect(parseLineup('kite:mg/plates+ram+buggy').map((t) => t.driver)).toEqual(['kite', 'buggy']);
     expect(parseLineup('buggy+buggy').map((t) => t.driver)).toEqual(['buggy', 'buggy']);
+  });
+
+  it('reads a gun count and a chassis after an outfit', () => {
+    expect(parseTruck('stand:mg*2/plates@carrier').gear).toEqual({ kind: 'outfit', outfit: { gun: 'mg', guns: 2, armor: 'plates', chassis: 'carrier' } });
+    expect(parseLineup('kite:mg*3/bare+ram@wagon+merc').map((t) => t.gear)).toEqual([
+      { kind: 'outfit', outfit: { gun: 'mg', guns: 3, armor: null, ram: 'ram', chassis: 'wagon' } },
+      { kind: 'npc', template: 'merc', level: null },
+    ]);
+    expect(() => parseTruck('stand:mg/plates@nothing')).toThrow('Unknown chassis');
+    expect(() => parseTruck('stand:mg*0/plates')).toThrow('whole number of guns');
   });
 
   it('refuses an unknown driver, gear or level', () => {
