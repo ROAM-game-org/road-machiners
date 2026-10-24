@@ -112,7 +112,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.65, 0.85], tailDrop: [0.35, 0.6] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
   bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1] },
-  van: { height: [2.22, 2.32], roofStart: [0.27, 0.36], roof: [0.6, 0.73], tailDrop: [0, 0.1] },
+  van: { height: [2.18, 2.36], roofStart: [0.18, 0.25], roof: [0.68, 0.8], noseDrop: [0.75, 1.0], tailDrop: [0, 0.12] },
 };
 
 type ShapeName = keyof typeof SHAPES;
@@ -199,17 +199,6 @@ describe('the scout pickup', () => {
     const inHole = (c: { x: number; y: number }) => Math.abs(c.x - anchor.x) <= half.x && Math.abs(-c.y - anchor.z) <= half.y;
     const open = columns.filter((c) => c.x >= 0.9 && c.x <= 2.3 && Math.abs(c.y) <= 1.0 && !inHole(c) && c.top < 0.15);
     expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
-  });
-});
-
-describe('the utility van', () => {
-  it('keeps the 125 in Chevrolet G20 at the scout\'s 1.077 scale: 5.53 m long, with a width to length of 0.39', () => {
-    const boxes = SHAPES.base_van.boxes;
-    const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
-    const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
-    expect(Math.abs(along - 5.53)).toBeLessThanOrEqual(0.05);
-    expect(across / along).toBeGreaterThanOrEqual(0.375);
-    expect(across / along).toBeLessThanOrEqual(0.405);
   });
 });
 
@@ -404,5 +393,42 @@ describe('the LAZ bus', () => {
     const step = (nose - tail) / CHASSIS.bus.layout.length;
     const rows = [1, 2, 3, 4, 5, 6, 7, 10].map((y) => ({ y, roof: at(nose - (y + 0.5) * step) - ground }));
     expect(rows.filter((r) => r.roof < 2.92 || r.roof > 2.98).map((r) => `row ${r.y}: ${r.roof.toFixed(3)}`)).toEqual([]);
+  });
+});
+
+describe('the G20 van', () => {
+  const boxes = SHAPES.base_van.boxes;
+  const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
+  const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
+  const van = PHYSICS.bodies.van;
+  const ground = van.wheelY - PHYSICS.truck.suspensionRest - van.wheelRadius;
+  const { heights } = SHAPES.base_van;
+  const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
+  const nose = Math.max(...columns.map((c) => c.x));
+
+  it('keeps the 5.86 m van grid, widened to 2.44 m across its flares', () => {
+    expect(Math.abs(along - 5.86)).toBeLessThanOrEqual(0.05);
+    expect(Math.abs(across / along / (2.44 / 5.86) - 1)).toBeLessThanOrEqual(0.05);
+  });
+
+  it('keeps the G20 wheelbase share of 0.62 to 0.65 of its length', () => {
+    expect((2 * van.wheelX) / along).toBeGreaterThanOrEqual(0.62);
+    expect((2 * van.wheelX) / along).toBeLessThanOrEqual(0.65);
+  });
+
+  it('rounds its roof edges: the outermost roof column stands at least 0.1 m under the centre line', () => {
+    const station = columns.filter((c) => Math.abs(c.x + 0.5) <= 0.15);
+    const centre = Math.max(...station.filter((c) => Math.abs(c.y) <= 0.1).map((c) => c.top));
+    const edge = Math.max(...station.filter((c) => Math.abs(c.y) >= 1.1 && Math.abs(c.y) <= 1.2).map((c) => c.top));
+    expect(centre - ground).toBeGreaterThan(2.1);
+    expect(centre - edge).toBeGreaterThanOrEqual(0.1);
+  });
+
+  it('closes the hood: no column in the front metre, between the bumper and the windshield, sits under the skin beside it', () => {
+    const hood = columns.filter((c) => c.x >= nose - 1.0 && c.x <= nose - 0.2 && Math.abs(c.y) <= 0.8);
+    const skin = (x: number) => Math.max(...hood.filter((c) => Math.abs(c.x - x) < 0.01).map((c) => c.top));
+    const open = hood.filter((c) => skin(c.x) - c.top > 0.05);
+    expect(hood.length).toBeGreaterThan(0);
+    expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
   });
 });
