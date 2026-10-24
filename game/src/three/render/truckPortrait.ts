@@ -59,6 +59,7 @@ const LOOK = {
   sunColor: 0xffffff,
   sunIntensity: 2.2,
   sunAt: [6, 20, -8],
+  warmSize: { width: 8, height: 8 },
 } as const;
 
 const BYTE = 255;
@@ -387,8 +388,33 @@ function targetFor(size: PixelSize, samples: number): THREE.WebGLRenderTarget {
   return new THREE.WebGLRenderTarget(size.width, size.height, { samples, depthBuffer: true, stencilBuffer: false });
 }
 
+function* warmUp(renderer: THREE.WebGLRenderer, root: THREE.Object3D, camera: THREE.Camera, trash: Disposable[]): Generator<PortraitWait, void, void> {
+  const meshes: Drawn[] = [];
+  root.traverse((o) => {
+    if (o instanceof THREE.Mesh && o.visible) meshes.push(o as Drawn);
+  });
+  const tiny = targetFor(LOOK.warmSize, LOOK.samples);
+  trash.push(tiny);
+  const scene = litScene(root);
+  for (const mesh of meshes) mesh.visible = false;
+  for (const mesh of meshes) {
+    mesh.visible = true;
+    withRendererState(renderer, () => {
+      renderer.setRenderTarget(tiny);
+      renderer.render(scene, camera);
+    });
+    mesh.visible = false;
+    yield;
+  }
+  for (const mesh of meshes) mesh.visible = true;
+}
+
 function* captureRaw(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Generator<PortraitWait, Uint8ClampedArray, void> {
   const bytes = new Uint8Array(target.width * target.height * 4);
+  yield withRendererState(renderer, () => {
+    renderer.setRenderTarget(target);
+    return renderer.compileAsync(scene, camera);
+  });
   yield withRendererState(renderer, () => {
     renderer.setRenderTarget(target);
     renderer.setClearColor(0x000000, 0);
@@ -700,7 +726,7 @@ function* composePortrait(renderer: THREE.WebGLRenderer, view: VehicleView, v: V
   const { camera, size } = settledCamera(meshes);
   const pass = { renderer, camera, smooth: targetFor(size, LOOK.samples), flat: targetFor(size, 0) };
   trash.push(pass.smooth, pass.flat);
-  yield;
+  yield* warmUp(renderer, view.root, camera, trash);
   const lit = yield* captureColor(renderer, pass.smooth, litScene(view.root), camera);
   yield;
   const isPart = partOnly(v);
