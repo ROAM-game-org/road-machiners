@@ -71,6 +71,7 @@ HALF = WIDTH / 2
 CAB_HALF = 1.26  # the real cab is about 2.0 m of the 2.32 m width
 FRONT = LENGTH / 2
 FACE = FRONT - 0.13  # the cab face stands behind the bumper  # inferred
+SINK = 0.03  # how far the glass runs into the belt and the roof, so no glass face shares a plane with a pillar
 CAB_BOTTOM = up(0.92)  # inferred
 BELT = up(1.85)  # the windshield foot  # inferred
 ROOF = up(2.60)
@@ -188,7 +189,7 @@ def cab_lower(kit: Kit) -> None:
 def cab_upper(kit: Kit) -> None:
     """The glass house: a two-pane flat windshield with a split bar, door windows, painted pillars and a back wall."""
     glass_half = CAB_HALF - 0.04
-    house = [(CAB_BACK + 0.04, BELT), (FACE - 0.02, BELT), (GLASS_TOP_X, UNDER_ROOF), (CAB_BACK + 0.04, UNDER_ROOF)]
+    house = [(CAB_BACK + 0.04, BELT - SINK), (FACE - 0.02, BELT - SINK), (GLASS_TOP_X, UNDER_ROOF + SINK), (CAB_BACK + 0.04, UNDER_ROOF + SINK)]
     prism(kit, "glass", house, -glass_half, glass_half, "glass")
     check_door_gap("door window", CAB_BACK, FACE, BELT, WHEELS_X, HUB_Z, ARCH_R)
     a_pillar = [(FACE - 0.12, BELT), (FACE, BELT), (GLASS_TOP_X + 0.02, UNDER_ROOF), (GLASS_TOP_X - 0.1, UNDER_ROOF)]

@@ -160,12 +160,12 @@ def rail(kit: Kit) -> None:
     mirrored(kit, "rail", (x1 - x0, G.half_y - SIDE + 0.02, 0.1), (x0 + x1) / 2, (SIDE + G.half_y) / 2 - 0.01, WAIST - 0.04 + 0.05, "trim")
 
 
-def plate(kit: Kit, name: str, mat: str, outline: list[tuple[float, float]], surface, thick: float = 0.025) -> None:
-    """A thin plate lying on a hull face: outline holds (along, z) points, and surface(along, z) gives the face point and its outward offset."""
+def plate(kit: Kit, name: str, mat: str, outline: list[tuple[float, float]], surface, thick: float = 0.025, sink: float = 0.005) -> None:
+    """A thin plate lying on a hull face: outline holds (along, z) points, and surface(along, z) gives the face point and its outward offset. It runs sink into the hull."""
     pts: list[Vec3] = []
     for a, z in outline:
         (x, y, zz), (ox, oy, oz) = surface(a, z)
-        pts += [(x - ox * 0.005, y - oy * 0.005, zz - oz * 0.005), (x + ox * thick, y + oy * thick, zz + oz * thick)]
+        pts += [(x - ox * sink, y - oy * sink, zz - oz * sink), (x + ox * thick, y + oy * thick, zz + oz * thick)]
     hull(kit, name, mat, pts)
 
 
@@ -199,7 +199,7 @@ def doors(kit: Kit) -> None:
         face = on_side(sign)
         plate(kit, f"door_low_{tag}", "trim", [(x0, DOOR_LOW), (x1, DOOR_LOW), (x0, WAIST - 0.05), (x1, WAIST - 0.05)], face)
         plate(kit, f"door_high_{tag}", "trim", [(x0, WAIST + 0.06), (x1, WAIST + 0.06), (x0, DOOR_HIGH), (x1, DOOR_HIGH)], face)
-        plate(kit, f"door_block_{tag}", "glass", [(-0.14, 0.2), (0.14, 0.2), (-0.14, 0.3), (0.14, 0.3)], face, thick=0.04)
+        plate(kit, f"door_block_{tag}", "glass", [(-0.14, 0.2), (0.14, 0.2), (-0.14, 0.3), (0.14, 0.3)], face, thick=0.04, sink=0.02)
 
 
 def bow(kit: Kit) -> None:

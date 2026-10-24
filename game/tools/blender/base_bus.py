@@ -113,6 +113,7 @@ FRONT_DOOR = (FRONT - CORNER - 0.01, WHEEL_X + FLARE_REACH)  # x front, x back
 REAR_DOOR = (-WHEEL_X + FLARE_REACH + 1.2, -WHEEL_X + FLARE_REACH)
 DOOR_BOTTOM = BODY_BOTTOM + 0.06
 PILLAR_W = 0.1
+SINK = 0.02  # how far a glass or trim piece that meets another face runs into it, so no two faces share a plane
 WINDOWS = 7
 LAMP_Z = -0.6
 LAMP_R = 0.12
@@ -161,10 +162,10 @@ def mirrored(kit: Kit, name: str, size: Vec3, x: float, y: float, z: float, mat:
     kit.box(f"{name}_r", size, (x, -y, z), mat)
 
 
-def side_box(kit: Kit, name: str, x0: float, x1: float, z0: float, z1: float, s: int, mat: str, out: float = 0.015) -> None:
-    """A thin panel on the body side s (1 left, -1 right) from x0 to x1 and z0 up to z1, standing out by out."""
+def side_box(kit: Kit, name: str, x0: float, x1: float, z0: float, z1: float, s: int, mat: str, out: float = 0.015, sink: float = 0.0) -> None:
+    """A thin panel on the body side s (1 left, -1 right) from x0 to x1 and z0 up to z1, standing out by out and sunk into the body by sink."""
     lo, hi = min(x0, x1), max(x0, x1)
-    kit.box(name, (hi - lo, out, z1 - z0), ((lo + hi) / 2, s * (SIDE + out / 2), (z0 + z1) / 2), mat)
+    kit.box(name, (hi - lo, out + sink, z1 - z0), ((lo + hi) / 2, s * (SIDE + (out - sink) / 2), (z0 + z1) / 2), mat)
 
 
 def outside_arches(x0: float, x1: float) -> list[tuple[float, float]]:
@@ -203,7 +204,7 @@ def windows(kit: Kit) -> None:
     for s, tag in ((1, "l"), (-1, "r")):
         for i in range(WINDOWS + 1):
             x = first - (first - last) * i / WINDOWS
-            side_box(kit, f"pillar{i}_{tag}", x - PILLAR_W / 2, x + PILLAR_W / 2, SILL, WIN_TOP, s, "trim")
+            side_box(kit, f"pillar{i}_{tag}", x - PILLAR_W / 2, x + PILLAR_W / 2, SILL - SINK, WIN_TOP + SINK, s, "trim")
 
 
 def sides(kit: Kit) -> None:
@@ -224,13 +225,13 @@ def sides(kit: Kit) -> None:
         side_box(kit, name, x0, x1, DOOR_BOTTOM, WIN_TOP, -1, "under", out=0.025)
         mid = (x0 + x1) / 2
         for leaf, (a, b) in (("a", (x0 + 0.05, mid - 0.025)), ("b", (mid + 0.025, x1 - 0.05))):
-            side_box(kit, f"{name}_{leaf}", a, b, DOOR_BOTTOM + 0.3, WIN_TOP - 0.06, -1, "glass", out=0.03)
-            side_box(kit, f"{name}_{leaf}_low", a, b, DOOR_BOTTOM + 0.06, DOOR_BOTTOM + 0.24, -1, "glass", out=0.03)
+            side_box(kit, f"{name}_{leaf}", a, b, DOOR_BOTTOM + 0.3, WIN_TOP - 0.06, -1, "glass", out=0.03, sink=SINK)
+            side_box(kit, f"{name}_{leaf}_low", a, b, DOOR_BOTTOM + 0.06, DOOR_BOTTOM + 0.24, -1, "glass", out=0.03, sink=SINK)
 
 
 def front(kit: Kit) -> None:
     """A center pillar splitting the raked windshield, a dark route sign in the roof dome, round headlamps and indicators, a grille bar and the bumper."""
-    rake = [(FRONT - 0.02, SILL), (FRONT + 0.015, SILL), (FRONT - 0.115, WIN_TOP), (FRONT - 0.15, WIN_TOP)]
+    rake = [(FRONT - 0.02, SILL - SINK), (FRONT + 0.015, SILL - SINK), (FRONT - 0.115, WIN_TOP + SINK), (FRONT - 0.15, WIN_TOP + SINK)]
     prism(kit, "pillar_mid", rake, -0.05, 0.05, "trim")
     sign = [(FRONT - 0.15, WIN_TOP + 0.03), (FRONT - 0.13, WIN_TOP + 0.03), (FRONT - 0.255, EAVE + 0.03), (FRONT - 0.275, EAVE + 0.03)]
     prism(kit, "route_sign", sign, -0.8, 0.8, "under")
@@ -247,7 +248,7 @@ def rear(kit: Kit) -> None:
     """A split rear window over the engine end, the louvered engine lid, tall taillights and the bumper."""
     lo, hi = SILL + 0.1, WIN_TOP - 0.05
     kit.box("rear_window", (0.02, 2 * (SIDE - CORNER) - 0.1, hi - lo), (BACK - 0.005, 0, (lo + hi) / 2), "glass")
-    kit.box("rear_pillar", (0.03, 0.1, hi - lo + 0.04), (BACK - 0.01, 0, (lo + hi) / 2), "trim")
+    kit.box("rear_pillar", (0.05, 0.1, hi - lo + 0.04), (BACK, 0, (lo + hi) / 2), "trim")
     kit.box("engine_lid", (0.03, 2 * (SIDE - CORNER) - 0.2, 0.62), (BACK - 0.01, 0, -0.5), "paint")
     for i in range(4):
         kit.box(f"louver{i}", (0.02, 2 * (SIDE - CORNER) - 0.4, 0.05), (BACK - 0.03, 0, -0.72 + 0.12 * i), "under")

@@ -16,7 +16,7 @@ const MAX_OVERLAP = 1e-4;
 
 type Vec3 = [number, number, number];
 type Face = { material: string; points: Vec3[]; normal: Vec3; offset: number };
-type GlowPair = { glow: string; other: string; normal: Vec3; offset: number; area: number };
+type GlowPair = { glow: string; other: string; normal: Vec3; offset: number; area: number; low: Vec3; high: Vec3 };
 
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -106,15 +106,20 @@ function glowPairs(name: ModelName): GlowPair[] {
       if (area === 0) continue;
       const key = `${glow.material}|${other.material}|${glow.normal.map((c) => c.toFixed(3))}|${glow.offset.toFixed(3)}`;
       const found = pairs.get(key);
-      if (found) found.area += area;
-      else pairs.set(key, { glow: glow.material, other: other.material, normal: glow.normal, offset: glow.offset, area });
+      const low = [0, 1, 2].map((k) => Math.min(...glow.points.map((p) => p[k]))) as Vec3;
+      const high = [0, 1, 2].map((k) => Math.max(...glow.points.map((p) => p[k]))) as Vec3;
+      if (found) {
+        found.area += area;
+        found.low = low.map((v, k) => Math.min(v, found.low[k])) as Vec3;
+        found.high = high.map((v, k) => Math.max(v, found.high[k])) as Vec3;
+      } else pairs.set(key, { glow: glow.material, other: other.material, normal: glow.normal, offset: glow.offset, area, low, high });
     }
   }
   return [...pairs.values()].filter((p) => p.area > MAX_OVERLAP);
 }
 
 const describePair = (p: GlowPair) =>
-  `${p.glow} on ${p.other}, normal ${p.normal.map((c) => c.toFixed(3)).join(',')}, offset ${p.offset.toFixed(3)}, ${(p.area * 1e4).toFixed(0)} cm2`;
+  `${p.glow} on ${p.other}, normal ${p.normal.map((c) => c.toFixed(3)).join(',')}, offset ${p.offset.toFixed(3)}, ${(p.area * 1e4).toFixed(0)} cm2, glow from ${p.low.map((c) => c.toFixed(2))} to ${p.high.map((c) => c.toFixed(2))}`;
 
 const BASES = NAMES.filter((n) => n.startsWith('base_'));
 

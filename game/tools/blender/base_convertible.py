@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, INSET, SUSPENSION_REST, Grid, arch_profile, check_base, level_sockets  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from shapes import prism, strut  # noqa: E402
 
 SEED = 305
@@ -81,7 +82,7 @@ def front(kit: Kit) -> None:
     prism(kit, "trunk", nose, -SIDE, SIDE, "paint")
     for i, y in enumerate(LAMP_Y):
         for s, sy in (("l", 1), ("r", -1)):
-            kit.cylinder(f"lamp{i}_{s}", 0.1, 0.03, (FRONT + 0.015, sy * y, LAMP_Z), "light", rot=(0, math.pi / 2, 0), vertices=8)
+            kit.cylinder(f"lamp{i}_{s}", 0.1, 0.03, (FRONT + 0.015 + PROUD, sy * y, LAMP_Z), "light", rot=(0, math.pi / 2, 0), vertices=8)
     mirrored(kit, "lamp_bezel", (0.02, LAMP_Y[0] - LAMP_Y[1] + 0.24, 0.24), FRONT + 0.005, sum(LAMP_Y) / 2, LAMP_Z, "under")
 
 
@@ -120,7 +121,7 @@ def cabin(kit: Kit) -> None:
     kit.box("dash", (0.2, 2 * DOOR_IN, DECK + 0.06 - FLOOR), (COWL - 0.1, 0, (DECK + 0.06 + FLOOR) / 2), "under")
     kit.cylinder("steering", 0.18, 0.04, (COWL - 0.32, G.col_y(1), DECK + 0.1), "wheel", rot=(0, -1.0, 0), vertices=8)
     screen = [(COWL, DECK + 0.04), (COWL - 0.05, DECK + 0.04), (SCREEN_X - 0.05, SCREEN_Z), (SCREEN_X, SCREEN_Z)]
-    prism(kit, "windshield", screen, -DOOR_IN, DOOR_IN, "glass")
+    prism(kit, "windshield", screen, -DOOR_IN + 0.02, DOOR_IN - 0.02, "glass")
     for s, sy in (("l", 1), ("r", -1)):
         strut(kit, f"a_pillar_{s}", (COWL - 0.02, sy * DOOR_IN, DECK), (SCREEN_X - 0.02, sy * DOOR_IN, SCREEN_Z + 0.02), 0.06, "metal_light")
     strut(kit, "header", (SCREEN_X - 0.02, DOOR_IN + 0.03, SCREEN_Z + 0.02), (SCREEN_X - 0.02, -DOOR_IN - 0.03, SCREEN_Z + 0.02), 0.06, "metal_light")

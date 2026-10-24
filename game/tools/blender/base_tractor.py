@@ -79,6 +79,7 @@ FENDER_CROWN = up(1.78)
 SILL = up(1.15)
 BELT = up(2.15)
 UNDER_ROOF = up(2.95)
+SINK = 0.03  # how far the glass runs into the belt and the roof, so no glass face shares a plane with a pillar
 ROOF = up(3.05)
 RAKE = 0.14
 ROOF_FRONT = COWL_X - RAKE - 0.04
@@ -227,7 +228,7 @@ def cab(kit: Kit) -> None:
     kit.box("doors", (COWL_X - CAB_BACK, 2 * CAB_HALF, BELT - SILL), ((COWL_X + CAB_BACK) / 2, 0, (BELT + SILL) / 2), "paint")
     rake_top = COWL_X - RAKE
     inner = CAB_HALF - 0.04
-    prism(kit, "glass", [(CAB_BACK + 0.04, BELT), (COWL_X - 0.02, BELT), (rake_top, UNDER_ROOF), (CAB_BACK + 0.04, UNDER_ROOF)], -inner, inner, "glass")
+    prism(kit, "glass", [(CAB_BACK + 0.04, BELT - SINK), (COWL_X - 0.02, BELT - SINK), (rake_top, UNDER_ROOF + SINK), (CAB_BACK + 0.04, UNDER_ROOF + SINK)], -inner, inner, "glass")
     for s, (y0, y1) in (("l", (CAB_HALF - 0.06, CAB_HALF)), ("r", (-CAB_HALF, -CAB_HALF + 0.06))):
         prism(kit, f"a_pillar_{s}", [(COWL_X - 0.12, BELT), (COWL_X, BELT), (rake_top, UNDER_ROOF), (rake_top - 0.12, UNDER_ROOF)], y0, y1, "paint")
         kit.box(f"door_post_{s}", (0.14, y1 - y0, UNDER_ROOF - BELT), (CAB_BACK + 0.62, (y0 + y1) / 2, (BELT + UNDER_ROOF) / 2), "paint")
