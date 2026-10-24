@@ -1,23 +1,29 @@
-"""The buggy base: a stylized Meyers Manx dune buggy, the fibreglass tub on a shortened Beetle pan, closed up with a hardtop.
+"""The buggy base: a Meyers Manx dune buggy, the orange "Pre-Tag" car in the Prototyp museum, Hamburg.
 
-Measured from the Manx's published dimensions (tmp/models/base_buggy/asset-brief.md; the Commons photos could not be fetched):
-an 80 in wheelbase on a body about 122.7 in long, 50 to 53 in tall. Kept at the 3.9 m grid length, about 1.25 times a real Manx,
-1.94 m across with the tires as the widest point, and 1.64 m tall to the roof. The wheelbase is 0.652 of the length,
-2.54 m, so the wheels sit near the corners on short equal overhangs. The ground is 1.1 m below the center.
-Levels: front fender crown 0.05 (1.15 tire diameters over the ground), waist sill -0.2 (0.9 m), roof top 0.54 and bottom 0.47,
-side windows 0.1 to 0.42, front deck -0.25 falling to the rounded nose at -0.47, rear deck -0.21, cockpit and engine bay floor -0.5,
-pan -0.62. The roof runs from a short brim over the windshield top back to the hoop, 0.27 of the length.
-Tall front fenders sweep down ahead of the front wheels to the nose and back to the sill, with round bug-eye lamps on them.
-No wasteland driver rides with the seats open, so the cab is closed as the jeep's Kubelwagen is: a raked windshield from the
-cowl to a flat trim roof welded on the roll hoop, cab sides from the sill to the roof with one small dark window each and no
-door seam, and a rear wall in the hoop plane with a small dark window. The hoop stays as the trim rear pillars, braced back to
-the rear deck. The cab sides lean in 0.1 m from the sill to the roof and the rear wall leans forward 0.12 m, under a roof plate with a small lip and softened edges, so the greenhouse tapers into the swept fenders. Items on the D cells stand on the roof behind the windshield. The rear wheels stand bare under small dark guards
-beside a narrow tail, which ends in a dark rear panel with round taillights. A trim racing band runs along each side at the waist.
-Deviations from the Manx: the wheels stay symmetric, the tires follow the tire rule's stock 0.5 m, and the engine sits at the front,
-where the grid's engine cells are. It shows through a hole in the front deck over the bay floor, centered on PHYSICS.bodies.buggy.engine.
-Grid: 4 columns by 6 rows, stretched over the model by the projection. Half height 0.35 m, from PHYSICS.bodies.buggy.
-Wheels: radius 0.5 m, half width 0.22 m, mount 0.2 m below the center, 0.726 m off the center line, 1.27 m ahead and behind.
-Sockets arch_front, arch_rear and arch_front_top (the fender arch crown) mark the arches for wheelArches.test.ts.
+Built from two Wikimedia Commons photos by Ad Meskens (CC BY-SA 4.0), "Hamburg Prototyp Meyers Manx Pre-Tag Dune Buggy
+01.jpg" and "03.jpg", read from the factory's media folder and never copied into the repo. Both are perspective photos
+from the front quarters, so sizes come from the published Manx figures (about 122 in long on an 80 in wheelbase, a
+60 in body) at 1.25 scale, and heights from the photos in tire diameters.
+Size: 3.9 m long, the grid's length, 1.86 m across the fenders, the top 1.76 m over the ground. Ground at z -1.1.
+Levels over the ground: nose face 0.47 to 0.76, front deck 0.86 to 1.05, front fender crown 1.18, waist 0.92, rear fender
+crown 1.16, rear deck 0.93, top 1.64 to 1.76, black lower tub 0.48 to 0.66.
+One painted shell is lofted at 18 stations: a blunt rounded nose over a dark plate recess, a front deck falling to it
+between two fender humps with a soft center ridge, the side line scooped down to a low waist beside the seats and up
+again into the rear fender humps, and a short rounded tail. Round arches are cut through it over all four tires, and
+the black lower tub shows under it between the wheels. Two chrome bug-eye lamps stand on stalks on the deck
+shoulders, with amber indicators on the nose face and a chrome nerf bar under it. The engine shows in a hole in the
+front deck, framed by deck on every side, over a bay floor at PHYSICS.bodies.buggy.engine. A near-upright windshield in a
+trim frame with round mirrors carries the Manx's own flat top, a trim slab with a thick rounded edge on two chrome
+rear posts. Round parts take their sides from round_sides(), arches ROUND_ARCH_SEGMENTS.
+Deviations from the car: the photo's open sides and rear hold dark glass, so the cab is closed; the top takes the trim
+color for the photo's white; the engine shows in the front deck, where the grid's engine cells lie, not bare at the
+tail; the tires follow the tire rule at 0.5 m, so heights follow the photos in tire diameters and the car stands a
+little taller than 1.25 scale; the top runs to x -1.08 so the rear fender crowns stay clear of it.
+Inferred, since no photo shows them: the tail (a short closed panel with round taillights, a dark grille and a tube
+bumper), the top view and plan width, the underside and the rear posts' exact place.
+Grid: 4 columns by 6 rows over 3.9 m by 1.94 m, stretched by the projection. Half height 0.35 m, from PHYSICS.bodies.buggy.
+Wheels sit at x +-1.27 (the Manx wheelbase, 0.651 of the length), radius 0.5 m, half width 0.22 m, 0.726 m off the center
+line, mount 0.2 m below the center. Sockets arch_front, arch_rear and arch_front_top mark the arches for wheelArches.test.ts.
 Run: blender --background --python tools/blender/base_buggy.py -- public/models/base_buggy.glb [tmp/base_buggy.png]
 """
 
@@ -29,277 +35,323 @@ from pathlib import Path
 
 import bpy
 from mathutils import Vector
+from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, check_door_gap, cut_boxes, hull_mesh, level_sockets  # noqa: E402
-from parts_common_core import ROUND_SIDES  # noqa: E402
-from shapes import prism, strut  # noqa: E402
+from kit import Kit, parse_args, round_sides  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, ROUND_ARCH_SEGMENTS, SUSPENSION_REST, Grid, arch_cut, check_base, cut_boxes, hull_mesh, level_sockets, surface_z  # noqa: E402
+from shapes import loft, prism, strut  # noqa: E402
 
 SEED = 302
-LENGTH = 3.9
+COLORS = {
+    **BASE_COLORS,
+    "chrome": 0xC4C9CC,  # PAL.semi.chrome
+    "amber": 0xF2A22C,  # PAL.semi.amber
+}
 G = Grid(rows=6, cols=4, half_height=0.35)
 WHEEL_R = 0.5  # PHYSICS.bodies.buggy.wheelRadius
 WHEEL_HALF_W = 0.22  # PHYSICS.bodies.buggy.wheelHalfWidth
 WHEEL_Z = 0.726  # PHYSICS.bodies.buggy.wheelZ
 HUB_Z = -0.2 - SUSPENSION_REST  # PHYSICS.bodies.buggy.wheelY
-WHEELS_X = [1.27, -1.27]  # PHYSICS.bodies.buggy.wheelX
+WHEEL_X = 1.27  # PHYSICS.bodies.buggy.wheelX: the published 80 in wheelbase at 1.25 scale
 ARCH_R = WHEEL_R + ARCH_CLEARANCE
-ARCH_SIDES = ROUND_SIDES // 2  # straight edges around each half arch
+GROUND = HUB_Z - WHEEL_R
 
-FRONT = LENGTH / 2 - 0.005
+LENGTH = 3.9
+FRONT = LENGTH / 2
 BACK = -FRONT
-SIDE = G.half_y - INSET  # the outer face of the fenders and tub sides
-WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03  # the fenders' inner face and the narrow body between the wheels
-WALL = 0.08  # the cockpit side wall
-EDGE = 0.08  # the stepped strips along each fender top edge
-EDGE_DROP = 0.05
+GAME_ROWS = 8  # the buggy's layout rows with its armor ring, as body.ts stretches them over the length
+DECK_ROWS = (3, 4)  # the layout rows of its D cells
+WALL_Y = 0.44  # the inner wall of every wheel well, 0.07 m inside the tire's inner face
 
-PAN = -0.62
-FLOOR = -0.5  # cockpit, passenger and engine bay floor
-DECK = -0.25  # front deck between the fenders
-NOSE_TOP = -0.47
-SILL = -0.2
-REAR_DECK = -0.21
-CROWN = 0.05
-ROOF_TOP = 0.54  # the hardtop's flat top, where items on the D cells stand
-ROOF_BOTTOM = ROOF_TOP - 0.07
-SCREEN_TOP = ROOF_BOTTOM
-COWL_TOP = -0.05
-TUBE = 0.09
-SIDE_GLASS = (0.1, ROOF_BOTTOM - 0.05)  # the side windows' bottom and top
-REAR_GLASS = (0.12, ROOF_BOTTOM - 0.07)
+ENGINE_X = 1.1  # PHYSICS.bodies.buggy.engine.x
+ENGINE_HALF = (0.49, 0.39)  # the drawn engine footprint over the E cells, along and across
+HOLE = (ENGINE_X - ENGINE_HALF[0] - 0.02, ENGINE_X + ENGINE_HALF[0] + 0.04, ENGINE_HALF[1] + 0.04)  # back, front, half width
+FLOOR = -0.35  # PHYSICS.bodies.buggy.engine.y: the bay floor
 
-COWL_X = 0.46  # the dash's front face, just behind the engine hole
-SCREEN_BASE_X = 0.42
-SCREEN_TOP_X = 0.3
-ROOF_FRONT = SCREEN_TOP_X + 0.06  # a short brim over the windshield top
-SILL_FRONT = 0.35  # where the fender's back slope meets the cockpit sill
-SIDE_BACK = WHEELS_X[1] + ARCH_R + 0.01  # the tub side ends just ahead of the bare rear wheel
-HOOP_X = SIDE_BACK + 0.05
-CAB_BACK = HOOP_X - TUBE / 2  # the hoop's back face: the roof's back edge and the rear wall
-INNER = SIDE - WALL  # the cowl's and dash's inner face
-TUMBLE = 0.1  # how far the cab sides lean in from the sill to the roof, so the cab narrows like a Manx greenhouse
-BACK_LEAN = 0.12  # how far the rear wall leans forward from the sill to the roof
-LIP = 0.08  # the roof plate's overhang past the leaning sides
-LAMP_X = 1.62
-LAMP_R = 0.11
-
-ENGINE_X = 0.975  # PHYSICS.bodies.buggy.engine.x
-ENGINE_HALF = (0.4875, 0.38)  # the drawn engine: restOn() of the engine cells, over the bay floor
-HOLE_MARGIN = 0.02
-HOLE = ((ENGINE_X - ENGINE_HALF[0] - HOLE_MARGIN, -ENGINE_HALF[1] - HOLE_MARGIN), (ENGINE_X + ENGINE_HALF[0] + HOLE_MARGIN, ENGINE_HALF[1] + HOLE_MARGIN))
+COWL = 0.5  # the windshield's foot, photo 2
+SCREEN_TOP_X = 0.44  # the windshield leans back about 6 degrees, photo 2
+TOP_FRONT = 0.545  # the top overhangs the frame a little, photo 1
+FLAT_BACK = -0.85  # the flat top ends over the seat backs, photo 2
+TOP_BACK = -1.4  # its back slopes down onto the rear fenders, photos 1 and 2
+DRAPE_HALF = 0.79
+TOP_HALF = 0.85  # the top is about as wide as the body at the waist, photo 2
+POST_X = -0.85  # the chrome posts where the top's slope starts, photo 1
+GLASS_Y = 0.8  # the glass at the waist, inside the shell's side
+LEAN = 0.18  # the glass leans in 0.13 m up to the top, inferred from the frame posts in photo 2
 
 
-def clip_x(profile: list[tuple[float, float]], x0: float, x1: float) -> list[tuple[float, float]]:
-    """The part of a closed XZ profile between x0 and x1, cut straight across at both ends."""
-    out = profile
-    for keep, edge in ((lambda x: x >= x0, x0), (lambda x: x <= x1, x1)):
-        pts, out = out, []
-        for i, p in enumerate(pts):
-            q = pts[(i + 1) % len(pts)]
-            if keep(p[0]):
-                out.append(p)
-            if keep(p[0]) != keep(q[0]):
-                t = (edge - p[0]) / (q[0] - p[0])
-                out.append((edge, p[1] + t * (q[1] - p[1])))
-    return out
+def up(h: float) -> float:
+    """Model z of a height h over the ground."""
+    return GROUND + h
 
 
-def arch(wx: float, r: float, a0: float, a1: float) -> list[tuple[float, float]]:
-    """Points around a wheel hub at radius r from angle a0 to a1, 0 at the front, in ARCH_SIDES steps per half turn."""
-    n = max(2, round(ARCH_SIDES * abs(a1 - a0) / math.pi))
-    return [(wx + r * math.cos(a0 + (a1 - a0) * k / n), HUB_Z + r * math.sin(a0 + (a1 - a0) * k / n)) for k in range(n + 1)]
+TOP_LOW = up(1.64)
+TOP_HIGH = up(1.76)
+DRAPE_TOP = up(1.27)  # the slope ends on the rear fender humps
+EDGE = 0.05  # the round of the top's thick edge
+LIP = 0.07  # the edge hangs this far below the slab, so it reads about 0.2 m thick, photo 2
+
+# Shell stations, nose to tail, as heights over the ground and half widths: photos 1 and 2 in tire diameters, inferred behind.
+# x, deck center, side crown, half width, bottom
+STATIONS = [
+    (FRONT, 0.6, 0.6, 0.44, 0.47),
+    (1.94, 0.72, 0.74, 0.58, 0.45),
+    (1.9, 0.8, 0.85, 0.7, 0.44),
+    (1.84, 0.85, 0.96, 0.8, 0.44),
+    (1.62, 0.9, 1.14, 0.9, 0.44),
+    (1.27, 0.95, 1.21, 0.93, 0.44),
+    (0.95, 1.0, 1.17, 0.93, 0.44),
+    (0.7, 1.03, 1.08, 0.91, 0.5),
+    (COWL, 1.03, 1.01, 0.89, 0.58),
+    (0.35, 0.95, 0.94, 0.88, 0.6),
+    (0.1, 0.89, 0.89, 0.87, 0.6),
+    (-0.25, 0.88, 0.88, 0.87, 0.6),
+    (-0.5, 0.91, 0.93, 0.88, 0.57),
+    (-0.7, 0.93, 1.01, 0.9, 0.5),
+    (-0.9, 0.93, 1.09, 0.92, 0.44),
+    (-1.27, 0.93, 1.16, 0.93, 0.44),
+    (-1.55, 0.93, 1.12, 0.92, 0.44),
+    (-1.76, 0.91, 1.0, 0.88, 0.46),
+    (-1.88, 0.86, 0.88, 0.8, 0.5),
+    (-1.93, 0.78, 0.78, 0.72, 0.52),
+    (BACK, 0.62, 0.62, 0.6, 0.55),
+]
 
 
-def fender_top(drop: float) -> list[tuple[float, float]]:
-    """The Manx fender line from the nose up over the front wheel to its crown, then down the long back slope to the sill.
-
-    drop lowers the crown for the stepped edges that round the fender across.
-    """
-    wx = WHEELS_X[0]
-    reach = FRONT - wx
-    crown = CROWN - drop
-    rise = crown - HUB_Z
-    swoop = [(wx + reach * math.cos(a), HUB_Z + rise * math.sin(a) ** 1.5) for a in (math.radians(d) for d in range(16, 90, 8))]
-    back = [(wx - (wx - SILL_FRONT) * math.sin(t), SILL + (crown - SILL) * math.cos(t)) for t in (math.radians(d) for d in range(0, 91, 10))]
-    return [(FRONT, NOSE_TOP - 0.08)] + swoop + back
+def station_at(x: float, column: int) -> float:
+    """Model z of one station height column (1 deck center, 2 side crown) at x, between stations."""
+    for s0, s1 in zip(STATIONS, STATIONS[1:]):
+        if s1[0] <= x <= s0[0]:
+            return up(s0[column] + (s1[column] - s0[column]) * (s0[0] - x) / (s0[0] - s1[0]))
+    raise ValueError(f"x {x} is off the shell")
 
 
-def side_profile(drop: float = 0.0) -> list[tuple[float, float]]:
-    """The tub side from the bare rear wheel to the nose: a level sill, the front arch and the swept fender."""
-    return (
-        [(SIDE_BACK, PAN), (WHEELS_X[0] - ARCH_R, PAN)]
-        + arch(WHEELS_X[0], ARCH_R, math.pi, 0)
-        + [(FRONT, HUB_Z)]
-        + fender_top(drop)
-        + [(SILL_FRONT - 0.01, SILL), (SIDE_BACK + 0.12, SILL), (SIDE_BACK, SILL + 0.1)]
-    )
+def crown_at(x: float) -> float:
+    """Model z of the shell's side crown at x."""
+    return station_at(x, 2)
 
 
-def body(kit: Kit) -> None:
-    """The narrow core between the wheels: the rounded nose, the front deck over the engine bay, the cockpit floor and the rear deck."""
-    profile = [
-        (BACK + 0.1, PAN), (FRONT - 0.12, PAN), (FRONT, PAN + 0.1), (FRONT, NOSE_TOP), (FRONT - 0.06, NOSE_TOP + 0.08),
-        (FRONT - 0.2, DECK - 0.07), (FRONT - 0.4, DECK - 0.01), (FRONT - 0.55, DECK), (COWL_X, DECK), (COWL_X, FLOOR),
-        (SIDE_BACK + 0.06, FLOOR), (SIDE_BACK - 0.04, REAR_DECK), (BACK + 0.12, REAR_DECK), (BACK + 0.03, REAR_DECK - 0.1), (BACK + 0.03, PAN + 0.12),
+def deck_at(x: float) -> float:
+    """Model z of the shell's deck center at x."""
+    return station_at(x, 1)
+
+
+def ring(x: float, center: float, crown: float, half: float, bottom: float) -> list[tuple[float, float, float]]:
+    """One shell cross-section: a rounded bottom, upright sides, a rolled crown, the fender hump falling to the deck and a soft center ridge."""
+    roll = min(0.1, (crown - bottom) / 3)
+    hump_in = min(half - roll, 0.62)
+    deck_side = center + 0.35 * (crown - center)
+    right = [
+        (half - 0.08, up(bottom)),
+        (half, up(bottom) + roll),
+        (half, up(crown) - roll),
+        (half - roll, up(crown)),
+        (hump_in, up(crown) - 0.02),
+        (0.46, up(deck_side)),
+        (0.16, up(center)),
     ]
-    core = prism(kit, "core", profile, -WELL_Y, WELL_Y, "paint")
-    (x0, y0), (x1, y1) = HOLE
-    cut_boxes(core, [((x0, y0, FLOOR - 0.02), (x1, y1, DECK + 0.2))])
-    core.data.materials.clear()
-    core.data.materials.append(kit._materials["paint"])
-    kit.box("skid", (FRONT - BACK - 0.5, 2 * WELL_Y - 0.2, 0.08), (0, 0, PAN - 0.03), "under")
-    kit.box("bay_floor", (x1 - x0, y1 - y0, 0.02), ((x0 + x1) / 2, 0, FLOOR - 0.01), "under")
+    left = [(-y, z) for y, z in reversed(right)]
+    return [(x, y, z) for y, z in [(0.0, up(bottom))] + right + [(0.0, up(center) + 0.015)] + left]
 
 
-def sides(kit: Kit) -> None:
-    """Full-width sides: solid swept fenders over the front wheels and thin cockpit walls behind them, with a trim racing band."""
-    profile = side_profile()
-    fender = clip_x(profile, COWL_X, FRONT + 1)
-    shoulder = clip_x(side_profile(EDGE_DROP), COWL_X, FRONT + 1)
-    wall = clip_x(profile, SIDE_BACK - 1, COWL_X)
-    for s, sy in (("l", 1), ("r", -1)):
-        crest = sorted((sy * (WELL_Y + EDGE), sy * (SIDE - EDGE)))
-        prism(kit, f"fender_{s}", fender, crest[0], crest[1], "paint")
-        for i, (y0, y1) in enumerate(((WELL_Y, WELL_Y + EDGE), (SIDE - EDGE, SIDE))):
-            lo, hi = sorted((sy * y0, sy * y1))
-            prism(kit, f"fender_edge{i}_{s}", shoulder, lo, hi, "paint")
-    prism(kit, "wall_l", wall, SIDE - WALL, SIDE, "paint")
-    prism(kit, "wall_r", wall, -SIDE, -SIDE + WALL, "paint")
-    front = SCREEN_BASE_X - 0.02
-    shell = [(x, s * cab_half(z), z) for z, xs in ((SILL, (cab_back(SILL), front)), (ROOF_BOTTOM, (cab_back(ROOF_BOTTOM), SCREEN_TOP_X - 0.02))) for x in xs for s in (1, -1)]
-    kit._add(hull_mesh("cab_shell", shell), "cab_shell", "paint", 0.0)
-    cowl = [(x, s * cab_half(z), z) for z, xs in ((SILL, (front, COWL_X)), (COWL_TOP, (front, COWL_X))) for x in xs for s in (1, -1)]
-    kit._add(hull_mesh("cowl_sides", cowl), "cowl_sides", "paint", 0.0)
-    kit.box("cockpit_floor", (COWL_X - SIDE_BACK, 2 * SIDE - 0.02, FLOOR - PAN), ((COWL_X + SIDE_BACK) / 2, 0, (FLOOR + PAN) / 2), "paint")
-    band = [(SIDE_BACK + 0.03, -0.37), (WHEELS_X[0] - ARCH_R - 0.08, -0.37), (WHEELS_X[0] - ARCH_R - 0.02, -0.29), (SIDE_BACK + 0.03, -0.29)]
-    prism(kit, "band_l", band, SIDE, SIDE + 0.015, "trim")
-    prism(kit, "band_r", band, -SIDE - 0.015, -SIDE, "trim")
+def shell(kit: Kit) -> bpy.types.Object:
+    """The painted shell, its four round wheel wells and its engine hole."""
+    loft(kit, "shell", [ring(*s) for s in STATIONS], "paint")
+    body = kit._parts[-1]
+    arch_cut(body, [WHEEL_X, -WHEEL_X], HUB_Z, WHEEL_R, WALL_Y, up(0.3), ROUND_ARCH_SEGMENTS)
+    back, front, half = HOLE
+    cut_boxes(body, [((back, -half, FLOOR), (front, half, up(2.0)))])
+    kit.box("bay_floor", (front - back, 2 * half, 0.04), ((front + back) / 2, 0, FLOOR - 0.02), "under")
+    return body
+
+
+def lower_tub(kit: Kit) -> None:
+    """The black VW pan and tub sides that show under the thin shell between the wheels, photo 1."""
+    kit.box("lower_tub", (1.5, 1.7, up(0.68) - up(0.42)), (0, 0, (up(0.68) + up(0.42)) / 2), "under")
+    kit.box("spine", (LENGTH - 0.5, 2 * WALL_Y - 0.04, up(0.6) - up(0.45)), (0, 0, (up(0.6) + up(0.45)) / 2), "under")
+
+
+def round_part(kit: Kit, name: str, radius: float, depth: float, loc: tuple[float, float, float], mat: str, rot: tuple[float, float, float] = (0, 0, 0)) -> bpy.types.Object:
+    return kit.cylinder(name, radius, depth, loc, mat, rot=rot, vertices=round_sides(radius))
+
+
+def tube(kit: Kit, name: str, a: tuple[float, float, float], b: tuple[float, float, float], thick: float = 0.06) -> None:
+    strut(kit, name, a, b, thick, "chrome", sides=round_sides(thick / 2))
 
 
 def lamps(kit: Kit) -> None:
-    """Round bug-eye headlamps standing on the fender swoops, each a dark pod with a lens facing ahead."""
-    wx = WHEELS_X[0]
-    a = math.acos((LAMP_X - wx) / (FRONT - wx))
-    z = HUB_Z + (CROWN - HUB_Z) * math.sin(a) ** 1.5 + LAMP_R - 0.03
-    for s, y in (("l", 1), ("r", -1)):
-        kit.cylinder(f"lamp_pod_{s}", LAMP_R, 0.14, (LAMP_X, y * 0.71, z), "under", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
-        kit.cylinder(f"lamp_{s}", LAMP_R - 0.02, 0.03, (LAMP_X + 0.075, y * 0.71, z), "light", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
+    """Chrome bug-eye bowls with glass faces on short stalks on the deck shoulders, and amber indicators on the nose, photo 2."""
+    lamp_r = 0.165  # a face 0.33 of a tire diameter across, photo 2
+    x = 1.5  # a third of the way back from the nose to the cowl
+    y = 0.64
+    z = crown_at(x) + 0.17
+    along = (0, math.pi / 2, 0)
+    for s, sy in (("l", 1), ("r", -1)):
+        bowl = round_part(kit, f"lamp_bowl_{s}", lamp_r, 0.14, (x + 0.02, sy * y, z), "chrome", along)
+        for v in bowl.data.vertices:
+            if v.co.z < 0:
+                v.co.x *= 0.5
+                v.co.y *= 0.5
+        round_part(kit, f"lamp_rim_{s}", lamp_r + 0.012, 0.03, (x + 0.085, sy * y, z), "chrome", along)
+        round_part(kit, f"lamp_{s}", lamp_r - 0.03, 0.02, (x + 0.105, sy * y, z), "light", along)
+        stalk = z - lamp_r * 0.7 - crown_at(x) + 0.03
+        kit.box(f"lamp_stalk_{s}", (0.06, 0.06, stalk), (x - 0.03, sy * y, z - lamp_r * 0.7 - stalk / 2 + 0.03), "chrome")
+        kit.box(f"lamp_foot_{s}", (0.12, 0.1, 0.03), (x - 0.03, sy * y, crown_at(x) - 0.01), "chrome")
+        round_part(kit, f"indicator_{s}", 0.045, 0.06, (FRONT - 0.035, sy * 0.48, up(0.74)), "amber", along)
+        round_part(kit, f"taillight_{s}", 0.07, 0.06, (BACK + 0.035, sy * 0.48, up(0.72)), "red", along)
 
 
-def cab_half(z: float) -> float:
-    """Half the cab's width at height z: the sides lean in from the sill to the roof."""
-    return SIDE - TUMBLE * (z - SILL) / (ROOF_BOTTOM - SILL)
+def nose(kit: Kit) -> None:
+    """The dark plate recess low on the nose face, and the chrome nerf bar under it, photo 2."""
+    kit.box("plate_recess", (0.04, 0.56, up(0.62) - up(0.48)), (FRONT - 0.025, 0, (up(0.62) + up(0.48)) / 2), "under")
+    bar_x = FRONT - 0.04
+    bar_z = up(0.36)
+    tube(kit, "nerf_bar", (bar_x, 0.58, bar_z), (bar_x, -0.58, bar_z))
+    for s, sy in (("l", 1), ("r", -1)):
+        tube(kit, f"nerf_end_{s}", (bar_x, sy * 0.58, bar_z), (FRONT - 0.3, sy * 0.66, up(0.47)))
+        tube(kit, f"nerf_stay_{s}", (bar_x - 0.02, sy * 0.3, bar_z), (FRONT - 0.32, sy * 0.3, up(0.5)))
 
 
-def cab_back(z: float) -> float:
-    """The cab's rear face X at height z: it leans forward from the sill to the roof."""
-    return CAB_BACK + BACK_LEAN * (z - SILL) / (ROOF_BOTTOM - SILL)
+def tail(kit: Kit) -> None:
+    """Inferred: a dark grille in the short rear panel, and a low tube bumper."""
+    for i in range(3):
+        kit.box(f"tail_grille_{i}", (0.03, 0.5, 0.04), (BACK + 0.02, 0, up(0.74) - 0.08 * i), "soot")
+    bar_x = BACK + 0.04
+    bar_z = up(0.42)
+    tube(kit, "bumper_rear", (bar_x, 0.66, bar_z), (bar_x, -0.66, bar_z))
+    for s, sy in (("l", 1), ("r", -1)):
+        tube(kit, f"bumper_stay_{s}", (bar_x + 0.02, sy * 0.36, bar_z), (BACK + 0.3, sy * 0.36, up(0.52)))
 
 
-def screen_x(z: float) -> float:
-    """The windshield rake: its X at height z, from the cowl to the roof."""
-    return SCREEN_BASE_X + (SCREEN_TOP_X - SCREEN_BASE_X) * (z - COWL_TOP) / (SCREEN_TOP - COWL_TOP)
+def glass_y(z: float) -> float:
+    """The half width of the closed cab's glass at height z: it leans in from the waist, so the top's edge overhangs it."""
+    return GLASS_Y - LEAN * (z - up(0.92))
 
 
 def windshield(kit: Kit) -> None:
-    """The dash on the cowl and a raked windshield in a dark frame, from the cowl to the roof, across the cab."""
-    kit.box("dash", (COWL_X - SCREEN_BASE_X + 0.08, 2 * INNER, COWL_TOP - FLOOR), (COWL_X - (COWL_X - SCREEN_BASE_X + 0.08) / 2, 0, (COWL_TOP + FLOOR) / 2), "under")
+    """The near-upright windshield in a chrome frame on the cowl, with round chrome mirrors on stalks, photo 2."""
+    foot = crown_at(COWL) - 0.03
+    frame = 0.05
     for s, sy in (("l", 1), ("r", -1)):
-        strut(kit, f"screen_post_{s}", (SCREEN_BASE_X, sy * (cab_half(COWL_TOP) - 0.04), COWL_TOP), (SCREEN_TOP_X, sy * (cab_half(SCREEN_TOP) - 0.04), SCREEN_TOP), 0.06, "under")
-    glass = [(x + dx, s * (cab_half(z) - 0.07), z) for x, z in ((SCREEN_BASE_X, COWL_TOP), (SCREEN_TOP_X, SCREEN_TOP)) for s in (1, -1) for dx in (0, -0.02)]
-    kit._add(hull_mesh("windshield", glass), "windshield", "glass", 0.0)
+        strut(kit, f"screen_post_{s}", (COWL, sy * glass_y(foot), foot), (SCREEN_TOP_X, sy * glass_y(TOP_LOW), TOP_LOW + 0.01), frame, "chrome", sides=round_sides(frame / 2))
+        stalk_top = (COWL - 0.02, sy * 0.9, up(1.24))
+        tube(kit, f"mirror_stalk_{s}", (COWL, sy * (glass_y(up(1.06)) + 0.01), up(1.06)), stalk_top, 0.03)
+        round_part(kit, f"mirror_{s}", 0.065, 0.03, (stalk_top[0], stalk_top[1], stalk_top[2] + 0.05), "chrome", (0, math.pi / 2, 0))
+    kit.box("screen_sill", (frame, 2 * glass_y(foot) + frame, frame), (COWL + 0.005, 0, foot + frame / 2), "chrome")
+    kit.box("screen_header", (frame, 2 * glass_y(TOP_LOW), frame), (SCREEN_TOP_X, 0, TOP_LOW - frame / 2 + 0.01), "chrome")
+    points = [(x + dx, sy * glass_y(z), z) for x, z in ((COWL - 0.03, foot), (SCREEN_TOP_X - 0.03, TOP_LOW)) for dx in (0.0, 0.02) for sy in (1, -1)]
+    kit._add(hull_mesh("windshield", points), "windshield", "glass", 0.0)
 
 
-def hardtop(kit: Kit) -> None:
-    """A flat trim roof welded on the roll cage over both seats, with a short brim over the windshield."""
-    wide = cab_half(ROOF_BOTTOM) + LIP
-    back = cab_back(ROOF_BOTTOM) - LIP
-    rim = 0.03
-    points = [(x, s * y, z) for x, y, z in (
-        (ROOF_FRONT, wide, ROOF_BOTTOM), (back, wide, ROOF_BOTTOM),
-        (ROOF_FRONT, wide - rim, ROOF_TOP - 0.04), (ROOF_FRONT - 0.06, wide - 2 * rim, ROOF_TOP),
-        (back + rim, wide - rim, ROOF_TOP - 0.02), (back + 2 * rim, wide - 2 * rim, ROOF_TOP),
-    ) for s in (1, -1)]
-    kit._add(hull_mesh("roof", points), "roof", "trim", 0.0)
+def top(kit: Kit) -> None:
+    """The Manx's own top: a flat trim slab, round at the front corners, whose thick rounded edge hangs over the frame, and whose back slopes down onto the rear fenders, photos 1 and 2."""
 
+    def section(x: float, w: float, drop: float, sink: float) -> list[tuple[float, float, float]]:
+        lo, hi = TOP_LOW + drop - sink, TOP_HIGH - drop - sink
+        right = [(w - 0.1, lo + 0.03), (w - 0.03, lo - LIP), (w, lo - LIP + 0.05), (w, hi - 0.06), (w - 0.05, hi - 0.01), (w - 0.14, hi)]
+        left = [(-y, z) for y, z in reversed(right)]
+        return [(x, y, z) for y, z in right + left]
 
-def windows(kit: Kit) -> None:
-    """One small dark window in each cab side, its front edge on the windshield rake, and the rear wall with its window."""
-    z0, z1 = SIDE_GLASS
-    check_door_gap("side_window", cab_back(z0) + 0.14, screen_x(z0) - 0.08, z0, WHEELS_X, HUB_Z, ARCH_R)
-    corners = [(cab_back(z) + 0.14, z) for z in (z0, z1)] + [(screen_x(z) - 0.08, z) for z in (z0, z1)]
-    for s in (1, -1):
-        pane = [(x, s * (cab_half(z) + d), z) for x, z in corners for d in (-0.02, 0.01)]
-        kit._add(hull_mesh("side_glass_l" if s > 0 else "side_glass_r", pane), "side_glass", "glass", 0.0)
-    r0, r1 = REAR_GLASS
-    pane = [(cab_back(z) + d, s * (cab_half(z) - 0.25), z) for z in (r0, r1) for s in (1, -1) for d in (-0.01, 0.02)]
-    kit._add(hull_mesh("rear_glass", pane), "rear_glass", "glass", 0.0)
-
-
-def hoop(kit: Kit) -> None:
-    """The roll hoop in the trim color as the cab's rear pillars under the roof's back edge, braced back to the rear deck."""
+    corner = 0.3
+    steps = [math.pi / 2 * k / 5 for k in range(6)]
+    front = [(TOP_FRONT - corner + corner * math.sin(a), TOP_HALF - corner + corner * math.cos(a), 0.05 * math.sin(a) ** 3, 0.0) for a in reversed(steps)]
+    slope = [(FLAT_BACK + (TOP_BACK - FLAT_BACK) * k / 5, TOP_HALF + (DRAPE_HALF - TOP_HALF) * k / 5, 0.0, (TOP_HIGH - DRAPE_TOP) * (k / 5) ** 1.3) for k in range(6)]
+    sink = TOP_HIGH - DRAPE_TOP
+    end = [(TOP_BACK - 0.025, DRAPE_HALF - 0.05, 0.02, sink + 0.01), (TOP_BACK - 0.04, DRAPE_HALF - 0.14, 0.04, sink + 0.02)]
+    loft(kit, "top", [section(*f) for f in front + slope + end], "trim")
     for s, sy in (("l", 1), ("r", -1)):
-        strut(kit, f"hoop_leg_{s}", (cab_back(SILL), sy * (cab_half(SILL) - TUBE / 2), SILL), (cab_back(ROOF_BOTTOM), sy * (cab_half(ROOF_BOTTOM) - TUBE / 2), ROOF_BOTTOM), TUBE, "trim")
-        strut(kit, f"brace_{s}", (cab_back(SILL + 0.15), sy * 0.4, SILL + 0.15), (BACK + 0.45, sy * 0.3, REAR_DECK), TUBE * 0.8, "trim")
+        foot = crown_at(POST_X) - 0.05
+        tube(kit, f"rear_post_{s}", (POST_X, sy * glass_y(foot), foot), (POST_X, sy * glass_y(TOP_LOW), TOP_LOW + 0.01), 0.05)
 
 
-def rear(kit: Kit) -> None:
-    """Small dark guards over the bare rear wheels, and the tail: a dark rear panel with round taillights."""
-    rx = WHEELS_X[1]
-    guard = arch(rx, ARCH_R + 0.1, 0.4, math.pi - 0.15) + list(reversed(arch(rx, ARCH_R, 0.4, math.pi - 0.15)))
-    prism(kit, "guard_l", guard, WELL_Y, G.half_y - 0.01, "under")
-    prism(kit, "guard_r", guard, -G.half_y + 0.01, -WELL_Y, "under")
-    kit.box("rear_panel", (0.02, 2 * WELL_Y - 0.12, REAR_DECK - 0.12 - PAN - 0.08), (BACK + 0.02, 0, (REAR_DECK - 0.12 + PAN + 0.08) / 2), "under")
-    for s, y in (("l", 1), ("r", -1)):
-        kit.cylinder(f"taillight_{s}", 0.065, 0.02, (BACK + 0.01, y * (WELL_Y - 0.13), REAR_DECK - 0.2), "red", rot=(0, math.pi / 2, 0), vertices=ROUND_SIDES)
+def top_low_at(x: float) -> float:
+    """Model z of the top's underside at x behind the flat part, along its slope."""
+    k = min(1.0, max(0.0, (FLAT_BACK - x) / (FLAT_BACK - TOP_BACK)))
+    return TOP_LOW - (TOP_HIGH - DRAPE_TOP) * k**1.3
 
 
-def bounds(kit: Kit) -> tuple[Vector, Vector]:
+def glass(kit: Kit) -> None:
+    """Dark glass in the photo's open sides and rear, from the waist up to the top, so the cockpit is closed."""
+    back = TOP_BACK + 0.06
+    xs = [COWL, 0.35, 0.1, -0.25, -0.5, -0.7, -0.9, -1.1, back]
+    under = [(x, top_low_at(x) + 0.02) for x in (back, -1.2, -1.05, FLAT_BACK)]
+    side = [(SCREEN_TOP_X - 0.02, TOP_LOW), *[(x, crown_at(x) - 0.04) for x in xs], *under]
+    at_zero = glass_y(0.0)
+    prism(kit, "side_glass_l", side, at_zero - 0.015, at_zero + 0.015, "glass", lean=LEAN)
+    prism(kit, "side_glass_r", side, -at_zero - 0.015, -at_zero + 0.015, "glass", lean=-LEAN)
+    sill = deck_at(back) - 0.04
+    rear = [(back + dx, sy * glass_y(z), z) for dx in (-0.015, 0.015) for z in (sill, top_low_at(back) + 0.02) for sy in (1, -1)]
+    kit._add(hull_mesh("rear_glass", rear), "rear_glass", "glass", 0.0)
+
+
+def hood_lip(kit: Kit) -> None:
+    """A raised lip of deck round the engine hole, so the hole reads as a framed opening, as on the courier's lid."""
+    back, front, half = HOLE
+    lip, rise = 0.05, 0.035
+    xs = [back - lip, (back + front) / 2, front + lip]
+    edge = [(x, deck_at(x) + rise) for x in xs] + [(x, deck_at(x) - 0.08) for x in reversed(xs)]
+    prism(kit, "hood_lip_l", edge, half, half + lip, "paint")
+    prism(kit, "hood_lip_r", edge, -half - lip, -half, "paint")
+    for name, x in (("hood_lip_f", front + lip / 2), ("hood_lip_b", back - lip / 2)):
+        z = deck_at(x)
+        kit.box(name, (lip, 2 * half, rise + 0.08), (x, 0, z + (rise - 0.08) / 2), "paint")
+
+
+def deck_x() -> tuple[float, float]:
+    """The span along the truck of the D rows, as body.ts projects the layout over the length."""
+    step = LENGTH / GAME_ROWS
+    return FRONT - (DECK_ROWS[1] + 1) * step, FRONT - DECK_ROWS[0] * step
+
+
+def check_buggy(body: bpy.types.Object) -> None:
+    """Raises when a tire comes within its arch clearance of the shell, the deck does not frame the engine hole, or the top misses a deck row."""
+    back, front, half = HOLE
+    if back <= COWL + 0.03 or front >= FRONT - 0.3 or half >= 0.62 - 0.1:
+        raise RuntimeError(f"engine hole x {back:.2f}..{front:.2f} half {half:.2f} is not framed by the deck")
+    x0, x1 = deck_x()
+    if FLAT_BACK > x0 or TOP_FRONT - EDGE < x1:
+        raise RuntimeError(f"the top's flat face {FLAT_BACK:.2f}..{TOP_FRONT - EDGE:.2f} does not cover the deck rows {x0:.2f}..{x1:.2f}")
     bpy.context.view_layer.update()
-    lo = Vector((1e9, 1e9, 1e9))
-    hi = Vector((-1e9, -1e9, -1e9))
-    for obj in kit._parts:
-        for v in obj.data.vertices:
-            p = obj.matrix_world @ v.co
-            lo = Vector((min(lo.x, p.x), min(lo.y, p.y), min(lo.z, p.z)))
-            hi = Vector((max(hi.x, p.x), max(hi.y, p.y), max(hi.z, p.z)))
-    return lo, hi
+    tree = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+    near = []
+    for wx in (WHEEL_X, -WHEEL_X):
+        for sy in (1, -1):
+            for y in (WHEEL_Z - WHEEL_HALF_W, WHEEL_Z, WHEEL_Z + WHEEL_HALF_W):
+                for k in range(48):
+                    a = math.tau * k / 48
+                    p = Vector((wx + WHEEL_R * math.cos(a), sy * y, HUB_Z + WHEEL_R * math.sin(a)))
+                    hit = tree.find_nearest(p)
+                    if hit[0] is not None and hit[3] < ARCH_CLEARANCE - 0.015:
+                        near.append(f"{p.x:.2f},{p.y:.2f},{p.z:.2f}: {hit[3]:.3f}")
+    if near:
+        raise RuntimeError(f"tires come within the arch clearance of the shell at {near[:6]}")
 
 
-def check_size(kit: Kit) -> None:
-    lo, hi = bounds(kit)
-    if abs(hi.x - lo.x - LENGTH) > 0.02:
-        raise RuntimeError(f"base_buggy is {hi.x - lo.x:.3f} m long, not {LENGTH} m")
-
-
-def check_hole() -> None:
-    """Raises when the engine hole leaves the front deck between the fenders, or reaches the dash."""
-    (x0, y0), (x1, y1) = HOLE
-    if x0 <= COWL_X or x1 >= FRONT - 0.3 or y1 >= WELL_Y or y0 <= -WELL_Y:
-        raise RuntimeError(f"engine hole x {x0:.3f}..{x1:.3f} y {y0:.3f}..{y1:.3f} leaves the front deck")
+def arch_sockets(kit: Kit) -> None:
+    kit.socket("arch_front", (WHEEL_X, WHEEL_Z, HUB_Z))
+    kit.socket("arch_rear", (-WHEEL_X, WHEEL_Z, HUB_Z))
+    kit.socket("arch_front_top", (WHEEL_X, WHEEL_Z, HUB_Z + ARCH_R))
 
 
 def main() -> None:
     args = parse_args()
-    check_hole()
-    kit = Kit(BASE_COLORS, SEED)
-    body(kit)
-    sides(kit)
+    kit = Kit(COLORS, SEED)
+    body = shell(kit)
+    check_buggy(body)
+    lower_tub(kit)
+    hood_lip(kit)
     lamps(kit)
+    nose(kit)
+    tail(kit)
     windshield(kit)
-    hardtop(kit)
-    windows(kit)
-    hoop(kit)
-    rear(kit)
-    kit.socket("arch_front", (WHEELS_X[0], WHEEL_Z, HUB_Z))
-    kit.socket("arch_rear", (WHEELS_X[1], WHEEL_Z, HUB_Z))
-    kit.socket("arch_front_top", (WHEELS_X[0], WHEEL_Z, HUB_Z + ARCH_R))
-    bay = {(x, y): FLOOR for x in (1, 2) for y in (0, 1)}
-    level_sockets(kit, G, "row", [NOSE_TOP, DECK, ROOF_TOP, ROOF_TOP, REAR_DECK, REAR_DECK], fronts={2: ROOF_FRONT - 0.06}, cells=bay)
-    level_sockets(kit, G, "floor", [FLOOR] * 4 + [REAR_DECK] * 2)
-    check_size(kit)
+    top(kit)
+    glass(kit)
+    arch_sockets(kit)
+    bay = {(x, y): FLOOR for x in (1, 2) for y in (1, 2)}
+    sides = {(x, y): surface_z(G, x, y) for x in (0, 3) for y in range(G.rows)}
+    level_sockets(kit, G, "row", [crown_at(G.row_x(y)) for y in range(G.rows)], cells=bay | sides)
+    level_sockets(kit, G, "floor", [FLOOR] * 2 + [up(0.92)] * 4)
     check_base(kit, "base_buggy", G)
     kit.export("base_buggy", args, view_size=5.0)
 

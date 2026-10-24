@@ -108,7 +108,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.21, 0.27], deck: [0.58, 0.66] },
   tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.161, 0.179], deck: [0.443, 0.489] },
   jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
-  buggy: { height: [1.56, 1.72], roof: [0.24, 0.36], noseDrop: [0.8, 1.08], tailDrop: [0.6, 0.9] },
+  buggy: { height: [1.67, 1.85], roof: [0.37, 0.4], noseDrop: [0.76, 0.84], tailDrop: [0.8, 0.9] },
   carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.65, 0.85], tailDrop: [0.35, 0.6] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
   bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1] },
@@ -166,6 +166,30 @@ describe('the carrier armored car', () => {
   });
 });
 
+describe('the Manx buggy', () => {
+  const buggy = PHYSICS.bodies.buggy;
+  const ground = buggy.wheelY - PHYSICS.truck.suspensionRest - buggy.wheelRadius;
+  const tire = 2 * buggy.wheelRadius;
+  const { heights, boxes } = SHAPES.base_buggy;
+  const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
+  const crownOver = (wheelX: number) => Math.max(...columns.filter((c) => Math.abs(c.x - wheelX) <= 0.15 && Math.abs(Math.abs(c.y) - buggy.wheelZ) <= 0.1).map((c) => c.top)) - ground;
+  const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
+
+  it('keeps its 3.9 m body on the Manx wheelbase of 0.651 of its length', () => {
+    expect(Math.abs(along - 3.9)).toBeLessThanOrEqual(0.05);
+    expect(Math.abs((2 * buggy.wheelX) / along / 0.651 - 1)).toBeLessThanOrEqual(0.05);
+  });
+
+  it('crowns its front fenders 1.12 to 1.24 tire diameters over the ground, over the tires', () => {
+    expect(crownOver(buggy.wheelX) / tire).toBeGreaterThanOrEqual(1.12);
+    expect(crownOver(buggy.wheelX) / tire).toBeLessThanOrEqual(1.24);
+  });
+
+  it('covers its rear tires under its own rear fenders, at least 1.12 tire diameters over the ground, where the top slopes down onto them', () => {
+    expect(crownOver(-buggy.wheelX) / tire).toBeGreaterThanOrEqual(1.12);
+  });
+});
+
 describe('the scout pickup', () => {
   it('keeps the HiLux blueprint: 5.2 m long, with a width to length of 0.423 across its flares', () => {
     const boxes = SHAPES.base_scout.boxes;
@@ -210,36 +234,6 @@ describe('the utility van', () => {
     expect(Math.abs(along - 5.53)).toBeLessThanOrEqual(0.05);
     expect(across / along).toBeGreaterThanOrEqual(0.375);
     expect(across / along).toBeLessThanOrEqual(0.405);
-  });
-});
-
-describe('the Manx buggy', () => {
-  const buggy = PHYSICS.bodies.buggy;
-  const ground = buggy.wheelY - PHYSICS.truck.suspensionRest - buggy.wheelRadius;
-  const { heights, boxes } = SHAPES.base_buggy;
-  const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
-  const highest = (keep: (c: { x: number; y: number }) => boolean) => Math.max(...columns.filter(keep).map((c) => c.top)) - ground;
-  const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
-
-  it('keeps the 3.9 m body on the Manx wheelbase of 0.652 of its length', () => {
-    expect(Math.abs(along - 3.9)).toBeLessThanOrEqual(0.05);
-    expect((2 * buggy.wheelX) / along).toBeGreaterThanOrEqual(0.652 * 0.95);
-    expect((2 * buggy.wheelX) / along).toBeLessThanOrEqual(0.652 * 1.05);
-  });
-
-  it('crowns its front fenders 1.08 to 1.22 tire diameters over the ground', () => {
-    const crown = highest((c) => Math.abs(c.x - buggy.wheelX) <= 0.15 && Math.abs(Math.abs(c.y) - buggy.wheelZ) <= 0.1);
-    const tire = 2 * buggy.wheelRadius;
-    expect(crown / tire).toBeGreaterThanOrEqual(1.08);
-    expect(crown / tire).toBeLessThanOrEqual(1.22);
-  });
-
-  it('closes its cockpit under a hardtop 1.56 to 1.68 m over the ground', () => {
-    const cab = columns.filter((c) => c.x >= -0.64 && c.x <= 0.31 && Math.abs(c.y) <= 0.8);
-    const roof = Math.max(...cab.map((c) => c.top)) - ground;
-    expect(roof).toBeGreaterThanOrEqual(1.56);
-    expect(roof).toBeLessThanOrEqual(1.68);
-    expect(cab.filter((c) => roof - (c.top - ground) > 0.05).map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}`)).toEqual([]);
   });
 });
 
