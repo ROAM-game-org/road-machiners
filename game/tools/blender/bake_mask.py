@@ -14,10 +14,12 @@ AO_CURVE = 1.6
 AO_SAMPLES = 512
 UV_ANGLE = math.radians(66)
 WELD = 1e-4
+SHRINK = 0.01
 ISLAND_GAP_PX = 2
 BAKE_MARGIN_PX = 8
 MASK_MIN = 16
 WHITE_BLOCK_PX = 4
+SOURCE_FACE = "source_face"
 MARKER = "surfaceMask"
 BAKE_NODE = "surface_mask_bake"
 GLTF_GROUP = "glTF Material Output"
@@ -96,9 +98,10 @@ def uv_twin(obj: bpy.types.Object) -> bpy.types.Object:
     bpy.context.scene.collection.objects.link(twin)
     bm = bmesh.new()
     bm.from_mesh(twin.data)
+    source = bm.faces.layers.int.new(SOURCE_FACE)
+    for f in bm.faces:
+        f[source] = f.index
     bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=WELD)
-    if len(bm.faces) != len(obj.data.polygons):
-        raise RuntimeError(f"{obj.name} lost faces when welded for its unwrap")
     bm.to_mesh(twin.data)
     bm.free()
     while twin.data.uv_layers:
@@ -142,6 +145,11 @@ def triangles_overlap(t: tuple, u: tuple, eps: float) -> bool:
     return any(edges_cross(t[i], t[(i + 1) % 3], u[j], u[(j + 1) % 3], eps) for i in range(3) for j in range(3))
 
 
+def shrunk(corners: list[tuple[float, float]]) -> tuple:
+    mx, my = sum(c[0] for c in corners) / 3, sum(c[1] for c in corners) / 3
+    return tuple((mx + (x - mx) * (1 - SHRINK), my + (y - my) * (1 - SHRINK)) for x, y in corners)
+
+
 def overlapping_faces(twin: bpy.types.Object, skip: set[int]) -> set[int]:
     mesh = twin.data
     uv = mesh.uv_layers.active.data
@@ -152,14 +160,14 @@ def overlapping_faces(twin: bpy.types.Object, skip: set[int]) -> set[int]:
         loops = list(poly.loop_indices)
         for k in range(1, len(loops) - 1):
             corners = (loops[0], loops[k], loops[k + 1])
-            tris.append((poly.index, {mesh.loops[l].vertex_index for l in corners}, tuple(tuple(uv[l].uv) for l in corners)))
+            tris.append((poly.index, shrunk([tuple(uv[l].uv) for l in corners])))
     if not tris:
         return set()
-    span = max(max(max(abs(c) for c in p) for p in t[2]) for t in tris)
+    span = max(max(max(abs(c) for c in p) for p in t[1]) for t in tris)
     cell = span / 512
     eps = span * 1e-3
     grid: dict[tuple[int, int], list[int]] = {}
-    for n, (_, _, pts) in enumerate(tris):
+    for n, (_, pts) in enumerate(tris):
         for x in range(int(min(p[0] for p in pts) // cell), int(max(p[0] for p in pts) // cell) + 1):
             for y in range(int(min(p[1] for p in pts) // cell), int(max(p[1] for p in pts) // cell) + 1):
                 grid.setdefault((x, y), []).append(n)
@@ -172,7 +180,7 @@ def overlapping_faces(twin: bpy.types.Object, skip: set[int]) -> set[int]:
                     continue
                 tested.add((a, b))
                 ta, tb = tris[a], tris[b]
-                if ta[0] != tb[0] and not ta[1] & tb[1] and triangles_overlap(ta[2], tb[2], eps):
+                if ta[0] != tb[0] and triangles_overlap(ta[1], tb[1], eps):
                     found |= {ta[0], tb[0]}
     return found
 
@@ -279,7 +287,7 @@ def unwrap(obj: bpy.types.Object, texel: float, max_side: int, min_island: float
     collapse_white(twin, islands, packing)
     white_faces = {i for n in packing.white for i in islands[n]}
     packing.overlaps = len(overlapping_faces(twin, white_faces))
-    copy_uvs(twin, obj)
+    copy_uvs(twin, obj, packing.side)
     bpy.data.objects.remove(twin)
     return packing
 
@@ -297,22 +305,28 @@ def collapse_white(twin: bpy.types.Object, islands: list[list[int]], packing: Pa
     edit_uvs(twin, collapse)
 
 
-def copy_uvs(twin: bpy.types.Object, obj: bpy.types.Object) -> None:
+def copy_uvs(twin: bpy.types.Object, obj: bpy.types.Object, side: int) -> None:
     while obj.data.uv_layers:
         obj.data.uv_layers.remove(obj.data.uv_layers[0])
     obj.data.uv_layers.new(name="UVMap")
     src, dst = twin.data.uv_layers.active.data, obj.data.uv_layers.active.data
-    for a, b in zip(twin.data.polygons, obj.data.polygons):
-        if a.loop_total != b.loop_total:
-            raise RuntimeError(f"{obj.name} face {b.index} changed its corners when welded")
-        for k in range(b.loop_total):
-            moved = twin.data.vertices[twin.data.loops[a.loop_start + k].vertex_index].co - obj.data.vertices[obj.data.loops[b.loop_start + k].vertex_index].co
-            if moved.length > WELD * 2:
-                raise RuntimeError(f"{obj.name} face {b.index} turned its corners when welded")
-            dst[b.loop_start + k].uv = src[a.loop_start + k].uv
+    welded = {s.value: twin.data.polygons[n] for n, s in enumerate(twin.data.attributes[SOURCE_FACE].data)}
+    white = WHITE_BLOCK_PX / 2 / side
+    for b in obj.data.polygons:
+        a = welded.get(b.index)
+        for k in b.loop_indices:
+            dst[k].uv = (white, white) if a is None else src[nearest_corner(twin, a, obj.data.vertices[obj.data.loops[k].vertex_index].co)].uv
     coords = [c for d in dst for c in d.uv]
     if min(coords) < 0 or max(coords) > 1:
         raise RuntimeError(f"{obj.name} UVs reach {min(coords):.3f} to {max(coords):.3f}, outside the mask")
+
+
+def nearest_corner(twin: bpy.types.Object, face: bpy.types.MeshPolygon, co) -> int:
+    mesh = twin.data
+    best = min(face.loop_indices, key=lambda l: (mesh.vertices[mesh.loops[l].vertex_index].co - co).length)
+    if (mesh.vertices[mesh.loops[best].vertex_index].co - co).length > WELD * 2:
+        raise RuntimeError(f"{twin.name} face {face.index} lost a corner when welded")
+    return best
 
 
 def dense_twin(obj: bpy.types.Object) -> bpy.types.Object:
