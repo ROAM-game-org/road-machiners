@@ -82,7 +82,7 @@ def front(kit: Kit) -> None:
     prism(kit, "trunk", nose, -SIDE, SIDE, "paint")
     for i, y in enumerate(LAMP_Y):
         for s, sy in (("l", 1), ("r", -1)):
-            kit.cylinder(f"lamp{i}_{s}", 0.1, 0.03, (FRONT + 0.015 + PROUD, sy * y, LAMP_Z), "light", rot=(0, math.pi / 2, 0), vertices=8)
+            kit.cylinder(f"lamp{i}_{s}", 0.1, 0.05, (FRONT + 0.005, sy * y, LAMP_Z), "light", rot=(0, math.pi / 2, 0), vertices=8)
     mirrored(kit, "lamp_bezel", (0.02, LAMP_Y[0] - LAMP_Y[1] + 0.24, 0.24), FRONT + 0.005, sum(LAMP_Y) / 2, LAMP_Z, "under")
 
 
@@ -109,7 +109,7 @@ def rear(kit: Kit) -> None:
 def crease(kit: Kit) -> None:
     """The crisp beltline crease as a trim band wrapping around the sides, the nose and the tail."""
     mirrored(kit, "crease", (FRONT - BACK, 0.03, CREASE_H), 0, SIDE + 0.015, CREASE_Z, "trim")
-    kit.box("crease_front", (0.03, 2 * SIDE + 0.06, CREASE_H), (FRONT + 0.015, 0, CREASE_Z), "trim")
+    kit.box("crease_front", (0.03 - PROUD, 2 * SIDE + 0.06, CREASE_H), (FRONT + (0.03 - PROUD) / 2, 0, CREASE_Z), "trim")
     kit.box("crease_back", (0.03, 2 * SIDE + 0.06, CREASE_H), (BACK - 0.015, 0, CREASE_Z), "trim")
 
 
