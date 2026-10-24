@@ -34,7 +34,7 @@ export const LORE = {
   'lore.part.heavyDiesel': 'A diesel from a mining rig. It shakes the whole truck at idle, and drivers say that is how you know it is awake.',
   'lore.part.turbine': 'Nobody in the basin can build one. It whistles like a held breath, and its owner is always a day from either the best fuel or none at all.',
   'lore.part.plates': 'Slabs cut from boilers and old bridge decking and bolted on flat. Any welder from Nose to Bowl can fit them with the engine still running.',
-  'lore.part.cage': 'Rebar bent around the cab the way farmers fenced seed. It wins no arguments, but it keeps the doors on.',
+  'lore.part.cage': 'Rebar bent into a frame around the cab. It stops little in a firefight, but the doors stay on their hinges.',
   'lore.part.ram': 'A steel beam on the front, the kind a bridge used to have. A driver who mounts one means the road to be theirs.',
   'lore.part.scrapPanels': 'Sheet metal from fenders, roofs and signs, riveted on in layers. It looks like what it is, and drivers mend it on the road with whatever is at hand.',
   'lore.part.ceramicPlates': 'Hard pale tile that came from the Old World by the ton. Only a garage with the right glue can set it, so a driver pays for the work as well as the tile.',
