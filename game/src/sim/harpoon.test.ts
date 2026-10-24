@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { partDef, type WeaponDef } from '../data/parts';
+import { PHYSICS } from '../data/physics';
 import { HARPOON } from '../data/utilities';
-import { bodyOf } from './body';
+import { bodyOf, spanOf } from './body';
 import { fightsAgainst, fireBlock, fireWeapons, gunOf, hitOdds } from './combat';
 import { vehicleStats } from './stats';
 import { makePart } from './factory';
@@ -93,7 +94,7 @@ describe('firing the harpoon', () => {
     const [anchor] = lineAnchors(w);
 
     expect(w.lines[0].length).toBeGreaterThan(10);
-    expect(w.lines[0].length).toBeLessThan(20);
+    expect(w.lines[0].length).toBeLessThan(5 * PHYSICS.metersPerTile + 2 * spanOf('hauler').half.z);
     expect(anchor.length).toBe(w.lines[0].length);
   });
 
