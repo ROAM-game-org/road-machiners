@@ -40,12 +40,12 @@ Wim Satterly keeps the <term=road_book>road book</term> in the other hut.
 + {not petra_riders} [Who goes after the wrongdoers?]
   Rook Halloran's <term=marshals>Marshalls</term> ride after them, two Lincolns at a time.
   Out on the road, they ask drivers where they last saw the one named in the book.
-  Sabra Kell rides out after Kiln claims on her own fee, since no Roadhouse car will.
   ~ petra_riders = true
   -> hub
 + {petra_riders and not petra_raiders} [Why no claims against raiders?]
   A raider has no town behind them, so there's nothing a claim can make them pay.
   The book marks a raider's wrong unanswered and leaves it open.
+  Sabra Kell rides out after the unanswered Kiln ones on her own fee, since no Roadhouse car will.
   ~ petra_raiders = true
   ~ note("roadhouseRaiders")
   -> hub
