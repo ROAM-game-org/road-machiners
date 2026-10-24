@@ -409,17 +409,23 @@ export function movedPlate(plate: CellRect, spot: PlateSpot): CellRect {
   return { unit: plate.unit, x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz };
 }
 
-export function plateLegs(body: THREE.Object3D, plate: CellRect, top: number, makeLeg: (role: 'leg' | 'brace') => THREE.Object3D): THREE.Object3D[] {
+export function plateLegs(body: THREE.Object3D, plate: CellRect, top: number, makeLeg: (role: 'leg' | 'brace') => THREE.Object3D, bottom: THREE.Vector3[] = []): THREE.Object3D[] {
   const feet = footings(body);
   const center = new THREE.Vector3((plate.x0 + plate.x1) / 2, top, (plate.z0 + plate.z1) / 2);
   const legs: THREE.Object3D[] = [];
-  for (const [x, z] of legSpots(plate)) {
+  for (const [x, z] of legSpots(plate).map(([sx, sz]) => underBottom(bottom, sx, sz))) {
     const corner = new THREE.Vector3(x, top, z);
     const foot = feet(x, z);
     if (foot && top - foot.y <= CLIP_TOLERANCE / 2) continue;
     legs.push(foot ? strut(makeLeg('leg'), foot, corner) : strut(makeLeg('brace'), braceFoot(body, corner, center), corner));
   }
   return legs;
+}
+
+function underBottom(bottom: THREE.Vector3[], x: number, z: number): [number, number] {
+  const reach = 2 * legPad();
+  const near = bottom.filter((p) => Math.hypot(p.x - x, p.z - z) <= reach).sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z))[0];
+  return near ? [near.x, near.z] : [x, z];
 }
 
 export function postStands(body: THREE.Object3D, at: THREE.Vector3, bottom: number): boolean {
