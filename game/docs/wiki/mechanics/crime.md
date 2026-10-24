@@ -25,6 +25,7 @@ open case
 - A killing is the wreck of a driver whose own memory says the killer wronged it. Player and NPC killers are judged alike.
 - Nothing is a crime when the culprit or the victim is a raider of Scrapjaw or Kiln or one of the Sunward. Lawmen answer for raiders.
 - Nothing is a crime when the culprit is the Marshall hunting the victim, or a player with Bounty hunter and the victim has an open case, or when the victim was the aggressor of a fight with a third truck.
+- A crash is a crime only through a retaliation, and only the truck at fault can be named in it. A truck that was parked, crawling or hit while driving past is never named.
 - Shots back at an attacker are no incident, so self-defense needs no rule. A theft of a claimed pile stays a matter of standing only.
 
 ## Witnesses
