@@ -27,6 +27,7 @@ import FORMAT_2_97 from './save-fixtures/format-2-97.json';
 import FORMAT_2_98 from './save-fixtures/format-2-98.json';
 import FORMAT_2_99 from './save-fixtures/format-2-99.json';
 import FORMAT_2_101 from './save-fixtures/format-2-101.json';
+import FORMAT_2_104 from './save-fixtures/format-2-104.json';
 import FORMAT_2_85 from './save-fixtures/format-2-85.json';
 import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import FORMAT_2_82 from './save-fixtures/format-2-82.json';
@@ -895,5 +896,11 @@ describe('TINY_STEPS[101]', () => {
     expect(next.crimes).toEqual([]);
     expect((next.player as SavedJson).standing).toEqual({ ...FORMAT_2_101.player.standing, marshals: 0 });
     expect({ ...next, crimes: undefined, player: { ...(next.player as SavedJson), standing: FORMAT_2_101.player.standing } }).toEqual({ ...FORMAT_2_101, crimes: undefined });
+  });
+});
+
+describe('TINY_STEPS[104]', () => {
+  it('leaves a world as it is, since only the gear NPCs spawn with changed', () => {
+    expect(TINY_STEPS[104](structuredClone(FORMAT_2_104))).toEqual(FORMAT_2_104);
   });
 });
