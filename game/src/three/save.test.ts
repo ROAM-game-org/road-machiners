@@ -29,9 +29,7 @@ import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
 import { TEST_MAP } from '../test/map';
-import { chassisDef } from '../data/chassis';
-import { dist } from '../sim/vec';
-import { gateOrder, hollowBays, hollowObstacles, isHollowObstacle, membersOf } from '../sim/sunward';
+import { hollowBays, hollowObstacles, membersOf } from '../sim/sunward';
 import { fillHollow } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
@@ -1234,29 +1232,6 @@ describe('relations in a save', () => {
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.events).toEqual([]);
-  });
-
-  it('moves a truck standing in the wall of the smaller Hollow to open ground at load, and gives back the same world after another save', () => {
-    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
-    fillHollow(w);
-    const wall = hollowObstacles().find((o) => o.kind === 'landmark' && o.look === 'fortScrapWall')!;
-    const stuck = membersOf(w)[0];
-    stuck.pos = { ...wall.pos };
-    w.events = [];
-    const slots = new SaveSlots(memoryBackend(), new Map());
-
-    writeSave(slots, 'auto', w, 'run-1', 1000);
-    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
-
-    const body = chassisDef(loaded.vehicles.find((v) => v.id === stuck.id)!.chassisId).radius;
-    const at = loaded.vehicles.find((v) => v.id === stuck.id)!.pos;
-    for (const o of loaded.obstacles.filter(isHollowObstacle)) expect(dist(o.pos, at)).toBeGreaterThanOrEqual(o.r + body);
-    expect(() => gateOrder(loaded, { dusk: 1, roster: membersOf(loaded).map((v) => v.id), beaten: [], calls: {}, hunt: null, shouted: [], offered: [] })).not.toThrow();
-
-    writeSave(slots, 'auto', loaded, 'run-1', 2000);
-    const again = loadWorld(slots, 'auto', TEST_MAP)!;
-    expect(again.vehicles.map((v) => v.pos)).toEqual(loaded.vehicles.map((v) => v.pos));
-    expect(again.events).toEqual([]);
   });
 
   it('keeps the Hollow out of the save and builds it again at load, also for a save that never held it', () => {

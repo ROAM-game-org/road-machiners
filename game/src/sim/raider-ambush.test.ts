@@ -16,7 +16,7 @@ import { contactsOf } from './detect';
 import { campGoodPrice, campPartPrice } from './economy';
 import { corePart, goodsCount, isLoot } from './grid';
 import { addGoods, spareParts } from './inventory';
-import { CLEARANCE, isDynamicBlocker, nearCliff, terrainNav } from './nav/layer';
+import { CLEARANCE, isTransientWreck, nearCliff, terrainNav } from './nav/layer';
 import { decide, fightOddsAgainst, huntingGrounds, judgeDanger, lawmanTowns, passReason, raiderGrounds, raiderPatrolPosts, usefulContacts } from './npc-decisions';
 import { finishGoal, ledPoint, resolveNpcActivities, topGoal } from './npc-activities';
 import { yieldTo } from './parley';
@@ -49,7 +49,7 @@ const RAIDER_RADIUS = Math.max(
 
 function mapWorld(): World {
   const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-  w.obstacles = w.obstacles.filter((o) => !isDynamicBlocker(o));
+  w.obstacles = w.obstacles.filter((o) => !isTransientWreck(o));
   return w;
 }
 

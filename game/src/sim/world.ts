@@ -76,7 +76,6 @@ import { startPose } from './start-pose';
 import { clamp, dist, type Vec } from './vec';
 import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
-import { swingHollowGate } from "./hollow-gate";
 import { advanceSunward, freshSunward, HOLLOW_ID, hollowObstaclesFor } from "./sunward";
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
@@ -171,7 +170,6 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     crimes: [],
   };
   world.obstacles = generateObstacles(world, map, [...hollowObstaclesFor(world), ...openingObstacles(kit, start)]);
-  swingHollowGate(world);
   const truck = makeVehicle(world, {
     faction: "player",
     chassisId: kit.chassis,
@@ -357,7 +355,6 @@ export function endTurn(
     planNpcOrders(w);
     planHaulerOrder(w);
     freezeDriving(w);
-    swingHollowGate(w);
     advanceUtilityEffects(w);
     assignUtilityOrders(w);
     activateUtilities(w);
