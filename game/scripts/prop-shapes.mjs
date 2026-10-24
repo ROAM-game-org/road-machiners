@@ -46,6 +46,7 @@ const PROP_MODELS = [
   'fort_ring_wall',
   'fort_scrap_gate',
   'fort_scrap_inner',
+  'fort_scrap_shut',
   'fort_scrap_tower',
   'fort_scrap_wall',
   'fort_ship_gate',
