@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { bedRows } from './chassis-features';
 import { CHASSIS } from '../data/chassis';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
@@ -166,8 +167,8 @@ describe('field refits', () => {
     removeAllGoods(w.vehicles[0]);
     const rack = w.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'panniers');
     if (!rack) throw new Error('Expected panniers');
-    w.vehicles[0].items.push({ id: 'cargo', kind: 'good', good: 'scrap', x: 0, y: CHASSIS.scout.layout.length, rot: 0 });
-    const result = planItemMove(w.vehicles[0], rack.id, { x: 2, y: CHASSIS.scout.layout.length, rot: 0 });
+    w.vehicles[0].items.push({ id: 'cargo', kind: 'good', good: 'scrap', x: 0, y: CHASSIS.scout.layout.length + bedRows('scout'), rot: 0 });
+    const result = planItemMove(w.vehicles[0], rack.id, { x: 2, y: CHASSIS.scout.layout.length + bedRows('scout'), rot: 0 });
     expect(result.error).toMatchObject({ id: 'badLayout' });
   });
 });
