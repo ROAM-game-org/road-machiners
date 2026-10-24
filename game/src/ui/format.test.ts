@@ -194,7 +194,7 @@ describe("contract text", () => {
 
     it("logs a met rescue with the driver and a lapsed one without a price", () => {
       const met = eventText(emptyWorld(), { t: "contract", contract: { ...rescue, fulfilled: true }, outcome: "fulfilled" })!;
-      expect([en(met.text), met.cls]).toEqual(["Rescue met: Jed Cobb is moving, claim 1 M at Bowl", "good"]);
+      expect([en(met.text), met.cls]).toEqual(["Rescue done: Jed Cobb is moving, claim 1 M at Bowl", "good"]);
       const lapsed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "lapsed" })!;
       expect([en(lapsed.text), lapsed.cls]).toEqual(["Rescue lapsed: Jed Cobb no longer needs you", "dim"]);
       const failed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "failed" })!;
@@ -346,13 +346,13 @@ describe("harpoon log", () => {
     s.w.lines = [{ id: "l1", from: s.me.id, fromPart: s.harpoon.id, to: s.trader.id, toPart: s.engine.id, length: 10, turnsLeft: 3 }];
     s.shot = { ...(s.shot as Extract<GameEvent, { t: "shot" }>), rounds: [{ hit: true, crit: false, offset: 0, struck: s.trader.id, hits: [{ part: s.engine.id, damage: 2 }], blast: [], burst: null }] };
 
-    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon → ${en(vehicleName(s.w, s.trader.id))}: line on Stock engine (40%): Stock engine −2`);
+    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon fires at ${en(vehicleName(s.w, s.trader.id))}: line on Stock engine (40%): Stock engine −2`);
   });
 
   it("reads a harpoon that holds nothing as a miss", () => {
     const s = harpooned([{ hit: false, crit: false, offset: 3, struck: null, hits: [], blast: [], burst: null }]);
 
-    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon → ${en(vehicleName(s.w, s.trader.id))}: missed (40%)`);
+    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon fires at ${en(vehicleName(s.w, s.trader.id))}: missed (40%)`);
   });
 
   it("tells the player its truck tore free of a line", () => {
@@ -538,7 +538,7 @@ describe("shot log", () => {
     const { w, raider, cab, shot } = duel();
     cab.hp = maxHp(cab);
     const line = eventText(w, shot([{ part: cab.id, damage: 2 }]))!;
-    expect(en(line.text)).toMatch(/^.+ → .+, 1\/2 hit \(40%\): .+ −2$/);
+    expect(en(line.text)).toMatch(/^.+ fires at .+, 1\/2 hit \(40%\): .+ −2$/);
     expect(en(line.text)).toContain(en(vehicleTitle(w, raider)));
   });
 
