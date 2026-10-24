@@ -108,7 +108,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   hauler: { height: [2.55, 2.71], roofStart: [0.02, 0.07], roof: [0.29, 0.34], deck: [0.58, 0.66] },
   tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.161, 0.179], deck: [0.443, 0.489] },
   jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
-  carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.65, 0.85], tailDrop: [0.35, 0.6] },
+  carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.55, 0.75], tailDrop: [0.25, 0.45] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
   bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1] },
 };
@@ -156,6 +156,26 @@ describe('the carrier armored car', () => {
   it('keeps the V-100 Commando: 5.85 m long, 1.028 times the real car, and widened like the scout to 0.496 of its length', () => {
     expect(Math.abs(along - 5.85)).toBeLessThanOrEqual(0.05);
     expect(near(across / along, 0.496)).toBeLessThanOrEqual(0.05);
+  });
+
+  it('keeps the V-100 front section: a roof 0.55 to 0.68 of the width over a chine 1.33 to 1.47 m up, the widest line', () => {
+    const { heights } = SHAPES.base_carrier;
+    const body = PHYSICS.bodies.carrier;
+    const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
+    const station = -0.7;
+    const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => {
+      const x = (heights.i0 + i + 0.5) * heights.cell;
+      return cm === null || Math.abs(x - station) > 0.1 ? [] : [{ y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }];
+    }));
+    const roofTop = Math.max(...columns.map((c) => c.top));
+    const roofYs = columns.filter((c) => roofTop - c.top <= 0.05).map((c) => c.y);
+    const roofWidth = Math.max(...roofYs) - Math.min(...roofYs);
+    const outer = Math.max(...columns.map((c) => Math.abs(c.y)));
+    const chine = Math.max(...columns.filter((c) => Math.abs(c.y) === outer).map((c) => c.top));
+    expect(roofWidth / across).toBeGreaterThanOrEqual(0.55);
+    expect(roofWidth / across).toBeLessThanOrEqual(0.68);
+    expect(chine - ground).toBeGreaterThanOrEqual(1.33);
+    expect(chine - ground).toBeLessThanOrEqual(1.47);
   });
 
   it('bunches its wheels near the middle like the V-100: a wheelbase of 0.469 of the length and an overhang of 0.265 at each end', () => {
