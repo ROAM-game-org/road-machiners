@@ -51,7 +51,7 @@ const tag = (name: string, minor: number): ShippedTag => ({ name, major: 2, mino
 
 describe('anchorProblems', () => {
   const tags = [tag('release-a', 1), tag('hotfix-a', 4), tag('release-b', 6), tag('release-c', 9)];
-  const releases = [{ from: 1, to: 4, step }, { from: 4, to: 6, step }, { from: 6, to: 9, step }];
+  const releases = [{ from: 1, to: 4, step, names: null }, { from: 4, to: 6, step, names: null }, { from: 6, to: 9, step, names: null }];
 
   it('passes release steps from every shipped format into the tiny steps', () => {
     expect(anchorProblems(tags, releases, 9, 12, 2, 10)).toEqual([]);
@@ -65,7 +65,7 @@ describe('anchorProblems', () => {
   });
 
   it('names a shipped format that nothing loads and a release step from a format that never shipped', () => {
-    expect(anchorProblems(tags, [{ from: 2, to: 6, step }, { from: 6, to: 9, step }], 9, 12, 2, 10)).toEqual([
+    expect(anchorProblems(tags, [{ from: 2, to: 6, step, names: null }, { from: 6, to: 9, step, names: null }], 9, 12, 2, 10)).toEqual([
       'release-a shipped 2.1, which no release step or tiny step loads',
       'hotfix-a shipped 2.4, which no release step or tiny step loads',
       'Release step 2 to 6 starts at a format no build shipped',
