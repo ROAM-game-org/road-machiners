@@ -258,6 +258,7 @@ export const SCREENS = {
   'units.kg': m('{n} kg', { n: 'int' }),
   'ui.key': m('[{key}]', { key: 'name' }),
   'map.unknownSite': '???',
+  'map.north': 'N',
   'map.rumor': 'Wreck (rumor)',
   'map.radio': 'Radio',
   'hint.waypoint': 'Click the ground to set a waypoint.',

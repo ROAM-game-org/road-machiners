@@ -7,7 +7,7 @@ import { mapObstacles } from './mapgen';
 import { navLayer } from './nav/layer';
 import { MAX_RADIUS, nearestRoadPoint, oldPlaces, reachable } from './salvage';
 import { siteGap } from './sites';
-import { makeSurveySites, surveyArea, surveyClue, surveySites } from './survey';
+import { makeSurveySites, surveyArea, surveyClue, surveySites, type SurveyContract } from './survey';
 import { siteOf } from './market';
 import { dist, type Vec } from './vec';
 
@@ -98,7 +98,7 @@ describe('survey sites', () => {
 });
 
 describe('survey clue areas', () => {
-  const contractFor = (landmark: string, site: string) => ({ id: 'ct', shop: landmark, kind: 'survey' as const, points: [{ site, found: false, done: false }], reward: 0, deadline: 0, window: 0, tier: 1 });
+  const contractFor = (landmark: string, site: string): SurveyContract => ({ id: 'ct', shop: landmark, kind: 'survey', points: [{ site, found: false, done: false }], reward: 0, deadline: 0, window: 0, tier: 1 });
 
   it('hold the site of every fair clue, around the stated point and not the site', () => {
     for (const s of sites)

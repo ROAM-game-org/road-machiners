@@ -270,6 +270,7 @@ export const SCREENS: Translation<typeof EN> = {
   'units.kg': '{n} кг',
   'ui.key': '[{key}]',
   'map.unknownSite': '???',
+  'map.north': 'С',
   'map.rumor': 'Обломки (слух)',
   'map.radio': 'Рация',
   'hint.waypoint': 'Кликните по земле, чтобы поставить точку пути.',
