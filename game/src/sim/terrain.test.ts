@@ -94,7 +94,7 @@ describe('terrain variety', () => {
 });
 
 describe("terrain grid", () => {
-  it('has twelve distinct Icarus destinations with road access', () => {
+  it('has thirteen distinct Icarus destinations with road access', () => {
     const w = worldOnMap();
     expect(w.size).toBe(780);
     expect(w.terrain.heights).toHaveLength(781 * 781);
@@ -102,10 +102,10 @@ describe("terrain grid", () => {
     expect(REGION.towns.map((town) => resolve(siteName(town.id), 'en'))).toEqual(['Bowl', 'Nose']);
     expect(REGION.locations.map((site) => resolve(siteName(site.id), 'en'))).toEqual([
       'Old Orchard', 'Dustwell', 'The Granary', 'Glass Flats', 'Green Pit',
-      'Pump Station', 'Fallen Sun', 'Salvage Yard', 'Scrapjaw Camp', 'Kiln Camp',
+      'Pump Station', 'Fallen Sun', 'Salvage Yard', 'Scrapjaw Camp', 'Kiln Camp', 'Roadhouse',
     ]);
     const sites = [...REGION.towns, ...REGION.locations];
-    expect(new Set(sites.map((site) => site.id)).size).toBe(12);
+    expect(new Set(sites.map((site) => site.id)).size).toBe(13);
     for (const site of sites) {
       expect(site.pos.x).toBeGreaterThan(site.radius);
       expect(site.pos.y).toBeGreaterThan(site.radius);
