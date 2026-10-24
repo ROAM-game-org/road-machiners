@@ -3,6 +3,7 @@ import type { World } from '../sim/types';
 import { t, type Msg } from '../text/msg';
 import { el, markDisabled } from './dom';
 import { MapView, observeBox, poseOf } from './map-view';
+import { wheelZoomFactor } from './map-geometry';
 
 type Drag = { pointer: number; x: number; y: number };
 
@@ -49,7 +50,7 @@ export class MapTab {
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       if (e.deltaY === 0) return;
-      this.zoom(e.deltaY < 0 ? WORLD_MAP.wheelStep : 1 / WORLD_MAP.wheelStep, e.clientX, e.clientY);
+      this.zoom(wheelZoomFactor(e.deltaY, e.deltaMode), e.clientX, e.clientY);
     }, { passive: false });
     canvas.addEventListener('pointerdown', (e) => {
       const at = this.view.localPoint(e.clientX, e.clientY);
