@@ -10,7 +10,7 @@ of the wing middle, the front wing crown about 0.4 of the way from the tire top 
 the tire at about 0.7 of the tire height, and the windshield raked about 12 degrees.
 A flat narrow slab, 0.76 of the span, carries separate round wings that stand proud of it and form the widest part.
 The front wings swell forward ahead of the tires and fall behind them to a dark step plate under the front door,
-with round domed lamps set into their crowns. Rows 0 and 1 are the hood, a trapezoid narrowing from the slab at the
+with round domed lamps under slit covers set into their crowns. Rows 0 and 1 are the hood, a trapezoid narrowing from the slab at the
 cowl to the nose, with the spare lying in it and a steep apron with four vertical ribs under its front edge.
 Rows 2 and 3 are the cab behind an upright framed windshield, under a soft top in trim with a flat crown, rounded edges,
 side curtain windows and a rear window. The four flat doors carry four pressed ribs, hinges on their front edges and a
@@ -54,10 +54,10 @@ WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
 SLAB = 0.73  # the flat body sides, 0.76 of the wing span, so the wings stand proud of them
 WING_OUT = G.half_y  # the wings' outer face on the footprint edge, the widest part of the jeep
 WING_IN = 0.5  # the wings' inner wall, hidden in the body or flanking the narrow nose
-WING_R = ARCH_R + 0.11  # the front wings' crown radius round the hub
+WING_R = ARCH_R + 0.14  # the front wings' crown radius round the hub
 REAR_WING_R = ARCH_R + 0.07  # the rear wings sit lower and thinner
 WING_BULGE = 0.12  # the front wing swells forward ahead of the tire, as in the side photo
-WING_SHOULDER = 0.09  # the wings' outer shoulder rolls down over this radius
+WING_SHOULDER = 0.12  # the wings' outer shoulder rolls down over this radius
 WING_LIP_T = 0.02  # the rolled shoulder leaves this much wing at the outer face
 WING_LIP = 0.25  # the front wing's lip ends this many radians ahead of the hub, at about 0.7 of the tire height
 REAR_WING_FRONT = 0.35  # the rear wing starts this many radians ahead of the rear hub, above the sill
@@ -73,7 +73,7 @@ FLOOR = 0.0  # engine bay floor
 BAY_T = 0.04  # the dark bay floor plate
 NOSE_TOP = -0.12  # the hood's front edge
 NOSE_LIP = -0.18  # the nose face's top edge, under the rounded hood edge
-NOSE_LOW = -0.44  # the nose apron's bottom edge, over the angled under-nose
+NOSE_LOW = -0.52  # the nose apron's bottom edge, over the angled under-nose
 NOSE_SET = 0.06  # the steep apron leans back this far from its top edge to its bottom edge
 UNDER_NOSE = FRONT - 0.24  # the under-nose meets the body bottom here
 TAIL_Z = -0.25  # the lid slope ends at the rear face's top edge
@@ -106,8 +106,8 @@ LAMP_ANGLE = 1.1  # the lamps stand on the wing crown this many radians ahead of
 LAMP_R = 0.115  # 0.12 of the span across, in the front photo
 LAMP_Y = 0.75  # inboard of the wing's middle, in the front photo
 LAMP_SINK = 0.04  # the lamp bodies sink this far into the wing crown
-SPARE_X = 1.55
-SPARE_R = 0.36
+SPARE_X = 1.5  # the spare lies across nearly the whole hood, as in the front photo
+SPARE_R = WHEEL_R - 0.01
 
 
 def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
@@ -257,20 +257,19 @@ def apron(kit: Kit) -> None:
 
 
 def hood(kit: Kit) -> None:
-    """The spare wheel lying in the hood, and round domed lamps set into the front wing crowns, their lenses facing forward."""
+    """The spare wheel lying in the hood, and round domed lamps set into the front wing crowns under their covers, each with a lit slit facing forward."""
     rot = (0, HOOD_SLOPE, 0)
-    for name, r, depth, mat in (("spare", SPARE_R, 0.16, "wheel"), ("spare_rim", 0.2, 0.18, "metal"), ("spare_hub", 0.07, 0.2, "rust")):
+    for name, r, depth, mat in (("spare", SPARE_R, 0.2, "wheel"), ("spare_rim", 0.26, 0.22, "metal"), ("spare_hub", 0.08, 0.24, "rust")):
         lift = (depth / 2 - 0.08) / math.cos(HOOD_SLOPE)
         kit.cylinder(name, r, depth, (SPARE_X, 0, hood_z(SPARE_X) + lift), mat, rot=rot, vertices=round_sides(r))
     lamp_x = WHEELS_X[1] + WING_R * math.cos(LAMP_ANGLE)
     lamp_z = HUB_Z + WING_R * math.sin(LAMP_ANGLE) + LAMP_R - LAMP_SINK
     sides = round_sides(LAMP_R)
-    dome = [(-0.12, 0.05), (-0.09, 0.085), (-0.05, 0.108), (0.0, LAMP_R), (0.06, LAMP_R)]
+    dome = [(-0.12, 0.05), (-0.09, 0.085), (-0.05, 0.108), (0.0, LAMP_R), (0.05, LAMP_R - 0.005), (0.09, 0.095), (0.12, 0.065), (0.135, 0.03)]
     for s, sy in (("l", 1), ("r", -1)):
         rings = [[(lamp_x + dx, sy * LAMP_Y + r * math.cos(math.tau * k / sides), lamp_z + r * math.sin(math.tau * k / sides)) for k in range(sides)] for dx, r in dome]
-        loft(kit, f"lamp_pod_{s}", rings, "paint")
-        kit.cylinder(f"lamp_rim_{s}", LAMP_R - 0.005, 0.03, (lamp_x + 0.07, sy * LAMP_Y, lamp_z), "metal", rot=(0, math.pi / 2, 0), vertices=sides)
-        kit.cylinder(f"lamp_{s}", LAMP_R - 0.03, 0.03, (lamp_x + 0.08, sy * LAMP_Y, lamp_z), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(LAMP_R - 0.03))
+        loft(kit, f"lamp_cover_{s}", rings, "paint")
+        kit.box(f"lamp_slit_{s}", (0.03, 0.11, 0.025), (lamp_x + 0.11, sy * LAMP_Y, lamp_z - 0.01), "light")
 
 
 def windshield(kit: Kit) -> None:

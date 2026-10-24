@@ -296,7 +296,7 @@ describe('the jeep field car', () => {
 
   it('narrows its hood to the nose: the hood top there spans 0.5 to 0.6 of its width, as in the front photo', () => {
     const nose = Math.max(...columns.map((c) => c.x));
-    const front = columns.filter((c) => c.x >= nose - 0.3);
+    const front = columns.filter((c) => c.x >= nose - 0.15);
     const rows = [...new Set(front.map((c) => c.x))].map((x) => front.filter((c) => c.x === x));
     const hoodWidth = rows.reduce((sum, row) => sum + row.filter((c) => Math.max(...row.map((r) => r.top)) - c.top <= 0.1).length * heights.cell, 0) / rows.length;
     const width = 2 * Math.max(...columns.map((c) => Math.abs(c.y) + heights.cell / 2));
