@@ -9,6 +9,7 @@ import type { Contract, ContractEnd, PastContract } from '../sim/market';
 import { surveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { postedSummary, surveyClueText } from './format';
 import { createIcon } from './cards';
+import { surveyPictureEl } from './survey-picture';
 import { contractIcon, heldContractRow } from './contract-row';
 import { el, panel } from './dom';
 import type { UiHost } from './host';
@@ -96,10 +97,15 @@ function surveyPlace(c: SurveyContract, point: SurveyPoint): HTMLElement {
   const clue = surveyClue(c, point);
   return el(
     'div',
-    { class: 'journal-place' },
-    el('div', { class: 'journal-head' }, el('span', {}, t(`contract.look.${clue.type}`)), placeTag(point)),
-    el('div', {}, surveyClueText(clue)),
-    el('div', { class: 'dim' }, t(`contract.want.${clue.type}`)),
+    { class: 'journal-place survey' },
+    surveyPictureEl(point.site),
+    el(
+      'div',
+      { class: 'journal-place-text' },
+      el('div', { class: 'journal-head' }, el('span', {}, t(`contract.look.${clue.type}`)), placeTag(point)),
+      el('div', {}, surveyClueText(clue)),
+      el('div', { class: 'dim' }, t(`contract.want.${clue.type}`)),
+    ),
   );
 }
 
