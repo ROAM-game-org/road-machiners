@@ -287,7 +287,7 @@ def face_strips(holes: list[tuple[float, float, float, float]], y0: float, y1: f
 def face_holes() -> tuple[list[tuple[float, float, float, float]], list[tuple[float, float, float, float]]]:
     """The face openings, positive Y and mirrored: the top slot, four short band slots a side and the radiator halves beside the post."""
     slots = [(0.06 + 0.17 * i, 0.2 + 0.17 * i) for i in range(4)]
-    plain = [(-0.66, 0.66, *TOP_SLOT)] + [(sign * a, sign * b) + BAND_SLOTS for a, b in slots for sign in (1, -1)]
+    plain = [(sign * a, sign * b) + BAND_SLOTS for a, b in slots for sign in (1, -1)]
     radiator = [(0.04, 0.66, *RADIATOR), (-0.66, -0.04, *RADIATOR)]
     return [(min(a, b), max(a, b), z0, z1) for a, b, z0, z1 in plain], radiator
 
