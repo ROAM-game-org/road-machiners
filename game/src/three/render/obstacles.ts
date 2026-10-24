@@ -146,7 +146,7 @@ export class ObstacleViews {
   }
 
   private slideHollowGate(world: World, dt: number): void {
-    if (!world.sunward) return;
+    if (!world.sunward || world.size !== this.terrain.size) return;
     this.hollowGate ??= new HollowGateView(this.scope, this.terrain, world);
     this.hollowGate.frame(world, dt);
   }

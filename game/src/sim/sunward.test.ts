@@ -23,6 +23,7 @@ import { refreshVision } from './vision';
 import { discoverSites } from './locations';
 import { isFree, spawnAt, spawnNpcs } from './spawn';
 import { fortressProps, insideCurtain } from './fortress';
+import { isHollowGate } from './hollow-gate';
 import { sunwardDusk, sunwardHunt, sunwardLedger } from './cheats';
 import { generateNpcLoadout } from './npc-loadout';
 import { callVehicle, currentLine, currentOptions } from './dialogue';
@@ -84,7 +85,7 @@ describe('the Sunward clock', () => {
 describe('the Hollow', () => {
   it('stands in a new Roaming world as derived props, off every road', () => {
     const w = standardWorld(5);
-    const props = w.obstacles.filter(isHollowObstacle);
+    const props = w.obstacles.filter((o) => isHollowObstacle(o) && !isHollowGate(o));
     expect(props).toEqual(hollowObstacles());
     for (const road of REGION.roads) for (const p of road) expect(dist(p, HOLLOW.pos)).toBeGreaterThan(30);
   });
