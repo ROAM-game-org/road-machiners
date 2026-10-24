@@ -2,6 +2,7 @@ import { isShield, partDef } from '../data/parts';
 import { isMet, siteOf, type Contract } from '../sim/market';
 import { surveyClue, surveyPlaceType, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { claimClue, rivalRunning } from '../sim/claims';
+import type { GridSquare } from '../sim/map-grid';
 import type { ClaimLook } from '../data/market';
 import { createIcon } from './cards';
 import { el } from './dom';
@@ -27,7 +28,7 @@ import { hasBasic, hasPerk } from '../sim/progress';
 import { owedBy } from '../sim/crime';
 import { canLookOver, knowsCargo } from '../sim/look-over';
 import { aidData, lootWarningData, pleaData, statesHeld, strayData, towData } from '../sim/states';
-import { REGION } from '../data/region';
+import { MAP_GRID, REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { isJunk, maxHp } from '../sim/wear';
 import { clockOf } from '../sim/sun';
@@ -713,14 +714,31 @@ export function surveyProgress(c: SurveyContract): Msg {
   return t('contract.surveyed', { done: c.points.filter((p) => p.done).length, n: c.points.length });
 }
 
+const GRID_COLUMNS = ['map.column.a', 'map.column.b', 'map.column.c', 'map.column.d', 'map.column.e', 'map.column.f', 'map.column.g', 'map.column.h'] as const;
+
+export function gridColumnLetter(column: number): Msg {
+  const key = GRID_COLUMNS[column];
+  if (key === undefined) throw new Error(`Map grid column ${column} has no letter`);
+  return t(key);
+}
+
+export function gridRowNumber(row: number): Msg {
+  if (!Number.isInteger(row) || row < 0 || row >= MAP_GRID.squares) throw new Error(`Map grid row ${row} has no number`);
+  return num(row + 1, 'int');
+}
+
+export function gridSquareText(square: GridSquare): Msg {
+  return t('map.square', { column: gridColumnLetter(square.column), row: gridRowNumber(square.row) });
+}
+
 export function surveyClueText(clue: SurveyClue): Msg {
-  return t('contract.surveyClue', { dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
+  return t('contract.surveyClue', { square: gridSquareText(clue.square), dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
 }
 
 function surveyPlaceText(c: SurveyContract, point: SurveyPoint): Msg {
   if (point.done) throw new Error(`Survey place ${point.site} is already done`);
   const clue = surveyClue(c, point);
-  return t('contract.placeClue', { place: t(`contract.placeName.${clue.type}`), dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
+  return t('contract.placeClue', { place: t(`contract.placeName.${clue.type}`), square: gridSquareText(clue.square), dir: compassText(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
 }
 
 export function surveyPlaceLine(c: SurveyContract, point: SurveyPoint): HTMLElement {
@@ -743,7 +761,7 @@ export function surveyPlacesLeft(c: SurveyContract): Msg {
 
 function claimSummary(c: Extract<Contract, { kind: 'claim' }>): Msg {
   const clue = claimClue(c);
-  const words = { part: partNameOf(c.defId), wreck: claimLookText(clue.look), bearing: compassText(clue.angle), shop: siteName(c.shop), distance: distanceText(clue.distance) };
+  const words = { part: partNameOf(c.defId), wreck: claimLookText(clue.look), square: gridSquareText(clue.square), bearing: compassText(clue.angle), shop: siteName(c.shop), distance: distanceText(clue.distance) };
   return clue.territory ? t('contract.salvageIn', { ...words, place: siteName(clue.territory) }) : t('contract.salvage', words);
 }
 
