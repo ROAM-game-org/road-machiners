@@ -34,9 +34,12 @@ export const SUNWARD = {
   postClearance: 1.6,
   postSpacing: 3.5,
   watchers: 2,
+  gate: { reach: 6, nearby: 40, halfSpan: 1.83 },
   memberRadius: 0.8,
   bayGap: 0.2,
 };
+
+export const HOLLOW_GATE_ID = 'hollow-gate';
 
 export type HollowPiece = { look: 'shack' | 'hullChunk' | 'drums' | 'woodpile'; at: { x: number; y: number }; r: number; yaw: number };
 export type HollowBay = { x: number; y: number; heading: number };

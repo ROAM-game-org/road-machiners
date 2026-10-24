@@ -5,7 +5,7 @@ import { TEST_MAP } from './map';
 import { reusedWorld } from './world-cache';
 import { goodsCount, isLoot } from '../sim/grid';
 import { addGoods } from '../sim/inventory';
-import { isTransientWreck } from '../sim/nav/layer';
+import { isDynamicBlocker } from '../sim/nav/layer';
 import { huntingGrounds } from '../sim/npc-decisions';
 import { sitePads } from '../sim/sites';
 import { defaultSetup } from '../sim/settings';
@@ -55,7 +55,7 @@ type Scene = { w: World; raider: Vehicle; prey: Vehicle; ground: Vec; end: Vec; 
 
 function scene(seed: number, kind: Prey, night: boolean): Scene {
   const w = reusedWorld(`seed ${seed}`, () => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false));
-  w.obstacles = w.obstacles.filter((o) => !isTransientWreck(o));
+  w.obstacles = w.obstacles.filter((o) => !isDynamicBlocker(o));
   if (night) w.turn = nightTurn();
   const { ground, post, dir } = roadGround(w);
   const me = playerVehicle(w);

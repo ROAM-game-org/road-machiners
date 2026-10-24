@@ -1,4 +1,4 @@
-import { HOLLOW, SUNWARD, type HollowPiece } from '../data/sunward';
+import { HOLLOW, HOLLOW_GATE_ID, SUNWARD, type HollowPiece } from '../data/sunward';
 import { propObstacle } from './mapgen';
 import { REGION, type TerritoryDef } from '../data/region';
 import { RULES } from '../data/rules';
@@ -121,7 +121,7 @@ export function hollowObstaclesFor(world: Pick<World, 'sunward'>): Obstacle[] {
 }
 
 export function isHollowObstacle(o: Obstacle): boolean {
-  return /^hollow-\d+$/.test(o.id);
+  return o.id === HOLLOW_GATE_ID || /^hollow-\d+$/.test(o.id);
 }
 
 export function hollowLayout(): { bays: Vec[]; pieces: Obstacle[] } {

@@ -12,6 +12,7 @@ import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSet
 import { QUESTS, restoreQuest } from '../sim/quests';
 import { newerQuests, questRevisions, repairQuests, type QuestRepair, type SavedRevisions } from '../sim/quest-repair';
 import { refreshVision } from '../sim/vision';
+import { swingHollowGate } from '../sim/hollow-gate';
 import { hollowObstaclesFor, isHollowObstacle } from '../sim/sunward';
 import { isMode, modeMap, repairSetup } from '../sim/settings';
 import { clearTips } from '../ui/tips';
@@ -148,6 +149,7 @@ function loadedWorld(envelope: unknown, icarus: BakedMap): World {
   const loaded = rebaked ? repairMap(staged, map) : onSameMap(staged, map);
   if (!rebaked) fitBake(loaded, map);
   repairContent(loaded);
+  swingHollowGate(loaded);
   settleOffHollow(loaded);
   if (rebaked) settleTrucks(loaded);
   restoredQuests(loaded, world, revisions, repaired);

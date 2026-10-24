@@ -1,5 +1,6 @@
 
 import { REGION } from '../../data/region';
+import { HOLLOW_GATE_ID } from '../../data/sunward';
 import { BREAKABLE } from '../../data/rules';
 import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
 import { atlasOf, atlasSites } from '../atlas';
@@ -53,8 +54,8 @@ export type NavLayer = TerrainNav & {
 
 export type StaticSet = { key: string; solidKey: string; solid: Blocker[]; costly: Blocker[]; buckets: ObstacleBuckets; solidBuckets: ObstacleBuckets };
 
-export function isTransientWreck(o: Obstacle): boolean {
-  return o.kind === 'wreck' && o.id.startsWith('wreck');
+export function isDynamicBlocker(o: Obstacle): boolean {
+  return (o.kind === 'wreck' && o.id.startsWith('wreck')) || o.id === HOLLOW_GATE_ID;
 }
 
 type SolidGrid = { blocked: Uint8Array; coarse: CoarseGrid };
@@ -168,7 +169,7 @@ export function staticSet(obstacles: Obstacle[], terrain: Terrain): StaticSet {
 }
 
 function buildStaticSet(obstacles: Obstacle[], terrain: Terrain): StaticSet {
-  const statics = obstacles.filter((o) => isDriveObstacle(o) && !isTransientWreck(o));
+  const statics = obstacles.filter((o) => isDriveObstacle(o) && !isDynamicBlocker(o));
   const all = [...statics.map((o) => driveBlocker(o, terrain)), ...atlasOf(terrain).hazards.map((z) => ({ pos: z.pos, r: z.radius }))];
   const breakable = statics.map(isBreakable);
   const solid = all.filter((_, i) => !breakable[i]);
@@ -182,8 +183,8 @@ function buildStaticSet(obstacles: Obstacle[], terrain: Terrain): StaticSet {
   };
 }
 
-export function dynamicBlockers(obstacles: Obstacle[], terrain: Terrain, extra: Blocker[]): Blocker[] {
-  return [...obstacles.filter((o) => isDriveObstacle(o) && isTransientWreck(o)).map((o) => driveBlocker(o, terrain)), ...extra];
+export function dynamicBlockers(obstacles: Obstacle[], terrain: Terrain, extra: Blocker[], passesGate: boolean = false): Blocker[] {
+  return [...obstacles.filter((o) => isDriveObstacle(o) && isDynamicBlocker(o) && !(passesGate && o.id === HOLLOW_GATE_ID)).map((o) => driveBlocker(o, terrain)), ...extra];
 }
 
 function driveBlocker(o: Obstacle, terrain: Terrain): Blocker {
