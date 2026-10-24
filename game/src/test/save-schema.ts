@@ -1,41 +1,52 @@
 import { fileURLToPath } from 'node:url';
-import { getLibFiles, libFolderInMemoryPath, ts } from '@ts-morph/common';
+import { API, NodeBuilderFlags, ObjectFlags, SignatureKind, SymbolFlags, TypeFlags } from 'typescript/unstable/sync';
+import type { Checker, Project, ObjectType, StringLiteralType, Symbol as TsSymbol, Type, TypeReference, UnionType } from 'typescript/unstable/sync';
 import type { Schema, SchemaNode } from '../three/save-fit';
 
 type Ctx = {
-  checker: ts.TypeChecker;
-  program: ts.Program;
+  checker: Checker;
+  root: string;
   defs: Record<string, SchemaNode>;
-  names: Map<ts.Type, string>;
-  owners: Map<string, ts.Type>;
-  building: Set<ts.Type>;
-  tags: Map<ts.Type, Set<string>>;
+  names: Map<number, string>;
+  owners: Map<string, number>;
+  building: Set<number>;
+  tags: Map<number, Set<string>>;
 };
 
-const FLAGS = ts.TypeFlags;
-const NAMED_SYMBOLS = ts.SymbolFlags.Interface | ts.SymbolFlags.Class;
+const FLAGS = TypeFlags;
+const NAMED_SYMBOLS = SymbolFlags.Interface | SymbolFlags.Class;
 
-function has(type: ts.Type, flags: ts.TypeFlags): boolean {
+function typeOf(symbol: TsSymbol, ctx: Ctx): Type {
+  const type = ctx.checker.getTypeOfSymbol(symbol);
+  if (!type) throw new Error(`${symbol.name}: the symbol has no type`);
+  return type;
+}
+
+function unionMembers(type: Type): readonly Type[] {
+  return (type as UnionType).getTypes();
+}
+
+function has(type: Type, flags: TypeFlags): boolean {
   return (type.flags & flags) !== 0;
 }
 
-function unsupported(type: ts.Type, path: string, ctx: Ctx): never {
+function unsupported(type: Type, path: string, ctx: Ctx): never {
   throw new Error(`${path}: the schema cannot hold the type ${ctx.checker.typeToString(type)} (type flags ${type.flags})`);
 }
 
-function isProjectSymbol(symbol: ts.Symbol, ctx: Ctx): boolean {
-  const files = (symbol.declarations ?? []).map((declaration) => declaration.getSourceFile());
-  return files.length > 0 && files.every((file) => !ctx.program.isSourceFileDefaultLibrary(file) && !ctx.program.isSourceFileFromExternalLibrary(file));
+function isProjectSymbol(symbol: TsSymbol, ctx: Ctx): boolean {
+  const paths = symbol.declarations.map((declaration) => String(declaration.path));
+  return paths.length > 0 && paths.every((path) => path.startsWith(ctx.root) && !path.includes('/node_modules/'));
 }
 
-function defName(type: ts.Type, ctx: Ctx): string | null {
-  const alias = type.aliasSymbol;
+function defName(type: Type, ctx: Ctx): string | null {
+  const alias = type.getAliasSymbol();
   const symbol = type.getSymbol();
   const named = alias ?? (symbol && has(type, FLAGS.Object) && (symbol.flags & NAMED_SYMBOLS) !== 0 ? symbol : undefined);
   if (!named || !isProjectSymbol(named, ctx)) return null;
-  const args = type.aliasTypeArguments ?? [];
+  const args = type.getAliasTypeArguments();
   if (!alias || args.length === 0) return named.name;
-  return `${named.name}<${args.map((arg) => ctx.checker.typeToString(arg, undefined, ts.TypeFormatFlags.NoTruncation)).join(',')}>`;
+  return `${named.name}<${args.map((arg) => ctx.checker.typeToString(arg, undefined, NodeBuilderFlags.NoTruncation)).join(',')}>`;
 }
 
 function stringify(node: SchemaNode): string {
@@ -47,53 +58,53 @@ function distinct(nodes: SchemaNode[]): SchemaNode[] {
   return [...byText.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([, node]) => node);
 }
 
-function propertyNames(type: ts.Type, ctx: Ctx): string[] {
+function propertyNames(type: Type, ctx: Ctx): string[] {
   return ctx.checker.getPropertiesOfType(type).map((symbol) => symbol.name);
 }
 
-function literalsOf(type: ts.Type, name: string, ctx: Ctx): string[] | null {
+function literalsOf(type: Type, name: string, ctx: Ctx): string[] | null {
   const symbol = ctx.checker.getPropertyOfType(type, name);
-  if (!symbol || (symbol.flags & ts.SymbolFlags.Optional) !== 0) return null;
-  const propType = ctx.checker.getTypeOfSymbol(symbol);
-  const parts = has(propType, FLAGS.Union) ? (propType as ts.UnionType).types : [propType];
+  if (!symbol || (symbol.flags & SymbolFlags.Optional) !== 0) return null;
+  const propType = typeOf(symbol, ctx);
+  const parts = has(propType, FLAGS.Union) ? unionMembers(propType) : [propType];
   if (!parts.every((part) => has(part, FLAGS.StringLiteral))) return null;
-  return parts.map((part) => (part as ts.StringLiteralType).value);
+  return parts.map((part) => (part as StringLiteralType).value);
 }
 
-function isTag(members: ts.Type[], name: string, ctx: Ctx): boolean {
+function isTag(members: Type[], name: string, ctx: Ctx): boolean {
   const sets = members.map((member) => literalsOf(member, name, ctx));
   if (sets.some((set) => set === null)) return false;
   const all = sets.flatMap((set) => set ?? []);
   return new Set(all).size === all.length;
 }
 
-function tagOf(members: ts.Type[], ctx: Ctx): string | null {
+function tagOf(members: Type[], ctx: Ctx): string | null {
   const candidates = propertyNames(members[0], ctx).sort();
   return candidates.find((name) => isTag(members, name, ctx)) ?? null;
 }
 
-function tagNode(members: ts.Type[]): SchemaNode {
-  const literals = distinct(members.map((member) => ({ lit: (member as ts.StringLiteralType).value })));
+function tagNode(members: Type[]): SchemaNode {
+  const literals = distinct(members.map((member) => ({ lit: (member as StringLiteralType).value })));
   return literals.length === 1 ? literals[0] : { union: literals };
 }
 
-function isObjectLike(type: ts.Type): boolean {
+function isObjectLike(type: Type): boolean {
   return has(type, FLAGS.Object | FLAGS.Intersection);
 }
 
-function registerTag(members: ts.Type[], ctx: Ctx): string | null {
+function registerTag(members: Type[], ctx: Ctx): string | null {
   if (members.length < 2 || !members.every(isObjectLike)) return null;
   const tag = tagOf(members, ctx);
   if (tag === null) return null;
   for (const member of members) {
-    const tags = ctx.tags.get(member) ?? new Set<string>();
-    if (ctx.names.has(member) && !tags.has(tag)) throw new Error(`The tagged union member ${ctx.checker.typeToString(member)} was read before its tag ${tag} was known`);
-    ctx.tags.set(member, tags.add(tag));
+    const tags = ctx.tags.get(member.id) ?? new Set<string>();
+    if (ctx.names.has(member.id) && !tags.has(tag)) throw new Error(`The tagged union member ${ctx.checker.typeToString(member)} was read before its tag ${tag} was known`);
+    ctx.tags.set(member.id, tags.add(tag));
   }
   return tag;
 }
 
-function convertMembers(members: ts.Type[], path: string, ctx: Ctx): SchemaNode {
+function convertMembers(members: readonly Type[], path: string, ctx: Ctx): SchemaNode {
   if (members.length === 0) throw new Error(`${path}: the type has no members`);
   const nonNull = members.filter((member) => !has(member, FLAGS.Null));
   const tag = registerTag(nonNull, ctx);
@@ -102,7 +113,7 @@ function convertMembers(members: ts.Type[], path: string, ctx: Ctx): SchemaNode 
   return tag === null ? { union: nodes } : { union: nodes, tag };
 }
 
-function convertPrimitive(type: ts.Type): SchemaNode | null {
+function convertPrimitive(type: Type): SchemaNode | null {
   if (has(type, FLAGS.String | FLAGS.StringLiteral)) return 'string';
   if (has(type, FLAGS.Number | FLAGS.NumberLiteral)) return 'number';
   if (has(type, FLAGS.Boolean | FLAGS.BooleanLiteral)) return 'boolean';
@@ -110,26 +121,26 @@ function convertPrimitive(type: ts.Type): SchemaNode | null {
   return null;
 }
 
-function convert(type: ts.Type, path: string, ctx: Ctx): SchemaNode {
+function convert(type: Type, path: string, ctx: Ctx): SchemaNode {
   const primitive = convertPrimitive(type);
   if (primitive !== null) return primitive;
-  if (has(type, FLAGS.Union) && !has(type, FLAGS.EnumLiteral)) return convertNamed(type, path, ctx, () => convertMembers((type as ts.UnionType).types, path, ctx));
+  if (has(type, FLAGS.Union) && !has(type, FLAGS.EnumLiteral)) return convertNamed(type, path, ctx, () => convertMembers(unionMembers(type), path, ctx));
   if (isObjectLike(type)) return convertNamed(type, path, ctx, () => convertObjectLike(type, path, ctx));
   return unsupported(type, path, ctx);
 }
 
-function convertNamed(type: ts.Type, path: string, ctx: Ctx, build: () => SchemaNode): SchemaNode {
-  const known = ctx.names.get(type);
+function convertNamed(type: Type, path: string, ctx: Ctx, build: () => SchemaNode): SchemaNode {
+  const known = ctx.names.get(type.id);
   if (known !== undefined) return { ref: known };
   const name = defName(type, ctx);
   if (name === null) return buildGuarded(type, path, ctx, build);
   const owner = ctx.owners.get(name);
-  if (owner !== undefined && owner !== type) throw new Error(`${path}: two different types share the name ${name}`);
-  ctx.owners.set(name, type);
-  ctx.names.set(type, name);
+  if (owner !== undefined && owner !== type.id) throw new Error(`${path}: two different types share the name ${name}`);
+  ctx.owners.set(name, type.id);
+  ctx.names.set(type.id, name);
   const body = buildGuarded(type, path, ctx, build);
   if (typeof body === 'string') {
-    ctx.names.delete(type);
+    ctx.names.delete(type.id);
     ctx.owners.delete(name);
     return body;
   }
@@ -137,58 +148,59 @@ function convertNamed(type: ts.Type, path: string, ctx: Ctx, build: () => Schema
   return { ref: name };
 }
 
-function buildGuarded(type: ts.Type, path: string, ctx: Ctx, build: () => SchemaNode): SchemaNode {
-  if (ctx.building.has(type)) throw new Error(`${path}: the unnamed type ${ctx.checker.typeToString(type)} contains itself`);
-  ctx.building.add(type);
+function buildGuarded(type: Type, path: string, ctx: Ctx, build: () => SchemaNode): SchemaNode {
+  if (ctx.building.has(type.id)) throw new Error(`${path}: the unnamed type ${ctx.checker.typeToString(type)} contains itself`);
+  ctx.building.add(type.id);
   try {
     return build();
   } finally {
-    ctx.building.delete(type);
+    ctx.building.delete(type.id);
   }
 }
 
-function typeArguments(type: ts.Type, ctx: Ctx): readonly ts.Type[] {
-  return ctx.checker.getTypeArguments(type as ts.TypeReference);
+function typeArguments(type: Type, ctx: Ctx): readonly Type[] {
+  return ctx.checker.getTypeArguments(type as TypeReference);
 }
 
-function convertObjectLike(type: ts.Type, path: string, ctx: Ctx): SchemaNode {
+function convertObjectLike(type: Type, path: string, ctx: Ctx): SchemaNode {
   if (ctx.checker.isArrayType(type)) return { array: convert(typeArguments(type, ctx)[0], `${path}[]`, ctx) };
   if (ctx.checker.isTupleType(type)) return { tuple: typeArguments(type, ctx).map((item, i) => convert(item, `${path}[${i}]`, ctx)) };
-  if (type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0) return unsupported(type, path, ctx);
+  if (ctx.checker.getSignaturesOfType(type, SignatureKind.Call).length > 0 || ctx.checker.getSignaturesOfType(type, SignatureKind.Construct).length > 0) return unsupported(type, path, ctx);
   const indexed = indexedRecord(type, path, ctx);
   return indexed ?? convertProperties(type, path, ctx);
 }
 
-function indexedRecord(type: ts.Type, path: string, ctx: Ctx): SchemaNode | null {
-  const index = ctx.checker.getIndexInfoOfType(type, ts.IndexKind.String) ?? ctx.checker.getIndexInfoOfType(type, ts.IndexKind.Number);
+function indexedRecord(type: Type, path: string, ctx: Ctx): SchemaNode | null {
+  const infos = ctx.checker.getIndexInfosOfType(type);
+  const index = infos.find((info) => has(info.keyType, FLAGS.String)) ?? infos.find((info) => has(info.keyType, FLAGS.Number));
   if (!index) return null;
   if (ctx.checker.getPropertiesOfType(type).length > 0) throw new Error(`${path}: an object with an index and named properties`);
-  return { record: convert(index.type, `${path}[]`, ctx) };
+  return { record: convert(index.valueType, `${path}[]`, ctx) };
 }
 
-function isMapped(type: ts.Type): boolean {
-  return has(type, FLAGS.Object) && ((type as ts.ObjectType).objectFlags & ts.ObjectFlags.Mapped) !== 0;
+function isMapped(type: Type): boolean {
+  return has(type, FLAGS.Object) && ((type as ObjectType).objectFlags & ObjectFlags.Mapped) !== 0;
 }
 
-function membersWithoutUndefined(type: ts.Type): { members: ts.Type[]; optional: boolean } {
-  const all = has(type, FLAGS.Union) && !has(type, FLAGS.Boolean) ? (type as ts.UnionType).types : [type];
+function membersWithoutUndefined(type: Type): { members: Type[]; optional: boolean } {
+  const all = has(type, FLAGS.Union) && !has(type, FLAGS.Boolean) ? unionMembers(type) : [type];
   const members = all.filter((member) => !has(member, FLAGS.Undefined));
   return { members, optional: members.length < all.length };
 }
 
 type Property = { name: string; node: SchemaNode; optional: boolean };
 
-function convertProperty(owner: ts.Type, symbol: ts.Symbol, path: string, ctx: Ctx): Property {
-  const type = ctx.checker.getTypeOfSymbol(symbol);
+function convertProperty(owner: Type, symbol: TsSymbol, path: string, ctx: Ctx): Property {
+  const type = typeOf(symbol, ctx);
   const { members, optional } = membersWithoutUndefined(type);
   const here = `${path}.${symbol.name}`;
-  const tags = ctx.tags.get(owner);
+  const tags = ctx.tags.get(owner.id);
   const tagged = tags?.has(symbol.name) && members.every((member) => has(member, FLAGS.StringLiteral));
   const node: SchemaNode = tagged ? tagNode(members) : convertMembers(members, here, ctx);
-  return { name: symbol.name, node, optional: optional || (symbol.flags & ts.SymbolFlags.Optional) !== 0 };
+  return { name: symbol.name, node, optional: optional || (symbol.flags & SymbolFlags.Optional) !== 0 };
 }
 
-function convertProperties(type: ts.Type, path: string, ctx: Ctx): SchemaNode {
+function convertProperties(type: Type, path: string, ctx: Ctx): SchemaNode {
   const symbols = [...ctx.checker.getPropertiesOfType(type)].sort((a, b) => (a.name < b.name ? -1 : 1));
   const properties = symbols.map((symbol) => convertProperty(type, symbol, path, ctx));
   if (isMapped(type) && properties.length > 0 && properties.every((property) => property.optional)) {
@@ -201,33 +213,13 @@ function convertProperties(type: ts.Type, path: string, ctx: Ctx): SchemaNode {
   return optional.length === 0 ? node : { ...node, optional: Object.fromEntries(optional.map((p) => [p.name, p.node])) };
 }
 
-function savedWorldType(program: ts.Program, file: string): ts.Type {
-  const checker = program.getTypeChecker();
+function savedWorldType(project: Project, file: string): Type {
+  const { checker, program } = project;
   const source = program.getSourceFile(file);
   const module = source && checker.getSymbolAtLocation(source);
   const symbol = module && checker.getExportsOfModule(module).find((exported) => exported.name === 'SavedWorld');
   if (!symbol) throw new Error(`${file} exports no SavedWorld type`);
   return checker.getDeclaredTypeOfSymbol(symbol);
-}
-
-function projectProgram(file: string): ts.Program {
-  const configPath = fileURLToPath(new URL('../../tsconfig.json', import.meta.url));
-  const config = ts.readConfigFile(configPath, ts.sys.readFile);
-  if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'));
-  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, fileURLToPath(new URL('../..', import.meta.url)));
-  return ts.createProgram([file], parsed.options, hostWithLibFiles(parsed.options));
-}
-
-function hostWithLibFiles(options: ts.CompilerOptions): ts.CompilerHost {
-  const host = ts.createCompilerHost(options);
-  const libs = new Map(getLibFiles().map((lib) => [`${libFolderInMemoryPath}/${lib.fileName}`, lib.text]));
-  const readFile = host.readFile.bind(host);
-  const fileExists = host.fileExists.bind(host);
-  host.getDefaultLibLocation = () => libFolderInMemoryPath;
-  host.getDefaultLibFileName = (opts) => `${libFolderInMemoryPath}/${ts.getDefaultLibFileName(opts)}`;
-  host.readFile = (name) => libs.get(name) ?? readFile(name);
-  host.fileExists = (name) => libs.has(name) || fileExists(name);
-  return host;
 }
 
 function sortedDefs(defs: Record<string, SchemaNode>): Record<string, SchemaNode> {
@@ -236,8 +228,15 @@ function sortedDefs(defs: Record<string, SchemaNode>): Record<string, SchemaNode
 
 export function savedWorldSchema(): Schema {
   const file = fileURLToPath(new URL('../three/save-fit.ts', import.meta.url));
-  const program = projectProgram(file);
-  const ctx: Ctx = { checker: program.getTypeChecker(), program, defs: {}, names: new Map(), owners: new Map(), building: new Set(), tags: new Map() };
-  const root = convert(savedWorldType(program, file), 'SavedWorld', ctx);
-  return { root, defs: sortedDefs(ctx.defs) };
+  const root = fileURLToPath(new URL('../..', import.meta.url)).replace(/\/$/, '');
+  const api = new API({ cwd: root });
+  try {
+    const project = api.updateSnapshot({ openProject: `${root}/tsconfig.json` }).getProject(`${root}/tsconfig.json`);
+    if (!project) throw new Error('The game tsconfig.json opened no project');
+    const ctx: Ctx = { checker: project.checker, root, defs: {}, names: new Map(), owners: new Map(), building: new Set(), tags: new Map() };
+    const node = convert(savedWorldType(project, file), 'SavedWorld', ctx);
+    return { root: node, defs: sortedDefs(ctx.defs) };
+  } finally {
+    api.close();
+  }
 }

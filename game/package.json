@@ -69,7 +69,6 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
-    "@ts-morph/common": "0.29.0",
     "@types/clipper-lib": "^6.4.0",
     "@types/node": "^22.20.4",
     "@types/three": "^0.186.0",
