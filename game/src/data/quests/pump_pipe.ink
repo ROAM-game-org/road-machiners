@@ -417,7 +417,7 @@ Then it's her hoses and my trough, and we both want the water. They'll say Agnes
 She pays you {fee} M from the lock box.
 { meter_taken and not walked_out: You leave Agnes's meter with her as well. }
 As you leave, a household clerk comes down the steps and asks her who carried it. She says it was a driver she didn't know.
-A week later, news reaches the drivers' well. Mirela read Agnes's book and her own to the Senate. The household said Agnes made up her dial. Your name was beside it in her book, but you weren't in the room to swear to it, and a name on a page isn't a witness. # page
+A week later, news reaches the drivers' well. Mirela read Agnes's book and her own to the Senate. The household said Agnes made up her dial. Your name was beside it in Agnes's book, but you weren't in the room to swear to it, and a name on a page isn't a witness. # page
 The Senate moved on to grain. # reveal: all
 -> END
 
