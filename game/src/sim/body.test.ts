@@ -3,7 +3,7 @@ import { CHASSIS } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { partDef, type CoreDef } from '../data/parts';
 import BASELINE from './body-baseline.json';
-import { CLIP_TOLERANCE, bodyOf, rideOf, cellCenter, cellRect, engineAnchor, frontBody, highestUnder, hulkBoxes, isRig, lanesAt, restOn, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfRow, unitsOf } from './body';
+import { CLIP_TOLERANCE, bodyOf, rideOf, cellCenter, cellRect, engineAnchor, frontBody, highestUnder, hulkBoxes, isRig, lanesAt, restOn, roofSpot, spanOf, surfaceAt, surfaceSamples, unitBody, unitOfRow, unitsOf } from './body';
 import { restBend } from './rig';
 import TRUCK_SHAPES from '../data/truck-shapes.json';
 import { baseGrid } from './grid';
@@ -164,6 +164,21 @@ describe('model surface', () => {
       expect(Math.abs(a.x), id).toBeLessThan(half.x);
       expect(Math.abs(a.z), id).toBeLessThan(half.z);
     }
+  });
+});
+
+const CABIN = { header: 0.45, back: -0.62, crown: 1.66 };
+const HATCH = { x: -0.15, z: -0.36, reach: 0.3 };
+
+describe('the convertible antenna', () => {
+  it("stands on the cabin's crown, the highest flat spot over the cab cells, clear of the hatch", () => {
+    const body = PHYSICS.bodies.convertible;
+    const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
+    const spot = roofSpot('convertible', cellRect('convertible', coreCellsOf('convertible', 'cab')), 0.12);
+    expect(spot.x).toBeLessThanOrEqual(CABIN.header);
+    expect(spot.x).toBeGreaterThanOrEqual(CABIN.back);
+    expect(Math.abs(spot.y - (ground + CABIN.crown))).toBeLessThanOrEqual(CLIP_TOLERANCE);
+    expect(Math.hypot(spot.x - HATCH.x, spot.z - HATCH.z)).toBeGreaterThan(HATCH.reach);
   });
 });
 
