@@ -13,7 +13,7 @@ const WIDTH_GROWTH = 0.75;
 
 const STOCK_FLOOR: Record<Look, Tire> = {
   pickup: { radius: 0.45, halfWidth: 0.18 },
-  hauler: { radius: 0.6, halfWidth: 0.25 },
+  hauler: { radius: 0.61, halfWidth: 0.255 },
   buggy: { radius: 0.4, halfWidth: 0.145 },
   wagon: { radius: 0.6, halfWidth: 0.25 },
   courier: { radius: 0.4, halfWidth: 0.16 },
