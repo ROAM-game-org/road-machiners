@@ -63,5 +63,40 @@
     "file": "bowl_scale.webp",
     "focusX": 45,
     "focusY": 40
+  },
+  "town_bowl": {
+    "file": "town_bowl.webp",
+    "focusX": 50,
+    "focusY": 48
+  },
+  "town_nose": {
+    "file": "town_nose.webp",
+    "focusX": 55,
+    "focusY": 42
+  },
+  "town_salvage_yard": {
+    "file": "town_salvage_yard.webp",
+    "focusX": 50,
+    "focusY": 50
+  },
+  "town_granary": {
+    "file": "town_granary.webp",
+    "focusX": 50,
+    "focusY": 50
+  },
+  "town_pump_station": {
+    "file": "town_pump_station.webp",
+    "focusX": 50,
+    "focusY": 52
+  },
+  "town_dustwell": {
+    "file": "town_dustwell.webp",
+    "focusX": 50,
+    "focusY": 50
+  },
+  "town_green_pit": {
+    "file": "town_green_pit.webp",
+    "focusX": 50,
+    "focusY": 55
   }
 }

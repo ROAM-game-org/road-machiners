@@ -23,8 +23,9 @@ import { getResources } from './resources';
 import { chance, gauss, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
 import { vehicleMass } from './mass';
-import { vehicleStats, type MountedWeapon } from './stats';
-import { partDef, type WeaponDef } from '../data/parts';
+import { nimbleSpread } from './chassis-features';
+import { vehicleStats, weaponOn, type MountedWeapon } from './stats';
+import type { WeaponDef } from '../data/parts';
 import type { Aim, GameEvent, GunState, NpcActivity, PartInstance, ShotRound, Vehicle, VehicleHits, World } from './types';
 import { digCrater } from './craters';
 import { weatherOn } from './weather';
@@ -137,7 +138,7 @@ export function dropMagazine(part: PartInstance): void {
 
 function tickGuns(world: World, fired: Set<string>): void {
   for (const v of world.vehicles)
-    for (const part of mountedParts(v, "weapon")) tickGun(part, fired.has(part.id));
+    for (const part of mountedParts(v, "weapon")) tickGun(v, part, fired.has(part.id));
 }
 
 function worksReload(gun: GunState, def: WeaponDef, fired: boolean, cooling: boolean): boolean {
@@ -145,8 +146,8 @@ function worksReload(gun: GunState, def: WeaponDef, fired: boolean, cooling: boo
   return gun.ammo === 0 || !cooling;
 }
 
-function tickGun(part: PartInstance, fired: boolean): void {
-  const def = partDef(part.defId) as WeaponDef;
+function tickGun(v: Vehicle, part: PartInstance, fired: boolean): void {
+  const def = weaponOn(v, part);
   const gun = gunOf(part);
   const cooling = gun.cooldown > 0;
   if (cooling) gun.cooldown--;
@@ -187,6 +188,7 @@ export type HitOdds = {
     skill: number;
     weather: number;
     smoke: number;
+    nimble: number;
     still: number;
   };
 };
@@ -495,6 +497,7 @@ function spreadCauses(world: World, shooter: Vehicle, shot: WeaponDef, target: V
     recoil: (shot.recoil * DEG) / (vehicleMass(shooter) / KG_PER_TONNE),
     weather: vehicleHasPerk(world, shooter, "stormRider") ? 0 : weatherOn(world, shooter).spread,
     smoke: smokeCrosses(world, shooter.pos, target.pos) ? SMOKE.spread : 0,
+    nimble: Math.abs(target.speed) > RULES.stillSpeed ? nimbleSpread(target.chassisId) : 0,
   };
   const sum = Object.values(base).reduce((a, cause) => a + cause, 0);
   const still = Math.abs(target.speed) < RULES.stillSpeed ? -sum * (1 - RULES.stillSpread) : 0;
