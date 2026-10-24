@@ -477,6 +477,26 @@ function metBountyPay_103_104(held: SavedJson[]): number {
   return held.filter((c) => c.kind === BOUNTY_KIND_103_104 && c.fulfilled === true).reduce((sum, c) => sum + (c.reward as number), 0);
 }
 
+function withLeanSteps_104_105(steps: SavedJson[]): SavedJson[] {
+  return steps.map((step) => (step.do === 'leave' ? { ...step, lean: null } : step));
+}
+
+function withLeanVars_104_105(vars: SavedJson): SavedJson {
+  return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
+    const value = v as SavedJson;
+    return [name, value.kind === 'directions' ? { ...value, steps: withLeanSteps_104_105(value.steps as SavedJson[]) } : value];
+  }));
+}
+
+export function withLeanDirections_104_105(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  if (!call) return world;
+  const line = call.line as SavedJson;
+  const next = { ...call, vars: withLeanVars_104_105(call.vars as SavedJson), line: { ...line, vars: withLeanVars_104_105(line.vars as SavedJson) } };
+  return { ...world, player: { ...player, call: next } };
+}
+
 const BAY_PARKED_105 = 0.5;
 const BAY_HEADING_105 = [
   1.255398, -0.315398, 1.255398, -0.315398, 1.255398, -0.315398, 1.255398, -0.315398, 1.255398, -0.315398, 0.47,

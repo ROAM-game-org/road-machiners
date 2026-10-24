@@ -306,6 +306,64 @@ export function componentOf(layer: NavLayer, cell: number): number {
   return r === 0 ? 0 : layer.coarse.comp[r];
 }
 
+export const NO_CLIMB = 255;
+const STEEP_TOLERANCE = 1e-4;
+const CLIMB_NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const climbNeeds = new WeakMap<NavLayer, Uint8Array>();
+
+export function climbNeed(layer: NavLayer): Uint8Array {
+  const hit = climbNeeds.get(layer);
+  if (hit) return hit;
+  const need = floodClimb(layer);
+  climbNeeds.set(layer, need);
+  return need;
+}
+
+function stepOf(layer: NavLayer, cell: number): number {
+  const n = layer.n;
+  const x = (cell % n) + 0.5;
+  const y = Math.floor(cell / n) + 0.5;
+  const steep = layer.steep[tileIndex(layer.size, x * CELL, y * CELL)];
+  return Math.min(NO_CLIMB - 1, Math.ceil(steep / REGION.navigation.climbStep - STEEP_TOLERANCE));
+}
+
+function floodClimb(layer: NavLayer): Uint8Array {
+  const n = layer.n;
+  const need = new Uint8Array(n * n).fill(NO_CLIMB);
+  const buckets: number[][] = Array.from({ length: NO_CLIMB }, () => []);
+  for (let c = 0; c < need.length; c++) {
+    if (layer.blocked[c] === 1) continue;
+    const x = ((c % n) + 0.5) * CELL;
+    const y = (Math.floor(c / n) + 0.5) * CELL;
+    if (layer.roadTile[tileIndex(layer.size, x, y)] !== 1) continue;
+    const step = stepOf(layer, c);
+    need[c] = step;
+    buckets[step].push(c);
+  }
+  if (!buckets.some((b) => b.length > 0)) throw new Error('climbNeed: the nav layer has no free road cell');
+  for (let level = 0; level < NO_CLIMB; level++) {
+    const queue = buckets[level];
+    while (queue.length > 0) {
+      const c = queue.pop() as number;
+      if (need[c] !== level) continue;
+      const cx = c % n;
+      const cy = (c - cx) / n;
+      for (const [dx, dy] of CLIMB_NEIGHBOURS) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
+        const next = ny * n + nx;
+        if (layer.blocked[next] === 1) continue;
+        const through = Math.max(level, stepOf(layer, next));
+        if (through >= need[next]) continue;
+        need[next] = through;
+        buckets[through].push(next);
+      }
+    }
+  }
+  return need;
+}
+
 function coarseGrid(n: number, blocked: Uint8Array, slow: Float32Array): CoarseGrid {
   const bn = Math.ceil(n / COARSE);
   const region = new Int32Array(n * n);
