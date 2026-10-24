@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canvasTransform, clampPan, fitted, fitTileSize, panBy, pinToEdge, toPx, toTile, viewport, zoomAround, type Viewport } from './map-geometry';
+import { canvasTransform, clampPan, fitted, fitTileSize, panBy, pinToEdge, toPx, toTile, viewport, wheelZoomFactor, zoomAround, type Viewport } from './map-geometry';
 
 const MAP = 600;
 
@@ -86,5 +86,34 @@ describe('map geometry', () => {
   it('throws on a tile size that is not a positive number', () => {
     expect(() => view({ x: 0, y: 0 }, 0)).toThrow(/tile size/);
     expect(() => view({ x: 0, y: 0 }, Number.NaN)).toThrow(/tile size/);
+  });
+});
+
+describe('wheelZoomFactor', () => {
+  it('zooms one step for a mouse notch in either direction', () => {
+    expect(wheelZoomFactor(-100, 0)).toBeCloseTo(1.25);
+    expect(wheelZoomFactor(100, 0)).toBeCloseTo(1 / 1.25);
+  });
+
+  it('zooms by how far the wheel turns, not by how many events it sends', () => {
+    let total = 1;
+    for (let i = 0; i < 20; i++) total *= wheelZoomFactor(-4, 0);
+    expect(total).toBeCloseTo(wheelZoomFactor(-80, 0));
+    expect(total).toBeLessThan(1.25);
+  });
+
+  it('never zooms more than one notch in one event', () => {
+    expect(wheelZoomFactor(-5000, 0)).toBeCloseTo(1.25);
+    expect(wheelZoomFactor(5000, 0)).toBeCloseTo(1 / 1.25);
+  });
+
+  it('reads line and page deltas as larger turns', () => {
+    expect(wheelZoomFactor(-3, 1)).toBeCloseTo(wheelZoomFactor(-48, 0));
+    expect(wheelZoomFactor(-1, 2)).toBeCloseTo(1.25);
+  });
+
+  it('throws on a delta it cannot read', () => {
+    expect(() => wheelZoomFactor(Number.NaN, 0)).toThrow();
+    expect(() => wheelZoomFactor(1, 7)).toThrow();
   });
 });
