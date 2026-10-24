@@ -43,7 +43,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   ~ dag_pay = true
   -> hub
 + {dag_road} [Who are the raiders?]
-  There are two camps. Kiln Camp sits out east, south of the big crater, and <term=scrapjaw>Scrapjaw Camp</term> is far up north. Most days they'd rather rob you than kill you, because a dead driver hauls nothing next week.
+  There are two camps. Kiln Camp sits out south-east, south-west of the big crater, and <term=scrapjaw>Scrapjaw Camp</term> is far up north. Most days they'd rather rob you than kill you, because a dead driver hauls nothing next week.
   So pay them or outrun them, but don't fire the first shot if you want to grow old.
   ~ dag_kiln = true
   -> hub
@@ -68,7 +68,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   }
   -> hub
 + {has_note("wagonBowl") and not dag_wagon} [Do you know where that Army wagon is?]
-  I do. She's in a hollow below the bend in our north road, below where the <term=pump_station>Pump Station</term> track branches off. North-east of here. I rode down to her myself.
+  I do. She's in a hollow below the bend in our north road, below where the <term=pump_station>Pump Station</term> track branches off. East of here. I rode down to her myself.
   Rule first: take nothing from that hollow up to Nose. The reason is that Nose blames the first driver it finds near its guns, and then it sends trucks down my road to ask questions.
   ~ dag_wagon = true
   ~ note("wagonDag")
