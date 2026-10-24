@@ -37,8 +37,8 @@ what: Agents fixed a nearby, easier problem instead of the one reported, like br
 cost: The committee played builds that did not touch the report, and each one went back for a redesign.
 
 ID: R10
-what: New truck models misread the reference or the role: wrong scale and proportions, too much detail, wheels clipping doors, a part copied from another chassis, a remake that kept the old boxy silhouette under new details, and a reference picked for its look without asking whether it fits the vehicle's job, like a beach buggy for a raider's combat buggy. Remakes were built from memory when the agent had only photo links and not the images, an unanswered question defaulted to an open cockpit the committee had rejected before, and stacked, overlapping or thin parts, like hood, wing and bumper edges, cab frames, loader arms, wheel arches and bucket lips, drew noisy outlines, dark gaps and heavy dark shading at game camera size, at every damage state, with each new chassis repeating the noise the committee had flagged on the last.
-cost: Each model took three or more rounds of committee feedback, the owner had to ask for a stronger model and for the actual images by hand, one chassis went back to design four times and then again for a whole new reference, and photo-faithful remakes went back one after another to clean up their noisy edges and shading.
+what: New truck models misread the reference or the role: wrong scale and proportions, too much detail, wheels clipping doors, a part copied from another chassis, a remake that kept the old boxy silhouette under new details, a reference picked for its look and not the vehicle's job, and remakes built from memory when the agent had only photo links. Stacked, overlapping or thin parts, like hood, wing and bumper edges, cab frames, arches and bucket lips, drew noisy outlines, dark gaps and heavy shading at game camera size, and cleanup rounds guessed at the noise by deleting lamps or changing tessellation instead of finding which faces in the mesh and render made it and checking that view against the committee's screenshot.
+cost: Each model took three or more committee rounds, the owner had to ask by hand for a stronger model, the actual images and the root cause of the artifacts, and photo-faithful remakes went back one after another, through patches and a whole redesign over the same hood, wing and bumper noise, even after the committee had attached the photos.
 
 ID: R11
 what: A change that applied to many things was built and shown on one, like a diagram drawn for one chassis only, a size picked per truck instead of by one rule, or a few keys opened in a scene but not the menu.
@@ -73,8 +73,8 @@ what: Merges brought back an old version of a feature, or dropped a piece anothe
 cost: Approved work vanished from the game, and urgent fixes went to main.
 
 ID: R19
-what: The post's screenshots and text did not show what they claimed: a popup over the subject, or a claim with no screenshot behind it.
-cost: The committee had to play builds just to learn what the screenshots should have shown.
+what: The post's screenshots and text did not show what they claimed: a popup over the subject, a claim with no screenshot behind it, or a model atlas of the truck fitted with armor and guns that hid the bare body the change was about.
+cost: The committee had to play builds just to learn what the screenshots should have shown, and a model remake went back for a patch round only to get an unobstructed atlas.
 
 ID: R20
 what: Proposals against the game's pillars reached a vote or a build: real-time driving and combat, map coordinates, waypoints and a compass, and activities that are not about trucks and the road.
