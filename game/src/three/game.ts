@@ -790,7 +790,7 @@ export class Game {
 
   private tryBeginTurn(now: number, wasPlaying: boolean): "began" | "none" | "failed" {
     try {
-      const held = this.timeHeld() || this.world.player.call !== null;
+      const held = this.holdsTime();
       const prepared = this.anim ? null : this.travel.takeReady(this.world, this.drive, now, held);
       if (prepared) this.beginTurn(prepared, now, this.travel.getRemainder(wasPlaying));
       return prepared ? "began" : "none";
@@ -995,7 +995,7 @@ export class Game {
   }
 
   private advanceTurn(now: number, dt: number): { at: number | null; playMs: number } {
-    const held = this.timeHeld() || this.world.player.call !== null;
+    const held = this.holdsTime();
     if (held) this.travel.pause();
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
     const playMs = this.tickWorldClock(heldPlayMs(dt, this.timeHeld(), CONFIG.playbackFrameMs), speed, now);
@@ -1014,6 +1014,10 @@ export class Game {
     this.travel.prepareNext(this.world, this.anim, now);
     this.flushUi(began, phase);
     return { at, playMs };
+  }
+
+  private holdsTime(): boolean {
+    return this.timeHeld() || this.world.player.call !== null;
   }
 
   private timeHeld(): boolean {
