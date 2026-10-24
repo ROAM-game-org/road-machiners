@@ -1,5 +1,5 @@
 import { FARM_TOWER_ID } from '../data/arrival';
-import { AMBUSH, SALVAGE_GOODS, SCALE_TOWN, WAKE_TOWN } from '../data/intro';
+import { AMBUSH, WAKE_TOWN } from '../data/intro';
 import { chassisDef } from '../data/chassis';
 import { START_KITS } from '../data/start';
 import { atlasOf } from './atlas';
@@ -10,14 +10,13 @@ import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
-import { goodsCount, mountedParts } from './grid';
-import { inCombat } from './combat';
+import { mountedParts } from './grid';
 import { openingOver } from './opening';
 import { fightCornered } from './npc-activities';
 import { addState } from './states';
 import { generateNpcLoadout } from './npc-loadout';
 import { getKnownSite } from './npc-decisions';
-import { introStep, openQuest, openScaleScene, openWellScene, QUESTS, setIntroStep, setWorldVar, worldVar } from './quests';
+import { introStep, openQuest, freeToTalk, openWellScene, QUESTS, setIntroStep, setWorldVar, worldVar } from './quests';
 import { engineNeedsPatch } from './repair';
 import { drivable } from './path';
 import { nearestPad, siteUnder } from './sites';
@@ -70,23 +69,6 @@ export function greetAtWell(w: World): void {
 
 function strangerToHattie(w: World): boolean {
   return introStep(w) !== 'off' && worldVar(w, HATTIE_MET) !== true && worldVar(w, TOWED_TO_BOWL) !== true;
-}
-
-export function greetAtScale(w: World): void {
-  if (newSellerAtScale(w) && freeToTalk(w)) openScaleScene(w);
-}
-
-function newSellerAtScale(w: World): boolean {
-  return w.player.xpBySource.profit === 0 && carriesSalvage(playerVehicle(w)) && shopAt(w) === SCALE_TOWN;
-}
-
-function freeToTalk(w: World): boolean {
-  return w.player.state === 'active' && !w.player.quests.session && !w.player.call && !inCombat(w, playerVehicle(w));
-}
-
-function carriesSalvage(v: Vehicle): boolean {
-  const held = goodsCount(v);
-  return SALVAGE_GOODS.some((good) => (held[good] ?? 0) > 0);
 }
 
 export function wakeInTown(w: World, foes: readonly string[] | null): void {
