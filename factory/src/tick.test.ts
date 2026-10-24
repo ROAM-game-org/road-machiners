@@ -1,8 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseStage } from './jobs';
+import { solidPng } from './media-fixtures';
 import { readLedger } from './ledger';
 import { readObservation, type SchedulerData } from './observability';
 import { resumedStage } from './sessions';
@@ -643,6 +645,20 @@ describe('tick', () => {
     expect(h.removed).toEqual([`8:${NEEDS_INFO_LABEL}`]);
     expect(args(h)).toEqual([['triage', '8']]);
     expect(readState(h.ctx.statePath).asked).toEqual({});
+  });
+
+  it('takes the image a member sent to the questions post into the issue media when the questions are answered on GitHub', async () => {
+    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [{ login: 'anna', body: 'This', createdAt: hoursAgo(0.5), byFactory: false }]);
+    writeState(h.ctx.statePath, state({ asked: { 8: hoursAgo(1) }, questionPosts: { 77: 8 } }));
+    const photo = solidPng(2, 3, [7, 7, 7]);
+    Object.assign(h.ctx.telegram, { downloadFile: async () => photo });
+    mkdirSync(join(h.ctx.cfg.home, 'inbox', 'media', 'post-77'), { recursive: true });
+    writeFileSync(join(h.ctx.cfg.home, 'inbox', 'media', 'post-77', '3600-1.telegram'), JSON.stringify({ fileId: 'AgAC', by: '1', byName: 'Ann', text: 'This but with closed cabin' }));
+    await tick(h.ctx, '/code', h.deps);
+    const sha = createHash('sha256').update(photo).digest('hex');
+    expect(readFileSync(join(h.ctx.cfg.home, 'media', 'issue-8', 'committee', `${sha.slice(0, 16)}.png`))).toEqual(photo);
+    expect(existsSync(join(h.ctx.cfg.home, 'inbox', 'media', 'post-77'))).toBe(false);
+    expect(readState(h.ctx.statePath).questionPosts).toEqual({});
   });
 
   it('keeps needs-info while only the factory or an earlier comment is on the issue and starts nothing', async () => {

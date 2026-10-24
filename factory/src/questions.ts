@@ -22,6 +22,10 @@ export function questionPostIssue(statePath: string, postId: number): number | n
   return readState(statePath).questionPosts[String(postId)] ?? null;
 }
 
+export function questionPostsOf(statePath: string, issue: number): number[] {
+  return Object.entries(readState(statePath).questionPosts).filter(([, asker]) => asker === issue).map(([post]) => Number(post));
+}
+
 export function clearAsked(statePath: string, issue: number): void {
   updateState(statePath, (state) => ({
     ...state,

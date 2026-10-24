@@ -4,6 +4,7 @@ A pre_gateway_dispatch hook passes a non-member's message in the committee chat 
 It answers /committee commands from members in any chat.
 It takes committee messages in the factory chat and writes them to the factory inbox as JSON files.
 A plain reply to an approval post goes to the inbox and to Hermes too, who routes it with a tool.
+A Telegram handler keeps a member's own image on a reply to an approval or questions post for the tick, since the hook misses a message Hermes queues while busy.
 The host tick reads the inbox. Every other member message goes to Hermes as normal chat.
 """
 
@@ -318,6 +319,49 @@ def make_button_factory(cfg: Config):
     return factory
 
 
+# Before Hermes's own handlers and the public ones, so every committee image is seen, and never stops the update.
+COMMITTEE_MEDIA_GROUP = -2
+
+
+def reply_post(message: dict, state_dir: str) -> Optional[int]:
+    """The open approval or questions post a message replies to, or None."""
+    replied = (message.get("reply_to_message") or {}).get("message_id")
+    if replied is None:
+        return None
+    posts = {**read_approval_posts(state_dir), **read_question_posts(state_dir)}
+    return int(replied) if str(replied) in posts else None
+
+
+def keep_committee_image(message: dict, cfg: Config, readiness: Readiness) -> Optional[str]:
+    """Keeps a member's own image on a reply to an open post, whatever Hermes does with the message. Returns why an image was not kept."""
+    sender = message.get("from") or {}
+    if str((message.get("chat") or {}).get("id")) != cfg.chat or not cfg.committee.is_member(sender.get("id")):
+        return None
+    post = reply_post(message, cfg.state_dir)
+    return None if post is None else readiness.keep_image(post, message)
+
+
+def make_media_handler(cfg: Config, readiness: Readiness):
+    async def on_message(update, context) -> None:
+        try:
+            message = update.message
+            if message is not None:
+                await asyncio.to_thread(keep_committee_image, message.to_dict(), cfg, readiness)
+        except Exception:
+            log.exception("Factory could not keep the image of a committee reply.")
+
+    return on_message
+
+
+def make_media_factory(cfg: Config, readiness: Readiness):
+    def factory(native, adapter) -> None:
+        from telegram.ext import MessageHandler, filters
+        images = filters.UpdateType.MESSAGE & filters.REPLY & (filters.PHOTO | filters.Document.IMAGE)
+        native.add_handler(MessageHandler(images, make_media_handler(cfg, readiness)), group=COMMITTEE_MEDIA_GROUP)
+
+    return factory
+
+
 QUEUE_TOOL = "factory_queue_task"
 QUEUE_SCHEMA = {
     "name": QUEUE_TOOL,
@@ -593,11 +637,6 @@ def make_hook(cfg: Config, readiness: Readiness):
         if decision[0] == "draft-reply":
             # Hermes revises the draft with its tool. The factory waits for no route, so nothing goes to the inbox.
             return {"action": "rewrite", "text": draft_reply_header(draft_post_id) + (event.text or "")}
-        if decision[0] in ("reply", "patch", "redesign"):
-            # Kept before any check, so a later route of the same post still finds them. A file that cannot be kept never stops the reply.
-            attachments = list(getattr(event, "media_urls", None) or [])
-            if attachments:
-                await asyncio.to_thread(readiness.save_attachments, int(event.reply_to_message_id), int(event.message_id), attachments)
         if decision[0] in ("patch", "redesign"):
             # A member's own patch: or redesign: skips Hermes, so the check runs here and the answer is a chat reply.
             problems = readiness.problems(decision[2])
@@ -626,6 +665,7 @@ def register(ctx) -> None:
     watch_polling_conflicts(cfg)
     ctx.register_telegram_handler(make_public_factory(cfg))
     ctx.register_telegram_handler(make_button_factory(cfg))
+    ctx.register_telegram_handler(make_media_factory(cfg, readiness))
     ctx.register_tool(name=QUEUE_TOOL, toolset="factory", schema=QUEUE_SCHEMA, handler=make_queue_handler(cfg))
     ctx.register_tool(name=ROUTE_TOOL, toolset="factory", schema=ROUTE_SCHEMA, handler=make_route_handler(cfg, readiness))
     ctx.register_tool(name=SENDER_TOOL, toolset="factory", schema=SENDER_SCHEMA, handler=make_sender_handler(cfg))
