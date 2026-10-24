@@ -5,6 +5,7 @@ import { REGION } from '../data/region';
 import type { OldPlaceType } from '../data/salvage';
 import SURVEY_SITES_FILE from '../data/survey-sites.json';
 import { atlasOf, type AtlasKey } from './atlas';
+import { directionsFromSite } from './directions';
 import { estimateTurns, haulWindow, siteOf, type Contract } from './market';
 import { playerVehicle } from './damage';
 import { startJob } from './jobs';
@@ -16,7 +17,7 @@ import { playerCommand } from './world';
 import { siteGap, type Site } from './sites';
 import { tileOf } from './vision';
 import { heightAt, type BakedMap, type Terrain } from './terrain';
-import type { Job, Vehicle, World } from './types';
+import type { DirectionStep, Job, Vehicle, World } from './types';
 import { bearing, dist, type Vec } from './vec';
 
 export type SurveyProp = { pos: Vec; reach: number };
@@ -96,7 +97,7 @@ export function makeSurveySites(map: BakedMap): SurveySite[] {
   return places.flatMap((place) => {
     if (!remote(place.centroid)) return [];
     const order = [...place.props].sort((a, b) => propHash(map, a) - propHash(map, b));
-    const spot = order.find((o) => remote(o.pos) && offRoad(o) && reachable(layer, o));
+    const spot = order.find((o) => remote(o.pos) && offRoad(o) && reachable(layer, o, REGION.navigation.reachClimb));
     if (!spot) return [];
     const clues = fairClues({ type: place.type, pos: spot.pos }, places);
     if (clues.length === 0) return [];
@@ -180,6 +181,12 @@ export function surveyClue(c: SurveyContract, point: SurveyPoint): SurveyClue {
   if (!told) throw new Error(`Survey site ${site.id} has no fair clue`);
   const rad = sectorBearing(compassSector(bearing(siteOf(told.landmark).pos, site.pos)));
   return { type: site.type, landmark: told.landmark, rad, tiles: told.tiles, lay: site.lay };
+}
+
+export function surveyWay(world: World, c: SurveyContract, point: SurveyPoint): DirectionStep[] | null {
+  const site = surveySite(world, point.site);
+  const steps = directionsFromSite(world, c.shop, { kind: 'spot', pos: site.pos, clue: 'place' });
+  return steps.some((s) => s.do === 'noRoad' || s.do === 'askAgain') ? null : steps;
 }
 
 export function openSurveyPoint(c: SurveyContract): SurveyPoint | null {
