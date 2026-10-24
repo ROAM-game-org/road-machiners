@@ -48,7 +48,7 @@ describe('survey sites', () => {
 
   it('can be reached by the largest chassis from the roads', () => {
     const prop = (id: string) => baked.find((o) => `survey-${o.id}` === id)!;
-    for (const s of sites) expect(reachable(layer, prop(s.id))).toBe(true);
+    for (const s of sites) expect(reachable(layer, prop(s.id), REGION.navigation.reachClimb)).toBe(true);
   });
 
   it('each have a clue from a named place, with its distance rounded to the nearest hundred meters', () => {

@@ -258,7 +258,7 @@ describe('reachability', () => {
     expect(spots.length).toBeGreaterThan(20);
     for (const stock of spots) {
       const prop = baked.find((o) => o.id === (oldSpotOf(stock)?.propId ?? stock.id));
-      expect(prop && reachable(layer, prop), stock.id).toBe(true);
+      expect(prop && reachable(layer, prop, REGION.navigation.reachClimb), stock.id).toBe(true);
     }
   });
 });

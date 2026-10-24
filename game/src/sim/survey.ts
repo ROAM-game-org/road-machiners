@@ -96,7 +96,7 @@ export function makeSurveySites(map: BakedMap): SurveySite[] {
   return places.flatMap((place) => {
     if (!remote(place.centroid)) return [];
     const order = [...place.props].sort((a, b) => propHash(map, a) - propHash(map, b));
-    const spot = order.find((o) => remote(o.pos) && offRoad(o) && reachable(layer, o));
+    const spot = order.find((o) => remote(o.pos) && offRoad(o) && reachable(layer, o, REGION.navigation.reachClimb));
     if (!spot) return [];
     const clues = fairClues({ type: place.type, pos: spot.pos }, places);
     if (clues.length === 0) return [];
