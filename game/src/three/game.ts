@@ -372,6 +372,7 @@ export class Game {
   get busy(): boolean { return this.anim !== null; }
 
   private applyCommand(next: World): void {
+    if (this.anim && !this.anim.impacts) throw new Error("UI command while a turn plays");
     if (this.saves.changeMapIfMoved(next)) return;
     this.apply(next);
     this.saves.afterCommand(next);
@@ -788,9 +789,9 @@ export class Game {
     this.refreshUi();
   }
 
-  private tryBeginTurn(now: number, wasPlaying: boolean, held: boolean): "began" | "none" | "failed" {
+  private tryBeginTurn(now: number, wasPlaying: boolean): "began" | "none" | "failed" {
     try {
-      const prepared = this.anim ? null : this.travel.takeReady(this.world, this.drive, now, held);
+      const prepared = this.anim ? null : this.travel.takeReady(this.world, this.drive, now, this.turnHeld());
       if (prepared) this.beginTurn(prepared, now, this.travel.getRemainder(wasPlaying));
       return prepared ? "began" : "none";
     } catch (err) {
@@ -993,8 +994,7 @@ export class Game {
   }
 
   private advanceTurn(now: number, dt: number): { at: number | null; playMs: number } {
-    const held = this.timeHeld() || this.world.player.call !== null;
-    if (held) this.travel.pause();
+    if (this.turnHeld()) this.travel.pause();
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
     const playMs = this.tickWorldClock(heldPlayMs(dt, this.timeHeld(), CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
@@ -1003,7 +1003,7 @@ export class Game {
     let at = this.animStep(now, speed, playMs);
     this.updateLiveVision(at);
     this.updateTravel();
-    const began = this.tryBeginTurn(now, wasPlaying, held);
+    const began = this.tryBeginTurn(now, wasPlaying);
     if (began === "failed") return { at, playMs };
     if (began === "began") {
       at = this.animStep(now, speed, 0);
@@ -1012,6 +1012,10 @@ export class Game {
     this.travel.prepareNext(this.world, this.anim, now);
     this.flushUi(began, phase);
     return { at, playMs };
+  }
+
+  private turnHeld(): boolean {
+    return this.timeHeld() || this.world.player.call !== null;
   }
 
   private timeHeld(): boolean {
