@@ -1,6 +1,6 @@
 
 import { bindAttr } from '../text/language';
-import { t, verbatim } from '../text/msg';
+import { t, verbatim, type Msg } from '../text/msg';
 import type { SaveError } from '../three/save';
 import type { SlotId, SlotInfo } from '../three/save-slots';
 import { SaveList, saveSummary, slotRealTime } from './save-panel';
@@ -11,17 +11,18 @@ import type { SoundSettings } from './sound';
 
 export function chooseSaveFate(error: SaveError, canMigrate: boolean, stored: unknown, newGame: NewGameActions, sound: SoundSettings): Promise<void> {
   return new Promise((resolve) => {
-    const root = savePanel(sound);
+    const root = savePanel(sound, canMigrate ? t('save.needsMigrating') : t('save.doesNotFit'));
     const migrate = () => {
       root.remove();
       resolve();
     };
+    const migrateButtons = canMigrate ? [el('button', { onclick: migrate }, t('save.migrate'))] : [];
     root.append(
       el('div', { class: 'dim' }, verbatim(error.code)),
       el(
         'div',
         { class: 'death-buttons' },
-        el('button', disabledWith(canMigrate ? null : t('save.unreadable'), migrate), t('save.migrate')),
+        ...migrateButtons,
         el('button', { onclick: () => openNewGame(newGame, () => {}) }, t('menu.newGame')),
         el('button', { onclick: () => downloadSave(stored) }, t('save.download')),
       ),
@@ -66,8 +67,7 @@ function downloadSave(stored: unknown): void {
   download('roam-save.json', typeof stored === 'string' ? stored : JSON.stringify(stored), 'application/json');
 }
 
-function savePanel(sound: SoundSettings): HTMLElement {
-  const title = t('save.needsMigrating');
+function savePanel(sound: SoundSettings, title: Msg): HTMLElement {
   const options = new OptionsPanel(sound, () => document.querySelector<HTMLElement>('.save-screen .options-button')?.focus());
   const root = panel('death save-screen');
   root.setAttribute('role', 'alertdialog');
