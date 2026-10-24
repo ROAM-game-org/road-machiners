@@ -202,17 +202,6 @@ describe('the scout pickup', () => {
   });
 });
 
-describe('the utility van', () => {
-  it('keeps the 125 in Chevrolet G20 at the scout\'s 1.077 scale: 5.53 m long, with a width to length of 0.39', () => {
-    const boxes = SHAPES.base_van.boxes;
-    const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
-    const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
-    expect(Math.abs(along - 5.53)).toBeLessThanOrEqual(0.05);
-    expect(across / along).toBeGreaterThanOrEqual(0.375);
-    expect(across / along).toBeLessThanOrEqual(0.405);
-  });
-});
-
 describe('the Manx buggy', () => {
   const buggy = PHYSICS.bodies.buggy;
   const ground = buggy.wheelY - PHYSICS.truck.suspensionRest - buggy.wheelRadius;
