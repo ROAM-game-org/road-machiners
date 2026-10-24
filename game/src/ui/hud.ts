@@ -21,7 +21,6 @@ import {
   surveyProgress,
   isNotable,
   surveyClueLines,
-  surveyHowTo,
   eventText,
   formatNpcPass,
   workLabel,
@@ -41,7 +40,7 @@ import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, t
 import { createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
-import { createSwitch, keyCorner } from "./switch";
+import { createSwitch } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
@@ -165,9 +164,8 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
   return [
     el(
       "button",
-      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : undefined },
+      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : keyLabel(t("map.full"), "K") },
       t("map.full"),
-      keyCorner("K"),
     ),
   ];
 }
@@ -563,7 +561,6 @@ export class Hud {
       },
       block === "noBasic" ? createIcon("lock") : null,
       t("hud.douse"),
-      keyCorner("G"),
     );
   }
 
@@ -581,7 +578,6 @@ export class Hud {
       },
       block === "noBasic" ? createIcon("lock") : null,
       t("hud.firstAid"),
-      keyCorner("U"),
     );
   }
 
@@ -597,7 +593,6 @@ export class Hud {
         title: busy ? TURN_PLAYING : keyLabel(marked ? t("hud.characterMarked") : t("hud.character"), "C"),
       },
       marked ? t("hud.driverMarked") : t("hud.driver"),
-      keyCorner("C"),
     );
   }
 
@@ -611,7 +606,6 @@ export class Hud {
       "button",
       { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: keyLabel(t("journal.hint"), "J") },
       t("hud.journal"),
-      keyCorner("J"),
     );
   }
 
@@ -850,7 +844,7 @@ export function heldContractLine(w: World, c: Contract): HTMLElement {
   return el(
     'div',
     { class: 'contract-line' },
-    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c), surveyHowTo(c)) : null, claimRivalMark(w, c)),
+    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c)) : null, claimRivalMark(w, c)),
     c.kind === 'escort' ? escortLine(w, c) : el('span', { class: 'num' }, heldContractDue(c)),
   );
 }
