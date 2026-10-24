@@ -27,13 +27,13 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
       There's nothing on the board you could take right now. Make some room on your truck and ask again.
       -> hub
     - not has_work():
-      The board's empty today. Come back in a couple of days, it fills slowly.
+      The board's empty today. Come back in a couple of days. It fills slowly.
       -> hub
   }
   I might have a haul for you, if you want it. # work_offer
   ++ [I will take it.]
      ~ take_work()
-     Good. Bowl remembers the people who deliver, so don't make me regret this.
+     Good. Bowl remembers the people who deliver. Bring it in on time.
      -> hub
   ++ [Not now.]
      -> hub
@@ -44,7 +44,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   -> hub
 + {dag_road} [Who are the raiders?]
   There are two camps. Kiln Camp sits out east, south of the big crater, and <term=scrapjaw>Scrapjaw Camp</term> is far up north. Most days they'd rather rob you than kill you, because a dead driver hauls nothing next week.
-  So pay them or outrun them, but don't fire the first shot if you want to grow old.
+  So pay them or outrun them, and never fire the first shot.
   ~ dag_kiln = true
   -> hub
 + {dag_road} [What do you make of Nose?]
@@ -56,20 +56,20 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   ~ note("talkKilnFight")
   -> hub
 + {dag_pay} [Do tenants serve with you?]
-  Some do. They're good drivers, but they've got no vote, so they ride in our coats without being on the roll of citizens. The <term=senate>Senate</term> wants them on the road and off the roll.
+  Some do. They're good drivers, but tenants have no vote. They ride in our coats and stay off the roll of citizens. The <term=senate>Senate</term> wants them on the road and off the roll.
   Jory Baptiste keeps sending more of them, and I can't decide whether to thank him or watch him.
   -> hub
 + {dag_road} [Does the patrol go out to the crater?]
   { cult_broken():
     By day it does, and by night as well now. The lamps stopped crossing at dusk, and nobody has gone missing off the rim road since. Still keep off the green glow, whatever the hour.
   - else:
-    By day, yes. After dark, no, and that goes for every truck I ride with. Lamps cross the open ground out there at dusk and go back before sunup, and a truck that stops by the rim at night isn't always there in the morning. Be off the crater road before sundown.
+    By day, yes. After dark, no, and that goes for every truck I ride with. Lamps cross the open ground out there at dusk and go back before sunup. A truck that stops by the rim at night isn't always there in the morning. Be off the crater road before sundown.
     ~ note("sunwardDragged")
   }
   -> hub
 + {has_note("wagonBowl") and not dag_wagon} [Do you know where that Army wagon is?]
-  I do. She's in a hollow below the bend in our north road, below where the <term=pump_station>Pump Station</term> track branches off. North-east of here. I rode down to her myself.
-  Rule first: take nothing from that hollow up to Nose. The reason is that Nose blames the first driver it finds near its guns, and then it sends trucks down my road to ask questions.
+  I do. She's in a hollow below the bend in our north road, south of where the <term=pump_station>Pump Station</term> track branches off. North-east of here. I rode down to her myself.
+  Rule first: take nothing from that hollow up to Nose. Nose blames the first driver it finds near its guns, and then it sends trucks down my road to ask questions.
   ~ dag_wagon = true
   ~ note("wagonDag")
   -> hub
