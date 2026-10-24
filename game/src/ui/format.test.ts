@@ -187,8 +187,8 @@ describe("contract text", () => {
     it("says how far and which way from the shop the driver waits", () => {
       const bowl = REGION.towns.find((t) => t.id === "bowl")!.pos;
       const east = { ...rescue, area: { x: bowl.x + 40, y: bowl.y } };
-      expect(en(rescueWhere(east))).toMatch(/^\d+ m east of Bowl$|^[\d.]+ km east of Bowl$/);
-      expect(en(rescueWhere({ ...east, area: { x: bowl.x, y: bowl.y - 40 } }))).toContain("north of Bowl");
+      expect(en(rescueWhere(east))).toMatch(/^\d+ m south-east of Bowl$|^[\d.]+ km south-east of Bowl$/);
+      expect(en(rescueWhere({ ...east, area: { x: bowl.x, y: bowl.y - 40 } }))).toContain("north-east of Bowl");
     });
 
     it("logs a met rescue with the driver and a lapsed one without a price", () => {
@@ -215,7 +215,7 @@ describe("contract text", () => {
   it("names the wreck kind, a compass point and a rounded distance in the clue", () => {
     const shop = REGION.towns.find((l) => l.id === "bowl")!;
     const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
-    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank east of Bowl, about 1.3 km out");
+    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank south-east of Bowl, about 1.3 km out");
   });
 
   it("tells of a rival sent after a held claim, and of a claim lost to it, as notable lines", () => {
@@ -923,9 +923,9 @@ describe("survey contract text", () => {
 
   it("tells a clue as a named place, a compass word, a distance in hundreds of meters and the lay", () => {
     const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow" } as const;
-    expect(en(surveyClueText(clue))).toBe("Lies north-east of Pump Station, about 400 m out, in a hollow");
-    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies west of Pump Station, about 1.1 km out, on high ground");
-    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25 }))).toBe("Lies south of Pump Station, about 100 m out, on flat ground");
+    expect(en(surveyClueText(clue))).toBe("Lies east of Pump Station, about 400 m out, in a hollow");
+    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies north-west of Pump Station, about 1.1 km out, on high ground");
+    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25 }))).toBe("Lies south-west of Pump Station, about 100 m out, on flat ground");
   });
 
   it("tells the same clue wherever the truck is", () => {

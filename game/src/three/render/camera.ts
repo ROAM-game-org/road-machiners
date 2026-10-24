@@ -1,12 +1,13 @@
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
+import { VIEW } from '../../data/view';
 import type { V3 } from '../../phys/frames';
 import type { Vec } from '../../sim/vec';
 
 const S = PHYSICS.metersPerTile;
 const VIEW_METERS = 72;
-const OFFSET = new THREE.Vector3(1, 0.816, 1).normalize().multiplyScalar(300);
+const OFFSET = new THREE.Vector3(-VIEW.screenUp.x, VIEW.rise, -VIEW.screenUp.y).normalize().multiplyScalar(300);
 const ZOOM = { min: 0.35, max: 4 };
 const FOLLOW_TAU_MS = 250;
 const LEAD = 0.5;
