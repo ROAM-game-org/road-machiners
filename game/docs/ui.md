@@ -276,7 +276,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - Only `components.css` sets a button's height, padding or type size. A screen file places a button and sets its width. The small group of buttons that size themselves are tiles and drawn hardware, and the list is in `components.css`. A new button joins a size, and the guard test fails when a screen file sizes one.
 - `.tabs` is a row of medium tab buttons, and `.tabs.sub` the small row inside a tab.
 - `.row` is a list line with a faint line under it. `.tile` is a boxed list item edged in its `--tone`.
-- `.skill-level` is a row of small pips that fill from the left for a level out of a few: a skill rank, and an escort offer's danger (`.skill-level.threat`, three pips, with the level in its tooltip).
+- `.skill-level` is a row of small pips that fill from the left for a level out of a few: a skill rank.
 - `.chip` is a small boxed value. `.tag` is an outlined word in the color of its text.
 - `.contract-clue` is one told clue per survey place still open, on its own line under its contract. It starts with the place kind and ends with a `.tag` marked "found" when the place has been spotted but not surveyed.
 - `.contract-hint` is one line under the clues of a survey contract while a place is unfound. It says how to find and survey it.
