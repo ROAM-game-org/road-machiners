@@ -202,6 +202,7 @@ async function inspectNpc(page, armed) {
     const { runCommand } = await import('/src/ui/console.ts');
     const { partDef } = await import('/src/data/parts.ts');
     const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
+    document.querySelector('.tip-off')?.click();
     const npc = world.vehicles.filter((v) => v.brain).at(-1);
     world.player.ranks.perception = Math.max(world.player.ranks.perception, 1);
     if (!world.player.perks.includes('spotter')) world.player.perks.push('spotter');
