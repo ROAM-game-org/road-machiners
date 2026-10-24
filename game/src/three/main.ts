@@ -204,6 +204,7 @@ const loading = Promise.all([
 bootStep('loading the map');
 const map = await boot.track('map', fetchMap());
 const slots = await openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots));
+gameContext.watchSaves(slots);
 flushSaves = () => slots.flush();
 persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
@@ -245,7 +246,7 @@ bootStep('running');
 await uiFonts;
 boot.showText();
 if (loadedBank.failures.length) whenVisible(() => void recoverSounds(loadedBank).catch(reportError));
-gameContext.watch({ world: () => game.state, log: () => game.logTexts(), slots });
+gameContext.watch({ world: () => game.state, log: () => game.logTexts() });
 performance.mark('roam:ready');
 void boot.finish();
 if (import.meta.env.DEV) {
