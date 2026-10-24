@@ -16,7 +16,7 @@ import { LogPanel } from "./log";
 import {
   claimRivalMark,
   escortStatusText,
-  heldContractDue,
+  heldContractClock,
   contractSummary,
   surveyProgress,
   isNotable,
@@ -35,6 +35,7 @@ import {
   type LogLine,
   clock,
   stanceTag,
+  caseVictimName,
 } from "./format";
 import { FeedbackForm, type FeedbackKind } from "./game-menu";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
@@ -60,7 +61,7 @@ import { TruckPortraits } from "../three/render/truckPortrait";
 import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
-import { isMet, type Contract } from "../sim/market";
+import { isLate, isMet, type Contract } from "../sim/market";
 import { driverName, factionName, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
 
 export type ContextTarget =
@@ -830,7 +831,7 @@ export function heldContractLine(w: World, c: Contract): HTMLElement {
     'div',
     { class: 'contract-line' },
     el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c), surveyHowTo(c)) : null, claimRivalMark(w, c)),
-    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: 'num' }, heldContractDue(c)),
+    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: isLate(w, c) ? 'num bad' : 'num' }, heldContractClock(w, c)),
   );
 }
 
@@ -849,7 +850,6 @@ function escortLine(w: World, c: EscortContract): HTMLElement | null {
 }
 
 function wantedRow(w: World, c: CrimeCase): HTMLElement {
-  const victim = w.vehicles.find((v) => v.id === c.victim);
-  const label = t(`desk.case.${c.offense}`, { victim: victim ? vehicleTitle(w, victim) : t("log.someDriver") });
+  const label = t(`desk.case.${c.offense}`, { victim: caseVictimName(w, c) });
   return el("div", { class: "tooltip-row" }, el("span", {}, label), el("span", { class: "num" }, t("hud.wantedFiled", { site: siteName(c.site), when: clock(c.turn).full })));
 }

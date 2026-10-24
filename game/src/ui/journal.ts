@@ -132,7 +132,7 @@ function pastGroup(past: PastEntry[]): HTMLElement | null {
   return group('past', t('journal.past'), el('div', { class: 'jobs' }, ...past.map(pastEntry)));
 }
 
-const OUTCOME_TONE: Record<ContractEnd, 'good' | 'bad' | 'dim'> = { done: 'good', failed: 'bad', lapsed: 'dim', released: 'dim' };
+const OUTCOME_TONE: Record<ContractEnd, 'good' | 'bad' | 'dim'> = { done: 'good', failed: 'bad', late: 'dim', lapsed: 'dim', released: 'dim' };
 
 function pastEntry({ record, day }: PastEntry): HTMLElement {
   const c = record.contract;
