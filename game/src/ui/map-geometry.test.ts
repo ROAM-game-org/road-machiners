@@ -108,7 +108,7 @@ describe('wheelZoomFactor', () => {
   });
 
   it('reads line and page deltas as larger turns', () => {
-    expect(wheelZoomFactor(-3, 1)).toBeCloseTo(wheelZoomFactor(-48, 0));
+    expect(wheelZoomFactor(-3, 1)).toBeCloseTo(wheelZoomFactor(-99, 0));
     expect(wheelZoomFactor(-1, 2)).toBeCloseTo(1.25);
   });
 
