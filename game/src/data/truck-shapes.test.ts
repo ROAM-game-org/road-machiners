@@ -106,7 +106,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   longbed: { height: [2.55, 2.75], hood: [0.19, 0.25], roof: [0.1, 0.16], roofStart: [0.25, 0.31], deck: [0.53, 0.6] },
   courier: { height: [1.7, 1.8], roofStart: [0.42, 0.5], roof: [0.11, 0.2], noseDrop: [0.65, 0.9], tailDrop: [0.38, 0.62] },
   hauler: { height: [2.55, 2.71], roofStart: [0.02, 0.07], roof: [0.29, 0.34], deck: [0.58, 0.66] },
-  tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.161, 0.179], deck: [0.443, 0.489] },
+  tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.275, 0.304], deck: [0.317, 0.35] },
   jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
   carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.65, 0.85], tailDrop: [0.35, 0.6] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
@@ -245,7 +245,7 @@ describe('the hauler GAZ-66', () => {
 });
 
 describe('the tractor', () => {
-  it('keeps the W900L day cab at one scale: 6.2 to 6.43 m long, with a width to length of 0.411 across its fenders and tanks', () => {
+  it('keeps the W900L with a mid-roof sleeper at one scale: 6.2 to 6.43 m long, with a width to length of 0.411 across its fenders and tanks', () => {
     const boxes = SHAPES.base_tractor.boxes;
     const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
     const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
