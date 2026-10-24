@@ -36,7 +36,11 @@ const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "report", label: t("hud.feedbackTitle") },
 ];
 
-const PHONE_ENTRIES: MenuEntry[] = ["camera", "report"];
+const PHONE_ENTRIES: MenuEntry[] = ["camera"];
+
+export function phoneOnly(entry: MenuEntry): boolean {
+  return PHONE_ENTRIES.includes(entry);
+}
 
 type KeyCap = string | Msg;
 type Control = { keys: KeyCap[]; on?: Msg; does: Msg; needs?: "radio" };

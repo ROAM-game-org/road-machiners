@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolve } from "../text/resolve";
-import { controlsFor, entryEnabled, entryReason, type MenuEntry } from "./game-menu";
+import { controlsFor, entryEnabled, entryReason, phoneOnly, type MenuEntry } from "./game-menu";
 import { modeRulesOf } from "../sim/settings";
 
 describe("entryEnabled", () => {
@@ -17,6 +17,13 @@ describe("entryEnabled", () => {
       }
     });
   }
+});
+
+describe("phoneOnly", () => {
+  it("keeps only the camera entry off the desktop menu, so the report is in every Menu", () => {
+    const entries: MenuEntry[] = ["new", "save", "load", "unstuck", "options", "tips", "help", "camera", "report"];
+    expect(entries.filter(phoneOnly)).toEqual(["camera"]);
+  });
 });
 
 describe("entryReason", () => {
