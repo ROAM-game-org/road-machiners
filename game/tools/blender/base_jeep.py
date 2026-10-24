@@ -1,19 +1,28 @@
-"""The jeep base: the VW Kübelwagen Type 82 field car with its soft top up, at 1.217 scale.
+"""The jeep base: the VW Kübelwagen Type 82 field car with its soft top up, at 1.217 scale, built against the committee's two photos.
 
 Grid: 4 columns by 7 rows, 1.94 m across by 4.55 m along, the real 3.74 by 1.60 m car times 1.217.
 Half height 0.4 m, from PHYSICS.bodies.jeep. The ground lies at z -1.1.
-Levels from the Type 82 brief, real height times 1.217 over the ground: beltline 1.25 m (z 0.15),
-windshield frame 1.80 m (z 0.70), soft top crown 2.0 m (z 0.9), nose top about 1.03 m, tail top 0.85 m.
-Wheelbase 2.92 m (the real 2.40 m), so the wheels sit near the ends under big round arches.
-One slab-sided body hung low between the wheels, with two pressed ribs and four doors.
-Rows 0 and 1 are the short sloped hood with the spare wheel lying in it and round lamps on the wing tops,
-falling to a low nose face over an angled under-nose. Rows 2 and 3 are the cab behind an upright windshield,
-under a soft top in trim with a flat crown, rounded edges, side curtain windows and a rear window.
-Rows 4 and 5 are the open rear deck with a cutout over the engine cells, and row 6 a louvered lid sloping to
-a short rear face with round taillights and a round silencer under it.
+Levels from the published figures at 1.217: beltline 1.25 m (z 0.15), windshield frame 1.80 m (z 0.70),
+soft top crown 2.0 m (z 0.9), nose top about 1.0 m, tail top 0.85 m. Wheelbase 2.92 m (the real 2.40 m).
+The photos (side three-quarter and front, both perspective) give silhouette, detail and same-depth ratios only:
+the hood top at the nose is 0.55 of the wing span and the apron bottom 0.36, the lamps 0.12 across and inboard
+of the wing middle, the front wing crown about 0.4 of the way from the tire top to the beltline, its lip ahead of
+the tire at about 0.7 of the tire height, and the windshield raked about 12 degrees.
+A flat narrow slab, 0.76 of the span, carries separate round wings that stand proud of it and form the widest part.
+The front wings swell forward ahead of the tires and fall behind them to a dark step plate under the front door,
+with round domed lamps set into their crowns. Rows 0 and 1 are the hood, a trapezoid narrowing from the slab at the
+cowl to the nose, with the spare lying in it and a steep apron with four vertical ribs under its front edge.
+Rows 2 and 3 are the cab behind an upright framed windshield, under a soft top in trim with a flat crown, rounded edges,
+side curtain windows and a rear window. The four flat doors carry four pressed ribs, hinges on their front edges and a
+handle, over a sill band with two long ribs. Rows 4 and 5 are the open rear deck with a cutout over the engine cells,
+and row 6 a louvered lid sloping to a short rear face with round taillights and a round silencer under it.
+Inferred, since neither photo shows them: the rear wings, long and flat-crowned over the rear wheels, the rear corners
+that carry the lid slope out over them to the tail, the lid, taillights and silencer, the plan view, the left side
+(mirrored) and the slab width (the photos put it at 0.74 to 0.85 of the span).
 Deviations from the car: the tires follow the tire rule (radius 0.45 m, half width 0.18 m, not the real 0.34 m),
-the wheels are symmetric, the engine stays on its grid cells over the rear axle, and the top covers only
-the cab rows, as if its rear part were folded, so rows 4 and 5 stay an open deck.
+the wheels are symmetric, the engine stays on its grid cells over the rear axle, the top covers only the cab rows,
+as if its rear part were folded, so rows 4 and 5 stay an open deck, and the shovel, axe, jerrycan, blackout lamp,
+horn and plate are left off, too small to read at game zoom.
 Run: blender --background --python tools/blender/base_jeep.py -- public/models/base_jeep.glb [tmp/base_jeep.png]
 """
 
@@ -42,16 +51,19 @@ ARCH_R = WHEEL_R + ARCH_CLEARANCE
 ARCH_SEGMENTS = round_sides(ARCH_R) // 2
 WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03  # the wheel wells' inner wall
 
-SLAB = 0.78  # the flat body sides, 0.81 of the wing span, so the wings stand proud of them
-WING_OUT = G.half_y - 0.01  # the wings' outer face, the widest part of the jeep
+SLAB = 0.73  # the flat body sides, 0.76 of the wing span, so the wings stand proud of them
+WING_OUT = G.half_y  # the wings' outer face on the footprint edge, the widest part of the jeep
 WING_IN = 0.5  # the wings' inner wall, hidden in the body or flanking the narrow nose
 WING_R = ARCH_R + 0.11  # the front wings' crown radius round the hub
 REAR_WING_R = ARCH_R + 0.07  # the rear wings sit lower and thinner
 WING_BULGE = 0.12  # the front wing swells forward ahead of the tire, as in the side photo
-WING_SHOULDER = 0.1  # the wings' outer shoulder rolls down over this radius
+WING_SHOULDER = 0.09  # the wings' outer shoulder rolls down over this radius
+WING_LIP_T = 0.02  # the rolled shoulder leaves this much wing at the outer face
 WING_LIP = 0.25  # the front wing's lip ends this many radians ahead of the hub, at about 0.7 of the tire height
 REAR_WING_FRONT = 0.35  # the rear wing starts this many radians ahead of the rear hub, above the sill
 REAR_WING_BACK = math.pi - 0.3  # and ends this far round, at the tail
+REAR_WING_FLAT = (0.4, 0.15)  # the rear wing's crown runs level this far ahead of and behind the hub, so deck items over it stand flat
+QUARTER_OUT = WING_OUT - 0.04  # the rear corners carry the lid slope out over the rear wings, inferred from the Type 82's high rear wings
 FRONT = G.half_x - INSET  # nose face
 BACK = -G.half_x + INSET  # tail face
 DOOR_T = 0.08  # the side walls around the open rear deck
@@ -61,8 +73,8 @@ FLOOR = 0.0  # engine bay floor
 BAY_T = 0.04  # the dark bay floor plate
 NOSE_TOP = -0.12  # the hood's front edge
 NOSE_LIP = -0.18  # the nose face's top edge, under the rounded hood edge
-NOSE_LOW = -0.36  # the nose face's bottom edge, over the angled under-nose
-NOSE_SET = 0.12  # the nose face leans back this far from its top edge to its bottom edge
+NOSE_LOW = -0.44  # the nose apron's bottom edge, over the angled under-nose
+NOSE_SET = 0.06  # the steep apron leans back this far from its top edge to its bottom edge
 UNDER_NOSE = FRONT - 0.24  # the under-nose meets the body bottom here
 TAIL_Z = -0.25  # the lid slope ends at the rear face's top edge
 TAIL_LOW = -0.55
@@ -71,7 +83,14 @@ COWL = G.row_x(1.5)  # the windshield base, behind the hood rows
 TOP_BACK = G.row_x(3.5)  # the soft top ends at the rear deck
 FIREWALL = 0.03  # half the wall between the cab and the engine bay
 BAY_BACK = G.row_x(5.5)  # the engine cells run from row 4 to row 5, and the lid slope starts here
-SEAM_LOW = -0.55  # door seams reach down between the arches
+DOOR_LOW = -0.33  # the doors end on the sill band, which runs down to the body bottom
+DOOR_RIBS = (0.07, -0.04, -0.15, -0.26)  # four pressed ribs on each door, from the side photo
+SILL_RIBS = (-0.43, -0.53)  # two long ribs along the sill band
+RIB_OUT = 0.015  # ribs, seams, hinges and handles stand this far proud of the slab, well inside the wings
+STEP_BACK = 0.76  # the step plate runs from under the front wing's tail back to here, ahead of the front door
+STEP_Z = -0.66  # just under the wing's tail, so the step and the wing share one collision box
+STEP_OUT = WING_OUT - 0.06  # the step plate stands out nearly as far as the wing, as in the side photo
+APRON_RIBS = (-0.27, -0.09, 0.09, 0.27)  # the nose apron's four vertical ribs, from the front photo
 SEAMS = (0.72, 0.06, -0.62)  # the front door's front edge, the split between the doors, the rear door's back edge
 RAKE = 0.12  # the windshield leans back about 12 degrees, from the side photo
 SCREEN_TOP = 0.7
@@ -147,7 +166,7 @@ def narrow_nose(obj: bpy.types.Object) -> None:
     """Cuts the body ahead of the cowl to the hood's trapezoid in plan, and the nose apron to its front face narrowing downward."""
     reach = 0.3
     lean = (HOOD_NOSE_HALF - APRON_LOW_HALF) / (NOSE_LIP - NOSE_LOW)
-    face = [(HOOD_NOSE_HALF + lean * reach, NOSE_LIP + reach), (HOOD_NOSE_HALF, NOSE_LIP), (APRON_LOW_HALF, NOSE_LOW), (APRON_LOW_HALF, -2.0), (SLAB + 0.5, -2.0), (SLAB + 0.5, NOSE_LIP + reach)]
+    face = [(HOOD_NOSE_HALF + lean * reach, NOSE_LIP + reach), (APRON_LOW_HALF, NOSE_LOW), (APRON_LOW_HALF, -2.0), (SLAB + 0.5, -2.0), (SLAB + 0.5, NOSE_LIP + reach)]
     plan = [(COWL, SLAB), (FRONT + reach, hood_half(FRONT + reach)), (FRONT + reach, SLAB + 0.5), (COWL, SLAB + 0.5)]
     cutters = []
     for sy in (1, -1):
@@ -156,32 +175,38 @@ def narrow_nose(obj: bpy.types.Object) -> None:
     cut_hulls(obj, cutters)
 
 
-def wing_band(wx: float, r_out: float, bulge: float, a0: float, a1: float, n: int) -> list[tuple[float, float]]:
-    """A wing's side outline round the hub at wx: the outer curve from angle a0 to a1 (0 ahead of the hub), swelling by bulge toward the front, then the arch arc back."""
+def wing_band(wx: float, r_out: float, bulge: float, flat: tuple[float, float], a0: float, a1: float, n: int) -> list[tuple[float, float]]:
+    """A wing's side outline round the hub at wx: the outer curve from angle a0 to a1 (0 ahead of the hub), swelling by bulge toward the front
+    and stretched by flat ahead of and behind the hub into a level crown, then the arch arc back."""
 
-    def arc(r: float, swell: float, a: float, b: float) -> list[tuple[float, float]]:
-        angles = [a + (b - a) * k / n for k in range(n + 1)]
-        return [(wx + (r + swell * max(0.0, math.cos(t))) * math.cos(t), HUB_Z + (r + swell * max(0.0, math.cos(t))) * math.sin(t)) for t in angles]
+    def outer(t: float) -> tuple[float, float]:
+        r = r_out + bulge * max(0.0, math.cos(t))
+        return (wx + (flat[0] if t < math.pi / 2 else -flat[1]) + r * math.cos(t), HUB_Z + r * math.sin(t))
 
-    return arc(r_out, bulge, a0, a1) + arc(ARCH_R, 0.0, a1, a0)
+    def angles(a: float, b: float) -> list[float]:
+        return [a + (b - a) * k / n for k in range(n + 1)]
+
+    inner = [(wx + ARCH_R * math.cos(t), HUB_Z + ARCH_R * math.sin(t)) for t in angles(a1, a0)]
+    return [outer(t) for t in angles(a0, a1)] + inner
 
 
-def wing(kit: Kit, name: str, wx: float, r_out: float, bulge: float, a0: float, a1: float) -> list[bpy.types.Object]:
+def wing(kit: Kit, name: str, wx: float, r_out: float, bulge: float, flat: tuple[float, float], a0: float, a1: float) -> list[bpy.types.Object]:
     """A round wing over one wheel on both sides: full depth from its inner wall, its outer shoulder rolled down to a thin lip."""
     n = max(4, round(ROUND_ARCH_SEGMENTS * abs(a1 - a0) / math.pi))
     steps = 4
-    shoulder = [(WING_OUT - WING_SHOULDER + WING_SHOULDER * math.sin(math.pi / 2 * k / steps), r_out - WING_SHOULDER + WING_SHOULDER * math.cos(math.pi / 2 * k / steps)) for k in range(steps + 1)]
+    roll = min(WING_SHOULDER, r_out - ARCH_R - WING_LIP_T)
+    shoulder = [(WING_OUT - roll + roll * math.sin(math.pi / 2 * k / steps), r_out - roll + roll * math.cos(math.pi / 2 * k / steps)) for k in range(steps + 1)]
     made = []
     for s, sy in (("l", 1), ("r", -1)):
-        rings = [[(x, sy * y, z) for x, z in wing_band(wx, r, bulge, a0, a1, n)] for y, r in [(WING_IN, r_out)] + shoulder]
+        rings = [[(x, sy * y, z) for x, z in wing_band(wx, r, bulge, flat, a0, a1, n)] for y, r in [(WING_IN, r_out)] + shoulder]
         made.append(loft(kit, f"{name}_{s}", rings, "paint"))
     return made
 
 
 def wings(kit: Kit) -> list[bpy.types.Object]:
-    """Round wings bolted on the slab sides: tall ones over the front wheels from a lip ahead of the tire to the sill behind it, lower ones over the rear wheels to the tail."""
+    """Round wings bolted on the slab sides: tall ones over the front wheels from a lip ahead of the tire to the sill behind it, long flat-crowned ones over the rear wheels to the tail."""
     rear_x, front_x = WHEELS_X
-    return wing(kit, "wing_f", front_x, WING_R, WING_BULGE, WING_LIP, math.pi) + wing(kit, "wing_b", rear_x, REAR_WING_R, 0.0, REAR_WING_FRONT, REAR_WING_BACK)
+    return wing(kit, "wing_f", front_x, WING_R, WING_BULGE, (0.0, 0.0), WING_LIP, math.pi) + wing(kit, "wing_b", rear_x, REAR_WING_R, 0.0, REAR_WING_FLAT, REAR_WING_FRONT, REAR_WING_BACK)
 
 
 def check_wings(objs: list[bpy.types.Object]) -> None:
@@ -201,17 +226,34 @@ def check_wings(objs: list[bpy.types.Object]) -> None:
 
 
 def ribs(kit: Kit) -> None:
-    """Two pressed horizontal ribs along the slab sides, and dark seams between the four doors."""
-    mirrored(kit, "rib_high", (1.6 + 1.9, 0.025, 0.06), (1.6 - 1.9) / 2, SLAB + 0.0125, -0.04, "paint")
-    low_x0, low_x1 = WHEELS_X[0] + ARCH_R + 0.06, WHEELS_X[1] - ARCH_R - 0.06
-    mirrored(kit, "rib_low", (low_x1 - low_x0, 0.025, 0.06), (low_x0 + low_x1) / 2, SLAB + 0.0125, -0.32, "paint")
-    seams = SEAMS
-    for i, x in enumerate(seams):
-        low = door_sill(x, x, SEAM_LOW, WHEELS_X, HUB_Z, ARCH_R)
+    """Four flat doors with dark seams, four pressed ribs, hinges on the front edge and a handle, over a sill band with two long ribs and a step plate behind each front wing."""
+    face = SLAB + RIB_OUT / 2
+    for i, x in enumerate(SEAMS):
+        low = door_sill(x, x, DOOR_LOW, WHEELS_X, HUB_Z, ARCH_R)
         check_door_gap(f"seam{i}", x, x, low, WHEELS_X, HUB_Z, ARCH_R)
-        mirrored(kit, f"seam{i}", (0.035, 0.045, BELT - low), x, SLAB + 0.0175, (BELT + low) / 2, "under")
-    for i, x in enumerate((seams[1] + 0.1, seams[2] + 0.1)):
-        mirrored(kit, f"handle{i}", (0.12, 0.035, 0.035), x, SLAB + 0.0175, BELT - 0.07, "metal")
+        mirrored(kit, f"seam{i}", (0.035, RIB_OUT, BELT - low), x, face, (BELT + low) / 2, "under")
+    for d, (front, back) in enumerate(zip(SEAMS, SEAMS[1:])):
+        for k, z in enumerate(DOOR_RIBS):
+            mirrored(kit, f"door{d}_rib{k}", (front - back - 0.16, RIB_OUT, 0.035), (front + back) / 2, face, z, "paint")
+        for k, z in enumerate((BELT - 0.12, DOOR_LOW + 0.14)):
+            mirrored(kit, f"door{d}_hinge{k}", (0.08, RIB_OUT, 0.05), front - 0.03, face, z, "metal")
+        mirrored(kit, f"handle{d}", (0.12, RIB_OUT, 0.03), back + 0.12, face, BELT - 0.04, "metal")
+    sill_front, sill_back = STEP_BACK, WHEELS_X[0] + ARCH_R + 0.06
+    mirrored(kit, "sill_line", (SEAMS[0] - SEAMS[-1], RIB_OUT, 0.025), (SEAMS[0] + SEAMS[-1]) / 2, face, DOOR_LOW, "under")
+    for k, z in enumerate(SILL_RIBS):
+        mirrored(kit, f"sill_rib{k}", (sill_front - sill_back, RIB_OUT, 0.035), (sill_front + sill_back) / 2, face, z, "paint")
+    step_front = WHEELS_X[1] - ARCH_R - 0.02
+    mirrored(kit, "step", (step_front - STEP_BACK, STEP_OUT - SLAB, 0.03), (step_front + STEP_BACK) / 2, (STEP_OUT + SLAB) / 2, STEP_Z, "under")
+
+
+def apron(kit: Kit) -> None:
+    """Four vertical pressed ribs down the steep nose apron under the hood's front edge."""
+    height = NOSE_LIP - NOSE_LOW - 0.06
+    lean = math.atan2(NOSE_SET, NOSE_LIP - NOSE_LOW)
+    mid_z = (NOSE_LIP + NOSE_LOW) / 2
+    x = FRONT - NOSE_SET / 2 + 0.01
+    for k, y in enumerate(APRON_RIBS):
+        kit.box(f"apron_rib{k}", (0.03, 0.035, height), (x, y * (1 + APRON_LOW_HALF / HOOD_NOSE_HALF) / 2, mid_z), "paint", rot=(0, lean, 0))
 
 
 def hood(kit: Kit) -> None:
@@ -266,6 +308,16 @@ def soft_top(kit: Kit) -> None:
     kit.box("rear_window", (0.02, 0.9, 0.22), (rear + lean * (window_z - BELT) - 0.005, 0, window_z), "glass", rot=(0, math.atan(lean), 0))
 
 
+def tail_quarters(kit: Kit) -> None:
+    """The rear corners: the lid slope carried out over the rear wings to the tail, so the wings run into a full-width tail."""
+    crown = HUB_Z + REAR_WING_R
+    back_x = WHEELS_X[0] - REAR_WING_FLAT[1]
+    curve = [(back_x + REAR_WING_R * math.cos(a), HUB_Z + REAR_WING_R * math.sin(a)) for a in (math.pi / 2 + (REAR_WING_BACK - math.pi / 2) * k / 6 for k in range(7))]
+    profile = [(BAY_BACK, BELT), (BAY_BACK, crown)] + curve + [(BACK, curve[-1][1]), (BACK, TAIL_Z)]
+    for s, (y0, y1) in (("l", (SLAB - DOOR_T, QUARTER_OUT)), ("r", (-QUARTER_OUT, -SLAB + DOOR_T))):
+        prism(kit, f"quarter_{s}", profile, y0, y1, "paint")
+
+
 def tail(kit: Kit) -> None:
     """Dark louvers across the sloped engine lid, round taillights on the rear face, and a round silencer with its pipe under the tail."""
     run = BAY_BACK - BACK
@@ -281,7 +333,7 @@ def tail(kit: Kit) -> None:
     silencer_x = BACK + 0.2
     silencer_z = G.bottom - 0.04
     kit.cylinder("silencer", 0.09, 0.9, (silencer_x, 0, silencer_z), "metal", rot=(math.pi / 2, 0, 0), vertices=round_sides(0.09))
-    strut(kit, "tailpipe", (silencer_x, -0.3, silencer_z), (BACK - INSET + 0.02, -0.3, silencer_z - 0.02), 0.06, "metal", sides=round_sides(0.03))
+    strut(kit, "tailpipe", (silencer_x, -0.3, silencer_z), (BACK + 0.01, -0.3, silencer_z - 0.02), 0.06, "metal", sides=round_sides(0.03))
 
 
 def main() -> None:
@@ -290,9 +342,11 @@ def main() -> None:
     body(kit)
     check_wings(wings(kit))
     ribs(kit)
+    apron(kit)
     hood(kit)
     windshield(kit)
     soft_top(kit)
+    tail_quarters(kit)
     tail(kit)
     kit.socket("arch_front", (WHEELS_X[1], WHEEL_Z, HUB_Z))
     kit.socket("arch_rear", (WHEELS_X[0], WHEEL_Z, HUB_Z))

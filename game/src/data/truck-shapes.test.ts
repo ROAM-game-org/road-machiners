@@ -279,7 +279,7 @@ describe('the jeep field car', () => {
     const tail = Math.min(...columns.map((c) => c.x));
     const nose = Math.max(...columns.map((c) => c.x));
     const station = tail + 0.2 * (nose - tail);
-    const belt = Math.max(...columns.filter((c) => Math.abs(c.x - station) <= 0.2 && Math.abs(c.y) >= 0.8 && Math.abs(c.y) <= 0.95).map((c) => c.top));
+    const belt = Math.max(...columns.filter((c) => Math.abs(c.x - station) <= 0.2 && Math.abs(c.y) >= 0.6 && Math.abs(c.y) <= 0.75).map((c) => c.top));
     expect(belt - ground).toBeGreaterThanOrEqual(1.2);
     expect(belt - ground).toBeLessThanOrEqual(1.3);
   });
@@ -297,11 +297,11 @@ describe('the jeep field car', () => {
   it('narrows its hood to the nose: the hood top there spans 0.5 to 0.6 of its width, as in the front photo', () => {
     const nose = Math.max(...columns.map((c) => c.x));
     const front = columns.filter((c) => c.x >= nose - 0.3);
-    const hoodTop = Math.max(...front.map((c) => c.top));
-    const hoodYs = new Set(front.filter((c) => hoodTop - c.top <= 0.1).map((c) => c.y));
+    const rows = [...new Set(front.map((c) => c.x))].map((x) => front.filter((c) => c.x === x));
+    const hoodWidth = rows.reduce((sum, row) => sum + row.filter((c) => Math.max(...row.map((r) => r.top)) - c.top <= 0.1).length * heights.cell, 0) / rows.length;
     const width = 2 * Math.max(...columns.map((c) => Math.abs(c.y) + heights.cell / 2));
-    expect((hoodYs.size * heights.cell) / width).toBeGreaterThanOrEqual(0.5);
-    expect((hoodYs.size * heights.cell) / width).toBeLessThanOrEqual(0.6);
+    expect(hoodWidth / width).toBeGreaterThanOrEqual(0.5);
+    expect(hoodWidth / width).toBeLessThanOrEqual(0.6);
   });
 });
 
