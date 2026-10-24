@@ -65,15 +65,6 @@
    "reach": 1.588686312833173
   },
   {
-   "propId": "house-110",
-   "type": "lookout",
-   "pos": {
-    "x": 720,
-    "y": 609
-   },
-   "reach": 1.1849383929270565
-  },
-  {
    "propId": "tank-278",
    "type": "hulks",
    "pos": {

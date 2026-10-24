@@ -1,5 +1,4 @@
 
-import { atlasOf, atlasSites } from '../../sim/atlas';
 import { groundPoint, type VehicleFrame } from '../../phys/frames';
 import type { World } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
@@ -14,11 +13,9 @@ import type { CameraRig } from './camera';
 import type { SightLimit } from './scope';
 import { setText } from '../../text/language';
 import { num, t } from '../../text/msg';
-import { fullName, siteName } from '../../text/names';
+import { fullName } from '../../text/names';
 import { heldSearch } from '../../sim/market';
 import { agoText } from '../../ui/units';
-import { HOLLOW_ID } from '../../sim/sunward';
-import { HOLLOW } from '../../data/sunward';
 import { layerPointOf } from '../../ui/ui-size';
 
 const LABEL_LIFT_PX = 90;
@@ -43,7 +40,6 @@ function place(el: HTMLDivElement, world: World, pos: Vec, rig: CameraRig, limit
 }
 
 export class Labels {
-  private els = new Map<string, HTMLDivElement>();
   private rumors = new Map<string, HTMLDivElement>();
   private lead: HTMLDivElement | null = null;
   private escort: HTMLDivElement | null = null;
@@ -51,24 +47,9 @@ export class Labels {
   constructor(private readonly container: HTMLElement) {}
 
   update(world: World, rig: CameraRig, limit: SightLimit): void {
-    const sites = atlasSites(atlasOf(world.terrain));
-    for (const s of sites) {
-      const el = this.siteLabel(s.id);
-      setText(el, world.player.discovered.includes(s.id) ? siteName(s.id) : t('map.unknownSite'));
-      place(el, world, s.pos, rig, limit, playerExplored(world, s.pos));
-    }
-    this.updateHollow(world, rig, limit);
-    this.dropGoneSites(new Set([...sites.map((s) => s.id), HOLLOW_ID]));
     this.updateRumors(world, rig, limit);
     this.updateEscort(world, rig, limit);
     this.updateLead(world, rig, limit);
-  }
-
-  private updateHollow(world: World, rig: CameraRig, limit: SightLimit): void {
-    if (!world.player.discovered.includes(HOLLOW_ID)) return;
-    const el = this.siteLabel(HOLLOW_ID);
-    setText(el, siteName(HOLLOW_ID));
-    place(el, world, HOLLOW.pos, rig, limit, playerExplored(world, HOLLOW.pos));
   }
 
   private updateLead(world: World, rig: CameraRig, limit: SightLimit): void {
@@ -95,22 +76,6 @@ export class Labels {
     if (!this.escort) this.escort = labelEl(this.container);
     setText(this.escort, vehicleName(world, job.client));
     place(this.escort, world, lastSeen, rig, limit, true);
-  }
-
-  private dropGoneSites(ids: Set<string>): void {
-    for (const [id, el] of this.els) {
-      if (ids.has(id)) continue;
-      el.remove();
-      this.els.delete(id);
-    }
-  }
-
-  private siteLabel(id: string): HTMLDivElement {
-    const known = this.els.get(id);
-    if (known) return known;
-    const made = labelEl(this.container);
-    this.els.set(id, made);
-    return made;
   }
 
   private updateRumors(world: World, rig: CameraRig, limit: SightLimit): void {
