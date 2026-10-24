@@ -13,6 +13,8 @@ import { lieUpSpot } from './npc-service';
 import { reachedSite } from './sites';
 import { endState, stateOf } from './states';
 import { isStranded } from './stats';
+import { recall } from './memory';
+import { shipmentOf } from './road-news';
 import { escortsOf, hireEscort, isOnRope } from './tow';
 import type { Terrain } from './terrain';
 import type { EscortEnd, NpcActivity, Vehicle, World } from './types';
@@ -215,7 +217,18 @@ function endedBy(world: World, c: EscortContract, player: Vehicle, client: Vehic
   if (isDefeated(player)) return { outcome: 'released', end: 'knockedOut' };
   if (!client || isDefeated(client)) return { outcome: 'released', end: 'lost' };
   if (isHostile(world, player, client) || isHostile(world, client, player)) return { outcome: 'failed', end: 'hostile' };
+  if (robbedClient(world, player, client)) return { outcome: 'failed', end: 'hostile' };
   return null;
+}
+
+function robbedClient(world: World, player: Vehicle, client: Vehicle): boolean {
+  const escort = stateOf(world, 'escort', player.id, client.id);
+  if (!escort) return false;
+  return recall(client, 'wronged').some((m) => m.fact.by === player.id && m.fact.deed === 'robbed' && m.turn >= escort.born);
+}
+
+function haulOver(client: Vehicle, c: EscortContract): boolean {
+  return shipmentOf(client)?.to !== c.to;
 }
 
 function trackTogether(world: World, c: EscortContract, player: Vehicle, client: Vehicle): void {
@@ -256,6 +269,7 @@ export function settleEscortJob(world: World, c: EscortContract): void {
     return conclude(world, c, together ? 'done' : 'released', together ? 'arrived' : 'apartAtArrival');
   }
   if (!stateOf(world, 'escort', player.id, client.id)) throw new Error(`Escort ${c.id} lost its state with nothing to explain it`);
+  if (haulOver(client, c)) return conclude(world, c, 'released', 'cargoLost');
   trackTogether(world, c, player, client);
   if (tickStuck(world, c)) return conclude(world, c, 'released', 'stuck');
   if (tickApart(world, c, player, client)) conclude(world, c, 'failed', 'strayed');

@@ -9,7 +9,7 @@ import { reportIncident } from './relations';
 import { fileReports } from './crime';
 import { huntedCases, isMarshal, planMarshal } from './marshals';
 import { cargoSaleValue } from './economy';
-import { corePart } from './grid';
+import { corePart, goodsCount } from './grid';
 import { cancelJob } from './jobs';
 import { businessBelongs, resolveSell, resolveTrade } from './npc-business';
 import { isFree } from './spawn';
@@ -388,10 +388,11 @@ export function meetGoal(world: World, npc: Vehicle, other: Vehicle, reason: Goa
 const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   fight: fightInvalid,
   rearm: rearmInvalid,
-  wait: (world, vehicle, goal) => (goal.reason !== 'atPost' && escortsOf(world, vehicle.id).length > 0 ? 'escortHired' : null),
+  wait: escortWaitInvalid,
   flee: fleeInvalid,
   investigate: investigateInvalid,
   sizeUp: sizeUpInvalid,
+  sell: (_world, vehicle, goal) => haulLost(vehicle, goal),
   scavenge: scavengeInvalid,
   loot: lootInvalid,
   tow: towInvalid,
@@ -401,6 +402,20 @@ const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   claim: claimInvalid,
   pursue: (world, vehicle, goal) => (huntedCases(world, vehicle, goal.targetId!).length > 0 ? null : 'caseClosed'),
 };
+
+function haulLost(vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
+  if (!goal.shipment) return null;
+  return (goodsCount(vehicle)[goal.shipment.good] ?? 0) > 0 ? null : 'cargoLost';
+}
+
+function escortWaitInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
+  if (goal.reason === 'atPost') return null;
+  if (escortsOf(world, vehicle.id).length > 0) return 'escortHired';
+  if (goal.reason !== 'awaitEscort') return null;
+  const haul = goalsOf(vehicle)[0];
+  if (!haul?.shipment) throw new Error(`Vehicle ${vehicle.id} waits for an escort with no shipment under the wait`);
+  return haulLost(vehicle, haul);
+}
 
 function dealMeetInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
   return world.states.some((s) => (s.kind === 'trade' || s.kind === 'handover' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff';

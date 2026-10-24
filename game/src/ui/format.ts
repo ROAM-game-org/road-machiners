@@ -795,7 +795,7 @@ export function escortStatusText(world: World, c: Contract): Msg | null {
   return t(`contract.status.${status}`, { n: Math.max(0, turnsLeft(world, c) ?? 0) });
 }
 
-const ESCORT_ENDED_CLS = { arrived: 'good', strayed: 'bad', hostile: 'bad', knockedOut: 'bad', stuck: 'dim', apartAtArrival: 'dim', lost: 'dim' } as const;
+const ESCORT_ENDED_CLS = { arrived: 'good', strayed: 'bad', hostile: 'bad', knockedOut: 'bad', stuck: 'dim', apartAtArrival: 'dim', lost: 'dim', cargoLost: 'dim' } as const;
 
 function escortEndedText(world: World, e: Extract<GameEvent, { t: 'escortEnded' }>): LogLine {
   return line(t(`log.escortEnded.${e.end}`, { who: vehicleName(world, e.client) }), ESCORT_ENDED_CLS[e.end]);
