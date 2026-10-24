@@ -3,8 +3,8 @@
 Built from the committee's three photos of a blue G20 Starcraft conversion: the right side, the front three-quarter and the
 rear three-quarter. The real van is 5.14 m long and 2.0 m tall on a 0.367 m tire. Lengths scale by 1.14 to the 5.85 m grid, and
 heights by the scout's 1.077, measured from the hub, so the rule tire lifts the body as on the scout. That makes it 5.85 m long,
-2.42 m across the flares and 2.27 m tall on its tires. Levels: roof 1.009, window tops 0.83, beltline and cowl 0.427, hood nose 0.2,
-nose face top 0.115, waist band 0.276 to 0.384, rocker -0.564, bumpers -0.7 to -0.5. The windshield base sits at X 2.27 and its top
+2.42 m across the flares and 2.27 m tall on its tires. Levels: roof 1.009, windows 0.387 to 0.83, beltline and cowl 0.427, hood nose 0.2,
+nose face top 0.115, waist band 0.222 to 0.33, rocker -0.564, bumpers -0.7 to -0.5. The windshield base sits at X 2.27 and its top
 at X 1.7, so the roof runs flat from there to the tail. The roof edges round on a 0.3 by 0.17 m ellipse, the sides lean in 0.05 m
 from the beltline to the roof, and the rear vertical corners round on 0.12 m in plan.
 A short closed hood falls from the cowl to a rounded nose. The front face carries a pale bezel each side with two stacked lamps set
@@ -80,7 +80,7 @@ BELT = up(1.46)
 HOOD_NOSE = up(1.25)
 NOSE_TOP = up(1.17)
 ROCKER = up(0.54)
-BAND = (up(1.32), up(1.42))
+BAND = (up(1.27), up(1.37))
 BUMPER = (-0.7, -0.5)
 ENGINE_Y = -0.66
 ENGINE_BLOCK = 1.05
@@ -99,7 +99,7 @@ UPPER_BOTTOM = BELT - 0.06
 ROOF_W = 0.3
 ROOF_H = 0.17
 TUMBLE = 0.05
-WINDOW = (BELT + 0.005, ROOF - ROOF_H - 0.01)
+WINDOW = (BELT - 0.04, ROOF - ROOF_H - 0.01)
 PILLAR = 0.14
 
 FRONT_SEAM = 2.025
@@ -114,6 +114,7 @@ BEZEL_Z = (-0.42, 0.05)
 LAMP_W = 0.26
 LAMP_H = 0.16
 RIM = 0.05
+LAMP_GAP = 0.018
 
 
 def hood_z(x: float) -> float:
@@ -202,7 +203,7 @@ def lower_body(kit: Kit) -> None:
     """The body below the beltline from the tail to the rounded nose, with the closed hood and round arches cut over the wheels."""
     sections = [(x, lower_profile(BELT, half)) for x, half in tail_sections()]
     sections += [(COWL_X, lower_profile(BELT, SIDE)), ((COWL_X + HOOD_END) / 2, lower_profile(hood_z((COWL_X + HOOD_END) / 2), SIDE))]
-    sections += [(HOOD_END, lower_profile(HOOD_NOSE, SIDE)), (FRONT - 0.035, lower_profile(HOOD_NOSE - 0.035, SIDE - 0.015)), (FRONT, lower_profile(NOSE_TOP, SIDE - 0.06))]
+    sections += [(HOOD_END, lower_profile(HOOD_NOSE, SIDE - 0.01)), (FRONT - 0.035, lower_profile(HOOD_NOSE - 0.035, SIDE - 0.035)), (FRONT, lower_profile(NOSE_TOP, SIDE - 0.1))]
     body = loft_x(kit, "lower_body", sections, "paint")
     arch_cut(body, WHEELS_X, HUB_Z, WHEEL_R, WELL_Y, G.bottom, segments=ROUND_ARCH_SEGMENTS)
     for i, wx in enumerate(WHEELS_X):
@@ -223,7 +224,7 @@ def upper_body(kit: Kit) -> None:
     loft_x(kit, "upper_body", sections, "paint")
     normal = Vector((ROOF - BELT, 0.0, COWL_X - RAKE_TOP)).normalized()
     shield = []
-    for z, half in ((BELT + 0.05, 0.96), (ROOF - 0.08, 0.84)):
+    for z, half in ((BELT + 0.025, 1.0), (ROOF - 0.07, 0.86)):
         for d in (0.0, 0.015):
             for y in (-half, half):
                 shield.append((rake_x(z) + normal.x * d, y, z + normal.z * d))
@@ -276,11 +277,12 @@ def nose(kit: Kit) -> None:
     rim = (face, FRONT + 0.03)
     for sign, s in ((1, "l"), (-1, "r")):
         ys = sorted((sign * BEZEL_Y[0], sign * BEZEL_Y[1]))
-        slab(kit, f"bezel_back_{s}", (face, FRONT + 0.005), (ys[0], ys[1]), BEZEL_Z, "chrome")
+        slab(kit, f"bezel_back_{s}", (face, FRONT + 0.005), (ys[0], ys[1]), BEZEL_Z, "under")
         lamp_y = (BEZEL_Y[0] + BEZEL_Y[1]) / 2
         for i in range(2):
             z0 = BEZEL_Z[0] + RIM + i * (LAMP_H + RIM)
-            slab(kit, f"lamp{i}_{s}", (FRONT, FRONT + 0.008), sorted((sign * (lamp_y - LAMP_W / 2), sign * (lamp_y + LAMP_W / 2))), (z0, z0 + LAMP_H), "light")
+            lens = sorted((sign * (lamp_y - LAMP_W / 2 + LAMP_GAP), sign * (lamp_y + LAMP_W / 2 - LAMP_GAP)))
+            slab(kit, f"lamp{i}_{s}", (FRONT, FRONT + 0.008), lens, (z0 + LAMP_GAP, z0 + LAMP_H - LAMP_GAP), "light")
         lamp_top = BEZEL_Z[0] + 2 * (LAMP_H + RIM)
         for i, z in enumerate((BEZEL_Z[0], BEZEL_Z[0] + LAMP_H + RIM, lamp_top)):
             slab(kit, f"bezel_rim{i}_{s}", rim, (ys[0], ys[1]), (z, z + RIM if i < 2 else BEZEL_Z[1]), "chrome")
@@ -304,7 +306,7 @@ def tail(kit: Kit) -> None:
     flat = SIDE - TAIL_R
     out = (BACK - 0.012, BACK)
     slab(kit, "rear_door_line", (BACK - 0.006, BACK), (-0.0125, 0.0125), (ROCKER + 0.04, ROOF - 0.08), "under")
-    both_sides(kit, "rear_window", out, (0.08, flat - 0.12), (0.4, ROOF - 0.12), "glass")
+    both_sides(kit, "rear_window", out, (0.12, flat - 0.16), (0.4, ROOF - 0.12), "glass")
     slab(kit, "rear_band", out, (-flat, flat), BAND, "trim")
     both_sides(kit, "tail_lamp", (BACK - 0.02, BACK), (flat - 0.24, flat - 0.02), (-0.08, 0.16), "red")
     both_sides(kit, "reverse_lamp", (BACK - 0.02, BACK), (flat - 0.24, flat - 0.02), (-0.22, -0.08), "white")
