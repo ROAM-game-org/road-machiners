@@ -6,7 +6,7 @@ type Part = { id: string; defId: string; hp: number; wear: number };
 type Item = { id: string; x: number; y: number; rot: number; kind: string; part?: Part };
 type Saved = { player: { vehicleId: string; storage: Part[] }; salvage: { parts: Part[] }[]; vehicles: { id: string; chassisId: string; items: Item[] }[] };
 
-const step = (world: Saved): Saved => TINY_STEPS[102 - TINY_FROM](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+const step = (world: Saved): Saved => TINY_STEPS[102 - TINY_FROM].step(structuredClone(world) as unknown as SavedJson) as unknown as Saved;
 const fixture = () => structuredClone(FORMAT_2_102) as Saved;
 const vehicle = (world: Saved, id: string) => world.vehicles.find((v) => v.id === id)!;
 const item = (world: Saved, vehicleId: string, itemId: string) => vehicle(world, vehicleId).items.find((it) => it.id === itemId)!;

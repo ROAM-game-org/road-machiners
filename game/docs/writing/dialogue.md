@@ -178,6 +178,12 @@ Ruben, asked "Who runs Bowl?": "The canal families, through the Senate. It's slo
 
 Then the choice "[What's the Senate?]" opens, and the longer answer lives there.
 
+A talk window shows only the last reply, so the reply that opened a follow-up may be gone when the choice appears. Name the subject in the option itself, with a noun the player has met, and never with "it", "them" or a quote of the last reply. The speaker never says "you can ask me about that". What they say or do gives the reason to ask.
+
+Bad, Sefa: "I make a point of never taking the last of it from anyone, and you can ask me why." Then "[Why do you never take the last water?]", which shows up two picks later with nothing before it.
+
+Good, Sefa: "My families pick stalled and knocked-out trucks clean, down to the frame, and the driver keeps his water." Then "[Why leave a stripped driver his water?]".
+
 ### Important facts live in more than one mouth
 
 A fact the player needs to move on, such as where South Lock is or who buys stolen fuel, comes from at least two people or from a person and a document. A player who skipped one talk is never stuck.
