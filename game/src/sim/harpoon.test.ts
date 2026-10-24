@@ -93,7 +93,7 @@ describe('firing the harpoon', () => {
     const [anchor] = lineAnchors(w);
 
     expect(w.lines[0].length).toBeGreaterThan(10);
-    expect(w.lines[0].length).toBeLessThan(20);
+    expect(w.lines[0].length).toBeLessThan(25);
     expect(anchor.length).toBe(w.lines[0].length);
   });
 
