@@ -522,6 +522,15 @@ describe('road wreck turnover', () => {
     expect(stockOf(w, wrecks[0].id).hidden.goods.scrap).toBeGreaterThan(0);
   });
 
+  it('replaces a wreck looted during a day by the second daily tick', () => {
+    const w = worldWithLootedWreck(near, far);
+    runDays(w, 2);
+    const wrecks = w.obstacles.filter(isRoadWreck);
+    expect(wrecks).toHaveLength(1);
+    expect(wrecks[0].id).not.toBe('wreck0');
+    expect(dist(wrecks[0].pos, near)).toBeGreaterThan(grayRadius(w));
+  });
+
   it('keeps a looted wreck the player can see', () => {
     const w = worldWithLootedWreck(near, { x: 40, y: 30 });
     runDays(w, SALVAGE.wreckClearDays + 2);
