@@ -13,7 +13,7 @@ import { startAid } from "../sim/aid";
 import { isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress } from "./format";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
+import { boardOpens, contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
@@ -130,6 +130,10 @@ describe("contract text", () => {
 
   it("shows the deadline as the game time the contract fails", () => {
     expect(en(contractDue(order))).toBe("by Day 1 12:19");
+  });
+
+  it("names why the board is closed and the game time it opens", () => {
+    expect(en(boardOpens(order.deadline + 1))).toBe("You failed a job here. Work again at Day 1 12:19");
   });
 
   it("names the good, the crate count and the shop that ordered it, and no source", () => {
@@ -602,7 +606,7 @@ describe("money text", () => {
     const gain = eventText(w, { t: "money", amount: 4067, reason: { kind: "contract" } })!;
     const loss = eventText(w, { t: "money", amount: -100, reason: { kind: "failedHaul" } })!;
     expect([en(gain.text), gain.cls]).toEqual(["+41 M's: contract", "good"]);
-    expect([en(loss.text), loss.cls]).toEqual(["\u22121 M: failed haul contract", "bad"]);
+    expect([en(loss.text), loss.cls]).toEqual(["\u22121 M: cargo kept from a failed haul", "bad"]);
   });
 });
 
@@ -612,7 +616,7 @@ describe("tow text", () => {
     const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     const town = REGION.towns[0].id;
     expect(en(eventText(w, { t: "money", amount: 12000, reason: { kind: "contract" } })!.text)).toBe("+120 M's: contract");
-    expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "failedHaul" } })!.text)).toBe("\u221240 M's: failed haul contract");
+    expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "failedHaul" } })!.text)).toBe("\u221240 M's: cargo kept from a failed haul");
     expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 100 })!.text)).toMatch(/ for 1 M\.$/);
   });
   it("says free for a fee of 0 and keeps the price otherwise", () => {

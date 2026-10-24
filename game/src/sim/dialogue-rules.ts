@@ -17,7 +17,7 @@ import { playerVehicle } from './damage';
 import { discoverSite } from './locations';
 import { inCombat, isHostile } from './combat';
 import { defyThreat, patchGoal, startTow, topGoal } from './npc-activities';
-import { heldSearch, noteSearchLead, haulBlocked, searchRefusal, isExpired, shopAt, shopState, takeContract, type Contract, type SearchContract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
+import { boardClosedUntil, requireShop, heldSearch, noteSearchLead, haulBlocked, searchRefusal, isExpired, shopAt, shopState, takeContract, type Contract, type SearchContract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
 import { escortBlocked, heldEscort, holdEscort, releaseHold, type EscortContract } from './escort-job';
 import { recall, sightingOf } from './memory';
 import { askHandover, handoverWith, parcelFor } from './parcel';
@@ -797,7 +797,7 @@ export function townOffers(world: World): Contract[] {
 
 export function townWork(world: World): Contract | null {
   const open = townOffers(world).filter((c) => !haulBlocked(world, c) && !(c.kind === 'escort' && escortBlocked(world, c)) && searchRefusal(world, c) === null);
-  if (boardFull(world)) return null;
+  if (boardFull(world) || boardClosedUntil(world, requireShop(world)) !== null) return null;
   return open.reduce<Contract | null>((best, c) => (best === null || c.reward > best.reward ? c : best), null);
 }
 

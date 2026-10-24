@@ -74,6 +74,8 @@ export const CONTRACTS = {
 
   pastKept: 30,
 
+  failedRestTurns: TIME.turnsPerDay,
+
   warnTurns: Math.round(TIME.turnsPerDay / 12),
 
   haul: {

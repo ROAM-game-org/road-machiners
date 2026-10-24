@@ -23,7 +23,7 @@ import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply,
 import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
 import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
 import { itemMass } from '../mass';
-import { acceptContract, deliverContract, estimateTurns, shopAt, shopState, siteOf, type Contract } from '../market';
+import { boardClosedUntil, acceptContract, deliverContract, estimateTurns, shopAt, shopState, siteOf, type Contract } from '../market';
 import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
 import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
 import { canLoot, downedHere, downedNear, needsSearch, salvageHere, takeAllLoot } from '../locations';
@@ -517,7 +517,7 @@ function carryHaul(o: Orders, haul: Haul): void {
 
 function takeHaul(o: Orders): boolean {
   const shop = shopAt(o.world);
-  if (!shop || o.world.player.money < 0) return false;
+  if (!shop || boardClosedUntil(o.world, shop) !== null || o.world.player.money < 0) return false;
   const here = siteOf(shop).pos;
   const pay = (c: Haul) => c.reward / estimateTurns(here, siteOf(c.to).pos);
   const offers = shopState(o.world, shop).contracts.filter((c): c is Haul => c.kind === 'haul' && c.deadline > o.world.turn && c.units <= freeCells(o.me) && fuelReaches(o.world, siteOf(c.to)));
@@ -536,7 +536,7 @@ const ESCORT_KEEP_GAP = 8;
 
 function takeEscort(o: Orders): boolean {
   const shop = shopAt(o.world);
-  if (!shop || o.world.player.money < 0) return false;
+  if (!shop || boardClosedUntil(o.world, shop) !== null || o.world.player.money < 0) return false;
   const offers = shopState(o.world, shop).contracts.filter((c): c is EscortContract => c.kind === 'escort' && escortBlocked(o.world, c) === null && fuelReaches(o.world, siteOf(c.to)));
   const best = offers.reduce<EscortContract | null>((top, c) => (!top || c.reward > top.reward ? c : top), null);
   if (best) o.run((w) => acceptContract(w, best.id));
@@ -590,7 +590,7 @@ function fitsAboard(o: Orders, claim: Claim): boolean {
 
 function takeClaim(o: Orders): boolean {
   const shop = shopAt(o.world);
-  if (!shop || o.world.player.contracts.length >= CONTRACTS.maxActive) return false;
+  if (!shop || boardClosedUntil(o.world, shop) !== null || o.world.player.contracts.length >= CONTRACTS.maxActive) return false;
   const reaches = (c: Claim) => c.deadline > o.world.turn && fitsAboard(o, c) && fuelReaches(o.world, { ...siteOf(c.shop), pos: claimClue(c).point });
   const best = shopState(o.world, shop).contracts.filter(isClaim).filter(reaches).sort((a, b) => b.reward - a.reward)[0];
   if (best) o.run((w) => acceptContract(w, best.id));

@@ -101,6 +101,7 @@ A Chaos Highway run goes back to the start of the stretch it was on. The start i
 - Step 97 to 98 gives each truck with held turns a `strandedAt` anchor at its saved position.
 - Step 98 to 99 changes no data. It marks the new `helpRefused` state kind, the `askHelp` topic and the `answeredCall` goal reason.
 - Step 99 to 100 changes no data. It marks the `firstAid` job kind.
+- Step 104 to 105 changes no data. It marks the `failedContract` deed.
 - Step 103 to 104 drops every `fetch` and `bounty` contract from the shop boards, `player.contracts` and `player.pastContracts`. A held bounty already met pays its reward into `player.money` first. `player.perks` maps `bountyTalk` to `bountyHunter`, and `readCarried()` maps the perk the same way.
 - Step 101 to 102 adds `world.crimes: []` and the player's Marshalls standing at 0. It also marks the `witnessed` memory, the `pursue` goal, the `bountyHunt`, `atPost`, `caseClosed` and `huntGaveUp` reasons, the `bountyStop` state and the Marshalls faction, template, trait and site.
 - Step 48 to 49 renames the mode from its first name: `setup.mode: 'gauntlet'` becomes `'furyRoad'` and the world key `gauntlet` becomes `furyRoad`. The run inside is kept as it is. A run saved on the first highway then misses its map hash, since the highway's rules are at version 2, and goes to the rescue, which starts a new Chaos Highway run with its truck.

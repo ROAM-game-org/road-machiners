@@ -803,6 +803,7 @@ export const TINY_STEPS: readonly NamedStep[] = [
   { name: 'withCrimes', step: withCrimes_101_102 },
   { name: 'withOddFronts', step: withOddFronts_102_103 },
   { name: 'withoutFetchAndBounty', step: withoutFetchAndBounty_103_104 },
+  { name: 'marksFailedContract', step: (world) => world },
 ];
 
 const MARSHALS_STANDING_101_102 = 0;
