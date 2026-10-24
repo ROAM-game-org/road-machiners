@@ -723,10 +723,6 @@ export function surveyPlaceLine(c: SurveyContract, point: SurveyPoint): HTMLElem
   return el('span', { class: 'contract-clue' }, text, point.found ? SPACE : null, point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null, SPACE, t(`contract.lookFor.${clue.type}`));
 }
 
-export function surveyHowTo(c: SurveyContract): HTMLElement | null {
-  return c.points.some((p) => !p.done && !p.found) ? el('span', { class: 'contract-hint' }, t('contract.surveyHowTo')) : null;
-}
-
 export function surveyClueLines(c: SurveyContract): HTMLElement[] {
   return c.points.filter((p) => !p.done).map((p) => surveyPlaceLine(c, p));
 }

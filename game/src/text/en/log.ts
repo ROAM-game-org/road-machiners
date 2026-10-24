@@ -268,7 +268,6 @@ export const LOG = {
   'contract.lookFor.lookout': 'A lone building.',
   'contract.lookFor.hulks': 'Rusted tank wrecks in a group.',
   'contract.lookFor.boats': 'Rusted boats half sunk in sand.',
-  'contract.surveyHowTo': 'Drive there, park beside it and Survey.',
   'contract.lay.rise': 'on high ground',
   'contract.lay.hollow': 'in a hollow',
   'contract.lay.flat': 'on flat ground',

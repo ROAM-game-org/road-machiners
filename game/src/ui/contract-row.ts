@@ -5,7 +5,7 @@ import type { World } from "../sim/types";
 import { PLUS, SPACE, t } from "../text/msg";
 import { createBareItemIcon, createIcon } from "./cards";
 import { el, type Child } from "./dom";
-import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, heldContractDue, rescueWhere, surveyClueLines, surveyHowTo, vehicleName } from "./format";
+import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, heldContractDue, rescueWhere, surveyClueLines, vehicleName } from "./format";
 import { kph, moneyEl } from "./units";
 
 const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
@@ -33,7 +33,7 @@ function escortDetail(w: World, c: Extract<Contract, { kind: "escort" }>): Child
 }
 
 function surveyLine(c: Contract): HTMLElement | null {
-  return c.kind === "survey" ? el("span", { class: "dim" }, ...surveyClueLines(c), surveyHowTo(c)) : null;
+  return c.kind === "survey" ? el("span", { class: "dim" }, ...surveyClueLines(c)) : null;
 }
 
 function escortClock(w: World, c: Extract<Contract, { kind: "escort" }>, posted: boolean): HTMLElement {

@@ -278,7 +278,6 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.skill-level` is a row of small pips that fill from the left for a level out of a few: a skill rank, and an escort offer's danger (`.skill-level.threat`, three pips, with the level in its tooltip).
 - `.chip` is a small boxed value. `.tag` is an outlined word in the color of its text.
 - `.contract-clue` is one told clue per survey place still open, on its own line under its contract. It starts with the place kind and ends with a `.tag` marked "found" when the place has been spotted but not surveyed.
-- `.contract-hint` is one line under the clues of a survey contract while a place is unfound. It says how to find and survey it.
 - `.log-strip` is the newest log line on one row, on a phone above End turn. It is a `.panel` with a button role, one line at `--phone-strip-h` (`--touch-target`) high, and it takes a tap to open the Log drawer. It is hidden under a modal and under Options with the rest of the bar.
 - `.drawer-tabs` is the tab row of the phone layout: one `.btn-l` per drawer, its word its accessible name, `.selected` on the open one and `.marked` for the danger edge of attention. Its drawer is the panel of its zone, set to scroll inside.
 - `.key` is a keyboard key or a mouse button, drawn as a keycap, as in the help panel. A shortcut listens for the physical key (`KeyboardEvent.code`), never the typed character, so it works in every keyboard layout. The keycap text is only a label.
