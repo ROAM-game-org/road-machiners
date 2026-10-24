@@ -313,6 +313,24 @@ export function planItemMove(v: Vehicle, itemId: string, to: Spot): PlanResult {
   return planMoves(v, moves);
 }
 
+export function plannedVehicle(v: Vehicle, layout: RefitLayout): Vehicle {
+  if (Object.keys(layout).length === 0) return v;
+  return { ...v, items: v.items.map((it) => (layout[it.id] ? { ...it, ...layout[it.id] } : it)) };
+}
+
+function sameMoves(a: RefitMove[], b: RefitMove[]): boolean {
+  return a.length === b.length && a.every((move, i) => move.itemId === b[i].itemId && move.to.x === b[i].to.x && move.to.y === b[i].to.y && move.to.rot === b[i].to.rot);
+}
+
+export function fieldMoveIsInstant(v: Vehicle, layout: RefitLayout, itemId: string, to: Spot): boolean {
+  const drawn = planItemMove(plannedVehicle(v, layout), itemId, to);
+  const real = planItemMove(v, itemId, to);
+  if (drawn.error !== null || real.error !== null) return false;
+  if (drawn.plan.turns !== 0 || real.plan.turns !== 0) return false;
+  if (!sameMoves(drawn.plan.moves, real.plan.moves)) return false;
+  return drawn.plan.moves.every((move) => !layout[move.itemId]);
+}
+
 function planMoves(v: Vehicle, moves: RefitMove[]): PlanResult {
   const items = [...v.items];
   let turns = 0;

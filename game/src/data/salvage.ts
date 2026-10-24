@@ -67,7 +67,7 @@ export const SALVAGE = {
   pileSearchTurns: 1,
   coreValueShare: 0.03,
   restockShare: 0.08,
-  wreckClearDays: 3,
+  wreckClearDays: 1,
   landmark: LANDMARK_TABLE,
   hullCache: { ...LANDMARK_TABLE, relicChance: 0.14 } as LootTable,
   roadWreck: {

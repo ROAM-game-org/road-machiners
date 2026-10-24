@@ -513,7 +513,7 @@ def windshield(kit: Kit) -> None:
         post_top = (VENT_POST_X, top.y, VENT_TOP)
         strut(kit, f"vent_post_{s}", post_foot, post_top, 0.035, "metal_light")
         strut(kit, f"vent_top_{s}", post_top, tuple(top), 0.035, "metal_light")
-        pane = [tuple(windshield_point(0.03, sy)), tuple(top), post_top, post_foot]
+        pane = [tuple(windshield_point(0.03, sy)), (top.x, top.y, top.z - 0.012), (VENT_POST_X - 0.008, top.y, VENT_TOP - 0.012), (VENT_POST_X - 0.008, top.y, LID - 0.01)]
         add_hull(kit, f"vent_glass_{s}", [p for x, y, z in pane for p in ((x, y - sy * 0.004, z), (x, y + sy * 0.004, z))], "glass")
     strut(kit, "header", tuple(windshield_point(1, 1)), tuple(windshield_point(1, -1)), 0.04, "metal_light")
     strut(kit, "cowl", (COWL_X + 0.02, SHIELD_HALF[0], LID + 0.012), (COWL_X + 0.02, -SHIELD_HALF[0], LID + 0.012), 0.03, "metal_light")
