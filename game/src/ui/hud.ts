@@ -21,7 +21,6 @@ import {
   surveyProgress,
   isNotable,
   surveyClueLines,
-  surveyHowTo,
   eventText,
   formatNpcPass,
   workLabel,
@@ -829,7 +828,7 @@ export function heldContractLine(w: World, c: Contract): HTMLElement {
   return el(
     'div',
     { class: 'contract-line' },
-    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c), surveyHowTo(c)) : null, claimRivalMark(w, c)),
+    el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c)) : null, claimRivalMark(w, c)),
     c.kind === 'escort' ? escortLine(w, c) : el('span', { class: 'num' }, heldContractDue(c)),
   );
 }
