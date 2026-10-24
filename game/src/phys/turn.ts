@@ -273,7 +273,7 @@ function applyCrashes(w: World, r: TurnResult): void {
     const a = w.vehicles.find((v) => v.id === c.a);
     if (!a) throw new Error(`Crash with unknown vehicle ${c.a}`);
     if (c.b === GROUND) applyGroundCrash(w, a, c.b, toTilesPerTurn(c.impact), c.contact.a);
-    else applyContactCrash(w, a, w.vehicles.find((v) => v.id === c.b) ?? null, c.b, toTilesPerTurn(c.impact), c.contact);
+    else applyContactCrash(w, a, w.vehicles.find((v) => v.id === c.b) ?? null, c.b, toTilesPerTurn(c.impact), c.contact, c.approach && { a: toTilesPerTurn(c.approach.a), b: toTilesPerTurn(c.approach.b) });
   }
 }
 
