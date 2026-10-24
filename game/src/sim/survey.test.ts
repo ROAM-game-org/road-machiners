@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { CONTRACTS, EFFORT, SHOPS } from '../data/market';
 import { ECONOMY } from '../data/goods';
 import { sitePads } from './sites';
+import { standardWorld } from '../test/world-cache';
 import { emptyWorld, testDrive } from './testkit';
 import { acceptContract, advanceContracts, deliverContract, haulWindow, initializeShops, siteOf, type Contract } from './market';
 import { endTurn } from './world';
 import { nearestRoadPoint } from './salvage';
 import { compassSector, findSurveySites, isSurveyMet, startSurvey, surveyActions, surveyClue, liveSurveySites, surveyLoopTurns, surveyWay, surveyReward, surveySite, surveySites, type SurveyContract } from './survey';
-import { refreshVision, visibleTiles, tileOf } from './vision';
+import { refreshVision, sightRadius, visibleTiles, tileOf } from './vision';
+import { playerVehicle } from './damage';
 import { followSteps } from './directions-follower.test-helper';
 import { directionsFromSite } from './directions';
 import { DIRECTIONS } from '../data/directions';
@@ -433,7 +435,7 @@ function surveyPairs(w: World): { shop: string; site: string }[] {
 }
 
 describe('survey way', () => {
-  const w = emptyWorld();
+  const w = standardWorld(1);
   const pairs = surveyPairs(w);
 
   it('tells a full way to every survey site from every shop in range, the reporter lookout from Bowl included', () => {
@@ -466,11 +468,23 @@ describe('survey way', () => {
       }
       const reach = leave.span === 'near' ? DIRECTIONS.spans.near : DIRECTIONS.spans.fair;
       const aim = toldAim(leave);
-      let seen = false;
-      for (let d = 0; d <= reach && !seen; d += 3) {
-        const p = { x: followed.closestAt.x + Math.cos(aim) * d, y: followed.closestAt.y + Math.sin(aim) * d };
+      const sight = sightRadius(w, playerVehicle(w));
+      const seesFrom = (p: Vec) => {
         const tiles = visibleTiles(w, p);
-        seen = place.props.some((prop) => tiles.has(tileOf(w, prop.pos)));
+        return place.props.some((prop) => tiles.has(tileOf(w, prop.pos)));
+      };
+      const nearest = (p: Vec) => place.props.reduce((a, b) => (dist(p, b.pos) < dist(p, a.pos) ? b : a)).pos;
+      let seen = false;
+      let close: Vec | null = null;
+      for (let d = 0; d <= reach && !seen && !close; d += 3) {
+        const p = { x: followed.closestAt.x + Math.cos(aim) * d, y: followed.closestAt.y + Math.sin(aim) * d };
+        seen = seesFrom(p);
+        if (!seen && dist(p, nearest(p)) <= sight) close = p;
+      }
+      if (!seen && close) {
+        const target = nearest(close);
+        const length = dist(close, target);
+        for (let d = 0; d <= length && !seen; d += 2) seen = seesFrom({ x: close.x + ((target.x - close.x) * d) / length, y: close.y + ((target.y - close.y) * d) / length });
       }
       if (!seen) lost.push(`${shop} ${site} unseen`);
     }

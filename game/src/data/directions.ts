@@ -8,6 +8,7 @@ export const DIRECTIONS = {
   leaveReach: 100,
   leanAngle: Math.PI / 16,
   directReach: 40,
+  placeSlack: 15,
   cueReach: 25,
   headingReach: 25,
   keepAngle: 0.5,

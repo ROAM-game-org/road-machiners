@@ -59,7 +59,7 @@ type Plan = { steps: DirectionStep[]; length: number };
 function planFrom(world: World, net: RoadNetwork, start: RoadPoint | number, target: DirectionTarget, rough: { octant: Octant; span: Span }): Plan {
   const noRoad: Plan = { steps: [{ do: 'noRoad', ...rough }], length: Infinity };
   const aim = targetPos(target);
-  const leave = target.kind === 'spot' ? leavePoint(world, net, target.pos) : null;
+  const leave = target.kind === 'spot' ? leavePoint(world, net, target) : null;
   if (target.kind === 'spot' && !leave) return noRoad;
   const points = [...(typeof start === 'number' ? [] : [start]), ...(leave ? [leave] : [])];
   const { graph, nodes } = splitAt(net, points);
@@ -95,8 +95,17 @@ function startPoint(world: World, from: Vec, net: ReturnType<typeof roadNetworkO
   return { point, join };
 }
 
-function leavePoint(world: World, net: ReturnType<typeof roadNetworkOf>, spot: Vec): RoadPoint | null {
-  return nearestRoadPoints(net, spot, DIRECTIONS.leaveReach, DIRECTIONS.joinCandidates).find((p) => clearLine(world, p.pos, spot)) ?? null;
+function leavePoint(world: World, net: RoadNetwork, target: Extract<DirectionTarget, { kind: 'spot' }>): RoadPoint | null {
+  const near = nearestRoadPoints(net, target.pos, DIRECTIONS.leaveReach, DIRECTIONS.joinCandidates);
+  const open = near.find((p) => clearLine(world, p.pos, target.clue === 'place' ? stopShort(p.pos, target.pos, DIRECTIONS.placeSlack) : target.pos));
+  return open ?? (target.clue === 'place' ? near[0] ?? null : null);
+}
+
+function stopShort(from: Vec, to: Vec, gap: number): Vec {
+  const length = dist(from, to);
+  if (length <= gap) return from;
+  const t = (length - gap) / length;
+  return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
 }
 
 export function clearLine(world: World, a: Vec, b: Vec): boolean {
