@@ -78,7 +78,7 @@ Every fact on a screen belongs to one tier for the decision that screen serves. 
 
 ### 4.1 Placement rules
 
-- A thing in the world is labeled in the world.
+- A thing in the world is labeled in the world. A place is the exception. Its walls, gate and pads show it, and its name lives on the map, the minimap and the town page, never as a plate over it in the world.
 - The state of my own truck lives in the HUD.
 - A comparison between my truck and another lives on the cursor card.
 - An explanation sits next to the number it explains, inside the same block.
