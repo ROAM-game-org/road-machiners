@@ -1,29 +1,39 @@
 {
   "shops": {
-    "granary": {
+    "bowl": {
+      "contracts": [
+        {
+          "id": "ct-board-haul",
+          "shop": "bowl",
+          "kind": "haul",
+          "good": "grain",
+          "units": 4,
+          "to": "granary",
+          "reward": 3000,
+          "deadline": 900,
+          "window": 500,
+          "rush": false,
+          "tier": 1
+        }
+      ],
+      "goods": {
+        "grain": 120
+      }
+    },
+    "nose": {
       "contracts": [],
       "goods": {
-        "salt": 40
+        "salt": 120
       }
     }
   },
   "player": {
     "money": 61100,
-    "contracts": [
-      {
-        "id": "ct-late-haul",
-        "shop": "granary",
-        "kind": "haul",
-        "good": "salt",
-        "units": 3,
-        "to": "nose",
-        "reward": 3000,
-        "deadline": 900,
-        "window": 500,
-        "rush": false,
-        "tier": 1
-      }
+    "perks": [
+      "rammer",
+      "bountyHunter"
     ],
+    "contracts": [],
     "pastContracts": [
       {
         "contract": {
@@ -39,55 +49,19 @@
           "rush": true,
           "tier": 1
         },
-        "outcome": "late",
-        "turn": 450,
-        "amount": 0
+        "outcome": "failed",
+        "turn": 350,
+        "amount": -2400
       }
     ],
     "deeds": [
       {
-        "subject": "ct-past-haul",
+        "subject": "ct-board-haul",
         "faction": "bowl",
         "deed": "failedContract",
         "delta": -5,
-        "turn": 450
+        "turn": 100
       }
     ]
-  },
-  "crimes": [
-    {
-      "id": "case1",
-      "crime": "1400:p1:granary:embezzled",
-      "offense": "embezzled",
-      "target": "p1",
-      "victim": "granary",
-      "issuer": {
-        "kind": "shop",
-        "shop": "granary"
-      },
-      "reporters": [],
-      "site": "granary",
-      "at": {
-        "x": 10,
-        "y": 12
-      },
-      "turn": 1400,
-      "filed": 1400,
-      "owed": 2600,
-      "escrow": 0,
-      "status": "open",
-      "closed": null,
-      "hunter": null,
-      "retryAt": null,
-      "offered": null,
-      "lead": {
-        "at": {
-          "x": 10,
-          "y": 12
-        },
-        "turn": 1400,
-        "heading": null
-      }
-    }
-  ]
+  }
 }

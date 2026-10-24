@@ -1,67 +1,28 @@
 {
-  "shops": {
-    "bowl": {
-      "contracts": [
-        {
-          "id": "ct-board-haul",
-          "shop": "bowl",
-          "kind": "haul",
-          "good": "grain",
-          "units": 4,
-          "to": "granary",
-          "reward": 3000,
-          "deadline": 900,
-          "window": 500,
-          "rush": false,
-          "tier": 1
+  "player": {
+    "call": {
+      "with": "npc-1",
+      "topic": null,
+      "node": "start",
+      "vars": {
+        "way": {
+          "kind": "directions",
+          "steps": [
+            { "do": "follow", "road": { "kind": "to", "site": "nose" }, "heading": "northEast", "span": "fair" },
+            { "do": "leave", "at": { "kind": "none" }, "octant": "south", "span": "fair" },
+            { "do": "search", "clue": { "kind": "wreck" }, "rough": true }
+          ]
         }
-      ],
-      "goods": {
-        "grain": 120
-      }
-    },
-    "nose": {
-      "contracts": [],
-      "goods": {
-        "salt": 120
+      },
+      "line": {
+        "line": "wreckWay",
+        "vars": {
+          "way": {
+            "kind": "directions",
+            "steps": [{ "do": "leave", "at": { "kind": "fork", "nth": 2 }, "octant": "east", "span": "near" }]
+          }
+        }
       }
     }
-  },
-  "player": {
-    "money": 61100,
-    "perks": [
-      "rammer",
-      "bountyHunter"
-    ],
-    "contracts": [],
-    "pastContracts": [
-      {
-        "contract": {
-          "id": "ct-past-haul",
-          "shop": "bowl",
-          "kind": "haul",
-          "good": "grain",
-          "units": 4,
-          "to": "granary",
-          "reward": 3000,
-          "deadline": 400,
-          "window": 500,
-          "rush": true,
-          "tier": 1
-        },
-        "outcome": "failed",
-        "turn": 350,
-        "amount": -2400
-      }
-    ],
-    "deeds": [
-      {
-        "subject": "ct-board-haul",
-        "faction": "bowl",
-        "deed": "failedContract",
-        "delta": -5,
-        "turn": 100
-      }
-    ]
   }
 }
