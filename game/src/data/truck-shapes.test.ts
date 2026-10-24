@@ -105,7 +105,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
   longbed: { height: [2.55, 2.75], hood: [0.19, 0.25], roof: [0.1, 0.16], roofStart: [0.25, 0.31], deck: [0.53, 0.6] },
   courier: { height: [1.7, 1.8], roofStart: [0.42, 0.5], roof: [0.11, 0.2], noseDrop: [0.65, 0.9], tailDrop: [0.38, 0.62] },
-  hauler: { height: [2.55, 2.71], roofStart: [0.02, 0.07], roof: [0.29, 0.34], deck: [0.58, 0.66] },
+  hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.21, 0.27], deck: [0.58, 0.66] },
   tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.161, 0.179], deck: [0.443, 0.489] },
   jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
   buggy: { height: [1.56, 1.72], roof: [0.24, 0.36], noseDrop: [0.8, 1.08], tailDrop: [0.6, 0.9] },
@@ -258,7 +258,7 @@ describe('the hauler GAZ-66', () => {
   const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
   const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
 
-  it('copies the GAZ-66 at the scout scale: 6.09 m long, with a width to length of 0.46 to 0.50 across its wings', () => {
+  it('copies the GAZ-66 photographs at the scout scale: 6.09 m long, with a width to length of 0.46 to 0.50 across its face', () => {
     expect(Math.abs(along - 6.09)).toBeLessThanOrEqual(0.05);
     expect(across / along).toBeGreaterThanOrEqual(0.46);
     expect(across / along).toBeLessThanOrEqual(0.5);
@@ -284,6 +284,18 @@ describe('the hauler GAZ-66', () => {
     expect(floor.length).toBeGreaterThan(0);
     expect(Math.min(...floor) - ground).toBeGreaterThanOrEqual(1.35);
     expect(Math.max(...floor) - ground).toBeLessThanOrEqual(1.45);
+  });
+
+  it('is a flatbed with no walls: behind the headboard and its braces nothing stands more than 0.06 m over the deck', () => {
+    const { heights } = SHAPES.base_hauler;
+    const body = PHYSICS.bodies.hauler;
+    const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
+    const rows = heights.top.flatMap((row, i) => {
+      const x = (heights.i0 + i + 0.5) * heights.cell;
+      return x < 0 && x > -along / 2 + 0.1 ? row.flatMap((cm) => (cm === null ? [] : [cm / 100 - ground])) : [];
+    });
+    expect(rows.length).toBeGreaterThan(0);
+    expect(Math.max(...rows)).toBeLessThanOrEqual(1.46);
   });
 });
 
