@@ -967,7 +967,7 @@ export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: numb
 }
 
 function blocksGuns(v: Vehicle, item: PartItem, def: PartDef): boolean {
-  return !(isMounted(v.chassisId, item) && (isShield(def) || def.kind === 'engine'));
+  return !(isMounted(v.chassisId, item) && def.kind === 'engine');
 }
 
 function obstacleOf(obj: THREE.Object3D): Obstacle {
