@@ -429,7 +429,7 @@ export const TALK: Translation<typeof EN> = {
   'radio.overcastStart.0': 'Над котловиной тучи. Солнце взяло выходной.',
   'radio.overcastStart.1': 'Пасмурно и прохладно. Полуденная жара должна пощадить моторы.',
   'radio.stormStart.0': 'Пыльная буря {place}, идет {heading}.',
-  'radio.stormStart.1': 'Пылевая стена {place}, идет {heading}. Дальше капота ничего не видно.',
+  'radio.stormStart.1': 'Пылевая стена {place}, идет {heading}. Дальше капота не видно.',
   'radio.stormEnd.0': 'Пыльная буря {place} выдохлась.',
   'radio.stormEnd.1': 'Буря {place} улеглась. Кто-нибудь, откопайте дорогу.',
   'radio.haul.0': 'Свежая работа {shop, case, at}: отвезти {good, case, acc} {to, case, to}.',
