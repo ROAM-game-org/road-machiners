@@ -307,6 +307,7 @@ export function componentOf(layer: NavLayer, cell: number): number {
 
 export const NO_CLIMB = 255;
 const STEEP_TOLERANCE = 1e-4;
+const CLIMB_NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const climbNeeds = new WeakMap<NavLayer, Uint8Array>();
 
 export function climbNeed(layer: NavLayer): Uint8Array {
@@ -361,8 +362,6 @@ function floodClimb(layer: NavLayer): Uint8Array {
   }
   return need;
 }
-
-const CLIMB_NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 function coarseGrid(n: number, blocked: Uint8Array, slow: Float32Array): CoarseGrid {
   const bn = Math.ceil(n / COARSE);
