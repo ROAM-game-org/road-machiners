@@ -198,7 +198,7 @@ describe("contract text", () => {
       const lapsed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "lapsed" })!;
       expect([en(lapsed.text), lapsed.cls]).toEqual(["Rescue lapsed: Jed Cobb no longer needs you", "dim"]);
       const failed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "failed" })!;
-      expect(en(failed.text)).toBe("Contract failed: Rescue Jed Cobb, pays 1 M");
+      expect(en(failed.text)).toBe("Contract failed: Rescue Jed Cobb, offered 1 M");
     });
   });
 
@@ -769,8 +769,8 @@ describe("Fury Road log lines", () => {
   it("tells an outpost arrival with its pay once, and the run's end", () => {
     const w = emptyWorld();
 
-    expect(logEn(w, { t: "outpostReached", milestone: 2, pay: 37000, wrecks: 3 })).toEqual({ text: "Outpost 2. Paid 370 M's for the road and 3 wrecks.", cls: "good" });
-    expect(logEn(w, { t: "outpostReached", milestone: 1, pay: 15000, wrecks: 0 })?.text).toBe("Outpost 1. Paid 150 M's for the road.");
+    expect(logEn(w, { t: "outpostReached", milestone: 2, pay: 37000, wrecks: 3 })).toEqual({ text: "Outpost 2. You earn 370 M's for the road. 3 trucks wrecked on the way.", cls: "good" });
+    expect(logEn(w, { t: "outpostReached", milestone: 1, pay: 15000, wrecks: 0 })?.text).toBe("Outpost 1. You earn 150 M's for the road.");
     expect(eventText(w, { t: "money", amount: 15000, reason: { kind: "outpost" } })).toBeNull();
     expect(logEn(w, { t: "runLost", stretch: 3, cause: "wrecked" })?.text).toBe("Your truck is wrecked. The run ends on stretch 3.");
     expect(logEn(w, { t: "runLost", stretch: 2, cause: "abandoned" })?.text).toBe("You end the run on stretch 2.");
