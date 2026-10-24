@@ -143,10 +143,19 @@ export function standingBands(world: World): StandingRow[] {
   });
 }
 
-export function standingParts(world: World, row: StandingRow): { base: number; deeds: number; earlier: number } {
+export type StandingDeedPart = { deed: DeedId; delta: number };
+
+export function standingParts(world: World, row: StandingRow): { base: number; deeds: StandingDeedPart[]; earlier: number } {
   const base = startStanding()[row.faction];
-  const deeds = world.player.deeds.filter((d) => d.faction === row.faction).reduce((sum, d) => sum + d.delta, 0);
-  return { base, deeds, earlier: row.score - base - deeds };
+  const deeds: StandingDeedPart[] = [];
+  for (const d of world.player.deeds) {
+    if (d.faction !== row.faction) continue;
+    const part = deeds.find((p) => p.deed === d.deed);
+    if (part) part.delta += d.delta;
+    else deeds.push({ deed: d.deed, delta: d.delta });
+  }
+  const recent = deeds.reduce((sum, p) => sum + p.delta, 0);
+  return { base, deeds, earlier: row.score - base - recent };
 }
 
 let joinableCache: Set<NpcFactionId> | null = null;
