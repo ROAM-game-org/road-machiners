@@ -88,7 +88,7 @@ export function advanceFar(w: World, v: Vehicle): void {
 function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: VehicleStats, s: VehicleStats): Vec[] {
   const onRope = getHitchedTowIds(w);
   const stored = keptFarRoute(v);
-  if (stored && stored.dest.x === dest.x && stored.dest.y === dest.y && sameStyle(stored, style)) return stored.points;
+  if (stored && dist(stored.dest, dest) < RULES.arriveRadius && sameStyle(stored, style)) return stored.points;
   return route(w, v.pos, dest, full.radius, [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)], v);
 }
 
