@@ -17,6 +17,7 @@ import { playerVehicle } from './damage';
 import { cloudsSeenBy, contactDifficulty, contactsOf } from './detect';
 import { litAt, litFlares } from './hazards';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
+import { sightFactor } from './chassis-features';
 import { PERK_NUMBERS } from '../data/skills';
 
 function propsNear(world: World, a: Vec, b: Vec): Obstacle[] {
@@ -29,7 +30,7 @@ export function sightRadius(world: World, viewer: Vehicle, lit = false): number 
   const night = nightFactor(world, viewer, lit);
   const weather = vehicleHasPerk(world, viewer, 'stormRider') ? 1 : weatherOn(world, viewer).sight;
   const skill = 1 + skillEffect(world, viewer, 'perception', 'sight');
-  return TERRAIN.vision.radius * weather * night * skill;
+  return TERRAIN.vision.radius * weather * night * skill * sightFactor(viewer.chassisId);
 }
 
 function nightFactor(world: World, viewer: Vehicle, lit: boolean): number {

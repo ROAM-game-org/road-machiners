@@ -438,7 +438,7 @@ describe('talk of the order', () => {
   it('spreads the accounts over the drivers, with the eight lamps and the lost cousin each told by one account only', () => {
     const w = crater();
     w.turn = duskTurn(1) - 100;
-    const drivers = Array.from({ length: 20 }, () => trader(w));
+    const drivers = Array.from({ length: 40 }, () => trader(w));
     refreshVision(w);
 
     const accounts = drivers.map((d) => (craterNews(w, d).news as { line: string }).line);
@@ -446,7 +446,7 @@ describe('talk of the order', () => {
     const counts = new Map<string, number>();
     for (const a of accounts) counts.set(a, (counts.get(a) ?? 0) + 1);
     expect(counts.size).toBeGreaterThanOrEqual(6);
-    expect(Math.max(...counts.values())).toBeLessThanOrEqual(5);
+    expect(Math.max(...counts.values())).toBeLessThanOrEqual(10);
     const text = (id: string) => resolve(t(`line.${id}` as never, {} as never), 'en');
     expect(CRATER_ACCOUNTS.standing.filter((id) => /\beight\b/i.test(text(id)))).toEqual(['craterLamps']);
     expect(CRATER_ACCOUNTS.standing.filter((id) => /cousin|brother|sister|uncle|aunt/i.test(text(id)))).toEqual(['carsDraggedIntoTheDark']);
