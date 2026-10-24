@@ -4,7 +4,7 @@ import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
 
 type Saved = typeof FORMAT_2_103;
 
-const step = (world: Saved): Saved => TINY_STEPS[103 - TINY_FROM](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+const step = (world: Saved): Saved => TINY_STEPS[103 - TINY_FROM].step(structuredClone(world) as unknown as SavedJson) as unknown as Saved;
 const fixture = () => structuredClone(FORMAT_2_103);
 const ids = (contracts: { id: string }[]) => contracts.map((c) => c.id);
 
