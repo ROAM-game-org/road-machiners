@@ -783,7 +783,7 @@ describe('game save', () => {
 
     expect(baked.size).toBeGreaterThan(0);
     expect(saved.filter((o) => baked.has(o.id))).toEqual([]);
-    expect(saved.length).toBe(world.obstacles.length - baked.size - world.obstacles.filter(isHollowObstacle).length);
+    expect(saved.length).toBe(world.obstacles.length - baked.size - hollowObstacles().length);
     expect(loadWorld(slots, 'auto', TEST_MAP)!.obstacles).toEqual(world.obstacles);
   });
 
