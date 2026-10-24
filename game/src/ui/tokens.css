@@ -311,6 +311,7 @@
 
 #ui:where(.narrow) {
   --dock-width: 200px;
+  --lcd-cell-w: 0px;
 }
 
 @media (orientation: landscape) {
