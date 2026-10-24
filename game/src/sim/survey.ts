@@ -18,6 +18,7 @@ import { siteGap, type Site } from './sites';
 import { tileOf } from './vision';
 import { heightAt, type BakedMap, type Terrain } from './terrain';
 import type { DirectionStep, Job, Vehicle, World } from './types';
+import { gridSquareOf, type GridSquare } from './map-grid';
 import { bearing, dist, type Vec } from './vec';
 
 export type SurveyProp = { id: string; pos: Vec; reach: number };
@@ -172,7 +173,7 @@ export function rollSurvey(world: World, shop: { id: string; pos: Vec }, free: S
   return { id, shop: shop.id, kind: 'survey', points, reward: surveyReward(turns), deadline: world.turn + window, window, tier: 1 };
 }
 
-export type SurveyClue = { type: OldPlaceType; landmark: string; rad: number; tiles: number; lay: SurveyLay };
+export type SurveyClue = { type: OldPlaceType; landmark: string; rad: number; tiles: number; lay: SurveyLay; square: GridSquare };
 
 export function surveyClue(c: SurveyContract, point: SurveyPoint): SurveyClue {
   const site = SURVEY_SITES.sites.find((s) => s.id === point.site);
@@ -180,7 +181,7 @@ export function surveyClue(c: SurveyContract, point: SurveyPoint): SurveyClue {
   const told = site.clues.find((k) => k.landmark === c.shop) ?? site.clues[0];
   if (!told) throw new Error(`Survey site ${site.id} has no fair clue`);
   const rad = sectorBearing(compassSector(bearing(siteOf(told.landmark).pos, site.pos)));
-  return { type: site.type, landmark: told.landmark, rad, tiles: told.tiles, lay: site.lay };
+  return { type: site.type, landmark: told.landmark, rad, tiles: told.tiles, lay: site.lay, square: gridSquareOf(site.pos) };
 }
 
 export function surveyWay(world: World, c: SurveyContract, point: SurveyPoint): DirectionStep[] | null {
