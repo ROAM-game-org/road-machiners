@@ -1,5 +1,6 @@
 
 import { chassisDef } from '../data/chassis';
+import { bedRows, cargoRowFactor } from './chassis-features';
 import { isShield, partDef, type CoreDef, type PartKind } from '../data/parts';
 import type { GridItem, PartInstance, PlacementRefusal, Rot, Vehicle } from './types';
 
@@ -118,17 +119,37 @@ export function sideOf(v: Vehicle, part: PartInstance): SideLetter | null {
   return letter !== null && SIDES.includes(letter) ? (letter as SideLetter) : null;
 }
 
+const bareGridCache = new Map<string, Grid>();
+
+export function bareGrid(chassisId: string): Grid {
+  const cached = bareGridCache.get(chassisId);
+  if (cached) return cached;
+  const base = baseGrid(chassisId);
+  const rows = bedRows(chassisId);
+  const bed = Array.from({ length: rows }, () => Object.freeze(Array.from({ length: base.w }, () => '.' as Cell | null)));
+  const grid = Object.freeze({
+    w: base.w,
+    h: base.h + rows,
+    chassisH: base.h,
+    deadFrom: base.h + rows,
+    cells: Object.freeze([...base.cells, ...bed]) as (Cell | null)[][],
+  });
+  bareGridCache.set(chassisId, grid);
+  return grid;
+}
+
 const gridCache = new Map<string, Grid>();
 
 export function gridOf(v: Vehicle): Grid {
-  const base = baseGrid(v.chassisId);
+  const base = bareGrid(v.chassisId);
   let working = 0;
   let dead = 0;
   for (const it of mountedItems(v, 'cargo')) {
-    const rows = (partDef(it.part.defId) as { extraRows: number }).extraRows;
+    const rows = cargoRowsOn(v.chassisId, it.part.defId);
     if (it.part.hp > 0) working += rows;
     else dead += rows;
   }
+  if (working === 0 && dead === 0) return base;
   const key = `${v.chassisId}|${working}|${dead}`;
   const cached = gridCache.get(key);
   if (cached) return cached;
@@ -137,7 +158,7 @@ export function gridOf(v: Vehicle): Grid {
   const grid = Object.freeze({
     w: base.w,
     h: base.h + working + dead,
-    chassisH: base.h,
+    chassisH: base.chassisH,
     deadFrom: base.h + working,
     cells: Object.freeze([...base.cells, ...rows]) as (Cell | null)[][],
   });
@@ -148,7 +169,13 @@ export function gridOf(v: Vehicle): Grid {
 export function cargoCellsGained(chassisId: string, defId: string): number {
   const def = partDef(defId);
   if (def.kind !== 'cargo') throw new Error(`${defId} is not a cargo part`);
-  return def.extraRows * baseGrid(chassisId).w - def.w * def.h;
+  return cargoRowsOn(chassisId, defId) * baseGrid(chassisId).w - def.w * def.h;
+}
+
+export function cargoRowsOn(chassisId: string, defId: string): number {
+  const def = partDef(defId);
+  if (def.kind !== 'cargo') throw new Error(`${defId} is not a cargo part`);
+  return Math.floor(def.extraRows * cargoRowFactor(chassisId));
 }
 
 export function onDeadRow(g: Grid, item: GridItem): boolean {

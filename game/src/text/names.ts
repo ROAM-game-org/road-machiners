@@ -1,3 +1,5 @@
+import { chassisAbility } from '../sim/chassis-features';
+import type { AbilityId, ChassisAbility } from '../data/chassis';
 import { WORLD_SETTINGS } from '../data/modes';
 import type { LineId } from '../data/dialogue';
 import type { LocalId, NoteId, TermId } from '../data/locals';
@@ -10,6 +12,37 @@ export const partName = (defId: string): Msg => byId(`part.${defId}`);
 export const partLore = (defId: string): Msg => byId(`lore.part.${defId}`);
 export const goodLore = (id: string): Msg => byId(`lore.good.${id}`);
 export const chassisName = (id: string): Msg => byId(`chassis.${id}`);
+export const abilityName = (id: AbilityId): Msg => byId(`chassis.ability.${id}`);
+export const chassisAbilityName = (chassisId: string): Msg | null => {
+  const ability = chassisAbility(chassisId);
+  return ability && abilityName(ability.id);
+};
+export const chassisAbilityLine = (chassisId: string): Msg | null => {
+  const a = chassisAbility(chassisId);
+  return a && abilityLine(a);
+};
+const pct = (factor = 1): number => Math.round((factor - 1) * 100);
+const share = (value = 1): number => Math.round(value * 100);
+const have = (value = 0): number => value;
+
+type LineOf = (a: ChassisAbility) => Msg;
+
+const ABILITY_LINES: Record<AbilityId, LineOf> = {
+  bed: (a) => t('chassis.ability.bed.line', { n: have(a.bedRows) }),
+  nimble: (a) => t('chassis.ability.nimble.line', { a: pct(a.accel), b: Number(((have(a.nimble) * 180) / Math.PI).toFixed(1)) }),
+  racing: (a) => t('chassis.ability.racing.line', { n: pct(a.topSpeed) }),
+  offRoad: (a) => t('chassis.ability.offRoad.line', { n: 100 - share(a.offRoadWear) }),
+  armored: (a) => t('chassis.ability.armored.line', { n: have(a.partArmor) }),
+  gunMounts: (a) => t('chassis.ability.gunMounts.line', { n: pct(a.gunPower) }),
+  battle: (a) => t('chassis.ability.battle.line', { a: have(a.partArmor), b: pct(a.gunPower) }),
+  springs: (a) => t('chassis.ability.springs.line', { n: share(a.mountedMass) }),
+  openTop: (a) => t('chassis.ability.openTop.line', { a: pct(a.sight), b: pct(a.range) }),
+  tourer: (a) => t('chassis.ability.tourer.line', { a: pct(a.sight), b: pct(a.range), c: pct(a.topSpeed) }),
+  trailer: (a) => t('chassis.ability.trailer.line', { a: have(a.arc), b: have(a.reloadCut), c: pct(a.cargoRows), d: have(a.deckArmor) }),
+};
+
+const abilityLine = (a: ChassisAbility): Msg => ABILITY_LINES[a.id](a);
+
 export const goodName = (id: string): Msg => byId(`good.${id}`);
 export const goodLower = (id: string): Msg => byId(`good.${id}.lower`);
 export const questTitle = (id: string): Msg => byId(`quest.${id}.title`);
@@ -21,6 +54,7 @@ export const siteName = (id: string): Msg => {
   return outpost ? outpostName(Number(outpost[1])) : byId(`site.${id}`);
 };
 export const siteSign = (id: string): Msg => byId(`way.sign.${id}`);
+export const placeProse = (shopId: string): Msg => byId(`town.place.${shopId}`);
 export const propName = (look: string): Msg => byId(`way.prop.${look}`);
 export const compassName = (octant: string): Msg => byId(`compass.${octant}`);
 export const terrainName = (id: string): Msg => byId(`terrain.${id}`);
