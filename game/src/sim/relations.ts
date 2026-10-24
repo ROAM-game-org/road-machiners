@@ -12,7 +12,7 @@ import { followersOf } from './companies';
 import { recall, remember } from './memory';
 import { modeRules } from './settings';
 import { clockOf } from './sun';
-import type { DeedId, Faction, HelpDeed, MemoryFact, NpcFactionId, StandingFactionId, Vehicle, World, WrongDeed } from './types';
+import type { DeedId, Faction, StandingCause, HelpDeed, MemoryFact, NpcFactionId, StandingFactionId, Vehicle, World, WrongDeed } from './types';
 import { dist } from './vec';
 import { canVehicleSee } from './vision';
 import { noteSunwardDefeat } from './sunward';
@@ -266,7 +266,7 @@ function shiftStanding(world: World, subject: string, faction: StandingFactionId
   const delta = allowedDelta(world, faction, STANDING_DELTA[deed]);
   if (delta === 0) return;
   world.player.deeds.push({ subject, faction, deed, delta, turn: world.turn });
-  setStanding(world, faction, world.player.standing[faction] + delta);
+  setStanding(world, faction, world.player.standing[faction] + delta, { kind: 'deed', deed });
 }
 
 function repeats(world: World, subject: string, deed: DeedId): boolean {
@@ -280,16 +280,16 @@ function allowedDelta(world: World, faction: StandingFactionId, delta: number): 
   return Math.max(0, Math.min(delta, STANDING.dailyGainCap - gained));
 }
 
-function setStanding(world: World, faction: StandingFactionId, score: number): void {
+function setStanding(world: World, faction: StandingFactionId, score: number, cause: StandingCause): void {
   const before = bandOf(world.player.standing[faction]);
   world.player.standing[faction] = clamp(Math.round(score), -SCORE_LIMIT, SCORE_LIMIT);
   const band = bandOf(world.player.standing[faction]);
-  if (band !== before) world.events.push({ t: 'standing', faction, band });
+  if (band !== before) world.events.push({ t: 'standing', faction, band, cause });
 }
 
 export function settleStanding(world: World, faction: StandingFactionId): void {
   if (bandOf(world.player.standing[faction]) !== 'hostile') throw new Error(`${faction} does not hold the player hostile, so there is nothing to settle`);
-  setStanding(world, faction, BANDS.hostile + 1);
+  setStanding(world, faction, BANDS.hostile + 1, { kind: 'settled' });
 }
 
 export function driftStanding(world: World): void {
@@ -298,7 +298,7 @@ export function driftStanding(world: World): void {
   for (const id of STANDING_FACTION_IDS) {
     const now = world.player.standing[id];
     const step = clamp(start[id] - now, -STANDING.dailyDrift, STANDING.dailyDrift);
-    if (step !== 0) setStanding(world, id, now + step);
+    if (step !== 0) setStanding(world, id, now + step, { kind: 'drift', toward: step > 0 ? 'up' : 'down' });
   }
   const fresh = world.player.deeds.filter((d) => world.turn - d.turn < DEEDS.repeatTurns);
   if (fresh.length !== world.player.deeds.length) world.player.deeds = fresh;

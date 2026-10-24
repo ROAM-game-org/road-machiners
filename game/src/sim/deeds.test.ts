@@ -7,7 +7,7 @@ import { isHostile, noteAttack } from './combat';
 import { playerVehicle } from './damage';
 import { addGoods } from './inventory';
 import { recall } from './memory';
-import { driftStanding, noteDeed, personalTerm, reportIncident } from './relations';
+import { driftStanding, noteContractDeed, noteDeed, personalTerm, reportIncident } from './relations';
 import { getResources } from './resources';
 import { addState } from './states';
 import { addVehicle, editableTerrain, emptyWorld, npcBrain } from './testkit';
@@ -104,7 +104,7 @@ describe('deeds toward a faction', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     noteDeed(w, me, trader(w, 'bowl', { x: 34, y: 30 }), 'robbed', true);
-    expect(standingEvents(w)).toEqual([{ t: 'standing', faction: 'bowl', band: 'unfriendly' }]);
+    expect(standingEvents(w)).toEqual([{ t: 'standing', faction: 'bowl', band: 'unfriendly', cause: { kind: 'deed', deed: 'robbed' } }]);
   });
 
   it('drifts standing from the floor out of the hostile band within six days', () => {
@@ -117,7 +117,23 @@ describe('deeds toward a faction', () => {
     }
     expect(w.player.standing.bowl).toBeGreaterThan(-50);
     expect(w.player.standing.kiln).toBe(-40);
-    expect(standingEvents(w)).toContainEqual({ t: 'standing', faction: 'bowl', band: 'unfriendly' });
+    expect(standingEvents(w)).toContainEqual({ t: 'standing', faction: 'bowl', band: 'unfriendly', cause: { kind: 'drift', toward: 'up' } });
+  });
+
+  it('names the drift up, the drift down and a contract as causes of a band change', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    w.player.standing.scrapjaw = -55;
+    w.player.standing.bowl = 20;
+    for (let turn = 1; turn <= TIME.turnsPerDay; turn++) {
+      w.turn = turn;
+      driftStanding(w);
+    }
+    expect(standingEvents(w)).toContainEqual({ t: 'standing', faction: 'scrapjaw', band: 'unfriendly', cause: { kind: 'drift', toward: 'up' } });
+    expect(standingEvents(w)).toContainEqual({ t: 'standing', faction: 'bowl', band: 'neutral', cause: { kind: 'drift', toward: 'down' } });
+    const c = emptyWorld({ x: 30, y: 30 });
+    c.player.standing.bowl = 13;
+    noteContractDeed(c, 'contract-1', 'bowl');
+    expect(standingEvents(c)).toEqual([{ t: 'standing', faction: 'bowl', band: 'friendly', cause: { kind: 'deed', deed: 'contract' } }]);
   });
 
   it('leaves standing alone on Chaos Highway, where deeds still form memories', () => {
