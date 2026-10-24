@@ -490,7 +490,7 @@ describe("cargo spill log", () => {
     const w = emptyWorld();
     const npc = addVehicle(w, "independent", "hauler", ["rack"], { x: 40, y: 30 });
     const line = logEn(w, { t: "cargoSpilled", vehicle: npc.id, part: mountedParts(npc, "cargo")[0].id, pile: "spill-2", units: 1 });
-    expect(line).toEqual({ text: `${en(vehicleName(w, npc.id))}: cargo spilled on the ground`, cls: "good" });
+    expect(line).toEqual({ text: `${en(vehicleName(w, npc.id))} spills cargo on the ground.`, cls: "good" });
   });
 });
 
