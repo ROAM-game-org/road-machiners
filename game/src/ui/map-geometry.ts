@@ -1,4 +1,4 @@
-import { MAP_SCALE_BAR } from '../data/minimap';
+import { MAP_SCALE_BAR, WORLD_MAP } from '../data/minimap';
 import { PHYSICS } from '../data/physics';
 import type { Vec } from '../sim/vec';
 
@@ -78,3 +78,11 @@ export function scaleBarTiles(tileSize: number, width: number): number {
   return fitting.length > 0 ? fitting[fitting.length - 1] : steps[0];
 }
 
+const WHEEL_UNIT_PIXELS = [1, WORLD_MAP.wheelLinePixels, WORLD_MAP.wheelPagePixels];
+
+export function wheelZoomFactor(deltaY: number, deltaMode: number): number {
+  const unit = WHEEL_UNIT_PIXELS[deltaMode];
+  if (!Number.isFinite(deltaY) || unit === undefined) throw new Error(`Wheel delta ${deltaY} in mode ${deltaMode} is not usable`);
+  const pixels = Math.max(-WORLD_MAP.wheelNotch, Math.min(WORLD_MAP.wheelNotch, deltaY * unit));
+  return WORLD_MAP.wheelNotchStep ** (-pixels / WORLD_MAP.wheelNotch);
+}

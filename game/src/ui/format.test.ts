@@ -10,7 +10,7 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress } from "./format";
+import { gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine, surveyWayText } from "./format";
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
@@ -473,8 +473,8 @@ describe("collision log", () => {
     const me = w.player.vehicleId;
     const fence = { id: "fence-3", pos: { x: 33, y: 30 }, r: 0.5, kind: "landmark" as const, look: "fence" as const, yaw: 0 };
     w.broken = [{ obstacle: fence, turn: w.turn }];
-    expect(logEn(w, { t: "collision", a: me, b: "fence-3", hitsA: [], hitsB: [] })).toBeNull();
-    expect(logEn(w, { t: "collision", a: me, b: "rock7", hitsA: [{ part: "x", damage: 4 }], hitsB: [] })).toBeNull();
+    expect(logEn(w, { t: "collision", a: me, b: "fence-3", impact: 3, hitsA: [], hitsB: [] })).toBeNull();
+    expect(logEn(w, { t: "collision", a: me, b: "rock7", impact: 3, hitsA: [{ part: "x", damage: 4 }], hitsB: [] })).toBeNull();
   });
 });
 
@@ -917,7 +917,8 @@ describe("survey contract text", () => {
     } as const;
     const w = emptyWorld();
     for (const [type, [accusative, surveyed]] of Object.entries(forms)) {
-      const site = surveySites(TEST_MAP).find((item) => item.type === type)!;
+      const site = surveySites(TEST_MAP).find((item) => item.type === type);
+      if (!site) continue;
       const job: Job = { kind: "survey", contractId: "c3", site: site.id, turnsLeft: 10, total: 10 };
       expect(resolve(jobLabel(w, w.vehicles[0], job), "ru")).toBe(`Разведать ${accusative}`);
       const c: Extract<Contract, { kind: "survey" }> = { ...survey([true]), points: [{ site: site.id, found: true, done: true }] };
@@ -951,6 +952,32 @@ describe("survey contract text", () => {
       expect(new Set(letters).size, locale).toBe(MAP_GRID.squares);
       for (const letter of letters) expect(letter, locale).toMatch(/^\p{Lu}$/u);
     }
+  });
+
+  it("tells the posting shop's way to a place, with the look and lay and the found tag last", () => {
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-ruin-88", found: true, done: false }] };
+    vi.stubGlobal("document", {
+      createElement: () => new TextNode(),
+      createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
+    });
+    const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
+    expect(line.className).toBe("contract-clue");
+    expect(line.text()).toBe("Hamlet in square H3, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. At Nose, leave the road and head east, a fair way. A cluster of ruined houses on flat ground. found");
+    vi.unstubAllGlobals();
+    expect(line.all("tag").at(-1)?.text()).toBe("found");
+    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. At Nose, leave the road and head east, a fair way. It lies in square H3, on flat ground.");
+  });
+
+  it("keeps the compass clue when no full way can be told", () => {
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: "survey-skiff-6067", found: false, done: false }] };
+    const w = emptyWorld();
+    expect(en(surveyWayText(w, c, c.points[0]))).toBe(en(surveyClueText(surveyClue(c, c.points[0]))));
+    vi.stubGlobal("document", {
+      createElement: () => new TextNode(),
+      createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
+    });
+    expect((surveyWayLine(w, c, c.points[0]) as unknown as TextNode).text()).toBe((surveyClueLines(c)[0] as unknown as TextNode).text());
+    vi.unstubAllGlobals();
   });
 
   it("tells the same clue wherever the truck is", () => {

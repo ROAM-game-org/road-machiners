@@ -533,6 +533,45 @@ describe('search contracts', () => {
     expect(parcels(after)).toEqual([]);
   });
 
+  it('drops a board offer once its lead is older than the fresh limit, and keeps it at the limit', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    w.turn = CONTRACTS.search.freshTurns;
+    advanceShops(w);
+    expect(w.shops.bowl.contracts.some((c) => c.id === 'ct-search')).toBe(true);
+    w.turn = CONTRACTS.search.freshTurns + 1;
+    advanceShops(w);
+    expect(w.shops.bowl.contracts.some((c) => c.id === 'ct-search')).toBe(false);
+  });
+
+  it('refills the board at restock with a lead from a fresh visit', () => {
+    const leads: number[] = [];
+    for (let seed = 1; seed <= 30; seed++) {
+      const { w, target } = worldWithTarget();
+      w.shops.bowl.contracts = [posted(target.id)];
+      w.turn = w.shops.bowl.restockAt;
+      visit(w, target, 'bowl', w.turn - 5);
+      w.marketRng.rngState = seed;
+      advanceShops(w);
+      expect(w.shops.bowl.contracts.some((c) => c.id === 'ct-search')).toBe(false);
+      for (const c of w.shops.bowl.contracts) if (c.kind === 'search') leads.push(w.turn - c.lead.turn);
+    }
+    expect(leads.length).toBeGreaterThan(0);
+    expect(Math.max(...leads)).toBeLessThanOrEqual(CONTRACTS.search.freshTurns);
+  });
+
+  it('leaves a held search with an old lead alone', () => {
+    const { w, target } = worldWithTarget();
+    w.shops.bowl.contracts = [posted(target.id)];
+    const held = acceptContract(w, 'ct-search');
+    const after = update(held, (d) => {
+      d.turn = CONTRACTS.search.freshTurns * 2;
+      advanceShops(d);
+      advanceContracts(d);
+    });
+    expect(after.player.contracts.map((c) => c.id)).toEqual(['ct-search']);
+  });
+
   it('drops a board offer whose target is gone at restock', () => {
     const { w, target } = worldWithTarget();
     w.shops.bowl.contracts = [posted(target.id)];
