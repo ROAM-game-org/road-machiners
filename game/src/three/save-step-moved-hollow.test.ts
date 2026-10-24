@@ -6,7 +6,7 @@ import { hollowBays } from '../sim/sunward';
 type Saved = typeof FORMAT_2_104;
 type Point = { x: number; y: number };
 
-const step = (world: Saved): Saved => TINY_STEPS[104 - TINY_FROM](structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+const step = (world: Saved): Saved => TINY_STEPS[104 - TINY_FROM].step(structuredClone(world) as unknown as SavedJson) as unknown as Saved;
 const fixture = () => structuredClone(FORMAT_2_104);
 const car = (w: Saved, id: string) => w.vehicles.find((v) => v.id === id)!;
 const bayIndex = (p: Point) => hollowBays().findIndex((b) => Math.hypot(b.x - p.x, b.y - p.y) < 0.01);
