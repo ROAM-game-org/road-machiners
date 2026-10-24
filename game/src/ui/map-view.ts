@@ -246,8 +246,8 @@ export class MapView {
     const r = this.ratio;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const [a, , , d, e, f] = canvasTransform(view);
-    ctx.setTransform(a * r, 0, 0, d * r, e * r, f * r);
+    const [a, b, c, d, e, f] = canvasTransform(view);
+    ctx.setTransform(a * r, b * r, c * r, d * r, e * r, f * r);
     ctx.imageSmoothingEnabled = view.tileSize * r < 1;
     ctx.drawImage(baseFor(world.terrain), 0, 0);
     if (this.fogCanvas) ctx.drawImage(this.fogCanvas, 0, 0);
@@ -340,7 +340,8 @@ export class MapView {
     ctx.strokeStyle = token('--ink-bright');
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.rotate(truck.heading);
+    const ahead = toPx(view, { x: truck.pos.x + Math.cos(truck.heading), y: truck.pos.y + Math.sin(truck.heading) });
+    ctx.rotate(Math.atan2(ahead.y - at.y, ahead.x - at.x));
     ctx.beginPath();
     ctx.moveTo(r * 0.7, 0);
     ctx.lineTo(-r * 0.45, r * 0.5);
