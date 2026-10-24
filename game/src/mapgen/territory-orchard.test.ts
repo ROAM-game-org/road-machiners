@@ -423,6 +423,7 @@ describe('a third territory', () => {
         spotTable: 'hullScrap',
         spotRadius: [0.6, 0.8],
         seatEase: 3,
+        gradeRoads: false,
         rimRocks: null,
         scree: null,
         roads: [{ points: [{ x: -20, y: 3 }, { x: 20, y: 3 }], width: 2.5, surface: 'track' }],

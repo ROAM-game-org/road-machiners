@@ -25,6 +25,7 @@ function wreckOf(buildings: BuildingGroup[]): WreckRules {
     spotTable: 'hullScrap',
     spotRadius: [0.6, 0.8],
     seatEase: 3,
+    gradeRoads: false,
     rimRocks: null,
     scree: null,
     roads: [],
