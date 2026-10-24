@@ -589,7 +589,7 @@ function instancedOutline(mesh: THREE.InstancedMesh, geo: THREE.BufferGeometry):
   return outline;
 }
 
-export const SURFACE_MASK = { version: 2, metersPerPixel: 0.1, maxSide: 256, minIslandPx: 2, leastFill: 0.4 };
+export const SURFACE_MASK = { version: 2, metersPerPixel: 0.1, maxSide: 512, minIslandPx: 2, leastFill: 0.4 };
 
 type Surface = { dirt: [number, number, number]; edge: number; chips: number; shine: number; grain: number; neutral: number };
 
