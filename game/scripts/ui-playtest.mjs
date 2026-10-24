@@ -285,7 +285,7 @@ async function checkDockLayout(page, [width, height]) {
     const fits = node => node.scrollWidth <= node.clientWidth + 1 && node.scrollHeight <= node.clientHeight + 1;
     return {
       rects, controls, viewport: { width: innerWidth, height: innerHeight },
-      slots: [...document.querySelectorAll('.weapon-slot')].map(box),
+      slots: [...document.querySelectorAll('.weapons .weapon-slots .weapon-slot')].map(box),
       fits: { panel: fits(document.querySelector('.weapons')), grid: fits(grid) },
       text: document.querySelector('.weapons').innerText,
       icons: document.querySelectorAll('.weapon-pick .item-icon').length,
@@ -731,10 +731,12 @@ try {
   await page.keyboard.press('Escape');
   for (const [width, height] of [[1280, 768], [700, 800]]) {
     await page.setViewportSize({ width, height });
+    await settleLayers(page, width);
     await checkRadio(page);
   }
   for (const [width, height, radioStays] of [[1280, 720, true], [1366, 768, true], [1280, 800, true], [1440, 860, true], [1440, 900, true], [700, 800, true], [700, 940, true], [700, 1060, true]]) {
     await page.setViewportSize({ width, height });
+    await settleLayers(page, width);
     await checkRightColumn(page, radioStays);
   }
   await page.keyboard.press('Escape');

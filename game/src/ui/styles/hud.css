@@ -202,7 +202,7 @@
 .instrument-actions {
   grid-column: 1 / -1;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: var(--space-2);
   padding-top: var(--space-2);
   border-top: 1px solid var(--bevel-light);
@@ -231,7 +231,7 @@
 }
 .weapon-head {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: var(--space-2);
   margin-bottom: var(--space-2);
 }
