@@ -77,7 +77,7 @@ function onSpur(p: BakedProp): boolean {
 }
 
 function inHollow(p: BakedProp): boolean {
-  return siteGap({ ...HOLLOW.site, radius: HOLLOW.bakeClearing }, p.pos) <= O.siteClearance + p.r;
+  return siteGap(HOLLOW.site, p.pos) <= O.siteClearance + p.r;
 }
 
 function settle(d: MapDraft, p: BakedProp, roadGap: number): boolean {

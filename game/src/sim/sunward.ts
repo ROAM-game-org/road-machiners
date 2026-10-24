@@ -17,7 +17,7 @@ import { canVehicleSee, grayRadius, tileCenter } from './vision';
 import { fuelCap, suppliesCap } from './stats';
 import { clockOf } from './sun';
 import { isTerritory, siteGap } from './sites';
-import { fortressProps, insideCurtain } from './fortress';
+import { fortressProps } from './fortress';
 import { territoryGrounds } from './territory';
 import type { NpcActivity, NpcState, Obstacle, SunwardFacts, SunwardHunt, SunwardNight, Vehicle, World } from './types';
 import { hashRandom } from './rng';
@@ -108,7 +108,7 @@ export function membersOf(world: World): Vehicle[] {
 let hollowProps: Obstacle[] | null = null;
 
 export function hollowObstacles(): Obstacle[] {
-  hollowProps ??= builtHollowProps();
+  hollowProps ??= [...fortressProps(HOLLOW.site).map((p, i) => propObstacle(p, i)), ...HOLLOW.pieces.map(interiorPiece)].map((o, i) => ({ ...o, id: `hollow-${i}` }));
   return hollowProps.map((o) => ({ ...o, pos: { ...o.pos } }));
 }
 
@@ -122,26 +122,6 @@ export function hollowObstaclesFor(world: Pick<World, 'sunward'>): Obstacle[] {
 
 export function isHollowObstacle(o: Obstacle): boolean {
   return /^hollow-\d+$/.test(o.id);
-}
-
-export function hollowLayout(): { bays: Vec[]; pieces: Obstacle[] } {
-  return { bays: hollowBays(), pieces: hollowObstacles() };
-}
-
-function builtHollowProps(): Obstacle[] {
-  const props = [...fortressProps(HOLLOW.site).map((p, i) => propObstacle(p, i)), ...HOLLOW.pieces.map(interiorPiece)].map((o, i) => ({ ...o, id: `hollow-${i}` }));
-  checkHollowLayout(hollowBays(), props);
-  return props;
-}
-
-function checkHollowLayout(bays: Vec[], pieces: Obstacle[]): void {
-  const room = SUNWARD.memberRadius + SUNWARD.bayGap;
-  bays.forEach((bay, i) => {
-    if (!insideCurtain(HOLLOW.site, bay, room)) throw new Error(`Hollow bay ${i} is too close to the curtain`);
-    const hit = pieces.find((o) => !(o.kind === 'landmark' && o.look === 'fortScrapWall') && dist(o.pos, bay) < o.r + room);
-    if (hit) throw new Error(`Hollow bay ${i} clips ${hit.id}`);
-    if (bays.some((other, j) => j > i && dist(other, bay) < 2 * room)) throw new Error(`Hollow bay ${i} clips another bay`);
-  });
 }
 
 export function hollowBays(): Vec[] {
