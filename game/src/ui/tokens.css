@@ -304,6 +304,16 @@
   --z-boot: 1000;
   --z-drag: 1000;
   --z-crash: 100000;
+  --z-report: 100001;
+}
+
+#report {
+  --ui-scale: 1;
+  --layer-w: 100vw;
+  --layer-h: 100dvh;
+  --safe-top: max(var(--hud-inset), env(safe-area-inset-top));
+  --safe-left: max(var(--hud-inset), env(safe-area-inset-left));
+  --touch-target: 32px;
 }
 
 #ui:where(.compact) {

@@ -2,7 +2,7 @@
 import { formatSupport, loadBank, recoverBank, reportFailures, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
-import { CONFIG, ERROR_REPORT_URL, GAME_VERSION, SFX_BYTES } from '../config';
+import { CONFIG, ERROR_REPORT_URL, FEEDBACK_URL, GAME_VERSION, SFX_BYTES } from '../config';
 import { BANK, BOOT_SOUNDS, MIX, SOUNDS } from '../data/sounds';
 import { bankKitLoader, CombatMusic } from './combat-music';
 import { startKit } from '../data/start';
@@ -17,6 +17,7 @@ import { BOOT_TEXT } from '../ui/boot-progress';
 import { BootScreen } from '../ui/boot-screen';
 import { fontsReady } from '../ui/fonts';
 import { uiRoot } from '../ui/dom';
+import { mountReportDesk } from '../ui/feedback-form';
 import { watchInputMode } from '../ui/input-mode';
 import { loadUiSize, windowExtent } from '../ui/ui-size';
 import { loadMinimapSetting } from '../ui/minimap-setting';
@@ -151,7 +152,8 @@ const language = loadLanguage(window.localStorage, window.location.search, impor
 const sizeOfUi = loadUiSize(window.localStorage, window.location.search, import.meta.env.DEV, [uiRoot(), element('overlay')], document.documentElement, windowExtent());
 loadMinimapSetting(window.localStorage);
 window.addEventListener('resize', () => sizeOfUi.refit(windowExtent()));
-watchInputMode(uiRoot(), sizeOfUi);
+watchInputMode([uiRoot(), element('report')], sizeOfUi);
+mountReportDesk(element('report'), gameContext, FEEDBACK_URL);
 const questLanguageOf = (locale: DevLocale): QuestLanguage => (locale === 'pseudo' ? 'en' : locale);
 setQuestLanguage(questLanguageOf(language.current()));
 let relocalizeGame: (() => void) | null = null;
@@ -159,6 +161,7 @@ language.subscribe(() => {
   setQuestLanguage(questLanguageOf(language.current()));
   relocalize(uiRoot());
   relocalize(element('overlay'));
+  relocalize(element('report'));
   relocalizeGame?.();
 });
 let flushSaves = (): Promise<void> => Promise.resolve();

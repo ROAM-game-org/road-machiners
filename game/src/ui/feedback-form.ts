@@ -181,3 +181,8 @@ export function feedbackCorner(form: FeedbackForm, host: HTMLElement): HTMLEleme
   });
   return corner;
 }
+
+export function mountReportDesk(root: HTMLElement, context: GameContext, url: string): void {
+  const form = new FeedbackForm(root, null, (target, init) => fetch(target, init), url, context);
+  feedbackCorner(form, root);
+}

@@ -1,7 +1,7 @@
 /* Shared pieces. docs/ui.md says when to use each one. A screen file adds only the layout that is its own. */
 
 /* The framed box of a modal, the save panel and the New game screen, with the scrim over the game behind it. */
-#ui .dialog {
+:is(#ui, #report) .dialog {
   padding: var(--space-9);
   background: var(--surface-panel);
   border: 2px solid var(--line-bright);
@@ -33,7 +33,7 @@
 
 /* Text buttons have three fixed heights: small, medium and large. A plain button is medium. The listed tiles and drawn
    hardware size themselves, and only they may be left out of this rule. Screen files place a button and set its width. */
-#ui button:where(:not(.switch, .instrument-button, .truck-instrument, .end-turn, .radio-next, .inv-item, .part-sum, .mode-card, .perk, .dialogue-option, .weapon-pick, .weapon-hold, .weapon-reload, .weapon-cut)) {
+:is(#ui, #report) button:where(:not(.switch, .instrument-button, .truck-instrument, .end-turn, .radio-next, .inv-item, .part-sum, .mode-card, .perk, .dialogue-option, .weapon-pick, .weapon-hold, .weapon-reload, .weapon-cut)) {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -45,17 +45,17 @@
   line-height: 1;
   white-space: nowrap;
 }
-#ui :is(.btn-s, td button, .tabs.sub > button, .weapon-head button, .log-expand, .tip-close) {
+:is(#ui, #report) :is(.btn-s, td button, .tabs.sub > button, .weapon-head button, .log-expand, .tip-close) {
   height: var(--btn-h-s);
   padding: 0 var(--space-4);
   font-size: var(--text-dense);
 }
-#ui :is(.btn-l, .death-buttons button) {
+:is(#ui, #report) :is(.btn-l, .death-buttons button) {
   height: var(--btn-h-l);
   padding: 0 var(--space-8);
   font-size: var(--text-lead);
 }
-#ui .btn-danger {
+:is(#ui, #report) .btn-danger {
   color: var(--danger-bright);
   border-color: var(--danger-bright);
 }
@@ -128,18 +128,18 @@
 }
 
 /* The one look of a chosen item: accent border and accent wash. A pressed toggle, a picked card and a picked tile all use it. */
-#ui .selected,
-#ui button.on {
+:is(#ui, #report) .selected,
+:is(#ui, #report) button.on {
   border-color: var(--accent);
   background: var(--accent-wash);
 }
 
 /* A control that cannot be used now. It keeps hover and focus, and its tooltip says why. */
-#ui [aria-disabled="true"] {
+:is(#ui, #report) [aria-disabled="true"] {
   opacity: 0.45;
   cursor: default;
 }
-#ui button[aria-disabled="true"]:not(.switch):hover {
+:is(#ui, #report) button[aria-disabled="true"]:not(.switch):hover {
   background: var(--surface-raised);
   border-color: var(--line-strong);
 }
