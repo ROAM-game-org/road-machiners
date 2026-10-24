@@ -16,7 +16,7 @@ Hollis Brennan. I run the stills at the <term=pump_station>Pump Station</term>. 
     The pump's down right now. Every drum by the gate is what's left until it turns again.
   }
   { short_of("tools"):
-    I'm out of tools. One more cracked wrench and the pump runs slow.
+    I'm out of tools. The next bolt that shakes loose stays loose, and the pump runs slow.
   }
   { short_of("batteries"):
     The batteries are flat, the last of them. The motor coughs more than it turns.

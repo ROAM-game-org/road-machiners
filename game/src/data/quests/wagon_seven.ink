@@ -79,6 +79,6 @@ A tow chain is wrapped round the cannon's barrel and runs up the slope. Somebody
 - "bent": The bent half rod goes in your pocket. Its face is a smear now. All it shows is that a rod broke.
 - else: You leave the half rod in the linkage and the cannon on her bed.
 }
-The Nose Army owns this wagon, and somebody up there wrote down what happened to it. Whether that matches what's in this hollow is the question.
+The Nose Army owns this wagon, and somebody up there wrote down what happened to it. You'd like to read what they wrote.
 Your own water is warm by now. You drink it anyway.
 -> END
