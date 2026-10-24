@@ -104,15 +104,15 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
   longbed: { height: [2.55, 2.75], hood: [0.19, 0.25], roof: [0.1, 0.16], roofStart: [0.25, 0.31], deck: [0.53, 0.6] },
-  courier: { height: [1.7, 1.8], roofStart: [0.42, 0.5], roof: [0.11, 0.2], noseDrop: [0.65, 0.9], tailDrop: [0.38, 0.62] },
+  courier: { height: [1.7, 1.8], roofStart: [0.4, 0.47], roof: [0.18, 0.26], noseDrop: [0.8, 1.2], tailDrop: [0.7, 0.95] },
   hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.21, 0.27], deck: [0.58, 0.66] },
-  tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.161, 0.179], deck: [0.443, 0.489] },
+  tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.275, 0.304], deck: [0.317, 0.35] },
   jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
   buggy: { height: [1.7, 1.82], roof: [0.27, 0.33], noseDrop: [0.65, 0.8], tailDrop: [0.08, 0.2] },
-  carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.65, 0.85], tailDrop: [0.35, 0.6] },
+  carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.55, 0.75], tailDrop: [0.25, 0.45] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
-  bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1] },
-  van: { height: [2.22, 2.32], roofStart: [0.27, 0.36], roof: [0.6, 0.73], tailDrop: [0, 0.1] },
+  bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1], noseDrop: [0.06, 0.16] },
+  van: { height: [2.18, 2.36], roofStart: [0.18, 0.25], roof: [0.68, 0.8], noseDrop: [0.75, 1.0], tailDrop: [0, 0.12] },
 };
 
 type ShapeName = keyof typeof SHAPES;
@@ -158,6 +158,26 @@ describe('the carrier armored car', () => {
   it('keeps the V-100 Commando: 5.85 m long, 1.028 times the real car, and widened like the scout to 0.496 of its length', () => {
     expect(Math.abs(along - 5.85)).toBeLessThanOrEqual(0.05);
     expect(near(across / along, 0.496)).toBeLessThanOrEqual(0.05);
+  });
+
+  it('keeps the V-100 front section: a roof 0.55 to 0.68 of the width over a chine 1.33 to 1.47 m up, the widest line', () => {
+    const { heights } = SHAPES.base_carrier;
+    const body = PHYSICS.bodies.carrier;
+    const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
+    const station = -0.7;
+    const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => {
+      const x = (heights.i0 + i + 0.5) * heights.cell;
+      return cm === null || Math.abs(x - station) > 0.1 ? [] : [{ y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }];
+    }));
+    const roofTop = Math.max(...columns.map((c) => c.top));
+    const roofYs = columns.filter((c) => roofTop - c.top <= 0.05).map((c) => c.y);
+    const roofWidth = Math.max(...roofYs) - Math.min(...roofYs);
+    const outer = Math.max(...columns.map((c) => Math.abs(c.y)));
+    const chine = Math.max(...columns.filter((c) => Math.abs(c.y) === outer).map((c) => c.top));
+    expect(roofWidth / across).toBeGreaterThanOrEqual(0.55);
+    expect(roofWidth / across).toBeLessThanOrEqual(0.68);
+    expect(chine - ground).toBeGreaterThanOrEqual(1.33);
+    expect(chine - ground).toBeLessThanOrEqual(1.47);
   });
 
   it('bunches its wheels near the middle like the V-100: a wheelbase of 0.469 of the length and an overhang of 0.265 at each end', () => {
@@ -231,17 +251,6 @@ describe('the scout pickup', () => {
   });
 });
 
-describe('the utility van', () => {
-  it('keeps the 125 in Chevrolet G20 at the scout\'s 1.077 scale: 5.53 m long, with a width to length of 0.39', () => {
-    const boxes = SHAPES.base_van.boxes;
-    const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
-    const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
-    expect(Math.abs(along - 5.53)).toBeLessThanOrEqual(0.05);
-    expect(across / along).toBeGreaterThanOrEqual(0.375);
-    expect(across / along).toBeLessThanOrEqual(0.405);
-  });
-});
-
 describe('the courier Baja Bug', () => {
   it('keeps the Baja Bug at scout scale: 4.1 m long and 1.86 m across its fenders', () => {
     const boxes = SHAPES.base_courier.boxes;
@@ -249,6 +258,27 @@ describe('the courier Baja Bug', () => {
     const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
     expect(Math.abs(along - 4.1)).toBeLessThanOrEqual(0.05);
     expect(Math.abs(across - 1.86)).toBeLessThanOrEqual(0.03);
+  });
+
+  it('slopes the Beetle back past the rear axle: the top over the rear axle stands 0.4 to 0.6 m under the crest', () => {
+    const profile = profileOf('base_courier');
+    const crest = Math.max(...profile.map((p) => p.top));
+    const axle = profile.reduce((best, p) => (Math.abs(p.x + PHYSICS.bodies.courier.wheelX) < Math.abs(best.x + PHYSICS.bodies.courier.wheelX) ? p : best));
+    expect(crest - axle.top).toBeGreaterThanOrEqual(0.4);
+    expect(crest - axle.top).toBeLessThanOrEqual(0.6);
+  });
+
+  it('closes the domed front lid round the engine footprint', () => {
+    const { heights } = SHAPES.base_courier;
+    const engineCells = CHASSIS.courier.layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
+    const { rect } = restOn('courier', cellRect('courier', engineCells));
+    const anchor = engineAnchor('courier');
+    const margin = 0.05;
+    const half = { x: (rect.x1 - rect.x0) / 2 + margin, y: (rect.z1 - rect.z0) / 2 + margin };
+    const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
+    const inHole = (c: { x: number; y: number }) => Math.abs(c.x - anchor.x) <= half.x && Math.abs(-c.y - anchor.z) <= half.y;
+    const open = columns.filter((c) => c.x >= 0.75 && c.x <= 1.5 && Math.abs(c.y) <= 0.3 && !inHole(c) && c.top < anchor.y + 0.03);
+    expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
   });
 });
 
@@ -299,7 +329,7 @@ describe('the hauler GAZ-66', () => {
 });
 
 describe('the tractor', () => {
-  it('keeps the W900L day cab at one scale: 6.2 to 6.43 m long, with a width to length of 0.411 across its fenders and tanks', () => {
+  it('keeps the W900L with a mid-roof sleeper at one scale: 6.2 to 6.43 m long, with a width to length of 0.411 across its fenders and tanks', () => {
     const boxes = SHAPES.base_tractor.boxes;
     const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
     const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
@@ -382,5 +412,42 @@ describe('the LAZ bus', () => {
     const step = (nose - tail) / CHASSIS.bus.layout.length;
     const rows = [1, 2, 3, 4, 5, 6, 7, 10].map((y) => ({ y, roof: at(nose - (y + 0.5) * step) - ground }));
     expect(rows.filter((r) => r.roof < 2.92 || r.roof > 2.98).map((r) => `row ${r.y}: ${r.roof.toFixed(3)}`)).toEqual([]);
+  });
+});
+
+describe('the G20 van', () => {
+  const boxes = SHAPES.base_van.boxes;
+  const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
+  const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
+  const van = PHYSICS.bodies.van;
+  const ground = van.wheelY - PHYSICS.truck.suspensionRest - van.wheelRadius;
+  const { heights } = SHAPES.base_van;
+  const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
+  const nose = Math.max(...columns.map((c) => c.x));
+
+  it('keeps the 5.86 m van grid, widened to 2.44 m across its flares', () => {
+    expect(Math.abs(along - 5.86)).toBeLessThanOrEqual(0.05);
+    expect(Math.abs(across / along / (2.44 / 5.86) - 1)).toBeLessThanOrEqual(0.05);
+  });
+
+  it('keeps the G20 wheelbase share of 0.62 to 0.65 of its length', () => {
+    expect((2 * van.wheelX) / along).toBeGreaterThanOrEqual(0.62);
+    expect((2 * van.wheelX) / along).toBeLessThanOrEqual(0.65);
+  });
+
+  it('rounds its roof edges: the outermost roof column stands at least 0.1 m under the centre line', () => {
+    const station = columns.filter((c) => Math.abs(c.x + 0.5) <= 0.15);
+    const centre = Math.max(...station.filter((c) => Math.abs(c.y) <= 0.1).map((c) => c.top));
+    const edge = Math.max(...station.filter((c) => Math.abs(c.y) >= 1.1 && Math.abs(c.y) <= 1.2).map((c) => c.top));
+    expect(centre - ground).toBeGreaterThan(2.1);
+    expect(centre - edge).toBeGreaterThanOrEqual(0.1);
+  });
+
+  it('closes the hood: no column in the front metre, between the bumper and the windshield, sits under the skin beside it', () => {
+    const hood = columns.filter((c) => c.x >= nose - 1.0 && c.x <= nose - 0.2 && Math.abs(c.y) <= 0.8);
+    const skin = (x: number) => Math.max(...hood.filter((c) => Math.abs(c.x - x) < 0.01).map((c) => c.top));
+    const open = hood.filter((c) => skin(c.x) - c.top > 0.05);
+    expect(hood.length).toBeGreaterThan(0);
+    expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
   });
 });

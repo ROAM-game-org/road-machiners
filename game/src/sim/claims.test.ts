@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { REGION } from '../data/region';
 import { PARTS } from '../data/parts';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
@@ -258,7 +259,7 @@ describe('reachability', () => {
     expect(spots.length).toBeGreaterThan(20);
     for (const stock of spots) {
       const prop = baked.find((o) => o.id === (oldSpotOf(stock)?.propId ?? stock.id));
-      expect(prop && reachable(layer, prop), stock.id).toBe(true);
+      expect(prop && reachable(layer, prop, REGION.navigation.reachClimb), stock.id).toBe(true);
     }
   });
 });
