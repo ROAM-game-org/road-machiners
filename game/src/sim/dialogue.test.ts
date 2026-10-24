@@ -4,8 +4,8 @@ import { CONTRACTS, SHOPS } from '../data/market';
 import { buyPrice, sellPrice } from './economy';
 import { goodBasePrice, goodValue, standingPressures, vehicleValue, type Contract } from './market';
 import { makePart } from './factory';
-import type { PersonalityId } from '../data/personalities';
-import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, type LineId, type Topic } from '../data/dialogue';
+import { PERSONALITIES, type PersonalityId } from '../data/personalities';
+import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, type LineId, type Topic, type TopicId } from '../data/dialogue';
 import { lineKey } from '../text/names';
 import { entryText, schemaOf } from '../text/resolve';
 import { QUESTS, questView } from './quests';
@@ -61,7 +61,7 @@ describe('topic data', () => {
   it('every option leads to a node of its topic, the hub or the end, and every node is reachable', () => {
     for (const topic of Object.values(TOPICS)) {
       expect(topic.nodes[topic.start], `${topic.id} start`).toBeDefined();
-      const entries = [topic.start, ...(TOLL in topic.nodes ? [TOLL] : [])];
+      const entries = [topic.start, ...(topic.ask ? [TOLL] : [])];
       const reached = new Set(entries);
       const queue = [...entries];
       while (queue.length > 0) {
@@ -77,6 +77,22 @@ describe('topic data', () => {
         }
       }
       expect([...reached].sort()).toEqual(Object.keys(topic.nodes).sort());
+    }
+  });
+
+  it('gives every askable topic a toll that leads to its start or back to the hub', () => {
+    for (const topic of Object.values(TOPICS).filter((t) => t.ask)) {
+      const toll = topic.nodes[TOLL];
+      expect(toll, `${topic.id} toll`).toBeDefined();
+      expect(toll.options.map((o) => o.go).sort(), topic.id).toEqual([HUB, topic.start].sort());
+    }
+  });
+
+  it('prices only topics a player can ask', () => {
+    for (const [personality, { gates }] of Object.entries(PERSONALITIES)) {
+      for (const [id, gate] of Object.entries(gates)) {
+        if (gate === 'price') expect(TOPICS[id as TopicId]?.ask, `${personality} ${id}`).toBeTruthy();
+      }
     }
   });
 
