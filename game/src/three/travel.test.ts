@@ -285,11 +285,11 @@ describe("automatic travel safety", () => {
     const id = world.player.vehicleId;
     const other = { ...playerVehicle(world), id: "other" };
     world.vehicles.push(other);
-    world.events = [{ t: "collision", a: id, b: "rock", hitsA: [], hitsB: [] }];
+    world.events = [{ t: "collision", a: id, b: "rock", impact: 3, hitsA: [], hitsB: [] }];
     expect(canTravel(world)).toBe(true);
-    world.events = [{ t: "collision", a: id, b: "other", hitsA: [], hitsB: [] }];
+    world.events = [{ t: "collision", a: id, b: "other", impact: 3, hitsA: [], hitsB: [] }];
     expect(canTravel(world)).toBe(false);
-    world.events = [{ t: "collision", a: "other", b: id, hitsA: [], hitsB: [] }];
+    world.events = [{ t: "collision", a: "other", b: id, impact: 3, hitsA: [], hitsB: [] }];
     expect(canTravel(world)).toBe(false);
   });
 

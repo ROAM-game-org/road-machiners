@@ -68,7 +68,7 @@ export type Drive = {
 
 export type DeckColliders = { plates: number[]; rails: number[]; lips: number[] };
 
-export type Break = { prop: string; vehicle: string; step: number };
+export type Break = { prop: string; vehicle: string; impact: number; step: number };
 export type VehicleResult = { passed: boolean; arrived: boolean; pushedSteps: number };
 export type Landing = { vehicle: string; impact: number; step: number };
 export type Tear = { line: string; step: number };
@@ -457,7 +457,7 @@ class Contacts {
     if (!found || this.isBroken(found.b)) return;
     const crash = { ...found, step };
     if (this.breakable.has(crash.b) && crash.impact >= BREAKABLE.breakSpeed) {
-      const b = { prop: crash.b, vehicle: crash.a, step };
+      const b = { prop: crash.b, vehicle: crash.a, impact: crash.impact, step };
       this.breaks.push(b);
       this.fresh.push(b);
       return;

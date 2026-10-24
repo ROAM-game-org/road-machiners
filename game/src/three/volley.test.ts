@@ -9,9 +9,9 @@ import { projectileOf, type Muzzle } from "./render/projectiles";
 import { bodyOf } from "../sim/body";
 import { CollisionCues, collisionSteps, fireSteps, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
 
-const hit = (a: string, b: string): GameEvent => ({ t: "collision", a, b, hitsA: [], hitsB: [] });
+const hit = (a: string, b: string): GameEvent => ({ t: "collision", a, b, impact: 3, hitsA: [], hitsB: [] });
 const crash = (a: string, b: string, step: number) => ({ a, b, impact: 5, step }) as Crash;
-const smash = (prop: string, vehicle: string, step: number): Break => ({ prop, vehicle, step });
+const smash = (prop: string, vehicle: string, step: number): Break => ({ prop, vehicle, impact: 3, step });
 const land = (vehicle: string, step: number): Landing => ({ vehicle, impact: 3, step });
 const none = { crashes: [], breaks: [], landings: [] };
 

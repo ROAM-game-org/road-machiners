@@ -416,6 +416,9 @@ describe('far NPCs and breakable props', () => {
     expect(w.broken.every((b) => !w.obstacles.includes(b.obstacle))).toBe(true);
     expect(npc.pos.x).toBeGreaterThan(x);
     expect(w.events.some((e) => e.t === 'collision' && e.a === npc.id && w.broken.some((b) => b.obstacle.id === e.b))).toBe(true);
+    const smashes = w.events.flatMap((e) => (e.t === 'collision' ? [e.impact] : []));
+    expect(smashes.length).toBeGreaterThan(0);
+    expect(smashes.every((impact) => Number.isFinite(impact) && impact > 0)).toBe(true);
   });
 
   it('leaves a fence beside its route standing', () => {

@@ -566,7 +566,8 @@ function replaceRoadWreck(world: World, old: SalvageStock): void {
   world.salvage.push(rollStock(world, SALVAGE.roadWreck, id, spot.pos, spot.r * RULES.wreckRadiusScale));
 }
 
-export function breakProp(world: World, id: string, vehicleId: string): void {
+export function breakProp(world: World, id: string, vehicleId: string, impact: number): void {
+  if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad smash impact ${impact}`);
   const prop = world.obstacles.find((o) => o.id === id);
   if (!prop || !isBreakable(prop)) throw new Error(`No standing breakable prop ${id}`);
   const vehicle = vehicleById(world, vehicleId);
@@ -576,7 +577,7 @@ export function breakProp(world: World, id: string, vehicleId: string): void {
   const contact = estimateCrashGeometry(vehicle, null, prop.pos).a;
   const lane = contact.lanes[Math.floor(contact.lanes.length / 2)];
   const hitsA = walkLane(world, vehicle, contact.side, lane, { damage: BREAKABLE.damage, pen: RULES.crashPen, blast: false, armorShare: 1 });
-  world.events.push({ t: 'collision', a: vehicle.id, b: id, hitsA, hitsB: [] });
+  world.events.push({ t: 'collision', a: vehicle.id, b: id, impact, hitsA, hitsB: [] });
 }
 
 function regrowBroken(world: World): void {
