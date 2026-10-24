@@ -153,4 +153,17 @@ describe('the catalog', () => {
     for (const bad of ['Твой ход', 'квест', 'очки опыта', 'нажмите E', 'на карте', 'игрок'])
       expect(bad).toMatch(OUT_OF_CHARACTER.ru);
   });
+
+  it('lets a lone driver say I, and keeps we for talk that two sides or a body share', () => {
+    const SHARED_WE = new Set([
+      'line.thenWeSettleIt', 'line.noFreeRidePay', 'line.noFreeRideCut', 'line.noFreeRideDump', 'line.enoughOfThisWe', 'line.enoughShootingCanWe',
+      'line.giveUpOffer', 'line.noWeFinishThis', 'line.thenWeFinishThis', 'line.vigilCall1', 'line.vigilCall3', 'line.driveIntoTheLight',
+      'line.carsDraggedIntoTheDark', 'line.pullPaid', 'line.takeMeToSite', 'line.letsMove', 'line.lessonLawGates', 'line.lessonLawFirstShot',
+      'line.lessonLawLonely', 'line.truceCost', 'line.weAlreadyTalkedAbout', 'line.weBothDriveAway', 'line.weCoveredThat', 'line.weWillSee',
+      'line.niceRigLetsSee', 'line.letsGo', 'line.courierSquareTip', 'line.letsCallItEven', 'line.yourLoadIsInThe', 'line.helpMeFirst',
+    ]);
+    const plural = /\b(we|us|our|ours)\b|\bwe['’]/i;
+    const found = KEYS.filter((key) => key.startsWith('line.') && plural.test(entryText('en', key)) && !SHARED_WE.has(key));
+    expect(found).toEqual([]);
+  });
 });

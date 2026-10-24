@@ -76,11 +76,16 @@ async function openShortMarket(page) {
     w.roadNews = [
       { turn: w.turn - 40, kind: 'robbed', good: 'grain', units: 14, from: 'bowl', to: 'granary' },
       { turn: w.turn - 160, kind: 'knockedOut', good: 'fuelDrums', units: 12, from: 'pump-station', to: 'salvage-yard' },
+      { turn: w.turn - 20, kind: 'destroyed', good: 'rations', units: 1, from: 'granary', to: 'bowl' },
     ];
     g.apply(w);
     g.screens.town.open();
   });
-  await page.evaluate(() => document.querySelector('.town-screen [data-tab="market"]').click());
+  await page.evaluate(() => {
+    const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
+    go('back');
+    go('market');
+  });
 }
 
 async function openCall(page, node) {
@@ -197,7 +202,7 @@ async function boot() {
 }
 
 async function inspectNpc(page, armed) {
-  await page.evaluate(async (armed) => {
+  const npcId = await page.evaluate(async (armed) => {
     const g = window.__ROAM__;
     const { runCommand } = await import('/src/ui/console.ts');
     const { partDef } = await import('/src/data/parts.ts');
@@ -208,7 +213,9 @@ async function inspectNpc(page, armed) {
     g.hovered = npc.id;
     g.refreshInfo();
     g.hitCard.show();
+    return npc.id;
   }, armed);
+  await page.waitForFunction((id) => window.__ROAM__.hud.portraitSettled(id), npcId, { timeout: 60000 });
 }
 
 const clearInspect = (page) => page.evaluate(() => {

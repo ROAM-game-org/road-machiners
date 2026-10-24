@@ -4,7 +4,7 @@ import { TIME } from '../data/time';
 import { emptyWorld } from '../sim/testkit';
 import { claimLeads, journalEntries, JournalScreen } from './journal';
 import { surveyClue, surveySites } from '../sim/survey';
-import { surveyClueText } from './format';
+import { surveyWayText } from './format';
 import { resolve } from '../text/resolve';
 import { t } from '../text/msg';
 import type { World } from '../sim/types';
@@ -212,7 +212,7 @@ describe('journal screen', () => {
     survey.points.forEach((p, i) => {
       const clue = surveyClue(survey, p);
       expect(places[i].text()).toContain(resolve(t(`contract.look.${clue.type}`), 'en'));
-      expect(places[i].text()).toContain(resolve(surveyClueText(clue), 'en'));
+      expect(places[i].text()).toContain(resolve(surveyWayText(w, survey, p), 'en'));
       expect(places[i].text()).toContain(resolve(t(`contract.want.${clue.type}`), 'en'));
     });
   });
