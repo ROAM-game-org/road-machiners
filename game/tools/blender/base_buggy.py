@@ -14,12 +14,12 @@ Parts, nose to tail: a trim tube bull bar with a round lamp in a chrome rim and 
 side, over a slim pointed lower nose; a full-size spare lying on the nose, tipped down toward the bar; a closed deck
 plate that holds the spare low and rises to the cowl; slim plate fenders over the front tires, each on one tube brace;
 the trim tube cage, its top rails running from the main hoop forward past the windshield over the deck, where raked
-downtubes take them down to the nose; the closed cab inside the cage, glass panes inset behind the tubes over thin
-paint door panels, a windshield, a roof plate and a paint bulkhead behind the seats, with a B post and a diagonal
-each side; a rectangular mirror on each windshield post; a low tube sill frame between the wheels with a flat mesh
+downtubes take them down to the nose; the closed cab inside the cage, glass panes over flat mesh doors, both leaning
+in behind the tubes, a windshield, a roof plate and a paint bulkhead at the seat backs, with a B post and a diagonal
+each side, and the roof running on over open sides to the main hoop; a rectangular mirror on each windshield post; a low tube sill frame between the wheels with a flat mesh
 panel and one diagonal brace; deep rounded rear fenders; one round shock body at each wheel; and behind the cab an
-open rack as wide as the cab, a tube frame with flat mesh sides and back and a flat paint top for the cargo cells,
-standing clear over the rear fenders, with a round extinguisher on its left side. Round parts take round_sides() and
+open rack as wide as the cab, a tube frame with flat mesh sides and back, open on top over a floor for the cargo
+cells, standing clear over the rear fenders, with a round extinguisher on its left side. Round parts take round_sides() and
 arches ROUND_ARCH_SEGMENTS. Every tube keeps a radius of TUBE_MIN or more, and the cage has at most CAGE_RUNS tubes.
 Deviations from the photo: the cab is closed (the committee's closed cabin); the engine is not drawn, since the
 game's engines stand 0.44 to 1.6 m tall where the grid's engine cells lie under the spare and the deck, so no deck at
@@ -282,17 +282,20 @@ def cab_half(z: float) -> float:
 
 
 def cab(kit: Kit) -> None:
-    """The closed cab inside the cage: glass panes that lean in from the sill to a roof plate set under the rails, a
-    windshield, a bulkhead at the seat backs and a floor, so the cage tubes stand clear outside the glass all round.
+    """The closed cab inside the cage: flat mesh doors from the sill to the waist and glass panes over them, leaning in
+    to a roof plate set under the rails, a windshield, a bulkhead at the seat backs and a floor, so the cage tubes stand
+    clear outside the cab all round.
     Behind the seats the roof runs on to the main hoop over open sides, where the photo's car carries its kit."""
     kit.box("roof", (ROOF_FRONT - ROOF_BACK, 2 * (CAGE_Y - TUBE), ROOF_THICK), ((ROOF_FRONT + ROOF_BACK) / 2, 0, ROOF_TOP - ROOF_THICK / 2), "paint")
     top = ROOF_TOP - ROOF_THICK / 2
     low = SILL_TOP + TUBE / 2
     lean = (cab_half(low) - cab_half(top)) / (top - low)
+    outer = cab_half(0.0)
     for s, sy in SIDES:
-        pane = [(post_x(top), top), (B_POST, top), (B_POST, low), (post_x(low), low)]
-        outer = cab_half(0.0)
+        pane = [(post_x(top), top), (B_POST, top), (B_POST, WAIST - 0.02), (post_x(WAIST - 0.02), WAIST - 0.02)]
         prism(kit, f"pane_{s}", pane, min(sy * outer, sy * (outer - 0.02)), max(sy * outer, sy * (outer - 0.02)), "glass", lean=sy * lean)
+        door = [(post_x(WAIST) + 0.005, WAIST), (B_POST - 0.005, WAIST), (B_POST - 0.005, low), (post_x(low) + 0.005, low)]
+        prism(kit, f"door_{s}", door, min(sy * (outer + 0.005), sy * (outer - 0.025)), max(sy * (outer + 0.005), sy * (outer - 0.025)), "metal_light", lean=sy * lean)
     bulk_top = ROOF_TOP - ROOF_THICK
     bulk = [(B_POST + dx, sy * (cab_half(z) - 0.01), z) for z in (bulk_top, SILL_LOW) for dx in (PANEL / 2, -PANEL / 2) for sy in (1, -1)]
     kit._add(hull_mesh("bulkhead", bulk), "bulkhead", "paint", 0.0)
@@ -339,10 +342,9 @@ def shocks(kit: Kit) -> None:
 
 
 def rack(kit: Kit) -> None:
-    """The open rack behind the cab: a tube frame as wide as the cab, a flat mesh top and an under floor, clear over the rear fenders."""
+    """The open rack behind the cab: a tube frame as wide as the cab, open on top, with a floor its cargo stands on, clear over the rear fenders."""
     x0, x1 = RACK_X
     y = RACK_HALF
-    kit.box("rack_top", (x0 - x1, 2 * (y - TUBE), 0.04), ((x0 + x1) / 2, 0, RACK_TOP - 0.02), "metal_light")
     kit.box("rack_floor", (x0 - x1, 2 * (y - TUBE), 0.04), ((x0 + x1) / 2, 0, RACK_LOW + 0.02), "under")
     corners = [(x, sy * y) for x in (x0, x1) for sy in (1, -1)]
     for i, (x, cy) in enumerate(corners):
