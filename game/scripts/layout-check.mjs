@@ -202,7 +202,7 @@ async function boot() {
 }
 
 async function inspectNpc(page, armed) {
-  await page.evaluate(async (armed) => {
+  const npcId = await page.evaluate(async (armed) => {
     const g = window.__ROAM__;
     const { runCommand } = await import('/src/ui/console.ts');
     const { partDef } = await import('/src/data/parts.ts');
@@ -213,7 +213,9 @@ async function inspectNpc(page, armed) {
     g.hovered = npc.id;
     g.refreshInfo();
     g.hitCard.show();
+    return npc.id;
   }, armed);
+  await page.waitForFunction((id) => window.__ROAM__.hud.portraitSettled(id), npcId, { timeout: 60000 });
 }
 
 const clearInspect = (page) => page.evaluate(() => {
