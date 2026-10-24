@@ -88,7 +88,7 @@ World one-shots, the `sfx` cues with the `field` setup that do not loop, get two
 - A gentle cut above 8 kHz puts every take at the 10 m the prompt asks for. Generated takes come out close and bright.
 - Bass and treble move back to within `MIX.tone.spread` of the anchor's tone in `MIX.tone`. A cut may go up to 12 dB and a boost up to 6 dB, since a boost also raises noise.
 
-`npm run sfx:report` lists every world one-shot's loudness and tone beside the anchor. It flags the takes that import could not bring into range. Fix those by hand, as [Fixing a take](#fixing-a-take) shows.
+`npm run sfx:report` lists every world one-shot and every `sfx` loop, like the engine loops, with its loudness and tone beside the anchor. Tone is three bands against the 250 Hz to 4 kHz mids: low below 250 Hz, presence from 1 to 4 kHz and high above 4 kHz, each held to `MIX.tone` within its spread. Presence is what shows a dull loop, since a buried bark leaves low and high in range. The report flags the takes that import could not bring into range. Fix those by hand, as [Fixing a take](#fixing-a-take) shows.
 
 ## Generating with ElevenLabs
 
@@ -104,6 +104,7 @@ World one-shots, the `sfx` cues with the `field` setup that do not loop, get two
 A near-miss take is cheaper to fix with ffmpeg or Demucs than to generate again. Write the fixed file next to the raw take in `tmp/sfx-raw/` and import that file, so reimport rebuilds from it.
 
 - A thin heavy sound, like a horn or a harpoon, gets pitched down with `asetrate=44100*0.85,aresample=44100` and a bass boost like `bass=g=6:f=120`. Pitch down more for a bigger sound.
+- A dull loop whose raw take is gone gets lifted from the shipped file. Decode it three times back to back, apply a bass cut, a presence bell near 1.5 kHz and a treble shelf from 4 kHz, and keep the middle copy so the filters are warm at the seam. Start the copy at a quiet zero crossing, since import filters it cold. Name it `.seamless.` so import keeps it whole, remove the old file and import it. Lift until `sfx:report` shows the loop in range, and stop raising treble when hiss shows above 8 kHz.
 - A bright hiss gets two low-passes, like `lowpass=f=3000,lowpass=f=3000`.
 - A music take that is too loud or bright gets a high-shelf cut like `treble=g=-3:f=4000` and glue compression.
 - A slowdown over about 6% sounds artificial. Generate again for a bigger tempo change.
