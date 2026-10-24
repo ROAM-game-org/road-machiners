@@ -6,12 +6,17 @@ import { emptyWorld, testDrive } from './testkit';
 import { acceptContract, advanceContracts, deliverContract, haulWindow, initializeShops, siteOf, type Contract } from './market';
 import { endTurn } from './world';
 import { nearestRoadPoint } from './salvage';
-import { compassSector, findSurveySites, isSurveyMet, startSurvey, surveyActions, surveyClue, liveSurveySites, surveyLoopTurns, surveyReward, surveySite, surveySites, type SurveyContract } from './survey';
-import { refreshVision } from './vision';
+import { compassSector, findSurveySites, isSurveyMet, startSurvey, surveyActions, surveyClue, liveSurveySites, surveyLoopTurns, surveyWay, surveyReward, surveySite, surveySites, type SurveyContract } from './survey';
+import { refreshVision, visibleTiles, tileOf } from './vision';
+import { followSteps } from './directions-follower.test-helper';
+import { directionsFromSite } from './directions';
+import { DIRECTIONS } from '../data/directions';
 import { bearing } from './vec';
 import { TEST_MAP } from '../test/map';
 import { dist } from './vec';
-import type { Job, SalvageStock, World } from './types';
+import type { DirectionStep, Job, SalvageStock, World } from './types';
+import { cardinalOf } from './direction-cues';
+import { roadNetworkOf } from './road-network';
 import type { Vec } from './vec';
 
 const rules = CONTRACTS.survey;
@@ -403,5 +408,81 @@ describe('survey gate', () => {
     const paid = deliverContract(next, mine.id);
     expect(paid.player.money).toBe(money + mine.reward);
     expect(() => deliverContract(paid, mine.id)).toThrow();
+  });
+});
+
+const CARDINAL_ANGLE = { east: 0, south: Math.PI / 2, west: Math.PI, north: -Math.PI / 2 };
+const OCTANT_ANGLE = { east: 0, southEast: 1, south: 2, southWest: 3, west: 4, northWest: 5, north: 6, northEast: 7 };
+
+function toldAim(leave: Extract<DirectionStep, { do: 'leave' }>): number {
+  const angle = (OCTANT_ANGLE[leave.octant] * Math.PI) / 4;
+  if (leave.lean === null) return angle;
+  const toward = CARDINAL_ANGLE[leave.lean];
+  const diff = Math.atan2(Math.sin(toward - angle), Math.cos(toward - angle));
+  return angle + Math.sign(diff) * (Math.PI / 8);
+}
+
+function fakeSurvey(shop: string, site: string): SurveyContract {
+  return { id: 'ct-way', shop, kind: 'survey', points: [{ site, found: false, done: false }], reward: 0, deadline: 0, window: 0, tier: 1 };
+}
+
+function surveyPairs(w: World): { shop: string; site: string }[] {
+  return surveySites({ hash: w.mapHash, terrain: w.terrain }).flatMap((s) =>
+    Object.keys(SHOPS).filter((shop) => dist(siteOf(shop).pos, s.pos) <= rules.range).map((shop) => ({ shop, site: s.id })),
+  );
+}
+
+describe('survey way', () => {
+  const w = emptyWorld();
+  const pairs = surveyPairs(w);
+
+  it('tells a full way to every survey site from every shop in range, the reporter lookout from Bowl included', () => {
+    expect(pairs).toContainEqual({ shop: 'bowl', site: 'survey-ruin-124' });
+    const untold = pairs.filter((p) => surveyWay(w, fakeSurvey(p.shop, p.site), { site: p.site, found: false, done: false }) === null);
+    expect(untold).toEqual([]);
+  });
+
+  it('leads the truck in sight of the place', () => {
+    const lost: string[] = [];
+    let walked = 0;
+    expect(pairs.length).toBeGreaterThanOrEqual(38);
+    for (const { shop, site } of pairs) {
+      const place = surveySite(w, site);
+      const way = surveyWay(w, fakeSurvey(shop, site), { site, found: false, done: false });
+      if (!way) throw new Error(`${shop} ${site}`);
+      const leave = way.find((s): s is Extract<DirectionStep, { do: 'leave' }> => s.do === 'leave');
+      if (!leave) continue;
+      const gate = directionsFromSite(w, shop, { kind: 'spot', pos: place.pos, clue: 'place' });
+      expect(gate).toEqual(way);
+      const gates = roadNetworkOf(w).nodes.filter((n) => n.site === shop);
+      const from = gates.map((g) => g.pos).sort((a, b) => dist(a, place.pos) - dist(b, place.pos))[0];
+      const sides = way[0].do === 'gate' ? way[0].side : null;
+      const start = sides === null ? from : gates.map((g) => g.pos).find((g) => cardinalOf({ x: g.x - siteOf(shop).pos.x, y: g.y - siteOf(shop).pos.y }) === sides) ?? from;
+      walked++;
+      const followed = followSteps(w, start, way, { spot: place.pos });
+      if (followed.closest > DIRECTIONS.leaveReach) {
+        lost.push(`${shop} ${site} road ${followed.closest}`);
+        continue;
+      }
+      const reach = leave.span === 'near' ? DIRECTIONS.spans.near : DIRECTIONS.spans.fair;
+      const aim = toldAim(leave);
+      let seen = false;
+      for (let d = 0; d <= reach && !seen; d += 3) {
+        const p = { x: followed.closestAt.x + Math.cos(aim) * d, y: followed.closestAt.y + Math.sin(aim) * d };
+        const tiles = visibleTiles(w, p);
+        seen = place.props.some((prop) => tiles.has(tileOf(w, prop.pos)));
+      }
+      if (!seen) lost.push(`${shop} ${site} unseen`);
+    }
+    expect(walked).toBeGreaterThanOrEqual(30);
+    expect(lost).toEqual([]);
+  });
+
+  it('is pure', () => {
+    const { shop, site } = pairs[0];
+    const before = JSON.stringify(w.marketRng);
+    const a = surveyWay(w, fakeSurvey(shop, site), { site, found: false, done: false });
+    expect(surveyWay(w, fakeSurvey(shop, site), { site, found: false, done: false })).toEqual(a);
+    expect(JSON.stringify(w.marketRng)).toBe(before);
   });
 });

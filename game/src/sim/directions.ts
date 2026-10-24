@@ -1,11 +1,11 @@
 import { DIRECTIONS } from '../data/directions';
 import { REGION } from '../data/region';
 import { atlasOf, atlasSites } from './atlas';
-import { cueAt, headingAlong, octantOf, roadName, spanOf, type CueSpot } from './direction-cues';
-import { exitsAt, isJunction, nearestRoadPoints, roadNetworkOf, shortestPath, splitAt, type RoadGraph, type RoadPath, type RoadPoint } from './road-network';
+import { cardinalOf, cueAt, headingAlong, leanOf, octantOf, roadName, spanOf, type CueSpot } from './direction-cues';
+import { exitsAt, isJunction, nearestRoadPoints, roadNetworkOf, shortestPath, splitAt, type RoadGraph, type RoadNetwork, type RoadNode, type RoadPath, type RoadPoint } from './road-network';
 import { isTerritory } from './sites';
 import { isCliff, tileAt } from './terrain';
-import type { Cue, DirectionStep, DirectionTarget, TurnSide, World } from './types';
+import type { Cue, DirectionStep, DirectionTarget, Octant, Span, TurnSide, World } from './types';
 import { angleDiff, dist, type Vec } from './vec';
 
 type Spoken = { at: number; side: TurnSide; cue: Cue | null; out: number };
@@ -17,19 +17,57 @@ export function directionsTo(world: World, from: Vec, target: DirectionTarget): 
   const aim = targetPos(target);
   const rough = { octant: octantOf({ x: aim.x - from.x, y: aim.y - from.y }), span: spanOf(dist(from, aim)) };
   if (target.kind === 'spot' && dist(from, aim) <= DIRECTIONS.directReach && clearLine(world, from, aim)) {
-    return [{ do: 'straight', ...rough }, wreckSearch()];
+    return [{ do: 'straight', ...rough }, ...searchFor(target)];
   }
   if (!onThisMap(world, target)) return [{ do: 'noRoad', ...rough }];
   const net = roadNetworkOf(world);
   const start = startPoint(world, from, net);
+  if (!start) return [{ do: 'noRoad', ...rough }];
+  const plan = planFrom(world, net, start.point, target, rough);
+  return [...(start.join && plan.steps[0].do !== 'noRoad' ? [start.join] : []), ...plan.steps];
+}
+
+export function directionsFromSite(world: World, siteId: string, target: DirectionTarget): DirectionStep[] {
+  const site = atlasSites(atlasOf(world.terrain)).find((s) => s.id === siteId);
+  if (!site) throw new Error(`Directions from unknown site ${siteId}`);
+  if (isTerritory(site)) throw new Error(`Site ${siteId} is a territory and has no gate to start from`);
+  const net = roadNetworkOf(world);
+  const gates = gateNodes(net, siteId);
+  if (gates.length === 0) throw new Error(`Site ${siteId} has no gate on a road`);
+  const sides = gates.map((g) => cardinalOf({ x: g.pos.x - site.pos.x, y: g.pos.y - site.pos.y }));
+  if (new Set(sides).size !== sides.length) throw new Error(`Site ${siteId} has two gates on one side`);
+  const aim = targetPos(target);
+  const plans = gates.map((gate, i) => {
+    const rough = { octant: octantOf({ x: aim.x - gate.pos.x, y: aim.y - gate.pos.y }), span: spanOf(dist(gate.pos, aim)) };
+    return { gate, side: sides[i], plan: planFrom(world, net, gate.id, target, rough) };
+  });
+  const [best] = plans.sort((a, b) => Number(!toldInFull(a.plan.steps)) - Number(!toldInFull(b.plan.steps)) || a.plan.length - b.plan.length || a.gate.id - b.gate.id);
+  const head: DirectionStep[] = gates.length >= 2 ? [{ do: 'gate', side: best.side }] : [];
+  return [...head, ...best.plan.steps];
+}
+
+function toldInFull(steps: readonly DirectionStep[]): boolean {
+  return !steps.some((s) => s.do === 'askAgain' || s.do === 'noRoad');
+}
+
+function gateNodes(net: RoadGraph, siteId: string): RoadNode[] {
+  return net.nodes.filter((n) => n.site === siteId && net.incident[n.id].length > 0);
+}
+
+type Plan = { steps: DirectionStep[]; length: number };
+
+function planFrom(world: World, net: RoadNetwork, start: RoadPoint | number, target: DirectionTarget, rough: { octant: Octant; span: Span }): Plan {
+  const noRoad: Plan = { steps: [{ do: 'noRoad', ...rough }], length: Infinity };
+  const aim = targetPos(target);
   const leave = target.kind === 'spot' ? leavePoint(world, net, target.pos) : null;
-  if (!start || (target.kind === 'spot' && !leave)) return [{ do: 'noRoad', ...rough }];
-  const { graph, nodes } = splitAt(net, leave ? [start.point, leave] : [start.point]);
-  const goals = leave ? [nodes[1]] : goalNodes(graph, target.kind === 'site' ? target.id : '');
-  const path = shortestPath(graph, nodes[0], goals);
-  if (!path) return [{ do: 'noRoad', ...rough }];
-  const head: DirectionStep[] = start.join ? [start.join] : [];
-  return [...head, ...speakPath(world, graph, path, target, leave ? aim : null)];
+  if (target.kind === 'spot' && !leave) return noRoad;
+  const points = [...(typeof start === 'number' ? [] : [start]), ...(leave ? [leave] : [])];
+  const { graph, nodes } = splitAt(net, points);
+  const startNode = typeof start === 'number' ? start : nodes[0];
+  const goals = leave ? [nodes[nodes.length - 1]] : goalNodes(graph, target.kind === 'site' ? target.id : '');
+  const path = shortestPath(graph, startNode, goals);
+  if (!path) return noRoad;
+  return { steps: speakPath(world, graph, path, target, leave ? aim : null), length: path.length };
 }
 
 function targetPos(target: DirectionTarget): Vec {
@@ -70,8 +108,8 @@ export function clearLine(world: World, a: Vec, b: Vec): boolean {
   return true;
 }
 
-function wreckSearch(): DirectionStep {
-  return { do: 'search', clue: { kind: 'wreck' }, rough: true };
+function searchFor(target: DirectionTarget): DirectionStep[] {
+  return target.kind === 'spot' && target.clue === 'wreck' ? [{ do: 'search', clue: { kind: 'wreck' }, rough: true }] : [];
 }
 
 function travelHeading(graph: RoadGraph, edge: number, node: number): number {
@@ -166,5 +204,5 @@ function finish(world: World, target: DirectionTarget, tail: CueSpot, spot: Vec 
   const aim = { x: spot.x - tail.pos.x, y: spot.y - tail.pos.y };
   const at = cueAt(world, tail);
   if (!at) return [{ do: 'askAgain' }];
-  return [{ do: 'leave', at, octant: octantOf(aim), span: spanOf(Math.hypot(aim.x, aim.y)) }, wreckSearch()];
+  return [{ do: 'leave', at, octant: octantOf(aim), lean: leanOf(aim, octantOf(aim)), span: spanOf(Math.hypot(aim.x, aim.y)) }, ...searchFor(target)];
 }
