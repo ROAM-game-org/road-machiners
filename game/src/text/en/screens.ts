@@ -712,7 +712,6 @@ export const SCREENS = {
   'contract.full': m('You already hold {n} contracts', { n: 'count' }),
   'contract.board': 'Contract board',
   'contract.noOffers': 'No offers.',
-  'contract.boardClosed': m('You failed a job here. Work again at {when}', { when: 'text' }),
   'contract.yours': m('Your contracts {n} / {max}', { n: 'int', max: 'int' }),
   'contract.none': 'You hold no contracts.',
   'contract.deliverAt': m('Deliver at {site}', { site: 'text' }),

@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { CONTRACTS } from '../data/market';
 import { REGION } from '../data/region';
 import { townWork } from './dialogue-rules';
-import { acceptContract, advanceContracts, boardClosedUntil, finishContract, type Contract } from './market';
+import { acceptContract, advanceContracts, finishContract, type Contract } from './market';
 import { sitePads } from './sites';
 import { emptyWorld } from './testkit';
 import type { GameEvent, World } from './types';
@@ -36,43 +35,24 @@ describe('a failed contract', () => {
     expect(w.events.filter((e) => e.t === 'money')).toEqual([]);
   });
 
-  it('closes that shop board until one day after the failure and then opens it', () => {
-    const w = missed(atBowlHolding(haul()));
-    const opens = 600 + CONTRACTS.failedRestTurns;
-
-    expect(boardClosedUntil(w, 'bowl')).toBe(opens);
-    expect(() => acceptContract(w, 'ct-next')).toThrow(expect.objectContaining({ refusal: { id: 'boardClosed' } }));
-    expect(boardClosedUntil(update(w, (d) => { d.turn = opens - 1; }), 'bowl')).toBe(opens);
-    const later = update(w, (d) => { d.turn = opens; });
-    expect(boardClosedUntil(later, 'bowl')).toBeNull();
-    expect(acceptContract(later, 'ct-next').player.contracts.map((c) => c.id)).toEqual(['ct-next']);
-  });
-
-  it('leaves the other shops open', () => {
+  it('leaves the board open for a new contract at once', () => {
     const w = missed(atBowlHolding(haul()));
 
-    expect(boardClosedUntil(w, 'nose')).toBeNull();
-  });
-
-  it('makes the radio ask for work find none while the board is closed', () => {
-    const w = atBowlHolding(haul());
+    expect(acceptContract(w, 'ct-next').player.contracts.map((c) => c.id)).toEqual(['ct-next']);
     expect(townWork(w)).not.toBeNull();
-    expect(townWork(missed(w))).toBeNull();
   });
 
-  it('closes the board of a shop with no faction without moving standing', () => {
+  it('moves no standing for a shop with no faction', () => {
     const w = update(atBowlHolding(claim()), (d) => { d.turn = 300; d.events = []; finishContract(d, d.player.contracts[0], 'failed'); });
 
-    expect(boardClosedUntil(w, 'granary')).toBe(300 + CONTRACTS.failedRestTurns);
     expect(w.player.deeds).toEqual([]);
     expect(moneyMoved(w.events)).toBe(0);
   });
 
-  it.each(['done', 'lapsed', 'released'] as const)('is not what a %s ending is: no deed and no closed board', (outcome) => {
+  it.each(['done', 'lapsed', 'released'] as const)('is not what a %s ending is: no deed', (outcome) => {
     const w = ended(atBowlHolding(haul()), haul(), outcome);
 
     expect(w.player.deeds.filter((d) => d.deed === 'failedContract')).toEqual([]);
-    expect(boardClosedUntil(w, 'bowl')).toBeNull();
   });
 
   it('moves no standing on Chaos Highway', () => {

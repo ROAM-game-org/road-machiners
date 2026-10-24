@@ -229,7 +229,6 @@ export type Refusal =
   | { id: 'cargoOwed' }
   | { id: 'refitRunning' }
   | { id: 'gatesShut' }
-  | { id: 'boardClosed' }
   | { id: 'twoInTheWay' }
   | { id: 'refitItemMoved' }
   | { id: 'builtInFixed' }

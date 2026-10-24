@@ -5,7 +5,7 @@ import { inCombat } from '../combat';
 import { playerVehicle } from '../damage';
 import { isKnockedOut } from '../defeat';
 import { callVehicle, chooseOption, currentOptions, hangUp } from '../dialogue';
-import { boardClosedUntil, acceptContract, deliverContract, heldSearch, searchRefusal, shopAt, shopState, siteOf, type SearchContract } from '../market';
+import { acceptContract, deliverContract, heldSearch, searchRefusal, shopAt, shopState, siteOf, type SearchContract } from '../market';
 import { handOverParcel, playerHandover, readyHandover } from '../parcel';
 import { canUseSite, type Site } from '../sites';
 import type { Vehicle, World } from '../types';
@@ -31,7 +31,7 @@ export function searcherGoal(o: Orders, otherwise: (o: Orders) => void): void {
 
 export function takeSearch(o: Orders): boolean {
   const shop = shopAt(o.world);
-  if (!shop || boardClosedUntil(o.world, shop) !== null || heldSearch(o.world)) return false;
+  if (!shop || heldSearch(o.world)) return false;
   const offer = shopState(o.world, shop).contracts.find((c) => c.kind === 'search' && c.deadline > o.world.turn && searchRefusal(o.world, c) === null);
   if (offer) o.run((w) => acceptContract(w, offer.id));
   return offer !== undefined;

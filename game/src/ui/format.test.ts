@@ -14,7 +14,7 @@ import { gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueL
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { boardOpens, contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
+import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
@@ -131,10 +131,6 @@ describe("contract text", () => {
 
   it("shows the deadline as the game time the contract fails", () => {
     expect(en(contractDue(order))).toBe("by Day 1 12:19");
-  });
-
-  it("names why the board is closed and the game time it opens", () => {
-    expect(en(boardOpens(order.deadline + 1))).toBe("You failed a job here. Work again at Day 1 12:19");
   });
 
   it("names the good, the crate count and the shop that ordered it, and no source", () => {

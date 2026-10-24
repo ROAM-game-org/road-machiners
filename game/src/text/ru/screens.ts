@@ -714,7 +714,6 @@ export const SCREENS: Translation<typeof EN> = {
   'contract.full': 'У вас уже {n, plural, one {# контракт} few {# контракта} many {# контрактов} other {# контракта}}',
   'contract.board': 'Доска контрактов',
   'contract.noOffers': 'Предложений нет.',
-  'contract.boardClosed': 'Вы провалили здесь контракт. Новая работа — {when}.',
   'contract.yours': 'Ваши контракты {n} / {max}',
   'contract.none': 'У вас нет контрактов.',
   'contract.deliverAt': 'Сдать {site, case, at}',

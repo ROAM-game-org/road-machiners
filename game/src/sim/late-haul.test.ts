@@ -6,7 +6,7 @@ import { playerVehicle } from './damage';
 import { sellGood, sellTruckGood } from './economy';
 import { goodsCount } from './grid';
 import { addGoods, dumpItem, removeGoods } from './inventory';
-import { acceptContract, advanceContracts, boardClosedUntil, deliverContract, goodValue, isLate, lateBy, spareGoods, type Contract } from './market';
+import { acceptContract, advanceContracts, deliverContract, goodValue, isLate, lateBy, spareGoods, type Contract } from './market';
 import { bountyTerms } from './marshals';
 import { sitePads } from './sites';
 import { addVehicle, emptyWorld } from './testkit';
@@ -69,7 +69,6 @@ describe('a haul past its deadline', () => {
     expect(salt(w)).toBe(0);
     expect(w.shops.nose.goods.salt).toBe(stock + 3);
     expect(w.player.deeds.map((d) => d.deed)).toEqual(['failedContract']);
-    expect(boardClosedUntil(w, 'bowl')).toBe(600 + CONTRACTS.failedRestTurns);
   });
 
   it('is still paid in full when handed in on time', () => {

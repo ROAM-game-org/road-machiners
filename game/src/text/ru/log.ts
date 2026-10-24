@@ -501,7 +501,6 @@ export const LOG: Translation<typeof EN> = {
   'refusal.refitRunning': 'Сначала закончите переоснащение',
   'refusal.gatesShut': 'Ворота закрыты',
   'refusal.cargoOwed': 'Нужно сдать по рейсу',
-  'refusal.boardClosed': 'Вы провалили здесь контракт',
   'refusal.twoInTheWay': 'Мешает больше одного предмета',
   'refusal.refitItemMoved': 'Предмет для переоснащения сдвинулся или пропал',
   'refusal.builtInFixed': 'Встроенные детали не двигаются',

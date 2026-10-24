@@ -498,7 +498,6 @@ export const LOG = {
   'refusal.refitRunning': 'Finish the refit before changing inventory',
   'refusal.gatesShut': 'The gates are shut',
   'refusal.cargoOwed': 'Owed on a haul',
-  'refusal.boardClosed': 'You failed a job here',
   'refusal.twoInTheWay': 'More than one item is in the way',
   'refusal.refitItemMoved': 'An item needed for the refit has moved or disappeared',
   'refusal.builtInFixed': 'Built-in parts cannot be moved',
