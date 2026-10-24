@@ -24,6 +24,8 @@ export const PIECES: Piece[] = [
   { name: ".row", note: "A list line with a faint line under it.", build: () => sample("row", "A row") },
   { name: ".tile", note: "A boxed list item edged in its tone.", build: () => sample("tile", "A tile") },
   { name: ".chip", note: "A small boxed value.", build: () => text("span", "chip", "120 scrap") },
+  { name: ".art-band", note: "A wide picture across the top of a page, with the place name and chips over its lower edge.", build: () => sample("art-band", "") },
+  { name: ".ink-page", note: "The frame of the town page and of a quest in town: a band on top, then a heading, prose, an optional panel and numbered choices in a centered text column.", build: () => inkPage() },
   { name: ".tag", note: "An outlined word.", build: () => text("span", "tag", "buy") },
   { name: ".contract-clue", note: "One open survey place per line: the kind, then the posting shop's way there, then what it looks like. A found place has a tag last.", build: () => el("span", { class: "contract-clue" }, "Lookout, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way. A lone building on high ground. ", text("span", "tag", "found")) },
   { name: ".contract-hint", note: "One line under the clues of a survey contract that says how to find and survey while a place is unfound.", build: () => text("span", "contract-hint", "Drive near a place to find it, then stay to survey.") },
@@ -42,6 +44,22 @@ export const PIECES: Piece[] = [
   { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
   { name: ".num", note: "A number in the mono face.", build: () => text("span", "num", "1 240") },
 ];
+
+function inkPage(): HTMLElement {
+  const choice = (words: string, reason: string | null = null): HTMLElement =>
+    el("button", { class: "quest-choice", ...(reason ? { "aria-disabled": "true", title: reason } : {}) }, reason ? el("span", { class: "quest-check" }, reason) : null, words);
+  return el(
+    "div",
+    { class: "ink-page" },
+    el("div", { class: "ink-band" }, el("div", { class: "art-band" })),
+    el(
+      "div",
+      { class: "ink-body" },
+      el("div", { class: "ink-head" }, text("h2", "quest-place", "Nose"), text("p", "qt-line", "The hull leans over the sheds like a cliff that rusts.")),
+      el("div", { class: "ink-choices quest-choices" }, choice("1. Go to the garage"), choice("2. See who is parked", "No drivers in sight"), choice("3. Drive on")),
+    ),
+  );
+}
 
 function minimapPiece(): HTMLElement {
   const button = (label: string) => text("button", "btn-s", label);

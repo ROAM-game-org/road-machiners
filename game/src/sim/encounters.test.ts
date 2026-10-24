@@ -251,6 +251,15 @@ describe('the salvage tip', () => {
     expect(pick(w, 'Deal.').player.rumored).toEqual(['wreck7']);
   });
 
+  it('raises no call when the wreck it would sell is gone before the call', () => {
+    const { w, npc } = tipWorld();
+    onStrangerSeen(w, npc);
+    expect(w.player.encounters.pending?.encounter).toBe('tip');
+    w.salvage = [];
+    expect(() => raiseCalls(w)).not.toThrow();
+    expect(w.player.call).toBeNull();
+  });
+
   it('hides the option to pay when the player cannot afford it', () => {
     const { w, npc } = tipWorld();
     onStrangerSeen(w, npc);
