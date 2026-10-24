@@ -37,8 +37,8 @@ what: Agents fixed a nearby, easier problem instead of the one reported, like br
 cost: The committee played builds that did not touch the report, and each one went back for a redesign.
 
 ID: R10
-what: New truck models misread the reference or the role: wrong scale and proportions, too much detail, wheels clipping doors, a part copied from another chassis, a remake that kept the old boxy silhouette under new details, a beach-car reference picked for its look and not the raider car's job, remakes built from memory when the agent had only photo links, and a light tube-frame reference turned into a tall slab-sided box on smooth fenders and blank wheels when the owner asked only to close its cab. Stacked, overlapping or thin parts, like hood, wing and bumper edges, cab frames, arches and bucket lips, drew noisy outlines, dark gaps and heavy shading at game camera size, and cleanup rounds guessed at the noise by deleting lamps or changing tessellation instead of finding which faces in the mesh and render made it and checking that view against the committee's screenshot.
-cost: Each model took three or more committee rounds, the owner had to ask by hand for a stronger model, the actual images, a reference fit for combat and the root cause of the artifacts, and photo-faithful remakes went back one after another through patches and whole redesigns, even after the committee had attached the photos.
+what: New truck models misread the reference or the role: wrong scale and proportions, too much detail, wheels clipping doors, a part copied from another chassis, a remake that kept the old boxy silhouette under new details, a beach-car reference picked for its look and not the raider car's job, remakes built from memory when the agent had only photo links, a light tube-frame reference turned into a tall slab-sided box when the owner asked only to close its cab, and an open cockpit picked as the default for an unanswered question though a wasteland truck needs a closed cab. Stacked, overlapping or thin parts, like hood, wing and bumper edges, cab frames, window bars, lid louvers, arches and bucket lips, drew noisy outlines, jagged stripes, dark gaps and heavy shading at game camera size, and cleanup rounds guessed at the noise by deleting lamps or changing tessellation instead of finding which faces in the mesh and render made it and checking that view against the committee's screenshot.
+cost: Each model took three or more committee rounds and one took six, the owner had to ask by hand for a stronger model, the actual images, a reference fit for combat, a closed cab and the root cause of the artifacts, and photo-faithful remakes went back one after another through patches and whole redesigns, even after the committee had attached the photos.
 
 ID: R11
 what: A change that applied to many things was built and shown on one, like a diagram drawn for one chassis only, a size picked per truck instead of by one rule, or a few keys opened in a scene but not the menu.
@@ -65,8 +65,8 @@ what: Bug fixes treated the symptom with a guard or a retry and never asked why 
 cost: The same bugs came back, and the owner approved many duplicate fixes one by one.
 
 ID: R17
-what: Builds dropped points of the request, or added or changed things nobody asked for, like labels and big buttons, or a game-wide copy sweep that also rewrote the intro quests the owner had written by hand, without asking which text was off limits.
-cost: A follow-up card for every dropped point, redesigns to remove the extras, and a patch round to restore the owner's own lines byte for byte.
+what: Builds dropped points of the request, or added or changed things nobody asked for, like labels and big buttons, a game-wide copy sweep that also rewrote the intro quests the owner had written by hand without asking which text was off limits, or a reputation change that kept the money charge the request and a committee comment said must go, and added a day-long board lockout nobody asked for.
+cost: A follow-up card for every dropped point, redesigns to remove the extras, a patch round to restore the owner's own lines byte for byte, and an approved build stopped before its merge to be redesigned and then patched again.
 
 ID: R18
 what: Merges brought back an old version of a feature, or dropped a piece another card had added, like an icon or a panel.
