@@ -41,8 +41,8 @@ what: New truck models misread the reference or the role: wrong scale, proportio
 cost: Each model took three or more committee rounds and one took six, the owner had to ask by hand for a stronger model, the actual images, a closed cab, the root cause of the artifacts and the return of details a cleanup had removed, and photo-faithful remakes went back round after round even after the committee had attached the photos.
 
 ID: R11
-what: A change that applied to many things was built and shown on one, like a diagram drawn for one chassis only, a size picked per truck instead of by one rule, or a few keys opened in a scene but not the menu.
-cost: Four rounds of patches on one card, and the owner had to ask for an atlas of every case.
+what: A change that applied to many things was built and shown on one, like a diagram drawn for one chassis only, a size picked per truck instead of by one rule, a few keys opened in a scene but not the menu, or a game-wide copy sweep whose design called a small diff a valid result and that rewrote about a dozen lines, among them the one example the owner had pointed out, while the post claimed every line was read.
+cost: Four rounds of patches on one card, the owner had to ask for an atlas of every case, and the copy sweep went back for a whole redesign.
 
 ID: R12
 what: Screens ignored the UI design system: oversized buttons, wasted space, stray captions, a rotated map with no zoom, garish colors, and a phone layout that hid the speedometer and health.
@@ -53,8 +53,8 @@ what: Features did not work when played, though the post said they did: a script
 cost: This was the most common critique, and players reported new modes broken after they shipped.
 
 ID: R14
-what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, item lore with empty rhetoric and no plain fact, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural.
-cost: Every text quest had to be cleaned up, and the committee rejected the copy again and again.
+what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, item lore with empty rhetoric and no plain fact, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural. The opposite fault went back too: a checklist of tells written for AI chat was turned into rules applied word for word to fiction, with no room for the narrator or a character's voice to break them where the story needs it.
+cost: Every text quest had to be cleaned up, the committee rejected the copy again and again, and the writing guidance went back for a redesign to follow the checklist in spirit.
 
 ID: R15
 what: Effects did not look physical: spills and grounds drawn as circles, dust that popped up instead of forming, hits shown at turn end, light through walls, and a glow with no visible source.
