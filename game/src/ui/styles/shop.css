@@ -399,6 +399,30 @@
 .journal-place {
   margin-top: var(--space-4);
 }
+.journal-place.survey {
+  display: grid;
+  grid-template-columns: var(--survey-picture-w) 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+.survey-picture {
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--surface-raised);
+  background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
+}
+.survey-picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+#ui.slim .journal-place.survey {
+  grid-template-columns: 1fr;
+}
+#ui.slim .survey-picture {
+  max-width: calc(var(--survey-picture-w) * 1.5);
+}
 .journal .journal-head {
   display: flex;
   justify-content: space-between;
