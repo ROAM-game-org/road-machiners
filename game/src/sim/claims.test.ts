@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { REGION } from '../data/region';
 import { PARTS } from '../data/parts';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';

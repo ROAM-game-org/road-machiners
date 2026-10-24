@@ -148,7 +148,7 @@ describe('old-world loot spot picks on the committed map', () => {
     }
   });
 
-  it('is sparse: some places of every type hold a spot and some do not', () => {
+  it('is sparse: most types hold a spot and no type holds one in every place', () => {
     const places = oldPlaces(baked);
     const picked = new Set(picks.map((p) => p.propId));
     const counts = OLD_PLACE_TYPES.map((type) => {
@@ -158,10 +158,8 @@ describe('old-world loot spot picks on the committed map', () => {
     });
     expect(picks.length).toBeGreaterThanOrEqual(6);
     expect(picks.length).toBeLessThanOrEqual(20);
-    for (const c of counts) {
-      expect(c.withSpot, c.type).toBeGreaterThan(0);
-      expect(c.withSpot, c.type).toBeLessThan(c.places);
-    }
+    expect(counts.filter((c) => c.withSpot > 0).length).toBeGreaterThanOrEqual(3);
+    for (const c of counts) expect(c.withSpot, c.type).toBeLessThan(c.places);
   });
 
   it('holds boat groups of every kind, on open ground clear of roads and earlier props', () => {

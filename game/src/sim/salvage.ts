@@ -10,7 +10,8 @@ import { partDef } from '../data/parts';
 import { makePart, newId, partWithId } from './factory';
 import { atlasOf, icarusAtlas, type AtlasKey } from './atlas';
 import { clearOfSites, findRoadWreckSpot, isBreakable, mapObstacles, propReach } from './mapgen';
-import { CELL, CLEARANCE, climbNeed, navLayer, type NavLayer } from './nav/layer';
+import { startComponent } from './nav/astar';
+import { CELL, CLEARANCE, climbNeed, componentOf, navLayer, type NavLayer } from './nav/layer';
 import { ROAD_INDEX } from './road-index';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
@@ -860,6 +861,8 @@ export function reachable(layer: NavLayer, o: Obstacle, climb: number): boolean 
 }
 
 export function standPoint(layer: NavLayer, o: Obstacle, climb: number): Vec | null {
+  const road = startComponent(layer, cellAt(layer, nearestRoadPoint(o.pos)));
+  if (road === 0) return null;
   const need = climbNeed(layer);
   const steps = Math.floor(climb / REGION.navigation.climbStep + 1e-9);
   const ring = propReach(o) + layer.radius + CLEARANCE;
@@ -869,7 +872,7 @@ export function standPoint(layer: NavLayer, o: Obstacle, climb: number): Vec | n
     for (let past = 0; past <= RING_PAST; past++) {
       const at = { x: o.pos.x + Math.cos(angle) * (ring + past), y: o.pos.y + Math.sin(angle) * (ring + past) };
       const cell = cellAt(layer, at);
-      if (dist(centreOf(layer, cell), o.pos) <= inReach && need[cell] <= steps) return centreOf(layer, cell);
+      if (dist(centreOf(layer, cell), o.pos) <= inReach && componentOf(layer, cell) === road && need[cell] <= steps) return centreOf(layer, cell);
     }
   }
   return null;
