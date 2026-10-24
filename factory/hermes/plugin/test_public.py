@@ -389,7 +389,7 @@ def test_register_adds_public_factory_before_buttons(tmp_path, monkeypatch):
     for handler in watchers:
         root.removeHandler(handler)
     assert len(watchers) == 1
-    assert [factory.__qualname__.split(".")[0] for factory in factories] == ["make_public_factory", "make_button_factory"]
+    assert [factory.__qualname__.split(".")[0] for factory in factories] == ["make_public_factory", "make_button_factory", "make_media_factory"]
 
 
 @pytest.fixture

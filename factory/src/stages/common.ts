@@ -2,12 +2,12 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readAgentOutput } from '../agent-output';
-import { fetchMedia, mediaSection } from '../media';
+import { fetchMedia, mediaSection, type MediaEntry } from '../media';
 import { CommitteeDecisionError, guardDiff } from '../diff-guard';
-import { askedAt, isAnswered, recordAsked, recordQuestionPost } from '../questions';
+import { askedAt, isAnswered, questionPostsOf, recordAsked, recordQuestionPost } from '../questions';
 import { MESSAGE_LIMIT } from '../telegram-limits';
 import { resumeError, resumedStage, roundSession } from '../sessions';
-import { readCommitteeMedia } from '../reply-media';
+import { adoptReplyMedia, readCommitteeMedia } from '../reply-media';
 import { issueReports } from '../error-reports/service';
 import { readState } from '../state';
 import { bundleOf } from './bundle';
@@ -113,6 +113,12 @@ function advisorFor(cfg: Pick<FactoryConfig, 'buildModel' | 'advisorModel'>, sta
 
 export function mediaDir(ctx: Ctx, issue: number): string {
   return join(ctx.cfg.home, 'media', `issue-${issue}`);
+}
+
+export async function adoptQuestionMedia(ctx: Ctx, issue: number, by: string): Promise<MediaEntry[]> {
+  const entries: MediaEntry[] = [];
+  for (const post of questionPostsOf(ctx.statePath, issue)) entries.push(...await adoptReplyMedia(ctx.cfg.home, post, mediaDir(ctx, issue), by, (fileId) => ctx.telegram.downloadFile(fileId)));
+  return entries;
 }
 
 async function githubToken(ctx: Ctx): Promise<string | undefined> {

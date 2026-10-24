@@ -7,6 +7,8 @@ import { reportFailure } from './fail';
 import { markPost } from './post-status';
 import { postDraft, publishPost } from './release-post';
 import { deny, routeFeedback } from './stages/approval';
+import { adoptQuestionMedia } from './stages/common';
+import { replyMediaLines } from './reply-media';
 import { recordReleaseTask } from './stages/release-common';
 import { clearAsked, questionPostIssue } from './questions';
 import { readState, updateState } from './state';
@@ -190,7 +192,8 @@ async function routed(ctx: Ctx, command: InboxCommand, issue: number, by: string
 
 async function answerQuestions(ctx: Ctx, command: InboxCommand, issue: number, by: string): Promise<string> {
   if (questionPostIssue(ctx.statePath, requirePost(command)) !== issue) throw new Error(`The questions on #${issue} were already answered or timed out, so this reply did not reach the issue.`);
-  await ctx.github.comment(issue, `Answer from ${by} in the committee chat:\n\n${requireText(command)}`);
+  const media = replyMediaLines(await adoptQuestionMedia(ctx, issue, by));
+  await ctx.github.comment(issue, `Answer from ${by} in the committee chat:\n\n${requireText(command)}${media}`);
   await ctx.github.removeLabel(issue, NEEDS_INFO_LABEL);
   clearAsked(ctx.statePath, issue);
   return `The answer is on #${issue}. Triage runs again on a coming tick.`;

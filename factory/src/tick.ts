@@ -15,6 +15,7 @@ import { isAlive, killJob, removeJobContainers, spawnJob } from './jobs';
 import { repairClone } from './repair-clone';
 import { clearSessions, markResumed } from './sessions';
 import { requeueKept } from './stages/kept-approval';
+import { adoptQuestionMedia } from './stages/common';
 import { nextBatchCards, waitingMerges } from './stages/merge';
 import { openTasks } from './stages/release-common';
 import { sweepStuck, type Repair } from './stuck';
@@ -413,6 +414,7 @@ export async function releaseAnswered(ctx: Ctx, cards: Card[]): Promise<Card[]> 
       continue;
     }
     await ctx.github.removeLabel(card.issue, NEEDS_INFO_LABEL);
+    for (const entry of await adoptQuestionMedia(ctx, card.issue, 'a committee member')) ctx.log('tick', card.issue, `committee image ${entry.url} of a questions reply: ${entry.status}${entry.reason ? `, ${entry.reason}` : ''}`);
     clearAsked(ctx.statePath, card.issue);
     ctx.log('tick', card.issue, `${reason}, removed ${NEEDS_INFO_LABEL}`);
     released.push({ ...card, labels: card.labels.filter((label) => label !== NEEDS_INFO_LABEL) });
