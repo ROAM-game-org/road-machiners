@@ -10,7 +10,7 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress } from "./format";
+import { isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine, surveyWayText } from "./format";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
 import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
@@ -926,6 +926,32 @@ describe("survey contract text", () => {
     expect(en(surveyClueText(clue))).toBe("Lies north-east of Pump Station, about 400 m out, in a hollow");
     expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies west of Pump Station, about 1.1 km out, on high ground");
     expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25 }))).toBe("Lies south of Pump Station, about 100 m out, on flat ground");
+  });
+
+  it("tells the posting shop's way to a place, with the look and lay and the found tag last", () => {
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-ruin-124", found: true, done: false }] };
+    vi.stubGlobal("document", {
+      createElement: () => new TextNode(),
+      createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
+    });
+    const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
+    expect(line.className).toBe("contract-clue");
+    expect(line.text()).toBe("Lookout, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way. A lone building on high ground. found");
+    vi.unstubAllGlobals();
+    expect(line.all("tag").at(-1)?.text()).toBe("found");
+    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way. It lies on high ground.");
+  });
+
+  it("keeps the compass clue when no full way can be told", () => {
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-house-110", found: false, done: false }] };
+    const w = emptyWorld();
+    expect(en(surveyWayText(w, c, c.points[0]))).toBe(en(surveyClueText(surveyClue(c, c.points[0]))));
+    vi.stubGlobal("document", {
+      createElement: () => new TextNode(),
+      createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
+    });
+    expect((surveyWayLine(w, c, c.points[0]) as unknown as TextNode).text()).toBe((surveyClueLines(c)[0] as unknown as TextNode).text());
+    vi.unstubAllGlobals();
   });
 
   it("tells the same clue wherever the truck is", () => {
