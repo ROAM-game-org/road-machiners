@@ -6,8 +6,9 @@ import { describe, expect, it, onTestFinished } from 'vitest';
 import { TERRAIN } from '../data/terrain';
 import { corePart, coreParts, mountedParts } from './grid';
 import { maxHp } from './wear';
-import { addGoods } from './inventory';
-import { canFlee, canRob, decide, fitToHunt, holdsUp, huntingGrounds, isWeak, judgeDanger, lawmanTowns, nearLawGate, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
+import { addGoods, mountPart } from './inventory';
+import { makePart } from './factory';
+import { canFlee, canRob, decide, firepower, fitToHunt, holdsUp, huntingGrounds, isWeak, judgeDanger, lawmanTowns, nearLawGate, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
 import { isTerritory, siteGap, siteGates } from './sites';
 import { hazardZones, territoryEntries, territoryGrounds } from './territory';
 import { noteHurt, thinkNpc, topGoal } from './npc-activities';
@@ -296,6 +297,17 @@ describe('fit to hunt', () => {
     const { w, v } = raider();
     v.items = v.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon'));
     expect(fitToHunt(w, v)).toBe(false);
+  });
+
+  it('fails with only a harpoon, and holds again beside a real gun', () => {
+    const { w, v } = raider();
+    v.items = v.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon'));
+    expect(mountPart(w, v, makePart(w, 'harpoon', 0))).toBe(true);
+    expect(firepower(w, v)).toBe(0);
+    expect(fitToHunt(w, v)).toBe(false);
+    expect(mountPart(w, v, makePart(w, 'mg', 0))).toBe(true);
+    expect(firepower(w, v)).toBeGreaterThan(0);
+    expect(fitToHunt(w, v)).toBe(true);
   });
 
   it('fails with the body at the recover condition', () => {

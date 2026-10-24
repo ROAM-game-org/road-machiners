@@ -2,7 +2,7 @@ import { chassisDef } from '../data/chassis';
 import { CRATE_MASS, GOODS } from '../data/goods';
 import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, MIN_NPC_SPEED, NPC_UPKEEP, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
-import { isShield, PARTS, partDef, type PartKind } from '../data/parts';
+import { isLineGun, isShield, PARTS, partDef, type PartKind } from '../data/parts';
 import { openArcShares } from './armor';
 import { chassisTopSpeed } from './chassis-features';
 import { makePart, makeVehicle, newId, type PartSpec } from './factory';
@@ -66,12 +66,7 @@ function validateUtilityPool(pool: Weighted<string | null>[]): void {
 
 function isGearPart(defId: string): boolean {
   const def = partDef(defId);
-  return def.kind === 'utility' || isLineGun(defId);
-}
-
-function isLineGun(defId: string): boolean {
-  const def = partDef(defId);
-  return def.kind === 'weapon' && def.line !== undefined;
+  return def.kind === 'utility' || isLineGun(def);
 }
 
 function validateSparePool(pool: Weighted<string | null>[]): void {
@@ -170,7 +165,7 @@ function chooseOptionalPart(b: Build, rng: Rng, v: Vehicle, pool: Weighted<strin
 }
 
 const ENGINES = Object.values(PARTS).filter((d) => d.kind === 'engine').map((d) => d.id);
-const GUNS = Object.values(PARTS).filter((d) => d.kind === 'weapon' && !isLineGun(d.id)).map((d) => d.id);
+const GUNS = Object.values(PARTS).filter((d) => d.kind === 'weapon' && !isLineGun(d)).map((d) => d.id);
 
 function gunsFor(rules: GearRules): string[] {
   return GUNS.filter((id) => withinTier(rules, id));
