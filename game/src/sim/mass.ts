@@ -4,12 +4,21 @@ import { CRATE_MASS, GOODS, PARCEL } from '../data/goods';
 import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
 import { unitOfCells, unitsOf } from './body';
-import { itemCells } from './grid';
+import { mountedMassShare } from './chassis-features';
+import { isMounted, itemCells } from './grid';
 import type { GridItem, Vehicle } from './types';
 
 export function vehicleMass(v: Vehicle): number {
   let mass = chassisDef(v.chassisId).mass;
   for (const it of v.items) mass += itemMass(it);
+  return mass;
+}
+
+export function loadMass(v: Vehicle): number {
+  const share = mountedMassShare(v.chassisId);
+  if (share === 1) return vehicleMass(v);
+  let mass = chassisDef(v.chassisId).mass;
+  for (const it of v.items) mass += itemMass(it) * (isMounted(v.chassisId, it) ? share : 1);
   return mass;
 }
 
@@ -24,7 +33,7 @@ export function unitMasses(v: Vehicle): number[] {
 
 export function loadFactor(v: Vehicle, extraMass = 0): number {
   const ch = chassisDef(v.chassisId);
-  const mass = vehicleMass(v) + extraMass;
+  const mass = loadMass(v) + extraMass;
   const overload = mass > ch.ratedMass ? (ch.ratedMass / mass) ** RULES.overloadExponent : 1;
   return Math.sqrt(ch.handlingMass / mass) * overload;
 }
