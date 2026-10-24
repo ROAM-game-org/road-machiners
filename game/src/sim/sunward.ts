@@ -246,8 +246,16 @@ function hunting(world: World, v: Vehicle): SunwardHunt | null {
 function huntGoal(world: World, v: Vehicle, hunt: SunwardHunt): NpcActivity {
   const leader = hunt.party.map((id) => world.vehicles.find((x) => x.id === id)).find((x) => x !== undefined && !isDefeated(x));
   if (leader && leader.id !== v.id) return goal('follow', leader.pos, 'huntRoad', leader.id);
-  const [a, b] = hunt.grounds;
-  return dist(v.pos, a) <= RULES.arriveRadius * 6 ? goal('prowl', b, 'huntRoad', 'b') : goal('prowl', a, 'huntRoad', 'a');
+  const next = nextGround(v, hunt.grounds);
+  return goal('prowl', hunt.grounds[next === 'a' ? 0 : 1], 'huntRoad', next);
+}
+
+function nextGround(v: Vehicle, grounds: Vec[]): 'a' | 'b' {
+  const current = v.brain!.goals[0];
+  const heading = current?.kind === 'prowl' && current.reason === 'huntRoad' && (current.targetId === 'a' || current.targetId === 'b') ? current.targetId : 'a';
+  const reached = dist(v.pos, grounds[heading === 'a' ? 0 : 1]) <= RULES.arriveRadius * 6;
+  if (!reached) return heading;
+  return heading === 'a' ? 'b' : 'a';
 }
 
 function seizeLonePrey(world: World, v: Vehicle): void {

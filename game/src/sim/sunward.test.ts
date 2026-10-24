@@ -439,6 +439,28 @@ describe('the hunting parties', () => {
     expect(night.hunt!.prey).toBeNull();
   });
 
+  it('sends the leader from one hunting ground to the other and keeps it on its way once it leaves the first', () => {
+    const w = orderWorld();
+    const day = Array.from({ length: 200 }, (_, i) => i + 1).find((d) => huntTonight(w, d))!;
+    w.turn = duskTurn(day) + 1;
+    advanceSunward(w);
+    const hunt = sunwardFacts(w).night!.hunt!;
+    const leader = w.vehicles.find((v) => v.id === hunt.party[0])!;
+    const [a, b] = hunt.grounds;
+    const at = (p: Vec, by: number): Vec => ({ x: p.x + by, y: p.y });
+    const plan = (pos: Vec) => {
+      leader.pos = { ...pos };
+      planSunward(w, leader);
+      return topGoal(leader)!.targetId;
+    };
+
+    expect(plan(at(a, 80))).toBe('a');
+    expect(plan(at(a, 2))).toBe('b');
+    expect(plan(at(a, 12))).toBe('b');
+    expect(plan(at(b, 2))).toBe('a');
+    expect(plan(at(b, 12))).toBe('a');
+  });
+
   it('opens tonight between the ride-out and dusk once, keyed by the coming dusk', () => {
     const w = orderWorld();
     const dusk = duskTurn(2);
