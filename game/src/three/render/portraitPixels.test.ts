@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { BODY_ID, EMPTY_ID, TINTS, boundsOf, centerOf, cropOf, flipRows, hiddenOver, idsOf, linearToSrgb, partMaskOf, solidMaskOf, tintMask, unpremultiply } from "./portraitPixels";
+import { PARTS } from "../../data/parts";
+import { makePart } from "../../sim/factory";
+import { mountPart } from "../../sim/inventory";
+import { emptyWorld } from "../../sim/testkit";
+import { TruckConditionReadout } from "../../ui/hud-readout";
+import { BODY_ID, conditionItems, EMPTY_ID, TINTS, boundsOf, centerOf, cropOf, flipRows, hiddenOver, idsOf, linearToSrgb, partMaskOf, solidMaskOf, tintMask, unpremultiply } from "./portraitPixels";
 
 const size = (width: number, height: number) => ({ width, height });
 
@@ -161,5 +166,23 @@ describe("readback fixes", () => {
     const map = Uint16Array.from([1, 2, 3, 4]);
     flipRows(map, 2, 2);
     expect(Array.from(map)).toEqual([3, 4, 1, 2]);
+  });
+});
+
+const ACCESSORIES = Object.values(PARTS).filter((def) => def.kind === "accessory").map((def) => def.id);
+
+describe("conditionItems", () => {
+  it.each(ACCESSORIES)("lists a mounted %s and reads it as a hit part", (defId) => {
+    const world = emptyWorld();
+    const v = world.vehicles[0];
+    const part = makePart(world, defId, 0);
+    expect(mountPart(world, v, part)).toBe(true);
+    expect(conditionItems(v).map((item) => item.part.id)).toContain(part.id);
+    const readout = new TruckConditionReadout();
+    readout.update(v);
+    part.hp = part.hp / 2;
+    const row = readout.update(v).find((r) => r.id === part.id);
+    expect(row).toMatchObject({ defId, hit: true, broken: false });
+    expect(row?.percent).toBeLessThan(100);
   });
 });
