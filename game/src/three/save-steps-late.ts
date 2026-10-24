@@ -496,3 +496,43 @@ export function withLeanDirections_104_105(world: SavedJson): SavedJson {
   const next = { ...call, vars: withLeanVars_104_105(call.vars as SavedJson), line: { ...line, vars: withLeanVars_104_105(line.vars as SavedJson) } };
   return { ...world, player: { ...player, call: next } };
 }
+
+const BAY_PARKED_105 = 0.5;
+const BAY_HEADING_105 = [
+  1.255398, -0.315398, 1.255398, -0.315398, 1.255398, -0.315398, 1.255398, -0.315398, 1.255398, -0.315398, 0.47,
+];
+const SMALL_BAYS_105 = [
+  { x: 281.279, y: 243.765 }, { x: 278.924, y: 248.401 }, { x: 279.228, y: 242.724 }, { x: 276.873, y: 247.36 }, { x: 277.178, y: 241.682 }, { x: 274.822, y: 246.318 },
+  { x: 275.127, y: 240.64 }, { x: 272.772, y: 245.276 }, { x: 273.076, y: 239.599 }, { x: 270.721, y: 244.235 }, { x: 271.007, y: 241.464 },
+];
+
+function sameSpot_105(a: { x: number; y: number }, b: { x: number; y: number }, within: number): boolean {
+  return Math.hypot(a.x - b.x, a.y - b.y) <= within;
+}
+
+function atNewBay_105(v: SavedJson, bay: number): SavedJson {
+  return { ...v, pos: { ...SMALL_BAYS_105[bay] }, heading: BAY_HEADING_105[bay], speed: 0, order: null, trail: [] };
+}
+
+function rehomed_105(v: SavedJson, bay: number): SavedJson {
+  const brain = v.brain as SavedJson;
+  const oldHome = brain.home as { x: number; y: number };
+  const goals = (brain.goals as SavedJson[]).map((g) => {
+    const to = g.destination as { x: number; y: number } | null;
+    return to && sameSpot_105(to, oldHome, BAY_MATCH_86) ? { ...g, destination: { ...SMALL_BAYS_105[bay] } } : g;
+  });
+  const homed = { ...v, brain: { ...brain, home: { ...SMALL_BAYS_105[bay] }, goals } };
+  return sameSpot_105(v.pos as { x: number; y: number }, oldHome, BAY_PARKED_105) ? atNewBay_105(homed, bay) : homed;
+}
+
+export function withSmallHollow_104_105(world: SavedJson): SavedJson {
+  const rehome = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (v.faction !== 'sunward' || !brain) return v;
+    const home = brain.home as { x: number; y: number };
+    const bay = FORT_BAYS_86.findIndex((b) => sameSpot_105(b, home, BAY_MATCH_86));
+    if (bay < 0) throw new Error(`Sunward car ${String(v.id)} calls ${home.x}, ${home.y} home, which is no bay of the old Hollow`);
+    return rehomed_105(v, bay);
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { HOLLOW, SUNWARD } from '../data/sunward';
 import { REGION } from '../data/region';
 import { NPCS } from '../data/npcs';
+import { CHASSIS } from '../data/chassis';
 import { TIME } from '../data/time';
 import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, testDrive } from './testkit';
 import { addGoods } from './inventory';
@@ -22,11 +23,12 @@ import { refreshVision } from './vision';
 import { discoverSites } from './locations';
 import { isFree, spawnAt, spawnNpcs } from './spawn';
 import { fortressProps, insideCurtain } from './fortress';
+import { isHollowGate } from './hollow-gate';
 import { sunwardDusk, sunwardHunt, sunwardLedger } from './cheats';
 import { generateNpcLoadout } from './npc-loadout';
 import { callVehicle, currentLine, currentOptions } from './dialogue';
 import {
-  advanceSunward, avoidsCrater, fallenSun, gateOrder, vigilPosts, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, planSunward, spawnsAtHollow, duskTurn, hollowBays, hollowObstacles, isHollowObstacle, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
+  advanceSunward, avoidsCrater, fallenSun, gateOrder, vigilPosts, collapseOrder, craterExit, CRATER_NIGHT, inCraterZone, nightSafe, shunsAtNight, vigilGrounds, dawnAfter, hollowLampsLit, huntTonight, planSunward, spawnsAtHollow, duskTurn, hollowBays, hollowLayout, hollowObstacles, isHollowObstacle, lastDusk, membersOf, phaseAt, returnTurn, sunwardFacts, sunwardPhase,
 } from './sunward';
 import type { Vehicle, World } from './types';
 import { dist } from './vec';
@@ -83,7 +85,7 @@ describe('the Sunward clock', () => {
 describe('the Hollow', () => {
   it('stands in a new Roaming world as derived props, off every road', () => {
     const w = standardWorld(5);
-    const props = w.obstacles.filter(isHollowObstacle);
+    const props = w.obstacles.filter((o) => isHollowObstacle(o) && !isHollowGate(o));
     expect(props).toEqual(hollowObstacles());
     for (const road of REGION.roads) for (const p of road) expect(dist(p, HOLLOW.pos)).toBeGreaterThan(30);
   });
@@ -110,6 +112,18 @@ describe('the Hollow', () => {
     for (const lamp of lamps) expect(Math.min(...pieces.map((o) => dist(o.pos, lamp) - o.r))).toBeLessThan(3);
   });
 
+  it('is a small den about 72 m across, with room for the widest member in every bay', () => {
+    expect(HOLLOW.radius * 2 * 8).toBe(144);
+    const radii = [...NPCS.cavalcade.loadout.chassis, ...NPCS.hunter.loadout.chassis].map((c) => CHASSIS[c.value as string].radius);
+    expect(SUNWARD.memberRadius).toBeGreaterThanOrEqual(Math.max(...radii));
+    const { bays, pieces } = hollowLayout();
+    expect(bays).toHaveLength(SUNWARD.cavalcade + SUNWARD.hunters);
+    for (const bay of bays) {
+      expect(insideCurtain(HOLLOW.site, bay, SUNWARD.memberRadius)).toBe(true);
+      for (const o of pieces) expect(dist(o.pos, bay)).toBeGreaterThan(SUNWARD.memberRadius);
+    }
+  });
+
   it('stands far out in the wastes, well clear of the Fallen Sun', () => {
     expect(siteGap(fallenSun(), HOLLOW.pos)).toBeGreaterThanOrEqual(110);
   });
@@ -134,7 +148,7 @@ describe('the silent ride', () => {
   it('answers a call with silence and offers nothing but Hang up', () => {
     const w = orderWorld();
     const member = membersOf(w)[0];
-    playerVehicle(w).pos = { x: member.pos.x, y: member.pos.y + 6 };
+    playerVehicle(w).pos = { ...HOLLOW.pos };
     refreshVision(w);
 
     const called = callVehicle(w, member.id);
@@ -148,7 +162,7 @@ describe('the silent ride', () => {
       const w = orderWorld();
       const member = membersOf(w)[0];
       member.brain!.traits = ['cultist', extra];
-      playerVehicle(w).pos = { x: member.pos.x, y: member.pos.y + 6 };
+      playerVehicle(w).pos = { ...HOLLOW.pos };
       refreshVision(w);
 
       const called = callVehicle(w, member.id);

@@ -8,6 +8,7 @@ import { CELL, CLEARANCE, blockerKey, climbTaste, componentOf, dynamicBlockers, 
 import { keepsOffRoads } from './off-road';
 import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
+import { gatePassing } from './hollow-gate';
 import { avoidsCrater, CRATER_NIGHT } from './sunward';
 import { dist, segmentDist, type Vec } from './vec';
 
@@ -22,7 +23,7 @@ export function route(world: World, from: Vec, dest: Vec, radius: number, extra:
     const nav = terrainNav(world.terrain);
     const taste = routeTaste(world, nav, driver);
     const statics = staticSet(world.obstacles, world.terrain);
-    const dynamic = dynamicBlockers(world.obstacles, world.terrain, extra);
+    const dynamic = dynamicBlockers(world.obstacles, world.terrain, extra, gatePassing(world, driver));
     const reach = radius + CLEARANCE;
     if (!taste?.shy && lineCost(nav, statics, dynamic, from, to, reach, 1, nav.tileCost, null) < Infinity) return [to];
     const layer = navLayer(world.terrain, world.obstacles, radius);
@@ -121,7 +122,7 @@ export function clearLines(world: World, radius: number, extra: Blocker[]): (a: 
 export type KeptRoute = { dest: Vec; points: Vec[]; blockers: string[]; offRoad: boolean; night: boolean };
 
 export function keepRoute(world: World, dest: Vec, points: Vec[], extra: Blocker[], driver?: Vehicle): KeptRoute {
-  return { dest: { ...dest }, points, blockers: dynamicBlockers(world.obstacles, world.terrain, extra).map((o) => blockerKey([o])), offRoad: plansOffRoad(world, driver), night: plansNight(world, driver) };
+  return { dest: { ...dest }, points, blockers: dynamicBlockers(world.obstacles, world.terrain, extra, gatePassing(world, driver)).map((o) => blockerKey([o])), offRoad: plansOffRoad(world, driver), night: plansNight(world, driver) };
 }
 
 function plansOffRoad(world: World, driver: Vehicle | undefined): boolean {
@@ -138,7 +139,7 @@ export function continueRoute(world: World, from: Vec, kept: KeptRoute, to: Vec,
 
 function continueKept(world: World, from: Vec, kept: KeptRoute, to: Vec, radius: number, extra: Blocker[], driver: Vehicle | undefined): Vec[] | null {
   if (kept.offRoad !== plansOffRoad(world, driver) || kept.night !== plansNight(world, driver)) return null;
-  const c = legCheck(world, kept, radius, extra);
+  const c = legCheck(world, kept, radius, extra, driver);
   const { rest, moved } = remainingPoints(from, kept, to);
   if (lastBrokenLeg(c, from, rest, moved) >= 0) return null;
   return straightenAhead(c.nav, c.statics, c.dynamic, from, rest, c.reach, routeTaste(world, c.nav, driver));
@@ -146,8 +147,8 @@ function continueKept(world: World, from: Vec, kept: KeptRoute, to: Vec, radius:
 
 type LegCheck = { nav: TerrainNav; statics: StaticSet; dynamic: Blocker[]; fresh: Blocker[]; radius: number; reach: number };
 
-function legCheck(world: World, kept: KeptRoute, radius: number, extra: Blocker[]): LegCheck {
-  const dynamic = dynamicBlockers(world.obstacles, world.terrain, extra);
+function legCheck(world: World, kept: KeptRoute, radius: number, extra: Blocker[], driver: Vehicle | undefined): LegCheck {
+  const dynamic = dynamicBlockers(world.obstacles, world.terrain, extra, gatePassing(world, driver));
   const known = new Set(kept.blockers);
   const fresh = dynamic.filter((o) => !known.has(blockerKey([o])));
   return { nav: terrainNav(world.terrain), statics: staticSet(world.obstacles, world.terrain), dynamic, fresh, radius, reach: radius + CLEARANCE };

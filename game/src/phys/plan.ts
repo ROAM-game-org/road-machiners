@@ -1,10 +1,11 @@
 import { routeBlockers } from "../sim/ai";
+import { hollowGateShut, swingHollowGate } from "../sim/hollow-gate";
 import { route } from "../sim/path";
 import { vehicleStats } from "../sim/stats";
 import type { Vehicle, World } from "../sim/types";
 import type { Vec } from "../sim/vec";
 import { cloneWorld } from "../sim/world";
-import { freeDrive, simulateTurn, type Drive } from "./drive";
+import { freeDrive, simulateTurn, syncDrive, type Drive } from "./drive";
 import type { VehicleFrame } from "./frames";
 import { applyTurn } from "./turn";
 
@@ -26,6 +27,7 @@ function simulate(drive: Drive, w: World, me: Vehicle): { turns: VehicleFrame[][
   let v = me;
   try {
     for (let i = 0; i < PLAN_TURNS; i++) {
+      swingPlanGate(d, w);
       const r = simulateTurn(d, w);
       if (d !== drive) freeDrive(d);
       d = r.next;
@@ -39,6 +41,12 @@ function simulate(drive: Drive, w: World, me: Vehicle): { turns: VehicleFrame[][
     if (d !== drive) freeDrive(d);
   }
   return { turns, v };
+}
+
+function swingPlanGate(d: Drive, w: World): void {
+  const shut = hollowGateShut(w);
+  swingHollowGate(w);
+  if (hollowGateShut(w) !== shut) syncDrive(d, w);
 }
 
 function courseAfter(w: World, v: Vehicle): Vec[] | null {

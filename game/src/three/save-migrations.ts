@@ -3,7 +3,7 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
-import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withShortRoadScenes_90_91, withChaosHighwayIntro_91_92, withPastContracts_92_93, withoutVarga_79_80, withStapleRestock_83_84, withSunward_84_85, withHollowFort_85_86, withOfferedNight_86_87, withFollowHeadings_87_88, withKovacMounts_88_89, withTractorPivot_93_94, withProgressAnchor_65_66, withDutyLegs_59_60, withEncounters_64_65, withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97, withOddFronts_102_103, withoutFetchAndBounty_103_104, withLeanDirections_104_105 } from './save-steps-late';
+import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withShortRoadScenes_90_91, withChaosHighwayIntro_91_92, withPastContracts_92_93, withoutVarga_79_80, withStapleRestock_83_84, withSunward_84_85, withHollowFort_85_86, withOfferedNight_86_87, withFollowHeadings_87_88, withKovacMounts_88_89, withTractorPivot_93_94, withProgressAnchor_65_66, withDutyLegs_59_60, withEncounters_64_65, withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97, withOddFronts_102_103, withoutFetchAndBounty_103_104, withSmallHollow_104_105, withLeanDirections_104_105 } from './save-steps-late';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -804,6 +804,7 @@ export const TINY_STEPS: readonly NamedStep[] = [
   { name: 'withOddFronts', step: withOddFronts_102_103 },
   { name: 'withoutFetchAndBounty', step: withoutFetchAndBounty_103_104 },
   { name: 'withLeanDirections', step: withLeanDirections_104_105 },
+  { name: 'withSmallHollow', step: withSmallHollow_104_105 },
 ];
 
 const MARSHALS_STANDING_101_102 = 0;

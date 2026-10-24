@@ -12,6 +12,9 @@ Sizes match the FORTRESS reference numbers in src/data/fortress.ts, with one til
 - gate: 10 m deep along X and 20 m wide along Y, 16 m tall. Its outer face is the plane X = 0, and it faces +X, so
   the origin is the center of the outer face at ground level and the body runs to X = -10. Two container stacks
   flank a junk barricade with shut double doors. Nothing roofs the opening.
+- leaf: one sliding leaf of the Hollow's gate, 7.3 m long along Y from the origin to +Y, 0.8 m thick along X, centered on X = 0,
+  9 m tall. Two leaves meet at the origin, 14.6 m across, over the 14 m between the gate towers.
+- shut: both leaves in place at Y = 0, mirrored, as one prop. The origin is the center of the gate line at ground level.
 - inner: the inner gate in the curtain where a barbican meets it. 4 m deep along X and 10 m wide along Y, centered
   on the origin, 13 m tall, with a staggered wreck and container chicane between two container stacks. It faces +X.
 
@@ -47,6 +50,9 @@ GATE_HEIGHT = 16.0
 INNER_DEPTH = 4.0
 INNER_WIDTH = 10.0
 INNER_HEIGHT = 13.0
+LEAF_WIDTH = 7.3
+LEAF_THICK = 0.8
+LEAF_HEIGHT = 9.0
 
 # Colors from src/render/palette.ts. soot is darker than any palette color.
 STYLES: dict[str, dict[str, int]] = {
@@ -64,7 +70,7 @@ STYLES: dict[str, dict[str, int]] = {
     },
 }
 
-SEEDS = {("scrap", "wall"): 301, ("scrap", "tower"): 302, ("scrap", "gate"): 303, ("scrap", "inner"): 305}
+SEEDS = {("scrap", "wall"): 301, ("scrap", "tower"): 302, ("scrap", "gate"): 303, ("scrap", "inner"): 305, ("scrap", "leaf"): 306, ("scrap", "shut"): 307}
 
 
 # --- Geometry helpers -------------------------------------------------------------------------------------------
@@ -357,11 +363,58 @@ def inner(kit: Kit) -> None:
     kit.box("inner_beam", (1.4, INNER_WIDTH - 3.4, 0.4), (0.0, 0.0, 10.2), "iron", rot=(0, 0, 0.05))
 
 
+def scrap_leaf_at(kit: Kit, name: str, sign: int) -> None:
+    """One gate leaf of welded car doors and corrugated sheet on a pipe frame, from Y = 0 to sign * LEAF_WIDTH."""
+    t = LEAF_THICK / 2
+    top = LEAF_HEIGHT
+
+    def y(u: float) -> float:
+        return sign * u
+
+    kit.box(f"{name}_core", (LEAF_THICK, LEAF_WIDTH, top - 0.45), (0.0, y(LEAF_WIDTH / 2), (top - 0.45) / 2 + 0.15), "shade", dent_by=0.03)
+    ribs = int(LEAF_WIDTH / 0.7)
+    rib_w = LEAF_WIDTH / ribs
+    for face in (-1, 1):
+        for i in range(ribs):
+            h = top - 0.9 - kit.rng.uniform(0.0, 0.5)
+            kit.box(f"{name}_rib{face}_{i}", (0.1, rib_w * 0.8, h), (face * (t + 0.04), y((i + 0.5) * rib_w), 0.3 + h / 2), ("body", "shade", "body", "dark", "iron")[i % 5], dent_by=0.03)
+        for row, (z, u0) in enumerate(((1.7, 0.2), (3.5, 0.5), (5.3, 0.1))):
+            u = u0
+            while u < LEAF_WIDTH - 1.7:
+                w = kit.rng.uniform(1.4, 2.1)
+                door_mat = kit.rng.choice(("door", "light", "accent", "trim", "body"))
+                kit.box(f"{name}_door{face}_{row}_{int(u * 10)}", (0.16, w, 1.5), (face * (t + 0.12), y(u + w / 2), z + 0.75), door_mat, rot=(kit.rng.uniform(-0.12, 0.12), 0, 0), dent_by=0.05)
+                kit.box(f"{name}_pane{face}_{row}_{int(u * 10)}", (0.08, w * 0.6, 0.5), (face * (t + 0.22), y(u + w / 2), z + 1.0), "door_dark")
+                u += w + kit.rng.uniform(0.05, 0.3)
+        for k, z in enumerate((0.55, top / 2, top - 0.9)):
+            kit.cylinder(f"{name}_pipe{face}_{k}", 0.13, LEAF_WIDTH - 0.2, (face * (t + 0.3), y(LEAF_WIDTH / 2), z), "iron", rot=(math.pi / 2, 0, 0), vertices=8)
+        for u in (0.15, LEAF_WIDTH - 0.15):
+            kit.cylinder(f"{name}_post{face}_{int(u)}", 0.14, top - 0.4, (face * (t + 0.3), y(u), 0.15 + (top - 0.4) / 2), "iron", vertices=8)
+        strut(kit, f"{name}_brace{face}", (face * (t + 0.34), y(0.3), 0.7), (face * (t + 0.34), y(LEAF_WIDTH - 0.3), top - 1.0), 0.09, "dark", sides=4)
+    kit.box(f"{name}_edge", (LEAF_THICK + 0.2, 0.3, top - 0.35), (0.0, y(0.15), (top - 0.35) / 2 + 0.15), "dark")
+    kit.box(f"{name}_rail", (0.5, LEAF_WIDTH, 0.3), (0.0, y(LEAF_WIDTH / 2), top), "iron")
+    for k, u in enumerate((1.0, LEAF_WIDTH - 1.0)):
+        kit.box(f"{name}_trolley{k}", (0.4, 0.8, 0.4), (0.0, y(u), top + 0.3), "dark")
+    kit.box(f"{name}_shoe", (0.6, LEAF_WIDTH, 0.2), (0.0, y(LEAF_WIDTH / 2), 0.1), "dark")
+    kit.box(f"{name}_flag", (0.05, 0.9, 0.7), (0.0, y(LEAF_WIDTH - 0.8), top + 0.9), "accent", dent_by=0.05)
+
+
+def leaf(kit: Kit) -> None:
+    scrap_leaf_at(kit, "leaf", 1)
+
+
+def shut(kit: Kit) -> None:
+    for sign in (-1, 1):
+        scrap_leaf_at(kit, f"shut{sign}", sign)
+
+
 PIECES: dict[str, tuple[Callable[[Kit], None], float]] = {
     "wall": (wall, 34),
     "tower": (tower, 36),
     "gate": (gate, 46),
     "inner": (inner, 38),
+    "leaf": (leaf, 24),
+    "shut": (shut, 40),
 }
 
 
@@ -371,6 +424,8 @@ def run(style: str, piece: str) -> None:
         raise KeyError(f"unknown fort style {style!r}. Known: {sorted(STYLES)}")
     if piece not in PIECES:
         raise KeyError(f"unknown fort piece {piece!r}. Known: {sorted(PIECES)}")
+    if (style, piece) not in SEEDS:
+        raise KeyError(f"fort style {style!r} has no {piece} piece")
     args = parse_args()
     kit = Kit(STYLES[style], SEEDS[(style, piece)])
     build, view = PIECES[piece]

@@ -34,19 +34,26 @@ export const SUNWARD = {
   postClearance: 1.6,
   postSpacing: 3.5,
   watchers: 2,
+  gate: { reach: 6, nearby: 40, halfSpan: 1.83 },
+  memberRadius: 0.8,
+  bayGap: 0.2,
 };
+
+export const HOLLOW_GATE_ID = 'hollow-gate';
 
 export type HollowPiece = { look: 'shack' | 'hullChunk' | 'drums' | 'woodpile'; at: { x: number; y: number }; r: number; yaw: number };
 export type HollowBay = { x: number; y: number; heading: number };
 export type HollowSpot = { x: number; y: number };
 
 const HOLLOW_POS = { x: 276, y: 244 };
-const HOLLOW_RADIUS = 14;
+const HOLLOW_RADIUS = 9;
+const HOLLOW_BAKE_CLEARING = 14;
 const GATE_BEARING = 0.47;
-const BAY_ROW = 4;
-const BAY_STEP = 3.2;
-const BAY_FRONT = 7;
-const GATE_BETWEEN_TOWERS = 20;
+const BAY_ROW = 2.6;
+const BAY_STEP = 2.3;
+const BAY_FRONT = 4.6;
+const BACK_BAY = -5.6;
+const GATE_BETWEEN_TOWERS = 36;
 
 export function hollowTurn(gateBearing: number): number {
   return (gateBearing * 180) / Math.PI + GATE_BETWEEN_TOWERS;
@@ -71,6 +78,7 @@ export const HOLLOW = {
   id: 'sunward-hollow',
   pos: HOLLOW_POS,
   radius: HOLLOW_RADIUS,
+  bakeClearing: HOLLOW_BAKE_CLEARING,
   sightReach: HOLLOW_RADIUS + 2,
   site: {
     id: 'sunward-hollow',
@@ -81,17 +89,17 @@ export const HOLLOW = {
     gates: [{ x: HOLLOW_POS.x + Math.cos(GATE_BEARING) * HOLLOW_RADIUS, y: HOLLOW_POS.y + Math.sin(GATE_BEARING) * HOLLOW_RADIUS }],
   },
   pieces: [
-    piece('hullChunk', -10, 0, 1.5, 0.1),
-    piece('shack', 3.5, -8.6, 1.4, Math.PI / 2),
-    piece('shack', -2.5, -8.6, 1.4, Math.PI / 2 + 0.2),
-    piece('shack', 1, 8.6, 1.4, -Math.PI / 2),
-    piece('drums', 0.6, -7, 0.44, 0.4),
-    piece('drums', -1.5, 7, 0.44, 1),
-    piece('woodpile', -4.5, 8.4, 0.63, 0.8),
+    piece('hullChunk', -4, -5.2, 0.8, 0.1),
+    piece('shack', 3, -5.4, 1.4, Math.PI / 2),
+    piece('shack', -1.5, -5.4, 1.4, Math.PI / 2 + 0.2),
+    piece('shack', 0.5, 5.4, 1.4, -Math.PI / 2),
+    piece('drums', 0.8, -4.6, 0.44, 0.4),
+    piece('drums', -2.5, 4.9, 0.44, 1),
+    piece('woodpile', -3.6, 5, 0.63, 0.8),
   ] as HollowPiece[],
-  bays: [...BAY_SPOTS.map(([along, across]) => bay(along, across)), bay(BAY_FRONT - 5 * BAY_STEP, -BAY_ROW)] as HollowBay[],
-  lanterns: [inGateFrame(-8.6, -1.8)] as HollowSpot[],
-  fire: inGateFrame(-7.2, 6.6),
+  bays: [...BAY_SPOTS.map(([along, across]) => bay(along, across)), bay(BACK_BAY, 0)] as HollowBay[],
+  lanterns: [inGateFrame(-5, -4.2)] as HollowSpot[],
+  fire: inGateFrame(-5.6, 3.7),
 };
 
 export type SunwardTopicId = 'vigilCall1' | 'vigilCall2' | 'vigilCall3' | 'sunwardTalk';

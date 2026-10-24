@@ -24,7 +24,7 @@ What people in the basin know or can find out.
 
 ## The night order today
 
-- The Hollow. The order sleeps by day in a walled scrap fort deep in the wastes, off every road and out of sight of every town. Its one gate faces the crater, and a shrine of hull plate stands at the back of the yard. Its lamps burn there at night. Nobody on the roads has found it, or nobody who found it says so.
+- The Hollow. The order sleeps by day in a walled scrap fort deep in the wastes, off every road and out of sight of every town. Its one gate faces the crater and stays shut of strangers, and a shrine of hull plate stands at the back of the yard. Its lamps burn there at night. Nobody on the roads has found it, or nobody who found it says so.
 - The Cavalcade. At dusk eight cars file out of the Hollow's gate one by one and cross open ground to the crater in a column, a ride that takes most of the evening. On the road they say nothing and answer nobody: the vigil's rule is silence until the crater. At the crater each car keeps a post in a ring round the light, watching for the Keeper's return, until shortly before dawn. Then they drive home in a column and are inside the walls by early morning.
 - The invitation. The first stranger they find in the crater at night hears a soft voice on the radio: come and watch the light. A stranger who agrees is told to drive in. One who turns back is hunted. One who refuses is hooked and dragged to the breach. The order never says what the light does.
 - The hunters. On some nights three fast cars go to the roads near the crater instead, take a lone truck with hooked lines and drag it to the breach.
