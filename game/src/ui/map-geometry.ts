@@ -1,3 +1,4 @@
+import { WORLD_MAP } from '../data/minimap';
 import type { Vec } from '../sim/vec';
 
 export type Viewport = { center: Vec; tileSize: number; width: number; height: number };
@@ -66,4 +67,13 @@ export function pinToEdge(v: Viewport, p: Vec, inset: number): MapPoint {
 
 export function canvasTransform(v: Viewport): [number, number, number, number, number, number] {
   return [v.tileSize, 0, 0, v.tileSize, v.width / 2 - v.center.x * v.tileSize, v.height / 2 - v.center.y * v.tileSize];
+}
+
+const WHEEL_UNIT_PIXELS = [1, WORLD_MAP.wheelLinePixels, WORLD_MAP.wheelPagePixels];
+
+export function wheelZoomFactor(deltaY: number, deltaMode: number): number {
+  const unit = WHEEL_UNIT_PIXELS[deltaMode];
+  if (!Number.isFinite(deltaY) || unit === undefined) throw new Error(`Wheel delta ${deltaY} in mode ${deltaMode} is not usable`);
+  const pixels = Math.max(-WORLD_MAP.wheelNotch, Math.min(WORLD_MAP.wheelNotch, deltaY * unit));
+  return WORLD_MAP.wheelNotchStep ** (-pixels / WORLD_MAP.wheelNotch);
 }

@@ -68,7 +68,7 @@ export type Drive = {
 
 export type DeckColliders = { plates: number[]; rails: number[]; lips: number[] };
 
-export type Break = { prop: string; vehicle: string; step: number };
+export type Break = { prop: string; vehicle: string; impact: number; step: number };
 export type VehicleResult = { passed: boolean; arrived: boolean; pushedSteps: number };
 export type Landing = { vehicle: string; impact: number; step: number };
 export type Tear = { line: string; step: number };
@@ -457,7 +457,7 @@ class Contacts {
     if (!found || this.isBroken(found.b)) return;
     const crash = { ...found, step };
     if (this.breakable.has(crash.b) && crash.impact >= BREAKABLE.breakSpeed) {
-      const b = { prop: crash.b, vehicle: crash.a, step };
+      const b = { prop: crash.b, vehicle: crash.a, impact: crash.impact, step };
       this.breaks.push(b);
       this.fresh.push(b);
       return;
@@ -648,7 +648,7 @@ function groundUnder(terrain: Terrain, body: RAPIER.RigidBody) {
 function applyTerrainGrip(c: Car, terrain: Terrain, slick: Slick): void {
   const ground = groundUnder(terrain, c.body);
   c.grip = ground.grip;
-  c.topShare = ground.paved ? 1 : TERRAIN.drive.unpavedTopSpeed;
+  c.topShare = ground.paved ? 1 : 1 - (1 - TERRAIN.drive.unpavedTopSpeed) * (1 - c.s.roughCut);
   c.holdGrip = (ground.grip * slick.front.reduce((sum, wet) => sum + (wet ? OIL.grip : 1), 0)) / slick.front.length;
   gripWheels(c, c.ctl, 0, ground, slick.front);
   if (c.rear) gripWheels(c, c.rear.ctl, 1, groundUnder(terrain, c.rear.body), slick.rear);

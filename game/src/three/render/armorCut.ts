@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { isShield, partDef, type ShieldDef } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { TRUCK_LOOK } from '../../render/partLooks';
-import { cellRect, CLIP_TOLERANCE, restOn, unitBody, type Body } from '../../sim/body';
+import { cellRect, CLIP_TOLERANCE, restOn, unitBody, type Body, type CellRect } from '../../sim/body';
 import { isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { bodyFace } from './gunStand';
@@ -180,8 +180,24 @@ function armorSide(v: Pick<Vehicle, 'chassisId'>, item: PartItem): SideLetter {
   return side;
 }
 
+const CUT_EDGE_INSET = 0.1;
+
+function backedOffFromCuts(rested: CellRect, whole: CellRect): CellRect {
+  const back = (lo: number, hi: number, wholeLo: number, wholeHi: number): [number, number] => {
+    const cutLo = lo - wholeLo > 1e-6;
+    const cutHi = wholeHi - hi > 1e-6;
+    const inset = Math.min(CUT_EDGE_INSET, (hi - lo) / 4);
+    return [cutLo ? lo + inset : lo, cutHi ? hi - inset : hi];
+  };
+  const [x0, x1] = back(rested.x0, rested.x1, whole.x0, whole.x1);
+  const [z0, z1] = back(rested.z0, rested.z1, whole.z0, whole.z1);
+  return { unit: rested.unit, x0, x1, z0, z1 };
+}
+
 function spareArmorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, side: SideLetter, box: THREE.Box3): Placement {
-  const { rect, y } = restOn(v.chassisId, cellRect(v.chassisId, itemCells(item)));
+  const whole = cellRect(v.chassisId, itemCells(item));
+  const { rect: rested, y } = restOn(v.chassisId, whole);
+  const rect = backedOffFromCuts(rested, whole);
   const dx = rect.x1 - rect.x0;
   const dz = rect.z1 - rect.z0;
   const size = box.getSize(new THREE.Vector3());

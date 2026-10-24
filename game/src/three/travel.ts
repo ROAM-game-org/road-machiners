@@ -324,7 +324,7 @@ export class Travel {
   }
 
   private wantsTurn(world: World, now: number): boolean {
-    return this.isAdvancing(null, now) || this.runsOnItsOwn(world, now);
+    return !waitsOnPlayer(world) && (this.isAdvancing(null, now) || this.runsOnItsOwn(world, now));
   }
 
   takeReady(world: World, drive: DriveSnapshot, now: number, held = false): PreparedTurn | null {
@@ -350,8 +350,7 @@ export class Travel {
   }
 
   continues(world: World, now: number): boolean {
-    if (waitsOnPlayer(world)) return false;
-    return this.shouldAdvance(now) || this.runsOnItsOwn(world, now);
+    return !waitsOnPlayer(world) && (this.shouldAdvance(now) || this.runsOnItsOwn(world, now));
   }
 
   stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, overshootMs: number): { world: World; drive: DriveSnapshot; leftMs: number } | null {

@@ -171,7 +171,7 @@ function breakCrossed(w: World, v: Vehicle, path: Vec[], radius: number): void {
     }
   }
   const ids = [...crossed].sort((a, b) => a - b).map((at) => w.obstacles[at].id);
-  for (const id of ids) breakProp(w, id, v.id);
+  for (const id of ids) breakProp(w, id, v.id, v.speed);
 }
 
 function touches(o: Obstacle, a: Vec, b: Vec, radius: number): boolean {
