@@ -301,3 +301,4 @@ No jokes that need knowledge from outside the basin. No jokes about the game its
 2. Read it as a stranger who has heard nothing. Every word they meet is either explained or plain.
 3. Read it aloud. A line you stumble on is a line the player skips.
 4. Play every branch with `npm run quest -- <quest>`, including the failures.
+5. Read the changed lines against the [Humanizer](humanizer.md). Fix the tells it names unless this guide or the speaker's sheet explains them.

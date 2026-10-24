@@ -56,6 +56,7 @@ Writing rules:
 - Every fact matches this lore. It is evidence, never a conclusion: no hidden truth from [Timeline](lore/timeline.md), no ship name, no use for the M's, no crash date and no old name of the basin. No faction is right.
 - Name only Bowl, Nose and groups any driver hears of on day one: the Old Army, the Nose Army, the Bowl Farmers, raiders and Pierce. Name no other site and no person.
 - Each entry has its own image of New World use of Old World leftovers where it fits. No two entries share a template sentence.
+- Check the entry against the [Humanizer](../writing/humanizer.md).
 - At most 200 characters in English and 270 in Russian. `src/text/catalog.test.ts` checks digits, length, the out-of-character words and repeats.
 
 Bad: "A machine gun turret with a wide arc that fires six rounds." It states stats. Good: "The workshop line at Nose turns these out by the crate. Nobody calls it a good gun, but it fires when it is dirty, and every welder in the basin can fix it."
@@ -90,6 +91,7 @@ Jill Jane, "J.J.", runs Waste Of Time Radio from a mast nobody has found. Her br
 - Hints are road wisdom someone in the wasteland would say, like "Noon sun cooks an engine. Park in shade." Each matches a real rule in the [mechanics pages](../wiki/mechanics/). A hint never says what to do next or how a control works.
 - She names only places the listener has found. Anywhere else is a basin direction like "up north" or "in the southwest basin". She never quotes prices. The Rumor mill and Market ears perks keep that work.
 - A line fits the three-line screen: 90 characters at most once its names are filled in.
+- Check each line against the [Humanizer](../writing/humanizer.md).
 
 ## Settlement people
 
@@ -108,6 +110,7 @@ Bowl and Nose have locals the player talks to in town. `src/data/locals.ts` hold
 - The six older locals also talk about Pierce's gun rule, the swivel, brake rods, Pierce paper, the Kiln fee, the tenants, Green Pit and the Glass Flats, each in their own voice. Ruben, Hattie and Dag disagree with Kovac, Lena and Ibo on who is to blame.
 - A rumor from [Rumors](rumors.md) reaches the journal as a note that records what the speaker said, never the truth. A biased speaker says so in character, and two locals may contradict each other, as Sefa and Ibo do on the old Burnt Convoy stretch.
 - Locals point to the people of other jobs by name and place only: Agnes Ondra at Dustwell, Odile Marsh at the Granary, Mara Kessel at the Salvage Yard, Constance Pierce at the Pierce office in Nose, Tamsin Roe the courier, Lusa Fenwick and Pim Arslan the lens cutter. They never speak for them.
+- Check each line against the [Humanizer](../writing/humanizer.md).
 - Locals may be wrong, biased or out of date. Two of them may contradict each other. No line settles the crash date, the basin's old name or what the Fallen Sun was.
 - Lines stay in character, as J.J.'s do. They never say turns, quests, XP, levels, HP, markers, waypoints, the map, clicks, the player or the game. They never state a game stat as a number, like damage, HP or a rule value. Ordinary numbers people say are fine, like "a decade of service" or "two cans".
 - A clue describes land the listener can see: a compass direction from a town, a named road or place, and the terrain there, like a hollow or an old farm with a water tower. It may give a rough spoken distance, like "half a day north", but never a map unit or an exact spot.

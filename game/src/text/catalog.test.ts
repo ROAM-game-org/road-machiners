@@ -4,7 +4,7 @@ import { LOCALES, type EnEntry, type Locale, type Noun } from './msg';
 import { entryText, grammarParams, nounOf, parse, placeholders, pluralCategories, schemaOf } from './resolve';
 import { RU } from './ru';
 import { OUT_OF_CHARACTER } from '../test/out-of-character';
-import { SEMICOLON } from '../test/prose-tells';
+import { SEMICOLON, STOCK_PHRASE } from '../test/prose-tells';
 
 const CATALOGS: Record<Locale, Readonly<Record<string, EnEntry | Noun>>> = { en: EN, ru: RU };
 const KEYS = Object.keys(EN);
@@ -65,6 +65,10 @@ describe('the catalog', () => {
     for (const locale of LOCALES) {
       for (const key of KEYS) expect(entryText(locale, key), `${locale} ${key}`).not.toMatch(SEMICOLON);
     }
+  });
+
+  it('holds no stock phrase in any English entry', () => {
+    for (const key of KEYS) expect(entryText('en', key), key).not.toMatch(STOCK_PHRASE);
   });
 
   it('parses every entry in every language', () => {

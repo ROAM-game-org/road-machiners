@@ -473,7 +473,7 @@ export const LOG: Translation<typeof EN> = {
   'goal.breakOffFight': 'Выйти из проигрышного боя',
   'note.engineHot': 'Двигатель перегревается.',
   'note.engineOverheat': 'Двигатель перегрелся, прочность −{hp}.',
-  'opening.stranded': 'Вы застряли в незнакомых краях. Не лучший момент в вашей жизни.',
+  'opening.stranded': 'Вы застряли в краях, которых не знаете. Не лучший момент в вашей жизни.',
   'note.overdriveCutOut': 'Форсаж отключился: двигатель слишком изношен.',
   'note.engineDoused': 'Двигатель залит водой, припасы −{supplies}.',
   'note.outOfSupplies': 'Припасы кончились, здоровье −{health}.',

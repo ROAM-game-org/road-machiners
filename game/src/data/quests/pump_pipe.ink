@@ -400,10 +400,10 @@ Then your name is in my book, and the steward reads my book. # speaker: Mirela
 You sign and write the number from the dial. Mirela writes the date beside it and pays you {fee} M from the lock box. # page # place: Bowl lock house
 { meter_taken and not walked_out: You leave Agnes's meter with her as well. }
 The Senate meets in a week. # speaker: Mirela
-The truck drivers who watched you sign spread the news. Your name is now in a book the steward reads.
+The truck drivers who watched you sign spread the news.
 A week later, news reaches the drivers' well. Mirela read the numbers to the Senate: Agnes's hoses, her own trough and your dial, with your name under it. # page
 The household's bench said Agnes made her numbers up. Mirela asked who made up the dial, and read your name. Nobody on that bench knew you, so nobody could say.
-The Senate took no vote on the tanker. It didn't need to. The next week the tanker came to the pump with a meter on its hose, fitted by the steward's own crew. A counted tanker is a smaller story than a secret one, and the steward deals in small stories. # reveal: all
+The Senate took no vote on the tanker and needed none. The next week the tanker came to the pump with a meter on its hose, fitted by the steward's own crew. A counted tanker is a smaller story than a secret one, and the steward deals in small stories. # reveal: all
 The trough stays with the household's clerk, and the reserve under the terrace stays a secret. Your name is in a book the steward reads. Nobody from the household has come asking for you.
 -> END
 
