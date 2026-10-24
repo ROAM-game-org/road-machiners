@@ -165,7 +165,10 @@ export class VehicleView {
 
   private poseRear(f: VehicleFrame, dt: number): void {
     const rear = this.units[1];
-    if (Boolean(rear) !== Boolean(f.rear)) throw new Error(`A view of ${this.units.length} units got a frame ${f.rear ? 'with' : 'without'} a rear unit`);
+    if (Boolean(rear) !== Boolean(f.rear)) {
+      if (this.pending) return;
+      throw new Error(`A view of ${this.units.length} units got a frame ${f.rear ? 'with' : 'without'} a rear unit`);
+    }
     if (!rear || !f.rear) return;
     const inverse = this.root.quaternion.clone().invert();
     rear.root.position.set(f.rear.pos.x - f.pos.x, f.rear.pos.y - f.pos.y, f.rear.pos.z - f.pos.z).applyQuaternion(inverse);
