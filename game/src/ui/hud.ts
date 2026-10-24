@@ -34,6 +34,7 @@ import {
   formatVehicleState,
   type LogLine,
   clock,
+  stanceTag,
 } from "./format";
 import { FeedbackForm, type FeedbackKind } from "./game-menu";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
@@ -61,8 +62,7 @@ import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
 import { isMet, type Contract } from "../sim/market";
-import { driverName, factionName, refusalText, setupText, siteName, templateName, vehicleTitle } from "../text/names";
-import { stanceToward } from "../sim/relations";
+import { driverName, factionName, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
 
 export type ContextTarget =
   | { kind: 'aid'; id: string }
@@ -833,13 +833,6 @@ function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement):
 function wantedMark(w: World, v: Vehicle): HTMLElement | null {
   const owed = wantedBounty(w, v);
   return owed === null ? null : el("span", { class: "info-wanted" }, el("span", { class: "tag dim" }, t("hud.wanted")), el("span", { class: "num" }, moneyEl(owed)));
-}
-
-function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {
-  if (hostile) return t("hud.tagHostile");
-  const band = stanceToward(w, v);
-  if (band === "neutral") return t("hud.tagNeutral");
-  return t(`band.${band === "allied" ? "friendly" : band}`);
 }
 
 function quietLines(w: World, v: Vehicle): Msg[] {

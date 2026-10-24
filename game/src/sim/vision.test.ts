@@ -87,9 +87,9 @@ describe('vision', () => {
     };
     const reachesEye = (chassisId: string) => hulkBoxes(chassisId, undefined).some(({ box: b }) => b.z0 <= eye && b.z1 >= eye && b.x0 <= 0 && b.x1 >= 0);
 
-    expect(reachesEye('tractor')).toBe(true);
+    expect(reachesEye('loader')).toBe(true);
     expect(reachesEye('buggy')).toBe(false);
-    expect(line('tractor')).toBe(false);
+    expect(line('loader')).toBe(false);
     expect(line('buggy')).toBe(true);
   });
 

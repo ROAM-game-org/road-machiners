@@ -53,7 +53,13 @@ async function openTown(page, tab) {
     g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
     g.screens.town.open();
   });
-  await page.evaluate((tab) => document.querySelector(`.town-screen [data-tab="${tab}"]`).click(), tab);
+  await page.evaluate((tab) => {
+    const go = (id) => document.querySelector(`.town-page [data-town-go="${id}"]`)?.click();
+    go('back');
+    const section = { buyParts: 'garage', sellParts: 'garage', trucks: 'garage', contracts: 'board' }[tab] ?? tab;
+    if (section !== 'front') go(section);
+    if (section === 'garage') document.querySelector(`.town-page [data-garage-tab="${tab}"]`).click();
+  }, tab);
 }
 
 const closeTown = (page) => page.evaluate(() => window.__ROAM__.screens.town.close());
@@ -281,6 +287,9 @@ const STATES = {
   'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
+  'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown },
+  'town-board': { setup: (page) => openTown(page, 'contracts'), teardown: closeTown },
+  'town-people': { setup: (page) => openTown(page, 'people'), teardown: closeTown },
   paint: { setup: (page) => openTown(page, 'paint'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },

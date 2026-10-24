@@ -1,4 +1,5 @@
 
+import { offRoadWear } from './chassis-features';
 import { ECONOMY } from '../data/goods';
 import { partDef, type EngineDef, type PartDef, type PartKind, type ScannerDef, type ShieldDef, type UtilityDef, type WeaponDef } from '../data/parts';
 import { TERRAIN_TYPES, type TerrainTypeId } from '../data/terrain';
@@ -23,7 +24,7 @@ function wearVehicle(world: World, v: Vehicle): void {
   if (distance <= 0) return;
   const speedFactor = 1 + WEAR.speedWeight * v.speed;
   const weatherWear = weatherOn(world, v).wear;
-  const oddsScale = distance * terrainWear * speedFactor * weatherWear;
+  const oddsScale = distance * terrainWearOf(v, terrainWear) * speedFactor * weatherWear;
   const cab = corePart(v, 'cab').id;
   const floor = (id: string): number => (id === cab ? 1 : 0);
 
@@ -33,6 +34,10 @@ function wearVehicle(world: World, v: Vehicle): void {
 
   breakDown(world, v, oddsScale, floor);
   failDrive(world, v, oddsScale);
+}
+
+function terrainWearOf(v: Vehicle, terrainWear: number): number {
+  return SMOOTHEST + Math.max(0, terrainWear - SMOOTHEST) * offRoadWear(v.chassisId);
 }
 
 function breakDown(world: World, v: Vehicle, oddsScale: number, floor: (id: string) => number): void {
