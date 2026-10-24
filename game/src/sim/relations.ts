@@ -319,7 +319,14 @@ function noteWreck(world: World, actor: Vehicle, beaten: Vehicle): void {
 
 function defendedBy(world: World, beaten: Vehicle, actor: Vehicle): Vehicle[] {
   const fought = new Set(world.states.filter((s) => s.kind === 'combat' && s.holder === beaten.id).map((s) => s.other));
-  return world.vehicles.filter((v) => fought.has(v.id) && v.id !== actor.id && stateOf(world, 'combat', v.id, actor.id) === null);
+  return world.vehicles.filter((v) => fought.has(v.id) && v.id !== actor.id && stateOf(world, 'combat', v.id, actor.id) === null && !foughtBack(world, beaten, v));
+}
+
+function foughtBack(world: World, beaten: Vehicle, subject: Vehicle): boolean {
+  if (recall(beaten, 'wronged').some((m) => m.fact.by === subject.id)) return true;
+  const theirs = stateOf(world, 'combat', subject.id, beaten.id);
+  const mine = stateOf(world, 'combat', beaten.id, subject.id);
+  return theirs !== null && mine !== null && theirs.born <= mine.born;
 }
 
 function wrongedBefore(world: World, actor: Vehicle, beaten: Vehicle): boolean {

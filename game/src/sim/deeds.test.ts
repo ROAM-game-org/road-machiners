@@ -7,7 +7,7 @@ import { isHostile, noteAttack } from './combat';
 import { playerVehicle } from './damage';
 import { addGoods } from './inventory';
 import { recall } from './memory';
-import { driftStanding, noteContractDeed, noteDeed, personalTerm, reportIncident } from './relations';
+import { driftStanding, noteDefeat, noteContractDeed, noteDeed, personalTerm, reportIncident } from './relations';
 import { getResources } from './resources';
 import { addState } from './states';
 import { addVehicle, editableTerrain, emptyWorld, npcBrain } from './testkit';
@@ -151,5 +151,60 @@ describe('deeds toward a faction', () => {
     const writers = Object.entries(sources).filter(([path, source]) => !path.endsWith('/relations.ts') && write.test(source)).map(([path]) => path);
     expect(Object.keys(sources).length).toBeGreaterThan(50);
     expect(writers).toEqual([]);
+  });
+});
+
+describe('the defended deed', () => {
+  function raiderPreysOnTrader(): { w: World; me: Vehicle; raider: Vehicle; prey: Vehicle } {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = playerVehicle(w);
+    const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 30, y: 34 });
+    const prey = trader(w, 'bowl', { x: 32, y: 32 });
+    noteAttack(w, raider, prey, true);
+    w.turn += 1;
+    noteAttack(w, prey, raider, false);
+    return { w, me, raider, prey };
+  }
+
+  function knockOut(w: World, actor: Vehicle, beaten: Vehicle): void {
+    beaten.lastHitBy = actor.id;
+    noteDefeat(w, beaten, false);
+  }
+
+  it('pays nothing for knocking out a driver who only shot back at a raider', () => {
+    const { w, me, raider, prey } = raiderPreysOnTrader();
+    noteAttack(w, me, prey, true);
+    w.events = [];
+    knockOut(w, me, prey);
+    expect(w.player.standing.scrapjaw).toBe(-30);
+    expect(w.player.deeds.some((d) => d.deed === 'defended')).toBe(false);
+    expect(recall(raider, 'helped')).toEqual([]);
+  });
+
+  it('still pays for knocking out the raider that attacked the trader', () => {
+    const { w, me, raider, prey } = raiderPreysOnTrader();
+    knockOut(w, me, raider);
+    expect(w.player.deeds).toContainEqual(expect.objectContaining({ subject: prey.id, faction: 'bowl', deed: 'defended', delta: 8 }));
+    expect(recall(prey, 'helped').map((m) => m.fact)).toContainEqual(expect.objectContaining({ by: me.id }));
+  });
+
+  it('pays nothing after a mutual fight that began on the same turn', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = playerVehicle(w);
+    const a = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 30, y: 34 });
+    const b = trader(w, 'bowl', { x: 32, y: 32 });
+    noteAttack(w, a, b, false);
+    noteAttack(w, b, a, false);
+    knockOut(w, me, a);
+    expect(w.player.deeds.some((d) => d.deed === 'defended')).toBe(false);
+  });
+
+  it('follows the same rule for an NPC actor', () => {
+    const { w, raider, prey } = raiderPreysOnTrader();
+    const lawman = addNpc(w, 'bowl', 'buggy', ['raider'], { x: 28, y: 32 });
+    knockOut(w, lawman, prey);
+    expect(recall(raider, 'helped')).toEqual([]);
+    knockOut(w, lawman, raider);
+    expect(recall(prey, 'helped')).not.toEqual([]);
   });
 });
