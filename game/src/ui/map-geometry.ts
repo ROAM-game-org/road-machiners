@@ -1,3 +1,5 @@
+import { MAP_SCALE_BAR } from '../data/minimap';
+import { PHYSICS } from '../data/physics';
 import type { Vec } from '../sim/vec';
 
 export type Viewport = { center: Vec; tileSize: number; width: number; height: number };
@@ -66,4 +68,12 @@ export function pinToEdge(v: Viewport, p: Vec, inset: number): MapPoint {
 
 export function canvasTransform(v: Viewport): [number, number, number, number, number, number] {
   return [v.tileSize, 0, 0, v.tileSize, v.width / 2 - v.center.x * v.tileSize, v.height / 2 - v.center.y * v.tileSize];
+}
+
+export function scaleBarTiles(tileSize: number, width: number): number {
+  requireTileSize(tileSize);
+  if (!Number.isFinite(width) || width <= 0) throw new Error(`Map width ${width} is not a positive number`);
+  const steps = MAP_SCALE_BAR.meters.map((meters) => meters / PHYSICS.metersPerTile);
+  const fitting = steps.filter((tiles) => tiles * tileSize <= MAP_SCALE_BAR.widthShare * width);
+  return fitting.length > 0 ? fitting[fitting.length - 1] : steps[0];
 }
