@@ -13,7 +13,7 @@ import { basicName, basicRule, factionName, perkName, perkRule, refusalText, ski
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
 import { hasExplorationMap, modeRules } from '../sim/settings';
 import { MapTab } from './map-tab';
-import { lookReason } from './look';
+import { lookReason } from './unstuck-reason';
 
 export type CharacterTab = 'skills' | 'map';
 

@@ -36,7 +36,9 @@ import {
   clock,
   stanceTag,
 } from "./format";
-import { FeedbackForm, type FeedbackKind } from "./game-menu";
+import { FEEDBACK_URL } from "../config";
+import { gameContext } from "../three/error-report";
+import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
 import { createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
@@ -195,8 +197,8 @@ export class Hud {
   private log = new LogPanel();
   private info = panel("info");
   private infoBody = el("div", { class: "info-content" });
-  private feedback = panel("feedback", topLeft());
-  private feedbackForm = new FeedbackForm((text) => this.toast(text));
+  private feedbackForm = new FeedbackForm(uiRoot(), (text) => this.toast(text), (url, init) => fetch(url, init), FEEDBACK_URL, gameContext);
+  private feedback = feedbackCorner(this.feedbackForm, topLeft());
   private action = panel("action");
   private toastBox = panel("toast");
   private rescue = panel("rescue notice", topCenter());
@@ -311,33 +313,6 @@ export class Hud {
     this.showCameraMode();
     window.addEventListener("keydown", (e) => {
       if (e.code === "KeyV" && !isBrowserChord(e) && !document.activeElement?.matches("input, select, textarea")) this.toggleCameraMode();
-    });
-    const feedbackMenu = el("details", {});
-    const feedbackEntry = (kind: FeedbackKind, text: Msg) =>
-      el(
-        "button",
-        {
-          class: "btn-s",
-          onclick: () => {
-            feedbackMenu.removeAttribute("open");
-            this.feedbackForm.open(kind);
-          },
-        },
-        text,
-      );
-    feedbackMenu.append(
-      el(
-        "summary",
-        { title: t("hud.feedbackTitle"), "aria-label": t("hud.feedbackTitle") },
-        t("hud.feedbackMark"),
-      ),
-      feedbackEntry("bug", t("hud.reportBug")),
-      feedbackEntry("idea", t("hud.requestFeature")),
-    );
-    this.feedback.append(feedbackMenu);
-    window.addEventListener("keydown", (e) => {
-      if (e.code !== "Escape") return;
-      feedbackMenu.removeAttribute("open");
     });
   }
 

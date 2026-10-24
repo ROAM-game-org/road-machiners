@@ -47,7 +47,7 @@ import type {
 } from "../sim/types";
 import { keyLabel, phoneMode, touchMode } from "./input-mode";
 import { disabledWith, el, panel, uiRoot } from "./dom";
-import { lookReason } from "./look";
+import { lookReason } from "./unstuck-reason";
 import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
