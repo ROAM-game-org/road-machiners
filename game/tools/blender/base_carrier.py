@@ -212,12 +212,12 @@ def chine_strip(kit: Kit) -> None:
     mirrored(kit, "chine", (x1 - x0, G.half_y - SIDE + 0.02, 0.04), (x0 + x1) / 2, (SIDE + G.half_y) / 2 - 0.01, CHINE, "paint")
 
 
-def plate(kit: Kit, name: str, mat: str, outline: list[tuple[float, float]], surface, thick: float = 0.025) -> None:
-    """A thin plate lying on a hull face: outline holds (along, z) points, and surface(along, z) gives the face point and its outward offset."""
+def plate(kit: Kit, name: str, mat: str, outline: list[tuple[float, float]], surface, thick: float = 0.025, sink: float = 0.005) -> None:
+    """A thin plate lying on a hull face: outline holds (along, z) points, and surface(along, z) gives the face point and its outward offset. It runs sink into the hull."""
     pts: list[Vec3] = []
     for a, z in outline:
         (x, y, zz), (ox, oy, oz) = surface(a, z)
-        pts += [(x - ox * 0.005, y - oy * 0.005, zz - oz * 0.005), (x + ox * thick, y + oy * thick, zz + oz * thick)]
+        pts += [(x - ox * sink, y - oy * sink, zz - oz * sink), (x + ox * thick, y + oy * thick, zz + oz * thick)]
     hull(kit, name, mat, pts)
 
 
@@ -284,7 +284,7 @@ def doors(kit: Kit) -> None:
         for i, (z0, z1) in enumerate(((DOOR_LOW, CHINE - 0.04), (CHINE + 0.04, DOOR_HIGH))):
             for edge, ex in (("front", x1), ("back", x0)):
                 plate(kit, f"door_seam_{edge}{i}_{tag}", "under", rect(ex - 0.015, ex + 0.015, z0, z1), face, thick=0.02)
-        plate(kit, f"door_block_{tag}", "glass", rect(-0.16, 0.16, 0.24, 0.35), face, thick=0.04)
+        plate(kit, f"door_block_{tag}", "glass", rect(-0.16, 0.16, 0.24, 0.35), face, thick=0.04, sink=0.02)
         for end, ex in (("front", 1), ("back", -1)):
             plate(kit, f"block_{end}_{tag}", "glass", rect(ex * 1.0, ex * 1.36, 0.26, 0.37), face, thick=0.04)
             port(kit, f"port_{end}_{tag}", face, ex * 0.72, 0.2)

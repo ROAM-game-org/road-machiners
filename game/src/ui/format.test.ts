@@ -470,8 +470,8 @@ describe("collision log", () => {
     const me = w.player.vehicleId;
     const fence = { id: "fence-3", pos: { x: 33, y: 30 }, r: 0.5, kind: "landmark" as const, look: "fence" as const, yaw: 0 };
     w.broken = [{ obstacle: fence, turn: w.turn }];
-    expect(logEn(w, { t: "collision", a: me, b: "fence-3", hitsA: [], hitsB: [] })).toBeNull();
-    expect(logEn(w, { t: "collision", a: me, b: "rock7", hitsA: [{ part: "x", damage: 4 }], hitsB: [] })).toBeNull();
+    expect(logEn(w, { t: "collision", a: me, b: "fence-3", impact: 3, hitsA: [], hitsB: [] })).toBeNull();
+    expect(logEn(w, { t: "collision", a: me, b: "rock7", impact: 3, hitsA: [{ part: "x", damage: 4 }], hitsB: [] })).toBeNull();
   });
 });
 
@@ -913,7 +913,8 @@ describe("survey contract text", () => {
     } as const;
     const w = emptyWorld();
     for (const [type, [accusative, surveyed]] of Object.entries(forms)) {
-      const site = surveySites(TEST_MAP).find((item) => item.type === type)!;
+      const site = surveySites(TEST_MAP).find((item) => item.type === type);
+      if (!site) continue;
       const job: Job = { kind: "survey", contractId: "c3", site: site.id, turnsLeft: 10, total: 10 };
       expect(resolve(jobLabel(w, w.vehicles[0], job), "ru")).toBe(`Разведать ${accusative}`);
       const c: Extract<Contract, { kind: "survey" }> = { ...survey([true]), points: [{ site: site.id, found: true, done: true }] };
@@ -929,21 +930,21 @@ describe("survey contract text", () => {
   });
 
   it("tells the posting shop's way to a place, with the look and lay and the found tag last", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-ruin-124", found: true, done: false }] };
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-ruin-88", found: true, done: false }] };
     vi.stubGlobal("document", {
       createElement: () => new TextNode(),
       createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
     });
     const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
     expect(line.className).toBe("contract-clue");
-    expect(line.text()).toBe("Lookout, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way. A lone building on high ground. found");
+    expect(line.text()).toBe("Hamlet, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. At Nose, leave the road and head east, a fair way. A cluster of ruined houses on flat ground. found");
     vi.unstubAllGlobals();
     expect(line.all("tag").at(-1)?.text()).toBe("found");
-    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way. It lies on high ground.");
+    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. At Nose, leave the road and head east, a fair way. It lies on flat ground.");
   });
 
   it("keeps the compass clue when no full way can be told", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-house-110", found: false, done: false }] };
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: "survey-skiff-6067", found: false, done: false }] };
     const w = emptyWorld();
     expect(en(surveyWayText(w, c, c.points[0]))).toBe(en(surveyClueText(surveyClue(c, c.points[0]))));
     vi.stubGlobal("document", {

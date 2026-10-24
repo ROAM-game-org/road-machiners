@@ -559,7 +559,7 @@ describe('breakable props', () => {
     const w = worldWithFence({ x: 30.6, y: 30 });
     w.turn = 42;
 
-    breakProp(w, 'fence-7', w.vehicles[0].id);
+    breakProp(w, 'fence-7', w.vehicles[0].id, 3);
 
     expect(w.obstacles).toEqual([]);
     expect(w.broken).toEqual([{ obstacle: fenceAt({ x: 30.6, y: 30 }), turn: 42 }]);
@@ -570,7 +570,7 @@ describe('breakable props', () => {
     const me = w.vehicles[0];
     me.speed = 3;
 
-    breakProp(w, 'fence-7', me.id);
+    breakProp(w, 'fence-7', me.id, 3);
 
     const crash = w.events.find((e) => e.t === 'collision');
     if (crash?.t !== 'collision') throw new Error('Expected a collision event');
@@ -587,8 +587,8 @@ describe('breakable props', () => {
     w.obstacles = [...w.obstacles, { id: 'rock3', pos: { x: 32, y: 30 }, r: 0.5, kind: 'rock' }];
     const before = structuredClone(w.obstacles);
 
-    expect(() => breakProp(w, 'rock3', w.vehicles[0].id)).toThrow(/rock3/);
-    expect(() => breakProp(w, 'fence-9', w.vehicles[0].id)).toThrow(/fence-9/);
+    expect(() => breakProp(w, 'rock3', w.vehicles[0].id, 3)).toThrow(/rock3/);
+    expect(() => breakProp(w, 'fence-9', w.vehicles[0].id, 3)).toThrow(/fence-9/);
     expect(w.obstacles).toEqual(before);
     expect(w.broken).toEqual([]);
   });
@@ -596,7 +596,7 @@ describe('breakable props', () => {
   it('grows back beyond gray vision once its days have passed', () => {
     const w = worldWithFence(far);
     w.turn = TIME.turnsPerDay;
-    breakProp(w, 'fence-7', w.vehicles[0].id);
+    breakProp(w, 'fence-7', w.vehicles[0].id, 3);
 
     runDays(w, BREAKABLE.regrowDays - 1);
     expect(w.obstacles).toEqual([]);
@@ -607,7 +607,7 @@ describe('breakable props', () => {
 
   it('stays broken while its spot lies in gray vision', () => {
     const w = worldWithFence({ x: 40, y: 30 });
-    breakProp(w, 'fence-7', w.vehicles[0].id);
+    breakProp(w, 'fence-7', w.vehicles[0].id, 3);
 
     runDays(w, BREAKABLE.regrowDays + 2);
 
@@ -619,7 +619,7 @@ describe('breakable props', () => {
     const w = emptyWorld(near);
     const pos = { x: near.x + grayRadius(w) + propReach(fenceAt(near)) / 2, y: near.y };
     w.obstacles = [fenceAt(pos)];
-    breakProp(w, 'fence-7', w.vehicles[0].id);
+    breakProp(w, 'fence-7', w.vehicles[0].id, 3);
 
     runDays(w, BREAKABLE.regrowDays + 2);
 
@@ -633,14 +633,14 @@ describe('breakable props', () => {
     w.obstacles = [{ id: 'deadTree-3', pos: { x: 23, y: 30 }, r: 0.35, kind: 'landmark', look: 'deadTree', yaw: 0 }];
     expect(canVehicleSee(w, npc, target)).toBe(false);
 
-    breakProp(w, 'deadTree-3', npc.id);
+    breakProp(w, 'deadTree-3', npc.id, 3);
 
     expect(canVehicleSee(w, npc, target)).toBe(true);
   });
 
   it('waits while a truck stands on its spot', () => {
     const w = worldWithFence(far);
-    breakProp(w, 'fence-7', w.vehicles[0].id);
+    breakProp(w, 'fence-7', w.vehicles[0].id, 3);
     addVehicle(w, 'independent', 'scout', [], far);
 
     runDays(w, BREAKABLE.regrowDays + 2);
