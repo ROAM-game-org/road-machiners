@@ -922,7 +922,7 @@ describe("survey contract text", () => {
   });
 
   it("tells a clue as a named place, a compass word, a distance in hundreds of meters and the lay", () => {
-    const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow" } as const;
+    const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow", square: { column: 2, row: 3 } } as const;
     expect(en(surveyClueText(clue))).toBe("Lies north-east of Pump Station, about 400 m out, in a hollow");
     expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies west of Pump Station, about 1.1 km out, on high ground");
     expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25 }))).toBe("Lies south of Pump Station, about 100 m out, on flat ground");

@@ -10,6 +10,7 @@ import { ROAD_INDEX } from './road-index';
 import { spotLookOf, territoryAt, territoryOfStock } from './territory';
 import type { PartInstance, SalvageStock, StateKindId, Vehicle, World } from './types';
 import { isJunk, partValue } from './wear';
+import { gridSquareOf, sameGridSquare, type GridSquare } from './map-grid';
 import { dist, type Vec } from './vec';
 
 export type ClaimTarget = { stock: SalvageStock; part: PartInstance };
@@ -165,7 +166,7 @@ export function claimLook(stock: { id: string }): ClaimLook {
   return look;
 }
 
-export type ClaimClue = { look: ClaimLook; from: Vec; angle: number; distance: number; point: Vec; territory: string | null };
+export type ClaimClue = { look: ClaimLook; from: Vec; angle: number; distance: number; point: Vec; territory: string | null; square: GridSquare };
 
 const COMPASS_POINTS = 8;
 
@@ -189,7 +190,7 @@ export function claimClue(c: ClaimContract): ClaimClue {
   const angle = snapAngle(Math.atan2(c.at.y - from.y, c.at.x - from.x));
   const distance = roundTo(dist(from, c.at), CONTRACTS.claim.clueStepTiles);
   const point = { x: from.x + Math.cos(angle) * distance, y: from.y + Math.sin(angle) * distance };
-  return { look: claimLook({ id: c.stockId }), from: { ...from }, angle, distance, point, territory: territoryAt(c.at)?.id ?? null };
+  return { look: claimLook({ id: c.stockId }), from: { ...from }, angle, distance, point, territory: territoryAt(c.at)?.id ?? null, square: gridSquareOf(c.at) };
 }
 
 export function clueRadius(distance: number): number {
@@ -199,7 +200,7 @@ export function clueRadius(distance: number): number {
 export function claimCandidates(world: World, c: ClaimContract): string[] {
   const clue = claimClue(c);
   const radius = clueRadius(clue.distance);
-  const near = claimSpots(world).filter((stock) => claimLook(stock) === clue.look && dist(stock.pos, clue.point) <= radius);
+  const near = claimSpots(world).filter((stock) => claimLook(stock) === clue.look && dist(stock.pos, clue.point) <= radius && sameGridSquare(gridSquareOf(stock.pos), clue.square));
   const sorted = near.sort((a, b) => dist(a.pos, clue.point) - dist(b.pos, clue.point) || a.id.localeCompare(b.id)).map((stock) => stock.id);
   if (!sorted.includes(c.stockId)) throw new Error(`Claim ${c.id} candidates miss its wreck ${c.stockId}`);
   return sorted;
