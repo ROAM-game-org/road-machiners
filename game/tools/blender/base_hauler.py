@@ -151,7 +151,7 @@ TANK_R = 0.2  # photo 04: one long round tank between the axles
 TANK_Y = 1.0
 TANK_X = (0.2, -0.8)  # photo 04: from 0.4 to 0.85 of the way from the front tire to the rear one
 TANK_Z = up(0.82)  # photo 04
-FLAP_DROP = up(0.25)  # photo 04: a pale plate hangs below the hub behind each rear wheel, a dark rubber flap under the rear end
+FLAP_DROP = up(0.35)  # photo 04: a pale plate hangs below the hub behind each rear wheel, a dark rubber flap under the rear end
 
 
 def hull(kit: Kit, name: str, mat: str, points: list[tuple[float, float, float]]) -> bpy.types.Object:
