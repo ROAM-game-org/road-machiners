@@ -186,6 +186,41 @@ export function withHollowFort_85_86(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
 }
 
+const FORT_BAYS_104 = [
+  { x: 284.053, y: 243.604 }, { x: 280.429, y: 250.736 }, { x: 281.2, y: 242.155 }, { x: 277.576, y: 249.287 }, { x: 278.346, y: 240.705 }, { x: 274.723, y: 247.838 },
+  { x: 275.493, y: 239.256 }, { x: 271.87, y: 246.389 }, { x: 272.64, y: 237.807 }, { x: 269.017, y: 244.94 }, { x: 269.787, y: 236.358 },
+];
+const MOVED_BAYS_105 = [
+  { x: 304.658, y: 507.965 }, { x: 311.257, y: 512.487 }, { x: 302.849, y: 510.604 }, { x: 309.448, y: 515.127 }, { x: 301.04, y: 513.244 }, { x: 307.639, y: 517.766 },
+  { x: 299.231, y: 515.884 }, { x: 305.83, y: 520.406 }, { x: 297.422, y: 518.523 }, { x: 304.021, y: 523.046 }, { x: 295.613, y: 521.163 },
+];
+const BAY_MATCH_105 = 0.01;
+const HOLLOW_ID_105 = 'sunward-hollow';
+
+function oldBayAt_104_105(at: { x: number; y: number }): number {
+  return FORT_BAYS_104.findIndex((b) => Math.hypot(b.x - at.x, b.y - at.y) <= BAY_MATCH_105);
+}
+
+export function withMovedHollow_104_105(world: SavedJson): SavedJson {
+  const rehome = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (v.faction !== 'sunward' || !brain) return v;
+    const home = brain.home as { x: number; y: number };
+    const bay = oldBayAt_104_105(home);
+    if (bay < 0) throw new Error(`Sunward car ${String(v.id)} calls ${home.x}, ${home.y} home, which is no bay of the Hollow before it moved`);
+    const goals = (brain.goals as SavedJson[]).map((g) => {
+      const at = g.destination as { x: number; y: number } | null;
+      const goalBay = at ? oldBayAt_104_105(at) : -1;
+      return goalBay < 0 ? g : { ...g, destination: { ...MOVED_BAYS_105[goalBay] } };
+    });
+    const kept = Object.fromEntries(Object.entries(v).filter(([key]) => key !== 'farRoute'));
+    return { ...kept, brain: { ...brain, home: { ...MOVED_BAYS_105[bay] }, goals } };
+  };
+  const player = world.player as SavedJson;
+  const discovered = (player.discovered as string[]).filter((id) => id !== HOLLOW_ID_105);
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome), player: { ...player, discovered } };
+}
+
 export function withOfferedNight_86_87(world: SavedJson): SavedJson {
   const sunward = world.sunward as SavedJson | null;
   const night = sunward?.night as SavedJson | null | undefined;
@@ -477,23 +512,23 @@ function metBountyPay_103_104(held: SavedJson[]): number {
   return held.filter((c) => c.kind === BOUNTY_KIND_103_104 && c.fulfilled === true).reduce((sum, c) => sum + (c.reward as number), 0);
 }
 
-function withLeanSteps_104_105(steps: SavedJson[]): SavedJson[] {
+function withLeanSteps_105_106(steps: SavedJson[]): SavedJson[] {
   return steps.map((step) => (step.do === 'leave' ? { ...step, lean: null } : step));
 }
 
-function withLeanVars_104_105(vars: SavedJson): SavedJson {
+function withLeanVars_105_106(vars: SavedJson): SavedJson {
   return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
     const value = v as SavedJson;
-    return [name, value.kind === 'directions' ? { ...value, steps: withLeanSteps_104_105(value.steps as SavedJson[]) } : value];
+    return [name, value.kind === 'directions' ? { ...value, steps: withLeanSteps_105_106(value.steps as SavedJson[]) } : value];
   }));
 }
 
-export function withLeanDirections_104_105(world: SavedJson): SavedJson {
+export function withLeanDirections_105_106(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
   if (!call) return world;
   const line = call.line as SavedJson;
-  const next = { ...call, vars: withLeanVars_104_105(call.vars as SavedJson), line: { ...line, vars: withLeanVars_104_105(line.vars as SavedJson) } };
+  const next = { ...call, vars: withLeanVars_105_106(call.vars as SavedJson), line: { ...line, vars: withLeanVars_105_106(line.vars as SavedJson) } };
   return { ...world, player: { ...player, call: next } };
 }
 

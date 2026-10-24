@@ -1,5 +1,7 @@
 import { REGION } from '../src/data/region.ts';
 import { HOLLOW, hollowTurn } from '../src/data/sunward.ts';
+import { TERRAIN } from '../src/data/terrain.ts';
+import { SKILL_EFFECTS, MAX_RANK } from '../src/data/skills.ts';
 import { PHYSICS } from '../src/data/physics.ts';
 import { startKit } from '../src/data/start.ts';
 import { TEST_MAP } from '../src/test/map.ts';
@@ -14,10 +16,13 @@ import { clearOfDecks, clearOfSites, isDriveObstacle, overlapsAny } from '../src
 import { isHollowObstacle } from '../src/sim/sunward.ts';
 import { lightZone } from '../src/sim/sunward-crater.ts';
 
-const MIN_ROAD_GAP = Number(process.env.MIN_ROAD_GAP ?? 30);
-const MIN_SITE_GAP = Number(process.env.MIN_SITE_GAP ?? 45);
-const MIN_CRATER_GAP = Number(process.env.MIN_CRATER_GAP ?? 110);
-const DRIVE_BAND = [Number(process.env.DRIVE_MIN ?? 120), Number(process.env.DRIVE_MAX ?? 170)];
+const SIGHT_MARGIN = 10;
+const MAXED_DAY_SIGHT = TERRAIN.vision.radius * (1 + SKILL_EFFECTS.perception.sight * MAX_RANK);
+const MIN_ROAD_GAP = Number(process.env.MIN_ROAD_GAP ?? MAXED_DAY_SIGHT + HOLLOW.sightReach + SIGHT_MARGIN);
+const MIN_SITE_GAP = Number(process.env.MIN_SITE_GAP ?? TERRAIN.vision.radius * TERRAIN.vision.grayFactor + HOLLOW.radius);
+const MIN_CRATER_GAP = Number(process.env.MIN_CRATER_GAP ?? 30);
+const DRIVE_BAND = [Number(process.env.DRIVE_MIN ?? 0), Number(process.env.DRIVE_MAX ?? 280)];
+const PICK = Number(process.env.PICK ?? 25);
 const POST_RING = Number(process.env.POST_RING ?? 11);
 const MAX_RELIEF = Number(process.env.MAX_RELIEF ?? 1.2);
 const FOOTPRINT = HOLLOW.radius + 2;
@@ -129,10 +134,11 @@ for (let y = 20; y < terrain.size - 20; y += STEP) {
     candidates.push({ p, bearing, craterGap, road, site, relief, gate: fort.site.gates[0] });
   }
 }
-candidates.sort((a, b) => a.relief - b.relief);
+candidates.sort((a, b) => a.craterGap - b.craterGap);
 const picked = [];
+let tried = 0;
 for (const c of candidates) {
-  if (picked.length >= 10) break;
+  if (tried++ >= PICK) break;
   if (process.env.VERBOSE) console.log(`try (${c.p.x}, ${c.p.y})`);
   const goal = postToward(c.p);
   const path = route(world, c.gate, goal, CHASSIS_RADIUS, []);
@@ -145,6 +151,7 @@ for (const c of candidates) {
 }
 console.log(JSON.stringify(rejected));
 console.log(`map ${TEST_MAP.hash}, ${candidates.length} candidates pass the gaps, relief, props and camera`);
+picked.sort((a, b) => a.drive - b.drive);
 for (const c of picked) {
   console.log(`(${c.p.x}, ${c.p.y}) gate bearing ${c.bearing.toFixed(2)} relief ${c.relief.toFixed(2)} road ${c.road.toFixed(0)} site ${c.site.toFixed(0)} crater edge ${c.craterGap.toFixed(0)} drive ${c.drive.toFixed(0)}`);
 }
