@@ -66,8 +66,8 @@ GLASS_BASE = 0.70  # photo 1: the greenhouse leans in from the belt
 CREST_HALF = 0.47
 BACK_HALF = 0.62  # the back slope stays flat across the deck cells, Blender y -0.19..0.56
 COWL_X = 0.66
-SCREEN_TOP = 0.38  # photo 1: a flat windshield about 58 degrees from level
-ROOF_LINE = [(COWL_X, 0.17), (0.52, 0.41), (SCREEN_TOP, 0.65), (0.3, 0.712), (0.15, 0.74), (-0.1, 0.75), (-0.3, 0.747), (-0.48, 0.735)]
+SCREEN_TOP = 0.43  # photo 1: a flat windshield about 64 degrees from level
+ROOF_LINE = [(COWL_X, 0.17), (0.55, 0.42), (SCREEN_TOP, 0.65), (0.33, 0.712), (0.15, 0.74), (-0.1, 0.75), (-0.3, 0.747), (-0.48, 0.735)]
 SLOPE = 0.55  # photo 2: one long back line, under the 0.7 rise a resting part may lean on
 SLOPE_X = -0.48  # the rear window lies ahead of the deck cells, x -0.683, since glass holds nothing up
 DECK_BACK = -1.594  # the back edge of the deck cells, the end of the clean slope
@@ -75,21 +75,25 @@ LID_CUT_X = -1.67  # photo 2: the lid cut off at the rear fender crowns
 LID_CUT_Z = -0.06
 LID_LIP = 0.08  # photo 2: the cut lid is a thin lip over the bare engine
 BOARD_TOP = -0.34
+BOARD_OUT = 0.88
+ROOF_BACK = -0.42
+REAR_GLASS_X = -0.555
+REAR_GLASS = (0.125, 0.46)  # photo 2: a wide oval, kept ahead of the deck cells at x -0.683
 
 FENDER_R = 0.64  # photo 1: the crown 0.3 of a tire diameter over the tire
 FENDER_IN = 0.55
-FENDER_ROLL = [(FENDER_IN, 0.0), (0.76, 0.0), (0.84, 0.025), (0.89, 0.06), (SIDE, 0.12)]
+FENDER_ROLL = [(FENDER_IN, 0.0), (0.72, 0.0), (0.8, 0.02), (0.86, 0.05), (0.9, 0.09), (SIDE, 0.15)]
 FRONT_CUT = 0.62  # photo 1: the front fender cut back from the headlight
 BOARD_A = math.asin((PAN - HUB_Z) / FENDER_R)
 
 LAMP_X = 1.62
 LAMP_Y = 0.73
 LAMP_Z = -0.17  # photo 1: the headlight centers near tire top height
-LAMP_R = 0.12  # photo 1: 0.3 of a tire diameter across
-SPOT_R = 0.12
+LAMP_R = 0.13  # photo 1: 0.3 of a tire diameter across
+SPOT_R = 0.14  # photo 1: spot lamps as large as the headlights
 BUCKET_R = 0.18  # the bucket's back, flowing out of the fender front
-TAIL_R = 0.1  # photo 2: upright taillights 0.3 of a tire diameter tall
-TUBE = 0.06
+TAIL_R = 0.11  # photo 2: upright taillights 0.3 of a tire diameter tall
+TUBE = 0.07
 BUMPER_Z = HUB_Z + 0.02
 ALONG_X = (0, math.pi / 2, 0)
 
@@ -167,6 +171,20 @@ def at_x(x: float, outline: list[tuple[float, float]]) -> list[Vec3]:
     return [(x, y, z) for y, z in outline]
 
 
+def rounded(points: list[tuple[float, float]], r: float) -> list[tuple[float, float]]:
+    """A closed outline with each corner rounded by three points about r from it, or less on a short edge."""
+    out = []
+    for i, (vx, vz) in enumerate(points):
+        corner = []
+        for px, pz in (points[i - 1], points[(i + 1) % len(points)]):
+            d = math.hypot(px - vx, pz - vz)
+            corner.append(((px - vx) / d, (pz - vz) / d, d))
+        reach = min(r, 0.4 * corner[0][2], 0.4 * corner[1][2])
+        (ax, az, _), (bx, bz, _) = corner
+        out += [(vx + reach * ax, vz + reach * az), (vx + 0.3 * reach * (ax + bx), vz + 0.3 * reach * (az + bz)), (vx + reach * bx, vz + reach * bz)]
+    return out
+
+
 def mirrored(kit: Kit, name: str, size: Vec3, x: float, y: float, z: float, mat: str) -> None:
     kit.box(f"{name}_l", size, (x, y, z), mat)
     kit.box(f"{name}_r", size, (x, -y, z), mat)
@@ -189,7 +207,7 @@ def tub(kit: Kit) -> None:
 
     stations = [(0.86, 0.62), (0.76, DOOR), (-0.76, DOOR), (-0.86, 0.62)]
     loft(kit, "doors", [at_x(x, door(half)) for x, half in stations], "paint")
-    mirrored(kit, "board", (1.44, SIDE - FENDER_IN - 0.01, 0.06), 0.0, (SIDE + FENDER_IN) / 2 - 0.005, BOARD_TOP - 0.03, "under")
+    mirrored(kit, "board", (1.44, BOARD_OUT - FENDER_IN, 0.04), 0.0, (BOARD_OUT + FENDER_IN) / 2, BOARD_TOP - 0.02, "under")
     prism(kit, "apron", [(1.78, PAN), (1.94, PAN), (1.96, -0.38), (1.9, SHELF), (1.78, SHELF)], -0.33, 0.33, "paint")
 
 
@@ -198,7 +216,7 @@ def front_lid(kit: Kit) -> None:
 
     def lid_section(top: float, half: float) -> list[tuple[float, float]]:
         bottom = min(SHELF, top - 0.12)
-        right = [(half, bottom), (half, top - 0.08), (0.65 * half, top - 0.025)]
+        right = [(half, bottom), (half, top - 0.11), (0.85 * half, top - 0.06), (0.55 * half, top - 0.02)]
         return right + [(0.0, top)] + [(-y, z) for y, z in reversed(right)]
 
     lid = loft_obj(kit, "lid", [at_x(x, lid_section(z, w)) for x, z, w in LID], "paint")
@@ -219,7 +237,7 @@ def loft_obj(kit: Kit, name: str, sections: list[list[Vec3]], mat: str) -> bpy.t
 
 def greenhouse(kit: Kit) -> None:
     """The cabin leaning in over the belt, the back shell down the clean slope to the lid cut, and the trim roof panel over the dome."""
-    cabin_x = [COWL_X, 0.52, SCREEN_TOP, 0.28, 0.12, -0.1, -0.3, SLOPE_X, -0.56, -0.64]
+    cabin_x = [COWL_X, 0.55, SCREEN_TOP, 0.33, 0.15, -0.1, -0.3, SLOPE_X, -0.56, -0.64]
     loft(kit, "cabin", [at_x(x, cabin_section(x)) for x in cabin_x], "paint")
     back_x = [SLOPE_X, -0.54, -0.6, -0.66, -0.72, -0.9, -1.2, -1.4, DECK_BACK, -1.64, LID_CUT_X]
     loft(kit, "back", [at_x(x, back_section(x)) for x in back_x], "paint")
@@ -227,20 +245,23 @@ def greenhouse(kit: Kit) -> None:
     def panel(x: float, lift: float) -> list[Vec3]:
         return [(x, y, z + lift) for y, z in cabin_section(x)[2:7]]
 
-    roof_x = [0.34, 0.3, 0.15, -0.1, -0.3, SLOPE_X]
+    roof_x = [0.39, 0.33, 0.15, -0.1, -0.3, ROOF_BACK]
     rings = [panel(x, 0.018) + list(reversed(panel(x, -0.004))) for x in roof_x]
     loft(kit, "roof", rings, "trim")
 
 
 def windows(kit: Kit) -> None:
     """The flat windshield, a door window and a quarter window on each side, the oval rear window, the louvers and the lid vent."""
-    screen = [(0.63, 0.53, 0.205), (0.63, -0.53, 0.205), (0.41, -0.42, 0.6), (0.41, 0.42, 0.6)]
-    normal = (math.sin(math.atan2(0.47, 0.26)), 0.0, math.cos(math.atan2(0.47, 0.26)))
+    rise, run = roof_z(SCREEN_TOP) - roof_z(COWL_X), COWL_X - SCREEN_TOP
+    bx, bz = COWL_X - run * 0.07, roof_z(COWL_X) + rise * 0.07
+    tx, tz = COWL_X - run * 0.92, roof_z(COWL_X) + rise * 0.92
+    screen = [(bx, 0.53, bz), (bx, -0.53, bz), (tx, -0.42, tz), (tx, 0.42, tz)]
+    normal = (rise / math.hypot(rise, run), 0.0, run / math.hypot(rise, run))
     out = [(x + 0.012 * normal[0], y, z + 0.012 * normal[2]) for x, y, z in screen]
     inside = [(x - 0.01 * normal[0], y, z - 0.01 * normal[2]) for x, y, z in screen]
     pane(kit, "windshield", out, inside, "glass")
-    door = [(0.5, 0.25), (-0.1, 0.25), (-0.15, 0.3), (-0.15, 0.53), (-0.1, 0.57), (0.22, 0.57), (0.32, 0.53), (0.52, 0.3)]
-    quarter = [(-0.22, 0.25), (-0.46, 0.25), (-0.52, 0.29), (-0.55, 0.4), (-0.5, 0.52), (-0.42, 0.56), (-0.26, 0.57), (-0.22, 0.53)]
+    door = rounded([(0.53, 0.25), (-0.14, 0.25), (-0.14, 0.58), (0.26, 0.6), (0.4, 0.54)], 0.07)
+    quarter = rounded([(-0.22, 0.25), (-0.44, 0.25), (-0.56, 0.36), (-0.5, 0.56), (-0.22, 0.6)], 0.07)
     for name, outline in (("door", door), ("quarter", quarter)):
         for s, sy in (("l", 1), ("r", -1)):
             outer = [(x, sy * (side_y(cabin_section(x), z) + 0.02), z) for x, z in outline]
@@ -254,8 +275,8 @@ def windows(kit: Kit) -> None:
     rear = []
     for k in range(16):
         a = math.tau * k / 16
-        x, y = -0.58 + 0.095 * math.cos(a), 0.4 * math.sin(a)
-        rear.append((x, y, roof_z(x) - dome_drop(back_section(x), y)))
+        x, y = REAR_GLASS_X + REAR_GLASS[0] * math.cos(a), REAR_GLASS[1] * math.sin(a)
+        rear.append((x, y, roof_z(x) - min(dome_drop(back_section(x), y), dome_drop(cabin_section(x), y))))
     pane(kit, "rear_glass", [(x, y, z + 0.012) for x, y, z in rear], [(x, y, z - 0.01) for x, y, z in rear], "glass")
     vent = [(-1.04, 0.24), (-1.04, -0.24), (-1.16, -0.24), (-1.16, 0.24)]
     pane(kit, "lid_vent", [(x, y, roof_z(x) - dome_drop(back_section(x), y) + 0.008) for x, y in vent], [(x, y, roof_z(x) - dome_drop(back_section(x), y) - 0.01) for x, y in vent], "under")
@@ -289,14 +310,14 @@ def fenders(kit: Kit) -> None:
         taper(bucket, (LAMP_R + 0.02) / BUCKET_R)
         kit.cylinder(f"lamp_ring_{s}", LAMP_R + 0.012, 0.02, (LAMP_X + 0.19, y, LAMP_Z), "chrome", rot=ALONG_X, vertices=round_sides(LAMP_R + 0.012))
         kit.cylinder(f"lamp_{s}", LAMP_R, 0.02, (LAMP_X + 0.2, y, LAMP_Z), "light", rot=ALONG_X, vertices=round_sides(LAMP_R))
-        kit.cylinder(f"side_lamp_{s}", 0.045, 0.05, (1.56, sy * 0.885, -0.12), "amber", rot=(math.pi / 2, 0, 0), vertices=round_sides(0.045))
+        kit.cylinder(f"side_lamp_{s}", 0.045, 0.05, (1.56, sy * 0.87, -0.11), "amber", rot=(math.pi / 2, 0, 0), vertices=round_sides(0.045))
         tx, ty = -1.8, sy * 0.74
         kit.cylinder(f"taillight_{s}", TAIL_R, 0.18, (tx, ty, -0.17), "red", vertices=round_sides(TAIL_R))
         kit.cylinder(f"taillight_amber_{s}", TAIL_R, 0.09, (tx, ty, -0.035), "amber", vertices=round_sides(TAIL_R))
 
 
 def tube(kit: Kit, name: str, a: Vec3, b: Vec3) -> None:
-    strut(kit, name, a, b, TUBE, "metal", sides=round_sides(TUBE / 2))
+    strut(kit, name, a, b, TUBE, "metal_light", sides=round_sides(TUBE / 2))
 
 
 def bumpers(kit: Kit) -> None:
@@ -317,14 +338,16 @@ def bumpers(kit: Kit) -> None:
 
 
 def tail(kit: Kit) -> None:
-    """The bare Baja tail under the lid cut: the engine block and heads, the round fan shroud, and the exhaust and silencer."""
-    kit.box("engine_block", (0.36, 0.7, 0.36), (-1.78, 0.0, -0.29), "metal_dark")
-    mirrored(kit, "engine_head", (0.24, 0.12, 0.2), -1.8, 0.42, -0.33, "metal_dark")
-    kit.cylinder("fan_shroud", 0.13, 0.22, (-1.8, 0.0, -0.15), "soot", rot=ALONG_X, vertices=round_sides(0.13))
-    kit.cylinder("silencer", 0.08, 0.7, (-1.93, 0.0, -0.5), "rust_dark", rot=(math.pi / 2, 0, 0), vertices=round_sides(0.08))
+    """The bare Baja tail under the lid cut: the engine block and heads, the round fan shroud and air filter, and the exhaust and silencer."""
+    kit.box("engine_block", (0.36, 0.7, 0.36), (-1.78, 0.0, -0.29), "metal")
+    mirrored(kit, "engine_head", (0.24, 0.12, 0.2), -1.8, 0.42, -0.33, "metal_light")
+    kit.cylinder("fan_shroud", 0.15, 0.16, (-1.86, 0.0, -0.15), "metal_light", rot=ALONG_X, vertices=round_sides(0.15))
+    kit.cylinder("fan_grille", 0.1, 0.02, (-1.945, 0.0, -0.15), "soot", rot=ALONG_X, vertices=round_sides(0.1))
+    kit.cylinder("air_filter", 0.08, 0.1, (-1.74, -0.3, -0.07), "metal_light", vertices=round_sides(0.08))
+    kit.cylinder("silencer", 0.08, 0.75, (-1.95, 0.0, -0.5), "rust", rot=(math.pi / 2, 0, 0), vertices=round_sides(0.08))
     for s, sy in (("l", 1), ("r", -1)):
-        strut(kit, f"exhaust_{s}", (-1.72, sy * 0.3, -0.45), (-1.93, sy * 0.3, -0.5), 0.05, "rust", sides=round_sides(0.025))
-        strut(kit, f"tailpipe_{s}", (-1.93, sy * 0.3, -0.5), (-2.0, sy * 0.3, -0.42), 0.05, "rust", sides=round_sides(0.025))
+        strut(kit, f"exhaust_{s}", (-1.7, sy * 0.4, -0.43), (-1.95, sy * 0.36, -0.5), 0.07, "rust", sides=round_sides(0.035))
+        strut(kit, f"tailpipe_{s}", (-1.95, sy * 0.3, -0.5), (-2.01, sy * 0.3, -0.4), 0.06, "rust", sides=round_sides(0.03))
 
 
 def arch_sockets(kit: Kit) -> None:
