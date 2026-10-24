@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CHASSIS } from './chassis';
 import { PHYSICS } from './physics';
 import SHAPES from './truck-shapes.json';
-import { cellRect, engineAnchor, restOn } from '../sim/body';
+import { cellRect, engineAnchor, restOn, rideOf, unitBody } from '../sim/body';
 
 const FILES = import.meta.glob<string>('/public/models/base_*.glb', { query: '?url&inline', import: 'default' });
 const DATA_URL = 'data:model/gltf-binary;base64,';
@@ -108,7 +108,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.21, 0.27], deck: [0.58, 0.66] },
   tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.275, 0.304], deck: [0.317, 0.35] },
   jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
-  buggy: { height: [1.7, 1.82], roof: [0.27, 0.33], noseDrop: [0.65, 0.8], tailDrop: [0.08, 0.2] },
+  buggy: { height: [1.5, 1.6], roof: [0.4, 0.47], noseDrop: [0.5, 0.68], tailDrop: [0.03, 0.2] },
   carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.55, 0.75], tailDrop: [0.25, 0.45] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
   bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1], noseDrop: [0.06, 0.16] },
@@ -187,31 +187,53 @@ describe('the carrier armored car', () => {
 });
 
 describe('the patrol buggy', () => {
+  const PHOTO_LENGTH = 4.95;
+  const PHOTO_WHEELBASE = 0.667;
+  const PHOTO_FRONT_CROWN = 1.25;
+  const PHOTO_REAR_CROWN = 1.21;
+  const COM_CEILING = 0.4;
+  const BELLY_FLOOR = 0.75;
   const buggy = PHYSICS.bodies.buggy;
   const ground = buggy.wheelY - PHYSICS.truck.suspensionRest - buggy.wheelRadius;
   const tire = 2 * buggy.wheelRadius;
   const { heights, boxes } = SHAPES.base_buggy;
   const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
-  const crownOver = (wheelX: number) => Math.max(...columns.filter((c) => Math.abs(c.x - wheelX) <= 0.15 && Math.abs(Math.abs(c.y) - buggy.wheelZ) <= 0.1).map((c) => c.top)) - ground;
+  const overTread = (c: { x: number; y: number }, wheelX: number) => Math.abs(c.x - wheelX) <= 0.1 && Math.abs(Math.abs(c.y) - buggy.wheelZ) <= buggy.wheelHalfWidth;
+  const crownOver = (wheelX: number) => Math.max(...columns.filter((c) => overTread(c, wheelX)).map((c) => c.top)) - ground;
   const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
   const row = along / CHASSIS.buggy.layout.length;
   const deckRows = CHASSIS.buggy.layout.flatMap((cells, y) => (cells.includes('D') ? [y] : []));
   const deckBack = along / 2 - (Math.max(...deckRows) + 1) * row;
+  const deckFront = along / 2 - Math.min(...deckRows) * row;
+  const near = (got: number, want: number) => Math.abs(got / want - 1);
 
-  it('keeps its 3.9 m body on the photo\'s wheelbase of 0.557 of its length', () => {
+  it('keeps its 3.9 m body as long in its own tire diameters as the photo car, within 8%', () => {
     expect(Math.abs(along - 3.9)).toBeLessThanOrEqual(0.05);
-    expect(Math.abs((2 * buggy.wheelX) / along / 0.557 - 1)).toBeLessThanOrEqual(0.05);
+    expect(near(along / tire, PHOTO_LENGTH)).toBeLessThanOrEqual(0.08);
   });
 
-  it('crowns its deep rear fenders 1.2 to 1.32 tire diameters over the ground, over the rear tires', () => {
-    expect(crownOver(-buggy.wheelX) / tire).toBeGreaterThanOrEqual(1.2);
-    expect(crownOver(-buggy.wheelX) / tire).toBeLessThanOrEqual(1.32);
+  it('puts its wheels near the corners on the photo\'s wheelbase of 0.667 of its length', () => {
+    expect(near((2 * buggy.wheelX) / along, PHOTO_WHEELBASE)).toBeLessThanOrEqual(0.05);
   });
 
-  it('stands nothing behind its deck rows over the roof, so guns on the roof keep short posts', () => {
-    const roof = Math.max(...columns.filter((c) => c.x >= deckBack).map((c) => c.top));
+  it('crowns its slim front fenders and deep rear fenders at the photo\'s heights in tire diameters', () => {
+    expect(near(crownOver(buggy.wheelX) / tire, PHOTO_FRONT_CROWN)).toBeLessThanOrEqual(0.05);
+    expect(near(crownOver(-buggy.wheelX) / tire, PHOTO_REAR_CROWN)).toBeLessThanOrEqual(0.05);
+  });
+
+  it('stands nothing over the roof, behind the deck rows or ahead of them, so guns on the roof keep short posts', () => {
+    const roof = Math.max(...columns.filter((c) => c.x >= deckBack && c.x <= deckFront).map((c) => c.top));
     const behind = Math.max(...columns.filter((c) => c.x < deckBack - heights.cell).map((c) => c.top));
+    const ahead = Math.max(...columns.filter((c) => c.x > deckFront + heights.cell).map((c) => c.top));
     expect(behind).toBeLessThanOrEqual(roof);
+    expect(ahead).toBeLessThanOrEqual(roof);
+  });
+
+  it('keeps its center of mass at most 0.4 m and its belly at least 0.75 m over the ground, as the buggy had before the remake', () => {
+    const body = unitBody('buggy', 0);
+    const ride = rideOf(body);
+    expect(body.comY + ride).toBeLessThanOrEqual(COM_CEILING + 1e-9);
+    expect(ride - body.half.y).toBeGreaterThanOrEqual(BELLY_FLOOR - 1e-9);
   });
 });
 
