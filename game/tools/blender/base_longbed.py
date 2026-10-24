@@ -118,13 +118,13 @@ HOOD_LOW = WING_CROWN - 0.01
 WING_IN = 0.78
 WING_OUT = HALF_W - 0.015
 WING_ROUND = 0.22
-WING_CORNER = 0.15
+WING_CORNER = 0.2
 WING_X0 = 0.95
 WING_SWEEP = 1.75
 CAB_HALF = 1.2
 LAMP_Y = 0.99
 POD_HALF_Y = 0.18
-POD_FRONT = WING_FRONT + 0.06
+POD_FRONT = WING_FRONT + 0.075
 FACE_HALF = WING_IN + 0.01
 LAMP_R = 0.105
 TAIL_R = 0.075
@@ -208,7 +208,8 @@ def hood(kit: Kit) -> None:
     stations = [COWL_X, 2.2, 2.6, 3.0, FACE_X - 0.06]
     panel = [0.42 - 0.12 * (COWL_X - x) / (COWL_X - FACE_X) for x in stations]
     loft_x(kit, "hood", [(x, hood_profile(hood_top(x), p, HOOD_LOW)) for x, p in zip(stations, panel)], "paint")
-    lip = [(FACE_X - 0.08, HOOD_NOSE), (GRILLE_X - 0.06, HOOD_NOSE - 0.01), (GRILLE_X, HOOD_NOSE - 0.07)]
+    nose_r = 0.08
+    lip = [(FACE_X - 0.08, HOOD_NOSE)] + [(GRILLE_X - nose_r + nose_r * math.sin(a), HOOD_NOSE - nose_r + nose_r * math.cos(a)) for a in (math.pi * k / 10 for k in range(5))]
     loft_x(kit, "hood_nose", [(x, hood_profile(top, 0.3, LIP_BOTTOM)) for x, top in lip], "paint")
     for i in range(4):
         z = hood_top(2.1) - 0.13 - 0.045 * i
@@ -336,9 +337,9 @@ def lamps(kit: Kit) -> None:
         hull(kit, f"pod_{s}", "paint", back + front)
         round_x(kit, f"lamp_rim_{s}", LAMP_R + 0.04, 0.03, POD_FRONT + 0.005, y, LAMP_Z, "under")
         round_x(kit, f"lamp_{s}", LAMP_R, 0.03, POD_FRONT + 0.01, y, LAMP_Z, "light")
-        round_x(kit, f"amber_low_{s}", 0.06, 0.04, POD_FRONT, y, AMBER_LOW_Z, "amber")
-        round_y(kit, f"amber_side_{s}", 0.045, 0.03, WING_FRONT - 0.4, sign * WING_OUT, up(1.12), "amber")
-        round_x(kit, f"amber_top_{s}", 0.055, 0.05, 2.55, sign * (WING_IN + 0.1), WING_CROWN + 0.06, "amber")
+        round_x(kit, f"amber_low_{s}", 0.07, 0.03, POD_FRONT, y, AMBER_LOW_Z, "amber")
+        round_y(kit, f"amber_side_{s}", 0.06, 0.03, WING_FRONT - 0.4, sign * WING_OUT, up(1.12), "amber")
+        round_x(kit, f"amber_top_{s}", 0.065, 0.05, 2.55, sign * (WING_IN + 0.1), WING_CROWN + 0.06, "amber")
         kit.box(f"amber_top_stem_{s}", (0.04, 0.04, 0.05), (2.53, sign * (WING_IN + 0.1), WING_CROWN + 0.01), "under")
 
 
