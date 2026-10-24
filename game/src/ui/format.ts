@@ -40,9 +40,10 @@ import { siteRecipes } from '../data/market';
 import { keyLabel } from './input-mode';
 import { driverName, factionName, offenseName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
 import { playerCanAct, Refused } from '../sim/world';
+import { stanceToward } from '../sim/relations';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
-import { compassText, damage, distanceText, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
+import { compassText, damage, distanceText, fuelLiters, hp, kph, moneyM, moneyMsg } from './units';
 import { seesAll } from './see-all';
 import { bandAtLeast, isRaider } from '../sim/relations';
 
@@ -1100,6 +1101,13 @@ export function commandFailure(world: World, err: unknown): Msg {
   if (err instanceof Refused) return refusalText(world, err.refusal);
   console.error(err);
   return t('refusal.failed');
+}
+
+export function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {
+  if (hostile) return t("hud.tagHostile");
+  const band = stanceToward(w, v);
+  if (band === "neutral") return t("hud.tagNeutral");
+  return t(`band.${band === "allied" ? "friendly" : band}`);
 }
 
 export function standingNum(score: number): Msg {

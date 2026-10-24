@@ -21,6 +21,7 @@ const SHARED_NAMES = {
   skill: t('hitTip.skill'),
   weather: t('hitTip.weather'),
   smoke: t('hitTip.smoke'),
+  nimble: t('hitTip.nimble'),
 };
 
 const MY_NAMES: CauseNames = { ...SHARED_NAMES, crossing: t('hitTip.mine.crossing'), own: t('hitTip.mine.own'), still: t('hitTip.mine.still') };
