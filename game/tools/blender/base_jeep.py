@@ -228,7 +228,7 @@ def ribs(kit: Kit) -> None:
         low = door_sill(x, x, DOOR_LOW, WHEELS_X, HUB_Z, ARCH_R)
         check_door_gap(f"seam{i}", x, x, low, WHEELS_X, HUB_Z, ARCH_R)
         mirrored(kit, f"seam{i}", (0.035, RIB_OUT, BELT - low), x, face, (BELT + low) / 2, "under")
-    for d, (front, back) in enumerate(zip(SEAMS, SEAMS[1:])):
+    for d, back in enumerate(SEAMS[1:]):
         mirrored(kit, f"handle{d}", (0.12, RIB_OUT, 0.03), back + 0.12, face, BELT - 0.04, "metal")
     mirrored(kit, "sill_line", (SEAMS[0] - SEAMS[-1], RIB_OUT, 0.025), (SEAMS[0] + SEAMS[-1]) / 2, face, DOOR_LOW, "under")
     step_front = WHEELS_X[1] - ARCH_R - 0.02
