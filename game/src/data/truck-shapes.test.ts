@@ -106,12 +106,12 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   longbed: { height: [2.55, 2.75], hood: [0.19, 0.25], roof: [0.1, 0.16], roofStart: [0.25, 0.31], deck: [0.53, 0.6] },
   courier: { height: [1.7, 1.8], roofStart: [0.4, 0.47], roof: [0.18, 0.26], noseDrop: [0.8, 1.2], tailDrop: [0.7, 0.95] },
   hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.21, 0.27], deck: [0.58, 0.66] },
-  tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.161, 0.179], deck: [0.443, 0.489] },
+  tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.275, 0.304], deck: [0.317, 0.35] },
   jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
   buggy: { height: [1.56, 1.72], roof: [0.24, 0.36], noseDrop: [0.8, 1.08], tailDrop: [0.6, 0.9] },
   carrier: { height: [1.95, 2.15], roofStart: [0.15, 0.19], roof: [0.66, 0.74], noseDrop: [0.55, 0.75], tailDrop: [0.25, 0.45] },
   loader: { height: [3.35, 3.55], roof: [0.21, 0.29], roofStart: [0.4, 0.5], noseDrop: [2.4, 3.1], tailDrop: [0.8, 1.2] },
-  bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1] },
+  bus: { height: [2.95, 3.05], roofStart: [0.86, 0.93], roof: [0.04, 0.1], noseDrop: [0.06, 0.16] },
   van: { height: [2.18, 2.36], roofStart: [0.18, 0.25], roof: [0.68, 0.8], noseDrop: [0.75, 1.0], tailDrop: [0, 0.12] },
 };
 
@@ -330,7 +330,7 @@ describe('the hauler GAZ-66', () => {
 });
 
 describe('the tractor', () => {
-  it('keeps the W900L day cab at one scale: 6.2 to 6.43 m long, with a width to length of 0.411 across its fenders and tanks', () => {
+  it('keeps the W900L with a mid-roof sleeper at one scale: 6.2 to 6.43 m long, with a width to length of 0.411 across its fenders and tanks', () => {
     const boxes = SHAPES.base_tractor.boxes;
     const along = Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0));
     const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));

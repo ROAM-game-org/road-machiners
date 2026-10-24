@@ -425,6 +425,7 @@ export type NpcState = {
 
 export type Octant = 'east' | 'southEast' | 'south' | 'southWest' | 'west' | 'northWest' | 'north' | 'northEast';
 export type Span = 'near' | 'fair' | 'far';
+export type Cardinal = 'north' | 'east' | 'south' | 'west';
 export type Cue =
   | { kind: 'site'; id: string }
   | { kind: 'deck'; id: string }
@@ -433,13 +434,14 @@ export type Cue =
   | { kind: 'none' };
 export type RoadName = { kind: 'to'; site: string } | { kind: 'heading'; octant: Octant };
 export type TurnSide = 'left' | 'right' | 'keepLeft' | 'keepRight';
-export type DirectionTarget = { kind: 'site'; id: string } | { kind: 'spot'; pos: Vec; clue: 'wreck' };
+export type DirectionTarget = { kind: 'site'; id: string } | { kind: 'spot'; pos: Vec; clue: 'wreck' | 'place' };
 export type DirectionStep =
   | { do: 'join'; octant: Octant; span: Span }
   | { do: 'follow'; road: RoadName; heading: Octant | null; span: Span }
   | { do: 'turn'; side: TurnSide; at: Cue; road: RoadName; span: Span }
   | { do: 'arrive'; site: string; area: boolean }
-  | { do: 'leave'; at: Cue; octant: Octant; span: Span }
+  | { do: 'gate'; side: Cardinal }
+  | { do: 'leave'; at: Cue; octant: Octant; lean: Cardinal | null; span: Span }
   | { do: 'straight'; octant: Octant; span: Span }
   | { do: 'search'; clue: { kind: 'site'; id: string } | { kind: 'wreck' }; rough: boolean }
   | { do: 'askAgain' }

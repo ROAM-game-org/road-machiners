@@ -21,7 +21,7 @@ import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
-import { autoRuns, playerCanAct, threatToPlayer } from "../sim/world";
+import { autoRuns, playerCanAct, threatToPlayer, waitsOnPlayer } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
 export type LiveVision = {
@@ -324,7 +324,7 @@ export class Travel {
   }
 
   private wantsTurn(world: World, now: number): boolean {
-    return this.isAdvancing(null, now) || this.runsOnItsOwn(world, now);
+    return !waitsOnPlayer(world) && (this.isAdvancing(null, now) || this.runsOnItsOwn(world, now));
   }
 
   takeReady(world: World, drive: DriveSnapshot, now: number, held = false): PreparedTurn | null {
@@ -350,7 +350,7 @@ export class Travel {
   }
 
   continues(world: World, now: number): boolean {
-    return this.shouldAdvance(now) || this.runsOnItsOwn(world, now);
+    return !waitsOnPlayer(world) && (this.shouldAdvance(now) || this.runsOnItsOwn(world, now));
   }
 
   stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, overshootMs: number): { world: World; drive: DriveSnapshot; leftMs: number } | null {
@@ -364,7 +364,7 @@ export class Travel {
   }
 
   timeWanted(world: World, now: number): boolean {
-    return this.isAdvancing(null, now) && this.turns.isReady(world) && world.player.call === null;
+    return this.isAdvancing(null, now) && this.turns.isReady(world) && !waitsOnPlayer(world);
   }
 
   playedFrame(v: Vehicle, a: Playback | null, at: number | null): VehicleFrame | undefined {
