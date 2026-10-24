@@ -597,7 +597,7 @@ describe('going home with loot', () => {
     const start = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) start.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     if (addGoods(start, playerVehicle(start), 'electronics', 6) < 6) throw new Error('No room for the player cargo');
-    const raider = addVehicle(start, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 42, y: 30 }, Math.PI);
+    const raider = addVehicle(start, 'scrapjaw', 'jeep', ['stockEngine', 'mg'], { x: 42, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     raider.brain.goals = [raidGoal(raider.pos)];
     forceOption('hostileSeen', 'fight');

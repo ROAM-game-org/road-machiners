@@ -222,6 +222,7 @@ export const UI: Translation<typeof EN> = {
   'hitTip.skill': 'Внимательность водителя',
   'hitTip.weather': 'Плохая погода',
   'hitTip.smoke': 'Дым',
+  'hitTip.nimble': 'Юркий',
   'hitTip.mine.crossing': 'Цель быстро пересекает курс',
   'hitTip.mine.own': 'Вы в движении',
   'hitTip.mine.still': 'Цель стоит',
