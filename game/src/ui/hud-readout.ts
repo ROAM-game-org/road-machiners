@@ -38,7 +38,7 @@ import { playerCanAct } from '../sim/world';
 import { combatTurnsLeft } from '../sim/combat';
 import { isBusy } from '../sim/jobs';
 import { list, num, t, type Msg } from '../text/msg';
-import { partName, refusalText, siteName, vehicleTitle } from '../text/names';
+import { abilityName, partName, refusalText, siteName, vehicleTitle } from '../text/names';
 
 export function overdriveSwitch(w: World): { checked: boolean; locked: boolean; reason: Msg | null; title: Msg } {
   const me = playerVehicle(w);
@@ -291,6 +291,7 @@ type Wording = { [K in SpeedStep['kind']]: (step: Kind<K>, weather: Msg) => Msg 
 const WORDING: Wording = {
   chassis: () => t("speed.chassis"),
   engine: (s) => (s.worn ? t("speed.engineWorn") : t("speed.engine")),
+  ability: (s) => abilityName(s.id),
   load: () => t("speed.load"),
   wheels: (s) => t("speed.wheels", { n: s.broken }),
   guns: () => t("speed.guns"),

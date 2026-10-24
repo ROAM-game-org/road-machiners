@@ -2,7 +2,7 @@ import { chassisDef } from '../data/chassis';
 import type { LineId } from '../data/dialogue';
 import { LESSON_SALT, LESSON_TRADES, LESSONS, WEAKNESSES, type LessonTrade, type Weakness } from '../data/lessons';
 import { bareSides } from './armor';
-import { vehicleMass } from './mass';
+import { loadMass } from './mass';
 import { firepower, npcTraits } from './npc-decisions';
 import { canTakeWornPatch } from './patch';
 import { charCodes, hashRandom } from './rng';
@@ -12,7 +12,7 @@ const CHECKS: Record<Weakness, (world: World, v: Vehicle) => boolean> = {
   noGuns: (world, v) => firepower(world, v) <= 0,
   bareSide: (_world, v) => bareSides(v).length > 0,
   wornCore: (world, v) => canTakeWornPatch(world, v),
-  overloaded: (_world, v) => vehicleMass(v) > chassisDef(v.chassisId).ratedMass,
+  overloaded: (_world, v) => loadMass(v) > chassisDef(v.chassisId).ratedMass,
 };
 
 export function truckWeaknesses(world: World, v: Vehicle): Weakness[] {
