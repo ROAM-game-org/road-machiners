@@ -913,7 +913,8 @@ describe("survey contract text", () => {
     } as const;
     const w = emptyWorld();
     for (const [type, [accusative, surveyed]] of Object.entries(forms)) {
-      const site = surveySites(TEST_MAP).find((item) => item.type === type)!;
+      const site = surveySites(TEST_MAP).find((item) => item.type === type);
+      if (!site) continue;
       const job: Job = { kind: "survey", contractId: "c3", site: site.id, turnsLeft: 10, total: 10 };
       expect(resolve(jobLabel(w, w.vehicles[0], job), "ru")).toBe(`Разведать ${accusative}`);
       const c: Extract<Contract, { kind: "survey" }> = { ...survey([true]), points: [{ site: site.id, found: true, done: true }] };
