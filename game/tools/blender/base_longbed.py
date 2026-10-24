@@ -104,6 +104,7 @@ FRAME = (up(0.75), up(0.95))
 FRONT = LENGTH / 2
 BACK = -LENGTH / 2
 BUMPER_BACK = FRONT - 0.16
+LIP_PROUD = 0.01
 WING_FRONT = FRONT - 0.105
 GRILLE_X = WING_FRONT - 0.03
 FACE_X = GRILLE_X - 0.05
@@ -345,7 +346,8 @@ def lamps(kit: Kit) -> None:
 
 def bumper(kit: Kit) -> None:
     """The heavy dark channel bumper across the full width, with two tow hooks standing on it under the face."""
-    kit.box("bumper", (FRONT - BUMPER_BACK, 2 * (HALF_W - 0.1), BUMPER[1] - BUMPER[0]), ((FRONT + BUMPER_BACK) / 2, 0, (BUMPER[0] + BUMPER[1]) / 2), "under")
+    face = FRONT - LIP_PROUD
+    kit.box("bumper", (face - BUMPER_BACK, 2 * (HALF_W - 0.1), BUMPER[1] - BUMPER[0]), ((face + BUMPER_BACK) / 2, 0, (BUMPER[0] + BUMPER[1]) / 2), "under")
     kit.box("bumper_lip", (0.03, 2 * (HALF_W - 0.12), 0.04), (FRONT - 0.015, 0, BUMPER[1] - 0.03), "metal")
     for sign, s in ((1, "l"), (-1, "r")):
         y = sign * 0.45
