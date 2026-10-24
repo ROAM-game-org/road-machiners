@@ -42,7 +42,7 @@ function steepest(props: Obstacle[], above: number): Place {
 }
 
 function referenceBuggy(w: World, pos: Vec): Vehicle {
-  const buggy = addVehicle(w, 'player', 'buggy', ['mg', 'stockEngine', 'plates'], pos);
+  const buggy = addVehicle(w, 'player', 'courier', ['mg', 'stockEngine', 'plates'], pos);
   addGoods(w, buggy, 'scrap', 999);
   w.vehicles = [buggy];
   w.player.vehicleId = buggy.id;
@@ -69,7 +69,7 @@ function driveToStand(place: Place): { inReach: boolean } {
   return { inReach: dist(here.pos, place.prop.pos) <= reach };
 }
 
-describe('a loaded stock buggy on the committed map', () => {
+describe('a loaded stock courier on the committed map', () => {
   it('drives from the nearest road to the steepest posted survey place and parks in reach', () => {
     const props = surveySites(TEST_MAP).map((s) => baked.find((o) => `survey-${o.id}` === s.id)!);
     const place = steepest(props, 0);
