@@ -65,9 +65,9 @@ Run these from `game/`. The repo-wide quality gate and pre-commit hook run from 
 - `npm run combat` plays single fights with physics, for hit rates and ram detail the recorder does not model. `npm run loadouts` rolls NPC gear.
 - `npm run perf` fails on a miss against `scripts/perf-budgets.json`.
 - `npm run layout` checks every surveyed screen in English, Russian and pseudo-long text at two window sizes, and fails on clipped text, overlapping or unreachable controls and English in Russian. It needs the dev server.
-- `npm run map:bake` writes `public/maps/icarus.bin`. Commit it after a change to map rules, then run `npm run old-spots`, which also writes the survey sites.
+- `npm run map:bake` writes `public/maps/icarus.bin`. Commit it after a change to map rules, then run `npm run old-spots`, which also writes the survey sites, then `npm run survey:pictures`, which redraws their journal pictures.
 - `npm run text:review` writes the Russian review sheet to `tmp/text-review/`: every entry in context with sample params.
-- `npm run models:shapes`, `npm run wiki`, `npm run save:shape`, `npm run quests:build` and `npm run old-spots` regenerate checked files. A test fails when they are stale.
+- `npm run models:shapes`, `npm run wiki`, `npm run save:shape`, `npm run quests:build`, `npm run old-spots` and `npm run survey:pictures` regenerate checked files. A test fails when they are stale.
 - `npm run quest -- <quest>` plays an ink quest in the terminal, and `npm run quests:check` checks every quest for errors, dead ends and loops with no way out.
 - `npm run sfx:board`, `sfx:import`, `sfx:reimport`, `sfx:reloop`, `sfx:report` and `sfx:gen` manage sounds. `sfx:gen` costs credits, so ask before running it.
 - `npm run itch` publishes to itch.io.
