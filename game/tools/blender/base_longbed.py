@@ -254,9 +254,9 @@ def wing_section(x: float, inner: float, outer: float) -> list[tuple[float, floa
 
 
 def wing_stations() -> list[float]:
-    arch = [x for x, _ in round_arch(WHEELS_X[0], HUB_Z, ARCH_R, WING_LOW, max(8, ARCH_SIDES // 2))]
+    arch = [x for x, _ in round_arch(WHEELS_X[0], HUB_Z, ARCH_R, WING_LOW, ARCH_SIDES)]
     corner = [WING_FRONT - WING_CORNER * (1 - math.cos(math.pi * k / 8)) for k in range(5)]
-    sweep = [WING_SWEEP - (WING_SWEEP - WING_X0) * k / 4 for k in range(5)]
+    sweep = [WING_SWEEP - (WING_SWEEP - WING_X0) * k / 8 for k in range(9)]
     return sorted({round(x, 4) for x in arch + corner + sweep + [WING_FRONT]}, reverse=True)
 
 
@@ -294,6 +294,10 @@ def face_holes() -> tuple[list[tuple[float, float, float, float]], list[tuple[fl
 
 def face_step(z: float) -> float:
     """How far the face stands out at height z: the slotted band stands proud, the strip over the top slot leans back under the nose."""
+    if z > TOP_SLOT[1]:
+        return -0.02
+    if RADIATOR[1] < z < TOP_SLOT[0]:
+        return 0.03
     return 0.0
 
 
@@ -335,6 +339,8 @@ def lamps(kit: Kit) -> None:
         round_x(kit, f"lamp_{s}", LAMP_R, 0.03, POD_FRONT + 0.01, y, LAMP_Z, "light")
         round_x(kit, f"amber_low_{s}", 0.07, 0.03, POD_FRONT, y, AMBER_LOW_Z, "amber")
         round_y(kit, f"amber_side_{s}", 0.06, 0.03, WING_FRONT - 0.4, sign * WING_OUT, up(1.12), "amber")
+        round_x(kit, f"amber_top_{s}", 0.065, 0.05, 2.55, sign * (WING_IN + 0.1), WING_CROWN + 0.06, "amber")
+        kit.box(f"amber_top_stem_{s}", (0.04, 0.04, 0.05), (2.53, sign * (WING_IN + 0.1), WING_CROWN + 0.01), "under")
 
 
 def bumper(kit: Kit) -> None:
