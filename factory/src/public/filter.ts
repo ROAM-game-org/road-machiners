@@ -9,9 +9,9 @@ const GAME = readFileSync(fileURLToPath(new URL('../../prompts/filter-game.md', 
 const INTENT = {
   type: 'choice',
   name: 'intent',
-  instructions: 'Is the player text sincere about this game?',
+  instructions: 'Is the player text sincere about this game? Read it together with the message it replies to: a short ask that points at a replied report is as sincere as that report.',
   choices: [
-    { value: 'sincere', description: 'A real bug, wish or opinion. "Truck falls through the bridge." "Add a radio to the cab." "Fights feel worse since the update."' },
+    { value: 'sincere', description: 'A real bug, wish or opinion, or an ask to act on the replied one. "Truck falls through the bridge." "Add a radio to the cab." "Fights feel worse since the update." Replying to "I rammed a raider, the truck bounced back and now it is stuck": "@bot file this bug please."' },
     { value: 'troll', description: 'A joke, mockery, an empty insult, or a demand that clashes with the game. "Add anime girls." "Worst game ever." "Make the truck fly to space." "ADD EVERYTHING NOW, MAKE IT PERFECT."' },
     { value: 'spam', description: 'Ads, scams or gibberish. "Buy crypto t.me/x." "asdfgh."' },
   ],

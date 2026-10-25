@@ -423,3 +423,41 @@ describe('public chat bug reports addressed to the bot (#756)', () => {
     expect(f.messages).toEqual([]);
   });
 });
+
+describe('public chat requests to file the bug a message replies to (#860)', () => {
+  const RAMMED = 'когда тараню, машину откидывает назад и она застревает';
+  const FILE_IT = '@road_machiners_bot запиши этот баг';
+  const SINKS = 'the truck sinks into the river bank and stays there';
+  const FILE_BUG: Partial<Decision> = { kind: 'bug', relevance: 'other', filing: true, language: 'ru' };
+
+  it('files message 502, an ask to file the bug of message 500 it replies to, and quotes both in the issue', async () => {
+    const { f, asked, tick } = chat([{ text: RAMMED, decision: { kind: 'bug', relevance: 'other', language: 'ru' } }, { text: FILE_IT, decision: FILE_BUG }]);
+    post(f, { id: 500, text: RAMMED, sender: '70' });
+    post(f, { id: 502, text: FILE_IT, addressed: true, context: RAMMED });
+    await tick();
+    expect(asked.find((input) => input.text === FILE_IT)).toMatchObject({ source: 'message', addressed: true, context: RAMMED });
+    expect(f.created.map((issue) => issue.labels)).toEqual([['bug', 'player-report']]);
+    expect(f.created[0]!.body).toContain(`road_machiners_bot запиши этот баг\n\nReplying to:\n> ${RAMMED}\n\n- Kind: bug`);
+    expect(repliesTo(f, 500)).toEqual([]);
+    expect(repliesTo(f, 502)[0]!.text).toMatch(/^Спасибо\. Эта ошибка записана как #601/);
+  });
+
+  it('files two issues for the same ask replying to two different bugs, and reuses the issue for the same bug', async () => {
+    const { f, tick } = chat([{ text: FILE_IT, decision: FILE_BUG }]);
+    f.issueLabels[601] = [];
+    post(f, { id: 502, text: FILE_IT, addressed: true, context: RAMMED });
+    post(f, { id: 510, text: FILE_IT, addressed: true, context: SINKS, sender: '52' });
+    post(f, { id: 512, text: FILE_IT, addressed: true, context: RAMMED, sender: '53' });
+    await tick();
+    expect(f.created.map((issue) => issue.body.includes(`Replying to:\n> ${SINKS}`))).toEqual([false, true]);
+    expect(f.store.recentChat(3).map((comment) => [comment.messageId, comment.filedIssue])).toEqual([[512, 601], [510, 602], [502, 601]]);
+  });
+
+  it('files nothing and says nothing for a troll ask to file the replied text', async () => {
+    const { f, tick } = chat([{ text: FILE_IT, decision: { ...FILE_BUG, verdict: 'reject', intent: 'troll', sincere: 0.1 } }]);
+    post(f, { id: 520, text: FILE_IT, addressed: true, context: 'lol this game is trash' });
+    await tick();
+    expect(f.created).toEqual([]);
+    expect(f.messages).toEqual([]);
+  });
+});

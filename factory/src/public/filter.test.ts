@@ -141,6 +141,19 @@ describe('filterWith', () => {
     for (const passing of ['"@bot hi."', '"@bot cool game."', '"@bot is the bridge bug fixed yet?"', '"@bot add a minimap?"']) expect(no!.description).toContain(passing);
   });
 
+  it('judges sincerity of message 502, an ask to file the bug it replies to, together with the replied report (#860)', async () => {
+    const text = '@road_machiners_bot запиши этот баг';
+    const context = 'когда тараню, машину откидывает назад и она застревает';
+    const { fetch, sent } = fake(200, answers(intent(0.9, 0.07, 0.03), pick('kind', 'bug'), pick('filing', 'yes'), pick('language', 'ru')));
+    expect(await filterWith(CFG, fetch)({ source: 'message', text, context, addressed: true })).toMatchObject({ verdict: 'accept', intent: 'sincere', kind: 'bug', filing: true });
+    const body = bodyOf(sent);
+    expect(body.input).toContain(`Replying to: ${context}\n\nPlayer text: ${text}`);
+    const sincerity = body.questions.find((question: { name: string }) => question.name === 'intent');
+    expect(sincerity.instructions).toContain('Read it together with the message it replies to');
+    const sincere = (sincerity.choices as { value: string; description: string }[]).find((option) => option.value === 'sincere');
+    expect(sincere!.description).toContain('"@bot file this bug please."');
+  });
+
   it('never asks or sets filing for a bug report that did not address the bot', async () => {
     const { fetch, sent } = fake(200, answers(intent(0.96, 0.03, 0.01), pick('kind', 'bug'), pick('filing', 'yes'), pick('language', 'ru')));
     expect(await filterWith(CFG, fetch)({ source: 'message', text: 'машина застревает после столкновения с камнем', addressed: false })).toMatchObject({ kind: 'bug', filing: false });
