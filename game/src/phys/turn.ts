@@ -286,7 +286,7 @@ function applyLandings(w: World, r: TurnResult): void {
 }
 
 function applyBreaks(w: World, r: TurnResult): void {
-  for (const b of r.breaks) breakProp(w, b.prop, b.vehicle);
+  for (const b of r.breaks) breakProp(w, b.prop, b.vehicle, toTilesPerTurn(b.impact));
 }
 
 function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['frames'][string]): void {

@@ -26,6 +26,7 @@ open case
 - Nothing is a crime when the culprit or the victim is a raider of Scrapjaw or Kiln or one of the Sunward. Lawmen answer for raiders.
 - Nothing is a crime when the culprit is the Marshall hunting the victim, or a player with Bounty hunter and the victim has an open case, or when the victim was the aggressor of a fight with a third truck.
 - A crash is a crime only through a retaliation, and only the truck at fault can be named in it. A truck that was parked, crawling or hit while driving past is never named.
+- Embezzlement is the one crime nobody witnesses. A shop files it itself against the player when a haul's late limit passes with its crates still aboard, see [economy](economy.md). Crates lost to robbery, loot or spills are no crime.
 - Shots back at an attacker are no incident, so self-defense needs no rule. A theft of a claimed pile stays a matter of standing only.
 
 ## Witnesses
@@ -40,6 +41,7 @@ open case
 - The reporting sites are Bowl, Nose, Dustwell, the Granary, the Pump Station, Green Pit, the Salvage Yard and the Roadhouse. A witness files on its next normal stop there and makes no detour.
 - The issuer is the victim's faction when it is an organized, lawful one, else the reporter's faction, else the reporter itself.
 - A faction stakes the fine from its bounty fund: an attack is 450 turns of the tier 1 wage (about 55 M's), a robbery 900 turns (about 111 M's) and a killing 2,700 turns (about 333 M's).
+- An embezzlement case names the posting shop as its victim and has no reporter. Its issuer is the shop's faction when it is an organized, lawful one (Bowl, Nose), else the stall itself. It is owed the value of the kept crates, within the same cap and minimum as other bounties, and a stall stakes like a faction, with no escrow.
 - An independent issuer stakes up to half its spendable money, at most the fine, into the case's escrow.
 - A stake under 60 turns of the wage (about 7 M's) files nothing. The open bounties on one truck are capped at four robberies, about 444 M's.
 - The log tells the player when a case is filed against it, as news reaching the driver, with a toast.

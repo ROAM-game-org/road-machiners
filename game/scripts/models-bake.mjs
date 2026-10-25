@@ -13,7 +13,7 @@ mkdirSync(LOGS, { recursive: true });
 const failed = [];
 names.forEach((name, i) => {
   const file = `public/models/${name}.glb`;
-  const args = ['--background', '--python-exit-code', '1', '--python', 'tools/blender/bake_mask.py', '--', file, file, '--version', String(SURFACE_MASK.version), '--texel', String(SURFACE_MASK.metersPerPixel), '--max-side', String(SURFACE_MASK.maxSide)];
+  const args = ['--background', '--python-exit-code', '1', '--python', 'tools/blender/bake_mask.py', '--', file, file, '--version', String(SURFACE_MASK.version), '--texel', String(SURFACE_MASK.metersPerPixel), '--max-side', String(SURFACE_MASK.maxSide), '--min-island', String(SURFACE_MASK.minIslandPx), '--least-fill', String(SURFACE_MASK.leastFill)];
   const run = spawnSync('blender', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   writeFileSync(`${LOGS}/${name}.log`, `${run.stdout}\n${run.stderr}`);
   const line = run.stdout.split('\n').find((l) => l.startsWith('baked '));
