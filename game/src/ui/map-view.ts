@@ -23,6 +23,7 @@ const BASES_KEPT = 3;
 const TIP_GAP = 12;
 const ZOOM_SLACK = 1.001;
 const MARK = { town: 5, site: 4, wreck: 5, truck: 8, hit: 8, pinned: 0.6 };
+const RUMOR = { under: 4, line: 2, dash: [3, 3] };
 const NAME = { gap: 6, padX: 4, padY: 2 };
 const bases = new Map<string, HTMLCanvasElement>();
 
@@ -99,6 +100,29 @@ export function mapSites(world: World): MapSite[] {
 
 function markName(site: MapSite): Msg {
   return site.known ? siteName(site.id) : t('map.unknownSite');
+}
+
+export function tipText(site: MapSite): Msg {
+  return site.kind === 'wreck' ? t('map.rumor') : markName(site);
+}
+
+export type RumorPen = Pick<CanvasRenderingContext2D, 'save' | 'restore' | 'beginPath' | 'arc' | 'stroke' | 'setLineDash' | 'strokeStyle' | 'lineWidth'>;
+
+export function strokeRumor(ctx: RumorPen, at: { x: number; y: number }, radius: number): void {
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = token('--surface-sunk');
+  ctx.lineWidth = RUMOR.under;
+  ctx.beginPath();
+  ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash(RUMOR.dash);
+  ctx.strokeStyle = token('--ink-bright');
+  ctx.lineWidth = RUMOR.line;
+  ctx.beginPath();
+  ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 }
 
 export class MapView {
@@ -187,10 +211,10 @@ export class MapView {
     this.canvas.addEventListener('pointerleave', hide);
     this.canvas.addEventListener('pointermove', (e) => {
       const site = this.siteAt(e.clientX, e.clientY);
-      if (!site || site.kind === 'wreck') return hide();
+      if (!site) return hide();
       if (shown !== site.id) {
         shown = site.id;
-        tip.replaceChildren(el('span', {}, markName(site)));
+        tip.replaceChildren(el('span', {}, tipText(site)));
       }
       const box = this.canvas.getBoundingClientRect();
       tip.style.display = '';
@@ -295,7 +319,7 @@ export class MapView {
     const taken: Box[] = named.map(({ at }) => around(at, MARK.town + 1));
     if (this.truck) taken.push(around(toPx(view, this.truck.pos), MARK.truck + 1));
     for (const { site, at } of named) {
-      const text = say(markName(site));
+      const text = say(tipText(site));
       const plate = placePlate(at, ctx.measureText(text).width + 2 * NAME.padX, tall, taken);
       taken.push(plate);
       ctx.fillStyle = token('--surface-overlay');
@@ -319,13 +343,7 @@ export class MapView {
   }
 
   private drawRumor(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, scale: number): void {
-    ctx.save();
-    ctx.setLineDash([2, 2]);
-    ctx.strokeStyle = token('--ink-bright');
-    ctx.beginPath();
-    ctx.arc(at.x, at.y, MARK.wreck * scale, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
+    strokeRumor(ctx, at, MARK.wreck * scale);
   }
 
   private drawTruck(ctx: CanvasRenderingContext2D, view: Viewport, truck: MapTruck): void {
