@@ -6,7 +6,7 @@ import { addVehicle } from "../sim/testkit";
 import { newWorld } from "../sim/world";
 import type { PartInstance } from "../sim/types";
 import { PAINT, type TruckPaint } from "../data/chassis";
-import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
+import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, groundOnScreen, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
 import { addGoods } from "../sim/inventory";
 import { startRepair } from "../sim/jobs";
 import { workMarkOf } from "./inventory-draw";
@@ -125,6 +125,28 @@ describe("the part a shop card compares with", () => {
 
   it("is nothing for the selected part's own card", () => {
     expect(compareBase(part("turbine"), part("turbine"))).toBeNull();
+  });
+});
+
+describe("the ball compass on the speed dial", () => {
+  const onScreen = (x: number, y: number) => {
+    const [a, b, c, d] = groundOnScreen();
+    return { x: a * x + c * y, y: b * x + d * y };
+  };
+
+  it("lays its card flat under the game camera, so map north points up and right like the highway", () => {
+    const north = onScreen(0, -1);
+    expect(north.x).toBeGreaterThan(0);
+    expect(north.y).toBeLessThan(0);
+    expect((Math.atan2(-north.y, north.x) * 180) / Math.PI).toBeCloseTo(26.6, 0);
+  });
+
+  it("draws map east down and right, and south and west opposite north and east", () => {
+    const east = onScreen(1, 0);
+    expect(east.x).toBeGreaterThan(0);
+    expect(east.y).toBeGreaterThan(0);
+    expect(onScreen(0, 1)).toEqual({ x: -onScreen(0, -1).x, y: -onScreen(0, -1).y });
+    expect(onScreen(-1, 0)).toEqual({ x: -east.x, y: -east.y });
   });
 });
 

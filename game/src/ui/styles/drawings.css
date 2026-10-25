@@ -53,6 +53,38 @@
 .dial-cap {
   fill: var(--steel-0);
 }
+.ball-rim {
+  fill: var(--steel-3);
+  stroke: var(--steel-6);
+  stroke-width: 0.8;
+}
+.ball-glass {
+  fill: var(--color-void);
+}
+.ball-card {
+  fill: var(--steel-5);
+  stroke: var(--steel-6);
+  stroke-width: 0.5;
+}
+.ball-tick {
+  stroke: var(--ink-bright);
+  stroke-width: 0.9;
+}
+.ball-north {
+  fill: var(--danger);
+}
+.ball-heading {
+  stroke: var(--accent-warm);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.ball-shine {
+  fill: none;
+  stroke: var(--ink-bright);
+  stroke-width: 1;
+  stroke-linecap: round;
+  opacity: 0.35;
+}
 .speed-value {
   position: absolute;
   left: 50%;

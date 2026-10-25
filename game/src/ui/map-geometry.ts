@@ -1,6 +1,5 @@
 import { MAP_SCALE_BAR, WORLD_MAP } from '../data/minimap';
 import { PHYSICS } from '../data/physics';
-import { VIEW } from '../data/view';
 import type { Vec } from '../sim/vec';
 
 export type Viewport = { center: Vec; tileSize: number; width: number; height: number };
@@ -15,15 +14,13 @@ export function viewport(center: Vec, tileSize: number, width: number, height: n
   return { center, tileSize: requireTileSize(tileSize), width, height };
 }
 
-const UP_LENGTH = Math.hypot(VIEW.screenUp.x, VIEW.screenUp.y);
-const UP: Vec = { x: VIEW.screenUp.x / UP_LENGTH, y: VIEW.screenUp.y / UP_LENGTH };
+const UP: Vec = { x: 0, y: -1 };
 const RIGHT: Vec = { x: -UP.y, y: UP.x };
-const TURNED_EXTENT = Math.abs(UP.x) + Math.abs(UP.y);
 
 const along = (a: Vec, b: Vec): number => a.x * b.x + a.y * b.y;
 
 export function fitTileSize(size: number, width: number, height: number): number {
-  return requireTileSize(Math.min(width, height) / (size * TURNED_EXTENT));
+  return requireTileSize(Math.min(width, height) / size);
 }
 
 export function fitted(size: number, width: number, height: number, center: Vec): Viewport {
@@ -44,7 +41,7 @@ export function toTile(v: Viewport, px: number, py: number): Vec {
 }
 
 function holdsWhole(span: number, tileSize: number, size: number): boolean {
-  return span / tileSize >= size * TURNED_EXTENT;
+  return span / tileSize >= size;
 }
 
 function clampTile(value: number, size: number): number {

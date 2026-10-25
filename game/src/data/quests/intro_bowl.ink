@@ -55,7 +55,7 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
   -> questions
 + {asked_region and not asked_nose} [And Nose?]
   ~ asked_nose = true
-  <term=nose>Nose</term> is up the north-east road. Soldiers at the wall, and a workshop turning out engines and guns for half the basin. Strangers get in if they're buying. # speaker: Hattie
+  <term=nose>Nose</term> is up the north road. Soldiers at the wall, and a workshop turning out engines and guns for half the basin. Strangers get in if they're buying. # speaker: Hattie
   -> questions
 + {asked_region and not asked_yard} [And the yards?]
   ~ asked_yard = true
@@ -63,11 +63,11 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
   -> questions
 + {asked_region and not asked_kiln} [And the raiders?]
   ~ asked_kiln = true
-  <term=kiln>Kiln Camp</term> is south-east of here. They charge you for the right to haul. If you won't pay and won't fight, you'll be walking back. # speaker: Hattie
+  <term=kiln>Kiln Camp</term> is east of here. They charge you for the right to haul. If you won't pay and won't fight, you'll be walking back. # speaker: Hattie
   -> questions
-+ {asked_region and not asked_flats} [And south-east?]
++ {asked_region and not asked_flats} [And east?]
   ~ asked_flats = true
-  South-east is the <term=glass_flats>Glass Flats</term>, then the <term=sunward>Sunward</term>. People go for lenses, and nobody hauls. Lens hunters come back with good glass and bad burns. # speaker: Hattie
+  East is the <term=glass_flats>Glass Flats</term>, then the <term=sunward>Sunward</term>. People go for lenses, and nobody hauls. Lens hunters come back with good glass and bad burns. # speaker: Hattie
   -> questions
 + {not asked_tips} [Any advice?]
   ~ asked_tips = true
