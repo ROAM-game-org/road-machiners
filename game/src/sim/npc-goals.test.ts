@@ -107,8 +107,8 @@ describe('damage taken', () => {
     w.events = [
       { t: 'shot', shooter: other.id, weapon: 'w', target: npc.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [round([3, 2]), round([])] },
       { t: 'shot', shooter: other.id, weapon: 'w2', target: npc.id, aim: 'body', chance: 1, damageChance: 1, side: 'left', rounds: [round([4])] },
-      { t: 'collision', a: npc.id, b: 'rock-1', hitsA: [{ part: 'x', damage: 1 }], hitsB: [] },
-      { t: 'collision', a: other.id, b: npc.id, hitsA: [{ part: 'y', damage: 9 }], hitsB: [{ part: 'x', damage: 5 }] },
+      { t: 'collision', a: npc.id, b: 'rock-1', impact: 3, hitsA: [{ part: 'x', damage: 1 }], hitsB: [] },
+      { t: 'collision', a: other.id, b: npc.id, impact: 3, hitsA: [{ part: 'y', damage: 9 }], hitsB: [{ part: 'x', damage: 5 }] },
     ];
     noteHurt(w);
     expect(npc.brain!.hurt).toBe(15);

@@ -37,12 +37,12 @@ what: Agents fixed a nearby, easier problem instead of the one reported, like br
 cost: The committee played builds that did not touch the report, and each one went back for a redesign.
 
 ID: R10
-what: New truck models misread the reference or the role: wrong scale and proportions, too much detail, wheels clipping doors, a part copied from another chassis, a remake that kept the old boxy silhouette under new details, a reference picked for its look and not the vehicle's job, and remakes built from memory when the agent had only photo links. Stacked, overlapping or thin parts, like hood, wing and bumper edges, cab frames, arches and bucket lips, drew noisy outlines, dark gaps and heavy shading at game camera size, and cleanup rounds guessed at the noise by deleting lamps or changing tessellation instead of finding which faces in the mesh and render made it and checking that view against the committee's screenshot.
-cost: Each model took three or more committee rounds, the owner had to ask by hand for a stronger model, the actual images and the root cause of the artifacts, and photo-faithful remakes went back one after another, through patches and a whole redesign over the same hood, wing and bumper noise, even after the committee had attached the photos.
+what: New truck models misread the reference or the role: wrong scale, proportions or detail level, a part copied from another chassis, a remake that kept the old boxy silhouette, a reference picked for its look over the truck's job, remakes built from memory when the agent had only photo links, a light tube frame turned into a slab-sided box, and an open cockpit picked by default though a wasteland truck needs a closed cab. Stacked, overlapping and clipping parts, like wheels in doors, hood, wing and bumper edges, cab frames, window bars, louvers, arches and bucket lips, drew noisy outlines, dark gaps and heavy shading at game camera size, and cleanup rounds deleted wanted details like rails, ladders, lamps and ribs to hide the noise instead of finding the faces that clip or overlap, fixing them in place and checking that view against the committee's screenshot.
+cost: Each model took three or more committee rounds and one took six, the owner had to ask by hand for a stronger model, the actual images, a closed cab, the root cause of the artifacts and the return of details a cleanup had removed, and photo-faithful remakes went back round after round even after the committee had attached the photos.
 
 ID: R11
-what: A change that applied to many things was built and shown on one, like a diagram drawn for one chassis only, a size picked per truck instead of by one rule, or a few keys opened in a scene but not the menu.
-cost: Four rounds of patches on one card, and the owner had to ask for an atlas of every case.
+what: A change that applied to many things was built and shown on one, like a diagram drawn for one chassis only, a size picked per truck instead of by one rule, a few keys opened in a scene but not the menu, or a game-wide copy sweep whose design called a small diff a valid result and that rewrote about a dozen lines, among them the one example the owner had pointed out, while the post claimed every line was read.
+cost: Four rounds of patches on one card, the owner had to ask for an atlas of every case, and the copy sweep went back for a whole redesign.
 
 ID: R12
 what: Screens ignored the UI design system: oversized buttons, wasted space, stray captions, a rotated map with no zoom, garish colors, and a phone layout that hid the speedometer and health.
@@ -53,8 +53,8 @@ what: Features did not work when played, though the post said they did: a script
 cost: This was the most common critique, and players reported new modes broken after they shipped.
 
 ID: R14
-what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, item lore with empty rhetoric and no plain fact, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural.
-cost: Every text quest had to be cleaned up, and the committee rejected the copy again and again.
+what: Player text read like a machine wrote it: semicolons, riddles, filler phrases, item lore with empty rhetoric and no plain fact, wrong directions, NPCs repeating one story, and Russian that was stale or unnatural. The opposite fault went back too: a checklist of tells written for AI chat was turned into rules applied word for word to fiction, with no room for the narrator or a character's voice to break them where the story needs it.
+cost: Every text quest had to be cleaned up, the committee rejected the copy again and again, and the writing guidance went back for a redesign to follow the checklist in spirit.
 
 ID: R15
 what: Effects did not look physical: spills and grounds drawn as circles, dust that popped up instead of forming, hits shown at turn end, light through walls, and a glow with no visible source.
@@ -65,16 +65,16 @@ what: Bug fixes treated the symptom with a guard or a retry and never asked why 
 cost: The same bugs came back, and the owner approved many duplicate fixes one by one.
 
 ID: R17
-what: Builds dropped points of the request, or added or changed things nobody asked for, like labels and big buttons, or a game-wide copy sweep that also rewrote the intro quests the owner had written by hand, without asking which text was off limits.
-cost: A follow-up card for every dropped point, redesigns to remove the extras, and a patch round to restore the owner's own lines byte for byte.
+what: Builds dropped points of the request, or added or changed things nobody asked for, like labels and big buttons, a game-wide copy sweep that also rewrote the intro quests the owner had written by hand without asking which text was off limits, or a reputation change that kept the money charge the request and a committee comment said must go, and added a day-long board lockout nobody asked for.
+cost: A follow-up card for every dropped point, redesigns to remove the extras, a patch round to restore the owner's own lines byte for byte, and an approved build stopped before its merge to be redesigned and then patched again.
 
 ID: R18
 what: Merges brought back an old version of a feature, or dropped a piece another card had added, like an icon or a panel.
 cost: Approved work vanished from the game, and urgent fixes went to main.
 
 ID: R19
-what: The post's screenshots and text did not show what they claimed: a popup over the subject, a claim with no screenshot behind it, or a model atlas of the truck fitted with armor and guns that hid the bare body the change was about.
-cost: The committee had to play builds just to learn what the screenshots should have shown, and a model remake went back for a patch round only to get an unobstructed atlas.
+what: The post's screenshots and text did not show what they claimed: a popup over the subject, a claim with no screenshot behind it, a model atlas of the truck fitted with armor and guns that hid the bare body the change was about, or a photo-versus-render compare sheet that labeled mismatched features as matches.
+cost: The committee had to play builds just to learn what the screenshots should have shown, a model remake went back for a patch round only to get an unobstructed atlas, and the committee had to spell out that a compare sheet must not call a mismatch a match.
 
 ID: R20
 what: Proposals against the game's pillars reached a vote or a build: real-time driving and combat, map coordinates, waypoints and a compass, and activities that are not about trucks and the road.

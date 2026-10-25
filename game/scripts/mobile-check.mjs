@@ -378,6 +378,7 @@ async function inspectAndAim(session, step, orientation) {
     return `no aim after the second tap: ${JSON.stringify(await game(page, ({ x, y }) => ({ pin: window.__ROAM__.pin.id, selected: window.__ROAM__.selected, anim: !!window.__ROAM__.anim, hit: document.elementFromPoint(x, y)?.tagName, log: window.__ROAM__.hud.logTexts().slice(-2), orders: JSON.stringify(window.__me().weaponOrders), auto: window.__ROAM__.state.player.autoFire }), at))}`;
   });
   await step('tap-part-aims', async () => {
+    await page.waitForFunction((id) => window.__ROAM__.hud.portraitSettled(id), npcId, { timeout: 60000 });
     const spot = await game(page, () => {
       const view = window.__ROAM__.hud.inspected;
       const part = view.parts[view.parts.length - 1];

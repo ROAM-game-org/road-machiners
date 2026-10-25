@@ -43,7 +43,7 @@ import {
 import { freeCells, goodsCount, mountCellsOf } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
-import { acceptContract, deliverContract, goodStock, haulShort, isMet, knowsMarket, onOrder, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, goodStock, haulShort, isMet, knowsMarket, onOrder, pressureOf, spareGoods, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { CrimeCase, PartInstance, RoadNews, Vehicle, World } from "../sim/types";
 import { onRelief, recipeRunning } from "../sim/production";
@@ -59,7 +59,7 @@ import { TOWN_SECTIONS, type TownSection } from "../data/quests";
 import { barDrivers, pickTownSection, townSections, type SectionAccess } from "../sim/quests";
 import { callVehicle } from "../sim/dialogue";
 import { hostileToPlayer } from "../sim/world";
-import { clock, escortStatusText, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
+import { caseVictimName, clock, escortStatusText, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { contractRow } from "./contract-row";
 import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
@@ -326,7 +326,7 @@ export class TownScreen {
   }
 
   private caseRow(w: World, c: CrimeCase): HTMLElement {
-    const victim = w.vehicles.some((v) => v.id === c.victim) ? vehicleTitle(w, vehicleById(w, c.victim)) : t("log.someDriver");
+    const victim = caseVictimName(w, c);
     return el(
       "div",
       { class: "row desk-case" },
@@ -542,7 +542,8 @@ export class TownScreen {
     const held = goodsCount(me)[g] ?? 0;
     const sell = sellPrice(w, shopId, g);
     const stock = goodStock(state, g);
-    const sellReason = held === 0 ? t("trade.nothingToSell") : null;
+    const spare = spareGoods(w, me, g);
+    const sellReason = held === 0 ? t("trade.nothingToSell") : spare === 0 ? refusalText(w, { id: "cargoOwed" }) : null;
     return el(
       "div",
       { class: "good-row row" },
@@ -554,10 +555,10 @@ export class TownScreen {
         caption(GOODS_COLUMNS.sell, true),
         priceEl(sell),
         this.button(t("trade.minus", { n: 1 }), (x) => sellGood(x, g, 1), sellReason, `${g}:sell1`),
-        this.button(t("trade.all"), (x) => sellGood(x, g, held), sellReason, `${g}:sellAll`, held ? lotTitle("sell", held, getLotTradePrice(w, me, shopId, g, held, "sell")) : null),
+        this.button(t("trade.all"), (x) => sellGood(x, g, spare), sellReason, `${g}:sellAll`, spare ? lotTitle("sell", spare, getLotTradePrice(w, me, shopId, g, spare, "sell")) : null),
       ),
       countCell("stock", stock),
-      countCell("held", held),
+      countCell("held", held, num(held, "int"), owedTitle(held - spare)),
       profitCell(tradeEstimate(w, held, sell, g)),
     );
   }
@@ -844,8 +845,12 @@ function theirsHead(): HTMLElement {
   return el("span", { class: "end" }, GOODS_COLUMNS.theirs);
 }
 
-function countCell(cls: "theirs" | "held" | "stock", n: number, text: Msg = num(n, "int")): HTMLElement {
-  return el("div", { class: `count ${cls}` }, caption(GOODS_COLUMNS[cls]), el("span", { class: n === 0 ? "num dim" : "num" }, text));
+function countCell(cls: "theirs" | "held" | "stock", n: number, text: Msg = num(n, "int"), title: Msg | null = null): HTMLElement {
+  return el("div", { class: `count ${cls}`, title: title ?? undefined }, caption(GOODS_COLUMNS[cls]), el("span", { class: n === 0 ? "num dim" : "num" }, text));
+}
+
+function owedTitle(owed: number): Msg | null {
+  return owed > 0 ? t("trade.owed", { n: owed }) : null;
 }
 
 export function marketHint(w: World, def: ShopDef, state: ShopState, good: string): PriceHint | null {
@@ -920,22 +925,32 @@ function eventTag(event: "surge" | "breakdown"): HTMLElement {
 }
 
 function crateIcons(goods: Record<string, number>): HTMLElement[] {
-  return Object.entries(goods).map(([good, n]) => el("span", { class: "recipe-good" }, n > 1 ? el("span", { class: "num" }, num(n, "int")) : null, createItemIcon(good)));
+  return Object.entries(goods).map(([good, n]) => crateIcon(good, n));
 }
 
-function newsWell(w: World): HTMLElement | null {
+function crateIcon(good: string, n: number): HTMLElement {
+  return el("span", { class: "recipe-good" }, n > 1 ? el("span", { class: "num" }, num(n, "int")) : null, createItemIcon(good));
+}
+
+export function newsWell(w: World): HTMLElement | null {
   const news = liveRoadNews(w);
   if (news.length === 0) return null;
-  return el("div", { class: "road-news" }, ...[...news].reverse().map((n) => newsRow(w, n)));
+  return el("div", { class: "road-news" }, el("div", { class: "news-head dim" }, t("news.head")), ...[...news].reverse().map((n) => newsRow(w, n)));
 }
 
 const NEWS_VERB = { robbed: "news.robbed", destroyed: "news.destroyed", knockedOut: "news.knockedOut" } as const;
 
+const NEWS_REASON = {
+  robbed: "news.reason.robbed",
+  destroyed: "news.reason.destroyed",
+  knockedOut: "news.reason.knockedOut",
+} as const satisfies Record<RoadNews["kind"], string>;
+
 function newsRow(w: World, n: RoadNews): HTMLElement {
   return el(
     "div",
-    { class: "news-row row" },
-    createItemIcon(n.good),
+    { class: "news-row row", title: t(NEWS_REASON[n.kind]) },
+    crateIcon(n.good, n.units),
     el("span", { class: "bad" }, t(NEWS_VERB[n.kind])),
     el("span", {}, t("news.route", { from: siteName(n.from), to: siteName(n.to) })),
     el("span", { class: "num dim" }, t("news.ago", { h: gameHours(w.turn - n.turn) })),
@@ -1083,8 +1098,10 @@ export class TruckTradeScreen {
     const sell = truckGoodPrice(w, g, "sell");
     const buyReason = (n: number) =>
       theyHave(theirs, n, (v) => num(v, "int")) ?? shortBy(w.player.money, buy * n) ?? (cargoRoom(me) < n ? t("trade.noRoom") : null);
+    const spare = spareGoods(w, me, g);
     const sellReason = (n: number) => {
       if (held < Math.max(n, 1)) return t("trade.nothingToSell");
+      if (spare < n) return refusalText(w, { id: "cargoOwed" });
       if (cargoRoom(npc) < n) return t("trade.noRoomThem");
       return theyLack(npc, sell * n);
     };
@@ -1112,9 +1129,9 @@ export class TruckTradeScreen {
         caption(GOODS_COLUMNS.sell, true),
         priceEl(sell),
         this.button(t("trade.minus", { n: 1 }), (x) => sellTruckGood(x, npc.id, g, 1), sellReason(1), `${g}:sell1`),
-        this.button(t("trade.all"), (x) => sellTruckGood(x, npc.id, g, held), sellReason(held), `${g}:sellAll`),
+        this.button(t("trade.all"), (x) => sellTruckGood(x, npc.id, g, spare), sellReason(spare), `${g}:sellAll`),
       ),
-      countCell("held", held),
+      countCell("held", held, num(held, "int"), owedTitle(held - spare)),
       profitCell(tradeEstimate(w, held, sell, g)),
     );
   }
@@ -1190,6 +1207,7 @@ function choiceButton(c: TownChoice, i: number): HTMLElement {
 
 function issuerName(w: World, c: CrimeCase): Msg {
   if (c.issuer.kind === "faction") return factionName(c.issuer.faction);
+  if (c.issuer.kind === "shop") return siteName(c.issuer.shop);
   const id = c.issuer.id;
   return w.vehicles.some((v) => v.id === id) ? vehicleTitle(w, vehicleById(w, id)) : t("log.someDriver");
 }

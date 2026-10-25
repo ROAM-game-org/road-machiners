@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { GARAGE_ONLY, goodRoutesTitle, marketHint, pressureHint, showsRelief, townPageOnOpen, tradeEstimate } from "./town";
+import { GARAGE_ONLY, goodRoutesTitle, marketHint, newsWell, pressureHint, showsRelief, townPageOnOpen, tradeEstimate } from "./town";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF, SHOPS } from "../data/market";
@@ -162,5 +162,65 @@ describe("the front page prose", () => {
       expect(resolve(placeProse(id), "en").length, id).toBeGreaterThan(40);
       expect(resolve(placeProse(id), "ru").length, id).toBeGreaterThan(40);
     }
+  });
+});
+
+class FakeNode {
+  className = "";
+  style = { setProperty: () => {} };
+  children: (FakeNode | string)[] = [];
+  attrs = new Map<string, string>();
+  constructor(readonly tag: string) {}
+  append(...c: (FakeNode | string)[]) {
+    this.children.push(...c);
+  }
+  setAttribute(k: string, v: string) {
+    this.attrs.set(k, v);
+  }
+  addEventListener() {}
+  text(): string {
+    return this.children.map((c) => (typeof c === "string" ? c : c.text())).join("");
+  }
+  all(pred: (n: FakeNode) => boolean): FakeNode[] {
+    const here = pred(this) ? [this] : [];
+    return [...here, ...this.children.flatMap((c) => (typeof c === "string" ? [] : c.all(pred)))];
+  }
+  has(cls: string): boolean {
+    return this.className.split(" ").includes(cls);
+  }
+}
+
+describe("the road news well", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => new FakeNode(tag),
+      createElementNS: (_ns: string, tag: string) => new FakeNode(tag),
+      createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("is absent without news", () => {
+    expect(newsWell(emptyWorld())).toBeNull();
+  });
+
+  it("has a caption, counts crates above one and explains each kind on hover", () => {
+    const w = emptyWorld();
+    w.turn = 100;
+    w.roadNews = [
+      { turn: 90, kind: "robbed", good: "rations", units: 2, from: "granary", to: "bowl" },
+      { turn: 90, kind: "knockedOut", good: "grain", units: 1, from: "bowl", to: "granary" },
+      { turn: 90, kind: "destroyed", good: "salt", units: 1, from: "bowl", to: "granary" },
+    ];
+    const well = newsWell(w) as unknown as FakeNode;
+    expect(well.all((n) => n.has("news-head")).map((n) => n.text())).toEqual(["Road news"]);
+    const rows = well.all((n) => n.has("news-row")).reverse();
+    const counts = rows.map((r) => r.all((n) => n.has("recipe-good"))[0].all((n) => n.has("num")).map((n) => n.text())[0] ?? null);
+    expect(counts).toEqual(["2", null, null]);
+    expect(rows.map((r) => r.attrs.get("title"))).toEqual([
+      expect.stringContaining("it was robbed"),
+      expect.stringContaining("knocked out"),
+      expect.stringContaining("destroyed"),
+    ]);
   });
 });
