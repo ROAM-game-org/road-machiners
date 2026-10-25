@@ -128,6 +128,7 @@ export const TALK = {
   'line.notGoing': 'No.',
   'line.driveIntoTheLight': "Good. Drive in, all the way, where it's brightest. We'll stay right behind you.",
   'line.givenBySky': 'Given by the sky!',
+  'line.wordBroken': "Stranger. You said you'd drive into the light. Now you've turned away. Easy now. We'll bring you in ourselves.",
   'line.askAboutTheCrater': "What's out at the crater at night?",
   'line.carsDraggedIntoTheDark': "My cousin camped by the rim one night. In the morning we found his tracks and a furrow where his truck had been dragged. We never found him.",
   'line.crowdAtTheCraterAgain': "Quiet now. I don't see the lamps crossing anymore, and scavengers work the rim all night. The green glow's still down there. I've seen people come back sick from it. Keep clear.",

@@ -29,18 +29,27 @@ import { reportIncident } from './relations';
 
 export type ThreatAnswer = DecisionOptions['threatened'];
 
+export function endFight(world: World, a: Vehicle, b: Vehicle): void {
+  forEachOpposed(world, a, b, (p, q) => {
+    endBetween(world, 'feud', p, q);
+    endBetween(world, 'combat', p, q);
+    holdFire(p, q);
+    holdFire(q, p);
+  });
+}
+
 export function makePeace(world: World, a: Vehicle, b: Vehicle): void {
+  endFight(world, a, b);
+  forEachOpposed(world, a, b, (p, q) => {
+    addState(world, 'truce', p.id, q.id, { kind: 'none' });
+    addState(world, 'truce', q.id, p.id, { kind: 'none' });
+  });
+}
+
+function forEachOpposed(world: World, a: Vehicle, b: Vehicle, act: (p: Vehicle, q: Vehicle) => void): void {
   const theirs = fightSide(world, b);
   for (const p of fightSide(world, a)) {
-    for (const q of theirs) {
-      if (p.id === q.id) continue;
-      endBetween(world, 'feud', p, q);
-      endBetween(world, 'combat', p, q);
-      addState(world, 'truce', p.id, q.id, { kind: 'none' });
-      addState(world, 'truce', q.id, p.id, { kind: 'none' });
-      holdFire(p, q);
-      holdFire(q, p);
-    }
+    for (const q of theirs) if (p.id !== q.id) act(p, q);
   }
 }
 
@@ -96,7 +105,7 @@ export function abandonSpill(world: World, loser: Vehicle, winner: Vehicle, stoc
 
 function cede(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock | null, reason: GoalReason): void {
   makePeace(world, loser, winner);
-  endFight(world, loser, winner);
+  endCombat(world, loser, winner);
   const grudge = stateOf(world, 'revenge', winner.id, loser.id);
   if (grudge) endState(world, grudge, 'fulfilled');
   if (stock && winner.brain) goTake(world, winner, stock, [loser.id], reason);
@@ -127,7 +136,7 @@ export function standDownTo(world: World, loser: Vehicle, winner: Vehicle): void
   if (grudge) endState(world, grudge, 'fulfilled');
 }
 
-function endFight(world: World, a: Vehicle, b: Vehicle): void {
+function endCombat(world: World, a: Vehicle, b: Vehicle): void {
   for (const [p, q] of [[a, b], [b, a]]) {
     const fight = stateOf(world, 'combat', p.id, q.id);
     if (fight) endState(world, fight, 'broken');
