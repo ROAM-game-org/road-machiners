@@ -1,5 +1,5 @@
 import { VIEW } from '../data/view';
-import type { Octant } from '../sim/types';
+import type { Cardinal, Octant } from '../sim/types';
 
 export const OCTANT_ORDER: readonly Octant[] = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'];
 
@@ -27,4 +27,14 @@ export function compassOfMap(octant: Octant): Octant {
   const index = OCTANT_ORDER.indexOf(octant);
   if (index < 0) throw new Error(`Unknown octant ${octant}`);
   return OCTANT_ORDER[wrap(index + TURN)];
+}
+
+export type Diagonal = 'northEast' | 'southEast' | 'southWest' | 'northWest';
+
+const DIAGONALS: readonly Octant[] = ['northEast', 'southEast', 'southWest', 'northWest'];
+
+export function compassOfCardinal(cardinal: Cardinal): Diagonal {
+  const octant = compassOfMap(cardinal);
+  if (!DIAGONALS.includes(octant)) throw new Error(`The map ${cardinal} reads as ${octant}, which has no gate or lean words`);
+  return octant as Diagonal;
 }
