@@ -171,6 +171,17 @@ describe('dockerContainer', () => {
     expect(plain).not.toContain('--advisor');
   });
 
+  it('sets the subagent model only when a stage names one', async () => {
+    const { run, calls } = fakeRun();
+    await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'p', log: '/l.log', subagentModel: 'sonnet' });
+    await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'p', log: '/l.log' });
+    const [named, plain] = calls.filter((call) => call.args.includes('--model'));
+    expect(named.opts?.env?.CLAUDE_CODE_SUBAGENT_MODEL).toBe('sonnet');
+    expect(named.args).toContain('CLAUDE_CODE_SUBAGENT_MODEL');
+    expect(plain.opts?.env).not.toHaveProperty('CLAUDE_CODE_SUBAGENT_MODEL');
+    expect(plain.args).not.toContain('CLAUDE_CODE_SUBAGENT_MODEL');
+  });
+
   it('passes disallowed tools only when a stage names them', async () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'sonnet', prompt: 'p', log: '/l.log', disallowedTools: ['Agent'] });

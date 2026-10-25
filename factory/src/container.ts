@@ -205,8 +205,11 @@ function recordedSession(cfg: FactoryConfig, jobId: string | null, session: Agen
   return { dir, id: randomUUID(), resume: false };
 }
 
-export function agentEnv(cfg: FactoryConfig, publicOutput: boolean): Record<string, string> {
-  const own = { CLAUDE_CODE_OAUTH_TOKEN: cfg.oauthToken, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: String(cfg.agentJobMaxMinutes), CLAUDE_CODE_AUTO_COMPACT_WINDOW: String(cfg.agentCompactWindow) };
+export function agentEnv(cfg: FactoryConfig, publicOutput: boolean, subagentModel?: string): Record<string, string> {
+  const own = {
+    CLAUDE_CODE_OAUTH_TOKEN: cfg.oauthToken, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: String(cfg.agentJobMaxMinutes), CLAUDE_CODE_AUTO_COMPACT_WINDOW: String(cfg.agentCompactWindow),
+    ...(subagentModel === undefined ? {} : { CLAUDE_CODE_SUBAGENT_MODEL: subagentModel }),
+  };
   if (publicOutput) return own;
   return {
     ...own, ELEVENLABS_API_KEY: cfg.elevenlabsKey, SFX_MAX_GENERATIONS: String(cfg.sfxMaxGenerations),
@@ -217,10 +220,10 @@ export function agentEnv(cfg: FactoryConfig, publicOutput: boolean): Record<stri
 
 export function dockerContainer(run: Run, cfg: FactoryConfig, jobId: string | null, cpus: string | null = null, testWorkers: number | null = null): Container {
   return {
-    async agent({ clone, dir, model, prompt, log, openNetwork, mediaDir, readOnly = {}, session: issueSession, skill, effort, disallowedTools, advisor, publicOutput }) {
+    async agent({ clone, dir, model, prompt, log, openNetwork, mediaDir, readOnly = {}, session: issueSession, skill, effort, disallowedTools, advisor, subagentModel, publicOutput }) {
       if (!openNetwork) await ensureProxy(run, cfg);
       const session = recordedSession(cfg, jobId, issueSession);
-      const env = agentEnv(cfg, publicOutput === true);
+      const env = agentEnv(cfg, publicOutput === true, subagentModel);
       const logins = publicOutput === true ? [] : [...codexMount(cfg.home), ...agyMount(cfg.home)];
       const readOnlyArgs = await readOnlyMounts(cfg.home, readOnly);
       const argsFor = (peakDir: string) => [

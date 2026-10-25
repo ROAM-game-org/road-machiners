@@ -180,6 +180,7 @@ The baseline is triage Haiku, design Opus, implementation Sonnet with an Opus ad
 
 - `design-sonnet` runs design on Sonnet.
 - `implementation-opus` runs implementation on Opus. Testing and hardening stay on Sonnet.
+- Design runs its subagents on `FACTORY_BUILD_MODEL` through the Claude CLI's `CLAUDE_CODE_SUBAGENT_MODEL`. Its prompt gives code mapping to Explore subagents and keeps the decisions in the session.
 - The release playtest, candidate and incident agents always run Opus. Triage always runs Haiku. Merge, ad hoc, player answer and waste review agents always run Sonnet.
 - The triage prompt aims for about 20% Opus and 80% Sonnet in measured agent tokens. It is a rule of thumb, never a cap.
 
