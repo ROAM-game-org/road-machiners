@@ -1,7 +1,28 @@
 {
-  "turn": 2605,
-  "states": [
-    { "id": "state8683", "kind": "feud", "holder": "v1392", "other": "player", "born": 2587, "turnsLeft": null, "data": { "kind": "none" } },
-    { "id": "state8699", "kind": "offering", "holder": "player", "other": "v1401", "born": 2598, "turnsLeft": null, "data": { "kind": "offering", "core": { "x": 435.4, "y": 325.7 }, "closest": 26.3 } }
-  ]
+  "player": {
+    "call": {
+      "with": "npc-1",
+      "topic": null,
+      "node": "start",
+      "vars": {
+        "way": {
+          "kind": "directions",
+          "steps": [
+            { "do": "follow", "road": { "kind": "to", "site": "nose" }, "heading": "northEast", "span": "fair" },
+            { "do": "leave", "at": { "kind": "none" }, "octant": "south", "span": "fair" },
+            { "do": "search", "clue": { "kind": "wreck" }, "rough": true }
+          ]
+        }
+      },
+      "line": {
+        "line": "wreckWay",
+        "vars": {
+          "way": {
+            "kind": "directions",
+            "steps": [{ "do": "leave", "at": { "kind": "fork", "nth": 2 }, "octant": "east", "span": "near" }]
+          }
+        }
+      }
+    }
+  }
 }

@@ -3,7 +3,7 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
-import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withShortRoadScenes_90_91, withChaosHighwayIntro_91_92, withPastContracts_92_93, withoutVarga_79_80, withStapleRestock_83_84, withSunward_84_85, withHollowFort_85_86, withOfferedNight_86_87, withFollowHeadings_87_88, withKovacMounts_88_89, withTractorPivot_93_94, withProgressAnchor_65_66, withDutyLegs_59_60, withEncounters_64_65, withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97, withOddFronts_102_103, withoutFetchAndBounty_103_104 } from './save-steps-late';
+import { withBrakeRod_78_79, withCrewsAndHires_76_77, withFactions_70_71, withHattieMet_77_78, withPlannedGroups_73_74, withRunWait_72_73, withHeardCentres_81_82, withShortRoadScenes_90_91, withChaosHighwayIntro_91_92, withPastContracts_92_93, withoutVarga_79_80, withStapleRestock_83_84, withSunward_84_85, withHollowFort_85_86, withOfferedNight_86_87, withFollowHeadings_87_88, withKovacMounts_88_89, withTractorPivot_93_94, withProgressAnchor_65_66, withDutyLegs_59_60, withEncounters_64_65, withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97, withOddFronts_102_103, withoutFetchAndBounty_103_104, withLeanDirections_104_105 } from './save-steps-late';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -751,60 +751,65 @@ const release_25_61 = inOrder([
   withDutyLegs_59_60,
 ]);
 
-export type ReleaseStep = { from: number; to: number; step: Step };
+export type ReleaseStep = { from: number; to: number; step: Step; names: readonly string[] | null };
+
+export type NamedStep = { name: string; step: Step };
 
 export const RELEASE_STEPS: readonly ReleaseStep[] = [
-  { from: 1, to: 6, step: release_1_6 },
-  { from: 6, to: 25, step: release_6_25 },
-  { from: 25, to: 61, step: release_25_61 },
-  { from: 61, to: 62, step: withSceneHubsAtSceneStart_61_62 },
-  { from: 62, to: 63, step: (world) => world },
+  { from: 1, to: 6, step: release_1_6, names: null },
+  { from: 6, to: 25, step: release_6_25, names: null },
+  { from: 25, to: 61, step: release_25_61, names: null },
+  { from: 61, to: 62, step: withSceneHubsAtSceneStart_61_62, names: null },
+  { from: 62, to: 63, step: (world) => world, names: null },
 ];
 
 export const TINY_FROM = 63;
 
-export const TINY_STEPS: readonly Step[] = [
-  withRescueContracts_63_64,
-  withEncounters_64_65,
-  withProgressAnchor_65_66,
-  (world) => world,
-  withoutBearingCall_67_68,
-  withSearches_68_69,
-  withParcelSearches_69_70,
-  withFactions_70_71,
-  withCountableDirections_71_72,
-  withRunWait_72_73,
-  withPlannedGroups_73_74,
-  (world) => world,
-  withClaimRivals_75_76,
-  withCrewsAndHires_76_77,
-  withHattieMet_77_78,
-  withBrakeRod_78_79,
-  withoutVarga_79_80,
-  (world) => world,
-  withHeardCentres_81_82,
-  withShopGoods_82_83,
-  withStapleRestock_83_84,
-  withSunward_84_85,
-  withHollowFort_85_86,
-  withOfferedNight_86_87,
-  withFollowHeadings_87_88,
-  withKovacMounts_88_89,
-  (world) => world, withShortRoadScenes_90_91, withChaosHighwayIntro_91_92,
-  withPastContracts_92_93,
-  withTractorPivot_93_94,
-  withStandardPaint_94_95, withThreeColorPaint_95_96, withMutedPaint_96_97,
-  withStrandedAnchors_97_98,
-  (world) => world,
-  (world) => world,
-  withoutPricedHaulCalls_100_101,
-  withCrimes_101_102,
-  withOddFronts_102_103,
-  withoutFetchAndBounty_103_104,
-  withOfferingsRedated_104_105,
+export const TINY_STEPS: readonly NamedStep[] = [
+  { name: 'withRescueContracts', step: withRescueContracts_63_64 },
+  { name: 'withEncounters', step: withEncounters_64_65 },
+  { name: 'withProgressAnchor', step: withProgressAnchor_65_66 },
+  { name: 'marksDisarmOrder', step: (world) => world },
+  { name: 'withoutBearingCall', step: withoutBearingCall_67_68 },
+  { name: 'withSearches', step: withSearches_68_69 },
+  { name: 'withParcelSearches', step: withParcelSearches_69_70 },
+  { name: 'withFactions', step: withFactions_70_71 },
+  { name: 'withCountableDirections', step: withCountableDirections_71_72 },
+  { name: 'withRunWait', step: withRunWait_72_73 },
+  { name: 'withPlannedGroups', step: withPlannedGroups_73_74 },
+  { name: 'marksSurveyContracts', step: (world) => world },
+  { name: 'withClaimRivals', step: withClaimRivals_75_76 },
+  { name: 'withCrewsAndHires', step: withCrewsAndHires_76_77 },
+  { name: 'withHattieMet', step: withHattieMet_77_78 },
+  { name: 'withBrakeRod', step: withBrakeRod_78_79 },
+  { name: 'withoutVarga', step: withoutVarga_79_80 },
+  { name: 'marksShipRelics', step: (world) => world },
+  { name: 'withHeardCentres', step: withHeardCentres_81_82 },
+  { name: 'withShopGoods', step: withShopGoods_82_83 },
+  { name: 'withStapleRestock', step: withStapleRestock_83_84 },
+  { name: 'withSunward', step: withSunward_84_85 },
+  { name: 'withHollowFort', step: withHollowFort_85_86 },
+  { name: 'withOfferedNight', step: withOfferedNight_86_87 },
+  { name: 'withFollowHeadings', step: withFollowHeadings_87_88 },
+  { name: 'withKovacMounts', step: withKovacMounts_88_89 },
+  { name: 'marksLookOver', step: (world) => world }, { name: 'withShortRoadScenes', step: withShortRoadScenes_90_91 }, { name: 'withChaosHighwayIntro', step: withChaosHighwayIntro_91_92 },
+  { name: 'withPastContracts', step: withPastContracts_92_93 },
+  { name: 'withTractorPivot', step: withTractorPivot_93_94 },
+  { name: 'withStandardPaint', step: withStandardPaint_94_95 }, { name: 'withThreeColorPaint', step: withThreeColorPaint_95_96 }, { name: 'withMutedPaint', step: withMutedPaint_96_97 },
+  { name: 'withStrandedAnchors', step: withStrandedAnchors_97_98 },
+  { name: 'marksHelpRefused', step: (world) => world },
+  { name: 'marksFirstAid', step: (world) => world },
+  { name: 'withoutPricedHaulCalls', step: withoutPricedHaulCalls_100_101 },
+  { name: 'withCrimes', step: withCrimes_101_102 },
+  { name: 'withOddFronts', step: withOddFronts_102_103 },
+  { name: 'withoutFetchAndBounty', step: withoutFetchAndBounty_103_104 },
+  { name: 'withLeanDirections', step: withLeanDirections_104_105 },
+  { name: 'marksFailedContract', step: (world) => world },
+  { name: 'marksEmbezzlement', step: (world) => world },
+  { name: 'withOfferingsRedated', step: withOfferingsRedated_107_108 },
 ];
 
-function withOfferingsRedated_104_105(world: SavedJson): SavedJson {
+function withOfferingsRedated_107_108(world: SavedJson): SavedJson {
   const redate = (s: SavedJson): SavedJson => (s.kind === 'offering' ? { ...s, born: world.turn } : s);
   return { ...world, states: (world.states as SavedJson[]).map(redate) };
 }

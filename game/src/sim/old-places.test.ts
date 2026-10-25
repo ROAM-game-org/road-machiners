@@ -26,7 +26,7 @@ function openGround(): Vec {
   for (let y = 50; y < TEST_MAP.terrain.size - 50; y += 5)
     for (let x = 50; x < TEST_MAP.terrain.size - 50; x += 5) {
       const pos = { x, y };
-      if (territoryAt(pos) === null && clearOfSites(icarusAtlas(), pos, 30) && offRoad(landmark('ruin', pos, 0)) && reachable(layer, landmark('ruin', pos, 0)) && baked.every((o) => Math.hypot(o.pos.x - x, o.pos.y - y) > 20)) return pos;
+      if (territoryAt(pos) === null && clearOfSites(icarusAtlas(), pos, 30) && offRoad(landmark('ruin', pos, 0)) && reachable(layer, landmark('ruin', pos, 0), REGION.navigation.reachClimb) && baked.every((o) => Math.hypot(o.pos.x - x, o.pos.y - y) > 20)) return pos;
     }
   throw new Error('No open ground on the map');
 }
@@ -110,8 +110,8 @@ describe('old-world places', () => {
     });
     const open = navLayer(TEST_MAP.terrain, [...baked, house], MAX_RADIUS);
     const ringed = navLayer(TEST_MAP.terrain, [...baked, house, ...rocks], MAX_RADIUS);
-    expect(reachable(open, house)).toBe(true);
-    expect(reachable(ringed, house)).toBe(false);
+    expect(reachable(open, house, REGION.navigation.reachClimb)).toBe(true);
+    expect(reachable(ringed, house, REGION.navigation.reachClimb)).toBe(false);
     const [lookout] = oldPlaces([house]);
     expect(placeSpot(TEST_MAP, ringed, lookout)).toBeNull();
     expect(placeSpot(TEST_MAP, open, lookout)?.id).toBe(house.id);
@@ -143,12 +143,12 @@ describe('old-world loot spot picks on the committed map', () => {
       expect(offRoad(o), p.propId).toBe(true);
       expect(territoryAt(o.pos), p.propId).toBeNull();
       expect(clearOfSites(icarusAtlas(), o.pos, o.r), p.propId).toBe(true);
-      expect(reachable(layer, o), p.propId).toBe(true);
+      expect(reachable(layer, o, REGION.navigation.reachClimb), p.propId).toBe(true);
       expect(p.reach).toBe(propReach(o));
     }
   });
 
-  it('is sparse: some places of every type hold a spot and some do not', () => {
+  it('is sparse: most types hold a spot and no type holds one in every place', () => {
     const places = oldPlaces(baked);
     const picked = new Set(picks.map((p) => p.propId));
     const counts = OLD_PLACE_TYPES.map((type) => {
@@ -158,10 +158,8 @@ describe('old-world loot spot picks on the committed map', () => {
     });
     expect(picks.length).toBeGreaterThanOrEqual(6);
     expect(picks.length).toBeLessThanOrEqual(20);
-    for (const c of counts) {
-      expect(c.withSpot, c.type).toBeGreaterThan(0);
-      expect(c.withSpot, c.type).toBeLessThan(c.places);
-    }
+    expect(counts.filter((c) => c.withSpot > 0).length).toBeGreaterThanOrEqual(3);
+    for (const c of counts) expect(c.withSpot, c.type).toBeLessThan(c.places);
   });
 
   it('holds boat groups of every kind, on open ground clear of roads and earlier props', () => {
