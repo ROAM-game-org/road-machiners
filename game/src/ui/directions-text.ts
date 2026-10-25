@@ -1,6 +1,7 @@
 import type { Cue, DirectionStep, RoadName, Span } from '../sim/types';
 import { concat, SPACE, t, type Msg } from '../text/msg';
 import { compassName, propName, siteName, siteSign } from '../text/names';
+import { compassOfCardinal } from '../text/compass';
 
 type CueMode = 'turn' | 'leave';
 
@@ -47,7 +48,7 @@ type Leave = Extract<DirectionStep, { do: 'leave' }>;
 
 function leaveText(step: Leave): Msg {
   const words = { at: cueText(step.at, 'leave'), octant: compassName(step.octant), span: spanText(step.span) };
-  return step.lean === null ? t('way.leave', words) : t('way.leaveLean', { ...words, lean: t(`way.lean.${step.lean}`) });
+  return step.lean === null ? t('way.leave', words) : t('way.leaveLean', { ...words, lean: t(`way.lean.${compassOfCardinal(step.lean)}`) });
 }
 
 function stepText(step: DirectionStep, next: DirectionStep | undefined, target: string | null, previous: Span | null): Msg[] {
@@ -60,7 +61,7 @@ function stepText(step: DirectionStep, next: DirectionStep | undefined, target: 
       return [sentence, ...haulAfter(step.span, previous)];
     }
     case 'arrive': return [t(step.area ? 'way.arriveArea' : 'way.arrive')];
-    case 'gate': return [t(`way.gate.${step.side}`)];
+    case 'gate': return [t(`way.gate.${compassOfCardinal(step.side)}`)];
     case 'leave': return [leaveText(step)];
     case 'straight': return [t('way.straight', { octant: compassName(step.octant), span: spanText(step.span) })];
     case 'search': return [step.clue.kind === 'site' ? t('way.search.site', { sign: siteSign(step.clue.id) }) : t('way.search.rough')];

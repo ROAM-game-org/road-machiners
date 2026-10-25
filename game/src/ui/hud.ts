@@ -11,7 +11,7 @@ import type { CrimeCase, Vehicle, World } from "../sim/types";
 import { openCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
-import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
+import { bottomLeft, disabledWith, el, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
   claimRivalMark,
@@ -130,7 +130,6 @@ type HudActions = {
   aimState: (vehicleId: string) => AimState;
 };
 export type CardAction = 'mark' | 'lookOver';
-export type CameraMode = "centered" | "auto";
 
 const TOAST_MS = 3500;
 const CONDITION_ROWS = 12;
@@ -205,9 +204,7 @@ export class Hud {
   private truckStack = el("div", { class: "truck-stack", "data-drawer-frame": "truck" });
   private stranded = panel("stranded notice", this.truckStack);
   private recenter = panel("recenter", bottomLeft());
-  private cameraSwitch = panel("camera-mode", topRight());
   private tips = new Tips(window.localStorage, topCenter(), () => this.toast(t("hud.tipsOff")));
-  cameraMode: CameraMode = "auto";
   private readonly drawers = new Drawers(uiRoot(), () => this.drawerMoved());
   private toastTimer: number | null = null;
 
@@ -312,10 +309,6 @@ export class Hud {
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
     this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
-    this.showCameraMode();
-    window.addEventListener("keydown", (e) => {
-      if (e.code === "KeyV" && !isBrowserChord(e) && !document.activeElement?.matches("input, select, textarea")) this.toggleCameraMode();
-    });
     const feedbackMenu = el("details", {});
     const feedbackEntry = (kind: FeedbackKind, text: Msg) =>
       el(
@@ -345,30 +338,8 @@ export class Hud {
     });
   }
 
-  toggleCameraMode(): void {
-    this.cameraMode = this.cameraMode === "auto" ? "centered" : "auto";
-    this.showCameraMode();
-  }
-
-  cameraModeLabel(): Msg {
-    return this.cameraMode === "auto" ? t("hud.camAuto") : t("hud.camCentered");
-  }
-
   openFeedback(): void {
     this.feedbackForm.open("bug");
-  }
-
-  private showCameraMode(): void {
-    this.cameraSwitch.replaceChildren(
-      createSwitch({
-        on: t("hud.camAuto"),
-        off: t("hud.camCentered"),
-        checked: this.cameraMode === "auto",
-        key: "V",
-        title: t("hud.camTitle"),
-        onclick: () => this.toggleCameraMode(),
-      }),
-    );
   }
 
   showRecenter(on: boolean): void {

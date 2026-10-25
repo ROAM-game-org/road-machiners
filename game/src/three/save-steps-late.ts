@@ -186,6 +186,68 @@ export function withHollowFort_85_86(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
 }
 
+const FORT_BAYS_104 = [
+  { x: 284.053, y: 243.604 }, { x: 280.429, y: 250.736 }, { x: 281.2, y: 242.155 }, { x: 277.576, y: 249.287 }, { x: 278.346, y: 240.705 }, { x: 274.723, y: 247.838 },
+  { x: 275.493, y: 239.256 }, { x: 271.87, y: 246.389 }, { x: 272.64, y: 237.807 }, { x: 269.017, y: 244.94 }, { x: 269.787, y: 236.358 },
+];
+const MOVED_BAYS_105 = [
+  { x: 304.658, y: 507.965 }, { x: 311.257, y: 512.487 }, { x: 302.849, y: 510.604 }, { x: 309.448, y: 515.127 }, { x: 301.04, y: 513.244 }, { x: 307.639, y: 517.766 },
+  { x: 299.231, y: 515.884 }, { x: 305.83, y: 520.406 }, { x: 297.422, y: 518.523 }, { x: 304.021, y: 523.046 }, { x: 295.613, y: 521.163 },
+];
+const BAY_MATCH_105 = 0.01;
+const HOLLOW_ID_105 = 'sunward-hollow';
+
+function oldBayAt_107_108(at: { x: number; y: number }): number {
+  return FORT_BAYS_104.findIndex((b) => Math.hypot(b.x - at.x, b.y - at.y) <= BAY_MATCH_105);
+}
+
+export function withMovedHollow_107_108(world: SavedJson): SavedJson {
+  const rehome = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (v.faction !== 'sunward' || !brain) return v;
+    const home = brain.home as { x: number; y: number };
+    const bay = oldBayAt_107_108(home);
+    if (bay < 0) throw new Error(`Sunward car ${String(v.id)} calls ${home.x}, ${home.y} home, which is no bay of the Hollow before it moved`);
+    const goals = (brain.goals as SavedJson[]).map((g) => {
+      const at = g.destination as { x: number; y: number } | null;
+      const goalBay = at ? oldBayAt_107_108(at) : -1;
+      return goalBay < 0 ? g : { ...g, destination: { ...MOVED_BAYS_105[goalBay] } };
+    });
+    const kept = Object.fromEntries(Object.entries(v).filter(([key]) => key !== 'farRoute'));
+    return { ...kept, brain: { ...brain, home: { ...MOVED_BAYS_105[bay] }, goals } };
+  };
+  const player = world.player as SavedJson;
+  const discovered = (player.discovered as string[]).filter((id) => id !== HOLLOW_ID_105);
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome), player: { ...player, discovered } };
+}
+
+const LAAGER_BAYS_109 = [
+  { x: 311.635, y: 504.26 }, { x: 310.391, y: 506.074 }, { x: 314.681, y: 509.014 }, { x: 309.148, y: 507.889 }, { x: 313.437, y: 510.829 }, { x: 307.904, y: 509.704 },
+  { x: 312.193, y: 512.644 }, { x: 306.66, y: 511.519 }, { x: 310.95, y: 514.458 }, { x: 305.417, y: 513.333 }, { x: 309.706, y: 516.273 },
+];
+
+function movedBayAt_108_109(at: { x: number; y: number }): number {
+  return MOVED_BAYS_105.findIndex((b) => Math.hypot(b.x - at.x, b.y - at.y) <= BAY_MATCH_105);
+}
+
+export function withHollowLaager_108_109(world: SavedJson): SavedJson {
+  const rehome = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (v.faction !== 'sunward' || !brain) return v;
+    const home = brain.home as { x: number; y: number };
+    const bay = movedBayAt_108_109(home);
+    if (bay < 0) throw new Error(`Sunward car ${String(v.id)} calls ${home.x}, ${home.y} home, which is no bay of the Hollow before its laager`);
+    const goals = (brain.goals as SavedJson[]).map((g) => {
+      const at = g.destination as { x: number; y: number } | null;
+      const goalBay = at ? movedBayAt_108_109(at) : -1;
+      return goalBay < 0 ? g : { ...g, destination: { ...LAAGER_BAYS_109[goalBay] } };
+    });
+    const kept = Object.fromEntries(Object.entries(v).filter(([key]) => key !== 'farRoute'));
+    return { ...kept, brain: { ...brain, home: { ...LAAGER_BAYS_109[bay] }, goals } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
+}
+
 export function withOfferedNight_86_87(world: SavedJson): SavedJson {
   const sunward = world.sunward as SavedJson | null;
   const night = sunward?.night as SavedJson | null | undefined;
@@ -497,11 +559,11 @@ export function withLeanDirections_104_105(world: SavedJson): SavedJson {
   return { ...world, player: { ...player, call: next } };
 }
 
-export function withRefitQueues_107_108(world: SavedJson): SavedJson {
-  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withRefitQueue_107_108) };
+export function withRefitQueues_109_110(world: SavedJson): SavedJson {
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withRefitQueue_109_110) };
 }
 
-function withRefitQueue_107_108(v: SavedJson): SavedJson {
+function withRefitQueue_109_110(v: SavedJson): SavedJson {
   const job = v.job as SavedJson | null;
   if (job?.kind !== 'refit' || Array.isArray(job.queue)) return v;
   return { ...v, job: { ...job, queue: [] } };

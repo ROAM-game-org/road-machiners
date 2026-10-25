@@ -1,26 +1,144 @@
 {
+  "turn": 900,
+  "player": {
+    "discovered": [
+      "bowl",
+      "sunward-hollow",
+      "nose"
+    ],
+    "money": 777
+  },
   "vehicles": [
     {
-      "id": "v-player",
-      "job": {
-        "kind": "refit",
-        "moves": [],
-        "pickup": { "from": "truck", "vehicleId": "v-raider", "partId": "p-slug", "itemId": "i-new", "to": { "x": 1, "y": 4, "rot": 0 } },
-        "turnsLeft": 4,
-        "total": 7
+      "id": "v1",
+      "faction": "player",
+      "brain": null,
+      "pos": {
+        "x": 10,
+        "y": 10
       }
     },
     {
-      "id": "v-looter",
-      "job": {
-        "kind": "refit",
-        "moves": [{ "itemId": "i-mg", "from": { "x": 0, "y": 0, "rot": 0 }, "to": { "x": 0, "y": 5, "rot": 1 } }],
-        "pickup": null,
-        "turnsLeft": 2,
-        "total": 5
+      "id": "v31",
+      "faction": "sunward",
+      "pos": {
+        "x": 284.053,
+        "y": 243.604
+      },
+      "brain": {
+        "templateId": "cavalcade",
+        "home": {
+          "x": 284.053,
+          "y": 243.604
+        },
+        "goals": [
+          {
+            "kind": "wait",
+            "targetId": null,
+            "destination": {
+              "x": 284.053,
+              "y": 243.604
+            },
+            "phase": "act",
+            "reason": "restHollow"
+          }
+        ]
       }
     },
-    { "id": "v-searcher", "job": { "kind": "search", "stockId": "wreck-3", "turnsLeft": 3, "total": 6 } },
-    { "id": "v-raider", "job": null }
+    {
+      "id": "v32",
+      "faction": "sunward",
+      "pos": {
+        "x": 300,
+        "y": 260
+      },
+      "farRoute": {
+        "dest": {
+          "x": 269.787,
+          "y": 236.358
+        },
+        "points": [
+          {
+            "x": 290,
+            "y": 250
+          },
+          {
+            "x": 269.787,
+            "y": 236.358
+          }
+        ],
+        "offRoad": true
+      },
+      "brain": {
+        "templateId": "cavalcade",
+        "home": {
+          "x": 269.787,
+          "y": 236.358
+        },
+        "goals": [
+          {
+            "kind": "explore",
+            "targetId": null,
+            "destination": {
+              "x": 269.787,
+              "y": 236.358
+            },
+            "phase": "travel",
+            "reason": "rideHome"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v33",
+      "faction": "sunward",
+      "pos": {
+        "x": 340,
+        "y": 300
+      },
+      "brain": {
+        "templateId": "hunter",
+        "home": {
+          "x": 281.2,
+          "y": 242.155
+        },
+        "goals": [
+          {
+            "kind": "prowl",
+            "targetId": "a",
+            "destination": {
+              "x": 350,
+              "y": 320
+            },
+            "phase": "travel",
+            "reason": "huntRoad"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v50",
+      "faction": "independent",
+      "pos": {
+        "x": 200,
+        "y": 200
+      },
+      "farRoute": {
+        "dest": {
+          "x": 1,
+          "y": 1
+        },
+        "points": [],
+        "offRoad": false
+      },
+      "brain": {
+        "templateId": "trader",
+        "home": {
+          "x": 20,
+          "y": 20
+        },
+        "goals": []
+      }
+    }
   ]
 }

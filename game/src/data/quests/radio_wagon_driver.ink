@@ -22,5 +22,5 @@ Not much more to tell, and I'm short of daylight. Ask fast. # speaker: Driver # 
   }
   -> ask
 + [Over and out.]
-  Over and out. Keep to the high ground. The hollows hide more than they show. # speaker: Driver
+  Over and out. Keep to the high ground. # speaker: Driver
   -> END
