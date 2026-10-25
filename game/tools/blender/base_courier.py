@@ -36,6 +36,7 @@ import bpy
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, Vec3, parse_args, round_sides  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, Grid, check_base, cut_boxes, level_sockets, surface_z  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from shapes import loft, prism, strut, taper  # noqa: E402
 
 SEED = 303
@@ -133,7 +134,7 @@ def lid_half(x: float) -> float:
 def section(top: float, top_half: float, base_half: float, base: float) -> list[tuple[float, float]]:
     """A rounded cross-section as Y and Z: up from base at base_half, leaning in to the shoulder, over a low dome to top."""
     h = top - base
-    right = [(base_half, base), (base_half - 0.55 * (base_half - top_half), base + 0.8 * h), (top_half, top - 0.03), (0.5 * top_half, top - 0.008)]
+    right = [(base_half, base), (base_half - 0.55 * (base_half - top_half), base + 0.8 * h), (top_half, max(base + 0.004, top - 0.03)), (0.5 * top_half, max(base + 0.004, top - 0.008))]
     return right + [(0.0, top)] + [(-y, z) for y, z in reversed(right)]
 
 
@@ -198,7 +199,7 @@ def pane(kit: Kit, name: str, outer: list[Vec3], inner: list[Vec3], mat: str) ->
 def tub(kit: Kit) -> None:
     """The dark core from the nose to the tail and the wide painted doors between the fenders, rolled in at the belt and the sill."""
     prism(kit, "core_front", [(0.86, PAN), (1.9, PAN), (1.9, SHELF), (0.86, SHELF)], -0.34, 0.34, "under")
-    prism(kit, "core_mid", [(-0.86, PAN), (0.86, PAN), (0.86, BELT), (-0.86, BELT)], -0.54, 0.54, "under")
+    prism(kit, "core_mid", [(-0.86, PAN), (0.86, PAN), (0.86, BELT - PROUD), (-0.86, BELT - PROUD)], -0.54, 0.54, "under")
     prism(kit, "core_back", [(-1.66, PAN + 0.05), (-0.86, PAN), (-0.86, SHELF), (-1.66, SHELF)], -0.54, 0.54, "under")
 
     def door(half: float) -> list[tuple[float, float]]:
@@ -208,7 +209,7 @@ def tub(kit: Kit) -> None:
     stations = [(0.86, 0.62), (0.76, DOOR), (-0.76, DOOR), (-0.86, 0.62)]
     loft(kit, "doors", [at_x(x, door(half)) for x, half in stations], "paint")
     mirrored(kit, "board", (1.44, BOARD_OUT - FENDER_IN, 0.04), 0.0, (BOARD_OUT + FENDER_IN) / 2, BOARD_TOP - 0.02, "under")
-    prism(kit, "apron", [(1.78, PAN), (1.94, PAN), (1.96, -0.38), (1.9, SHELF), (1.78, SHELF)], -0.33, 0.33, "paint")
+    prism(kit, "apron", [(1.78, PAN), (1.94, PAN), (1.96, -0.38), (1.9, SHELF + PROUD), (1.78, SHELF + PROUD)], -0.33, 0.33, "paint")
 
 
 def front_lid(kit: Kit) -> None:
@@ -226,6 +227,7 @@ def front_lid(kit: Kit) -> None:
     lid.data.materials.append(kit._materials["paint"])
     kit.box("bay_floor", (BAY[1] - BAY[0], 2 * BAY_HALF, 0.03), ((BAY[0] + BAY[1]) / 2, 0.0, FLOOR - 0.015), "under")
     ridge_x = [x1 + 0.04] + [x for x, _, _ in LID if x > x1 + 0.1]
+    ridge_x[-1] -= PROUD
     loft(kit, "ridge", [[(x, 0.03, lid_z(x) - 0.01), (x, 0.0, lid_z(x) + 0.022), (x, -0.03, lid_z(x) - 0.01)] for x in ridge_x], "paint")
     kit.box("handle", (0.05, 0.1, 0.06), (1.86, 0.0, lid_z(1.86)), "chrome")
 
@@ -237,7 +239,7 @@ def loft_obj(kit: Kit, name: str, sections: list[list[Vec3]], mat: str) -> bpy.t
 
 def greenhouse(kit: Kit) -> None:
     """The cabin leaning in over the belt, the back shell down the clean slope to the lid cut, and the trim roof panel over the dome."""
-    cabin_x = [COWL_X, 0.55, SCREEN_TOP, 0.33, 0.15, -0.1, -0.3, SLOPE_X, -0.56, -0.64]
+    cabin_x = [COWL_X, 0.55, SCREEN_TOP, 0.33, 0.15, -0.1, -0.3, SLOPE_X]
     loft(kit, "cabin", [at_x(x, cabin_section(x)) for x in cabin_x], "paint")
     back_x = [SLOPE_X, -0.54, -0.6, -0.66, -0.72, -0.9, -1.2, -1.4, DECK_BACK, -1.64, LID_CUT_X]
     loft(kit, "back", [at_x(x, back_section(x)) for x in back_x], "paint")
