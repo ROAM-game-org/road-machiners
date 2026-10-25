@@ -44,19 +44,19 @@ function mark(root: HTMLElement, mode: InputMode): void {
   shown = mode;
 }
 
-export function watchInputMode(root: HTMLElement, size: UiSize): InputMode {
+export function watchInputMode(roots: HTMLElement[], size: UiSize): InputMode {
   const coarse = window.matchMedia(COARSE_QUERY);
   const current = (): InputMode => {
     const layer = size.layerSize();
     return layer.width > 0 && layer.height > 0 ? inputModeOf(coarse.matches, layer) : shown;
   };
   const apply = (): void => {
-    mark(root, current());
+    for (const root of roots) mark(root, current());
     for (const fn of listeners) fn(shown);
   };
   coarse.addEventListener("change", apply);
   size.subscribe(apply);
-  mark(root, current());
+  for (const root of roots) mark(root, current());
   return shown;
 }
 
