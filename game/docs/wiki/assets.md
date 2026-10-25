@@ -144,6 +144,7 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | cannon-fire | sfx | false | 0.9 | 3 | 1 |
 | gun-empty | sfx | false | 0.8 | 3 | 1 |
 | hit-metal | sfx | false | 0.55 | 6 | 3 |
+| hit-part | sfx | false | 0.55 | 6 | 3 |
 | miss | sfx | false | 0.4 | 6 | 3 |
 | part-broken | sfx | false | 0.7 | 2 | 3 |
 | explosion | sfx | false | 1 | 2 | 3 |

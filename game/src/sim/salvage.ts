@@ -6,7 +6,7 @@ import { BREAKABLE, RULES } from '../data/rules';
 import { WRECK_LOOKS } from '../data/territory';
 import { TIME } from '../data/time';
 import { CHASSIS, chassisDef } from '../data/chassis';
-import { partDef } from '../data/parts';
+import { partDef, type PartDef } from '../data/parts';
 import { makePart, newId, partWithId } from './factory';
 import { atlasOf, icarusAtlas, type AtlasKey } from './atlas';
 import { clearOfSites, findRoadWreckSpot, isBreakable, mapObstacles, propReach } from './mapgen';
@@ -343,6 +343,12 @@ export function carriedPart(world: World, vehicleId: string, partId: string): Pa
   const v = world.vehicles.find((x) => x.id === vehicleId) ?? world.removed.find((x) => x.id === vehicleId);
   const wreck = world.salvage.find((s) => s.id === wreckStockId(vehicleId));
   return (v && mountedParts(v).find((x) => x.id === partId)) ?? wreck?.parts.find((x) => x.id === partId);
+}
+
+export function carriedPartDef(world: World, vehicleId: string, partId: string): PartDef {
+  const p = carriedPart(world, vehicleId, partId);
+  if (!p) throw new Error(`Round hit part ${partId}, which ${vehicleId} does not carry`);
+  return partDef(p.defId);
 }
 
 export function createWreckSalvage(world: World, vehicle: Vehicle): void {
