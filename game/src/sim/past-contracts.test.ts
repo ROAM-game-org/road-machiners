@@ -3,7 +3,7 @@ import { CONTRACTS } from '../data/market';
 import { escortShare } from './escort-job';
 import { stowParcel } from './inventory';
 import { playerVehicle } from './damage';
-import { finishContract, goodValue, haulPenalty, type Contract } from './market';
+import { finishContract, type Contract } from './market';
 import { emptyWorld } from './testkit';
 import type { GameEvent, World } from './types';
 import { update } from './world';
@@ -34,13 +34,13 @@ describe('past contracts', () => {
     expect(moneyMoved(w.events)).toBe(10000);
   });
 
-  it('records a failed haul with the penalty it charged, as a negative amount', () => {
+  it('records a failed haul with no money moved', () => {
     const w = finished(holding(haul()), haul(), 'failed');
 
     const [record] = w.player.pastContracts;
     expect(record.outcome).toBe('failed');
-    expect(record.amount).toBe(-haulPenalty(haul(), goodValue('salt')));
-    expect(moneyMoved(w.events)).toBe(record.amount);
+    expect(record.amount).toBe(0);
+    expect(moneyMoved(w.events)).toBe(0);
   });
 
   it('records a lapsed search and a claim lost to its rival with no money moved', () => {

@@ -262,6 +262,7 @@ export const NAMES: Translation<typeof EN> = {
   'offense.attacked': 'нападение',
   'offense.robbed': 'ограбление',
   'offense.killed': 'убийство',
+  'offense.embezzled': 'присвоение груза',
   'faction.independent': noun('m', 'одиночка', 'одиночки', 'одиночке', 'одиночку', 'одиночкой', 'одиночке'),
   'band.hostile': 'враждебны',
   'band.unfriendly': 'насторожены',

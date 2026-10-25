@@ -159,6 +159,7 @@ export const TALK = {
   'line.offenseAttacked': "The book says you shot at a driver who'd done nothing to you on the open road, and someone who saw it brought the claim in.",
   'line.offenseRobbed': 'The book names you for robbing a lawful driver on the open road, on the word of someone who saw it.',
   'line.offenseKilled': "Someone who saw it brought the claim to the book: you wrecked and killed a driver you'd already wronged that day.",
+  'line.offenseEmbezzled': 'The book says a shop gave you cargo to carry and you kept it.',
   'line.payTheBook': 'Sending it.',
   'line.notPaying': 'Not paying.',
   'line.bookClosed': 'The page is closed. You can go.',

@@ -262,6 +262,7 @@ export const NAMES = {
   'offense.attacked': 'an attack',
   'offense.robbed': 'a robbery',
   'offense.killed': 'a killing',
+  'offense.embezzled': 'embezzlement',
   'faction.independent': 'Independent',
   'band.hostile': 'hostile',
   'band.unfriendly': 'wary',
