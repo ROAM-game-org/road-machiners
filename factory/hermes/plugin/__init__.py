@@ -662,7 +662,7 @@ def register(ctx) -> None:
     cfg.committee.seed()
     readiness = Readiness(min_words=int(os.environ["FACTORY_ROUTE_MIN_WORDS"]), inbox=cfg.inbox)
     ctx.register_hook("pre_gateway_dispatch", make_hook(cfg, readiness))
-    watch_polling_conflicts(cfg)
+    watch_polling_conflicts(cfg, _schedule_restart)
     ctx.register_telegram_handler(make_public_factory(cfg))
     ctx.register_telegram_handler(make_button_factory(cfg))
     ctx.register_telegram_handler(make_media_factory(cfg, readiness))
