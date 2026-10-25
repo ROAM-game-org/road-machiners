@@ -43,6 +43,7 @@ Writing, in `docs/writing/`:
 Art and sound, in `docs/art/`:
 
 - [Art pipeline](docs/art/models.md): Blender models, the truck grid projection and part model rules.
+- [Asset review](docs/art/asset-review.md): the surface faults a model can have, the commands that find them and the independent review a new model gets.
 - [Landmarks](docs/art/landmarks.md): scale, materials and shapes of the world's places.
 - [Quest art](docs/art/quest-art.md): the style prompt and post-process for quest pictures.
 - [Sound](docs/sound.md).
@@ -142,4 +143,4 @@ Read the project-local skills before related work:
 
 ## Art
 
-Props and truck parts are low-poly models built by Blender scripts in `tools/blender/`. Follow [Art pipeline](docs/art/models.md) to add or change a model. Render a preview, take an in-game screenshot and run `npm run playtest`.
+Props and truck parts are low-poly models built by Blender scripts in `tools/blender/`. Follow [Art pipeline](docs/art/models.md) to add or change a model. Render a preview, take an in-game screenshot and run `npm run playtest`. Check the surface and get an independent review by [Asset review](docs/art/asset-review.md).
