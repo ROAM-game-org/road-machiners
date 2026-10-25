@@ -390,8 +390,12 @@ it('logs a driver joining a fight over the player and a standing band change, re
   const against = eventText(w, { t: 'joins', vehicle: npc.id, against: me.id, victim: victim.id })!;
   expect(en(against.text)).toMatch(/joins the fight$/);
   expect(against.cls).toBe('bad');
-  const wary = eventText(w, { t: 'standing', faction: 'bowl', band: 'unfriendly' })!;
-  expect(en(wary.text)).toBe('Bowl now treats you as wary');
+  const wary = eventText(w, { t: 'standing', faction: 'bowl', band: 'unfriendly', cause: { kind: 'drift', toward: 'up' } })!;
+  expect(en(wary.text)).toBe('Bowl now treats you as wary. Old grudges fade with time.');
   expect(wary.cls).toBe('bad');
-  expect(eventText(w, { t: 'standing', faction: 'guidestar', band: 'friendly' })!.cls).toBe('good');
+  const deed = eventText(w, { t: 'standing', faction: 'bowl', band: 'friendly', cause: { kind: 'deed', deed: 'towed' } })!;
+  expect(en(deed.text)).toBe('Bowl now treats you as friendly. You towed one of their drivers.');
+  expect(deed.cls).toBe('good');
+  const settled = eventText(w, { t: 'standing', faction: 'bowl', band: 'unfriendly', cause: { kind: 'settled' } })!;
+  expect(en(settled.text)).toBe('Bowl now treats you as wary');
 });

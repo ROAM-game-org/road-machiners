@@ -299,6 +299,7 @@ describe('the Marshalls desk', () => {
     closeCase(w, w.crimes[0], 'lapsed');
     settle(w, 'bowl');
     expect(bandOf(w.player.standing.bowl)).toBe('unfriendly');
+    expect(w.events.filter((e) => e.t === 'standing')).toEqual([{ t: 'standing', faction: 'bowl', band: 'unfriendly', cause: { kind: 'settled' } }]);
     expect(w.player.money).toBe(0);
   });
 
