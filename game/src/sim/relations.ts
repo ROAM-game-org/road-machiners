@@ -12,7 +12,7 @@ import { followersOf } from './companies';
 import { recall, remember } from './memory';
 import { modeRules } from './settings';
 import { clockOf } from './sun';
-import type { DeedId, Faction, HelpDeed, MemoryFact, NpcFactionId, StandingFactionId, Vehicle, World, WrongDeed } from './types';
+import type { DeedId, Faction, StandingCause, HelpDeed, MemoryFact, NpcFactionId, StandingFactionId, Vehicle, World, WrongDeed } from './types';
 import { dist } from './vec';
 import { canVehicleSee } from './vision';
 import { noteSunwardDefeat } from './sunward';
@@ -143,10 +143,19 @@ export function standingBands(world: World): StandingRow[] {
   });
 }
 
-export function standingParts(world: World, row: StandingRow): { base: number; deeds: number; earlier: number } {
+export type StandingDeedPart = { deed: DeedId; delta: number };
+
+export function standingParts(world: World, row: StandingRow): { base: number; deeds: StandingDeedPart[]; earlier: number } {
   const base = startStanding()[row.faction];
-  const deeds = world.player.deeds.filter((d) => d.faction === row.faction).reduce((sum, d) => sum + d.delta, 0);
-  return { base, deeds, earlier: row.score - base - deeds };
+  const deeds: StandingDeedPart[] = [];
+  for (const d of world.player.deeds) {
+    if (d.faction !== row.faction) continue;
+    const part = deeds.find((p) => p.deed === d.deed);
+    if (part) part.delta += d.delta;
+    else deeds.push({ deed: d.deed, delta: d.delta });
+  }
+  const recent = deeds.reduce((sum, p) => sum + p.delta, 0);
+  return { base, deeds, earlier: row.score - base - recent };
 }
 
 let joinableCache: Set<NpcFactionId> | null = null;
@@ -266,7 +275,7 @@ function shiftStanding(world: World, subject: string, faction: StandingFactionId
   const delta = allowedDelta(world, faction, STANDING_DELTA[deed]);
   if (delta === 0) return;
   world.player.deeds.push({ subject, faction, deed, delta, turn: world.turn });
-  setStanding(world, faction, world.player.standing[faction] + delta);
+  setStanding(world, faction, world.player.standing[faction] + delta, { kind: 'deed', deed });
 }
 
 function repeats(world: World, subject: string, deed: DeedId): boolean {
@@ -280,16 +289,16 @@ function allowedDelta(world: World, faction: StandingFactionId, delta: number): 
   return Math.max(0, Math.min(delta, STANDING.dailyGainCap - gained));
 }
 
-function setStanding(world: World, faction: StandingFactionId, score: number): void {
+function setStanding(world: World, faction: StandingFactionId, score: number, cause: StandingCause): void {
   const before = bandOf(world.player.standing[faction]);
   world.player.standing[faction] = clamp(Math.round(score), -SCORE_LIMIT, SCORE_LIMIT);
   const band = bandOf(world.player.standing[faction]);
-  if (band !== before) world.events.push({ t: 'standing', faction, band });
+  if (band !== before) world.events.push({ t: 'standing', faction, band, cause });
 }
 
 export function settleStanding(world: World, faction: StandingFactionId): void {
   if (bandOf(world.player.standing[faction]) !== 'hostile') throw new Error(`${faction} does not hold the player hostile, so there is nothing to settle`);
-  setStanding(world, faction, BANDS.hostile + 1);
+  setStanding(world, faction, BANDS.hostile + 1, { kind: 'settled' });
 }
 
 export function driftStanding(world: World): void {
@@ -298,7 +307,7 @@ export function driftStanding(world: World): void {
   for (const id of STANDING_FACTION_IDS) {
     const now = world.player.standing[id];
     const step = clamp(start[id] - now, -STANDING.dailyDrift, STANDING.dailyDrift);
-    if (step !== 0) setStanding(world, id, now + step);
+    if (step !== 0) setStanding(world, id, now + step, { kind: 'drift', toward: step > 0 ? 'up' : 'down' });
   }
   const fresh = world.player.deeds.filter((d) => world.turn - d.turn < DEEDS.repeatTurns);
   if (fresh.length !== world.player.deeds.length) world.player.deeds = fresh;
@@ -319,7 +328,14 @@ function noteWreck(world: World, actor: Vehicle, beaten: Vehicle): void {
 
 function defendedBy(world: World, beaten: Vehicle, actor: Vehicle): Vehicle[] {
   const fought = new Set(world.states.filter((s) => s.kind === 'combat' && s.holder === beaten.id).map((s) => s.other));
-  return world.vehicles.filter((v) => fought.has(v.id) && v.id !== actor.id && stateOf(world, 'combat', v.id, actor.id) === null);
+  return world.vehicles.filter((v) => fought.has(v.id) && v.id !== actor.id && stateOf(world, 'combat', v.id, actor.id) === null && !foughtBack(world, beaten, v));
+}
+
+function foughtBack(world: World, beaten: Vehicle, subject: Vehicle): boolean {
+  if (recall(beaten, 'wronged').some((m) => m.fact.by === subject.id)) return true;
+  const theirs = stateOf(world, 'combat', subject.id, beaten.id);
+  const mine = stateOf(world, 'combat', beaten.id, subject.id);
+  return theirs !== null && mine !== null && theirs.born <= mine.born;
 }
 
 function wrongedBefore(world: World, actor: Vehicle, beaten: Vehicle): boolean {
