@@ -206,7 +206,7 @@ function recordedSession(cfg: FactoryConfig, jobId: string | null, session: Agen
 }
 
 export function agentEnv(cfg: FactoryConfig, publicOutput: boolean): Record<string, string> {
-  const own = { CLAUDE_CODE_OAUTH_TOKEN: cfg.oauthToken, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: String(cfg.agentJobMaxMinutes) };
+  const own = { CLAUDE_CODE_OAUTH_TOKEN: cfg.oauthToken, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: String(cfg.agentJobMaxMinutes), CLAUDE_CODE_AUTO_COMPACT_WINDOW: String(cfg.agentCompactWindow) };
   if (publicOutput) return own;
   return {
     ...own, ELEVENLABS_API_KEY: cfg.elevenlabsKey, SFX_MAX_GENERATIONS: String(cfg.sfxMaxGenerations),

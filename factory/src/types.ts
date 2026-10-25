@@ -52,6 +52,7 @@ export type FactoryConfig = {
   testTimeoutMinutes: number;
   branchTimeoutMinutes: number;
   agentJobMaxMinutes: number;
+  agentCompactWindow: number;
   replyRouteMinutes: number;
   releaseDays: number;
   playtestTurns: number;

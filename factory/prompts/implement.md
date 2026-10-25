@@ -79,6 +79,7 @@ Add the step, its fixture and its test, then run `npm run save:shape`.
 Only a major save bump goes to the committee.
 
 Commit in phases on the current branch.
+Keep your plan progress in the Conclusion of {{taskFile}} as you go, so a context compaction loses nothing.
 Never push.
 
 If the work needs a major save format bump, stop.

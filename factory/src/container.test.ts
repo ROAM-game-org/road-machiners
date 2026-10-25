@@ -10,7 +10,7 @@ type Call = { cmd: string; args: string[]; opts?: RunOptions };
 
 const HOME = resolve('tmp/factory-container-test');
 const tokenPrices: FactoryConfig['tokenPrices'] = { opus: { input: 4, output: 20, cacheRead: 0.2, cacheWrite5m: 5, cacheWrite1h: 8 } };
-const cfg = { image: 'img:1', oauthToken: 'secret-token', elevenlabsKey: 'sound-key', sfxMaxGenerations: 6, agyMaxRuns: 20, agyModel: 'flash', codexModel: 'sol', codexEffort: 'medium', agentJobMaxMinutes: 30, home: HOME, tokenPrices } as FactoryConfig;
+const cfg = { image: 'img:1', oauthToken: 'secret-token', elevenlabsKey: 'sound-key', sfxMaxGenerations: 6, agyMaxRuns: 20, agyModel: 'flash', codexModel: 'sol', codexEffort: 'medium', agentJobMaxMinutes: 30, agentCompactWindow: 200000, home: HOME, tokenPrices } as FactoryConfig;
 
 function writeLogins(): void {
   mkdirSync(`${HOME}/codex`, { recursive: true });
@@ -63,7 +63,7 @@ describe('dockerContainer', () => {
     expect(call.opts?.env).toEqual({
       CLAUDE_CODE_OAUTH_TOKEN: 'secret-token', ELEVENLABS_API_KEY: 'sound-key', SFX_MAX_GENERATIONS: '6', AGY_MAX_RUNS: '20', AGY_MODEL: 'flash',
       CODEX_MODEL: 'sol', CODEX_EFFORT: 'medium',
-      CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: '30',
+      CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: '30', CLAUDE_CODE_AUTO_COMPACT_WINDOW: '200000',
     });
     expect(call.args).toContain(`${HOME}/codex:/home/pwuser/.codex`);
     expect(call.args).toContain(`${HOME}/agy/antigravity-oauth-token:/home/pwuser/.gemini/antigravity-cli/antigravity-oauth-token:ro`);
@@ -77,7 +77,7 @@ describe('dockerContainer', () => {
     expect(call.args).toContain('/w/c:/work');
     expect(call.args).toContain(`${HOME}/npm-cache:/home/pwuser/.npm`);
     expect(call.args.slice(call.args.indexOf('-w'), call.args.indexOf('-w') + 2)).toEqual(['-w', '/work/game']);
-    expect(call.args.filter((a) => a === '-e')).toHaveLength(16);
+    expect(call.args.filter((a) => a === '-e')).toHaveLength(17);
     expect(call.args.slice(call.args.indexOf('img:1'))).toEqual(['img:1', 'bash', '-c', expect.stringMatching(/memory\.peak.*; factory-agent "\$@"$/), 'factory-agent', '-p', '--model', 'opus', '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose']);
   });
 
@@ -85,7 +85,7 @@ describe('dockerContainer', () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'sonnet', prompt: 'p', log: '/l', publicOutput: true });
     const call = runCall(calls);
-    expect(call.opts?.env).toEqual({ CLAUDE_CODE_OAUTH_TOKEN: 'secret-token', CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: '30' });
+    expect(call.opts?.env).toEqual({ CLAUDE_CODE_OAUTH_TOKEN: 'secret-token', CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: '30', CLAUDE_CODE_AUTO_COMPACT_WINDOW: '200000' });
     expect(call.args.join(' ')).not.toContain('/home/pwuser/.codex');
     expect(call.args.join(' ')).not.toContain('antigravity-oauth-token');
   });
