@@ -3,7 +3,7 @@ import { resolveDestroyed } from './combat';
 import { playerVehicle } from './damage';
 import { checkKnockout } from './defeat';
 import { callVehicle, honk, raiseCalls } from './dialogue';
-import { corePart, mountedParts } from './grid';
+import { corePart, gridOf, mountedParts } from './grid';
 import { addGoods, dumpItem } from './inventory';
 import { spillDeadRows } from './spill';
 import { fightCornered, thinkNpc, topGoal } from './npc-activities';
@@ -207,7 +207,8 @@ describe('spilled cargo', () => {
     const me = playerVehicle(w);
     const before = structuredClone(w.salvage);
     const panniers = mountedParts(me, 'cargo')[0];
-    addGoods(w, me, 'salt', 2);
+    me.items = me.items.filter((it) => it.kind !== 'good');
+    addGoods(w, me, 'salt', gridOf(me).w + 1);
     panniers.hp = 0;
 
     spillDeadRows(w);
