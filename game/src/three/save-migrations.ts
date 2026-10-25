@@ -801,7 +801,13 @@ export const TINY_STEPS: readonly Step[] = [
   withCrimes_101_102,
   withOddFronts_102_103,
   withoutFetchAndBounty_103_104,
+  withOfferingsRedated_104_105,
 ];
+
+function withOfferingsRedated_104_105(world: SavedJson): SavedJson {
+  const redate = (s: SavedJson): SavedJson => (s.kind === 'offering' ? { ...s, born: world.turn } : s);
+  return { ...world, states: (world.states as SavedJson[]).map(redate) };
+}
 
 const MARSHALS_STANDING_101_102 = 0;
 
