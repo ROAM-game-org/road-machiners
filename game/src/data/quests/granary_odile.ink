@@ -33,7 +33,7 @@ Odile Marsh, steward of the <term=granary>Granary</term>. Every sack that comes 
   -> hub
 + {not asked_gate} [Why write it all on the gate?]
   ~ asked_gate = true
-  So nobody has to take my word for it. Beside what we hold, I write what we pay. A sack to <term=kiln>Kiln</term> for every one of our trucks they let pass. And the sacks the tenants give from their own share to pay Bowl's patrol.
+  So nobody has to take my word for it. Beside what we hold, I write what we pay: a sack to <term=kiln>Kiln</term> for every one of our trucks they let pass, and the sacks the tenants give from their own share to pay Bowl's patrol.
   A truck Kiln lets pass comes in with its sorgut. My grandmother lived through the year the grain ran out, and she ate boiled sacking. I'd rather pay raiders every season than see that again.
   -> hub
 + [Goodbye.]
