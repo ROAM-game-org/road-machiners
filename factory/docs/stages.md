@@ -52,6 +52,8 @@ Design runs Opus, or Sonnet with `design-sonnet`, at `FACTORY_DESIGN_EFFORT`. It
 
 Implementation runs Sonnet with up:uexecute on the task file, and Opus advises it through `claude --advisor` with `FACTORY_ADVISOR_MODEL`. A card with `implementation-opus` runs on Opus and gets no advisor. Subagents are off, so the agent implements every phase itself at the model triage picked. For a change a player can see, the agent captures real in-game screenshots, compares them with the issue, the plan, `game/docs/DESIGN.md` and, for the UI, the principle tests of `game/docs/ui.md`, and fixes until nothing obvious differs. The screenshots stay out of the commits. Its last step runs `up:udocument` on the game docs the change made stale and commits the edits, or edits nothing and says why in the task file. The stage fails when the agent made no new commit.
 
+- Before the agent starts, the factory fetches and merges GitHub's issue branch and the latest base into the work clone, as Design does and [process.md](process.md#branches) says. The prompt says whether the clone holds the latest base. An agent resolves a conflict with the base in the same job.
+
 ## Testing
 
 [process.md](process.md#testing-column) shows the flow. These are the rules behind it.
@@ -181,6 +183,7 @@ The baseline is triage Haiku, design Opus, implementation Sonnet with an Opus ad
 
 - `design-sonnet` runs design on Sonnet.
 - `implementation-opus` runs implementation on Opus. Testing and hardening stay on Sonnet.
+- Design runs its subagents on `FACTORY_BUILD_MODEL` through the Claude CLI's `CLAUDE_CODE_SUBAGENT_MODEL`. Its prompt gives code mapping to Explore subagents and keeps the decisions in the session.
 - The release playtest, candidate and incident agents always run Opus. Triage always runs Haiku. Merge, ad hoc, player answer and waste review agents always run Sonnet.
 - The triage prompt aims for about 20% Opus and 80% Sonnet in measured agent tokens. It is a rule of thumb, never a cap.
 

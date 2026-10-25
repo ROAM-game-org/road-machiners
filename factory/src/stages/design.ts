@@ -17,7 +17,7 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   writeGroomedInput(ctx, issue, home);
   const bugExpansion = await bugExpansionFor(ctx, issue);
   const prompt = fillPrompt('design', { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, bugExpansion });
-  await runAgent(ctx, issue, 'design', 'design', prompt, { effort: ctx.cfg.designEffort });
+  await runAgent(ctx, issue, 'design', 'design', prompt, { effort: ctx.cfg.designEffort, subagentModel: ctx.cfg.buildModel });
   throwIfNeedsCommittee(home);
   const questions = readOutput(home, 'questions.json');
   if (questions !== null) return askBack(ctx, issue, questions);

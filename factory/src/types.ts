@@ -52,6 +52,7 @@ export type FactoryConfig = {
   testTimeoutMinutes: number;
   branchTimeoutMinutes: number;
   agentJobMaxMinutes: number;
+  agentCompactWindow: number;
   replyRouteMinutes: number;
   releaseDays: number;
   playtestTurns: number;
@@ -283,7 +284,7 @@ export interface Telegram {
 }
 
 export type AgentSession = { dir: string; id: string; resume: boolean };
-export type AgentRun = { clone: string; dir: string; model: string; prompt: string; log: string; openNetwork?: boolean; mediaDir?: string; readOnly?: Record<string, string>; session?: AgentSession; skill?: string; effort?: string; disallowedTools?: string[]; advisor?: string; publicOutput?: true };
+export type AgentRun = { clone: string; dir: string; model: string; prompt: string; log: string; openNetwork?: boolean; mediaDir?: string; readOnly?: Record<string, string>; session?: AgentSession; skill?: string; effort?: string; disallowedTools?: string[]; advisor?: string; subagentModel?: string; publicOutput?: true };
 
 export type Pin = { cpus: string | null; testWorkers: number | null };
 
