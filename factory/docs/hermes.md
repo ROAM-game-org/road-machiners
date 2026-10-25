@@ -147,9 +147,20 @@ Implementation model after rework: the label `implementation-opus` picks the Imp
 
 1. Read the issue. Look for a jump in cost, failures, timeouts, reruns or waits.
 2. Check the bottleneck against the logs and the ledger before you trust it.
-3. It matters when a number jumped and the cause is in the factory, when the same failure repeats, or when the proposed change would clearly save time or money. A quiet day, a one-off glitch or a change an earlier review proposed does not matter.
-4. When it matters, fix what you can with the CLI, and file the rest, settings changes included, as one `factory` issue with the numbers. Post to the committee only when a member must decide something.
-5. Delete `/factory/home/review-pending` either way, so the line closes.
+3. It matters when a number jumped and the cause is in the factory, when the same failure repeats, or when the proposed change would clearly save time or money. A quiet day or a one-off glitch does not matter. A change an earlier review proposed matters again while its `factory` issue is open.
+4. When it matters, fix what you can with the CLI, and file the rest, settings changes included, as one `factory` issue with the numbers. A change an earlier review proposed goes on its open issue as a comment with the new numbers.
+5. Post the digest to the committee, as the next section says.
+6. Delete `/factory/home/review-pending` either way, so the line closes.
+
+## Factory issue digest
+
+Nothing works on `factory` issues by itself. Only the owner fixes them, so the owner must see them. After each daily review, post one digest of the open `factory` issues to the committee, even on a quiet day.
+
+1. List them with `gh issue list --label factory --state open --json number,title,createdAt,comments --limit 100`.
+2. Open with one line: how many are open, how many are new since the last digest, and today's review issue with its link.
+3. Then one line per issue, the ones waste reviews proposed first, then oldest first, at most 10: its number with its link, its title, its age in days, and how many reviews proposed it. Mark one that today's review proposed again.
+4. Say how many more are open when the list is longer than 10.
+5. Post nothing when no `factory` issue is open.
 
 ## Release post
 

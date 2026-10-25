@@ -189,7 +189,7 @@ These jobs run beside the cards.
 
 - adhoc: one-off work a member asks Hermes for. The agent runs in a clone of `dev`, pushes nothing and replies with a report and files.
 - incident: after a committee patch, redesign or deny, a proposal veto, or a shipped bug fix or hotfix. One job takes every queued issue and updates `docs/incident-log.md` on `dev`, the list of what went wrong that every stage checks a change against. [stages.md](stages.md#incident) has the rules.
-- waste: every `FACTORY_WASTE_REVIEW_DAYS`. The agent reads the ledger numbers beside the period before and names one bottleneck. Hermes gets it and tells the committee only what matters. A failed review keeps its period for the next one.
+- waste: every `FACTORY_WASTE_REVIEW_DAYS`. The agent reads the ledger numbers beside the period before and names one bottleneck. Hermes gets it, files what matters as a `factory` issue and posts the committee a digest of the open `factory` issues. A failed review keeps its period for the next one.
 - answer: a player's chat question. The agent finds the answer in the game's code and data, and runs the game when it needs to. The factory checks the text and replies once. [stages.md](stages.md#player-answer) has the rules.
 - dev: rebuilds `/dev/` when `dev` moved past its build.
 
