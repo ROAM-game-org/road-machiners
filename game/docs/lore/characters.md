@@ -260,18 +260,18 @@ His line is "Friend, what did Agnes give you for the drive?"
 ## Juno Pell
 
 - Way: escape.
-- High concept: An old woman who keeps the beacon lamps in the pod field for the Children of Noah.
-- Trouble: She waits for a ship that does not come, and the lamps cost more oil each year.
-- Aspects: Pierce holds a lien on every lamp; Her mother woke in a pod; Cannot climb the ladder herself.
+- High concept: An old woman of the Children of Noah who lives in the pod field at the edge of the Glass Flats.
+- Trouble: She waits for a ship that does not come.
+- Aspects: Her mother woke in a pod.
 - Skills: best perception, worst driving.
-- Wants: Every lamp lit the night the ship comes.
-- Fears: A lamp going dark while she lives.
+- Wants: To see the ship come while she lives.
+- Fears: Dying before it comes.
 - Habit: She names a pod by its number whenever she walks past it.
 - Secret: She no longer thinks a ship will come. She hides it from the Children of Noah.
 
-Juno kept the beacon lamps in the field of old pods at the edge of the Glass Flats for the Children of Noah for sixty years. Her mother woke in a pod, and Juno knows every pod by its number. A Pierce lien number is painted on every lamp, and the Bowl buys their oil now. She is 84 and stays on the ground. Young Tam climbs the ladder for her.
+Juno has lived in the field of old pods at the edge of the Glass Flats all her life. Her mother woke in a pod, and Juno knows every pod by its number. She is 84.
 
-Her line is "Six lamps, six pods, and not one of them goes dark while I am alive."
+Her line is "Forty-one was my mother's. Mind the door, it still sticks."
 
 ## Ilya Moreno
 
