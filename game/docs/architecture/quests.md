@@ -1,6 +1,6 @@
 # Quests
 
-Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md), run by inkjs. They serve town talk and full text quests. Each local is one quest, named in `LOCALS` in `src/data/locals.ts`. A local lives at a place with a shop, and the People page of its town lists them. Radio calls keep their own engine in `src/sim/dialogue.ts`, and share only the text markup and the handoff below. [Writing quests](../writing/quests.md) walks through adding and changing a quest.
+Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md), run by inkjs. They serve town talk and full text quests. Each local is one quest, named in `LOCALS` in `src/data/locals.ts`. A local lives at a place with a shop or at the Marshalls desk, and the People page of that place lists them. Radio calls keep their own engine in `src/sim/dialogue.ts`, and share only the text markup and the handoff below. [Writing quests](../writing/quests.md) walks through adding and changing a quest.
 
 ## Radio handoff
 
@@ -48,6 +48,7 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 - `stretch_pay(stretch)` gives the Chaos Highway pay of a stretch in whole M, from `payOf()` in `src/sim/chaos-highway-director.ts`. It throws on a stretch under 1 or a non-integer. The road story quotes the pay with it.
 - `skill(id)` reads the player's level in a skill: driving, perception, machining, toughness or social. It throws on any other id. The veteran check world holds every skill at the top level, so a skill check is walked both ways. Use it for what a skill lets the player see or say for free, like an extra line in a document.
 - `passed()` tells whether the player meets the `# check` of the choice just picked. A choice that can fail carries the check, and the ink after the pick branches on `passed()`. It throws when the picked choice has no check, and on a load, which picks nothing.
+- `holds_search()` reads whether the player holds an undelivered search. `marshal_lead()` reads whether `marshalLead()` finds a Marshall sighting newer than the held lead. `lead_price()` gives the lead fee in whole M and throws under 1. `take_marshal_lead()` moves the lead there and throws when there is none. Petra Quell's `roadhouse_petra.ink` uses them. The veteran check world for her quest holds a search and one Marshall car with a newer sighting, and a third world holds a search with no car, so both answers are walked.
 - Game state such as money is read through a query, never copied into an ink variable.
 
 ## Top tags

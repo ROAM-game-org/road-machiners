@@ -81,7 +81,7 @@ describe("the New game screen", () => {
     expect(screen.textContent).toContain("New game");
     expect(roaming.attrs["aria-checked"]).toBe("true");
     expect(roaming.textContent).toContain("The open wasteland");
-    expect(screen.button("World Settings")).toBeDefined();
+    expect(screen.button("World settings")).toBeDefined();
     expect(screen.button("Back")).toBeDefined();
     expect(screen.button("Start").focused).toBe(1);
   });
@@ -90,7 +90,7 @@ describe("the New game screen", () => {
     const { screen } = open();
     const section = screen.all((n) => n.className === "world-settings")[0];
     expect(section.hidden).toBe(true);
-    screen.button("World Settings").fire("click");
+    screen.button("World settings").fire("click");
 
     expect(section.hidden).toBe(false);
     expect(screen.all((n) => n.attrs["data-setting"] === "enemyGearGrowth")).toEqual([]);

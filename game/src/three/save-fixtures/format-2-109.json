@@ -1,0 +1,8 @@
+{
+  "format": { "major": 2, "minor": 109 },
+  "world": {
+    "turn": 40,
+    "setup": { "mode": "furyRoad", "settings": {} },
+    "furyRoad": { "window": 3, "waitingAt": 3, "earned": 120, "wrecks": 1, "hauler": { "id": 7, "alarmUntil": 0 } }
+  }
+}

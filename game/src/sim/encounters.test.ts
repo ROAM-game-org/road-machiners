@@ -343,7 +343,7 @@ describe('the challenge', () => {
 
   it('starts a feud and a fight at once when the player accepts', () => {
     const { w, npc } = challengeWorld();
-    const next = pick(w, 'Let us go, then.');
+    const next = pick(w, "Let's go, then.");
     expect(feud(next, npc)).not.toBeNull();
     expect(topGoal(next.vehicles.find((v) => v.id === npc.id)!)).toMatchObject({ kind: 'fight', reason: 'calledOut' });
     expect(next.player.call).toBeNull();
@@ -354,7 +354,7 @@ describe('the challenge', () => {
     const law = addVehicle(w, 'bowl', 'scout', ['stockEngine', 'mg'], { x: 30, y: 36 });
     law.brain = npcBrain('lawman', law.pos, ['lawman']);
     refreshVision(w);
-    const next = pick(w, 'Let us go, then.');
+    const next = pick(w, "Let's go, then.");
     expect(stateOf(next, 'feud', law.id, next.player.vehicleId)).toBeNull();
   });
 
