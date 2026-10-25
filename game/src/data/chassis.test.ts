@@ -256,6 +256,11 @@ describe('shown cores', () => {
     const shown = Object.entries(CHASSIS).filter(([, c]) => c.showsCores).map(([id]) => id).sort();
     expect(shown).toEqual(['courier', 'scout', 'wagon']);
   });
+
+  it('draws the engine on every chassis but the buggy, whose closed nose deck holds a full-size spare where the engine would stand', () => {
+    const hidden = Object.entries(CHASSIS).filter(([, c]) => !c.showsEngine).map(([id]) => id);
+    expect(hidden).toEqual(['buggy']);
+  });
 });
 
 describe('chassis tradeoffs', () => {

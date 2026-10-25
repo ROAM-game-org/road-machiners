@@ -5,6 +5,7 @@ import { unitBody, cellRect } from './body';
 import { damagePart } from './damage';
 import { newId } from './factory';
 import { itemCells, mountedItems } from './grid';
+import { inTruce } from './relations';
 import { localToWorld } from './rig';
 import type { GridItem, HarpoonLine, Vehicle, World } from './types';
 import { shoutGiven } from './sunward-crater';
@@ -58,8 +59,13 @@ function holdsEnds(world: World, line: HarpoonLine): Ends | null {
   return { from, fromPart: line.fromPart, to, toPart: line.toPart };
 }
 
+function lineHolds(world: World, line: HarpoonLine): boolean {
+  const ends = holdsEnds(world, line);
+  return ends !== null && !inTruce(world, ends.from, ends.to);
+}
+
 export function endLines(world: World): void {
-  world.lines = world.lines.filter((line) => holdsEnds(world, line) !== null);
+  world.lines = world.lines.filter((line) => lineHolds(world, line));
 }
 
 export function lineAnchors(world: World): LineAnchor[] {

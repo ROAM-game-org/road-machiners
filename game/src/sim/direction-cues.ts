@@ -26,6 +26,27 @@ export function cardinalOf(v: Vec): Cardinal {
   return CARDINAL_ANGLES.reduce((best, c) => (Math.abs(wrap(angle - c[1])) < Math.abs(wrap(angle - best[1])) ? c : best))[0];
 }
 
+export function distinctCardinals(offsets: readonly Vec[]): Cardinal[] | null {
+  const plain = offsets.map(cardinalOf);
+  if (new Set(plain).size === plain.length) return plain;
+  const angles = offsets.map((v) => Math.atan2(v.y, v.x));
+  let best: Cardinal[] | null = null;
+  let bestMiss = Infinity;
+  const assign = (chosen: Cardinal[], miss: number): void => {
+    if (miss >= bestMiss) return;
+    if (chosen.length === offsets.length) {
+      best = chosen;
+      bestMiss = miss;
+      return;
+    }
+    for (const [side, at] of CARDINAL_ANGLES) {
+      if (!chosen.includes(side)) assign([...chosen, side], miss + Math.abs(wrap(angles[chosen.length] - at)));
+    }
+  };
+  assign([], 0);
+  return best;
+}
+
 export function leanOf(v: Vec, octant: Octant): Cardinal | null {
   const angle = OCTANT_ANGLE[octant];
   const off = wrap(Math.atan2(v.y, v.x) - angle);

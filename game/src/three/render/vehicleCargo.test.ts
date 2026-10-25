@@ -59,6 +59,16 @@ describe('cargo inside the hauler trailer', () => {
   });
 });
 
+describe('the engine under the buggy deck', () => {
+  it('counts the buggy engine but does not draw it, and keeps an anchor for hits on it', () => {
+    const v = addVehicle(emptyWorld(), 'player', 'buggy', ['stockEngine', 'mg'], { x: 30, y: 30 });
+    const engine = partOf(v, 'stockEngine');
+    expect(hidesInside(v, engine)).toBe(true);
+    expect(hidesInside(v, partOf(v, 'mg'))).toBe(false);
+    expect(new VehicleView(v, true, PAINT.standard, 'world').hasPart(engine.part.id)).toBe(true);
+  });
+});
+
 function withCaltropsAt(chassisId: string, x: number, y: number): { v: Vehicle; caltrops: PartItem } {
   const w = emptyWorld();
   const v = addVehicle(w, 'scrapjaw', chassisId, [], { x: 30, y: 30 });

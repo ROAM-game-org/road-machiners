@@ -78,6 +78,18 @@ describe('gear score', () => {
     expect(scorer(priorities({ speed: 3 })).score(armed())).toBeLessThan(scorer(priorities({ speed: 3 })).score(vanWith([])));
   });
 
+  it('gives a harpoon no fire value', () => {
+    const { score } = scorer(priorities({ firepower: 3 }));
+    const withGun = (id: string) => {
+      const w = emptyWorld();
+      const v = vanWith([]);
+      expect(mountPart(w, v, makePart(w, id, 0))).toBe(true);
+      return v;
+    };
+    expect(score(withGun('harpoon'))).toBeCloseTo(score(vanWith([])));
+    expect(score(withGun('mg'))).toBeGreaterThan(score(withGun('harpoon')));
+  });
+
   it('weighs speed against the fuel it burns only for a driver who pays for fuel', () => {
     const w = emptyWorld();
     const powered = (engine: string) => addVehicle(w, 'independent', 'van', [engine], { x: 30, y: 30 });
