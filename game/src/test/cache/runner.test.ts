@@ -43,8 +43,8 @@ function childEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
 
 const runnerArgs = [join(GAME, 'node_modules', '.bin', 'vite-node'), 'scripts/test-cache.mjs', '--', '--cache', 'cache'];
 
-function runCached(extra: Record<string, string> = {}): { code: number | null; out: string } {
-  const result = spawnSync(runnerArgs[0]!, runnerArgs.slice(1), { cwd: root, env: childEnv(extra), encoding: 'utf8', timeout: RUN_LIMIT_MS });
+function runCached(extra: Record<string, string> = {}, args: string[] = []): { code: number | null; out: string } {
+  const result = spawnSync(runnerArgs[0]!, [...runnerArgs.slice(1), ...args], { cwd: root, env: childEnv(extra), encoding: 'utf8', timeout: RUN_LIMIT_MS });
   return { code: result.status, out: `${result.stdout}${result.stderr}` };
 }
 
@@ -178,5 +178,17 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     const run = runCached();
 
     expect(run.code).toBe(1);
+  });
+
+  it('runs the tests that import a changed file through other modules, and only those', () => {
+    put('src/text/ru/story.ts', `export const STORY = { 'state.cavalcade': 'Кавалькада' };\n`);
+    put('src/text/ru/index.ts', `import { STORY } from './story';\nexport const RU = { ...STORY };\n`);
+    put('src/text/catalog.test.ts', `import { expect, it } from 'vitest';\nimport { RU } from './ru';\nit('has Russian words', () => expect(RU['state.cavalcade']).toBe('Кавалькада'));\n`);
+
+    const run = runCached({}, ['--related', 'src/text/ru/story.ts']);
+
+    expect(run.out).toContain('src/text/catalog.test.ts');
+    expect(run.out).toContain('[test-cache] ran 1, skipped 0');
+    expect(run.code).toBe(0);
   });
 });
