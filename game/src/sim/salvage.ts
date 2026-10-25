@@ -11,7 +11,7 @@ import { makePart, newId, partWithId } from './factory';
 import { atlasOf, icarusAtlas, type AtlasKey } from './atlas';
 import { clearOfSites, findRoadWreckSpot, isBreakable, mapObstacles, propReach } from './mapgen';
 import { startComponent } from './nav/astar';
-import { CELL, CLEARANCE, componentOf, navLayer, type NavLayer } from './nav/layer';
+import { CELL, CLEARANCE, climbNeed, componentOf, navLayer, type NavLayer } from './nav/layer';
 import { ROAD_INDEX } from './road-index';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
@@ -566,7 +566,8 @@ function replaceRoadWreck(world: World, old: SalvageStock): void {
   world.salvage.push(rollStock(world, SALVAGE.roadWreck, id, spot.pos, spot.r * RULES.wreckRadiusScale));
 }
 
-export function breakProp(world: World, id: string, vehicleId: string): void {
+export function breakProp(world: World, id: string, vehicleId: string, impact: number): void {
+  if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad smash impact ${impact}`);
   const prop = world.obstacles.find((o) => o.id === id);
   if (!prop || !isBreakable(prop)) throw new Error(`No standing breakable prop ${id}`);
   const vehicle = vehicleById(world, vehicleId);
@@ -576,7 +577,7 @@ export function breakProp(world: World, id: string, vehicleId: string): void {
   const contact = estimateCrashGeometry(vehicle, null, prop.pos).a;
   const lane = contact.lanes[Math.floor(contact.lanes.length / 2)];
   const hitsA = walkLane(world, vehicle, contact.side, lane, { damage: BREAKABLE.damage, pen: RULES.crashPen, blast: false, armorShare: 1 });
-  world.events.push({ t: 'collision', a: vehicle.id, b: id, hitsA, hitsB: [] });
+  world.events.push({ t: 'collision', a: vehicle.id, b: id, impact, hitsA, hitsB: [] });
 }
 
 function regrowBroken(world: World): void {
@@ -867,7 +868,7 @@ export function makeOldSpotPicks(map: BakedMap): OldSpotPick[] {
 
 export function placeSpot(map: BakedMap, layer: NavLayer, p: OldPlace): Obstacle | null {
   const order = [...p.props].sort((a, b) => propHash(map, a) - propHash(map, b));
-  return order.find((o) => offRoad(o) && reachable(layer, o)) ?? null;
+  return order.find((o) => offRoad(o) && reachable(layer, o, REGION.navigation.reachClimb)) ?? null;
 }
 
 export function propHash(map: BakedMap, o: Obstacle): number {
@@ -878,9 +879,15 @@ export function offRoad(o: Obstacle): boolean {
   return ROAD_INDEX.nearestWithin(o.pos.x, o.pos.y, REGION.roadWidth / 2 + OLD_PLACES.roadGap + propReach(o)) === Infinity;
 }
 
-export function reachable(layer: NavLayer, o: Obstacle): boolean {
-  const road = componentAt(layer, nearestRoadPoint(o.pos));
-  if (road === 0) return false;
+export function reachable(layer: NavLayer, o: Obstacle, climb: number): boolean {
+  return standPoint(layer, o, climb) !== null;
+}
+
+export function standPoint(layer: NavLayer, o: Obstacle, climb: number): Vec | null {
+  const road = startComponent(layer, cellAt(layer, nearestRoadPoint(o.pos)));
+  if (road === 0) return null;
+  const need = climbNeed(layer);
+  const steps = Math.floor(climb / REGION.navigation.climbStep + 1e-9);
   const ring = propReach(o) + layer.radius + CLEARANCE;
   const inReach = (propReach(o) + ECONOMY.useRange) * ECONOMY.interactionScale;
   for (let k = 0; k < RING_DIRECTIONS; k++) {
@@ -888,14 +895,10 @@ export function reachable(layer: NavLayer, o: Obstacle): boolean {
     for (let past = 0; past <= RING_PAST; past++) {
       const at = { x: o.pos.x + Math.cos(angle) * (ring + past), y: o.pos.y + Math.sin(angle) * (ring + past) };
       const cell = cellAt(layer, at);
-      if (dist(centreOf(layer, cell), o.pos) <= inReach && componentOf(layer, cell) === road) return true;
+      if (dist(centreOf(layer, cell), o.pos) <= inReach && componentOf(layer, cell) === road && need[cell] <= steps) return centreOf(layer, cell);
     }
   }
-  return false;
-}
-
-function componentAt(layer: NavLayer, p: Vec): number {
-  return startComponent(layer, cellAt(layer, p));
+  return null;
 }
 
 function cellAt(layer: NavLayer, p: Vec): number {

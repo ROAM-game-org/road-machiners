@@ -1,26 +1,28 @@
 {
-  "vehicles": [
-    {
-      "id": "v-player",
-      "job": {
-        "kind": "refit",
-        "moves": [],
-        "pickup": { "from": "truck", "vehicleId": "v-raider", "partId": "p-slug", "itemId": "i-new", "to": { "x": 1, "y": 4, "rot": 0 } },
-        "turnsLeft": 4,
-        "total": 7
+  "player": {
+    "call": {
+      "with": "npc-1",
+      "topic": null,
+      "node": "start",
+      "vars": {
+        "way": {
+          "kind": "directions",
+          "steps": [
+            { "do": "follow", "road": { "kind": "to", "site": "nose" }, "heading": "northEast", "span": "fair" },
+            { "do": "leave", "at": { "kind": "none" }, "octant": "south", "span": "fair" },
+            { "do": "search", "clue": { "kind": "wreck" }, "rough": true }
+          ]
+        }
+      },
+      "line": {
+        "line": "wreckWay",
+        "vars": {
+          "way": {
+            "kind": "directions",
+            "steps": [{ "do": "leave", "at": { "kind": "fork", "nth": 2 }, "octant": "east", "span": "near" }]
+          }
+        }
       }
-    },
-    {
-      "id": "v-looter",
-      "job": {
-        "kind": "refit",
-        "moves": [{ "itemId": "i-mg", "from": { "x": 0, "y": 0, "rot": 0 }, "to": { "x": 0, "y": 5, "rot": 1 } }],
-        "pickup": null,
-        "turnsLeft": 2,
-        "total": 5
-      }
-    },
-    { "id": "v-searcher", "job": { "kind": "search", "stockId": "wreck-3", "turnsLeft": 3, "total": 6 } },
-    { "id": "v-raider", "job": null }
-  ]
+    }
+  }
 }

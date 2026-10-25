@@ -13,6 +13,7 @@ import { corePart, coreParts, freeCells, goodsCount, isMounted, itemSize, mounte
 import { addGoods, applyRefitLayout, getRefitLayout, refitStepLayout, refitStepWork, removeGoods, startRefitStep, stowPart } from "./inventory";
 import { makePart } from "./factory";
 import { promisedParts } from "./patch";
+import { requireSpareGoods, spareGoods } from "./market";
 import { isJunk, maxHp } from "./wear";
 import { repairPlan, repairTurn } from "./repair";
 import { hasBasic, practice, vehicleHasPerk } from "./progress";
@@ -117,12 +118,7 @@ function patchRank(v: Vehicle, part: PartInstance): number {
 }
 
 function freeParts(world: World, v: Vehicle): number {
-  return (goodsCount(v).parts ?? 0) - promisedParts(world, v) - hauledParts(world, v);
-}
-
-function hauledParts(world: World, v: Vehicle): number {
-  if (v.id !== world.player.vehicleId) return 0;
-  return world.player.contracts.reduce((sum, c) => sum + (c.kind === "haul" && c.good === "parts" ? c.units : 0), 0);
+  return spareGoods(world, v, "parts") - promisedParts(world, v);
 }
 
 function canAutoPatch(world: World, v: Vehicle): boolean {
@@ -176,7 +172,8 @@ export function startWeld(world: World): World {
   return playerCommand(world, (w) => {
     const v = playerVehicle(w);
     if (!vehicleHasPerk(w, v, "welder")) throw new Error("Welding needs the Welder perk");
-    if (!hasWeldScrap(v)) throw new Error(`Welding needs ${PERK_NUMBERS.welder.scrap} scrap metal`);
+    if ((goodsCount(v).scrap ?? 0) < PERK_NUMBERS.welder.scrap) throw new Error(`Welding needs ${PERK_NUMBERS.welder.scrap} scrap metal`);
+    requireSpareGoods(w, v, "scrap", PERK_NUMBERS.welder.scrap);
     if (!weldFits(v)) throw new Refused({ id: "noCargoRoom" });
     const turns = PERK_NUMBERS.welder.turns;
     startJob(w, v, { kind: "weld", turnsLeft: turns, total: turns });
@@ -216,8 +213,8 @@ function firstAidTurn(world: World, v: Vehicle, job: Extract<Job, { kind: "first
   return false;
 }
 
-function hasWeldScrap(v: Vehicle): boolean {
-  return (goodsCount(v).scrap ?? 0) >= PERK_NUMBERS.welder.scrap;
+function hasWeldScrap(world: World, v: Vehicle): boolean {
+  return spareGoods(world, v, "scrap") >= PERK_NUMBERS.welder.scrap;
 }
 
 function weldFits(v: Vehicle): boolean {
@@ -255,7 +252,7 @@ function isStalled(world: World, v: Vehicle, job: Job): boolean {
 function isSiteWorkStalled(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "business") return !canUseSite(v.pos, getKnownSite(job.siteId));
   if (job.kind === "firstAid") return world.player.supplies < firstAidTurnSupplies(world);
-  return job.kind === "weld" && (!hasWeldScrap(v) || !weldFits(v));
+  return job.kind === "weld" && (!hasWeldScrap(world, v) || !weldFits(v));
 }
 
 function jobTurn(world: World, v: Vehicle, job: Job): boolean {

@@ -259,7 +259,7 @@ async function flakyMap(browser, viewport) {
     return route.abort('failed');
   });
   await page.goto(playUrl(url));
-  await page.waitForSelector('#ui .start-menu, #hud', { state: 'visible', timeout: BOOT_LIMIT_MS });
+  await cleared(page);
   expect(dropped, `${viewport.name}: the first map request was dropped`);
   expect((await page.$('#boot .boot-retry')) === null, `${viewport.name}: a single dropped request offers no retry`);
   expect(errors.length === 0, `${viewport.name}: a single dropped request has no page errors ${errors.join('; ')}`);
@@ -356,7 +356,7 @@ async function lostModel(browser, viewport) {
 async function droppedWorker(browser, viewport) {
   const page = await open(browser, viewport, []);
   let seen = 0;
-  await page.route('**/phys/turn*', (route) => (++seen <= 2 ? route.abort('failed') : route.continue()));
+  await page.route('**/phys/turn-worker.ts*', (route) => (++seen <= 2 ? route.abort('failed') : route.continue()));
   await page.goto(playUrl(url));
   await cleared(page);
   await page.evaluate(() => window.__ROAM__.endTurn());
@@ -371,7 +371,7 @@ async function lostWorker(browser, viewport) {
   const page = await open(browser, viewport, []);
   const posts = [];
   page.on('request', (request) => request.method() === 'POST' && posts.push(request.url()));
-  await page.route('**/phys/turn*', (route) => route.abort('failed'));
+  await page.route('**/phys/turn-worker.ts*', (route) => route.abort('failed'));
   await page.goto(playUrl(url));
   await cleared(page);
   await page.evaluate(() => window.__ROAM__.endTurn());

@@ -12,6 +12,7 @@ from mathutils import Vector
 from kit import CELL_ACROSS, CELL_ALONG, Kit, Vec3
 
 FIT_SLACK = 1e-4  # float noise allowed at the footprint edge
+PROUD = 0.01  # how far a lamp stands out of the panel it sits on, so no glowing face lies on another face
 ROUND_SEGMENTS = 32  # sides of a big round part: a tire, a rim, an arch, a tank or a fifth wheel
 SMALL_ROUND_SEGMENTS = 16  # sides of a small round part: a hub, a lamp, a stack, an air cleaner or a pin
 

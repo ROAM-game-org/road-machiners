@@ -8,14 +8,16 @@ import { t, type Msg } from "../text/msg";
 import { partDef } from "../data/parts";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
-import { isMounted, mountedParts, type Spot } from "../sim/grid";
-import { installSpot, moveItem, planItemMove, plannedTruck, startRefit, storePart, stowSpot, takeFromStorage, type RefitLayout } from "../sim/inventory";
+import { gridOf, isMounted, mountedParts, placementError, type Spot } from "../sim/grid";
+import { installSpot, moveItem, planItemMove, plannedTruck, plannedVehicle, startRefit, storePart, stowSpot, takeFromStorage, type RefitLayout } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { takeLoot } from "../sim/locations";
 import { atGarage } from "../sim/garage";
-import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
+import type { GridItem, PartInstance, PlacementRefusal, Vehicle, World } from "../sim/types";
 
 const ROTATE_KEY_CODE = "KeyR";
+
+const PLANNED_BLOCKER = "planned:";
 
 export function isRotateKey(e: Pick<KeyboardEvent, "code" | "repeat" | "ctrlKey" | "metaKey" | "altKey">): boolean {
   return e.code === ROTATE_KEY_CODE && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey;
@@ -63,9 +65,9 @@ export function needsHold(chassisId: string, item: GridItem): boolean {
   return item.kind === "part" && partDef(item.part.defId).kind !== "core" && isMounted(chassisId, item);
 }
 
-export type OpenPlan = { shown: Vehicle; layout: RefitLayout };
+export type OpenPlan = { base: Vehicle; layout: RefitLayout };
 
-export function doubleClickCommand(w: World, c: ClickedItem, instant = false, plan: OpenPlan = { shown: plannedTruck(w, playerVehicle(w)), layout: {} }): ((w: World) => World) | null {
+export function doubleClickCommand(w: World, c: ClickedItem, instant = false, plan: OpenPlan = { base: plannedTruck(w, playerVehicle(w)), layout: {} }): ((w: World) => World) | null {
   if (c.source === "grid") return gridDoubleClick(w, c, instant);
   if (c.source === "storage") return storageCommand(w, c);
   return takeCommand(plan, c);
@@ -83,7 +85,7 @@ function storageCommand(w: World, c: ClickedItem): ((w: World) => World) | null 
 }
 
 function takeCommand(plan: OpenPlan, c: ClickedItem): ((w: World) => World) | null {
-  const spot = stowSpot(plan.shown, c.item);
+  const spot = stowSpot(pickupTruck(plan.base, plan.layout), c.item);
   if (!spot) return null;
   const dropped: Dropped = c.source === "truck" ? { source: "truck", from: c.truckId!, id: c.id, item: c.item } : { source: "loot", from: c.stockId!, id: c.id, item: c.item };
   return (next) => takeDropped(withPlanQueued(next, plan.layout, c.own), dropped, spot);
@@ -118,9 +120,17 @@ function instantGridCommand(w: World, c: ClickedItem): ((w: World) => World) | n
   return spot ? (next) => instantMoveItem(next, item.id, spot) : null;
 }
 
-export function plannedVehicle(v: Vehicle, plan: RefitLayout): Vehicle {
-  if (Object.keys(plan).length === 0) return v;
-  return { ...v, items: v.items.map((it) => (plan[it.id] ? { ...it, ...plan[it.id] } : it)) };
+export function pickupTruck(real: Vehicle, plan: RefitLayout): Vehicle {
+  const planned = Object.keys(plan);
+  if (planned.length === 0) return real;
+  const blockers = real.items.filter((it) => plan[it.id]).map((it) => ({ ...it, ...plan[it.id], id: `${PLANNED_BLOCKER}${it.id}` }));
+  return { ...real, items: [...real.items, ...blockers] };
+}
+
+export function pickupProblem(real: Vehicle, plan: RefitLayout, item: GridItem): PlacementRefusal | null {
+  const truck = pickupTruck(real, plan);
+  const others = truck.items.filter((it) => it.id !== item.id);
+  return placementError(gridOf({ ...truck, items: [...others, item] }), others, item, null);
 }
 
 export function canFieldPatch(real: Vehicle, plannedMounted: boolean, partId: string): boolean {

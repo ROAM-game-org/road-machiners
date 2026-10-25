@@ -20,6 +20,7 @@ import { npcMassRoom, vehicleStats } from './stats';
 import { inCombat } from './combat';
 import type { GridItem, PartInstance, RefitJob, RefitMove, RefitPickup, RefitStep, Refusal, Vehicle, World } from './types';
 import { playerCommand, Refused } from './world';
+import { requireSpareGoods } from './market';
 
 export function mountPart(world: World, v: Vehicle, part: PartInstance, mount: Cell[] = mountCellsOf(part.defId)): boolean {
   const item: PartItem = { id: newId(world, 'i'), x: 0, y: 0, rot: 0, kind: 'part', part };
@@ -340,6 +341,7 @@ export function dumpItem(world: World, itemId: string, truckId?: string): World 
     requireIdleRefit(me);
     const item = findItem(me, itemId);
     if (item.kind === 'parcel') throw new Refused({ id: 'parcelKept' });
+    if (item.kind === 'good') requireSpareGoods(w, me, item.good, 1);
     if (isMounted(me.chassisId, item)) throw new Error('Remove an installed part before dumping it');
     if (modeRules(w).looting) dumpOnPile(w, me, item);
     else me.items = me.items.filter((it) => it.id !== item.id);
@@ -391,6 +393,24 @@ export function planItemMove(v: Vehicle, itemId: string, to: Spot): PlanResult {
   const target = targets[0];
   if (target) moves.push({ itemId: target.id, from: getSpot(target), to: getSpot(item) });
   return planMoves(v, moves);
+}
+
+export function plannedVehicle(v: Vehicle, layout: RefitLayout): Vehicle {
+  if (Object.keys(layout).length === 0) return v;
+  return { ...v, items: v.items.map((it) => (layout[it.id] ? { ...it, ...layout[it.id] } : it)) };
+}
+
+function sameMoves(a: RefitMove[], b: RefitMove[]): boolean {
+  return a.length === b.length && a.every((move, i) => move.itemId === b[i].itemId && move.to.x === b[i].to.x && move.to.y === b[i].to.y && move.to.rot === b[i].to.rot);
+}
+
+export function fieldMoveIsInstant(v: Vehicle, layout: RefitLayout, itemId: string, to: Spot): boolean {
+  const drawn = planItemMove(plannedVehicle(v, layout), itemId, to);
+  const real = planItemMove(v, itemId, to);
+  if (drawn.error !== null || real.error !== null) return false;
+  if (drawn.plan.turns !== 0 || real.plan.turns !== 0) return false;
+  if (!sameMoves(drawn.plan.moves, real.plan.moves)) return false;
+  return drawn.plan.moves.every((move) => !layout[move.itemId]);
 }
 
 function planMoves(v: Vehicle, moves: RefitMove[]): PlanResult {
