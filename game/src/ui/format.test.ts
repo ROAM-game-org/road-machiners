@@ -194,11 +194,11 @@ describe("contract text", () => {
 
     it("logs a met rescue with the driver and a lapsed one without a price", () => {
       const met = eventText(emptyWorld(), { t: "contract", contract: { ...rescue, fulfilled: true }, outcome: "fulfilled" })!;
-      expect([en(met.text), met.cls]).toEqual(["Rescue met: Jed Cobb is moving, claim 1 M at Bowl", "good"]);
+      expect([en(met.text), met.cls]).toEqual(["Rescue done: Jed Cobb is moving, claim 1 M at Bowl", "good"]);
       const lapsed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "lapsed" })!;
       expect([en(lapsed.text), lapsed.cls]).toEqual(["Rescue lapsed: Jed Cobb no longer needs you", "dim"]);
       const failed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "failed" })!;
-      expect(en(failed.text)).toBe("Contract failed: Rescue Jed Cobb, pays 1 M");
+      expect(en(failed.text)).toBe("Contract failed: Rescue Jed Cobb, offered 1 M");
     });
   });
 
@@ -346,13 +346,13 @@ describe("harpoon log", () => {
     s.w.lines = [{ id: "l1", from: s.me.id, fromPart: s.harpoon.id, to: s.trader.id, toPart: s.engine.id, length: 10, turnsLeft: 3 }];
     s.shot = { ...(s.shot as Extract<GameEvent, { t: "shot" }>), rounds: [{ hit: true, crit: false, offset: 0, struck: s.trader.id, hits: [{ part: s.engine.id, damage: 2 }], blast: [], burst: null }] };
 
-    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon → ${en(vehicleName(s.w, s.trader.id))}: line on Stock engine (40%): Stock engine −2`);
+    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon fires at ${en(vehicleName(s.w, s.trader.id))}: line on Stock engine (40%): Stock engine −2`);
   });
 
   it("reads a harpoon that holds nothing as a miss", () => {
     const s = harpooned([{ hit: false, crit: false, offset: 3, struck: null, hits: [], blast: [], burst: null }]);
 
-    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon → ${en(vehicleName(s.w, s.trader.id))}: missed (40%)`);
+    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon fires at ${en(vehicleName(s.w, s.trader.id))}: missed (40%)`);
   });
 
   it("tells the player its truck tore free of a line", () => {
@@ -490,7 +490,7 @@ describe("cargo spill log", () => {
     const w = emptyWorld();
     const npc = addVehicle(w, "independent", "hauler", ["rack"], { x: 40, y: 30 });
     const line = logEn(w, { t: "cargoSpilled", vehicle: npc.id, part: mountedParts(npc, "cargo")[0].id, pile: "spill-2", units: 1 });
-    expect(line).toEqual({ text: `${en(vehicleName(w, npc.id))}: cargo spilled on the ground`, cls: "good" });
+    expect(line).toEqual({ text: `${en(vehicleName(w, npc.id))} spills cargo on the ground.`, cls: "good" });
   });
 });
 
@@ -538,7 +538,7 @@ describe("shot log", () => {
     const { w, raider, cab, shot } = duel();
     cab.hp = maxHp(cab);
     const line = eventText(w, shot([{ part: cab.id, damage: 2 }]))!;
-    expect(en(line.text)).toMatch(/^.+ → .+, 1\/2 hit \(40%\): .+ −2$/);
+    expect(en(line.text)).toMatch(/^.+ fires at .+, 1\/2 hit \(40%\): .+ −2$/);
     expect(en(line.text)).toContain(en(vehicleTitle(w, raider)));
   });
 
@@ -603,9 +603,9 @@ describe("money text", () => {
   it("reads a money event in M with its sign", () => {
     const w = emptyWorld();
     const gain = eventText(w, { t: "money", amount: 4067, reason: { kind: "contract" } })!;
-    const loss = eventText(w, { t: "money", amount: -100, reason: { kind: "failedHaul" } })!;
+    const loss = eventText(w, { t: "money", amount: -100, reason: { kind: "contract" } })!;
     expect([en(gain.text), gain.cls]).toEqual(["+41 M's: contract", "good"]);
-    expect([en(loss.text), loss.cls]).toEqual(["\u22121 M: failed haul contract", "bad"]);
+    expect(loss.cls).toBe("bad");
   });
 });
 
@@ -615,7 +615,7 @@ describe("tow text", () => {
     const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     const town = REGION.towns[0].id;
     expect(en(eventText(w, { t: "money", amount: 12000, reason: { kind: "contract" } })!.text)).toBe("+120 M's: contract");
-    expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "failedHaul" } })!.text)).toBe("\u221240 M's: failed haul contract");
+    expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "contract" } })!.text)).toBe("\u221240 M's: contract");
     expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 100 })!.text)).toMatch(/ for 1 M\.$/);
   });
   it("says free for a fee of 0 and keeps the price otherwise", () => {
@@ -769,8 +769,8 @@ describe("Fury Road log lines", () => {
   it("tells an outpost arrival with its pay once, and the run's end", () => {
     const w = emptyWorld();
 
-    expect(logEn(w, { t: "outpostReached", milestone: 2, pay: 37000, wrecks: 3 })).toEqual({ text: "Outpost 2. Paid 370 M's for the road and 3 wrecks.", cls: "good" });
-    expect(logEn(w, { t: "outpostReached", milestone: 1, pay: 15000, wrecks: 0 })?.text).toBe("Outpost 1. Paid 150 M's for the road.");
+    expect(logEn(w, { t: "outpostReached", milestone: 2, pay: 37000, wrecks: 3 })).toEqual({ text: "Outpost 2. You earn 370 M's for the road. 3 trucks wrecked on the way.", cls: "good" });
+    expect(logEn(w, { t: "outpostReached", milestone: 1, pay: 15000, wrecks: 0 })?.text).toBe("Outpost 1. You earn 150 M's for the road.");
     expect(eventText(w, { t: "money", amount: 15000, reason: { kind: "outpost" } })).toBeNull();
     expect(logEn(w, { t: "runLost", stretch: 3, cause: "wrecked" })?.text).toBe("Your truck is wrecked. The run ends on stretch 3.");
     expect(logEn(w, { t: "runLost", stretch: 2, cause: "abandoned" })?.text).toBe("You end the run on stretch 2.");

@@ -1,11 +1,11 @@
 import { PARCEL } from "../data/goods";
-import { isMet, type Contract } from "../sim/market";
+import { isLate, isMet, type Contract } from "../sim/market";
 import { vehicleStats } from "../sim/stats";
 import type { World } from "../sim/types";
 import { PLUS, SPACE, t } from "../text/msg";
 import { createBareItemIcon, createIcon } from "./cards";
 import { el, type Child } from "./dom";
-import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, heldContractDue, rescueWhere, surveyClueLines, surveyWayLines, vehicleName } from "./format";
+import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, heldContractClock, heldContractDue, rescueWhere, surveyClueLines, surveyWayLines, vehicleName } from "./format";
 import { kph, moneyEl } from "./units";
 
 const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
@@ -57,7 +57,7 @@ function jobRow(w: World, c: Contract, { action, posted, clue }: RowShape): HTML
   const met = isMet(c);
   const clock = c.kind === "escort" ? escortClock(w, c, posted) : posted
     ? el("span", { class: "price", title: t("contract.windowTitle", { n: c.window }) }, createIcon("clock"), contractWindow(c))
-    : el("span", { class: "price", title: met ? undefined : t("contract.dueTitle", { n: c.deadline - w.turn }) }, createIcon("clock"), heldContractDue(c));
+    : el("span", { class: "price", title: met ? undefined : t("contract.dueTitle", { n: c.deadline - w.turn }) }, createIcon("clock"), heldContractClock(w, c));
   return el(
     "div",
     { class: "job" },
@@ -65,7 +65,7 @@ function jobRow(w: World, c: Contract, { action, posted, clue }: RowShape): HTML
     c.kind === "escort" && posted
       ? el("div", { class: "job-what" }, el("span", {}, contractSummary(c)), el("div", { class: "job-detail dim" }, ...escortDetail(w, c)))
       : contractSummaryCell(w, c, clue, posted),
-    el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
+    isLate(w, c) ? el("span", { class: "price bad" }, t("contract.late")) : el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
     clock,
     action,
   );

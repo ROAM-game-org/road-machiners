@@ -1,5 +1,6 @@
 import { REGION } from '../data/region';
 import { HOLLOW } from '../data/sunward';
+import { hollowReach } from '../sim/hollow-layout';
 import { siteGap } from '../sim/sites';
 import {
   GEOLOGY,
@@ -77,7 +78,7 @@ function onSpur(p: BakedProp): boolean {
 }
 
 function inHollow(p: BakedProp): boolean {
-  return siteGap(HOLLOW.site, p.pos) <= O.siteClearance + p.r;
+  return dist(HOLLOW.pos, p.pos) <= hollowReach() + O.siteClearance + p.r;
 }
 
 function settle(d: MapDraft, p: BakedProp, roadGap: number): boolean {

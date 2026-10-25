@@ -16,6 +16,7 @@ export const NOTE_IDS = [
   'talkCommitteeRent',
   'pipeBook', 'pipeDraw', 'pipeOffer', 'pipeCanal',
   'orchardIron',
+  'roadhouseBook', 'roadhouseBuyOff', 'roadhouseRaiders',
 ] as const;
 
 export type NoteId = (typeof NOTE_IDS)[number];
@@ -26,7 +27,7 @@ export function isNoteId(id: string): id is NoteId {
 
 export const GAME_NOTES = { wagonRoad: 'wagonRoad' } as const satisfies Record<string, NoteId>;
 
-export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'edda' | 'jory' | 'sefa' | 'agnes' | 'odile' | 'hadiza' | 'hollis';
+export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'edda' | 'jory' | 'sefa' | 'agnes' | 'odile' | 'hadiza' | 'hollis' | 'petra';
 
 export type LocalDef = { id: LocalId; town: string; quest: string };
 
@@ -44,12 +45,13 @@ export const LOCALS: Record<LocalId, LocalDef> = {
   odile: { id: 'odile', town: 'granary', quest: 'granary_odile' },
   hadiza: { id: 'hadiza', town: 'green-pit', quest: 'pit_hadiza' },
   hollis: { id: 'hollis', town: 'pump-station', quest: 'station_still' },
+  petra: { id: 'petra', town: 'marshal-post', quest: 'roadhouse_petra' },
 };
 
 export const TERM_IDS = [
   'bowl', 'nose', 'pierce', 'granary', 'glass_flats', 'fallen_sun', 'sunward', 'senate', 'farmers',
   'pump_station', 'dustwell', 'committee', 'salvage_yard', 'kiln', 'scrapjaw', 'old_army', 'guild', 'old_world', 'chaos',
-  'keepers', 'machiner', 'link',
+  'keepers', 'machiner', 'link', 'road_book', 'marshals',
 ] as const;
 
 export type TermId = (typeof TERM_IDS)[number];

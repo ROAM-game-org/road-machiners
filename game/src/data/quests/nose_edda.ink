@@ -10,7 +10,7 @@ VAR edda_asked_marks = false
 === start ===
 # checkpoint: start
 { edda_answered:
-  Back again. Have the clamps started to rub yet? Every seat on the road is old, so it will.
+  Back again. Have the clamps started to rub yet? Every seat on the road is old, so they will.
 - else:
   Edda. I fit link seats on the workshop line, for the Army and for anyone who pays. Turn your head. That red ring at the base of your skull is fresh. You're a Machiner, then?
 }
