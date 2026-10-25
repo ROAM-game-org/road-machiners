@@ -55,7 +55,7 @@ import { meetingLapsed } from './sunward-crater';
 
 export const INTERRUPTIONS: readonly NpcActivity['kind'][] = ['fight', 'flee', 'investigate', 'sizeUp', 'resupply', 'tow', 'loot', 'repair', 'patch', 'meet', 'retreat', 'rearm', 'follow'];
 
-function goalsOf(v: Vehicle): NpcActivity[] {
+export function goalsOf(v: Vehicle): NpcActivity[] {
   if (!v.brain) throw new Error(`${v.id} has no NPC brain`);
   if (!v.brain.goals) throw new Error(`${v.id} has no goals`);
   return v.brain.goals;

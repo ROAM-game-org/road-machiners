@@ -1,9 +1,10 @@
 import { BOUNTY, CRIME } from '../data/market';
 import { OFFENSE_LINES } from '../data/personalities';
 import { getKnownSite, decide, judgeDanger, npcProfile, wantsPeace } from './npc-decisions';
-import { createActivity, finishGoal, fightGoal, fleeFrom, interrupt, pushGoal, topGoal } from './npc-activities';
+import { createActivity, dropGoal, finishGoal, fightGoal, fleeFrom, goalsOf, interrupt, placeBase, pushGoal, topGoal } from './npc-activities';
 import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, stepPosse, takeHunt, targetNeed } from './crime';
-import { followingOf, followingStatesOf } from './companies';
+import { followersOf, followingOf, followingStatesOf, inCompany } from './companies';
+import { followGoal, startEscort } from './tow';
 import { vehicleById } from './damage';
 import { isDefeated } from './defeat';
 import { sightingOf } from './memory';
@@ -22,6 +23,7 @@ export function isMarshal(v: Vehicle): boolean {
 }
 
 export function planMarshal(world: World, marshal: Vehicle, seen: Vehicle[]): void {
+  if (ridesInPair(world, marshal)) return;
   const top = topGoal(marshal);
   if (!top) return planAtPost(world, marshal, null, seen);
   planOnGoal(world, marshal, top, seen);
@@ -34,18 +36,45 @@ function planOnGoal(world: World, marshal: Vehicle, top: NpcActivity, seen: Vehi
 }
 
 function planAtPost(world: World, marshal: Vehicle, top: NpcActivity | null, seen: Vehicle[]): void {
-  const c = takeCase(world, marshal);
-  if (c) return startHunt(world, marshal, c, seen);
+  const taken = takeCase(world, marshal, seen);
+  if (taken) return startHunt(world, marshal, taken, seen);
   if (!top) pushGoal(world, marshal, postGoal(world, marshal));
+}
+
+function ridesInPair(world: World, marshal: Vehicle): boolean {
+  const held = followingOf(world, marshal);
+  if (held?.kind !== 'escort') return false;
+  const leader = hunterOf(world, marshal);
+  if (!leader || leader.id === marshal.id) {
+    breakPair(world, marshal, held);
+    return false;
+  }
+  if (!goalsOf(marshal).some((g) => g.kind === 'follow')) placeBase(world, marshal, followGoal(leader));
+  return true;
+}
+
+function breakPair(world: World, follower: Vehicle, held: NpcState): void {
+  endState(world, held, 'expired');
+  for (const goal of goalsOf(follower).filter((g) => g.kind === 'follow' && g.targetId === held.other)) dropGoal(world, follower, goal, 'leftLeader');
+}
+
+function idlePartner(world: World, marshal: Vehicle, seen: Vehicle[]): Vehicle | null {
+  return seen.find((v) => v.id !== marshal.id && isMarshal(v) && idleAtPost(v) && !isDefeated(v) && !inCompany(world, v)) ?? null;
+}
+
+function idleAtPost(marshal: Vehicle): boolean {
+  const top = topGoal(marshal);
+  return top !== null && waitsAtPost(top) && top.phase === 'act';
 }
 
 function waitsAtPost(goal: NpcActivity): boolean {
   return goal.kind === 'wait' && goal.reason === 'atPost';
 }
 
-function startHunt(world: World, marshal: Vehicle, c: CrimeCase, seen: Vehicle[]): void {
+function startHunt(world: World, marshal: Vehicle, taken: TakenCase, seen: Vehicle[]): void {
   if (topGoal(marshal)) finishGoal(world, marshal, 'bountyHunt');
-  pushGoal(world, marshal, pursueGoal(world, c));
+  if (taken.partner) startEscort(world, taken.partner, marshal, null, 0);
+  pushGoal(world, marshal, pursueGoal(world, taken.case));
   hunt(world, marshal, seen);
 }
 
@@ -58,10 +87,16 @@ function pursueGoal(world: World, c: CrimeCase): NpcActivity {
   return { ...createActivity('pursue', c.target, { ...c.lead.at }, 'bountyHunt'), until: world.turn + BOUNTY.huntTurns, asked: [] };
 }
 
-export function takeCase(world: World, marshal: Vehicle): CrimeCase | null {
+export type TakenCase = { case: CrimeCase; partner: Vehicle | null };
+
+export function takeCase(world: World, marshal: Vehicle, seen: Vehicle[]): TakenCase | null {
   if (!modeRules(world).bounties) return null;
-  const pick = rankedTargets(world, marshal)[0];
-  return pick ? takeHunt(world, pick, marshal.id) : null;
+  for (const target of rankedTargets(world, marshal)) {
+    const need = targetNeed(world, target);
+    const partner = need === 'pair' ? idlePartner(world, marshal, seen) : null;
+    if (need === 'lone' || partner) return { case: takeHunt(world, target, marshal.id), partner };
+  }
+  return null;
 }
 
 type TargetTotal = { owed: number; oldest: number };
@@ -82,6 +117,7 @@ function targetTotals(world: World, marshal: Vehicle): Map<string, TargetTotal> 
 }
 
 function huntable(world: World, targetId: string): boolean {
+  if (targetNeed(world, targetId) === null) return false;
   if (openCasesOn(world, targetId).some((c) => c.hunter !== null || (c.retryAt ?? -Infinity) > world.turn)) return false;
   const target = world.vehicles.find((v) => v.id === targetId);
   return target !== undefined && !isDefeated(target);
@@ -95,6 +131,7 @@ export function hunt(world: World, marshal: Vehicle, seen: Vehicle[]): void {
   const goal = pursuitOf(marshal);
   const cases = huntedCases(world, marshal, goal.targetId);
   if (cases.length === 0) return;
+  if (lostPartner(world, marshal, goal.targetId)) return giveUp(world, marshal, cases);
   const lead = newLead(world, marshal, goal, seen, cases[0].lead);
   if (lead) follow(world, goal, cases, lead);
   else trackLead(world, marshal, goal, cases);
@@ -105,6 +142,14 @@ function newLead(world: World, marshal: Vehicle, goal: NpcActivity & { targetId:
   if (target) return contactLead(world, marshal, target);
   const told = askAround(world, marshal, goal, seen, lead);
   return told === lead ? null : told;
+}
+
+function lostPartner(world: World, leader: Vehicle, targetId: string): boolean {
+  return targetNeed(world, targetId) === 'pair' && followersOf(world, leader.id, ['escort']).length === 0;
+}
+
+function posseOf(world: World, leader: Vehicle): Vehicle[] {
+  return [leader, ...followersOf(world, leader.id, ['escort']).filter((v) => isMarshal(v) && !isDefeated(v))];
 }
 
 function trackLead(world: World, marshal: Vehicle, goal: NpcActivity, cases: CrimeCase[]): void {
@@ -220,7 +265,7 @@ export function withdrawHunt(world: World, hunter: Vehicle, target: Vehicle): vo
   if (cases.length === 0) throw new Error(`${hunter.id} withdraws from no hunt on ${target.id}`);
   stepPosse(cases.filter((c) => c.posse !== 'spent'));
   dropHunt(world, cases);
-  for (const s of followingStatesOf(world, hunter.id).filter((x) => x.kind === 'escort')) endState(world, s, 'expired');
+  for (const s of followingStatesOf(world, hunter.id).filter((x) => x.kind === 'escort')) breakPair(world, vehicleById(world, s.holder), s);
   world.events.push({ t: 'huntWithdrawn', by: hunter.id, target: target.id, posse: targetNeed(world, target.id) === null ? 'spent' : 'pair' });
 }
 
@@ -254,17 +299,22 @@ export function answerDemand(world: World, marshal: Vehicle, target: Vehicle, an
   s.data = { ...s.data, answered: true };
   if (answer === 'pay') {
     endState(world, s, 'fulfilled');
-    addState(world, 'truce', marshal.id, target.id, { kind: 'none' });
-    return;
+    return truceWithPosse(world, marshal, target);
   }
   endState(world, s, 'broken');
   refused(world, marshal, target);
 }
 
+function truceWithPosse(world: World, leader: Vehicle, target: Vehicle): void {
+  for (const m of posseOf(world, leader)) addState(world, 'truce', m.id, target.id, { kind: 'none' });
+}
+
 export function refused(world: World, marshal: Vehicle, target: Vehicle): void {
   if (huntedCases(world, marshal, target.id).length === 0 || isDefeated(marshal)) return;
-  declareFeud(world, marshal, target.id);
-  interrupt(world, marshal, fightGoal(world, marshal, target, 'fightHostile'));
+  for (const m of posseOf(world, marshal)) {
+    declareFeud(world, m, target.id);
+    if (m === marshal || canVehicleSee(world, m, target.pos)) interrupt(world, m, fightGoal(world, m, target, 'fightHostile'));
+  }
 }
 
 export function demandLapsed(world: World, s: NpcState): void {
@@ -278,8 +328,9 @@ export function payHailedBounty(world: World, marshal: Vehicle, target: Vehicle)
   if (huntedCases(world, marshal, target.id).length === 0) throw new Error(`${marshal.id} hunts no case on ${target.id}`);
   const open = demandOpen(world, marshal, target);
   if (open) return answerDemand(world, marshal, target, 'pay');
+  const posse = posseOf(world, marshal);
   payBounty(world, target, openCasesOn(world, target.id), marshal);
-  addState(world, 'truce', marshal.id, target.id, { kind: 'none' });
+  for (const m of posse) addState(world, 'truce', m.id, target.id, { kind: 'none' });
 }
 
 const OFFENSE_ORDER: readonly CrimeOffense[] = ['killed', 'robbed', 'attacked'];

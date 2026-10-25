@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { BOUNTY, CRIME } from '../data/market';
 import type { TraitId } from '../data/npcs';
-import { fileReports, noteKnockout, openCasesOn } from './crime';
+import { advanceCrimes, fileReports, noteKnockout, openCasesOn, payCasesAtDesk, stepPosse } from './crime';
 import { chooseOption, currentOptions, radioSpeakers, raiseCalls } from './dialogue';
 import { playerVehicle } from './damage';
 import { knockOutNpc } from './defeat';
 import { remember, rememberSightings, sightingOf } from './memory';
-import { answerDemand, demandLapsed, hunt, outmatched, planMarshal, searchLead, takeCase, withdrawHunt, withdrawsOnTruce } from './marshals';
+import { answerDemand, demandLapsed, demandOpen, hunt, outmatched, planMarshal, searchLead, takeCase, withdrawHunt, withdrawsOnTruce } from './marshals';
 import { fleeFrom, interrupt, topGoal } from './npc-activities';
 import { getKnownSite, npcProfile } from './npc-decisions';
 import { plead, settlePlayerPlea } from './parley';
@@ -52,7 +52,7 @@ describe('the Marshall hunt', () => {
     expect(topGoal(marshal)).toMatchObject({ kind: 'pursue', targetId: target.id, reason: 'bountyHunt' });
     expect(openCasesOn(w, target.id).every((c) => c.hunter === marshal.id)).toBe(true);
     const second = marshalAt(w, { x: 660, y: 100 });
-    expect(takeCase(w, second)).toBeNull();
+    expect(takeCase(w, second, [])).toBeNull();
   });
 
   it('follows a driver it asks to its sighting and never reads the target position out of sight (IV5)', () => {
@@ -105,9 +105,9 @@ describe('the Marshall hunt', () => {
     hunt(w, marshal, []);
     expect(topGoal(marshal)?.kind).not.toBe('pursue');
     expect(w.crimes[0]).toMatchObject({ hunter: null, retryAt: w.turn + BOUNTY.retryTurns });
-    expect(takeCase(w, marshal)).toBeNull();
+    expect(takeCase(w, marshal, [])).toBeNull();
     w.turn += BOUNTY.retryTurns;
-    expect(takeCase(w, marshal)?.target).toBe(target.id);
+    expect(takeCase(w, marshal, [])?.case.target).toBe(target.id);
   });
 
   it('frees the case when its Marshall is knocked out', () => {
@@ -333,5 +333,156 @@ describe('a Marshall that backs off', () => {
     const { w, me } = onPlayer();
     const other = marshalAt(w, { x: 320, y: 300 });
     expect(() => withdrawHunt(w, other, me)).toThrow(/no hunt/);
+  });
+});
+
+describe('the pair hunt', () => {
+  const post = () => getKnownSite('marshal-post');
+
+  function idleAt(w: World, pos: Vec): Vehicle {
+    const m = marshalAt(w, pos);
+    m.brain!.goals = [{ kind: 'wait', targetId: post().id, destination: { ...pos }, phase: 'act', reason: 'atPost', until: w.turn + 500 }];
+    return m;
+  }
+
+  function pairCase(onPlayer = false): { w: World; leader: Vehicle; partner: Vehicle; target: Vehicle } {
+    const w = emptyWorld({ x: 100, y: 700 });
+    const target = onPlayer ? playerVehicle(w) : traderAt(w, 'independent', { x: 500, y: 500 });
+    fileAgainst(w, target, { x: 500, y: 500 });
+    stepPosse(w.crimes);
+    const pad = nearestPad(post(), post().pos);
+    const leader = idleAt(w, pad);
+    const partner = idleAt(w, { x: pad.x + 4, y: pad.y });
+    return { w, leader, partner, target };
+  }
+
+  function riding(onPlayer = false): ReturnType<typeof pairCase> {
+    const scene = pairCase(onPlayer);
+    planMarshal(scene.w, scene.leader, [scene.partner]);
+    return scene;
+  }
+
+  it('sends both idle Marshalls: one hunts and the other follows on a fee-free escort (IV6)', () => {
+    const { w, leader, partner, target } = riding();
+    expect(topGoal(leader)).toMatchObject({ kind: 'pursue', targetId: target.id });
+    expect(w.crimes[0].hunter).toBe(leader.id);
+    expect(stateOf(w, 'escort', partner.id, leader.id)?.data).toEqual({ kind: 'escort', site: null, fee: 0 });
+    expect(topGoal(partner)).toMatchObject({ kind: 'follow', targetId: leader.id });
+    planMarshal(w, partner, [leader]);
+    expect(topGoal(partner)).toMatchObject({ kind: 'follow', targetId: leader.id });
+  });
+
+  it('leaves a case marked for the pair when the partner is out of sight, and takes a lone case on another target instead (IV5)', () => {
+    const { w, leader, partner } = pairCase();
+    expect(takeCase(w, leader, [])).toBeNull();
+    const other = traderAt(w, 'independent', { x: 520, y: 480 });
+    w.turn += 1;
+    fileAgainst(w, other, { x: 520, y: 480 });
+    const taken = takeCase(w, leader, [])!;
+    expect(taken).toMatchObject({ partner: null });
+    expect(taken.case.target).toBe(other.id);
+    expect(stateOf(w, 'escort', partner.id, leader.id)).toBeNull();
+  });
+
+  it('skips a partner that is still riding home', () => {
+    const { w, leader, partner } = pairCase();
+    topGoal(partner)!.phase = 'travel';
+    expect(takeCase(w, leader, [partner])).toBeNull();
+  });
+
+  it('feuds the target from both on a refusal, and the follower in sight fights it', () => {
+    const { w, leader, partner, target } = riding(true);
+    target.pos = { x: leader.pos.x + 8, y: leader.pos.y };
+    w.turn += 1;
+    hunt(w, leader, [target]);
+    expect(demandOpen(w, leader, target)).not.toBeNull();
+    answerDemand(w, leader, target, 'refuse');
+    expect(stateOf(w, 'feud', leader.id, target.id)).not.toBeNull();
+    expect(stateOf(w, 'feud', partner.id, target.id)).not.toBeNull();
+    expect(topGoal(partner)).toMatchObject({ kind: 'fight', targetId: target.id });
+  });
+
+  it('truces both on pay, and the follower leaves its escort the next time it plans (IV6)', () => {
+    const { w, leader, partner, target } = riding(true);
+    target.pos = { x: leader.pos.x + 8, y: leader.pos.y };
+    w.player.money = 100000;
+    hunt(w, leader, [target]);
+    answerDemand(w, leader, target, 'pay');
+    expect(w.crimes[0].status).toBe('paid');
+    expect(stateOf(w, 'truce', leader.id, target.id)).not.toBeNull();
+    expect(stateOf(w, 'truce', partner.id, target.id)).not.toBeNull();
+    planMarshal(w, partner, []);
+    expect(stateOf(w, 'escort', partner.id, leader.id)).toBeNull();
+    expect(topGoal(partner)).toMatchObject({ kind: 'wait', reason: 'atPost' });
+  });
+
+  it('turns back when its follower is knocked out, and the case still waits for the pair (AS2)', () => {
+    const { w, leader, partner } = riding();
+    knockOutNpc(w, partner);
+    const next = endTurn(endTurn(w, testDrive), testDrive);
+    const lead = next.vehicles.find((v) => v.id === leader.id)!;
+    expect(lead.brain!.goals.some((g) => g.kind === 'pursue')).toBe(false);
+    expect(next.crimes[0]).toMatchObject({ hunter: null, posse: 'pair', status: 'open' });
+    expect(next.crimes[0].retryAt).not.toBeNull();
+  });
+
+  it('lets a follower collect on a knockout as the hunter would', () => {
+    const { w, partner, target } = riding();
+    target.lastHitBy = partner.id;
+    noteKnockout(w, target);
+    expect(w.crimes[0]).toMatchObject({ status: 'collected' });
+  });
+
+  it('marks the case spent when the pair backs off outgunned, and then nobody rides it (IV4)', () => {
+    const { w, leader, partner, target } = riding();
+    leader.resources!.health = 10;
+    expect(withdrawsOnTruce(w, target, partner)?.hunter.id).toBe(leader.id);
+    forceOption('truceOffered', 'accept');
+    plead(w, target, partner, 'truce');
+    expect(w.crimes[0]).toMatchObject({ posse: 'spent', hunter: null });
+    expect(stateOf(w, 'escort', partner.id, leader.id)).toBeNull();
+    expect(partner.brain!.goals.some((g) => g.kind === 'follow')).toBe(false);
+    w.turn += BOUNTY.retryTurns;
+    leader.resources!.health = 100;
+    for (const m of [leader, partner]) m.brain!.goals = [{ kind: 'wait', targetId: post().id, destination: { ...m.pos }, phase: 'act', reason: 'atPost', until: w.turn + 500 }];
+    expect(takeCase(w, leader, [partner])).toBeNull();
+  });
+
+  it('lapses a spent case after its days, as any other', () => {
+    const { w, target } = pairCase();
+    stepPosse(w.crimes);
+    w.turn = w.crimes[0].filed + BOUNTY.lapseTurns;
+    advanceCrimes(w);
+    expect(openCasesOn(w, target.id)).toEqual([]);
+  });
+
+  it('lets the player pay a spent case at the desk', () => {
+    const w = emptyWorld({ x: 100, y: 700 });
+    const me = playerVehicle(w);
+    fileAgainst(w, me, { x: 300, y: 300 });
+    stepPosse(w.crimes);
+    stepPosse(w.crimes);
+    me.pos = { ...nearestPad(post(), me.pos) };
+    me.speed = 0;
+    w.player.money = 100000;
+    payCasesAtDesk(w, [w.crimes[0].id]);
+    expect(w.crimes[0].status).toBe('paid');
+  });
+
+  it('rides out of the post together through the turns and raises no stall', () => {
+    let { w, leader, partner } = pairCase();
+    const stalls: unknown[] = [];
+    let gap = 0;
+    for (let i = 0; i < 30; i++) {
+      w = endTurn(w, testDrive);
+      stalls.push(...w.events.filter((e) => e.t === 'stall'));
+      const l = w.vehicles.find((v) => v.id === leader.id)!;
+      const p = w.vehicles.find((v) => v.id === partner.id)!;
+      if (stateOf(w, 'escort', p.id, l.id) || stateOf(w, 'escort', l.id, p.id)) gap = Math.max(gap, dist(l.pos, p.pos));
+    }
+    expect(stalls).toEqual([]);
+    expect(w.crimes[0].hunter).not.toBeNull();
+    expect(gap).toBeGreaterThan(0);
+    expect(gap).toBeLessThan(40);
   });
 });
