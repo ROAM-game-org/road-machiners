@@ -194,10 +194,12 @@ function searchItemSpot(body: THREE.Object3D, { rect, points }: Footprint, rest:
   if (onLegSpots) return onLegSpots;
   if (heldOn(points, planeAt(rect, rest), exact, tops)) return { dx: 0, dz: 0, y: rest.y, slope: rest.slope, legs: false };
   const shifts = shiftsWithin(shiftRange(rect, cells), FACE_COLUMN);
-  for (const [dx, dz] of shifts) {
-    const moved = shifted(points, dx, dz);
-    const y = highestTop(moved, tops);
-    if (heldOn(moved, () => y, exact, tops)) return { dx, dz, y, slope: FLAT, legs: false };
+  for (const support of [SHIFT_SUPPORT, MIN_SUPPORT]) {
+    for (const [dx, dz] of shifts) {
+      const moved = shifted(points, dx, dz);
+      const y = highestTop(moved, tops);
+      if (heldOn(moved, () => y, exact, tops, support)) return { dx, dz, y, slope: FLAT, legs: false };
+    }
   }
   return stilts ? stiltSpot(body, { rect, points }, shifts, feet, tops) : null;
 }
@@ -241,7 +243,9 @@ function shiftRange(rect: CellRect, cells: CellRect): { x0: number; x1: number; 
   return { x0: cells.x0 - half.x - cx, x1: cells.x1 + half.x - cx, z0: cells.z0 - half.z - cz, z1: cells.z1 + half.z - cz };
 }
 
-function heldOn(points: Sample[], plane: (x: number, z: number) => number, feet: Footing, tops: Footing): boolean {
+const SHIFT_SUPPORT = MIN_SUPPORT + 0.05;
+
+function heldOn(points: Sample[], plane: (x: number, z: number) => number, feet: Footing, tops: Footing, support = MIN_SUPPORT): boolean {
   let held = 0;
   for (const [x, z, lift] of points) {
     const bottom = plane(x, z) + lift;
@@ -250,7 +254,7 @@ function heldOn(points: Sample[], plane: (x: number, z: number) => number, feet:
     const foot = feet(x, z);
     if (foot && Math.abs(foot.y - bottom) <= CLIP_TOLERANCE) held++;
   }
-  return held / points.length >= MIN_SUPPORT;
+  return held / points.length >= support;
 }
 
 function highestTop(points: Sample[], tops: Footing): number {

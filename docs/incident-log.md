@@ -29,8 +29,8 @@ what: The factory wrote to GitHub too often: reactions to pass the vote gate, pr
 cost: GitHub suspended the bot account, hundreds of issues were hidden, and the factory had to move to a new organization.
 
 ID: R8
-what: Designs pointed the player at targets with map markers, rings on the ground, floating labels, exact distances and tutorial tips, or finished a task by radio, instead of letting the player find things in the world. A dashed circle of a clue's general area went back, and so did making an old map mark easier to see with a dark edge and a hover name, though the design said it only fixed how an existing mark reads. The committee wants the place named in words, like a large square of a coarse map grid, with nothing drawn on the map.
-cost: The committee redesigned four contract features in one day, a built map area for survey and claim clues went back for a whole redesign, and a rumored-wreck fix went back with only "no map markers".
+what: Designs pointed the player at targets with map markers, rings on the ground, floating labels, exact distances and tutorial tips, or finished a task by radio, instead of letting the player find things in the world. A dashed circle of a clue's general area went back, and so did making an old map mark easier to see with a dark edge and a hover name, though the design said it only fixed how an existing mark reads. When the committee then wrote only "no map markers", the patch read it as markers that could not be seen and made the rings bigger, when it meant to remove them. The committee wants the place named in words, like a large square of a coarse map grid, with nothing drawn on the map.
+cost: The committee redesigned four contract features in one day, a built map area for survey and claim clues went back for a whole redesign, and a rumored-wreck fix took a patch round that enlarged the rings before an angry redesign.
 
 ID: R9
 what: Agents fixed a nearby, easier problem instead of the one reported, like brightening the night when terrain had vanished, or changing the 3D world when the issue meant the map.
