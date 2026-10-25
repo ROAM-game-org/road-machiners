@@ -138,7 +138,6 @@ export const TALK = {
   'line.craterNoLooting': "I strip the wrecks out there by day. Good parts. After dark I leave them where they lie.",
   'line.craterGivenHearsay': "Other drivers say someone shouts 'Given by the sky' out by the crater at night. Nobody I know has seen who it is.",
   'line.craterDayTrade': "I trade with the scavengers at the rim in daylight. I'm gone before the sun goes down.",
-  'line.craterDarkBeacons': "The beacon keepers put their lamps out at dusk now. They used to leave them lit all night. That tells me enough.",
   'line.craterFurrows': "Passed the rim one morning. Two deep furrows ran through the sand from open ground into the crater. I didn't see a truck.",
   'line.craterSilentRadio': "I saw a car with its lamp on by the Fallen Sun after dark, and I called it. The channel opened. Nobody spoke. I heard breathing until it closed.",
   'line.craterLamps': "I camped on a ridge at dusk once and saw eight lamps in a line, crossing open ground toward the Fallen Sun. There was no road under them.",

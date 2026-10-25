@@ -642,7 +642,7 @@ His line is "A line stays open till somebody closes it. I close them."
 ## Joss Ardo
 
 - Way: escape.
-- High concept: A deserter from the Sunward's sworn men, who sings with the Children of Noah at the beacons.
+- High concept: A deserter from the Sunward's sworn men, who sings with the Children of Noah.
 - Trouble: He got out and his friend did not, and he cannot stop counting what that cost.
 - Aspects: Nephew of the dreamer Pell Ardo; Told the Senate what he saw; Cobb went in because of me.
 - Skills: best perception, worst toughness.

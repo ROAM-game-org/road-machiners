@@ -165,9 +165,9 @@ The cost is that they leave this world to the people who still believe in it.
 
 Way: escape.
 
-The Children of Noah believe another ship will come and take the worthy away. They keep the escape pod beacons lit along the debris trail so the next ship can find them.
+The Children of Noah believe another ship will come and take the worthy away.
 
-Their singers came from the crater. In year 110 Yara Sorrel led the Sunward's old singers, the last believers among the dreamers, out to the beacon keepers, and the deserter Joss Ardo sings with them now. Since year 128 they keep their lamps dark at night.
+Their singers came from the crater. In year 110 Yara Sorrel led the Sunward's old singers, the last believers among the dreamers, out to the Children of Noah, and the deserter Joss Ardo sings with them now.
 
 The cost is that they live for an arrival that may never come.
 

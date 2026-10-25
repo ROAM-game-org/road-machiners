@@ -68,8 +68,8 @@ The first part is history as people in the basin could know it. The last part ho
 - Year 100. Neither town pays the Old Army. Hungry soldiers sell rifles to Scrapjaw. Pierce pays the army's back wages and takes its heavy trucks as collateral.
 - Year 100. Teo's scholars at the tower call themselves the Lunar Society. Young people who say nothing here is real leave the Creed: the Ephemeralists.
 - Year 101. Yara Sorrel, the Sunward singers' voice, dares the Keeper to answer the glow himself. Oren Vey walks into the light in front of the order and is not seen again. Mattias Kade puts on his coat.
-- Year 110. Beacon keepers on the debris trail call themselves the Children of Noah. Most are grandchildren of the Given, waiting for the ship that left their grandparents behind to come back.
-- Year 110. Yara Sorrel leads the Sunward's old singers out of the crater to the beacon keepers. A Bowl tenant grain cart vanishes on the rim road at night, and the Senate blames loose Old Army riflemen.
+- Year 110. Grandchildren of the Given on the debris trail call themselves the Children of Noah. Most are grandchildren of the Given, waiting for the ship that left their grandparents behind to come back.
+- Year 110. Yara Sorrel leads the Sunward's old singers out of the crater to the Children of Noah. A Bowl tenant grain cart vanishes on the rim road at night, and the Senate blames loose Old Army riflemen.
 - Year 112. Commander Lind nails a book of every unpaid promise to the Old Orchard gate and dies in the motor pool. The Old Army ends. Its trucks stand where they stopped.
 
 ## Recent years
@@ -112,7 +112,7 @@ This part was generated with a second, smaller run of the story game. Its player
 - Year 128. Nose command orders a cheap steel brake rod for the depot trucks, and the Nose line hands the same rod out to Nose drivers. It is weak on a hard bend. Nose drivers who know it pay the Salvage Yard for a proper one.
 - Year 128. The Bowl patrol comes to the mast with six trucks for the staff cars. The mast pays the Bowl their worth, and the Bowl strikes the three from its post. It pays the Bowl the price of a Nose driver's old robbery too, and the Bowl takes his name off its gate. Asked on whose authority it hears cases, the mast answers: on no town's.
 - Year 128. The Apprentice reads the last marks in the central hull's shadow and tells nobody what he read. He trades the count's last number to the Preacher of the Sunward, who teaches it as the glow's word. The Sunward bar the Lunar Society from the rim.
-- Year 128. Cobb Navarre, a Sunward sworn man and Joss Ardo's friend, is caught leaving the order at night and is never seen again. The beacon keepers keep their lamps dark at night from then on.
+- Year 128. Cobb Navarre, a Sunward sworn man and Joss Ardo's friend, is caught leaving the order at night and is never seen again.
 - Years 127 to 130. The Sunward stop sleeping in the crater. At dusk eight cars with their lamps in a line cross open ground to the crater from somewhere in the wastes, keep the night there in silence and go before dawn. On some nights three fast cars hunt the roads near the crater instead. Drivers keep away from the crater after dark.
 - Year 129. A Nose driver, Emil Kessel, dies on the north bend when his Nose issued brake rod snaps. The Nose sends an Army post under Captain Silver into the Salvage Yard.
 - Year 129. Drivers call the mast compound the Roadhouse. Its marshals buy a plated Lincoln from the Salvage Yard on credit, and close no claim against a Kiln rider. Garrett Ainsley's finding that a patrolman's son rammed first clears a Granary driver.
