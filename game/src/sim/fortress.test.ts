@@ -164,6 +164,21 @@ describe('fortress ground', () => {
     expect(checked).toBeGreaterThan(20);
   });
 
+  it('keeps the new legs into Nose 40 tiles out until their radial leg, clear of every other site (IV6)', () => {
+    const nose = FORT_SITES.find((s) => s.id === 'nose')!;
+    const others = SITES.filter((s) => s.id !== 'nose');
+    let checked = 0;
+    for (const road of REGION.roads.slice(0, 2)) {
+      const approach = road.slice(0, -1).filter((p) => dist(p, nose.pos) < 80);
+      for (const p of approach) {
+        expect(dist(p, nose.pos), `road at ${p.x.toFixed(1)}, ${p.y.toFixed(1)}`).toBeGreaterThanOrEqual(40);
+        for (const other of others) expect(dist(p, other.pos), `${other.id} at ${p.x.toFixed(1)}, ${p.y.toFixed(1)}`).toBeGreaterThan(other.radius);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(10);
+  });
+
   it('leaves every pad clear of the pieces and the rock (IV6)', () => {
     const pieces = mapObstacles(TEST_MAP).filter((o) => o.kind === 'landmark' && (o.look.startsWith('fort') || o.look === 'noseRise' || o.look === 'noseCrag'));
     const boxes = pieces.flatMap((o) => propBoxes(o));

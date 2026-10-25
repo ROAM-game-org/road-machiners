@@ -1,6 +1,7 @@
 
 import { reportRobbedHaul, reportShipmentLoss, shipmentOf } from './road-news';
 import { SPAWN } from '../data/npcs';
+import { endLines } from './harpoon';
 import { isHostile } from './combat';
 import { isKnockedOut, standDown } from './defeat';
 import { RULES } from '../data/rules';
@@ -43,6 +44,7 @@ export function makePeace(world: World, a: Vehicle, b: Vehicle): void {
       holdFire(q, p);
     }
   }
+  endLines(world);
 }
 
 function endBetween(world: World, kind: 'feud' | 'combat', p: Vehicle, q: Vehicle): void {

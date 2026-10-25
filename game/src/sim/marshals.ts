@@ -7,6 +7,7 @@ import { followersOf, followingOf, followingStatesOf, inCompany } from './compan
 import { followGoal, startEscort } from './tow';
 import { playerVehicle, vehicleById } from './damage';
 import { isDefeated } from './defeat';
+import { endLines } from './harpoon';
 import { heldSearch } from './market';
 import { sightingOf } from './memory';
 import { lieUpSpot } from './npc-service';
@@ -331,14 +332,15 @@ export function answerDemand(world: World, marshal: Vehicle, target: Vehicle, an
   s.data = { ...s.data, answered: true };
   if (answer === 'pay') {
     endState(world, s, 'fulfilled');
-    return truceWithPosse(world, marshal, target);
+    return truceWithPosse(world, posseOf(world, marshal), target);
   }
   endState(world, s, 'broken');
   refused(world, marshal, target);
 }
 
-function truceWithPosse(world: World, leader: Vehicle, target: Vehicle): void {
-  for (const m of posseOf(world, leader)) addState(world, 'truce', m.id, target.id, { kind: 'none' });
+function truceWithPosse(world: World, posse: readonly Vehicle[], target: Vehicle): void {
+  for (const m of posse) addState(world, 'truce', m.id, target.id, { kind: 'none' });
+  endLines(world);
 }
 
 export function refused(world: World, marshal: Vehicle, target: Vehicle): void {
@@ -362,7 +364,7 @@ export function payHailedBounty(world: World, marshal: Vehicle, target: Vehicle)
   if (open) return answerDemand(world, marshal, target, 'pay');
   const posse = posseOf(world, marshal);
   payBounty(world, target, openCasesOn(world, target.id), marshal);
-  for (const m of posse) addState(world, 'truce', m.id, target.id, { kind: 'none' });
+  truceWithPosse(world, posse, target);
 }
 
 const OFFENSE_ORDER: readonly CrimeOffense[] = ['killed', 'robbed', 'embezzled', 'attacked'];
