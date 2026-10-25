@@ -95,6 +95,47 @@ describe('settlement locals', () => {
     expect(lastLine(answered)).not.toContain("A tone's a tone");
   });
 
+  it('ties Sefa\'s water question to what the families leave a driver', () => {
+    const road = talk(parkedAt('salvage-yard'), 'yard_sefa', ['What is the road like out here?']);
+    const reply = lastLine(road)!;
+    expect(reply).toContain('water');
+    expect(reply).toMatch(/truck/i);
+    expect(reply).not.toMatch(/ask me/i);
+
+    const later = talk(parkedAt('salvage-yard'), 'yard_sefa', ['What is the road like out here?', 'What does the Yard turn out?', 'Who runs this yard?']);
+    expect(questView(later, QUESTS).choices).toContain('Why leave a stripped driver his water?');
+    const answered = chooseQuestOption(later, QUESTS, pickIndex(later, 'Why leave a stripped driver his water?'));
+    expect(lastLine(answered)).toContain('Fools talk less than bodies');
+  });
+
+  it('names the subject of every follow-up that outlives its setup reply', () => {
+    const rows: { town: string; quest: string; setup: string[]; option: string }[] = [
+      { town: 'salvage-yard', quest: 'yard_sefa', setup: ['What is the road like out here?', 'Why do the Kiln riders leave you alone?'], option: 'Did a Kiln rider ever come for shelter?' },
+      { town: 'bowl', quest: 'bowl_dag', setup: ['What is the road like?', 'Who are the raiders?', 'What do you make of Nose?'], option: 'How does Bowl pay the raiders?' },
+      { town: 'bowl', quest: 'bowl_hattie', setup: ['Any local legends?', 'What about the glass at the Glass Flats?', 'What do the Sunward do with strangers?', 'Heard any rumors?'], option: 'Have you seen anyone come out of the crater?' },
+      { town: 'nose', quest: 'nose_kovac', setup: ['What is the road like?', 'What is this place?'], option: 'Why let unarmed trucks out the gate?' },
+      { town: 'nose', quest: 'nose_edda', setup: ['Yes. I drive linked.', 'What do you know about links?', 'Who made the first link?', 'What happened to your grandfather?'], option: 'Could I lose myself in my truck?' },
+      { town: 'nose', quest: 'nose_edda', setup: ['Yes. I drive linked.', 'What do you know about links?'], option: 'What does the ring on my skull mean?' },
+      { town: 'nose', quest: 'nose_lena', setup: ['Any advice for my truck?', 'What do you do here?'], option: 'Why check brake rods before guns?' },
+      { town: 'nose', quest: 'nose_lena', setup: ['Where do I find cheap parts?', 'What do you know about the Fallen Sun?', 'What do you do here?'], option: 'Anything for the glare at the Fallen Sun?' },
+    ];
+    for (const row of rows) {
+      const w = talk(parkedAt(row.town), row.quest, row.setup);
+      expect(questView(w, QUESTS).choices, row.option).toContain(row.option);
+    }
+
+    const w = parkedAt('nose');
+    learnNote(w, 'wagonNose');
+    expect(choices(w, 'radio_wagon_driver')).toContain("What became of the wagon's crew?");
+  });
+
+  it('answers Edda\'s linked-soldier question without the origin story on screen', () => {
+    const setup = ['Yes. I drive linked.', 'What do you know about links?', 'Who made the first link?', 'What happened to your grandfather?'];
+    const w = talk(parkedAt('nose'), 'nose_edda', setup);
+    const answered = chooseQuestOption(w, QUESTS, pickIndex(w, 'Could I lose myself in my truck?'));
+    expect(lastLine(answered)).toMatch(/^Not like the first linked soldier\./);
+  });
+
   it('offers a stranger only questions that name nothing unheard', () => {
     const w = parkedAt('bowl');
     expect(choices(w, 'bowl_ruben')).toEqual(['What is this place?', 'Who runs Bowl?', 'Where can I get water, or find work?', 'What does Bowl make?', 'Goodbye.']);

@@ -1,14 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fetchAsset } from '../fetch-asset';
 import { TIME } from '../data/time';
 import { emptyWorld } from '../sim/testkit';
 import { claimLeads, journalEntries, JournalScreen } from './journal';
 import { surveyClue, surveySites } from '../sim/survey';
-import { surveyClueText } from './format';
+import { surveyWayText } from './format';
 import { resolve } from '../text/resolve';
 import { t } from '../text/msg';
 import type { World } from '../sim/types';
 import { TEST_MAP } from '../test/map';
 import type { Contract } from '../sim/market';
+
+vi.mock('../fetch-asset', async (orig) => ({ ...(await orig<typeof import('../fetch-asset')>()), fetchAsset: vi.fn(async () => new ArrayBuffer(1)) }));
 
 const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 20000, deadline: 5000, window: 600, rush: false, tier: 2 };
 const claim = (leads: Extract<Contract, { kind: 'claim' }>['leads'] = []): Extract<Contract, { kind: 'claim' }> => ({ id: 'ct-1', shop: 'bowl', kind: 'claim', stockId: 'armyTruck-1', at: { x: 100, y: 50 }, partId: 'p1', defId: 'mg', reward: 900, deadline: 9000, window: 9000, tier: 1, rivalAt: 9000, rival: null, leads });
@@ -201,7 +204,7 @@ describe('journal screen', () => {
     w.player.contracts = [survey];
 
     const root = openJournal(w);
-    const places = root.all((n) => n.className === 'journal-place');
+    const places = root.all((n) => n.className === 'journal-place survey');
     const tags = (n: FakeNode) => n.all((x) => x.className.split(' ').includes('tag')).map((x) => x.text());
 
     expect(places).toHaveLength(3);
@@ -209,9 +212,55 @@ describe('journal screen', () => {
     survey.points.forEach((p, i) => {
       const clue = surveyClue(survey, p);
       expect(places[i].text()).toContain(resolve(t(`contract.look.${clue.type}`), 'en'));
-      expect(places[i].text()).toContain(resolve(surveyClueText(clue), 'en'));
+      expect(places[i].text()).toContain(resolve(surveyWayText(w, survey, p), 'en'));
       expect(places[i].text()).toContain(resolve(t(`contract.want.${clue.type}`), 'en'));
     });
   });
-});
 
+  const surveyOf = (sites: string[], states: { found: boolean; done: boolean }[] = []): Extract<Contract, { kind: 'survey' }> => ({
+    id: 'ct-s', shop: 'bowl', kind: 'survey', reward: 3000, deadline: 900, window: 600, tier: 1,
+    points: sites.map((site, i) => ({ site, found: states[i]?.found ?? false, done: states[i]?.done ?? false })),
+  });
+  const picturesOf = (place: FakeNode) => place.all((n) => n.className === 'survey-picture');
+  const imageOf = (picture: FakeNode) => picture.children[0] as FakeNode & { src?: string; alt?: string };
+
+  it('shows the picture of its own site in every place, open, found or done', async () => {
+    const w = emptyWorld();
+    const [a, b, c] = surveySites(TEST_MAP).slice(-3);
+    w.player.contracts = [surveyOf([a.id, b.id, c.id], [{ found: true, done: true }, { found: true, done: false }, { found: false, done: false }])];
+
+    const places = openJournal(w).all((n) => n.className === 'journal-place survey');
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(places.map((p) => picturesOf(p).length)).toEqual([1, 1, 1]);
+    expect(vi.mocked(fetchAsset).mock.calls.map((call) => call[1])).toEqual(expect.arrayContaining([a.id, b.id, c.id].map((id) => expect.stringContaining(`survey/${id}.webp`))));
+    expect(places.map((p) => imageOf(picturesOf(p)[0]).alt)).toEqual(['', '', '']);
+    expect(places.map((p) => imageOf(picturesOf(p)[0]).attrs.get('aria-hidden'))).toEqual(['true', 'true', 'true']);
+  });
+
+  it('shows no picture on rows of other contracts', () => {
+    const w = emptyWorld();
+    w.player.contracts = [haul, claim(), escort];
+
+    expect(openJournal(w).all((n) => n.className === 'survey-picture')).toHaveLength(0);
+  });
+
+  it('fetches a site once however often the journal redraws', async () => {
+    const w = emptyWorld();
+    const site = surveySites(TEST_MAP)[3];
+    w.player.contracts = [surveyOf([site.id])];
+    vi.mocked(fetchAsset).mockClear();
+
+    const first = openJournal(w);
+    ui.children = [];
+    const second = openJournal(w);
+    await new Promise((resolve) => setTimeout(resolve));
+    const third = openJournal(w);
+
+    const fetched = vi.mocked(fetchAsset).mock.calls.filter((call) => call[1].includes(`survey/${site.id}.webp`));
+    expect(fetched).toHaveLength(1);
+    expect(imageOf(picturesOf(first)[0]).src).toBeDefined();
+    expect(imageOf(picturesOf(second)[0]).src).toBeDefined();
+    expect(imageOf(picturesOf(third)[0]).src).toBe(imageOf(picturesOf(second)[0]).src);
+  });
+});

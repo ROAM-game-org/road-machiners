@@ -939,22 +939,32 @@ function eventTag(event: "surge" | "breakdown"): HTMLElement {
 }
 
 function crateIcons(goods: Record<string, number>): HTMLElement[] {
-  return Object.entries(goods).map(([good, n]) => el("span", { class: "recipe-good" }, n > 1 ? el("span", { class: "num" }, num(n, "int")) : null, createItemIcon(good)));
+  return Object.entries(goods).map(([good, n]) => crateIcon(good, n));
 }
 
-function newsWell(w: World): HTMLElement | null {
+function crateIcon(good: string, n: number): HTMLElement {
+  return el("span", { class: "recipe-good" }, n > 1 ? el("span", { class: "num" }, num(n, "int")) : null, createItemIcon(good));
+}
+
+export function newsWell(w: World): HTMLElement | null {
   const news = liveRoadNews(w);
   if (news.length === 0) return null;
-  return el("div", { class: "road-news" }, ...[...news].reverse().map((n) => newsRow(w, n)));
+  return el("div", { class: "road-news" }, el("div", { class: "news-head dim" }, t("news.head")), ...[...news].reverse().map((n) => newsRow(w, n)));
 }
 
 const NEWS_VERB = { robbed: "news.robbed", destroyed: "news.destroyed", knockedOut: "news.knockedOut" } as const;
 
+const NEWS_REASON = {
+  robbed: "news.reason.robbed",
+  destroyed: "news.reason.destroyed",
+  knockedOut: "news.reason.knockedOut",
+} as const satisfies Record<RoadNews["kind"], string>;
+
 function newsRow(w: World, n: RoadNews): HTMLElement {
   return el(
     "div",
-    { class: "news-row row" },
-    createItemIcon(n.good),
+    { class: "news-row row", title: t(NEWS_REASON[n.kind]) },
+    crateIcon(n.good, n.units),
     el("span", { class: "bad" }, t(NEWS_VERB[n.kind])),
     el("span", {}, t("news.route", { from: siteName(n.from), to: siteName(n.to) })),
     el("span", { class: "num dim" }, t("news.ago", { h: gameHours(w.turn - n.turn) })),

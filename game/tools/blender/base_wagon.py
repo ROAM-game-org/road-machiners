@@ -166,7 +166,9 @@ def cab(kit: Kit) -> None:
     mid = (CAB_FRONT + CAB_BACK) / 2
     kit.box("doors", (length, 2 * CAB_SIDE, BELT - CAB_BOTTOM), (mid, 0, (BELT + CAB_BOTTOM) / 2), "paint")
     glass_h = ROOF - ROOF_T - BELT
-    kit.box("glass", (length - 0.1, 2 * CAB_SIDE - 0.1, glass_h), (mid - 0.05, 0, BELT + glass_h / 2), "glass")
+    glass_back, glass_front = CAB_BACK + 0.04, CAB_FRONT - 0.1
+    glass_bottom, glass_top = BELT - 0.03, ROOF - ROOF_T / 2
+    kit.box("glass", (glass_front - glass_back, 2 * CAB_SIDE - 0.1, glass_top - glass_bottom), ((glass_front + glass_back) / 2, 0, (glass_top + glass_bottom) / 2), "glass")
     post = 0.09
     for sx, x in ((1, CAB_FRONT - post / 2 + 0.01), (-1, CAB_BACK + post / 2)):
         mirrored(kit, f"post{sx}", (post, post, glass_h), x, CAB_SIDE - post / 2, BELT + glass_h / 2, "paint")

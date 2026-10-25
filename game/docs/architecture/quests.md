@@ -120,7 +120,7 @@ The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo t
 - `checkKnockout()` in `src/sim/defeat.ts` calls `openFirstFall()` in `src/sim/quests.ts` when trucks fought the player. A knockout with no attacker, such as a hazard, opens nothing.
 - `openFirstFall()` skips when another quest session is open or when the world variable `first_knockout_seen` is true. It sets that variable as it opens the scene, so saves keep it and `src/sim/types.ts` stays as it is.
 - The scene offers no choice, since every choice would lead to the same outcome. Its pages run behind Next buttons, and the session ends as it opens. A save made while the pages show does not show them again on load.
-- While a quest is on view, `autoRuns()` is false. The knocked-out turns wait until the scene closes.
+- While a quest is on view, `waitsOnPlayer()` in `src/sim/world.ts` is true and `autoRuns()` is false. The knocked-out turns wait until the scene closes. The same rule holds every scene a turn opens, in automatic travel and with Space held: that turn plays to its end, the scene shows, and no turn begins until Leave closes it.
 - `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The arrival and `bowl_scale` are among them. The voice test counts it as a way in next to locals, radio calls and `begin()`.
 
 ## The fallen light
