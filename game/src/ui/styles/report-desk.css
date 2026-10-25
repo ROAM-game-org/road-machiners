@@ -1,0 +1,18 @@
+#report {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-report);
+  pointer-events: none;
+  color: var(--ink);
+  font: var(--text-body) / 1.4 var(--font-ui);
+  touch-action: manipulation;
+}
+#report > .feedback {
+  display: none;
+  position: absolute;
+  left: var(--safe-left);
+  top: var(--safe-top);
+}
+body:has(#boot:not([hidden], .leaving), .start-menu, .save-screen, .death, .crash-screen) #report > .feedback {
+  display: block;
+}

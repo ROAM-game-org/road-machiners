@@ -122,6 +122,60 @@ def loft(kit: Kit, name: str, sections: list[list[Vec3]], mat: str) -> bpy.types
     return kit._add(obj, name, mat, 0.0)
 
 
+def mesh(kit: Kit, name: str, verts: list[Vec3], faces: list[tuple[int, ...]], mat: str, down: range = range(0)) -> bpy.types.Object:
+    """Adds one part from explicit faces, with the winding fixed so every face points out of the part.
+
+    down lists the faces of a floor that the winding pass cannot tell from a roof: they are turned to face down.
+    """
+    data = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    made = [bm.verts.new(v) for v in verts]
+    for face in faces:
+        bm.faces.new([made[i] for i in face])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.faces.ensure_lookup_table()
+    for index in down:
+        if bm.faces[index].normal.z > 0:
+            bm.faces[index].normal_flip()
+    bm.to_mesh(data)
+    bm.free()
+    obj = bpy.data.objects.new(name, data)
+    bpy.context.scene.collection.objects.link(obj)
+    kit._add(obj, name, mat, 0.0)
+    return obj
+
+
+def open_loft(kit: Kit, name: str, sections: list[list[Vec3]], mat: str) -> bpy.types.Object:
+    """Like loft(), but the last point of each ring does not join the first, so the part has no face between them."""
+    n = len(sections[0])
+    verts = [p for ring in sections for p in ring]
+    faces: list[tuple[int, ...]] = [tuple(range(n)), tuple(range((len(sections) * n) - 1, (len(sections) - 1) * n - 1, -1))]
+    for r in range(len(sections) - 1):
+        faces += [(r * n + i, r * n + i + 1, (r + 1) * n + i + 1, (r + 1) * n + i) for i in range(n - 1)]
+    return mesh(kit, name, verts, faces, mat)
+
+
+def slab(kit: Kit, name: str, inner: list[list[Vec3]], outer: list[list[Vec3]], mat: str) -> bpy.types.Object:
+    """A thin slab over a grid of points: rows of inner points and the same rows of outer points, joined by quads on all four sides."""
+    rows, cols = len(inner), len(inner[0])
+    verts = [p for grid in (inner, outer) for row in grid for p in row]
+    at = lambda layer, r, c: layer * rows * cols + r * cols + c
+    faces = []
+    for layer in (0, 1):
+        faces += [(at(layer, r, c), at(layer, r, c + 1), at(layer, r + 1, c + 1), at(layer, r + 1, c)) for r in range(rows - 1) for c in range(cols - 1)]
+    faces += [(at(0, r, c), at(0, r, c + 1), at(1, r, c + 1), at(1, r, c)) for r in (0, rows - 1) for c in range(cols - 1)]
+    faces += [(at(0, r, c), at(0, r + 1, c), at(1, r + 1, c), at(1, r, c)) for c in (0, cols - 1) for r in range(rows - 1)]
+    return mesh(kit, name, verts, faces, mat)
+
+
+def prism_polygon(kit: Kit, name: str, inner: list[Vec3], outer: list[Vec3], mat: str) -> bpy.types.Object:
+    """A flat prism over one planar outline: the inner outline, the outer outline moved along one direction, and a wall between them."""
+    n = len(inner)
+    faces = [tuple(range(n)), tuple(range(2 * n - 1, n - 1, -1))]
+    faces += [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)]
+    return mesh(kit, name, inner + outer, faces, mat)
+
+
 def arc_panel(
     kit: Kit,
     name: str,

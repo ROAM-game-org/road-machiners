@@ -195,6 +195,18 @@ describe('loot colors on props', () => {
     expect(colorsAt(root, 30, 30)).toEqual([]);
   });
 
+  it('keeps a pile in its own scope chunk, away from the map origin', () => {
+    const root = new THREE.Group();
+    const limit = new SightLimit(SIZE);
+    const scope = new RenderScope(root, SIZE, limit, true, true);
+    const views = new ObstacleViews(scope, flatTerrain(SIZE));
+    views.sync([], [stock('pile-2', true, { pos: { x: 60, y: 60 }, pile: { until: 99, fromPlayer: true, basis: {} } })], []);
+    limit.set({ x: 0, y: 0, z: 0 }, 3 * PHYSICS.metersPerTile);
+    const camera = new THREE.OrthographicCamera(-2000, 2000, 2000, -2000, -5000, 5000);
+    scope.update(camera);
+    expect(root.children.filter((c) => c.name.startsWith('scope-chunk'))).toHaveLength(0);
+  });
+
   it('throws when a lootable prop has no view', () => {
     const { views } = setup();
     expect(() => views.sync([], [stock('ghost', true)], [])).toThrow(/ghost/);
@@ -371,6 +383,27 @@ describe('reactor light', () => {
     const aim = spot.target.getWorldPosition(new THREE.Vector3()).applyMatrix4(inverse).sub(apex);
     const outward = new THREE.Vector3(0, 0, 1);
     expect(aim.angleTo(outward) + spot.angle).toBeLessThan(Math.PI / 2);
+  });
+
+  it('lights the floor where the reactor core reaches out of the breach', () => {
+    const { bowGroup, reactorGroup, root } = built();
+    const light = reactorAt.hazard?.core?.light;
+    if (!light) throw new Error('The Fallen Sun reactor has no breach light');
+    const spot = aimedBreach(bowGroup);
+    const centre = reactorGroup.getWorldPosition(new THREE.Vector3());
+    centre.x += (light.at.x - reactorAt.at.x) * S;
+    centre.z += (light.at.y - reactorAt.at.y) * S;
+    centre.y = bowGroup.getWorldPosition(new THREE.Vector3()).y;
+    const floor: Sample = { at: centre, normal: new THREE.Vector3(0, 1, 0), twoSided: false };
+    expect(reaches(spot, floor)).toBe(true);
+    const from = spot.getWorldPosition(new THREE.Vector3());
+    const ray = centre.clone().sub(from);
+    const raycaster = new THREE.Raycaster(from, ray.clone().normalize(), 0, ray.length());
+    expect(raycaster.intersectObjects(hullMeshes(bowGroup), false)).toEqual([]);
+    const inBow = centre.clone().applyMatrix4(bowGroup.matrixWorld.clone().invert());
+    expect(inBow.z).toBeGreaterThan(BOW_BREACH.out);
+    expect(Math.abs(inBow.x - BOW_BREACH.along)).toBeLessThan(BOW_BREACH.radius);
+    root.clear();
   });
 
   it('stands the reactor inside the bow, behind the breach (IV3)', () => {

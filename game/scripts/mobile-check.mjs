@@ -602,6 +602,7 @@ async function drawersAndMenus(session, step) {
   for (const d of ['truck', 'guns', 'radio', 'log']) {
     await step(`drawer-${d}`, () => openDrawer(page, touch, d), async () => {
       const open = await game(page, () => document.getElementById('ui').dataset.drawer);
+      if (d === 'radio' && await page.locator('.radio button.switch').count()) return 'the Radio drawer must hold no switch';
       return open === d ? true : `open drawer ${open}`;
     });
   }

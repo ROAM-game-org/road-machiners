@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { say } from "../text/language";
 import { emptyWorld } from "../sim/testkit";
 import type { QuestLive } from "../sim/types";
-import { lookReason } from "./look";
+import { lookReason } from "./unstuck-reason";
 
 const live: QuestLive = { quest: "bowl_hattie", lang: "en", ink: "{}", lines: [], choices: [], costs: [], checks: [] };
 

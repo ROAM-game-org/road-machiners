@@ -109,6 +109,30 @@ async function cleared(page) {
   expect(await page.evaluate(() => document.querySelectorAll('canvas').length > 0), 'a canvas is on the page after boot');
 }
 
+async function reportReachable(page, viewport, surface) {
+  const corner = page.locator('#report .feedback summary');
+  await corner.waitFor({ state: 'visible', timeout: BOOT_LIMIT_MS });
+  const covered = () => page.evaluate((selector) => {
+    const target = document.querySelector(selector);
+    const box = target.getBoundingClientRect();
+    const top = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return !target.contains(top);
+  }, '#report .feedback summary');
+  expect(!(await covered()), `${viewport.name}: ${surface}: the report corner is on top`);
+  await corner.click();
+  await page.locator('#report .feedback details button').first().click();
+  const form = page.locator('#report .feedback-form');
+  await form.waitFor({ state: 'visible' });
+  const formOnTop = await page.evaluate(() => {
+    const box = document.querySelector('#report .feedback-form').getBoundingClientRect();
+    return document.querySelector('#report .feedback-form').contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+  });
+  expect(formOnTop, `${viewport.name}: ${surface}: the report form opens above the surface`);
+  await shot(page, `${SHOT_PREFIX}report-${surface}-${viewport.name}.png`);
+  await page.keyboard.press('Escape');
+  expect((await form.count()) === 0, `${viewport.name}: ${surface}: Escape closes the report form`);
+}
+
 async function freshGame(browser, viewport) {
   const errors = [];
   const page = await open(browser, viewport, errors);
@@ -117,6 +141,7 @@ async function freshGame(browser, viewport) {
   await page.waitForSelector('#boot [role=progressbar]');
   await page.waitForFunction(() => document.querySelector('#boot .boot-seg.running') && document.querySelector('[role=progressbar]').getAttribute('aria-valuenow') !== null);
   await shot(page, `${SHOT_PREFIX}${viewport.name}-loading.png`);
+  await reportReachable(page, viewport, 'boot');
   const mid = await page.evaluate(() => {
     const bar = document.querySelector('#boot [role=progressbar]');
     return { now: Number(bar.getAttribute('aria-valuenow')), max: Number(bar.getAttribute('aria-valuemax')), running: document.querySelectorAll('#boot .boot-seg.running').length };
@@ -132,6 +157,7 @@ async function freshGame(browser, viewport) {
   expect(/Loading sounds \d+ of \d+/.test(stages(log)), `${viewport.name}: sounds show a real file count`);
   expect(await page.evaluate(() => !document.body.innerText.includes('The game crashed')), `${viewport.name}: no crash screen`);
   await shot(page, `${SHOT_PREFIX}${viewport.name}-playing.png`);
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('#report .feedback')).display === 'none'), `${viewport.name}: the page report corner is hidden in play`);
   expect(errors.length === 0, `${viewport.name}: no page errors ${errors.join('; ')}`);
   return page;
 }
@@ -172,6 +198,7 @@ async function rescue(browser, viewport) {
   await page.waitForSelector('#ui .save-screen', { state: 'visible', timeout: BOOT_LIMIT_MS });
   expect(await page.evaluate(() => document.getElementById('boot').hidden), `${viewport.name}: #boot is hidden while the rescue panel waits`);
   await shot(page, `${SHOT_PREFIX}${viewport.name}-rescue.png`);
+  await reportReachable(page, viewport, 'rescue');
   await page.getByRole('button', { name: 'New game' }).click();
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   await cleared(page);
@@ -192,6 +219,7 @@ async function startMenu(browser, viewport) {
   expect((await continueOff()) === 'true', `${viewport.name}: Continue is off with no save`);
   expect((await page.getByRole('button', { name: 'Load', exact: true }).getAttribute('aria-disabled')) === 'true', `${viewport.name}: Load is off with no save`);
   await shot(page, `${SHOT_PREFIX}${viewport.name}-start-menu.png`);
+  await reportReachable(page, viewport, 'start-menu');
   await page.getByRole('button', { name: 'New game' }).click();
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   await cleared(page);
@@ -217,6 +245,7 @@ async function failedMap(browser, viewport) {
   await page.goto(playUrl(url));
   await page.waitForFunction(() => document.body.innerText.includes('Map file'), null, { timeout: BOOT_LIMIT_MS });
   await shot(page, `${SHOT_PREFIX}${viewport.name}-map-failed.png`);
+  await reportReachable(page, viewport, 'map-failed');
   const state = await page.evaluate(() => ({
     mapSegment: document.querySelectorAll('#boot .boot-seg')[1]?.className,
     failed: document.getElementById('boot').classList.contains('failed'),
@@ -243,6 +272,7 @@ async function unreachable(browser, viewport) {
   expect(!state.crash, `${viewport.name}: an unreachable map shows no crash screen`);
   expect(state.stage === UNREACHABLE_TEXT, `${viewport.name}: the stage line says the files did not arrive`);
   expect(state.focused, `${viewport.name}: Try again has focus`);
+  await reportReachable(page, viewport, 'unreachable');
   blocked = false;
   await page.locator('#boot .boot-retry').click();
   await page.waitForSelector('#ui .start-menu, #boot[data-adopted] .boot-seg.done', { timeout: BOOT_LIMIT_MS });
@@ -305,6 +335,7 @@ async function stalledMap(browser, viewport) {
   expect(title === 'Road Machiners could not download its files', `${viewport.name}: a stalled map shows the connection notice`);
   expect(focused === 'Reload', `${viewport.name}: Reload has focus after a stalled map`);
   expect(posts.length === 0, `${viewport.name}: a stalled map sends no report ${posts.join(', ')}`);
+  await reportReachable(page, viewport, 'map-stalled');
   await page.context().close();
 }
 
@@ -382,6 +413,7 @@ async function lostWorker(browser, viewport) {
   expect(title === 'Road Machiners could not download its files', `${viewport.name}: a lost worker shows the load-failed title`);
   expect(focused === 'Reload', `${viewport.name}: Reload has focus`);
   expect(posts.length === 0, `${viewport.name}: a lost worker sends no report ${posts.join(', ')}`);
+  await reportReachable(page, viewport, 'worker-lost');
   await page.context().close();
 }
 
@@ -396,13 +428,13 @@ async function inBrowser(run) {
 }
 
 for (const viewport of VIEWPORTS) {
-  if (!only) {
+  if (!only || only === 'freshGame') {
     await inBrowser(async (browser) => {
       const page = await freshGame(browser, viewport);
       await savedGame(page, viewport);
     });
-    await inBrowser((browser) => rescue(browser, viewport));
   }
+  if (!only || only === 'rescue') await inBrowser((browser) => rescue(browser, viewport));
   if (!only || only === 'startMenu') await inBrowser((browser) => startMenu(browser, viewport));
   if (!only || only === 'failedMap') await inBrowser((browser) => failedMap(browser, viewport));
   if (!only || only === 'unreachable') await inBrowser((browser) => unreachable(browser, viewport));

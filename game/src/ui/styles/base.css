@@ -29,19 +29,19 @@ body {
   font: var(--text-body) / 1.4 var(--font-ui);
   touch-action: manipulation;
 }
-#ui.touch :is(button, [role="button"], [role="switch"], .tab, .key, .key-corner, label, summary) {
+:is(#ui, #report).touch :is(button, [role="button"], [role="switch"], .tab, .key, .key-corner, label, summary) {
   -webkit-touch-callout: none;
   user-select: none;
 }
-#ui.touch :is(input, textarea, .log, .quest-text) {
+:is(#ui, #report).touch :is(input, textarea, .log, .quest-text) {
   -webkit-touch-callout: default;
   user-select: text;
 }
-#ui.touch {
+:is(#ui, #report).touch {
   --btn-h-s: var(--touch-target);
   --btn-h-m: var(--touch-target);
 }
-#ui .panel {
+:is(#ui, #report) .panel {
   position: absolute;
   pointer-events: auto;
   background: var(--surface-panel);
@@ -49,13 +49,13 @@ body {
   padding: var(--space-4) var(--space-5);
   box-shadow: var(--shadow-panel);
 }
-#ui h3 {
+:is(#ui, #report) h3 {
   margin: 0 0 var(--space-4);
   color: var(--ink-title);
   font-size: var(--text-lead);
   font-weight: normal;
 }
-#ui button {
+:is(#ui, #report) button {
   font: inherit;
   color: var(--ink);
   background: var(--surface-raised);
@@ -63,23 +63,23 @@ body {
   padding: var(--space-3) var(--space-5);
   cursor: pointer;
 }
-#ui button:hover {
+:is(#ui, #report) button:hover {
   background: var(--surface-hover);
   border-color: var(--line-hover);
 }
-#ui button:disabled {
+:is(#ui, #report) button:disabled {
   opacity: 0.45;
   cursor: default;
 }
-#ui button:focus-visible,
-#ui select:focus-visible,
-#ui [tabindex]:focus-visible,
-#ui summary:focus-visible,
-#ui a:focus-visible {
+:is(#ui, #report) button:focus-visible,
+:is(#ui, #report) select:focus-visible,
+:is(#ui, #report) [tabindex]:focus-visible,
+:is(#ui, #report) summary:focus-visible,
+:is(#ui, #report) a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-#ui select {
+:is(#ui, #report) select {
   font: inherit;
   color: var(--ink);
   background: var(--surface-well);
@@ -87,16 +87,16 @@ body {
   padding: var(--space-2);
   max-width: 100%;
 }
-#ui .dim {
+:is(#ui, #report) .dim {
   color: var(--ink-muted);
 }
-#ui .bad {
+:is(#ui, #report) .bad {
   color: var(--danger-ink);
 }
-#ui .good {
+:is(#ui, #report) .good {
   color: var(--good);
 }
-#ui summary {
+:is(#ui, #report) summary {
   cursor: pointer;
 }
 #ui .sr-only {
@@ -127,11 +127,6 @@ body {
 #ui:not(.touch) .touch-only,
 #ui.touch .no-touch {
   display: none;
-}
-#ui .info-touch {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
 }
 #ui.touch :is(.btn-s, .tip-close) {
   min-width: var(--touch-target);

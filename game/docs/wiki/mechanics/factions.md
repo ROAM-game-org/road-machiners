@@ -73,7 +73,7 @@ A driver remembers what a truck did to it: an attack (−40), a robbery (−50) 
 A calm attack or robbery, one the two trucks were not already hostile over, is an incident. Shots back at an attacker are self-defense and start nothing new, so a fight never fans out again.
 
 ```
-calm attack, robbery, refused demand, retaliation for a crash
+calm attack, robbery, refused demand, retaliation for a crash the other truck caused
         |
         v
 witnesses: drivers who see both trucks, the victim, and the victim's escorts who see the attacker
@@ -113,14 +113,14 @@ The player starts at each organized faction's view of an outside driver: Bowl 5,
 | aided | a free gift of fuel or supplies | +5 | +30 |
 | towed | a tow that ends in town | +5 | +30 |
 | patched | a finished patch | +5 | +30 |
-| defended | knocking out a driver that was fighting another one, which was not fighting the player | +8 | +40 |
+| defended | knocking out a driver that attacked another one. A driver that only shot back, or fought the other from the same turn, does not count. The one it attacked must not be fighting the player | +8 | +40 |
 | contract | a contract done at a Bowl or Nose shop | +3 | none |
 | failed contract | a contract the player failed or handed in late at a Bowl or Nose shop | −5 | none |
 
 - The same deed on the same driver counts once a day, so ten hits are one attack, and a driver who refits after a knockout gives no fresh help.
 - Help raises standing with one faction by 15 a day at most. Losses have no cap.
 - Each day standing drifts 10 back toward its start, so a player at −100 is out of the hostile band in 6 days. The Marshalls' desk sells the drift at once: settling lifts a hostile standing to −49, as [Crime and the Marshalls](crime.md#the-desk-at-the-roadhouse) describes.
-- A band change shows in the log and as a toast, like "Bowl now treats you as wary."
+- A band change shows in the log and as a toast with its cause, like "Scrapjaw now treats you as wary. Old grudges fade with time." A deed names itself, as in "You towed one of their drivers." A settlement has its own line and adds no cause.
 - On Chaos Highway standing never moves, so the gangs there hold fire on the gun truck until it shoots them. Memories still form.
 
 ## Talk and offers
@@ -130,4 +130,4 @@ The player starts at each organized faction's view of an outside driver: Bowl 5,
 - A stranded or low truck can always get help from a driver that is not hostile: a tow, a patch or aid, asked for or offered. Independents have no standing, so a neutral rescuer always exists, and the town patch and the beacon never ask about standing.
 - Two drivers tow each other only when neither is wary of the other. Raiders still tow only raiders, and townsfolk never tow raiders.
 - A driver never robs a truck it is friendly with, and a raider never robs a gang truck.
-- The hover card tags each driver by how it treats the player: hostile in red, or wary, neutral or friendly. The character screen lists the standing with each faction, with the base, recent deeds and the rest in its tooltip.
+- The hover card tags each driver by how it treats the player: hostile in red, or wary, neutral or friendly. The character screen lists the standing with each faction, with the base, each kind of recent deed and the rest in its tooltip.

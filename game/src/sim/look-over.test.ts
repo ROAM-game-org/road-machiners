@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LOOK_OVER } from '../data/npcs';
 import { playerVehicle, vehicleById } from './damage';
 import { addGoods } from './inventory';
-import { canLookOver, knowsCargo, lookOver, perceivedLoad, startLookOver } from './look-over';
+import { canLookOver, knowsCargo, lookOver, lookOverError, perceivedLoad, startLookOver } from './look-over';
 import { cargoValue } from './market';
 import { stateOf, workOf } from './states';
 import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
@@ -59,6 +59,20 @@ describe('who can look a truck over', () => {
     const { w, target } = lookerWorld(LOOK_OVER.reach + 3);
     expect(() => lookOver(w, target.id)).toThrow(Refused);
     expect(() => startLookOver(w, target, playerVehicle(w))).toThrow(/lookOverFar/);
+  });
+
+  it('refuses a player who cannot act with cannotAct, not a plain error', () => {
+    const { w, target } = lookerWorld(5);
+    w.player.state = 'knockedOut';
+    expect(lookOverError(w, target.id)).toEqual({ id: 'cannotAct' });
+    expect(() => lookOver(w, target.id)).toThrow(Refused);
+  });
+
+  it('refuses the player without Perception 1, and clears a free player in reach', () => {
+    const { w, target } = lookerWorld(5);
+    expect(lookOverError(w, target.id)).toBeNull();
+    w.player.ranks.perception = 0;
+    expect(lookOverError(w, target.id)).toMatchObject({ id: 'needsBasic' });
   });
 
   it('lets an NPC look a truck over with no ranks', () => {

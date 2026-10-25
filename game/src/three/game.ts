@@ -282,7 +282,7 @@ export class Game {
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
       openJournal: () => this.runKey("KeyJ"),
-      openMap: () => this.runKey("KeyK"),
+      openMap: () => this.runKey("KeyM"),
       toggleManual: () => this.runKey("KeyR"),
       toggleAutoRepair: () => this.runKey("KeyP"),
       toggleOverdrive: () => this.runKey("KeyO"),
@@ -537,7 +537,6 @@ export class Game {
   private readonly keys: Record<string, { run: () => void; noModal?: true; idle?: true; inventoryOk?: true }> = {
     KeyF: { run: () => this.follow.recenter() },
     KeyV: { run: () => cameraSetting().toggle() },
-    KeyM: { run: () => this.soundSettings.toggleMute() },
     KeyQ: { run: () => this.weapons.toggleAuto(), noModal: true },
     KeyX: { run: () => this.weapons.toggleVisible(), noModal: true },
     Digit0: { run: () => this.weapons.selectWeapon(null), noModal: true },
@@ -554,7 +553,7 @@ export class Game {
     KeyN: { run: () => this.context.onCard('mark', this.inspected()), noModal: true, idle: true },
     KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), noModal: true, idle: true },
     KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true },
-    KeyK: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true },
+    KeyM: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true },
     KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true },
     KeyI: { run: () => !this.anim && this.screens.toggle(this.screens.inventory), idle: true },
     Escape: { run: () => { if (this.screens.town.isOpen()) this.screens.town.back(); else if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
@@ -835,15 +834,27 @@ export class Game {
     for (const [id, fs] of Object.entries(a.result.frames))
       this.frames[id] = fs[fs.length - 1];
     const stopped = this.travel.stopAt(a, this.world, this.frames, now, a.elapsed - MOVE_MS);
-    if (stopped) [this.world, this.drive] = [stopped.world, stopped.drive];
-    if (stopped) this.saves.logWorld(stopped.world);
-    if (stopped) this.play.stopWithin(stopped.leftMs);
+    if (stopped) this.commitStop(stopped);
     this.live = null;
     this.phase = a.combat ? "firing" : "results";
     timed("fog", () => this.fog.update(this.combatFogWorld()));
     playCrashes(this.combatHost(), this.crashCues, null);
     playUtilitySounds(this.combatHost(), "end");
     this.weapons.render();
+  }
+
+  private commitStop(stopped: { world: World; drive: DriveSnapshot; leftMs: number }): void {
+    [this.world, this.drive] = [stopped.world, stopped.drive];
+    this.saves.logWorld(stopped.world);
+    this.play.stopWithin(stopped.leftMs);
+  }
+
+  private settleLateStop(now: number): void {
+    if (this.anim !== null) return;
+    const stopped = this.travel.settleStop(this.world, this.frames, now);
+    if (!stopped) return;
+    if (!this.play.isMoving()) throw new Error("A late travel stop needs the world clock to move");
+    this.commitStop(stopped);
   }
 
   private landImpacts(a: Playback): void {
@@ -1012,6 +1023,7 @@ export class Game {
       at = this.animStep(now, speed, 0);
       this.updateTravel();
     }
+    this.settleLateStop(now);
     this.travel.prepareNext(this.world, this.anim, now);
     this.flushUi(began, phase);
     return { at, playMs };
@@ -1059,7 +1071,9 @@ export class Game {
     this.rig.leash(truck, sightRadius);
     this.follow.update(truck, cameraSetting().mode() === "auto" ? this.orderPoint() : null, dt, playMs);
     this.hud.showRecenter(!this.follow.isFollowing());
-    lightScene(this.sun, this.sky, truck, daylightAt(lightTurnOf(this.world, this.anim)));
+    const daylight = daylightAt(lightTurnOf(this.world, this.anim));
+    lightScene(this.sun, this.sky, truck, daylight);
+    this.craters.graffiti.light(daylight.sunIntensity);
     this.fx.light({ sun: this.sun, sky: this.sky });
     CLOUD_SHADOWS.sync(this.world, lightTurnOf(this.world, this.anim), this.play.frameMs());
     this.vehicleLights.sync(this.world, this.frames, lightTurnOf(this.world, this.anim), (pos) => this.sightLimit.reaches(pos), truck);
@@ -1072,7 +1086,7 @@ export class Game {
     this.weather.advance(this.play.frameMs());
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);
-    this.shaders.render(this.play.isHeld());
+    this.shaders.render(this.timeHeld());
     this.hud.stepPortraits(this.travel.isPlaying(this.anim));
     this.refreshPlan();
     this.showPlan();

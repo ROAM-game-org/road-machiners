@@ -5,7 +5,7 @@ import { CRIME, BOUNTY } from '../data/market';
 import { BANDS } from '../data/npc-behavior';
 import type { TraitId } from '../data/npcs';
 import {
-  closeCase, collectBounty, crimeOf, deskAt, deskRows, fileReports, noteKilling, openCasesOn, owedBy, payBounty, payCasesAtDesk, settle, settlementQuote, settlePrice, advanceCrimes,
+  canPayBounty, caseOwed, closeCase, knownCasesOn, collectBounty, crimeOf, deskAt, deskRows, fileReports, finesOn, noteHandover, noteKilling, offerCases, openCasesOn, owedBy, payBounty, payCasesAtDesk, settle, settlementQuote, settlePrice, advanceCrimes, stepPosse, targetNeed,
 } from './crime';
 import { playerVehicle } from './damage';
 import { knockOutNpc } from './defeat';
@@ -16,10 +16,15 @@ import { attitude, bandOf, reportIncident } from './relations';
 import { getResources } from './resources';
 import { nearestPad } from './sites';
 import { addState } from './states';
-import { addVehicle, emptyWorld, npcBrain } from './testkit';
+import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
+import { startEscort } from './tow';
 import type { CrimeCase, Faction, Vehicle, World } from './types';
 import type { Vec } from './vec';
-import { cloneWorld } from './world';
+import { cloneWorld, endTurn } from './world';
+import { addGoods } from './inventory';
+import { hearTerms } from './marshals';
+import { giveInTo, payOff, settleCashThreat, settlePlayerPlea, settleThreat } from './parley';
+import { looseCargo } from './salvage';
 
 function npc(w: World, faction: Faction, template: string, traits: TraitId[], pos: Vec): Vehicle {
   const v = addVehicle(w, faction, 'scout', ['mg', 'stockEngine'], pos);
@@ -137,7 +142,7 @@ describe('funding', () => {
     poor.resources!.money = 20000;
     const before = poor.resources!.money;
     const fileCase = (reporter: Vehicle, victim: Vehicle, n: number) => {
-      remember(w, reporter, { kind: 'witnessed', crime: `${n}:${robber.id}:${victim.id}:attacked`, by: robber.id, victim: victim.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0 });
+      remember(w, reporter, { kind: 'witnessed', crime: `${n}:${robber.id}:${victim.id}:attacked`, by: robber.id, victim: victim.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0, restitution: 0 });
       toPad(reporter, 'granary');
       fileReports(w, reporter);
     };
@@ -201,7 +206,7 @@ describe('closing a case', () => {
   it('lapses a case after its days and returns an independent escrow', () => {
     const { w, robber } = scene();
     const poor = trader(w, 'independent', { x: 300, y: 300 });
-    remember(w, poor, { kind: 'witnessed', crime: `1:${robber.id}:${poor.id}:attacked`, by: robber.id, victim: poor.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0 });
+    remember(w, poor, { kind: 'witnessed', crime: `1:${robber.id}:${poor.id}:attacked`, by: robber.id, victim: poor.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0, restitution: 0 });
     toPad(poor, 'granary');
     fileReports(w, poor);
     const before = cloneWorld(w);
@@ -246,7 +251,7 @@ describe('the Marshalls desk', () => {
   it('frees a case whose hunter no longer pursues its target (R3)', () => {
     const { w, robber } = scene();
     const poor = trader(w, 'independent', { x: 300, y: 300 });
-    remember(w, poor, { kind: 'witnessed', crime: `1:${robber.id}:${poor.id}:attacked`, by: robber.id, victim: poor.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0 });
+    remember(w, poor, { kind: 'witnessed', crime: `1:${robber.id}:${poor.id}:attacked`, by: robber.id, victim: poor.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0, restitution: 0 });
     toPad(poor, 'granary');
     fileReports(w, poor);
     w.crimes[0].hunter = poor.id;
@@ -257,7 +262,7 @@ describe('the Marshalls desk', () => {
   it('pays a case once when its id is listed twice', () => {
     const w = atDesk();
     const bowl = trader(w, 'bowl', { x: 300, y: 300 });
-    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:robbed`, by: w.player.vehicleId, victim: bowl.id, offense: 'robbed', at: { x: 300, y: 300 }, heading: 0 });
+    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:robbed`, by: w.player.vehicleId, victim: bowl.id, offense: 'robbed', at: { x: 300, y: 300 }, heading: 0, restitution: 0 });
     toPad(bowl, 'bowl');
     fileReports(w, bowl);
     w.player.money = 1_000_000;
@@ -270,7 +275,7 @@ describe('the Marshalls desk', () => {
     const w = atDesk();
     expect(deskRows(w)).toEqual({ cases: [], owed: 0, settlements: [] });
     const bowl = trader(w, 'bowl', { x: 300, y: 300 });
-    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:robbed`, by: w.player.vehicleId, victim: bowl.id, offense: 'robbed', at: { x: 300, y: 300 }, heading: 0 });
+    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:robbed`, by: w.player.vehicleId, victim: bowl.id, offense: 'robbed', at: { x: 300, y: 300 }, heading: 0, restitution: 0 });
     toPad(bowl, 'bowl');
     fileReports(w, bowl);
     w.crimes[0].hunter = 'gone';
@@ -278,6 +283,15 @@ describe('the Marshalls desk', () => {
     w.player.money = 1_000_000;
     payCasesAtDesk(w, [w.crimes[0].id]);
     expect(deskRows(w)).toMatchObject({ cases: [], owed: 0 });
+  });
+
+  it('sums fine and restitution of every case for Pay all', () => {
+    const w = atDesk();
+    const bowl = trader(w, 'bowl', { x: 300, y: 300 });
+    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:robbed`, by: w.player.vehicleId, victim: bowl.id, offense: 'robbed', at: { x: 300, y: 300 }, heading: 0, restitution: 2500 });
+    toPad(bowl, 'bowl');
+    fileReports(w, bowl);
+    expect(deskRows(w).owed).toBe(CRIME.fine.robbed + 2500);
   });
 
   it('quotes a settlement only for a hostile faction, refuses it while its cases are open, and lifts standing to wary (IV7)', () => {
@@ -291,7 +305,7 @@ describe('the Marshalls desk', () => {
     expect(settlementQuote(w, 'bowl')!.refusal).toEqual({ id: 'noMoney' });
     w.player.money = quote.price;
     const bowl = trader(w, 'bowl', { x: 300, y: 300 });
-    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:attacked`, by: w.player.vehicleId, victim: bowl.id, offense: 'attacked', at: { x: 300, y: 300 }, heading: 0 });
+    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:attacked`, by: w.player.vehicleId, victim: bowl.id, offense: 'attacked', at: { x: 300, y: 300 }, heading: 0, restitution: 0 });
     toPad(bowl, 'bowl');
     fileReports(w, bowl);
     expect(settlementQuote(w, 'bowl')!.refusal).toEqual({ id: 'payBountiesFirst', faction: 'bowl' });
@@ -299,6 +313,7 @@ describe('the Marshalls desk', () => {
     closeCase(w, w.crimes[0], 'lapsed');
     settle(w, 'bowl');
     expect(bandOf(w.player.standing.bowl)).toBe('unfriendly');
+    expect(w.events.filter((e) => e.t === 'standing')).toEqual([{ t: 'standing', faction: 'bowl', band: 'unfriendly', cause: { kind: 'settled' } }]);
     expect(w.player.money).toBe(0);
   });
 
@@ -349,7 +364,7 @@ describe('the Bounty hunter perk', () => {
   it('pays the escrow of an independent case to the player, and only that', () => {
     const { w, robber } = scene();
     const poor = trader(w, 'independent', { x: 300, y: 300 });
-    remember(w, poor, { kind: 'witnessed', crime: `1:${robber.id}:${poor.id}:attacked`, by: robber.id, victim: poor.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0 });
+    remember(w, poor, { kind: 'witnessed', crime: `1:${robber.id}:${poor.id}:attacked`, by: robber.id, victim: poor.id, offense: 'attacked', at: { x: 400, y: 400 }, heading: 0, restitution: 0 });
     toPad(poor, 'granary');
     fileReports(w, poor);
     w.player.perks = ['bountyHunter'];
@@ -402,5 +417,314 @@ describe('the Bounty hunter perk', () => {
     r.lastHitBy = me.id;
     knockOutNpc(w, r);
     expect(w.player.money).toBe(money);
+  });
+});
+
+function holdUpValue(w: World): number {
+  const held = w.events.filter((e) => e.t === 'holdUp');
+  expect(held).toHaveLength(1);
+  return (held[0] as Extract<World['events'][number], { t: 'holdUp' }>).value;
+}
+
+function fileBy(w: World, reporter: Vehicle): CrimeCase {
+  toPad(reporter, 'nose');
+  fileReports(w, reporter);
+  expect(w.crimes).toHaveLength(1);
+  return w.crimes[0];
+}
+
+describe('restitution of a robbery', () => {
+  function playerRobs(): { w: World; me: Vehicle; victim: Vehicle; witness: Vehicle } {
+    const w = emptyWorld({ x: 398, y: 400 });
+    const victim = trader(w, 'bowl', { x: 404, y: 400 });
+    const witness = trader(w, 'independent', { x: 402, y: 405 });
+    return { w, me: playerVehicle(w), victim, witness };
+  }
+
+  it('adds the value of the cargo a victim drops to the player\'s threat', () => {
+    const { w, victim, witness } = playerRobs();
+    addGoods(w, victim, 'electronics', 2);
+    w.events = [];
+    settleThreat(w, victim, 'comply');
+    const value = holdUpValue(w);
+    expect(value).toBeGreaterThan(0);
+    expect(witnessed(witness).map((m) => m.fact.restitution)).toEqual([value]);
+    expect(fileBy(w, witness).restitution).toBe(value);
+  });
+
+  it('adds the money of a cash cut', () => {
+    const { w, victim, witness } = playerRobs();
+    w.events = [];
+    settleCashThreat(w, victim, 'comply');
+    const value = holdUpValue(w);
+    expect(value).toBeGreaterThan(0);
+    expect(fileBy(w, witness).restitution).toBe(value);
+  });
+
+  it('adds what an NPC victim pays turns after the robbery began, and the case owes fine and restitution', () => {
+    const { w, robber, victim, witness } = scene();
+    rob(w, robber, victim);
+    w.turn += 6;
+    w.events = [];
+    giveInTo(w, victim, robber, { haul: [], money: 2500 });
+    expect(holdUpValue(w)).toBe(2500);
+    const c = fileBy(w, witness);
+    expect(c.restitution).toBe(2500);
+    expect(caseOwed(c)).toBe(c.owed + 2500);
+    expect(owedBy(w, robber.id)).toBe(c.owed + 2500);
+    expect(finesOn(w, robber.id)).toBe(c.owed);
+  });
+
+  it('adds what a surrender hands over', () => {
+    const { w, robber, victim, witness } = scene();
+    addGoods(w, victim, 'scrap', 2);
+    rob(w, robber, victim);
+    w.events = [];
+    giveInTo(w, victim, robber, { haul: looseCargo(victim), money: 0 });
+    const value = holdUpValue(w);
+    expect(value).toBeGreaterThan(0);
+    expect(fileBy(w, witness).restitution).toBe(value);
+  });
+
+  it('adds what the player pays for mercy in a robbery fight', () => {
+    const w = emptyWorld({ x: 398, y: 400 });
+    const me = playerVehicle(w);
+    const robber = trader(w, 'independent', { x: 404, y: 400 });
+    const witness = trader(w, 'bowl', { x: 402, y: 405 });
+    w.player.money = 10_000;
+    w.player.standing.bowl = 30;
+    rob(w, robber, me);
+    w.events = [];
+    settlePlayerPlea(w, robber, 'mercy', true, 3000);
+    expect(holdUpValue(w)).toBe(3000);
+    expect(fileBy(w, witness).restitution).toBe(3000);
+  });
+
+  it('adds nothing to an attack, even one that ends in a paid plea, and nothing to a robbery that took nothing', () => {
+    const attacked = scene();
+    reportIncident(attacked.w, { aggressor: attacked.robber, victim: attacked.victim, deed: 'attacked', victimFights: false });
+    payOff(attacked.w, attacked.victim, attacked.robber, 2000);
+    expect(fileBy(attacked.w, attacked.witness).restitution).toBe(0);
+    const refused = scene();
+    rob(refused.w, refused.robber, refused.victim);
+    expect(fileBy(refused.w, refused.witness).restitution).toBe(0);
+  });
+
+  it('adds to a case filed before the hand-over and to the memory a later witness still holds', () => {
+    const { w, robber, victim, witness } = scene();
+    const third = trader(w, 'independent', { x: 400, y: 406 });
+    rob(w, robber, victim);
+    const c = fileBy(w, witness);
+    payOff(w, victim, robber, 1800);
+    expect(c.restitution).toBe(1800);
+    expect(witnessed(third).map((m) => m.fact.restitution)).toEqual([1800]);
+    toPad(third, 'nose');
+    fileReports(w, third);
+    expect(w.crimes).toHaveLength(1);
+    expect(c.restitution).toBe(1800);
+  });
+
+  it('adds to the newest crime of the pair only, and nothing when the pair has none', () => {
+    const { w, robber, victim, witness } = scene();
+    reportIncident(w, { aggressor: robber, victim, deed: 'attacked', victimFights: false });
+    w.turn += 3;
+    rob(w, robber, victim);
+    payOff(w, victim, robber, 1200);
+    expect(witnessed(witness).map((m) => [m.fact.offense, m.fact.restitution])).toEqual([['robbed', 1200], ['attacked', 0]]);
+    const stranger = trader(w, 'independent', { x: 300, y: 300 });
+    payOff(w, stranger, robber, 1000);
+    expect(witnessed(witness).map((m) => m.fact.restitution)).toEqual([1200, 0]);
+  });
+
+  it('throws on a negative or endless value, and on a negative restitution', () => {
+    const { w, robber, victim } = scene();
+    expect(() => noteHandover(w, robber, victim, -1)).toThrow();
+    expect(() => noteHandover(w, robber, victim, Infinity)).toThrow();
+    rob(w, robber, victim);
+    const c = fileBy(w, victim);
+    c.restitution = -5;
+    expect(() => caseOwed(c)).toThrow();
+  });
+});
+
+describe('paying restitution', () => {
+  function robbedCase(): { w: World; robber: Vehicle; victim: Vehicle; witness: Vehicle; c: CrimeCase } {
+    const { w, robber, victim, witness } = scene();
+    rob(w, robber, victim);
+    payOff(w, victim, robber, 4000);
+    const c = fileBy(w, witness);
+    return { w, robber, victim, witness, c };
+  }
+
+  it('sends the restitution to the victim and splits the fine as before, with events the ledger explains (IV4)', () => {
+    const { w, robber, victim, c } = robbedCase();
+    const marshal = npc(w, 'marshals', 'marshal', ['marshal', 'brave'], { x: 390, y: 400 });
+    const before = cloneWorld(w);
+    w.events = [];
+    const fee = Math.round(c.owed * CRIME.feeShare);
+    payBounty(w, robber, [c], marshal);
+    const was = (v: Vehicle) => moneyOf(before, before.vehicles.find((x) => x.id === v.id)!);
+    expect(was(robber) - moneyOf(w, robber)).toBe(c.owed + 4000);
+    expect(moneyOf(w, victim) - was(victim)).toBe(4000);
+    expect(moneyOf(w, marshal) - was(marshal)).toBe(fee);
+    expect(w.events).toContainEqual(expect.objectContaining({ t: 'bountyClosed', status: 'paid', amount: c.owed + 4000 }));
+    expect(() => npcLedger(before, w, w.events)).not.toThrow();
+  });
+
+  it('sends it to the issuing faction\'s coffers when the victim is gone', () => {
+    const { w, robber, victim, c } = robbedCase();
+    w.vehicles = w.vehicles.filter((v) => v.id !== victim.id);
+    const before = cloneWorld(w);
+    w.events = [];
+    payBounty(w, robber, [c], null);
+    expect(w.events).toContainEqual({ t: 'shopMoney', vehicle: robber.id, amount: -4000, kind: 'bountyCoffers' });
+    expect(moneyOf(before, before.vehicles.find((v) => v.id === robber.id)!) - moneyOf(w, robber)).toBe(c.owed + 4000);
+    expect(() => npcLedger(before, w, w.events)).not.toThrow();
+  });
+
+  it('sends it to the Marshall office when a lone driver filed and the victim is gone', () => {
+    const { w, robber } = scene();
+    const poor = trader(w, 'independent', { x: 406, y: 402 });
+    rob(w, robber, poor);
+    payOff(w, poor, robber, 4000);
+    const c = fileBy(w, poor);
+    expect(c.issuer).toEqual({ kind: 'driver', id: poor.id });
+    w.vehicles = w.vehicles.filter((v) => v.id !== poor.id);
+    w.events = [];
+    payBounty(w, robber, [c], null);
+    expect(w.events).toContainEqual({ t: 'shopMoney', vehicle: robber.id, amount: -4000, kind: 'bountyOffice' });
+  });
+
+  it('keeps a hunter\'s collection, an escrow and a lapse on the fine alone (IV5)', () => {
+    const { w, robber, c } = robbedCase();
+    const marshal = npc(w, 'marshals', 'marshal', ['marshal', 'brave'], { x: 390, y: 400 });
+    const hunterMoney = moneyOf(w, marshal);
+    collectBounty(w, marshal, robber);
+    expect(moneyOf(w, marshal) - hunterMoney).toBe(c.owed);
+    const poor = scene();
+    const lone = trader(poor.w, 'independent', { x: 406, y: 402 });
+    rob(poor.w, poor.robber, lone);
+    payOff(poor.w, lone, poor.robber, 4000);
+    const own = fileBy(poor.w, lone);
+    expect(own.escrow).toBe(own.owed);
+    const purse = moneyOf(poor.w, lone);
+    poor.w.turn += BOUNTY.lapseTurns;
+    advanceCrimes(poor.w);
+    expect(moneyOf(poor.w, lone) - purse).toBe(own.escrow);
+  });
+
+  it('caps the open fines at four robberies whatever the restitution', () => {
+    const { w, robber } = scene();
+    for (let n = 1; n <= 5; n++) {
+      const bowl = trader(w, 'bowl', { x: 404, y: 400 + n });
+      w.turn = n;
+      rob(w, robber, bowl);
+      payOff(w, bowl, robber, 20_000);
+      toPad(bowl, 'bowl');
+      fileReports(w, bowl);
+    }
+    expect(finesOn(w, robber.id)).toBeLessThanOrEqual(CRIME.maxOwed);
+    expect(openCasesOn(w, robber.id)).toHaveLength(Math.floor(CRIME.maxOwed / CRIME.fine.robbed));
+    expect(owedBy(w, robber.id)).toBe(finesOn(w, robber.id) + 20_000 * openCasesOn(w, robber.id).length);
+  });
+
+  it('lets a target pay only when its money covers the fine and the restitution', () => {
+    const { w, robber, c } = robbedCase();
+    robber.resources!.money = c.owed + 3999;
+    expect(canPayBounty(w, robber)).toBe(false);
+    robber.resources!.money = c.owed + 4000;
+    expect(canPayBounty(w, robber)).toBe(true);
+  });
+});
+
+describe('knowing a case', () => {
+  function filedOnPlayer(): World {
+    const w = emptyWorld({ x: 398, y: 400 });
+    const bowl = trader(w, 'bowl', { x: 404, y: 400 });
+    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:robbed`, by: w.player.vehicleId, victim: bowl.id, offense: 'robbed', at: { x: 300, y: 300 }, heading: 0, restitution: 0 });
+    toPad(bowl, 'bowl');
+    fileReports(w, bowl);
+    expect(w.crimes).toHaveLength(1);
+    return w;
+  }
+
+  const known = (w: World) => knownCasesOn(w, w.player.vehicleId).length;
+
+  it('files a case the target has not learned of (IV1)', () => {
+    const w = filedOnPlayer();
+    expect(w.crimes[0].known).toBe(false);
+    expect(known(w)).toBe(0);
+  });
+
+  it('tells the target when a Marshall demands payment', () => {
+    const w = filedOnPlayer();
+    offerCases(w, openCasesOn(w, w.player.vehicleId));
+    expect(known(w)).toBe(1);
+  });
+
+  it('tells the target when it hears a hunting Marshall\'s terms, with the same price', () => {
+    const w = filedOnPlayer();
+    const terms = hearTerms(w);
+    expect(terms.price).toEqual({ kind: 'money', amount: caseOwed(w.crimes[0]) });
+    expect(known(w)).toBe(1);
+  });
+
+  it('tells the player at the end of a turn parked at the Roadhouse desk, and not one parked elsewhere (IV2)', () => {
+    const elsewhere = filedOnPlayer();
+    toPad(playerVehicle(elsewhere), 'bowl');
+    expect(known(endTurn(elsewhere, testDrive))).toBe(0);
+    const desk = filedOnPlayer();
+    toPad(playerVehicle(desk), CRIME.post);
+    expect(deskAt(desk)).toBe(CRIME.post);
+    expect(known(endTurn(desk, testDrive))).toBe(1);
+  });
+});
+
+describe('the posse a case needs', () => {
+  function filedOn(): { w: World; robber: Vehicle; c: CrimeCase } {
+    const { w, robber, victim, witness } = scene();
+    rob(w, robber, victim);
+    toPad(witness, 'nose');
+    fileReports(w, witness);
+    return { w, robber, c: w.crimes[0] };
+  }
+
+  it('files a new case for one Marshall', () => {
+    const { w, robber, c } = filedOn();
+    expect(c.posse).toBe('lone');
+    expect(targetNeed(w, robber.id)).toBe('lone');
+  });
+
+  it('steps a case from one Marshall to the pair to spent, and throws past spent (IV1)', () => {
+    const { w, robber, c } = filedOn();
+    stepPosse([c]);
+    expect(c.posse).toBe('pair');
+    expect(targetNeed(w, robber.id)).toBe('pair');
+    stepPosse([c]);
+    expect(c.posse).toBe('spent');
+    expect(targetNeed(w, robber.id)).toBeNull();
+    expect(() => stepPosse([c])).toThrow(/spent/);
+  });
+
+  it('sends the pair after a target with a spent case and a new one, and nobody after a closed one (IV4)', () => {
+    const { w, robber, c } = filedOn();
+    c.posse = 'spent';
+    const fresh = { ...structuredClone(c), id: 'case-fresh', posse: 'lone' as const };
+    w.crimes = [...w.crimes, fresh];
+    expect(targetNeed(w, robber.id)).toBe('pair');
+    closeCase(w, fresh, 'lapsed');
+    closeCase(w, c, 'lapsed');
+    expect(targetNeed(w, robber.id)).toBeNull();
+  });
+
+  it("makes the hunter's escort follower's attack on the target no crime, and any other driver's a crime", () => {
+    const { w, robber, c } = filedOn();
+    const hunter = npc(w, 'marshals', 'marshal', ['marshal', 'brave'], { x: 390, y: 400 });
+    const partner = npc(w, 'marshals', 'marshal', ['marshal', 'brave'], { x: 392, y: 404 });
+    const stranger = npc(w, 'marshals', 'marshal', ['marshal', 'brave'], { x: 380, y: 404 });
+    c.hunter = hunter.id;
+    startEscort(w, partner, hunter, null, 0);
+    expect(crimeOf(w, partner, robber, 'attacked')).toBe(false);
+    expect(crimeOf(w, stranger, robber, 'attacked')).toBe(true);
   });
 });

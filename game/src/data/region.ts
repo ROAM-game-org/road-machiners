@@ -224,6 +224,8 @@ export function BROKEN_WING_POINT(along: number, across: number): Vec {
   return { x: BROKEN_WING.road.x + c * along - s * across, y: BROKEN_WING.road.y + s * along + c * across };
 }
 
+export const RETIRED_SITES: readonly string[] = ['burnt-convoy', 'podfield', 'ridge-wrecks', 'canyon-bridge', 'south-lock', 'broken-wing'];
+
 export const REGION = {
   name: "Icarus",
   size: 120 * MAP_SCALE,

@@ -19,6 +19,17 @@ describe("entryEnabled", () => {
   }
 });
 
+describe("map key", () => {
+  const rows = controlsFor(modeRulesOf("roaming")).flatMap((g) => g.controls);
+
+  it("is M, and no help row names K or a mute key", () => {
+    const map = rows.find((c) => resolve(c.does, "en") === "Map");
+    expect(map?.keys).toEqual(["M"]);
+    expect(rows.some((c) => c.keys.includes("K"))).toBe(false);
+    expect(rows.some((c) => resolve(c.does, "en") === "Mute")).toBe(false);
+  });
+});
+
 describe("entryReason", () => {
   it("names why Load is off", () => {
     expect(resolve(entryReason("load", false, false)!, "en")).toBe("No saves yet");

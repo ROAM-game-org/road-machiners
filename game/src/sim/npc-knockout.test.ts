@@ -150,6 +150,48 @@ describe('NPC waking', () => {
   });
 });
 
+describe('Teardown', () => {
+  function stripping(perk: boolean, job: boolean): { w: World; me: Vehicle; buggy: Vehicle } {
+    const { w, me, buggy } = beside();
+    breakCab(w, buggy, false);
+    if (perk) w.player.perks = ['teardown'];
+    if (job) {
+      const pickup = { from: 'truck' as const, vehicleId: buggy.id, partId: gunOf(buggy), itemId: 'i-take', to: { x: 0, y: 0, rot: 0 as const } };
+      me.job = { kind: 'refit', moves: [], pickup, turnsLeft: 5, total: 5 };
+    }
+    return { w, me, buggy };
+  }
+
+  it('keeps a truck down past the turn limit while the player takes a part off it', () => {
+    const { w, buggy } = stripping(true, true);
+    for (let turn = 0; turn <= RULES.knockoutMaxTurns + 5; turn++) advanceNpcKnockouts(w);
+    expect(buggy.defeat).toMatchObject({ phase: 'out', turns: 0 });
+  });
+
+  it('keeps a truck down after its attackers lose sight of it', () => {
+    const { w, me, buggy } = stripping(true, true);
+    me.pos = { x: 200, y: 200 };
+    refreshVision(w);
+    advanceNpcKnockouts(w);
+    expect(buggy.defeat?.phase).toBe('out');
+  });
+
+  it('lets the truck wake on the first turn the player is not working on it', () => {
+    const { w, me, buggy } = stripping(true, false);
+    me.pos = { x: 200, y: 200 };
+    refreshVision(w);
+    advanceNpcKnockouts(w);
+    expect(buggy.defeat?.phase).toBe('retreat');
+  });
+
+  it('holds nothing without the perk', () => {
+    const { w, buggy } = stripping(false, true);
+    for (let turn = 1; turn < RULES.knockoutMaxTurns; turn++) advanceNpcKnockouts(w);
+    advanceNpcKnockouts(w);
+    expect(buggy.defeat?.phase).toBe('retreat');
+  });
+});
+
 describe('the retreat home', () => {
   function retreating(): { w: World; buggy: Vehicle } {
     const w = emptyWorld();

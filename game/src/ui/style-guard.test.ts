@@ -57,7 +57,7 @@ const classes = (names: string[]): RegExp => new RegExp(`(?:${names.map((n) => n
 function buttonRules(components: string): ButtonRules {
   const list = components.match(/:where\(:not\(([^)]*)\)\)/)?.[1];
   if (!list) throw new Error("components.css lost its list of self-sizing buttons");
-  const sized = [...components.matchAll(/#ui :is\(([^)]*)\)/g)].flatMap((m) => m[1]!.split(",").map((s) => s.trim()).filter((s) => /^\.[\w-]+$/.test(s)));
+  const sized = [...components.matchAll(/(?:#ui|:is\(#ui, #report\)) :is\(([^)]*)\)/g)].flatMap((m) => m[1]!.split(",").map((s) => s.trim()).filter((s) => /^\.[\w-]+$/.test(s)));
   return { button: new RegExp(`${BUTTON_SELECTOR.source}|${classes(sized).source}`), selfSizing: classes(list.split(",").map((c) => c.trim())) };
 }
 

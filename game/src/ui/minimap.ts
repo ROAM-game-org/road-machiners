@@ -20,7 +20,7 @@ export class Minimap {
 
   constructor(onOpen: () => void) {
     const tip = el('div', { class: 'map-tip tooltip', role: 'tooltip' });
-    const open = el('button', { class: 'log-expand', title: keyLabel(t('map.open'), 'K'), 'aria-label': t('map.open'), onclick: onOpen }, t('log.expandMark'));
+    const open = el('button', { class: 'log-expand', title: keyLabel(t('map.open'), 'M'), 'aria-label': t('map.open'), onclick: onOpen }, t('log.expandMark'));
     this.view.canvas.addEventListener('click', onOpen);
     this.view.bindTip(tip);
     const body = el('div', { class: 'minimap-body' }, this.view.canvas, tip);

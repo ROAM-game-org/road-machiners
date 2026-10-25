@@ -2109,3 +2109,63 @@ describe('ledPoint', () => {
     expect(ledPoint(center, heard, 2, 5)).toEqual({ x: 55, y: 40 });
   });
 });
+
+describe('a haul ends with its cargo', () => {
+  function hauler(crates: number, wait = true) {
+    const { w, npc } = createTrader();
+    const shipment = { good: 'fuelDrums', from: 'bowl', to: 'nose' };
+    const sell: NpcActivity = { kind: 'sell', targetId: 'nose', destination: { x: 30, y: 30 }, phase: 'travel', reason: 'deliverCargo', shipment };
+    const waiting: NpcActivity = { kind: 'wait', targetId: null, destination: null, phase: 'act', reason: 'awaitEscort', until: w.turn + 50 };
+    npc.brain!.goals = wait ? [sell, waiting] : [sell];
+    npc.items = npc.items.filter((it) => it.kind !== 'good');
+    addGoods(w, npc, 'fuelDrums', crates);
+    return { w, npc };
+  }
+
+  function goalsAfterTurn(w: World, npc: Vehicle): NpcActivity[] {
+    thinkNpc(w, npc);
+    return npc.brain!.goals;
+  }
+
+  it('drops the haul and the escort wait when the last crate is gone', () => {
+    const { w, npc } = hauler(0);
+    const goals = goalsAfterTurn(w, npc);
+    expect(goals.some((g) => g.kind === 'wait' && g.reason === 'awaitEscort')).toBe(false);
+    expect(goals.some((g) => g.shipment)).toBe(false);
+    const reasons = w.events.filter((e) => e.t === 'activity' && e.vehicle === npc.id).map((e) => (e as { reason: string }).reason);
+    expect(reasons.filter((r) => r === 'cargoLost')).toHaveLength(2);
+  });
+
+  it('keeps the haul and the wait while one crate is left', () => {
+    const { w, npc } = hauler(1);
+    const goals = goalsAfterTurn(w, npc);
+    expect(goals.map((g) => g.kind)).toEqual(['sell', 'wait']);
+  });
+
+  it('drops a shipment haul that has no wait', () => {
+    const { w, npc } = hauler(0, false);
+    expect(goalsAfterTurn(w, npc).some((g) => g.shipment)).toBe(false);
+  });
+
+  it('leaves a sell goal with no shipment alone', () => {
+    const { w, npc } = createTrader();
+    npc.brain!.goals = [{ kind: 'sell', targetId: 'nose', destination: { x: 30, y: 30 }, phase: 'travel', reason: 'sellCargo' }];
+    expect(goalsAfterTurn(w, npc)[0]).toMatchObject({ kind: 'sell', reason: 'sellCargo' });
+  });
+
+  it('keeps an empty haul under a flee until the flee ends', () => {
+    const { w, npc } = hauler(0, false);
+    npc.brain!.goals.push({ kind: 'flee', targetId: w.player.vehicleId, destination: { x: 20, y: 20 }, phase: 'travel', reason: 'escapeThreat', perceived: w.turn });
+    thinkNpc(w, npc);
+    expect(npc.brain!.goals[0]).toMatchObject({ kind: 'sell' });
+  });
+
+  it('throws for an escort wait over a base with no shipment', () => {
+    const { w, npc } = createTrader();
+    npc.brain!.goals = [
+      { kind: 'sell', targetId: 'nose', destination: { x: 30, y: 30 }, phase: 'travel', reason: 'sellCargo' },
+      { kind: 'wait', targetId: null, destination: null, phase: 'act', reason: 'awaitEscort', until: w.turn + 50 },
+    ];
+    expect(() => thinkNpc(w, npc)).toThrow(new RegExp(npc.id));
+  });
+});

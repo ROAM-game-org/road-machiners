@@ -9,11 +9,11 @@ import { standingNum, standingStep } from './format';
 import { hp } from './units';
 import { num, t, type Msg } from '../text/msg';
 import { keyLabel } from './input-mode';
-import { basicName, basicRule, factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
+import { basicName, basicRule, factionName, perkName, perkRule, refusalText, skillGrows, skillName, standingDeedName } from '../text/names';
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
 import { hasExplorationMap, modeRules } from '../sim/settings';
 import { MapTab } from './map-tab';
-import { lookReason } from './look';
+import { lookReason } from './unstuck-reason';
 
 export type CharacterTab = 'skills' | 'map';
 
@@ -56,7 +56,7 @@ export class CharacterScreen {
     const p = world.player;
     this.root.classList.toggle('map-open', this.tab === 'map');
     this.root.replaceChildren(
-      el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t(this.tab === 'map' ? 'map.close' : 'character.close'), this.tab === 'map' ? 'K' : 'C')),
+      el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t(this.tab === 'map' ? 'map.close' : 'character.close'), this.tab === 'map' ? 'M' : 'C')),
       el('h3', {}, t('character.title'), el('span', { class: 'chips' },
         el('span', { class: 'chip', title: t('character.health') }, createIcon('driver'), t('readout.ofMax', { n: hp(p.health), max: maxHealthOf(world) })),
         el('span', { class: 'chip', title: t('character.knockoutsTitle') }, createIcon('damage'), t('character.knockouts', { n: p.knockouts })),
@@ -165,7 +165,7 @@ function standingRow(world: World, row: StandingRow): HTMLElement {
   const parts = standingParts(world, row);
   const tip = el('span', { class: 'tooltip standing-tip', role: 'tooltip' },
     tipRow(t('character.standingBase'), standingNum(parts.base), 'base'),
-    tipRow(t('character.standingDeeds'), standingStep(parts.deeds), stepTone(parts.deeds)),
+    ...parts.deeds.map((d) => tipRow(standingDeedName(d.deed), standingStep(d.delta), stepTone(d.delta))),
     tipRow(t('character.standingEarlier'), standingStep(parts.earlier), stepTone(parts.earlier)));
   return el('div', { class: 'standing-row row' },
     el('span', {}, factionName(row.faction)),

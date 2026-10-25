@@ -66,7 +66,7 @@ describe("character screen", () => {
     expect(pressedTab(root)).toEqual(["map"]);
     expect(root.all((n) => n.className.includes("map-tab"))).toHaveLength(1);
     expect(rankButtons(root)).toHaveLength(0);
-    expect(root.all((n) => n.className === "close")[0].text()).toBe("Close [K]");
+    expect(root.all((n) => n.className === "close")[0].text()).toBe("Close [M]");
     screen.toggle("skills");
     expect(screen.isOpen()).toBe(true);
     expect(pressedTab(root)).toEqual(["skills"]);
@@ -158,13 +158,25 @@ describe("inventory header money", () => {
     expect(cell(rows[0], 2).text()).toBe("wary");
     expect(cell(rows[0], 2).className).toBe("tag dim");
     const tipRows = score.all((n) => n.className.split(" ").includes("tooltip-row"));
-    expect(tipRows.map((r) => r.text())).toHaveLength(3);
+    expect(tipRows.map((r) => r.text())).toHaveLength(2);
     expect(tipRows[0].className).toContain("base");
     expect(tipRows[0].text()).toContain("Base");
     const sum = tipRows.map((r) => Number((r.text().match(/[+−]?\d+$/) as RegExpMatchArray)[0].replace("−", "-"))).reduce((a, b) => a + b, 0);
     expect(sum).toBe(-30);
     const head = openCharacter(world).all((n) => n.className === "standing-head")[0];
     expect(head.attrs.get("title")).toBeUndefined();
+  });
+  it("lists one tooltip row per kind of recent deed, and the rows add up to the score", () => {
+    const world = emptyWorld();
+    const deed = (id: string, kind: "attacked" | "robbed", delta: number) => ({ subject: id, faction: "bowl" as const, deed: kind, delta, turn: 0 });
+    world.player.deeds.push(deed("a", "attacked", -15), deed("b", "robbed", -20), deed("c", "attacked", -15));
+    world.player.standing.bowl = 5 - 50 + 7;
+    const rows = openCharacter(world).all((n) => n.className.split(" ").includes("standing-row"));
+    const tipRows = (rows[0].children[1] as FakeNode).all((n) => n.className.split(" ").includes("tooltip-row"));
+    expect(tipRows.map((r) => r.text().replace(/[+−\d]+$/, "").trim())).toEqual(["Base", "Attacked", "Robbed", "Earlier deeds and time"]);
+    const values = tipRows.map((r) => Number((r.text().match(/[+−]?\d+$/) as RegExpMatchArray)[0].replace("−", "-")));
+    expect(values.slice(1, 3)).toEqual([-30, -20]);
+    expect(values.reduce((a, b) => a + b, 0)).toBe(-38);
   });
   it("hides the standing list on Chaos Highway", () => {
     const world = emptyWorld();
