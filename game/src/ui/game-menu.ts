@@ -1,5 +1,5 @@
 
-import { closeLabel, phoneMode, touchMode } from "./input-mode";
+import { closeLabel, touchMode } from "./input-mode";
 import { ERROR_REPORT_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
@@ -20,9 +20,9 @@ export type GameMenuActions = SavePanelActions & {
   unstuck: { reason: () => Msg | null; run: () => void };
 };
 
-export type MenuEntry = "new" | "save" | "load" | "unstuck" | "options" | "tips" | "help" | "camera" | "report";
+export type MenuEntry = "new" | "save" | "load" | "unstuck" | "options" | "tips" | "help" | "report";
 
-export type PhoneMenuLinks = { cameraLabel: () => Msg; toggleCamera: () => void; report: () => void };
+export type PhoneMenuLinks = { report: () => void };
 
 const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "new", label: t("menu.newGame") },
@@ -32,15 +32,8 @@ const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "options", label: t("menu.options") },
   { entry: "tips", label: t("menu.showTips") },
   { entry: "help", label: t("menu.help") },
-  { entry: "camera", label: t("hud.camAuto") },
   { entry: "report", label: t("hud.feedbackTitle") },
 ];
-
-const PHONE_ENTRIES: MenuEntry[] = ["camera"];
-
-export function phoneOnly(entry: MenuEntry): boolean {
-  return PHONE_ENTRIES.includes(entry);
-}
 
 type KeyCap = string | Msg;
 type Control = { keys: KeyCap[]; on?: Msg; does: Msg; needs?: "radio" };
@@ -136,7 +129,7 @@ function controlGroup(group: ControlGroup): HTMLElement {
 }
 
 export function entryEnabled(entry: MenuEntry, busy: boolean, hasSave: boolean): boolean {
-  if (entry === "help" || entry === "tips" || entry === "options" || entry === "camera" || entry === "report") return true;
+  if (entry === "help" || entry === "tips" || entry === "options" || entry === "report") return true;
   if (entry === "load") return !busy && hasSave;
   return !busy;
 }
@@ -250,8 +243,6 @@ export class GameMenu {
     const on = this.tips.isOn();
     this.items.tips.setAttribute("aria-checked", String(on));
     setText(this.items.tips, t(on ? "menu.showTipsOn" : "menu.showTips"));
-    setText(this.items.camera, this.phone.cameraLabel());
-    for (const entry of PHONE_ENTRIES) this.items[entry].hidden = !phoneMode();
   }
 
   private setReason(item: HTMLButtonElement, reason: Msg | null): void {
@@ -313,9 +304,6 @@ export class GameMenu {
     else if (entry === "options") this.options.open();
     else if (entry === "tips") {
       this.tips.setOn(!this.tips.isOn());
-      this.refresh();
-    } else if (entry === "camera") {
-      this.phone.toggleCamera();
       this.refresh();
     } else if (entry === "report") this.phone.report();
     else if (entry === "help") this.help.toggle();

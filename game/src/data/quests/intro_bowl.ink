@@ -63,11 +63,11 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
   -> questions
 + {asked_region and not asked_kiln} [And the raiders?]
   ~ asked_kiln = true
-  <term=kiln>Kiln Camp</term> is south of here. They charge you for the right to haul. If you won't pay and won't fight, you'll be walking back. # speaker: Hattie
+  <term=kiln>Kiln Camp</term> is south-east of here. They charge you for the right to haul. If you won't pay and won't fight, you'll be walking back. # speaker: Hattie
   -> questions
-+ {asked_region and not asked_flats} [And east?]
++ {asked_region and not asked_flats} [And south-east?]
   ~ asked_flats = true
-  East is the <term=glass_flats>Glass Flats</term>, then the <term=sunward>Sunward</term>. People go for lenses, and nobody hauls. Lens hunters come back with good glass and bad burns. # speaker: Hattie
+  South-east is the <term=glass_flats>Glass Flats</term>, then the <term=sunward>Sunward</term>. People go for lenses, and nobody hauls. Lens hunters come back with good glass and bad burns. # speaker: Hattie
   -> questions
 + {not asked_tips} [Any advice?]
   ~ asked_tips = true

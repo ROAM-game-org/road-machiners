@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { resolve } from "../text/resolve";
-import { controlsFor, entryEnabled, entryReason, phoneOnly, type MenuEntry } from "./game-menu";
+import { controlsFor, entryEnabled, entryReason, type MenuEntry } from "./game-menu";
 import { modeRulesOf } from "../sim/settings";
 
 describe("entryEnabled", () => {
   const states = [
-    { busy: false, hasSave: false, expected: { new: true, save: true, unstuck: true, load: false, options: true, tips: true, help: true, camera: true, report: true } },
-    { busy: false, hasSave: true, expected: { new: true, save: true, unstuck: true, load: true, options: true, tips: true, help: true, camera: true, report: true } },
-    { busy: true, hasSave: false, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, camera: true, report: true } },
-    { busy: true, hasSave: true, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, camera: true, report: true } },
+    { busy: false, hasSave: false, expected: { new: true, save: true, unstuck: true, load: false, options: true, tips: true, help: true, report: true } },
+    { busy: false, hasSave: true, expected: { new: true, save: true, unstuck: true, load: true, options: true, tips: true, help: true, report: true } },
+    { busy: true, hasSave: false, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, report: true } },
+    { busy: true, hasSave: true, expected: { new: false, save: false, unstuck: false, load: false, options: true, tips: true, help: true, report: true } },
   ];
   for (const { busy, hasSave, expected } of states) {
     it(`busy ${busy}, saved ${hasSave}`, () => {
@@ -17,13 +17,6 @@ describe("entryEnabled", () => {
       }
     });
   }
-});
-
-describe("phoneOnly", () => {
-  it("keeps only the camera entry off the desktop menu, so the report is in every Menu", () => {
-    const entries: MenuEntry[] = ["new", "save", "load", "unstuck", "options", "tips", "help", "camera", "report"];
-    expect(entries.filter(phoneOnly)).toEqual(["camera"]);
-  });
 });
 
 describe("entryReason", () => {
