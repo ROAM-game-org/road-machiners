@@ -73,10 +73,22 @@ def ladder(kit: Kit, name: str, base: Vec3, top_z: float, width: float, facing: 
         kit.box(f"{name}_rung{i}", (0.05, width, 0.05), (bx, by, bz + i * height / (rungs + 1)), mat, rot=(0, 0, facing))
 
 
+def corners_only(profile: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """The profile without repeated points and without points that lie on the line between their neighbours, so a cap triangulates cleanly."""
+    kept = [p for i, p in enumerate(profile) if p != profile[i - 1]]
+    n = len(kept)
+    return [
+        p
+        for i, p in enumerate(kept)
+        if abs((p[0] - kept[i - 1][0]) * (kept[(i + 1) % n][1] - p[1]) - (p[1] - kept[i - 1][1]) * (kept[(i + 1) % n][0] - p[0])) > 1e-9
+    ]
+
+
 def prism(kit: Kit, name: str, profile: list[tuple[float, float]], y0: float, y1: float, mat: str, lean: float = 0.0) -> bpy.types.Object:
     """Extrudes a closed XZ profile from Blender Y y0 to y1 as one mesh. lean shifts each vertex by -lean * z in Y."""
     mesh = bpy.data.meshes.new(name)
     bm = bmesh.new()
+    profile = corners_only(profile)
     near = [bm.verts.new((x, y0 - lean * z, z)) for x, z in profile]
     far = [bm.verts.new((x, y1 - lean * z, z)) for x, z in profile]
     bm.faces.new(near)
