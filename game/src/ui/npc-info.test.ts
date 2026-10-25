@@ -258,15 +258,15 @@ describe('events far from the player', () => {
     return { w, a, events };
   };
 
-  it('give no line when the player neither sees nor detects them', () => {
+  it('give no line when the player does not see them', () => {
     const { w, events } = setup();
     for (const e of events) expect(eventText(w, e)).toBeNull();
   });
 
-  it('give a line when the player detects a vehicle in them', () => {
+  it('give no line when the player only detects a vehicle in them', () => {
     const { w, a, events } = setup();
     w.player.contacts = [{ vehicleId: a.id, center: a.pos, radius: 3, sources: ['sound'], loudness: 10 }];
-    for (const e of events) expect(eventText(w, e)).not.toBeNull();
+    for (const e of events) expect(eventText(w, e)).toBeNull();
   });
 
   it('give a line when the player sees a vehicle in them', () => {
