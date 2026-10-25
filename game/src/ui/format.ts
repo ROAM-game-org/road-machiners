@@ -442,6 +442,7 @@ function jobText(world: World, e: Extract<GameEvent, { t: 'job' }>): LogLine | n
     cancelled: line(t('log.jobCancelled', { what }), 'bad'),
     done: line(t('log.jobDone', { what }), 'good'),
   };
+  if (e.outcome === 'skipped') return line(t('log.jobSkipped', { what, reason: refusalText(world, e.reason) }), 'dim');
   return lines[e.outcome];
 }
 

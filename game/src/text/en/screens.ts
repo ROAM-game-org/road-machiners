@@ -118,6 +118,7 @@ export const SCREENS = {
   'hud.camCentered': 'Centered',
   'hud.camTitle': 'Camera mode: lead toward the order point, or stay centered on the truck',
   'hud.workLeft': m('{label}, {n, plural, one {# turn left} other {# turns left}}', { label: 'text', n: 'count' }),
+  'hud.workQueued': m('{label}, {n, plural, one {# turn left} other {# turns left}}, then {k} more', { label: 'text', n: 'count', k: 'count' }),
   'hud.workProgress': m('{label} progress', { label: 'text' }),
   'hud.actionKey': m('[E] {label}', { label: 'text' }),
   'hud.count': m('{n}/{of}', { n: 'int', of: 'int' }),

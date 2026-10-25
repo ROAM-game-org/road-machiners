@@ -117,10 +117,11 @@ export type RefitPickup =
   | { from: 'stock'; stockId: string; partId: string; itemId: string; to: RefitMove['to'] }
   | { from: 'truck'; vehicleId: string; partId: string; itemId: string; to: RefitMove['to'] };
 
-export type RefitJob = {
+export type RefitStep = { moves: RefitMove[]; pickup: RefitPickup | null };
+
+export type RefitJob = RefitStep & {
   kind: 'refit';
-  moves: RefitMove[];
-  pickup: RefitPickup | null;
+  queue: RefitStep[];
   turnsLeft: number;
   total: number;
 };
@@ -238,6 +239,7 @@ export type Refusal =
   | { id: 'emptyRackFirst' }
   | { id: 'truckOutOfReach' }
   | { id: 'truckPartGone' }
+  | { id: 'partQueued' }
   | { id: 'looting'; by: string; place: 'here' | 'wreck' | 'truck' }
   | { id: 'needsSpotter' }
   | { id: 'needsBasic'; skill: SkillId }
@@ -615,6 +617,7 @@ export type GameEvent =
   | { t: 'stateEnded'; state: NpcState; ending: StateEnding }
   | { t: 'lookedOver'; by: string; target: string }
   | { t: 'job'; vehicle: string; job: Job; outcome: 'started' | 'done' | 'cancelled' }
+  | { t: 'job'; vehicle: string; job: RefitJob; outcome: 'skipped'; reason: Refusal }
   | { t: 'breakdown'; vehicle: string; part: string }
   | { t: 'searched'; stock: string }
   | { t: 'weather'; event: WeatherEvent; outcome: 'started' | 'ended' }
