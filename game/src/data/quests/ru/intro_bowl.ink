@@ -63,11 +63,11 @@ VAR asked_tips = false
   -> questions
 + {asked_region and not asked_kiln} [А рейдеры?]
   ~ asked_kiln = true
-  На юге они, в <term=kiln>лагере Обжиг</term>, торгуют правом возить грузы. Не платишь и не отбиваешься, дальше идешь пешком. # speaker: Хэтти
+  На юго-востоке они, в <term=kiln>лагере Обжиг</term>, торгуют правом возить грузы. Не платишь и не отбиваешься, дальше идешь пешком. # speaker: Хэтти
   -> questions
-+ {asked_region and not asked_flats} [А на востоке?]
++ {asked_region and not asked_flats} [А на юго-востоке?]
   ~ asked_flats = true
-  На востоке <term=glass_flats>Стеклянная равнина</term>, а за ней <term=sunward>Обращенные к Солнцу</term>. Грузы туда никто не возит, ездят за линзами. Привозят хорошее стекло и скверные ожоги. # speaker: Хэтти
+  На юго-востоке <term=glass_flats>Стеклянная равнина</term>, а за ней <term=sunward>Обращенные к Солнцу</term>. Грузы туда никто не возит, ездят за линзами. Привозят хорошее стекло и скверные ожоги. # speaker: Хэтти
   -> questions
 + {not asked_tips} [Что посоветуешь?]
   ~ asked_tips = true

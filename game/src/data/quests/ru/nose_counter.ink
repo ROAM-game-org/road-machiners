@@ -5,32 +5,32 @@ VAR read_stamp = false
 
 === start ===
 # checkpoint: start
-You've barely turned from the parts counter when Lena crosses the shed from her bench, wiping her hands on a rag. She looks over your truck before she looks at you.
-That shelf's Army write-offs, and I wouldn't bolt them to a truck I wanted home. Tell me what you're bolting on, and where. # speaker: Lena
+Вы едва успеваете отойти от прилавка с деталями, как Лена идет через ангар от верстака, вытирая руки тряпкой. Сначала она оглядывает грузовик, а потом смотрит на вас.
+На этой полке армейское списанное, и я бы не стала прикручивать такое к грузовику, на котором хочешь вернуться домой. Говори, что собираешься ставить и куда. # speaker: Лена
 -> hub
 
 = hub
 # checkpoint: start.hub
-+ {not asked_shelf} [What's wrong with the shelf?]
++ {not asked_shelf} [Что не так с этой полкой?]
   ~ asked_shelf = true
-  Those brake rods are the cheap ones command bought. A cheap rod snaps on a hard bend and leaves you with no brakes. # speaker: Lena
+  Эти тормозные тяги — из дешевых, что накупило командование. Дешевая тяга лопается на крутом повороте и оставляет тебя без тормозов. # speaker: Лена
   { not has_note("talkBrakeRod"):
     ~ note("talkBrakeRod")
   }
   -> hub
-+ {not read_stamp} [Pick up a rod and read the stamp yourself. # check: machining 1]
++ {not read_stamp} [Взять тягу и прочесть клеймо. # check: machining 1]
   ~ read_stamp = true
   { passed():
-    You turn the rod to the light. The stamp is thin and the steel is thinner. Lena watches your thumb find the edge.
-    Put it on the bench. Yeah, you read it right: depot issue, thin steel, fitted by order. # speaker: Lena
+    Вы поворачиваете тягу к свету. Клеймо неглубокое, а сталь еще тоньше. Лена смотрит, как ваш палец находит кромку.
+    Клади на верстак. Да, всё ты верно читаешь: со склада депо, тонкая сталь, ставить по приказу. # speaker: Лена
     { not has_note("talkBrakeRod"):
       ~ note("talkBrakeRod")
     }
   - else:
-    You turn the rod over, squint at the stamp and call it sound. Lena takes it out of your hand.
-    Leave the shelf to folks who know steel. You read that stamp wrong, and that thin rod'll snap under load. # speaker: Lena
+    Вы вертите тягу, щуритесь на клеймо и говорите, что она крепкая. Лена забирает ее из ваших рук.
+    Оставь полку тем, кто разбирается в стали. Клеймо ты читаешь криво, а эта тонкая тяга лопнет под нагрузкой. # speaker: Лена
   }
   -> hub
-+ [Walk on.]
-  She watches you to the door and goes back to her bolts.
++ [Идти дальше.]
+  Она провожает вас взглядом до двери и возвращается к болтам.
   -> END

@@ -20,7 +20,8 @@ import { startEscort } from "./tow";
 import type { NpcFactionId, Vehicle, World } from "./types";
 import { dist, type Vec } from "./vec";
 import { atlasOf } from "./atlas";
-import { bayHeading, hollowBays, isSunwardMember, spawnsAtHollow } from "./sunward";
+import { bayHeading, hollowBays } from "./hollow-layout";
+import { isSunwardMember, spawnsAtHollow } from "./sunward";
 
 export function spawnNpcs(world: World): void {
   if (!modeRules(world).traffic) return;
@@ -102,6 +103,15 @@ export function spawnInitial(world: World): void {
   for (const id of SPAWN.initial) {
     const tpl = NPCS[id];
     spawnRequired(world, tpl, rosterPlaces(tpl, dealSite(world, decks, sitesFor(tpl))));
+  }
+  if (world.sunward) fillHollowAtStart(world);
+}
+
+function fillHollowAtStart(world: World): void {
+  fillHollow(world);
+  for (const tpl of Object.values(NPCS).filter((t) => t.spawn.kind === 'hollow')) {
+    const found = aliveOf(world, tpl);
+    if (found < tpl.cap) throw new Error(`A new world holds ${found} ${tpl.id} cars at the Hollow, not ${tpl.cap}`);
   }
 }
 
