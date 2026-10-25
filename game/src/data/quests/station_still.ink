@@ -16,7 +16,7 @@ Hollis Brennan. I run the stills at the <term=pump_station>Pump Station</term>. 
     The pump's down right now. Every drum by the gate is what's left until it turns again.
   }
   { short_of("tools"):
-    I'm out of tools. One more cracked wrench and the pump runs slow.
+    I'm out of tools. The next bolt that shakes loose stays loose, and the pump runs slow.
   }
   { short_of("batteries"):
     The batteries are flat, the last of them. The motor coughs more than it turns.
@@ -25,7 +25,7 @@ Hollis Brennan. I run the stills at the <term=pump_station>Pump Station</term>. 
 + {not asked_buyers} [Who buys the drums?]
   ~ asked_buyers = true
   The convoys load here and run them out to Nose and <term=bowl>Bowl</term>, and every outpost that sells fuel buys some.
-  Nose burns my diesel in its forge and in the shop where it makes batteries. The tools and batteries I need come out of those fires, so the same convoys bring them back. That's the whole trade.
+  Nose burns my diesel in its forge and in the shop where it makes batteries. The tools and batteries I need come out of those fires, so the same convoys bring them back.
   -> hub
 + [Goodbye.]
   Mind the drums on the way out. They're full.

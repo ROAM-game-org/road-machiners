@@ -38,8 +38,8 @@ Pull up by the well. I'm Hattie. Where'd you come from, and how much water do yo
   ~ hattie_rumor = true
   -> hub
 + {not hattie_flats} [Any local legends?]
-  They say an Old World tank still runs out on the <term=glass_flats>Glass Flats</term>. Comes out at night with its lights off.
-  One driver swore he saw it. I only ever saw him drink.
+  One driver swears an Old World tank still runs out on the <term=glass_flats>Glass Flats</term>. Comes out at night with its lights off.
+  I only ever saw him drink.
   ~ note("glassTank")
   ~ hattie_flats = true
   -> hub
@@ -65,7 +65,7 @@ Pull up by the well. I'm Hattie. Where'd you come from, and how much water do yo
   -> hub
 + {hattie_roads and not hattie_unarmed} [What if I go up to Nose unarmed?]
   Nose will let you in unarmed, sure.
-  Nose lets you in and out, gun or no gun, and doesn't care. I only heard Pierce won't insure a truck without one.
+  Out again too, gun or no gun. I only heard Pierce won't insure a truck without one.
   ~ hattie_unarmed = true
   -> hub
 + {hattie_flats and not hattie_glass} [What about the glass at the Glass Flats?]
@@ -76,12 +76,12 @@ Pull up by the well. I'm Hattie. Where'd you come from, and how much water do yo
   -> hub
 + {hattie_glass and not hattie_sunward} [What do the Sunward do with strangers?]
   They take them into the crater. The ones who come out are green at the edges and quiet.
-  Folk say they don't come back right. I've never been in, and I never will.
+  I've never been in, and I never will.
   ~ note("talkSunwardTake")
   ~ hattie_sunward = true
   -> hub
 + {hattie_sunward and cult_broken()} [Have the Sunward gone quiet?]
-  Quiet as a dry well. Bo's cousin says the lamps stopped crossing to the crater at dusk, and a man with a green shine on his hands came to my well asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
+  Quiet as a dry well. Bo's cousin says the lamps stopped crossing to the crater at dusk. And a man with a green shine on his hands came to my well asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
   -> hub
 + {hattie_sunward and not hattie_came_out} [Have you seen anyone come out of the crater?]
   I saw one at dusk once, a woman with her hands shining green. She emptied bucket after bucket without a word.
