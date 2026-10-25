@@ -518,6 +518,7 @@ function buildSite(t: Terrain, site: Site): BuiltSite {
   return { root: b.root, movers: b.movers, lights, lamps };
 }
 
+const MODEL_OVERHANG: Record<string, number> = { nose: 12 };
 const UP = new THREE.Vector3(0, 1, 0);
 function sitesOf(t: Terrain): (TownDef | SiteLocationDef)[] {
   const atlas = atlasOf(t);
@@ -555,7 +556,7 @@ export function addSites(t: Terrain, scope: RenderScope, play: PlayClock): { lig
   const lamps: PoolLamp[] = [];
   for (const site of sitesOf(t)) {
     const built = buildSite(t, site);
-    scope.add(built.root, site.pos, site.radius);
+    scope.add(built.root, site.pos, site.radius + (MODEL_OVERHANG[site.id] ?? 0));
     lights.push(...built.lights);
     lamps.push(...built.lamps);
     const phase = hash2(site.pos.x, site.pos.y) * MOTION_PHASE_SPAN;
