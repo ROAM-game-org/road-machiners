@@ -203,6 +203,7 @@ Every event gets a level before it gets a channel. A level fires on its channels
 - Every UI word costs. Use the fewest words that stay clear, such as You and Them for the two gun lists.
 - No arrow characters as connectors in UI text, such as You → it. Name the thing in words. An arrow is allowed only as the name of an arrow key.
 - A tip says one thing to do in one sentence.
+- Check tips, help text and reasons against the [Humanizer](writing/humanizer.md). A label stays a noun and a button a verb.
 
 ## 9. Visual language
 

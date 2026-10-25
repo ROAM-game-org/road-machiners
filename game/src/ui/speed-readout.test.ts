@@ -83,7 +83,7 @@ describe('max speed tooltip', () => {
     });
     const tip = tipOf(w);
     expect(tip).toContainEqual({ label: '2 broken wheels', value: expect.stringMatching(/^−\d+ km\/h$/), tone: 'bad' });
-    expect(tip).toContainEqual({ label: 'Guns power', value: expect.stringMatching(/^−\d+ km\/h$/), tone: 'bad' });
+    expect(tip).toContainEqual({ label: 'Gun power', value: expect.stringMatching(/^−\d+ km\/h$/), tone: 'bad' });
     const stalled = playerWith(CASES.stalled);
     expect(tipOf(stalled.w)).toContainEqual({ label: 'Engine stalled', value: `crawl ${getHudReadout(stalled.w).maxSpeed} km/h`, tone: 'plain' });
   });

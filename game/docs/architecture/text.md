@@ -65,7 +65,7 @@ All of them run in `npm test` and `npm run typecheck`. Together the text tests t
 
 ### The allowlist
 
-`src/text/untranslated.ts` lists text the scan lets through, as `{ file, text, reason }`. Every entry needs a reason, and an entry nothing uses fails the scan. Missing Russian never falls back to English: there is no fallback path at all. New text ships its English and Russian entries in the same change.
+`src/text/untranslated.ts` lists text the scan lets through, as `{ file, text, reason }`. Every entry needs a reason, and an entry nothing uses fails the scan. Missing Russian never falls back to English: there is no fallback path at all. New text ships its English and Russian entries in the same change. Read new English text against the [Humanizer](../writing/humanizer.md#how-roam-uses-it) first, the way its How ROAM uses it section says.
 
 ### The layout check
 
