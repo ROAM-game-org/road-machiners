@@ -9,6 +9,7 @@ import { entryText } from '../text/resolve';
 import { playerVehicle } from './damage';
 import { chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
 import { encounterAvailable, encounterOpen, lapseEncounter, onStrangerSeen, tipPrice } from './encounters';
+import { gridSquareOf } from './map-grid';
 import { remember } from './memory';
 import { stateOf } from './states';
 import { topGoal } from './npc-activities';
@@ -229,6 +230,7 @@ describe('the salvage tip', () => {
     expect(next.player.money).toBe(money - tipPrice());
     expect(seller.resources!.money).toBe(npcMoney + tipPrice());
     expect(next.player.rumored).toEqual(['wreck7']);
+    expect(next.player.call?.vars.square).toEqual({ kind: 'square', ...gridSquareOf({ x: 50, y: 30 }) });
     next = pick(next, 'Thanks. Over and out.');
     expect(next.player.call).toBeNull();
     expect(next.player.encounters.pending).toBeNull();

@@ -324,7 +324,7 @@ export const NAMES = {
   'perk.marketEars': 'Market ears',
   'perk.marketEars.rule': 'A trader you call tells you the prices of the last town it left, as they were then.',
   'perk.rumorMill': 'Rumor mill',
-  'perk.rumorMill.rule': 'A driver you call marks a wreck or site it passed.',
+  'perk.rumorMill.rule': 'A driver you call tells you of a wreck or site it passed.',
   'perk.paidTruce': 'Paid truce',
   'perk.paidTruce.rule': 'You can pay a hostile driver to end its feud with you.',
   'perk.bountyHunter': 'Bounty hunter',

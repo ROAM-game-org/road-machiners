@@ -29,6 +29,7 @@ import { addVehicle, emptyWorld, furyRoadWorld, forceOption, npcBrain, practiceO
 import type { TraitId } from '../data/npcs';
 import type { SalvageStock, Vehicle, World } from './types';
 import { directionsTo } from './directions';
+import { gridSquareOf } from './map-grid';
 import { dist } from './vec';
 import { refreshVision } from './vision';
 import { autoRuns, endTurn, setMoveOrder } from './world';
@@ -825,7 +826,10 @@ describe('rumor mill', () => {
     next = chooseOption(next, optionIndex(next, askText));
     next = chooseOption(next, optionIndex(next, 'Where?'));
     expect(next.player.call?.node).toBe('wreck');
-    expect(next.player.call?.vars).toEqual({ way: { kind: 'directions', steps: directionsTo(w, me, { kind: 'spot', pos: { x: 50, y: 30 }, clue: 'wreck' }) } });
+    expect(next.player.call?.vars).toEqual({
+      way: { kind: 'directions', steps: directionsTo(w, me, { kind: 'spot', pos: { x: 50, y: 30 }, clue: 'wreck' }) },
+      square: { kind: 'square', ...gridSquareOf({ x: 50, y: 30 }) },
+    });
     next = chooseOption(next, optionIndex(next, 'Thanks. Over and out.'));
     expect(next.player.rumored).toEqual(['wreck7']);
   });
@@ -870,10 +874,10 @@ describe('rumor mill', () => {
     expect(next.player.rumored).toEqual(['wreck7']);
   });
 
-  it('has the driver say the wreck is on the map, in English and Russian', () => {
-    expect(en('wreckWay')).toMatch(/It's on your map now\.$/);
-    expect(en('wreckWay')).not.toContain('somewhere out there');
-    expect(entryText('ru', lineKey('wreckWay'))).toContain('на карту');
+  it('has the driver name the square of the wreck and never the map, in English and Russian', () => {
+    expect(en('wreckWay')).toContain('square {square}');
+    expect(entryText('ru', lineKey('wreckWay'))).toContain('{square}');
+    for (const locale of ['en', 'ru'] as const) expect(entryText(locale, lineKey('wreckWay')).toLowerCase()).not.toMatch(/map|карт/);
   });
 
   it('keeps the wreck marked and the topic settled when the player hangs up after the way', () => {

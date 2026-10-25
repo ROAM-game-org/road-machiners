@@ -325,7 +325,7 @@ export const TALK: Translation<typeof EN> = {
   'tip.none': 'Рассказывать нечего.',
   'line.townWay': '{town}? {way}',
   'line.siteWay': '{site}? {way}',
-  'line.wreckWay': 'Обломки, которые никто не обобрал. {way} Наношу тебе на карту.',
+  'line.wreckWay': 'Обломки, которые никто не обобрал, в квадрате {square}. {way}',
   'way.join': 'Срезай {octant} до дороги, {span}.',
   'way.follow': 'Езжай по {road}.',
   'way.followThere': 'Езжай по дороге.',

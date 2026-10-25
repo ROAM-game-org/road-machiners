@@ -324,7 +324,7 @@ export const TALK = {
   'tip.none': 'Nothing worth telling.',
   'line.townWay': m('{town}? {way}', { town: 'text', way: 'text' }),
   'line.siteWay': m('{site}? {way}', { site: 'text', way: 'text' }),
-  'line.wreckWay': m('A wreck nobody picked clean. {way} It\'s on your map now.', { way: 'text' }),
+  'line.wreckWay': m('A wreck nobody picked clean, out in square {square}. {way}', { square: 'text', way: 'text' }),
   'way.join': m('Cut {octant} {span} to the road.', { octant: 'text', span: 'text' }),
   'way.follow': m('Take {road}.', { road: 'text' }),
   'way.followThere': 'Follow the road.',

@@ -9,6 +9,7 @@ import { hasAid, isLow, playerAid, readyAid, startAid, wantedAid } from './aid';
 import { playerVehicle } from './damage';
 import { chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
 import { encounterAvailable, favorAmount, lapseEncounter, onStrangerSeen, storyBeatDue } from './encounters';
+import { gridSquareOf } from './map-grid';
 import { remember } from './memory';
 import { stateOf } from './states';
 import { fuelCap, suppliesCap } from './stats';
@@ -118,6 +119,7 @@ describe('the courier story, free help', () => {
     expect(next.player.call).toMatchObject({ topic: 'courierThanks' });
     next = pick(next, 'Go on.');
     expect(next.player.call?.node).toBe('wreck');
+    expect(next.player.call?.vars.square).toEqual({ kind: 'square', ...gridSquareOf({ x: 45, y: 30 }) });
     next = pick(next, 'Thanks. Over and out.');
     expect(next.player.rumored).toEqual(['wreck4']);
     expect(next.player.encounters.story?.beat).toBe('owed');
