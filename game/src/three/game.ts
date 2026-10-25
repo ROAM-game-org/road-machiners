@@ -998,7 +998,7 @@ export class Game {
     const held = this.holdsTime();
     if (held) this.travel.pause();
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
-    const playMs = this.tickWorldClock(heldPlayMs(dt, this.timeHeld(), CONFIG.playbackFrameMs), speed, now);
+    const playMs = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
     this.travel.tickCreep(playMs);
@@ -1040,7 +1040,7 @@ export class Game {
     const dt = now - this.last;
     this.last = now;
     this.touchIntent(this.touch.tick(now));
-    this.play.beginFrame();
+    this.play.beginFrame(this.timeHeld());
     const { at, playMs } = timed("turn-frame", () => {
       const turn = this.advanceTurn(now, dt);
       this.shade.advance();
@@ -1071,7 +1071,7 @@ export class Game {
     this.weather.advance(this.play.frameMs());
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);
-    this.shaders.render(this.modalOpen());
+    this.shaders.render(this.play.isHeld());
     this.hud.stepPortraits(this.travel.isPlaying(this.anim));
     this.refreshPlan();
     this.showPlan();
