@@ -55,7 +55,7 @@ function stepText(step: DirectionStep, next: DirectionStep | undefined, target: 
     case 'arrive': return [t(step.area ? 'way.arriveArea' : 'way.arrive')];
     case 'leave': return [t('way.leave', { at: cueText(step.at, 'leave'), octant: compassName(step.octant), span: spanText(step.span) })];
     case 'straight': return [t('way.straight', { octant: compassName(step.octant), span: spanText(step.span) })];
-    case 'search': return [step.clue.kind === 'site' ? t('way.search.site', { sign: siteSign(step.clue.id) }) : t('way.search.rough')];
+    case 'search': return step.clue.kind === 'site' ? [t('way.search.site', { sign: siteSign(step.clue.id) })] : [];
     case 'askAgain': return [t('way.askAgain')];
     case 'noRoad': return [t('way.noRoad', { octant: compassName(step.octant), span: spanText(step.span) })];
   }

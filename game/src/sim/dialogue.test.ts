@@ -854,6 +854,12 @@ describe('rumor mill', () => {
     expect(next.player.rumored).toEqual(['wreck7']);
   });
 
+  it('has the driver say the wreck is on the map, in English and Russian', () => {
+    expect(en('wreckWay')).toMatch(/It's on your map now\.$/);
+    expect(en('wreckWay')).not.toContain('somewhere out there');
+    expect(entryText('ru', lineKey('wreckWay'))).toContain('на карту');
+  });
+
   it('keeps the wreck marked and the topic settled when the player hangs up after the way', () => {
     const { w, npc } = rumorWorld();
     w.salvage = [wreck('wreck7', { x: 50, y: 30 }), wreck('wreck8', { x: 60, y: 30 })];
