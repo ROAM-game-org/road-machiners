@@ -5,10 +5,10 @@ import type { V3 } from '../../phys/frames';
 import type { Vec } from '../../sim/vec';
 
 const S = PHYSICS.metersPerTile;
-const VIEW_METERS = 72;
+export const VIEW_METERS = 72;
 export const CAMERA_DIR = new THREE.Vector3(1, 0.816, 1).normalize();
 const OFFSET = CAMERA_DIR.clone().multiplyScalar(300);
-const ZOOM = { min: 0.35, max: 4 };
+export const ZOOM = { min: 0.35, max: 4 };
 const FOLLOW_TAU_MS = 250;
 const LEAD = 0.5;
 const LEAD_TAU_MS = 3000;
