@@ -195,17 +195,17 @@ describe("contract text", () => {
     it("says how far and which way from the shop the driver waits", () => {
       const bowl = REGION.towns.find((t) => t.id === "bowl")!.pos;
       const east = { ...rescue, area: { x: bowl.x + 40, y: bowl.y } };
-      expect(en(rescueWhere(east))).toMatch(/^\d+ m east of Bowl$|^[\d.]+ km east of Bowl$/);
-      expect(en(rescueWhere({ ...east, area: { x: bowl.x, y: bowl.y - 40 } }))).toContain("north of Bowl");
+      expect(en(rescueWhere(east))).toMatch(/^\d+ m south-east of Bowl$|^[\d.]+ km south-east of Bowl$/);
+      expect(en(rescueWhere({ ...east, area: { x: bowl.x, y: bowl.y - 40 } }))).toContain("north-east of Bowl");
     });
 
     it("logs a met rescue with the driver and a lapsed one without a price", () => {
       const met = eventText(emptyWorld(), { t: "contract", contract: { ...rescue, fulfilled: true }, outcome: "fulfilled" })!;
-      expect([en(met.text), met.cls]).toEqual(["Rescue met: Jed Cobb is moving, claim 1 M at Bowl", "good"]);
+      expect([en(met.text), met.cls]).toEqual(["Rescue done: Jed Cobb is moving, claim 1 M at Bowl", "good"]);
       const lapsed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "lapsed" })!;
       expect([en(lapsed.text), lapsed.cls]).toEqual(["Rescue lapsed: Jed Cobb no longer needs you", "dim"]);
       const failed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "failed" })!;
-      expect(en(failed.text)).toBe("Contract failed: Rescue Jed Cobb, pays 1 M");
+      expect(en(failed.text)).toBe("Contract failed: Rescue Jed Cobb, offered 1 M");
     });
   });
 
@@ -224,7 +224,7 @@ describe("contract text", () => {
     const shop = REGION.towns.find((l) => l.id === "bowl")!;
     const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
     expect(gridSquareOf(claim.at)).toEqual({ column: 4, row: 6 });
-    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank in square E7, east of Bowl, about 1.3 km out");
+    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank in square E7, south-east of Bowl, about 1.3 km out");
     expect(resolve(contractSummary(claim), "ru")).toContain("в квадрате Д7,");
   });
 
@@ -353,13 +353,13 @@ describe("harpoon log", () => {
     s.w.lines = [{ id: "l1", from: s.me.id, fromPart: s.harpoon.id, to: s.trader.id, toPart: s.engine.id, length: 10, turnsLeft: 3 }];
     s.shot = { ...(s.shot as Extract<GameEvent, { t: "shot" }>), rounds: [{ hit: true, crit: false, offset: 0, struck: s.trader.id, hits: [{ part: s.engine.id, damage: 2 }], blast: [], burst: null }] };
 
-    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon → ${en(vehicleName(s.w, s.trader.id))}: line on Stock engine (40%): Stock engine −2`);
+    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon fires at ${en(vehicleName(s.w, s.trader.id))}: line on Stock engine (40%): Stock engine −2`);
   });
 
   it("reads a harpoon that holds nothing as a miss", () => {
     const s = harpooned([{ hit: false, crit: false, offset: 3, struck: null, hits: [], blast: [], burst: null }]);
 
-    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon → ${en(vehicleName(s.w, s.trader.id))}: missed (40%)`);
+    expect(logEn(s.w, s.shot)?.text).toBe(`Harpoon fires at ${en(vehicleName(s.w, s.trader.id))}: missed (40%)`);
   });
 
   it("tells the player its truck tore free of a line", () => {
@@ -497,7 +497,7 @@ describe("cargo spill log", () => {
     const w = emptyWorld();
     const npc = addVehicle(w, "independent", "hauler", ["rack"], { x: 40, y: 30 });
     const line = logEn(w, { t: "cargoSpilled", vehicle: npc.id, part: mountedParts(npc, "cargo")[0].id, pile: "spill-2", units: 1 });
-    expect(line).toEqual({ text: `${en(vehicleName(w, npc.id))}: cargo spilled on the ground`, cls: "good" });
+    expect(line).toEqual({ text: `${en(vehicleName(w, npc.id))} spills cargo on the ground.`, cls: "good" });
   });
 });
 
@@ -545,7 +545,7 @@ describe("shot log", () => {
     const { w, raider, cab, shot } = duel();
     cab.hp = maxHp(cab);
     const line = eventText(w, shot([{ part: cab.id, damage: 2 }]))!;
-    expect(en(line.text)).toMatch(/^.+ → .+, 1\/2 hit \(40%\): .+ −2$/);
+    expect(en(line.text)).toMatch(/^.+ fires at .+, 1\/2 hit \(40%\): .+ −2$/);
     expect(en(line.text)).toContain(en(vehicleTitle(w, raider)));
   });
 
@@ -776,8 +776,8 @@ describe("Fury Road log lines", () => {
   it("tells an outpost arrival with its pay once, and the run's end", () => {
     const w = emptyWorld();
 
-    expect(logEn(w, { t: "outpostReached", milestone: 2, pay: 37000, wrecks: 3 })).toEqual({ text: "Outpost 2. Paid 370 M's for the road and 3 wrecks.", cls: "good" });
-    expect(logEn(w, { t: "outpostReached", milestone: 1, pay: 15000, wrecks: 0 })?.text).toBe("Outpost 1. Paid 150 M's for the road.");
+    expect(logEn(w, { t: "outpostReached", milestone: 2, pay: 37000, wrecks: 3 })).toEqual({ text: "Outpost 2. You earn 370 M's for the road. 3 trucks wrecked on the way.", cls: "good" });
+    expect(logEn(w, { t: "outpostReached", milestone: 1, pay: 15000, wrecks: 0 })?.text).toBe("Outpost 1. You earn 150 M's for the road.");
     expect(eventText(w, { t: "money", amount: 15000, reason: { kind: "outpost" } })).toBeNull();
     expect(logEn(w, { t: "runLost", stretch: 3, cause: "wrecked" })?.text).toBe("Your truck is wrecked. The run ends on stretch 3.");
     expect(logEn(w, { t: "runLost", stretch: 2, cause: "abandoned" })?.text).toBe("You end the run on stretch 2.");
@@ -935,9 +935,9 @@ describe("survey contract text", () => {
 
   it("tells a clue as a named place, a compass word, a distance in hundreds of meters and the lay", () => {
     const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow", square: { column: 2, row: 3 } } as const;
-    expect(en(surveyClueText(clue))).toBe("Lies in square C4, north-east of Pump Station, about 400 m out, in a hollow");
-    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies in square C4, west of Pump Station, about 1.1 km out, on high ground");
-    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25, square: { column: 7, row: 0 } }))).toBe("Lies in square H1, south of Pump Station, about 100 m out, on flat ground");
+    expect(en(surveyClueText(clue))).toBe("Lies in square C4, east of Pump Station, about 400 m out, in a hollow");
+    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies in square C4, north-west of Pump Station, about 1.1 km out, on high ground");
+    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25, square: { column: 7, row: 0 } }))).toBe("Lies in square H1, south-west of Pump Station, about 100 m out, on flat ground");
   });
 
   it("names a map grid square by its column letter and row number, with the Russian letters in Russian", () => {
@@ -969,10 +969,10 @@ describe("survey contract text", () => {
     });
     const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
     expect(line.className).toBe("contract-clue");
-    expect(line.text()).toBe("Hamlet in square H3, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. At Nose, leave the road and head east, a fair way. A cluster of ruined houses on flat ground. found");
+    expect(line.text()).toBe("Hamlet in square H3, from Bowl: Leave by the south-east gate. Take the road to Nose, heading east. It's a long haul. At Nose, leave the road and head south-east, a fair way. A cluster of ruined houses on flat ground. found");
     vi.unstubAllGlobals();
     expect(line.all("tag").at(-1)?.text()).toBe("found");
-    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. At Nose, leave the road and head east, a fair way. It lies in square H3, on flat ground.");
+    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the south-east gate. Take the road to Nose, heading east. It's a long haul. At Nose, leave the road and head south-east, a fair way. It lies in square H3, on flat ground.");
   });
 
   it("keeps the compass clue when no full way can be told", () => {

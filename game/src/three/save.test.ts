@@ -17,7 +17,8 @@ import { PARTS } from '../data/parts';
 import type { Faction, GridItem, World } from '../sim/types';
 import { advanceContracts, siteOf, type Contract } from '../sim/market';
 import { advanceJobs } from '../sim/jobs';
-import { CHASSIS } from '../data/chassis';
+import { CHASSIS, chassisDef } from '../data/chassis';
+import { dist } from '../sim/vec';
 import { CRATE_MASS } from '../data/goods';
 import { addGoods } from '../sim/inventory';
 import { goodsCount } from '../sim/grid';
@@ -30,8 +31,9 @@ import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
 import { TEST_MAP } from '../test/map';
-import { hollowBays, hollowObstacles, membersOf } from '../sim/sunward';
-import { fillHollow } from '../sim/spawn';
+import { advanceSunward, duskTurn, membersOf, rideOutTurn, sunwardFacts } from '../sim/sunward';
+import { hollowBays, hollowObstacles } from '../sim/hollow-layout';
+import { fillHollow, isFree } from '../sim/spawn';
 import { reusedWorld } from '../test/world-cache';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { breakProp, oldSpotOf, oldSpotPicks, oldStockId } from '../sim/salvage';
@@ -606,6 +608,7 @@ describe('game save', () => {
     const ids = oldSpotPicks(TEST_MAP).map(oldStockId);
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     saved.salvage = saved.salvage.filter((stock: { id: string }) => !oldSpotOf(stock));
+    saved.vehicles = saved.vehicles.filter((v: { faction: string }) => v.faction !== 'sunward');
     slots.put('auto', { format: { major: SAVE_MAJOR, minor: SAVE_FORMAT.minor - 1 }, world: saved, savedAt: 1000, runId: RUN });
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
     const oldIds = (w: World): string[] => w.salvage.filter((stock) => oldSpotOf(stock)).map((stock) => stock.id);
@@ -1230,6 +1233,42 @@ describe('relations in a save', () => {
     const members = (x: typeof w) => membersOf(x).map((v) => ({ id: v.id, pos: v.pos, home: v.brain!.home }));
     expect(members(loaded)).toEqual(members(w));
     expect(members(loaded).every((m) => hollowBays().some((b) => b.x === m.home.x && b.y === m.home.y))).toBe(true);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.player.money).toBe(w.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('moves a truck standing in the Hollow\'s wall off it at load, awarding nothing', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const wall = hollowObstacles().find((o) => o.kind === 'landmark' && o.look === 'fortScrapWall')!;
+    const me = playerVehicle(w);
+    me.pos = { ...wall.pos };
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    const moved = playerVehicle(loaded);
+    expect(dist(moved.pos, wall.pos)).toBeGreaterThan(0.5);
+    expect(isFree(loaded, moved.pos, chassisDef(moved.chassisId).radius, moved.id)).toBe(true);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.events).toEqual([]);
+  });
+
+  it('gives back a night opened between the ride-out and dusk, awarding nothing at load', () => {
+    const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    fillHollow(w);
+    w.turn = rideOutTurn(duskTurn(2)) + 3;
+    advanceSunward(w);
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(sunwardFacts(w).night?.dusk).toBe(duskTurn(2));
+    expect(sunwardFacts(loaded)).toEqual(sunwardFacts(w));
     expect(loaded.player.xp).toBe(w.player.xp);
     expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.events).toEqual([]);

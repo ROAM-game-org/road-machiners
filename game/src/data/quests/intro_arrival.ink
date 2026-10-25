@@ -14,9 +14,9 @@ Chaos.
 Forsaken.
 You wake with a jerk, your cheek on hot stone. A fever dream, and the old words from when you were small, going round and round. They fade before you can hold on to them. # page # place: The rim # img: arrival_rim
 The canteen has been empty since dawn. You shake it by your ear anyway, as if the water might be hiding in there. It isn't.
-You walked from the time the stars were out until the sun was too high to bear, then crawled under this ledge to wait out the worst of it. Walking south was stupid. Not that the east had anything better. Your shirt is stiff with salt, and your lips have split at the corners, and you try not to lick them, because that only makes it worse.
+You walked from the time the stars were out until the sun was too high to bear, then crawled under this ledge to wait out the worst of it. Walking south-west was stupid. Not that the south-east had anything better. Your shirt is stiff with salt, and your lips have split at the corners, and you try not to lick them, because that only makes it worse.
 You get up before your legs can argue. The rock you climbed all morning ends a few steps on, at an edge. Below it lies a basin so wide that the far side is only a paler line in the haze. # page
-To the north a thin line might be a road. Far to the west, something in the haze might be a town, or might be the heat playing tricks again. It has done that twice today.
+To the north-east a thin line might be a road. Far to the north-west, something in the haze might be a town, or might be the heat playing tricks again. It has done that twice today.
 At the foot of the slope stands a water tower over a few roofs. No smoke, and nothing moves. But a tower means a well. Or it used to.
 You go down sideways, heels dug in, and the stones slide out from under your boots and clatter away ahead of you. # page
 Halfway down you stop sweating. You know what that means. If you sit down now, you might not get up, so you don't sit down.

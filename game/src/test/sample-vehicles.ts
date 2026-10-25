@@ -1,8 +1,8 @@
 import type { TraitId } from '../data/npcs';
 import type { PersonalityId } from '../data/personalities';
-import { makeVehicle } from './factory';
-import type { Faction, NpcBrain, Vehicle, World } from './types';
-import type { Vec } from './vec';
+import { makeVehicle } from '../sim/factory';
+import type { Faction, NpcBrain, Vehicle, World } from '../sim/types';
+import type { Vec } from '../sim/vec';
 
 export function addVehicle(w: World, faction: Faction, chassisId: string, parts: string[], pos: Vec, heading = 0): Vehicle {
   const v = makeVehicle(w, { faction, chassisId, parts: parts.map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos, heading, brain: null });

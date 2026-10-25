@@ -1,22 +1,144 @@
 {
-  "crimes": [
-    {
-      "id": "case8024", "crime": "2210:player-truck:npc-7:robbed", "offense": "robbed", "target": "player-truck", "victim": "npc-7",
-      "issuer": { "kind": "driver", "id": "npc-7" }, "reporters": ["npc-7"], "site": "pumpStation", "at": { "x": 410, "y": 380 },
-      "turn": 2210, "filed": 2250, "owed": 11097, "escrow": 11097, "status": "open", "closed": null, "hunter": "npc-12",
-      "retryAt": null, "offered": null, "lead": { "at": { "x": 410, "y": 380 }, "turn": 2210, "heading": 1.2 }
-    }
-  ],
+  "turn": 900,
+  "player": {
+    "discovered": [
+      "bowl",
+      "sunward-hollow",
+      "nose"
+    ],
+    "money": 777
+  },
   "vehicles": [
     {
-      "id": "npc-9",
+      "id": "v1",
+      "faction": "player",
+      "brain": null,
+      "pos": {
+        "x": 10,
+        "y": 10
+      }
+    },
+    {
+      "id": "v31",
+      "faction": "sunward",
+      "pos": {
+        "x": 284.053,
+        "y": 243.604
+      },
       "brain": {
-        "memories": [
-          { "turn": 2210, "fact": { "kind": "witnessed", "crime": "2210:player-truck:npc-7:robbed", "by": "player-truck", "victim": "npc-7", "offense": "robbed", "at": { "x": 410, "y": 380 }, "heading": 1.2 } },
-          { "turn": 2240, "fact": { "kind": "sighting", "vehicle": "player-truck", "at": { "x": 420, "y": 390 }, "heading": 1.1 } }
+        "templateId": "cavalcade",
+        "home": {
+          "x": 284.053,
+          "y": 243.604
+        },
+        "goals": [
+          {
+            "kind": "wait",
+            "targetId": null,
+            "destination": {
+              "x": 284.053,
+              "y": 243.604
+            },
+            "phase": "act",
+            "reason": "restHollow"
+          }
         ]
       }
     },
-    { "id": "player-truck", "brain": null }
+    {
+      "id": "v32",
+      "faction": "sunward",
+      "pos": {
+        "x": 300,
+        "y": 260
+      },
+      "farRoute": {
+        "dest": {
+          "x": 269.787,
+          "y": 236.358
+        },
+        "points": [
+          {
+            "x": 290,
+            "y": 250
+          },
+          {
+            "x": 269.787,
+            "y": 236.358
+          }
+        ],
+        "offRoad": true
+      },
+      "brain": {
+        "templateId": "cavalcade",
+        "home": {
+          "x": 269.787,
+          "y": 236.358
+        },
+        "goals": [
+          {
+            "kind": "explore",
+            "targetId": null,
+            "destination": {
+              "x": 269.787,
+              "y": 236.358
+            },
+            "phase": "travel",
+            "reason": "rideHome"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v33",
+      "faction": "sunward",
+      "pos": {
+        "x": 340,
+        "y": 300
+      },
+      "brain": {
+        "templateId": "hunter",
+        "home": {
+          "x": 281.2,
+          "y": 242.155
+        },
+        "goals": [
+          {
+            "kind": "prowl",
+            "targetId": "a",
+            "destination": {
+              "x": 350,
+              "y": 320
+            },
+            "phase": "travel",
+            "reason": "huntRoad"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v50",
+      "faction": "independent",
+      "pos": {
+        "x": 200,
+        "y": 200
+      },
+      "farRoute": {
+        "dest": {
+          "x": 1,
+          "y": 1
+        },
+        "points": [],
+        "offRoad": false
+      },
+      "brain": {
+        "templateId": "trader",
+        "home": {
+          "x": 20,
+          "y": 20
+        },
+        "goals": []
+      }
+    }
   ]
 }
