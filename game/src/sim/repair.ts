@@ -4,7 +4,8 @@ import { GOODS } from '../data/goods';
 import { skillEffect } from './progress';
 import { REPAIR } from '../data/wear';
 import { isJunk, maxHp, partValue, restorePart } from './wear';
-import { goodsCount, mountedParts } from './grid';
+import { mountedParts } from './grid';
+import { spareGoods } from './market';
 import { removeGoods } from './inventory';
 import type { Job, PartInstance, Vehicle, World } from './types';
 
@@ -22,7 +23,7 @@ export type RepairPlan = { turns: number; parts: number; hp: number; needed: num
 
 export function repairPlan(world: World, v: Vehicle, partId: string, maxParts = Infinity): RepairPlan {
   const part = findRepairPart(v, partId);
-  return planPartRepair(part, partFieldCap(world, v, part), machiningMult(world, v), goodsCount(v).parts ?? 0, maxParts);
+  return planPartRepair(part, partFieldCap(world, v, part), machiningMult(world, v), spareGoods(world, v, 'parts'), maxParts);
 }
 
 export function engineNeedsPatch(world: World, v: Vehicle): boolean {
