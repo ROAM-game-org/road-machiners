@@ -624,7 +624,7 @@ describe('call practice', () => {
     const { w, npc } = withNpc('trader', 'independent');
     const open = callVehicle(w, npc.id);
     expect(practiceOf(open, 'call')).toEqual([]);
-    const asked = chooseOption(open, optionIndex(open, 'Where is the nearest town?'));
+    const asked = chooseOption(open, optionIndex(open, "Where's the nearest town?"));
     expect(practiceOf(asked, 'call')).toMatchObject([{ amount: 1, difficulty: null, target: `${npc.id}:directions`, xp: XP_SOURCES.call.weight }]);
   });
 
@@ -632,7 +632,7 @@ describe('call practice', () => {
     const { w, npc } = withNpc('trader', 'independent');
     const ask = (from: World, id: string): World => {
       const open = callVehicle(from, id);
-      const asked = chooseOption(open, optionIndex(open, 'Where is the nearest town?'));
+      const asked = chooseOption(open, optionIndex(open, "Where's the nearest town?"));
       return chooseOption(asked, optionIndex(asked, 'Thanks. Over and out.'));
     };
     const once = ask(w, npc.id);
@@ -1132,7 +1132,7 @@ describe('fuel and supply aid', () => {
     next = chooseOption(next, optionIndex(next, askText));
     expect(next.rngState).toBe(rngState);
     next = chooseOption(next, optionIndex(next, 'Whatever you can spare.'));
-    expect(en(next.player.call!.line.line)).toBe('Sorry. Cannot spare any.');
+    expect(en(next.player.call!.line.line)).toBe("Sorry. Can't spare any.");
     expect(playerAid(next)).toBeNull();
     next = chooseOption(next, optionIndex(next, 'Understood.'));
     next = chooseOption(next, optionIndex(next, askText));
@@ -1150,7 +1150,7 @@ describe('fuel and supply aid', () => {
     next = chooseOption(next, optionIndex(next, askText));
     next = chooseOption(next, optionIndex(next, 'Whatever you can spare.'));
     expect(next.player.call?.vars.aid).toEqual({ kind: 'aid', ...spare });
-    next = chooseOption(next, optionIndex(next, 'Thanks. I will wait.'));
+    next = chooseOption(next, optionIndex(next, "Thanks. I'll wait."));
     const deal = stateOf(next, 'aid', npc.id, next.player.vehicleId)!;
     expect(aidData(deal)).toEqual({ kind: 'aid', giver: 'npc', ...spare, price: 0, free: true, agreed: true, started: false, work: 1, workLeft: 1 });
     expect(npcIn(next, npc.id).brain!.goals.at(-1)).toMatchObject({ kind: 'meet', targetId: next.player.vehicleId });
@@ -1185,7 +1185,7 @@ describe('fuel and supply aid', () => {
     let next = callVehicle(w, npc.id);
     next = chooseOption(next, optionIndex(next, askText));
     next = chooseOption(next, optionIndex(next, 'Whatever you can spare.'));
-    next = chooseOption(next, optionIndex(next, 'Thanks. I will wait.'));
+    next = chooseOption(next, optionIndex(next, "Thanks. I'll wait."));
     const deal = stateOf(next, 'aid', npc.id, next.player.vehicleId)!;
     expect(checkAid(next, deal)).toBeNull();
     const raider = addVehicle(next, 'independent', 'buggy', ['mg'], { x: 5, y: 5 });
@@ -1240,7 +1240,7 @@ describe('fuel and supply aid', () => {
     const offered = aidData(playerAid(w)!);
     raiseCalls(w);
     expect(w.player.call).toMatchObject({ with: npc.id, topic: 'aidOffer', vars: { aid: { kind: 'aid', fuel: offered.fuel, supplies: offered.supplies } } });
-    const next = chooseOption(w, optionIndex(w, 'Thanks. I will wait.'));
+    const next = chooseOption(w, optionIndex(w, "Thanks. I'll wait."));
     expect(aidData(stateOf(next, 'aid', npc.id, next.player.vehicleId)!)).toEqual({ ...offered, agreed: true, started: false, work: 1, workLeft: 1 });
     expect(npcIn(next, npc.id).brain!.goals.at(-1)).toMatchObject({ kind: 'meet', targetId: next.player.vehicleId });
     raiseCalls(next);
@@ -1318,7 +1318,7 @@ describe('robber truce', () => {
     const { w, robber } = holdup();
     const next = askTruce(w, robber.id);
     expect(next.player.call?.node).toBe('tollCargo');
-    expect(currentOptions(next).map((o) => en(o.line))).toEqual(['Fine. Take it.', "Here's your money. Now back off.", 'Come and get it.', 'Hang up.']);
+    expect(currentOptions(next).map((o) => en(o.line))).toEqual(['Fine. Take it.', "Here are your M's. Now back off.", 'Come and get it.', 'Hang up.']);
     expect(isHostile(next, next.vehicles.find((v) => v.id === robber.id)!, playerVehicle(next))).toBe(true);
   });
 

@@ -146,8 +146,8 @@ try {
     });
     assert.equal(out, 0, `${width}: header chips and repair buttons must lie inside the town screen`);
     await page.screenshot({ path: `.playtest/garage-${width}.png` });
-    for (const tab of ['Buy Parts', 'Sell Parts']) {
-      await garage(page, tab === 'Buy Parts' ? 'buyParts' : 'sellParts');
+    for (const tab of ['Buy parts', 'Sell parts']) {
+      await garage(page, tab === 'Buy parts' ? 'buyParts' : 'sellParts');
       await page.waitForTimeout(200);
       assertNoScroll(await trucksLayout(page), `${width}x${height} ${tab}`);
     }
