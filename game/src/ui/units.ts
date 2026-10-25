@@ -2,6 +2,7 @@ import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { TIME } from '../data/time';
 import { UNITS } from '../data/units';
+import { compassOctant } from '../text/compass';
 import { concat, MINUS_SIGN, num, SPACE, t, type Msg } from '../text/msg';
 import type { Vec } from '../sim/vec';
 import { el } from './dom';
@@ -33,12 +34,8 @@ export function distanceText(tiles: number): Msg {
   return m >= METERS_PER_KM ? t('units.km', { n: m / METERS_PER_KM }) : t('units.m', { n: m });
 }
 
-const COMPASS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
-
 export function compassText(rad: number): Msg {
-  const step = (2 * Math.PI) / COMPASS.length;
-  const i = Math.round(rad / step);
-  return t(`compass.${COMPASS[((i % COMPASS.length) + COMPASS.length) % COMPASS.length]}`);
+  return t(`compass.${compassOctant(rad)}`);
 }
 
 export function bearingText(from: Vec, to: Vec): Msg {

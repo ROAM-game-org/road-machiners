@@ -708,10 +708,15 @@ export class TownScreen {
   private drawSheets(ctx: CanvasRenderingContext2D, view: Viewport): void {
     const trace = (sheet: Sheet) => {
       const b = sheetTiles(this.host.world().size, sheet);
-      const from = toPx(view, { x: b.x0, y: b.y0 });
-      const to = toPx(view, { x: b.x1, y: b.y1 });
+      const corners = [
+        { x: b.x0, y: b.y0 },
+        { x: b.x1, y: b.y0 },
+        { x: b.x1, y: b.y1 },
+        { x: b.x0, y: b.y1 },
+      ].map((corner) => toPx(view, corner));
       ctx.beginPath();
-      ctx.rect(from.x, from.y, to.x - from.x, to.y - from.y);
+      corners.forEach((corner, i) => (i === 0 ? ctx.moveTo(corner.x, corner.y) : ctx.lineTo(corner.x, corner.y)));
+      ctx.closePath();
     };
     ctx.lineWidth = 1;
     ctx.strokeStyle = token("--line-strong");

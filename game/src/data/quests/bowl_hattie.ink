@@ -32,7 +32,7 @@ Pull up by the well. I'm Hattie. Where'd you come from, and how much water do yo
   ~ hattie_strip = true
   -> hub
 + {not hattie_rumor} [Heard any rumors?]
-  A scavenger came through selling a <term=nose>Nose</term> Army radio. Said he took it off a dead wagon in the hills north-east of here. That's his story, not mine.
+  A scavenger came through selling a <term=nose>Nose</term> Army radio. Said he took it off a dead wagon in the hills east of here. That's his story, not mine.
   The patrol asked where exactly. He filled his tank and took the west road before dark.
   ~ note("wagonBowl")
   ~ hattie_rumor = true

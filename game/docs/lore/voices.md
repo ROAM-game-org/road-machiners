@@ -201,7 +201,7 @@ Cares about: not being named in a file himself. He avoids saying anything as his
 
 Strangers: suspicious. He asks a stranger to keep a voice down before he answers anything.
 
-Sample: "I only say what the corridor says. A clerk at the Pierce office sold the roads of insured trucks to robbers. When it came out, he was sent west and told to stay."
+Sample: "I only say what the corridor says. A clerk at the Pierce office sold the roads of insured trucks to robbers. When it came out, he was sent north-west and told to stay."
 
 ### Sefa Krol
 

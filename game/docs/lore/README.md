@@ -104,7 +104,7 @@ Bowl and Nose have locals the player talks to in town. `src/data/locals.ts` hold
 - Talk about the recent years comes from more locals. Jory Baptiste and Bo Lindqvist are at Bowl, a Bowl patrol driver is at the Granary, Sefa Krol trades at the Salvage Yard, and Ines Abend and an Order Bureau clerk are at Nose.
 - Jory speaks for the tenants and ends every answer with a short joke. His subjects are the vote, the patrol, Kiln and the grain, and the household's tanker to the top terraces.
 - Bo is gentle and plain. He tells the fight at the Burnt Convoy once and does not excuse it.
-- The patrol driver talks like a working Bowl hand: the Granary count, the road no one guards and the western tale. The Bureau clerk talks short and low, afraid of the corridor, and says only what the corridor says.
+- The patrol driver talks like a working Bowl hand: the Granary count, the road no one guards and the north-western tale. The Bureau clerk talks short and low, afraid of the corridor, and says only what the corridor says.
 - Sefa is blunt and dry. She speaks for the families off the Burnt Convoy, who live at the Salvage Yard now. She takes what the road is done with and leaves the water.
 - Ines is level and open. She reads the count aloud to anyone who stops and says plainly what she does not know.
 - The six older locals also talk about Pierce's gun rule, the swivel, brake rods, Pierce paper, the Kiln fee, the tenants, Green Pit and the Glass Flats, each in their own voice. Ruben, Hattie and Dag disagree with Kovac, Lena and Ibo on who is to blame.

@@ -30,7 +30,7 @@ She sees a man past fifty, stuck in a shithole fort on the outskirts, driving a 
 
 Having barely survived the explosion, you were brutally ripped off on this scout truck. Not the worst outcome, all things considered. But you need a job and you need to get out of this place. 
 
-"You need protection up North and I can offer it. Since we are talking at all, something tells me you are out of options. There is no one else reliable in this bar. But I get it done." # page # speaker: You
+"You need protection up the highway and I can offer it. Since we are talking at all, something tells me you are out of options. There is no one else reliable in this bar. But I get it done." # page # speaker: You
 
 She is about to speak, but you interrupt.
 
