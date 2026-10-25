@@ -183,6 +183,101 @@
   border-color: var(--cell-side);
   background: repeating-linear-gradient(45deg, var(--cell-none) 0 var(--space-2), var(--cell-plain) var(--space-2) var(--space-3));
 }
+.inv-grid.drawn {
+  background: none;
+  isolation: isolate;
+}
+.inv-grid.drawn .inv-cell {
+  z-index: var(--z-grid-lines);
+  pointer-events: none;
+  background: none;
+  border-color: var(--cell-grid-line);
+  color: transparent;
+}
+.inv-grid.drawn .inv-cell.spare.c-plain {
+  z-index: auto;
+  background: var(--cell-plain);
+  border-color: var(--cell-line);
+}
+.inv-grid.drawn .inv-cell.c-dead {
+  z-index: auto;
+}
+.inv-truck:has(.inv-ghost) .inv-grid.drawn .inv-cell,
+.inv-grid.drawn:has(.inv-ghost) .inv-cell {
+  border-color: var(--cell-grid-line-drag);
+}
+.inv-backdrop {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  filter: var(--garage-body-filter);
+}
+.inv-grid .inv-item.drawn {
+  background: none;
+  border-color: transparent;
+  overflow: visible;
+  padding: 0;
+}
+.inv-item.drawn .inv-art {
+  position: absolute;
+  pointer-events: none;
+}
+.inv-art > div {
+  position: absolute;
+  inset: 0;
+  background-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+.inv-art .art-tint {
+  mix-blend-mode: color;
+}
+.inv-art .art-hatch {
+  display: none;
+  background: var(--cond-hatch);
+}
+.inv-item.drawn[data-tier="hurt"] .art-img {
+  filter: var(--cond-halo-hurt);
+}
+.inv-item.drawn[data-tier="crit"] .art-img {
+  filter: var(--cond-halo-crit);
+}
+.inv-item.drawn[data-tier="broken"] .art-img {
+  filter: var(--cond-halo-broken);
+}
+.inv-item.drawn[data-tier="hurt"] .art-tint {
+  background: var(--garage-tint-hurt);
+}
+.inv-item.drawn[data-tier="crit"] .art-tint {
+  background: var(--garage-tint-crit);
+}
+.inv-item.drawn[data-tier="broken"] .art-tint {
+  background: var(--garage-tint-broken);
+}
+.inv-item.drawn[data-tier="broken"] .art-hatch {
+  display: block;
+}
+.inv-item.drawn[data-tier="ok"] .inv-art.core {
+  display: none;
+}
+.inv-grid .inv-item.drawn:hover,
+.inv-grid .inv-item.drawn.selected,
+.inv-grid .inv-item.drawn.holding {
+  background-image: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.inv-grid .inv-item.drawn:hover:not(.selected) {
+  box-shadow: inset 0 0 0 1px var(--line-hover);
+}
+.inv-ghost.drawn {
+  background: none;
+  border-color: transparent;
+  overflow: visible;
+}
+.inv-ghost.drawn .inv-art {
+  position: absolute;
+  pointer-events: none;
+}
 .inv-item {
   position: absolute;
   box-sizing: border-box;
@@ -354,7 +449,8 @@
   font-size: var(--text-dense);
 }
 .inv-item.refitting,
-.inv-chip.refitting {
+.inv-chip.refitting,
+.inv-grid .inv-item.drawn.refitting {
   border: 2px dashed var(--accent);
 }
 .inv-ghost.held {

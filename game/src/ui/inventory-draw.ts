@@ -12,6 +12,7 @@ import { el } from "./dom";
 import { cellSteps } from "../sim/body";
 import { uiSize } from "./ui-size";
 import { truckOutline } from "./plans";
+import { coreArt, drawnSprite, partArt, tierAttr, truckBackdrop, type GarageLook } from "./garage-draw";
 import { conditionMeter, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
 import { kg } from "./units";
 import { byId, t, type Msg } from "../text/msg";
@@ -24,6 +25,7 @@ const MIN_CELL_PX = 28;
 export type PixelRect = { left: number; top: number; width: number; height: number };
 
 export type GridMetrics = {
+  readonly pxPerMeter: number;
   readonly cellW: number;
   readonly cellH: number;
   readonly cols: number;
@@ -37,7 +39,7 @@ export function gridMetrics(chassisId: string, g: Grid, pxPerMeter: number): Gri
   const cellW = steps.col * pxPerMeter;
   const cellH = steps.row * pxPerMeter;
   const spareGap = g.h > g.chassisH ? Math.round(SPARE_GAP_CELLS * cellW) : 0;
-  return { cellW, cellH, cols: g.w, rows: g.h, chassisRows: g.chassisH, spareGap };
+  return { pxPerMeter, cellW, cellH, cols: g.w, rows: g.h, chassisRows: g.chassisH, spareGap };
 }
 
 export function rowTop(m: GridMetrics, y: number): number {
@@ -134,17 +136,23 @@ export function lootGoodItem(good: string): GridItem {
   return { id: `loot-${good}`, x: 0, y: 0, rot: 0, kind: "good", good };
 }
 
-export function gridEl(g: Grid, chassisId: string, m: GridMetrics): HTMLElement {
+export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageLook | null): HTMLElement {
   const size = gridSize(m);
-  const grid = el("div", { class: "inv-grid", style: `width:${size.width}px;height:${size.height}px` });
+  const grid = el("div", { class: look ? "inv-grid drawn" : "inv-grid", style: `width:${size.width}px;height:${size.height}px` });
   grid.addEventListener("contextmenu", (e) => e.preventDefault());
+  grid.append(look ? lookUnder(look, m) : truckOutline(chassisId, m));
   for (let y = 0; y < g.h; y++)
     for (let x = 0; x < g.w; x++) {
       const node = gridCellEl(g, x, y, m);
       if (node) grid.append(node);
     }
-  grid.append(truckOutline(chassisId, m));
   return grid;
+}
+
+function lookUnder(look: GarageLook, m: GridMetrics): HTMLElement {
+  const body = look.renders.body(look.truck, look.paint);
+  if (!body) throw new Error(`The ${look.truck.chassisId} garage render is not ready`);
+  return truckBackdrop(body, m);
 }
 
 function gridCellEl(g: Grid, x: number, y: number, m: GridMetrics): HTMLElement | null {
@@ -155,7 +163,8 @@ function gridCellEl(g: Grid, x: number, y: number, m: GridMetrics): HTMLElement 
 }
 
 export function cellEl(c: Cell, x: number, y: number, m: GridMetrics): HTMLElement {
-  return el("div", { class: `inv-cell c-${c === "." ? "plain" : c}`, style: pxStyle(rectOf(m, x, y, 1, 1)), title: CELL_TITLE[c] });
+  const spare = y >= m.chassisRows ? " spare" : "";
+  return el("div", { class: `inv-cell c-${c === "." ? "plain" : c}${spare}`, style: pxStyle(rectOf(m, x, y, 1, 1)), title: CELL_TITLE[c] });
 }
 
 export function turnedIcon(it: GridItem, m: GridMetrics): HTMLElement {
@@ -170,23 +179,47 @@ export function turnedIcon(it: GridItem, m: GridMetrics): HTMLElement {
   return icon;
 }
 
-export function itemBox(it: GridItem, chassisId: string, mounted: boolean, m: GridMetrics): HTMLElement {
+export function itemBox(it: GridItem, chassisId: string, mounted: boolean, m: GridMetrics, look: GarageLook | null): HTMLElement {
+  const outer = mounted && layerOf(baseGrid(chassisId), it) === "accessory";
+  const rect = boxOf(it, chassisId, outer, m);
+  const art = look ? artOf(look, it, m, rect) : null;
+  const id = itemLookId(it);
+  return el(
+    "div",
+    { class: itemClasses(it, mounted, outer, art !== null), "data-hold": "", "data-item-id": it.id, "data-tier": tierAttr(it), style: `${pxStyle(rect)};${toneStyle(id)}${drawnLayer(it, art)}`, title: itemTip(id), tabindex: 0, role: "button", "aria-label": itemName(it) },
+    art ?? turnedIcon(it, m),
+    el("span", { class: "inv-item-name" }, itemLabel(it).short),
+    ...meterOf(it, art),
+  );
+}
+
+function itemClasses(it: GridItem, mounted: boolean, outer: boolean, drawn: boolean): string {
+  return `${itemClass(it, mounted)}${outer ? " outer" : ""}${drawn ? " drawn" : ""}`;
+}
+
+function drawnLayer(it: GridItem, art: HTMLElement | null): string {
+  return art ? `;z-index:${it.y + itemSize(it).h}` : "";
+}
+
+function meterOf(it: GridItem, art: HTMLElement | null): HTMLElement[] {
+  return it.kind === "part" && !art ? [conditionMeter(it.part)] : [];
+}
+
+function boxOf(it: GridItem, chassisId: string, outer: boolean, m: GridMetrics): PixelRect {
   const cells = itemCells(it);
   const x = Math.min(...cells.map((c) => c.x));
   const y = Math.min(...cells.map((c) => c.y));
   const size = itemSize(it);
-  const id = itemLookId(it);
-  const icon = turnedIcon(it, m);
-  const outer = mounted && layerOf(baseGrid(chassisId), it) === "accessory";
-  const box = pxStyle(outer ? outerHalf(m, x, y, size, plateSide(chassisId, it)) : rectOf(m, x, y, size.w, size.h));
-  const node = el(
-    "div",
-    { class: `${itemClass(it, mounted)}${outer ? " outer" : ""}`, "data-hold": "", "data-item-id": it.id, style: `${box};${toneStyle(id)}`, title: itemTip(id), tabindex: 0, role: "button", "aria-label": itemName(it) },
-    icon,
-    el("span", { class: "inv-item-name" }, itemLabel(it).short),
-  );
-  if (it.kind === "part") node.append(conditionMeter(it.part));
-  return node;
+  return outer ? outerHalf(m, x, y, size, plateSide(chassisId, it)) : rectOf(m, x, y, size.w, size.h);
+}
+
+function artOf(look: GarageLook, it: GridItem, m: GridMetrics, rect: PixelRect): HTMLElement | null {
+  if (it.kind === "part" && partDef(it.part.defId).kind === "core") {
+    const body = look.renders.body(look.truck, look.paint);
+    return body ? (coreArt(body, it.part, m, rect) ?? el("span", { class: "inv-art" })) : null;
+  }
+  const sprite = drawnSprite(look, it);
+  return sprite ? partArt(sprite, m, rect) : null;
 }
 
 function itemClass(it: GridItem, mounted: boolean): string {

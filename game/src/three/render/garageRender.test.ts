@@ -138,7 +138,32 @@ describe('garage render queue', () => {
     expect(renders.pending()).toBe(1);
   });
 
-  it('has every sprite and the body once ensure settles, and tells its listeners', async () => {
+  it('finishes now what a screen needs, then picks up the background work it left', () => {
+    const fake = faking();
+    const renders = new GarageRenders(RENDERER, fake.build);
+    const { truck, part } = scout();
+    const gun = part(firstOf('weapon', 2));
+    const background = needFor(truck, [gun, part(firstOf('cargo', 1))]);
+    renders.want([background]);
+    renders.step(0);
+
+    renders.ensureNow([needFor(truck, [gun])]);
+
+    expect(renders.body(truck, PAINT.standard)).not.toBeNull();
+    expect(renders.pending()).toBeGreaterThan(0);
+    for (let i = 0; i < 200; i++) renders.step(1e9);
+    expect(renders.pending()).toBe(0);
+  });
+
+  it('refuses to wait on the GPU when the screen needs the render at once', () => {
+    const build: BuildGarageJob = () => ({ steps: (function* () { yield Promise.resolve(); })(), dispose: () => {} });
+    const renders = new GarageRenders(RENDERER, build);
+    const { truck } = scout();
+
+    expect(() => renders.ensureNow([needFor(truck, [])])).toThrow(/at once/);
+  });
+
+  it('has every sprite and the body once ensureNow returns, and tells its listeners once', () => {
     const fake = faking();
     const renders = new GarageRenders(RENDERER, fake.build);
     const { truck, part } = scout();
@@ -147,11 +172,11 @@ describe('garage render queue', () => {
     let told = 0;
     renders.onReady(() => told++);
 
-    await renders.ensure([need]);
+    renders.ensureNow([need]);
 
     expect(renders.body(truck, PAINT.standard)).not.toBeNull();
     for (const spot of need.parts[0].spots) expect(renders.sprite(truck, PAINT.standard, gun, spot)).not.toBeNull();
-    expect(told).toBe(fake.started.length);
+    expect(told).toBe(1);
     expect(fake.disposed).toBe(fake.started.length);
     expect(renders.pending()).toBe(0);
   });

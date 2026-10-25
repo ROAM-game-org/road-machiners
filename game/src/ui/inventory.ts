@@ -76,13 +76,13 @@ import {
   workMarkOf,
   storageItem,
   footprint,
-  turnedIcon,
   cellUnder,
   GridScale,
   pxStyle,
   rectOf,
   type PixelRect,
 } from "./inventory-draw";
+import { fillGhost, garageLooks, type GarageLooks } from "./garage-draw";
 import { fuelLiters, kg, moneyEl, moneyMsg, pricedEl } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
@@ -149,6 +149,7 @@ export class InventoryView {
   private truck: string | null = null;
   private gridTruck: string | null = null;
   private scale = new GridScale();
+  private looks: GarageLooks = { own: null, other: null };
   private plan: RefitLayout = {};
 
   constructor(
@@ -203,7 +204,8 @@ export class InventoryView {
     const me = this.shown(w);
     const g = gridOf(me);
     this.showSelection(w);
-    const grid = gridEl(g, me.chassisId, this.scale.measure(me, true));
+    this.looks = garageLooks(this.host.garageRenders?.() ?? null, w, me, this.otherItems(w), this.truck);
+    const grid = gridEl(g, me.chassisId, this.scale.measure(me, true), this.looks.own);
     grid.append(...this.gridItems(w, me));
     this.gridEl = grid;
     this.showFan(me, this.selectedGun(me));
@@ -236,7 +238,7 @@ export class InventoryView {
     const me = this.shown(w);
     const mounted = it.kind === "part" && isMounted(me.chassisId, it);
     const core = it.kind === "part" && partDef(it.part.defId).kind === "core";
-    const node = itemBox(it, me.chassisId, mounted, this.scale.mine);
+    const node = itemBox(it, me.chassisId, mounted, this.scale.mine, this.looks.own);
     node.setAttribute("aria-pressed", String(this.selectedItem === it.id));
     node.classList.toggle("selected", this.selectedItem === it.id);
     const click = () => this.clickItem(this.clicked("grid", it.id, it));
@@ -677,7 +679,7 @@ export class InventoryView {
     const target = w.vehicles.find((v) => v.id === truckId);
     if (!target || !isKnockedOut(target))
       return el("div", { class: "inv-truck inv-target" }, el("h3", {}, t("inv.truckGone")));
-    const grid = gridEl(gridOf(target), target.chassisId, this.scale.measure(target, false));
+    const grid = gridEl(gridOf(target), target.chassisId, this.scale.measure(target, false), this.looks.other);
     const removing = removalMarks(w, target);
     grid.append(...target.items.map((it) => markTaken(w, this.truckItemEl(target, it, grid), removing.get(it.id))));
     return el(
@@ -690,7 +692,7 @@ export class InventoryView {
 
   private truckItemEl(target: Vehicle, it: GridItem, grid: HTMLElement): HTMLElement {
     const mounted = it.kind === "part" && isMounted(target.chassisId, it);
-    const node = itemBox(it, target.chassisId, mounted, this.scale.other);
+    const node = itemBox(it, target.chassisId, mounted, this.scale.other, this.looks.other);
     this.markSelected(node, it);
     const select = () => this.clickItem(this.clicked("truck", it.id, it));
     node.addEventListener("keydown", (e) => {
@@ -870,9 +872,9 @@ export class InventoryView {
     }
     const m = this.scale.mine;
     const size = footprint(d.item);
-    d.ghost.className = `inv-ghost placed ${this.ghostTone(d, true)}`;
-    d.ghost.replaceChildren(turnedIcon(d.item, m));
-    d.ghost.style.cssText = pxStyle(rectOf(m, d.item.x, d.item.y, size.w, size.h));
+    const box = rectOf(m, d.item.x, d.item.y, size.w, size.h);
+    fillGhost(d.ghost, this.looks.own, d.item, m, box, this.ghostTone(d, true), true);
+    d.ghost.style.cssText = pxStyle(box);
     clearFan(grid);
     this.drawFan(grid, me, d.item);
     grid.append(d.ghost);
@@ -881,19 +883,14 @@ export class InventoryView {
   private rotate(): void {
     if (!this.drag) return;
     this.drag.moved = true;
-    this.drag.item = {
-      ...this.drag.item,
-      rot: nextRot(this.drag.item),
-    };
+    this.drag.item = { ...this.drag.item, rot: nextRot(this.drag.item) };
     this.drag.grab = { x: 0, y: 0 };
     if (this.lastPointer) this.onMove(this.lastPointer);
   }
 
   private rotateSelected(): void {
     if (this.look() || !this.gridEl?.isConnected || this.selectedItem === null) return;
-    const item = this.shown(this.host.world()).items.find(
-      (it) => it.id === this.selectedItem,
-    );
+    const item = this.shown(this.host.world()).items.find((it) => it.id === this.selectedItem);
     if (!item || item.kind !== "part") return;
     const id = item.id;
     let turned = item;
@@ -937,8 +934,7 @@ export class InventoryView {
     const m = this.scale.mine;
     const size = footprint(d.item);
     const box = rectOf(m, d.item.x, d.item.y, size.w, size.h);
-    d.ghost.className = `inv-ghost ${this.ghostTone(d, onGrid)}`;
-    d.ghost.replaceChildren(turnedIcon(d.item, m));
+    fillGhost(d.ghost, this.looks.own, d.item, m, box, this.ghostTone(d, onGrid), false);
     this.ghostFan(d, onGrid);
     d.ghost.style.width = `${box.width}px`;
     d.ghost.style.height = `${box.height}px`;

@@ -6,7 +6,8 @@ import { wearLookStep } from '../../render/partLooks';
 import { cellSteps, spanOf } from '../../sim/body';
 import { baseGrid, itemCells, layerOf, mountCellsOf, mountSpots, type Spot } from '../../sim/grid';
 import type { GridItem, PartInstance, Vehicle } from '../../sim/types';
-import { canvasOf, captureColor, hideOutlines, litScene, neutralizeReds, poseAtRest, sheenGlass, type PortraitWait } from './truckPortrait';
+import { flipRows, linearToSrgb, unpremultiply } from './portraitPixels';
+import { canvasOf, captureColor, glassMeshes, hideOutlines, litScene, neutralizeReds, poseAtRest, sheenGlass, withRendererState, type PortraitWait } from './truckPortrait';
 import { VehicleView, type RebuildBudget } from './vehicle';
 
 export const GARAGE_PX_PER_METER = 128;
@@ -139,22 +140,42 @@ function encoded(canvas: HTMLCanvasElement): Promise<string> {
   return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(URL.createObjectURL(blob)) : reject(new Error('A garage render could not be encoded')))));
 }
 
-function* shoot(renderer: THREE.WebGLRenderer, root: THREE.Object3D, frame: Frame, origin: { x: number; z: number }): Generator<PortraitWait, GarageSprite, void> {
+type Pass = { renderer: THREE.WebGLRenderer; occluder: THREE.Material; now: boolean };
+
+function readNow(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget, scene: THREE.Scene, camera: THREE.Camera): Uint8ClampedArray {
+  const bytes = new Uint8Array(target.width * target.height * 4);
+  withRendererState(renderer, () => {
+    renderer.setRenderTarget(target);
+    renderer.setClearColor(0x000000, 0);
+    renderer.autoClear = true;
+    renderer.render(scene, camera);
+    renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, bytes);
+  });
+  const px = new Uint8ClampedArray(bytes.buffer);
+  unpremultiply(px);
+  linearToSrgb(px);
+  flipRows(px, target.width, target.height);
+  return px;
+}
+
+function* shoot(pass: Pass, root: THREE.Object3D, frame: Frame, origin: { x: number; z: number }): Generator<PortraitWait, GarageSprite, void> {
   const size = { width: Math.round((frame.right - frame.left) * GARAGE_PX_PER_METER), height: Math.round((frame.top - frame.bottom) * GARAGE_PX_PER_METER) };
   const target = new THREE.WebGLRenderTarget(size.width, size.height, { samples: SAMPLES, depthBuffer: true, stencilBuffer: false });
+  const box = { left: frame.left - origin.z, top: origin.x - frame.top, width: frame.right - frame.left, height: frame.top - frame.bottom };
+  const scene = litScene(root);
   try {
-    const scene = litScene(root);
-    const px = yield* captureColor(renderer, target, scene, topCamera(frame));
-    scene.remove(root);
+    if (pass.now) return { url: canvasOf(readNow(pass.renderer, target, scene, topCamera(frame)), size).toDataURL(), ...box };
+    const px = yield* captureColor(pass.renderer, target, scene, topCamera(frame));
     let url = '';
     yield encoded(canvasOf(px, size)).then((made) => (url = made));
-    return { url, left: frame.left - origin.z, top: origin.x - frame.top, width: frame.right - frame.left, height: frame.top - frame.bottom };
+    return { url, ...box };
   } finally {
+    scene.remove(root);
     target.dispose();
   }
 }
 
-function* alone(renderer: THREE.WebGLRenderer, view: VehicleView, meshes: readonly Drawn[], partId: string, origin: { x: number; z: number }, occluder: THREE.Material): Generator<PortraitWait, GarageSprite | null, void> {
+function* alone(pass: Pass, view: VehicleView, meshes: readonly Drawn[], partId: string, origin: { x: number; z: number }): Generator<PortraitWait, GarageSprite | null, void> {
   const own = meshes.filter((m) => m.userData.partId === partId);
   const frame = frameOf(own, SPRITE_PAD_M);
   if (!frame) return null;
@@ -162,10 +183,10 @@ function* alone(renderer: THREE.WebGLRenderer, view: VehicleView, meshes: readon
   for (const mesh of meshes) {
     if (mesh.userData.partId === partId) continue;
     if (mesh.material.transparent) mesh.visible = false;
-    else mesh.material = occluder;
+    else mesh.material = pass.occluder;
   }
   try {
-    return yield* shoot(renderer, view.root, snapped(frame, origin), origin);
+    return yield* shoot(pass, view.root, snapped(frame, origin), origin);
   } finally {
     for (const [mesh, material, visible] of originals) {
       mesh.material = material;
@@ -189,7 +210,7 @@ function* builtView(truck: Vehicle, paint: TruckPaint, trash: { dispose(): void 
   poseAtRest(view, truck);
   hideOutlines(view.root);
   const meshes = drawnMeshes(view.root);
-  sheenGlass(meshes);
+  if (glassMeshes(meshes).length > 0) sheenGlass(meshes);
   const materials: THREE.Material[] = [];
   neutralizeReds(meshes, materials);
   trash.push(...materials);
@@ -201,40 +222,41 @@ export type GarageStore = {
   putSprite(key: string, loose: string, sprite: GarageSprite): void;
 };
 
-function* bodySteps(renderer: THREE.WebGLRenderer, job: BodyJob, store: GarageStore, trash: { dispose(): void }[], occluder: THREE.Material): Generator<PortraitWait, void, void> {
+function* bodySteps(pass: Pass, job: BodyJob, store: GarageStore, trash: { dispose(): void }[]): Generator<PortraitWait, void, void> {
   const bare: Vehicle = { ...job.truck, items: coreItems(job.truck) };
   const { view, meshes } = yield* builtView(bare, job.paint, trash);
   const origin = gridOrigin(job.chassisId);
   const frame = frameOf(meshes, BODY_PAD_M);
   if (!frame) throw new Error(`The bare ${job.chassisId} drew no meshes`);
-  const image = yield* shoot(renderer, view.root, snapped(frame, origin), origin);
+  const image = yield* shoot(pass, view.root, snapped(frame, origin), origin);
   const cores = new Map<string, GarageSprite>();
   for (const item of bare.items) {
     if (item.kind !== 'part' || isCab(item.part)) continue;
-    const sprite = yield* alone(renderer, view, meshes, item.part.id, origin, occluder);
+    const sprite = yield* alone(pass, view, meshes, item.part.id, origin);
     if (sprite) cores.set(item.part.id, sprite);
   }
   store.putBody(job.key, job.chassisId, { image, cores });
 }
 
-function* batchSteps(renderer: THREE.WebGLRenderer, job: BatchJob, store: GarageStore, trash: { dispose(): void }[], occluder: THREE.Material): Generator<PortraitWait, void, void> {
+function* batchSteps(pass: Pass, job: BatchJob, store: GarageStore, trash: { dispose(): void }[]): Generator<PortraitWait, void, void> {
   const truck: Vehicle = { ...job.truck, items: [...coreItems(job.truck), ...job.placements.map((p) => p.item)] };
   const { view, meshes } = yield* builtView(truck, job.paint, trash);
   const origin = gridOrigin(job.chassisId);
   for (const placement of job.placements) {
-    const sprite = yield* alone(renderer, view, meshes, placement.item.part.id, origin, occluder);
+    const sprite = yield* alone(pass, view, meshes, placement.item.part.id, origin);
     if (!sprite) throw new Error(`Part ${placement.item.part.defId} drew nothing at ${placement.key}`);
     store.putSprite(placement.key, placement.loose, sprite);
   }
 }
 
-export type BuildGarageJob = (renderer: THREE.WebGLRenderer, job: GarageJob, store: GarageStore) => { steps: Generator<PortraitWait, void, void>; dispose(): void };
+export type BuildGarageJob = (renderer: THREE.WebGLRenderer, job: GarageJob, store: GarageStore, now: boolean) => { steps: Generator<PortraitWait, void, void>; dispose(): void };
 
-export const buildGarageJob: BuildGarageJob = (renderer, job, store) => {
+export const buildGarageJob: BuildGarageJob = (renderer, job, store, now) => {
   const trash: { dispose(): void }[] = [];
   const occluder = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0, blending: THREE.NoBlending });
   trash.push(occluder);
-  const steps = job.kind === 'body' ? bodySteps(renderer, job, store, trash, occluder) : batchSteps(renderer, job, store, trash, occluder);
+  const pass = { renderer, occluder, now };
+  const steps = job.kind === 'body' ? bodySteps(pass, job, store, trash) : batchSteps(pass, job, store, trash);
   return { steps, dispose: () => trash.forEach((t) => t.dispose()) };
 };
 
@@ -266,6 +288,7 @@ export class GarageRenders {
   private readonly failed = new Set<string>();
   private readonly listeners: (() => void)[] = [];
   private queue: GarageJob[] = [];
+  private wanted: readonly GarageNeed[] = [];
   private running: Running | null = null;
 
   constructor(
@@ -287,8 +310,8 @@ export class GarageRenders {
   }
 
   want(needs: readonly GarageNeed[]): void {
-    const has = (key: string) => this.bodies.has(key) || this.sprites.has(key) || this.failed.has(key);
-    this.queue = needs.flatMap((need) => planJobs(need, has));
+    this.wanted = needs;
+    this.queue = needs.flatMap((need) => planJobs(need, this.has));
   }
 
   pending(): number {
@@ -303,11 +326,32 @@ export class GarageRenders {
     }
   }
 
-  async ensure(needs: readonly GarageNeed[]): Promise<void> {
-    this.want(needs);
-    while (this.pending() > 0) {
-      while (this.advance());
-      if (this.running?.waiting) await this.running.waiting.catch(() => undefined);
+  ensureNow(needs: readonly GarageNeed[]): void {
+    const jobs = needs.flatMap((need) => planJobs(need, this.has));
+    if (jobs.length === 0) return;
+    this.dropRunning();
+    for (const job of jobs) this.runNow(job);
+    this.want(this.wanted);
+    for (const listener of this.listeners) listener();
+  }
+
+  private readonly has = (key: string): boolean => this.bodies.has(key) || this.sprites.has(key) || this.failed.has(key);
+
+  private dropRunning(): void {
+    if (!this.running) return;
+    this.running.dispose();
+    this.running = null;
+  }
+
+  private runNow(job: GarageJob): void {
+    const built = this.build(this.renderer, job, this, true);
+    try {
+      for (let step = built.steps.next(); !step.done; step = built.steps.next()) if (step.value) throw new Error('A garage render waited on the GPU while the screen needed it at once');
+    } catch (error) {
+      for (const key of jobKeys(job)) this.failed.add(key);
+      throw error;
+    } finally {
+      built.dispose();
     }
   }
 
@@ -337,7 +381,7 @@ export class GarageRenders {
   private start(): Running | null {
     const job = this.queue.shift();
     if (!job) return null;
-    const built = this.build(this.renderer, job, this);
+    const built = this.build(this.renderer, job, this, false);
     this.running = { job, steps: built.steps, waiting: null, failure: null, dispose: built.dispose };
     return this.running;
   }
