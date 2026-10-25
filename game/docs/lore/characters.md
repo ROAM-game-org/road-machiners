@@ -27,7 +27,7 @@ For example, Agnes Ondra's trouble is that she is afraid to refuse the steward's
 - Habit: He reads the ration tally aloud before he lets any meeting talk of anything else.
 - Secret: He let the Committee hold back the Old Army's fuel payments so the army would fail and Nose could take its workshops. He hides it from Nose and the Bowl.
 
-The President of Nose has led its Central Committee for 30 years. His late grandmother Lena Graves woke in a pod as a girl, and he has her grey eyes. He believes the basin will die without rationing and discipline. He is probably right about that. He can no longer tell the good of Nose from his own hold on it.
+The President of Nose has led its Central Committee since year 100. His late grandmother Lena Graves woke in a pod as a girl, and he has her grey eyes. He believes the basin will die without rationing and discipline. He is probably right about that. He can no longer tell the good of Nose from his own hold on it.
 
 ## Captain Silver
 
@@ -165,11 +165,11 @@ Kade put on Oren Vey's coat the night Oren walked into the light, and he has led
 - Habit: He speaks in sermons to anyone who stands still near him.
 - Secret: He read the last marks in the central hull's shadow and knows where the seed vault lies. He hides it from everyone. He told Mattias Kade alone that the glow is a burning engine.
 
-The Apprentice was a member of the Lunar Society until it cast him out. He found implants in the ship's wreck and put a blue eye in his own head. Through it he sees marks on the wreck that nobody else can see. He has filled his body with every implant he could find, and he is over 150 years old.
+The Apprentice led the Lunar Society until it cast him out. He found implants in the ship's wreck and put a blue eye in his own head. Through it he sees marks on the wreck that nobody else can see. He has filled his body with every implant he could find, and he is over 150 years old.
 
 He believes the people of the basin are slowly dying out and that only a new start can save humanity. He has not told anyone what that new start would be.
 
-His most devoted student, Oren Vey, copied the count around year 58. Teo burned the pages and sent him away, and Oren went to the crater dreamers and founded the Sunward. In year 128 the Apprentice bargained with Mattias Kade: one night in the central hull's shadow, under the order's escort, for the count's last number. He walked away after it and has no part in what the order does.
+His most devoted student, Oren Vey, copied the count around year 58. Teo burned the pages and sent him away, and Oren went to the crater dreamers and founded the Sunward. In year 128 the Apprentice bargained with the Preacher: one night in the central hull's shadow, under the order's escort, for the count's last number. He walked away after it and has no part in what the order does.
 
 He speaks in sermons. One of them goes like this:
 
@@ -496,7 +496,7 @@ Her line is "The count is read in the open. Whoever wants the last number, come 
 ## Sefa Krol
 
 - Way: oppose.
-- High concept: The trader and leader of a dozen vulture families on the north-east side of the Salvage Yard.
+- High concept: The trader and leader of the vulture families on the north-east side of the Salvage Yard.
 - Trouble: Every favor she does for the families comes back later as a debt or a danger.
 - Aspects: First to any wreck; Hid Karl Vosk for years; A deal with Kaplan of Kiln Camp over the raiders' wrecks.
 - Skills: best perception, worst machining.
@@ -505,7 +505,7 @@ Her line is "The count is read in the open. Whoever wants the last number, come 
 - Habit: She prices what a stranger carries and tells him to keep his hand off her table.
 - Secret: She hid Karl Vosk and sent him west. She hides it from the Army post.
 
-Sefa leads a dozen vulture families who lived in the burnt trucks of the Burnt Convoy until the road crews cleared the wrecks. They live on the north-east side of the Salvage Yard now. They are first to any wreck. She hid the robber Karl Vosk for years, sold Pierce's debtor book to the Salvage Yard and made a deal with Kaplan of Kiln Camp over the raiders' wrecks. Nobody in her camp went short this year.
+Sefa leads the vulture families who lived in the burnt trucks of the Burnt Convoy until the road crews cleared the wrecks. They live on the north-east side of the Salvage Yard now. They are first to any wreck. She hid the robber Karl Vosk for years, sold Pierce's debtor book to the Salvage Yard and made a deal with Kaplan of Kiln Camp over the raiders' wrecks. Nobody in her camp went short this year.
 
 Her line is "We take what the road is done with."
 

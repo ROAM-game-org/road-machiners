@@ -6,7 +6,7 @@ The groups of Icarus and what they believe. Each one copes with the world in one
 
 Way: control.
 
-Nose is the town built around a ship's wreck on a mountain. The Central Committee governs it, led by President Alan Graves, who has held power for 30 years. The Nose Army keeps the order.
+Nose is the town built around a ship's wreck on a mountain. The Central Committee governs it, led by President Alan Graves. The Nose Army keeps the order.
 
 Nose runs the basin's only workshop line that builds whole engines and guns. It took the line over from the Old Army. Nose plans its whole economy. It rations food, water and work, so most people there are safe and fed. Its leaders are deeply corrupt, and the army is brutal to anyone who speaks against them.
 
@@ -69,7 +69,7 @@ The cost is that Pierce turns every life on the road into a bet.
 
 Way: embrace.
 
-The Salvage Yard was the Pierce yard until year 123, when its repair crews stopped answering to Pierce and hung a crane over the stacked wrecks. Each truck stays with the crew that repaired it, and the pay comes out of its load. The Yard sells hull pieces, relics and the Old Army's stripped guns. The Administrator runs it. A Nose Army post under Captain Silver sits inside its gate.
+The Salvage Yard was the Pierce yard until year 123, when its repair crews stopped answering to Pierce and hung a crane over the stacked wrecks. The Yard sells hull pieces, relics and the Old Army's stripped guns. The Administrator runs it. A Nose Army post under Captain Silver sits inside its gate.
 
 The cost is that the Yard lives by selling guns to everyone, and everyone wants to own it.
 
@@ -121,7 +121,7 @@ The other drivers have no town to speak for them.
 - Vultures oppose. They follow fights and strip the losers.
 - Mercs embrace the world as it is. They sell their guns to whoever pays and leave the deciding to others.
 - Couriers embrace the road. Guild couriers run the open road in pairs.
-- The Burnt Convoy families oppose. A dozen vulture families lived in the burnt trucks of an old convoy until the road crews cleared the wrecks. They live on the north-east side of the Salvage Yard now and are first to any wreck.
+- The Burnt Convoy families oppose. Vulture families lived in the burnt trucks of an old convoy until the road crews cleared the wrecks. They live on the north-east side of the Salvage Yard now and are first to any wreck.
 
 ## Faiths
 

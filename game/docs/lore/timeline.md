@@ -19,7 +19,7 @@ The first part is history as people in the basin could know it. The last part ho
 
 ## The Dry Years
 
-- Year 3. Five Garrison soldiers under Sergeant Dorota Vance refuse to come down from the mountain wreck. They are the founders of the Nose.
+- Year 3. Garrison soldiers under Sergeant Dorota Vance refuse to come down from the mountain wreck. They are the founders of the Nose.
 - Year 3. The Given find their way to the mountain wreck, the one place that looks like where they came from. Vance's deserters take them in. From the start, most of the people of the Nose are Given.
 - Year 3. Water seeps into the floor of the south crater. The Creed's refugees, many of them Given, win it from the Waterworks and the Canal Folk, and camp on the crater floor. A Waterworks engineer dies in the scuffle.
 - Year 3. Abend and his apprentice Teo bring a hull plate home, marked in an unknown script beside common digits. Abend dies of burns from the wreck. Teo, 23, takes the tower.
@@ -76,7 +76,7 @@ The first part is history as people in the basin could know it. The last part ho
 
 This part was generated with a second, smaller run of the story game. Its players were minor characters, and the events above were fixed. The years show how every truck on the road came to carry a gun. A third run of the same years, with these events fixed, added how the Marshalls came to keep the road book at the Roadhouse.
 
-- Year 113. Nobody patrols the roads. Old Army rifles sell for grain at every crossroads. A Bowl grain truck is stopped below Canyon Bridge, and its driver, Hal Sorensen, is shot. No patrol comes for two days. Brother Anselm of the Creed buries him by the bridge. Hal's last letter says he would not pay a stranger for a rifle.
+- Year 113. Nobody patrols the roads. Old Army rifles sell for grain at every crossroads. A Bowl grain truck is stopped below Canyon Bridge, and its driver, Hal Sorensen, is shot. Brother Anselm of the Creed buries him by the bridge. Hal's last letter says he would not pay a stranger for a rifle.
 - Year 113. A Bowl patrol holds the Old Orchard gate and keeps the shops shut. Corporal Ilya Moreno of the Old Army serves in it and paints the motor pool count on the blockhouse wall: 38 trucks.
 - Year 114. Pierce announces it insures only trucks that carry a gun. The Granary arms its grain trucks with patrol veterans and crossroads rifles. Otto Brann of the Pierce yard welds gun racks for Pierce trucks.
 - Year 114. Hadiza Okon of Green Pit hangs hooks by her door. Drivers hang their rifles there to drink. People call it the hook house.
@@ -92,7 +92,6 @@ This part was generated with a second, smaller run of the story game. Its player
 - Year 118. Absalom Reyne preaches at the Sunward's fire, and people call him the Preacher.
 - Year 119. Joss Ardo, Pell Ardo's nephew, deserts the Sunward with the singers' help and tells the Senate what he saw. The Senate stops all grain to the Sunward.
 - Year 119. Karl Vosk and two new men rob a Nose salt truck on the north bend. The Bowl patrol locks the Orchard staff cars back in the motor pool.
-- Year 120. The Nose workshop line starts handing a steel turning mount to any driver who asks at its gate.
 - Year 121. The Lunar Society votes to read the count in the open. Teo refuses, and they cast him out. People call him the Apprentice. The tower announces that the tone from the central wreck counts the years since the fall.
 - Year 121. Pierce lets its filing clerk Wim Satterly go. He takes a ledger of every robbed run to Petra Quell's Guild relay mast on the plain north-east of the Nose, and drivers call it the road book. A guard truck rides the Pump Station road for one season on Granary money, and the Nose command takes the salt drivers' collection for a guard "for the Committee's road fund".
 - Year 122. The Bowl refuses a Pierce loan. Pierce pays its crews late. Vulture families of the Burnt Convoy stop a Pierce office truck and take a debtor book listing what the Nose Committee and the Bowl Senate owe Pierce.
