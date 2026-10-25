@@ -177,6 +177,11 @@ export function isWeak(world: World, vehicle: Vehicle): boolean {
   return getCombatCondition(world, vehicle) <= threshold || getResources(world, vehicle).health / RULES.maxHealth <= threshold;
 }
 
+function badlyHurt(world: World, vehicle: Vehicle): boolean {
+  const line = NPC_BEHAVIOR.recoverCondition;
+  return getCombatCondition(world, vehicle) <= line || getResources(world, vehicle).health / RULES.maxHealth <= line;
+}
+
 export function huntsPrey(vehicle: Vehicle): boolean {
   return isRaider(vehicle);
 }
@@ -730,31 +735,53 @@ function weakFlee(world: World, vehicle: Vehicle): number {
   return isWeak(world, vehicle) ? NPC_BEHAVIOR.weakFlee : 1;
 }
 
-function threatFlee(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
-  if (danger === null || isManageable(vehicle, danger)) return 1;
-  const odds = fightOddsAgainst(world, vehicle, subjectOf(world, decision, subject));
-  return odds.getaway > 0 && odds.getaway >= odds.win ? NPC_BEHAVIOR.threatFlee : NPC_BEHAVIOR.trappedFlee;
+function getsAway(world: World, vehicle: Vehicle, foe: Vehicle): boolean {
+  if (!canDrive(world, vehicle)) return false;
+  const odds = fightOddsAgainst(world, vehicle, foe);
+  return odds.getaway > 0 && odds.getaway >= odds.win;
 }
 
-function hunterFlee(vehicle: Vehicle, manageable: boolean): number {
-  return huntsPrey(vehicle) && manageable ? NPC_BEHAVIOR.hunterFlee : 1;
+function pleads(world: World, vehicle: Vehicle, foe: Vehicle): boolean {
+  return isWeak(world, vehicle) || (badlyHurt(world, vehicle) && !getsAway(world, vehicle, foe));
+}
+
+function losingFlee(world: World, vehicle: Vehicle, foe: Vehicle): number {
+  return badlyHurt(world, vehicle) && getsAway(world, vehicle, foe) ? NPC_BEHAVIOR.weakFlee : 1;
+}
+
+function threatFlee(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
+  if (danger === null || isManageable(vehicle, danger)) return 1;
+  return getsAway(world, vehicle, subjectOf(world, decision, subject)) ? NPC_BEHAVIOR.threatFlee : NPC_BEHAVIOR.trappedFlee;
+}
+
+function hunterFlee(world: World, vehicle: Vehicle, manageable: boolean): number {
+  return huntsPrey(vehicle) && manageable && !badlyHurt(world, vehicle) ? NPC_BEHAVIOR.hunterFlee : 1;
+}
+
+function manageableFoe(vehicle: Vehicle, danger: number | null): boolean {
+  return danger !== null && isManageable(vehicle, danger);
 }
 
 function fleeSeenFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
-  return threatFlee(world, vehicle, decision, subject, danger) * weakFlee(world, vehicle) * hunterFlee(vehicle, danger !== null && isManageable(vehicle, danger));
+  return threatFlee(world, vehicle, decision, subject, danger) * weakFlee(world, vehicle) * hunterFlee(world, vehicle, manageableFoe(vehicle, danger));
+}
+
+function fleeParleyFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
+  const foe = subjectOf(world, decision, subject);
+  return threatFlee(world, vehicle, decision, subject, danger) * losingFlee(world, vehicle, foe) * hunterFlee(world, vehicle, manageableFoe(vehicle, danger));
 }
 
 function fleeHeardFactor(world: World, vehicle: Vehicle): number {
-  return weakFlee(world, vehicle) * hunterFlee(vehicle, true);
+  return weakFlee(world, vehicle) * hunterFlee(world, vehicle, true);
 }
 
 function fleeAttackedFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   const cabMax = maxHp(corePart(vehicle, 'cab'));
   const hit = NPC_BEHAVIOR.missFlee + vehicle.brain!.hurt / cabMax / NPC_BEHAVIOR.hurtFullFlee;
-  return hit * weakFlee(world, vehicle) * threatFlee(world, vehicle, decision, subject, danger);
+  return hit * losingFlee(world, vehicle, subjectOf(world, decision, subject)) * threatFlee(world, vehicle, decision, subject, danger);
 }
 
-const FLEE_FACTORS: Partial<Record<DecisionId, SituationFactor>> = { hostileSeen: fleeSeenFactor, contactHeard: fleeHeardFactor, attacked: fleeAttackedFactor, threatened: fleeSeenFactor, bountyDemanded: fleeSeenFactor, parley: fleeSeenFactor, crewCalled: fleeSeenFactor, vigilCalled: fleeSeenFactor };
+const FLEE_FACTORS: Partial<Record<DecisionId, SituationFactor>> = { hostileSeen: fleeSeenFactor, contactHeard: fleeHeardFactor, attacked: fleeAttackedFactor, threatened: fleeSeenFactor, bountyDemanded: fleeSeenFactor, parley: fleeParleyFactor, crewCalled: fleeSeenFactor, vigilCalled: fleeSeenFactor };
 
 function fleeFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   const factor = FLEE_FACTORS[decision];
@@ -837,13 +864,13 @@ function retaliateFactor(world: World, vehicle: Vehicle, decision: DecisionId, s
   return isAlly(world, vehicle, subjectOf(world, decision, subject)) ? NPC_BEHAVIOR.mateRetaliate : 1;
 }
 
-function truceFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
+function truceFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   if (danger !== null && !isManageable(vehicle, danger)) return NPC_BEHAVIOR.threatTruce;
-  return isWeak(world, vehicle) ? 1 : NPC_BEHAVIOR.winningTruce;
+  return pleads(world, vehicle, subjectOf(world, decision, subject)) ? 1 : NPC_BEHAVIOR.winningTruce;
 }
 
-function begFactor(world: World, vehicle: Vehicle): number {
-  return isWeak(world, vehicle) ? NPC_BEHAVIOR.weakBeg : 1;
+function begFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): number {
+  return pleads(world, vehicle, subjectOf(world, decision, subject)) ? NPC_BEHAVIOR.weakBeg : 1;
 }
 
 export function wantsPeace(world: World, vehicle: Vehicle, danger: number | null): boolean {
