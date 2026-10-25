@@ -355,7 +355,10 @@ describe('repairMap references to dropped stocks and sites', () => {
     const stray = { ...w.salvage.find((s) => s.id === oldStockId(first))!, id: oldStockId({ type: first.type, propId: '99999' }) };
     w.salvage = [...w.salvage.filter((s) => s.id !== oldStockId(second)), stray];
     w.player.contracts = [claim('ct-stray', stray.id), survey('ct-survey', ['survey-gone-1', surveySites(TEST_MAP)[0].id], false)];
-    w.player.pastContracts = [{ contract: survey('ct-past', ['survey-gone-4', surveySites(TEST_MAP)[0].id], false), outcome: 'lapsed', turn: 5, amount: 0 }];
+    w.player.pastContracts = [
+      { contract: survey('ct-past', ['survey-gone-4', surveySites(TEST_MAP)[0].id], false), outcome: 'lapsed', turn: 5, amount: 0 },
+      { contract: survey('ct-past-lost', ['survey-gone-5'], false), outcome: 'failed', turn: 6, amount: 0 },
+    ];
 
     fitBake(w, TEST_MAP);
     stockOldSpots(w, TEST_MAP);
@@ -364,6 +367,7 @@ describe('repairMap references to dropped stocks and sites', () => {
     expect(w.salvage.some((s) => s.id === oldStockId(second))).toBe(true);
     expect(w.player.contracts.map((c) => c.id)).toEqual(['ct-survey']);
     expect((w.player.contracts[0] as Extract<Contract, { kind: 'survey' }>).points.map((p) => p.site)).toEqual([surveySites(TEST_MAP)[0].id]);
+    expect(w.player.pastContracts.map((p) => p.contract.id)).toEqual(['ct-past', 'ct-stray']);
     expect((w.player.pastContracts[0].contract as Extract<Contract, { kind: 'survey' }>).points.map((p) => p.site)).toEqual([surveySites(TEST_MAP)[0].id]);
     expect(w.events.flatMap((e) => (e.t === 'contract' ? [[e.contract.id, e.outcome]] : []))).toEqual([['ct-stray', 'lapsed']]);
   });
