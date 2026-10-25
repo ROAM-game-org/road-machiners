@@ -22,6 +22,8 @@ import {
   moveItem,
   planItemMove,
   plannedRefitTurns,
+  plannedTruck,
+  refitTurnsLeft,
   startRefit,
   stowSpot,
   storePart,
@@ -34,8 +36,8 @@ import { PERK_NUMBERS } from "../data/skills";
 import { repairPlan } from "../sim/repair";
 import { shopAt } from "../sim/market";
 import { atGarage } from "../sim/garage";
-import { needsSearch, takeAllLoot, takeLoot, takeStores } from "../sim/locations";
-import { canLootTruck, claimedPartIn, claimOn, hasStores, hiddenUnits, takeFromTruck } from "../sim/salvage";
+import { needsSearch, takeAllLoot, takeStores } from "../sim/locations";
+import { canLootTruck, claimedPartIn, claimOn, hasStores, hiddenUnits } from "../sim/salvage";
 import { gaveUp, isKnockedOut } from "../sim/defeat";
 import { REGION } from "../data/region";
 import type {
@@ -51,7 +53,7 @@ import { lookReason } from "./look";
 import { uiSize } from "./ui-size";
 import type { UiHost } from "./host";
 import { itemLookId } from "../render/partLooks";
-import { baselinePart, conditionMeter, jobDone, conditionRow, conditionTag, createIcon, createItemIcon, diffStats, footprint as footprintEl, itemIconEl, itemLore, partIconEl, partStats, statGrid, toneStyle } from "./cards";
+import { baselinePart, conditionMeter, conditionRow, conditionTag, createIcon, createItemIcon, diffStats, footprint as footprintEl, itemIconEl, itemLore, partIconEl, partStats, statGrid, toneStyle } from "./cards";
 import { loadMass } from "../sim/mass";
 import {
   blockerIds,
@@ -66,8 +68,10 @@ import {
   lootGoodItem,
   lootPartItem,
   markWorking,
-  refitItems,
-  removalIds,
+  markTaken,
+  refitMarks,
+  removalMarks,
+  takenMarks,
   workMarkOf,
   storageItem,
   footprint,
@@ -85,6 +89,8 @@ import {
   dragStartOf,
   planAfterMove,
   plannedVehicle,
+  withPlanQueued,
+  takeDropped,
   HOLD_TO_DRAG_MS,
   isDoubleClick,
   needsHold,
@@ -253,19 +259,17 @@ export class InventoryView {
   }
 
   private shown(w: World): Vehicle {
-    return plannedVehicle(this.mine(w), this.plan);
+    return plannedVehicle(plannedTruck(w, this.mine(w)), this.plan);
   }
 
   private gridItems(w: World, v: Vehicle): HTMLElement[] {
-    const running = v.job?.kind === "refit";
-    const moving = running ? refitItems(w, v) : v.items.filter((it) => this.plan[it.id]);
-    const staying = v.items.filter((it) => !moving.some((m) => m.id === it.id));
-    const mark = workMarkOf(w, this.mine(w));
-    const withWork = (it: GridItem, node: HTMLElement): HTMLElement => (mark?.itemIds.has(it.id) ? markWorking(node, mark.done) : node);
-    return [
-      ...staying.map((it) => withWork(it, this.itemEl(w, it))),
-      ...moving.map((it) => withWork(it, running ? this.refittingEl(w, v, it) : this.plannedEl(w, it))),
-    ];
+    const real = this.mine(w);
+    const marks = refitMarks(w, real);
+    for (const id of Object.keys(this.plan)) marks.set(id, "queued");
+    const work = workMarkOf(w, real);
+    const withWork = (it: GridItem, node: HTMLElement): HTMLElement => (work?.itemIds.has(it.id) ? markWorking(node, work.done) : node);
+    const node = (it: GridItem) => (marks.get(it.id) === "queued" ? this.plannedEl(w, it) : withWork(it, marks.has(it.id) ? this.refittingEl(w, real, it) : this.itemEl(w, it)));
+    return [...v.items].sort((a, b) => Number(marks.has(a.id)) - Number(marks.has(b.id))).map(node);
   }
 
   private plannedEl(w: World, item: GridItem): HTMLElement {
@@ -274,9 +278,9 @@ export class InventoryView {
     return node;
   }
 
-  private refittingEl(w: World, v: Vehicle, item: GridItem): HTMLElement {
+  private refittingEl(w: World, real: Vehicle, item: GridItem): HTMLElement {
     const node = this.itemEl(w, item);
-    if (v.job?.kind === "refit") bindAttr(node, "title", t("inv.itemRefit", { item: itemName(item), n: v.job.turnsLeft }));
+    if (real.job?.kind === "refit") bindAttr(node, "title", t("inv.itemRefit", { item: itemName(item), n: real.job.turnsLeft }));
     return node;
   }
 
@@ -359,7 +363,7 @@ export class InventoryView {
     const now = Date.now();
     const double = isDoubleClick(this.lastClick, c.item.id, now);
     this.lastClick = double ? null : { id: c.item.id, at: now };
-    const cmd = double && !this.look() ? doubleClickCommand(this.host.world(), c, this.instant) : null;
+    const cmd = double && !this.look() ? doubleClickCommand(this.host.world(), c, this.instant, { shown: this.shown(this.host.world()), layout: this.plan }) : null;
     if (cmd) {
       this.selectedItem = null;
       this.run(cmd);
@@ -387,9 +391,10 @@ export class InventoryView {
 
   private refitBanner(w: World): HTMLElement[] {
     const me = this.mine(w);
-    if (me.job?.kind === "refit") return [this.bannerEl(t("inv.refitLeft", { n: me.job.turnsLeft }), t("inv.cancelRefit"), disabledWith(this.look(), () => this.run(cancelRefit)), t("inv.cancelRefitTitle"))];
-    if (Object.keys(this.plan).length === 0) return [];
+    const running = me.job?.kind === "refit" ? [this.bannerEl(t("inv.refitLeft", { n: refitTurnsLeft(w, me) }), t("inv.cancelRefit"), disabledWith(this.look(), () => this.run(cancelRefit)), t("inv.cancelRefitTitle"))] : [];
+    if (Object.keys(this.plan).length === 0) return running;
     return [
+      ...running,
       el(
         "div",
         { class: "inv-refit" },
@@ -573,6 +578,7 @@ export class InventoryView {
     const chips: HTMLElement[] = [];
     const claim = claimOn(w, stock);
     const claimed = claimedPartIn(w, stock);
+    const taken = takenMarks(w, stock.parts);
     for (const p of stock.parts) {
       const d = partDef(p.defId);
       const chip = el(
@@ -586,6 +592,7 @@ export class InventoryView {
         conditionMeter(p),
       );
       const item = lootPartItem(p);
+      markTaken(w, chip, taken.get(p.id));
       this.markSelected(chip, item);
       chip.addEventListener("pointerdown", (e) =>
         this.startDrag(e, "loot", p.id, item, { x: 0, y: 0 }),
@@ -669,8 +676,8 @@ export class InventoryView {
     if (!target || !isKnockedOut(target))
       return el("div", { class: "inv-truck inv-target" }, el("h3", {}, t("inv.truckGone")));
     const grid = gridEl(gridOf(target), target.chassisId, this.cell);
-    const removing = removalIds(w, target);
-    grid.append(...target.items.map((it) => this.truckItemEl(w, target, it, grid, removing.has(it.id))));
+    const removing = removalMarks(w, target);
+    grid.append(...target.items.map((it) => markTaken(w, this.truckItemEl(target, it, grid), removing.get(it.id))));
     return el(
       "div",
       { class: "inv-truck inv-target" },
@@ -679,10 +686,9 @@ export class InventoryView {
     );
   }
 
-  private truckItemEl(w: World, target: Vehicle, it: GridItem, grid: HTMLElement, removing: boolean): HTMLElement {
+  private truckItemEl(target: Vehicle, it: GridItem, grid: HTMLElement): HTMLElement {
     const mounted = it.kind === "part" && isMounted(target.chassisId, it);
     const node = itemBox(it, target.chassisId, mounted, this.cell);
-    if (removing) markWorking(node, jobDone(playerVehicle(w).job!));
     this.markSelected(node, it);
     const select = () => this.clickItem(this.clicked("truck", it.id, it));
     node.addEventListener("keydown", (e) => {
@@ -1031,15 +1037,8 @@ export class InventoryView {
     const to = { x: d.item.x, y: d.item.y, rot: d.item.rot };
     if (d.source === "grid") return this.moveGridItem(w, d.id, to);
     if (d.source === "storage") return takeFromStorage(w, d.id, to, this.gridTruck ?? undefined);
-    if (d.source === "truck") return takeFromTruck(w, this.truck!, d.id, to);
-    return takeLoot(
-      w,
-      this.loot!,
-      d.item.kind === "part"
-        ? { kind: "part", partId: d.id }
-        : { kind: "good", good: d.id },
-      to,
-    );
+    const from = d.source === "truck" ? this.truck! : this.loot!;
+    return takeDropped(withPlanQueued(w, this.plan, this.gridTruck ?? undefined), { source: d.source, from, id: d.id, item: d.item }, to);
   }
 
   private finishSelection(drag: Drag): boolean {
@@ -1068,8 +1067,8 @@ export class InventoryView {
 
   private planMove(w: World, itemId: string, to: Spot): void {
     if (this.look()) return;
-    const next = planAfterMove(this.mine(w), this.plan, itemId, to);
-    if (Object.keys(next).length > 0) startRefit(w, next);
+    const next = planAfterMove(plannedTruck(w, this.mine(w)), this.plan, itemId, to);
+    if (Object.keys(next).length > 0) startRefit(w, next, this.gridTruck ?? undefined);
     this.plan = next;
   }
 

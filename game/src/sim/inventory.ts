@@ -284,6 +284,11 @@ function walkQueue(world: World, v: Vehicle, job: RefitJob, head: GridItem[]): P
   return { items, head, steps, taken };
 }
 
+export function refitTurnsLeft(world: World, v: Vehicle): number {
+  if (v.job?.kind !== 'refit') return 0;
+  return v.job.turnsLeft + plannedRefit(world, v).steps.reduce((sum, step) => sum + step.work, 0);
+}
+
 export function plannedTruck(world: World, v: Vehicle): Vehicle {
   return v.job?.kind === 'refit' ? { ...v, items: plannedRefit(world, v).items } : v;
 }

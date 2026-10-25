@@ -340,7 +340,8 @@
   bottom: var(--space-1);
   height: var(--meter-s);
 }
-.inv-item.working > .meter.progress {
+.inv-item.working > .meter.progress,
+.inv-chip.working > .meter.progress {
   top: var(--space-1);
   bottom: auto;
 }
@@ -352,7 +353,8 @@
   text-align: center;
   font-size: var(--text-dense);
 }
-.inv-item.refitting {
+.inv-item.refitting,
+.inv-chip.refitting {
   border: 2px dashed var(--accent);
 }
 .inv-ghost.held {

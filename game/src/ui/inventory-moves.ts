@@ -9,7 +9,7 @@ import { partDef } from "../data/parts";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
 import { isMounted, mountedParts, type Spot } from "../sim/grid";
-import { installSpot, moveItem, planItemMove, storePart, stowSpot, takeFromStorage, type RefitLayout } from "../sim/inventory";
+import { installSpot, moveItem, planItemMove, plannedTruck, startRefit, storePart, stowSpot, takeFromStorage, type RefitLayout } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { takeLoot } from "../sim/locations";
 import { atGarage } from "../sim/garage";
@@ -63,10 +63,17 @@ export function needsHold(chassisId: string, item: GridItem): boolean {
   return item.kind === "part" && partDef(item.part.defId).kind !== "core" && isMounted(chassisId, item);
 }
 
-export function doubleClickCommand(w: World, c: ClickedItem, instant = false): ((w: World) => World) | null {
+export type OpenPlan = { shown: Vehicle; layout: RefitLayout };
+
+export function doubleClickCommand(w: World, c: ClickedItem, instant = false, plan: OpenPlan = { shown: plannedTruck(w, playerVehicle(w)), layout: {} }): ((w: World) => World) | null {
   if (c.source === "grid") return gridDoubleClick(w, c, instant);
   if (c.source === "storage") return storageCommand(w, c);
-  return takeCommand(w, c);
+  return takeCommand(plan, c);
+}
+
+export function withPlanQueued(w: World, layout: RefitLayout, truckId?: string): World {
+  if (Object.keys(layout).length === 0 || atGarage(w, truckId)) return w;
+  return startRefit(w, layout, truckId);
 }
 
 function storageCommand(w: World, c: ClickedItem): ((w: World) => World) | null {
@@ -75,12 +82,18 @@ function storageCommand(w: World, c: ClickedItem): ((w: World) => World) | null 
   return spot ? (next) => takeFromStorage(next, c.id, spot, c.own) : null;
 }
 
-function takeCommand(w: World, c: ClickedItem): ((w: World) => World) | null {
-  const spot = stowSpot(playerVehicle(w), c.item);
+function takeCommand(plan: OpenPlan, c: ClickedItem): ((w: World) => World) | null {
+  const spot = stowSpot(plan.shown, c.item);
   if (!spot) return null;
-  if (c.source === "truck") return (next) => takeFromTruck(next, c.truckId!, c.id, spot);
-  const pick = c.item.kind === "part" ? ({ kind: "part", partId: c.id } as const) : ({ kind: "good", good: c.id } as const);
-  return (next) => takeLoot(next, c.stockId!, pick, spot);
+  const dropped: Dropped = c.source === "truck" ? { source: "truck", from: c.truckId!, id: c.id, item: c.item } : { source: "loot", from: c.stockId!, id: c.id, item: c.item };
+  return (next) => takeDropped(withPlanQueued(next, plan.layout, c.own), dropped, spot);
+}
+
+export type Dropped = { source: "truck" | "loot"; from: string; id: string; item: GridItem };
+
+export function takeDropped(w: World, d: Dropped, to: Spot): World {
+  if (d.source === "truck") return takeFromTruck(w, d.from, d.id, to);
+  return takeLoot(w, d.from, d.item.kind === "part" ? { kind: "part", partId: d.id } : { kind: "good", good: d.id }, to);
 }
 
 function gridCommand(w: World, c: ClickedItem): ((w: World) => World) | null {
