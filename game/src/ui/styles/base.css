@@ -128,11 +128,6 @@ body {
 #ui.touch .no-touch {
   display: none;
 }
-#ui .info-touch {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-}
 #ui.touch :is(.btn-s, .tip-close) {
   min-width: var(--touch-target);
 }
