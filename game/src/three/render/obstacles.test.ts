@@ -3,15 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
 import { CHASSIS } from '../../data/chassis';
-import { WRECK_LOOKS } from '../../data/territory';
 import { LOOT_LOOK, lightnessOf, lootColor, lootContrast } from '../../render/lootLook';
 import { emptyHidden } from '../../sim/salvage';
 import { emptyWorld, flatTerrain } from '../../sim/testkit';
-import { TERRITORIES } from '../../data/territory';
+import { TERRITORIES, WRECK_LOOKS } from '../../data/territory';
 import type { LandmarkLook, Obstacle, SalvageStock } from '../../sim/types';
 import { aimedBreach, BOW_BREACH, buildProp, lootSwatchesOf, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
 import { initPhysics } from '../../phys/drive';
-import { loadModels } from './models';
+import { loadModels, model } from './models';
 import { RenderScope, SightLimit } from './scope';
 
 function groupOf(...names: string[]): THREE.Group {
@@ -132,12 +131,13 @@ describe('loot colors on props', () => {
       ...looks.map((look, i): Obstacle => ({ id: `look-${look}`, pos: { x: 10 + i, y: 20 }, r: 1, kind: 'landmark', look, yaw: 0 })),
       ...Object.keys(CHASSIS).map((chassisId, i): Obstacle => ({ id: `wreck-hulk${i}`, pos: { x: 10 + i, y: 30 }, r: 0.9, kind: 'wreck', hulk: { chassisId, yaw: 0 } })),
     ];
-    for (const prop of props) {
-      const swatches = lootSwatchesOf(buildProp(terrain, prop));
-      expect(swatches.length, prop.id).toBeGreaterThan(0);
+    const cases = [...props.map((prop) => ({ id: prop.id, view: buildProp(terrain, prop) })), { id: 'pile', view: model('crates') }];
+    for (const { id, view } of cases) {
+      const swatches = lootSwatchesOf(view);
+      expect(swatches.length, id).toBeGreaterThan(0);
       for (const { plain, loot } of swatches) {
-        expect(lootContrast(plain, loot), `${prop.id} ${plain.toString(16)}`).toBeGreaterThanOrEqual(LOOT_LOOK.minContrast);
-        expect(lightnessOf(loot), prop.id).toBeGreaterThan(lightnessOf(plain));
+        expect(lootContrast(plain, loot), `${id} ${plain.toString(16)}`).toBeGreaterThanOrEqual(LOOT_LOOK.minContrast);
+        expect(lightnessOf(loot), id).toBeGreaterThan(lightnessOf(plain));
       }
     }
   });
