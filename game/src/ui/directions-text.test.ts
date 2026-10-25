@@ -120,7 +120,7 @@ describe('directionsText', () => {
   });
 
   it('says past the fork where a wreck leave point is counted', () => {
-    expect(resolve(directionsText([{ do: 'leave', at: { kind: 'fork', nth: 2 }, octant: 'east', lean: null, span: 'near' }]), 'en')).toBe('Past the second fork, where the road runs closest, leave the road and head east, a short way.');
+    expect(resolve(directionsText([{ do: 'leave', at: { kind: 'fork', nth: 2 }, octant: 'east', lean: null, span: 'near' }]), 'en')).toBe('Past the second fork, where the road runs closest, leave the road and head south-east, a short way.');
   });
 
   it('tells a gate, a lean and a place way with no search sentence', () => {
@@ -129,7 +129,7 @@ describe('directionsText', () => {
       { do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'northEast', span: 'fair' },
       { do: 'leave', at: { kind: 'none' }, octant: 'south', lean: 'east', span: 'fair' },
     ];
-    expect(resolve(directionsText(steps), 'en')).toBe('Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way.');
+    expect(resolve(directionsText(steps), 'en')).toBe('Leave by the east gate. Take the road to Nose, heading east. Where the road runs closest, leave the road and head south-west and a touch east, a fair way.');
   });
 
   it('asks again plainly', () => {

@@ -32,6 +32,25 @@ const GRID = { width: 1, alpha: 0.3, gap: 3, padX: 3, padY: 1 };
 const PLATE = { inset: 8, pad: 5, arrowWidth: 10, arrowHeight: 12, tick: 5, gap: 3 };
 const bases = new Map<string, HTMLCanvasElement>();
 
+function clipSegment(from: Vec, to: Vec, box: Box): [Vec, Vec] | null {
+  let enter = 0;
+  let leave = 1;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const edges: [number, number][] = [[-dx, from.x - box.x0], [dx, box.x1 - from.x], [-dy, from.y - box.y0], [dy, box.y1 - from.y]];
+  for (const [p, q] of edges) {
+    if (p === 0) {
+      if (q < 0) return null;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) enter = Math.max(enter, t);
+    else leave = Math.min(leave, t);
+  }
+  if (enter > leave) return null;
+  return [{ x: from.x + enter * dx, y: from.y + enter * dy }, { x: from.x + leave * dx, y: from.y + leave * dy }];
+}
+
 function tileCanvas(size: number): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = size;
@@ -59,15 +78,6 @@ function baseFor(terrain: Terrain): HTMLCanvasElement {
 type Box = { x0: number; y0: number; x1: number; y1: number };
 type Plates = { north: Box; scale: Box; tiles: number; label: Msg };
 type GridLabel = { text: string; font: string; box: Box };
-type Span = { from: number; to: number };
-
-function widestFree(span: Span, blocks: readonly Span[]): Span {
-  let pieces = [span];
-  for (const block of blocks)
-    pieces = pieces.flatMap((p) => (block.to <= p.from || block.from >= p.to ? [p] : [{ from: p.from, to: block.from }, { from: block.to, to: p.to }].filter((q) => q.to > q.from)));
-  return pieces.reduce((best, p) => (p.to - p.from > best.to - best.from ? p : best), { from: span.from, to: span.from });
-}
-
 function around(at: { x: number; y: number }, r: number): Box {
   return { x0: at.x - r, y0: at.y - r, x1: at.x + r, y1: at.y + r };
 }
@@ -334,19 +344,18 @@ export class MapView {
   private drawGrid(ctx: CanvasRenderingContext2D, view: Viewport): void {
     const side = gridSquareTiles();
     const size = side * MAP_GRID.squares;
-    const from = toPx(view, { x: 0, y: 0 });
-    const to = toPx(view, { x: size, y: size });
     ctx.save();
     ctx.strokeStyle = token('--surface-sunk');
     ctx.globalAlpha = GRID.alpha;
     ctx.lineWidth = GRID.width;
     ctx.beginPath();
     for (let k = 1; k < MAP_GRID.squares; k++) {
-      const at = toPx(view, { x: k * side, y: k * side });
-      ctx.moveTo(at.x, from.y);
-      ctx.lineTo(at.x, to.y);
-      ctx.moveTo(from.x, at.y);
-      ctx.lineTo(to.x, at.y);
+      const column = [toPx(view, { x: k * side, y: 0 }), toPx(view, { x: k * side, y: size })];
+      const row = [toPx(view, { x: 0, y: k * side }), toPx(view, { x: size, y: k * side })];
+      for (const [from, to] of [column, row]) {
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+      }
     }
     ctx.stroke();
     ctx.restore();
@@ -354,36 +363,32 @@ export class MapView {
 
   private gridLabels(ctx: CanvasRenderingContext2D, view: Viewport, plates: Plates): GridLabel[] {
     const side = gridSquareTiles();
-    const shown = this.shownBox(view);
+    const size = side * MAP_GRID.squares;
     const tall = parseFloat(token('--text-caption')) + 2 * GRID.padY;
     const inset = this.rule.kind === 'follow' ? MINIMAP.edgeInset + MARK.town * MARK.pinned + GRID.gap : GRID.gap;
     const kept = [plates.north, plates.scale, ...this.sites.map((site) => around(this.markAt(view, site), MARK.town + 1))];
     const labels: GridLabel[] = [];
     const letters = `${token('--text-caption')} ${token('--font-ui')}`;
     const numbers = `${token('--text-caption')} ${token('--font-mono')}`;
-    for (let k = 0; k < MAP_GRID.squares; k++) {
-      const strip = { from: toPx(view, { x: k * side, y: 0 }).x, to: toPx(view, { x: (k + 1) * side, y: 0 }).x };
-      ctx.font = letters;
-      const text = say(gridColumnLetter(k));
+    const place = (text: string, font: string, from: Vec, to: Vec): void => {
+      ctx.font = font;
       const wide = ctx.measureText(text).width + 2 * GRID.padX;
-      const row = { y0: shown.y0 + inset, y1: shown.y0 + inset + tall };
-      const blocks = kept.filter((b) => b.y0 < row.y1 && row.y0 < b.y1).map((b) => ({ from: b.x0 - GRID.gap, to: b.x1 + GRID.gap }));
-      const free = widestFree({ from: Math.max(strip.from, shown.x0) + GRID.gap, to: Math.min(strip.to, shown.x1) - GRID.gap }, blocks);
-      if (free.to - free.from < wide) continue;
-      const x0 = (free.from + free.to - wide) / 2;
-      labels.push({ text, font: letters, box: { x0, x1: x0 + wide, ...row } });
+      const room = { x0: inset + wide / 2, x1: view.width - inset - wide / 2, y0: inset + tall / 2, y1: view.height - inset - tall / 2 };
+      const span = clipSegment(from, to, room);
+      if (!span) return;
+      const at = span[0];
+      const box = { x0: at.x - wide / 2, x1: at.x + wide / 2, y0: at.y - tall / 2, y1: at.y + tall / 2 };
+      const padded = { x0: box.x0 - GRID.gap, x1: box.x1 + GRID.gap, y0: box.y0 - GRID.gap, y1: box.y1 + GRID.gap };
+      const crowded = [...kept, ...labels.map((l) => l.box)].some((b) => overlaps(b, padded));
+      if (!crowded) labels.push({ text, font, box });
+    };
+    for (let k = 0; k < MAP_GRID.squares; k++) {
+      const middle = (k + 0.5) * side;
+      place(say(gridColumnLetter(k)), letters, toPx(view, { x: middle, y: 0 }), toPx(view, { x: middle, y: size }));
     }
     for (let k = 0; k < MAP_GRID.squares; k++) {
-      const strip = { from: toPx(view, { x: 0, y: k * side }).y, to: toPx(view, { x: 0, y: (k + 1) * side }).y };
-      ctx.font = numbers;
-      const text = say(gridRowNumber(k));
-      const wide = ctx.measureText(text).width + 2 * GRID.padX;
-      const column = { x0: shown.x0 + inset, x1: shown.x0 + inset + wide };
-      const blocks = [...kept, ...labels.map((l) => l.box)].filter((b) => b.x0 < column.x1 && column.x0 < b.x1).map((b) => ({ from: b.y0 - GRID.gap, to: b.y1 + GRID.gap }));
-      const free = widestFree({ from: Math.max(strip.from, shown.y0) + GRID.gap, to: Math.min(strip.to, shown.y1) - GRID.gap }, blocks);
-      if (free.to - free.from < tall) continue;
-      const y0 = (free.from + free.to - tall) / 2;
-      labels.push({ text, font: numbers, box: { ...column, y0, y1: y0 + tall } });
+      const middle = (k + 0.5) * side;
+      place(say(gridRowNumber(k)), numbers, toPx(view, { x: 0, y: middle }), toPx(view, { x: size, y: middle }));
     }
     return labels;
   }
@@ -403,10 +408,7 @@ export class MapView {
   }
 
   private shownBox(view: Viewport): Box {
-    const size = this.requireWorld().terrain.size;
-    const from = toPx(view, { x: 0, y: 0 });
-    const to = toPx(view, { x: size, y: size });
-    return { x0: Math.max(0, from.x), y0: Math.max(0, from.y), x1: Math.min(view.width, to.x), y1: Math.min(view.height, to.y) };
+    return { x0: 0, y0: 0, x1: view.width, y1: view.height };
   }
 
   private platesFor(ctx: CanvasRenderingContext2D, view: Viewport): Plates {

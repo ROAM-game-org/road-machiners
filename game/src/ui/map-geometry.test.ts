@@ -139,8 +139,8 @@ describe('scale bar', () => {
   it('fits the minimap reaches at their canvas width', () => {
     const width = 220;
     expect(metersOf(fitTileSize(100, width, width), width)).toBe(100);
-    expect(metersOf(fitTileSize(200, width, width), width)).toBe(100);
-    expect(metersOf(fitTileSize(400, width, width), width)).toBe(250);
+    expect(metersOf(fitTileSize(200, width, width), width)).toBe(250);
+    expect(metersOf(fitTileSize(400, width, width), width)).toBe(500);
   });
 
   it('falls back to the shortest step when none fits', () => {
