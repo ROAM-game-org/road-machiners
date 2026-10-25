@@ -70,4 +70,5 @@ open case
 - Parked on a Roadhouse pad, the player opens a desk with one tab. It lists each open case with Pay, and Pay all.
 - It lists each lawful organized faction that holds the player hostile with Settle. Settling lifts that standing to −49, wary, and changes nothing else: memories, feuds and other cases stay.
 - The price is the days of drift it skips at the tier 1 wage: (−49 − standing) / 10 a day × 450 turns × 12.33 cents. From −100 that is about 283 M's.
+- The desk offers Look for locals beside Drive on. Petra Quell is the one local. While the player holds a search, she sells the newest Marshall sighting of its target for `CRIME.leadFee` (about 3 M's), only when it is newer than the lead held. With none she says so and charges nothing.
 - Settle is off while a case that faction issued is open, or while the player is short.
