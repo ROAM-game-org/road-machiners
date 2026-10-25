@@ -16,6 +16,8 @@ import {
   sellPrice,
 } from "../sim/economy";
 import { makePart, makeVehicle } from "../sim/factory";
+import { wornDef } from "../sim/wear";
+import { CONDITION } from "./wear";
 import { goodsCount, gridOf, isMounted, placementError } from "../sim/grid";
 import { mountPart } from "../sim/inventory";
 import { emptyWorld } from "../sim/testkit";
@@ -322,6 +324,29 @@ describe("armor in 1 and 2 cells", () => {
     expect(armor.filter((p) => p.w * p.h > 2).map((p) => p.id)).toEqual([]);
     const lines = new Set([...Object.keys(ARMOR_LINES), ...Object.values(ARMOR_LINES)]);
     expect(armor.map((p) => p.id).filter((id) => !lines.has(id))).toEqual([]);
+  });
+});
+
+describe("ceramic armor", () => {
+  const armorParts = () => Object.values(PARTS).flatMap((p) => (p.kind === "armor" ? [p] : []));
+  const ceramic = () => armorParts().filter((p) => p.id.startsWith("ceramic"));
+
+  it("has the most kinetic armor of every armor part", () => {
+    const best = Math.max(...armorParts().map((p) => p.armor));
+    expect(ceramic().map((p) => p.armor)).toEqual([best, best]);
+  });
+
+  it("is the lightest per cell of the tier 2 armor", () => {
+    const perCell = (p: { mass: number; w: number; h: number }) => p.mass / (p.w * p.h);
+    const lightestOther = Math.min(...armorParts().filter((p) => p.tier === 2 && !p.id.startsWith("ceramic")).map(perCell));
+    for (const p of ceramic()) expect(perCell(p)).toBeLessThan(lightestOther);
+  });
+
+  it("wears down to about a pristine steel plate", () => {
+    const worn = wornDef(makePart(world, "ceramicTile", CONDITION.maxWear));
+    const steel = PARTS.steelPlate;
+    if (worn.kind !== "armor" || steel.kind !== "armor") throw new Error("armor expected");
+    expect(worn.armor).toBeLessThanOrEqual(steel.armor * 1.1);
   });
 });
 

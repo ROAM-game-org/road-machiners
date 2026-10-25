@@ -258,6 +258,20 @@ describe('far NPC travel', () => {
     expect(far.brain.farRoute!.dest).toEqual({ x: 150, y: 100 });
   });
 
+  it('keeps the stored route when the destination moves less than the arrival radius', () => {
+    const w = emptyWorld();
+    w.obstacles = [{ id: 'rock1', pos: { x: 135, y: 120 }, r: 3, kind: 'rock' }];
+    const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    far.brain = npcBrain('trader', { x: 0, y: 0 }, ['trader']);
+    far.order = { kind: 'stopAt', dest: { x: 150, y: 120 } };
+    advanceFar(w, far);
+    const marker = { x: 150, y: 120 };
+    far.brain.farRoute!.points = [marker];
+    far.order = { kind: 'stopAt', dest: { x: 150.3, y: 120.2 } };
+    advanceFar(w, far);
+    expect(far.brain.farRoute!.points).toEqual([marker]);
+  });
+
   it('drops a kept road route once a raider runs dry, and plans one off the road to the same point', () => {
     const w = emptyWorld();
     const t = editableTerrain(w);
@@ -416,6 +430,9 @@ describe('far NPCs and breakable props', () => {
     expect(w.broken.every((b) => !w.obstacles.includes(b.obstacle))).toBe(true);
     expect(npc.pos.x).toBeGreaterThan(x);
     expect(w.events.some((e) => e.t === 'collision' && e.a === npc.id && w.broken.some((b) => b.obstacle.id === e.b))).toBe(true);
+    const smashes = w.events.flatMap((e) => (e.t === 'collision' ? [e.impact] : []));
+    expect(smashes.length).toBeGreaterThan(0);
+    expect(smashes.every((impact) => Number.isFinite(impact) && impact > 0)).toBe(true);
   });
 
   it('leaves a fence beside its route standing', () => {

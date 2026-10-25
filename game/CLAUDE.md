@@ -65,9 +65,9 @@ Run these from `game/`. The repo-wide quality gate and pre-commit hook run from 
 - `npm run combat` plays single fights with physics, for hit rates and ram detail the recorder does not model. `npm run loadouts` rolls NPC gear.
 - `npm run perf` fails on a miss against `scripts/perf-budgets.json`.
 - `npm run layout` checks every surveyed screen in English, Russian and pseudo-long text at two window sizes, and fails on clipped text, overlapping or unreachable controls and English in Russian. It needs the dev server.
-- `npm run map:bake` writes `public/maps/icarus.bin`. Commit it after a change to map rules, then run `npm run old-spots`, which also writes the survey sites.
+- `npm run map:bake` writes `public/maps/icarus.bin`. Commit it after a change to map rules, then run `npm run old-spots`, which also writes the survey sites, then `npm run survey:pictures`, which redraws their journal pictures.
 - `npm run text:review` writes the Russian review sheet to `tmp/text-review/`: every entry in context with sample params.
-- `npm run models:shapes`, `npm run wiki`, `npm run save:shape`, `npm run quests:build` and `npm run old-spots` regenerate checked files. A test fails when they are stale.
+- `npm run models:shapes`, `npm run wiki`, `npm run save:shape`, `npm run quests:build`, `npm run old-spots` and `npm run survey:pictures` regenerate checked files. A test fails when they are stale.
 - `npm run quest -- <quest>` plays an ink quest in the terminal, and `npm run quests:check` checks every quest for errors, dead ends and loops with no way out.
 - `npm run sfx:board`, `sfx:import`, `sfx:reimport`, `sfx:reloop`, `sfx:report` and `sfx:gen` manage sounds. `sfx:gen` costs credits, so ask before running it.
 - `npm run itch` publishes to itch.io.
@@ -108,12 +108,12 @@ One owner per concept. Use these and do not decide the same thing elsewhere:
 Players keep their saves across updates. Migrate old saves whenever possible. [Saves](docs/architecture/saves.md) has the details.
 
 - A change to the saved shape needs a new format. That covers any type in `src/sim/types.ts` reachable from `World`, and any renamed or removed content id in `src/data/`.
-- A change that old saves can follow adds one tiny step to `TINY_STEPS` in `src/three/save-migrations.ts`.
+- A change that old saves can follow adds one tiny step to `TINY_STEPS` in `src/three/save-migrations.ts`, with a new name that never changes, even when a merge renumbers the step.
 - A quest change that old progress in the quest cannot follow raises the quest's `# revision:` tag instead of a step. Load then resets that quest and what stands on it. [Changing a shipped quest](docs/writing/quests.md#changing-a-shipped-quest) says when.
 - A change that old saves cannot follow bumps `SAVE_MAJOR` and empties `RELEASE_STEPS` and `TINY_STEPS`. Ask me before any major bump. A new map file, a removed id or a balance change needs no step. Load repairs drift in place and silently, as [Saves](docs/architecture/saves.md) describes. A renamed id still needs a tiny step, or the repair drops what the player held under the old name. A save that still throws on drift needs a rule in `src/sim/save-repair.ts` or `src/sim/map-repair.ts`.
 - A step is a pure function of the saved world JSON. It never imports sim or data code. It holds its own copies of any old ids or values it needs.
 - Every tiny step gets a Vitest test on a fixture from `src/three/save-fixtures/`.
-- Run `npm run save:shape` after the new step or major bump.
+- Run `npm run save:shape` after the new step or major bump. It also rebuilds `src/three/save-schema.json`, which load and write check every save against. Never loosen the check to pass a save. A save that fails it needs a repair rule or a tiny step.
 - Tiny steps live only after the newest shipped format. After a release or hotfix ships a new format, fold the tiny steps up to it into one release step, as [Saves](docs/architecture/saves.md#folding-tiny-steps) describes. `save-anchors.test.ts` fails once a second shipped format waits for its fold.
 - Never edit a committed tiny step outside a fold, and never edit a release step. Fix a bad step with a new tiny step.
 - Release steps cover the last 10 releases. A save older than that, or at a format no build shipped, carries over through the rescue on load.
