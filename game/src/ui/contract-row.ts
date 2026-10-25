@@ -1,11 +1,11 @@
 import { PARCEL } from "../data/goods";
-import { isMet, type Contract } from "../sim/market";
+import { isLate, isMet, type Contract } from "../sim/market";
 import { vehicleStats } from "../sim/stats";
 import type { World } from "../sim/types";
 import { PLUS, SPACE, t } from "../text/msg";
 import { createBareItemIcon, createIcon } from "./cards";
 import { el, type Child } from "./dom";
-import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, heldContractDue, rescueWhere, surveyClueLines, surveyHowTo, vehicleName } from "./format";
+import { claimRivalMark, contractSummary, contractWindow, escortLeaves, escortStatusText, heldContractClock, heldContractDue, rescueWhere, surveyClueLines, surveyWayLines, vehicleName } from "./format";
 import { kph, moneyEl } from "./units";
 
 const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
@@ -40,8 +40,9 @@ function escortDetail(w: World, c: Extract<Contract, { kind: "escort" }>): Child
   return [el("span", {}, t("contract.trader", { who: vehicleName(w, c.client), n: kph(vehicleStats(w, trader).maxSpeed) })), SPACE, roadTag(c.threat)];
 }
 
-function surveyLine(c: Contract): HTMLElement | null {
-  return c.kind === "survey" ? el("span", { class: "dim" }, ...surveyClueLines(c), surveyHowTo(c)) : null;
+function surveyLine(w: World, c: Contract, posted: boolean): HTMLElement | null {
+  if (c.kind !== "survey") return null;
+  return el("span", { class: "dim" }, ...(posted ? surveyClueLines(c) : surveyWayLines(w, c)));
 }
 
 function escortClock(w: World, c: Extract<Contract, { kind: "escort" }>, posted: boolean): HTMLElement {
@@ -64,22 +65,22 @@ function jobRow(w: World, c: Contract, { action, posted, clue }: RowShape): HTML
   const met = isMet(c);
   const clock = c.kind === "escort" ? escortClock(w, c, posted) : posted
     ? el("span", { class: "price", title: t("contract.windowTitle", { n: c.window }) }, createIcon("clock"), contractWindow(c))
-    : el("span", { class: "price", title: met ? undefined : t("contract.dueTitle", { n: c.deadline - w.turn }) }, createIcon("clock"), heldContractDue(c));
+    : el("span", { class: "price", title: met ? undefined : t("contract.dueTitle", { n: c.deadline - w.turn }) }, createIcon("clock"), heldContractClock(w, c));
   return el(
     "div",
     { class: "job" },
     CONTRACT_ICON[c.kind](),
     c.kind === "escort" && posted
       ? el("div", { class: "job-what" }, el("span", {}, contractSummary(c)), el("div", { class: "job-detail dim" }, ...escortDetail(w, c)))
-      : contractSummaryCell(w, c, clue),
-    el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
+      : contractSummaryCell(w, c, clue, posted),
+    isLate(w, c) ? el("span", { class: "price bad" }, t("contract.late")) : el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
     clock,
     action,
   );
 }
 
-function contractSummaryCell(w: World, c: Contract, clue: boolean): HTMLElement {
-  if (c.kind !== "rescue") return el("span", {}, contractSummary(c), clue ? surveyLine(c) : null, claimRivalMark(w, c));
+function contractSummaryCell(w: World, c: Contract, clue: boolean, posted: boolean): HTMLElement {
+  if (c.kind !== "rescue") return el("span", {}, contractSummary(c), clue ? surveyLine(w, c, posted) : null, claimRivalMark(w, c));
   const need = el("span", { class: "tag", title: t("contract.rescueAlt") }, t(`contract.need.${c.need}`));
   return el("span", {}, need, SPACE, contractSummary(c), c.fulfilled ? null : el("div", { class: "dim" }, rescueWhere(c)));
 }

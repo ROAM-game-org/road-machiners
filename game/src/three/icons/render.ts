@@ -17,7 +17,7 @@ import { weaponHead } from '../render/weaponHead';
 import { blueprintOf, blueprintSvg, calmed, GLASS_MATERIAL, paintBlueprint, type BlueprintColors, type Calm } from './blueprint';
 import { boundsOf, edgeBand, solidMask, stripes, type Mask, type Pixels, type Rgba } from './lines';
 
-export const ICON_STYLE_VERSION = 12;
+export const ICON_STYLE_VERSION = 13;
 
 export type IconView = 'top' | 'diagonal';
 export const DIAGONAL_YAW_DEG = 35;
@@ -241,7 +241,8 @@ function toon(root: THREE.Object3D, style: IconStyle): void {
   const { ramp } = renderer();
   swapMaterials(root, (old) => {
     const color = old.name === GLASS_MATERIAL ? GLASS_COLOR : old.color.getHex();
-    return style === 'toon' ? new THREE.MeshToonMaterial({ color, gradientMap: ramp }) : new THREE.MeshBasicMaterial({ color });
+    const vertexColors = old.vertexColors;
+    return style === 'toon' ? new THREE.MeshToonMaterial({ color, vertexColors, gradientMap: ramp }) : new THREE.MeshBasicMaterial({ color, vertexColors });
   });
 }
 
