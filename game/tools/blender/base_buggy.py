@@ -33,7 +33,7 @@ from mathutils import Vector
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, check_door_gap, cut_boxes, hull_mesh, level_sockets  # noqa: E402
-from parts_common_core import ROUND_SIDES  # noqa: E402
+from parts_common_core import PROUD, ROUND_SIDES  # noqa: E402
 from shapes import prism, strut  # noqa: E402
 
 SEED = 302
@@ -54,6 +54,7 @@ WELL_Y = WHEEL_Z - WHEEL_HALF_W - 0.03  # the fenders' inner face and the narrow
 WALL = 0.08  # the cockpit side wall
 EDGE = 0.08  # the stepped strips along each fender top edge
 EDGE_DROP = 0.05
+FLUSH_NOSE_DEG = 40
 
 PAN = -0.62
 FLOOR = -0.5  # cockpit, passenger and engine bay floor
@@ -121,7 +122,7 @@ def fender_top(drop: float) -> list[tuple[float, float]]:
     reach = FRONT - wx
     crown = CROWN - drop
     rise = crown - HUB_Z
-    swoop = [(wx + reach * math.cos(a), HUB_Z + rise * math.sin(a) ** 1.5) for a in (math.radians(d) for d in range(16, 90, 8))]
+    swoop = [(wx + reach * math.cos(a), HUB_Z + (rise if d >= FLUSH_NOSE_DEG else CROWN - HUB_Z) * math.sin(a) ** 1.5) for d, a in ((d, math.radians(d)) for d in range(16, 90, 8))]
     back = [(wx - (wx - SILL_FRONT) * math.sin(t), SILL + (crown - SILL) * math.cos(t)) for t in (math.radians(d) for d in range(0, 91, 10))]
     return [(FRONT, NOSE_TOP - 0.08)] + swoop + back
 
@@ -205,7 +206,9 @@ def screen_x(z: float) -> float:
 
 def windshield(kit: Kit) -> None:
     """The dash on the cowl and a raked windshield in a dark frame, from the cowl to the roof, across the cab."""
-    kit.box("dash", (COWL_X - SCREEN_BASE_X + 0.08, 2 * INNER, COWL_TOP - FLOOR), (COWL_X - (COWL_X - SCREEN_BASE_X + 0.08) / 2, 0, (COWL_TOP + FLOOR) / 2), "under")
+    dash_length = COWL_X - SCREEN_BASE_X + 0.08 - PROUD
+    dash_top = COWL_TOP - PROUD
+    kit.box("dash", (dash_length, 2 * INNER, dash_top - FLOOR), (COWL_X - PROUD - dash_length / 2, 0, (dash_top + FLOOR) / 2), "under")
     for s, sy in (("l", 1), ("r", -1)):
         strut(kit, f"screen_post_{s}", (SCREEN_BASE_X, sy * (cab_half(COWL_TOP) - 0.04), COWL_TOP), (SCREEN_TOP_X, sy * (cab_half(SCREEN_TOP) - 0.04), SCREEN_TOP), 0.06, "under")
     glass = [(x + dx, s * (cab_half(z) - 0.07), z) for x, z in ((SCREEN_BASE_X, COWL_TOP), (SCREEN_TOP_X, SCREEN_TOP)) for s in (1, -1) for dx in (0, -0.02)]
