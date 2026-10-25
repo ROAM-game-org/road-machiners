@@ -646,7 +646,7 @@ describe('overdrive switch', () => {
   it('is open one HP above 15% and shows the flag', () => {
     const w = wornTo(1);
     const s = overdriveSwitch(w);
-    expect({ checked: s.checked, reason: s.reason, title: en(s.title) }).toEqual({ checked: false, reason: null, title: 'Faster, but the engine heats fast' });
+    expect({ checked: s.checked, reason: s.reason, title: en(s.title) }).toEqual({ checked: false, reason: null, title: 'Faster, but the engine heats up quickly' });
     w.player.overdrive = true;
     expect(overdriveSwitch(w).checked).toBe(true);
   });

@@ -82,8 +82,7 @@
   position: static;
   padding: var(--space-3) var(--space-4);
 }
-#ui .top-right > .game-menu,
-#ui .top-right > .camera-mode {
+#ui .top-right > .game-menu {
   padding: 0;
   border: 0;
 }
