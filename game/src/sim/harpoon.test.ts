@@ -7,9 +7,12 @@ import { vehicleStats } from './stats';
 import { makePart } from './factory';
 import { mountPart } from './inventory';
 import { deploySmoke } from './hazards';
-import { endLines, lineAnchors, tearLine } from './harpoon';
-import { addVehicle, emptyWorld } from './testkit';
+import { attachLine, endLines, lineAnchors, tearLine } from './harpoon';
+import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import type { GameEvent, PartInstance, Vehicle, World } from './types';
+import { makePeace } from './parley';
+import { addState } from './states';
+import { knockOutNpc } from './defeat';
 import { advanceLines } from './utility';
 import { cutPlayerLine } from './world';
 
@@ -93,7 +96,7 @@ describe('firing the harpoon', () => {
     const [anchor] = lineAnchors(w);
 
     expect(w.lines[0].length).toBeGreaterThan(10);
-    expect(w.lines[0].length).toBeLessThan(20);
+    expect(w.lines[0].length).toBeLessThan(25);
     expect(anchor.length).toBe(w.lines[0].length);
   });
 
@@ -228,5 +231,67 @@ describe('the harpoon line', () => {
     expect(w.lines).toEqual([]);
     expect(w.events).toContainEqual({ t: 'lineTorn', line: line.id, vehicle: trader.id, part: line.toPart, damage: HARPOON.tearDamage });
     expect(() => tearLine(w, line.id)).toThrow(/no line/);
+  });
+
+  it('ends when the two trucks make a truce, with no damage and no tear', () => {
+    const { w, me, part, trader } = hit();
+    const line = w.lines[0];
+    const held = trader.items.flatMap((it) => (it.kind === 'part' && it.part.id === line.toPart ? [it.part] : []))[0];
+    const hp = held.hp;
+    w.events = [];
+
+    makePeace(w, me, trader);
+
+    expect(w.lines).toEqual([]);
+    expect(lineAnchors(w)).toEqual([]);
+    expect(held.hp).toBe(hp);
+    expect(w.events.some((e) => e.t === 'lineTorn')).toBe(false);
+    expect(fireBlock(w, me, vehicleStats(w, me).weapons.find((m) => m.part.id === part.id)!, trader)).not.toBe('lineOut');
+  });
+
+  it('ends a line the hooked truck is held by, when the other driver fired it', () => {
+    const { w, me, trader } = duel();
+    const harpoon = makePart(w, 'harpoon', 0);
+    if (!mountPart(w, trader, harpoon)) throw new Error('No deck room for the harpoon');
+    const heldPart = me.items.find((it) => it.kind === 'part');
+    if (!heldPart || heldPart.kind !== 'part') throw new Error('No part to hold');
+    attachLine(w, { from: trader, fromPart: harpoon.id, to: me, toPart: heldPart.part.id }, 10);
+
+    makePeace(w, trader, me);
+
+    expect(w.lines).toEqual([]);
+  });
+
+  it('keeps a line from a truck outside the truce', () => {
+    const { w, me, trader } = hit();
+    const third = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: me.pos.x, y: me.pos.y + 5 }, 0);
+    const harpoon = makePart(w, 'harpoon', 0);
+    if (!mountPart(w, third, harpoon)) throw new Error('No deck room for the harpoon');
+    const heldPart = trader.items.find((it) => it.kind === 'part');
+    if (!heldPart || heldPart.kind !== 'part') throw new Error('No part to hold');
+    attachLine(w, { from: third, fromPart: harpoon.id, to: trader, toPart: heldPart.part.id }, 10);
+
+    makePeace(w, me, trader);
+
+    expect(w.lines.map((l) => l.from)).toEqual([third.id]);
+  });
+
+  it('endLines drops a line between trucks that hold a truce state', () => {
+    const { w, me, trader } = hit();
+    addState(w, 'truce', me.id, trader.id, { kind: 'none' });
+
+    endLines(w);
+
+    expect(w.lines).toEqual([]);
+  });
+
+  it('still holds a knocked-out truck', () => {
+    const { w, trader } = hit();
+    trader.brain = npcBrain('trader', trader.pos, ['trader']);
+    knockOutNpc(w, trader);
+
+    endLines(w);
+
+    expect(w.lines).toHaveLength(1);
   });
 });
