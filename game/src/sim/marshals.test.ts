@@ -282,7 +282,7 @@ describe('a Marshall that backs off', () => {
     const rng = w.rngState;
     settlePlayerPlea(w, marshal, 'truce', true);
     expect(w.rngState).toBe(rng);
-    expect(w.crimes[0]).toMatchObject({ posse: 'pair', hunter: null, retryAt: w.turn + BOUNTY.retryTurns, status: 'open' });
+    expect(w.crimes[0]).toMatchObject({ posse: 'pair', hunter: null, retryAt: null, status: 'open' });
     expect(w.events.filter((e) => e.t === 'huntWithdrawn')).toEqual([{ t: 'huntWithdrawn', by: marshal.id, target: me.id, posse: 'pair' }]);
     expect(stateOf(w, 'truce', marshal.id, me.id)).not.toBeNull();
     const next = endTurn(w, testDrive);
@@ -327,6 +327,22 @@ describe('a Marshall that backs off', () => {
     planMarshal(w, marshal, [me]);
     expect(w.rngState).toBe(rng);
     expect(w.crimes[0]).toMatchObject({ posse: 'pair', hunter: null });
+  });
+
+  it('leaves the case to the pair with no retry wait, once both Marshalls wait at the post', () => {
+    const w = emptyWorld({ x: 100, y: 100 });
+    const target = traderAt(w, 'independent', { x: 500, y: 500 });
+    fileAgainst(w, target, { x: 500, y: 500 });
+    const marshal = marshalAt(w, { x: 506, y: 500 });
+    planMarshal(w, marshal, []);
+    shotUp(marshal);
+    forceOption('truceOffered', 'accept');
+    plead(w, target, marshal, 'truce');
+    const partner = marshalAt(w, { x: marshal.pos.x + 4, y: marshal.pos.y });
+    marshal.resources!.health = 100;
+    for (const m of [marshal, partner]) m.brain!.goals = [{ kind: 'wait', targetId: 'marshal-post', destination: { ...m.pos }, phase: 'act', reason: 'atPost', until: w.turn + 500 }];
+    expect(takeCase(w, marshal, [])).toBeNull();
+    expect(takeCase(w, marshal, [partner])).toMatchObject({ partner: { id: partner.id } });
   });
 
   it('throws on a withdrawal from a hunt it does not hold (P7)', () => {

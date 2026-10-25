@@ -2,7 +2,7 @@ import { BOUNTY, CRIME } from '../data/market';
 import { OFFENSE_LINES } from '../data/personalities';
 import { getKnownSite, decide, judgeDanger, npcProfile, wantsPeace } from './npc-decisions';
 import { createActivity, dropGoal, finishGoal, fightGoal, fleeFrom, goalsOf, interrupt, placeBase, pushGoal, topGoal } from './npc-activities';
-import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, stepPosse, takeHunt, targetNeed } from './crime';
+import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, takeHunt, targetNeed, withdrawCases } from './crime';
 import { followersOf, followingOf, followingStatesOf, inCompany } from './companies';
 import { followGoal, startEscort } from './tow';
 import { playerVehicle, vehicleById } from './damage';
@@ -268,8 +268,7 @@ function withdrawOnFlight(world: World, marshal: Vehicle, flight: NpcActivity): 
 export function withdrawHunt(world: World, hunter: Vehicle, target: Vehicle): void {
   const cases = huntedCases(world, hunter, target.id);
   if (cases.length === 0) throw new Error(`${hunter.id} withdraws from no hunt on ${target.id}`);
-  stepPosse(cases.filter((c) => c.posse !== 'spent'));
-  dropHunt(world, cases);
+  withdrawCases(cases);
   for (const s of followingStatesOf(world, hunter.id).filter((x) => x.kind === 'escort')) breakPair(world, vehicleById(world, s.holder), s);
   world.events.push({ t: 'huntWithdrawn', by: hunter.id, target: target.id, posse: targetNeed(world, target.id) === null ? 'spent' : 'pair' });
 }

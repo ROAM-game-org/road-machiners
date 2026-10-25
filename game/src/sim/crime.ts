@@ -245,6 +245,11 @@ export function dropHunt(world: World, cases: CrimeCase[]): void {
 
 const NEXT_POSSE: Readonly<Record<CasePosse, CasePosse | null>> = { lone: 'pair', pair: 'spent', spent: null };
 
+export function withdrawCases(cases: CrimeCase[]): void {
+  stepPosse(cases.filter((c) => c.posse !== 'spent'));
+  for (const c of cases) c.hunter = null;
+}
+
 export function stepPosse(cases: CrimeCase[]): void {
   for (const c of cases) {
     const next = NEXT_POSSE[c.posse];
