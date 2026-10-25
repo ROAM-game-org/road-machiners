@@ -55,13 +55,25 @@ open case
 - The Marshalls are an organized, lawful faction. They hold 0 toward every faction and every faction holds 0 toward them, except the Sunward at −20. The player starts at 0.
 - Two Marshalls ride as a pair from the Roadhouse, mostly in Lincolns at the `loaded` gear level. A loaded Lincoln alone wins about 3 fights in 10 against the midgame kit by `fightOdds()`, a pair about 7 in 10. They take fuel and repairs in Bowl and Nose.
 - An idle Marshall waits beside the Roadhouse. It takes the open case with the most owed on one target, oldest first, and one Marshall hunts one target.
+- Each case names its posse: one Marshall (`lone`), the pair (`pair`) or nobody (`spent`). A new case is `lone`. A target needs the pair while any of its open cases is `pair` or `spent`, and nobody rides it once all of them are `spent`. A spent case still lapses after 5 days and can be paid at the desk.
 - The first lead is the crime's place and the culprit's heading as the witnesses saw it. The Marshall asks each driver it sees once per hunt where it last saw the target, and a newer sighting replaces the lead. It never reads the target's position out of its own sight.
 - At a lead with no sight of the target, it searches toward the reporting pad nearest the lead's heading within 60 tiles, then rides on from pad to pad.
 - After half a day with no newer lead it gives up. The case waits half a day before any Marshall takes it again.
-- In sight of the target it demands payment once, and not again for a day. The demand stands for 10 turns.
+- In sight of the target it demands payment once, and not again for a day. The demand stands for 10 turns. A Marshall that sees its target before that day is out rides home, and the case waits until the day is out.
 - The player answers on the radio: Pay closes every case and makes a truce, and Refuse, a hang-up or silence starts a feud and a fight. Pay stays offered but off with the shortfall when the player cannot cover it. The player can also hail a Marshall that hunts it and pay.
 - An NPC target pays, fights or flees by the `bountyDemanded` decision. Pay is open only when its money covers the bounty.
-- A Marshall knocked out or wrecked frees its case.
+- A Marshall knocked out or wrecked frees its case, and the posse stays as it was.
+
+### Backing off and the pair
+
+- A Marshall is outmatched when it is weak, or when its danger judgment of the target, with no random spread, is more than it can manage. It is the same reason a driver weighs when it accepts a truce.
+- A hunt backs off when a truce plea between the target and a Marshall of the hunt is granted, whoever pleaded, or when a Marshall of the hunt runs from the target, and the hunting Marshall is outmatched at that moment. A Marshall that could win keeps the hunt through a truce.
+- Backing off steps every hunted case one posse up, `lone` to `pair` and `pair` to `spent`. It frees the case at once, with no half-day wait, and forgets the last demand. The Marshall drops its hunt and rides back to the Roadhouse. The rule is the same for player and NPC targets.
+- The player who pleads with a lone Marshall that backs off hears "Guns down, then. The page stays open. Next time I won't ride out alone." A pair that backs off says the plain truce line.
+- A case that needs the pair is taken only by a Marshall that waits at the Roadhouse and sees its partner waiting there too. Without the partner, it takes the next case one Marshall may ride, or none.
+- The deciding Marshall leads. Its partner follows on a fee-free escort, rides beside it and fires on anyone who shoots it. The leader alone follows leads, asks drivers and makes the demand.
+- Pay closes every case and makes a truce with both. A refusal, a hang-up or silence feuds the target from both, and each one that sees it fights. A knockout by either collects.
+- The pair breaks up when the hunt ends. A leader whose partner is knocked out gives the hunt up, and the case still waits for the pair.
 
 ## The desk at the Roadhouse
 
