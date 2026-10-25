@@ -105,6 +105,10 @@ export function isShield(def: PartDef): def is ShieldDef {
   return def.kind === "armor" || def.kind === "accessory";
 }
 
+export function isLineGun(def: PartDef): boolean {
+  return def.kind === "weapon" && def.line !== undefined;
+}
+
 export type CargoDef = PartBase & {
   kind: "cargo";
   extraRows: number;
