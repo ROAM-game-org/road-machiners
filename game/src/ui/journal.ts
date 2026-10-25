@@ -7,8 +7,9 @@ import type { ClaimContract } from '../sim/salvage';
 import type { World } from '../sim/types';
 import type { Contract, ContractEnd, PastContract } from '../sim/market';
 import { surveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
-import { postedSummary, surveyClueText } from './format';
+import { postedSummary, surveyWayText } from './format';
 import { createIcon } from './cards';
+import { surveyPictureEl } from './survey-picture';
 import { contractIcon, heldContractRow } from './contract-row';
 import { el, panel } from './dom';
 import type { UiHost } from './host';
@@ -83,23 +84,28 @@ function group(kind: string, head: Msg | null, ...body: HTMLElement[]): HTMLElem
 
 function workGroup(w: World, work: Contract[]): HTMLElement | null {
   if (work.length === 0) return null;
-  return group('work', t('journal.work'), el('div', { class: 'jobs' }, ...work.flatMap((c) => [heldContractRow(w, c), workDetail(c)].filter((x) => x !== null))));
+  return group('work', t('journal.work'), el('div', { class: 'jobs' }, ...work.flatMap((c) => [heldContractRow(w, c), workDetail(w, c)].filter((x) => x !== null))));
 }
 
-function workDetail(c: Contract): HTMLElement | null {
-  if (c.kind === 'survey') return el('div', { class: 'journal-detail' }, ...c.points.map((p) => surveyPlace(c, p)));
+function workDetail(w: World, c: Contract): HTMLElement | null {
+  if (c.kind === 'survey') return el('div', { class: 'journal-detail' }, ...c.points.map((p) => surveyPlace(w, c, p)));
   if (c.kind === 'claim' && c.leads.length > 0) return el('div', { class: 'journal-detail' }, ...claimLeads(c).map(leadEntry));
   return null;
 }
 
-function surveyPlace(c: SurveyContract, point: SurveyPoint): HTMLElement {
+function surveyPlace(w: World, c: SurveyContract, point: SurveyPoint): HTMLElement {
   const clue = surveyClue(c, point);
   return el(
     'div',
-    { class: 'journal-place' },
-    el('div', { class: 'journal-head' }, el('span', {}, t(`contract.look.${clue.type}`)), placeTag(point)),
-    el('div', {}, surveyClueText(clue)),
-    el('div', { class: 'dim' }, t(`contract.want.${clue.type}`)),
+    { class: 'journal-place survey' },
+    surveyPictureEl(point.site),
+    el(
+      'div',
+      { class: 'journal-place-text' },
+      el('div', { class: 'journal-head' }, el('span', {}, t(`contract.look.${clue.type}`)), placeTag(point)),
+      el('div', {}, surveyWayText(w, c, point)),
+      el('div', { class: 'dim' }, t(`contract.want.${clue.type}`)),
+    ),
   );
 }
 
@@ -132,7 +138,7 @@ function pastGroup(past: PastEntry[]): HTMLElement | null {
   return group('past', t('journal.past'), el('div', { class: 'jobs' }, ...past.map(pastEntry)));
 }
 
-const OUTCOME_TONE: Record<ContractEnd, 'good' | 'bad' | 'dim'> = { done: 'good', failed: 'bad', lapsed: 'dim', released: 'dim' };
+const OUTCOME_TONE: Record<ContractEnd, 'good' | 'bad' | 'dim'> = { done: 'good', failed: 'bad', late: 'dim', lapsed: 'dim', released: 'dim' };
 
 function pastEntry({ record, day }: PastEntry): HTMLElement {
   const c = record.contract;
@@ -142,11 +148,11 @@ function pastEntry({ record, day }: PastEntry): HTMLElement {
     contractIcon(c.kind),
     el('div', { class: 'job-what' }, el('span', {}, postedSummary(c)), el('span', { class: 'dim' }, t('journal.entryHead', { day, from: siteName(c.shop) }))),
     el('span', { class: `tag ${OUTCOME_TONE[record.outcome]}` }, t(`journal.past.${record.outcome}`)),
-    pastMoney(record.amount),
+    pastMoney(record),
   );
 }
 
-function pastMoney(amount: number): HTMLElement {
+function pastMoney({ amount }: PastContract): HTMLElement {
   if (amount > 0) return el('span', { class: 'price good' }, PLUS, moneyEl(amount));
-  return amount < 0 ? el('span', { class: 'price' }, moneyEl(amount)) : el('span', {});
+  return amount < 0 ? el('span', { class: 'price', title: t('journal.past.keptCargo') }, moneyEl(amount)) : el('span', {});
 }

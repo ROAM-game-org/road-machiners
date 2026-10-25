@@ -73,49 +73,82 @@ export function cropOf(rgba: Uint8ClampedArray, size: PixelSize, box: PixelBox):
   return out;
 }
 
-export function partMaskOf(lit: Uint8ClampedArray, ids: Uint16Array, idOf: number): Uint8ClampedArray {
-  if (lit.length !== ids.length * 4) throw new Error(`Lit buffer holds ${lit.length} values for ${ids.length} id pixels`);
-  const mask = new Uint8ClampedArray(lit.length);
-  for (let p = 0; p < ids.length; p++) {
-    if (ids[p] !== idOf || lit[p * 4 + 3] <= OPAQUE_ALPHA) continue;
-    mask.set(lit.subarray(p * 4, p * 4 + 4), p * 4);
-  }
-  return mask;
-}
+export type IdEntry = { box: PixelBox; count: number; lit: number; sumX: number; sumY: number };
+export type IdIndex = ReadonlyMap<number, IdEntry>;
 
-export function solidMaskOf(ids: Uint16Array, idOf: number): Uint8ClampedArray {
-  const mask = new Uint8ClampedArray(ids.length * 4);
-  for (let p = 0; p < ids.length; p++) if (ids[p] === idOf) mask.fill(BYTE, p * 4, p * 4 + 4);
-  return mask;
-}
-
-export function centerOf(ids: Uint16Array, size: PixelSize, idOf: number): { x: number; y: number } {
+export function indexIds(ids: Uint16Array, size: PixelSize, lit?: Uint8ClampedArray): IdIndex {
   expectSize(ids.length, size, 1);
-  let sumX = 0;
-  let sumY = 0;
-  let count = 0;
-  for (let p = 0; p < ids.length; p++) {
-    if (ids[p] !== idOf) continue;
-    sumX += p % size.width;
-    sumY += Math.floor(p / size.width);
-    count++;
+  const bounds = new Map<number, { x0: number; y0: number; x1: number; y1: number; count: number; lit: number; sumX: number; sumY: number }>();
+  let p = 0;
+  for (let y = 0; y < size.height; y++) {
+    for (let x = 0; x < size.width; x++, p++) {
+      const id = ids[p];
+      if (id === EMPTY_ID) continue;
+      let at = bounds.get(id);
+      if (!at) {
+        at = { x0: x, y0: y, x1: x, y1: y, count: 0, lit: 0, sumX: 0, sumY: 0 };
+        bounds.set(id, at);
+      }
+      at.x0 = Math.min(at.x0, x);
+      at.x1 = Math.max(at.x1, x);
+      at.y1 = y;
+      at.count++;
+      at.sumX += x;
+      at.sumY += y;
+      if (lit && lit[p * 4 + 3] > OPAQUE_ALPHA) at.lit++;
+    }
   }
-  if (count === 0) throw new Error(`No pixels hold id ${idOf}`);
-  return nearestOwnPixel(ids, size, idOf, sumX / count, sumY / count);
+  const index = new Map<number, IdEntry>();
+  for (const [id, at] of bounds) index.set(id, { box: { x: at.x0, y: at.y0, width: at.x1 - at.x0 + 1, height: at.y1 - at.y0 + 1 }, count: at.count, lit: at.lit, sumX: at.sumX, sumY: at.sumY });
+  return index;
 }
 
-function nearestOwnPixel(ids: Uint16Array, size: PixelSize, idOf: number, cx: number, cy: number): { x: number; y: number } {
+export function fullBox(size: PixelSize): PixelBox {
+  return { x: 0, y: 0, width: size.width, height: size.height };
+}
+
+function eachInBox(size: PixelSize, box: PixelBox, visit: (p: number, q: number) => void): void {
+  for (let row = 0; row < box.height; row++) {
+    const from = (box.y + row) * size.width + box.x;
+    for (let col = 0; col < box.width; col++) visit(from + col, row * box.width + col);
+  }
+}
+
+export function partMaskOf(lit: Uint8ClampedArray, ids: Uint16Array, size: PixelSize, idOf: number, box: PixelBox): Uint8ClampedArray {
+  if (lit.length !== ids.length * 4) throw new Error(`Lit buffer holds ${lit.length} values for ${ids.length} id pixels`);
+  const mask = new Uint8ClampedArray(box.width * box.height * 4);
+  eachInBox(size, box, (p, q) => {
+    if (ids[p] === idOf && lit[p * 4 + 3] > OPAQUE_ALPHA) mask.set(lit.subarray(p * 4, p * 4 + 4), q * 4);
+  });
+  return mask;
+}
+
+export function solidMaskOf(ids: Uint16Array, size: PixelSize, idOf: number, box: PixelBox): Uint8ClampedArray {
+  const mask = new Uint8ClampedArray(box.width * box.height * 4);
+  eachInBox(size, box, (p, q) => {
+    if (ids[p] === idOf) mask.fill(BYTE, q * 4, q * 4 + 4);
+  });
+  return mask;
+}
+
+export function centerOf(ids: Uint16Array, size: PixelSize, idOf: number, entry: IdEntry | undefined): { x: number; y: number } {
+  expectSize(ids.length, size, 1);
+  if (!entry) throw new Error(`No pixels hold id ${idOf}`);
+  return nearestOwnPixel(ids, size, idOf, entry, entry.sumX / entry.count, entry.sumY / entry.count);
+}
+
+function nearestOwnPixel(ids: Uint16Array, size: PixelSize, idOf: number, entry: IdEntry, cx: number, cy: number): { x: number; y: number } {
   let best = { x: cx, y: cy };
   let bestDist = Infinity;
-  for (let p = 0; p < ids.length; p++) {
-    if (ids[p] !== idOf) continue;
+  eachInBox(size, entry.box, (p) => {
+    if (ids[p] !== idOf) return;
     const x = p % size.width;
     const y = Math.floor(p / size.width);
     const dist = (x - cx) ** 2 + (y - cy) ** 2;
-    if (dist >= bestDist) continue;
+    if (dist >= bestDist) return;
     bestDist = dist;
     best = { x, y };
-  }
+  });
   return { x: best.x + 0.5, y: best.y + 0.5 };
 }
 

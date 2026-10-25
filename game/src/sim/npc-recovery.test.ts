@@ -6,7 +6,7 @@ import { assignAutoOrders, fireBlock, fireWeapons } from './combat';
 import { vehicleStats } from './stats';
 import { corePart, mountedParts } from './grid';
 import { addGoods } from './inventory';
-import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
+import { ledPoint, resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { chooseOn } from './tracks';
 import { fightOddsAgainst, judgeDanger, perceiveDanger, usefulContacts } from './npc-decisions';
 import { siteGates } from './sites';
@@ -215,7 +215,7 @@ describe('NPC gameplay recovery', () => {
     expect(shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee')).toBeGreaterThan(0.25);
   });
 
-  it('follows the heard center of a useful contact until it arrives there, never the truck itself', () => {
+  it('follows the heard center of a useful contact, led along its drift, until it arrives there, never the truck itself', () => {
     const { world, npc } = createScenario('buggy');
     const prey = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 55, y: 30 });
     prey.speed = 4;
@@ -229,11 +229,13 @@ describe('NPC gameplay recovery', () => {
     world.rngState = seed;
     planNpcOrders(world);
     expect(topGoal(npc)?.kind).toBe('investigate');
+    const heard = topGoal(npc)!.heard;
     prey.pos.x += 1;
     world.turn++;
     planNpcOrders(world);
     const destination = { ...topGoal(npc)!.destination! };
-    expect(destination).toEqual(usefulContacts(world, npc).find((c) => c.vehicleId === prey.id)!.center);
+    const contact = usefulContacts(world, npc).find((c) => c.vehicleId === prey.id)!;
+    expect(destination).toEqual(ledPoint(contact.center, heard, contact.radius, vehicleStats(world, npc).maxSpeed));
     expect(destination).not.toEqual(prey.pos);
     npc.pos = destination;
     prey.pos = { x: destination.x + 25, y: destination.y };

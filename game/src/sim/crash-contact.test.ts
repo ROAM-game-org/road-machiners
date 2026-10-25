@@ -1,7 +1,7 @@
 import { partDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
-import { applyContactCrash, computeClosingSpeed, locateCrashContact } from './crash-contact';
+import { applyContactCrash, applyGroundCrash, applyLanding, computeClosingSpeed, locateCrashContact } from './crash-contact';
 import { addVehicle, emptyWorld, npcBrain, practiceOf } from './testkit';
 import { PERK_NUMBERS } from '../data/skills';
 import { isHostile } from './combat';
@@ -87,6 +87,43 @@ describe('crash contacts', () => {
   it('rejects missing geometry', () => {
     expect(() => locateCrashContact('scout', 0, [], { x: 1, y: 0 })).toThrow('no contact points');
     expect(() => computeClosingSpeed({ x: 2, y: 0 }, { x: 0, y: 0 })).toThrow('no horizontal direction');
+  });
+});
+
+describe('the collision event impact', () => {
+  const lastImpact = (world: ReturnType<typeof emptyWorld>) => {
+    const event = world.events.at(-1);
+    if (event?.t !== 'collision') throw new Error('No collision event');
+    return event.impact;
+  };
+
+  it('holds the impact of a vehicle contact', () => {
+    const world = emptyWorld();
+    const a = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    const b = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 42, y: 40 });
+    applyContactCrash(world, a, b, b.id, 3.5, { a: { side: 'front', lanes: [1] }, b: { side: 'front', lanes: [1] } });
+    expect(lastImpact(world)).toBe(3.5);
+  });
+
+  it('holds the impact of an obstacle contact', () => {
+    const world = emptyWorld();
+    const a = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    applyContactCrash(world, a, null, 'rock', 2.25, { a: { side: 'front', lanes: [1] }, b: null });
+    expect(lastImpact(world)).toBe(2.25);
+  });
+
+  it('holds the impact of a ground crash', () => {
+    const world = emptyWorld();
+    const a = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    applyGroundCrash(world, a, 'ground', 5, { side: 'front', lanes: [1] });
+    expect(lastImpact(world)).toBe(5);
+  });
+
+  it('holds the impact of a hard landing', () => {
+    const world = emptyWorld();
+    const a = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    applyLanding(world, a, 'ground', 6);
+    expect(lastImpact(world)).toBe(6);
   });
 });
 
