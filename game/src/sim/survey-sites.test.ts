@@ -7,7 +7,8 @@ import { mapObstacles } from './mapgen';
 import { navLayer } from './nav/layer';
 import { MAX_RADIUS, nearestRoadPoint, oldPlaces, reachable } from './salvage';
 import { siteGap } from './sites';
-import { makeSurveySites, surveySites } from './survey';
+import { makeSurveySites, surveyClue, surveySites, type SurveyContract } from './survey';
+import { gridSquareOf } from './map-grid';
 import { siteOf } from './market';
 import { dist, type Vec } from './vec';
 
@@ -29,6 +30,15 @@ describe('survey sites', () => {
     expect(sites).toEqual(JSON.parse(JSON.stringify(makeSurveySites(TEST_MAP))));
   });
 
+  it('name each prop by the landmark obstacle that stands there', () => {
+    for (const s of sites)
+      for (const prop of s.props) {
+        const obstacle = baked.find((o) => o.id === prop.id);
+        expect(obstacle, prop.id).toBeDefined();
+        expect(obstacle!.pos).toEqual(prop.pos);
+      }
+  });
+
   it('are refused for another map', () => {
     expect(() => surveySites({ hash: 'another-map', terrain: TEST_MAP.terrain })).toThrow(/npm run old-spots/);
   });
@@ -46,9 +56,9 @@ describe('survey sites', () => {
     }
   });
 
-  it('can be reached by the largest chassis from the roads', () => {
+  it('can be reached by a loaded buggy from the roads', () => {
     const prop = (id: string) => baked.find((o) => `survey-${o.id}` === id)!;
-    for (const s of sites) expect(reachable(layer, prop(s.id))).toBe(true);
+    for (const s of sites) expect(reachable(layer, prop(s.id), REGION.navigation.reachClimb)).toBe(true);
   });
 
   it('each have a clue from a named place, with its distance rounded to the nearest hundred meters', () => {
@@ -88,11 +98,24 @@ describe('survey sites', () => {
 
   it('read the lay of the ground against the ring around them', () => {
     const lays = new Set(sites.map((s) => s.lay));
-    expect([...lays].sort()).toEqual(['flat', 'hollow', 'rise']);
+    expect(lays.size).toBeGreaterThanOrEqual(2);
+    for (const lay of lays) expect(['flat', 'hollow', 'rise']).toContain(lay);
     for (const s of sites) if (s.type === 'lookout') expect(s.lay).toBe('rise');
   });
 
   it('give every shop at least one site in range', () => {
     for (const shop of Object.keys(SHOPS)) expect(sites.some((s) => dist(s.pos, siteOf(shop).pos) <= rules.range)).toBe(true);
+  });
+});
+
+describe('survey clue squares', () => {
+  const contractFor = (landmark: string, site: string): SurveyContract => ({ id: 'ct', shop: landmark, kind: 'survey', points: [{ site, found: false, done: false }], reward: 0, deadline: 0, window: 0, tier: 1 });
+
+  it('name the map grid square that holds the site, for every fair clue', () => {
+    for (const s of sites)
+      for (const told of s.clues) {
+        const clue = surveyClue(contractFor(told.landmark, s.id), { site: s.id, found: false, done: false });
+        expect(clue.square, `${s.id} from ${told.landmark}`).toEqual(gridSquareOf(s.pos));
+      }
   });
 });

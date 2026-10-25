@@ -454,6 +454,11 @@ export function searchLapsed(world: World, c: Contract): boolean {
   return !c.delivered && !world.vehicles.some((v) => v.id === c.target);
 }
 
+export function searchCold(world: World, c: Contract): boolean {
+  if (c.kind !== 'search') throw new Error(`${c.kind} contract has no search target`);
+  return world.turn - c.lead.turn > CONTRACTS.search.freshTurns;
+}
+
 export function heldSearch(world: World): SearchContract | null {
   return world.player.contracts.find((c): c is SearchContract => c.kind === 'search') ?? null;
 }
@@ -586,7 +591,7 @@ export function advanceShops(world: World): void {
   for (const [shopId, state] of Object.entries(world.shops)) {
     const restockAt = state.restockAt;
     advanceShop(world, shopId, state);
-    state.contracts = state.contracts.filter((c) => !isExpired(world, c) && !claimGone(world, c) && (c.kind !== 'rescue' || rescueOfferValid(world, c)));
+    state.contracts = state.contracts.filter((c) => !isExpired(world, c) && !claimGone(world, c) && (c.kind !== 'rescue' || rescueOfferValid(world, c)) && !(c.kind === 'search' && searchCold(world, c)));
     if (state.restockAt === restockAt) continue;
     state.contracts = state.contracts.filter((c) => offerStillValid(world, c));
     fillBoard(world, shopId, state);
