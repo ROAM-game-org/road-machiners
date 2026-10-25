@@ -176,7 +176,7 @@ def cab(kit: Kit) -> None:
     """A regular cab: painted doors to the beltline, a leaning glasshouse under a narrower painted roof, raked windshield, pillars and a rear window."""
     kit.box("doors", (COWL_X - CAB_BACK, 2 * SIDE, BELT - FLOOR), ((COWL_X + CAB_BACK) / 2, 0, (BELT + FLOOR) / 2), "paint")
     low, high = SIDE - 0.045, SIDE - 0.14
-    glass = [(x, s * y, z) for x, y, z in ((COWL_X, low, COWL_TOP), (CAB_BACK, low, BELT), (ROOF_FRONT, high, UNDER_ROOF), (CAB_BACK, high, UNDER_ROOF)) for s in (1, -1)]
+    glass = [(x, s * y, z) for x, y, z in ((COWL_X, low, COWL_TOP), (CAB_BACK + 0.03, low, BELT), (ROOF_FRONT, high, UNDER_ROOF), (CAB_BACK + 0.03, high, UNDER_ROOF + ROOF_T / 2)) for s in (1, -1)]
     hull(kit, "glass", "glass", glass)
     for sign, name in ((1, "l"), (-1, "r")):
         a = [(COWL_X, low, COWL_TOP), (COWL_X - 0.08, low, BELT), (ROOF_FRONT, high, UNDER_ROOF), (ROOF_FRONT + 0.08, high, UNDER_ROOF)]
