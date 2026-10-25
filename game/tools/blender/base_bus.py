@@ -267,7 +267,7 @@ def body(kit: Kit) -> None:
         flare(kit, f"flare{i}_l", G, wx, HUB_Z, WHEEL_R, SIDE - 0.02, HALF_Y, bottom=BODY_BOTTOM, segments=ARCH_SIDES)
         flare(kit, f"flare{i}_r", G, wx, HUB_Z, WHEEL_R, -HALF_Y, -SIDE + 0.02, bottom=BODY_BOTTOM, segments=ARCH_SIDES)
     top_tip = FRONT - WINDSHIELD_RAKE - 0.02
-    band = plan_ring(SILL, FRONT, BACK, SIDE, BULGE, CORNER) + plan_ring(WIN_TOP + PROUD, top_tip, BACK + 0.04, SIDE - TUMBLE, 0.08, top_tip - 0.08 - NOSE_END)
+    band = plan_ring(SILL, FRONT, BACK, SIDE, BULGE, CORNER) + plan_ring(WIN_TOP + PROUD / 2, top_tip, BACK + 0.04, SIDE - TUMBLE, 0.08, top_tip - 0.08 - NOSE_END)
     add_hull(kit, "band", band, "glass")
     lip = [p for z in (VISOR_FOOT, WIN_TOP + 0.04) for p in plan_ring(z, CANT[0][1], BACK, SIDE - TUMBLE, CANT[0][4], CANT[0][5]) if p[0] > NOSE_END - 0.05]
     add_hull(kit, "visor_lip", lip, "paint")
