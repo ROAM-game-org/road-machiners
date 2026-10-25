@@ -17,7 +17,7 @@ What people in the basin know or can find out.
 - Year 110. Yara leads the old singers out of the crater to the Children of Noah on the debris trail, and they become the Children of Noah's singers. Only the sworn men stay. The same year a Bowl tenant grain cart vanishes on the rim road at night. The Senate blames the loose Old Army riflemen.
 - Around year 118. Absalom Reyne starts to preach at the order's fire, and people call him the Preacher. He teaches that the thing in the crater feeds on what falls from the sky and will burn the basin unless it is served, and that the Keeper went into the light to serve it and will come back.
 - Year 119. The deserter Joss Ardo, Pell Ardo's nephew, gets out of the order with the singers' help and tells the Senate what he saw. The Senate stops all grain to the Sunward.
-- Year 121. The Lunar Society casts Teo out, and people call him the Apprentice. Yara Sorrel dies at the beacon.
+- Year 121. The Lunar Society casts Teo out, and people call him the Apprentice. Yara Sorrel dies.
 - Year 128. The Apprentice reads the last marks in the central hull's shadow, under the order's escort, and tells nobody what he read. He trades the count's last number to the Preacher, who chants it at the rim at dawn as the glow's word. The Sunward bar the Lunar Society from the rim. The Apprentice walks away and has no part in what the order does after.
 - Year 128. Joss Ardo's friend Cobb Navarre is caught leaving the order at night and is never seen again.
 - Years 127 to 130. The order no longer sleeps in the crater. Its trucks leave from somewhere in the wastes at dusk, cross open ground to the crater with their lamps in a line, keep the night there and go before dawn. Drivers keep away from the crater after dark.

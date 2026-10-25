@@ -99,7 +99,7 @@ VAR asked_paper = false
   A piece of Army steel from wagon Seven changed hands at the <term=salvage_yard>Yard</term>. I logged the sale. Your name is on the line, beside the price.
   -> hub
 + {heard_workshop and not asked_workshop} [Where did the workshop line come from?]
-  Old Orchard, the Old Army's depot. The machine tools are the Guild's, and command rents them. Who pays that rent is above my sheet.
+  Old Orchard, the Old Army's depot. Command hauled the machine tools up the mountain once the Army was gone. Who signed for them is above my sheet.
   ~ asked_workshop = true
   -> hub
 + {heard_mounts and not asked_mounts} [Why let unarmed trucks out the gate?]

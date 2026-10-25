@@ -64,7 +64,7 @@ Sample: "The sack leaves the store once and the Senate counts it twice."
 
 ### Bo Lindqvist, Granary driver
 
-Bo talks of load, weight, hands and oxen. He compares his feelings to things he carries.
+Bo talks of load, weight and hands. He compares his feelings to things he carries.
 
 His sentences are plain and even, with no joke in them. He says "I" and gives the fact without softening it.
 
@@ -88,7 +88,7 @@ He cares about the count being honest and the load being tied down. He avoids sa
 
 He treats a stranger as a driver who should check the tires before anything else.
 
-Sample: "A sack is cheaper than a truck, so nobody argues about it."
+Sample: "A crate of rations is cheaper than a truck, so nobody argues about it."
 
 ### Odile Marsh, Granary steward
 
