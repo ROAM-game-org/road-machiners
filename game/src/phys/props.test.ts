@@ -61,9 +61,10 @@ function paced(from: { x: number; y: number }, to: { x: number; y: number }, pac
   return w;
 }
 
-function play(w: World, turns: number): { w: World; hits: string[]; crashes: Crash[]; breaks: Break[]; live: string[]; speeds: number[] } {
+function play(w: World, turns: number): { w: World; hits: string[]; impacts: number[]; crashes: Crash[]; breaks: Break[]; live: string[]; speeds: number[] } {
   let d = buildDrive(w);
   const hits: string[] = [];
+  const impacts: number[] = [];
   const crashes: Crash[] = [];
   const breaks: Break[] = [];
   const speeds: number[] = [];
@@ -72,6 +73,7 @@ function play(w: World, turns: number): { w: World; hits: string[]; crashes: Cra
     const id = me(w).id;
     w = endTurn(w, physicsMove(d, (x) => (r = x)));
     hits.push(...w.events.flatMap((e) => (e.t === 'collision' ? [e.b] : [])));
+    impacts.push(...w.events.flatMap((e) => (e.t === 'collision' ? [e.impact] : [])));
     crashes.push(...r!.crashes);
     breaks.push(...r!.breaks);
     const frames = r!.frames[id];
@@ -81,7 +83,7 @@ function play(w: World, turns: number): { w: World; hits: string[]; crashes: Cra
   }
   const live = Object.keys(d.obstacles);
   freeDrive(d);
-  return { w, hits, crashes, breaks, live, speeds };
+  return { w, hits, impacts, crashes, breaks, live, speeds };
 }
 
 const halfWidth = (w: World) => bodyOf(me(w).chassisId).half.z / S;
@@ -203,11 +205,17 @@ describe('breakable props', () => {
   it('a fast truck breaks a fence and drives on through it', () => {
     const { w, crashes, breaks } = play(paced({ x: 34, y: 30 }, { x: 60, y: 30 }, fast, [fence]), 8);
 
-    expect(breaks).toEqual([{ prop: 'fence1', vehicle: me(w).id, step: expect.any(Number) }]);
+    expect(breaks).toEqual([{ prop: 'fence1', vehicle: me(w).id, impact: expect.any(Number), step: expect.any(Number) }]);
     expect(crashes).toEqual([]);
     expect(w.obstacles).toEqual([]);
     expect(w.broken.map((b) => b.obstacle)).toEqual([fence]);
     expect(me(w).pos.x).toBeGreaterThan(42);
+  });
+
+  it('the smash event carries the impact of the break in tiles per turn', () => {
+    const { impacts, breaks } = play(paced({ x: 34, y: 30 }, { x: 60, y: 30 }, fast, [fence]), 8);
+    expect(breaks[0].impact).toBeGreaterThanOrEqual(BREAKABLE.breakSpeed);
+    expect(impacts).toEqual([toTilesPerTurn(breaks[0].impact)]);
   });
 
   it('breaking a fence costs the truck its slowdown share of speed, not a full stop', () => {

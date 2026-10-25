@@ -5,6 +5,7 @@ import { REGION } from '../data/region';
 import type { OldPlaceType } from '../data/salvage';
 import SURVEY_SITES_FILE from '../data/survey-sites.json';
 import { atlasOf, type AtlasKey } from './atlas';
+import { directionsFromSite } from './directions';
 import { estimateTurns, haulWindow, siteOf, type Contract } from './market';
 import { playerVehicle } from './damage';
 import { startJob } from './jobs';
@@ -16,10 +17,11 @@ import { playerCommand } from './world';
 import { siteGap, type Site } from './sites';
 import { tileOf } from './vision';
 import { heightAt, type BakedMap, type Terrain } from './terrain';
-import type { Job, Vehicle, World } from './types';
+import type { DirectionStep, Job, Vehicle, World } from './types';
+import { gridSquareOf, type GridSquare } from './map-grid';
 import { bearing, dist, type Vec } from './vec';
 
-export type SurveyProp = { pos: Vec; reach: number };
+export type SurveyProp = { id: string; pos: Vec; reach: number };
 export type SurveyLay = 'rise' | 'hollow' | 'flat';
 export type SurveyClueSource = { landmark: string; tiles: number };
 export type SurveySite = { id: string; type: OldPlaceType; pos: Vec; props: SurveyProp[]; lay: SurveyLay; clues: SurveyClueSource[] };
@@ -96,12 +98,12 @@ export function makeSurveySites(map: BakedMap): SurveySite[] {
   return places.flatMap((place) => {
     if (!remote(place.centroid)) return [];
     const order = [...place.props].sort((a, b) => propHash(map, a) - propHash(map, b));
-    const spot = order.find((o) => remote(o.pos) && offRoad(o) && reachable(layer, o));
+    const spot = order.find((o) => remote(o.pos) && offRoad(o) && reachable(layer, o, REGION.navigation.reachClimb));
     if (!spot) return [];
     const clues = fairClues({ type: place.type, pos: spot.pos }, places);
     if (clues.length === 0) return [];
     const others = order.filter((o) => o !== spot && remote(o.pos) && offRoad(o));
-    const props = [spot, ...others].map((o) => ({ pos: { ...o.pos }, reach: propReach(o) }));
+    const props = [spot, ...others].map((o) => ({ id: o.id, pos: { ...o.pos }, reach: propReach(o) }));
     return [{ id: `survey-${spot.id}`, type: place.type, pos: { ...spot.pos }, props, lay: layOf(map.terrain, spot.pos), clues }];
   });
 }
@@ -171,7 +173,7 @@ export function rollSurvey(world: World, shop: { id: string; pos: Vec }, free: S
   return { id, shop: shop.id, kind: 'survey', points, reward: surveyReward(turns), deadline: world.turn + window, window, tier: 1 };
 }
 
-export type SurveyClue = { type: OldPlaceType; landmark: string; rad: number; tiles: number; lay: SurveyLay };
+export type SurveyClue = { type: OldPlaceType; landmark: string; rad: number; tiles: number; lay: SurveyLay; square: GridSquare };
 
 export function surveyClue(c: SurveyContract, point: SurveyPoint): SurveyClue {
   const site = SURVEY_SITES.sites.find((s) => s.id === point.site);
@@ -179,7 +181,13 @@ export function surveyClue(c: SurveyContract, point: SurveyPoint): SurveyClue {
   const told = site.clues.find((k) => k.landmark === c.shop) ?? site.clues[0];
   if (!told) throw new Error(`Survey site ${site.id} has no fair clue`);
   const rad = sectorBearing(compassSector(bearing(siteOf(told.landmark).pos, site.pos)));
-  return { type: site.type, landmark: told.landmark, rad, tiles: told.tiles, lay: site.lay };
+  return { type: site.type, landmark: told.landmark, rad, tiles: told.tiles, lay: site.lay, square: gridSquareOf(site.pos) };
+}
+
+export function surveyWay(world: World, c: SurveyContract, point: SurveyPoint): DirectionStep[] | null {
+  const site = surveySite(world, point.site);
+  const steps = directionsFromSite(world, c.shop, { kind: 'spot', pos: site.pos, clue: 'place' });
+  return steps.some((s) => s.do === 'noRoad' || s.do === 'askAgain') ? null : steps;
 }
 
 export function openSurveyPoint(c: SurveyContract): SurveyPoint | null {

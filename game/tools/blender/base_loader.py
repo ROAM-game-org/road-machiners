@@ -73,26 +73,42 @@ ROOF_OVER = 0.08
 PILLAR = 0.1
 
 HOOD_FRONT = CAB_BACK
-HOOD_BACK = -3.06
 HOOD_Y = 0.68
 HOOD_TOP = GROUND + 2.67
-HOOD_TAIL = HOOD_TOP - 0.36
+HOOD_TAIL = GROUND + 2.45
 HOOD_BOTTOM = FRAME_TOP
-HOOD_CHAMFER = 0.2
+SHOULDER_R = 0.2
 BAY_FRONT = -1.55
 BAY_BACK = -2.99
 BAY_Y = 0.45
 BAY_FLOOR = 0.5
 BAY_T = 0.05
+HOOD_BACK = BAY_BACK - 0.02
+HOUSING_FRONT = HOOD_BACK + 0.24
+LOUVERS = 6
+LOUVER_HALF = HOOD_Y - 0.12
+VENT_FRONT = HOUSING_FRONT + 0.8
+VENT_BACK = HOUSING_FRONT + 0.25
+VENT_BOTTOM = GROUND + 1.45
+VENT_TOP = GROUND + 2.25
 STACK_X = CAB_BACK - 0.24
 STACK_Y = 0.42
-EXHAUST_TOP = GROUND + 3.42
+STACK_R = 0.12
+EXHAUST_TOP = ROOF - 0.06
+ELBOW_LEN = 0.26
+ELBOW_TILT = math.radians(50)
+DOME_R = 0.23
+BEACON_X = CAB_BACK + 0.3
+BEACON_Y = 0.7
+BEACON_R = 0.08
 
 COUNTER_FRONT = -2.55
-COUNTER_TOP = -0.1
-COUNTER_BOTTOM = GROUND + 0.45
-COUNTER_HALF = 1.3
-COUNTER_CORNER = 0.35
+COUNTER_TOP = FRAME_TOP
+COUNTER_BOTTOM = GROUND + 0.55
+COUNTER_HALF = 1.1
+COUNTER_CORNER = 0.25
+COUNTER_CHAMFER = 0.18
+LAMP_Y = 0.9
 
 
 def mirrored(kit: Kit, name: str, size: Vec3, x: float, y: float, z: float, mat: str) -> None:
@@ -190,14 +206,14 @@ def check_bucket_clear() -> None:
 
 def bucket(kit: Kit) -> None:
     check_bucket_clear()
-    prism(kit, "scoop", shell(BUCKET, BUCKET_T), -BUCKET_HALF + 0.05, BUCKET_HALF - 0.05, "paint")
+    prism(kit, "scoop", shell(BUCKET, BUCKET_T), -BUCKET_HALF + 0.05, BUCKET_HALF - 0.05, "metal_light")
     top = BUCKET[-1]
     plate = [*BUCKET, (top[0] + 0.3, top[1] - 0.1), (FRONT - 0.08, BUCKET[0][1] + 0.62), (FRONT, BUCKET[0][1] + 0.4)]
-    prism(kit, "side_plate_l", plate, BUCKET_HALF - 0.05, BUCKET_HALF, "paint")
-    prism(kit, "side_plate_r", plate, -BUCKET_HALF, -BUCKET_HALF + 0.05, "paint")
+    prism(kit, "side_plate_l", plate, BUCKET_HALF - 0.05, BUCKET_HALF, "metal_light")
+    prism(kit, "side_plate_r", plate, -BUCKET_HALF, -BUCKET_HALF + 0.05, "metal_light")
     guard = [(top[0], top[1] - 0.02), (top[0] - 0.1, top[1] + 0.22), (top[0] - 0.05, top[1] + 0.22), (top[0] + 0.05, top[1])]
-    prism(kit, "spill_guard", guard, -BUCKET_HALF + 0.05, BUCKET_HALF - 0.05, "paint")
-    beam(kit, "cutting_edge", BUCKET[0], lerp(BUCKET[0], BUCKET[1], 0.35), 0, 2 * BUCKET_HALF - 0.1, 0.05, "metal_light")
+    prism(kit, "spill_guard", guard, -BUCKET_HALF + 0.05, BUCKET_HALF - 0.05, "metal_light")
+    beam(kit, "cutting_edge", BUCKET[0], lerp(BUCKET[0], BUCKET[1], 0.35), 0, 2 * BUCKET_HALF - 0.1, 0.05, "metal")
     beam(kit, "wear_strip", lerp(BUCKET[3], BUCKET[4], 0.2), lerp(BUCKET[5], BUCKET[6], 0.5), 0, 2 * BUCKET_HALF - 0.2, 0.12, "under")
     for s, y in (("l", ARM_Y), ("r", -ARM_Y)):
         kit.box(f"bucket_ear_{s}", (0.16, 0.18, 0.34), (B_PIN[0] + 0.04, y, B_PIN[1] + 0.06), "under")
@@ -245,7 +261,7 @@ def platform(kit: Kit) -> None:
     kit.box("platform", (PLATFORM_FRONT - PLATFORM_BACK, 2 * PLATFORM_HALF, 0.1), ((PLATFORM_FRONT + PLATFORM_BACK) / 2, 0, PLATFORM_TOP - 0.05), "paint")
     ladder_y = PLATFORM_HALF - 0.08
     for x in (-0.2, -0.56):
-        kit.box(f"ladder_rail{x:.2f}", (0.04, 0.04, PLATFORM_TOP + 0.75 - FRAME_BOTTOM), (x, ladder_y + 0.02, (PLATFORM_TOP + 0.75 + FRAME_BOTTOM) / 2), "under")
+        kit.box(f"ladder_rail{x:.2f}", (0.04, 0.04, PLATFORM_TOP + 0.6 - FRAME_BOTTOM), (x, ladder_y + 0.02, (PLATFORM_TOP + 0.6 + FRAME_BOTTOM) / 2), "under")
     for i in range(4):
         kit.box(f"rung{i}", (0.36, 0.05, 0.03), (-0.38, ladder_y + 0.02, FRAME_BOTTOM + 0.1 + 0.3 * i), "metal_light")
     rail_y = PLATFORM_HALF - 0.03
@@ -268,44 +284,101 @@ def cab(kit: Kit) -> None:
     kit.box("roof_band", (length + 2 * ROOF_OVER + 0.02, 2 * (CAB_HALF + ROOF_OVER) + 0.02, 0.05), (mid, 0, UNDER_ROOF + 0.025), "trim")
     for x, face in ((CAB_FRONT + ROOF_OVER + 0.01, 1), (CAB_BACK - ROOF_OVER - 0.01, -1)):
         for s, y in (("l", CAB_HALF - 0.05), ("r", -CAB_HALF + 0.05)):
-            kit.cylinder(f"work_lamp_{s}{face}", 0.05, 0.05, (x, y, UNDER_ROOF - 0.03), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(0.05))
+            kit.cylinder(f"work_lamp_{s}{face}", 0.05, 0.05, (x, y, UNDER_ROOF - 0.08), "light", rot=(0, math.pi / 2, 0), vertices=round_sides(0.05))
+    kit.cylinder("beacon_base", BEACON_R + 0.02, 0.04, (BEACON_X, BEACON_Y, ROOF + 0.02), "under", vertices=round_sides(BEACON_R + 0.02))
+    kit.cylinder("beacon", BEACON_R, 0.16, (BEACON_X, BEACON_Y, ROOF + 0.12), "red", vertices=round_sides(BEACON_R))
+
+
+def hood_top(x: float) -> float:
+    return HOOD_TOP + (HOOD_TAIL - HOOD_TOP) * (HOOD_FRONT - x) / (HOOD_FRONT - HOOD_BACK)
+
+
+def shoulder_section(x: float) -> list[Vec3]:
+    top = hood_top(x)
+    steps = arc_steps(math.pi / 2, SHOULDER_R)
+    pts: list[Vec3] = []
+    for s in (1, -1):
+        pts.append((x, s * HOOD_Y, HOOD_BOTTOM))
+        for k in range(steps + 1):
+            a = math.pi / 2 * k / steps
+            pts.append((x, s * (HOOD_Y - SHOULDER_R + SHOULDER_R * math.cos(a)), top - SHOULDER_R + SHOULDER_R * math.sin(a)))
+    return pts
+
+
+def check_grille_clear() -> None:
+    if HOOD_BACK >= BAY_BACK:
+        raise RuntimeError(f"The grille face at x {HOOD_BACK:.3f} cuts into the engine hole, which ends at x {BAY_BACK:.3f}")
+
+
+def hood_shell(kit: Kit, name: str, x0: float, x1: float, mat: str) -> None:
+    obj = hull_mesh(name, shoulder_section(x0) + shoulder_section(x1))
+    cut_boxes(obj, [((BAY_BACK, -BAY_Y, BAY_FLOOR - BAY_T), (BAY_FRONT, BAY_Y, HOOD_TOP + 0.1))])
+    obj.data.materials.clear()
+    kit._add(obj, name, mat, 0.0)
+
+
+def grille(kit: Kit) -> None:
+    low, high = FRAME_TOP + 0.12, HOOD_TAIL - SHOULDER_R - 0.08
+    for i in range(LOUVERS):
+        z = low + (high - low) * i / (LOUVERS - 1)
+        kit.box(f"louver{i}", (0.04, 2 * LOUVER_HALF, 0.08), (HOOD_BACK - 0.02, 0, z), "metal")
+    for s, y in (("l", LOUVER_HALF + 0.03), ("r", -LOUVER_HALF - 0.03)):
+        kit.box(f"louver_post_{s}", (0.05, 0.04, high - low + 0.12), (HOOD_BACK - 0.02, y, (low + high) / 2), "metal_dark")
+
+
+def side_vents(kit: Kit) -> None:
+    length = VENT_FRONT - VENT_BACK
+    mid = (VENT_FRONT + VENT_BACK) / 2
+    mirrored(kit, "vent", (length, 0.02, VENT_TOP - VENT_BOTTOM), mid, HOOD_Y + 0.005, (VENT_TOP + VENT_BOTTOM) / 2, "soot")
+    for i in range(4):
+        z = VENT_BOTTOM + (VENT_TOP - VENT_BOTTOM) * (i + 1) / 5
+        mirrored(kit, f"vent_bar{i}", (length - 0.04, 0.02, 0.03), mid, HOOD_Y + 0.015, z, "metal_dark")
+
+
+def exhaust(kit: Kit) -> None:
+    low = hood_top(STACK_X) - 0.1
+    axis = (-math.sin(ELBOW_TILT), math.cos(ELBOW_TILT))
+    elbow_low = EXHAUST_TOP - ELBOW_LEN * axis[1] - (STACK_R + 0.01) * math.sin(ELBOW_TILT) - 0.01 * axis[1]
+    stack_top = elbow_low + STACK_R * math.sin(ELBOW_TILT)
+    kit.cylinder("exhaust", STACK_R, stack_top - low, (STACK_X, -STACK_Y, (stack_top + low) / 2), "soot", vertices=round_sides(STACK_R))
+    kit.cylinder("exhaust_band", STACK_R + 0.015, 0.05, (STACK_X, -STACK_Y, low + 0.14), "metal_light", vertices=round_sides(STACK_R + 0.015))
+    elbow_mid = (STACK_X + axis[0] * ELBOW_LEN / 2, elbow_low + axis[1] * ELBOW_LEN / 2)
+    kit.cylinder("exhaust_elbow", STACK_R, ELBOW_LEN, (elbow_mid[0], -STACK_Y, elbow_mid[1]), "soot", rot=(0, -ELBOW_TILT, 0), vertices=round_sides(STACK_R))
+    cap = (STACK_X + axis[0] * ELBOW_LEN, elbow_low + axis[1] * ELBOW_LEN)
+    kit.cylinder("exhaust_cap", STACK_R + 0.01, 0.02, (cap[0], -STACK_Y, cap[1]), "metal_dark", rot=(0, -ELBOW_TILT, 0), vertices=round_sides(STACK_R + 0.01))
+
+
+def precleaner(kit: Kit) -> None:
+    low = hood_top(STACK_X) - 0.02
+    kit.cylinder("precleaner_neck", 0.07, 0.12, (STACK_X, STACK_Y, low + 0.06), "soot", vertices=round_sides(0.07))
+    kit.cylinder("precleaner", DOME_R, 0.07, (STACK_X, STACK_Y, low + 0.155), "soot", vertices=round_sides(DOME_R))
+    kit.cylinder("precleaner_top", DOME_R * 0.7, 0.05, (STACK_X, STACK_Y, low + 0.215), "soot", vertices=round_sides(DOME_R * 0.7))
 
 
 def hood(kit: Kit) -> None:
-    pts: list[Vec3] = []
-    for s in (1, -1):
-        pts += [(HOOD_FRONT, s * HOOD_Y, HOOD_BOTTOM), (HOOD_BACK, s * HOOD_Y, HOOD_BOTTOM)]
-        pts += [(HOOD_FRONT, s * HOOD_Y, HOOD_TOP - HOOD_CHAMFER), (HOOD_FRONT, s * (HOOD_Y - HOOD_CHAMFER), HOOD_TOP)]
-        pts += [(HOOD_BACK, s * HOOD_Y, HOOD_TAIL - HOOD_CHAMFER), (HOOD_BACK, s * (HOOD_Y - HOOD_CHAMFER), HOOD_TAIL)]
-    obj = hull_mesh("hood", pts)
-    cut_boxes(obj, [((BAY_BACK, -BAY_Y, BAY_FLOOR - BAY_T), (BAY_FRONT, BAY_Y, HOOD_TOP + 0.1))])
-    obj.data.materials.clear()
-    kit._add(obj, "hood", "paint", 0.0)
+    check_grille_clear()
+    hood_shell(kit, "hood", HOOD_FRONT, HOUSING_FRONT, "paint")
+    hood_shell(kit, "grille_housing", HOUSING_FRONT, HOOD_BACK, "under")
     kit.box("bay", (BAY_FRONT - BAY_BACK, 2 * BAY_Y, BAY_T), ((BAY_FRONT + BAY_BACK) / 2, 0, BAY_FLOOR - BAY_T / 2), "metal")
-    for i in range(6):
-        mirrored(kit, f"louver{i}", (0.1, 0.02, 0.42), BAY_FRONT - 0.1 - 0.24 * i, HOOD_Y + 0.005, 0.38, "under")
-    kit.box("grille", (0.03, 2 * (HOOD_Y - 0.12), 0.62), (HOOD_BACK - 0.005, 0, 0.24), "under")
-    for i in range(5):
-        kit.box(f"grille_bar{i}", (0.02, 2 * (HOOD_Y - 0.12), 0.035), (HOOD_BACK - 0.02, 0, -0.02 + 0.13 * i), "metal")
-    stack_low = HOOD_TOP - 0.1
-    kit.cylinder("exhaust", 0.09, EXHAUST_TOP - stack_low, (STACK_X, -STACK_Y, (EXHAUST_TOP + stack_low) / 2), "under", vertices=round_sides(0.09))
-    kit.cylinder("exhaust_band", 0.105, 0.05, (STACK_X, -STACK_Y, stack_low + 0.12), "metal_light", vertices=round_sides(0.105))
-    kit.cylinder("precleaner", 0.15, 0.46, (STACK_X, STACK_Y, stack_low + 0.23), "under", vertices=round_sides(0.15))
-    kit.cylinder("precleaner_cap", 0.17, 0.07, (STACK_X, STACK_Y, stack_low + 0.49), "metal_light", vertices=round_sides(0.17))
+    grille(kit)
+    side_vents(kit)
+    exhaust(kit)
+    precleaner(kit)
 
 
 def counterweight(kit: Kit) -> None:
     pts: list[Vec3] = []
     for s in (1, -1):
-        pts += [(COUNTER_FRONT, s * COUNTER_HALF, COUNTER_BOTTOM), (COUNTER_FRONT, s * COUNTER_HALF, COUNTER_TOP)]
-        pts += [(BACK + COUNTER_CORNER, s * COUNTER_HALF, COUNTER_BOTTOM), (BACK + COUNTER_CORNER, s * COUNTER_HALF, COUNTER_TOP)]
-        pts += [(BACK + 0.03, s * (COUNTER_HALF - COUNTER_CORNER), COUNTER_BOTTOM + 0.1), (BACK + 0.03, s * (COUNTER_HALF - COUNTER_CORNER), COUNTER_TOP - 0.08)]
+        pts += [(COUNTER_FRONT, s * (COUNTER_HALF - COUNTER_CHAMFER), COUNTER_BOTTOM), (COUNTER_FRONT, s * COUNTER_HALF, COUNTER_BOTTOM + COUNTER_CHAMFER), (COUNTER_FRONT, s * COUNTER_HALF, COUNTER_TOP)]
+        pts += [(BACK + COUNTER_CORNER, s * (COUNTER_HALF - COUNTER_CHAMFER), COUNTER_BOTTOM), (BACK + COUNTER_CORNER, s * COUNTER_HALF, COUNTER_BOTTOM + COUNTER_CHAMFER), (BACK + COUNTER_CORNER, s * COUNTER_HALF, COUNTER_TOP)]
+        pts += [(BACK + 0.03, s * (COUNTER_HALF - COUNTER_CORNER), COUNTER_BOTTOM + 0.1), (BACK + 0.03, s * (COUNTER_HALF - COUNTER_CORNER), COUNTER_TOP)]
     obj = hull_mesh("counterweight", pts)
     obj.data.materials.clear()
     kit._add(obj, "counterweight", "paint", 0.0)
-    for s, y in (("l", COUNTER_HALF - COUNTER_CORNER - 0.15), ("r", -COUNTER_HALF + COUNTER_CORNER + 0.15)):
-        kit.cylinder(f"taillight_{s}", 0.07, 0.04, (BACK + 0.02, y, COUNTER_TOP - 0.2), "red", rot=(0, math.pi / 2, 0), vertices=round_sides(0.07))
-    kit.box("hitch", (0.1, 0.36, 0.22), (BACK + 0.05, 0, COUNTER_BOTTOM + 0.2), "under")
+    for s, y in (("l", LAMP_Y), ("r", -LAMP_Y)):
+        kit.box(f"lamp_box_{s}", (0.14, 0.22, 0.2), (BACK + 0.12, y, COUNTER_TOP + 0.1), "paint")
+        kit.box(f"taillight_{s}", (0.03, 0.16, 0.14), (BACK + 0.045, y, COUNTER_TOP + 0.1), "red")
+    kit.box("hitch", (0.1, 0.36, 0.22), (BACK + 0.05, 0, (COUNTER_BOTTOM + COUNTER_TOP) / 2), "under")
 
 
 def check_size(kit: Kit) -> None:

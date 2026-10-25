@@ -1,7 +1,7 @@
 #ui .instruments {
   padding: var(--space-2) var(--space-4);
   display: grid;
-  grid-template-columns: var(--dial-w) repeat(4, minmax(0, 1fr));
+  grid-template-columns: var(--dial-w) repeat(4, minmax(var(--lcd-cell-w), 1fr));
   grid-template-areas:
     "dial heat money clock clock"
     "dial fuel supplies engine driver";
@@ -15,7 +15,7 @@
   grid-area: clock;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: var(--space-4);
   padding: var(--space-1) var(--space-3);
   background: var(--lcd);
@@ -211,13 +211,14 @@
   width: var(--icon-xs);
   height: var(--icon-xs);
 }
-#ui .instrument-actions button.instrument-button {
+#ui :where(.instrument-actions) button.instrument-button {
   position: relative;
   display: inline-flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-1);
   font-size: var(--text-caption);
-  padding: var(--space-1) var(--space-3);
+  height: var(--btn-h-s);
+  padding: 0 var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
   white-space: nowrap;
