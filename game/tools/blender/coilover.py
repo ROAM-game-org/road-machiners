@@ -24,7 +24,7 @@ COIL_BAR = 0.06  # thickness of one coil ring along the length
 def build(kit: Kit) -> None:
     kit.cylinder("eye_low", 0.1, 0.1, (0, 0, 0.05), "metal_dark", vertices=round_sides(0.1))
     kit.cylinder("shock", 0.1, 0.55, (0, 0, 0.35), "metal_dark", vertices=round_sides(0.1))
-    kit.cylinder("rod", 0.05, 0.4, (0, 0, 0.8), "metal_light", vertices=round_sides(0.05))
+    kit.cylinder("rod", 0.05, 0.39, (0, 0, 0.795), "metal_light", vertices=round_sides(0.05))
     kit.cylinder("eye_high", 0.1, 0.1, (0, 0, 0.95), "metal_dark", vertices=round_sides(0.1))
     # Seats hold the coil at both ends. The coil rings between them stretch with the model.
     kit.cylinder("seat_low", COIL_R + 0.03, 0.04, (0, 0, 0.14), "metal", vertices=round_sides(COIL_R + 0.03))

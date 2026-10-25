@@ -36,6 +36,7 @@ import bpy
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args, round_sides  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, INSET, ROUND_ARCH_SEGMENTS, SUSPENSION_REST, Grid, check_base, check_door_gap, door_sill, cut_hulls, hull_mesh, level_sockets, surface_z  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from shapes import loft, prism, strut  # noqa: E402
 
 SEED = 304
@@ -230,7 +231,7 @@ def ribs(kit: Kit) -> None:
         mirrored(kit, f"seam{i}", (0.035, RIB_OUT, BELT - low), x, face, (BELT + low) / 2, "under")
     for d, back in enumerate(SEAMS[1:]):
         mirrored(kit, f"handle{d}", (0.12, RIB_OUT, 0.03), back + 0.12, face, BELT - 0.04, "metal")
-    mirrored(kit, "sill_line", (SEAMS[0] - SEAMS[-1], RIB_OUT, 0.025), (SEAMS[0] + SEAMS[-1]) / 2, face, DOOR_LOW, "under")
+    mirrored(kit, "sill_line", (SEAMS[0] - SEAMS[-1], RIB_OUT + PROUD, 0.025), (SEAMS[0] + SEAMS[-1]) / 2, face + PROUD / 2, DOOR_LOW, "under")
     step_front = WHEELS_X[1] - ARCH_R - 0.02
     mirrored(kit, "step", (step_front - STEP_BACK, STEP_OUT - SLAB, 0.03), (step_front + STEP_BACK) / 2, (STEP_OUT + SLAB) / 2, STEP_Z, "under")
 
@@ -258,8 +259,8 @@ def windshield(kit: Kit) -> None:
     span = SLAB - 0.04
     for s, sy in (("l", 1), ("r", -1)):
         strut(kit, f"post_{s}", (base_x, sy * span, BELT), (top_x, sy * span, SCREEN_TOP), 0.07, "paint")
-    strut(kit, "header", (top_x, span + 0.035, SCREEN_TOP), (top_x, -span - 0.035, SCREEN_TOP), 0.07, "paint")
-    kit.box("sill", (0.08, 2 * span + 0.07, 0.06), (base_x, 0, BELT + 0.03), "paint")
+    strut(kit, "header", (top_x, SLAB + PROUD, SCREEN_TOP), (top_x, -SLAB - PROUD, SCREEN_TOP), 0.07, "paint")
+    kit.box("sill", (0.08, 2 * (SLAB + PROUD), 0.06), (base_x, 0, BELT + 0.03), "paint")
     glass = [(base_x - 0.015, BELT + 0.05), (base_x + 0.015, BELT + 0.05), (top_x + 0.015, SCREEN_TOP - 0.03), (top_x - 0.015, SCREEN_TOP - 0.03)]
     prism(kit, "glass", glass, -span + 0.03, span - 0.03, "glass")
 
@@ -292,7 +293,7 @@ def tail_quarters(kit: Kit) -> None:
     back_x = WHEELS_X[0] - REAR_WING_FLAT[1]
     curve = [(back_x + REAR_WING_R * math.cos(a), HUB_Z + REAR_WING_R * math.sin(a)) for a in (math.pi / 2 + (REAR_WING_BACK - math.pi / 2) * k / 6 for k in range(7))]
     profile = [(BAY_BACK, BELT), (BAY_BACK, crown)] + curve + [(BACK, curve[-1][1]), (BACK, TAIL_Z)]
-    for s, (y0, y1) in (("l", (SLAB - DOOR_T, QUARTER_OUT)), ("r", (-QUARTER_OUT, -SLAB + DOOR_T))):
+    for s, (y0, y1) in (("l", (SLAB, QUARTER_OUT)), ("r", (-QUARTER_OUT, -SLAB))):
         prism(kit, f"quarter_{s}", profile, y0, y1, "paint")
 
 

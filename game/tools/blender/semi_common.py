@@ -21,9 +21,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from kit import Kit  # noqa: E402
+from kit import Kit, round_sides  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, cut_boxes, hull_mesh  # noqa: E402
-from parts_common_core import TIRE_SHARE, drawn_wheel  # noqa: E402
+from parts_common_core import PROUD, TIRE_SHARE, drawn_wheel  # noqa: E402
 from rig_units import check_unit as check_rig_unit, export_unit, unit_wheels as count_wheels  # noqa: E402
 from shapes import prism  # noqa: E402
 
@@ -147,8 +147,9 @@ def tractor_gear(kit: Kit) -> int:
     """
     check_tandems()
     count = duals(kit, DRIVE_AXLES[0]) + duals(kit, DRIVE_AXLES[1], (1,))
-    mirrored(kit, "rail", (GRILLE_X - 0.1 - TRACTOR_REAR, 0.14, FRAME_TOP - FRAME_BOTTOM), (GRILLE_X - 0.1 + TRACTOR_REAR) / 2, 0.45, (FRAME_TOP + FRAME_BOTTOM) / 2, "under")
-    kit.box("frame_end", (0.15, 1.2, FRAME_TOP - FRAME_BOTTOM), (TRACTOR_REAR + 0.075, 0, (FRAME_TOP + FRAME_BOTTOM) / 2), "metal_dark")
+    rail_back = TRACTOR_REAR + PROUD
+    mirrored(kit, "rail", (GRILLE_X - 0.1 - rail_back, 0.14, FRAME_TOP - FRAME_BOTTOM), (GRILLE_X - 0.1 + rail_back) / 2, 0.45, (FRAME_TOP + FRAME_BOTTOM) / 2, "under")
+    kit.box("frame_end", (0.15, 1.2, FRAME_TOP - FRAME_BOTTOM + 2 * PROUD), (TRACTOR_REAR + 0.075, 0, (FRAME_TOP + FRAME_BOTTOM) / 2), "metal_dark")
     for x in DRIVE_AXLES:
         axle(kit, x)
     return count
@@ -164,14 +165,14 @@ def trailer_gear(kit: Kit) -> int:
 
 def hood(kit: Kit) -> None:
     """The long hood: a 1.7 m apron up to the shelf, a 1.5 m hood above it rising toward the windshield, with the engine hole."""
-    hull(kit, "apron", box_points(GRILLE_X - 0.02, CAB_FRONT, APRON_HALF, FRAME_BOTTOM, HOOD_SHELF), "orange")
+    hull(kit, "apron", box_points(GRILLE_X - 0.02, CAB_FRONT, APRON_HALF, FRAME_BOTTOM, HOOD_SHELF - 2 * PROUD), "orange")
     top = [(GRILLE_X - 0.05, y, HOOD_FRONT_TOP) for y in (HOOD_HALF - 0.14, -HOOD_HALF + 0.14)]
     top += [(CAB_FRONT, y, HOOD_BACK_TOP) for y in (HOOD_HALF - 0.14, -HOOD_HALF + 0.14)]
     shoulder = [(GRILLE_X - 0.05, y, HOOD_FRONT_TOP - 0.12) for y in (HOOD_HALF, -HOOD_HALF)]
     shoulder += [(CAB_FRONT, y, HOOD_BACK_TOP - 0.12) for y in (HOOD_HALF, -HOOD_HALF)]
     base = [(x, y, HOOD_SHELF - 0.05) for x in (GRILLE_X - 0.05, CAB_FRONT) for y in (HOOD_HALF, -HOOD_HALF)]
     body = hull_mesh("hood", top + shoulder + base)
-    cut_boxes(body, [((BAY_BACK, -BAY_HALF, ENGINE[1]), (BAY_FRONT, BAY_HALF, HOOD_BACK_TOP + 0.2))])
+    cut_boxes(body, [((BAY_BACK, -BAY_HALF, ENGINE[1] - PROUD), (BAY_FRONT, BAY_HALF, HOOD_BACK_TOP + 0.2))])
     body.data.materials.clear()
     kit._add(body, "hood", "orange", 0.0)
     kit.box("bay_floor", (BAY_FRONT - BAY_BACK, 2 * BAY_HALF, 0.04), ((BAY_FRONT + BAY_BACK) / 2, 0, ENGINE[1] - 0.02), "under")
@@ -187,7 +188,7 @@ def grille(kit: Kit) -> None:
     kit.box("grille_frame", (0.1, 2 * GRILLE_HALF, high - low), (GRILLE_X, 0, (high + low) / 2), "chrome")
     kit.box("grille_slots", (0.04, 2 * GRILLE_HALF - 0.2, high - low - 0.2), (GRILLE_X + 0.04, 0, (high + low) / 2), "under")
     for i in range(4):
-        kit.box(f"grille_bar_{i}", (0.05, 0.05, high - low - 0.2), (GRILLE_X + 0.05, (i - 1.5) * 0.24, (high + low) / 2), "chrome")
+        kit.box(f"grille_bar_{i}", (0.05, 0.05, high - low - 0.2 - 2 * PROUD), (GRILLE_X + 0.05, (i - 1.5) * 0.24, (high + low) / 2), "chrome")
     kit.box("bumper", (FRONT - GRILLE_X, 2 * FENDER_HALF, 0.45), ((FRONT + GRILLE_X) / 2, 0, up(0.55)), "chrome")
     for s, name in ((1, "l"), (-1, "r")):
         kit.box(f"lamp_pod_{name}", (0.18, 0.3, 0.24), (GRILLE_X - 0.12, s * (HOOD_HALF + 0.22), up(1.28)), "chrome")
@@ -200,7 +201,9 @@ def fenders(kit: Kit) -> None:
     outer = inner + 0.14
     arc = [(STEER_X + outer * math.cos(math.pi * k / 8), HUB_Z + outer * math.sin(math.pi * k / 8)) for k in range(1, 8)]
     under = [(STEER_X + inner * math.cos(math.pi * k / 8), HUB_Z + inner * math.sin(math.pi * k / 8)) for k in range(7, 0, -1)]
-    outline = [(GRILLE_X - 0.08, up(0.95)), (GRILLE_X - 0.08, HUB_Z + outer * 0.55), *arc, (CAB_FRONT + 0.3, up(1.05)), (CAB_FRONT + 0.3, up(0.9)), (STEER_X - inner, up(0.9)), *under, (STEER_X + inner, up(0.95))]
+    front = GRILLE_X - 0.08
+    arc = [(min(x, front), z) for x, z in arc]
+    outline = [(front, up(0.95)), *arc, (CAB_FRONT + 0.3, up(1.05)), (CAB_FRONT + 0.3, up(0.9)), (STEER_X - inner, up(0.9)), *under, (STEER_X + inner, up(0.95))]
     for s, name in ((1, "l"), (-1, "r")):
         y0, y1 = sorted((s * APRON_HALF, s * FENDER_HALF))
         prism(kit, f"fender_{name}", outline, y0, y1, "orange")
@@ -223,10 +226,10 @@ def cab(kit: Kit) -> None:
         door = [(CAB_FRONT - 0.35, glass_low), (CAB_BACK + 0.25, glass_low), (CAB_BACK + 0.25, glass_high), (front_x(glass_high) - 0.2, glass_high)]
         y0, y1 = sorted((s * (CAB_HALF - 0.03), s * (CAB_HALF + 0.005)))
         prism(kit, f"door_glass_{name}", door, y0, y1, "glass")
-        sweep = [(CAB_FRONT, HOOD_SHELF + 0.16), (CAB_BACK, HOOD_SHELF + 0.45), (CAB_BACK, HOOD_SHELF + 0.57), (CAB_FRONT, HOOD_SHELF + 0.28)]
+        sweep = [(CAB_FRONT - PROUD, HOOD_SHELF + 0.16), (CAB_BACK + PROUD, HOOD_SHELF + 0.45), (CAB_BACK + PROUD, HOOD_SHELF + 0.57), (CAB_FRONT - PROUD, HOOD_SHELF + 0.28)]
         y0, y1 = sorted((s * (CAB_HALF - 0.02), s * (CAB_HALF + 0.01)))
         prism(kit, f"door_stripe_{name}", sweep, y0, y1, "stripe")
-        kit.box(f"mirror_arm_{name}", (0.05, 0.12, 0.05), (CAB_FRONT - 0.15, s * (CAB_HALF + 0.03), glass_low + 0.1), "chrome")
+        kit.box(f"mirror_arm_{name}", (0.05, 0.12, 0.05), (CAB_FRONT - 0.15, s * (CAB_HALF + 0.03 - PROUD), glass_low + 0.1), "chrome")
         kit.box(f"mirror_{name}", (0.06, 0.08, 0.5), (CAB_FRONT - 0.15, s * (CAB_HALF + 0.05), glass_low + 0.35), "chrome")
     kit.box("visor", (0.35, 2 * CAB_HALF - 0.1, 0.06), (front_x(CAB_ROOF) + 0.1, 0, CAB_ROOF - 0.02), "orange")
     for i in range(5):
@@ -266,8 +269,8 @@ def trailer(kit: Kit) -> None:
     height = TRAILER_ROOF - TRAILER_FLOOR
     mid_z = (TRAILER_ROOF + TRAILER_FLOOR) / 2
     mid_x = (TRAILER_FRONT + BACK) / 2
-    mirrored(kit, "bottom_rail", (length, 0.06, 0.16), mid_x, TRAILER_HALF - 0.03, TRAILER_FLOOR + 0.08, "rib")
-    mirrored(kit, "top_rail", (length, 0.06, 0.1), mid_x, TRAILER_HALF - 0.03, TRAILER_ROOF - 0.06, "rib")
+    mirrored(kit, "bottom_rail", (length - 2 * PROUD, 0.06, 0.16), mid_x, TRAILER_HALF - 0.03 - PROUD, TRAILER_FLOOR + 0.08, "rib")
+    mirrored(kit, "top_rail", (length - 2 * PROUD, 0.06, 0.1), mid_x, TRAILER_HALF - 0.03 - PROUD, TRAILER_ROOF - 0.06, "rib")
     ribs = 16
     for i in range(ribs + 1):
         x = TRAILER_FRONT - 0.15 - i * (length - 0.3) / ribs
@@ -275,8 +278,8 @@ def trailer(kit: Kit) -> None:
     for i in range(8):
         x = TRAILER_FRONT - 0.6 - i * (length - 1.2) / 7
         kit.box(f"roof_rib_{i}", (0.1, WIDTH - 0.1, 0.03), (x, 0, TRAILER_ROOF + 0.01), "rib")
-    kit.box("doors", (0.06, WIDTH - 0.16, height - 0.2), (BACK + 0.03, 0, mid_z), "white")
-    kit.box("door_seam", (0.07, 0.04, height - 0.2), (BACK + 0.03, 0, mid_z), "rib")
+    kit.box("doors", (0.06, WIDTH - 0.16, height - 0.2), (BACK + 0.03 + PROUD, 0, mid_z), "white")
+    kit.box("door_seam", (0.07, 0.04, height - 0.2 - 2 * PROUD), (BACK + 0.03, 0, mid_z), "rib")
     for s, name in ((1, "l"), (-1, "r")):
         for k, y in enumerate((0.3, 1.0)):
             kit.box(f"lock_bar_{name}{k}", (0.08, 0.04, height - 0.35), (BACK + 0.04, s * y, mid_z), "chrome")

@@ -223,7 +223,7 @@ def deck(kit: Kit) -> None:
         prism(kit, f"deck_{i}", profile, -DECK_HALF, DECK_HALF, "paint")
     for s, sy in SIDES:
         prism(kit, f"deck_cheek_{s}", cheek_outline(), sy * (DECK_HALF - DECK_THICK), sy * DECK_HALF, "paint")
-    kit.box("deck_front", (DECK_THICK, 2 * DECK_HALF, DECK_NOSE_Z - BAR_LOW), (DECK_NOSE - DECK_THICK / 2, 0, (DECK_NOSE_Z + BAR_LOW) / 2 - 0.01), "paint")
+    kit.box("deck_front", (DECK_THICK, 2 * DECK_HALF, DECK_NOSE_Z - BAR_LOW), (DECK_NOSE - DECK_THICK / 2 + 0.012, 0, (DECK_NOSE_Z + BAR_LOW) / 2 - 0.01), "paint")
 
 
 def front_fenders(kit: Kit) -> None:

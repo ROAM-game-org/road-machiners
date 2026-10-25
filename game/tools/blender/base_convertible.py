@@ -394,7 +394,7 @@ def nose(kit: Kit) -> list[str]:
         face = plane
         mid = sy * (HEADLAMP_Y[0] + HEADLAMP_Y[1]) / 2
         for k in (-1, 0, 1):
-            kit.box(f"lamp_bar{k}_{s}", (0.012, 0.008, 2 * HEADLAMP_R * 0.9), (face + 0.05, mid + k * 0.012, HEADLAMP_Z), "metal_light")
+            kit.box(f"lamp_bar{k}_{s}", (0.01, 0.008, 2 * HEADLAMP_R * 0.9), (face + 0.049, mid + k * 0.012, HEADLAMP_Z), "metal_light")
         park_y = sy * (HEADLAMP_Y[0] + HEADLAMP_Y[1]) / 2
         park_h = 0.62
         kit.box(f"parking_{s}", (0.03, 0.17, 0.045), (end_x(park_y, park_h) + 0.005, park_y, up(park_h)), "amber")
@@ -504,7 +504,7 @@ def windshield(kit: Kit) -> None:
         post_foot = (VENT_POST_X, top.y, LID + 0.01)
         post_top = (VENT_POST_X, top.y, VENT_TOP)
         strut(kit, f"vent_post_{s}", post_foot, post_top, 0.035, "metal_light")
-        strut(kit, f"vent_top_{s}", post_top, tuple(top), 0.035, "metal_light")
+        strut(kit, f"vent_top_{s}", post_top, tuple(top), 0.03, "metal_light")
         pane = [tuple(windshield_point(0.03, sy)), (top.x, top.y, top.z - 0.012), (VENT_POST_X - 0.008, top.y, VENT_TOP - 0.012), (VENT_POST_X - 0.008, top.y, LID - 0.01)]
         add_hull(kit, f"vent_glass_{s}", [p for x, y, z in pane for p in ((x, y - sy * 0.004, z), (x, y + sy * 0.004, z))], "glass")
     strut(kit, "header", tuple(windshield_point(1, 1)), tuple(windshield_point(1, -1)), 0.04, "metal_light")
@@ -676,7 +676,7 @@ def cabin_finish(kit: Kit) -> None:
         kit.box(f"patch_rivet{i}", (0.016, 0.016, 0.016), side_point(x, z, 0.012), "metal_light")
     for s, sy in (("l", 1), ("r", -1)):
         strut(kit, f"belt_strip_{s}", (VENT_POST_X, sy * (FOOT_HALF + 0.008), LID + 0.008), (FOOT_X, sy * (FOOT_HALF + 0.008), LID + 0.008), 0.016, "metal_light")
-    strut(kit, "belt_strip_back", (FOOT_X - 0.008, FOOT_HALF, LID + 0.008), (FOOT_X - 0.008, -FOOT_HALF, LID + 0.008), 0.016, "metal_light")
+    strut(kit, "belt_strip_back", (FOOT_X - 0.012, FOOT_HALF, LID + 0.008), (FOOT_X - 0.012, -FOOT_HALF, LID + 0.008), 0.016, "metal_light")
 
 
 def hatch(kit: Kit) -> list[str]:

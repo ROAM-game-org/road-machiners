@@ -33,9 +33,9 @@ def build(kit: Kit) -> None:
     # Carry handle and a big wrench on the lid.
     kit.box("handle", (0.2, 0.03, 0.03), (0, 0, H + 0.14), "metal_light")
     for x in (-0.09, 0.09):
-        kit.box("handle_leg", (0.03, 0.03, 0.06), (x, 0, H + 0.11), "metal_light")
+        kit.box("handle_leg", (0.03, 0.024, 0.06), (x, 0, H + 0.11), "metal_light")
     kit.box("wrench", (0.3, 0.04, 0.02), (0.02, -0.11, H + 0.1), "metal_light", rot=(0, 0, 0.35))
-    kit.box("wrench_jaw", (0.06, 0.07, 0.02), (0.16, -0.06, H + 0.1), "metal_light", rot=(0, 0, 0.35))
+    kit.box("wrench_jaw", (0.06, 0.07, 0.03), (0.16, -0.06, H + 0.1), "metal_light", rot=(0, 0, 0.35))
 
 
 def main() -> None:
