@@ -264,7 +264,11 @@ function playtestLines(playtest: PlaytestState, runs: number): string[] {
 }
 
 function failures(ctx: Ctx): void {
-  printRows(readState(ctx.statePath).failures.map((row) => `${row.at} ${row.stage}${row.issue === null ? '' : ` #${row.issue}`}: ${row.error.split('\n')[0]} (cause ${causeText(row.cause)}, log ${row.log ?? 'none'})${row.batch === undefined ? '' : ` batch ${row.batch.map((issue) => `#${issue}`).join(',')}`}`));
+  printRows(readState(ctx.statePath).failures.map((row) => `${row.at} ${row.stage}${row.issue === null ? '' : ` #${row.issue}`}: ${row.error.split('\n')[0]} (cause ${causeText(row.cause)}, log ${row.log ?? 'none'})${issueList(' batch', row.batch)}${issueList(' cleared', row.cleared)}`));
+}
+
+function issueList(name: string, issues: number[] | undefined): string {
+  return issues === undefined ? '' : `${name} ${issues.map((issue) => `#${issue}`).join(',')}`;
 }
 
 function stuckRecords(ctx: Ctx): void {

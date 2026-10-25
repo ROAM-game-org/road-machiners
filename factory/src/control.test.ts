@@ -83,7 +83,7 @@ function busyCard(): void {
     pendingApprovals: { 4: 'Bob', 5: 'Bob' }, approvedResolving: { 4: 'Bob' },
     approvalPosts: { 42: 4, 43: 5 }, postCaptions: { 42: 'Post four', 43: 'Post five' },
     unroutedReplies: { 9: { issue: 4, postId: 42, text: 't', at: 'a' }, 10: { issue: 5, postId: 43, text: 't', at: 'a' } },
-    failures: [{ stage: 'checks', issue: 4, error: 'e', cause: 'error' as const, log: null, at: 'a' }, { stage: 'checks', issue: 5, error: 'e', cause: 'error' as const, log: null, at: 'a' }],
+    failures: [{ stage: 'checks', issue: 4, error: 'e', cause: 'error' as const, log: null, at: 'a' }, { stage: 'checks', issue: 5, error: 'e', cause: 'error' as const, log: null, at: 'a' }, { stage: 'merge', issue: null, error: 'e', cause: 'timeout' as const, log: null, at: 'a', batch: [4, 5] }],
   });
 }
 
@@ -264,7 +264,8 @@ describe('move', () => {
     expect(state.approvedResolving).toEqual({});
     expect(state.approvalPosts).toEqual({ 43: 5 });
     expect(Object.keys(state.unroutedReplies)).toEqual(['10']);
-    expect(state.failures.map((failure) => failure.issue)).toEqual([5]);
+    expect(state.failures.map((failure) => [failure.issue, failure.cleared])).toEqual([[5, undefined], [null, [4]]]);
+    expect(state.failures[1]!.batch).toEqual([4, 5]);
     expect(calls).toContain('move 4 Design');
     expect(calls).toContain('removeLabel 4 factory-stuck');
     expect(calls).toContain('removeLabel 4 needs-info');
