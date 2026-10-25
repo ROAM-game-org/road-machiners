@@ -762,22 +762,22 @@ export const TOPICS: Record<TopicId, Topic> = { ...SUNWARD_TOPICS, ...MARSHAL_TO
       tell: {
         line: 'maybeIPassedSomething',
         options: [
-          { say: 'where', when: ['rumorOfSite'], effects: [], go: 'site' },
-          { say: 'where', when: ['rumorOfWreck'], effects: [], go: 'wreck' },
+          { say: 'where', when: ['rumorOfSite'], effects: ['revealRumor', 'settleDone'], go: 'site' },
+          { say: 'where', when: ['rumorOfWreck'], effects: ['revealRumor', 'settleDone'], go: 'wreck' },
         ],
       },
       site: {
         line: 'siteWay',
         options: [
-          { say: 'thanksSomethingElse', when: [], effects: ['revealRumor', 'settleDone'], go: HUB },
-          { say: 'thanksOverAndOut', when: [], effects: ['revealRumor', 'settleDone'], go: END },
+          { say: 'thanksSomethingElse', when: [], effects: [], go: HUB },
+          { say: 'thanksOverAndOut', when: [], effects: [], go: END },
         ],
       },
       wreck: {
         line: 'wreckWay',
         options: [
-          { say: 'thanksSomethingElse', when: [], effects: ['revealRumor', 'settleDone'], go: HUB },
-          { say: 'thanksOverAndOut', when: [], effects: ['revealRumor', 'settleDone'], go: END },
+          { say: 'thanksSomethingElse', when: [], effects: [], go: HUB },
+          { say: 'thanksOverAndOut', when: [], effects: [], go: END },
         ],
       },
     },
