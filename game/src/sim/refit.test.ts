@@ -3,8 +3,8 @@ import { bedRows } from './chassis-features';
 import { CHASSIS } from '../data/chassis';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
-import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
-import { lootRefitTurns, moveItem, mountPart, dumpItem, refitTurns, removeAllGoods } from './inventory';
+import { SKILL_EFFECTS } from '../data/skills';
+import { moveItem, mountPart, dumpItem, refitTurns, removeAllGoods } from './inventory';
 import { advanceJobs, startJob } from './jobs';
 import { makePart } from './factory';
 import { sitePads, townAt } from './sites';
@@ -237,13 +237,6 @@ describe('the Patcher crane on refits', () => {
     expect(two.items.filter((it) => it.kind === 'part' && it.part.defId === 'patcherCrane')).toHaveLength(2);
     expect(refitTurns(w, one, REPLACE)).toBe(7);
     expect(refitTurns(w, two, REPLACE)).toBe(7);
-  });
-
-  it('keeps the Cannibal perk at its flat turns without a crane', () => {
-    const w = emptyWorld();
-    w.player.perks = ['cannibal'];
-
-    expect(lootRefitTurns(w, w.vehicles[0], REPLACE)).toBe(PERK_NUMBERS.cannibal.turns);
   });
 
   it('keeps garage changes instant', () => {

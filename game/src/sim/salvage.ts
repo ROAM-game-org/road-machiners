@@ -17,7 +17,7 @@ import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { grayRadius } from './vision';
 import { findSpot, goodsCount, gridOf, isMounted, mountedParts, mountCellsOf, type Spot } from './grid';
-import { addGoods, cargoMassRoom, getLayoutError, lootRefitTurns, requireIdleRefit, stowPart } from './inventory';
+import { addGoods, cargoMassRoom, getLayoutError, refitTurns, requireIdleRefit, stowPart } from './inventory';
 import { chance, hashRandom, randInt } from './rng';
 import { sampleWeighted } from './npc-loadout';
 import { itemMass } from './mass';
@@ -619,7 +619,7 @@ export function takeError(target: Vehicle, item: GridItem): Refusal | null {
 function takeTurns(world: World, looter: Vehicle, target: Vehicle, item: GridItem, placed: GridItem): number {
   const planned = RULES.refitTurnsPerPart * (Number(isMounted(target.chassisId, item)) + Number(isMounted(looter.chassisId, placed)));
   const garage = looter.id === world.player.vehicleId && atGarage(world);
-  return planned > 0 && !garage ? lootRefitTurns(world, looter, planned) : 0;
+  return planned > 0 && !garage ? refitTurns(world, looter, planned) : 0;
 }
 
 export function takeItem(world: World, looter: Vehicle, target: Vehicle, item: GridItem, to: Spot): void {

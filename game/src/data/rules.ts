@@ -82,7 +82,6 @@ export const RULES = {
   scrapPatch: 0.4,
   townPatch: 0.15,
   knockoutMaxTurns: 30,
-  surrenderParts: 2,
   npcDeathChance: 0.05,
   cabKnock: {
     below: 0.5,

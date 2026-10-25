@@ -188,7 +188,7 @@ export const TALK = {
   'line.stateYourBusiness': 'State your business.',
   'line.stopShootingIGive': 'Stop shooting! I give up. Take what I carry and let me go.',
   'line.surePullOverAnd': 'Sure. Pull over and I will come alongside.',
-  'line.surrenderOffer': m('Your truck is dead. Hand over {haul}, and you keep the truck. Refuse, and I take it off your wreck.', { haul: 'text' }),
+  'line.surrenderOffer': 'Your truck is dead. Stand down and let me strip it. Refuse, and I shoot you out of that cab first.',
   'line.takeMeToSite': m('Take me to {site}. I can pay {fee} when we get there.', { site: 'text', fee: 'text' }),
   'line.takeWhatICarry': 'Take what I carry. Just let me drive away.',
   'line.talk': 'Talk.',
