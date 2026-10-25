@@ -5,8 +5,11 @@ import { fileReports, noteKnockout, openCasesOn } from './crime';
 import { chooseOption, currentOptions, radioSpeakers, raiseCalls } from './dialogue';
 import { playerVehicle } from './damage';
 import { knockOutNpc } from './defeat';
+import { makePart } from './factory';
+import { attachLine } from './harpoon';
+import { mountPart } from './inventory';
 import { remember, rememberSightings, sightingOf } from './memory';
-import { answerDemand, bountyTerms, demandLapsed, hunt, marshalLead, planMarshal, searchLead, takeCase } from './marshals';
+import { answerDemand, bountyTerms, demandLapsed, hunt, marshalLead, payHailedBounty, planMarshal, searchLead, takeCase } from './marshals';
 import { heldSearch } from './market';
 import { QUEST_EFFECTS, QUEST_QUERIES } from './quests';
 import { topGoal } from './npc-activities';
@@ -155,6 +158,22 @@ describe('pay or fight', () => {
     expect(w.player.money).toBe(100000 - CRIME.fine.robbed);
     expect(stateOf(w, 'truce', marshal.id, me.id)).not.toBeNull();
     expect(() => answerDemand(w, marshal, me, 'pay')).toThrow();
+  });
+
+  it.each(['answer', 'hail'] as const)('ends the Marshall\'s harpoon line on a driver who pays (%s)', (path) => {
+    const { w, marshal, me } = inContact();
+    w.player.money = 100000;
+    const harpoon = makePart(w, 'harpoon', 0);
+    if (!mountPart(w, marshal, harpoon)) throw new Error('No deck room for the harpoon');
+    const held = me.items.find((it) => it.kind === 'part');
+    if (!held || held.kind !== 'part') throw new Error('No part to hold');
+    attachLine(w, { from: marshal, fromPart: harpoon.id, to: me, toPart: held.part.id }, 10);
+    if (path === 'hail') w.states = w.states.filter((x) => x.kind !== 'bountyStop');
+
+    if (path === 'answer') answerDemand(w, marshal, me, 'pay');
+    else payHailedBounty(w, marshal, me);
+
+    expect(w.lines).toEqual([]);
   });
 
   it('refuses a player who cannot pay, and a refusal brings a feud and a fight', () => {

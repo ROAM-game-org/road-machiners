@@ -4,6 +4,7 @@ import { getKnownSite, decide, npcProfile } from './npc-decisions';
 import { createActivity, finishGoal, fightGoal, fleeFrom, interrupt, pushGoal, topGoal } from './npc-activities';
 import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, takeHunt, tellCases } from './crime';
 import { isDefeated } from './defeat';
+import { endLines } from './harpoon';
 import { heldSearch } from './market';
 import { sightingOf } from './memory';
 import { lieUpSpot } from './npc-service';
@@ -213,7 +214,7 @@ export function answerDemand(world: World, marshal: Vehicle, target: Vehicle, an
   s.data = { ...s.data, answered: true };
   if (answer === 'pay') {
     endState(world, s, 'fulfilled');
-    addState(world, 'truce', marshal.id, target.id, { kind: 'none' });
+    truceWith(world, marshal, target);
     return;
   }
   endState(world, s, 'broken');
@@ -238,7 +239,12 @@ export function payHailedBounty(world: World, marshal: Vehicle, target: Vehicle)
   const open = demandOpen(world, marshal, target);
   if (open) return answerDemand(world, marshal, target, 'pay');
   payBounty(world, target, openCasesOn(world, target.id), marshal);
+  truceWith(world, marshal, target);
+}
+
+function truceWith(world: World, marshal: Vehicle, target: Vehicle): void {
   addState(world, 'truce', marshal.id, target.id, { kind: 'none' });
+  endLines(world);
 }
 
 const OFFENSE_ORDER: readonly CrimeOffense[] = ['killed', 'robbed', 'embezzled', 'attacked'];
