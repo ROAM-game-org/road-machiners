@@ -21,7 +21,7 @@ describe("stingOf", () => {
   });
   it("ignores spending and arrivals", () => {
     const events: GameEvent[] = [
-      { t: "money", amount: -5, reason: { kind: "failedHaul" } },
+      { t: "money", amount: -5, reason: { kind: "towing", vehicle: "npc1" } },
       { t: "arrived", vehicle: "npc1" },
     ];
     expect(stingOf(events, "p")).toBeNull();
@@ -104,7 +104,7 @@ describe("scoreEventOf", () => {
     expect(scoreEventOf(shot("p", "n", [round(true), round(true, true)]), "p")).toEqual({ kind: "crit", round: 1 });
     expect(scoreEventOf(shot("p", "n", [round(false), round(false)]), "p")).toEqual({ kind: "miss", round: 0 });
     expect(scoreEventOf(shot("n", "p", [round(false), round(true)]), "p")).toEqual({ kind: "struck", round: 1 });
-    expect(scoreEventOf({ t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] }, "p")).toEqual({ kind: "crash", round: null });
+    expect(scoreEventOf({ t: "collision", a: "n", b: "p", impact: 3, hitsA: [], hitsB: [] }, "p")).toEqual({ kind: "crash", round: null });
   });
   it("answers volleys at the player with struck or crit, and enemy misses with nothing", () => {
     expect(scoreEventOf(shot("n", "p", [round(true)]), "p")?.kind).toBe("struck");
@@ -117,8 +117,8 @@ describe("scoreEventOf", () => {
   });
   it("ignores fights between other trucks and answers the player's crashes", () => {
     expect(scoreEventOf(shot("a", "b", [round(true, true)]), "p")).toBeNull();
-    expect(scoreEventOf({ t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] }, "p")?.kind).toBe("crash");
-    expect(scoreEventOf({ t: "collision", a: "n", b: "m", hitsA: [], hitsB: [] }, "p")).toBeNull();
+    expect(scoreEventOf({ t: "collision", a: "n", b: "p", impact: 3, hitsA: [], hitsB: [] }, "p")?.kind).toBe("crash");
+    expect(scoreEventOf({ t: "collision", a: "n", b: "m", impact: 3, hitsA: [], hitsB: [] }, "p")).toBeNull();
   });
   it("answers the player's knockouts and wrecks, and nobody else's", () => {
     expect(scoreEventOf({ t: "npcKnockout", vehicle: "n", by: "p" }, "p")?.kind).toBe("knockout");
@@ -287,6 +287,38 @@ describe("strainGlides", () => {
     const { healthy, strained } = strainGlides(g, { from: 0, to: 0 });
     expect([strained.gainFrom, strained.gainTo]).toEqual([0, 0]);
     expect([healthy.gainFrom, healthy.gainTo]).toEqual([g.gainFrom, g.gainTo]);
+  });
+});
+
+describe("atLevel", () => {
+  const rig: Pick<CameraRig, "focus" | "screenOf"> = { focus: () => ({ x: 0, y: 0, z: 0 }), screenOf: () => ({ x: 50, y: 50 }) };
+  const withWindow = (run: () => void) => {
+    const width = globalThis.window?.innerWidth;
+    Object.defineProperty(globalThis, "window", { value: { innerWidth: 100 }, configurable: true });
+    try {
+      run();
+    } finally {
+      if (width === undefined) Reflect.deleteProperty(globalThis, "window");
+      else Object.defineProperty(globalThis, "window", { value: { innerWidth: width }, configurable: true });
+    }
+  };
+
+  it("scales the placement gain by the level and logs it", () => {
+    const calls: unknown[][] = [];
+    withWindow(() => {
+      const director = new SoundDirector({ play: (...args) => { calls.push(args); } }, rig, { fire: () => null }, () => 0);
+      director.atLevel("crash", { x: 0, y: 0, z: 0 }, 0, 0.4);
+      expect(calls).toEqual([["crash", { pan: 0, gain: 0.4 }, 0]]);
+      expect(director.log).toEqual(["crash 0.40"]);
+    });
+  });
+
+  it("throws on a level outside (0, 1]", () => {
+    withWindow(() => {
+      const director = new SoundDirector({ play: () => {} }, rig, { fire: () => null }, () => 0);
+      for (const level of [0, -0.1, 1.01, NaN]) expect(() => director.atLevel("crash", { x: 0, y: 0, z: 0 }, 0, level)).toThrow();
+      expect(director.log).toEqual([]);
+    });
   });
 });
 
@@ -495,7 +527,7 @@ describe("SoundDirector score timing", () => {
 
   it("times a crash and leaves shots to the volley", () => {
     const { calls, director } = setup();
-    const crash: GameEvent = { t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] };
+    const crash: GameEvent = { t: "collision", a: "n", b: "p", impact: 3, hitsA: [], hitsB: [] };
     const shot = { t: "shot", shooter: "p", weapon: "w", target: "n", aim: "body", chance: 1, damageChance: 1, side: "front", rounds: [] } as unknown as GameEvent;
     director.timeScoreEvents([crash, shot], "p", (e) => (e === crash ? 400 : null));
     director.playDueScoreEvents(400, 1);

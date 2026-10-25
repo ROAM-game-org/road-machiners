@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickVariant, shuffled, spatial, VoiceLimiter } from "./pick";
+import { crashLevel, pickVariant, shuffled, spatial, VoiceLimiter } from "./pick";
 
 describe("shuffled", () => {
   it("reorders a copy by its rolls and keeps every item", () => {
@@ -57,5 +57,33 @@ describe("VoiceLimiter", () => {
     expect(v.admit("mg", 2, 0.5, 1.5)).toBe(false);
     expect(v.admit("cannon", 2, 0.5, 1.5)).toBe(true);
     expect(v.admit("mg", 2, 1, 2)).toBe(true);
+  });
+});
+
+describe("crashLevel", () => {
+  const curve = { quietImpact: 1.5, fullImpact: 4, quietGain: 0.25 };
+
+  it("plays the quiet gain at and below the quiet impact", () => {
+    expect(crashLevel(0, curve)).toBe(0.25);
+    expect(crashLevel(1.5, curve)).toBe(0.25);
+  });
+
+  it("rises in a straight line up to the full impact", () => {
+    expect(crashLevel(2.75, curve)).toBeCloseTo(0.625);
+    expect(crashLevel(2, curve)).toBeLessThan(crashLevel(3, curve));
+  });
+
+  it("never passes full gain", () => {
+    expect(crashLevel(4, curve)).toBe(1);
+    expect(crashLevel(40, curve)).toBe(1);
+  });
+
+  it("throws on a bad impact or a bad curve", () => {
+    expect(() => crashLevel(NaN, curve)).toThrow();
+    expect(() => crashLevel(Infinity, curve)).toThrow();
+    expect(() => crashLevel(-1, curve)).toThrow();
+    expect(() => crashLevel(2, { ...curve, fullImpact: 1.5 })).toThrow();
+    expect(() => crashLevel(2, { ...curve, quietGain: 0 })).toThrow();
+    expect(() => crashLevel(2, { ...curve, quietGain: 1.2 })).toThrow();
   });
 });

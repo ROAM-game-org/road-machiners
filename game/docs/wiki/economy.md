@@ -23,7 +23,7 @@ A shop holds a finite, random stock of parts and restocks every so many turns. O
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | bowl | garage | grain, textiles, meds, parts, electronics | water, scrap, batteries, salt, tools, rations, fuelDrums | grain, textiles, meds, parts, electronics, water, scrap, batteries, salt, tools, rations, fuelDrums | fuel, supplies | 8 to 12 | stockEngine | 400 | 3 |
 | nose | garage | salt, tools, batteries | scrap, fuelDrums, parts, rations, water, textiles, meds, electronics, relics | salt, tools, batteries, scrap, fuelDrums, parts, rations, water, textiles, meds, electronics, relics | fuel, supplies | 8 to 12 | stockEngine | 400 | 3 |
-| salvage-yard | stall | scrap, parts, relics | tools, rations, fuelDrums | scrap, parts, relics, tools, rations, fuelDrums | fuel, supplies | 2 to 4 |  | 300 | 1 |
+| salvage-yard | stall | scrap, parts, relics | tools, rations, fuelDrums | scrap, parts, relics, tools, rations, fuelDrums | fuel, supplies | 8 to 12 |  | 300 | 1 |
 | granary | stall | rations | grain, salt, water, tools, fuelDrums | rations, grain, salt, water, tools, fuelDrums | fuel, supplies | 2 to 4 |  | 300 | 1 |
 | pump-station | stall | fuelDrums | tools, batteries, rations | fuelDrums, tools, batteries, rations | fuel, supplies | 2 to 4 |  | 300 | 1 |
 | dustwell | stall | water | tools, meds, rations, fuelDrums | water, tools, meds, rations, fuelDrums | fuel, supplies | 2 to 4 |  | 300 | 1 |
