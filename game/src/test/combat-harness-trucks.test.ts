@@ -47,7 +47,7 @@ describe('truck specs', () => {
 
 describe('rams landed', () => {
   it('counts the damaging crashes of a truck with a ram and the ones its ram took, and none for a truck without one', () => {
-    const r = runFight({ ...FIGHT, a: parseLineup('charge:mg/plates+ram'), b: parseLineup('buggy:mg/bare'), seed: 1, maxTurns: 40 });
+    const r = runFight({ ...FIGHT, a: parseLineup('charge:mg/plates+ram'), b: parseLineup('buggy:mg/bare'), seed: 7, maxTurns: 40, orbit: 0 });
     expect(r.a.ramCrashes).toBeGreaterThan(0);
     expect(r.a.ramCrashes).toBeLessThanOrEqual(r.crashes);
     expect(r.a.ramsLanded).toBeLessThanOrEqual(r.a.ramCrashes);

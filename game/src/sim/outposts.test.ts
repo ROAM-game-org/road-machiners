@@ -10,6 +10,7 @@ import { chaosHighwayWorld, parkInYard } from './testkit';
 import { corePart, goodsCount, mountedParts } from './grid';
 import { startRepair } from './jobs';
 import { repairPlan } from './repair';
+import { skillEffect } from './progress';
 import { partDef } from '../data/parts';
 import { outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostPartPrice, outpostRepairAll, outpostRepairBasics, outpostRepairPart } from './outposts';
 import { partRepairCost } from './economy';
@@ -163,7 +164,8 @@ describe('outpost services', () => {
     for (let i = 0; i < 30 && playerVehicle(w).job; i++) w = endTurn(w, still);
 
     const patched = mountedParts(playerVehicle(w), 'engine')[0];
-    expect(patched.hp).toBeCloseTo(maxHp(patched) * REPAIR.fieldCapShare, 0);
+    const cap = Math.min(1, REPAIR.fieldCapShare + skillEffect(w, playerVehicle(w), 'machining', 'fieldCap'));
+    expect(patched.hp).toBeCloseTo(maxHp(patched) * cap, 0);
   });
 });
 

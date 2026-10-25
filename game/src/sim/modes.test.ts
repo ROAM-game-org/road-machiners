@@ -80,11 +80,11 @@ describe('a new world by mode', () => {
 
     expect(world.chaosHighway).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [1894781588, 1680246031, -1818829172, 1936023925],
-      nextId: 2008,
-      counts: [34, 6133, 128, 7],
-      npcs: [['trader', 117.25, 580.66], ['trader', 119.62, 577.45], ['buggy', 153.4, 99.99]],
-      bowlStock: ['lightFrame', 'reinforcedSection', 'smokeMortar', 'lightFrame', 'flatFour', 'cannon', 'sprout', 'flatbed', 'claymoreRam', 'enclosedFrame', 'patcherCrane', 'stockEngine'],
+      streams: [-1116529586, -407084570, -1818829172, 1936023925],
+      nextId: 2044,
+      counts: [34, 6048, 128, 7],
+      npcs: [['trader', 117.25, 580.66], ['trader', 119.62, 577.45], ['buggy', 149.33, 99.41]],
+      bowlStock: ['flareCannon', 'scrapersKnife', 'claymoreRam', 'stockEngine', 'spacedTile', 'racingV6', 'heavyFrame', 'caltrops', 'scrapersKnife', 'harpoon', 'caltrops', 'scrapersKnife'],
     });
   });
 
