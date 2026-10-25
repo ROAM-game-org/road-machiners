@@ -233,7 +233,7 @@ def hull_mesh(name: str, points: list[Vec3]) -> bpy.types.Object:
     bm = bmesh.new()
     verts = [bm.verts.new(p) for p in points]
     result = bmesh.ops.convex_hull(bm, input=verts)
-    bmesh.ops.delete(bm, geom=result["geom_interior"] + result["geom_unused"], context="VERTS")
+    bmesh.ops.delete(bm, geom=list(dict.fromkeys(result["geom_interior"] + result["geom_unused"])), context="VERTS")
     bmesh.ops.dissolve_limit(bm, angle_limit=0.01, verts=bm.verts, edges=bm.edges)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)

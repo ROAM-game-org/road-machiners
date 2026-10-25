@@ -20,6 +20,7 @@ const FADE_OUT_S = 0.03;
 const EQ = 'highpass=f=40,lowpass=f=14000';
 const BANDS = { low: 'lowpass=f=250', high: 'highpass=f=4000' };
 const MID = 'highpass=f=250,lowpass=f=4000';
+const PRESENCE = 'highpass=f=1000,lowpass=f=4000';
 const MAX_MATCH_DB = 6;
 const METER_S = 0.4;
 const OPUS_KBPS = 96;
@@ -172,6 +173,11 @@ export function bandBalance(src, shaped) {
   const rms = (band) => statValue(ffmpegLog(src, `${shaped},${band},astats=measure_perchannel=0:measure_overall=RMS_level`), 'RMS level dB');
   const mid = rms(MID);
   return { low: rms(BANDS.low) - mid, high: rms(BANDS.high) - mid };
+}
+
+export function presenceOf(src, shaped) {
+  const rms = (band) => statValue(ffmpegLog(src, `${shaped},${band},astats=measure_perchannel=0:measure_overall=RMS_level`), 'RMS level dB');
+  return rms(PRESENCE) - rms(MID);
 }
 
 export function measure(src, shaped) {

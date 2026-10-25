@@ -342,7 +342,7 @@ describe('repairContent', () => {
       { at: { kind: 'site', id: 'ghost-camp' } },
       { who: { kind: 'sighting', driver: 'Retired Name', seen: null } },
       { way: { kind: 'directions', steps: [{ do: 'turn', side: 'left', at: { kind: 'site', id: 'ghost-camp' }, road: { kind: 'heading', octant: 'north' }, span: 'near' }] } },
-      { way: { kind: 'directions', steps: [{ do: 'leave', at: { kind: 'deck', id: 'ghost-deck' }, octant: 'north', span: 'near' }] } },
+      { way: { kind: 'directions', steps: [{ do: 'leave', at: { kind: 'deck', id: 'ghost-deck' }, octant: 'north', lean: null, span: 'near' }] } },
       { way: { kind: 'directions', steps: [{ do: 'search', clue: { kind: 'site', id: 'ghost-camp' }, rough: false }] } },
     ];
     for (const v of vars) {
@@ -359,7 +359,7 @@ describe('repairContent', () => {
     const site = REGION.towns[0].id;
     const way: CallVars = { way: { kind: 'directions', steps: [
       { do: 'turn', side: 'left', at: { kind: 'site', id: site }, road: { kind: 'to', site }, span: 'near' },
-      { do: 'leave', at: { kind: 'deck', id: DECKS[0].id }, octant: 'north', span: 'near' },
+      { do: 'leave', at: { kind: 'deck', id: DECKS[0].id }, octant: 'north', lean: null, span: 'near' },
       { do: 'search', clue: { kind: 'site', id: site }, rough: false },
     ] } };
     w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: way } };
