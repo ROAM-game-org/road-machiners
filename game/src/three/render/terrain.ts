@@ -102,12 +102,17 @@ export function chunkGeometry(t: Terrain, x: number, y: number, width: number, d
   return geo;
 }
 
-export function terrainMesh(w: World, scope: RenderScope): TerrainChunk[] {
-  const chunks: TerrainChunk[] = [];
+export function groundMaterial(w: World): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ map: groundTexture(w) });
   drawRoads(material, mapCanvas(w, TEXTURE_SIDE), w.terrain);
   facetGround(material);
   NIGHT_POOLS.light(material);
+  return material;
+}
+
+export function terrainMesh(w: World, scope: RenderScope): TerrainChunk[] {
+  const chunks: TerrainChunk[] = [];
+  const material = groundMaterial(w);
   for (let y = 0; y < w.size; y += TERRAIN_CHUNK)
     for (let x = 0; x < w.size; x += TERRAIN_CHUNK) {
       const width = Math.min(TERRAIN_CHUNK, w.size - x);

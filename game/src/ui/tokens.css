@@ -214,6 +214,7 @@
   --meter-l: 6px;
   --pip: 10px;
   --dial-w: 108px;
+  --lcd-cell-w: 88px;
   --dial-h: 65px;
   --slider-thumb: 12px;
   --slider-track: 4px;
@@ -239,6 +240,7 @@
   --quest-page-clearance: 80px;
   --art-band-height: 200px;
   --art-band-phone-height: 72px;
+  --survey-picture-w: 132px;
   --quest-text-width: 680px;
   --quest-text-min: 620px;
   --quest-side-width: 230px;
@@ -312,6 +314,7 @@
 
 #ui:where(.narrow) {
   --dock-width: 200px;
+  --lcd-cell-w: 0px;
 }
 
 @media (orientation: landscape) {

@@ -18,7 +18,7 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 - `trader` buys goods where they are cheap and sells them where they are dear. It takes a haul contract only when trade has nothing to do.
 - A bot buys chassis only from the lineup of the town it stands in, and sells or prices a good only at a shop that trades it, so relics go to Nose.
 - `fastTrader` trades like the trader, buys no armor and picks the fastest chassis.
-- `hauler` takes the best haul contract on every board it reads, by pay per estimated turn. It trades only when no contract fits, so it measures contract pay against open trade.
+- `hauler` takes the best haul contract on every board it reads, by pay per estimated turn. It trades only when no contract fits, so it measures contract pay against open trade. A haul held past its deadline is late: it still drives to the destination and hands in what crates it holds, for no pay. Every bot sells only `spareGoods()`, so the crates a held haul owes stay aboard.
 - `procurer` takes the supply order with the best pay per estimated round trip, on a board it is parked at or on a known shop's board the radio announced. It counts its cargo toward the price, sells that cargo where it buys the crates, buys them at the cheapest known shop that sells the good, by that shop's current price, and delivers them. With no order that fits it plays the trader. `src/sim/progression/procurer.ts` holds it, and `src/sim/progression/reach.ts` the fuel reach every bot shares.
 - `scavenger` scavenges first, then trades, then takes hauls.
 - `hunter` seeks fights. It starts from the snowball kit unless `--kit` names another.

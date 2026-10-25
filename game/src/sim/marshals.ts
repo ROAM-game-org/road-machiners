@@ -228,7 +228,7 @@ export function payHailedBounty(world: World, marshal: Vehicle, target: Vehicle)
   addState(world, 'truce', marshal.id, target.id, { kind: 'none' });
 }
 
-const OFFENSE_ORDER: readonly CrimeOffense[] = ['killed', 'robbed', 'attacked'];
+const OFFENSE_ORDER: readonly CrimeOffense[] = ['killed', 'robbed', 'embezzled', 'attacked'];
 
 export function bountyTerms(world: World): CallVars {
   const cases = openCasesOn(world, world.player.vehicleId);

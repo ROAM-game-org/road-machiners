@@ -28,7 +28,7 @@ Equipment changes at a shop are instant. Away from a shop, a change is a refit j
 - Installing a salvaged part takes 5 turns. The part stays in the stock until the job ends.
 - Removing a part from a knocked-out truck takes 5 turns, and 10 when it goes straight onto a mount.
 
-With the inventory open in the field, moving and turning the truck's own parts only edits a plan. The grid shows the planned layout with a Cancel button and the planned turns. Closing the inventory starts one refit job for the whole plan, priced from the original layout, so a part put back where it started costs nothing. Looting, storing, dumping or a patch, strip or weld ends the plan.
+With the inventory open in the field, moving, turning or swapping a part that comes off or goes onto a mount only edits a plan. Goods and spare parts move between plain cells at once, with no plan. The grid shows the planned layout with a Cancel button and the planned turns. Closing the inventory starts one refit job for the whole plan, priced from the original layout, so a part put back where it started costs nothing. While a plan is pending, loot lands only on cells that are free in the drawn layout and in the real one. Looting, storing, dumping or a patch, strip or weld ends the plan.
 
 A working patcher crane on the truck cuts 5 turns to 4 and 10 to 7. Machining shortens these times further. With the Cannibal perk, a part off a wreck or a knocked-out truck still takes one turn. The old layout stays active until the whole job finishes. Rearranging, storing, dumping or collecting items is blocked during a refit. Moving goods or spare parts without installing them stays instant.
 

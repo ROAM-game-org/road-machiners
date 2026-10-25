@@ -150,7 +150,7 @@ export function moneyReasonText(world: World, reason: MoneyReason): Msg {
   if (reason.kind === 'towing') return t('money.towing', { vehicle: vehicleTitleOf(world, reason.vehicle) });
   if (reason.kind === 'outpost') return t('money.outpost');
   if (reason.kind === 'holdUp') return t('money.holdUp', { vehicle: vehicleTitleOf(world, reason.vehicle) });
-  return reason.kind === 'contract' ? t('money.contract') : t('money.failedHaul');
+  return t('money.contract');
 }
 
 type Plain<R> = R extends { id: infer I } ? (keyof R extends 'id' ? I : never) : never;

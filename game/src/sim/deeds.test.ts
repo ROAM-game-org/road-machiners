@@ -132,7 +132,7 @@ describe('deeds toward a faction', () => {
     expect(standingEvents(w)).toContainEqual({ t: 'standing', faction: 'bowl', band: 'neutral', cause: { kind: 'drift', toward: 'down' } });
     const c = emptyWorld({ x: 30, y: 30 });
     c.player.standing.bowl = 13;
-    noteContractDeed(c, 'contract-1', 'bowl');
+    noteContractDeed(c, 'contract-1', 'bowl', 'contract');
     expect(standingEvents(c)).toEqual([{ t: 'standing', faction: 'bowl', band: 'friendly', cause: { kind: 'deed', deed: 'contract' } }]);
   });
 
