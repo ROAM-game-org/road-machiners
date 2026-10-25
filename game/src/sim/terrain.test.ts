@@ -1,6 +1,6 @@
 import { START_KITS } from "../data/start";
 import { describe, expect, it } from "vitest";
-import { REGION, scalePoint } from "../data/region";
+import { REGION, RETIRED_SITES, scalePoint } from "../data/region";
 import { siteName } from "../text/names";
 import { resolve } from "../text/resolve";
 import { TERRAIN, TERRAIN_TYPES, type DeckSpec, type TerrainTypeId } from "../data/terrain";
@@ -117,8 +117,7 @@ describe("terrain grid", () => {
   });
 
   it('keeps no loot site: every location is a territory, a camp or a shop outpost, and every non-territory one is a fortress (IV1)', () => {
-    const retired = ['burnt-convoy', 'podfield', 'ridge-wrecks', 'canyon-bridge', 'south-lock', 'broken-wing'];
-    for (const id of retired) expect(REGION.locations.some((site) => site.id === id), id).toBe(false);
+    for (const id of RETIRED_SITES) expect(REGION.locations.some((site) => site.id === id), id).toBe(false);
     for (const site of REGION.locations.filter((l) => l.kind !== 'territory')) expect(site.id in FORTRESS_SITES, site.id).toBe(true);
     for (const id of ['dustwell', 'green-pit']) expect(SHOPS[id].kind).toBe('stall');
   });
