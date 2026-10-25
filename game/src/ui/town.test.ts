@@ -6,9 +6,10 @@ import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF, SHOPS } from "../data/market";
 import { shortHere, stockTarget, type ShopState } from "../sim/market";
-import { livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
+import { casePrice, casePriceTip, livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
 import { PAINT, PAINT_SCHEMES } from "../data/chassis";
 import { placeProse } from "../text/names";
+import type { CrimeCase } from "../sim/types";
 
 const en = (msg: Msg | null): string | null => (msg === null ? null : resolve(msg, "en"));
 const hint = (...args: Parameters<typeof pressureHint>) => {
@@ -222,5 +223,41 @@ describe("the road news well", () => {
       expect.stringContaining("knocked out"),
       expect.stringContaining("destroyed"),
     ]);
+  });
+});
+
+describe("the price of a case at the Marshalls desk", () => {
+  beforeEach(() => {
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => new FakeNode(tag),
+      createElementNS: (_ns: string, tag: string) => new FakeNode(tag),
+      createTextNode: (text: string) => Object.assign(new FakeNode("#text"), { children: [text] }),
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const robbery = (restitution: number): CrimeCase => ({
+    id: "case1", crime: "1:me:npc-x:robbed", offense: "robbed", target: "me", victim: "npc-x", issuer: { kind: "faction", faction: "bowl" },
+    reporters: ["npc-x"], site: "bowl", at: { x: 0, y: 0 }, turn: 1, filed: 2, owed: 11097, restitution, escrow: 0, status: "open",
+    closed: null, hunter: null, retryAt: null, offered: null, known: true, posse: 'lone', lead: { at: { x: 0, y: 0 }, turn: 1, heading: 0 },
+  });
+  const tipRows = (price: FakeNode) => price.all((n) => n.has("tooltip-row")).map((row) => [row.className, row.text()]);
+
+  it("is the fine alone, with no breakdown, when the victim handed nothing over", () => {
+    const price = casePrice(robbery(0), true) as unknown as FakeNode;
+    expect(price.text()).toBe("111");
+    expect(price.has("case-price")).toBe(false);
+  });
+
+  it("is fine and restitution, and its breakdown gives Base in muted ink and Restitution in danger ink", () => {
+    const price = casePrice(robbery(4000), true) as unknown as FakeNode;
+    expect(price.has("case-price")).toBe(true);
+    expect(price.text()).toBe("151");
+    expect(tipRows(casePriceTip(robbery(4000)) as unknown as FakeNode)).toEqual([["tooltip-row base", "Base111"], ["tooltip-row down", "Restitution40"]]);
+  });
+
+  it("prints in danger ink when the player cannot pay it", () => {
+    expect((casePrice(robbery(4000), false) as unknown as FakeNode).has("bad")).toBe(true);
+    expect((casePrice(robbery(0), false) as unknown as FakeNode).has("bad")).toBe(true);
   });
 });
