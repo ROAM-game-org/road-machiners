@@ -81,6 +81,7 @@ describe('turn speed', () => {
 });
 
 const BUS_RAPIER_CIRCLE = 6.09;
+const BUGGY_RAPIER_CIRCLE = 5.17;
 
 type Point = { x: number; z: number };
 
@@ -99,6 +100,28 @@ function fittedRadius(points: Point[]): number {
   const uc = (((suuu + suvv) / 2) * svv - ((svvv + svuu) / 2) * suv) / det;
   const vc = (suu * ((svvv + svuu) / 2) - suv * ((suuu + suvv) / 2)) / det;
   return Math.sqrt(uc * uc + vc * vc + (suu + svv) / n);
+}
+
+function topSpeedLockTilt(chassisId: string): number {
+  let w = emptyWorld({ x: 60, y: 60 });
+  const v = addVehicle(w, 'player', chassisId, ['stockEngine'], { x: 60, y: 60 });
+  w.vehicles = [v];
+  w.player.vehicleId = v.id;
+  v.speed = CHASSIS[chassisId].maxSpeed;
+  w = setMoveOrder(setDirect(w, true), { kind: 'through', dest: { x: 60, y: 40 } });
+  let d = buildDrive(w);
+  const tilts: number[] = [];
+  for (let i = 0; i < 4; i++) {
+    let r: TurnResult | null = null;
+    w = endTurn(w, physicsMove(d, (x) => (r = x)));
+    for (const f of r!.frames[v.id]) tilts.push(Math.acos(Math.min(1, 1 - 2 * (f.rot.x * f.rot.x + f.rot.z * f.rot.z))) * (180 / Math.PI));
+    freeDrive(d);
+    d = r!.next;
+    const truck = w.vehicles[0];
+    const turn = i % 2 ? Math.PI / 2 : -Math.PI / 2;
+    w = setMoveOrder(w, { kind: 'through', dest: { x: truck.pos.x + 20 * Math.cos(truck.heading + turn), y: truck.pos.y + 20 * Math.sin(truck.heading + turn) } });
+  }
+  return Math.max(...tilts);
 }
 
 function fullLockCircleFromRest(chassisId: string): number {
@@ -127,28 +150,24 @@ describe('the bus turning circle', () => {
   });
 
   it('keeps the bus upright at top speed at full lock on flat ground', () => {
-    let w = emptyWorld({ x: 60, y: 60 });
-    const v = addVehicle(w, 'player', 'bus', ['stockEngine'], { x: 60, y: 60 });
-    w.vehicles = [v];
-    w.player.vehicleId = v.id;
-    v.speed = CHASSIS.bus.maxSpeed;
-    w = setMoveOrder(setDirect(w, true), { kind: 'through', dest: { x: 60, y: 40 } });
-    let d = buildDrive(w);
-    const tilts: number[] = [];
-    for (let i = 0; i < 4; i++) {
-      let r: TurnResult | null = null;
-      w = endTurn(w, physicsMove(d, (x) => (r = x)));
-      for (const f of r!.frames[v.id]) tilts.push(Math.acos(Math.min(1, 1 - 2 * (f.rot.x * f.rot.x + f.rot.z * f.rot.z))) * (180 / Math.PI));
-      freeDrive(d);
-      d = r!.next;
-      const bus = w.vehicles[0];
-      const turn = i % 2 ? Math.PI / 2 : -Math.PI / 2;
-      w = setMoveOrder(w, { kind: 'through', dest: { x: bus.pos.x + 20 * Math.cos(bus.heading + turn), y: bus.pos.y + 20 * Math.sin(bus.heading + turn) } });
-    }
-    expect(Math.max(...tilts)).toBeLessThan(PHYSICS.truck.flipTilt);
+    expect(topSpeedLockTilt('bus')).toBeLessThan(PHYSICS.truck.flipTilt);
   });
 
   it('turns the bus wider than the van, whose wheelbase it now shares', () => {
     expect(fullLockCircleFromRest('bus')).toBeGreaterThan(fullLockCircleFromRest('van'));
+  });
+});
+
+describe('the buggy turning circle', () => {
+  beforeAll(async () => {
+    await initPhysics();
+  });
+
+  it('turns the buggy at full lock from rest in Rapier within 10% of the circle its old 1.95 m wheelbase gave', () => {
+    expect(Math.abs(fullLockCircleFromRest('buggy') / BUGGY_RAPIER_CIRCLE - 1)).toBeLessThanOrEqual(0.1);
+  });
+
+  it('keeps the buggy upright at top speed at full lock on flat ground', () => {
+    expect(topSpeedLockTilt('buggy')).toBeLessThan(PHYSICS.truck.flipTilt);
   });
 });
