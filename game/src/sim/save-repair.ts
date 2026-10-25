@@ -8,7 +8,7 @@ import { FACTIONS } from '../data/npc-behavior';
 import { FIRST_NAMES, NPCS, SURNAMES, TRAITS } from '../data/npcs';
 import { PARTS, partDef } from '../data/parts';
 import { PERSONALITIES } from '../data/personalities';
-import { REGION } from '../data/region';
+import { MAP_GRID, REGION } from '../data/region';
 import { SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { CONDITION } from '../data/wear';
@@ -556,6 +556,10 @@ function stepFits(step: DirectionStep): boolean {
   return wayFits(step);
 }
 
+function isGridIndex(at: number): boolean {
+  return Number.isInteger(at) && at >= 0 && at < MAP_GRID.squares;
+}
+
 const CALL_VAR_FITS: { [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>) => boolean } = {
   town: (v) => isSite(v.id),
   site: (v) => isSite(v.id),
@@ -569,6 +573,7 @@ const CALL_VAR_FITS: { [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>
   sighting: (v) => isName(v.driver),
   bearing: () => true,
   distance: () => true,
+  square: (v) => isGridIndex(v.column) && isGridIndex(v.row),
   answer: () => true,
   line: (v) => isLine(v.line),
   directions: (v) => v.steps.every(stepFits),
