@@ -59,6 +59,7 @@ from parts_common_base import (  # noqa: E402
     hull_mesh,
     level_sockets,
 )
+from parts_common_core import PROUD  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 306
@@ -216,16 +217,19 @@ def skin(kit: Kit, name: str, x0: float, x1: float, z0: float, z1: float, s: int
     add_hull(kit, name, pts, mat)
 
 
-def end_band(kit: Kit, name: str, z0: float, z1: float, out: float, y_max: float, mat: str, sign: int, wrap: float = 0.0) -> None:
+def end_band(kit: Kit, name: str, z0: float, z1: float, out: float, y_max: float, mat: str, sign: int, wrap: float = 0.0, inset: float = 0.0) -> None:
     """A band over the nose (sign 1) or tail (-1) from z0 to z1 that follows its bow and stands out by out.
 
-    y_max limits it across; wrap carries it this far round the corners onto the sides.
+    y_max limits it across; wrap carries it this far round the corners onto the sides; inset pulls its two ends in.
     """
     pts: list[Vec3] = []
     for z in (z0, z1):
         for grow in (out, -0.02):
             ring = plan_ring(z, FRONT, BACK, SIDE, BULGE, CORNER, grow)
             pts += [p for p in ring if sign * p[0] > 0 and abs(p[1]) <= y_max + 1e-6 and sign * p[0] >= NOSE_END - wrap]
+    if inset:
+        reach = max(abs(p[1]) for p in pts)
+        pts = [(x, y - math.copysign(inset, y) if abs(y) > reach - 1e-6 else y, z) for x, y, z in pts]
     add_hull(kit, name, pts, mat)
 
 
@@ -263,7 +267,7 @@ def body(kit: Kit) -> None:
         flare(kit, f"flare{i}_l", G, wx, HUB_Z, WHEEL_R, SIDE - 0.02, HALF_Y, bottom=BODY_BOTTOM, segments=ARCH_SIDES)
         flare(kit, f"flare{i}_r", G, wx, HUB_Z, WHEEL_R, -HALF_Y, -SIDE + 0.02, bottom=BODY_BOTTOM, segments=ARCH_SIDES)
     top_tip = FRONT - WINDSHIELD_RAKE - 0.02
-    band = plan_ring(SILL, FRONT - 0.02, BACK + 0.02, SIDE, BULGE, CORNER) + plan_ring(WIN_TOP, top_tip, BACK + 0.04, SIDE - TUMBLE, 0.08, top_tip - 0.08 - NOSE_END)
+    band = plan_ring(SILL, FRONT, BACK, SIDE, BULGE, CORNER) + plan_ring(WIN_TOP + PROUD, top_tip, BACK + 0.04, SIDE - TUMBLE, 0.08, top_tip - 0.08 - NOSE_END)
     add_hull(kit, "band", band, "glass")
     lip = [p for z in (VISOR_FOOT, WIN_TOP + 0.04) for p in plan_ring(z, CANT[0][1], BACK, SIDE - TUMBLE, CANT[0][4], CANT[0][5]) if p[0] > NOSE_END - 0.05]
     add_hull(kit, "visor_lip", lip, "paint")
@@ -296,7 +300,10 @@ def windows(kit: Kit) -> None:
             lo, hi = (lo, hi) if x > TAIL_END + 1e-6 else (x, x + PILLAR_W)
             skin(kit, f"pillar{i}_{tag}", lo, hi, SILL - 0.02, WIN_TOP + 0.02, s, "paint")
         for i, (a, b) in enumerate(bays(s)):
-            skin(kit, f"transom{i}_{tag}", b, a, TRANSOM, TRANSOM + 0.045, s, "paint", out=0.012)
+            lo, hi = min(a, b), max(a, b)
+            lo += PROUD * (abs(lo - TAIL_END) < 1e-6)
+            hi -= PROUD * (abs(hi - NOSE_END) < 1e-6)
+            skin(kit, f"transom{i}_{tag}", lo, hi, TRANSOM, TRANSOM + 0.045, s, "paint", out=0.012)
             if a <= FRONT_DOOR[1] + 1e-6:
                 skin(kit, f"roof_glass{i}_{tag}", b + 0.06, a - 0.06, ROOF_GLASS[0], ROOF_GLASS[1], s, "glass", out=0.012)
 
@@ -365,7 +372,7 @@ def rear(kit: Kit) -> None:
     end_band(kit, "engine_lid", -0.66, -0.06, 0.012, 0.66, "paint", -1)
     for i in range(4):
         z = -0.56 + 0.12 * i
-        end_band(kit, f"louver{i}", z, z + 0.05, 0.024, 0.56, "under", -1)
+        end_band(kit, f"louver{i}", z, z + 0.05, 0.024, 0.56, "under", -1, inset=PROUD)
     for s in (1, -1):
         y = s * 0.88
         x = BACK + BULGE * (0.88 / (SIDE - CORNER)) ** 2
