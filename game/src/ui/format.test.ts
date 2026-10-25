@@ -835,7 +835,7 @@ describe("site event log lines", () => {
   it("tell a surge under see all", () => {
     resetSeeAll();
     toggleSeeAll();
-    expect(logEn(emptyWorld(), surge)?.text).toBe(`${en(siteName("pump-station"))} turns out extra fuel drums today.`);
+    expect(logEn(emptyWorld(), surge)?.text).toBe(`${en(siteName("pump-station"))} turns out extra petrol today.`);
     resetSeeAll();
   });
 });

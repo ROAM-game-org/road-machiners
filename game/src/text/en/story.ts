@@ -162,7 +162,7 @@ export const STORY = {
   'term.sunward': 'Believers who worship whatever lies in the crater of the Fallen Sun. They keep others away from it.',
   'term.senate': 'The council of Bowl\'s citizens, and it decides for the whole town. Only citizens sit in it, and it is known for slow, long arguments.',
   'term.farmers': 'Bowl\'s own road patrol. It guards the roads near Bowl\'s walls and nothing past them.',
-  'term.pump_station': 'A fuel pumpworks out on the flat, built on an Old World oil well whose pumpjack still nods. Its crew cooks the crude into diesel, and fuel convoys load drums there.',
+  'term.pump_station': 'A fuel pumpworks out on the flat, built on an Old World oil well whose pumpjack still nods. Its crew cooks the crude into petrol, and fuel convoys load drums there.',
   'term.dustwell': 'A walled well outpost on the Bowl north road. Its pumpjack lifts water from deep rock into tall tanks, and water trucks carry it down to Bowl\'s canals.',
   'term.committee': 'The Central Committee governs Nose. It plans the town\'s work and rations its food and water.',
   'term.salvage_yard': 'A yard of stacked wrecks under a crane, where towed trucks end up. Its repair crews sell hull pieces and the Old Army\'s stripped guns.',
