@@ -367,7 +367,6 @@ function stripBox(s: LandingStrip): PosedBox {
   return { center: { x: (s.a.x + s.b.x) / 2, y: (s.a.y + s.b.y) / 2 }, axis, half: { x: length / 2, y: s.width / 2 }, z0: 0, z1: 1 };
 }
 
-
 describe('every territory road on the baked map', () => {
   const terrain = TEST_MAP.terrain;
   const territories = REGION.locations.filter((l) => l.kind === 'territory');
