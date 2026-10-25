@@ -326,14 +326,14 @@ Her line is "A driver who files his road with me is a driver I can pay when he i
 - Way: control.
 - High concept: The man who runs Pierce Corporation and lends to rulers.
 - Trouble: Both towns owe him so much that he cannot let either town fail or learn what he did.
-- Aspects: Constance Pierce knows his books; Both towns owe him; A clerk sent west.
+- Aspects: Constance Pierce knows his books; Both towns owe him; A clerk sent north-west.
 - Skills: best social, worst machining.
 - Wants: Both towns stay in debt to Pierce.
 - Fears: The debtor book is read aloud.
 - Habit: He says "Pierce only insures the road" to anyone who asks about a loss.
 - Secret: He ordered the crates marked with a hook north to Scrapjaw. He hides it from both towns, the Order Bureau and Constance.
 
-Lucan runs Pierce Corporation. He lends to rulers, never to farmers, and both towns owe him more than they admit. He ordered the hook crates north to Scrapjaw. When the clerk who sold the routes was caught, Lucan had him sent west. He says Pierce only insures the road.
+Lucan runs Pierce Corporation. He lends to rulers, never to farmers, and both towns owe him more than they admit. He ordered the hook crates north to Scrapjaw. When the clerk who sold the routes was caught, Lucan had him sent north-west. He says Pierce only insures the road.
 
 ## Tamsin Roe
 
@@ -498,16 +498,16 @@ Her line is "The count is read in the open. Whoever wants the last number, come 
 ## Sefa Krol
 
 - Way: oppose.
-- High concept: The trader and leader of a dozen vulture families on the north side of the Salvage Yard.
+- High concept: The trader and leader of a dozen vulture families on the north-east side of the Salvage Yard.
 - Trouble: Every favor she does for the families comes back later as a debt or a danger.
 - Aspects: First to any wreck; Hid Karl Vosk for years; A deal with Kaplan of Kiln Camp over the raiders' wrecks.
 - Skills: best perception, worst machining.
 - Wants: No family goes short of water or food.
 - Fears: The man she hid, or the book she sold, brings the Army or Kiln down on her families.
 - Habit: She prices what a stranger carries and tells him to keep his hand off her table.
-- Secret: She hid Karl Vosk and sent him south. She hides it from the Army post.
+- Secret: She hid Karl Vosk and sent him west. She hides it from the Army post.
 
-Sefa leads a dozen vulture families who lived in the burnt trucks of the Burnt Convoy until the road crews cleared the wrecks. They live on the north side of the Salvage Yard now. They are first to any wreck, and she never takes the last water from anyone. She hid the robber Karl Vosk for years, sold Pierce's debtor book to the Salvage Yard and made a deal with Kaplan of Kiln Camp over the raiders' wrecks. Nobody in her camp went short this year.
+Sefa leads a dozen vulture families who lived in the burnt trucks of the Burnt Convoy until the road crews cleared the wrecks. They live on the north-east side of the Salvage Yard now. They are first to any wreck, and she never takes the last water from anyone. She hid the robber Karl Vosk for years, sold Pierce's debtor book to the Salvage Yard and made a deal with Kaplan of Kiln Camp over the raiders' wrecks. Nobody in her camp went short this year.
 
 Her line is "We take what the road is done with and leave the water."
 
@@ -564,16 +564,16 @@ Her line is "Turn your head. That ring is fresh."
 ## Lusa Fenwick
 
 - Way: escape.
-- High concept: An Ephemeralist dreamer who rode west with a convoy, came back and reads the road to drivers.
+- High concept: An Ephemeralist dreamer who rode north-west with a convoy, came back and reads the road to drivers.
 - Trouble: She brings back stories of a gunless valley that no truck here can drive to.
-- Aspects: Hal Sorensen's map with a valley town drawn on the back; Dario Feld's western book; Reads the dead at Canyon Bridge each year.
+- Aspects: Hal Sorensen's map with a valley town drawn on the back; Dario Feld's north-western book; Reads the dead at Canyon Bridge each year.
 - Skills: best perception, worst toughness.
 - Wants: A road here kept by a guard that every town pays for, so trucks can go without guns.
 - Fears: The valley town is only a dream.
-- Habit: She reads the road aloud from the western book to any convoy driver who will sit.
+- Habit: She reads the road aloud from the north-western book to any convoy driver who will sit.
 - Secret: None.
 
-Lusa is an Ephemeralist dreamer who rode west with a convoy and came back. She keeps Hal Sorensen's map of the western road, and on its back she drew a valley town whose trucks carry no guns. Once a year she reads the names of the dead at Canyon Bridge. The old convoy master Dario Feld gave her his western book, and the convoy drivers let her read them the road.
+Lusa is an Ephemeralist dreamer who rode north-west with a convoy and came back. She keeps Hal Sorensen's map of the north-western road, and on its back she drew a valley town whose trucks carry no guns. Once a year she reads the names of the dead at Canyon Bridge. The old convoy master Dario Feld gave her his north-western book, and the convoy drivers let her read them the road.
 
 Her line is "The test is here, but the road goes out there."
 
@@ -582,14 +582,14 @@ Her line is "The test is here, but the road goes out there."
 - Way: escape.
 - High concept: An Old Army deserter who robbed trucks with his brother and now rides for Kiln Camp.
 - Trouble: He keeps running from a past that sits in the graves by Canyon Bridge.
-- Aspects: Shot Hal Sorensen in year 113; Sefa Krol hid him and sent him south; Rides on Ladle Ruiz's order.
+- Aspects: Shot Hal Sorensen in year 113; Sefa Krol hid him and sent him west; Rides on Ladle Ruiz's order.
 - Skills: best driving, worst social.
 - Wants: To be left alone where nobody asks about his past.
 - Fears: Someone from the Bowl names him as the man who shot Hal.
 - Habit: He sits where he can see the door.
 - Secret: He shot Hal Sorensen in year 113. He hides it from the Bowl.
 
-Karl and his brother Jens were Old Army deserters who robbed insured trucks on the Nose road with routes bought from a Pierce clerk. Karl shot Hal Sorensen in year 113. After Jens died he hid among the Burnt Convoy families, and Sefa sent him south. He rides for Kiln Camp now, and nobody there asks about his past.
+Karl and his brother Jens were Old Army deserters who robbed insured trucks on the Nose road with routes bought from a Pierce clerk. Karl shot Hal Sorensen in year 113. After Jens died he hid among the Burnt Convoy families, and Sefa sent him west. He rides for Kiln Camp now, and nobody there asks about his past.
 
 ## Hattie
 
@@ -673,11 +673,11 @@ His line is "The book is worth what we're willing to answer for."
 
 - Way: fear.
 - High concept: A former Pierce filing clerk who keeps the road book at the Roadhouse.
-- Trouble: He wrote his name under the case that sent Karl Vosk west, and any man in the book could find it.
+- Trouble: He wrote his name under the case that sent Karl Vosk north-west, and any man in the book could find it.
 - Aspects: Copies every page twice; Saw Dell Marr's hand on the filings; Owes Rook Halloran for his brother's body.
 - Skills: best perception, worst toughness.
 - Wants: A book that says only what is certain.
-- Fears: Being sent west and told not to come back.
+- Fears: Being sent north-west and told not to come back.
 - Habit: He strikes through hearsay and starts the page again, so a reader can tell which words are certain.
 - Secret: He found Dell Marr's hand on the filings and was seen finding it. He never told Inspector Kessel that Dell saw him.
 
@@ -704,16 +704,16 @@ Her line is "I'll hear a man out before I write what he owes."
 ## Jonah Feld
 
 - Way: escape.
-- High concept: Dario Feld's nephew, who came home from the west with a guard's tin badge and gave the Marshalls their name.
+- High concept: Dario Feld's nephew, who came home from the north-west with a guard's tin badge and gave the Marshalls their name.
 - Trouble: He will drive anywhere for the Roadhouse and will not carry a gun.
-- Aspects: A western guard's tin badge; Lusa Fenwick's friend on the road; A Kiln ladle scratched into his door.
+- Aspects: A north-western guard's tin badge; Lusa Fenwick's friend on the road; A Kiln ladle scratched into his door.
 - Skills: best driving, worst toughness.
-- Wants: A guard here paid by every town, like the one he saw in the west.
+- Wants: A guard here paid by every town, like the one he saw in the north-west.
 - Fears: Having to carry a gun himself.
 - Habit: He rubs the badge with his sleeve when he lies.
-- Secret: He once told drivers the western guard never lost a truck. He never asked.
+- Secret: He once told drivers the north-western guard never lost a truck. He never asked.
 
-Jonah rode west with Lusa Fenwick's convoy and came home with a badge stamped with an old word nobody here could read. He talked drivers into pledging for a guard, drove the supply truck behind Rook's staff cars, and posted the crossing hours on the Roadhouse gate. Ladle Ruiz's riders scratched a ladle into his door when he asked Kiln to answer a claim.
+Jonah rode north-west with Lusa Fenwick's convoy and came home with a badge stamped with an old word nobody here could read. He talked drivers into pledging for a guard, drove the supply truck behind Rook's staff cars, and posted the crossing hours on the Roadhouse gate. Ladle Ruiz's riders scratched a ladle into his door when he asked Kiln to answer a claim.
 
 His line is "He had his say at the mast. Now he has to pay."
 
@@ -729,7 +729,7 @@ His line is "He had his say at the mast. Now he has to pay."
 - Habit: She counts the guns on a truck out loud before she says a word.
 - Secret: She still keeps the receipt book of "Sabra's paper" and honors her old receipts on her own.
 
-Sabra took tolls on the south road for Kiln and gave drivers a dated receipt that was honored once a year. When Ladle Ruiz took the south road she left her tin by Ladle's scraper and drove away. She blocked Karl Vosk's road at the pump shed and cut him off at a bend north of the mast. She rides for unanswered Kiln claims on her own fee, since no Roadhouse car does.
+Sabra took tolls on the south road for Kiln and gave drivers a dated receipt that was honored once a year. When Ladle Ruiz took the south road she left her tin by Ladle's scraper and drove away. She blocked Karl Vosk's road at the pump shed and cut him off at a bend north-east of the mast. She rides for unanswered Kiln claims on her own fee, since no Roadhouse car does.
 
 Her line is "Pay once, keep the paper. That's what a toll means."
 

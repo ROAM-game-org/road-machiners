@@ -19,7 +19,7 @@ import type { Vehicle, World } from './types';
 
 const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', lineKey(line));
 const texts = (w: World): string[] => currentOptions(w).map((o) => en(o.line));
-const PAY = "Here's your money. Now back off.";
+const PAY = "Here are your M's. Now back off.";
 const DROP = 'Fine. Take it.';
 const REFUSE = 'Come and get it.';
 
@@ -238,9 +238,9 @@ describe('a call saved before the price existed', () => {
 });
 
 describe('robbing a driver for M', () => {
-  const ASK = "Hand over your M's, or we open fire.";
+  const ASK = "Hand over your M's, or I open fire.";
   const INSIST = "You heard me. M's, now.";
-  const CARGO_ASK = 'Drop your cargo, or we open fire.';
+  const CARGO_ASK = 'Drop your cargo, or I open fire.';
 
   function rich(money: number): { w: World; npc: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
