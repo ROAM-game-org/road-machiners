@@ -496,3 +496,10 @@ export function withLeanDirections_104_105(world: SavedJson): SavedJson {
   const next = { ...call, vars: withLeanVars_104_105(call.vars as SavedJson), line: { ...line, vars: withLeanVars_104_105(line.vars as SavedJson) } };
   return { ...world, player: { ...player, call: next } };
 }
+
+const LONE_POSSE_105_106 = 'lone';
+
+export function withCasePosse_105_106(world: SavedJson): SavedJson {
+  const crimes = world.crimes as SavedJson[];
+  return { ...world, crimes: crimes.map((c) => ({ ...c, posse: LONE_POSSE_105_106 })) };
+}

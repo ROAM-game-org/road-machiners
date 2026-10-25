@@ -10,7 +10,8 @@ import { getResources } from './resources';
 import { modeRules } from './settings';
 import { canUseSite, parkedOn } from './sites';
 import { boundTo } from './states';
-import type { CaseIssuer, CaseLead, CrimeCase, CrimeOffense, Memory, Refusal, StandingFactionId, Vehicle, World } from './types';
+import { followingOf } from './companies';
+import type { CaseIssuer, CaseLead, CasePosse, CrimeCase, CrimeOffense, Memory, Refusal, StandingFactionId, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { playerVehicle } from './damage';
 import { vehicleHasPerk } from './progress';
@@ -29,7 +30,13 @@ export function crimeOf(world: World, culprit: Vehicle, victim: Vehicle, offense
 
 function huntsAs(world: World, hunter: Vehicle, targetId: string): boolean {
   const hunts = vehicleHasPerk(world, hunter, 'bountyHunter') && hunter.id !== targetId;
-  return world.crimes.some((c) => c.status === 'open' && c.target === targetId && (hunts || c.hunter === hunter.id));
+  const leader = escortedHunter(world, hunter);
+  return world.crimes.some((c) => c.status === 'open' && c.target === targetId && (hunts || c.hunter === hunter.id || (leader !== null && c.hunter === leader)));
+}
+
+function escortedHunter(world: World, follower: Vehicle): string | null {
+  const held = followingOf(world, follower);
+  return held?.kind === 'escort' ? held.other : null;
 }
 
 function foughtAnother(world: World, victim: Vehicle, culprit: Vehicle): boolean {
@@ -115,7 +122,7 @@ function openCase(world: World, reporter: Vehicle, fact: Witnessed, site: string
   const c: CrimeCase = {
     id: newId(world, 'case'), crime: fact.crime, offense: fact.offense, target: target.id, victim: fact.victim, issuer,
     reporters: [reporter.id], site, at: { ...fact.at }, turn: crimeTurn(fact.crime), filed: world.turn, owed: stake, escrow,
-    status: 'open', closed: null, hunter: null, retryAt: null, offered: null, lead: { at: { ...fact.at }, turn: crimeTurn(fact.crime), heading: fact.heading },
+    status: 'open', closed: null, hunter: null, retryAt: null, offered: null, lead: { at: { ...fact.at }, turn: crimeTurn(fact.crime), heading: fact.heading }, posse: 'lone',
   };
   world.crimes = [...world.crimes, c];
   world.events.push({ t: 'bountyFiled', case: c.id, target: c.target, reporter: reporter.id, offense: c.offense, victim: c.victim, site, owed: c.owed });
@@ -234,6 +241,24 @@ export function dropHunt(world: World, cases: CrimeCase[]): void {
     c.hunter = null;
     c.retryAt = world.turn + BOUNTY.retryTurns;
   }
+}
+
+const NEXT_POSSE: Readonly<Record<CasePosse, CasePosse | null>> = { lone: 'pair', pair: 'spent', spent: null };
+
+export function stepPosse(cases: CrimeCase[]): void {
+  for (const c of cases) {
+    const next = NEXT_POSSE[c.posse];
+    if (!next) throw new Error(`Case ${c.id} is spent and has no posse left to send`);
+    c.posse = next;
+  }
+}
+
+export type PosseNeed = 'lone' | 'pair';
+
+export function targetNeed(world: World, targetId: string): PosseNeed | null {
+  const open = openCasesOn(world, targetId);
+  if (!open.some((c) => c.posse !== 'spent')) return null;
+  return open.some((c) => c.posse !== 'lone') ? 'pair' : 'lone';
 }
 
 export function huntedBy(world: World, targetId: string): string | null {

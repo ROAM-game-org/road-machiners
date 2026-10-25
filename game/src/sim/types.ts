@@ -703,7 +703,10 @@ export type CrimeCase = {
   retryAt: number | null;
   offered: number | null;
   lead: CaseLead;
+  posse: CasePosse;
 };
+
+export type CasePosse = 'lone' | 'pair' | 'spent';
 
 export type World = {
   seed: number;
