@@ -5,14 +5,26 @@ import { exitsAt, isJunction, nearestRoadPoints, otherEnd, roadNetworkOf, splitA
 import { propsAround } from './prop-index';
 import { siteGap } from './sites';
 import type { Cue, DirectionStep, Octant, RoadName, World } from './types';
-import { angleDiff, dist, polylineDist, type Vec } from './vec';
+import { angleDiff, dist, type Vec } from './vec';
 
 const MAX_MOVES = 200;
+
+function nearestOnLine(p: Vec, line: readonly Vec[]): Vec {
+  let best = line[0];
+  for (let i = 0; i + 1 < line.length; i++) {
+    const [a, b] = [line[i], line[i + 1]];
+    const len2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / len2));
+    const q = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    if (dist(p, q) < dist(p, best)) best = q;
+  }
+  return best;
+}
 
 type Turn = Extract<DirectionStep, { do: 'turn' }>;
 type Follow = Extract<DirectionStep, { do: 'follow' }>;
 
-export type Followed = { reached: boolean; node: number; closest: number; graph: RoadGraph };
+export type Followed = { reached: boolean; node: number; closest: number; closestAt: Vec; graph: RoadGraph };
 
 function sameName(a: RoadName, b: RoadName): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
@@ -88,9 +100,10 @@ export function followSteps(world: World, from: Vec, steps: readonly DirectionSt
   let forks = 0;
   let next = 0;
   let closest = Infinity;
+  let closestAt = from;
   for (let move = 0; move < MAX_MOVES; move++) {
     const here = graph.nodes[node];
-    if ('site' in goal && (here.site === goal.site || here.entry === goal.site)) return { reached: true, node, closest, graph };
+    if ('site' in goal && (here.site === goal.site || here.entry === goal.site)) return { reached: true, node, closest, closestAt, graph };
     const exits = exitsAt(graph, node).filter((e) => e.edge !== into);
     if (exits.length === 0) break;
     let pick = exits[0];
@@ -109,11 +122,17 @@ export function followSteps(world: World, from: Vec, steps: readonly DirectionSt
         forks = 0;
       } else pick = straightest(graph, node, into, exits);
     }
-    if (spot && next === turns.length) closest = Math.min(closest, polylineDist(spot, graph.edges[pick.edge].points));
+    if (spot && next === turns.length) {
+      const near = nearestOnLine(spot, graph.edges[pick.edge].points);
+      if (dist(spot, near) < closest) {
+        closest = dist(spot, near);
+        closestAt = near;
+      }
+    }
     into = pick.edge;
     node = otherEnd(graph.edges[pick.edge], node);
   }
-  return { reached: false, node, closest, graph };
+  return { reached: false, node, closest, closestAt, graph };
 }
 
 function turnExit(graph: RoadGraph, node: number, into: number, exits: { edge: number; heading: number }[], turn: Turn) {

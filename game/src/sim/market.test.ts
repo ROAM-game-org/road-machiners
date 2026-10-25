@@ -103,6 +103,25 @@ describe('market', () => {
     expect(initShop(w, 'salvage-yard').stock.length).toBeLessThanOrEqual(SHOPS['salvage-yard'].stockSize[1]);
   });
 
+  it('stocks the Salvage Yard with a full shelf of worn parts, guns and engines among them', () => {
+    const w = emptyWorld();
+    const state = initShop(w, 'salvage-yard');
+    const seen = new Set<string>();
+    for (let roll = 0; roll < 80; roll++) {
+      expect(state.stock.length).toBeGreaterThanOrEqual(8);
+      expect(state.stock.length).toBeLessThanOrEqual(12);
+      for (const part of state.stock) {
+        expect(part.wear).toBeGreaterThanOrEqual(1);
+        expect(part.wear).toBeLessThanOrEqual(4);
+        seen.add(part.defId);
+      }
+      w.turn = state.restockAt;
+      advanceShop(w, 'salvage-yard', state);
+    }
+    expect(['longRifle', 'heavyMg'].some((id) => seen.has(id))).toBe(true);
+    expect(['stockEngine', 'flatFour'].some((id) => seen.has(id))).toBe(true);
+  });
+
   it('walks a lot through stock one crate at a time', () => {
     const w = emptyWorld();
     const state = initShop(w, 'granary');

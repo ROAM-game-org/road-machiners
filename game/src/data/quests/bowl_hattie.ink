@@ -83,7 +83,7 @@ Pull up by the well. I'm Hattie. Where'd you come from, and how much water do yo
 + {hattie_sunward and cult_broken()} [Have the Sunward gone quiet?]
   Quiet as a dry well. Bo's cousin says the lamps stopped crossing to the crater at dusk, and a man with a green shine on his hands came to my well asking where a body could sleep. Well, Bo's cousin says a lot of things. You look like you'd know more about it than he does.
   -> hub
-+ {hattie_sunward and not hattie_came_out} [Have you seen one come out?]
++ {hattie_sunward and not hattie_came_out} [Have you seen anyone come out of the crater?]
   I saw one at dusk once, a woman with her hands shining green. She emptied bucket after bucket without a word.
   She didn't pay. Then she walked back toward the crater.
   ~ hattie_came_out = true
