@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { REGION } from "../data/region";
 import { CONDITION } from "../data/wear";
 import type { Contract } from "../sim/market";
+import type { ClaimContract } from "../sim/salvage";
 import { partDef, PARTS } from "../data/parts";
 import { addVehicle, emptyWorld, npcBrain } from "../sim/testkit";
 import type { GameEvent, World, Job, PartInstance, ShotRound } from "../sim/types";
@@ -14,6 +15,11 @@ import { isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyPro
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
 import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
+import { bakedTier } from "../sim/claim-clue";
+import { claimClue, claimWrecks } from "../sim/claims";
+import { START_KITS } from "../data/start";
+import { defaultSetup } from "../sim/settings";
+import { newWorld } from "../sim/world";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
@@ -216,6 +222,20 @@ describe("contract text", () => {
     const shop = REGION.towns.find((l) => l.id === "bowl")!;
     const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
     expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank east of Bowl, about 1.3 km out");
+  });
+
+  it("names the piece a claimed wreck lies by, inside it, beside it or offset from it", () => {
+    const world = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup("roaming"), false);
+    const wrecks = claimWrecks(world);
+    const claimAt = (id: string, shop: string): ClaimContract => {
+      const wreck = wrecks.find((w) => w.id === id)!;
+      return { id: "cw", shop, kind: "claim", stockId: id, at: { ...wreck.pos }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+    };
+    expect(en(contractSummary(claimAt("hullCache-2586", "nose")))).toMatch(/ in Fallen Sun, inside the small arch shell$/);
+    const offset = wrecks.find((w) => bakedTier(w.id, "bowl") === "offset" && claimClue(claimAt(w.id, "bowl")).where?.piece === "farmhouse")!;
+    expect(en(contractSummary(claimAt(offset.id, "bowl")))).toMatch(/ in Old Orchard, about \d+ m (north|south|east|west)[a-z-]* of the farmhouse$/);
+    const beside = wrecks.find((w) => bakedTier(w.id, "bowl") === "piece" && claimClue(claimAt(w.id, "bowl")).where?.relation === "beside")!;
+    expect(en(contractSummary(claimAt(beside.id, "bowl")))).toMatch(/, beside (the|a) [a-z ]+$/);
   });
 
   it("tells of a rival sent after a held claim, and of a claim lost to it, as notable lines", () => {

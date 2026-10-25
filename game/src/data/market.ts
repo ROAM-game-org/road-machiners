@@ -99,7 +99,7 @@ export const CONTRACTS = {
     rivalLeadFactor: 1,
     rivalRetryTurns: 20,
     clueStepTiles: 62.5,
-    clueRadiusShare: 0.4,
+    clue: { nearby: 10, shopBand: 62.5, besideTiles: 6.25, offsetStepTiles: 6.25, offsetBand: 6.25, offsetRange: 50 },
     leadStepTiles: 12.5,
     rivalTraits: ['scavenger', 'vulture', 'roamer', 'trader'] as readonly TraitId[],
     durationFactor: 2.5,
@@ -161,16 +161,16 @@ export const ESCORT_JOB = {
   postWeight: { 1: 0.2, 2: 1, 3: 2 } as Record<Threat, number>,
 };
 
-export type ClaimLook = 'armyTruck' | 'deadTruck' | 'tank' | 'shipWreck';
+export type ClaimLook = 'armyTruck' | 'deadTruck' | 'tank' | 'hullCompartment' | 'cargoPod' | 'engineSection';
 
 export const CLAIM_LOOKS: Partial<Record<PropKind | OldPlaceType, ClaimLook>> = {
   armyTruck: 'armyTruck',
   deadTruck: 'deadTruck',
   tank: 'tank',
   hulks: 'tank',
-  shipCache: 'shipWreck',
-  hullCache: 'shipWreck',
-  engineCache: 'shipWreck',
+  shipCache: 'cargoPod',
+  hullCache: 'hullCompartment',
+  engineCache: 'engineSection',
 };
 
 export type ShopKind = 'garage' | 'stall';

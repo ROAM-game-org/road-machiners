@@ -2,6 +2,7 @@ import { isShield, partDef } from '../data/parts';
 import { isMet, siteOf, type Contract } from '../sim/market';
 import { surveyClue, surveyPlaceType, type SurveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { claimClue, rivalRunning } from '../sim/claims';
+import type { ClueWords } from '../sim/claim-clue';
 import type { ClaimLook } from '../data/market';
 import { createIcon } from './cards';
 import { el } from './dom';
@@ -737,10 +738,18 @@ export function surveyPlacesLeft(c: SurveyContract): Msg {
   return t('contract.placesLeft', { n: open.length, places: list(open.map((p) => t(`contract.place.${surveyPlaceType(p.site)}`))) });
 }
 
+function claimWhereText(where: ClueWords): Msg {
+  const piece = t(`claim.piece.${where.piece}`);
+  if (where.tier === 'offset') return t('claim.where.off', { distance: distanceText(where.tiles), bearing: compassText(where.angle), piece });
+  return t(where.relation === 'in' ? 'claim.where.in' : 'claim.where.beside', { piece });
+}
+
 function claimSummary(c: Extract<Contract, { kind: 'claim' }>): Msg {
   const clue = claimClue(c);
   const words = { part: partNameOf(c.defId), wreck: claimLookText(clue.look), bearing: compassText(clue.angle), shop: siteName(c.shop), distance: distanceText(clue.distance) };
-  return clue.territory ? t('contract.salvageIn', { ...words, place: siteName(clue.territory) }) : t('contract.salvage', words);
+  if (!clue.territory) return t('contract.salvage', words);
+  const place = siteName(clue.territory);
+  return clue.where ? t('contract.salvageAt', { ...words, place, where: claimWhereText(clue.where) }) : t('contract.salvageIn', { ...words, place });
 }
 
 export function claimLookText(look: ClaimLook): Msg {
