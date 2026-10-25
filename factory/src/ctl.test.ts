@@ -190,7 +190,8 @@ describe('read commands', () => {
     const f = board();
     const record = { incident: '5:merge:t', stage: 'merge' as const, error: 'timed out after 240 minutes\nmore', cause: 'timeout' as const, log: '/m.log', batch: 10, since: 't', column: 'Merging' as const, kind: 'merge-batch' as const, tries: 1, released: 'r', refused: null };
     const merge = { stage: 'merge' as const, issue: null, error: 'timed out after 240 minutes', cause: 'timeout' as const, log: '/m.log', at: 't', batch: [5, 7] };
-    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), stuck: { '5': record }, failures: [merge], sweepError: 'boom\nmore' });
+    const cleared = { ...merge, at: 'u', batch: [5, 7, 8], cleared: [7] };
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), stuck: { '5': record }, failures: [merge, cleared], sweepError: 'boom\nmore' });
     await run(f, 'stuck');
     expect(out).toEqual(['sweep error: boom', '#5 merge-batch in Merging, incident 5:merge:t, tries 1, released r: timed out after 240 minutes (cause timeout, log /m.log)']);
     out.length = 0;
@@ -198,7 +199,7 @@ describe('read commands', () => {
     expect(out).toContain('stuck sweep: merge-batch in Merging, incident 5:merge:t, tries 1, released r: timed out after 240 minutes (cause timeout, log /m.log)');
     out.length = 0;
     await run(f, 'failures');
-    expect(out).toEqual(['t merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7']);
+    expect(out).toEqual(['t merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7\nu merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7,#8 cleared #7']);
   });
 
   it('help lists every command', async () => {
@@ -281,6 +282,16 @@ describe('immediate commands', () => {
     await run(f, 'retry', '5');
     expect(f.calls).toContain('removeLabel 5 factory-stuck');
     expect(readState(f.ctx.statePath).failures.map((row) => row.issue)).toEqual([6]);
+  });
+
+  it('retry marks the card cleared on its merge batch failure and drops the row once the whole batch is cleared', async () => {
+    const f = fake();
+    const merge = { stage: 'merge' as const, issue: null, error: 'timed out', cause: 'timeout' as const, log: null, at: '2026-09-29T09:00:00Z', batch: [5, 6] };
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), failures: [merge] });
+    await run(f, 'retry', '5');
+    expect(readState(f.ctx.statePath).failures).toEqual([{ ...merge, cleared: [5] }]);
+    await run(f, 'retry', '6');
+    expect(readState(f.ctx.statePath).failures).toEqual([]);
   });
 
   it('retry of the release tracking card lifts a playtest block and keeps the decision and the play count', async () => {

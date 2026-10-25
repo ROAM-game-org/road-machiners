@@ -8,5 +8,5 @@ Do not hunt the whole log again. The findings of the first play stay the scope o
 A new finding counts only when one of your fixes caused it. Anything else you notice goes into `suspected`.
 The factory opened a bug issue for each important old finding of the earlier rounds and added it to `.factory/open-bugs.md`. An old finding you list again names that issue in `known`.
 
-Fix what still fails, with the smallest change, and commit it. Then write `.factory/playtest.json` again, with the same fields and verdicts as before: clean when nothing is left to fix and you committed nothing, fixed when you committed, blocked when a member must decide. List the findings this log still shows.
+Fix what still fails, with the smallest change, and commit it. Then write `.factory/playtest.json` again, with the same fields and verdicts as before: clean when no important `release` finding is left open and you committed nothing in this round, fixed when you committed, blocked when a member must decide. List the findings this log still shows. A finding of an earlier round may stay in the list with `fixed` true only when a commit of an earlier round fixed it and this log shows it no longer happens. Every finding this log still shows, also one you fixed in this round, has `fixed` false.
 Update `.factory/playtest.md`, so it covers the whole job.
