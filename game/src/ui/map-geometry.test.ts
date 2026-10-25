@@ -7,19 +7,31 @@ function view(center: { x: number; y: number }, tileSize: number, width = 400, h
   return viewport(center, tileSize, width, height);
 }
 
+const R = Math.SQRT1_2;
+
 describe('map geometry', () => {
-  it('draws north up: a tile east is right and a tile north is above, at the same distance', () => {
+  it('draws compass north up: map north-west is straight above and map east is to the lower right', () => {
     const v = view({ x: 100, y: 100 }, 2);
     const mid = toPx(v, { x: 100, y: 100 });
-    expect(mid).toEqual({ x: 200, y: 150 });
+    expect(mid.x).toBeCloseTo(200);
+    expect(mid.y).toBeCloseTo(150);
+    const up = toPx(v, { x: 99, y: 99 });
+    expect(up.x).toBeCloseTo(200);
+    expect(up.y).toBeCloseTo(150 - 2 * Math.SQRT2);
     const east = toPx(v, { x: 101, y: 100 });
-    const north = toPx(v, { x: 100, y: 99 });
-    expect(east).toEqual({ x: 202, y: 150 });
-    expect(north).toEqual({ x: 200, y: 148 });
+    expect(east.x).toBeCloseTo(200 + 2 * R);
+    expect(east.y).toBeCloseTo(150 + 2 * R);
+    const northEast = toPx(v, { x: 101, y: 99 });
+    expect(northEast.x).toBeCloseTo(200 + 2 * Math.SQRT2);
+    expect(northEast.y).toBeCloseTo(150);
   });
 
-  it('inverts the transform when picking', () => {
-    const v = view({ x: 321, y: 77 }, 3.5);
+  it.each([
+    [{ x: 321, y: 77 }, 3.5],
+    [{ x: 10, y: 590 }, 0.4],
+    [{ x: 300, y: 300 }, 8],
+  ])('inverts the transform when picking, centre %j at %d px a tile', (center, tileSize) => {
+    const v = view(center, tileSize);
     const at = toPx(v, { x: 123, y: 456 });
     const back = toTile(v, at.x, at.y);
     expect(back.x).toBeCloseTo(123);
@@ -29,16 +41,26 @@ describe('map geometry', () => {
   it('matches the canvas transform to the point transform', () => {
     const v = view({ x: 50, y: 60 }, 1.5);
     const [a, b, c, d, e, f] = canvasTransform(v);
-    const p = { x: 70, y: 20 };
-    expect({ x: a * p.x + c * p.y + e, y: b * p.x + d * p.y + f }).toEqual(toPx(v, p));
+    for (const p of [{ x: 70, y: 20 }, { x: 0, y: 0 }, { x: 590, y: 33 }]) {
+      const px = toPx(v, p);
+      expect(a * p.x + c * p.y + e).toBeCloseTo(px.x);
+      expect(b * p.x + d * p.y + f).toBeCloseTo(px.y);
+    }
   });
 
-  it('fits the whole map into the shorter side and centres it', () => {
-    expect(fitTileSize(MAP, 400, 300)).toBe(0.5);
+  it('fits the turned map into the shorter side with all four corners inside', () => {
+    expect(fitTileSize(MAP, 400, 300)).toBeCloseTo(300 / (MAP * Math.SQRT2));
     const v = fitted(MAP, 400, 300, { x: 10, y: 590 });
     expect(v.center).toEqual({ x: 300, y: 300 });
+    for (const corner of [{ x: 0, y: 0 }, { x: MAP, y: 0 }, { x: MAP, y: MAP }, { x: 0, y: MAP }]) {
+      const at = toPx(v, corner);
+      expect(at.x).toBeGreaterThanOrEqual(-1e-6);
+      expect(at.x).toBeLessThanOrEqual(400 + 1e-6);
+      expect(at.y).toBeGreaterThanOrEqual(-1e-6);
+      expect(at.y).toBeLessThanOrEqual(300 + 1e-6);
+    }
+    expect(toPx(v, { x: 0, y: 0 }).x).toBeCloseTo(200);
     expect(toPx(v, { x: 0, y: 0 }).y).toBeCloseTo(0);
-    expect(toPx(v, { x: 0, y: MAP }).y).toBeCloseTo(300);
   });
 
   it('zooms about a canvas point and keeps the tile under it', () => {
@@ -53,23 +75,36 @@ describe('map geometry', () => {
 
   it('keeps the zoom between the fitted scale and the top scale', () => {
     const v = fitted(MAP, 400, 300, { x: 300, y: 300 });
-    expect(zoomAround(v, 0.5, 200, 150, MAP, 8).tileSize).toBe(0.5);
+    expect(zoomAround(v, 0.5, 200, 150, MAP, 8).tileSize).toBeCloseTo(fitTileSize(MAP, 400, 300));
     expect(zoomAround(view({ x: 300, y: 300 }, 6), 4, 200, 150, MAP, 8).tileSize).toBe(8);
   });
 
-  it('stops the pan at the map edge on an axis the map overfills', () => {
-    const v = panBy(view({ x: 300, y: 300 }, 2), 10000, -10000, MAP);
-    expect(toPx(v, { x: 0, y: 0 }).x).toBeCloseTo(0);
-    expect(toPx(v, { x: MAP, y: MAP }).y).toBeCloseTo(300);
+  it('moves the land with the pointer when dragged', () => {
+    const v = view({ x: 300, y: 300 }, 2);
+    const p = { x: 250, y: 280 };
+    const before = toPx(v, p);
+    const after = toPx(panBy(v, 10, -6, MAP), p);
+    expect(after.x - before.x).toBeCloseTo(10);
+    expect(after.y - before.y).toBeCloseTo(-6);
+  });
+
+  it('keeps the view centre inside the map square at any pan', () => {
+    for (const [dx, dy] of [[10000, -10000], [-10000, 10000], [10000, 10000], [-10000, -10000]]) {
+      const c = panBy(view({ x: 300, y: 300 }, 2), dx, dy, MAP).center;
+      expect(c.x).toBeGreaterThanOrEqual(0);
+      expect(c.x).toBeLessThanOrEqual(MAP);
+      expect(c.y).toBeGreaterThanOrEqual(0);
+      expect(c.y).toBeLessThanOrEqual(MAP);
+    }
   });
 
   it('centres an axis the viewport holds whole', () => {
-    const v = clampPan(view({ x: 10, y: 10 }, 0.6, 400, 400), MAP);
-    expect(v.center.x).toBe(MAP / 2);
-    expect(v.center.y).toBe(MAP / 2);
-    const wide = clampPan(view({ x: 10, y: 10 }, 0.6, 600, 300), MAP);
-    expect(wide.center.x).toBe(MAP / 2);
-    expect(wide.center.y).toBe(250);
+    const v = clampPan(view({ x: 10, y: 10 }, 0.4, 400, 400), MAP);
+    expect(v.center.x).toBeCloseTo(MAP / 2);
+    expect(v.center.y).toBeCloseTo(MAP / 2);
+    const wide = clampPan(view({ x: 10, y: 10 }, 0.4, 700, 200), MAP);
+    const mid = toPx(wide, { x: MAP / 2, y: MAP / 2 });
+    expect(mid.x).toBeCloseTo(350);
   });
 
   it('pins a far site on the edge, on the line from the centre to it', () => {
@@ -77,10 +112,13 @@ describe('map geometry', () => {
     const far = { x: 500, y: 300 };
     const pinned = pinToEdge(v, far, 6);
     expect(pinned.pinned).toBe(true);
-    expect(pinned.x).toBeCloseTo(194);
+    expect(pinned.y).toBeCloseTo(194);
     const direct = toPx(v, far);
     expect((pinned.y - 100) / (pinned.x - 100)).toBeCloseTo((direct.y - 100) / (direct.x - 100));
-    expect(pinToEdge(v, { x: 110, y: 100 }, 6)).toEqual({ x: 110, y: 100, pinned: false });
+    const near = pinToEdge(v, { x: 110, y: 100 }, 6);
+    expect(near.pinned).toBe(false);
+    expect(near.x).toBeCloseTo(100 + 10 * R);
+    expect(near.y).toBeCloseTo(100 + 10 * R);
   });
 
   it('throws on a tile size that is not a positive number', () => {
@@ -101,8 +139,8 @@ describe('scale bar', () => {
   it('fits the minimap reaches at their canvas width', () => {
     const width = 220;
     expect(metersOf(fitTileSize(100, width, width), width)).toBe(100);
-    expect(metersOf(fitTileSize(200, width, width), width)).toBe(100);
-    expect(metersOf(fitTileSize(400, width, width), width)).toBe(250);
+    expect(metersOf(fitTileSize(200, width, width), width)).toBe(250);
+    expect(metersOf(fitTileSize(400, width, width), width)).toBe(500);
   });
 
   it('falls back to the shortest step when none fits', () => {

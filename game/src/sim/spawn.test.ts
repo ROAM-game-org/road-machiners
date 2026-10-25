@@ -75,7 +75,8 @@ describe('NPC spawns', () => {
   it('starts the whole roster on every seed, with the dealt neutral drivers spread evenly over the sites', () => {
     const guards = SPAWN.initial.filter((id) => id === 'convoy').map(() => 'convoyGuard');
     const partners = SPAWN.initial.filter((id) => NPCS[id].pairs);
-    const roster = [...SPAWN.initial, ...SPAWN.startTraffic.templates, ...guards, ...partners].sort();
+    const order = Object.values(NPCS).filter((tpl) => tpl.spawn.kind === 'hollow').flatMap((tpl) => Array<string>(tpl.cap).fill(tpl.id));
+    const roster = [...SPAWN.initial, ...SPAWN.startTraffic.templates, ...guards, ...partners, ...order].sort();
     const neutralSites = REGION.towns.length + REGION.locations.filter((l) => l.kind !== 'camp' && l.kind !== 'territory').length;
     for (const seed of [1, 2, 42, 1337, 7919, 15838, 23757, 31676]) {
       const world = startWorld(seed);
@@ -167,7 +168,7 @@ describe('spawn room', () => {
 
   const leaders = (w: World) => {
     const followers = new Set(w.states.filter((s) => s.kind === 'escort').map((s) => s.holder));
-    return w.vehicles.filter((v) => v.brain && !followers.has(v.id));
+    return w.vehicles.filter((v) => v.brain && !followers.has(v.id) && NPCS[v.brain.templateId].spawn.kind !== 'hollow');
   };
 
   it('places no driver close to a migrated player and keeps the roster whole', () => {

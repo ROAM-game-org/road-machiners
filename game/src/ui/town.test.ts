@@ -218,7 +218,7 @@ describe("the road news well", () => {
     const counts = rows.map((r) => r.all((n) => n.has("recipe-good"))[0].all((n) => n.has("num")).map((n) => n.text())[0] ?? null);
     expect(counts).toEqual(["2", null, null]);
     expect(rows.map((r) => r.attrs.get("title"))).toEqual([
-      expect.stringContaining("it was robbed"),
+      expect.stringContaining("was robbed"),
       expect.stringContaining("knocked out"),
       expect.stringContaining("destroyed"),
     ]);
