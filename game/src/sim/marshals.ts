@@ -25,7 +25,7 @@ export function marshalLead(world: World): { at: Vec; turn: number } | null {
   if (!search || search.delivered) return null;
   let newest: { at: Vec; turn: number } | null = null;
   for (const car of world.vehicles) {
-    if (!isMarshal(car)) continue;
+    if (!isMarshal(car) || isDefeated(car)) continue;
     const seen = sightingOf(car, search.target);
     if (seen && (!newest || seen.turn > newest.turn)) newest = { at: { ...seen.fact.at }, turn: seen.turn };
   }
