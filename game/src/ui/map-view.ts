@@ -26,8 +26,8 @@ export type MapOverlay = (ctx: CanvasRenderingContext2D, view: Viewport) => void
 const BASES_KEPT = 3;
 const TIP_GAP = 12;
 const ZOOM_SLACK = 1.001;
-const MARK = { town: 5, site: 4, wreck: 5, truck: 8, hit: 8, pinned: 0.6 };
-const RUMOR = { under: 4, line: 2, dash: [3, 3] };
+const MARK = { town: 5, site: 4, wreck: 8, truck: 8, hit: 8, pinned: 0.6, wreckPinned: 0.8 };
+const RUMOR = { under: 5.5, line: 2.5, dash: [4, 3] };
 const NAME = { gap: 6, padX: 4, padY: 2 };
 const GRID = { width: 1, alpha: 0.3, gap: 3, padX: 3, padY: 1 };
 const PLATE = { inset: 8, pad: 5, arrowWidth: 10, arrowHeight: 12, tick: 5, gap: 3 };
@@ -338,7 +338,7 @@ export class MapView {
     ctx.lineWidth = 3;
     for (const site of this.sites) {
       const at = this.markAt(view, site);
-      const scale = at.pinned ? MARK.pinned : 1;
+      const scale = at.pinned ? (site.kind === 'wreck' ? MARK.wreckPinned : MARK.pinned) : 1;
       if (site.kind === 'wreck') this.drawRumor(ctx, at, scale);
       else if (site.kind === 'town') this.drawSquare(ctx, at, scale);
       else this.drawDot(ctx, at, scale);
