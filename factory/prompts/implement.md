@@ -60,6 +60,11 @@ This machine is slow. Keep checks focused.
 While you work, run only the tests near your change with `npx vitest run <files>`.
 Prove the feature works with a targeted test. Playtest game behavior with the progression recorder, and use a short Playwright check only for what the screen shows.
 Do not run the full test suite or the playtest. The testing stage runs the playtest. The merge runs the tests next to the changed files, and the release runs them all.
+
+Waiting and tuning loops
+A round is one change, one run and one read of its result. Run at most 5 rounds for one question, like a balance number or a look. A job with several seeds counts as one round.
+After the fifth round, keep the best state you reached, write the gaps that remain into the Conclusion of {{taskFile}}, and finish.
+While a job runs, do other work, like the next phase, a test or the docs.
 Before the docs step at the end, run `npm run typecheck` once.
 Every test you ran must pass, not only the tests for this issue.
 
