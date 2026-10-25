@@ -104,7 +104,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi' | 'scout' | 'lo
   semi: { height: [5.1, 5.4], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
   scout: { height: [2.03, 2.14], roofStart: [0.42, 0.45], roof: [0.13, 0.17], deck: [0.39, 0.43], noseDrop: [0.64, 0.78] },
   longbed: { height: [2.55, 2.75], hood: [0.19, 0.25], roof: [0.1, 0.16], roofStart: [0.25, 0.31], deck: [0.53, 0.6] },
-  courier: { height: [1.7, 1.8], roofStart: [0.42, 0.5], roof: [0.11, 0.2], noseDrop: [0.65, 0.9], tailDrop: [0.38, 0.62] },
+  courier: { height: [1.7, 1.8], roofStart: [0.4, 0.47], roof: [0.18, 0.26], noseDrop: [0.8, 1.2], tailDrop: [0.7, 0.95] },
   hauler: { height: [2.55, 2.71], roofStart: [0.07, 0.12], roof: [0.21, 0.27], deck: [0.58, 0.66] },
   tractor: { height: [2.9, 3.2], hood: [0.327, 0.361], roofStart: [0.353, 0.39], roof: [0.161, 0.179], deck: [0.443, 0.489] },
   jeep: { height: [1.95, 2.05], roofStart: [0.31, 0.37], roof: [0.18, 0.26], noseDrop: [0.9, 1.05], tailDrop: [0.95, 1.15] },
@@ -250,6 +250,27 @@ describe('the courier Baja Bug', () => {
     const across = Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0));
     expect(Math.abs(along - 4.1)).toBeLessThanOrEqual(0.05);
     expect(Math.abs(across - 1.86)).toBeLessThanOrEqual(0.03);
+  });
+
+  it('slopes the Beetle back past the rear axle: the top over the rear axle stands 0.4 to 0.6 m under the crest', () => {
+    const profile = profileOf('base_courier');
+    const crest = Math.max(...profile.map((p) => p.top));
+    const axle = profile.reduce((best, p) => (Math.abs(p.x + PHYSICS.bodies.courier.wheelX) < Math.abs(best.x + PHYSICS.bodies.courier.wheelX) ? p : best));
+    expect(crest - axle.top).toBeGreaterThanOrEqual(0.4);
+    expect(crest - axle.top).toBeLessThanOrEqual(0.6);
+  });
+
+  it('closes the domed front lid round the engine footprint', () => {
+    const { heights } = SHAPES.base_courier;
+    const engineCells = CHASSIS.courier.layout.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === 'E' ? [{ x, y }] : [])));
+    const { rect } = restOn('courier', cellRect('courier', engineCells));
+    const anchor = engineAnchor('courier');
+    const margin = 0.05;
+    const half = { x: (rect.x1 - rect.x0) / 2 + margin, y: (rect.z1 - rect.z0) / 2 + margin };
+    const columns = heights.top.flatMap((row, i) => row.flatMap((cm, j) => (cm === null ? [] : [{ x: (heights.i0 + i + 0.5) * heights.cell, y: (heights.j0 + j + 0.5) * heights.cell, top: cm / 100 }])));
+    const inHole = (c: { x: number; y: number }) => Math.abs(c.x - anchor.x) <= half.x && Math.abs(-c.y - anchor.z) <= half.y;
+    const open = columns.filter((c) => c.x >= 0.75 && c.x <= 1.5 && Math.abs(c.y) <= 0.3 && !inHole(c) && c.top < anchor.y + 0.03);
+    expect(open.map((c) => `${c.x.toFixed(2)},${c.y.toFixed(2)}: ${c.top.toFixed(2)}`)).toEqual([]);
   });
 });
 
