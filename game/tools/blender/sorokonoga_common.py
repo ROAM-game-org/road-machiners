@@ -20,7 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, FLARE, ROUND_ARCH_SEGMENTS, SUSPENSION_REST, arch_cut, cut_boxes, flare_profile, hull_mesh  # noqa: E402
-from parts_common_core import ROUND_SIDES, TIRE_SHARE, drawn_wheel  # noqa: E402
+from parts_common_core import PROUD, ROUND_SIDES, TIRE_SHARE, drawn_wheel  # noqa: E402
 from rig_units import check_unit as check_rig_unit, unit_wheels as count_wheels  # noqa: E402
 from shapes import prism  # noqa: E402
 
@@ -172,7 +172,7 @@ def cab(kit: Kit) -> None:
     points += [(x, y, CAB_ROOF) for x in (SCREEN_TOP_X, CAB_BACK) for y in (CAB_HALF - 0.1, -CAB_HALF + 0.1)]
     points += [(SCREEN_FOOT[0], y, SCREEN_FOOT[1]) for y in (CAB_HALF - 0.02, -CAB_HALF + 0.02)]
     hull(kit, "cab", points, "paint", ([STEER_X], WELL_Y))
-    roof = [(x, y, z) for x in (SCREEN_TOP_X - 0.04, CAB_BACK) for y in (CAB_HALF - 0.08, -CAB_HALF + 0.08) for z in (CAB_ROOF - 0.01, CAB_ROOF + ROOF_T)]
+    roof = [(x, y, z) for x in (SCREEN_TOP_X - 0.04, CAB_BACK + PROUD) for y in (CAB_HALF - 0.08, -CAB_HALF + 0.08) for z in (CAB_ROOF - 0.01, CAB_ROOF + ROOF_T)]
     hull(kit, "cab_roof", roof, "trim")
     foot_x, foot_z = SCREEN_FOOT
     for s, name in ((1, "l"), (-1, "r")):
@@ -189,7 +189,7 @@ def engine_house(kit: Kit) -> None:
     """The low engine house behind the cab, open over the engine cells, with the bay floor the engine stands on and an arch over the drive axle."""
     points = [(x, y, z) for x in (CAB_BACK, HOUSE_BACK) for y in (HOUSE_HALF, -HOUSE_HALF) for z in (FRAME_TOP, HOUSE_TOP)]
     body = hull_mesh("engine_house", points)
-    cut_boxes(body, [((BAY_BACK, BAY_RIGHT, ENGINE[1]), (BAY_FRONT, BAY_LEFT, HOUSE_TOP + 0.2))])
+    cut_boxes(body, [((BAY_BACK, BAY_RIGHT, ENGINE[1] - PROUD), (BAY_FRONT, BAY_LEFT, HOUSE_TOP + 0.2))])
     arch_cut(body, [DRIVE_X], HUB_Z, WHEEL_R, DUAL_WELL_Y, ARCH_FOOT)
     body.data.materials.clear()
     kit._add(body, "engine_house", "paint", 0.0)
@@ -201,8 +201,9 @@ def tractor_frame(kit: Kit) -> int:
 
     The game draws the steer pair and the drive axle's outer duals. Returns the wheels the model draws.
     """
-    mirrored(kit, "rail", (CAB_FRONT - 0.2 - TRACTOR_REAR, 0.14, FRAME_TOP - FRAME_BOTTOM), (CAB_FRONT - 0.2 + TRACTOR_REAR) / 2, 0.45, (FRAME_TOP + FRAME_BOTTOM) / 2, "under")
-    kit.box("frame_end", (0.15, 1.2, FRAME_TOP - FRAME_BOTTOM), (TRACTOR_REAR + 0.075, 0, (FRAME_TOP + FRAME_BOTTOM) / 2), "metal_dark")
+    rail_back = TRACTOR_REAR + PROUD
+    mirrored(kit, "rail", (CAB_FRONT - 0.2 - rail_back, 0.14, FRAME_TOP - FRAME_BOTTOM), (CAB_FRONT - 0.2 + rail_back) / 2, 0.45, (FRAME_TOP + FRAME_BOTTOM) / 2, "under")
+    kit.box("frame_end", (0.15, 1.2, FRAME_TOP - FRAME_BOTTOM + 2 * PROUD), (TRACTOR_REAR + 0.075, 0, (FRAME_TOP + FRAME_BOTTOM) / 2), "metal_dark")
     wheels = model_wheels(kit, DRIVE_X, WHEEL_Z - DUAL_STEP)
     axle(kit, DRIVE_X, WHEEL_Z - DUAL_STEP)
     rig_flare(kit, "flare_steer", STEER_X, TRACTOR_REAR, FRONT, CAB_HALF - 0.05, HALF_W, CAB_BOTTOM)
@@ -224,7 +225,7 @@ def module(kit: Kit) -> int:
     points += [(MODULE_FRONT, y, roof_z - MODULE_CHAMFER) for y in (MODULE_HALF, -MODULE_HALF)]
     points += [(x, y, roof_z) for x in (nose, back) for y in (MODULE_HALF, -MODULE_HALF)]
     hull(kit, "module", points, "paint", (list(MODULE_AXLES), WELL_Y))
-    roof = [(x, y, z) for x in (nose - 0.02, back) for y in (MODULE_HALF, -MODULE_HALF) for z in (roof_z - 0.01, MODULE_ROOF)]
+    roof = [(x, y, z) for x in (nose - 0.02, back + PROUD) for y in (MODULE_HALF - PROUD, -MODULE_HALF + PROUD) for z in (roof_z - 0.01, MODULE_ROOF)]
     hull(kit, "module_roof", roof, "trim")
     side_x = (MODULE_FRONT - 0.3 + MODULE_AXLES[0] + WHEEL_R + 0.3) / 2
     for s, name in ((1, "l"), (-1, "r")):
