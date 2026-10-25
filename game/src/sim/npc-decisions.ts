@@ -3,6 +3,7 @@ import { canPayBounty } from './crime';
 import { dealAvailable } from './patch';
 import { encounterAvailable } from './encounters';
 import { canSpareFor } from './aid';
+import { isLineGun } from '../data/parts';
 import { ECONOMY } from '../data/goods';
 import { ESCORT_JOB, SHOPS, type ShopDef } from '../data/market';
 import { graphEdges } from '../data/market';
@@ -123,7 +124,7 @@ export function bodyCondition(vehicle: Vehicle): number {
 }
 
 export function firepower(world: World, vehicle: Vehicle): number {
-  return vehicleStats(world, vehicle).weapons.filter((weapon) => weapon.part.hp > 0).reduce((sum, weapon) => sum + weapon.def.round.damage * weapon.def.rounds, 0);
+  return vehicleStats(world, vehicle).weapons.filter((weapon) => weapon.part.hp > 0 && !isLineGun(weapon.def)).reduce((sum, weapon) => sum + weapon.def.round.damage * weapon.def.rounds, 0);
 }
 
 export function fightOddsAgainst(world: World, vehicle: Vehicle, other: Vehicle): FightOdds {
