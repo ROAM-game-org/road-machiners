@@ -970,3 +970,36 @@ describe("survey contract text", () => {
     expect(en(eventText(w, { t: "job", vehicle: w.player.vehicleId, job, outcome: "started" })!.text)).toContain(`Survey the ${en(t(`contract.place.${first.type}`))}`);
   });
 });
+
+describe("the log names only trucks the player sees", () => {
+  function scene() {
+    const w = emptyWorld();
+    const far = addVehicle(w, "independent", "buggy", [], { x: 100, y: 100 });
+    const near = addVehicle(w, "independent", "buggy", [], { x: 30, y: 30 });
+    w.player.visible = [Math.floor(near.pos.y) * w.size + Math.floor(near.pos.x)];
+    w.player.contacts = [far, near].map((v) => ({ vehicleId: v.id, center: v.pos, radius: 8, sources: ["sound" as const], loudness: 1 }));
+    return { w, far, near };
+  }
+  const samples: ((id: string, other: string) => GameEvent)[] = [
+    (id) => ({ t: "partDisabled", vehicle: id, part: "p1" } as GameEvent),
+    (id, other) => ({ t: "towHitched", by: id, client: other } as GameEvent),
+    (id) => ({ t: "claymoreCookOff", vehicle: id, part: "p1", pos: { x: 0, y: 0 }, hits: [] } as GameEvent),
+  ];
+
+  it.each(samples.map((make, i) => [i, make] as const))("sample %i is silent for a heard truck and shown in sight", (_, make) => {
+    const { w, far, near } = scene();
+    expect(eventText(w, make(far.id, "none"))).toBeNull();
+    expect(eventText(w, make(near.id, "none"))).not.toBeNull();
+  });
+
+  it("shows everything with the full log", () => {
+    const { w, far } = scene();
+    w.player.fullLog = true;
+    expect(eventText(w, samples[0](far.id, "none"))).not.toBeNull();
+  });
+
+  it("shows an event with the player's own truck far from anything", () => {
+    const { w, far } = scene();
+    expect(eventText(w, samples[1](w.player.vehicleId, far.id))).not.toBeNull();
+  });
+});
