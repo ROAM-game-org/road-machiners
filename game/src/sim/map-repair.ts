@@ -4,13 +4,14 @@ import { STORY_WRECKS } from '../data/salvage';
 import { atlasOf, type Atlas } from './atlas';
 import { claimPartHeld } from './claims';
 import { freeSpotNear, spotNear } from './free-spot';
-import { clearOfDecks, clearOfSites, findRoadWreckSpot, isBakedObstacle, mapObstacles, overlapsAny, propReach } from './mapgen';
+import { clearOfDecks, clearOfSites, findRoadWreckSpot, isBakedObstacle, mapObstacles, overlapsAny, propReach, touchesObstacle } from './mapgen';
 import { finishContract, type Contract } from './market';
 import { reviseMemories } from './memory';
 import { isRoadWreck, isStockGoal, isStoryWreck, liveClaims, oldSpotOf, oldSpotPicks, oldStockId, rollStock, type ClaimContract, type OldSpotPick } from './salvage';
 import { modeRules } from './settings';
 import { isFree } from './spawn';
-import { hollowBays, hollowObstaclesFor, isHollowObstacle, isSunwardMember } from './sunward';
+import { hollowBays, hollowObstaclesFor, isHollowObstacle } from './hollow-layout';
+import { isSunwardMember } from './sunward';
 import { surveySites } from './survey';
 import { isLootSpot, spotTable } from './territory';
 import type { BakedMap } from './terrain';
@@ -560,10 +561,19 @@ function snapSunwardHomes(world: World): void {
 }
 
 export function settleTrucks(world: World): void {
+  settleWhere(world, () => true);
+}
+
+export function settleOffHollow(world: World): void {
+  const hollow = world.obstacles.filter(isHollowObstacle);
+  settleWhere(world, (v) => hollow.some((o) => touchesObstacle(o, world.terrain, v.pos, chassisDef(v.chassisId).radius)));
+}
+
+function settleWhere(world: World, needs: (v: Vehicle) => boolean): void {
   const player = world.player.vehicleId;
   for (const v of [...world.vehicles.filter((x) => x.id !== player), ...world.vehicles.filter((x) => x.id === player)]) {
     const radius = chassisDef(v.chassisId).radius;
-    if (isFree(world, v.pos, radius, v.id)) continue;
+    if (!needs(v) || isFree(world, v.pos, radius, v.id)) continue;
     const spot = freeSpotNear(world, v.pos, radius, v.id);
     if (!spot) throw new Error(`No free spot near ${v.pos.x.toFixed(1)}, ${v.pos.y.toFixed(1)} for ${v.id} on map ${world.mapHash}`);
     v.pos = spot;

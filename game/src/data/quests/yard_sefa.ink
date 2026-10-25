@@ -30,7 +30,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
 = hub
 # checkpoint: start.hub
 + [Who are the families of the Burnt Convoy?]
-  People who lived in the burnt trucks on the road. The road crews cleared the wrecks a while ago, so we moved here, to the north side of the Yard. We're not a camp. A camp has a flag and a man who wants to be called sir. We're first to any wreck and last to leave it. That's all we are. Men on the air say there's nothing left out there to pick. They're welcome to think so.
+  People who lived in the burnt trucks on the road. The road crews cleared the wrecks a while ago, so we moved here, to the north-east side of the Yard. We're not a camp. A camp has a flag and a man who wants to be called sir. We're first to any wreck and last to leave it. That's all we are. Men on the air say there's nothing left out there to pick. They're welcome to think so.
   ~ heard_picked = true
   -> hub
 + [What do you sell here?]
@@ -53,7 +53,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   }
   -> hub
 + [Who runs this yard?]
-  The repair crews, since they stopped answering to Pierce. The Administrator keeps them in line. Nose put an Army post inside the gate afterward. We keep to the north side of the yard, where soldiers don't like the wind.
+  The repair crews, since they stopped answering to Pierce. The Administrator keeps them in line. Nose put an Army post inside the gate afterward. We keep to the north-east side of the yard, where soldiers don't like the wind.
   ~ heard_post = true
   -> hub
 + {(heard_picked or has_note("burntConvoy")) and not asked_picked} [Is the Burnt Convoy picked clean?]
@@ -82,7 +82,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_rider = true
   -> hub
 + {heard_rider and not asked_rider} [Did a Kiln rider ever come for shelter?]
-  Once. His brother died in the road. He ate our beans for a long time and said little, and then he went south. I won't say his name. It would be rude to the beans.
+  Once. His brother died in the road. He ate our beans for a long time and said little, and then he went south-west. I won't say his name. It would be rude to the beans.
   ~ asked_rider = true
   -> hub
 + [Do the families find much on the crater road?]
@@ -103,7 +103,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   - else:
     That hollow is ours. My children found her ruts the week she went quiet. My men put a chain on that cannon and found the gun too heavy to drag up the slope. They cut the chain loose and went home for a torch.
   }
-  A broken Nose rod is worth more than a whole one. The Yard forges proper brake rods and sells them to Nose drivers, and a cheap rod that snapped on an Army wagon sells a great many proper ones. That's all we are.
+  A broken Nose rod is worth more than a whole one. The Yard forges proper brake rods and sells them to Nose drivers, and a cheap rod that snapped on an Army wagon sells a great many proper ones.
   { wagon_rod == "bent":
     You beat the face off it, so I'm paying for the place more than the steel.
   }
