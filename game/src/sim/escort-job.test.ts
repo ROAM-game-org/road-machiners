@@ -5,6 +5,8 @@ import { PARTS } from '../data/parts';
 import { playerVehicle } from './damage';
 import { awaitsEscort, escortBlocked, escortFit, escortReward, escortShare, escortStatus, heldEscort, holdEscort, postEscortOffer, routeThreat, traderWaits, type EscortContract } from './escort-job';
 import { acceptContract, advanceContracts, advanceShops, siteOf } from './market';
+import { addGoods } from './inventory';
+import { settleCashThreat, settleThreat } from './parley';
 import { sitePads } from './sites';
 import { getResources } from './resources';
 import { addState, stateOf } from './states';
@@ -26,7 +28,7 @@ function waitGoal(): NpcActivity {
 }
 
 function sellGoal(): NpcActivity {
-  return { kind: 'sell', targetId: 'nose', destination: { ...NOSE.pos }, phase: 'travel', reason: 'deliverCargo' };
+  return { kind: 'sell', targetId: 'nose', destination: { ...NOSE.pos }, phase: 'travel', reason: 'deliverCargo', shipment: { good: 'fuelDrums', from: 'bowl', to: 'nose' } };
 }
 
 function setup(): { w: World; trader: Vehicle; offer: EscortContract } {
@@ -36,6 +38,7 @@ function setup(): { w: World; trader: Vehicle; offer: EscortContract } {
   const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], pos);
   trader.brain = npcBrain('trader', pos, ['trader']);
   trader.brain.goals = [sellGoal(), waitGoal()];
+  addGoods(w, trader, 'fuelDrums', 3);
   postEscortOffer(w, trader, 'bowl', 'nose');
   const offer = w.shops.bowl.contracts.find((c): c is EscortContract => c.kind === 'escort')!;
   return { w, trader, offer };
@@ -330,6 +333,57 @@ describe('the outcomes', () => {
     const events = tick(next, 1);
     expect(events.some((e) => e.t === 'escortEnded' && e.end === 'hostile')).toBe(true);
     expect(next.player.money).toBe(money);
+  });
+
+  it('pays a share when a third truck takes every crate of the client', () => {
+    const { w, trader, offer } = setup();
+    const next = take(w, offer);
+    heldEscort(next)!.together = heldEscort(next)!.span / 4;
+    const client = traderIn(next, trader);
+    client.items = client.items.filter((it) => it.kind !== 'good');
+    client.brain!.goals = [];
+    const money = next.player.money;
+    const events = tick(next, 1);
+    expect(events.filter((e) => e.t === 'escortEnded' && e.end === 'cargoLost')).toHaveLength(1);
+    expect(next.player.money).toBe(money + Math.round(offer.reward * 0.75));
+    expect(heldEscort(next)).toBeNull();
+    expect(next.player.pastContracts.filter((r) => r.contract.id === offer.id)).toHaveLength(1);
+    expect(stateOf(next, 'escort', playerVehicle(next).id, trader.id)).toBeNull();
+  });
+
+  it('runs on when the client keeps some crates', () => {
+    const { w, trader, offer } = setup();
+    const next = take(w, offer);
+    const client = traderIn(next, trader);
+    client.items.splice(client.items.findIndex((it) => it.kind === 'good'), 1);
+    tick(next, 1);
+    expect(heldEscort(next)).not.toBeNull();
+  });
+
+  for (const settle of [settleThreat, settleCashThreat]) {
+    it(`fails the job with no pay when the player robs the client (${settle.name})`, () => {
+      const { w, trader, offer } = setup();
+      const next = take(w, offer);
+      settle(next, traderIn(next, trader), 'comply');
+      const money = next.player.money;
+      const events = tick(next, 1);
+      expect(events.some((e) => e.t === 'escortEnded' && e.end === 'hostile')).toBe(true);
+      expect(next.player.money).toBe(money);
+      expect(heldEscort(next)).toBeNull();
+    });
+  }
+
+  it('does not hold a robbery from before the escort against the player', () => {
+    const { w, trader, offer } = setup();
+    settleThreat(w, trader, 'comply');
+    w.turn += 3;
+    w.states = w.states.filter((s) => s.kind !== 'trade' && s.kind !== 'handover');
+    const next = take(w, offer);
+    const client = traderIn(next, trader);
+    client.items = client.items.filter((it) => it.kind !== 'good');
+    client.brain!.goals = [];
+    const events = tick(next, 1);
+    expect(events.some((e) => e.t === 'escortEnded' && e.end === 'cargoLost')).toBe(true);
   });
 
   it('throws when the escort state vanished with nothing to explain it', () => {

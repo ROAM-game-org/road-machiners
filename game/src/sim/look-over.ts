@@ -15,7 +15,7 @@ import { chooseOn, trackOf } from './tracks';
 import type { Contact, GoalReason, NpcActivity, NpcState, Refusal, StateEnding, Vehicle, World } from './types';
 import { dist } from './vec';
 import { canVehicleSee } from './vision';
-import { playerCommand, Refused } from './world';
+import { playerCanAct, playerCommand, Refused } from './world';
 
 const MEAN_CRATE_VALUE = Object.values(GOODS).reduce((sum, good) => sum + good.value, 0) / Object.values(GOODS).length;
 
@@ -66,8 +66,13 @@ export function startLookOver(world: World, looker: Vehicle, target: Vehicle): v
   addState(world, 'lookOver', looker.id, target.id, { kind: 'none' });
 }
 
+export function lookOverError(world: World, targetId: string): Refusal | null {
+  if (!playerCanAct(world)) return { id: 'cannotAct' };
+  return canLookOver(world, playerVehicle(world), vehicleById(world, targetId));
+}
+
 export function lookOver(world: World, targetId: string): World {
-  const refusal = canLookOver(world, playerVehicle(world), vehicleById(world, targetId));
+  const refusal = lookOverError(world, targetId);
   if (refusal) throw new Refused(refusal);
   return playerCommand(world, (w) => startLookOver(w, playerVehicle(w), vehicleById(w, targetId)));
 }

@@ -150,6 +150,17 @@
 .info-head .tag {
   margin-left: auto;
 }
+.info-actions {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-3);
+}
+.info-actions .key {
+  margin-left: var(--space-2);
+}
 .info-quiet {
   min-width: 0;
   color: var(--ink-muted);
