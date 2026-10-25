@@ -22,14 +22,22 @@ export function contractIcon(kind: Contract["kind"]): HTMLElement {
   return CONTRACT_ICON[kind]();
 }
 
-function threatPips(threat: number): HTMLElement {
-  return el("div", { class: "skill-level threat", title: t("contract.threat", { n: threat }) }, ...Array.from({ length: 3 }, (_, i) => el("i", { class: i < threat ? "on" : "" })));
+const ROAD_TAG: Record<number, { key: "contract.road.safe" | "contract.road.risky" | "contract.road.dangerous"; class: string }> = {
+  1: { key: "contract.road.safe", class: "tag dim" },
+  2: { key: "contract.road.risky", class: "tag" },
+  3: { key: "contract.road.dangerous", class: "tag bad" },
+};
+
+function roadTag(threat: number): HTMLElement {
+  const road = ROAD_TAG[threat];
+  if (!road) throw new Error(`escort threat ${threat} is not 1, 2 or 3`);
+  return el("span", { class: road.class }, t(road.key));
 }
 
 function escortDetail(w: World, c: Extract<Contract, { kind: "escort" }>): Child[] {
   const trader = w.vehicles.find((v) => v.id === c.client);
   if (!trader) return [];
-  return [el("span", {}, t("contract.trader", { who: vehicleName(w, c.client), n: kph(vehicleStats(w, trader).maxSpeed) })), threatPips(c.threat)];
+  return [el("span", { class: "dim" }, t("contract.trader", { who: vehicleName(w, c.client), n: kph(vehicleStats(w, trader).maxSpeed) })), roadTag(c.threat)];
 }
 
 function surveyLine(w: World, c: Contract, posted: boolean): HTMLElement | null {
@@ -63,7 +71,7 @@ function jobRow(w: World, c: Contract, { action, posted, clue }: RowShape): HTML
     { class: "job" },
     CONTRACT_ICON[c.kind](),
     c.kind === "escort" && posted
-      ? el("div", { class: "job-what" }, el("span", {}, contractSummary(c)), el("div", { class: "job-detail dim" }, ...escortDetail(w, c)))
+      ? el("div", { class: "job-what" }, el("span", {}, contractSummary(c)), el("div", { class: "job-detail" }, ...escortDetail(w, c)))
       : contractSummaryCell(w, c, clue, posted),
     isLate(w, c) ? el("span", { class: "price bad" }, t("contract.late")) : el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
     clock,

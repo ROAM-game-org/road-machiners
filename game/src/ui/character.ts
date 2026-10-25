@@ -13,7 +13,7 @@ import { basicName, basicRule, factionName, perkName, perkRule, refusalText, ski
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
 import { hasExplorationMap, modeRules } from '../sim/settings';
 import { MapTab } from './map-tab';
-import { lookReason } from './look';
+import { lookReason } from './unstuck-reason';
 
 export type CharacterTab = 'skills' | 'map';
 
@@ -56,7 +56,7 @@ export class CharacterScreen {
     const p = world.player;
     this.root.classList.toggle('map-open', this.tab === 'map');
     this.root.replaceChildren(
-      el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t(this.tab === 'map' ? 'map.close' : 'character.close'), this.tab === 'map' ? 'K' : 'C')),
+      el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t(this.tab === 'map' ? 'map.close' : 'character.close'), this.tab === 'map' ? 'M' : 'C')),
       el('h3', {}, t('character.title'), el('span', { class: 'chips' },
         el('span', { class: 'chip', title: t('character.health') }, createIcon('driver'), t('readout.ofMax', { n: hp(p.health), max: maxHealthOf(world) })),
         el('span', { class: 'chip', title: t('character.knockoutsTitle') }, createIcon('damage'), t('character.knockouts', { n: p.knockouts })),

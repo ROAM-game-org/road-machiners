@@ -207,7 +207,8 @@ describe('spilled cargo', () => {
     const me = playerVehicle(w);
     const before = structuredClone(w.salvage);
     const panniers = mountedParts(me, 'cargo')[0];
-    addGoods(w, me, 'salt', 2);
+    me.items = me.items.filter((it) => it.kind !== 'good');
+    addGoods(w, me, 'salt', gridOf(me).w + 1);
     panniers.hp = 0;
     me.items.filter((it) => it.kind === 'good' && it.good === 'salt').forEach((it) => (it.y = gridOf(me).deadFrom));
 

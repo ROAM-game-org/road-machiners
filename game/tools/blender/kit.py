@@ -84,6 +84,14 @@ class Kit:
         self._sockets: list[bpy.types.Object] = []
         self._materials = {name: _material(name, hex_color) for name, hex_color in colors.items()}
 
+    def parts(self, names: list[str]) -> list[bpy.types.Object]:
+        """The named parts, before the join. Raises on a name no part has."""
+        by_name = {obj.name: obj for obj in self._parts}
+        missing = [n for n in names if n not in by_name]
+        if missing:
+            raise KeyError(f"no part named {missing}")
+        return [by_name[n] for n in names]
+
     def dent(self, obj: bpy.types.Object, amount: float) -> None:
         """Pushes each vertex up to `amount` meters in a random direction, so flat panels read as battered."""
         for v in obj.data.vertices:

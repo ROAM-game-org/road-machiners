@@ -57,7 +57,7 @@ describe("key label", () => {
   function watch(coarse: boolean): void {
     vi.stubGlobal("window", { matchMedia: () => ({ matches: coarse, addEventListener: () => {} }) });
     const size = { layerSize: () => layer(1280, 720), subscribe: () => () => {} } as unknown as UiSize;
-    watchInputMode({ classList: { toggle: () => {} } } as unknown as HTMLElement, size);
+    watchInputMode([{ classList: { toggle: () => {} } } as unknown as HTMLElement], size);
   }
 
   it("is the plain text under touch", () => {

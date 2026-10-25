@@ -65,9 +65,8 @@ export function cargoHaul(winner: Vehicle, loser: Vehicle): GridItem[] {
   return inPickupOrder(choose(winner, byValue(looseCargo(loser)), [], Infinity));
 }
 
-export function surrenderHaul(winner: Vehicle, loser: Vehicle): GridItem[] {
-  const cargo = cargoHaul(winner, loser);
-  return inPickupOrder(choose(winner, removableParts(loser), cargo, RULES.surrenderParts));
+export function strippable(winner: Vehicle, loser: Vehicle): boolean {
+  return cargoHaul(winner, loser).length > 0 || removableParts(loser).some((item) => fitsAll(winner, [item]));
 }
 
 export function haulVar(items: GridItem[]): Extract<CallVar, { kind: 'haul' }> {

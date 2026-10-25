@@ -43,7 +43,7 @@
   padding: var(--space-1) var(--space-2);
   outline: none;
 }
-#ui .feedback {
+:is(#ui, #report) .feedback {
   z-index: var(--z-feedback);
   padding: 0;
   background: var(--surface-panel);
@@ -149,6 +149,17 @@
 }
 .info-head .tag {
   margin-left: auto;
+}
+.info-actions {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-3);
+}
+.info-actions .key {
+  margin-left: var(--space-2);
 }
 .info-quiet {
   min-width: 0;

@@ -97,7 +97,7 @@ export const BASIC_IDS = Object.values(BASICS);
 export type PerkId =
   | 'rammer' | 'coldRunning' | 'steadyAim' | 'dustScreen'
   | 'readDriver' | 'spotter' | 'cargoEye' | 'nightEyes'
-  | 'welder' | 'cannibal' | 'rebuild' | 'roadMechanic'
+  | 'welder' | 'teardown' | 'rebuild' | 'roadMechanic'
   | 'desertRat' | 'stormRider' | 'fightThrough' | 'longHaul'
   | 'marketEars' | 'rumorMill' | 'paidTruce' | 'bountyHunter';
 
@@ -116,7 +116,7 @@ export const PERKS: Record<PerkId, PerkDef> = {
   cargoEye: { skill: 'perception', level: 4, },
   nightEyes: { skill: 'perception', level: 4, },
   welder: { skill: 'machining', level: 2, },
-  cannibal: { skill: 'machining', level: 2, },
+  teardown: { skill: 'machining', level: 2, },
   rebuild: { skill: 'machining', level: 4, },
   roadMechanic: { skill: 'machining', level: 4, },
   desertRat: { skill: 'toughness', level: 2, },
@@ -144,7 +144,6 @@ export const PERK_NUMBERS = {
     turns: 3,
     part: 'scrapSheet',
   },
-  cannibal: { turns: 1 },
   roadMechanic: { price: 2 },
   desertRat: { sunShare: 0.62 },
   fightThrough: { health: 0.5 },

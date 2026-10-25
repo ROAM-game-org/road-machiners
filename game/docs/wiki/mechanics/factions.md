@@ -73,7 +73,7 @@ A driver remembers what a truck did to it: an attack (−40), a robbery (−50) 
 A calm attack or robbery, one the two trucks were not already hostile over, is an incident. Shots back at an attacker are self-defense and start nothing new, so a fight never fans out again.
 
 ```
-calm attack, robbery, refused demand, retaliation for a crash
+calm attack, robbery, refused demand, retaliation for a crash the other truck caused
         |
         v
 witnesses: drivers who see both trucks, the victim, and the victim's escorts who see the attacker

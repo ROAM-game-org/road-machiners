@@ -8,7 +8,7 @@ import { cargoRoom } from './inventory';
 import { createSiteActivity, finishGoal, noteShop, payForLeg, reachSite, replaceBase } from './npc-activities';
 import { npcProfile, tradeSpend } from './npc-decisions';
 import { isBroke, pumpsOf } from './npc-service';
-import { onEscortWanted } from './escort-job';
+import { onEscortWanted, onHaulDelivered } from './escort-job';
 
 type BusinessJob = Extract<Job, { kind: 'business' }>;
 
@@ -60,6 +60,7 @@ export function resolveSell(world: World, vehicle: Vehicle, activity: NpcActivit
   else sellVehicleCargo(world, vehicle, site.id, NPC_UPKEEP.repairParts);
   payForLeg(world, vehicle, activity);
   topUpAtPump(world, vehicle, site.id);
+  onHaulDelivered(world, vehicle, activity);
   finishGoal(world, vehicle, 'soldCargo');
 }
 

@@ -112,7 +112,7 @@ export class TruckContext {
     const w = this.host.world();
     if (!id) return;
     if (action === 'mark' && !markError(w, id)) this.host.apply(markVehicle(w, id));
-    if (action === 'lookOver' && hasBasic(w, 'lookOver')) this.refusable(() => lookOver(w, id));
+    if (action === 'lookOver') this.refusable(() => lookOver(w, id));
   }
 
   private refusable(next: () => World): void {

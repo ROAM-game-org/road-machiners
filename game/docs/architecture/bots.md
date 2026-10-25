@@ -6,7 +6,7 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 
 - A bot reads the world like a player. It sees what the player sees and hears what the player hears.
 - A bot keeps auto repair on.
-- A bot answers radio calls with fixed replies. A demand or a surrender is answered with a refusal, or with the cargo when the foe outmatches the bot and the bot cannot outrun it.
+- A bot answers radio calls with fixed replies. A demand or a surrender is answered with a refusal, or with a stand-down when the foe outmatches the bot and the bot cannot outrun it. A demand is answered with the cargo.
 - A bot parks and cools its engine at the heat warning. It drives again when the engine is at half of the warning, unless it is in combat or sees a hostile.
 - A bot parked away from a town below three quarters of its max health starts first aid when it can, and holds still until the job ends.
 - A bot with a broken drive and no money calls a tow when a shop it can afford is on the map. It leaves the beacon off in combat.

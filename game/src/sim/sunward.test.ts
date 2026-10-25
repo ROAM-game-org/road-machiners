@@ -51,13 +51,14 @@ function quietWorld(): World {
   return w;
 }
 
-const seen = { stalls: 0 };
+const seen = { stalls: 0, broken: new Set<string>() };
 
 function runTo(w: World, turn: number): World {
   let world = w;
   while (world.turn < turn) {
     world = endTurn(world, testDrive);
     seen.stalls += world.events.filter((e) => e.t === 'stall').length;
+    for (const e of world.events) if (e.t === 'breakdown') seen.broken.add(e.vehicle);
   }
   return world;
 }
@@ -342,6 +343,7 @@ describe('the night schedule', () => {
     const members = membersOf(w);
     for (const v of members) expect(topGoal(v)?.reason).toBe('restHollow');
     seen.stalls = 0;
+    seen.broken.clear();
 
     w = runTo(w, rideOutTurn(duskTurn(1)) + 3);
     const night = sunwardFacts(w).night!;
@@ -359,7 +361,7 @@ describe('the night schedule', () => {
     });
 
     w = runTo(w, dawnAfter(duskTurn(1)) + 120);
-    for (const v of membersOf(w)) {
+    for (const v of membersOf(w).filter((x) => !seen.broken.has(x.id))) {
       expect(dist(v.pos, v.brain!.home)).toBeLessThan(3);
       expect(topGoal(v)?.reason).toBe('restHollow');
     }

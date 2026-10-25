@@ -36,6 +36,7 @@ import { attachLine } from './harpoon';
 import { angleDiff, bearing, clamp, dist, DEG, type Vec } from './vec';
 import { damageScale, modeRules } from './settings';
 import { attacks, hostileFrom, huntsAsPrey, isAlly, noteDefeat, reportIncident } from "./relations";
+import type { CrashFault } from "./crash-contact";
 
 export type FireBlock =
   | "disabled"
@@ -886,14 +887,14 @@ function sumStray(world: World, shooter: Vehicle, victim: Vehicle, damage: numbe
   noteAttack(world, shooter, victim, true);
 }
 
-export function noteCollision(world: World, a: Vehicle, b: Vehicle, hitsA: PartHit[], hitsB: PartHit[]): void {
+export function noteCollision(world: World, a: Vehicle, b: Vehicle, hitsA: PartHit[], hitsB: PartHit[], fault: CrashFault): void {
   if (towPair(world, a, b)) return;
   const calm = !isHostile(world, a, b);
-  const attacks = ([[b, a, hitsA], [a, b, hitsB]] as const).filter(([, , hits]) => hits.some((h) => h.damage > 0));
-  for (const [attacker, victim] of attacks) {
+  const attacks = ([[b, a, hitsA, fault.b], [a, b, hitsB, fault.a]] as const).filter(([, , hits]) => hits.some((h) => h.damage > 0));
+  for (const [attacker, victim, , atFault] of attacks) {
     victim.lastHitBy = attacker.id;
     if (!calm) recordAttack(world, attacker, victim);
-    else if (victim.brain) addState(world, 'grievance', victim.id, attacker.id, { kind: 'none' });
+    else if (victim.brain && atFault) addState(world, 'grievance', victim.id, attacker.id, { kind: 'none' });
   }
 }
 

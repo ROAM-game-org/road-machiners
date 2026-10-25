@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { corePart, itemCells, mountedItems, mountedParts } from './grid';
 import { applyContactCrash, estimateCrashGeometry, forecastRam, ramHitChance, ramImpact, ramValue } from './crash-contact';
 import { RULES } from '../data/rules';
+import { fileReports } from './crime';
+import { recall } from './memory';
+import { getKnownSite } from './npc-decisions';
+import { nearestPad } from './sites';
 import { thinkNpc } from './npc-activities';
 import { addState, stateOf } from './states';
 import { addVehicle, emptyWorld, forceOption, npcBrain } from './testkit';
@@ -11,8 +15,8 @@ import type { Vec } from './vec';
 
 const FULL_SPEED = 6;
 
-function applyCrash(world: World, a: Vehicle, b: Vehicle | null, what: string, from: Vec, impact: number): void {
-  applyContactCrash(world, a, b, what, impact, estimateCrashGeometry(a, b, from));
+function applyCrash(world: World, a: Vehicle, b: Vehicle | null, what: string, from: Vec, impact: number, approach = { a: impact, b: 0 }): void {
+  applyContactCrash(world, a, b, what, impact, estimateCrashGeometry(a, b, from), b ? approach : null);
 }
 
 function crashOf(w: World): Extract<GameEvent, { t: 'collision' }> {
@@ -141,9 +145,52 @@ describe('rams as attacks', () => {
     expect(victim.brain!.attackers).toEqual({ [trader.id]: true });
   });
 
+  it('a moving NPC that hits a parked player earns no grievance, feud, memory or case', () => {
+    forceOption('crashed', 'retaliate');
+    const { w, trader, victim } = ramSetup();
+    const me = w.vehicles[0];
+    me.pos = { x: 41.6, y: 40 };
+    applyCrash(w, trader, me, me.id, me.pos, FULL_SPEED, { a: FULL_SPEED, b: 0 });
+    thinkNpc(w, trader);
+    thinkNpc(w, victim);
+    expect(w.states.filter((s) => s.kind === 'grievance' || s.kind === 'feud')).toEqual([]);
+    expect(w.vehicles.flatMap((v) => (v.brain ? recall(v, 'wronged') : []))).toEqual([]);
+    expect(w.crimes).toEqual([]);
+  });
+
+  it('a player that drives into a parked NPC that retaliates in sight of a witness gets a feud and a case', () => {
+    forceOption('crashed', 'retaliate');
+    const { w, victim } = ramSetup();
+    const me = w.vehicles[0];
+    me.pos = { x: 40, y: 40 };
+    const witness = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 38, y: 44 }, 0);
+    witness.brain = npcBrain('trader', witness.pos, ['trader']);
+    applyCrash(w, me, victim, victim.id, victim.pos, FULL_SPEED, { a: FULL_SPEED, b: 0 });
+    thinkNpc(w, victim);
+    expect(stateOf(w, 'feud', victim.id, me.id)).not.toBeNull();
+    witness.pos = { ...nearestPad(getKnownSite('nose'), witness.pos) };
+    witness.speed = 0;
+    fileReports(w, witness);
+    expect(w.crimes.map((c) => c.offense)).toEqual(['attacked']);
+  });
+
+  it('a head-on between two NPCs gives each a grievance', () => {
+    const { w, trader, victim } = ramSetup();
+    applyCrash(w, trader, victim, victim.id, victim.pos, FULL_SPEED, { a: FULL_SPEED / 2, b: FULL_SPEED / 2 });
+    expect(stateOf(w, 'grievance', victim.id, trader.id)).not.toBeNull();
+    expect(stateOf(w, 'grievance', trader.id, victim.id)).not.toBeNull();
+  });
+
+  it('a victim whose ram came from a parked truck holds no grievance', () => {
+    const { w, trader, victim } = ramSetup();
+    applyCrash(w, trader, victim, victim.id, victim.pos, FULL_SPEED, { a: 0, b: FULL_SPEED });
+    expect(stateOf(w, 'grievance', victim.id, trader.id)).toBeNull();
+    expect(victim.lastHitBy).toBe(trader.id);
+  });
+
   it('a crash with measured physics contact geometry gives a grievance too', () => {
     const { w, trader, victim } = ramSetup();
-    applyContactCrash(w, trader, victim, victim.id, FULL_SPEED, { a: { side: 'front', lanes: [1, 2] }, b: { side: 'left', lanes: [2, 3] } });
+    applyContactCrash(w, trader, victim, victim.id, FULL_SPEED, { a: { side: 'front', lanes: [1, 2] }, b: { side: 'left', lanes: [2, 3] } }, { a: FULL_SPEED, b: 0 });
     expect(total(crashOf(w).hitsB)).toBeGreaterThan(0);
     expect(stateOf(w, 'grievance', victim.id, trader.id)).not.toBeNull();
     expect(victim.lastHitBy).toBe(trader.id);

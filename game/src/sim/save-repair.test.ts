@@ -19,7 +19,7 @@ import { makePart } from './factory';
 import { corePart, gridOf, mountedParts } from './grid';
 import { vehicleMass } from './mass';
 import { npcTraits } from './npc-decisions';
-import { practice, skillLevel } from './progress';
+import { pendingPerkPairs, practice, skillLevel } from './progress';
 import { TIME } from '../data/time';
 import { repairContent } from './save-repair';
 import { defaultSetup } from './settings';
@@ -60,6 +60,18 @@ describe('repairContent', () => {
     const before = cloneWorld(w);
     repairContent(w);
     expect(w).toEqual(before);
+  });
+
+  it('drops a retired Cannibal pick and reopens the Machining 2 pair without awarding anything', () => {
+    const w = fresh();
+    w.player.ranks.machining = 2;
+    w.player.perks = ['cannibal' as never];
+    const money = w.player.money;
+    const xp = w.player.xp;
+    repairContent(w);
+    expect(w.player.perks).toEqual([]);
+    expect(pendingPerkPairs(w).some((pair) => pair.perks.includes('teardown'))).toBe(true);
+    expect([w.player.money, w.player.xp]).toEqual([money, xp]);
   });
 
   it('leaves a Chaos Highway world with no drift alone', () => {

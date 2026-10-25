@@ -213,7 +213,6 @@ export const UI = {
   'help.does.zoom': 'Zoom',
   'help.does.center': 'Center',
   'help.does.camera': 'Camera',
-  'help.does.mute': 'Mute',
   'help.does.inventory': 'Inventory',
   'help.does.character': 'Character',
   'help.does.journal': 'Journal',

@@ -9,11 +9,36 @@ export { onOrchardRoad };
 
 export type SpotTable = 'landmark' | 'hullCache' | 'hullScrap' | 'roadWreck' | 'farmStores' | 'armyStores' | 'engineScrap' | 'cityStores';
 export const WRECK_LOOKS: readonly PropKind[] = ['armyTruck', 'shipCache', 'hullCache', 'engineCache', 'deadTruck', 'tank', 'fishingBoat', 'riverBarge', 'skiff'];
+export type CluePiece =
+  | 'tube' | 'hub' | 'bow' | 'bigShell' | 'smallShell' | 'drum' | 'tower' | 'gantry' | 'furrow' | 'engine' | 'frame'
+  | 'watchtower' | 'compound' | 'farmhouse' | 'barn' | 'hangar' | 'blockhouse' | 'guardHut';
+export type CluePieceRule = { piece: CluePiece; open: boolean };
+export const CLUE_PIECES: Partial<Record<LandmarkLook, CluePieceRule>> = {
+  shipCage: { piece: 'tube', open: true },
+  shipHub: { piece: 'hub', open: false },
+  shipBow: { piece: 'bow', open: false },
+  hullShell: { piece: 'smallShell', open: true },
+  hullDrum: { piece: 'drum', open: false },
+  hullTower: { piece: 'tower', open: false },
+  hullGantry: { piece: 'gantry', open: false },
+  engineNozzle: { piece: 'engine', open: false },
+  engineFrame: { piece: 'frame', open: false },
+  watchtower: { piece: 'watchtower', open: false },
+  ruinCompound: { piece: 'compound', open: true },
+  farmhouse: { piece: 'farmhouse', open: false },
+  barn: { piece: 'barn', open: false },
+  quonset: { piece: 'hangar', open: false },
+  bunker: { piece: 'blockhouse', open: false },
+  guardPost: { piece: 'guardHut', open: false },
+};
+export const BIG_SHELL_RADIUS = 5;
+export type ClueSpot = { piece: CluePiece; at: Vec; r: number; open: boolean };
+export type Disc = { at: Vec; radius: number };
 export type Hazard = {
   radius: number;
   healthPerTurn: number;
   floor: number;
-  core: { radius: number; healthPerTurn: number } | null;
+  core: { radius: number; healthPerTurn: number; light: Disc } | null;
 };
 export type HullPiece = { look: LandmarkLook; at: Vec; yaw: number; r: number; sink?: number };
 export type Cache = { at: Vec; yaw: number };
@@ -80,6 +105,7 @@ export type WreckRules = {
   spotRadius: [number, number];
   buildings: BuildingGroup[];
   seatEase: number;
+  gradeRoads: boolean;
   rimRocks: RimRocks | null;
   scree: { from: number; to: number } | null;
   roads: FarmRoad[];
@@ -125,6 +151,9 @@ const FURROW_AXIS: Vec = { x: (FURROW_TAIL.x - FURROW_HEAD.x) / FURROW_LENGTH, y
 export function inFurrow(s: number, lat: number): Vec {
   return { x: FURROW_HEAD.x + FURROW_AXIS.x * s - FURROW_AXIS.y * lat, y: FURROW_HEAD.y + FURROW_AXIS.y * s + FURROW_AXIS.x * lat };
 }
+export const CLUE_SPOTS: Record<string, ClueSpot[]> = {
+  'fallen-sun': [{ piece: 'furrow', at: inFurrow(8, 0), r: 10, open: true }],
+};
 const WING = { up: 15, span: 24, down: 46, ease: 49, end: 56, tail: 59 };
 const WING_EASE_RISE = 1.2;
 const PIER_SINK = 2.6;
@@ -244,6 +273,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       spotRadius: [0.6, 0.8],
       buildings: [],
       seatEase: 3,
+      gradeRoads: false,
       rimRocks: { from: 1, to: 10, out: [0.5, 6], count: 28, size: [2.5, 4] },
       scree: { from: 20, to: 2 },
       roads: [
@@ -337,7 +367,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         radius: 8,
         healthPerTurn: 5,
         floor: 30,
-        core: { radius: 3.5, healthPerTurn: 8 },
+        core: { radius: 3.5, healthPerTurn: 8, light: { at: { x: 24.4, y: -24.85 }, radius: 2.25 } },
       },
     },
   },
@@ -560,6 +590,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         },
       ],
       seatEase: 3,
+      gradeRoads: true,
       rimRocks: null,
       scree: null,
       roads: [
