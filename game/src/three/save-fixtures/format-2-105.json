@@ -1,22 +1,67 @@
 {
-  "crimes": [
-    {
-      "id": "case8024", "crime": "2210:player-truck:npc-7:robbed", "offense": "robbed", "target": "player-truck", "victim": "npc-7",
-      "issuer": { "kind": "driver", "id": "npc-7" }, "reporters": ["npc-7"], "site": "pumpStation", "at": { "x": 410, "y": 380 },
-      "turn": 2210, "filed": 2250, "owed": 11097, "escrow": 11097, "status": "open", "closed": null, "hunter": "npc-12",
-      "retryAt": null, "offered": null, "lead": { "at": { "x": 410, "y": 380 }, "turn": 2210, "heading": 1.2 }
-    }
-  ],
-  "vehicles": [
-    {
-      "id": "npc-9",
-      "brain": {
-        "memories": [
-          { "turn": 2210, "fact": { "kind": "witnessed", "crime": "2210:player-truck:npc-7:robbed", "by": "player-truck", "victim": "npc-7", "offense": "robbed", "at": { "x": 410, "y": 380 }, "heading": 1.2 } },
-          { "turn": 2240, "fact": { "kind": "sighting", "vehicle": "player-truck", "at": { "x": 420, "y": 390 }, "heading": 1.1 } }
-        ]
+  "shops": {
+    "bowl": {
+      "contracts": [
+        {
+          "id": "ct-board-haul",
+          "shop": "bowl",
+          "kind": "haul",
+          "good": "grain",
+          "units": 4,
+          "to": "granary",
+          "reward": 3000,
+          "deadline": 900,
+          "window": 500,
+          "rush": false,
+          "tier": 1
+        }
+      ],
+      "goods": {
+        "grain": 120
       }
     },
-    { "id": "player-truck", "brain": null }
-  ]
+    "nose": {
+      "contracts": [],
+      "goods": {
+        "salt": 120
+      }
+    }
+  },
+  "player": {
+    "money": 61100,
+    "perks": [
+      "rammer",
+      "bountyHunter"
+    ],
+    "contracts": [],
+    "pastContracts": [
+      {
+        "contract": {
+          "id": "ct-past-haul",
+          "shop": "bowl",
+          "kind": "haul",
+          "good": "grain",
+          "units": 4,
+          "to": "granary",
+          "reward": 3000,
+          "deadline": 400,
+          "window": 500,
+          "rush": true,
+          "tier": 1
+        },
+        "outcome": "failed",
+        "turn": 350,
+        "amount": -2400
+      }
+    ],
+    "deeds": [
+      {
+        "subject": "ct-board-haul",
+        "faction": "bowl",
+        "deed": "failedContract",
+        "delta": -5,
+        "turn": 100
+      }
+    ]
+  }
 }

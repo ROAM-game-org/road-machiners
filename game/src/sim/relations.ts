@@ -257,8 +257,8 @@ function isWrong(deed: WrongDeed | HelpDeed): deed is WrongDeed {
   return PERSONAL[deed] < 0;
 }
 
-export function noteContractDeed(world: World, contractId: string, faction: Faction): void {
-  if (isOrganized(faction)) shiftStanding(world, contractId, faction, 'contract');
+export function noteContractDeed(world: World, contractId: string, faction: Faction, deed: 'contract' | 'failedContract'): void {
+  if (isOrganized(faction)) shiftStanding(world, contractId, faction, deed);
 }
 
 function shiftStanding(world: World, subject: string, faction: StandingFactionId, deed: DeedId): void {

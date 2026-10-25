@@ -497,7 +497,7 @@ export function withLeanDirections_104_105(world: SavedJson): SavedJson {
   return { ...world, player: { ...player, call: next } };
 }
 
-function withMemoryRestitution_105_106(v: SavedJson): SavedJson {
+function withMemoryRestitution_107_108(v: SavedJson): SavedJson {
   const brain = v.brain as SavedJson | null;
   if (!brain?.memories) return v;
   const memories = (brain.memories as SavedJson[]).map((m) => {
@@ -507,8 +507,8 @@ function withMemoryRestitution_105_106(v: SavedJson): SavedJson {
   return { ...v, brain: { ...brain, memories } };
 }
 
-export function withCaseRestitution_105_106(world: SavedJson): SavedJson {
+export function withCaseRestitution_107_108(world: SavedJson): SavedJson {
   const crimes = (world.crimes as SavedJson[]).map((c) => ({ ...c, restitution: 0, known: true }));
-  const vehicles = (world.vehicles as SavedJson[]).map(withMemoryRestitution_105_106);
+  const vehicles = (world.vehicles as SavedJson[]).map(withMemoryRestitution_107_108);
   return { ...world, crimes, vehicles };
 }

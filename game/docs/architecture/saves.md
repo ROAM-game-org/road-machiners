@@ -101,6 +101,8 @@ A Chaos Highway run goes back to the start of the stretch it was on. The start i
 - Step 97 to 98 gives each truck with held turns a `strandedAt` anchor at its saved position.
 - Step 98 to 99 changes no data. It marks the new `helpRefused` state kind, the `askHelp` topic and the `answeredCall` goal reason.
 - Step 99 to 100 changes no data. It marks the `firstAid` job kind.
+- Step 104 to 105 changes no data. It marks the `failedContract` deed.
+- Step 105 to 106 changes no data. It marks the `late` ending, the `overdue` contract event, the `embezzled` offense and the shop case issuer.
 - Step 103 to 104 drops every `fetch` and `bounty` contract from the shop boards, `player.contracts` and `player.pastContracts`. A held bounty already met pays its reward into `player.money` first. `player.perks` maps `bountyTalk` to `bountyHunter`, and `readCarried()` maps the perk the same way.
 - Step 105 to 106, `withCaseRestitution`, gives every case `restitution: 0` and `known: true`, since those players already saw the old filing line, and every `witnessed` memory `restitution: 0`.
 - Step 101 to 102 adds `world.crimes: []` and the player's Marshalls standing at 0. It also marks the `witnessed` memory, the `pursue` goal, the `bountyHunt`, `atPost`, `caseClosed` and `huntGaveUp` reasons, the `bountyStop` state and the Marshalls faction, template, trait and site.

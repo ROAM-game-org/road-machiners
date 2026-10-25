@@ -13,7 +13,7 @@ import { nearestPad } from './sites';
 import { stateOf } from './states';
 import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive } from './testkit';
 import { startEscort } from './tow';
-import type { CrimeOffense, Faction, Vehicle, World } from './types';
+import type { Faction, Vehicle, WitnessedOffense, World } from './types';
 import { dist, type Vec } from './vec';
 import { endTurn } from './world';
 
@@ -27,7 +27,7 @@ function npc(w: World, faction: Faction, template: string, traits: TraitId[], po
 const marshalAt = (w: World, pos: Vec) => npc(w, 'marshals', 'marshal', ['marshal', 'brave'], pos);
 const traderAt = (w: World, faction: Faction, pos: Vec) => npc(w, faction, 'trader', ['trader'], pos);
 
-function fileAgainst(w: World, culprit: Vehicle, at: Vec, restitution = 0, offense: CrimeOffense = 'robbed'): void {
+function fileAgainst(w: World, culprit: Vehicle, at: Vec, restitution = 0, offense: WitnessedOffense = 'robbed'): void {
   const bowl = traderAt(w, 'bowl', { x: 100, y: 600 });
   remember(w, bowl, { kind: 'witnessed', crime: `${w.turn}:${culprit.id}:${bowl.id}:${offense}`, by: culprit.id, victim: bowl.id, offense, at: { ...at }, heading: 0, restitution });
   bowl.pos = { ...nearestPad(getKnownSite('bowl'), bowl.pos) };

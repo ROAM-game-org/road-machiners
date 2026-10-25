@@ -11,7 +11,7 @@ import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
 import { chassisAbilityLine, chassisAbilityName, chassisName, factionName, refusalText, siteName, vehicleTitle } from "../text/names";
 import { chassisMap, chassisPortrait, chassisStats, createIcon, diffStats, statGrid } from "./cards";
 import { el, type Child } from "./dom";
-import { clock, GOODS_COLUMNS } from "./format";
+import { caseVictimName, clock, GOODS_COLUMNS } from "./format";
 import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum } from "./units";
 
 export type ShopCommand = (w: World) => World;
@@ -269,7 +269,7 @@ export function deskBody(w: World, run: DeskCommand): HTMLElement {
 }
 
 function caseRow(w: World, c: CrimeCase, run: DeskCommand): HTMLElement {
-  const victim = w.vehicles.some((v) => v.id === c.victim) ? vehicleTitle(w, vehicleById(w, c.victim)) : t("log.someDriver");
+  const victim = caseVictimName(w, c);
   const price = caseOwed(c);
   return el(
     "div",
@@ -299,6 +299,7 @@ function settleRow(w: World, q: SettlementQuote, run: DeskCommand): HTMLElement 
 
 function issuerName(w: World, c: CrimeCase): Msg {
   if (c.issuer.kind === "faction") return factionName(c.issuer.faction);
+  if (c.issuer.kind === "shop") return siteName(c.issuer.shop);
   const id = c.issuer.id;
   return w.vehicles.some((v) => v.id === id) ? vehicleTitle(w, vehicleById(w, id)) : t("log.someDriver");
 }

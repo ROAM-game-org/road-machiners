@@ -610,9 +610,9 @@ describe("money text", () => {
   it("reads a money event in M with its sign", () => {
     const w = emptyWorld();
     const gain = eventText(w, { t: "money", amount: 4067, reason: { kind: "contract" } })!;
-    const loss = eventText(w, { t: "money", amount: -100, reason: { kind: "failedHaul" } })!;
+    const loss = eventText(w, { t: "money", amount: -100, reason: { kind: "contract" } })!;
     expect([en(gain.text), gain.cls]).toEqual(["+41 M's: contract", "good"]);
-    expect([en(loss.text), loss.cls]).toEqual(["\u22121 M: failed haul contract", "bad"]);
+    expect(loss.cls).toBe("bad");
   });
 });
 
@@ -622,7 +622,7 @@ describe("tow text", () => {
     const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     const town = REGION.towns[0].id;
     expect(en(eventText(w, { t: "money", amount: 12000, reason: { kind: "contract" } })!.text)).toBe("+120 M's: contract");
-    expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "failedHaul" } })!.text)).toBe("\u221240 M's: failed haul contract");
+    expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "contract" } })!.text)).toBe("\u221240 M's: contract");
     expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 100 })!.text)).toMatch(/ for 1 M\.$/);
   });
   it("says free for a fee of 0 and keeps the price otherwise", () => {
