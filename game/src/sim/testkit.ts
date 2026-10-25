@@ -7,7 +7,6 @@ import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, type Spot } from './grid
 import { burnFuel } from './resources';
 import { vehicleStats } from './stats';
 import type { Terrain } from './terrain';
-import { inject, onTestFinished } from 'vitest';
 import { emptyWorldFrom, flatTerrain, PLAIN_KIT } from '../test/empty-world';
 import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions } from '../data/npcs';
 import { addState } from './states';
@@ -111,10 +110,17 @@ export function editableTerrain(w: World): Terrain {
 
 export { PLAIN_KIT, flatTerrain };
 
+const runner = (globalThis as { __vitest_worker__?: unknown }).__vitest_worker__ ? await import('vitest') : null;
+
+function testRunner(): NonNullable<typeof runner> {
+  if (runner === null) throw new Error('The test kit needs a Vitest worker');
+  return runner;
+}
+
 let emptyTemplate: World | undefined;
 
 function templateFromSetup(): World {
-  const provided = inject('emptyTemplate');
+  const provided = testRunner().inject('emptyTemplate');
   if (provided === undefined) throw new Error('The empty world template was not provided. List src/test/empty-template-setup.ts under globalSetup in the vitest config');
   return emptyWorldFrom(provided);
 }
@@ -162,7 +168,7 @@ export function forceOption<D extends DecisionId>(decision: D, option: DecisionO
     if (!entry) continue;
     table[decision] = option in entry ? { [option]: entry[option] } : {};
   }
-  onTestFinished(() => {
+  testRunner().onTestFinished(() => {
     Object.assign(base, savedBase);
     tables.forEach((table, i) => {
       if (saved[i] === undefined) delete table[decision];
