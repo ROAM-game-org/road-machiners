@@ -192,6 +192,7 @@ function isPlayerId(world: World, id: string): boolean {
 }
 
 function atTheVigil(world: World, member: Vehicle): boolean {
+  if (!nightWindow(world)) return false;
   const phase = sunwardPhase(world);
   return phase === 'vigil' || (phase === 'ride' && inFallenSun(member.pos));
 }
