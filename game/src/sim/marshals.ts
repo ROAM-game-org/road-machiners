@@ -2,7 +2,7 @@ import { BOUNTY, CRIME } from '../data/market';
 import { OFFENSE_LINES } from '../data/personalities';
 import { getKnownSite, decide, npcProfile } from './npc-decisions';
 import { createActivity, finishGoal, fightGoal, fleeFrom, interrupt, pushGoal, topGoal } from './npc-activities';
-import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, takeHunt } from './crime';
+import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, takeHunt, tellCases } from './crime';
 import { isDefeated } from './defeat';
 import { sightingOf } from './memory';
 import { lieUpSpot } from './npc-service';
@@ -229,6 +229,11 @@ export function payHailedBounty(world: World, marshal: Vehicle, target: Vehicle)
 }
 
 const OFFENSE_ORDER: readonly CrimeOffense[] = ['killed', 'robbed', 'attacked'];
+
+export function hearTerms(world: World): CallVars {
+  tellCases(openCasesOn(world, world.player.vehicleId));
+  return bountyTerms(world);
+}
 
 export function bountyTerms(world: World): CallVars {
   const cases = openCasesOn(world, world.player.vehicleId);

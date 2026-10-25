@@ -1,5 +1,5 @@
 
-import { advanceCrimes } from './crime';
+import { advanceCrimes, learnCasesAtDesk } from './crime';
 import { settleCrews } from './crews';
 import { CHASSIS, isPaletteId, PAINT, PAINT_SLOTS } from '../data/chassis';
 import { GOODS } from '../data/goods';
@@ -404,6 +404,7 @@ export function endTurn(
     driftStanding(w);
     lapseEncounter(w);
     resolveNpcActivities(w);
+    learnCasesAtDesk(w);
     noteEngagements(w);
     discoverSites(w);
     checkDeath(w);

@@ -8,7 +8,7 @@ import { markError } from "../sim/detect";
 import { hasExplorationMap, modeRules } from "../sim/settings";
 import { playerCanAct } from "../sim/world";
 import type { CrimeCase, Vehicle, World } from "../sim/types";
-import { openCasesOn } from "../sim/crime";
+import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
 import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
@@ -498,10 +498,10 @@ export class Hud {
   }
 
   private renderWanted(w: World): void {
-    const cases = openCasesOn(w, w.player.vehicleId);
+    const cases = knownCasesOn(w, w.player.vehicleId);
     this.wanted.style.display = cases.length > 0 ? "" : "none";
     if (cases.length === 0) return this.wanted.replaceChildren();
-    const owed = cases.reduce((sum, c) => sum + c.owed, 0);
+    const owed = cases.reduce((sum, c) => sum + caseOwed(c), 0);
     this.wanted.tabIndex = 0;
     this.wanted.replaceChildren(
       el("div", { class: "wanted-cases" }, ...cases.map((c) => wantedRow(w, c))),

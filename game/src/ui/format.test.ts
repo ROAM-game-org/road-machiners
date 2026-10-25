@@ -145,6 +145,13 @@ describe("contract text", () => {
     expect(eventText(w, { t: "bountyClosed", case: "k1", target: "gone", status: "collected", amount: 5500, collector: "marshal-1" })).toBeNull();
   });
 
+  it("tells the player nothing when a claim is filed against them, in the log or a toast", () => {
+    const w = emptyWorld();
+    const filed: GameEvent = { t: "bountyFiled", case: "k1", target: w.player.vehicleId, reporter: "npc-1", offense: "robbed", victim: "npc-1", site: "bowl", owed: 11097 };
+    expect(eventText(w, filed)).toBeNull();
+    expect(isNotable(filed)).toBe(false);
+  });
+
   describe("search", () => {
     const search: Contract = {
       id: "c3", shop: "bowl", kind: "search", target: "v1", driver: "Jed Cobb", template: "trader",

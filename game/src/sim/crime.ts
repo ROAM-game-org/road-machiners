@@ -272,6 +272,19 @@ export function takeHunt(world: World, targetId: string, hunterId: string): Crim
 
 export function offerCases(world: World, cases: CrimeCase[]): void {
   for (const c of cases) c.offered = world.turn;
+  tellCases(cases);
+}
+
+export function tellCases(cases: CrimeCase[]): void {
+  for (const c of cases) c.known = true;
+}
+
+export function knownCasesOn(world: World, targetId: string): CrimeCase[] {
+  return openCasesOn(world, targetId).filter((c) => c.known);
+}
+
+export function learnCasesAtDesk(world: World): void {
+  if (deskAt(world)) tellCases(openCasesOn(world, world.player.vehicleId));
 }
 
 export function lastOffer(cases: CrimeCase[]): number {

@@ -81,7 +81,6 @@ export const LOG: Translation<typeof EN> = {
   'state.lookOver': 'Осматривает ваш грузовик',
   'state.sizedUp': 'Знает, что вы везете',
   'state.bountyStop': 'Ждет вашего ответа',
-  'log.bountyFiled': '{site, case, at} приняли жалобу на вас — {offense}. В деле имя {victim, case, gen}. Маршалы требуют {price}.',
   'log.bountyPaid': 'Вы уплатили маршалам {price}. Дело против вас закрыто.',
   'log.bountyCollected': 'Маршал вывел ваш грузовик из строя. Дело против вас закрыто.',
   'log.bountyHunted': 'Вы получили награду за {who, case, acc} — {price}.',

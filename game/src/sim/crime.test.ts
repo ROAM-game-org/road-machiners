@@ -5,7 +5,7 @@ import { CRIME, BOUNTY } from '../data/market';
 import { BANDS } from '../data/npc-behavior';
 import type { TraitId } from '../data/npcs';
 import {
-  canPayBounty, caseOwed, closeCase, collectBounty, crimeOf, deskAt, deskRows, fileReports, finesOn, noteHandover, noteKilling, openCasesOn, owedBy, payBounty, payCasesAtDesk, settle, settlementQuote, settlePrice, advanceCrimes,
+  canPayBounty, caseOwed, closeCase, knownCasesOn, collectBounty, crimeOf, deskAt, deskRows, fileReports, finesOn, noteHandover, noteKilling, offerCases, openCasesOn, owedBy, payBounty, payCasesAtDesk, settle, settlementQuote, settlePrice, advanceCrimes,
 } from './crime';
 import { playerVehicle } from './damage';
 import { knockOutNpc } from './defeat';
@@ -16,11 +16,12 @@ import { attitude, bandOf, reportIncident } from './relations';
 import { getResources } from './resources';
 import { nearestPad } from './sites';
 import { addState } from './states';
-import { addVehicle, emptyWorld, npcBrain } from './testkit';
+import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import type { CrimeCase, Faction, Vehicle, World } from './types';
 import type { Vec } from './vec';
-import { cloneWorld } from './world';
+import { cloneWorld, endTurn } from './world';
 import { addGoods } from './inventory';
+import { hearTerms } from './marshals';
 import { giveInTo, payOff, settleCashThreat, settlePlayerPlea, settleThreat, surrenderTo } from './parley';
 
 function npc(w: World, faction: Faction, template: string, traits: TraitId[], pos: Vec): Vehicle {
@@ -621,5 +622,48 @@ describe('paying restitution', () => {
     expect(canPayBounty(w, robber)).toBe(false);
     robber.resources!.money = c.owed + 4000;
     expect(canPayBounty(w, robber)).toBe(true);
+  });
+});
+
+describe('knowing a case', () => {
+  function filedOnPlayer(): World {
+    const w = emptyWorld({ x: 398, y: 400 });
+    const bowl = trader(w, 'bowl', { x: 404, y: 400 });
+    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:robbed`, by: w.player.vehicleId, victim: bowl.id, offense: 'robbed', at: { x: 300, y: 300 }, heading: 0, restitution: 0 });
+    toPad(bowl, 'bowl');
+    fileReports(w, bowl);
+    expect(w.crimes).toHaveLength(1);
+    return w;
+  }
+
+  const known = (w: World) => knownCasesOn(w, w.player.vehicleId).length;
+
+  it('files a case the target has not learned of (IV1)', () => {
+    const w = filedOnPlayer();
+    expect(w.crimes[0].known).toBe(false);
+    expect(known(w)).toBe(0);
+  });
+
+  it('tells the target when a Marshall demands payment', () => {
+    const w = filedOnPlayer();
+    offerCases(w, openCasesOn(w, w.player.vehicleId));
+    expect(known(w)).toBe(1);
+  });
+
+  it('tells the target when it hears a hunting Marshall\'s terms, with the same price', () => {
+    const w = filedOnPlayer();
+    const terms = hearTerms(w);
+    expect(terms.price).toEqual({ kind: 'money', amount: caseOwed(w.crimes[0]) });
+    expect(known(w)).toBe(1);
+  });
+
+  it('tells the player at the end of a turn parked at the Roadhouse desk, and not one parked elsewhere (IV2)', () => {
+    const elsewhere = filedOnPlayer();
+    toPad(playerVehicle(elsewhere), 'bowl');
+    expect(known(endTurn(elsewhere, testDrive))).toBe(0);
+    const desk = filedOnPlayer();
+    toPad(playerVehicle(desk), CRIME.post);
+    expect(deskAt(desk)).toBe(CRIME.post);
+    expect(known(endTurn(desk, testDrive))).toBe(1);
   });
 });

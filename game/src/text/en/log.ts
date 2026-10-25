@@ -219,7 +219,6 @@ export const LOG = {
   'log.partDisabled': m('{who}: {part} disabled', { who: 'text', part: 'text' }),
   'log.breakdown': m('{part} broke down', { part: 'text' }),
   'log.townPatch': 'You patch your truck with scrap.',
-  'log.bountyFiled': m('Word reaches you: {site} took a claim against you for {offense} of {victim}. The Marshalls want {price}.', { site: 'text', offense: 'text', victim: 'text', price: 'text' }),
   'log.bountyPaid': m('You paid {price} to the Marshalls, and a case against you is closed.', { price: 'text' }),
   'log.bountyHunted': m('You collect the bounty on {who}: {price}', { who: 'text', price: 'text' }),
   'log.bountyCollected': 'The Marshall put you down. The case against you is closed.',

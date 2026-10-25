@@ -40,7 +40,7 @@ import type { GameEvent, GridItem, Job, NpcActivity, NpcState, PartInstance, Ref
 import { concat, list, MINUS_SIGN, num, PLUS, SPACE, t, verbatim, type Msg } from '../text/msg';
 import { siteRecipes } from '../data/market';
 import { keyLabel } from './input-mode';
-import { driverName, factionName, offenseName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
+import { driverName, factionName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
 import { playerCanAct, Refused } from '../sim/world';
 import { stanceToward } from '../sim/relations';
 import { aidWords, lineText } from './dialogue';
@@ -624,7 +624,7 @@ function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, rewar
   throw new Error(`An escort is never ${outcome}`);
 }
 
-const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded', 'bountyFiled']);
+const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded']);
 
 export function isNotable(e: GameEvent): boolean {
   if (e.t === 'contract') return e.outcome === 'found' || e.outcome === 'fulfilled' || e.cause === 'rival';
@@ -974,12 +974,6 @@ function knownTruckName(world: World, id: string): Msg {
   return world.vehicles.some((v) => v.id === id) ? vehicleName(world, id) : t('log.someDriver');
 }
 
-function bountyFiledText(world: World, e: Extract<GameEvent, { t: 'bountyFiled' }>): LogLine | null {
-  if (e.target !== world.player.vehicleId) return null;
-  const victim = world.vehicles.some((v) => v.id === e.victim) ? vehicleName(world, e.victim) : t('log.someDriver');
-  return line(t('log.bountyFiled', { site: siteName(e.site), offense: offenseName(e.offense), victim, price: moneyMsg(e.owed) }), 'bad');
-}
-
 function bountyClosedText(world: World, e: Extract<GameEvent, { t: 'bountyClosed' }>): LogLine | null {
   if (e.collector !== null && e.collector === world.player.vehicleId) return line(t('log.bountyHunted', { who: knownTruckName(world, e.target), price: moneyMsg(e.amount) }), 'good');
   if (e.target !== world.player.vehicleId) return null;
@@ -1056,7 +1050,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   outpostReached: outpostReachedText,
   roadOpened: quiet,
   runLost: runLostText,
-  bountyFiled: bountyFiledText,
+  bountyFiled: quiet,
   bountyClosed: bountyClosedText,
   settlement: (_, e) => line(t('log.settlement', { price: moneyMsg(e.price), faction: factionName(e.faction) }), ''),
   asked: quiet,
