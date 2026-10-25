@@ -40,7 +40,7 @@ import type { CrimeCase, GameEvent, GridItem, Job, NpcActivity, NpcState, PartIn
 import { concat, list, MINUS_SIGN, num, PLUS, SPACE, t, verbatim, type Msg } from '../text/msg';
 import { siteRecipes } from '../data/market';
 import { keyLabel } from './input-mode';
-import { driverName, factionName, standingCauseText,  offenseName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
+import { driverName, factionName, standingCauseText, offenseName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
 import { playerCanAct, Refused } from '../sim/world';
 import { stanceToward } from '../sim/relations';
 import { aidWords, lineText } from './dialogue';
