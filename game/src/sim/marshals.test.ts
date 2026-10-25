@@ -6,9 +6,10 @@ import { chooseOption, currentOptions, radioSpeakers, raiseCalls } from './dialo
 import { playerVehicle } from './damage';
 import { knockOutNpc } from './defeat';
 import { remember, rememberSightings, sightingOf } from './memory';
-import { answerDemand, demandLapsed, hunt, planMarshal, searchLead, takeCase } from './marshals';
-import { topGoal } from './npc-activities';
-import { getKnownSite } from './npc-decisions';
+import { answerDemand, demandLapsed, hunt, outmatched, planMarshal, searchLead, takeCase, withdrawHunt, withdrawsOnTruce } from './marshals';
+import { fleeFrom, interrupt, topGoal } from './npc-activities';
+import { getKnownSite, npcProfile } from './npc-decisions';
+import { plead, settlePlayerPlea } from './parley';
 import { nearestPad } from './sites';
 import { stateOf } from './states';
 import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive } from './testkit';
@@ -259,5 +260,78 @@ describe('a hunt in the turn pipeline', () => {
     }
     expect(stalls).toEqual([]);
     expect(demanded).toBe(true);
+  });
+});
+
+describe('a Marshall that backs off', () => {
+  function onPlayer(): { w: World; marshal: Vehicle; me: Vehicle } {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const me = playerVehicle(w);
+    fileAgainst(w, me, { x: 300, y: 300 });
+    const marshal = marshalAt(w, { x: 306, y: 300 });
+    planMarshal(w, marshal, [me]);
+    return { w, marshal, me };
+  }
+
+  const shotUp = (marshal: Vehicle) => (marshal.resources!.health = 10);
+
+  it('takes a granted truce outgunned as a retreat: the case waits for the pair, the hunt is dropped and the Marshall rides home (IV2)', () => {
+    const { w, marshal, me } = onPlayer();
+    shotUp(marshal);
+    expect(outmatched(w, marshal, me)).toBe(true);
+    const rng = w.rngState;
+    settlePlayerPlea(w, marshal, 'truce', true);
+    expect(w.rngState).toBe(rng);
+    expect(w.crimes[0]).toMatchObject({ posse: 'pair', hunter: null, retryAt: w.turn + BOUNTY.retryTurns, status: 'open' });
+    expect(w.events.filter((e) => e.t === 'huntWithdrawn')).toEqual([{ t: 'huntWithdrawn', by: marshal.id, target: me.id, posse: 'pair' }]);
+    expect(stateOf(w, 'truce', marshal.id, me.id)).not.toBeNull();
+    const next = endTurn(w, testDrive);
+    const after = next.vehicles.find((v) => v.id === marshal.id)!;
+    expect(after.brain!.goals.some((g) => g.kind === 'pursue')).toBe(false);
+    expect(next.events.some((e) => e.t === 'activity' && e.vehicle === marshal.id && e.previous === 'pursue' && e.reason === 'backToPost')).toBe(true);
+    expect(topGoal(after)).toMatchObject({ kind: 'wait', reason: 'atPost' });
+  });
+
+  it('keeps the hunt through a truce it takes while it could win', () => {
+    const w = emptyWorld({ x: 100, y: 100 });
+    const target = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 500, y: 500 });
+    target.brain = npcBrain('trader', target.pos, ['trader']);
+    fileAgainst(w, target, { x: 500, y: 500 });
+    const marshal = marshalAt(w, { x: 506, y: 500 });
+    planMarshal(w, marshal, []);
+    expect(outmatched(w, marshal, target)).toBe(false);
+    expect(withdrawsOnTruce(w, target, marshal)).toBeNull();
+    forceOption('truceOffered', 'accept');
+    plead(w, target, marshal, 'truce');
+    expect(w.crimes[0]).toMatchObject({ posse: 'lone', hunter: marshal.id });
+    expect(w.events.some((e) => e.t === 'huntWithdrawn')).toBe(false);
+  });
+
+  it('withdraws the same way when an NPC target begs the truce', () => {
+    const w = emptyWorld({ x: 100, y: 100 });
+    const target = traderAt(w, 'independent', { x: 500, y: 500 });
+    fileAgainst(w, target, { x: 500, y: 500 });
+    const marshal = marshalAt(w, { x: 506, y: 500 });
+    planMarshal(w, marshal, []);
+    shotUp(marshal);
+    forceOption('truceOffered', 'accept');
+    plead(w, target, marshal, 'truce');
+    expect(w.crimes[0]).toMatchObject({ posse: 'pair', hunter: null });
+  });
+
+  it('withdraws when it runs from its target outgunned, and draws no random number for it (IV7)', () => {
+    const { w, marshal, me } = onPlayer();
+    shotUp(marshal);
+    interrupt(w, marshal, fleeFrom(w, marshal, npcProfile(marshal), me.id, me.pos, 'escapeThreat'));
+    const rng = w.rngState;
+    planMarshal(w, marshal, [me]);
+    expect(w.rngState).toBe(rng);
+    expect(w.crimes[0]).toMatchObject({ posse: 'pair', hunter: null });
+  });
+
+  it('throws on a withdrawal from a hunt it does not hold (P7)', () => {
+    const { w, me } = onPlayer();
+    const other = marshalAt(w, { x: 320, y: 300 });
+    expect(() => withdrawHunt(w, other, me)).toThrow(/no hunt/);
   });
 });

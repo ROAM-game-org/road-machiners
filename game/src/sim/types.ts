@@ -202,7 +202,7 @@ export type GoalReason =
   | 'musterCrew' | 'crewLeader' | 'hiredGuard'
   | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger'
   | 'sizingUp' | 'poorLoad' | 'sizedUpBy'
-  | 'bountyHunt' | 'atPost' | 'caseClosed' | 'huntGaveUp';
+  | 'bountyHunt' | 'atPost' | 'caseClosed' | 'huntGaveUp' | 'backToPost';
 
 export type SimNote =
   | { id: 'engineHot' }
@@ -643,7 +643,8 @@ export type GameEvent =
   | { t: 'bountyFiled'; case: string; target: string; reporter: string; offense: CrimeOffense; victim: string; site: string; owed: number }
   | { t: 'bountyClosed'; case: string; target: string; status: Exclude<CaseStatus, 'open'>; amount: number; collector: string | null }
   | { t: 'settlement'; faction: StandingFactionId; price: number }
-  | { t: 'asked'; by: string; of: string; target: string; told: boolean };
+  | { t: 'asked'; by: string; of: string; target: string; told: boolean }
+  | { t: 'huntWithdrawn'; by: string; target: string; posse: CasePosse };
 
 export type GameModeId = 'roaming' | 'furyRoad';
 export type ModeRules = { traffic: boolean; looting: boolean; npcKnockouts: boolean; playerKnockouts: boolean; yielding: boolean; radio: boolean; rescue: boolean; roadWrecks: boolean; run: boolean; standing: boolean; bounties: boolean };

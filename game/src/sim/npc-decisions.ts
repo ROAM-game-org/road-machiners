@@ -845,7 +845,7 @@ function begFactor(world: World, vehicle: Vehicle): number {
   return isWeak(world, vehicle) ? NPC_BEHAVIOR.weakBeg : 1;
 }
 
-function wantsPeace(world: World, vehicle: Vehicle, danger: number | null): boolean {
+export function wantsPeace(world: World, vehicle: Vehicle, danger: number | null): boolean {
   return (danger !== null && !isManageable(vehicle, danger)) || isWeak(world, vehicle);
 }
 

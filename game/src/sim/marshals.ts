@@ -1,8 +1,10 @@
 import { BOUNTY, CRIME } from '../data/market';
 import { OFFENSE_LINES } from '../data/personalities';
-import { getKnownSite, decide, npcProfile } from './npc-decisions';
+import { getKnownSite, decide, judgeDanger, npcProfile, wantsPeace } from './npc-decisions';
 import { createActivity, finishGoal, fightGoal, fleeFrom, interrupt, pushGoal, topGoal } from './npc-activities';
-import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, takeHunt } from './crime';
+import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, stepPosse, takeHunt, targetNeed } from './crime';
+import { followingOf, followingStatesOf } from './companies';
+import { vehicleById } from './damage';
 import { isDefeated } from './defeat';
 import { sightingOf } from './memory';
 import { lieUpSpot } from './npc-service';
@@ -21,8 +23,14 @@ export function isMarshal(v: Vehicle): boolean {
 
 export function planMarshal(world: World, marshal: Vehicle, seen: Vehicle[]): void {
   const top = topGoal(marshal);
-  if (top?.kind === 'pursue') return hunt(world, marshal, seen);
-  if (!top || waitsAtPost(top)) planAtPost(world, marshal, top, seen);
+  if (!top) return planAtPost(world, marshal, null, seen);
+  planOnGoal(world, marshal, top, seen);
+}
+
+function planOnGoal(world: World, marshal: Vehicle, top: NpcActivity, seen: Vehicle[]): void {
+  if (top.kind === 'flee') return withdrawOnFlight(world, marshal, top);
+  if (top.kind === 'pursue') return hunt(world, marshal, seen);
+  if (waitsAtPost(top)) planAtPost(world, marshal, top, seen);
 }
 
 function planAtPost(world: World, marshal: Vehicle, top: NpcActivity | null, seen: Vehicle[]): void {
@@ -168,6 +176,52 @@ function rayTo(from: Vec, dir: Vec, site: Site): { site: Site; along: number; of
 function giveUp(world: World, marshal: Vehicle, cases: CrimeCase[]): void {
   dropHunt(world, cases);
   if (topGoal(marshal)?.kind === 'pursue') finishGoal(world, marshal, 'huntGaveUp');
+}
+
+export function outmatched(world: World, marshal: Vehicle, target: Vehicle): boolean {
+  return wantsPeace(world, marshal, judgeDanger(world, marshal, target));
+}
+
+export function hunterOf(world: World, marshal: Vehicle): Vehicle | null {
+  if (!isMarshal(marshal)) return null;
+  if (holdsHunt(world, marshal)) return marshal;
+  const leader = escortLeaderOf(world, marshal);
+  return leader && isMarshal(leader) && holdsHunt(world, leader) ? leader : null;
+}
+
+function escortLeaderOf(world: World, follower: Vehicle): Vehicle | null {
+  const held = followingOf(world, follower);
+  return held?.kind === 'escort' ? vehicleById(world, held.other) : null;
+}
+
+function holdsHunt(world: World, marshal: Vehicle): boolean {
+  return world.crimes.some((c) => c.status === 'open' && c.hunter === marshal.id);
+}
+
+export type Withdrawal = { hunter: Vehicle; target: Vehicle };
+
+export function withdrawsOnTruce(world: World, a: Vehicle, b: Vehicle): Withdrawal | null {
+  for (const [side, other] of [[a, b], [b, a]]) {
+    const hunter = hunterOf(world, side);
+    if (hunter && huntedCases(world, hunter, other.id).length > 0 && outmatched(world, hunter, other)) return { hunter, target: other };
+  }
+  return null;
+}
+
+function withdrawOnFlight(world: World, marshal: Vehicle, flight: NpcActivity): void {
+  const hunter = hunterOf(world, marshal);
+  const foe = world.vehicles.find((v) => v.id === flight.targetId);
+  if (!hunter || !foe || huntedCases(world, hunter, foe.id).length === 0 || !outmatched(world, hunter, foe)) return;
+  withdrawHunt(world, hunter, foe);
+}
+
+export function withdrawHunt(world: World, hunter: Vehicle, target: Vehicle): void {
+  const cases = huntedCases(world, hunter, target.id);
+  if (cases.length === 0) throw new Error(`${hunter.id} withdraws from no hunt on ${target.id}`);
+  stepPosse(cases.filter((c) => c.posse !== 'spent'));
+  dropHunt(world, cases);
+  for (const s of followingStatesOf(world, hunter.id).filter((x) => x.kind === 'escort')) endState(world, s, 'expired');
+  world.events.push({ t: 'huntWithdrawn', by: hunter.id, target: target.id, posse: targetNeed(world, target.id) === null ? 'spent' : 'pair' });
 }
 
 export function demandOpen(world: World, marshal: Vehicle, target: Vehicle): NpcState | null {

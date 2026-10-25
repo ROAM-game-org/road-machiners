@@ -92,6 +92,7 @@ export const LOG: Translation<typeof EN> = {
   'goal.atPost': 'На Постоялом дворе',
   'goal.caseClosed': 'Дело закрыто',
   'goal.huntGaveUp': 'Потерял след',
+  'goal.backToPost': 'Возвращается на Постоялый двор',
   'refusal.notAtDesk': 'Только на Постоялом дворе',
   'refusal.payBountiesFirst': 'Сначала уплатите долг за {faction, case, acc}',
   'state.lootAgreed': 'Вы согласились не трогать его добычу',
