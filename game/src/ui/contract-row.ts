@@ -37,7 +37,7 @@ function roadTag(threat: number): HTMLElement {
 function escortDetail(w: World, c: Extract<Contract, { kind: "escort" }>): Child[] {
   const trader = w.vehicles.find((v) => v.id === c.client);
   if (!trader) return [];
-  return [el("span", {}, t("contract.trader", { who: vehicleName(w, c.client), n: kph(vehicleStats(w, trader).maxSpeed) })), SPACE, roadTag(c.threat)];
+  return [el("span", { class: "dim" }, t("contract.trader", { who: vehicleName(w, c.client), n: kph(vehicleStats(w, trader).maxSpeed) })), roadTag(c.threat)];
 }
 
 function surveyLine(w: World, c: Contract, posted: boolean): HTMLElement | null {
@@ -71,7 +71,7 @@ function jobRow(w: World, c: Contract, { action, posted, clue }: RowShape): HTML
     { class: "job" },
     CONTRACT_ICON[c.kind](),
     c.kind === "escort" && posted
-      ? el("div", { class: "job-what" }, el("span", {}, contractSummary(c)), el("div", { class: "job-detail dim" }, ...escortDetail(w, c)))
+      ? el("div", { class: "job-what" }, el("span", {}, contractSummary(c)), el("div", { class: "job-detail" }, ...escortDetail(w, c)))
       : contractSummaryCell(w, c, clue, posted),
     isLate(w, c) ? el("span", { class: "price bad" }, t("contract.late")) : el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
     clock,
