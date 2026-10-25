@@ -102,7 +102,7 @@ VAR asked_paper = false
   Old Orchard, the Old Army's depot. The machine tools are the Guild's, and command rents them. Who pays that rent is above my sheet.
   ~ asked_workshop = true
   -> hub
-+ {heard_mounts and not asked_mounts} [Why don't you stop them at the gate?]
++ {heard_mounts and not asked_mounts} [Why let unarmed trucks out the gate?]
   The gate isn't mine to shut on a driver. The line hands a steel mount to any driver who asks, so nobody can tell me he had nothing to bolt on. What goes on it is between the driver and <term=pierce>Pierce</term>. Pierce writes his paper. I don't ask.
   ~ asked_mounts = true
   ~ heard_paper = true

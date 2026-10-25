@@ -203,7 +203,7 @@ export const PERSONAL_RANGE = { min: -60, max: 40 } as const;
 
 export const STANDING_DELTA: Record<DeedId, number> = {
   attacked: -15, robbed: -20, stole: -10, killed: -30,
-  aided: 5, towed: 5, patched: 5, defended: 8, contract: 3,
+  aided: 5, towed: 5, patched: 5, defended: 8, contract: 3, failedContract: -5,
 };
 
 export const DEEDS = { repeatTurns: TIME.turnsPerDay };

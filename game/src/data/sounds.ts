@@ -1,3 +1,4 @@
+import { RULES } from "./rules";
 export type Bus = "ui" | "sfx" | "ambient" | "music";
 
 export type CueDef = {
@@ -205,6 +206,7 @@ export const MIX = {
   level: { ui: -18, sfx: -14, ambient: -24, music: -18 } satisfies Record<Bus, number>,
   compressor: { threshold: -18, knee: 12, ratio: 4, attack: 0.003, release: 0.25 },
   reverb: { seconds: 1.2, decay: 3, wet: 0.12 },
+  crash: { quietImpact: RULES.collisionMinImpact, fullImpact: RULES.hardCrashSpeed, quietGain: 0.25 },
   halfGainMeters: 40,
   panWidth: 0.7,
   engine: { idleRate: 0.8, topRate: 1.3, topSpeedMs: 31.2, idleGain: 0.5, loadMs: 3, revUp: 0.3, revDown: 0.2, loadGain: 0.3, movingMs: 0.5, brakeMs: 4, fadeSeconds: 0.12, overdriveGain: 1.5, strainRelease: 0.5 },
@@ -219,7 +221,7 @@ export const MIX = {
   wind: { baseGain: 0.4, stormGain: 1, fadeSeconds: 1 },
   music: { fadeSeconds: 3, musicReachTiles: 12 },
   anchors: { sfx: "cannon-fire" } as Partial<Record<Bus, CueId>>,
-  tone: { low: 8, high: -17, spread: 10 },
+  tone: { low: 8, high: -17, presence: -7, spread: 10 },
 } as const;
 
 export const SCORE_BLOCKS = {

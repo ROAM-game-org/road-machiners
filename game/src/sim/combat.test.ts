@@ -951,10 +951,10 @@ describe('who beat a truck', () => {
   it('a ram counts for the other truck, and a crash into a rock for nobody', () => {
     const { w, me, buggy } = duel();
     const cab = corePart(buggy, 'cab').id;
-    w.events.push({ t: 'collision', a: me.id, b: buggy.id, hitsA: [], hitsB: [{ part: cab, damage: 4 }] });
-    w.events.push({ t: 'collision', a: buggy.id, b: 'rock', hitsA: [{ part: cab, damage: 20 }], hitsB: [] });
+    w.events.push({ t: 'collision', a: me.id, b: buggy.id, impact: 3, hitsA: [], hitsB: [{ part: cab, damage: 4 }] });
+    w.events.push({ t: 'collision', a: buggy.id, b: 'rock', impact: 3, hitsA: [{ part: cab, damage: 20 }], hitsB: [] });
     expect(beatenBy(w, buggy)).toBe(me.id);
-    w.events.push({ t: 'collision', a: buggy.id, b: me.id, hitsA: [{ part: cab, damage: 3 }], hitsB: [] });
+    w.events.push({ t: 'collision', a: buggy.id, b: me.id, impact: 3, hitsA: [{ part: cab, damage: 3 }], hitsB: [] });
     expect(beatenBy(w, buggy)).toBe(me.id);
   });
 
