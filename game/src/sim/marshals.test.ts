@@ -6,7 +6,9 @@ import { chooseOption, currentOptions, radioSpeakers, raiseCalls } from './dialo
 import { playerVehicle } from './damage';
 import { knockOutNpc } from './defeat';
 import { remember, rememberSightings, sightingOf } from './memory';
-import { answerDemand, demandLapsed, hunt, planMarshal, searchLead, takeCase } from './marshals';
+import { answerDemand, demandLapsed, hunt, marshalLead, planMarshal, searchLead, takeCase } from './marshals';
+import { heldSearch } from './market';
+import { QUEST_EFFECTS, QUEST_QUERIES } from './quests';
 import { topGoal } from './npc-activities';
 import { getKnownSite } from './npc-decisions';
 import { nearestPad } from './sites';
@@ -259,5 +261,75 @@ describe('a hunt in the turn pipeline', () => {
     }
     expect(stalls).toEqual([]);
     expect(demanded).toBe(true);
+  });
+});
+
+describe('the paid Marshall lead', () => {
+  function searching(): { w: World; target: Vehicle; marshal: Vehicle } {
+    const w = emptyWorld({ x: 100, y: 100 });
+    const target = traderAt(w, 'independent', { x: 500, y: 500 });
+    w.turn = 50;
+    w.player.contracts.push({
+      id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
+      lead: { at: { x: 0, y: 0 }, turn: 10 }, reward: 3700, deadline: 900, window: 600, tier: 1, delivered: false,
+    });
+    return { w, target, marshal: marshalAt(w, { x: 650, y: 100 }) };
+  }
+
+  function sawAt(w: World, by: Vehicle, target: Vehicle, turn: number, at: Vec): void {
+    const was = w.turn;
+    w.turn = turn;
+    remember(w, by, { kind: 'sighting', vehicle: target.id, at, heading: 0 });
+    w.turn = was;
+  }
+
+  it('gives the newest Marshall sighting when it is newer than the held lead', () => {
+    const { w, target, marshal } = searching();
+    sawAt(w, marshal, target, 30, { x: 90, y: 30 });
+    const second = marshalAt(w, { x: 660, y: 100 });
+    sawAt(w, second, target, 40, { x: 120, y: 60 });
+    expect(marshalLead(w)).toEqual({ at: { x: 120, y: 60 }, turn: 40 });
+  });
+
+  it('gives nothing for a sighting no newer than the held lead', () => {
+    const { w, target, marshal } = searching();
+    sawAt(w, marshal, target, 10, { x: 90, y: 30 });
+    expect(marshalLead(w)).toBeNull();
+    sawAt(w, marshal, target, 5, { x: 90, y: 30 });
+    expect(marshalLead(w)).toBeNull();
+  });
+
+  it('ignores a driver that is no Marshall and the target live place', () => {
+    const { w, target } = searching();
+    const trader = traderAt(w, 'bowl', { x: 300, y: 300 });
+    sawAt(w, trader, target, 45, { x: 90, y: 30 });
+    expect(marshalLead(w)).toBeNull();
+    target.pos = { x: 700, y: 700 };
+    expect(marshalLead(w)).toBeNull();
+  });
+
+  it('gives nothing without a held search', () => {
+    const w = emptyWorld({ x: 100, y: 100 });
+    const target = traderAt(w, 'independent', { x: 500, y: 500 });
+    const marshal = marshalAt(w, { x: 650, y: 100 });
+    sawAt(w, marshal, target, 30, { x: 90, y: 30 });
+    expect(marshalLead(w)).toBeNull();
+    expect(QUEST_QUERIES.holds_search(w, [])).toBe(false);
+  });
+
+  it('moves the lead through the quest function, and throws with none to take', () => {
+    const { w, target, marshal } = searching();
+    expect(QUEST_QUERIES.marshal_lead(w, [])).toBe(false);
+    expect(() => QUEST_EFFECTS.take_marshal_lead(w, [])).toThrow(/no Marshall sighting/);
+    sawAt(w, marshal, target, 30, { x: 90, y: 30 });
+    expect(QUEST_QUERIES.holds_search(w, [])).toBe(true);
+    expect(QUEST_QUERIES.marshal_lead(w, [])).toBe(true);
+    QUEST_EFFECTS.take_marshal_lead(w, []);
+    expect(heldSearch(w)!.lead).toEqual({ at: { x: 90, y: 30 }, turn: 30 });
+    expect(QUEST_QUERIES.marshal_lead(w, [])).toBe(false);
+  });
+
+  it('prices the lead at 3 M', () => {
+    expect(QUEST_QUERIES.lead_price(emptyWorld({ x: 0, y: 0 }), [])).toBe(3);
   });
 });

@@ -40,11 +40,11 @@ VAR envelope = 60
 { depot_thief == "open": -> desk }
 Kovac shuts the dispatch door behind you before he says a word. # place: Dispatch office
 The room smells of cold tea and machine oil, and the window rattles each time a truck passes the gate. On his desk lies a fuel can, empty, its Army seal cut clean through.
-Fuel's walking out of my depot. A can here, a can there. Never enough to miss in a day, but the monthly count doesn't lie. # speaker: Kovac
+Fuel's walking out of my depot. A can here, a can there. Never enough to miss in a day, but the monthly count comes up short. # speaker: Kovac
 A shipment leaves for the north road soon. I want the seller found before it rolls. Quietly. A thief who hears footsteps buries what he's taken. # speaker: Kovac
 + [I will look into it.]
   ~ depot_thief = "open"
-  Good. Keep your questions soft. A nervous thief sends the cans underground, and then I'll never find them. # speaker: Kovac
+  Good. Keep your questions soft. # speaker: Kovac
   -> desk
 + [Not my business.]
   Then we didn't speak. Close the door on your way out. # speaker: Kovac
@@ -133,7 +133,7 @@ Buying or just looking? Looking's free, but it doesn't feed me. # speaker: Sabin
 + [Pay her {sabine_price} M to talk. # cost: {sabine_price}]
   ~ knows_scar = true
   She counts the M's twice and tucks them away.
-  A corporal brings me the cans. Big hands, a scar across his chin. He never gives a name and I never ask. Keeps us both easy. # speaker: Sabine
+  A corporal brings me the cans. Big hands, a scar across his chin. He never gives a name and I never ask. # speaker: Sabine
   -> after
 + [Lean on her.]
   ~ alarm += 1
@@ -205,7 +205,7 @@ The shipment rolls at dawn, and the trucks are already warming in the cold. Kova
 
 === name_vance ===
 You lay out what you have.
-{ gate_checked: Kovac reads the late passes twice, and a muscle tightens in his jaw. }
+{ gate_checked: Kovac reads the late passes twice, then turns the log face down. }
 { saw_swap:
   So he picks his own nights, and Pell covers for him. # speaker: Kovac
 }

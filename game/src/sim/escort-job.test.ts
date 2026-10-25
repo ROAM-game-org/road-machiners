@@ -475,19 +475,19 @@ describe('hold and go on the radio', () => {
   it('offers the hold order only to the client of a held escort, and the go order only under a hold', () => {
     const { w, trader, offer } = setup();
     const before = call(w, trader);
-    expect(texts(before)).not.toContain('Wait here. I will scout the road ahead.');
+    expect(texts(before)).not.toContain("Wait here. I'll scout the road ahead.");
     const next = take(w, offer);
     const live = traderIn(next, trader);
     live.pos = { x: playerVehicle(next).pos.x + 10, y: playerVehicle(next).pos.y };
     let open = call(next, live);
-    expect(texts(open)).toContain('Wait here. I will scout the road ahead.');
-    expect(texts(open)).not.toContain('Let us move.');
-    open = chooseOption(open, texts(open).indexOf('Wait here. I will scout the road ahead.'));
+    expect(texts(open)).toContain("Wait here. I'll scout the road ahead.");
+    expect(texts(open)).not.toContain("Let's move.");
+    open = chooseOption(open, texts(open).indexOf("Wait here. I'll scout the road ahead."));
     open = chooseOption(open, 0);
     expect(heldEscort(open)!.holdUntil).not.toBeNull();
     open = call(open, traderIn(open, trader));
-    expect(texts(open)).toContain('Let us move.');
-    open = chooseOption(open, texts(open).indexOf('Let us move.'));
+    expect(texts(open)).toContain("Let's move.");
+    open = chooseOption(open, texts(open).indexOf("Let's move."));
     open = chooseOption(open, 0);
     expect(heldEscort(open)!.holdUntil).toBeNull();
   });

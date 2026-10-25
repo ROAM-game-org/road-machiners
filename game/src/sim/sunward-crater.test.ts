@@ -288,6 +288,17 @@ describe('the vigil invitation', () => {
     expect(w.player.call).toBeNull();
   });
 
+  it('makes no call before dusk to a stranger in the crater while a car already holds its post', () => {
+    const { w } = vigil();
+    w.turn = duskTurn(1) - 1;
+    sunwardFacts(w).night = { dusk: duskTurn(1), roster: [], beaten: [], calls: {}, hunt: null, shouted: [], offered: [] };
+
+    raiseCalls(w);
+
+    expect(w.player.call).toBeNull();
+    expect(sunwardFacts(w).night!.calls).toEqual({});
+  });
+
   it('treats hanging up on the last call as a refusal', () => {
     let { w, caller } = vigil();
     sunwardFacts(w).night = { dusk: duskTurn(1), roster: [], beaten: [], calls: { [w.player.vehicleId]: { count: 2, turn: w.turn - SUNWARD.callGap } }, hunt: null, shouted: [], offered: [] };

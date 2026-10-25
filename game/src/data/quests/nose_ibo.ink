@@ -25,7 +25,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
 = hub
 # checkpoint: start.hub
 + [What do you do in this shack?]
-  Freeze, mostly, and listen. The Army pays me for its own calls, and whatever else drifts through I keep for myself. There's Jill Jane, who runs Waste Of Time Radio and comes in best after dark. There's the couriers of the <term=guild>Guild</term> calling their rounds. And now and then there's a tone out of the <term=fallen_sun>Fallen Sun</term>, the big crashed hull in the crater, that nobody can explain. The set itself is <term=old_world>Old World</term> work, built back when there were masts on every hill. It's cold work, but it's quiet, and I never wanted better.
+  Freeze, mostly, and listen. The Army pays me for its own calls, and whatever else drifts through I keep for myself. There's Jill Jane, who runs Waste Of Time Radio and comes in best after dark. There's the couriers of the <term=guild>Guild</term> calling their rounds. And now and then there's a tone out of the <term=fallen_sun>Fallen Sun</term>, the big crashed hull in the crater, that nobody can explain. The set itself is <term=old_world>Old World</term> work, built back when there were masts on every hill.
   ~ heard_oldworld = true
   ~ heard_jj = true
   ~ heard_couriers = true
@@ -84,7 +84,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   -> hub
 + {depot_thief != "none" and depot_thief != "open"} [Heard about the depot business?]
   { depot_thief:
-  - "vance": Vance! He sat at my table on cold nights, and I'd have trusted him with my radio. You never know a man until he sells you out.
+  - "vance": Vance! He sat at my table on cold nights, and I'd have trusted him with my radio.
   - "pell": Pell? That man can't steal a biscuit without saying sorry to it. Somebody else is laughing tonight.
   - "bought": The depot's clean, they say. Funny, then, that the trader by the gate still sells fuel cheap.
   - else: Fuel still goes missing, they say. It's not my business, and it's not yours either, now.
