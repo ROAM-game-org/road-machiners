@@ -73,11 +73,11 @@ export const TRAIT_TALK: Record<TraitId, TraitTalk> = { ...SUNWARD_TRAIT_TALK,
 export const MARSHAL_LINES = [
   'marshalGreeting', 'marshalRepeat', 'marshalRefusal', 'marshalWarnOff',
   'bountyDemand', 'offenseAttacked', 'offenseRobbed', 'offenseKilled', 'payTheBook', 'notPaying', 'bookClosed', 'thenICollect',
-  'whatDoIOwe', 'bountyTerms',
+  'whatDoIOwe', 'bountyTerms', 'marshalBackWithCompany',
 ] as const;
 export type MarshalLineId = (typeof MARSHAL_LINES)[number];
 export type MarshalTopicId = 'bountyDemand' | 'payBounty';
-export type MarshalConditionId = 'bountyDemandOpen' | 'huntsPlayer';
+export type MarshalConditionId = 'bountyDemandOpen' | 'huntsPlayer' | 'callsPartner' | 'trucesForGood';
 export type MarshalEffectId = 'payBounty' | 'refuseBounty' | 'payBountyHail';
 export type MarshalPrepareId = 'bountyOwed';
 

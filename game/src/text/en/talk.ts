@@ -163,6 +163,7 @@ export const TALK = {
   'line.notPaying': 'Not paying.',
   'line.bookClosed': 'The page is closed. You can go.',
   'line.thenICollect': 'Then I collect what is owed.',
+  'line.marshalBackWithCompany': "Guns down, then. The page stays open. Next time I won't ride out alone.",
   'line.whatDoIOwe': "I hear you're looking for me. What do I owe?",
   'line.bountyTerms': m('{offense} You owe {price}. Pay it and the book is closed.', { offense: 'text', price: 'text' }),
   'line.overMyWreck': 'Over my wreck.',

@@ -5,7 +5,7 @@ import { createActivity, dropGoal, finishGoal, fightGoal, fleeFrom, goalsOf, int
 import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, stepPosse, takeHunt, targetNeed } from './crime';
 import { followersOf, followingOf, followingStatesOf, inCompany } from './companies';
 import { followGoal, startEscort } from './tow';
-import { vehicleById } from './damage';
+import { playerVehicle, vehicleById } from './damage';
 import { isDefeated } from './defeat';
 import { sightingOf } from './memory';
 import { lieUpSpot } from './npc-service';
@@ -244,6 +244,11 @@ function holdsHunt(world: World, marshal: Vehicle): boolean {
 }
 
 export type Withdrawal = { hunter: Vehicle; target: Vehicle };
+
+export function callsPartner(world: World, marshal: Vehicle): boolean {
+  const withdrawal = withdrawsOnTruce(world, marshal, playerVehicle(world));
+  return withdrawal !== null && targetNeed(world, withdrawal.target.id) === 'lone';
+}
 
 export function withdrawsOnTruce(world: World, a: Vehicle, b: Vehicle): Withdrawal | null {
   for (const [side, other] of [[a, b], [b, a]]) {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BOUNTY, CRIME } from '../data/market';
 import type { TraitId } from '../data/npcs';
 import { advanceCrimes, fileReports, noteKnockout, openCasesOn, payCasesAtDesk, stepPosse } from './crime';
-import { chooseOption, currentOptions, radioSpeakers, raiseCalls } from './dialogue';
+import { callVehicle, chooseOption, currentOptions, radioSpeakers, raiseCalls } from './dialogue';
 import { playerVehicle } from './damage';
 import { knockOutNpc } from './defeat';
 import { remember, rememberSightings, sightingOf } from './memory';
@@ -484,5 +484,35 @@ describe('the pair hunt', () => {
     expect(w.crimes[0].hunter).not.toBeNull();
     expect(gap).toBeGreaterThan(0);
     expect(gap).toBeLessThan(40);
+  });
+});
+
+describe('the Marshall on the radio after a truce plea', () => {
+  function pleaded(health: number): { w: World; marshal: Vehicle } {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const me = playerVehicle(w);
+    fileAgainst(w, me, { x: 300, y: 300 });
+    const marshal = marshalAt(w, { x: 306, y: 300 });
+    planMarshal(w, marshal, [me]);
+    answerDemand(w, marshal, me, 'refuse');
+    marshal.resources!.health = health;
+    forceOption('truceOffered', 'accept');
+    let call = callVehicle(w, marshal.id);
+    call = chooseOption(call, currentOptions(call).findIndex((o) => o.line === 'enoughShootingCanWe'));
+    const options = currentOptions(call);
+    expect(options.map((o) => o.line)).toEqual(['weBothDriveAway', 'hangUp']);
+    return { w: chooseOption(call, 0), marshal };
+  }
+
+  it('warns an outgunned Marshall will be back with company, and the case then waits for the pair (IV3)', () => {
+    const { w } = pleaded(10);
+    expect(w.player.call?.line.line).toBe('marshalBackWithCompany');
+    expect(w.crimes[0]).toMatchObject({ posse: 'pair', hunter: null });
+  });
+
+  it('keeps the plain truce line and the hunt for a Marshall that could win', () => {
+    const { w, marshal } = pleaded(100);
+    expect(w.player.call?.line.line).toBe('fineKeepYourGuns');
+    expect(w.crimes[0]).toMatchObject({ posse: 'lone', hunter: marshal.id });
   });
 });
