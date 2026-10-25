@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import FORMAT_2_104 from './save-fixtures/format-2-104.json';
+import FORMAT_2_107 from './save-fixtures/format-2-107.json';
 import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
 
-type Saved = typeof FORMAT_2_104;
+type Saved = typeof FORMAT_2_107;
 type Point = { x: number; y: number };
 
-const step = (world: Saved): Saved => TINY_STEPS[104 - TINY_FROM].step(structuredClone(world) as unknown as SavedJson) as unknown as Saved;
-const fixture = () => structuredClone(FORMAT_2_104);
+const step = (world: Saved): Saved => TINY_STEPS[107 - TINY_FROM].step(structuredClone(world) as unknown as SavedJson) as unknown as Saved;
+const fixture = () => structuredClone(FORMAT_2_107);
 const car = (w: Saved, id: string) => w.vehicles.find((v) => v.id === id)!;
 const MOVED_BAYS: Point[] = [
   { x: 304.658, y: 507.965 }, { x: 311.257, y: 512.487 }, { x: 302.849, y: 510.604 }, { x: 309.448, y: 515.127 }, { x: 301.04, y: 513.244 }, { x: 307.639, y: 517.766 },
@@ -15,7 +15,7 @@ const MOVED_BAYS: Point[] = [
 const bayIndex = (p: Point) => MOVED_BAYS.findIndex((b) => Math.hypot(b.x - p.x, b.y - p.y) < 0.01);
 const isBay = (p: Point) => bayIndex(p) >= 0;
 
-describe('save migration 104 to 105, the Hollow moves off the roads', () => {
+describe('save migration 107 to 108, the Hollow moves off the roads', () => {
   it('sends every Sunward home to the bay of the same index at the new Hollow and moves no car', () => {
     const next = step(fixture());
     const old = fixture();

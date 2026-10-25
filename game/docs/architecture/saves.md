@@ -101,6 +101,8 @@ A Chaos Highway run goes back to the start of the stretch it was on. The start i
 - Step 97 to 98 gives each truck with held turns a `strandedAt` anchor at its saved position.
 - Step 98 to 99 changes no data. It marks the new `helpRefused` state kind, the `askHelp` topic and the `answeredCall` goal reason.
 - Step 99 to 100 changes no data. It marks the `firstAid` job kind.
+- Step 104 to 105 changes no data. It marks the `failedContract` deed.
+- Step 105 to 106 changes no data. It marks the `late` ending, the `overdue` contract event, the `embezzled` offense and the shop case issuer.
 - Step 103 to 104 drops every `fetch` and `bounty` contract from the shop boards, `player.contracts` and `player.pastContracts`. A held bounty already met pays its reward into `player.money` first. `player.perks` maps `bountyTalk` to `bountyHunter`, and `readCarried()` maps the perk the same way.
 - Step 106 to 107 moves the `brain.home` of each Sunward car, and any goal destination at a bay, from the bay of the same index of the Hollow at (304, 516) to the laager bay of the same index, from its own copies of both bay lists, and moves no car. A home that matches no old bay throws.
 - Load runs `settleOffHollow()` on a same-map load: a truck whose body overlaps a Hollow obstacle moves to a free spot nearby, like the move after a rebake.

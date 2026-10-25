@@ -197,20 +197,20 @@ const MOVED_BAYS_105 = [
 const BAY_MATCH_105 = 0.01;
 const HOLLOW_ID_105 = 'sunward-hollow';
 
-function oldBayAt_104_105(at: { x: number; y: number }): number {
+function oldBayAt_107_108(at: { x: number; y: number }): number {
   return FORT_BAYS_104.findIndex((b) => Math.hypot(b.x - at.x, b.y - at.y) <= BAY_MATCH_105);
 }
 
-export function withMovedHollow_104_105(world: SavedJson): SavedJson {
+export function withMovedHollow_107_108(world: SavedJson): SavedJson {
   const rehome = (v: SavedJson): SavedJson => {
     const brain = v.brain as SavedJson | null;
     if (v.faction !== 'sunward' || !brain) return v;
     const home = brain.home as { x: number; y: number };
-    const bay = oldBayAt_104_105(home);
+    const bay = oldBayAt_107_108(home);
     if (bay < 0) throw new Error(`Sunward car ${String(v.id)} calls ${home.x}, ${home.y} home, which is no bay of the Hollow before it moved`);
     const goals = (brain.goals as SavedJson[]).map((g) => {
       const at = g.destination as { x: number; y: number } | null;
-      const goalBay = at ? oldBayAt_104_105(at) : -1;
+      const goalBay = at ? oldBayAt_107_108(at) : -1;
       return goalBay < 0 ? g : { ...g, destination: { ...MOVED_BAYS_105[goalBay] } };
     });
     const kept = Object.fromEntries(Object.entries(v).filter(([key]) => key !== 'farRoute'));
@@ -221,29 +221,29 @@ export function withMovedHollow_104_105(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome), player: { ...player, discovered } };
 }
 
-const LAAGER_BAYS_107 = [
+const LAAGER_BAYS_109 = [
   { x: 311.635, y: 504.26 }, { x: 310.391, y: 506.074 }, { x: 314.681, y: 509.014 }, { x: 309.148, y: 507.889 }, { x: 313.437, y: 510.829 }, { x: 307.904, y: 509.704 },
   { x: 312.193, y: 512.644 }, { x: 306.66, y: 511.519 }, { x: 310.95, y: 514.458 }, { x: 305.417, y: 513.333 }, { x: 309.706, y: 516.273 },
 ];
 
-function movedBayAt_106_107(at: { x: number; y: number }): number {
+function movedBayAt_108_109(at: { x: number; y: number }): number {
   return MOVED_BAYS_105.findIndex((b) => Math.hypot(b.x - at.x, b.y - at.y) <= BAY_MATCH_105);
 }
 
-export function withHollowLaager_106_107(world: SavedJson): SavedJson {
+export function withHollowLaager_108_109(world: SavedJson): SavedJson {
   const rehome = (v: SavedJson): SavedJson => {
     const brain = v.brain as SavedJson | null;
     if (v.faction !== 'sunward' || !brain) return v;
     const home = brain.home as { x: number; y: number };
-    const bay = movedBayAt_106_107(home);
+    const bay = movedBayAt_108_109(home);
     if (bay < 0) throw new Error(`Sunward car ${String(v.id)} calls ${home.x}, ${home.y} home, which is no bay of the Hollow before its laager`);
     const goals = (brain.goals as SavedJson[]).map((g) => {
       const at = g.destination as { x: number; y: number } | null;
-      const goalBay = at ? movedBayAt_106_107(at) : -1;
-      return goalBay < 0 ? g : { ...g, destination: { ...LAAGER_BAYS_107[goalBay] } };
+      const goalBay = at ? movedBayAt_108_109(at) : -1;
+      return goalBay < 0 ? g : { ...g, destination: { ...LAAGER_BAYS_109[goalBay] } };
     });
     const kept = Object.fromEntries(Object.entries(v).filter(([key]) => key !== 'farRoute'));
-    return { ...kept, brain: { ...brain, home: { ...LAAGER_BAYS_107[bay] }, goals } };
+    return { ...kept, brain: { ...brain, home: { ...LAAGER_BAYS_109[bay] }, goals } };
   };
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(rehome) };
 }
@@ -539,23 +539,23 @@ function metBountyPay_103_104(held: SavedJson[]): number {
   return held.filter((c) => c.kind === BOUNTY_KIND_103_104 && c.fulfilled === true).reduce((sum, c) => sum + (c.reward as number), 0);
 }
 
-function withLeanSteps_105_106(steps: SavedJson[]): SavedJson[] {
+function withLeanSteps_104_105(steps: SavedJson[]): SavedJson[] {
   return steps.map((step) => (step.do === 'leave' ? { ...step, lean: null } : step));
 }
 
-function withLeanVars_105_106(vars: SavedJson): SavedJson {
+function withLeanVars_104_105(vars: SavedJson): SavedJson {
   return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
     const value = v as SavedJson;
-    return [name, value.kind === 'directions' ? { ...value, steps: withLeanSteps_105_106(value.steps as SavedJson[]) } : value];
+    return [name, value.kind === 'directions' ? { ...value, steps: withLeanSteps_104_105(value.steps as SavedJson[]) } : value];
   }));
 }
 
-export function withLeanDirections_105_106(world: SavedJson): SavedJson {
+export function withLeanDirections_104_105(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
   if (!call) return world;
   const line = call.line as SavedJson;
-  const next = { ...call, vars: withLeanVars_105_106(call.vars as SavedJson), line: { ...line, vars: withLeanVars_105_106(line.vars as SavedJson) } };
+  const next = { ...call, vars: withLeanVars_104_105(call.vars as SavedJson), line: { ...line, vars: withLeanVars_104_105(line.vars as SavedJson) } };
   return { ...world, player: { ...player, call: next } };
 }
 

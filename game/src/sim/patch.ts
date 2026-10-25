@@ -9,7 +9,8 @@ import { PATCH, REPAIR } from '../data/wear';
 import { isJunk, maxHp, restorePart } from './wear';
 import { playerVehicle, vehicleById } from './damage';
 import { getTradePrice } from './economy';
-import { corePart, goodsCount, mountedParts } from './grid';
+import { corePart, mountedParts } from './grid';
+import { spareGoods } from './market';
 import { removeGoods } from './inventory';
 import { isParkedForWork } from './jobs';
 import { decide, optionWeights } from './npc-decisions';
@@ -56,7 +57,7 @@ export function needsPatch(world: World, v: Vehicle): boolean {
 }
 
 export function canFixItself(world: World, v: Vehicle): boolean {
-  return partsHeld(v) >= patchPlan(world, { patcher: v, client: v }).parts;
+  return partsHeld(world, v) >= patchPlan(world, { patcher: v, client: v }).parts;
 }
 
 export function patchPlan(world: World, { patcher, client }: Roles): PatchPlan {
@@ -73,8 +74,8 @@ function rolesWith(world: World, npc: Vehicle): Roles {
   return npcIsClient ? { patcher: me, client: npc } : { patcher: npc, client: me };
 }
 
-function partsHeld(v: Vehicle): number {
-  return goodsCount(v).parts ?? 0;
+function partsHeld(world: World, v: Vehicle): number {
+  return spareGoods(world, v, 'parts');
 }
 
 function partsValue(world: World, client: Vehicle, parts: number): number {
@@ -114,7 +115,7 @@ export function dealAvailable(deal: PatchDeal): (world: World, npc: Vehicle) => 
     const roles = rolesWith(world, npc);
     const plan = patchPlan(world, roles);
     if (plan.parts === 0) return false;
-    return partsHeld(partsPayer(deal, roles)) >= plan.parts && canPay(world, roles.client, priceOf(world, deal, roles, plan));
+    return partsHeld(world, partsPayer(deal, roles)) >= plan.parts && canPay(world, roles.client, priceOf(world, deal, roles, plan));
   };
 }
 
@@ -179,7 +180,7 @@ export function checkPatch(world: World, s: NpcState): 'fulfilled' | 'broken' | 
 }
 
 function canStillPay(world: World, data: Extract<StateData, { kind: 'patch' }>, roles: Roles): boolean {
-  return partsHeld(partsPayer(data.deal, roles)) >= data.parts && canPay(world, roles.client, data.price);
+  return partsHeld(world, partsPayer(data.deal, roles)) >= data.parts && canPay(world, roles.client, data.price);
 }
 
 function liftAgreedParts(data: Extract<StateData, { kind: 'patch' }>, client: Vehicle): void {

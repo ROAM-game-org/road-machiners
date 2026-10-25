@@ -1,144 +1,28 @@
 {
-  "turn": 900,
   "player": {
-    "discovered": [
-      "bowl",
-      "sunward-hollow",
-      "nose"
-    ],
-    "money": 777
-  },
-  "vehicles": [
-    {
-      "id": "v1",
-      "faction": "player",
-      "brain": null,
-      "pos": {
-        "x": 10,
-        "y": 10
-      }
-    },
-    {
-      "id": "v31",
-      "faction": "sunward",
-      "pos": {
-        "x": 284.053,
-        "y": 243.604
+    "call": {
+      "with": "npc-1",
+      "topic": null,
+      "node": "start",
+      "vars": {
+        "way": {
+          "kind": "directions",
+          "steps": [
+            { "do": "follow", "road": { "kind": "to", "site": "nose" }, "heading": "northEast", "span": "fair" },
+            { "do": "leave", "at": { "kind": "none" }, "octant": "south", "span": "fair" },
+            { "do": "search", "clue": { "kind": "wreck" }, "rough": true }
+          ]
+        }
       },
-      "brain": {
-        "templateId": "cavalcade",
-        "home": {
-          "x": 284.053,
-          "y": 243.604
-        },
-        "goals": [
-          {
-            "kind": "wait",
-            "targetId": null,
-            "destination": {
-              "x": 284.053,
-              "y": 243.604
-            },
-            "phase": "act",
-            "reason": "restHollow"
+      "line": {
+        "line": "wreckWay",
+        "vars": {
+          "way": {
+            "kind": "directions",
+            "steps": [{ "do": "leave", "at": { "kind": "fork", "nth": 2 }, "octant": "east", "span": "near" }]
           }
-        ]
-      }
-    },
-    {
-      "id": "v32",
-      "faction": "sunward",
-      "pos": {
-        "x": 300,
-        "y": 260
-      },
-      "farRoute": {
-        "dest": {
-          "x": 269.787,
-          "y": 236.358
-        },
-        "points": [
-          {
-            "x": 290,
-            "y": 250
-          },
-          {
-            "x": 269.787,
-            "y": 236.358
-          }
-        ],
-        "offRoad": true
-      },
-      "brain": {
-        "templateId": "cavalcade",
-        "home": {
-          "x": 269.787,
-          "y": 236.358
-        },
-        "goals": [
-          {
-            "kind": "explore",
-            "targetId": null,
-            "destination": {
-              "x": 269.787,
-              "y": 236.358
-            },
-            "phase": "travel",
-            "reason": "rideHome"
-          }
-        ]
-      }
-    },
-    {
-      "id": "v33",
-      "faction": "sunward",
-      "pos": {
-        "x": 340,
-        "y": 300
-      },
-      "brain": {
-        "templateId": "hunter",
-        "home": {
-          "x": 281.2,
-          "y": 242.155
-        },
-        "goals": [
-          {
-            "kind": "prowl",
-            "targetId": "a",
-            "destination": {
-              "x": 350,
-              "y": 320
-            },
-            "phase": "travel",
-            "reason": "huntRoad"
-          }
-        ]
-      }
-    },
-    {
-      "id": "v50",
-      "faction": "independent",
-      "pos": {
-        "x": 200,
-        "y": 200
-      },
-      "farRoute": {
-        "dest": {
-          "x": 1,
-          "y": 1
-        },
-        "points": [],
-        "offRoad": false
-      },
-      "brain": {
-        "templateId": "trader",
-        "home": {
-          "x": 20,
-          "y": 20
-        },
-        "goals": []
+        }
       }
     }
-  ]
+  }
 }
