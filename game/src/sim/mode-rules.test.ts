@@ -210,6 +210,7 @@ describe('spilled cargo', () => {
     me.items = me.items.filter((it) => it.kind !== 'good');
     addGoods(w, me, 'salt', gridOf(me).w + 1);
     panniers.hp = 0;
+    me.items.filter((it) => it.kind === 'good' && it.good === 'salt').forEach((it) => (it.y = gridOf(me).deadFrom));
 
     spillDeadRows(w);
 

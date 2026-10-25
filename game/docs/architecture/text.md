@@ -35,6 +35,10 @@ The sim never imports `src/text/` and never makes English. `src/sim/types.ts` de
 
 A truck has no saved name. Its title comes from the player's own truck or from its template's profession and its driver. Save step 19 to 20 maps old saves to the ids, as [Saves](saves.md) describes.
 
+## Compass words
+
+Code and data name map axes: "map north" is −y, and `Octant` ids, survey sectors, claim angles and gate sides all mean map directions. Player words name the screen compass, where north is the top of the fixed 3D view. `VIEW` in `src/data/view.ts` holds the map direction the camera draws at the top, and `src/text/compass.ts` is the only place that turns a map angle or a map `Octant` id into a compass word (`compassOctant()`, `compassOfMap()`). It throws at load unless the view turn is a whole number of octants, so the sim's bins never split a word. `compassText()`, `bearingText()`, `compassName()` and the radio's basin and storm words all call it. A new direction word in UI code goes through it too. With `VIEW.screenUp` at map (−1, −1), map north is called north-east, map north-west is called north, and map east is called south-east.
+
 ## The active language and live text
 
 - `src/text/language.ts` owns the active language. It stores the choice under `roam.lang` in local storage, apart from the save keys, so a new game, a load and a boot keep it. The default is English unless `roam.lang` says otherwise. Nothing reads the browser's language.
@@ -65,7 +69,7 @@ All of them run in `npm test` and `npm run typecheck`. Together the text tests t
 
 ### The allowlist
 
-`src/text/untranslated.ts` lists text the scan lets through, as `{ file, text, reason }`. Every entry needs a reason, and an entry nothing uses fails the scan. Missing Russian never falls back to English: there is no fallback path at all. New text ships its English and Russian entries in the same change.
+`src/text/untranslated.ts` lists text the scan lets through, as `{ file, text, reason }`. Every entry needs a reason, and an entry nothing uses fails the scan. Missing Russian never falls back to English: there is no fallback path at all. New text ships its English and Russian entries in the same change. Read new English text against the [Humanizer](../writing/humanizer.md#how-roam-uses-it) first, the way its How ROAM uses it section says.
 
 ### The layout check
 

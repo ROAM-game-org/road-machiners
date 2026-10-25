@@ -55,6 +55,7 @@ The model gives raw material. Before it goes in the quest:
 - Split every semicolon or dash a model left in into two sentences. The voice test rejects them.
 - Cut a tic that repeats from the line before, even if the model liked it.
 - Remove words that agree with the gender of the player, and any count of years.
+- Read the line against the [Humanizer](humanizer.md#how-roam-uses-it) the way its How ROAM uses it section says for fiction. Never put the Humanizer in the call itself, since style words there reach every character.
 - Keep the voice. Fix rhythm and wording only. Do not smooth it into your own style.
 - Read the line with the name hidden. If another sheet could own it, run the call again with a sharper character part.
 

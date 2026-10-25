@@ -21,7 +21,7 @@ Hadiza. I keep the pump and the canteen at Green Pit. Hang your rifle on the hoo
   -> hub
 + {not asked_want} [What do you want from me?]
   ~ asked_want = true
-  Bring your fights to the road, not to my door. And if you're carrying salt or cloth, sell it here before you drive on. My pot needs it more than Bowl does.
+  Bring your fights to the road, not to my door. And if you're carrying salt or cloth, sell it here before you drive on. I need it more than Bowl does.
   -> hub
 + [Goodbye.]
   Fill your cans before you go. The next water is a long way off.
