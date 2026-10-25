@@ -621,3 +621,12 @@ export function withWreckSquares_114_115(world: SavedJson): SavedJson {
   if (!call || !isWreckCall_114_115(call)) return world;
   return { ...world, player: { ...player, call: null } };
 }
+
+const MOMENT_IDS_115 = ['fromTheWest', 'eightToNine', 'crucible'];
+
+export function withMoments_115_116(world: SavedJson): SavedJson {
+  if (world.moments !== undefined) return world;
+  const setup = world.setup as SavedJson;
+  const moments = setup.mode === 'roaming' ? Object.fromEntries(MOMENT_IDS_115.map((id) => [id, { driver: null, heard: false }])) : null;
+  return { ...world, moments };
+}

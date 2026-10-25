@@ -1,4 +1,5 @@
 
+import { isLingerReason, lingerGoal, lingerInvalid } from './linger';
 import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions, type Weighted } from '../data/npcs';
 import { SHOPS } from '../data/market';
 import { REGION } from '../data/region';
@@ -243,7 +244,7 @@ function haulGoal(world: World, vehicle: Vehicle): NpcActivity {
   return tradeRun(world, vehicle, supplyOffers(world, vehicle), 'loadCargo');
 }
 
-export const IDLE_GOALS: Record<Exclude<DecisionOptions['idle'], 'wait'>, IdleGoal> = {
+export const IDLE_GOALS: Record<Exclude<DecisionOptions['idle'], 'wait' | 'linger'>, IdleGoal> = {
   trade: tradeGoal,
   scavenge: scavengeGoal,
   raid: huntingGoal('raid', 'raid', raiderGroundsAway),
@@ -260,6 +261,7 @@ export function idleGoal(world: World, vehicle: Vehicle): NpcActivity {
   if (keepsWord(world, vehicle, 'idle', null)) return createActivity('wait', null, null, 'keepWord');
   const option = decide(world, vehicle, 'idle', null, null);
   if (option === 'wait') return createActivity('wait', null, null, 'nothingToDo');
+  if (option === 'linger') return lingerGoal(world, vehicle) ?? createActivity('wait', null, null, 'nothingToDo');
   return IDLE_GOALS[option](world, vehicle);
 }
 
@@ -410,6 +412,7 @@ function haulLost(vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
 
 function escortWaitInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
   if (goal.reason === 'atPost') return null;
+  if (isLingerReason(goal.reason)) return lingerInvalid(world, goal);
   if (escortsOf(world, vehicle.id).length > 0) return 'escortHired';
   if (goal.reason !== 'awaitEscort') return null;
   const haul = goalsOf(vehicle)[0];
@@ -980,7 +983,7 @@ function fixedNext(world: World, vehicle: Vehicle): NpcActivity | null {
 
 function roadNext(world: World, vehicle: Vehicle, profile: NpcProfile): NpcActivity {
   const next = nightSafe(world, vehicle, hasSaleCargo(vehicle) ? saleGoal(world, vehicle, profile) : idleGoal(world, vehicle));
-  if (next.kind === 'wait' || topGoal(vehicle) === next) return next;
+  if ((next.kind === 'wait' && next.until === undefined) || topGoal(vehicle) === next) return next;
   pushGoal(world, vehicle, next);
   const service = serviceGoal(world, vehicle, profile);
   if (!service || goalsOf(vehicle).some((g) => g.kind === service.kind)) return next;

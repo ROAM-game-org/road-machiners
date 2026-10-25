@@ -1,4 +1,7 @@
 
+import { LINGER } from '../data/linger';
+import { lingersForMoment } from './moments';
+import { lingerReasonNow } from './linger';
 import { canPayBounty } from './crime';
 import { dealAvailable } from './patch';
 import { encounterAvailable } from './encounters';
@@ -685,6 +688,7 @@ const AVAILABLE: Record<OptionName, Availability> = {
   prowl: canProwl,
   loot: canLootSubject,
   wait: always,
+  linger: (world, vehicle) => lingerReasonNow(world, vehicle) !== null,
   patrol: canPatrol,
   travel: canTravel,
   explore: canDrive,
@@ -965,6 +969,7 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   prowl: neutral,
   loot: neutral,
   wait: neutral,
+  linger: (world, vehicle) => (lingersForMoment(world, vehicle, lingerReasonNow(world, vehicle)) ? LINGER.holderWeight : 1),
   patrol: neutral,
   travel: neutral,
   explore: neutral,
