@@ -1,7 +1,6 @@
 import { startKit } from '../data/start';
 
 import { RULES } from '../data/rules';
-import { makeVehicle } from './factory';
 import { nextRandom } from './rng';
 import { gridOf, MOUNT_CELLS, mountedParts, mountSpots, type Spot } from './grid';
 import { burnFuel } from './resources';
@@ -9,12 +8,11 @@ import { vehicleStats } from './stats';
 import type { Terrain } from './terrain';
 import { inject, onTestFinished } from 'vitest';
 import { emptyWorldFrom, flatTerrain, PLAIN_KIT } from '../test/empty-world';
-import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions, type TraitId } from '../data/npcs';
-import type { PersonalityId } from '../data/personalities';
+import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions } from '../data/npcs';
 import { addState } from './states';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities } from './npc-activities';
-import type { Faction, GameEvent, NpcBrain, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
+import type { GameEvent, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
 import { alongOf, highwayMap, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { dist, type Vec } from './vec';
@@ -111,6 +109,7 @@ export function editableTerrain(w: World): Terrain {
 }
 
 export { PLAIN_KIT, flatTerrain };
+export { addVehicle, npcBrain } from './test-vehicles';
 
 let emptyTemplate: World | undefined;
 
@@ -148,18 +147,8 @@ export function spotWorld(): { w: World; spot: Obstacle; stock: SalvageStock } {
   return { w, spot, stock };
 }
 
-export function addVehicle(w: World, faction: Faction, chassisId: string, parts: string[], pos: Vec, heading = 0): Vehicle {
-  const v = makeVehicle(w, { faction, chassisId, parts: parts.map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos, heading, brain: null });
-  w.vehicles.push(v);
-  return v;
-}
-
 export function practiceOf(w: World, source: XpSource): Extract<GameEvent, { t: 'practice' }>[] {
   return w.events.filter((e): e is Extract<GameEvent, { t: 'practice' }> => e.t === 'practice' && e.source === source);
-}
-
-export function npcBrain(templateId: string, home: Vec, traits: TraitId[], personality: PersonalityId = 'talkative'): NpcBrain {
-  return { templateId, driver: 'Jed Cobb', traits, personality, goals: [], noticed: {}, tracks: {}, hurt: 0, attackers: {}, goal: null, home: { ...home }, stepIndex: 0, memories: [] };
 }
 
 export function forceOption<D extends DecisionId>(decision: D, option: DecisionOptions[D]): void {
