@@ -62,6 +62,8 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/ui/fonts.ts', text: 'Дорожные машинисты 0123456789', reason: FONT_SAMPLE },
   { file: 'src/ui/quest-screen.ts', text: 'Quest art', reason: CRASH_REPORT },
   { file: 'src/three/render/models.ts', text: 'Model', reason: CRASH_REPORT },
+  { file: 'src/three/render/interiors/nose.ts', text: 'water tower', reason: CRASH_REPORT },
+  { file: 'src/three/render/interiors/nose.ts', text: 'jib crane', reason: CRASH_REPORT },
   { file: 'src/ui/survey-picture.ts', text: 'Survey picture', reason: CRASH_REPORT },
   { file: 'src/ui/cards.ts', text: 'Chassis sheet', reason: CRASH_REPORT },
   { file: 'src/ui/survey-picture.ts', text: 'Survey picture', reason: CRASH_REPORT },
