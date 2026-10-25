@@ -76,7 +76,6 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/sim/progression/replay.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/bot.ts', text: '*', reason: DEV_REPORT },
   { file: 'src/sim/progression/escort-report.ts', text: '*', reason: DEV_REPORT },
-  { file: 'src/sim/testkit.ts', text: 'Jed Cobb', reason: 'The test kit names its trucks for tests. No game code calls it.' },
   { file: 'src/data/region.ts', text: 'Icarus', reason: 'The map name is an id the bake and the tests read. No screen shows it.' },
   { file: 'src/sim/market.ts', text: 'cargo value', reason: 'A label inside a haul input error, which only the console and a bug report show.' },
   { file: 'src/sim/terrain.ts', text: 'Prop   group', reason: 'A label inside a map file write error, which only a bake shows.' },
