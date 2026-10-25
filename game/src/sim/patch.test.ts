@@ -76,7 +76,7 @@ function agreedTerms(start: World, traderId: string, deal: PatchDeal): World {
   let w = askPatch(start, traderId);
   w = answer(w, 'Engine, gearbox or tank. What would it take?');
   expect(w.player.call?.vars.deal).toMatchObject({ kind: 'deal', deal, patcher: 'npc' });
-  return answer(w, 'Deal. I will stay put.');
+  return answer(w, "Deal. I'll stay put.");
 }
 
 describe('asking a driver for a patch', () => {
@@ -688,7 +688,7 @@ describe('patching a worn truck that still drives', () => {
     const { w: start, npc } = wornNpc();
     setParts(start, playerVehicle(start), 0);
     const w = answer(callVehicle(start, npc.id), OFFER);
-    expect(currentOptions(w).map((o) => en(o.line))).toContain('On second thought, I cannot.');
+    expect(currentOptions(w).map((o) => en(o.line))).toContain("On second thought, I can't.");
   });
 
   it('keeps stranded terms to the broken part only', () => {

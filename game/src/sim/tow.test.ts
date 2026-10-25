@@ -214,8 +214,8 @@ describe('tow offer', () => {
     let w = endTurn(s.w, testDrive);
     expect(topGoal(find(w, s.trader.id))?.kind).not.toBe('tow');
     w = callVehicle(w, s.trader.id);
-    w = answer(w, 'I am stranded. Can you tow me?');
-    w = answer(w, 'Thanks. I will wait.');
+    w = answer(w, "I'm stranded. Can you tow me?");
+    w = answer(w, "Thanks. I'll wait.");
     expect(topGoal(find(w, s.trader.id))?.kind).toBe('tow');
     const r = runUntil(w, 30, (x) => playerTow(x) !== null);
     expect(r.w.player.call).toMatchObject({ with: s.trader.id, topic: 'tow' });
@@ -225,7 +225,7 @@ describe('tow offer', () => {
     const s = stranded();
     s.w.player.fuel = 30;
     const w = callVehicle(s.w, s.trader.id);
-    expect(currentOptions(w).map((o) => en(o.line))).not.toContain('I am stranded. Can you tow me?');
+    expect(currentOptions(w).map((o) => en(o.line))).not.toContain("I'm stranded. Can you tow me?");
   });
 
   it('raiders never tow', () => {
