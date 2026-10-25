@@ -186,7 +186,7 @@ The baseline is triage Haiku, design Opus, implementation Sonnet with an Opus ad
 Triage rates each `ready` issue once and comments the rating under `Model routing from triage:`.
 
 - `trivial` is one file or one small piece of logic, with no new state or cross-system rule. Triage adds `design-sonnet`.
-- `hard` is a cross-system bug with no known cause, or a change to a save format or to shared data that many systems read. Triage adds `implementation-opus`. A change that only spans several systems is `intermediate`.
+- `hard` is a cross-system bug with no known cause, or a change to a save format: a new World field, a save step or a save repair. Reading shared data is not enough. Triage adds `implementation-opus`. A change that only spans several systems, or only adds or edits content, a model, a tuning number or a UI piece on existing data, is `intermediate`. The `complexityReason` of a `hard` rating names the save-format change or the bug.
 - `intermediate` or in doubt adds no label.
 
 A label already on the issue wins, and triage never changes labels. A later triage run adds nothing once the issue is in the state's `routed` list. A member can add or remove a label at any time, and the next agent run reads it.
