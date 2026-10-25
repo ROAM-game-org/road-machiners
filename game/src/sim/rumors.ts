@@ -66,3 +66,13 @@ export function tradeTip(npc: Vehicle): TradeTip | null {
   const best = rememberedOffsets(npc).filter((c) => c.off >= TRADE_TIP.share).reduce<(TradeTip & { off: number }) | null>((top, c) => (!top || c.off > top.off ? c : top), null);
   return best && { shop: best.shop, good: best.good, dear: best.dear };
 }
+
+export function toldWrecks(world: World): SalvageStock[] {
+  const stocks = new Map(world.salvage.map((s) => [s.id, s]));
+  const searched = new Set(world.player.scavenged);
+  const newestFirst = new Set([...world.player.rumored].reverse());
+  return [...newestFirst].flatMap((id) => {
+    const stock = stocks.get(id);
+    return stock && !searched.has(id) ? [stock] : [];
+  });
+}

@@ -20,13 +20,13 @@ import { uiSize } from './ui-size';
 
 export type MapRule = { kind: 'follow'; reach: number } | { kind: 'free' } | { kind: 'fit' };
 export type MapTruck = { pos: Vec; heading: number };
-export type MapSite = { id: string; kind: 'town' | 'site' | 'wreck'; pos: Vec; known: boolean };
+export type MapSite = { id: string; kind: 'town' | 'site'; pos: Vec; known: boolean };
 export type MapOverlay = (ctx: CanvasRenderingContext2D, view: Viewport) => void;
 
 const BASES_KEPT = 3;
 const TIP_GAP = 12;
 const ZOOM_SLACK = 1.001;
-const MARK = { town: 5, site: 4, wreck: 5, truck: 8, hit: 8, pinned: 0.6 };
+const MARK = { town: 5, site: 4, truck: 8, hit: 8, pinned: 0.6 };
 const NAME = { gap: 6, padX: 4, padY: 2 };
 const GRID = { width: 1, alpha: 0.3, gap: 3, padX: 3, padY: 1 };
 const PLATE = { inset: 8, pad: 5, arrowWidth: 10, arrowHeight: 12, tick: 5, gap: 3 };
@@ -116,14 +116,12 @@ export function mapSites(world: World): MapSite[] {
   const found = new Set(world.player.discovered);
   const mapped = mappedSites(world);
   const towns = new Set(atlasOf(world.terrain).towns.map((s) => s.id));
-  const sites: MapSite[] = atlasSites(atlasOf(world.terrain))
+  return atlasSites(atlasOf(world.terrain))
     .filter((s) => mapped.has(s.id))
-    .map((s) => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: found.has(s.id) }));
-  const wrecks = world.salvage.filter((s) => world.player.rumored.includes(s.id));
-  return [...sites, ...wrecks.map((s): MapSite => ({ id: s.id, kind: 'wreck', pos: s.pos, known: true }))];
+    .map((s): MapSite => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: found.has(s.id) }));
 }
 
-function markName(site: MapSite): Msg {
+export function markName(site: MapSite): Msg {
   return site.known ? siteName(site.id) : t('map.unknownSite');
 }
 
@@ -213,7 +211,7 @@ export class MapView {
     this.canvas.addEventListener('pointerleave', hide);
     this.canvas.addEventListener('pointermove', (e) => {
       const site = this.siteAt(e.clientX, e.clientY);
-      if (!site || site.kind === 'wreck') return hide();
+      if (!site) return hide();
       if (shown !== site.id) {
         shown = site.id;
         tip.replaceChildren(el('span', {}, markName(site)));
@@ -314,8 +312,7 @@ export class MapView {
     for (const site of this.sites) {
       const at = this.markAt(view, site);
       const scale = at.pinned ? MARK.pinned : 1;
-      if (site.kind === 'wreck') this.drawRumor(ctx, at, scale);
-      else if (site.kind === 'town') this.drawSquare(ctx, at, scale);
+      if (site.kind === 'town') this.drawSquare(ctx, at, scale);
       else this.drawDot(ctx, at, scale);
     }
   }
@@ -324,8 +321,7 @@ export class MapView {
     ctx.font = `${token('--text-dense')} ${token('--font-ui')}`;
     ctx.textBaseline = 'middle';
     const tall = parseFloat(token('--text-dense')) + 2 * NAME.padY;
-    const named = this.sites
-      .filter((site) => site.kind !== 'wreck')
+    const named = [...this.sites]
       .sort((a, b) => Number(b.kind === 'town') - Number(a.kind === 'town'))
       .map((site) => ({ site, at: toPx(view, site.pos) }));
     const taken: Box[] = [...kept, ...named.map(({ at }) => around(at, MARK.town + 1))];
@@ -477,16 +473,6 @@ export class MapView {
     ctx.arc(at.x, at.y, MARK.site * scale, 0, Math.PI * 2);
     ctx.stroke();
     ctx.fill();
-  }
-
-  private drawRumor(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, scale: number): void {
-    ctx.save();
-    ctx.setLineDash([2, 2]);
-    ctx.strokeStyle = token('--ink-bright');
-    ctx.beginPath();
-    ctx.arc(at.x, at.y, MARK.wreck * scale, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
   }
 
   private drawTruck(ctx: CanvasRenderingContext2D, view: Viewport, truck: MapTruck): void {

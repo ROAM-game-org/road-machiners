@@ -605,3 +605,19 @@ export function withChaosHighwayName_113_114(world: SavedJson): SavedJson {
   const setup = world.setup as SavedJson;
   return { ...rest, chaosHighway: furyRoad, setup: { ...setup, mode: chaosHighwayMode_113_114(setup.mode) } };
 }
+
+const WRECK_WAY_LINE_114 = 'wreckWay';
+
+function isWreckCall_114_115(call: SavedJson): boolean {
+  const vars = call.vars as SavedJson;
+  const line = call.line as SavedJson;
+  const toldWay = vars.way !== undefined && vars.site === undefined && vars.town === undefined;
+  return (line.line === WRECK_WAY_LINE_114 || toldWay) && vars.square === undefined;
+}
+
+export function withWreckSquares_114_115(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  if (!call || !isWreckCall_114_115(call)) return world;
+  return { ...world, player: { ...player, call: null } };
+}

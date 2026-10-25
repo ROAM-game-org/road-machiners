@@ -29,6 +29,7 @@ import { addVehicle, emptyWorld, chaosHighwayWorld, forceOption, npcBrain, pract
 import type { TraitId } from '../data/npcs';
 import type { SalvageStock, Vehicle, World } from './types';
 import { directionsTo } from './directions';
+import { gridSquareOf } from './map-grid';
 import { dist } from './vec';
 import { refreshVision } from './vision';
 import { autoRuns, endTurn, setMoveOrder } from './world';
@@ -825,7 +826,10 @@ describe('rumor mill', () => {
     next = chooseOption(next, optionIndex(next, askText));
     next = chooseOption(next, optionIndex(next, 'Where?'));
     expect(next.player.call?.node).toBe('wreck');
-    expect(next.player.call?.vars).toEqual({ way: { kind: 'directions', steps: directionsTo(w, me, { kind: 'spot', pos: { x: 50, y: 30 }, clue: 'wreck' }) } });
+    expect(next.player.call?.vars).toEqual({
+      way: { kind: 'directions', steps: directionsTo(w, me, { kind: 'spot', pos: { x: 50, y: 30 }, clue: 'wreck' }) },
+      square: { kind: 'square', ...gridSquareOf({ x: 50, y: 30 }) },
+    });
     next = chooseOption(next, optionIndex(next, 'Thanks. Over and out.'));
     expect(next.player.rumored).toEqual(['wreck7']);
   });
@@ -868,6 +872,44 @@ describe('rumor mill', () => {
     next = chooseOption(next, optionIndex(next, askText));
     expect(next.player.call?.topic).toBeNull();
     expect(next.player.rumored).toEqual(['wreck7']);
+  });
+
+  it('has the driver name the square of the wreck and never the map, in English and Russian', () => {
+    expect(en('wreckWay')).toContain('square {square}');
+    expect(entryText('ru', lineKey('wreckWay'))).toContain('{square}');
+    for (const locale of ['en', 'ru'] as const) expect(entryText(locale, lineKey('wreckWay')).toLowerCase()).not.toMatch(/map|карт/);
+  });
+
+  it('keeps the wreck marked and the topic settled when the player hangs up after the way', () => {
+    const { w, npc } = rumorWorld();
+    w.salvage = [wreck('wreck7', { x: 50, y: 30 }), wreck('wreck8', { x: 60, y: 30 })];
+    let next = callVehicle(w, npc.id);
+    next = chooseOption(next, optionIndex(next, askText));
+    next = chooseOption(next, optionIndex(next, 'Where?'));
+    expect(next.player.rumored).toEqual(['wreck7']);
+    next = hangUp(next);
+    expect(next.player.rumored).toEqual(['wreck7']);
+    expect(next.player.talked[npc.id].rumor).toBe('done');
+    next = callVehicle(next, npc.id);
+    next = chooseOption(next, optionIndex(next, askText));
+    expect(next.player.call?.topic).toBeNull();
+    expect(next.player.rumored).toEqual(['wreck7']);
+  });
+
+  it('keeps the site discovered when the player hangs up after the way', () => {
+    const { w } = rumorWorld();
+    const site = REGION.locations.find((l) => l.id === 'dustwell')!;
+    w.player.discovered = w.player.discovered.filter((id) => id !== site.id);
+    playerVehicle(w).pos = { x: site.pos.x - 30, y: site.pos.y };
+    const npc = addVehicle(w, 'independent', 'scout', [], { x: site.pos.x - 24, y: site.pos.y });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    refreshVision(w);
+    let next = callVehicle(w, npc.id);
+    next = chooseOption(next, optionIndex(next, askText));
+    next = chooseOption(next, optionIndex(next, 'Where?'));
+    next = hangUp(next);
+    expect(next.player.discovered).toContain(site.id);
+    expect(next.player.talked[npc.id].rumor).toBe('done');
   });
 
   it('skips stocks searched, already rumored, empty, far or not a wreck', () => {

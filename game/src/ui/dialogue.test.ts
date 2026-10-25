@@ -5,6 +5,7 @@ import { LOCALES, type Msg } from '../text/msg';
 import { lineKey } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
 import { emptyWorld, addVehicle, npcBrain } from '../sim/testkit';
+import { gridSquareText } from './format';
 import { aidWords, callError, haulText, lineText, sightingText, tipText } from './dialogue';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
@@ -53,7 +54,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   warnAnswer: ['answer'],
   npcTowTerms: ['site', 'fee'],
   lastTownPrices: ['town', 'prices'],
-  nearestRumor: ['site', 'way'],
+  nearestRumor: ['site', 'way', 'square'],
   tradeTip: ['tip'],
   roadLesson: ['lesson'],
   trucePrice: ['price'],
@@ -72,8 +73,8 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   claimWreckBearing: ['bearing', 'distance'],
   courierNeed: ['aid', 'price'],
   taleNews: ['site', 'way', 'tip'],
-  tipTerms: ['price', 'way'],
-  courierNews: ['site', 'way', 'tip'],
+  tipTerms: ['price', 'way', 'square'],
+  courierNews: ['site', 'way', 'square', 'tip'],
   courierFavorTerms: ['price'],
 };
 
@@ -82,6 +83,7 @@ const SAMPLE: Record<string, CallVar> = {
   site: { kind: 'site', id: 'granary' },
   bearing: { kind: 'bearing', rad: 1 },
   distance: { kind: 'distance', tiles: 12 },
+  square: { kind: 'square', column: 2, row: 3 },
   way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
   fee: { kind: 'money', amount: 1200 },
   price: { kind: 'money', amount: 45 },
@@ -126,6 +128,13 @@ describe('every radio line', () => {
   it('every voice and the hang up need no values', () => {
     const voices = Object.values(TRAIT_TALK).flatMap((t) => (t.voice ? [t.voice.greeting, t.voice.repeatLine, t.voice.refusal, t.voice.warnOff] : []));
     for (const line of [...voices, HANG_UP_LINE]) expect(named(line)).toEqual([]);
+  });
+
+  it('names the square of a told wreck in both languages', () => {
+    const vars: CallVars = { way: SAMPLE.way, square: SAMPLE.square };
+    expect(resolve(lineText('wreckWay', vars), 'en')).toContain('square C4');
+    expect(resolve(lineText('wreckWay', vars), 'ru')).toContain(`квадрате ${resolve(gridSquareText({ column: 2, row: 3 }), 'ru')}`);
+    for (const locale of LOCALES) expect(resolve(lineText('wreckWay', vars), locale).toLowerCase()).not.toMatch(/map|карт/);
   });
 
   it('throws for a line missing a value it names', () => {
