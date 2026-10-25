@@ -47,7 +47,7 @@ describe('truck specs', () => {
 
 describe('rams landed', () => {
   it('counts the damaging crashes of a truck with a ram and the ones its ram took, and none for a truck without one', () => {
-    const r = runFight({ ...FIGHT, a: parseLineup('charge:mg/plates+ram'), b: parseLineup('buggy:mg/bare'), seed: 1, maxTurns: 40 });
+    const r = runFight({ ...FIGHT, a: parseLineup('charge:mg/plates+ram'), b: parseLineup('buggy:mg/bare'), seed: 7, maxTurns: 40, orbit: 0 });
     expect(r.a.ramCrashes).toBeGreaterThan(0);
     expect(r.a.ramCrashes).toBeLessThanOrEqual(r.crashes);
     expect(r.a.ramsLanded).toBeLessThanOrEqual(r.a.ramCrashes);
@@ -68,12 +68,12 @@ describe('side b hp left', () => {
   });
 });
 
-describe('combat harness on the Fury Road highway', () => {
-  const ROAD_FIGHT: Fight = { a: parseLineup('orbit:furyRoad'), b: parseLineup('buggy'), seed: 2, gap: 8, orbit: 6, maxTurns: 3, arena: null, road: 1 };
+describe('combat harness on the Chaos Highway highway', () => {
+  const ROAD_FIGHT: Fight = { a: parseLineup('orbit:chaosHighway'), b: parseLineup('buggy'), seed: 2, gap: 8, orbit: 6, maxTurns: 3, arena: null, road: 1 };
 
   it('reads the map flag', () => {
-    expect([parseRoad(null), parseRoad('fury-road'), parseRoad('fury-road:7')]).toEqual([null, 1, 7]);
-    expect(() => parseRoad('icarus')).toThrow(/fury-road/);
+    expect([parseRoad(null), parseRoad('chaos-highway'), parseRoad('chaos-highway:7')]).toEqual([null, 1, 7]);
+    expect(() => parseRoad('icarus')).toThrow(/chaos-highway/);
   });
 
   it('fights on the highway and reports how far across the road the trucks went', () => {

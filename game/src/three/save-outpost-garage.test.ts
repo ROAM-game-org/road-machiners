@@ -3,12 +3,12 @@ import { playerVehicle } from '../sim/damage';
 import { mountedParts } from '../sim/grid';
 import { takeFromStorage } from '../sim/inventory';
 import { outpostBuyChassis, outpostBuyPart } from '../sim/outposts';
-import { advanceFuryRoad, outpostTrucks } from '../sim/fury-road';
+import { advanceChaosHighway, outpostTrucks } from '../sim/chaos-highway';
 import { knockOutNpc } from '../sim/defeat';
 import { resolveDestroyed } from '../sim/combat';
 import { corePart } from '../sim/grid';
 import { getResources } from '../sim/resources';
-import { furyRoadWorld } from '../sim/testkit';
+import { chaosHighwayWorld } from '../sim/testkit';
 import { armorSpot, fillCargo, parkedAtOutpost, stockOfKind } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn } from '../sim/world';
@@ -43,7 +43,7 @@ describe('a saved outpost garage', () => {
     const loaded = expectSameAndNoAward(bought);
 
     expect(loaded.player.storage.map((p) => p.id)).toEqual([armor.id]);
-    expect(loaded.furyRoad!.outposts[1].stock.map((p) => p.id)).not.toContain(armor.id);
+    expect(loaded.chaosHighway!.outposts[1].stock.map((p) => p.id)).not.toContain(armor.id);
     const after = takeFromStorage(loaded, armor.id, armorSpot(loaded, armor));
     expect(mountedParts(playerVehicle(after), 'armor').map((p) => p.id)).toContain(armor.id);
     expect(playerVehicle(after).job).toBeNull();
@@ -51,26 +51,26 @@ describe('a saved outpost garage', () => {
 
   it('keeps the swapped truck and the outpost offer less the sold truck across a load', () => {
     const w = parkedAtOutpost(21);
-    const offer = outpostTrucks(w, w.furyRoad!.outposts[1]);
+    const offer = outpostTrucks(w, w.chaosHighway!.outposts[1]);
     const swapped = outpostBuyChassis(w, offer[0]);
 
     const loaded = expectSameAndNoAward(swapped);
 
     expect(playerVehicle(loaded).chassisId).toBe(offer[0]);
-    expect(outpostTrucks(loaded, loaded.furyRoad!.outposts[1])).toEqual(offer.slice(1));
+    expect(outpostTrucks(loaded, loaded.chaosHighway!.outposts[1])).toEqual(offer.slice(1));
   });
 });
 
 describe('a saved run with a knocked-out truck on the road', () => {
   it('gives back the downed truck and counts it once when it is shot to a wreck after the load', () => {
-    const w = furyRoadWorld(21);
-    w.furyRoad!.groups[0].at = 0;
-    advanceFuryRoad(w);
-    const group = w.furyRoad!.groups[0];
+    const w = chaosHighwayWorld(21);
+    w.chaosHighway!.groups[0].at = 0;
+    advanceChaosHighway(w);
+    const group = w.chaosHighway!.groups[0];
     const v = w.vehicles.find((x) => x.id === group.vehicles[0])!;
     corePart(v, 'cab').hp = 0;
     knockOutNpc(w, v);
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
     w.events = [];
 
     const loaded = expectSameAndNoAward(w);
@@ -79,7 +79,7 @@ describe('a saved run with a knocked-out truck on the road', () => {
     expect(downed.defeat?.phase).toBe('out');
     getResources(loaded, downed).health = 0;
     resolveDestroyed(loaded);
-    advanceFuryRoad(loaded);
-    expect(loaded.furyRoad!.groups[0].wrecked).toBe(1);
+    advanceChaosHighway(loaded);
+    expect(loaded.chaosHighway!.groups[0].wrecked).toBe(1);
   });
 });

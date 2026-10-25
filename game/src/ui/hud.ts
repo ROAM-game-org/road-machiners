@@ -11,6 +11,7 @@ import type { CrimeCase, Vehicle, World } from "../sim/types";
 import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
+import { gaveUp } from "../sim/defeat";
 import { bottomLeft, disabledWith, el, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
@@ -35,7 +36,9 @@ import {
   stanceTag,
   caseVictimName,
 } from "./format";
-import { FeedbackForm, type FeedbackKind } from "./game-menu";
+import { FEEDBACK_URL } from "../config";
+import { gameContext } from "../three/error-report";
+import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
 import { createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
@@ -164,7 +167,7 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
   return [
     el(
       "button",
-      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : keyLabel(t("map.full"), "K") },
+      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : keyLabel(t("map.full"), "M") },
       t("map.full"),
     ),
   ];
@@ -195,8 +198,8 @@ export class Hud {
   private log = new LogPanel();
   private info = panel("info");
   private infoBody = el("div", { class: "info-content" });
-  private feedback = panel("feedback", topLeft());
-  private feedbackForm = new FeedbackForm((text) => this.toast(text));
+  private feedbackForm = new FeedbackForm(uiRoot(), (text) => this.toast(text), (url, init) => fetch(url, init), FEEDBACK_URL, gameContext);
+  private feedback = feedbackCorner(this.feedbackForm, topLeft());
   private action = panel("action");
   private toastBox = panel("toast");
   private rescue = panel("rescue notice", topCenter());
@@ -305,37 +308,9 @@ export class Hud {
     this.toastBox.style.display = "none";
     this.rescue.style.display = "none";
     this.knockedOut.style.display = "none";
-    this.knockedOut.append(el("span", { class: "bad" }, t("actBlock.knockedOut")));
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
     this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
-    const feedbackMenu = el("details", {});
-    const feedbackEntry = (kind: FeedbackKind, text: Msg) =>
-      el(
-        "button",
-        {
-          class: "btn-s",
-          onclick: () => {
-            feedbackMenu.removeAttribute("open");
-            this.feedbackForm.open(kind);
-          },
-        },
-        text,
-      );
-    feedbackMenu.append(
-      el(
-        "summary",
-        { title: t("hud.feedbackTitle"), "aria-label": t("hud.feedbackTitle") },
-        t("hud.feedbackMark"),
-      ),
-      feedbackEntry("bug", t("hud.reportBug")),
-      feedbackEntry("idea", t("hud.requestFeature")),
-    );
-    this.feedback.append(feedbackMenu);
-    window.addEventListener("keydown", (e) => {
-      if (e.code !== "Escape") return;
-      feedbackMenu.removeAttribute("open");
-    });
   }
 
   openFeedback(): void {
@@ -390,7 +365,7 @@ export class Hud {
       el(
         "span",
         { class: "job-label" },
-        t("hud.workLeft", { label, n: work.turnsLeft }),
+        work.queued > 0 ? t("hud.workQueued", { label, n: work.turnsLeft, k: work.queued }) : t("hud.workLeft", { label, n: work.turnsLeft }),
       ),
       el(
         "span",
@@ -428,7 +403,9 @@ export class Hud {
   renderRescue(w: World): void {
     this.dialogue.render(w);
     const r = getRescueReadout(w);
-    this.knockedOut.style.display = rescueOf(r, "knockedOut") ? "" : "none";
+    const down = rescueOf(r, "knockedOut");
+    this.knockedOut.style.display = down ? "" : "none";
+    if (down) this.knockedOut.replaceChildren(el("span", { class: "bad" }, t(gaveUp(playerVehicle(w)) ? "npc.gaveUp" : "actBlock.knockedOut")));
     this.renderMiddle(rescueOf(r, "towed") ?? rescueOf(r, "dragged"));
     this.renderStranded(rescueOf(r, "stranded"));
   }

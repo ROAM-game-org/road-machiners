@@ -43,7 +43,7 @@
   padding: var(--space-1) var(--space-2);
   outline: none;
 }
-#ui .feedback {
+:is(#ui, #report) .feedback {
   z-index: var(--z-feedback);
   padding: 0;
   background: var(--surface-panel);

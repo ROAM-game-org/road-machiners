@@ -1,5 +1,5 @@
 import { haulerOf, truckFor } from '../damage';
-import { reachedOutpostAt } from '../fury-road';
+import { reachedOutpostAt } from '../chaos-highway';
 import { storePart } from '../inventory';
 import { haulerTakes, outpostBuyPart, outpostPartPrice } from '../outposts';
 import { isJunk } from '../wear';

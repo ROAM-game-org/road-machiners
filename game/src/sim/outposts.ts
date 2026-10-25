@@ -1,10 +1,10 @@
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { ECONOMY, GOODS } from '../data/goods';
 import { haulerOf, playerVehicle, truckFor } from './damage';
 import { partDef } from '../data/parts';
 import { getResources } from './resources';
 import { basicParts, basicsRepairCost, allParts, garageParts, garageRepair, partRepairCost, partTradePrice, pay, receiveBoughtPart, swapChassis, repairCost, supplyRoom, type Supply } from './economy';
-import { outpostFactsAt, outpostTrucks, reachedOutpostAt, type Outpost } from './fury-road';
+import { outpostFactsAt, outpostTrucks, reachedOutpostAt, type Outpost } from './chaos-highway';
 import { isJunk } from './wear';
 import { addGoods, cargoRoom } from './inventory';
 import type { PartInstance, Vehicle, World } from './types';
@@ -65,7 +65,7 @@ export function outpostPartPrice(world: World, part: PartInstance, truckId?: str
 }
 
 export function haulerTakes(part: PartInstance): boolean {
-  return FURY_ROAD.hauler.kinds.includes(partDef(part.defId).kind);
+  return CHAOS_HIGHWAY.hauler.kinds.includes(partDef(part.defId).kind);
 }
 
 export function outpostBuyPart(world: World, partId: string, truckId?: string): World {
@@ -92,7 +92,7 @@ export function outpostBuyChassis(world: World, chassisId: string): World {
 }
 
 export function outpostGoodPrice(): number {
-  return Math.ceil(GOODS[REPAIR_GOOD].value * FURY_ROAD.goodsMarkup);
+  return Math.ceil(GOODS[REPAIR_GOOD].value * CHAOS_HIGHWAY.goodsMarkup);
 }
 
 export function outpostGoodRoom(v: Vehicle): number {

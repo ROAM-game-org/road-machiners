@@ -1,13 +1,13 @@
 {
- "format": "2.112",
+ "format": "2.115",
  "shape": {
   "broken": [],
+  "chaosHighway": "null",
   "craters": [],
   "crimes": [],
   "dustClouds": [],
   "fields": [],
   "flares": [],
-  "furyRoad": "null",
   "lines": [],
   "mapHash": "string",
   "marketRng": {

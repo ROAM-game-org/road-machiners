@@ -4,7 +4,8 @@ import { itemLookId } from "../render/partLooks";
 import { partDef, type WeaponDef } from "../data/parts";
 import { gunBlockers, gunSpans, type FireSpan } from "../sim/armor";
 import { baseGrid, facingOf, itemCells, itemSize, layerOf, plateSide, type Cell, type Grid, type SideLetter } from "../sim/grid";
-import type { GridItem, PartInstance, RefitJob, RefitMove, Rot, Vehicle, World } from "../sim/types";
+import type { GridItem, PartInstance, Rot, Vehicle, World } from "../sim/types";
+import { plannedRefit } from "../sim/inventory";
 import { playerVehicle } from "../sim/damage";
 import { workOf } from "../sim/states";
 import { el } from "./dom";
@@ -93,11 +94,26 @@ function itemClass(it: GridItem, mounted: boolean): string {
   return mounted ? "inv-item mounted" : "inv-item spare";
 }
 
-export function removalIds(w: World, target: Vehicle): Set<string> {
+export type RefitMark = "working" | "queued";
+
+export function takenMarks(w: World, parts: readonly PartInstance[]): Map<string, RefitMark> {
+  const me = playerVehicle(w);
+  if (me.job?.kind !== "refit") return new Map();
+  const head = me.job.pickup?.partId;
+  const taken = plannedRefit(w, me).taken;
+  return new Map(parts.filter((p) => taken.has(p.id)).map((p) => [p.id, p.id === head ? "working" : "queued"] as const));
+}
+
+export function markTaken(w: World, node: HTMLElement, mark: RefitMark | undefined): HTMLElement {
   const job = playerVehicle(w).job;
-  if (job?.kind !== "refit" || job.pickup?.from !== "truck" || job.pickup.vehicleId !== target.id) return new Set();
-  const partId = job.pickup.partId;
-  return new Set(target.items.filter((it) => it.kind === "part" && it.part.id === partId).map((it) => it.id));
+  if (mark === "working" && job) markWorking(node, jobDone(job));
+  if (mark === "queued") node.classList.add("refitting");
+  return node;
+}
+
+export function removalMarks(w: World, target: Vehicle): Map<string, RefitMark> {
+  const byPart = takenMarks(w, target.items.flatMap((it) => (it.kind === "part" ? [it.part] : [])));
+  return new Map(target.items.flatMap((it) => (it.kind === "part" && byPart.has(it.part.id) ? [[it.id, byPart.get(it.part.id)!] as const] : [])));
 }
 
 function pos(x: number, y: number, w: number, h: number, cell: number): string {
@@ -112,24 +128,16 @@ function outerHalf(x: number, y: number, size: { w: number; h: number }, side: S
   return `left:${left}px;top:${top}px;width:${across ? size.w * cell : half}px;height:${across ? half : size.h * cell}px`;
 }
 
-export function refitItems(w: World, v: Vehicle): GridItem[] {
-  if (v.job?.kind !== "refit") return [];
-  return [...v.job.moves.map((move) => movedItem(v, move)), ...pickupItem(w, v.job)];
+export function refitMarks(w: World, v: Vehicle): Map<string, RefitMark> {
+  if (v.job?.kind !== "refit") return new Map();
+  const planned = plannedRefit(w, v);
+  const working = changedItems(v.items, planned.head);
+  const queued = changedItems(planned.head, planned.items).filter((id) => !working.includes(id));
+  return new Map([...working.map((id) => [id, "working"] as const), ...queued.map((id) => [id, "queued"] as const)]);
 }
 
-function movedItem(v: Vehicle, move: RefitMove): GridItem {
-  const item = v.items.find((it) => it.id === move.itemId);
-  if (!item) throw new Error(`Refit moves missing item ${move.itemId}`);
-  return { ...item, ...move.to };
-}
-
-function pickupItem(w: World, job: RefitJob): GridItem[] {
-  const pickup = job.pickup;
-  if (!pickup) return [];
-  const part = pickup.from === 'stock'
-    ? w.salvage.find((stock) => stock.id === pickup.stockId)?.parts.find((p) => p.id === pickup.partId)
-    : w.vehicles.find((v) => v.id === pickup.vehicleId)?.items.flatMap((it) => (it.kind === 'part' ? [it.part] : [])).find((p) => p.id === pickup.partId);
-  return part ? [{ kind: "part", id: pickup.itemId, part, ...pickup.to }] : [];
+function changedItems(before: readonly GridItem[], after: readonly GridItem[]): string[] {
+  return after.filter((it) => !before.some((old) => old.id === it.id && old.x === it.x && old.y === it.y && old.rot === it.rot)).map((it) => it.id);
 }
 
 export function footprint(it: GridItem): { w: number; h: number } {
@@ -213,7 +221,7 @@ export function workMarkOf(w: World, v: Vehicle): WorkMark | null {
   const work = workOf(w, v);
   if (work?.from !== "job") return null;
   const job = work.job;
-  if (job.kind === "refit") return { itemIds: new Set(refitItems(w, v).map((it) => it.id)), done: jobDone(job) };
+  if (job.kind === "refit") return { itemIds: new Set([...refitMarks(w, v)].flatMap(([id, mark]) => (mark === "working" ? [id] : []))), done: jobDone(job) };
   if (job.kind !== "repair" && job.kind !== "strip") return null;
   const ids = v.items.filter((it) => it.kind === "part" && it.part.id === job.partId).map((it) => it.id);
   return { itemIds: new Set(ids), done: jobDone(job) };

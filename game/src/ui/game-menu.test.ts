@@ -19,6 +19,17 @@ describe("entryEnabled", () => {
   }
 });
 
+describe("map key", () => {
+  const rows = controlsFor(modeRulesOf("roaming")).flatMap((g) => g.controls);
+
+  it("is M, and no help row names K or a mute key", () => {
+    const map = rows.find((c) => resolve(c.does, "en") === "Map");
+    expect(map?.keys).toEqual(["M"]);
+    expect(rows.some((c) => c.keys.includes("K"))).toBe(false);
+    expect(rows.some((c) => resolve(c.does, "en") === "Mute")).toBe(false);
+  });
+});
+
 describe("entryReason", () => {
   it("names why Load is off", () => {
     expect(resolve(entryReason("load", false, false)!, "en")).toBe("No saves yet");
@@ -31,11 +42,11 @@ describe("entryReason", () => {
 });
 
 describe("the help rows of a mode", () => {
-  const radioRows = (mode: "roaming" | "furyRoad") =>
+  const radioRows = (mode: "roaming" | "chaosHighway") =>
     controlsFor(modeRulesOf(mode)).flatMap((g) => g.controls).filter((c) => c.keys.some((k) => k === "T" || k === "H" || k === "9"));
 
   it("leave out the radio, reply and honk keys where there is no radio", () => {
-    expect(radioRows("furyRoad")).toEqual([]);
+    expect(radioRows("chaosHighway")).toEqual([]);
   });
 
   it("keep them in Roaming", () => {

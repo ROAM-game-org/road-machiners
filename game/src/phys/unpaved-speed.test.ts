@@ -3,7 +3,7 @@ import { TERRAIN, TERRAIN_TYPES } from '../data/terrain';
 import { playerVehicle } from '../sim/damage';
 import { alongOf, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { tileAt } from '../sim/terrain';
-import { furyRoadWorld } from '../sim/testkit';
+import { chaosHighwayWorld } from '../sim/testkit';
 import { endTurn, setMoveOrder } from '../sim/world';
 import { budget } from '../test/budget';
 import { buildDrive, freeDrive, initPhysics, type Drive } from './drive';
@@ -18,8 +18,8 @@ const START = 120;
 const TURNS = 14;
 
 function topSpeedAlong(offset: number): { speed: number; paved: boolean } {
-  let w = furyRoadWorld(SEED);
-  w.furyRoad!.groups = [];
+  let w = chaosHighwayWorld(SEED);
+  w.chaosHighway!.groups = [];
   w.obstacles = [];
   const me = playerVehicle(w);
   me.pos = roadPoint(SEED, 0, START, offset);

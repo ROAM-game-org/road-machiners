@@ -56,7 +56,7 @@ from parts_common_base import (  # noqa: E402
     level_sockets,
     round_arch,
 )
-from parts_common_core import ALONG_X, ALONG_Y, ROUND_SIDES  # noqa: E402
+from parts_common_core import ALONG_X, ALONG_Y, PROUD, ROUND_SIDES  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 302
@@ -223,7 +223,7 @@ def face(kit: Kit) -> None:
     for s, sign in (("l", 1), ("r", -1)):
         for k, dy in enumerate((-0.05, 0.05)):
             kit.box(f"hook{k}_{s}", (0.1, 0.025, 0.09), (FRONT - 0.08, sign * HOOK_Y + dy, BUMPER_TOP + 0.045), "under")
-        kit.box(f"hook_pin_{s}", (0.03, 0.13, 0.03), (FRONT - 0.06, sign * HOOK_Y, BUMPER_TOP + 0.075), "under")
+        kit.box(f"hook_pin_{s}", (0.03, 0.13, 0.03), (FRONT - 0.06, sign * HOOK_Y, BUMPER_TOP + 0.07), "under")
 
 
 def pane_outline(y0: float, y1: float, z0: float, z1: float, cut: float) -> list[tuple[float, float]]:
@@ -263,9 +263,9 @@ def cab_upper(kit: Kit) -> None:
                 for dy in (0.008, -0.01):
                     seam.append((x, sign * (upper_half(z) + dy), z))
         hull(kit, f"door_seam_{s}", "under", seam)
-        kit.box(f"door_seam_low_{s}", (0.024, 0.016, LEDGE - sill), (DOOR_BACK, sign * SIDE, (LEDGE + sill) / 2), "under")
-        kit.box(f"door_seam_front_{s}", (0.024, 0.016, LEDGE - sill), (DOOR_FRONT, sign * SIDE, (LEDGE + sill) / 2), "under")
-        kit.box(f"door_seam_bottom_{s}", (DOOR_FRONT - DOOR_BACK, 0.016, 0.024), ((DOOR_FRONT + DOOR_BACK) / 2, sign * SIDE, sill), "under")
+        kit.box(f"door_seam_low_{s}", (0.024, 0.018, LEDGE - sill - PROUD), (DOOR_BACK, sign * SIDE, (LEDGE - PROUD + sill) / 2), "under")
+        kit.box(f"door_seam_front_{s}", (0.024, 0.018, LEDGE - sill - PROUD), (DOOR_FRONT, sign * SIDE, (LEDGE - PROUD + sill) / 2), "under")
+        kit.box(f"door_seam_bottom_{s}", (DOOR_FRONT - DOOR_BACK, 0.012, 0.024), ((DOOR_FRONT + DOOR_BACK) / 2, sign * SIDE, sill), "under")
         kit.box(f"handle_{s}", (0.14, 0.02, 0.035), (DOOR_BACK + 0.12, sign * (SIDE + 0.008), up(1.7)), "metal_light")
 
 
@@ -328,12 +328,13 @@ def bed(kit: Kit) -> None:
     length = BED_FRONT - BED_BACK
     mid = (BED_FRONT + BED_BACK) / 2
     deck_bottom = BED_FLOOR - DECK_T
-    mirrored(kit, "bearer", (length, 0.14, deck_bottom - FRAME_TOP + 0.01), mid, RAIL_Y, (deck_bottom + FRAME_TOP) / 2, "under")
-    kit.box("deck", (length, 2 * (HALF - BEAM_T), DECK_T), (mid, 0, BED_FLOOR - DECK_T / 2), "metal")
+    bearer_back = BED_BACK + 2 * PROUD
+    mirrored(kit, "bearer", (BED_FRONT - bearer_back, 0.14, deck_bottom - FRAME_TOP + 0.01), (BED_FRONT + bearer_back) / 2, RAIL_Y, (deck_bottom + FRAME_TOP) / 2, "under")
+    kit.box("deck", (length - PROUD, 2 * (HALF - BEAM_T), DECK_T), (mid + PROUD / 2, 0, BED_FLOOR - DECK_T / 2), "metal")
     beam_mid = (BED_FLOOR + LIP + BEAM_BOTTOM) / 2
     beam_h = BED_FLOOR + LIP - BEAM_BOTTOM
-    mirrored(kit, "edge_beam", (length, BEAM_T, beam_h), mid, HALF - BEAM_T / 2, beam_mid, "trim")
-    kit.box("tail_beam", (BEAM_T, 2 * HALF, beam_h + 0.05), (BED_BACK + BEAM_T / 2, 0, beam_mid - 0.025), "trim")
+    mirrored(kit, "edge_beam", (length - PROUD, BEAM_T, beam_h), mid + PROUD / 2, HALF - BEAM_T / 2, beam_mid, "trim")
+    kit.box("tail_beam", (BEAM_T, 2 * (HALF - PROUD), beam_h + 0.05), (BED_BACK + BEAM_T / 2, 0, beam_mid - 0.015), "trim")
     n = round((length - 0.4) / BRACKET_STEP)
     for i in range(n + 1):
         x = BED_FRONT - 0.2 - (length - 0.4) * i / n
@@ -360,15 +361,15 @@ def headboard(kit: Kit) -> None:
     x = BED_FRONT - HEAD_T / 2
     inner = HALF - BEAM_T
     plank_h = PLANK_TOP - BED_FLOOR
-    kit.box("head_planks", (HEAD_T - 0.02, 2 * inner, plank_h), (x, 0, BED_FLOOR + plank_h / 2), "metal_light")
+    kit.box("head_planks", (HEAD_T - 0.02, 2 * (inner - PROUD), plank_h), (x, 0, BED_FLOOR + plank_h / 2), "metal_light")
     for i in range(1, 4):
         z = BED_FLOOR + plank_h * i / 4
-        kit.box(f"plank_seam{i}", (0.01, 2 * inner, 0.015), (x - HEAD_T / 2 + 0.005, 0, z), "metal")
+        kit.box(f"plank_seam{i}", (0.008, 2 * (inner - 2 * PROUD), 0.015), (x - HEAD_T / 2 + 0.006, 0, z), "metal")
     post = 0.08
     for k, y in enumerate((-inner + post / 2, -0.47, 0.47, inner - post / 2)):
         kit.box(f"head_post{k}", (HEAD_T, post, HEAD_TOP - BED_FLOOR), (x, y, (HEAD_TOP + BED_FLOOR) / 2), "trim")
-    for name, z in (("head_rail_mid", PLANK_TOP), ("head_rail_top", HEAD_TOP - 0.04)):
-        kit.box(name, (HEAD_T, 2 * inner, 0.08), (x, 0, z), "trim")
+    for name, z in (("head_rail_mid", PLANK_TOP), ("head_rail_top", HEAD_TOP - 0.04 - PROUD)):
+        kit.box(name, (HEAD_T - 3 * PROUD, 2 * (inner - PROUD), 0.08), (x, 0, z), "trim")
     slat_h = HEAD_TOP - PLANK_TOP - 0.08
     slats = 8
     for i in range(slats):

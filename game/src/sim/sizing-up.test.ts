@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { LOOK_OVER, NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { playerVehicle, vehicleById } from './damage';
 import { raiseCalls } from './dialogue';
-import { spawnGroup, waveOf } from './fury-road';
+import { spawnGroup, waveOf } from './chaos-highway';
 import { alongOf, toRoad } from './highway';
 import { addGoods } from './inventory';
 import { holdsUp, optionWeights, passReason, judgeDanger } from './npc-decisions';
 import { thinkNpc, topGoal } from './npc-activities';
 import { addState, stateOf } from './states';
-import { addVehicle, emptyWorld, forceOption, furyRoadWorld, npcBrain, sizedUp, startCombat, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, chaosHighwayWorld, npcBrain, sizedUp, startCombat, testDrive } from './testkit';
 import type { Vehicle, World } from './types';
 import { endTurn } from './world';
 
@@ -168,8 +168,8 @@ describe('a raider sizing up the player', () => {
 
 describe('Chaos Highway groups', () => {
   it('never size anyone up, since they fight the convoy on a feud', () => {
-    let w = furyRoadWorld(3);
-    const run = w.furyRoad!;
+    let w = chaosHighwayWorld(3);
+    const run = w.chaosHighway!;
     const group = { ...run.groups[0], stretch: 1, from: 'ahead' as const, templates: ['buggy'], level: waveOf(1).level };
     run.groups = [group];
     spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos)));

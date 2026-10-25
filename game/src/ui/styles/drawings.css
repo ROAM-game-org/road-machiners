@@ -344,11 +344,11 @@
   fill: currentColor;
 }
 /* The mute switch is the metal toggle, shrunk to the knobs' height. */
-#ui :is(.radio-faceplate, .sound-row) button.switch {
+#ui .sound-row button.switch {
   gap: 0;
   padding: 1px 8px;
 }
-:is(.radio-faceplate, .sound-row) .switch-lever {
+.sound-row .switch-lever {
   transform: scale(0.6);
   margin: -5px 0;
 }

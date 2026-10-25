@@ -150,8 +150,8 @@ export async function checkHighwayNightInSoftware(url, { shot, bootLimitMs }) {
     await emulateWebGL2Floor(page);
     await page.goto(playUrl(url));
     await waitForGame(page, bootLimitMs);
-    await startNewGame(page, 'furyRoad', bootLimitMs);
-    const problems = await checkNightGround(page, { mode: 'furyRoad', shot, bootLimitMs, turnLimitMs: 0, nightTurns: 0 });
+    await startNewGame(page, 'chaosHighway', bootLimitMs);
+    const problems = await checkNightGround(page, { mode: 'chaosHighway', shot, bootLimitMs, turnLimitMs: 0, nightTurns: 0 });
     return [...errors, ...problems];
   } catch (e) {
     return [...errors, `the Chaos Highway night check stopped: ${e.message}`];

@@ -5,7 +5,7 @@ import { TIME } from '../../data/time';
 import type { World, XpSource } from '../types';
 import { cumulativeCost } from '../progress';
 import { playerVehicle } from '../damage';
-import { emptyWorld, furyRoadWorld } from '../testkit';
+import { emptyWorld, chaosHighwayWorld } from '../testkit';
 import { haulerOf } from '../damage';
 import { failOnStall, FAR_MOVER, record, recordFrom, recordTurns, StallWatch, stepsFrom, type TraceLine } from './record';
 import { replay } from './replay';
@@ -123,7 +123,7 @@ describe('StallWatch', () => {
 
 describe('failOnStall', () => {
   it('names the run hauler and its order when a brainless truck stalls', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const hauler = haulerOf(w);
     hauler.order = { kind: 'stopAt', dest: { x: 40, y: 50 } };
     w.events.push({ t: 'stall', vehicle: hauler.id, goal: null, reason: 'idle' });

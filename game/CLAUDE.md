@@ -44,6 +44,7 @@ Writing, in `docs/writing/`:
 Art and sound, in `docs/art/`:
 
 - [Art pipeline](docs/art/models.md): Blender models, the truck grid projection and part model rules.
+- [Asset review](docs/art/asset-review.md): the surface faults a model can have, the commands that find them and the independent review a new model gets.
 - [Landmarks](docs/art/landmarks.md): scale, materials and shapes of the world's places.
 - [Quest art](docs/art/quest-art.md): the style prompt and post-process for quest pictures.
 - [Sound](docs/sound.md).
@@ -66,7 +67,7 @@ Run these from `game/`. The repo-wide quality gate and pre-commit hook run from 
 - `npm run combat` plays single fights with physics, for hit rates and ram detail the recorder does not model. `npm run loadouts` rolls NPC gear.
 - `npm run perf` fails on a miss against `scripts/perf-budgets.json`.
 - `npm run layout` checks every surveyed screen in English, Russian and pseudo-long text at two window sizes, and fails on clipped text, overlapping or unreachable controls and English in Russian. It needs the dev server.
-- `npm run map:bake` writes `public/maps/icarus.bin`. Commit it after a change to map rules, then run `npm run old-spots`, which also writes the survey sites, then `npm run survey:pictures`, which redraws their journal pictures.
+- `npm run map:bake` writes `public/maps/icarus.bin`. Commit it after a change to map rules, then run `npm run old-spots`, which also writes the survey sites and the claim clues, then `npm run survey:pictures`, which redraws the survey journal pictures.
 - `npm run text:review` writes the Russian review sheet to `tmp/text-review/`: every entry in context with sample params.
 - `npm run models:shapes`, `npm run wiki`, `npm run save:shape`, `npm run quests:build`, `npm run old-spots` and `npm run survey:pictures` regenerate checked files. A test fails when they are stale.
 - `npm run quest -- <quest>` plays an ink quest in the terminal, and `npm run quests:check` checks every quest for errors, dead ends and loops with no way out.
@@ -83,7 +84,7 @@ Game settings live in `src/config.ts`. Copy `.env.example` to `.env` for sound g
 - `src/data/` holds all balance numbers and content. Sim code reads numbers from there, never inline.
 - `src/phys/` runs vehicle movement in Rapier and plugs into the turn pipeline. The path preview runs the same physics as the turn.
 - `src/three/` holds the 3D game, with `game.ts` wiring input, sim, physics, view and UI. `src/three/render/` holds the 3D views, `src/render/` the palette, painters and part looks, and `src/ui/` the HTML panels.
-- `src/mapgen/` bakes the map offline. The game only reads the map file, but for Fury Road's highway, which `src/sim/highway.ts` generates from the seed, with its hazard scenes, ramps and closures from `src/sim/road-hazards.ts`.
+- `src/mapgen/` bakes the map offline. The game only reads the map file, but for Chaos Highway's highway, which `src/sim/highway.ts` generates from the seed, with its hazard scenes, ramps and closures from `src/sim/road-hazards.ts`.
 - Map coordinates are in tiles. Physics and 3D space are in meters: map x is 3D x, map y is 3D z, height is 3D y. `src/phys/frames.ts` converts.
 - The UI shows real units. `src/ui/units.ts` converts from sim units, with display numbers in `src/data/units.ts`.
 
@@ -143,4 +144,4 @@ Read the project-local skills before related work:
 
 ## Art
 
-Props and truck parts are low-poly models built by Blender scripts in `tools/blender/`. Follow [Art pipeline](docs/art/models.md) to add or change a model. Render a preview, take an in-game screenshot and run `npm run playtest`.
+Props and truck parts are low-poly models built by Blender scripts in `tools/blender/`. Follow [Art pipeline](docs/art/models.md) to add or change a model. Render a preview, take an in-game screenshot and run `npm run playtest`. Check the surface and get an independent review by [Asset review](docs/art/asset-review.md).

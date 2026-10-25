@@ -159,7 +159,7 @@ describe('posting a rescue', () => {
   it('posts none in a mode without rescue', () => {
     for (let seed = 1; seed <= 12; seed++) {
       const { w } = scene('fuel');
-      w.setup = defaultSetup('furyRoad');
+      w.setup = defaultSetup('chaosHighway');
       w.marketRng.rngState = seed;
       w.shops.bowl.restockAt = w.turn;
       advanceShops(w);

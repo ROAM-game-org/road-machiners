@@ -6,7 +6,7 @@ import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
 import { savedMisfit, savedRevisionsOf, savedRunId, saveOf, storedSave, writeSave } from './save';
-import { mutedColor_96_97, paintOfPreset_95_96 } from './save-steps-late';
+import { chaosHighwayMode_113_114, mutedColor_96_97, paintOfPreset_95_96 } from './save-steps-late';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
@@ -43,7 +43,8 @@ const RENAMED_VARS_RESCUE: readonly VarRename[] = [
 ];
 
 const HATTIE_MET_BEFORE = 78;
-const FURY_ROAD_MODE_BEFORE = 49;
+const FIRST_MODE_NAME_BEFORE = 49;
+const CHAOS_HIGHWAY_NAME_BEFORE = 114;
 const GEAR_GROWTH_BEFORE = 58;
 const GEAR_GROWTH_START = 1;
 
@@ -140,8 +141,9 @@ function truckOf(world: Json, player: Json): Carried['truck'] {
 const HAULER_FORMAT_2_60 = 2060;
 
 function runOf(world: Json, format: number): CarriedRun | null {
-  if (world.furyRoad === null || world.furyRoad === undefined) return null;
-  const run = objectOf(world.furyRoad) ?? {};
+  const saved = formatBefore(format, CHAOS_HIGHWAY_NAME_BEFORE) ? world.furyRoad : world.chaosHighway;
+  if (saved === null || saved === undefined) return null;
+  const run = objectOf(saved) ?? {};
   if (!('hauler' in run) && format < HAULER_FORMAT_2_60) return null;
   return readRun(world, run);
 }
@@ -247,7 +249,8 @@ function withHattieMet(quests: Carried['quests'], format: number): Carried['ques
 function setupOf(setup: unknown, format: number): unknown {
   const read = objectOf(setup);
   if (!read) return setup;
-  const mode = formatBefore(format, FURY_ROAD_MODE_BEFORE) && read.mode === 'gauntlet' ? 'furyRoad' : read.mode;
+  const firstNamed = formatBefore(format, FIRST_MODE_NAME_BEFORE) && read.mode === 'gauntlet' ? 'furyRoad' : read.mode;
+  const mode = formatBefore(format, CHAOS_HIGHWAY_NAME_BEFORE) ? chaosHighwayMode_113_114(firstNamed) : firstNamed;
   const settings = formatBefore(format, GEAR_GROWTH_BEFORE) ? { enemyGearGrowth: GEAR_GROWTH_START, ...objectOf(read.settings) } : read.settings;
   return { ...read, mode, settings };
 }

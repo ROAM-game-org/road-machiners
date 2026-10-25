@@ -3,7 +3,6 @@ import { chassisDef, PLAYER_CHASSIS } from '../data/chassis';
 import { GOOD_IDS, GOODS } from '../data/goods';
 import { GEAR_LEVEL_IDS, NPCS, type GearLevel, type NpcTemplate } from '../data/npcs';
 import { PARTS } from '../data/parts';
-import { REGION } from '../data/region';
 import { CHEATS } from '../data/rules';
 import { PERK_IDS } from '../data/skills';
 import { TIME } from '../data/time';
@@ -17,7 +16,7 @@ import { addGoods, applyRefitLayout, mountPart, planItemMove, stowPart } from '.
 import { disarm } from './claymore';
 import { generateNpcLoadout } from './npc-loadout';
 import { grantXp, isPerkId, pickedFromPair } from './progress';
-import { isTerritory, nearestPad, type Site } from './sites';
+import { isTerritory, nearestPad, worldPlaces } from './sites';
 import { territoryEntries } from './territory';
 import { allegianceFor, spawnAt } from './spawn';
 import { firstFree, freeSpotNear } from './free-spot';
@@ -235,7 +234,8 @@ export function noclipMove(world: World, target: Vec): World {
 }
 
 export function placeSpot(world: World, id: string): Vec {
-  const places: Site[] = [...REGION.towns, ...REGION.locations];
+  if (world.chaosHighway !== null) throw new CheatError('Chaos Highway has no named places. Use tp <x> <y>');
+  const places = worldPlaces(world);
   const place = places.find((p) => p.id === id);
   if (!place) throw new CheatError(`Unknown place ${id}. Places: ${places.map((p) => p.id).join(', ')}`);
   const from = playerVehicle(world).pos;

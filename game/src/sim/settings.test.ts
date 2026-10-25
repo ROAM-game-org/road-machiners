@@ -102,6 +102,6 @@ describe('scale queries', () => {
 describe('setupText', () => {
   it('names the mode and every setting it uses as a percentage', () => {
     expect(resolve(setupText(parseSetup(roaming({ damage: 1.5 }))), 'en')).toBe('Roaming, Damage 150%, Fuel use 100%, Supply use 100%');
-    expect(resolve(setupText(parseSetup({ ...roaming({ enemyGearGrowth: 0.5 }), mode: 'furyRoad' })), 'en')).toBe('Chaos Highway, Damage 100%, Fuel use 100%, Supply use 100%, Enemy growth 50%');
+    expect(resolve(setupText(parseSetup({ ...roaming({ enemyGearGrowth: 0.5 }), mode: 'chaosHighway' })), 'en')).toBe('Chaos Highway, Damage 100%, Fuel use 100%, Supply use 100%, Enemy growth 50%');
   });
 });

@@ -3,8 +3,8 @@ import { bedRows } from './chassis-features';
 import { CHASSIS } from '../data/chassis';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
-import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
-import { lootRefitTurns, moveItem, mountPart, dumpItem, refitTurns, removeAllGoods } from './inventory';
+import { SKILL_EFFECTS } from '../data/skills';
+import { moveItem, mountPart, dumpItem, refitTurns, removeAllGoods } from './inventory';
 import { advanceJobs, startJob } from './jobs';
 import { makePart } from './factory';
 import { sitePads, townAt } from './sites';
@@ -82,11 +82,13 @@ describe('field refits', () => {
     expect(getWeapon(w)).toEqual(weapon);
   });
 
-  it('blocks inventory moves and dumping during a refit', () => {
+  it('queues a move behind a running refit and keeps dumping blocked', () => {
     const { next, weapon } = startUnmount();
     const good = next.vehicles[0].items.find((item) => item.kind === 'good');
     if (!good) throw new Error('Expected goods');
-    expect(() => moveItem(next, weapon.id, weapon)).toThrow('Refused: refitRunning');
+    const back = moveItem(next, weapon.id, weapon);
+    const job = back.vehicles[0].job;
+    expect(job?.kind === 'refit' && job.queue.map((step) => step.moves[0])).toEqual([{ itemId: weapon.id, from: { x: 3, y: CHASSIS.scout.layout.length, rot: 1 }, to: { x: weapon.x, y: weapon.y, rot: weapon.rot } }]);
     expect(() => dumpItem(next, good.id)).toThrow('Refused: refitRunning');
   });
 
@@ -237,13 +239,6 @@ describe('the Patcher crane on refits', () => {
     expect(two.items.filter((it) => it.kind === 'part' && it.part.defId === 'patcherCrane')).toHaveLength(2);
     expect(refitTurns(w, one, REPLACE)).toBe(7);
     expect(refitTurns(w, two, REPLACE)).toBe(7);
-  });
-
-  it('keeps the Cannibal perk at its flat turns without a crane', () => {
-    const w = emptyWorld();
-    w.player.perks = ['cannibal'];
-
-    expect(lootRefitTurns(w, w.vehicles[0], REPLACE)).toBe(PERK_NUMBERS.cannibal.turns);
   });
 
   it('keeps garage changes instant', () => {

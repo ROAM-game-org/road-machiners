@@ -1,21 +1,7 @@
 {
-  "turn": 2704,
-  "player": {
-    "money": 1200,
-    "rumored": ["wreck6802"],
-    "call": {
-      "with": "v40",
-      "topic": "rumor",
-      "node": "wreck",
-      "vars": {
-        "way": { "kind": "directions", "steps": [{ "do": "straight", "octant": "east", "span": "near" }] }
-      },
-      "line": {
-        "line": "wreckWay",
-        "vars": {
-          "way": { "kind": "directions", "steps": [{ "do": "straight", "octant": "east", "span": "near" }] }
-        }
-      }
-    }
-  }
+  "turn": 2605,
+  "states": [
+    { "id": "state8683", "kind": "feud", "holder": "v1392", "other": "player", "born": 2587, "turnsLeft": null, "data": { "kind": "none" } },
+    { "id": "state8699", "kind": "offering", "holder": "player", "other": "v1401", "born": 2598, "turnsLeft": null, "data": { "kind": "offering", "core": { "x": 435.4, "y": 325.7 }, "closest": 26.3 } }
+  ]
 }

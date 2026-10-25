@@ -45,7 +45,7 @@ from mathutils import Vector
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, FLARE, SUSPENSION_REST, Grid, cut_boxes, hull_mesh, level_sockets  # noqa: E402
-from parts_common_core import ALONG_X, ROUND_SEGMENTS, SMALL_ROUND_SEGMENTS, check_round  # noqa: E402
+from parts_common_core import ALONG_X, PROUD, ROUND_SEGMENTS, SMALL_ROUND_SEGMENTS, check_round  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 303
@@ -222,7 +222,7 @@ def grille(kit: Kit) -> None:
 def fender_outline(drop: float = 0.0) -> list[tuple[float, float]]:
     """The XZ outline of a front fender: rising from over the bumper to a crown over the wheel and sweeping down to the cowl.
 
-    drop lowers the crown, fading to nothing at the tail height, for the rounded outer shoulder.
+    drop lowers the part of the crown above the half height, for the rounded outer shoulder.
     """
     front = GRILLE_X - 0.02
     face_top = LAMP_POD[2] + 0.02
@@ -232,8 +232,8 @@ def fender_outline(drop: float = 0.0) -> list[tuple[float, float]]:
     tail_x, tail_z = COWL_X + 0.12, up(1.15)
     sweep = [(crown_back - (crown_back - tail_x) * (1 - math.cos(math.pi * k / 10)) / 2, FENDER_CROWN - (FENDER_CROWN - tail_z) * (1 - math.cos(math.pi * k / 10)) / 2) for k in range(1, 11)]
     def lowered(p: tuple[float, float]) -> tuple[float, float]:
-        share = min(1.0, max(0.0, (p[1] - tail_z) / (FENDER_CROWN - tail_z)))
-        return (p[0], p[1] - drop * share)
+        step = 1.0 if p[1] >= (FENDER_CROWN + tail_z) / 2 else 0.0
+        return (p[0], p[1] - drop * step)
 
     top = [(front, BUMPER[1])] + [lowered(p) for p in rise + sweep]
     arch = [p for p in wheel_arch(WHEEL_X, ARCH_R, tail_x, front) if p[0] > tail_x and p[0] < front]
@@ -258,7 +258,7 @@ def lamp_pods(kit: Kit, front: float) -> None:
     mirrored(kit, "lamp_pod", (0.06, width, hi - lo), front + 0.02, pod_y, (lo + hi) / 2, "metal_light")
     lamp = (0.03, 0.19, 0.13)
     for i, dy in enumerate((-0.11, 0.11)):
-        mirrored(kit, f"lamp_bezel{i}", (0.08, lamp[1] + 0.05, lamp[2] + 0.05), front + 0.08, pod_y + dy, LAMP_Z, "metal_light")
+        mirrored(kit, f"lamp_bezel{i}", (0.08, lamp[1] + 0.02, lamp[2] + 0.05), front + 0.08, pod_y + dy, LAMP_Z, "metal_light")
         mirrored(kit, f"lamp{i}", lamp, front + 0.11, pod_y + dy, LAMP_Z, "light")
 
 
@@ -296,7 +296,7 @@ def cab(kit: Kit) -> None:
         kit.box(f"door_post_{s}", (0.14, y1 - y0, UNDER_ROOF - BELT), (CAB_BACK + 0.62, (y0 + y1) / 2, (BELT + UNDER_ROOF) / 2), "paint")
         kit.box(f"back_pillar_{s}", (0.2, y1 - y0, UNDER_ROOF - BELT), (CAB_BACK + 0.1, (y0 + y1) / 2, (BELT + UNDER_ROOF) / 2), "paint")
     prism(kit, "split_bar", [(COWL_X - 0.1, BELT), (COWL_X, BELT), (rake_top + 0.02, UNDER_ROOF), (rake_top - 0.08, UNDER_ROOF)], -0.05, 0.05, "paint")
-    kit.box("back_wall", (0.06, 2 * CAB_HALF, UNDER_ROOF - SILL), (CAB_BACK + 0.03, 0, (SILL + UNDER_ROOF) / 2), "paint")
+    kit.box("back_wall", (0.06, 2 * (CAB_HALF - PROUD), UNDER_ROOF - SILL), (CAB_BACK + 0.03, 0, (SILL + UNDER_ROOF) / 2), "paint")
     trim_roof(kit, "roof", rake_top + 0.02, CAB_BACK)
     prism(kit, "visor", [(rake_top - 0.02, UNDER_ROOF - 0.04), (rake_top + 0.24, UNDER_ROOF - 0.11), (rake_top + 0.24, UNDER_ROOF - 0.08), (rake_top, UNDER_ROOF + 0.02)], -CAB_HALF + 0.02, CAB_HALF - 0.02, "metal_light")
     for i in range(5):
@@ -357,15 +357,16 @@ def chassis(kit: Kit) -> None:
 
 def deck(kit: Kit) -> None:
     """The narrow flat deck from the sleeper to the tail over the drive wheels, with a round fifth-wheel plate."""
-    length = SLEEPER_BACK - BACK
-    mid = (SLEEPER_BACK + BACK) / 2
+    back = BACK + 3 * PROUD
+    length = SLEEPER_BACK - back
+    mid = (SLEEPER_BACK + back) / 2
     kit.box("deck", (length, 2 * DECK_HALF, DECK_T), (mid, 0, DECK - DECK_T / 2), "metal_dark")
-    mirrored(kit, "deck_rail", (length, 0.02, DECK_T), mid, DECK_HALF - 0.01, DECK - DECK_T / 2, "paint")
+    mirrored(kit, "deck_rail", (length - 2 * PROUD, 0.02, DECK_T - 2 * PROUD), mid, DECK_HALF - 0.005, DECK - DECK_T / 2, "paint")
     kit.box("deck_core", (length - 0.06, 0.7, DECK - DECK_T - RAIL_TOP), (mid - 0.03, 0, (DECK - DECK_T + RAIL_TOP) / 2), "metal_dark")
     plate_x = -WHEEL_X + 0.2
     round_part(kit, "fifth_wheel", FIFTH_WHEEL_R, 0.03, (plate_x, 0, DECK + 0.015), "metal", ROUND_SEGMENTS, ROUND_SEGMENTS)
     kit.box("fifth_wheel_slot", (FIFTH_WHEEL_R + 0.02, 0.16, 0.03), (plate_x - FIFTH_WHEEL_R / 2, 0, DECK + 0.02), "under")
-    kit.box("rear_panel", (0.06, 2 * DECK_HALF, 0.3), (BACK + 0.05, 0, DECK - 0.15), "paint")
+    kit.box("rear_panel", (0.06, 2 * DECK_HALF + 2 * PROUD, 0.3 + PROUD), (BACK + 0.05, 0, DECK - 0.145), "paint")
     mirrored(kit, "taillight", (0.04, 0.24, 0.14), BACK + 0.02, DECK_HALF - 0.2, DECK - 0.15, "red")
 
 

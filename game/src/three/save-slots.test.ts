@@ -40,7 +40,7 @@ describe('save slots', () => {
     slots.put('day', save(20, 900, 'furyRoad'));
 
     expect(listSaves(slots, 3)).toEqual([
-      { slot: 'day', savedAt: 900, turn: 20, mode: 'furyRoad' },
+      { slot: 'day', savedAt: 900, turn: 20, mode: 'chaosHighway' },
       { slot: 'slot1', savedAt: 500, turn: 30, mode: 'roaming' },
       { slot: 'auto', savedAt: 0, turn: 40, mode: 'roaming' },
       { slot: 'slot2', savedAt: 0, turn: null, mode: null },

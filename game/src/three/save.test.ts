@@ -30,6 +30,7 @@ import { memoryBackend, SaveSlots } from './save-db';
 import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
+import { beforeChaosHighwayName } from '../test/before-chaos-highway-name';
 import { TEST_MAP } from '../test/map';
 import { advanceSunward, duskTurn, membersOf, rideOutTurn, sunwardFacts } from '../sim/sunward';
 import { hollowBays, hollowObstacles } from '../sim/hollow-layout';
@@ -438,6 +439,27 @@ describe('game save', () => {
     expect(loaded.vehicles[0].items.find((item) => item.id === weapon.id)).toMatchObject(to);
   });
 
+  it('keeps a refit queue of three steps through a reload, runs it to the end, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const weapon = world.vehicles[0].items.find((item) => item.kind === 'part' && item.part.defId === 'mg');
+    if (!weapon) throw new Error('Expected weapon');
+    const to = { x: 3, y: CHASSIS.scout.layout.length, rot: 1 as const };
+    const queued = moveItem(moveItem(moveItem(world, weapon.id, to), weapon.id, weapon), weapon.id, to);
+    advanceJobs(queued);
+    queued.events = [];
+    writeSave(slots, 'auto', queued, RUN, 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(loaded.vehicles[0].job).toEqual(queued.vehicles[0].job);
+    expect(loaded.vehicles[0].job).toMatchObject({ queue: [{ pickup: null }, { pickup: null }] });
+    expect(loaded.player.money).toBe(queued.player.money);
+    expect(loaded.player.xp).toBe(queued.player.xp);
+    expect(loaded.events).toEqual([]);
+    for (let turn = 0; turn < 40 && loaded.vehicles[0].job; turn++) advanceJobs(loaded);
+    expect(loaded.vehicles[0].job).toBeNull();
+    expect(loaded.vehicles[0].items.find((item) => item.id === weapon.id)).toMatchObject(to);
+  });
+
   it('keeps a part bought into storage at a stall, and takes it out after loading', () => {
     const slots = makeSlots();
     let world = emptyWorld(sitePads(siteOf('pump-station'))[0]);
@@ -608,6 +630,7 @@ describe('game save', () => {
     const ids = oldSpotPicks(TEST_MAP).map(oldStockId);
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     saved.salvage = saved.salvage.filter((stock: { id: string }) => !oldSpotOf(stock));
+    beforeChaosHighwayName(saved);
     saved.vehicles = saved.vehicles.filter((v: { faction: string }) => v.faction !== 'sunward');
     slots.put('auto', { format: { major: SAVE_MAJOR, minor: SAVE_FORMAT.minor - 1 }, world: saved, savedAt: 1000, runId: RUN });
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;

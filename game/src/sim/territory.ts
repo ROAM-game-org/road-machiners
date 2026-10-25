@@ -14,7 +14,8 @@ export { isTerritory };
 
 const GROUND_POINTS = 8;
 
-export type HazardZone = Hazard & { id: string; pos: Vec };
+export type CoreZone = { radius: number; healthPerTurn: number; light: { pos: Vec; radius: number } };
+export type HazardZone = Omit<Hazard, 'core'> & { id: string; pos: Vec; core: CoreZone | null };
 export type BakedPiece = { look: LandmarkLook; pos: Vec; yaw: number; r: number; sink: number };
 
 export type LandingStrip = { a: Vec; b: Vec; width: number };
@@ -99,8 +100,16 @@ function spineGrounds(t: TerritoryDef, farm: FarmRules): Vec[] {
 export function hazardZones(): HazardZone[] {
   return TERRITORY_DEFS.flatMap((t) => {
     const reactor = TERRITORIES[t.id].reactor;
-    return reactor?.hazard ? [{ ...reactor.hazard, id: t.id, pos: reactorPos(t) }] : [];
+    return reactor?.hazard ? [hazardZoneOf(t, reactor.hazard, reactorPos(t))] : [];
   });
+}
+
+export function hazardZoneOf(t: TerritoryDef, hazard: Hazard, pos: Vec): HazardZone {
+  const { core, ...rest } = hazard;
+  if (!core) return { ...rest, id: t.id, pos, core: null };
+  const light = { pos: onMap(t, core.light.at), radius: core.light.radius };
+  if (dist(light.pos, pos) + light.radius >= hazard.radius) throw new Error(`The ${t.id} reactor light reaches past its drain`);
+  return { ...rest, id: t.id, pos, core: { ...core, light } };
 }
 
 function onMap(t: TerritoryDef, at: Vec): Vec {

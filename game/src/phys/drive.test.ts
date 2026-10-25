@@ -12,6 +12,7 @@ import type { MoveOrder, World } from '../sim/types';
 import { angleDiff, bearing, dist, type Vec } from '../sim/vec';
 import { REGION } from '../data/region';
 import { TERRAIN_TYPES } from '../data/terrain';
+import { stateOf } from '../sim/states';
 import { endTurn, setDirect, setMoveOrder } from '../sim/world';
 import { PHYSICS } from '../data/physics';
 import { CLAYMORE } from '../data/utilities';
@@ -97,10 +98,19 @@ describe('impact geometry', () => {
       expect(crash.impact).toBeGreaterThan(0.8 * 7 * PHYSICS.metersPerTile);
       expect(crash.contact.a.side).toBe('front');
       expect(crash.contact.b?.side).toBe('right');
+      expect(crash.approach!.a).toBeGreaterThan(0.8 * 7 * PHYSICS.metersPerTile);
+      expect(Math.abs(crash.approach!.b)).toBeLessThan(0.5);
+      expect(crash.approach!.a + crash.approach!.b).toBeCloseTo(crash.impact, 3);
     } finally {
       freeDrive(result.next);
       freeDrive(drive);
     }
+  });
+
+  it('gives a parked truck a grievance on the truck that drove into it, through the real turn', () => {
+    const { w } = ramTurns(noseRam(false), 1);
+    const [me, parked] = w.vehicles;
+    expect(stateOf(w, 'grievance', parked.id, me.id)).not.toBeNull();
   });
 
   it('keeps the claymore throw impulse and lift', () => {

@@ -3,13 +3,13 @@ import { ALA_HIRED, GAME_OPENED_QUESTS, GAME_WORLD_VARS, ROAD_STORY } from '../d
 import { UNITS } from '../data/units';
 import { startKit } from '../data/start';
 import { haulerOf, playerVehicle } from '../sim/damage';
-import { driveOn } from '../sim/fury-road';
-import { payOf } from '../sim/fury-road-director';
+import { driveOn } from '../sim/chaos-highway';
+import { payOf } from '../sim/chaos-highway-director';
 import { highwayMap } from '../sim/highway';
 import { newGame } from '../sim/new-game';
 import { QUEST_QUERIES, QUESTS, setWorldVar, worldVar } from '../sim/quests';
 import { defaultSetup } from '../sim/settings';
-import { finishQuest, furyRoadWorld, parkInYard } from '../sim/testkit';
+import { finishQuest, chaosHighwayWorld, parkInYard } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { cloneWorld, endTurn, newWorld } from '../sim/world';
 import { readQuestSources } from '../test/quest-compile';
@@ -22,7 +22,7 @@ const still = () => {};
 const SEED = 3;
 
 function hiredRun(): World {
-  const w = furyRoadWorld(SEED);
+  const w = chaosHighwayWorld(SEED);
   setWorldVar(w, ALA_HIRED, true);
   return w;
 }
@@ -46,11 +46,11 @@ function questOpen(w: World): string | null {
 
 function withoutQuests(w: World): unknown {
   const { quests: _quests, ...player } = w.player;
-  return { player, furyRoad: w.furyRoad, vehicles: w.vehicles };
+  return { player, chaosHighway: w.chaosHighway, vehicles: w.vehicles };
 }
 
 describe('the opening of a new run', () => {
-  const chaos = (intro: boolean) => newGame(SEED, 'furyRoad', intro, highwayMap(SEED, 0), defaultSetup('furyRoad'));
+  const chaos = (intro: boolean) => newGame(SEED, 'chaosHighway', intro, highwayMap(SEED, 0), defaultSetup('chaosHighway'));
 
   it('opens the hiring on Chaos Highway with the intro on, and nothing with the intro off', () => {
     expect(questOpen(chaos(true))).toBe(GAME_OPENED_QUESTS.chaosHighwayIntro);
@@ -67,7 +67,7 @@ describe('the opening of a new run', () => {
   });
 
   it('restarts with the story only after a hired run', () => {
-    expect(restartsWithStory(furyRoadWorld(SEED))).toBe(false);
+    expect(restartsWithStory(chaosHighwayWorld(SEED))).toBe(false);
     expect(restartsWithStory(hiredRun())).toBe(true);
   });
 });
@@ -92,7 +92,7 @@ describe('the scenes at parked outposts', () => {
     parkInYard(w, 1);
     me.pos = { x: me.pos.x, y: me.pos.y + 60 };
     const paid = endTurn(w, still);
-    expect(paid.furyRoad!.outposts[0].paid).toBe(true);
+    expect(paid.chaosHighway!.outposts[0].paid).toBe(true);
     expect(questOpen(paid)).toBeNull();
 
     parkInYard(paid, 1);
@@ -118,8 +118,8 @@ describe('the scenes at parked outposts', () => {
   });
 
   it('opens nothing for a run that was not hired, for a bot world, or in Roaming', () => {
-    expect(questOpen(arriveAt(furyRoadWorld(SEED), 1))).toBeNull();
-    const bot = newWorld(SEED, startKit('furyRoad'), highwayMap(SEED, 0), defaultSetup('furyRoad'));
+    expect(questOpen(arriveAt(chaosHighwayWorld(SEED), 1))).toBeNull();
+    const bot = newWorld(SEED, startKit('chaosHighway'), highwayMap(SEED, 0), defaultSetup('chaosHighway'));
     expect(questOpen(arriveAt(bot, 1))).toBeNull();
 
     const roaming = newWorld(SEED, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
@@ -141,10 +141,10 @@ describe('the scenes at parked outposts', () => {
 
 describe('the road story data', () => {
   it('quotes the pay from the sim', () => {
-    expect(QUEST_QUERIES.stretch_pay(furyRoadWorld(SEED), [1])).toBe(payOf(1) / UNITS.centsPerM);
-    expect(QUEST_QUERIES.stretch_pay(furyRoadWorld(SEED), [2])).toBe(payOf(2) / UNITS.centsPerM);
-    expect(() => QUEST_QUERIES.stretch_pay(furyRoadWorld(SEED), [0])).toThrow(/stretch/);
-    expect(() => QUEST_QUERIES.stretch_pay(furyRoadWorld(SEED), [1.5])).toThrow(/whole/);
+    expect(QUEST_QUERIES.stretch_pay(chaosHighwayWorld(SEED), [1])).toBe(payOf(1) / UNITS.centsPerM);
+    expect(QUEST_QUERIES.stretch_pay(chaosHighwayWorld(SEED), [2])).toBe(payOf(2) / UNITS.centsPerM);
+    expect(() => QUEST_QUERIES.stretch_pay(chaosHighwayWorld(SEED), [0])).toThrow(/stretch/);
+    expect(() => QUEST_QUERIES.stretch_pay(chaosHighwayWorld(SEED), [1.5])).toThrow(/whole/);
   });
 
   it('gives every scene a start and a gate that opens it', () => {

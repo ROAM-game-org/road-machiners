@@ -6,7 +6,7 @@ import { directionsFromSite, directionsTo } from './directions';
 import { isTerritory } from './sites';
 import { ambiguousStarts, followSteps } from './directions-follower.test-helper';
 import { nearestRoadPoints, roadNetworkOf } from './road-network';
-import { emptyWorld, furyRoadWorld } from './testkit';
+import { emptyWorld, chaosHighwayWorld } from './testkit';
 import type { DirectionStep, DirectionTarget, Obstacle, World } from './types';
 import { dist, type Vec } from './vec';
 
@@ -141,7 +141,7 @@ describe('directionsTo', () => {
   });
 
   it('knows no road to a town that is not on the highway map', () => {
-    const steps = directionsTo(furyRoadWorld(), { x: 300, y: 300 }, to('bowl'));
+    const steps = directionsTo(chaosHighwayWorld(), { x: 300, y: 300 }, to('bowl'));
     expect(kinds(steps)).toEqual(['noRoad']);
   });
 

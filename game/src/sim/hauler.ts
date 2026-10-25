@@ -1,5 +1,5 @@
 import { chassisDef } from '../data/chassis';
-import { FURY_ROAD, HIGHWAY } from '../data/modes';
+import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from './damage';
 import { backOutSpot } from './back-out';
@@ -18,7 +18,7 @@ import { workOf } from './states';
 import type { MoveOrder, Vehicle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 
-const HAULER = FURY_ROAD.hauler;
+const HAULER = CHAOS_HIGHWAY.hauler;
 const LANES: readonly number[] = HIGHWAY.road.lanes;
 const BEHIND = 2;
 const WINDOW_EDGE = 2;
@@ -27,8 +27,8 @@ const CRATER_STEP = 1;
 export type SideThreat = 'left' | 'right' | 'both' | null;
 
 function runOf(world: World) {
-  if (!world.furyRoad) throw new Error('No Fury Road run, so no hauler to drive');
-  return world.furyRoad;
+  if (!world.chaosHighway) throw new Error('No Chaos Highway run, so no hauler to drive');
+  return world.chaosHighway;
 }
 
 function roadPos(world: World, pos: Vec) {
@@ -253,7 +253,7 @@ function laneOrder(world: World, hauler: Vehicle): MoveOrder | null {
 }
 
 export function planHaulerOrder(world: World): void {
-  if (!world.furyRoad || world.player.state !== 'active') return;
+  if (!world.chaosHighway || world.player.state !== 'active') return;
   const hauler = haulerOf(world);
   hauler.order = recoveryOrder(world, hauler) ?? laneOrder(world, hauler);
   hauler.direct = false;
@@ -268,9 +268,9 @@ function hurtsHauler(world: World, hauler: Vehicle): boolean {
 }
 
 export function noteHaulerHits(world: World): void {
-  if (!world.furyRoad) return;
+  if (!world.chaosHighway) return;
   const hauler = haulerOf(world);
-  if (hurtsHauler(world, hauler)) world.furyRoad.hauler.alarmUntil = world.turn + HAULER.alarmTurns;
+  if (hurtsHauler(world, hauler)) world.chaosHighway.hauler.alarmUntil = world.turn + HAULER.alarmTurns;
 }
 
 type Anchor = { turn: number; along: number };
@@ -304,7 +304,7 @@ function blocksNose(hauler: Vehicle, foe: Vehicle): boolean {
 }
 
 export function watchHaulerStall(world: World): void {
-  if (!world.furyRoad || world.player.state !== 'active') return;
+  if (!world.chaosHighway || world.player.state !== 'active') return;
   const hauler = haulerOf(world);
   const along = alongNow(world, hauler);
   const anchor = anchors.get(hauler.id);

@@ -2,26 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { resolveDestroyed } from './combat';
 import { playerVehicle } from './damage';
 import { advanceNpcKnockouts, checkKnockout, isKnockedOut, knockOutNpc } from './defeat';
-import { advanceFuryRoad, driveOn, planStretch } from './fury-road';
+import { advanceChaosHighway, driveOn, planStretch } from './chaos-highway';
 import { corePart } from './grid';
 import { downedListNear, downedHere } from './locations';
 import { topGoal } from './npc-activities';
 import { getResources } from './resources';
 import { canLootTruck, takeFromTruck } from './salvage';
-import { furyRoadWorld, parkInYard } from './testkit';
-import type { FuryRoadRun, Vehicle, WaveGroup, World } from './types';
+import { chaosHighwayWorld, parkInYard } from './testkit';
+import type { ChaosHighwayRun, Vehicle, WaveGroup, World } from './types';
 import { endTurn } from './world';
 
 const still = () => {};
 
-function runOf(w: World): FuryRoadRun {
-  if (!w.furyRoad) throw new Error('No run');
-  return w.furyRoad;
+function runOf(w: World): ChaosHighwayRun {
+  if (!w.chaosHighway) throw new Error('No run');
+  return w.chaosHighway;
 }
 
 function spawnGroup(w: World, i = 0): WaveGroup {
   runOf(w).groups[i].at = 0;
-  advanceFuryRoad(w);
+  advanceChaosHighway(w);
   const group = runOf(w).groups[i];
   if (!group.spawned) throw new Error(`Group ${i} did not spawn`);
   return group;
@@ -53,9 +53,9 @@ function nextLevel(w: World): World {
   return driveOn(endTurn(w, still));
 }
 
-describe('a knocked-out Fury Road truck', () => {
+describe('a knocked-out Chaos Highway truck', () => {
   it('can be looted by nobody', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const v = trucksOf(w, spawnGroup(w))[0];
     beside(w, v);
     knockOut(w, v);
@@ -69,43 +69,43 @@ describe('a knocked-out Fury Road truck', () => {
   });
 
   it('counts once when knocked out and then shot to a wreck', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const group = spawnGroup(w);
     const v = trucksOf(w, group)[0];
     knockOut(w, v);
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
     expect(group.wrecked).toBe(1);
     expect(group.counted).toEqual([v.id]);
 
     wreck(w, v);
     expect(w.events).toContainEqual(expect.objectContaining({ t: 'destroyed', vehicle: v.id }));
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
 
     expect(group.wrecked).toBe(1);
   });
 
   it('counts a plain wreck once', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const group = spawnGroup(w);
     wreck(w, trucksOf(w, group)[0]);
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
 
     expect(group.wrecked).toBe(1);
   });
 
   it('is not hunted back into the fight', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const v = trucksOf(w, spawnGroup(w))[0];
     beside(w, v);
     knockOut(w, v);
 
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
 
     expect(topGoal(v)?.kind).not.toBe('fight');
   });
 
   it('does not hold the next group back, which comes once the hauler reaches its place', () => {
-    let w = furyRoadWorld(4);
+    let w = chaosHighwayWorld(4);
     w = nextLevel(w);
     const waves = [0, 1e6].map((at) => ({ at, template: 'buggy', size: 1, money: 10000, elite: false }));
     runOf(w).groups = planStretch(w.seed, runOf(w).window + 1, waves);
@@ -114,26 +114,26 @@ describe('a knocked-out Fury Road truck', () => {
       beside(w, v);
       knockOut(w, v);
     }
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
     expect(runOf(w).groups[1].spawned).toBe(false);
 
     runOf(w).groups[1].at = 0;
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
 
     expect(runOf(w).groups[1].spawned).toBe(true);
   });
 
   it('leaves the road when it wakes, and the run plays on', () => {
-    let w = furyRoadWorld();
+    let w = chaosHighwayWorld();
     const group = spawnGroup(w);
     const v = trucksOf(w, group)[0];
     knockOut(w, v);
     v.pos = { x: playerVehicle(w).pos.x + 200, y: playerVehicle(w).pos.y };
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
 
     advanceNpcKnockouts(w);
     expect(v.defeat?.phase).toBe('retreat');
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
 
     expect(w.vehicles.some((x) => x.id === v.id)).toBe(false);
     expect(w.removed.some((x) => x.id === v.id)).toBe(true);
@@ -144,7 +144,7 @@ describe('a knocked-out Fury Road truck', () => {
   });
 
   it('ends the run when the player is the one knocked out', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     corePart(playerVehicle(w), 'cab').hp = 0;
 
     checkKnockout(w);

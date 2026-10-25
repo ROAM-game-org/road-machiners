@@ -66,7 +66,7 @@ describe("character screen", () => {
     expect(pressedTab(root)).toEqual(["map"]);
     expect(root.all((n) => n.className.includes("map-tab"))).toHaveLength(1);
     expect(rankButtons(root)).toHaveLength(0);
-    expect(root.all((n) => n.className === "close")[0].text()).toBe("Close [K]");
+    expect(root.all((n) => n.className === "close")[0].text()).toBe("Close [M]");
     screen.toggle("skills");
     expect(screen.isOpen()).toBe(true);
     expect(pressedTab(root)).toEqual(["skills"]);
@@ -180,14 +180,14 @@ describe("inventory header money", () => {
   });
   it("hides the standing list on Chaos Highway", () => {
     const world = emptyWorld();
-    world.setup = { ...world.setup, mode: "furyRoad" };
+    world.setup = { ...world.setup, mode: "chaosHighway" };
     expect(openCharacter(world).all((n) => n.className.split(" ").includes("standing-row"))).toEqual([]);
   });
 
   it("has a Map tab in Roaming and none on Chaos Highway", () => {
     const world = emptyWorld();
     const roaming = openCharacter(world).all((n) => n.tag === "button" && n.text() === "Map").length;
-    world.setup = { ...world.setup, mode: "furyRoad" };
+    world.setup = { ...world.setup, mode: "chaosHighway" };
     ui.children = [];
     expect(roaming).toBe(1);
     expect(openCharacter(world).all((n) => n.tag === "button" && n.text() === "Map")).toEqual([]);

@@ -15,6 +15,12 @@ import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
 import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo } from "./format";
+import type { ClaimContract } from "../sim/salvage";
+import { bakedTier } from "../sim/claim-clue";
+import { claimClue, claimWrecks } from "../sim/claims";
+import { START_KITS } from "../data/start";
+import { defaultSetup } from "../sim/settings";
+import { newWorld } from "../sim/world";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
@@ -228,6 +234,20 @@ describe("contract text", () => {
     expect(resolve(contractSummary(claim), "ru")).toContain("в квадрате Д7,");
   });
 
+  it("names the piece a claimed wreck lies by, inside it, beside it or offset from it", () => {
+    const world = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup("roaming"), false);
+    const wrecks = claimWrecks(world);
+    const claimAt = (id: string, shop: string): ClaimContract => {
+      const wreck = wrecks.find((w) => w.id === id)!;
+      return { id: "cw", shop, kind: "claim", stockId: id, at: { ...wreck.pos }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+    };
+    expect(en(contractSummary(claimAt("hullCache-2599", "nose")))).toMatch(/ in Fallen Sun, inside the small arch shell$/);
+    const offset = wrecks.find((w) => bakedTier(w.id, "bowl") === "offset" && claimClue(claimAt(w.id, "bowl")).where?.piece === "farmhouse")!;
+    expect(en(contractSummary(claimAt(offset.id, "bowl")))).toMatch(/ in Old Orchard, about \d+ m (north|south|east|west)[a-z-]* of the farmhouse$/);
+    const beside = wrecks.find((w) => bakedTier(w.id, "bowl") === "piece" && claimClue(claimAt(w.id, "bowl")).where?.relation === "beside")!;
+    expect(en(contractSummary(claimAt(beside.id, "bowl")))).toMatch(/, beside (the|a) [a-z ]+$/);
+  });
+
   it("tells of a rival sent after a held claim, and of a claim lost to it, as notable lines", () => {
     const w = emptyWorld();
     const rival = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 40, y: 40 });
@@ -296,7 +316,7 @@ describe("jobLabel", () => {
 
   it("names the part and the truck of a removal, before and after it is done", () => {
     const { w, me, buggy, gun } = downedBuggy();
-    const job: Job = { kind: "refit", moves: [], pickup: { from: "truck", vehicleId: buggy.id, partId: gun.part.id, itemId: "new", to: { x: 0, y: 0, rot: 0 } }, turnsLeft: 3, total: 3 };
+    const job: Job = { kind: "refit", moves: [], pickup: { from: "truck", vehicleId: buggy.id, partId: gun.part.id, itemId: "new", to: { x: 0, y: 0, rot: 0 } }, queue: [], turnsLeft: 3, total: 3 };
     expect(en(jobLabel(w, me, job))).toBe(`Remove ${en(partName("mg"))} from ${en(vehicleTitle(w, buggy))}`);
     buggy.items = buggy.items.filter((it) => it.id !== gun.id);
     me.items.push({ ...gun, id: "new" });
@@ -306,7 +326,7 @@ describe("jobLabel", () => {
   it("names the parts a refit moves on the player's own grid", () => {
     const { w, me } = downedBuggy();
     const gun = me.items.find((it) => it.kind === "part" && partDef(it.part.defId).kind === "weapon")!;
-    const job: Job = { kind: "refit", moves: [{ itemId: gun.id, from: { x: gun.x, y: gun.y, rot: gun.rot }, to: { x: 0, y: 0, rot: 0 } }], pickup: null, turnsLeft: 3, total: 3 };
+    const job: Job = { kind: "refit", moves: [{ itemId: gun.id, from: { x: gun.x, y: gun.y, rot: gun.rot }, to: { x: 0, y: 0, rot: 0 } }], pickup: null, queue: [], turnsLeft: 3, total: 3 };
     expect(en(jobLabel(w, me, job))).toBe(`Refit ${en(partName(gun.kind === "part" ? gun.part.defId : ""))}`);
   });
 });
@@ -763,7 +783,7 @@ describe("wake-up log", () => {
   });
 });
 
-describe("Fury Road log lines", () => {
+describe("Chaos Highway log lines", () => {
   it("tells an outpost arrival with its pay once, and the run's end", () => {
     const w = emptyWorld();
 
@@ -812,7 +832,7 @@ describe("a finished search in the log", () => {
 });
 
 describe("the discovery line", () => {
-  it("is cut for a Fury Road outpost, whose label and pay line already name it", () => {
+  it("is cut for a Chaos Highway outpost, whose label and pay line already name it", () => {
     expect(eventText(emptyWorld(), { t: "discover", location: "outpost-1" })).toBeNull();
     expect(eventText(emptyWorld(), { t: "discover", location: "outpost-12" })).toBeNull();
   });
@@ -836,7 +856,7 @@ describe("site event log lines", () => {
   it("tell a surge under see all", () => {
     resetSeeAll();
     toggleSeeAll();
-    expect(logEn(emptyWorld(), surge)?.text).toBe(`${en(siteName("pump-station"))} turns out extra fuel drums today.`);
+    expect(logEn(emptyWorld(), surge)?.text).toBe(`${en(siteName("pump-station"))} turns out extra petrol today.`);
     resetSeeAll();
   });
 });
@@ -1018,6 +1038,39 @@ describe("survey contract text", () => {
     expect(en(jobLabel(w, w.vehicles[0], job))).toBe(`Survey the ${en(t(`contract.place.${first.type}`))}`);
     expect(eventText(w, { t: "job", vehicle: w.player.vehicleId, job, outcome: "done" })).toBeNull();
     expect(en(eventText(w, { t: "job", vehicle: w.player.vehicleId, job, outcome: "started" })!.text)).toContain(`Survey the ${en(t(`contract.place.${first.type}`))}`);
+  });
+});
+
+describe("the log names only trucks the player sees", () => {
+  function scene() {
+    const w = emptyWorld();
+    const far = addVehicle(w, "independent", "buggy", [], { x: 100, y: 100 });
+    const near = addVehicle(w, "independent", "buggy", [], { x: 30, y: 30 });
+    w.player.visible = [Math.floor(near.pos.y) * w.size + Math.floor(near.pos.x)];
+    w.player.contacts = [far, near].map((v) => ({ vehicleId: v.id, center: v.pos, radius: 8, sources: ["sound" as const], loudness: 1 }));
+    return { w, far, near };
+  }
+  const samples: ((id: string, other: string) => GameEvent)[] = [
+    (id) => ({ t: "partDisabled", vehicle: id, part: "p1" } as GameEvent),
+    (id, other) => ({ t: "towHitched", by: id, client: other } as GameEvent),
+    (id) => ({ t: "claymoreCookOff", vehicle: id, part: "p1", pos: { x: 0, y: 0 }, hits: [] } as GameEvent),
+  ];
+
+  it.each(samples.map((make, i) => [i, make] as const))("sample %i is silent for a heard truck and shown in sight", (_, make) => {
+    const { w, far, near } = scene();
+    expect(eventText(w, make(far.id, "none"))).toBeNull();
+    expect(eventText(w, make(near.id, "none"))).not.toBeNull();
+  });
+
+  it("shows everything with the full log", () => {
+    const { w, far } = scene();
+    w.player.fullLog = true;
+    expect(eventText(w, samples[0](far.id, "none"))).not.toBeNull();
+  });
+
+  it("shows an event with the player's own truck far from anything", () => {
+    const { w, far } = scene();
+    expect(eventText(w, samples[1](w.player.vehicleId, far.id))).not.toBeNull();
   });
 });
 

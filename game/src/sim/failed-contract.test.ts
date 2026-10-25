@@ -57,7 +57,7 @@ describe('a failed contract', () => {
 
   it('moves no standing on Chaos Highway', () => {
     const before = atBowlHolding(haul());
-    before.setup = { ...before.setup, mode: 'furyRoad' };
+    before.setup = { ...before.setup, mode: 'chaosHighway' };
     const w = missed(before);
 
     expect(w.player.deeds).toEqual([]);

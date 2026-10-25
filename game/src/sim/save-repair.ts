@@ -3,7 +3,7 @@ import { GOODS } from '../data/goods';
 import { HUB, LINE_IDS, REFUSED, TOPICS } from '../data/dialogue';
 import { isNoteId } from '../data/locals';
 import { SHOPS, SITE_EVENTS, shopDef } from '../data/market';
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { FACTIONS } from '../data/npc-behavior';
 import { FIRST_NAMES, NPCS, SURNAMES, TRAITS } from '../data/npcs';
 import { PARTS, partDef } from '../data/parts';
@@ -115,11 +115,11 @@ function fitSites(world: World): void {
 }
 
 function isWaveTemplate(id: string): boolean {
-  return Object.hasOwn(NPCS, id) && Object.hasOwn(FURY_ROAD.cards, id);
+  return Object.hasOwn(NPCS, id) && Object.hasOwn(CHAOS_HIGHWAY.cards, id);
 }
 
 function fitWaves(world: World): void {
-  for (const group of world.furyRoad?.groups ?? []) {
+  for (const group of world.chaosHighway?.groups ?? []) {
     if (group.spawned) continue;
     group.templates = group.templates.filter(isWaveTemplate);
     if (group.templates.length === 0) group.spawned = true;
@@ -174,7 +174,7 @@ function dropGoneContent(world: World): void {
 }
 
 function outpostsOf(world: World): OutpostFacts[] {
-  return world.furyRoad ? world.furyRoad.outposts : [];
+  return world.chaosHighway ? world.chaosHighway.outposts : [];
 }
 
 function stripSalvage(stock: SalvageStock): void {
@@ -222,7 +222,7 @@ function jobUses(job: Job, ids: ReadonlySet<string>): boolean {
 }
 
 function refitUses(job: RefitJob, ids: ReadonlySet<string>): boolean {
-  return job.moves.some((m) => ids.has(m.itemId)) || pickupUses(job.pickup, ids);
+  return [job, ...job.queue].some((step) => step.moves.some((m) => ids.has(m.itemId)) || pickupUses(step.pickup, ids));
 }
 
 function pickupUses(pickup: RefitPickup | null, ids: ReadonlySet<string>): boolean {
@@ -271,7 +271,7 @@ function dropHulks(world: World): void {
 }
 
 function ownTruckIds(world: World): Set<string> {
-  return new Set([world.player.vehicleId, ...(world.furyRoad ? [world.furyRoad.hauler.id] : [])]);
+  return new Set([world.player.vehicleId, ...(world.chaosHighway ? [world.chaosHighway.hauler.id] : [])]);
 }
 
 function repairTrucks(world: World, doomed: Set<string>): void {
@@ -414,7 +414,7 @@ function allParts(world: World): PartInstance[] {
     ...world.player.storage,
     ...world.salvage.flatMap((s) => [...s.parts, ...s.hidden.parts]),
     ...Object.values(world.shops).flatMap((s) => s.stock),
-    ...(world.furyRoad?.outposts ?? []).flatMap((o) => o.stock),
+    ...(world.chaosHighway?.outposts ?? []).flatMap((o) => o.stock),
   ];
 }
 

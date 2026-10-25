@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import FORMAT_2_111 from './save-fixtures/format-2-111.json';
+import FORMAT_2_114 from './save-fixtures/format-2-114.json';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { playerVehicle } from '../sim/damage';
@@ -14,11 +14,11 @@ import { loadWorld, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
 
-type Saved = typeof FORMAT_2_111;
+type Saved = typeof FORMAT_2_114;
 type SavedCall = Saved['player']['call'];
 
-const step = (world: unknown): Saved => TINY_STEPS[111 - TINY_FROM].step(structuredClone(world) as SavedJson) as unknown as Saved;
-const fixture = () => structuredClone(FORMAT_2_111);
+const step = (world: unknown): Saved => TINY_STEPS[114 - TINY_FROM].step(structuredClone(world) as SavedJson) as unknown as Saved;
+const fixture = () => structuredClone(FORMAT_2_114);
 const STRAIGHT = { kind: 'directions', steps: [{ do: 'straight', octant: 'east', span: 'near' }] };
 
 function withCall(call: Record<string, unknown>): Saved {
@@ -26,7 +26,7 @@ function withCall(call: Record<string, unknown>): Saved {
   return { ...saved, player: { ...saved.player, call: call as unknown as SavedCall } };
 }
 
-describe('save migration 111 to 112, a told wreck names its square', () => {
+describe('save migration 114 to 115, a told wreck names its square', () => {
   it('ends an open wreck call that has no square and keeps the told wreck', () => {
     const next = step(fixture());
     expect(next.player.call).toBeNull();

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { atlasOf } from './atlas';
 import { playerVehicle } from './damage';
-import { driveOn } from './fury-road';
+import { driveOn } from './chaos-highway';
 import { highwayMap, windowShift } from './highway';
 import { playerFields, replay, replayBySession, RunStream, scopeOf, statesByHolder, truckFields, worldPos, type StreamLine } from './run-stream';
 import { addVehicle, emptyWorld, parkedAtOutpost, startCombat } from './testkit';

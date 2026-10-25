@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { BASIC_IDS } from '../data/skills';
 import { hasBasic } from './progress';
 import { PARTS, partDef } from '../data/parts';
@@ -12,46 +12,46 @@ import { getResources } from './resources';
 import { fuelCap, vehicleStats } from './stats';
 import { mountedParts } from './grid';
 import { NPCS } from '../data/npcs';
-import { betweenLevels, canDriveOn, furyRoadReadout, outpostFactsAt, reachedOutpostAt, spawnGroup, driveOn, waveGear, waveOf } from './fury-road';
+import { betweenLevels, canDriveOn, chaosHighwayReadout, outpostFactsAt, reachedOutpostAt, spawnGroup, driveOn, waveGear, waveOf } from './chaos-highway';
 import { planHaulerOrder } from './hauler';
 import { endTurn } from './world';
-import { cardsOf } from './fury-road-director';
+import { cardsOf } from './chaos-highway-director';
 import { generateNpcLoadout } from './npc-loadout';
 import { rollPartStockPerKind } from './market';
 import { alongOf, toRoad } from './highway';
-import { furyRoadStart, furyRoadWorld } from './testkit';
+import { chaosHighwayStart, chaosHighwayWorld } from './testkit';
 import { RULES } from '../data/rules';
 import { sideReach } from './rig';
 import { yardSpots } from './outpost-gates';
 import { dist } from './vec';
 import type { Vehicle } from './types';
 
-function partsOf(w: ReturnType<typeof furyRoadWorld>) {
+function partsOf(w: ReturnType<typeof chaosHighwayWorld>) {
   return playerVehicle(w).items.flatMap((it) => (it.kind === 'part' ? [it] : []));
 }
 
-describe('Fury Road starter kit', () => {
+describe('Chaos Highway starter kit', () => {
   it('starts every skill at rank 1, so every basic is open', () => {
-    const w = furyRoadStart(3);
+    const w = chaosHighwayStart(3);
     expect(Object.values(w.player.ranks)).toEqual([1, 1, 1, 1, 1]);
     expect(BASIC_IDS.every((basic) => hasBasic(w, basic))).toBe(true);
   });
 
   it('is a scout with one machine gun, no armor and the start money on every seed', () => {
     for (const seed of [1, 3, 99]) {
-      const w = furyRoadStart(seed);
+      const w = chaosHighwayStart(seed);
       expect(playerVehicle(w).chassisId).toBe('scout');
       const parts = partsOf(w).filter((it) => partDef(it.part.defId).kind !== 'core');
       expect(parts.map((it) => it.part.defId).sort()).toEqual(['mg', 'stockEngine']);
-      expect(w.player.money).toBe(startKit('furyRoad').money);
+      expect(w.player.money).toBe(startKit('chaosHighway').money);
     }
   });
 });
 
-describe('Fury Road start outpost', () => {
+describe('Chaos Highway start outpost', () => {
   it('starts both trucks parked on the paid pad of outpost 0, where the player can shop and wait for the road', () => {
     for (const seed of [1, 3, 99]) {
-      const w = furyRoadStart(seed);
+      const w = chaosHighwayStart(seed);
       expect(outpostFactsAt(w, 0).paid).toBe(true);
       expect(reachedOutpostAt(w)?.id).toBe('outpost-0');
       expect(reachedOutpostAt(w, haulerOf(w))?.id).toBe('outpost-0');
@@ -61,34 +61,34 @@ describe('Fury Road start outpost', () => {
   });
 
   it('spawns no group before the road opens', () => {
-    let w = furyRoadStart(3);
+    let w = chaosHighwayStart(3);
     for (let i = 0; i < 40; i++) w = endTurn(w, () => {});
-    expect(w.furyRoad!.groups.some((g) => g.spawned)).toBe(false);
+    expect(w.chaosHighway!.groups.some((g) => g.spawned)).toBe(false);
     expect(haulerOf(w).speed).toBe(0);
   });
 
   it('opens stretch 1 on the same window at the wait, with the hauler setting off for outpost 1', () => {
-    const w = driveOn(furyRoadStart(3));
-    expect(w.furyRoad!.window).toBe(0);
-    expect(w.furyRoad!.waitingAt).toBeNull();
+    const w = driveOn(chaosHighwayStart(3));
+    expect(w.chaosHighway!.window).toBe(0);
+    expect(w.chaosHighway!.waitingAt).toBeNull();
     expect(w.events).toContainEqual({ t: 'roadOpened', stretch: 1 });
-    expect(furyRoadReadout(w)?.stretch).toBe(1);
+    expect(chaosHighwayReadout(w)?.stretch).toBe(1);
     planHaulerOrder(w);
     expect(haulerOf(w).order?.kind).toBe('through');
   });
 });
 
-describe('Fury Road hauler', () => {
+describe('Chaos Highway hauler', () => {
   it('starts every run with the player truck and a hauler of the hauler kit, with a full tank and no brain', () => {
     for (const seed of [1, 3, 99]) {
-      const w = furyRoadWorld(seed);
+      const w = chaosHighwayWorld(seed);
       const hauler = haulerOf(w);
       expect(playerTrucks(w).map((v) => v.id)).toEqual([w.player.vehicleId, hauler.id]);
       expect(hauler.chassisId).toBe(HAULER_KIT.chassis);
       expect(hauler.faction).toBe('player');
       expect(hauler.brain).toBeNull();
       expect(getResources(w, hauler)).toMatchObject({ fuel: fuelCap(hauler), supplies: HAULER_KIT.supplies, health: 100 });
-      expect(w.furyRoad!.hauler).toEqual({ id: hauler.id, alarmUntil: null });
+      expect(w.chaosHighway!.hauler).toEqual({ id: hauler.id, alarmUntil: null });
       const kinds = mountedParts(hauler).map((p) => partDef(p.defId).kind);
       expect(kinds.filter((k) => k === 'weapon')).toEqual([]);
       expect(kinds).toContain('engine');
@@ -97,7 +97,7 @@ describe('Fury Road hauler', () => {
 
   it('starts the trucks side by side at their yard spots, clear of each other', () => {
     for (const seed of [1, 3, 99]) {
-      const w = furyRoadStart(seed);
+      const w = chaosHighwayStart(seed);
       const hauler = haulerOf(w);
       const me = playerVehicle(w);
       expect(hauler.pos).toEqual(yardSpots(w, 0).hauler);
@@ -107,19 +107,19 @@ describe('Fury Road hauler', () => {
   });
 
   it('keeps the hauler own resources apart from the player', () => {
-    const w = furyRoadWorld(3);
+    const w = chaosHighwayWorld(3);
     expect(getResources(w, haulerOf(w))).not.toBe(w.player);
   });
 
   it('drives at a speed that is a real top speed for a heavy truck', () => {
-    const w = furyRoadWorld(3);
+    const w = chaosHighwayWorld(3);
     const speed = vehicleStats(w, haulerOf(w)).maxSpeed;
-    expect(speed).toBeGreaterThan(FURY_ROAD.hauler.cruise);
+    expect(speed).toBeGreaterThan(CHAOS_HIGHWAY.hauler.cruise);
     expect(speed).toBeLessThanOrEqual(chassisDef('semi').maxSpeed * 1.1);
   });
 
   it('names an owned truck and refuses any other', () => {
-    const w = furyRoadWorld(3);
+    const w = chaosHighwayWorld(3);
     expect(ownedTruck(w, haulerOf(w).id)).toBe(haulerOf(w));
     expect(() => ownedTruck(w, 'nobody')).toThrow(/does not own/);
   });
@@ -131,37 +131,37 @@ describe('Slug cannon name', () => {
   });
 });
 
-describe('Fury Road outpost stock', () => {
+describe('Chaos Highway outpost stock', () => {
   const kinds = [...new Set(GARAGE_STOCK.parts.map((p) => PARTS[p.value].kind))];
 
   it('holds five guns, six armor parts, two accessories, three of most other types and every store and scanner part, never two of the same part', () => {
     const wanted: Record<string, number> = { weapon: 5, armor: 6, accessory: 2, engine: 3, cargo: 3, utility: 3, store: 2, scanner: 1 };
     expect(kinds.sort()).toEqual(Object.keys(wanted).sort());
     for (const seed of [1, 3, 99]) {
-      const stock = outpostFactsAt(furyRoadWorld(seed), 1).stock;
+      const stock = outpostFactsAt(chaosHighwayWorld(seed), 1).stock;
       for (const kind of kinds) expect(stock.filter((p) => partDef(p.defId).kind === kind), `seed ${seed} ${kind}`).toHaveLength(wanted[kind]);
       expect(new Set(stock.map((p) => p.defId)).size).toBe(stock.length);
     }
   });
 
   it('refuses a count above the different parts a type has', () => {
-    const w = furyRoadWorld(1);
-    expect(() => rollPartStockPerKind(w, { rngState: 1 }, GARAGE_STOCK, { ...FURY_ROAD.stockPerKind, scanner: 2 }, 'test')).toThrow(/only 1/);
+    const w = chaosHighwayWorld(1);
+    expect(() => rollPartStockPerKind(w, { rngState: 1 }, GARAGE_STOCK, { ...CHAOS_HIGHWAY.stockPerKind, scanner: 2 }, 'test')).toThrow(/only 1/);
   });
 
   it('keeps the same stock through a save and load', () => {
-    const w = furyRoadWorld(5);
+    const w = chaosHighwayWorld(5);
     const before = outpostFactsAt(w, 1).stock;
     const loaded = JSON.parse(JSON.stringify(w));
-    expect(loaded.furyRoad.outposts[1].stock).toEqual(before);
+    expect(loaded.chaosHighway.outposts[1].stock).toEqual(before);
   });
 });
 
-describe('Fury Road first enemy', () => {
+describe('Chaos Highway first enemy', () => {
   function spawnedTrucks(seed: number, stretch: number, template: string, elite = false) {
-    const w = furyRoadWorld(seed);
-    const run = w.furyRoad!;
-    const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates: [template], level: waveOf(stretch).level, money: FURY_ROAD.cards[template].floor * (elite ? FURY_ROAD.director.elite.money : 1), elite };
+    const w = chaosHighwayWorld(seed);
+    const run = w.chaosHighway!;
+    const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates: [template], level: waveOf(stretch).level, money: CHAOS_HIGHWAY.cards[template].floor * (elite ? CHAOS_HIGHWAY.director.elite.money : 1), elite };
     run.groups = [group];
     spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos)));
     return group.vehicles.map((id) => w.vehicles.find((v) => v.id === id)!);
@@ -190,7 +190,7 @@ describe('Fury Road first enemy', () => {
   });
 
   it('carries no gun above the tier of its stretch, mounted or spare', () => {
-    const w = furyRoadWorld(3);
+    const w = chaosHighwayWorld(3);
     for (const stretch of [1, 3]) {
       for (const [template, card] of cardsOf(stretch)) {
         const gear = waveGear(template, stretch, card.floor, false);

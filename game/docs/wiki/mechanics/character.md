@@ -28,7 +28,7 @@ At rank 2 and rank 4 of each skill the player picks one of two perks. The bought
 - Driving 4, run and gun or run away. Steady aim: your own speed adds no scatter to your shots. Dust screen: at top speed on dusty ground, your dust blocks sight like a hill.
 - Perception 2, read people or track trucks. Read the driver: you see the traits of other drivers. Spotter: the N key marks a seen truck, and it stays tracked for a day.
 - Perception 4, loot sight or night sight. Cargo eye: you see the goods and spare parts in any seen truck. Night eyes: night does not halve your sight.
-- Machining 2, builder or scrapper. Welder: a field job turns 3 scrap metal into a scrap armor plate. Cannibal: removing a part from a wreck or a knocked-out truck takes one turn.
+- Machining 2, builder or scrapper. Welder: a field job turns 3 scrap metal into a scrap armor plate. Teardown: a knocked-out truck does not come to while you are taking a part off it.
 - Machining 4, pristine hunter or hired mechanic. Rebuild: a town garage can repair a junk part back to its last wear step, once per part. Road mechanic: stranded drivers radio you for patches and pay double.
 - Toughness 2, heat runner or storm runner. Desert rat: noon sun heats your engine like morning sun. Storm rider: dust storms do not cut your sight or aim.
 - Toughness 4, brawler or long hauler. Fight through: a broken cab, or a hit on a cab below half, does not knock you out while health is above half. Hits on any part then hurt you. Long haul: you heal while driving, not only while parked.

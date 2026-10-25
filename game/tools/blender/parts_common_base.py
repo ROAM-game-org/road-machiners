@@ -17,6 +17,7 @@ import math
 import bmesh
 import bpy
 from mathutils import Vector
+from mathutils.bvhtree import BVHTree
 
 from kit import CELL_ACROSS, CELL_ALONG, Kit, Vec3
 from parts_common_core import COLORS, FIT_SLACK
@@ -284,3 +285,90 @@ def cut_hulls(obj: bpy.types.Object, cutters: list[list[Vec3]]) -> None:
 def cut_boxes(obj: bpy.types.Object, boxes: list[tuple[Vec3, Vec3]]) -> None:
     """Subtracts axis-aligned boxes, each given as (min corner, max corner), from obj."""
     cut_hulls(obj, [[(x, y, z) for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])] for lo, hi in boxes])
+
+
+MAX_TWIST = 10.0
+SMALL_QUAD = 0.0016
+SMALL_TWIST = 30.0
+COPLANAR_GAP = 0.004
+SLIVER_EDGE = 0.03
+SLIVER_RATIO = 0.02
+SHRINK = 0.85
+
+
+def _world_triangles(obj: bpy.types.Object) -> bmesh.types.BMesh:
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.transform(obj.matrix_world)
+    bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    bm.faces.ensure_lookup_table()
+    return bm
+
+
+def _shrunk(bm: bmesh.types.BMesh) -> BVHTree:
+    verts = []
+    tris = []
+    for face in bm.faces:
+        center = face.calc_center_median()
+        base = len(verts)
+        verts += [center + (v.co - center) * SHRINK for v in face.verts]
+        tris.append((base, base + 1, base + 2))
+    return BVHTree.FromPolygons(verts, tris)
+
+
+def _at(point: Vector) -> str:
+    return f"({point.x:.3f}, {point.y:.3f}, {point.z:.3f})"
+
+
+def check_no_stacking(name: str, parts: list[bpy.types.Object]) -> None:
+    """Raises when two parts have triangles that intersect, or lie within COPLANAR_GAP on parallel faces.
+
+    Panels may touch on shared edges. They may not overlap, so no dark crack or flicker shows between them.
+    """
+    data = [(obj.name, _world_triangles(obj)) for obj in parts]
+    shrunk = [_shrunk(bm) for _, bm in data]
+    full = [BVHTree.FromBMesh(bm) for _, bm in data]
+    for i, (a_name, a_bm) in enumerate(data):
+        for j in range(i + 1, len(data)):
+            b_name, b_bm = data[j]
+            pairs = shrunk[i].overlap(shrunk[j])
+            if pairs:
+                where = a_bm.faces[pairs[0][0]].calc_center_median()
+                raise RuntimeError(f"{name}: {a_name} and {b_name} intersect at {_at(where)}, {len(pairs)} triangle pairs")
+            for first, second, tree, other in ((a_bm, b_bm, full[j], b_name), (b_bm, a_bm, full[i], a_name)):
+                owner = a_name if first is a_bm else b_name
+                for face in first.faces:
+                    center = face.calc_center_median()
+                    hit = tree.find_nearest(center, COPLANAR_GAP)
+                    if hit[0] is None:
+                        continue
+                    offset = hit[0] - center
+                    straight_on = offset.length < 1e-6 or abs(offset.normalized().dot(second.faces[hit[2]].normal)) > 0.9
+                    if straight_on and abs(second.faces[hit[2]].normal.dot(face.normal)) > 0.98 and face.calc_area() > 1e-5:
+                        raise RuntimeError(f"{name}: {owner} lies within {COPLANAR_GAP * 1000:.0f} mm of {other} on a parallel face at {_at(center)}")
+
+
+def check_clean_shell(name: str, parts: list[bpy.types.Object], slivers: bool = True, max_twist: float = MAX_TWIST) -> None:
+    """Raises when a quad folds more than MAX_TWIST degrees across its diagonal, or a triangle is a long thin sliver.
+
+    A quad under SMALL_QUAD (4 cm across) may fold up to SMALL_TWIST, since it shows under a pixel at game size.
+
+    Pass slivers=False and a wider max_twist for thin dark slabs, whose walls are as thin as the slab by design.
+    """
+    for obj in parts:
+        for poly in obj.data.polygons:
+            if len(poly.vertices) == 4:
+                co = [obj.matrix_world @ obj.data.vertices[k].co for k in poly.vertices]
+                n1 = (co[1] - co[0]).cross(co[2] - co[0])
+                n2 = (co[2] - co[0]).cross(co[3] - co[0])
+                if n1.length > 1e-12 and n2.length > 1e-12:
+                    fold = math.degrees(n1.angle(n2))
+                    if fold > (max_twist if poly.area >= SMALL_QUAD else max(SMALL_TWIST, max_twist)):
+                        raise RuntimeError(f"{name}: {obj.name} has a quad folding {fold:.0f} degrees across its diagonal at {_at(sum(co, Vector()) / 4)}")
+        bm = _world_triangles(obj)
+        for face in bm.faces if slivers else []:
+            verts = [v.co for v in face.verts]
+            longest = max((verts[k] - verts[k - 1]).length for k in range(3))
+            if longest > SLIVER_EDGE and face.calc_area() < SLIVER_RATIO * longest**2:
+                raise RuntimeError(f"{name}: {obj.name} has a sliver triangle, longest edge {longest:.3f} m, at {_at(face.calc_center_median())}")
+        bm.free()

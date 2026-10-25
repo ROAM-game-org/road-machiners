@@ -8,7 +8,7 @@ import { fullStock, stockTarget } from '../sim/market';
 import { DECISIONS, GEAR_LEVELS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, STATE_TURNS, TRAITS } from '../data/npcs';
 import type { Allegiance, WeightChange } from '../data/npcs';
 import { CHASSIS_PRICE_MODIFIERS } from '../data/chassis';
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { PHYSICS } from '../data/physics';
 import { PARTS, PART_PRICE_MODIFIERS } from '../data/parts';
 import type { PartDef, PartKind } from '../data/parts';
@@ -42,7 +42,7 @@ function allegianceText(rule: Allegiance): string {
 export type Cell = string | number | boolean | null | readonly unknown[] | object;
 export type WikiTable = { id: string; headers: string[]; rows: () => Cell[][] };
 
-const MECHANICS = ['character', 'truck', 'turns', 'defeat', 'detection', 'world', 'npcs', 'factions', 'crime', 'social', 'economy', 'content', 'world-settings', 'fury-road'];
+const MECHANICS = ['character', 'truck', 'turns', 'defeat', 'detection', 'world', 'npcs', 'factions', 'crime', 'social', 'economy', 'content', 'world-settings', 'chaos-highway'];
 
 export const PAGES: readonly string[] = [
   'README.md', 'items.md', 'combat.md', 'economy.md', 'npcs.md', 'skills.md', 'assets.md',
@@ -278,5 +278,5 @@ export const WIKI_ROOTS: Record<string, unknown> = {
   RULES, ECONOMY, EFFORT, CONTRACTS, PRICE_FACTOR, DISTANCE_PREMIUM, PRESSURE_MAX, PRODUCTION, RELIEF, ROAD_NEWS,
   PART_PRICE_MODIFIERS, CHASSIS_PRICE_MODIFIERS, CONDITION, WEAR, REPAIR, PATCH, SALVAGE, STRIP,
   NPC_BEHAVIOR, NPC_UPKEEP, HUNT, SPAWN, MIN_CHANCE, DETECT, TOW, XP_RULES, PERK_NUMBERS,
-  UNITS, TIME, PHYSICS, BREAKABLE, FURY_ROAD, CRIME,
+  UNITS, TIME, PHYSICS, BREAKABLE, CHAOS_HIGHWAY, CRIME,
 };

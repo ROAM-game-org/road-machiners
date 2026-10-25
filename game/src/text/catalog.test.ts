@@ -54,9 +54,9 @@ describe('item lore', () => {
 });
 
 describe('the catalog', () => {
-  it('describes Fury Road without the wreck tagline', () => {
+  it('describes Chaos Highway without the wreck tagline', () => {
     for (const locale of LOCALES) {
-      const text = entryText(locale, 'mode.furyRoad.description');
+      const text = entryText(locale, 'mode.chaosHighway.description');
       expect(text, locale).not.toMatch(/to the wreck|до обломков/i);
     }
   });
@@ -164,7 +164,7 @@ describe('the catalog', () => {
       'line.giveUpOffer', 'line.noWeFinishThis', 'line.thenWeFinishThis', 'line.vigilCall1', 'line.vigilCall3', 'line.driveIntoTheLight',
       'line.carsDraggedIntoTheDark', 'line.pullPaid', 'line.takeMeToSite', 'line.letsMove', 'line.lessonLawGates', 'line.lessonLawFirstShot',
       'line.lessonLawLonely', 'line.truceCost', 'line.weAlreadyTalkedAbout', 'line.weBothDriveAway', 'line.weCoveredThat', 'line.weWillSee',
-      'line.niceRigLetsSee', 'line.letsGo', 'line.courierSquareTip', 'line.letsCallItEven', 'line.yourLoadIsInThe', 'line.helpMeFirst',
+      'line.niceRigLetsSee', 'line.letsGo', 'line.courierSquareTip', 'line.letsCallItEven', 'line.yourLoadIsInThe', 'line.helpMeFirst', 'line.wordBroken',
     ]);
     const plural = /\b(we|us|our|ours)\b|\bwe['’]/i;
     const found = KEYS.filter((key) => key.startsWith('line.') && plural.test(entryText('en', key)) && !SHARED_WE.has(key));

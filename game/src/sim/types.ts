@@ -118,10 +118,11 @@ export type RefitPickup =
   | { from: 'stock'; stockId: string; partId: string; itemId: string; to: RefitMove['to'] }
   | { from: 'truck'; vehicleId: string; partId: string; itemId: string; to: RefitMove['to'] };
 
-export type RefitJob = {
+export type RefitStep = { moves: RefitMove[]; pickup: RefitPickup | null };
+
+export type RefitJob = RefitStep & {
   kind: 'refit';
-  moves: RefitMove[];
-  pickup: RefitPickup | null;
+  queue: RefitStep[];
   turnsLeft: number;
   total: number;
 };
@@ -240,6 +241,7 @@ export type Refusal =
   | { id: 'emptyRackFirst' }
   | { id: 'truckOutOfReach' }
   | { id: 'truckPartGone' }
+  | { id: 'partQueued' }
   | { id: 'looting'; by: string; place: 'here' | 'wreck' | 'truck' }
   | { id: 'needsSpotter' }
   | { id: 'needsBasic'; skill: SkillId }
@@ -620,6 +622,7 @@ export type GameEvent =
   | { t: 'stateEnded'; state: NpcState; ending: StateEnding }
   | { t: 'lookedOver'; by: string; target: string }
   | { t: 'job'; vehicle: string; job: Job; outcome: 'started' | 'done' | 'cancelled' }
+  | { t: 'job'; vehicle: string; job: RefitJob; outcome: 'skipped'; reason: Refusal }
   | { t: 'breakdown'; vehicle: string; part: string }
   | { t: 'searched'; stock: string }
   | { t: 'weather'; event: WeatherEvent; outcome: 'started' | 'ended' }
@@ -649,7 +652,7 @@ export type GameEvent =
   | { t: 'asked'; by: string; of: string; target: string; told: boolean }
   | { t: 'huntWithdrawn'; by: string; target: string; posse: CasePosse };
 
-export type GameModeId = 'roaming' | 'furyRoad';
+export type GameModeId = 'roaming' | 'chaosHighway';
 export type ModeRules = { traffic: boolean; looting: boolean; npcKnockouts: boolean; playerKnockouts: boolean; yielding: boolean; radio: boolean; rescue: boolean; roadWrecks: boolean; run: boolean; standing: boolean; bounties: boolean };
 export type MapKind = 'icarus' | 'highway';
 export type RunLossCause = 'wrecked' | 'abandoned' | 'haulerLost';
@@ -671,7 +674,7 @@ export type WaveGroup = {
   retryUntil: number | null;
 };
 export type GroupSide = 'ahead' | 'left' | 'right';
-export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; waitingAt: number | null; hauler: HaulerFacts };
+export type ChaosHighwayRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; waitingAt: number | null; hauler: HaulerFacts };
 export type WorldSettings = { damage: number; fuelUse: number; supplyUse: number; enemyGearGrowth: number };
 export type WorldSetup = { mode: GameModeId; settings: WorldSettings };
 
@@ -745,7 +748,7 @@ export type World = {
   flares: Flare[];
   lines: HarpoonLine[];
   searchRng: Rng;
-  furyRoad: FuryRoadRun | null;
+  chaosHighway: ChaosHighwayRun | null;
   sunward: SunwardFacts | null;
   crimes: CrimeCase[];
 };

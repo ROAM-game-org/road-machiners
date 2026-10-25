@@ -35,7 +35,7 @@
   align-items: stretch;
   gap: var(--space-2);
 }
-.options .sound-row .radio-mute {
+.options .sound-row .sound-mute {
   align-items: center;
   margin-left: var(--space-2);
 }

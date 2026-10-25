@@ -1,12 +1,12 @@
 import { beforeAll, expect, it } from 'vitest';
-import { FURY_ROAD, HIGHWAY } from '../data/modes';
+import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { haulerOf } from '../sim/damage';
 import { advanceFar } from '../sim/far';
 import { setHeadless } from '../sim/fidelity';
-import { moveWindow } from '../sim/fury-road';
+import { moveWindow } from '../sim/chaos-highway';
 import { acrossOf, alongOf, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { stretchLayout } from '../sim/road-hazards';
-import { furyRoadWorld, parkInYard, sendGunTruckAway } from '../sim/testkit';
+import { chaosHighwayWorld, parkInYard, sendGunTruckAway } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn } from '../sim/world';
 import { budget } from '../test/budget';
@@ -28,16 +28,16 @@ function seedWithRoadblock(stretch: number): number {
 }
 
 function worldAtWindow(seed: number, window: number): World {
-  const w = furyRoadWorld(seed);
+  const w = chaosHighwayWorld(seed);
   for (let milestone = 1; milestone <= window; milestone++) {
     parkInYard(w, milestone);
-    w.furyRoad!.outposts.find((o) => o.milestone === milestone)!.paid = true;
-    w.furyRoad!.waitingAt = milestone;
-    w.furyRoad!.groups = [];
+    w.chaosHighway!.outposts.find((o) => o.milestone === milestone)!.paid = true;
+    w.chaosHighway!.waitingAt = milestone;
+    w.chaosHighway!.groups = [];
     moveWindow(w);
-    w.furyRoad!.waitingAt = null;
+    w.chaosHighway!.waitingAt = null;
   }
-  w.furyRoad!.groups = [];
+  w.chaosHighway!.groups = [];
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   return w;
 }
@@ -52,7 +52,7 @@ it.each(CASES)('drives the hauler around a stretch $stretch roadblock on its own
   hauler.pos = roadPoint(seed, window, start, HIGHWAY.road.lanes[lane]);
   const ahead = roadPoint(seed, window, start + 4, HIGHWAY.road.lanes[lane]);
   hauler.heading = Math.atan2(ahead.y - hauler.pos.y, ahead.x - hauler.pos.x);
-  hauler.speed = FURY_ROAD.hauler.cruise;
+  hauler.speed = CHAOS_HIGHWAY.hauler.cruise;
   sendGunTruckAway(w);
   let drive: Drive = buildDrive(w);
   let hits = 0;

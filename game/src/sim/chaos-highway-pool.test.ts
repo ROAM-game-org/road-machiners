@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { haulerOf } from './damage';
 import { advanceFar } from './far';
-import { spawnGroup, waveOf } from './fury-road';
+import { spawnGroup, waveOf } from './chaos-highway';
 import { alongOf, toRoad } from './highway';
 import { vehicleStats } from './stats';
-import { furyRoadWorld } from './testkit';
+import { chaosHighwayWorld } from './testkit';
 import { dist } from './vec';
 import type { GameEvent, World } from './types';
 import { endTurn } from './world';
@@ -17,8 +17,8 @@ function moveAllFar(w: World): void {
 }
 
 function loneGroup(template: string): World {
-  const w = furyRoadWorld(5);
-  const run = w.furyRoad!;
+  const w = chaosHighwayWorld(5);
+  const run = w.chaosHighway!;
   const group = { ...run.groups[0], from: 'ahead' as const, templates: [template], level: waveOf(6).level };
   run.groups = [group];
   spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, haulerOf(w).pos)));
@@ -31,11 +31,11 @@ function meetsHauler(e: GameEvent, id: string, me: string): boolean {
   return e.t === 'destroyed' && e.vehicle === id;
 }
 
-describe('every Fury Road card as a hostile', () => {
-  for (const template of Object.keys(FURY_ROAD.cards)) {
+describe('every Chaos Highway card as a hostile', () => {
+  for (const template of Object.keys(CHAOS_HIGHWAY.cards)) {
     it(`closes on the hauler as a ${template}, and shoots it, rams it or is wrecked, with no flight and no stall`, () => {
       let w = loneGroup(template);
-      const id = w.furyRoad!.groups[0].vehicles[0];
+      const id = w.chaosHighway!.groups[0].vehicles[0];
       const armed = vehicleStats(w, w.vehicles.find((v) => v.id === id)!).weapons.length > 0;
       const seen: GameEvent[] = [];
       let closest = Infinity;

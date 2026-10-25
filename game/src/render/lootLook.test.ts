@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PAL } from './palette';
-import { LOOT_LOOK, lootColor } from './lootLook';
+import { LOOT_LOOK, lightnessOf, lootColor, lootContrast } from './lootLook';
 
 function hsl(hex: number): { h: number; s: number; l: number } {
   const r = ((hex >> 16) & 255) / 255;
@@ -31,7 +31,18 @@ describe('loot look', () => {
     }
   });
 
-  it('keeps a gray gray', () => {
-    expect(lootColor(0x777777)).toBe(0x777777);
+  it('lightens a gray and keeps it gray', () => {
+    const lifted = lootColor(0x777777);
+    expect(lifted & 255).toBe((lifted >> 8) & 255);
+    expect((lifted >> 8) & 255).toBe((lifted >> 16) & 255);
+    expect(lightnessOf(lifted)).toBeGreaterThan(lightnessOf(0x777777));
+    expect(lootContrast(0x777777, lifted)).toBeGreaterThanOrEqual(LOOT_LOOK.minContrast);
+  });
+
+  it('never lifts a pale colour above the lightness cap', () => {
+    for (const hex of [0xe8e0d0, 0xf5f5f5, 0xffffff, 0xd9c9a0]) {
+      const before = hsl(hex).l;
+      expect(hsl(lootColor(hex)).l).toBeLessThanOrEqual(Math.max(before, LOOT_LOOK.maxLightness) + 0.01);
+    }
   });
 });

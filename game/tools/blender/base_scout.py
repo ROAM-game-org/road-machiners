@@ -40,6 +40,7 @@ from parts_common_base import (  # noqa: E402
     hull_mesh,
     level_sockets,
 )
+from parts_common_core import PROUD  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 301
@@ -169,12 +170,12 @@ def nose(kit: Kit) -> None:
     kit.box("grille", (0.04, 2 * (LAMP_Y - 0.15), 0.2), (face_x, 0, 0.06), "under")
     mirrored(kit, "lamp", (0.04, 0.26, 0.18), face_x, LAMP_Y, 0.06, "light")
     mirrored(kit, "indicator", (0.04, 0.12, 0.08), face_x, SIDE - 0.08, -0.1, "light")
-    kit.box("bumper", (0.18, 2 * SIDE - 0.02, 0.26), (LENGTH / 2 - 0.09, 0, BODY_BOTTOM + 0.1), "under")
+    kit.box("bumper", (0.18, 2 * SIDE - 0.06, 0.26), (LENGTH / 2 - 0.09, 0, BODY_BOTTOM + 0.1), "under")
 
 
 def cab(kit: Kit) -> None:
     """A regular cab: painted doors to the beltline, a leaning glasshouse under a narrower painted roof, raked windshield, pillars and a rear window."""
-    kit.box("doors", (COWL_X - CAB_BACK, 2 * SIDE, BELT - FLOOR), ((COWL_X + CAB_BACK) / 2, 0, (BELT + FLOOR) / 2), "paint")
+    kit.box("doors", (COWL_X - CAB_BACK - PROUD, 2 * (SIDE - PROUD), BELT - FLOOR - PROUD), ((COWL_X + CAB_BACK + PROUD) / 2, 0, (BELT - PROUD + FLOOR) / 2), "paint")
     low, high = SIDE - 0.045, SIDE - 0.14
     glass = [(x, s * y, z) for x, y, z in ((COWL_X, low, COWL_TOP), (CAB_BACK + 0.03, low, BELT), (ROOF_FRONT, high, UNDER_ROOF), (CAB_BACK + 0.03, high, UNDER_ROOF + ROOF_T / 2)) for s in (1, -1)]
     hull(kit, "glass", "glass", glass)
@@ -183,7 +184,7 @@ def cab(kit: Kit) -> None:
         hull(kit, f"a_pillar_{name}", "paint", [(x, sign * (y + 0.025), z) for x, y, z in a] + [(x, sign * (y - 0.06), z) for x, y, z in a])
         c = [(CAB_BACK, low, BELT), (CAB_BACK + 0.26, low, BELT), (CAB_BACK + 0.2, high, UNDER_ROOF), (CAB_BACK, high, UNDER_ROOF)]
         hull(kit, f"c_pillar_{name}", "paint", [(x, sign * (y + 0.025), z) for x, y, z in c] + [(x, sign * (y - 0.06), z) for x, y, z in c])
-    kit.box("back_wall", (0.06, 2 * (low + 0.025), UNDER_ROOF - BELT), (CAB_BACK + 0.03, 0, (BELT + UNDER_ROOF) / 2), "paint")
+    kit.box("back_wall", (0.05, 2 * (low + 0.025), UNDER_ROOF - BELT), (CAB_BACK + 0.035, 0, (BELT + UNDER_ROOF) / 2), "paint")
     kit.box("back_glass", (0.02, 2 * (high - 0.12), UNDER_ROOF - BELT - 0.16), (CAB_BACK - 0.005, 0, (BELT + UNDER_ROOF) / 2 + 0.02), "glass")
     roof_half = high + 0.025
     layers = [(UNDER_ROOF, ROOF_FRONT + 0.03, CAB_BACK, roof_half + 0.03), (ROOF, ROOF_FRONT, CAB_BACK, roof_half)]
@@ -194,11 +195,11 @@ def bed(kit: Kit) -> None:
     """A long separate bed: thin painted walls to the beltline, a front wall, a tailgate, tall corner taillights and a step bumper."""
     length = BED_FRONT - BACK
     mid = (BED_FRONT + BACK) / 2
-    h = BELT - FLOOR
-    mirrored(kit, "bed_side", (length, BED_WALL, h), mid, SIDE - BED_WALL / 2, FLOOR + h / 2, "paint")
+    h = BELT - FLOOR - PROUD
+    mirrored(kit, "bed_side", (length, BED_WALL, h), mid, SIDE - PROUD - BED_WALL / 2, FLOOR + h / 2, "paint")
     kit.box("bed_front", (BED_WALL, 2 * (SIDE - BED_WALL), h), (BED_FRONT - BED_WALL / 2, 0, FLOOR + h / 2), "paint")
     kit.box("tailgate", (BED_WALL, 2 * (SIDE - BED_WALL), h), (BACK + BED_WALL / 2, 0, FLOOR + h / 2), "paint")
-    kit.box("rear_panel", (0.04, 2 * SIDE, FLOOR - BODY_BOTTOM), (BACK + 0.02, 0, (FLOOR + BODY_BOTTOM) / 2), "paint")
+    kit.box("rear_panel", (0.04, 2 * SIDE - 2 * PROUD, FLOOR - BODY_BOTTOM), (BACK + 0.02, 0, (FLOOR + BODY_BOTTOM) / 2), "paint")
     mirrored(kit, "taillight", (0.04, 0.14, 0.42), BACK - 0.02, SIDE - 0.08, BELT - 0.25, "red")
     kit.box("rear_bumper", (0.18, 2 * SIDE - 0.1, 0.18), (-LENGTH / 2 + 0.09, 0, BODY_BOTTOM - 0.05), "under")
 

@@ -2,10 +2,10 @@ import { beforeAll, expect, it } from 'vitest';
 import { alongOf, roadPoint, toRoad } from '../sim/highway';
 import { groupPrey } from '../sim/combat';
 import { haulerOf, playerVehicle } from '../sim/damage';
-import { spawnGroup, waveOf } from '../sim/fury-road';
+import { spawnGroup, waveOf } from '../sim/chaos-highway';
 import { followMove } from '../sim/progression/escort-brain';
 import { vehicleStats } from '../sim/stats';
-import { furyRoadWorld } from '../sim/testkit';
+import { chaosHighwayWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, setMoveOrder } from '../sim/world';
 import { budget } from '../test/budget';
@@ -26,12 +26,12 @@ type Gun = 'escort' | 'charge';
 type Meeting = { leads: number[]; reach: number; shots: number; stalls: number; beatenAt: number | null };
 
 function alongOfTruck(w: World, id: string): number {
-  return alongOf(w.seed, toRoad(w.seed, w.furyRoad!.window, w.vehicles.find((v) => v.id === id)!.pos));
+  return alongOf(w.seed, toRoad(w.seed, w.chaosHighway!.window, w.vehicles.find((v) => v.id === id)!.pos));
 }
 
 function meetGroup(seed: number, gun: Gun): Meeting {
-  let w = furyRoadWorld(seed);
-  const run = w.furyRoad!;
+  let w = chaosHighwayWorld(seed);
+  const run = w.chaosHighway!;
   const group = { ...run.groups[0], stretch: 1, from: 'ahead' as const, templates: ['buggy'], level: waveOf(1).level };
   run.groups = [group];
   spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, haulerOf(w).pos)));

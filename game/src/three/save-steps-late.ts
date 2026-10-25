@@ -582,18 +582,42 @@ export function withCasePosse_110_111(world: SavedJson): SavedJson {
   return { ...world, crimes: crimes.map((c) => ({ ...c, posse: LONE_POSSE_110_111 })) };
 }
 
-const WRECK_WAY_LINE_111 = 'wreckWay';
+export function withRefitQueues_112_113(world: SavedJson): SavedJson {
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withRefitQueue_112_113) };
+}
 
-function isWreckCall_111_112(call: SavedJson): boolean {
+function withRefitQueue_112_113(v: SavedJson): SavedJson {
+  const job = v.job as SavedJson | null;
+  if (job?.kind !== 'refit' || Array.isArray(job.queue)) return v;
+  return { ...v, job: { ...job, queue: [] } };
+}
+
+const OLD_MODE_113_114 = 'furyRoad';
+const NEW_MODE_113_114 = 'chaosHighway';
+
+export function chaosHighwayMode_113_114(mode: unknown): unknown {
+  return mode === OLD_MODE_113_114 ? NEW_MODE_113_114 : mode;
+}
+
+export function withChaosHighwayName_113_114(world: SavedJson): SavedJson {
+  if (!('furyRoad' in world)) throw new Error('A world at format 113 holds no Chaos Highway run key');
+  const { furyRoad, ...rest } = world;
+  const setup = world.setup as SavedJson;
+  return { ...rest, chaosHighway: furyRoad, setup: { ...setup, mode: chaosHighwayMode_113_114(setup.mode) } };
+}
+
+const WRECK_WAY_LINE_114 = 'wreckWay';
+
+function isWreckCall_114_115(call: SavedJson): boolean {
   const vars = call.vars as SavedJson;
   const line = call.line as SavedJson;
   const toldWay = vars.way !== undefined && vars.site === undefined && vars.town === undefined;
-  return (line.line === WRECK_WAY_LINE_111 || toldWay) && vars.square === undefined;
+  return (line.line === WRECK_WAY_LINE_114 || toldWay) && vars.square === undefined;
 }
 
-export function withWreckSquares_111_112(world: SavedJson): SavedJson {
+export function withWreckSquares_114_115(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
-  if (!call || !isWreckCall_111_112(call)) return world;
+  if (!call || !isWreckCall_114_115(call)) return world;
   return { ...world, player: { ...player, call: null } };
 }

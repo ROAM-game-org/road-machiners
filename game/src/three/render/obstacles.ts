@@ -31,7 +31,7 @@ const CRATES_RADIUS = 1.5;
 const PILE_FULL_UNITS = 20;
 const PILE_MIN_SIZE = 0.5;
 
-type LootSwatch = { material: THREE.MeshLambertMaterial; plain: number; loot: number };
+export type LootSwatch = { material: THREE.MeshLambertMaterial; plain: number; loot: number };
 
 export class ObstacleViews {
   private readonly byId = new Map<string, THREE.Object3D>();
@@ -124,7 +124,7 @@ export class ObstacleViews {
       m.updateMatrix();
       m.matrixAutoUpdate = false;
     });
-    this.swatches.set(o.id, (obj.userData.lootSwatches as LootSwatch[] | undefined) ?? lootSwatches(obj));
+    this.swatches.set(o.id, lootSwatchesOf(obj));
     this.scope.add(obj, o.pos, viewReach(o));
     this.byId.set(o.id, obj);
     if (obj.userData.glow) this.glows.set(o.id, obj.userData.glow as Glow);
@@ -142,7 +142,7 @@ export class ObstacleViews {
   }
 
   private slideGates(playing: boolean, world: World, dt: number): void {
-    if (!world.furyRoad) return;
+    if (!world.chaosHighway) return;
     this.gates ??= new OutpostGateViews(this.scope, this.terrain, world);
     if (this.gates.frame(world, playing, dt)) this.onGatesShut();
   }
@@ -227,7 +227,10 @@ export class ObstacleViews {
     const obj = model('crates');
     obj.position.set(stock.pos.x * S, heightAt(this.terrain, stock.pos.x, stock.pos.y) * S, stock.pos.y * S);
     obj.rotation.y = hashStr(stock.id) * Math.PI * 2;
-    obj.traverse((o) => (o.matrixAutoUpdate = false));
+    obj.traverse((o) => {
+      o.updateMatrix();
+      o.matrixAutoUpdate = false;
+    });
     paintSwatches(lootSwatches(obj), 'loot');
     const pile = { obj, units: 0 };
     this.scope.add(obj, stock.pos, CRATES_RADIUS / S);
@@ -341,12 +344,17 @@ function char(obj: THREE.Object3D): LootSwatch[] {
     if (!(mat instanceof THREE.MeshLambertMaterial)) throw new Error(`Hulk mesh ${o.name} has material ${mat.type}, expected one Lambert material`);
     const paint = mat.color.getHex();
     const plain = new THREE.Color(grayed(paint, 1)).multiplyScalar(HULK_TONE).getHex();
-    const loot = new THREE.Color(grayed(paint, 1 - LOOT_LOOK.hulkPaint)).multiplyScalar(HULK_TONE).getHex();
+    const painted = new THREE.Color(grayed(paint, 1 - LOOT_LOOK.hulkPaint)).multiplyScalar(HULK_TONE).getHex();
+    const loot = lootColor(plain, painted);
     mat.color.setHex(plain);
     mat.emissive.setHex(0x000000);
     swatches.push({ material: mat, plain, loot });
   });
   return swatches;
+}
+
+export function lootSwatchesOf(prop: THREE.Object3D): LootSwatch[] {
+  return (prop.userData.lootSwatches as LootSwatch[] | undefined) ?? lootSwatches(prop);
 }
 
 function lootSwatches(obj: THREE.Object3D): LootSwatch[] {

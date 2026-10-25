@@ -25,7 +25,7 @@ import { hasCargo, emptyHidden } from './salvage';
 import { fuelCap, suppliesCap, vehicleStats } from './stats';
 import { CONDITIONS, EFFECTS, PREPARES } from './dialogue-rules';
 import { addState, aidData, endState, stateOf } from './states';
-import { addVehicle, emptyWorld, furyRoadWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, setShopPressure, sizedUp, startCombat, testDrive } from './testkit';
+import { addVehicle, emptyWorld, chaosHighwayWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, setShopPressure, sizedUp, startCombat, testDrive } from './testkit';
 import type { TraitId } from '../data/npcs';
 import type { SalvageStock, Vehicle, World } from './types';
 import { directionsTo } from './directions';
@@ -1621,6 +1621,6 @@ describe('road lessons', () => {
   });
 
   it('cannot be called on Chaos Highway, which has no radio', () => {
-    expect(() => callVehicle(furyRoadWorld(), 'nobody')).toThrow();
+    expect(() => callVehicle(chaosHighwayWorld(), 'nobody')).toThrow();
   });
 });

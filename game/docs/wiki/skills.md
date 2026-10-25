@@ -66,7 +66,7 @@ Skills and perks are owned by `src/sim/progress.ts`, and the numbers live in `sr
 | cargoEye | Cargo eye | perception | 4 | You see the goods and spare parts in any seen truck. |
 | nightEyes | Night eyes | perception | 4 | Night does not halve your sight. |
 | welder | Welder | machining | 2 | A field job turns 3 scrap metal into a scrap armor sheet. |
-| cannibal | Cannibal | machining | 2 | Taking a part from a wreck or a knocked-out truck takes one turn. |
+| teardown | Teardown | machining | 2 | A knocked-out truck does not come to while you are taking a part off it. |
 | rebuild | Rebuild | machining | 4 | A town garage can repair a junk part to its last wear step, once per part. |
 | roadMechanic | Road mechanic | machining | 4 | Drivers pay double for the patches you do. |
 | desertRat | Desert rat | toughness | 2 | Noon sun heats your engine like morning sun. |

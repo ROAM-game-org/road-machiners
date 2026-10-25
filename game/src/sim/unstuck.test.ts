@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { playerVehicle, haulerOf } from './damage';
 import { getUnstuck, unstuckBlock } from './unstuck';
-import { addVehicle, emptyWorld, furyRoadWorld, parkInYard } from './testkit';
+import { addVehicle, emptyWorld, chaosHighwayWorld, parkInYard } from './testkit';
 import { addState } from './states';
 import { dist, type Vec } from './vec';
 import { endTurn } from './world';
@@ -107,14 +107,14 @@ describe('getUnstuck', () => {
     });
 
     it('refuses behind shut gates', () => {
-      const w = furyRoadWorld();
-      parkInYard(w, w.furyRoad!.window + 1);
+      const w = chaosHighwayWorld();
+      parkInYard(w, w.chaosHighway!.window + 1);
       refused(endTurn(w, none), 'gatesShut');
     });
   });
 
   it('leaves the Chaos Highway hauler where it is', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const hauler = { ...haulerOf(w).pos };
     const after = getUnstuck(w);
     expect(haulerOf(after).pos).toEqual(hauler);

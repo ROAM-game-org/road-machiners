@@ -23,7 +23,8 @@ import type { Vec } from './vec';
 import { cloneWorld, endTurn } from './world';
 import { addGoods } from './inventory';
 import { hearTerms } from './marshals';
-import { giveInTo, payOff, settleCashThreat, settlePlayerPlea, settleThreat, surrenderTo } from './parley';
+import { giveInTo, payOff, settleCashThreat, settlePlayerPlea, settleThreat } from './parley';
+import { looseCargo } from './salvage';
 
 function npc(w: World, faction: Faction, template: string, traits: TraitId[], pos: Vec): Vehicle {
   const v = addVehicle(w, faction, 'scout', ['mg', 'stockEngine'], pos);
@@ -479,7 +480,7 @@ describe('restitution of a robbery', () => {
     addGoods(w, victim, 'scrap', 2);
     rob(w, robber, victim);
     w.events = [];
-    surrenderTo(w, victim, robber);
+    giveInTo(w, victim, robber, { haul: looseCargo(victim), money: 0 });
     const value = holdUpValue(w);
     expect(value).toBeGreaterThan(0);
     expect(fileBy(w, witness).restitution).toBe(value);

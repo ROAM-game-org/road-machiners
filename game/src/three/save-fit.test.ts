@@ -196,7 +196,7 @@ describe('checkSavedWorld on game worlds', () => {
   });
 
   it('passes a new Chaos Highway game', () => {
-    const world = newWorld(1337, START_KITS.arrival, highwayMap(1337, 0), defaultSetup('furyRoad'));
+    const world = newWorld(1337, START_KITS.arrival, highwayMap(1337, 0), defaultSetup('chaosHighway'));
     expect(() => checkSavedWorld(saveOf(world).world)).not.toThrow();
   });
 
