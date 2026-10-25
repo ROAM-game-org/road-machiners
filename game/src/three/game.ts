@@ -30,7 +30,7 @@ import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
 import { engineOverheating } from "../sim/engine-heat";
-import { Refused, hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { Refused, hostileToPlayer, playerCanAct, setMoveOrder, waitsOnPlayer } from "../sim/world";
 import { refusalText } from "../text/names";
 import { TruckContext, TruckControls } from "./truck-controls";
 import { PAL } from "../render/palette";
@@ -791,7 +791,8 @@ export class Game {
 
   private tryBeginTurn(now: number, wasPlaying: boolean): "began" | "none" | "failed" {
     try {
-      const prepared = this.anim ? null : this.travel.takeReady(this.world, this.drive, now, this.turnHeld());
+      const held = this.holdsTime();
+      const prepared = this.anim ? null : this.travel.takeReady(this.world, this.drive, now, held);
       if (prepared) this.beginTurn(prepared, now, this.travel.getRemainder(wasPlaying));
       return prepared ? "began" : "none";
     } catch (err) {
@@ -801,6 +802,7 @@ export class Game {
   }
 
   private beginTurn(prepared: PreparedTurn, now: number, elapsed: number): void {
+    if (this.world.player.quests.live) throw new Error("A turn began under an open scene");
     const { world: played, playback, towed } = this.travel.beginPlayback(this.world, prepared, elapsed, this.frames);
     const world = relanguageQuest(played, QUESTS);
     if (this.saves.changeMapIfMoved(world)) return;
@@ -994,7 +996,8 @@ export class Game {
   }
 
   private advanceTurn(now: number, dt: number): { at: number | null; playMs: number } {
-    if (this.turnHeld()) this.travel.pause();
+    const held = this.holdsTime();
+    if (held) this.travel.pause();
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
     const playMs = this.tickWorldClock(heldPlayMs(dt, this.timeHeld(), CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
@@ -1014,8 +1017,8 @@ export class Game {
     return { at, playMs };
   }
 
-  private turnHeld(): boolean {
-    return this.timeHeld() || this.world.player.call !== null;
+  private holdsTime(): boolean {
+    return this.timeHeld() || waitsOnPlayer(this.world);
   }
 
   private timeHeld(): boolean {
@@ -1070,6 +1073,7 @@ export class Game {
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);
     this.shaders.render(this.modalOpen());
+    this.hud.stepPortraits(this.travel.isPlaying(this.anim));
     this.refreshPlan();
     this.showPlan();
   }

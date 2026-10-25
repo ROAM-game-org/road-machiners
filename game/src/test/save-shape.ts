@@ -1,9 +1,12 @@
 
+import { CHASSIS } from '../data/chassis';
 import { PARTS } from '../data/parts';
 import { startKit } from '../data/start';
 import { makePart } from '../sim/factory';
 import type { Contract } from '../sim/market';
 import type { SalvageStock } from '../sim/types';
+import { isRig } from '../sim/body';
+import { addVehicle, npcBrain } from '../sim/testkit';
 import { newWorld } from '../sim/world';
 import { saveOf } from '../three/save';
 import { shapeOf, type Shape } from '../three/save-shape';
@@ -35,6 +38,12 @@ export function newGameShape(): Shape {
       return { ...stock, goods, parts, hidden: { ...stock.hidden, goods: { ...goods }, parts } };
     }),
   );
+  if (!world.vehicles.some((truck) => truck.brain && isRig(truck.chassisId))) {
+    const rig = Object.keys(CHASSIS).find(isRig);
+    if (!rig) throw new Error('The chassis data has no rig');
+    const home = world.vehicles[0].pos;
+    addVehicle(world, 'independent', rig, ['stockEngine'], home).brain = npcBrain('trader', home, ['trader']);
+  }
   for (const v of world.vehicles.filter((truck) => truck.brain)) {
     v.items = [
       { id: 'i-goods', x: 0, y: 0, rot: 0, kind: 'good', good: 'g' },

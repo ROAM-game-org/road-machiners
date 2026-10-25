@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canvasTransform, clampPan, fitted, fitTileSize, panBy, pinToEdge, toPx, toTile, viewport, zoomAround, type Viewport } from './map-geometry';
+import { canvasTransform, clampPan, fitted, fitTileSize, panBy, pinToEdge, scaleBarTiles, toPx, toTile, viewport, wheelZoomFactor, zoomAround, type Viewport } from './map-geometry';
 
 const MAP = 600;
 
@@ -86,5 +86,64 @@ describe('map geometry', () => {
   it('throws on a tile size that is not a positive number', () => {
     expect(() => view({ x: 0, y: 0 }, 0)).toThrow(/tile size/);
     expect(() => view({ x: 0, y: 0 }, Number.NaN)).toThrow(/tile size/);
+  });
+});
+
+describe('scale bar', () => {
+  const metersOf = (tileSize: number, width: number) => scaleBarTiles(tileSize, width) * 4;
+
+  it('takes the longest step that fits its share of the width', () => {
+    expect(metersOf(8, 1000)).toBe(100);
+    expect(metersOf(1, 1000)).toBe(1000);
+    expect(metersOf(0.2, 1000)).toBe(2000);
+  });
+
+  it('fits the minimap reaches at their canvas width', () => {
+    const width = 220;
+    expect(metersOf(fitTileSize(100, width, width), width)).toBe(100);
+    expect(metersOf(fitTileSize(200, width, width), width)).toBe(100);
+    expect(metersOf(fitTileSize(400, width, width), width)).toBe(250);
+  });
+
+  it('falls back to the shortest step when none fits', () => {
+    expect(metersOf(100, 200)).toBe(50);
+  });
+
+  it('draws the labelled distance at the tile size', () => {
+    expect(scaleBarTiles(8, 1000) * 8).toBeLessThanOrEqual(300);
+  });
+
+  it('throws on a tile size or width that is not positive', () => {
+    expect(() => scaleBarTiles(0, 100)).toThrow();
+    expect(() => scaleBarTiles(1, 0)).toThrow();
+  });
+});
+
+describe('wheelZoomFactor', () => {
+  it('zooms one step for a mouse notch in either direction', () => {
+    expect(wheelZoomFactor(-100, 0)).toBeCloseTo(1.25);
+    expect(wheelZoomFactor(100, 0)).toBeCloseTo(1 / 1.25);
+  });
+
+  it('zooms by how far the wheel turns, not by how many events it sends', () => {
+    let total = 1;
+    for (let i = 0; i < 20; i++) total *= wheelZoomFactor(-4, 0);
+    expect(total).toBeCloseTo(wheelZoomFactor(-80, 0));
+    expect(total).toBeLessThan(1.25);
+  });
+
+  it('never zooms more than one notch in one event', () => {
+    expect(wheelZoomFactor(-5000, 0)).toBeCloseTo(1.25);
+    expect(wheelZoomFactor(5000, 0)).toBeCloseTo(1 / 1.25);
+  });
+
+  it('reads line and page deltas as larger turns', () => {
+    expect(wheelZoomFactor(-3, 1)).toBeCloseTo(wheelZoomFactor(-99, 0));
+    expect(wheelZoomFactor(-1, 2)).toBeCloseTo(1.25);
+  });
+
+  it('throws on a delta it cannot read', () => {
+    expect(() => wheelZoomFactor(Number.NaN, 0)).toThrow();
+    expect(() => wheelZoomFactor(1, 7)).toThrow();
   });
 });
