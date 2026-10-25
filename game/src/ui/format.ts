@@ -227,15 +227,10 @@ export function formatNpcCargo(world: World, vehicle: Vehicle): Msg | null {
   return t('npc.cargoAndSpares', { goods: list(goods), spares: list(spares) });
 }
 
-export function formatNpcLookOver(world: World, vehicle: Vehicle): Msg | null {
-  if (!hasBasic(world, 'lookOver') || !playerCanAct(world)) return null;
-  return canLookOver(world, playerVehicle(world), vehicle) === null ? keyLabel(t('npc.lookOverKey'), 'B', 'before') : null;
-}
-
-export function formatNpcMark(world: World, vehicle: Vehicle): Msg | null {
+export function formatNpcMarked(world: World, vehicle: Vehicle): Msg | null {
   if (!hasPerk(world, 'spotter')) return null;
   const mark = world.player.marked.find((m) => m.vehicleId === vehicle.id && world.turn <= m.until);
-  return mark ? t('npc.marked', { n: mark.until - world.turn }) : keyLabel(t('npc.markKey'), 'N', 'before');
+  return mark ? t('npc.marked', { n: mark.until - world.turn }) : null;
 }
 
 const STATE_LABELS: Record<StateKindId, (s: NpcState) => Msg> = {

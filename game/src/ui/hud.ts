@@ -1,6 +1,6 @@
 
 import { Drawers } from "./drawers";
-import { keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
+import { keyCap, keyLabel, phoneMode, RECENTER_KEY, touchMode } from "./input-mode";
 import { uiSize } from "./ui-size";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
@@ -26,8 +26,7 @@ import {
   workLabel,
   workProgress,
   formatNpcCargo,
-  formatNpcLookOver,
-  formatNpcMark,
+  formatNpcMarked,
   formatNpcTraits,
   wantedBounty,
   formatVehicleState,
@@ -46,8 +45,9 @@ import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
 import { playerGuard } from "../sim/hire";
-import { affordableRanks, basicSkill, hasBasic, pendingPerkPairs } from "../sim/progress";
-import { canLookOver } from "../sim/look-over";
+import { affordableRanks, basicSkill, hasBasic, hasPerk, pendingPerkPairs } from "../sim/progress";
+import type { Refusal } from "../sim/types";
+import { lookOverError } from "../sim/look-over";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { firstAidBlock, type FirstAidBlock } from "../sim/jobs";
 import { firstAidTurns, firstAidTurnSupplies } from "../sim/health";
@@ -692,19 +692,12 @@ export class Hud {
     );
   }
 
-  private cardButtons(w: World, v: Vehicle): HTMLElement {
-    const own = v.faction === "player";
-    const call = !own && v.brain && modeRules(w).radio ? [el("button", { class: "btn-s", ...disabledWith(callError(w, v.id), () => this.dialogue.callInspected()) }, t("card.call"))] : [];
-    const refusal = markError(w, v.id);
-    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("mark")) }, t("card.mark"))];
-    const close = el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: () => this.actions.unpin() }, t("hint.closeMark"));
-    return el("span", { class: "info-touch touch-only" }, ...call, ...this.lookOverButton(w, v), ...mark, close);
-  }
-
-  private lookOverButton(w: World, v: Vehicle): HTMLElement[] {
-    if (v.faction === "player" || !hasBasic(w, "lookOver")) return [];
-    const refusal = canLookOver(w, playerVehicle(w), v);
-    return [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.cardAction("lookOver")) }, t("card.lookOver"))];
+  private cardButtons(w: World, v: Vehicle): HTMLElement | null {
+    return cardActions(w, v, {
+      call: () => this.dialogue.callInspected(),
+      act: (action) => this.actions.cardAction(action),
+      unpin: () => this.actions.unpin(),
+    });
   }
 
   flushHorn(): void {
@@ -783,7 +776,7 @@ function rescueOf<K extends RescueReadout["kind"]>(r: RescueReadout | null, kind
   return r?.kind === kind ? (r as Extract<RescueReadout, { kind: K }>) : null;
 }
 
-function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement): HTMLElement {
+function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement | null): HTMLElement {
   const quiet = [v.brain ? templateName(v.brain.templateId) : null, factionName(v.faction)].filter((part) => part !== null);
   const quietText = list(quiet);
   return el(
@@ -792,8 +785,36 @@ function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement):
     el("span", { class: "info-name" }, v.brain ? driverName(v) : vehicleTitle(w, v)),
     el("span", { class: "info-quiet", title: quietText }, quietText),
     ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
-    buttons,
+    ...(buttons ? [buttons] : []),
   );
+}
+
+export interface CardHandlers {
+  call: () => void;
+  act: (action: "mark" | "lookOver") => void;
+  unpin: () => void;
+}
+
+function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void): HTMLElement {
+  return el("button", { class: "btn-s", ...disabledWith(refusal, onclick) }, label, keyCap(key));
+}
+
+export function cardActions(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement | null {
+  const buttons = v.faction === "player" ? [] : otherTruckButtons(w, v, handlers);
+  if (touchMode()) buttons.push(el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: handlers.unpin }, t("hint.closeMark")));
+  return buttons.length === 0 ? null : el("div", { class: "info-actions" }, ...buttons);
+}
+
+function otherTruckButtons(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {
+  const buttons: HTMLElement[] = [];
+  if (v.brain && modeRules(w).radio) buttons.push(actionButton(t("card.call"), "T", callError(w, v.id), handlers.call));
+  if (hasBasic(w, "lookOver")) buttons.push(actionButton(t("card.lookOver"), "B", reasonOf(w, lookOverError(w, v.id)), () => handlers.act("lookOver")));
+  if (hasPerk(w, "spotter")) buttons.push(actionButton(t("card.mark"), "N", reasonOf(w, markError(w, v.id)), () => handlers.act("mark")));
+  return buttons;
+}
+
+function reasonOf(w: World, refusal: Refusal | null): Msg | null {
+  return refusal && refusalText(w, refusal);
 }
 
 function wantedMark(w: World, v: Vehicle): HTMLElement | null {
@@ -803,7 +824,7 @@ function wantedMark(w: World, v: Vehicle): HTMLElement | null {
 
 function quietLines(w: World, v: Vehicle): Msg[] {
   if (!v.brain) return [];
-  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcLookOver(w, v), formatNpcMark(w, v)].filter((line) => line !== null);
+  return [formatNpcPass(w, v), formatNpcTraits(w, v), formatNpcCargo(w, v), formatNpcMarked(w, v)].filter((line) => line !== null);
 }
 
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {

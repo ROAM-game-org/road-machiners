@@ -48,8 +48,6 @@ export const LOG = {
   'npc.spares': m('Spares: {spares}', { spares: 'text' }),
   'npc.cargoAndSpares': m('Cargo: {goods}. Spares: {spares}', { goods: 'text', spares: 'text' }),
   'npc.marked': m('Marked: {n, plural, one {# turn left} other {# turns left}}', { n: 'count' }),
-  'npc.markKey': 'Mark',
-  'npc.lookOverKey': 'Look over',
   'state.feud': 'Feud with you',
   'state.backedOff': 'Backing off from you',
   'state.towing': 'Towing you',
