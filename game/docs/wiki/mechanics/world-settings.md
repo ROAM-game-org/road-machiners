@@ -4,7 +4,7 @@ The game mode and world settings a player picks at New game. The principles behi
 
 New game, from the top-right menu, the death screen or the boot save screen, opens one New game screen. The player picks a game mode and may open World Settings. A Skip the intro switch starts the old stranded start instead of the arrival at the farm. Back, or Escape, closes the screen and changes nothing: the running world and its autosaves stay. Start asks first. It then deletes the autosaves, keeps the save slots and starts the new world.
 
-There are two modes. Roaming is the open wasteland, the sandbox. Chaos Highway is a highway combat run between outposts, described in [fury-road.md](fury-road.md). A mode is a row in `GAME_MODES` in `src/data/modes.ts`: its name, its rule flags, its start kit and its map. Roaming turns every rule flag on but `run`, plays on Icarus and starts with the kit that `startKit` in `src/config.ts` names.
+There are two modes. Roaming is the open wasteland, the sandbox. Chaos Highway is a highway combat run between outposts, described in [chaos-highway.md](chaos-highway.md). A mode is a row in `GAME_MODES` in `src/data/modes.ts`: its name, its rule flags, its start kit and its map. Roaming turns every rule flag on but `run`, plays on Icarus and starts with the kit that `startKit` in `src/config.ts` names.
 
 ## The settings
 
@@ -13,7 +13,7 @@ Each setting is a multiplier on base rule numbers. 100% is the standard game. Da
 - Damage scales every gun round, splash, stray round, town guard round, crash, ram, ground crash and landing, for every truck. Starving, wear from driving and prop scrapes do not change.
 - Fuel use scales the fuel every truck burns per tile. NPC refuel plans and far NPC travel follow. The leak of a broken tank does not change.
 - Supply use scales the supplies every crew eats per turn. Healing's extra supplies and starving do not change.
-- Enemy growth is for Chaos Highway only. It scales how fast the danger of the hostile groups rises with each stretch, as [fury-road.md](fury-road.md) describes. It runs from 0% to 200% in steps of 25%. At 0% every stretch has one truck, whose gear keeps pace with the expected player gear.
+- Enemy growth is for Chaos Highway only. It scales how fast the danger of the hostile groups rises with each stretch, as [chaos-highway.md](chaos-highway.md) describes. It runs from 0% to 200% in steps of 25%. At 0% every stretch has one truck, whose gear keeps pace with the expected player gear.
 
 Damage, Fuel use and Supply use apply to every truck alike: the player, NPCs near and far, and the town guards. Each setting names the modes it applies to in `WORLD_SETTINGS`. The New game screen and the `?` menu show only the settings of the world's mode.
 
@@ -34,7 +34,7 @@ Exposed now:
 - `weaponDamage` and `crashDamage`, together as Damage.
 - `fuelUseFactor` as Fuel use.
 - `suppliesPerTurn` as Supply use.
-- The rise of the groups' gear money, a share `FURY_ROAD.director.gearShare` of what the run has paid, as Enemy growth.
+- The rise of the groups' gear money, a share `CHAOS_HIGHWAY.director.gearShare` of what the run has paid, as Enemy growth.
 
 Safe to vary per run later. Each needs its own NPC and economy work, so each is a follow-up:
 

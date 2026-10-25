@@ -129,5 +129,5 @@ Chaos Highway is a highway combat run on its own map, never on Icarus: an endles
 - The hauler's driver never fights, flees or swerves at random. The NPC section says anything a driver can do keeps a small chance, and this is the exception: the hauler is an escort the player has to read, so its driver is predictable.
 - Life is valued (principle 4) does not hold: nobody surrenders or flees.
 
-Details: [Chaos Highway](wiki/mechanics/fury-road.md).
+Details: [Chaos Highway](wiki/mechanics/chaos-highway.md).
 

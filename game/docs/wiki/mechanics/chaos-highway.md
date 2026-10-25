@@ -1,6 +1,6 @@
 # Chaos Highway
 
-An endless highway combat run north, with outposts as milestones, picked at New game. The principles and the exceptions to Roaming are in [DESIGN.md](../../DESIGN.md#game-modes). The numbers live in `FURY_ROAD`, `HAZARDS` and `HIGHWAY` in `src/data/modes.ts`. The land comes from `src/sim/highway.ts` and `src/sim/road-hazards.ts`, the run rules from `src/sim/fury-road.ts`, `src/sim/fury-road-director.ts` and `src/sim/outposts.ts`, and the hauler's driving from `src/sim/hauler.ts`.
+An endless highway combat run north, with outposts as milestones, picked at New game. The principles and the exceptions to Roaming are in [DESIGN.md](../../DESIGN.md#game-modes). The numbers live in `CHAOS_HIGHWAY`, `HAZARDS` and `HIGHWAY` in `src/data/modes.ts`. The land comes from `src/sim/highway.ts` and `src/sim/road-hazards.ts`, the run rules from `src/sim/chaos-highway.ts`, `src/sim/chaos-highway-director.ts` and `src/sim/outposts.ts`, and the hauler's driving from `src/sim/hauler.ts`.
 
 ## Mode rules
 
@@ -96,7 +96,7 @@ The run has no end. The HUD's run readout shows the stretch and the distance to 
 
 ## Hostile groups
 
-A director plans each stretch's groups when the road opens, in `src/sim/fury-road-director.ts`. Danger rises every stretch with no end, on five separate lines:
+A director plans each stretch's groups when the road opens, in `src/sim/chaos-highway-director.ts`. Danger rises every stretch with no end, on five separate lines:
 
 - Groups: 2 on stretch 1, a quarter more each stretch, never more than one per 60 tiles of the stretch, so a short stretch holds fewer. A fraction rolls up or down, so stretches of one level differ.
 - Group size: 1 truck on stretch 1, 0.2 more each stretch, from 1 to 5 trucks, rolled the same way.
@@ -114,7 +114,7 @@ Each group draws one card by weight from the cards open at its stretch, so its t
 - From stretch 3: Bowl farmers join.
 - From stretch 6: vultures, gunwagons, Nose army trucks, convoys and convoy guards join.
 
-A card is a chaser or a blocker. A chaser's truck keeps 5.5 tiles a turn loaded, a tile faster than the hauler, on a chassis at least 15% faster than that, so it can always catch the hauler. A blocker is a slow, heavy card that always comes from ahead: Bowl farmers, gunwagons, Nose army trucks and convoys. A new template must get a card in `FURY_ROAD`, and a test fails until it does.
+A card is a chaser or a blocker. A chaser's truck keeps 5.5 tiles a turn loaded, a tile faster than the hauler, on a chassis at least 15% faster than that, so it can always catch the hauler. A blocker is a slow, heavy card that always comes from ahead: Bowl farmers, gunwagons, Nose army trucks and convoys. A new template must get a card in `CHAOS_HIGHWAY`, and a test fails until it does.
 
 A group of chasers comes from ahead, the left or the right, never from the side of the group before it. It never comes from behind.
 
