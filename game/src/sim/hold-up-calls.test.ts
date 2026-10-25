@@ -238,9 +238,9 @@ describe('a call saved before the price existed', () => {
 });
 
 describe('robbing a driver for M', () => {
-  const ASK = "Hand over your M's, or we open fire.";
+  const ASK = "Hand over your M's, or I open fire.";
   const INSIST = "You heard me. M's, now.";
-  const CARGO_ASK = 'Drop your cargo, or we open fire.';
+  const CARGO_ASK = 'Drop your cargo, or I open fire.';
 
   function rich(money: number): { w: World; npc: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
