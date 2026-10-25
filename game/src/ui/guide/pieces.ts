@@ -38,6 +38,7 @@ export const PIECES: Piece[] = [
   { name: ".tooltip-row", note: "Label on the left, value on the right, for breakdowns.", build: () => breakdown() },
   { name: ".map-view", note: "The map drawing, compass north up and turned to match the 3D view: explored ground on paper, discovered places and the truck. The minimap is a square panel with zoom and open buttons in its head row.", build: () => minimapPiece() },
   { name: ".key", note: "A keyboard key or a mouse button, drawn as a keycap.", build: () => text("kbd", "key", "Space") },
+  { name: ".info-actions", note: "The action row of the truck card, right under the name line: Call, Look over and Mark as small buttons with their key drawn as a keycap off touch. A button the rules refuse stays, dimmed, with its reason.", build: () => infoActions() },
   { name: ".drawer-tabs", note: "The tab row of the phone layout: one word button per drawer, .selected on the open one and .marked for attention.", build: () => drawerTabs() },
   { name: ".log-strip", note: "The newest log line on one row above End turn on a phone. It never wraps, and a tap opens the Log drawer.", build: () => logStrip() },
   { name: ".option-switch", note: "A row of equal buttons that picks one value for a setting: the language and the UI size. aria-pressed marks the chosen one, and a value that cannot be used is aria-disabled with its reason.", build: () => optionSwitch() },
@@ -70,6 +71,13 @@ function disabled(): HTMLElement {
   const button = text("button", "", "Buy");
   button.setAttribute("aria-disabled", "true");
   return button;
+}
+
+function infoActions(): HTMLElement {
+  const look = el("button", { class: "btn-s" }, "Look over", el("kbd", { class: "key" }, "B"));
+  const mark = el("button", { class: "btn-s" }, "Mark", el("kbd", { class: "key" }, "N"));
+  mark.setAttribute("aria-disabled", "true");
+  return el("div", { class: "info-actions" }, look, mark);
 }
 
 function drawerTabs(): HTMLElement {

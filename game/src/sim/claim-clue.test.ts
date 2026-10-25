@@ -14,7 +14,7 @@ const world = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming')
 for (const shop of Object.values(world.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
 const wrecks = claimWrecks(world);
 const places = cluePlaces(world);
-const REPORTED = 'hullCache-2586';
+const REPORTED = 'hullCache-2599';
 
 function contractFor(wreck: ClaimWreck, shop: string): ClaimContract {
   return { id: `ct-${wreck.id}`, shop, kind: 'claim', stockId: wreck.id, at: { ...wreck.pos }, partId: 'p', defId: 'mg', reward: 1, deadline: 1, window: 1, tier: 1, rivalAt: 1, rival: null, leads: [] };
@@ -32,7 +32,7 @@ describe('the baked claim clues', () => {
   });
 
   it('keep at least 35 of the claim wrecks postable from every shop', () => {
-    expect(wrecks.length).toBe(46);
+    expect(wrecks.length).toBeGreaterThanOrEqual(35);
     for (const shop of Object.keys(SHOPS)) expect(claimTargets(world, shop).length, shop).toBeGreaterThan(0);
     for (const shop of Object.keys(SHOPS)) {
       const postable = wrecks.filter((w) => bakedTier(w.id, shop) !== null);

@@ -159,5 +159,6 @@ export function bakedWords(stockId: string, shop: string): ClueWords | null {
   const tier = entry?.tiers[shop];
   if (tier === 'piece') return entry.piece;
   if (tier === 'offset') return entry.offset;
+  if (tier === undefined && entry) return entry.offset ?? entry.piece;
   return null;
 }

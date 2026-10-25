@@ -9,7 +9,8 @@ export const SUNWARD = {
   startStanding: -20,
   calls: 3,
   callGap: 6,
-  offerMargin: 3,
+  offerMargin: 12,
+  wordGrace: 1,
   dragTurns: 120,
   huntChance: 0.45,
   huntCooldownNights: 1,
@@ -106,7 +107,7 @@ export type SunwardConditionId = 'firstVigilCall' | 'secondVigilCall' | 'lastVig
 export type SunwardEffectId = 'acceptOffering' | 'refuseVigil';
 export type SunwardPrepareId = 'vigilCall' | 'craterNews';
 export const SUNWARD_LINES = [
-  'vigilCall1', 'vigilCall2', 'vigilCall3', 'comeAndWatch', 'notGoing', 'driveIntoTheLight', 'givenBySky',
+  'vigilCall1', 'vigilCall2', 'vigilCall3', 'comeAndWatch', 'notGoing', 'driveIntoTheLight', 'givenBySky', 'wordBroken',
   'askAboutTheCrater', 'craterNews', 'carsDraggedIntoTheDark', 'crowdAtTheCraterAgain',
   'craterLamps', 'craterSilentRadio', 'craterFurrows', 'craterDarkBeacons', 'craterDayTrade', 'craterGivenHearsay', 'craterNoLooting',
   'craterLampsStopped', 'craterFortEmpty', 'craterBackAtNight',

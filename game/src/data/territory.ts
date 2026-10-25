@@ -104,6 +104,7 @@ export type WreckRules = {
   spotRadius: [number, number];
   buildings: BuildingGroup[];
   seatEase: number;
+  gradeRoads: boolean;
   rimRocks: RimRocks | null;
   scree: { from: number; to: number } | null;
   roads: FarmRoad[];
@@ -271,6 +272,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       spotRadius: [0.6, 0.8],
       buildings: [],
       seatEase: 3,
+      gradeRoads: false,
       rimRocks: { from: 1, to: 10, out: [0.5, 6], count: 28, size: [2.5, 4] },
       scree: { from: 20, to: 2 },
       roads: [
@@ -587,6 +589,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         },
       ],
       seatEase: 3,
+      gradeRoads: true,
       rimRocks: null,
       scree: null,
       roads: [

@@ -4,6 +4,7 @@ import type { World } from '../sim/types';
 import { saveOf } from './save';
 import type { SaveSlots } from './save-db';
 import { listSaves } from './save-slots';
+import { noteError } from './crash';
 import { TurnFailure } from './travel';
 import { uiSize } from '../ui/ui-size';
 
@@ -25,39 +26,69 @@ export type ErrorReport = ReportContext & {
   drive: (Omit<DriveSnapshot, 'snapshot'> & { snapshot: string }) | null;
 };
 
-export type ReportSource = { world: () => World; log: () => string[]; slots: SaveSlots };
+export type ReportSource = { world: () => World; log: () => string[] };
 
 type Post = (url: string, init: RequestInit) => Promise<Response>;
 
+type LiveGame = Pick<ReportContext, 'turn' | 'log' | 'world'> & { worldTurn: number | null };
+
+const NO_GAME: LiveGame = { turn: null, log: [], world: null, worldTurn: null };
+
 export class GameContext {
   private source: ReportSource | null = null;
+  private slots: SaveSlots | null = null;
 
-  constructor(private readonly build: string, private readonly version: string) {}
+  constructor(
+    private readonly build: string,
+    private readonly version: string,
+    private readonly onCaptureFailure: (err: unknown) => void,
+  ) {}
+
+  watchSaves(slots: SaveSlots): void {
+    this.slots = slots;
+  }
 
   watch(source: ReportSource): void {
     this.source = source;
   }
 
   capture(): ReportContext {
-    const head = {
+    const { worldTurn, ...game } = this.liveGame();
+    const autosave = this.autosaveOf();
+    const autosaveIsWorld = autosave !== null && worldTurn !== null && autosaveTurn(this.slots) === worldTurn;
+    return { ...this.head(), ...game, autosave: autosaveIsWorld ? null : autosave, autosaveIsWorld };
+  }
+
+  private head() {
+    return {
       build: this.build,
       version: this.version,
       userAgent: navigator.userAgent,
       language: document.documentElement.lang,
       screen: { width: window.innerWidth, height: window.innerHeight, pixelRatio: window.devicePixelRatio, uiSize: uiSize().applied() },
     };
-    if (!this.source) return { ...head, turn: null, log: [], world: null, autosave: null, autosaveIsWorld: false };
-    const { slots } = this.source;
-    const autosave = slots.has('auto') ? JSON.stringify(slots.get('auto')) : null;
-    const world = this.source.world();
-    const autosaveIsWorld = autosave !== null && autosaveTurn(slots) === world.turn;
-    return { ...head, turn: world.turn, log: this.source.log(), world: saveOf(world), autosave: autosaveIsWorld ? null : autosave, autosaveIsWorld };
+  }
+
+  private autosaveOf(): string | null {
+    return this.slots?.has('auto') ? JSON.stringify(this.slots.get('auto')) : null;
+  }
+
+  private liveGame(): LiveGame {
+    if (!this.source) return NO_GAME;
+    try {
+      const world = this.source.world();
+      return { turn: world.turn, log: this.source.log(), world: saveOf(world), worldTurn: world.turn };
+    } catch (err) {
+      this.onCaptureFailure(err);
+      return NO_GAME;
+    }
   }
 }
 
-export const gameContext = new GameContext(ERROR_REPORT_BUILD, GAME_VERSION);
+export const gameContext = new GameContext(ERROR_REPORT_BUILD, GAME_VERSION, noteError);
 
-function autosaveTurn(slots: SaveSlots): number | null {
+function autosaveTurn(slots: SaveSlots | null): number | null {
+  if (!slots) return null;
   const info = listSaves(slots, CONFIG.saveSlots).find((slot) => slot.slot === 'auto');
   return info ? info.turn : null;
 }
