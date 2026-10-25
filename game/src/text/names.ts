@@ -5,7 +5,8 @@ import type { LineId } from '../data/dialogue';
 import type { LocalId, NoteId, TermId } from '../data/locals';
 import { FEMALE_NAMES, FIRST_NAMES, SURNAMES, type TraitId } from '../data/npcs';
 import { BASIC_RANK, type BasicId, type PerkId } from '../data/skills';
-import type { CrimeOffense, Faction, GameModeId, GoalReason, MoneyReason, Refusal, SimNote, SkillId, UnitId, Vehicle, World, WorldSetup, WorldSettings } from '../sim/types';
+import type { CrimeOffense, Octant, Faction, GameModeId, GoalReason, MoneyReason, Refusal, SimNote, SkillId, UnitId, Vehicle, World, WorldSetup, WorldSettings } from '../sim/types';
+import { compassOfMap } from './compass';
 import { byId, list, t, type Msg } from './msg';
 
 export const partName = (defId: string): Msg => byId(`part.${defId}`);
@@ -56,7 +57,7 @@ export const siteName = (id: string): Msg => {
 export const siteSign = (id: string): Msg => byId(`way.sign.${id}`);
 export const placeProse = (shopId: string): Msg => byId(`town.place.${shopId}`);
 export const propName = (look: string): Msg => byId(`way.prop.${look}`);
-export const compassName = (octant: string): Msg => byId(`compass.${octant}`);
+export const compassName = (octant: Octant): Msg => t(`compass.${compassOfMap(octant)}`);
 export const terrainName = (id: string): Msg => byId(`terrain.${id}`);
 export const templateName = (id: string): Msg => byId(`npc.${id}`);
 export const professionName = (id: string): Msg => byId(`npc.${id}.profession`);
@@ -141,7 +142,7 @@ export function moneyReasonText(world: World, reason: MoneyReason): Msg {
   if (reason.kind === 'towing') return t('money.towing', { vehicle: vehicleTitleOf(world, reason.vehicle) });
   if (reason.kind === 'outpost') return t('money.outpost');
   if (reason.kind === 'holdUp') return t('money.holdUp', { vehicle: vehicleTitleOf(world, reason.vehicle) });
-  return reason.kind === 'contract' ? t('money.contract') : t('money.failedHaul');
+  return t('money.contract');
 }
 
 type Plain<R> = R extends { id: infer I } ? (keyof R extends 'id' ? I : never) : never;

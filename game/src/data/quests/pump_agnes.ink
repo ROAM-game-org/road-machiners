@@ -36,7 +36,7 @@ VAR tip = 20
     Changed your mind about the copy? # speaker: Agnes
     -> hub
   }
-  <term=dustwell>Dustwell</term> is a small square of rust corrugated walls round a pumpjack that nods over the well. It smells of hot iron and wet stone. Pipes run from the well to the tall tanks, and water trucks wait in a line at the tanks.
+  <term=dustwell>Dustwell</term> is a small square of rusted corrugated walls round a pumpjack that nods over the well. It smells of hot iron and wet stone. Pipes run from the well to the tall tanks, where water trucks wait in a line.
   Every hose at the tanks has a meter box on it, except one. A big grey tanker with a lantern painted on its door is filling from that one. It sits low on its springs already.
   A woman in a canvas apron stands at a row of dials and copies each number into a book.
   A man in a grey coat sits on a drum by the gate with a mug of tea. He watches the woman, not you.
@@ -57,7 +57,7 @@ VAR tip = 20
   Autumn; 350; 290; 10; meter taken off # row
   This week; 300; 220; 10; meter taken off # row
   Every hose has a meter, and every truck that fills goes in by name. Your tank is in the passing column, under your name. # speaker: Agnes
-  The pump brings up less every season, and Bowl's trucks get less too. Until autumn the tanker's hose had a meter, and the columns added up to the barrel. Since the meter came off, the gap grows every week. # speaker: Agnes
+  The pump brings up less every season, and Bowl's trucks get less too. Until autumn the tanker's hose had a meter, and the columns added up to the big dial. Since the meter came off, the gap grows every week. # speaker: Agnes
   -> hub
 + {knows_book and not asked_leak} [Ask whether the water could be leaking.]
   ~ asked_leak = true
@@ -72,7 +72,7 @@ VAR tip = 20
   { trusted:
     -> copy
   }
-  The man in the grey coat puts down his mug and walks over. The same lantern is stitched on his collar as painted on the tanker's door.
+  The man in the grey coat puts down his mug and walks over. The lantern painted on the tanker's door is stitched on his collar too.
   -> watched
 + [Ask what Dustwell sends out.]
   Water, from deep rock. The pumpjack brings it up, and the trucks carry it down to <term=bowl>Bowl</term>'s canals and to the <term=granary>Granary</term>. # speaker: Agnes
@@ -113,13 +113,13 @@ VAR tip = 20
 What's she been telling you? # speaker: Watchman
 + [Tell him she was talking about pump pressures.]
   ~ watchman = "covered"
-  You tell him she was talking about pump pressures. He doesn't look convinced, but he goes back to his drum.
+  He doesn't look convinced, but he goes back to his drum.
   -> copy
 + [Tell him what she said.]
   -> told
 + [Say nothing.]
   ~ watchman = "silent"
-  You say nothing. He waits, then goes back to his drum. On the way he takes a long look at your truck.
+  He waits, then goes back to his drum. On the way he takes a long look at your truck.
   Agnes goes on writing. She doesn't look at you either.
   -> hub
 
@@ -146,7 +146,7 @@ As you drive out, household men in grey coats walk past your truck and into Agne
 = copy
 ~ trusted = true
 ~ knows_copy = true
-Agnes comes back to the dials and speaks quietly.
+Agnes stays at the dials and lowers her voice.
 Over the winter I made a copy of this book. It's hidden under my pillow, in the shed behind me. # speaker: Agnes
 It needs to go to Mirela Duarte at the lock house in Bowl. Bowl's trucks pour into her trough, and she counts every barrel. Her count will show what I wrote for Bowl's trucks is true. # speaker: Agnes
 Nobody in Bowl can check the dial. You read it, and your name is beside this week's number. Mirela can check her half, and you can swear to the other. # speaker: Agnes

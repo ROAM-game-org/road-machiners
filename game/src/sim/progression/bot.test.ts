@@ -933,6 +933,28 @@ describe('the hunter', () => {
     expect(botOrders(w, 'hauler').world.player.contracts.map((c) => c.id)).toEqual(['ct-haul']);
   });
 
+  it('has a hauler hand a late haul in with the crates it still holds and sell none of the owed ones', () => {
+    const w = parkedAt('nose');
+    w.turn = 700;
+    w.player.contracts = [{ id: 'ct-late', shop: 'bowl', kind: 'haul', good: 'salt', units: 5, to: 'nose', reward: 20000, deadline: 600, window: 300, rush: false, tier: 1 }];
+    addGoods(w, playerVehicle(w), 'salt', 3);
+
+    const turn = botOrders(w, 'hauler');
+
+    expect(turn.world.player.contracts).toEqual([]);
+    expect(turn.world.player.pastContracts.map((p) => [p.outcome, p.amount])).toEqual([['late', 0]]);
+  });
+
+  it('has a trader keep the crates a held haul owes when it sells at a shop', () => {
+    const w = parkedAt('nose');
+    w.player.contracts = [{ id: 'ct-held', shop: 'bowl', kind: 'haul', good: 'salt', units: 3, to: 'granary', reward: 20000, deadline: 5000, window: 300, rush: false, tier: 1 }];
+    addGoods(w, playerVehicle(w), 'salt', 5);
+
+    const after = botOrders(w, 'trader').world;
+
+    expect(goodsCount(playerVehicle(after)).salt ?? 0).toBeGreaterThanOrEqual(3);
+  });
+
   it('has a surveyor search from the clue, never the place, until it finds it', () => {
     const site = surveySites(TEST_MAP)[0];
     const w = parkedAt('bowl');

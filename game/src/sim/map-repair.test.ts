@@ -15,7 +15,8 @@ import { fitBake, repairMap, settleTrucks, type SavedMapWorld } from './map-repa
 import { isRoadWreck, oldSpotOf, oldSpotPicks, oldStockId, renewSalvage, stockOldSpots } from './salvage';
 import { defaultSetup } from './settings';
 import { fillHollow, isFree } from './spawn';
-import { hollowBays, isHollowObstacle, membersOf } from './sunward';
+import { hollowBays, isHollowObstacle } from './hollow-layout';
+import { membersOf } from './sunward';
 import { surveySites } from './survey';
 import { isLootSpot } from './territory';
 import { addVehicle, npcBrain } from './testkit';

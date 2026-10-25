@@ -4,6 +4,7 @@ import { getKnownSite, decide, npcProfile } from './npc-decisions';
 import { createActivity, finishGoal, fightGoal, fleeFrom, interrupt, pushGoal, topGoal } from './npc-activities';
 import { canPayBounty, dropHunt, lastOffer, leadCases, offerCases, openCasesOn, owedBy, payBounty, takeHunt } from './crime';
 import { isDefeated } from './defeat';
+import { heldSearch } from './market';
 import { sightingOf } from './memory';
 import { lieUpSpot } from './npc-service';
 import { modeRules } from './settings';
@@ -17,6 +18,18 @@ export type DemandAnswer = 'pay' | 'refuse';
 
 export function isMarshal(v: Vehicle): boolean {
   return v.brain?.traits.includes('marshal') === true;
+}
+
+export function marshalLead(world: World): { at: Vec; turn: number } | null {
+  const search = heldSearch(world);
+  if (!search || search.delivered) return null;
+  let newest: { at: Vec; turn: number } | null = null;
+  for (const car of world.vehicles) {
+    if (!isMarshal(car) || isDefeated(car)) continue;
+    const seen = sightingOf(car, search.target);
+    if (seen && (!newest || seen.turn > newest.turn)) newest = { at: { ...seen.fact.at }, turn: seen.turn };
+  }
+  return newest && newest.turn > search.lead.turn ? newest : null;
 }
 
 export function planMarshal(world: World, marshal: Vehicle, seen: Vehicle[]): void {
@@ -228,7 +241,7 @@ export function payHailedBounty(world: World, marshal: Vehicle, target: Vehicle)
   addState(world, 'truce', marshal.id, target.id, { kind: 'none' });
 }
 
-const OFFENSE_ORDER: readonly CrimeOffense[] = ['killed', 'robbed', 'attacked'];
+const OFFENSE_ORDER: readonly CrimeOffense[] = ['killed', 'robbed', 'embezzled', 'attacked'];
 
 export function bountyTerms(world: World): CallVars {
   const cases = openCasesOn(world, world.player.vehicleId);

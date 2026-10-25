@@ -1,5 +1,5 @@
 {
- "format": "2.105",
+ "format": "2.109",
  "shape": {
   "broken": [],
   "craters": [],
@@ -2566,6 +2566,14 @@
    },
    "radio_wagon_driver": {},
    "road_stretch_1": {},
+   "roadhouse_petra": {
+    "petra_book": "boolean",
+    "petra_buyoff": "boolean",
+    "petra_cost": "boolean",
+    "petra_how": "boolean",
+    "petra_raiders": "boolean",
+    "petra_riders": "boolean"
+   },
    "station_still": {
     "asked_buyers": "boolean"
    },
@@ -2695,6 +2703,10 @@
    ],
    "road_stretch_1": [
     "start"
+   ],
+   "roadhouse_petra": [
+    "start",
+    "start.hub"
    ],
    "station_still": [
     "start",
@@ -3051,6 +3063,20 @@
     "readsNotes": [],
     "writes": {},
     "notes": [],
+    "begins": []
+   }
+  },
+  "roadhouse_petra": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [
+     "roadhouseBook",
+     "roadhouseBuyOff",
+     "roadhouseRaiders"
+    ],
     "begins": []
    }
   },
