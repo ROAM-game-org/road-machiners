@@ -6,14 +6,14 @@ import { chooseOption, currentOptions, radioSpeakers, raiseCalls } from './dialo
 import { playerVehicle } from './damage';
 import { knockOutNpc } from './defeat';
 import { remember, rememberSightings, sightingOf } from './memory';
-import { answerDemand, demandLapsed, hunt, planMarshal, searchLead, takeCase } from './marshals';
+import { answerDemand, bountyTerms, demandLapsed, hunt, planMarshal, searchLead, takeCase } from './marshals';
 import { topGoal } from './npc-activities';
 import { getKnownSite } from './npc-decisions';
 import { nearestPad } from './sites';
 import { stateOf } from './states';
 import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive } from './testkit';
 import { startEscort } from './tow';
-import type { Faction, Vehicle, World } from './types';
+import type { CrimeOffense, Faction, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { endTurn } from './world';
 
@@ -27,9 +27,9 @@ function npc(w: World, faction: Faction, template: string, traits: TraitId[], po
 const marshalAt = (w: World, pos: Vec) => npc(w, 'marshals', 'marshal', ['marshal', 'brave'], pos);
 const traderAt = (w: World, faction: Faction, pos: Vec) => npc(w, faction, 'trader', ['trader'], pos);
 
-function fileAgainst(w: World, culprit: Vehicle, at: Vec): void {
+function fileAgainst(w: World, culprit: Vehicle, at: Vec, restitution = 0, offense: CrimeOffense = 'robbed'): void {
   const bowl = traderAt(w, 'bowl', { x: 100, y: 600 });
-  remember(w, bowl, { kind: 'witnessed', crime: `${w.turn}:${culprit.id}:${bowl.id}:robbed`, by: culprit.id, victim: bowl.id, offense: 'robbed', at: { ...at }, heading: 0, restitution: 0 });
+  remember(w, bowl, { kind: 'witnessed', crime: `${w.turn}:${culprit.id}:${bowl.id}:${offense}`, by: culprit.id, victim: bowl.id, offense, at: { ...at }, heading: 0, restitution });
   bowl.pos = { ...nearestPad(getKnownSite('bowl'), bowl.pos) };
   bowl.speed = 0;
   fileReports(w, bowl);
@@ -217,6 +217,38 @@ describe('the idle Marshall', () => {
     expect(topGoal(me)).toMatchObject({ kind: 'wait', reason: 'atPost' });
     expect(stalls).toEqual([]);
     expect(dist(me.pos, post.pos)).toBeLessThan(post.radius + 30);
+  });
+});
+
+describe('restitution in the demand', () => {
+  it('names fine and restitution in the demand, the terms and the shortfall, and charges both on Pay', () => {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const me = playerVehicle(w);
+    fileAgainst(w, me, { x: 300, y: 300 }, 5000);
+    const owed = CRIME.fine.robbed + 5000;
+    w.player.money = 1000;
+    const marshal = marshalAt(w, { x: 306, y: 300 });
+    planMarshal(w, marshal, [me]);
+    expect(stateOf(w, 'bountyStop', marshal.id, me.id)?.data).toEqual({ kind: 'bountyStop', owed, answered: false });
+    expect(bountyTerms(w).price).toEqual({ kind: 'money', amount: owed });
+    raiseCalls(w);
+    expect(currentOptions(w).find((o) => o.line === 'payTheBook')!.short).toBe(owed - 1000);
+    w.player.money = owed;
+    answerDemand(w, marshal, me, 'pay');
+    expect(w.player.money).toBe(0);
+  });
+
+  it('ranks targets by their fines, not by what they handed over', () => {
+    const w = emptyWorld({ x: 100, y: 100 });
+    const looter = traderAt(w, 'independent', { x: 500, y: 500 });
+    const robber = traderAt(w, 'independent', { x: 520, y: 500 });
+    fileAgainst(w, looter, { x: 300, y: 300 }, 0, 'attacked');
+    w.crimes[0].restitution = 50_000;
+    w.turn += 1;
+    fileAgainst(w, robber, { x: 300, y: 300 });
+    const marshal = marshalAt(w, { x: 650, y: 100 });
+    planMarshal(w, marshal, []);
+    expect(topGoal(marshal)).toMatchObject({ kind: 'pursue', targetId: robber.id });
   });
 });
 

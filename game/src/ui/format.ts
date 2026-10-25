@@ -25,7 +25,7 @@ import { huntsOffRoad } from '../sim/hunt-style';
 import { isHostile } from '../sim/combat';
 import { trackOf } from '../sim/tracks';
 import { hasBasic, hasPerk } from '../sim/progress';
-import { owedBy } from '../sim/crime';
+import { finesOn } from '../sim/crime';
 import { canLookOver, knowsCargo } from '../sim/look-over';
 import { aidData, lootWarningData, pleaData, statesHeld, strayData, towData } from '../sim/states';
 import { MAP_GRID, REGION } from '../data/region';
@@ -204,8 +204,8 @@ function revealedBy(world: World, perk: 'readDriver'): boolean {
 
 export function wantedBounty(world: World, vehicle: Vehicle): number | null {
   if (vehicle.id === world.player.vehicleId || !hasPerk(world, 'bountyHunter')) return null;
-  const owed = owedBy(world, vehicle.id);
-  return owed > 0 ? owed : null;
+  const fines = finesOn(world, vehicle.id);
+  return fines > 0 ? fines : null;
 }
 
 export function formatNpcTraits(world: World, vehicle: Vehicle): Msg | null {

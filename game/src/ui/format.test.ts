@@ -10,7 +10,7 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine, surveyWayText } from "./format";
+import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine, surveyWayText } from "./format";
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
@@ -1020,5 +1020,21 @@ describe("survey contract text", () => {
     expect(en(jobLabel(w, w.vehicles[0], job))).toBe(`Survey the ${en(t(`contract.place.${first.type}`))}`);
     expect(eventText(w, { t: "job", vehicle: w.player.vehicleId, job, outcome: "done" })).toBeNull();
     expect(en(eventText(w, { t: "job", vehicle: w.player.vehicleId, job, outcome: "started" })!.text)).toContain(`Survey the ${en(t(`contract.place.${first.type}`))}`);
+  });
+});
+
+describe("the Bounty hunter Wanted mark", () => {
+  it("shows the fines a hunter collects, not the restitution on top", () => {
+    const w = emptyWorld({ x: 200, y: 200 });
+    const robber = addVehicle(w, "independent", "scout", ["mg", "stockEngine"], { x: 210, y: 200 });
+    robber.brain = npcBrain("trader", robber.pos, ["trader"]);
+    w.crimes = [{
+      id: "case1", crime: `1:${robber.id}:npc-x:robbed`, offense: "robbed", target: robber.id, victim: "npc-x", issuer: { kind: "faction", faction: "bowl" },
+      reporters: ["npc-x"], site: "bowl", at: { x: 200, y: 200 }, turn: 1, filed: 2, owed: 11097, restitution: 4000, escrow: 0, status: "open",
+      closed: null, hunter: null, retryAt: null, offered: null, known: false, lead: { at: { x: 200, y: 200 }, turn: 1, heading: 0 },
+    }];
+    expect(wantedBounty(w, robber)).toBeNull();
+    w.player.perks = ["bountyHunter"];
+    expect(wantedBounty(w, robber)).toBe(11097);
   });
 });
