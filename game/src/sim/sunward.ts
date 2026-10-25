@@ -1,5 +1,5 @@
-import { HOLLOW, SUNWARD, type HollowPiece } from '../data/sunward';
-import { propObstacle } from './mapgen';
+import { HOLLOW, SUNWARD } from '../data/sunward';
+import { hollowBays, hollowReach } from './hollow-layout';
 import { REGION, type TerritoryDef } from '../data/region';
 import { RULES } from '../data/rules';
 import { TIME } from '../data/time';
@@ -17,7 +17,6 @@ import { canVehicleSee, grayRadius, tileCenter } from './vision';
 import { fuelCap, suppliesCap } from './stats';
 import { clockOf } from './sun';
 import { isTerritory, siteGap } from './sites';
-import { fortressProps } from './fortress';
 import { territoryGrounds } from './territory';
 import type { NpcActivity, NpcState, Obstacle, SunwardFacts, SunwardHunt, SunwardNight, Vehicle, World } from './types';
 import { hashRandom } from './rng';
@@ -74,10 +73,25 @@ export function lastDusk(turn: number): number {
   return turn >= dusk ? dusk : duskTurn(day - 1);
 }
 
+export function rideOutTurn(dusk: number): number {
+  return dusk - SUNWARD.rideLeadTurns;
+}
+
+export function orderDusk(turn: number): number {
+  if (turn < 0) throw new Error(`Turn ${turn} lies before the game began`);
+  const day = clockOf(turn).day;
+  return turn >= rideOutTurn(duskTurn(day)) ? duskTurn(day) : duskTurn(day - 1);
+}
+
+export function nextRideOut(turn: number): number {
+  const day = clockOf(turn).day;
+  return turn < rideOutTurn(duskTurn(day)) ? rideOutTurn(duskTurn(day)) : rideOutTurn(duskTurn(day + 1));
+}
+
 export function phaseAt(turn: number): NightPhase {
-  const dusk = lastDusk(turn);
+  const dusk = orderDusk(turn);
   if (turn >= dawnAfter(dusk)) return 'rest';
-  if (turn < dusk + SUNWARD.driveTurns) return 'ride';
+  if (turn < rideOutTurn(dusk) + SUNWARD.driveTurns) return 'ride';
   return turn < returnTurn(dusk) ? 'vigil' : 'home';
 }
 
@@ -85,8 +99,16 @@ export function sunwardPhase(world: World): SunwardPhase {
   return sunwardFacts(world).collapsed !== null ? 'fallen' : phaseAt(world.turn);
 }
 
-export function nightWindow(world: World): boolean {
+export function orderRides(world: World): boolean {
   return orderStands(world) && phaseAt(world.turn) !== 'rest';
+}
+
+export function inNightWindow(turn: number): boolean {
+  return turn < dawnAfter(lastDusk(turn));
+}
+
+export function nightWindow(world: World): boolean {
+  return orderStands(world) && inNightWindow(world.turn);
 }
 
 export function isSunwardMember(v: Vehicle): boolean {
@@ -105,39 +127,12 @@ export function membersOf(world: World): Vehicle[] {
   return world.vehicles.filter(isSunwardMember);
 }
 
-let hollowProps: Obstacle[] | null = null;
-
-export function hollowObstacles(): Obstacle[] {
-  hollowProps ??= [...fortressProps(HOLLOW.site).map((p, i) => propObstacle(p, i)), ...HOLLOW.pieces.map(interiorPiece)].map((o, i) => ({ ...o, id: `hollow-${i}` }));
-  return hollowProps.map((o) => ({ ...o, pos: { ...o.pos } }));
-}
-
-function interiorPiece(p: HollowPiece): Obstacle {
-  return { id: p.look, kind: 'landmark', look: p.look, pos: { x: HOLLOW.pos.x + p.at.x, y: HOLLOW.pos.y + p.at.y }, r: p.r, yaw: p.yaw };
-}
-
-export function hollowObstaclesFor(world: Pick<World, 'sunward'>): Obstacle[] {
-  return world.sunward ? hollowObstacles() : [];
-}
-
-export function isHollowObstacle(o: Obstacle): boolean {
-  return /^hollow-\d+$/.test(o.id);
-}
-
-export function hollowBays(): Vec[] {
-  return HOLLOW.bays.map((b) => ({ x: HOLLOW.pos.x + b.x, y: HOLLOW.pos.y + b.y }));
-}
-
-export function bayHeading(index: number): number {
-  return HOLLOW.bays[index].heading;
-}
-
 export function hollowLampsLit(world: World, turn: number = world.turn): boolean {
-  return orderStands(world) && phaseAt(turn) !== 'rest';
+  return orderStands(world) && inNightWindow(turn);
 }
 
 export function hollowHidden(world: World): boolean {
-  return dist(playerVehicle(world).pos, HOLLOW.pos) > grayRadius(world) + HOLLOW.radius;
+  return dist(playerVehicle(world).pos, HOLLOW.pos) > grayRadius(world) + hollowReach();
 }
 
 export function spawnsAtHollow(world: World): boolean {
@@ -146,8 +141,9 @@ export function spawnsAtHollow(world: World): boolean {
 
 export function discoverHollow(world: World, discover: (world: World, site: { id: string }) => void): void {
   if (world.sunward === null || world.player.discovered.includes(HOLLOW_ID)) return;
-  if (dist(playerVehicle(world).pos, HOLLOW.pos) > grayRadius(world) + HOLLOW.sightReach) return;
-  const seen = world.player.visible.some((idx) => dist(tileCenter(world, idx), HOLLOW.pos) <= HOLLOW.sightReach);
+  const sightReach = hollowReach() + SUNWARD.sightMargin;
+  if (dist(playerVehicle(world).pos, HOLLOW.pos) > grayRadius(world) + sightReach) return;
+  const seen = world.player.visible.some((idx) => dist(tileCenter(world, idx), HOLLOW.pos) <= sightReach);
   if (seen) discover(world, { id: HOLLOW_ID });
 }
 
@@ -159,7 +155,7 @@ export function advanceSunward(world: World): void {
 
 function openTonight(world: World): void {
   const facts = sunwardFacts(world);
-  const dusk = lastDusk(world.turn);
+  const dusk = orderDusk(world.turn);
   if (facts.night?.dusk !== dusk) facts.night = openNight(world, dusk);
   callStrangers(world);
   watchHunt(world);
@@ -179,7 +175,7 @@ function openNight(world: World, dusk: number): SunwardNight {
 
 export function startHuntTonight(world: World): void {
   const night = sunwardFacts(world).night;
-  if (!night || !nightWindow(world)) throw new Error('A hunt rides out only on a night of the vigil');
+  if (!night || !orderRides(world)) throw new Error('A hunt rides out only on a night of the vigil');
   night.hunt = openHunt(world, clockOf(night.dusk).day);
 }
 
@@ -210,7 +206,7 @@ function huntGrounds(world: World, day: number): Vec[] {
 }
 
 export function huntOf(world: World): SunwardHunt | null {
-  if (!nightWindow(world)) return null;
+  if (!orderRides(world)) return null;
   const hunt = sunwardFacts(world).night?.hunt ?? null;
   return hunt?.over === false ? hunt : null;
 }
@@ -223,13 +219,21 @@ function hunting(world: World, v: Vehicle): SunwardHunt | null {
 function huntGoal(world: World, v: Vehicle, hunt: SunwardHunt): NpcActivity {
   const leader = hunt.party.map((id) => world.vehicles.find((x) => x.id === id)).find((x) => x !== undefined && !isDefeated(x));
   if (leader && leader.id !== v.id) return goal('follow', leader.pos, 'huntRoad', leader.id);
-  const [a, b] = hunt.grounds;
-  return dist(v.pos, a) <= RULES.arriveRadius * 6 ? goal('prowl', b, 'huntRoad', 'b') : goal('prowl', a, 'huntRoad', 'a');
+  const next = nextGround(v, hunt.grounds);
+  return goal('prowl', hunt.grounds[next === 'a' ? 0 : 1], 'huntRoad', next);
+}
+
+function nextGround(v: Vehicle, grounds: Vec[]): 'a' | 'b' {
+  const current = v.brain!.goals[0];
+  const heading = current?.kind === 'prowl' && current.reason === 'huntRoad' && (current.targetId === 'a' || current.targetId === 'b') ? current.targetId : 'a';
+  const reached = dist(v.pos, grounds[heading === 'a' ? 0 : 1]) <= RULES.arriveRadius * 6;
+  if (!reached) return heading;
+  return heading === 'a' ? 'b' : 'a';
 }
 
 function seizeLonePrey(world: World, v: Vehicle): void {
   const hunt = hunting(world, v);
-  if (!hunt || hunt.prey !== null || hunt.party[0] !== v.id) return;
+  if (!hunt || !nightWindow(world) || hunt.prey !== null || hunt.party[0] !== v.id) return;
   const prey = world.vehicles.find((x) => lonePrey(world, v, x));
   if (!prey) return;
   hunt.prey = prey.id;
@@ -254,7 +258,7 @@ function huntDragEndings(world: World, hunt: SunwardHunt): string[] {
 
 function huntSpent(world: World, hunt: SunwardHunt): boolean {
   const fallen = hunt.party.some((id) => world.vehicles.some((v) => v.id === id && isDefeated(v)));
-  return fallen || hunt.breaks >= SUNWARD.huntBreaks || world.turn >= returnTurn(lastDusk(world.turn));
+  return fallen || hunt.breaks >= SUNWARD.huntBreaks || world.turn >= returnTurn(orderDusk(world.turn));
 }
 
 function noteHuntDrag(hunt: SunwardHunt, ending: string): void {
@@ -340,26 +344,15 @@ function columnGoal(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
   const ahead = carAhead(world, v, phase);
   if (!ahead) return leadGoal(world, v, phase);
   if (atStation(world, v, phase) && notClearYet(world, ahead, phase)) return holdStation(world, v, phase);
-  return followGoal(v, ahead, phase);
+  return followGoal(ahead, phase);
 }
 
-function followGoal(v: Vehicle, ahead: Vehicle, phase: NightPhase): NpcActivity {
-  if (phase === 'ride' && inTheYard(v)) return goal('explore', gateApron(), 'rideVigil');
+function followGoal(ahead: Vehicle, phase: NightPhase): NpcActivity {
   return goal('follow', ahead.pos, phase === 'ride' ? 'rideVigil' : 'rideHome', ahead.id);
 }
 
 function notClearYet(world: World, ahead: Vehicle, phase: NightPhase): boolean {
-  return phase === 'ride' ? dist(ahead.pos, HOLLOW.pos) < HOLLOW.radius - SUNWARD.fileGap : atStation(world, ahead, phase);
-}
-
-function inTheYard(v: Vehicle): boolean {
-  return dist(v.pos, HOLLOW.pos) < HOLLOW.radius;
-}
-
-function gateApron(): Vec {
-  const gate = HOLLOW.site.gates[0];
-  const out = { x: (gate.x - HOLLOW.pos.x) / HOLLOW.radius, y: (gate.y - HOLLOW.pos.y) / HOLLOW.radius };
-  return { x: gate.x + out.x * SUNWARD.apronGap, y: gate.y + out.y * SUNWARD.apronGap };
+  return phase === 'ride' ? dist(ahead.pos, HOLLOW.pos) < hollowReach() + SUNWARD.fileGap : atStation(world, ahead, phase);
 }
 
 function stationOf(world: World, v: Vehicle, phase: NightPhase): Vec {
@@ -372,7 +365,7 @@ function atStation(world: World, v: Vehicle, phase: NightPhase): boolean {
 
 function holdStation(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
   const until = returnTurn(sunwardFacts(world).night!.dusk);
-  return { ...goal('wait', stationOf(world, v, phase), phase === 'ride' ? 'restHollow' : 'keepVigil'), until: phase === 'ride' ? until : dawnAfter(lastDusk(world.turn)) };
+  return { ...goal('wait', stationOf(world, v, phase), phase === 'ride' ? 'restHollow' : 'keepVigil'), until: phase === 'ride' ? until : dawnAfter(sunwardFacts(world).night!.dusk) };
 }
 
 function carAhead(world: World, v: Vehicle, phase: NightPhase): Vehicle | null {
@@ -403,13 +396,8 @@ function atCrater(v: Vehicle, phase: NightPhase): boolean {
 }
 
 function homeGoal(world: World, v: Vehicle): NpcActivity {
-  if (atBay(v)) return { ...goal('wait', v.brain!.home, 'restHollow'), until: nextDusk(world.turn) };
+  if (atBay(v)) return { ...goal('wait', v.brain!.home, 'restHollow'), until: nextRideOut(world.turn) };
   return goal('explore', v.brain!.home, 'rideHome');
-}
-
-export function nextDusk(turn: number): number {
-  const day = clockOf(turn).day;
-  return turn < duskTurn(day) ? duskTurn(day) : duskTurn(day + 1);
 }
 
 function leadGoal(world: World, v: Vehicle, phase: NightPhase): NpcActivity {
@@ -463,7 +451,7 @@ function ridesTonight(world: World, v: Vehicle): boolean {
 }
 
 function nearHome(v: Vehicle, phase: NightPhase): boolean {
-  return phase === 'home' && dist(v.pos, HOLLOW.pos) <= HOLLOW.radius + RULES.arriveRadius * 4;
+  return phase === 'home' && dist(v.pos, HOLLOW.pos) <= hollowReach() + RULES.arriveRadius * 4;
 }
 
 function joinColumn(world: World, v: Vehicle, wanted: NpcActivity): void {

@@ -76,7 +76,8 @@ import { startPose } from './start-pose';
 import { clamp, dist, type Vec } from './vec';
 import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
-import { advanceSunward, freshSunward, HOLLOW_ID, hollowObstaclesFor } from "./sunward";
+import { advanceSunward, freshSunward, HOLLOW_ID } from "./sunward";
+import { hollowObstaclesFor } from "./hollow-layout";
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);

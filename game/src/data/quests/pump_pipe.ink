@@ -378,7 +378,7 @@ Then your name is in my book, and the steward reads my book. # speaker: Mirela
 -> ask
 
 = ask
-+ {not asked_aim} [Ask what she'll do with it.]
++ {not asked_aim} [Ask what she'll do with the copy.]
   ~ asked_aim = true
   I'll read every number to the Senate, with the name of whoever swore to it. # speaker: Mirela
   The household's clerk stands at this trough every morning and says which canal gets how much. That was the canal families' job until the Senate gave it to him. The household's votes did it. # speaker: Mirela
@@ -400,10 +400,10 @@ Then your name is in my book, and the steward reads my book. # speaker: Mirela
 You sign and write the number from the dial. Mirela writes the date beside it and pays you {fee} M from the lock box. # page # place: Bowl lock house
 { meter_taken and not walked_out: You leave Agnes's meter with her as well. }
 The Senate meets in a week. # speaker: Mirela
-The truck drivers who watched you sign spread the news. Your name is now in a book the steward reads.
+The truck drivers who watched you sign spread the news.
 A week later, news reaches the drivers' well. Mirela read the numbers to the Senate: Agnes's hoses, her own trough and your dial, with your name under it. # page
-The household's bench said Agnes made her numbers up. Mirela asked who made up the dial, and read your name. Nobody on that bench knew you, so nobody could say.
-The Senate took no vote on the tanker. It didn't need to. The next week the tanker came to the pump with a meter on its hose, fitted by the steward's own crew. A counted tanker is a smaller story than a secret one, and the steward deals in small stories. # reveal: all
+The household's bench said Agnes made her numbers up. Mirela asked who made up the dial, and read your name. Nobody on that bench knew you, so nobody could call you a liar.
+The Senate took no vote on the tanker and needed none. The next week the tanker came to the pump with a meter on its hose, fitted by the steward's own crew. A counted tanker is a smaller story than a secret one, and the steward deals in small stories. # reveal: all
 The trough stays with the household's clerk, and the reserve under the terrace stays a secret. Your name is in a book the steward reads. Nobody from the household has come asking for you.
 -> END
 
@@ -417,7 +417,7 @@ Then it's her hoses and my trough, and we both want the water. They'll say Agnes
 She pays you {fee} M from the lock box.
 { meter_taken and not walked_out: You leave Agnes's meter with her as well. }
 As you leave, a household clerk comes down the steps and asks her who carried it. She says it was a driver she didn't know.
-A week later, news reaches the drivers' well. Mirela read Agnes's book and her own to the Senate. The household said Agnes made up her dial. Your name was beside it in her book, but you weren't in the room to swear to it, and a name on a page isn't a witness. # page
+A week later, news reaches the drivers' well. Mirela read Agnes's book and her own to the Senate. The household said Agnes made up her dial. Your name was beside it in Agnes's book, but you weren't in the room to swear to it, and a name on a page isn't a witness. # page
 The Senate moved on to grain. # reveal: all
 -> END
 
