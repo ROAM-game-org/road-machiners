@@ -33,11 +33,12 @@ export const CLUE_PIECES: Partial<Record<LandmarkLook, CluePieceRule>> = {
 };
 export const BIG_SHELL_RADIUS = 5;
 export type ClueSpot = { piece: CluePiece; at: Vec; r: number; open: boolean };
+export type Disc = { at: Vec; radius: number };
 export type Hazard = {
   radius: number;
   healthPerTurn: number;
   floor: number;
-  core: { radius: number; healthPerTurn: number } | null;
+  core: { radius: number; healthPerTurn: number; light: Disc } | null;
 };
 export type HullPiece = { look: LandmarkLook; at: Vec; yaw: number; r: number; sink?: number };
 export type Cache = { at: Vec; yaw: number };
@@ -366,7 +367,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
         radius: 8,
         healthPerTurn: 5,
         floor: 30,
-        core: { radius: 3.5, healthPerTurn: 8 },
+        core: { radius: 3.5, healthPerTurn: 8, light: { at: { x: 24.4, y: -24.85 }, radius: 2.25 } },
       },
     },
   },

@@ -4,7 +4,7 @@ import { generateNpcLoadout } from './npc-loadout';
 import { fillHollow, isFree, spawnAt } from './spawn';
 import { standardWorld } from '../test/world-cache';
 import { playerVehicle } from './damage';
-import { applyHazards } from './hazard';
+import { applyHazards, inCore } from './hazard';
 import { checkDeath } from './defeat';
 import { followTower, dragOf, isOnRope, startDrag, unhitch } from './tow';
 import { advanceStates, settleStates } from './states';
@@ -176,7 +176,7 @@ describe('the reactor core', () => {
 
   it('drains health outside the core no lower than its floor', () => {
     const w = crater();
-    inZone(w, 6);
+    inZone(w, -6);
     w.player.health = 33;
     for (let i = 0; i < 10; i++) applyHazards(w);
     expect(w.player.health).toBe(30);
@@ -672,5 +672,16 @@ describe('meeting the stranger at the vigil', () => {
     w.turn += SUNWARD.meetTurns;
 
     expect(meetingLapsed(w, car, claim(car)!)).toBe('meetingOff');
+  });
+});
+
+describe('the drop lanes and the breach light', () => {
+  it.each(SUNWARD.dropLanes)('keeps the stop and the dragger clear of the core on lane %s', (angle) => {
+    const zone = lightZone();
+    const stop = dropSpot({ x: zone.pos.x + Math.cos(angle) * 20, y: zone.pos.y + Math.sin(angle) * 20 }).stop;
+    const dragger = { x: zone.pos.x + Math.cos(angle) * (zone.radius - 2), y: zone.pos.y + Math.sin(angle) * (zone.radius - 2) };
+    expect(inDropRing(stop)).toBe(true);
+    expect(inCore(zone, stop)).toBe(false);
+    expect(inCore(zone, dragger)).toBe(false);
   });
 });

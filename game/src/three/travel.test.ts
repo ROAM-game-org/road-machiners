@@ -745,7 +745,7 @@ describe("the slowdown after a stopped turn", () => {
     const world = makeSafeWorld();
     const id = playerVehicle(world).id;
     const playerTail = { ...tail, poses: { [id]: pose } };
-    const committed = new Creep(playerTail, {}, 0).commit(world);
+    const committed = new Creep(playerTail, {}, 0).commit(world, null);
     expect(playerVehicle(committed.world).pos).toEqual(pose.pos);
     expect(committed.drive).toBe(tail.next);
   });
@@ -812,6 +812,70 @@ describe("the slowdown after a stopped turn", () => {
     travel.press(0, false, true);
     travel.prepareNext(stopped, { ...playback, result: { next: {} } } as Playback, 0);
     expect(prepare).toHaveBeenCalledWith(stopped, tail.next);
+  });
+
+  describe("a stop after the movement ended", () => {
+    function openStop() {
+      const { world, me, playback } = playerStop();
+      const travel = new Travel(250, TAIL);
+      travel.press(0, false, true);
+      expect(travel.stopAt(playback, world, {}, 0, 0)).toBeNull();
+      return { world, me, playback, travel };
+    }
+    const endPose = (me: Vehicle) => ({ x: me.pos.x + 1, y: me.pos.y });
+
+    it("commits the tail end when a pause comes after the movement end", () => {
+      const { world, me, travel } = openStop();
+      expect(travel.settleStop(world, {}, 0)).toBeNull();
+      travel.pause();
+      const stopped = travel.settleStop(world, {}, 0)!;
+      expect(playerVehicle(stopped.world).pos).toEqual(endPose(me));
+      expect(stopped.drive).toBe(tail.next);
+      expect(stopped.leftMs).toBeCloseTo(TAIL * STEP);
+      expect(travel.isCreeping()).toBe(true);
+      expect(travel.settleStop(world, {}, 0)).toBeNull();
+    });
+
+    it("commits nothing once the next turn began", () => {
+      const { world, travel } = openStop();
+      const ready = { world, result: { frames: {}, next: {} }, tail: null } as unknown as PreparedTurn;
+      travel.beginPlayback(world, ready, 0, {});
+      travel.pause();
+      expect(travel.settleStop(world, {}, 0)).toBeNull();
+    });
+
+    it("commits nothing when the turn's tail was dropped", () => {
+      const { world, playback } = playerStop();
+      const travel = new Travel(250, TAIL);
+      travel.press(0, false, true);
+      travel.stopAt({ ...playback, tail: null } as Playback, world, {}, 0, 0);
+      travel.pause();
+      expect(travel.settleStop(world, {}, 0)).toBeNull();
+    });
+
+    it("leaves a truck that a rule moved in the wait where it was put", () => {
+      const { world, me } = openStop();
+      const other = { ...me, id: "other" };
+      const both = { ...world, vehicles: [me, other] };
+      const tailOfBoth: Tail = { ...tail, poses: { [me.id]: { ...pose, pos: endPose(me) }, other: { ...pose, pos: endPose(other) } } };
+      const open = new Travel(250, TAIL);
+      open.press(0, false, true);
+      open.stopAt({ tail: tailOfBoth } as Playback, both, {}, 0, 0);
+      open.pause();
+      const moved = { ...me, pos: { x: me.pos.x - 5, y: me.pos.y } };
+      const stopped = open.settleStop({ ...world, vehicles: [moved, other] }, {}, 0)!.world;
+      expect(stopped.vehicles.find((v) => v.id === me.id)!.pos).toEqual(moved.pos);
+      expect(stopped.vehicles.find((v) => v.id === "other")!.pos).toEqual(endPose(other));
+    });
+
+    it("wants world time while the stop is open, and not after it is committed", () => {
+      const { world, travel } = openStop();
+      Object.assign(travel, { turns: { prepare: vi.fn(), isReady: () => false } });
+      travel.pause();
+      expect(travel.timeWanted(world, 0)).toBe(true);
+      travel.settleStop(world, {}, 0);
+      expect(travel.timeWanted(world, 0)).toBe(false);
+    });
   });
 });
 

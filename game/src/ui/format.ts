@@ -569,7 +569,6 @@ function playerNotices(world: World, ...ids: string[]): boolean {
   if (world.player.fullLog) return true;
   return ids.some((id) => {
     if (id === world.player.vehicleId) return true;
-    if (world.player.contacts.some((c) => c.vehicleId === id)) return true;
     const v = findAny(world, id);
     return v !== undefined && playerSees(world, v.pos);
   });
@@ -600,6 +599,7 @@ const NOTICED: { [K in GameEvent['t']]?: (e: Extract<GameEvent, { t: K }>) => st
   caltrops: (e) => [e.vehicle],
   lineTorn: (e) => [e.vehicle],
   claymore: (e) => [e.vehicle, e.other],
+  claymoreCookOff: (e) => [e.vehicle],
 };
 
 function unnoticed(world: World, e: GameEvent): boolean {
