@@ -29,7 +29,7 @@ const traderAt = (w: World, faction: Faction, pos: Vec) => npc(w, faction, 'trad
 
 function fileAgainst(w: World, culprit: Vehicle, at: Vec): void {
   const bowl = traderAt(w, 'bowl', { x: 100, y: 600 });
-  remember(w, bowl, { kind: 'witnessed', crime: `${w.turn}:${culprit.id}:${bowl.id}:robbed`, by: culprit.id, victim: bowl.id, offense: 'robbed', at: { ...at }, heading: 0 });
+  remember(w, bowl, { kind: 'witnessed', crime: `${w.turn}:${culprit.id}:${bowl.id}:robbed`, by: culprit.id, victim: bowl.id, offense: 'robbed', at: { ...at }, heading: 0, restitution: 0 });
   bowl.pos = { ...nearestPad(getKnownSite('bowl'), bowl.pos) };
   bowl.speed = 0;
   fileReports(w, bowl);

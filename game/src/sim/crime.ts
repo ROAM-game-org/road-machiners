@@ -53,7 +53,7 @@ function recordCrime(world: World, culprit: Vehicle, victim: Vehicle, offense: C
   if (!crimeOf(world, culprit, victim, offense)) return;
   const reporters = [...(victimReports && namesCulprit(world, victim, culprit) ? [victim] : []), ...seen.filter((w) => willReport(world, w, culprit, victim))];
   const crime = `${world.turn}:${culprit.id}:${victim.id}:${offense}`;
-  for (const r of reporters) remember(world, r, { kind: 'witnessed', crime, by: culprit.id, victim: victim.id, offense, at: { ...victim.pos }, heading: culprit.heading });
+  for (const r of reporters) remember(world, r, { kind: 'witnessed', crime, by: culprit.id, victim: victim.id, offense, at: { ...victim.pos }, heading: culprit.heading, restitution: 0 });
 }
 
 function requireInWorld(world: World, v: Vehicle): void {
@@ -114,8 +114,8 @@ function openCase(world: World, reporter: Vehicle, fact: Witnessed, site: string
   if (escrow > 0) shopMoney(world, reporter, -escrow, 'bountyEscrow');
   const c: CrimeCase = {
     id: newId(world, 'case'), crime: fact.crime, offense: fact.offense, target: target.id, victim: fact.victim, issuer,
-    reporters: [reporter.id], site, at: { ...fact.at }, turn: crimeTurn(fact.crime), filed: world.turn, owed: stake, escrow,
-    status: 'open', closed: null, hunter: null, retryAt: null, offered: null, lead: { at: { ...fact.at }, turn: crimeTurn(fact.crime), heading: fact.heading },
+    reporters: [reporter.id], site, at: { ...fact.at }, turn: crimeTurn(fact.crime), filed: world.turn, owed: stake, restitution: fact.restitution, escrow,
+    status: 'open', closed: null, hunter: null, retryAt: null, offered: null, known: false, lead: { at: { ...fact.at }, turn: crimeTurn(fact.crime), heading: fact.heading },
   };
   world.crimes = [...world.crimes, c];
   world.events.push({ t: 'bountyFiled', case: c.id, target: c.target, reporter: reporter.id, offense: c.offense, victim: c.victim, site, owed: c.owed });

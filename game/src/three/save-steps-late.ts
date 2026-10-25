@@ -496,3 +496,19 @@ export function withLeanDirections_104_105(world: SavedJson): SavedJson {
   const next = { ...call, vars: withLeanVars_104_105(call.vars as SavedJson), line: { ...line, vars: withLeanVars_104_105(line.vars as SavedJson) } };
   return { ...world, player: { ...player, call: next } };
 }
+
+function withMemoryRestitution_105_106(v: SavedJson): SavedJson {
+  const brain = v.brain as SavedJson | null;
+  if (!brain?.memories) return v;
+  const memories = (brain.memories as SavedJson[]).map((m) => {
+    const fact = m.fact as SavedJson;
+    return fact.kind === 'witnessed' ? { ...m, fact: { ...fact, restitution: 0 } } : m;
+  });
+  return { ...v, brain: { ...brain, memories } };
+}
+
+export function withCaseRestitution_105_106(world: SavedJson): SavedJson {
+  const crimes = (world.crimes as SavedJson[]).map((c) => ({ ...c, restitution: 0, known: true }));
+  const vehicles = (world.vehicles as SavedJson[]).map(withMemoryRestitution_105_106);
+  return { ...world, crimes, vehicles };
+}
