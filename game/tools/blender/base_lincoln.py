@@ -34,6 +34,7 @@ from parts_common_base import (  # noqa: E402
     level_sockets,
     surface_z,
 )
+from parts_common_core import PROUD  # noqa: E402
 
 SEED = 314
 G = Grid(rows=11, cols=5, half_height=0.35)
@@ -131,9 +132,9 @@ def nose(kit: Kit) -> None:
     kit.box("grille", (0.08, 0.62, 0.42), (FRONT - 0.02, 0, DECK - 0.12), "metal_light")
     kit.box("grille_header", (0.1, 0.72, 0.06), (FRONT - 0.03, 0, DECK + 0.12), "metal_light")
     for s, sy in (("l", 1), ("r", -1)):
-        kit.box(f"fender_face_{s}", (0.04, 0.5, 0.3), (FRONT - 0.02, sy * 0.78, DECK - 0.14), "paint")
+        kit.box(f"fender_face_{s}", (0.04, 0.5, 0.3), (FRONT - 0.02 + PROUD, sy * 0.78, DECK - 0.14), "paint")
         kit.box(f"lamp_{s}", (0.05, 0.14, 0.14), (FRONT - 0.02, sy * (SIDE - 0.1), DECK - 0.1), "light")
-        kit.box(f"wrap_{s}", (0.7, 0.07, 0.22), (FRONT - 0.37, sy * (SIDE - 0.02), -0.4), "metal_light")
+        kit.box(f"wrap_{s}", (0.7, 0.07, 0.22 - 2 * PROUD), (FRONT - 0.37, sy * (SIDE - 0.02), -0.4), "metal_light")
     kit.box("bumper", (0.14, 2 * SIDE, 0.22), (FRONT - 0.04, 0, -0.4), "metal_light")
     kit.box("rear_bumper", (0.12, 2 * SIDE, 0.22), (BACK + 0.04, 0, -0.4), "metal_light")
     mirrored(kit, "taillight", (INSET, 0.5, 0.12), BACK - INSET / 2 + 0.02, SIDE - 0.4, DECK - 0.12, "red")
