@@ -12,7 +12,7 @@ A value should match the effort it takes to earn. `EFFORT.wage` is the money per
 
 ## Goods pressure and drift
 
-A good's price is its base price times one plus its pressure. Pressure comes from the shop's stock: `PRODUCTION.elasticity` times the share the stock is below its target, limited to `PRESSURE_MAX` on either side. A lot is priced one crate at a time through the stock. Fuel costs `ECONOMY.supplyPrice.fuel` and supplies `ECONOMY.supplyPrice.supplies` per unit, drawn from the shop's fuel drums and rations.
+A good's price is its base price times one plus its pressure. Pressure comes from the shop's stock: `PRODUCTION.elasticity` times the share the stock is below its target, limited to `PRESSURE_MAX` on either side. A lot is priced one crate at a time through the stock. Fuel costs `ECONOMY.supplyPrice.fuel` and supplies `ECONOMY.supplyPrice.supplies` per unit, drawn from the shop's petrol and rations.
 
 ## Shops
 
