@@ -371,6 +371,7 @@ export class Game {
   get busy(): boolean { return this.anim !== null; }
 
   private applyCommand(next: World): void {
+    if (this.anim && !this.anim.impacts) throw new Error("UI command while a turn plays");
     if (this.saves.changeMapIfMoved(next)) return;
     this.apply(next);
     this.saves.afterCommand(next);
