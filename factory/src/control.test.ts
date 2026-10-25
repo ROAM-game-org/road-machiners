@@ -212,7 +212,7 @@ describe('move', () => {
     after.close();
   });
 
-  it('of a voting card edits its proposal post once, to the count and Closed', async () => {
+  it('of a voting card edits its proposal post once, to the count and Закрыто', async () => {
     cards = [card(9, 'Triage', ['voting'])];
     seed({});
     const store = openStore(ROOT);
