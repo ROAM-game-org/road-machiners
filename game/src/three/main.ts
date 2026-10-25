@@ -77,7 +77,7 @@ async function bootSlot(slot: SlotId): Promise<Booted> {
     const world = loadWorld(slots, slot, map);
     if (!world) return newGameSaved(defaultSetup('roaming'), true);
     const runId = savedRunId(storedSave(slots, slot));
-    if (runId === null) throw new Error(`The save in ${slot} loaded but names no run`);
+    if (runId === null) throw new SaveError('invalidSave', null, `The save in ${slot} loaded but names no run`);
     return { world, runId, loadedFrom: slot, fresh: false };
   } catch (err) {
     return unloadedSlot(err, slot);
@@ -93,10 +93,14 @@ async function unloadedSlot(err: unknown, slot: SlotId): Promise<Booted> {
 }
 
 function carried(slot: SlotId): NonNullable<ReturnType<typeof carriedSave>> | SaveError {
+  return asSaveError(() => carriedSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId));
+}
+
+function asSaveError(carry: () => ReturnType<typeof carriedSave>): NonNullable<ReturnType<typeof carriedSave>> | SaveError {
   try {
-    return carriedSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId) ?? new SaveError('unreadable');
+    return carry() ?? new SaveError('unreadable');
   } catch (error) {
-    return new SaveError('invalidSave', null, (error as Error).message);
+    return error instanceof SaveError ? error : new SaveError('invalidSave', null, (error as Error).message);
   }
 }
 
@@ -119,8 +123,8 @@ function newGameSaved(setup: WorldSetup, intro: boolean): Booted {
 
 async function rescuedOrNew(error: SaveError, slot: SlotId, carries: boolean): Promise<Booted> {
   await boot.aside(() => chooseSaveFate(error, carries, storedSave(slots, slot), newGameActions, soundSettings));
-  const rescued = rescueSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId, Date.now());
-  if (!rescued) throw new Error('The save became unreadable while migrating');
+  const rescued = asSaveError(() => rescueSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId, Date.now()));
+  if (rescued instanceof SaveError) return rescuedOrNew(rescued, slot, false);
   return { world: rescued.world, runId: rescued.runId, loadedFrom: null, fresh: false };
 }
 

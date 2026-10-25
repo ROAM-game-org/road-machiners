@@ -16,6 +16,7 @@ export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: nu
 export type LocationDef = SiteLocationDef | TerritoryDef;
 export type SiteEdge = "fence" | "wrecks";
 export const MAP_SCALE = 6.5;
+export const MAP_GRID = { squares: 8 };
 
 export function scalePoint(p: Vec): Vec {
   return { x: p.x * MAP_SCALE, y: p.y * MAP_SCALE };
@@ -238,6 +239,7 @@ export const REGION = {
     roadShyBand: 10,
     overClimbCost: 40,
     climbStep: 0.05,
+    reachClimb: 0.2,
   },
   towns: [
     { id: "bowl", pos: scalePoint({ x: 16, y: 94 }), radius: 28 },

@@ -1,5 +1,7 @@
-import { BOUNTY, CRIME } from '../data/market';
-import { BANDS, STANDING } from '../data/npc-behavior';
+import { BOUNTY, CRIME, SHOPS } from '../data/market';
+import { BANDS, SITE_FACTIONS, STANDING } from '../data/npc-behavior';
+import { goodValue } from './market';
+import type { Vec } from './vec';
 import { TIME } from '../data/time';
 import { isDefeated } from './defeat';
 import { shopMoney, transfer } from './economy';
@@ -10,7 +12,7 @@ import { getResources } from './resources';
 import { modeRules } from './settings';
 import { canUseSite, parkedOn } from './sites';
 import { boundTo } from './states';
-import type { CaseIssuer, CaseLead, CrimeCase, CrimeOffense, Memory, Refusal, StandingFactionId, Vehicle, World } from './types';
+import type { CaseIssuer, CaseLead, CrimeCase, Memory, Refusal, StandingFactionId, Vehicle, WitnessedOffense, World } from './types';
 import { canVehicleSee } from './vision';
 import { playerVehicle } from './damage';
 import { vehicleHasPerk } from './progress';
@@ -18,9 +20,10 @@ import { newId } from './factory';
 import { playerCommand, Refused } from './world';
 
 type Witnessed = Extract<Memory['fact'], { kind: 'witnessed' }>;
+const SHOP_IDS: ReadonlySet<string> = new Set(Object.keys(SHOPS));
 type ClosedStatus = Exclude<CrimeCase['status'], 'open'>;
 
-export function crimeOf(world: World, culprit: Vehicle, victim: Vehicle, offense: CrimeOffense): boolean {
+export function crimeOf(world: World, culprit: Vehicle, victim: Vehicle, offense: WitnessedOffense): boolean {
   if (!modeRules(world).bounties || !(offense in CRIME.fine)) return false;
   if (isOutlaw(culprit.faction) || isOutlaw(victim.faction)) return false;
   if (huntsAs(world, culprit, victim.id)) return false;
@@ -47,7 +50,7 @@ export function noteKilling(world: World, killer: Vehicle, victim: Vehicle): voi
   recordCrime(world, killer, victim, 'killed', seen, false);
 }
 
-function recordCrime(world: World, culprit: Vehicle, victim: Vehicle, offense: CrimeOffense, seen: Vehicle[], victimReports: boolean): void {
+function recordCrime(world: World, culprit: Vehicle, victim: Vehicle, offense: WitnessedOffense, seen: Vehicle[], victimReports: boolean): void {
   requireInWorld(world, culprit);
   requireInWorld(world, victim);
   if (!crimeOf(world, culprit, victim, offense)) return;
@@ -121,6 +124,28 @@ function openCase(world: World, reporter: Vehicle, fact: Witnessed, site: string
   world.events.push({ t: 'bountyFiled', case: c.id, target: c.target, reporter: reporter.id, offense: c.offense, victim: c.victim, site, owed: c.owed });
 }
 
+export function fileEmbezzlement(world: World, shopId: string, crates: number, good: string, at: Vec): void {
+  if (!SHOP_IDS.has(shopId)) throw new Error(`${shopId} is not a shop that can post a bounty`);
+  if (!Number.isInteger(crates) || crates <= 0) throw new Error(`An embezzlement needs crates kept, got ${crates}`);
+  if (!modeRules(world).bounties) return;
+  const target = playerVehicle(world);
+  const owed = Math.min(crates * goodValue(good), CRIME.maxOwed - owedBy(world, target.id));
+  if (owed < CRIME.minStake) return;
+  const turn = world.turn;
+  const c: CrimeCase = {
+    id: newId(world, 'case'), crime: `${turn}:${target.id}:${shopId}:embezzled`, offense: 'embezzled', target: target.id, victim: shopId, issuer: shopIssuer(shopId),
+    reporters: [], site: shopId, at: { ...at }, turn, filed: turn, owed, escrow: 0,
+    status: 'open', closed: null, hunter: null, retryAt: null, offered: null, lead: { at: { ...at }, turn, heading: null },
+  };
+  world.crimes = [...world.crimes, c];
+  world.events.push({ t: 'bountyFiled', case: c.id, target: c.target, reporter: shopId, offense: c.offense, victim: shopId, site: shopId, owed, kept: { good, crates } });
+}
+
+function shopIssuer(shopId: string): CaseIssuer {
+  const faction = SITE_FACTIONS[shopId];
+  return faction && isOrganized(faction) && !isOutlaw(faction) ? { kind: 'faction', faction } : { kind: 'shop', shop: shopId };
+}
+
 function crimeTurn(crime: string): number {
   const turn = Number(crime.split(':')[0]);
   if (!Number.isInteger(turn)) throw new Error(`Crime ${crime} names no turn`);
@@ -134,9 +159,9 @@ function issuerOf(victim: Vehicle | null, reporter: Vehicle): CaseIssuer {
   return { kind: 'driver', id: reporter.id };
 }
 
-export function stakeOf(world: World, issuer: CaseIssuer, reporter: Vehicle, offense: CrimeOffense): number {
+export function stakeOf(world: World, issuer: CaseIssuer, reporter: Vehicle, offense: WitnessedOffense): number {
   const fine = CRIME.fine[offense];
-  if (issuer.kind === 'faction') return fine;
+  if (issuer.kind !== 'driver') return fine;
   return Math.max(0, Math.floor(Math.min(fine, CRIME.purseShare * tradeSpend(world, reporter))));
 }
 

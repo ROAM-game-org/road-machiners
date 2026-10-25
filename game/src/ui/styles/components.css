@@ -88,8 +88,7 @@
 }
 
 /* A told survey clue, on its own line under the contract it belongs to. */
-.contract-clue,
-.contract-hint {
+.contract-clue {
   display: block;
 }
 
