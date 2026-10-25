@@ -282,7 +282,7 @@ const STATES = {
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
   'trade-shortage': { setup: openShortMarket, teardown: closeTown },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
-  'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
+  'world-map': { setup: (page) => key(page, 'KeyM'), teardown: escape },
   minimap: { setup: (page) => setMinimap(page, true), teardown: (page) => setMinimap(page, false) },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
   'town-front': { setup: (page) => openTown(page, 'front'), teardown: closeTown },

@@ -210,7 +210,6 @@ export const UI: Translation<typeof EN> = {
   'help.does.zoom': 'Масштаб',
   'help.does.center': 'К грузовику',
   'help.does.camera': 'Камера',
-  'help.does.mute': 'Звук',
   'help.does.inventory': 'Инвентарь',
   'help.does.character': 'Персонаж',
   'help.does.journal': 'Журнал',

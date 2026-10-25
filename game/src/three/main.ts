@@ -227,7 +227,7 @@ const { bank } = loadedBank;
 if (loadedBank.format !== BANK.formats[0].ext) console.warn(`Sounds play from the ${loadedBank.format} twins, since ${BANK.formats[0].ext} did not decode`);
 for (const failure of loadedBank.unreachable) console.warn(`Sound ${failure.file} could not be fetched`, failure.errors);
 bootStep('starting the game');
-const radio = new RadioPanel(new RadioStation(Math.random), soundSettings, () => game.loops.nextTrack());
+const radio = new RadioPanel(new RadioStation(Math.random), () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
 const game = await boot.track('scene', () => new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), music, soundSettings, radio, surface));

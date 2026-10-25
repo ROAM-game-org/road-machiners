@@ -14,7 +14,7 @@ import { say } from '../text/language';
 import { byId, t, type Msg } from '../text/msg';
 import { fullName, goodLower, partName, siteName } from '../text/names';
 import { el, panel, rightDock } from './dom';
-import { muteSwitch, nextTrackKey, type SoundSettings } from './sound';
+import { nextTrackKey } from './sound';
 import { isRaider } from '../sim/relations';
 
 export type Broadcast = { topic: RadioTopic; variant: number; text: Msg; turn: number; rank: 'news' | 'time' | 'filler' };
@@ -248,20 +248,18 @@ export function revealed(text: string, elapsedMs: number, charsPerSecond: number
 
 export class RadioPanel {
   readonly root = panel('radio dock-panel', rightDock());
-  private readonly faceplate = el('div', { class: 'radio-faceplate' });
   private readonly keys = el('div', { class: 'radio-keys' });
   private text = el('div', { class: 'radio-text', 'aria-live': 'polite', 'aria-busy': 'false' });
   private lcd: HTMLElement;
   private streaming: { text: string; start: number } | null = null;
   private shown: Msg | null = null;
 
-  constructor(private station: RadioStation, sound: SoundSettings, nextTrack: () => void) {
+  constructor(private station: RadioStation, nextTrack: () => void) {
     const band = el('div', { class: 'radio-band' }, el('span', {}, t('radio.band')), el('span', {}, t('radio.frequency')));
     const ghost = el('div', { class: 'radio-ghost', 'aria-hidden': 'true' }, t('radio.ghost', { blocks: '\u2588'.repeat(3 * 30) }));
     this.lcd = el('div', { class: 'radio-lcd' }, ghost, this.text);
-    this.faceplate.append(muteSwitch(sound).root);
     this.keys.append(nextTrackKey(nextTrack));
-    this.root.append(this.keys, el('div', { class: 'radio-screen' }, band, this.lcd), this.faceplate);
+    this.root.append(this.keys, el('div', { class: 'radio-screen' }, band, this.lcd));
   }
 
   private write(text: string): void {

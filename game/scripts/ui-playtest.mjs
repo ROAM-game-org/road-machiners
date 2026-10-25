@@ -510,6 +510,7 @@ async function checkRadio(page) {
     await holdContracts(page, count);
     const m = await boxes(page);
     assert(m.radio, 'Radio must be visible');
+    assert.equal(await page.locator('.radio button.switch').count(), 0, 'The radio must carry no mute switch, it lives in Options');
     assert.equal(m.knobs, 0, 'The radio must carry no volume knobs, they live in Options');
     assert.equal(m.oldSound, 0, 'The top-right Sound panel must be gone');
     const below = count ? m.contracts : m.log;
@@ -555,7 +556,7 @@ async function checkKnobs(url, viewport) {
     };
     await openOptions();
     const values = () => page.evaluate(() => [...document.querySelectorAll('.options .knob')].map(k => k.getAttribute('aria-valuenow')));
-    const muted = () => page.evaluate(() => document.querySelector('.options .radio-mute button').getAttribute('aria-pressed') ?? document.querySelector('.options .radio-mute').innerHTML);
+    const muted = () => page.evaluate(() => document.querySelector('.options .sound-mute button').getAttribute('aria-pressed') ?? document.querySelector('.options .sound-mute').innerHTML);
     const game = () => page.evaluate(() => {
       const g = window.__ROAM__;
       return JSON.stringify([g.state === window.__knobState, g.rig.camera.position.toArray()]);
@@ -564,7 +565,7 @@ async function checkKnobs(url, viewport) {
     const box = selector => page.evaluate(selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }, selector);
     const cells = page.locator('.options .knob-cell');
     const rects = await cells.evaluateAll(nodes => nodes.map(n => ({ cell: n.getBoundingClientRect().toJSON(), knob: n.querySelector('.knob').getBoundingClientRect().toJSON() })));
-    const mute = await box('.options .radio-mute');
+    const mute = await box('.options .sound-mute');
     assert.equal(rects.length, 4, `${at} Options must carry four knob columns`);
     rects.forEach((r, i) => {
       assert(r.cell.width >= 24 && r.cell.height >= 40, `${at} ${KNOB_BUSES[i]} column must be at least 24x40, got ${r.cell.width}x${r.cell.height}`);
@@ -628,8 +629,9 @@ async function checkKnobs(url, viewport) {
     const held = await values();
     const muteBefore = await muted();
     await page.keyboard.press('m');
-    assert.notEqual(await muted(), muteBefore, `${at} M must flip the mute switch`);
+    assert.equal(await muted(), muteBefore, `${at} M must not flip the mute switch`);
     assert.deepEqual(await values(), held, `${at} M must not change a level`);
+    if (await page.locator('.character-screen:visible').count()) await page.keyboard.press('m');
     assert.equal(await game(), cameraBefore, `${at} the knob checks must leave the camera alone`);
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('roam-sound')).volume);
     assert.deepEqual(['music', 'sfx', 'ambient', 'ui'].map(b => String(Math.round(stored[b] * 100))), held, `${at} the stored levels must match the knobs`);
@@ -691,6 +693,12 @@ try {
   await checkVisibleReadouts(page);
   assert.deepEqual(await page.locator('.modal:visible').boundingBox(), inventoryFrame, 'Character and inventory must share one frame');
   await page.keyboard.press('Escape');
+  await page.keyboard.press('m');
+  assert(await page.locator('.character-screen [data-tab=map].on').count(), 'M must open the character screen on its Map tab');
+  await page.keyboard.press('m');
+  assert.equal(await page.locator('.modal:visible').count(), 0, 'M must close the Map tab again');
+  await page.keyboard.press('k');
+  assert.equal(await page.locator('.modal:visible').count(), 0, 'K must do nothing');
   await page.keyboard.press('e');
   await checkCoins(page, 'HUD');
   if (await page.locator('.modal:visible').count()) {

@@ -163,7 +163,7 @@ export function mapInstrument(w: World, busy: boolean, openMap: () => void): HTM
   return [
     el(
       "button",
-      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : keyLabel(t("map.full"), "K") },
+      { class: "instrument-button", "aria-disabled": busy ? "true" : undefined, onclick: () => !busy && openMap(), title: busy ? TURN_PLAYING : keyLabel(t("map.full"), "M") },
       t("map.full"),
     ),
   ];
