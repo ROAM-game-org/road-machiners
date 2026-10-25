@@ -6,7 +6,7 @@ import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF, SHOPS } from "../data/market";
 import { shortHere, stockTarget, type ShopState } from "../sim/market";
-import { casePrice, livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
+import { casePrice, casePriceTip, livePaintPlan, paletteStyle, planWithSlot, schemeStyle, shortBy } from "./shop-rows";
 import { PAINT, PAINT_SCHEMES } from "../data/chassis";
 import { placeProse } from "../text/names";
 import type { CrimeCase } from "../sim/types";
@@ -246,14 +246,14 @@ describe("the price of a case at the Marshalls desk", () => {
   it("is the fine alone, with no breakdown, when the victim handed nothing over", () => {
     const price = casePrice(robbery(0), true) as unknown as FakeNode;
     expect(price.text()).toBe("111");
-    expect(tipRows(price)).toEqual([]);
+    expect(price.has("case-price")).toBe(false);
   });
 
   it("is fine and restitution, and its breakdown gives Base in muted ink and Restitution in danger ink", () => {
     const price = casePrice(robbery(4000), true) as unknown as FakeNode;
     expect(price.has("case-price")).toBe(true);
-    expect(price.children[0] instanceof FakeNode && price.children[0].text()).toBe("151");
-    expect(tipRows(price)).toEqual([["tooltip-row base", "Base111"], ["tooltip-row down", "Restitution40"]]);
+    expect(price.text()).toBe("151");
+    expect(tipRows(casePriceTip(robbery(4000)) as unknown as FakeNode)).toEqual([["tooltip-row base", "Base111"], ["tooltip-row down", "Restitution40"]]);
   });
 
   it("prints in danger ink when the player cannot pay it", () => {

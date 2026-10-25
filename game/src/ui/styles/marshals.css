@@ -40,7 +40,7 @@
   gap: var(--space-5);
   padding: var(--space-3) 0;
 }
-.case-price {
+.case-pay {
   position: relative;
 }
 .case-price > .amount {
@@ -49,12 +49,12 @@
 .case-price-tip {
   display: none;
   position: absolute;
-  right: 0;
-  bottom: calc(100% + var(--space-4));
+  right: calc(100% + var(--space-4));
+  top: 0;
   z-index: var(--z-popup);
   width: max-content;
 }
-.desk-case > button:is(:hover, :focus-visible) .case-price-tip {
+.case-pay:has(> button:is(:hover, :focus-visible)) > .case-price-tip {
   display: block;
 }
 .desk-all {

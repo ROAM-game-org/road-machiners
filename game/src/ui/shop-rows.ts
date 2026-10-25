@@ -276,7 +276,7 @@ function caseRow(w: World, c: CrimeCase, run: DeskCommand): HTMLElement {
     { class: "row desk-case" },
     el("span", {}, t(`desk.case.${c.offense}`, { victim })),
     el("span", { class: "dim" }, t("desk.filed", { issuer: issuerName(w, c), site: siteName(c.site), when: clock(c.turn).full })),
-    payButton(w, t("desk.pay"), price, casePrice(c, w.player.money >= price), () => run((x) => payAtDesk(x, [c.id]))),
+    casePay(payButton(w, t("desk.pay"), price, casePrice(c, w.player.money >= price), () => run((x) => payAtDesk(x, [c.id]))), c),
   );
 }
 
@@ -305,12 +305,15 @@ function issuerName(w: World, c: CrimeCase): Msg {
 
 export function casePrice(c: CrimeCase, payable: boolean): HTMLElement {
   if (c.restitution === 0) return priceSpan(caseOwed(c), payable);
-  return el(
-    "span",
-    { class: `case-price${payable ? "" : " bad"}` },
-    moneyEl(caseOwed(c)),
-    el("span", { class: "tooltip case-price-tip", role: "tooltip" }, priceTipRow(t("desk.base"), c.owed, "base"), priceTipRow(t("desk.restitution"), c.restitution, "down")),
-  );
+  return el("span", { class: `case-price${payable ? "" : " bad"}` }, moneyEl(caseOwed(c)));
+}
+
+function casePay(button: HTMLElement, c: CrimeCase): HTMLElement {
+  return c.restitution === 0 ? button : el("span", { class: "case-pay" }, button, casePriceTip(c));
+}
+
+export function casePriceTip(c: CrimeCase): HTMLElement {
+  return el("span", { class: "tooltip case-price-tip", role: "tooltip" }, priceTipRow(t("desk.base"), c.owed, "base"), priceTipRow(t("desk.restitution"), c.restitution, "down"));
 }
 
 function priceTipRow(label: Msg, cents: number, tone: "base" | "down"): HTMLElement {
