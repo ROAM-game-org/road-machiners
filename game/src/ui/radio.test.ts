@@ -293,7 +293,7 @@ describe('RadioStation', () => {
   });
 });
 
-const CLAIM_LOOK_IDS: ClaimLook[] = ['armyTruck', 'deadTruck', 'tank', 'shipWreck'];
+const CLAIM_LOOK_IDS: ClaimLook[] = ['armyTruck', 'deadTruck', 'tank', 'hullCompartment', 'cargoPod', 'engineSection'];
 
 describe('radio lines', () => {
   const longest = (words: string[]) => words.reduce((x, y) => (y.length > x.length ? y : x));
