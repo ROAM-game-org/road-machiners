@@ -405,5 +405,18 @@
       "#601 Add an exploration minimap and maps you can buy"
     ],
     "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "chat message 452, a collision bug report to the bot that was not filed (#805), as Hermes recorded it",
+    "text": "@road_machiners_bot after a glancing collision with a rock or a building at high speed, or an unlucky approach in automatic drive, the truck gets stuck. I tried automatic and manual mode, reverse and steering around it, and it will not drive out",
+    "expect": "file",
+    "source": "message",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ],
+    "addressed": true
   }
 ]
