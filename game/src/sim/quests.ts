@@ -39,6 +39,7 @@ import { SALVAGE_GOODS } from '../data/intro';
 import BUNDLE from '../data/quests.json';
 import { isNoteId, type NoteId } from '../data/locals';
 import { GOODS } from '../data/goods';
+import { CRIME } from '../data/market';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { SKILL_IDS } from '../data/skills';
@@ -49,7 +50,8 @@ import { skillLevel } from './progress';
 import { boardFull, holdsNote, localsAt, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { canDriveOn } from './fury-road';
 import { payOf } from './fury-road-director';
-import { requireShop, shortHere, siteOf } from './market';
+import { heldSearch, noteSearchLead, requireShop, shortHere, siteOf } from './market';
+import { marshalLead } from './marshals';
 import { worksDown } from './production';
 import { hashRandom } from './rng';
 import { storyStock } from './salvage';
@@ -126,6 +128,9 @@ export const QUEST_QUERIES: Record<string, QuestQuery> = {
   short_of: (world, args) => shortHere(world, requireShop(world), goodArg('short_of', args)),
   works_down: (world) => worksDown(world, requireShop(world)),
   skill: (world, args) => skillLevel(world, skillArg('skill', args)),
+  holds_search: (world) => heldSearch(world)?.delivered === false,
+  marshal_lead: (world) => marshalLead(world) !== null,
+  lead_price: () => leadPrice(),
   stretch_pay: (_world, args) => stretchPay(wholeArg('stretch_pay', args, 0)),
   passed: (world) => {
     const check = pickedChecks.get(world);
@@ -146,6 +151,11 @@ export const QUEST_EFFECTS: Record<string, QuestEffect> = {
     if (world.player.money < amount * UNITS.centsPerM) throw new Error(`pay(${amount}) needs more money than the player holds. Check money() first`);
     world.player.money -= amount * UNITS.centsPerM;
   },
+  take_marshal_lead: (world) => {
+    const lead = marshalLead(world);
+    if (!lead) throw new Error('take_marshal_lead ran with no Marshall sighting newer than the lead');
+    noteSearchLead(world, lead.at, lead.turn);
+  },
   note: (world, args) => learnNote(world, noteArg('note', args)),
   take_work: (world) => takeTownWork(world),
   begin: (world, args) => {
@@ -157,6 +167,12 @@ export const QUEST_EFFECTS: Record<string, QuestEffect> = {
 function stretchPay(stretch: number): number {
   if (stretch < 1) throw new Error(`stretch_pay needs a stretch of 1 or more, got ${stretch}`);
   return payOf(stretch) / UNITS.centsPerM;
+}
+
+function leadPrice(): number {
+  const price = Math.round(CRIME.leadFee / UNITS.centsPerM);
+  if (price < 1) throw new Error(`lead_price would round under 1 M, got ${CRIME.leadFee} cents`);
+  return price;
 }
 
 function wholeArg(fn: string, args: readonly unknown[], index: number): number {

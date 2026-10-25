@@ -89,6 +89,7 @@ import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
 import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
+import { cameraSetting } from "../ui/camera-setting";
 import { isBrowserChord, uiRoot } from "../ui/dom";
 import { subscribeInputMode, touchMode } from "../ui/input-mode";
 import { installTouchTips } from "../ui/touch-tip";
@@ -313,8 +314,6 @@ export class Game {
     this.hoverHold.watch(this.hud.getInspectionRoot());
     const saves = this.saves.menuActions(() => this.world);
     this.menu = new GameMenu({ ...saves, unstuck: { reason: () => unstuckReason(this.world, this.anim !== null, this.screens.quest.isOpen()), run: () => this.getUnstuck() } }, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), {
-      cameraLabel: () => this.hud.cameraModeLabel(),
-      toggleCamera: () => this.hud.toggleCameraMode(),
       report: () => this.hud.openFeedback(),
     }, this.soundSettings);
     this.death = new DeathScreen(saves);
@@ -536,6 +535,7 @@ export class Game {
 
   private readonly keys: Record<string, { run: () => void; noModal?: true; idle?: true; inventoryOk?: true }> = {
     KeyF: { run: () => this.follow.recenter() },
+    KeyV: { run: () => cameraSetting().toggle() },
     KeyM: { run: () => this.soundSettings.toggleMute() },
     KeyQ: { run: () => this.weapons.toggleAuto(), noModal: true },
     KeyX: { run: () => this.weapons.toggleVisible(), noModal: true },
@@ -1069,7 +1069,7 @@ export class Game {
     const sightRadius = grayRadius(this.world) * PHYSICS.metersPerTile;
     this.sightLimit.set(truck, sightRadius);
     this.rig.leash(truck, sightRadius);
-    this.follow.update(truck, this.hud.cameraMode === "auto" ? this.orderPoint() : null, dt, playMs);
+    this.follow.update(truck, cameraSetting().mode() === "auto" ? this.orderPoint() : null, dt, playMs);
     this.hud.showRecenter(!this.follow.isFollowing());
     lightScene(this.sun, this.sky, truck, daylightAt(lightTurnOf(this.world, this.anim)));
     this.fx.light({ sun: this.sun, sky: this.sky });
