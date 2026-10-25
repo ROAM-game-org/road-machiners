@@ -11,7 +11,7 @@ import { getResources } from './resources';
 import { isFree } from './spawn';
 import { endState } from './states';
 import { canDrag, dragHeldBy, inTowReach, isOnRope, startDrag } from './tow';
-import { callStrangers, dropSpot, lightZone, nearTheLight, offeringOf, seize } from './sunward-crater';
+import { boundToOrder, callStrangers, dropSpot, lightZone, nearTheLight, offeringOf, seize } from './sunward-crater';
 import { inTruce } from './relations';
 import { canVehicleSee, grayRadius, tileCenter } from './vision';
 import { fuelCap, suppliesCap } from './stats';
@@ -241,7 +241,7 @@ function seizeLonePrey(world: World, v: Vehicle): void {
 }
 
 function lonePrey(world: World, hunter: Vehicle, x: Vehicle): boolean {
-  if (isSunwardMember(x) || isDefeated(x) || isOnRope(world, x.id) || inTruce(world, hunter, x)) return false;
+  if (isSunwardMember(x) || isDefeated(x) || boundToOrder(world, hunter, x)) return false;
   return !inCompany(world, x) && canVehicleSee(world, hunter, x.pos);
 }
 

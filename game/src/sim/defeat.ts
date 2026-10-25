@@ -55,25 +55,28 @@ export function checkKnockout(world: World): void {
 }
 
 function knockOutPlayer(world: World, me: Vehicle): void {
-  const p = world.player;
   const watchers = world.vehicles.filter((v) => isHostile(world, v, me) && canVehicleSee(world, v, me.pos));
   if (watchers.length > 0) practice(world, "knockout", 1, null, "driver");
-  me.defeat = { phase: "out", turns: 0, unseen: 0, foes: withLastHitter(world, me, watchers.map((v) => v.id)), gaveUp: false };
+  layPlayerDown(world, me, withLastHitter(world, me, watchers.map((v) => v.id)), false);
+  world.player.knockouts++;
   noteKnockout(world, me);
+  settleRevenge(world, me);
+  world.events.push({ t: "knockout" });
+  openFirstFall(world, me.defeat!.foes);
+}
+
+function layPlayerDown(world: World, me: Vehicle, foes: string[], gaveUp: boolean): void {
+  const p = world.player;
+  me.defeat = { phase: "out", turns: 0, unseen: 0, foes, gaveUp };
   p.state = "knockedOut";
   p.knockoutTurns = 0;
-  p.knockouts++;
   stopKnockedOut(world, me);
   me.trail = [];
-  const robbers = robbersOf(world, me);
   for (const s of world.states.filter((x) => x.kind === "feud" && x.other === me.id))
     endState(world, s, "fulfilled");
   for (const s of world.states.filter((x) => x.kind === "combat" && (x.holder === me.id || x.other === me.id)))
     endState(world, s, "broken");
-  sendToLoot(world, me, robbers);
-  settleRevenge(world, me);
-  world.events.push({ t: "knockout" });
-  openFirstFall(world, me.defeat.foes);
+  sendToLoot(world, me, robbersOf(world, me));
 }
 
 function knockedNow(world: World, truck: Vehicle): boolean {
@@ -131,8 +134,18 @@ function endDangerGoals(world: World, v: Vehicle): void {
 }
 
 export function standDown(world: World, v: Vehicle, winnerId: string): void {
+  if (v.id === world.player.vehicleId) return standDownPlayer(world, v, winnerId);
   if (!modeRules(world).npcKnockouts) throw new Error(`${v.id} cannot stand down where nobody is knocked out`);
   layDown(world, v, [...new Set([...foesOf(world, v), winnerId])], true);
+  const winner = world.vehicles.find((x) => x.id === winnerId);
+  if (winner?.brain && wantsLoot(world, winner, v)) sendToLoot(world, v, [winner]);
+}
+
+function standDownPlayer(world: World, me: Vehicle, winnerId: string): void {
+  if (!modeRules(world).playerKnockouts) throw new Error("The player cannot stand down where nobody is knocked out");
+  if (world.player.state !== "active") throw new Error("Only an active player can stand down");
+  const watchers = world.vehicles.filter((v) => isHostile(world, v, me) && canVehicleSee(world, v, me.pos));
+  layPlayerDown(world, me, [...new Set([...watchers.map((v) => v.id), winnerId])], true);
 }
 
 export function knockOutNpc(world: World, v: Vehicle): void {
@@ -201,11 +214,19 @@ export function advanceNpcKnockouts(world: World): void {
 
 function advanceNpcKnockout(world: World, v: Vehicle): void {
   const defeat = v.defeat!;
+  if (heldDown(world, v)) return;
   defeat.turns++;
   if (attackerWatches(world, v, defeat.foes) && defeat.turns < RULES.knockoutMaxTurns) return;
   patchBrokenCore(v);
   v.defeat = { ...defeat, phase: "retreat", unseen: 0 };
   world.events.push({ t: "npcWake", vehicle: v.id });
+}
+
+function heldDown(world: World, v: Vehicle): boolean {
+  const me = playerVehicle(world);
+  const job = me.job;
+  if (job?.kind !== "refit" || job.pickup?.from !== "truck") return false;
+  return job.pickup.vehicleId === v.id && vehicleHasPerk(world, me, "teardown");
 }
 
 function attackerWatches(world: World, v: Vehicle, foes: string[]): boolean {

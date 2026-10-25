@@ -19,7 +19,7 @@ describe('saving salvage claims', () => {
   it('loads a posted offer with a rival out, a held claim with a lead and a rival mid-run as the same world, awarding nothing', () => {
     const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
     for (const shop of Object.values(world.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
-    const targets = claimTargets(world);
+    const targets = claimTargets(world, 'bowl');
     expect(targets.length).toBeGreaterThan(1);
     const [posted, held] = [targets[0], targets.find((t) => t.stock.id !== targets[0].stock.id)!];
     const offer = claimOf('ct-posted', posted) as ClaimContract;

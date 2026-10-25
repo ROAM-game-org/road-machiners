@@ -39,7 +39,9 @@ export class RenderScope {
     if (!(pos.x >= 0 && pos.y >= 0 && pos.x <= this.mapSize && pos.y <= this.mapSize)) throw new Error(`Render scope object at ${pos.x},${pos.y} is outside the ${this.mapSize}-tile map`);
     if (!(radius >= 0 && Number.isFinite(radius))) throw new Error(`Render scope radius must be a finite non-negative number, got ${radius}`);
     const chunk = this.chunkAt(pos);
+    obj.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(obj);
+    this.checkClaim(obj, bounds, pos, radius);
     const low = bounds.isEmpty() ? obj.position.y : bounds.min.y;
     const high = bounds.isEmpty() ? obj.position.y : bounds.max.y;
     bounds.expandByPoint(new THREE.Vector3((pos.x - radius) * S, low, (pos.y - radius) * S));
@@ -50,6 +52,16 @@ export class RenderScope {
     this.owner.set(obj, chunk);
     this.limit.patch(obj, this.grey);
     CLOUD_SHADOWS.shadeTree(obj);
+  }
+
+  private checkClaim(obj: THREE.Object3D, bounds: THREE.Box3, pos: Vec, radius: number): void {
+    if (bounds.isEmpty()) return;
+    const low = (pos.x - radius) * S - MARGIN;
+    const high = (pos.x + radius) * S + MARGIN;
+    const near = (pos.y - radius) * S - MARGIN;
+    const far = (pos.y + radius) * S + MARGIN;
+    if (bounds.min.x >= low && bounds.max.x <= high && bounds.min.z >= near && bounds.max.z <= far) return;
+    throw new Error(`Render scope object ${obj.name || obj.id} reaches x ${bounds.min.x}..${bounds.max.x} m, z ${bounds.min.z}..${bounds.max.z} m, outside its ${radius}-tile circle at ${pos.x},${pos.y}`);
   }
 
   remove(obj: THREE.Object3D): void {

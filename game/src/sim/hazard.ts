@@ -10,7 +10,7 @@ function inside(zone: HazardZone, pos: Vec): boolean {
 }
 
 export function inCore(zone: HazardZone, pos: Vec): boolean {
-  return zone.core !== null && dist(pos, zone.pos) < zone.core.radius;
+  return zone.core !== null && (dist(pos, zone.pos) < zone.core.radius || dist(pos, zone.core.light.pos) < zone.core.light.radius);
 }
 
 export function applyHazards(world: World): void {

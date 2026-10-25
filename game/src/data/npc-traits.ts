@@ -121,7 +121,7 @@ export const TRAITS: Record<TraitId, Trait> = {
     weights: {
       strangerSeen: { challenge: { add: 0.05 } }, lookedOver: { warn: { add: 1.5 }, keepAway: { mul: 0.2 } }, helpCalled: { help: { mul: 2.5 } },
       hostileSeen: { flee: { mul: 0.05 } }, contactHeard: { flee: { mul: 0.05 } }, attacked: { flee: { mul: 0.05 } },
-      parley: { truce: { mul: 0.05 }, beg: { mul: 0.05 } }, threatened: { flee: { mul: 0.05 }, comply: { mul: 0.05 } }, warnedOff: { comply: { mul: 0.05 } },
+      parley: { truce: { mul: 0.05 }, beg: { mul: 0.05 }, flee: { mul: 0.05 } }, threatened: { flee: { mul: 0.05 }, comply: { mul: 0.05 } }, warnedOff: { comply: { mul: 0.05 } },
       lootContested: { warn: { mul: 2 }, leave: { mul: 0.5 }, fight: { mul: 3 } }, warnRefused: { fight: { mul: 3 } },
       fightWhim: { rush: { mul: 3 } }, crewAsked: { join: { mul: 2 } }, crewCalled: { flee: { mul: 0.05 } },
     },

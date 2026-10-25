@@ -582,7 +582,7 @@ function fillBoard(world: World, shopId: string, state: ShopState): void {
   while (state.contracts.length < def.contractSlots) {
     const legs = haulLegs(world, shopId).filter((leg) => !state.contracts.some((c) => c.kind === 'haul' && c.good === leg.good && c.to === leg.to.id));
     const surveys = freeSurveySites(world, shopPos(shopId));
-    const offers = { legs, claims: claimTargets(world), clients, sought: searchCandidates(world, shopId, state), surveys, procure: procureCandidates(world, shopId, state) };
+    const offers = { legs, claims: claimTargets(world, shopId), clients, sought: searchCandidates(world, shopId, state), surveys, procure: procureCandidates(world, shopId, state) };
     const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, offers);
     if (!contract) return;
     requireFreeSites(world, contract);

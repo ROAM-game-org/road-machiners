@@ -1,4 +1,5 @@
 import { CLAIM_LOOKS, CONTRACTS, SHOPS, type ClaimLook } from '../data/market';
+import { bakedWords, claimClueBake, cluePlaces, fitsClue, makeClaimClues, roundTo, shopClue, snapAngle, withWords, type ClaimClue, type ClaimClueBake, type ClaimWreck } from './claim-clue';
 import { REGION } from '../data/region';
 import { WRECK_LOOKS } from '../data/territory';
 import { playerTrucks, playerVehicle } from './damage';
@@ -10,7 +11,6 @@ import { ROAD_INDEX } from './road-index';
 import { spotLookOf, territoryAt, territoryOfStock } from './territory';
 import type { PartInstance, SalvageStock, StateKindId, Vehicle, World } from './types';
 import { isJunk, partValue } from './wear';
-import { gridSquareOf, sameGridSquare, type GridSquare } from './map-grid';
 import { dist, type Vec } from './vec';
 
 export type ClaimTarget = { stock: SalvageStock; part: PartInstance };
@@ -44,10 +44,11 @@ export function claimSpots(world: World): SalvageStock[] {
   return candidates.filter((stock) => isReachable(world, layer, stock));
 }
 
-export function claimTargets(world: World): ClaimTarget[] {
+export function claimTargets(world: World, shopId: string): ClaimTarget[] {
   const named = new Set(liveClaims(world).map((c) => c.stockId));
+  const fair = claimClueBake({ hash: world.mapHash }).wrecks;
   return claimSpots(world)
-    .filter((stock) => !named.has(stock.id))
+    .filter((stock) => !named.has(stock.id) && fair[stock.id]?.tiers[shopId] !== undefined)
     .flatMap((stock) => [...stock.parts, ...stock.hidden.parts].filter((part) => !isJunk(part)).map((part) => ({ stock, part })));
 }
 
@@ -166,44 +167,37 @@ export function claimLook(stock: { id: string }): ClaimLook {
   return look;
 }
 
-export type ClaimClue = { look: ClaimLook; from: Vec; angle: number; distance: number; point: Vec; territory: string | null; square: GridSquare };
-
-const COMPASS_POINTS = 8;
-
-function snapAngle(rad: number): number {
-  const step = (2 * Math.PI) / COMPASS_POINTS;
-  return Math.round(rad / step) * step;
-}
-
-function roundTo(n: number, step: number): number {
-  return Math.max(step, Math.round(n / step) * step);
-}
-
 function shopSite(shopId: string): { pos: Vec } {
   const site = [...REGION.towns, ...REGION.locations].find((s) => s.id === shopId);
   if (!site) throw new Error(`No shop site ${shopId}`);
   return site;
 }
 
-export function claimClue(c: ClaimContract): ClaimClue {
-  const from = shopSite(c.shop).pos;
-  const angle = snapAngle(Math.atan2(c.at.y - from.y, c.at.x - from.x));
-  const distance = roundTo(dist(from, c.at), CONTRACTS.claim.clueStepTiles);
-  const point = { x: from.x + Math.cos(angle) * distance, y: from.y + Math.sin(angle) * distance };
-  return { look: claimLook({ id: c.stockId }), from: { ...from }, angle, distance, point, territory: territoryAt(c.at)?.id ?? null, square: gridSquareOf(c.at) };
+function wreckOf(stock: SalvageStock): ClaimWreck {
+  return { id: stock.id, pos: stock.pos, look: claimLook(stock), territory: territoryAt(stock.pos)?.id ?? null };
 }
 
-export function clueRadius(distance: number): number {
-  return CONTRACTS.claim.clueRadiusShare * distance + CONTRACTS.claim.clueStepTiles;
+export function claimWrecks(world: World): ClaimWreck[] {
+  return claimSpots(world).map(wreckOf);
+}
+
+export function claimClue(c: ClaimContract): ClaimClue {
+  const wreck: ClaimWreck = { id: c.stockId, pos: c.at, look: claimLook({ id: c.stockId }), territory: territoryAt(c.at)?.id ?? null };
+  return withWords(shopClue(wreck, shopSite(c.shop).pos), bakedWords(c.stockId, c.shop));
 }
 
 export function claimCandidates(world: World, c: ClaimContract): string[] {
   const clue = claimClue(c);
-  const radius = clueRadius(clue.distance);
-  const near = claimSpots(world).filter((stock) => claimLook(stock) === clue.look && dist(stock.pos, clue.point) <= radius && sameGridSquare(gridSquareOf(stock.pos), clue.square));
-  const sorted = near.sort((a, b) => dist(a.pos, clue.point) - dist(b.pos, clue.point) || a.id.localeCompare(b.id)).map((stock) => stock.id);
+  const places = cluePlaces(world);
+  const near = claimWrecks(world).filter((wreck) => fitsClue(places, clue, wreck));
+  const sorted = near.sort((a, b) => dist(a.pos, clue.point) - dist(b.pos, clue.point) || a.id.localeCompare(b.id)).map((wreck) => wreck.id);
   if (!sorted.includes(c.stockId)) throw new Error(`Claim ${c.id} candidates miss its wreck ${c.stockId}`);
   return sorted;
+}
+
+export function bakeClaimClues(world: World): ClaimClueBake {
+  const shops = Object.fromEntries(Object.keys(SHOPS).map((id) => [id, shopSite(id).pos]));
+  return { mapHash: world.mapHash, wrecks: makeClaimClues(cluePlaces(world), claimWrecks(world), shops) };
 }
 
 export function leadOf(stockPos: Vec, from: Vec): { angle: number; distance: number } {

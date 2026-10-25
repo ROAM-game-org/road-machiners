@@ -68,7 +68,6 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   demandHaul: ['haul', 'price'],
   demandCut: ['price'],
   robCutAnswer: ['answer', 'price'],
-  surrenderHaul: ['haul'],
   lastSighting: ['sighting'],
   claimWreckBearing: ['bearing', 'distance'],
   courierNeed: ['aid', 'price'],

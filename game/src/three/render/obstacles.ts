@@ -227,7 +227,10 @@ export class ObstacleViews {
     const obj = model('crates');
     obj.position.set(stock.pos.x * S, heightAt(this.terrain, stock.pos.x, stock.pos.y) * S, stock.pos.y * S);
     obj.rotation.y = hashStr(stock.id) * Math.PI * 2;
-    obj.traverse((o) => (o.matrixAutoUpdate = false));
+    obj.traverse((o) => {
+      o.updateMatrix();
+      o.matrixAutoUpdate = false;
+    });
     paintSwatches(lootSwatches(obj), 'loot');
     const pile = { obj, units: 0 };
     this.scope.add(obj, stock.pos, CRATES_RADIUS / S);

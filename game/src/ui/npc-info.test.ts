@@ -7,7 +7,7 @@ import { corePart, hasLoot, isLoot } from '../sim/grid';
 import type { GameEvent } from '../sim/types';
 import { addState } from '../sim/states';
 import { refreshVision } from '../sim/vision';
-import { eventText, formatNpcActivity, formatNpcCargo, formatNpcMark, formatNpcPass, formatNpcStates, formatNpcTraits, formatVehicleState } from './format';
+import { eventText, formatNpcActivity, formatNpcCargo, formatNpcMarked, formatNpcPass, formatNpcStates, formatNpcTraits, formatVehicleState } from './format';
 import { PERK_NUMBERS } from '../data/skills';
 import { makePart } from '../sim/factory';
 import { addGoods, stowPart } from '../sim/inventory';
@@ -119,17 +119,17 @@ it('shows NPC traits and cargo without the perks under see all, and hides them a
   toggleSeeAll();
   expect(en(formatNpcTraits(w, npc))).toBe('Traits: trader');
   expect(en(formatNpcCargo(w, npc))).toBe('Cargo: Salt ×2, Scrap metal ×1. Spares: MG turret');
-  expect(en(formatNpcMark(w, npc))).toBeNull();
+  expect(en(formatNpcMarked(w, npc))).toBeNull();
   toggleSeeAll();
   expect(formatNpcTraits(w, npc)).toBeNull();
   expect(formatNpcCargo(w, npc)).toBeNull();
 });
 
-it('offers the mark key on an unmarked truck with the spotter perk', () => {
+it('shows no mark line on an unmarked truck with the spotter perk', () => {
   const w = emptyWorld();
   w.player.perks.push('spotter');
   const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 32, y: 30 });
-  expect(en(formatNpcMark(w, npc))).toBe('[N] Mark');
+  expect(en(formatNpcMarked(w, npc))).toBeNull();
 });
 
 it('shows the turns a mark has left', () => {
@@ -137,13 +137,13 @@ it('shows the turns a mark has left', () => {
   w.player.perks.push('spotter');
   const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 32, y: 30 });
   w.player.marked = [{ vehicleId: npc.id, until: w.turn + PERK_NUMBERS.spotter.turns }];
-  expect(en(formatNpcMark(w, npc))).toBe(`Marked: ${PERK_NUMBERS.spotter.turns} turns left`);
+  expect(en(formatNpcMarked(w, npc))).toBe(`Marked: ${PERK_NUMBERS.spotter.turns} turns left`);
 });
 
 it('shows no mark line without the spotter perk', () => {
   const w = emptyWorld();
   const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 32, y: 30 });
-  expect(en(formatNpcMark(w, npc))).toBeNull();
+  expect(en(formatNpcMarked(w, npc))).toBeNull();
 });
 
 it('fails loudly for a vehicle with no NPC brain', () => {
@@ -258,15 +258,15 @@ describe('events far from the player', () => {
     return { w, a, events };
   };
 
-  it('give no line when the player neither sees nor detects them', () => {
+  it('give no line when the player does not see them', () => {
     const { w, events } = setup();
     for (const e of events) expect(eventText(w, e)).toBeNull();
   });
 
-  it('give a line when the player detects a vehicle in them', () => {
+  it('give no line when the player only detects a vehicle in them', () => {
     const { w, a, events } = setup();
     w.player.contacts = [{ vehicleId: a.id, center: a.pos, radius: 3, sources: ['sound'], loudness: 10 }];
-    for (const e of events) expect(eventText(w, e)).not.toBeNull();
+    for (const e of events) expect(eventText(w, e)).toBeNull();
   });
 
   it('give a line when the player sees a vehicle in them', () => {
