@@ -810,7 +810,13 @@ export const TINY_STEPS: readonly NamedStep[] = [
   { name: 'withHollowLaager', step: withHollowLaager_108_109 },
   { name: 'withCaseRestitution', step: withCaseRestitution_109_110 },
   { name: 'withCasePosse', step: withCasePosse_110_111 },
+  { name: 'withOfferingsRedated', step: withOfferingsRedated_111_112 },
 ];
+
+function withOfferingsRedated_111_112(world: SavedJson): SavedJson {
+  const redate = (s: SavedJson): SavedJson => (s.kind === 'offering' ? { ...s, born: world.turn } : s);
+  return { ...world, states: (world.states as SavedJson[]).map(redate) };
+}
 
 const MARSHALS_STANDING_101_102 = 0;
 
