@@ -685,7 +685,7 @@ describe('who loots a target', () => {
     return { w, me: w.vehicles[0], buggy };
   }
 
-  const pickupJob = (pickup: RefitPickup): Vehicle['job'] => ({ kind: 'refit', moves: [], pickup, turnsLeft: 2, total: 2 });
+  const pickupJob = (pickup: RefitPickup): Vehicle['job'] => ({ kind: 'refit', moves: [], pickup, queue: [], turnsLeft: 2, total: 2 });
   const lootGoal = (targetId: string, phase: NpcActivity['phase']): NpcActivity => ({ kind: 'loot', targetId, destination: null, phase, reason: 'tripToSite' });
 
   it('counts wrecks, piles and knocked-out trucks as loot targets, and never a running truck', () => {

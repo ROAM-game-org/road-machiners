@@ -581,3 +581,13 @@ export function withCasePosse_110_111(world: SavedJson): SavedJson {
   const crimes = world.crimes as SavedJson[];
   return { ...world, crimes: crimes.map((c) => ({ ...c, posse: LONE_POSSE_110_111 })) };
 }
+
+export function withRefitQueues_112_113(world: SavedJson): SavedJson {
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withRefitQueue_112_113) };
+}
+
+function withRefitQueue_112_113(v: SavedJson): SavedJson {
+  const job = v.job as SavedJson | null;
+  if (job?.kind !== 'refit' || Array.isArray(job.queue)) return v;
+  return { ...v, job: { ...job, queue: [] } };
+}

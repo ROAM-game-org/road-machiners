@@ -10,7 +10,7 @@ import { inCombat } from "./combat";
 import { playerVehicle } from "./damage";
 import { partValue } from "./wear";
 import { corePart, coreParts, freeCells, goodsCount, isMounted, itemSize, mountedParts } from "./grid";
-import { addGoods, applyRefitLayout, getRefitLayout, removeGoods, stowPart } from "./inventory";
+import { addGoods, applyRefitLayout, getRefitLayout, NOTHING_TAKEN, refitStepLayout, refitStepWork, removeGoods, startRefitStep, stowPart } from "./inventory";
 import { makePart } from "./factory";
 import { promisedParts } from "./patch";
 import { requireSpareGoods, spareGoods } from "./market";
@@ -21,7 +21,7 @@ import { finishTruckPickup } from "./salvage";
 import { isSearchStalled, searchTurn } from "./search";
 import { isSurveyStalled, surveyTurn } from "./survey";
 import { hasWorkingUtility } from "./utility";
-import type { GridItem, Job, PartInstance, RefitJob, RefitPickup, Refusal, Vehicle, World } from "./types";
+import type { GridItem, Job, PartInstance, RefitJob, RefitPickup, RefitStep, Refusal, Vehicle, World } from "./types";
 import { getKnownSite } from "./npc-decisions";
 import { canUseSite } from "./sites";
 import { playerCommand, Refused } from "./world";
@@ -293,13 +293,34 @@ function isRepairStalled(world: World, v: Vehicle, job: Extract<Job, { kind: "re
 }
 
 function advanceRefit(world: World, v: Vehicle, job: RefitJob): void {
+  if (!Array.isArray(job.queue)) throw new Error(`Refit job on ${v.id} has no queue`);
   const result = getRefitLayout(world, v, job);
   if (result.error !== null) return endJob(world, v, job, 'cancelled');
   job.turnsLeft -= 1;
   if (job.turnsLeft > 0) return;
-  applyRefitLayout(world, v, result.items);
-  if (job.pickup) takePickup(world, v, job.pickup);
+  finishRefitStep(world, v, job, result.items);
   endJob(world, v, job, 'done');
+  startNextRefitStep(world, v, job.queue);
+}
+
+function finishRefitStep(world: World, v: Vehicle, step: RefitStep, items: GridItem[]): void {
+  applyRefitLayout(world, v, items);
+  if (step.pickup) takePickup(world, v, step.pickup);
+}
+
+function startNextRefitStep(world: World, v: Vehicle, queue: RefitStep[]): void {
+  for (const [at, step] of queue.entries()) {
+    const layout = refitStepLayout(world, v, step, NOTHING_TAKEN);
+    if (layout.error !== null) {
+      world.events.push({ t: 'job', vehicle: v.id, job: { kind: 'refit', ...step, queue: [], turnsLeft: 0, total: 0 }, outcome: 'skipped', reason: layout.error });
+      continue;
+    }
+    if (refitStepWork(world, v, step) === 0) {
+      finishRefitStep(world, v, step, layout.items);
+      continue;
+    }
+    return startRefitStep(world, v, step, queue.slice(at + 1));
+  }
 }
 
 function takePickup(world: World, v: Vehicle, pickup: RefitPickup): void {
