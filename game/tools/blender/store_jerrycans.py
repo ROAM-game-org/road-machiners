@@ -38,7 +38,7 @@ def build(kit: Kit) -> None:
         for y in (-0.2, 0.2):
             strut(kit, f"post{x}{y}", (x, y, BASE_H), (x, y, 0.36), 0.025, "metal", sides=4)
     for y in (-0.2, 0.2):
-        kit.box(f"strap{y}", (0.62, 0.025, 0.04), (0, y, 0.34), "leather")
+        kit.box(f"strap{y}", (0.62, 0.02, 0.03), (0, y, 0.34), "leather")
 
 
 def main() -> None:
