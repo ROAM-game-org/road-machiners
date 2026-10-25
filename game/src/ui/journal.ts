@@ -5,9 +5,11 @@ import { leadOf } from '../sim/claims';
 import { clockOf } from '../sim/sun';
 import type { ClaimContract } from '../sim/salvage';
 import type { World } from '../sim/types';
+import { toldWrecks } from '../sim/rumors';
+import { gridSquareOf, type GridSquare } from '../sim/map-grid';
 import type { Contract, ContractEnd, PastContract } from '../sim/market';
 import { surveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
-import { postedSummary, surveyWayText } from './format';
+import { gridSquareText, postedSummary, surveyWayText } from './format';
 import { createIcon } from './cards';
 import { surveyPictureEl } from './survey-picture';
 import { contractIcon, heldContractRow } from './contract-row';
@@ -21,7 +23,21 @@ export type ClaimLeadNote = { id: string; day: number; from: Msg; body: Msg };
 
 export type PastEntry = { record: PastContract; day: number };
 
-export type Journal = { work: Contract[]; notes: JournalNote[]; past: PastEntry[] };
+export type WreckSquareNote = { square: GridSquare; count: number };
+
+export type Journal = { work: Contract[]; wrecks: WreckSquareNote[]; notes: JournalNote[]; past: PastEntry[] };
+
+function wreckSquares(world: World): WreckSquareNote[] {
+  const squares = new Map<string, WreckSquareNote>();
+  for (const stock of toldWrecks(world)) {
+    const square = gridSquareOf(stock.pos);
+    const key = `${square.column},${square.row}`;
+    const note = squares.get(key);
+    if (note) note.count += 1;
+    else squares.set(key, { square, count: 1 });
+  }
+  return [...squares.values()];
+}
 
 export function journalEntries(world: World): Journal {
   const notes = world.player.notes
@@ -29,7 +45,7 @@ export function journalEntries(world: World): Journal {
     .sort((a, b) => b.n.turn - a.n.turn || b.k - a.k)
     .map(({ n }) => ({ id: n.id, day: clockOf(n.turn).day, title: noteTitle(n.id), from: noteFrom(n.id), body: noteBody(n.id) }));
   const past = [...world.player.pastContracts].reverse().map((record) => ({ record, day: clockOf(record.turn).day }));
-  return { work: [...world.player.contracts], notes, past };
+  return { work: [...world.player.contracts], wrecks: wreckSquares(world), notes, past };
 }
 
 export function claimLeads(c: ClaimContract): ClaimLeadNote[] {
@@ -69,7 +85,7 @@ export class JournalScreen {
     if (!this.isOpen()) return;
     const w = this.host.world();
     const journal = journalEntries(w);
-    const groups = [workGroup(w, journal.work), notesGroup(journal), pastGroup(journal.past)].filter((g) => g !== null);
+    const groups = [workGroup(w, journal.work), wrecksGroup(journal.wrecks), notesGroup(journal), pastGroup(journal.past)].filter((g) => g !== null);
     this.root.replaceChildren(
       el('button', { class: 'close', onclick: () => this.close() }, keyLabel(t('journal.close'), 'J')),
       el('h3', {}, createIcon('journal'), t('journal.title')),
@@ -118,9 +134,19 @@ function leadEntry(lead: ClaimLeadNote): HTMLElement {
   return el('div', { class: 'journal-place journal-head' }, el('span', {}, lead.body), el('span', { class: 'dim' }, t('journal.entryHead', { day: lead.day, from: lead.from })));
 }
 
+function wrecksGroup(wrecks: WreckSquareNote[]): HTMLElement | null {
+  if (wrecks.length === 0) return null;
+  return group('wrecks', t('journal.wrecks'), ...wrecks.map(wreckSquareEntry));
+}
+
+function wreckSquareEntry({ square, count }: WreckSquareNote): HTMLElement {
+  const words = count > 1 ? t('journal.wrecksInSquare', { square: gridSquareText(square), n: count }) : t('journal.wreckSquare', { square: gridSquareText(square) });
+  return el('div', { class: 'journal-place' }, words);
+}
+
 function notesGroup(journal: Journal): HTMLElement | null {
   if (journal.notes.length === 0) return null;
-  const alone = journal.work.length === 0 && journal.past.length === 0;
+  const alone = journal.work.length === 0 && journal.wrecks.length === 0 && journal.past.length === 0;
   return group('notes', alone ? null : t('journal.notes'), ...journal.notes.map(noteEntry));
 }
 

@@ -559,3 +559,19 @@ export function withLeanDirections_104_105(world: SavedJson): SavedJson {
   return { ...world, player: { ...player, call: next } };
 }
 
+
+const WRECK_WAY_LINE_109 = 'wreckWay';
+
+function isWreckCall_109_110(call: SavedJson): boolean {
+  const vars = call.vars as SavedJson;
+  const line = call.line as SavedJson;
+  const toldWay = vars.way !== undefined && vars.site === undefined && vars.town === undefined;
+  return (line.line === WRECK_WAY_LINE_109 || toldWay) && vars.square === undefined;
+}
+
+export function withWreckSquares_109_110(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  if (!call || !isWreckCall_109_110(call)) return world;
+  return { ...world, player: { ...player, call: null } };
+}
