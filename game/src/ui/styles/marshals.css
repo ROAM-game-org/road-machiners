@@ -40,6 +40,23 @@
   gap: var(--space-5);
   padding: var(--space-3) 0;
 }
+.case-price {
+  position: relative;
+}
+.case-price > .amount {
+  text-decoration: underline dotted;
+}
+.case-price-tip {
+  display: none;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--space-4));
+  z-index: var(--z-popup);
+  width: max-content;
+}
+.desk-case > button:is(:hover, :focus-visible) .case-price-tip {
+  display: block;
+}
 .desk-all {
   display: flex;
   justify-content: flex-end;

@@ -283,6 +283,15 @@ describe('the Marshalls desk', () => {
     expect(deskRows(w)).toMatchObject({ cases: [], owed: 0 });
   });
 
+  it('sums fine and restitution of every case for Pay all', () => {
+    const w = atDesk();
+    const bowl = trader(w, 'bowl', { x: 300, y: 300 });
+    remember(w, bowl, { kind: 'witnessed', crime: `1:${w.player.vehicleId}:${bowl.id}:robbed`, by: w.player.vehicleId, victim: bowl.id, offense: 'robbed', at: { x: 300, y: 300 }, heading: 0, restitution: 2500 });
+    toPad(bowl, 'bowl');
+    fileReports(w, bowl);
+    expect(deskRows(w).owed).toBe(CRIME.fine.robbed + 2500);
+  });
+
   it('quotes a settlement only for a hostile faction, refuses it while its cases are open, and lifts standing to wary (IV7)', () => {
     const w = atDesk();
     w.player.standing.bowl = BANDS.hostile;
