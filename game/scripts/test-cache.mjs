@@ -5,6 +5,7 @@ import { globalKey } from '../src/test/cache/fingerprint';
 import { recordRun, selectTests } from '../src/test/cache/select';
 import { createStallWatch, stallMinutes, suiteMinutes, suiteOverMessage } from '../src/test/cache/stall';
 import { testId } from '../src/test/cache/store';
+import { rpcTimeoutNote, runVerdict } from '../src/test/cache/verdict';
 
 const root = process.cwd();
 
@@ -148,7 +149,9 @@ try {
   recorder.start(key);
   if (selected.length) {
     const { testModules, unhandledErrors } = await vitest.runTestSpecifications(selected);
-    failed = unhandledErrors.length > 0 || testModules.some((mod) => mod.state() !== 'passed' && mod.state() !== 'skipped');
+    const verdict = runVerdict(testModules, unhandledErrors);
+    if (verdict === 'passedPastRpcTimeouts') console.log(rpcTimeoutNote(unhandledErrors.length));
+    failed = verdict === 'failed';
   }
   console.log(`[test-cache] ran ${run.length}, skipped ${skipped.length}, uncacheable ${recorder.uncacheable()}`);
 } finally {
