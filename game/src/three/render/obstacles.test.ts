@@ -341,6 +341,27 @@ describe('reactor light', () => {
     expect(aim.angleTo(outward) + spot.angle).toBeLessThan(Math.PI / 2);
   });
 
+  it('lights the floor where the reactor core reaches out of the breach', () => {
+    const { bowGroup, reactorGroup, root } = built();
+    const light = reactorAt.hazard?.core?.light;
+    if (!light) throw new Error('The Fallen Sun reactor has no breach light');
+    const spot = aimedBreach(bowGroup);
+    const centre = reactorGroup.getWorldPosition(new THREE.Vector3());
+    centre.x += (light.at.x - reactorAt.at.x) * S;
+    centre.z += (light.at.y - reactorAt.at.y) * S;
+    centre.y = bowGroup.getWorldPosition(new THREE.Vector3()).y;
+    const floor: Sample = { at: centre, normal: new THREE.Vector3(0, 1, 0), twoSided: false };
+    expect(reaches(spot, floor)).toBe(true);
+    const from = spot.getWorldPosition(new THREE.Vector3());
+    const ray = centre.clone().sub(from);
+    const raycaster = new THREE.Raycaster(from, ray.clone().normalize(), 0, ray.length());
+    expect(raycaster.intersectObjects(hullMeshes(bowGroup), false)).toEqual([]);
+    const inBow = centre.clone().applyMatrix4(bowGroup.matrixWorld.clone().invert());
+    expect(inBow.z).toBeGreaterThan(BOW_BREACH.out);
+    expect(Math.abs(inBow.x - BOW_BREACH.along)).toBeLessThan(BOW_BREACH.radius);
+    root.clear();
+  });
+
   it('stands the reactor inside the bow, behind the breach (IV3)', () => {
     const { bowGroup, reactorGroup } = built();
     const inBow = reactorGroup.getWorldPosition(new THREE.Vector3()).applyMatrix4(bowGroup.matrixWorld.clone().invert());
