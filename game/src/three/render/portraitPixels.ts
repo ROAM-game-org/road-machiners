@@ -34,7 +34,7 @@ const SRGB_SCALE = 1.055;
 const SRGB_OFFSET = 0.055;
 const SRGB_GAMMA = 2.4;
 
-export const CONDITION_KINDS: readonly string[] = ["core", "engine", "weapon", "armor"];
+export const CONDITION_KINDS: readonly string[] = ["core", "engine", "weapon", "armor", "accessory"];
 
 export function conditionItems(vehicle: Vehicle) {
   return mountedItems(vehicle).filter((item) => CONDITION_KINDS.includes(partDef(item.part.defId).kind));
