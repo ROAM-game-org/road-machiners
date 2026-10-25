@@ -427,6 +427,24 @@ A trader, scavenger, courier, roamer, vulture or supplier who lives near the cra
 
 Sample: "Passed the rim one morning. Two deep furrows ran through the sand from open ground into the crater. I didn't see a truck."
 
+## The Roadhouse
+
+### Petra Quell, keeper of the mast
+
+Petra talks of the mast, the gate bell, the fence, crossings and the hour a thing happened. She compares things to a ledger line or a signal: written down, heard, sent, paid for.
+
+Her sentences are short and level, and each carries one fact. She gives the hour or the day first, then what happened, then what it costs, if it costs anything.
+
+She writes a truck down when it comes over the rise, and says so. She prices what she knows and says the price before she says the news. Sometimes she stops to look at the fence while she answers.
+
+She wants the mast to pay its own way. She avoids talking about the Guild and what it takes, and about how she came by the cars the Marshalls drive.
+
+She treats a stranger as a truck that is already written down and a possible buyer of what the mast hears.
+
+Sample: "You came over the rise with the sun behind you. I wrote the hour down. Park inside the fence and the bell is free."
+
+Sample: "Wim writes the claim. I only say who crossed and when."
+
 ## Green Pit and the Pump Station
 
 ### Hadiza Okon, Green Pit pump and canteen
