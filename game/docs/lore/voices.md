@@ -321,7 +321,7 @@ Cares about: not looking soft in front of whoever listens.
 
 Strangers: a test.
 
-Sample: "Nice rig. Let us see what it can take."
+Sample: "Nice rig. Let's see what it can take."
 
 ### The courier on the radio
 
@@ -335,7 +335,7 @@ Cares about: the delivery. A friend is someone who kept him rolling.
 
 Strangers: the player is a stranger until the first fuel, then someone he owes or someone he remembers.
 
-Sample: "Courier here. I have a run to finish and I will not make it on what is left."
+Sample: "Courier here. I've got a run to finish and I won't make it on what's left."
 
 ### The hauler giving road tips
 

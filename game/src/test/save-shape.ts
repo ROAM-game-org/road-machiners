@@ -6,7 +6,7 @@ import { makePart } from '../sim/factory';
 import type { Contract } from '../sim/market';
 import type { SalvageStock } from '../sim/types';
 import { isRig } from '../sim/body';
-import { addVehicle, npcBrain } from '../sim/testkit';
+import { addVehicle, npcBrain } from './sample-vehicles';
 import { newWorld } from '../sim/world';
 import { saveOf } from '../three/save';
 import { shapeOf, type Shape } from '../three/save-shape';

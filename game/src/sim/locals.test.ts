@@ -390,7 +390,7 @@ describe('work by talk', () => {
     full.shops.bowl.contracts = [haul('ct-high', 300)];
     full.player.contracts = Array.from({ length: CONTRACTS.maxActive }, (_, k) => haul(`held${k}`, 10));
 
-    expect(lastLine(talk(empty, 'bowl_dag', [WORK]))).toBe("The board's empty today. Come back in a couple of days, it fills slowly.");
+    expect(lastLine(talk(empty, 'bowl_dag', [WORK]))).toBe("The board's empty today. Come back in a couple of days. It fills slowly.");
     expect(lastLine(talk(full, 'bowl_dag', [WORK]))).toBe("You're carrying enough promises already. Finish a few and then ask me again.");
   });
 
