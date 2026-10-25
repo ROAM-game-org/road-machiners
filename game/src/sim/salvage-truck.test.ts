@@ -5,7 +5,7 @@ import { RULES } from '../data/rules';
 import { PERK_NUMBERS } from '../data/skills';
 import { knockOutNpc } from './defeat';
 import { corePart, findSpot, goodsCount, gridOf, isMounted, MOUNT_CELLS, type Spot } from './grid';
-import { addGoods } from './inventory';
+import { addGoods, stowParcel } from './inventory';
 import { advanceJobs } from './jobs';
 import { optionWeights } from './npc-decisions';
 import { thinkNpc, topGoal } from './npc-activities';
@@ -152,6 +152,17 @@ describe('an NPC looting a knocked-out truck', () => {
     expect(lootTruckTurn(w, looter, buggy)).toBeNull();
     for (let turn = 0; turn < FIELD_TURNS; turn++) advanceJobs(w);
     expect(lootTruckTurn(w, looter, buggy)).toBe('nothingToLoot');
+  });
+
+  it('leaves a search parcel on the truck it strips, since a parcel is nobody\'s loot', () => {
+    const { w, me, buggy } = downed();
+    me.pos = { x: 200, y: 200 };
+    expect(stowParcel(buggy, { id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'ct1' })).toBe(true);
+    const looter = looterBeside(w, buggy);
+    expect(lootTruckTurn(w, looter, buggy)).toBeNull();
+    expect(goodsCount(looter).scrap).toBe(2);
+    expect(buggy.items.some((it) => it.kind === 'parcel')).toBe(true);
+    expect(looter.items.some((it) => it.kind === 'parcel')).toBe(false);
   });
 
   it('takes the full refit turns while the player holds the Cannibal perk', () => {
