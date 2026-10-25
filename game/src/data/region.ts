@@ -16,6 +16,7 @@ export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: nu
 export type LocationDef = SiteLocationDef | TerritoryDef;
 export type SiteEdge = "fence" | "wrecks";
 export const MAP_SCALE = 6.5;
+export const MAP_GRID = { squares: 8 };
 
 export function scalePoint(p: Vec): Vec {
   return { x: p.x * MAP_SCALE, y: p.y * MAP_SCALE };
