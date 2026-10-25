@@ -7,10 +7,10 @@ const review = (over: Partial<Review> = {}): Review => ({
   verdict: 'clean', summary: 's', drama: 'd', observations: [], suspected: [], limitations: ['far mode'], findings: [], fixes: [],
   explanations: { death: null, quiet: null }, blocker: null, ...over,
 });
-const important = { id: 'F1', severity: 'important' as const, title: 'Raiders never stop', evidence: 'turn 40', cause: 'release' as const, why: 'the raid goal of #12 never ends', known: null };
+const important = { id: 'F1', severity: 'important' as const, title: 'Raiders never stop', evidence: 'turn 40', cause: 'release' as const, why: 'the raid goal of #12 never ends', known: null, fixed: false };
 const old = { ...important, id: 'F2', cause: 'old' as const, why: 'the baseline log shows the same loop at turn 300' };
 const facts = (over: Partial<LogFacts> = {}): LogFacts => ({ ...logFacts(logText(), WANT), ...over });
-const play = { moved: false, last: false };
+const play = { moved: false, last: false, fixedEarlier: false };
 
 describe('logFacts', () => {
   it('reads the ending, the event count and the summary of the run', () => {
@@ -49,6 +49,12 @@ describe('readReview', () => {
     expect(() => readReview(JSON.stringify(review({ findings: [{ ...old, known: '12' as unknown as number }] })))).toThrow('Finding F2 has known 12, not an issue number or null');
   });
 
+  it('fails on a finding whose fixed is not a boolean, and reads a missing fixed as false', () => {
+    expect(() => readReview(JSON.stringify(review({ findings: [{ ...important, fixed: 'yes' as unknown as boolean }] })))).toThrow('Finding F1 has fixed yes, not true or false');
+    const { fixed: _f, ...unmarked } = important;
+    expect(readReview(JSON.stringify(review({ findings: [unmarked as typeof important] }))).findings[0].fixed).toBe(false);
+  });
+
   it('fills missing explanations, blocker and known with null', () => {
     const { explanations: _e, blocker: _b, ...rest } = review();
     expect(readReview(JSON.stringify(rest))).toMatchObject({ explanations: { death: null, quiet: null }, blocker: null });
@@ -70,6 +76,17 @@ describe('judge', () => {
     expect(judge(facts(), review({ findings: [important] }), play)).toEqual({ outcome: 'blocked', reason: 'The review called the run clean with 1 important findings the release caused.' });
   });
 
+  it('passes a clean review whose important release finding an earlier round fixed', () => {
+    const replayed = { moved: false, last: false, fixedEarlier: true };
+    expect(judge(facts(), review({ findings: [{ ...important, fixed: true }] }), replayed)).toEqual({ outcome: 'clean', reason: 'clean' });
+    expect(judge(facts(), review({ findings: [{ ...important, fixed: true }, { ...important, id: 'F3' }] }), replayed).reason).toBe('The review called the run clean with 1 important findings the release caused.');
+  });
+
+  it('blocks a clean review that marks findings fixed when no earlier round committed a fix', () => {
+    expect(judge(facts(), review({ findings: [{ ...important, fixed: true }] }), play)).toEqual({ outcome: 'blocked', reason: 'The review marks findings fixed, but no earlier round of this job committed a fix.' });
+    expect(judge(facts(), review({ findings: [{ ...old, severity: 'minor', fixed: true }] }), play).outcome).toBe('blocked');
+  });
+
   it('blocks a clean review that leaves a death or a quiet run unexplained, and passes an explained one', () => {
     const died = facts({ ending: 'death' });
     expect(judge(died, review(), play).outcome).toBe('blocked');
@@ -80,18 +97,18 @@ describe('judge', () => {
   });
 
   it('replays after fixes the agent committed, and blocks fixes with no commit', () => {
-    expect(judge(facts(), review({ verdict: 'fixed', fixes: ['end the raid goal'] }), { moved: true, last: false })).toEqual({ outcome: 'replay', reason: '1 fixes to replay' });
+    expect(judge(facts(), review({ verdict: 'fixed', fixes: ['end the raid goal'] }), { moved: true, last: false, fixedEarlier: false })).toEqual({ outcome: 'replay', reason: '1 fixes to replay' });
     expect(judge(facts(), review({ verdict: 'fixed', fixes: ['end the raid goal'] }), play)).toEqual({ outcome: 'blocked', reason: 'The review says it fixed findings but committed nothing.' });
   });
 
   it('replays a clean review that committed anyway, since its commits were never played', () => {
-    expect(judge(facts(), review(), { moved: true, last: false }).outcome).toBe('replay');
+    expect(judge(facts(), review(), { moved: true, last: false, fixedEarlier: false }).outcome).toBe('replay');
   });
 
   it('blocks on the last play when commits are left to replay', () => {
-    expect(judge(facts(), review({ verdict: 'fixed', fixes: ['a'] }), { moved: true, last: true }).reason).toBe('The last play left fixes that no play checked: a.');
-    expect(judge(facts(), review(), { moved: true, last: true }).outcome).toBe('blocked');
-    expect(judge(facts(), review(), { moved: false, last: true }).outcome).toBe('clean');
+    expect(judge(facts(), review({ verdict: 'fixed', fixes: ['a'] }), { moved: true, last: true, fixedEarlier: false }).reason).toBe('The last play left fixes that no play checked: a.');
+    expect(judge(facts(), review(), { moved: true, last: true, fixedEarlier: false }).outcome).toBe('blocked');
+    expect(judge(facts(), review(), { moved: false, last: true, fixedEarlier: false }).outcome).toBe('clean');
   });
 
   it('blocks with the reviewer reason on a blocked verdict', () => {

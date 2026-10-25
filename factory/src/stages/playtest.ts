@@ -124,7 +124,7 @@ async function playRound(ctx: Ctx, session: Session, next: Next, play: number): 
   await session.agent(next.prompt);
   const review = readReview(readOutput(session.home, 'playtest.json'));
   const head = await cloneHead(ctx, session);
-  const outcome = judge(facts, review, { moved: head !== next.sha, last });
+  const outcome = judge(facts, review, { moved: head !== next.sha, last, fixedEarlier: next.sha !== session.start });
   const bugs = await openOldBugs(ctx, session, next.sha, review);
   const { release } = session;
   const meta: RunMeta = { day: release.day, run, seed: release.playtest.seed, turns: ctx.cfg.playtestTurns, sha: next.sha, baseline: session.baseline.sha, startedAt, finishedAt: ctx.now().toISOString(), outcome: outcome.outcome, reason: outcome.reason, verdict: review.verdict, fixes: review.fixes, bugs, ending: facts.ending };
