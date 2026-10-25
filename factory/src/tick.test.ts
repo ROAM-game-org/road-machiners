@@ -376,6 +376,16 @@ describe('tick', () => {
     expect(readState(h.ctx.statePath).stuck).toMatchObject({ 6: { kind: 'merge-batch', tries: 1 }, 7: { kind: 'merge-batch', tries: 0 }, 8: { kind: 'unrecorded' } });
   });
 
+  it('removes the voting label of a Triage card with no proposal after the stuck sweep, and reports a failed revival as a public failure', async () => {
+    const h = harness(null, false, [card(3, 'Triage', [VOTING_LABEL])]);
+    await tick(h.ctx, '/code', h.deps);
+    expect(h.removed).toEqual([`3:${VOTING_LABEL}`]);
+    const failing = harness(null, false, [card(3, 'Triage', [VOTING_LABEL])]);
+    failing.ctx.github.removeLabel = async () => { throw new Error('gh issue edit failed'); };
+    await tick(failing.ctx, '/code', failing.deps);
+    expect(readState(failing.ctx.statePath).failures).toMatchObject([{ stage: 'public', issue: null, error: 'gh issue edit failed' }]);
+  });
+
   it('kills a job past the timeout by its id, clears it and reports, when it already resumed once', async () => {
     const h = harness(job('2026-01-10T11:00:00Z'), true);
     writeState(h.ctx.statePath, state({ jobs: [job('2026-01-10T11:00:00Z')], interrupted: [5] }));

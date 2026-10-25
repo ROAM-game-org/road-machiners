@@ -4,6 +4,8 @@ The plan for issue {{issue}} is in {{taskFile}}.
 
 {{gameDocs}}
 
+{{baseNote}}
+
 Reference images from the issue are listed at the end of this prompt.
 Read every available image with the Read tool before you build.
 Build what the plan says and what the images show.
@@ -60,6 +62,11 @@ This machine is slow. Keep checks focused.
 While you work, run only the tests near your change with `npx vitest run <files>`.
 Prove the feature works with a targeted test. Playtest game behavior with the progression recorder, and use a short Playwright check only for what the screen shows.
 Do not run the full test suite or the playtest. The testing stage runs the playtest. The merge runs the tests next to the changed files, and the release runs them all.
+
+Waiting and tuning loops
+A round is one change, one run and one read of its result. Run at most 5 rounds for one question, like a balance number or a look. A job with several seeds counts as one round.
+After the fifth round, keep the best state you reached, write the gaps that remain into the Conclusion of {{taskFile}}, and finish.
+While a job runs, do other work, like the next phase, a test or the docs.
 Before the docs step at the end, run `npm run typecheck` once.
 Every test you ran must pass, not only the tests for this issue.
 
@@ -74,6 +81,7 @@ Add the step, its fixture and its test, then run `npm run save:shape`.
 Only a major save bump goes to the committee.
 
 Commit in phases on the current branch.
+Keep your plan progress in the Conclusion of {{taskFile}} as you go, so a context compaction loses nothing.
 Never push.
 
 If the work needs a major save format bump, stop.

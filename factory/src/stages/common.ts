@@ -155,7 +155,7 @@ export function prepareOutputs(ctx: Ctx, issue: number, home: string): void {
   mkdirSync(`${home}/${OUT_DIR}`, { recursive: true });
 }
 
-export type AgentExtras = { model?: string; skill?: string; effort?: string; fresh?: boolean; disallowedTools?: string[]; continue?: boolean };
+export type AgentExtras = { model?: string; skill?: string; effort?: string; fresh?: boolean; disallowedTools?: string[]; continue?: boolean; subagentModel?: string };
 
 function agentSession(ctx: Ctx, issue: number, stage: CardStage, round: string, extras: AgentExtras): AgentSession {
   const session = roundSession(ctx.cfg.home, issue, round, extras.continue === true || (extras.fresh !== true && isResuming(ctx, issue)));
@@ -178,7 +178,7 @@ export async function runAgent(ctx: Ctx, issue: number, stage: CardStage, round:
   const reports = issueReports(ctx.cfg.home, issue);
   const full = session.resume ? (extras.continue === true ? prompt : resumeNote(ctx, issue)) : [`${prompt}\n\n${await acquireMedia(ctx, issue, stage)}`, ...(reports.section ? [reports.section] : [])].join('\n\n');
   const skill = session.resume ? undefined : extras.skill;
-  return ctx.container.agent({ clone: workDir(ctx, issue), dir: GAME_DIR, model, prompt: full, log: agentLog(ctx, issue, stage), openNetwork, mediaDir: mediaDir(ctx, issue), readOnly: reports.readOnly, session, skill, effort: extras.effort, disallowedTools: extras.disallowedTools, advisor });
+  return ctx.container.agent({ clone: workDir(ctx, issue), dir: GAME_DIR, model, prompt: full, log: agentLog(ctx, issue, stage), openNetwork, mediaDir: mediaDir(ctx, issue), readOnly: reports.readOnly, session, skill, effort: extras.effort, disallowedTools: extras.disallowedTools, advisor, subagentModel: extras.subagentModel });
 }
 
 export const COMMENT_TEXT_LIMIT = 60000;

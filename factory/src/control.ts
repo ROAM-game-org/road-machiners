@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCommittee } from './committee';
-import { reportFailure } from './fail';
+import { reportFailure, withoutFailuresOf } from './fail';
 import { holdCard, releaseHold } from './hold';
 import { killJob } from './jobs';
 import { appendLedger, recordJob } from './ledger';
@@ -196,7 +196,7 @@ function clearCardState(state: FactoryState, issue: number, dropsApproval: boole
     pendingApprovals: omitKey(state.pendingApprovals, key),
     approvedResolving: dropsApproval ? omitKey(state.approvedResolving, key) : state.approvedResolving,
     unroutedReplies: Object.fromEntries(Object.entries(state.unroutedReplies).filter(([, reply]) => reply.issue !== issue)),
-    failures: state.failures.filter((failure) => failure.issue !== issue),
+    failures: withoutFailuresOf(state.failures, issue),
   };
 }
 

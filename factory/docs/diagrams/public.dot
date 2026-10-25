@@ -26,7 +26,7 @@ digraph public {
   subgraph cluster_report {
     label="3. Game reports"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
     form [label="Player sends a bug\nor an idea in the game", fillcolor="#fde68a", color="#b45309"];
-    feedback [label="/feedback\nchecks origin, size\nand 20 an hour per address"];
+    feedback [label="/feedback\nchecks origin, size\nand 60 an hour per address"];
     form -> feedback;
   }
 

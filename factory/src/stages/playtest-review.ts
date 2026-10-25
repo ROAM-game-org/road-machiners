@@ -3,7 +3,7 @@ export type Ending = 'complete' | 'death' | 'error';
 export type LogSummary = { turns: number; shots: number; destroyed: number; knockouts: number; deaths: number; stalls: number; moneyIn: number; moneyOut: number; npcGoals: Record<string, number>; playerTiles: number };
 export type LogFacts = { seed: number; turns: number; sha: string | null; lines: number; events: number; ending: Ending; endTurn: number; message: string | null; summary: LogSummary; quiet: string[] };
 
-export type Finding = { id: string; severity: 'important' | 'minor'; title: string; evidence: string; cause: 'release' | 'old'; why: string; known: number | null };
+export type Finding = { id: string; severity: 'important' | 'minor'; title: string; evidence: string; cause: 'release' | 'old'; why: string; known: number | null; fixed: boolean };
 export type Review = {
   verdict: 'clean' | 'fixed' | 'blocked';
   summary: string;
@@ -17,7 +17,7 @@ export type Review = {
   blocker: string | null;
 };
 export type Outcome = { outcome: 'clean' | 'replay' | 'blocked'; reason: string };
-export type PlayState = { moved: boolean; last: boolean };
+export type PlayState = { moved: boolean; last: boolean; fixedEarlier: boolean };
 
 type Line = Record<string, unknown> & { k?: string };
 
@@ -67,10 +67,11 @@ const FINDING_RULES: ((finding: Finding) => string | null)[] = [
   (finding) => (CAUSES.includes(finding.cause) ? null : `has cause ${String(finding.cause)}, not release or old`),
   (finding) => (typeof finding.why === 'string' && finding.why.trim() !== '' ? null : 'gives no reason for its cause'),
   (finding) => (finding.known === null || Number.isInteger(finding.known) ? null : `has known ${String(finding.known)}, not an issue number or null`),
+  (finding) => (typeof finding.fixed === 'boolean' ? null : `has fixed ${String(finding.fixed)}, not true or false`),
 ];
 
 function readFinding(given: Finding): Finding {
-  const finding = { ...given, known: given.known ?? null };
+  const finding = { ...given, known: given.known ?? null, fixed: given.fixed ?? false };
   for (const rule of FINDING_RULES) {
     const reason = rule(finding);
     if (reason !== null) throw new Error(`Finding ${finding.id} ${reason}`);
@@ -86,7 +87,7 @@ export function judge(facts: LogFacts, review: Review, play: PlayState): Outcome
   if (review.verdict === 'blocked') return { outcome: 'blocked', reason: review.blocker ?? review.summary };
   if (review.verdict === 'fixed' && !play.moved) return { outcome: 'blocked', reason: 'The review says it fixed findings but committed nothing.' };
   if (play.moved) return replay(review, play.last);
-  return judgeClean(facts, review);
+  return judgeClean(facts, review, play);
 }
 
 function replay(review: Review, last: boolean): Outcome {
@@ -95,19 +96,20 @@ function replay(review: Review, last: boolean): Outcome {
   return { outcome: 'replay', reason: `${review.fixes.length} fixes to replay` };
 }
 
-const CLEAN_RULES: ((facts: LogFacts, review: Review) => string | null)[] = [
+const CLEAN_RULES: ((facts: LogFacts, review: Review, play: PlayState) => string | null)[] = [
   (facts) => (facts.ending === 'error' ? `The run ended in an error at turn ${facts.endTurn}, so it cannot be clean: ${facts.message ?? 'no message'}` : null),
   (_facts, review) => {
-    const important = review.findings.filter((finding) => finding.severity === 'important' && finding.cause === 'release').length;
+    const important = review.findings.filter((finding) => finding.severity === 'important' && finding.cause === 'release' && finding.fixed === false).length;
     return important > 0 ? `The review called the run clean with ${important} important findings the release caused.` : null;
   },
+  (_facts, review, play) => (review.findings.some((finding) => finding.fixed) && !play.fixedEarlier ? 'The review marks findings fixed, but no earlier round of this job committed a fix.' : null),
   (facts, review) => ((facts.ending === 'death' || facts.summary.deaths > 0) && !review.explanations.death ? 'The player died in the run, and the clean review does not explain the death.' : null),
   (facts, review) => (facts.quiet.length > 0 && !review.explanations.quiet ? `The run was quiet (${facts.quiet.join(', ')}), and the clean review does not explain it.` : null),
 ];
 
-function judgeClean(facts: LogFacts, review: Review): Outcome {
+function judgeClean(facts: LogFacts, review: Review, play: PlayState): Outcome {
   for (const rule of CLEAN_RULES) {
-    const reason = rule(facts, review);
+    const reason = rule(facts, review, play);
     if (reason !== null) return { outcome: 'blocked', reason };
   }
   return { outcome: 'clean', reason: 'clean' };

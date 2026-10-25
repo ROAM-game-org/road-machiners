@@ -8,6 +8,7 @@ import { JobDiedError, JobTimeoutError, failureIssue, pruneFailures, reportFailu
 import { intake } from './intake';
 import { publicFilterWith } from './public/filter';
 import { publicTick } from './public/tick-steps';
+import { reviveVotes } from './public/votes';
 import { recordJob } from './ledger';
 import { reportAttempt, reportScheduler } from './observability';
 import { pruneCaptions } from './post-status';
@@ -516,6 +517,14 @@ function movedPast(state: FactoryState, posted: string | null, head: string | nu
   return head !== null && posted !== head && !state.jobs.some((job) => job.stage === 'ship');
 }
 
+async function revive(ctx: Ctx, cards: Card[]): Promise<void> {
+  try {
+    await reviveVotes(ctx, cards);
+  } catch (error) {
+    await reportFailure(ctx, 'public', null, error, null, []);
+  }
+}
+
 async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<void> {
   const answered = await releaseAnswered(ctx, await ctx.github.cards());
   cleanBuilds(ctx, answered);
@@ -524,6 +533,7 @@ async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<voi
   updateState(ctx.statePath, pruneFailures(ctx.now()));
   const free = freeGb(ctx.cfg.home);
   const cards = await sweepStuck(ctx, answered, free >= ctx.cfg.minFreeGb, deps.repair);
+  await revive(ctx, cards);
   requeueKept(ctx, cards);
   if (free < ctx.cfg.minFreeGb) {
     reportScheduler(ctx.cfg.home, 'disk-low', ctx.now());

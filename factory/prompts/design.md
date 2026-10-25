@@ -70,6 +70,8 @@ Set `Mode: hands-off` in it.
 {{bugExpansion}}
 
 Run up:udesign and then up:uplan in hands-off mode.
+Give the mapping of code, like finding where a system lives and what reads it, to Explore subagents. They run on a cheaper model.
+Keep every design decision and the plan in this session.
 Stop after the plan.
 Do not execute the plan.
 Do not write game code.
