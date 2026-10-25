@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { CHASSIS, PAINT } from '../../data/chassis';
 import { conditionItems } from './portraitPixels';
 import { cellRect, unitsOf } from '../../sim/body';
-import { partDef } from '../../data/parts';
+import { PARTS, partDef } from '../../data/parts';
 import { coreParts, itemCells, mountedItems, mountedParts } from '../../sim/grid';
+import { makePart } from '../../sim/factory';
+import { mountPart } from '../../sim/inventory';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { Vehicle } from '../../sim/types';
 import { maxHp } from '../../sim/wear';
@@ -252,6 +254,7 @@ describe('truck portrait scene on every chassis', () => {
   it.each(Object.keys(CHASSIS))('%s: has glass to tint and a drawn mesh or a footprint for every readout part', (id) => {
     const { world, v } = bare(id);
     lineWithArmor(world, v, 'steelPlate');
+    for (const def of Object.values(PARTS).filter((d) => d.kind === 'accessory')) mountPart(world, v, makePart(world, def.id, 0));
     const view = new VehicleView(pristineOf(v), false, PAINT.standard, 'portrait');
     const drawn = new Set<string>();
     const meshes: THREE.Mesh<THREE.BufferGeometry, THREE.Material>[] = [];
