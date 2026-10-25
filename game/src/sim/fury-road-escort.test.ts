@@ -129,7 +129,7 @@ describe('who a group truck shoots', () => {
     const truck = spawnOne(w);
     nearBoth(w, truck);
     const me = playerVehicle(w);
-    noteCollision(w, me, truck, [], [{ part: corePart(truck, 'cab').id, damage: 3 }]);
+    noteCollision(w, me, truck, [], [{ part: corePart(truck, 'cab').id, damage: 3 }], { a: true, b: false });
 
     expect(turnedOnPlayer(w, truck)).toBe(true);
     advanceFuryRoad(w);

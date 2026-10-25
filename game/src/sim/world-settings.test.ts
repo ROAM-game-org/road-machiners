@@ -63,7 +63,7 @@ describe('Damage setting', () => {
       const w = withSettings(emptyWorld(), { damage });
       const a = sturdy(addVehicle(w, 'scrapjaw', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 }));
       const b = sturdy(addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 43, y: 40 }, Math.PI));
-      applyContactCrash(w, a, b, b.id, 6, { a: { side: 'front', lanes: [2] }, b: { side: 'front', lanes: [2] } });
+      applyContactCrash(w, a, b, b.id, 6, { a: { side: 'front', lanes: [2] }, b: { side: 'front', lanes: [2] } }, { a: 6, b: 0 });
       const e = w.events.find((x) => x.t === 'collision');
       if (e?.t !== 'collision') throw new Error('No collision');
       return [...hitsOf(e.hitsA), ...hitsOf(e.hitsB)];
