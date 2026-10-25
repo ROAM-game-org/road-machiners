@@ -109,16 +109,17 @@ export function tipText(site: MapSite): Msg {
 export type RumorPen = Pick<CanvasRenderingContext2D, 'save' | 'restore' | 'beginPath' | 'arc' | 'stroke' | 'setLineDash' | 'strokeStyle' | 'lineWidth'>;
 
 export function strokeRumor(ctx: RumorPen, at: { x: number; y: number }, radius: number): void {
+  const scale = radius / MARK.wreck;
   ctx.save();
   ctx.setLineDash([]);
   ctx.strokeStyle = token('--surface-sunk');
-  ctx.lineWidth = RUMOR.under;
+  ctx.lineWidth = RUMOR.under * scale;
   ctx.beginPath();
   ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.setLineDash(RUMOR.dash);
+  ctx.setLineDash(RUMOR.dash.map((d) => d * scale));
   ctx.strokeStyle = token('--ink-bright');
-  ctx.lineWidth = RUMOR.line;
+  ctx.lineWidth = RUMOR.line * scale;
   ctx.beginPath();
   ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
   ctx.stroke();
