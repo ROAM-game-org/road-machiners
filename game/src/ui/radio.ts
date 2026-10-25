@@ -1,5 +1,5 @@
 
-import { DIRECTIONS, RADIO, RADIO_HOURS, RADIO_VARIANTS, type Direction, type RadioTopic } from '../data/radio';
+import { RADIO, RADIO_HOURS, RADIO_VARIANTS, type RadioTopic } from '../data/radio';
 import { atlasOf, atlasSites } from '../sim/atlas';
 import { TIME } from '../data/time';
 import type { Contract } from '../sim/market';
@@ -8,8 +8,9 @@ import { claimClue } from '../sim/claims';
 import { claimLookText } from './format';
 import { robbing } from '../sim/states';
 import { clockOf } from '../sim/sun';
-import type { GameEvent, Vehicle, WeatherEvent, World } from '../sim/types';
+import type { GameEvent, Octant, Vehicle, WeatherEvent, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
+import { compassOctant } from '../text/compass';
 import { say } from '../text/language';
 import { byId, t, type Msg } from '../text/msg';
 import { fullName, goodLower, partName, siteName } from '../text/names';
@@ -232,14 +233,13 @@ function placeOf(world: World, pos: Vec): Place {
   return { key: basin, words: t(`radio.basin.${basin}`) };
 }
 
-function basinOf(world: World, pos: Vec): Direction {
+function basinOf(world: World, pos: Vec): Octant {
   const center = world.size / 2;
   return compass({ x: pos.x - center, y: pos.y - center });
 }
 
-function compass(v: Vec): Direction {
-  const turns = Math.atan2(v.y, v.x) / (2 * Math.PI);
-  return DIRECTIONS[(Math.round(turns * 8) + 8) % 8];
+function compass(v: Vec): Octant {
+  return compassOctant(Math.atan2(v.y, v.x));
 }
 
 export function revealed(text: string, elapsedMs: number, charsPerSecond: number): string {

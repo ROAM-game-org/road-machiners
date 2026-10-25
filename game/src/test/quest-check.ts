@@ -8,11 +8,13 @@ import { STORY_WRECKS } from '../data/salvage';
 import { MAX_RANK, SKILL_IDS } from '../data/skills';
 import { playerVehicle } from '../sim/damage';
 import { learnNote, localOfQuest, takeTownWork, townWork } from '../sim/dialogue-rules';
+import { makeVehicle } from '../sim/factory';
 import { shopAt, siteOf } from '../sim/market';
 import { chooseQuestOption, inQuestLanguage, QUEST_EFFECTS, QUEST_QUERIES, questView, restoreQuest, startQuest, type QuestView } from '../sim/quests';
 import { isStoryWreck } from '../sim/salvage';
 import { sitePads } from '../sim/sites';
-import type { World } from '../sim/types';
+import type { SearchContract } from '../sim/market';
+import type { Vehicle, World } from '../sim/types';
 import { cloneWorld } from '../sim/world';
 import { markupProblems } from '../ui/quest-text';
 import { compileSources, WORLD_FILE, type QuestSections, type QuestSources } from './quest-compile';
@@ -22,6 +24,10 @@ export type QuestReport = { quest: string; states: number; problems: string[] };
 type Walk = { key: string; worlds: Record<QuestLanguage, World>; picks: string[] };
 type Seen = { picks: string[]; next: string[]; free: string[]; ended: boolean };
 type InkState = { flows: Record<string, { callstack: { threads: { callstack: unknown }[] }; currentChoices: { text: string; targetPath: string }[] }>; currentFlowName: string; variablesState: unknown; visitCounts: Record<string, number>; previousRandom: number };
+
+const SEARCH_QUEST = 'roadhouse_petra';
+const STAND_IN = 'check-searched';
+const FAR = { x: 1, y: 1 };
 
 export type QuestScenes = (questId: string) => World[];
 export type SceneWalk = { states: number; stopped: boolean; problems: string[]; visited: Record<QuestLanguage, Set<string>> };
@@ -93,7 +99,9 @@ export function gameScenes(base: World): QuestScenes {
   return (questId) => {
     const fresh = cloneWorld(shared);
     parkAtLocal(fresh, questId);
-    return [fresh, veteran(fresh)];
+    const walked = veteran(fresh);
+    if (questId !== SEARCH_QUEST) return [fresh, walked];
+    return [fresh, withMarshalLead(walked), withSearch(walked)];
   };
 }
 
@@ -121,6 +129,26 @@ function veteran(fresh: World): World {
   starveParkedShop(w);
   w.events = [];
   return w;
+}
+
+function withSearch(base: World): World {
+  const w = cloneWorld(base);
+  const search: SearchContract = { id: 'check-search', shop: 'bowl', kind: 'search', target: STAND_IN, driver: 'Mack Holt', template: 'trader', lead: { at: { ...FAR }, turn: 0 }, reward: 0, deadline: w.turn + TIME.turnsPerDay, window: TIME.turnsPerDay, tier: 1, delivered: false };
+  w.player.contracts = [...w.player.contracts, search];
+  return w;
+}
+
+function withMarshalLead(base: World): World {
+  const w = withSearch(base);
+  w.turn += 1;
+  const car = makeVehicle(w, { faction: 'marshals', chassisId: 'scout', parts: [{ defId: 'stockEngine', wear: 0 }], spares: [], cargo: {}, pos: { ...FAR }, heading: 0, brain: marshalBrain() });
+  car.brain?.memories.push({ turn: w.turn, fact: { kind: 'sighting', vehicle: STAND_IN, at: { ...FAR }, heading: 0 } });
+  w.vehicles.push(car);
+  return w;
+}
+
+function marshalBrain(): NonNullable<Vehicle['brain']> {
+  return { templateId: 'marshal', driver: 'Jed Cobb', traits: ['marshal'], personality: 'talkative', goals: [], noticed: {}, tracks: {}, hurt: 0, attackers: {}, goal: null, home: { ...FAR }, stepIndex: 0, memories: [] };
 }
 
 function starveParkedShop(w: World): void {
