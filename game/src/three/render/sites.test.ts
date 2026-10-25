@@ -598,7 +598,7 @@ describe('deck models', () => {
   });
 });
 
-describe('a Fury Road outpost fort', () => {
+describe('a Chaos Highway outpost fort', () => {
   const map = highwayMap(3, 1);
   const built = buildSites(map.terrain);
 

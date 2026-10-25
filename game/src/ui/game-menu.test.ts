@@ -31,11 +31,11 @@ describe("entryReason", () => {
 });
 
 describe("the help rows of a mode", () => {
-  const radioRows = (mode: "roaming" | "furyRoad") =>
+  const radioRows = (mode: "roaming" | "chaosHighway") =>
     controlsFor(modeRulesOf(mode)).flatMap((g) => g.controls).filter((c) => c.keys.some((k) => k === "T" || k === "H" || k === "9"));
 
   it("leave out the radio, reply and honk keys where there is no radio", () => {
-    expect(radioRows("furyRoad")).toEqual([]);
+    expect(radioRows("chaosHighway")).toEqual([]);
   });
 
   it("keep them in Roaming", () => {

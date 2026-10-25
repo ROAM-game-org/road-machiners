@@ -168,14 +168,14 @@ describe("inventory header money", () => {
   });
   it("hides the standing list on Chaos Highway", () => {
     const world = emptyWorld();
-    world.setup = { ...world.setup, mode: "furyRoad" };
+    world.setup = { ...world.setup, mode: "chaosHighway" };
     expect(openCharacter(world).all((n) => n.className.split(" ").includes("standing-row"))).toEqual([]);
   });
 
   it("has a Map tab in Roaming and none on Chaos Highway", () => {
     const world = emptyWorld();
     const roaming = openCharacter(world).all((n) => n.tag === "button" && n.text() === "Map").length;
-    world.setup = { ...world.setup, mode: "furyRoad" };
+    world.setup = { ...world.setup, mode: "chaosHighway" };
     ui.children = [];
     expect(roaming).toBe(1);
     expect(openCharacter(world).all((n) => n.tag === "button" && n.text() === "Map")).toEqual([]);

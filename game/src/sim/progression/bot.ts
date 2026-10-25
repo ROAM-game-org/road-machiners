@@ -43,7 +43,7 @@ import { towData } from '../states';
 import type { Call, GoalReason, GridItem, NpcState, PartInstance, SalvageStock, Vehicle, World } from '../types';
 import { dist, pointsAway, type Vec } from '../vec';
 import { canVehicleSee, playerExplored, playerSees } from '../vision';
-import { reachedOutpostAt } from '../fury-road';
+import { reachedOutpostAt } from '../chaos-highway';
 import { inYard } from '../outpost-gates';
 import { runnerOrders } from './runner';
 import { procurerGoal } from './procurer';
@@ -156,7 +156,7 @@ export function parkedOnPurpose(world: World): boolean {
 }
 
 function waitsOnPad(world: World): boolean {
-  const run = world.furyRoad;
+  const run = world.chaosHighway;
   return run !== null && inYard(world, playerVehicle(world).pos, run.window + 1);
 }
 

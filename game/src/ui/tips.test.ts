@@ -3,7 +3,7 @@ import { openQuest, QUESTS, setIntroStep } from "../sim/quests";
 import { GAME_OPENED_QUESTS } from "../data/quests";
 import { describe, expect, it } from "vitest";
 import { playerVehicle } from "../sim/damage";
-import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, openingStopPoint, testDrive } from "../sim/testkit";
+import { addVehicle, emptyWorld, chaosHighwayWorld, npcBrain, openingStopPoint, testDrive } from "../sim/testkit";
 import { vehicleStats } from "../sim/stats";
 import { refreshVision } from "../sim/vision";
 import { cloneWorld, endTurn, newWorld, setMoveOrder } from "../sim/world";
@@ -355,9 +355,9 @@ describe("opening tips", () => {
   });
 });
 
-describe("tips in a Fury Road run", () => {
+describe("tips in a Chaos Highway run", () => {
   it("runs no opening and offers no horn", () => {
-    const w = furyRoadWorld(3);
+    const w = chaosHighwayWorld(3);
     addVehicle(w, "scrapjaw", "wagon", ["mg"], { x: playerVehicle(w).pos.x + 4, y: playerVehicle(w).pos.y }).brain = npcBrain("buggy", playerVehicle(w).pos, ["raider"]);
     refreshVision(w);
     const seen = new Set<TipId>(["waypoint", "drive", "autoStop", "stop", "stopAt", "manual", "zones", "aim"]);

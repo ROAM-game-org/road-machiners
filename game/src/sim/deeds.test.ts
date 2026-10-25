@@ -122,7 +122,7 @@ describe('deeds toward a faction', () => {
 
   it('leaves standing alone on Chaos Highway, where deeds still form memories', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    w.setup = { ...w.setup, mode: 'furyRoad' };
+    w.setup = { ...w.setup, mode: 'chaosHighway' };
     const victim = trader(w, 'bowl', { x: 34, y: 30 });
     noteDeed(w, playerVehicle(w), victim, 'attacked', true);
     expect(w.player.standing.bowl).toBe(5);

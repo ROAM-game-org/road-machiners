@@ -2,7 +2,7 @@ import { beforeAll, expect, it } from 'vitest';
 import { inYard, yardSpots } from '../sim/outpost-gates';
 import { HIGHWAY } from '../data/modes';
 import { acrossOf, alongOf, bendPlan, milestoneAt, toRoad } from '../sim/highway';
-import { furyRoadWorld } from '../sim/testkit';
+import { chaosHighwayWorld } from '../sim/testkit';
 import { dist, type Vec } from '../sim/vec';
 import { endTurn, setMoveOrder } from '../sim/world';
 import type { World } from '../sim/types';
@@ -19,12 +19,12 @@ const TURNS = 160;
 type FortDrive = { w: World; turns: number; stalls: number; startGap: number; path: Vec[] };
 
 function arrived(w: World): boolean {
-  return w.furyRoad!.outposts[1].paid;
+  return w.chaosHighway!.outposts[1].paid;
 }
 
 function driveToFirstFort(seed: number): FortDrive {
-  let w = furyRoadWorld(seed);
-  w.furyRoad!.groups = [];
+  let w = chaosHighwayWorld(seed);
+  w.chaosHighway!.groups = [];
   w.player.fuel = 999;
   const pad = yardSpots(w, 1).truck;
   const startGap = dist(w.vehicles[0].pos, pad);

@@ -36,7 +36,7 @@ export const REBAKE_MOVE = {
   setup: 'keep',
   spawnTimer: 'keep',
   roadNews: 'keep',
-  furyRoad: 'keep',
+  chaosHighway: 'keep',
   size: 'rebuild',
   mapHash: 'rebuild',
   terrain: 'rebuild',

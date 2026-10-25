@@ -24,8 +24,8 @@ export class OutpostGateViews {
   private shut = false;
 
   constructor(scope: RenderScope, terrain: Terrain, world: World) {
-    const run = world.furyRoad;
-    if (!run) throw new Error('Outpost gate views need a Fury Road run');
+    const run = world.chaosHighway;
+    if (!run) throw new Error('Outpost gate views need a Chaos Highway run');
     const movable = outpostGates(world).filter((g) => g.movable);
     this.gates = movable.map((g) => this.build(scope, terrain, g, startsClosed(world, run.window, g)));
     this.sync(world);

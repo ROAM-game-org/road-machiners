@@ -52,7 +52,7 @@ import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup 
 import { QUESTS, openRoadScene, type CarriedQuestVars } from './quests';
 import { repairQuests, type SavedRevisions } from './quest-repair';
 import { isNoteId } from '../data/locals';
-import { advanceFuryRoad, outpostFactsAt, runStart, startRun } from './fury-road';
+import { advanceChaosHighway, outpostFactsAt, runStart, startRun } from './chaos-highway';
 import { gatesShut } from './outpost-gates';
 import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
 import { overdriveBlock, vehicleStats } from './stats';
@@ -165,7 +165,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     fields: [],
     flares: [],
     lines: [],
-    furyRoad: null,
+    chaosHighway: null,
     sunward: modeMap(setup.mode) === 'icarus' ? freshSunward() : null,
     crimes: [],
   };
@@ -410,7 +410,7 @@ export function endTurn(
     wakeInTown(w, advanceKnockout(w));
     checkKnockout(w);
     advanceNpcKnockouts(w);
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
     openRoadScene(w);
     spawnNpcs(w);
     advanceSunward(w);
@@ -601,7 +601,7 @@ function carryPlayerTruck(world: World, carried: Carried, stay: boolean): void {
 }
 
 function carryRun(world: World, carried: CarriedRun): void {
-  const run = world.furyRoad;
+  const run = world.chaosHighway;
   if (!run) throw new Error('A carried Chaos Highway run needs a world with a run');
   run.earned = carried.earned;
   run.wrecks = carried.wrecks;
@@ -650,7 +650,7 @@ function carryPaint(world: World, paint: CarriedPaint | null): void {
 }
 
 function knownSite(world: World, id: string): boolean {
-  return KNOWN_SITES.has(id) || (world.furyRoad !== null && isOutpostSite(id));
+  return KNOWN_SITES.has(id) || (world.chaosHighway !== null && isOutpostSite(id));
 }
 
 function carryQuests(world: World, carried: Carried): void {

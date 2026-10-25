@@ -762,7 +762,7 @@ describe("wake-up log", () => {
   });
 });
 
-describe("Fury Road log lines", () => {
+describe("Chaos Highway log lines", () => {
   it("tells an outpost arrival with its pay once, and the run's end", () => {
     const w = emptyWorld();
 
@@ -811,7 +811,7 @@ describe("a finished search in the log", () => {
 });
 
 describe("the discovery line", () => {
-  it("is cut for a Fury Road outpost, whose label and pay line already name it", () => {
+  it("is cut for a Chaos Highway outpost, whose label and pay line already name it", () => {
     expect(eventText(emptyWorld(), { t: "discover", location: "outpost-1" })).toBeNull();
     expect(eventText(emptyWorld(), { t: "discover", location: "outpost-12" })).toBeNull();
   });

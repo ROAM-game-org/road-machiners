@@ -1,5 +1,5 @@
 import { FORTRESS, FORTRESS_STYLES } from '../data/fortress';
-import { FURY_ROAD, HIGHWAY, type BandRule, type GroundBand } from '../data/modes';
+import { CHAOS_HIGHWAY, HIGHWAY, type BandRule, type GroundBand } from '../data/modes';
 import type { SiteLocationDef } from '../data/region';
 import type { TerrainTypeId } from '../data/terrain';
 import type { Atlas } from './atlas';
@@ -233,7 +233,7 @@ export type GateSpot = { center: Vec; out: Vec; along: Vec; width: number };
 const SITES = new Map<string, OutpostSite>();
 const FORTS = new Map<string, SiteLocationDef>();
 const GATE_SPOTS = new Map<string, Record<GateSide, GateSpot>>();
-const POST = FURY_ROAD.outpost;
+const POST = CHAOS_HIGHWAY.outpost;
 const GATE_REACH = 0.5;
 
 export function outpostId(milestone: number): string {

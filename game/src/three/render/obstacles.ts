@@ -142,7 +142,7 @@ export class ObstacleViews {
   }
 
   private slideGates(playing: boolean, world: World, dt: number): void {
-    if (!world.furyRoad) return;
+    if (!world.chaosHighway) return;
     this.gates ??= new OutpostGateViews(this.scope, this.terrain, world);
     if (this.gates.frame(world, playing, dt)) this.onGatesShut();
   }

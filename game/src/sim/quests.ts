@@ -47,8 +47,8 @@ import { playerVehicle } from './damage';
 import { mountedParts } from './grid';
 import { skillLevel } from './progress';
 import { boardFull, holdsNote, localsAt, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
-import { canDriveOn } from './fury-road';
-import { payOf } from './fury-road-director';
+import { canDriveOn } from './chaos-highway';
+import { payOf } from './chaos-highway-director';
 import { requireShop, shortHere, siteOf } from './market';
 import { worksDown } from './production';
 import { hashRandom } from './rng';
@@ -331,9 +331,9 @@ export function openCoreDeath(w: World): void {
 }
 
 export function openRoadScene(w: World): void {
-  if (!w.furyRoad || w.player.quests.session) return;
+  if (!w.chaosHighway || w.player.quests.session) return;
   if (worldVar(w, ALA_HIRED) !== true || !canDriveOn(w)) return;
-  const scene = ROAD_STORY[w.furyRoad.window + 1];
+  const scene = ROAD_STORY[w.chaosHighway.window + 1];
   if (!scene || worldVar(w, scene.gate) === true) return;
   setWorldVar(w, scene.gate, true);
   openQuest(w, QUESTS, scene.quest, 'start');

@@ -1,7 +1,7 @@
 import { ALA_HIRED } from "../data/quests";
 import { worldVar } from "../sim/quests";
 
-import { abandonRun, canAbandonRun, runEarnings } from "../sim/fury-road";
+import { abandonRun, canAbandonRun, runEarnings } from "../sim/chaos-highway";
 import type { RunLossCause, World } from "../sim/types";
 import { bindAttr, say } from "../text/language";
 import { t, type Msg } from "../text/msg";
@@ -55,7 +55,7 @@ export class DeathScreen {
         "div",
         { class: "death-buttons" },
         el("button", disabledWith(saved ? null : t("save.none"), () => this.savePanel.openLoad()), t("menu.loadSave")),
-        world.furyRoad ? el("button", { onclick: () => this.restart(world) }, t("death.restartRun")) : null,
+        world.chaosHighway ? el("button", { onclick: () => this.restart(world) }, t("death.restartRun")) : null,
         el("button", { onclick: () => openNewGame(this.actions.newGame, () => {}) }, t("menu.newGame")),
       ),
     );
@@ -79,12 +79,12 @@ function lossCause(world: World): RunLossCause {
 }
 
 function deathTitle(world: World): Msg {
-  return world.furyRoad ? RUN_TITLE[lossCause(world)] : t("death.title");
+  return world.chaosHighway ? RUN_TITLE[lossCause(world)] : t("death.title");
 }
 
 function runCaption(world: World): HTMLElement | null {
-  if (!world.furyRoad) return null;
+  if (!world.chaosHighway) return null;
   const { reached, north } = runEarnings(world);
-  const caption = reached > 0 ? t("death.runReached", { mode: modeName("furyRoad"), site: siteName(outpostId(reached)), north: distanceText(north) }) : t("death.runStart", { mode: modeName("furyRoad"), north: distanceText(north) });
+  const caption = reached > 0 ? t("death.runReached", { mode: modeName("chaosHighway"), site: siteName(outpostId(reached)), north: distanceText(north) }) : t("death.runStart", { mode: modeName("chaosHighway"), north: distanceText(north) });
   return el("div", { class: "death-caption" }, caption);
 }

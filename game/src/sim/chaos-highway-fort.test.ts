@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { planNpcOrders } from './ai';
 import { haulerOf, playerVehicle } from './damage';
-import { advanceFuryRoad, spawnGroup, waveOf } from './fury-road';
+import { advanceChaosHighway, spawnGroup, waveOf } from './chaos-highway';
 import { acrossOf, alongOf, milestoneAt, outpostGateSpots, outpostYardHalf, roadHeading, roadPoint, toRoad } from './highway';
 import { heldGoal, holdAlong, holdOnStretch, rollingOrder, stretchSpan } from './hunters';
 import { yardSpots } from './outpost-gates';
-import { furyRoadWorld } from './testkit';
+import { chaosHighwayWorld } from './testkit';
 import { vehicleStats } from './stats';
 import type { Vehicle, World } from './types';
 
 function fortScene(template = 'buggy') {
-  const w = furyRoadWorld();
-  const run = w.furyRoad!;
+  const w = chaosHighwayWorld();
+  const run = w.chaosHighway!;
   const group = { ...run.groups[0], stretch: 1, from: 'ahead' as const, templates: [template], level: waveOf(1).level };
   run.groups = [group];
   spawnGroup(w, run, group, alongAt(w, haulerOf(w)));
@@ -53,7 +53,7 @@ function alongAt(w: World, v: Vehicle): number {
 
 function outsideLane(w: World, v: Vehicle, dest: { x: number; y: number }): boolean {
   const gate = outpostGateSpots(w.seed, 0, 1).south;
-  const lane = gate.width / 2 + vehicleStats(w, v).radius + FURY_ROAD.spawnClear;
+  const lane = gate.width / 2 + vehicleStats(w, v).radius + CHAOS_HIGHWAY.spawnClear;
   const centre = acrossOf(w.seed, toRoad(w.seed, 0, gate.center));
   return Math.abs(acrossOf(w.seed, toRoad(w.seed, 0, dest)) - centre) >= lane - 1e-6;
 }
@@ -89,7 +89,7 @@ describe('hostiles stay out of the fort', () => {
     const { w, truck, me } = fortScene();
     me.pos = roadPoint(w.seed, 0, alongAt(w, truck) - 60, 0);
     me.speed = 0;
-    advanceFuryRoad(w);
+    advanceChaosHighway(w);
     parkOnHold(w, truck);
     for (let i = 0; i <= 6; i++) planNpcOrders(w);
     expect(truck.brain!.recovery ?? 0).toBe(0);
@@ -106,7 +106,7 @@ describe('hostiles stay out of the fort', () => {
 
   it('holds goals at the last fort north of its hold line', () => {
     const { w, truck } = fortScene();
-    const run = w.furyRoad!;
+    const run = w.chaosHighway!;
     const south = milestoneAt(w.seed, 0);
     const radius = vehicleStats(w, truck).radius;
     const goal = roadPoint(w.seed, 0, south + 1, 0);
@@ -114,7 +114,7 @@ describe('hostiles stay out of the fort', () => {
     expect(run.window).toBe(0);
     expect(alongOf(w.seed, toRoad(w.seed, 0, held))).toBeGreaterThanOrEqual(stretchSpan(w, radius).from - 1e-6);
     const gate = outpostGateSpots(w.seed, 0, 0).north;
-    const lane = gate.width / 2 + radius + FURY_ROAD.spawnClear;
+    const lane = gate.width / 2 + radius + CHAOS_HIGHWAY.spawnClear;
     const centre = acrossOf(w.seed, toRoad(w.seed, 0, gate.center));
     expect(Math.abs(acrossOf(w.seed, toRoad(w.seed, 0, held)) - centre)).toBeGreaterThanOrEqual(lane - 1e-6);
   });

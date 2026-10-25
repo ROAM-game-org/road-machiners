@@ -404,12 +404,12 @@ describe('a Fallen Sun flap', () => {
   }, 120_000);
 });
 
-describe('a Fury Road hull-plate ramp', () => {
+describe('a Chaos Highway hull-plate ramp', () => {
   function rampWorld(): { w: World; ramp: Deck } {
     for (let seed = 1; seed <= 40; seed++) {
       const plain = stretchLayout(seed, 1).scenes.filter((s) => s.kind === 'ramp' && s.craters.length === 0).flatMap((s) => s.ramps.map((r) => r.id));
       if (plain.length === 0) continue;
-      const w = newWorld(seed, START_KITS.combat, highwayMap(seed, 0), defaultSetup('furyRoad'));
+      const w = newWorld(seed, START_KITS.combat, highwayMap(seed, 0), defaultSetup('chaosHighway'));
       const ramp = atlasOf(w.terrain).decks.decks.find((d) => plain.includes(d.id));
       if (ramp) return { w, ramp };
     }
@@ -422,7 +422,7 @@ describe('a Fury Road hull-plate ramp', () => {
     const alongOf = (p: Vec) => (p.x - ramp.from.x) * ramp.axis.x + (p.y - ramp.from.y) * ramp.axis.y;
     const [start, end] = [on(-14), on(ramp.length + 24)];
     w.obstacles = w.obstacles.filter((o) => segmentDist(o.pos, start, end) > ramp.width / 2 + 3);
-    w.furyRoad!.groups = [];
+    w.chaosHighway!.groups = [];
     me(w).pos = on(-10);
     me(w).heading = Math.atan2(ramp.axis.y, ramp.axis.x);
     me(w).speed = vehicleStats(w, me(w)).maxSpeed;

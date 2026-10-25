@@ -16,7 +16,7 @@ import { advanceJobs } from './jobs';
 import { resolveNpcActivities } from './npc-activities';
 import type { Faction, GameEvent, NpcBrain, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
 import { alongOf, highwayMap, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
-import { FURY_ROAD, HIGHWAY } from '../data/modes';
+import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { dist, type Vec } from './vec';
 import { REGION } from '../data/region';
 import { propReach } from './mapgen';
@@ -27,7 +27,7 @@ import { openingStockOf } from './opening';
 import { haulerOf, playerVehicle } from './damage';
 import { stormDepth } from './weather';
 import { cloneWorld, endTurn, newWorld } from './world';
-import { driveOn } from './fury-road';
+import { driveOn } from './chaos-highway';
 import { yardSpots } from './outpost-gates';
 import { addGoods } from './inventory';
 import { stockTarget } from './market';
@@ -36,14 +36,14 @@ import { partDef, type PartKind } from '../data/parts';
 import { defaultSetup } from './settings';
 import { chooseQuestOption, leaveQuest, QUESTS, questView } from './quests';
 
-export function furyRoadStart(seed = 3): World {
-  return newWorld(seed, startKit('furyRoad'), highwayMap(seed, 0), defaultSetup('furyRoad'));
+export function chaosHighwayStart(seed = 3): World {
+  return newWorld(seed, startKit('chaosHighway'), highwayMap(seed, 0), defaultSetup('chaosHighway'));
 }
 
 const OPEN_ROAD = 24;
 
-export function furyRoadWorld(seed = 3): World {
-  const w = driveOn(furyRoadStart(seed));
+export function chaosHighwayWorld(seed = 3): World {
+  const w = driveOn(chaosHighwayStart(seed));
   const n = milestoneAt(seed, 0) + OPEN_ROAD;
   const gap = vehicleStats(w, haulerOf(w)).radius + vehicleStats(w, playerVehicle(w)).radius + RULES.yieldDistance;
   for (const [truck, lane, ahead] of [[playerVehicle(w), 2, 0], [haulerOf(w), 1, gap]] as const) {
@@ -59,8 +59,8 @@ export function furyRoadWorld(seed = 3): World {
 
 export function sendGunTruckAway(w: World): void {
   const hauler = haulerOf(w);
-  const window = w.furyRoad!.window;
-  const along = alongOf(w.seed, toRoad(w.seed, window, hauler.pos)) - FURY_ROAD.hauler.apartGap - 5;
+  const window = w.chaosHighway!.window;
+  const along = alongOf(w.seed, toRoad(w.seed, window, hauler.pos)) - CHAOS_HIGHWAY.hauler.apartGap - 5;
   const me = playerVehicle(w);
   me.pos = roadPoint(w.seed, window, along, HIGHWAY.road.lanes[1]);
   me.heading = roadHeading(w.seed, along);
@@ -81,7 +81,7 @@ export function parkInYard(w: World, milestone: number): void {
 }
 
 export function parkedAtOutpost(seed = 3): World {
-  const w = furyRoadWorld(seed);
+  const w = chaosHighwayWorld(seed);
   parkInYard(w, 1);
   const parked = endTurn(w, () => {});
   parked.player.money = 10_000_000;
@@ -100,7 +100,7 @@ export function armorSpot(w: World, part: PartInstance): Spot {
 }
 
 export function stockOfKind(w: World, kind: PartKind): PartInstance {
-  const part = w.furyRoad!.outposts[1].stock.find((p) => partDef(p.defId).kind === kind);
+  const part = w.chaosHighway!.outposts[1].stock.find((p) => partDef(p.defId).kind === kind);
   if (!part) throw new Error(`Outpost 1 stocks no ${kind}`);
   return part;
 }

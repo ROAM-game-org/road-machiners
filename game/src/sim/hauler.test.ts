@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { FURY_ROAD, HIGHWAY } from '../data/modes';
+import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from './damage';
-import { betweenLevels } from './fury-road';
+import { betweenLevels } from './chaos-highway';
 import { yardSpots } from './outpost-gates';
 import { chosenLane, haulerLane, haulerPace, laneClear, noteHaulerHits, planHaulerOrder, resetHaulerWatch, sideThreat, waitsForGunTruck, watchHaulerStall } from './hauler';
 import { acrossOf, alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
-import { addVehicle, furyRoadWorld } from './testkit';
+import { addVehicle, chaosHighwayWorld } from './testkit';
 import { fuelCap, plainMaxSpeed } from './stats';
 import { heldHeatSpeed } from './engine-heat';
 import { plainFuelSpeed } from './far';
@@ -24,8 +24,8 @@ const LANES = HIGHWAY.road.lanes;
 const N = 140;
 
 function openRoad(seed = 3): { w: World; hauler: Vehicle } {
-  const w = furyRoadWorld(seed);
-  w.furyRoad!.groups = [];
+  const w = chaosHighwayWorld(seed);
+  w.chaosHighway!.groups = [];
   w.obstacles = [];
   const hauler = haulerOf(w);
   hauler.pos = roadPoint(seed, 0, N + frontAhead(hauler.chassisId), LANES[1]);
@@ -37,7 +37,7 @@ function openRoad(seed = 3): { w: World; hauler: Vehicle } {
 function groupTruck(w: World, across: number, along: number, speed: number, heading?: number): Vehicle {
   const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], roadPoint(w.seed, 0, along, across), heading ?? roadHeading(w.seed, along));
   v.speed = speed;
-  w.furyRoad!.groups = [{ id: 'g1-0', stretch: 1, from: 'ahead', at: 0, templates: [], money: 10000, elite: false, level: 'light', spawned: true, vehicles: [v.id], wrecked: 0, counted: [], retryUntil: null }];
+  w.chaosHighway!.groups = [{ id: 'g1-0', stretch: 1, from: 'ahead', at: 0, templates: [], money: 10000, elite: false, level: 'light', spawned: true, vehicles: [v.id], wrecked: 0, counted: [], retryUntil: null }];
   return v;
 }
 
@@ -51,10 +51,10 @@ describe('the hauler driver', () => {
     planHaulerOrder(w);
 
     expect(haulerLane(w, hauler)).toBe(1);
-    expect(hauler.order).toMatchObject({ kind: 'through', pace: FURY_ROAD.hauler.cruise });
+    expect(hauler.order).toMatchObject({ kind: 'through', pace: CHAOS_HIGHWAY.hauler.cruise });
     const dest = (hauler.order as { dest: { x: number; y: number } }).dest;
     expect(acrossOf(w.seed, toRoad(w.seed, 0, dest))).toBeCloseTo(LANES[1], 1);
-    expect(alongOf(w.seed, toRoad(w.seed, 0, dest))).toBeCloseTo(N + FURY_ROAD.hauler.lookahead, 0);
+    expect(alongOf(w.seed, toRoad(w.seed, 0, dest))).toBeCloseTo(N + CHAOS_HIGHWAY.hauler.lookahead, 0);
     expect(hauler.direct).toBe(false);
   });
 
@@ -76,7 +76,7 @@ describe('the hauler driver', () => {
     const right = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], roadPoint(w.seed, 0, N + 1, LANES[2] + 1.5), 0);
     right.speed = 5;
     right.heading = Math.atan2(hauler.pos.y - right.pos.y, hauler.pos.x - right.pos.x);
-    w.furyRoad!.groups[0].vehicles.push(right.id);
+    w.chaosHighway!.groups[0].vehicles.push(right.id);
     expect(sideThreat(w, hauler)).toBe('both');
     expect(chosenLane(w, hauler)).toBe(1);
   });
@@ -114,7 +114,7 @@ describe('the hauler driver', () => {
     expect(lane).not.toBe(dip.lane);
     expect(laneClear(w, hauler, lane)).toBe(true);
 
-    at(dip.along - FURY_ROAD.hauler.laneLook - 20, dip.lane);
+    at(dip.along - CHAOS_HIGHWAY.hauler.laneLook - 20, dip.lane);
     expect(laneClear(w, hauler, dip.lane)).toBe(true);
     expect(chosenLane(w, hauler)).toBe(dip.lane);
   });
@@ -122,7 +122,7 @@ describe('the hauler driver', () => {
   it('keeps its lane when every lane is blocked, for the router to thread the gap', () => {
     const { w, hauler } = openRoad();
     const trucks = LANES.map((lane) => addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], roadPoint(w.seed, 0, N + 6, lane), 0));
-    w.furyRoad!.groups = [{ id: 'g1-0', stretch: 1, from: 'ahead', at: 0, templates: [], money: 10000, elite: false, level: 'light', spawned: true, vehicles: trucks.map((t) => t.id), wrecked: 0, counted: [], retryUntil: null }];
+    w.chaosHighway!.groups = [{ id: 'g1-0', stretch: 1, from: 'ahead', at: 0, templates: [], money: 10000, elite: false, level: 'light', spawned: true, vehicles: trucks.map((t) => t.id), wrecked: 0, counted: [], retryUntil: null }];
     expect(chosenLane(w, hauler)).toBe(1);
   });
 
@@ -138,7 +138,7 @@ describe('the hauler driver', () => {
     expect(LANES.every((_, lane) => !laneClear(w, hauler, lane))).toBe(true);
     const first = aim();
     expect(first).toBeGreaterThan(N + 20);
-    expect(first).toBeLessThan(N + FURY_ROAD.hauler.laneLook);
+    expect(first).toBeLessThan(N + CHAOS_HIGHWAY.hauler.laneLook);
 
     hauler.pos = roadPoint(w.seed, 0, N + 2.4, LANES[1]);
     expect(aim()).toBe(first);
@@ -151,17 +151,17 @@ describe('the hauler driver', () => {
     w.events.push({ t: 'shot', shooter: attacker.id, weapon: 'w', target: hauler.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [{ hit: true, crit: false, offset: 0, struck: null, hits: [{ part: part.kind === 'part' ? part.part.id : '', damage: 5 }], blast: [], burst: null }] });
     noteHaulerHits(w);
 
-    const alarm = w.furyRoad!.hauler.alarmUntil!;
-    expect(alarm).toBe(w.turn + FURY_ROAD.hauler.alarmTurns);
-    expect(haulerPace(w)).toBe(FURY_ROAD.hauler.hurry);
+    const alarm = w.chaosHighway!.hauler.alarmUntil!;
+    expect(alarm).toBe(w.turn + CHAOS_HIGHWAY.hauler.alarmTurns);
+    expect(haulerPace(w)).toBe(CHAOS_HIGHWAY.hauler.hurry);
     w.turn = alarm;
-    expect(haulerPace(w)).toBe(FURY_ROAD.hauler.hurry);
+    expect(haulerPace(w)).toBe(CHAOS_HIGHWAY.hauler.hurry);
     w.turn = alarm + 1;
-    expect(haulerPace(w)).toBe(FURY_ROAD.hauler.cruise);
+    expect(haulerPace(w)).toBe(CHAOS_HIGHWAY.hauler.cruise);
   });
 
   it('never runs faster under fire than it cruises, so a fight cannot be outrun', () => {
-    expect(FURY_ROAD.hauler.hurry).toBeLessThanOrEqual(FURY_ROAD.hauler.cruise);
+    expect(CHAOS_HIGHWAY.hauler.hurry).toBeLessThanOrEqual(CHAOS_HIGHWAY.hauler.cruise);
   });
 
   it('is not alarmed by a shot that does no damage', () => {
@@ -169,14 +169,14 @@ describe('the hauler driver', () => {
     const attacker = groupTruck(w, LANES[3], N + 8, 5);
     w.events.push({ t: 'shot', shooter: attacker.id, weapon: 'w', target: hauler.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [{ hit: false, crit: false, offset: 0, struck: null, hits: [], blast: [], burst: null }] });
     noteHaulerHits(w);
-    expect(w.furyRoad!.hauler.alarmUntil).toBeNull();
+    expect(w.chaosHighway!.hauler.alarmUntil).toBeNull();
   });
 
   it('stops at its yard spot within the approach and never aims off the lanes before that', () => {
     const { w, hauler } = openRoad();
     const pad = yardSpots(w, 1).hauler;
     hauler.pos = roadPoint(w.seed, 0, milestoneAt(w.seed, 1) - 10, LANES[1]);
-    expect(dist(hauler.pos, pad)).toBeLessThanOrEqual(FURY_ROAD.hauler.approach);
+    expect(dist(hauler.pos, pad)).toBeLessThanOrEqual(CHAOS_HIGHWAY.hauler.approach);
     planHaulerOrder(w);
     expect(hauler.order).toEqual({ kind: 'stopAt', dest: pad });
   });
@@ -228,7 +228,7 @@ describe('the hauler driver', () => {
 
   it('drives to its yard spot between levels and holds still once parked on it', () => {
     const { w, hauler } = openRoad();
-    w.furyRoad!.waitingAt = 1;
+    w.chaosHighway!.waitingAt = 1;
     const spot = yardSpots(w, 1).hauler;
     expect(betweenLevels(w)).toBe(true);
     hauler.pos = { x: spot.x + 2, y: spot.y };
@@ -248,7 +248,7 @@ describe('the hauler driver', () => {
     const { w, hauler } = openRoad();
     hauler.speed = 0;
     const stalls = [];
-    for (let i = 0; i <= FURY_ROAD.hauler.stallTurns + 1; i++) {
+    for (let i = 0; i <= CHAOS_HIGHWAY.hauler.stallTurns + 1; i++) {
       w.turn++;
       w.events = [];
       watchHaulerStall(w);
@@ -261,7 +261,7 @@ describe('the hauler driver', () => {
     resetHaulerWatch();
     const { w, hauler } = openRoad();
     const events = () => w.events.filter((e) => e.t === 'stall');
-    for (let i = 0; i < FURY_ROAD.hauler.stallTurns * 3; i++) {
+    for (let i = 0; i < CHAOS_HIGHWAY.hauler.stallTurns * 3; i++) {
       w.turn++;
       w.events = [];
       hauler.pos = roadPoint(w.seed, 0, N + i * 2, LANES[1]);
@@ -269,9 +269,9 @@ describe('the hauler driver', () => {
       expect(events()).toEqual([]);
     }
     resetHaulerWatch();
-    w.furyRoad!.waitingAt = 1;
+    w.chaosHighway!.waitingAt = 1;
     hauler.speed = 0;
-    for (let i = 0; i < FURY_ROAD.hauler.stallTurns * 3; i++) {
+    for (let i = 0; i < CHAOS_HIGHWAY.hauler.stallTurns * 3; i++) {
       w.turn++;
       w.events = [];
       watchHaulerStall(w);
@@ -283,10 +283,10 @@ describe('the hauler driver', () => {
   it('raises no stall while it waits parked in the fort yard for a gun truck still on the road', () => {
     resetHaulerWatch();
     const { w, hauler } = openRoad();
-    hauler.pos = { ...yardSpots(w, w.furyRoad!.window + 1).hauler };
+    hauler.pos = { ...yardSpots(w, w.chaosHighway!.window + 1).hauler };
     hauler.speed = 0;
     expect(betweenLevels(w)).toBe(false);
-    for (let i = 0; i < FURY_ROAD.hauler.stallTurns * 3; i++) {
+    for (let i = 0; i < CHAOS_HIGHWAY.hauler.stallTurns * 3; i++) {
       w.turn++;
       w.events = [];
       watchHaulerStall(w);
@@ -299,10 +299,10 @@ describe('the hauler driver', () => {
     const { w, hauler } = openRoad();
     hauler.speed = 0;
     const foe = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], roadPoint(w.seed, 0, N + 3.5, LANES[1]), 0);
-    w.furyRoad!.groups = [{ vehicles: [foe.id] } as unknown as WaveGroup];
+    w.chaosHighway!.groups = [{ vehicles: [foe.id] } as unknown as WaveGroup];
     const stalls = () => {
       const seen = [];
-      for (let i = 0; i <= FURY_ROAD.hauler.stallTurns + 1; i++) {
+      for (let i = 0; i <= CHAOS_HIGHWAY.hauler.stallTurns + 1; i++) {
         w.turn++;
         w.events = [];
         watchHaulerStall(w);
@@ -327,7 +327,7 @@ describe('the hauler pace behind a slow gun truck', () => {
     const gun = playerVehicle(w);
     coreParts(gun, 'wheel').forEach((wheel) => { wheel.hp = 0; });
     mountedParts(gun, 'engine')[0].wear = 2;
-    expect(plainMaxSpeed(w, gun)).toBeLessThan(FURY_ROAD.hauler.cruise);
+    expect(plainMaxSpeed(w, gun)).toBeLessThan(CHAOS_HIGHWAY.hauler.cruise);
     return { w, hauler, gun };
   }
 
@@ -336,7 +336,7 @@ describe('the hauler pace behind a slow gun truck', () => {
     expect(haulerPace(w)).toBe(plainMaxSpeed(w, gun));
     planHaulerOrder(w);
     expect(hauler.order).toMatchObject({ kind: 'through', pace: plainMaxSpeed(w, gun) });
-    w.furyRoad!.hauler.alarmUntil = w.turn + 3;
+    w.chaosHighway!.hauler.alarmUntil = w.turn + 3;
     expect(haulerPace(w)).toBe(plainMaxSpeed(w, gun));
   });
 
@@ -350,7 +350,7 @@ describe('the hauler pace behind a slow gun truck', () => {
   });
 
   it('sets no cap while the gun truck is stranded, stalled or shut down', () => {
-    const cruise = FURY_ROAD.hauler.cruise;
+    const cruise = CHAOS_HIGHWAY.hauler.cruise;
     const cases: Record<string, (w: World, gun: Vehicle) => void> = {
       'an empty tank': (w, gun) => { getResources(w, gun).fuel = 0; },
       'a dead engine': (_, gun) => { gun.items = gun.items.filter((it) => !(it.kind === 'part' && it.part.defId === 'stockEngine')); },
@@ -388,8 +388,8 @@ describe('the hauler pace behind a hot or thirsty gun truck', () => {
   const noMove = (): void => {};
   const NOON = 1 + (((TIME.sunrise + TIME.sunset) / 2 - TIME.startHour) * TIME.turnsPerDay) / 24;
   const NIGHT = 1 + ((23 - TIME.startHour) * TIME.turnsPerDay) / 24;
-  const crawl = FURY_ROAD.hauler.crawl;
-  const cruise = FURY_ROAD.hauler.cruise;
+  const crawl = CHAOS_HIGHWAY.hauler.crawl;
+  const cruise = CHAOS_HIGHWAY.hauler.cruise;
 
   function hotRoad(turn = NOON): { w: World; hauler: Vehicle; gun: Vehicle } {
     const { w, hauler } = openRoad();
@@ -476,8 +476,8 @@ const NOON_TURN = 1 + (((TIME.sunrise + TIME.sunset) / 2 - TIME.startHour) * TIM
 
 describe('the hauler waits for a gun truck that trails it', () => {
   const noMove = (): void => {};
-  const WAIT = FURY_ROAD.hauler.waitGap;
-  const RESUME = FURY_ROAD.hauler.resumeGap;
+  const WAIT = CHAOS_HIGHWAY.hauler.waitGap;
+  const RESUME = CHAOS_HIGHWAY.hauler.resumeGap;
 
   function trailing(lag: number, seed = 3): { w: World; hauler: Vehicle; gun: Vehicle } {
     const { w, hauler } = openRoad(seed);
@@ -557,7 +557,7 @@ describe('the hauler waits for a gun truck that trails it', () => {
     const { w, hauler } = trailing(60);
     const gun = playerVehicle(w);
     gun.pos = { x: gun.pos.x, y: gun.pos.y };
-    hauler.pos = { ...yardSpots(w, w.furyRoad!.window + 1).hauler };
+    hauler.pos = { ...yardSpots(w, w.chaosHighway!.window + 1).hauler };
     hauler.speed = 4;
     planHaulerOrder(w);
     expect(hauler.order?.kind).toBe('stopAt');
@@ -577,7 +577,7 @@ describe('the hauler waits for a gun truck that trails it', () => {
     hauler.pos = roadPoint(w.seed, 0, N + 5, LANES[1]);
     resetHaulerWatch();
     watchHaulerStall(w);
-    w.turn += FURY_ROAD.hauler.stallTurns;
+    w.turn += CHAOS_HIGHWAY.hauler.stallTurns;
     watchHaulerStall(w);
     expect(stallEvents(w)).toBe(1);
   });

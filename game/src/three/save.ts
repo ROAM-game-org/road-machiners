@@ -3,7 +3,7 @@ import { isNoteId } from '../data/locals';
 import type { BakedMap } from '../sim/terrain';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { townAt } from '../sim/sites';
-import { reachedOutpostAt } from '../sim/fury-road';
+import { reachedOutpostAt } from '../sim/chaos-highway';
 import { highwayMap } from '../sim/highway';
 import { fitBake, repairMap, settleTrucks, type SavedBroken, type SavedMapWorld } from '../sim/map-repair';
 import { repairContent } from '../sim/save-repair';
@@ -141,15 +141,15 @@ export function savedRunId(envelope: unknown): string | null {
   return null;
 }
 
-export function mapFor(saved: Pick<World, 'mapHash' | 'seed' | 'setup' | 'furyRoad'>, icarus: BakedMap): BakedMap {
+export function mapFor(saved: Pick<World, 'mapHash' | 'seed' | 'setup' | 'chaosHighway'>, icarus: BakedMap): BakedMap {
   const highway = saved.mapHash.startsWith('highway:');
   if (modeMap(saved.setup.mode) !== 'highway') {
     if (highway) throw new SaveError('otherMap', null, `A ${saved.setup.mode} save names highway map ${saved.mapHash}`);
     return icarus;
   }
-  if (!saved.furyRoad) throw new SaveError('mapChanged', null, 'This Fury Road run is from older rules: it was laid on Icarus roads or has no hauler, and the highway has replaced them');
-  if (!highway) throw new SaveError('otherMap', null, `A Fury Road save names map ${saved.mapHash}, which is no highway`);
-  const map = highwayMap(saved.seed, saved.furyRoad.window);
+  if (!saved.chaosHighway) throw new SaveError('mapChanged', null, 'This Chaos Highway run is from older rules: it was laid on Icarus roads or has no hauler, and the highway has replaced them');
+  if (!highway) throw new SaveError('otherMap', null, `A Chaos Highway save names map ${saved.mapHash}, which is no highway`);
+  const map = highwayMap(saved.seed, saved.chaosHighway.window);
   if (map.hash !== saved.mapHash) throw new SaveError('mapChanged', null, `map ${saved.mapHash}, not the current highway ${map.hash}`);
   return map;
 }

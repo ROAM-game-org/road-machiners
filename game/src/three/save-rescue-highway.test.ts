@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { startKit } from '../data/start';
 import { haulerOf, playerTrucks, playerVehicle } from '../sim/damage';
-import { canDriveOn, stretchPlan, driveOn } from '../sim/fury-road';
+import { canDriveOn, stretchPlan, driveOn } from '../sim/chaos-highway';
 import { inYard } from '../sim/outpost-gates';
 import { highwayHash, mapAt } from '../sim/highway';
 import { isDriveObstacle, touchesObstacle } from '../sim/mapgen';
@@ -57,8 +57,8 @@ function expectKept(world: World, save: Fixture): void {
   expect(world.player.xp).toBe(old.player.xp);
   expect(world.player.ranks).toEqual(old.player.ranks);
   expect(world.player.storage.map((p) => p.defId)).toEqual(old.player.storage.map((p) => p.defId));
-  expect(world.furyRoad!.earned).toBe(old.furyRoad.earned);
-  expect(world.furyRoad!.wrecks).toBe(old.furyRoad.wrecks);
+  expect(world.chaosHighway!.earned).toBe(old.furyRoad.earned);
+  expect(world.chaosHighway!.wrecks).toBe(old.furyRoad.wrecks);
   for (const [truck, savedId] of [[playerVehicle(world), old.player.vehicleId], [haulerOf(world), old.furyRoad.hauler.id]] as const) {
     expect(partsOf(truck.items)).toEqual(partsOf(savedTruck(save, savedId).items));
     expect(goodsOf(truck.items)).toEqual(goodsOf(savedTruck(save, savedId).items));
@@ -67,15 +67,15 @@ function expectKept(world: World, save: Fixture): void {
 
 function expectWaitingAt(world: World, milestone: number): void {
   expect(world.mapHash).toBe(highwayHash(world.seed, milestone));
-  expect(world.furyRoad!.window).toBe(milestone);
-  expect(world.furyRoad!.waitingAt).toBe(milestone);
+  expect(world.chaosHighway!.window).toBe(milestone);
+  expect(world.chaosHighway!.waitingAt).toBe(milestone);
   expect(world.vehicles).toEqual(playerTrucks(world));
   for (const truck of playerTrucks(world)) {
     expect(inYard(world, truck.pos, milestone)).toBe(true);
     expect(clearOfProps(world, truck)).toBe(true);
   }
   expect(canDriveOn(world)).toBe(true);
-  expect(world.furyRoad!.groups).toEqual(stretchPlan(world, milestone + 1));
+  expect(world.chaosHighway!.groups).toEqual(stretchPlan(world, milestone + 1));
 }
 
 describe('rescueSave on a Chaos Highway run from an older highway', () => {
@@ -97,7 +97,7 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
 
     expectWaitingAt(world, PAID.world.furyRoad.waitingAt);
     expectKept(world, PAID);
-    expect(world.furyRoad!.outposts.map((o) => [o.milestone, o.paid])).toEqual([[2, true], [3, false]]);
+    expect(world.chaosHighway!.outposts.map((o) => [o.milestone, o.paid])).toEqual([[2, true], [3, false]]);
     expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual({ ...world, events: [], removed: [] });
   });
 
@@ -139,6 +139,19 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
     expect(() => rescueSave(slotsWith(broken), 'auto', TEST_MAP, KIT, fresh, freshRun, 2000)).toThrow(/cannot be rescued/);
   });
 
+  it('carries a run saved under the new name of format 106 as it carries one under the old name', () => {
+    const { furyRoad, ...rest } = structuredClone(MID_STRETCH.world);
+    const named = { format: { major: 2, minor: 106 }, world: { ...rest, chaosHighway: furyRoad, setup: { ...rest.setup, mode: 'chaosHighway' } } };
+
+    expect(readCarried(named).run).toEqual(readCarried(MID_STRETCH).run);
+    expect((readCarried(named).setup as { mode: string }).mode).toBe('chaosHighway');
+  });
+
+  it('reads the mode of a save from before format 106 as Chaos Highway', () => {
+    expect(MID_STRETCH.world.setup.mode).toBe('furyRoad');
+    expect((readCarried(MID_STRETCH).setup as { mode: string }).mode).toBe('chaosHighway');
+  });
+
   it('starts a fresh run for a save from before the hauler', () => {
     const old = structuredClone(MID_STRETCH) as unknown as { format: { minor: number }; world: { furyRoad: Record<string, unknown> } };
     old.format.minor = 59;
@@ -165,7 +178,7 @@ describe('a carried run start', () => {
     for (const from of [0, 1, 2, 3]) {
       const run: Carried['run'] = { ...carried.run!, from };
       const world = carriedWorld({ ...carried, seed, run }, KIT, (setup, s, window) => mapAt(setup, s, window, TEST_MAP), fresh);
-      expect(world.setup.mode).toBe(defaultSetup('furyRoad').mode);
+      expect(world.setup.mode).toBe(defaultSetup('chaosHighway').mode);
       expectWaitingAt(world, from);
     }
   });

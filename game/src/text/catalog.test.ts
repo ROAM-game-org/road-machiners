@@ -54,9 +54,9 @@ describe('item lore', () => {
 });
 
 describe('the catalog', () => {
-  it('describes Fury Road without the wreck tagline', () => {
+  it('describes Chaos Highway without the wreck tagline', () => {
     for (const locale of LOCALES) {
-      const text = entryText(locale, 'mode.furyRoad.description');
+      const text = entryText(locale, 'mode.chaosHighway.description');
       expect(text, locale).not.toMatch(/to the wreck|до обломков/i);
     }
   });

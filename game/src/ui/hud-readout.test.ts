@@ -4,7 +4,7 @@ import { RULES } from "../data/rules";
 import { corePart, mountedParts } from "../sim/grid";
 import { knockOutNpc } from "../sim/defeat";
 import { STATE_TURNS } from "../data/npcs";
-import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, spotWorld, startCombat } from "../sim/testkit";
+import { addVehicle, emptyWorld, chaosHighwayWorld, npcBrain, spotWorld, startCombat } from "../sim/testkit";
 import { yardSpots } from "../sim/outpost-gates";
 import { maxHealthOf } from "../sim/health";
 import { suppliesCap } from "../sim/stats";
@@ -415,9 +415,9 @@ function rescue(w: World) {
 
 describe("rescue readout", () => {
   it("offers to end a run when only the hauler is stranded and the gun truck can drive", () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     expect(getRescueReadout(w)).toBeNull();
-    const hauler = w.vehicles.find((v) => v.id === w.furyRoad!.hauler.id)!;
+    const hauler = w.vehicles.find((v) => v.id === w.chaosHighway!.hauler.id)!;
     hauler.resources!.fuel = 0;
     expect(getRescueReadout(w)).toMatchObject({ kind: "stranded", canEnd: true });
   });
@@ -659,7 +659,7 @@ describe('overdrive switch', () => {
   });
 });
 
-describe("Fury Road readouts", () => {
+describe("Chaos Highway readouts", () => {
   const parkAt = (w: World, milestone: number) => {
     const me = playerVehicle(w);
     me.pos = { ...yardSpots(w, milestone).truck };
@@ -667,7 +667,7 @@ describe("Fury Road readouts", () => {
   };
 
   it("shows the stretch and the distance to the next outpost", () => {
-    const run = getHudReadout(furyRoadWorld()).resources.find((r) => r.id === "run");
+    const run = getHudReadout(chaosHighwayWorld()).resources.find((r) => r.id === "run");
 
     expect(en(run!.value)).toMatch(/^1: \d+(\.\d)? k?m$/);
     expect(en(run!.tip!)).toMatch(/^Stretch 1: .* to Outpost 1$/);
@@ -680,18 +680,18 @@ describe("Fury Road readouts", () => {
   });
 
   it("offers to enter a reached outpost only while parked in its yard", () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     parkAt(w, 1);
     expect(actions(w).some((a) => a.target.kind === "outpost")).toBe(false);
 
-    w.furyRoad!.outposts[1].paid = true;
+    w.chaosHighway!.outposts[1].paid = true;
     expect(actions(w)).toContainEqual({ label: "Enter Outpost 1", ready: true, target: { kind: "outpost" } });
     playerVehicle(w).speed = 2;
     expect(actions(w)).toContainEqual({ label: "Enter Outpost 1", ready: false, target: { kind: "outpost" } });
   });
 
   it("offers End run instead of the beacon to a stranded truck", () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     w.player.fuel = 0;
 
     expect(rescue(w)).toEqual({ kind: "stranded", beacon: false, reason: "Out of fuel.", canEnd: true });

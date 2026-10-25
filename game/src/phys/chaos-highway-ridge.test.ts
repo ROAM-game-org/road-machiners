@@ -2,7 +2,7 @@ import { beforeAll, expect, it } from 'vitest';
 import { HIGHWAY } from '../data/modes';
 import { playerVehicle } from '../sim/damage';
 import { acrossOf, roadHeading, roadPoint, toRoad } from '../sim/highway';
-import { furyRoadWorld } from '../sim/testkit';
+import { chaosHighwayWorld } from '../sim/testkit';
 import { endTurn, setMoveOrder } from '../sim/world';
 import { budget } from '../test/budget';
 import { buildDrive, freeDrive, initPhysics, type Drive } from './drive';
@@ -15,8 +15,8 @@ beforeAll(async () => {
 const CHARGE_TURNS = 25;
 
 function farthestAcross(seed: number, side: number): number {
-  let w = furyRoadWorld(seed);
-  w.furyRoad!.groups = [];
+  let w = chaosHighwayWorld(seed);
+  w.chaosHighway!.groups = [];
   const n = 150;
   const me = playerVehicle(w);
   me.pos = roadPoint(seed, 0, n, side * 6);

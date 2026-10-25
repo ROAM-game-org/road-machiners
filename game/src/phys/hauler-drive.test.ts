@@ -1,16 +1,16 @@
 import { beforeAll, expect, it } from 'vitest';
-import { FURY_ROAD, HIGHWAY } from '../data/modes';
+import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from '../sim/damage';
 import { coreParts, mountedParts } from '../sim/grid';
 import { plainMaxSpeed } from '../sim/stats';
 import { advanceFar } from '../sim/far';
-import { moveWindow } from '../sim/fury-road';
+import { moveWindow } from '../sim/chaos-highway';
 import { setHeadless } from '../sim/fidelity';
 import { acrossOf, alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { stretchLayout } from '../sim/road-hazards';
 import { inYard, wholeInYard, yardSpots } from '../sim/outpost-gates';
-import { furyRoadWorld, parkInYard, sendGunTruckAway } from '../sim/testkit';
+import { chaosHighwayWorld, parkInYard, sendGunTruckAway } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
 import { dist } from '../sim/vec';
 import { endTurn } from '../sim/world';
@@ -23,7 +23,7 @@ beforeAll(async () => {
 });
 
 const TURNS = 200;
-const HAULER_CRUISE = FURY_ROAD.hauler.cruise;
+const HAULER_CRUISE = CHAOS_HIGHWAY.hauler.cruise;
 const CRATERS_PASSED = 140;
 
 function onPad(w: World): boolean {
@@ -41,8 +41,8 @@ function haulerRun(seed: number): HaulerRun {
 }
 
 function playHauler(seed: number): HaulerRun {
-  let w = furyRoadWorld(seed);
-  w.furyRoad!.groups = [];
+  let w = chaosHighwayWorld(seed);
+  w.chaosHighway!.groups = [];
   sendGunTruckAway(w);
   let drive: Drive = buildDrive(w);
   let stalls = 0;
@@ -84,8 +84,8 @@ function seedWith(kind: (typeof KINDS)[number]): number {
 
 function farRun(seed: number): { w: World; turns: number; stalls: number } {
   setHeadless(true);
-  let w = furyRoadWorld(seed);
-  w.furyRoad!.groups = [];
+  let w = chaosHighwayWorld(seed);
+  w.chaosHighway!.groups = [];
   sendGunTruckAway(w);
   let stalls = 0;
   let turns = 0;
@@ -114,8 +114,8 @@ it.each(KINDS)('drives the hauler in physics through a %s scene to the fort pad'
 const ESCORT_BESIDE = { ahead: 3, across: 2 };
 
 function escortedRun(seed: number, turns: number): { grounded: number; stalls: number; farthest: number } {
-  let w = furyRoadWorld(seed);
-  w.furyRoad!.groups = [];
+  let w = chaosHighwayWorld(seed);
+  w.chaosHighway!.groups = [];
   let drive: Drive = buildDrive(w);
   let grounded = 0;
   let stalls = 0;
@@ -143,16 +143,16 @@ it('keeps the hauler out of the craters of stretch 1 with the gun truck riding b
 }, budget(300_000));
 
 function worldAtWindow(seed: number, window: number): World {
-  const w = furyRoadWorld(seed);
+  const w = chaosHighwayWorld(seed);
   for (let milestone = 1; milestone <= window; milestone++) {
     parkInYard(w, milestone);
-    w.furyRoad!.outposts.find((o) => o.milestone === milestone)!.paid = true;
-    w.furyRoad!.waitingAt = milestone;
-    w.furyRoad!.groups = [];
+    w.chaosHighway!.outposts.find((o) => o.milestone === milestone)!.paid = true;
+    w.chaosHighway!.waitingAt = milestone;
+    w.chaosHighway!.groups = [];
     moveWindow(w);
-    w.furyRoad!.waitingAt = null;
+    w.chaosHighway!.waitingAt = null;
   }
-  w.furyRoad!.groups = [];
+  w.chaosHighway!.groups = [];
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   return w;
 }
@@ -204,7 +204,7 @@ it('drives a semi free when it sits nose first against a checkpoint barrier', ()
   hauler.pos = { ...WEDGE_POS };
   hauler.heading = WEDGE_HEADING;
   hauler.speed = 0;
-  w.furyRoad!.waitingAt = null;
+  w.chaosHighway!.waitingAt = null;
   sendGunTruckAway(w);
   let drive: Drive = buildDrive(w);
   let stalls = 0;
@@ -221,8 +221,8 @@ it('drives a semi free when it sits nose first against a checkpoint barrier', ()
 }, budget(300_000));
 
 function fromLane(seed: number, lane: number): { w: World; turns: number; stalls: number; won: boolean } {
-  let w = furyRoadWorld(seed);
-  w.furyRoad!.groups = [];
+  let w = chaosHighwayWorld(seed);
+  w.chaosHighway!.groups = [];
   const hauler = haulerOf(w);
   hauler.pos = roadPoint(seed, 0, milestoneAt(seed, 1) - 30, HIGHWAY.road.lanes[lane]);
   hauler.heading = roadHeading(seed, milestoneAt(seed, 1) - 30);
@@ -261,8 +261,8 @@ const GUN_AHEAD = 60;
 
 it('moves the hauler at the pace of a slow gun truck on open road', () => {
   const seed = 1;
-  let w = furyRoadWorld(seed);
-  w.furyRoad!.groups = [];
+  let w = chaosHighwayWorld(seed);
+  w.chaosHighway!.groups = [];
   const gun = playerVehicle(w);
   gun.pos = roadPoint(seed, 0, alongOf(seed, toRoad(seed, 0, haulerOf(w).pos)) + GUN_AHEAD, HIGHWAY.road.lanes[3]);
   coreParts(gun, 'wheel').forEach((wheel) => { wheel.hp = 0; });
@@ -293,9 +293,9 @@ it('moves the hauler at the pace of a slow gun truck on open road', () => {
 
 it('stops on its lane within a few tiles past gun reach for a parked gun truck, then drives on once it closes in', () => {
   const seed = 1;
-  const { waitGap, resumeGap } = FURY_ROAD.hauler;
-  let w = furyRoadWorld(seed);
-  w.furyRoad!.groups = [];
+  const { waitGap, resumeGap } = CHAOS_HIGHWAY.hauler;
+  let w = chaosHighwayWorld(seed);
+  w.chaosHighway!.groups = [];
   let drive: Drive = buildDrive(w);
   let stalls = 0;
   const along = (v: Vehicle): number => alongOf(seed, toRoad(seed, 0, v.pos));

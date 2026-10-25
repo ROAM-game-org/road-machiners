@@ -24,7 +24,7 @@ import { TIME } from '../data/time';
 import { repairContent } from './save-repair';
 import { defaultSetup } from './settings';
 import { addState, advanceStates, settleStates } from './states';
-import { furyRoadStart } from './testkit';
+import { chaosHighwayStart } from './testkit';
 import type { CallVars, GridItem, NpcState, Vehicle, World } from './types';
 import { maxHp, restorePart } from './wear';
 import { cloneWorld, endTurn, newWorld } from './world';
@@ -63,7 +63,7 @@ describe('repairContent', () => {
   });
 
   it('leaves a Chaos Highway world with no drift alone', () => {
-    const w = furyRoadStart();
+    const w = chaosHighwayStart();
     const before = cloneWorld(w);
     repairContent(w);
     expect(w).toEqual(before);
@@ -115,7 +115,7 @@ describe('repairContent', () => {
   });
 
   it('gives the hauler the hauler chassis', () => {
-    const w = furyRoadStart();
+    const w = chaosHighwayStart();
     const hauler = haulerOf(w);
     hauler.chassisId = 'ghostChassis';
 
@@ -539,8 +539,8 @@ describe('repairContent', () => {
   });
 
   it('drops wave templates that left the data, and an emptied wave never spawns', () => {
-    const w = furyRoadStart();
-    const [first, second] = w.furyRoad!.groups.filter((g) => !g.spawned);
+    const w = chaosHighwayStart();
+    const [first, second] = w.chaosHighway!.groups.filter((g) => !g.spawned);
     const kept = first.templates[0];
     first.templates = [kept, 'ghostRaider'];
     second.templates = ['ghostRaider'];

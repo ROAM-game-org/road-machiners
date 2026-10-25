@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY, GOODS } from '../data/goods';
-import { FURY_ROAD, HIGHWAY } from '../data/modes';
+import { CHAOS_HIGHWAY, HIGHWAY } from '../data/modes';
 import { REPAIR } from '../data/wear';
 import { playerVehicle } from './damage';
-import { driveOn } from './fury-road';
+import { driveOn } from './chaos-highway';
 import { yardSpots } from './outpost-gates';
 import { milestoneAt, roadPoint } from './highway';
-import { furyRoadWorld, parkInYard } from './testkit';
+import { chaosHighwayWorld, parkInYard } from './testkit';
 import { corePart, goodsCount, mountedParts } from './grid';
 import { startRepair } from './jobs';
 import { repairPlan } from './repair';
@@ -21,13 +21,13 @@ import { endTurn } from './world';
 const still = () => {};
 
 function atOutpost(): World {
-  const w = furyRoadWorld();
+  const w = chaosHighwayWorld();
   parkInYard(w, 1);
   return endTurn(w, still);
 }
 
 function fittingStock(w: World): PartInstance {
-  const part = w.furyRoad!.outposts[1].stock.find((p) => canStowPart(playerVehicle(w), p));
+  const part = w.chaosHighway!.outposts[1].stock.find((p) => canStowPart(playerVehicle(w), p));
   if (!part) throw new Error('Nothing in stock fits the truck');
   return part;
 }
@@ -121,7 +121,7 @@ describe('outpost services', () => {
 
     const after = outpostBuyPart(w, part.id);
 
-    expect(after.furyRoad!.outposts[1].stock.map((p) => p.id)).not.toContain(part.id);
+    expect(after.chaosHighway!.outposts[1].stock.map((p) => p.id)).not.toContain(part.id);
     expect(playerVehicle(after).items.some((it) => it.kind === 'part' && it.part.id === part.id)).toBe(true);
     expect(after.player.money).toBe(w.player.money - price);
   });
@@ -134,7 +134,7 @@ describe('outpost services', () => {
 
     expect(goodsCount(playerVehicle(after)).parts).toBe(held + 2);
     expect(after.player.money).toBe(w.player.money - outpostGoodPrice() * 2);
-    expect(outpostGoodPrice()).toBe(Math.ceil(GOODS.parts.value * FURY_ROAD.goodsMarkup));
+    expect(outpostGoodPrice()).toBe(Math.ceil(GOODS.parts.value * CHAOS_HIGHWAY.goodsMarkup));
   });
 
   it('carries a bought part into the next stretch', () => {
@@ -143,11 +143,11 @@ describe('outpost services', () => {
     const part = fittingStock(w);
     w = driveOn(outpostBuyPart(w, part.id));
     const me = playerVehicle(w);
-    me.pos = roadPoint(w.seed, w.furyRoad!.window, milestoneAt(w.seed, 1) + 30, HIGHWAY.road.lanes[1]);
+    me.pos = roadPoint(w.seed, w.chaosHighway!.window, milestoneAt(w.seed, 1) + 30, HIGHWAY.road.lanes[1]);
 
     w = endTurn(w, still);
 
-    expect(w.furyRoad!.window).toBe(1);
+    expect(w.chaosHighway!.window).toBe(1);
     expect(playerVehicle(w).items.some((it) => it.kind === 'part' && it.part.id === part.id)).toBe(true);
   });
 
@@ -173,7 +173,7 @@ describe('outpost commands off the pad', () => {
     ['repair basics', outpostRepairBasics],
     ['repair a part', (w) => outpostRepairPart(w, mountedParts(playerVehicle(w))[0].id)],
     ['buy fuel', (w) => outpostBuySupply(w, 'fuel', 1)],
-    ['buy a part', (w) => outpostBuyPart(w, w.furyRoad!.outposts[1].stock[0].id)],
+    ['buy a part', (w) => outpostBuyPart(w, w.chaosHighway!.outposts[1].stock[0].id)],
     ['buy parts', (w) => outpostBuyGood(w, 1)],
   ];
 
@@ -185,7 +185,7 @@ describe('outpost commands off the pad', () => {
   });
 
   it.each(commands)('refuse to %s at an outpost not reached yet', (_name, command) => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const me = playerVehicle(w);
     me.pos = yardSpots(w, 1).truck;
     me.speed = 0;

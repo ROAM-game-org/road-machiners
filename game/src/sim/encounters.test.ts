@@ -112,7 +112,7 @@ describe('the roll', () => {
 
   it('does not roll on Chaos Highway', () => {
     const { w, npc } = talesWorld();
-    w.setup = { ...w.setup, mode: 'furyRoad' };
+    w.setup = { ...w.setup, mode: 'chaosHighway' };
     onStrangerSeen(w, npc);
     expect(w.player.encounters.pending).toBeNull();
   });

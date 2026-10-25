@@ -3,7 +3,7 @@ import { HOLLOW, SUNWARD } from '../data/sunward';
 import { REGION } from '../data/region';
 import { NPCS } from '../data/npcs';
 import { TIME } from '../data/time';
-import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, chaosHighwayWorld, npcBrain, testDrive } from './testkit';
 import { addGoods } from './inventory';
 import { knockOutNpc } from './defeat';
 import { siteGap, sitePads } from './sites';
@@ -73,7 +73,7 @@ describe('the Sunward clock', () => {
   });
 
   it('has no order on Chaos Highway', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     expect(w.sunward).toBeNull();
     expect(() => sunwardPhase(w)).toThrow(/no Sunward order/);
     expect(w.obstacles.some(isHollowObstacle)).toBe(false);
