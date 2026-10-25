@@ -4,6 +4,8 @@ The plan for issue {{issue}} is in {{taskFile}}.
 
 {{gameDocs}}
 
+{{baseNote}}
+
 Reference images from the issue are listed at the end of this prompt.
 Read every available image with the Read tool before you build.
 Build what the plan says and what the images show.
