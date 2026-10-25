@@ -11,7 +11,7 @@ import { budget } from '../test/budget';
 
 const FILES = import.meta.glob<string>('/public/maps/*.bin', { query: '?url&inline', import: 'default', eager: true });
 const DATA_URL = 'data:application/octet-stream;base64,';
-const LEGACY_PROPS = 5186;
+const LEGACY_PROPS = 5176;
 const LEGACY_DRUMS = 6;
 const NEW_KINDS: readonly PropKind[] = ['roadSign', 'routeSign', 'barrel'];
 const O = REGION.obstacles;

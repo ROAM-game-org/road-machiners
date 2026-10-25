@@ -1,6 +1,7 @@
 
 import { reportRobbedHaul, reportShipmentLoss, shipmentOf } from './road-news';
 import { SPAWN } from '../data/npcs';
+import { endLines } from './harpoon';
 import { isHostile } from './combat';
 import { isKnockedOut, standDown } from './defeat';
 import { RULES } from '../data/rules';
@@ -51,6 +52,7 @@ function forEachOpposed(world: World, a: Vehicle, b: Vehicle, act: (p: Vehicle, 
   for (const p of fightSide(world, a)) {
     for (const q of theirs) if (p.id !== q.id) act(p, q);
   }
+  endLines(world);
 }
 
 function endBetween(world: World, kind: 'feud' | 'combat', p: Vehicle, q: Vehicle): void {
