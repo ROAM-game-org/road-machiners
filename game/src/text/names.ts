@@ -5,7 +5,7 @@ import type { LineId } from '../data/dialogue';
 import type { LocalId, NoteId, TermId } from '../data/locals';
 import { FEMALE_NAMES, FIRST_NAMES, SURNAMES, type TraitId } from '../data/npcs';
 import { BASIC_RANK, type BasicId, type PerkId } from '../data/skills';
-import type { CrimeOffense, Octant, Faction, GameModeId, GoalReason, MoneyReason, Refusal, SimNote, SkillId, UnitId, Vehicle, World, WorldSetup, WorldSettings } from '../sim/types';
+import type { CrimeOffense, DeedId, StandingCause, Octant, Faction, GameModeId, GoalReason, MoneyReason, Refusal, SimNote, SkillId, UnitId, Vehicle, World, WorldSetup, WorldSettings } from '../sim/types';
 import { compassOfMap } from './compass';
 import { byId, list, t, type Msg } from './msg';
 
@@ -62,6 +62,7 @@ export const terrainName = (id: string): Msg => byId(`terrain.${id}`);
 export const templateName = (id: string): Msg => byId(`npc.${id}`);
 export const professionName = (id: string): Msg => byId(`npc.${id}.profession`);
 export const traitName = (id: TraitId): Msg => t(`trait.${id}`);
+export const standingDeedName = (deed: DeedId): Msg => t(`character.standingDeed.${deed}`);
 export const factionName = (id: Faction): Msg => t(`faction.${id}`);
 export const offenseName = (id: CrimeOffense): Msg => t(`offense.${id}`);
 export const skillName = (id: SkillId): Msg => t(`skill.${id}`);
@@ -77,6 +78,14 @@ export const modeName = (id: GameModeId): Msg => t(`mode.${id}`);
 export const modeDescription = (id: GameModeId): Msg => t(`mode.${id}.description`);
 export const settingName = (id: keyof WorldSettings): Msg => t(`setting.${id}`);
 export const settingDescription = (id: keyof WorldSettings): Msg => t(`setting.${id}.description`);
+
+export function standingCauseText(cause: StandingCause, change: Msg): Msg {
+  switch (cause.kind) {
+    case 'deed': return t(`log.standingCause.${cause.deed}`, { change });
+    case 'drift': return t(cause.toward === 'up' ? 'log.standingCause.driftUp' : 'log.standingCause.driftDown', { change });
+    case 'settled': return change;
+  }
+}
 
 export function setupText(setup: WorldSetup): Msg {
   const ids = (Object.keys(WORLD_SETTINGS) as (keyof WorldSettings)[]).filter((id) => WORLD_SETTINGS[id].modes.includes(setup.mode));

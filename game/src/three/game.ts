@@ -371,6 +371,7 @@ export class Game {
   get busy(): boolean { return this.anim !== null; }
 
   private applyCommand(next: World): void {
+    if (this.anim && !this.anim.impacts) throw new Error("UI command while a turn plays");
     if (this.saves.changeMapIfMoved(next)) return;
     this.apply(next);
     this.saves.afterCommand(next);
@@ -997,7 +998,7 @@ export class Game {
     const held = this.holdsTime();
     if (held) this.travel.pause();
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
-    const playMs = this.tickWorldClock(heldPlayMs(dt, this.timeHeld(), CONFIG.playbackFrameMs), speed, now);
+    const playMs = this.tickWorldClock(heldPlayMs(dt, this.play.isHeld(), CONFIG.playbackFrameMs), speed, now);
     const wasPlaying = this.anim !== null;
     const phase = this.phase;
     this.travel.tickCreep(playMs);
@@ -1039,7 +1040,7 @@ export class Game {
     const dt = now - this.last;
     this.last = now;
     this.touchIntent(this.touch.tick(now));
-    this.play.beginFrame();
+    this.play.beginFrame(this.timeHeld());
     const { at, playMs } = timed("turn-frame", () => {
       const turn = this.advanceTurn(now, dt);
       this.shade.advance();
@@ -1057,7 +1058,9 @@ export class Game {
     this.rig.leash(truck, sightRadius);
     this.follow.update(truck, cameraSetting().mode() === "auto" ? this.orderPoint() : null, dt, playMs);
     this.hud.showRecenter(!this.follow.isFollowing());
-    lightScene(this.sun, this.sky, truck, daylightAt(lightTurnOf(this.world, this.anim)));
+    const daylight = daylightAt(lightTurnOf(this.world, this.anim));
+    lightScene(this.sun, this.sky, truck, daylight);
+    this.craters.graffiti.light(daylight.sunIntensity);
     this.fx.light({ sun: this.sun, sky: this.sky });
     CLOUD_SHADOWS.sync(this.world, lightTurnOf(this.world, this.anim), this.play.frameMs());
     this.vehicleLights.sync(this.world, this.frames, lightTurnOf(this.world, this.anim), (pos) => this.sightLimit.reaches(pos), truck);
@@ -1070,7 +1073,7 @@ export class Game {
     this.weather.advance(this.play.frameMs());
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);
-    this.shaders.render(this.modalOpen());
+    this.shaders.render(this.play.isHeld());
     this.hud.stepPortraits(this.travel.isPlaying(this.anim));
     this.refreshPlan();
     this.showPlan();

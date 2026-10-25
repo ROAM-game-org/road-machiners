@@ -21,6 +21,7 @@ export type SpareTable = { pool: Weighted<string | null>[]; count: Weighted<numb
 export type GearLevel = 'poor' | 'light' | 'standard' | 'heavy' | 'loaded';
 export const GEAR_LEVEL_IDS: readonly GearLevel[] = ['poor', 'light', 'standard', 'heavy', 'loaded'];
 export type NpcLoadoutTable = {
+  armed: boolean;
   levels: Weighted<GearLevel>[];
   chassis: Weighted<string>[];
   priorities: LoadoutPriorities;
@@ -100,6 +101,7 @@ const MOSTLY_NO_CARGO_PART: Weighted<string | null>[] = [
 
 const LOADOUTS: Record<string, NpcLoadoutTable> = {
   outrider: {
+    armed: true,
     levels: [{ value: "standard", weight: 4 }, { value: "heavy", weight: 2 }, { value: "loaded", weight: 0.5 }],
     chassis: [
       { value: "buggy", weight: 6 },
@@ -124,6 +126,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   gunwagon: {
+    armed: true,
     levels: [{ value: "standard", weight: 4 }, { value: "heavy", weight: 2 }, { value: "loaded", weight: 0.5 }],
     chassis: [
       { value: "wagon", weight: 6 },
@@ -148,6 +151,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   trader: {
+    armed: false,
     levels: [{ value: "poor", weight: 1 }, { value: "light", weight: 3 }, { value: "standard", weight: 3 }, { value: "heavy", weight: 1 }],
     chassis: [
       { value: "hauler", weight: 6 },
@@ -172,6 +176,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: TRADER_SPARES,
   },
   scavenger: {
+    armed: false,
     levels: [{ value: "poor", weight: 2 }, { value: "light", weight: 4 }, { value: "standard", weight: 2 }, { value: "heavy", weight: 1 }],
     chassis: [
       { value: "scout", weight: 6 },
@@ -200,6 +205,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   bowlPatrol: {
+    armed: true,
     levels: [{ value: "standard", weight: 3 }, { value: "heavy", weight: 4 }, { value: "loaded", weight: 1 }],
     chassis: [
       { value: "tractor", weight: 5 },
@@ -213,6 +219,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   nosePatrol: {
+    armed: true,
     levels: [{ value: "standard", weight: 3 }, { value: "heavy", weight: 4 }, { value: "loaded", weight: 1 }],
     chassis: [
       { value: "wagon", weight: 5 },
@@ -225,6 +232,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   marshal: {
+    armed: true,
     levels: [{ value: "loaded", weight: 1 }],
     chassis: [
       { value: "lincoln", weight: 3 },
@@ -237,6 +245,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   courier: {
+    armed: false,
     levels: [{ value: "poor", weight: 3 }, { value: "light", weight: 4 }, { value: "standard", weight: 2 }],
     chassis: [
       { value: "courier", weight: 5 },
@@ -259,6 +268,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   roamer: {
+    armed: false,
     levels: [{ value: "poor", weight: 2 }, { value: "light", weight: 3 }, { value: "standard", weight: 3 }, { value: "heavy", weight: 1 }, { value: "loaded", weight: 0.5 }],
     chassis: [
       { value: "scout", weight: 5 },
@@ -285,6 +295,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   vulture: {
+    armed: true,
     levels: [{ value: "poor", weight: 1 }, { value: "light", weight: 3 }, { value: "standard", weight: 3 }, { value: "heavy", weight: 1 }],
     chassis: [
       { value: "scout", weight: 4 },
@@ -312,6 +323,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   convoy: {
+    armed: false,
     levels: [{ value: "light", weight: 2 }, { value: "standard", weight: 4 }, { value: "heavy", weight: 2 }],
     chassis: [
       { value: "hauler", weight: 6 },
@@ -331,6 +343,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   convoyGuard: {
+    armed: true,
     levels: [{ value: "standard", weight: 3 }, { value: "heavy", weight: 3 }, { value: "loaded", weight: 1 }],
     chassis: [
       { value: "scout", weight: 4 },
@@ -345,6 +358,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   cavalcade: {
+    armed: true,
     levels: [{ value: "light", weight: 2 }, { value: "standard", weight: 5 }, { value: "heavy", weight: 1 }],
     chassis: [
       { value: "buggy", weight: 5 },
@@ -359,6 +373,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   hunter: {
+    armed: true,
     levels: [{ value: "standard", weight: 4 }, { value: "heavy", weight: 1 }],
     chassis: [
       { value: "buggy", weight: 6 },
@@ -371,6 +386,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
     spares: null,
   },
   merc: {
+    armed: true,
     levels: [{ value: "standard", weight: 3 }, { value: "heavy", weight: 4 }, { value: "loaded", weight: 2 }],
     chassis: [
       { value: "wagon", weight: 4 },
