@@ -21,7 +21,7 @@ import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
-import { autoRuns, playerCanAct, threatToPlayer } from "../sim/world";
+import { autoRuns, playerCanAct, threatToPlayer, waitsOnPlayer } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
 export type LiveVision = {
@@ -324,11 +324,11 @@ export class Travel {
   }
 
   private wantsTurn(world: World, now: number): boolean {
-    return this.isAdvancing(null, now) || this.runsOnItsOwn(world, now);
+    return !waitsOnPlayer(world) && (this.isAdvancing(null, now) || this.runsOnItsOwn(world, now));
   }
 
   takeReady(world: World, drive: DriveSnapshot, now: number, held = false): PreparedTurn | null {
-    if (world.player.state === "dead") {
+    if (world.player.state === "dead" || waitsOnPlayer(world)) {
       this.pause();
       return null;
     }
@@ -350,7 +350,7 @@ export class Travel {
   }
 
   continues(world: World, now: number): boolean {
-    return this.shouldAdvance(now) || this.runsOnItsOwn(world, now);
+    return !waitsOnPlayer(world) && (this.shouldAdvance(now) || this.runsOnItsOwn(world, now));
   }
 
   stopAt(playback: Playback, world: World, shown: Record<string, VehicleFrame>, now: number, overshootMs: number): { world: World; drive: DriveSnapshot; leftMs: number } | null {
@@ -364,7 +364,7 @@ export class Travel {
   }
 
   timeWanted(world: World, now: number): boolean {
-    return this.isAdvancing(null, now) && this.turns.isReady(world) && world.player.call === null;
+    return this.isAdvancing(null, now) && this.turns.isReady(world) && !waitsOnPlayer(world);
   }
 
   playedFrame(v: Vehicle, a: Playback | null, at: number | null): VehicleFrame | undefined {
@@ -387,6 +387,7 @@ export class Travel {
     elapsed: number,
     shown: Record<string, VehicleFrame>,
   ): { world: World; playback: Playback; towed: boolean } {
+    if (waitsOnPlayer(before)) throw new Error(`A turn began while the game waits on the player: ${waitReason(before)}`);
     const world = { ...prepared.world, terrain: before.terrain };
     const join = this.endCreep(before, shown, elapsed);
     addRopeFrames(before, world, prepared.result.frames, join.starts);
@@ -562,4 +563,9 @@ export class TurnPreparation {
     this.pending = null;
     return pending.ready;
   }
+}
+
+function waitReason(world: World): string {
+  const live = world.player.quests.live;
+  return live ? `the scene ${live.quest} is on view` : `a radio call is open`;
 }
