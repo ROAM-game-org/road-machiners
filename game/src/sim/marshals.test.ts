@@ -9,7 +9,7 @@ import { remember, rememberSightings, sightingOf } from './memory';
 import { answerDemand, demandLapsed, demandOpen, hunt, outmatched, planMarshal, searchLead, takeCase, withdrawHunt, withdrawsOnTruce } from './marshals';
 import { fleeFrom, interrupt, topGoal } from './npc-activities';
 import { getKnownSite, npcProfile } from './npc-decisions';
-import { plead, settlePlayerPlea } from './parley';
+import { makePeace, plead, settlePlayerPlea } from './parley';
 import { nearestPad } from './sites';
 import { stateOf } from './states';
 import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive } from './testkit';
@@ -141,8 +141,9 @@ describe('pay or fight', () => {
     w.turn += 5;
     hunt(w, marshal, [me]);
     expect(stateOf(w, 'bountyStop', marshal.id, me.id)).toBeNull();
+    expect(takeCase(w, marshal, [me])).toBeNull();
     w.turn += BOUNTY.offerGapTurns;
-    hunt(w, marshal, [me]);
+    planMarshal(w, marshal, [me]);
     expect(stateOf(w, 'bountyStop', marshal.id, me.id)).not.toBeNull();
   });
 
@@ -163,6 +164,19 @@ describe('pay or fight', () => {
     answerDemand(w, marshal, me, 'refuse');
     expect(stateOf(w, 'feud', marshal.id, me.id)).not.toBeNull();
     expect(topGoal(marshal)).toMatchObject({ kind: 'fight', targetId: me.id });
+  });
+
+  it('rides home when it sees its target before it may ask again, and the case waits out the day (no tailing, no stall)', () => {
+    const { w, marshal, me } = inContact();
+    answerDemand(w, marshal, me, 'refuse');
+    makePeace(w, marshal, me);
+    marshal.brain!.goals = marshal.brain!.goals.filter((g) => g.kind !== 'fight');
+    const offered = w.crimes[0].offered!;
+    w.turn += 5;
+    hunt(w, marshal, [me]);
+    expect(marshal.brain!.goals.some((g) => g.kind === 'pursue')).toBe(false);
+    expect(w.events.some((e) => e.t === 'activity' && e.vehicle === marshal.id && e.previous === 'pursue' && e.reason === 'backToPost')).toBe(true);
+    expect(w.crimes[0]).toMatchObject({ hunter: null, retryAt: offered + BOUNTY.offerGapTurns, status: 'open' });
   });
 
   it('counts silence until the demand lapses as a refusal', () => {

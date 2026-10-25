@@ -133,12 +133,27 @@ export function hunt(world: World, marshal: Vehicle, seen: Vehicle[]): void {
   if (cases.length === 0) return;
   if (lostPartner(world, marshal, goal.targetId)) return giveUp(world, marshal, cases);
   const lead = newLead(world, marshal, goal, seen, cases[0].lead);
-  if (lead) follow(world, goal, cases, lead);
-  else trackLead(world, marshal, goal, cases);
+  if (!lead) return trackLead(world, marshal, goal, cases);
+  follow(world, goal, cases, lead);
+  if (waitsToAsk(world, marshal, goal.targetId, cases, seen)) rideHomeUntil(world, marshal, cases, lastOffer(cases) + BOUNTY.offerGapTurns);
+}
+
+function waitsToAsk(world: World, marshal: Vehicle, targetId: string, cases: CrimeCase[], seen: Vehicle[]): boolean {
+  if (!sighted(world, marshal, targetId, seen) || stateOf(world, 'bountyStop', marshal.id, targetId)) return false;
+  return world.turn - lastOffer(cases) < BOUNTY.offerGapTurns;
+}
+
+function sighted(world: World, marshal: Vehicle, targetId: string, seen: Vehicle[]): Vehicle | null {
+  return seen.find((v) => v.id === targetId && canVehicleSee(world, marshal, v.pos)) ?? null;
+}
+
+function rideHomeUntil(world: World, marshal: Vehicle, cases: CrimeCase[], retryAt: number): void {
+  dropHunt(world, cases, retryAt);
+  finishGoal(world, marshal, 'backToPost');
 }
 
 function newLead(world: World, marshal: Vehicle, goal: NpcActivity & { targetId: string }, seen: Vehicle[], lead: CaseLead): CaseLead | null {
-  const target = seen.find((v) => v.id === goal.targetId && canVehicleSee(world, marshal, v.pos));
+  const target = sighted(world, marshal, goal.targetId, seen);
   if (target) return contactLead(world, marshal, target);
   const told = askAround(world, marshal, goal, seen, lead);
   return told === lead ? null : told;

@@ -236,10 +236,10 @@ export function leadCases(cases: CrimeCase[], lead: CaseLead): void {
   for (const c of cases) c.lead = { ...lead, at: { ...lead.at } };
 }
 
-export function dropHunt(world: World, cases: CrimeCase[]): void {
+export function dropHunt(world: World, cases: CrimeCase[], retryAt = world.turn + BOUNTY.retryTurns): void {
   for (const c of cases.filter((x) => x.status === 'open')) {
     c.hunter = null;
-    c.retryAt = world.turn + BOUNTY.retryTurns;
+    c.retryAt = retryAt;
   }
 }
 
