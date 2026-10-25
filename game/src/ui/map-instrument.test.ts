@@ -34,7 +34,8 @@ describe("map instrument", () => {
     expect(button.className).toBe("instrument-button");
     expect(button.text()).toContain("Map");
     expect(button.text()).not.toContain("K");
-    expect(button.attrs.get("title")).toContain("K");
+    expect(button.attrs.get("title")).toBe('Map [M]');
+    expect(button.attrs.get("title")).not.toContain('[K]');
     expect(resolve(t("map.full"), "ru")).toBe("Карта");
   });
 
@@ -60,7 +61,7 @@ describe("map instrument", () => {
     expect(button.attrs.get("title")).toBeTruthy();
   });
 
-  it("is absent in Chaos Highway, where K does nothing", () => {
+  it("is absent in Chaos Highway, where M does nothing", () => {
     stubDom();
     const w = emptyWorld();
     w.setup = { ...w.setup, mode: "furyRoad" };

@@ -96,11 +96,11 @@ export class SoundSettings {
   }
 }
 
-export function muteSwitch(settings: SoundSettings): SoundView {
-  const root = el("div", { class: "radio-mute" });
+function muteSwitch(settings: SoundSettings): SoundView {
+  const root = el("div", { class: "sound-mute" });
   const draw = () => {
     const muted = settings.muted();
-    root.replaceChildren(createSwitch({ on: t("sound.on"), off: t("sound.mute"), checked: !muted, key: "M", title: muted ? t("sound.unmuteTitle") : t("sound.muteTitle"), onclick: () => settings.toggleMute() }));
+    root.replaceChildren(createSwitch({ on: t("sound.on"), off: t("sound.mute"), checked: !muted, title: muted ? t("sound.unmuteTitle") : t("sound.muteTitle"), onclick: () => settings.toggleMute() }));
   };
   draw();
   return { root, dispose: settings.onChange(draw) };

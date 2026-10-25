@@ -66,7 +66,7 @@ describe("character screen", () => {
     expect(pressedTab(root)).toEqual(["map"]);
     expect(root.all((n) => n.className.includes("map-tab"))).toHaveLength(1);
     expect(rankButtons(root)).toHaveLength(0);
-    expect(root.all((n) => n.className === "close")[0].text()).toBe("Close [K]");
+    expect(root.all((n) => n.className === "close")[0].text()).toBe("Close [M]");
     screen.toggle("skills");
     expect(screen.isOpen()).toBe(true);
     expect(pressedTab(root)).toEqual(["skills"]);

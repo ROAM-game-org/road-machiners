@@ -82,12 +82,11 @@ export const CONTROLS: ControlGroup[] = [
       { keys: [t("help.key.wheel")], does: t("help.does.zoom") },
       { keys: ["F"], does: t("help.does.center") },
       { keys: ["V"], does: t("help.does.camera") },
-      { keys: ["M"], does: t("help.does.mute") },
       { keys: ["I"], does: t("help.does.inventory") },
       { keys: ["R"], on: t("help.on.inventory"), does: t("help.does.turnItem") },
       { keys: ["C"], does: t("help.does.character") },
       { keys: ["J"], does: t("help.does.journal") },
-      { keys: ["K"], does: t("help.does.map") },
+      { keys: ["M"], does: t("help.does.map") },
     ],
   },
 ];
