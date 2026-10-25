@@ -122,14 +122,21 @@ def loft(kit: Kit, name: str, sections: list[list[Vec3]], mat: str) -> None:
     kit._add(obj, name, mat, 0.0)
 
 
-def mesh(kit: Kit, name: str, verts: list[Vec3], faces: list[tuple[int, ...]], mat: str) -> bpy.types.Object:
-    """Adds one part from explicit faces, with the winding fixed so every face points out of the part."""
+def mesh(kit: Kit, name: str, verts: list[Vec3], faces: list[tuple[int, ...]], mat: str, down: range = range(0)) -> bpy.types.Object:
+    """Adds one part from explicit faces, with the winding fixed so every face points out of the part.
+
+    down lists the faces of a floor that the winding pass cannot tell from a roof: they are turned to face down.
+    """
     data = bpy.data.meshes.new(name)
     bm = bmesh.new()
     made = [bm.verts.new(v) for v in verts]
     for face in faces:
         bm.faces.new([made[i] for i in face])
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.faces.ensure_lookup_table()
+    for index in down:
+        if bm.faces[index].normal.z > 0:
+            bm.faces[index].normal_flip()
     bm.to_mesh(data)
     bm.free()
     obj = bpy.data.objects.new(name, data)
