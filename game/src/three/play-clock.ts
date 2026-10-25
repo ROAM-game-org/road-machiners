@@ -3,6 +3,7 @@ export type Ease = { stopMs: number; startMs: number; stopFolds: number };
 export class PlayClock {
   private totalMs = 0;
   private thisFrameMs = 0;
+  private heldNow = false;
   private rate = 0;
   private stopEaseMs: number;
   private readonly stop: StopCurve;
@@ -13,8 +14,13 @@ export class PlayClock {
     this.stopEaseMs = ease.stopMs;
   }
 
-  beginFrame(): void {
+  beginFrame(held: boolean): void {
     this.thisFrameMs = 0;
+    this.heldNow = held;
+  }
+
+  isHeld(): boolean {
+    return this.heldNow;
   }
 
   stopWithin(playMs: number): void {
