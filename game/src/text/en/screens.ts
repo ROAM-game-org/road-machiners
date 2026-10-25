@@ -265,7 +265,6 @@ export const SCREENS = {
   'map.column.g': 'G',
   'map.column.h': 'H',
   'map.square': m('{column}{row}', { column: 'text', row: 'text' }),
-  'map.rumor': 'Wreck (rumor)',
   'map.radio': 'Radio',
   'hint.waypoint': 'Click the ground to set a waypoint.',
   'hint.drive': '[Space] to drive to the waypoint.',

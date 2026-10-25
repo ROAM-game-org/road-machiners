@@ -6,7 +6,7 @@ import { el } from '../../ui/dom';
 import { keyLabel } from '../../ui/input-mode';
 import { createBareItemIcon } from '../../ui/cards';
 import type { JobMark, VehicleMark, WeaponMark } from '../../ui/weapons';
-import { playerExplored, playerSees } from '../../sim/vision';
+import { playerSees } from '../../sim/vision';
 import { heldEscort } from '../../sim/escort-job';
 import { vehicleName } from '../../ui/format';
 import type { CameraRig } from './camera';
@@ -40,14 +40,12 @@ function place(el: HTMLDivElement, world: World, pos: Vec, rig: CameraRig, limit
 }
 
 export class Labels {
-  private rumors = new Map<string, HTMLDivElement>();
   private lead: HTMLDivElement | null = null;
   private escort: HTMLDivElement | null = null;
 
   constructor(private readonly container: HTMLElement) {}
 
   update(world: World, rig: CameraRig, limit: SightLimit): void {
-    this.updateRumors(world, rig, limit);
     this.updateEscort(world, rig, limit);
     this.updateLead(world, rig, limit);
   }
@@ -76,25 +74,6 @@ export class Labels {
     if (!this.escort) this.escort = labelEl(this.container);
     setText(this.escort, vehicleName(world, job.client));
     place(this.escort, world, lastSeen, rig, limit, true);
-  }
-
-  private updateRumors(world: World, rig: CameraRig, limit: SightLimit): void {
-    const stocks = world.salvage.filter((s) => world.player.rumored.includes(s.id));
-    const ids = new Set(stocks.map((s) => s.id));
-    for (const [id, el] of this.rumors) {
-      if (ids.has(id)) continue;
-      el.remove();
-      this.rumors.delete(id);
-    }
-    for (const stock of stocks) {
-      let el = this.rumors.get(stock.id);
-      if (!el) {
-        el = labelEl(this.container);
-        setText(el, t('map.rumor'));
-        this.rumors.set(stock.id, el);
-      }
-      place(el, world, stock.pos, rig, limit, playerExplored(world, stock.pos));
-    }
   }
 }
 

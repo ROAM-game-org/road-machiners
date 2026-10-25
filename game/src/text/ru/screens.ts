@@ -278,7 +278,6 @@ export const SCREENS: Translation<typeof EN> = {
   'map.column.g': 'Ж',
   'map.column.h': 'З',
   'map.square': '{column}{row}',
-  'map.rumor': 'Обломки (слух)',
   'map.radio': 'Рация',
   'hint.waypoint': 'Кликните по земле, чтобы поставить точку пути.',
   'hint.drive': '[Пробел], чтобы ехать к точке пути.',

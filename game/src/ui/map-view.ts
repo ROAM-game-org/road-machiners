@@ -20,14 +20,13 @@ import { uiSize } from './ui-size';
 
 export type MapRule = { kind: 'follow'; reach: number } | { kind: 'free' } | { kind: 'fit' };
 export type MapTruck = { pos: Vec; heading: number };
-export type MapSite = { id: string; kind: 'town' | 'site' | 'wreck'; pos: Vec; known: boolean };
+export type MapSite = { id: string; kind: 'town' | 'site'; pos: Vec; known: boolean };
 export type MapOverlay = (ctx: CanvasRenderingContext2D, view: Viewport) => void;
 
 const BASES_KEPT = 3;
 const TIP_GAP = 12;
 const ZOOM_SLACK = 1.001;
-const MARK = { town: 5, site: 4, wreck: 8, truck: 8, hit: 8, pinned: 0.6, wreckPinned: 0.8 };
-const RUMOR = { under: 5.5, line: 2.5, dash: [4, 3] };
+const MARK = { town: 5, site: 4, truck: 8, hit: 8, pinned: 0.6 };
 const NAME = { gap: 6, padX: 4, padY: 2 };
 const GRID = { width: 1, alpha: 0.3, gap: 3, padX: 3, padY: 1 };
 const PLATE = { inset: 8, pad: 5, arrowWidth: 10, arrowHeight: 12, tick: 5, gap: 3 };
@@ -117,39 +116,13 @@ export function mapSites(world: World): MapSite[] {
   const found = new Set(world.player.discovered);
   const mapped = mappedSites(world);
   const towns = new Set(atlasOf(world.terrain).towns.map((s) => s.id));
-  const sites: MapSite[] = atlasSites(atlasOf(world.terrain))
+  return atlasSites(atlasOf(world.terrain))
     .filter((s) => mapped.has(s.id))
-    .map((s) => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: found.has(s.id) }));
-  const wrecks = world.salvage.filter((s) => world.player.rumored.includes(s.id));
-  return [...sites, ...wrecks.map((s): MapSite => ({ id: s.id, kind: 'wreck', pos: s.pos, known: true }))];
+    .map((s): MapSite => ({ id: s.id, kind: towns.has(s.id) ? 'town' : 'site', pos: s.pos, known: found.has(s.id) }));
 }
 
-function markName(site: MapSite): Msg {
+export function markName(site: MapSite): Msg {
   return site.known ? siteName(site.id) : t('map.unknownSite');
-}
-
-export function tipText(site: MapSite): Msg {
-  return site.kind === 'wreck' ? t('map.rumor') : markName(site);
-}
-
-export type RumorPen = Pick<CanvasRenderingContext2D, 'save' | 'restore' | 'beginPath' | 'arc' | 'stroke' | 'setLineDash' | 'strokeStyle' | 'lineWidth'>;
-
-export function strokeRumor(ctx: RumorPen, at: { x: number; y: number }, radius: number): void {
-  const scale = radius / MARK.wreck;
-  ctx.save();
-  ctx.setLineDash([]);
-  ctx.strokeStyle = token('--surface-sunk');
-  ctx.lineWidth = RUMOR.under * scale;
-  ctx.beginPath();
-  ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.setLineDash(RUMOR.dash.map((d) => d * scale));
-  ctx.strokeStyle = token('--ink-bright');
-  ctx.lineWidth = RUMOR.line * scale;
-  ctx.beginPath();
-  ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
 }
 
 export class MapView {
@@ -241,7 +214,7 @@ export class MapView {
       if (!site) return hide();
       if (shown !== site.id) {
         shown = site.id;
-        tip.replaceChildren(el('span', {}, tipText(site)));
+        tip.replaceChildren(el('span', {}, markName(site)));
       }
       const box = this.canvas.getBoundingClientRect();
       tip.style.display = '';
@@ -338,9 +311,8 @@ export class MapView {
     ctx.lineWidth = 3;
     for (const site of this.sites) {
       const at = this.markAt(view, site);
-      const scale = at.pinned ? (site.kind === 'wreck' ? MARK.wreckPinned : MARK.pinned) : 1;
-      if (site.kind === 'wreck') this.drawRumor(ctx, at, scale);
-      else if (site.kind === 'town') this.drawSquare(ctx, at, scale);
+      const scale = at.pinned ? MARK.pinned : 1;
+      if (site.kind === 'town') this.drawSquare(ctx, at, scale);
       else this.drawDot(ctx, at, scale);
     }
   }
@@ -349,14 +321,13 @@ export class MapView {
     ctx.font = `${token('--text-dense')} ${token('--font-ui')}`;
     ctx.textBaseline = 'middle';
     const tall = parseFloat(token('--text-dense')) + 2 * NAME.padY;
-    const named = this.sites
-      .filter((site) => site.kind !== 'wreck')
+    const named = [...this.sites]
       .sort((a, b) => Number(b.kind === 'town') - Number(a.kind === 'town'))
       .map((site) => ({ site, at: toPx(view, site.pos) }));
     const taken: Box[] = [...kept, ...named.map(({ at }) => around(at, MARK.town + 1))];
     if (this.truck) taken.push(around(toPx(view, this.truck.pos), MARK.truck + 1));
     for (const { site, at } of named) {
-      const text = say(tipText(site));
+      const text = say(markName(site));
       const plate = placePlate(at, ctx.measureText(text).width + 2 * NAME.padX, tall, taken);
       taken.push(plate);
       ctx.fillStyle = token('--surface-overlay');
@@ -502,10 +473,6 @@ export class MapView {
     ctx.arc(at.x, at.y, MARK.site * scale, 0, Math.PI * 2);
     ctx.stroke();
     ctx.fill();
-  }
-
-  private drawRumor(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, scale: number): void {
-    strokeRumor(ctx, at, MARK.wreck * scale);
   }
 
   private drawTruck(ctx: CanvasRenderingContext2D, view: Viewport, truck: MapTruck): void {
