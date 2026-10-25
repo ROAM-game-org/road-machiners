@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_core import CELL_ACROSS, CELL_ALONG, COLORS, check_footprint  # noqa: E402
+from parts_common_core import CELL_ACROSS, CELL_ALONG, COLORS, PROUD, check_footprint  # noqa: E402
 
 SEED = 129
 FRONT = CELL_ALONG / 2  # the cell's front edge, Blender X
@@ -28,10 +28,10 @@ def build(kit: Kit) -> None:
     bh = BUMPER_Z[1] - BUMPER_Z[0]
     bz = sum(BUMPER_Z) / 2
     kit.box("bumper", (BEAM_D, CELL_ACROSS, bh), (FRONT + BUMPER_OUT - BEAM_D / 2, 0, bz), "metal")
-    kit.box("bumper_top", (BEAM_D - 0.02, CELL_ACROSS, 0.03), (FRONT + BUMPER_OUT - BEAM_D / 2, 0, BUMPER_Z[1] + 0.012), "metal_light")
+    kit.box("bumper_top", (BEAM_D - 0.02, CELL_ACROSS - 2 * PROUD, 0.03), (FRONT + BUMPER_OUT - BEAM_D / 2, 0, BUMPER_Z[1] + 0.012), "metal_light")
     for y in (-HALF_W + 0.07, HALF_W - 0.07):
         kit.box("bracket", (BUMPER_OUT - BEAM_D + 0.02, 0.06, bh * 0.6), (FRONT + (BUMPER_OUT - BEAM_D) / 2, y, bz), "metal_dark")
-    kit.box("skid", (BUMPER_OUT, CELL_ACROSS, 0.03), (FRONT + BUMPER_OUT / 2, 0, BUMPER_Z[0] + 0.015), "rust_side")
+    kit.box("skid", (BUMPER_OUT - PROUD, CELL_ACROSS - 4 * PROUD, 0.03), (FRONT + (BUMPER_OUT - PROUD) / 2, 0, BUMPER_Z[0] + 0.015), "rust_side")
 
 
 def main() -> None:
