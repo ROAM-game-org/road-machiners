@@ -68,7 +68,7 @@ def lower_body(kit: Kit) -> None:
     profile = arch_profile(G, WHEELS_X, HUB_Z, WHEEL_R, FLOOR)
     prism(kit, "skin_l", profile, WELL_Y, SIDE, "paint", lean=-TUCK)
     prism(kit, "skin_r", profile, -SIDE, -WELL_Y, "paint", lean=TUCK)
-    core = [(BACK + 0.14, G.bottom), (FRONT - 0.14, G.bottom), (FRONT, G.bottom + 0.14), (FRONT, FLOOR), (BACK, FLOOR), (BACK, G.bottom + 0.14)]
+    core = [(BACK + 0.14, G.bottom), (FRONT - 0.14, G.bottom), (FRONT - PROUD, G.bottom + 0.14), (FRONT - PROUD, FLOOR), (BACK + PROUD, FLOOR), (BACK + PROUD, G.bottom + 0.14)]
     prism(kit, "core", core, -WELL_Y, WELL_Y, "paint")
     rocker_front = WHEELS_X[0] - ARCH_R - 0.06
     rocker_back = WHEELS_X[1] + ARCH_R + 0.06
@@ -110,7 +110,7 @@ def crease(kit: Kit) -> None:
     """The crisp beltline crease as a trim band wrapping around the sides, the nose and the tail."""
     mirrored(kit, "crease", (FRONT - BACK, 0.03, CREASE_H), 0, SIDE + 0.015, CREASE_Z, "trim")
     kit.box("crease_front", (0.03 - PROUD, 2 * SIDE + 0.06, CREASE_H), (FRONT + (0.03 - PROUD) / 2, 0, CREASE_Z), "trim")
-    kit.box("crease_back", (0.03, 2 * SIDE + 0.06, CREASE_H), (BACK - 0.015, 0, CREASE_Z), "trim")
+    kit.box("crease_back", (0.03 - PROUD, 2 * SIDE + 0.06, CREASE_H), (BACK - (0.03 - PROUD) / 2, 0, CREASE_Z), "trim")
 
 
 def cabin(kit: Kit) -> None:
@@ -124,7 +124,7 @@ def cabin(kit: Kit) -> None:
     prism(kit, "windshield", screen, -DOOR_IN + 0.02, DOOR_IN - 0.02, "glass")
     for s, sy in (("l", 1), ("r", -1)):
         strut(kit, f"a_pillar_{s}", (COWL - 0.02, sy * DOOR_IN, DECK), (SCREEN_X - 0.02, sy * DOOR_IN, SCREEN_Z + 0.02), 0.06, "metal_light")
-    strut(kit, "header", (SCREEN_X - 0.02, DOOR_IN + 0.03, SCREEN_Z + 0.02), (SCREEN_X - 0.02, -DOOR_IN - 0.03, SCREEN_Z + 0.02), 0.06, "metal_light")
+    strut(kit, "header", (SCREEN_X - 0.02, DOOR_IN + 0.03, SCREEN_Z + 0.02), (SCREEN_X - 0.02, -DOOR_IN - 0.03, SCREEN_Z + 0.02), 0.05, "metal_light")
     # Two bucket seats on row 3, a bench on row 4.
     for s, y in (("l", G.col_y(1)), ("r", G.col_y(3))):
         kit.box(f"cushion_{s}", (0.46, 0.56, 0.16), (G.row_x(3) - 0.02, y, FLOOR + 0.08), "leather")

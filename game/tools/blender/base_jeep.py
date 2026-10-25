@@ -28,6 +28,7 @@ import bpy
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args, round_sides  # noqa: E402
 from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, INSET, SUSPENSION_REST, Grid, check_base, check_door_gap, door_sill, cut_hulls, hull_mesh, level_sockets, surface_z  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from shapes import prism, strut  # noqa: E402
 
 SEED = 304
@@ -140,7 +141,7 @@ def ribs(kit: Kit) -> None:
     for i, x in enumerate(seams):
         low = door_sill(x, x, SEAM_LOW, WHEELS_X, HUB_Z, ARCH_R)
         check_door_gap(f"seam{i}", x, x, low, WHEELS_X, HUB_Z, ARCH_R)
-        mirrored(kit, f"seam{i}", (0.035, 0.045, BELT - low), x, SIDE + 0.0175, (BELT + low) / 2, "under")
+        mirrored(kit, f"seam{i}", (0.035, 0.045, BELT - low - PROUD), x, SIDE + 0.0175, (BELT - PROUD + low) / 2, "under")
     for i, x in enumerate((seams[1] + 0.1, seams[2] + 0.1)):
         mirrored(kit, f"handle{i}", (0.12, 0.035, 0.035), x, SIDE + 0.0175, BELT - 0.07, "metal")
 
@@ -165,8 +166,8 @@ def windshield(kit: Kit) -> None:
     span = SIDE - 0.04
     for s, sy in (("l", 1), ("r", -1)):
         strut(kit, f"post_{s}", (base_x, sy * span, BELT), (top_x, sy * span, SCREEN_TOP), 0.07, "paint")
-    strut(kit, "header", (top_x, span + 0.035, SCREEN_TOP), (top_x, -span - 0.035, SCREEN_TOP), 0.07, "paint")
-    kit.box("sill", (0.08, 2 * span + 0.07, 0.06), (base_x, 0, BELT + 0.03), "paint")
+    strut(kit, "header", (top_x, span + 0.035 + PROUD, SCREEN_TOP), (top_x, -span - 0.035 - PROUD, SCREEN_TOP), 0.07, "paint")
+    kit.box("sill", (0.08, 2 * span + 0.07 + 2 * PROUD, 0.06), (base_x, 0, BELT + 0.03), "paint")
     glass = [(base_x - 0.015, BELT + 0.05), (base_x + 0.015, BELT + 0.05), (top_x + 0.015, SCREEN_TOP - 0.03), (top_x - 0.015, SCREEN_TOP - 0.03)]
     prism(kit, "glass", glass, -span + 0.03, span - 0.03, "glass")
 
