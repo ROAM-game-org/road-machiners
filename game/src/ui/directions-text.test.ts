@@ -129,7 +129,7 @@ describe('directionsText', () => {
       { do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'northEast', span: 'fair' },
       { do: 'leave', at: { kind: 'none' }, octant: 'south', lean: 'east', span: 'fair' },
     ];
-    expect(resolve(directionsText(steps), 'en')).toBe('Leave by the east gate. Take the road to Nose, heading east. Where the road runs closest, leave the road and head south-west and a touch east, a fair way.');
+    expect(resolve(directionsText(steps), 'en')).toBe('Leave by the south-east gate. Take the road to Nose, heading east. Where the road runs closest, leave the road and head south-west and a touch south-east, a fair way.');
   });
 
   it('asks again plainly', () => {

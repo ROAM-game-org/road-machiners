@@ -962,10 +962,10 @@ describe("survey contract text", () => {
     });
     const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
     expect(line.className).toBe("contract-clue");
-    expect(line.text()).toBe("Hamlet in square H3, from Bowl: Leave by the east gate. Take the road to Nose, heading east. It's a long haul. At Nose, leave the road and head south-east, a fair way. A cluster of ruined houses on flat ground. found");
+    expect(line.text()).toBe("Hamlet in square H3, from Bowl: Leave by the south-east gate. Take the road to Nose, heading east. It's a long haul. At Nose, leave the road and head south-east, a fair way. A cluster of ruined houses on flat ground. found");
     vi.unstubAllGlobals();
     expect(line.all("tag").at(-1)?.text()).toBe("found");
-    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading east. It's a long haul. At Nose, leave the road and head south-east, a fair way. It lies in square H3, on flat ground.");
+    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the south-east gate. Take the road to Nose, heading east. It's a long haul. At Nose, leave the road and head south-east, a fair way. It lies in square H3, on flat ground.");
   });
 
   it("keeps the compass clue when no full way can be told", () => {
