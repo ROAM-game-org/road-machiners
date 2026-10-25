@@ -102,7 +102,7 @@ def mound(kit: Kit, name: str, radius: float, height: float, at: tuple[float, fl
             v.co.y *= 0.45
 
 
-def loft(kit: Kit, name: str, sections: list[list[Vec3]], mat: str) -> None:
+def loft(kit: Kit, name: str, sections: list[list[Vec3]], mat: str) -> bpy.types.Object:
     """Joins equal-length rings of points, one per station, into one closed mesh with flat end caps."""
     mesh = bpy.data.meshes.new(name)
     bm = bmesh.new()
@@ -119,7 +119,7 @@ def loft(kit: Kit, name: str, sections: list[list[Vec3]], mat: str) -> None:
     bm.free()
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(obj)
-    kit._add(obj, name, mat, 0.0)
+    return kit._add(obj, name, mat, 0.0)
 
 
 def arc_panel(
