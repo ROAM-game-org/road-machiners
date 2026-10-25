@@ -75,6 +75,20 @@ describe('part debris', () => {
     debris.free();
   });
 
+  it('adds a burst that reaches no further than its own spot', () => {
+    const root = new THREE.Group();
+    const limit = new SightLimit(SIZE);
+    const scope = new RenderScope(root, SIZE, limit, true, false);
+    const debris = new PartDebris(scope, flatTerrain(SIZE));
+    const at = { x: 60 * S, y: 1, z: 60 * S };
+    expect(() => debris.burst('far:1', at, { x: at.x - 1, y: 1, z: at.z }, [])).not.toThrow();
+    limit.set({ x: 0, y: 0, z: 0 }, 3 * S);
+    const camera = new THREE.OrthographicCamera(-2000, 2000, 2000, -2000, -5000, 5000);
+    scope.update(camera);
+    expect(root.children.filter((c) => c.name.startsWith('scope-chunk'))).toHaveLength(0);
+    debris.free();
+  });
+
   it('keeps live pieces at the cap', () => {
     const { scope, added } = trackedScope();
     const debris = new PartDebris(scope, flatTerrain(SIZE));

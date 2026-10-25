@@ -163,6 +163,18 @@ describe('loot colors on props', () => {
     expect(colorsAt(root, 30, 30)).toEqual([]);
   });
 
+  it('keeps a pile in its own scope chunk, away from the map origin', () => {
+    const root = new THREE.Group();
+    const limit = new SightLimit(SIZE);
+    const scope = new RenderScope(root, SIZE, limit, true, true);
+    const views = new ObstacleViews(scope, flatTerrain(SIZE));
+    views.sync([], [stock('pile-2', true, { pos: { x: 60, y: 60 }, pile: { until: 99, fromPlayer: true, basis: {} } })], []);
+    limit.set({ x: 0, y: 0, z: 0 }, 3 * PHYSICS.metersPerTile);
+    const camera = new THREE.OrthographicCamera(-2000, 2000, 2000, -2000, -5000, 5000);
+    scope.update(camera);
+    expect(root.children.filter((c) => c.name.startsWith('scope-chunk'))).toHaveLength(0);
+  });
+
   it('throws when a lootable prop has no view', () => {
     const { views } = setup();
     expect(() => views.sync([], [stock('ghost', true)], [])).toThrow(/ghost/);
