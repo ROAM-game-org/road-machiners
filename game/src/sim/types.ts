@@ -24,6 +24,7 @@ export type Faction = "player" | NpcFactionId;
 export type WrongDeed = "attacked" | "robbed" | "stole";
 export type HelpDeed = "aided" | "towed" | "patched" | "defended";
 export type DeedId = WrongDeed | HelpDeed | "killed" | "contract" | "failedContract";
+export type StandingCause = { kind: 'deed'; deed: DeedId } | { kind: 'drift'; toward: 'up' | 'down' } | { kind: 'settled' };
 export type Deed = { subject: string; faction: StandingFactionId; deed: DeedId; delta: number; turn: number };
 export type SkillId = "driving" | "perception" | "machining" | "toughness" | "social";
 export type XpSource =
@@ -575,7 +576,7 @@ export type GameEvent =
   | { t: 'despawn'; vehicle: string }
   | { t: 'hostile'; vehicle: string; against: string }
   | { t: 'joins'; vehicle: string; against: string; victim: string }
-  | { t: 'standing'; faction: StandingFactionId; band: Band }
+  | { t: 'standing'; faction: StandingFactionId; band: Band; cause: StandingCause }
   | { t: 'preyPassed'; vehicle: string; prey: string; reason: PassReason }
   | { t: 'practice'; source: XpSource; amount: number; difficulty: number | null; target: string; xp: number }
   | { t: 'skillUp'; skill: SkillId; level: number }

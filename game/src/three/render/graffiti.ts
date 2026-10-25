@@ -43,6 +43,9 @@ const ANISOTROPY = 8;
 const OFFSET_UNITS = -4;
 const IN_FRONT_MARGIN = 1;
 const SHADE_LIFT = 0x4a4a4a;
+const NIGHT_SHARE = 0.4;
+const NIGHT_SUN = 0.7;
+const DAY_SUN = 2.2;
 
 export const SIGN_SIZES = [8, 6, 4.5, 3.5];
 export const PAINTED_STAGES: SignStage[] = SIGN_STAGES.filter((stage) => stage !== 'exodus');
@@ -390,8 +393,14 @@ function batchesOf(placed: GraffitiPlaced<SignFit>[], mapSize: number): Batch[] 
   return [...batches.values()];
 }
 
+export function graffitiLift(sunIntensity: number): number {
+  return NIGHT_SHARE + (1 - NIGHT_SHARE) * smoothstep(NIGHT_SUN, DAY_SUN, sunIntensity);
+}
+
 export class GraffitiViews {
   readonly marks: readonly GraffitiMark[];
+  private material: THREE.MeshLambertMaterial | null = null;
+  private lift = 1;
 
   constructor(world: World, scope: RenderScope) {
     const buckets = new ObstacleBuckets<Obstacle>(world.obstacles, world.size);
@@ -414,6 +423,7 @@ export class GraffitiViews {
       polygonOffsetFactor: OFFSET_UNITS,
       polygonOffsetUnits: OFFSET_UNITS,
     });
+    this.material = material;
     for (const batch of batchesOf(placed, mapSize)) {
       const mesh = new THREE.Mesh(geometryOf(batch), material);
       mesh.name = `graffiti-${batch.center.x}-${batch.center.y}`;
@@ -422,5 +432,12 @@ export class GraffitiViews {
       mesh.updateMatrix();
       scope.add(mesh, batch.center, (TERRAIN_CHUNK / 2) * Math.SQRT2);
     }
+  }
+
+  light(sunIntensity: number): void {
+    const lift = graffitiLift(sunIntensity);
+    if (!this.material || lift === this.lift) return;
+    this.lift = lift;
+    this.material.emissive.setHex(SHADE_LIFT).multiplyScalar(lift);
   }
 }

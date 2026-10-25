@@ -1,7 +1,7 @@
 import { DIRECTIONS } from '../data/directions';
 import { REGION } from '../data/region';
 import { atlasOf, atlasSites } from './atlas';
-import { cardinalOf, cueAt, headingAlong, leanOf, octantOf, roadName, spanOf, type CueSpot } from './direction-cues';
+import { cueAt, distinctCardinals, headingAlong, leanOf, octantOf, roadName, spanOf, type CueSpot } from './direction-cues';
 import { exitsAt, isJunction, nearestRoadPoints, roadNetworkOf, shortestPath, splitAt, type RoadGraph, type RoadNetwork, type RoadNode, type RoadPath, type RoadPoint } from './road-network';
 import { isTerritory } from './sites';
 import { isCliff, tileAt } from './terrain';
@@ -34,8 +34,8 @@ export function directionsFromSite(world: World, siteId: string, target: Directi
   const net = roadNetworkOf(world);
   const gates = gateNodes(net, siteId);
   if (gates.length === 0) throw new Error(`Site ${siteId} has no gate on a road`);
-  const sides = gates.map((g) => cardinalOf({ x: g.pos.x - site.pos.x, y: g.pos.y - site.pos.y }));
-  if (new Set(sides).size !== sides.length) throw new Error(`Site ${siteId} has two gates on one side`);
+  const sides = distinctCardinals(gates.map((g) => ({ x: g.pos.x - site.pos.x, y: g.pos.y - site.pos.y })));
+  if (!sides) throw new Error(`Site ${siteId} has more gates than sides`);
   const aim = targetPos(target);
   const plans = gates.map((gate, i) => {
     const rough = { octant: octantOf({ x: aim.x - gate.pos.x, y: aim.y - gate.pos.y }), span: spanOf(dist(gate.pos, aim)) };
