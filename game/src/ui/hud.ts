@@ -40,7 +40,7 @@ import { FEEDBACK_URL } from "../config";
 import { gameContext } from "../three/error-report";
 import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
-import { createIcon, createSpeedDial, repairingPart } from "./cards";
+import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch } from "./switch";
@@ -181,8 +181,9 @@ export class Hud {
   private top = panel("instruments", bottomLeft());
   private clockSlot = el("div", { class: "instrument-clock", role: "timer", title: t("hud.clockTitle") });
   private dialSlot = el("div", { class: "speed-dial-slot" });
+  private compassSlot = el("div", { class: "compass-slot" });
   private maxSpeed = new MaxSpeedView();
-  private speedSlot = el("div", { class: "speedometer" }, this.dialSlot, this.maxSpeed.root);
+  private speedSlot = el("div", { class: "speedometer" }, this.compassSlot, this.dialSlot, this.maxSpeed.root);
   private readoutSlot = el("div", { class: "readouts" });
   private actionSlot = el("div", { class: "instrument-actions" });
   private readonly portraits: TruckPortraits;
@@ -591,11 +592,12 @@ export class Hud {
         disabled: busy,
         onclick: () => this.actions.openInventory(),
       },
-      createSpeedDial(readout.speed, readout.maxSpeed, readout.heading),
+      createSpeedDial(readout.speed, readout.maxSpeed),
       el("span", { class: "speed-value" }, num(readout.speed, "int")),
       createIcon("truck"),
     );
     this.dialSlot.replaceChildren(dial);
+    this.compassSlot.replaceChildren(createCompassDial(readout.heading));
     this.maxSpeed.render(readout.maxSpeed, readout.maxSpeedTip);
   }
 

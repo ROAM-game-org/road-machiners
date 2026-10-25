@@ -18,6 +18,7 @@ import { ITEM_TONES, paintSheetPixels, playerColors } from "../render/palette";
 import ICONS from "../data/item-icons.json";
 import { num, t, type Msg } from "../text/msg";
 import { chassisName, goodLore, goodName, partLore, partName } from "../text/names";
+import { say } from "../text/language";
 import { roundDamage } from "../sim/combat";
 import { el } from "./dom";
 import { conditionStatus, conditionTier, showsCondition, wearLabel } from "./format";
@@ -123,45 +124,61 @@ function dialScale(): string {
 
 const DIAL_SCALE = dialScale();
 
-const BALL = { x: 103, y: 17, r: 12, card: 10.5, needle: 8 };
-const BALL_TICKS = 8;
+const COMPASS = { rim: 31, face: 27, tick: 25, letters: 17, needle: 14 };
+const COMPASS_POINTS = [
+  { key: "map.north", rad: -Math.PI / 2, north: true },
+  { key: "map.east", rad: 0, north: false },
+  { key: "map.south", rad: Math.PI / 2, north: false },
+  { key: "map.west", rad: Math.PI, north: false },
+] as const;
+const CARD_TURN = -Math.PI / 2 - Math.atan2(VIEW.screenUp.y, VIEW.screenUp.x);
 
-export function groundOnScreen(): [number, number, number, number] {
-  const length = Math.hypot(VIEW.screenUp.x, VIEW.screenUp.y);
-  const up = { x: VIEW.screenUp.x / length, y: VIEW.screenUp.y / length };
-  const right = { x: -up.y, y: up.x };
-  const tilt = VIEW.rise / Math.hypot(VIEW.rise, length);
-  return [right.x, -up.x * tilt, right.y, -up.y * tilt];
+export function compassAngle(mapRad: number): number {
+  return mapRad + CARD_TURN;
 }
 
-const GROUND = groundOnScreen().map((n) => n.toFixed(4)).join(" ");
+function polar(rad: number, r: number): string {
+  return `${(Math.cos(rad) * r).toFixed(2)} ${(Math.sin(rad) * r).toFixed(2)}`;
+}
 
-function ballCard(): string {
+function compassTicks(): string {
   const ticks: string[] = [];
-  for (let k = 0; k < BALL_TICKS; k++) {
-    const a = (k * 2 * Math.PI) / BALL_TICKS;
-    const inner = k % 2 === 0 ? BALL.card - 2.5 : BALL.card - 1.2;
-    ticks.push(`M${(Math.cos(a) * inner).toFixed(2)} ${(Math.sin(a) * inner).toFixed(2)}L${(Math.cos(a) * BALL.card).toFixed(2)} ${(Math.sin(a) * BALL.card).toFixed(2)}`);
+  for (let k = 0; k < 8; k++) {
+    const a = compassAngle((k * Math.PI) / 4);
+    ticks.push(`M${polar(a, k % 2 === 0 ? COMPASS.tick - 3 : COMPASS.tick - 1.5)}L${polar(a, COMPASS.tick)}`);
   }
-  const north = `<path class="ball-north" d="M0 ${-BALL.card - 2}L2.6 ${-BALL.card + 3.5}H-2.6z"/>`;
-  return `<circle class="ball-card" r="${BALL.card}"/><path class="ball-tick" d="${ticks.join("")}"/>${north}`;
+  return `<path class="compass-tick" d="${ticks.join("")}"/>`;
 }
 
-const BALL_CARD = ballCard();
+const COMPASS_TICKS = compassTicks();
 
-function ballCompass(heading: number): string {
-  const tip = `${(Math.cos(heading) * BALL.needle).toFixed(2)} ${(Math.sin(heading) * BALL.needle).toFixed(2)}`;
-  const card = `<g transform="matrix(${GROUND} 0 0)">${BALL_CARD}<path class="ball-heading" d="M0 0L${tip}"/></g>`;
-  return `<g class="ball-compass" transform="translate(${BALL.x} ${BALL.y})"><circle class="ball-rim" r="${BALL.r}"/><circle class="ball-glass" r="${BALL.r - 1}"/>${card}<path class="ball-shine" d="M-8 -5A9 9 0 0 1 -2 -9.5"/></g>`;
+function compassLetters(): string {
+  return COMPASS_POINTS.map((p) => {
+    const [x, y] = polar(compassAngle(p.rad), COMPASS.letters).split(" ");
+    return `<text class="${p.north ? "compass-north" : "compass-letter"}" x="${x}" y="${y}">${say(t(p.key))}</text>`;
+  }).join("");
 }
 
-export function createSpeedDial(speed: number, maxSpeed: number, heading: number): HTMLElement {
+export function compassSvg(heading: number): string {
+  const a = compassAngle(heading);
+  const side = a + Math.PI / 2;
+  const needle = `<path class="compass-needle" d="M${polar(a, COMPASS.needle)}L${polar(side, 2.2)}L${polar(a + Math.PI, 4)}L${polar(side + Math.PI, 2.2)}z"/>`;
+  return `<svg viewBox="-32 -32 64 64"><circle class="compass-rim" r="${COMPASS.rim}"/><circle class="compass-face" r="${COMPASS.face}"/>${COMPASS_TICKS}${compassLetters()}${needle}<circle class="compass-pin" r="2"/></svg>`;
+}
+
+export function createCompassDial(heading: number): HTMLElement {
+  const dial = el("span", { class: "compass-dial", "aria-hidden": "true" });
+  dial.innerHTML = compassSvg(heading);
+  return dial;
+}
+
+export function createSpeedDial(speed: number, maxSpeed: number): HTMLElement {
   const dial = el("span", { class: "speed-dial", "aria-hidden": "true" });
   const angle = dialShare(speed, DIAL_TOP) * 180;
   const limit = dialShare(maxSpeed, DIAL_TOP);
   const redline = `<path class="dial-redline" d="M${dialPoint(limit, DIAL_R - 1)}A${DIAL_R - 1} ${DIAL_R - 1} 0 0 1 ${dialPoint(1, DIAL_R - 1)}"/>`;
   const needle = `<path class="dial-needle" d="M${DIAL_X - DIAL_R + 3} ${DIAL_Y}L${DIAL_X} ${DIAL_Y - 1.4}L${DIAL_X + 7} ${DIAL_Y - 0.8}V${DIAL_Y + 0.8}L${DIAL_X} ${DIAL_Y + 1.4}z" transform="rotate(${angle} ${DIAL_X} ${DIAL_Y})"/>`;
-  dial.innerHTML = `<svg viewBox="0 0 120 72"><rect class="dial-rim" x="1" y="1" width="118" height="70" rx="9"/><rect class="dial-face" x="4" y="4" width="112" height="64" rx="6"/>${redline}${DIAL_SCALE}${needle}<circle class="dial-pin" cx="${DIAL_X}" cy="${DIAL_Y}" r="4.5"/><circle class="dial-cap" cx="${DIAL_X}" cy="${DIAL_Y}" r="1.6"/>${ballCompass(heading)}</svg>`;
+  dial.innerHTML = `<svg viewBox="0 0 120 72"><rect class="dial-rim" x="1" y="1" width="118" height="70" rx="9"/><rect class="dial-face" x="4" y="4" width="112" height="64" rx="6"/>${redline}${DIAL_SCALE}${needle}<circle class="dial-pin" cx="${DIAL_X}" cy="${DIAL_Y}" r="4.5"/><circle class="dial-cap" cx="${DIAL_X}" cy="${DIAL_Y}" r="1.6"/></svg>`;
   return dial;
 }
 

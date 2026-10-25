@@ -6,7 +6,7 @@ import { addVehicle } from "../sim/testkit";
 import { newWorld } from "../sim/world";
 import type { PartInstance } from "../sim/types";
 import { PAINT, type TruckPaint } from "../data/chassis";
-import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, groundOnScreen, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
+import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, compassAngle, compassSvg, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
 import { addGoods } from "../sim/inventory";
 import { startRepair } from "../sim/jobs";
 import { workMarkOf } from "./inventory-draw";
@@ -128,25 +128,22 @@ describe("the part a shop card compares with", () => {
   });
 });
 
-describe("the ball compass on the speed dial", () => {
-  const onScreen = (x: number, y: number) => {
-    const [a, b, c, d] = groundOnScreen();
-    return { x: a * x + c * y, y: b * x + d * y };
-  };
+describe("the dashboard compass", () => {
+  const degrees = (rad: number) => Math.round((compassAngle(rad) * 180) / Math.PI);
 
-  it("lays its card flat under the game camera, so map north points up and right like the highway", () => {
-    const north = onScreen(0, -1);
-    expect(north.x).toBeGreaterThan(0);
-    expect(north.y).toBeLessThan(0);
-    expect((Math.atan2(-north.y, north.x) * 180) / Math.PI).toBeCloseTo(26.6, 0);
+  it("turns its card with the fixed camera, so north points up and right like the highway", () => {
+    expect(degrees(-Math.PI / 2)).toBe(-45);
+    expect(degrees(0)).toBe(45);
+    expect(degrees(Math.PI / 2)).toBe(135);
+    expect(degrees(Math.PI)).toBe(225);
   });
 
-  it("draws map east down and right, and south and west opposite north and east", () => {
-    const east = onScreen(1, 0);
-    expect(east.x).toBeGreaterThan(0);
-    expect(east.y).toBeGreaterThan(0);
-    expect(onScreen(0, 1)).toEqual({ x: -onScreen(0, -1).x, y: -onScreen(0, -1).y });
-    expect(onScreen(-1, 0)).toEqual({ x: -east.x, y: -east.y });
+  it("points its needle the way the truck faces, against the same card", () => {
+    const svg = compassSvg(-Math.PI / 2);
+    const tip = /M(-?[\d.]+) (-?[\d.]+)/.exec(svg.slice(svg.indexOf("compass-needle")))!;
+    expect(Number(tip[1])).toBeGreaterThan(0);
+    expect(Number(tip[2])).toBeLessThan(0);
+    expect(Number(tip[1])).toBeCloseTo(-Number(tip[2]), 1);
   });
 });
 
