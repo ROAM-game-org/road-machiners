@@ -450,6 +450,7 @@ export class InventoryView {
 
   private itemActions(w: World, item: GridItem, mounted: boolean): HTMLElement[] {
     if (item.kind !== "part") return this.cargoActions(w, item);
+    if (!this.mine(w).items.some((it) => it.id === item.id)) return [];
     const buttons: (HTMLElement | null)[] = [
       canFieldPatch(this.mine(w), mounted, item.part.id) ? this.patchButton(w, this.mine(w), item.part) : null,
       shopAt(w) || this.atOutpost(w) ? this.repairButton(w, item.part) : null,

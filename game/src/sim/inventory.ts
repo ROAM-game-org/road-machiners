@@ -244,10 +244,10 @@ function requireStepWork(step: RefitStep): void {
   if (step.moves.length > 0 && step.pickup !== null) throw new Error('A refit step holds moves or one pickup, not both');
 }
 
-export function refitStepWork(world: World, v: Vehicle, step: RefitStep): number {
+export function refitStepWork(world: World, v: Vehicle, step: RefitStep, taken: ReadonlySet<string> = NOTHING_TAKEN): number {
   requireStepWork(step);
   if (step.pickup) {
-    const placed = getRefitPickup(world, v, step.pickup, NOTHING_TAKEN);
+    const placed = getRefitPickup(world, v, step.pickup, taken);
     if (!('kind' in placed)) throw new Refused(placed);
     return pickupWork(world, v, step.pickup, placed);
   }
@@ -278,7 +278,7 @@ function walkQueue(world: World, v: Vehicle, job: RefitJob, head: GridItem[]): P
     const planned = { ...v, items };
     const next = refitStepLayout(world, planned, step, taken);
     if (next.error !== null) continue;
-    steps.push({ step, work: refitStepWork(world, planned, step) });
+    steps.push({ step, work: refitStepWork(world, planned, step, taken) });
     items = next.items;
     if (step.pickup) taken.add(step.pickup.partId);
   }
