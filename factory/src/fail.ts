@@ -63,6 +63,20 @@ function causeOfLink(error: Error): FailureCause | null {
   return CAUSE_OF_CLASS.find(([type]) => error instanceof type)?.[1] ?? null;
 }
 
+export function withoutFailuresOf(failures: Failure[], issue: number): Failure[] {
+  return failures.filter((failure) => failure.issue !== issue).flatMap((failure) => clearedOf(failure, issue));
+}
+
+function clearedOf(failure: Failure, issue: number): Failure[] {
+  if (failure.batch === undefined || !failure.batch.includes(issue)) return [failure];
+  const cleared = [...new Set([...(failure.cleared ?? []), issue])];
+  return failure.batch.every((member) => cleared.includes(member)) ? [] : [{ ...failure, cleared }];
+}
+
+export function isClearedFor(failure: Failure, issue: number): boolean {
+  return (failure.cleared ?? []).includes(issue);
+}
+
 export function pruneFailures(now: Date): (state: FactoryState) => FactoryState {
   return (state) => ({ ...state, failures: state.failures.filter((failure) => now.getTime() - new Date(failure.at).getTime() < FAILURE_KEEP_MS) });
 }

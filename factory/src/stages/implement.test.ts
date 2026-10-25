@@ -14,18 +14,19 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
-function fakeCtx(labels: string[], models: string[], prompts: string[] = [], runs: AgentRun[] = [], isMerged = async (_a: string, _b: string) => false): Ctx {
+function fakeCtx(labels: string[], models: string[], prompts: string[] = [], runs: AgentRun[] = [], isMerged = async (_a: string, _b: string) => false, steps: string[] = []): Ctx {
   const fake = {
     cfg: { home, designModel: 'opus', buildModel: 'sonnet' },
     log: () => undefined,
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
     github: { issue: async () => ({ labels, title: 'Oil spiller', body: 'Drop oil behind the truck.' }), comments: async () => [], move: async () => undefined },
-    container: { agent: async (run: AgentRun) => { runs.push(run); models.push(run.model); prompts.push(run.prompt); mkdirSync(`${run.clone}/${run.dir}/.factory`, { recursive: true }); } },
+    container: { agent: async (run: AgentRun) => { steps.push('agent'); runs.push(run); models.push(run.model); prompts.push(run.prompt); mkdirSync(`${run.clone}/${run.dir}/.factory`, { recursive: true }); } },
     repo: {
-      prepareWorkClone: async (_b: string, _base: string, dir: string) => { mkdirSync(dir, { recursive: true }); },
+      prepareWorkClone: async (_b: string, _base: string, dir: string) => { steps.push('prepare'); mkdirSync(dir, { recursive: true }); },
+      catchUpBase: async (_dir: string, base: string) => { steps.push(`catchUpBase ${base}`); return { commit: 'b1234567', conflicts: [], kept: null }; },
       fetchFromWork: async () => 'w1', isMerged, untrackFactoryFiles: async () => [], diff: async () => '', changedFiles: async () => [], push: async () => undefined,
-      fetch: async () => undefined, mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
+      fetch: async () => { steps.push('fetch'); }, mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
     },
   };
   return fake as unknown as Ctx;
@@ -48,6 +49,16 @@ describe('implement stage model', () => {
     await runStage(fakeCtx(['implementation-opus'], [], prompts, runs), 7);
     expect(runs[0].disallowedTools).toEqual(['Agent']);
     expect(prompts[0]).toContain('Subagents are off.');
+  });
+});
+
+describe('implement stage base', () => {
+  it('fetches and merges the latest base into the clone before the agent, and tells the agent', async () => {
+    const steps: string[] = [];
+    const prompts: string[] = [];
+    await runStage(fakeCtx([], [], prompts, [], async () => false, steps), 7);
+    expect(steps.slice(0, steps.indexOf('agent') + 1)).toEqual(['fetch', 'prepare', 'fetch', 'catchUpBase dev', 'agent']);
+    expect(prompts[0]).toContain('The factory merged the latest dev into this clone before you started');
   });
 });
 

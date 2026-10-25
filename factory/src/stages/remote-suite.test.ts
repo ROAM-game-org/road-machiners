@@ -124,6 +124,9 @@ function apiFake(calls: string[][], replies: Record<string, string>): Run {
   };
 }
 
+const FAILED_RUN = '{"status":"completed","conclusion":"failure","html_url":"h"}';
+const OVER_TIME_JOBS = JSON.stringify({ jobs: [{ status: 'completed', steps: [{ name: 'tests', conclusion: 'success' }, { name: 'suite time limit', conclusion: 'failure' }] }] });
+
 describe('the suite calls of the GitHub client', () => {
   it('dispatches the workflow from main with the commit and reads the run id', async () => {
     const calls: string[][] = [];
@@ -142,6 +145,17 @@ describe('the suite calls of the GitHub client', () => {
     const jobs = JSON.stringify({ jobs: [{ status: 'completed', steps: [{ name: 'npm ci', conclusion: 'success' }, { name: 'tests', conclusion: 'failure' }] }] });
     const github = ghClient(apiFake([], { 'runs/77/jobs': jobs, 'runs/77': run }), CFG);
     expect(await github.suiteRun(77)).toEqual({ done: true, started: true, passed: false, testsFailed: true, conclusion: 'failure', url: 'h' });
+  });
+
+  it('reads a run that passed its tests step and failed its suite time limit step as no failed test', async () => {
+    const github = ghClient(apiFake([], { 'runs/77/jobs': OVER_TIME_JOBS, 'runs/77': FAILED_RUN }), CFG);
+    expect((await github.suiteRun(77)).testsFailed).toBe(false);
+  });
+
+  it('makes a suite over its time limit with no failed test a machine failure, not work for the fix agent', async () => {
+    const github = ghClient(apiFake([], { dispatches: '{"workflow_run_id":77}', 'runs/77/jobs': OVER_TIME_JOBS, 'runs/77': FAILED_RUN }), CFG);
+    const ctx = { cfg: { suiteStartMinutes: 15, suitePollSeconds: 0 }, now: () => new Date(), log: () => undefined, github } as unknown as Ctx;
+    await expect(remoteSuite(ctx, AT, 'abc1234')).rejects.toThrow(SuiteMachineError);
   });
 
   it('reads a queued run as not started', async () => {

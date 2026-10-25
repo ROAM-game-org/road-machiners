@@ -96,7 +96,7 @@ export async function closeMerged(ctx: Ctx, issue: number, labels: string[], mes
 export async function routeFeedback(ctx: Ctx, issue: number, by: string, text: string, route: Route, post: number, source: FeedbackSource = 'committee'): Promise<boolean> {
   await requireApproval(ctx, issue);
   const state = readState(ctx.statePath);
-  const body = routeComment(ctx, issue, by, text, route, post, source === 'player' ? PLAYER_REPORT_HEADING : FEEDBACK_HEADING);
+  const body = await routeComment(ctx, issue, by, text, route, post, source === 'player' ? PLAYER_REPORT_HEADING : FEEDBACK_HEADING);
   await ctx.github.comment(issue, body);
   appendLedger(ctx.cfg.home, { kind: 'route', issue, route, by, at: ctx.now().toISOString() });
   if (route === 'answer') return false;
@@ -108,9 +108,9 @@ export async function routeFeedback(ctx: Ctx, issue: number, by: string, text: s
   return String(issue) in state.pendingApprovals;
 }
 
-function routeComment(ctx: Ctx, issue: number, by: string, text: string, route: Route, post: number, heading: string): string {
+async function routeComment(ctx: Ctx, issue: number, by: string, text: string, route: Route, post: number, heading: string): Promise<string> {
   if (route === 'answer') return `${QUESTION_HEADING}\n\nFrom ${by}, routed as answer:\n\n${text}`;
-  const media = replyMediaLines(adoptReplyMedia(ctx.cfg.home, post, mediaDir(ctx, issue), by));
+  const media = replyMediaLines(await adoptReplyMedia(ctx.cfg.home, post, mediaDir(ctx, issue), by, (fileId) => ctx.telegram.downloadFile(fileId)));
   return `${heading}\n\nFrom ${by}, routed as ${route}:\n\n${text}${media}`;
 }
 

@@ -5,7 +5,7 @@
 set -eu
 JOBS=/tmp/factory-jobs
 usage() {
-    printf '%s\n' 'Usage: factory-job start <name> <activity> <minutes> <command> | factory-job check <name> | factory-job stop <name>' >&2
+    printf '%s\n' 'Usage: factory-job start <name> <activity> <minutes> <command> | factory-job check <name> | factory-job wait <name> | factory-job stop <name>' >&2
     exit 2
 }
 job_dir() {
@@ -17,6 +17,25 @@ job_dir() {
 minutes_since() {
     echo $(( ($(date +%s) - $1) / 60 ))
 }
+report() {
+    name=$1
+    elapsed=$(minutes_since "$(cat "$dir/started")")
+    if [ -f "$dir/exit" ]; then
+        code=$(cat "$dir/exit")
+        case "$code" in
+            0) printf 'Job %s finished after %s minutes.\n' "$name" "$elapsed" ;;
+            124|137) printf 'Job %s hit its limit of %s minutes and was stopped.\n' "$name" "$(cat "$dir/limit")" ;;
+            143) printf 'Job %s was stopped after %s minutes.\n' "$name" "$elapsed" ;;
+            *) printf 'Job %s failed with exit %s after %s minutes.\n' "$name" "$code" "$elapsed" ;;
+        esac
+    else
+        factory-status "$(cat "$dir/activity")"
+        quiet=$(minutes_since "$(stat -c %Y "$dir/log" 2>/dev/null || cat "$dir/started")")
+        printf 'Job %s is running: %s of %s minutes used, the log last changed %s minutes ago.\n' "$name" "$elapsed" "$(cat "$dir/limit")" "$quiet"
+    fi
+    tail -n 20 "$dir/log" 2>/dev/null || true
+}
+wait_seconds=${FACTORY_JOB_WAIT_SECONDS:-540}
 [ "$#" -ge 2 ] || usage
 action=$1
 dir=$(job_dir "$2")
@@ -47,21 +66,17 @@ case "$action" in
     check)
         [ "$#" -eq 2 ] || usage
         [ -f "$dir/pid" ] || { printf 'No job %s\n' "$2" >&2; exit 2; }
-        elapsed=$(minutes_since "$(cat "$dir/started")")
-        if [ -f "$dir/exit" ]; then
-            code=$(cat "$dir/exit")
-            case "$code" in
-                0) printf 'Job %s finished after %s minutes.\n' "$2" "$elapsed" ;;
-                124|137) printf 'Job %s hit its limit of %s minutes and was stopped.\n' "$2" "$(cat "$dir/limit")" ;;
-                143) printf 'Job %s was stopped after %s minutes.\n' "$2" "$elapsed" ;;
-                *) printf 'Job %s failed with exit %s after %s minutes.\n' "$2" "$code" "$elapsed" ;;
-            esac
-        else
-            factory-status "$(cat "$dir/activity")"
-            quiet=$(minutes_since "$(stat -c %Y "$dir/log" 2>/dev/null || cat "$dir/started")")
-            printf 'Job %s is running: %s of %s minutes used, the log last changed %s minutes ago.\n' "$2" "$elapsed" "$(cat "$dir/limit")" "$quiet"
-        fi
-        tail -n 20 "$dir/log" 2>/dev/null || true
+        report "$2"
+        ;;
+    wait)
+        [ "$#" -eq 2 ] || usage
+        [ -f "$dir/pid" ] || { printf 'No job %s\n' "$2" >&2; exit 2; }
+        waited=0
+        until [ -f "$dir/exit" ] || [ "$waited" -ge "$wait_seconds" ]; do
+            sleep 1
+            waited=$((waited + 1))
+        done
+        report "$2"
         ;;
     stop)
         [ "$#" -eq 2 ] || usage

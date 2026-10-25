@@ -35,6 +35,7 @@ function fakeCtx(): Ctx {
     cfg, statePath, now: () => NOW, log: () => undefined, run: async () => ({ code: 0, stdout: '', stderr: '' }),
     github: {
       cards: async () => cards,
+      card: async (n: number) => cards.find((row) => row.issue === n) ?? null,
       comment: async (n: number, body: string) => { calls.push(`comment ${n} ${body}`); },
       move: async (n: number, column: string) => {
         if (moveFails) throw new Error('board down');
@@ -82,7 +83,7 @@ function busyCard(): void {
     pendingApprovals: { 4: 'Bob', 5: 'Bob' }, approvedResolving: { 4: 'Bob' },
     approvalPosts: { 42: 4, 43: 5 }, postCaptions: { 42: 'Post four', 43: 'Post five' },
     unroutedReplies: { 9: { issue: 4, postId: 42, text: 't', at: 'a' }, 10: { issue: 5, postId: 43, text: 't', at: 'a' } },
-    failures: [{ stage: 'checks', issue: 4, error: 'e', cause: 'error' as const, log: null, at: 'a' }, { stage: 'checks', issue: 5, error: 'e', cause: 'error' as const, log: null, at: 'a' }],
+    failures: [{ stage: 'checks', issue: 4, error: 'e', cause: 'error' as const, log: null, at: 'a' }, { stage: 'checks', issue: 5, error: 'e', cause: 'error' as const, log: null, at: 'a' }, { stage: 'merge', issue: null, error: 'e', cause: 'timeout' as const, log: null, at: 'a', batch: [4, 5] }],
   });
 }
 
@@ -211,7 +212,7 @@ describe('move', () => {
     after.close();
   });
 
-  it('of a voting card edits its proposal post once, to the count and Closed', async () => {
+  it('of a voting card edits its proposal post once, to the count and Закрыто', async () => {
     cards = [card(9, 'Triage', ['voting'])];
     seed({});
     const store = openStore(ROOT);
@@ -222,7 +223,7 @@ describe('move', () => {
     await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
     const edits = calls.filter((call) => call.startsWith('editHtml 300'));
     expect(edits).toHaveLength(1);
-    expect(edits[0]!.endsWith('Current: 2 👍, 0 👎, net +2/3\nClosed')).toBe(true);
+    expect(edits[0]!.endsWith('Сейчас: 2 👍, 0 👎, итог +2/3\nЗакрыто')).toBe(true);
   });
 
   it('of a voting card reports a failed post edit once and still closes the proposal', async () => {
@@ -263,7 +264,8 @@ describe('move', () => {
     expect(state.approvedResolving).toEqual({});
     expect(state.approvalPosts).toEqual({ 43: 5 });
     expect(Object.keys(state.unroutedReplies)).toEqual(['10']);
-    expect(state.failures.map((failure) => failure.issue)).toEqual([5]);
+    expect(state.failures.map((failure) => [failure.issue, failure.cleared])).toEqual([[5, undefined], [null, [4]]]);
+    expect(state.failures[1]!.batch).toEqual([4, 5]);
     expect(calls).toContain('move 4 Design');
     expect(calls).toContain('removeLabel 4 factory-stuck');
     expect(calls).toContain('removeLabel 4 needs-info');
