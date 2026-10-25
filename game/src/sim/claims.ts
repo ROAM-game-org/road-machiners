@@ -34,7 +34,7 @@ function isRemote(stock: SalvageStock): boolean {
 function isReachable(world: World, layer: NavLayer, stock: SalvageStock): boolean {
   const propId = oldSpotOf(stock)?.propId ?? stock.id;
   const prop = world.obstacles.find((o) => o.id === propId);
-  return prop !== undefined && reachable(layer, prop);
+  return prop !== undefined && reachable(layer, prop, REGION.navigation.reachClimb);
 }
 
 export function claimSpots(world: World): SalvageStock[] {

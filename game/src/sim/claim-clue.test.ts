@@ -11,6 +11,7 @@ import { newWorld } from './world';
 import { dist } from './vec';
 
 const world = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
+for (const shop of Object.values(world.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
 const wrecks = claimWrecks(world);
 const places = cluePlaces(world);
 const REPORTED = 'hullCache-2586';

@@ -30,6 +30,7 @@ import { freeSurveySites, isSurveyMet, liveSurveySites, rollSurvey, type SurveyP
 import { rescueClients, rescueOfferValid, rollRescue, type RescueNeed } from './rescue';
 import { dist, type Vec } from './vec';
 import { isOutlaw, noteContractDeed } from './relations';
+import { fileEmbezzlement } from './crime';
 import { SITE_FACTIONS } from '../data/npc-behavior';
 
 export type SiteEvent = { kind: SiteEventKind; recipe: string; until: number };
@@ -255,7 +256,7 @@ export type Contract =
 
 export type SearchContract = Extract<Contract, { kind: 'search' }>;
 
-export type ContractEnd = 'done' | 'failed' | 'lapsed' | 'released';
+export type ContractEnd = 'done' | 'failed' | 'late' | 'lapsed' | 'released';
 
 export type PastContract = { contract: Contract; outcome: ContractEnd; turn: number; amount: number };
 
@@ -386,6 +387,39 @@ export function onOrder(world: World, shopId: string, good: string): boolean {
   return shopState(world, shopId).contracts.some(ordered) || world.player.contracts.some(ordered) || justFilled;
 }
 
+export type HaulContract = Extract<Contract, { kind: 'haul' }>;
+
+function openHauls(world: World, good: string): HaulContract[] {
+  return world.player.contracts.filter((c): c is HaulContract => c.kind === 'haul' && c.good === good);
+}
+
+export function owedCrates(world: World, good: string): number {
+  return openHauls(world, good).reduce((sum, c) => sum + c.units, 0);
+}
+
+export function spareGoods(world: World, v: Vehicle, good: string): number {
+  const held = goodsCount(v)[good] ?? 0;
+  return v.id === world.player.vehicleId ? Math.max(0, held - owedCrates(world, good)) : held;
+}
+
+export function requireSpareGoods(world: World, v: Vehicle, good: string, count: number): void {
+  if (count > spareGoods(world, v, good)) throw new Refused({ id: 'cargoOwed' });
+}
+
+function haulCratesAboard(world: World, c: HaulContract): number {
+  const owedToOthers = owedCrates(world, c.good) - (world.player.contracts.some((x) => x.id === c.id) ? c.units : 0);
+  const held = goodsCount(playerVehicle(world))[c.good] ?? 0;
+  return Math.max(0, Math.min(c.units, held - owedToOthers));
+}
+
+export function lateBy(c: HaulContract): number {
+  return c.deadline + Math.round(c.window * CONTRACTS.haul.lateShare);
+}
+
+export function isLate(world: World, c: Contract): boolean {
+  return c.kind === 'haul' && isExpired(world, c);
+}
+
 export function stockForSale(world: World, shopId: string, good: string): number {
   const stock = goodStock(shopState(world, shopId), good);
   return onOrder(world, shopId, good) ? 0 : stock;
@@ -452,6 +486,11 @@ export function isExpired(world: World, c: Contract): boolean {
 export function searchLapsed(world: World, c: Contract): boolean {
   if (c.kind !== 'search') throw new Error(`${c.kind} contract has no search target`);
   return !c.delivered && !world.vehicles.some((v) => v.id === c.target);
+}
+
+export function searchCold(world: World, c: Contract): boolean {
+  if (c.kind !== 'search') throw new Error(`${c.kind} contract has no search target`);
+  return world.turn - c.lead.turn > CONTRACTS.search.freshTurns;
 }
 
 export function heldSearch(world: World): SearchContract | null {
@@ -522,10 +561,6 @@ export function searchCandidates(world: World, shopId: string, state: ShopState)
   return out;
 }
 
-export function haulPenalty(c: Extract<Contract, { kind: 'haul' }>, goodValue: number): number {
-  return Math.round(c.units * goodValue * CONTRACTS.haul.penaltyShare);
-}
-
 function shopPos(shopId: string): Vec {
   return siteOf(shopId).pos;
 }
@@ -586,7 +621,7 @@ export function advanceShops(world: World): void {
   for (const [shopId, state] of Object.entries(world.shops)) {
     const restockAt = state.restockAt;
     advanceShop(world, shopId, state);
-    state.contracts = state.contracts.filter((c) => !isExpired(world, c) && !claimGone(world, c) && (c.kind !== 'rescue' || rescueOfferValid(world, c)));
+    state.contracts = state.contracts.filter((c) => !isExpired(world, c) && !claimGone(world, c) && (c.kind !== 'rescue' || rescueOfferValid(world, c)) && !(c.kind === 'search' && searchCold(world, c)));
     if (state.restockAt === restockAt) continue;
     state.contracts = state.contracts.filter((c) => offerStillValid(world, c));
     fillBoard(world, shopId, state);
@@ -686,13 +721,17 @@ export function deliverContract(world: World, contractId: string): World {
   return playerCommand(world, (w) => {
     const contract = w.player.contracts.find((c) => c.id === contractId);
     if (!contract) throw new Error(`No active contract ${contractId}`);
-    if (contract.kind === 'escort') throw new Error('An escort ends on the road, not at a counter');
-    if (contract.kind === 'haul') handInHaul(w, contract);
-    else if (contract.kind === 'claim') handInClaim(w, contract);
-    else if (contract.kind === 'procure') handInProcure(w, contract);
-    else handInMet(w, contract);
-    finishContract(w, contract, 'done');
+    finishContract(w, contract, handIn(w, contract));
   });
+}
+
+function handIn(w: World, contract: Contract): 'done' | 'late' {
+  if (contract.kind === 'escort') throw new Error('An escort ends on the road, not at a counter');
+  if (contract.kind === 'haul') return handInHaul(w, contract);
+  if (contract.kind === 'claim') handInClaim(w, contract);
+  else if (contract.kind === 'procure') handInProcure(w, contract);
+  else handInMet(w, contract);
+  return 'done';
 }
 
 function handInMet(world: World, c: Extract<Contract, { kind: 'rescue' | 'search' | 'survey' }>): void {
@@ -700,18 +739,21 @@ function handInMet(world: World, c: Extract<Contract, { kind: 'rescue' | 'search
   if (!isMet(c)) throw new Error(`The ${c.kind} is not met yet`);
 }
 
-function handInHaul(world: World, c: Extract<Contract, { kind: 'haul' }>): void {
+function handInHaul(world: World, c: HaulContract): 'done' | 'late' {
   requireParkedAt(world, c.to);
-  const v = playerVehicle(world);
-  if ((goodsCount(v)[c.good] ?? 0) < c.units) throw new Error(`Needs ${c.units} ${c.good}`);
-  removeGoods(v, c.good, c.units);
-  if (shopDef(c.to).goods.includes(c.good)) moveStock(shopState(world, c.to), c.to, c.good, c.units, 'contract');
+  const late = isLate(world, c);
+  const aboard = haulCratesAboard(world, c);
+  if (aboard < (late ? 1 : c.units)) throw new Error(`Needs ${late ? 1 : c.units} ${c.good}`);
+  removeGoods(playerVehicle(world), c.good, aboard);
+  if (shopDef(c.to).goods.includes(c.good)) moveStock(shopState(world, c.to), c.to, c.good, aboard, 'contract');
+  return late ? 'late' : 'done';
 }
 
 function handInProcure(world: World, c: Extract<Contract, { kind: 'procure' }>): void {
   requireParkedAt(world, c.shop);
   const v = playerVehicle(world);
   if ((goodsCount(v)[c.good] ?? 0) < c.units) throw new Error(`Needs ${c.units} ${c.good} for order ${c.id}`);
+  requireSpareGoods(world, v, c.good, c.units);
   removeGoods(v, c.good, c.units);
   moveStock(shopState(world, c.shop), c.shop, c.good, c.units, 'contract');
 }
@@ -748,14 +790,24 @@ export function finishContract(world: World, c: Contract, outcome: ContractEnd, 
   const amount = endingAmount(c, outcome);
   if (amount > 0) payContract(world, c, amount);
   if (outcome !== 'done') voidParcel(world, c);
-  if (amount < 0) chargeHaulPenalty(world, -amount);
   recordPast(world, c, outcome, amount);
+  if (outcome === 'failed' || outcome === 'late') noteBrokenWord(world, c);
+  if (outcome === 'failed' && c.kind === 'haul') fileKeptCargo(world, c);
+}
+
+function fileKeptCargo(world: World, c: HaulContract): void {
+  const kept = haulCratesAboard(world, c);
+  if (kept > 0) fileEmbezzlement(world, c.shop, kept, c.good, siteOf(c.to).pos);
+}
+
+function noteBrokenWord(world: World, c: Contract): void {
+  const faction = SITE_FACTIONS[c.shop];
+  if (faction) noteContractDeed(world, c.id, faction, 'failedContract');
 }
 
 function endingAmount(c: Contract, outcome: ContractEnd): number {
   if (outcome === 'done') return c.reward;
   if (outcome === 'released' && c.kind === 'escort') return Math.round(c.reward * escortShare(c));
-  if (outcome === 'failed' && c.kind === 'haul') return -haulPenalty(c, goodValue(c.good));
   return 0;
 }
 
@@ -778,12 +830,7 @@ function payContract(world: World, c: Contract, amount: number): void {
   world.events.push({ t: 'money', amount, reason: { kind: 'contract' } });
   practice(world, 'contract', contractXp({ ...c, reward: amount }), null, c.shop);
   const faction = SITE_FACTIONS[c.shop];
-  if (faction) noteContractDeed(world, c.id, faction);
-}
-
-function chargeHaulPenalty(world: World, penalty: number): void {
-  world.player.money -= penalty;
-  world.events.push({ t: 'money', amount: -penalty, reason: { kind: 'failedHaul' } });
+  if (faction) noteContractDeed(world, c.id, faction, 'contract');
 }
 
 export function isMet(c: Contract): boolean {
@@ -800,12 +847,23 @@ function settleContract(world: World, c: Contract): void {
   if (c.kind === 'escort') return settleEscortJob(world, c);
   const outcome = contractOutcome(world, c);
   if (outcome) finishContract(world, c, outcome);
-  else if (c.deadline - world.turn === CONTRACTS.warnTurns) world.events.push({ t: 'contract', contract: { ...c }, outcome: 'expiring' });
+  else warnContract(world, c);
+}
+
+function warnContract(world: World, c: Contract): void {
+  if (c.kind === 'haul' && isLate(world, c)) return warnLateHaul(world, c);
+  if (c.deadline - world.turn === CONTRACTS.warnTurns) world.events.push({ t: 'contract', contract: { ...c }, outcome: 'expiring' });
+}
+
+function warnLateHaul(world: World, c: HaulContract): void {
+  const outcome = world.turn === c.deadline + 1 ? 'overdue' : lateBy(c) - world.turn === CONTRACTS.warnTurns ? 'expiring' : null;
+  if (outcome) world.events.push({ t: 'contract', contract: { ...c }, outcome });
 }
 
 function contractOutcome(world: World, c: Contract): 'failed' | 'lapsed' | null {
   if (c.kind === 'rescue') return null;
   if (c.kind === 'search' && searchLapsed(world, c)) return 'lapsed';
   if (claimGone(world, c)) return 'lapsed';
+  if (c.kind === 'haul' && isLate(world, c)) return haulCratesAboard(world, c) === 0 || world.turn > lateBy(c) ? 'failed' : null;
   return isExpired(world, c) ? 'failed' : null;
 }

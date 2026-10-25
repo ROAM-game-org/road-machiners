@@ -115,6 +115,7 @@ The player starts at each organized faction's view of an outside driver: Bowl 5,
 | patched | a finished patch | +5 | +30 |
 | defended | knocking out a driver that was fighting another one, which was not fighting the player | +8 | +40 |
 | contract | a contract done at a Bowl or Nose shop | +3 | none |
+| failed contract | a contract the player failed or handed in late at a Bowl or Nose shop | −5 | none |
 
 - The same deed on the same driver counts once a day, so ten hits are one attack, and a driver who refits after a knockout gives no fresh help.
 - Help raises standing with one faction by 15 a day at most. Losses have no cap.

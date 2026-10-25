@@ -1,6 +1,7 @@
 import { CONTRACTS, type ClaimLook } from '../data/market';
 import { REGION } from '../data/region';
 import { BIG_SHELL_RADIUS, CLUE_PIECES, CLUE_SPOTS, type CluePiece } from '../data/territory';
+import { gridSquareOf, sameGridSquare, type GridSquare } from './map-grid';
 import CLAIM_CLUES_FILE from '../data/claim-clues.json';
 import { territoryAt } from './territory';
 import type { World } from './types';
@@ -11,7 +12,7 @@ export type ClueRelation = 'in' | 'beside';
 export type ClueWords = { tier: 'piece' | 'offset'; piece: CluePiece; relation: ClueRelation | null; angle: number; tiles: number; at: Vec };
 export type CluePlace = { piece: CluePiece; pos: Vec; r: number; open: boolean; territory: string };
 export type ClaimWreck = { id: string; pos: Vec; look: ClaimLook; territory: string | null };
-export type ClaimClue = { look: ClaimLook; from: Vec; angle: number; distance: number; point: Vec; territory: string | null; where: ClueWords | null };
+export type ClaimClue = { look: ClaimLook; from: Vec; angle: number; distance: number; point: Vec; territory: string | null; square: GridSquare; where: ClueWords | null };
 
 export type WreckClues = { piece: ClueWords | null; offset: ClueWords | null; tiers: Record<string, ClaimClueTier> };
 export type ClaimClueBake = { mapHash: string; wrecks: Record<string, WreckClues> };
@@ -88,6 +89,7 @@ export function wordsFor(places: readonly CluePlace[], wreck: ClaimWreck, tier: 
 
 function fitsShop(clue: ClaimClue, wreck: ClaimWreck): boolean {
   if (wreck.look !== clue.look || wreck.territory !== clue.territory) return false;
+  if (!sameGridSquare(gridSquareOf(wreck.pos), clue.square)) return false;
   if (compassSector(bearing(clue.from, wreck.pos)) !== compassSector(clue.angle)) return false;
   return Math.abs(dist(clue.from, wreck.pos) - clue.distance) <= CONTRACTS.claim.clue.shopBand;
 }
@@ -107,7 +109,7 @@ export function shopClue(wreck: ClaimWreck, from: Vec): ClaimClue {
   const angle = snapAngle(bearing(from, wreck.pos));
   const distance = roundTo(dist(from, wreck.pos), CONTRACTS.claim.clueStepTiles);
   const point = { x: from.x + Math.cos(angle) * distance, y: from.y + Math.sin(angle) * distance };
-  return { look: wreck.look, from: { ...from }, angle, distance, point, territory: wreck.territory, where: null };
+  return { look: wreck.look, from: { ...from }, angle, distance, point, territory: wreck.territory, square: gridSquareOf(wreck.pos), where: null };
 }
 
 export function withWords(clue: ClaimClue, where: ClueWords | null): ClaimClue {

@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { REGION } from '../data/region';
 import { PARTS } from '../data/parts';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
@@ -30,11 +31,13 @@ import { mapObstacles } from './mapgen';
 import { navLayer } from './nav/layer';
 import { MAX_RADIUS, oldSpotOf, reachable } from './salvage';
 import { TIME } from '../data/time';
+import { gridSquareOf, sameGridSquare } from './map-grid';
 
 let real: World;
 
 beforeAll(() => {
   real = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup("roaming"), false);
+  for (const shop of Object.values(real.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
 });
 
 function claimFor(stock: SalvageStock, part: PartInstance, over: Partial<ClaimContract> = {}): ClaimContract {
@@ -259,7 +262,7 @@ describe('reachability', () => {
     expect(spots.length).toBeGreaterThan(20);
     for (const stock of spots) {
       const prop = baked.find((o) => o.id === (oldSpotOf(stock)?.propId ?? stock.id));
-      expect(prop && reachable(layer, prop), stock.id).toBe(true);
+      expect(prop && reachable(layer, prop, REGION.navigation.reachClimb), stock.id).toBe(true);
     }
   });
 });
@@ -344,7 +347,7 @@ describe('the clue', () => {
     expect(claimClue(claimAt(claimSpots(real)[0].pos)).look).toBe(claimLook(claimSpots(real)[0]));
   });
 
-  it('lists the true wreck among the candidates for every claim spot and every shop', () => {
+  it('lists the true wreck among the candidates, all in the clue circle and the named square, for every claim spot and every shop', () => {
     for (const stock of claimSpots(real)) {
       for (const shop of Object.keys(SHOPS)) {
         const c = { ...claimAt(stock.pos, stock.id), shop };
@@ -354,6 +357,18 @@ describe('the clue', () => {
         for (const id of candidates) expect(dist(real.salvage.find((s) => s.id === id)!.pos, stock.pos), `${id} for ${stock.id} from ${shop}`).toBeLessThanOrEqual(CONTRACTS.claim.clue.nearby);
       }
     }
+  });
+
+  it('leaves out wrecks of the same look near the clue point but outside the named square', () => {
+    const spots = claimSpots(real);
+    const left = spots.flatMap((stock) => {
+      const c = claimAt(stock.pos, stock.id);
+      const clue = claimClue(c);
+      const outside = spots.filter((s) => claimLook(s) === clue.look && dist(s.pos, clue.point) <= CONTRACTS.claim.clue.shopBand * 2 && !sameGridSquare(gridSquareOf(s.pos), clue.square));
+      return outside.map((s) => ({ c, other: s.id }));
+    });
+    expect(left.length).toBeGreaterThan(0);
+    for (const { c, other } of left) expect(claimCandidates(real, c)).not.toContain(other);
   });
 
   it('orders the candidates nearest the clue point first, all of one look', () => {
@@ -369,7 +384,8 @@ describe('the clue', () => {
   it('throws when the candidates would miss the true wreck', () => {
     const stock = claimSpots(real)[0];
     const shop = siteOf('bowl').pos;
-    const far = { x: shop.x + (shop.x - stock.pos.x), y: shop.y + (shop.y - stock.pos.y) };
+    const onMap = (n: number) => Math.min(REGION.size - 1, Math.max(1, n));
+    const far = { x: onMap(shop.x + (shop.x - stock.pos.x)), y: onMap(shop.y + (shop.y - stock.pos.y)) };
     expect(() => claimCandidates(real, { ...claimAt(stock.pos, stock.id), at: far })).toThrow(/miss/);
   });
 });
