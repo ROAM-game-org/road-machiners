@@ -79,14 +79,28 @@ function fileTimes() {
   };
 }
 
-const CLOSE_LIMIT_MS = 10_000;
+function failedFiles() {
+  let count = 0;
+  return {
+    any: () => count > 0,
+    reporter: {
+      onTestModuleEnd(mod) {
+        if (mod.state() === 'failed') count += 1;
+      },
+    },
+  };
+}
 
-function stopAtSuiteLimit(limitMinutes, times, vitest, readsDir) {
+const CLOSE_LIMIT_MS = 10_000;
+const OVER_TIME_EXIT = 3;
+
+function stopAtSuiteLimit(limitMinutes, times, failures, vitest, readsDir) {
   const timer = setTimeout(async () => {
     console.log(suiteOverMessage(limitMinutes, times.finished));
+    const code = failures.any() ? 1 : OVER_TIME_EXIT;
     await Promise.race([vitest.close(), new Promise((done) => setTimeout(done, CLOSE_LIMIT_MS))]);
     rmSync(readsDir, { recursive: true, force: true });
-    process.exit(1);
+    process.exit(code);
   }, limitMinutes * 60_000);
   timer.unref();
 }
@@ -117,10 +131,11 @@ const watch = stallLimit === null ? null : createStallWatch(stallLimit * 60_000,
 const suiteLimit = suiteMinutes(process.env);
 const recorder = passRecorder(cache, readsDir);
 const times = fileTimes();
-const reporters = ['default', recorder.reporter, times.reporter, ...(watch ? [stallReporter(watch)] : [])];
+const failures = failedFiles();
+const reporters = ['default', recorder.reporter, times.reporter, failures.reporter, ...(watch ? [stallReporter(watch)] : [])];
 const vitest = await createVitest('test', { watch: false, reporters });
 const stalled = watch ? stopOnStall(watch, vitest, readsDir) : () => false;
-if (suiteLimit !== null) stopAtSuiteLimit(suiteLimit, times, vitest, readsDir);
+if (suiteLimit !== null) stopAtSuiteLimit(suiteLimit, times, failures, vitest, readsDir);
 try {
   vitest.projects[0].config.setupFiles.push(resolve(root, 'src/test/cache/reads-setup.ts'));
   await vitest.init();

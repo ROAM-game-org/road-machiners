@@ -10,6 +10,8 @@ const CONFIG = `import { defineConfig } from 'vitest/config';
 export default defineConfig({ test: { include: ['src/**/*.test.ts'], maxWorkers: 2, minWorkers: 1, testTimeout: 0 } });
 `;
 const RUN_LIMIT_MS = 60_000;
+const hangingTest = `import { it } from 'vitest';\nit('waits forever', () => new Promise(() => {}));\n`;
+const failingTest = `import { expect, it } from 'vitest';\nit('is wrong', () => expect(1).toBe(2));\n`;
 
 let root: string;
 
@@ -32,7 +34,7 @@ it('waits for the gate', async () => {
 `;
 
 function childEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('VITEST') && key !== 'TEST_CACHE_READS' && key !== 'TEST_STALL_MINUTES'));
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('VITEST') && key !== 'TEST_CACHE_READS' && key !== 'TEST_STALL_MINUTES' && key !== 'TEST_SUITE_MINUTES'));
   return { ...env, ...extra };
 }
 
@@ -117,5 +119,24 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     expect(run.code).toBe(1);
     expect(run.out).toContain('[test-cache] StallError: no test finished in 0.25 minutes. Still running: src/hangs.test.ts > waits forever');
     expect([cached('src/a.test.ts'), cached('src/b.test.ts'), cached('src/hangs.test.ts')]).toEqual([true, true, false]);
+  });
+
+  it('exits 3 when the suite runs past its limit with no failed file, so the full suite counts it as a machine failure', () => {
+    put('src/hangs.test.ts', hangingTest);
+
+    const run = runCached({ TEST_SUITE_MINUTES: '0.1' });
+
+    expect(run.out).toContain('[test-cache] SuiteTimeError: the suite ran past its limit of 0.1 minutes');
+    expect(run.code).toBe(3);
+  });
+
+  it('exits 1 when the suite runs past its limit after a file failed', () => {
+    put('src/hangs.test.ts', hangingTest);
+    put('src/fails.test.ts', failingTest);
+
+    const run = runCached({ TEST_SUITE_MINUTES: '0.25' });
+
+    expect(run.out).toContain('[test-cache] SuiteTimeError');
+    expect(run.code).toBe(1);
   });
 });
