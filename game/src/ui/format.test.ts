@@ -946,21 +946,21 @@ describe("survey contract text", () => {
   });
 
   it("tells the posting shop's way to a place, with the look and lay and the found tag last", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-ruin-88", found: true, done: false }] };
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-skiff-5983", found: true, done: false }] };
     vi.stubGlobal("document", {
       createElement: () => new TextNode(),
       createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
     });
     const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
     expect(line.className).toBe("contract-clue");
-    expect(line.text()).toBe("Hamlet in square H3, from Bowl: Leave by the south-east gate. Take the road to Nose, heading east. It's a long haul. At Nose, leave the road and head south-east, a fair way. A cluster of ruined houses on flat ground. found");
+    expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the south-east gate. Take the road to Nose, heading east. Where the road runs closest, leave the road and head east and a touch north-east, a short way. Boat wrecks on flat ground. found");
     vi.unstubAllGlobals();
     expect(line.all("tag").at(-1)?.text()).toBe("found");
-    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the south-east gate. Take the road to Nose, heading east. It's a long haul. At Nose, leave the road and head south-east, a fair way. It lies in square H3, on flat ground.");
+    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the south-east gate. Take the road to Nose, heading east. Where the road runs closest, leave the road and head east and a touch north-east, a short way. It lies in square C6, on flat ground.");
   });
 
   it("keeps the compass clue when no full way can be told", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: "survey-skiff-6067", found: false, done: false }] };
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: "survey-skiff-5980", found: false, done: false }] };
     const w = emptyWorld();
     expect(en(surveyWayText(w, c, c.points[0]))).toBe(en(surveyClueText(surveyClue(c, c.points[0]))));
     vi.stubGlobal("document", {

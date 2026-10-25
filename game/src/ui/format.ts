@@ -40,7 +40,7 @@ import type { CrimeCase, GameEvent, GridItem, Job, NpcActivity, NpcState, PartIn
 import { concat, list, MINUS_SIGN, num, PLUS, SPACE, t, verbatim, type Msg } from '../text/msg';
 import { siteRecipes } from '../data/market';
 import { keyLabel } from './input-mode';
-import { driverName, factionName, offenseName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
+import { driverName, factionName, standingCauseText, offenseName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
 import { playerCanAct, Refused } from '../sim/world';
 import { stanceToward } from '../sim/relations';
 import { aidWords, lineText } from './dialogue';
@@ -1067,7 +1067,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   destroyed: (world, e) => line(t('log.destroyed', { who: vehicleName(world, e.vehicle) }), 'good'),
   hostile: quiet,
   joins: (world, e) => line(t('log.joins', { who: vehicleName(world, e.vehicle) }), e.against === world.player.vehicleId ? 'bad' : 'good'),
-  standing: (_, e) => line(t(`log.standing.${e.band}`, { faction: factionName(e.faction) }), bandAtLeast(e.band, 'neutral') ? 'good' : 'bad'),
+  standing: (_, e) => line(standingCauseText(e.cause, t(`log.standing.${e.band}`, { faction: factionName(e.faction) })), bandAtLeast(e.band, 'neutral') ? 'good' : 'bad'),
   practice: quiet,
   skillUp: (_, e) => line(skillUpText(e.skill, e.level), 'good'),
   money: moneyText,
