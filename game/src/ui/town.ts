@@ -196,6 +196,7 @@ export class TownScreen {
     if (from === null) return this.close();
     this.page = null;
     this.rows.collapse();
+    if (!shopAt(this.host.world())) return this.render();
     this.run((x) => pickTownSection(x, from, null), true);
   }
 
@@ -203,12 +204,13 @@ export class TownScreen {
     if (!this.isOpen()) throw new Error("The town page is closed, so a quest cannot borrow its frame");
     const w = this.host.world();
     const shopId = shopAt(w);
-    if (!shopId) throw new Error("The town page is open away from a shop");
-    const art = this.artKey(shopId);
-    const band = this.bandOf(w, art, shopDef(shopId).kind !== "garage");
+    const place = shopId ?? deskAt(w);
+    if (!place) throw new Error("The town page is open away from a shop and the desk");
+    const art = shopId ? this.artKey(shopId) : (TOWN_ART[place]?.band ?? null);
+    const band = this.bandOf(w, art, shopId ? shopDef(shopId).kind !== "garage" : true);
     const picture = band.querySelector<HTMLElement>(".art-band");
     if (!picture) throw new Error("The town band has no picture strip");
-    return { band, picture, heading: this.heading(shopId), art };
+    return { band, picture, heading: this.heading(place), art };
   }
 
   render(): void {
@@ -295,19 +297,36 @@ export class TownScreen {
   }
 
   private drawDesk(w: World, desk: string): void {
-    this.root.classList.remove("under-quest");
-    this.choices = [{ id: "leave", label: t("town.go.leave"), reason: null, go: () => this.close() }];
+    const underQuest = w.player.quests.live !== null;
+    this.root.classList.toggle("under-quest", underQuest);
+    this.root.classList.toggle("on-section", this.page !== null);
+    if (underQuest) return;
+    this.choices = this.deskChoices(desk);
+    const people = this.page === "people";
     this.root.replaceChildren(
       this.bandOf(w, TOWN_ART[desk]?.band ?? null, true),
       el(
         "div",
         { class: "ink-body" },
-        el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, siteName(desk))),
-        el("div", { class: "ink-panel" }, this.deskBody(w)),
+        el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(desk)), people ? el("p", { class: "qt-line" }, t("town.line.people")) : null),
+        people ? null : el("div", { class: "ink-panel" }, this.deskBody(w)),
         el("div", { class: "ink-choices quest-choices" }, ...this.choices.map((c, i) => choiceButton(c, i))),
         el("div", { class: "ink-status bad" }, this.error),
       ),
     );
+  }
+
+  private deskChoices(desk: string): TownChoice[] {
+    if (this.page === "people") return this.sectionChoices(desk, "people");
+    const people: TownChoice[] = localsAt(desk).length === 0 ? [] : [{ id: "people", label: t("town.go.people"), reason: null, go: () => this.goDeskPeople() }];
+    return [...people, { id: "leave", label: t("town.go.leave"), reason: null, go: () => this.close() }];
+  }
+
+  private goDeskPeople(): void {
+    this.page = "people";
+    this.rows.collapse();
+    this.render();
+    this.rows.toTop(this.root);
   }
 
   private deskBody(w: World): HTMLElement {
@@ -689,10 +708,15 @@ export class TownScreen {
   private drawSheets(ctx: CanvasRenderingContext2D, view: Viewport): void {
     const trace = (sheet: Sheet) => {
       const b = sheetTiles(this.host.world().size, sheet);
-      const from = toPx(view, { x: b.x0, y: b.y0 });
-      const to = toPx(view, { x: b.x1, y: b.y1 });
+      const corners = [
+        { x: b.x0, y: b.y0 },
+        { x: b.x1, y: b.y0 },
+        { x: b.x1, y: b.y1 },
+        { x: b.x0, y: b.y1 },
+      ].map((corner) => toPx(view, corner));
       ctx.beginPath();
-      ctx.rect(from.x, from.y, to.x - from.x, to.y - from.y);
+      corners.forEach((corner, i) => (i === 0 ? ctx.moveTo(corner.x, corner.y) : ctx.lineTo(corner.x, corner.y)));
+      ctx.closePath();
     };
     ctx.lineWidth = 1;
     ctx.strokeStyle = token("--line-strong");

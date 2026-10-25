@@ -368,7 +368,7 @@ describe('player pleas', () => {
 });
 
 describe('player robbery', () => {
-  const DEMAND = 'Drop your cargo, or we open fire.';
+  const DEMAND = 'Drop your cargo, or I open fire.';
   const INSIST = 'You heard me. Cargo on the ground, now.';
 
   function loaded(): { w: World; npc: Vehicle } {

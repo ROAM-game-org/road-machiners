@@ -168,7 +168,7 @@
   overflow-wrap: break-word;
   padding: 0 var(--space-1);
 }
-#ui.phone :is(.feedback, .camera-mode) {
+#ui.phone .feedback {
   display: none;
 }
 

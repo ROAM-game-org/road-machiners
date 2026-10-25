@@ -1,12 +1,13 @@
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
+import { VIEW } from '../../data/view';
 import type { V3 } from '../../phys/frames';
 import type { Vec } from '../../sim/vec';
 
 const S = PHYSICS.metersPerTile;
 export const VIEW_METERS = 72;
-export const CAMERA_DIR = new THREE.Vector3(1, 0.816, 1).normalize();
+export const CAMERA_DIR = new THREE.Vector3(-VIEW.screenUp.x, VIEW.rise, -VIEW.screenUp.y).normalize();
 const OFFSET = CAMERA_DIR.clone().multiplyScalar(300);
 export const ZOOM = { min: 0.35, max: 4 };
 const FOLLOW_TAU_MS = 250;
