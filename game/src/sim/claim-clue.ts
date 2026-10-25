@@ -156,9 +156,8 @@ export function bakedTier(stockId: string, shop: string): ClaimClueTier | null {
 
 export function bakedWords(stockId: string, shop: string): ClueWords | null {
   const entry = CLAIM_CLUES.wrecks[stockId];
-  if (!entry) return null;
-  const tier = entry.tiers[shop];
-  if (tier === 'shop') return null;
+  const tier = entry?.tiers[shop];
   if (tier === 'piece') return entry.piece;
-  return entry.offset ?? entry.piece;
+  if (tier === 'offset') return entry.offset;
+  return null;
 }
