@@ -71,6 +71,17 @@ export function bottomSamples(obj: THREE.Object3D): THREE.Vector3[] {
   return faceSamples(level).map((p) => p.applyMatrix4(fromLevel));
 }
 
+export function underSpots(obj: THREE.Object3D): (x: number, z: number) => [number, number] {
+  const faces = bottomFaces(obj);
+  const corners = faces.flat();
+  const reach = 2 * legPad();
+  return (x, z) => {
+    if (faces.some((face) => coversXZ(face, x, z))) return [x, z];
+    const near = corners.filter((p) => Math.hypot(p.x - x, p.z - z) <= reach).sort((p, q) => Math.hypot(p.x - x, p.z - z) - Math.hypot(q.x - x, q.z - z))[0];
+    return near ? [near.x, near.z] : [x, z];
+  };
+}
+
 function faceSamples(faces: THREE.Vector3[][]): THREE.Vector3[] {
   const box = new THREE.Box3().setFromPoints(faces.flat());
   const inside = gridIn({ unit: 0, x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z }).flatMap(([x, z]) => {
@@ -78,7 +89,11 @@ function faceSamples(faces: THREE.Vector3[][]): THREE.Vector3[] {
     return ys.length > 0 ? [new THREE.Vector3(x, Math.min(...ys), z)] : [];
   });
   const outline = faces.flatMap(([a, b, c]) => [new THREE.Vector3().add(a).add(b).add(c).divideScalar(3), a.clone(), b.clone(), c.clone()]);
-  return [...inside, ...outline];
+  return [...inside, ...outline].filter((p) => !overOwnFace(faces, p));
+}
+
+function overOwnFace(faces: THREE.Vector3[][], p: THREE.Vector3): boolean {
+  return faces.some((face) => coversXZ(face, p.x, p.z) && heightOn(face, p.x, p.z) < p.y - CLIP_TOLERANCE / 2);
 }
 
 function heightOn([a, b, c]: THREE.Vector3[], x: number, z: number): number {
@@ -409,13 +424,15 @@ export function movedPlate(plate: CellRect, spot: PlateSpot): CellRect {
   return { unit: plate.unit, x0: cx - hx, x1: cx + hx, z0: cz - hz, z1: cz + hz };
 }
 
-export function plateLegs(body: THREE.Object3D, plate: CellRect, top: number, makeLeg: (role: 'leg' | 'brace') => THREE.Object3D): THREE.Object3D[] {
+export function plateLegs(body: THREE.Object3D, plate: CellRect, top: number, makeLeg: (role: 'leg' | 'brace') => THREE.Object3D, under: (x: number, z: number) => [number, number] = (x, z) => [x, z]): THREE.Object3D[] {
   const feet = footings(body);
   const center = new THREE.Vector3((plate.x0 + plate.x1) / 2, top, (plate.z0 + plate.z1) / 2);
   const legs: THREE.Object3D[] = [];
-  for (const [x, z] of legSpots(plate)) {
-    const corner = new THREE.Vector3(x, top, z);
-    const foot = feet(x, z);
+  for (const spot of legSpots(plate)) {
+    const [x, z] = feet(spot[0], spot[1]) ? under(spot[0], spot[1]) : spot;
+    const moved = new THREE.Vector3(x, top, z);
+    const corner = feet(x, z) || braceHit(body, moved, center) ? moved : new THREE.Vector3(spot[0], top, spot[1]);
+    const foot = feet(corner.x, corner.z);
     if (foot && top - foot.y <= CLIP_TOLERANCE / 2) continue;
     legs.push(foot ? strut(makeLeg('leg'), foot, corner) : strut(makeLeg('brace'), braceFoot(body, corner, center), corner));
   }
