@@ -534,6 +534,7 @@ export const CRIME = {
   keepClosedTurns: MEMORY.turns.witnessed,
   settleWage: 1,
   wage: BOUNTY_WAGE,
+  leadFee: wageOf(24),
 };
 
 export const BOUNTY = {

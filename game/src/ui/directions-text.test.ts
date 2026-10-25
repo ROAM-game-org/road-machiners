@@ -51,11 +51,11 @@ describe('directionsText', () => {
 
   it('joins the steps into one answer in order', () => {
     const text = resolve(directionsText(STEPS.slice(0, 3)), 'en');
-    expect(text).toBe("Cut north-west a short way to the road. Take the road to Nose. It's a long haul. At Dustwell, turn left onto the road heading south.");
+    expect(text).toBe("Cut north a short way to the road. Take the road to Nose. It's a long haul. At Dustwell, turn left onto the road heading south-west.");
   });
 
   it('renders a noRoad answer', () => {
-    expect(resolve(directionsText([{ do: 'noRoad', octant: 'north', span: 'far' }]), 'en')).toBe('I know no road there. It lies north, a long way.');
+    expect(resolve(directionsText([{ do: 'noRoad', octant: 'north', span: 'far' }]), 'en')).toBe('I know no road there. It lies north-east, a long way.');
   });
 
   it('renders every real answer from Icarus in every language', () => {
@@ -79,7 +79,7 @@ describe('directionsText', () => {
       { do: 'arrive', site: 'glass-flats', area: true },
       { do: 'search', clue: { kind: 'site', id: 'glass-flats' }, rough: false },
     ];
-    expect(resolve(directionsText(steps), 'en')).toBe('Cut north-west a fair way to the road. Take the road to Nose. At the second fork, turn left. The road takes you right in. You will know it by glass ground round a half-buried ship engine.');
+    expect(resolve(directionsText(steps), 'en')).toBe('Cut north a fair way to the road. Take the road to Nose. At the second fork, turn left. The road takes you right in. You will know it by glass ground round a half-buried ship engine.');
   });
 
   it('follows the road without naming it when it leads to the place', () => {
@@ -90,10 +90,10 @@ describe('directionsText', () => {
   it('names the way along the first road once, in its first sentence', () => {
     const answer = (road: DirectionStep & { do: 'follow' }, rest: DirectionStep[]) => resolve(directionsText([road, ...rest]), 'en');
     const arrive: DirectionStep = { do: 'arrive', site: 'bowl', area: false };
-    expect(answer({ do: 'follow', road: { kind: 'to', site: 'bowl' }, heading: 'west', span: 'near' }, [arrive])).toBe('Follow the road west. The road takes you to the gate.');
-    expect(answer({ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'east', span: 'far' }, [])).toBe("Take the road to Nose, heading east. It's a long haul.");
-    expect(answer({ do: 'follow', road: { kind: 'heading', octant: 'north' }, heading: 'north', span: 'near' }, [])).toBe('Take the road heading north.');
-    expect(answer({ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'east', span: 'near' }, [{ do: 'turn', side: 'left', at: { kind: 'fork', nth: 2 }, road: { kind: 'to', site: 'bowl' }, span: 'near' }, arrive])).toBe('Take the road to Nose, heading east. At the second fork, turn left. The road takes you to the gate.');
+    expect(answer({ do: 'follow', road: { kind: 'to', site: 'bowl' }, heading: 'west', span: 'near' }, [arrive])).toBe('Follow the road north-west. The road takes you to the gate.');
+    expect(answer({ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'east', span: 'far' }, [])).toBe("Take the road to Nose, heading south-east. It's a long haul.");
+    expect(answer({ do: 'follow', road: { kind: 'heading', octant: 'north' }, heading: 'north', span: 'near' }, [])).toBe('Take the road heading north-east.');
+    expect(answer({ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'east', span: 'near' }, [{ do: 'turn', side: 'left', at: { kind: 'fork', nth: 2 }, road: { kind: 'to', site: 'bowl' }, span: 'near' }, arrive])).toBe('Take the road to Nose, heading south-east. At the second fork, turn left. The road takes you to the gate.');
   });
 
   it('reads an answer planned before headings with the old words', () => {
@@ -108,15 +108,15 @@ describe('directionsText', () => {
       [{ do: 'follow', road: { kind: 'heading', octant: 'north' }, heading: 'north', span: 'near' }],
     ];
     const [west, east, north] = cases.map((steps) => resolve(directionsText(steps), 'ru'));
-    expect(west).toContain('к западу');
-    expect(east).toContain('к востоку');
-    expect(north.match(/к северу/g)).toHaveLength(1);
+    expect(west).toContain('к северо-западу');
+    expect(east).toContain('к юго-востоку');
+    expect(north.match(/к северо-востоку/g)).toHaveLength(1);
   });
 
   it('warns once about a long road leg, and not after a long cut to the road', () => {
     const road = (span: 'fair' | 'far') => ({ do: 'follow', road: { kind: 'to', site: 'nose' }, heading: null, span }) as const;
     expect(resolve(directionsText([road('far')]), 'en')).toBe("Take the road to Nose. It's a long haul.");
-    expect(resolve(directionsText([{ do: 'join', octant: 'east', span: 'far' }, road('far')]), 'en')).toBe('Cut east a long way to the road. Take the road to Nose.');
+    expect(resolve(directionsText([{ do: 'join', octant: 'east', span: 'far' }, road('far')]), 'en')).toBe('Cut south-east a long way to the road. Take the road to Nose.');
   });
 
   it('warns of a long haul once across successive long road legs', () => {
@@ -129,7 +129,7 @@ describe('directionsText', () => {
   });
 
   it('says past the fork where a wreck leave point is counted', () => {
-    expect(resolve(directionsText([{ do: 'leave', at: { kind: 'fork', nth: 2 }, octant: 'east', lean: null, span: 'near' }]), 'en')).toBe('Past the second fork, where the road runs closest, leave the road and head east, a short way.');
+    expect(resolve(directionsText([{ do: 'leave', at: { kind: 'fork', nth: 2 }, octant: 'east', lean: null, span: 'near' }]), 'en')).toBe('Past the second fork, where the road runs closest, leave the road and head south-east, a short way.');
   });
 
   it('tells a gate, a lean and a place way with no search sentence', () => {
@@ -138,7 +138,7 @@ describe('directionsText', () => {
       { do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'northEast', span: 'fair' },
       { do: 'leave', at: { kind: 'none' }, octant: 'south', lean: 'east', span: 'fair' },
     ];
-    expect(resolve(directionsText(steps), 'en')).toBe('Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way.');
+    expect(resolve(directionsText(steps), 'en')).toBe('Leave by the south-east gate. Take the road to Nose, heading east. Where the road runs closest, leave the road and head south-west and a touch south-east, a fair way.');
   });
 
   it('asks again plainly', () => {
