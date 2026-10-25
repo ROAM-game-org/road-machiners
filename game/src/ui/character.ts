@@ -9,7 +9,7 @@ import { standingNum, standingStep } from './format';
 import { hp } from './units';
 import { num, t, type Msg } from '../text/msg';
 import { keyLabel } from './input-mode';
-import { basicName, basicRule, factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
+import { basicName, basicRule, factionName, perkName, perkRule, refusalText, skillGrows, skillName, standingDeedName } from '../text/names';
 import { standingBands, standingParts, type StandingRow } from '../sim/relations';
 import { hasExplorationMap, modeRules } from '../sim/settings';
 import { MapTab } from './map-tab';
@@ -165,7 +165,7 @@ function standingRow(world: World, row: StandingRow): HTMLElement {
   const parts = standingParts(world, row);
   const tip = el('span', { class: 'tooltip standing-tip', role: 'tooltip' },
     tipRow(t('character.standingBase'), standingNum(parts.base), 'base'),
-    tipRow(t('character.standingDeeds'), standingStep(parts.deeds), stepTone(parts.deeds)),
+    ...parts.deeds.map((d) => tipRow(standingDeedName(d.deed), standingStep(d.delta), stepTone(d.delta))),
     tipRow(t('character.standingEarlier'), standingStep(parts.earlier), stepTone(parts.earlier)));
   return el('div', { class: 'standing-row row' },
     el('span', {}, factionName(row.faction)),
