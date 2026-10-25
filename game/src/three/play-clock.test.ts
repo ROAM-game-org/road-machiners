@@ -5,7 +5,7 @@ const EASE = 100;
 const CLOCK = { stopMs: EASE, startMs: EASE, stopFolds: 3 };
 
 function frame(clock: PlayClock, run: (c: PlayClock) => void): number {
-  clock.beginFrame();
+  clock.beginFrame(false);
   run(clock);
   return clock.frameMs();
 }
@@ -17,6 +17,14 @@ function running(): PlayClock {
 }
 
 describe('PlayClock', () => {
+  it('reports the hold it was given for each frame', () => {
+    const clock = running();
+    clock.beginFrame(true);
+    expect(clock.isHeld()).toBe(true);
+    clock.beginFrame(false);
+    expect(clock.isHeld()).toBe(false);
+  });
+
   it('follows real time exactly once up to speed, times the speed', () => {
     const clock = running();
     const from = clock.nowMs();
