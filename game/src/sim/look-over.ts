@@ -67,8 +67,6 @@ export function startLookOver(world: World, looker: Vehicle, target: Vehicle): v
 }
 
 export function lookOverError(world: World, targetId: string): Refusal | null {
-  const basic = basicRefusal(world, 'lookOver');
-  if (basic) return basic;
   if (!playerCanAct(world)) return { id: 'cannotAct' };
   return canLookOver(world, playerVehicle(world), vehicleById(world, targetId));
 }
