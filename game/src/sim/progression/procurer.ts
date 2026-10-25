@@ -2,7 +2,7 @@ import { CONTRACTS, shopDef } from '../../data/market';
 import { playerVehicle } from '../damage';
 import { affordableBuyCount, buyGood, getTradePrice, sellGood } from '../economy';
 import { freeCells, goodsCount } from '../grid';
-import { acceptContract, deliverContract, estimateTurns, goodValue, shopAt, shopState, siteOf, stockForSale, type Contract } from '../market';
+import { acceptContract, deliverContract, estimateTurns, goodValue, shopAt, shopState, siteOf, spareGoods, stockForSale, type Contract } from '../market';
 import type { Site } from '../sites';
 import type { World } from '../types';
 import { driveToSite, type Orders } from './orders';
@@ -62,7 +62,10 @@ function buyCrates(o: Orders, c: Procure): boolean {
 
 function sellOtherCargo(o: Orders, c: Procure): void {
   const shop = shopAt(o.world)!;
-  for (const [good, n] of Object.entries(goodsCount(o.me))) if (good !== c.good && shopDef(shop).goods.includes(good)) o.run((w) => sellGood(w, good, n), 'goodsSold');
+  for (const good of Object.keys(goodsCount(o.me))) {
+    const n = spareGoods(o.world, o.me, good);
+    if (n > 0 && good !== c.good && shopDef(shop).goods.includes(good)) o.run((w) => sellGood(w, good, n), 'goodsSold');
+  }
 }
 
 function spendable(world: World): number {
