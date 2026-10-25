@@ -7,6 +7,7 @@ import { followersOf, followingOf, followingStatesOf, inCompany } from './compan
 import { followGoal, startEscort } from './tow';
 import { playerVehicle, vehicleById } from './damage';
 import { isDefeated } from './defeat';
+import { heldSearch } from './market';
 import { sightingOf } from './memory';
 import { lieUpSpot } from './npc-service';
 import { modeRules } from './settings';
@@ -20,6 +21,18 @@ export type DemandAnswer = 'pay' | 'refuse';
 
 export function isMarshal(v: Vehicle): boolean {
   return v.brain?.traits.includes('marshal') === true;
+}
+
+export function marshalLead(world: World): { at: Vec; turn: number } | null {
+  const search = heldSearch(world);
+  if (!search || search.delivered) return null;
+  let newest: { at: Vec; turn: number } | null = null;
+  for (const car of world.vehicles) {
+    if (!isMarshal(car) || isDefeated(car)) continue;
+    const seen = sightingOf(car, search.target);
+    if (seen && (!newest || seen.turn > newest.turn)) newest = { at: { ...seen.fact.at }, turn: seen.turn };
+  }
+  return newest && newest.turn > search.lead.turn ? newest : null;
 }
 
 export function planMarshal(world: World, marshal: Vehicle, seen: Vehicle[]): void {

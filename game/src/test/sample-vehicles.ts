@@ -1,5 +1,5 @@
-import type { PersonalityId } from '../data/personalities';
 import type { TraitId } from '../data/npcs';
+import type { PersonalityId } from '../data/personalities';
 import { makeVehicle } from '../sim/factory';
 import type { Faction, NpcBrain, Vehicle, World } from '../sim/types';
 import type { Vec } from '../sim/vec';

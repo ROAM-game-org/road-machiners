@@ -19,7 +19,7 @@ import type { Vehicle, World } from './types';
 
 const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', lineKey(line));
 const texts = (w: World): string[] => currentOptions(w).map((o) => en(o.line));
-const PAY = "Here's your money. Now back off.";
+const PAY = "Here are your M's. Now back off.";
 const DROP = 'Fine. Take it.';
 const REFUSE = 'Come and get it.';
 
