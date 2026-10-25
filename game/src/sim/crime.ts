@@ -12,7 +12,7 @@ import { getResources } from './resources';
 import { modeRules } from './settings';
 import { canUseSite, parkedOn } from './sites';
 import { boundTo } from './states';
-import type { CaseIssuer, CaseLead, CrimeCase, Memory, Refusal, StandingFactionId, Vehicle, WitnessedOffense, World } from './types';
+import type { CaseIssuer, CaseLead, CrimeCase, CrimeOffense, Memory, Refusal, StandingFactionId, Vehicle, WitnessedOffense, World } from './types';
 import { canVehicleSee } from './vision';
 import { playerVehicle } from './damage';
 import { vehicleHasPerk } from './progress';
@@ -56,7 +56,7 @@ function recordCrime(world: World, culprit: Vehicle, victim: Vehicle, offense: W
   if (!crimeOf(world, culprit, victim, offense)) return;
   const reporters = [...(victimReports && namesCulprit(world, victim, culprit) ? [victim] : []), ...seen.filter((w) => willReport(world, w, culprit, victim))];
   const crime = `${world.turn}:${culprit.id}:${victim.id}:${offense}`;
-  for (const r of reporters) remember(world, r, { kind: 'witnessed', crime, by: culprit.id, victim: victim.id, offense, at: { ...victim.pos }, heading: culprit.heading });
+  for (const r of reporters) remember(world, r, { kind: 'witnessed', crime, by: culprit.id, victim: victim.id, offense, at: { ...victim.pos }, heading: culprit.heading, restitution: 0 });
 }
 
 function requireInWorld(world: World, v: Vehicle): void {
@@ -111,14 +111,14 @@ function addReporter(c: CrimeCase, reporter: Vehicle): void {
 function openCase(world: World, reporter: Vehicle, fact: Witnessed, site: string, target: Vehicle): void {
   const victim = world.vehicles.find((v) => v.id === fact.victim) ?? null;
   const issuer = issuerOf(victim, reporter);
-  const stake = Math.min(stakeOf(world, issuer, reporter, fact.offense), CRIME.maxOwed - owedBy(world, target.id));
+  const stake = Math.min(stakeOf(world, issuer, reporter, fact.offense), CRIME.maxOwed - finesOn(world, target.id));
   if (stake < CRIME.minStake) return;
   const escrow = issuer.kind === 'driver' ? stake : 0;
   if (escrow > 0) shopMoney(world, reporter, -escrow, 'bountyEscrow');
   const c: CrimeCase = {
     id: newId(world, 'case'), crime: fact.crime, offense: fact.offense, target: target.id, victim: fact.victim, issuer,
-    reporters: [reporter.id], site, at: { ...fact.at }, turn: crimeTurn(fact.crime), filed: world.turn, owed: stake, escrow,
-    status: 'open', closed: null, hunter: null, retryAt: null, offered: null, lead: { at: { ...fact.at }, turn: crimeTurn(fact.crime), heading: fact.heading },
+    reporters: [reporter.id], site, at: { ...fact.at }, turn: crimeTurn(fact.crime), filed: world.turn, owed: stake, restitution: fact.restitution, escrow,
+    status: 'open', closed: null, hunter: null, retryAt: null, offered: null, known: false, lead: { at: { ...fact.at }, turn: crimeTurn(fact.crime), heading: fact.heading },
   };
   world.crimes = [...world.crimes, c];
   world.events.push({ t: 'bountyFiled', case: c.id, target: c.target, reporter: reporter.id, offense: c.offense, victim: c.victim, site, owed: c.owed });
@@ -134,8 +134,8 @@ export function fileEmbezzlement(world: World, shopId: string, crates: number, g
   const turn = world.turn;
   const c: CrimeCase = {
     id: newId(world, 'case'), crime: `${turn}:${target.id}:${shopId}:embezzled`, offense: 'embezzled', target: target.id, victim: shopId, issuer: shopIssuer(shopId),
-    reporters: [], site: shopId, at: { ...at }, turn, filed: turn, owed, escrow: 0,
-    status: 'open', closed: null, hunter: null, retryAt: null, offered: null, lead: { at: { ...at }, turn, heading: null },
+    reporters: [], site: shopId, at: { ...at }, turn, filed: turn, owed, restitution: 0, escrow: 0,
+    status: 'open', closed: null, hunter: null, retryAt: null, offered: null, known: false, lead: { at: { ...at }, turn, heading: null },
   };
   world.crimes = [...world.crimes, c];
   world.events.push({ t: 'bountyFiled', case: c.id, target: c.target, reporter: shopId, offense: c.offense, victim: shopId, site: shopId, owed, kept: { good, crates } });
@@ -169,8 +169,53 @@ export function openCasesOn(world: World, targetId: string): CrimeCase[] {
   return world.crimes.filter((c) => c.status === 'open' && c.target === targetId);
 }
 
+export function caseOwed(c: CrimeCase): number {
+  if (c.restitution < 0) throw new Error(`Case ${c.id} owes a negative restitution of ${c.restitution}`);
+  return c.owed + c.restitution;
+}
+
 export function owedBy(world: World, targetId: string): number {
+  return openCasesOn(world, targetId).reduce((sum, c) => sum + caseOwed(c), 0);
+}
+
+export function finesOn(world: World, targetId: string): number {
   return openCasesOn(world, targetId).reduce((sum, c) => sum + c.owed, 0);
+}
+
+type CrimeKey = { crime: string; offense: CrimeOffense };
+
+export function noteHandover(world: World, robber: Vehicle, victim: Vehicle, value: number): void {
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${victim.id} handed ${robber.id} a value of ${value}`);
+  const robbery = robberyToRepay(world, robber.id, victim.id);
+  if (robbery && value > 0) addRestitution(world, robbery, value);
+}
+
+function robberyToRepay(world: World, culpritId: string, victimId: string): string | null {
+  const newest = newestCrimeOf(world, culpritId, victimId);
+  return newest?.offense === 'robbed' ? newest.crime : null;
+}
+
+function addRestitution(world: World, crime: string, value: number): void {
+  for (const v of world.vehicles) addWitnessedRestitution(v, crime, value);
+  const filed = world.crimes.find((c) => c.status === 'open' && c.crime === crime);
+  if (filed) filed.restitution += value;
+}
+
+function newestCrimeOf(world: World, culpritId: string, victimId: string): CrimeKey | null {
+  const filed = openCasesOn(world, culpritId).filter((c) => c.victim === victimId);
+  const held = world.vehicles.flatMap((v) => (v.brain ? recall(v, 'witnessed').map((m) => m.fact).filter((f) => f.by === culpritId && f.victim === victimId) : []));
+  return [...filed, ...held].reduce<CrimeKey | null>((best, k) => (!best || isNewer(k, best) ? k : best), null);
+}
+
+function isNewer(a: CrimeKey, b: CrimeKey): boolean {
+  const at = crimeTurn(a.crime);
+  const bt = crimeTurn(b.crime);
+  return at > bt || (at === bt && a.offense === 'robbed' && b.offense !== 'robbed');
+}
+
+function addWitnessedRestitution(v: Vehicle, crime: string, value: number): void {
+  if (!v.brain || !v.brain.memories.some((m) => m.fact.kind === 'witnessed' && m.fact.crime === crime)) return;
+  reviseMemories(v, (m) => (m.fact.kind === 'witnessed' && m.fact.crime === crime ? { ...m, fact: { ...m.fact, restitution: m.fact.restitution + value } } : m));
 }
 
 export function canPayBounty(world: World, payer: Vehicle): boolean {
@@ -179,7 +224,7 @@ export function canPayBounty(world: World, payer: Vehicle): boolean {
 }
 
 export function payBounty(world: World, payer: Vehicle, cases: CrimeCase[], collector: Vehicle | null): void {
-  const total = cases.reduce((sum, c) => sum + c.owed, 0);
+  const total = cases.reduce((sum, c) => sum + caseOwed(c), 0);
   if (getResources(world, payer).money < total) {
     if (payer.id === world.player.vehicleId) throw new Refused({ id: 'noMoney' });
     throw new Error(`${payer.id} cannot pay ${total} of bounty`);
@@ -190,8 +235,9 @@ export function payBounty(world: World, payer: Vehicle, cases: CrimeCase[], coll
     if (collector) transfer(world, payer, collector, fee);
     else shopMoney(world, payer, -fee, 'bountyOffice');
     payIssuer(world, payer, c, c.owed - fee);
+    payRestitution(world, payer, c);
     returnEscrow(world, c);
-    closeCase(world, c, 'paid');
+    closeCase(world, c, 'paid', { collector: null, amount: caseOwed(c) });
   }
 }
 
@@ -199,6 +245,13 @@ function payIssuer(world: World, payer: Vehicle, c: CrimeCase, amount: number): 
   const issuer = issuerVehicle(world, c);
   if (issuer && issuer.id !== payer.id) transfer(world, payer, issuer, amount);
   else shopMoney(world, payer, -amount, 'bountyCoffers');
+}
+
+function payRestitution(world: World, payer: Vehicle, c: CrimeCase): void {
+  if (c.restitution === 0) return;
+  const victim = world.vehicles.find((v) => v.id === c.victim);
+  if (victim && victim.id !== payer.id) transfer(world, payer, victim, c.restitution);
+  else shopMoney(world, payer, -c.restitution, c.issuer.kind === 'faction' ? 'bountyCoffers' : 'bountyOffice');
 }
 
 function returnEscrow(world: World, c: CrimeCase): void {
@@ -244,6 +297,19 @@ export function takeHunt(world: World, targetId: string, hunterId: string): Crim
 
 export function offerCases(world: World, cases: CrimeCase[]): void {
   for (const c of cases) c.offered = world.turn;
+  tellCases(cases);
+}
+
+export function tellCases(cases: CrimeCase[]): void {
+  for (const c of cases) c.known = true;
+}
+
+export function knownCasesOn(world: World, targetId: string): CrimeCase[] {
+  return openCasesOn(world, targetId).filter((c) => c.known);
+}
+
+export function learnCasesAtDesk(world: World): void {
+  if (deskAt(world)) tellCases(openCasesOn(world, world.player.vehicleId));
 }
 
 export function lastOffer(cases: CrimeCase[]): number {
@@ -306,7 +372,7 @@ export type DeskRows = { cases: CrimeCase[]; owed: number; settlements: Settleme
 export function deskRows(world: World): DeskRows {
   const cases = openCasesOn(world, world.player.vehicleId);
   const settlements = settleable(world).flatMap((faction) => settlementQuote(world, faction) ?? []);
-  return { cases, owed: cases.reduce((sum, c) => sum + c.owed, 0), settlements };
+  return { cases, owed: cases.reduce((sum, c) => sum + caseOwed(c), 0), settlements };
 }
 
 function settleable(world: World): StandingFactionId[] {

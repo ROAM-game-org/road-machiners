@@ -604,6 +604,8 @@ export const SCREENS = {
   'trade.tab.contracts': 'Contracts',
   'trade.tab.marshals': 'Marshalls',
   'desk.pay': 'Pay',
+  'desk.base': 'Base',
+  'desk.restitution': 'Restitution',
   'desk.payAll': 'Pay all',
   'desk.settle': 'Settle',
   'desk.settleAfter': m('{faction} will treat you as wary', { faction: 'text' }),

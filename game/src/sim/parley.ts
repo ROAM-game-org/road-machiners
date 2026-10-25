@@ -27,6 +27,7 @@ import { dist } from './vec';
 import { isIntroAmbusher } from './quests';
 import { fightSide, spokesman } from './sides';
 import { reportIncident } from './relations';
+import { noteHandover } from './crime';
 
 export type ThreatAnswer = DecisionOptions['threatened'];
 
@@ -87,6 +88,7 @@ function requireLooting(world: World, loser: Vehicle): void {
 function settleHoldUp(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock | null, paid: 'cargo' | 'money', value: number): void {
   cede(world, loser, winner, stock, 'takeHandedCargo');
   if (loser.brain) remember(world, loser, { kind: 'wronged', by: winner.id, deed: 'robbed' });
+  noteHandover(world, winner, loser, value);
   world.events.push({ t: 'holdUp', robber: winner.id, victim: loser.id, paid, value });
 }
 

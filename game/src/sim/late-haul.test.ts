@@ -157,7 +157,7 @@ describe('the late limit', () => {
 });
 
 function fillCases(w: World, owed: number): void {
-  const base = { id: 'case-x', crime: 'x', offense: 'robbed', target: w.player.vehicleId, victim: 'v', issuer: { kind: 'faction', faction: 'bowl' }, reporters: [], site: 'bowl', at: { x: 0, y: 0 }, turn: 0, filed: 0, owed, escrow: 0, status: 'open', closed: null, hunter: null, retryAt: null, offered: null, lead: { at: { x: 0, y: 0 }, turn: 0, heading: null } } as CrimeCase;
+  const base = { id: 'case-x', crime: 'x', offense: 'robbed', target: w.player.vehicleId, victim: 'v', issuer: { kind: 'faction', faction: 'bowl' }, reporters: [], site: 'bowl', at: { x: 0, y: 0 }, turn: 0, filed: 0, owed, restitution: 0, escrow: 0, status: 'open', closed: null, hunter: null, retryAt: null, offered: null, known: true, lead: { at: { x: 0, y: 0 }, turn: 0, heading: null } } as CrimeCase;
   w.crimes = [...w.crimes, base];
 }
 

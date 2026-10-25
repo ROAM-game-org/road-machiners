@@ -40,6 +40,23 @@
   gap: var(--space-5);
   padding: var(--space-3) 0;
 }
+.case-pay {
+  position: relative;
+}
+.case-price > .amount {
+  text-decoration: underline dotted;
+}
+.case-price-tip {
+  display: none;
+  position: absolute;
+  right: calc(100% + var(--space-4));
+  top: 0;
+  z-index: var(--z-popup);
+  width: max-content;
+}
+.case-pay:has(> button:is(:hover, :focus-visible)) > .case-price-tip {
+  display: block;
+}
 .desk-all {
   display: flex;
   justify-content: flex-end;

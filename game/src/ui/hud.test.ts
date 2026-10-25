@@ -12,6 +12,7 @@ import { resolve } from '../text/resolve';
 import { Hud, cardActions, firstAidMsg, heldContractLine } from './hud';
 import { maxHealthOf } from '../sim/health';
 import { firstAidBlock, startFirstAid } from '../sim/jobs';
+import type { CrimeCase, World } from '../sim/types';
 
 class FakeNode {
   className = '';
@@ -157,5 +158,52 @@ describe('truck card actions', () => {
   it('writes no key text into a button label', () => {
     const { row } = card(5, true);
     expect(row!.text()).not.toMatch(/\[[A-Z]\]/);
+  });
+});
+
+describe('the Wanted well', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  class WellNode extends FakeNode {
+    style = { display: '' };
+    tabIndex = -1;
+    innerHTML = '';
+    replaceChildren(...children: FakeNode[]) { this.children = children; }
+  }
+
+  function renderWell(w: World): WellNode {
+    vi.stubGlobal('document', {
+      createElement: () => new WellNode(),
+      createTextNode: (value: string) => Object.assign(new FakeNode(), { children: [value] }),
+    });
+    const host = { wanted: new WellNode() };
+    (Hud.prototype as unknown as { renderWanted(this: typeof host, w: World): void }).renderWanted.call(host, w);
+    return host.wanted;
+  }
+
+  function robbed(w: World): CrimeCase {
+    const c: CrimeCase = {
+      id: 'case1', crime: `1:${w.player.vehicleId}:npc-x:robbed`, offense: 'robbed', target: w.player.vehicleId, victim: 'npc-x', issuer: { kind: 'faction', faction: 'bowl' },
+      reporters: ['npc-x'], site: 'bowl', at: { x: 30, y: 30 }, turn: 1, filed: 2, owed: 11097, restitution: 4000, escrow: 0, status: 'open',
+      closed: null, hunter: null, retryAt: null, offered: null, known: false, lead: { at: { x: 30, y: 30 }, turn: 1, heading: 0 },
+    };
+    w.crimes = [c];
+    return c;
+  }
+
+  it('stays hidden while the only open case is one the player has not learned of', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    robbed(w);
+    const well = renderWell(w);
+    expect(well.style.display).toBe('none');
+    expect(well.children).toEqual([]);
+  });
+
+  it('shows a known case with the fine and the restitution in its total', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    robbed(w).known = true;
+    const well = renderWell(w);
+    expect(well.style.display).toBe('');
+    expect(well.all('wanted-owed')[0].text()).toContain('151');
   });
 });

@@ -1,6 +1,6 @@
 
 import { owedBy } from './crime';
-import { answerDemand, demandOpen, huntedCases, isMarshal, payHailedBounty, bountyTerms } from './marshals';
+import { answerDemand, demandOpen, huntedCases, isMarshal, payHailedBounty, hearTerms } from './marshals';
 import { pickLesson } from './lessons';
 import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall } from './help-call';
 import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
@@ -682,7 +682,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
 };
 
 export const PREPARES: Record<PrepareId, Prepare> = {
-  bountyOwed: (world) => bountyTerms(world),
+  bountyOwed: (world) => hearTerms(world),
   roadLesson: (world, npc) => ({ lesson: { kind: 'line', line: pickLesson(world, npc, playerVehicle(world)) } }),
   vigilCall: (world) => prepareVigilCall(world),
   craterNews: (world, npc) => craterNews(world, npc),

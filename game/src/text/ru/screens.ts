@@ -143,6 +143,8 @@ export const SCREENS: Translation<typeof EN> = {
   'hud.contracts': 'Контракты',
   'trade.tab.marshals': 'Маршалы',
   'desk.pay': 'Оплатить',
+  'desk.base': 'Штраф',
+  'desk.restitution': 'Возврат',
   'desk.payAll': 'Оплатить всё',
   'desk.settle': 'Уладить',
   'desk.case.attacked': 'Нападение на {victim, case, acc}',
