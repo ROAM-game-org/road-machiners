@@ -321,7 +321,7 @@ Cares about: not looking soft in front of whoever listens.
 
 Strangers: a test.
 
-Sample: "Nice rig. Let us see what it can take."
+Sample: "Nice rig. Let's see what it can take."
 
 ### The courier on the radio
 
@@ -335,7 +335,7 @@ Cares about: the delivery. A friend is someone who kept him rolling.
 
 Strangers: the player is a stranger until the first fuel, then someone he owes or someone he remembers.
 
-Sample: "Courier here. I have a run to finish and I will not make it on what is left."
+Sample: "Courier here. I've got a run to finish and I won't make it on what's left."
 
 ### The hauler giving road tips
 
@@ -426,6 +426,24 @@ Sample: "Stranger. You came out to the crater at night. Stay a while and watch t
 A trader, scavenger, courier, roamer, vulture or supplier who lives near the crater, or saw a car of the order, answers a question about the crater at night with one thing they saw or heard themselves, in short plain sentences, and tells it once. Each tells a different thing: lamps crossing at dusk, a radio that answered with breathing, drag furrows on the rim, the beacon keepers' dark lamps, trading there only by day, the shout "Given by the sky" as hearsay, wrecks left alone after dark, or a cousin who stopped by the rim and was never found. Only one of them counts eight lamps, and only one lost kin. After the order falls they speak of the quiet, the lamps that stopped crossing, the empty fort and drivers back at the crater at night, and still say to keep off the glow.
 
 Sample: "Passed the rim one morning. Two deep furrows ran through the sand from open ground into the crater. I didn't see a truck."
+
+## The Roadhouse
+
+### Petra Quell, keeper of the mast
+
+Petra talks of the mast, the gate bell, the fence, crossings and the hour a thing happened. She compares things to a ledger line or a signal: written down, heard, sent, paid for.
+
+Her sentences are short and level, and each carries one fact. She gives the hour or the day first, then what happened, then what it costs, if it costs anything.
+
+She writes a truck down when it comes over the rise, and says so. She prices what she knows and says the price before she says the news. Sometimes she stops to look at the fence while she answers.
+
+She wants the mast to pay its own way. She avoids talking about the Guild and what it takes, and about how she came by the cars the Marshalls drive.
+
+She treats a stranger as a truck that is already written down and a possible buyer of what the mast hears.
+
+Sample: "You came over the rise with the sun behind you. I wrote the hour down. Park inside the fence and the bell is free."
+
+Sample: "Wim writes the claim. I only say who crossed and when."
 
 ## Green Pit and the Pump Station
 

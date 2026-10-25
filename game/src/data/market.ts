@@ -7,7 +7,7 @@ import { MEMORY, NPC_BEHAVIOR } from './npc-behavior';
 import { MAP_SCALE } from './region';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
-import type { CrimeOffense } from '../sim/types';
+import type { WitnessedOffense } from '../sim/types';
 
 
 export type Tier = 1 | 2 | 3;
@@ -74,6 +74,7 @@ export const CONTRACTS = {
 
   pastKept: 30,
 
+
   warnTurns: Math.round(TIME.turnsPerDay / 12),
 
   haul: {
@@ -82,7 +83,7 @@ export const CONTRACTS = {
     rewardFactor: 24,
     valueShare: 0.05,
     units: [3, 12] as [number, number],
-    penaltyShare: 1,
+    lateShare: 1,
     xpPerEffort: 0.003,
     rush: {
       chance: 0.25,
@@ -520,10 +521,10 @@ export const STALL_MARKETS = Object.values(SHOPS).filter((s) => s.kind === 'stal
 
 const BOUNTY_WAGE = EFFORT.wage[1];
 const wageOf = (turns: number): number => Math.round(turns * BOUNTY_WAGE);
-const FINE_TURNS: Record<CrimeOffense, number> = { attacked: 450, robbed: 900, killed: 2700 };
+const FINE_TURNS: Record<WitnessedOffense, number> = { attacked: 450, robbed: 900, killed: 2700 };
 
 export const CRIME = {
-  fine: Object.fromEntries(Object.entries(FINE_TURNS).map(([offense, turns]) => [offense, wageOf(turns)])) as Record<CrimeOffense, number>,
+  fine: Object.fromEntries(Object.entries(FINE_TURNS).map(([offense, turns]) => [offense, wageOf(turns)])) as Record<WitnessedOffense, number>,
   purseShare: 0.5,
   minStake: wageOf(60),
   maxOwed: wageOf(4 * FINE_TURNS.robbed),
@@ -533,6 +534,7 @@ export const CRIME = {
   keepClosedTurns: MEMORY.turns.witnessed,
   settleWage: 1,
   wage: BOUNTY_WAGE,
+  leadFee: wageOf(24),
 };
 
 export const BOUNTY = {

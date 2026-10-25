@@ -11,12 +11,12 @@ import type { CrimeCase, Vehicle, World } from "../sim/types";
 import { openCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
-import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
+import { bottomLeft, disabledWith, el, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
   claimRivalMark,
   escortStatusText,
-  heldContractDue,
+  heldContractClock,
   contractSummary,
   surveyProgress,
   isNotable,
@@ -34,6 +34,7 @@ import {
   type LogLine,
   clock,
   stanceTag,
+  caseVictimName,
 } from "./format";
 import { FeedbackForm, type FeedbackKind } from "./game-menu";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
@@ -60,7 +61,7 @@ import { PORTRAIT_STEP_MS, TruckPortraits } from "../three/render/truckPortrait"
 import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
-import { isMet, type Contract } from "../sim/market";
+import { isLate, isMet, type Contract } from "../sim/market";
 import { driverName, factionName, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
 
 export type ContextTarget =
@@ -129,7 +130,6 @@ type HudActions = {
   aimState: (vehicleId: string) => AimState;
 };
 export type CardAction = 'mark' | 'lookOver';
-export type CameraMode = "centered" | "auto";
 
 const TOAST_MS = 3500;
 const CONDITION_ROWS = 12;
@@ -204,9 +204,7 @@ export class Hud {
   private truckStack = el("div", { class: "truck-stack", "data-drawer-frame": "truck" });
   private stranded = panel("stranded notice", this.truckStack);
   private recenter = panel("recenter", bottomLeft());
-  private cameraSwitch = panel("camera-mode", topRight());
   private tips = new Tips(window.localStorage, topCenter(), () => this.toast(t("hud.tipsOff")));
-  cameraMode: CameraMode = "auto";
   private readonly drawers = new Drawers(uiRoot(), () => this.drawerMoved());
   private toastTimer: number | null = null;
 
@@ -311,10 +309,6 @@ export class Hud {
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
     this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
-    this.showCameraMode();
-    window.addEventListener("keydown", (e) => {
-      if (e.code === "KeyV" && !isBrowserChord(e) && !document.activeElement?.matches("input, select, textarea")) this.toggleCameraMode();
-    });
     const feedbackMenu = el("details", {});
     const feedbackEntry = (kind: FeedbackKind, text: Msg) =>
       el(
@@ -344,30 +338,8 @@ export class Hud {
     });
   }
 
-  toggleCameraMode(): void {
-    this.cameraMode = this.cameraMode === "auto" ? "centered" : "auto";
-    this.showCameraMode();
-  }
-
-  cameraModeLabel(): Msg {
-    return this.cameraMode === "auto" ? t("hud.camAuto") : t("hud.camCentered");
-  }
-
   openFeedback(): void {
     this.feedbackForm.open("bug");
-  }
-
-  private showCameraMode(): void {
-    this.cameraSwitch.replaceChildren(
-      createSwitch({
-        on: t("hud.camAuto"),
-        off: t("hud.camCentered"),
-        checked: this.cameraMode === "auto",
-        key: "V",
-        title: t("hud.camTitle"),
-        onclick: () => this.toggleCameraMode(),
-      }),
-    );
   }
 
   showRecenter(on: boolean): void {
@@ -845,7 +817,7 @@ export function heldContractLine(w: World, c: Contract): HTMLElement {
     'div',
     { class: 'contract-line' },
     el('span', {}, contractSummary(c), survey ? el('span', { class: 'dim' }, SPACE, surveyProgress(c), ...surveyClueLines(c)) : null, claimRivalMark(w, c)),
-    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: 'num' }, heldContractDue(c)),
+    c.kind === 'escort' ? escortLine(w, c) : el('span', { class: isLate(w, c) ? 'num bad' : 'num' }, heldContractClock(w, c)),
   );
 }
 
@@ -864,7 +836,6 @@ function escortLine(w: World, c: EscortContract): HTMLElement | null {
 }
 
 function wantedRow(w: World, c: CrimeCase): HTMLElement {
-  const victim = w.vehicles.find((v) => v.id === c.victim);
-  const label = t(`desk.case.${c.offense}`, { victim: victim ? vehicleTitle(w, victim) : t("log.someDriver") });
+  const label = t(`desk.case.${c.offense}`, { victim: caseVictimName(w, c) });
   return el("div", { class: "tooltip-row" }, el("span", {}, label), el("span", { class: "num" }, t("hud.wantedFiled", { site: siteName(c.site), when: clock(c.turn).full })));
 }
