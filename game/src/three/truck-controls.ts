@@ -11,7 +11,7 @@ import { inOverdrive, overdriveBlock } from "../sim/stats";
 import { canLoot, canScavenge, scavenge } from "../sim/locations";
 import { startSurvey } from "../sim/survey";
 import { shopAt } from "../sim/market";
-import { reachedOutpostAt } from "../sim/fury-road";
+import { reachedOutpostAt } from "../sim/chaos-highway";
 import type { World } from "../sim/types";
 import { playerCanAct, Refused, setAutoRepair, setDirect, setHeadlights, setOverdrive } from "../sim/world";
 import { markError, markVehicle } from "../sim/detect";

@@ -105,8 +105,8 @@ function dayEnds(before: World, after: World, last: boolean): boolean {
   return last || clockOf(after.turn).day > clockOf(before.turn).day;
 }
 
-const ARCHETYPE_KITS: Partial<Record<Archetype, string>> = { hunter: 'snowball', escort: 'furyRoad', sprinter: 'furyRoad' };
-const ARCHETYPE_MODES: Partial<Record<Archetype, GameModeId>> = { escort: 'furyRoad', sprinter: 'furyRoad' };
+const ARCHETYPE_KITS: Partial<Record<Archetype, string>> = { hunter: 'snowball', escort: 'chaosHighway', sprinter: 'chaosHighway' };
+const ARCHETYPE_MODES: Partial<Record<Archetype, GameModeId>> = { escort: 'chaosHighway', sprinter: 'chaosHighway' };
 
 function modeOf(archetype: Archetype): GameModeId {
   return ARCHETYPE_MODES[archetype] ?? 'roaming';
@@ -274,7 +274,7 @@ function vehicleLine(w: World, v: Vehicle): string {
 }
 
 function brainlessLine(w: World, v: Vehicle): string {
-  const role = v.id === w.furyRoad?.hauler.id ? 'run hauler' : 'player truck';
+  const role = v.id === w.chaosHighway?.hauler.id ? 'run hauler' : 'player truck';
   return `${role} ${v.chassisId} at ${Math.round(v.pos.x)},${Math.round(v.pos.y)} speed ${v.speed.toFixed(2)} stranded ${isStranded(w, v)} order ${JSON.stringify(v.order)}`;
 }
 

@@ -591,3 +591,17 @@ function withRefitQueue_112_113(v: SavedJson): SavedJson {
   if (job?.kind !== 'refit' || Array.isArray(job.queue)) return v;
   return { ...v, job: { ...job, queue: [] } };
 }
+
+const OLD_MODE_113_114 = 'furyRoad';
+const NEW_MODE_113_114 = 'chaosHighway';
+
+export function chaosHighwayMode_113_114(mode: unknown): unknown {
+  return mode === OLD_MODE_113_114 ? NEW_MODE_113_114 : mode;
+}
+
+export function withChaosHighwayName_113_114(world: SavedJson): SavedJson {
+  if (!('furyRoad' in world)) throw new Error('A world at format 113 holds no Chaos Highway run key');
+  const { furyRoad, ...rest } = world;
+  const setup = world.setup as SavedJson;
+  return { ...rest, chaosHighway: furyRoad, setup: { ...setup, mode: chaosHighwayMode_113_114(setup.mode) } };
+}

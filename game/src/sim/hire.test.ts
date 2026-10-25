@@ -11,7 +11,7 @@ import { checkHire, dismissGuard, guardFee, hireGuard, playerGuard, canHireGuard
 import { goalHolds, placeBase, topGoal } from './npc-activities';
 import { judgeDanger } from './npc-decisions';
 import { addState, advanceStates, endState } from './states';
-import { addVehicle, emptyWorld, forceOption, furyRoadWorld, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, chaosHighwayWorld, npcBrain, testDrive } from './testkit';
 import { getResources } from './resources';
 import { endTurn } from './world';
 import { dist } from './vec';
@@ -102,7 +102,7 @@ describe('hiring on the radio', () => {
   });
 
   it('offers no hire on Chaos Highway', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     const me = playerVehicle(w);
     const merc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: me.pos.x + 5, y: me.pos.y });
     merc.brain = npcBrain('merc', merc.pos, NPCS.merc.traits);

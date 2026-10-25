@@ -234,7 +234,7 @@ export function noclipMove(world: World, target: Vec): World {
 }
 
 export function placeSpot(world: World, id: string): Vec {
-  if (world.furyRoad !== null) throw new CheatError('Chaos Highway has no named places. Use tp <x> <y>');
+  if (world.chaosHighway !== null) throw new CheatError('Chaos Highway has no named places. Use tp <x> <y>');
   const places = worldPlaces(world);
   const place = places.find((p) => p.id === id);
   if (!place) throw new CheatError(`Unknown place ${id}. Places: ${places.map((p) => p.id).join(', ')}`);

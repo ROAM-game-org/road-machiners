@@ -2,7 +2,7 @@
 import { reportLostTruck } from './road-news';
 import { onCall } from "./dialogue";
 import { aimAt } from "./parley";
-import { FURY_ROAD } from '../data/modes';
+import { CHAOS_HIGHWAY } from '../data/modes';
 import { isDefeated, isKnockedOut, knockOutNpc } from './defeat';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
@@ -994,14 +994,14 @@ function canNpcEngage(world: World, v: Vehicle, target: Vehicle): boolean {
 }
 
 function isGroupTruck(world: World, v: Vehicle): boolean {
-  return world.furyRoad !== null && world.furyRoad.groups.some((g) => g.vehicles.includes(v.id));
+  return world.chaosHighway !== null && world.chaosHighway.groups.some((g) => g.vehicles.includes(v.id));
 }
 
 export function groupPrey(world: World, v: Vehicle): Vehicle {
   const me = playerVehicle(world);
   const hauler = haulerOf(world);
   if (inDangerFrom(world, v, me)) return me;
-  return dist(v.pos, hauler.pos) + FURY_ROAD.playerMargin < dist(v.pos, me.pos) ? hauler : me;
+  return dist(v.pos, hauler.pos) + CHAOS_HIGHWAY.playerMargin < dist(v.pos, me.pos) ? hauler : me;
 }
 
 function inDangerFrom(world: World, v: Vehicle, me: Vehicle): boolean {

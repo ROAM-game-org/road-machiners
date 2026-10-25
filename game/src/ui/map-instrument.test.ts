@@ -64,7 +64,7 @@ describe("map instrument", () => {
   it("is absent in Chaos Highway, where M does nothing", () => {
     stubDom();
     const w = emptyWorld();
-    w.setup = { ...w.setup, mode: "furyRoad" };
+    w.setup = { ...w.setup, mode: "chaosHighway" };
 
     expect(mapInstrument(w, false, () => {})).toEqual([]);
   });

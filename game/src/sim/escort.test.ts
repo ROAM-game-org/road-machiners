@@ -533,7 +533,7 @@ describe('courier pairs', () => {
 
   it('offers no escort on the Chaos Highway', () => {
     const w = emptyWorld({ x: 300, y: 300 });
-    w.setup = { ...w.setup, mode: 'furyRoad' };
+    w.setup = { ...w.setup, mode: 'chaosHighway' };
     const me = courierAt(w, { x: 52, y: 60 });
     courierAt(w, { x: 60, y: 60 });
     expect(optionWeights(w, me, 'idle', null, null)).not.toHaveProperty('escort');

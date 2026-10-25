@@ -1,4 +1,4 @@
-import { FURY_ROAD, GAME_MODES, HAZARDS, type EnemyCard, type Line } from '../data/modes';
+import { CHAOS_HIGHWAY, GAME_MODES, HAZARDS, type EnemyCard, type Line } from '../data/modes';
 import { PARTS } from '../data/parts';
 import { HAULER_KIT, startKit } from '../data/start';
 import { milestoneAt, stretchStream } from './highway';
@@ -6,13 +6,13 @@ import { nextRandom, randInt, randRange, type Rng } from './rng';
 import { enemyGearGrowth } from './settings';
 import type { World } from './types';
 
-const DIRECTOR = FURY_ROAD.director;
+const DIRECTOR = CHAOS_HIGHWAY.director;
 
 export type PlannedWave = { at: number; template: string; size: number; money: number; elite: boolean };
 export type StretchBudget = { budget: number; base: number; growth: number };
 
 export function payOf(j: number): number {
-  return lineAt(FURY_ROAD.pay.base, j);
+  return lineAt(CHAOS_HIGHWAY.pay.base, j);
 }
 
 function lineAt(line: Line, j: number): number {
@@ -43,14 +43,14 @@ export function planWaves(seed: number, j: number, budget: number, base: number)
   requireStretch(j);
   const rng = stretchStream(seed, j, 'director');
   const from = milestoneAt(seed, j - 1) + HAZARDS.clearAfterOutpost;
-  const to = milestoneAt(seed, j) - HAZARDS.clearBeforeOutpost - FURY_ROAD.sides.ahead;
+  const to = milestoneAt(seed, j) - HAZARDS.clearBeforeOutpost - CHAOS_HIGHWAY.sides.ahead;
   const count = Math.min(Math.floor((to - from) / DIRECTOR.spacing), roll(rng, lineAt(DIRECTOR.waves, j)));
   const waves = fitBudget(Array.from({ length: count }, () => drawWave(rng, j, base)), budget);
   let left = budget - trucksIn(waves);
   let elites = 0;
   for (const wave of shuffled(rng, waves)) {
     const extra = wave.size * (DIRECTOR.elite.cost - 1);
-    if (extra > left || elites >= eliteCap(j) || !FURY_ROAD.cards[wave.template].chase) continue;
+    if (extra > left || elites >= eliteCap(j) || !CHAOS_HIGHWAY.cards[wave.template].chase) continue;
     elites++;
     wave.money *= DIRECTOR.elite.money;
     wave.elite = true;
@@ -99,7 +99,7 @@ export function eliteCap(j: number): number {
 }
 
 export function cardsOf(j: number): [string, EnemyCard][] {
-  const cards = Object.entries(FURY_ROAD.cards).filter(([, card]) => card.from <= j && card.weight > 0);
+  const cards = Object.entries(CHAOS_HIGHWAY.cards).filter(([, card]) => card.from <= j && card.weight > 0);
   if (cards.length === 0) throw new Error(`Stretch ${j} has no enemy cards`);
   return cards;
 }
@@ -114,7 +114,7 @@ function drawCard(rng: Rng, cards: [string, EnemyCard][]): [string, EnemyCard] {
 }
 
 function startGear(): number {
-  const id = GAME_MODES.furyRoad.kit;
+  const id = GAME_MODES.chaosHighway.kit;
   if (id === null) throw new Error('Chaos Highway has no start kit to measure the player gear from');
   const kit = startKit(id);
   const defs = [...kit.parts, ...(kit.placed ?? []).map((p) => p.defId), ...HAULER_KIT.parts];

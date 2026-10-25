@@ -24,7 +24,7 @@ import { npcHomeSite, towOf } from "./tow";
 import { dropGoal, pushGoal } from "./npc-activities";
 import { holdsRearm } from "./npc-service";
 import { isWeak, wantsLoot } from "./npc-decisions";
-import { endRun } from "./fury-road";
+import { endRun } from "./chaos-highway";
 import { modeRules } from "./settings";
 import type { SalvageStock, Vehicle, World } from "./types";
 import { wreckStockId } from "./salvage";
@@ -51,7 +51,7 @@ export function checkKnockout(world: World): void {
     else endRun(world, "wrecked");
     return;
   }
-  if (world.furyRoad && knockedNow(world, haulerOf(world))) endRun(world, "haulerLost");
+  if (world.chaosHighway && knockedNow(world, haulerOf(world))) endRun(world, "haulerLost");
 }
 
 function knockOutPlayer(world: World, me: Vehicle): void {
@@ -206,7 +206,7 @@ function dropOrdersAt(shooter: Vehicle, targetId: string): void {
 }
 
 export function advanceNpcKnockouts(world: World): void {
-  for (const v of world.vehicles.filter((x) => x.id !== world.player.vehicleId && x.id !== world.furyRoad?.hauler.id)) {
+  for (const v of world.vehicles.filter((x) => x.id !== world.player.vehicleId && x.id !== world.chaosHighway?.hauler.id)) {
     if (v.defeat?.phase === "out") advanceNpcKnockout(world, v);
     else if (v.defeat?.phase === "retreat") advanceRetreat(world, v);
   }

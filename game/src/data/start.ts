@@ -101,7 +101,7 @@ export const START_KITS: Record<string, StartKit> = {
     opening: null,
     intro: null,
   },
-  furyRoad: {
+  chaosHighway: {
     chassis: 'scout',
     parts: ['mg', 'stockEngine'],
     storage: [],

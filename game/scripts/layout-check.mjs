@@ -237,7 +237,7 @@ const openStartMenu = (page) => page.evaluate(async () => {
   const { chooseStart } = await import('/src/ui/save-screen.ts');
   const { SoundSettings } = await import('/src/ui/sound.ts');
   const sound = new SoundSettings({ setBusVolume: () => {}, setMuted: () => {} }, window.localStorage);
-  const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'furyRoad' }];
+  const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'chaosHighway' }];
   void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false }, sound);
 });
 

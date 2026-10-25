@@ -30,6 +30,7 @@ import { memoryBackend, SaveSlots } from './save-db';
 import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
 import { hireEscort } from '../sim/tow';
+import { beforeChaosHighwayName } from '../test/before-chaos-highway-name';
 import { TEST_MAP } from '../test/map';
 import { advanceSunward, duskTurn, membersOf, rideOutTurn, sunwardFacts } from '../sim/sunward';
 import { hollowBays, hollowObstacles } from '../sim/hollow-layout';
@@ -629,6 +630,7 @@ describe('game save', () => {
     const ids = oldSpotPicks(TEST_MAP).map(oldStockId);
     const saved = JSON.parse(JSON.stringify(saveOf(world))).world;
     saved.salvage = saved.salvage.filter((stock: { id: string }) => !oldSpotOf(stock));
+    beforeChaosHighwayName(saved);
     saved.vehicles = saved.vehicles.filter((v: { faction: string }) => v.faction !== 'sunward');
     slots.put('auto', { format: { major: SAVE_MAJOR, minor: SAVE_FORMAT.minor - 1 }, world: saved, savedAt: 1000, runId: RUN });
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;

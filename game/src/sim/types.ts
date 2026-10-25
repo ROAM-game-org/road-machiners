@@ -651,7 +651,7 @@ export type GameEvent =
   | { t: 'asked'; by: string; of: string; target: string; told: boolean }
   | { t: 'huntWithdrawn'; by: string; target: string; posse: CasePosse };
 
-export type GameModeId = 'roaming' | 'furyRoad';
+export type GameModeId = 'roaming' | 'chaosHighway';
 export type ModeRules = { traffic: boolean; looting: boolean; npcKnockouts: boolean; playerKnockouts: boolean; yielding: boolean; radio: boolean; rescue: boolean; roadWrecks: boolean; run: boolean; standing: boolean; bounties: boolean };
 export type MapKind = 'icarus' | 'highway';
 export type RunLossCause = 'wrecked' | 'abandoned' | 'haulerLost';
@@ -673,7 +673,7 @@ export type WaveGroup = {
   retryUntil: number | null;
 };
 export type GroupSide = 'ahead' | 'left' | 'right';
-export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; waitingAt: number | null; hauler: HaulerFacts };
+export type ChaosHighwayRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; waitingAt: number | null; hauler: HaulerFacts };
 export type WorldSettings = { damage: number; fuelUse: number; supplyUse: number; enemyGearGrowth: number };
 export type WorldSetup = { mode: GameModeId; settings: WorldSettings };
 
@@ -747,7 +747,7 @@ export type World = {
   flares: Flare[];
   lines: HarpoonLine[];
   searchRng: Rng;
-  furyRoad: FuryRoadRun | null;
+  chaosHighway: ChaosHighwayRun | null;
   sunward: SunwardFacts | null;
   crimes: CrimeCase[];
 };

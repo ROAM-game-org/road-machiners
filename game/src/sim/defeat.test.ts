@@ -11,7 +11,7 @@ import { scavenge } from './locations';
 import { startSearch } from './search';
 import { addState, endState, stateOf } from './states';
 import { startRepair } from './jobs';
-import { addVehicle, emptyWorld, forceOption, furyRoadStart, npcBrain, practiceOf, rngStateWhere, testDrive } from './testkit';
+import { addVehicle, emptyWorld, forceOption, chaosHighwayStart, npcBrain, practiceOf, rngStateWhere, testDrive } from './testkit';
 import { maxHp } from './wear';
 import { maxHealthOf } from './health';
 import { PERK_NUMBERS } from '../data/skills';
@@ -520,7 +520,7 @@ describe('the player standing down', () => {
   it('refuses where nobody is knocked out, and for a player who is already down', () => {
     const { w, me, raider } = standing();
     expect(() => standDown(w, me, raider.id)).toThrow('Only an active player');
-    const fury = furyRoadStart();
+    const fury = chaosHighwayStart();
     expect(() => standDown(fury, fury.vehicles[0], 'x')).toThrow('cannot stand down');
   });
 });

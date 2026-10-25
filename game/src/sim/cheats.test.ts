@@ -384,7 +384,7 @@ describe('places and time', () => {
   });
 
   it('refuses a place id on Chaos Highway', () => {
-    const w = newWorld(3, START_KITS.furyRoad, highwayMap(3, 0), defaultSetup('furyRoad'));
+    const w = newWorld(3, START_KITS.chaosHighway, highwayMap(3, 0), defaultSetup('chaosHighway'));
     expect(() => placeSpot(w, 'orchard')).toThrow(CheatError);
   });
 

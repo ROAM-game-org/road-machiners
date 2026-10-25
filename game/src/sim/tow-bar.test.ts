@@ -56,7 +56,7 @@ function bendTurns(): Pose[][] {
 }
 
 describe('a hitched truck on a tow bar', () => {
-  it('has a positive bar for every pair of chassis that can be towed, which is every one but the hauler semi of a Fury Road run', () => {
+  it('has a positive bar for every pair of chassis that can be towed, which is every one but the hauler semi of a Chaos Highway run', () => {
     const towable = Object.keys(CHASSIS).filter((id) => id !== HAULER_CHASSIS);
     for (const a of towable) for (const b of towable) expect(towBar(a, b), `${a} towing ${b}`).toBeGreaterThan(0);
   });

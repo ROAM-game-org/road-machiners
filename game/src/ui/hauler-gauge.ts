@@ -9,7 +9,7 @@ export class HaulerGauge {
   readonly root = el("div", { class: "hauler-gauge" });
 
   render(w: World): void {
-    if (!w.furyRoad) {
+    if (!w.chaosHighway) {
       this.root.style.display = "none";
       return;
     }

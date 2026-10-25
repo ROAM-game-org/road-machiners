@@ -180,9 +180,9 @@ export function parseGroupFlags(flags: { crew: string | null; guard: boolean; la
 export function parseRoad(text: string | null): number | null {
   if (text === null) return null;
   const [name, seed] = text.split(':');
-  if (name !== 'fury-road') throw new Error(`--map takes fury-road or fury-road:<seed>, got "${text}"`);
+  if (name !== 'chaos-highway') throw new Error(`--map takes chaos-highway or chaos-highway:<seed>, got "${text}"`);
   const n = seed === undefined ? 1 : Number(seed);
-  if (!Number.isInteger(n)) throw new Error(`--map fury-road:<seed> needs a whole seed, got "${seed}"`);
+  if (!Number.isInteger(n)) throw new Error(`--map chaos-highway:<seed> needs a whole seed, got "${seed}"`);
   return n;
 }
 
@@ -198,9 +198,9 @@ function groundOf(fight: Fight): Ground {
 }
 
 function roadBase(kit: string, seed: number): World {
-  const w = newWorld(seed, START_KITS[kit] ?? missing('kit', kit), highwayMap(seed, 0), defaultSetup('furyRoad'), false);
-  w.furyRoad!.groups = [];
-  w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v.id === w.furyRoad!.hauler.id);
+  const w = newWorld(seed, START_KITS[kit] ?? missing('kit', kit), highwayMap(seed, 0), defaultSetup('chaosHighway'), false);
+  w.chaosHighway!.groups = [];
+  w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v.id === w.chaosHighway!.hauler.id);
   w.states = [];
   const ground = roadGround(seed);
   const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
@@ -352,7 +352,7 @@ function rebuildAt(w: World, v: Vehicle, wear: number): void {
 
 function sideLoadout(w: World, gear: Gear): NpcLoadout {
   const loadout = loadoutOf(w, gear);
-  return w.furyRoad === null ? loadout : { ...loadout, cargo: {}, spares: [] };
+  return w.chaosHighway === null ? loadout : { ...loadout, cargo: {}, spares: [] };
 }
 
 function loadoutOf(w: World, gear: Gear): NpcLoadout {

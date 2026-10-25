@@ -79,7 +79,7 @@ function clearFollowSpot(world: World, me: Vehicle, leader: Vehicle): Vec {
 }
 
 export function lagBehind(world: World, me: Vehicle, hauler: Vehicle): number {
-  const along = (v: Vehicle) => alongOf(world.seed, toRoad(world.seed, world.furyRoad!.window, v.pos));
+  const along = (v: Vehicle) => alongOf(world.seed, toRoad(world.seed, world.chaosHighway!.window, v.pos));
   return along(hauler) - along(me);
 }
 

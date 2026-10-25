@@ -6,7 +6,7 @@ import { isJunk, maxHp } from "../sim/wear";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
 import { canRebuild, partRepairCost, repairPart } from "../sim/economy";
-import { reachedOutpostAt } from "../sim/fury-road";
+import { reachedOutpostAt } from "../sim/chaos-highway";
 import { outpostRepairPart } from "../sim/outposts";
 import {
   freeCells,

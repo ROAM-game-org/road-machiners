@@ -38,10 +38,10 @@ const DEST = { x: 212, y: 262 };
 const TURNS = 20;
 
 function scoutOnRampLip(): World {
-  const w = newWorld(SEED, START_KITS.arrival, highwayMap(SEED, 0), defaultSetup('furyRoad'));
+  const w = newWorld(SEED, START_KITS.arrival, highwayMap(SEED, 0), defaultSetup('chaosHighway'));
   w.terrain = highwayMap(SEED, RAMP_WINDOW).terrain;
   w.obstacles = [];
-  w.furyRoad!.groups = [];
+  w.chaosHighway!.groups = [];
   w.player.fuel = 999;
   const me = w.vehicles[0];
   me.items = LAYOUT.map(([defId, x, y, rot]): GridItem => ({ id: newId(w, 'i'), x, y, rot, kind: 'part', part: makePart(w, defId, 0) }));

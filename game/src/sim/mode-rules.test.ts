@@ -12,7 +12,7 @@ import { renewSalvage } from './salvage';
 import { getResources } from './resources';
 import { addState, advanceStates, stateOf } from './states';
 import { setBeacon } from './tow';
-import { addVehicle, emptyWorld, forceOption, furyRoadWorld, npcBrain } from './testkit';
+import { addVehicle, emptyWorld, forceOption, chaosHighwayWorld, npcBrain } from './testkit';
 import type { GameModeId, Vehicle, World } from './types';
 
 import { TIME } from '../data/time';
@@ -36,7 +36,7 @@ function hostile(w: World, v: Vehicle): void {
 
 describe('yielding', () => {
   it('offers no flight, truce or mercy where no driver yields', () => {
-    const w = worldIn('furyRoad');
+    const w = worldIn('chaosHighway');
     const v = raider(w);
     const me = w.player.vehicleId;
 
@@ -59,7 +59,7 @@ describe('yielding', () => {
   it('never flees when attacked, even when flight is all it would pick', () => {
     forceOption('attacked', 'flee');
     const fled = Array.from({ length: 20 }, (_, seed) => {
-      const w = worldIn('furyRoad');
+      const w = worldIn('chaosHighway');
       const v = raider(w);
       v.brain!.attackers = { [w.player.vehicleId]: false };
       w.rngState = seed + 1;
@@ -71,7 +71,7 @@ describe('yielding', () => {
   });
 
   it('leaves no fight for service in town', () => {
-    const w = worldIn('furyRoad');
+    const w = worldIn('chaosHighway');
     const v = raider(w);
     v.resources!.fuel = 1;
     hostile(w, v);
@@ -82,9 +82,9 @@ describe('yielding', () => {
   });
 
   it('keeps a fight with no gun left, so the truck rams', () => {
-    const furyRoad = worldIn('furyRoad');
+    const chaosHighway = worldIn('chaosHighway');
     const roaming = worldIn('roaming');
-    const unarmed = [furyRoad, roaming].map((w) => {
+    const unarmed = [chaosHighway, roaming].map((w) => {
       const v = raider(w, ['stockEngine']);
       hostile(w, v);
       thinkNpc(w, v);
@@ -105,16 +105,16 @@ describe('yielding', () => {
       thinkNpc(w, v);
       return { w, v };
     };
-    const furyRoad = run('furyRoad');
+    const chaosHighway = run('chaosHighway');
     const roaming = run('roaming');
 
-    expect(topGoal(furyRoad.v)?.kind).toBe('fight');
-    expect(stateOf(furyRoad.w, 'backedOff', furyRoad.v.id, furyRoad.w.player.vehicleId)).toBeNull();
+    expect(topGoal(chaosHighway.v)?.kind).toBe('fight');
+    expect(stateOf(chaosHighway.w, 'backedOff', chaosHighway.v.id, chaosHighway.w.player.vehicleId)).toBeNull();
     expect(stateOf(roaming.w, 'backedOff', roaming.v.id, roaming.w.player.vehicleId)).not.toBeNull();
   });
 
   it('lets a feud lapse without backing off', () => {
-    const w = worldIn('furyRoad');
+    const w = worldIn('chaosHighway');
     const v = raider(w);
     v.pos = { x: 300, y: 300 };
     const feud = addState(w, 'feud', v.id, w.player.vehicleId, { kind: 'feud', robbery: false });
@@ -130,7 +130,7 @@ describe('yielding', () => {
 
 describe('radio', () => {
   it('opens no call, raises no hail and sounds no horn where there is no radio', () => {
-    const w = worldIn('furyRoad');
+    const w = worldIn('chaosHighway');
     const v = raider(w);
 
     expect(() => callVehicle(w, v.id)).toThrow(/radio/);
@@ -142,7 +142,7 @@ describe('radio', () => {
 
 describe('salvage', () => {
   it('leaves no salvage on a wreck and renews none', () => {
-    const w = worldIn('furyRoad');
+    const w = worldIn('chaosHighway');
     const v = raider(w);
     getResources(w, v).health = 0;
     const before = structuredClone(w.salvage);
@@ -167,12 +167,12 @@ describe('knockouts', () => {
       return w.events.flatMap((e) => (e.t === 'npcKnockout' || e.t === 'destroyed' ? [e.t] : []));
     });
 
-    expect(fates('furyRoad')).toEqual(fates('roaming'));
-    expect(fates('furyRoad').some((events) => events.includes('npcKnockout'))).toBe(true);
+    expect(fates('chaosHighway')).toEqual(fates('roaming'));
+    expect(fates('chaosHighway').some((events) => events.includes('npcKnockout'))).toBe(true);
   });
 
   it('ends the run when the player would be knocked out', () => {
-    const w = furyRoadWorld(4);
+    const w = chaosHighwayWorld(4);
     corePart(playerVehicle(w), 'cab').hp = 0;
 
     checkKnockout(w);
@@ -193,7 +193,7 @@ describe('knockouts', () => {
 
 describe('rescue', () => {
   it('turns no beacon on where nobody answers it', () => {
-    const w = worldIn('furyRoad');
+    const w = worldIn('chaosHighway');
     w.player.fuel = 0;
 
     expect(() => setBeacon(w, true)).toThrow(/beacon/);
@@ -203,7 +203,7 @@ describe('rescue', () => {
 
 describe('spilled cargo', () => {
   it('is lost, not piled, where nothing is looted', () => {
-    const w = worldIn('furyRoad');
+    const w = worldIn('chaosHighway');
     const me = playerVehicle(w);
     const before = structuredClone(w.salvage);
     const panniers = mountedParts(me, 'cargo')[0];
@@ -221,7 +221,7 @@ describe('spilled cargo', () => {
 
 describe('dumped cargo', () => {
   it('is thrown away, not piled, where nothing is looted', () => {
-    const w = worldIn('furyRoad');
+    const w = worldIn('chaosHighway');
     addGoods(w, playerVehicle(w), 'salt', 1);
     const salt = playerVehicle(w).items.find((it) => it.kind === 'good' && it.good === 'salt')!;
     const before = structuredClone(w.salvage);

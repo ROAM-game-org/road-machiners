@@ -18,7 +18,7 @@ import { hostileToPlayer } from '../world';
 import type { Ledger } from './orders';
 import { netWorth } from './record';
 import type { NpcLedger } from './npc-ledger';
-import { furyRoadReadout } from '../fury-road';
+import { chaosHighwayReadout } from '../chaos-highway';
 import { EFFORT } from '../../data/market';
 
 export type SeenFoe = { id: string; who: string; dist: number; odds: number; speed: number };
@@ -79,7 +79,7 @@ export function turnLine(world: World, events: readonly GameEvent[], ledger: Led
 }
 
 function runField(world: World): { run?: string } {
-  const run = furyRoadReadout(world);
+  const run = chaosHighwayReadout(world);
   return run ? { run: `${run.stretch} ${Math.round(run.toOutpost)}` } : {};
 }
 

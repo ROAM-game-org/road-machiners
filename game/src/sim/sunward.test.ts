@@ -5,7 +5,7 @@ import { TERRAIN } from '../data/terrain';
 import { MAX_RANK, SKILL_EFFECTS } from '../data/skills';
 import { NPCS } from '../data/npcs';
 import { TIME } from '../data/time';
-import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, testDrive } from './testkit';
+import { addVehicle, emptyWorld, chaosHighwayWorld, npcBrain, testDrive } from './testkit';
 import { addGoods } from './inventory';
 import { knockOutNpc } from './defeat';
 import { siteGap, sitePads } from './sites';
@@ -117,7 +117,7 @@ describe('the Sunward clock', () => {
   });
 
   it('has no order on Chaos Highway', () => {
-    const w = furyRoadWorld();
+    const w = chaosHighwayWorld();
     expect(w.sunward).toBeNull();
     expect(() => sunwardPhase(w)).toThrow(/no Sunward order/);
     expect(w.obstacles.some(isHollowObstacle)).toBe(false);
@@ -147,7 +147,7 @@ describe('the Hollow', () => {
   });
 
   it('gives Chaos Highway no Sunward car', () => {
-    expect(membersOf(furyRoadWorld())).toEqual([]);
+    expect(membersOf(chaosHighwayWorld())).toEqual([]);
   });
 
   it('lies out of sight of every road segment and every town and site, even for a maxed driver by day', () => {
