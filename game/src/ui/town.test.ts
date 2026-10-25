@@ -239,7 +239,7 @@ describe("the price of a case at the Marshalls desk", () => {
   const robbery = (restitution: number): CrimeCase => ({
     id: "case1", crime: "1:me:npc-x:robbed", offense: "robbed", target: "me", victim: "npc-x", issuer: { kind: "faction", faction: "bowl" },
     reporters: ["npc-x"], site: "bowl", at: { x: 0, y: 0 }, turn: 1, filed: 2, owed: 11097, restitution, escrow: 0, status: "open",
-    closed: null, hunter: null, retryAt: null, offered: null, known: true, lead: { at: { x: 0, y: 0 }, turn: 1, heading: 0 },
+    closed: null, hunter: null, retryAt: null, offered: null, known: true, posse: 'lone', lead: { at: { x: 0, y: 0 }, turn: 1, heading: 0 },
   });
   const tipRows = (price: FakeNode) => price.all((n) => n.has("tooltip-row")).map((row) => [row.className, row.text()]);
 

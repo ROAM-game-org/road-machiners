@@ -468,6 +468,7 @@ export const LOG = {
   'goal.atPost': 'At the Roadhouse',
   'goal.caseClosed': 'Case closed',
   'goal.huntGaveUp': 'Lost the trail',
+  'goal.backToPost': 'Riding back to the Roadhouse',
   'goal.cannotWearDown': 'Cannot wear the target down',
   'goal.fightOverLoot': 'Fight over loot',
   'goal.looterWontLeave': 'The looter would not leave',

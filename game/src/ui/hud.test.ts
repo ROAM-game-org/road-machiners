@@ -185,7 +185,7 @@ describe('the Wanted well', () => {
     const c: CrimeCase = {
       id: 'case1', crime: `1:${w.player.vehicleId}:npc-x:robbed`, offense: 'robbed', target: w.player.vehicleId, victim: 'npc-x', issuer: { kind: 'faction', faction: 'bowl' },
       reporters: ['npc-x'], site: 'bowl', at: { x: 30, y: 30 }, turn: 1, filed: 2, owed: 11097, restitution: 4000, escrow: 0, status: 'open',
-      closed: null, hunter: null, retryAt: null, offered: null, known: false, lead: { at: { x: 30, y: 30 }, turn: 1, heading: 0 },
+      closed: null, hunter: null, retryAt: null, offered: null, known: false, posse: 'lone', lead: { at: { x: 30, y: 30 }, turn: 1, heading: 0 },
     };
     w.crimes = [c];
     return c;

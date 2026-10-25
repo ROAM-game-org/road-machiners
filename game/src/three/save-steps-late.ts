@@ -574,3 +574,10 @@ export function withCaseRestitution_109_110(world: SavedJson): SavedJson {
   const vehicles = (world.vehicles as SavedJson[]).map(withMemoryRestitution_109_110);
   return { ...world, crimes, vehicles };
 }
+
+const LONE_POSSE_110_111 = 'lone';
+
+export function withCasePosse_110_111(world: SavedJson): SavedJson {
+  const crimes = world.crimes as SavedJson[];
+  return { ...world, crimes: crimes.map((c) => ({ ...c, posse: LONE_POSSE_110_111 })) };
+}

@@ -1029,7 +1029,7 @@ describe("the Bounty hunter Wanted mark", () => {
     w.crimes = [{
       id: "case1", crime: `1:${robber.id}:npc-x:robbed`, offense: "robbed", target: robber.id, victim: "npc-x", issuer: { kind: "faction", faction: "bowl" },
       reporters: ["npc-x"], site: "bowl", at: { x: 200, y: 200 }, turn: 1, filed: 2, owed: 11097, restitution: 4000, escrow: 0, status: "open",
-      closed: null, hunter: null, retryAt: null, offered: null, known: false, lead: { at: { x: 200, y: 200 }, turn: 1, heading: 0 },
+      closed: null, hunter: null, retryAt: null, offered: null, known: false, posse: "lone", lead: { at: { x: 200, y: 200 }, turn: 1, heading: 0 },
     }];
     expect(wantedBounty(w, robber)).toBeNull();
     w.player.perks = ["bountyHunter"];

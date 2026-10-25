@@ -5,7 +5,7 @@ import { CRIME, BOUNTY } from '../data/market';
 import { BANDS } from '../data/npc-behavior';
 import type { TraitId } from '../data/npcs';
 import {
-  canPayBounty, caseOwed, closeCase, knownCasesOn, collectBounty, crimeOf, deskAt, deskRows, fileReports, finesOn, noteHandover, noteKilling, offerCases, openCasesOn, owedBy, payBounty, payCasesAtDesk, settle, settlementQuote, settlePrice, advanceCrimes,
+  canPayBounty, caseOwed, closeCase, knownCasesOn, collectBounty, crimeOf, deskAt, deskRows, fileReports, finesOn, noteHandover, noteKilling, offerCases, openCasesOn, owedBy, payBounty, payCasesAtDesk, settle, settlementQuote, settlePrice, advanceCrimes, stepPosse, targetNeed,
 } from './crime';
 import { playerVehicle } from './damage';
 import { knockOutNpc } from './defeat';
@@ -17,6 +17,7 @@ import { getResources } from './resources';
 import { nearestPad } from './sites';
 import { addState } from './states';
 import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
+import { startEscort } from './tow';
 import type { CrimeCase, Faction, Vehicle, World } from './types';
 import type { Vec } from './vec';
 import { cloneWorld, endTurn } from './world';
@@ -675,5 +676,54 @@ describe('knowing a case', () => {
     toPad(playerVehicle(desk), CRIME.post);
     expect(deskAt(desk)).toBe(CRIME.post);
     expect(known(endTurn(desk, testDrive))).toBe(1);
+  });
+});
+
+describe('the posse a case needs', () => {
+  function filedOn(): { w: World; robber: Vehicle; c: CrimeCase } {
+    const { w, robber, victim, witness } = scene();
+    rob(w, robber, victim);
+    toPad(witness, 'nose');
+    fileReports(w, witness);
+    return { w, robber, c: w.crimes[0] };
+  }
+
+  it('files a new case for one Marshall', () => {
+    const { w, robber, c } = filedOn();
+    expect(c.posse).toBe('lone');
+    expect(targetNeed(w, robber.id)).toBe('lone');
+  });
+
+  it('steps a case from one Marshall to the pair to spent, and throws past spent (IV1)', () => {
+    const { w, robber, c } = filedOn();
+    stepPosse([c]);
+    expect(c.posse).toBe('pair');
+    expect(targetNeed(w, robber.id)).toBe('pair');
+    stepPosse([c]);
+    expect(c.posse).toBe('spent');
+    expect(targetNeed(w, robber.id)).toBeNull();
+    expect(() => stepPosse([c])).toThrow(/spent/);
+  });
+
+  it('sends the pair after a target with a spent case and a new one, and nobody after a closed one (IV4)', () => {
+    const { w, robber, c } = filedOn();
+    c.posse = 'spent';
+    const fresh = { ...structuredClone(c), id: 'case-fresh', posse: 'lone' as const };
+    w.crimes = [...w.crimes, fresh];
+    expect(targetNeed(w, robber.id)).toBe('pair');
+    closeCase(w, fresh, 'lapsed');
+    closeCase(w, c, 'lapsed');
+    expect(targetNeed(w, robber.id)).toBeNull();
+  });
+
+  it("makes the hunter's escort follower's attack on the target no crime, and any other driver's a crime", () => {
+    const { w, robber, c } = filedOn();
+    const hunter = npc(w, 'marshals', 'marshal', ['marshal', 'brave'], { x: 390, y: 400 });
+    const partner = npc(w, 'marshals', 'marshal', ['marshal', 'brave'], { x: 392, y: 404 });
+    const stranger = npc(w, 'marshals', 'marshal', ['marshal', 'brave'], { x: 380, y: 404 });
+    c.hunter = hunter.id;
+    startEscort(w, partner, hunter, null, 0);
+    expect(crimeOf(w, partner, robber, 'attacked')).toBe(false);
+    expect(crimeOf(w, stranger, robber, 'attacked')).toBe(true);
   });
 });

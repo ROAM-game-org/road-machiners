@@ -1,6 +1,6 @@
 
 import { owedBy } from './crime';
-import { answerDemand, demandOpen, huntedCases, isMarshal, payHailedBounty, hearTerms } from './marshals';
+import { answerDemand, callsPartner, demandOpen, huntedCases, isMarshal, payHailedBounty, hearTerms } from './marshals';
 import { pickLesson } from './lessons';
 import { canAskHelp, helpAnswer, joinPlayerFight, turnDownCall } from './help-call';
 import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
@@ -300,6 +300,8 @@ export function coldLine(world: World, npc: Vehicle, topics: readonly TopicId[])
 export const CONDITIONS: Record<ConditionId, Condition> = {
   bountyDemandOpen: (world, npc) => isMarshal(npc) && demandOpen(world, npc, playerVehicle(world)) !== null,
   huntsPlayer: (world, npc) => isMarshal(npc) && huntedCases(world, npc, world.player.vehicleId).length > 0,
+  callsPartner: (world, npc) => callsPartner(world, npc),
+  trucesForGood: (world, npc) => !callsPartner(world, npc),
   firstVigilCall: (world, npc) => vigilCallDue(world, npc, 1),
   secondVigilCall: (world, npc) => vigilCallDue(world, npc, 2),
   lastVigilCall: (world, npc) => vigilCallDue(world, npc, 3),
