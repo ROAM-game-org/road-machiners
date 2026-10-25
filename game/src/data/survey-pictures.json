@@ -1,5 +1,5 @@
 {
-  "mapHash": "1777c1b6",
+  "mapHash": "fe58ae1d",
   "sites": {
     "survey-ruin-34": "0.1a70961b",
     "survey-ruin-45": "0.d9dcb4ea",
@@ -8,17 +8,21 @@
     "survey-house-72": "0.2ff8e27f",
     "survey-house-82": "0.dfafbaf2",
     "survey-ruin-84": "0.cae16cb7",
-    "survey-ruin-88": "0.2ca88edd",
-    "survey-waterTower-94": "0.2ba23b08",
-    "survey-tank-282": "0.bbf24bee",
-    "survey-tank-284": "0.0af48a56",
-    "survey-tank-286": "0.8ef157b2",
-    "survey-tank-289": "0.cd45ef67",
-    "survey-tank-306": "0.c91e753d",
-    "survey-tank-307": "0.872414a6",
-    "survey-skiff-6059": "0.04daeadf",
-    "survey-fishingBoat-6062": "0.fd32dc5d",
-    "survey-skiff-6067": "0.8be5951",
-    "survey-fishingBoat-6070": "0.ed738f51"
+    "survey-ruin-93": "0.b216ebfe",
+    "survey-house-101": "0.238a8541",
+    "survey-tank-284": "0.b405a92d",
+    "survey-tank-286": "0.99c76784",
+    "survey-tank-288": "0.7c58db4e",
+    "survey-tank-293": "0.f0aff8bb",
+    "survey-tank-294": "0.be0f16ba",
+    "survey-tank-296": "0.dc02040b",
+    "survey-tank-304": "0.1ac82c2e",
+    "survey-tank-305": "0.22500018",
+    "survey-tank-311": "0.38a5fe9d",
+    "survey-tank-312": "0.8df9a2d8",
+    "survey-skiff-5972": "0.0e545a4a",
+    "survey-fishingBoat-5975": "0.d2263c6e",
+    "survey-skiff-5980": "0.461c3c42",
+    "survey-skiff-5983": "0.47627a15"
   }
 }
