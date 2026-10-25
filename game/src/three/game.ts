@@ -1059,7 +1059,9 @@ export class Game {
     this.rig.leash(truck, sightRadius);
     this.follow.update(truck, cameraSetting().mode() === "auto" ? this.orderPoint() : null, dt, playMs);
     this.hud.showRecenter(!this.follow.isFollowing());
-    lightScene(this.sun, this.sky, truck, daylightAt(lightTurnOf(this.world, this.anim)));
+    const daylight = daylightAt(lightTurnOf(this.world, this.anim));
+    lightScene(this.sun, this.sky, truck, daylight);
+    this.craters.graffiti.light(daylight.sunIntensity);
     this.fx.light({ sun: this.sun, sky: this.sky });
     CLOUD_SHADOWS.sync(this.world, lightTurnOf(this.world, this.anim), this.play.frameMs());
     this.vehicleLights.sync(this.world, this.frames, lightTurnOf(this.world, this.anim), (pos) => this.sightLimit.reaches(pos), truck);

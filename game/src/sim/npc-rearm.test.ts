@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { NPC_BEHAVIOR, NPCS, NPC_UPKEEP } from '../data/npcs';
+import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { advanceNpcKnockouts, isDefeated } from './defeat';
 import { corePart, mountedParts } from './grid';
+import { makePart } from './factory';
+import { mountPart } from './inventory';
 import { advanceJobs } from './jobs';
 import { fitToHunt } from './npc-decisions';
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
@@ -56,6 +59,16 @@ describe('a raider unfit to hunt', () => {
     expect(fitToHunt(w, v)).toBe(false);
     expect(thinkNpc(w, v)).toMatchObject({ kind: 'resupply', targetId: 'kiln', reason: 'unfitToHunt' });
     expect(v.brain!.goals.map((g) => g.kind)).toEqual(['resupply']);
+  });
+
+  it('lies up for a gun when only a harpoon is left, since a harpoon alone is not a gun', () => {
+    const { w, v } = raider();
+    v.items = v.items.filter((item) => !(item.kind === 'part' && partDef(item.part.defId).kind === 'weapon'));
+    expect(mountPart(w, v, makePart(w, 'harpoon', 0))).toBe(true);
+    getResources(w, v).money = 0;
+    forceOption('idle', 'raid');
+    expect(fitToHunt(w, v)).toBe(false);
+    expect(thinkNpc(w, v)).toMatchObject({ kind: 'resupply', targetId: 'kiln', reason: 'unfitToHunt' });
   });
 
   it('is repaired at camp, guns and armor included, when it can pay, and then may raid again', () => {

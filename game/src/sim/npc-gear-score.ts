@@ -1,6 +1,6 @@
 import { CONDITION } from '../data/wear';
 import { GEAR_SCORE, PRIORITY_TOP, type LoadoutPriorities } from '../data/npcs';
-import { PARTS, partDef, type EngineDef, type WeaponDef } from '../data/parts';
+import { isLineGun, PARTS, partDef, type EngineDef, type WeaponDef } from '../data/parts';
 import { makePart } from './factory';
 import { gunsBySide, killRate, targetOf, THREATS } from './fight-odds';
 import { baseGrid, cellKey, freeCells, itemCells, mountedItems, plateSide, type SideLetter } from './grid';
@@ -30,7 +30,7 @@ export function armorQuality(world: World, defId: string, wear: number): number 
 export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, paysFuel: boolean): (v: Vehicle) => number {
   const edge = Object.fromEntries(SIDE_LETTERS.map((letter) => [letter, baseGrid(bare.chassisId).cells.flat().filter((cell) => cell === letter).length]));
   const target = targetOf(bare);
-  const tierOne = Object.values(PARTS).filter((d): d is WeaponDef => d.kind === 'weapon' && d.tier === 1 && d.line === undefined);
+  const tierOne = Object.values(PARTS).filter((d): d is WeaponDef => d.kind === 'weapon' && d.tier === 1 && !isLineGun(d));
   const saturation = (GEAR_SCORE.gunSaturation * tierOne.reduce((sum, def) => sum + killRate(def, target, 'front'), 0)) / tierOne.length;
   const bareSpeed = vehicleStats(world, bare).maxSpeed;
   const bareCells = freeCells(bare);
@@ -57,7 +57,7 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, pa
   const fireValue = (v: Vehicle) => {
     const guns = gunsBySide(v);
     const sides = SIDE_LETTERS.map((letter) => {
-      const fire = guns[LETTER_SIDE[letter]].reduce((sum, def) => sum + rateOf(def), 0);
+      const fire = guns[LETTER_SIDE[letter]].filter((def) => !isLineGun(def)).reduce((sum, def) => sum + rateOf(def), 0);
       return 1 - Math.exp(-((fire / saturation) ** GEAR_SCORE.gunCurvePower));
     });
     return sides.reduce((a, b) => a + b, 0) / sides.length;
