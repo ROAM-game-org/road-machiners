@@ -17,7 +17,7 @@ import { canVehicleSee, refreshVision } from './vision';
 
 const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', lineKey(line));
 
-const ACCEPT = 'It is yours.';
+const ACCEPT = "It's yours.";
 const REFUSE = 'Over my wreck.';
 
 function quietWorld(): World {
