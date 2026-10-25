@@ -1,3 +1,5 @@
+import { MAP_SCALE_BAR, WORLD_MAP } from '../data/minimap';
+import { PHYSICS } from '../data/physics';
 import { VIEW } from '../data/view';
 import type { Vec } from '../sim/vec';
 
@@ -84,4 +86,21 @@ export function pinToEdge(v: Viewport, p: Vec, inset: number): MapPoint {
 export function canvasTransform(v: Viewport): [number, number, number, number, number, number] {
   const k = v.tileSize;
   return [RIGHT.x * k, -UP.x * k, RIGHT.y * k, -UP.y * k, v.width / 2 - along(v.center, RIGHT) * k, v.height / 2 + along(v.center, UP) * k];
+}
+
+export function scaleBarTiles(tileSize: number, width: number): number {
+  requireTileSize(tileSize);
+  if (!Number.isFinite(width) || width <= 0) throw new Error(`Map width ${width} is not a positive number`);
+  const steps = MAP_SCALE_BAR.meters.map((meters) => meters / PHYSICS.metersPerTile);
+  const fitting = steps.filter((tiles) => tiles * tileSize <= MAP_SCALE_BAR.widthShare * width);
+  return fitting.length > 0 ? fitting[fitting.length - 1] : steps[0];
+}
+
+const WHEEL_UNIT_PIXELS = [1, WORLD_MAP.wheelLinePixels, WORLD_MAP.wheelPagePixels];
+
+export function wheelZoomFactor(deltaY: number, deltaMode: number): number {
+  const unit = WHEEL_UNIT_PIXELS[deltaMode];
+  if (!Number.isFinite(deltaY) || unit === undefined) throw new Error(`Wheel delta ${deltaY} in mode ${deltaMode} is not usable`);
+  const pixels = Math.max(-WORLD_MAP.wheelNotch, Math.min(WORLD_MAP.wheelNotch, deltaY * unit));
+  return WORLD_MAP.wheelNotchStep ** (-pixels / WORLD_MAP.wheelNotch);
 }

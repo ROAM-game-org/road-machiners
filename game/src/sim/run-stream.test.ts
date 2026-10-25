@@ -204,8 +204,8 @@ describe('events', () => {
     stream.begin(world, 'new');
     const me = world.player.vehicleId;
     const events: GameEvent[] = [
-      { t: 'collision', a: me, b: near.id, hitsA: [{ part: 'a', damage: 2 }], hitsB: [{ part: 'b', damage: 5 }] },
-      { t: 'collision', a: near.id, b: me, hitsA: [{ part: 'b', damage: 1 }], hitsB: [{ part: 'a', damage: 1 }] },
+      { t: 'collision', a: me, b: near.id, impact: 3, hitsA: [{ part: 'a', damage: 2 }], hitsB: [{ part: 'b', damage: 5 }] },
+      { t: 'collision', a: near.id, b: me, impact: 3, hitsA: [{ part: 'b', damage: 1 }], hitsB: [{ part: 'a', damage: 1 }] },
       { t: 'practice', source: 'hit', amount: 1, difficulty: null, target: near.id, xp: 1 },
       { t: 'honk', vehicle: near.id },
       shot(far.id, 'ghost', 'mg', 1),

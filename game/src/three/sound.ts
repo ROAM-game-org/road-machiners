@@ -123,6 +123,13 @@ export class SoundDirector {
     this.player.play(cue, this.place(p), delayMs);
   }
 
+  atLevel(cue: CueId, p: V3, delayMs: number, level: number): void {
+    if (!(level > 0 && level <= 1)) throw new Error(`Sound level ${level} is outside (0, 1]`);
+    this.record(`${cue} ${level.toFixed(2)}`);
+    const placed = this.place(p);
+    this.player.play(cue, { pan: placed.pan, gain: placed.gain * level }, delayMs);
+  }
+
   honk(p: V3, delayMs: number, chassisId: string): void {
     this.record("horn");
     this.player.play("horn", this.place(p), delayMs, hornSoundFor(chassisId));

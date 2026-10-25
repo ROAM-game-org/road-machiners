@@ -21,8 +21,8 @@
   position: absolute;
   inset: 0;
 }
-.condition-layers img,
-.condition-hover img,
+.condition-layers canvas,
+.condition-hover canvas,
 .cond-hatch,
 .cond-cells,
 .cond-flash {

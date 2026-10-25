@@ -38,7 +38,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_book = true
   -> hub
 + [What is the road like out here?]
-  Dry. Every driver sits with his water between his feet. I make a point of never taking the last of it from anyone, and you can ask me why. The Kiln riders from the camp in the south mostly leave us alone. You can ask me about that too.
+  Dry. My families pick stalled and knocked-out trucks clean, down to the frame, and the driver keeps his water. The Kiln riders from the camp in the south mostly leave us alone.
   ~ heard_water = true
   ~ heard_kiln = true
   -> hub
@@ -72,7 +72,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ note("talkPierceGuns")
   ~ asked_pguns = true
   -> hub
-+ {heard_water and not asked_water} [Why do you never take the last water?]
++ {heard_water and not asked_water} [Why leave a stripped driver his water?]
   A man with no water is a body, and a body is trouble. Leave him his water and he's a fool who walks on. Fools talk less than bodies. Also, my mother would find out. She finds out everything.
   ~ asked_water = true
   -> hub
@@ -81,7 +81,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ asked_kiln = true
   ~ heard_rider = true
   -> hub
-+ {heard_rider and not asked_rider} [Has a rider ever come to you with nothing?]
++ {heard_rider and not asked_rider} [Did a Kiln rider ever come for shelter?]
   Once. His brother died in the road. He ate our beans for a long time and said little, and then he went south-west. I won't say his name. It would be rude to the beans.
   ~ asked_rider = true
   -> hub

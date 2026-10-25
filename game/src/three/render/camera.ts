@@ -7,7 +7,8 @@ import type { Vec } from '../../sim/vec';
 
 const S = PHYSICS.metersPerTile;
 const VIEW_METERS = 72;
-const OFFSET = new THREE.Vector3(-VIEW.screenUp.x, VIEW.rise, -VIEW.screenUp.y).normalize().multiplyScalar(300);
+export const CAMERA_DIR = new THREE.Vector3(-VIEW.screenUp.x, VIEW.rise, -VIEW.screenUp.y).normalize();
+const OFFSET = CAMERA_DIR.clone().multiplyScalar(300);
 const ZOOM = { min: 0.35, max: 4 };
 const FOLLOW_TAU_MS = 250;
 const LEAD = 0.5;
