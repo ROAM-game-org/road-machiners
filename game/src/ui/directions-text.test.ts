@@ -15,8 +15,10 @@ const STEPS: DirectionStep[] = [
   { do: 'turn', side: 'right', at: { kind: 'prop', look: 'waterTower' }, road: { kind: 'to', site: 'granary' }, span: 'near' },
   { do: 'turn', side: 'keepLeft', at: { kind: 'fork', nth: 2 }, road: { kind: 'to', site: 'bowl' }, span: 'near' },
   { do: 'turn', side: 'keepRight', at: { kind: 'none' }, road: { kind: 'to', site: 'bowl' }, span: 'near' },
-  { do: 'leave', at: { kind: 'deck', id: 'canyon-bridge' }, octant: 'east', span: 'fair' },
-  { do: 'leave', at: { kind: 'none' }, octant: 'east', span: 'fair' },
+  { do: 'leave', at: { kind: 'deck', id: 'canyon-bridge' }, octant: 'east', lean: null, span: 'fair' },
+  { do: 'leave', at: { kind: 'none' }, octant: 'east', lean: null, span: 'fair' },
+  { do: 'gate', side: 'east' },
+  { do: 'leave', at: { kind: 'none' }, octant: 'south', lean: 'east', span: 'fair' },
   { do: 'straight', octant: 'southEast', span: 'near' },
   { do: 'arrive', site: 'bowl', area: false },
   { do: 'arrive', site: 'orchard', area: true },
@@ -127,7 +129,16 @@ describe('directionsText', () => {
   });
 
   it('says past the fork where a wreck leave point is counted', () => {
-    expect(resolve(directionsText([{ do: 'leave', at: { kind: 'fork', nth: 2 }, octant: 'east', span: 'near' }]), 'en')).toBe('Past the second fork, where the road runs closest, leave the road and head east, a short way.');
+    expect(resolve(directionsText([{ do: 'leave', at: { kind: 'fork', nth: 2 }, octant: 'east', lean: null, span: 'near' }]), 'en')).toBe('Past the second fork, where the road runs closest, leave the road and head east, a short way.');
+  });
+
+  it('tells a gate, a lean and a place way with no search sentence', () => {
+    const steps: DirectionStep[] = [
+      { do: 'gate', side: 'east' },
+      { do: 'follow', road: { kind: 'to', site: 'nose' }, heading: 'northEast', span: 'fair' },
+      { do: 'leave', at: { kind: 'none' }, octant: 'south', lean: 'east', span: 'fair' },
+    ];
+    expect(resolve(directionsText(steps), 'en')).toBe('Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south and a touch east, a fair way.');
   });
 
   it('asks again plainly', () => {
