@@ -11,6 +11,7 @@ import type { CrimeCase, Vehicle, World } from "../sim/types";
 import { caseOwed, knownCasesOn } from "../sim/crime";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
+import { gaveUp } from "../sim/defeat";
 import { bottomLeft, disabledWith, el, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
@@ -307,7 +308,6 @@ export class Hud {
     this.toastBox.style.display = "none";
     this.rescue.style.display = "none";
     this.knockedOut.style.display = "none";
-    this.knockedOut.append(el("span", { class: "bad" }, t("actBlock.knockedOut")));
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
     this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
@@ -403,7 +403,9 @@ export class Hud {
   renderRescue(w: World): void {
     this.dialogue.render(w);
     const r = getRescueReadout(w);
-    this.knockedOut.style.display = rescueOf(r, "knockedOut") ? "" : "none";
+    const down = rescueOf(r, "knockedOut");
+    this.knockedOut.style.display = down ? "" : "none";
+    if (down) this.knockedOut.replaceChildren(el("span", { class: "bad" }, t(gaveUp(playerVehicle(w)) ? "npc.gaveUp" : "actBlock.knockedOut")));
     this.renderMiddle(rescueOf(r, "towed") ?? rescueOf(r, "dragged"));
     this.renderStranded(rescueOf(r, "stranded"));
   }

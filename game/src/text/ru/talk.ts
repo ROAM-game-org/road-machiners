@@ -191,7 +191,7 @@ export const TALK: Translation<typeof EN> = {
   'line.stateYourBusiness': 'Выкладывай, чего надо.',
   'line.stopShootingIGive': 'Не стреляй! Сдаюсь. Забирай, что я везу, и отпусти.',
   'line.surePullOverAnd': 'Давай. Съезжай на обочину, я подъеду.',
-  'line.surrenderOffer': 'Твой грузовик мертв. Отдай {haul}, и грузовик твой. Откажешься — сниму всё с обломков.',
+  'line.surrenderOffer': 'Твой грузовик мертв. Сдавайся и дай мне его разобрать. Откажешься — сначала пристрелю тебя прямо в кабине.',
   'line.takeMeToSite': 'Отвези меня {site, case, to}. Заплачу {fee}, когда доедем.',
   'line.takeWhatICarry': 'Забирай, что я везу. Только дай уехать.',
   'line.talk': 'Говори.',

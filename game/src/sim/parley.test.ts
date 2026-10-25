@@ -9,7 +9,7 @@ import { addGoods } from './inventory';
 import { takeAllLoot } from './locations';
 import { pushGoal, resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { visibleSalvage } from './npc-decisions';
-import { makePeace, plead, surrenderTo, yieldTo } from './parley';
+import { makePeace, plead, standDownTo, yieldTo } from './parley';
 import { claimantOf, emptyHidden, hasCargo, lootBlocker, looterOf } from './salvage';
 import { beginSearch } from './search';
 import { addState, endState, stateOf } from './states';
@@ -557,10 +557,12 @@ describe('pile claims', () => {
       expectsLoot(w, robber, victim);
     });
 
-    it('the player surrenders and the robber keeps its loot goal', () => {
+    it('the player stands down and the robber keeps its loot goal', () => {
       const { w, robber, victim } = setup('player');
-      surrenderTo(w, victim, robber);
-      expectsLoot(w, robber, victim);
+      standDownTo(w, victim, robber);
+      thinkNpc(w, robber);
+      expect(fights(w, robber, victim)).toEqual([]);
+      expect(topGoal(robber)).toMatchObject({ kind: 'loot', targetId: victim.id });
     });
 
     it('peace also ends the fights of an ally of either side', () => {

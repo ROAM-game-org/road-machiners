@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RULES } from '../data/rules';
-import { cargoHaul, haulVar, showsHaul, surrenderHaul } from './haul';
+import { cargoHaul, haulVar, showsHaul, strippable } from './haul';
 import { CRATE_MASS } from '../data/goods';
 import { addGoods, cargoMassRoom, cargoRoom, stowPart } from './inventory';
 import { goodsCount } from './grid';
@@ -63,7 +62,7 @@ describe('the haul', () => {
     const rng = w.rngState;
     const items = structuredClone([r.items, v.items]);
     cargoHaul(r, v);
-    surrenderHaul(r, v);
+    strippable(r, v);
     expect(w.rngState).toBe(rng);
     expect([r.items, v.items]).toEqual(items);
   });
@@ -100,13 +99,10 @@ describe('the haul', () => {
     expect(showsHaul(undefined, haul)).toBe(false);
   });
 
-  it('adds at most the surrender parts after the cargo', () => {
+  it('is strippable when the victim carries a part the robber has room for', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const r = robber(w);
     const v = addVehicle(w, 'independent', 'wagon', ['mg', 'stockEngine', 'heavyMg', 'mg'], { x: 14, y: 10 });
-    const cargo = cargoHaul(r, v);
-    const strip = surrenderHaul(r, v);
-    const mounted = strip.filter((item) => !cargo.includes(item));
-    expect(mounted.length).toBeLessThanOrEqual(RULES.surrenderParts);
+    expect(strippable(r, v)).toBe(true);
   });
 });

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { chassisDef } from '../data/chassis';
 import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
-import { PERK_NUMBERS } from '../data/skills';
 import { knockOutNpc } from './defeat';
 import { corePart, findSpot, goodsCount, gridOf, isMounted, MOUNT_CELLS, type Spot } from './grid';
 import { addGoods, stowParcel } from './inventory';
@@ -71,15 +70,6 @@ describe('the player looting a knocked-out truck', () => {
     expect(target().items.some((it) => it.id === gun.id)).toBe(false);
     expect(next.vehicles[0].items.some((it) => it.kind === 'part' && it.part.id === (gun.kind === 'part' ? gun.part.id : ''))).toBe(true);
     expect(next.vehicles[0].job).toBeNull();
-  });
-
-  it('removes an installed gun in one job with the Cannibal perk', () => {
-    const { w, me, buggy } = downed();
-    w.player.perks = ['cannibal'];
-    const gun = gunOn(buggy);
-    const next = takeFromTruck(w, buggy.id, gun.id, spareSpot(me, gun));
-    const turns = PERK_NUMBERS.cannibal.turns;
-    expect(next.vehicles[0].job).toMatchObject({ kind: 'refit', turnsLeft: turns, total: turns });
   });
 
   it('cancels the removal when the truck wakes, and the gun stays on it', () => {
@@ -165,9 +155,9 @@ describe('an NPC looting a knocked-out truck', () => {
     expect(looter.items.some((it) => it.kind === 'parcel')).toBe(false);
   });
 
-  it('takes the full refit turns while the player holds the Cannibal perk', () => {
+  it('takes the full refit turns while the player holds the Teardown perk', () => {
     const { w, me, buggy } = downed();
-    w.player.perks = ['cannibal'];
+    w.player.perks = ['teardown'];
     me.pos = { x: 200, y: 200 };
     const looter = looterBeside(w, buggy);
     lootTruckTurn(w, looter, buggy);

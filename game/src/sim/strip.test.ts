@@ -11,7 +11,7 @@ import { CONDITIONS } from './dialogue-rules';
 import { hasCargo } from './salvage';
 import { chassisDef } from '../data/chassis';
 import { partDef } from '../data/parts';
-import { advanceNpcKnockouts, isKnockedOut } from './defeat';
+import { advanceNpcKnockouts, gaveUp, isKnockedOut } from './defeat';
 import { downedHere } from './locations';
 import { takeFromTruck } from './salvage';
 import { findSpot, goodsCount, gridOf, isMounted, MOUNT_CELLS } from './grid';
@@ -61,14 +61,16 @@ describe('surrender offer to a stranded player', () => {
     }
   });
 
-  it('accepting takes the cargo and the best parts, leaves the truck, and holds a truce', () => {
+  it('accepting stands the player down for the robber to strip, and holds a truce', () => {
     const { w: start, raider } = strandedAmbush();
-    const me = playerVehicle(start);
-    const before = mountedParts(me).length;
+    const knockouts = start.player.knockouts;
     let w = pick(endTurn(start, testDrive), 'Fine. Take it.');
     const after = playerVehicle(w);
-    expect(hasCargo(after)).toBe(false);
-    expect(mountedParts(after).length).toBe(before - RULES.surrenderParts);
+    expect(w.player.state).toBe('knockedOut');
+    expect(gaveUp(after)).toBe(true);
+    expect(w.player.knockouts).toBe(knockouts);
+    expect(w.events.some((e) => e.t === 'knockout')).toBe(false);
+    expect(w.salvage.some((s) => s.id.startsWith('cargo-'))).toBe(false);
     expect(corePart(after, 'cab')).toBeDefined();
     expect(stateOf(w, 'truce', raider.id, after.id)).not.toBeNull();
     expect(isHostile(w, w.vehicles.find((v) => v.id === raider.id)!, after)).toBe(false);
@@ -215,13 +217,13 @@ function npcAmbush(answer: 'accept' | 'refuse'): { w: World; raider: Vehicle; tr
 }
 
 describe('surrender between NPCs', () => {
-  it('a stranded NPC that gives up to a robber drops its cargo, and the robber goes to take it', () => {
+  it('a stranded NPC that gives up to a robber lies down, and the robber goes to strip it', () => {
     const { w: start, raider, trader } = npcAmbush('accept');
     const w = endTurn(start, testDrive);
     const t = w.vehicles.find((v) => v.id === trader.id)!;
     const r = w.vehicles.find((v) => v.id === raider.id)!;
     expect(isHostile(w, r, t)).toBe(false);
-    expect(hasCargo(t)).toBe(false);
+    expect(gaveUp(t)).toBe(true);
     expect(topGoal(r)?.kind).toBe('loot');
   });
 

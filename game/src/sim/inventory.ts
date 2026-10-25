@@ -1,7 +1,7 @@
 
 import { CRATE_MASS } from '../data/goods';
 import { partDef } from '../data/parts';
-import { skillEffect, vehicleHasPerk } from './progress';
+import { skillEffect } from './progress';
 import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
 import { cabShieldWith, gunLayoutScore } from './armor';
@@ -11,7 +11,6 @@ import { disarm } from './claymore';
 import { workTimeMult } from './utility';
 import { startJob } from './jobs';
 import { RULES } from '../data/rules';
-import { PERK_NUMBERS } from '../data/skills';
 import { canReachSalvage, dumpOnPile, truckPickupItem } from './salvage';
 import { modeRules } from './settings';
 import { fitStores } from './resources';
@@ -217,10 +216,6 @@ function commitRefit(w: World, me: Vehicle, plan: RefitPlan): void {
 
 export function refitTurns(world: World, v: Vehicle, planned: number): number {
   return Math.max(1, Math.ceil(planned * workTimeMult(v) * (1 - skillEffect(world, v, 'machining', 'refit'))));
-}
-
-export function lootRefitTurns(world: World, v: Vehicle, planned: number): number {
-  return vehicleHasPerk(world, v, 'cannibal') ? PERK_NUMBERS.cannibal.turns : refitTurns(world, v, planned);
 }
 
 export function storePart(world: World, itemId: string, truckId?: string): World {

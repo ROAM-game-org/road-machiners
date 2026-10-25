@@ -3,7 +3,9 @@ import { playerVehicle } from '../damage';
 import { repairCost } from '../economy';
 import { mountedParts } from '../grid';
 import { partDef } from '../../data/parts';
-import { surrenderTo } from '../parley';
+import { advanceJobs } from '../jobs';
+import { standDownTo } from '../parley';
+import { lootTruckTurn } from '../salvage';
 import { addVehicle, emptyWorld, npcBrain } from '../testkit';
 import { maxHp } from '../wear';
 import { update } from '../world';
@@ -128,13 +130,20 @@ describe('turnLedger', () => {
 });
 
 describe('DayTally', () => {
-  it('counts gear a surrender hands to a robber as lost, and gear the bot sells as kept', () => {
-    const start = emptyWorld({ x: 100, y: 100 });
-    const robber = addVehicle(start, 'scrapjaw', 'buggy', ['mg'], { x: 104, y: 100 });
+  it('counts gear a robber strips after a stand-down as lost, and gear the bot sells as kept', () => {
+    const start = emptyWorld({ x: 30, y: 30 });
+    const robber = addVehicle(start, 'scrapjaw', 'buggy', ['mg'], { x: 30, y: 33 });
     robber.brain = npcBrain('buggy', robber.pos, ['raider']);
     const gear = () => mountedParts(playerVehicle(start)).filter((p) => partDef(p.defId).kind !== 'core').length;
     expect(gear()).toBeGreaterThan(0);
-    const robbed = update(start, (w) => surrenderTo(w, playerVehicle(w), w.vehicles.find((v) => v.id === robber.id)!));
+    const robbed = update(start, (w) => {
+      const winner = w.vehicles.find((v) => v.id === robber.id)!;
+      standDownTo(w, playerVehicle(w), winner);
+      for (let turn = 0; turn < 12; turn++) {
+        lootTruckTurn(w, winner, playerVehicle(w));
+        advanceJobs(w);
+      }
+    });
     const sold = update(start, (w) => {
       const me = playerVehicle(w);
       me.items = me.items.filter((it) => it.kind !== 'part' || partDef(it.part.defId).kind === 'core');

@@ -4,18 +4,16 @@ import { SPAWN } from '../data/npcs';
 import { endLines } from './harpoon';
 import { isHostile } from './combat';
 import { isKnockedOut, standDown } from './defeat';
-import { RULES } from '../data/rules';
 import { playerVehicle, vehicleById } from './damage';
 import { getUpkeepReserve, partSellPrice, transfer } from './economy';
 import { getResources } from './resources';
-import { corePart, isMounted } from './grid';
-import { applyRefitLayout } from './inventory';
+import { corePart } from './grid';
 import { defyThreat, finishGoal, pushGoal, topGoal } from './npc-activities';
 import { canArgue, fightOver, warnTruck } from './loot-warning';
 import { decide, holdsUp, perceiveDanger, robbedFor, visibleHostiles, wantsLoot } from './npc-decisions';
 import { SPARE_LINE } from '../data/dialogue';
 import { modeRules } from './settings';
-import { cargoHaul, cashCut, ransomOf, removableParts, surrenderHaul, haulValue, type Ransom } from './haul';
+import { cargoHaul, cashCut, ransomOf, strippable, haulValue, type Ransom } from './haul';
 import { backedOff, canReachSalvage, claimantOf, claimPile, dropHaul, dumpOnPile, hasCargo, lootClaimedBy, looseCargo, salvageInRange, takeError } from './salvage';
 import { isStranded } from './stats';
 import { addState, endState, lootWarningData, pleaData, stateOf } from './states';
@@ -119,13 +117,6 @@ function cede(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock
 function goTake(world: World, npc: Vehicle, stock: SalvageStock, warned: string[], reason: GoalReason): void {
   pushGoal(world, npc, { kind: 'loot', targetId: stock.id, destination: { ...stock.pos }, phase: 'travel', reason });
   claimPile(world, stock, npc, warned);
-}
-
-export function surrenderTo(world: World, loser: Vehicle, robber: Vehicle): void {
-  const haul = robber.brain ? surrenderHaul(robber, loser) : [...looseCargo(loser), ...removableParts(loser).slice(0, RULES.surrenderParts)];
-  const mounted = haul.some((item) => item.kind === 'part' && isMounted(loser.chassisId, item));
-  yieldTo(world, loser, robber, haul);
-  if (mounted) applyRefitLayout(world, loser, loser.items);
 }
 
 export function giveUpTo(world: World, loser: Vehicle, winner: Vehicle): void {
@@ -394,7 +385,7 @@ export function offeredSurrenderBy(world: World, prey: Vehicle, winner: Vehicle)
 
 function answerOffer(world: World, prey: Vehicle, winner: Vehicle, robs: boolean): void {
   if (!answersSurrender(world, prey, winner)) return;
-  if (robs) surrenderTo(world, prey, winner);
+  if (robs) standDownTo(world, prey, winner);
   else giveUpTo(world, prey, winner);
 }
 
@@ -403,7 +394,7 @@ export function judgedWorthOffer(world: World, npc: Vehicle): boolean {
 }
 
 export function hasStrippable(world: World, robber: Vehicle, victim: Vehicle): boolean {
-  return surrenderHaul(robber, victim).length > 0;
+  return strippable(robber, victim);
 }
 
 function refusedOffer(world: World, shooter: Vehicle, prey: Vehicle): boolean {
