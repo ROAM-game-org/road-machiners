@@ -62,13 +62,13 @@ function maskedLayer(className: string, portrait: Portrait, glow: Glow): HTMLEle
   return placeGlow(layer, portrait, glow);
 }
 
-function keepsOwnColor(part: ConditionPart): boolean {
-  const def = partDef(part.defId);
-  return !isShield(def) && !(def.kind === "core" && def.role === "wheel");
+export function edgedWhenHealthy(defId: string): boolean {
+  const def = partDef(defId);
+  return isShield(def) || def.kind === "weapon" || (def.kind === "core" && def.role === "wheel");
 }
 
 function glowLayers(portrait: Portrait, parts: ConditionPart[]): HTMLElement[] {
-  const glowing = parts.filter((part) => part.tier !== "ok" || !keepsOwnColor(part));
+  const glowing = parts.filter((part) => part.tier !== "ok" || edgedWhenHealthy(part.defId));
   return glowing.map((part) => layerImage("cond-glow", portrait, portrait.glow(part.id, part.tier), part.tier));
 }
 

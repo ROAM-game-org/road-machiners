@@ -40,10 +40,12 @@ describe("truck condition css", () => {
     expect(own?.[1]).toContain("pointer-events: auto");
   });
 
-  it("draws the body darker than the parts", () => {
+  it("draws the body clearly darker than the parts, in their own hue", () => {
     expect(rule(".cond-body")).toContain("var(--cond-body-filter)");
     expect(rule(".cond-parts")).toContain("var(--cond-parts-filter)");
-    expect(brightness("--cond-body-filter")).toBeLessThan(brightness("--cond-parts-filter"));
+    expect(brightness("--cond-parts-filter")).toBe(1);
+    expect(brightness("--cond-body-filter")).toBeLessThanOrEqual(0.7);
+    for (const name of ["--cond-body-filter", "--cond-parts-filter"]) expect(token(name)).not.toMatch(/sepia|saturate|hue-rotate|grayscale|contrast/);
   });
 
   it("gives every damage tier a glow in its own color", () => {
