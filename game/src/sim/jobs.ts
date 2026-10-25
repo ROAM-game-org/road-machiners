@@ -10,7 +10,7 @@ import { inCombat } from "./combat";
 import { playerVehicle } from "./damage";
 import { partValue } from "./wear";
 import { corePart, coreParts, freeCells, goodsCount, isMounted, itemSize, mountedParts } from "./grid";
-import { addGoods, applyRefitLayout, getRefitLayout, refitStepLayout, refitStepWork, removeGoods, startRefitStep, stowPart } from "./inventory";
+import { addGoods, applyRefitLayout, getRefitLayout, NOTHING_TAKEN, refitStepLayout, refitStepWork, removeGoods, startRefitStep, stowPart } from "./inventory";
 import { makePart } from "./factory";
 import { promisedParts } from "./patch";
 import { requireSpareGoods, spareGoods } from "./market";
@@ -310,7 +310,7 @@ function finishRefitStep(world: World, v: Vehicle, step: RefitStep, items: GridI
 
 function startNextRefitStep(world: World, v: Vehicle, queue: RefitStep[]): void {
   for (const [at, step] of queue.entries()) {
-    const layout = refitStepLayout(world, v, step, new Set());
+    const layout = refitStepLayout(world, v, step, NOTHING_TAKEN);
     if (layout.error !== null) {
       world.events.push({ t: 'job', vehicle: v.id, job: { kind: 'refit', ...step, queue: [], turnsLeft: 0, total: 0 }, outcome: 'skipped', reason: layout.error });
       continue;

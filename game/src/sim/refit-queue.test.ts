@@ -10,6 +10,7 @@ import { makePart } from './factory';
 import { addGoods, mountPart, plannedRefit, plannedRefitTurns, plannedTruck, queueRefit, startRefit } from './inventory';
 import { advanceJobs } from './jobs';
 import { lootBlocker, takeFromTruck } from './salvage';
+import { leaveLoot } from './loot-warning';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import type { GameEvent, GridItem, RefitJob, Vehicle, World } from './types';
 import { refreshVision } from './vision';
@@ -152,6 +153,20 @@ describe('what a queued step may claim', () => {
     const queued = take(w, raider.id, 'mg');
     const crate = raiderOf(queued, raider.id).items.find((it) => it.kind === 'good')!;
     expect(() => takeFromTruck(queued, raider.id, crate.id, spareSpot(queued, crate))).toThrow('Refused: refitRunning');
+  });
+
+  it('drops the queue when the player leaves a truck a queued step takes from', () => {
+    const { w, raider } = downed(['mg']);
+    const gap = chassisDef('scout').radius + chassisDef('buggy').radius + 0.2;
+    const other = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 30 - gap, y: 30 });
+    other.brain = npcBrain('buggy', other.pos, ['raider']);
+    corePart(other, 'cab').hp = 0;
+    knockOutNpc(w, other);
+    refreshVision(w);
+    const queued = take(take(w, raider.id, 'mg'), other.id, 'stockEngine');
+    expect(refitOf(me(queued)).queue).toHaveLength(1);
+    leaveLoot(queued, me(queued), other.id, 'lootTaken');
+    expect(me(queued).job).toBeNull();
   });
 
   it('throws on a step that changes nothing', () => {

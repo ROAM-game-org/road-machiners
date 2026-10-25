@@ -294,7 +294,7 @@ export function plannedTruck(world: World, v: Vehicle): Vehicle {
   return v.job?.kind === 'refit' ? { ...v, items: plannedRefit(world, v).items } : v;
 }
 
-const NOTHING_TAKEN: ReadonlySet<string> = new Set();
+export const NOTHING_TAKEN: ReadonlySet<string> = new Set();
 
 export function refitTurns(world: World, v: Vehicle, planned: number): number {
   return Math.max(1, Math.ceil(planned * workTimeMult(v) * (1 - skillEffect(world, v, 'machining', 'refit'))));

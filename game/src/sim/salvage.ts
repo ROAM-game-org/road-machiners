@@ -742,7 +742,7 @@ function pickupSource(pickup: RefitPickup): string {
   return pickup.from === 'stock' ? pickup.stockId : pickup.vehicleId;
 }
 
-function worksOn(v: Vehicle, targetId: string): boolean {
+export function worksOn(v: Vehicle, targetId: string): boolean {
   if (jobTarget(v) === targetId) return true;
   return v.job?.kind === 'refit' && v.job.queue.some((step) => step.pickup !== null && pickupSource(step.pickup) === targetId);
 }

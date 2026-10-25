@@ -1059,7 +1059,7 @@ export class InventoryView {
   private moveGridItem(w: World, itemId: string, to: Spot): World {
     if (this.instant) return instantMoveItem(w, itemId, to);
     if (atGarage(w, this.gridTruck ?? undefined)) return moveItem(w, itemId, to, this.gridTruck ?? undefined);
-    if (fieldMoveIsInstant(this.mine(w), this.plan, itemId, to)) {
+    if (fieldMoveIsInstant(plannedTruck(w, this.mine(w)), this.plan, itemId, to)) {
       this.host.apply(moveItem(w, itemId, to, this.gridTruck ?? undefined));
       return w;
     }

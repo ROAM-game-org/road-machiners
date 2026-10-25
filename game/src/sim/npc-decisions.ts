@@ -36,7 +36,7 @@ import { getResources } from './resources';
 import { skillEffect } from './progress';
 import { randRange } from './rng';
 import { recall, remember } from './memory';
-import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasCargo, hasSalvage, holdsClaim, jobTarget, lootBlocker, STRIPPED } from './salvage';
+import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasCargo, hasSalvage, holdsClaim, lootBlocker, STRIPPED, worksOn } from './salvage';
 import { passesUpLoot } from './loot-warning';
 import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } from './sites';
 import { territoryAt, territoryGrounds } from './territory';
@@ -314,7 +314,7 @@ export function lootTaken(world: World, vehicle: Vehicle, targetId: string | nul
 }
 
 export function worksOnLoot(vehicle: Vehicle, targetId: string): boolean {
-  return jobTarget(vehicle) === targetId;
+  return worksOn(vehicle, targetId);
 }
 
 export function holdFull(vehicle: Vehicle): boolean {
