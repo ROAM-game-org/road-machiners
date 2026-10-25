@@ -93,6 +93,12 @@ export function scaleBarTiles(tileSize: number, width: number): number {
   return fitting.length > 0 ? fitting[fitting.length - 1] : steps[0];
 }
 
+export function openingTileSize(size: number, width: number, height: number, maxTileSize: number): number {
+  const barTiles = MAP_SCALE_BAR.openMeters / PHYSICS.metersPerTile;
+  const tileSize = (MAP_SCALE_BAR.openFill * MAP_SCALE_BAR.widthShare * width) / barTiles;
+  return requireTileSize(Math.min(maxTileSize, Math.max(fitTileSize(size, width, height), tileSize)));
+}
+
 const WHEEL_UNIT_PIXELS = [1, WORLD_MAP.wheelLinePixels, WORLD_MAP.wheelPagePixels];
 
 export function wheelZoomFactor(deltaY: number, deltaMode: number): number {

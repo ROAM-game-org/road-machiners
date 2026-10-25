@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canvasTransform, clampPan, fitted, fitTileSize, panBy, pinToEdge, scaleBarTiles, toPx, toTile, viewport, wheelZoomFactor, zoomAround, type Viewport } from './map-geometry';
+import { canvasTransform, clampPan, fitted, fitTileSize, openingTileSize, panBy, pinToEdge, scaleBarTiles, toPx, toTile, viewport, wheelZoomFactor, zoomAround, type Viewport } from './map-geometry';
 
 const MAP = 600;
 
@@ -124,6 +124,19 @@ describe('map geometry', () => {
 
 describe('scale bar', () => {
   const metersOf = (tileSize: number, width: number) => scaleBarTiles(tileSize, width) * 4;
+
+  it('opens the map tab at a 1 km bar, zoomed in from the whole map', () => {
+    for (const [width, height] of [[1200, 450], [1600, 700], [700, 500]]) {
+      const tileSize = openingTileSize(780, width, height, 8);
+      expect(metersOf(tileSize, width)).toBe(1000);
+      expect(tileSize).toBeGreaterThan(fitTileSize(780, width, height));
+    }
+  });
+
+  it('never opens zoomed out past the whole map or in past the top scale', () => {
+    expect(openingTileSize(780, 300, 300, 8)).toBe(fitTileSize(780, 300, 300));
+    expect(openingTileSize(20, 1200, 450, 8)).toBe(8);
+  });
 
   it('takes the longest step that fits its share of the width', () => {
     expect(metersOf(8, 1000)).toBe(100);
