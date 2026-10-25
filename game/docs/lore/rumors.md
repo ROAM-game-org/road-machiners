@@ -34,7 +34,7 @@ Nobody agrees, and each guess has its believers.
 - The Old Army wanted to bury the Fallen Sun under a great bomb, so that nobody could fight over it again.
 - The Old Army did not run out of food. It was starved out on purpose.
 - Pierce sold the Old Army's guns to Scrapjaw, then made every driver buy a gun to be insured.
-- Somebody in the Pierce office sold the roads of insured trucks to robbers. He went west and never came back.
+- Somebody in the Pierce office sold the roads of insured trucks to robbers. He went north-west and never came back.
 - The Nose Committee rents its workshop line with Pierce money.
 - The Administrator keeps a book in the crane office that could bring down both towns.
 - The old Senate families on the top terraces send a tanker to Dustwell that never shows up in any book.
@@ -45,7 +45,7 @@ Nobody agrees, and each guess has its believers.
 - The Lady of the Road is a voice on the radio that warns drivers of danger ahead.
 - One day the basin will dry out completely, and everyone in it will die of thirst.
 - A Nose brake rod is cheap steel, and on a sharp bend it will snap and nothing will slow you.
-- In the west there are towns whose trucks carry no guns, because a guard paid by every town keeps the roads.
+- In the north-west there are towns whose trucks carry no guns, because a guard paid by every town keeps the roads.
 - The glass on the Glass Flats all points the same way, toward the Fallen Sun.
 - The number the Sunward chant at the rim is the year the radio count stops.
 - Kiln riders let you go if you fight hard enough. They strip you if you don't.
