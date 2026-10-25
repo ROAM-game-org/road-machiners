@@ -2,7 +2,7 @@ import type RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import type { Car } from './drive';
-import { computeClosingSpeed, locateCrashContact, type CrashGeometry } from '../sim/crash-contact';
+import { computeClosingSpeed, locateCrashContact, type CrashApproach, type CrashGeometry } from '../sim/crash-contact';
 import { dist, type Vec } from '../sim/vec';
 import { headingOf, rotateBy } from './frames';
 import type { Vehicle, World } from '../sim/types';
@@ -12,7 +12,6 @@ const D = PHYSICS.driver;
 const DT = 1 / PHYSICS.stepsPerSecond;
 
 export const GROUND = 'ground';
-export type CrashApproach = { a: number; b: number };
 export type Crash = { a: string; b: string; impact: number; contact: CrashGeometry; approach: CrashApproach | null; step: number };
 
 export type CrashPair = { a: string; b: string; first: number; other: number; unitA: number; unitB: number };
