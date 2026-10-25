@@ -345,6 +345,21 @@ describe('a Marshall that backs off', () => {
     expect(takeCase(w, marshal, [partner])).toMatchObject({ partner: { id: partner.id } });
   });
 
+  it('lets the pair make its own demand on arrival, inside the day after the lone Marshall asked (IV4)', () => {
+    const { w, marshal, me } = onPlayer();
+    expect(w.crimes[0].offered).toBe(w.turn);
+    shotUp(marshal);
+    settlePlayerPlea(w, marshal, 'truce', true);
+    expect(w.crimes[0].offered).toBeNull();
+    const partner = marshalAt(w, { x: marshal.pos.x + 4, y: marshal.pos.y });
+    marshal.resources!.health = 100;
+    w.states = w.states.filter((s) => s.kind !== 'truce');
+    for (const m of [marshal, partner]) m.brain!.goals = [{ kind: 'wait', targetId: 'marshal-post', destination: { ...m.pos }, phase: 'act', reason: 'atPost', until: w.turn + 500 }];
+    w.turn += 10;
+    planMarshal(w, marshal, [partner, me]);
+    expect(demandOpen(w, marshal, me)).not.toBeNull();
+  });
+
   it('throws on a withdrawal from a hunt it does not hold (P7)', () => {
     const { w, me } = onPlayer();
     const other = marshalAt(w, { x: 320, y: 300 });

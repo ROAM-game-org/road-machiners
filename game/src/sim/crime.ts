@@ -247,7 +247,10 @@ const NEXT_POSSE: Readonly<Record<CasePosse, CasePosse | null>> = { lone: 'pair'
 
 export function withdrawCases(cases: CrimeCase[]): void {
   stepPosse(cases.filter((c) => c.posse !== 'spent'));
-  for (const c of cases) c.hunter = null;
+  for (const c of cases) {
+    c.hunter = null;
+    c.offered = null;
+  }
 }
 
 export function stepPosse(cases: CrimeCase[]): void {
