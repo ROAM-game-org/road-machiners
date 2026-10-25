@@ -203,7 +203,7 @@ export type GoalReason =
   | 'musterCrew' | 'crewLeader' | 'hiredGuard'
   | 'restHollow' | 'rideVigil' | 'keepVigil' | 'rideHome' | 'huntRoad' | 'dragToLight' | 'leaveCrater' | 'orderFell' | 'meetStranger'
   | 'sizingUp' | 'poorLoad' | 'sizedUpBy'
-  | 'bountyHunt' | 'atPost' | 'caseClosed' | 'huntGaveUp';
+  | 'bountyHunt' | 'atPost' | 'caseClosed' | 'huntGaveUp' | 'cargoLost';
 
 export type SimNote =
   | { id: 'engineHot' }
@@ -556,7 +556,7 @@ export type CrewAskCause = 'joined' | 'grudge' | 'weak' | 'busy' | 'declined';
 export type CrewLeftCause = 'fled' | 'knockedOut' | 'hostile';
 export type GuardEnd = 'expired' | 'dismissed' | 'knockedOut' | 'hostile';
 
-export type EscortEnd = 'arrived' | 'strayed' | 'hostile' | 'knockedOut' | 'stuck' | 'apartAtArrival' | 'lost';
+export type EscortEnd = 'arrived' | 'strayed' | 'hostile' | 'knockedOut' | 'stuck' | 'apartAtArrival' | 'lost' | 'cargoLost';
 
 export type GameEvent =
   | { t: 'activity'; vehicle: string; previous: NpcActivity['kind'] | null; activity: NpcActivity['kind'] | null; reason: GoalReason }
