@@ -23,15 +23,15 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
   ~ jory_patrol = true
   -> hub
 + {jory_patrol} [Do tenants take up the patrol?]
-  Because the Senate wrote the rule and I read it back to them slowly. They said service earns a vote, so I send them the service. They let tenants carry rifles on the road and pay half the cost on grain runs, and nobody asked what a rifle in a tenant's hands might mean on voting day.
+  They do, because the Senate wrote the rule and I read it back to them slowly. They said service earns a vote, so I send them the service. They let tenants carry rifles on the road and pay half the cost on grain runs, and nobody asked what a rifle in a tenant's hands might mean on voting day.
   The patrol knows my face by now. I've noticed the patrol and the raiders in the south get paid out of the same sacks, but that's a longer story. I've been told I'm a long story myself.
   ~ jory_filled = true
   -> hub
 + {jory_filled} [Does the patrol trouble you?]
-  It does, and it knows where I live. They searched my house at night once and said they were looking for a rifle. They found a spoon, and I told them to keep it because I've got more. A man should be known by somebody.
+  It does, and it knows where I live. They searched my house at night once and said they were looking for a rifle. They found a spoon, and I told them to keep it because I've got more.
   -> hub
 + {jory_filled} [What do the raiders have to do with the grain?]
-  Kiln Camp, the raiders in the south, gets a sack from the <term=granary>Granary</term> for every armed truck that crosses their road. The patrol is paid out of the tenants' share of the same grain. We pay Kiln and we pay the patrol, and we pay both with the same grain.
+  Kiln Camp, the raiders in the south, gets a sack from the <term=granary>Granary</term> for every armed truck that crosses their road. The patrol is paid out of the tenants' share of the same grain.
   The sack leaves the store once and the Senate counts it twice. The Senate says it all adds up, and it does, the way a bucket with a hole adds up.
   ~ note("talkGranaryGate")
   -> hub
