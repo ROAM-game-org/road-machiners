@@ -57,5 +57,3 @@ export const RADIO_VARIANTS: Record<RadioTopic, number> = {
   wisdom: 20,
 };
 
-export const DIRECTIONS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
-export type Direction = (typeof DIRECTIONS)[number];
