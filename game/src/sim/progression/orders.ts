@@ -1,7 +1,7 @@
 
 import { chassisDef } from '../../data/chassis';
 import { startKit } from '../../data/start';
-import { partDef, PARTS, type PartKind } from '../../data/parts';
+import { isLineGun, partDef, PARTS, type PartKind } from '../../data/parts';
 import { playerVehicle, truckFor } from '../damage';
 import { chassisTopSpeed } from '../chassis-features';
 import { buyChassis, buyStockPart, chassisTradeIn, garageChassis, partTradePrice, sellPart } from '../economy';
@@ -91,9 +91,9 @@ function chooseBudgetJob(style: UpgradeStyle): GearJob {
 export function rearm(o: Orders): void {
   if (!o.buysGear) return;
   const shop = shopAt(o.world);
-  if (mountedItems(o.me, 'weapon').length > 0 || !shop) return;
+  if (mountedItems(o.me, 'weapon').some((item) => !isLineGun(partDef(item.part.defId))) || !shop) return;
   const spend = o.world.player.money - getUpkeepReserve(o.me);
-  const guns = candidates(o, shop).filter((c) => partDef(c.part.defId).kind === 'weapon' && !isJunk(c.part) && c.price <= spend && installSpot(o.me, probe(c.part)));
+  const guns = candidates(o, shop).filter((c) => partDef(c.part.defId).kind === 'weapon' && !isLineGun(partDef(c.part.defId)) && !isJunk(c.part) && c.price <= spend && installSpot(o.me, probe(c.part)));
   const cheapest = guns.reduce<Candidate | null>((best, c) => (!best || c.price < best.price ? c : best), null);
   if (cheapest) mount(o, cheapest, null);
 }
