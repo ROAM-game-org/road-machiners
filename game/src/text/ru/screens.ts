@@ -126,6 +126,7 @@ export const SCREENS: Translation<typeof EN> = {
   'hud.reportBug': 'Сообщить об ошибке',
   'hud.requestFeature': 'Предложить идею',
   'hud.workLeft': '{label}, {n, plural, one {остался # ход} few {осталось # хода} many {осталось # ходов} other {осталось # хода}}',
+  'hud.workQueued': '{label}, {n, plural, one {остался # ход} few {осталось # хода} many {осталось # ходов} other {осталось # хода}}, затем ещё {k, plural, one {# шаг} few {# шага} many {# шагов} other {# шага}}',
   'hud.workProgress': '{label}: прогресс',
   'hud.actionKey': '[E] {label}',
   'hud.count': '{n}/{of}',

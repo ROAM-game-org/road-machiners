@@ -15,6 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
 from parts_common_armor import OUTER_X, half_span, run, spread  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from shapes import strut  # noqa: E402
 
 N = 2
@@ -42,7 +43,7 @@ def build_row(kit: Kit, n: int) -> None:
     x = GRILLE_X + 0.02
     for a, b in zip(posts, posts[1:]):
         strut(kit, f"x_{a:.2f}", (x, a, 0.15), (x, b, HEIGHT - 0.08), 0.045, "rust")
-        strut(kit, f"x_{b:.2f}", (x, b, 0.15), (x, a, HEIGHT - 0.08), 0.045, "rust")
+        strut(kit, f"x_{b:.2f}", (x + PROUD, b, 0.15), (x + PROUD, a, HEIGHT - 0.08), 0.045, "rust")
 
 
 def build(kit: Kit) -> None:

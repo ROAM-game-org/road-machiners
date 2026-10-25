@@ -365,7 +365,7 @@ export class Hud {
       el(
         "span",
         { class: "job-label" },
-        t("hud.workLeft", { label, n: work.turnsLeft }),
+        work.queued > 0 ? t("hud.workQueued", { label, n: work.turnsLeft, k: work.queued }) : t("hud.workLeft", { label, n: work.turnsLeft }),
       ),
       el(
         "span",

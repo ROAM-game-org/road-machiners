@@ -6,7 +6,7 @@ Prices are in M's, the basin's currency ([lore](../../lore/README.md#ms)). One M
 
 - Fair price: every town garage and stall sells 5 L of fuel for 1 M with no spread. The scrap patch charges the same 1 M per 5 L it spares, and aid is priced the same.
 - Roadside: a truck selling fuel adds the spread and the road spread, so 5 L costs 1.50 M at Trade 0.
-- Fuel drums are a trade good, priced by distance and stock like any good. They are cargo, not tank fuel, so the anchor does not hold for them. A shop's fuel service draws on its own drums, though, and its supplies service on its rations (see Stock and production below).
+- Petrol is a trade good, priced by distance and stock like any good. It is cargo, not tank fuel, so the anchor does not hold for it. A shop's fuel service draws on its own petrol, though, and its supplies service on its rations (see Stock and production below).
 - Fuel is bought in whole 5 L units. The smallest purchase is 5 L for 1 M. Nothing rounds a fuel amount up for free or a fuel price down to zero.
 
 Before the anchor, 5 L of fuel cost 3 money, so every money number grew by 100/3. The start money and NPC budgets are rounded to whole M.
@@ -38,11 +38,11 @@ Every site runs small recipes on a production clock of one game hour. A batch ta
 - Bowl grows sorgut from water, and makes textiles, meds, parts from scrap and electronics from batteries and scrap.
 - The Granary makes rations from sorgut, salt and water. Rations are the preserved food that refills a truck's supplies, worth their inputs plus the work.
 - Nose makes salt, tools from scrap and drums, and batteries from parts and drums.
-- The Pump Station makes fuel drums, and the Salvage Yard scrap and parts.
+- The Pump Station makes petrol, and the Salvage Yard scrap and parts.
 
 The fuel service draws one drum per 9 L units sold and the supplies service one crate of rations per 7 units, the crate's value over the anchor price. An opened crate serves the next sale. A shop out of drums or rations is rationing: it still sells at the anchor price, but only up to 40% of the tank or of full stores, so nobody is stranded and the shortage shows as a shorter range.
 
-An essential good (water, sorgut, rations and fuel drums) that a site uses and holds none of starts a slow import after a day and a half: one crate every four hours, until about a seventh of the target. Prices stay near their peak there, so it is never a bargain. The market does not show it. The shop's price and its people do.
+An essential good (water, sorgut, rations and petrol) that a site uses and holds none of starts a slow import after a day and a half: one crate every four hours, until about a seventh of the target. Prices stay near their peak there, so it is never a bargain. The market does not show it. The shop's price and its people do.
 
 Once a day a site can surge or break down: the Pump Station and Bowl's harvest can run at twice their pace for a day, and the pump, Dustwell's well and the Salvage Yard's crews can break down to a quarter for two days. A site that holds tools spends one crate and repairs the breakdown in about five hours. The market tab shows no recipe, surge or breakdown. A local at every economic site tells what it makes, what it brings in, which of those it runs short of today and whether its works are down.
 
@@ -67,7 +67,7 @@ Salvage lies hidden until a search turns it up. Territory loot spots and road wr
 - The daily restock adds to the hidden loot only, and a table's highs cap hidden and revealed together.
 - Wrecks of destroyed trucks and ground piles lie in the open, so their loot starts revealed.
 - A road wreck counts as looted once nothing is hidden or revealed.
-- An object that holds loot, hidden or revealed, shows its colors a little richer, and it goes plain once emptied.
+- An object that holds loot, hidden or revealed, shows its colors clearly brighter and richer, and it goes plain once emptied.
 - Saves keep the hidden loot, the revealed loot and a search in progress, so nothing rerolls.
 
 Fuel and supplies limit range. Fuel burns per tile by chassis, times heat. Below 20% of tank capacity, the truck's top speed is halved. The truck crawls when fuel runs out. Supplies burn per turn, times heat. A full load lasts about 920 daytime turns. Without supplies the character loses health down to 30. Nothing refills supplies for free: every shop sells fuel and supplies at the same prices.

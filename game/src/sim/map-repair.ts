@@ -526,7 +526,7 @@ function jobLapses(job: Job | null, dropped: Set<string>, cancelled: Set<string>
   if (job === null) return false;
   if (job.kind === 'search') return dropped.has(job.stockId);
   if (job.kind === 'survey') return cancelled.has(job.contractId) || !sites.has(job.site);
-  return job.kind === 'refit' && pickupLapses(job.pickup, dropped);
+  return job.kind === 'refit' && [job, ...job.queue].some((step) => pickupLapses(step.pickup, dropped));
 }
 
 function pickupLapses(pickup: RefitPickup | null, dropped: Set<string>): boolean {

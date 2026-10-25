@@ -33,7 +33,7 @@ def build(kit: Kit) -> None:
     kit.box("switches", (0.02, 0.18, 0.025), (face + 0.005, 0, BOX_Z - 0.06), "red")
     kit.box("handle", (0.3, 0.03, 0.03), (0, 0, BOX_TOP + 0.04), "metal")
     for x in (-0.14, 0.14):
-        kit.box(f"handle_post{x}", (0.03, 0.03, 0.04), (x, 0, BOX_TOP + 0.02), "metal")
+        kit.box(f"handle_post{x}", (0.03, 0.024, 0.04), (x, 0, BOX_TOP + 0.02), "metal")
     strut(kit, "whip", (-0.16, 0.11, BOX_TOP), (-0.18, 0.12, 1.0), 0.015, "metal_light", sides=4)
     kit.cylinder("whip_base", 0.03, 0.05, (-0.16, 0.11, BOX_TOP + 0.025), "metal_dark", vertices=6)
     strut(kit, "dish_post", (0.12, -0.1, BOX_TOP), (0.12, -0.1, BOX_TOP + 0.14), 0.02, "metal", sides=4)

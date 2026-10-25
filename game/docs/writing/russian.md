@@ -123,6 +123,7 @@ Good lines to match:
 - refit: переоснащение. Mount: крепление.
 - pristine (no wear): без износа. Rebuilt after a breakdown: капремонт, «2 капремонта». Broken: не работает. Junk: лом.
 - flatbed extension: удлинитель кузова. Cage: каркас. Armor plate: стальной лист.
+- petrol, the good the Pump Station makes: бензин. Never солярка or топливо for it.
 - money: М, as «60 М». A sum inside a quest line reads «{price} М».
 - watch, a shift of time in a quest: вахта, «две вахты».
 

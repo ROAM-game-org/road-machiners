@@ -1,8 +1,26 @@
 {
-  "format": { "major": 2, "minor": 112 },
-  "world": {
-    "turn": 40,
-    "setup": { "mode": "furyRoad", "settings": {} },
-    "furyRoad": { "window": 3, "waitingAt": 3, "earned": 120, "wrecks": 1, "hauler": { "id": 7, "alarmUntil": 0 } }
-  }
+  "vehicles": [
+    {
+      "id": "v-player",
+      "job": {
+        "kind": "refit",
+        "moves": [],
+        "pickup": { "from": "truck", "vehicleId": "v-raider", "partId": "p-slug", "itemId": "i-new", "to": { "x": 1, "y": 4, "rot": 0 } },
+        "turnsLeft": 4,
+        "total": 7
+      }
+    },
+    {
+      "id": "v-looter",
+      "job": {
+        "kind": "refit",
+        "moves": [{ "itemId": "i-mg", "from": { "x": 0, "y": 0, "rot": 0 }, "to": { "x": 0, "y": 5, "rot": 1 } }],
+        "pickup": null,
+        "turnsLeft": 2,
+        "total": 5
+      }
+    },
+    { "id": "v-searcher", "job": { "kind": "search", "stockId": "wreck-3", "turnsLeft": 3, "total": 6 } },
+    { "id": "v-raider", "job": null }
+  ]
 }

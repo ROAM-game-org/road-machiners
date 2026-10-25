@@ -382,10 +382,11 @@ describe('garage work at every shop', () => {
       expect(() => startRefit(w, { 'spare-item': { x: mg.x, y: mg.y, rot: 0 } })).toThrow(/badLayout/);
     });
 
-    it('throws while a refit runs', () => {
+    it('queues a plan behind a running refit', () => {
       const { w, mg } = withSpare();
       const running = startRefit(w, { [mg.id]: { x: mg.x, y: mg.y, rot: 2 } });
-      expect(() => startRefit(running, { [good(w).id]: { x: 0, y: rackRow, rot: 0 } })).toThrow(/refitRunning/);
+      const queued = startRefit(running, { [good(w).id]: { x: 0, y: rackRow, rot: 0 } });
+      expect(queued.vehicles[0].job).toMatchObject({ moves: [{ itemId: mg.id }], queue: [{ moves: [{ itemId: good(w).id }], pickup: null }] });
     });
   });
 });

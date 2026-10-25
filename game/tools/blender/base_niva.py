@@ -69,7 +69,7 @@ def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y:
 
 def lower_body(kit: Kit) -> None:
     """The hood-high body with arches cut on the wheels and the engine cutout, flares and a skid."""
-    low = hull_layers("lower", [(SILL, FRONT, BACK, SIDE, 0.12), (HOOD - 0.05, FRONT, BACK, SIDE, 0.12), (HOOD, FRONT - 0.04, BACK + 0.02, SIDE - 0.05, 0.12)])
+    low = hull_layers("lower", [(SILL, FRONT - 2 * PROUD, BACK, SIDE, 0.12), (HOOD - 0.05, FRONT - 2 * PROUD, BACK, SIDE, 0.12), (HOOD, FRONT - 0.04, BACK + 0.02, SIDE - 0.05, 0.12)])
     arch_cut(low, WHEELS_X, HUB_Z, WHEEL_R, WELL_Y, SILL)
     cut_boxes(low, [((BAY_BACK, BAY_RIGHT, BAY_FLOOR), (BAY_FRONT, BAY_LEFT, HOOD + 0.2))])
     low.data.materials.clear()  # the booleans leave an empty slot, which would take the faces off the paint

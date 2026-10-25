@@ -222,7 +222,7 @@ function jobUses(job: Job, ids: ReadonlySet<string>): boolean {
 }
 
 function refitUses(job: RefitJob, ids: ReadonlySet<string>): boolean {
-  return job.moves.some((m) => ids.has(m.itemId)) || pickupUses(job.pickup, ids);
+  return [job, ...job.queue].some((step) => step.moves.some((m) => ids.has(m.itemId)) || pickupUses(step.pickup, ids));
 }
 
 function pickupUses(pickup: RefitPickup | null, ids: ReadonlySet<string>): boolean {

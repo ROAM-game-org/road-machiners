@@ -157,7 +157,7 @@ describe('Teardown', () => {
     if (perk) w.player.perks = ['teardown'];
     if (job) {
       const pickup = { from: 'truck' as const, vehicleId: buggy.id, partId: gunOf(buggy), itemId: 'i-take', to: { x: 0, y: 0, rot: 0 as const } };
-      me.job = { kind: 'refit', moves: [], pickup, turnsLeft: 5, total: 5 };
+      me.job = { kind: 'refit', moves: [], pickup, queue: [], turnsLeft: 5, total: 5 };
     }
     return { w, me, buggy };
   }

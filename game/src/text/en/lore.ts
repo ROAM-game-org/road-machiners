@@ -82,7 +82,7 @@ export const LORE = {
   'lore.good.batteries': 'Boxes of lead and acid, and now and then a power cell pulled from a wreck. Every radio in the basin sits on one.',
   'lore.good.electronics': 'Boards, tubes and chips from the Old World. Nobody makes them now, and few of those who buy them know what half of them do.',
   'lore.good.parts': 'Gears, bolts, bearings and springs in a bag. It is what a driver reaches for the moment something rattles.',
-  'lore.good.fuelDrums': 'Drums of diesel sealed at the pumpworks and rolled across the basin by convoy. A full one in the open makes everyone around you friendlier, or hungrier.',
+  'lore.good.fuelDrums': 'Drums of petrol sealed at the pumpworks and rolled across the basin by convoy. A full one in the open makes everyone around you friendlier, or hungrier.',
   'lore.good.water': 'Bowl grows nothing without it, and it arrives only by truck. Every barrel is counted, and a driver who spills one learns the figure.',
   'lore.good.rations': 'Sorgut dried, salted and tinned at the Granary. Every truck in the basin eats from them on the road, and a driver counts tins the way he counts rounds.',
   'lore.good.relics': 'Odd pieces pried from the fallen wreck: cold lenses, sealed boxes, wire that never rusts. Nobody knows what they do, and Nose traders pay for them anyway.',

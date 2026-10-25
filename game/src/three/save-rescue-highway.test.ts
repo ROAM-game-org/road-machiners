@@ -139,15 +139,15 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
     expect(() => rescueSave(slotsWith(broken), 'auto', TEST_MAP, KIT, fresh, freshRun, 2000)).toThrow(/cannot be rescued/);
   });
 
-  it('carries a run saved under the new name of format 113 as it carries one under the old name', () => {
+  it('carries a run saved under the new name of format 114 as it carries one under the old name', () => {
     const { furyRoad, ...rest } = structuredClone(MID_STRETCH.world);
-    const named = { format: { major: 2, minor: 113 }, world: { ...rest, chaosHighway: furyRoad, setup: { ...rest.setup, mode: 'chaosHighway' } } };
+    const named = { format: { major: 2, minor: 114 }, world: { ...rest, chaosHighway: furyRoad, setup: { ...rest.setup, mode: 'chaosHighway' } } };
 
     expect(readCarried(named).run).toEqual(readCarried(MID_STRETCH).run);
     expect((readCarried(named).setup as { mode: string }).mode).toBe('chaosHighway');
   });
 
-  it('reads the mode of a save from before format 113 as Chaos Highway', () => {
+  it('reads the mode of a save from before format 114 as Chaos Highway', () => {
     expect(MID_STRETCH.world.setup.mode).toBe('furyRoad');
     expect((readCarried(MID_STRETCH).setup as { mode: string }).mode).toBe('chaosHighway');
   });

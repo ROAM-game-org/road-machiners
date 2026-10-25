@@ -2,14 +2,15 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
-import { LOOT_LOOK, lootColor } from '../../render/lootLook';
+import { CHASSIS } from '../../data/chassis';
+import { LOOT_LOOK, lightnessOf, lootColor, lootContrast } from '../../render/lootLook';
 import { emptyHidden } from '../../sim/salvage';
 import { emptyWorld, flatTerrain } from '../../sim/testkit';
-import { TERRITORIES } from '../../data/territory';
-import type { Obstacle, SalvageStock } from '../../sim/types';
-import { aimedBreach, BOW_BREACH, buildProp, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
+import { TERRITORIES, WRECK_LOOKS } from '../../data/territory';
+import type { LandmarkLook, Obstacle, SalvageStock } from '../../sim/types';
+import { aimedBreach, BOW_BREACH, buildProp, lootSwatchesOf, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
 import { initPhysics } from '../../phys/drive';
-import { loadModels } from './models';
+import { loadModels, model } from './models';
 import { RenderScope, SightLimit } from './scope';
 
 function groupOf(...names: string[]): THREE.Group {
@@ -108,6 +109,37 @@ describe('loot colors on props', () => {
     views.sync(obstacles, world(false, false, false), []);
     expect(colorsAt(root, 10)).toEqual(plainA);
     expect(colorsAt(root, 40)).toEqual(plainHulk);
+  });
+
+  it('restores every swatch bit-exact and matches a never-lootable twin', () => {
+    const { root, views } = setup();
+    const twin = setup();
+    views.sync(obstacles, world(false, false, false), []);
+    twin.views.sync(obstacles, world(false, false, false), []);
+    views.sync(obstacles, world(true, true, true), []);
+    views.sync(obstacles, world(false, false, false), []);
+    for (const x of [10, 20, 40]) expect(colorsAt(root, x)).toEqual(colorsAt(twin.root, x));
+    root.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial) expect(o.material.emissive.getHex()).toBe(0);
+    });
+  });
+
+  it('draws every surface of every lootable model clearly brighter', () => {
+    const terrain = flatTerrain(SIZE);
+    const looks: LandmarkLook[] = [...WRECK_LOOKS, 'house', 'ruin', 'silo', 'waterTower', 'gasStation'].filter((look): look is LandmarkLook => look !== 'rock');
+    const props: Obstacle[] = [
+      ...looks.map((look, i): Obstacle => ({ id: `look-${look}`, pos: { x: 10 + i, y: 20 }, r: 1, kind: 'landmark', look, yaw: 0 })),
+      ...Object.keys(CHASSIS).map((chassisId, i): Obstacle => ({ id: `wreck-hulk${i}`, pos: { x: 10 + i, y: 30 }, r: 0.9, kind: 'wreck', hulk: { chassisId, yaw: 0 } })),
+    ];
+    const cases = [...props.map((prop) => ({ id: prop.id, view: buildProp(terrain, prop) })), { id: 'pile', view: model('crates') }];
+    for (const { id, view } of cases) {
+      const swatches = lootSwatchesOf(view);
+      expect(swatches.length, id).toBeGreaterThan(0);
+      for (const { plain, loot } of swatches) {
+        expect(lootContrast(plain, loot), `${id} ${plain.toString(16)}`).toBeGreaterThanOrEqual(LOOT_LOOK.minContrast);
+        expect(lightnessOf(loot), id).toBeGreaterThan(lightnessOf(plain));
+      }
+    }
   });
 
   it('draws a lootable hulk with more of its paint than a stripped one', () => {

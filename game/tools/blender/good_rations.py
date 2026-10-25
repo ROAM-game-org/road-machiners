@@ -5,16 +5,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from parts_common_cargo import GOOD_MAX_H, run  # noqa: E402
 
 SEED = 212
 L, W, H = 0.56, 0.38, 0.24
 WALL = 0.025
-TIN_R, TIN_H = 0.055, 0.1
+TIN_R, TIN_H = 0.051, 0.1
 
 
 def build(kit: Kit) -> None:
-    kit.box("floor", (L, W, WALL), (0, 0, WALL / 2), "olive")
+    kit.box("floor", (L - 2 * PROUD, W - 2 * PROUD, WALL), (0, 0, WALL / 2), "olive")
     for y in (-W / 2 + WALL / 2, W / 2 - WALL / 2):
         kit.box("side", (L, WALL, H), (0, y, H / 2), "olive", dent_by=0.004)
     for x in (-L / 2 + WALL / 2, L / 2 - WALL / 2):

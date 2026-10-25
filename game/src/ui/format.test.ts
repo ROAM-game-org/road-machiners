@@ -316,7 +316,7 @@ describe("jobLabel", () => {
 
   it("names the part and the truck of a removal, before and after it is done", () => {
     const { w, me, buggy, gun } = downedBuggy();
-    const job: Job = { kind: "refit", moves: [], pickup: { from: "truck", vehicleId: buggy.id, partId: gun.part.id, itemId: "new", to: { x: 0, y: 0, rot: 0 } }, turnsLeft: 3, total: 3 };
+    const job: Job = { kind: "refit", moves: [], pickup: { from: "truck", vehicleId: buggy.id, partId: gun.part.id, itemId: "new", to: { x: 0, y: 0, rot: 0 } }, queue: [], turnsLeft: 3, total: 3 };
     expect(en(jobLabel(w, me, job))).toBe(`Remove ${en(partName("mg"))} from ${en(vehicleTitle(w, buggy))}`);
     buggy.items = buggy.items.filter((it) => it.id !== gun.id);
     me.items.push({ ...gun, id: "new" });
@@ -326,7 +326,7 @@ describe("jobLabel", () => {
   it("names the parts a refit moves on the player's own grid", () => {
     const { w, me } = downedBuggy();
     const gun = me.items.find((it) => it.kind === "part" && partDef(it.part.defId).kind === "weapon")!;
-    const job: Job = { kind: "refit", moves: [{ itemId: gun.id, from: { x: gun.x, y: gun.y, rot: gun.rot }, to: { x: 0, y: 0, rot: 0 } }], pickup: null, turnsLeft: 3, total: 3 };
+    const job: Job = { kind: "refit", moves: [{ itemId: gun.id, from: { x: gun.x, y: gun.y, rot: gun.rot }, to: { x: 0, y: 0, rot: 0 } }], pickup: null, queue: [], turnsLeft: 3, total: 3 };
     expect(en(jobLabel(w, me, job))).toBe(`Refit ${en(partName(gun.kind === "part" ? gun.part.defId : ""))}`);
   });
 });
@@ -856,7 +856,7 @@ describe("site event log lines", () => {
   it("tell a surge under see all", () => {
     resetSeeAll();
     toggleSeeAll();
-    expect(logEn(emptyWorld(), surge)?.text).toBe(`${en(siteName("pump-station"))} turns out extra fuel drums today.`);
+    expect(logEn(emptyWorld(), surge)?.text).toBe(`${en(siteName("pump-station"))} turns out extra petrol today.`);
     resetSeeAll();
   });
 });
