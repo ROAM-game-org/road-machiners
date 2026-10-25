@@ -8,6 +8,7 @@ import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
 import { callVehicle, chooseOption, currentOptions, talkOf } from './dialogue';
 import { remember } from './memory';
+import { fallenSun } from './sunward';
 import { defaultSetup } from './settings';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import { standingPressures } from './market';
@@ -89,6 +90,35 @@ describe('information gates', () => {
     expect(next.player.call?.node).toBe(TOPICS.directions.start);
     expect(next.player.money).toBe(50);
     expect(next.vehicles.find((v) => v.id === npc.id)!.resources!.money).toBe(TALK_PRICE);
+  });
+
+  function craterDriver(): { w: World; npc: Vehicle } {
+    const made = driver(['trader'], 'grim');
+    made.npc.brain!.home = { ...fallenSun().pos };
+    made.w.player.money = TALK_PRICE + 50;
+    return made;
+  }
+
+  it('asks a grim driver a price for the crater talk and tells it once paid', () => {
+    const { w, npc } = craterDriver();
+    let next = choose(callVehicle(w, npc.id), ask('sunwardTalk'));
+
+    expect(next.player.call?.node).toBe(TOLL);
+    expect(next.player.call?.line.line).toBe('thatCostsYou');
+    expect(next.player.call?.vars.price).toEqual({ kind: 'money', amount: TALK_PRICE });
+    next = choose(next, 'dealSendingIt');
+    expect(next.player.call?.node).toBe(TOPICS.sunwardTalk.start);
+    expect(next.player.call?.line.line).toBe('craterNews');
+    expect(next.player.money).toBe(50);
+    expect(next.vehicles.find((v) => v.id === npc.id)!.resources!.money).toBe(TALK_PRICE);
+  });
+
+  it('lets the player turn down the crater price at no cost', () => {
+    const { w, npc } = craterDriver();
+    const next = choose(choose(callVehicle(w, npc.id), ask('sunwardTalk')), 'tooMuch');
+
+    expect(next.player.call?.topic).toBeNull();
+    expect(next.player.money).toBe(TALK_PRICE + 50);
   });
 
   it('leaves a player who cannot pay only the way out, and costs nothing', () => {
