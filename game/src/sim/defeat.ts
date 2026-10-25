@@ -222,7 +222,7 @@ function advanceNpcKnockout(world: World, v: Vehicle): void {
   world.events.push({ t: "npcWake", vehicle: v.id });
 }
 
-export function heldDown(world: World, v: Vehicle): boolean {
+function heldDown(world: World, v: Vehicle): boolean {
   const me = playerVehicle(world);
   const job = me.job;
   if (job?.kind !== "refit" || job.pickup?.from !== "truck") return false;
