@@ -1,7 +1,7 @@
 import { CHASSIS, TOWN_CHASSIS } from '../data/chassis';
 import { DETECT } from '../data/detect';
 import { GOODS, ECONOMY } from '../data/goods';
-import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, PRICE_FACTOR, SHOPS } from '../data/market';
+import { CONTRACTS, CRIME, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, PRICE_FACTOR, SHOPS } from '../data/market';
 import { PRODUCTION, RELIEF, ROAD_NEWS, SITE_ECONOMY, SITE_EVENTS } from '../data/market';
 import { chassisAbility } from '../sim/chassis-features';
 import { fullStock, stockTarget } from '../sim/market';
@@ -278,5 +278,5 @@ export const WIKI_ROOTS: Record<string, unknown> = {
   RULES, ECONOMY, EFFORT, CONTRACTS, PRICE_FACTOR, DISTANCE_PREMIUM, PRESSURE_MAX, PRODUCTION, RELIEF, ROAD_NEWS,
   PART_PRICE_MODIFIERS, CHASSIS_PRICE_MODIFIERS, CONDITION, WEAR, REPAIR, PATCH, SALVAGE, STRIP,
   NPC_BEHAVIOR, NPC_UPKEEP, HUNT, SPAWN, MIN_CHANCE, DETECT, TOW, XP_RULES, PERK_NUMBERS,
-  UNITS, TIME, PHYSICS, BREAKABLE, FURY_ROAD,
+  UNITS, TIME, PHYSICS, BREAKABLE, FURY_ROAD, CRIME,
 };
