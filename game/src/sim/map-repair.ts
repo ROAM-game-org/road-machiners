@@ -503,7 +503,7 @@ function fitSurveyPoints(contracts: Contract[], sites: Set<string>): void {
 }
 
 function cancelContracts(world: World, dropped: Set<string>, sites: Set<string>): Set<string> {
-  fitSurveyPoints([...world.player.contracts, ...Object.values(world.shops).flatMap((s) => s.contracts)], sites);
+  fitSurveyPoints([...world.player.contracts, ...world.player.pastContracts.map((p) => p.contract), ...Object.values(world.shops).flatMap((s) => s.contracts)], sites);
   for (const shop of Object.values(world.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'survey' || c.points.length > 0);
   const cancelled = new Set<string>();
   for (const c of world.player.contracts.filter((x) => lapses(x, dropped) && claimPartHeld(world, x) !== 'player')) {
