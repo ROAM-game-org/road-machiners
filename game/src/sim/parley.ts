@@ -27,6 +27,8 @@ import { dist } from './vec';
 import { isIntroAmbusher } from './quests';
 import { fightSide, spokesman } from './sides';
 import { reportIncident } from './relations';
+import { noteHandover } from './crime';
+import { withdrawHunt, withdrawsOnTruce } from './marshals';
 
 export type ThreatAnswer = DecisionOptions['threatened'];
 
@@ -87,6 +89,7 @@ function requireLooting(world: World, loser: Vehicle): void {
 function settleHoldUp(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock | null, paid: 'cargo' | 'money', value: number): void {
   cede(world, loser, winner, stock, 'takeHandedCargo');
   if (loser.brain) remember(world, loser, { kind: 'wronged', by: winner.id, deed: 'robbed' });
+  noteHandover(world, winner, loser, value);
   world.events.push({ t: 'holdUp', robber: winner.id, victim: loser.id, paid, value });
 }
 
@@ -165,10 +168,16 @@ function grantPlea(world: World, pleader: Vehicle, answerer: Vehicle, plea: Plea
   const held = stateOf(world, 'plea', pleader.id, answerer.id);
   if (!held) throw new Error(`${pleader.id} holds no plea to ${answerer.id}`);
   endState(world, held, 'fulfilled');
-  if (plea === 'truce') makePeace(world, pleader, answerer);
+  if (plea === 'truce') truceBetween(world, pleader, answerer);
   else if (price !== null) payOff(world, pleader, answerer, price);
   else if (pleader.brain && answerer.brain) giveInTo(world, pleader, answerer, ransomOf(world, answerer, pleader));
   else yieldTo(world, pleader, answerer);
+}
+
+function truceBetween(world: World, pleader: Vehicle, answerer: Vehicle): void {
+  const withdrawal = withdrawsOnTruce(world, pleader, answerer);
+  makePeace(world, pleader, answerer);
+  if (withdrawal) withdrawHunt(world, withdrawal.hunter, withdrawal.target);
 }
 
 export function plead(world: World, npc: Vehicle, foe: Vehicle, plea: Plea): void {

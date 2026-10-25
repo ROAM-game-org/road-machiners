@@ -1,4 +1,5 @@
-import { concat, SPACE, t, type Msg } from "../text/msg";
+import { concat, SPACE, t, verbatim, type Msg } from "../text/msg";
+import { el } from "./dom";
 import { type Extent, type UiSize } from "./ui-size";
 
 export interface InputMode {
@@ -74,6 +75,11 @@ export function keyLabel(text: Msg, key: string, place: "after" | "before" = "af
   if (touchMode()) return text;
   const cap = t("ui.key", { key });
   return concat(place === "after" ? [text, SPACE, cap] : [cap, SPACE, text]);
+}
+
+export function keyCap(key: string): HTMLElement | null {
+  if (touchMode()) return null;
+  return el("kbd", { class: "key" }, verbatim(key));
 }
 
 export function closeLabel(): Msg {

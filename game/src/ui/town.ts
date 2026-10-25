@@ -45,12 +45,12 @@ import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { fitsClaim } from "../sim/claims";
 import { acceptContract, deliverContract, goodStock, haulShort, isMet, knowsMarket, onOrder, pressureOf, spareGoods, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
-import type { CrimeCase, PartInstance, RoadNews, Vehicle, World } from "../sim/types";
+import type { PartInstance, RoadNews, Vehicle, World } from "../sim/types";
 import { onRelief, recipeRunning } from "../sim/production";
 import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
-import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
+import { caption, deskBody, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, livePaintPlan, paintTab, planWithSlot, type PriceHint } from "./shop-rows";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
 import { callError } from "./dialogue";
@@ -59,7 +59,7 @@ import { TOWN_SECTIONS, type TownSection } from "../data/quests";
 import { barDrivers, pickTownSection, townSections, type SectionAccess } from "../sim/quests";
 import { callVehicle } from "../sim/dialogue";
 import { hostileToPlayer } from "../sim/world";
-import { caseVictimName, clock, escortStatusText, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
+import { escortStatusText, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyPlacesLeft, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { contractRow } from "./contract-row";
 import { buyChart, chartsOnSale, sheetAt, sheetId, sheetTiles, type Sheet, type SheetOffer } from "../sim/charts";
@@ -75,8 +75,7 @@ import { driverName, factionName, goodName, localName, localRole, placeProse, re
 import { commandFailure, stanceTag } from "./format";
 import { seesAll } from "./see-all";
 import { ESCAPE, keyLabel } from "./input-mode";
-import { deskAt, deskRows, payAtDesk, settleAtDesk, type SettlementQuote } from "../sim/crime";
-import { vehicleById } from "../sim/damage";
+import { deskAt } from "../sim/crime";
 
 export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "paint" | "contracts" | "charts";
 
@@ -309,7 +308,7 @@ export class TownScreen {
         "div",
         { class: "ink-body" },
         el("div", { class: "ink-head" }, el("h2", { class: "quest-place" }, this.heading(desk)), people ? el("p", { class: "qt-line" }, t("town.line.people")) : null),
-        people ? null : el("div", { class: "ink-panel" }, this.deskBody(w)),
+        people ? null : el("div", { class: "ink-panel" }, deskBody(w, (cmd) => this.run(cmd))),
         el("div", { class: "ink-choices quest-choices" }, ...this.choices.map((c, i) => choiceButton(c, i))),
         el("div", { class: "ink-status bad" }, this.error),
       ),
@@ -327,45 +326,6 @@ export class TownScreen {
     this.rows.collapse();
     this.render();
     this.rows.toTop(this.root);
-  }
-
-  private deskBody(w: World): HTMLElement {
-    const rows = deskRows(w);
-    const cases = rows.cases.map((c) => this.caseRow(w, c));
-    const ids = rows.cases.map((c) => c.id);
-    const payAll = rows.cases.length > 1 ? el("div", { class: "desk-all" }, this.priceButton(w, t("desk.payAll"), rows.owed, (x) => payAtDesk(x, ids))) : null;
-    const settles = rows.settlements.map((q) => this.settleRow(w, q));
-    return el(
-      "div",
-      { class: "desk-body" },
-      cases.length > 0 ? el("div", { class: "desk-group" }, ...cases, payAll) : null,
-      settles.length > 0 ? el("div", { class: "desk-group" }, ...settles) : null,
-      cases.length === 0 && settles.length === 0 ? el("p", { class: "dim" }, t("desk.empty")) : null,
-    );
-  }
-
-  private caseRow(w: World, c: CrimeCase): HTMLElement {
-    const victim = caseVictimName(w, c);
-    return el(
-      "div",
-      { class: "row desk-case" },
-      el("span", {}, t(`desk.case.${c.offense}`, { victim })),
-      el("span", { class: "dim" }, t("desk.filed", { issuer: issuerName(w, c), site: siteName(c.site), when: clock(c.turn).full })),
-      this.priceButton(w, t("desk.pay"), c.owed, (x) => payAtDesk(x, [c.id])),
-    );
-  }
-
-  private settleRow(w: World, q: SettlementQuote): HTMLElement {
-    const short = shortBy(w.player.money, q.price);
-    const reason = q.refusal && q.refusal.id !== "noMoney" ? refusalText(w, q.refusal) : short;
-    const label = [t("desk.settle"), SPACE, priceSpan(q.price, short === null)];
-    return el(
-      "div",
-      { class: "row desk-settle" },
-      el("span", {}, factionName(q.faction)),
-      el("span", { class: "tag bad" }, t("band.hostile")),
-      reasonButton(label, () => this.run((x) => settleAtDesk(x, q.faction)), reason, "", t("desk.settleAfter", { faction: factionName(q.faction) })),
-    );
   }
 
   private bandOf(w: World, art: string | null, freeCells: boolean): HTMLElement {
@@ -1227,11 +1187,4 @@ function choiceButton(c: TownChoice, i: number): HTMLElement {
   button.className = c.id === "back" || c.id === "leave" ? "quest-choice compact" : "quest-choice";
   button.dataset.townGo = c.id;
   return button;
-}
-
-function issuerName(w: World, c: CrimeCase): Msg {
-  if (c.issuer.kind === "faction") return factionName(c.issuer.faction);
-  if (c.issuer.kind === "shop") return siteName(c.issuer.shop);
-  const id = c.issuer.id;
-  return w.vehicles.some((v) => v.id === id) ? vehicleTitle(w, vehicleById(w, id)) : t("log.someDriver");
 }

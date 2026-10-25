@@ -10,11 +10,11 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine, surveyWayText } from "./format";
+import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine, surveyWayText } from "./format";
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
-import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
+import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo } from "./format";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
@@ -143,6 +143,13 @@ describe("contract text", () => {
     const line = eventText(w, { t: "bountyClosed", case: "k1", target: "gone", status: "collected", amount: 5500, collector: w.player.vehicleId })!;
     expect([en(line.text), line.cls]).toEqual(["You collect the bounty on a driver: 55 M's", "good"]);
     expect(eventText(w, { t: "bountyClosed", case: "k1", target: "gone", status: "collected", amount: 5500, collector: "marshal-1" })).toBeNull();
+  });
+
+  it("tells the player nothing when a claim is filed against them, in the log or a toast", () => {
+    const w = emptyWorld();
+    const filed: GameEvent = { t: "bountyFiled", case: "k1", target: w.player.vehicleId, reporter: "npc-1", offense: "robbed", victim: "npc-1", site: "bowl", owed: 11097 };
+    expect(eventText(w, filed)).toBeNull();
+    expect(isNotable(filed)).toBe(false);
   });
 
   describe("search", () => {
@@ -654,7 +661,6 @@ describe("look-over text", () => {
     w.player.ranks.perception = 1;
     const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     npc.brain = npcBrain("trader", npc.pos, ["trader"]);
-    expect(en(formatNpcLookOver(w, npc))).toBe("[B] Look over");
     expect(formatNpcCargo(w, npc)).toBeNull();
     addState(w, "lookOver", w.player.vehicleId, npc.id, { kind: "none" });
     const mine = w.vehicles[0];
@@ -662,18 +668,10 @@ describe("look-over text", () => {
     const theirs = addState(w, "lookOver", npc.id, w.player.vehicleId, { kind: "none" });
     expect(en(workLabel(w, npc, workOf(w, npc)!))).toBe("Looking you over");
     w.states = w.states.filter((s) => s !== theirs);
-    expect(formatNpcLookOver(w, npc)).toBeNull();
     addState(w, "sizedUp", w.player.vehicleId, npc.id, { kind: "none" });
     expect(formatNpcCargo(w, npc)).not.toBeNull();
     expect(en(eventText(w, { t: "lookedOver", by: npc.id, target: w.player.vehicleId })?.text)).toMatch(/^Trader .* looks your truck over\.$/);
     expect(eventText(w, { t: "lookedOver", by: w.player.vehicleId, target: npc.id })).toBeNull();
-  });
-
-  it("hides the look-over key without Perception 1", () => {
-    const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
-    npc.brain = npcBrain("trader", npc.pos, ["trader"]);
-    expect(formatNpcLookOver(w, npc)).toBeNull();
   });
 });
 
@@ -955,7 +953,7 @@ describe("survey contract text", () => {
   });
 
   it("tells the posting shop's way to a place, with the look and lay and the found tag last", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-skiff-5983", found: true, done: false }] };
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "bowl", points: [{ site: "survey-skiff-5985", found: true, done: false }] };
     vi.stubGlobal("document", {
       createElement: () => new TextNode(),
       createTextNode: (value: string) => Object.assign(new TextNode(), { children: [value] }),
@@ -969,7 +967,7 @@ describe("survey contract text", () => {
   });
 
   it("keeps the compass clue when no full way can be told", () => {
-    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: "survey-skiff-5980", found: false, done: false }] };
+    const c: Extract<Contract, { kind: "survey" }> = { ...survey([false]), shop: "nose", points: [{ site: "survey-skiff-5982", found: false, done: false }] };
     const w = emptyWorld();
     expect(en(surveyWayText(w, c, c.points[0]))).toBe(en(surveyClueText(surveyClue(c, c.points[0]))));
     vi.stubGlobal("document", {
@@ -1053,5 +1051,21 @@ describe("the log names only trucks the player sees", () => {
   it("shows an event with the player's own truck far from anything", () => {
     const { w, far } = scene();
     expect(eventText(w, samples[1](w.player.vehicleId, far.id))).not.toBeNull();
+  });
+});
+
+describe("the Bounty hunter Wanted mark", () => {
+  it("shows the fines a hunter collects, not the restitution on top", () => {
+    const w = emptyWorld({ x: 200, y: 200 });
+    const robber = addVehicle(w, "independent", "scout", ["mg", "stockEngine"], { x: 210, y: 200 });
+    robber.brain = npcBrain("trader", robber.pos, ["trader"]);
+    w.crimes = [{
+      id: "case1", crime: `1:${robber.id}:npc-x:robbed`, offense: "robbed", target: robber.id, victim: "npc-x", issuer: { kind: "faction", faction: "bowl" },
+      reporters: ["npc-x"], site: "bowl", at: { x: 200, y: 200 }, turn: 1, filed: 2, owed: 11097, restitution: 4000, escrow: 0, status: "open",
+      closed: null, hunter: null, retryAt: null, offered: null, known: false, posse: "lone", lead: { at: { x: 200, y: 200 }, turn: 1, heading: 0 },
+    }];
+    expect(wantedBounty(w, robber)).toBeNull();
+    w.player.perks = ["bountyHunter"];
+    expect(wantedBounty(w, robber)).toBe(11097);
   });
 });
