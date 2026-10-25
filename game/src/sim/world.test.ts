@@ -6,7 +6,9 @@ import { TEST_MAP } from '../test/map';
 import { playerVehicle } from './damage';
 import { maxHp } from './wear';
 import { townAt } from './sites';
-import { endTurn, isAtRest, newWorld, setHeadlights, setOverdrive, townStart, update } from './world';
+import { autoRuns, endTurn, isAtRest, newWorld, setHeadlights, setOverdrive, townStart, update, waitsOnPlayer } from './world';
+import { leaveQuest, QUESTS, startQuest } from './quests';
+import { GAME_OPENED_QUESTS } from '../data/quests';
 import { startPose } from './start-pose';
 import { dist } from './vec';
 import { partDef } from '../data/parts';
@@ -232,5 +234,36 @@ describe('the headlight switch', () => {
 
     expect(dark.at(-1)!.player.contacts.length).toBeGreaterThan(0);
     expect(lit.map((w) => ({ ...w, player: { ...w.player, headlights: false } }))).toEqual(dark);
+  });
+});
+
+describe('waitsOnPlayer', () => {
+  function freshWorld(): World {
+    return newWorld(7, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
+  }
+
+  it('waits on nothing in a world with no call and no scene', () => {
+    expect(waitsOnPlayer(freshWorld())).toBe(false);
+  });
+
+  it('waits on an open radio call', () => {
+    const world = freshWorld();
+    world.player.call = { kind: 'radio' } as never;
+    expect(waitsOnPlayer(world)).toBe(true);
+    expect(autoRuns({ ...world, player: { ...world.player, state: 'knockedOut' } })).toBe(false);
+  });
+
+  it('waits on a scene whose session is still open', () => {
+    const world = startQuest(freshWorld(), QUESTS, GAME_OPENED_QUESTS.introWake, 'start');
+    expect(world.player.quests.session).not.toBeNull();
+    expect(waitsOnPlayer(world)).toBe(true);
+  });
+
+  it('waits on an ended scene still on view until the player leaves it', () => {
+    const world = startQuest(freshWorld(), QUESTS, GAME_OPENED_QUESTS.introRoad, 'start');
+    expect(world.player.quests.session).toBeNull();
+    expect(waitsOnPlayer(world)).toBe(true);
+    expect(autoRuns({ ...world, player: { ...world.player, state: 'knockedOut' } })).toBe(false);
+    expect(waitsOnPlayer(leaveQuest(world))).toBe(false);
   });
 });
