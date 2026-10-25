@@ -567,5 +567,5 @@ export class TurnPreparation {
 
 function waitReason(world: World): string {
   const live = world.player.quests.live;
-  return live ? `the scene ${live.quest} is on view` : `a radio call is open`;
+  return live ? `scene:${live.quest}` : "radio-call";
 }
