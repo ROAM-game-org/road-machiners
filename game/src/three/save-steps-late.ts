@@ -476,3 +476,13 @@ function keptContracts_103_104(contracts: SavedJson[]): SavedJson[] {
 function metBountyPay_103_104(held: SavedJson[]): number {
   return held.filter((c) => c.kind === BOUNTY_KIND_103_104 && c.fulfilled === true).reduce((sum, c) => sum + (c.reward as number), 0);
 }
+
+export function withRefitQueues_104_105(world: SavedJson): SavedJson {
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(withRefitQueue_104_105) };
+}
+
+function withRefitQueue_104_105(v: SavedJson): SavedJson {
+  const job = v.job as SavedJson | null;
+  if (job?.kind !== 'refit' || Array.isArray(job.queue)) return v;
+  return { ...v, job: { ...job, queue: [] } };
+}
