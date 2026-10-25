@@ -19,6 +19,7 @@ beforeAll(async () => {
 });
 
 const APPROACH = 11;
+const CLEAR_OF_DRUM = 3;
 const DRIVE_TURNS = 14;
 const SETTLE_TURNS = 2;
 const START_HEALTH = 40;
@@ -28,7 +29,7 @@ function worldWith(chassisId: string): World {
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const zone = lightZone();
-  const pos = { x: zone.pos.x + APPROACH, y: zone.pos.y + 0.3 };
+  const pos = { x: zone.pos.x + APPROACH, y: zone.pos.y + CLEAR_OF_DRUM };
   const truck = makeVehicle(w, { faction: 'player', chassisId, parts: [{ defId: 'stockEngine', wear: 0 }], spares: [], cargo: {}, pos, heading: Math.PI, brain: null });
   w.vehicles[0] = { ...truck, id: w.vehicles[0].id };
   w.player.fuel = 999;
