@@ -12,6 +12,22 @@ The world of ROAM. Everything here answers to [Theme](../theme.md).
 - [Story game](story-game.md): a turn-based game that generates history and stories with agents.
 - [Chaos Highway](chaos-highway.md): the skeleton of the Geezer and Ala story on the highway.
 
+## Sense check
+
+Lore makes sense to the people in it. Ask every practice, deal and detail these four questions from inside the world, with only what its people know and want:
+
+1. Purpose: what is it for, in one plain sentence, as the people who do it see it?
+2. It works: does it do that job in this world, or would its people believe it does? Does any other fact stop it?
+3. Everyone has a reason: why would each other person or group it names bother, by what the lore already says they want?
+4. It earns its place: does it change a choice, a scene or a piece of evidence the player can find, or is it there only to look woven or exact?
+
+A missing answer, a clash with another fact or an answer that would make a basin driver laugh cuts or fixes the detail. Keep the parts around it that pass. These patterns fail most often:
+
+- Self-defeating practice: a group does what undoes its own purpose. Beacon keepers who put their lamps out at night fail it.
+- Means that don't fit the goal: folk means aimed at something huge, unless the lore means it as a joke. Oil lamps to signal a starship fail it.
+- Name-drop garnish: a faction or a named person tied to a detail with no motive, so the lore looks connected. A Pierce lien on a cult's lamps fails it.
+- Precision garnish: exact counts, ages and spans that no scene or evidence uses. Six lamps kept for sixty years fail it.
+
 ## Icarus
 
 Icarus was a fertile farming basin before the collapse. Orchards, fields, canals, irrigation gates, farm roads, and market towns shaped the land. It was not a spaceflight center. The name Icarus came after the crash. Its old name has not been chosen.
