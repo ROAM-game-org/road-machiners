@@ -832,15 +832,27 @@ export class Game {
     for (const [id, fs] of Object.entries(a.result.frames))
       this.frames[id] = fs[fs.length - 1];
     const stopped = this.travel.stopAt(a, this.world, this.frames, now, a.elapsed - MOVE_MS);
-    if (stopped) [this.world, this.drive] = [stopped.world, stopped.drive];
-    if (stopped) this.saves.logWorld(stopped.world);
-    if (stopped) this.play.stopWithin(stopped.leftMs);
+    if (stopped) this.commitStop(stopped);
     this.live = null;
     this.phase = a.combat ? "firing" : "results";
     timed("fog", () => this.fog.update(this.combatFogWorld()));
     playCrashes(this.combatHost(), this.crashCues, null);
     playUtilitySounds(this.combatHost(), "end");
     this.weapons.render();
+  }
+
+  private commitStop(stopped: { world: World; drive: DriveSnapshot; leftMs: number }): void {
+    [this.world, this.drive] = [stopped.world, stopped.drive];
+    this.saves.logWorld(stopped.world);
+    this.play.stopWithin(stopped.leftMs);
+  }
+
+  private settleLateStop(now: number): void {
+    if (this.anim !== null) return;
+    const stopped = this.travel.settleStop(this.world, this.frames, now);
+    if (!stopped) return;
+    if (!this.play.isMoving()) throw new Error("A late travel stop needs the world clock to move");
+    this.commitStop(stopped);
   }
 
   private landImpacts(a: Playback): void {
@@ -1009,6 +1021,7 @@ export class Game {
       at = this.animStep(now, speed, 0);
       this.updateTravel();
     }
+    this.settleLateStop(now);
     this.travel.prepareNext(this.world, this.anim, now);
     this.flushUi(began, phase);
     return { at, playMs };
@@ -1065,7 +1078,7 @@ export class Game {
     this.weather.advance(this.play.frameMs());
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);
-    this.shaders.render(this.modalOpen());
+    this.shaders.render(this.timeHeld());
     this.refreshPlan();
     this.showPlan();
   }
