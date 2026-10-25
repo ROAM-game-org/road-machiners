@@ -9,6 +9,7 @@ import bpy
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, Vec3, parse_args, round_sides  # noqa: E402
 from parts_common_base import cut_boxes, hull_mesh, ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, Grid, check_base, level_sockets, surface_z  # noqa: E402
+from parts_common_core import PROUD  # noqa: E402
 from shapes import prism  # noqa: E402
 
 SEED = 307
@@ -198,7 +199,7 @@ def bucket(kit: Kit) -> None:
     prism(kit, "side_plate_r", plate, -BUCKET_HALF, -BUCKET_HALF + 0.05, "paint")
     guard = [(top[0], top[1] - 0.02), (top[0] - 0.1, top[1] + 0.22), (top[0] - 0.05, top[1] + 0.22), (top[0] + 0.05, top[1])]
     prism(kit, "spill_guard", guard, -BUCKET_HALF + 0.05, BUCKET_HALF - 0.05, "paint")
-    beam(kit, "cutting_edge", BUCKET[0], lerp(BUCKET[0], BUCKET[1], 0.35), 0, 2 * BUCKET_HALF - 0.1, 0.05, "metal_light")
+    beam(kit, "cutting_edge", lerp(BUCKET[0], BUCKET[1], 0.05), lerp(BUCKET[0], BUCKET[1], 0.35), 0, 2 * BUCKET_HALF - 0.1 + 2 * PROUD, 0.05, "metal_light")
     beam(kit, "wear_strip", lerp(BUCKET[3], BUCKET[4], 0.2), lerp(BUCKET[5], BUCKET[6], 0.5), 0, 2 * BUCKET_HALF - 0.2, 0.12, "under")
     for s, y in (("l", ARM_Y), ("r", -ARM_Y)):
         kit.box(f"bucket_ear_{s}", (0.16, 0.18, 0.34), (B_PIN[0] + 0.04, y, B_PIN[1] + 0.06), "under")
@@ -243,7 +244,7 @@ def frames(kit: Kit) -> None:
 def platform(kit: Kit) -> None:
     pod_y = (FRAME_Y + PLATFORM_HALF - 0.12) / 2
     mirrored(kit, "pod", (POD_FRONT - POD_BACK, PLATFORM_HALF - 0.12 - FRAME_Y, PLATFORM_TOP - 0.1 + 0.85), (POD_FRONT + POD_BACK) / 2, pod_y, (PLATFORM_TOP - 0.1 - 0.85) / 2, "paint")
-    kit.box("platform", (PLATFORM_FRONT - PLATFORM_BACK, 2 * PLATFORM_HALF, 0.1), ((PLATFORM_FRONT + PLATFORM_BACK) / 2, 0, PLATFORM_TOP - 0.05), "paint")
+    kit.box("platform", (PLATFORM_FRONT - PLATFORM_BACK, 2 * (PLATFORM_HALF - PROUD), 0.1), ((PLATFORM_FRONT + PLATFORM_BACK) / 2, 0, PLATFORM_TOP - 0.05), "paint")
     ladder_y = PLATFORM_HALF - 0.08
     for x in (-0.2, -0.56):
         kit.box(f"ladder_rail{x:.2f}", (0.04, 0.04, PLATFORM_TOP + 0.75 - FRAME_BOTTOM), (x, ladder_y + 0.02, (PLATFORM_TOP + 0.75 + FRAME_BOTTOM) / 2), "under")
@@ -253,7 +254,7 @@ def platform(kit: Kit) -> None:
     for s, y in (("l", rail_y), ("r", -rail_y)):
         kit.box(f"rail_{s}", (PLATFORM_FRONT - PLATFORM_BACK - 0.1, 0.04, 0.04), ((PLATFORM_FRONT + PLATFORM_BACK) / 2, y, PLATFORM_TOP + 0.7), "under")
         for x in (PLATFORM_FRONT - 0.07, -0.35, PLATFORM_BACK + 0.07):
-            kit.box(f"rail_post_{s}{x:.2f}", (0.04, 0.04, 0.7), (x, y, PLATFORM_TOP + 0.35), "under")
+            kit.box(f"rail_post_{s}{x:.2f}", (0.05, 0.05, 0.7 + PROUD), (x, y, PLATFORM_TOP + 0.35 + PROUD / 2), "under")
 
 
 def cab(kit: Kit) -> None:
@@ -287,7 +288,7 @@ def hood(kit: Kit) -> None:
         mirrored(kit, f"louver{i}", (0.1, 0.02, 0.42), BAY_FRONT - 0.1 - 0.24 * i, HOOD_Y + 0.005, 0.38, "under")
     kit.box("grille", (0.03, 2 * (HOOD_Y - 0.12), 0.62), (HOOD_BACK - 0.005, 0, 0.24), "under")
     for i in range(5):
-        kit.box(f"grille_bar{i}", (0.02, 2 * (HOOD_Y - 0.12), 0.035), (HOOD_BACK - 0.02, 0, -0.02 + 0.13 * i), "metal")
+        kit.box(f"grille_bar{i}", (0.02, 2 * (HOOD_Y - 0.12) - 2 * PROUD, 0.035), (HOOD_BACK - 0.02, 0, -0.02 + 0.13 * i), "metal")
     stack_low = HOOD_TOP - 0.1
     kit.cylinder("exhaust", 0.09, EXHAUST_TOP - stack_low, (STACK_X, -STACK_Y, (EXHAUST_TOP + stack_low) / 2), "under", vertices=round_sides(0.09))
     kit.cylinder("exhaust_band", 0.105, 0.05, (STACK_X, -STACK_Y, stack_low + 0.12), "metal_light", vertices=round_sides(0.105))
