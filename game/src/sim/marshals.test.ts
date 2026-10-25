@@ -205,6 +205,7 @@ describe('pay or fight', () => {
     planMarshal(w, marshal, [target]);
     if (option === 'pay') {
       expect(w.crimes[0].status).toBe('paid');
+      expect(topGoal(marshal)?.kind).toBe('pursue');
       expect(stateOf(w, 'truce', marshal.id, target.id)).not.toBeNull();
     } else {
       expect(stateOf(w, 'feud', marshal.id, target.id)).not.toBeNull();

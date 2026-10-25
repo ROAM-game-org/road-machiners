@@ -140,7 +140,7 @@ export function hunt(world: World, marshal: Vehicle, seen: Vehicle[]): void {
 
 function waitsToAsk(world: World, marshal: Vehicle, targetId: string, cases: CrimeCase[], seen: Vehicle[]): boolean {
   if (!sighted(world, marshal, targetId, seen) || stateOf(world, 'bountyStop', marshal.id, targetId)) return false;
-  return world.turn - lastOffer(cases) < BOUNTY.offerGapTurns;
+  return cases.some((c) => c.status === 'open') && world.turn - lastOffer(cases) < BOUNTY.offerGapTurns;
 }
 
 function sighted(world: World, marshal: Vehicle, targetId: string, seen: Vehicle[]): Vehicle | null {
