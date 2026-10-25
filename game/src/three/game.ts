@@ -30,7 +30,7 @@ import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
 import { engineOverheating } from "../sim/engine-heat";
-import { Refused, hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { Refused, hostileToPlayer, playerCanAct, setMoveOrder, waitsOnPlayer } from "../sim/world";
 import { refusalText } from "../text/names";
 import { TruckContext, TruckControls } from "./truck-controls";
 import { PAL } from "../render/palette";
@@ -1017,7 +1017,7 @@ export class Game {
   }
 
   private holdsTime(): boolean {
-    return this.timeHeld() || this.world.player.call !== null;
+    return this.timeHeld() || waitsOnPlayer(this.world);
   }
 
   private timeHeld(): boolean {
@@ -1072,6 +1072,7 @@ export class Game {
     this.labels.update(this.world, this.rig, this.sightLimit);
     for (const scope of this.scopes) scope.update(this.rig.camera);
     this.shaders.render(this.modalOpen());
+    this.hud.stepPortraits(this.travel.isPlaying(this.anim));
     this.refreshPlan();
     this.showPlan();
   }

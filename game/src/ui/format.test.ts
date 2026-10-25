@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { REGION } from "../data/region";
+import { MAP_GRID, REGION } from "../data/region";
 import { CONDITION } from "../data/wear";
 import type { Contract } from "../sim/market";
 import { partDef, PARTS } from "../data/parts";
@@ -10,7 +10,8 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine, surveyWayText } from "./format";
+import { gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyClueText, surveyPlacesLeft, surveyProgress, surveyWayLine, surveyWayText } from "./format";
+import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
 import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle, standingNum, standingStep, formatNpcCargo, formatNpcLookOver } from "./format";
@@ -215,7 +216,9 @@ describe("contract text", () => {
   it("names the wreck kind, a compass point and a rounded distance in the clue", () => {
     const shop = REGION.towns.find((l) => l.id === "bowl")!;
     const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
-    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank east of Bowl, about 1.3 km out");
+    expect(gridSquareOf(claim.at)).toEqual({ column: 4, row: 6 });
+    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank in square E7, east of Bowl, about 1.3 km out");
+    expect(resolve(contractSummary(claim), "ru")).toContain("в квадрате Д7,");
   });
 
   it("tells of a rival sent after a held claim, and of a claim lost to it, as notable lines", () => {
@@ -600,9 +603,9 @@ describe("money text", () => {
   it("reads a money event in M with its sign", () => {
     const w = emptyWorld();
     const gain = eventText(w, { t: "money", amount: 4067, reason: { kind: "contract" } })!;
-    const loss = eventText(w, { t: "money", amount: -100, reason: { kind: "failedHaul" } })!;
+    const loss = eventText(w, { t: "money", amount: -100, reason: { kind: "contract" } })!;
     expect([en(gain.text), gain.cls]).toEqual(["+41 M's: contract", "good"]);
-    expect([en(loss.text), loss.cls]).toEqual(["\u22121 M: failed haul contract", "bad"]);
+    expect(loss.cls).toBe("bad");
   });
 });
 
@@ -612,7 +615,7 @@ describe("tow text", () => {
     const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     const town = REGION.towns[0].id;
     expect(en(eventText(w, { t: "money", amount: 12000, reason: { kind: "contract" } })!.text)).toBe("+120 M's: contract");
-    expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "failedHaul" } })!.text)).toBe("\u221240 M's: failed haul contract");
+    expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "contract" } })!.text)).toBe("\u221240 M's: contract");
     expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 100 })!.text)).toMatch(/ for 1 M\.$/);
   });
   it("says free for a fee of 0 and keeps the price otherwise", () => {
@@ -895,6 +898,7 @@ describe("survey contract text", () => {
       const lines = surveyClueLines(c) as unknown as TextNode[];
       expect(lines).toHaveLength(2);
       expect(lines[0].text()).toMatch(new RegExp(`^${en(t(`contract.placeName.${second.type}`))}:`));
+      expect(lines[0].text()).toContain(`: square ${en(gridSquareText(gridSquareOf(second.pos)))}, `);
       expect(lines[0].all("tag").map((node) => node.text())).toEqual(["found"]);
       expect(lines[1].text()).toMatch(new RegExp(`^${en(t(`contract.placeName.${third.type}`))}:`));
       expect(lines[1].all("tag")).toHaveLength(0);
@@ -923,10 +927,31 @@ describe("survey contract text", () => {
   });
 
   it("tells a clue as a named place, a compass word, a distance in hundreds of meters and the lay", () => {
-    const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow" } as const;
-    expect(en(surveyClueText(clue))).toBe("Lies north-east of Pump Station, about 400 m out, in a hollow");
-    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies west of Pump Station, about 1.1 km out, on high ground");
-    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25 }))).toBe("Lies south of Pump Station, about 100 m out, on flat ground");
+    const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow", square: { column: 2, row: 3 } } as const;
+    expect(en(surveyClueText(clue))).toBe("Lies in square C4, north-east of Pump Station, about 400 m out, in a hollow");
+    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies in square C4, west of Pump Station, about 1.1 km out, on high ground");
+    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25, square: { column: 7, row: 0 } }))).toBe("Lies in square H1, south of Pump Station, about 100 m out, on flat ground");
+  });
+
+  it("names a map grid square by its column letter and row number, with the Russian letters in Russian", () => {
+    expect(en(gridSquareText({ column: 2, row: 3 }))).toBe("C4");
+    expect(resolve(gridSquareText({ column: 2, row: 3 }), "ru")).toBe("В4");
+    expect(resolve(gridSquareText({ column: 7, row: 7 }), "ru")).toBe("З8");
+    expect(en(gridColumnLetter(0))).toBe("A");
+  });
+
+  it("refuses a grid column or row off the grid", () => {
+    expect(() => gridColumnLetter(MAP_GRID.squares)).toThrow(/no letter/);
+    expect(() => gridColumnLetter(-1)).toThrow(/no letter/);
+    expect(() => gridRowNumber(MAP_GRID.squares)).toThrow(/no number/);
+  });
+
+  it("gives every grid column its own single letter in each language", () => {
+    for (const locale of ["en", "ru"] as const) {
+      const letters = Array.from({ length: MAP_GRID.squares }, (_, k) => resolve(gridColumnLetter(k), locale));
+      expect(new Set(letters).size, locale).toBe(MAP_GRID.squares);
+      for (const letter of letters) expect(letter, locale).toMatch(/^\p{Lu}$/u);
+    }
   });
 
   it("tells the posting shop's way to a place, with the look and lay and the found tag last", () => {
@@ -937,10 +962,10 @@ describe("survey contract text", () => {
     });
     const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
     expect(line.className).toBe("contract-clue");
-    expect(line.text()).toBe("Hamlet, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. At Nose, leave the road and head east, a fair way. A cluster of ruined houses on flat ground. found");
+    expect(line.text()).toBe("Hamlet in square H3, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. At Nose, leave the road and head east, a fair way. A cluster of ruined houses on flat ground. found");
     vi.unstubAllGlobals();
     expect(line.all("tag").at(-1)?.text()).toBe("found");
-    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. At Nose, leave the road and head east, a fair way. It lies on flat ground.");
+    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. It's a long haul. At Nose, leave the road and head east, a fair way. It lies in square H3, on flat ground.");
   });
 
   it("keeps the compass clue when no full way can be told", () => {

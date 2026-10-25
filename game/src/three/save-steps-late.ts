@@ -497,16 +497,16 @@ export function withLeanDirections_104_105(world: SavedJson): SavedJson {
   return { ...world, player: { ...player, call: next } };
 }
 
-const OLD_MODE_105_106 = 'furyRoad';
-const NEW_MODE_105_106 = 'chaosHighway';
+const OLD_MODE_107_108 = 'furyRoad';
+const NEW_MODE_107_108 = 'chaosHighway';
 
-export function chaosHighwayMode_105_106(mode: unknown): unknown {
-  return mode === OLD_MODE_105_106 ? NEW_MODE_105_106 : mode;
+export function chaosHighwayMode_107_108(mode: unknown): unknown {
+  return mode === OLD_MODE_107_108 ? NEW_MODE_107_108 : mode;
 }
 
-export function withChaosHighwayName_105_106(world: SavedJson): SavedJson {
+export function withChaosHighwayName_107_108(world: SavedJson): SavedJson {
   if (!('furyRoad' in world)) throw new Error('A world at format 105 holds no Chaos Highway run key');
   const { furyRoad, ...rest } = world;
   const setup = world.setup as SavedJson;
-  return { ...rest, chaosHighway: furyRoad, setup: { ...setup, mode: chaosHighwayMode_105_106(setup.mode) } };
+  return { ...rest, chaosHighway: furyRoad, setup: { ...setup, mode: chaosHighwayMode_107_108(setup.mode) } };
 }

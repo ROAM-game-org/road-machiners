@@ -12,16 +12,17 @@ import {
   freeCells,
   gridOf,
   isMounted,
-  placementError,
   type Cell,
   type Spot,
 } from "../sim/grid";
 import {
   dumpItem,
   installSpot,
+  fieldMoveIsInstant,
   moveItem,
   planItemMove,
   plannedRefitTurns,
+  plannedVehicle,
   startRefit,
   stowSpot,
   storePart,
@@ -84,7 +85,8 @@ import {
   doubleClickCommand,
   dragStartOf,
   planAfterMove,
-  plannedVehicle,
+  pickupProblem,
+  pickupTruck,
   HOLD_TO_DRAG_MS,
   isDoubleClick,
   needsHold,
@@ -359,7 +361,7 @@ export class InventoryView {
     const now = Date.now();
     const double = isDoubleClick(this.lastClick, c.item.id, now);
     this.lastClick = double ? null : { id: c.item.id, at: now };
-    const cmd = double && !this.look() ? doubleClickCommand(this.host.world(), c, this.instant) : null;
+    const cmd = double && !this.look() ? doubleClickCommand(this.host.world(), c, this.instant, this.plan) : null;
     if (cmd) {
       this.selectedItem = null;
       this.run(cmd);
@@ -807,7 +809,7 @@ export class InventoryView {
 
   private previewOffGrid(source: ItemSource, item: GridItem): void {
     const w = this.host.world();
-    const spot = source === "storage" && item.kind === "part" ? installSpot(this.mine(w), item) : stowSpot(playerVehicle(w), item);
+    const spot = source === "storage" && item.kind === "part" ? installSpot(this.mine(w), item) : stowSpot(pickupTruck(playerVehicle(w), this.plan), item);
     const at = spot ?? { x: 0, y: 0, rot: item.rot };
     this.setPreview(source, { ...item, x: at.x, y: at.y, rot: at.rot });
     this.rotatePreview();
@@ -960,20 +962,9 @@ export class InventoryView {
   }
 
   private placementProblem(d: Drag): Refusal | null {
-    const me = this.mine(this.host.world());
     if (d.source === "grid")
-      return planItemMove(this.shown(this.host.world()), d.id, {
-        x: d.item.x,
-        y: d.item.y,
-        rot: d.item.rot,
-      }).error;
-    const others = me.items.filter((it) => it.id !== d.id);
-    return placementError(
-      gridOf({ ...me, items: [...others, d.item] }),
-      others,
-      d.item,
-      null,
-    );
+      return planItemMove(this.shown(this.host.world()), d.id, { x: d.item.x, y: d.item.y, rot: d.item.rot }).error;
+    return pickupProblem(this.mine(this.host.world()), this.plan, d.item);
   }
 
   private spotAt(cx: number, cy: number): Spot | null {
@@ -1031,6 +1022,7 @@ export class InventoryView {
     const to = { x: d.item.x, y: d.item.y, rot: d.item.rot };
     if (d.source === "grid") return this.moveGridItem(w, d.id, to);
     if (d.source === "storage") return takeFromStorage(w, d.id, to, this.gridTruck ?? undefined);
+    this.requirePickupFits(d);
     if (d.source === "truck") return takeFromTruck(w, this.truck!, d.id, to);
     return takeLoot(
       w,
@@ -1040,6 +1032,11 @@ export class InventoryView {
         : { kind: "good", good: d.id },
       to,
     );
+  }
+
+  private requirePickupFits(d: Drag): void {
+    const cause = d.source === "truck" || d.source === "loot" ? pickupProblem(this.mine(this.host.world()), this.plan, d.item) : null;
+    if (cause) throw new Refused({ id: "badLayout", cause });
   }
 
   private finishSelection(drag: Drag): boolean {
@@ -1062,6 +1059,10 @@ export class InventoryView {
   private moveGridItem(w: World, itemId: string, to: Spot): World {
     if (this.instant) return instantMoveItem(w, itemId, to);
     if (atGarage(w, this.gridTruck ?? undefined)) return moveItem(w, itemId, to, this.gridTruck ?? undefined);
+    if (fieldMoveIsInstant(this.mine(w), this.plan, itemId, to)) {
+      this.host.apply(moveItem(w, itemId, to, this.gridTruck ?? undefined));
+      return w;
+    }
     this.planMove(w, itemId, to);
     return w;
   }

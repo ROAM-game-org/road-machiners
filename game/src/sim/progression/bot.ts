@@ -23,7 +23,7 @@ import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply,
 import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountCellsOf, mountedItems, mountedParts, type Spot } from '../grid';
 import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
 import { itemMass } from '../mass';
-import { acceptContract, deliverContract, estimateTurns, shopAt, shopState, siteOf, type Contract } from '../market';
+import { acceptContract, deliverContract, estimateTurns, shopAt, isLate, shopState, siteOf, spareGoods, type Contract } from '../market';
 import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
 import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
 import { canLoot, downedHere, downedNear, needsSearch, salvageHere, takeAllLoot } from '../locations';
@@ -507,7 +507,7 @@ type Haul = Extract<Contract, { kind: 'haul' }>;
 
 function heldHaul(world: World): Haul | null {
   const goods = goodsCount(playerVehicle(world));
-  return world.player.contracts.find((c): c is Haul => c.kind === 'haul' && (goods[c.good] ?? 0) >= c.units) ?? null;
+  return world.player.contracts.find((c): c is Haul => c.kind === 'haul' && (goods[c.good] ?? 0) >= (isLate(world, c) ? 1 : c.units)) ?? null;
 }
 
 function carryHaul(o: Orders, haul: Haul): void {
@@ -1143,8 +1143,7 @@ function patrol(o: Orders, ids: readonly string[]): void {
 export const CONVOY_ROB_PATROL: readonly string[] = robPatrol(true);
 
 function cargoForSale(world: World, v: Vehicle): Record<string, number> {
-  const goods = { ...goodsCount(v) };
-  for (const c of world.player.contracts) if (c.kind === 'haul') goods[c.good] = (goods[c.good] ?? 0) - c.units;
+  const goods = Object.fromEntries(Object.keys(goodsCount(v)).map((good) => [good, spareGoods(world, v, good)]));
   const parts = Math.max(0, (goods.parts ?? 0) - NPC_UPKEEP.repairParts);
   const forSale = { ...goods, parts };
   return Object.fromEntries(Object.entries(forSale).filter(([, n]) => n > 0));
