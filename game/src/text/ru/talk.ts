@@ -165,6 +165,7 @@ export const TALK: Translation<typeof EN> = {
   'line.notPaying': 'Не заплачу.',
   'line.bookClosed': 'Страница закрыта. Можешь ехать.',
   'line.thenICollect': 'Тогда взыщу долг.',
+  'line.marshalBackWithCompany': 'Тогда стволы не поднимай. Страница остается открытой. В следующий раз один не выеду.',
   'line.whatDoIOwe': 'Слышу, ты меня ищешь. Сколько с меня?',
   'line.bountyTerms': '{offense} С тебя {price}. Плати, и страницу закроем.',
   'line.overMyWreck': 'Сначала придется меня разбить.',

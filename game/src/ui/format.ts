@@ -25,7 +25,7 @@ import { huntsOffRoad } from '../sim/hunt-style';
 import { isHostile } from '../sim/combat';
 import { trackOf } from '../sim/tracks';
 import { hasBasic, hasPerk } from '../sim/progress';
-import { owedBy } from '../sim/crime';
+import { finesOn } from '../sim/crime';
 import { canLookOver, knowsCargo } from '../sim/look-over';
 import { aidData, lootWarningData, pleaData, statesHeld, strayData, towData } from '../sim/states';
 import { MAP_GRID, REGION } from '../data/region';
@@ -40,7 +40,7 @@ import type { CrimeCase, GameEvent, GridItem, Job, NpcActivity, NpcState, PartIn
 import { concat, list, MINUS_SIGN, num, PLUS, SPACE, t, verbatim, type Msg } from '../text/msg';
 import { siteRecipes } from '../data/market';
 import { keyLabel } from './input-mode';
-import { driverName, factionName, offenseName, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
+import { driverName, factionName, standingCauseText, fullName, goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, traitName, vehicleTitle } from '../text/names';
 import { playerCanAct, Refused } from '../sim/world';
 import { stanceToward } from '../sim/relations';
 import { aidWords, lineText } from './dialogue';
@@ -204,8 +204,8 @@ function revealedBy(world: World, perk: 'readDriver'): boolean {
 
 export function wantedBounty(world: World, vehicle: Vehicle): number | null {
   if (vehicle.id === world.player.vehicleId || !hasPerk(world, 'bountyHunter')) return null;
-  const owed = owedBy(world, vehicle.id);
-  return owed > 0 ? owed : null;
+  const fines = finesOn(world, vehicle.id);
+  return fines > 0 ? fines : null;
 }
 
 export function formatNpcTraits(world: World, vehicle: Vehicle): Msg | null {
@@ -227,15 +227,10 @@ export function formatNpcCargo(world: World, vehicle: Vehicle): Msg | null {
   return t('npc.cargoAndSpares', { goods: list(goods), spares: list(spares) });
 }
 
-export function formatNpcLookOver(world: World, vehicle: Vehicle): Msg | null {
-  if (!hasBasic(world, 'lookOver') || !playerCanAct(world)) return null;
-  return canLookOver(world, playerVehicle(world), vehicle) === null ? keyLabel(t('npc.lookOverKey'), 'B', 'before') : null;
-}
-
-export function formatNpcMark(world: World, vehicle: Vehicle): Msg | null {
+export function formatNpcMarked(world: World, vehicle: Vehicle): Msg | null {
   if (!hasPerk(world, 'spotter')) return null;
   const mark = world.player.marked.find((m) => m.vehicleId === vehicle.id && world.turn <= m.until);
-  return mark ? t('npc.marked', { n: mark.until - world.turn }) : keyLabel(t('npc.markKey'), 'N', 'before');
+  return mark ? t('npc.marked', { n: mark.until - world.turn }) : null;
 }
 
 const STATE_LABELS: Record<StateKindId, (s: NpcState) => Msg> = {
@@ -624,7 +619,7 @@ function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, rewar
   throw new Error(`An escort is never ${outcome}`);
 }
 
-const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded', 'bountyFiled']);
+const NOTABLE_EVENTS = new Set<GameEvent['t']>(['skillUp', 'discover', 'standing', 'claimRival', 'guardEnded']);
 
 export function isNotable(e: GameEvent): boolean {
   if (e.t === 'contract') return e.outcome === 'found' || e.outcome === 'fulfilled' || e.cause === 'rival';
@@ -848,7 +843,7 @@ export function escortStatusText(world: World, c: Contract): Msg | null {
   return t(`contract.status.${status}`, { n: Math.max(0, turnsLeft(world, c) ?? 0) });
 }
 
-const ESCORT_ENDED_CLS = { arrived: 'good', strayed: 'bad', hostile: 'bad', knockedOut: 'bad', stuck: 'dim', apartAtArrival: 'dim', lost: 'dim' } as const;
+const ESCORT_ENDED_CLS = { arrived: 'good', strayed: 'bad', hostile: 'bad', knockedOut: 'bad', stuck: 'dim', apartAtArrival: 'dim', lost: 'dim', cargoLost: 'dim' } as const;
 
 function escortEndedText(world: World, e: Extract<GameEvent, { t: 'escortEnded' }>): LogLine {
   return line(t(`log.escortEnded.${e.end}`, { who: vehicleName(world, e.client) }), ESCORT_ENDED_CLS[e.end]);
@@ -996,13 +991,6 @@ export function caseVictimName(world: World, c: CrimeCase): Msg {
   return victim ? vehicleTitle(world, victim) : t('log.someDriver');
 }
 
-function bountyFiledText(world: World, e: Extract<GameEvent, { t: 'bountyFiled' }>): LogLine | null {
-  if (e.target !== world.player.vehicleId) return null;
-  if (e.kept) return line(t('log.embezzlementFiled', { shop: siteName(e.site), n: e.kept.crates, good: goodLower(e.kept.good), price: moneyMsg(e.owed) }), 'bad');
-  const victim = world.vehicles.some((v) => v.id === e.victim) ? vehicleName(world, e.victim) : t('log.someDriver');
-  return line(t('log.bountyFiled', { site: siteName(e.site), offense: offenseName(e.offense), victim, price: moneyMsg(e.owed) }), 'bad');
-}
-
 function bountyClosedText(world: World, e: Extract<GameEvent, { t: 'bountyClosed' }>): LogLine | null {
   if (e.collector !== null && e.collector === world.player.vehicleId) return line(t('log.bountyHunted', { who: knownTruckName(world, e.target), price: moneyMsg(e.amount) }), 'good');
   if (e.target !== world.player.vehicleId) return null;
@@ -1072,17 +1060,18 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   destroyed: (world, e) => line(t('log.destroyed', { who: vehicleName(world, e.vehicle) }), 'good'),
   hostile: quiet,
   joins: (world, e) => line(t('log.joins', { who: vehicleName(world, e.vehicle) }), e.against === world.player.vehicleId ? 'bad' : 'good'),
-  standing: (_, e) => line(t(`log.standing.${e.band}`, { faction: factionName(e.faction) }), bandAtLeast(e.band, 'neutral') ? 'good' : 'bad'),
+  standing: (_, e) => line(standingCauseText(e.cause, t(`log.standing.${e.band}`, { faction: factionName(e.faction) })), bandAtLeast(e.band, 'neutral') ? 'good' : 'bad'),
   practice: quiet,
   skillUp: (_, e) => line(skillUpText(e.skill, e.level), 'good'),
   money: moneyText,
   outpostReached: outpostReachedText,
   roadOpened: quiet,
   runLost: runLostText,
-  bountyFiled: bountyFiledText,
+  bountyFiled: quiet,
   bountyClosed: bountyClosedText,
   settlement: (_, e) => line(t('log.settlement', { price: moneyMsg(e.price), faction: factionName(e.faction) }), ''),
   asked: quiet,
+  huntWithdrawn: quiet,
   discover: (_, e) => discoverText(e),
   encounter: quiet,
   supply: (_, e) => line(noteText(e.note), 'bad'),

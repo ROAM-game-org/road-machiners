@@ -611,6 +611,7 @@ export function canLootTruck(world: World, looter: Vehicle, target: Vehicle): bo
 }
 
 export function takeError(target: Vehicle, item: GridItem): Refusal | null {
+  if (item.kind === 'parcel') return { id: 'parcelKept' };
   if (item.kind === 'part' && partDef(item.part.defId).kind === 'core' && isMounted(target.chassisId, item)) return { id: 'builtInStays' };
   const left = getLayoutError(target, target.items.filter((it) => it.id !== item.id));
   return left ? { id: 'emptyRackFirst' } : null;
@@ -762,7 +763,7 @@ export function lootTruckTurn(world: World, looter: Vehicle, target: Vehicle): G
 }
 
 function takeLooseItems(world: World, looter: Vehicle, target: Vehicle): void {
-  for (const item of target.items.filter((it) => !isMounted(target.chassisId, it))) {
+  for (const item of target.items.filter((it) => it.kind !== 'parcel' && !isMounted(target.chassisId, it))) {
     const spot = spareSpot(looter, item);
     if (spot) takeItem(world, looter, target, item, spot);
   }

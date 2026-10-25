@@ -14,7 +14,8 @@ import { groundAt, type BakedProp, type Terrain } from '../sim/terrain';
 import { angleDiff, dist, lerp, segmentDist, type Vec } from '../sim/vec';
 import { TEST_MAP } from '../test/map';
 import { footprintRelief, groundForTerritories, newDraft, tileSteepness, type MapDraft } from './bake';
-import { fillFarm, newRoadHold } from './farm';
+import { fillFarm } from './farm';
+import { newRoadHold } from './marks';
 import { BUILT_CANAL, BUILT_GLASS, BUILT_PAD, BUILT_TRACK } from './newworld';
 import { BUILT_FIELD, BUILT_OLD_ROAD, ruleRng, tileCenter, tileOf, tilesWithin } from './oldworld';
 import { TERRITORY_SEED_OFFSET, territoryLayer } from './territory';
@@ -422,6 +423,7 @@ describe('a third territory', () => {
         spotTable: 'hullScrap',
         spotRadius: [0.6, 0.8],
         seatEase: 3,
+        gradeRoads: false,
         rimRocks: null,
         scree: null,
         roads: [{ points: [{ x: -20, y: 3 }, { x: 20, y: 3 }], width: 2.5, surface: 'track' }],

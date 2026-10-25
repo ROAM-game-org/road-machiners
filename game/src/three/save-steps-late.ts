@@ -559,19 +559,41 @@ export function withLeanDirections_104_105(world: SavedJson): SavedJson {
   return { ...world, player: { ...player, call: next } };
 }
 
+function withMemoryRestitution_109_110(v: SavedJson): SavedJson {
+  const brain = v.brain as SavedJson | null;
+  if (!brain?.memories) return v;
+  const memories = (brain.memories as SavedJson[]).map((m) => {
+    const fact = m.fact as SavedJson;
+    return fact.kind === 'witnessed' ? { ...m, fact: { ...fact, restitution: 0 } } : m;
+  });
+  return { ...v, brain: { ...brain, memories } };
+}
 
-const WRECK_WAY_LINE_109 = 'wreckWay';
+export function withCaseRestitution_109_110(world: SavedJson): SavedJson {
+  const crimes = (world.crimes as SavedJson[]).map((c) => ({ ...c, restitution: 0, known: true }));
+  const vehicles = (world.vehicles as SavedJson[]).map(withMemoryRestitution_109_110);
+  return { ...world, crimes, vehicles };
+}
 
-function isWreckCall_109_110(call: SavedJson): boolean {
+const LONE_POSSE_110_111 = 'lone';
+
+export function withCasePosse_110_111(world: SavedJson): SavedJson {
+  const crimes = world.crimes as SavedJson[];
+  return { ...world, crimes: crimes.map((c) => ({ ...c, posse: LONE_POSSE_110_111 })) };
+}
+
+const WRECK_WAY_LINE_111 = 'wreckWay';
+
+function isWreckCall_111_112(call: SavedJson): boolean {
   const vars = call.vars as SavedJson;
   const line = call.line as SavedJson;
   const toldWay = vars.way !== undefined && vars.site === undefined && vars.town === undefined;
-  return (line.line === WRECK_WAY_LINE_109 || toldWay) && vars.square === undefined;
+  return (line.line === WRECK_WAY_LINE_111 || toldWay) && vars.square === undefined;
 }
 
-export function withWreckSquares_109_110(world: SavedJson): SavedJson {
+export function withWreckSquares_111_112(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
-  if (!call || !isWreckCall_109_110(call)) return world;
+  if (!call || !isWreckCall_111_112(call)) return world;
   return { ...world, player: { ...player, call: null } };
 }

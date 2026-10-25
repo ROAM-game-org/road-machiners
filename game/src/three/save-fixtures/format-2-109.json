@@ -1,21 +1,22 @@
 {
-  "turn": 2704,
-  "player": {
-    "money": 1200,
-    "rumored": ["wreck6802"],
-    "call": {
-      "with": "v40",
-      "topic": "rumor",
-      "node": "wreck",
-      "vars": {
-        "way": { "kind": "directions", "steps": [{ "do": "straight", "octant": "east", "span": "near" }] }
-      },
-      "line": {
-        "line": "wreckWay",
-        "vars": {
-          "way": { "kind": "directions", "steps": [{ "do": "straight", "octant": "east", "span": "near" }] }
-        }
-      }
+  "crimes": [
+    {
+      "id": "case8024", "crime": "2210:player-truck:npc-7:robbed", "offense": "robbed", "target": "player-truck", "victim": "npc-7",
+      "issuer": { "kind": "driver", "id": "npc-7" }, "reporters": ["npc-7"], "site": "pumpStation", "at": { "x": 410, "y": 380 },
+      "turn": 2210, "filed": 2250, "owed": 11097, "escrow": 11097, "status": "open", "closed": null, "hunter": "npc-12",
+      "retryAt": null, "offered": null, "lead": { "at": { "x": 410, "y": 380 }, "turn": 2210, "heading": 1.2 }
     }
-  }
+  ],
+  "vehicles": [
+    {
+      "id": "npc-9",
+      "brain": {
+        "memories": [
+          { "turn": 2210, "fact": { "kind": "witnessed", "crime": "2210:player-truck:npc-7:robbed", "by": "player-truck", "victim": "npc-7", "offense": "robbed", "at": { "x": 410, "y": 380 }, "heading": 1.2 } },
+          { "turn": 2240, "fact": { "kind": "sighting", "vehicle": "player-truck", "at": { "x": 420, "y": 390 }, "heading": 1.1 } }
+        ]
+      }
+    },
+    { "id": "player-truck", "brain": null }
+  ]
 }
