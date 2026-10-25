@@ -8,7 +8,7 @@ import { LOOT_LOOK, lightnessOf, lootColor, lootContrast } from '../../render/lo
 import { emptyHidden } from '../../sim/salvage';
 import { emptyWorld, flatTerrain } from '../../sim/testkit';
 import { TERRITORIES } from '../../data/territory';
-import type { Obstacle, SalvageStock } from '../../sim/types';
+import type { LandmarkLook, Obstacle, SalvageStock } from '../../sim/types';
 import { aimedBreach, BOW_BREACH, buildProp, lootSwatchesOf, ObstacleViews, paintShipGlow, REACTOR_GLOW } from './obstacles';
 import { initPhysics } from '../../phys/drive';
 import { loadModels } from './models';
@@ -127,7 +127,7 @@ describe('loot colors on props', () => {
 
   it('draws every surface of every lootable model clearly brighter', () => {
     const terrain = flatTerrain(SIZE);
-    const looks = [...WRECK_LOOKS, 'house', 'ruin', 'silo', 'waterTower', 'gasStation'] as const;
+    const looks: LandmarkLook[] = [...WRECK_LOOKS, 'house', 'ruin', 'silo', 'waterTower', 'gasStation'].filter((look): look is LandmarkLook => look !== 'rock');
     const props: Obstacle[] = [
       ...looks.map((look, i): Obstacle => ({ id: `look-${look}`, pos: { x: 10 + i, y: 20 }, r: 1, kind: 'landmark', look, yaw: 0 })),
       ...Object.keys(CHASSIS).map((chassisId, i): Obstacle => ({ id: `wreck-hulk${i}`, pos: { x: 10 + i, y: 30 }, r: 0.9, kind: 'wreck', hulk: { chassisId, yaw: 0 } })),
