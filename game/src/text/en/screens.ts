@@ -643,7 +643,6 @@ export const SCREENS = {
   'trade.plusAmount': m('+{amount}', { amount: 'text' }),
   'trade.fill': m('Fill {amount}', { amount: 'text' }),
   'trade.onOffer': m('{pricing}, {amount} on offer', { pricing: 'text', amount: 'text' }),
-  'trade.broken': m('{n} broken', { n: 'int' }),
   'trade.basicsFine': 'Basics fine',
   'trade.repairBasics': m('Repair basics {cost}', { cost: 'text' }),
   'trade.noRepairs': 'No repairs',

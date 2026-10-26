@@ -73,8 +73,7 @@ function layered(sprite: GarageSprite, className: string): HTMLElement {
 }
 
 export function truckBackdrop(body: GarageBody, m: GridMetrics): HTMLElement {
-  const img = el("img", { class: "inv-backdrop", src: body.image.url, draggable: "false" });
-  img.setAttribute("alt", "");
+  const img = el("img", { class: "inv-backdrop", src: body.image.url, draggable: "false", "aria-hidden": "true" });
   return placed(img, body.image, m, { left: 0, top: 0 });
 }
 

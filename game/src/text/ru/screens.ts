@@ -645,7 +645,6 @@ export const SCREENS: Translation<typeof EN> = {
   'trade.plusAmount': '+{amount}',
   'trade.fill': 'Залить {amount}',
   'trade.onOffer': '{pricing}, в продаже {amount}',
-  'trade.broken': 'сломано: {n}',
   'trade.basicsFine': 'Основа в порядке',
   'trade.repairBasics': 'Починить основу {cost}',
   'trade.noRepairs': 'Ремонт не нужен',
