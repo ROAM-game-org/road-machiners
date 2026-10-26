@@ -12,7 +12,7 @@ import { fuelLimited, isNear } from '../sim/far';
 import { blockingBoxes, isBreakable } from '../sim/mapgen';
 import { propsAroundInOrder } from '../sim/prop-index';
 import { playerVehicle } from '../sim/damage';
-import { groundSpeed, vehicleStats, type VehicleStats } from '../sim/stats';
+import { groundSpeed, unpavedTopShare, vehicleStats, type VehicleStats } from '../sim/stats';
 import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
 import { backsToDestination, driveMode, throughSpeed } from '../sim/steering';
 import { givesWayTo, routeBlockers, standingBlockers, yieldsToTraffic } from '../sim/ai';
@@ -648,7 +648,7 @@ function groundUnder(terrain: Terrain, body: RAPIER.RigidBody) {
 function applyTerrainGrip(c: Car, terrain: Terrain, slick: Slick): void {
   const ground = groundUnder(terrain, c.body);
   c.grip = ground.grip;
-  c.topShare = ground.paved ? 1 : 1 - (1 - TERRAIN.drive.unpavedTopSpeed) * (1 - c.s.roughCut);
+  c.topShare = ground.paved ? 1 : unpavedTopShare(c.s.roughCut);
   c.holdGrip = (ground.grip * slick.front.reduce((sum, wet) => sum + (wet ? OIL.grip : 1), 0)) / slick.front.length;
   gripWheels(c, c.ctl, 0, ground, slick.front);
   if (c.rear) gripWheels(c, c.rear.ctl, 1, groundUnder(terrain, c.rear.body), slick.rear);

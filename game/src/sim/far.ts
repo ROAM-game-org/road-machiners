@@ -8,7 +8,9 @@ import { route } from './path';
 import { propSlotsAlong } from './prop-index';
 import { breakProp } from './salvage';
 import { burnFuel, getResources } from './resources';
-import { fuelCap, plainFuelPerTile, plainMaxSpeed, vehicleStats, type VehicleStats } from './stats';
+import { fuelCap, plainFuelPerTile, plainMaxSpeed, unpavedTopShare, vehicleStats, type VehicleStats } from './stats';
+import { TERRAIN_TYPES } from '../data/terrain';
+import { tileAt } from './terrain';
 import { driveMode, parkedVehicles, throughSpeed } from './steering';
 import { fieldBlockers } from './hazards';
 import { getHitchedTowIds, isOnRope, ropeClientOf } from './tow';
@@ -60,7 +62,7 @@ export function advanceFar(w: World, v: Vehicle): void {
     return;
   }
 
-  const s = fuelLimited(w, v, full, v.speed, order);
+  const s = fuelLimited(w, v, onGround(w, v, full), v.speed, order);
   const next = order.kind === 'through' ? throughSpeed(s, v.speed, dist(v.pos, order.dest), order.pace, driveMode(v)) : Math.min(s.maxSpeed, v.speed + s.accel);
   const style = { offRoad: keepsOffRoads(w, v), night: avoidsCrater(w, v) };
   const points = farPoints(w, v, order.dest, style, full, s);
@@ -83,6 +85,11 @@ export function advanceFar(w: World, v: Vehicle): void {
     w.events.push({ t: 'arrived', vehicle: v.id });
     v.order = null;
   }
+}
+
+function onGround(w: World, v: Vehicle, s: VehicleStats): VehicleStats {
+  if (TERRAIN_TYPES[w.terrain.types[tileAt(w.terrain, v.pos)]].paved) return s;
+  return { ...s, maxSpeed: s.maxSpeed * unpavedTopShare(s.roughCut) };
 }
 
 function farPoints(w: World, v: Vehicle, dest: Vec, style: RouteStyle, full: VehicleStats, s: VehicleStats): Vec[] {

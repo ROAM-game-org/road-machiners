@@ -5,6 +5,7 @@ import { partDef, type EngineDef, type StoreDef, type WeaponDef } from '../data/
 import { MIN_NPC_SPEED, NPCS, PRIORITY_TOP, SPEED_SHARE, type LoadoutPriorities } from '../data/npcs';
 import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
+import { TERRAIN } from '../data/terrain';
 import { hasBasic, skillEffect } from './progress';
 import { TOW } from '../data/tow';
 import { maxHp, wornDef } from './wear';
@@ -158,6 +159,10 @@ function conditionSpeed(world: World, v: Vehicle, from: number, steps: SpeedStep
     steps?.push({ kind: 'towing', factor: TOW.speedShare, speed });
   }
   return speed;
+}
+
+export function unpavedTopShare(roughCut: number): number {
+  return 1 - (1 - TERRAIN.drive.unpavedTopSpeed) * (1 - roughCut);
 }
 
 export function vehicleRadius(v: Vehicle): number {

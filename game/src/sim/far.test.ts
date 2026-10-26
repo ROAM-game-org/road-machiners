@@ -10,7 +10,7 @@ import { physicsMove } from '../phys/turn';
 import { advanceFar, fuelLimit, fuelLimited, isNear, lowFuelSpeed, plainFuelSpeed } from './far';
 import { getResources } from './resources';
 import { addState } from './states';
-import { fuelCap, plainMaxSpeed, vehicleStats } from './stats';
+import { fuelCap, plainMaxSpeed, unpavedTopShare, vehicleStats } from './stats';
 import { addVehicle, editableTerrain, emptyWorld, npcBrain } from './testkit';
 import type { Obstacle, Pose, World } from './types';
 import { dist } from './vec';
@@ -130,6 +130,23 @@ describe('far NPC travel', () => {
       expect(far.speed).toBeLessThanOrEqual(before.speed + s.accel + 1e-9);
       expect(before.fuel - getResources(w, far).fuel).toBeCloseTo(moved * s.fuelPerTile * heatAt(w, far.pos), 9);
     }
+  });
+
+  it('holds a far truck on unpaved ground to the same top share physics drives at, and a paved road to full speed', () => {
+    const topAfter = (type: 'road' | 'hardpan') => {
+      const w = emptyWorld();
+      const t = editableTerrain(w);
+      t.types.fill(type);
+      const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
+      far.order = { kind: 'through', dest: { x: 400, y: 120 } };
+      for (let turn = 0; turn < 20; turn++) advanceFar(w, far);
+      return { speed: far.speed, s: vehicleStats(w, far) };
+    };
+    const road = topAfter('road');
+    const dirt = topAfter('hardpan');
+    expect(road.speed).toBeCloseTo(road.s.maxSpeed, 6);
+    expect(dirt.speed).toBeCloseTo(dirt.s.maxSpeed * unpavedTopShare(dirt.s.roughCut), 6);
+    expect(dirt.speed).toBeLessThan(road.speed);
   });
 
   it('crawls without fuel and burns nothing below empty', () => {
