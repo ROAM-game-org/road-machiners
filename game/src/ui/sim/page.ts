@@ -11,17 +11,25 @@ import { toPx, wheelZoomFactor, type Viewport } from "../map-geometry";
 import { MapView, openScene } from "../map-view";
 import { token } from "../tokens";
 
-const MARKER = { radius: 5, ring: 9, hit: 10, nose: 9, line: 2 };
-const LABEL = { gap: 8, padX: 4, padY: 2 };
+const MARKER = { radius: 5, player: 7, ring: 4, halo: 2, hit: 10, nose: 9, line: 2 };
+const LABEL = { gap: 6, padX: 5, padY: 3, stripe: 3 };
 const CLICK_SLOP = 4;
 const LOG_WINDOW = 2000;
 const GLIDE_MS = { least: 60, most: 1200 };
-const SPEEDS: [string, number][] = [["Slow, 1 turn a second", 1000], ["Normal, 3 turns a second", 333], ["Fast, as fast as it runs", 0]];
+const SPEEDS: { label: string; title: string; gap: number }[] = [
+  { label: "Slow", title: "1 turn a second", gap: 1000 },
+  { label: "Normal", title: "3 turns a second", gap: 333 },
+  { label: "Fast", title: "As fast as it runs", gap: 0 },
+];
 const START_SPEED = 1;
 const RANDOM_SEEDS = 1_000_000;
-const LOOK = { player: "--select", outlaw: "--danger-bright", lawman: "--good-bright", town: "--path-contact", independent: "--ink-muted", combat: "--alarm", selected: "--accent-bright", out: "--surface-sunk" };
+const LOOK = { player: "--select", outlaw: "--danger-bright", lawman: "--good-bright", town: "--path-contact", independent: "--ink-muted", combat: "--alarm", selected: "--ink-bright", out: "--surface-sunk", halo: "--surface-sunk" };
+const KEY_ROWS = ["money", "net worth", "xp", "health", "mean hp", "fuel", "supplies", "engine heat", "speed"];
+const OPEN_SECTIONS = ["goals", "states", "contracts", "foes in sight"];
+const WEAK_HEALTH = 40;
 
 type Drag = { pointer: number; x: number; y: number; moved: number };
+type Point = { x: number; y: number };
 
 function seedFromUrl(): number {
   const params = new URLSearchParams(location.search);
@@ -53,6 +61,10 @@ function clockText(turn: number): string {
   return `Day ${day} ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+function shortClockText(turn: number): string {
+  return clockText(turn).replace("Day ", "D");
+}
+
 class Glide {
   private from = new Map<string, Vec>();
   private arrived = 0;
@@ -78,22 +90,91 @@ class Glide {
   }
 }
 
+class Toggle {
+  readonly button: HTMLElement;
+
+  constructor(label: string, title: string, private readonly changed: () => void) {
+    this.button = el("button", { class: "btn-s", title, "aria-pressed": "false", onclick: () => this.flip() }, label);
+  }
+
+  get on(): boolean {
+    return this.button.classList.contains("on");
+  }
+
+  set on(value: boolean) {
+    this.button.classList.toggle("on", value);
+    this.button.setAttribute("aria-pressed", String(value));
+  }
+
+  flip(): void {
+    this.on = !this.on;
+    this.changed();
+  }
+}
+
 class HudStrip {
-  private readonly cells = { clock: el("b"), money: el("b"), worth: el("b"), xp: el("b"), doing: el("b") };
+  private readonly clock = el("span", { class: "sim-hud-value" });
+  private readonly money = el("span", { class: "sim-hud-value" });
+  private readonly worth = el("span", { class: "sim-hud-value" });
+  private readonly xp = el("span", { class: "sim-hud-value" });
+  private readonly doing = el("div", { class: "sim-hud-doing" });
   readonly root = el("div", { class: "sim-hud" },
-    this.cell("Time", this.cells.clock), this.cell("Money", this.cells.money), this.cell("Net worth", this.cells.worth),
-    this.cell("XP", this.cells.xp), this.cell("Player", this.cells.doing));
+    el("div", { class: "sim-hud-stats" }, this.cell("Time", this.clock), this.cell("Money", this.money), this.cell("Net worth", this.worth), this.cell("XP", this.xp)),
+    this.doing);
 
   private cell(name: string, value: HTMLElement): HTMLElement {
-    return el("span", { class: "sim-hud-cell" }, el("span", { class: "dim" }, name), value);
+    return el("div", { class: "sim-hud-cell" }, el("span", { class: "sim-hud-label" }, name), value);
   }
 
   show(turn: number, hud: Hud): void {
-    this.cells.clock.textContent = clockText(turn);
-    this.cells.money.textContent = hud.money;
-    this.cells.worth.textContent = hud.worth;
-    this.cells.xp.textContent = String(hud.xp);
-    this.cells.doing.textContent = hud.state === "driving" ? hud.doing : `${hud.state}, ${hud.doing}`;
+    this.clock.textContent = clockText(turn);
+    this.money.textContent = hud.money;
+    this.worth.textContent = hud.worth;
+    this.xp.textContent = String(hud.xp);
+    this.doing.replaceChildren(...(hud.state === "driving" ? [] : [el("span", { class: "tag" }, hud.state)]), hud.doing);
+  }
+}
+
+function stat(name: string, value: string): HTMLElement {
+  return el("div", { class: "sim-stat" }, el("span", { class: "sim-label" }, name), el("span", { class: "num" }, value), name === "mean hp" ? healthMeter(value) : null);
+}
+
+function healthMeter(value: string): HTMLElement | null {
+  const percent = parseInt(value, 10);
+  if (Number.isNaN(percent)) return null;
+  const bar = el("span");
+  bar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+  return el("div", { class: percent < WEAK_HEALTH ? "meter s broken" : "meter s" }, bar);
+}
+
+function detail(name: string, value: string): HTMLElement {
+  return el("div", { class: "sim-row" }, el("span", { class: "dim" }, name), el("span", { class: "num" }, value));
+}
+
+class CardView {
+  readonly root = el("div", { class: "sim-card panel" });
+  private readonly opened = new Map<string, boolean>();
+
+  show(card: Card | null): void {
+    if (!card) return this.root.replaceChildren(el("div", { class: "dim" }, "Click a truck or a log line to see its card"));
+    const rows = card.rows.filter(([name]) => name !== "doing");
+    const doing = card.rows.find(([name]) => name === "doing");
+    const parts = [
+      el("div", { class: "sim-card-title" }, card.title),
+      doing ? el("div", { class: "sim-doing" }, doing[1]) : null,
+      el("div", { class: "sim-stats" }, ...rows.filter(([name]) => KEY_ROWS.includes(name)).map(([name, value]) => stat(name, value))),
+      this.fold("details", "Details", rows.filter(([name]) => !KEY_ROWS.includes(name)).map(([name, value]) => detail(name, value))),
+      ...card.sections.map((s) => this.fold(s.name, s.name, s.lines.map((line) => el("div", { class: "sim-line" }, line)))),
+    ];
+    this.root.replaceChildren(...parts.filter((p): p is HTMLElement => p !== null));
+  }
+
+  private fold(key: string, name: string, lines: HTMLElement[]): HTMLElement | null {
+    if (lines.length === 0) return null;
+    const open = this.opened.get(key) ?? OPEN_SECTIONS.includes(key);
+    const fold = el("details", { class: "sim-fold", open }, el("summary", {}, name), ...lines) as HTMLDetailsElement;
+    fold.addEventListener("toggle", () => this.opened.set(key, fold.open));
+    return fold;
   }
 }
 
@@ -106,19 +187,20 @@ class SimPage {
   private drawnView: Viewport | null = null;
   private readonly view = new MapView({ kind: "free" }, 1, 1, (ctx, view) => this.drawMarkers(ctx, view), 1);
   private readonly hud = new HudStrip();
-  private readonly mapBox = el("div", { class: "sim-map" }, this.view.canvas, this.hud.root);
-  private readonly status = el("div", { class: "sim-status" }, "Loading the map");
+  private readonly mapBox = el("div", { class: "sim-map" }, this.view.canvas, this.hud.root, legend());
+  private readonly status = el("div", { class: "sim-status num" }, "Loading the map");
   private readonly failure = el("pre", { class: "sim-failure" });
-  private readonly playButton = el("button", { class: "btn-s", title: "Space", onclick: () => this.togglePlay() }, "Play");
-  private readonly stepButton = el("button", { class: "btn-s", title: "Period key", onclick: () => this.step() }, "Step");
-  private readonly speed = el("select", { onchange: () => this.sendSpeed() }, ...SPEEDS.map(([name, gap], i) => el("option", { value: String(gap), selected: i === START_SPEED }, name))) as HTMLSelectElement;
-  private readonly follow = el("input", { type: "checkbox", onchange: () => this.view.redraw() }) as HTMLInputElement;
+  private readonly playButton = el("button", { class: "btn-l sim-play", title: "Space", onclick: () => this.togglePlay() }, "Play");
+  private readonly stepButton = el("button", { class: "btn-l", title: "Period key", onclick: () => this.step() }, "Step");
+  private readonly speedButtons = SPEEDS.map((s, i) => el("button", { class: "btn-s", title: s.title, "aria-pressed": String(i === START_SPEED), onclick: () => this.setSpeed(i) }, s.label));
+  private speedIndex = START_SPEED;
+  private readonly follow = new Toggle("Follow", "F key. Keeps the card's truck in the middle", () => this.view.redraw());
   private readonly seedBox = el("input", { type: "number", class: "sim-seed", step: "1" }) as HTMLInputElement;
-  private readonly quiet = el("input", { type: "checkbox", onchange: () => this.renderLog() }) as HTMLInputElement;
-  private readonly onlySelected = el("input", { type: "checkbox", onchange: () => this.renderLog() }) as HTMLInputElement;
-  private readonly card = el("div", { class: "sim-card panel" });
+  private readonly quiet = new Toggle("Quiet events", "Show the events the log hides by default", () => this.renderLog());
+  private readonly onlySelected = new Toggle("Card's truck only", "Show only the events of the card's truck", () => this.renderLog());
+  private readonly cardView = new CardView();
   private readonly log = el("ol", { class: "sim-log" });
-  private readonly logCount = el("div", { class: "dim" });
+  private readonly logCount = el("span", { class: "dim num" });
   private matching = 0;
   private playing = false;
   private started = false;
@@ -127,16 +209,19 @@ class SimPage {
     worker.onmessage = (event: MessageEvent<FromSim>) => this.receive(event.data);
     worker.onerror = (event) => this.fail(0, `The sim worker failed: ${event.message}`);
     this.seedBox.value = String(seed);
-    const run = el("form", { class: "sim-controls", onsubmit: (e: Event) => this.newRun(e) }, el("label", {}, "Seed ", this.seedBox), el("button", { class: "btn-s", type: "submit" }, "New run"));
-    const controls = el("div", { class: "sim-controls" }, this.playButton, this.stepButton, this.speed, el("label", { title: "F key" }, this.follow, " follow the card's truck"));
-    const filters = el("div", { class: "sim-filters" }, el("label", {}, this.quiet, " quiet events"), el("label", {}, this.onlySelected, " card's truck only"));
-    const side = el("div", { class: "sim-side" }, run, controls, this.status, this.failure, legend(), this.card, filters, this.logCount, this.log);
+    const runForm = el("form", { class: "sim-run", onsubmit: (e: Event) => this.newRun(e) }, el("label", {}, "Seed ", this.seedBox), el("button", { class: "btn-s", type: "submit" }, "New run"));
+    const transport = el("div", { class: "sim-transport" }, this.playButton, this.stepButton, this.follow.button);
+    const speed = el("div", { class: "option-switch sim-speed" }, ...this.speedButtons);
+    const controls = el("div", { class: "sim-controls panel" }, transport, speed, el("div", { class: "sim-run-row" }, runForm, this.status));
+    const filters = el("div", { class: "sim-filters" }, this.quiet.button, this.onlySelected.button);
+    const logHead = el("div", { class: "sim-log-head" }, el("span", { class: "panel-title" }, "Log"), this.logCount, filters);
+    const logPanel = el("div", { class: "sim-log-panel panel" }, logHead, this.log);
+    const side = el("div", { class: "sim-side" }, controls, this.failure, this.cardView.root, logPanel);
     uiRoot().append(this.mapBox, side);
     uiRoot().classList.add("sim");
-    this.playButton.setAttribute("disabled", "");
-    this.stepButton.setAttribute("disabled", "");
+    this.setReady(false);
     this.listen();
-    this.renderCard(null);
+    this.cardView.show(null);
   }
 
   async start(seed: number): Promise<void> {
@@ -146,6 +231,13 @@ class SimPage {
     this.status.textContent = "Building the world";
     this.send({ kind: "start", seed });
     requestAnimationFrame(() => this.animate());
+  }
+
+  private setReady(ready: boolean): void {
+    for (const button of [this.playButton, this.stepButton]) {
+      if (ready) button.removeAttribute("disabled");
+      else button.setAttribute("disabled", "");
+    }
   }
 
   private newRun(e: Event): void {
@@ -159,13 +251,19 @@ class SimPage {
     this.worker.postMessage(message);
   }
 
+  private setSpeed(index: number): void {
+    this.speedIndex = index;
+    this.speedButtons.forEach((button, i) => button.setAttribute("aria-pressed", String(i === index)));
+    this.sendSpeed();
+  }
+
   private sendSpeed(): void {
-    this.send({ kind: "speed", gapMs: Number(this.speed.value) });
+    this.send({ kind: "speed", gapMs: SPEEDS[this.speedIndex]!.gap });
   }
 
   private receive(message: FromSim): void {
     if (message.kind === "frame") this.showFrame(message.frame);
-    else if (message.kind === "card") this.renderCard(message.card);
+    else if (message.kind === "card") this.cardView.show(message.card);
     else if (message.kind === "ended") this.end(`The run ended at turn ${message.turn}: the player is ${message.reason}`);
     else this.fail(message.turn, message.message);
   }
@@ -173,24 +271,23 @@ class SimPage {
   private showFrame(f: Frame): void {
     if (!this.started) this.begin(f);
     this.glide.take(f.markers, performance.now());
-    this.status.textContent = `Turn ${f.turn}, ${f.markers.length} trucks on the map`;
+    this.status.textContent = `Turn ${f.turn}, ${f.markers.length} trucks`;
     this.hud.show(f.turn, f.hud);
     this.addEntries(f.log);
-    if (f.card) this.renderCard(f.card);
+    if (f.card) this.cardView.show(f.card);
     this.view.redraw();
   }
 
   private begin(first: Frame): void {
     this.started = true;
-    this.playButton.removeAttribute("disabled");
-    this.stepButton.removeAttribute("disabled");
+    this.setReady(true);
     this.sendSpeed();
     this.select(first.markers.find((m) => m.player)?.id ?? null);
   }
 
   private animate(): void {
     const now = performance.now();
-    if (this.follow.checked) this.centerOnCard(now);
+    if (this.follow.on) this.centerOnCard(now);
     if (this.glide.progress(now) < 1) this.view.redraw();
     requestAnimationFrame(() => this.animate());
   }
@@ -203,10 +300,15 @@ class SimPage {
     if (Math.hypot(view.width / 2 - at.x, view.height / 2 - at.y) >= 1) this.view.panBy(view.width / 2 - at.x, view.height / 2 - at.y);
   }
 
+  private showPlaying(playing: boolean): void {
+    this.playing = playing;
+    this.playButton.textContent = playing ? "Pause" : "Play";
+    this.playButton.classList.toggle("on", playing);
+  }
+
   private togglePlay(): void {
     if (!this.started || this.playButton.hasAttribute("disabled")) return;
-    this.playing = !this.playing;
-    this.playButton.textContent = this.playing ? "Pause" : "Play";
+    this.showPlaying(!this.playing);
     this.send({ kind: this.playing ? "play" : "pause" });
   }
 
@@ -215,10 +317,8 @@ class SimPage {
   }
 
   private end(text: string): void {
-    this.playing = false;
-    this.playButton.textContent = "Play";
-    this.playButton.setAttribute("disabled", "");
-    this.stepButton.setAttribute("disabled", "");
+    this.showPlaying(false);
+    this.setReady(false);
     this.failure.textContent = text;
   }
 
@@ -231,12 +331,12 @@ class SimPage {
     this.selected = id;
     this.send({ kind: "watch", id });
     this.view.redraw();
-    if (this.onlySelected.checked) this.renderLog();
+    if (this.onlySelected.on) this.renderLog();
   }
 
   private shown(e: LogEntry): boolean {
-    if (e.quiet && !this.quiet.checked) return false;
-    return !this.onlySelected.checked || (this.selected !== null && e.ids.includes(this.selected));
+    if (e.quiet && !this.quiet.on) return false;
+    return !this.onlySelected.on || (this.selected !== null && e.ids.includes(this.selected));
   }
 
   private addEntries(entries: LogEntry[]): void {
@@ -256,24 +356,14 @@ class SimPage {
   }
 
   private countLog(): void {
-    this.logCount.textContent = this.matching > LOG_WINDOW ? `Showing the newest ${LOG_WINDOW} of ${this.matching} matching events` : `${this.matching} matching events`;
+    this.logCount.textContent = this.matching > LOG_WINDOW ? `newest ${LOG_WINDOW} of ${this.matching}` : String(this.matching);
   }
 
   private logLine(e: LogEntry): HTMLElement {
-    const line = el("li", { class: e.tone, title: e.raw }, el("span", { class: "sim-when" }, clockText(e.turn)), e.text);
+    const line = el("li", { class: e.tone, title: e.raw }, el("span", { class: "sim-when" }, shortClockText(e.turn)), el("span", {}, e.text));
     const first = e.ids[0];
     if (first !== undefined) line.addEventListener("click", () => this.select(first));
     return line;
-  }
-
-  private renderCard(card: Card | null): void {
-    if (!card) {
-      this.card.replaceChildren(el("div", { class: "dim" }, "Click a truck or a log line to see its card"));
-      return;
-    }
-    const rows = card.rows.map(([name, value]) => el("div", { class: "sim-row" }, el("span", { class: "dim" }, name), el("span", {}, value)));
-    const sections = card.sections.filter((s) => s.lines.length > 0).map((s) => el("div", { class: "sim-section" }, el("div", { class: "panel-title" }, s.name), ...s.lines.map((line) => el("div", {}, line))));
-    this.card.replaceChildren(el("div", { class: "panel-title" }, card.title), ...rows, ...sections);
   }
 
   private resize(): void {
@@ -284,33 +374,31 @@ class SimPage {
   private drawMarkers(ctx: CanvasRenderingContext2D, view: Viewport): void {
     this.drawnView = view;
     const t = this.glide.progress(performance.now());
-    const placed = this.glide.markers.map((m) => ({ m, at: toPx(view, this.glide.placeAt(m, t)) }));
+    const placed = this.glide.markers.map((m) => ({ m, at: toPx(view, this.glide.placeAt(m, t)) })).sort((a, b) => this.rank(a.m) - this.rank(b.m));
     for (const { m, at } of placed) this.drawMarker(ctx, view, m, at);
-    for (const { m, at } of placed.filter(({ m }) => this.named(m))) drawLabel(ctx, at, m.name);
+    for (const { m, at } of placed.filter(({ m }) => this.rank(m) > 0)) drawLabel(ctx, at, m, this.radiusOf(m));
   }
 
-  private named(m: Marker): boolean {
-    return m.player || m.id === this.selected || m.id === this.hovered;
+  private rank(m: Marker): number {
+    if (m.id === this.selected) return 4;
+    if (m.id === this.hovered) return 3;
+    return m.player ? 2 : 0;
   }
 
-  private drawMarker(ctx: CanvasRenderingContext2D, view: Viewport, m: Marker, at: { x: number; y: number }): void {
+  private radiusOf(m: Marker): number {
+    return m.player ? MARKER.player : MARKER.radius;
+  }
+
+  private drawMarker(ctx: CanvasRenderingContext2D, view: Viewport, m: Marker, at: Point): void {
     const ahead = toPx(view, { x: m.x + Math.cos(m.heading), y: m.y + Math.sin(m.heading) });
     const tip = toPx(view, m);
     const angle = Math.atan2(ahead.y - tip.y, ahead.x - tip.x);
     const color = token(lookOf(m));
-    ctx.lineWidth = MARKER.line;
-    ctx.strokeStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(at.x, at.y);
-    ctx.lineTo(at.x + Math.cos(angle) * MARKER.nose, at.y + Math.sin(angle) * MARKER.nose);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(at.x, at.y, MARKER.radius, 0, Math.PI * 2);
-    ctx.fillStyle = m.out ? token(LOOK.out) : color;
-    ctx.fill();
-    ctx.stroke();
-    if (m.combat) ring(ctx, at, MARKER.ring, token(LOOK.combat));
-    if (m.id === this.selected) ring(ctx, at, MARKER.ring + MARKER.line, token(LOOK.selected));
+    const radius = this.radiusOf(m);
+    drawNose(ctx, at, angle, radius, color);
+    drawDisc(ctx, at, radius, m.out ? token(LOOK.out) : color, color);
+    if (m.combat) ring(ctx, at, radius + MARKER.ring, token(LOOK.combat), MARKER.line);
+    if (m.id === this.selected) ring(ctx, at, radius + MARKER.ring + MARKER.line * 2, token(LOOK.selected), MARKER.line);
   }
 
   private markerAt(clientX: number, clientY: number): Marker | null {
@@ -335,12 +423,12 @@ class SimPage {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (e.target instanceof HTMLInputElement && e.target.type !== "checkbox") return;
+    if (e.target instanceof HTMLInputElement) return;
     if (e.code === "Space") {
       e.preventDefault();
       this.togglePlay();
     } else if (e.key === ".") this.step();
-    else if (e.key === "f") this.follow.checked = !this.follow.checked;
+    else if (e.key === "f") this.follow.flip();
   }
 
   private listen(): void {
@@ -363,7 +451,7 @@ class SimPage {
       if (!drag || drag.pointer !== e.pointerId) return this.hover(e.clientX, e.clientY);
       const at = this.view.localPoint(e.clientX, e.clientY);
       if (!at) return;
-      this.follow.checked = false;
+      this.follow.on = false;
       this.view.panBy(at.x - drag.x, at.y - drag.y);
       this.drag = { ...drag, ...at, moved: drag.moved + Math.hypot(at.x - drag.x, at.y - drag.y) };
     });
@@ -379,31 +467,60 @@ class SimPage {
   }
 }
 
-function ring(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, radius: number, color: string): void {
+function drawNose(ctx: CanvasRenderingContext2D, at: Point, angle: number, radius: number, color: string): void {
+  const tip = { x: at.x + Math.cos(angle) * (radius + MARKER.nose - MARKER.radius), y: at.y + Math.sin(angle) * (radius + MARKER.nose - MARKER.radius) };
+  for (const [stroke, width] of [[token(LOOK.halo), MARKER.line + MARKER.halo * 2], [color, MARKER.line]] as const) {
+    ctx.lineWidth = width;
+    ctx.strokeStyle = stroke;
+    ctx.beginPath();
+    ctx.moveTo(at.x, at.y);
+    ctx.lineTo(tip.x, tip.y);
+    ctx.stroke();
+  }
+}
+
+function drawDisc(ctx: CanvasRenderingContext2D, at: Point, radius: number, fill: string, edge: string): void {
+  ctx.beginPath();
+  ctx.arc(at.x, at.y, radius + MARKER.halo, 0, Math.PI * 2);
+  ctx.fillStyle = token(LOOK.halo);
+  ctx.fill();
   ctx.beginPath();
   ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.lineWidth = MARKER.line;
+  ctx.strokeStyle = edge;
+  ctx.stroke();
+}
+
+function ring(ctx: CanvasRenderingContext2D, at: Point, radius: number, color: string, width: number): void {
+  ctx.beginPath();
+  ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
+  ctx.lineWidth = width;
   ctx.strokeStyle = color;
   ctx.stroke();
 }
 
-function drawLabel(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, text: string): void {
+function drawLabel(ctx: CanvasRenderingContext2D, at: Point, m: Marker, radius: number): void {
   ctx.font = `${token("--text-dense")} ${token("--font-ui")}`;
   ctx.textBaseline = "middle";
-  const width = ctx.measureText(text).width + 2 * LABEL.padX;
+  const width = ctx.measureText(m.name).width + 2 * LABEL.padX + LABEL.stripe;
   const tall = parseFloat(token("--text-dense")) + 2 * LABEL.padY;
-  const left = at.x + LABEL.gap;
+  const left = at.x + radius + MARKER.halo + LABEL.gap;
   ctx.fillStyle = token("--surface-overlay");
   ctx.fillRect(left, at.y - tall / 2, width, tall);
-  ctx.fillStyle = token("--ink");
-  ctx.fillText(text, left + LABEL.padX, at.y);
+  ctx.fillStyle = token(lookOf(m));
+  ctx.fillRect(left, at.y - tall / 2, LABEL.stripe, tall);
+  ctx.fillStyle = token("--ink-bright");
+  ctx.fillText(m.name, left + LABEL.stripe + LABEL.padX, at.y);
 }
 
 function legend(): HTMLElement {
-  const items: [string, string][] = [["player", LOOK.player], ["outlaws", LOOK.outlaw], ["marshals", LOOK.lawman], ["town crews", LOOK.town], ["independents", LOOK.independent], ["in combat", LOOK.combat]];
-  return el("div", { class: "sim-legend" }, ...items.map(([name, look]) => {
-    const dot = el("span", { class: "sim-dot" });
-    dot.style.background = `var(${look})`;
-    return el("span", {}, dot, name);
+  const items: [string, string, boolean][] = [["player", LOOK.player, false], ["outlaws", LOOK.outlaw, false], ["marshals", LOOK.lawman, false], ["town crews", LOOK.town, false], ["independents", LOOK.independent, false], ["in combat", LOOK.combat, true]];
+  return el("div", { class: "sim-legend" }, ...items.map(([name, look, ringed]) => {
+    const dot = el("span", { class: ringed ? "sim-dot ring" : "sim-dot" });
+    dot.style.setProperty("--dot", `var(${look})`);
+    return el("span", { class: "sim-legend-item" }, dot, name);
   }));
 }
 
