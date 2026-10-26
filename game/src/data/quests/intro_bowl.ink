@@ -35,7 +35,7 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
 = questions
 + {not asked_where} [Where am I?]
   ~ asked_where = true
-  <term=bowl>Bowl</term>. Farm town, built down the inside of a crater. Terraces, with canals between them. # speaker: Hattie
+  Bowl. Farm town, built down the inside of a crater. Terraces, with canals between them. # speaker: Hattie
   You're in the gate yard. That's as much of Bowl as strangers get. # speaker: Hattie
   -> questions
 + {towed_to_bowl and not asked_what} [What happened to me?]
