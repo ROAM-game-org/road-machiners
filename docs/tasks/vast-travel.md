@@ -66,6 +66,26 @@ UK2, whether the `far` contact source needs a save step, is resolved: contacts a
 
 ## Plan
 
+Measurement tools live in `game/tmp/vast/` and are not shipped: `bench.ts <far|physics|farLive> <seed> <turns> <warm>` prints CPU ms per turn, `profile.ts` writes a CPU profile of the measured turns only, `golden.sh <dir>` records the golden traces. Base, in CPU ms per turn on seed 1: physics 499, headless far 257, far with full vision 272. Base golden traces are in `game/tmp/vast/golden-base/`.
+
+### Interface graph
+
+- IF1 — `CONFIG.travelSpeeds` and the picked-speed state in `Travel`, read by `game.ts` playback and by PH4. PH2 produces it, PH4 consumes it [blocks].
+- IF2 — `farSightRadius(world, viewer)` in `src/sim/vision.ts` and the `far` contact source. PH3 produces it, PH4 consumes it [blocks].
+
+### Phases
+
+- PH1 — Perf, done inline by the controller. Loop: profile the steady far and physics turns, fix the top hotspot without changing results, check every golden trace is byte-identical and the bench falls, commit, repeat. First candidates: `canRob` checks sight before loot, `mountLetter` memo by chassis, def, place and turn, the `vehicleStats` loadout cache, then the physics snapshot and tail. Stop when the far-mode turn is under 60 ms or the next fix needs a result change.
+- PH2 — Picked speed, implementer A in its own worktree. `CONFIG.travelSpeeds: [1, 4, 16, 64]` replaces nothing: held Space keeps `travelFastSpeed`. `Travel` holds the picked index, `getSpeed` returns the picked speed while auto travel runs and the held speed while Space is held. A speed control beside the turn button in `src/ui/weapons.ts`, built per `docs/ui.md`, with English and Russian text. Tests in `src/three/travel.test.ts`. Docs: `docs/wiki/mechanics/turns.md`, `docs/architecture/movement.md`.
+- PH3 — Sight, implementer B in its own worktree. `TERRAIN.vision.radius` 20 to 25. `farSightRadius = sightRadius × 1.5` from a new `TERRAIN.vision.farFactor`. `far` contact source in `src/sim/detect.ts` by plain distance, for the player and NPCs, drawn by `ContactsView` as an anonymous blip. Fix what the radius change breaks in tests by reading each failure, never by loosening a check. Docs: `docs/wiki/mechanics/world.md` vision rules.
+- PH4 — Fast travel, controller, after PH1 to PH3 merge. A turn task flag says fast travel is on. `src/sim/fidelity.ts` shrinks live range to far sight for such a turn when IV4 holds, so `physicsMove` far-moves every truck. The worker skips the tail for it. The player's far route is kept outside headless. Leaving fast travel rebuilds the drive snapshot. Far rules gain the unpaved top-speed cut. A new far contact pauses auto travel. Tests for IV2, IV3, IV4.
+- PH5 — Map trial on branch `vast-travel-trial`, controller. Spread 2x, scale NPC caps by road length, rebake, record trader and scavenger, mine with `tmp/distance/mine.py`, report.
+
+### Risks
+
+- RK1 — PH3 changes every golden trace, so PH1 compares against `golden-base` only until PH3 merges, and stops before that.
+- RK2 — Main-thread work per turn, such as fog, minimap and autosave, may cap speed before the worker does. PH4 measures it in the browser.
+
 ## Verify
 
 ## Conclusion
@@ -77,6 +97,7 @@ UK2, whether the `far` contact source needs a save step, is resolved: contacts a
 - udesign: far sight, not live range, gates fast travel — a 337-turn trader trace had no truck within live range in only 1 of 30 driving turns.
 - udesign: map trial at 2x — the cost of the spread, bake and recording grows with area, and 2x is the smallest step that tests the model; Node memory is not the limit.
 - udesign: NPC planning cadence left unchanged — skipping thinks shifts the shared world RNG and breaks same seed, same game.
+- uplan: plan auto-approved (hands-off).
 - udesign: autosave keeps its 20-turn interval — no evidence yet that it costs enough to matter; measured in the browser bench.
 
 ### Deferred (needs user input)
