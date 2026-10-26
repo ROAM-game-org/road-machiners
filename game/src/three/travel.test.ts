@@ -130,12 +130,14 @@ describe("picked travel speed", () => {
     expect(travel.getSpeed(1000, FAST)).toBe(1);
   });
 
-  it("lets held Space override the picked speed", () => {
-    const travel = travelling(LAST);
-    Object.assign(travel, { pressedAt: 2000 });
-    expect(travel.getSpeed(2300, FAST)).toBe(FAST);
-    travel.release(2300);
-    expect(travel.getSpeed(2400, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
+  it("plays held Space at the picked speed, and at the hold speed when the pick is slower", () => {
+    const fastest = new Travel(250, TAIL);
+    fastest.setSpeedIndex(LAST);
+    fastest.press(2000, false, true);
+    expect(fastest.getSpeed(2300, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
+    const slowest = new Travel(250, TAIL);
+    slowest.press(2000, false, true);
+    expect(slowest.getSpeed(2300, FAST)).toBe(FAST);
   });
 
   it("keeps the pick over a pause and plays it again on the next start", () => {

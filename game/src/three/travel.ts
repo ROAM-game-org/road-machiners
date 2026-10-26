@@ -455,8 +455,9 @@ export class Travel {
   }
 
   getSpeed(now: number, fastSpeed: number): number {
-    if (this.isFast(now)) return fastSpeed;
-    return this.automatic ? CONFIG.travelSpeeds[this.speedIndex] : 1;
+    const picked = CONFIG.travelSpeeds[this.speedIndex];
+    if (this.isFast(now)) return Math.max(fastSpeed, picked);
+    return this.automatic ? picked : 1;
   }
 
   getSpeedIndex(): number {
