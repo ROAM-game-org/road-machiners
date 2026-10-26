@@ -183,6 +183,136 @@
   border-color: var(--cell-side);
   background: repeating-linear-gradient(45deg, var(--cell-none) 0 var(--space-2), var(--cell-plain) var(--space-2) var(--space-3));
 }
+.inv-grid.drawn {
+  background: none;
+  isolation: isolate;
+}
+.inv-grid.drawn .inv-cell {
+  z-index: var(--z-grid-lines);
+  pointer-events: none;
+  background: none;
+  border-color: var(--cell-grid-line);
+  color: transparent;
+}
+.inv-grid.drawn .inv-cell.c-D:not(.spare) {
+  background: var(--garage-cell-deck);
+}
+.inv-grid.drawn .inv-cell.c-C:not(.spare) {
+  background: var(--garage-cell-bay);
+}
+.inv-grid.drawn .inv-cell.c-E {
+  background: var(--garage-cell-engine);
+}
+.inv-grid.drawn .inv-cell.c-F,
+.inv-grid.drawn .inv-cell.c-B,
+.inv-grid.drawn .inv-cell.c-L,
+.inv-grid.drawn .inv-cell.c-R {
+  background: var(--garage-cell-armor);
+}
+.inv-grid.drawn .inv-cell.c-X {
+  background: var(--garage-cell-built-in);
+}
+.inv-grid.drawn .inv-cell.taken {
+  background: var(--garage-cell-taken);
+}
+.inv-grid.drawn .inv-cell.spare.c-plain {
+  z-index: auto;
+  background: var(--cell-plain);
+  border-color: var(--cell-line);
+}
+.inv-grid.drawn .inv-cell.c-dead {
+  z-index: auto;
+}
+.inv-truck:has(.inv-ghost) .inv-grid.drawn .inv-cell,
+.inv-grid.drawn:has(.inv-ghost) .inv-cell {
+  border-color: var(--cell-grid-line-drag);
+}
+.inv-grid.drawn[data-mounts~="D"] .c-D:not(.spare),
+.inv-grid.drawn[data-mounts~="C"] .c-C:not(.spare),
+.inv-grid.drawn[data-mounts~="E"] .c-E,
+.inv-grid.drawn[data-mounts~="F"] .c-F,
+.inv-grid.drawn[data-mounts~="B"] .c-B,
+.inv-grid.drawn[data-mounts~="L"] .c-L,
+.inv-grid.drawn[data-mounts~="R"] .c-R {
+  background: var(--garage-mount-wash);
+  border-color: var(--garage-mount-line);
+}
+.inv-backdrop {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  filter: var(--garage-body-filter);
+}
+.inv-grid .inv-item.drawn {
+  background: none;
+  border-color: transparent;
+  overflow: visible;
+  padding: 0;
+}
+.inv-item.drawn .inv-art {
+  position: absolute;
+  pointer-events: none;
+}
+.inv-art > div {
+  position: absolute;
+  inset: 0;
+  background-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+.inv-art .art-tint {
+  mix-blend-mode: color;
+}
+.inv-art .art-hatch {
+  display: none;
+  background: var(--cond-hatch);
+}
+.inv-item.drawn[data-tier="hurt"] .art-img {
+  filter: var(--cond-halo-hurt);
+}
+.inv-item.drawn[data-tier="crit"] .art-img {
+  filter: var(--cond-halo-crit);
+}
+.inv-item.drawn[data-tier="broken"] .art-img {
+  filter: var(--cond-halo-broken);
+}
+.inv-item.drawn[data-tier="hurt"] .art-tint {
+  background: var(--garage-tint-hurt);
+}
+.inv-item.drawn[data-tier="crit"] .art-tint {
+  background: var(--garage-tint-crit);
+}
+.inv-item.drawn[data-tier="broken"] .art-tint {
+  background: var(--garage-tint-broken);
+}
+.inv-item.drawn[data-tier="broken"] .art-hatch {
+  display: block;
+}
+.inv-item.drawn[data-tier="ok"]:not(:hover):not(.selected):not(.holding) .inv-art.core {
+  display: none;
+}
+.inv-grid .inv-item.drawn:hover,
+.inv-grid .inv-item.drawn.selected,
+.inv-grid .inv-item.drawn.holding {
+  background-image: none;
+  box-shadow: none;
+}
+.inv-grid .inv-item.drawn:hover .art-img {
+  filter: var(--garage-edge-hover);
+}
+.inv-grid .inv-item.drawn.selected .art-img,
+.inv-grid .inv-item.drawn.holding .art-img {
+  filter: var(--garage-edge-pick);
+}
+.inv-ghost.drawn {
+  background: none;
+  border-color: transparent;
+  overflow: visible;
+}
+.inv-ghost.drawn .inv-art {
+  position: absolute;
+  pointer-events: none;
+}
 .inv-item {
   position: absolute;
   box-sizing: border-box;
@@ -354,7 +484,8 @@
   font-size: var(--text-dense);
 }
 .inv-item.refitting,
-.inv-chip.refitting {
+.inv-chip.refitting,
+.inv-grid .inv-item.drawn.refitting {
   border: 2px dashed var(--accent);
 }
 .inv-ghost.held {

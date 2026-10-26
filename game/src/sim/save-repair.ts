@@ -1,3 +1,4 @@
+import { releaseGoneHolders } from './moments';
 import { CHASSIS, chassisDef } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { HUB, LINE_IDS, REFUSED, TOPICS } from '../data/dialogue';
@@ -45,6 +46,7 @@ export function repairContent(world: World): void {
   fitRoadNews(world);
   fitSites(world);
   fitWaves(world);
+  releaseGoneHolders(world);
 }
 
 function isShop(id: string): boolean {

@@ -510,9 +510,8 @@ async function inventoryByTouch(session, step) {
 const gridCellAt = async (page, touch, cell) => {
   await touch.box('.inv-grid');
   return game(page, (c) => {
-    const grid = document.querySelector('.inv-grid').getBoundingClientRect();
-    const px = document.querySelector('.inv-grid .inv-cell').getBoundingClientRect().width;
-    return { x: grid.x + (c.x + 0.5) * px, y: grid.y + (c.y + 0.5) * px };
+    const r = document.querySelector(`.inv-grid .inv-cell[data-cell="${c.x},${c.y}"]`).getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
   }, cell);
 };
 

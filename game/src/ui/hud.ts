@@ -40,7 +40,7 @@ import { FEEDBACK_URL } from "../config";
 import { gameContext } from "../three/error-report";
 import { feedbackCorner, FeedbackForm } from "./feedback-form";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
-import { createIcon, createSpeedDial, repairingPart } from "./cards";
+import { createCompassDial, createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch } from "./switch";
@@ -61,6 +61,8 @@ import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import type * as THREE from "three";
 import { dist } from "../sim/vec";
 import { PORTRAIT_STEP_MS, TruckPortraits } from "../three/render/truckPortrait";
+import { GARAGE_STEP_MS, GarageRenders } from "../three/render/garageRender";
+import { backgroundNeeds } from "./garage-draw";
 import { playerSees } from "../sim/vision";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, verbatim, type Msg } from "../text/msg";
@@ -181,11 +183,14 @@ export class Hud {
   private top = panel("instruments", bottomLeft());
   private clockSlot = el("div", { class: "instrument-clock", role: "timer", title: t("hud.clockTitle") });
   private dialSlot = el("div", { class: "speed-dial-slot" });
+  private compassSlot = el("div", { class: "compass-slot" });
   private maxSpeed = new MaxSpeedView();
-  private speedSlot = el("div", { class: "speedometer" }, this.dialSlot, this.maxSpeed.root);
+  private speedSlot = el("div", { class: "speedometer" }, this.compassSlot, this.dialSlot, this.maxSpeed.root);
   private readoutSlot = el("div", { class: "readouts" });
   private actionSlot = el("div", { class: "instrument-actions" });
   private readonly portraits: TruckPortraits;
+  readonly garage: GarageRenders;
+  private garageWorld: World | null = null;
   private readonly condition: TruckConditionView;
   private haulerGauge = new HaulerGauge();
   private readonly inspected: TruckConditionView;
@@ -283,6 +288,7 @@ export class Hud {
 
   constructor(private actions: HudActions, private radio: RadioPanel, renderer: THREE.WebGLRenderer) {
     this.portraits = new TruckPortraits(renderer);
+    this.garage = new GarageRenders(renderer);
     this.condition = new TruckConditionView(this.portraits, CONDITION_ROWS);
     this.inspected = new TruckConditionView(this.portraits, null);
     this.portraits.onReady((vehicleId) => {
@@ -596,6 +602,7 @@ export class Hud {
       createIcon("truck"),
     );
     this.dialSlot.replaceChildren(dial);
+    this.compassSlot.replaceChildren(createCompassDial(readout.heading));
     this.maxSpeed.render(readout.maxSpeed, readout.maxSpeedTip);
   }
 
@@ -717,10 +724,13 @@ export class Hud {
     const nearest = (a: Vehicle, b: Vehicle) => dist(a.pos, me.pos) - dist(b.pos, me.pos);
     const seen = w.vehicles.filter((x) => x.id !== me.id && playerSees(w, x.pos)).sort(nearest);
     this.portraits.want([me], seen, focus?.id ?? null, w.player.paint);
+    if (this.garageWorld !== w) this.garage.want(backgroundNeeds(w));
+    this.garageWorld = w;
   }
 
   stepPortraits(playing: boolean): void {
     this.portraits.step(PORTRAIT_STEP_MS, playing);
+    if (!playing) this.garage.step(GARAGE_STEP_MS);
   }
 
   portraitSettled(vehicleId: string): boolean {

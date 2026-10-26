@@ -1,5 +1,5 @@
 {
- "format": "2.116",
+ "format": "2.117",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -12,6 +12,20 @@
   "mapHash": "string",
   "marketRng": {
    "rngState": "number"
+  },
+  "moments": {
+   "crucible": {
+    "driver": "string",
+    "heard": "boolean"
+   },
+   "eightToNine": {
+    "driver": "string",
+    "heard": "boolean"
+   },
+   "fromTheWest": {
+    "driver": "string",
+    "heard": "boolean"
+   }
   },
   "nameRng": {
    "rngState": "number"

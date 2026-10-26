@@ -1,13 +1,6 @@
 {
-  "turn": 2704,
-  "player": {
-    "money": 1200,
-    "quests": {
-      "world": { "hattie_met": true },
-      "local": {
-        "nose_lena": { "heard_sun": true, "asked_sun": true, "heard_glare": true, "asked_glare": true }
-      },
-      "session": { "quest": "nose_lena", "checkpoint": "start.hub", "seed": 7 }
-    }
-  }
+  "turn": 1800,
+  "setup": { "mode": "roaming" },
+  "chaosHighway": null,
+  "player": { "money": 900 }
 }

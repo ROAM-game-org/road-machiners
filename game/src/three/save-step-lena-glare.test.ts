@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import FORMAT_2_115 from './save-fixtures/format-2-115.json';
+import FORMAT_2_116 from './save-fixtures/format-2-116.json';
 import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
 
-type Saved = typeof FORMAT_2_115;
+type Saved = typeof FORMAT_2_116;
 
-const step = (world: unknown): Saved => TINY_STEPS[115 - TINY_FROM].step(structuredClone(world) as SavedJson) as unknown as Saved;
-const fixture = () => structuredClone(FORMAT_2_115);
+const step = (world: unknown): Saved => TINY_STEPS[116 - TINY_FROM].step(structuredClone(world) as SavedJson) as unknown as Saved;
+const fixture = () => structuredClone(FORMAT_2_116);
 
-describe('save migration 115 to 116, Lena no longer sells a glare answer', () => {
+describe('save migration 116 to 117, Lena no longer sells a glare answer', () => {
   it('drops both glare marks and keeps her other variables, the world variables and the open session', () => {
     const next = step(fixture());
     expect(next.player.quests.local.nose_lena).toEqual({ heard_sun: true, asked_sun: true });

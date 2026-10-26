@@ -2,13 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { deployDev } from '../deploy';
+import { must } from '../exec';
 import { readState, updateState } from '../state';
 import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type AgentSession, type Card, type Ctx, type FactoryState, type IssueMerge } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
 import { BudgetError, runCost, untilPasses } from './checkpoint';
 import { checkScript, checkUntilReal, runChecks } from './checks';
-import { subsetCommand, testSubset } from './subset';
+import { remoteSuite } from './remote-suite';
 import { guardAgainstAll } from '../diff-guard';
 import { BASE_BRANCH, baseBranchFor, fillPrompt, isGameSource, playtestCommand, resetOutputs } from './common';
 import { releaseLog } from './release-common';
@@ -161,15 +162,36 @@ export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason
 
 async function mergedChecks(ctx: Ctx, land: Landing): Promise<string | null> {
   const log = releaseLog(ctx, `${land.stage}-checks-${land.into.replaceAll('/', '-')}`);
-  const subset = testSubset(await ctx.repo.changedInWork(land.dir, `origin/${land.into}`));
-  const script = checkScript(playtestCommand(ctx.cfg, false), subsetCommand(subset));
+  const tested = (await ctx.repo.changedInWork(land.dir, `origin/${land.into}`)).some(isGameSource);
+  const dirty = tested ? await uncommitted(ctx, land.dir) : '';
+  if (dirty !== '') return `The clone has changes that are not committed, so the full suite cannot test them. Commit them or remove them:\n${dirty}`;
+  const { suite } = tested ? await suiteOnHead(ctx, land) : { suite: Promise.resolve(null) };
+  const script = checkScript(playtestCommand(ctx.cfg, false), '');
   const at = { stage: land.stage, issue: null };
-  return checkUntilReal(() => runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage }), (run) => ctx.log(land.stage, null, `the checks only timed out, run ${run}, running them again`));
+  const failure = await checkUntilReal(() => runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage }), (run) => ctx.log(land.stage, null, `the checks only timed out, run ${run}, running them again`));
+  return failure ?? await suite;
+}
+
+async function uncommitted(ctx: Ctx, dir: string): Promise<string> {
+  return must(await ctx.run('git', ['-C', dir, 'status', '--porcelain'], { activity: 'git' }), 'git status in the merge clone').trim();
+}
+
+async function suiteOnHead(ctx: Ctx, land: Landing): Promise<{ suite: Promise<string | null> }> {
+  const head = await guardedHead(ctx, land);
+  await ctx.repo.replaceBranch(head, `factory/suite-${land.stage}-${land.into.replaceAll('/', '-')}`);
+  const suite = remoteSuite(ctx, { stage: land.stage, issue: null }, head);
+  suite.catch(() => undefined);
+  return { suite };
+}
+
+async function guardedHead(ctx: Ctx, land: Landing): Promise<string> {
+  const head = await ctx.repo.fetchFromWork(land.dir, land.into);
+  guardAgainstAll(await Promise.all(land.guardAgainst.map(async (branch) => ({ files: await ctx.repo.changedFiles(branch, head), diff: await ctx.repo.diff(branch, head) }))));
+  return head;
 }
 
 async function pushed(ctx: Ctx, land: Landing): Promise<string | null> {
-  const head = await ctx.repo.fetchFromWork(land.dir, land.into);
-  guardAgainstAll(await Promise.all(land.guardAgainst.map(async (branch) => ({ files: await ctx.repo.changedFiles(branch, head), diff: await ctx.repo.diff(branch, head) }))));
+  const head = await guardedHead(ctx, land);
   try {
     await ctx.repo.push(head, land.into);
     return null;

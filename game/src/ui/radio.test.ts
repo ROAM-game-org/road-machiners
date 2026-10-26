@@ -83,7 +83,7 @@ describe('RadioStation', () => {
     const found = world(10, ['granary']);
     const s = tuned(found);
     s.hear(later(found, RADIO.minGapTurns, [storm({ x: granary.pos.x + 5, y: granary.pos.y })]));
-    expect(en(s.next()!.text)).toBe('Dust storm rolling near The Granary, heading southeast.');
+    expect(en(s.next()!.text)).toBe('Dust storm rolling near The Granary, heading east.');
 
     const unfound = world(10, []);
     const s2 = tuned(unfound);
@@ -91,7 +91,7 @@ describe('RadioStation', () => {
     const text = en(s2.next()!.text);
     expect(text).not.toContain('Granary');
     expect(DIRECTIONS.some((d) => text.includes(en(t(`radio.basin.${d}`))))).toBe(true);
-    expect(text).toContain('heading northeast');
+    expect(text).toContain('heading north.');
   });
 
   it('names the place where a storm ends', () => {
@@ -148,7 +148,7 @@ describe('RadioStation', () => {
     s.hear(w2);
     const b = s.next()!;
     expect(b.topic).toBe('rescue');
-    expect(en(b.text)).toContain('out east');
+    expect(en(b.text)).toContain('in the northeast basin');
     expect(en(b.text)).toContain('Bowl');
   });
 
