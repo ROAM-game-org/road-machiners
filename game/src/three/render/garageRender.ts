@@ -11,9 +11,10 @@ import { canvasOf, captureColor, glassMeshes, hideOutlines, litScene, neutralize
 import { VehicleView, type RebuildBudget } from './vehicle';
 
 export const GARAGE_PX_PER_METER = 128;
+export const GARAGE_MAX_SIDE = 2048;
 export const GARAGE_STEP_MS = 4;
 const SAMPLES = 4;
-const BODY_PAD_M = 0.05;
+export const BODY_PAD_M = 0.05;
 const SPRITE_PAD_M = 0.06;
 const CAMERA_HEIGHT = 40;
 const KEEP_SPRITES = 4000;
@@ -32,7 +33,7 @@ type BodyJob = { kind: 'body'; key: string; chassisId: string; truck: Vehicle; p
 type BatchJob = { kind: 'batch'; chassisId: string; truck: Vehicle; paint: TruckPaint; placements: Placement[] };
 export type GarageJob = BodyJob | BatchJob;
 type Running = { job: GarageJob; steps: Generator<PortraitWait, void, void>; waiting: Promise<unknown> | null; failure: { error: unknown } | null; dispose: () => void };
-type Frame = { left: number; right: number; top: number; bottom: number };
+export type Frame = { left: number; right: number; top: number; bottom: number };
 
 export function isCore(part: PartInstance): boolean {
   return partDef(part.defId).kind === 'core';
@@ -165,8 +166,15 @@ function hasPixels(px: Uint8ClampedArray): boolean {
   return false;
 }
 
+export function shotSize(frame: Frame): { width: number; height: number } {
+  const widthM = frame.right - frame.left;
+  const heightM = frame.top - frame.bottom;
+  const pxPerMeter = Math.min(GARAGE_PX_PER_METER, GARAGE_MAX_SIDE / Math.max(widthM, heightM));
+  return { width: Math.round(widthM * pxPerMeter), height: Math.round(heightM * pxPerMeter) };
+}
+
 function* shoot(pass: Pass, root: THREE.Object3D, frame: Frame, origin: { x: number; z: number }): Generator<PortraitWait, GarageSprite, void> {
-  const size = { width: Math.round((frame.right - frame.left) * GARAGE_PX_PER_METER), height: Math.round((frame.top - frame.bottom) * GARAGE_PX_PER_METER) };
+  const size = shotSize(frame);
   const target = new THREE.WebGLRenderTarget(size.width, size.height, { samples: SAMPLES, depthBuffer: true, stencilBuffer: false });
   const box = { left: frame.left - origin.z, top: origin.x - frame.top, width: frame.right - frame.left, height: frame.top - frame.bottom };
   const scene = litScene(root);

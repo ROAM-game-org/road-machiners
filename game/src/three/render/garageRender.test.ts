@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { PAINT } from '../../data/chassis';
+import { CHASSIS, PAINT } from '../../data/chassis';
 import { PARTS, partDef } from '../../data/parts';
 import { makePart } from '../../sim/factory';
 import { baseGrid, itemCells, layerOf, mountCellsOf } from '../../sim/grid';
 import type { PartInstance, Vehicle } from '../../sim/types';
 import { bare } from '../../test/gun-clearance-kit';
-import { GarageRenders, bodyKey, coreItems, mountSpotsOf, planJobs, spriteKey, type BuildGarageJob, type GarageJob, type GarageNeed } from './garageRender';
+import { BODY_PAD_M, GARAGE_MAX_SIDE, GARAGE_PX_PER_METER, GarageRenders, bodyKey, coreItems, mountSpotsOf, planJobs, shotSize, spriteKey, type BuildGarageJob, type GarageJob, type GarageNeed } from './garageRender';
 import type { PortraitWait } from './truckPortrait';
 import { VehicleView } from './vehicle';
 
@@ -240,5 +240,26 @@ describe('garage render scene', () => {
     const tagged = meshes(placed).filter((m) => m.userData.partId === gun.id).length;
     expect(tagged).toBeGreaterThan(0);
     expect(tagged).toBe(extra);
+  });
+});
+
+describe('garage render size', () => {
+  it('caps the long side at the WebGL 2 floor and keeps the aspect', () => {
+    const size = shotSize({ left: 0, right: 3, top: 25, bottom: 0 });
+    expect(size.height).toBe(GARAGE_MAX_SIDE);
+    expect(Math.abs(size.width - (3 / 25) * GARAGE_MAX_SIDE)).toBeLessThanOrEqual(1);
+  });
+
+  it('keeps full scale for a small frame', () => {
+    expect(shotSize({ left: 0, right: 2, top: 4, bottom: 0 })).toEqual({ width: 2 * GARAGE_PX_PER_METER, height: 4 * GARAGE_PX_PER_METER });
+  });
+
+  it.each(Object.keys(CHASSIS))('draws the bare %s body inside the cap', (chassisId) => {
+    const { v } = bare(chassisId);
+    const view = new VehicleView({ ...v, items: coreItems(v) }, false, PAINT.standard, 'portrait');
+    const box = new THREE.Box3();
+    view.root.traverse((o) => o instanceof THREE.Mesh && o.visible && !o.userData.outline && box.expandByObject(o));
+    const size = shotSize({ left: box.min.z - BODY_PAD_M, right: box.max.z + BODY_PAD_M, top: box.max.x + BODY_PAD_M, bottom: box.min.x - BODY_PAD_M });
+    expect(Math.max(size.width, size.height)).toBeLessThanOrEqual(GARAGE_MAX_SIDE);
   });
 });
