@@ -84,7 +84,7 @@ VAR asked_paper = false
   -> hub
 + {wagon_fate == "logged" or wagon_fate == "admitted"} [About wagon Seven.]
   { wagon_fate == "admitted":
-    Teller drives the water cart now. His stripes are in my drawer. Two depot trucks with the same cheap brake rods are off the road until Lena has looked at them. Command hasn't answered. I log that too.
+    Teller's stripes are in my drawer. Two depot trucks with the same cheap brake rods are off the road until Lena has looked at them. Command hasn't answered. I log that too.
   - else:
     The raid report and the brake rod share a page, and command reads the top of it. Two depot trucks with the same cheap brake rods are off the road until Lena has looked at them. That's as far as my sheet goes.
   }

@@ -13,7 +13,7 @@ Water's in the tank by the lean-to drums. # speaker: Agnes
   Water, from deep rock. The pumpjack brings it up, and the trucks carry it down to <term=bowl>Bowl</term>'s canals and to the <term=granary>Granary</term>. # speaker: Agnes
   The pumpjack wears out tools. <term=nose>Nose</term> makes them, and somebody has to bring them up the road. # speaker: Agnes
   { works_down():
-    The pump's broken down. The big dial hardly moves, and I write that down too. # speaker: Agnes
+    The pump's broken down. # speaker: Agnes
   }
   { short_of("tools"):
     I'm out of tools. One more stripped bolt and the pump runs at half. # speaker: Agnes
