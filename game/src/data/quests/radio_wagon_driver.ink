@@ -8,7 +8,7 @@ Not much more to tell, and I'm short of daylight. Ask fast. # speaker: Driver # 
 = ask
 # checkpoint: start.ask
 + [Is anyone still around the wagon?]
-  Not that I saw. There were tracks all over the hollow, the wide kind raiders make with chains on their tires. They were old, though. Rain's come through since and washed the edges soft. # speaker: Driver
+  Not that I saw. There were tracks all over the hollow, the wide kind raiders make with hand-cut tread on their tires. They were old, though. The wind's blown sand through since and filled the edges in. # speaker: Driver
   -> ask
 + {has_note("wagonNose")} [What became of the wagon's crew?]
   They walked to Nose, the way I heard it. They were lucky. Whoever ran that wagon down wasn't out for prisoners. # speaker: Driver

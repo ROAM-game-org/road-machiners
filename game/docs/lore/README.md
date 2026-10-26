@@ -12,6 +12,25 @@ The world of ROAM. Everything here answers to [Theme](../theme.md).
 - [Story game](story-game.md): a turn-based game that generates history and stories with agents.
 - [Chaos Highway](chaos-highway.md): the skeleton of the Geezer and Ala story on the highway.
 
+## Sense check
+
+Lore makes sense to the people in it. Ask every practice, deal and detail these five questions from inside the world, with only what its people know and want. That covers lore pages, story game output, quest lines, talk, voice sheets, item lore and term tips.
+
+1. Purpose: what is it for, in one plain sentence, as the people who do it see it?
+2. It works: does it do that job in this world, or would its people believe it does? Does any other fact stop it, such as the dry climate, what is scarce or what the basin can make?
+3. Everyone has a reason: why would each other person or group it names bother, by what the lore already says they want?
+4. It earns its place: does it change a choice, a scene or a piece of evidence the player can find, or is it there only to look woven or exact?
+5. The game already says why: when a line explains something the game does, like what a town buys, makes or needs, does it give the reason the game's rules give? Find that rule in `src/data/` first, and never invent a second cause.
+
+A missing answer, a clash with another fact or an answer that would make a basin driver laugh cuts or fixes the detail. Keep the parts around it that pass. These patterns fail most often:
+
+- Self-defeating practice: a group does what undoes its own purpose. Beacon keepers who put their lamps out at night fail it.
+- Means that don't fit the goal: folk means aimed at something huge, unless the lore means it as a joke. Oil lamps to signal a starship fail it.
+- Name-drop garnish: a faction or a named person tied to a detail with no motive, so the lore looks connected. A Pierce lien on a cult's lamps fails it.
+- Precision garnish: exact counts, ages and spans that no scene or evidence uses. Six lamps kept for sixty years fail it.
+- Invented cause: a reason made up for a game rule that already has one, which then clashes with the world. Bowl buying scrap because the rains rust its sluice hinges every year fails it twice: rain is rare in the basin, and Bowl buys scrap because its machinists turn it into parts.
+- A thing the world doesn't have: a vehicle, machine or trade the game never shows. A water tanker fails it, since water travels in barrels on ordinary trucks.
+
 ## Icarus
 
 Icarus was a fertile farming basin before the collapse. Orchards, fields, canals, irrigation gates, farm roads, and market towns shaped the land. It was not a spaceflight center. The name Icarus came after the crash. Its old name has not been chosen.
@@ -99,10 +118,10 @@ Bowl and Nose have locals the player talks to in town. `src/data/locals.ts` hold
 
 - Bowl is run by the canal families, a say for every gate, and guarded by the Bowl Farmers. Its people talk warm and slow, of crops, canals, water and seed. They think Nose is soldiers playing at a town.
 - Nose is an Army post that became a town. The Army runs it: command gives orders, dispatch hands them out. Its people talk short and to the point. They think Bowl is slow but needed, since its grain feeds them.
-- Bowl's grain is sorgut, a hardy sorghum the canal families grow on water trucked in from Dustwell, or from Green Pit when the Dustwell road is bad. The Granary dries and salts it into rations, the tins every truck eats on the road, and sells them back to Bowl, Nose and the stalls.
-- The locals are Ruben the canal warden, Hattie of the gate yard water stand and Dag of the Farmers patrol at Bowl, and Sergeant Kovac at dispatch, Lena the mechanic and Old Ibo the radio man at Nose. Nose Army wagon Seven went dark on the Dustwell water run to Bowl, and its crew walked home.
+- Bowl's grain is sorgut, a hardy sorghum the canal families grow on water trucked in from Dustwell, or from Green Pit when the Dustwell road is bad. The Granary cooks it with salt and water into rations, the tins every truck eats on the road, and sells them back to Bowl, Nose and the stalls.
+- The locals are Ruben the canal warden, Hattie of the gate yard water stand and Dag of the Farmers patrol at Bowl, and Sergeant Kovac at dispatch, Lena the mechanic and Old Ibo the radio man at Nose. Nose Army wagon Seven, which ran Dustwell water to Bowl and Granary rations back to Nose, went dark on the road, and its crew walked home.
 - Talk about the recent years comes from more locals. Jory Baptiste and Bo Lindqvist are at Bowl, a Bowl patrol driver is at the Granary, Sefa Krol trades at the Salvage Yard, and Ines Abend and an Order Bureau clerk are at Nose.
-- Jory speaks for the tenants and ends every answer with a short joke. His subjects are the vote, the patrol, Kiln and the grain, and the household's tanker to the top terraces.
+- Jory speaks for the tenants and ends every answer with a short joke. His subjects are the vote, the patrol, Kiln and the grain, and the household truck to the top terraces.
 - Bo is gentle and plain. He tells the fight at the Burnt Convoy once and does not excuse it.
 - The patrol driver talks like a working Bowl hand: the Granary count, the road no one guards and the north-western tale. The Bureau clerk talks short and low, afraid of the corridor, and says only what the corridor says.
 - Sefa is blunt and dry. She speaks for the families off the Burnt Convoy, who live at the Salvage Yard now. She takes what the road is done with and leaves the water.

@@ -37,7 +37,7 @@ Nobody agrees, and each guess has its believers.
 - Somebody in the Pierce office sold the roads of insured trucks to robbers. He went north-west and never came back.
 - The Nose Committee rents its workshop line with Pierce money.
 - The Administrator keeps a book in the crane office that could bring down both towns.
-- The old Senate families on the top terraces send a tanker to Dustwell that never shows up in any book.
+- The old Senate families on the top terraces send a truck to Dustwell for water that never shows up in any book.
 
 ## The road
 
@@ -56,7 +56,7 @@ Nobody agrees, and each guess has its believers.
 - At dusk a line of lamps crosses open ground to the crater, and before dawn it goes back. Call those cars on the radio and nobody answers.
 - Cars that stop near the crater at night get dragged into the dark on a chain. Families find the furrows by the road in the morning.
 - The Keeper walked into the light singing, and his coat is still warm on the man who wears it.
-- The beacon keepers keep their lamps dark at night now, because lamps draw the Sunward's cars.
+- The beacon keepers put their camp fires out at night now, because fires draw the Sunward's cars.
 - Joss Ardo of the Children of Noah got out of the Sunward. His friend did not.
 - Some people out past the glass live without towns and without trucks, and nobody knows how.
 - A crew once camped in the wreck and their sentry fell asleep. In the morning the sentry was gone, and his boots were still standing by the fire.
