@@ -48,7 +48,7 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
 = about_me
 + {not asked_where} [Where am I?]
   ~ asked_where = true
-  <term=bowl>Bowl</term>. Farm town, built down the inside of a crater. Terraces, with canals between them. # speaker: Hattie
+  Bowl. Farm town, built down the inside of a crater. Terraces, with canals between them. # speaker: Hattie
   You're in the gate yard. That's as much of Bowl as strangers get. # speaker: Hattie
   -> about_me
 + {towed_to_bowl and not asked_what} [What happened to me?]
@@ -66,7 +66,7 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
   ~ asked_tips = true
   Carry more water and fuel than you think you'll need. # speaker: Hattie
   Stay near towns till you know your truck. Lawmen ride the roads round the gates. Past the patrols, every driver's got a gun, and nobody's paid to keep them polite. # speaker: Hattie
-  Break down and the tow costs coin, the repairs cost scrap. Walking costs you. # speaker: Hattie
+  Break down and the tow costs coin, and so do the repairs. Walking costs you. # speaker: Hattie
   -> about_me
 + [Back.]
   -> questions
@@ -74,7 +74,7 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
 = about_region
 + {asked_region and not asked_nose} [And Nose?]
   ~ asked_nose = true
-  <term=nose>Nose</term> is up the north-east road. Soldiers at the wall, and a workshop turning out engines and guns for half the basin. Strangers get in if they're buying. # speaker: Hattie
+  <term=nose>Nose</term> is up the north road. Soldiers at the wall, and a workshop turning out engines and guns for half the basin. Strangers get in if they're buying. # speaker: Hattie
   -> about_region
 + {asked_region and not asked_yard} [And the yards?]
   ~ asked_yard = true
@@ -82,11 +82,11 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
   -> about_region
 + {asked_region and not asked_kiln} [And the raiders?]
   ~ asked_kiln = true
-  <term=kiln>Kiln Camp</term> is south-east of here. They charge you for the right to haul. If you won't pay and won't fight, you'll be walking back. # speaker: Hattie
+  <term=kiln>Kiln Camp</term> is east of here. They charge you for the right to haul. If you won't pay and won't fight, you'll be walking back. # speaker: Hattie
   -> about_region
-+ {asked_region and not asked_flats} [And south-east?]
++ {asked_region and not asked_flats} [And east?]
   ~ asked_flats = true
-  South-east is the <term=glass_flats>Glass Flats</term>, then the <term=sunward>Sunward</term>. People go for lenses, and nobody hauls. Lens hunters come back with good glass and bad burns. # speaker: Hattie
+  East is the <term=glass_flats>Glass Flats</term>, then the <term=sunward>Sunward</term>. People go for lenses, and nobody hauls. Lens hunters come back with good glass and bad burns. # speaker: Hattie
   -> about_region
 + [Back.]
   -> questions

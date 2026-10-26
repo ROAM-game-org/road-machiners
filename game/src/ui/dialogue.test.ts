@@ -186,7 +186,7 @@ describe('sighting words', () => {
   it('tells the age, place and heading of what the driver saw', () => {
     const seen = { bearing: 0, tiles: 300, turns: 60, heading: Math.PI / 2 };
     const words = en(sightingText({ kind: 'sighting', driver: 'Jed Cobb', seen }));
-    expect(words).toMatch(/^Jed Cobb\? Saw that truck about 3 hours ago, .* south-east of you, heading south-west\.$/);
+    expect(words).toMatch(/^Jed Cobb\? Saw that truck about 3 hours ago, .* east of you, heading south\.$/);
   });
 
   it('says they never crossed paths when nothing was seen', () => {

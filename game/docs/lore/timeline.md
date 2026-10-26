@@ -8,18 +8,18 @@ The first part is history as people in the basin could know it. The last part ho
 
 - Year -10. The Chaos is in its 110th year. A drought halves the river. The Garrison, an Old World army remnant at Old Orchard, strips the grain from ruined depots. The Waterworks ration the river by written schedule, and the south fields go dry. Dust Riders kill a Canal Folk boy in a raid, and Old Mother Saxa pays his mother two barrels.
 - Year -10. A new bright point moves among the stars. Director Yusuf Abend of the Alpha Tower charts it and finds it is huge and falling. The Creed calls it a sign of the test.
-- Year -5. The Waterworks turn the water schedule into a tariff, and farmers call it the water tax. Abend computes the fall for year 2 over the south-eastern hills. He is wrong on both counts.
+- Year -5. The Waterworks turn the water schedule into a tariff, and farmers call it the water tax. Abend computes the fall for year 2 over the eastern hills. He is wrong on both counts.
 
 ## The fall
 
-- Year 0. The second moon breaks apart overhead in daylight. The largest hull blasts the central crater, later called the Fallen Sun. A trail of engines, plates and pods falls from the west. One great section comes down on a mountain in the east. A heavy piece makes a deep crater in the south fields, where two Canal Folk villages stood.
+- Year 0. The second moon breaks apart overhead in daylight. The largest hull blasts the central crater, later called the Fallen Sun. A trail of engines, plates and pods falls from the south-west. One great section comes down on a mountain in the north-east. A heavy piece makes a deep crater in the south fields, where two Canal Folk villages stood.
 - Year 0. The debris trail crosses the river above the dam. The river breaks its course and sinks into the ground. The basin starts to dry into desert.
 - Year 0. Hundreds of escape pods come down along the trail and across the basin, thickest at the edge of the Glass Flats. Many of them open. People climb out: pale, in grey suits, speaking a tongue nobody knows and only a few words of the common speech. Most remember nothing before waking in the pod.
 - Year 1. Many pod people die in the first winter. Some are taken in, some are robbed, and some are put to work for their keep. The Canal Folk shut their villages to them. Basin people call them the Given, after the cry "Given by the sky".
 
 ## The Dry Years
 
-- Year 3. Five Garrison soldiers under Sergeant Dorota Vance refuse to come down from the mountain wreck. They are the founders of the Nose.
+- Year 3. Garrison soldiers under Sergeant Dorota Vance refuse to come down from the mountain wreck. They are the founders of the Nose.
 - Year 3. The Given find their way to the mountain wreck, the one place that looks like where they came from. Vance's deserters take them in. From the start, most of the people of the Nose are Given.
 - Year 3. Water seeps into the floor of the south crater. The Creed's refugees, many of them Given, win it from the Waterworks and the Canal Folk, and camp on the crater floor. A Waterworks engineer dies in the scuffle.
 - Year 3. Abend and his apprentice Teo bring a hull plate home, marked in an unknown script beside common digits. Abend dies of burns from the wreck. Teo, 23, takes the tower.
@@ -45,7 +45,7 @@ The first part is history as people in the basin could know it. The last part ho
 ## The Bowl and the Nose
 
 - Year 60. Crops grow on the crater floor. The Creed, the Canal families and the Waterworks form one Crater Council. Pierce's clerks keep its accounts, and the Guild posts its votes. The settlement calls itself the Bowl. The Old Army asks to keep the council's book and is refused.
-- Year 63. Rafe Ondra of the Waterworks dies at 104 with the pump book open. The Waterworks become the Bowl's water office.
+- Year 63. Rafe Ondra of the Waterworks dies with the pump book open. The Waterworks become the Bowl's water office.
 - Year 70. A drought cracks the Bowl's cistern. The Bowl buys Nose grain at high prices and borrows from Pierce for ten years of grain. The dreamers start calling the glow the Fallen Sun, and themselves the Sunward.
 - Year 71. Mother Neve Sorrel of the dreamers dies of fever. Oren Vey takes the Bowl's pact of grain for rim work and calls himself the Keeper of the count.
 - Year 80. The Chaos ends in the wider world, and the basin's storms stop.
@@ -68,17 +68,17 @@ The first part is history as people in the basin could know it. The last part ho
 - Year 100. Neither town pays the Old Army. Hungry soldiers sell rifles to Scrapjaw. Pierce pays the army's back wages and takes its heavy trucks as collateral.
 - Year 100. Teo's scholars at the tower call themselves the Lunar Society. Young people who say nothing here is real leave the Creed: the Ephemeralists.
 - Year 101. Yara Sorrel, the Sunward singers' voice, dares the Keeper to answer the glow himself. Oren Vey walks into the light in front of the order and is not seen again. Mattias Kade puts on his coat.
-- Year 110. Beacon keepers on the debris trail call themselves the Children of Noah. Most are grandchildren of the Given, waiting for the ship that left their grandparents behind to come back.
-- Year 110. Yara Sorrel leads the Sunward's old singers out of the crater to the beacon keepers. A Bowl tenant grain cart vanishes on the rim road at night, and the Senate blames loose Old Army riflemen.
+- Year 110. Grandchildren of the Given on the debris trail call themselves the Children of Noah. Most are grandchildren of the Given, waiting for the ship that left their grandparents behind to come back.
+- Year 110. Yara Sorrel leads the Sunward's old singers out of the crater to the Children of Noah. A Bowl tenant grain cart vanishes on the rim road at night, and the Senate blames loose Old Army riflemen.
 - Year 112. Commander Lind nails a book of every unpaid promise to the Old Orchard gate and dies in the motor pool. The Old Army ends. Its trucks stand where they stopped.
 
 ## Recent years
 
 This part was generated with a second, smaller run of the story game. Its players were minor characters, and the events above were fixed. The years show how every truck on the road came to carry a gun. A third run of the same years, with these events fixed, added how the Marshalls came to keep the road book at the Roadhouse.
 
-- Year 113. Nobody patrols the roads. Old Army rifles sell for grain at every crossroads. A Bowl grain truck is stopped below Canyon Bridge, and its driver, Hal Sorensen, is shot. No patrol comes for two days. Brother Anselm of the Creed buries him by the bridge. Hal's last letter says he would not pay a stranger for a rifle.
+- Year 113. Nobody patrols the roads. Old Army rifles sell for grain at every crossroads. A Bowl grain truck is stopped below Canyon Bridge, and its driver, Hal Sorensen, is shot. Brother Anselm of the Creed buries him by the bridge. Hal's last letter says he would not pay a stranger for a rifle.
 - Year 113. A Bowl patrol holds the Old Orchard gate and keeps the shops shut. Corporal Ilya Moreno of the Old Army serves in it and paints the motor pool count on the blockhouse wall: 38 trucks.
-- Year 114. Pierce announces it insures only trucks that carry a gun. The Granary arms its grain trucks with patrol veterans and crossroads rifles. Otto Brann of the Pierce yard welds gun racks for Pierce trucks and signs each one.
+- Year 114. Pierce announces it insures only trucks that carry a gun. The Granary arms its grain trucks with patrol veterans and crossroads rifles. Otto Brann of the Pierce yard welds gun racks for Pierce trucks.
 - Year 114. Hadiza Okon of Green Pit hangs hooks by her door. Drivers hang their rifles there to drink. People call it the hook house.
 - Year 115. A free radio voice starts reading the weather like an old farm report. The Guild cannot find her mast. She thanks the Creed for a meal she never ate: "Waste some time."
 - Year 115. The Bowl Senate lets tenant drivers carry rifles on the road, for the first time since the Grain War, and pays half the cost of rifles on grain runs.
@@ -92,34 +92,33 @@ This part was generated with a second, smaller run of the story game. Its player
 - Year 118. Absalom Reyne preaches at the Sunward's fire, and people call him the Preacher.
 - Year 119. Joss Ardo, Pell Ardo's nephew, deserts the Sunward with the singers' help and tells the Senate what he saw. The Senate stops all grain to the Sunward.
 - Year 119. Karl Vosk and two new men rob a Nose salt truck on the north bend. The Bowl patrol locks the Orchard staff cars back in the motor pool.
-- Year 120. The Nose workshop line starts handing a steel turning mount to any driver who asks at its gate.
 - Year 121. The Lunar Society votes to read the count in the open. Teo refuses, and they cast him out. People call him the Apprentice. The tower announces that the tone from the central wreck counts the years since the fall.
-- Year 121. Pierce lets its filing clerk Wim Satterly go. He takes a ledger of every robbed run to Petra Quell's Guild relay mast on the plain north-east of the Nose, and drivers call it the road book. A guard truck rides the Pump Station road for one season on Granary money, and the Nose command takes the salt drivers' collection for a guard "for the Committee's road fund".
+- Year 121. Pierce lets its filing clerk Wim Satterly go. He takes a ledger of every robbed run to Petra Quell's Guild relay mast on the plain north of the Nose, and drivers call it the road book. A guard truck rides the Pump Station road for one season on Granary money, and the Nose command takes the salt drivers' collection for a guard "for the Committee's road fund".
 - Year 122. The Bowl refuses a Pierce loan. Pierce pays its crews late. Vulture families of the Burnt Convoy stop a Pierce office truck and take a debtor book listing what the Nose Committee and the Bowl Senate owe Pierce.
 - Year 122. Karl Vosk kills a driver on the north plain. Lind's two staff cars go missing from the Orchard motor pool, and the count on the blockhouse wall falls to 36. The Bowl posts Rook Halloran's three as car thieves.
 - Year 123. The Pierce yard's crews stop answering to Pierce and run the yard themselves: the Salvage Yard. Their crew boss Sully Okafor buys the debtor book from the squatters and keeps it shut. Hull pieces, relics and the Old Army's stripped guns are sold there.
-- Year 123. A Bowl patrol under Garrett Ainsley takes Karl Vosk alive in a pump shed north-east of the plain, and the goods of four robberies go back to their owners by the road book.
+- Year 123. A Bowl patrol under Garrett Ainsley takes Karl Vosk alive in a pump shed north of the plain, and the goods of four robberies go back to their owners by the road book.
 - Year 124. Old soldiers try the Old Orchard gate at night and are turned back. Some of them join the Bowl patrol.
 - Year 124. The Bowl funds a road patrol from the Granary count, the convoy fee and tenant shares. Tenants may serve in it. The Nose refuses to pay and patrols only its own roads. Each town now guards the road near its walls, and the open road between them has no guard.
-- Year 124. The Senate lets Karl Vosk go, since his crimes were not on a Bowl road, and the Committee will not reopen a case it closed. The Kiln toll rider Sabra Kell stops him north-east of the relay mast, and Rook's cars bring him in. He is held at the relay compound, since no town will try him.
-- Year 125. Ain Christopher flees the Nose after his child dies and comes to Kiln Camp with Kaplan. Within a year he runs it. Dagny Brask, past 110, still keeps the furnace.
+- Year 124. The Senate lets Karl Vosk go, since his crimes were not on a Bowl road, and the Committee will not reopen a case it closed. The Kiln toll rider Sabra Kell stops him north of the relay mast, and Rook's cars bring him in. He is held at the relay compound, since no town will try him.
+- Year 125. Ain Christopher flees the Nose after his child dies and comes to Kiln Camp with Kaplan. Within a year he runs it. Dagny Brask, past 70, still keeps the furnace.
 - Year 125. Before the dead driver's family, at the relay mast, Karl Vosk admits a killing and four robberies. His car is sold for the family, the drivers who caught him take a third, and he goes north-west and is told not to come back. Drivers start calling the people at the mast the marshals, after the word on Jonah Feld's badge.
-- Year 126. Kiln riders strike the open road. They strip trucks that neither pay nor fight. The Granary pays a sack for each armed truck that crosses, and the convoy pays in medicine and cloth. Guild couriers start running in pairs. Wendell Ondra of Dustwell dies at the Green Pit sluice. Brother Anselm dies at 75 and is buried between Hal and Jens.
+- Year 126. Kiln riders strike the open road. They strip trucks that neither pay nor fight. The Granary sends Kiln Camp rations in exchange for passage for its trucks, and the convoy pays in medicine and cloth. Guild couriers start running in pairs. Wendell Ondra of Dustwell dies at the Green Pit sluice. Brother Anselm dies at 75 and is buried between Hal and Jens.
 - Year 126. Marta "Ladle" Ruiz runs the south road for Kiln. A truck that has paid her toll carries a ladle scratched into its door.
 - Year 126. Two robbed traders bring their claims to the mast. A Nose salt driver comes and pays. A Bowl tenant refuses and drives off. The road book takes the shape of a case: the claim, the answer, the witnesses, the price and the cut.
-- Year 127. The Guild's trust rents Old Orchard's machine tools to the Nose, the only bidder who can pay. The Nose hauls them up the mountain and builds the basin's only workshop line. The Bowl keeps the gate of an empty farm and 36 trucks that stand where they stopped.
+- Year 127. The Nose hauls Old Orchard's machine tools up the mountain and builds the basin's only workshop line. The Bowl keeps the gate of an empty farm and 36 trucks that stand where they stopped.
 - Year 127. The marshals stop the Bowl tenant between the two patrol limits and ask him again. He refuses a second time and reaches for his rifle, and they shoot out his engine, not the cab. He pays. Drivers say the marshals shoot only at a man who will not pay.
 - Year 128. Nose command orders a cheap steel brake rod for the depot trucks, and the Nose line hands the same rod out to Nose drivers. It is weak on a hard bend. Nose drivers who know it pay the Salvage Yard for a proper one.
 - Year 128. The Bowl patrol comes to the mast with six trucks for the staff cars. The mast pays the Bowl their worth, and the Bowl strikes the three from its post. It pays the Bowl the price of a Nose driver's old robbery too, and the Bowl takes his name off its gate. Asked on whose authority it hears cases, the mast answers: on no town's.
 - Year 128. The Apprentice reads the last marks in the central hull's shadow and tells nobody what he read. He trades the count's last number to the Preacher of the Sunward, who teaches it as the glow's word. The Sunward bar the Lunar Society from the rim.
-- Year 128. Cobb Navarre, a Sunward sworn man and Joss Ardo's friend, is caught leaving the order at night and is never seen again. The beacon keepers keep their lamps dark at night from then on.
+- Year 128. Cobb Navarre, a Sunward sworn man and Joss Ardo's friend, is caught leaving the order at night and is never seen again.
 - Years 127 to 130. The Sunward stop sleeping in the crater. At dusk eight cars with their lamps in a line cross open ground to the crater from somewhere in the wastes, keep the night there in silence and go before dawn. On some nights three fast cars hunt the roads near the crater instead. Drivers keep away from the crater after dark.
 - Year 129. A Nose driver, Emil Kessel, dies on the north bend when his Nose issued brake rod snaps. The Nose sends an Army post under Captain Silver into the Salvage Yard.
 - Year 129. Drivers call the mast compound the Roadhouse. Its marshals buy a plated Lincoln from the Salvage Yard on credit, and close no claim against a Kiln rider. Garrett Ainsley's finding that a patrolman's son rammed first clears a Granary driver.
 - Year 130. Nobody drives the open road without a gun, except the Guild courier Tamsin Roe, who runs in a pair with Vesna Hale. The names of the dead are read at Canyon Bridge once a year.
 - Year 130. The Roadhouse keeps three fast plated cars and posts two daylight crossings of the open stretch between the town patrols. It owes the Bowl and the Salvage Yard, and its claims wait for a free car.
-- Year 130. The last Given who woke in a pod are very old. Most people in the basin have a Given grandparent, and pale skin and grey eyes are common in the Nose. Some families still keep a grey suit or a pod tag stamped with common digits.
-- Year 130, autumn. Nose Army wagon Seven, which runs water drums from Dustwell down the Bowl north road to Bowl every week, leaves the road on a bend below the Pump Station turn-off and goes dark in a hollow. Its crew walk back to Nose and report that raiders ran it down and its cannon went over the edge. Command writes it off. A scavenger sells its radio back to Nose dispatch and leaves the basin by the west road.
+- Year 130. Most people in the basin have a Given grandparent, and pale skin and grey eyes are common in the Nose. Some families still keep a grey suit or a pod tag stamped with common digits.
+- Year 130, autumn. Nose Army wagon Seven, which runs water drums from Dustwell down the Bowl north road to Bowl every week, leaves the road on a bend below the Pump Station turn-off and goes dark in a hollow. Its crew walk back to Nose and report that raiders ran it down and its cannon went over the edge. Command writes it off. A scavenger sells its radio back to Nose dispatch and leaves the basin by the north road.
 
 ## Hidden truths
 
@@ -131,7 +130,6 @@ This part was generated with a second, smaller run of the story game. Its player
 - The Old Army was starved on purpose. The Central Committee held back the Nose's fuel payments so the army would fail and its workshops would fall to the Nose. The Bowl simply could not pay.
 - From year 113 to year 123 the Pierce yard sold guns stripped from the Old Army trucks it held as collateral. Crates marked with a hook went north to Scrapjaw on Lucan Pierce's own order. Crates marked with a wheel went to a crossroads dealer who sold to drivers. Pierce sold the guns and required them.
 - Pierce made every insured run file its day and road at the Nose office. Its clerk Dell Marr sold the filings to robbers through the wheel dealer. That is how the Vosk brothers and Scrapjaw knew which trucks to stop. Inspector Mara Kessel of the Order Bureau proved it, and the Committee buried the case because it owes Pierce too much. Dell Marr was sent north-west and told not to come back.
-- The Committee pays the Old Orchard rent with Pierce money. The Salvage Yard's debtor book shows it.
 - The Pump Station is a fuel pumpworks on an Old World oil well. Its crew cooks the crude into petrol in stills, and fuel convoys load drums there.
 - Water reaches Bowl only by truck. The water trucks load at Dustwell, up the Bowl north road, and pour their loads into the canals at the lock house, where the Canal families count every barrel.
 - The household of Archon Gideon Marr sends its own tanker to Dustwell every week. A Senate order keeps its loads out of the pump book. The tanker unloads into a cistern under the Marr gardens on the top terrace. Half its water goes to the gardens and the Marr house. The other half is the Senate's drought store, voted in closed session in year 126, and only the Archon may open it. Wendell Ondra kept the tanker out of the pump book for a year before the Senate's order, for a barrel of oil a month from the household.

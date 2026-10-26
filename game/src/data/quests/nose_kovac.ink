@@ -33,7 +33,7 @@ VAR asked_paper = false
 
 = about_nose
 + [What is this place?]
-  Nose. The dispatch desk is mine. Freight on the north-east road or through the canyon crossing passes this desk, or it doesn't pass. If you want something to be proud of, ask the <term=committee>Committee</term> about the workshop line. It builds whole engines and guns. Bowl can't.
+  Nose. The dispatch desk is mine. Freight on the north road or through the canyon crossing passes this desk, or it doesn't pass. If you want something to be proud of, ask the <term=committee>Committee</term> about the workshop line. It builds whole engines and guns. Bowl can't.
   ~ heard_workshop = true
   -> about_nose
 + [Who runs Nose?]
@@ -53,7 +53,7 @@ VAR asked_paper = false
   }
   -> about_nose
 + {heard_workshop and not asked_workshop} [Where did the workshop line come from?]
-  Old Orchard, the Old Army's depot. The machine tools are the Guild's, and command rents them. Who pays that rent is above my sheet.
+  Old Orchard, the Old Army's depot. Command hauled the machine tools up the mountain once the Army was gone. Who signed for them is above my sheet.
   ~ asked_workshop = true
   -> about_nose
 + [Back.]
@@ -66,7 +66,7 @@ VAR asked_paper = false
   ~ heard_courier = true
   -> about_road
 + {heard_mounts and not asked_mounts} [Why let unarmed trucks out the gate?]
-  The gate isn't mine to shut on a driver. The line hands a steel mount to any driver who asks, so nobody can tell me he had nowhere to bolt a gun. What goes on it is between the driver and <term=pierce>Pierce</term>. Pierce writes his paper. I don't ask.
+  The gate isn't mine to shut on a driver. What goes on his truck is between the driver and <term=pierce>Pierce</term>. Pierce writes his paper. I don't ask.
   ~ asked_mounts = true
   ~ heard_paper = true
   -> about_road
@@ -75,7 +75,7 @@ VAR asked_paper = false
   ~ asked_courier = true
   -> about_road
 + {heard_paper and not asked_paper} [What is Pierce paper?]
-  It's the insurance that pays a driver when his truck is shot. Pierce writes it for any truck with a gun on it, and for no other. That's why the line hands out mounts.
+  It's the insurance that pays a driver when his truck is shot. Pierce writes it for any truck with a gun on it, and for no other.
   ~ asked_paper = true
   -> about_road
 + [Back.]

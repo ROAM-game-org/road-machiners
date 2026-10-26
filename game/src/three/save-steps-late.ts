@@ -622,7 +622,15 @@ export function withWreckSquares_114_115(world: SavedJson): SavedJson {
   return { ...world, player: { ...player, call: null } };
 }
 
-export function withDialogueSeen_115_116(world: SavedJson): SavedJson {
+const MOMENT_IDS_115 = ['fromTheWest', 'eightToNine', 'crucible'];
+
+export function withMoments_115_116(world: SavedJson): SavedJson {
+  if (world.moments !== undefined) return world;
+  const moments = world.chaosHighway === null ? Object.fromEntries(MOMENT_IDS_115.map((id) => [id, { driver: null, heard: false }])) : null;
+  return { ...world, moments };
+}
+
+export function withDialogueSeen_116_117(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
   const quests = player.quests as SavedJson | undefined;

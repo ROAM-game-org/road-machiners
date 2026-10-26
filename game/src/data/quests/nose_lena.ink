@@ -42,7 +42,7 @@ VAR asked_glare = false
   ~ heard_swivel = true
   -> about_truck
 + [Where do I find cheap parts?]
-  The Salvage Yard, a way west of here. The crews strip whatever gets towed in, so parts go for next to nothing. You'll have to put up with the smell of burnt oil. For real plate you want the Fallen Sun, the big hull in the crater. I say that through my teeth.
+  The Salvage Yard, a way south-west of here. The crews strip whatever gets towed in, so parts go for next to nothing. You'll have to put up with the smell of burnt oil. For real plate you want the Fallen Sun, the big hull in the crater. I say that through my teeth.
   ~ heard_sun = true
   -> about_truck
 + {heard_swivel and not asked_rods} [Why check brake rods before guns?]

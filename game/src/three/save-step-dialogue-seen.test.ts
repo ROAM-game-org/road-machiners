@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import FORMAT_2_115 from './save-fixtures/format-2-115.json';
+import FORMAT_2_116 from './save-fixtures/format-2-116.json';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { playerVehicle } from '../sim/damage';
@@ -13,13 +13,13 @@ import { loadWorld, saveOf } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { TINY_FROM, TINY_STEPS, type SavedJson } from './save-migrations';
 
-type Saved = typeof FORMAT_2_115;
+type Saved = typeof FORMAT_2_116;
 
-const step = (world: unknown): Saved => TINY_STEPS[115 - TINY_FROM].step(structuredClone(world) as SavedJson) as unknown as Saved;
+const step = (world: unknown): Saved => TINY_STEPS[116 - TINY_FROM].step(structuredClone(world) as SavedJson) as unknown as Saved;
 
-describe('save migration 115 to 116, radio groups and seen replies', () => {
+describe('save migration 116 to 117, radio groups and seen replies', () => {
   it('opens a call at the hub with nothing asked and gives the quests an empty seen', () => {
-    const next = step(FORMAT_2_115) as unknown as { player: { call: Record<string, unknown>; quests: Record<string, unknown>; money: number } };
+    const next = step(FORMAT_2_116) as unknown as { player: { call: Record<string, unknown>; quests: Record<string, unknown>; money: number } };
     expect(next.player.call).toMatchObject({ with: 'v40', node: 'hub', group: null, asked: [] });
     expect(next.player.quests.seen).toEqual({});
     expect(next.player.money).toBe(1200);

@@ -201,8 +201,8 @@ describe("contract text", () => {
     it("says how far and which way from the shop the driver waits", () => {
       const bowl = REGION.towns.find((t) => t.id === "bowl")!.pos;
       const east = { ...rescue, area: { x: bowl.x + 40, y: bowl.y } };
-      expect(en(rescueWhere(east))).toMatch(/^\d+ m south-east of Bowl$|^[\d.]+ km south-east of Bowl$/);
-      expect(en(rescueWhere({ ...east, area: { x: bowl.x, y: bowl.y - 40 } }))).toContain("north-east of Bowl");
+      expect(en(rescueWhere(east))).toMatch(/^\d+ m east of Bowl$|^[\d.]+ km east of Bowl$/);
+      expect(en(rescueWhere({ ...east, area: { x: bowl.x, y: bowl.y - 40 } }))).toContain(" north of Bowl");
     });
 
     it("logs a met rescue with the driver and a lapsed one without a price", () => {
@@ -230,7 +230,7 @@ describe("contract text", () => {
     const shop = REGION.towns.find((l) => l.id === "bowl")!;
     const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
     expect(gridSquareOf(claim.at)).toEqual({ column: 4, row: 6 });
-    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank in square E7, south-east of Bowl, about 1.3 km out");
+    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank in square E7, east of Bowl, about 1.3 km out");
     expect(resolve(contractSummary(claim), "ru")).toContain("в квадрате Д7,");
   });
 
@@ -946,9 +946,9 @@ describe("survey contract text", () => {
 
   it("tells a clue as a named place, a compass word, a distance in hundreds of meters and the lay", () => {
     const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow", square: { column: 2, row: 3 } } as const;
-    expect(en(surveyClueText(clue))).toBe("Lies in square C4, east of Pump Station, about 400 m out, in a hollow");
-    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies in square C4, north-west of Pump Station, about 1.1 km out, on high ground");
-    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25, square: { column: 7, row: 0 } }))).toBe("Lies in square H1, south-west of Pump Station, about 100 m out, on flat ground");
+    expect(en(surveyClueText(clue))).toBe("Lies in square C4, north-east of Pump Station, about 400 m out, in a hollow");
+    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies in square C4, west of Pump Station, about 1.1 km out, on high ground");
+    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25, square: { column: 7, row: 0 } }))).toBe("Lies in square H1, south of Pump Station, about 100 m out, on flat ground");
   });
 
   it("names a map grid square by its column letter and row number, with the Russian letters in Russian", () => {
@@ -980,10 +980,10 @@ describe("survey contract text", () => {
     });
     const line = surveyWayLine(emptyWorld(), c, c.points[0]) as unknown as TextNode;
     expect(line.className).toBe("contract-clue");
-    expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the south-east gate. Take the road to Nose, heading east. Where the road runs closest, leave the road and head east and a touch north-east, a short way. Boat wrecks on flat ground. found");
+    expect(line.text()).toBe("Boat wrecks in square C6, from Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head north-east and a touch north, a short way. Boat wrecks on flat ground. found");
     vi.unstubAllGlobals();
     expect(line.all("tag").at(-1)?.text()).toBe("found");
-    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the south-east gate. Take the road to Nose, heading east. Where the road runs closest, leave the road and head east and a touch north-east, a short way. It lies in square C6, on flat ground.");
+    expect(en(surveyWayText(emptyWorld(), c, c.points[0]))).toBe("From Bowl: Leave by the east gate. Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head north-east and a touch north, a short way. It lies in square C6, on flat ground.");
   });
 
   it("keeps the compass clue when no full way can be told", () => {

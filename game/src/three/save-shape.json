@@ -1,5 +1,5 @@
 {
- "format": "2.116",
+ "format": "2.117",
  "shape": {
   "broken": [],
   "chaosHighway": "null",
@@ -12,6 +12,20 @@
   "mapHash": "string",
   "marketRng": {
    "rngState": "number"
+  },
+  "moments": {
+   "crucible": {
+    "driver": "string",
+    "heard": "boolean"
+   },
+   "eightToNine": {
+    "driver": "string",
+    "heard": "boolean"
+   },
+   "fromTheWest": {
+    "driver": "string",
+    "heard": "boolean"
+   }
   },
   "nameRng": {
    "rngState": "number"
@@ -2485,14 +2499,6 @@
     "edda_heard_links": "boolean"
    },
    "nose_ibo": {
-    "asked_army": "boolean",
-    "asked_bowl": "boolean",
-    "asked_convoy": "boolean",
-    "asked_couriers": "boolean",
-    "asked_jj": "boolean",
-    "asked_oldworld": "boolean",
-    "asked_tone": "boolean",
-    "asked_tools": "boolean",
     "heard_army": "boolean",
     "heard_bowl": "boolean",
     "heard_convoy": "boolean",
@@ -2592,13 +2598,6 @@
     "walked": "boolean"
    },
    "yard_sefa": {
-    "asked_book": "boolean",
-    "asked_kiln": "boolean",
-    "asked_pguns": "boolean",
-    "asked_picked": "boolean",
-    "asked_post": "boolean",
-    "asked_rider": "boolean",
-    "asked_water": "boolean",
     "heard_book": "boolean",
     "heard_kiln": "boolean",
     "heard_pguns": "boolean",

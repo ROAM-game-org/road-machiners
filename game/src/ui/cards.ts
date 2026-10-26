@@ -2,6 +2,7 @@
 import { oilSlickLength } from "../data/utilities";
 import { CHASSIS, chassisDef, isTruckPaint, PAINT, samePaint, type TruckPaint } from "../data/chassis";
 import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ShieldDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
+import { VIEW } from "../data/view";
 import { playerVehicle } from "../sim/damage";
 import { accelFactor, chassisTopSpeed } from "../sim/chassis-features";
 import { bareGrid, cargoCellsGained, cargoRowsOn, cellCount, mountedParts, type Cell } from "../sim/grid";
@@ -17,6 +18,7 @@ import { ITEM_TONES, paintSheetPixels, playerColors } from "../render/palette";
 import ICONS from "../data/item-icons.json";
 import { num, t, type Msg } from "../text/msg";
 import { chassisName, goodLore, goodName, partLore, partName } from "../text/names";
+import { say } from "../text/language";
 import { roundDamage } from "../sim/combat";
 import { el } from "./dom";
 import { conditionStatus, conditionTier, showsCondition, wearLabel } from "./format";
@@ -121,6 +123,54 @@ function dialScale(): string {
 }
 
 const DIAL_SCALE = dialScale();
+
+const COMPASS = { rim: 31, face: 27, tick: 25, letters: 17, needle: 14 };
+const COMPASS_POINTS = [
+  { key: "map.north", rad: -Math.PI / 2, north: true },
+  { key: "map.east", rad: 0, north: false },
+  { key: "map.south", rad: Math.PI / 2, north: false },
+  { key: "map.west", rad: Math.PI, north: false },
+] as const;
+const CARD_TURN = -Math.PI / 2 - Math.atan2(VIEW.screenUp.y, VIEW.screenUp.x);
+
+export function compassAngle(mapRad: number): number {
+  return mapRad + CARD_TURN;
+}
+
+function polar(rad: number, r: number): string {
+  return `${(Math.cos(rad) * r).toFixed(2)} ${(Math.sin(rad) * r).toFixed(2)}`;
+}
+
+function compassTicks(): string {
+  const ticks: string[] = [];
+  for (let k = 0; k < 8; k++) {
+    const a = compassAngle((k * Math.PI) / 4);
+    ticks.push(`M${polar(a, k % 2 === 0 ? COMPASS.tick - 3 : COMPASS.tick - 1.5)}L${polar(a, COMPASS.tick)}`);
+  }
+  return `<path class="compass-tick" d="${ticks.join("")}"/>`;
+}
+
+const COMPASS_TICKS = compassTicks();
+
+function compassLetters(): string {
+  return COMPASS_POINTS.map((p) => {
+    const [x, y] = polar(compassAngle(p.rad), COMPASS.letters).split(" ");
+    return `<text class="${p.north ? "compass-north" : "compass-letter"}" x="${x}" y="${y}">${say(t(p.key))}</text>`;
+  }).join("");
+}
+
+export function compassSvg(heading: number): string {
+  const a = compassAngle(heading);
+  const side = a + Math.PI / 2;
+  const needle = `<path class="compass-needle" d="M${polar(a, COMPASS.needle)}L${polar(side, 2.2)}L${polar(a + Math.PI, 4)}L${polar(side + Math.PI, 2.2)}z"/>`;
+  return `<svg viewBox="-32 -32 64 64"><circle class="compass-rim" r="${COMPASS.rim}"/><circle class="compass-face" r="${COMPASS.face}"/>${COMPASS_TICKS}${compassLetters()}${needle}<circle class="compass-pin" r="2"/></svg>`;
+}
+
+export function createCompassDial(heading: number): HTMLElement {
+  const dial = el("span", { class: "compass-dial", "aria-hidden": "true" });
+  dial.innerHTML = compassSvg(heading);
+  return dial;
+}
 
 export function createSpeedDial(speed: number, maxSpeed: number): HTMLElement {
   const dial = el("span", { class: "speed-dial", "aria-hidden": "true" });

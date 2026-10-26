@@ -42,9 +42,9 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
   -> hub
 
 = about_grain
-+ {jory_filled} [What do the raiders have to do with the grain?]
-  Kiln Camp, the raiders in the south, gets a sack from the <term=granary>Granary</term> for every armed truck that crosses their road. The patrol is paid out of the tenants' share of the same grain.
-  The sack leaves the store once and the Senate counts it twice. The Senate says it all adds up, and it does, the way a bucket with a hole adds up.
++ {jory_filled} [What do the raiders have to do with the Granary?]
+  Kiln Camp, the raiders in the south, eat <term=granary>Granary</term> rations, and in return they let Granary trucks cross their road. The patrol is paid out of the tenants' share of the same harvest.
+  The harvest leaves the terraces once and the Senate counts it twice. The Senate says it all adds up, and it does, the way a bucket with a hole adds up.
   ~ note("talkGranaryGate")
   -> about_grain
 + {jory_green} [Why do the top terraces stay green?]
