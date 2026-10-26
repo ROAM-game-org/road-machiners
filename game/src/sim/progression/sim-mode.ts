@@ -74,7 +74,12 @@ export class SimRun {
 
   private watch(id: string | null): void {
     this.watched = id;
-    this.post({ kind: 'card', card: id === null ? null : cardOf(this.world, id, this.ledger) });
+    try {
+      this.post({ kind: 'card', card: id === null ? null : cardOf(this.world, id, this.ledger) });
+    } catch (error) {
+      this.stop();
+      this.post({ kind: 'failed', turn: this.world.turn, message: errorText(error) });
+    }
   }
 
   private stepOnce(): void {
@@ -150,9 +155,19 @@ function goneCard(id: string): Card {
   return { id, title: `${id} is no longer in the world`, rows: [], sections: [] };
 }
 
+function driverlessCard(world: World, v: Vehicle): Card {
+  const s = snap(world, v);
+  return {
+    id: v.id,
+    title: `${v.id} with no driver`,
+    rows: [['faction', v.faction], ['chassis', v.chassisId], ['at', `${s.pos[0]}, ${s.pos[1]}`], ['order', orderText(v)], ['mean hp', `${s.hp}%`]],
+    sections: [{ name: 'states', lines: s.states }, { name: 'parts', lines: partLines(v) }],
+  };
+}
+
 export function npcCard(world: World, v: Vehicle): Card {
   const brain = v.brain;
-  if (!brain) throw new Error(`Truck ${v.id} has no driver brain`);
+  if (!brain) return driverlessCard(world, v);
   const s = snap(world, v);
   return {
     id: v.id,

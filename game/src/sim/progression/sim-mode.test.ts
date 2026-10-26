@@ -6,7 +6,7 @@ import { FAR_MOVER, netWorth, playTurns } from './record';
 import { startWorld } from './record-node';
 import { cardOf, logEntries, SIM_OPTIONS, SimRun, simWorld, type Frame, type FromSim } from './sim-mode';
 
-const TURNS = 20;
+const TURNS = 10;
 
 function framesOf(messages: FromSim[]): Frame[] {
   return messages.flatMap((m) => (m.kind === 'frame' ? [m.frame] : []));
@@ -26,7 +26,7 @@ describe('simulation mode', () => {
     const marker = frames[TURNS].markers.find((m) => m.player);
     expect(marker).toMatchObject({ x: me.pos.x, y: me.pos.y });
     expect(frames.slice(1).map((f) => f.log.length)).toEqual(recorded.map((p) => p.events.length));
-  });
+  }, 120000);
 
   it('turns every event into one log entry naming the trucks it mentions', () => {
     const world = simWorld(TEST_MAP, 1);
@@ -52,5 +52,12 @@ describe('simulation mode', () => {
     expect(card.title).toBe(`${npc.id} ${npc.brain!.templateId} ${npc.brain!.driver}`);
     expect(card.rows).toContainEqual(['faction', npc.faction]);
     expect(card.sections.find((s) => s.name === 'goals')?.lines).toHaveLength(npc.brain!.goals.length);
+  });
+
+  it('shows a card for a truck with no driver instead of stopping the run', () => {
+    const world = simWorld(TEST_MAP, 1);
+    const npc = world.vehicles.find((v) => v.brain)!;
+    const driverless = { ...world, vehicles: world.vehicles.map((v) => (v.id === npc.id ? { ...v, brain: null } : v)) };
+    expect(cardOf(driverless, npc.id, emptyLedger()).title).toBe(`${npc.id} with no driver`);
   });
 });

@@ -11,6 +11,7 @@ import { token } from "../tokens";
 
 const MARKER = { radius: 4, ring: 7, hit: 9, nose: 7, line: 2 };
 const CLICK_SLOP = 4;
+const LOG_WINDOW = 2000;
 const LOOK = { player: "--select", outlaw: "--danger-bright", lawman: "--good-bright", town: "--path-contact", independent: "--ink-muted", combat: "--alarm", selected: "--accent-bright", out: "--surface-sunk" };
 
 type Drag = { pointer: number; x: number; y: number; moved: number };
@@ -45,18 +46,30 @@ class SimPage {
   private readonly onlySelected = el("input", { type: "checkbox", onchange: () => this.renderLog() }) as HTMLInputElement;
   private readonly card = el("div", { class: "sim-card panel" });
   private readonly log = el("ol", { class: "sim-log" });
+  private readonly logCount = el("div", { class: "dim" });
+  private matching = 0;
   private playing = false;
+  private started = false;
 
   constructor(private readonly worker: Worker) {
     worker.onmessage = (event: MessageEvent<FromSim>) => this.receive(event.data);
     worker.onerror = (event) => this.fail(0, `The sim worker failed: ${event.message}`);
     const controls = el("div", { class: "sim-controls" }, this.playButton, this.stepButton, this.status);
     const filters = el("div", { class: "sim-filters" }, el("label", {}, this.quiet, " quiet events"), el("label", {}, this.onlySelected, " selected truck only"));
-    const side = el("div", { class: "sim-side" }, controls, this.failure, legend(), this.card, filters, this.log);
+    const side = el("div", { class: "sim-side" }, controls, this.failure, legend(), this.card, filters, this.logCount, this.log);
     uiRoot().append(this.mapBox, side);
     uiRoot().classList.add("sim");
+    this.playButton.setAttribute("disabled", "");
+    this.stepButton.setAttribute("disabled", "");
     this.listen();
     this.renderCard(null);
+  }
+
+  private enableOnce(): void {
+    if (this.started) return;
+    this.started = true;
+    this.playButton.removeAttribute("disabled");
+    this.stepButton.removeAttribute("disabled");
   }
 
   async start(seed: number): Promise<void> {
@@ -74,6 +87,7 @@ class SimPage {
   private receive(message: FromSim): void {
     if (message.kind === "frame") {
       const f = message.frame;
+      this.enableOnce();
       this.markers = f.markers;
       this.status.textContent = `Turn ${f.turn}, day ${f.day} ${clock(f.hour)}, ${f.markers.length} trucks`;
       this.addEntries(f.log);
@@ -116,13 +130,22 @@ class SimPage {
 
   private addEntries(entries: LogEntry[]): void {
     this.entries.push(...entries);
-    const lines = entries.filter((e) => this.shown(e)).map((e) => this.logLine(e));
-    this.log.prepend(...lines.reverse());
+    const matching = entries.filter((e) => this.shown(e));
+    this.matching += matching.length;
+    this.log.prepend(...matching.slice(-LOG_WINDOW).map((e) => this.logLine(e)).reverse());
+    while (this.log.childElementCount > LOG_WINDOW) this.log.lastElementChild!.remove();
+    this.countLog();
   }
 
   private renderLog(): void {
-    const lines = this.entries.filter((e) => this.shown(e)).map((e) => this.logLine(e));
-    this.log.replaceChildren(...lines.reverse());
+    const matching = this.entries.filter((e) => this.shown(e));
+    this.matching = matching.length;
+    this.log.replaceChildren(...matching.slice(-LOG_WINDOW).map((e) => this.logLine(e)).reverse());
+    this.countLog();
+  }
+
+  private countLog(): void {
+    this.logCount.textContent = this.matching > LOG_WINDOW ? `Showing the newest ${LOG_WINDOW} of ${this.matching} matching events` : `${this.matching} matching events`;
   }
 
   private logLine(e: LogEntry): HTMLElement {
