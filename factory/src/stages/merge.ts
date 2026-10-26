@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { deployDev } from '../deploy';
+import { must } from '../exec';
 import { readState, updateState } from '../state';
 import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, type AgentSession, type Card, type Ctx, type FactoryState, type IssueMerge } from '../types';
 import { withWorkFolder } from '../work-lock';
@@ -162,11 +163,17 @@ export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason
 async function mergedChecks(ctx: Ctx, land: Landing): Promise<string | null> {
   const log = releaseLog(ctx, `${land.stage}-checks-${land.into.replaceAll('/', '-')}`);
   const tested = (await ctx.repo.changedInWork(land.dir, `origin/${land.into}`)).some(isGameSource);
+  const dirty = tested ? await uncommitted(ctx, land.dir) : '';
+  if (dirty !== '') return `The clone has changes that are not committed, so the full suite cannot test them. Commit them or remove them:\n${dirty}`;
   const { suite } = tested ? await suiteOnHead(ctx, land) : { suite: Promise.resolve(null) };
   const script = checkScript(playtestCommand(ctx.cfg, false), '');
   const at = { stage: land.stage, issue: null };
   const failure = await checkUntilReal(() => runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage }), (run) => ctx.log(land.stage, null, `the checks only timed out, run ${run}, running them again`));
   return failure ?? await suite;
+}
+
+async function uncommitted(ctx: Ctx, dir: string): Promise<string> {
+  return must(await ctx.run('git', ['-C', dir, 'status', '--porcelain'], { activity: 'git' }), 'git status in the merge clone').trim();
 }
 
 async function suiteOnHead(ctx: Ctx, land: Landing): Promise<{ suite: Promise<string | null> }> {

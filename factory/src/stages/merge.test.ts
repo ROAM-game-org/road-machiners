@@ -33,6 +33,7 @@ let suites: string[] = [];
 let failingSuites = 0;
 let suiteDown = false;
 let replaced: string[] = [];
+let dirty: string[] = [];
 const PASS = 'pass';
 const HUNG = 'the checks ran past their 45 minute limit, and the factory removed their container.';
 
@@ -63,6 +64,7 @@ beforeEach(() => {
   failingSuites = 0;
   suiteDown = false;
   replaced = [];
+  dirty = [];
   deployed.length = 0;
   writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), approvedResolving: { 5: 'Ann', 6: 'Bob' }, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [9], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann' });
 });
@@ -74,6 +76,7 @@ function fakeCtx(budget = 5): Ctx {
     log: (_stage: string, _issue: number | null, msg: string) => { logs.push(msg); },
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
+    run: async () => ({ code: 0, stdout: dirty.shift() ?? '', stderr: '' }),
     github: {
       cards: async () => cards,
       issue: async (issue: number) => ({ number: issue, title: `Card ${issue}`, labels: cards.find((c) => c.issue === issue)?.labels ?? [] }),
@@ -171,6 +174,16 @@ describe('merge queue', () => {
     expect(runs[0]!.prompt).toContain('The full suite failed on GitHub Actions for head1');
     expect(runs[0]!.prompt).toContain('FAIL src/sim/raid.test.ts in run 1');
     expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['suite head1', 'checks', 'agent', 'suite head1', 'checks', 'push head1 dev']);
+  });
+
+  it('sends a fix left uncommitted back to the merge session before any suite runs', async () => {
+    changed = ['game/src/sim/fuel.ts'];
+    dirty = [' M game/src/sim/fuel.ts\n'];
+    await merge(fakeCtx());
+    expect(runs).toHaveLength(1);
+    expect(runs[0]!.prompt).toContain('changes that are not committed');
+    expect(runs[0]!.prompt).toContain('M game/src/sim/fuel.ts');
+    expect(calls.filter((call) => /^(suite|checks|agent|push)/.test(call))).toEqual(['agent', 'suite head1', 'checks', 'push head1 dev']);
   });
 
   it('fails the batch with no agent round and no push when the suite cannot run', async () => {
