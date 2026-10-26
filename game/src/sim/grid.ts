@@ -184,7 +184,48 @@ export function onDeadRow(g: Grid, item: GridItem): boolean {
 
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 
+type SeenItem = { item: GridItem; x: number; y: number; rot: Rot; defId: string | null };
+type MountedView = { chassisId: string; seen: SeenItem[]; byKind: Map<PartKind | 'any', PartItem[]> };
+const mountedViews = new WeakMap<GridItem[], MountedView>();
+
 export function mountedItems(v: Vehicle, kind?: PartKind): PartItem[] {
+  const view = mountedView(v);
+  const key = kind ?? 'any';
+  let found = view.byKind.get(key);
+  if (!found) {
+    found = findMounted(v, kind);
+    view.byKind.set(key, found);
+  }
+  return [...found];
+}
+
+function mountedView(v: Vehicle): MountedView {
+  const kept = mountedViews.get(v.items);
+  if (kept && kept.chassisId === v.chassisId && unchanged(kept.seen, v.items)) return kept;
+  const view = { chassisId: v.chassisId, seen: v.items.map(seenItem), byKind: new Map() };
+  mountedViews.set(v.items, view);
+  return view;
+}
+
+function seenItem(item: GridItem): SeenItem {
+  return { item, x: item.x, y: item.y, rot: item.rot, defId: defIdOf(item) };
+}
+
+function unchanged(seen: readonly SeenItem[], items: readonly GridItem[]): boolean {
+  if (seen.length !== items.length) return false;
+  for (let i = 0; i < items.length; i++) if (!stillSeen(seen[i], items[i])) return false;
+  return true;
+}
+
+function stillSeen(s: SeenItem, it: GridItem): boolean {
+  return s.item === it && s.x === it.x && s.y === it.y && s.rot === it.rot && s.defId === defIdOf(it);
+}
+
+function defIdOf(item: GridItem): string | null {
+  return item.kind === 'part' ? item.part.defId : null;
+}
+
+function findMounted(v: Vehicle, kind?: PartKind): PartItem[] {
   const out: PartItem[] = [];
   for (const it of v.items) if (it.kind === 'part' && (!kind || partDef(it.part.defId).kind === kind) && isMounted(v.chassisId, it)) out.push(it);
   return out.sort((a, b) => a.y - b.y || a.x - b.x);
