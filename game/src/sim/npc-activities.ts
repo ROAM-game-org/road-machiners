@@ -248,7 +248,7 @@ export const IDLE_GOALS: Record<Exclude<DecisionOptions['idle'], 'wait'>, IdleGo
   scavenge: scavengeGoal,
   raid: huntingGoal('raid', 'raid', raiderGroundsAway),
   muster: musterGoal,
-  prowl: huntingGoal('prowl', 'prowl', (_world, vehicle) => huntingGroundsAway(vehicle)),
+  prowl: huntingGoal('prowl', 'prowl', (world, vehicle) => huntingGroundsAway(world, vehicle)),
   patrol: patrolGoal,
   travel: travelGoal,
   explore: exploreGoal,
