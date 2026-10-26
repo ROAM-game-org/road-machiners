@@ -105,17 +105,17 @@ She treats a stranger as a load that may or may not be on her count.
 Sample: "Forty sacks in, thirty-one out. The nine are on the gate, and so is the truck that didn't come."
 ### Mags Corrin, weigher at the gate yard
 
-Mags talks of weight, crates, chalk and what iron turns into: hinges, ploughshares, gate plates. She sees every crate as the thing it will become.
+Mags talks of weight, crates, chalk and what iron turns into: the truck parts Bowl's machinists make from it. She sees every crate as the thing it will become.
 
 Her sentences are short and counted out, like weights going onto a beam. She states the weight first and the use after it.
 
 She looks into a driver's bed before she looks at the driver. She chalks as she talks.
 
-She wants steady sellers before the rains rust the canal gates. She avoids asking where anything came from, and says so.
+She wants steady sellers, so the machinists never stand idle. She avoids asking where anything came from, and says so.
 
 She treats a stranger as a load that hasn't been weighed yet.
 
-Sample: "That rebar's a gate hinge by the rains. I don't ask whose truck it came off."
+Sample: "Engine guts weigh heavy. They go to whoever's truck is coughing. I don't ask whose truck they came off."
 
 ## Nose, the Salvage Yard and the road
 
