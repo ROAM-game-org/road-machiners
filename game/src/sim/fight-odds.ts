@@ -21,13 +21,13 @@ function threatRounds(weapons: WeaponDef[], groups: number): Round[] {
 type Planner = ReturnType<typeof sidePlanner>;
 type SideTarget = { armored: Planner; bare: Planner; armor: PartInstance[]; vital: PartInstance[] };
 
-export type Target = { sides: Record<Side, SideTarget> };
+export type Target = { sides: Record<Side, SideTarget>; stops: Map<string, number> };
 
 export function targetOf(v: Vehicle): Target {
   const armored = sidePlanner(v);
   const vital = vitalParts(v);
   const sides = Object.fromEntries(SIDES.map((side) => [side, sideTarget(v, side, armored, vital)])) as Record<Side, SideTarget>;
-  return { sides };
+  return { sides, stops: new Map() };
 }
 
 function vitalParts(v: Vehicle): PartInstance[] {
@@ -43,7 +43,15 @@ function sideTarget(v: Vehicle, side: Side, armored: Planner, vital: PartInstanc
 }
 
 export function roundsToStop(target: Target, side: Side, round: Round): number {
-  const t = target.sides[side];
+  const key = `${side}|${round.damage}|${round.pen}|${round.armorShare}|${round.blast}`;
+  const known = target.stops.get(key);
+  if (known !== undefined) return known;
+  const rounds = sideRoundsToStop(target.sides[side], side, round);
+  target.stops.set(key, rounds);
+  return rounds;
+}
+
+function sideRoundsToStop(t: SideTarget, side: Side, round: Round): number {
   if (t.vital.length === 0) return 0;
   const armored = damageByPart(t.armored(side, round));
   const bare = t.bare === t.armored ? armored : damageByPart(t.bare(side, round));

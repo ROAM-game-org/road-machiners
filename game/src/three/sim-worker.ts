@@ -1,4 +1,5 @@
 import { errorText, SimRun, simWorld, type FromSim, type ToSim } from '../sim/progression/sim-mode';
+import { SIM_TEXT } from '../ui/sim/sim-text';
 import { fetchMap } from './map-file';
 
 let run: SimRun | null = null;
@@ -13,7 +14,7 @@ self.onmessage = (event: MessageEvent<ToSim>) => {
 
 async function begin(seed: number): Promise<void> {
   try {
-    run = new SimRun(simWorld(await fetchMap(), seed), seed, post);
+    run = new SimRun(simWorld(await fetchMap(), seed), seed, SIM_TEXT, post);
   } catch (error) {
     post({ kind: 'failed', turn: 0, message: errorText(error) });
   }

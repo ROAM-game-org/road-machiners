@@ -16,6 +16,32 @@
   aspect-ratio: auto;
   cursor: grab;
 }
+#ui.sim .sim-map .map-view.over-truck {
+  cursor: pointer;
+}
+.sim-hud {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  z-index: var(--z-hud);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-6);
+  background: var(--surface-overlay);
+  pointer-events: none;
+}
+.sim-hud-cell {
+  display: flex;
+  flex-direction: column;
+}
+.sim-when {
+  margin-right: var(--space-4);
+  color: var(--ink-muted);
+}
+.sim-seed {
+  width: calc(var(--space-6) * 8);
+}
 .sim-side {
   display: flex;
   flex-direction: column;

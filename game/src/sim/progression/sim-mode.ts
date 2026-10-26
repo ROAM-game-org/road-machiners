@@ -1,10 +1,11 @@
 import { SKILL_IDS } from '../../data/skills';
 import { TIME } from '../../data/time';
 import { inCombat } from '../combat';
+import { playerVehicle } from '../damage';
 import { isKnockedOut } from '../defeat';
 import { goodsCount, mountedParts } from '../grid';
 import { getResources } from '../resources';
-import { clockOf } from '../sun';
+import { vehicleStats } from '../stats';
 import type { BakedMap } from '../terrain';
 import type { GameEvent, NpcActivity, Vehicle, World } from '../types';
 import { maxHp } from '../wear';
@@ -13,18 +14,29 @@ import { emptyLedger, LEDGER_KEYS, type Ledger } from './orders';
 import { archetypeWorldOn, FAR_MOVER, netWorth, playTurns, type PlayedTurn } from './record';
 import { describe, QUIET, snap, turnLine } from './turn-log';
 
-export type Marker = { id: string; x: number; y: number; heading: number; faction: string; player: boolean; out: boolean; combat: boolean };
-export type LogEntry = { turn: number; kind: string; quiet: boolean; text: string; ids: string[] };
+export type Marker = { id: string; name: string; x: number; y: number; heading: number; faction: string; player: boolean; out: boolean; combat: boolean };
+export type LogEntry = { turn: number; kind: string; quiet: boolean; tone: string; text: string; raw: string; ids: string[] };
 export type CardRow = [string, string];
 export type CardSection = { name: string; lines: string[] };
 export type Card = { id: string; title: string; rows: CardRow[]; sections: CardSection[] };
-export type Frame = { turn: number; day: number; hour: number; markers: Marker[]; log: LogEntry[]; card: Card | null };
+export type Hud = { money: string; worth: string; xp: number; state: string; doing: string };
+export type Frame = { turn: number; markers: Marker[]; log: LogEntry[]; hud: Hud; card: Card | null };
+
+export type SimText = {
+  event(world: World, e: GameEvent): { text: string; tone: string } | null;
+  truck(world: World, v: Vehicle): string;
+  doing(world: World, v: Vehicle): string;
+  money(cents: number): string;
+  fuel(units: number): string;
+  speed(tilesPerTurn: number): string;
+};
 
 export type ToSim =
   | { kind: 'start'; seed: number }
   | { kind: 'play' }
   | { kind: 'pause' }
   | { kind: 'step' }
+  | { kind: 'speed'; gapMs: number }
   | { kind: 'watch'; id: string | null };
 
 export type FromSim =
@@ -43,19 +55,21 @@ export class SimRun {
   private watched: string | null = null;
   private playing = false;
   private over = false;
+  private gapMs = 0;
   private world: World;
   private readonly turns: Generator<PlayedTurn>;
 
-  constructor(start: World, seed: number, private readonly post: (message: FromSim) => void) {
+  constructor(start: World, seed: number, private readonly text: SimText, private readonly post: (message: FromSim) => void) {
     this.world = start;
     this.turns = playTurns(start, `sim seed ${seed}`, 'markov', ENDLESS, SIM_OPTIONS, FAR_MOVER);
-    this.post({ kind: 'frame', frame: frameOf(start, [], this.ledger, null) });
+    this.post({ kind: 'frame', frame: frameOf(start, [], this.ledger, null, text) });
   }
 
   handle(message: ToSim): void {
     if (message.kind === 'play') this.play();
     else if (message.kind === 'pause') this.playing = false;
     else if (message.kind === 'step') this.stepOnce();
+    else if (message.kind === 'speed') this.gapMs = message.gapMs;
     else if (message.kind === 'watch') this.watch(message.id);
     else throw new Error('The sim is already started');
   }
@@ -68,14 +82,15 @@ export class SimRun {
 
   private tick(): void {
     if (!this.playing) return;
+    const began = performance.now();
     this.stepOnce();
-    setTimeout(() => this.tick(), 0);
+    setTimeout(() => this.tick(), Math.max(0, this.gapMs - (performance.now() - began)));
   }
 
   private watch(id: string | null): void {
     this.watched = id;
     try {
-      this.post({ kind: 'card', card: id === null ? null : cardOf(this.world, id, this.ledger) });
+      this.post({ kind: 'card', card: id === null ? null : cardOf(this.world, id, this.ledger, this.text) });
     } catch (error) {
       this.stop();
       this.post({ kind: 'failed', turn: this.world.turn, message: errorText(error) });
@@ -102,7 +117,7 @@ export class SimRun {
     const played = next.value;
     this.world = played.next;
     for (const key of LEDGER_KEYS) this.ledger[key] += played.ledger[key];
-    this.post({ kind: 'frame', frame: frameOf(this.world, played.events, this.ledger, this.watched) });
+    this.post({ kind: 'frame', frame: frameOf(this.world, played.events, this.ledger, this.watched, this.text) });
   }
 
   private stop(): void {
@@ -119,14 +134,25 @@ export function errorText(error: unknown): string {
   return error instanceof Error ? error.stack ?? error.message : String(error);
 }
 
-export function frameOf(world: World, events: readonly GameEvent[], ledger: Ledger, watched: string | null): Frame {
-  const { day, hour } = clockOf(world.turn);
-  return { turn: world.turn, day, hour, markers: markersOf(world), log: logEntries(world, events), card: watched === null ? null : cardOf(world, watched, ledger) };
+export function frameOf(world: World, events: readonly GameEvent[], ledger: Ledger, watched: string | null, text: SimText): Frame {
+  return {
+    turn: world.turn,
+    markers: markersOf(world, text),
+    log: logEntries(world, events, text),
+    hud: hudOf(world, text),
+    card: watched === null ? null : cardOf(world, watched, ledger, text),
+  };
 }
 
-export function markersOf(world: World): Marker[] {
+export function hudOf(world: World, text: SimText): Hud {
+  const p = world.player;
+  return { money: text.money(p.money), worth: text.money(netWorth(world)), xp: Math.floor(p.xp), state: p.state, doing: text.doing(world, playerVehicle(world)) };
+}
+
+export function markersOf(world: World, text: SimText): Marker[] {
   return world.vehicles.map((v) => ({
     id: v.id,
+    name: text.truck(world, v),
     x: v.pos.x,
     y: v.pos.y,
     heading: v.heading,
@@ -137,52 +163,60 @@ export function markersOf(world: World): Marker[] {
   }));
 }
 
-export function logEntries(world: World, events: readonly GameEvent[]): LogEntry[] {
+export function logEntries(world: World, events: readonly GameEvent[], text: SimText): LogEntry[] {
   const known = [...world.vehicles, ...world.removed].map((v) => v.id);
   return events.map((e) => {
     const json = JSON.stringify(e);
-    return { turn: world.turn, kind: e.t, quiet: QUIET.has(e.t), text: describe(world, e), ids: known.filter((id) => json.includes(`"${id}"`)) };
+    const raw = describe(world, e);
+    const plain = text.event(world, e);
+    return { turn: world.turn, kind: e.t, quiet: QUIET.has(e.t), tone: e.t === 'stall' ? 'bad' : plain?.tone ?? 'dim', text: plain?.text ?? raw, raw, ids: known.filter((id) => json.includes(`"${id}"`)) };
   });
 }
 
-export function cardOf(world: World, id: string, ledger: Ledger): Card {
-  if (id === world.player.vehicleId) return playerCard(world, ledger);
+export function cardOf(world: World, id: string, ledger: Ledger, text: SimText): Card {
+  if (id === world.player.vehicleId) return playerCard(world, ledger, text);
   const v = world.vehicles.find((x) => x.id === id);
-  return v ? npcCard(world, v) : goneCard(id);
+  return v ? npcCard(world, v, text) : goneCard(world, id, text);
 }
 
-function goneCard(id: string): Card {
-  return { id, title: `${id} is no longer in the world`, rows: [], sections: [] };
+function goneCard(world: World, id: string, text: SimText): Card {
+  const v = world.removed.find((x) => x.id === id);
+  const name = v ? text.truck(world, v) : id;
+  return { id, title: `${name} has left the world`, rows: [['id', id]], sections: [] };
 }
 
-function driverlessCard(world: World, v: Vehicle): Card {
+function driverlessCard(world: World, v: Vehicle, text: SimText): Card {
   const s = snap(world, v);
   return {
     id: v.id,
-    title: `${v.id} with no driver`,
-    rows: [['faction', v.faction], ['chassis', v.chassisId], ['at', `${s.pos[0]}, ${s.pos[1]}`], ['order', orderText(v)], ['mean hp', `${s.hp}%`]],
+    title: `${text.truck(world, v)} with no driver`,
+    rows: [['id', v.id], ['faction', v.faction], ['at', `${s.pos[0]}, ${s.pos[1]}`], ['order', orderText(v)], ['mean hp', `${s.hp}%`]],
     sections: [{ name: 'states', lines: s.states }, { name: 'parts', lines: partLines(v) }],
   };
 }
 
-export function npcCard(world: World, v: Vehicle): Card {
+export function npcCard(world: World, v: Vehicle, text: SimText): Card {
   const brain = v.brain;
-  if (!brain) return driverlessCard(world, v);
+  if (!brain) return driverlessCard(world, v, text);
   const s = snap(world, v);
+  const res = getResources(world, v);
   return {
     id: v.id,
-    title: `${v.id} ${brain.templateId} ${brain.driver}`,
+    title: text.truck(world, v),
     rows: [
+      ['doing', text.doing(world, v)],
+      ['id', v.id],
+      ['template', brain.templateId],
       ['faction', v.faction],
       ['chassis', v.chassisId],
       ['at', `${s.pos[0]}, ${s.pos[1]}`],
-      ['speed', `${s.speed}`],
+      ['speed', text.speed(v.speed)],
       ['order', orderText(v)],
       ['job', v.job?.kind ?? '-'],
-      ['money', `${s.money}`],
-      ['fuel', `${s.fuel}`],
+      ['money', text.money(res.money)],
+      ['fuel', text.fuel(res.fuel)],
       ['supplies', `${s.sup}`],
-      ['health', `${round(getResources(world, v).health)}`],
+      ['health', `${round(res.health)}`],
       ['mean hp', `${s.hp}%`],
       ['personality', brain.personality],
       ['traits', brain.traits.join(', ') || '-'],
@@ -194,7 +228,7 @@ export function npcCard(world: World, v: Vehicle): Card {
       ['road gap', `${s.roadGap}`],
     ],
     sections: [
-      { name: 'goals', lines: brain.goals.map(goalText) },
+      { name: 'goals', lines: brain.goals.map(goalLine) },
       { name: 'states', lines: s.states },
       { name: 'parts', lines: partLines(v) },
       { name: 'goods', lines: Object.entries(goodsCount(v)).map(([good, n]) => `${good} ${n}`) },
@@ -203,25 +237,26 @@ export function npcCard(world: World, v: Vehicle): Card {
   };
 }
 
-export function playerCard(world: World, ledger: Ledger): Card {
+export function playerCard(world: World, ledger: Ledger, text: SimText): Card {
   const line = turnLine(world, [], ledger);
   const p = world.player;
+  const me = playerVehicle(world);
   return {
     id: p.vehicleId,
-    title: `${p.vehicleId} player, markov bot`,
+    title: 'Player truck, driven by the markov bot',
     rows: [
+      ['doing', text.doing(world, me)],
       ['state', line.state],
       ['chassis', line.chassis],
       ['at', `${line.pos[0]}, ${line.pos[1]}`],
-      ['speed', `${line.v} of ${line.speed}`],
+      ['speed', `${text.speed(me.speed)} of ${text.speed(vehicleStats(world, me).maxSpeed)}`],
       ['order', line.order ?? '-'],
-      ['job', line.job ?? '-'],
-      ['money', `${round(p.money)}`],
-      ['net worth', `${Math.round(netWorth(world))}`],
-      ['fuel', `${line.fuel}`],
+      ['money', text.money(p.money)],
+      ['net worth', text.money(netWorth(world))],
+      ['fuel', text.fuel(p.fuel)],
       ['supplies', `${line.sup}`],
       ['engine heat', `${line.heat}`],
-      ['xp', `${round(p.xp)}`],
+      ['xp', `${Math.floor(p.xp)}`],
       ['flags', line.flags.join(', ') || '-'],
       ['call', line.call ?? '-'],
       ...(line.run ? [['run', line.run] as CardRow] : []),
@@ -232,7 +267,7 @@ export function playerCard(world: World, ledger: Ledger): Card {
       { name: 'foes in sight', lines: line.foes.map((f) => `${f.id} ${f.who} at ${f.dist}, win ${f.odds}%`) },
       { name: 'parts', lines: line.parts },
       { name: 'goods', lines: Object.entries(line.goods).map(([good, n]) => `${good} ${n}`) },
-      { name: 'run ledger', lines: LEDGER_KEYS.filter((k) => ledger[k] !== 0).map((k) => `${k} ${round(ledger[k])}`) },
+      { name: 'run ledger', lines: LEDGER_KEYS.filter((k) => ledger[k] !== 0).map((k) => `${k} ${text.money(ledger[k])}`) },
       { name: 'xp by source', lines: Object.entries(p.xpBySource).filter(([, n]) => n !== 0).map(([source, n]) => `${source} ${round(n)}`) },
     ],
   };
@@ -243,7 +278,7 @@ function orderText(v: Vehicle): string {
   return 'dest' in v.order ? `${v.order.kind} ${Math.round(v.order.dest.x)}, ${Math.round(v.order.dest.y)}` : v.order.kind;
 }
 
-function goalText(g: NpcActivity): string {
+function goalLine(g: NpcActivity): string {
   const target = g.targetId ? ` ${g.targetId}` : '';
   const dest = g.destination ? ` to ${Math.round(g.destination.x)}, ${Math.round(g.destination.y)}` : '';
   return `${g.kind} ${g.phase}${target}${dest} ${JSON.stringify(g.reason)}`;
