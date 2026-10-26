@@ -147,12 +147,20 @@ export function gridEl(g: Grid, chassisId: string, m: GridMetrics, look: GarageL
   const grid = el("div", { class: look ? "inv-grid drawn" : "inv-grid", style: `width:${size.width}px;height:${size.height}px` });
   grid.addEventListener("contextmenu", (e) => e.preventDefault());
   grid.append(look ? lookUnder(look, m) : truckOutline(chassisId, m));
+  const taken = look ? takenCells(look.truck, m.chassisRows) : new Set<string>();
   for (let y = 0; y < g.h; y++)
     for (let x = 0; x < g.w; x++) {
       const node = gridCellEl(g, x, y, m);
+      if (node && taken.has(`${x},${y}`)) node.classList.add("taken");
       if (node) grid.append(node);
     }
   return grid;
+}
+
+export function takenCells(truck: Vehicle, chassisRows: number): Set<string> {
+  const loose = truck.items.filter((it) => it.kind !== "part" || partDef(it.part.defId).kind !== "core");
+  const cells = loose.flatMap((it) => itemCells(it)).filter((c) => c.y < chassisRows);
+  return new Set(cells.map((c) => `${c.x},${c.y}`));
 }
 
 function lookUnder(look: GarageLook, m: GridMetrics): HTMLElement {
@@ -203,8 +211,16 @@ function itemClasses(it: GridItem, mounted: boolean, outer: boolean, drawn: bool
   return `${itemClass(it, mounted)}${outer ? " outer" : ""}${drawn ? " drawn" : ""}`;
 }
 
-function drawnLayer(it: GridItem, art: HTMLElement | null): string {
-  return art ? `;z-index:${it.y + itemSize(it).h}` : "";
+const LAYERS_PER_BAND = 32;
+
+export function drawnLayer(it: GridItem, art: HTMLElement | null): string {
+  if (!art) return "";
+  const row = Math.min(it.y + itemSize(it).h, LAYERS_PER_BAND - 1);
+  return `;z-index:${weaponBand(it) + row}`;
+}
+
+function weaponBand(it: GridItem): number {
+  return it.kind === "part" && partDef(it.part.defId).kind === "weapon" ? LAYERS_PER_BAND : 0;
 }
 
 function meterOf(it: GridItem, art: HTMLElement | null): HTMLElement[] {

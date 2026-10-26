@@ -194,6 +194,27 @@
   border-color: var(--cell-grid-line);
   color: transparent;
 }
+.inv-grid.drawn .inv-cell.c-D:not(.spare) {
+  background: var(--garage-cell-deck);
+}
+.inv-grid.drawn .inv-cell.c-C:not(.spare) {
+  background: var(--garage-cell-bay);
+}
+.inv-grid.drawn .inv-cell.c-E {
+  background: var(--garage-cell-engine);
+}
+.inv-grid.drawn .inv-cell.c-F,
+.inv-grid.drawn .inv-cell.c-B,
+.inv-grid.drawn .inv-cell.c-L,
+.inv-grid.drawn .inv-cell.c-R {
+  background: var(--garage-cell-armor);
+}
+.inv-grid.drawn .inv-cell.c-X {
+  background: var(--garage-cell-built-in);
+}
+.inv-grid.drawn .inv-cell.taken {
+  background: var(--garage-cell-taken);
+}
 .inv-grid.drawn .inv-cell.spare.c-plain {
   z-index: auto;
   background: var(--cell-plain);
@@ -267,17 +288,21 @@
 .inv-item.drawn[data-tier="broken"] .art-hatch {
   display: block;
 }
-.inv-item.drawn[data-tier="ok"] .inv-art.core {
+.inv-item.drawn[data-tier="ok"]:not(:hover):not(.selected):not(.holding) .inv-art.core {
   display: none;
 }
 .inv-grid .inv-item.drawn:hover,
 .inv-grid .inv-item.drawn.selected,
 .inv-grid .inv-item.drawn.holding {
   background-image: none;
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow: none;
 }
-.inv-grid .inv-item.drawn:hover:not(.selected) {
-  box-shadow: inset 0 0 0 1px var(--line-hover);
+.inv-grid .inv-item.drawn:hover .art-img {
+  filter: var(--garage-edge-hover);
+}
+.inv-grid .inv-item.drawn.selected .art-img,
+.inv-grid .inv-item.drawn.holding .art-img {
+  filter: var(--garage-edge-pick);
 }
 .inv-ghost.drawn {
   background: none;

@@ -140,6 +140,14 @@
   --garage-body-filter: brightness(0.8);
   --garage-mount-wash: rgba(159, 220, 122, 0.14);
   --garage-mount-line: rgba(159, 220, 122, 0.5);
+  --garage-cell-deck: rgba(230, 178, 88, 0.12);
+  --garage-cell-bay: rgba(78, 196, 170, 0.12);
+  --garage-cell-engine: rgba(96, 160, 226, 0.12);
+  --garage-cell-armor: rgba(176, 128, 222, 0.12);
+  --garage-cell-built-in: rgba(10, 14, 18, 0.24);
+  --garage-cell-taken: rgba(240, 96, 70, 0.22);
+  --garage-edge-hover: drop-shadow(1.5px 0 0 var(--line-hover)) drop-shadow(-1.5px 0 0 var(--line-hover)) drop-shadow(0 1.5px 0 var(--line-hover)) drop-shadow(0 -1.5px 0 var(--line-hover));
+  --garage-edge-pick: drop-shadow(2px 0 0 var(--accent)) drop-shadow(-2px 0 0 var(--accent)) drop-shadow(0 2px 0 var(--accent)) drop-shadow(0 -2px 0 var(--accent));
   --garage-tint-hurt: rgba(255, 196, 60, 0.28);
   --garage-tint-crit: rgba(255, 120, 40, 0.38);
   --garage-tint-broken: rgba(255, 44, 40, 0.5);

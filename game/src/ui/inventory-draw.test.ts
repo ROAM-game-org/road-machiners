@@ -10,7 +10,7 @@ import { plannedTruck } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { refreshVision } from "../sim/vision";
 import { resolve } from "../text/resolve";
-import { cellAt, gridMetrics, gridSize, itemLabel, itemName, itemState, nextRot, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { cellAt, drawnLayer, takenCells, gridMetrics, gridSize, itemLabel, itemName, itemState, nextRot, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
 import { cellCenter, cellSteps } from "../sim/body";
 import { kg } from "./units";
 import { backgroundNeeds, ownNeed, shownNeed } from "./garage-draw";
@@ -234,5 +234,23 @@ describe("garage render needs", () => {
     const needs = backgroundNeeds(w);
 
     expect(needs.flatMap((n) => n.parts).some((p) => p.part.id === w.player.storage[0].id)).toBe(true);
+  });
+});
+
+describe("the garage grid's layers and marks", () => {
+  const placedAt = (defId: string, x: number, y: number): GridItem => ({ ...item(defId, 0), x, y });
+  const art = {} as HTMLElement;
+  const z = (it: GridItem) => Number(/z-index:(\d+)/.exec(drawnLayer(it, art))![1]);
+
+  it("draws a gun above an armor plate that reaches further down the truck", () => {
+    expect(z(placedAt("mg", 0, 0))).toBeGreaterThan(z(placedAt("scrapSheet", 0, 20)));
+  });
+
+  it("marks only the cells of loose parts as taken, never a built-in part's", () => {
+    const w = emptyWorld();
+    const truck = addVehicle(w, "player", "scout", [], { x: 30, y: 30 });
+    expect(takenCells(truck, baseGrid("scout").h).size).toBe(0);
+    const withGun = { ...truck, items: [...truck.items, placedAt("mg", 1, 2)] };
+    expect([...takenCells(withGun, baseGrid("scout").h)]).toContain("1,2");
   });
 });
