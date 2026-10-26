@@ -1,12 +1,16 @@
-import { SOUNDS } from '../src/data/sounds.ts';
+import { isFreeSfxLoop, SOUNDS } from '../src/data/sounds.ts';
 import { cueOf, reloopShipped, syncTwins } from './sfx-lib.mjs';
 
-const ids = process.argv.slice(2).filter((a) => a !== '--');
-if (ids.length === 0) throw new Error('Usage: npm run sfx:reloop -- <loop cue> [<loop cue>...]');
-for (const id of ids) {
-  const cue = cueOf(SOUNDS, id);
-  if (!cue.loop || cue.beat || cue.bus === 'music') throw new Error(`${id} is not a free sfx loop`);
-  cue.files.forEach(reloopShipped);
+function filesOf(arg) {
+  const byFile = Object.values(SOUNDS).find((cue) => isFreeSfxLoop(cue) && cue.files.includes(arg));
+  if (byFile) return [arg];
+  const cue = cueOf(SOUNDS, arg);
+  if (!isFreeSfxLoop(cue)) throw new Error(`${arg} is not a free sfx loop`);
+  return cue.files;
 }
+
+const args = process.argv.slice(2).filter((a) => a !== '--');
+if (args.length === 0) throw new Error('Usage: npm run sfx:reloop -- <loop cue or file> [<loop cue or file>...]');
+args.flatMap(filesOf).forEach(reloopShipped);
 await syncTwins();
-console.log(`relooped ${ids.join(', ')}`);
+console.log(`relooped ${args.join(', ')}`);

@@ -2,11 +2,12 @@ import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, renameSync, unlinkSync, mkdirSync, writeFileSync } from 'node:fs';
 import { promisify } from 'node:util';
-import { BANK, beatLoopSeconds, MIX, SOUNDS } from '../src/data/sounds.ts';
+import { alignedLoopEnd, BANK, beatLoopSeconds, describeFaults, isFreeSfxLoop, LOOP_CHECK, loopFaults, MIX, SOUNDS } from '../src/data/sounds.ts';
 
 export const SFX_DIR = 'public/sfx';
 export const TWIN_DIR = 'public/sfx-m4a';
 export const TWIN_MANIFEST = 'src/data/sound-twins.json';
+export const LOOP_MANIFEST = 'src/data/loop-checks.json';
 const AAC_KBPS = 128;
 const TWIN_JOBS = 8;
 const SAMPLE_RATE = 48000;
@@ -69,8 +70,19 @@ function toneChain(src, source, id, cue) {
 
 const isSeamless = (source) => source.includes('.seamless.');
 
+function assertLoop(path, name) {
+  const faults = loopFaults(pcmOf(path), SAMPLE_RATE);
+  if (faults.length) throw new Error(`${path} is not a steady loop:\n${describeFaults(name, faults)}`);
+}
+
+function keptWhole(source, name, cue) {
+  if (cue.bus === 'sfx') assertLoop(source, name);
+  return source;
+}
+
 function playable(source, name, cue) {
-  if (!cue.loop || cue.beat || isSeamless(source)) return source;
+  if (!cue.loop || cue.beat) return source;
+  if (isSeamless(source)) return keptWhole(source, name, cue);
   return cue.bus === 'music' ? musicLoop(source, name) : steadyLoop(source, `tmp/sfx-raw/${name.replace('.ogg', '')}.loop.wav`);
 }
 
@@ -215,14 +227,14 @@ function crossfadeLoop(src, span, out) {
   const len = end - start;
   const graph = [
     `[0]atrim=start=${start}:end=${end},asetpts=N/SR/TB,asplit=2[a][b]`,
-    `[a]atrim=0:${x},afade=t=in:d=${x}:curve=${curve},adelay=${Math.round((len - 2 * x) * 1000)}:all=1[head]`,
+    `[a]atrim=0:${x},afade=t=in:d=${x}:curve=${curve},adelay=${Math.round((len - 2 * x) * SAMPLE_RATE)}S:all=1[head]`,
     `[b]atrim=start=${x},asetpts=N/SR/TB,afade=t=out:st=${len - 2 * x}:d=${x}:curve=${curve}[body]`,
     `[body][head]amix=inputs=2:normalize=0:duration=first`,
   ].join(';');
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', src, '-filter_complex', graph, out]);
 }
 
-const STEADY = { flatten: 'dynaudnorm=f=100:g=9:p=0.5:m=8', bright: 'highpass=f=2000', minSeconds: 1.5, slackDb: 1, crossfadeSeconds: 0.25 };
+const STEADY = { flatten: 'dynaudnorm=f=100:g=9:p=0.5:m=8', bright: 'highpass=f=2000', minSeconds: 1.5, slackDb: 1 };
 
 export function steadyLoop(src, out) {
   const flat = out.replace(/\.wav$/, '.flat.wav');
@@ -230,8 +242,10 @@ export function steadyLoop(src, out) {
   const level = momentaryTrack(flat, 'anull');
   const bright = momentaryTrack(flat, STEADY.bright);
   const span = steadiestSpan(level, bright);
-  crossfadeLoop(flat, { ...span, seconds: STEADY.crossfadeSeconds, curve: 'qsin' }, out);
-  console.log(`${src}: kept the steadiest ${span.start.toFixed(1)}-${span.end.toFixed(1)} s, level spread ${span.spread.toFixed(1)} dB, looped with a ${STEADY.crossfadeSeconds} s crossfade`);
+  const end = alignedLoopEnd(pcmOf(flat), SAMPLE_RATE, Math.round(span.start * SAMPLE_RATE), Math.round(span.end * SAMPLE_RATE)) / SAMPLE_RATE;
+  crossfadeLoop(flat, { ...span, end, seconds: LOOP_CHECK.crossfadeSeconds, curve: 'tri' }, out);
+  assertLoop(out, src);
+  console.log(`${src}: kept the steadiest ${span.start.toFixed(1)}-${span.end.toFixed(1)} s, level spread ${span.spread.toFixed(1)} dB, seam moved ${((end - span.end) * 1000).toFixed(0)} ms, looped with a ${LOOP_CHECK.crossfadeSeconds} s crossfade`);
   return out;
 }
 
@@ -333,16 +347,16 @@ function durationOf(src) {
 const twinName = (ogg) => ogg.replace(/\.ogg$/, '.m4a');
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
-function samplesOf(path) {
+function pcmOf(path) {
   const raw = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', path, '-ac', '1', '-ar', String(SAMPLE_RATE), '-f', 'f32le', '-'], { maxBuffer: 1 << 30 });
-  return raw.length / 4;
+  return new Float32Array(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.length));
 }
 
 function checkTwinLength(ogg) {
   const beat = Object.values(SOUNDS).some((cue) => cue.beat && cue.files.includes(ogg));
   if (!beat) return;
-  const have = samplesOf(`${TWIN_DIR}/${twinName(ogg)}`);
-  const want = samplesOf(`${SFX_DIR}/${ogg}`);
+  const have = pcmOf(`${TWIN_DIR}/${twinName(ogg)}`).length;
+  const want = pcmOf(`${SFX_DIR}/${ogg}`).length;
   if (Math.abs(have - want) > BANK.beatSlackSeconds * SAMPLE_RATE) throw new Error(`${twinName(ogg)} decodes to ${have} samples, ${ogg} to ${want}`);
 }
 
@@ -350,7 +364,20 @@ async function encodeTwin(ogg) {
   await run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', `${SFX_DIR}/${ogg}`, '-ar', String(SAMPLE_RATE), '-c:a', 'aac', '-b:a', `${AAC_KBPS}k`, '-map_metadata', '-1', `${TWIN_DIR}/${twinName(ogg)}`]);
 }
 
+function syncLoopChecks() {
+  const files = [...new Set(Object.values(SOUNDS).filter(isFreeSfxLoop).flatMap((cue) => cue.files))].sort();
+  const old = existsSync(LOOP_MANIFEST) ? JSON.parse(readFileSync(LOOP_MANIFEST, 'utf8')) : {};
+  const manifest = Object.fromEntries(files.map((f) => [f, sha256(`${SFX_DIR}/${f}`)]));
+  const problems = files
+    .filter((f) => old[f] !== manifest[f])
+    .map((f) => ({ f, faults: loopFaults(pcmOf(`${SFX_DIR}/${f}`), SAMPLE_RATE) }))
+    .filter(({ faults }) => faults.length);
+  if (problems.length) throw new Error(`Free sfx loops that are not steady:\n${problems.map(({ f, faults }) => describeFaults(f, faults)).join('\n')}`);
+  writeFileSync(LOOP_MANIFEST, `${JSON.stringify(manifest, null, 1)}\n`);
+}
+
 export async function syncTwins() {
+  syncLoopChecks();
   mkdirSync(TWIN_DIR, { recursive: true });
   const oggs = readdirSync(SFX_DIR).filter((f) => f.endsWith('.ogg')).sort();
   const old = existsSync(TWIN_MANIFEST) ? JSON.parse(readFileSync(TWIN_MANIFEST, 'utf8')) : {};
