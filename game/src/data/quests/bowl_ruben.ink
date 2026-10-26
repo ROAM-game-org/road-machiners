@@ -34,7 +34,7 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
     The canals are low this week. The terraces drink after the houses, so the sorgut comes in thin, and nobody thanks the man at the gate.
   }
   { short_of("scrap"):
-    The machinists sit idle for want of scrap, and an idle machinist talks more than a dry canal.
+    The machinists sit idle for want of scrap, and an idle machinist talks all day, like water backed up behind a shut gate.
   }
   { short_of("batteries"):
     The workshop is out of batteries, so the radios lie open on the benches like fish on a bank.

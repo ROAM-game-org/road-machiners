@@ -19,7 +19,7 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
   ~ jory_nose = true
   -> hub
 + {jory_green} [How does a tenant get a vote?]
-  He serves in the Bowl road patrol for a decade. Then the Senate lets him drop a pebble in a jar. My grandfather died one season short, which was bad timing, but he always kept his own schedule.
+  He serves in the Bowl road patrol for a decade. Then the Senate lets him drop a pebble in a jar. My grandfather died one season short, and the Senate counted that missing season more carefully than all the years he'd served.
   ~ jory_patrol = true
   -> hub
 + {jory_patrol} [Do tenants take up the patrol?]
@@ -32,7 +32,7 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
   -> hub
 + {jory_filled} [What do the raiders have to do with the grain?]
   Kiln Camp, the raiders in the south, gets a sack from the <term=granary>Granary</term> for every armed truck that crosses their road. The patrol is paid out of the tenants' share of the same grain.
-  The sack leaves the store once and the Senate counts it twice. The Senate says it all adds up, and it does, the way a bucket with a hole adds up.
+  The sack leaves the store once and the Senate counts it twice. The Senate says it all adds up, and on paper it does. Our sacks still come up short.
   ~ note("talkGranaryGate")
   -> hub
 + {jory_green} [Why do the top terraces stay green?]

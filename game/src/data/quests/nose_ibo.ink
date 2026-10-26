@@ -72,13 +72,13 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   -> hub
 + {heard_army and not asked_army} [How did the Old Army end?]
   Hungry. Commander Lind nailed a book of every unpaid promise to the gate at Old Orchard, the Army's depot, and then he died in the motor pool. I heard his last calls on the air. He read the whole list. The machine tools stayed behind in the shed, and somebody's still paying for those.
-  Some say the Army didn't run out of food. They say it was starved on purpose. I say a man who starts a rumor like that wants a seat in the hall.
+  Some say the Army didn't run out of food. They say it was starved on purpose. I would wager a man who starts a rumor like that wants a seat on Nose's Central Committee.
   ~ note("talkArmyStarved")
   ~ asked_army = true
   ~ heard_tools = true
   -> hub
 + {heard_tools and not asked_tools} [Who pays for the Old Orchard tools?]
-  The Guild's trust owns them and rents them to us. Command pays the Guild, and the Guild hears who pays command. I hear the Guild on the air, a little. I won't repeat it.
+  The Guild's trust owns them and rents them to us. Command pays the Guild rent, so the Guild sees whose coin command spends. I hear the Guild on the air, a little. I won't repeat it.
   ~ note("talkCommitteeRent")
   ~ asked_tools = true
   -> hub

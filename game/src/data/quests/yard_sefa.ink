@@ -53,7 +53,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   }
   -> hub
 + [Who runs this yard?]
-  The repair crews, since they stopped answering to Pierce. The Administrator keeps them in line. Nose put an Army post inside the gate afterward. We keep to the north-east side of the yard, where soldiers don't like the wind.
+  The repair crews, since they stopped answering to Pierce. The Administrator keeps them in line. Nose put an Army post inside the gate afterward. We keep to the north-east side of the yard, where the post's soldiers don't go.
   ~ heard_post = true
   -> hub
 + {(heard_picked or has_note("burntConvoy")) and not asked_picked} [Is the Burnt Convoy picked clean?]
@@ -82,12 +82,12 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_rider = true
   -> hub
 + {heard_rider and not asked_rider} [Did a Kiln rider ever come for shelter?]
-  Once. His brother died in the road. He ate our beans for a long time and said little, and then he went south-west. I won't say his name. It would be rude to the beans.
+  Once. His brother died in the road. He ate our beans for a long time and said little, and then he went south-west. I won't say his name. He ate at our fire.
   ~ asked_rider = true
   -> hub
 + [Do the families find much on the crater road?]
   { cult_broken():
-    Wreck metal and beans, same as anywhere, and no more furrows. The lamps stopped going out to the crater. Who stopped them? Somebody who'll never get thanked for it. That is all we are, people who sleep at night again.
+    Wreck metal and beans, same as anywhere, and no more furrows. The <term=sunward>Sunward</term> lamps stopped going out to the crater. Who stopped them? Somebody who'll never get thanked for it. That is all we are, people who sleep at night again.
   - else:
     Furrows. Two wheel lines in the dust and a third between them where something was pulled, all going toward the crater and none coming back. A truck goes off that road at night and the families find the marks in the morning. Who drags off a whole truck instead of stripping it where it stands? Somebody who wants all of it. Keep off that road after dark.
   }

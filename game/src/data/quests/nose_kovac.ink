@@ -90,7 +90,7 @@ VAR asked_paper = false
   }
   -> hub
 + {wagon_fate == "buried"} [About wagon Seven.]
-  Corporal Teller came back from the wash pit with wet hands and a light purse. I don't log what I don't see, and I didn't see anything.
+  Corporal Teller came back from the wash pit with wet hands and money in his pocket. I don't log what I don't see, and I didn't see anything.
   -> hub
 + {wagon_fate == "told"} [About wagon Seven.]
   Soldiers buy water at Bowl, and Bowl talks over the cups. Now my men come back up the road asking whether their own brakes will hold. You told Bowl before you told my log. I won't forget the order you did it in.

@@ -23,7 +23,7 @@ A young soldier sits on a crate by the bench with his left arm in a sling, sorti
   }
   -> bench
 + [Put it back in your pocket and leave.]
-  You leave her to her bolts. Behind you the soldier goes back to sorting, one-handed.
+  You leave the bench as it is. Behind you the soldier goes back to sorting, one-handed.
   -> END
 
 === bench ===

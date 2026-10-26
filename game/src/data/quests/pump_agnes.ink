@@ -56,7 +56,7 @@ VAR tip = 20
   Midsummer; 380; 340; 10; 30 # row
   Autumn; 350; 290; 10; meter taken off # row
   This week; 300; 220; 10; meter taken off # row
-  Every hose has a meter, and every truck that fills goes in by name. Your tank is in the passing column, under your name. # speaker: Agnes
+  Every other hose has a meter, and every truck that fills goes in by name. Your tank is in the passing column, under your name. # speaker: Agnes
   The pump brings up less every season, and Bowl's trucks get less too. Until autumn the tanker's hose had a meter, and the columns added up to the big dial. Since the meter came off, the gap grows every week. # speaker: Agnes
   -> hub
 + {knows_book and not asked_leak} [Ask whether the water could be leaking.]
@@ -99,7 +99,7 @@ VAR tip = 20
   -> hub
 + {pipe_fate == "none" and knows_copy and not knows_pay} [Ask what the job pays.]
   ~ knows_pay = true
-  Mirela pays {fee} M from the lock house box when the copy arrives. I have nothing to add. # speaker: Agnes
+  Mirela pays {fee} M from the lock house box when the copy arrives. I haven't any money of my own to add. # speaker: Agnes
   The danger is the Bowl gate. The patrol there works for the Senate, and the household's steward gives them orders. # speaker: Agnes
   -> hub
 + {pipe_fate == "none" and knows_copy} [Say you'll carry the copy.]

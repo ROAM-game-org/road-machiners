@@ -136,7 +136,7 @@ export const STORY = {
   'journalNote.talkBrakeRod.text': 'Lena says command bought cheap brake rods for the depot trucks. On a hard bend one can snap and leave the truck with no brakes.',
   'journalNote.talkArmyStarved.title': 'The Old Army and its hunger',
   'journalNote.talkArmyStarved.from': 'Old Ibo, Nose radio shack',
-  'journalNote.talkArmyStarved.text': 'Old Ibo says the Old Army ended hungry, and that Commander Lind read a list of unpaid promises on his last calls. He has heard it said the Army was starved on purpose. He says whoever says so wants a seat in the hall.',
+  'journalNote.talkArmyStarved.text': 'Old Ibo says the Old Army ended hungry, and that Commander Lind read a list of unpaid promises on his last calls. He has heard it said the Army was starved on purpose. He says whoever says so wants a seat on Nose's Central Committee.',
   'journalNote.talkCommitteeRent.title': 'Who pays for Old Orchard\'s tools',
   'journalNote.talkCommitteeRent.from': 'Old Ibo, Nose radio shack',
   'journalNote.talkCommitteeRent.text': 'Old Ibo says the Guild\'s trust rents Old Orchard\'s machine tools to Nose, and command pays the Guild. He will not repeat what he hears on the air about who pays command.',
@@ -187,6 +187,6 @@ export const STORY = {
   'term.keepers': 'The wardens of the old highway forts.',
   'term.machiner': 'A driver who links to trucks for a living. Road slang shortens it to Mach.',
   'term.road_book': 'The Roadhouse\'s ledger of wrongs done on the road. A page stays open until the wrong is paid for.',
-  'term.marshals': 'The drivers of the Roadhouse, in fast plated cars. They ask the drivers on the road where the man in the book was last seen, and fight only the one who refuses to pay.',
+  'term.marshals': 'The drivers of the Roadhouse, in fast plated cars. They ask the drivers on the road where the man in the book was last seen, then ask him to pay, and fight only if he refuses.',
   'term.link': "What joins a driver's nerves to a truck's systems.",
 };
