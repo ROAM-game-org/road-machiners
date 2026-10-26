@@ -5,6 +5,8 @@ export type Weakness = 'noGuns' | 'bareSide' | 'wornCore' | 'overloaded';
 
 export const WEAKNESSES: readonly Weakness[] = ['noGuns', 'bareSide', 'wornCore', 'overloaded'];
 export const LESSON_SALT = 'lesson';
+export const LESSON_POOL_SALT = 'lessonPool';
+export const WEAKNESS_SHARE = 0.5;
 
 export const LESSON_LINE_IDS = [
   'lessonHaulerNoGuns', 'lessonHaulerBareSide', 'lessonHaulerWornCore', 'lessonHaulerOverloaded', 'lessonHaulerPrices', 'lessonHaulerNoon', 'lessonHaulerBeacon',

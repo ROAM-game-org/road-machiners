@@ -145,7 +145,20 @@ describe('picking a lesson', () => {
     const v = playerVehicle(w);
     for (const gun of mountedParts(v, 'weapon')) gun.hp = 0;
     const weak = [LESSONS.hauler.weak.noGuns, LESSONS.hauler.weak.bareSide];
-    for (const npc of traders(w, 12)) expect(weak).toContain(pickLesson(w, npc, v));
+    const allowed = [...weak, ...LESSONS.hauler.general];
+    for (const npc of traders(w, 12)) expect(allowed).toContain(pickLesson(w, npc, v));
+  });
+
+  it('tells a weakness story to about half of the drivers and a general one to the rest', () => {
+    const w = emptyWorld();
+    const v = playerVehicle(w);
+    for (const gun of mountedParts(v, 'weapon')) gun.hp = 0;
+    const weak: readonly string[] = [LESSONS.hauler.weak.noGuns, LESSONS.hauler.weak.bareSide];
+    const told = traders(w, 200).map((npc) => pickLesson(w, npc, v));
+    const share = told.filter((id) => weak.includes(id)).length / told.length;
+    expect(share).toBeGreaterThan(0.35);
+    expect(share).toBeLessThan(0.65);
+    expect(told.some((id) => LESSONS.hauler.general.includes(id as never))).toBe(true);
   });
 
   it('tells a general story of its trade when no weakness holds', () => {
