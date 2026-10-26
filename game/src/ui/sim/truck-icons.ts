@@ -9,7 +9,9 @@ const LEVEL_STEP = Math.SQRT2;
 const LEVELS = 14;
 const EDGE_PX = 1;
 const EDGE_ALPHA = 0.6;
-const PAD_PX = EDGE_PX;
+const GLOW_PX = 4;
+const GLOW_ALPHA = 0.85;
+const PAD_PX = 2 * GLOW_PX;
 const OUT_ALPHA = 0.75;
 const OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
 
@@ -102,8 +104,13 @@ function body(base: HTMLCanvasElement, look: IconLook): HTMLCanvasElement {
 function iconOf(base: HTMLCanvasElement, look: IconLook): HTMLCanvasElement {
   const icon = canvasOfSize(base.width + 2 * PAD_PX, base.height + 2 * PAD_PX);
   const ctx = contextOf(icon);
+  const color = silhouette(base, look.edge);
+  ctx.globalAlpha = GLOW_ALPHA;
+  ctx.filter = `blur(${GLOW_PX / 2}px)`;
+  stamp(ctx, color, GLOW_PX);
+  ctx.filter = "none";
   ctx.globalAlpha = EDGE_ALPHA;
-  stamp(ctx, silhouette(base, look.edge), EDGE_PX);
+  stamp(ctx, color, EDGE_PX);
   ctx.globalAlpha = 1;
   ctx.drawImage(body(base, look), PAD_PX, PAD_PX);
   return icon;
