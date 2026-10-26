@@ -30,6 +30,10 @@ export function sightRadius(world: World, viewer: Vehicle, lit = false): number 
   return TERRAIN.vision.radius * weather * night * skill * sightFactor(viewer.chassisId);
 }
 
+export function farSightRadius(world: World, viewer: Vehicle): number {
+  return sightRadius(world, viewer) * TERRAIN.vision.farFactor;
+}
+
 function nightFactor(world: World, viewer: Vehicle, lit: boolean): number {
   return lit || sunAt(world.turn) || vehicleHasPerk(world, viewer, 'nightEyes') ? 1 : TIME.nightSight;
 }

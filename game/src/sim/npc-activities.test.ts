@@ -912,7 +912,7 @@ describe('NPC activities', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 30, y: 30 });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
     raider.speed = 4;
     forceOption('contactHeard', 'flee');
     planNpcOrders(w);
@@ -961,7 +961,7 @@ describe('NPC activities', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const player = w.vehicles[0];
     player.speed = 4;
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     forceOption('contactHeard', 'investigate');
     planNpcOrders(w);
@@ -973,7 +973,7 @@ describe('NPC activities', () => {
     function investigating() {
       const w = emptyWorld({ x: 30, y: 30 });
       const player = w.vehicles[0];
-      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       raider.brain.goals = [
         { kind: 'raid', targetId: null, destination: { x: 100, y: 100 }, phase: 'travel', reason: 'tripToSite' },
@@ -1080,7 +1080,7 @@ describe('NPC activities', () => {
     function ranFrom() {
       const w = emptyWorld({ x: 30, y: 30 });
       const player = w.vehicles[0];
-      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
       raider.brain.goals = [{ kind: 'raid', targetId: null, destination: { x: 100, y: 100 }, phase: 'travel', reason: 'raid' }];
       chooseOn(w, raider, player.id, player.pos, 'flee', true);
@@ -1167,7 +1167,7 @@ describe('NPC activities', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const player = w.vehicles[0];
     player.speed = 4;
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: raider.pos.x + 5, y: 30 });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
@@ -1194,7 +1194,7 @@ describe('NPC activities', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 30, y: 30 });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 5, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + TERRAIN.vision.radius + 2, y: 30 });
     raider.speed = 4;
     forceOption('contactHeard', 'flee');
     planNpcOrders(w);
@@ -1246,7 +1246,7 @@ describe('hunting a lost fight target', () => {
   function raiderLosesPlayer() {
     const w = emptyWorld({ x: 30, y: 30 });
     const player = w.vehicles[0];
-    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 50, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     sizedUp(w, raider, player);
     forceOption('hostileSeen', 'fight');

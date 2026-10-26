@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { chassisDef } from '../data/chassis';
-import { HUNT, NPC_BEHAVIOR, NPCS } from '../data/npcs';
+import { HUNT, LOOK_OVER, NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { START_KITS } from '../data/start';
@@ -422,7 +422,7 @@ describe('the watch', () => {
   });
 
   it('springs on prey that drives into sight, and the fight follows', () => {
-    const { w, raider, trader } = watchingRaider(TERRAIN.vision.radius - 6);
+    const { w, raider, trader } = watchingRaider(TERRAIN.vision.radius - 11);
     trader.speed = 4;
     forceOption('hostileSeen', 'fight');
     forceOption('sizedUp', 'rob');
@@ -470,7 +470,7 @@ describe('the watch', () => {
       planNpcOrders(w);
       resolveNpcActivities(w);
     }
-    expect(contactsOf(w, raider, Infinity).some((c) => c.vehicleId === trader.id)).toBe(false);
+    expect(contactsOf(w, raider, Infinity).filter((c) => c.vehicleId === trader.id).map((c) => c.sources)).toEqual([['far']]);
     expect(topGoal(raider)).toMatchObject({ kind: 'raid', phase: 'act' });
     expect(Object.keys(raider.brain!.noticed).some((key) => key.endsWith(trader.id))).toBe(false);
     expect(raider.order?.kind ?? 'brake').toBe('brake');
@@ -597,7 +597,7 @@ describe('going home with loot', () => {
     const start = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) start.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     if (addGoods(start, playerVehicle(start), 'electronics', 6) < 6) throw new Error('No room for the player cargo');
-    const raider = addVehicle(start, 'scrapjaw', 'jeep', ['stockEngine', 'mg'], { x: 42, y: 30 }, Math.PI);
+    const raider = addVehicle(start, 'scrapjaw', 'jeep', ['stockEngine', 'mg'], { x: 30 + LOOK_OVER.reach + 2, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     raider.brain.goals = [raidGoal(raider.pos)];
     forceOption('hostileSeen', 'fight');

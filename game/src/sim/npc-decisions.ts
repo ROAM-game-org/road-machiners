@@ -204,7 +204,7 @@ export function usefulContacts(world: World, vehicle: Vehicle): Contact[] {
 export function npcSenses(world: World, vehicle: Vehicle): { seen: Vehicle[]; contacts: Contact[] } {
   const radius = npcProfile(vehicle).contactReactRadius;
   const { seen, contacts } = sensesOf(world, vehicle, Infinity);
-  const useful = contacts.filter((contact) => contact.radius <= radius);
+  const useful = contacts.filter((contact) => contact.radius <= radius && contact.sources.some((source) => source !== 'far'));
   return { seen, contacts: useful.sort((a, b) => dist(vehicle.pos, a.center) - dist(vehicle.pos, b.center)) };
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DETECT } from '../data/detect';
 import { partDef } from '../data/parts';
+import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
 import { contactsOf } from './detect';
 import { makePart } from './factory';
@@ -61,7 +62,7 @@ describe('flare light', () => {
 
   it('by day changes nothing', () => {
     const { w, npc, east } = viewer(day());
-    const far = { x: 125, y: 100 };
+    const far = { x: 100 + TERRAIN.vision.radius + 5, y: 100 };
     const before = [canVehicleSee(w, npc, east), canVehicleSee(w, npc, far)];
 
     launchFlare(w, w.vehicles[0], { x: 120, y: 100 }, burn());

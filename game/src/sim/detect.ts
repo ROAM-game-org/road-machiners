@@ -20,7 +20,7 @@ import { flareSightings, litAt, type FlareSighting } from './hazards';
 import { isShutDown } from './utility';
 import { weatherOn } from './weather';
 import { isCheapMeeting } from './fidelity';
-import { canVehicleSee, playerSees, sightRadius } from './vision';
+import { canVehicleSee, farSightRadius, playerSees, sightRadius } from './vision';
 import { playerCanAct, Refused, update } from './world';
 
 export function soundRange(world: World, v: Vehicle): number {
@@ -87,7 +87,7 @@ export function sensesOf(world: World, observer: Vehicle, within: number): { see
   const seen: Vehicle[] = [];
   const contacts: Contact[] = [];
   const sight = sightTo(world, observer);
-  const listener = { scanned: scannerRange(world, observer), clouds: cloudsSeenBy(world, observer).filter((c) => dist(observer.pos, c.pos) <= within) };
+  const listener = { scanned: scannerRange(world, observer), far: farSightRadius(world, observer), clouds: cloudsSeenBy(world, observer).filter((c) => dist(observer.pos, c.pos) <= within) };
   for (const v of world.vehicles) {
     const d = dist(observer.pos, v.pos);
     if (v.id === observer.id || d > within) continue;
@@ -98,19 +98,23 @@ export function sensesOf(world: World, observer: Vehicle, within: number): { see
   return { seen, contacts };
 }
 
-function contactWith(world: World, observer: Vehicle, listener: { scanned: number; clouds: DustCloud[] }, v: Vehicle, d: number): Contact[] {
+function contactWith(world: World, observer: Vehicle, listener: { scanned: number; far: number; clouds: DustCloud[] }, v: Vehicle, d: number): Contact[] {
   const dust = newestCloud(listener.clouds, v.id);
-  const sources = sourcesOf(world, observer, listener.scanned, v, d, dust !== null);
+  const sources = sourcesOf(world, observer, listener, v, d, dust !== null);
   if (sources.length === 0) return [];
   const loudness = sources.includes('sound') ? soundRange(world, v) : null;
   return [{ vehicleId: v.id, ...contactCircle(world, observer, v, sources, d, dust), sources, loudness }];
 }
 
-function sourcesOf(world: World, observer: Vehicle, scanned: number, v: Vehicle, d: number, dusty: boolean): Contact['sources'] {
+function sourcesOf(world: World, observer: Vehicle, listener: { scanned: number; far: number }, v: Vehicle, d: number, dusty: boolean): Contact['sources'] {
   const moving = v.speed > RULES.parkedSpeed;
   const sound = moving && hears(world, observer, v, d);
-  const radio = moving && inScanner(scanned, d);
-  return [...(sound ? ['sound' as const] : []), ...(dusty ? ['dust' as const] : []), ...(radio ? ['radio' as const] : []), ...trackingSources(world, observer, v)];
+  const radio = moving && inScanner(listener.scanned, d);
+  return [...(sound ? ['sound' as const] : []), ...(dusty ? ['dust' as const] : []), ...(radio ? ['radio' as const] : []), ...farSource(listener.far, d), ...trackingSources(world, observer, v)];
+}
+
+function farSource(farSight: number, d: number): Contact['sources'] {
+  return d <= farSight ? ['far'] : [];
 }
 
 function inScanner(scanned: number, d: number): boolean {
@@ -188,6 +192,7 @@ export function contactDifficulty(world: World, observer: Vehicle, contact: Cont
 
 function channelShare(world: World, observer: Vehicle, v: Vehicle, source: Contact['sources'][number]): number {
   if (source === 'mark' || source === 'flare') return 0;
+  if (source === 'far') return reachShare(dist(observer.pos, v.pos), farSightRadius(world, observer), source);
   if (source === 'dust') {
     const cloud = newestCloud(cloudsSeenBy(world, observer), v.id);
     if (!cloud) throw new Error(`Dust contact on ${v.id} has no seen cloud`);
@@ -196,7 +201,7 @@ function channelShare(world: World, observer: Vehicle, v: Vehicle, source: Conta
   return reachShare(dist(observer.pos, v.pos), sourceReach(world, observer, v, source), source);
 }
 
-function sourceReach(world: World, observer: Vehicle, v: Vehicle, source: Exclude<Contact['sources'][number], 'dust' | 'mark' | 'flare'>): number {
+function sourceReach(world: World, observer: Vehicle, v: Vehicle, source: Exclude<Contact['sources'][number], 'dust' | 'mark' | 'flare' | 'far'>): number {
   switch (source) {
     case 'sound': return hearingRange(world, observer, v);
     case 'radio': return scannerRange(world, observer);
@@ -214,7 +219,7 @@ export function hearsBeacon(world: World, observer: Vehicle, v: Vehicle): boolea
 }
 
 function contactCircle(world: World, observer: Vehicle, v: Vehicle, sources: Contact['sources'], d: number, dust: DustCloud | null): { center: Vec; radius: number } {
-  if (sources.length === 1 && dust) return { center: { ...dust.pos }, radius: DETECT.fuzz.base + dist(dust.pos, v.pos) };
+  if (dust && sources.every((s) => s === 'dust' || s === 'far')) return { center: { ...dust.pos }, radius: DETECT.fuzz.base + dist(dust.pos, v.pos) };
   const fix = 1 - skillEffect(world, observer, 'perception', 'contactFix');
   const sensed = (DETECT.fuzz.base + (sources.includes('radio') || sources.includes('mark') ? DETECT.fuzz.radioPerTile : DETECT.fuzz.perTile) * d) * fix;
   const radius = sources.includes('beacon') ? Math.min(BEACON.radius, sensed) : sensed;
