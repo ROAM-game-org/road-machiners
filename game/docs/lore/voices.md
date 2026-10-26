@@ -8,17 +8,17 @@ People live inside the basin's facts and do not announce them. A fact comes up o
 
 ### Ruben, canal warden
 
-Ruben talks of water, gates, seasons and his grandmother. He compares things to fields, buckets, floods and wet years.
+Ruben talks of water, gates, seasons and the fields that drink. He compares things to fields, buckets, floods and wet years, sometimes and not in every line.
 
-His sentences are long and slow. They wind through two or three clauses before they land.
+He answers in the first clause. Then the sentence winds on through water and fields before it lands. A reply holds one thought, and his sentences are long and slow, but few.
 
-He quotes his grandmother. He measures things in hands and in seasons.
+He notices how long a driver has been out in the sun, and he offers the shade. He measures things in hands and in seasons.
 
-He cares about fairness in who drinks first. He avoids blaming any family by name.
+He wants a stranger who will carry a fair word about how Bowl shares its water. He cares about fairness in who drinks first. He avoids blaming any family by name, and he does not talk about his own family or how he came to the gates.
 
 He treats a stranger as a guest in the shade and answers without hurry.
 
-Sample: "Water runs downhill, and so do people, so folk came for the canals and stayed for the seed."
+Samples: "Water runs downhill, and so do people, so folk came for the canals and stayed for the seed." "Safe is a word for a canal with good walls, and the north road has no walls at all."
 
 ### Hattie, water seller at the gate yard
 

@@ -98,7 +98,7 @@ End a scene on a dry, small line, often the next chore or a flat joke. Never end
 
 Write their voice sheet in [Voices](../lore/voices.md) first. A sheet answers five questions.
 
-1. What one speech rule shows in every line they say? Kovac states one fact, then what follows from it. Hattie asks where you came from, then tells you the plain truth. Ruben winds through water and his grandmother before he lands.
+1. What one speech rule shows in every line they say? Kovac states one fact, then what follows from it. Hattie asks where you came from, then tells you the plain truth. Ruben winds through water and fields before he lands.
 2. What do they want from the player? A stranger is a buyer, a pair of hands, a witness, a messenger or a risk. A person with nothing to want has nothing to say.
 3. What do they notice first about the player? It is the most visible thing: a battered truck, a Nose seal on the door, a stranger towed in on a chain, a name on someone's list.
 4. How long do their sentences run? A boaster runs long. A veteran runs short. A frightened clerk starts sentences and abandons them.
