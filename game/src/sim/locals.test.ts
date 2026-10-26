@@ -47,6 +47,7 @@ const WAGON = 'About that scavenger with the Army radio.';
 const WAGON_FOUND = 'We found wagon Seven.';
 const WORK = 'Any work?';
 const PIERCE = 'What came of the Pierce loan?';
+const SLOW_SENATE = 'How slow is the Senate?';
 
 describe('settlement locals', () => {
   it('lists the town locals first and keeps every local at a place with a shop', () => {
@@ -146,14 +147,17 @@ describe('settlement locals', () => {
     const w = parkedAt('bowl');
     expect(choices(w, 'bowl_ruben')).not.toContain(PIERCE);
     const asked = talk(w, 'bowl_ruben', ['Who runs Bowl?', 'Goodbye.']);
-    expect(choices(asked, 'bowl_ruben')).toContain(PIERCE);
-    expect(choices(asked, 'bowl_ruben').some((c) => /refuse/i.test(c))).toBe(false);
-    const answer = talk(w, 'bowl_ruben', ['Who runs Bowl?', PIERCE]);
+    expect(choices(asked, 'bowl_ruben')).toContain(SLOW_SENATE);
+    expect(choices(asked, 'bowl_ruben')).not.toContain(PIERCE);
+    const slow = talk(w, 'bowl_ruben', ['Who runs Bowl?', SLOW_SENATE, 'Goodbye.']);
+    expect(choices(slow, 'bowl_ruben')).toContain(PIERCE);
+    expect(choices(slow, 'bowl_ruben').some((c) => /refuse/i.test(c))).toBe(false);
+    const answer = talk(w, 'bowl_ruben', ['Who runs Bowl?', SLOW_SENATE, PIERCE]);
     expect(questView(answer, QUESTS).lines.map((l) => l.text).join(' ')).toContain('The Senate turned it down.');
   });
 
   it('keeps the Pierce question after a save and load', () => {
-    const open = talk(parkedAt('bowl'), 'bowl_ruben', ['Who runs Bowl?']);
+    const open = talk(parkedAt('bowl'), 'bowl_ruben', ['Who runs Bowl?', SLOW_SENATE]);
     const loaded = structuredClone(open);
     loaded.player.quests.live = null;
     restoreQuest(loaded, QUESTS);
@@ -195,11 +199,28 @@ describe('settlement locals', () => {
   it('answers a lore question with no note and no change', () => {
     const w = parkedAt('bowl');
 
-    const next = talk(w, 'bowl_ruben', ['What is this place?', 'What did your grandmother tell you about the old days?']);
+    const next = talk(w, 'bowl_ruben', ['What is this place?', 'What happened to the orchards?']);
 
     expect(next.player.notes).toEqual([]);
     expect(next.events).toEqual([]);
     expect(untouched(next)).toEqual(untouched(w));
+  });
+
+  it('lets Ruben talk without forebears and in short replies', () => {
+    const forebears = /grand(mother|father|ma|pa)|forebear|ancestor|inherit|бабк|бабуш|дед|прадед|предк|по наследству/i;
+    const read = (file: string) => readFileSync(file, 'utf8');
+    const english = read('src/data/quests/bowl_ruben.ink');
+    expect(english).not.toMatch(forebears);
+    expect(read('src/data/quests/ru/bowl_ruben.ink')).not.toMatch(forebears);
+    const logic = /^(INCLUDE|VAR|~|=|#)/;
+    const spokenPieces = english
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !logic.test(line) && line !== '-> hub' && line !== '-> END')
+      .flatMap((line) => line.replace(/^[+*]+\s*(\{[^}]*\}\s*)?/, '').replace(/^\{[^:}]*:/, '').replace(/\}\s*$/, '').split('|'))
+      .map((piece) => piece.replace(/<[^>]*>/g, '').replace(/[[\]{}]/g, '').trim());
+    const tooLong = spokenPieces.filter((piece) => piece.split(/\s+/).length > 40);
+    expect(tooLong).toEqual([]);
   });
 });
 
