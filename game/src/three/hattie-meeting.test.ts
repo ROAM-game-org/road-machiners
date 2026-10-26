@@ -4,7 +4,7 @@ import { startKit } from '../data/start';
 import { addGoods } from '../sim/inventory';
 import { playerVehicle } from '../sim/damage';
 import { siteOf } from '../sim/market';
-import { chooseQuestOption, QUESTS, questView, setIntroStep, setWorldVar } from '../sim/quests';
+import { chooseQuestOption, pickTownSection, QUESTS, questView, setIntroStep, setWorldVar } from '../sim/quests';
 import { defaultSetup } from '../sim/settings';
 import { nearestPad } from '../sim/sites';
 import { finishQuest } from '../sim/testkit';
@@ -112,6 +112,7 @@ describe('Hattie at her well for a driver who arrives on their own', () => {
     const first = wait(w);
     expect(first.player.quests.session?.quest).toBe('intro_bowl');
     const later = wait(finishQuest(first));
-    expect(later.player.quests.session?.quest).toBe('bowl_scale');
+    expect(later.player.quests.session).toBeNull();
+    expect(pickTownSection(later, null, 'market').player.quests.session?.quest).toBe('bowl_scale');
   });
 });
