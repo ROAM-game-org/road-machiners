@@ -137,7 +137,7 @@ const TIPS: readonly Tip[] = [
   {
     id: "farewell",
     after: "honk",
-    when: (w) => introStep(w) === "off" && dist(playerVehicle(w).pos, departureFrom(w)) >= OPENING.leaveDistance,
+    when: (w) => introStep(w) === "off" && dist(playerVehicle(w).pos, departureFrom(w)) >= OPENING.farewellDistance,
     done: () => false,
   },
 ];
