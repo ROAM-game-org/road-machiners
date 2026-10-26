@@ -395,7 +395,7 @@ describe('the night schedule', () => {
     seen.broken.clear();
     const stopped = new Set<string>();
     const noteStopped = (w: World) => {
-      for (const v of membersOf(w)) if (topGoal(v)?.reason === 'fight') stopped.add(v.id);
+      for (const v of membersOf(w)) if (topGoal(v)?.kind === 'fight') stopped.add(v.id);
     };
     let w = runFarTo(orderWorld(seed), rideOutTurn(dusk) + 1, noteStopped);
     const order = gateOrder(w, sunwardFacts(w).night!);

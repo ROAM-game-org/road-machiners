@@ -364,7 +364,6 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
       { value: "buggy", weight: 5 },
       { value: "jeep", weight: 3 },
       { value: "scout", weight: 3 },
-      { value: "niva", weight: 2 },
     ],
     priorities: { speed: 2, firepower: 3, armor: 2, cargo: 0 },
     cargoPart: [{ value: null, weight: 1 }],
