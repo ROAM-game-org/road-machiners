@@ -3,6 +3,7 @@ import { LINGER } from '../data/linger';
 import { TIME } from '../data/time';
 import type { TraitId } from '../data/npcs';
 import { lingerGoal, lingerReasonNow, lootedRoadWreck } from './linger';
+import { decide } from './npc-decisions';
 import { goalHolds, pushGoal, resolveNpcActivities, idleGoal, topGoal } from './npc-activities';
 import { ROAD_INDEX } from './road-index';
 import { emptyHidden, nearestRoadPoint } from './salvage';
@@ -129,9 +130,8 @@ describe('lingering drivers', () => {
     const { w, npc } = scene(['roamer']);
     w.turn = turnAt(7.5);
     forceOption('idle', 'linger');
-    const goal = idleGoal(w, npc);
-    expect(goal.reason).not.toBe('tendGrave');
-    expect(goal.until).toBeUndefined();
+    expect(lingerGoal(w, npc)).toBeNull();
+    for (let i = 0; i < 20; i++) expect(decide(w, npc, 'idle', null, null, ['linger'])).not.toBe('linger');
   });
 
   it('parks, waits out the window and drives on', () => {
