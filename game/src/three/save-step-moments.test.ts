@@ -41,7 +41,7 @@ describe('save migration 115 to 116, the basin keeps its moments', () => {
   });
 
   it('gives a Chaos Highway save no moments', () => {
-    const highway = { ...fixture(), setup: { mode: 'chaosHighway' } };
+    const highway = { ...fixture(), setup: { mode: 'chaosHighway' }, chaosHighway: { stretch: 1 } };
     expect(step(highway).moments).toBeNull();
   });
 

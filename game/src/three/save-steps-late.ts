@@ -626,7 +626,6 @@ const MOMENT_IDS_115 = ['fromTheWest', 'eightToNine', 'crucible'];
 
 export function withMoments_115_116(world: SavedJson): SavedJson {
   if (world.moments !== undefined) return world;
-  const setup = world.setup as SavedJson;
-  const moments = setup.mode === 'roaming' ? Object.fromEntries(MOMENT_IDS_115.map((id) => [id, { driver: null, heard: false }])) : null;
+  const moments = world.chaosHighway === null ? Object.fromEntries(MOMENT_IDS_115.map((id) => [id, { driver: null, heard: false }])) : null;
   return { ...world, moments };
 }

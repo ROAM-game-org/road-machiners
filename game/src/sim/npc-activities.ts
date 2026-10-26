@@ -260,8 +260,12 @@ export const IDLE_GOALS: Record<Exclude<DecisionOptions['idle'], 'wait' | 'linge
 export function idleGoal(world: World, vehicle: Vehicle): NpcActivity {
   if (keepsWord(world, vehicle, 'idle', null)) return createActivity('wait', null, null, 'keepWord');
   const option = decide(world, vehicle, 'idle', null, null);
-  if (option === 'wait') return createActivity('wait', null, null, 'nothingToDo');
-  if (option === 'linger') return lingerGoal(world, vehicle) ?? createActivity('wait', null, null, 'nothingToDo');
+  if (option !== 'linger') return idleOption(world, vehicle, option);
+  return lingerGoal(world, vehicle) ?? idleOption(world, vehicle, decide(world, vehicle, 'idle', null, null, ['linger']));
+}
+
+function idleOption(world: World, vehicle: Vehicle, option: Exclude<DecisionOptions['idle'], 'linger'> | 'linger'): NpcActivity {
+  if (option === 'wait' || option === 'linger') return createActivity('wait', null, null, 'nothingToDo');
   return IDLE_GOALS[option](world, vehicle);
 }
 

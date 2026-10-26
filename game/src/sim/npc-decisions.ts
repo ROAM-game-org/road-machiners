@@ -1138,8 +1138,9 @@ export function optionChances<O extends string>(weights: Partial<Record<O, numbe
   return out;
 }
 
-export function decide<D extends DecisionId>(world: World, vehicle: Vehicle, decision: D, subject: string | null, danger: number | null): DecisionOptions[D] {
+export function decide<D extends DecisionId>(world: World, vehicle: Vehicle, decision: D, subject: string | null, danger: number | null, without: readonly DecisionOptions[D][] = []): DecisionOptions[D] {
   const weights = optionWeights(world, vehicle, decision, subject, danger);
+  for (const option of without) delete weights[option];
   checkWeights(vehicle, decision, weights);
   if (!hasChoice(weights)) return 'keep' as DecisionOptions[D];
   const chances = Object.entries(optionChances(weights)) as [DecisionOptions[D], number][];

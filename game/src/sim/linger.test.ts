@@ -125,11 +125,13 @@ describe('lingering drivers', () => {
     expect(idleGoal(w, npc)).toMatchObject({ kind: 'wait', reason: 'tendGrave' });
   });
 
-  it('falls back to doing nothing when no spot fits', () => {
+  it('chooses other work when no spot fits', () => {
     const { w, npc } = scene(['roamer']);
     w.turn = turnAt(7.5);
     forceOption('idle', 'linger');
-    expect(idleGoal(w, npc)).toMatchObject({ kind: 'wait', reason: 'nothingToDo', destination: null });
+    const goal = idleGoal(w, npc);
+    expect(goal.reason).not.toBe('tendGrave');
+    expect(goal.until).toBeUndefined();
   });
 
   it('parks, waits out the window and drives on', () => {
