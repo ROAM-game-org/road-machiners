@@ -1,10 +1,10 @@
 # view: page
 # stat: money M's
-# fact: book_read Agnes's copy: the pump brings up less every season, and the household's tanker takes more. Her guess, if that goes on: Bowl's trucks get almost nothing by next autumn.
+# fact: book_read Agnes's copy: the pump brings up less every season, and the household truck takes more. Her guess, if that goes on: Bowl's trucks get almost nothing by next autumn.
 # fact: margin_read Agnes's copy, last page: for Mirela, to compare with hers.
 # fact: offer_heard Steward Aurel Brede offered M's to lose the copy and forget the dial.
-# fact: reserve_known Steward: half of the tanker's water fills a tank under the top terrace. It is the Senate's reserve for a dry year, and only the Archon may open it.
-# fact: valve_read Top terrace: the household's tanker unloads into a stone tank. Its inlet has an empty flange where a meter used to sit.
+# fact: reserve_known Steward: half of the household truck's water fills a tank under the top terrace. It is the Senate's reserve for a dry year, and only the Archon may open it.
+# fact: valve_read Top terrace: the household truck's barrels are emptied into a stone tank. Its inlet has an empty flange where a meter used to sit.
 # fact: canal_matches Every barrel Agnes loaded onto Bowl's trucks reached Mirela's trough. The dial is the other half, and you read it.
 INCLUDE world.ink
 
@@ -51,14 +51,14 @@ VAR toll = 50
 Agnes leads you into the shed behind the dials, out of the watchman's sight, and pulls the door to. # place: Dustwell
 She takes a flat bundle from under the pillow on her cot. It is the copy, wrapped in oilcloth. She opens it, writes this week's line in with your name beside the dial, and seals it with wax.
 From her desk drawer she takes an old meter and sets it on the desk. Behind it lies an envelope with a lantern seal. She shuts the drawer on it.
-That's the meter the Senate made me take off the tanker's hose. It also fits the tank the tanker empties into, up on the household's terrace. # speaker: Agnes
+That's the meter the Senate made me take off the household truck's hose. It also fits the tank they empty its barrels into, up on the household's terrace. # speaker: Agnes
 Bolt it on there, and the next load gets counted where all of Bowl can see it. It's household land, so you'd be on your own. Take it or leave it. # speaker: Agnes
 -> handover
 
 = handover
 + {not knows_envelope} [Ask about the envelope.]
   ~ knows_envelope = true
-  It's from the household's steward. A barrel of oil a month, to keep quiet about the tanker. # speaker: Agnes
+  It's from the household's steward. A barrel of oil a month, to keep quiet about the household truck. # speaker: Agnes
   I took it because I was afraid to refuse him to his face. # speaker: Agnes
   -> handover
 + {knows_envelope and not asked_steward} [Ask whether the steward knows about the copy.]
@@ -152,7 +152,7 @@ The offer is closed. My rider will reach the gate before you. # speaker: Steward
 
 === onto_road ===
 The Bowl road runs across the flat. Bowl is hours away. # page # place: The road
-Far ahead, the household's tanker crawls along under its load. Empty water trucks pass you on their way back to the pump.
+Far ahead, the household truck crawls along under its barrels. Bowl's trucks pass you with empty barrels on their way back to the pump.
 -> road
 
 === road ===
@@ -172,13 +172,13 @@ Far ahead, the household's tanker crawls along under its load. Empty water truck
 ~ margin_read = true
 ~ note("pipeDraw")
 You cut the seal and open the copy on your knee. It matches the book you saw at the pump, line for line, down to your name beside this week's dial.
-On the last page Agnes has run the numbers forward in pencil. At the top she wrote: if the pump keeps falling and the tanker keeps growing.
-Barrels a week; Pumped up; Household tanker; Left for Bowl's trucks # head
+On the last page Agnes has run the numbers forward in pencil. At the top she wrote: if the pump keeps falling and the household truck keeps growing.
+Barrels a week; Pumped up; Household truck; Left for Bowl's trucks # head
 This week; 300; 70; 220 # row
 Next spring; 270; 100; 160 # row
 Next summer; 240; 140; 90 # row
 Next autumn; 210; 180; 20 # row
-It's a guess, and she says so. The tanker's column is a guess too, since nobody meters it. What's real is the dial you read and the hoses she wrote down, and the gap between them.
+It's a guess, and she says so. The household truck's column is a guess too, since nobody meters it. What's real is the dial you read and the hoses she wrote down, and the gap between them.
 Under the sum she wrote: For Mirela, to compare with hers.
 -> road
 
@@ -187,7 +187,7 @@ Under the sum she wrote: For Mirela, to compare with hers.
   -> through
 }
 Bowl patrolmen hold the gate, with a cart across the road. To the left, a dry ditch runs around the wall. # page # place: The Bowl gate
-The household's tanker is through the gate ahead of you. Nobody asked it for a pass.
+The household truck is through the gate ahead of you. Nobody asked it for a pass.
 { sluice == "watched":
   The steward's rider waits behind the patrolmen, next to his buggy.
 }
@@ -211,14 +211,14 @@ The older patrolman leans into your cab and looks at the copy on the seat.
 
 === town ===
 # checkpoint: town
-Inside the wall, Bowl steps down the crater in terraces. The household's gardens sit on the top terrace, and the tanker's wet tracks climb toward them. # place: Bowl
+Inside the wall, Bowl steps down the crater in terraces. The household's gardens sit on the top terrace, and the household truck's tracks climb toward them. # place: Bowl
 The market is halfway down, and the lock house is at the bottom by the canals.
 -> town_hub
 
 = town_hub
 + [Drive down to the lock house.]
   -> lock
-+ {not walked_out} [Follow the tanker's tracks up to the top terrace.]
++ {not walked_out} [Follow the household truck's tracks up to the top terrace.]
   -> terrace
 + {book_read} [Read the copy aloud in the market. # check: social 2]
   -> market
@@ -255,7 +255,7 @@ The older patrolman nods and waves the cart aside.
 
 === read_through ===
 You tell him it's pump records for the lock house, boring and already late.
-Pump records come down with the water trucks. Nobody pays a driver to carry boring paper. # speaker: Patrolman
+Pump records come down with Bowl's trucks. Nobody pays a driver to carry boring paper. # speaker: Patrolman
 He holds out his hand for the copy.
 + [Hand it over.]
   -> seized
@@ -294,7 +294,7 @@ Your name goes into their report.
 
 === terrace ===
 The household's gardens fill the top terrace behind a whitewashed wall. Its gate is open for the workers. # page # place: The top terrace
-By the gate, the household's tanker is backed up to a low stone tank. A hose runs from the tanker into the tank's inlet. Nobody guards it.
+By the gate, the household truck is backed up to a low stone tank. Its crew tip its barrels one by one into the tank's inlet. Nobody guards it.
 -> terrace_hub
 
 = terrace_hub
@@ -309,12 +309,12 @@ By the gate, the household's tanker is backed up to a low stone tank. A hose run
 ~ valve_read = true
 The inlet has an empty flange where a meter used to sit. The bolt holes are clean, so it hasn't been empty long.
 { meter_taken: Agnes's meter would fit it. }
-The tanker's driver sits in the shade and doesn't get up.
+The household truck's driver sits in the shade and doesn't get up.
 A worker with a hoe watches you from the garden rows.
 -> terrace.terrace_hub
 
 === meter ===
-You wait until the tanker drives off. Then you hold Agnes's meter against the flange and start on the bolts. # place: The top terrace
+You wait until the household truck drives off. Then you hold Agnes's meter against the flange and start on the bolts. # place: The top terrace
 { passed():
   -> fitted
 }
@@ -324,7 +324,7 @@ You wait until the tanker drives off. Then you hold Agnes's meter against the fl
 ~ pipe_fate = "metered"
 ~ marr_regard = "enemy"
 The bolts go down evenly, and the meter sits flat.
-Next morning the tanker comes back full and unloads through your meter. The worker with the hoe reads the dial and says the number out loud. Then he walks off down the rows.
+Next morning the household truck comes back full, and its barrels go in through your meter. The worker with the hoe reads the dial and says the number out loud. Then he walks off down the rows.
 By evening the number is chalked on the board in the market. # page
 At dawn a household crew takes the meter off. The tenants in the market watch them do it. # reveal: all
 The number stays on the board. Nobody needs Agnes's copy to read it.
@@ -344,7 +344,7 @@ The household bills you {due} M for the wall. # reveal: all
 -> town.town_hub
 
 === lock ===
-The lock house stands at the bottom of Bowl, where the canals begin. Water trucks back up to a long stone trough and pour their loads in, and the trough feeds the canals. # page # place: Bowl lock house
+The lock house stands at the bottom of Bowl, where the canals begin. Bowl's trucks back up to a long stone trough and empty their barrels into it, and the trough feeds the canals. # page # place: Bowl lock house
 A woman with rolled sleeves stands by the trough with a book. She looks at the seal before she looks at you.
 Agnes sent you. Good. # speaker: Mirela
 { book_read:
@@ -359,7 +359,7 @@ This week; 220; 220 # row
 Every barrel she wrote down for Bowl's trucks reached my trough. So her hose meters are honest. The passing trucks I can't check, but they're a few barrels a week with a name beside each one, yours too. # speaker: Mirela
 That leaves the dial. Nobody in Bowl can see what the pump brings up. You read it this week, and your name is beside the number. # speaker: Mirela
 Agnes swears to her hoses, I swear to my trough, and you swear to the dial. Each of us swears only to what we read ourselves. # speaker: Mirela
-Pumped up, less the hoses, is the gap. You saw for yourself that the tanker's hose is the only one with no meter. # speaker: Mirela
+Pumped up, less the hoses, is the gap. You saw for yourself that the household truck's hose is the only one with no meter. # speaker: Mirela
 { valve_read:
   You tell her about the stone tank on the terrace and the empty flange on its inlet. She listens closely.
 }
@@ -383,7 +383,7 @@ Then your name is in my book, and the steward reads my book. # speaker: Mirela
   I'll read every number to the Senate, with the name of whoever swore to it. # speaker: Mirela
   The household's clerk stands at this trough every morning and says which canal gets how much. That was the canal families' job until the Senate gave it to him. The household's votes did it. # speaker: Mirela
   If the household is caught taking water, they won't win the next vote on the trough. # speaker: Mirela
-  You ask whether she wants the trough back or a meter on the tanker.
+  You ask whether she wants the trough back or a meter on the household truck's hose.
   Both. The trough first. # speaker: Mirela
   -> ask
 + [Sign and write what you read on the dial.]
@@ -403,7 +403,7 @@ The Senate meets in a week. # speaker: Mirela
 The truck drivers who watched you sign spread the news.
 A week later, news reaches the drivers' well. Mirela read the numbers to the Senate: Agnes's hoses, her own trough and your dial, with your name under it. # page
 The household's bench said Agnes made her numbers up. Mirela asked who made up the dial, and read your name. Nobody on that bench knew you, so nobody could call you a liar.
-The Senate took no vote on the tanker and needed none. The next week the tanker came to the pump with a meter on its hose, fitted by the steward's own crew. A counted tanker is a smaller story than a secret one, and the steward deals in small stories. # reveal: all
+The Senate took no vote on the household truck and needed none. The next week the truck came to the pump, and its hose had a meter, fitted by the steward's own crew. A counted truck is a smaller story than a secret one, and the steward deals in small stories. # reveal: all
 The trough stays with the household's clerk, and the reserve under the terrace stays a secret. Your name is in a book the steward reads. Nobody from the household has come asking for you.
 -> END
 
@@ -424,8 +424,8 @@ The Senate moved on to grain. # reveal: all
 === market ===
 ~ pipe_fate = "read"
 ~ marr_regard = "enemy"
-Tenants crowd the market with empty water cans. The water trucks are late again. # page # place: Bowl market
-You read Agnes's numbers out loud, and then what you saw at the pump: the dial, the hoses with meters, and the household's tanker on the one without.
+Tenants crowd the market with empty water cans. Bowl's trucks are late with the water again. # page # place: Bowl market
+You read Agnes's numbers out loud, and then what you saw at the pump: the dial, the hoses with meters, and the household truck filling from the one without.
 A grey-haired tenant repeats each number to the people behind him.
 Bowl patrolmen push through the crowd toward you.
 { passed():
@@ -450,7 +450,7 @@ The rest stay by the board until dark.
 A patrolman takes the copy out of your hands.
 Reading out in the market needs the steward's permission, and you don't have it. # speaker: Patrolman
 He fines you {due} M and carries the copy off toward the top terrace. # reveal: all
-By evening, everyone in the market knows about the household's tanker.
+By evening, everyone in the market knows about the household truck.
 -> END
 
 === sold ===
@@ -469,5 +469,5 @@ You count {price} M.
 ~ taken = false
 ~ meter_taken = false
 You throw the copy into a dry ditch and kick dust over it. # page # place: The road
-Nobody saw. The household's tanker keeps coming.
+Nobody saw. The household truck keeps coming.
 -> END

@@ -203,7 +203,7 @@ Her line is "Every sack that goes to Kiln is written on the gate."
 - Habit: She reads every meter at dusk and writes it in the book.
 - Secret: She made a sealed copy of the book, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
 
-Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and the water trucks load less. The Archon's household sends its own tanker to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
+Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and Bowl's trucks load fewer barrels. The Archon's household sends its own truck to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
 
 Her line is "I did not come to take your water. I came to write down how much of it there is."
 
@@ -212,16 +212,16 @@ Her line is "I did not come to take your water. I came to write down how much of
 - Way: oppose.
 - High concept: The keeper of the Canal book at the lowest lock house, the last proud Duarte of the canals.
 - Trouble: She speaks first and thinks after, so her words cost her kin and her allies.
-- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Counts every barrel the water trucks pour into the canals; Agnes Ondra's copy sits beside her book.
+- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Counts every barrel Bowl's trucks pour into the canals; Agnes Ondra's copy sits beside her book.
 - Skills: best perception, worst social.
 - Wants: The proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share.
 - Fears: The Canal families fade away unheard.
-- Habit: She counts every barrel the water trucks pour in at the lock house and writes it in the open book.
+- Habit: She counts every barrel Bowl's trucks pour in at the lock house and writes it in the open book.
 - Secret: None.
 
-Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. The water trucks from Dustwell pour their loads into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household's tanker metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
+Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. Bowl's trucks bring barrels from Dustwell and pour them into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household truck metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
 
-Tomas saw the household's tanker unload on the top terrace on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
+Tomas saw the household truck unload on the top terrace on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
 
 Her line is "The water is ours, and we will count every barrel of it."
 
@@ -232,12 +232,12 @@ Her line is "The water is ours, and we will count every barrel of it."
 - Trouble: He buys every problem away with money, so each payment is one more thing that can be found out.
 - Aspects: Pays Agnes Ondra as he paid her uncle; Sava Kettering sits on a drum for him; A purse on the cart tailboard.
 - Skills: best social, worst toughness.
-- Wants: The Bowl never learns where the household's tanker unloads.
+- Wants: The Bowl never learns where the household truck unloads.
 - Fears: The Bowl learns it in a dry year.
 - Habit: He sits with his hands folded and names a sum before he names a threat.
-- Secret: The household's tanker fills the Marr gardens and the Archon's drought store. He hides it from the tenants and the Senate floor.
+- Secret: The household truck fills the Marr gardens and the Archon's drought store. He hides it from the tenants and the Senate floor.
 
-Aurel is the steward of the Archon's household, a courteous old man who holds its purse. He offers money before threats, and he signs patrol postings. He knows what the household's tanker fills, and he fears most that the Bowl learns it in a dry year. He pays Agnes Ondra as he paid her uncle, and he posted Sava Kettering at her gate.
+Aurel is the steward of the Archon's household, a courteous old man who holds its purse. He offers money before threats, and he signs patrol postings. He knows what the household truck fills, and he fears most that the Bowl learns it in a dry year. He pays Agnes Ondra as he paid her uncle, and he posted Sava Kettering at her gate.
 
 His line is "You came for water, and water is what you should carry out."
 

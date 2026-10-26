@@ -509,7 +509,7 @@ describe('the depot leak at Nose', () => {
 });
 
 describe('locals at stalls', () => {
-  const OPEN = ['Read her the big dial.', 'Ask why the tanker\'s meter came off.'];
+  const OPEN = ['Read her the big dial.', 'Ask why the household truck\'s meter came off.'];
   const COVER = 'Tell him she was talking about pump pressures.';
   const CARRY = 'Say you\'ll carry the copy.';
   const TAKE = 'Take the copy and the meter out to your truck.';
@@ -517,7 +517,7 @@ describe('locals at stalls', () => {
   const LIE = 'Tell him it\'s pump records for the lock house.';
   const LOCK = 'Drive down to the lock house.';
   const SIGN = 'Sign and write what you read on the dial.';
-  const TERRACE = 'Follow the tanker\'s tracks up to the top terrace.';
+  const TERRACE = 'Follow the household truck\'s tracks up to the top terrace.';
   const BOLT = 'Bolt Agnes\'s meter onto the inlet.';
 
   it('lists Agnes at Dustwell', () => {

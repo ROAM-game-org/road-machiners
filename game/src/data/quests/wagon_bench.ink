@@ -140,9 +140,9 @@ If you drive down to Bowl, my mother buys her water at Hattie's well house. Tell
   Teller takes his hand off his watch. It's the soldier who breaks him, not you, and you're glad of it.
   The brake rod went on the bend, and she went over. I took the bend fast. I said raiders to keep my stripes. They pay my sister's ration card. # speaker: Teller
   Lena sends Duvall for Sergeant Kovac. Teller says it again in front of him and signs it. Kovac writes it under the raid report and crosses nothing out.
-  Corporal. Water cart, from tomorrow. Leave the stripes on my desk. # speaker: Kovac
+  Corporal. Barrel runs, from tomorrow. Leave the stripes on my desk. # speaker: Kovac
   And my sister's bread? # speaker: Teller
-  A water carter's card feeds one man. Rations aren't mine to give. # speaker: Kovac
+  A barrel runner's card feeds one man. Rations aren't mine to give. # speaker: Kovac
   Kovac holds out his hand for the half rod. It's what you carried it up here for, and you give it to him. He counts out the finder's rate for it, {fee} M. Then he draws a line through two depot trucks with the same rods, off the road until Lena has looked at them.
   ~ wagon_fate = "admitted"
   ~ give_money(fee)

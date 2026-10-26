@@ -37,7 +37,7 @@ Nobody agrees, and each guess has its believers.
 - Somebody in the Pierce office sold the roads of insured trucks to robbers. He went north-west and never came back.
 - The Nose Committee rents its workshop line with Pierce money.
 - The Administrator keeps a book in the crane office that could bring down both towns.
-- The old Senate families on the top terraces send a tanker to Dustwell that never shows up in any book.
+- The old Senate families on the top terraces send a truck to Dustwell for water that never shows up in any book.
 
 ## The road
 
