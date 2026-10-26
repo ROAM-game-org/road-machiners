@@ -86,15 +86,22 @@ function playable(source, name, cue) {
   return cue.bus === 'music' ? musicLoop(source, name) : steadyLoop(source, `tmp/sfx-raw/${name.replace('.ogg', '')}.loop.wav`);
 }
 
+function encodeLoop(looped, out, gain, tag) {
+  const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', looped, '-af', `volume=${gain.toFixed(2)}dB,${limiter}`, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', ...(tag ? ['-metadata', `comment=${tag}`] : []), out]);
+}
+
 export function reloopShipped(file) {
   const path = `${SFX_DIR}/${file}`;
   const tag = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream_tags=comment', '-of', 'default=nw=1:nk=1', path], { encoding: 'utf8' }).trim();
   mkdirSync('tmp/sfx-raw', { recursive: true });
   const looped = steadyLoop(path, `tmp/sfx-raw/${file.replace('.ogg', '')}.reloop.wav`);
-  const gain = integratedLoudness(path) - integratedLoudness(looped);
-  const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
-  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', looped, '-af', `volume=${gain.toFixed(2)}dB,${limiter}`, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', ...(tag ? ['-metadata', `comment=${tag}`] : []), `${path}.new.ogg`]);
-  renameSync(`${path}.new.ogg`, path);
+  const want = integratedLoudness(path);
+  const trial = `${path}.new.ogg`;
+  const first = want - integratedLoudness(looped);
+  encodeLoop(looped, trial, first, tag);
+  encodeLoop(looped, trial, first + want - integratedLoudness(trial), tag);
+  renameSync(trial, path);
 }
 
 function shapeFilters(src, cue) {

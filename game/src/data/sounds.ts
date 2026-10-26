@@ -305,10 +305,12 @@ function correlation(samples: Float32Array, a: number, b: number, length: number
 export function alignedLoopEnd(samples: Float32Array, sampleRate: number, startSample: number, endSample: number): number {
   const length = Math.round(LOOP_CHECK.crossfadeSeconds * sampleRate);
   const reach = Math.round(LOOP_CHECK.seamSearchSeconds * sampleRate);
-  if (endSample - reach - length < 0 || endSample + reach > samples.length || startSample + length > samples.length) throw new Error("The seam search leaves the buffer");
+  const first = Math.max(endSample - reach, length);
+  const last = Math.min(endSample + reach, samples.length);
+  if (first > last || startSample + length > samples.length) throw new Error("The seam search leaves the buffer");
   let best = endSample;
   let bestScore = -Infinity;
-  for (let end = endSample - reach; end <= endSample + reach; end++) {
+  for (let end = first; end <= last; end++) {
     const score = correlation(samples, end - length, startSample, length);
     if (score > bestScore) {
       bestScore = score;

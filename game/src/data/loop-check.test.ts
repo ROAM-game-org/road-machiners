@@ -68,7 +68,7 @@ describe('alignedLoopEnd', () => {
   });
 
   it('throws when the search leaves the buffer', () => {
-    expect(() => alignedLoopEnd(pulses(1), RATE, 100, 47000)).toThrow();
+    expect(() => alignedLoopEnd(pulses(1), RATE, 100, 60000)).toThrow();
   });
 });
 
