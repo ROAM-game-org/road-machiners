@@ -36,7 +36,7 @@
   gap: var(--hud-gap);
 }
 #ui:not(.phone) .right-dock {
-  max-height: calc(var(--layer-h) - var(--safe-top) - var(--hud-inset) - var(--log-height) - var(--icon-hero) - var(--space-9) - var(--hud-gap) - var(--hud-gap));
+  max-height: calc(var(--layer-h) - var(--safe-top) - var(--hud-inset) - var(--log-height) - var(--icon-hero) - var(--space-9) - var(--btn-h-s) - var(--hud-gap) - var(--hud-gap) - var(--hud-gap));
   overflow-y: auto;
   scrollbar-width: thin;
 }

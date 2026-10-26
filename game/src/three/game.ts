@@ -338,7 +338,7 @@ export class Game {
       releaseTurn: () => this.releaseTurn(),
       runKey: (code) => this.runKey(code),
       searchStock: (id) => this.searchFromLoot(id),
-      autoTravel: () => this.travel.isAuto(this.world),
+      autoTravel: () => this.travel.isAuto(this.world), travelSpeedIndex: () => this.travel.getSpeedIndex(), setTravelSpeedIndex: (index) => this.travel.setSpeedIndex(index),
       getTurnPhase: () => this.phase,
       garageRenders: () => this.hud.garage,
     };

@@ -406,6 +406,7 @@ class FakeNode {
   append(...c: (FakeNode | string)[]) { this.children.push(...c); }
   replaceChildren(...c: (FakeNode | string)[]) { this.children = c; }
   setAttribute(k: string, v: string) { this.attrs.set(k, v); }
+  removeAttribute(k: string) { this.attrs.delete(k); }
   querySelector(sel: string): FakeNode | undefined {
     const byWeapon = sel.match(/^\[data-weapon="(.*)"\]$/);
     if (byWeapon) return this.find((n) => n.attrs.get("data-weapon") === byWeapon[1]);
@@ -450,6 +451,8 @@ describe("weapon panel keys and the turn button", () => {
       runKey: vi.fn(),
       searchStock: vi.fn(),
       autoTravel: () => auto,
+      travelSpeedIndex: vi.fn(() => 0),
+      setTravelSpeedIndex: vi.fn(),
       getTurnPhase: () => null,
     } satisfies UiHost;
     const panel = new WeaponPanel(host);
@@ -545,6 +548,14 @@ describe("weapon panel keys and the turn button", () => {
     expect(host.releaseTurn).toHaveBeenCalledTimes(1);
   });
 
+  it("the speed buttons pick a travel speed and mark the current one", () => {
+    const { host, button } = build();
+    expect(button(">>>").attrs.get("aria-pressed")).toBe("false");
+    expect(button(">").attrs.get("aria-pressed")).toBe("true");
+    button(">>>").fire("click");
+    expect(host.setTravelSpeedIndex).toHaveBeenLastCalledWith(2);
+  });
+
   it("the Auto look presses the same way", () => {
     const { host, button } = build(true);
     button("Auto").fire("pointerdown", { button: 0 });
@@ -622,7 +633,7 @@ describe("disabled reasons on the weapon bar", () => {
     setup(world);
     const host = {
       world: () => world, apply: vi.fn(), announce: vi.fn(), selectedWeapon: () => null, selectWeapon: vi.fn(), selectedUtility: () => null, selectUtility: vi.fn(),
-      searchStock: vi.fn(), pressTurn: vi.fn(), releaseTurn: vi.fn(), runKey: vi.fn(), autoTravel: () => false, getTurnPhase: () => phase,
+      searchStock: vi.fn(), pressTurn: vi.fn(), releaseTurn: vi.fn(), runKey: vi.fn(), autoTravel: () => false, travelSpeedIndex: () => 0, setTravelSpeedIndex: vi.fn(), getTurnPhase: () => phase,
     } satisfies UiHost;
     new WeaponPanel(host).render();
     const find = (text: string) => (ui.children as FakeNode[]).map((n) => n.find((b) => b.tag === "button" && b.text().includes(text))).find(Boolean)!;
@@ -676,6 +687,8 @@ describe("the utility row", () => {
       runKey: vi.fn(),
       searchStock: vi.fn(),
       autoTravel: () => false,
+      travelSpeedIndex: vi.fn(() => 0),
+      setTravelSpeedIndex: vi.fn(),
       getTurnPhase: vi.fn<() => "moving" | null>(() => null),
     } satisfies UiHost;
     return { world, host, row: new UtilityRow(host), sprout, mortar };

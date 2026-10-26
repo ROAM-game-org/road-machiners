@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { CONFIG } from "../config";
 import { RULES } from "../data/rules";
 import { buildDrive, captureDrive, freeDrive, initPhysics, restFrame, TURN_STEPS, type Drive, type DriveSnapshot } from "../phys/drive";
 import { PHYSICS } from "../data/physics";
@@ -98,6 +99,75 @@ describe("turn advancement", () => {
     travel.pause();
     expect(travel.isFast(1000)).toBe(false);
     expect(travel.shouldAdvance(1000)).toBe(false);
+  });
+});
+
+describe("picked travel speed", () => {
+  const FAST = 4;
+  const LAST = CONFIG.travelSpeeds.length - 1;
+
+  function travelling(index: number) {
+    const travel = new Travel(250, TAIL);
+    travel.setSpeedIndex(index);
+    travel.update(true, true);
+    travel.press(0, false, true);
+    travel.release();
+    return travel;
+  }
+
+  it("starts at the first speed", () => {
+    expect(new Travel(250, TAIL).getSpeedIndex()).toBe(0);
+  });
+
+  it("plays the picked speed while waypoint travel runs", () => {
+    const travel = travelling(2);
+    expect(travel.getSpeed(1000, FAST)).toBe(CONFIG.travelSpeeds[2]);
+  });
+
+  it("plays 1 when no travel runs, whatever is picked", () => {
+    const travel = new Travel(250, TAIL);
+    travel.setSpeedIndex(LAST);
+    expect(travel.getSpeed(1000, FAST)).toBe(1);
+  });
+
+  it("lets held Space override the picked speed", () => {
+    const travel = travelling(LAST);
+    Object.assign(travel, { pressedAt: 2000 });
+    expect(travel.getSpeed(2300, FAST)).toBe(FAST);
+    travel.release(2300);
+    expect(travel.getSpeed(2400, FAST)).toBe(CONFIG.travelSpeeds[LAST]);
+  });
+
+  it("keeps the pick over a pause and plays it again on the next start", () => {
+    const travel = travelling(3);
+    travel.pause();
+    expect(travel.getSpeedIndex()).toBe(3);
+    expect(travel.getSpeed(1000, FAST)).toBe(1);
+    travel.update(true, true);
+    travel.press(5000, false, true);
+    travel.release();
+    expect(travel.getSpeed(6000, FAST)).toBe(CONFIG.travelSpeeds[3]);
+  });
+
+  it("drops to 1 when travel stops on its own", () => {
+    const travel = travelling(3);
+    travel.update(false, true);
+    expect(travel.getSpeed(1000, FAST)).toBe(1);
+  });
+
+  it("leaves turns that run on their own at 1", () => {
+    const travel = new Travel(250, TAIL);
+    travel.setSpeedIndex(LAST);
+    const world = makeSafeWorld();
+    world.player.state = "knockedOut";
+    expect(travel.isAuto(world)).toBe(true);
+    expect(travel.getSpeed(1000, FAST)).toBe(1);
+  });
+
+  it("throws on a speed that does not exist", () => {
+    const travel = new Travel(250, TAIL);
+    expect(() => travel.setSpeedIndex(CONFIG.travelSpeeds.length)).toThrow();
+    expect(() => travel.setSpeedIndex(-1)).toThrow();
   });
 });
 

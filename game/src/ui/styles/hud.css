@@ -453,6 +453,18 @@
   background: none;
   padding: 0;
   box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--hud-gap);
+}
+#ui .travel-speed {
+  width: 100%;
+}
+#ui .travel-speed > button {
+  min-height: var(--btn-h-s);
+  padding: 0 var(--space-1);
+  font: var(--text-caption) var(--font-mono);
+  white-space: nowrap;
 }
 #ui .end-turn {
   width: calc(var(--icon-hero) + var(--space-10));
