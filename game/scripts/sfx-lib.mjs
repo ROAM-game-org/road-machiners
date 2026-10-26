@@ -2,7 +2,8 @@ import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, renameSync, unlinkSync, mkdirSync, writeFileSync } from 'node:fs';
 import { promisify } from 'node:util';
-import { alignedLoopEnd, BANK, beatLoopSeconds, describeFaults, isFreeSfxLoop, LOOP_CHECK, loopFaults, MIX, SOUNDS } from '../src/data/sounds.ts';
+import { alignedLoopEnd, describeFaults, isFreeSfxLoop, loopFaults } from '../src/audio/loop-check.ts';
+import { BANK, beatLoopSeconds, LOOP_CHECK, MIX, SOUNDS } from '../src/data/sounds.ts';
 
 export const SFX_DIR = 'public/sfx';
 export const TWIN_DIR = 'public/sfx-m4a';

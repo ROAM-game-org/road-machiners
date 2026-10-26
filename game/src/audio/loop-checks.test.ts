@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { isFreeSfxLoop, SOUNDS } from '../data/sounds';
+import { SOUNDS } from '../data/sounds';
+import { isFreeSfxLoop } from './loop-check';
 
 const hashOf = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
 const loops = [...new Set(Object.values(SOUNDS).filter(isFreeSfxLoop).flatMap((cue) => cue.files))].sort();

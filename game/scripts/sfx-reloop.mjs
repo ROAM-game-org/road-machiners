@@ -1,4 +1,5 @@
-import { isFreeSfxLoop, SOUNDS } from '../src/data/sounds.ts';
+import { isFreeSfxLoop } from '../src/audio/loop-check.ts';
+import { SOUNDS } from '../src/data/sounds.ts';
 import { cueOf, reloopShipped, syncTwins } from './sfx-lib.mjs';
 
 function filesOf(arg) {

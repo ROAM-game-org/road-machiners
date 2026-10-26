@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alignedLoopEnd, describeFaults, loopFaults } from './sounds';
+import { alignedLoopEnd, describeFaults, loopFaults } from './loop-check';
 
 const RATE = 48000;
 const PERIOD = 0.0435;
