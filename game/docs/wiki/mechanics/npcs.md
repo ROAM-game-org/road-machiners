@@ -67,7 +67,7 @@ Every NPC carries a set of traits instead of one class. Each trait adds activiti
 - Vulture prowls the hunting roads for wrecks and knocked-out trucks, and rarely helps anyone. Most vultures are cowards and some are scumbags.
 - Courier travels between towns and locations, and almost never stops for salvage. Couriers run in pairs of two couriers, and one follows the other as its escort. The town or stall a pair reaches pays each of them for the trip, and a territory pays nothing.
 - Roamer mostly explores random places, off road too, and trades and scavenges when it finds a chance.
-- Supplier hauls petrol from the Pump Station to the towns. About one trip in three it buys goods for up to 2500 and trades them between towns instead.
+- Supplier hauls diesel from the Pump Station to the towns. About one trip in three it buys goods for up to 2500 and trades them between towns instead.
 - Guard follows a supply convoy and protects it.
 - Merc waits at a town for hire, then escorts its client, or rides guard for the player for a day.
 
