@@ -160,6 +160,10 @@ function conditionSpeed(world: World, v: Vehicle, from: number, steps: SpeedStep
   return speed;
 }
 
+export function vehicleRadius(v: Vehicle): number {
+  return chassisDef(v.chassisId).radius;
+}
+
 export function plainFuelPerTile(world: World, v: Vehicle): number {
   return fuelPerTileWith(world, v, 1);
 }
