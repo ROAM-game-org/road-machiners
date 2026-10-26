@@ -132,7 +132,7 @@ Water costs here, talk doesn't, and I hear everything that happens in <term=bowl
 ```
 
 ```ts
-'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the well house sells it by the bucket.',
+'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and drivers buy theirs by the bucket at the well house in the gate yard.',
 ```
 
 What a tip may say:

@@ -1,6 +1,6 @@
 # view: page
 # stat: money M's
-# fact: book_read Agnes's copy: the pump brings up less every season, and the household's tanker takes more. Her guess, if that goes on: Bowl's trucks get almost nothing by next autumn.
+# fact: book_read Agnes's copy: the deep well brings up less every season, and the household's tanker takes more. Her guess, if that goes on: Bowl's trucks get almost nothing by next autumn.
 # fact: margin_read Agnes's copy, last page: for Mirela, to compare with hers.
 # fact: offer_heard Steward Aurel Brede offered M's to lose the copy and forget the dial.
 # fact: reserve_known Steward: half of the tanker's water fills a tank under the top terrace. It is the Senate's reserve for a dry year, and only the Archon may open it.
@@ -152,7 +152,7 @@ The offer is closed. My rider will reach the gate before you. # speaker: Steward
 
 === onto_road ===
 The Bowl road runs across the flat. Bowl is hours away. # page # place: The road
-Far ahead, the household's tanker crawls along under its load. Empty water trucks pass you on their way back to the pump.
+Far ahead, the household's tanker crawls along under its load. Empty water trucks pass you on their way back to Dustwell.
 -> road
 
 === road ===
@@ -171,8 +171,8 @@ Far ahead, the household's tanker crawls along under its load. Empty water truck
 ~ book_read = true
 ~ margin_read = true
 ~ note("pipeDraw")
-You cut the seal and open the copy on your knee. It matches the book you saw at the pump, line for line, down to your name beside this week's dial.
-On the last page Agnes has run the numbers forward in pencil. At the top she wrote: if the pump keeps falling and the tanker keeps growing.
+You cut the seal and open the copy on your knee. It matches the book you saw at the deep well, line for line, down to your name beside this week's dial.
+On the last page Agnes has run the numbers forward in pencil. At the top she wrote: if the well keeps falling and the tanker keeps growing.
 Barrels a week; Pumped up; Household tanker; Left for Bowl's trucks # head
 This week; 300; 70; 220 # row
 Next spring; 270; 100; 160 # row
@@ -186,7 +186,7 @@ Under the sum she wrote: For Mirela, to compare with hers.
 { crossed():
   -> through
 }
-Bowl patrolmen hold the gate, with a cart across the road. To the left, a dry ditch runs around the wall. # page # place: The Bowl gate
+Bowl patrolmen hold the gate, with a cart across the road and a line of trucks idling behind it. To the left, a dry ditch runs around the wall. # page # place: The Bowl gate
 The household's tanker is through the gate ahead of you. Nobody asked it for a pass.
 { sluice == "watched":
   The steward's rider waits behind the patrolmen, next to his buggy.
@@ -357,7 +357,7 @@ Midsummer; 340; 340 # row
 Autumn; 290; 290 # row
 This week; 220; 220 # row
 Every barrel she wrote down for Bowl's trucks reached my trough. So her hose meters are honest. The passing trucks I can't check, but they're a few barrels a week with a name beside each one, yours too. # speaker: Mirela
-That leaves the dial. Nobody in Bowl can see what the pump brings up. You read it this week, and your name is beside the number. # speaker: Mirela
+That leaves the dial. Nobody in Bowl can see what the deep well brings up. You read it this week, and your name is beside the number. # speaker: Mirela
 Agnes swears to her hoses, I swear to my trough, and you swear to the dial. Each of us swears only to what we read ourselves. # speaker: Mirela
 Pumped up, less the hoses, is the gap. You saw for yourself that the tanker's hose is the only one with no meter. # speaker: Mirela
 { valve_read:
@@ -403,7 +403,7 @@ The Senate meets in a week. # speaker: Mirela
 The truck drivers who watched you sign spread the news.
 A week later, news reaches the drivers' well. Mirela read the numbers to the Senate: Agnes's hoses, her own trough and your dial, with your name under it. # page
 The household's bench said Agnes made her numbers up. Mirela asked who made up the dial, and read your name. Nobody on that bench knew you, so nobody could call you a liar.
-The Senate took no vote on the tanker and needed none. The next week the tanker came to the pump with a meter on its hose, fitted by the steward's own crew. A counted tanker is a smaller story than a secret one, and the steward deals in small stories. # reveal: all
+The Senate took no vote on the tanker and needed none. The next week the tanker came to the deep well with a meter on its hose, fitted by the steward's own crew. A counted tanker is a smaller story than a secret one, and the steward deals in small stories. # reveal: all
 The trough stays with the household's clerk, and the reserve under the terrace stays a secret. Your name is in a book the steward reads. Nobody from the household has come asking for you.
 -> END
 
@@ -425,7 +425,7 @@ The Senate moved on to grain. # reveal: all
 ~ pipe_fate = "read"
 ~ marr_regard = "enemy"
 Tenants crowd the market with empty water cans. The water trucks are late again. # page # place: Bowl market
-You read Agnes's numbers out loud, and then what you saw at the pump: the dial, the hoses with meters, and the household's tanker on the one without.
+You read Agnes's numbers out loud, and then what you saw at the deep well: the dial, the hoses with meters, and the household's tanker on the one without.
 A grey-haired tenant repeats each number to the people behind him.
 Bowl patrolmen push through the crowd toward you.
 { passed():

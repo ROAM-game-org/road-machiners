@@ -75,7 +75,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   -> hub
 + {wagon_saw and wagon_fate == "none"} [Nobody raided that wagon.]
   No. I walked that hollow too. Not one casing in the grit, and not a hole in her. Whatever stove in that cab was the slope, not a gun.
-  Nose says raiders, and every driver who buys water here believes it. If you want it said, say it at the well house where they all drink. I'll stand next to you while you do.
+  Nose says raiders, and every driver who buys water here believes it. If you want it said, say it at Hattie's well house, where the drivers drink. I'll stand next to you while you do.
   ++ [Say it at the well house.]
      ~ wagon_fate = "told"
      You say it at Hattie's, plainly, to whoever is holding a cup: no brass, no holes, every dent from the slope. Dag stands next to you and says he counted the same. # page

@@ -11,7 +11,7 @@ VAR petra_raiders = false
 # checkpoint: start
 Welcome to the Roadhouse, driver. I'm Petra Quell, keeper of the mast.
 I wrote your truck down, with the hour, when it came over the rise. What the mast hears is for sale.
-Wim Satterly keeps the <term=road_book>road book</term> in the other hut.
+Wim Satterly keeps the <term=road_book>road book</term> at his counter across the yard.
 -> hub
 
 = hub

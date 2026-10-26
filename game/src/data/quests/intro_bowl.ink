@@ -14,7 +14,7 @@ VAR asked_tips = false
 === start ===
 # checkpoint: start
 Somewhere close, a bucket is coming up a well on a creaking rope. You lie still and listen to it for a while, because it is the best sound in the world. # place: Bowl # img: bowl_yard
-You're lying on a bench under a roof of woven reeds. Past the shade run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
+You're lying on a bench under a roof of woven reeds. Trucks grind in and out of the gate, and water carriers pass with buckets on yokes. Past the shade run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
 You sit up, and your head swims, then settles. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper. It has a brass tag on it, the same kind as the one on your key. # page
 The bed is empty. {engine_missing(): Somebody went through the engine and left the bolts where they fell.|Somebody went through the cab and the toolbox, but the engine is still bolted in.} Well. At least they left you the truck.
 A broad woman with wet hands and rolled sleeves sets a cup of water on the bench beside you. Then she sits down at the other end of it. # page
@@ -55,11 +55,11 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
   -> questions
 + {asked_region and not asked_nose} [And Nose?]
   ~ asked_nose = true
-  <term=nose>Nose</term> is up the north road. Soldiers at the wall, and a workshop turning out engines and guns for half the basin. Strangers get in if they're buying. # speaker: Hattie
+  <term=nose>Nose</term> is up the north road. Soldiers at the wall, and a workshop line turning out engines and guns for half the basin. Strangers get in if they're buying. # speaker: Hattie
   -> questions
 + {asked_region and not asked_yard} [And the yards?]
   ~ asked_yard = true
-  Anywhere there's a crane and a dead truck, there's a yard. They sell you the bits yours is missing, for scrap or M's. # speaker: Hattie
+  Anywhere there's a crane crew and a pile of dead trucks, there's a yard. They sell you the bits yours is missing, for scrap or M's. # speaker: Hattie
   -> questions
 + {asked_region and not asked_kiln} [And the raiders?]
   ~ asked_kiln = true
@@ -82,7 +82,7 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
 === meet ===
 # checkpoint: meet
 You leave the truck on the pad and walk in for water, because the tank is not the only thing in you that's dry. A bucket is coming up a well on a creaking rope. # place: Bowl # img: bowl_yard
-Past the well house run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
+Drivers queue at the well house with their cans, and trucks grind in and out of the gate. Past it run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
 A broad woman with wet hands and rolled sleeves sits on a bench under a roof of woven reeds, and watches you come the whole way. # page
 I'm Hattie, this is my well. I heard your truck before I saw it. # speaker: Hattie
 She wipes her hands on her apron. Her eyes go over your dust, your boots, the pickup out on the pad.
@@ -92,7 +92,7 @@ Drinking water's in this can. Radiator water's in that one. Mind which goes in y
 === again ===
 # checkpoint: again
 Somewhere close, a bucket is coming up a well on a creaking rope. You know that sound now. # place: Bowl # img: bowl_yard
-You're lying on the bench under the reed roof. Past the shade run the canals, and the green steps of the fields. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper, with a brass tag on it. # page
+You're lying on the bench under the reed roof. Trucks grind in and out of the gate. Past the shade run the canals, and the green steps of the fields. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper, with a brass tag on it. # page
 The bed is empty. {engine_missing(): Somebody went through the engine and left the bolts where they fell.|Somebody went through the cab and the toolbox, but the engine is still bolted in.}
 Hattie sets a cup of water on the bench beside you and sits down at the other end of it. # page
 Back on my bench again. You're still letting someone else do the driving. # speaker: Hattie

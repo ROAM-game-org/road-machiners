@@ -5,7 +5,7 @@ VAR asked_gate = false
 
 === start ===
 # checkpoint: start
-Odile Marsh, steward of the <term=granary>Granary</term>. Every sack that comes in and every crate that goes out, I write on the gate, so the whole road can read what we hold. If you carry sorgut, salt or water, the gate scale pays for it.
+Odile Marsh, steward of the <term=granary>Granary</term>. Every sack that comes in and every crate that goes out goes on the count, and I chalk the totals on the gate, so the whole road can read what we hold. If you carry sorgut, salt or water, the gate scale pays for it.
 -> hub
 
 = hub
@@ -17,13 +17,13 @@ Odile Marsh, steward of the <term=granary>Granary</term>. Every sack that comes 
     Sorgut's low. The Bowl trucks aren't coming in fast enough, so the mill stands half the day.
   }
   { short_of("salt"):
-    Salt's low. Bread without salt goes green by spring, so I hold back what I make.
+    Salt's low. Bread without salt goes green by spring, so the bakehouses hold back their batches.
   }
   { short_of("water"):
     Water's low. No water, no dough, and the Dustwell trucks are late again.
   }
   { short_of("tools"):
-    The press is on its last good wrench. When that goes, it's one batch where there were two.
+    The presses are down to their last good wrenches. When those go, it's one batch where there were two.
   }
   -> hub
 + {not asked_need} [What do you need from a driver?]

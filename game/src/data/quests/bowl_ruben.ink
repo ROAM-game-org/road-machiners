@@ -7,7 +7,7 @@ VAR ruben_water = false
 
 === start ===
 # checkpoint: start
-Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That means I decide which fields drink first, so I'm used to being cursed by people who are only thirsty. What is on your mind?
+Sit a while, the shade is free. I am Ruben, and I keep a run of the canal gates. That means I decide which fields drink first, so I'm used to being cursed by people who are only thirsty. What is on your mind?
 -> hub
 
 = hub
@@ -23,12 +23,12 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   ~ ruben_senate = true
   -> hub
 + [Where can I get water, or find work?]
-  Water is Hattie's trade. She keeps the well house and sells a bucket to anyone with M's. Work is Dag's, because he rides with the <term=farmers>Farmers</term> and knows what hauls are waiting.
-  I only open the gates. The water that goes through them belongs to the families, and the water trucks bring it from <term=dustwell>Dustwell</term>. That's a well outpost up the north road, hours away. They pour it into the canals at the bottom of Bowl, and the families share it out.
+  Water for drivers is Hattie's trade. She keeps the well house in the gate yard and sells a bucket to anyone with M's. For work, ask Dag, because he rides with the <term=farmers>Farmers</term> and knows what hauls are waiting.
+  I only open the gates. The water that goes through them belongs to the families, and the water trucks bring it from <term=dustwell>Dustwell</term>. That's a well town up the north road, hours away. They pour it into the canals at the bottom of Bowl, and the families share it out.
   ~ ruben_water = true
   -> hub
 + [What does Bowl make?]
-  Sorgut, mostly. Every barrel the trucks bring from <term=dustwell>Dustwell</term> goes through my gates to the terraces, and the terraces give it back three sacks for one.
+  Sorgut, mostly. Every barrel the trucks bring from <term=dustwell>Dustwell</term> goes through gates like mine to the terraces, and the terraces give it back three sacks for one.
   The weavers and the clinic need nothing from outside but patience. The machinists' benches eat scrap, and the workshop wants batteries from Nose for its radios. My grandmother called that buying thunder in a box.
   { short_of("water"):
     The canals are low this week. The terraces drink after the houses, so the sorgut comes in thin, and nobody thanks the man at the gate.
@@ -54,7 +54,7 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   -> hub
 + {ruben_water || found("dustwell")} [What do you know about Dustwell?]
   In the last dry year the pumps at Green Pit drew mud by noon, and the Senate argued over whose fault that was, as if the pumps had been listening.
-  In the Dustwell shed, Wendell Ondra kept the pump book all his life and died at the Green Pit sluice. His niece Agnes keeps the book now, and she writes down every drop.
+  In a shed by the Dustwell deep well, Wendell Ondra kept the pump book all his life and died at the Green Pit sluice. His niece Agnes keeps the book now, and she writes down every drop.
   -> hub
 + {ruben_senate} [What are the tenants saying?]
   They say they feed Bowl and have no say in it, and they're right. The families never wanted to tell a tenant what to think, only what to plant.
