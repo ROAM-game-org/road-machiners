@@ -4,7 +4,7 @@ import { addVehicle, emptyWorld, npcBrain } from '../testkit';
 import type { World } from '../types';
 import { update } from '../world';
 import { npcLedger } from './npc-ledger';
-import { recordTurns } from './record';
+import { recordTurns } from './record-node';
 
 const RECONCILED_RUN = 16;
 const RUN_TIMEOUT = 360_000;

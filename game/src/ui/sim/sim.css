@@ -1,0 +1,87 @@
+#ui.sim {
+  display: grid;
+  grid-template-columns: 1fr var(--panel-xl);
+  pointer-events: auto;
+  background: var(--color-void);
+}
+.sim-map {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+#ui.sim .sim-map .map-view {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  cursor: grab;
+}
+.sim-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  padding: var(--space-4);
+  border-left: 1px solid var(--line-soft);
+}
+.sim-controls,
+.sim-filters,
+.sim-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+.sim-status {
+  font-family: var(--font-mono);
+  font-size: var(--text-dense);
+}
+.sim-failure {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-dense);
+}
+.sim-failure:empty {
+  display: none;
+}
+.sim-dot {
+  display: inline-block;
+  width: var(--space-4);
+  height: var(--space-4);
+  margin-right: var(--space-2);
+  border-radius: var(--radius-pill);
+}
+#ui.sim .sim-card {
+  position: static;
+  flex: 0 1 auto;
+  max-height: 45%;
+  overflow: auto;
+  font-size: var(--text-dense);
+}
+.sim-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.sim-section {
+  margin-top: var(--space-4);
+  font-family: var(--font-mono);
+}
+.sim-log {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-dense);
+}
+.sim-log li {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.sim-log li:hover {
+  background: var(--surface-hover);
+}
