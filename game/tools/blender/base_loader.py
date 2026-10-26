@@ -72,6 +72,7 @@ ROOF_T = 0.15
 UNDER_ROOF = ROOF - ROOF_T
 ROOF_OVER = 0.08
 PILLAR = 0.1
+GLASS_SINK = 0.02
 
 HOOD_FRONT = CAB_BACK
 HOOD_Y = 0.68
@@ -277,7 +278,7 @@ def cab(kit: Kit) -> None:
     length = CAB_FRONT - CAB_BACK
     h = UNDER_ROOF - BELT
     kit.box("cab_base", (length, 2 * CAB_HALF, BELT - PLATFORM_TOP), (mid, 0, (BELT + PLATFORM_TOP) / 2), "paint")
-    kit.box("glass", (length - 0.04, 2 * CAB_HALF - 0.04, h), (mid, 0, (BELT + UNDER_ROOF) / 2), "glass")
+    kit.box("glass", (length - 0.04, 2 * CAB_HALF - 0.04, h + 2 * GLASS_SINK), (mid, 0, (BELT + UNDER_ROOF) / 2), "glass")
     for x in (CAB_FRONT - PILLAR / 2, CAB_BACK + PILLAR / 2):
         mirrored(kit, f"pillar{x:.2f}", (PILLAR, PILLAR, h), x, CAB_HALF - PILLAR / 2, (BELT + UNDER_ROOF) / 2, "trim")
     mirrored(kit, "door_post", (0.07, 0.03, h), mid - 0.15, CAB_HALF, (BELT + UNDER_ROOF) / 2, "trim")

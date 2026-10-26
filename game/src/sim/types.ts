@@ -464,6 +464,7 @@ export type CallVar =
   | { kind: "sighting"; driver: string; seen: { bearing: number; tiles: number; turns: number; heading: number } | null }
   | { kind: "bearing"; rad: number }
   | { kind: "distance"; tiles: number }
+  | { kind: "square"; column: number; row: number }
   | { kind: "answer"; option: string }
   | { kind: "line"; line: LineId }
   | { kind: "directions"; steps: DirectionStep[] };

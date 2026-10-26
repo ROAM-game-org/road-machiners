@@ -20,8 +20,8 @@ describe('save migration 104 to 105, leave steps take a lean', () => {
 
   it('reads the same sentence as before the step', () => {
     const next = step(structuredClone(FORMAT_2_104));
-    expect(speak(next.player.call.vars.way.steps)).toBe('Take the road to Nose, heading north-east. Where the road runs closest, leave the road and head south, a fair way. Look for it somewhere out there.');
-    expect(speak(next.player.call.line.vars.way.steps)).toBe('Past the second fork, where the road runs closest, leave the road and head east, a short way.');
+    expect(speak(next.player.call.vars.way.steps)).toBe('Take the road to Nose, heading east. Where the road runs closest, leave the road and head south-west, a fair way.');
+    expect(speak(next.player.call.line.vars.way.steps)).toBe('Past the second fork, where the road runs closest, leave the road and head south-east, a short way.');
   });
 
   it('changes nothing in a save with no call', () => {

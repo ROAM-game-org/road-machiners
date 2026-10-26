@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, updateState, writeState } from './state';
 import { stuckText } from './position';
-import { classifyStuck, sweepStuck, type Repair } from './stuck';
+import { classifyStuck, clearStuck, sweepStuck, type Repair } from './stuck';
 import { STUCK_LABEL, WORK_DIR, type Card, type Ctx, type Failure, type FactoryState, type Job } from './types';
 
 const NOW = new Date('2026-10-09T12:00:00Z');
@@ -107,6 +107,19 @@ describe('the stuck sweep', () => {
     await sweep(b);
     expect(kinds(b)).toEqual({ 10: 'merge-batch', 11: 'merge-batch' });
     expect(b.removed).toEqual([10]);
+  });
+
+  it('marks a released or retried card cleared on its batch failure, keeps the batch whole, and drops the row once every member is cleared', async () => {
+    const b = board([10, 11].map((issue) => stuck(issue, 'Merging')), { failures: [mergeDown([10, 11], minutesAgo(30)), failure(11, 'checks failed'), failure(12, 'other')] });
+    await sweep(b);
+    expect(b.removed).toEqual([10]);
+    expect(readState(b.ctx.statePath).failures.map((row) => [row.issue, row.batch, row.cleared])).toEqual([[null, [10, 11], [10]], [11, undefined, undefined], [12, undefined, undefined]]);
+    b.cards = b.cards.map((card) => (card.issue === 10 ? stuck(10, 'Merging') : card));
+    expect(classifyStuck({ state: { ...readState(b.ctx.statePath), stuck: {} }, cards: b.cards, now: NOW, diskOk: true, marks: () => [] })['10']!.kind).toBe('unrecorded');
+    await clearStuck(b.ctx, 10);
+    expect(readState(b.ctx.statePath).failures.map((row) => row.cleared)).toEqual([[10], undefined, undefined]);
+    await clearStuck(b.ctx, 11);
+    expect(readState(b.ctx.statePath).failures.map((row) => row.issue)).toEqual([12]);
   });
 
   it('reads the cause field and never the error text', async () => {

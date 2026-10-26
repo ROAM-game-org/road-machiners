@@ -1,10 +1,11 @@
 import { moveCard } from '../card-events';
 import { readCommittee, telegramIds } from '../committee';
 import { queueIncidents } from '../stages/incident';
-import { VOTING_LABEL, WONT_DO_LABEL, type Ctx } from '../types';
+import { readState } from '../state';
+import { VOTING_LABEL, WONT_DO_LABEL, type Card, type Ctx } from '../types';
 import { isolated } from './isolate';
 import { ACCEPTED_BY_COMMITTEE, acceptedWith, CLOSED_CONCLUSION, netScore, proposalText, REJECTED_BY_COMMITTEE, signed, voteFooter, voteSides, type VoteSides } from './proposals';
-import type { Proposal, PublicStore, Tally } from './store';
+import { openStore, type Proposal, type PublicStore, type Tally } from './store';
 
 type Outcome = { kind: 'accept' | 'reject'; reason: string; conclusion: string };
 
@@ -34,6 +35,28 @@ function outcomeOf(ctx: Ctx, store: PublicStore, issue: number, tally: Tally, co
   const score = netScore(tally);
   if (score >= ctx.cfg.minVotes) return { kind: 'accept', reason: `with a net score of ${signed(score)}`, conclusion: acceptedWith(score) };
   return null;
+}
+
+export async function reviveVotes(ctx: Ctx, cards: Card[]): Promise<void> {
+  const running = new Set(readState(ctx.statePath).jobs.map((job) => job.issue));
+  const voting = cards.filter((card) => card.column === 'Triage' && card.labels.includes(VOTING_LABEL) && !running.has(card.issue));
+  if (voting.length === 0) return;
+  const store = openStore(ctx.cfg.home);
+  try {
+    for (const card of voting) await reviveVote(ctx, store, card.issue);
+  } finally {
+    store.close();
+  }
+}
+
+async function reviveVote(ctx: Ctx, store: PublicStore, issue: number): Promise<void> {
+  const proposal = store.proposal(issue);
+  if (proposal === null) {
+    await ctx.github.removeLabel(issue, VOTING_LABEL);
+    ctx.log('public', issue, 'the card waits for votes but has no proposal, so the voting label is removed and triage runs again');
+    return;
+  }
+  if (proposal.closedAt !== null && store.reopenUnattempted(issue)) ctx.log('public', issue, 'the proposal closed before any post attempt while the card still waits for votes, so it is open again and waits for its post');
 }
 
 export async function closeByHand(ctx: Ctx, store: PublicStore, issue: number): Promise<void> {

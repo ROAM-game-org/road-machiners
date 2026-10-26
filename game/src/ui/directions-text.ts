@@ -64,7 +64,7 @@ function stepText(step: DirectionStep, next: DirectionStep | undefined, target: 
     case 'gate': return [t(`way.gate.${compassOfCardinal(step.side)}`)];
     case 'leave': return [leaveText(step)];
     case 'straight': return [t('way.straight', { octant: compassName(step.octant), span: spanText(step.span) })];
-    case 'search': return [step.clue.kind === 'site' ? t('way.search.site', { sign: siteSign(step.clue.id) }) : t('way.search.rough')];
+    case 'search': return step.clue.kind === 'site' ? [t('way.search.site', { sign: siteSign(step.clue.id) })] : [];
     case 'askAgain': return [t('way.askAgain')];
     case 'noRoad': return [t('way.noRoad', { octant: compassName(step.octant), span: spanText(step.span) })];
   }

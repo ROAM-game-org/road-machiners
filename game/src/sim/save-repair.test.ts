@@ -356,6 +356,7 @@ describe('repairContent', () => {
       { way: { kind: 'directions', steps: [{ do: 'turn', side: 'left', at: { kind: 'site', id: 'ghost-camp' }, road: { kind: 'heading', octant: 'north' }, span: 'near' }] } },
       { way: { kind: 'directions', steps: [{ do: 'leave', at: { kind: 'deck', id: 'ghost-deck' }, octant: 'north', lean: null, span: 'near' }] } },
       { way: { kind: 'directions', steps: [{ do: 'search', clue: { kind: 'site', id: 'ghost-camp' }, rough: false }] } },
+      { square: { kind: 'square', column: 8, row: 0 } },
     ];
     for (const v of vars) {
       const w = fresh();
@@ -373,7 +374,7 @@ describe('repairContent', () => {
       { do: 'turn', side: 'left', at: { kind: 'site', id: site }, road: { kind: 'to', site }, span: 'near' },
       { do: 'leave', at: { kind: 'deck', id: DECKS[0].id }, octant: 'north', lean: null, span: 'near' },
       { do: 'search', clue: { kind: 'site', id: site }, rough: false },
-    ] } };
+    ] }, square: { kind: 'square', column: 7, row: 0 } };
     w.player.call = { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'talk', vars: way } };
     repairContent(w);
     expect(w.player.call).not.toBeNull();

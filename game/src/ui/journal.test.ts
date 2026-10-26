@@ -7,12 +7,15 @@ import { surveyClue, surveySites } from '../sim/survey';
 import { surveyWayText } from './format';
 import { resolve } from '../text/resolve';
 import { t } from '../text/msg';
-import type { World } from '../sim/types';
+import type { SalvageStock, World } from '../sim/types';
+import { emptyHidden } from '../sim/salvage';
+import { gridSquareTiles } from '../sim/map-grid';
 import { TEST_MAP } from '../test/map';
 import type { Contract } from '../sim/market';
 
 vi.mock('../fetch-asset', async (orig) => ({ ...(await orig<typeof import('../fetch-asset')>()), fetchAsset: vi.fn(async () => new ArrayBuffer(1)) }));
 
+const stock = (id: string, pos: { x: number; y: number }): SalvageStock => ({ id, pos, radius: 0.6, goods: { scrap: 2 }, parts: [], hidden: emptyHidden() });
 const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 20000, deadline: 5000, window: 600, rush: false, tier: 2 };
 const claim = (leads: Extract<Contract, { kind: 'claim' }>['leads'] = []): Extract<Contract, { kind: 'claim' }> => ({ id: 'ct-1', shop: 'bowl', kind: 'claim', stockId: 'armyTruck-1', at: { x: 100, y: 50 }, partId: 'p1', defId: 'mg', reward: 900, deadline: 9000, window: 9000, tier: 1, rivalAt: 9000, rival: null, leads });
 const order: Extract<Contract, { kind: 'procure' }> = { id: 'ct-b', shop: 'nose', kind: 'procure', good: 'water', units: 6, cratePay: 900, reward: 11100, deadline: 900, window: 900, tier: 1 };
@@ -79,7 +82,24 @@ describe('journal entries', () => {
   });
 
   it('is empty with no notes and no work', () => {
-    expect(journalEntries(emptyWorld())).toEqual({ work: [], notes: [], past: [] });
+    expect(journalEntries(emptyWorld())).toEqual({ work: [], wrecks: [], notes: [], past: [] });
+  });
+
+  it('keeps one row per square of the told wrecks not yet searched, newest first, with a count', () => {
+    const w = emptyWorld();
+    const side = gridSquareTiles();
+    w.salvage = [
+      stock('wreck1', { x: side * 2 + 5, y: side * 3 + 5 }),
+      stock('wreck2', { x: side * 5 + 5, y: side + 5 }),
+      stock('wreck3', { x: side * 2 + 40, y: side * 3 + 40 }),
+      stock('wreck4', { x: side * 6 + 5, y: side * 6 + 5 }),
+    ];
+    w.player.rumored = ['wreck1', 'wreck2', 'wreck3', 'wreck4'];
+    w.player.scavenged = ['wreck4'];
+
+    const { wrecks } = journalEntries(w);
+
+    expect(wrecks).toEqual([{ square: { column: 2, row: 3 }, count: 2 }, { square: { column: 5, row: 1 }, count: 1 }]);
   });
 });
 
@@ -140,6 +160,23 @@ describe('journal screen', () => {
     const root = openJournal(w);
 
     expect(groups(root)[0].all((n) => n.className === 'job')).toHaveLength(7);
+  });
+
+  it('names the squares of told wrecks under their own head, and drops a searched wreck', () => {
+    const w = emptyWorld();
+    const side = gridSquareTiles();
+    w.salvage = [stock('wreck1', { x: side * 2 + 5, y: side * 3 + 5 }), stock('wreck2', { x: side * 2 + 9, y: side * 3 + 9 }), stock('wreck3', { x: 5, y: 5 })];
+    w.player.rumored = ['wreck1', 'wreck2', 'wreck3'];
+    w.player.notes = [{ id: 'wagonBowl', turn: 10 }];
+
+    const root = openJournal(w);
+    const rows = groups(root)[0].all((n) => n.className === 'journal-place');
+
+    expect(heads(root)).toEqual([['Wrecks you heard of'], ['Notes']]);
+    expect(rows.map((r) => r.text())).toEqual(['Square A1', 'Square C4, 2 wrecks']);
+    ui.children = [];
+    w.player.scavenged = ['wreck1', 'wreck2', 'wreck3'];
+    expect(heads(openJournal(w))).toEqual([[]]);
   });
 
   it('heads the notes only beside another group', () => {

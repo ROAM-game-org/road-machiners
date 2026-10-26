@@ -130,7 +130,7 @@ export function checksProgress(log: string, started: number): string {
   return `the checks still run after ${minutes} min, log ${Math.round(statSync(log).size / 1024)} KB`;
 }
 
-const TIMEOUT_LINE = /(Test|Hook) timed out in \d+ms|Timeout calling "onTaskUpdate"/;
+const TIMEOUT_LINE = /(Test|Hook) timed out in \d+ms/;
 
 export type CheckOutcome = { failure: string; timedOut: boolean } | null;
 

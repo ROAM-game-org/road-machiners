@@ -105,6 +105,7 @@ FRONT = LENGTH / 2
 BACK = -LENGTH / 2
 BUMPER_BACK = FRONT - 0.16
 LIP_PROUD = 0.01
+POST_SINK = 0.02
 WING_FRONT = FRONT - 0.105
 GRILLE_X = WING_FRONT - 0.03
 FACE_X = GRILLE_X - 0.05
@@ -440,7 +441,7 @@ def side_windows(kit: Kit, lo: float, hi: float) -> None:
             window += [(x, sign * (hy + d), z) for x in (rear, xf - c - 0.04) for d in (0.0, 0.015)]
         hull(kit, f"window_{s}", "glass", window)
         xf, hy, c = house_at(lo)
-        kit.box(f"vent_post_{s}", (0.035, 0.03, hi - lo), (xf - c - 0.3, sign * (hy + 0.01), (lo + hi) / 2), "paint")
+        kit.box(f"vent_post_{s}", (0.035, 0.03, hi - lo + POST_SINK), (xf - c - 0.3, sign * (hy + 0.01), (lo - POST_SINK + hi) / 2), "paint")
     kit.box("rear_window", (0.02, 0.9, 0.2), (CAB_BACK + 0.015, 0, HEADBOARD_TOP + 0.16), "glass")
 
 

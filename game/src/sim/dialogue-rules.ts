@@ -15,6 +15,7 @@ import { WAGON_SEVEN } from '../data/salvage';
 import { REGION, type TownDef } from '../data/region';
 import { playerVehicle } from './damage';
 import { discoverSite } from './locations';
+import { gridSquareOf } from './map-grid';
 import { inCombat, isHostile } from './combat';
 import { defyThreat, patchGoal, startTow, topGoal } from './npc-activities';
 import { requireShop, heldSearch, noteSearchLead, haulBlocked, searchRefusal, isExpired, shopAt, shopState, takeContract, type Contract, type SearchContract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
@@ -151,7 +152,7 @@ function closeCall(world: World, npc: Vehicle, call: Call): void {
 function rumorVars(world: World, rumor: Rumor): CallVars {
   const me = playerVehicle(world).pos;
   if (rumor.site) return { site: { kind: 'site', id: rumor.id }, way: wayVar(world, me, { kind: 'site', id: rumor.id }) };
-  return { way: wayVar(world, me, { kind: 'spot', pos: rumor.pos, clue: 'wreck' }) };
+  return { way: wayVar(world, me, { kind: 'spot', pos: rumor.pos, clue: 'wreck' }), square: { kind: 'square', ...gridSquareOf(rumor.pos) } };
 }
 
 function discoverNewsSite(world: World, call: Call): void {

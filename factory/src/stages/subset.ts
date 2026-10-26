@@ -16,28 +16,20 @@ const TEST_SETUP = [
   'src/test/workers.ts',
 ];
 const TEST_SETUP_DIR = 'src/test/cache/';
-const TEST_FILE = /\.test\.ts$/;
-const SOURCE_FILE = /\.tsx?$/;
+const NO_TESTS_DIR = 'docs/';
 
-export function testSubset(changed: string[], exists: (gamePath: string) => boolean): string[] | 'all' {
+export function testSubset(changed: string[]): string[] | 'all' {
   const game = changed.filter((file) => file.startsWith(GAME_PREFIX)).map((file) => file.slice(GAME_PREFIX.length));
   if (game.some(changesHowTestsRun)) return 'all';
-  const tests = game.map(testOf).filter((test): test is string => test !== null && exists(test));
-  return [...new Set(tests)];
+  return game.filter((file) => !file.startsWith(NO_TESTS_DIR));
 }
 
 function changesHowTestsRun(file: string): boolean {
   return TEST_SETUP.includes(file) || file.startsWith(TEST_SETUP_DIR);
 }
 
-function testOf(file: string): string | null {
-  if (TEST_FILE.test(file)) return file;
-  if (SOURCE_FILE.test(file)) return file.replace(SOURCE_FILE, '.test.ts');
-  return null;
-}
-
-export function subsetCommand(tests: string[] | 'all'): string {
-  if (tests === 'all') return 'npm run test:cached';
-  if (tests.length === 0) return '';
-  return `npm run test:cached -- ${tests.join(' ')}`;
+export function subsetCommand(related: string[] | 'all'): string {
+  if (related === 'all') return 'npm run test:cached';
+  if (related.length === 0) return '';
+  return `npm run test:cached -- --related ${related.join(' ')}`;
 }

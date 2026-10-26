@@ -5,11 +5,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { testId } from './store';
 
 const GAME = process.cwd();
-const RUNNER_FILES = ['scripts/test-cache.mjs', 'src/test/cache/fingerprint.ts', 'src/test/cache/store.ts', 'src/test/cache/select.ts', 'src/test/cache/reads-setup.ts', 'src/test/cache/stall.ts'];
+const RUNNER_FILES = ['scripts/test-cache.mjs', 'src/test/cache/fingerprint.ts', 'src/test/cache/store.ts', 'src/test/cache/select.ts', 'src/test/cache/reads-setup.ts', 'src/test/cache/stall.ts', 'src/test/cache/verdict.ts'];
 const CONFIG = `import { defineConfig } from 'vitest/config';
 export default defineConfig({ test: { include: ['src/**/*.test.ts'], maxWorkers: 2, minWorkers: 1, testTimeout: 0 } });
 `;
 const RUN_LIMIT_MS = 60_000;
+const hangingTest = `import { it } from 'vitest';\nit('waits forever', () => new Promise(() => {}));\n`;
+const RPC_TIMEOUT = '[vitest-worker]: Timeout calling "onTaskUpdate"';
+const passingTestWithRpcTimeout = `import { it } from 'vitest';\nit('passes while the worker loses an update', () => { void Promise.reject(new Error('${RPC_TIMEOUT}')); });\n`;
+const timedOutTest = `import { it } from 'vitest';\nit('takes too long', () => new Promise((done) => setTimeout(done, 2000)), 100);\n`;
+const failingTest = `import { expect, it } from 'vitest';\nit('is wrong', () => expect(1).toBe(2));\n`;
 
 let root: string;
 
@@ -32,14 +37,14 @@ it('waits for the gate', async () => {
 `;
 
 function childEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('VITEST') && key !== 'TEST_CACHE_READS' && key !== 'TEST_STALL_MINUTES'));
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('VITEST') && key !== 'TEST_CACHE_READS' && key !== 'TEST_STALL_MINUTES' && key !== 'TEST_SUITE_MINUTES'));
   return { ...env, ...extra };
 }
 
 const runnerArgs = [join(GAME, 'node_modules', '.bin', 'vite-node'), 'scripts/test-cache.mjs', '--', '--cache', 'cache'];
 
-function runCached(extra: Record<string, string> = {}): { code: number | null; out: string } {
-  const result = spawnSync(runnerArgs[0]!, runnerArgs.slice(1), { cwd: root, env: childEnv(extra), encoding: 'utf8', timeout: RUN_LIMIT_MS });
+function runCached(extra: Record<string, string> = {}, args: string[] = []): { code: number | null; out: string } {
+  const result = spawnSync(runnerArgs[0]!, [...runnerArgs.slice(1), ...args], { cwd: root, env: childEnv(extra), encoding: 'utf8', timeout: RUN_LIMIT_MS });
   return { code: result.status, out: `${result.stdout}${result.stderr}` };
 }
 
@@ -117,5 +122,73 @@ describe('test:cached', { timeout: 4 * RUN_LIMIT_MS }, () => {
     expect(run.code).toBe(1);
     expect(run.out).toContain('[test-cache] StallError: no test finished in 0.25 minutes. Still running: src/hangs.test.ts > waits forever');
     expect([cached('src/a.test.ts'), cached('src/b.test.ts'), cached('src/hangs.test.ts')]).toEqual([true, true, false]);
+  });
+
+  it('exits 3 when the suite runs past its limit with no failed file, so the full suite counts it as a machine failure', () => {
+    put('src/hangs.test.ts', hangingTest);
+
+    const run = runCached({ TEST_SUITE_MINUTES: '0.1' });
+
+    expect(run.out).toContain('[test-cache] SuiteTimeError: the suite ran past its limit of 0.1 minutes');
+    expect(run.code).toBe(3);
+  });
+
+  it('exits 1 when the suite runs past its limit after a file failed', () => {
+    put('src/hangs.test.ts', hangingTest);
+    put('src/fails.test.ts', failingTest);
+
+    const run = runCached({ TEST_SUITE_MINUTES: '0.25' });
+
+    expect(run.out).toContain('[test-cache] SuiteTimeError');
+    expect(run.code).toBe(1);
+  });
+
+  it('passes a run whose every test passed when its only unhandled errors are worker RPC timeouts', () => {
+    put('src/rpc.test.ts', passingTestWithRpcTimeout);
+
+    const run = runCached();
+
+    expect(run.out).toContain('[test-cache] every test passed, so the run ignores 1 vitest worker RPC timeout calling onTaskUpdate');
+    expect(run.code).toBe(0);
+  });
+
+  it('fails a run with a test that timed out, even beside worker RPC timeouts', () => {
+    put('src/slow.test.ts', timedOutTest);
+    put('src/rpc.test.ts', passingTestWithRpcTimeout);
+
+    const run = runCached();
+
+    expect(run.out).toContain('Test timed out in 100ms');
+    expect(run.code).toBe(1);
+  });
+
+  it('fails a run with a failed test even when the other unhandled errors are worker RPC timeouts', () => {
+    put('src/rpc.test.ts', passingTestWithRpcTimeout);
+    put('src/fails.test.ts', failingTest);
+
+    const run = runCached();
+
+    expect(run.out).not.toContain('every test passed');
+    expect(run.code).toBe(1);
+  });
+
+  it('fails a run whose tests passed when an unhandled error is not a worker RPC timeout', () => {
+    put('src/broken.test.ts', `import { it } from 'vitest';\nit('passes but leaks an error', () => { void Promise.reject(new Error('boom')); });\n`);
+
+    const run = runCached();
+
+    expect(run.code).toBe(1);
+  });
+
+  it('runs the tests that import a changed file through other modules, and only those', () => {
+    put('src/text/ru/story.ts', `export const STORY = { 'state.cavalcade': 'Кавалькада' };\n`);
+    put('src/text/ru/index.ts', `import { STORY } from './story';\nexport const RU = { ...STORY };\n`);
+    put('src/text/catalog.test.ts', `import { expect, it } from 'vitest';\nimport { RU } from './ru';\nit('has Russian words', () => expect(RU['state.cavalcade']).toBe('Кавалькада'));\n`);
+
+    const run = runCached({}, ['--related', 'src/text/ru/story.ts']);
+
+    expect(run.out).toContain('src/text/catalog.test.ts');
+    expect(run.out).toContain('[test-cache] ran 1, skipped 0');
+    expect(run.code).toBe(0);
   });
 });

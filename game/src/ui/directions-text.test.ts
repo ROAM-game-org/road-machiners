@@ -33,11 +33,20 @@ describe('directionsText', () => {
     for (const locale of LOCALES) {
       for (const step of STEPS) {
         const text = resolve(directionsText([step]), locale);
+        if (step.do === 'search' && step.clue.kind === 'wreck') {
+          expect(text, locale).toBe('');
+          continue;
+        }
         expect(text.length, `${locale} ${step.do}`).toBeGreaterThan(0);
         expect(text, `${locale} ${step.do}`).not.toMatch(/[{}]/);
         expect(text, `${locale} ${step.do}`).not.toMatch(/\d+\s?(m|km|м|км)\b/);
       }
     }
+  });
+
+  it('says nothing more for the wreck search step', () => {
+    const steps: DirectionStep[] = [{ do: 'straight', octant: 'southEast', span: 'near' }, { do: 'search', clue: { kind: 'wreck' }, rough: true }];
+    expect(resolve(directionsText(steps), 'en')).toBe(resolve(directionsText(steps.slice(0, 1)), 'en'));
   });
 
   it('joins the steps into one answer in order', () => {
