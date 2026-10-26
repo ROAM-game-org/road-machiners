@@ -20,9 +20,7 @@ function lambertShader(material: THREE.Material) {
 }
 
 function meshOf(material: THREE.Material): THREE.Mesh {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(), material);
-  mesh.position.set(SIZE, 0, SIZE);
-  return mesh;
+  return new THREE.Mesh(new THREE.BoxGeometry(), material);
 }
 
 describe('model fill', () => {
@@ -64,8 +62,8 @@ describe('model fill', () => {
   it('reaches models in a model scope and leaves the ground scope alone', () => {
     const model = new THREE.MeshLambertMaterial();
     const ground = new THREE.MeshLambertMaterial();
-    new RenderScope(new THREE.Group(), SIZE, new SightLimit(SIZE), true, true).add(meshOf(model), { x: 1, y: 1 }, 1);
-    new RenderScope(new THREE.Group(), SIZE, new SightLimit(SIZE), false, false).add(meshOf(ground), { x: 1, y: 1 }, 1);
+    new RenderScope(new THREE.Group(), SIZE, new SightLimit(SIZE), true, true).add(meshOf(model), { x: 0, y: 0 }, 1);
+    new RenderScope(new THREE.Group(), SIZE, new SightLimit(SIZE), false, false).add(meshOf(ground), { x: 0, y: 0 }, 1);
     expect(model.customProgramCacheKey()).toContain('|fill');
     expect(ground.customProgramCacheKey()).not.toContain('|fill');
   });
