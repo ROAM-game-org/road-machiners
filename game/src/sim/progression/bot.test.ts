@@ -118,7 +118,7 @@ describe('botOrders', () => {
     addGoods(w, playerVehicle(w), 'electronics', 6);
     w.player.costBasis.electronics = 33;
     w.player.money = 0;
-    for (const part of mountedParts(playerVehicle(w))) part.hp = Math.floor(maxHp(part) / 4);
+    for (const part of mountedParts(playerVehicle(w))) part.hp = 0;
     expect(repairCost(w)).toBeGreaterThan(getUpkeepReserve(playerVehicle(w)));
 
     const turn = botOrders(w, 'trader');
@@ -457,7 +457,7 @@ describe('botOrders', () => {
 
   it('has a broke bot keep its gear when selling it cannot pay the repair', () => {
     const w = parkedAt('bowl');
-    for (const p of mountedParts(playerVehicle(w), 'core')) p.hp = 0;
+    for (const p of mountedParts(playerVehicle(w))) p.hp = 0;
     w.player.money = 0;
 
     const turn = botOrders(w, 'trader');

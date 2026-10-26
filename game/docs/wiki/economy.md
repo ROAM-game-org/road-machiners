@@ -57,7 +57,7 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `EFFORT.bands` | {"1":{"weapon":[250,700],"engine":[250,700],"armor":[250,700],"cargo":[250,700],"scanner":[250,700],"store":[250,700],"utility":[250,700],"chassis":[5000,7500],"good":[40,100]},"2":{"weapon":[180,480],"engine":[180,480],"armor":[180,480],"cargo":[180,480],"scanner":[180,480],"store":[180,480],"utility":[180,480],"chassis":[2800,4200],"good":[50,100]},"3":{"weapon":[180,380],"engine":[180,380],"armor":[180,380],"cargo":[180,380],"scanner":[180,380],"store":[180,380],"utility":[180,380],"chassis":[1900,2800],"good":[40,80]}} |
 | `ECONOMY.supplyPrice.fuel` | 100 |
 | `ECONOMY.supplyPrice.supplies` | 167 |
-| `ECONOMY.repairShare` | 0.85 |
+| `ECONOMY.repairShare` | 0.425 |
 | `CONDITION.maxWear` | 4 |
 | `CONDITION.stepLoss` | 0.027 |
 | `WEAR.chancePerTile` | 0.00055 |
