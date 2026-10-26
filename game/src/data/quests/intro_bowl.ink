@@ -35,7 +35,7 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
 = questions
 + {not asked_where} [Where am I?]
   ~ asked_where = true
-  <term=bowl>Bowl</term>. Farm town, built down the inside of a crater. Terraces, with canals between them. # speaker: Hattie
+  Bowl. Farm town, built down the inside of a crater. Terraces, with canals between them. # speaker: Hattie
   You're in the gate yard. That's as much of Bowl as strangers get. # speaker: Hattie
   -> questions
 + {towed_to_bowl and not asked_what} [What happened to me?]
@@ -55,7 +55,7 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
   -> questions
 + {asked_region and not asked_nose} [And Nose?]
   ~ asked_nose = true
-  <term=nose>Nose</term> is up the north-east road. Soldiers at the wall, and a workshop turning out engines and guns for half the basin. Strangers get in if they're buying. # speaker: Hattie
+  <term=nose>Nose</term> is up the north road. Soldiers at the wall, and a workshop turning out engines and guns for half the basin. Strangers get in if they're buying. # speaker: Hattie
   -> questions
 + {asked_region and not asked_yard} [And the yards?]
   ~ asked_yard = true
@@ -63,17 +63,17 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
   -> questions
 + {asked_region and not asked_kiln} [And the raiders?]
   ~ asked_kiln = true
-  <term=kiln>Kiln Camp</term> is south-east of here. They charge you for the right to haul. If you won't pay and won't fight, you'll be walking back. # speaker: Hattie
+  <term=kiln>Kiln Camp</term> is east of here. They charge you for the right to haul. If you won't pay and won't fight, you'll be walking back. # speaker: Hattie
   -> questions
-+ {asked_region and not asked_flats} [And south-east?]
++ {asked_region and not asked_flats} [And east?]
   ~ asked_flats = true
-  South-east is the <term=glass_flats>Glass Flats</term>, then the <term=sunward>Sunward</term>. People go for lenses, and nobody hauls. Lens hunters come back with good glass and bad burns. # speaker: Hattie
+  East is the <term=glass_flats>Glass Flats</term>, then the <term=sunward>Sunward</term>. People go for lenses, and nobody hauls. Lens hunters come back with good glass and bad burns. # speaker: Hattie
   -> questions
 + {not asked_tips} [Any advice?]
   ~ asked_tips = true
   Carry more water and fuel than you think you'll need. # speaker: Hattie
   Stay near towns till you know your truck. Lawmen ride the roads round the gates. Past the patrols, every driver's got a gun, and nobody's paid to keep them polite. # speaker: Hattie
-  Break down and the tow costs coin, the repairs cost scrap. Walking costs you. # speaker: Hattie
+  Break down and the tow costs coin, and so do the repairs. Walking costs you. # speaker: Hattie
   -> questions
 + [I'll go.]
   {towed_to_bowl:Safe road. That line on my slate won't clear itself.|Come back when you've got M's for water. Keep all your wheels till then.} # speaker: Hattie

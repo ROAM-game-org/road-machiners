@@ -50,21 +50,27 @@ function trucker(w: World, build: 'hauler' | 'scout'): Vehicle {
   return npc;
 }
 
-type Run = { w: World; arrived: number | null; trail: Vec[]; stalls: number; jumped: boolean; goalChanged: boolean };
+type Run = { w: World; arrived: number | null; trail: Vec[]; stalls: number; jumped: boolean; goalChanged: boolean; stallTurn: number | null; progressSince: number | null };
 
-function run(w: World, id: string, turns: number): Run {
+function run(w: World, id: string, turns: number, untilStall = false): Run {
   let d: Drive = buildDrive(w);
-  const out: Run = { w, arrived: null, trail: [], stalls: 0, jumped: false, goalChanged: false };
+  const out: Run = { w, arrived: null, trail: [], stalls: 0, jumped: false, goalChanged: false, stallTurn: null, progressSince: null };
   const first = w.vehicles.find((v) => v.id === id)!.brain!.goals[0];
-  for (let i = 0; i < turns && out.arrived === null; i++) {
+  for (let i = 0; i < turns && out.arrived === null && out.stallTurn === null; i++) {
     let next: Drive | null = null;
     const before = out.w.vehicles.find((v) => v.id === id)!.pos;
+    const marked = out.w.vehicles.find((v) => v.id === id)!.brain!.progress?.since ?? null;
     out.w = endTurn(out.w, physicsMove(d, (r) => (next = r.next)));
     freeDrive(d);
     d = next!;
     const npc = out.w.vehicles.find((v) => v.id === id)!;
     out.trail.push({ ...npc.pos });
-    out.stalls += out.w.events.filter((e) => e.t === 'stall' && e.vehicle === id).length;
+    const stalled = out.w.events.filter((e) => e.t === 'stall' && e.vehicle === id).length;
+    out.stalls += stalled;
+    if (untilStall && stalled > 0) {
+      out.stallTurn = out.w.turn;
+      out.progressSince = marked;
+    }
     if (dist(before, npc.pos) > 12) out.jumped = true;
     if (npc.brain!.goals[0] !== first && npc.brain!.goals[0]?.destination !== first.destination) out.goalChanged = true;
     if (dist(npc.pos, GOAL) < 6) out.arrived = i + 1;
@@ -105,8 +111,9 @@ describe('a truck in a ravine', () => {
     const w = emptyWorld({ x: 40, y: 44 });
     raise(w, closedPit);
     const npc = trucker(w, 'hauler');
-    const r = run(w, npc.id, NPC_BEHAVIOR.stallTurns + 5);
+    const r = run(w, npc.id, NPC_BEHAVIOR.stallTurns + 20, true);
     expect(r.stalls).toBeGreaterThan(0);
+    expect(r.stallTurn! - r.progressSince!).toBe(NPC_BEHAVIOR.stallTurns);
     expect(r.goalChanged).toBe(true);
     expect(r.jumped).toBe(false);
   }, 300_000);

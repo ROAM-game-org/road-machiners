@@ -199,12 +199,17 @@ export function cellCenter(chassisId: string, x: number, y: number): { x: number
   return { x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2, unit: unit.index };
 }
 
+export function cellSteps(chassisId: string): { row: number; col: number } {
+  const { w, h } = baseGrid(chassisId);
+  const { half } = spanOf(chassisId);
+  return { row: (2 * half.x) / h, col: (2 * half.z) / (w - 2) };
+}
+
 function singleCellRect(chassisId: string, x: number, y: number, unit: Unit): Omit<CellRect, 'unit'> {
   const { w, h } = gridContaining(chassisId, x, y);
   const { center, half } = spanOf(chassisId);
   const shift = center - unit.offset;
-  const rowStep = (2 * half.x) / h;
-  const colStep = (2 * half.z) / (w - 2);
+  const { row: rowStep, col: colStep } = cellSteps(chassisId);
   const along = { x0: shift + half.x - (y + 1) * rowStep, x1: shift + half.x - y * rowStep };
   const across = { z0: -half.z + (x - 1) * colStep, z1: -half.z + x * colStep };
   const side = ringSign(x, w, -1);

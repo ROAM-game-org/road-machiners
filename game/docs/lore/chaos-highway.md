@@ -6,13 +6,13 @@ The run is set in the late Chaos, in an unknown place that has nothing to do wit
 
 ## Ala
 
-- Ala is a linked driver of a mammoth 18-wheeler, going north-east. She needs protection and pays per stretch of the great highway.
-- Nobody understands why she wants to go north-east and pay for it. She asks no questions of her hire and wants none asked.
+- Ala is a linked driver of a mammoth 18-wheeler, going north. She needs protection and pays per stretch of the great highway.
+- Nobody understands why she wants to go north and pay for it. She asks no questions of her hire and wants none asked.
 - Ala's look: black hair in a raw cut, a slight frown, an oversized tanker jacket, and two distinct dark moles, one below the right eye and one above the right lip. Concept art: [ala-concept.png](../concepts/ala-concept.png).
 - Ala is an experienced linked driver. Nobody green drives a mammoth hauler, so every version of her story keeps this.
 - A bounty rides on her truck, and many will come after it. She tells her hire so at the start.
 - Ala does not set out on a suicide mission. The first stretches bring only a few attackers and the chase grows stretch by stretch. She expects trouble, never this much, and every version of her story keeps this too.
-- Her mission, who is behind her, what waits in the north-east and who set the bounty are all blank.
+- Her mission, who is behind her, what waits in the north and who set the bounty are all blank.
 
 ## Geezer
 
