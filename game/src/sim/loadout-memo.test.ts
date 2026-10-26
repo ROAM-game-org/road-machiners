@@ -8,6 +8,7 @@ import { loadoutFact, loadoutSlot, setLoadoutMemo, type Loadout } from './loadou
 import { coreParts, mountedItems, mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { playerVehicle } from './damage';
+import { PARTS } from '../data/parts';
 import type { PartKind } from '../data/parts';
 import type { GridItem, Vehicle } from './types';
 
@@ -149,5 +150,11 @@ describe('memo on and off agree', () => {
     check();
     v.items.push({ id: 'crate', x: 0, y: 0, rot: 0, kind: 'good', good: GOOD_IDS[0] } as GridItem);
     check();
+  });
+
+  it('never freezes shared part content', () => {
+    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    for (const v of w.vehicles) vehicleStats(w, v);
+    for (const def of Object.values(PARTS)) if (def.kind === 'weapon') expect(Object.isFrozen(def.classes)).toBe(false);
   });
 });
