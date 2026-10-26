@@ -130,6 +130,12 @@ describe('dockerContainer', () => {
     expect(readFileSync('prompts/test.md', 'utf8')).toContain(`${EVIDENCE_CHECK_COMMAND} test`);
   });
 
+  it('tells the testing agent to put what a stopped probe left unverified into the post description', () => {
+    const prompt = readFileSync('prompts/test.md', 'utf8');
+    expect(prompt).toContain('Say in the description of `.factory/approval.json` what it left unverified');
+    expect(prompt).not.toContain('approval notes');
+  });
+
   it('mounts the reference images read only inside the clone, and only when the run has them', async () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', mediaDir: '/h/media/issue-7' });
