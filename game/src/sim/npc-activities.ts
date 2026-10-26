@@ -722,7 +722,7 @@ function onStrandedSeen(world: World, vehicle: Vehicle): void {
 
 function onSalvageSeen(world: World, vehicle: Vehicle): void {
   const top = topGoal(vehicle);
-  if (inCombat(world, vehicle) || !top || top.phase !== 'travel' || INTERRUPTIONS.includes(top.kind)) return;
+  if (inCombat(world, vehicle) || !top || top.phase !== 'travel' || INTERRUPTIONS.includes(top.kind) || getActivityDestination(world, vehicle, top) === null) return;
   const stocks = visibleSalvage(world, vehicle);
   const passed = [...stocks, ...visibleDowned(world, vehicle)].filter((s) => s.id !== top.targetId).sort((a, b) => dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
   const loot = passed.find((s) => react(world, vehicle, 'salvageSeen', s.id) === 'loot');

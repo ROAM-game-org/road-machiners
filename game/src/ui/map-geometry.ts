@@ -1,6 +1,5 @@
 import { MAP_SCALE_BAR, WORLD_MAP } from '../data/minimap';
 import { PHYSICS } from '../data/physics';
-import { VIEW } from '../data/view';
 import type { Vec } from '../sim/vec';
 
 export type Viewport = { center: Vec; tileSize: number; width: number; height: number };
@@ -15,15 +14,13 @@ export function viewport(center: Vec, tileSize: number, width: number, height: n
   return { center, tileSize: requireTileSize(tileSize), width, height };
 }
 
-const UP_LENGTH = Math.hypot(VIEW.screenUp.x, VIEW.screenUp.y);
-const UP: Vec = { x: VIEW.screenUp.x / UP_LENGTH, y: VIEW.screenUp.y / UP_LENGTH };
+const UP: Vec = { x: 0, y: -1 };
 const RIGHT: Vec = { x: -UP.y, y: UP.x };
-const TURNED_EXTENT = Math.abs(UP.x) + Math.abs(UP.y);
 
 const along = (a: Vec, b: Vec): number => a.x * b.x + a.y * b.y;
 
 export function fitTileSize(size: number, width: number, height: number): number {
-  return requireTileSize(Math.min(width, height) / (size * TURNED_EXTENT));
+  return requireTileSize(Math.min(width, height) / size);
 }
 
 export function fitted(size: number, width: number, height: number, center: Vec): Viewport {
@@ -43,8 +40,10 @@ export function toTile(v: Viewport, px: number, py: number): Vec {
   return tileAt(v.center, (px - v.width / 2) / v.tileSize, -(py - v.height / 2) / v.tileSize);
 }
 
+const WHOLE_TOLERANCE = 1e-6;
+
 function holdsWhole(span: number, tileSize: number, size: number): boolean {
-  return span / tileSize >= size * TURNED_EXTENT;
+  return span / tileSize >= size - WHOLE_TOLERANCE;
 }
 
 function clampTile(value: number, size: number): number {
@@ -94,6 +93,12 @@ export function scaleBarTiles(tileSize: number, width: number): number {
   const steps = MAP_SCALE_BAR.meters.map((meters) => meters / PHYSICS.metersPerTile);
   const fitting = steps.filter((tiles) => tiles * tileSize <= MAP_SCALE_BAR.widthShare * width);
   return fitting.length > 0 ? fitting[fitting.length - 1] : steps[0];
+}
+
+export function openingTileSize(size: number, width: number, height: number, maxTileSize: number): number {
+  const barTiles = MAP_SCALE_BAR.openMeters / PHYSICS.metersPerTile;
+  const tileSize = (MAP_SCALE_BAR.openFill * MAP_SCALE_BAR.widthShare * width) / barTiles;
+  return requireTileSize(Math.min(maxTileSize, Math.max(fitTileSize(size, width, height), tileSize)));
 }
 
 const WHEEL_UNIT_PIXELS = [1, WORLD_MAP.wheelLinePixels, WORLD_MAP.wheelPagePixels];

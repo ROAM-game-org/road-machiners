@@ -131,7 +131,7 @@ Cares about: order, his fuel count and the soldiers on his roster. He avoids any
 
 Strangers: polite and wary. He tells a stranger exactly what he can give and what he cannot.
 
-Sample: "Nose. The dispatch desk is mine. Freight on the north-east road or through the canyon crossing passes this desk, or it doesn't pass."
+Sample: "Nose. The dispatch desk is mine. Freight on the north road or through the canyon crossing passes this desk, or it doesn't pass."
 
 ### Lena
 

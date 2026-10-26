@@ -21,7 +21,7 @@ VAR asked_paper = false
 = hub
 # checkpoint: start.hub
 + [What is this place?]
-  Nose. The dispatch desk is mine. Freight on the north-east road or through the canyon crossing passes this desk, or it doesn't pass. If you want something to be proud of, ask the <term=committee>Committee</term> about the workshop line. It builds whole engines and guns. Bowl can't.
+  Nose. The dispatch desk is mine. Freight on the north road or through the canyon crossing passes this desk, or it doesn't pass. If you want something to be proud of, ask the <term=committee>Committee</term> about the workshop line. It builds whole engines and guns. Bowl can't.
   ~ heard_workshop = true
   -> hub
 + [Who runs Nose?]

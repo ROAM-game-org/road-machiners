@@ -5,10 +5,10 @@ import { REGION } from '../data/region';
 import { addGoods } from '../sim/inventory';
 import { mapObstacles, propReach } from '../sim/mapgen';
 import { navLayer } from '../sim/nav/layer';
-import { MAX_RADIUS, nearestRoadPoint, oldPlaces, standPoint } from '../sim/salvage';
+import { MAX_RADIUS, nearestRoadPoint, standPoint } from '../sim/salvage';
 import { defaultSetup } from '../sim/settings';
 import { surveySites } from '../sim/survey';
-import { addVehicle, PLAIN_KIT } from '../sim/testkit';
+import { addVehicle, editableTerrain, emptyWorld, PLAIN_KIT } from '../sim/testkit';
 import type { Obstacle, Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { endTurn, newWorld, setMoveOrder } from '../sim/world';
@@ -76,10 +76,37 @@ describe('a loaded stock courier on the committed map', () => {
     expect(place.need).toBeLessThanOrEqual(REGION.navigation.reachClimb);
     expect(driveToStand(place).inReach).toBe(true);
   }, budget(300_000));
+});
 
-  it('does not reach a lookout whose hill is steeper than the reference climb', () => {
-    const lookouts = oldPlaces(baked).filter((p) => p.type === 'lookout').flatMap((p) => p.props);
-    const place = steepest(lookouts, REGION.navigation.reachClimb);
-    expect(driveToStand(place).inReach).toBe(false);
+const RAMP_FOOT = 40;
+const RAMP_LENGTH = 20;
+const RAMP_TOP: Vec = { x: 75, y: 100 };
+
+function climbsRamp(grade: number): boolean {
+  let w = emptyWorld({ x: 20, y: 100 });
+  const terrain = editableTerrain(w);
+  const n = terrain.size;
+  for (let j = 0; j <= n; j++)
+    for (let i = 0; i <= n; i++) terrain.heights[j * (n + 1) + i] = Math.min(RAMP_LENGTH, Math.max(0, i - RAMP_FOOT)) * grade;
+  const buggy = referenceBuggy(w, { x: 20, y: 100 });
+  let drive: Drive = buildDrive(w);
+  for (let i = 0; i < DRIVE_TURNS && dist(w.vehicles[0].pos, RAMP_TOP) > 3; i++) {
+    w = setMoveOrder(w, { kind: 'stopAt', dest: RAMP_TOP });
+    let next: Drive | null = null;
+    w = endTurn(w, physicsMove(drive, (r) => (next = r.next)));
+    freeDrive(drive);
+    drive = next!;
+  }
+  freeDrive(drive);
+  return dist(w.vehicles.find((v) => v.id === buggy.id)!.pos, RAMP_TOP) <= 3;
+}
+
+describe('a loaded stock courier on a synthetic ramp', () => {
+  it('tops a ramp at the reference climb', () => {
+    expect(climbsRamp(REGION.navigation.reachClimb)).toBe(true);
+  }, budget(300_000));
+
+  it('does not top a ramp at twice the reference climb', () => {
+    expect(climbsRamp(2 * REGION.navigation.reachClimb)).toBe(false);
   }, budget(300_000));
 });

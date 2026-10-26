@@ -55,7 +55,7 @@ VAR asked_tips = false
   -> questions
 + {asked_region and not asked_nose} [А Нос?]
   ~ asked_nose = true
-  <term=nose>Нос</term> по дороге на северо-восток: стена, солдаты и мастерская, где моторы да пушки делают для половины котловины. Чужим там рады, пока те покупают. # speaker: Хэтти
+  <term=nose>Нос</term> по северной дороге: стена, солдаты и мастерская, где моторы да пушки делают для половины котловины. Чужим там рады, пока те покупают. # speaker: Хэтти
   -> questions
 + {asked_region and not asked_yard} [А дворы?]
   ~ asked_yard = true
@@ -63,11 +63,11 @@ VAR asked_tips = false
   -> questions
 + {asked_region and not asked_kiln} [А рейдеры?]
   ~ asked_kiln = true
-  На юго-востоке они, в <term=kiln>лагере Обжиг</term>, торгуют правом возить грузы. Не платишь и не отбиваешься, дальше идешь пешком. # speaker: Хэтти
+  На востоке они, в <term=kiln>лагере Обжиг</term>, торгуют правом возить грузы. Не платишь и не отбиваешься, дальше идешь пешком. # speaker: Хэтти
   -> questions
-+ {asked_region and not asked_flats} [А на юго-востоке?]
++ {asked_region and not asked_flats} [А на востоке?]
   ~ asked_flats = true
-  На юго-востоке <term=glass_flats>Стеклянная равнина</term>, а за ней <term=sunward>Обращенные к Солнцу</term>. Грузы туда никто не возит, ездят за линзами. Привозят хорошее стекло и скверные ожоги. # speaker: Хэтти
+  На востоке <term=glass_flats>Стеклянная равнина</term>, а за ней <term=sunward>Обращенные к Солнцу</term>. Грузы туда никто не возит, ездят за линзами. Привозят хорошее стекло и скверные ожоги. # speaker: Хэтти
   -> questions
 + {not asked_tips} [Что посоветуешь?]
   ~ asked_tips = true
