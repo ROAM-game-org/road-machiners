@@ -274,7 +274,7 @@ export class Game {
 
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
-    this.screens = new ModalScreens(host, () => this.menu.isOpen());
+    this.screens = new ModalScreens(host);
     this.hud = new Hud({
       openInventory: () => this.runKey("KeyI"),
       openCharacter: () => this.runKey("KeyC"),
@@ -297,7 +297,7 @@ export class Game {
       endRun: () => this.rescueCommand(confirmedEndRun),
       isBusy: () => this.anim !== null,
       autoTravel: () => this.travel.isAuto(this.world),
-      dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
+      dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen(), menuOpen: () => this.menu.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
       recenter: () => this.runKey("KeyF"),
       unpin: () => this.unpin(),
       cardAction: (action) => this.context.onCard(action, this.inspected()),
@@ -309,6 +309,7 @@ export class Game {
     const saves = this.saves.menuActions(() => this.world);
     this.menu = new GameMenu({ ...saves, unstuck: { reason: () => unstuckReason(this.world, this.anim !== null, this.screens.quest.isOpen()), run: () => this.getUnstuck() } }, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), {
       report: () => this.hud.openFeedback(),
+      reportOpen: () => this.hud.feedbackOpen(),
     }, this.soundSettings);
     this.death = new DeathScreen(saves);
 
@@ -323,6 +324,7 @@ export class Game {
   private uiHost(): UiHost {
     return {
       world: () => this.displayWorld(),
+      menuOpen: () => this.menu.isOpen(),
       apply: (next) => this.applyCommand(next),
       announce: (next) => {
         this.applyCommand(next);
@@ -524,12 +526,12 @@ export class Game {
 
   private runKey(code: string): void {
     const key = this.keys[code];
-    if (!key || (key.noModal && (key.inventoryOk ? this.blockingModalOpen() : this.modalOpen())) || (key.idle && this.travel.isPlaying(this.anim))) return;
+    if (!key || (key.screen && this.menu.isOpen()) || (key.noModal && (key.inventoryOk ? this.blockingModalOpen() : this.modalOpen())) || (key.idle && this.travel.isPlaying(this.anim))) return;
     if (key.inventoryOk && this.screens.inventory.isOpen()) this.screens.inventory.close();
     key.run();
   }
 
-  private readonly keys: Record<string, { run: () => void; noModal?: true; idle?: true; inventoryOk?: true }> = {
+  private readonly keys: Record<string, { run: () => void; noModal?: true; idle?: true; inventoryOk?: true; screen?: true }> = {
     KeyF: { run: () => this.follow.recenter() },
     KeyV: { run: () => cameraSetting().toggle() },
     KeyQ: { run: () => this.weapons.toggleAuto(), noModal: true },
@@ -547,10 +549,10 @@ export class Game {
     KeyL: { run: () => this.controls.toggleHeadlights(), noModal: true },
     KeyN: { run: () => this.context.onCard('mark', this.inspected()), noModal: true, idle: true },
     KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), noModal: true, idle: true },
-    KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true },
-    KeyM: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true },
-    KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true },
-    KeyI: { run: () => !this.anim && this.screens.toggle(this.screens.inventory), idle: true },
+    KeyC: { run: () => !this.anim && this.screens.toggleCharacter("skills"), idle: true, screen: true },
+    KeyM: { run: () => !this.anim && hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), idle: true, screen: true },
+    KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true, screen: true },
+    KeyI: { run: () => !this.anim && this.screens.toggle(this.screens.inventory), idle: true, screen: true },
     Escape: { run: () => { if (this.screens.town.isOpen()) this.screens.town.back(); else if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
   };
 

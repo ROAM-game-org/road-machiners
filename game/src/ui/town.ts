@@ -226,7 +226,7 @@ export class TownScreen {
   }
 
   private takesKeys(e: KeyboardEvent): boolean {
-    if (!this.isOpen() || isBrowserChord(e) || e.repeat) return false;
+    if (!this.isOpen() || isBrowserChord(e) || e.repeat || this.host.menuOpen()) return false;
     const w = this.host.world();
     return !w.player.call && !w.player.quests.live;
   }

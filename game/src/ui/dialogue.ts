@@ -117,6 +117,7 @@ export type DialogueHost = {
   talk(next: World): void;
   inspected(): string | null;
   busy(): boolean;
+  menuOpen(): boolean;
   commit(next: World): void;
   log(next: World): void;
   playHorn(vehicleId: string, delayMs: number): void;
@@ -192,7 +193,7 @@ export class DialoguePanel {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (isBrowserChord(e) || isTyping()) return;
+    if (isBrowserChord(e) || isTyping() || this.host.menuOpen()) return;
     if (this.host.busy()) return this.onBusyKey(e);
     const handled = this.host.world().player.call ? this.onCallKey(e.code) : this.onFreeKey(e.code);
     if (handled) e.stopImmediatePropagation();

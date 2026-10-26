@@ -319,6 +319,10 @@ export class Hud {
     this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter"), el("kbd", { class: "key no-touch" }, verbatim(RECENTER_KEY))));
   }
 
+  feedbackOpen(): boolean {
+    return this.feedbackForm.isOpen();
+  }
+
   openFeedback(): void {
     this.feedbackForm.open("bug");
   }
