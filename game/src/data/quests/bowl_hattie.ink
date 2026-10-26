@@ -70,13 +70,13 @@ Pull up by the well. I'm Hattie. Where'd you come from, and how much water do yo
   -> hub
 + {hattie_flats and not hattie_glass} [What about the glass at the Glass Flats?]
   Pim Arslan says every ripple in that glass leans toward the <term=fallen_sun>Fallen Sun</term> crater.
-  The <term=sunward>Sunward</term> say it's bowing to what's down there. That's what I've heard. I won't stand on it at noon.
+  That's what I've heard. I won't stand on it at noon.
   ~ note("talkGlassLean")
   ~ hattie_glass = true
   -> hub
-+ {hattie_glass and not hattie_sunward} [What do the Sunward do with strangers?]
-  They take them into the crater. The ones who come out are green at the edges and quiet.
-  I've never been in, and I never will.
++ {hattie_glass and not hattie_sunward} [What's down in that crater?]
+  I don't know. I've never been down there, and I never will.
+  Strangers get taken in. The few who come out are green at the edges and quiet.
   ~ note("talkSunwardTake")
   ~ hattie_sunward = true
   -> hub

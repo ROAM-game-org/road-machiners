@@ -121,7 +121,7 @@ export const STORY = {
   'journalNote.talkGlassLean.text': 'Hattie says Pim Arslan the lens cutter swears every ripple in the glass at Glass Flats leans one way, toward the Fallen Sun.',
   'journalNote.talkSunwardTake.title': 'Strangers in the crater',
   'journalNote.talkSunwardTake.from': 'Hattie, at the Bowl gate yard',
-  'journalNote.talkSunwardTake.text': 'Hattie says the Sunward take strangers into the crater, and the few who come out are green at the edges and quiet. She has never followed one in.',
+  'journalNote.talkSunwardTake.text': 'Hattie says strangers get taken down into the Fallen Sun crater, and the few who come out are green at the edges and quiet. She has never been in.',
   'journalNote.sunwardLamps.title': 'Lamps to the crater at night',
   'journalNote.sunwardLamps.from': 'Old Ibo, at Nose',
   'journalNote.sunwardLamps.text': 'Ibo says a line of lamps crosses to the Fallen Sun every dusk and goes back before sunup, and a call to them gets only an open channel and breathing. He says Joss Ardo of the Children of Noah rode with them once and got out.',
