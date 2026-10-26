@@ -67,7 +67,7 @@ She tips her head at you. Ask your questions now, before I put you to work. # sp
   -> questions
 + {asked_region and not asked_flats} [And east?]
   ~ asked_flats = true
-  South-east is the <term=glass_flats>Glass Flats</term>. People go for lenses, and nobody hauls. Lens hunters come back with good glass and bad burns. # speaker: Hattie
+  East is the <term=glass_flats>Glass Flats</term>. People go for lenses, and nobody hauls. Lens hunters come back with good glass and bad burns. # speaker: Hattie
   -> questions
 + {not asked_tips} [Any advice?]
   ~ asked_tips = true
