@@ -113,7 +113,7 @@ After the game, the game master writes the log into a timeline in `docs/lore/` a
 - Players drift toward peace, deals and inquiries. Real history needs mistakes, so let the dice fail them and use compels.
 - Players remember well when the same agent continues each turn. Restate the leader's personality in the brief after every change of leader.
 - Give each player the messages sent to it, even when it ignored them. Unanswered offers become grudges.
-- Keep the turn's event short and concrete. A dead driver and a missing grain cart start more story than a description of tension.
+- Keep the turn's event short and concrete. A dead driver and a missing grain truck start more story than a description of tension.
 - Decide hidden truths early, like who fired the shots, and write them in the log before any player guesses.
 - Players chase whatever thread the brief hands them. A player's private knowledge, like a crate it was ordered to pack, starts the longest plots.
 - Players who share a place converge. Several players gathered at one grave in the first turn, and that grave stayed the center of the story.

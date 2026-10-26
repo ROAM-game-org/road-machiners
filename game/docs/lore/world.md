@@ -22,7 +22,7 @@ The fixed facts of ROAM's world. Lore, art, sound and content all keep to them.
 
 - Daily life runs at about the level of the mid-1900s: diesel engines, radios, generators, electric light in towns and hand-built guns.
 - Computers are rare relics. Nobody makes them.
-- Every settlement has workshops that weld, patch, rebore guns and brew fuel.
+- Every settlement has workshops that weld, patch and rebore guns.
 - Real industry exists only in pockets. Nose runs the basin's one workshop line that builds whole engines and guns. Other complex goods come from outside regions with long-haul convoys.
 - A few scattered scholars partly understand the ship's technology: the last members of the Lunar Society, the Apprentice and a few cranks. No town holds that knowledge.
 - Everyone else uses ship parts that still work, like power cells and hull plating, without knowing how they work.

@@ -203,7 +203,7 @@ Her line is "Every crate that goes to Kiln is written on the gate."
 - Habit: She reads every meter at dusk and writes it in the book.
 - Secret: She made a sealed copy of the book, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
 
-Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and the water trucks load less. The Archon's household sends its own tanker to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
+Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died on the Green Pit road. She sleeps with the book under her pillow. Every week the pump brings up less, and Bowl's trucks load fewer barrels. The Archon's household sends its own truck to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
 
 Her line is "I did not come to take your water. I came to write down how much of it there is."
 
@@ -212,16 +212,16 @@ Her line is "I did not come to take your water. I came to write down how much of
 - Way: oppose.
 - High concept: The keeper of the Canal book at the lowest lock house, the last proud Duarte of the canals.
 - Trouble: She speaks first and thinks after, so her words cost her kin and her allies.
-- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Counts every barrel the water trucks pour into the canals; Agnes Ondra's copy sits beside her book.
+- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Counts every barrel Bowl's trucks pour into the canals; Agnes Ondra's copy sits beside her book.
 - Skills: best perception, worst social.
 - Wants: The proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share.
 - Fears: The Canal families fade away unheard.
-- Habit: She counts every barrel the water trucks pour in at the lock house and writes it in the open book.
+- Habit: She counts every barrel Bowl's trucks pour in at the lock house and writes it in the open book.
 - Secret: None.
 
-Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves in the Bowl patrol and stands guard at her own lock in a Bowl coat. The water trucks from Dustwell pour their loads into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household's tanker metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
+Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves in the Bowl patrol and stands guard at her own lock in a Bowl coat. Bowl's trucks bring barrels from Dustwell and pour them into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household truck metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
 
-Tomas saw the household's tanker unload on the top terrace on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
+Tomas saw the household truck unload on the top terrace on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
 
 Her line is "The water is ours, and we will count every barrel of it."
 
@@ -230,14 +230,14 @@ Her line is "The water is ours, and we will count every barrel of it."
 - Way: control.
 - High concept: The courteous old steward who holds the purse of the Archon's household.
 - Trouble: He buys every problem away with money, so each payment is one more thing that can be found out.
-- Aspects: Pays Agnes Ondra as he paid her uncle; Sava Kettering sits on a drum for him; A purse on the cart tailboard.
+- Aspects: Pays Agnes Ondra as he paid her uncle; Sava Kettering sits on a drum for him; A purse on the truck tailgate.
 - Skills: best social, worst toughness.
-- Wants: The Bowl never learns where the household's tanker unloads.
+- Wants: The Bowl never learns where the household truck unloads.
 - Fears: The Bowl learns it in a dry year.
 - Habit: He sits with his hands folded and names a sum before he names a threat.
-- Secret: The household's tanker fills the Marr gardens and the Archon's drought store. He hides it from the tenants and the Senate floor.
+- Secret: The household truck fills the Marr gardens and the Archon's drought store. He hides it from the tenants and the Senate floor.
 
-Aurel is the steward of the Archon's household, a courteous old man who holds its purse. He offers money before threats. He knows what the household's tanker fills, and he fears most that the Bowl learns it in a dry year. He pays Agnes Ondra as he paid her uncle, and he posted Sava Kettering at her gate.
+Aurel is the steward of the Archon's household, a courteous old man who holds its purse. He offers money before threats. He knows what the household truck fills, and he fears most that the Bowl learns it in a dry year. He pays Agnes Ondra as he paid her uncle, and he posted Sava Kettering at her gate.
 
 His line is "You came for water, and water is what you should carry out."
 
@@ -269,7 +269,7 @@ His line is "Friend, what did Agnes give you for the drive?"
 - Habit: She names a pod by its number whenever she walks past it.
 - Secret: She no longer thinks a ship will come. She hides it from the Children of Noah.
 
-Juno has lived in the field of old pods at the edge of the Glass Flats all her life. Her mother woke in a pod, and Juno knows every pod by its number. She is 84.
+Juno has lived in the field of old pods at the edge of the Glass Flats all her life. Her mother woke in a pod, and Juno knows every pod by its number. She is old.
 
 Her line is "Forty-one was my mother's. Mind the door, it still sticks."
 
@@ -400,7 +400,7 @@ Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well
 ## Hollis Brennan
 
 - Way: embrace.
-- High concept: The still boss at the Pump Station, who keeps the stills cooking crude into petrol.
+- High concept: The still boss at the Pump Station, who keeps the stills cooking crude into diesel.
 - Trouble: The pump and the stills eat tools and batteries faster than the convoys bring them.
 - Aspects: Drums stacked by the stills; A pumpjack that nods over an Old World well; Hands black to the wrist.
 - Skills: best machining, worst social.
@@ -409,7 +409,7 @@ Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well
 - Habit: He taps each drum as it is filled and chalks the count on the still.
 - Secret: None.
 
-Hollis runs the crew at the Pump Station. The pumpjack lifts crude from an Old World oil well, his stills cook it into petrol, and the fuel convoys load the drums. The pump wears through tools, and its motor needs batteries from Nose. When it stops, drums run short all over the basin.
+Hollis runs the crew at the Pump Station. The pumpjack lifts crude from an Old World oil well, his stills cook it into diesel, and the fuel convoys load the drums. The pump wears through tools, and its motor needs batteries from Nose. When it stops, drums run short all over the basin.
 
 His line is "No tools, no pump. No pump, no drums."
 
@@ -507,7 +507,7 @@ In autumn of year 130 her men cut the tow chain on wagon Seven's cannon and coul
 - Habit: He checks his watch when he lies.
 - Secret: He told Command that raiders took wagon Seven, but its cheap brake rod snapped on the bend. He hides it from Command and the Salvage Yard.
 
-Teller drove Nose Army wagon Seven on the weekly water run from Dustwell down the Bowl north road to Bowl for four years, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the cheap brake rod that command ordered for the depot trucks snapped on the bend. The wagon could not slow and went over the edge into a hollow, and it hurt the arm of his relief driver when it hit the verge. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. After the rain he drove an Army truck back to the bend alone, walked down to take the broken half of the rod out of the linkage and could not shift it.
+Teller drove Nose Army wagon Seven on the weekly run for four years, water barrels from Dustwell down the Bowl north road to Bowl and Granary rations back to Nose, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the cheap brake rod that command ordered for the depot trucks snapped on the bend. The wagon could not slow and went over the edge into a hollow, and it hurt the arm of his relief driver when it hit the verge. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. Weeks later he drove an Army truck back to the bend alone, walked down to take the broken half of the rod out of the linkage and could not shift it.
 
 His line is "Look, I've driven that track four years. You don't know the bend."
 
@@ -523,7 +523,7 @@ His line is "Look, I've driven that track four years. You don't know the bend."
 - Habit: He turns his half of the rod in his fingers while he talks.
 - Secret: None.
 
-Ilan is the conscript relief driver of wagon Seven, twenty years old. He rode in the cab to take over the link when Teller tired on the long run, and his arm is in a sling from the hit on the verge. He took half of the broken brake rod from the wagon and keeps it in his shirt pocket. At Kovac's desk he said the rod broke, and Kovac wrote it in the margin beside Teller's report. With Lena he found two more cracked rods on the depot line. Lena warned command in writing, and command filed the warning. His mother lives in Bowl and buys her water at Hattie's well house.
+Ilan is the conscript relief driver of wagon Seven, twenty years old. He rode in the cab to take over the link when Teller tired on the long run, and his arm is in a sling from the hit on the verge. He took half of the broken brake rod from the wagon and keeps it in his shirt pocket. At Kovac's desk he said the rod broke, and Kovac wrote it in the margin beside Teller's report. With Lena he found two more cracked rods on the depot line. Lena warned command in writing, and command filed the warning. His mother lives in Bowl and buys her water at Hattie's cistern house.
 
 His line is "The bend was fine. The rod wasn't."
 
@@ -581,11 +581,11 @@ Karl and his brother Jens were Old Army deserters who robbed insured trucks on t
 - Aspects: The only water an outsider may buy in Bowl; Sizes up every driver by how they arrive.
 - Skills: best perception, worst machining.
 - Wants: No driver leaves Bowl thirsty.
-- Fears: A dry well, or a driver dying of thirst within sight of her stand.
-- Habit: She sounds the well with a weighted line before she opens each morning.
+- Fears: An empty cistern, or a driver dying of thirst within sight of her stand.
+- Habit: She sounds the cistern with a weighted line before she opens each morning.
 - Secret: She waters drivers the patrol has turned away, and leaves them off her slate.
 
-Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Every driver who is not let past the yard buys water from her, so she is the first and the last person of Bowl they speak to. Drivers talk while their tanks fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
+Hattie runs the water stand in the Bowl gate yard, the section where outsiders are kept. Every driver who is not let past the yard buys water from her, so she is the first and the last person of Bowl they speak to. Drivers talk while their barrels fill, and she hears the roads from them. She tells an outsider the plain truth about the road, and says when she only heard it. She answers few questions about what lies past the gate. She keeps a slate for drivers who are short, and she remembers every line on it.
 
 Her line is "Sit down before you fall down."
 
@@ -687,11 +687,11 @@ Her line is "I'll hear a man out before I write what he owes."
 
 - Way: escape.
 - High concept: Dario Feld's nephew, who came home from the north-west with a guard's tin badge and gave the Marshalls their name.
-- Trouble: He will drive anywhere for the Roadhouse and will not carry a gun.
+- Trouble: He will drive anywhere for the Roadhouse and has never fired the gun he carries.
 - Aspects: A north-western guard's tin badge; Lusa Fenwick's friend on the road; A Kiln ladle scratched into his door.
 - Skills: best driving, worst toughness.
 - Wants: A guard here paid by every town, like the one he saw in the north-west.
-- Fears: Having to carry a gun himself.
+- Fears: Having to fire his gun at a man.
 - Habit: He rubs the badge with his sleeve when he lies.
 - Secret: He once told drivers the north-western guard never lost a truck. He never asked.
 
