@@ -7,12 +7,18 @@ import type { V3 } from '../../phys/frames';
 import { TERRAIN_CHUNK } from './terrain';
 import { outlineProps } from './models';
 import { CLOUD_SHADOWS } from './cloudShadows';
+import { MODEL_FILL } from './modelFill';
 
 const S = PHYSICS.metersPerTile;
 const MARGIN = 8 * S;
 const IDENTITY = new THREE.Matrix4();
 
 type Chunk = { group: THREE.Group; box: THREE.Box3; shown: boolean };
+
+function prepareModel(obj: THREE.Object3D): void {
+  outlineProps(obj);
+  MODEL_FILL.shadeTree(obj);
+}
 
 export class RenderScope {
   private readonly perSide: number;
@@ -24,8 +30,8 @@ export class RenderScope {
   private readonly prepare: (obj: THREE.Object3D) => void;
   private readonly frameHooks: (() => void)[] = [];
 
-  constructor(private readonly root: THREE.Object3D, private readonly mapSize: number, private readonly limit: SightLimit, private readonly grey: boolean, outlined: boolean) {
-    this.prepare = outlined ? outlineProps : () => {};
+  constructor(private readonly root: THREE.Object3D, private readonly mapSize: number, private readonly limit: SightLimit, private readonly grey: boolean, models: boolean) {
+    this.prepare = models ? prepareModel : () => {};
     this.perSide = Math.ceil(mapSize / TERRAIN_CHUNK);
     this.chunks = new Array<Chunk | null>(this.perSide * this.perSide).fill(null);
   }

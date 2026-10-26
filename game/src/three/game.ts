@@ -271,9 +271,6 @@ export class Game {
     });
     this.sound = new SoundDirector(player, this.rig, music, () => player.now());
     this.loops = new SoundLoops(player, music);
-    uiRoot().addEventListener("click", (e) => {
-      if ((e.target as HTMLElement).closest("button")) this.sound.ui("ui-click");
-    });
 
     const host = this.uiHost();
     this.weapons = new WeaponPanel(host);
