@@ -77,6 +77,7 @@ export class GridScale {
 
   reset(): void {
     this.pxPerMeter = null;
+    this.target = null;
   }
 
   measure(v: Vehicle, own: boolean): GridMetrics {
@@ -98,9 +99,10 @@ export class GridScale {
   }
 
   shrinkBy(over: number): void {
-    const m = this.mine;
-    const height = gridSize(m).height;
-    this.pxPerMeter = (this.pxPerMeter ?? 1) * Math.max(MIN_CELL_PX / smallestSide(m), (height - over) / height);
+    const grids = [this.mine, ...(this.target ? [this.target] : [])];
+    const height = Math.max(...grids.map((m) => gridSize(m).height));
+    const least = Math.max(...grids.map((m) => MIN_CELL_PX / smallestSide(m)));
+    this.pxPerMeter = (this.pxPerMeter ?? 1) * Math.max(least, (height - over) / height);
   }
 
   slop(): number {

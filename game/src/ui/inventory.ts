@@ -181,9 +181,9 @@ export class InventoryView {
   fitTo(box: HTMLElement): void {
     this.scale.reset();
     this.render();
-    const truck = this.root.querySelector(".inv-truck");
-    if (!truck) throw new Error("Inventory view is not rendered");
-    const over = uiSize().toLayer(truck.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom);
+    const trucks = [...this.root.querySelectorAll(".inv-truck")];
+    if (trucks.length === 0) throw new Error("Inventory view is not rendered");
+    const over = uiSize().toLayer(Math.max(...trucks.map((t) => t.getBoundingClientRect().bottom)) - box.getBoundingClientRect().bottom);
     if (over <= 0) return;
     this.scale.shrinkBy(over);
     this.render();
