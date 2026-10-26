@@ -43,22 +43,26 @@ export function gridMetrics(chassisId: string, g: Grid, pxPerMeter: number): Gri
 }
 
 export function rowTop(m: GridMetrics, y: number): number {
-  return y * m.cellH + (y >= m.chassisRows ? m.spareGap : 0);
+  return y < m.chassisRows ? y * m.cellH : m.chassisRows * m.cellH + m.spareGap + (y - m.chassisRows) * m.cellW;
+}
+
+function rowHeight(m: GridMetrics, y: number): number {
+  return y < m.chassisRows ? m.cellH : m.cellW;
 }
 
 export function rectOf(m: GridMetrics, x: number, y: number, w: number, h: number): PixelRect {
   const top = rowTop(m, y);
-  return { left: x * m.cellW, top, width: w * m.cellW, height: rowTop(m, y + h - 1) + m.cellH - top };
+  return { left: x * m.cellW, top, width: w * m.cellW, height: rowTop(m, y + h - 1) + rowHeight(m, y + h - 1) - top };
 }
 
 export function gridSize(m: GridMetrics): { width: number; height: number } {
-  return { width: m.cols * m.cellW, height: rowTop(m, m.rows - 1) + m.cellH };
+  return { width: m.cols * m.cellW, height: rowTop(m, m.rows - 1) + rowHeight(m, m.rows - 1) };
 }
 
 export function cellAt(m: GridMetrics, px: number, py: number): { x: number; y: number } {
   const chassisBottom = m.chassisRows * m.cellH;
-  const y = py < chassisBottom + m.spareGap / 2 || m.rows === m.chassisRows ? Math.floor(py / m.cellH) : m.chassisRows + Math.floor((py - chassisBottom - m.spareGap) / m.cellH);
-  return { x: Math.floor(px / m.cellW), y };
+  const onTruck = py < chassisBottom + m.spareGap / 2 || m.rows === m.chassisRows;
+  return { x: Math.floor(px / m.cellW), y: onTruck ? Math.floor(py / m.cellH) : m.chassisRows + Math.floor((py - chassisBottom - m.spareGap) / m.cellW) };
 }
 
 export function smallestSide(m: GridMetrics): number {
@@ -101,7 +105,7 @@ export class GridScale {
   shrinkBy(over: number): void {
     const grids = [this.mine, ...(this.target ? [this.target] : [])];
     const height = Math.max(...grids.map((m) => gridSize(m).height));
-    const least = Math.max(...grids.map((m) => MIN_CELL_PX / smallestSide(m)));
+    const least = Math.max(...grids.map((m) => MIN_CELL_PX / Math.sqrt(m.cellW * m.cellH)));
     this.pxPerMeter = (this.pxPerMeter ?? 1) * Math.max(least, (height - over) / height);
   }
 

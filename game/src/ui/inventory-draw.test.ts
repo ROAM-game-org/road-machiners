@@ -148,6 +148,15 @@ describe("grid metrics", () => {
       }
   });
 
+  it("draw spare rows square, since they hold only icon tiles", () => {
+    const g = bareGrid("longbed");
+    const m = gridMetrics("longbed", g, PX_PER_METER);
+
+    const spare = rectOf(m, 0, g.chassisH, 1, 1);
+
+    expect(spare.height).toBeCloseTo(spare.width, 9);
+  });
+
   it("leave a gap between the truck and its spare rows", () => {
     const g = bareGrid("longbed");
     const m = gridMetrics("longbed", g, PX_PER_METER);
