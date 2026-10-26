@@ -36,7 +36,7 @@ VAR tip = 20
     Changed your mind about the copy? # speaker: Agnes
     -> hub
   }
-  <term=dustwell>Dustwell</term> is a small square of rusted corrugated walls round a pumpjack that nods over the well. It smells of hot iron and wet stone. Pipes run from the well to the tall tanks, where trucks loaded with empty barrels wait in a line.
+  <term=dustwell>Dustwell</term> is a walled pump outpost. Rusted corrugated walls close it in, with a pale concrete block at each corner. Inside, a pumpjack nods over the well and crews work the pipes. It smells of hot iron and wet stone. Pipes run from the well to the tall tanks, where trucks loaded with empty barrels wait in a line.
   Every hose at the tanks has a meter box on it, except one. A big grey truck with a lantern painted on its door is filling its barrels from that one. It sits low on its springs already.
   A woman in a canvas apron stands at a row of dials and copies each number into a book.
   A man in a grey coat sits on a drum by the gate with a mug of tea. He watches the woman, not you.
@@ -81,7 +81,7 @@ VAR tip = 20
     The pump's broken down. The big dial hardly moves, and I write that down too. # speaker: Agnes
   }
   { short_of("tools"):
-    I'm out of tools. One more stripped bolt and the pump runs at half. # speaker: Agnes
+    The crews are out of tools. One more stripped bolt and the pump runs at half. # speaker: Agnes
   }
   -> hub
 + {not asked_man and not trusted} [Ask the man on the drum what he's waiting for.]
