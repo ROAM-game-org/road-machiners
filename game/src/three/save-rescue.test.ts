@@ -304,9 +304,9 @@ describe('rescueSave', () => {
     const slots = makeSlots();
     const save = currentSave() as unknown as { quests: Record<string, number>; world: SavedWorld & { player: { quests: unknown; notes: unknown } } };
     save.world.mapHash = 'old-map';
-    save.world.player.quests = { world: { pipe_fate: 'sold', depot_thief: 'vance' }, local: { pump_pipe: { taken: true } }, session: null };
-    save.world.player.notes = [{ id: 'pipeOffer', turn: 40 }, { id: 'burntConvoy', turn: 41 }, { id: 'retiredNote', turn: 42 }];
-    save.quests = { ...save.quests, pump_pipe: 0 };
+    save.world.player.quests = { world: { depot_thief: 'vance' }, local: { roadhouse_petra: { petra_buyoff: true } }, session: null };
+    save.world.player.notes = [{ id: 'roadhouseBuyOff', turn: 40 }, { id: 'burntConvoy', turn: 41 }, { id: 'retiredNote', turn: 42 }];
+    save.quests = { ...save.quests, roadhouse_petra: 0 };
     slots.put('auto', save);
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 2000)!;
 

@@ -1,0 +1,22 @@
+{
+  "turn": 2400,
+  "player": {
+    "money": 1500,
+    "notes": [
+      { "id": "talkGranaryGate", "turn": 300 },
+      { "id": "talkSeepPipe", "turn": 310 },
+      { "id": "pipeBook", "turn": 900 },
+      { "id": "pipeOffer", "turn": 950 },
+      { "id": "burntConvoy", "turn": 1000 }
+    ],
+    "quests": {
+      "world": { "pipe_fate": "delivered", "marr_regard": "enemy", "wagon_fate": "admitted", "hattie_met": true },
+      "local": {
+        "pump_agnes": { "trusted": true, "knows_book": true },
+        "pump_pipe": { "meter_taken": true },
+        "bowl_jory": { "jory_green": true }
+      },
+      "session": { "quest": "pump_pipe", "checkpoint": "start", "seed": 7 }
+    }
+  }
+}

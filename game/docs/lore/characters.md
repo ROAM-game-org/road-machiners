@@ -13,7 +13,7 @@ Each person gets a sheet, then their story, then their line. The sheet is built 
 - Secret: what they hide and from whom. A person's stated reason for a job is often not the real one.
 - Their line: how they talk, in one sentence. Full voice sheets for speakers are in [Voices](voices.md).
 
-For example, Agnes Ondra's trouble is that she is afraid to refuse the steward's oil, her habit is reading every meter at dusk, and her fear is being named as the one who talked.
+For example, Odile Marsh's habit is counting every sack at night, and her fear is an empty Granary.
 
 ## Alan Graves
 
@@ -191,72 +191,6 @@ Odile is the steward of the Granary for the Bowl Senate. She was born a tenant a
 
 Her line is "Every sack that goes to Kiln is written on the gate."
 
-## Agnes Ondra
-
-- Way: fear.
-- High concept: The keeper of Dustwell's pump book of her late uncle Wendell.
-- Trouble: She writes the truth in her book, but she is afraid to refuse the steward's oil to his face.
-- Aspects: Wendell Ondra's pump book under her pillow; Takes Aurel Brede's barrel of oil; Sava Kettering sits on a drum at her gate.
-- Skills: best machining, worst social.
-- Wants: The sealed copy read in the Bowl and the oil sent back before the frost.
-- Fears: Aurel Brede, and being named as the one who talked.
-- Habit: She reads every meter at dusk and writes it in the book.
-- Secret: She made a sealed copy of the book, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
-
-Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and the water trucks load less. The Archon's household sends its own tanker to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
-
-Her line is "I did not come to take your water. I came to write down how much of it there is."
-
-## Mirela Duarte
-
-- Way: oppose.
-- High concept: The keeper of the Canal book at the lowest lock house, the last proud Duarte of the canals.
-- Trouble: She speaks first and thinks after, so her words cost her kin and her allies.
-- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Counts every barrel the water trucks pour into the canals; Agnes Ondra's copy sits beside her book.
-- Skills: best perception, worst social.
-- Wants: The proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share.
-- Fears: The Canal families fade away unheard.
-- Habit: She counts every barrel the water trucks pour in at the lock house and writes it in the open book.
-- Secret: None.
-
-Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. The water trucks from Dustwell pour their loads into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household's tanker metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
-
-Tomas saw the household's tanker unload on the top terrace on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
-
-Her line is "The water is ours, and we will count every barrel of it."
-
-## Aurel Brede
-
-- Way: control.
-- High concept: The courteous old steward who holds the purse of the Archon's household.
-- Trouble: He buys every problem away with money, so each payment is one more thing that can be found out.
-- Aspects: Pays Agnes Ondra as he paid her uncle; Sava Kettering sits on a drum for him; A purse on the cart tailboard.
-- Skills: best social, worst toughness.
-- Wants: The Bowl never learns where the household's tanker unloads.
-- Fears: The Bowl learns it in a dry year.
-- Habit: He sits with his hands folded and names a sum before he names a threat.
-- Secret: The household's tanker fills the Marr gardens and the Archon's drought store. He hides it from the tenants and the Senate floor.
-
-Aurel is the steward of the Archon's household, a courteous old man who holds its purse. He offers money before threats, and he signs patrol postings. He knows what the household's tanker fills, and he fears most that the Bowl learns it in a dry year. He pays Agnes Ondra as he paid her uncle, and he posted Sava Kettering at her gate.
-
-His line is "You came for water, and water is what you should carry out."
-
-## Sava Kettering
-
-- Way: control.
-- High concept: A bottom terrace boy in a grey household coat who sits on a drum and reports on Agnes Ondra's gate.
-- Trouble: He sells what he hears to both sides, so neither side trusts him all the way.
-- Aspects: Aurel Brede pays him by the week; Grew up two doors from Jory Baptiste; A cold cup of tea and open ears.
-- Skills: best perception, worst toughness.
-- Wants: To be sworn to the household.
-- Fears: Going back to the bottom terrace with nothing.
-- Habit: He lets his tea go cold while he listens.
-- Secret: He sells what he hears at the gate to the Canal families. He hides it from Aurel.
-
-Sava grew up on the bottom terrace, two doors from Jory, and now wears a grey household coat. Aurel Brede pays him by the week to sit on a drum at the Dustwell gate and report every truck and every word Agnes says. He lets his tea go cold while he listens. He wants to be sworn to the household, and he sells what he hears to both sides. He told the drivers at the well about Agnes's envelope.
-
-His line is "Friend, what did Agnes give you for the drive?"
-
 ## Juno Pell
 
 - Way: escape.
@@ -278,7 +212,7 @@ Her line is "Six lamps, six pods, and not one of them goes dark while I am alive
 - Way: control.
 - High concept: A corporal of the Old Army who still stands guard at Old Orchard in a Bowl patrol coat.
 - Trouble: He guards an army that is gone, so no one gives him a task and no one relieves him.
-- Aspects: The count painted on the blockhouse wall; A Bowl coat over an Old Army oath; Aurel Brede's postings send him nowhere.
+- Aspects: The count painted on the blockhouse wall; A Bowl coat over an Old Army oath; The patrol's postings send him nowhere.
 - Skills: best driving, worst social.
 - Wants: The basin to need the army again.
 - Fears: A truck goes missing from the motor pool on his watch.
@@ -452,7 +386,7 @@ Her line is "I wrote it twice, once for the file and once for myself."
 - Way: oppose.
 - High concept: A tenant spokesman on the Bowl terraces who fights the Senate with its own rules and a joke.
 - Trouble: Every rule he turns back on the Senate puts more tenants in the patrol and himself under its eye.
-- Aspects: The patrols know his face; A short joke for every fight; Sava Kettering grew up two doors from him.
+- Aspects: The patrols know his face; A short joke for every fight; Odile Marsh was a tenant like him.
 - Skills: best social, worst toughness.
 - Wants: A vote for every tenant who serves 10 years in the patrol.
 - Fears: Dying one season short of a vote, as his grandfather did.

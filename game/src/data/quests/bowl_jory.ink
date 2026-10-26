@@ -14,7 +14,6 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
 # checkpoint: start.hub
 + [Who are the tenants?]
   We grow the food, and the citizens eat it. You can tell us apart by the dirt under the nails. We work the families' terraces and keep a share of what we grow. We've no vote in the Senate, so the families decide what we plant and what we're paid.
-  The top terraces, where the old families live, stay green even in a dry year. Nobody's explained that to me, and I wouldn't dare ask. A miracle's a miracle.
   ~ jory_green = true
   ~ jory_nose = true
   -> hub
@@ -34,11 +33,6 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
   Kiln Camp, the raiders in the south, gets a sack from the <term=granary>Granary</term> for every armed truck that crosses their road. The patrol is paid out of the tenants' share of the same grain.
   The sack leaves the store once and the Senate counts it twice. The Senate says it all adds up, and it does, the way a bucket with a hole adds up.
   ~ note("talkGranaryGate")
-  -> hub
-+ {jory_green} [Why do the top terraces stay green?]
-  Because, if the word's right, the household's own tanker fills up at Dustwell every week and drives straight up to the top gardens. Its loads go in nobody's book. If you say so in the market, they'll ask for the book, so I say it only here.
-  Have I seen the tanker unload? No. I've seen the kitchen gardens up there, and they're very green for a dry year. Either the tanker exists or those cabbages are saints.
-  ~ note("talkSeepPipe")
   -> hub
 + {jory_nose and found("nose")} [What do you make of Nose?]
   They ration everyone and call it kindness. A fed man in a line is still a man in a line. Ask me again in a famine and I might change my mind, or I might not, because I'm a stubborn fellow when I'm hungry.

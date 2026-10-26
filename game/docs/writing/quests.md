@@ -11,7 +11,7 @@ A quest is built in three steps: play out the story behind it, write it, then pl
 3. Playtest it with Codex. Run it in the background, with a log:
 
    ```
-   npm run quest:playtest -- pump_agnes --situation "You drive a truck, and you just rolled into a water outpost where a woman is at work." --out tmp/playtest-pump.md > tmp/playtest.log 2>&1 &
+   npm run quest:playtest -- nose_kovac --situation "You drive a truck, and you just parked at an Army town's dispatch office." --out tmp/playtest-kovac.md > tmp/playtest.log 2>&1 &
    ```
 
    The situation is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player. The script shows Codex one screen at a time, as the player sees it, and Codex answers with a comment and one choice. It never runs commands or reads the source. The comments follow the rubric in [the playtest prompt](playtest-prompt.md): clarity, voice, choices, pull, consistency and prose. When the story ends, Codex may start over once on a different road. Then it gives three best things, up to five worst problems, a score from 1 to 5 for each criterion by the scale in the prompt, and what would make every criterion a 5. The run's score is the lowest of the six. The notes file holds every screen, comment and pick. `--screens` caps the screens, 40 by default. `--lang ru --prompt docs/writing/playtest-prompt-ru.md` plays the Russian twins with a native Russian reader, who marks every line that reads as a translation with «ПЕРЕВОД:». In Russian the player is agy in place of Codex, since agy reads Russian better, and `--model` then names an agy model. `--player codex` or `--player agy` overrides that choice. Write its situation and `--then` lines in Russian.

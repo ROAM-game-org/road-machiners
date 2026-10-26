@@ -41,7 +41,7 @@ describe('the revision gate on lost names', () => {
 
 describe('revisionReach', () => {
   it('names the quests a raised revision could reset at most, through reads and the quests it begins', () => {
-    expect(revisionReach(QUESTS, 'pump_agnes')).toEqual(expect.arrayContaining(['pump_agnes', 'pump_pipe']));
+    expect(revisionReach(QUESTS, 'nose_kovac')).toEqual(expect.arrayContaining(['nose_kovac', 'nose_depot_leak']));
     expect(revisionReach(QUESTS, 'wagon_bench')).toEqual(expect.arrayContaining(['wagon_bench', 'bowl_dag', 'nose_kovac', 'nose_lena', 'yard_sefa']));
     expect(revisionReach(QUESTS, 'bowl_ruben')).toEqual(['bowl_ruben']);
   });
