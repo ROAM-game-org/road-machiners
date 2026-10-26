@@ -11,7 +11,7 @@ import { hasSalvage, isRoadWreck } from './salvage';
 import { hasExplorationMap } from './settings';
 import { isFree } from './spawn';
 import { vehicleStats } from './stats';
-import { layOf } from './survey';
+import { groundRise } from './survey';
 import { clockOf, sunAt } from './sun';
 import { isCliff, tileAt } from './terrain';
 import type { GoalReason, NpcActivity, Vehicle, World } from './types';
@@ -71,7 +71,7 @@ function sunsetCandidates(world: World, vehicle: Vehicle): Vec[] {
 function viewpoint(world: World, p: Vec): boolean {
   if (isCliff(world.terrain, tileAt(world.terrain, p))) return false;
   if (ROAD_INDEX.nearestWithin(p.x, p.y, LINGER.sunsetRoadReach) === Infinity) return false;
-  return layOf(world.terrain, p) === 'rise';
+  return groundRise(world.terrain, p) >= LINGER.sunsetRise;
 }
 
 function sunsetSpot(world: World, vehicle: Vehicle): { spot: Vec; target: string | null } | null {
