@@ -208,7 +208,7 @@ Bad: "[I was wondering whether you might tell me something about the raiders and
 
 Good: "[Who are the raiders?]"
 
-A hub shows two to four questions plus a way out. More than that means the talk has no subject. Give each talk one subject and let it end.
+A hub shows at most five choices at once, the way out included, and `npm run quests:check` fails on a state that shows more. Ask whether the talk has one subject first. If it does and has many questions, group them under topic choices like "[About the road…]", each opening a stitch of at most four questions and a "[Back.]" that returns to the hub. Keep the questions' own text and replies as they are. A topic choice shows only while one of its questions does, so guard it with the same variables.
 
 ### A spread of tones
 
