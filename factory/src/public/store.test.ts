@@ -184,9 +184,12 @@ describe('public store', () => {
   it('reopens only a closed proposal that was never posted or attempted', () => {
     const store = openStore(mkdtempSync(join(tmpdir(), 'public-store-')));
     store.addProposal(7, 'Add a winch', now);
+    expect(store.closedUnattempted(7)).toBe(false);
     expect(store.reopenUnattempted(7)).toBe(false);
     store.closeProposal(7, now);
+    expect(store.closedUnattempted(7)).toBe(true);
     expect(store.reopenUnattempted(7)).toBe(true);
+    expect(store.closedUnattempted(7)).toBe(false);
     expect(store.reopenUnattempted(7)).toBe(false);
     expect(store.unpostedProposals().map((proposal) => proposal.issue)).toEqual([7]);
     store.beginProposalPost(7, now);

@@ -225,9 +225,24 @@ describe('reviveVotes', () => {
     await reviveVotes(f.ctx, f.cards);
     expect(f.store.proposal(7)?.closedAt).toBeNull();
     expect(f.logs.filter((line) => line.includes('open again'))).toHaveLength(1);
-    expect(f.calls).toEqual([]);
+    expect(f.calls).toEqual(['issue 7']);
     await postProposal(f.ctx, f.store);
     expect(f.store.proposal(7)?.postedAt).not.toBeNull();
+  });
+
+  it('leaves closed the proposal of a closed issue that still waits in Triage with the label, so the post step never closes it again each tick', async () => {
+    const f = publicFake();
+    f.issueState[7] = 'CLOSED';
+    f.store.addProposal(7, 'Winch', f.clock.now);
+    await postProposal(f.ctx, f.store);
+    f.cards = [voting(7)];
+    for (let round = 0; round < 2; round++) {
+      await reviveVotes(f.ctx, f.cards);
+      await postProposal(f.ctx, f.store);
+    }
+    expect(f.store.proposal(7)?.closedAt).not.toBeNull();
+    expect(f.logs.filter((line) => line.includes('open again') || line.includes('closed unposted'))).toHaveLength(1);
+    expect(f.calls).toEqual(['issue 7', 'issue 7', 'issue 7']);
   });
 
   it('removes the voting label of a card with no proposal, so triage runs again', async () => {
