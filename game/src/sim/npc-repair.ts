@@ -38,36 +38,37 @@ function canSearchForShade(world: World, vehicle: Vehicle): boolean {
   return !inShade(world, vehicle.pos, sun);
 }
 
-function isRepairCandidate(world: World, vehicle: Vehicle, point: Vec): boolean {
+function isShadeCandidate(world: World, vehicle: Vehicle, point: Vec, radius: number): boolean {
   if (point.x < 1 || point.y < 1) return false;
   if (point.x >= world.size - 1 || point.y >= world.size - 1) return false;
-  return dist(vehicle.pos, point) <= NPC_UPKEEP.shadeSearchRadius;
+  return dist(vehicle.pos, point) <= radius;
 }
 
-function getRepairCandidates(world: World, vehicle: Vehicle): Vec[] {
-  const radius = NPC_UPKEEP.shadeSearchRadius;
+function shadeCandidates(world: World, vehicle: Vehicle, radius: number): Vec[] {
   const candidates: Vec[] = [];
   for (let y = Math.floor(vehicle.pos.y - radius); y <= vehicle.pos.y + radius; y++) {
     for (let x = Math.floor(vehicle.pos.x - radius); x <= vehicle.pos.x + radius; x++) {
       const point = { x: x + 0.5, y: y + 0.5 };
-      if (isRepairCandidate(world, vehicle, point)) candidates.push(point);
+      if (isShadeCandidate(world, vehicle, point, radius)) candidates.push(point);
     }
   }
   return candidates.sort((a, b) => dist(vehicle.pos, a) - dist(vehicle.pos, b));
 }
 
-function chooseRepairSpot(world: World, vehicle: Vehicle): Vec | null {
-  if (!canSearchForShade(world, vehicle)) return null;
+export function shadedSpotNear(world: World, vehicle: Vehicle, radius: number): Vec | null {
   const sun = sunAt(world.turn);
   if (!sun) throw new Error('Shade search requires sunlight');
-  const radius = vehicleStats(world, vehicle).radius;
+  const size = vehicleStats(world, vehicle).radius;
   const blockers = world.vehicles
     .filter((other) => other.id !== vehicle.id)
     .map((other) => ({ pos: other.pos, r: vehicleStats(world, other).radius }));
-  const casters = shadeCasters(world, vehicle.pos, NPC_UPKEEP.shadeSearchRadius);
-  const shaded = getRepairCandidates(world, vehicle)
-    .find((point) => inShade(world, point, sun, casters) && straightClear(world, vehicle.pos, point, radius, blockers));
-  return shaded ?? null;
+  const casters = shadeCasters(world, vehicle.pos, radius);
+  return shadeCandidates(world, vehicle, radius).find((point) => inShade(world, point, sun, casters) && straightClear(world, vehicle.pos, point, size, blockers)) ?? null;
+}
+
+function chooseRepairSpot(world: World, vehicle: Vehicle): Vec | null {
+  if (!canSearchForShade(world, vehicle)) return null;
+  return shadedSpotNear(world, vehicle, NPC_UPKEEP.shadeSearchRadius);
 }
 
 export function chooseNpcRepair(world: World, vehicle: Vehicle, condition: number): NpcActivity | null {

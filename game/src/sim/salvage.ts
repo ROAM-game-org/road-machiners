@@ -259,8 +259,12 @@ export function searchTarget(world: World, vehicle: Vehicle, stockId: string | n
   return arrived && !salvageInRange(vehicle, stock) ? { ended: 'salvageOutOfReach' } : { stock };
 }
 
+export function salvageReach(radius: number): number {
+  return (radius + ECONOMY.useRange) * ECONOMY.interactionScale;
+}
+
 export function salvageInRange(vehicle: Vehicle, stock: SalvageStock): boolean {
-  return dist(vehicle.pos, stock.pos) <= (stock.radius + ECONOMY.useRange) * ECONOMY.interactionScale;
+  return dist(vehicle.pos, stock.pos) <= salvageReach(stock.radius);
 }
 
 export function collectSalvage(world: World, vehicle: Vehicle, stockId: string, units: number): number {

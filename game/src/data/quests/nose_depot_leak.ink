@@ -94,7 +94,7 @@ The ink on the last line is still wet, and a faint sour smell of it hangs over t
 ~ watches -= 1
 The gate sentry hands over the log without a word, then goes back to watching the road. # place: Gatehouse
 Night; Signed out late; Truck bed # head
-3rd; Ostrow; water drums # row
+3rd; Ostrow; water barrels # row
 3rd; Vance; empty # row
 7th; Vance; empty # row
 11th; Ruiz; scrap # row
@@ -158,7 +158,7 @@ Buying or just looking? Looking's free, but it doesn't feed me. # speaker: Sabin
 ~ watches -= 1
 The barracks are empty at noon, and the air is heavy with sweat, boot polish and old canvas. Vance's cot is made tight, Army style. # place: Barracks
 Under it sits a tin of Army fuel seals, every one cut clean.
-His boots stand by the door, still wet from the wash trough. Footsteps sound on the boards outside, and you slip out through the back.
+His boots stand by the door, still grey with road dust. Footsteps sound on the boards outside, and you slip out through the back.
 -> after
 
 === stakeout ===

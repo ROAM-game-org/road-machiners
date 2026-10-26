@@ -1,3 +1,4 @@
+import { freshMoments } from '../sim/moments';
 import { START_KITS, type StartKit } from '../data/start';
 import { ICARUS_KEY } from '../sim/atlas';
 import { defaultSetup } from '../sim/settings';
@@ -41,6 +42,7 @@ export function buildEmptyTemplate(): EmptyTemplate {
     if (shop.contracts.length === 0) shop.contracts = unclaimed.shops[id].contracts;
   }
   template.vehicles = template.vehicles.filter((v) => v.faction === 'player');
+  if (template.moments) template.moments = freshMoments();
   template.states = [];
   template.rngState = -1655809527;
   template.player = { ...template.player, explored: new Uint8Array(0) };

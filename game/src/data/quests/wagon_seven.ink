@@ -13,7 +13,7 @@ VAR mount_seen = false
 === start ===
 # checkpoint: start
 The wagon lies nose-down at the bottom of the hollow, below the bend in the Bowl north road. It left the road on the bend and ran all the way down the slope. Army green under the dust. The stencil on the door is the Nose Army's, from the town on the mountain to the east, and under it is a white 7. # place: A hollow off the Bowl north road
-You've been through everything that opens. The radio is gone from the cab, and its bracket hangs empty. The bed is bare: wooden chocks for a row of water drums, and no drums.
+You've been through everything that opens. The radio is gone from the cab, and its bracket hangs empty. The bed is bare: wooden chocks for a row of water barrels, and no barrels.
 The cannon still sits on its gun mount on the bed, so it went over the edge with her. The front of the cab is crumpled where she hit the verge, and the driver's door is caved in.
 A tow chain is wrapped round the cannon's barrel and runs up the slope. Somebody tried to drag the gun off her. The chain has been cut since. The cut ends are still bright.
 -> hub
@@ -21,8 +21,8 @@ A tow chain is wrapped round the cannon's barrel and runs up the slope. Somebody
 = hub
 + {not walked} [Walk the hollow. # check: perception 2]
   ~ walked = true
-  Wide tire tracks with chain marks come down the slope to the wagon's bed and go back up. Rain has softened them. The drums are gone, and you'd bet on that truck, though tracks don't say what it carried.
-  The tracks of two men climb out side by side to the east, as old as the tire tracks. After the rain somebody else came down alone, stood by the cab a while and went back up the way he came.
+  Wide tire tracks with a hand-cut tread come down the slope to the wagon's bed and go back up. Blown sand has softened them. The barrels are gone, and you'd bet on that truck, though tracks don't say what it carried.
+  The tracks of two men climb out side by side to the north-east, as old as the tire tracks. Later, after the sand had drifted over them, somebody else came down alone, stood by the cab a while and went back up the way he came.
   { passed():
     You walk a slow circle and then a wider one. There's no brass in the grit. Not one casing.
     You go over the wagon's sides with your hand. Road dents, rust, a scraped fender. There isn't a bullet hole in her. Raiders shoot. If they shot here, they picked up every casing after and missed the whole wagon.
@@ -37,7 +37,7 @@ A tow chain is wrapped round the cannon's barrel and runs up the slope. Somebody
   ~ followed = true
   The lone tracks climb straight to the bend, where the road runs past above the hollow. A truck stood there and turned round. Its tread matches the wagon's own tires. You'd guess an Army truck, though plenty of trucks run on Army tires.
   { wagon_watched:
-    Further along the ridge you find small bare footprints, a child's, running off to the east, the way the Salvage Yard lies. So that was your watcher.
+    Further along the ridge you find small bare footprints, a child's, running off to the north-east, the way the Salvage Yard lies. So that was your watcher.
   }
   -> hub
 + {not mount_seen} [Crawl under the cab and look at the brakes. # check: machining 1]

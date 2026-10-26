@@ -1,5 +1,6 @@
 
 import type { World } from "../sim/types";
+import type { GarageRenders } from "../three/render/garageRender";
 
 export type UiHost = {
   world(): World;
@@ -15,4 +16,5 @@ export type UiHost = {
   searchStock(stockId: string): void;
   autoTravel(): boolean;
   getTurnPhase(): "moving" | "firing" | "results" | null;
+  garageRenders?(): GarageRenders;
 };

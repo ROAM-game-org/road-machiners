@@ -26,7 +26,7 @@ import { chooseOn, trackOf } from './tracks';
 import { watchStalls } from './npc-watchdog';
 import { CANNOT_HOLD, canTakeAny, STRIPPED } from './salvage';
 import { beginSearch } from './search';
-import { hiddenUnits, salvageInRange, salvageUnits } from './salvage';
+import { hiddenUnits, salvageInRange, salvageReach, salvageUnits } from './salvage';
 import { knockOutNpc } from './defeat';
 import { chassisDef } from '../data/chassis';
 import { cloneWorld } from './world';
@@ -514,6 +514,7 @@ describe('NPC activities', () => {
       const { w, npc } = createScavenger();
       npc.pos = { ...at };
       npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
+      forceOption('idle', 'scavenge');
       const traits = TRAITS.scavenger as { salvageSites: string[] };
       const saved = traits.salvageSites;
       traits.salvageSites = [territoryId];
@@ -2167,5 +2168,54 @@ describe('a haul ends with its cargo', () => {
       { kind: 'wait', targetId: null, destination: null, phase: 'act', reason: 'awaitEscort', until: w.turn + 50 },
     ];
     expect(() => thinkNpc(w, npc)).toThrow(new RegExp(npc.id));
+  });
+});
+
+describe('stock stops and loot detours', () => {
+  function scavengerToStock() {
+    const { w, npc } = createScavenger();
+    const stock: SalvageStock = { id: 'wreck-stop', pos: { x: 30, y: 10 }, radius: 0.6, goods: { scrap: 3 }, parts: [], hidden: emptyHidden() };
+    w.salvage.push(stock);
+    const goal: NpcActivity = { kind: 'scavenge', targetId: stock.id, destination: { ...stock.pos }, phase: 'travel', reason: 'collectSalvage' };
+    npc.brain!.goals = [goal];
+    return { w, npc, stock, goal };
+  }
+
+  it('stops on the approach side of a stock when nothing blocks it', () => {
+    const { w, npc, goal } = scavengerToStock();
+    const stop = getActivityDestination(w, npc, goal)!;
+    expect(stop.y).toBeCloseTo(10, 5);
+    expect(stop.x).toBeLessThan(30);
+  });
+
+  it('stops at a free spot in reach when the approach point is blocked', () => {
+    const { w, npc, stock, goal } = scavengerToStock();
+    const plain = getActivityDestination(w, npc, goal)!;
+    w.obstacles = [...w.obstacles, { id: 'rock-stop', kind: 'rock', pos: { ...plain }, r: 1.2 }];
+    const stop = getActivityDestination(w, npc, goal)!;
+    expect(dist(stop, plain)).toBeGreaterThan(0.5);
+    expect(dist(stop, w.obstacles.find((o) => o.id === 'rock-stop')!.pos)).toBeGreaterThan(1.2 + vehicleStats(w, npc).radius);
+    expect(dist(stop, stock.pos)).toBeLessThanOrEqual(salvageReach(stock.radius));
+  });
+
+  it('a parked truck on a wait goal rolls no loot detour', () => {
+    const { w, npc, stock } = scavengerToStock();
+    const wreck: SalvageStock = { ...stock, id: 'wreck-near', pos: { x: 14, y: 10 } };
+    w.salvage.push(wreck);
+    npc.brain!.goals = [{ kind: 'wait', targetId: null, destination: null, phase: 'travel', reason: 'nothingToDo' }];
+    forceOption('salvageSeen', 'loot');
+    refreshVision(w);
+    thinkNpc(w, npc);
+    expect(npc.brain!.goals.some((goal) => goal.reason === 'lootOnTheWay')).toBe(false);
+  });
+
+  it('a truck driving to a point still rolls the loot detour', () => {
+    const { w, npc, stock } = scavengerToStock();
+    w.salvage.push({ ...stock, id: 'wreck-near', pos: { x: 14, y: 10 } });
+    npc.brain!.goals = [{ kind: 'explore', targetId: null, destination: { x: 40, y: 30 }, phase: 'travel', reason: 'searchSpot' }];
+    forceOption('salvageSeen', 'loot');
+    refreshVision(w);
+    thinkNpc(w, npc);
+    expect(topGoal(npc)?.reason).toBe('lootOnTheWay');
   });
 });
