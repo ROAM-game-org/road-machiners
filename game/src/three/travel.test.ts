@@ -140,6 +140,15 @@ describe("picked travel speed", () => {
     expect(slowest.getSpeed(2300, FAST)).toBe(FAST);
   });
 
+  it("plays no faster than the worker prepares turns, so a slow worker gives a slower smooth flow", () => {
+    const travel = travelling(LAST);
+    const turns = (travel as unknown as { turns: object }).turns;
+    Object.assign(turns, { prepMs: 250 });
+    expect(travel.getSpeed(1000, FAST)).toBeCloseTo(1000 / 250);
+    Object.assign(turns, { prepMs: 4000 });
+    expect(travel.getSpeed(1000, FAST)).toBe(1);
+  });
+
   it("keeps the pick over a pause and plays it again on the next start", () => {
     const travel = travelling(3);
     travel.pause();
@@ -566,7 +575,7 @@ describe("every turn that runs on its own", () => {
   function travelWithTurns(take: () => unknown = () => null) {
     const prepare = vi.fn();
     const travel = new Travel(250, TAIL);
-    Object.assign(travel, { turns: { prepare, take } });
+    Object.assign(travel, { turns: { prepare, take, keptSpeed: () => Infinity } });
     return { travel, prepare };
   }
 
@@ -707,7 +716,7 @@ describe("a scene or call on view", () => {
   function travelWithTurns() {
     const prepare = vi.fn();
     const travel = new Travel(250, TAIL);
-    Object.assign(travel, { turns: { prepare, take: () => ready, isReady: () => true } });
+    Object.assign(travel, { turns: { prepare, take: () => ready, isReady: () => true, keptSpeed: () => Infinity } });
     return { travel, prepare };
   }
 
@@ -878,7 +887,7 @@ describe("the slowdown after a stopped turn", () => {
     const travel = new Travel(250, TAIL);
     const stopped = travel.stopAt(playback, world, {}, 0, 0)!.world;
     const ready = { world: stopped, result: { frames: {}, next: {} }, tail: null } as unknown as PreparedTurn;
-    Object.assign(travel, { turns: { prepare, take: () => ready, isReady: () => true } });
+    Object.assign(travel, { turns: { prepare, take: () => ready, isReady: () => true, keptSpeed: () => Infinity } });
     travel.request(stopped, {} as DriveSnapshot);
     travel.tickCreep(16);
     expect(travel.takeReady(stopped, {} as DriveSnapshot, 0)).toBeNull();
@@ -995,7 +1004,7 @@ describe("a world that waits on the player", () => {
   function travelWithTurns() {
     const prepare = vi.fn();
     const travel = new Travel(250, TAIL);
-    Object.assign(travel, { turns: { prepare, take: () => ready, isReady: () => true } });
+    Object.assign(travel, { turns: { prepare, take: () => ready, isReady: () => true, keptSpeed: () => Infinity } });
     return { travel, prepare };
   }
 

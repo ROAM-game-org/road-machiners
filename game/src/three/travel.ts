@@ -456,8 +456,8 @@ export class Travel {
 
   getSpeed(now: number, fastSpeed: number): number {
     const picked = CONFIG.travelSpeeds[this.speedIndex];
-    if (this.isFast(now)) return Math.max(fastSpeed, picked);
-    return this.automatic ? picked : 1;
+    if (this.isFast(now)) return Math.min(Math.max(fastSpeed, picked), this.turns.keptSpeed());
+    return this.automatic ? Math.min(picked, this.turns.keptSpeed()) : 1;
   }
 
   getSpeedIndex(): number {
@@ -511,12 +511,14 @@ export class TurnPreparation {
   private readonly obstacles = new SentObstacles();
   private serial = 0;
   private warmId = 0;
+  private prepMs: number | null = null;
   private pending: {
     id: number;
     before: World;
     lang: QuestLanguage;
     drive: DriveSnapshot;
     fastTravel: boolean;
+    postedAt: number;
     ready: PreparedTurn | null;
     failure: string | null;
   } | null = null;
@@ -532,7 +534,9 @@ export class TurnPreparation {
       const response = event.data;
       if ("error" in response) return this.fail(response.id, response.error);
       mergePerf(response.id === this.warmId ? { "turn-warm": response.perf.turn } : response.perf);
-      if (this.pending?.id === response.id) this.pending.ready = joinTurn(response.turn, response.obstacles, this.pending.before);
+      if (this.pending?.id !== response.id) return;
+      this.pending.ready = joinTurn(response.turn, response.obstacles, this.pending.before);
+      this.notePrep(performance.now() - this.pending.postedAt);
     };
     worker.onerror = (event) => {
       event.preventDefault();
@@ -573,7 +577,15 @@ export class TurnPreparation {
 
   prepare(world: World, saved: DriveSnapshot, fastTravel: boolean): void {
     if (this.isFresh(world) && this.pending?.fastTravel === fastTravel) return;
-    this.pending = { id: this.post(world, saved, fastTravel), before: world, lang: currentQuestLanguage(), drive: saved, fastTravel, ready: null, failure: null };
+    this.pending = { id: this.post(world, saved, fastTravel), before: world, lang: currentQuestLanguage(), drive: saved, fastTravel, postedAt: performance.now(), ready: null, failure: null };
+  }
+
+  private notePrep(ms: number): void {
+    this.prepMs = this.prepMs === null ? ms : this.prepMs + (ms - this.prepMs) * CONFIG.turnPrepSmoothing;
+  }
+
+  keptSpeed(): number {
+    return this.prepMs === null ? Infinity : Math.max(1, MOVE_MS / this.prepMs);
   }
 
   private post(world: World, saved: DriveSnapshot, fastTravel: boolean): number {
