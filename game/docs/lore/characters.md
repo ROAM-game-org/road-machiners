@@ -557,7 +557,7 @@ His line is "The bend was fine. The rod wasn't."
 - Habit: She tells a stranger to turn their head and reads their neck first.
 - Secret: None.
 
-Edda fits and rewires link seats on the Nose workshop line, for the Army and for anyone who pays. Nobody can make link contacts anymore, so every seat she works on is a Chaos seat that is still alive. Her grandfather lost both arms in the Chaos and got two hands that moved on his nerves. He told her that someone then wired a soldier's nerves to a tank instead of a hand, and the soldier nearly forgot where he ended and the tank began. He fixed link seats until he died, and he taught her the trade.
+Edda fits and rewires link seats on the Nose workshop line, for the Army and for anyone who pays. Nobody can make link contacts anymore, so every seat she works on is a Chaos seat that is still alive. Her grandfather lost both arms in the Chaos and got two hands that moved on his nerves. He told her that someone then wired a soldier's nerves to a tank instead of a hand, and the soldier nearly forgot where he ended and the tank began. The contacts in his hands gave out years before he died, and he lived on without them.
 
 Her line is "Turn your head. That ring is fresh."
 
