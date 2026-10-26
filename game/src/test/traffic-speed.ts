@@ -1,6 +1,3 @@
-// Traffic speed harness: plays a world of NPCs through the real turn pipeline and samples how fast each truck drives
-// on the road, in km/h of the path it drove that turn. Samples fall into classes (healthy ordinary cars, ordinary cars
-// on low fuel, worn ordinary cars, armed and heavy roles, towing rigs) so a before-and-after comparison reads per class.
 
 import { defaultSetup } from '../sim/settings';
 import { PHYSICS } from '../data/physics';

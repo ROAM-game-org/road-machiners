@@ -1,6 +1,3 @@
-// Nose's ship frame and its rock masses. The colony ship came down on a mountain, and the town's ring was built up to
-// its flanks. The mountain is two baked props, nose_rise and nose_crag, that block trucks and sight by their boxes like
-// any rock. Both models and the ship are authored in one frame, fixed by NOSE_FRONT, so it stays put wherever the gates stand
 
 import { NOSE_FRONT } from '../data/fortress';
 import { PHYSICS } from '../data/physics';
