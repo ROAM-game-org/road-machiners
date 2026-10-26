@@ -11,7 +11,7 @@ import { RULES } from '../data/rules';
 import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
 import { mountedParts } from './grid';
-import { openingOver } from './opening';
+import { openingStep, openingStockOf } from './opening';
 import { fightCornered } from './npc-activities';
 import { addState } from './states';
 import { generateNpcLoadout } from './npc-loadout';
@@ -109,8 +109,13 @@ function enginePatched(w: World): boolean {
   return mountedParts(me, 'engine').length > 0 && !engineNeedsPatch(w, me);
 }
 
+function ambushMayCome(w: World): boolean {
+  const wreck = openingStockOf(w);
+  return openingStep(w) === null || wreck === null || dist(playerVehicle(w).pos, wreck.pos) >= AMBUSH.farmLeave;
+}
+
 function launchAmbush(w: World): void {
-  if (!openingOver(w)) return;
+  if (!ambushMayCome(w)) return;
   const me = playerVehicle(w);
   if (me.speed <= RULES.parkedSpeed || siteUnder(atlasOf(w.terrain), me.pos)) return;
   const template = NPCS[AMBUSH.template];
