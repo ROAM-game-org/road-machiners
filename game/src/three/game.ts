@@ -24,7 +24,7 @@ import { playerTrucks, playerVehicle, vehicleById } from "../sim/damage";
 import { inOverdrive, isStranded, maxTurn, vehicleStats } from "../sim/stats";
 import { clickOrder } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
-import { grayRadius, playerSees, tileOf } from "../sim/vision";
+import { grayRadius, playerSees, seenPropTiles, tileOf } from "../sim/vision";
 import type { Vec } from "../sim/vec";
 import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
@@ -242,7 +242,7 @@ export class Game {
     this.obstacles = new ObstacleViews(propScope, this.world.terrain, () => this.screens.pinOutpost());
     this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     addScatter(this.world.terrain, this.world.obstacles, propScope);
-    this.fog = new FogView(this.world, groundChunks, this.sightLimit);
+    this.fog = new FogView(this.world, groundChunks, this.sightLimit, this.propLookTiles(this.world));
     this.path = new PathView(this.world.terrain);
     this.rescueAreas = new RescueAreaView(this.world.terrain);
     this.shade = new ShadeView(this.world, groundChunks, this.play);
@@ -419,7 +419,7 @@ export class Game {
     const me = playerVehicle(this.world);
     if (this.selected && !vehicleStats(this.world, me).weapons.some((mw) => mw.part.id === this.selected)) this.selected = null;
     if (!this.anim) {
-      timed("fog", () => this.fog.update(this.world));
+      timed("fog", () => this.fog.update(this.world, this.propLookTiles(this.world)));
       this.shade.update(this.world);
     }
     this.syncMinimap();
@@ -832,7 +832,7 @@ export class Game {
     if (stopped) this.commitStop(stopped);
     this.live = null;
     this.phase = a.combat ? "firing" : "results";
-    timed("fog", () => this.fog.update(this.combatFogWorld()));
+    timed("fog", () => this.fog.update(this.combatFogWorld(), this.propLookTiles(this.world)));
     playCrashes(this.combatHost(), this.crashCues, null);
     playUtilitySounds(this.combatHost(), "end");
     this.weapons.render();
@@ -944,6 +944,10 @@ export class Game {
     const open = this.modalOpen();
     if (open !== this.panelOpen) this.sound.ui(open ? (this.world.player.call ? "radio" : "ui-open") : "ui-close");
     this.panelOpen = open;
+  }
+
+  private propLookTiles(world: World): number[] {
+    return seenPropTiles(world, playerVehicle(world).pos, new Set(world.player.visible));
   }
 
   private combatFogWorld(): World {
@@ -1110,7 +1114,7 @@ export class Game {
     if (k === null) return;
     const at = toMap(f.pos);
     const player = { ...this.world.player, visible: live.sight.tiles[k], explored: live.explored };
-    timed("fog", () => this.fog.updateSight({ ...this.world, player }));
+    timed("fog", () => this.fog.updateSight({ ...this.world, player }, live.sight.props[k]));
     timed("minimap", () => this.minimap?.update({ ...this.world, player }, { pos: at, heading: playerVehicle(this.world).heading }));
   }
 

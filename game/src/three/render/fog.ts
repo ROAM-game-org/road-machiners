@@ -10,6 +10,11 @@ const EXPLORED = 1;
 const DARK = 2;
 const UNSET = 255;
 
+function* chain(first: readonly number[], second: readonly number[]): Generator<number> {
+  yield* first;
+  yield* second;
+}
+
 type Look = { grey: number; bright: number };
 type FogChunk = { x: number; y: number; width: number; depth: number; look: THREE.BufferAttribute };
 
@@ -23,7 +28,7 @@ export class FogView {
   private shown: readonly number[] = [];
   private readonly lookOf: Look[] = [{ grey: 0, bright: 1 }, TERRAIN.fog.seen, TERRAIN.fog.unseen];
 
-  constructor(world: World, ground: TerrainChunk[], private readonly limit: SightLimit) {
+  constructor(world: World, ground: TerrainChunk[], private readonly limit: SightLimit, props: readonly number[]) {
     const n = world.size;
     this.perSide = Math.ceil(n / TERRAIN_CHUNK);
     this.state = new Uint8Array(n * n).fill(UNSET);
@@ -37,17 +42,17 @@ export class FogView {
       this.chunks[(g.y / TERRAIN_CHUNK) * this.perSide + g.x / TERRAIN_CHUNK] = { x: g.x, y: g.y, width: g.width, depth: g.depth, look };
     }
     for (const mat of materials) greyOut(mat);
-    this.show(world.player.visible);
+    this.show(world.player.visible, props);
     for (let t = 0; t < n * n; t++) this.restate(t, n, world.player.explored);
     this.known = world.player.explored.slice();
     this.writeDirty(n);
   }
 
-  update(world: World): void {
+  update(world: World, props: readonly number[]): void {
     const n = world.size;
     const before = this.shown;
     const explored = world.player.explored;
-    this.show(world.player.visible);
+    this.show(world.player.visible, props);
     for (const t of before) this.restate(t, n, explored);
     for (const t of this.shown) this.restate(t, n, explored);
     this.restateExplored(explored, n);
@@ -63,20 +68,20 @@ export class FogView {
     this.known.set(explored);
   }
 
-  updateSight(world: World): void {
+  updateSight(world: World, props: readonly number[]): void {
     const n = world.size;
     const before = this.shown;
-    this.show(world.player.visible);
+    this.show(world.player.visible, props);
     for (const t of before) this.restate(t, n, world.player.explored);
     for (const t of this.shown) this.restate(t, n, world.player.explored);
     this.writeDirty(n);
   }
 
-  private show(tiles: readonly number[]): void {
+  private show(tiles: readonly number[], props: readonly number[]): void {
     for (const t of this.shown) this.visible[t] = 0;
     for (const t of tiles) this.visible[t] = 1;
     this.shown = tiles;
-    this.limit.showVisible(tiles);
+    this.limit.showVisible(chain(tiles, props));
   }
 
   private restate(t: number, n: number, explored: World['player']['explored']): void {
