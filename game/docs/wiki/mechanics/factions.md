@@ -49,7 +49,7 @@ How a faction judges another. The row judges the column.
 | Independent | 5 | 5 | 10 | 5 | −30 | −30 | −20 | 0 | 0 |
 
 - Bowl would destroy Nose and calls that defense. Nose thinks Bowl slow but needs its grain.
-- The Bowl Granary pays Kiln a sack for every armed truck that crosses, so Kiln lets Bowl trucks pass. Bowl still does not trust Kiln, and Bowl lawmen still fight Kiln riders on sight.
+- The Bowl Granary sends Kiln Camp rations in exchange for passage for its trucks, so Kiln lets Bowl trucks pass. Bowl still does not trust Kiln, and Bowl lawmen still fight Kiln riders on sight.
 - Scrapjaw and Kiln are rival camps that neither rob nor help each other.
 - The Marshalls take no side and no side takes against them for their work. Only the Sunward, wary of everyone, are wary of them.
 - The Sunward are wary of everyone, and everyone of them. Bowl and Nose are warier, since the Senate stopped the order's grain and Nose families lost children to it.

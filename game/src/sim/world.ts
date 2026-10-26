@@ -1,4 +1,5 @@
 
+import { assignMoments, freshMoments, passMoments } from './moments';
 import { advanceCrimes, learnCasesAtDesk } from './crime';
 import { settleCrews } from './crews';
 import { CHASSIS, isPaletteId, PAINT, PAINT_SLOTS } from '../data/chassis';
@@ -168,6 +169,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     lines: [],
     chaosHighway: null,
     sunward: modeMap(setup.mode) === 'icarus' ? freshSunward() : null,
+    moments: modeMap(setup.mode) === 'icarus' ? freshMoments() : null,
     crimes: [],
   };
   world.obstacles = generateObstacles(world, map, [...hollowObstaclesFor(world), ...openingObstacles(kit, start)]);
@@ -222,6 +224,7 @@ function setUpWorldStock(world: World, map: BakedMap, truck: Vehicle, kit: Start
   setUpOpening(world, truck, kit.opening);
   world.player.storage = kit.storage.map((defId) => makePart(world, defId, kit.wear));
   if (populate && rules.traffic) spawnInitial(world);
+  if (populate && rules.traffic) assignMoments(world);
   if (rules.traffic) initializeShops(world);
   stockOldSpots(world, map);
 }
@@ -415,6 +418,7 @@ export function endTurn(
     advanceChaosHighway(w);
     openRoadScene(w);
     spawnNpcs(w);
+    passMoments(w);
     advanceSunward(w);
     advanceIntro(w);
     greetAtWell(w);

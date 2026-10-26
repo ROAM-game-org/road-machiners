@@ -12,6 +12,37 @@ The world of ROAM. Everything here answers to [Theme](../theme.md).
 - [Story game](story-game.md): a turn-based game that generates history and stories with agents.
 - [Chaos Highway](chaos-highway.md): the skeleton of the Geezer and Ala story on the highway.
 
+## Sense check
+
+Lore makes sense to the people in it. Ask every practice, deal and detail these four questions from inside the world, with only what its people know and want:
+
+1. Purpose: what is it for, in one plain sentence, as the people who do it see it?
+2. It works: does it do that job in this world, or would its people believe it does? Does any other fact stop it?
+3. Everyone has a reason: why would each other person or group it names bother, by what the lore already says they want?
+4. It earns its place: does it change a choice, a scene or a piece of evidence the player can find, or is it there only to look woven or exact?
+
+A missing answer, a clash with another fact or an answer that would make a basin driver laugh cuts or fixes the detail. Keep the parts around it that pass. These patterns fail most often:
+
+- Self-defeating practice: a group does what undoes its own purpose. Beacon keepers who put their lamps out at night fail it.
+- Means that don't fit the goal: folk means aimed at something huge, unless the lore means it as a joke. Oil lamps to signal a starship fail it.
+- Name-drop garnish: a faction or a named person tied to a detail with no motive, so the lore looks connected. A Pierce lien on a cult's lamps fails it.
+- Precision garnish: exact counts, ages and spans that no scene or evidence uses. Six lamps kept for sixty years fail it.
+
+### Cut examples
+
+Each of these was in the lore and was cut or fixed. The test it failed is in brackets.
+
+- The Granary paid Kiln a sack for every armed truck that crossed. [It works] Kiln strips trucks that neither pay nor fight, so an armed truck is the one that needs the deal least. A racket charges for passage. Now Kiln eats Granary rations, and Granary trucks pass.
+- Tomas was sentenced to ten years in the Bowl patrol for scraping chalk off a meter. [It works] Ten years in the patrol make a tenant a citizen with a vote, so the sentence was a reward. Now he simply serves in the patrol.
+- Jory wanted a vote for every tenant who serves ten years, which the rule already gave, and Dag said tenants in the patrol stay off the citizens' roll. [It works] Two facts that cannot both hold. Now tenants have no vote, ten years in the patrol put a tenant on the roll, and citizens vote.
+- Sefa never took the last water from anyone. [It earns its place] A quirk with no scene behind it. It leaked into the game as a question a player called nonsense.
+- Aurel Brede, a household steward, signed patrol postings, and Ilya's postings came from him. [Everyone has a reason] Nothing gives a steward power over the patrol. The link was there only to tie two people together.
+- Lena Graves woke in a pod as a girl in year 0 and still warned command in year 130, and Dagny Brask still worked her furnace past 110. [It works] Nobody in the basin lives to 140 without the Apprentice's implants. Now Lena Graves is dead and the Nose mechanic is another Lena, and Dagny is past 70.
+- The Salvage Yard bored the second pin into Nose swivels. [Purpose, It earns its place] No one said what the pin was for, and nothing used it.
+- The Guild's trust owned Old Orchard's machine tools and rented them to Nose. [Everyone has a reason] A message guild has no reason to own an army's workshop. Now Nose hauled the tools away once the army was gone.
+- Sabra Kell gave toll receipts honored once a year, and left her tin by Ladle's scraper. [Purpose, It earns its place] A receipt honored once a year does no job, and the tin and scraper were props with no meaning.
+- Ilya Moreno feared a truck going missing on his watch and repainted the same count every morning, though he let the two staff cars out himself. [It works] His fear contradicted his own secret, and the daily habit changed nothing.
+
 ## Icarus
 
 Icarus was a fertile farming basin before the collapse. Orchards, fields, canals, irrigation gates, farm roads, and market towns shaped the land. It was not a spaceflight center. The name Icarus came after the crash. Its old name has not been chosen.

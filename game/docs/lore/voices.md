@@ -64,7 +64,7 @@ Sample: "The sack leaves the store once and the Senate counts it twice."
 
 ### Bo Lindqvist, Granary driver
 
-Bo talks of load, weight, hands and oxen. He compares his feelings to things he carries.
+Bo talks of load, weight and hands. He compares his feelings to things he carries.
 
 His sentences are plain and even, with no joke in them. He says "I" and gives the fact without softening it.
 
@@ -88,7 +88,7 @@ He cares about the count being honest and the load being tied down. He avoids sa
 
 He treats a stranger as a driver who should check the tires before anything else.
 
-Sample: "A sack is cheaper than a truck, so nobody argues about it."
+Sample: "A crate of rations is cheaper than a truck, so nobody argues about it."
 
 ### Odile Marsh, Granary steward
 
@@ -423,9 +423,47 @@ Sample: "Stranger. You came out to the crater at night. Stay a while and watch t
 
 ### The road driver who knows about the lamps
 
-A trader, scavenger, courier, roamer, vulture or supplier who lives near the crater, or saw a car of the order, answers a question about the crater at night with one thing they saw or heard themselves, in short plain sentences, and tells it once. Each tells a different thing: lamps crossing at dusk, a radio that answered with breathing, drag furrows on the rim, the beacon keepers' dark lamps, trading there only by day, the shout "Given by the sky" as hearsay, wrecks left alone after dark, or a cousin who stopped by the rim and was never found. Only one of them counts eight lamps, and only one lost kin. After the order falls they speak of the quiet, the lamps that stopped crossing, the empty fort and drivers back at the crater at night, and still say to keep off the glow.
+A trader, scavenger, courier, roamer, vulture or supplier who lives near the crater, or saw a car of the order, answers a question about the crater at night with one thing they saw or heard themselves, in short plain sentences, and tells it once. Each tells a different thing: lamps crossing at dusk, a radio that answered with breathing, drag furrows on the rim, trading there only by day, the shout "Given by the sky" as hearsay, wrecks left alone after dark, or a cousin who stopped by the rim and was never found. Only one of them counts eight lamps, and only one lost kin. After the order falls they speak of the quiet, the lamps that stopped crossing, the empty fort and drivers back at the crater at night, and still say to keep off the glow.
 
 Sample: "Passed the rim one morning. Two deep furrows ran through the sand from open ground into the crater. I didn't see a truck."
+
+### The roamer at sunset
+
+He talks of the west, of the sky and of his grandmother. He says what she did and lets it stand.
+
+His sentences are short and slow, and he leaves room between them. He would rather watch than talk.
+
+He calls a stranger nothing. He invites them to stay.
+
+He cares about the sunset and about remembering her right. He avoids guessing where she came from.
+
+He thanks a stranger who keeps quiet.
+
+Sample: "Out west, she said. Farm folk. I never once saw her farm a thing."
+
+### The woman in the noon shade
+
+She talks of heat, shade, engines and her grandmother's sayings. She calls the sun the Spiral without explaining it.
+
+Her sentences are plain and unhurried. She hums when she is not talking.
+
+She makes room for a stranger in the shade and tells them to kill the engine.
+
+She cares about resting at noon and keeping the old song. She avoids saying what the song means, because she does not know.
+
+Sample: "Spiral's looking away. Time to go."
+
+### The driver at the wreck
+
+He talks of the wreck, its paint and his mother's belief in the Crucible. He does not look up while he works.
+
+His sentences are short. He states what he used to believe and what he believes now, and does not argue either.
+
+He treats a stranger as someone who stopped for the same reason he did.
+
+He cares about the dead drivers nobody names. He avoids naming whose wreck it is, because he does not know.
+
+Sample: "Paint's the only name a truck has."
 
 ## The Roadhouse
 
