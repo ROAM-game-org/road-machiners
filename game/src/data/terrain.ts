@@ -243,7 +243,8 @@ export const TERRAIN = {
   light: { x: -0.6, y: -0.8 },
   slopeShade: 0.9,
   vision: {
-    radius: 20,
+    radius: 25,
+    farFactor: 1.5,
     eyeHeight: 0.6,
     samplesPerTile: 3,
     closeRadius: 3,

@@ -11,7 +11,7 @@ import { mountPart } from './inventory';
 import { TERRAIN } from '../data/terrain';
 import { PERK_NUMBERS, SKILL_EFFECTS } from '../data/skills';
 import { dist } from './vec';
-import { refreshVision, sightRadius } from './vision';
+import { farSightRadius, refreshVision, sightRadius } from './vision';
 import { vehicleStats } from './stats';
 import { corePart, mountedParts } from './grid';
 import { playerVehicle } from './damage';
@@ -100,7 +100,7 @@ describe('hills and the scanner', () => {
     refreshVision(w);
     const observer = w.vehicles[0];
     observer.items = observer.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'mg');
-    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + farSightRadius(w, observer) + 5, y: 30 });
     target.speed = 0.2;
     expect(scannerRange(w, observer)).toBe(0);
     const before = contactsOf(w, observer, Infinity);
@@ -215,7 +215,7 @@ describe('the emergency beacon', () => {
   it('gives any vehicle in range a tight contact through hills', () => {
     const { w, me, observer } = beaconing(40);
     const contact = contactsOf(w, observer, Infinity).find((c) => c.vehicleId === me.id);
-    expect(contact?.sources).toEqual(['beacon']);
+    expect(contact?.sources).toEqual(['far', 'beacon']);
     expect(contact!.radius).toBe(BEACON.radius);
     expect(dist(contact!.center, me.pos)).toBeLessThan(BEACON.radius);
     expect(contact!.loudness).toBeNull();
@@ -231,7 +231,7 @@ describe('the emergency beacon', () => {
   it('gives nothing while off', () => {
     const { w, me, observer } = beaconing(40);
     w.player.beacon = false;
-    expect(contactsOf(w, observer, Infinity).some((c) => c.vehicleId === me.id)).toBe(false);
+    expect(contactsOf(w, observer, Infinity).find((c) => c.vehicleId === me.id)?.sources).toEqual(['far']);
   });
 
   it('merges with sound into one tight contact', () => {
@@ -240,7 +240,7 @@ describe('the emergency beacon', () => {
     me.speed = 4;
     const contacts = contactsOf(w, observer, Infinity).filter((c) => c.vehicleId === me.id);
     expect(contacts).toHaveLength(1);
-    expect(contacts[0].sources).toEqual(['sound', 'beacon']);
+    expect(contacts[0].sources).toEqual(['sound', 'far', 'beacon']);
     expect(contacts[0].radius).toBe(BEACON.radius);
   });
 
@@ -291,7 +291,7 @@ describe('perception hearing and contact fix', () => {
   it('an NPC observer keeps its contact circle', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const observer = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 20, y: 30 });
-    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 55, y: 30 });
     target.speed = 3;
     const radius = () => contactsOf(w, observer, Infinity).find((c) => c.vehicleId === target.id)!.radius;
     const base = radius();
@@ -476,7 +476,7 @@ describe('the spotter perk', () => {
     v.pos = { x: 30 + sightRadius(marked, playerVehicle(marked)) + 2, y: 30 };
     v.speed = 4;
     refreshVision(marked);
-    expect(marked.player.contacts.find((c) => c.vehicleId === target.id)?.sources).toEqual(['sound', 'mark']);
+    expect(marked.player.contacts.find((c) => c.vehicleId === target.id)?.sources).toEqual(['sound', 'far', 'mark']);
   });
 
   it('drops the mark after its last turn', () => {
@@ -604,13 +604,13 @@ describe('a stranded truck', () => {
     w.player.beacon = true;
     const observer = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     observer.speed = 0;
-    expect(contactsOf(w, observer, Infinity).find((c) => c.vehicleId === me.id)?.sources).toEqual(['beacon']);
+    expect(contactsOf(w, observer, Infinity).find((c) => c.vehicleId === me.id)?.sources).toEqual(['far', 'beacon']);
     observer.resources!.fuel = 0;
     observer.speed = 4;
     me.speed = 0;
     w.player.fuel = 10;
     me.items = me.items.filter((it) => it.kind !== 'part' || it.part.defId !== 'mg');
     if (!mountPart(w, me, makePart(w, 'scanner', 0))) throw new Error('No free mount for the test scanner');
-    expect(contactsOf(w, me, Infinity).find((c) => c.vehicleId === observer.id)?.sources).toEqual(['radio']);
+    expect(contactsOf(w, me, Infinity).find((c) => c.vehicleId === observer.id)?.sources).toEqual(['radio', 'far']);
   });
 });

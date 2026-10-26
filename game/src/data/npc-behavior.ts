@@ -109,7 +109,7 @@ export const HUNT = {
   lawReach: NPC_BEHAVIOR.patrolRadius + TERRAIN.vision.radius,
   offRoadGoals: ['raid', 'patrol', 'investigate', 'sizeUp'] as const,
   postRoadGap: 6,
-  postRings: [7, 10, 14, 18, 22],
+  postRings: [0.35, 0.5, 0.7, 0.9, 1.1].map((share) => share * TERRAIN.vision.radius),
   roadSample: 4,
   postBearings: 12,
   patrolPostSpacing: 20,

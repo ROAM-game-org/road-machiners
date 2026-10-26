@@ -150,7 +150,7 @@ export type Contact = {
   vehicleId: string;
   center: Vec;
   radius: number;
-  sources: ("sound" | "dust" | "radio" | "beacon" | "mark" | "flare")[];
+  sources: ("sound" | "dust" | "radio" | "beacon" | "mark" | "flare" | "far")[];
   loudness: number | null;
 };
 
