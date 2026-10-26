@@ -118,4 +118,5 @@ After the game, the game master writes the log into a timeline in `docs/lore/` a
 - Players chase whatever thread the brief hands them. A player's private knowledge, like a crate it was ordered to pack, starts the longest plots.
 - Players who share a place converge. Several players gathered at one grave in the first turn, and that grave stayed the center of the story.
 - For a quest, end the pass on the turn the player arrives. Ask each player what they do in the week after each ending the quest could have. Those answers become the endings and the return visits, so the world reacts to what the player did.
+- Players invent detail to make the history feel connected. Check every event and character against the [sense check](README.md#sense-check) before it goes into the lore.
 - A good idea that the fixed events forbid, like a road guard paid by both towns, still belongs in play. Let it half succeed and fail where the anchor needs it to. The failure explains the world.
