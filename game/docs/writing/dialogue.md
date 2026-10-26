@@ -308,3 +308,4 @@ No jokes that need knowledge from outside the basin. No jokes about the game its
 3. Read it aloud. A line you stumble on is a line the player skips.
 4. Play every branch with `npm run quest -- <quest>`, including the failures.
 5. Read the changed lines against the [Humanizer](humanizer.md#how-roam-uses-it) the way its How ROAM uses it section says for fiction.
+6. Put every practice, cause and detail the talk states through the [sense check](../lore/README.md#sense-check).

@@ -50,7 +50,7 @@ Fill each part like this.
 
 The model gives raw material. Before it goes in the quest:
 
-- Check every fact against the lore and the facts you gave. Cut anything the model invented.
+- Check every fact against the lore and the facts you gave. Cut anything the model invented. Put every practice, cause and detail through the [sense check](../lore/README.md#sense-check).
 - Cut the length to what the scene needs.
 - Split every semicolon or dash a model left in into two sentences. The voice test rejects them.
 - Cut a tic that repeats from the line before, even if the model liked it.

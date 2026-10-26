@@ -14,12 +14,13 @@ The world of ROAM. Everything here answers to [Theme](../theme.md).
 
 ## Sense check
 
-Lore makes sense to the people in it. Ask every practice, deal and detail these four questions from inside the world, with only what its people know and want:
+Lore makes sense to the people in it. Ask every practice, deal and detail these five questions from inside the world, with only what its people know and want. That covers lore pages, story game output, quest lines, talk, voice sheets, item lore and term tips.
 
 1. Purpose: what is it for, in one plain sentence, as the people who do it see it?
-2. It works: does it do that job in this world, or would its people believe it does? Does any other fact stop it?
+2. It works: does it do that job in this world, or would its people believe it does? Does any other fact stop it, such as the dry climate, what is scarce or what the basin can make?
 3. Everyone has a reason: why would each other person or group it names bother, by what the lore already says they want?
 4. It earns its place: does it change a choice, a scene or a piece of evidence the player can find, or is it there only to look woven or exact?
+5. The game already says why: when a line explains something the game does, like what a town buys, makes or needs, does it give the reason the game's rules give? Find that rule in `src/data/` first, and never invent a second cause.
 
 A missing answer, a clash with another fact or an answer that would make a basin driver laugh cuts or fixes the detail. Keep the parts around it that pass. These patterns fail most often:
 
@@ -27,6 +28,8 @@ A missing answer, a clash with another fact or an answer that would make a basin
 - Means that don't fit the goal: folk means aimed at something huge, unless the lore means it as a joke. Oil lamps to signal a starship fail it.
 - Name-drop garnish: a faction or a named person tied to a detail with no motive, so the lore looks connected. A Pierce lien on a cult's lamps fails it.
 - Precision garnish: exact counts, ages and spans that no scene or evidence uses. Six lamps kept for sixty years fail it.
+- Invented cause: a reason made up for a game rule that already has one, which then clashes with the world. Bowl buying scrap because the rains rust its sluice hinges every year fails it twice: rain is rare in the basin, and Bowl buys scrap because its machinists turn it into parts.
+- A thing the world doesn't have: a vehicle, machine or trade the game never shows. A water tanker fails it, since water travels in barrels on ordinary trucks.
 
 ## Icarus
 
