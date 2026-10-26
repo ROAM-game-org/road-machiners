@@ -2,6 +2,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { TEST_MAP } from '../../test/map';
 import type { World } from '../../sim/types';
 import { TIME } from '../../data/time';
+import { mountedParts } from '../../sim/grid';
+import { partName } from '../../text/names';
+import { resolve } from '../../text/resolve';
 import { SIM_TEXT } from './sim-text';
 import { playerVehicle } from '../../sim/damage';
 import { emptyLedger } from '../../sim/progression/orders';
@@ -75,6 +78,20 @@ describe('simulation mode', () => {
     expect(card.title).toBe(SIM_TEXT.truck(world, npc));
     expect(card.rows).toContainEqual(['faction', npc.faction]);
     expect(card.sections.find((s) => s.name === 'goals')?.lines).toHaveLength(npc.brain!.goals.length);
+  });
+
+  it('writes NPC fights and events the game never words as sentences with truck and part names, never raw ids or JSON', () => {
+    const world = start;
+    const [a, b] = world.vehicles.filter((v) => v.brain);
+    const gun = mountedParts(a).find((p) => p.defId !== '')!;
+    const round = (hit: boolean) => ({ hit, crit: false, offset: 0, struck: null, hits: [], blast: [], burst: null });
+    const shot = { t: 'shot', shooter: a.id, weapon: gun.id, target: b.id, aim: 'body', chance: 0.5, damageChance: 0.5, side: 'front', rounds: [round(true), round(false), round(true)] } as never;
+    const encounter = { t: 'encounter', vehicle: a.id, encounter: 'tallTale' } as never;
+    const [fired, met] = logEntries(world, [shot, encounter], SIM_TEXT);
+    const nameA = SIM_TEXT.truck(world, a);
+    expect(fired.text).toBe(`${nameA} fires ${resolve(partName(gun.defId), 'en').toLowerCase()} at ${SIM_TEXT.truck(world, b)}, 2 of 3 hit`);
+    expect(met.text).toBe(`Encounter: vehicle ${nameA}, encounter tall tale`);
+    for (const e of [fired, met]) expect(e.text).not.toMatch(/[{}]|\bv\d+\b/);
   });
 
   it('writes memories newest first as sentences with their age in game hours', () => {
