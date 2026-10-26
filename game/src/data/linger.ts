@@ -17,6 +17,7 @@ export const LINGER = {
   sunsetRise: 1,
   sunsetRoadReach: 8,
   graveGap: 2.5,
+  spotTries: 4,
   barredTraits: ['raider', 'lawman', 'cultist', 'marshal', 'guard', 'supplier', 'merc'] as readonly TraitId[],
   holderWeight: 4,
 };

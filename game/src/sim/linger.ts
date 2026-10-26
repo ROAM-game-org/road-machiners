@@ -75,7 +75,7 @@ function viewpoint(world: World, p: Vec): boolean {
 }
 
 function sunsetSpot(world: World, vehicle: Vehicle): { spot: Vec; target: string | null } | null {
-  const spot = sunsetCandidates(world, vehicle).filter((p) => viewpoint(world, p)).find((p) => reachable(world, vehicle, p));
+  const spot = sunsetCandidates(world, vehicle).filter((p) => viewpoint(world, p)).slice(0, LINGER.spotTries).find((p) => reachable(world, vehicle, p));
   return spot ? { spot, target: null } : null;
 }
 
@@ -94,7 +94,7 @@ function graveSpot(world: World, vehicle: Vehicle): { spot: Vec; target: string 
   const wrecks = propsAround(world, 'shade', vehicle.pos, LINGER.searchRadius.tendGrave)
     .filter((o) => lootedRoadWreck(world, o.id))
     .sort((a, b) => dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
-  for (const wreck of wrecks) {
+  for (const wreck of wrecks.slice(0, LINGER.spotTries)) {
     const away = dist(vehicle.pos, wreck.pos) || 1;
     const gap = wreck.r + LINGER.graveGap;
     const spot = { x: wreck.pos.x + ((vehicle.pos.x - wreck.pos.x) / away) * gap, y: wreck.pos.y + ((vehicle.pos.y - wreck.pos.y) / away) * gap };
