@@ -11,6 +11,7 @@ import { fillHollow } from '../src/sim/spawn.ts';
 import { refreshVision } from '../src/sim/vision.ts';
 import { hangUp } from '../src/sim/dialogue.ts';
 import { clockOf } from '../src/sim/sun.ts';
+import { NPCS } from '../src/data/npcs.ts';
 import { dawnAfter, duskTurn, holdsPost, huntTonight, inCraterZone, nextRideOut, phaseAt, rideOutTurn, isSunwardMember, membersOf, returnTurn, sunwardFacts } from '../src/sim/sunward.ts';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
@@ -19,6 +20,7 @@ const flag = (name, fallback) => {
   return at >= 0 ? argv[at + 1] : fallback;
 };
 const seeds = flag('seeds', '1,2,3').split(',').map(Number);
+const quiet = argv.includes('--quiet');
 const LEAD_IN = 5;
 const LEFT_AFTER = 5;
 const LATE_AFTER = 19;
@@ -50,11 +52,18 @@ const clockText = (turn) => {
   return `day ${day} ${String(whole).padStart(2, '0')}:${String(Math.floor((hour - whole) * 60)).padStart(2, '0')}`;
 };
 
+function keepOnlyTheOrder(w) {
+  const order = membersOf(w);
+  w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || order.includes(v));
+  for (const tpl of Object.values(NPCS)) if (tpl.spawn.kind !== 'hollow') w.spawnTimer[tpl.id] = Number.MAX_SAFE_INTEGER;
+}
+
 function playNight(seed) {
   let w = newWorld(seed, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
   const bowl = REGION.towns.find((t) => t.id === 'bowl');
   playerVehicle(w).pos = { x: bowl.pos.x + bowl.radius + 6, y: bowl.pos.y };
   fillHollow(w);
+  if (quiet) keepOnlyTheOrder(w);
   const dusk = duskTurn(2);
   const out = rideOutTurn(dusk);
   const next = nextRideOut(dawnAfter(dusk));
@@ -139,10 +148,13 @@ function atHome(v) {
 
 setHeadless(true);
 console.log(`rideLeadTurns ${SUNWARD.rideLeadTurns}, driveTurns ${SUNWARD.driveTurns}, returnMarginTurns ${SUNWARD.returnMarginTurns}, huntChance ${SUNWARD.huntChance}, cooldown ${SUNWARD.huntCooldownNights}`);
+let slowest = 0;
 for (const seed of seeds) {
   const r = playNight(seed);
   const last = r.held.size > 0 ? Math.max(...r.held.values()) : null;
   const first = r.held.size > 0 ? Math.min(...r.held.values()) : null;
+  if (last !== null) slowest = Math.max(slowest, last - r.out);
   const nightTurns = dawnAfter(r.dusk) - r.dusk;
   console.log(`seed ${seed}: roster ${r.roster}, hunt ${r.hunt}, ride-out ${clockText(r.out)}, ${r.held.size} of ${r.roster} hold a post from ${first === null ? '-' : clockText(first)} to ${last === null ? '-' : clockText(last)} (last arrival ${last === null ? '-' : last - r.out} turns after ride-out, ${last === null ? '-' : last - r.dusk} after dusk, by dusk+19 ${last !== null && last <= r.dusk + LATE_AFTER}; not yet at a post at dusk+19: [${r.late.join('; ')}]), first car leaves its post ${r.leftPost === null ? 'never before the return' : clockText(r.leftPost)} (return ${clockText(returnTurn(r.dusk))}), all home ${r.home === null ? `NOT before the next ride-out (${r.homeAt.size} of ${SUNWARD.cavalcade + SUNWARD.hunters} came home)` : clockText(r.home)} (${r.home === null ? '-' : r.next - r.home} turns before the next ride-out), ${r.homeAtDawn} of ${SUNWARD.cavalcade + SUNWARD.hunters} in their bays at dawn, strangers in the crater zone per turn: day ${(r.dayZone / (r.dusk - r.out + LEAD_IN)).toFixed(2)} night ${(r.nightZone / nightTurns).toFixed(2)}, stalls ${r.stalls}, away at the end [${r.stragglers.join(' ')}], hunts per week ${huntsPerWeek(newWorld(seed, startKit('standard'), TEST_MAP, defaultSetup('roaming'), false))}`);
 }
+console.log(`slowest last arrival over all seeds: ${slowest} turns after ride-out, lead needed ${slowest + 5}`);
