@@ -3,7 +3,7 @@ import { RULES } from '../data/rules';
 import { groupPrey } from './combat';
 import { FORTRESS } from '../data/fortress';
 import { type GateSide, acrossOf, alongOf, milestoneAt, outpostGateSpots, outpostYardHalf, roadPoint, toRoad } from './highway';
-import { vehicleStats } from './stats';
+import { gunReach, vehicleStats } from './stats';
 import type { MoveOrder, Vehicle, World } from './types';
 import type { Vec } from './vec';
 
@@ -17,8 +17,8 @@ export function rollingOrder(world: World, v: Vehicle): MoveOrder | null {
   const prey = groupPrey(world, v);
   if (prey.speed <= RULES.parkedSpeed) return null;
   const gap = alongNow(world, v) - alongNow(world, prey);
-  if (gap > Math.max(CHAOS_HIGHWAY.rolling.near, reachOf(world, v)) && !hitBy(v, prey)) return rollAhead(world, v, prey, gap);
-  if (-gap > reachOf(world, v)) return catchUp(world, v, prey);
+  if (gap > Math.max(CHAOS_HIGHWAY.rolling.near, gunReach(world, v)) && !hitBy(v, prey)) return rollAhead(world, v, prey, gap);
+  if (-gap > gunReach(world, v)) return catchUp(world, v, prey);
   return null;
 }
 
@@ -36,10 +36,6 @@ function hitBy(v: Vehicle, prey: Vehicle): boolean {
 function catchUp(world: World, v: Vehicle, prey: Vehicle): MoveOrder {
   const dest = onRoad(world, alongNow(world, prey) + CHAOS_HIGHWAY.rolling.lead, acrossNow(world, prey));
   return { kind: 'through', dest, pace: vehicleStats(world, v).maxSpeed };
-}
-
-function reachOf(world: World, v: Vehicle): number {
-  return Math.max(RULES.arriveRadius, ...vehicleStats(world, v).weapons.map((mw) => mw.def.range));
 }
 
 function alongNow(world: World, v: Vehicle): number {

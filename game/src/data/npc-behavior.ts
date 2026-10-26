@@ -45,6 +45,7 @@ export const NPC_BEHAVIOR = {
   noticeMemory: 3,
   fleeMemory: 30,
   fightSearchTurns: 6,
+  closeInTiles: 0.5,
   fleeCalmTurns: 6,
   fightStallTurns: 20,
   fightWearShare: 0.05,
