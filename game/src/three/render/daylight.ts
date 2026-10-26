@@ -10,6 +10,7 @@ import { frontBody } from "../../sim/body";
 import { callTrucks, radioSpeakers } from "../../sim/dialogue";
 import type { Vehicle, World } from "../../sim/types";
 import { DEG, type Vec } from "../../sim/vec";
+import { MODEL_FILL } from "./modelFill";
 export { enableSunShadows } from "./shadowFilter";
 
 const MIN_LIGHT_ELEVATION = 6;
@@ -30,6 +31,7 @@ type Key = {
   glassI: number;
   glassWhite: number;
   beamI: number;
+  fillI: number;
 };
 const KEYS: Key[] = [
   {
@@ -42,6 +44,7 @@ const KEYS: Key[] = [
     glassI: 0,
     glassWhite: 0,
     beamI: 0.3,
+    fillI: 2.5,
   },
   {
     h: 20,
@@ -53,6 +56,7 @@ const KEYS: Key[] = [
     glassI: 0,
     glassWhite: 0,
     beamI: 0.45,
+    fillI: 2.5,
   },
   {
     h: 8,
@@ -64,6 +68,7 @@ const KEYS: Key[] = [
     glassI: 0.1,
     glassWhite: 0,
     beamI: 0.75,
+    fillI: 3,
   },
   {
     h: 1,
@@ -75,6 +80,7 @@ const KEYS: Key[] = [
     glassI: 0.4,
     glassWhite: 0,
     beamI: 1,
+    fillI: 2.5,
   },
   {
     h: -4,
@@ -86,6 +92,7 @@ const KEYS: Key[] = [
     glassI: 0.35,
     glassWhite: 0.5,
     beamI: 1,
+    fillI: 0.6,
   },
   {
     h: -TWILIGHT,
@@ -97,6 +104,7 @@ const KEYS: Key[] = [
     glassI: 0.2,
     glassWhite: 0.8,
     beamI: 1,
+    fillI: 0.2,
   },
 ];
 
@@ -108,6 +116,7 @@ export type Daylight = {
   sky: THREE.Color;
   ground: THREE.Color;
   skyIntensity: number;
+  fillIntensity: number;
   glass: THREE.Color;
   beam: number;
 };
@@ -144,6 +153,7 @@ function colorsAt(h: number): Omit<Daylight, "dir" | "elevation"> {
     sky: mix(a.sky, b.sky),
     ground: mix(a.ground, b.ground),
     skyIntensity: a.skyI + (b.skyI - a.skyI) * s,
+    fillIntensity: a.fillI + (b.fillI - a.fillI) * s,
     beam: a.beamI + (b.beamI - a.beamI) * s,
     glass: desaturate(mix(a.sun, b.sun).lerp(WHITE, a.glassWhite + (b.glassWhite - a.glassWhite) * s))
       .multiplyScalar(a.glassI + (b.glassI - a.glassI) * s),
@@ -213,6 +223,7 @@ export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLig
   sky.color.copy(light.sky);
   sky.groundColor.copy(light.ground);
   sky.intensity = light.skyIntensity;
+  MODEL_FILL.sync(light);
 }
 
 export function sunLight(): THREE.DirectionalLight {
