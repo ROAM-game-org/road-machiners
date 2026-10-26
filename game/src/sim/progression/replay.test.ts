@@ -1,11 +1,10 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
-import { SKILL_IDS, TARGET_DAYS, TARGET_TOLERANCE, XP_RULES, XP_SOURCES } from '../../data/skills';
+import { TARGET_DAYS, TARGET_TOLERANCE, XP_RULES, XP_SOURCES } from '../../data/skills';
 import { TIME } from '../../data/time';
 import { cumulativeCost } from '../progress';
 import { clockOf } from '../sun';
-import type { SkillId } from '../types';
 import type { TraceLine } from './record';
-import { parseRunEnd, replay, targetMisses, type Curve, type SkillCurve } from './replay';
+import { parseRunEnd, replay, targetMisses, type Curve } from './replay';
 
 function simpleSearchXp(): void {
   const rules = { ...XP_RULES };
@@ -21,40 +20,66 @@ function simpleSearchXp(): void {
 const search = (turn: number, amount: number): TraceLine => ({ turn, source: 'search', amount, difficulty: null, target: `stock-${turn}` });
 
 describe('replay', () => {
-  it('reaches each level on the turn its running XP crosses the level cost, with the daily cap per day', () => {
+  it('applies the daily cap per family and per day', () => {
     simpleSearchXp();
     const dayTwo = TIME.turnsPerDay * 0.75;
     expect(clockOf(40).day).toBe(1);
     expect(clockOf(dayTwo).day).toBe(2);
-    const trace = [
-      search(10, 100),
-      search(40, 400),
-      search(dayTwo, 50),
-      search(dayTwo + 10, 150),
-    ];
-    const totals = [100, 300, 350, 450];
-    const turns = [10, 40, dayTwo, dayTwo + 10];
-    const firstTurn = (level: number) => turns[totals.findIndex((xp) => xp >= cumulativeCost(level))] ?? null;
 
-    const curve = replay(trace, 2 * TIME.turnsPerDay);
+    const curve = replay([search(10, 100), search(40, 400), search(dayTwo, 50), search(dayTwo + 10, 150)], 2 * TIME.turnsPerDay);
 
-    expect(curve.machining.total).toBe(450);
-    expect(curve.machining.levels).toEqual([1, 2, 3, 4, 5].map(firstTurn));
-    expect(curve.machining.perDay).toBe(225);
-    expect(curve.driving).toEqual({ levels: [null, null, null, null, null], total: 0, perDay: 0 });
+    expect(curve.families.machining.total).toBe(450);
+    expect(curve.families.machining.perDay).toBe(225);
+    expect(curve.families.driving).toEqual({ total: 0, perDay: 0 });
+  });
+
+  it('pools the families, so two under-cost families together reach a rank neither reaches alone', () => {
+    const half = cumulativeCost(1) / 2;
+    const caps = { ...XP_RULES };
+    Object.assign(XP_RULES, { dailyCap: half });
+    onTestFinished(() => Object.assign(XP_RULES, caps));
+    const searchWeight = XP_SOURCES.search.weight;
+    const discoverWeight = XP_SOURCES.discover.weight;
+    Object.assign(XP_SOURCES.search, { weight: 1 });
+    const found: TraceLine = { turn: 30, source: 'discover', amount: 1, difficulty: null, target: 'bowl' };
+    Object.assign(XP_SOURCES.discover, { weight: half });
+    onTestFinished(() => {
+      Object.assign(XP_SOURCES.search, { weight: searchWeight });
+      Object.assign(XP_SOURCES.discover, { weight: discoverWeight });
+    });
+
+    const curve = replay([search(20, half), found], 100);
+
+    expect(curve.families.machining.total).toBe(half);
+    expect(curve.families.perception.total).toBe(half);
+    expect(curve.pooled.total).toBe(2 * half);
+    expect(curve.pooled.one).toEqual([30, null, null, null, null]);
+    expect(curve.pooled.every).toEqual([null, null, null, null, null]);
+  });
+
+  it('marks every skill at a rank on the turn the pool covers five times the cumulative cost', () => {
+    simpleSearchXp();
+    Object.assign(XP_RULES, { dailyCap: 100000 });
+    const need = 5 * cumulativeCost(1);
+
+    const curve = replay([search(10, need - 1), search(20, 1), search(30, 100000)], 100);
+
+    expect(curve.pooled.every[0]).toBe(20);
+    expect(curve.pooled.one[0]).toBe(10);
+    expect(curve.pooled.total).toBe(curve.families.machining.total);
   });
 
   it('scales a scaled source by its difficulty', () => {
     const curve = replay([{ turn: 5, source: 'hit', amount: 1, difficulty: 1, target: 'v2' }], 200);
 
-    expect(curve.perception.total).toBe(Math.min(XP_SOURCES.hit.weight * XP_RULES.hard, XP_RULES.dailyCap));
+    expect(curve.families.perception.total).toBe(Math.min(XP_SOURCES.hit.weight * XP_RULES.hard, XP_RULES.dailyCap));
   });
 
   it('pays less for repeats on one target, and a once-only target pays once', () => {
     const hits = replay([1, 2].map((turn) => ({ turn, source: 'hit' as const, amount: 1, difficulty: 1, target: 'v2' })), 200);
-    expect(hits.perception.total).toBeCloseTo(XP_SOURCES.hit.weight * XP_RULES.hard * (1 + XP_SOURCES.hit.repeat ** 1));
+    expect(hits.families.perception.total).toBeCloseTo(XP_SOURCES.hit.weight * XP_RULES.hard * (1 + XP_SOURCES.hit.repeat ** 1));
     const found = replay([1, 2].map((turn) => ({ turn, source: 'discover' as const, amount: 1, difficulty: null, target: 'bowl' })), 200);
-    expect(found.perception.total).toBe(XP_SOURCES.discover.weight);
+    expect(found.families.perception.total).toBe(XP_SOURCES.discover.weight);
   });
 
   it('rejects a trace out of turn order', () => {
@@ -68,7 +93,7 @@ describe('replay', () => {
   it('counts XP per day up to the death turn it is given', () => {
     const curve = replay([search(10, 1)], TIME.turnsPerDay / 2);
 
-    expect(curve.machining.perDay).toBe(curve.machining.total * 2);
+    expect(curve.families.machining.perDay).toBe(curve.families.machining.total * 2);
   });
 });
 
@@ -89,32 +114,34 @@ describe('parseRunEnd', () => {
 });
 
 describe('targetMisses', () => {
-  const never = (): SkillCurve => ({ levels: [null, null, null, null, null], total: 0, perDay: 0 });
-  const curveWith = (skill: SkillId, levels: (number | null)[]): Curve => {
-    const curve = Object.fromEntries(SKILL_IDS.map((id) => [id, never()])) as Curve;
-    curve[skill] = { levels, total: 0, perDay: 0 };
-    return curve;
-  };
   const day = (d: number) => d * TIME.turnsPerDay;
-  const offOnly = (misses: string[]) => misses.filter((m) => !m.startsWith('social'));
+  const pooledWith = (kind: 'one' | 'every', days: (number | null)[]): Curve => ({
+    families: { driving: { total: 0, perDay: 0 }, perception: { total: 0, perDay: 0 }, machining: { total: 0, perDay: 0 }, toughness: { total: 0, perDay: 0 }, social: { total: 0, perDay: 0 } },
+    pooled: { total: 0, perDay: 0, one: [null, null, null, null, null], every: [null, null, null, null, null], [kind]: days },
+  });
   const pastWindow = (target: number) => day(Math.ceil(target * (1 + TARGET_TOLERANCE)) + 1);
 
-  it('passes a main skill that reaches each level on its target day', () => {
-    const levels = [day(1), day(TARGET_DAYS.main[2]), day(5), day(TARGET_DAYS.main[4]), null];
-    const misses = targetMisses(curveWith('social', levels), 'trader', day(10));
-    expect(misses.filter((m) => m.startsWith('social'))).toEqual([]);
+  it('passes a specialist who reaches each one-skill rank on its target day', () => {
+    const curve = pooledWith('one', [day(1), day(TARGET_DAYS.one[2]), day(5), day(TARGET_DAYS.one[4]), day(TARGET_DAYS.one[5])]);
+    expect(targetMisses(curve, 'trader', day(40))).toEqual([]);
   });
 
-  it('flags a level reached too early or too late', () => {
-    const early = targetMisses(curveWith('social', [1, 2, 3, day(TARGET_DAYS.main[4]), null]), 'trader', day(10));
-    expect(early).toContain(`social rank 2: day 0.0, target day ${TARGET_DAYS.main[2]}, too early`);
-    const late = targetMisses(curveWith('social', [day(1), day(TARGET_DAYS.main[2]), day(5), null, null]), 'trader', pastWindow(TARGET_DAYS.main[4]));
-    expect(late).toContain(`social rank 4: never, target day ${TARGET_DAYS.main[4]}, too late`);
+  it('judges an archetype with a main skill on one skill and one without on every skill', () => {
+    const never = pooledWith('one', [null, null, null, null, null]);
+    expect(targetMisses(never, 'trader', pastWindow(TARGET_DAYS.one[5])).every((m) => m.startsWith('one skill'))).toBe(true);
+    expect(targetMisses(never, 'markov', pastWindow(TARGET_DAYS.one[5])).every((m) => m.startsWith('every skill'))).toBe(true);
+    expect(targetMisses(never, 'markov', pastWindow(TARGET_DAYS.one[5])).length).toBe(Object.keys(TARGET_DAYS.every).length);
   });
 
-  it('does not flag an unreached level whose window starts after the run', () => {
-    const misses = targetMisses(curveWith('social', [day(1), day(TARGET_DAYS.main[2]), day(5), day(TARGET_DAYS.main[4]), null]), 'trader', pastWindow(TARGET_DAYS.off[2]));
-    expect(misses.some((m) => m.startsWith('social rank 5'))).toBe(false);
-    expect(offOnly(misses).length).toBeGreaterThan(0);
+  it('flags a rank reached too early or too late', () => {
+    const early = targetMisses(pooledWith('one', [1, 2, 3, day(TARGET_DAYS.one[4]), day(TARGET_DAYS.one[5])]), 'trader', day(40));
+    expect(early).toContain(`one skill rank 2: day 0.0, target day ${TARGET_DAYS.one[2]}, too early`);
+    const late = targetMisses(pooledWith('every', [day(TARGET_DAYS.every[1]), null, null, null, null]), 'markov', pastWindow(TARGET_DAYS.every[2]));
+    expect(late).toContain(`every skill rank 2: never, target day ${TARGET_DAYS.every[2]}, too late`);
+  });
+
+  it('does not flag an unreached rank whose window starts after the run', () => {
+    const misses = targetMisses(pooledWith('one', [day(1), day(TARGET_DAYS.one[2]), day(5), null, null]), 'trader', day(10));
+    expect(misses).toEqual([]);
   });
 });
