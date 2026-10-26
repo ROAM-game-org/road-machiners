@@ -92,7 +92,7 @@ known if the victim saw the attacker, or a lawman or an ally of the victim saw i
    -> one deed for the whole incident
 ```
 
-A witness that would not shield the attacker also remembers the crime and reports it at its next town or outpost, which [Crime and the Marshalls](crime.md) follows.
+A witness that would not shield the attacker also remembers the crime and reports it at its next town or site, which [Crime and the Marshalls](crime.md) follows.
 
 A driver that steps in starts a feud with the attacker. It still fights by its own sight, danger and guns, so it never shoots through a hill or at a truck it cannot reach.
 

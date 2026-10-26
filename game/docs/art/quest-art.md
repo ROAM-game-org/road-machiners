@@ -15,14 +15,14 @@ The style block names only the medium, the brushwork and the palette. Light, moo
 Rules for the scene block:
 
 - A place from the game must look like it does in the game. Take a screenshot with `npm run site:shot` first and describe what it shows. The quest text, the picture and the game look must agree in broad strokes, so fix the text when it describes a different place.
-- Paint the place at its real scale. The map is a tabletop miniature, as [Design](../DESIGN.md) principle 10 says, so a few models stand for a settlement of hundreds or thousands. A place picture shows crowds, many buildings, work under way and the place's trade at working scale, like rows of pumps and a line of water trucks. One pump, one table and five people is a lonely outpost, and no place in the game is one. [People and scale](../lore/world.md#people-and-scale) has the numbers.
+- Paint the place at its real scale. The map is a tabletop miniature, as [Design](../DESIGN.md) principle 10 says, so a few models stand for a settlement of hundreds or thousands. A place picture shows people, buildings, work under way and the place's trade at working scale, like a line of pumps and a few water trucks waiting. One pump, one table and five people is a lonely outpost, and no place in the game is one. A site of a few hundred is still a small town, so a crowded city or a field of hundreds of pumps is wrong too. Only Bowl and Nose read as towns of thousands. [People and scale](../lore/world.md#people-and-scale) has the numbers.
 - Describe the place, the light and the mood. Name only the few things that carry the scene, and write them as many: rows, lines, crowds, crews.
 - Prefer plain views at eye level. Stock shots, like a hero on a cliff with binoculars, read as AI art.
 - Say what is missing when the model would add it. A roofless room needs "nothing is left overhead", or the floor gets beam shadows.
 - Truck guns sit on motor-driven turrets that are fired from the cab. Say that nobody stands at the gun, or the model draws a gunner holding the grips.
 - Keep words like "oil", "impasto" or "photo" out. They pull the picture away from the dry gouache look.
 - Keep the scene block short.
-- Say that the subject fills the middle of the frame, with open ground and sky toward the edges. Each extra demand makes the model garble another one.
+- Say that the subject fills the middle of the frame, with open ground and sky toward the edges. In a place picture the town may run on to the edges. Each extra demand makes the model garble another one.
 - Show guns in plain side profile. A barrel aimed at the viewer comes out as two barrels.
 
 The scene block for the farmhouse in `intro_arrival`:
@@ -33,7 +33,7 @@ Scene: inside a small abandoned farmhouse whose roof is gone. Hard midday sun fa
 
 ## Composition
 
-The page crops every picture to a frame between 3:4 and 3:1, and a talk shows it whole at 260px wide. One safe zone holds in all of them: the middle 40% of the width and 55% of the height, around the focus point. Put the subject and every face, gun or truck the text names inside it, big enough to read at 260px. Let only sky, ground, walls and mood reach the edges.
+The page crops every picture to a frame between 3:4 and 3:1, and a talk shows it whole at 260px wide. One safe zone holds in all of them: the middle 40% of the width and 55% of the height, around the focus point. Put the subject and every face, gun or truck the text names inside it, big enough to read at 260px. Let only sky, ground, buildings, walls and mood reach the edges.
 
 ## Generate
 

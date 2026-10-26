@@ -61,7 +61,8 @@ Drivers check their brake rod before the north bend. The cheap steel rod that th
 - Each town holds a few thousand. Bowl is larger than Nose.
 - Each smaller site holds a few hundred. The rest are squatters and drivers.
 - Every place a truck can enter is at least a small town. It has a garage, a shop, a market and a place to find people, and it has streets, crowds and work going on all day.
-- Each place runs its trade at working scale. Green Pit has rows of pumps, tanks and water trucks waiting to load. The Pump Station has a whole still yard, the Salvage Yard has cutting lines and crews, and the Granary has drying floors and a tin works.
+- A site of a few hundred is a small town, not a city. It has a few pumps or pumpjacks, a few cranes, a few tankers waiting and a few dozen people in its yard at once.
+- Each place runs its trade at working scale. Green Pit has a line of pumps, tanks and water trucks waiting to load. The Pump Station has a whole still yard, the Salvage Yard has cutting lines and crews, and the Granary has drying floors and a tin works.
 - A named person runs one corner of a place, like a canteen, a pump crew or a stall. Nobody runs a whole place alone, and no place is one building with a few people.
 - The map shows each place as a few models, like tabletop miniatures. Lore, text and pictures describe the real place the models stand for.
 - Test any place by asking whether it has the people and the plant to make what the road uses. Trucks, guns, fuel and rations for the whole basin come out of these places.
